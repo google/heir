@@ -32,12 +32,31 @@ using polynomial::EvalOp;
 using polynomial::FloatPolynomial;
 using polynomial::TypedFloatPolynomialAttr;
 
+static APFloat convertFloatToSemantics(APFloat value,
+                                       const llvm::fltSemantics& semantics) {
+  if (&value.getSemantics() == &semantics) {
+    return value;
+  }
+  bool losesInfo = false;
+  APFloat converted = value;
+  converted.convert(semantics, APFloat::rmNearestTiesToEven, &losesInfo);
+  return converted;
+}
+
 TypedAttr getScalarOrDenseAttr(Type tensorOrScalarType, APFloat value) {
   return TypeSwitch<Type, TypedAttr>(tensorOrScalarType)
-      .Case<FloatType>(
-          [&](FloatType type) { return FloatAttr::get(type, value); })
-      .Case<ShapedType>(
-          [&](ShapedType type) { return DenseElementsAttr::get(type, value); })
+      .Case<FloatType>([&](FloatType type) {
+        APFloat converted =
+            convertFloatToSemantics(value, type.getFloatSemantics());
+        return static_cast<TypedAttr>(FloatAttr::get(type, converted));
+      })
+      .Case<ShapedType>([&](ShapedType type) {
+        auto elemType = dyn_cast<FloatType>(type.getElementType());
+        if (!elemType) return TypedAttr();
+        APFloat converted =
+            convertFloatToSemantics(value, elemType.getFloatSemantics());
+        return static_cast<TypedAttr>(DenseElementsAttr::get(type, converted));
+      })
       .Default([](Type) { return nullptr; });
 }
 
@@ -57,7 +76,7 @@ LogicalResult LowerViaHorner::matchAndRewrite(EvalOp op,
   auto terms = polynomial.getTerms();
   int64_t maxDegree = terms.back().getExponent().getSExtValue();
   const int degreeThreshold = 5;
-  if (!shouldForce() && maxDegree >= degreeThreshold) return failure();
+  if (!shouldForce() && maxDegree > degreeThreshold) return failure();
 
   auto monomialMap = attr.getValue().getPolynomial().getCoeffMap();
   DenseMap<int64_t, TypedAttr> attributeMap;
@@ -103,7 +122,7 @@ LogicalResult LowerViaPatersonStockmeyerMonomial::matchAndRewrite(
 
   int64_t maxDegree = terms.back().getExponent().getSExtValue();
   const int degreeThreshold = 5;
-  if (!shouldForce() && maxDegree >= degreeThreshold) return failure();
+  if (!shouldForce() && maxDegree > degreeThreshold) return failure();
 
   auto monomialMap = attr.getValue().getPolynomial().getCoeffMap();
   DenseMap<int64_t, TypedAttr> attributeMap;
@@ -218,10 +237,17 @@ class IRMaterializingVisitor : public CachingVisitor<Value, Value> {
         evaluatedType(evaluatedType) {}
 
   Value operator()(const ConstantNode& node) override {
-    TypedAttr attr =
-        isa<FloatType>(evaluatedType)
-            ? (TypedAttr)FloatAttr::get(evaluatedType, node.value)
-            : (TypedAttr)IntegerAttr::get(evaluatedType, node.value);
+    TypedAttr attr;
+    if (isa<FloatType>(evaluatedType)) {
+      auto floatTy = cast<FloatType>(evaluatedType);
+      APFloat apVal(node.value);
+      APFloat converted =
+          convertFloatToSemantics(apVal, floatTy.getFloatSemantics());
+      attr = static_cast<TypedAttr>(FloatAttr::get(floatTy, converted));
+    } else {
+      attr =
+          static_cast<TypedAttr>(IntegerAttr::get(evaluatedType, node.value));
+    }
     return builder.create<arith::ConstantOp>(evaluatedType, attr);
   }
 

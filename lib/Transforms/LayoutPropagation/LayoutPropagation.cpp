@@ -241,12 +241,13 @@ LogicalResult LayoutPropagation::visitOperation(Operation *op) {
   for (Value operand : op->getOperands()) {
     if (!assignedLayouts.contains(operand)) {
       if (isa<IndexType>(operand.getType())) {
-        // Index types do not need a layout.
-        // Should we instead have an op interface to determine which operands
-        // need a layout?
-        continue;
+        // TODO (#1929): Index types sometimes do need to be layout-matched
+        // (e.g., arith.cmpi) but sometimes do not (e.g., tensor_ext.rotate). We
+        // should probably have an op interface to determine which operands need
+        // a layout?
+        // For now, here's a hack to make it work for the arith.cmpi case:
+        if (!isa<arith::CmpIOp, arith::CmpFOp>(op)) continue;
       }
-
       LLVM_DEBUG(llvm::dbgs() << "operand has no layout: " << operand << "\n");
       mlir::IRRewriter builder(&getContext());
       builder.setInsertionPoint(op);
@@ -491,8 +492,9 @@ LogicalResult LayoutPropagation::visitOperation(ExpandShapeOp op) {
   // tensor indices correspond to layout dimensions, and adding a dimension of
   // size 1 has no effect on the affine map expressions, so all we're doing is
   // adding new dimensions for each reassociation group index corresponding to
-  // an output dimension of size 1. Mainly we have to ensure that the dimension
-  // we're adding is in the correct index of the affine map's dimension list.
+  // an output dimension of size 1. Mainly we have to ensure that the
+  // dimension we're adding is in the correct index of the affine map's
+  // dimension list.
   int oldDim = 0;
   DenseMap<AffineExpr, AffineExpr> oldDimsToNewDims;
   for (Attribute associationGroup : op.getReassociation()) {
@@ -527,7 +529,8 @@ LogicalResult LayoutPropagation::visitOperation(ExpandShapeOp op) {
   }
 
   int resultNumDims = op.getResultType().getRank();
-  // First create a larger-rank affine map, but using old dimension identifiers
+  // First create a larger-rank affine map, but using old dimension
+  // identifiers
   AffineMap resLayout1 =
       AffineMap::get(resultNumDims, /*symbolCount=*/0,
                      inputLayout.getMap().getResults(), &getContext());
@@ -829,8 +832,8 @@ void LayoutPropagation::rectifyIncompatibleOperandLayouts(Operation *op) {
                 op->getLoc(), opOperand.get(), sourceLayout, targetLayout);
 
             // Layout of the result is the same as the target layout of the
-            // conversion. Mostly this is done for consistency: all ops have an
-            // attribute describing the layout of their results.
+            // conversion. Mostly this is done for consistency: all ops have
+            // an attribute describing the layout of their results.
             OpBuilder builder(&getContext());
             assignedLayouts.insert({convertOp.getResult(), targetLayout});
             setResultLayoutAttr(convertOp);
@@ -884,9 +887,9 @@ FailureOr<LayoutAttr> LayoutPropagation::defaultLayoutForScalarType(
       builder.getDenseI64ArrayAttr(insertedDims),
       builder.getDenseI64ArrayAttr({}), nullptr);
 
-  // Only support Int/Float scalars, fail for any other random type that might
-  // make it here.
-  if (!isa<FloatType, IntegerType>(scalarType)) {
+  // Only support Int/Index/Float scalars,
+  // fail for any other random type that might make it here.
+  if (!isa<FloatType, IntegerType, IndexType>(scalarType)) {
     return failure();
   }
 

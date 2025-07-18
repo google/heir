@@ -27,6 +27,7 @@
 #include "lib/Pipelines/PipelineRegistration.h"
 #include "lib/Transforms/AddClientInterface/AddClientInterface.h"
 #include "lib/Transforms/ApplyFolders/ApplyFolders.h"
+#include "lib/Transforms/CompareToSignRewrite/CompareToSignRewrite.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/ConvertToCiphertextSemantics.h"
 #include "lib/Transforms/DropUnitDims/DropUnitDims.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
@@ -34,8 +35,10 @@
 #include "lib/Transforms/LayoutOptimization/LayoutOptimization.h"
 #include "lib/Transforms/LayoutPropagation/LayoutPropagation.h"
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
+#include "lib/Transforms/LowerPolynomialEval/LowerPolynomialEval.h"
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
+#include "lib/Transforms/PolynomialApproximation/PolynomialApproximation.h"
 #include "lib/Transforms/PopulateScale/PopulateScale.h"
 #include "lib/Transforms/PropagateAnnotation/PropagateAnnotation.h"
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
@@ -123,6 +126,9 @@ void mlirToSecretArithmeticPipelineBuilder(
   pm.addPass(createWrapGeneric());
   convertToDataObliviousPipelineBuilder(pm);
   pm.addPass(createSelectRewrite());
+  pm.addPass(createCompareToSignRewrite());
+  pm.addPass(createPolynomialApproximation());
+  pm.addPass(createLowerPolynomialEval());
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
 
