@@ -54,8 +54,12 @@ def ConvertSecretForToStaticFor : Pass<"convert-secret-for-to-static-for"> {
     ```
   }];
   let dependentDialects = [
-    "mlir::scf::SCFDialect",
+    "mlir::affine::AffineDialect",
     "mlir::arith::ArithDialect"
+  ];
+  let options = [
+    Option<"convertAllScfFor", "convert-all-scf-for", "bool", /*default=*/"true",
+           "If true, convert all scf.for ops to affine.for, not just those with secret bounds.">,
   ];
 }
 
