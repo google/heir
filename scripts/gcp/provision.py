@@ -128,7 +128,8 @@ def provision(
 #!/bin/bash
 set -eux
 pip install -U "jax[tpu]" -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
-pip install --upgrade jax jaxlib
+pip install jax==0.6.0
+pip install jaxlib==0.6.0
 pip install jaxite
 pip install absl-py
 """,
@@ -195,6 +196,7 @@ def destroy_network(core: Core, name: str) -> None:
     compute_v1.NetworksClient().delete(
         project=core.project, network=name
     ).result()
+    print("done")
   except core_exceptions.NotFound:
     print("not found")
 
