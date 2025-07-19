@@ -28,9 +28,9 @@
 
 // CHECK: PYBIND11_MODULE(_heir_foo, m) {
 // CHECK:   bind_common(m);
-// CHECK:   m.def("simple_sum", &simple_sum);
-// CHECK:   m.def("simple_sum__encrypt", &simple_sum__encrypt);
-// CHECK:   m.def("simple_sum__decrypt", &simple_sum__decrypt);
+// CHECK:   m.def("simple_sum", &simple_sum, py::call_guard<py::gil_scoped_release>());
+// CHECK:   m.def("simple_sum__encrypt", &simple_sum__encrypt, py::call_guard<py::gil_scoped_release>());
+// CHECK:   m.def("simple_sum__decrypt", &simple_sum__decrypt, py::call_guard<py::gil_scoped_release>());
 // CHECK: }
 
 !Z1095233372161_i64_ = !mod_arith.int<1095233372161 : i64>

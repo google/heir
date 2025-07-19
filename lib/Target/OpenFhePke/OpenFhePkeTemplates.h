@@ -109,7 +109,13 @@ PYBIND11_MODULE({0}, m) {{
 )cpp";
 // clang-format on
 
-constexpr std::string_view kPybindFunctionTemplate = "m.def(\"{0}\", &{0});";
+// Emit a pybind11 binding that releases the GIL for the duration of the C++
+// function call.  This enables multi-threaded C++ code (e.g. OpenMP parallel
+// regions inside OpenFHE) to run concurrently with the Python interpreter.
+// The `py::call_guard<py::gil_scoped_release>()` helper ensures the GIL is
+// relinquished on entry and re-acquired on exit.
+constexpr std::string_view kPybindFunctionTemplate =
+    "m.def(\"{0}\", &{0}, py::call_guard<py::gil_scoped_release>());";
 
 }  // namespace openfhe
 }  // namespace heir
