@@ -47,25 +47,25 @@ class CiphertextTypeConverter : public TypeConverter {
     addConversion([](Type type) { return type; });
     addConversion([ctx](lwe::NewLWECiphertextType type) -> Type {
       auto ring = type.getCiphertextSpace().getRing();
-      auto polyTy = ::mlir::heir::polynomial::PolynomialType::get(ctx, ring);
+      auto polyTy = polynomial::PolynomialType::get(ctx, ring);
 
       return RankedTensorType::get({type.getCiphertextSpace().getSize()},
                                    polyTy);
     });
     addConversion([ctx](lwe::NewLWEPlaintextType type) -> Type {
       auto ring = type.getPlaintextSpace().getRing();
-      auto polyTy = ::mlir::heir::polynomial::PolynomialType::get(ctx, ring);
+      auto polyTy = polynomial::PolynomialType::get(ctx, ring);
       return polyTy;
     });
     addConversion([ctx](lwe::NewLWESecretKeyType type) -> Type {
       auto ring = type.getRing();
-      auto polyTy = ::mlir::heir::polynomial::PolynomialType::get(ctx, ring);
+      auto polyTy = polynomial::PolynomialType::get(ctx, ring);
 
       return RankedTensorType::get({2}, polyTy);
     });
     addConversion([ctx](lwe::NewLWEPublicKeyType type) -> Type {
       auto ring = type.getRing();
-      auto polyTy = ::mlir::heir::polynomial::PolynomialType::get(ctx, ring);
+      auto polyTy = polynomial::PolynomialType::get(ctx, ring);
 
       return RankedTensorType::get({2}, polyTy);
     });
@@ -352,8 +352,8 @@ struct ConvertRAdd : public OpConversionPattern<RAddOp> {
   LogicalResult matchAndRewrite(
       RAddOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<::mlir::heir::polynomial::AddOp>(
-        op, adaptor.getOperands()[0], adaptor.getOperands()[1]);
+    rewriter.replaceOpWithNewOp<polynomial::AddOp>(op, adaptor.getOperands()[0],
+                                                   adaptor.getOperands()[1]);
     return success();
   }
 };
@@ -367,8 +367,8 @@ struct ConvertRAddPlain : public OpConversionPattern<RAddPlainOp> {
   LogicalResult matchAndRewrite(
       RAddPlainOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<::mlir::heir::polynomial::AddOp>(
-        op, adaptor.getOperands()[0], adaptor.getOperands()[1]);
+    rewriter.replaceOpWithNewOp<polynomial::AddOp>(op, adaptor.getOperands()[0],
+                                                   adaptor.getOperands()[1]);
     return success();
   }
 };
@@ -382,8 +382,8 @@ struct ConvertRSub : public OpConversionPattern<RSubOp> {
   LogicalResult matchAndRewrite(
       RSubOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<::mlir::heir::polynomial::SubOp>(
-        op, adaptor.getLhs(), adaptor.getRhs());
+    rewriter.replaceOpWithNewOp<polynomial::SubOp>(op, adaptor.getLhs(),
+                                                   adaptor.getRhs());
     return success();
   }
 };
@@ -397,8 +397,8 @@ struct ConvertRSubPlain : public OpConversionPattern<RSubPlainOp> {
   LogicalResult matchAndRewrite(
       RSubPlainOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<::mlir::heir::polynomial::SubOp>(
-        op, adaptor.getLhs(), adaptor.getRhs());
+    rewriter.replaceOpWithNewOp<polynomial::SubOp>(op, adaptor.getLhs(),
+                                                   adaptor.getRhs());
     return success();
   }
 };
@@ -437,9 +437,8 @@ struct ConvertRNegate : public OpConversionPattern<RNegateOp> {
       return failure();
     }
 
-    rewriter.replaceOp(op,
-                       rewriter.create<::mlir::heir::polynomial::MulScalarOp>(
-                           loc, arg.getType(), arg, neg.value()));
+    rewriter.replaceOp(op, rewriter.create<polynomial::MulScalarOp>(
+                               loc, arg.getType(), arg, neg.value()));
     return success();
   }
 };
@@ -484,11 +483,11 @@ struct ConvertRMul : public OpConversionPattern<RMulOp> {
     auto y1 =
         b.create<tensor::ExtractOp>(yT.getElementType(), y, ValueRange{i1});
 
-    auto z0 = b.create<::mlir::heir::polynomial::MulOp>(x0, y0);
-    auto x0y1 = b.create<::mlir::heir::polynomial::MulOp>(x0, y1);
-    auto x1y0 = b.create<::mlir::heir::polynomial::MulOp>(x1, y0);
-    auto z1 = b.create<::mlir::heir::polynomial::AddOp>(x0y1, x1y0);
-    auto z2 = b.create<::mlir::heir::polynomial::MulOp>(x1, y1);
+    auto z0 = b.create<polynomial::MulOp>(x0, y0);
+    auto x0y1 = b.create<polynomial::MulOp>(x0, y1);
+    auto x1y0 = b.create<polynomial::MulOp>(x1, y0);
+    auto z1 = b.create<polynomial::AddOp>(x0y1, x1y0);
+    auto z2 = b.create<polynomial::MulOp>(x1, y1);
 
     auto z = b.create<tensor::FromElementsOp>(ArrayRef<Value>({z0, z1, z2}));
 

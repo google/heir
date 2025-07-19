@@ -94,7 +94,7 @@ void tosaPipelineBuilder(OpPassManager &manager, bool unroll) {
 void polynomialToLLVMPipelineBuilder(OpPassManager &manager) {
   // Poly
   manager.addPass(createElementwiseToAffine());
-  manager.addPass(::mlir::heir::polynomial::createPolynomialToModArith());
+  manager.addPass(polynomial::createPolynomialToModArith());
   manager.addPass(::mlir::heir::mod_arith::createModArithToArith());
   manager.addPass(createCanonicalizerPass());
 
