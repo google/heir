@@ -55,81 +55,80 @@ currently only provide support for [VSCode](https://code.visualstudio.com/).
 
 For the best experience, we recommend following these steps:
 
--   Install the
-    [MLIR](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.vscode-mlir),
-    [clangd](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.vscode-clangd)
-    and
-    [Bazel](https://marketplace.visualstudio.com/items?itemName=BazelBuild.vscode-bazel)
-    extensions
+- Install the
+  [MLIR](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.vscode-mlir),
+  [clangd](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.vscode-clangd)
+  and
+  [Bazel](https://marketplace.visualstudio.com/items?itemName=BazelBuild.vscode-bazel)
+  extensions
 
--   Install and rename Buildifier:
+- Install and rename Buildifier:
 
-    You can download the latest Buildifier release, e.g., for linux-amd64 (see
-    the
-    [Bazel Release Page](https://github.com/bazelbuild/buildtools/releases/latest/)
-    for a list of available binaries):
+  You can download the latest Buildifier release, e.g., for linux-amd64 (see the
+  [Bazel Release Page](https://github.com/bazelbuild/buildtools/releases/latest/)
+  for a list of available binaries):
 
-    ```bash
-    wget -c https://github.com/bazelbuild/buildtools/releases/latest/download/buildifier-linux-amd64
-    mv buildifier-linux-amd64 buildifier
-    chmod +x buildifier
-    ```
+  ```bash
+  wget -c https://github.com/bazelbuild/buildtools/releases/latest/download/buildifier-linux-amd64
+  mv buildifier-linux-amd64 buildifier
+  chmod +x buildifier
+  ```
 
-    Just as with bazel, you will want to move this somewhere on your PATH, e.g.:
+  Just as with bazel, you will want to move this somewhere on your PATH, e.g.:
 
-    ```bash
-    mkdir -p ~/bin
-    echo 'export PATH=$PATH:~/bin' >> ~/.bashrc
-    mv buildifier ~/bin/buildifier
-    ```
+  ```bash
+  mkdir -p ~/bin
+  echo 'export PATH=$PATH:~/bin' >> ~/.bashrc
+  mv buildifier ~/bin/buildifier
+  ```
 
-    VS Code should automatically detect buildifier. If this is not successful,
-    you can manually set the "Buildifier Executable" setting for the Bazel
-    extension (`bazel.buildifierExecutable`).
+  VS Code should automatically detect buildifier. If this is not successful, you
+  can manually set the "Buildifier Executable" setting for the Bazel extension
+  (`bazel.buildifierExecutable`).
 
--   Disable the
-    [C/C++ (aka 'cpptools')](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools)
-    extension (either completely, or in the current workspace).
+- Disable the
+  [C/C++ (aka 'cpptools')](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools)
+  extension (either completely, or in the current workspace).
 
--   Add the following snippet to your VS Code user settings found in
-    .vscode/settings.json to enable autocomplete based on the
-    compile_commands.json file (see above).
+- Add the following snippet to your VS Code user settings found in
+  .vscode/settings.json to enable autocomplete based on the
+  compile_commands.json file (see above).
 
-    ```json
-      "clangd.arguments": [
-        "--compile-commands-dir=${workspaceFolder}/",
-        "--completion-style=detailed",
-        "--query-driver=**"
-      ],
-    ```
+  ```json
+    "clangd.arguments": [
+      "--compile-commands-dir=${workspaceFolder}/",
+      "--completion-style=detailed",
+      "--query-driver=**"
+    ],
+  ```
 
--   For Python formatting, HEIR uses [pyink](https://github.com/google/pyink)
-    for autoformatting, which is a fork of the more commonly used
-    [black](https://github.com/psf/black) formatter with some patches to support
-    Google's internal style guide. To use it in VSCode, install `pyink` along
-    with other python utilities needed for HEIR: `pip install -r
-    requirements.txt` and install the
-    [Black Formatter](https://marketplace.visualstudio.com/items?itemName=ms-python.black-formatter)
-    extension, then add the following to your VSCode user settings
-    (`.vscode/settings.json`):
+- For Python formatting, HEIR uses [pyink](https://github.com/google/pyink) for
+  autoformatting, which is a fork of the more commonly used
+  [black](https://github.com/psf/black) formatter with some patches to support
+  Google's internal style guide. To use it in VSCode, install `pyink` along with
+  other python utilities needed for HEIR: `pip install -r requirements.txt` and
+  install the
+  [Black Formatter](https://marketplace.visualstudio.com/items?itemName=ms-python.black-formatter)
+  extension, then add the following to your VSCode user settings
+  (`.vscode/settings.json`):
 
-    ```json
-    "[python]": {
-        "editor.defaultFormatter": "ms-python.black-formatter"
-    },
-    "black-formatter.path": [
-        "path/to/pyink"
-    ]
-    ```
+  ```json
+  "[python]": {
+      "editor.defaultFormatter": "ms-python.black-formatter"
+  },
+  "black-formatter.path": [
+      "path/to/pyink"
+  ]
+  ```
 
--   It might be necessary to add the path to your buildifier to VSCode, though
-    it should be auto-detected.
+- It might be necessary to add the path to your buildifier to VSCode, though it
+  should be auto-detected.
 
-    -   Open the heir folder in VSCode
-    -   Go to 'Settings' and set it on the 'Workspace'
-    -   Search for "Bazel Buildifier Executable"
-    -   Once you find it, write `[home-directory]/bin/buildifier` for your
-        specific \[home-directory\].
+  - Open the heir folder in VSCode
+  - Go to 'Settings' and set it on the 'Workspace'
+  - Search for "Bazel Buildifier Executable"
+  - Once you find it, write `[home-directory]/bin/buildifier` for your specific
+    \[home-directory\].
 
 ### Building, Testing, Running and Debugging with VSCode
 
