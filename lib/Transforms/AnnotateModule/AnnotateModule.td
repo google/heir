@@ -21,13 +21,7 @@ def AnnotateModule : Pass<"annotate-module"> {
       - `openfhe`
       - `lattigo`
 
-    Example: `--annotate-module="backend=openfhe scheme=ckks"`
-
-    ```
-    module attributes {backend.openfhe, scheme.ckks}
-      ...
-    }
-    ```
+    (* example filepath=tests/Transforms/annotate_module/pass.mlir *)
   }];
 
   let options = [
