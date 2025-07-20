@@ -507,8 +507,7 @@ currently only provide support for <a href=https://code.visualstudio.com/>VSCode
 <a href="https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.vscode-clangd">clangd</a>
 and
 <a href="https://marketplace.visualstudio.com/items?itemName=BazelBuild.vscode-bazel">Bazel</a>
-extensions</p></li><li><p>Install and rename Buildifier:</p><p>You can download the latest Buildifier release, e.g., for linux-amd64 (see
-the
+extensions</p></li><li><p>Install and rename Buildifier:</p><p>You can download the latest Buildifier release, e.g., for linux-amd64 (see the
 <a href=https://github.com/bazelbuild/buildtools/releases/latest/>Bazel Release Page</a>
 for a list of available binaries):</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>wget -c https://github.com/bazelbuild/buildtools/releases/latest/download/buildifier-linux-amd64
 </span></span><span style=display:flex><span>mv buildifier-linux-amd64 buildifier
@@ -516,9 +515,9 @@ for a list of available binaries):</p><div class=highlight><pre tabindex=0 style
 </span></span></code></pre></div><p>Just as with bazel, you will want to move this somewhere on your PATH, e.g.:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>mkdir -p ~/bin
 </span></span><span style=display:flex><span><span style=color:#204a87>echo</span> <span style=color:#4e9a06>&#39;export PATH=$PATH:~/bin&#39;</span> &gt;&gt; ~/.bashrc
 </span></span><span style=display:flex><span>mv buildifier ~/bin/buildifier
-</span></span></code></pre></div><p>VS Code should automatically detect buildifier. If this is not successful,
-you can manually set the &ldquo;Buildifier Executable&rdquo; setting for the Bazel
-extension (<code>bazel.buildifierExecutable</code>).</p></li><li><p>Disable the
+</span></span></code></pre></div><p>VS Code should automatically detect buildifier. If this is not successful, you
+can manually set the &ldquo;Buildifier Executable&rdquo; setting for the Bazel extension
+(<code>bazel.buildifierExecutable</code>).</p></li><li><p>Disable the
 <a href="https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools">C/C++ (aka &lsquo;cpptools&rsquo;)</a>
 extension (either completely, or in the current workspace).</p></li><li><p>Add the following snippet to your VS Code user settings found in
 .vscode/settings.json to enable autocomplete based on the
@@ -527,11 +526,12 @@ compile_commands.json file (see above).</p><div class=highlight><pre tabindex=0 
 </span></span><span style=display:flex><span>    <span style=color:#4e9a06>&#34;--completion-style=detailed&#34;</span><span style=color:#000;font-weight:700>,</span>
 </span></span><span style=display:flex><span>    <span style=color:#4e9a06>&#34;--query-driver=**&#34;</span>
 </span></span><span style=display:flex><span>  <span style=color:#000;font-weight:700>]</span><span style=color:#a40000>,</span>
-</span></span></code></pre></div></li><li><p>For Python formatting, HEIR uses <a href=https://github.com/google/pyink>pyink</a>
-for autoformatting, which is a fork of the more commonly used
+</span></span></code></pre></div></li><li><p>For Python formatting, HEIR uses <a href=https://github.com/google/pyink>pyink</a> for
+autoformatting, which is a fork of the more commonly used
 <a href=https://github.com/psf/black>black</a> formatter with some patches to support
-Google&rsquo;s internal style guide. To use it in VSCode, install <code>pyink</code> along
-with other python utilities needed for HEIR: <code>pip install -r requirements.txt</code> and install the
+Google&rsquo;s internal style guide. To use it in VSCode, install <code>pyink</code> along with
+other python utilities needed for HEIR: <code>pip install -r requirements.txt</code> and
+install the
 <a href="https://marketplace.visualstudio.com/items?itemName=ms-python.black-formatter">Black Formatter</a>
 extension, then add the following to your VSCode user settings
 (<code>.vscode/settings.json</code>):</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-json data-lang=json><span style=display:flex><span><span style=color:#4e9a06>&#34;[python]&#34;</span><span style=color:#a40000>:</span> <span style=color:#000;font-weight:700>{</span>
@@ -540,9 +540,9 @@ extension, then add the following to your VSCode user settings
 </span></span><span style=display:flex><span><span style=color:#4e9a06>&#34;black-formatter.path&#34;</span><span style=color:#a40000>:</span> <span style=color:#000;font-weight:700>[</span>
 </span></span><span style=display:flex><span>    <span style=color:#4e9a06>&#34;path/to/pyink&#34;</span>
 </span></span><span style=display:flex><span><span style=color:#000;font-weight:700>]</span>
-</span></span></code></pre></div></li><li><p>It might be necessary to add the path to your buildifier to VSCode, though
-it should be auto-detected.</p><ul><li>Open the heir folder in VSCode</li><li>Go to &lsquo;Settings&rsquo; and set it on the &lsquo;Workspace&rsquo;</li><li>Search for &ldquo;Bazel Buildifier Executable&rdquo;</li><li>Once you find it, write <code>[home-directory]/bin/buildifier</code> for your
-specific [home-directory].</li></ul></li></ul><h3 id=building-testing-running-and-debugging-with-vscode>Building, Testing, Running and Debugging with VSCode</h3><h4 id=building>Building</h4><ol><li>Open the &ldquo;Explorer&rdquo; (File Overview) in the left panel.</li><li>Find &ldquo;Bazel Build Targets&rdquo; towards the bottom of the &ldquo;Explorer&rdquo; panel and
+</span></span></code></pre></div></li><li><p>It might be necessary to add the path to your buildifier to VSCode, though it
+should be auto-detected.</p><ul><li>Open the heir folder in VSCode</li><li>Go to &lsquo;Settings&rsquo; and set it on the &lsquo;Workspace&rsquo;</li><li>Search for &ldquo;Bazel Buildifier Executable&rdquo;</li><li>Once you find it, write <code>[home-directory]/bin/buildifier</code> for your specific
+[home-directory].</li></ul></li></ul><h3 id=building-testing-running-and-debugging-with-vscode>Building, Testing, Running and Debugging with VSCode</h3><h4 id=building>Building</h4><ol><li>Open the &ldquo;Explorer&rdquo; (File Overview) in the left panel.</li><li>Find &ldquo;Bazel Build Targets&rdquo; towards the bottom of the &ldquo;Explorer&rdquo; panel and
 click the dropdown button.</li><li>Unfold the heir folder</li><li>Right-click on &ldquo;//tools&rdquo; and click the &ldquo;Build Package Recursively&rdquo; option</li></ol><h4 id=testing>Testing</h4><ol><li>Open the &ldquo;Explorer&rdquo; (File Overview) in the left panel.</li><li>Find &ldquo;Bazel Build Targets&rdquo; towards the bottom of the &ldquo;Explorer&rdquo; panel and
 click the dropdown button.</li><li>Unfold the heir folder</li><li>Right-click on &ldquo;//test&rdquo; and click the &ldquo;Test Package Recursively&rdquo; option</li></ol><h4 id=running-and-debugging>Running and Debugging</h4><ol><li><p>Create a <code>launch.json</code> file in the <code>.vscode</code> folder, changing the <code>"name"</code>
 and <code>"args"</code> as required:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-json data-lang=json><span style=display:flex><span><span style=color:#000;font-weight:700>{</span>

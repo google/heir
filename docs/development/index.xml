@@ -168,8 +168,7 @@ extensions&lt;/p>
 &lt;/li>
 &lt;li>
 &lt;p>Install and rename Buildifier:&lt;/p>
-&lt;p>You can download the latest Buildifier release, e.g., for linux-amd64 (see
-the
+&lt;p>You can download the latest Buildifier release, e.g., for linux-amd64 (see the
 &lt;a href="https://github.com/bazelbuild/buildtools/releases/latest/">Bazel Release Page&lt;/a>
 for a list of available binaries):&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>wget -c https://github.com/bazelbuild/buildtools/releases/latest/download/buildifier-linux-amd64
@@ -179,9 +178,9 @@ for a list of available binaries):&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>mkdir -p ~/bin
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87">echo&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;export PATH=$PATH:~/bin&amp;#39;&lt;/span> &amp;gt;&amp;gt; ~/.bashrc
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>mv buildifier ~/bin/buildifier
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>VS Code should automatically detect buildifier. If this is not successful,
-you can manually set the &amp;ldquo;Buildifier Executable&amp;rdquo; setting for the Bazel
-extension (&lt;code>bazel.buildifierExecutable&lt;/code>).&lt;/p>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>VS Code should automatically detect buildifier. If this is not successful, you
+can manually set the &amp;ldquo;Buildifier Executable&amp;rdquo; setting for the Bazel extension
+(&lt;code>bazel.buildifierExecutable&lt;/code>).&lt;/p>
 &lt;/li>
 &lt;li>
 &lt;p>Disable the
@@ -199,11 +198,12 @@ compile_commands.json file (see above).&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">]&lt;/span>&lt;span style="color:#a40000">,&lt;/span>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
 &lt;li>
-&lt;p>For Python formatting, HEIR uses &lt;a href="https://github.com/google/pyink">pyink&lt;/a>
-for autoformatting, which is a fork of the more commonly used
+&lt;p>For Python formatting, HEIR uses &lt;a href="https://github.com/google/pyink">pyink&lt;/a> for
+autoformatting, which is a fork of the more commonly used
 &lt;a href="https://github.com/psf/black">black&lt;/a> formatter with some patches to support
-Google&amp;rsquo;s internal style guide. To use it in VSCode, install &lt;code>pyink&lt;/code> along
-with other python utilities needed for HEIR: &lt;code>pip install -r requirements.txt&lt;/code> and install the
+Google&amp;rsquo;s internal style guide. To use it in VSCode, install &lt;code>pyink&lt;/code> along with
+other python utilities needed for HEIR: &lt;code>pip install -r requirements.txt&lt;/code> and
+install the
 &lt;a href="https://marketplace.visualstudio.com/items?itemName=ms-python.black-formatter">Black Formatter&lt;/a>
 extension, then add the following to your VSCode user settings
 (&lt;code>.vscode/settings.json&lt;/code>):&lt;/p>
@@ -215,14 +215,14 @@ extension, then add the following to your VSCode user settings
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">]&lt;/span>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
 &lt;li>
-&lt;p>It might be necessary to add the path to your buildifier to VSCode, though
-it should be auto-detected.&lt;/p>
+&lt;p>It might be necessary to add the path to your buildifier to VSCode, though it
+should be auto-detected.&lt;/p>
 &lt;ul>
 &lt;li>Open the heir folder in VSCode&lt;/li>
 &lt;li>Go to &amp;lsquo;Settings&amp;rsquo; and set it on the &amp;lsquo;Workspace&amp;rsquo;&lt;/li>
 &lt;li>Search for &amp;ldquo;Bazel Buildifier Executable&amp;rdquo;&lt;/li>
-&lt;li>Once you find it, write &lt;code>[home-directory]/bin/buildifier&lt;/code> for your
-specific [home-directory].&lt;/li>
+&lt;li>Once you find it, write &lt;code>[home-directory]/bin/buildifier&lt;/code> for your specific
+[home-directory].&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;/ul>
