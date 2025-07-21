@@ -32,7 +32,7 @@ jobs:
           fi
 
     - name: Add pull_ready label
-      if: steps.check_reviewer.outputs.is_maintainer == true
+      if: steps.check_reviewer.outputs.is_maintainer == 'true'
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GH_REPO: ${{ github.repository }}
