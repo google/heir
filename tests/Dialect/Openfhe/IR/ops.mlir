@@ -19,8 +19,8 @@
 #plaintext_space = #lwe.plaintext_space<ring = #ring_Z65537_i64_1_x1024_, encoding = #full_crt_packing_encoding>
 #plaintext_space_f16 = #lwe.plaintext_space<ring = #ring_Z65537_i64_1_x1024_, encoding = #inverse_canonical_encoding>
 
-!pt = !lwe.new_lwe_plaintext<application_data = <message_type = i3>, plaintext_space = #plaintext_space>
-!ptf16 = !lwe.new_lwe_plaintext<application_data = <message_type = f16>, plaintext_space = #plaintext_space_f16>
+!pt = !lwe.lwe_plaintext<application_data = <message_type = i3>, plaintext_space = #plaintext_space>
+!ptf16 = !lwe.lwe_plaintext<application_data = <message_type = f16>, plaintext_space = #plaintext_space_f16>
 
 #ciphertext_space_L0_ = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024_, encryption_type = lsb>
 #ciphertext_space_L0_D3 = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024_, encryption_type = lsb, size = 3>
@@ -29,8 +29,8 @@
 !sk = !openfhe.private_key
 !ek = !openfhe.eval_key
 !cc = !openfhe.crypto_context
-!ct = !lwe.new_lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
-!ct_D3 = !lwe.new_lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_D3, key = #key, modulus_chain = #modulus_chain_L5_C0_>
+!ct = !lwe.lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
+!ct_D3 = !lwe.lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_D3, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 
 module {
   // CHECK: func @test_make_packed_plaintext

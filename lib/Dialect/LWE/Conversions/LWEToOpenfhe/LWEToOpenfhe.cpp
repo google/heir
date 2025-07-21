@@ -41,10 +41,10 @@ namespace mlir::heir::lwe {
 
 ToOpenfheTypeConverter::ToOpenfheTypeConverter(MLIRContext *ctx) {
   addConversion([](Type type) { return type; });
-  addConversion([ctx](lwe::NewLWEPublicKeyType type) -> Type {
+  addConversion([ctx](lwe::LWEPublicKeyType type) -> Type {
     return openfhe::PublicKeyType::get(ctx);
   });
-  addConversion([ctx](lwe::NewLWESecretKeyType type) -> Type {
+  addConversion([ctx](lwe::LWESecretKeyType type) -> Type {
     return openfhe::PrivateKeyType::get(ctx);
   });
 }
@@ -226,7 +226,7 @@ struct ConvertEncodeOp : public OpConversionPattern<lwe::RLWEEncodeOp> {
       }
     }
 
-    lwe::NewLWEPlaintextType plaintextType = op.getResult().getType();
+    lwe::LWEPlaintextType plaintextType = op.getResult().getType();
     return llvm::TypeSwitch<Attribute, LogicalResult>(op.getEncoding())
         .Case<lwe::InverseCanonicalEncodingAttr>([&](auto encoding) {
           rewriter.replaceOpWithNewOp<openfhe::MakeCKKSPackedPlaintextOp>(

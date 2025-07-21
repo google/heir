@@ -49,7 +49,7 @@ LogicalResult ConvertClientConceal::matchAndRewrite(
   // return type. This relies on the ContextAwareFuncConversion to have already
   // run, so that the result type is type converted in-place.
   auto resultCtTy =
-      dyn_cast<lwe::NewLWECiphertextType>(parentFunc.getResultTypes()[0]);
+      dyn_cast<lwe::LWECiphertextType>(parentFunc.getResultTypes()[0]);
   if (!resultCtTy) {
     return parentFunc->emitError()
            << "expected secret.conceal op to be inside a function with a "
@@ -69,18 +69,18 @@ LogicalResult ConvertClientConceal::matchAndRewrite(
 
   auto *ctx = op->getContext();
   Type encryptionKeyType = usePublicKey
-                               ? (Type)lwe::NewLWEPublicKeyType::get(
+                               ? (Type)lwe::LWEPublicKeyType::get(
                                      ctx, lwe::KeyAttr::get(ctx, 0),
                                      resultCtTy.getCiphertextSpace().getRing())
-                               : (Type)lwe::NewLWESecretKeyType::get(
+                               : (Type)lwe::LWESecretKeyType::get(
                                      ctx, lwe::KeyAttr::get(ctx, 0),
                                      resultCtTy.getCiphertextSpace().getRing());
   Value keyBlockArg =
       insertKeyArgument(parentFunc, encryptionKeyType, rewriter);
 
-  auto plaintextTy = lwe::NewLWEPlaintextType::get(
-      op.getContext(), resultCtTy.getApplicationData(),
-      resultCtTy.getPlaintextSpace());
+  auto plaintextTy = lwe::LWEPlaintextType::get(op.getContext(),
+                                                resultCtTy.getApplicationData(),
+                                                resultCtTy.getPlaintextSpace());
   auto encoded = rewriter.create<lwe::RLWEEncodeOp>(
       op.getLoc(), plaintextTy, adaptor.getCleartext(),
       resultCtTy.getPlaintextSpace().getEncoding(),
@@ -109,7 +109,7 @@ LogicalResult ConvertClientReveal::matchAndRewrite(
   // argument. This relies on the ContextAwareFuncConversion to have already
   // run, so that the argument type is type converted in-place.
   auto argCtTy =
-      dyn_cast<lwe::NewLWECiphertextType>(parentFunc.getArgumentTypes()[0]);
+      dyn_cast<lwe::LWECiphertextType>(parentFunc.getArgumentTypes()[0]);
   if (!argCtTy) {
     return op->emitError() << "expected to be inside a function with a single "
                            << "LWE ciphertext argument type";
@@ -125,14 +125,14 @@ LogicalResult ConvertClientReveal::matchAndRewrite(
   }
 
   auto *ctx = op->getContext();
-  auto encryptionKeyType = lwe::NewLWESecretKeyType::get(
+  auto encryptionKeyType = lwe::LWESecretKeyType::get(
       ctx, lwe::KeyAttr::get(ctx, 0), argCtTy.getCiphertextSpace().getRing());
   Value keyBlockArg =
       insertKeyArgument(parentFunc, encryptionKeyType, rewriter);
 
-  auto plaintextTy = lwe::NewLWEPlaintextType::get(op.getContext(),
-                                                   argCtTy.getApplicationData(),
-                                                   argCtTy.getPlaintextSpace());
+  auto plaintextTy =
+      lwe::LWEPlaintextType::get(op.getContext(), argCtTy.getApplicationData(),
+                                 argCtTy.getPlaintextSpace());
   auto decrypted = rewriter.create<lwe::RLWEDecryptOp>(
       op.getLoc(), plaintextTy, adaptor.getInput(), keyBlockArg);
 

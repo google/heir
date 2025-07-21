@@ -1,7 +1,7 @@
 // RUN: heir-opt --mlir-print-local-scope --secret-distribute-generic --split-input-file --secret-to-cggi --cse %s | FileCheck %s
 
 // CHECK-NOT: secret
-// CHECK: @boolean_gates([[ARG:%.*]]: [[LWET:!lwe.new_lwe_ciphertext<.*message_type = i1.*>]]) -> [[LWET]]
+// CHECK: @boolean_gates([[ARG:%.*]]: [[LWET:!lwe.lwe_ciphertext<.*message_type = i1.*>]]) -> [[LWET]]
 func.func @boolean_gates(%arg0: !secret.secret<i1>) -> !secret.secret<i1> {
   // CHECK: [[VAL1:%.+]] = cggi.and [[ARG]], [[ARG]] : [[LWET]]
   // CHECK: [[VAL2:%.+]] = cggi.or [[VAL1]], [[ARG]] : [[LWET]]
@@ -28,7 +28,7 @@ func.func @boolean_gates(%arg0: !secret.secret<i1>) -> !secret.secret<i1> {
 
 // CHECK-NOT: secret
 // CHECK: @boolean_gates_partial_secret(
-// CHECK-SAME:  [[ARG0:%.*]]: [[LWET:!lwe.new_lwe_ciphertext<.*>]], [[ARG1:%.*]]: i1) -> [[LWET]]
+// CHECK-SAME:  [[ARG0:%.*]]: [[LWET:!lwe.lwe_ciphertext<.*>]], [[ARG1:%.*]]: i1) -> [[LWET]]
 func.func @boolean_gates_partial_secret(%arg0: !secret.secret<i1>, %arg1 : i1) -> !secret.secret<i1> {
   // CHECK: [[ENC:%.+]] = lwe.encode [[ARG1]]
   // CHECK: [[LWE:%.+]] = lwe.trivial_encrypt [[ENC]]

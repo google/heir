@@ -970,7 +970,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::EmptyOp op) {
 
 LogicalResult OpenFhePkeEmitter::printOperation(tensor::ExtractOp op) {
   // const auto& v1 = in[0, 1];
-  if (isa<lwe::NewLWECiphertextType>(op.getResult().getType())) {
+  if (isa<lwe::LWECiphertextType>(op.getResult().getType())) {
     emitAutoAssignPrefix(op.getResult());
   } else {
     if (failed(emitTypedAssignPrefix(op.getResult(), op.getLoc(), true)))

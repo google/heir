@@ -18,12 +18,12 @@
   encryption_type=lsb,
   size=2>
 
-!ct = !lwe.new_lwe_ciphertext<
+!ct = !lwe.lwe_ciphertext<
   application_data=<message_type=i3>,
   plaintext_space=#plaintext_space,
   ciphertext_space=#ciphertext_space,
   key=#lwe.key<>>
-!pt = !lwe.new_lwe_plaintext<
+!pt = !lwe.lwe_plaintext<
   application_data=<message_type=i3>,
   plaintext_space=#plaintext_space>
 

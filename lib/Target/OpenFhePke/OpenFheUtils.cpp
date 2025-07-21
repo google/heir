@@ -47,11 +47,11 @@ FailureOr<std::string> convertType(Type type, Location loc, bool constant) {
       .Case<CryptoContextType>(
           [&](auto ty) { return std::string("CryptoContextT"); })
       .Case<CCParamsType>([&](auto ty) { return std::string("CCParamsT"); })
-      .Case<lwe::NewLWECiphertextType>([&](auto ty) {
+      .Case<lwe::LWECiphertextType>([&](auto ty) {
         return constant ? std::string("CiphertextT")
                         : std::string("MutableCiphertextT");
       })
-      .Case<lwe::NewLWEPlaintextType>(
+      .Case<lwe::LWEPlaintextType>(
           [&](auto ty) { return std::string("Plaintext"); })
       .Case<openfhe::EvalKeyType>(
           [&](auto ty) { return std::string("EvalKeyT"); })

@@ -6,8 +6,8 @@
 #poly = #polynomial.int_polynomial<x>
 #pspace = #lwe.plaintext_space<ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>, encoding = #lwe.constant_coefficient_encoding<scaling_factor = 268435456>>
 #cspace = #lwe.ciphertext_space<ring = #polynomial.ring<coefficientType = i32, polynomialModulus = #poly>, encryption_type = msb, size = 742>
-!pt_ty = !lwe.new_lwe_plaintext<application_data = #app_data, plaintext_space = #pspace>
-!ct_ty = !lwe.new_lwe_ciphertext<application_data = #app_data, plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
+!pt_ty = !lwe.lwe_plaintext<application_data = #app_data, plaintext_space = #pspace>
+!ct_ty = !lwe.lwe_ciphertext<application_data = #app_data, plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
 
 // CHECK: arith_and_cggi
 // CHECK-COUNT-1: cggi.and

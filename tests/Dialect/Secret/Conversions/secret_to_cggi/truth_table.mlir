@@ -1,6 +1,6 @@
 // RUN: heir-opt --secret-distribute-generic --canonicalize --split-input-file --secret-to-cggi --cse %s | FileCheck %s
 
-// CHECK: ![[ct_ty:.*]] = !lwe.new_lwe_ciphertext
+// CHECK: ![[ct_ty:.*]] = !lwe.lwe_ciphertext
 
 // CHECK-NOT: secret
 // CHECK: @truth_table_all_secret([[ARG:%.*]]: ![[ct_ty]]) -> ![[ct_ty]]
@@ -18,7 +18,7 @@ func.func @truth_table_all_secret(%arg0: !secret.secret<i1>) -> !secret.secret<i
 
 // -----
 
-// CHECK: ![[ct_ty:.*]] = !lwe.new_lwe_ciphertext
+// CHECK: ![[ct_ty:.*]] = !lwe.lwe_ciphertext
 
 // CHECK-NOT: secret
 // CHECK: @truth_table_partial_secret([[ARG:%.*]]: ![[ct_ty]]) -> ![[ct_ty]]
@@ -46,7 +46,7 @@ func.func @truth_table_partial_secret(%arg0: !secret.secret<i1>) -> !secret.secr
 
 // -----
 
-// CHECK: ![[ct_ty:.*]] = !lwe.new_lwe_ciphertext
+// CHECK: ![[ct_ty:.*]] = !lwe.lwe_ciphertext
 
 // CHECK-NOT: secret
 // CHECK: @truth_table_no_secret([[ARG:%.*]]: ![[ct_ty]], [[BOOL1:%.*]]: i1, [[BOOL2:%.*]]: i1) -> ![[ct_ty]]

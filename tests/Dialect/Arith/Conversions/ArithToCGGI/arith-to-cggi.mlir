@@ -1,8 +1,8 @@
 // RUN: heir-opt --arith-to-cggi --split-input-file %s | FileCheck %s --enable-var-scope
 
-// CHECK: ![[ct_32:.*]] = !lwe.new_lwe_ciphertext<application_data = <message_type = i32,
-// CHECK: ![[ct_16:.*]] = !lwe.new_lwe_ciphertext<application_data = <message_type = i16,
-// CHECK: ![[ct_8:.*]] = !lwe.new_lwe_ciphertext<application_data = <message_type = i8,
+// CHECK: ![[ct_32:.*]] = !lwe.lwe_ciphertext<application_data = <message_type = i32,
+// CHECK: ![[ct_16:.*]] = !lwe.lwe_ciphertext<application_data = <message_type = i16,
+// CHECK: ![[ct_8:.*]] = !lwe.lwe_ciphertext<application_data = <message_type = i8,
 
 // CHECK: @test_lower_add
 // CHECK-SAME: (%[[LHS:.*]]: ![[ct_32]], %[[RHS:.*]]: ![[ct_32]]) -> ![[ct_32]] {

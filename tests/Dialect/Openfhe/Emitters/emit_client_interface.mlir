@@ -12,10 +12,10 @@
 #modulus_chain_L0_C0 = #lwe.modulus_chain<elements = <36028797019389953 : i64>, current = 0>
 #ring_f64_1_x1024 = #polynomial.ring<coefficientType = f64, polynomialModulus = <1 + x**1024>>
 !rns_L0 = !rns.rns<!Z36028797019389953_i64>
-!pt = !lwe.new_lwe_plaintext<application_data = <message_type = tensor<1024xf32>>, plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding>>
+!pt = !lwe.lwe_plaintext<application_data = <message_type = tensor<1024xf32>>, plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding>>
 #ring_rns_L0_1_x1024 = #polynomial.ring<coefficientType = !rns_L0, polynomialModulus = <1 + x**1024>>
 #ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024, encryption_type = mix>
-!ct_L0 = !lwe.new_lwe_ciphertext<application_data = <message_type = tensor<1024xf32>>, plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain_L0_C0>
+!ct_L0 = !lwe.lwe_ciphertext<application_data = <message_type = tensor<1024xf32>>, plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain_L0_C0>
 module attributes {scheme.ckks} {
 
   // CHECK: CiphertextT foo(CryptoContextT cc, CiphertextT ct)

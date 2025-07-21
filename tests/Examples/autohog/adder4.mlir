@@ -1,6 +1,6 @@
 // RUN: heir-translate --import-autohog %S/adder4.json | FileCheck %s
 
-// CHECK: ![[ct:.*]] = !lwe.new_lwe_ciphertext
+// CHECK: ![[ct:.*]] = !lwe.lwe_ciphertext
 
 // CHECK: func private @"4bit-4bit-adder"
 // CHECK-SAME: (%[[arg0:.*]]: tensor<8x![[ct]]

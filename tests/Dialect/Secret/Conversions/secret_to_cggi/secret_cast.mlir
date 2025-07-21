@@ -2,7 +2,7 @@
 
 // RUN: heir-opt --secret-distribute-generic --secret-to-cggi -cse --split-input-file %s | FileCheck %s
 
-// CHECK: ![[ct_ty:.*]] = !lwe.new_lwe_ciphertext
+// CHECK: ![[ct_ty:.*]] = !lwe.lwe_ciphertext
 
 // CHECK: module
 module attributes {tf_saved_model.semantics} {

@@ -1,6 +1,6 @@
 // RUN: heir-opt --annotate-module="backend=openfhe scheme=ckks" -affine-loop-normalize='promote-single-iter=1' --secretize --wrap-generic --secret-insert-mgmt-ckks --secret-distribute-generic --canonicalize --secret-to-ckks --cse %s | FileCheck %s
 
-// CHECK: ![[ct_L1:.*]] = !lwe.new_lwe_ciphertext<{{.*}}<message_type = f32>
+// CHECK: ![[ct_L1:.*]] = !lwe.lwe_ciphertext<{{.*}}<message_type = f32>
 
 module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [36028797019389953, 35184372121601], P = [36028797019488257], logDefaultScale = 45>} {
   // CHECK: func @main

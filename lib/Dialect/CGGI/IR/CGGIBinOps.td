@@ -10,10 +10,10 @@ class CGGI_BinaryOp<string mnemonic>
     ElementwiseMappable,
     Scalarizable
 ]> {
-  let arguments = (ins NewLWECiphertextLike:$lhs, NewLWECiphertextLike:$rhs);
-  let results = (outs NewLWECiphertextLike:$output);
+  let arguments = (ins LWECiphertextLike:$lhs, LWECiphertextLike:$rhs);
+  let results = (outs LWECiphertextLike:$output);
   // Note: error: type of result #0, named 'output', is not buildable and a buildable type cannot be inferred
-  //  NewLWECiphertext is not buildable?
+  //  LWECiphertext is not buildable?
   let assemblyFormat = "operands attr-dict `:` qualified(type($output))" ;
 }
 
@@ -31,8 +31,8 @@ def CGGI_NotOp : CGGI_Op<"not", [
     ElementwiseMappable,
     Scalarizable
 ]> {
-  let arguments = (ins NewLWECiphertextLike:$input);
-  let results = (outs NewLWECiphertextLike:$output);
+  let arguments = (ins LWECiphertextLike:$input);
+  let results = (outs LWECiphertextLike:$output);
   let assemblyFormat = "operands attr-dict `:` qualified(type($output))";
   let summary = "Logical NOT of two ciphertexts";
 }
@@ -41,8 +41,8 @@ def CGGI_PackedOp : CGGI_Op<"packed_gates",
   [Pure, AllTypesMatch<["lhs", "rhs", "output"]>]>{
   let arguments = (ins
     CGGI_CGGIBoolGates:$gates,
-    NewLWECiphertextLike:$lhs,
-    NewLWECiphertextLike:$rhs
+    LWECiphertextLike:$lhs,
+    LWECiphertextLike:$rhs
   );
 
       let description = [{
@@ -59,7 +59,7 @@ def CGGI_PackedOp : CGGI_Op<"packed_gates",
      Mapping is defined in the BooleanGates.td file.
   }];
 
-  let results = (outs NewLWECiphertextLike:$output);
+  let results = (outs LWECiphertextLike:$output);
 }
 
 /********************
@@ -71,8 +71,8 @@ class CGGI_ScalarBinaryOp<string mnemonic>
     Pure,
     Commutative
 ]> {
-  let arguments = (ins NewLWECiphertext:$lhs, AnyTypeOf<[Builtin_Integer, NewLWECiphertext]>:$rhs);
-  let results = (outs NewLWECiphertext:$output);
+  let arguments = (ins LWECiphertext:$lhs, AnyTypeOf<[Builtin_Integer, LWECiphertext]>:$rhs);
+  let results = (outs LWECiphertext:$output);
 }
 
 def CGGI_AddOp : CGGI_ScalarBinaryOp<"add"> { let summary = "Arithmetic addition of two ciphertexts. One of the two ciphertext is allowed to be a scalar, this will result in the scalar addition to a ciphertext."; }
@@ -93,8 +93,8 @@ def CGGI_SubOp : CGGI_Op<"sub", [
     ElementwiseMappable,
     Scalarizable
 ]> {
-  let arguments = (ins  NewLWECiphertext:$lhs, AnyTypeOf<[Builtin_Integer,  NewLWECiphertext]>:$rhs);
-  let results = (outs  NewLWECiphertext:$output);
+  let arguments = (ins  LWECiphertext:$lhs, AnyTypeOf<[Builtin_Integer,  LWECiphertext]>:$rhs);
+  let results = (outs  LWECiphertext:$output);
   let summary = "Subtraction of two ciphertexts.";
 }
 
@@ -102,8 +102,8 @@ def CGGI_ScalarShiftRightOp : CGGI_Op<"sshr", [
     Pure,
     AllTypesMatch<["lhs", "output"]>,
 ]> {
-  let arguments = (ins NewLWECiphertextLike:$lhs, IndexAttr:$shiftAmount);
-  let results = (outs NewLWECiphertextLike:$output);
+  let arguments = (ins LWECiphertextLike:$lhs, IndexAttr:$shiftAmount);
+  let results = (outs LWECiphertextLike:$output);
   let summary = "Arithmetic shift to the right of a ciphertext by an integer. Note this operations to mirror the TFHE-rs implmementation.";
 }
 
@@ -111,8 +111,8 @@ def CGGI_ScalarShiftLeftOp : CGGI_Op<"sshl", [
     Pure,
     AllTypesMatch<["lhs", "output"]>,
 ]> {
-  let arguments = (ins NewLWECiphertextLike:$lhs, IndexAttr:$shiftAmount);
-  let results = (outs NewLWECiphertextLike:$output);
+  let arguments = (ins LWECiphertextLike:$lhs, IndexAttr:$shiftAmount);
+  let results = (outs LWECiphertextLike:$output);
   let summary = "Arithmetic shift to left of a ciphertext by an integer. Note this operations to mirror the TFHE-rs implmementation.";
 }
 
@@ -127,8 +127,8 @@ def CGGI_MaxOp : CGGI_ScalarBinaryOp<"max"> { let summary = "High level operatio
 def CGGI_CmpOp : CGGI_Op<"cmp", [
     Pure,
 ]> {
-  let arguments = (ins Arith_CmpIPredicateAttr:$predicate, NewLWECiphertextLike:$lhs, AnyTypeOf<[Builtin_Integer,  NewLWECiphertext]>:$rhs);
-  let results = (outs NewLWECiphertextLike:$output);
+  let arguments = (ins Arith_CmpIPredicateAttr:$predicate, LWECiphertextLike:$lhs, AnyTypeOf<[Builtin_Integer,  LWECiphertext]>:$rhs);
+  let results = (outs LWECiphertextLike:$output);
   let summary = [{
   High level operation to check the relation of two ciphertexts.
   - equal (mnemonic: "eq"; integer value: 0)

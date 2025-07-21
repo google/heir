@@ -12,7 +12,7 @@
 #inverse_canonical_encoding = #lwe.inverse_canonical_encoding<scaling_factor = 1024>
 #plaintext_space = #lwe.plaintext_space<ring = #ring_Z65537_i64_1_x8_, encoding = #inverse_canonical_encoding>
 #ciphertext_space_L0_ = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x8_, encryption_type = lsb>
-!ct = !lwe.new_lwe_ciphertext<application_data = <message_type = f16>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
+!ct = !lwe.lwe_ciphertext<application_data = <message_type = f16>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 module attributes {scheme.ckks} {
   func.func @test_binops(%cc : !cc, %input1 : !ct, %input2 : !ct) -> !ct {
     %add_res = openfhe.add %cc, %input1, %input2 : (!cc, !ct, !ct) -> !ct
