@@ -77,9 +77,9 @@ $ ./scripts/gcp/tool provision heirtpu4 --zone="us-south1-a"
 ## Execute FHE programs on the TPU
 
 The following section provides a few programs on run on cloud TPU. The cloud
-tool starts a VM copies the required files onto the heirtpu vm, executed them
+tool starts a VM copies the required files onto the heirtpu4 VM, executes them
 and stops the VM. Optional: Use the flag --keep_running to keep the TPU running.
-In this case, please remember to stop the VM.
+In this case, please remember to stop the VM on cloud console.
 
 ### Execute a single CGGI and-gate
 
@@ -91,6 +91,21 @@ $ ./scripts/gcp/tool run \
 --zone="us-south1-a" \
 --files="./scripts/gcp/examples/jaxite_example.py" \
 --main="./scripts/gcp/examples/jaxite_example.py"
+```
+
+The above program will display the timing metric. of ~8ms for a single and-gate
+bootstrap on jaxite.
+
+### Execute a string demo to redact ssn
+
+Execute a basic and-gate on TPU using jaxite
+
+```sh
+$ ./scripts/gcp/tool run \
+--vm="heirtpu4" \
+--zone="us-south1-a" \
+--files="./scripts/gcp/examples/redact_ssn_fhe_py_lib_p1.py" \
+--main="./scripts/gcp/examples/redact_ssn_main.py"
 ```
 
 The above program will display the timing metric. of ~8ms for a single and-gate
