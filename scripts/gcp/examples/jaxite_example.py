@@ -16,6 +16,7 @@ lwe_rng = bool_params.get_lwe_rng_for_128_bit_security(seed=1)
 rlwe_rng = bool_params.get_rlwe_rng_for_128_bit_security(seed=1)
 params = bool_params.get_params_for_128_bit_security()
 
+print("Generate or load client and server key sets")
 if os.path.exists(client_key_set_path) and os.path.exists(server_key_set_path):
   with open(client_key_set_path, "rb") as f:
     cks = pickle.load(f)
