@@ -77,7 +77,7 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install pyyaml==6.0.2 fire==0.7.0
         # heir-opt is needed to generate the doctest examples
-        bazel build //tools:heir-opt
+        bazel build --//:enable_openmp=0 //tools:heir-opt
         python -m scripts.docs.copy_tblgen_files
 
     # Please update the local install instructions at docs/README.md if
