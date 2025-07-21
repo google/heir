@@ -19,7 +19,7 @@ namespace approximation {
 
 using ::llvm::APFloat;
 using ::llvm::SmallVector;
-using ::mlir::heir::polynomial::FloatPolynomial;
+using polynomial::FloatPolynomial;
 
 // When we move to C++20, we can use std::numbers::pi
 inline constexpr double kPi = 3.14159265358979323846;

@@ -22,7 +22,7 @@ using ::Eigen::SelfAdjointEigenSolver;
 using ::Eigen::VectorXd;
 using ::llvm::APFloat;
 using ::llvm::SmallVector;
-using ::mlir::heir::polynomial::FloatPolynomial;
+using polynomial::FloatPolynomial;
 
 FloatPolynomial caratheodoryFejerApproximationUnitInterval(
     const std::function<APFloat(APFloat)> &func, int32_t degree) {

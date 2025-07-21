@@ -180,7 +180,7 @@ int main(int argc, char **argv) {
   registry.insert<func::FuncDialect>();
   registry.insert<math::MathDialect>();
   registry.insert<memref::MemRefDialect>();
-  registry.insert<::mlir::heir::polynomial::PolynomialDialect>();
+  registry.insert<polynomial::PolynomialDialect>();
   registry.insert<scf::SCFDialect>();
   registry.insert<tensor::TensorDialect>();
 
@@ -250,7 +250,7 @@ int main(int argc, char **argv) {
   lwe::registerLWEPasses();
   mgmt::registerMgmtPasses();
   openfhe::registerOpenfhePasses();
-  ::mlir::heir::polynomial::registerPolynomialPasses();
+  polynomial::registerPolynomialPasses();
   secret::registerSecretPasses();
   tensor_ext::registerTensorExtPasses();
   registerAddClientInterfacePass();
@@ -335,7 +335,7 @@ int main(int argc, char **argv) {
   lwe::registerLWEToLattigoPasses();
   lwe::registerLWEToOpenfhePasses();
   lwe::registerLWEToPolynomialPasses();
-  ::mlir::heir::polynomial::registerPolynomialToModArithPasses();
+  polynomial::registerPolynomialToModArithPasses();
   tensor_ext::registerTensorExtToTensorPasses();
   registerCGGIToJaxitePasses();
   registerCGGIToTfheRustPasses();
@@ -363,7 +363,7 @@ int main(int argc, char **argv) {
   PassPipelineRegistration<>(
       "heir-polynomial-to-llvm",
       "Run passes to lower the polynomial dialect to LLVM",
-      ::mlir::heir::polynomialToLLVMPipelineBuilder);
+      polynomialToLLVMPipelineBuilder);
 
   PassPipelineRegistration<>("heir-basic-mlir-to-llvm",
                              "Lower basic MLIR to LLVM",

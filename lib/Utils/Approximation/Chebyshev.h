@@ -27,12 +27,12 @@ void getChebyshevPoints(int64_t numPoints,
 /// The first few polynomials are 1, x, 2x^2 - 1, 4x^3 - 3x, ...
 void getChebyshevPolynomials(
     int64_t numPolynomials,
-    ::llvm::SmallVector<::mlir::heir::polynomial::FloatPolynomial> &results);
+    ::llvm::SmallVector<polynomial::FloatPolynomial> &results);
 
 /// Convert a vector of Chebyshev coefficients to the monomial basis. If the
 /// Chebyshev polynomials are T_0, T_1, ..., then entry i of the input vector
 /// is the coefficient of T_i.
-::mlir::heir::polynomial::FloatPolynomial chebyshevToMonomial(
+polynomial::FloatPolynomial chebyshevToMonomial(
     const ::llvm::SmallVector<::llvm::APFloat> &coefficients);
 
 /// Interpolate Chebyshev coefficients for a given set of points. The values in

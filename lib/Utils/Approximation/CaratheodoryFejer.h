@@ -3,7 +3,6 @@
 
 #include <cstdint>
 #include <functional>
-#include <optional>
 
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "llvm/include/llvm/ADT/APFloat.h"  // from @llvm-project
@@ -27,7 +26,7 @@ namespace approximation {
 ///
 /// The arguments lower and upper provide the bounds of the interval of
 /// approximation. which defaults to [-1, 1].
-::mlir::heir::polynomial::FloatPolynomial caratheodoryFejerApproximation(
+polynomial::FloatPolynomial caratheodoryFejerApproximation(
     const std::function<::llvm::APFloat(::llvm::APFloat)> &func, int32_t degree,
     double lower = -1.0, double upper = 1.0);
 
