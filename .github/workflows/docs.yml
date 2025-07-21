@@ -70,7 +70,7 @@ jobs:
     - name: "Build markdown files from tblgen sources"
       run: |
         bazel query "filter('_filegroup', siblings(kind('gentbl_rule', @heir//...)))" | \
-          xargs bazel build "$@"
+          xargs bazel build --//:enable_openmp=0 "$@"
 
     - name: "Copy markdown files to docs/"
       run: |
