@@ -38,7 +38,7 @@ jobs:
     - name: Add pull_ready label
       if: steps.check_reviewer.outputs.is_maintainer == 'true'
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ secrets.write_pat }}
         GH_REPO: ${{ github.repository }}
         NUMBER: ${{ github.event.pull_request.number }}
         LABELS: pull_ready
