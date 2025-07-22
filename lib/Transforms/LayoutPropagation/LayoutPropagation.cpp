@@ -659,7 +659,7 @@ LogicalResult LayoutPropagation::visitOperation(affine::AffineForOp op) {
         return op->emitError()
                << "Failed to assign default layout to init " << init;
       }
-      layout = res.value().getLayout();
+      layout = cast<LayoutAttr>(res.value().getLayout());
     } else {
       layout = assignedLayouts.at(init);
     }
