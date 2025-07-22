@@ -42,7 +42,7 @@ module {
     // CHECK:  [[CT5:ct[0-9]+]] = [[CT]]
     %relin = ckks.relinearize %mul  {
       from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1>
-    }: !ct_D3 -> !ct
+    }: (!ct_D3) -> !ct
     // CHECK: stats += evaluator.key_switch([[CT5]], scheme_params.fresh_ctxt, scheme_params.arch_param)
     // CHECK:  [[CT6:ct[0-9]+]] = [[CT5]]
     %mul_again = ckks.mul %relin, %x  : (!ct, !ct) -> !ct_D3

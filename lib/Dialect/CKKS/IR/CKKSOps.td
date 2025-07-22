@@ -187,7 +187,14 @@ def CKKS_RelinearizeOp : CKKS_Op<"relinearize", [SameOperandsAndResultRings,
   ];
 
   let hasVerifier = 1;
-  let assemblyFormat = "$input `,` $keySwitchingKey attr-dict `:` functional-type(operands, results)" ;
+  // This format is a bit weird because even if the key is omitted, you still
+  // have to declare the type with parentheses around the operands (e.g.,
+  // `(!ct1) -> !ct`). I can't get the declarative format to work with two
+  // different type signatures because... well mlir-tblgen just doesn't do
+  // optional stuff well.
+  let assemblyFormat = [{
+    $input (`,` $keySwitchingKey^)? attr-dict `:` functional-type(operands, results)
+  }];
 }
 
 def CKKS_RescaleOp : CKKS_Op<"rescale"> {
