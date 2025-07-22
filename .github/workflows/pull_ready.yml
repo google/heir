@@ -42,16 +42,15 @@ jobs:
         GH_REPO: ${{ github.repository }}
         NUMBER: ${{ github.event.pull_request.number }}
         LABELS: pull_ready
-        BRANCH: ${{ github.head_ref }}
       run: |
         if [ -z "$NUMBER" ]; then
           echo "Error: PR number not found. Skipping commit fetch."
           exit 0
         fi
 
-        echo "Fetching commits for PR #$PR_NUMBER..."
+        echo "Fetching commits for PR #$NUMBER..."
         # The `gh pr view` command provides a 'commits' field which is the *count*
-        COMMITS=$(gh pr view "$PR_NUMBER" --json commits --jq '.commits')
+        COMMITS=$(gh pr view "$NUMBER" --json commits --jq '.commits')
         if (( COMMITS != 1 )); then
           echo "::error::Expected approved PR to have a single commit, but found $commits. google/heir requires a single commit per PR because Google's internal/external synchronization tooling does not support squashing, and instead would rebase all commits into the main branch."
           exit 1
