@@ -13,7 +13,8 @@ jobs:
   build-multi-clang:
     strategy:
       matrix:
-        clang-version: [15, 16, 17, 18, 19]
+        # since upgrading to C++20, only clang-17 and later are supported.
+        clang-version: [17, 18, 19, 20]
       fail-fast: false
     runs-on:
       labels: ubuntu-22.04-8core
