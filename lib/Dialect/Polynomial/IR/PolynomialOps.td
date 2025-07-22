@@ -373,5 +373,20 @@ def Polynomial_EvalOp : Polynomial_Op<"eval", [AllTypesMatch<["value", "output"]
   let hasVerifier = 1;
 }
 
+def Polynomial_KeySwitchInnerOp : Polynomial_Op<"key_switch_inner",
+    [AllTypesMatch<["value", "constantOutput", "linearOutput"]>]> {
+  let summary = "Key switch on an RNS polynomial component";
+  let description = [{
+  }];
+  let arguments = (ins
+      PolynomialLike:$value,
+      RankedTensorOf<[Polynomial_PolynomialType]>: $keySwitchingKey
+  );
+  let results = (outs
+    PolynomialLike:$constantOutput,
+    PolynomialLike:$linearOutput
+  );
+}
+
 
 #endif  // LIB_DIALECT_POLYNOMIAL_IR_POLYNOMIALOPS_TD_
