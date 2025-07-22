@@ -63,8 +63,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ env.ImageVersion }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-
 
-      # needed for dirname, used by rules_rust
       - name: Install coreutils
+        run: brew install coreutils
+
+      - name: Install rust
         run: brew install rust
 
       # --noincompatible_strict_action_env is used below to inherit the path
@@ -73,13 +75,8 @@ jobs:
       # requires the `PATH` to find the `cargo` binary.
       - name: "Run `bazel build`"
         run: |
-          bazel build --noincompatible_strict_action_env --//:enable_openmp=0 -c fastbuild //...
+          bazel build --noincompatible_strict_action_env --//:enable_openmp=0 --action_env=PATH="/opt/homebrew/bin:/usr/local/bin:$PATH" -c fastbuild //...
 
       - name: "Run `bazel test`"
-        # (TODO:#1521): re-enable all tests
-        # Nb. any test that uses the mlir-runner is going to fail on MacOS (not sure why)
-        # we have to manually exclude those.
-        run: echo "disabled, see https://github.com/google/heir/issues/1521"
-        # run: |
-        #  bazel query 'tests/Dialect/... except tests/Dialect/Polynomial/Conversions/heir_polynomial_to_llvm/...' | \
-        #    xargs bazel test --noincompatible_strict_action_env --//:enable_openmp=0 -c fastbuild
+        run: |
+           bazel test --noincompatible_strict_action_env --//:enable_openmp=0 --action_env=PATH="/opt/homebrew/bin:/usr/local/bin:$PATH" -c fastbuild //...

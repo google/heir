@@ -3,12 +3,17 @@ common --cxxopt='-std=c++20'
 common --copt=-fdiagnostics-color=always
 common --test_output=errors
 common --test_summary=terse
+
+common --enable_platform_specific_config
+
 # compilation_mode options below are `dbg` (debug symbols) `fastbuild`
 # (build as quickly as possible), and `opt` (turn on all optimizations)
 common -c dbg
 common --enable_bzlmod
+
 # required for hybrid bzlmod+workspace builds
 common --enable_workspace
+
 # prevents changes to PATH from causing a full rebuild
 common --incompatible_strict_action_env
 
@@ -22,19 +27,14 @@ build --host_action_env=CXX=clang++
 build:linux --linkopt="-fuse-ld=lld"
 
 # macos specific options
-build:macos --apple_platform_type=macos
-build:macos --macos_minimum_os=10.15
-build:macos --macos_sdk_version=10.15
-# https://github.com/bazelbuild/apple_support
-build:macos --apple_crosstool_top=@local_config_apple_cc//:toolchain
-build:macos --crosstool_top=@local_config_apple_cc//:toolchain
-build:macos --host_crosstool_top=@local_config_apple_cc//:toolchain
-# Avoid hitting command line argument limit
-build:macos --features=archive_param_file
+# openmp is not supported in apple clang
+build:macos --//:enable_openmp=0
 
 # MacOS arm64 config
 build:macos_arm64 --cpu=darwin_arm64
 build:macos_arm64 --macos_minimum_os=11.0
+# openmp is not supported in apple clang
+build:macos_arm64 --//:enable_openmp=0
 
 # run with --config=gcc to force use of gcc
 # (and the default linker, usually ld) instead
