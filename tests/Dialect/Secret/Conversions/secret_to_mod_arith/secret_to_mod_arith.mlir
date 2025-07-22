@@ -7,7 +7,7 @@
 #layout = #tensor_ext.layout<map = (d0) -> (d0 mod 1024), alignment = #alignment>
 #original_type = #tensor_ext.original_type<originalType = i16, layout = #layout>
 module {
-  func.func @dot_product(%arg0: !secret.secret<tensor<1024xi16>> {tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<8xi16>, layout = <map = (d0) -> (d0 mod 1024), alignment = <in = [8], out = [1024]>>>}, %arg1: !secret.secret<tensor<1024xi16>> {tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<8xi16>, layout = <map = (d0) -> (d0 mod 1024), alignment = <in = [8], out = [1024]>>>}) -> (!secret.secret<tensor<1024xi16>> {tensor_ext.original_type = #original_type}) {
+  func.func @dot_product(%arg0: !secret.secret<tensor<1024xi16>> {tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<8xi16>, layout = #tensor_ext.layout<map = (d0) -> (d0 mod 1024), alignment = <in = [8], out = [1024]>>>}, %arg1: !secret.secret<tensor<1024xi16>> {tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<8xi16>, layout = #tensor_ext.layout<map = (d0) -> (d0 mod 1024), alignment = <in = [8], out = [1024]>>>}) -> (!secret.secret<tensor<1024xi16>> {tensor_ext.original_type = #original_type}) {
     %c7 = arith.constant 7 : index
     %c1_i16 = arith.constant 1 : i16
     %cst = arith.constant dense<0> : tensor<1024xi16>

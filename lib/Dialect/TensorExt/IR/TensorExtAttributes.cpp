@@ -5,10 +5,12 @@
 
 #include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
+#include "mlir/include/mlir/AsmParser/AsmParser.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineMap.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/IntegerSet.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"        // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
 
@@ -109,6 +111,45 @@ LogicalResult LayoutAttr::verify(function_ref<InFlightDiagnostic()> emitError,
   }
 
   return success();
+}
+
+void NewLayoutAttr::print(AsmPrinter &p) const {
+  p << "<domainSize=" << getDomainSize() << ", relation=";
+  getRelation().print(p.getStream());
+  p << '>';
+}
+
+Attribute NewLayoutAttr::parse(AsmParser &parser, Type type) {
+  // <domainSize=
+  if (failed(parser.parseLess()) || failed(parser.parseKeyword("domainSize")) ||
+      parser.parseEqual())
+    return {};
+
+  APInt parsedDomainSize(64, 1);
+  if (failed(parser.parseInteger(parsedDomainSize))) {
+    parser.emitError(parser.getCurrentLocation())
+        << "required integer for domainSize";
+    return {};
+  }
+  unsigned domainSize = parsedDomainSize.getZExtValue();
+
+  // , relation=
+  if (failed(parser.parseComma()) || failed(parser.parseKeyword("relation")) ||
+      parser.parseEqual())
+    return {};
+
+  std::string parsedRelationString;
+  if (failed(parser.parseString(&parsedRelationString))) {
+    parser.emitError(parser.getCurrentLocation())
+        << "expected integer relation for relation";
+    return {};
+  }
+
+  IntegerSet parsedSet =
+      parseIntegerSet(parsedRelationString, parser.getContext());
+
+  if (failed(parser.parseGreater())) return {};
+  return NewLayoutAttr::get(parser.getContext(), domainSize, parsedSet);
 }
 
 }  // namespace tensor_ext

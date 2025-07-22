@@ -96,6 +96,12 @@ def TensorExt_ConvertLayoutOp : TensorExt_Op<"convert_layout", [Pure, AllTypesMa
   let hasFolder = 1;
 }
 
+// One-of attr for layout and new layout
+def LayoutLike : AnyAttrOf<[
+  TensorExt_LayoutAttr,
+  TensorExt_NewLayoutAttr,
+]>;
+
 def TensorExt_AssignLayoutOp : TensorExt_Op<"assign_layout", [Pure, AllTypesMatch<["value", "output"]>]> {
   let summary = "Assign a layout to a plaintext tensor or scalar.";
   let description = [{
@@ -110,7 +116,7 @@ def TensorExt_AssignLayoutOp : TensorExt_Op<"assign_layout", [Pure, AllTypesMatc
   }];
 
   let assemblyFormat = "operands attr-dict `:` type($output)";
-  let arguments = (ins AnyType:$value, TensorExt_LayoutAttr:$layout);
+  let arguments = (ins AnyType:$value, LayoutLike:$layout);
   let results = (outs AnyType:$output);
   let hasVerifier = 1;
 }
