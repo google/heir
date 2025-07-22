@@ -31,6 +31,10 @@ jobs:
             echo "is_maintainer=false" >> "$GITHUB_OUTPUT"
           fi
 
+    # gh pr view must be run in a git repo
+    - name: Check out repository code
+      uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
+
     - name: Add pull_ready label
       if: steps.check_reviewer.outputs.is_maintainer == 'true'
       env:
@@ -38,6 +42,7 @@ jobs:
         GH_REPO: ${{ github.repository }}
         NUMBER: ${{ github.event.pull_request.number }}
         LABELS: pull_ready
+        BRANCH: ${{ github.head_ref }}
       run: |
         if [ -z "$NUMBER" ]; then
           echo "Error: PR number not found. Skipping commit fetch."
