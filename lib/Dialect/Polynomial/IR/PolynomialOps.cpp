@@ -152,6 +152,15 @@ LogicalResult ToTensorOp::verify() {
   return success();
 }
 
+LogicalResult ModSwitchOp::verify() {
+  if (getInput().getType().getRing().getPolynomialModulus() !=
+      getOutput().getType().getRing().getPolynomialModulus()) {
+    return emitOpError()
+           << "the two polynomials must have the same polynomialModulus";
+  }
+  return success();
+}
+
 /// Test if a value is a primitive nth root of unity modulo cmod.
 bool isPrimitiveNthRootOfUnity(const APInt &root, const APInt &n,
                                const APInt &cmod) {

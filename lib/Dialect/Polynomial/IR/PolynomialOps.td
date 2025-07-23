@@ -265,6 +265,29 @@ def Polynomial_ToTensorOp : Polynomial_Op<"to_tensor", [Pure]> {
   let hasVerifier = 1;
 }
 
+def Polynomial_ModSwitchOp : Polynomial_Op<"mod_switch", [Pure]> {
+  let summary = "Change the coefficient type of a polynomial.";
+  let description = [{
+    `polynomial.mod_switch` changes the coefficient type of a polynomial.
+
+    The two polynomials must have the same polynomialModulus.
+
+    Example:
+
+    ```mlir
+    #poly = #polynomial.int_polynomial<x**1024 - 1>
+    #ring32 = #polynomial.ring<coefficientType=i32, polynomialModulus=#poly>
+    #ring64 = #polynomial.ring<coefficientType=i64, polynomialModulus=#poly>
+    %poly = polynomial.mod_switch %coeffs : !polynomial.polynomial<#ring64> to !polynomial.polynomial<#ring32>
+    ```
+  }];
+  let arguments = (ins Polynomial_PolynomialType:$input);
+  let results = (outs Polynomial_PolynomialType:$output);
+  let assemblyFormat = "$input attr-dict `:` type($input) `to` type($output)";
+  let hasVerifier = 1;
+}
+
+
 def Polynomial_AnyTypedPolynomialAttr : AnyAttrOf<[
   Polynomial_TypedFloatPolynomialAttr,
   Polynomial_TypedIntPolynomialAttr,

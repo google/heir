@@ -64,8 +64,6 @@ td_library(
         "LWEOps.td",
         "LWETraits.td",
         "LWETypes.td",
-        "NewLWEAttributes.td",
-        "NewLWETypes.td",
     ],
     # include from the heir-root to enable fully-qualified include-paths
     includes = ["../../../.."],

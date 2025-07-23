@@ -281,16 +281,6 @@ void addStructuralConversionPatterns(TypeConverter &typeConverter,
                                                        target);
 }
 
-int widthFromEncodingAttr(Attribute encoding) {
-  return llvm::TypeSwitch<Attribute, int>(encoding)
-      .Case<lwe::BitFieldEncodingAttr, lwe::UnspecifiedBitFieldEncodingAttr>(
-          [](auto attr) -> int { return attr.getCleartextBitwidth(); })
-      .Default([](Attribute attr) -> int {
-        llvm_unreachable("Unsupported encoding attribute");
-        return 0;
-      });
-}
-
 FailureOr<Value> getContextualArgFromFunc(Operation *op, Type argType) {
   for (auto blockArg : op->getParentOfType<func::FuncOp>()
                            .getBody()
