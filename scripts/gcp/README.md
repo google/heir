@@ -50,22 +50,56 @@ $ gcloud beta services identity create --service tpu.googleapis.com
 ```sh
 $ git clone https://github.com/google/heir.git
 $ cd heir
+```
+
+Optionally create a python virtual environment for cloud dependencies.
+
+```sh
+$ python3 -m venv fhe_cloud
+$ source fhe_cloud/bin/activate
+```
+
+Note: To deactivate, run the command "deactivate".
+
+```sh
 $ pip install -r ./scripts/gcp/requirements.txt
 ```
 
 - Create a TPU
 
-Create a new TPU called "heir_tpu" and the required infrastructure
+Create a new TPU called "heirtpu4" with 4 tpu devices and the required
+infrastructure.
 
 ```sh
-$ ./scripts/gcp/tool provision heir_tpu --zone="us-south1-a"
+$ ./scripts/gcp/tool provision heirtpu4 --zone="us-south1-a"
 ```
+
+## Execute FHE programs on the TPU
+
+The following section provides a few programs on run on cloud TPU. The cloud
+tool starts a VM copies the required files onto the heirtpu vm, executed them
+and stops the VM. Optional: Use the flag --keep_running to keep the TPU running.
+In this case, please remember to stop the VM.
+
+### Execute a single CGGI and-gate
+
+Execute a basic and-gate on TPU using jaxite
+
+```sh
+$ ./scripts/gcp/tool run \
+--vm="heirtpu4" \
+--zone="us-south1-a" \
+--files="./scripts/gcp/examples/jaxite_example.py" \
+--main="./scripts/gcp/examples/jaxite_example.py"
+```
+
+The above program will display the timing metric. of ~8ms for a single and-gate
+bootstrap on jaxite.
 
 ## Execute a HEIR compiled FHE program on the TPU
 
-Compile a HEIR program and run on TPU
-
-Run the following commands to compile a program in HEIR.
+Compile a HEIR program and run on TPU Run the following commands to compile a
+program in HEIR.
 
 ```sh
 $ bazel build scripts/gcp/examples:add_one_lut3
@@ -75,8 +109,9 @@ Run the following command to run the above compiled program on TPU.
 
 ```sh
 $ ./scripts/gcp/tool run \
+--vm="heirtpu4" \
 --zone="us-south1-a" \
---files="./bazel-bin/scripts/gcp/examples/add_one_lut3_fhe_lib.py" \
+--files="./bazel-bin/scripts/gcp/examples/add_one_lut3_lib.py" \
 --main="./scripts/gcp/examples/add_one_lut3_main.py"
 ```
 
