@@ -3,6 +3,7 @@
 load("@heir//bazel/openfhe:copts.bzl", "MAYBE_OPENFHE_LINKOPTS", "MAYBE_OPENMP_COPTS")
 load("@heir//tools:heir-opt.bzl", "heir_opt")
 load("@heir//tools:heir-translate.bzl", "heir_translate")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 def openfhe_lib(name, mlir_src, generated_lib_header, cc_lib_target_name, heir_opt_flags = [], heir_translate_flags = [], data = [], tags = [], deps = [], **kwargs):
     """A rule for running generating OpenFHE and running a test on it.
@@ -51,7 +52,7 @@ def openfhe_lib(name, mlir_src, generated_lib_header, cc_lib_target_name, heir_o
         pass_flags = heir_translate_flags,
         generated_filename = generated_lib_header,
     )
-    native.cc_library(
+    cc_library(
         name = cc_lib_target_name,
         srcs = [":" + generated_cc_filename],
         hdrs = [":" + generated_lib_header],
