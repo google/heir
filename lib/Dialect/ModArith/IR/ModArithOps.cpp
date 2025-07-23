@@ -93,7 +93,7 @@ LogicalResult ExtractOp::verify() {
 
 template <typename OpType>
 LogicalResult verifyRNS(OpType op, ModArithType modArithType,
-                        rns::RNSType rnsType) {
+                        rns::RNSType rnsType, bool allowInjection = false) {
   auto bigModulus = modArithType.getModulus().getValue();
   auto width = bigModulus.getBitWidth();
   auto rnsWidth = cast<ModArithType>(rnsType.getBasisTypes()[0])
@@ -110,6 +110,9 @@ LogicalResult verifyRNS(OpType op, ModArithType modArithType,
     product *= modulus.zext(width);
   }
   if (product != bigModulus) {
+    if (allowInjection && bigModulus.slt(product)) {
+      return success();
+    }
     return op.emitOpError() << "The product of RNS modulus should equal to the "
                                "modulus of ModArithType";
   }
@@ -124,7 +127,8 @@ LogicalResult ModSwitchOp::verify() {
       return success();
     }
     if (auto outputRNS = dyn_cast<rns::RNSType>(outputType)) {
-      return verifyRNS(*this, inputModArith, outputRNS);
+      return verifyRNS(*this, inputModArith, outputRNS,
+                       /*allowInjection=*/true);
     }
   }
   if (auto inputRNS = dyn_cast<rns::RNSType>(inputType)) {

@@ -19,6 +19,7 @@
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
+#include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Target/OpenFhePke/OpenFheUtils.h"
@@ -969,8 +970,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::EmptyOp op) {
 
 LogicalResult OpenFhePkeEmitter::printOperation(tensor::ExtractOp op) {
   // const auto& v1 = in[0, 1];
-  if (isa<lwe::NewLWECiphertextType, lwe::LWECiphertextType>(
-          op.getResult().getType())) {
+  if (isa<lwe::NewLWECiphertextType>(op.getResult().getType())) {
     emitAutoAssignPrefix(op.getResult());
   } else {
     if (failed(emitTypedAssignPrefix(op.getResult(), op.getLoc(), true)))

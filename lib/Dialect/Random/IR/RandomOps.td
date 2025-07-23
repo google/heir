@@ -34,7 +34,7 @@ def Random_InitOp: Random_Op<"init_prng", [Pure]> {
   }];
 
   let arguments = (ins
-    SignlessIntegerLike:$seed,
+    Index:$seed,
     Builtin_IntegerAttr:$num_bits
   );
   let results = (outs PRNG:$output);
@@ -82,7 +82,7 @@ def Random_SampleOp : Random_Op<"sample"> {
     or tensor of values.
   }];
   let arguments = (ins Distribution:$input);
-  let results = (outs SignlessIntegerLike:$output);
+  let results = (outs AnyType:$output);
 }
 
 #endif  // LIB_DIALECT_RANDOM_IR_RANDOMOPS_TD_

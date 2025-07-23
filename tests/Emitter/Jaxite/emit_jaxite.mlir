@@ -3,7 +3,6 @@
 !bsks = !jaxite.server_key_set
 !params = !jaxite.params
 
-#params = #lwe.lwe_params<cmod=7917, dimension=10>
 #key = #lwe.key<slot_index = 0>
 #preserve_overflow = #lwe.preserve_overflow<>
 #app_data = #lwe.application_data<message_type = i1, overflow = #preserve_overflow>

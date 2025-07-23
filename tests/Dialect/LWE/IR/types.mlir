@@ -2,71 +2,49 @@
 
 // This simply tests for syntax.
 
-#encoding = #lwe.bit_field_encoding<
-  cleartext_start=14,
-  cleartext_bitwidth=3>
-#params = #lwe.lwe_params<cmod=7917, dimension=10>
-!ciphertext = !lwe.lwe_ciphertext<encoding = #encoding, lwe_params = #params>
+#preserve_overflow = #lwe.preserve_overflow<>
+#poly = #polynomial.int_polynomial<x>
 
+#key = #lwe.key<slot_index = 0>
+#pspace = #lwe.plaintext_space<ring = #polynomial.ring<coefficientType = i4, polynomialModulus = #poly>, encoding = #lwe.constant_coefficient_encoding<scaling_factor = 268435456>>
+#cspace = #lwe.ciphertext_space<ring = #polynomial.ring<coefficientType = i32, polynomialModulus = #poly>, encryption_type = msb, size = 742>
+!ciphertext = !lwe.new_lwe_ciphertext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
 
 // CHECK: test_valid_lwe_ciphertext
 func.func @test_valid_lwe_ciphertext(%arg0 : !ciphertext) -> !ciphertext {
   return %arg0 : !ciphertext
 }
 
+!Z1095233372161_i64_ = !mod_arith.int<1095233372161 : i64>
+!Z65537_i64_ = !mod_arith.int<65537 : i64>
 
-!ciphertext_noparams = !lwe.lwe_ciphertext<encoding = #encoding>
+!rns_L0_ = !rns.rns<!Z1095233372161_i64_>
 
-// CHECK: test_valid_lwe_ciphertext_unspecified
-func.func @test_valid_lwe_ciphertext_unspecified(%arg0 : !ciphertext_noparams) -> !ciphertext_noparams {
-  return %arg0 : !ciphertext_noparams
-}
+#ring_Z65537_i64_1_x1024_ = #polynomial.ring<coefficientType = !Z65537_i64_, polynomialModulus = <1 + x**1024>>
+#ring_rns_L0_1_x1024_ = #polynomial.ring<coefficientType = !rns_L0_, polynomialModulus = <1 + x**1024>>
+#modulus_chain_L5_C0_ = #lwe.modulus_chain<elements = <1095233372161 : i64, 1032955396097 : i64, 1005037682689 : i64, 998595133441 : i64, 972824936449 : i64, 959939837953 : i64>, current = 0>
 
+#full_crt_packing_encoding = #lwe.full_crt_packing_encoding<scaling_factor = 0>
 
-#my_poly = #polynomial.int_polynomial<1 + x**1024>
-#ring = #polynomial.ring<coefficientType=!mod_arith.int<7917:i32>, polynomialModulus=#my_poly>
-#rlwe_params = #lwe.rlwe_params<dimension=10, ring=#ring>
-!ciphertext_rlwe = !lwe.rlwe_ciphertext<encoding = #encoding, rlwe_params = #rlwe_params, underlying_type=i3>
+#plaintext_space = #lwe.plaintext_space<ring = #ring_Z65537_i64_1_x1024_, encoding = #full_crt_packing_encoding>
+#ciphertext_space_L0_ = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024_, encryption_type = lsb>
+!ciphertext_rlwe = !lwe.new_lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 
 // CHECK: test_valid_rlwe_ciphertext
 func.func @test_valid_rlwe_ciphertext(%arg0 : !ciphertext_rlwe) -> !ciphertext_rlwe {
   return %arg0 : !ciphertext_rlwe
 }
 
-#key = #lwe.key<>
-!secret_key = !lwe.new_lwe_secret_key<key = #key, ring = #ring>
+!secret_key = !lwe.new_lwe_secret_key<key = #key, ring = #ring_rns_L0_1_x1024_>
 
 // CHECK: test_new_lwe_secret_key
 func.func @test_new_lwe_secret_key(%arg0 : !secret_key) -> !secret_key {
   return %arg0 :!secret_key
 }
 
-!public_key = !lwe.new_lwe_public_key<key = #key, ring = #ring>
+!public_key = !lwe.new_lwe_public_key<key = #key, ring = #ring_rns_L0_1_x1024_>
 
 // CHECK: test_new_lwe_public_key
 func.func @test_new_lwe_public_key(%arg0 : !public_key) -> !public_key {
   return %arg0 : !public_key
-}
-
-
-#preserve_overflow = #lwe.preserve_overflow<>
-#application_data = #lwe.application_data<message_type = i1, overflow = #preserve_overflow>
-#inverse_canonical_enc = #lwe.inverse_canonical_encoding<scaling_factor = 10000>
-#plaintext_space = #lwe.plaintext_space<ring = #ring, encoding = #inverse_canonical_enc>
-
-!new_lwe_plaintext = !lwe.new_lwe_plaintext<application_data = #application_data, plaintext_space = #plaintext_space>
-
-// CHECK: test_new_lwe_plaintext
-func.func @test_new_lwe_plaintext(%arg0 : !new_lwe_plaintext) -> !new_lwe_plaintext {
-  return %arg0 : !new_lwe_plaintext
-}
-
-#ciphertext_space = #lwe.ciphertext_space<ring = #ring, encryption_type = msb>
-#modulus_chain = #lwe.modulus_chain<elements = <7917 : i32>, current = 0>
-
-!new_lwe_ciphertext = !lwe.new_lwe_ciphertext<application_data = #application_data, plaintext_space = #plaintext_space, key = #key, ciphertext_space = #ciphertext_space, modulus_chain = #modulus_chain>
-
-// CHECK: test_new_lwe_ciphertext
-func.func @test_new_lwe_ciphertext(%arg0 : !new_lwe_ciphertext) -> !new_lwe_ciphertext {
-  return %arg0 : !new_lwe_ciphertext
 }

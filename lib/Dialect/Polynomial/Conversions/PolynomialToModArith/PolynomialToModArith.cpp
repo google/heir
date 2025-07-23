@@ -733,6 +733,7 @@ func::FuncOp PolynomialToModArith::buildPolynomialModFunc(FunctionType funcType,
   // same cmod+ideal.
   auto coeffTy = ring.getCoefficientType();
   std::string coeffTyId;
+  // TODO(#1199): support RNS lowering
   if (auto intTy = dyn_cast<IntegerType>(coeffTy)) {
     coeffTyId = llvm::formatv("i{0}", intTy.getWidth());
   } else if (auto modTy = dyn_cast<ModArithType>(coeffTy)) {
@@ -801,6 +802,7 @@ func::FuncOp PolynomialToModArith::buildPolynomialModFunc(FunctionType funcType,
   // If the leading coefficient of the divisor has no inverse, we can't do
   // division. The lowering must fail:
   auto divisor = ring.getPolynomialModulus().getPolynomial();
+  // TODO(#1199): support RNS lowering
   APInt rawCoeffMod =
       cast<ModArithType>(ring.getCoefficientType()).getModulus().getValue();
   auto [leadingCoef, coeffMod] = extendWidthsToLargest(

@@ -4,7 +4,7 @@
 include "lib/Dialect/LWE/IR/LWEDialect.td"
 include "lib/Dialect/LWE/IR/LWETraits.td"
 include "lib/Dialect/LWE/IR/LWETypes.td"
-include "lib/Dialect/LWE/IR/NewLWEAttributes.td"
+include "lib/Dialect/LWE/IR/LWEAttributes.td"
 include "lib/Dialect/Polynomial/IR/PolynomialAttributes.td"
 
 include "mlir/IR/BuiltinAttributeInterfaces.td"

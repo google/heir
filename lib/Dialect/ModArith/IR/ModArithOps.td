@@ -78,17 +78,23 @@ def ModArith_ModSwitchOp : ModArith_Op<"mod_switch", [Pure]> {
     modulus of a mod_arith type to a new value by reducing modulo the new
     modulus) or CRT decomposition/interpolation.
 
+    A CRT decomposition can handle switching from a mod_arith type to the RNS
+    modulus when the modulus of the mod_arith type is equal to the product of
+    the RNS modulus. If the modulus is less than the RNS modulus product, it
+    treats the input as an element of the larger product space via an injection.
+
     Examples:
     ```
     mod_arith.mod_switch %c0 : mod_arith.int<65537 : i32> to mod_arith.int<65539 : i32>
     mod_arith.mod_switch %c0 : mod_arith.int<65537 : i32> to mod_arith.int<257 : i32>
     mod_arith.mod_switch %c0 : mod_arith.int<85 : i32> to rns.rns<mod_arith.int<5 : i32>, mod_arith.int<17 : i32>>
+    mod_arith.mod_switch %c0 : mod_arith.int<45 : i32> to rns.rns<mod_arith.int<5 : i32>, mod_arith.int<17 : i32>>
     mod_arith.mod_switch %c0 : rns.rns<mod_arith.int<5 : i32>, mod_arith.int<17 : i32>> to mod_arith.int<85 : i32>
     ```
   }];
 
-  let arguments = (ins ModArithOrRNS:$input);
-  let results = (outs ModArithOrRNS:$output);
+  let arguments = (ins ModArithOrRNSLike:$input);
+  let results = (outs ModArithOrRNSLike:$output);
   let hasVerifier = 1;
   let assemblyFormat = "$input attr-dict `:` type($input) `to` type($output)";
 }

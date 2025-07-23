@@ -125,18 +125,6 @@ LogicalResult verifyEncodingAndTypeMatch(mlir::Type type,
 
   // Verification conditions for each encoding we have:
 
-  if (isa<BitFieldEncodingAttr>(encoding)) {
-    // Bit field encodings only work on (scalar/individual) integer
-    return success(type.isInteger());
-  }
-
-  if (isa<UnspecifiedBitFieldEncodingAttr>(encoding)) {
-    // same as BitFieldEncoding
-    return success(type.isInteger());
-  }
-
-  // New LWE Encoding Attr
-
   if (isa<FullCRTPackingEncodingAttr>(encoding)) {
     // also supports lists of integers and scalars via replication
     return success(getElementTypeOrSelf(type).isInteger());

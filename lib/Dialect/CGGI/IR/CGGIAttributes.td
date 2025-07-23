@@ -13,20 +13,6 @@ class CGGI_Attr<string name, string attrMnemonic, list<Trait> traits = []>
   let assemblyFormat = "`<` struct(params) `>`";
 }
 
-def CGGI_CGGIParams : CGGI_Attr<"CGGIParams", "cggi_params"> {
-  // TODO(#276): migrate the gadget params
-  // to lwe dialect?
-  let parameters = (ins
-    "::mlir::heir::lwe::RLWEParamsAttr": $rlweParams,
-    "unsigned": $bsk_noise_variance,
-    "unsigned": $bsk_gadget_base_log,
-    "unsigned": $bsk_gadget_num_levels,
-    "unsigned": $ksk_noise_variance,
-    "unsigned": $ksk_gadget_base_log,
-    "unsigned": $ksk_gadget_num_levels
-  );
-}
-
 def CGGI_CGGIBoolGates : CGGI_Attr<"CGGIBoolGates", "cggi_bool_gates"> {
   let summary = "An attribute containing an array of strings to store bool gates";
 

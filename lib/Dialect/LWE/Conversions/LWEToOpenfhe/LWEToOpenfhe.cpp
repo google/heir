@@ -41,12 +41,6 @@ namespace mlir::heir::lwe {
 
 ToOpenfheTypeConverter::ToOpenfheTypeConverter(MLIRContext *ctx) {
   addConversion([](Type type) { return type; });
-  addConversion([ctx](lwe::RLWEPublicKeyType type) -> Type {
-    return openfhe::PublicKeyType::get(ctx);
-  });
-  addConversion([ctx](lwe::RLWESecretKeyType type) -> Type {
-    return openfhe::PrivateKeyType::get(ctx);
-  });
   addConversion([ctx](lwe::NewLWEPublicKeyType type) -> Type {
     return openfhe::PublicKeyType::get(ctx);
   });
