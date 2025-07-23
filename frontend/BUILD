@@ -11,8 +11,8 @@ DATA_DEPS = [
     "@cereal//:headers",
     "@heir//tools:heir-opt",
     "@heir//tools:heir-translate",
-    "@openfhe//:headers",
     "@openfhe//:libopenfhe",
+    "@openfhe//:headers",
     # copybara: openfhe_binfhe_headers
     # copybara: openfhe_core_headers
     # copybara: openfhe_pke_headers
