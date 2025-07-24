@@ -177,7 +177,7 @@ LogicalResult generateDecryptionFunc(func::FuncOp op, Type decFuncArgType,
       Type dataSemanticType = originalTypeAttr.getOriginalType();
       auto unpackOp = builder.create<tensor_ext::UnpackOp>(
           dataSemanticType, decrypted.getResult(),
-          originalTypeAttr.getLayout());
+          cast<tensor_ext::LayoutAttr>(originalTypeAttr.getLayout()));
 
       Value res =
           implementUnpackOp(unpackOp, builder, [&](Operation *createdOp) {});

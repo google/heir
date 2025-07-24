@@ -14,7 +14,7 @@
 #layout = #tensor_ext.layout<map = (d0) -> (d0 mod 32), alignment = #alignment>
 #original_type = #tensor_ext.original_type<originalType = i16, layout = #layout>
 module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 12, Q = [67239937, 34359754753], P = [34359771137], plaintextModulus = 65537>, scheme.bgv} {
-  func.func @simple_sum(%arg0: !secret.secret<tensor<32xi16>> {tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<32xi16>, layout = <map = (d0) -> (d0 mod 32)>>}) -> (!secret.secret<tensor<32xi16>> {tensor_ext.original_type = #original_type}) {
+  func.func @simple_sum(%arg0: !secret.secret<tensor<32xi16>> {tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<32xi16>, layout = #tensor_ext.layout<map = (d0) -> (d0 mod 32)>>}) -> (!secret.secret<tensor<32xi16>> {tensor_ext.original_type = #original_type}) {
     %c31 = arith.constant 31 : index
     %c1_i16 = arith.constant 1 : i16
     %cst = arith.constant dense<0> : tensor<32xi16>
