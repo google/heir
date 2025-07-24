@@ -39,6 +39,12 @@ void RotateOp::getCanonicalizationPatterns(RewritePatternSet &results,
   populateWithGenerated(results);
 }
 
+void populateFactorThroughPatterns(RewritePatternSet &results,
+                                   MLIRContext *context) {
+  results.add<FactorParallelRotationsThroughOp_Arith_AddFOp>(context);
+  results.add<FactorParallelRotationsThroughOp_Arith_AddIOp>(context);
+}
+
 LogicalResult RotateOp::verify() {
   auto x = getTensor().getType();
   // TODO(#924): Currently RotateOp only supports rotating a 1-D vector, or a

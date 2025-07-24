@@ -3,6 +3,7 @@
 
 // IWYU pragma: begin_keep
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
+#include "lib/Dialect/TensorExt/Transforms/BabyStepGiantStep.h"
 #include "lib/Dialect/TensorExt/Transforms/CollapseInsertionChains.h"
 #include "lib/Dialect/TensorExt/Transforms/FoldConvertLayoutIntoAssignLayout.h"
 #include "lib/Dialect/TensorExt/Transforms/ImplementShiftNetwork.h"
