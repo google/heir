@@ -43,6 +43,12 @@ float dot_product__decrypt__result0(float *allocated, float *aligned,
                                     int64_t offset, int64_t size,
                                     int64_t stride);
 
+// Needs to be allocated in .bss
+// Maybe for alignment?
+// Otherwise segfault inside memrefCopy
+_Alignas(uint64_t) float arg0[8];
+_Alignas(uint64_t) float arg1[8];
+
 // debug handler
 void __heir_debug_tensor_8xf32_(
     /* arg 0*/
