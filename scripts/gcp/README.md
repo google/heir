@@ -102,7 +102,7 @@ Compile a HEIR program and run on TPU Run the following commands to compile a
 program in HEIR.
 
 ```sh
-$ bazel build scripts/gcp/examples:add_one_lut3
+$ bazel build scripts/gcp/examples:add_one_lut3_py_lib
 ```
 
 Run the following command to run the above compiled program on TPU.
