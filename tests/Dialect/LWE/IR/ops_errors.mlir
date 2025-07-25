@@ -6,7 +6,7 @@
 #pspace = #lwe.plaintext_space<
   ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>,
   encoding = #lwe.constant_coefficient_encoding<scaling_factor = 256>>
-!plaintext = !lwe.new_lwe_plaintext<application_data = <message_type = i1>, plaintext_space = #pspace>
+!plaintext = !lwe.lwe_plaintext<application_data = <message_type = i1>, plaintext_space = #pspace>
 
 // CHECK: test_invalid_overflow
 func.func @test_invalid_overflow() {
@@ -24,7 +24,7 @@ func.func @test_invalid_overflow() {
 #pspace = #lwe.plaintext_space<
   ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>,
   encoding = #lwe.constant_coefficient_encoding<scaling_factor = 256>>
-!plaintext = !lwe.new_lwe_plaintext<application_data = <message_type = i2, overflow = #preserve_overflow>, plaintext_space = #pspace>
+!plaintext = !lwe.lwe_plaintext<application_data = <message_type = i2, overflow = #preserve_overflow>, plaintext_space = #pspace>
 
 // CHECK: test_invalid_application_data
 func.func @test_invalid_application_data() {
@@ -42,7 +42,7 @@ func.func @test_invalid_application_data() {
 #pspace = #lwe.plaintext_space<
   ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>,
   encoding = #lwe.constant_coefficient_encoding<scaling_factor = 256>>
-!plaintext = !lwe.new_lwe_plaintext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #pspace>
+!plaintext = !lwe.lwe_plaintext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #pspace>
 
 // CHECK: test_invalid_plaintext_bits
 func.func @test_invalid_plaintext_bits() {
@@ -60,13 +60,13 @@ func.func @test_invalid_plaintext_bits() {
 #pspace = #lwe.plaintext_space<
   ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>,
   encoding = #lwe.constant_coefficient_encoding<scaling_factor = 256>>
-!plaintext = !lwe.new_lwe_plaintext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #pspace>
+!plaintext = !lwe.lwe_plaintext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #pspace>
 
 #key = #lwe.key<slot_index = 0>
 #cspace = #lwe.ciphertext_space<
   ring = #polynomial.ring<coefficientType = i32, polynomialModulus = #poly>,
   encryption_type = msb, size = 742>
-!ciphertext = !lwe.new_lwe_ciphertext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
+!ciphertext = !lwe.lwe_ciphertext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
 
 func.func @test_invalid_ciphertext_bits(%1: !plaintext) {
     // expected-error@below {{ciphertext modulus of the output must match the ciphertext_bits parameter, expected 64 but found 32}}
@@ -81,7 +81,7 @@ func.func @test_invalid_ciphertext_bits(%1: !plaintext) {
 #pspace = #lwe.plaintext_space<
   ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>,
   encoding = #lwe.constant_coefficient_encoding<scaling_factor = 256>>
-!plaintext = !lwe.new_lwe_plaintext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #pspace>
+!plaintext = !lwe.lwe_plaintext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #pspace>
 
 #key = #lwe.key<slot_index = 0>
 #diff_pspace = #lwe.plaintext_space<
@@ -91,7 +91,7 @@ func.func @test_invalid_ciphertext_bits(%1: !plaintext) {
 #cspace = #lwe.ciphertext_space<
   ring = #polynomial.ring<coefficientType = i32, polynomialModulus = #poly>,
   encryption_type = msb, size = 742>
-!ciphertext = !lwe.new_lwe_ciphertext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #diff_pspace, ciphertext_space = #cspace, key = #key>
+!ciphertext = !lwe.lwe_ciphertext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #diff_pspace, ciphertext_space = #cspace, key = #key>
 
 func.func @test_invalid_mismatch_encoding(%1: !plaintext) {
     // expected-error@below {{op failed to verify that the first arg's type's encoding matches the given encoding}}

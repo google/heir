@@ -64,7 +64,7 @@ struct ExpandLutLinComb : public OpRewritePattern<LutLinCombOp> {
   LogicalResult matchAndRewrite(LutLinCombOp op,
                                 PatternRewriter &rewriter) const override {
     Type scalarTy = rewriter.getIntegerType(
-        cast<lwe::NewLWECiphertextType>(op.getInputs().front().getType())
+        cast<lwe::LWECiphertextType>(op.getInputs().front().getType())
             .getPlaintextSpace()
             .getRing()
             .getCoefficientType()

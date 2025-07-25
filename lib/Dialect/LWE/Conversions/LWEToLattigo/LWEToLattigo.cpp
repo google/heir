@@ -39,16 +39,16 @@ class ToLattigoTypeConverter : public TypeConverter {
  public:
   ToLattigoTypeConverter(MLIRContext *ctx) {
     addConversion([](Type type) { return type; });
-    addConversion([ctx](lwe::NewLWECiphertextType type) -> Type {
+    addConversion([ctx](lwe::LWECiphertextType type) -> Type {
       return lattigo::RLWECiphertextType::get(ctx);
     });
-    addConversion([ctx](lwe::NewLWEPlaintextType type) -> Type {
+    addConversion([ctx](lwe::LWEPlaintextType type) -> Type {
       return lattigo::RLWEPlaintextType::get(ctx);
     });
-    addConversion([ctx](lwe::NewLWEPublicKeyType type) -> Type {
+    addConversion([ctx](lwe::LWEPublicKeyType type) -> Type {
       return lattigo::RLWEPublicKeyType::get(ctx);
     });
-    addConversion([ctx](lwe::NewLWESecretKeyType type) -> Type {
+    addConversion([ctx](lwe::LWESecretKeyType type) -> Type {
       return lattigo::RLWESecretKeyType::get(ctx);
     });
   }
@@ -645,7 +645,7 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
           return false;
         }
         return llvm::any_of(funcOp.getArguments(), [&](BlockArgument arg) {
-          return mlir::isa<lwe::NewLWESecretKeyType>(arg.getType()) &&
+          return mlir::isa<lwe::LWESecretKeyType>(arg.getType()) &&
                  llvm::any_of(arg.getUses(), [&](OpOperand &use) {
                    return mlir::isa<lwe::RLWEEncryptOp>(use.getOwner());
                  });
@@ -672,7 +672,7 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
       if (auto funcOp = dyn_cast<func::FuncOp>(op)) {
         bool findKey =
             llvm::any_of(funcOp.getArgumentTypes(), [&](Type argType) {
-              return mlir::isa<lwe::NewLWESecretKeyType>(argType);
+              return mlir::isa<lwe::LWESecretKeyType>(argType);
             });
         // for declaration, only checks the existence
         if (funcOp.isDeclaration()) {
@@ -681,7 +681,7 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
         // for definition, check the uses
         bool noEncrypt =
             llvm::all_of(funcOp.getArguments(), [&](BlockArgument arg) {
-              return !mlir::isa<lwe::NewLWESecretKeyType>(arg.getType()) ||
+              return !mlir::isa<lwe::LWESecretKeyType>(arg.getType()) ||
                      llvm::none_of(arg.getUses(), [&](OpOperand &use) {
                        return mlir::isa<lwe::RLWEEncryptOp>(use.getOwner());
                      });
@@ -715,8 +715,8 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
          gateByCKKSModuleAttr(
              containsArgumentOfDialect<lwe::LWEDialect, ckks::CKKSDialect>)},
         {lattigo::RLWEEncryptorType::get(context, /*publicKey*/ true),
-         containsArgumentOfType<lwe::NewLWEPublicKeyType>},
-        // for NewLWESecretKey, if its uses are encrypt, then convert it to an
+         containsArgumentOfType<lwe::LWEPublicKeyType>},
+        // for LWESecretKey, if its uses are encrypt, then convert it to an
         // encryptor, otherwise, convert it to a decryptor
         {lattigo::RLWEEncryptorType::get(context, /*publicKey*/ false),
          containsEncryptUseSk},

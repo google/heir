@@ -37,7 +37,7 @@ include "lib/Dialect/CGGI/IR/CGGIPBSOps.td"
 // 2. Use a trivial op where the constant is embedded in the ciphertext.
 def CGGI_CreateTrivialOp : CGGI_Op<"create_trivial", [Pure]> {
   let arguments = (ins Builtin_IntegerAttr:$value);
-  let results = (outs NewLWECiphertextLike:$output);
+  let results = (outs LWECiphertextLike:$output);
 }
 
 def CGGI_CastOp : CGGI_Op<"cast", [Pure, SameOperandsAndResultShape]> {
@@ -53,8 +53,8 @@ def CGGI_CastOp : CGGI_Op<"cast", [Pure, SameOperandsAndResultShape]> {
     ```
   }];
 
-  let arguments = (ins NewLWECiphertextLike:$input);
-  let results = (outs NewLWECiphertextLike:$output);
+  let arguments = (ins LWECiphertextLike:$input);
+  let results = (outs LWECiphertextLike:$output);
 
   let assemblyFormat = "$input attr-dict `:` type($input) `to` type($output)";
 }

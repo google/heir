@@ -13,7 +13,7 @@ namespace mlir {
 namespace heir {
 namespace lwe {
 
-LogicalResult NewLWECiphertextType::verify(
+LogicalResult LWECiphertextType::verify(
     llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
     mlir::heir::lwe::ApplicationDataAttr, mlir::heir::lwe::PlaintextSpaceAttr,
     mlir::heir::lwe::CiphertextSpaceAttr ciphertextSpace,
@@ -36,9 +36,9 @@ LogicalResult NewLWECiphertextType::verify(
   return success();
 }
 
-NewLWECiphertextType getDefaultCGGICiphertextType(MLIRContext *ctx,
-                                                  int messageWidth,
-                                                  int plaintextBits) {
+LWECiphertextType getDefaultCGGICiphertextType(MLIRContext *ctx,
+                                               int messageWidth,
+                                               int plaintextBits) {
   auto ciphertextBits = 32;
   auto scalingFactor = 1 << (ciphertextBits - plaintextBits);
 
@@ -50,7 +50,7 @@ NewLWECiphertextType getDefaultCGGICiphertextType(MLIRContext *ctx,
   auto ciphertextRing = polynomial::RingAttr::get(
       IntegerType::get(ctx, ciphertextBits), polyXAttr);
 
-  return lwe::NewLWECiphertextType::get(
+  return lwe::LWECiphertextType::get(
       ctx,
       lwe::ApplicationDataAttr::get(ctx, IntegerType::get(ctx, messageWidth),
                                     lwe::PreserveOverflowAttr::get(ctx)),

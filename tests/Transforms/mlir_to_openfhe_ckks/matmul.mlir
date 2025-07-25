@@ -2,7 +2,7 @@
 
 // This pipeline fully loop unrolls the matmul.
 
-// CHECK: ![[ct_L1:.*]] = !lwe.new_lwe_ciphertext<{{.*}}<message_type = f32>
+// CHECK: ![[ct_L1:.*]] = !lwe.lwe_ciphertext<{{.*}}<message_type = f32>
 
 module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [36028797019389953, 35184372121601], P = [36028797019488257], logDefaultScale = 45>} {
   // CHECK: func @main

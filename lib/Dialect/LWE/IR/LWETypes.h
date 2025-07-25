@@ -18,9 +18,9 @@ namespace lwe {
 // has LWE dimension 742. The messageWidth parameter specifies the width of the
 // application data.
 // FIXME: add reference
-NewLWECiphertextType getDefaultCGGICiphertextType(MLIRContext *ctx,
-                                                  int messageWidth,
-                                                  int plaintextBits = 3);
+LWECiphertextType getDefaultCGGICiphertextType(MLIRContext *ctx,
+                                               int messageWidth,
+                                               int plaintextBits = 3);
 
 }  // namespace lwe
 }  // namespace heir
