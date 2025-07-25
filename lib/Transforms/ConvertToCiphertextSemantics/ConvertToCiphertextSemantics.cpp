@@ -22,6 +22,7 @@
 #include "lib/Utils/ContextAwareDialectConversion.h"
 #include "lib/Utils/ContextAwareTypeConversion.h"
 #include "lib/Utils/MathUtils.h"
+#include "lib/Utils/TransformUtils.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/ArrayRef.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
@@ -262,42 +263,6 @@ class ConvertAssignLayout
  private:
   int64_t ciphertextSize;
 };
-
-// Return the first output index not mapped to by the partial permutation.
-int64_t getMinUnusedTarget(llvm::ArrayRef<int64_t> perm) {
-  std::vector<int64_t> unmappedOutputsVector(perm.size());
-  std::iota(unmappedOutputsVector.begin(), unmappedOutputsVector.end(), 0);
-  std::set<int64_t> unmappedOutputs(unmappedOutputsVector.begin(),
-                                    unmappedOutputsVector.end());
-  for (int64_t target : perm) {
-    if (target != kUnset) {
-      unmappedOutputs.erase(target);
-    }
-  }
-
-  if (unmappedOutputs.empty()) {
-    return -1;
-  }
-
-  LLVM_DEBUG({
-    llvm::dbgs() << "Unmapped outputs: ";
-    for (int64_t i : unmappedOutputs) {
-      llvm::dbgs() << i << " ";
-    }
-    llvm::dbgs() << "\n";
-  });
-
-  return *unmappedOutputs.begin();
-}
-
-// Return the first unused input index not mapped from by the partial
-// permutation.
-int64_t getMinUnusedInput(llvm::ArrayRef<int64_t> perm) {
-  for (int64_t i = 0; i < perm.size(); ++i) {
-    if (perm[i] == kUnset) return i;
-  }
-  return -1;
-}
 
 class ConvertConvertLayout
     : public ContextAwareOpConversionPattern<tensor_ext::ConvertLayoutOp> {

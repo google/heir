@@ -15,6 +15,7 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Kernel/Kernel.h"
 #include "lib/Transforms/LayoutOptimization/Hoisting.h"
+#include "lib/Transforms/LayoutOptimization/LayoutConversionCost.h"
 #include "lib/Transforms/LayoutOptimization/Patterns.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
@@ -53,11 +54,6 @@ namespace {
 auto &kLayoutAttrName = tensor_ext::TensorExtDialect::kLayoutAttrName;
 
 using Cost = int64_t;
-
-// TODO(#1595): Implement a more accurate cost model.
-Cost computeCostOfLayoutConversion(LayoutAttr fromLayout, LayoutAttr toLayout) {
-  return (fromLayout == toLayout) ? 0 : 1;
-}
 
 struct OperandChange {
   LayoutAttr fromLayout;
@@ -268,6 +264,7 @@ OperandChange LayoutOptimization::costOfChangedOperand(OpOperand &operand,
                                                        Operation *kernel,
                                                        LayoutAttr newLayout) {
   auto value = operand.get();
+
   if (dyn_cast_or_null<AssignLayoutOp>(value.getDefiningOp())) {
     // TODO(#1596): Use a proper analysis to determine whether a value's layout
     // is free to change, rather than relying on tensor_ext.assign_layout.
@@ -278,9 +275,9 @@ OperandChange LayoutOptimization::costOfChangedOperand(OpOperand &operand,
     // (folded conversion - original conversion).
     auto fromLayout = convertLayoutOp.getFromLayout();
     Cost originalConversion = computeCostOfLayoutConversion(
-        fromLayout, convertLayoutOp.getToLayout());
-    Cost foldedConversion =
-        computeCostOfLayoutConversion(fromLayout, newLayout);
+        value, ciphertextSize, fromLayout, convertLayoutOp.getToLayout());
+    Cost foldedConversion = computeCostOfLayoutConversion(
+        value, ciphertextSize, fromLayout, newLayout);
     return OperandChange{fromLayout, newLayout,
                          foldedConversion - originalConversion};
   }
@@ -290,9 +287,9 @@ OperandChange LayoutOptimization::costOfChangedOperand(OpOperand &operand,
   assert(succeeded(originalLayoutResult) &&
          "Operand does not have a layout attribute");
   auto originalLayout = cast<LayoutAttr>(originalLayoutResult.value());
-  return OperandChange{
-      originalLayout, newLayout,
-      computeCostOfLayoutConversion(originalLayout, newLayout)};
+  return OperandChange{originalLayout, newLayout,
+                       computeCostOfLayoutConversion(
+                           value, ciphertextSize, originalLayout, newLayout)};
 }
 
 Cost LayoutOptimization::costOfChangedResult(Operation *kernel,
@@ -300,10 +297,13 @@ Cost LayoutOptimization::costOfChangedResult(Operation *kernel,
   Cost totalCost = 0;
   for (auto *user : kernel->getResult(0).getUsers()) {
     if (auto convertLayoutOp = dyn_cast<ConvertLayoutOp>(user)) {
+      auto currentValue = convertLayoutOp.getValue();
       Cost originalConversion = computeCostOfLayoutConversion(
-          convertLayoutOp.getFromLayout(), convertLayoutOp.getToLayout());
-      Cost foldedConversion = computeCostOfLayoutConversion(
-          newLayout, convertLayoutOp.getToLayout());
+          currentValue, ciphertextSize, convertLayoutOp.getFromLayout(),
+          convertLayoutOp.getToLayout());
+      Cost foldedConversion =
+          computeCostOfLayoutConversion(currentValue, ciphertextSize, newLayout,
+                                        convertLayoutOp.getToLayout());
       totalCost += foldedConversion - originalConversion;
     }
   }

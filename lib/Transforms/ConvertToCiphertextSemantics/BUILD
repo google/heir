@@ -22,6 +22,7 @@ cc_library(
         "@heir//lib/Utils:ContextAwareDialectConversion",
         "@heir//lib/Utils:ContextAwareTypeConversion",
         "@heir//lib/Utils:MathUtils",
+        "@heir//lib/Utils:TransformUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:ArithDialect",

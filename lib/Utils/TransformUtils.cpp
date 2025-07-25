@@ -1,17 +1,23 @@
 #include "lib/Utils/TransformUtils.h"
 
+#include <numeric>
 #include <set>
 #include <string>
 #include <string_view>
 
+#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
 
+#define DEBUG_TYPE "transform-utils"
+
 namespace mlir {
 namespace heir {
+
+static constexpr int kUnset = -1;
 
 func::FuncOp detectEntryFunction(ModuleOp moduleOp,
                                  std::string_view entryFunction) {
@@ -98,6 +104,39 @@ Value convertMemrefOfBitsToInteger(Value memref, Type resultType, OpBuilder &b,
   }
 
   return result;
+}
+
+int64_t getMinUnusedTarget(llvm::ArrayRef<int64_t> perm) {
+  std::vector<int64_t> unmappedOutputsVector(perm.size());
+  std::iota(unmappedOutputsVector.begin(), unmappedOutputsVector.end(), 0);
+  std::set<int64_t> unmappedOutputs(unmappedOutputsVector.begin(),
+                                    unmappedOutputsVector.end());
+  for (int64_t target : perm) {
+    if (target != kUnset) {
+      unmappedOutputs.erase(target);
+    }
+  }
+
+  if (unmappedOutputs.empty()) {
+    return -1;
+  }
+
+  LLVM_DEBUG({
+    llvm::dbgs() << "Unmapped outputs: ";
+    for (int64_t i : unmappedOutputs) {
+      llvm::dbgs() << i << " ";
+    }
+    llvm::dbgs() << "\n";
+  });
+
+  return *unmappedOutputs.begin();
+}
+
+int64_t getMinUnusedInput(llvm::ArrayRef<int64_t> perm) {
+  for (int64_t i = 0; i < perm.size(); ++i) {
+    if (perm[i] == kUnset) return i;
+  }
+  return -1;
 }
 
 }  // namespace heir

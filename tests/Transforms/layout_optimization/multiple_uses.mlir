@@ -1,4 +1,4 @@
-// RUN: heir-opt --layout-optimization --canonicalize %s | FileCheck %s
+// RUN: heir-opt --layout-optimization=ciphertext-size=64 --canonicalize %s | FileCheck %s
 
 // CHECK-DAG: [[map:#[^ ]*]] = #tensor_ext.layout<map = (d0) -> ((d0 + 1) mod 32)>
 // CHECK-DAG: [[map2:#[^ ]*]] = #tensor_ext.layout<map = (d0) -> ((d0 + 2) mod 32)>

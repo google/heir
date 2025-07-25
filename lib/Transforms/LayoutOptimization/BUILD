@@ -12,6 +12,7 @@ cc_library(
     deps = [
         ":Hoisting",
         ":InterfaceImpl",
+        ":LayoutConversionCost",
         ":Patterns",
         ":pass_inc_gen",
         "@heir//lib/Dialect:HEIRInterfaces",
@@ -73,6 +74,20 @@ cc_library(
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
+    name = "LayoutConversionCost",
+    srcs = ["LayoutConversionCost.cpp"],
+    hdrs = ["LayoutConversionCost.h"],
+    deps = [
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Dialect/TensorExt/Transforms:ImplementShiftNetwork",
+        "@heir//lib/Utils",
+        "@heir//lib/Utils:AffineMapUtils",
+        "@heir//lib/Utils:TransformUtils",
+        "@llvm-project//llvm:Support",
     ],
 )
 
