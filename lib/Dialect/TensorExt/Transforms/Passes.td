@@ -228,4 +228,36 @@ def FoldConvertLayoutIntoAssignLayout : Pass<"fold-convert-layout-into-assign-la
   let dependentDialects = ["mlir::heir::tensor_ext::TensorExtDialect"];
 }
 
+def BabyStepGiantStep : Pass<"baby-step-giant-step"> {
+  let summary = "Apply baby-step / giant-step style patterns";
+  let description = [{
+    This pass implements baby-step / giant-step optimizations for `tensor_ext`
+    operations. The pass assumes that `tensor_ext.rotate` operations are
+    expensive and aims to minimize the number of rotations of a ciphertext from
+    `O(n)` to `O(sqrt(n))`.
+
+    It uses two dependent optimization steps. The first reorders rotations using
+    the fact that rotations and multiplications are commutative:
+
+    ```
+    mul(rot_{i+jk}(x), y) = rot_{jk}(rot_i(mul(x)), rot_{-jk}(y))`
+    ```
+
+    This is applied for all `i, k < \sqrt(n)`.
+
+    The `rot_{-jk}(y)` operates on a plaintext, so is effectively free. However,
+    the outer `rot_{jk}` on the product remains, keeping the total number of
+    rotations the same. The next step reduces the number of rotations.
+
+    The pass identifies multiple expressions with the same rotation that are
+    summed together (these are generated from the first rewrite, as in the right
+    hand side above). Summands that are rotated by the same amount are grouped,
+    minimizing the number of total rotations.
+
+    ```
+    add(rot_{jk}(x), rot_{jk}(y)) = rot_{jk}(add(x, y))
+    ``` 
+  }];
+}
+
 #endif  // LIB_DIALECT_TENSOREXT_TRANSFORMS_PASSES_TD_

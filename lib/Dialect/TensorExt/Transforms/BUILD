@@ -11,6 +11,7 @@ cc_library(
         "Passes.h",
     ],
     deps = [
+        ":BabyStepGiantStep",
         ":CollapseInsertionChains",
         ":FoldConvertLayoutIntoAssignLayout",
         ":ImplementShiftNetwork",
@@ -114,6 +115,30 @@ cc_library(
         ":pass_inc_gen",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Utils:AttributeUtils",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
+cc_library(
+    name = "BabyStepGiantStep",
+    srcs = ["BabyStepGiantStep.cpp"],
+    hdrs = [
+        "BabyStepGiantStep.h",
+    ],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Analysis/SecretnessAnalysis",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Dialect/TensorExt/IR:canonicalize_inc_gen",
+        "@heir//lib/Utils:AttributeUtils",
+        "@heir//lib/Utils:MathUtils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:DialectUtils",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
