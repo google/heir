@@ -1,4 +1,6 @@
 load("@heir//tests/Examples/tfhe_rust:test.bzl", "tfhe_rs_end_to_end_test")
+load("@heir//tools:heir-tfhe-rs.bzl", "tfhe_rs_lib")
+load("@rules_rust//rust:defs.bzl", "rust_binary")
 
 package(default_applicable_licenses = ["@heir//:license"])
 
@@ -64,7 +66,6 @@ tfhe_rs_end_to_end_test(
 
 tfhe_rs_end_to_end_test(
     name = "sbox_test",
-    # Skip in debug mode
     size = "enormous",
     heir_opt_flags = [
         "--mlir-to-cggi",
@@ -93,4 +94,161 @@ tfhe_rs_end_to_end_test(
     mlir_src = "multi_output.mlir",
     tags = ["yosys"],
     test_src = "src/main_multi_output.rs",
+)
+
+tfhe_rs_lib(
+    name = "add_round_key",
+    heir_opt_flags = [
+        "--mlir-to-cggi",
+        "--scheme-to-tfhe-rs",
+    ],
+    heir_translate_flags = [
+        "--emit-tfhe-rust",
+        "--use-levels",
+    ],
+    mlir_src = "@heir//tests/Examples/common/aes:add_round_key.mlir",
+    rs_lib_target_name = "add_round_key_rs_lib",
+    tags = [
+        "manual",
+        "yosys",
+    ],
+)
+
+tfhe_rs_lib(
+    name = "mix_columns",
+    heir_opt_flags = [
+        "--convert-if-to-select",
+        "--full-loop-unroll",
+        "--inline",
+        "--symbol-dce",
+        "--mlir-to-cggi",
+        "--scheme-to-tfhe-rs",
+    ],
+    heir_translate_flags = [
+        "--emit-tfhe-rust",
+        "--use-levels",
+    ],
+    mlir_src = "@heir//tests/Examples/common/aes:mix_columns.mlir",
+    rs_lib_target_name = "mix_columns_rs_lib",
+    tags = [
+        "manual",
+        "yosys",
+    ],
+)
+
+tfhe_rs_lib(
+    name = "inv_mix_columns",
+    heir_opt_flags = [
+        "--convert-if-to-select",
+        "--full-loop-unroll",
+        "--inline",
+        "--symbol-dce",
+        "--mlir-to-cggi",
+        "--scheme-to-tfhe-rs",
+    ],
+    heir_translate_flags = [
+        "--emit-tfhe-rust",
+        "--use-levels",
+    ],
+    mlir_src = "@heir//tests/Examples/common/aes:inv_mix_columns.mlir",
+    rs_lib_target_name = "inv_mix_columns_rs_lib",
+    tags = [
+        "manual",
+        "yosys",
+    ],
+)
+
+tfhe_rs_lib(
+    name = "sub_bytes",
+    heir_opt_flags = [
+        "--inline",
+        "--symbol-dce",
+        "--mlir-to-cggi",
+        "--scheme-to-tfhe-rs",
+    ],
+    heir_translate_flags = [
+        "--emit-tfhe-rust",
+        "--use-levels",
+    ],
+    mlir_src = "@heir//tests/Examples/common/aes:sub_bytes.mlir",
+    rs_lib_target_name = "sub_bytes_rs_lib",
+    tags = [
+        "manual",
+        "yosys",
+    ],
+)
+
+tfhe_rs_lib(
+    name = "inv_sub_bytes",
+    heir_opt_flags = [
+        "--mlir-to-cggi",
+        "--scheme-to-tfhe-rs",
+    ],
+    heir_translate_flags = [
+        "--emit-tfhe-rust",
+        "--use-levels",
+    ],
+    mlir_src = "@heir//tests/Examples/common/aes:inv_sub_bytes.mlir",
+    rs_lib_target_name = "inv_sub_bytes_rs_lib",
+    tags = [
+        "manual",
+        "yosys",
+    ],
+)
+
+tfhe_rs_lib(
+    name = "shift_rows",
+    heir_opt_flags = [
+        "--mlir-to-cggi",
+        "--scheme-to-tfhe-rs",
+    ],
+    heir_translate_flags = [
+        "--emit-tfhe-rust",
+        "--use-levels",
+    ],
+    mlir_src = "@heir//tests/Examples/common/aes:shift_rows.mlir",
+    rs_lib_target_name = "shift_rows_rs_lib",
+    tags = [
+        "manual",
+        "yosys",
+    ],
+)
+
+tfhe_rs_lib(
+    name = "inv_shift_rows",
+    heir_opt_flags = [
+        "--mlir-to-cggi",
+        "--scheme-to-tfhe-rs",
+    ],
+    heir_translate_flags = [
+        "--emit-tfhe-rust",
+        "--use-levels",
+    ],
+    mlir_src = "@heir//tests/Examples/common/aes:inv_shift_rows.mlir",
+    rs_lib_target_name = "inv_shift_rows_rs_lib",
+    tags = [
+        "manual",
+        "yosys",
+    ],
+)
+
+rust_binary(
+    name = "aes",
+    srcs = ["src/main_aes.rs"],
+    tags = [
+        "manual",
+        "yosys",
+    ],
+    deps = [
+        ":add_round_key_rs_lib",
+        ":inv_mix_columns_rs_lib",
+        ":inv_shift_rows_rs_lib",
+        ":inv_sub_bytes_rs_lib",
+        ":mix_columns_rs_lib",
+        ":shift_rows_rs_lib",
+        ":sub_bytes_rs_lib",
+        "@crates//:rayon",
+        "@crates//:serde",
+        "@crates//:tfhe",
+    ],
 )
