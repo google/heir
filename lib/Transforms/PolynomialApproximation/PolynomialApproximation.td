@@ -48,6 +48,9 @@ def PolynomialApproximation : Pass<"polynomial-approximation"> {
     - `tanh`
     - `trunc`
 
+    As well as the following ops in the `math_ext` dialect:
+    - `sign`
+
     The following ops in the `arith` dialect are also supported:
 
     - `maxf`

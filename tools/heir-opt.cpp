@@ -26,6 +26,7 @@
 #include "lib/Dialect/LWE/Transforms/Passes.h"
 #include "lib/Dialect/Lattigo/IR/LattigoDialect.h"
 #include "lib/Dialect/Lattigo/Transforms/Passes.h"
+#include "lib/Dialect/MathExt/IR/MathExtDialect.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/Mgmt/Transforms/Passes.h"
 #include "lib/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.h"
@@ -59,6 +60,7 @@
 #include "lib/Transforms/AnnotateModule/AnnotateModule.h"
 #include "lib/Transforms/AnnotateSecretness/AnnotateSecretness.h"
 #include "lib/Transforms/ApplyFolders/ApplyFolders.h"
+#include "lib/Transforms/CompareToSignRewrite/CompareToSignRewrite.h"
 #include "lib/Transforms/ConvertIfToSelect/ConvertIfToSelect.h"
 #include "lib/Transforms/ConvertSecretExtractToStaticExtract/ConvertSecretExtractToStaticExtract.h"
 #include "lib/Transforms/ConvertSecretForToStaticFor/ConvertSecretForToStaticFor.h"
@@ -168,6 +170,7 @@ int main(int argc, char **argv) {
   registry.insert<tensor_ext::TensorExtDialect>();
   registry.insert<tfhe_rust::TfheRustDialect>();
   registry.insert<tfhe_rust_bool::TfheRustBoolDialect>();
+  registry.insert<math_ext::MathExtDialect>();
 
   // Add expected MLIR dialects to the registry.
   registry.insert<LLVM::LLVMDialect>();
@@ -259,6 +262,7 @@ int main(int argc, char **argv) {
   registerSecretInsertMgmtPasses();
   registerFullLoopUnrollPasses();
   registerConvertIfToSelectPasses();
+  registerCompareToSignRewritePasses();
   registerSelectRewritePasses();
   registerConvertSecretForToStaticForPasses();
   registerConvertSecretWhileToStaticForPasses();

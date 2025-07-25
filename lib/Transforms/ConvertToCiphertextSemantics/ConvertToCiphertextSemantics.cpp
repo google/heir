@@ -126,6 +126,10 @@ struct LayoutMaterializationTypeConverter
         [this](FloatType type, LayoutAttr attr) -> std::optional<Type> {
           return materializeScalarLayout(type, attr, getCiphertextSize());
         });
+    addConversion(
+        [this](IndexType type, LayoutAttr attr) -> std::optional<Type> {
+          return materializeScalarLayout(type, attr, getCiphertextSize());
+        });
   }
 
   int getCiphertextSize() const { return ciphertextSize; }

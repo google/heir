@@ -63,6 +63,8 @@ LogicalResult generateEncryptionFunc(func::FuncOp op,
                                      ImplicitLocOpBuilder &builder,
                                      int64_t ciphertextSize,
                                      bool enableLayoutAssignment) {
+  auto insertionBlock = builder.getInsertionBlock();
+  auto insertionPoint = builder.getInsertionPoint();
   std::string encFuncName("");
   llvm::raw_string_ostream encNameOs(encFuncName);
   encNameOs << op.getSymName() << "__encrypt__arg"
@@ -125,6 +127,7 @@ LogicalResult generateEncryptionFunc(func::FuncOp op,
   }
 
   builder.create<func::ReturnOp>(encValuesToReturn);
+  builder.setInsertionPoint(insertionBlock, insertionPoint);
   return success();
 }
 
@@ -133,6 +136,8 @@ LogicalResult generateDecryptionFunc(func::FuncOp op, Type decFuncArgType,
                                      int originalFuncReturnIndex,
                                      ImplicitLocOpBuilder &builder,
                                      bool enableLayoutAssignment) {
+  auto insertionBlock = builder.getInsertionBlock();
+  auto insertionPoint = builder.getInsertionPoint();
   std::string decFuncName("");
   llvm::raw_string_ostream encNameOs(decFuncName);
   encNameOs << op.getSymName() << "__decrypt__result"
@@ -190,6 +195,7 @@ LogicalResult generateDecryptionFunc(func::FuncOp op, Type decFuncArgType,
   }
 
   builder.create<func::ReturnOp>(decValuesToReturn);
+  builder.setInsertionPoint(insertionBlock, insertionPoint);
   return success();
 }
 
@@ -205,6 +211,7 @@ LogicalResult convertFunc(func::FuncOp op, int64_t ciphertextSize,
   auto module = op->getParentOfType<ModuleOp>();
   ImplicitLocOpBuilder builder =
       ImplicitLocOpBuilder::atBlockEnd(module.getLoc(), module.getBody());
+  builder.setInsertionPointAfter(op);
 
   // We need one encryption function per argument and one decryption
   // function per return value. This is mainly to avoid complicated C++ codegen
@@ -216,8 +223,6 @@ LogicalResult convertFunc(func::FuncOp op, int64_t ciphertextSize,
                                         enableLayoutAssignment))) {
         return failure();
       }
-      // insertion point is inside func, move back out
-      builder.setInsertionPointToEnd(module.getBody());
     }
   }
 
@@ -229,8 +234,6 @@ LogicalResult convertFunc(func::FuncOp op, int64_t ciphertextSize,
                                         enableLayoutAssignment))) {
         return failure();
       }
-      // insertion point is inside func, move back out
-      builder.setInsertionPointToEnd(module.getBody());
     }
   }
   LLVM_DEBUG(module.dump());

@@ -1232,6 +1232,19 @@ LogicalResult OpenFhePkeEmitter::printOperation(
   if (failed(resultCC)) return resultCC;
   std::string cc = variableNames->getNameForValue(resultCC.value());
 
+  // In certain conditions, we might end up with the input being tensor<..xi64>
+  // which isn't a valid input type for MakeCKKSPackedPlaintext, so we convert
+  if (getElementTypeOrSelf(op.getValue().getType()).isInteger()) {
+    // This means we will have created a std::vector<int64_t>
+    // but we need a std::vector<double>
+    os << "std::vector<double> " << inputVarName << "_d;\n";
+    os << inputVarName << "_d.reserve(" << inputVarName << ".size());\n";
+    os << "for (auto i = 0; i < " << inputVarName << ".size(); ++i) {\n";
+    os << "  " << inputVarName << "_d.push_back(" << inputVarName << "[i]);\n";
+    os << "}\n";
+    inputVarName += "_d";
+  }
+
   if (skipVectorResizing_) {
     emitAutoAssignPrefix(op.getResult());
     os << variableNames->getNameForValue(resultCC.value())
