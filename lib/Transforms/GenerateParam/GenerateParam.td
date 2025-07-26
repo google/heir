@@ -166,6 +166,9 @@ def GenerateParamCKKS : Pass<"generate-param-ckks"> {
            "If true, uses a public key for encryption.">,
     Option<"encryptionTechniqueExtended", "encryption-technique-extended", "bool", /*default=*/"false",
            "If true, uses EXTENDED encryption technique for encryption. (See https://ia.cr/2022/915)">,
+    Option<"inputRange", "input-range", "int",
+           /*default=*/"1", "The range of the plaintexts for input ciphertexts "
+           "for the CKKS scheme; default to [-1, 1]. For other ranges like [-D, D], use D.">,
   ];
 }
 
