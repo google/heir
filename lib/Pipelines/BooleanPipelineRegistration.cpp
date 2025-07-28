@@ -62,6 +62,9 @@ void mlirToCGGIPipeline(OpPassManager &pm,
   ::mlir::heir::oneShotBufferize(pm);
 
   // Affine
+  pm.addPass(createInlinerPass());
+  pm.addPass(affine::createLoopFusionPass());
+  pm.addPass(affine::createAffineScalarReplacementPass());
   pm.addNestedPass<FuncOp>(createConvertLinalgToAffineLoopsPass());
   pm.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
   pm.addNestedPass<FuncOp>(affine::createAffineExpandIndexOpsPass());
@@ -77,7 +80,11 @@ void mlirToCGGIPipeline(OpPassManager &pm,
   pm.addNestedPass<FuncOp>(affine::createAffineLoopNormalizePass(true));
   pm.addPass(createForwardStoreToLoad());
   pm.addPass(affine::createAffineParallelize());
-  pm.addPass(createFullLoopUnroll());
+
+  if (options.dataType == Bool) {
+    pm.addPass(createFullLoopUnroll());
+  }
+
   pm.addPass(createForwardStoreToLoad());
   pm.addNestedPass<FuncOp>(createRemoveUnusedMemRef());
 
@@ -90,6 +97,7 @@ void mlirToCGGIPipeline(OpPassManager &pm,
   pm.addPass(createSCCPPass());
   pm.addPass(createCSEPass());
   pm.addPass(createSymbolDCEPass());
+  pm.addPass(createRemoveDeadValuesPass());
 
   // Booleanize
   auto distributeOpts = secret::SecretDistributeGenericOptions{

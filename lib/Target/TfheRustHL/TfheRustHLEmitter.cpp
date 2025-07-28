@@ -56,6 +56,21 @@ FailureOr<int> getRustIntegerType(int width) {
   return failure();
 }
 
+FailureOr<DenseElementsAttr> getConstantGlobalData(memref::GetGlobalOp op) {
+  auto module = op->getParentOfType<mlir::ModuleOp>();
+  auto globalOp =
+      dyn_cast<mlir::memref::GlobalOp>(module.lookupSymbol(op.getName()));
+  if (!globalOp) {
+    return failure();
+  }
+  auto cstAttr =
+      dyn_cast_or_null<DenseElementsAttr>(globalOp.getConstantInitValue());
+  if (!cstAttr) {
+    return failure();
+  }
+  return cstAttr;
+}
+
 }  // namespace
 
 // Global Variable
@@ -100,7 +115,13 @@ LogicalResult TfheRustHLEmitter::translate(Operation &op) {
               [&](auto op) { return printOperation(op); })
           // MemRef ops
           .Case<memref::AllocOp, memref::DeallocOp, memref::LoadOp,
-                memref::StoreOp>([&](auto op) { return printOperation(op); })
+                memref::GetGlobalOp, memref::StoreOp>(
+              [&](auto op) { return printOperation(op); })
+          // MemRef ops
+          .Case<memref::GlobalOp, memref::DeallocOp>([&](auto op) {
+            // These are no-ops.
+            return success();
+          })
           // TfheRust ops
           .Case<AddOp, SubOp, MulOp, ScalarRightShiftOp, CastOp,
                 CreateTrivialOp, BitAndOp, BitOrOp, BitXorOp>(
@@ -219,7 +240,7 @@ LogicalResult TfheRustHLEmitter::printOperation(func::ReturnOp op) {
           variableNames->getNameForValue(value) + std::string(".get(&(") +
           std::accumulate(std::next(shape.begin()), shape.end(),
                           std::string("i0"),
-                          [&](std::string a, int64_t value) {
+                          [&](const std::string &a, int64_t value) {
                             return a + ", i" + std::to_string(++i);
                           }) +
           std::string(")).unwrap().clone()");
@@ -319,15 +340,11 @@ LogicalResult TfheRustHLEmitter::printOperation(affine::AffineForOp op) {
      << " {\n";
   os.indent();
 
-  auto res = op.getBody()->walk([&](Operation *op) {
-    if (failed(translate(*op))) {
-      return WalkResult::interrupt();
+  // Walk the body of the parallel operation in Program order
+  for (auto &op : op.getBody()->getOperations()) {
+    if (failed(translate(op))) {
+      return failure();
     }
-    return WalkResult::advance();
-  });
-
-  if (res.wasInterrupted()) {
-    return failure();
   }
 
   os.unindent();
@@ -451,6 +468,46 @@ LogicalResult TfheRustHLEmitter::printOperation(memref::DeallocOp op) {
   return success();
 }
 
+LogicalResult TfheRustHLEmitter::printOperation(memref::GetGlobalOp op) {
+  MemRefType memRefType = dyn_cast<MemRefType>(op.getResult().getType());
+  if (!memRefType) {
+    return op.emitOpError()
+           << "Expected global to be a memref " << op.getName();
+  }
+  auto cstAttr = getConstantGlobalData(op);
+  if (failed(cstAttr)) {
+    return op.emitOpError() << "Failed to get constant global data";
+  }
+
+  auto type = convertType(memRefType.getElementType());
+  if (failed(type)) {
+    return op.emitOpError()
+           << "Failed to emit type for global " << op.getResult().getType();
+  }
+
+  // Globals are emitted as 1-D arrays.
+  os << "static " << variableNames->getNameForValue(op.getResult())
+     << llvm::formatv(" : [{0}; {1}]", type, memRefType.getNumElements())
+     << " = [";
+
+  // Populate data by iterating through constant data attribute
+  auto printValue = [](const APInt &value) -> std::string {
+    llvm::SmallString<40> s;
+    value.toStringSigned(s, 10);
+    return std::string(s);
+  };
+
+  auto cstIter = cstAttr.value().value_begin<APInt>();
+  auto cstIterEnd = cstAttr.value().value_end<APInt>();
+  os << std::accumulate(std::next(cstIter), cstIterEnd, printValue(*cstIter),
+                        [&](const std::string &a, const APInt &value) {
+                          return a + ", " + printValue(value);
+                        });
+
+  os << "];\n";
+  return success();
+}
+
 // Store into a BTreeMap<(usize, ...), Ciphertext>
 LogicalResult TfheRustHLEmitter::printOperation(memref::StoreOp op) {
   // We assume here that the indices are SSA values (not integer attributes).
@@ -470,9 +527,23 @@ LogicalResult TfheRustHLEmitter::printOperation(memref::StoreOp op) {
 
 // Produces a &Ciphertext
 LogicalResult TfheRustHLEmitter::printOperation(memref::LoadOp op) {
+  emitAssignPrefix(op.getResult());
+
   // We assume here that the indices are SSA values (not integer attributes).
+  if (dyn_cast_or_null<memref::GetGlobalOp>(op.getMemRef().getDefiningOp())) {
+    // Global arrays are 1-dimensional, so flatten the index
+    os << variableNames->getNameForValue(op.getMemref());
+
+    os << "["
+       << flattenIndexExpressionSOP(
+              op.getMemRefType(), op.getIndices(), [&](Value value) {
+                return variableNames->getNameForValue(value);
+              });
+    os << "]; \n";
+    return success();
+  }
+
   if (isa<BlockArgument>(op.getMemref())) {
-    emitAssignPrefix(op.getResult());
     os << "&" << variableNames->getNameForValue(op.getMemRef());
     for (auto value : op.getIndices()) {
       os << "[" << variableNames->getNameForValue(value) << "]";
@@ -482,14 +553,12 @@ LogicalResult TfheRustHLEmitter::printOperation(memref::LoadOp op) {
   }
 
   // Treat this as a BTreeMap
-  emitAssignPrefix(op.getResult());
-  os << "&" << variableNames->getNameForValue(op.getMemref()) << ".get(&("
-     << commaSeparatedValues(op.getIndices(),
-                             [&](Value value) {
-                               return variableNames->getNameForValue(value) +
-                                      " as usize";
-                             })
-     << ")).unwrap();\n";
+  os << variableNames->getNameForValue(op.getMemref());
+
+  os << ".get(&(" << commaSeparatedValues(op.getIndices(), [&](Value value) {
+    return variableNames->getNameForValue(value) + " as usize";
+  }) << ")).unwrap();\n";
+
   return success();
 }
 
