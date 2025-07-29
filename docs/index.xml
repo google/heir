@@ -2904,6 +2904,7 @@ at the module level.&lt;/p>
 -scaling-mod-bits : Default number of bits of the scaling prime coefficient modulus to use for the ciphertext space.
 -use-public-key : If true, uses a public key for encryption.
 -encryption-technique-extended : If true, uses EXTENDED encryption technique for encryption. (See https://ia.cr/2022/915)
+-input-range : The range of the plaintexts for input ciphertexts for the CKKS scheme; default to [-1, 1]. For other ranges like [-D, D], use D.
 &lt;/code>&lt;/pre>&lt;h3 id="-implement-shift-network">&lt;code>-implement-shift-network&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Implement tensor_ext.convert_layout ops as shift newtorks&lt;/em>&lt;/p>
 &lt;p>This pass converts &lt;code>tensor_ext.permute&lt;/code> ops into a network of
@@ -3910,32 +3911,21 @@ arguments in the function body.&lt;/li>
 &lt;/ul>
 &lt;h4 id="statistics">Statistics&lt;/h4>
 &lt;pre tabindex="0">&lt;code>total circuit size : The total circuit size for all optimized circuits, after optimization is done.
-&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2024-05-30</title><link>https://heir.dev/blog/2024/05/30/heir-meeting-2024-05-30/</link><pubDate>Thu, 30 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/30/heir-meeting-2024-05-30/</guid><description>
+&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2025-03-20</title><link>https://heir.dev/blog/2025/03/20/heir-meeting-2025-03-20/</link><pubDate>Thu, 20 Mar 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/03/20/heir-meeting-2025-03-20/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1TMXQBVumA4YmOTH5QgKR27_Sb-60PI7bKyltJ-D3jbE/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/ULRFEmhwzZE">video recording&lt;/a> from the HEIR meeting on
+2025-03-20.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-05-30</title><link>https://heir.dev/blog/2024/05/30/heir-meeting-2024-05-30/</link><pubDate>Thu, 30 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/30/heir-meeting-2024-05-30/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/1mvigwMRTeVQvdpm2hwiewfU8jcJT94ArQBNvngvgkTc/edit?usp=sharing">notes&lt;/a>
 and
 &lt;a href="https://drive.google.com/file/d/1CTIyd7HRiNV857VO2EonquWZZlBhysLM/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-05-30.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-05-02</title><link>https://heir.dev/blog/2024/05/02/heir-meeting-2024-05-02/</link><pubDate>Thu, 02 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/02/heir-meeting-2024-05-02/</guid><description>
+from the HEIR meeting on 2024-05-30.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-11-07</title><link>https://heir.dev/blog/2023/11/07/heir-meeting-2023-11-07/</link><pubDate>Tue, 07 Nov 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/11/07/heir-meeting-2023-11-07/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1uEDeIN0iTUmmtlacZg0c2j7VbAHO3A9e0_8mnunUv10/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1nOlAhul4DwZU8UQPpTF1i3OldSY9EmwaWG3EPSZIhHs/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1u1q74rUKdXFi08tAKFRKjI-bojuorQK8/view?usp=drivesdk">video recording&lt;/a>
-from the HEIR meeting on 2024-05-02.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-10-24</title><link>https://heir.dev/blog/2023/10/25/heir-meeting-2023-10-24/</link><pubDate>Wed, 25 Oct 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/10/25/heir-meeting-2023-10-24/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1MYjjkytck0fxySbrh49hxBJgNM78NXSD0ZwzAgEPOUw/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1zrSCQJXta40KbBiCjcIWOP3gd1tuc3MU/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2023-10-24.&lt;/p>
-&lt;p>Also of note: our talk at FHE.org was last Thursday
-(&lt;a href="https://www.youtube.com/watch?v=kqDFdKUTNA4">recording&lt;/a>), and the similar talk
-at the LLVM developers meeting talk was the previous Wednesday, though the video
-has not yet been posted for that.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-07-18</title><link>https://heir.dev/blog/2023/07/18/heir-meeting-2023-07-18/</link><pubDate>Tue, 18 Jul 2023 10:43:16 -0700</pubDate><guid>https://heir.dev/blog/2023/07/18/heir-meeting-2023-07-18/</guid><description>
-&lt;p>The third HEIR meeting was 2023-07-18
-(&lt;a href="https://docs.google.com/document/d/1DXdyUCmevqY8RJI3kM8oO5nWDEITFIVBPIbucONOB-k/edit?usp=sharing">notes&lt;/a>).&lt;/p>
-&lt;p>We decided to schedule future meetings every two weeks, with alternating focus
-on MLIR and Hardware. See the &lt;a href="https://heir.dev/community/">meeting calendar&lt;/a> to
-join.
-(&lt;a href="https://calendar.google.com/calendar/u/0/embed?src=c85ecb3cda4bfb7daa3da95d5aeb19672930501b49d17896e65fa3f963f17a80@group.calendar.google.com&amp;amp;ctz=America/Los_Angeles">direct link to the calendar&lt;/a>)&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1I7aIipm54CCcDcLyRYXI_gARfT1z93cN/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2023-11-07.&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h1 id="bgv-dialect">&amp;lsquo;bgv&amp;rsquo; Dialect&lt;/h1>
 &lt;p>The BGV dialect defines the types and operations of the BGV and B/FV cryptosystem.&lt;/p>
@@ -4669,11 +4659,11 @@ NOT_GATE = 6;&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -4688,7 +4678,7 @@ NOT_GATE = 6;&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -4714,7 +4704,7 @@ Note this operations is not a standard CGGI operation, but an mirror of the cast
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -4729,7 +4719,7 @@ Note this operations is not a standard CGGI operation, but an mirror of the cast
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -4770,7 +4760,7 @@ Note this operations to indirect mirror the TFHE-rs implmementation._&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
@@ -4789,7 +4779,7 @@ Note this operations to indirect mirror the TFHE-rs implmementation._&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -4815,7 +4805,7 @@ Note this operations to indirect mirror the TFHE-rs implmementation._&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -4892,11 +4882,11 @@ and sums.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>b&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>a&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -4911,7 +4901,7 @@ and sums.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -4947,15 +4937,15 @@ and sums.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>c&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>b&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>a&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -4970,7 +4960,7 @@ and sums.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5209,7 +5199,7 @@ return (
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>inputs&lt;/code>&lt;/td>
-&lt;td>variadic of new-lwe-ciphertext-like&lt;/td>
+&lt;td>variadic of lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5224,7 +5214,7 @@ return (
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>outputs&lt;/code>&lt;/td>
-&lt;td>variadic of new-lwe-ciphertext-like&lt;/td>
+&lt;td>variadic of lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5246,11 +5236,11 @@ return (
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5265,7 +5255,7 @@ return (
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5328,11 +5318,11 @@ return (
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5347,7 +5337,7 @@ return (
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5369,7 +5359,7 @@ return (
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5384,7 +5374,7 @@ return (
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5406,11 +5396,11 @@ return (
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5425,7 +5415,7 @@ return (
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5451,15 +5441,15 @@ return (
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>a&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>b&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>c&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5474,7 +5464,7 @@ return (
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5506,11 +5496,11 @@ second elements.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5525,7 +5515,7 @@ second elements.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5558,7 +5548,7 @@ then the lookup table must be represented at most by an integer with 8 bits.&lt;
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5573,7 +5563,7 @@ then the lookup table must be represented at most by an integer with 8 bits.&lt;
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5600,7 +5590,7 @@ then the lookup table must be represented at most by an integer with 8 bits.&lt;
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5615,7 +5605,7 @@ then the lookup table must be represented at most by an integer with 8 bits.&lt;
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5642,7 +5632,7 @@ then the lookup table must be represented at most by an integer with 8 bits.&lt;
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5657,7 +5647,7 @@ then the lookup table must be represented at most by an integer with 8 bits.&lt;
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5681,15 +5671,15 @@ Note this operations to mirror the TFHE-rs implmementation.&amp;quot;&lt;/em>&lt
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>select&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>trueCtxt&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>falseCtxt&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5704,7 +5694,7 @@ Note this operations to mirror the TFHE-rs implmementation.&amp;quot;&lt;/em>&lt
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5767,11 +5757,11 @@ Note this operations to mirror the TFHE-rs implmementation.&amp;quot;&lt;/em>&lt
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5786,7 +5776,7 @@ Note this operations to mirror the TFHE-rs implmementation.&amp;quot;&lt;/em>&lt
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5808,11 +5798,11 @@ Note this operations to mirror the TFHE-rs implmementation.&amp;quot;&lt;/em>&lt
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5827,7 +5817,7 @@ Note this operations to mirror the TFHE-rs implmementation.&amp;quot;&lt;/em>&lt
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -8302,7 +8292,7 @@ significant bit to least-significant bit.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table></description></item><item><title>Docs: JaxiteWord</title><link>https://heir.dev/docs/dialects/jaxiteword/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/jaxiteword/</guid><description>
@@ -11300,10 +11290,10 @@ multiplication and rescaling.&lt;/p>
 may overflow beyond the message type.&lt;/p>
 &lt;h2 id="lwe-types">LWE types&lt;/h2>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h3 id="newlweciphertexttype">NewLWECiphertextType&lt;/h3>
+&lt;h3 id="lweciphertexttype">LWECiphertextType&lt;/h3>
 &lt;p>&lt;em>A ciphertext type&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>!lwe.new_lwe_ciphertext&amp;lt;
+&lt;pre tabindex="0">&lt;code>!lwe.lwe_ciphertext&amp;lt;
 ApplicationDataAttr, # application_data
 PlaintextSpaceAttr, # plaintext_space
 CiphertextSpaceAttr, # ciphertext_space
@@ -11353,10 +11343,10 @@ coefficient modulus.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="newlweplaintexttype">NewLWEPlaintextType&lt;/h3>
+&lt;h3 id="lweplaintexttype">LWEPlaintextType&lt;/h3>
 &lt;p>&lt;em>A plaintext type&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>!lwe.new_lwe_plaintext&amp;lt;
+&lt;pre tabindex="0">&lt;code>!lwe.lwe_plaintext&amp;lt;
 ApplicationDataAttr, # application_data
 PlaintextSpaceAttr # plaintext_space
 &amp;gt;
@@ -11382,10 +11372,10 @@ PlaintextSpaceAttr # plaintext_space
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="newlwepublickeytype">NewLWEPublicKeyType&lt;/h3>
+&lt;h3 id="lwepublickeytype">LWEPublicKeyType&lt;/h3>
 &lt;p>&lt;em>A public key for LWE&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>!lwe.new_lwe_public_key&amp;lt;
+&lt;pre tabindex="0">&lt;code>!lwe.lwe_public_key&amp;lt;
 KeyAttr, # key
 ::mlir::heir::polynomial::RingAttr # ring
 &amp;gt;
@@ -11411,10 +11401,10 @@ KeyAttr, # key
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="newlwesecretkeytype">NewLWESecretKeyType&lt;/h3>
+&lt;h3 id="lwesecretkeytype">LWESecretKeyType&lt;/h3>
 &lt;p>&lt;em>A secret key for LWE&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>!lwe.new_lwe_secret_key&amp;lt;
+&lt;pre tabindex="0">&lt;code>!lwe.lwe_secret_key&amp;lt;
 KeyAttr, # key
 ::mlir::heir::polynomial::RingAttr # ring
 &amp;gt;
@@ -11494,7 +11484,7 @@ that the message bits can overflow into the carry bit space.&lt;/p>
 &lt;p>The LWE plaintext ring is constructed with a plaintext bit width using &lt;code>plaintext_bits&lt;/code> and a
 polynomial modulus of &lt;code>x&lt;/code>.&lt;/p>
 &lt;p>Examples:&lt;/p>
-&lt;pre tabindex="0">&lt;code>%Y = lwe.encode %value {overflow = #overflow, plaintext_bits = 3}: i1 to !lwe.new_lwe_plaintext&amp;lt;application_data = #app_data, plaintext_space = #space&amp;gt;
+&lt;pre tabindex="0">&lt;code>%Y = lwe.encode %value {overflow = #overflow, plaintext_bits = 3}: i1 to !lwe.lwe_plaintext&amp;lt;application_data = #app_data, plaintext_space = #space&amp;gt;
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -11552,7 +11542,7 @@ polynomial modulus of &lt;code>x&lt;/code>.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>ciphertext&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>scalar&lt;/code>&lt;/td>
@@ -11571,7 +11561,7 @@ polynomial modulus of &lt;code>x&lt;/code>.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -11934,7 +11924,7 @@ applied.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -11949,7 +11939,7 @@ applied.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>new-lwe-ciphertext-like&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
