@@ -42,22 +42,22 @@ class CiphertextTypeConverter : public TypeConverter {
   // dimension, and the ciphertext has two dimensions. (i.e.) The key is a
   // single polynomial and not a tensor of higher dimensions. We may support
   // higher dimensions in the future (for schemes such as TFHE).
-  // TODO(#1199): properly lower NewLWEType (often RNS) to PolynomialType.
+  // TODO(#1199): properly lower LWEType (often RNS) to PolynomialType.
   CiphertextTypeConverter(MLIRContext *ctx) {
     addConversion([](Type type) { return type; });
-    addConversion([ctx](lwe::NewLWECiphertextType type) -> Type {
+    addConversion([ctx](lwe::LWECiphertextType type) -> Type {
       auto ring = type.getCiphertextSpace().getRing();
       auto polyTy = polynomial::PolynomialType::get(ctx, ring);
 
       return RankedTensorType::get({type.getCiphertextSpace().getSize()},
                                    polyTy);
     });
-    addConversion([ctx](lwe::NewLWEPlaintextType type) -> Type {
+    addConversion([ctx](lwe::LWEPlaintextType type) -> Type {
       auto ring = type.getPlaintextSpace().getRing();
       auto polyTy = polynomial::PolynomialType::get(ctx, ring);
       return polyTy;
     });
-    addConversion([ctx](lwe::NewLWESecretKeyType type) -> Type {
+    addConversion([ctx](lwe::LWESecretKeyType type) -> Type {
       auto ring = type.getRing();
       auto polyTy = polynomial::PolynomialType::get(ctx, ring);
 
@@ -65,7 +65,7 @@ class CiphertextTypeConverter : public TypeConverter {
       // key type instead of hardcoding to 1.
       return RankedTensorType::get({1}, polyTy);
     });
-    addConversion([ctx](lwe::NewLWEPublicKeyType type) -> Type {
+    addConversion([ctx](lwe::LWEPublicKeyType type) -> Type {
       auto ring = type.getRing();
       auto polyTy = polynomial::PolynomialType::get(ctx, ring);
 
@@ -146,14 +146,12 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
     auto input = adaptor.getInput();
     auto key = adaptor.getKey();
 
-    auto outputT = cast<lwe::NewLWECiphertextType>(op.getOutput().getType());
+    auto outputT = cast<lwe::LWECiphertextType>(op.getOutput().getType());
 
     auto isPublicKey =
         llvm::TypeSwitch<Type, bool>(op.getKey().getType())
-            .Case<lwe::NewLWEPublicKeyType>(
-                [](auto key) -> bool { return true; })
-            .Case<lwe::NewLWESecretKeyType>(
-                [](auto key) -> bool { return false; })
+            .Case<lwe::LWEPublicKeyType>([](auto key) -> bool { return true; })
+            .Case<lwe::LWESecretKeyType>([](auto key) -> bool { return false; })
             .Default([](Type key) -> bool {
               llvm_unreachable(
                   "Unsupported key type: Neither public key nor secret key");

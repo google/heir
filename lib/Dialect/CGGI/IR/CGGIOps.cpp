@@ -36,7 +36,7 @@ LogicalResult LutLinCombOp::verify() {
   if (getInputs().size() != getCoefficients().size())
     return emitOpError("number of coefficients must match number of inputs");
 
-  lwe::NewLWECiphertextType type = dyn_cast<lwe::NewLWECiphertextType>(
+  lwe::LWECiphertextType type = dyn_cast<lwe::LWECiphertextType>(
       getElementTypeOrSelf(getOutput().getType()));
   // Tablegen allows AnyType due to error using Variadic on TypeOrContainer
   // types.
@@ -71,8 +71,8 @@ LogicalResult LutLinCombOp::verify() {
 }
 
 LogicalResult ProgrammableBootstrapOp::verify() {
-  lwe::NewLWECiphertextType type = cast<lwe::NewLWECiphertextType>(
-      getElementTypeOrSelf(getOutput().getType()));
+  lwe::LWECiphertextType type =
+      cast<lwe::LWECiphertextType>(getElementTypeOrSelf(getOutput().getType()));
   auto plaintextBitwidth = type.getPlaintextSpace()
                                .getRing()
                                .getCoefficientType()
@@ -98,8 +98,8 @@ LogicalResult MultiLutLinCombOp::verify() {
   if (getOutputs().size() != getLookupTables().size())
     return emitOpError("number of outputs must match number of LUTs");
 
-  lwe::NewLWECiphertextType type =
-      cast<lwe::NewLWECiphertextType>(getOutputs().front().getType());
+  lwe::LWECiphertextType type =
+      cast<lwe::LWECiphertextType>(getOutputs().front().getType());
   auto plaintextBitwidth = type.getPlaintextSpace()
                                .getRing()
                                .getCoefficientType()

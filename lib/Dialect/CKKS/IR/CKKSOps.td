@@ -23,12 +23,12 @@ class CKKS_Op<string mnemonic, list<Trait> traits = []> :
 class CKKS_CiphertextPlaintextOp<string mnemonic, list<Trait> traits = []>
       : CKKS_Op<mnemonic, !listconcat(traits, [IsCiphertextPlaintextOp, InferTypeOpAdaptor])> {
   let arguments = (ins
-    NewLWEPlaintextOrCiphertext:$lhs,
-    NewLWEPlaintextOrCiphertext:$rhs
+    LWEPlaintextOrCiphertext:$lhs,
+    LWEPlaintextOrCiphertext:$rhs
   );
 
   let results = (outs
-    NewLWECiphertext:$output
+    LWECiphertext:$output
   );
 }
 
@@ -37,12 +37,12 @@ def CKKS_AddOp : CKKS_Op<"add", [Commutative, SameOperandsAndResultRings,
   let summary = "Addition operation between ciphertexts.";
 
   let arguments = (ins
-    NewLWECiphertext:$lhs,
-    NewLWECiphertext:$rhs
+    LWECiphertext:$lhs,
+    LWECiphertext:$rhs
   );
 
   let results = (outs
-    NewLWECiphertext:$output
+    LWECiphertext:$output
   );
 }
 
@@ -57,12 +57,12 @@ def CKKS_SubOp : CKKS_Op<"sub", [SameOperandsAndResultRings,
   let summary = "Subtraction operation between ciphertexts.";
 
   let arguments = (ins
-    NewLWECiphertext:$lhs,
-    NewLWECiphertext:$rhs
+    LWECiphertext:$lhs,
+    LWECiphertext:$rhs
   );
 
   let results = (outs
-    NewLWECiphertext:$output
+    LWECiphertext:$output
   );
 }
 
@@ -75,12 +75,12 @@ def CKKS_MulOp : CKKS_Op<"mul", [Commutative, SameOperandsAndResultRings, InferT
   let summary = "Multiplication operation between ciphertexts.";
 
   let arguments = (ins
-    NewLWECiphertext:$lhs,
-    NewLWECiphertext:$rhs
+    LWECiphertext:$lhs,
+    LWECiphertext:$rhs
   );
 
   let results = (outs
-    NewLWECiphertext:$output
+    LWECiphertext:$output
   );
 
   let hasVerifier = 1;
@@ -97,12 +97,12 @@ def CKKS_RotateOp : CKKS_Op<"rotate", [AllTypesMatch<["input", "output"]>]> {
   let summary = "Rotate the coefficients of the ciphertext using a Galois automorphism.";
 
   let arguments = (ins
-    NewLWECiphertext:$input,
+    LWECiphertext:$input,
     Builtin_IntegerAttr:$offset
   );
 
   let results = (outs
-    NewLWECiphertext:$output
+    LWECiphertext:$output
   );
 
   let hasVerifier = 1;
@@ -126,12 +126,12 @@ def CKKS_ExtractOp : CKKS_Op<"extract", [SameOperandsAndResultRings]> {
   }];
 
   let arguments = (ins
-    NewLWECiphertext:$input,
+    LWECiphertext:$input,
     AnySignlessIntegerOrIndex:$offset
   );
 
   let results = (outs
-    NewLWECiphertext:$output
+    LWECiphertext:$output
   );
 
   let hasVerifier = 1;
@@ -141,11 +141,11 @@ def CKKS_NegateOp : CKKS_Op<"negate", [SameOperandsAndResultType, Involution]> {
   let summary = "Negate the coefficients of the ciphertext.";
 
   let arguments = (ins
-    NewLWECiphertext:$input
+    LWECiphertext:$input
   );
 
   let results = (outs
-    NewLWECiphertext:$output
+    LWECiphertext:$output
   );
 
   let assemblyFormat = "operands attr-dict `:` qualified(type($output))" ;
@@ -166,13 +166,13 @@ def CKKS_RelinearizeOp : CKKS_Op<"relinearize", [SameOperandsAndResultRings,
   }];
 
   let arguments = (ins
-    NewLWECiphertext:$input,
+    LWECiphertext:$input,
     DenseI32ArrayAttr:$from_basis,
     DenseI32ArrayAttr:$to_basis
   );
 
   let results = (outs
-    NewLWECiphertext:$output
+    LWECiphertext:$output
   );
 
   let hasVerifier = 1;
@@ -183,12 +183,12 @@ def CKKS_RescaleOp : CKKS_Op<"rescale"> {
   let summary = "Rescales the ciphertext, which is the CKKS version of modulus switching in BGV/BFV.";
 
   let arguments = (ins
-    NewLWECiphertext:$input,
+    LWECiphertext:$input,
     Polynomial_RingAttr:$to_ring
   );
 
   let results = (outs
-    NewLWECiphertext:$output
+    LWECiphertext:$output
   );
 
   let hasVerifier = 1;
@@ -199,12 +199,12 @@ def CKKS_LevelReduceOp : CKKS_Op<"level_reduce", [SameOperandsAndResultPlaintext
   let summary = "Lower the modulus level of the ciphertext via dropping RNS limbs.";
 
   let arguments = (ins
-    NewLWECiphertext:$input,
+    LWECiphertext:$input,
     DefaultValuedAttr<I64Attr, "1">:$levelToDrop
   );
 
   let results = (outs
-    NewLWECiphertext:$output
+    LWECiphertext:$output
   );
 
   let hasVerifier = 1;
@@ -220,11 +220,11 @@ def CKKS_BootstrapOp : CKKS_Op<"bootstrap"> {
   }];
 
   let arguments = (ins
-    NewLWECiphertext:$input
+    LWECiphertext:$input
   );
 
   let results = (outs
-    NewLWECiphertext:$output
+    LWECiphertext:$output
   );
 
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;

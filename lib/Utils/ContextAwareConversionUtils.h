@@ -229,14 +229,14 @@ class SecretGenericOpCipherPlainConversion
     // Verify that exactly one of the two inputs is a ciphertext.
     if (inputs.size() != 2 ||
         llvm::count_if(inputs, [&](Value input) {
-          return isa<lwe::NewLWECiphertextType>(input.getType());
+          return isa<lwe::LWECiphertextType>(input.getType());
         }) != 1) {
       return failure();
     }
 
     auto encodeCleartext =
         [&](Value cleartext,
-            lwe::NewLWECiphertextType ciphertextTy) -> FailureOr<Value> {
+            lwe::LWECiphertextType ciphertextTy) -> FailureOr<Value> {
       auto initOp = dyn_cast_or_null<mgmt::InitOp>(cleartext.getDefiningOp());
       if (!initOp) {
         return failure();
@@ -256,8 +256,8 @@ class SecretGenericOpCipherPlainConversion
       }
 
       // TODO(#1643): inherit level information to plaintext type from init-op
-      // mgmt attr. This actually needs to make NewLWEPlaintextType RNS aware.
-      auto plaintextTy = lwe::NewLWEPlaintextType::get(
+      // mgmt attr. This actually needs to make LWEPlaintextType RNS aware.
+      auto plaintextTy = lwe::LWEPlaintextType::get(
           op.getContext(), ciphertextTy.getApplicationData(),
           lwe::PlaintextSpaceAttr::get(
               op.getContext(), ciphertextTy.getPlaintextSpace().getRing(),
@@ -273,7 +273,7 @@ class SecretGenericOpCipherPlainConversion
     Value input0 = inputs[0];
     Value input1 = inputs[1];
     if (auto ciphertextTy =
-            dyn_cast<lwe::NewLWECiphertextType>(input0.getType())) {
+            dyn_cast<lwe::LWECiphertextType>(input0.getType())) {
       auto encoded = encodeCleartext(input1, ciphertextTy);
       if (failed(encoded)) {
         return failure();
@@ -282,8 +282,8 @@ class SecretGenericOpCipherPlainConversion
       return newOp.getOperation();
     }
 
-    auto encoded = encodeCleartext(
-        input0, cast<lwe::NewLWECiphertextType>(input1.getType()));
+    auto encoded =
+        encodeCleartext(input0, cast<lwe::LWECiphertextType>(input1.getType()));
     if (failed(encoded)) {
       return failure();
     }
@@ -303,7 +303,7 @@ class SecretGenericOpRelinearizeConversion
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
       ContextAwareConversionPatternRewriter &rewriter) const override {
-    auto inputDimension = cast<lwe::NewLWECiphertextType>(inputs[0].getType())
+    auto inputDimension = cast<lwe::LWECiphertextType>(inputs[0].getType())
                               .getCiphertextSpace()
                               .getSize();
     SmallVector<int32_t> fromBasis;
@@ -357,7 +357,7 @@ class SecretGenericOpModulusSwitchConversion
       ContextAwareConversionPatternRewriter &rewriter) const override {
     auto outputType = outputTypes[0];
     auto outputElementType = getElementTypeOrSelf(outputType);
-    auto outputRing = cast<lwe::NewLWECiphertextType>(outputElementType)
+    auto outputRing = cast<lwe::LWECiphertextType>(outputElementType)
                           .getCiphertextSpace()
                           .getRing();
 

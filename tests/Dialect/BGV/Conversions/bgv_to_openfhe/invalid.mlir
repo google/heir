@@ -18,8 +18,8 @@
 #ciphertext_space_L0_ = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024_, encryption_type = lsb>
 #ciphertext_space_L0_D4_ = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024_, encryption_type = lsb, size = 4>
 
-!ct = !lwe.new_lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
-!ct1 = !lwe.new_lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_D4_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
+!ct = !lwe.lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
+!ct1 = !lwe.lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_D4_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 
 func.func @test_relin_to_basis_error(%x: !ct1) -> !ct {
   // expected-error@+2 {{toBasis must be [0, 1], got [0, 2]}}
@@ -49,13 +49,13 @@ func.func @test_relin_to_basis_error(%x: !ct1) -> !ct {
 
 #plaintext_space = #lwe.plaintext_space<ring = #ring_Z65537_i64_1_x1024_, encoding = #full_crt_packing_encoding>
 
-!pt = !lwe.new_lwe_plaintext<application_data = <message_type = i3>, plaintext_space = #plaintext_space>
+!pt = !lwe.lwe_plaintext<application_data = <message_type = i3>, plaintext_space = #plaintext_space>
 
 #ciphertext_space_L0_ = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024_, encryption_type = lsb>
 #ciphertext_space_L1_ = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x1024_, encryption_type = lsb>
 
-!ct = !lwe.new_lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
-!ct2 = !lwe.new_lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
+!ct = !lwe.lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
+!ct2 = !lwe.lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 
 func.func @test_modswitch_level_error(%x: !ct2) -> !ct {
   // expected-error@+1 {{output ring should match to_ring}}
@@ -73,8 +73,8 @@ func.func @test_modswitch_level_error(%x: !ct2) -> !ct {
 #full_crt_packing_encoding = #lwe.full_crt_packing_encoding<scaling_factor = 0>
 #key = #lwe.key<>
 #plaintext_space = #lwe.plaintext_space<ring = #ring_Z65537_i64_1_x32_, encoding = #full_crt_packing_encoding>
-!pt_scalar = !lwe.new_lwe_plaintext<application_data = <message_type = i64>, plaintext_space = #plaintext_space>
-!pk = !lwe.new_lwe_public_key<ring = #ring_rns_L0_1_x32_, key = #key>
+!pt_scalar = !lwe.lwe_plaintext<application_data = <message_type = i64>, plaintext_space = #plaintext_space>
+!pk = !lwe.lwe_public_key<ring = #ring_rns_L0_1_x32_, key = #key>
 
 func.func @encode_scalar(%arg0: i64, %arg1: !pk) -> !pt_scalar {
   // expected-error@+2 {{Expected a tensor type for input; maybe assign_layout wasn't properly lowered?}}

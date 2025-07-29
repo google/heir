@@ -151,7 +151,7 @@ class SecretToCKKSTypeConverter
       moduliChain.push_back(modulus);
     }
 
-    auto ciphertext = lwe::NewLWECiphertextType::get(
+    auto ciphertext = lwe::LWECiphertextType::get(
         ctx,
         lwe::ApplicationDataAttr::get(ctx, type.getValueType(),
                                       lwe::NoOverflowAttr::get(ctx)),
@@ -175,7 +175,7 @@ class SecretToCKKSTypeConverter
     assert(dyn_cast<RankedTensorType>(valueTy) &&
            "expected ranked tensor type");
     auto scalarType = cast<RankedTensorType>(valueTy).getElementType();
-    ciphertext = lwe::NewLWECiphertextType::get(
+    ciphertext = lwe::LWECiphertextType::get(
         ctx,
         lwe::ApplicationDataAttr::get(ctx, scalarType,
                                       lwe::NoOverflowAttr::get(ctx)),
@@ -201,7 +201,7 @@ class SecretGenericTensorExtractConversion
       ArrayRef<NamedAttribute> attributes,
       ContextAwareConversionPatternRewriter &rewriter) const override {
     auto inputTy = inputs[0].getType();
-    if (!isa<lwe::NewLWECiphertextType>(getElementTypeOrSelf(inputTy))) {
+    if (!isa<lwe::LWECiphertextType>(getElementTypeOrSelf(inputTy))) {
       return failure();
     }
     if (isa<RankedTensorType>(inputTy)) {
@@ -218,7 +218,7 @@ class SecretGenericTensorExtractConversion
     // For now, if there we are extracting a multi-dimensional tensor with
     // only one non-unit dimension stored in a single ciphertext along that
     // dimension, then extract on the index of the non-unit dimension.
-    auto lweCiphertextInputTy = cast<lwe::NewLWECiphertextType>(inputTy);
+    auto lweCiphertextInputTy = cast<lwe::LWECiphertextType>(inputTy);
     auto underlyingTy = cast<RankedTensorType>(
         lweCiphertextInputTy.getApplicationData().getMessageType());
     auto nonUnitDim = getNonUnitDimension(underlyingTy);
@@ -245,7 +245,7 @@ class SecretGenericTensorInsertConversion
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
       ContextAwareConversionPatternRewriter &rewriter) const override {
-    if (!isa<lwe::NewLWECiphertextType>(inputs[0].getType())) {
+    if (!isa<lwe::LWECiphertextType>(inputs[0].getType())) {
       op.emitError()
           << "expected scalar to insert to be of type RLWE ciphertext"
           << inputs[0].getType();

@@ -96,11 +96,10 @@ Operation *convertWriteOpInterface(
   return llvm::TypeSwitch<Type, Operation *>(valueToStoreType)
       // Plaintext integer into memref
       .Case<IntegerType>([&](auto valType) {
-        auto ctTy =
-            cast<lwe::NewLWECiphertextType>(toMemRefTy.getElementType());
-        auto ptxtTy = lwe::NewLWEPlaintextType::get(b.getContext(),
-                                                    ctTy.getApplicationData(),
-                                                    ctTy.getPlaintextSpace());
+        auto ctTy = cast<lwe::LWECiphertextType>(toMemRefTy.getElementType());
+        auto ptxtTy = lwe::LWEPlaintextType::get(b.getContext(),
+                                                 ctTy.getApplicationData(),
+                                                 ctTy.getPlaintextSpace());
         auto plaintextBits =
             rewriter.getIndexAttr(ctTy.getPlaintextSpace()
                                       .getRing()
@@ -143,7 +142,7 @@ Operation *convertWriteOpInterface(
         indices.push_back(idx);
         return b.create<memref::StoreOp>(ctValue, toMemRef, indices);
       })
-      .Case<lwe::NewLWECiphertextType>([&](auto valType) {
+      .Case<lwe::LWECiphertextType>([&](auto valType) {
         return b.create<memref::StoreOp>(valueToStore, toMemRef, indices);
       })
       .Case<MemRefType>([&](MemRefType valType) {
@@ -223,10 +222,10 @@ SmallVector<Value> encodeInputs(
     Operation *op, ValueRange inputs,
     ContextAwareConversionPatternRewriter &rewriter) {
   // Get the ciphertext type.
-  lwe::NewLWECiphertextType ctxtTy;
+  lwe::LWECiphertextType ctxtTy;
   for (auto input : inputs) {
-    if (isa<lwe::NewLWECiphertextType>(input.getType())) {
-      ctxtTy = cast<lwe::NewLWECiphertextType>(input.getType());
+    if (isa<lwe::LWECiphertextType>(input.getType())) {
+      ctxtTy = cast<lwe::LWECiphertextType>(input.getType());
       break;
     }
   }
@@ -240,10 +239,10 @@ SmallVector<Value> encodeInputs(
                                                   .getRing()
                                                   .getCoefficientType()
                                                   .getIntOrFloatBitWidth());
-  auto ptxtTy = lwe::NewLWEPlaintextType::get(
+  auto ptxtTy = lwe::LWEPlaintextType::get(
       rewriter.getContext(), ctxtTy.getApplicationData(), ptxtSpace);
   return llvm::to_vector(llvm::map_range(inputs, [&](auto input) -> Value {
-    if (!isa<lwe::NewLWECiphertextType>(input.getType())) {
+    if (!isa<lwe::LWECiphertextType>(input.getType())) {
       IntegerType integerTy = dyn_cast<IntegerType>(input.getType());
       assert(integerTy && integerTy.getWidth() == 1 &&
              "LUT inputs should be single-bit integers");
@@ -360,7 +359,7 @@ class SecretGenericOpMemRefLoadConversion
       ContextAwareConversionPatternRewriter &rewriter) const override {
     memref::LoadOp loadOp =
         cast<memref::LoadOp>(op.getBody()->getOperations().front());
-    if (auto lweType = dyn_cast<lwe::NewLWECiphertextType>(outputTypes[0])) {
+    if (auto lweType = dyn_cast<lwe::LWECiphertextType>(outputTypes[0])) {
       return rewriter
           .replaceOpWithNewOp<memref::LoadOp>(op, inputs[0],
                                               loadOp.getIndices())
@@ -463,7 +462,7 @@ class SecretGenericOpAffineLoadConversion
       ContextAwareConversionPatternRewriter &rewriter) const override {
     affine::AffineLoadOp loadOp =
         cast<affine::AffineLoadOp>(op.getBody()->getOperations().front());
-    if (auto lweType = dyn_cast<lwe::NewLWECiphertextType>(outputTypes[0])) {
+    if (auto lweType = dyn_cast<lwe::LWECiphertextType>(outputTypes[0])) {
       return rewriter
           .replaceOpWithNewOp<affine::AffineLoadOp>(
               op, inputs[0], loadOp.getAffineMap(), loadOp.getIndices())
@@ -669,9 +668,8 @@ struct ConvertSecretConcealOp
         op.getResult().getType(), getTypeConverter()
                                       ->getContextualAttr(op.getResult())
                                       .value_or(nullptr));
-    auto ctTy =
-        cast<lwe::NewLWECiphertextType>(getElementTypeOrSelf(convertedTy));
-    auto ptxtTy = lwe::NewLWEPlaintextType::get(
+    auto ctTy = cast<lwe::LWECiphertextType>(getElementTypeOrSelf(convertedTy));
+    auto ptxtTy = lwe::LWEPlaintextType::get(
         b.getContext(), ctTy.getApplicationData(), ctTy.getPlaintextSpace());
     auto plaintextBits = rewriter.getIndexAttr(ptxtTy.getPlaintextSpace()
                                                    .getRing()

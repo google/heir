@@ -100,7 +100,7 @@ LogicalResult RLWEEncryptOp::verify() {
   Type keyType = getKey().getType();
   auto keyRing =
       llvm::TypeSwitch<Type, mlir::heir::polynomial::RingAttr>(keyType)
-          .Case<lwe::NewLWEPublicKeyType, lwe::NewLWESecretKeyType>(
+          .Case<lwe::LWEPublicKeyType, lwe::LWESecretKeyType>(
               [](auto key) { return key.getRing(); })
           .Default([](Type) {
             llvm_unreachable("impossible by type constraints");

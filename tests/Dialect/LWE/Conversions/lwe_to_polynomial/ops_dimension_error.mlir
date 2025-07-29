@@ -11,10 +11,10 @@
 #plaintext_space = #lwe.plaintext_space<ring = #ring, encoding = #full_crt_packing_encoding>
 #invalid_ciphertext_space = #lwe.ciphertext_space<ring = #ring_Z1095233372161, encryption_type = lsb, size=10>
 
-!plaintext_rlwe = !lwe.new_lwe_plaintext<application_data = <message_type = f16>, plaintext_space = #plaintext_space>
-!invalid_ciphertext = !lwe.new_lwe_ciphertext<application_data = <message_type = f16>, plaintext_space = #plaintext_space, ciphertext_space = #invalid_ciphertext_space, key = #key>
+!plaintext_rlwe = !lwe.lwe_plaintext<application_data = <message_type = f16>, plaintext_space = #plaintext_space>
+!invalid_ciphertext = !lwe.lwe_ciphertext<application_data = <message_type = f16>, plaintext_space = #plaintext_space, ciphertext_space = #invalid_ciphertext_space, key = #key>
 
-!rlwe_key = !lwe.new_lwe_secret_key<key = #key, ring = #ring_Z1095233372161>
+!rlwe_key = !lwe.lwe_secret_key<key = #key, ring = #ring_Z1095233372161>
 
 
 func.func @invalid_dimensions_rlwe_decrypt(%arg0: !invalid_ciphertext, %arg1: !rlwe_key) -> !plaintext_rlwe {

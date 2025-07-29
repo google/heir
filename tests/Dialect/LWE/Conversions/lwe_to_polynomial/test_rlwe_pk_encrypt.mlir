@@ -11,9 +11,9 @@
 #plaintext_space = #lwe.plaintext_space<ring = #ring_Z65537_i64_1_x8_, encoding = #full_crt_packing_encoding>
 #ciphertext_space_L0_ = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x8_, encryption_type = lsb>
 
-!plaintext_rlwe = !lwe.new_lwe_plaintext<application_data = <message_type = f16>, plaintext_space = #plaintext_space>
-!ciphertext_rlwe = !lwe.new_lwe_ciphertext<application_data = <message_type = f16>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
-!rlwe_key = !lwe.new_lwe_public_key<key = #key, ring = #ring_rns_L0_1_x8_>
+!plaintext_rlwe = !lwe.lwe_plaintext<application_data = <message_type = f16>, plaintext_space = #plaintext_space>
+!ciphertext_rlwe = !lwe.lwe_ciphertext<application_data = <message_type = f16>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
+!rlwe_key = !lwe.lwe_public_key<key = #key, ring = #ring_rns_L0_1_x8_>
 
 // CHECK: @test_rlwe_pk_encrypt
 // CHECK-SAME: (%[[ARG0:.*]]: ![[POLY_TY:.*]],
