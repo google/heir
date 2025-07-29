@@ -264,7 +264,7 @@ struct ConfigureCryptoContext
     /// Compute muldepth from multiply aspects...
     // get mulDepth from function argument ciphertext type
     for (auto arg : op.getArguments()) {
-      if (auto argType = dyn_cast<lwe::NewLWECiphertextType>(
+      if (auto argType = dyn_cast<lwe::LWECiphertextType>(
               getElementTypeOrSelf(arg.getType()))) {
         if (auto rnsType = dyn_cast<rns::RNSType>(
                 argType.getCiphertextSpace().getRing().getCoefficientType())) {
@@ -300,7 +300,7 @@ struct ConfigureCryptoContext
       config.plaintextModulus = 0;
     } else {
       for (auto arg : op.getArguments()) {
-        if (auto argType = dyn_cast<lwe::NewLWECiphertextType>(
+        if (auto argType = dyn_cast<lwe::LWECiphertextType>(
                 getElementTypeOrSelf(arg.getType()))) {
           if (auto modArithType = dyn_cast<mod_arith::ModArithType>(
                   argType.getPlaintextSpace().getRing().getCoefficientType())) {

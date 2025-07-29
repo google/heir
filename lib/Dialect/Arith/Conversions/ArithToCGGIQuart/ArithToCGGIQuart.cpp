@@ -39,8 +39,8 @@ namespace mlir::heir::arith {
 
 static constexpr unsigned maxIntWidth = 16;
 
-static lwe::NewLWECiphertextType convertArithToCGGIType(IntegerType type,
-                                                        MLIRContext *ctx) {
+static lwe::LWECiphertextType convertArithToCGGIType(IntegerType type,
+                                                     MLIRContext *ctx) {
   return lwe::getDefaultCGGICiphertextType(ctx, type.getIntOrFloatBitWidth());
 }
 

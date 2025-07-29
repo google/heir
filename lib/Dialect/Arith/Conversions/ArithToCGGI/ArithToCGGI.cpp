@@ -34,8 +34,8 @@ namespace mlir::heir::arith {
 #define GEN_PASS_DEF_ARITHTOCGGI
 #include "lib/Dialect/Arith/Conversions/ArithToCGGI/ArithToCGGI.h.inc"
 
-static lwe::NewLWECiphertextType convertArithToCGGIType(IntegerType type,
-                                                        MLIRContext *ctx) {
+static lwe::LWECiphertextType convertArithToCGGIType(IntegerType type,
+                                                     MLIRContext *ctx) {
   return lwe::getDefaultCGGICiphertextType(ctx, type.getIntOrFloatBitWidth(),
                                            type.getIntOrFloatBitWidth());
 }
@@ -132,7 +132,7 @@ static Value materializeTarget(OpBuilder &builder, Type type, ValueRange inputs,
     return builder.create<cggi::CreateTrivialOp>(loc, type, intAttr);
   }
   // Comes from function/loop argument: Trivial encrypt through LWE
-  auto ciphertextType = cast<lwe::NewLWECiphertextType>(type);
+  auto ciphertextType = cast<lwe::LWECiphertextType>(type);
 
   auto plaintextBits = ciphertextType.getPlaintextSpace()
                            .getRing()
@@ -143,9 +143,9 @@ static Value materializeTarget(OpBuilder &builder, Type type, ValueRange inputs,
                             .getRing()
                             .getCoefficientType()
                             .getIntOrFloatBitWidth();
-  auto ptxtTy = lwe::NewLWEPlaintextType::get(
-      builder.getContext(), ciphertextType.getApplicationData(),
-      ciphertextType.getPlaintextSpace());
+  auto ptxtTy = lwe::LWEPlaintextType::get(builder.getContext(),
+                                           ciphertextType.getApplicationData(),
+                                           ciphertextType.getPlaintextSpace());
   return builder.create<lwe::TrivialEncryptOp>(
       loc, type,
       builder.create<lwe::EncodeOp>(loc, ptxtTy, inputs[0],

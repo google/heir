@@ -8,7 +8,7 @@
 #pspace = #lwe.plaintext_space<
   ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>,
   encoding = #lwe.constant_coefficient_encoding<scaling_factor = 256>>
-!plaintext = !lwe.new_lwe_plaintext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #pspace>
+!plaintext = !lwe.lwe_plaintext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #pspace>
 
 // CHECK: test_valid_lwe_encode
 func.func @test_valid_lwe_encode() {
@@ -26,7 +26,7 @@ func.func @test_valid_lwe_encode() {
 #pspace = #lwe.plaintext_space<
   ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>,
   encoding = #lwe.constant_coefficient_encoding<scaling_factor = 256>>
-!plaintext_nooverflow = !lwe.new_lwe_plaintext<application_data = <message_type = i1>, plaintext_space = #pspace>
+!plaintext_nooverflow = !lwe.lwe_plaintext<application_data = <message_type = i1>, plaintext_space = #pspace>
 
 // CHECK: test_valid_lwe_default_overflow
 func.func @test_valid_lwe_default_overflow() {
@@ -44,7 +44,7 @@ func.func @test_valid_lwe_default_overflow() {
 #pspace = #lwe.plaintext_space<
   ring = #polynomial.ring<coefficientType = !modarith, polynomialModulus = #poly>,
   encoding = #lwe.constant_coefficient_encoding<scaling_factor = 256>>
-!plaintext_modarith = !lwe.new_lwe_plaintext<application_data = <message_type = i4>, plaintext_space = #pspace>
+!plaintext_modarith = !lwe.lwe_plaintext<application_data = <message_type = i4>, plaintext_space = #pspace>
 
 // CHECK: test_valid_lwe_modarith_type
 func.func @test_valid_lwe_modarith_type(%arg0: !plaintext_modarith) {

@@ -52,14 +52,14 @@ LogicalResult verifyMulOp(Op* op) {
 
 template <typename Op>
 LogicalResult verifyMulPlainOp(Op* op) {
-  lwe::NewLWECiphertextType ct;
-  lwe::NewLWEPlaintextType pt;
-  if (isa<lwe::NewLWECiphertextType>(op->getLhs().getType())) {
-    ct = cast<lwe::NewLWECiphertextType>(op->getLhs().getType());
-    pt = cast<lwe::NewLWEPlaintextType>(op->getRhs().getType());
+  lwe::LWECiphertextType ct;
+  lwe::LWEPlaintextType pt;
+  if (isa<lwe::LWECiphertextType>(op->getLhs().getType())) {
+    ct = cast<lwe::LWECiphertextType>(op->getLhs().getType());
+    pt = cast<lwe::LWEPlaintextType>(op->getRhs().getType());
   } else {
-    ct = cast<lwe::NewLWECiphertextType>(op->getRhs().getType());
-    pt = cast<lwe::NewLWEPlaintextType>(op->getLhs().getType());
+    ct = cast<lwe::LWECiphertextType>(op->getRhs().getType());
+    pt = cast<lwe::LWEPlaintextType>(op->getLhs().getType());
   }
   auto out = op->getOutput().getType();
   // verify dimension matches
@@ -245,11 +245,11 @@ template <typename Adaptor>
 LogicalResult inferAddOpReturnTypes(
     MLIRContext* ctx, Adaptor adaptor,
     SmallVectorImpl<Type>& inferredReturnTypes) {
-  auto x = cast<lwe::NewLWECiphertextType>(adaptor.getLhs().getType());
-  auto y = cast<lwe::NewLWECiphertextType>(adaptor.getRhs().getType());
+  auto x = cast<lwe::LWECiphertextType>(adaptor.getLhs().getType());
+  auto y = cast<lwe::LWECiphertextType>(adaptor.getRhs().getType());
   auto newDim = std::max(x.getCiphertextSpace().getSize(),
                          y.getCiphertextSpace().getSize());
-  inferredReturnTypes.push_back(lwe::NewLWECiphertextType::get(
+  inferredReturnTypes.push_back(lwe::LWECiphertextType::get(
       ctx, x.getApplicationData(), x.getPlaintextSpace(),
       lwe::CiphertextSpaceAttr::get(ctx, x.getCiphertextSpace().getRing(),
                                     x.getCiphertextSpace().getEncryptionType(),
@@ -262,11 +262,10 @@ template <typename Adaptor>
 LogicalResult inferPlainOpReturnTypes(
     MLIRContext* ctx, Adaptor adaptor,
     SmallVectorImpl<Type>& inferredReturnTypes) {
-  if (auto ct =
-          dyn_cast<lwe::NewLWECiphertextType>(adaptor.getLhs().getType())) {
+  if (auto ct = dyn_cast<lwe::LWECiphertextType>(adaptor.getLhs().getType())) {
     inferredReturnTypes.push_back(ct);
-  } else if (auto ct = dyn_cast<lwe::NewLWECiphertextType>(
-                 adaptor.getRhs().getType())) {
+  } else if (auto ct =
+                 dyn_cast<lwe::LWECiphertextType>(adaptor.getRhs().getType())) {
     inferredReturnTypes.push_back(ct);
   } else {
     emitError(adaptor.getLhs().getLoc())
@@ -280,8 +279,8 @@ template <typename Adaptor>
 LogicalResult inferMulOpReturnTypes(
     MLIRContext* ctx, Adaptor adaptor,
     SmallVectorImpl<Type>& inferredReturnTypes) {
-  auto x = cast<lwe::NewLWECiphertextType>(adaptor.getLhs().getType());
-  auto y = cast<lwe::NewLWECiphertextType>(adaptor.getRhs().getType());
+  auto x = cast<lwe::LWECiphertextType>(adaptor.getLhs().getType());
+  auto y = cast<lwe::LWECiphertextType>(adaptor.getRhs().getType());
   auto newDim =
       x.getCiphertextSpace().getSize() + y.getCiphertextSpace().getSize() - 1;
   auto xPlaintextSpace = x.getPlaintextSpace();
@@ -290,7 +289,7 @@ LogicalResult inferMulOpReturnTypes(
   lwe::PlaintextSpaceAttr newPlaintextSpaceAttr =
       inferMulOpPlaintextSpaceAttr(ctx, xPlaintextSpace, yPlaintextSpace);
 
-  inferredReturnTypes.push_back(lwe::NewLWECiphertextType::get(
+  inferredReturnTypes.push_back(lwe::LWECiphertextType::get(
       ctx, x.getApplicationData(), newPlaintextSpaceAttr,
       lwe::CiphertextSpaceAttr::get(ctx, x.getCiphertextSpace().getRing(),
                                     x.getCiphertextSpace().getEncryptionType(),
@@ -303,14 +302,14 @@ template <typename Adaptor>
 LogicalResult inferMulPlainOpReturnTypes(
     MLIRContext* ctx, Adaptor adaptor,
     SmallVectorImpl<Type>& inferredReturnTypes) {
-  lwe::NewLWECiphertextType ct;
-  lwe::NewLWEPlaintextType pt;
-  if (isa<lwe::NewLWECiphertextType>(adaptor.getLhs().getType())) {
-    ct = cast<lwe::NewLWECiphertextType>(adaptor.getLhs().getType());
-    pt = cast<lwe::NewLWEPlaintextType>(adaptor.getRhs().getType());
+  lwe::LWECiphertextType ct;
+  lwe::LWEPlaintextType pt;
+  if (isa<lwe::LWECiphertextType>(adaptor.getLhs().getType())) {
+    ct = cast<lwe::LWECiphertextType>(adaptor.getLhs().getType());
+    pt = cast<lwe::LWEPlaintextType>(adaptor.getRhs().getType());
   } else {
-    ct = cast<lwe::NewLWECiphertextType>(adaptor.getRhs().getType());
-    pt = cast<lwe::NewLWEPlaintextType>(adaptor.getLhs().getType());
+    ct = cast<lwe::LWECiphertextType>(adaptor.getRhs().getType());
+    pt = cast<lwe::LWEPlaintextType>(adaptor.getLhs().getType());
   }
   auto ctPlaintextSpace = ct.getPlaintextSpace();
   auto ptPlaintextSpace = pt.getPlaintextSpace();
@@ -318,7 +317,7 @@ LogicalResult inferMulPlainOpReturnTypes(
   lwe::PlaintextSpaceAttr newPlaintextSpaceAttr =
       inferMulOpPlaintextSpaceAttr(ctx, ctPlaintextSpace, ptPlaintextSpace);
 
-  inferredReturnTypes.push_back(lwe::NewLWECiphertextType::get(
+  inferredReturnTypes.push_back(lwe::LWECiphertextType::get(
       ctx, ct.getApplicationData(), newPlaintextSpaceAttr,
       ct.getCiphertextSpace(), ct.getKey(), ct.getModulusChain()));
   return success();
@@ -328,8 +327,8 @@ template <typename Adaptor>
 LogicalResult inferRelinearizeOpReturnTypes(
     MLIRContext* ctx, Adaptor adaptor,
     SmallVectorImpl<Type>& inferredReturnTypes) {
-  auto x = cast<lwe::NewLWECiphertextType>(adaptor.getInput().getType());
-  inferredReturnTypes.push_back(lwe::NewLWECiphertextType::get(
+  auto x = cast<lwe::LWECiphertextType>(adaptor.getInput().getType());
+  inferredReturnTypes.push_back(lwe::LWECiphertextType::get(
       ctx, x.getApplicationData(), x.getPlaintextSpace(),
       lwe::CiphertextSpaceAttr::get(ctx, x.getCiphertextSpace().getRing(),
                                     x.getCiphertextSpace().getEncryptionType(),

@@ -13,11 +13,11 @@
 
 #plaintext_space = #lwe.plaintext_space<ring = #ring_Z65537_i64_1_x32_, encoding = #inverse_canonical_encoding>
 
-!pt_i16 = !lwe.new_lwe_plaintext<application_data = <message_type = tensor<32xi16>>, plaintext_space = #plaintext_space>
-!pt_i32 = !lwe.new_lwe_plaintext<application_data = <message_type = tensor<32xi32>>, plaintext_space = #plaintext_space>
-!pt_i64 = !lwe.new_lwe_plaintext<application_data = <message_type = tensor<32xi64>>, plaintext_space = #plaintext_space>
+!pt_i16 = !lwe.lwe_plaintext<application_data = <message_type = tensor<32xi16>>, plaintext_space = #plaintext_space>
+!pt_i32 = !lwe.lwe_plaintext<application_data = <message_type = tensor<32xi32>>, plaintext_space = #plaintext_space>
+!pt_i64 = !lwe.lwe_plaintext<application_data = <message_type = tensor<32xi64>>, plaintext_space = #plaintext_space>
 
-!pk = !lwe.new_lwe_public_key<ring = #ring_rns_L0_1_x32_, key = #key>
+!pk = !lwe.lwe_public_key<ring = #ring_rns_L0_1_x32_, key = #key>
 
 //The function is adapted from the BGV form of the simple_sum.mlir test
 // CHECK: @encode_i16
@@ -26,8 +26,8 @@
 func.func @encode_i16(%arg0: tensor<32xi16>, %arg1: !pk) -> !pt_i16 {
   %0 = lwe.rlwe_encode %arg0 {encoding = #inverse_canonical_encoding, ring = #ring_Z65537_i64_1_x32_} : tensor<32xi16> -> !pt_i16
   // CHECK:     %[[v0:.*]] = arith.extsi %[[arg16]] : tensor<32xi16> to tensor<32xi64>
-  // CHECK:     openfhe.make_ckks_packed_plaintext %[[cc]], %[[v0]] {{.*}} tensor<32xi64>) -> !lwe.new_lwe_plaintext{{.*}} tensor<32xi16>
-  // CHECK-NOT: openfhe.make_ckks_packed_plaintext {{.*}} tensor<32xi16> -> !lwe.new_lwe_plaintext{{.*}} tensor<32xi16>
+  // CHECK:     openfhe.make_ckks_packed_plaintext %[[cc]], %[[v0]] {{.*}} tensor<32xi64>) -> !lwe.lwe_plaintext{{.*}} tensor<32xi16>
+  // CHECK-NOT: openfhe.make_ckks_packed_plaintext {{.*}} tensor<32xi16> -> !lwe.lwe_plaintext{{.*}} tensor<32xi16>
   return %0 : !pt_i16
 }
 
@@ -37,14 +37,14 @@ func.func @encode_i16(%arg0: tensor<32xi16>, %arg1: !pk) -> !pt_i16 {
 func.func @encode_i32(%arg0: tensor<32xi32>, %arg1: !pk) -> !pt_i32 {
   %0 = lwe.rlwe_encode %arg0 {encoding = #inverse_canonical_encoding, ring = #ring_Z65537_i64_1_x32_} : tensor<32xi32> -> !pt_i32
   // CHECK:     %[[v0:.*]] = arith.extsi %[[arg0]] : tensor<32xi32> to tensor<32xi64>
-  // CHECK:     openfhe.make_ckks_packed_plaintext %[[cc]], %[[v0]] {{.*}} tensor<32xi64>) -> !lwe.new_lwe_plaintext{{.*}} tensor<32xi32>
-  // CHECK-NOT: openfhe.make_ckks_packed_plaintext {{.*}} : tensor<32xi32> -> !lwe.new_lwe_plaintext{{.*}} tensor<32xi32>
+  // CHECK:     openfhe.make_ckks_packed_plaintext %[[cc]], %[[v0]] {{.*}} tensor<32xi64>) -> !lwe.lwe_plaintext{{.*}} tensor<32xi32>
+  // CHECK-NOT: openfhe.make_ckks_packed_plaintext {{.*}} : tensor<32xi32> -> !lwe.lwe_plaintext{{.*}} tensor<32xi32>
   return %0 : !pt_i32
 }
 
 // CHECK: @encode_i64
 func.func @encode_i64(%arg0: tensor<32xi64>, %arg1: !pk) -> !pt_i64 {
   %0 = lwe.rlwe_encode %arg0 {encoding = #inverse_canonical_encoding, ring = #ring_Z65537_i64_1_x32_} : tensor<32xi64> -> !pt_i64
-  // CHECK:     openfhe.make_ckks_packed_plaintext {{.*}} tensor<32xi64>) -> !lwe.new_lwe_plaintext{{.*}} tensor<32xi64>
+  // CHECK:     openfhe.make_ckks_packed_plaintext {{.*}} tensor<32xi64>) -> !lwe.lwe_plaintext{{.*}} tensor<32xi64>
   return %0 : !pt_i64
 }

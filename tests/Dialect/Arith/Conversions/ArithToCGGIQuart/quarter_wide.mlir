@@ -1,6 +1,6 @@
 // RUN: heir-opt --arith-to-cggi-quart  %s | FileCheck %s
 
-// CHECK: ![[ct_ty:.*]] = !lwe.new_lwe_ciphertext
+// CHECK: ![[ct_ty:.*]] = !lwe.lwe_ciphertext
 
 // CHECK: return %[[RET:.*]] tensor<4x![[ct_ty]]>
 func.func @test_simple_split2(%arg0: i32, %arg1: i32) -> i32 {

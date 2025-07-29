@@ -129,7 +129,7 @@ class SecretToBGVTypeConverter
     auto encryptionType =
         isBFV ? lwe::LweEncryptionType::msb : lwe::LweEncryptionType::lsb;
 
-    return lwe::NewLWECiphertextType::get(
+    return lwe::LWECiphertextType::get(
         ctx,
         lwe::ApplicationDataAttr::get(ctx, type.getValueType(),
                                       lwe::NoOverflowAttr::get(ctx)),

@@ -7,8 +7,8 @@
 #key = #lwe.key<slot_index = 0>
 #pspace = #lwe.plaintext_space<ring = #polynomial.ring<coefficientType = i4, polynomialModulus = #poly>, encoding = #lwe.constant_coefficient_encoding<scaling_factor = 268435456>>
 #cspace = #lwe.ciphertext_space<ring = #polynomial.ring<coefficientType = i32, polynomialModulus = #poly>, encryption_type = msb, size = 742>
-!plaintext = !lwe.new_lwe_plaintext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #pspace>
-!ciphertext = !lwe.new_lwe_ciphertext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
+!plaintext = !lwe.lwe_plaintext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #pspace>
+!ciphertext = !lwe.lwe_ciphertext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
 
 module {
   //CHECK: test_syntax

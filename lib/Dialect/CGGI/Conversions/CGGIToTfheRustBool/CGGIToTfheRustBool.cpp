@@ -39,7 +39,7 @@ class CGGIToTfheRustBoolTypeConverter : public TypeConverter {
  public:
   CGGIToTfheRustBoolTypeConverter(MLIRContext *ctx) {
     addConversion([](Type type) { return type; });
-    addConversion([ctx](lwe::NewLWECiphertextType type) -> Type {
+    addConversion([ctx](lwe::LWECiphertextType type) -> Type {
       return tfhe_rust_bool::EncryptedBoolType::get(ctx);
     });
     addConversion([this](ShapedType type) -> Type {

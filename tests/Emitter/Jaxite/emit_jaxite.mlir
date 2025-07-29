@@ -9,7 +9,7 @@
 #poly = #polynomial.int_polynomial<x>
 #pspace = #lwe.plaintext_space<ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>, encoding = #lwe.constant_coefficient_encoding<scaling_factor = 268435456>>
 #cspace = #lwe.ciphertext_space<ring = #polynomial.ring<coefficientType = i32, polynomialModulus = #poly>, encryption_type = msb, size = 742>
-!eb = !lwe.new_lwe_ciphertext<application_data = #app_data, plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
+!eb = !lwe.lwe_ciphertext<application_data = #app_data, plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
 
 // CHECK: def test_return_multiple_values(
 // CHECK-NEXT:   [[input:ct]]: types.LweCiphertext,

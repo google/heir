@@ -22,18 +22,18 @@
   ring=#ciphertext_ring,
   encryption_type=lsb,
   size=3>
-!ct = !lwe.new_lwe_ciphertext<
+!ct = !lwe.lwe_ciphertext<
   application_data=<message_type=i3>,
   plaintext_space=#plaintext_space,
   ciphertext_space=#ciphertext_space,
   key=#lwe.key<>>
-!post_mul_ct = !lwe.new_lwe_ciphertext<
+!post_mul_ct = !lwe.lwe_ciphertext<
   application_data=<message_type=i3>,
   plaintext_space=#plaintext_space,
   ciphertext_space=#post_mul_ciphertext_space,
   key=#lwe.key<>>
 
-!pt = !lwe.new_lwe_plaintext<
+!pt = !lwe.lwe_plaintext<
   application_data=<message_type=i3>,
   plaintext_space=#plaintext_space>
 

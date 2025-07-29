@@ -92,9 +92,9 @@ LogicalResult SimFHEEmitter::printOperation(ModuleOp moduleOp) {
   for (auto func : funcs) {
     os << "targets.append(Target(\"generated." << func.getName() << "\",1, [";
     for (auto arg : func.getArguments()) {
-      if (isa<lwe::NewLWECiphertextType>(arg.getType()))
+      if (isa<lwe::LWECiphertextType>(arg.getType()))
         os << "scheme_params.fresh_ctxt,";
-      else if (isa<lwe::NewLWEPlaintextType>(arg.getType()))
+      else if (isa<lwe::LWEPlaintextType>(arg.getType()))
         os << "params.PolyContext(scheme_params.fresh_ctxt.logq, "
               "scheme_params.fresh_ctxt.logN, "
               "scheme_params.fresh_ctxt.dnum,1), ";

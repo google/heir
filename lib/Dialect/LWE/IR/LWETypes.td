@@ -1,5 +1,5 @@
-#ifndef LIB_DIALECT_LWE_IR_NEWLWETYPES_TD_
-#define LIB_DIALECT_LWE_IR_NEWLWETYPES_TD_
+#ifndef LIB_DIALECT_LWE_IR_LWETYPES_TD_
+#define LIB_DIALECT_LWE_IR_LWETYPES_TD_
 
 include "lib/Dialect/LWE/IR/LWEDialect.td"
 include "lib/Dialect/LWE/IR/LWEAttributes.td"
@@ -33,10 +33,10 @@ class LWE_Type<string name, string typeMnemonic, list<Trait> traits = []>
   }], "");
 }
 
-// This file defines new LWE types following
+// This file defines LWE types following
 // [#785](https://github.com/google/heir/issues/785).
 
-def NewLWESecretKey : LWE_Type<"NewLWESecretKey", "new_lwe_secret_key"> {
+def LWESecretKey : LWE_Type<"LWESecretKey", "lwe_secret_key"> {
   let summary = "A secret key for LWE";
   let parameters = (ins
     "KeyAttr":$key,
@@ -47,7 +47,7 @@ def NewLWESecretKey : LWE_Type<"NewLWESecretKey", "new_lwe_secret_key"> {
   let aliasSuffix = [{ getRing().getAliasSuffix(os); }];
 }
 
-def NewLWEPublicKey : LWE_Type<"NewLWEPublicKey", "new_lwe_public_key"> {
+def LWEPublicKey : LWE_Type<"LWEPublicKey", "lwe_public_key"> {
   let summary = "A public key for LWE";
   let parameters = (ins
     "KeyAttr":$key,
@@ -58,9 +58,9 @@ def NewLWEPublicKey : LWE_Type<"NewLWEPublicKey", "new_lwe_public_key"> {
   let aliasSuffix = [{ getRing().getAliasSuffix(os); }];
 }
 
-def NewLWESecretOrPublicKey : AnyTypeOf<[NewLWESecretKey, NewLWEPublicKey]>;
+def LWESecretOrPublicKey : AnyTypeOf<[LWESecretKey, LWEPublicKey]>;
 
-def NewLWEPlaintext : LWE_Type<"NewLWEPlaintext", "new_lwe_plaintext", [MemRefElementTypeInterface]> {
+def LWEPlaintext : LWE_Type<"LWEPlaintext", "lwe_plaintext", [MemRefElementTypeInterface]> {
   let summary = "A plaintext type";
   let parameters = (ins
     "ApplicationDataAttr":$application_data,
@@ -70,9 +70,9 @@ def NewLWEPlaintext : LWE_Type<"NewLWEPlaintext", "new_lwe_plaintext", [MemRefEl
   let aliasName = "pt";
 }
 
-def NewLWEPlaintextLike : TypeOrValueSemanticsContainer<NewLWEPlaintext, "new-lwe-plaintext-like">;
+def LWEPlaintextLike : TypeOrValueSemanticsContainer<LWEPlaintext, "lwe-plaintext-like">;
 
-def NewLWECiphertext : LWE_Type<"NewLWECiphertext", "new_lwe_ciphertext", [MemRefElementTypeInterface]> {
+def LWECiphertext : LWE_Type<"LWECiphertext", "lwe_ciphertext", [MemRefElementTypeInterface]> {
   let summary = "A ciphertext type";
 
   let description = [{
@@ -99,8 +99,8 @@ def NewLWECiphertext : LWE_Type<"NewLWECiphertext", "new_lwe_ciphertext", [MemRe
   let aliasSuffix = [{ getCiphertextSpace().getAliasSuffix(os); }];
 }
 
-def NewLWECiphertextLike : TypeOrValueSemanticsContainer<NewLWECiphertext, "new-lwe-ciphertext-like">;
+def LWECiphertextLike : TypeOrValueSemanticsContainer<LWECiphertext, "lwe-ciphertext-like">;
 
-def NewLWEPlaintextOrCiphertext : AnyTypeOf<[NewLWECiphertext, NewLWEPlaintext]>;
+def LWEPlaintextOrCiphertext : AnyTypeOf<[LWECiphertext, LWEPlaintext]>;
 
-#endif  // LIB_DIALECT_LWE_IR_NEWLWETYPES_TD_
+#endif  // LIB_DIALECT_LWE_IR_LWETYPES_TD_

@@ -38,7 +38,7 @@ class CGGIToTfheRustTypeConverter : public TypeConverter {
  public:
   CGGIToTfheRustTypeConverter(MLIRContext *ctx) {
     addConversion([](Type type) { return type; });
-    addConversion([ctx](lwe::NewLWECiphertextType type) -> Type {
+    addConversion([ctx](lwe::LWECiphertextType type) -> Type {
       int width = type.getPlaintextSpace()
                       .getRing()
                       .getCoefficientType()
@@ -263,9 +263,9 @@ struct ConvertCGGICtxtBinOp : public OpConversionPattern<BinOp> {
     auto rhs = adaptor.getRhs();
 
     if (lhs.getType() != rhs.getType()) {
-      if (!isa<lwe::NewLWECiphertextType>(op.getLhs().getType())) {
+      if (!isa<lwe::LWECiphertextType>(op.getLhs().getType())) {
         lhs = b.create<tfhe_rust::CreateTrivialOp>(outputType, serverKey, lhs);
-      } else if (!isa<lwe::NewLWECiphertextType>(op.getRhs().getType())) {
+      } else if (!isa<lwe::LWECiphertextType>(op.getRhs().getType())) {
         rhs = b.create<tfhe_rust::CreateTrivialOp>(outputType, serverKey, rhs);
       } else {
         return op.emitError()
@@ -401,7 +401,7 @@ struct ConvertNotOp : public OpConversionPattern<cggi::NotOp> {
     auto shapedTy = dyn_cast<ShapedType>(op.getInput().getType());
     Type eltTy = shapedTy ? shapedTy.getElementType() : op.getInput().getType();
 
-    auto width = cast<lwe::NewLWECiphertextType>(eltTy)
+    auto width = cast<lwe::LWECiphertextType>(eltTy)
                      .getPlaintextSpace()
                      .getRing()
                      .getCoefficientType()

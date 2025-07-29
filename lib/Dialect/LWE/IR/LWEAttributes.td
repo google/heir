@@ -1,5 +1,5 @@
-#ifndef LIB_DIALECT_LWE_IR_NEWLWEATTRIBUTES_TD_
-#define LIB_DIALECT_LWE_IR_NEWLWEATTRIBUTES_TD_
+#ifndef LIB_DIALECT_LWE_IR_LWEATTRIBUTES_TD_
+#define LIB_DIALECT_LWE_IR_LWEATTRIBUTES_TD_
 
 include "lib/Dialect/LWE/IR/LWEDialect.td"
 
@@ -415,4 +415,4 @@ def LWE_ModulusChainAttr : AttrDef<LWE_Dialect, "ModulusChain", [OpAsmAttrInterf
   }];
 }
 
-#endif  // LIB_DIALECT_LWE_IR_NEWLWEATTRIBUTES_TD_
+#endif  // LIB_DIALECT_LWE_IR_LWEATTRIBUTES_TD_

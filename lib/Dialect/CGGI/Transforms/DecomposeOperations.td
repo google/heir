@@ -14,7 +14,7 @@ defvar kXorLut = 6;
 
 class GetIntegerTyForLWEEncoding<int i> : NativeCodeCall<
       "$_builder.getIntegerAttr($_builder.getIntegerType("
-          "cast<lwe::NewLWECiphertextType>($0.getType()).getPlaintextSpace()"
+          "cast<lwe::LWECiphertextType>($0.getType()).getPlaintextSpace()"
           ".getRing().getCoefficientType().getIntOrFloatBitWidth()),"
           # i # ")">;
 
