@@ -49,25 +49,17 @@ struct SecretExtractToStaticExtractConversion
 
     auto index = extractOp.getIndices().front();
 
-    auto *indexSecretnessLattice =
-        solver->lookupState<SecretnessLattice>(index);
-
-    // Use secretness from lattice or, if no lattice found, set to unknown
-    auto indexSecretness = indexSecretnessLattice
-                               ? indexSecretnessLattice->getValue()
-                               : Secretness();
-
     // If lattice is set to unknown,
     // apply transformation anyway but emit a warning
-    if (!indexSecretness.isInitialized()) {
+    bool initialized = isInitialized(index, solver);
+    if (!initialized) {
       extractOp->emitWarning()
           << "Secretness for tensor.extract index is unknown. "
              "Conservatively, the transformation will be applied:";
     }
 
     // If index is known to be public, no transformation is needed
-    if (indexSecretness.isInitialized() && !indexSecretness.getSecretness())
-      return failure();
+    if (initialized && !isSecret(index, solver)) return failure();
 
     ImplicitLocOpBuilder builder(extractOp->getLoc(), rewriter);
 

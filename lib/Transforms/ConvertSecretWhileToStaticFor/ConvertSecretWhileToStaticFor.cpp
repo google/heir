@@ -63,21 +63,15 @@ struct SecretWhileToStaticForConversion : OpRewritePattern<scf::WhileOp> {
       counter++;
     }
 
-    auto *conditionSecretnessLattice =
-        solver->lookupState<SecretnessLattice>(whileCondition);
-
-    if (!conditionSecretnessLattice) {
+    if (!isInitialized(whileCondition, solver)) {
       InFlightDiagnostic diag =
           whileOp.emitWarning()
           << "Secretness for scf.while condition has not been set";
       return failure();
     }
 
-    bool isConditionSecret =
-        conditionSecretnessLattice->getValue().getSecretness();
-
     // If condition is not secret, no transformation is needed
-    if (!isConditionSecret) {
+    if (!isSecret(whileCondition, solver)) {
       return failure();
     }
 

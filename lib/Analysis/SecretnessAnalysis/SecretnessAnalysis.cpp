@@ -224,6 +224,12 @@ bool isSecret(Value value, DataFlowSolver *solver) {
   return isSecret(lattice);
 }
 
+bool isInitialized(Value value, DataFlowSolver *solver) {
+  auto *lattice = solver->lookupState<SecretnessLattice>(value);
+  if (!lattice) return false;
+  return lattice->getValue().isInitialized();
+}
+
 bool isSecret(const SecretnessLattice *lattice) {
   if (!lattice) {
     return false;
