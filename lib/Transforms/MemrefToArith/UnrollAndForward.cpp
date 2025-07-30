@@ -292,11 +292,11 @@ static LogicalResult forwardFullyUnrolledStoreToLoad(
     llvm::SmallVector<Value> indexValues;
     for (auto ndx :
          unflattenIndex(loadAccessIndex, endingStrides, endingOffset)) {
-      Value ndxValue = b.create<ConstantOp>(b.getIndexAttr(ndx));
+      Value ndxValue = ConstantOp::create(b, b.getIndexAttr(ndx));
       indexValues.push_back(ndxValue);
     }
 
-    auto newLoadOp = b.create<AffineLoadOp>(loadSourceMemref, indexValues);
+    auto newLoadOp = AffineLoadOp::create(b, loadSourceMemref, indexValues);
     loadOp.getValue().replaceAllUsesWith(newLoadOp.getValue());
     opsToErase.push_back(loadOp);
     return success();

@@ -109,24 +109,24 @@ struct ConvertRLWEDecrypt : public OpConversionPattern<RLWEDecryptOp> {
 
     // For a ciphertext input = (c_0, c_1), calculates
     // plaintext = secretKey * c_0 + c_1
-    auto index0 = builder.create<arith::ConstantIndexOp>(0);
+    auto index0 = arith::ConstantIndexOp::create(builder, 0);
     tensor::ExtractOp extractOp0 =
-        builder.create<tensor::ExtractOp>(input, ValueRange{index0});
-    auto index1 = builder.create<arith::ConstantIndexOp>(1);
+        tensor::ExtractOp::create(builder, input, ValueRange{index0});
+    auto index1 = arith::ConstantIndexOp::create(builder, 1);
     tensor::ExtractOp extractOp1 =
-        builder.create<tensor::ExtractOp>(input, ValueRange{index1});
+        tensor::ExtractOp::create(builder, input, ValueRange{index1});
 
     tensor::ExtractOp extractSecretKeyOp =
-        builder.create<tensor::ExtractOp>(secretKey, ValueRange{index0});
+        tensor::ExtractOp::create(builder, secretKey, ValueRange{index0});
     auto index1sk =
-        builder.create<polynomial::MulOp>(extractSecretKeyOp, extractOp0);
-    auto plaintext = builder.create<polynomial::AddOp>(index1sk, extractOp1);
+        polynomial::MulOp::create(builder, extractSecretKeyOp, extractOp0);
+    auto plaintext = polynomial::AddOp::create(builder, index1sk, extractOp1);
 
     // Cast to the plaintext space types.
     auto plaintextPolyType = cast<polynomial::PolynomialType>(
         typeConverter->convertType(op.getOutput().getType()));
     auto plaintextMod =
-        builder.create<polynomial::ModSwitchOp>(plaintextPolyType, plaintext);
+        polynomial::ModSwitchOp::create(builder, plaintextPolyType, plaintext);
 
     rewriter.replaceOp(op, plaintextMod);
     return success();
@@ -162,7 +162,7 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
     // as future work.
     ImplicitLocOpBuilder builder(loc, rewriter);
 
-    auto index0 = builder.create<arith::ConstantIndexOp>(0);
+    auto index0 = arith::ConstantIndexOp::create(builder, 0);
 
     auto outputTy = cast<RankedTensorType>(
         typeConverter->convertType(op.getOutput().getType()));
@@ -176,39 +176,38 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
 
     // Initialize random number generator with seed.
     auto generateRandom =
-        builder.create<random::InitOp>(index0, builder.getI32IntegerAttr(32));
+        random::InitOp::create(builder, index0, builder.getI32IntegerAttr(32));
 
     // Create a uniform discrete random distribution with generated values of
     // -1, 0, 1.
     auto uniformDistributionType = random::DistributionType::get(
         getContext(), random::Distribution::uniform);
 
-    auto uniformDistribution =
-        builder.create<random::DiscreteUniformDistributionOp>(
-            uniformDistributionType, generateRandom,
-            builder.getI32IntegerAttr(-1), builder.getI32IntegerAttr(2));
+    auto uniformDistribution = random::DiscreteUniformDistributionOp::create(
+        builder, uniformDistributionType, generateRandom,
+        builder.getI32IntegerAttr(-1), builder.getI32IntegerAttr(2));
 
     // Generate random u polynomial from uniform random ternary distribution
     auto u =
-        builder.create<random::SampleOp>(outputPolyTy, uniformDistribution);
+        random::SampleOp::create(builder, outputPolyTy, uniformDistribution);
 
     // Create a discrete Gaussian distribution
     auto discreteGaussianDistributionType = random::DistributionType::get(
         getContext(), random::Distribution::gaussian);
 
     auto discreteGaussianDistribution =
-        builder.create<random::DiscreteGaussianDistributionOp>(
-            discreteGaussianDistributionType, generateRandom,
+        random::DiscreteGaussianDistributionOp::create(
+            builder, discreteGaussianDistributionType, generateRandom,
             builder.getI32IntegerAttr(0), builder.getI32IntegerAttr(5));
     // TODO (#881): Add pass options to configure stdev
     // (which is currently hardcoded to 5)
 
     if (isPublicKey) {
       tensor::ExtractOp publicKey0 =
-          builder.create<tensor::ExtractOp>(key, ValueRange{index0});
-      auto index1 = builder.create<arith::ConstantIndexOp>(1);
+          tensor::ExtractOp::create(builder, key, ValueRange{index0});
+      auto index1 = arith::ConstantIndexOp::create(builder, 1);
       tensor::ExtractOp publicKey1 =
-          builder.create<tensor::ExtractOp>(key, ValueRange{index1});
+          tensor::ExtractOp::create(builder, key, ValueRange{index1});
 
       // get plaintext modulus T in the output ring space. We assume the
       // plaintext type is a mod arith type.
@@ -223,38 +222,38 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
       }
 
       // create scalar constant T in the output coefficient space
-      auto plaintextT = builder.create<mod_arith::ConstantOp>(
-          plaintextModArithType, plaintextModArithType.getModulus());
-      auto constantT = builder.create<mod_arith::ModSwitchOp>(
-          outputPolyTy.getRing().getCoefficientType(), plaintextT);
+      auto plaintextT = mod_arith::ConstantOp::create(
+          builder, plaintextModArithType, plaintextModArithType.getModulus());
+      auto constantT = mod_arith::ModSwitchOp::create(
+          builder, outputPolyTy.getRing().getCoefficientType(), plaintextT);
 
       // generate random e0 polynomial from discrete gaussian distribution
-      auto e0 = builder.create<random::SampleOp>(outputPolyTy,
-                                                 discreteGaussianDistribution);
+      auto e0 = random::SampleOp::create(builder, outputPolyTy,
+                                         discreteGaussianDistribution);
       // generate random e1 polynomial from discrete gaussian distribution
-      auto e1 = builder.create<random::SampleOp>(outputPolyTy,
-                                                 discreteGaussianDistribution);
+      auto e1 = random::SampleOp::create(builder, outputPolyTy,
+                                         discreteGaussianDistribution);
 
       // TODO (#882): Other encryption schemes (e.g. CKKS) may multiply the
       // noise or key differently. Add support for those cases.
       // Computing ciphertext0 = publicKey0 * u + e0 *
       // constantT + cast(input)
-      auto publicKey0U = builder.create<polynomial::MulOp>(publicKey0, u);
-      auto tE0 = builder.create<polynomial::MulScalarOp>(e0, constantT);
-      auto pK0UtE0 = builder.create<polynomial::AddOp>(publicKey0U, tE0);
+      auto publicKey0U = polynomial::MulOp::create(builder, publicKey0, u);
+      auto tE0 = polynomial::MulScalarOp::create(builder, e0, constantT);
+      auto pK0UtE0 = polynomial::AddOp::create(builder, publicKey0U, tE0);
       // cast from plaintext space to ciphertext space
       auto castInput =
-          builder.create<polynomial::ModSwitchOp>(outputPolyTy, input);
-      auto ciphertext0 = builder.create<polynomial::AddOp>(pK0UtE0, castInput);
+          polynomial::ModSwitchOp::create(builder, outputPolyTy, input);
+      auto ciphertext0 = polynomial::AddOp::create(builder, pK0UtE0, castInput);
 
       // Computing ciphertext1 = publicKey1 * u + e1 * constantT
-      auto publicKey1U = builder.create<polynomial::MulOp>(publicKey1, u);
-      auto tE1 = builder.create<polynomial::MulScalarOp>(e1, constantT);
-      auto ciphertext1 = builder.create<polynomial::AddOp>(publicKey1U, tE1);
+      auto publicKey1U = polynomial::MulOp::create(builder, publicKey1, u);
+      auto tE1 = polynomial::MulScalarOp::create(builder, e1, constantT);
+      auto ciphertext1 = polynomial::AddOp::create(builder, publicKey1U, tE1);
 
       // ciphertext = (ciphertext0, ciphertext1)
-      auto ciphertext = builder.create<tensor::FromElementsOp>(
-          llvm::ArrayRef<Value>({ciphertext0, ciphertext1}));
+      auto ciphertext = tensor::FromElementsOp::create(
+          builder, llvm::ArrayRef<Value>({ciphertext0, ciphertext1}));
       rewriter.replaceOp(op, ciphertext);
     } else {  // secret key
       // We only support secret key encryption with a single polynomial (typical
@@ -268,24 +267,25 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
       }
 
       // Generate random e polynomial from discrete gaussian distribution
-      auto e = builder.create<random::SampleOp>(outputPolyTy,
-                                                discreteGaussianDistribution);
+      auto e = random::SampleOp::create(builder, outputPolyTy,
+                                        discreteGaussianDistribution);
 
       // TODO (#882): Other encryption schemes (e.g. CKKS) may multiply the
       // noise or key differently. Add support for those cases.
       // ciphertext0 = u
       // Compute ciphertext1 = <u,s> + m + e
-      auto keyPoly = builder.create<tensor::ExtractOp>(key, ValueRange{index0});
-      auto us = builder.create<polynomial::MulOp>(u, keyPoly);
+      auto keyPoly =
+          tensor::ExtractOp::create(builder, key, ValueRange{index0});
+      auto us = polynomial::MulOp::create(builder, u, keyPoly);
       // cast from plaintext space to ciphertext space
       auto castInput =
-          builder.create<polynomial::ModSwitchOp>(outputPolyTy, input);
-      auto usM = builder.create<polynomial::AddOp>(us, castInput);
-      auto ciphertext1 = builder.create<polynomial::AddOp>(usM, e);
+          polynomial::ModSwitchOp::create(builder, outputPolyTy, input);
+      auto usM = polynomial::AddOp::create(builder, us, castInput);
+      auto ciphertext1 = polynomial::AddOp::create(builder, usM, e);
 
       // ciphertext = (u, ciphertext0)
-      auto ciphertext = builder.create<tensor::FromElementsOp>(
-          llvm::ArrayRef<Value>({u, ciphertext1}));
+      auto ciphertext = tensor::FromElementsOp::create(
+          builder, llvm::ArrayRef<Value>({u, ciphertext1}));
       rewriter.replaceOp(op, ciphertext);
     }
 
@@ -371,12 +371,12 @@ struct ConvertRNegate : public OpConversionPattern<RNegateOp> {
             polyType.getRing().getCoefficientType())
             .Case<mod_arith::ModArithType>(
                 [&](mod_arith::ModArithType type) -> Value {
-                  return rewriter.create<mod_arith::ConstantOp>(
-                      loc, type,
+                  return mod_arith::ConstantOp::create(
+                      rewriter, loc, type,
                       IntegerAttr::get(type.getModulus().getType(), -1));
                 })
             .Case<IntegerType>([&](IntegerType type) -> Value {
-              return rewriter.create<arith::ConstantIntOp>(loc, type, -1);
+              return arith::ConstantIntOp::create(rewriter, loc, type, -1);
             })
             .Default([&](Type type) -> FailureOr<Value> {
               op.emitError() << "Unsupported coefficient type: " << type;
@@ -387,8 +387,8 @@ struct ConvertRNegate : public OpConversionPattern<RNegateOp> {
       return failure();
     }
 
-    rewriter.replaceOp(op, rewriter.create<polynomial::MulScalarOp>(
-                               loc, arg.getType(), arg, neg.value()));
+    rewriter.replaceOp(op, polynomial::MulScalarOp::create(
+                               rewriter, loc, arg.getType(), arg, neg.value()));
     return success();
   }
 };
@@ -420,26 +420,26 @@ struct ConvertRMul : public OpConversionPattern<RMulOp> {
 
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     // z = mul([x0, x1], [y0, y1]) := [x0.y0, x0.y1 + x1.y0, x1.y1]
-    auto i0 = b.create<arith::ConstantIndexOp>(0);
-    auto i1 = b.create<arith::ConstantIndexOp>(1);
+    auto i0 = arith::ConstantIndexOp::create(b, 0);
+    auto i1 = arith::ConstantIndexOp::create(b, 1);
 
     auto x0 =
-        b.create<tensor::ExtractOp>(xT.getElementType(), x, ValueRange{i0});
+        tensor::ExtractOp::create(b, xT.getElementType(), x, ValueRange{i0});
     auto x1 =
-        b.create<tensor::ExtractOp>(xT.getElementType(), x, ValueRange{i1});
+        tensor::ExtractOp::create(b, xT.getElementType(), x, ValueRange{i1});
 
     auto y0 =
-        b.create<tensor::ExtractOp>(yT.getElementType(), y, ValueRange{i0});
+        tensor::ExtractOp::create(b, yT.getElementType(), y, ValueRange{i0});
     auto y1 =
-        b.create<tensor::ExtractOp>(yT.getElementType(), y, ValueRange{i1});
+        tensor::ExtractOp::create(b, yT.getElementType(), y, ValueRange{i1});
 
-    auto z0 = b.create<polynomial::MulOp>(x0, y0);
-    auto x0y1 = b.create<polynomial::MulOp>(x0, y1);
-    auto x1y0 = b.create<polynomial::MulOp>(x1, y0);
-    auto z1 = b.create<polynomial::AddOp>(x0y1, x1y0);
-    auto z2 = b.create<polynomial::MulOp>(x1, y1);
+    auto z0 = polynomial::MulOp::create(b, x0, y0);
+    auto x0y1 = polynomial::MulOp::create(b, x0, y1);
+    auto x1y0 = polynomial::MulOp::create(b, x1, y0);
+    auto z1 = polynomial::AddOp::create(b, x0y1, x1y0);
+    auto z2 = polynomial::MulOp::create(b, x1, y1);
 
-    auto z = b.create<tensor::FromElementsOp>(ArrayRef<Value>({z0, z1, z2}));
+    auto z = tensor::FromElementsOp::create(b, ArrayRef<Value>{z0, z1, z2});
 
     rewriter.replaceOp(op, z);
     return success();
@@ -470,8 +470,8 @@ struct ConvertRMulPlain : public OpConversionPattern<RMulPlainOp> {
     ImplicitLocOpBuilder b(op->getLoc(), rewriter);
     // z = mul([x0, x1], [y0]) := [x0y0, x1y0] (Multiply ciphertext [2dim] with
     // plaintext [1dim]), lwe canonicalizes with ciphertext first
-    auto repeated = b.create<tensor::FromElementsOp>(ArrayRef<Value>({y, y}));
-    auto z = b.create<polynomial::MulOp>(x, repeated);
+    auto repeated = tensor::FromElementsOp::create(b, ArrayRef<Value>{y, y});
+    auto z = polynomial::MulOp::create(b, x, repeated);
 
     rewriter.replaceOp(op, z);
     return success();

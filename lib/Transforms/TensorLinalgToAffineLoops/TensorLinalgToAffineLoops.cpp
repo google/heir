@@ -52,7 +52,7 @@ static SmallVector<Value> makeCanonicalAffineApplies(OpBuilder &b, Location loc,
     auto exprMap = AffineMap::get(dims, map.getNumSymbols(), e);
     SmallVector<Value> operands(vals);
     affine::canonicalizeMapAndOperands(&exprMap, &operands);
-    res.push_back(b.create<affine::AffineApplyOp>(loc, exprMap, operands));
+    res.push_back(affine::AffineApplyOp::create(b, loc, exprMap, operands));
   }
   return res;
 }
@@ -72,8 +72,8 @@ static SmallVector<Value> inlineRegionAndEmitStore(
   SmallVector<Value> insertResults;
   for (OpOperand &operand : terminator->getOpOperands()) {
     Value toStore = map.lookupOrDefault(operand.get());
-    InsertOp insertion = b.create<InsertOp>(
-        loc, toStore, outputBuffers[operand.getOperandNumber()],
+    InsertOp insertion = InsertOp::create(
+        b, loc, toStore, outputBuffers[operand.getOperandNumber()],
         indexing[operand.getOperandNumber()]);
     insertResults.push_back(insertion.getResult());
   }
@@ -98,7 +98,7 @@ static SmallVector<Value> emitScalarImplementation(OpBuilder &b, Location loc,
     auto indexing = makeCanonicalAffineApplies(
         b, loc, linalgOp.getMatchingIndexingMap(inputOperand), allIvsPlusDims);
     indexedValues.push_back(
-        b.create<ExtractOp>(loc, inputOperand->get(), indexing));
+        ExtractOp::create(b, loc, inputOperand->get(), indexing));
   }
   // 1.b. Emit load from output views.
   //
@@ -111,7 +111,7 @@ static SmallVector<Value> emitScalarImplementation(OpBuilder &b, Location loc,
         b, loc, linalgOp.getMatchingIndexingMap(&outputOperand),
         allIvsPlusDims);
     indexedValues.push_back(
-        b.create<ExtractOp>(loc, iterArgs[iterArgIndex++], indexing));
+        ExtractOp::create(b, loc, iterArgs[iterArgIndex++], indexing));
   }
 
   // 2. Inline region, currently only works for a single basic block.
@@ -132,8 +132,8 @@ static SmallVector<Value> emitScalarImplementation(OpBuilder &b, Location loc,
 static AffineForOp buildAffineLoopFromConstants(
     OpBuilder &builder, Location loc, int64_t lb, int64_t ub, int64_t step,
     ValueRange outputInits, AffineForOp::BodyBuilderFn bodyBuilderFn) {
-  return builder.create<AffineForOp>(loc, lb, ub, step,
-                                     /*iterArgs=*/outputInits, bodyBuilderFn);
+  return AffineForOp::create(builder, loc, lb, ub, step,
+                             /*iterArgs=*/outputInits, bodyBuilderFn);
 }
 
 static AffineForOp buildAffineLoopFromValues(
@@ -145,9 +145,9 @@ static AffineForOp buildAffineLoopFromValues(
     return buildAffineLoopFromConstants(builder, loc, lbConst.value(),
                                         ubConst.value(), step, outputInits,
                                         bodyBuilderFn);
-  return builder.create<AffineForOp>(loc, lb, builder.getDimIdentityMap(), ub,
-                                     builder.getDimIdentityMap(), step,
-                                     /*iterArgs=*/outputInits, bodyBuilderFn);
+  return AffineForOp::create(builder, loc, lb, builder.getDimIdentityMap(), ub,
+                             builder.getDimIdentityMap(), step,
+                             /*iterArgs=*/outputInits, bodyBuilderFn);
 }
 
 AffineForOp buildAffineLoopNestWithCarriedIterArgs(
@@ -173,11 +173,11 @@ AffineForOp buildAffineLoopNestWithCarriedIterArgs(
         OpBuilder::InsertionGuard nestedGuard(nestedBuilder);
         SmallVector<Value> toYield =
             bodyBuilderFn(nestedBuilder, nestedLoc, ivs, iterArgs);
-        nestedBuilder.create<AffineYieldOp>(nestedLoc, toYield);
+        AffineYieldOp::create(nestedBuilder, nestedLoc, toYield);
       } else {
         // This loop should return the results of the next inner loop,
         // but it hasn't been created yet. Patch it up at the end.
-        nestedBuilder.create<AffineYieldOp>(nestedLoc);
+        AffineYieldOp::create(nestedBuilder, nestedLoc);
       }
     };
 

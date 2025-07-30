@@ -80,8 +80,8 @@ struct WrapWithGeneric : public OpRewritePattern<func::FuncOp> {
         SmallVector<Location>(opEntryBlock.getNumArguments(), op.getLoc()));
 
     rewriter.setInsertionPointToStart(newBlock);
-    auto newGeneric = rewriter.create<secret::GenericOp>(
-        op.getLoc(), op.getArguments(), newOutputs,
+    auto newGeneric = secret::GenericOp::create(
+        rewriter, op.getLoc(), op.getArguments(), newOutputs,
         [&](OpBuilder &b, Location loc, ValueRange blockArguments) {
           //  Map the input values to the block arguments.
           IRMapping mp;
@@ -90,10 +90,11 @@ struct WrapWithGeneric : public OpRewritePattern<func::FuncOp> {
           }
 
           auto *returnOp = opEntryBlock.getTerminator();
-          b.create<secret::YieldOp>(
-              loc, llvm::to_vector(llvm::map_range(
-                       returnOp->getOperands(),
-                       [&](Value v) { return mp.lookupOrDefault(v); })));
+          secret::YieldOp::create(b, loc,
+                                  llvm::to_vector(llvm::map_range(
+                                      returnOp->getOperands(), [&](Value v) {
+                                        return mp.lookupOrDefault(v);
+                                      })));
           returnOp->erase();
         });
 
@@ -101,7 +102,7 @@ struct WrapWithGeneric : public OpRewritePattern<func::FuncOp> {
     rewriter.inlineBlockBefore(&opEntryBlock,
                                &genericBlock.getOperations().back(),
                                genericBlock.getArguments());
-    rewriter.create<func::ReturnOp>(op.getLoc(), newGeneric.getResults());
+    func::ReturnOp::create(rewriter, op.getLoc(), newGeneric.getResults());
 
     return success();
   }
@@ -127,22 +128,22 @@ struct ConvertFuncCall : public OpRewritePattern<func::CallOp> {
       auto funcArgType = callee.getArgumentTypes()[i];
       if (mlir::isa<secret::SecretType>(funcArgType)) {
         auto newOperand =
-            rewriter.create<secret::ConcealOp>(op.getLoc(), operand);
+            secret::ConcealOp::create(rewriter, op.getLoc(), operand);
         newOperands.push_back(newOperand.getResult());
       } else {
         newOperands.push_back(operand);
       }
     }
 
-    auto newOp = rewriter.create<func::CallOp>(op->getLoc(), op.getCallee(),
-                                               funcResultTypes, newOperands);
+    auto newOp = func::CallOp::create(rewriter, op->getLoc(), op.getCallee(),
+                                      funcResultTypes, newOperands);
     newOp->setAttrs(op->getAttrs());
 
     for (auto i = 0; i != newOp->getNumResults(); ++i) {
       auto result = op.getResult(i);
       auto newResult = newOp.getResult(i);
       if (mlir::isa<secret::SecretType>(newResult.getType())) {
-        newResult = rewriter.create<secret::RevealOp>(op.getLoc(), newResult);
+        newResult = secret::RevealOp::create(rewriter, op.getLoc(), newResult);
       }
       rewriter.replaceAllUsesWith(result, newResult);
     }

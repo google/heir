@@ -77,8 +77,9 @@ llvm::SmallVector<Value> buildResolvedIndices(Operation *op,
   for (unsigned i = 0; i < access.getRank(); ++i) {
     auto affineValue = thisMap.getResult(i);
     if (affineValue.getKind() == AffineExprKind::Constant) {
-      indices.push_back(rewriter.create<arith::ConstantIndexOp>(
-          op->getLoc(), cast<AffineConstantExpr>(affineValue).getValue()));
+      indices.push_back(arith::ConstantIndexOp::create(
+          rewriter, op->getLoc(),
+          cast<AffineConstantExpr>(affineValue).getValue()));
     } else {
       indices.push_back(*(indicesIt++));
     }
@@ -125,7 +126,7 @@ LogicalResult CollapseSecretlessGeneric::matchAndRewrite(
     // Copy any attributes of the op onto operations in the body.
     auto resultAttr = op.getResultAttrDict(opIndex);
     auto concealOp =
-        rewriter.create<secret::ConcealOp>(op.getLoc(), opOperand.get());
+        secret::ConcealOp::create(rewriter, op.getLoc(), opOperand.get());
     setAttrs(opOperand.get(), resultAttr);
     setAttrs(concealOp.getResult(), resultAttr);
     rewriter.replaceAllUsesWith(op.getResult(opIndex), concealOp.getResult());
@@ -248,17 +249,18 @@ LogicalResult CaptureAmbientScope::matchAndRewrite(
           rewriter.setInsertionPointAfter(op);
           llvm::TypeSwitch<Operation *>(op)
               .Case<affine::AffineLoadOp>([&](affine::AffineLoadOp op) {
-                rewriter.replaceOp(op, rewriter.create<memref::LoadOp>(
-                                           op->getLoc(), op.getMemref(),
-                                           buildResolvedIndices(
-                                               op, op.getIndices(), rewriter)));
-              })
-              .Case<affine::AffineStoreOp>([&](affine::AffineStoreOp op) {
                 rewriter.replaceOp(
                     op,
-                    rewriter.create<memref::StoreOp>(
-                        op->getLoc(), op.getValueToStore(), op.getMemref(),
+                    memref::LoadOp::create(
+                        rewriter, op->getLoc(), op.getMemref(),
                         buildResolvedIndices(op, op.getIndices(), rewriter)));
+              })
+              .Case<affine::AffineStoreOp>([&](affine::AffineStoreOp op) {
+                rewriter.replaceOp(op, memref::StoreOp::create(
+                                           rewriter, op->getLoc(),
+                                           op.getValueToStore(), op.getMemref(),
+                                           buildResolvedIndices(
+                                               op, op.getIndices(), rewriter)));
               });
           rewriter.restoreInsertionPoint(point);
         }
@@ -338,8 +340,8 @@ LogicalResult MergeAdjacentGenerics::matchAndRewrite(
     }
   }
 
-  auto newGeneric = rewriter.create<GenericOp>(
-      genericOp.getLoc(), newOperands, newResultTypes,
+  auto newGeneric = GenericOp::create(
+      rewriter, genericOp.getLoc(), newOperands, newResultTypes,
       [&](OpBuilder &b, Location loc, ValueRange blockArguments) {
         IRMapping mp;
         for (BlockArgument blockArg : genericOp.getBody()->getArguments()) {
@@ -398,7 +400,7 @@ LogicalResult MergeAdjacentGenerics::matchAndRewrite(
                            yieldOp->getOperands().end());
           rewriter.eraseOp(yieldOp);
         }
-        b.create<YieldOp>(loc, newYields);
+        YieldOp::create(b, loc, newYields);
       });
 
   SmallVector<Value> valuesReplacingSecondGeneric;
@@ -761,7 +763,7 @@ LogicalResult extractGenericBody(secret::GenericOp genericOp,
   auto type = builder.getFunctionType(inputTypes, resultTypes);
   std::string funcName = llvm::formatv(
       "internal_generic_{0}", mlir::hash_value(yieldOp.getValues()[0]));
-  auto func = builder.create<func::FuncOp>(module.getLoc(), funcName, type);
+  auto func = func::FuncOp::create(builder, module.getLoc(), funcName, type);
   func.setPrivate();
 
   // Populate function body by cloning the ops in the inner body and mapping
@@ -782,11 +784,11 @@ LogicalResult extractGenericBody(secret::GenericOp genericOp,
   auto returnOperands = llvm::to_vector(
       llvm::map_range(yieldOp.getOperands(),
                       [&](Value operand) { return mp.lookup(operand); }));
-  builder.create<func::ReturnOp>(func.getLoc(), returnOperands);
+  func::ReturnOp::create(builder, func.getLoc(), returnOperands);
 
   // Call the function.
   builder.setInsertionPointToStart(genericOp.getBody());
-  auto callOp = builder.create<func::CallOp>(genericOp.getLoc(), func, inputs);
+  auto callOp = func::CallOp::create(builder, genericOp.getLoc(), func, inputs);
   rewriter.modifyOpInPlace(
       yieldOp, [&]() { yieldOp->setOperands(callOp.getResults()); });
 

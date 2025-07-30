@@ -148,8 +148,9 @@ struct LattigoBGVScheme {
 
   static Value getNewEvaluatorOp(ImplicitLocOpBuilder &builder, Value params,
                                  Value evalKeySet) {
-    return builder.create<NewEvaluatorOp>(
-        EvaluatorType::get(builder.getContext()), params, evalKeySet, IsBFV);
+    return NewEvaluatorOp::create(builder,
+                                  EvaluatorType::get(builder.getContext()),
+                                  params, evalKeySet, IsBFV);
   }
 };
 
@@ -209,8 +210,8 @@ struct LattigoCKKSScheme {
 
   static Value getNewEvaluatorOp(ImplicitLocOpBuilder &builder, Value params,
                                  Value evalKeySet) {
-    return builder.create<NewEvaluatorOp>(
-        EvaluatorType::get(builder.getContext()), params, evalKeySet);
+    return NewEvaluatorOp::create(
+        builder, EvaluatorType::get(builder.getContext()), params, evalKeySet);
   }
 };
 
@@ -250,7 +251,7 @@ LogicalResult convertFuncForScheme(func::FuncOp op) {
       FunctionType::get(builder.getContext(), funcArgTypes, funcResultTypes);
 
   auto configFuncOp =
-      builder.create<func::FuncOp>(configFuncName, configFuncType);
+      func::FuncOp::create(builder, configFuncName, configFuncType);
   builder.setInsertionPointToEnd(configFuncOp.addEntryBlock());
 
   auto *moduleOp = op->getParentOp();
@@ -261,29 +262,29 @@ LogicalResult convertFuncForScheme(func::FuncOp op) {
 
   auto paramType = ParameterType::get(builder.getContext());
   auto params =
-      builder.create<NewParametersFromLiteralOp>(paramType, paramAttr);
+      NewParametersFromLiteralOp::create(builder, paramType, paramAttr);
 
-  auto encoder = builder.create<NewEncoderOp>(encoderType, params);
+  auto encoder = NewEncoderOp::create(builder, encoderType, params);
   auto kgenType = RLWEKeyGeneratorType::get(builder.getContext());
-  auto kgen = builder.create<RLWENewKeyGeneratorOp>(kgenType, params);
+  auto kgen = RLWENewKeyGeneratorOp::create(builder, kgenType, params);
   auto skType = RLWESecretKeyType::get(builder.getContext());
   auto pkType = RLWEPublicKeyType::get(builder.getContext());
   SmallVector<Type> keypairTypes = {skType, pkType};
-  auto keypair = builder.create<RLWEGenKeyPairOp>(keypairTypes, kgen);
+  auto keypair = RLWEGenKeyPairOp::create(builder, keypairTypes, kgen);
   auto sk = keypair.getResult(0);
   auto pk = keypair.getResult(1);
   auto encKey = encryptorType.getPublicKey() ? pk : sk;
   auto encryptor =
-      builder.create<RLWENewEncryptorOp>(encryptorType, params, encKey);
+      RLWENewEncryptorOp::create(builder, encryptorType, params, encKey);
   auto decryptor =
-      builder.create<RLWENewDecryptorOp>(decryptorType, params, sk);
+      RLWENewDecryptorOp::create(builder, decryptorType, params, sk);
 
   SmallVector<Value> evalKeys;
 
   // generate Relinearization Key on demand
   if (hasRelinOp(op)) {
     auto rkType = RLWERelinearizationKeyType::get(builder.getContext());
-    auto rk = builder.create<RLWEGenRelinearizationKeyOp>(rkType, kgen, sk);
+    auto rk = RLWEGenRelinearizationKeyOp::create(builder, rkType, kgen, sk);
     evalKeys.push_back(rk);
   }
 
@@ -299,8 +300,8 @@ LogicalResult convertFuncForScheme(func::FuncOp op) {
         IntegerType::get(builder.getContext(), 64), galoisElement);
     auto gkType =
         RLWEGaloisKeyType::get(builder.getContext(), galoisElementAttr);
-    auto gk =
-        builder.create<RLWEGenGaloisKeyOp>(gkType, kgen, sk, galoisElementAttr);
+    auto gk = RLWEGenGaloisKeyOp::create(builder, gkType, kgen, sk,
+                                         galoisElementAttr);
     evalKeys.push_back(gk);
   }
 
@@ -308,7 +309,7 @@ LogicalResult convertFuncForScheme(func::FuncOp op) {
   if (!evalKeys.empty()) {
     auto evalKeyType = RLWEEvaluationKeySetType::get(builder.getContext());
     evalKeySet =
-        builder.create<RLWENewEvaluationKeySetOp>(evalKeyType, evalKeys);
+        RLWENewEvaluationKeySetOp::create(builder, evalKeyType, evalKeys);
   }
 
   // evalKeySet is optional so nulltpr is acceptable
@@ -317,7 +318,7 @@ LogicalResult convertFuncForScheme(func::FuncOp op) {
 
   SmallVector<Value> results = {evaluator, params, encoder, encryptor,
                                 decryptor};
-  builder.create<func::ReturnOp>(results);
+  func::ReturnOp::create(builder, results);
   return success();
 }
 

@@ -152,7 +152,7 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
       ConstantOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     auto constOp =
-        rewriter.create<arith::ConstantOp>(op.getLoc(), adaptor.getValue());
+        arith::ConstantOp::create(rewriter, op.getLoc(), adaptor.getValue());
     rewriter.replaceOp(op, constOp);
     return success();
   }
@@ -169,12 +169,12 @@ struct ConvertReduce : public OpConversionPattern<ReduceOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto cmod = b.create<arith::ConstantOp>(modulusAttr(op));
+    auto cmod = arith::ConstantOp::create(b, modulusAttr(op));
     // ModArithType ensures cmod can be correctly interpreted as a signed number
-    auto rems = b.create<arith::RemSIOp>(adaptor.getOperands()[0], cmod);
-    auto add = b.create<arith::AddIOp>(rems, cmod);
+    auto rems = arith::RemSIOp::create(b, adaptor.getOperands()[0], cmod);
+    auto add = arith::AddIOp::create(b, rems, cmod);
     // TODO(#710): better with a subifge
-    auto remu = b.create<arith::RemUIOp>(add, cmod);
+    auto remu = arith::RemUIOp::create(b, add, cmod);
     rewriter.replaceOp(op, remu);
     return success();
   }
@@ -193,9 +193,9 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto cmod = b.create<arith::ConstantOp>(modulusAttr(op));
-    auto add = b.create<arith::AddIOp>(adaptor.getLhs(), adaptor.getRhs());
-    auto remu = b.create<arith::RemUIOp>(add, cmod);
+    auto cmod = arith::ConstantOp::create(b, modulusAttr(op));
+    auto add = arith::AddIOp::create(b, adaptor.getLhs(), adaptor.getRhs());
+    auto remu = arith::RemUIOp::create(b, add, cmod);
 
     rewriter.replaceOp(op, remu);
     return success();
@@ -213,10 +213,10 @@ struct ConvertSub : public OpConversionPattern<SubOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto cmod = b.create<arith::ConstantOp>(modulusAttr(op));
-    auto sub = b.create<arith::SubIOp>(adaptor.getLhs(), adaptor.getRhs());
-    auto add = b.create<arith::AddIOp>(sub, cmod);
-    auto remu = b.create<arith::RemUIOp>(add, cmod);
+    auto cmod = arith::ConstantOp::create(b, modulusAttr(op));
+    auto sub = arith::SubIOp::create(b, adaptor.getLhs(), adaptor.getRhs());
+    auto add = arith::AddIOp::create(b, sub, cmod);
+    auto remu = arith::RemUIOp::create(b, add, cmod);
 
     rewriter.replaceOp(op, remu);
     return success();
@@ -234,14 +234,14 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto cmod = b.create<arith::ConstantOp>(modulusAttr(op, true));
+    auto cmod = arith::ConstantOp::create(b, modulusAttr(op, true));
     auto lhs =
-        b.create<arith::ExtUIOp>(modulusType(op, true), adaptor.getLhs());
+        arith::ExtUIOp::create(b, modulusType(op, true), adaptor.getLhs());
     auto rhs =
-        b.create<arith::ExtUIOp>(modulusType(op, true), adaptor.getRhs());
-    auto mul = b.create<arith::MulIOp>(lhs, rhs);
-    auto remu = b.create<arith::RemUIOp>(mul, cmod);
-    auto trunc = b.create<arith::TruncIOp>(modulusType(op), remu);
+        arith::ExtUIOp::create(b, modulusType(op, true), adaptor.getRhs());
+    auto mul = arith::MulIOp::create(b, lhs, rhs);
+    auto remu = arith::RemUIOp::create(b, mul, cmod);
+    auto trunc = arith::TruncIOp::create(b, modulusType(op), remu);
 
     rewriter.replaceOp(op, trunc);
     return success();
@@ -259,17 +259,17 @@ struct ConvertMac : public OpConversionPattern<MacOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto cmod = b.create<arith::ConstantOp>(modulusAttr(op, true));
-    auto x = b.create<arith::ExtUIOp>(modulusType(op, true),
-                                      adaptor.getOperands()[0]);
-    auto y = b.create<arith::ExtUIOp>(modulusType(op, true),
-                                      adaptor.getOperands()[1]);
-    auto acc = b.create<arith::ExtUIOp>(modulusType(op, true),
-                                        adaptor.getOperands()[2]);
-    auto mul = b.create<arith::MulIOp>(x, y);
-    auto add = b.create<arith::AddIOp>(mul, acc);
-    auto remu = b.create<arith::RemUIOp>(add, cmod);
-    auto trunc = b.create<arith::TruncIOp>(modulusType(op), remu);
+    auto cmod = arith::ConstantOp::create(b, modulusAttr(op, true));
+    auto x = arith::ExtUIOp::create(b, modulusType(op, true),
+                                    adaptor.getOperands()[0]);
+    auto y = arith::ExtUIOp::create(b, modulusType(op, true),
+                                    adaptor.getOperands()[1]);
+    auto acc = arith::ExtUIOp::create(b, modulusType(op, true),
+                                      adaptor.getOperands()[2]);
+    auto mul = arith::MulIOp::create(b, x, y);
+    auto add = arith::AddIOp::create(b, mul, acc);
+    auto remu = arith::RemUIOp::create(b, add, cmod);
+    auto trunc = arith::TruncIOp::create(b, modulusType(op), remu);
 
     rewriter.replaceOp(op, trunc);
     return success();
@@ -307,20 +307,20 @@ struct ConvertModSwitch : public OpConversionPattern<ModSwitchOp> {
         newModulus = newModulus.zext(width);
         Value input = adaptor.getInput();
         if (newWidth > oldWidth) {
-          input = b.create<arith::ExtUIOp>(integerType, input);
+          input = arith::ExtUIOp::create(b, integerType, input);
         }
         auto cmod = intConst(newModulus);
-        auto remu = b.create<arith::RemUIOp>(input, cmod);
-        auto cmp = b.create<arith::CmpIOp>(arith::CmpIPredicate::ugt,
-                                           intConst(oldModulus.lshr(1)), input);
+        auto remu = arith::RemUIOp::create(b, input, cmod);
+        auto cmp = arith::CmpIOp::create(b, arith::CmpIPredicate::ugt,
+                                         intConst(oldModulus.lshr(1)), input);
         auto diffConst = intConst(newModulus - oldModulus.urem(newModulus));
-        auto remuAdd = b.create<arith::AddIOp>(remu, diffConst);
+        auto remuAdd = arith::AddIOp::create(b, remu, diffConst);
         auto remuAddMod =
-            b.create<arith::RemUIOp>(remuAdd, intConst(newModulus));
-        Value result = b.create<arith::SelectOp>(cmp, remu, remuAddMod);
+            arith::RemUIOp::create(b, remuAdd, intConst(newModulus));
+        Value result = arith::SelectOp::create(b, cmp, remu, remuAddMod);
         if (newWidth < oldWidth) {
           auto outputType = IntegerType::get(op.getContext(), newWidth);
-          result = b.create<arith::TruncIOp>(outputType, result);
+          result = arith::TruncIOp::create(b, outputType, result);
         }
         rewriter.replaceOp(op, result);
       } else if (auto outputRNS = dyn_cast<rns::RNSType>(outputType)) {
@@ -338,11 +338,12 @@ struct ConvertModSwitch : public OpConversionPattern<ModSwitchOp> {
           auto modulus = modArithType.getModulus().getValue();
           modulus = modulus.zext(modWidth);
           auto cmod = intConst(modulus);
-          auto remu = b.create<arith::RemUIOp>(adaptor.getInput(), cmod);
-          auto trunci = b.create<arith::TruncIOp>(rnsIntegerType, remu);
+          auto remu = arith::RemUIOp::create(b, adaptor.getInput(), cmod);
+          auto trunci = arith::TruncIOp::create(b, rnsIntegerType, remu);
           rnsElements.push_back(trunci);
         }
-        auto tensor = b.create<tensor::FromElementsOp>(ValueRange(rnsElements));
+        auto tensor =
+            tensor::FromElementsOp::create(b, ValueRange(rnsElements));
         rewriter.replaceOp(op, tensor);
       } else {
         llvm_unreachable("Verifier should make sure this doesn't happen.");
@@ -379,16 +380,16 @@ struct ConvertModSwitch : public OpConversionPattern<ModSwitchOp> {
         auto tmp = bigModulus.udiv(modulus);
         auto coeffConst =
             intConst(tmp * multiplicativeInverse(tmp.urem(modulus), modulus));
-        auto index = b.create<arith::ConstantIndexOp>(i);
+        auto index = arith::ConstantIndexOp::create(b, i);
         auto extract =
-            b.create<tensor::ExtractOp>(adaptor.getInput(), ValueRange{index});
-        auto extui = b.create<arith::ExtUIOp>(integerType, extract);
-        auto mul = b.create<arith::MulIOp>(extui, coeffConst);
-        sum = b.create<arith::AddIOp>(sum, mul);
+            tensor::ExtractOp::create(b, adaptor.getInput(), ValueRange{index});
+        auto extui = arith::ExtUIOp::create(b, integerType, extract);
+        auto mul = arith::MulIOp::create(b, extui, coeffConst);
+        sum = arith::AddIOp::create(b, sum, mul);
       }
-      auto remu = b.create<arith::RemUIOp>(sum, bigModulusConst);
+      auto remu = arith::RemUIOp::create(b, sum, bigModulusConst);
       auto resultType = IntegerType::get(op.getContext(), outputWidth);
-      auto trunci = b.create<arith::TruncIOp>(resultType, remu);
+      auto trunci = arith::TruncIOp::create(b, resultType, remu);
       rewriter.replaceOp(op, trunci);
     } else {
       llvm_unreachable("Verifier should make sure this doesn't happen.");
@@ -439,21 +440,21 @@ struct ConvertBarrettReduce : public OpConversionPattern<BarrettReduceOp> {
       modAttr = IntegerAttr::get(intermediateType, mod);
     }
 
-    auto ratioValue = b.create<arith::ConstantOp>(intermediateType, ratioAttr);
-    auto shiftValue = b.create<arith::ConstantOp>(intermediateType, shiftAttr);
-    auto modValue = b.create<arith::ConstantOp>(intermediateType, modAttr);
+    auto ratioValue = arith::ConstantOp::create(b, intermediateType, ratioAttr);
+    auto shiftValue = arith::ConstantOp::create(b, intermediateType, shiftAttr);
+    auto modValue = arith::ConstantOp::create(b, intermediateType, modAttr);
 
     // Intermediate value will be in the range [0,p^3) so we need to extend to
     // 3*bitWidth
-    auto extendOp = b.create<arith::ExtUIOp>(intermediateType, input);
+    auto extendOp = arith::ExtUIOp::create(b, intermediateType, input);
 
     // Compute x - floordiv(x * ratio, B) * mod
-    auto mulRatioOp = b.create<arith::MulIOp>(extendOp, ratioValue);
-    auto shrOp = b.create<arith::ShRUIOp>(mulRatioOp, shiftValue);
-    auto mulModOp = b.create<arith::MulIOp>(shrOp, modValue);
-    auto subOp = b.create<arith::SubIOp>(extendOp, mulModOp);
+    auto mulRatioOp = arith::MulIOp::create(b, extendOp, ratioValue);
+    auto shrOp = arith::ShRUIOp::create(b, mulRatioOp, shiftValue);
+    auto mulModOp = arith::MulIOp::create(b, shrOp, modValue);
+    auto subOp = arith::SubIOp::create(b, extendOp, mulModOp);
 
-    auto truncOp = b.create<arith::TruncIOp>(input.getType(), subOp);
+    auto truncOp = arith::TruncIOp::create(b, input.getType(), subOp);
 
     rewriter.replaceOp(op, truncOp);
 

@@ -23,13 +23,13 @@ mlir::Operation *BooleanGateImporter::createOp(Yosys::RTLIL::Cell *cell,
   // standard cell names look like $_CELL_
   auto op = llvm::StringSwitch<mlir::Operation *>(
                 cell->type.substr(2, cell->type.size() - 3))
-                .Case("NOT", b.create<comb::InvOp>(inputs[0], false))
-                .Case("XNOR", b.create<comb::XNorOp>(inputs, false))
-                .Case("AND", b.create<comb::AndOp>(inputs, false))
-                .Case("XOR", b.create<comb::XorOp>(inputs, false))
-                .Case("NAND", b.create<comb::NandOp>(inputs, false))
-                .Case("NOR", b.create<comb::NorOp>(inputs, false))
-                .Case("OR", b.create<comb::OrOp>(inputs, false))
+                .Case("NOT", comb::InvOp::create(b, inputs[0], false))
+                .Case("XNOR", comb::XNorOp::create(b, inputs, false))
+                .Case("AND", comb::AndOp::create(b, inputs, false))
+                .Case("XOR", comb::XorOp::create(b, inputs, false))
+                .Case("NAND", comb::NandOp::create(b, inputs, false))
+                .Case("NOR", comb::NorOp::create(b, inputs, false))
+                .Case("OR", comb::OrOp::create(b, inputs, false))
                 .Default(nullptr);
   if (op == nullptr) {
     llvm_unreachable("unexpected cell type");

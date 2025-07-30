@@ -129,7 +129,7 @@ static Value materializeTarget(OpBuilder &builder, Type type, ValueRange inputs,
   if (auto inValue = inputs.front().getDefiningOp<mlir::arith::ConstantOp>()) {
     auto intAttr = cast<IntegerAttr>(inValue.getValueAttr());
 
-    return builder.create<cggi::CreateTrivialOp>(loc, type, intAttr);
+    return cggi::CreateTrivialOp::create(builder, loc, type, intAttr);
   }
   // Comes from function/loop argument: Trivial encrypt through LWE
   auto ciphertextType = cast<lwe::LWECiphertextType>(type);
@@ -146,11 +146,10 @@ static Value materializeTarget(OpBuilder &builder, Type type, ValueRange inputs,
   auto ptxtTy = lwe::LWEPlaintextType::get(builder.getContext(),
                                            ciphertextType.getApplicationData(),
                                            ciphertextType.getPlaintextSpace());
-  return builder.create<lwe::TrivialEncryptOp>(
-      loc, type,
-      builder.create<lwe::EncodeOp>(loc, ptxtTy, inputs[0],
-                                    builder.getIndexAttr(plaintextBits),
-                                    overflowAttr),
+  return lwe::TrivialEncryptOp::create(
+      builder, loc, type,
+      lwe::EncodeOp::create(builder, loc, ptxtTy, inputs[0],
+                            builder.getIndexAttr(plaintextBits), overflowAttr),
       builder.getIndexAttr(ciphertextBits));
 }
 
@@ -187,7 +186,8 @@ struct ConvertTruncIOp : public OpConversionPattern<mlir::arith::TruncIOp> {
 
     auto outType = convertArithToCGGIType(
         cast<IntegerType>(op.getResult().getType()), op->getContext());
-    auto castOp = b.create<cggi::CastOp>(op.getLoc(), outType, adaptor.getIn());
+    auto castOp =
+        cggi::CastOp::create(b, op.getLoc(), outType, adaptor.getIn());
 
     rewriter.replaceOp(op, castOp);
     return success();
@@ -207,7 +207,8 @@ struct ConvertExtUIOp : public OpConversionPattern<mlir::arith::ExtUIOp> {
 
     auto outType = convertArithToCGGIType(
         cast<IntegerType>(op.getResult().getType()), op->getContext());
-    auto castOp = b.create<cggi::CastOp>(op.getLoc(), outType, adaptor.getIn());
+    auto castOp =
+        cggi::CastOp::create(b, op.getLoc(), outType, adaptor.getIn());
 
     rewriter.replaceOp(op, castOp);
     return success();
@@ -227,7 +228,8 @@ struct ConvertExtSIOp : public OpConversionPattern<mlir::arith::ExtSIOp> {
 
     auto outType = convertArithToCGGIType(
         cast<IntegerType>(op.getResult().getType()), op->getContext());
-    auto castOp = b.create<cggi::CastOp>(op.getLoc(), outType, adaptor.getIn());
+    auto castOp =
+        cggi::CastOp::create(b, op.getLoc(), outType, adaptor.getIn());
 
     rewriter.replaceOp(op, castOp);
     return success();
@@ -250,8 +252,8 @@ struct ConvertCmpOp : public OpConversionPattern<mlir::arith::CmpIOp> {
 
     if (auto lhsDefOp = op.getLhs().getDefiningOp()) {
       if (!hasLWEAnnotation(lhsDefOp) && allowedRemainArith(lhsDefOp)) {
-        auto result = b.create<cggi::CmpOp>(lweBooleanType, op.getPredicate(),
-                                            adaptor.getRhs(), op.getLhs());
+        auto result = cggi::CmpOp::create(b, lweBooleanType, op.getPredicate(),
+                                          adaptor.getRhs(), op.getLhs());
         rewriter.replaceOp(op, result);
         return success();
       }
@@ -259,15 +261,15 @@ struct ConvertCmpOp : public OpConversionPattern<mlir::arith::CmpIOp> {
 
     if (auto rhsDefOp = op.getRhs().getDefiningOp()) {
       if (!hasLWEAnnotation(rhsDefOp) && allowedRemainArith(rhsDefOp)) {
-        auto result = b.create<cggi::CmpOp>(lweBooleanType, op.getPredicate(),
-                                            adaptor.getLhs(), op.getRhs());
+        auto result = cggi::CmpOp::create(b, lweBooleanType, op.getPredicate(),
+                                          adaptor.getLhs(), op.getRhs());
         rewriter.replaceOp(op, result);
         return success();
       }
     }
 
-    auto cmpOp = b.create<cggi::CmpOp>(lweBooleanType, op.getPredicate(),
-                                       adaptor.getLhs(), adaptor.getRhs());
+    auto cmpOp = cggi::CmpOp::create(b, lweBooleanType, op.getPredicate(),
+                                     adaptor.getLhs(), adaptor.getRhs());
 
     rewriter.replaceOp(op, cmpOp);
     return success();
@@ -287,15 +289,15 @@ struct ConvertSubOp : public OpConversionPattern<mlir::arith::SubIOp> {
 
     if (auto rhsDefOp = op.getRhs().getDefiningOp()) {
       if (!hasLWEAnnotation(rhsDefOp) && allowedRemainArith(rhsDefOp)) {
-        auto result = b.create<cggi::SubOp>(adaptor.getLhs().getType(),
-                                            adaptor.getLhs(), op.getRhs());
+        auto result = cggi::SubOp::create(b, adaptor.getLhs().getType(),
+                                          adaptor.getLhs(), op.getRhs());
         rewriter.replaceOp(op, result);
         return success();
       }
     }
 
-    auto subOp = b.create<cggi::SubOp>(adaptor.getLhs().getType(),
-                                       adaptor.getLhs(), adaptor.getRhs());
+    auto subOp = cggi::SubOp::create(b, adaptor.getLhs().getType(),
+                                     adaptor.getLhs(), adaptor.getRhs());
     rewriter.replaceOp(op, subOp);
     return success();
   }
@@ -312,8 +314,8 @@ struct ConvertSelectOp : public OpConversionPattern<mlir::arith::SelectOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto cmuxOp = b.create<cggi::SelectOp>(
-        adaptor.getTrueValue().getType(), adaptor.getCondition(),
+    auto cmuxOp = cggi::SelectOp::create(
+        b, adaptor.getTrueValue().getType(), adaptor.getCondition(),
         adaptor.getTrueValue(), adaptor.getFalseValue());
 
     rewriter.replaceOp(op, cmuxOp);
@@ -347,7 +349,7 @@ struct ConvertShOp : public OpConversionPattern<SourceArithShOp> {
           mlir::IntegerAttr::get(rewriter.getIndexType(), (int8_t)shiftAmount);
 
       auto shiftOp =
-          b.create<TargetCGGIShOp>(outputType, adaptor.getLhs(), inputValue);
+          TargetCGGIShOp::create(b, outputType, adaptor.getLhs(), inputValue);
       rewriter.replaceOp(op, shiftOp);
 
       return success();
@@ -365,7 +367,7 @@ struct ConvertShOp : public OpConversionPattern<SourceArithShOp> {
         mlir::IntegerAttr::get(rewriter.getIndexType(), shiftAmount);
 
     auto shiftOp =
-        b.create<TargetCGGIShOp>(outputType, adaptor.getLhs(), inputValue);
+        TargetCGGIShOp::create(b, outputType, adaptor.getLhs(), inputValue);
     rewriter.replaceOp(op, shiftOp);
 
     return success();
@@ -386,8 +388,8 @@ struct ConvertArithBinOp : public OpConversionPattern<SourceArithOp> {
 
     if (auto lhsDefOp = op.getLhs().getDefiningOp()) {
       if (!hasLWEAnnotation(lhsDefOp) && allowedRemainArith(lhsDefOp)) {
-        auto result = b.create<TargetCGGIOp>(adaptor.getRhs().getType(),
-                                             adaptor.getRhs(), op.getLhs());
+        auto result = TargetCGGIOp::create(b, adaptor.getRhs().getType(),
+                                           adaptor.getRhs(), op.getLhs());
         rewriter.replaceOp(op, result);
         return success();
       }
@@ -395,15 +397,15 @@ struct ConvertArithBinOp : public OpConversionPattern<SourceArithOp> {
 
     if (auto rhsDefOp = op.getRhs().getDefiningOp()) {
       if (!hasLWEAnnotation(rhsDefOp) && allowedRemainArith(rhsDefOp)) {
-        auto result = b.create<TargetCGGIOp>(adaptor.getLhs().getType(),
-                                             adaptor.getLhs(), op.getRhs());
+        auto result = TargetCGGIOp::create(b, adaptor.getLhs().getType(),
+                                           adaptor.getLhs(), op.getRhs());
         rewriter.replaceOp(op, result);
         return success();
       }
     }
 
-    auto result = b.create<TargetCGGIOp>(adaptor.getLhs().getType(),
-                                         adaptor.getLhs(), adaptor.getRhs());
+    auto result = TargetCGGIOp::create(b, adaptor.getLhs().getType(),
+                                       adaptor.getLhs(), adaptor.getRhs());
     rewriter.replaceOp(op, result);
     return success();
   }
@@ -427,7 +429,7 @@ struct ConvertAllocOp : public OpConversionPattern<mlir::memref::AllocOp> {
 
     auto lweType = getTypeConverter()->convertType(op.getType());
     auto allocOp =
-        b.create<memref::AllocOp>(op.getLoc(), lweType, op.getOperands());
+        memref::AllocOp::create(b, op.getLoc(), lweType, op.getOperands());
     rewriter.replaceOp(op, allocOp);
     return success();
   }
