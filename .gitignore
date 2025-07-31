@@ -39,3 +39,6 @@ tests/Examples/tfhe_rust_bool/fpga/tfhe-rs
 
 # for python files
 __pycache__
+
+# lockfile is updated by automation
+MODULE.bazel.lock
