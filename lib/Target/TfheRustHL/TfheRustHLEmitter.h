@@ -67,6 +67,7 @@ class TfheRustHLEmitter {
   LogicalResult printOperation(memref::AllocOp op);
   LogicalResult printOperation(memref::DeallocOp op);
   LogicalResult printOperation(memref::LoadOp op);
+  LogicalResult printOperation(memref::GetGlobalOp op);
   LogicalResult printOperation(memref::StoreOp op);
   LogicalResult printOperation(AddOp op);
   LogicalResult printOperation(SubOp op);

@@ -7,7 +7,7 @@ tfhe_rs_end_to_end_test(
     size = "large",
     heir_translate_flags = ["--emit-tfhe-rust-hl"],
     mlir_src = "arith.mlir",
-    test_src = "src/main.rs",
+    test_src = "src/main_arith.rs",
 )
 
 tfhe_rs_end_to_end_test(
@@ -32,4 +32,16 @@ tfhe_rs_end_to_end_test(
     heir_translate_flags = ["--emit-tfhe-rust-hl"],
     mlir_src = "add_round_key.mlir",
     test_src = "src/main_add_round_key.rs",
+)
+
+tfhe_rs_end_to_end_test(
+    name = "hello_world_clean_xsmall_test",
+    size = "large",
+    heir_opt_flags = [
+        "--mlir-to-cggi=data-type=Integer",
+        "--scheme-to-tfhe-rs",
+    ],
+    heir_translate_flags = ["--emit-tfhe-rust-hl"],
+    mlir_src = "hello_world_clean_xsmall.mlir",
+    test_src = "src/main_hello_world.rs",
 )

@@ -250,7 +250,7 @@ struct ConvertCmpOp : public OpConversionPattern<mlir::arith::CmpIOp> {
     auto lweBooleanType =
         lwe::getDefaultCGGICiphertextType(op->getContext(), 1);
 
-    if (auto lhsDefOp = op.getLhs().getDefiningOp()) {
+    if (auto *lhsDefOp = op.getLhs().getDefiningOp()) {
       if (!hasLWEAnnotation(lhsDefOp) && allowedRemainArith(lhsDefOp)) {
         auto result = cggi::CmpOp::create(b, lweBooleanType, op.getPredicate(),
                                           adaptor.getRhs(), op.getLhs());
@@ -259,7 +259,7 @@ struct ConvertCmpOp : public OpConversionPattern<mlir::arith::CmpIOp> {
       }
     }
 
-    if (auto rhsDefOp = op.getRhs().getDefiningOp()) {
+    if (auto *rhsDefOp = op.getRhs().getDefiningOp()) {
       if (!hasLWEAnnotation(rhsDefOp) && allowedRemainArith(rhsDefOp)) {
         auto result = cggi::CmpOp::create(b, lweBooleanType, op.getPredicate(),
                                           adaptor.getLhs(), op.getRhs());
@@ -475,12 +475,54 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
     });
 
     target.addDynamicallyLegalOp<memref::SubViewOp, memref::CopyOp,
-                                 tensor::FromElementsOp, tensor::ExtractOp,
-                                 affine::AffineStoreOp, affine::AffineLoadOp>(
+                                 tensor::FromElementsOp, tensor::ExtractOp>(
         [&](Operation *op) {
           return typeConverter.isLegal(op->getOperandTypes()) &&
                  typeConverter.isLegal(op->getResultTypes());
         });
+
+    // Affine Def
+
+    target.addDynamicallyLegalOp<affine::AffineStoreOp>([&](Operation *op) {
+      if (typeConverter.isLegal(op->getOperandTypes()) &&
+          typeConverter.isLegal(op->getResultTypes())) {
+        return true;
+      }
+
+      if (auto lweAttr =
+              op->getAttrOfType<mlir::StringAttr>("lwe_annotation")) {
+        return false;
+      }
+
+      if (auto *defOp =
+              cast<affine::AffineStoreOp>(op).getValue().getDefiningOp()) {
+        if (isa<mlir::arith::ConstantOp>(defOp) ||
+            isa<mlir::memref::GetGlobalOp>(defOp)) {
+          return true;
+        }
+      }
+      return true;
+    });
+
+    // Convert LoadOp if memref comes from an argument
+    target.addDynamicallyLegalOp<affine::AffineLoadOp>([&](Operation *op) {
+      if (typeConverter.isLegal(op->getOperandTypes()) &&
+          typeConverter.isLegal(op->getResultTypes())) {
+        return true;
+      }
+
+      if (dyn_cast<affine::AffineLoadOp>(op).getMemRef().getDefiningOp() ==
+          nullptr) {
+        return false;
+      }
+
+      if (auto lweAttr =
+              op->getAttrOfType<mlir::StringAttr>("lwe_annotation")) {
+        return false;
+      }
+
+      return true;
+    });
 
     target.addDynamicallyLegalOp<memref::AllocOp>([&](Operation *op) {
       // Check if all Store ops are constants or GetGlobals, if not store op,
