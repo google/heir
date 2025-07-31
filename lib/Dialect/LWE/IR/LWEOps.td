@@ -12,21 +12,8 @@ include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/CommonAttrConstraints.td"
 
-class HasEncoding<
-  string encodingHolder,
-  string encoding,
-  string ty,
-  string comparator = "std::equal_to<>()"
-> : PredOpTrait<
-    "the first arg's type's encoding matches the given encoding",
-    CPred<
-      comparator # "(" #
-      "::llvm::cast<lwe::" # ty # ">($" # encodingHolder # ".getType()).getEncoding(), " #
-      "$" # encoding # ")"
-    >
-  >;
 
-class NewHasEncoding<
+class HasEncoding<
   string encodingHolder,
   string encoding,
   string ty,
@@ -40,7 +27,7 @@ class NewHasEncoding<
     >
   >;
 
-class NewEncodingsMatch<
+class EncodingsMatch<
   string encodingHolder1,
   string ty1,
   string encodingHolder2,
@@ -124,7 +111,7 @@ def LWE_EncodeOp : LWE_Op<"encode"> {
 }
 
 def LWE_TrivialEncryptOp: LWE_Op<"trivial_encrypt", [
-    NewEncodingsMatch<"input", "LWEPlaintextType", "output", "LWECiphertextType">]> {
+    EncodingsMatch<"input", "LWEPlaintextType", "output", "LWECiphertextType">]> {
   let summary = "Create a trivial encryption of a plaintext.";
 
   let arguments = (ins
@@ -202,7 +189,7 @@ def LWE_MulScalarOp : LWE_Op<"mul_scalar", [ElementwiseMappable,
   let hasFolder = 1;
 }
 
-def LWE_RLWEEncodeOp : LWE_Op<"rlwe_encode", [NewHasEncoding<"output", "encoding", "LWEPlaintextType">]> {
+def LWE_RLWEEncodeOp : LWE_Op<"rlwe_encode", [HasEncoding<"output", "encoding", "LWEPlaintextType">]> {
   let summary = "Encode an integer to yield an RLWE plaintext";
   let description = [{
     Encode an integer to yield an RLWE plaintext.
@@ -232,7 +219,7 @@ def LWE_RLWEEncodeOp : LWE_Op<"rlwe_encode", [NewHasEncoding<"output", "encoding
   let hasVerifier = true;
 }
 
-def LWE_RLWEDecodeOp : LWE_Op<"rlwe_decode", [NewHasEncoding<"input", "encoding", "LWEPlaintextType">]> {
+def LWE_RLWEDecodeOp : LWE_Op<"rlwe_decode", [HasEncoding<"input", "encoding", "LWEPlaintextType">]> {
   let summary = "Decode an RLWE plaintext to an underlying type";
 
   let arguments = (ins
@@ -249,7 +236,7 @@ def LWE_RLWEDecodeOp : LWE_Op<"rlwe_decode", [NewHasEncoding<"input", "encoding"
 }
 
 def LWE_RLWEEncryptOp : LWE_Op<"rlwe_encrypt", [
-    NewEncodingsMatch<"input", "LWEPlaintextType", "output", "LWECiphertextType">]> {
+    EncodingsMatch<"input", "LWEPlaintextType", "output", "LWECiphertextType">]> {
   let summary = "Encrypt an RLWE plaintext to a RLWE ciphertext";
   let description = [{
     Encrypt an RLWE plaintext to yield a RLWE ciphertext.
@@ -264,7 +251,7 @@ def LWE_RLWEEncryptOp : LWE_Op<"rlwe_encrypt", [
 }
 
 def LWE_RLWEDecryptOp : LWE_Op<"rlwe_decrypt", [
-    NewEncodingsMatch<"input", "LWECiphertextType", "output", "LWEPlaintextType">,
+    EncodingsMatch<"input", "LWECiphertextType", "output", "LWEPlaintextType">,
     KeyAndCiphertextMatch<"secret_key", "LWESecretKeyType", "input", "LWECiphertextType">]> {
   let summary = "Decrypt an RLWE ciphertext to a RLWE plaintext";
   let description = [{
