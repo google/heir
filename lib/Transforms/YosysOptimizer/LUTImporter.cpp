@@ -37,7 +37,7 @@ mlir::Operation *LUTImporter::createOp(Yosys::RTLIL::Cell *cell,
 
   auto lookupTable =
       b.getIntegerAttr(b.getIntegerType(lutSize, /*isSigned=*/false), lutValue);
-  return b.create<comb::TruthTableOp>(inputs, lookupTable);
+  return comb::TruthTableOp::create(b, inputs, lookupTable);
 }
 
 SmallVector<Yosys::RTLIL::SigSpec> LUTImporter::getInputs(

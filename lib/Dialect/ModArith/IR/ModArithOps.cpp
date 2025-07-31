@@ -416,7 +416,7 @@ Operation *ModArithDialect::materializeConstant(OpBuilder &builder,
   if (!intAttr) return nullptr;
   auto modType = dyn_cast_if_present<ModArithType>(type);
   if (!modType) return nullptr;
-  auto op = builder.create<mod_arith::ConstantOp>(loc, modType, intAttr);
+  auto op = mod_arith::ConstantOp::create(builder, loc, modType, intAttr);
   return op.getOperation();
 }
 

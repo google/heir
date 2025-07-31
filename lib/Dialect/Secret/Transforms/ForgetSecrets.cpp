@@ -43,7 +43,7 @@ static Value materializeSource(OpBuilder &builder, Type type, ValueRange inputs,
     llvm_unreachable(
         "Secret types should never be the input to a materializeSource.");
 
-  return builder.create<ConcealOp>(loc, inputs[0]);
+  return ConcealOp::create(builder, loc, inputs[0]);
 }
 
 static Value materializeTarget(OpBuilder &builder, Type type, ValueRange inputs,
@@ -54,7 +54,7 @@ static Value materializeTarget(OpBuilder &builder, Type type, ValueRange inputs,
     llvm_unreachable(
         "Non-secret types should never be the input to a materializeTarget.");
 
-  return builder.create<RevealOp>(loc, inputs[0]);
+  return RevealOp::create(builder, loc, inputs[0]);
 }
 
 class ForgetSecretsTypeConverter : public TypeConverter {

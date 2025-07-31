@@ -128,12 +128,12 @@ struct ConfigureCryptoContext
 
     FunctionType genFuncType =
         FunctionType::get(builder.getContext(), funcArgTypes, funcResultTypes);
-    auto genFuncOp = builder.create<func::FuncOp>(genFuncName, genFuncType);
+    auto genFuncOp = func::FuncOp::create(builder, genFuncName, genFuncType);
     builder.setInsertionPointToEnd(genFuncOp.addEntryBlock());
 
     Type openfheParamsType = openfhe::CCParamsType::get(builder.getContext());
-    Value ccParams = builder.create<openfhe::GenParamsOp>(
-        openfheParamsType,
+    Value ccParams = openfhe::GenParamsOp::create(
+        builder, openfheParamsType,
         // Essential parameters
         /*mulDepth*/ config.mulDepth,
         /*plainMod*/ config.plaintextModulus,
@@ -151,11 +151,11 @@ struct ConfigureCryptoContext
         /*encryptionTechniqueExtended*/ config.encryptionTechniqueExtended,
         /*keySwitchingTechniqueBV*/ config.keySwitchingTechniqueBV,
         /*scalingTechniqueFixedManual*/ config.scalingTechniqueFixedManual);
-    Value cryptoContext = builder.create<openfhe::GenContextOp>(
-        openfheContextType, ccParams,
+    Value cryptoContext = openfhe::GenContextOp::create(
+        builder, openfheContextType, ccParams,
         BoolAttr::get(builder.getContext(), config.hasBootstrapOp));
 
-    builder.create<func::ReturnOp>(cryptoContext);
+    func::ReturnOp::create(builder, cryptoContext);
     return success();
   }
 
@@ -177,30 +177,30 @@ struct ConfigureCryptoContext
     FunctionType configFuncType =
         FunctionType::get(builder.getContext(), funcArgTypes, funcResultTypes);
     auto configFuncOp =
-        builder.create<func::FuncOp>(configFuncName, configFuncType);
+        func::FuncOp::create(builder, configFuncName, configFuncType);
     builder.setInsertionPointToEnd(configFuncOp.addEntryBlock());
 
     Value cryptoContext = configFuncOp.getArgument(0);
     Value privateKey = configFuncOp.getArgument(1);
 
     if (config.hasRelinOp || config.hasBootstrapOp) {
-      builder.create<openfhe::GenMulKeyOp>(cryptoContext, privateKey);
+      openfhe::GenMulKeyOp::create(builder, cryptoContext, privateKey);
     }
     if (!config.rotIndices.empty()) {
-      builder.create<openfhe::GenRotKeyOp>(cryptoContext, privateKey,
-                                           config.rotIndices);
+      openfhe::GenRotKeyOp::create(builder, cryptoContext, privateKey,
+                                   config.rotIndices);
     }
     if (config.hasBootstrapOp) {
-      builder.create<openfhe::SetupBootstrapOp>(
-          cryptoContext,
+      openfhe::SetupBootstrapOp::create(
+          builder, cryptoContext,
           IntegerAttr::get(IndexType::get(builder.getContext()),
                            config.levelBudgetEncode),
           IntegerAttr::get(IndexType::get(builder.getContext()),
                            config.levelBudgetDecode));
-      builder.create<openfhe::GenBootstrapKeyOp>(cryptoContext, privateKey);
+      openfhe::GenBootstrapKeyOp::create(builder, cryptoContext, privateKey);
     }
 
-    builder.create<func::ReturnOp>(cryptoContext);
+    func::ReturnOp::create(builder, cryptoContext);
     return success();
   }
 

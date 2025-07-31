@@ -352,8 +352,8 @@ YieldOp GenericOp::getYieldOp() {
 GenericOp GenericOp::cloneWithNewResultTypes(TypeRange newTypes,
                                              PatternRewriter &rewriter,
                                              bool preserveAttrs) {
-  auto newOp = rewriter.create<GenericOp>(
-      getLoc(), getOperands(), newTypes,
+  auto newOp = GenericOp::create(
+      rewriter, getLoc(), getOperands(), newTypes,
       [&](OpBuilder &b, Location loc, ValueRange blockArguments) {
         IRMapping mp;
         for (BlockArgument blockArg : getBody()->getArguments()) {
@@ -506,8 +506,8 @@ GenericOp GenericOp::extractOpBeforeGeneric(Operation *opToExtract,
   LLVM_DEBUG(llvm::dbgs() << "New single-op generic will have "
                           << newGenericOperands.size() << " operands\n");
 
-  auto newGeneric = rewriter.create<GenericOp>(
-      getLoc(), newGenericOperands, newResultTypes,
+  auto newGeneric = GenericOp::create(
+      rewriter, getLoc(), newGenericOperands, newResultTypes,
       [&](OpBuilder &b, Location loc, ValueRange blockArguments) {
         IRMapping mp;
         // the newly-created blockArguments have the same index order as
@@ -518,7 +518,7 @@ GenericOp GenericOp::extractOpBeforeGeneric(Operation *opToExtract,
           mp.map(oldArg, newArg);
         }
         auto *newOp = b.clone(*opToExtract, mp);
-        b.create<YieldOp>(loc, newOp->getResults());
+        YieldOp::create(b, loc, newOp->getResults());
       });
   LLVM_DEBUG({
     llvm::dbgs() << "After adding new single-op generic:\n";
@@ -646,8 +646,9 @@ std::pair<GenericOp, GenericOp> extractOpAfterGeneric(
   }
 
   rewriter.setInsertionPointAfter(genericOpWithNewYields);
-  auto newGeneric = rewriter.create<GenericOp>(
-      genericOpWithNewYields.getLoc(), newGenericOperands, newResultTypes,
+  auto newGeneric = GenericOp::create(
+      rewriter, genericOpWithNewYields.getLoc(), newGenericOperands,
+      newResultTypes,
       [&](OpBuilder &b, Location loc, ValueRange blockArguments) {
         IRMapping mp;
         int i = 0;
@@ -656,7 +657,7 @@ std::pair<GenericOp, GenericOp> extractOpAfterGeneric(
           ++i;
         }
         auto *newOp = b.clone(*opToExtract, mp);
-        b.create<YieldOp>(loc, newOp->getResults());
+        YieldOp::create(b, loc, newOp->getResults());
       });
   LLVM_DEBUG({
     llvm::dbgs() << "After adding new single-op generic:\n";

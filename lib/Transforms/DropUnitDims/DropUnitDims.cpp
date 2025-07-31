@@ -78,8 +78,8 @@ static Value collapseValue(RewriterBase &rewriter, Location loc, Value operand,
   auto tensorType = cast<RankedTensorType>(operand.getType());
   auto targetType =
       RankedTensorType::get(targetShape, tensorType.getElementType());
-  return rewriter.create<tensor::CollapseShapeOp>(loc, targetType, operand,
-                                                  reassociation);
+  return tensor::CollapseShapeOp::create(rewriter, loc, targetType, operand,
+                                         reassociation);
 }
 
 /// Returns a collapsed `val` where the collapsing occurs at dims in positions.
@@ -118,8 +118,8 @@ struct ReduceLinalgMap : OpRewritePattern<linalg::MapOp> {
   Value expandResult(PatternRewriter &rewriter, Value result,
                      RankedTensorType expandedType,
                      SmallVector<int64_t> dims) const {
-    return rewriter.create<tensor::ExpandShapeOp>(
-        result.getLoc(), expandedType, result,
+    return tensor::ExpandShapeOp::create(
+        rewriter, result.getLoc(), expandedType, result,
         getReassociationForReshapeAtDim(expandedType.getRank(), dims));
   }
 
@@ -176,8 +176,8 @@ struct ReduceLinalgMap : OpRewritePattern<linalg::MapOp> {
                                           collapsedOperands.end() - 1};
     SmallVector<Type, 1> collapsedResultTy;
     collapsedResultTy.push_back(collapsedInit.getType());
-    linalg::MapOp collapsedOp = rewriter.create<linalg::MapOp>(
-        loc, collapsedInputs, collapsedInit,
+    linalg::MapOp collapsedOp = linalg::MapOp::create(
+        rewriter, loc, collapsedInputs, collapsedInit,
         [&](OpBuilder &b, Location loc, ValueRange blockArguments) {
           IRMapping mp;
           for (BlockArgument blockArg : mapper->getArguments()) {

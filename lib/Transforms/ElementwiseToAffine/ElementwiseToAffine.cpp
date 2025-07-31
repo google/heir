@@ -51,18 +51,18 @@ struct ConvertAnyElementwiseMappableOpOnRankedTensors : public RewritePattern {
     auto ip = rewriter.saveInsertionPoint();
 
     // Create an empty tensor as initial value of the iter_args
-    Value target = rewriter.create<tensor::EmptyOp>(
-        op->getLoc(), shape, elementType, resultType.getEncoding());
+    Value target = tensor::EmptyOp::create(
+        rewriter, op->getLoc(), shape, elementType, resultType.getEncoding());
 
     llvm::SmallVector<Value, 1> indices;
 
     // Create a an affine.for loop nest of depth rank
     for (int64_t i = 0; i < rank; ++i) {
       auto loop =
-          rewriter.create<affine::AffineForOp>(op->getLoc(), /* lowerBound*/ 0,
-                                               /* upperBound*/ shape[i],
-                                               /* step*/ 1,
-                                               /* iterArgs*/ target);
+          affine::AffineForOp::create(rewriter, op->getLoc(), /* lowerBound*/ 0,
+                                      /* upperBound*/ shape[i],
+                                      /* step*/ 1,
+                                      /* iterArgs*/ target);
 
       // Update target & indices
       target = loop.getRegionIterArgs().front();
@@ -72,8 +72,8 @@ struct ConvertAnyElementwiseMappableOpOnRankedTensors : public RewritePattern {
       if (i == 0) {
         rewriter.replaceOp(op, loop);
       } else {  // yield the result of this loop
-        rewriter.create<affine::AffineYieldOp>(op->getLoc(),
-                                               loop->getResults());
+        affine::AffineYieldOp::create(rewriter, op->getLoc(),
+                                      loop->getResults());
       }
       rewriter.setInsertionPointToStart(loop.getBody());
     }
@@ -90,8 +90,8 @@ struct ConvertAnyElementwiseMappableOpOnRankedTensors : public RewritePattern {
       if (mlir::isa<RankedTensorType>(operand.getType())) {
         // We don't need to check the shape, as ElementwiseMappable
         // requires all tensor operands to have compatible shapes
-        auto extractOp = rewriter.create<tensor::ExtractOp>(operand.getLoc(),
-                                                            operand, indices);
+        auto extractOp = tensor::ExtractOp::create(rewriter, operand.getLoc(),
+                                                   operand, indices);
         newOperands.push_back(extractOp);
       } else {
         // scalar (technically, "non-tensor") operands can be reused as-is
@@ -106,11 +106,11 @@ struct ConvertAnyElementwiseMappableOpOnRankedTensors : public RewritePattern {
                         newOperands, resultTypes, op->getAttrs());
 
     // insert scalarOp into the tensor at right index
-    Value inserted = rewriter.create<tensor::InsertOp>(
-        op->getLoc(), scalarOp->getResult(0), target, indices);
+    Value inserted = tensor::InsertOp::create(
+        rewriter, op->getLoc(), scalarOp->getResult(0), target, indices);
 
     // replace lingalg.yield scalarOp with affine.yield insertedOp
-    rewriter.create<affine::AffineYieldOp>(op->getLoc(), inserted);
+    affine::AffineYieldOp::create(rewriter, op->getLoc(), inserted);
 
     // reset insertion point
     rewriter.restoreInsertionPoint(ip);

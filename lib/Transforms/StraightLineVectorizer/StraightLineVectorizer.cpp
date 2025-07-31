@@ -126,8 +126,8 @@ bool tryVectorizeBlock(Block *block, Dialect *dialect) {
         for (auto *op : bucket) {
           operands.push_back(op->getOperand(operandIndex));
         }
-        auto fromElementsOp = builder.create<tensor::FromElementsOp>(
-            key->getLoc(), tensorType, operands);
+        auto fromElementsOp = tensor::FromElementsOp::create(
+            builder, key->getLoc(), tensorType, operands);
         vectorizedOperands.push_back(fromElementsOp.getResult());
       }
 
@@ -137,10 +137,10 @@ bool tryVectorizeBlock(Block *block, Dialect *dialect) {
 
       int bucketIndex = 0;
       for (auto *op : bucket) {
-        auto extractionIndex = builder.create<arith::ConstantOp>(
-            op->getLoc(), builder.getIndexAttr(bucketIndex));
-        auto extractOp = builder.create<tensor::ExtractOp>(
-            op->getLoc(), elementType, vectorizedOp->getResult(0),
+        auto extractionIndex = arith::ConstantOp::create(
+            builder, op->getLoc(), builder.getIndexAttr(bucketIndex));
+        auto extractOp = tensor::ExtractOp::create(
+            builder, op->getLoc(), elementType, vectorizedOp->getResult(0),
             extractionIndex.getResult());
         op->replaceAllUsesWith(ValueRange{extractOp.getResult()});
         bucketIndex++;

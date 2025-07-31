@@ -143,8 +143,8 @@ struct ConvertBinOp : public OpRewritePattern<BinOp> {
     // InplaceOp has the form: output = InplaceOp(evaluator, lhs, rhs,
     // inplace) where inplace is the actual output but for SSA form we need to
     // return a new value
-    auto inplaceOp = rewriter.create<InplaceOp>(
-        op.getLoc(), op.getOperand(1).getType(), op.getOperand(0),
+    auto inplaceOp = InplaceOp::create(
+        rewriter, op.getLoc(), op.getOperand(1).getType(), op.getOperand(0),
         op.getOperand(1), op.getOperand(2), storage);
 
     // Update storage info, which must happen before the op is removed
@@ -181,8 +181,8 @@ struct ConvertUnaryOp : public OpRewritePattern<UnaryOp> {
     // where inplace is the actual output but for SSA form we need to return a
     // new value
     auto inplaceOp =
-        rewriter.create<InplaceOp>(op.getLoc(), op.getOperand(1).getType(),
-                                   op.getOperand(0), op.getOperand(1), storage);
+        InplaceOp::create(rewriter, op.getLoc(), op.getOperand(1).getType(),
+                          op.getOperand(0), op.getOperand(1), storage);
 
     storageInfo.replaceAllocWithInplace(op, inplaceOp, storage);
     rewriter.replaceOp(op, inplaceOp);
@@ -215,8 +215,8 @@ struct ConvertRotateOp : public OpRewritePattern<RotateOp> {
     // InplaceOp has the form: output = InplaceOp(evaluator, lhs, inplace)
     // {offset} where inplace is the actual output but for SSA form we need to
     // return a new value
-    auto inplaceOp = rewriter.create<InplaceOp>(
-        op.getLoc(), op.getOperand(1).getType(), op.getOperand(0),
+    auto inplaceOp = InplaceOp::create(
+        rewriter, op.getLoc(), op.getOperand(1).getType(), op.getOperand(0),
         op.getOperand(1), storage, op.getOffset());
 
     // update storage info
@@ -251,8 +251,8 @@ struct ConvertDropLevelOp : public OpRewritePattern<DropLevelOp> {
     // InplaceOp has the form: output = InplaceOp(evaluator, lhs, inplace)
     // {levelToDrop} where inplace is the actual output but for SSA form we need
     // to return a new value
-    auto inplaceOp = rewriter.create<InplaceOp>(
-        op.getLoc(), op.getOperand(1).getType(), op.getOperand(0),
+    auto inplaceOp = InplaceOp::create(
+        rewriter, op.getLoc(), op.getOperand(1).getType(), op.getOperand(0),
         op.getOperand(1), storage, op.getLevelToDrop());
 
     // update storage info

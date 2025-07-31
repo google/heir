@@ -215,9 +215,9 @@ Value encodeCleartext(Value cleartext, Type resultType,
     extendedType = shapedType.cloneWith(shapedType.getShape(), modulusType);
   }
 
-  auto extOp = b.create<arith::ExtSIOp>(extendedType, cleartext);
+  auto extOp = arith::ExtSIOp::create(b, extendedType, cleartext);
   auto encapsulateOp =
-      b.create<mod_arith::EncapsulateOp>(resultType, extOp.getResult());
+      mod_arith::EncapsulateOp::create(b, resultType, extOp.getResult());
   return encapsulateOp.getResult();
 }
 
@@ -275,14 +275,14 @@ struct ConvertReveal : public OpConversionPattern<secret::RevealOp> {
     }
 
     auto extractOp =
-        b.create<mod_arith::ExtractOp>(beforeTrunc, adaptor.getInput());
+        mod_arith::ExtractOp::create(b, beforeTrunc, adaptor.getInput());
     Value result = extractOp.getResult();
 
     Type truncatedType = op.getResult().getType();
     if (getElementTypeOrSelf(truncatedType).getIntOrFloatBitWidth() <
         getElementTypeOrSelf(extractOp.getResult().getType())
             .getIntOrFloatBitWidth()) {
-      auto truncOp = b.create<arith::TruncIOp>(truncatedType, result);
+      auto truncOp = arith::TruncIOp::create(b, truncatedType, result);
       result = truncOp.getResult();
     }
 
@@ -354,7 +354,7 @@ struct ConvertDebugCall : public SecretGenericOpConversion<func::CallOp> {
     // because we want to do a reveal and let the reveal pattern handle the
     // type conversion.
     auto revealOp =
-        rewriter.create<secret::RevealOp>(op.getLoc(), op.getOperands()[0]);
+        secret::RevealOp::create(rewriter, op.getLoc(), op.getOperands()[0]);
     auto newCallOp = rewriter.replaceOpWithNewOp<func::CallOp>(
         op, innerOp.getResultTypes(), innerOp.getCallee(),
         revealOp.getResult());

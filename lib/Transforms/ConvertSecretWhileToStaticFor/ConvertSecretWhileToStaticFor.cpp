@@ -100,7 +100,7 @@ struct SecretWhileToStaticForConversion : OpRewritePattern<scf::WhileOp> {
     SmallVector<Value> iterArgs(whileOp.getInits());
 
     auto newForOp =
-        builder.create<affine::AffineForOp>(0, upperBound, 1, iterArgs);
+        affine::AffineForOp::create(builder, 0, upperBound, 1, iterArgs);
     newForOp->setAttrs(whileOp->getAttrs());
 
     builder.setInsertionPointToStart(newForOp.getBody());
@@ -124,8 +124,8 @@ struct SecretWhileToStaticForConversion : OpRewritePattern<scf::WhileOp> {
       }
     }
 
-    auto ifOp = builder.create<scf::IfOp>(
-        condition,
+    auto ifOp = scf::IfOp::create(
+        builder, condition,
         [&](OpBuilder &b, Location loc) {
           for (BlockArgument blockArg : whileOp.getAfterArguments()) {
             mp.map(blockArg, newForOp.getBody()
@@ -137,11 +137,11 @@ struct SecretWhileToStaticForConversion : OpRewritePattern<scf::WhileOp> {
           }
         },
         [&](OpBuilder &b, Location loc) {
-          b.create<scf::YieldOp>(loc, newForOp.getRegionIterArgs());
+          scf::YieldOp::create(b, loc, newForOp.getRegionIterArgs());
         });
 
     // Create YieldOp for affine.for
-    builder.create<affine::AffineYieldOp>(ifOp.getResults());
+    affine::AffineYieldOp::create(builder, ifOp.getResults());
 
     // Replace scf.while with affine.for
     rewriter.replaceOp(whileOp, newForOp);

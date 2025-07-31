@@ -150,8 +150,8 @@ class InsertIntoFromElements final : public OpRewritePattern<tensor::InsertOp> {
       if (flatIndexToElement.contains(i)) {
         values.push_back(flatIndexToElement[i]);
       } else {
-        values.push_back(rewriter.create<arith::ConstantOp>(
-            insertOp.getLoc(), constantValue.getElementType(),
+        values.push_back(arith::ConstantOp::create(
+            rewriter, insertOp.getLoc(), constantValue.getElementType(),
             cast<TypedAttr>(constantValue.getValues<Attribute>()[i])));
       }
     }

@@ -81,8 +81,8 @@ Value buildSelectTruthTable(Location loc, OpBuilder &b, Value t, Value f,
       buildSelectTruthTable(loc, b, t, f, firstHalf, lutInputs.drop_back());
   Value selectFalse =
       buildSelectTruthTable(loc, b, t, f, lastHalf, lutInputs.drop_back());
-  return b.create<arith::SelectOp>(loc, lutInputs.back(), selectTrue,
-                                   selectFalse);
+  return arith::SelectOp::create(b, loc, lutInputs.back(), selectTrue,
+                                 selectFalse);
 }
 
 Operation *convertWriteOpInterface(
@@ -112,38 +112,38 @@ Operation *convertWriteOpInterface(
                                       .getIntOrFloatBitWidth());
 
         if (valType.getWidth() == 1) {
-          auto ctValue = b.create<lwe::TrivialEncryptOp>(
-              ctTy,
-              b.create<lwe::EncodeOp>(ptxtTy, valueToStore, plaintextBits,
-                                      ctTy.getApplicationData().getOverflow()),
+          auto ctValue = lwe::TrivialEncryptOp::create(
+              b, ctTy,
+              lwe::EncodeOp::create(b, ptxtTy, valueToStore, plaintextBits,
+                                    ctTy.getApplicationData().getOverflow()),
               ciphertextBits);
-          return b.create<memref::StoreOp>(ctValue, toMemRef, indices);
+          return memref::StoreOp::create(b, ctValue, toMemRef, indices);
         }
 
         // Get i-th bit of input and insert the bit into the memref of
         // ciphertexts.
-        auto loop = b.create<mlir::affine::AffineForOp>(0, valType.getWidth());
+        auto loop = mlir::affine::AffineForOp::create(b, 0, valType.getWidth());
         b.setInsertionPointToStart(loop.getBody());
         auto idx = loop.getInductionVar();
 
-        auto one = b.create<arith::ConstantOp>(
-            valType, rewriter.getIntegerAttr(valType, 1));
-        auto shiftAmount = b.create<arith::IndexCastOp>(valType, idx);
-        auto bitMask = b.create<arith::ShLIOp>(valType, one, shiftAmount);
-        auto andOp = b.create<arith::AndIOp>(valueToStore, bitMask);
-        auto shifted = b.create<arith::ShRSIOp>(andOp, shiftAmount);
-        auto bitValue = b.create<arith::TruncIOp>(b.getI1Type(), shifted);
-        auto ctValue = b.create<lwe::TrivialEncryptOp>(
-            ctTy,
-            b.create<lwe::EncodeOp>(ptxtTy, bitValue, plaintextBits,
-                                    ctTy.getApplicationData().getOverflow()),
+        auto one = arith::ConstantOp::create(
+            b, valType, rewriter.getIntegerAttr(valType, 1));
+        auto shiftAmount = arith::IndexCastOp::create(b, valType, idx);
+        auto bitMask = arith::ShLIOp::create(b, valType, one, shiftAmount);
+        auto andOp = arith::AndIOp::create(b, valueToStore, bitMask);
+        auto shifted = arith::ShRSIOp::create(b, andOp, shiftAmount);
+        auto bitValue = arith::TruncIOp::create(b, b.getI1Type(), shifted);
+        auto ctValue = lwe::TrivialEncryptOp::create(
+            b, ctTy,
+            lwe::EncodeOp::create(b, ptxtTy, bitValue, plaintextBits,
+                                  ctTy.getApplicationData().getOverflow()),
             ciphertextBits);
 
         indices.push_back(idx);
-        return b.create<memref::StoreOp>(ctValue, toMemRef, indices);
+        return memref::StoreOp::create(b, ctValue, toMemRef, indices);
       })
       .Case<lwe::LWECiphertextType>([&](auto valType) {
-        return b.create<memref::StoreOp>(valueToStore, toMemRef, indices);
+        return memref::StoreOp::create(b, valueToStore, toMemRef, indices);
       })
       .Case<MemRefType>([&](MemRefType valType) {
         int rank = toMemRefTy.getRank();
@@ -169,9 +169,9 @@ Operation *convertWriteOpInterface(
         mlir::Type memRefType =
             mlir::memref::SubViewOp::inferRankReducedResultType(
                 valType.getShape(), toMemRefTy, offsets, sizes, strides);
-        auto subview = b.create<memref::SubViewOp>(
-            cast<MemRefType>(memRefType), toMemRef, offsets, sizes, strides);
-        return b.create<memref::CopyOp>(valueToStore, subview);
+        auto subview = memref::SubViewOp::create(
+            b, cast<MemRefType>(memRefType), toMemRef, offsets, sizes, strides);
+        return memref::CopyOp::create(b, valueToStore, subview);
       });
   llvm_unreachable("expected integer or memref to store in ciphertext memref");
 }
@@ -208,11 +208,11 @@ Operation *convertReadOpInterface(
   // If the offsets are dynamic and the resulting type does not match the
   // converted output type, we must allocate and copy into one with a static 0
   // offset. Otherwise we can return the subview.
-  auto subViewOp = b.create<memref::SubViewOp>(
-      cast<MemRefType>(memRefType), fromMemRef, offsets, sizes, strides);
+  auto subViewOp = memref::SubViewOp::create(
+      b, cast<MemRefType>(memRefType), fromMemRef, offsets, sizes, strides);
   if (memRefType != outputMemRefType) {
-    auto allocOp = b.create<memref::AllocOp>(outputMemRefType);
-    b.create<memref::CopyOp>(subViewOp, allocOp);
+    auto allocOp = memref::AllocOp::create(b, outputMemRefType);
+    memref::CopyOp::create(b, subViewOp, allocOp);
     return allocOp;
   }
   return subViewOp;
@@ -249,8 +249,8 @@ SmallVector<Value> encodeInputs(
       return rewriter
           .create<lwe::TrivialEncryptOp>(
               op->getLoc(), ctxtTy,
-              rewriter.create<lwe::EncodeOp>(op->getLoc(), ptxtTy, input,
-                                             plaintextBits, overflow),
+              lwe::EncodeOp::create(rewriter, op->getLoc(), ptxtTy, input,
+                                    plaintextBits, overflow),
               ciphertextBits)
           .getResult();
     }
@@ -543,10 +543,12 @@ struct ConvertTruthTableOp
     assert(op->getParentOfType<secret::GenericOp>() == nullptr);
 
     // Create a truth table op out of arithmetic statements.
-    Value t = rewriter.create<arith::ConstantOp>(
-        op.getLoc(), rewriter.getIntegerAttr(rewriter.getI1Type(), 1));
-    Value f = rewriter.create<arith::ConstantOp>(
-        op.getLoc(), rewriter.getIntegerAttr(rewriter.getI1Type(), 0));
+    Value t = arith::ConstantOp::create(
+        rewriter, op.getLoc(),
+        rewriter.getIntegerAttr(rewriter.getI1Type(), 1));
+    Value f = arith::ConstantOp::create(
+        rewriter, op.getLoc(),
+        rewriter.getIntegerAttr(rewriter.getI1Type(), 0));
     rewriter.replaceOp(op, buildSelectTruthTable(op.getLoc(), rewriter, t, f,
                                                  op.getLookupTable().getValue(),
                                                  adaptor.getInputs()));
@@ -638,8 +640,8 @@ struct ConvertSecretCastOp
         if (failed(rhsMemRefTy.getStridesAndOffset(strides, offset)))
           return rewriter.notifyMatchFailure(
               op, "failed to get stride and offset exprs");
-        auto castOp = rewriter.create<memref::ReinterpretCastOp>(
-            op.getLoc(), rhsMemRefTy, adaptor.getInput(), offset,
+        auto castOp = memref::ReinterpretCastOp::create(
+            rewriter, op.getLoc(), rhsMemRefTy, adaptor.getInput(), offset,
             rhsMemRefTy.getShape(), strides);
         rewriter.replaceOp(op, castOp);
         return success();
@@ -685,39 +687,39 @@ struct ConvertSecretConcealOp
       auto point = b.saveInsertionPoint();
       auto valueType = element.getType();
       if (valueType.getWidth() == 1) {
-        auto ctValue = b.create<lwe::TrivialEncryptOp>(
-            ctTy,
-            b.create<lwe::EncodeOp>(ptxtTy, element, plaintextBits,
-                                    ctTy.getApplicationData().getOverflow()),
+        auto ctValue = lwe::TrivialEncryptOp::create(
+            b, ctTy,
+            lwe::EncodeOp::create(b, ptxtTy, element, plaintextBits,
+                                  ctTy.getApplicationData().getOverflow()),
             ciphertextBits);
-        b.create<memref::StoreOp>(ctValue, memref, indices);
+        memref::StoreOp::create(b, ctValue, memref, indices);
         return;
       }
-      auto loop = b.create<mlir::affine::AffineForOp>(0, valueType.getWidth());
+      auto loop = mlir::affine::AffineForOp::create(b, 0, valueType.getWidth());
       b.setInsertionPointToStart(loop.getBody());
       auto idx = loop.getInductionVar();
 
-      auto one = b.create<arith::ConstantOp>(
-          valueType, rewriter.getIntegerAttr(valueType, 1));
-      auto shiftAmount = b.create<arith::IndexCastOp>(valueType, idx);
-      auto bitMask = b.create<arith::ShLIOp>(valueType, one, shiftAmount);
-      auto andOp = b.create<arith::AndIOp>(element, bitMask);
-      auto shifted = b.create<arith::ShRSIOp>(andOp, shiftAmount);
-      auto bitValue = b.create<arith::TruncIOp>(b.getI1Type(), shifted);
-      auto ctValue = b.create<lwe::TrivialEncryptOp>(
-          ctTy,
-          b.create<lwe::EncodeOp>(ptxtTy, bitValue, plaintextBits,
-                                  ctTy.getApplicationData().getOverflow()),
+      auto one = arith::ConstantOp::create(
+          b, valueType, rewriter.getIntegerAttr(valueType, 1));
+      auto shiftAmount = arith::IndexCastOp::create(b, valueType, idx);
+      auto bitMask = arith::ShLIOp::create(b, valueType, one, shiftAmount);
+      auto andOp = arith::AndIOp::create(b, element, bitMask);
+      auto shifted = arith::ShRSIOp::create(b, andOp, shiftAmount);
+      auto bitValue = arith::TruncIOp::create(b, b.getI1Type(), shifted);
+      auto ctValue = lwe::TrivialEncryptOp::create(
+          b, ctTy,
+          lwe::EncodeOp::create(b, ptxtTy, bitValue, plaintextBits,
+                                ctTy.getApplicationData().getOverflow()),
           ciphertextBits);
       indices.append({idx});
-      b.create<memref::StoreOp>(ctValue, memref, indices);
+      memref::StoreOp::create(b, ctValue, memref, indices);
       b.restoreInsertionPoint(point);
     };
 
     Value newValue;
     Value valueToStore = adaptor.getCleartext();
     if (auto memrefTy = dyn_cast<MemRefType>(convertedTy)) {
-      auto allocOp = b.create<memref::AllocOp>(memrefTy);
+      auto allocOp = memref::AllocOp::create(b, memrefTy);
       newValue = allocOp.getResult();
       if (auto inputMemrefTy =
               dyn_cast<MemRefType>(adaptor.getCleartext().getType())) {
@@ -726,7 +728,7 @@ struct ConvertSecretConcealOp
         SmallVector<Value> constIndices;
         const auto *maxDimension = llvm::max_element(inputMemrefTy.getShape());
         for (auto i = 0; i < *maxDimension; ++i) {
-          constIndices.push_back(b.create<arith::ConstantIndexOp>(i));
+          constIndices.push_back(arith::ConstantIndexOp::create(b, i));
         }
         for (auto i = 0; i < inputMemrefTy.getNumElements(); ++i) {
           // Extract the value from the original memref.
@@ -735,7 +737,7 @@ struct ConvertSecretConcealOp
               rawIndices,
               [&](int64_t index) -> Value { return constIndices[index]; });
           auto extractedValue =
-              b.create<memref::LoadOp>(valueToStore, indices).getResult();
+              memref::LoadOp::create(b, valueToStore, indices).getResult();
           storeElement(cast<TypedValue<IntegerType>>(extractedValue), indices,
                        newValue);
         }
@@ -747,10 +749,10 @@ struct ConvertSecretConcealOp
     } else {
       // The input was an i1 and the output was a scalar ct.
       assert(cast<IntegerType>(valueToStore.getType()).getWidth() == 1);
-      newValue = b.create<lwe::TrivialEncryptOp>(
-          ctTy,
-          b.create<lwe::EncodeOp>(ptxtTy, valueToStore, plaintextBits,
-                                  ctTy.getApplicationData().getOverflow()),
+      newValue = lwe::TrivialEncryptOp::create(
+          b, ctTy,
+          lwe::EncodeOp::create(b, ptxtTy, valueToStore, plaintextBits,
+                                ctTy.getApplicationData().getOverflow()),
           ciphertextBits);
     }
 

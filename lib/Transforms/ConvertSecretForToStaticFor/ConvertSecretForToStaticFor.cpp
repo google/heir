@@ -75,12 +75,12 @@ struct SecretForToStaticForConversion : OpRewritePattern<scf::ForOp> {
     ImplicitLocOpBuilder builder(forOp->getLoc(), rewriter);
 
     if (!isa<IndexType>(lowerBound.getType())) {
-      lowerBound = builder.create<arith::IndexCastOp>(
-          lowerBound.getLoc(), builder.getIndexType(), lowerBound);
+      lowerBound = arith::IndexCastOp::create(
+          builder, lowerBound.getLoc(), builder.getIndexType(), lowerBound);
     }
     if (!isa<IndexType>(upperBound.getType())) {
-      upperBound = builder.create<arith::IndexCastOp>(
-          upperBound.getLoc(), builder.getIndexType(), upperBound);
+      upperBound = arith::IndexCastOp::create(
+          builder, upperBound.getLoc(), builder.getIndexType(), upperBound);
     }
     Value newLowerBound = lowerBound;
     Value newUpperBound = upperBound;
@@ -88,8 +88,8 @@ struct SecretForToStaticForConversion : OpRewritePattern<scf::ForOp> {
     if (isLowerBoundSecret) {
       // If static lower bound is not provided, emit an error and return
       if (auto lowerBoundAttr = forOp->getAttrOfType<IntegerAttr>("lower")) {
-        newLowerBound = builder.create<arith::ConstantIndexOp>(
-            lowerBound.getLoc(), lowerBoundAttr.getInt());
+        newLowerBound = arith::ConstantIndexOp::create(
+            builder, lowerBound.getLoc(), lowerBoundAttr.getInt());
       } else {
         return emitError(
             forOp.getLoc(),
@@ -101,8 +101,8 @@ struct SecretForToStaticForConversion : OpRewritePattern<scf::ForOp> {
     if (isUpperBoundSecret) {
       // If static upper bound is not provided, emit an error and return
       if (auto upperBoundAttr = forOp->getAttrOfType<IntegerAttr>("upper")) {
-        newUpperBound = builder.create<arith::ConstantIndexOp>(
-            upperBound.getLoc(), upperBoundAttr.getInt());
+        newUpperBound = arith::ConstantIndexOp::create(
+            builder, upperBound.getLoc(), upperBoundAttr.getInt());
       } else {
         return emitError(
             forOp.getLoc(),
@@ -111,8 +111,8 @@ struct SecretForToStaticForConversion : OpRewritePattern<scf::ForOp> {
       }
     }
 
-    auto newForOp = builder.create<affine::AffineForOp>(
-        ValueRange(newLowerBound), builder.getSymbolIdentityMap(),
+    auto newForOp = affine::AffineForOp::create(
+        builder, ValueRange(newLowerBound), builder.getSymbolIdentityMap(),
         ValueRange(newUpperBound), builder.getSymbolIdentityMap(),
         forOp.getConstantStep()->getLimitedValue(), forOp.getInitArgs());
 
@@ -137,8 +137,8 @@ struct SecretForToStaticForConversion : OpRewritePattern<scf::ForOp> {
           for (Value operand : yieldOp.getOperands()) {
             mappedOperands.push_back(mp.lookupOrDefault(operand));
           }
-          builder.create<affine::AffineYieldOp>(yieldOp.getLoc(),
-                                                mappedOperands);
+          affine::AffineYieldOp::create(builder, yieldOp.getLoc(),
+                                        mappedOperands);
         } else {
           builder.clone(op, mp);
         }
@@ -154,28 +154,28 @@ struct SecretForToStaticForConversion : OpRewritePattern<scf::ForOp> {
 
     if (isLowerBoundSecret) {
       // Create arith.cmpi (iv >= oldLowerBound)
-      cmpILower = builder.create<arith::CmpIOp>(arith::CmpIPredicate::sge,
-                                                inductionVariable, lowerBound);
+      cmpILower = arith::CmpIOp::create(builder, arith::CmpIPredicate::sge,
+                                        inductionVariable, lowerBound);
     }
 
     if (isUpperBoundSecret) {
       // Create arith.cmpi (iv < oldUpperBound)
-      cmpIUpper = builder.create<arith::CmpIOp>(arith::CmpIPredicate::slt,
-                                                inductionVariable, upperBound);
+      cmpIUpper = arith::CmpIOp::create(builder, arith::CmpIPredicate::slt,
+                                        inductionVariable, upperBound);
     }
 
     // If both lowerBound and upperBound are secret, join the two arith.cmpi
     // with an arith.andi
     if (isLowerBoundSecret && isUpperBoundSecret) {
-      andI = builder.create<arith::AndIOp>(cmpILower, cmpIUpper);
+      andI = arith::AndIOp::create(builder, cmpILower, cmpIUpper);
     }
 
     // Create scf.if to conditionally execute the body of scf.for
     auto cond = isLowerBoundSecret ? isUpperBoundSecret ? andI.getResult()
                                                         : cmpILower.getResult()
                                    : cmpIUpper.getResult();
-    scf::IfOp ifOp = builder.create<scf::IfOp>(
-        cond,
+    scf::IfOp ifOp = scf::IfOp::create(
+        builder, cond,
         // 'Then' region
         [&](OpBuilder &b, Location loc) {
           // Copy body of the scf::ForOp
@@ -190,11 +190,11 @@ struct SecretForToStaticForConversion : OpRewritePattern<scf::ForOp> {
         },
         // 'Else' region
         [&](OpBuilder &b, Location loc) {
-          b.create<scf::YieldOp>(loc, newForOp.getRegionIterArgs());
+          scf::YieldOp::create(b, loc, newForOp.getRegionIterArgs());
         });
 
     // Create YieldOp for affine.for
-    builder.create<affine::AffineYieldOp>(ifOp.getResults());
+    affine::AffineYieldOp::create(builder, ifOp.getResults());
 
     // Replace scf.for with affine.for
     rewriter.replaceOp(forOp, newForOp);

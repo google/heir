@@ -156,7 +156,7 @@ void extractLoopBody(AffineForOp loop, unsigned int minimumLoopSize,
   OpBuilder builder(loop->getParentOfType<func::FuncOp>());
   auto type = builder.getFunctionType(inputTypes, result.getType());
   std::string funcName = llvm::formatv("for_{0}", mlir::hash_value(result));
-  auto funcOp = builder.create<func::FuncOp>(moduleLoc, funcName, type);
+  auto funcOp = func::FuncOp::create(builder, moduleLoc, funcName, type);
 
   // Populate function body by cloning the ops in the inner body and mapping
   // the func args and func outputs.
@@ -179,11 +179,11 @@ void extractLoopBody(AffineForOp loop, unsigned int minimumLoopSize,
   }
 
   // Add a return statement for the final cloned operation's result.
-  builder.create<func::ReturnOp>(funcOp.getLoc(), clonedOp->getResult(0));
+  func::ReturnOp::create(builder, funcOp.getLoc(), clonedOp->getResult(0));
 
   // Call the function.
   builder.setInsertionPointAfter(result.getDefiningOp());
-  auto callOp = builder.create<func::CallOp>(result.getLoc(), funcOp, inputs);
+  auto callOp = func::CallOp::create(builder, result.getLoc(), funcOp, inputs);
   result.getDefiningOp()->replaceAllUsesWith(callOp);
 
   // Erase previous ops, except for the load statements and its dependents.
