@@ -396,5 +396,28 @@ def Polynomial_EvalOp : Polynomial_Op<"eval", [AllTypesMatch<["value", "output"]
   let hasVerifier = 1;
 }
 
+def Polynomial_KeySwitchInnerOp : Polynomial_Op<"key_switch_inner",
+    [AllTypesMatch<["value", "constantOutput", "linearOutput"]>]> {
+  let summary = "Key switch on an RNS polynomial component";
+  let description = [{
+    Generates a linear ciphertext that, when added to a ciphertext encrypted
+    under the input key, switches it to a ciphertext encrypted under the output
+    key.
+
+    This operation is intended to be an internal implementation detail of
+    higher-level ciphertext operations such as `ckks.relinearize`, isolated
+    here for reuse among multiple op lowerings.
+  }];
+  let arguments = (ins
+      Polynomial_PolynomialType:$value,
+      RankedTensorOf<[Polynomial_PolynomialType]>: $keySwitchingKey
+  );
+  let results = (outs
+    Polynomial_PolynomialType:$constantOutput,
+    Polynomial_PolynomialType:$linearOutput
+  );
+  let hasVerifier = 1;
+}
+
 
 #endif  // LIB_DIALECT_POLYNOMIAL_IR_POLYNOMIALOPS_TD_

@@ -301,6 +301,16 @@ LogicalResult EvalOp::verify() {
   return success();
 }
 
+LogicalResult KeySwitchInnerOp::verify() {
+  auto keyPolyType = getKeySwitchingKey().getType().getElementType();
+  if (keyPolyType != getValue().getType()) {
+    return emitOpError() << "keySwitchingKey element type " << keyPolyType
+                         << " does not match input type "
+                         << getValue().getType();
+  }
+  return success();
+}
+
 ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
   auto loc = parser.getCurrentLocation();
 

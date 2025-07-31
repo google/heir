@@ -2,6 +2,7 @@
 
 #include <utility>
 
+#include "lib/Dialect/CKKS/IR/CKKSOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
@@ -35,6 +36,12 @@ namespace mlir::heir::lwe {
 #define GEN_PASS_DEF_LWETOPOLYNOMIAL
 #include "lib/Dialect/LWE/Conversions/LWEToPolynomial/LWEToPolynomial.h.inc"
 
+RankedTensorType convertCiphertextType(lwe::LWECiphertextType type) {
+  auto ring = type.getCiphertextSpace().getRing();
+  auto polyTy = polynomial::PolynomialType::get(type.getContext(), ring);
+  return RankedTensorType::get({type.getCiphertextSpace().getSize()}, polyTy);
+}
+
 class CiphertextTypeConverter : public TypeConverter {
  public:
   // Convert ciphertext to tensor<#dim x !poly.poly<#rings[#level]>>
@@ -45,17 +52,27 @@ class CiphertextTypeConverter : public TypeConverter {
   // TODO(#1199): properly lower LWEType (often RNS) to PolynomialType.
   CiphertextTypeConverter(MLIRContext *ctx) {
     addConversion([](Type type) { return type; });
-    addConversion([ctx](lwe::LWECiphertextType type) -> Type {
-      auto ring = type.getCiphertextSpace().getRing();
-      auto polyTy = polynomial::PolynomialType::get(ctx, ring);
+    addConversion([](lwe::LWECiphertextType type) -> Type {
+      return convertCiphertextType(type);
+    });
+    addConversion([](RankedTensorType type) -> std::optional<Type> {
+      auto ctEltTy = dyn_cast<lwe::LWECiphertextType>(type.getElementType());
+      if (!ctEltTy) {
+        return std::nullopt;
+      }
+      RankedTensorType convertedEltTy = convertCiphertextType(ctEltTy);
 
-      return RankedTensorType::get({type.getCiphertextSpace().getSize()},
-                                   polyTy);
+      // If the input type is tensor<d1 x d2 x !ciphertext>, then the result is
+      // a tensor<d1 x d2 x N x !poly>>
+      SmallVector<int64_t> shape(type.getShape());
+      shape.insert(shape.end(), convertedEltTy.getShape().begin(),
+                   convertedEltTy.getShape().end());
+
+      return RankedTensorType::get(shape, convertedEltTy.getElementType());
     });
     addConversion([ctx](lwe::LWEPlaintextType type) -> Type {
       auto ring = type.getPlaintextSpace().getRing();
-      auto polyTy = polynomial::PolynomialType::get(ctx, ring);
-      return polyTy;
+      return polynomial::PolynomialType::get(ctx, ring);
     });
     addConversion([ctx](lwe::LWESecretKeyType type) -> Type {
       auto ring = type.getRing();
@@ -478,6 +495,46 @@ struct ConvertRMulPlain : public OpConversionPattern<RMulPlainOp> {
   }
 };
 
+struct ConvertRelin : public OpConversionPattern<ckks::RelinearizeOp> {
+  ConvertRelin(mlir::MLIRContext *context)
+      : OpConversionPattern<ckks::RelinearizeOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      ckks::RelinearizeOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    if (!op.getKeySwitchingKey()) {
+      return failure();
+    }
+
+    Value zero = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), 0);
+    Value one = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), 1);
+    Value two = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), 2);
+    Value input0 = rewriter.create<tensor::ExtractOp>(op.getLoc(),
+                                                      adaptor.getInput(), zero);
+    Value input1 = rewriter.create<tensor::ExtractOp>(op.getLoc(),
+                                                      adaptor.getInput(), one);
+    Value input2 = rewriter.create<tensor::ExtractOp>(op.getLoc(),
+                                                      adaptor.getInput(), two);
+    polynomial::KeySwitchInnerOp ksInnerOp =
+        rewriter.create<polynomial::KeySwitchInnerOp>(
+            op.getLoc(), input2, adaptor.getKeySwitchingKey());
+
+    Value comp0 = rewriter.create<polynomial::AddOp>(
+        op.getLoc(), input0, ksInnerOp.getConstantOutput());
+    Value comp1 = rewriter.create<polynomial::AddOp>(
+        op.getLoc(), input1, ksInnerOp.getLinearOutput());
+    Type outputType = RankedTensorType::get(
+        {static_cast<int64_t>(2)},
+        getElementTypeOrSelf(adaptor.getInput().getType()));
+    auto result = rewriter.create<tensor::FromElementsOp>(
+        op.getLoc(), outputType, ValueRange{comp0, comp1});
+    rewriter.replaceOp(op, result);
+    return success();
+  }
+};
+
 struct LWEToPolynomial : public impl::LWEToPolynomialBase<LWEToPolynomial> {
   void runOnOperation() override {
     MLIRContext *context = &getContext();
@@ -491,9 +548,11 @@ struct LWEToPolynomial : public impl::LWEToPolynomialBase<LWEToPolynomial> {
 
     patterns.add<ConvertRLWEDecrypt, ConvertRLWEEncrypt, ConvertRAdd,
                  ConvertRSub, ConvertRNegate, ConvertRMul, ConvertRAddPlain,
-                 ConvertRSubPlain, ConvertRMulPlain>(typeConverter, context);
+                 ConvertRSubPlain, ConvertRMulPlain, ConvertRelin>(
+        typeConverter, context);
     target.addIllegalOp<RLWEDecryptOp, RLWEEncryptOp, RAddOp, RSubOp, RNegateOp,
-                        RMulOp, RAddPlainOp, RSubPlainOp, RMulPlainOp>();
+                        RMulOp, RAddPlainOp, RSubPlainOp, RMulPlainOp,
+                        ckks::RelinearizeOp>();
 
     addStructuralConversionPatterns(typeConverter, patterns, target);
 
