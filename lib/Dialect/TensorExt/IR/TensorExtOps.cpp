@@ -54,33 +54,46 @@ LogicalResult RotateOp::verify() {
   return success();
 }
 
-LogicalResult verifyLayoutMatchesType(const LayoutAttr &layout, Type type,
+LogicalResult verifyLayoutMatchesType(const Attribute &layoutAttr, Type type,
                                       Operation *op) {
   auto shapedType = dyn_cast<ShapedType>(type);
-  int64_t startingRank = 0;
-  if (shapedType) {
-    startingRank = shapedType.getRank();
-  }
 
-  int64_t incRank = 0;
-  if (layout.getAlignment() && layout.getAlignment().getInsertedDims())
-    incRank = layout.getAlignment().getInsertedDims().size();
+  if (auto layout = dyn_cast<LayoutAttr>(layoutAttr)) {
+    int64_t startingRank = 0;
+    if (shapedType) {
+      startingRank = shapedType.getRank();
+    }
 
-  int64_t rank = startingRank + incRank;
-  if (rank != layout.getMap().getNumDims()) {
-    return op->emitOpError()
-           << "requires tensor rank (after alignment) to match the layout "
-              "map's dimension count but found rank "
-           << rank << " and layout " << layout;
-  }
+    int64_t incRank = 0;
+    if (layout.getAlignment() && layout.getAlignment().getInsertedDims())
+      incRank = layout.getAlignment().getInsertedDims().size();
 
-  if (layout.getAlignment() && layout.getAlignment().getOut()) {
-    if (layout.getAlignment().getOut().size() != rank) {
+    int64_t rank = startingRank + incRank;
+    if (rank != layout.getMap().getNumDims()) {
       return op->emitOpError()
              << "requires tensor rank (after alignment) to match the layout "
-                "alignment's `out` parameter but `out` rank was "
-             << layout.getAlignment().getOut().size() << " and tensor rank was "
-             << rank;
+                "map's dimension count but found rank "
+             << rank << " and layout " << layout;
+    }
+
+    if (layout.getAlignment() && layout.getAlignment().getOut()) {
+      if (layout.getAlignment().getOut().size() != rank) {
+        return op->emitOpError()
+               << "requires tensor rank (after alignment) to match the layout "
+                  "alignment's `out` parameter but `out` rank was "
+               << layout.getAlignment().getOut().size()
+               << " and tensor rank was " << rank;
+      }
+    }
+  }
+
+  if (auto newLayout = dyn_cast<NewLayoutAttr>(layoutAttr)) {
+    if (shapedType && newLayout.getDomainSize() != shapedType.getRank()) {
+      return op->emitOpError()
+             << "requires tensor rank to match the layout's domain size, "
+                "but found rank "
+             << shapedType.getRank() << " and domain size "
+             << newLayout.getDomainSize();
     }
   }
 

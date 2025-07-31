@@ -1,5 +1,6 @@
 #include "lib/Transforms/LayoutPropagation/LayoutPropagation.h"
 
+#include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <optional>
@@ -29,15 +30,17 @@
 #include "mlir/include/mlir/IR/AffineExpr.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/AffineMap.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/Diagnostics.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"           // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
+#include "mlir/include/mlir/Support/WalkResult.h"    // from @llvm-project
 
 #define DEBUG_TYPE "layout-propagation"
 
@@ -659,7 +662,7 @@ LogicalResult LayoutPropagation::visitOperation(affine::AffineForOp op) {
         return op->emitError()
                << "Failed to assign default layout to init " << init;
       }
-      layout = res.value().getLayout();
+      layout = cast<LayoutAttr>(res.value().getLayout());
     } else {
       layout = assignedLayouts.at(init);
     }

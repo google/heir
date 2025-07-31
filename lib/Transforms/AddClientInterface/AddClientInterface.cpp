@@ -1,5 +1,6 @@
 #include "lib/Transforms/AddClientInterface/AddClientInterface.h"
 
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -15,6 +16,7 @@
 #include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Block.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
@@ -28,7 +30,8 @@
 #include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
 
 // IWYU pragma: begin_keep
-#include "mlir/include/mlir/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/WalkResult.h"  // from @llvm-project
+#include "mlir/include/mlir/Transforms/Passes.h"   // from @llvm-project
 // IWYU pragma: end_keep
 
 #define DEBUG_TYPE "add-client-interface"
@@ -182,7 +185,7 @@ LogicalResult generateDecryptionFunc(func::FuncOp op, Type decFuncArgType,
       Type dataSemanticType = originalTypeAttr.getOriginalType();
       auto unpackOp = tensor_ext::UnpackOp::create(
           builder, dataSemanticType, decrypted.getResult(),
-          originalTypeAttr.getLayout());
+          cast<tensor_ext::LayoutAttr>(originalTypeAttr.getLayout()));
 
       Value res =
           implementUnpackOp(unpackOp, builder, [&](Operation *createdOp) {});

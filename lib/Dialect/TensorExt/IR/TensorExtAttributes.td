@@ -186,6 +186,42 @@ def TensorExt_LayoutAttr : TensorExt_Attr<"Layout", "layout"> {
   let genVerifyDecl = 1;
 }
 
+// TODO(#2047): replace tensor_ext.layout attribute with this (rename to remove New)
+def TensorExt_NewLayoutAttr : TensorExt_Attr<"NewLayout", "new_layout"> {
+  let summary = "The description of the layout of a data-semantic tensor.";
+  let description = [{
+    This attribute describes how a data-semantic tensor is laid out
+    among a tensor of ciphertexts. The layout is described by an integer relation
+    $(d, s)$, where $d$ is a multiset of data-semantic tensor indices and $s$
+    is a multiset of slot indices (or coefficient indices).
+    The elements of the relation are defined by a set of quasi-affine constraints.
+
+    I.e., a point $((2, 3), (7, 0))$ in the relation says that the data entry
+    at index $(2, 3)$ is placed in slot 0 of ciphertext 7. This could be
+    defined as part of the relation by a constraint like `row + col + 2 - ct +
+    slot = 0`.
+  }];
+  // Note that we use IntegerSet here because it's hashable upstream while
+  // IntegerRelation is not. So we have a helper function below to reconstruct
+  // the relation from the attribute.
+  let parameters = (ins "unsigned":$domainSize, "::mlir::IntegerSet":$relation);
+  let assemblyFormat = ?;
+  let hasCustomAssemblyFormat = 1;
+
+  // TODO(#2047): add a sensible verifier
+  // let genVerifyDecl = 1;
+
+  let extraClassDeclaration = [{
+    presburger::IntegerRelation getIntegerRelation() const {
+      presburger::IntegerRelation relation =
+          affine::FlatAffineValueConstraints(getRelation());
+      relation.convertVarKind(presburger::VarKind::SetDim, 0, getDomainSize(),
+                              presburger::VarKind::Domain);
+      return relation;
+    }
+  }];
+}
+
 def TensorExt_OriginalTypeAttr : TensorExt_Attr<"OriginalType", "original_type"> {
   let summary = "The original type of a secret tensor whose layout has been converted to ciphertext semantics.";
   let description = [{
@@ -198,7 +234,7 @@ def TensorExt_OriginalTypeAttr : TensorExt_Attr<"OriginalType", "original_type">
   }];
   let parameters = (ins
     "::mlir::Type":$originalType,
-    TensorExt_LayoutAttr:$layout
+    "::mlir::Attribute":$layout
   );
   let assemblyFormat =  "`<` struct(params) `>`";
 }

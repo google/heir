@@ -2,12 +2,17 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <optional>
+#include <string>
 
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/TypeConversion.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"        // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -27,7 +32,11 @@
 namespace mlir {
 namespace heir {
 
+using ::mlir::presburger::BoundType;
+using ::mlir::presburger::IntegerRelation;
+using ::mlir::presburger::VarKind;
 using tensor_ext::LayoutAttr;
+using tensor_ext::NewLayoutAttr;
 
 namespace {
 
@@ -153,14 +162,18 @@ FailureOr<Value> implementAssignLayoutForTensor(
     tensor_ext::AssignLayoutOp op, int64_t ciphertextSize,
     ImplicitLocOpBuilder &builder,
     const std::function<void(Operation *)> &createdOpCallback) {
+  LayoutAttr layout = dyn_cast<LayoutAttr>(op.getLayout());
+  if (!layout) {
+    return op.emitError()
+           << "Expected layout to be an IntegerRelation-style layout";
+  }
   RankedTensorType dataSemanticType =
       cast<RankedTensorType>(op.getValue().getType());
   RankedTensorType ciphertextSemanticType = cast<RankedTensorType>(
-      materializeLayout(dataSemanticType, op.getLayout(), ciphertextSize));
+      materializeLayout(dataSemanticType, layout, ciphertextSize));
   LLVM_DEBUG(llvm::dbgs() << "Converting AssignLayoutOp to use result type "
                           << ciphertextSemanticType << "\n");
   Value input = op.getValue();
-  LayoutAttr layout = op.getLayout();
 
   // Not all aspects of a replication attribute may be applied. In some rare
   // cases, the input type may already be materialized and no work is
@@ -230,7 +243,7 @@ FailureOr<Value> implementAssignLayoutForTensor(
     createdOpCallback(emptyOp);
 
     SmallVector<utils::IteratorType> iteratorTypes(
-        op.getLayout().getMap().getNumDims(), utils::IteratorType::parallel);
+        layout.getMap().getNumDims(), utils::IteratorType::parallel);
     SmallVector<AffineMap> indexingMaps = {
         // The first map corresponds to how the iteration indices map to the
         // input tensor indices. This is the identity because the loop is
@@ -264,14 +277,18 @@ FailureOr<Value> implementAssignLayoutForScalar(
     tensor_ext::AssignLayoutOp op, int64_t ciphertextSize,
     ImplicitLocOpBuilder &builder,
     const std::function<void(Operation *)> &createdOpCallback) {
+  LayoutAttr layout = dyn_cast<LayoutAttr>(op.getLayout());
+  if (!layout) {
+    return op.emitError()
+           << "Expected layout to be an IntegerRelation-style layout";
+  }
   RankedTensorType ciphertextSemanticType =
-      cast<RankedTensorType>(materializeScalarLayout(
-          op.getResult().getType(), op.getLayout(), ciphertextSize));
+      cast<RankedTensorType>(materializeScalarLayout(op.getResult().getType(),
+                                                     layout, ciphertextSize));
   LLVM_DEBUG(
       llvm::dbgs() << "Converting AssignLayoutOp for scalar to use result type "
                    << ciphertextSemanticType << "\n");
 
-  LayoutAttr layout = op.getLayout();
   tensor_ext::AlignmentAttr alignment = layout.getAlignment();
   Value scalar = op.getValue();
 
@@ -398,12 +415,68 @@ Value implementUnpackOpForScalar(
   return splatOp.getResult();
 }
 
+std::string printRelation(const IntegerRelation &rel) {
+  std::string str;
+  llvm::raw_string_ostream os(str);
+  rel.print(os);
+  return str;
+}
+
+FailureOr<Value> implementAssignLayoutNew(
+    tensor_ext::AssignLayoutOp op, int64_t ciphertextSize,
+    ImplicitLocOpBuilder &builder,
+    const std::function<void(Operation *)> &createdOpCallback) {
+  NewLayoutAttr layout = dyn_cast<NewLayoutAttr>(op.getLayout());
+  if (!layout) {
+    return op.emitError()
+           << "Expected layout to be an IntegerRelation-style layout";
+  }
+
+  RankedTensorType dataSemanticType =
+      cast<RankedTensorType>(op.getValue().getType());
+  llvm::SmallVector<int64_t> dataSemanticShape;
+
+  IntegerRelation rel = layout.getIntegerRelation();
+  for (unsigned varPos = rel.getVarKindOffset(VarKind::Range);
+       varPos < rel.getVarKindEnd(VarKind::Range); ++varPos) {
+    // The input variables are the data semantic tensor's axes.
+    std::optional<int64_t> dimBound =
+        rel.getConstantBound64(BoundType::UB, varPos);
+    if (!dimBound) {
+      return op.emitError()
+             << "Required all range variables to have an inferable upper "
+                "bound, "
+                "but found no upper bound for variable at position "
+             << varPos << " in relation " << printRelation(rel);
+    }
+    dataSemanticShape.push_back(1 + dimBound.value());
+  }
+
+  [[maybe_unused]] RankedTensorType ciphertextSemanticType =
+      RankedTensorType::get(dataSemanticShape,
+                            dataSemanticType.getElementType());
+
+  LLVM_DEBUG(llvm::dbgs() << "Converting AssignLayoutOp to use result type "
+                          << ciphertextSemanticType << "\n");
+  [[maybe_unused]] Value input = op.getValue();
+
+  return failure();
+}
+
 }  // namespace
 
 FailureOr<Value> implementAssignLayout(
     tensor_ext::AssignLayoutOp op, int64_t ciphertextSize,
     ImplicitLocOpBuilder &builder,
     const std::function<void(Operation *)> &createdOpCallback) {
+  // TODO(#2047): add a scalar version or augment scalar version below to
+  // support new layout attr
+  if (isa<NewLayoutAttr>(op.getLayout()) &&
+      isa<RankedTensorType>(op.getResult().getType())) {
+    return implementAssignLayoutNew(op, ciphertextSize, builder,
+                                    createdOpCallback);
+  }
+
   if (isa<RankedTensorType>(op.getResult().getType())) {
     return implementAssignLayoutForTensor(op, ciphertextSize, builder,
                                           createdOpCallback);
