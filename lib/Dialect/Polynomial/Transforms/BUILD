@@ -1,6 +1,7 @@
 # Polynomial pass tablegen and headers.
 
 load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
