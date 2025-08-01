@@ -20,8 +20,9 @@ struct LoopNest {
 
   // Constraints for the body of the loop nest
   std::vector<AffineExpr> constraints;
+
   // Whether each constraint above is an equality of inequality; true means
-  // equality.
+  // equality. The other side of the equality or inequality is always zero.
   std::vector<bool> eq;
 
   bool operator==(const LoopNest& other) const {
@@ -54,7 +55,7 @@ inline std::ostream& operator<<(std::ostream& os, const LoopNest& x) {
     llvmOs << ", ";
   }
   llvmOs.flush();
-  os << ")";
+  os << "])";
   return os;
 }
 
