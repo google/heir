@@ -1,3 +1,5 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
 # TargetSlotAnalysis analysis pass
 package(
     default_applicable_licenses = ["@heir//:license"],

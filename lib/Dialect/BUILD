@@ -2,6 +2,7 @@
 
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
