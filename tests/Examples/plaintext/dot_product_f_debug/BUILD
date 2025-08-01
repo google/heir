@@ -1,4 +1,5 @@
 load("@heir//tests/Examples/plaintext:test.bzl", "plaintext_test")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 package(default_applicable_licenses = ["@heir//:license"])
 

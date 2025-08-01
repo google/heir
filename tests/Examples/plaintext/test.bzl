@@ -3,6 +3,8 @@
 load("@heir//tools:heir-opt.bzl", "heir_opt")
 load("@heir//tools:llc.bzl", "llc")
 load("@heir//tools:mlir-translate.bzl", "mlir_translate")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
 def executable_attr():
     """A helper for declaring executable dependencies."""
@@ -107,8 +109,7 @@ def plaintext_test(name, mlir_src, heir_opt_flags, mlir_translate_flags = None, 
     )
 
     cc_test_name = "%s_cc_test" % name
-
-    native.cc_test(
+    cc_test(
         name = cc_test_name,
         srcs = [":" + generated_llc_name],
         deps = deps,
@@ -118,8 +119,7 @@ def plaintext_test(name, mlir_src, heir_opt_flags, mlir_translate_flags = None, 
     # the following part is for exporting the log for other tests
     if log_file_name != None:
         cc_binary_name = "%s_cc_binary" % name
-
-        native.cc_binary(
+        cc_binary(
             name = cc_binary_name,
             srcs = [":" + generated_llc_name],
             deps = deps,
