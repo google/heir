@@ -13,12 +13,16 @@ namespace {
 
 using ::testing::Eq;
 
-TEST(CodegenTest, SimpleTest) {
+// FIXME: this test should require only one loop because d0 == d1
+TEST(CodegenTest, NaiveExpensiveLoop) {
   MLIRContext context(MLIRContext::Threading::DISABLED);
   presburger::IntegerRelation relation = relationFromString(
       "(d0, d1) : (d0 - d1 == 0, d0 >= 0, d1 >= 0, 10 >= d0, 10 >= d1)", 1,
       &context);
-  auto loopNest = generateLoopNest(relation, &context);
+  auto loopNestRes = generateLoopNest(relation, &context);
+  ASSERT_TRUE(succeeded(loopNestRes));
+
+  auto actual = loopNestRes.value();
 
   LoopNest expected;
   expected.numInductionVars = 2;
@@ -28,9 +32,13 @@ TEST(CodegenTest, SimpleTest) {
   OpBuilder b(&context);
   auto d0 = b.getAffineDimExpr(0);
   auto d1 = b.getAffineDimExpr(1);
-  expected.constraints.push_back(d1 - d0);
+  expected.constraints.push_back(d0 - d1);
+  expected.constraints.push_back(d0);
+  expected.constraints.push_back(d1);
+  expected.constraints.push_back(10 - d0);
+  expected.constraints.push_back(10 - d1);
 
-  ASSERT_THAT(loopNest, Eq(expected));
+  ASSERT_THAT(actual, Eq(expected));
 }
 
 }  // namespace

@@ -1,5 +1,7 @@
 #include "lib/Utils/Layout/Codegen.h"
 
+#include <iostream>
+
 #include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVectorExtras.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
@@ -31,6 +33,7 @@ FailureOr<LoopNest> generateLoopNest(const IntegerRelation& rel,
   SmallVector<AffineDimExpr, 4> inductionVars;
 
   // Generate a naive loop nest with no simplification
+  nest.numInductionVars = 0;
   for (int i = 0; i < rel.getNumVars(); ++i) {
     auto res = getProjectedBounds(rel, i);
     if (failed(res)) {
@@ -48,7 +51,7 @@ FailureOr<LoopNest> generateLoopNest(const IntegerRelation& rel,
           return llvm::int64fromDynamicAPInt(val);
         });
     AffineExpr expr = getAffineExprFromFlatForm(
-        constraint, constraint.size(), nest.numInductionVars, {}, context);
+        constraint, nest.numInductionVars, 0, {}, context);
     nest.constraints.push_back(expr);
     nest.eq.push_back(true);
   }
@@ -59,7 +62,7 @@ FailureOr<LoopNest> generateLoopNest(const IntegerRelation& rel,
           return llvm::int64fromDynamicAPInt(val);
         });
     AffineExpr expr = getAffineExprFromFlatForm(
-        constraint, constraint.size(), nest.numInductionVars, {}, context);
+        constraint, nest.numInductionVars, 0, {}, context);
     nest.constraints.push_back(expr);
     nest.eq.push_back(false);
   }
