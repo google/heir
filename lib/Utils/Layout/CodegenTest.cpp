@@ -21,14 +21,14 @@ TEST(CodegenTest, SimpleTest) {
   auto loopNest = generateLoopNest(relation, &context);
 
   LoopNest expected;
-  expected.numIterationVars = 2;
+  expected.numInductionVars = 2;
   expected.lowerBounds = {0, 0};
   expected.upperBounds = {10, 10};
 
   OpBuilder b(&context);
   auto d0 = b.getAffineDimExpr(0);
   auto d1 = b.getAffineDimExpr(1);
-  expected.conditions.push_back(d1 - d0);
+  expected.constraints.push_back(d1 - d0);
 
   ASSERT_THAT(loopNest, Eq(expected));
 }
