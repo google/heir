@@ -1,5 +1,7 @@
 #include "lib/Utils/Layout/Codegen.h"
 
+#include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVectorExtras.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/IntegerSet.h"  // from @llvm-project
 
@@ -26,6 +28,7 @@ FailureOr<std::pair<int64_t, int64_t>> getProjectedBounds(
 FailureOr<LoopNest> generateLoopNest(const IntegerRelation& rel,
                                      MLIRContext* context) {
   LoopNest nest;
+  SmallVector<AffineDimExpr, 4> inductionVars;
 
   // Generate a naive loop nest with no simplification
   for (int i = 0; i < rel.getNumVars(); ++i) {
@@ -36,19 +39,29 @@ FailureOr<LoopNest> generateLoopNest(const IntegerRelation& rel,
     auto [lower, upper] = res.value();
     nest.lowerBounds.push_back(lower);
     nest.upperBounds.push_back(upper);
-    nest.numIterationVars++;
+    nest.numInductionVars++;
   }
 
   for (int i = 0; i < rel.getNumEqualities(); ++i) {
-    auto constraint = rel.getEquality(i);
-    // FIXME: convert to AffineExpr
-    nest.conditions.push_back(constraint.getAffineExpr());
+    SmallVector<int64_t> constraint =
+        llvm::map_to_vector(rel.getEquality(i), [](const DynamicAPInt& val) {
+          return llvm::int64fromDynamicAPInt(val);
+        });
+    AffineExpr expr = getAffineExprFromFlatForm(
+        constraint, constraint.size(), nest.numInductionVars, {}, context);
+    nest.constraints.push_back(expr);
+    nest.eq.push_back(true);
   }
 
   for (int i = 0; i < rel.getNumInequalities(); ++i) {
-    auto constraint = rel.getInequality(i);
-    // FIXME: convert to AffineExpr
-    nest.conditions.push_back(constraint.getAffineExpr());
+    SmallVector<int64_t> constraint =
+        llvm::map_to_vector(rel.getInequality(i), [](const DynamicAPInt& val) {
+          return llvm::int64fromDynamicAPInt(val);
+        });
+    AffineExpr expr = getAffineExprFromFlatForm(
+        constraint, constraint.size(), nest.numInductionVars, {}, context);
+    nest.constraints.push_back(expr);
+    nest.eq.push_back(false);
   }
   return nest;
 }
