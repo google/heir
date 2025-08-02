@@ -36,97 +36,159 @@ FailureOr<std::pair<int64_t, int64_t>> getProjectedBounds(
 }
 
 // A class to manage a multi-step analysis of an integer relation's tableau.
-class TableauAnalysis {
+class LoopNestGenerator {
  public:
-  TableauAnalysis(const IntegerRelation& rel, MLIRContext* context)
+  LoopNestGenerator(const IntegerRelation& rel, MLIRContext* context)
       : rel(rel), context(context){};
 
-  LogicalResult runAnalysis() {
-    // The order of these steps matters. First we eliminate local variables,
-    // then nonlocal vars using the expressions for eliminated local variables.
-    // The remaining non-eliminated variables become induction variables.
-    tryEliminateLocalVars();
-    tryEliminateNonlocalVars();
-    identifyInductionVars();
-    if (failed(estimateProjectedBounds())) {
-      return failure();
+  LogicalResult run() {
+    // We are free to pick the order of the induction variables in the loop,
+    // and we happen to know that layouts defined by valid ciphertext packings
+    // are partial functions from the range to the domain. So in the best case,
+    // we can iterate over the range varianges (which we generally will have to
+    // do), and then eliminate all other variables, leaving us with the optimal
+    // loop nest.
+    //
+    // Step 1: turn each range variable into an induction variable.
+    for (unsigned i = rel.getVarKindOffset(VarKind::Range);
+         i < rel.getVarKindEnd(VarKind::Range); ++i) {
+      inductionVars.push_back(i);
+      auto res = getProjectedBounds(rel, i);
+      if (failed(res)) {
+        return failure();
+      }
+      inductionVarBounds[i] = res.value();
     }
+
+    while (moreVariablesToProcess()) {
+      // Step 2: determine if any local variables or domain variables can be
+      // written purely in terms of the induction variables so far. If one can
+      // add an expression for the eliminated variable (which will be
+      // materialized as an arithmetic statement in the loop) and then keep
+      // doing this until no more variables remain or none can be eliminated.
+      bool changed = true;
+      while (changed && moreVariablesToProcess()) {
+        changed = tryEliminateVars();
+      }
+
+      if (!moreVariablesToProcess()) {
+        // No more variables to process, we are done.
+        break;
+      }
+
+      // Step 3: Pick the next variable to be an induction variable and repeat.
+      unsigned nextVar = findFallbackInductionVar();
+      inductionVars.push_back(nextVar);
+      auto res = getProjectedBounds(rel, nextVar);
+      if (failed(res)) {
+        return failure();
+      }
+      inductionVarBounds[nextVar] = res.value();
+    }
+
     return success();
   }
 
-  void tryEliminateLocalVars() {
-    if (rel.getNumLocalVars() == 0) {
-      return;
-    }
-    eliminatedVariables.reserve(rel.getNumLocalVars());
+  inline bool moreVariablesToProcess() const {
+    return inductionVars.size() + eliminatedVariables.size() < rel.getNumVars();
+  }
 
+  // Find the first variable that is not an induction variable or eliminated.
+  inline unsigned findFallbackInductionVar() const {
+    for (unsigned i = 0; i < rel.getNumVars(); ++i) {
+      if (eliminatedVariables.count(i) == 0 &&
+          !llvm::is_contained(inductionVars, i)) {
+        return i;
+      }
+    }
+    llvm_unreachable("No more variables to process");
+    return -1;
+  }
+
+  FailureOr<AffineExpr> tryIsolateVar(unsigned varIndex,
+                                      const SmallVector<int64_t>& equality) {
+    // Try to isolate the variable at `varIndex` in the given equality.
+    // If it is not possible, return failure.
+    //
+    // The coefficient of the variable is divided through the rest of the expr.
+    // We negate the coefficient of the variable because we move it to the
+    // other side of the equality before dividing. E.g.,
+    //
+    // Tableau row 1  -1  -2  0  == 0 corresponds to d0 - d1 - 2q + 0 == 0
+    //
+    // And to isolate q we convert it to
+    //
+    //   d0 - d1 == 2q
+    //
+    // and divide through by 2.
+    int64_t divisor = -equality[varIndex];
+    if (divisor == 0) {
+      return failure();
+    }
+
+    AffineExpr expr = getAffineConstantExpr(0, context);
+    for (unsigned i = 0; i < equality.size(); ++i) {
+      if (i == varIndex) continue;     // Skip the variable we are isolating.
+      if (equality[i] == 0) continue;  // Skip zero coefficients.
+      expr = expr + getAffineDimExpr(i, context) * equality[i];
+    }
+    expr = expr.floorDiv(divisor);
+
+    // If the expr can be written purely in terms of eliminated variables and
+    // induction variables, then we can isolate it. Test this by replacing all
+    // eliminated dims with zero, and checking if the affine expr is constant.
+    SmallVector<AffineExpr> dimReplacements;
+    for (unsigned i = 0; i < rel.getNumVars(); ++i) {
+      if (eliminatedVariables.count(i) > 0 ||
+          llvm::is_contained(inductionVars, i)) {
+        dimReplacements.push_back(getAffineConstantExpr(0, context));
+      } else {
+        // Do not replace anything else
+        dimReplacements.push_back(getAffineDimExpr(i, context));
+      }
+    }
+    AffineExpr testExpr = expr.replaceDims(dimReplacements);
+    if (testExpr.isSymbolicOrConstant()) {
+      return expr;
+    }
+
+    return failure();
+  }
+
+  bool tryEliminateVars() {
     // index i corresponds to the i-th variable in the relation.
     SmallVector<AffineExpr, 4> dims;
     for (unsigned i = 0; i < rel.getNumVars(); ++i) {
       dims.push_back(getAffineDimExpr(i, context));
     }
 
-    // For each local variable, we find an equality that uses the variable and
+    // For each variable, try to find an equality that uses the variable and
     // isolate it.
-    // FIXME: also support replacing local variables in terms of previously
-    // found replacements.
-    for (unsigned j = rel.getVarKindOffset(VarKind::Local);
-         j < rel.getVarKindEnd(VarKind::Local); ++j) {
-      // This always finds the first equality with a non-zero coefficient,
-      // though perhaps we may need to find a different one, if the local
-      // variable we're eliminating has a simpler equality that shows up later,
-      // e.g., maybe the first equality found has another local variable in it,
-      // but a later one has only domain/range vars.
-      //
-      // FIXME: replace this with a search for the first equality that has only
-      // domain/range variables in it, or local variables that have already been
-      // eliminated.
-      std::optional<unsigned> nonzeroConstraintIndex =
-          rel.findConstraintWithNonZeroAt(j, /*isEq=*/true);
-      if (!nonzeroConstraintIndex.has_value()) {
-        eliminatedVariables[j] =
-            getAffineConstantExpr(0, context);  // local var == zero
+    for (unsigned j = 0; j < rel.getNumVars(); ++j) {
+      if (eliminatedVariables.count(j) > 0 ||
+          llvm::is_contained(inductionVars, j)) {
+        // Already eliminated or is an induction variable.
+        continue;
       }
-      SmallVector<int64_t> constraint =
-          rel.getEquality64(nonzeroConstraintIndex.value());
 
-      // The coefficient of the local variable is divided through the rest of
-      // the expr. We negate the coefficient of the local variable because we
-      // move it to the other side of the equality before dividing. E.g.,
-      //
-      // Tableau row 1  -1  -2  0  == 0 corresponds to d0 - d1 - 2q + 0 == 0
-      //
-      // And to isolate q we convert it to
-      //
-      //   d0 - d1 == 2q
-      //
-      // and divide through by 2.
-      int64_t divisor = -constraint[j];
-      AffineExpr localExpr = getAffineConstantExpr(0, context);
-      for (unsigned i = 0; i < constraint.size(); ++i) {
-        if (i == j) continue;  // Don't include the local variable.
-        if (constraint[i] == 0) continue;
-        localExpr = localExpr + dims[i] * constraint[i];
-      }
-      localExpr = localExpr.floorDiv(divisor);
-
-      LLVM_DEBUG(llvm::errs() << "Identified local expr for variable " << j
-                              << ": " << localExpr << "\n");
-
-      eliminatedVariables[j] = localExpr;
-    }
-  }
-
-  void tryEliminateNonlocalVars() {}
-
-  void identifyInductionVars() {
-    // The induction variables are those that are not eliminated, i.e., they
-    // are not in the eliminatedVariables map.
-    for (unsigned i = 0; i < rel.getNumVars(); ++i) {
-      if (eliminatedVariables.count(i) == 0) {
-        inductionVars.push_back(i);
+      for (unsigned i = 0; i < rel.getNumEqualities(); ++i) {
+        SmallVector<int64_t> equality = rel.getEquality64(i);
+        if (equality[j] == 0) {
+          // This equality does not use the variable.
+          continue;
+        }
+        FailureOr<AffineExpr> res = tryIsolateVar(j, equality);
+        if (succeeded(res)) {
+          AffineExpr localExpr = res.value();
+          LLVM_DEBUG(llvm::errs() << "Identified local expr for variable " << j
+                                  << ": " << localExpr << "\n");
+          eliminatedVariables[j] = localExpr;
+          return true;
+        }
       }
     }
+
+    return false;
   }
 
   LogicalResult estimateProjectedBounds() {
@@ -205,25 +267,29 @@ FailureOr<LoopNest> generateLoopNest(const IntegerRelation& rel,
   std::unique_ptr<IntegerRelation> cloneRel = rel.clone();
   cloneRel->simplify();
   cloneRel->removeTrivialRedundancy();
+  cloneRel->dump();
 
-  TableauAnalysis analysis(rel, context);
-  if (failed(analysis.runAnalysis())) {
+  LoopNestGenerator gen(rel, context);
+  if (failed(gen.run())) {
     return failure();
   }
 
+  // FIXME: update LoopNext construction now that the new analysis
+  // eliminates induction variables; we need something new to describe
+  // the assignments of eliminated variables!
   LoopNest nest;
   SmallVector<AffineDimExpr, 4> inductionVars;
 
-  nest.numInductionVars = analysis.getInductionVars().size();
-  for (auto i : analysis.getInductionVars()) {
-    auto [lower, upper] = analysis.getInductionVarBounds(i);
+  nest.numInductionVars = gen.getInductionVars().size();
+  for (auto i : gen.getInductionVars()) {
+    auto [lower, upper] = gen.getInductionVarBounds(i);
     nest.lowerBounds.push_back(lower);
     nest.upperBounds.push_back(upper);
   }
 
   for (int i = 0; i < cloneRel->getNumEqualities(); ++i) {
     SmallVector<int64_t> constraint = cloneRel->getEquality64(i);
-    AffineExpr expr = analysis.convertConstraintToAffineExpr(i, true);
+    AffineExpr expr = gen.convertConstraintToAffineExpr(i, true);
     nest.constraints.push_back(expr);
     nest.eq.push_back(true);
   }
@@ -231,7 +297,7 @@ FailureOr<LoopNest> generateLoopNest(const IntegerRelation& rel,
   for (int i = 0; i < cloneRel->getNumInequalities(); ++i) {
     std::cerr << "step" << i << "\n";
     SmallVector<int64_t> constraint = cloneRel->getInequality64(i);
-    AffineExpr expr = analysis.convertConstraintToAffineExpr(i, false);
+    AffineExpr expr = gen.convertConstraintToAffineExpr(i, false);
     nest.constraints.push_back(expr);
     nest.eq.push_back(false);
   }

@@ -28,9 +28,9 @@ TEST(CodegenTest, PureAffineEquality) {
   auto actual = loopNestRes.value();
 
   LoopNest expected;
-  expected.numInductionVars = 2;
-  expected.lowerBounds = {0, 0};
-  expected.upperBounds = {10, 10};
+  expected.numInductionVars = 1;
+  expected.lowerBounds = {0};
+  expected.upperBounds = {10};
 
   OpBuilder b(&context);
   auto d0 = b.getAffineDimExpr(0);
