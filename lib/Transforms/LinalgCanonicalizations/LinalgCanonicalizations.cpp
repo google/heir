@@ -184,6 +184,11 @@ struct FoldConstantFill : public OpRewritePattern<mlir::linalg::FillOp> {
                                 PatternRewriter &rewriter) const override {
     auto value = getAsOpFoldResult(fillOp.getInputs()[0]);
     if (isa<Value>(value)) return failure();
+    if (fillOp.getResults().empty()) {
+      // memref semantics
+      return rewriter.notifyMatchFailure(
+          fillOp, "fillOp with memref semantics not supported");
+    }
     auto outputTy = cast<RankedTensorType>(fillOp.getResultTypes()[0]);
     rewriter.replaceOpWithNewOp<arith::ConstantOp>(
         fillOp, outputTy,
