@@ -1,5 +1,3 @@
-#include <iostream>
-
 #include "gmock/gmock.h"  // from @googletest
 #include "gtest/gtest.h"  // from @googletest
 #include "lib/Utils/Layout/Codegen.h"
@@ -24,20 +22,11 @@ TEST(CodegenTest, PureAffineEquality) {
       &context);
   auto loopNestRes = generateLoopNest(relation, &context);
   ASSERT_TRUE(succeeded(loopNestRes));
-
   auto actual = loopNestRes.value();
 
   LoopNest expected;
-  expected.numInductionVars = 1;
-  expected.lowerBounds = {0};
-  expected.upperBounds = {10};
-
-  OpBuilder b(&context);
-  auto d0 = b.getAffineDimExpr(0);
-  auto d1 = b.getAffineDimExpr(1);
-  expected.constraints.push_back(d0 - d1);
-  expected.constraints.push_back(d0);
-  expected.constraints.push_back(d1);
+  Loop *loop = expected.addLoop(1, 0, 10);                       // d1
+  loop->eliminatedVariables[0] = getAffineDimExpr(1, &context);  // d0 = d1
 
   ASSERT_THAT(actual, Eq(expected));
 }
@@ -55,24 +44,29 @@ TEST(CodegenTest, EqualityWithMod) {
 
   auto loopNestRes = generateLoopNest(relation, &context);
   ASSERT_TRUE(succeeded(loopNestRes));
-
   auto actual = loopNestRes.value();
 
+  OpBuilder b(&context);
+  auto d0 = b.getAffineDimExpr(0);
+  auto d1 = b.getAffineDimExpr(1);
+
   LoopNest expected;
-  expected.numInductionVars = 2;
-  expected.lowerBounds = {0, 0};
-  expected.upperBounds = {10, 30};
+  expected.addLoop(1, 0, 30);                 // d1
+  Loop *loopD1 = expected.addLoop(0, 0, 10);  // d0
+  loopD1->eliminatedVariables[2] = (d0 - d1).floorDiv(2);
 
-  // OpBuilder b(&context);
-  // auto d0 = b.getAffineDimExpr(0);
-  // auto d1 = b.getAffineDimExpr(1);
-  // expected.constraints.push_back(d0 - d1);
-  // expected.constraints.push_back(d1);
-  // expected.constraints.push_back(10 - d1);
+  loopD1->constraints.push_back((d0 - d1) % 2);
+  loopD1->eq.push_back(true);
 
-  ASSERT_THAT(actual.numInductionVars, Eq(2));
-  EXPECT_THAT(actual.lowerBounds, ElementsAre(0, 0));
-  EXPECT_THAT(actual.upperBounds, ElementsAre(10, 30));
+  // The two constraints below should be redundant given d0 - d1 mod 2 above,
+  // but I'm not sure how to detect that systematically in the implementation.
+  loopD1->constraints.push_back(d1 + ((d0 - d1).floorDiv(2)) * 2);
+  loopD1->eq.push_back(false);
+
+  loopD1->constraints.push_back(-d1 - ((d0 - d1).floorDiv(2)) * 2 + 10);
+  loopD1->eq.push_back(false);
+
+  ASSERT_THAT(actual, Eq(expected));
 }
 }  // namespace
 }  // namespace heir

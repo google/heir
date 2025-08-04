@@ -1,11 +1,8 @@
 #include "lib/Utils/Layout/Codegen.h"
 
-#include <iostream>
-
-#include "llvm/include/llvm/ADT/DenseMap.h"           // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallVectorExtras.h"  // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"          // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseMap.h"     // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"    // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/IntegerSet.h"  // from @llvm-project
 
@@ -35,11 +32,20 @@ FailureOr<std::pair<int64_t, int64_t>> getProjectedBounds(
   return std::make_pair(lower.value(), upper.value());
 }
 
-// A class to manage a multi-step analysis of an integer relation's tableau.
+bool isConstantBound(ArrayRef<int64_t> constraint) {
+  // The last index is the constant term, so check that only one other value
+  // is nonzero.
+  return llvm::count_if(llvm::drop_end(constraint),
+                        [](int64_t v) { return v != 0; }) == 1;
+}
+
+// Generate a perfect loop nest from an integer relation. Makes assumptions
+// about the structure of the relation vis-a-vis HEIR's ciphertext packing.
 class LoopNestGenerator {
  public:
-  LoopNestGenerator(const IntegerRelation& rel, MLIRContext* context)
-      : rel(rel), context(context){};
+  LoopNestGenerator(LoopNest* resultNest, const IntegerRelation& rel,
+                    MLIRContext* context)
+      : resultNest(resultNest), rel(rel), context(context){};
 
   LogicalResult run() {
     // We are free to pick the order of the induction variables in the loop,
@@ -57,15 +63,16 @@ class LoopNestGenerator {
       if (failed(res)) {
         return failure();
       }
-      inductionVarBounds[i] = res.value();
+      auto bounds = res.value();
+      resultNest->addLoop(i, bounds.first, bounds.second);
     }
 
     while (moreVariablesToProcess()) {
-      // Step 2: determine if any local variables or domain variables can be
-      // written purely in terms of the induction variables so far. If one can
-      // add an expression for the eliminated variable (which will be
-      // materialized as an arithmetic statement in the loop) and then keep
-      // doing this until no more variables remain or none can be eliminated.
+      // Step 2: determine if any variables can now be written purely in terms
+      // of the induction variables so far. If one can add an expression for
+      // the eliminated variable (which will be materialized as an arithmetic
+      // statement in the loop) and then keep doing this until no more
+      // variables remain or none can be eliminated.
       bool changed = true;
       while (changed && moreVariablesToProcess()) {
         changed = tryEliminateVars();
@@ -83,7 +90,35 @@ class LoopNestGenerator {
       if (failed(res)) {
         return failure();
       }
-      inductionVarBounds[nextVar] = res.value();
+      auto bounds = res.value();
+      resultNest->addLoop(nextVar, bounds.first, bounds.second);
+    }
+
+    // Step 4: Check the constraints for the inner-most loop body.
+    // Skip trivial constraints that are implied by bounds checking.
+    for (unsigned i = 0; i < rel.getNumEqualities(); ++i) {
+      SmallVector<int64_t> equality = rel.getEquality64(i);
+      if (isConstantBound(equality)) {
+        continue;
+      }
+      AffineExpr expr = convertConstraintToAffineExpr(i, true);
+      if (expr.isSymbolicOrConstant()) {
+        continue;
+      }
+      resultNest->loops.back().constraints.push_back(expr);
+      resultNest->loops.back().eq.push_back(true);
+    }
+    for (unsigned i = 0; i < rel.getNumInequalities(); ++i) {
+      SmallVector<int64_t> inequality = rel.getInequality64(i);
+      if (isConstantBound(inequality)) {
+        continue;
+      }
+      AffineExpr expr = convertConstraintToAffineExpr(i, false);
+      if (expr.isSymbolicOrConstant()) {
+        continue;
+      }
+      resultNest->loops.back().constraints.push_back(expr);
+      resultNest->loops.back().eq.push_back(false);
     }
 
     return success();
@@ -164,55 +199,33 @@ class LoopNestGenerator {
 
     // For each variable, try to find an equality that uses the variable and
     // isolate it.
-    for (unsigned j = 0; j < rel.getNumVars(); ++j) {
-      if (eliminatedVariables.count(j) > 0 ||
-          llvm::is_contained(inductionVars, j)) {
+    for (unsigned varIndex = 0; varIndex < rel.getNumVars(); ++varIndex) {
+      if (eliminatedVariables.count(varIndex) > 0 ||
+          llvm::is_contained(inductionVars, varIndex)) {
         // Already eliminated or is an induction variable.
         continue;
       }
 
-      for (unsigned i = 0; i < rel.getNumEqualities(); ++i) {
-        SmallVector<int64_t> equality = rel.getEquality64(i);
-        if (equality[j] == 0) {
+      for (unsigned constraintIndex = 0;
+           constraintIndex < rel.getNumEqualities(); ++constraintIndex) {
+        SmallVector<int64_t> equality = rel.getEquality64(constraintIndex);
+        if (equality[varIndex] == 0) {
           // This equality does not use the variable.
           continue;
         }
-        FailureOr<AffineExpr> res = tryIsolateVar(j, equality);
+        FailureOr<AffineExpr> res = tryIsolateVar(varIndex, equality);
         if (succeeded(res)) {
           AffineExpr localExpr = res.value();
-          LLVM_DEBUG(llvm::errs() << "Identified local expr for variable " << j
-                                  << ": " << localExpr << "\n");
-          eliminatedVariables[j] = localExpr;
+          LLVM_DEBUG(llvm::errs() << "Identified local expr for variable "
+                                  << varIndex << ": " << localExpr << "\n");
+          eliminatedVariables[varIndex] = localExpr;
+          resultNest->loops.back().eliminatedVariables[varIndex] = localExpr;
           return true;
         }
       }
     }
 
     return false;
-  }
-
-  LogicalResult estimateProjectedBounds() {
-    for (unsigned i : inductionVars) {
-      auto res = getProjectedBounds(rel, i);
-      if (failed(res)) {
-        return failure();
-      }
-      auto [lower, upper] = res.value();
-      inductionVarBounds[i] = std::make_pair(lower, upper);
-    }
-    return success();
-  }
-
-  const DenseMap<unsigned, AffineExpr>& getEliminatedVariables() const {
-    return eliminatedVariables;
-  }
-
-  const std::pair<int64_t, int64_t>& getInductionVarBounds(unsigned i) const {
-    return inductionVarBounds.at(i);
-  }
-
-  const SmallVector<unsigned>& getInductionVars() const {
-    return inductionVars;
   }
 
   AffineExpr convertConstraintToAffineExpr(unsigned constraintIndex,
@@ -240,11 +253,12 @@ class LoopNestGenerator {
 
     // For each variable, if it's been replaced, substitute it in the expr.
     SmallVector<AffineExpr> dimReplacements;
-    for (const auto& [varIndex, localExpr] : eliminatedVariables) {
-      if (expr.isFunctionOfDim(varIndex)) {
-        LLVM_DEBUG(llvm::errs() << "Replacing variable " << varIndex
-                                << " with local expr: " << localExpr << "\n");
-        dimReplacements.push_back(localExpr);
+    for (unsigned varIndex = 0; varIndex < rel.getNumVars(); ++varIndex) {
+      if (eliminatedVariables.count(varIndex)) {
+        if (expr.isFunctionOfDim(varIndex)) {
+          AffineExpr localExpr = eliminatedVariables.at(varIndex);
+          dimReplacements.push_back(localExpr);
+        }
       } else {
         // identity mapping
         dimReplacements.push_back(getAffineDimExpr(varIndex, context));
@@ -255,9 +269,11 @@ class LoopNestGenerator {
   }
 
  private:
+  // Pointer to the output loop nest, provided by the caller.
+  LoopNest* resultNest;
+
   DenseMap<unsigned, AffineExpr> eliminatedVariables;
   SmallVector<unsigned> inductionVars;
-  DenseMap<unsigned, std::pair<int64_t, int64_t>> inductionVarBounds;
   const IntegerRelation& rel;
   MLIRContext* context;
 };
@@ -265,44 +281,21 @@ class LoopNestGenerator {
 FailureOr<LoopNest> generateLoopNest(const IntegerRelation& rel,
                                      MLIRContext* context) {
   std::unique_ptr<IntegerRelation> cloneRel = rel.clone();
+  // This does a basic simplification. In the future, we may want to do a more
+  // sophisticated simplification, such as reducing the contsraint matrix to
+  // Hermite Normal Form, which would allow for the elimination of more
+  // variables. MLIR has IntMatrix::computeHermiteNormalForm, but I (j2kun@)
+  // haven't tried it yet, and it's not clear to me if it will properly
+  // preserve Identifiers attached to the variables, which we need to recover
+  // SSA values from the reduced matrix.
   cloneRel->simplify();
   cloneRel->removeTrivialRedundancy();
   cloneRel->dump();
 
-  LoopNestGenerator gen(rel, context);
-  if (failed(gen.run())) {
-    return failure();
-  }
-
-  // FIXME: update LoopNext construction now that the new analysis
-  // eliminates induction variables; we need something new to describe
-  // the assignments of eliminated variables!
-  LoopNest nest;
-  SmallVector<AffineDimExpr, 4> inductionVars;
-
-  nest.numInductionVars = gen.getInductionVars().size();
-  for (auto i : gen.getInductionVars()) {
-    auto [lower, upper] = gen.getInductionVarBounds(i);
-    nest.lowerBounds.push_back(lower);
-    nest.upperBounds.push_back(upper);
-  }
-
-  for (int i = 0; i < cloneRel->getNumEqualities(); ++i) {
-    SmallVector<int64_t> constraint = cloneRel->getEquality64(i);
-    AffineExpr expr = gen.convertConstraintToAffineExpr(i, true);
-    nest.constraints.push_back(expr);
-    nest.eq.push_back(true);
-  }
-
-  for (int i = 0; i < cloneRel->getNumInequalities(); ++i) {
-    std::cerr << "step" << i << "\n";
-    SmallVector<int64_t> constraint = cloneRel->getInequality64(i);
-    AffineExpr expr = gen.convertConstraintToAffineExpr(i, false);
-    nest.constraints.push_back(expr);
-    nest.eq.push_back(false);
-  }
-  std::cerr << "step3\n";
-  return nest;
+  LoopNest resultNest;
+  LoopNestGenerator gen(&resultNest, *cloneRel, context);
+  if (failed(gen.run())) return failure();
+  return resultNest;
 }
 
 }  // namespace heir

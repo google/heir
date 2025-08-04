@@ -9,52 +9,101 @@
 namespace mlir {
 namespace heir {
 
-// A struct to hold a perfect loop nest, including a list of induction
-// variables and corresponding upper and lower bounds.
-struct LoopNest {
-  unsigned numInductionVars;
+// A struct for a single loop
+//
+// for (inductionVar = lowerBound; inductionVar < upperBound; ++inductionVar) {
+//   insert statements for eliminated variables;
+//   check constraints
+//   inner loop body
+// }
+struct Loop {
+  unsigned inductionVar;  // Index of the induction variable in the relation
+  int64_t lowerBound;     // Lower bound for the induction variable
+  int64_t upperBound;     // Upper bound for the induction variable
 
-  // Lower and upper bounds for each induction variable.
-  std::vector<int64_t> lowerBounds;
-  std::vector<int64_t> upperBounds;
+  // Variables in scope of this loop, including the new induction variable.
+  std::vector<unsigned> scope;
 
-  // Constraints for the body of the loop nest
+  // Expressions to write variables in terms of the current scope.
+  std::unordered_map<unsigned, AffineExpr> eliminatedVariables;
+
+  // Constraints for the body of this loop.
   std::vector<AffineExpr> constraints;
 
   // Whether each constraint above is an equality of inequality; true means
   // equality. The other side of the equality or inequality is always zero.
   std::vector<bool> eq;
 
-  bool operator==(const LoopNest& other) const {
-    return numInductionVars == other.numInductionVars &&
-           lowerBounds == other.lowerBounds &&
-           upperBounds == other.upperBounds && constraints == other.constraints;
+  bool operator==(const Loop& other) const {
+    return inductionVar == other.inductionVar &&
+           lowerBound == other.lowerBound && upperBound == other.upperBound &&
+           scope == other.scope &&
+           eliminatedVariables == other.eliminatedVariables &&
+           constraints == other.constraints && eq == other.eq;
   }
 };
 
-inline std::ostream& operator<<(std::ostream& os, const LoopNest& x) {
-  os << "LoopNest(numIterationVars=" << x.numInductionVars << ", lowerBounds=[";
-  for (size_t i = 0; i < x.lowerBounds.size(); ++i) {
-    os << x.lowerBounds[i];
-    if (i < x.lowerBounds.size() - 1) {
-      os << ", ";
-    }
-  }
-  os << "], upperBounds=[";
-  for (size_t i = 0; i < x.upperBounds.size(); ++i) {
-    os << x.upperBounds[i];
-    if (i < x.upperBounds.size() - 1) {
-      os << ", ";
-    }
+// A struct to hold a perfect loop nest.
+struct LoopNest {
+  SmallVector<Loop, 4> loops;
+
+  Loop* addLoop(unsigned varIndex, int64_t lowerBound, int64_t upperBound) {
+    Loop loop;
+    loop.inductionVar = varIndex;
+    loop.lowerBound = lowerBound;
+    loop.upperBound = upperBound;
+    loop.scope.push_back(varIndex);
+    loops.push_back(std::move(loop));
+    return &loops.back();
   }
 
-  os << "], conditions=[";
-  llvm::raw_os_ostream llvmOs(os);
-  for (auto condition : x.constraints) {
-    condition.print(llvmOs);
-    llvmOs << ", ";
+  bool operator==(const LoopNest& other) const { return loops == other.loops; }
+};
+
+inline std::ostream& operator<<(std::ostream& stdOs, const Loop& x) {
+  llvm::raw_os_ostream os(stdOs);
+  os << "Loop(varIndex=" << x.inductionVar << ", lowerBound=" << x.lowerBound
+     << ", upperBound=" << x.upperBound << ", scope=[";
+  for (size_t i = 0; i < x.scope.size(); ++i) {
+    os << x.scope[i];
+    if (i < x.scope.size() - 1) {
+      os << ", ";
+    }
   }
-  llvmOs.flush();
+  os << "], eliminatedVariables={";
+  for (const auto& [var, expr] : x.eliminatedVariables) {
+    os << var << ": " << expr << ", ";
+  }
+  os << "}, constraints=[";
+  for (size_t i = 0; i < x.constraints.size(); ++i) {
+    x.constraints[i].print(os);
+    if (i < x.constraints.size() - 1) {
+      os << ", ";
+    }
+  }
+  os << "], eq=[";
+  for (size_t i = 0; i < x.eq.size(); ++i) {
+    os << (x.eq[i] ? "true" : "false");
+    if (i < x.eq.size() - 1) {
+      os << ", ";
+    }
+  }
+  os << "])";
+  os.flush();
+  return stdOs;
+}
+
+// For googletest integration
+void PrintTo(const Loop& obj, std::ostream* os) { *os << obj; }
+
+inline std::ostream& operator<<(std::ostream& os, const LoopNest& x) {
+  os << "LoopNest(loops=[";
+  for (size_t i = 0; i < x.loops.size(); ++i) {
+    os << x.loops[i];
+    if (i < x.loops.size() - 1) {
+      os << ", ";
+    }
+  }
   os << "])";
   return os;
 }
