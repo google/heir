@@ -105,6 +105,8 @@ class LoopNestGenerator {
       if (expr.isSymbolicOrConstant()) {
         continue;
       }
+      LLVM_DEBUG(llvm::dbgs() << "Converted equality " << i
+                              << " to affine expr: " << expr << " == 0\n");
       resultNest->loops.back().constraints.push_back(expr);
       resultNest->loops.back().eq.push_back(true);
     }
@@ -117,6 +119,8 @@ class LoopNestGenerator {
       if (expr.isSymbolicOrConstant()) {
         continue;
       }
+      LLVM_DEBUG(llvm::dbgs() << "Converted inequality " << i
+                              << " to affine expr: " << expr << " >= 0\n");
       resultNest->loops.back().constraints.push_back(expr);
       resultNest->loops.back().eq.push_back(false);
     }
@@ -216,7 +220,7 @@ class LoopNestGenerator {
         FailureOr<AffineExpr> res = tryIsolateVar(varIndex, equality);
         if (succeeded(res)) {
           AffineExpr localExpr = res.value();
-          LLVM_DEBUG(llvm::errs() << "Identified local expr for variable "
+          LLVM_DEBUG(llvm::dbgs() << "Identified local expr for variable "
                                   << varIndex << ": " << localExpr << "\n");
           eliminatedVariables[varIndex] = localExpr;
           resultNest->loops.back().eliminatedVariables[varIndex] = localExpr;
@@ -236,14 +240,13 @@ class LoopNestGenerator {
         isEq ? rel.getEquality64(constraintIndex)
              : rel.getInequality64(constraintIndex);
     auto expr = getAffineConstantExpr(0, context);
-    unsigned symbolOffset = rel.getVarKindOffset(VarKind::Symbol);
 
     // Variable terms
     for (unsigned j = 0; j < rel.getNumVars(); ++j) {
       if (constraint[j] == 0) continue;
-      auto id = rel.getVarKindAt(j) == VarKind::Symbol
-                    ? getAffineSymbolExpr(j - symbolOffset, context)
-                    : getAffineDimExpr(j, context);
+      assert(rel.getVarKindAt(j) != VarKind::Symbol &&
+             "Symbols are not supported in layout codegen");
+      auto id = getAffineDimExpr(j, context);
       expr = expr + id * constraint[j];
     }
 
@@ -253,19 +256,20 @@ class LoopNestGenerator {
 
     // For each variable, if it's been replaced, substitute it in the expr.
     SmallVector<AffineExpr> dimReplacements;
+
     for (unsigned varIndex = 0; varIndex < rel.getNumVars(); ++varIndex) {
-      if (eliminatedVariables.count(varIndex)) {
-        if (expr.isFunctionOfDim(varIndex)) {
-          AffineExpr localExpr = eliminatedVariables.at(varIndex);
-          dimReplacements.push_back(localExpr);
-        }
+      if (eliminatedVariables.count(varIndex) &&
+          expr.isFunctionOfDim(varIndex)) {
+        AffineExpr localExpr = eliminatedVariables.at(varIndex);
+        dimReplacements.push_back(localExpr);
       } else {
         // identity mapping
         dimReplacements.push_back(getAffineDimExpr(varIndex, context));
       }
     }
 
-    return expr.replaceDims(dimReplacements);
+    AffineExpr result = expr.replaceDims(dimReplacements);
+    return simplifyAffineExpr(result, rel.getNumVars(), 0);
   }
 
  private:

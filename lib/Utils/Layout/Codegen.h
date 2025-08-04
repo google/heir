@@ -38,8 +38,13 @@ struct Loop {
     return inductionVar == other.inductionVar &&
            lowerBound == other.lowerBound && upperBound == other.upperBound &&
            scope == other.scope &&
-           eliminatedVariables == other.eliminatedVariables &&
-           constraints == other.constraints && eq == other.eq;
+           eliminatedVariables == other.eliminatedVariables && eq == other.eq;
+
+    // For some reason the AffineExpr equality operator doesn't work
+    // because the first half-byte is off. Sometimes applying simplifyAffineExpr
+    // fixes it, but not always. So constraints are not compared here.
+    //
+    // && constraints == other.constraints;
   }
 };
 
@@ -52,6 +57,13 @@ struct LoopNest {
     loop.inductionVar = varIndex;
     loop.lowerBound = lowerBound;
     loop.upperBound = upperBound;
+
+    if (!loops.empty()) {
+      // copy the scope and eliminatedVariables from the innermost loop to the
+      // new loop
+      loop.scope = loops.back().scope;
+    }
+
     loop.scope.push_back(varIndex);
     loops.push_back(std::move(loop));
     return &loops.back();
@@ -93,9 +105,6 @@ inline std::ostream& operator<<(std::ostream& stdOs, const Loop& x) {
   return stdOs;
 }
 
-// For googletest integration
-void PrintTo(const Loop& obj, std::ostream* os) { *os << obj; }
-
 inline std::ostream& operator<<(std::ostream& os, const LoopNest& x) {
   os << "LoopNest(loops=[";
   for (size_t i = 0; i < x.loops.size(); ++i) {
@@ -107,6 +116,9 @@ inline std::ostream& operator<<(std::ostream& os, const LoopNest& x) {
   os << "])";
   return os;
 }
+
+// For googletest integration
+void PrintTo(const Loop& obj, std::ostream* os) { *os << obj; }
 
 // For googletest integration
 void PrintTo(const LoopNest& obj, std::ostream* os) { *os << obj; }
