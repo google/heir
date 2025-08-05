@@ -133,5 +133,53 @@ def TensorExt_UnpackOp : TensorExt_Op<"unpack", [Pure]> {
   let hasVerifier = 1;
 }
 
+def TensorExt_RotateAndReduceOp : TensorExt_Op<"rotate_and_reduce",[Pure, AllTypesMatch<["tensor", "output"]>]> {
+  let summary = "Performs a reduction of a periodically rotated tensor.";
+  let description = [{
+    This op reduces products of a plaintext with a periodically rotated
+    tensor.
+
+    In generality, the reduction performs is
+
+    \[
+      \sum_{i \in [0, n]} p(P, T*i) \cdot rotate(v, T*i)
+    \]
+
+    where $f$ is a function, $p(P, T*i)$ is a function of a plaintext $P$ and
+    $rotate(v, T*i)$ is a rotation of the ciphertext $v$ with period $T$. The
+    operation takes as input the ciphertext vector $v$, the period $T$, the
+    number of reductions $n$, and a tensor of plaintext values `[p(P, 0), p(P,
+    T), ..., p(P, T*(n-1))]`.
+
+    This can be used to implement a matrix vector product that uses a
+    Halevi-Shoup diagonalization of the plaintext matrix. In this case, the
+    reduction is
+
+    \[
+      \sum_{i \in [0, n]} P(i) \cdot rotate(v, i)
+    \]
+
+    where $P(i)$ is the $i$th diagonal of the plaintext matrix and the period
+    $T$ is $1$.
+
+    An accumulation of the ciphertext slots is also handled via this operation
+    by choosing the plaintext $p(P, T*i)$ to be the constant $1$.
+
+    Efficient lowerings of this operation can use the Baby-Step / Giant-Step
+    approach from [Faster Homomorphic Linear Transformations in
+    HElib](https://eprint.iacr.org/2018/244.pdf) to reduce the number of
+    ciphertext rotations.
+  }];
+
+  let arguments = (
+    ins AnyRankedTensor:$tensor,
+    AnyRankedTensor:$plaintexts,
+    IndexAttr:$period,
+    IndexAttr:$steps
+  );
+  let results = (outs AnyRankedTensor:$output);
+  let hasVerifier = 1;
+}
+
 
 #endif  // LIB_DIALECT_TENSOREXT_IR_TENSOREXTOPS_TD_

@@ -180,6 +180,46 @@ LogicalResult PermuteOp::verify() {
   return success();
 }
 
+LogicalResult RotateAndReduceOp::verify() {
+  auto numSteps = getSteps().getZExtValue();
+  auto numPlaintexts = getPlaintexts().getType().getDimSize(0);
+
+  auto x = getTensor().getType();
+  // TODO(#924): Currently RotateAndReduceOp only supports rotating a 1-D
+  // vector, or a vector with only one non-unit dimension that is treated as the
+  // major dimension.
+  if (x.getRank() != 1) {
+    if (llvm::count_if(x.getShape(), [](auto dim) { return dim != 1; }) != 1) {
+      return emitOpError() << "requires a 1-D input tensor or tensor with "
+                              "single non-unit dimension, but found "
+                           << x;
+    }
+  }
+  if (numSteps > x.getDimSize(0)) {
+    return emitOpError()
+           << "requires steps to be less than or equal "
+              "to the input tensor's dimension, but found reductions="
+           << numSteps << " and tensor dimension=" << x.getDimSize(0);
+  }
+
+  if (numPlaintexts != numSteps) {
+    return emitOpError()
+           << "requires plaintext tensor to have the same number of "
+              "elements as steps, but found numPlaintexts="
+           << numPlaintexts << " and steps=" << numSteps;
+  }
+
+  auto period = getPeriod().getZExtValue();
+  if (period <= 0 || period > x.getNumElements()) {
+    return emitOpError() << "requires period to be within the range of the "
+                            "tensor, but found period "
+                         << period << " and tensor with " << x.getNumElements()
+                         << " elements";
+  }
+
+  return success();
+}
+
 }  // namespace tensor_ext
 }  // namespace heir
 }  // namespace mlir
