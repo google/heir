@@ -131,3 +131,12 @@ git_repository(
     commit = "bb5bdb776c64819f66cb2205f78bef1581448628",
     remote = "https://gitlab.mpcdf.mpg.de/mtr/pocketfft.git",
 )
+
+# j2kun's bazel-friendly fork of ISL (Integer Set Library). Needed for
+# polyhedral analysis and codegen until the MLIR upstream FPL support is good
+# enough.
+git_repository(
+    name = "isl",
+    commit = "58eaa613ffcd2b11c36a773c19531f75fbcfc66c",
+    remote = "https://github.com/j2kun/isl.git",
+)
