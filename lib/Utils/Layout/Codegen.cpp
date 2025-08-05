@@ -1,10 +1,13 @@
 #include "lib/Utils/Layout/Codegen.h"
 
+#include <iostream>
+
 #include "llvm/include/llvm/ADT/DenseMap.h"     // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"    // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/IntegerSet.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/AffineExprVisitor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/IntegerSet.h"         // from @llvm-project
 
 #define DEBUG_TYPE "layout-codegen"
 
@@ -125,7 +128,139 @@ class LoopNestGenerator {
       resultNest->loops.back().eq.push_back(false);
     }
 
+    // Step 5: AffineExpr recognizes modulos from divs, and lifts them
+    // appropriately. So now we can identify any constraints in the innermost
+    // loop that are of the form (c * v0 + foo) % n == 0, where foo does not
+    // depend on v0, and eliminate the loop iterating over v0 while adding a
+    // new eliminated variable to the prior loop.
+    do {
+      llvm::errs() << "Finding plain modulo equality to eliminate\n";
+      auto res = findPlainModuloEquality();
+      if (failed(res)) {
+        llvm::errs() << "Failed to find a plain modulo equality.\n";
+        break;  // No more eliminatable constraints.
+      }
+      auto [varIndex, expr] = res.value();
+      llvm::errs() << "Found plain modulo equality for var " << varIndex << ": "
+                   << expr << "\n";
+
+      // Find the index of the loop in resultNests->loops that has this var
+      // as its induction variable.
+      unsigned loopIndex = -1;
+      for (unsigned i = 0; i < resultNest->loops.size(); ++i) {
+        if (resultNest->loops[i].inductionVar == varIndex) {
+          loopIndex = i;
+          break;
+        }
+      }
+      assert(loopIndex > 1 &&
+             "The found variable must be an induction variable in some "
+             "loop after the first");
+
+      eliminatedVariables[varIndex] = expr;
+      resultNest->loops[loopIndex - 1].eliminatedVariables[varIndex] = expr;
+      resultNest->loops.erase(resultNest->loops.begin() + loopIndex);
+      inductionVars.erase(
+          std::remove(inductionVars.begin(), inductionVars.end(), varIndex),
+          inductionVars.end());
+      llvm::errs() << "Loop nest is now:\n";
+      for (const auto& loop : resultNest->loops) {
+        std::cerr << "  " << loop << "\n";
+      }
+    } while (succeeded(findPlainModuloEquality()));
+
     return success();
+  }
+
+  // Finds a variable that can be eliminated as a plain modulo equality, and
+  // returns a pair of the variable's index in `rel` and the isolated
+  // expression, or a failure if no such variable can be found/eliminated.
+  FailureOr<std::pair<unsigned, AffineExpr>> findPlainModuloEquality() const {
+    auto constraints = resultNest->loops.back().constraints;
+    auto eq = resultNest->loops.back().eq;
+    for (unsigned i = 0; i < constraints.size(); ++i) {
+      llvm::errs() << "Checking constraint " << i << ": " << constraints[i]
+                   << "\n";
+      if (!eq[i]) {
+        continue;
+      }
+
+      // Check if the constraint is of the form (c * v0 + foo) % n == 0,
+      // where foo does not depend on v0.
+      AffineExpr expr = constraints[i];
+      unsigned numDims = rel.getNumVars();
+      SimpleAffineExprFlattener flattener(numDims, /*numSymbols=*/0);
+      if (failed(flattener.walkPostOrder(expr))) {
+        llvm::errs() << "Failed to flatten\n.";
+        return failure();
+      }
+
+      SmallVector<int64_t, 8> flattenedExpr(flattener.operandExprStack.back());
+      llvm::errs() << "Checking constraint: " << expr << " flattened to: [";
+      for (unsigned j = 0; j < flattenedExpr.size(); ++j) {
+        llvm::errs() << flattenedExpr[j];
+        if (j < flattenedExpr.size() - 1) {
+          llvm::errs() << ", ";
+        }
+      }
+      llvm::errs() << "]\n";
+
+      // Check if the constraint has an eliminatable domain variable
+      std::optional<unsigned> chosenVar = std::nullopt;
+      for (unsigned varIndex = rel.getVarKindOffset(VarKind::Domain);
+           varIndex < rel.getVarKindEnd(VarKind::Domain); ++varIndex) {
+        llvm::errs() << "Checking flattened constraint for domain var: "
+                     << varIndex << " with coeff: " << flattenedExpr[varIndex]
+                     << "\n";
+        if (flattenedExpr[varIndex] != 0 &&
+            !eliminatedVariables.count(varIndex)) {
+          // // Lastly, we need to ensure the domain variable in question
+          // // is not in any of the localExprs from the flattening pass.
+          // // If it is, then we cannot trivially isolate it.
+          // FIXME: what to do here???
+          // llvm::all_of(flattener.localExprs,
+          //              [varIndex](AffineExpr localExpr) {
+          //                if (localExpr.isFunctionOfDim(varIndex)) {
+          //                  llvm::errs() << "  Local expr " << localExpr
+          //                               << " is a function of var "
+          //                               << varIndex << ", skipping\n";
+          //                  return false;  // Cannot isolate this var.
+          //                }
+          //                return !localExpr.isFunctionOfDim(varIndex);
+          //              })) {
+          chosenVar = varIndex;
+          break;
+        }
+      }
+
+      if (!chosenVar.has_value()) {
+        continue;  // No eliminatable domain variable found.
+      }
+
+      // To isolate the variable, we are converting an expression like
+      //
+      //   (3a + b) % 5 == 0  <--> 3a + b - 5q == 0
+      //
+      // to
+      //
+      //   3a == -b + 5q
+      //
+      // We can isolate without dividing in the flattened form, then
+      // recosntruct the AffineExpr before doing a floorDiv.
+      unsigned varIndex = chosenVar.value();
+      int64_t coeff = flattenedExpr[varIndex];
+      for (long& coeffIndex : flattenedExpr) {
+        coeffIndex = -coeffIndex;
+      }
+      flattenedExpr[varIndex] = 0;
+
+      AffineExpr reconstructed = getAffineExprFromFlatForm(
+          flattenedExpr, rel.getNumVars(), 0, flattener.localExprs, context);
+      AffineExpr isolated = reconstructed.floorDiv(coeff);
+      return std::make_pair(varIndex, isolated);
+    }
+
+    return failure();
   }
 
   inline bool moreVariablesToProcess() const {
@@ -295,6 +430,13 @@ FailureOr<LoopNest> generateLoopNest(const IntegerRelation& rel,
   cloneRel->simplify();
   cloneRel->removeTrivialRedundancy();
   cloneRel->dump();
+
+  // Get the IntMatrix underneath the relation:
+  presburger::IntMatrix matrix = cloneRel->getEqualities();
+  matrix.dump();
+  auto [H, U] = matrix.computeHermiteNormalForm();
+  H.dump();
+  U.dump();
 
   LoopNest resultNest;
   LoopNestGenerator gen(&resultNest, *cloneRel, context);

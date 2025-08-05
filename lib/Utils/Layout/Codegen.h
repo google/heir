@@ -21,7 +21,8 @@ struct Loop {
   int64_t lowerBound;     // Lower bound for the induction variable
   int64_t upperBound;     // Upper bound for the induction variable
 
-  // Variables in scope of this loop, including the new induction variable.
+  // Induction variables in scope of this loop, including the new induction
+  // variable.
   std::vector<unsigned> scope;
 
   // Expressions to write variables in terms of the current scope.
