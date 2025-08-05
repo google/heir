@@ -87,18 +87,22 @@ TEST(CodegenTest, HaleviShoup) {
   auto slot = getAffineDimExpr(3, &context);
 
   LoopNest expected;
-  expected.addLoop(2, 0, 31);               // ct
-  Loop *l2 = expected.addLoop(3, 0, 1023);  // slot
+  expected.addLoop(2, 0, 31);             // ct
+  expected.addLoop(3, 0, 1023);           // slot
+  Loop *l3 = expected.addLoop(0, 0, 31);  // row
+  Loop *l4 = expected.addLoop(1, 0, 63);  // col
 
-  l2->eliminatedVariables[0] = slot.floorDiv(32);
-  l2->eliminatedVariables[1] = -(ct + slot).floorDiv(64);
+  l3->eliminatedVariables[4] = (-row + slot).floorDiv(32);
+  l4->eliminatedVariables[5] = (-col + ct + slot).floorDiv(64);
 
-  // l2->constraints = {
-  //     slot - ((-row + slot).floorDiv(32)) * 32,
-  //     -slot + ((-row + slot).floorDiv(32)) * 32 + 31,
-  //     col - ct - slot + ((-col + ct + slot).floorDiv(64) * 64 + 63),
-  //     (-col + ct + slot) % 64};
-  // l2->eq = {false, false, false, false};
+  l4->constraints = {
+      (-row + slot) % 32,
+      (-col + ct + slot) % 64,
+      slot - ((-row + slot).floorDiv(32)) * 32,
+      -slot + ((-row + slot).floorDiv(32)) * 32 + 31,
+      col - ct - slot + ((-col + ct + slot).floorDiv(64) * 64 + 63),
+      (-col + ct + slot) % 64};
+  l4->eq = {true, true, false, false, false, false};
 
   ASSERT_THAT(actual, Eq(expected));
 
