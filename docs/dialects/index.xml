@@ -12452,6 +12452,77 @@ plaintext masks (ciphertext-plaintext multiplications), and additions.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="tensor_extrotate_and_reduce-heirtensor_extrotateandreduceop">&lt;code>tensor_ext.rotate_and_reduce&lt;/code> (heir::tensor_ext::RotateAndReduceOp)&lt;/h3>
+&lt;p>&lt;em>Performs a reduction of a periodically rotated tensor.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.rotate_and_reduce` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>This op reduces products of a plaintext with a periodically rotated
+tensor.&lt;/p>
+&lt;p>In generality, the reduction performs is&lt;/p>
+&lt;p>[
+\sum_{i \in [0, n]} p(P, T&lt;em>i) \cdot rotate(v, T&lt;/em>i)
+]&lt;/p>
+&lt;p>where $f$ is a function, $p(P, T&lt;em>i)$ is a function of a plaintext $P$ and
+$rotate(v, T&lt;/em>i)$ is a rotation of the ciphertext $v$ with period $T$. The
+operation takes as input the ciphertext vector $v$, the period $T$, the
+number of reductions $n$, and a tensor of plaintext values &lt;code>[p(P, 0), p(P, T), ..., p(P, T*(n-1))]&lt;/code>.&lt;/p>
+&lt;p>This can be used to implement a matrix vector product that uses a
+Halevi-Shoup diagonalization of the plaintext matrix. In this case, the
+reduction is&lt;/p>
+&lt;p>[
+\sum_{i \in [0, n]} P(i) \cdot rotate(v, i)
+]&lt;/p>
+&lt;p>where $P(i)$ is the $i$th diagonal of the plaintext matrix and the period
+$T$ is $1$.&lt;/p>
+&lt;p>An accumulation of the ciphertext slots is also handled via this operation
+by choosing the plaintext $p(P, T*i)$ to be the constant $1$.&lt;/p>
+&lt;p>Efficient lowerings of this operation can use the Baby-Step / Giant-Step
+approach from &lt;a href="https://eprint.iacr.org/2018/244.pdf">Faster Homomorphic Linear Transformations in
+HElib&lt;/a> to reduce the number of
+ciphertext rotations.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-3">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>period&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>index attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>steps&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>index attribute&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-3">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>tensor&lt;/code>&lt;/td>
+&lt;td>ranked tensor of any type values&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>plaintexts&lt;/code>&lt;/td>
+&lt;td>ranked tensor of any type values&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-3">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>ranked tensor of any type values&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="tensor_extrotate-heirtensor_extrotateop">&lt;code>tensor_ext.rotate&lt;/code> (heir::tensor_ext::RotateOp)&lt;/h3>
 &lt;p>&lt;em>Rotate a tensor some number of indices left.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
@@ -12474,7 +12545,7 @@ tensor is packed along the non-unit dimension.&lt;/p>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-3">Operands:&lt;/h4>
+&lt;h4 id="operands-4">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -12493,7 +12564,7 @@ tensor is packed along the non-unit dimension.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-3">Results:&lt;/h4>
+&lt;h4 id="results-4">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -12517,12 +12588,12 @@ tensor.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-3">Attributes:&lt;/h4>
+&lt;h4 id="attributes-4">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>layout&lt;/code>&lt;/td>&lt;td>::mlir::heir::tensor_ext::LayoutAttr&lt;/td>&lt;td>The description of the layout of a data-semantic tensor.&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-4">Operands:&lt;/h4>
+&lt;h4 id="operands-5">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -12537,7 +12608,7 @@ tensor.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-4">Results:&lt;/h4>
+&lt;h4 id="results-5">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
