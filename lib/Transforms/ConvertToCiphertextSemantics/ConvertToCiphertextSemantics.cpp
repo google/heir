@@ -284,8 +284,13 @@ class ConvertConvertLayout
                << "ConvertConvertLayout: dataSemanticType=" << dataSemanticType
                << ", ciphertextSemanticType=" << ciphertextSemanticType
                << "\n");
-    LayoutAttr fromLayout = op.getFromLayout();
-    LayoutAttr toLayout = op.getToLayout();
+
+    // TODO(#2047): Support new layout attr
+    LayoutAttr fromLayout = dyn_cast<LayoutAttr>(op.getFromLayout());
+    LayoutAttr toLayout = dyn_cast<LayoutAttr>(op.getToLayout());
+    if (!fromLayout || !toLayout) {
+      return op.emitError() << "ConvertLayoutOp must have LayoutAttr operands";
+    }
 
     // TODO(#1542): support multi-packed ciphertexts
     if (ciphertextSemanticType.getRank() != 1) {
