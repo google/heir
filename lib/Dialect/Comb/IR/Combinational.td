@@ -328,12 +328,8 @@ def LUTOp : CombOp<"lut", [Pure]> {
   let results = (outs I8:$result);
 
   let assemblyFormat = [{
-    operands attr-dict `:` functional-type(operands, results)
+    $inputs `->` $lookupTable attr-dict `:` functional-type(operands, results)
   }];
-
-  //   let assemblyFormat = [{
-  //   $inputs`,` $lookupTable attr-dict `:` functional-type($inputs, $result)";
-  // }];
 }
 
 #endif // LIB_DIALECT_COMB_COMBINATIONAL_TD
