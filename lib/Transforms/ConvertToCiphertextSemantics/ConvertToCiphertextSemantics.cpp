@@ -1064,6 +1064,22 @@ struct ConvertToCiphertextSemantics
 
     RewritePatternSet patterns(context);
     ConversionTarget target(*context);
+
+    // check for invalid types on values and bail out of the pass
+    auto isValidValue = [&](const Value value) -> LogicalResult {
+      auto contextualAttr = typeConverter.getContextualAttr(value);
+      if (failed(contextualAttr)) {
+        return failure();
+      }
+      Type result =
+          typeConverter.convertType(value.getType(), contextualAttr.value());
+      return result != nullptr ? success() : failure();
+    };
+    if (!walkAndValidateValues(module, isValidValue).succeeded()) {
+      module->emitError() << "invalid type in module";
+      return signalPassFailure();
+    }
+
     target.markUnknownOpDynamicallyLegal([&](Operation* op) {
       return isa<ModuleOp>(op) || hasMaterializedAttr(op);
     });
