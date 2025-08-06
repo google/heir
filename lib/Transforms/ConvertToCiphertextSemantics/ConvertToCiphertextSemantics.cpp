@@ -1064,6 +1064,7 @@ struct ConvertToCiphertextSemantics
 
     RewritePatternSet patterns(context);
     ConversionTarget target(*context);
+    target.addIllegalDialect<arith::ArithDialect>();
     target.markUnknownOpDynamicallyLegal([&](Operation *op) {
       return isa<ModuleOp>(op) || hasMaterializedAttr(op);
     });
