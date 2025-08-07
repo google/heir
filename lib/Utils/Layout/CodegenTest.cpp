@@ -1,5 +1,6 @@
 #include "gmock/gmock.h"  // from @googletest
 #include "gtest/gtest.h"  // from @googletest
+#include "isl/ast.h"      // from @isl
 #include "lib/Utils/Layout/Codegen.h"
 #include "lib/Utils/Layout/Parser.h"
 #include "mlir/include/mlir/IR/MLIRContext.h"  // from @llvm-project

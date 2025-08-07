@@ -1,7 +1,3 @@
-
-#include <ostream>
-
-#include "isl/ast.h"                                                // from @isl
 #include "isl/ast_type.h"                                           // from @isl
 #include "isl/ctx.h"                                                // from @isl
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
@@ -9,16 +5,6 @@
 
 namespace mlir {
 namespace heir {
-
-inline std::ostream& operator<<(std::ostream& os,
-                                __isl_keep isl_ast_node* tree) {
-  char* str = isl_ast_node_to_str(tree);
-  os << str;
-  return os;
-}
-
-// For googletest integration
-void PrintTo(__isl_keep isl_ast_node* tree, std::ostream* os) { *os << tree; }
 
 // Generate a LoopNest from an IntegerRelation.
 //
