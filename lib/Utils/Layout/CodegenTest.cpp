@@ -17,15 +17,19 @@ TEST(CodegenTest, PureAffineEquality) {
       "(d0, d1) : (d0 - d1 == 0, d0 >= 0, d1 >= 0, 10 >= d0, 10 >= d1)", 1,
       &context);
   isl_ctx *ctx = isl_ctx_alloc();
-
   auto result = generateLoopNest(relation, ctx);
   ASSERT_TRUE(succeeded(result));
-  isl_ast_node *actual = result.value();
-
-  isl_ast_node *expected = nullptr;
+  isl_ast_node *tree = result.value();
+  std::string actual = std::string(isl_ast_node_to_C_str(tree));
+  std::string expected = R"(
+for (int c0 = 0; c0 <= 10; c0 += 1)
+  S(c0, c0);
+)";
+  // Remove leading newline
+  expected.erase(0, 1);
   ASSERT_THAT(actual, Eq(expected));
 
-  isl_ast_node_free(actual);
+  isl_ast_node_free(tree);
   isl_ctx_free(ctx);
 }
 

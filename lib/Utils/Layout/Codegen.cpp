@@ -28,27 +28,21 @@ static __isl_give isl_union_map* convertRelationToString(
 
 __isl_give isl_ast_node* constructAst(const presburger::IntegerRelation& rel,
                                       isl_ctx* ctx) {
-  isl_union_map* schedule;
-  isl_set* context;
-  isl_union_map* options;
-  isl_ast_build* build;
-  isl_ast_node* tree;
-
   // The easiest way to convert an integer relation to an ISL schedule is
   // actually to write the ISL union-set as a string. This is because ISL's API
   // otherwise manually requires you to flatten constraints and remove
   // divs/mods.
-  schedule = convertRelationToString(rel, ctx);
+  isl_union_map* schedule = convertRelationToString(rel, ctx);
 
   // Context and options are intentionally empty. We don't need any of these
   // features, though I admit I have not looked into what they can provide.
-  context = isl_set_universe(isl_space_params_alloc(ctx, 0));
-  options = isl_union_map_empty(isl_space_params_alloc(ctx, 0));
+  isl_set* context = isl_set_universe(isl_space_params_alloc(ctx, 0));
+  isl_union_map* options = isl_union_map_empty(isl_space_params_alloc(ctx, 0));
 
-  /* Build the AST */
-  build = isl_ast_build_from_context(context);
+  // Build the AST
+  isl_ast_build* build = isl_ast_build_from_context(context);
   build = isl_ast_build_set_options(build, options);
-  tree = isl_ast_build_node_from_schedule_map(build, schedule);
+  isl_ast_node* tree = isl_ast_build_node_from_schedule_map(build, schedule);
   isl_ast_build_free(build);
 
   return tree;
