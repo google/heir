@@ -10,6 +10,7 @@ cc_library(
     srcs = ["Codegen.cpp"],
     hdrs = ["Codegen.h"],
     deps = [
+        "@isl",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineAnalysis",
         "@llvm-project//mlir:Analysis",
@@ -36,5 +37,6 @@ cc_test(
         ":Codegen",
         ":Parser",
         "@googletest//:gtest_main",
+        "@isl",
     ],
 )
