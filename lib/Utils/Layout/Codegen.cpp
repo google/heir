@@ -137,7 +137,6 @@ static __isl_give isl_union_map* convertRelationToUnionMap(
     }
   };
 
-  // Use it:
   copyConstraintsFromUnionMap(/*isEquality=*/true);
   copyConstraintsFromUnionMap(/*isEquality=*/false);
 
