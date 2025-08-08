@@ -31,10 +31,14 @@ jobs:
             echo "is_maintainer=false" >> "$GITHUB_OUTPUT"
           fi
 
+    # gh pr view must be run in a git repo
+    - name: Check out repository code
+      uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
+
     - name: Add pull_ready label
-      if: steps.check_reviewer.outputs.is_maintainer == true
+      if: steps.check_reviewer.outputs.is_maintainer == 'true'
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ secrets.write_pat }}
         GH_REPO: ${{ github.repository }}
         NUMBER: ${{ github.event.pull_request.number }}
         LABELS: pull_ready
@@ -44,9 +48,9 @@ jobs:
           exit 0
         fi
 
-        echo "Fetching commits for PR #$PR_NUMBER..."
+        echo "Fetching commits for PR #$NUMBER..."
         # The `gh pr view` command provides a 'commits' field which is the *count*
-        COMMITS=$(gh pr view "$PR_NUMBER" --json commits --jq '.commits')
+        COMMITS=$(gh pr view "$NUMBER" --json commits --jq '.commits')
         if (( COMMITS != 1 )); then
           echo "::error::Expected approved PR to have a single commit, but found $commits. google/heir requires a single commit per PR because Google's internal/external synchronization tooling does not support squashing, and instead would rebase all commits into the main branch."
           exit 1
