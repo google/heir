@@ -16,6 +16,8 @@ cc_library(
         "OpenFheTranslateRegistration.h",
     ],
     deps = [
+        ":OpenFheBinEmitter",
+        ":OpenFheBinHeaderEmitter",
         ":OpenFhePkeEmitter",
         ":OpenFhePkeHeaderEmitter",
         ":OpenFhePkePybindEmitter",
@@ -110,5 +112,58 @@ cc_library(
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
+    name = "OpenFheBinEmitter",
+    srcs = ["OpenFheBinEmitter.cpp"],
+    hdrs = [
+        "OpenFheBinEmitter.h",
+    ],
+    deps = [
+        ":OpenFheUtils",
+        "@heir//lib/Analysis/SelectVariableNames",
+        "@heir//lib/Dialect/Comb/IR:Dialect",
+        "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@heir//lib/Dialect/Openfhe/IR:Dialect",
+        "@heir//lib/Dialect/Polynomial/IR:Dialect",
+        "@heir//lib/Utils:TargetUtils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AffineDialect",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:MemRefDialect",
+        "@llvm-project//mlir:SCFDialect",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
+        "@llvm-project//mlir:TranslateLib",
+    ],
+)
+
+cc_library(
+    name = "OpenFheBinHeaderEmitter",
+    srcs = ["OpenFheBinHeaderEmitter.cpp"],
+    hdrs = [
+        "OpenFheBinHeaderEmitter.h",
+    ],
+    deps = [
+        ":OpenFheUtils",
+        "@heir//lib/Analysis/SelectVariableNames",
+        "@heir//lib/Dialect:ModuleAttributes",
+        "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@heir//lib/Dialect/Openfhe/IR:Dialect",
+        "@heir//lib/Dialect/Polynomial/IR:Dialect",
+        "@heir//lib/Utils:TargetUtils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AffineDialect",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:MemRefDialect",
+        "@llvm-project//mlir:SCFDialect",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TranslateLib",
     ],
 )

@@ -9,6 +9,8 @@
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "lib/Dialect/RNS/IR/RNSTypeInterfaces.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
+#include "lib/Target/OpenFhePke/OpenFheBinEmitter.h"
+#include "lib/Target/OpenFhePke/OpenFheBinHeaderEmitter.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeEmitter.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeHeaderEmitter.h"
 #include "lib/Target/OpenFhePke/OpenFhePkePybindEmitter.h"
@@ -43,19 +45,14 @@ struct TranslateOptions {
           clEnumValN(mlir::heir::openfhe::OpenfheImportType::SOURCE_RELATIVE,
                      "source-relative",
                      "Emit OpenFHE with source-relative import paths (default "
-                     "for HEIR-internal development)"),
-          clEnumValN(mlir::heir::openfhe::OpenfheImportType::EMBEDDED,
-                     "embedded",
-                     "Emit OpenFHE with embedded import paths (default "
-                     "for code to be included in OpenFHE source files)"))};
+                     "for HEIR-internal development)"))};
   llvm::cl::opt<std::string> weightsFile{
       "weights-file",
-      llvm::cl::desc("Emit all dense elements attributes to this binary file")};
+      llvm::cl::desc("The file to write weights to (for OpenFHE PKE)"),
+      llvm::cl::init("")};
   llvm::cl::opt<bool> skipVectorResizing{
       "skip-vector-resizing",
-      llvm::cl::desc("Skip resizing vectors to ringdimension/2 when emitting "
-                     "OpenFHE PKE code, i.e., assume the dimensions in the "
-                     "input IR are correct already."),
+      llvm::cl::desc("Skip resizing vectors to ring dimension / 2"),
       llvm::cl::init(false)};
 };
 static llvm::ManagedStatic<TranslateOptions> options;
@@ -89,11 +86,11 @@ void registerToOpenFhePkeTranslation() {
       },
       [](DialectRegistry &registry) {
         registry
-            .insert<arith::ArithDialect, func::FuncDialect,
-                    openfhe::OpenfheDialect, lwe::LWEDialect,
-                    tensor_ext::TensorExtDialect, polynomial::PolynomialDialect,
-                    tensor::TensorDialect, mod_arith::ModArithDialect,
-                    rns::RNSDialect, affine::AffineDialect>();
+            .insert<affine::AffineDialect, arith::ArithDialect,
+                    func::FuncDialect, openfhe::OpenfheDialect, lwe::LWEDialect,
+                    ::mlir::heir::polynomial::PolynomialDialect,
+                    tensor::TensorDialect, tensor_ext::TensorExtDialect,
+                    mod_arith::ModArithDialect, rns::RNSDialect>();
         rns::registerExternalRNSTypeInterfaces(registry);
       });
 }
@@ -108,11 +105,12 @@ void registerToOpenFhePkeHeaderTranslation() {
                                            options->openfheImportType);
       },
       [](DialectRegistry &registry) {
-        registry.insert<
-            arith::ArithDialect, affine::AffineDialect, func::FuncDialect,
-            tensor::TensorDialect, tensor_ext::TensorExtDialect,
-            openfhe::OpenfheDialect, lwe::LWEDialect, rns::RNSDialect,
-            polynomial::PolynomialDialect, mod_arith::ModArithDialect>();
+        registry
+            .insert<arith::ArithDialect, func::FuncDialect,
+                    tensor::TensorDialect, tensor_ext::TensorExtDialect,
+                    openfhe::OpenfheDialect, lwe::LWEDialect, rns::RNSDialect,
+                    ::mlir::heir::polynomial::PolynomialDialect,
+                    mod_arith::ModArithDialect>();
         rns::registerExternalRNSTypeInterfaces(registry);
       });
 }
@@ -130,11 +128,43 @@ void registerToOpenFhePkePybindTranslation() {
       },
       [](DialectRegistry &registry) {
         registry.insert<arith::ArithDialect, func::FuncDialect,
-                        tensor::TensorDialect, openfhe::OpenfheDialect,
-                        lwe::LWEDialect, tensor_ext::TensorExtDialect,
-                        polynomial::PolynomialDialect,
+                        tensor::TensorDialect, tensor_ext::TensorExtDialect,
+                        openfhe::OpenfheDialect, lwe::LWEDialect,
+                        ::mlir::heir::polynomial::PolynomialDialect,
                         mod_arith::ModArithDialect, rns::RNSDialect>();
         rns::registerExternalRNSTypeInterfaces(registry);
+      });
+}
+
+void registerToOpenFheBinTranslation() {
+  TranslateFromMLIRRegistration reg(
+      "emit-openfhe-bin",
+      "translate the openfhe dialect to C++ code against the OpenFHE BinFHE "
+      "API",
+      [](Operation *op, llvm::raw_ostream &output) {
+        return translateToOpenFheBin(op, output);
+      },
+      [](DialectRegistry &registry) {
+        registry.insert<arith::ArithDialect, func::FuncDialect,
+                        openfhe::OpenfheDialect, lwe::LWEDialect,
+                        ::mlir::heir::polynomial::PolynomialDialect,
+                        tensor::TensorDialect, tensor_ext::TensorExtDialect>();
+      });
+}
+
+void registerToOpenFheBinHeaderTranslation() {
+  TranslateFromMLIRRegistration reg(
+      "emit-openfhe-bin-header",
+      "Emit a header corresponding to the C++ file generated by "
+      "--emit-openfhe-bin",
+      [](Operation *op, llvm::raw_ostream &output) {
+        return translateToOpenFheBinHeader(op, output);
+      },
+      [](DialectRegistry &registry) {
+        registry.insert<arith::ArithDialect, func::FuncDialect,
+                        tensor::TensorDialect, tensor_ext::TensorExtDialect,
+                        openfhe::OpenfheDialect, lwe::LWEDialect,
+                        ::mlir::heir::polynomial::PolynomialDialect>();
       });
 }
 
