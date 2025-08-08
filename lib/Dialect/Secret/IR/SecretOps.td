@@ -51,20 +51,27 @@ def Secret_ConcealOp : Secret_Op<"conceal", [Pure]> {
     op is also useful for type materialization in the dialect conversion
     framework.
 
+    If the trivial attribute is set, the conceal operation corresponds to a
+    "trivial" encryption for backends that support it. In particular, most LWE
+    schemes support encrypting a value with respect to any secret key, by
+    choosing a zero-valued LWE sample and zero noise.
+
     Examples:
 
     ```mlir
-    %Y = secret.conceal %value : i32 -> !secret.secret<i32>
+    %0 = secret.conceal %value : i32 -> !secret.secret<i32>
+    %1 = secret.conceal %value {trivial} : i32 -> !secret.secret<i32>
     ```
   }];
 
-  let arguments = (ins AnyType:$cleartext);
+  let arguments = (ins AnyType:$cleartext, UnitAttr:$trivial);
   let results = (outs Secret:$output);
   let assemblyFormat = "$cleartext attr-dict `:` qualified(type($cleartext)) `->` qualified(type($output))";
 
   let builders = [
     // Builder to infer output type from the input type
-    OpBuilder<(ins "Value":$cleartext)>
+    OpBuilder<(ins "Value":$cleartext, "std::optional<UnitAttr>":$trivial)>,
+    OpBuilder<(ins "Value":$cleartext)>,
   ];
 }
 

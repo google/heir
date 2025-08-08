@@ -95,7 +95,6 @@ LogicalResult ReinterpretApplicationDataOp::verify() {
   return success();
 }
 
-// Verification for RLWE_EncryptOp
 LogicalResult RLWEEncryptOp::verify() {
   Type keyType = getKey().getType();
   auto keyRing =

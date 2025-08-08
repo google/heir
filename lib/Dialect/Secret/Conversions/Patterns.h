@@ -16,7 +16,6 @@ namespace heir {
 // Lower a client encryption function's secret.conceal op to lwe.rlwe_encode +
 // lwe.rlwe_encrypt. Modifies the containing function to add new secret key
 // material args.
-// TODO(#1875): support trivial encryptions
 struct ConvertClientConceal
     : public ContextAwareOpConversionPattern<secret::ConcealOp> {
   ConvertClientConceal(const ContextAwareTypeConverter &typeConverter,
@@ -34,6 +33,16 @@ struct ConvertClientConceal
  private:
   bool usePublicKey;
   polynomial::RingAttr ring;
+};
+
+// Lower a trivial secret.conceal .
+struct ConvertTrivialConceal
+    : public ContextAwareOpConversionPattern<secret::ConcealOp> {
+  using ContextAwareOpConversionPattern::ContextAwareOpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      secret::ConcealOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter &rewriter) const override;
 };
 
 // Lower a client decryption function's secret.reveal op to lwe.rlwe_decrypt +
