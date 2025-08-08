@@ -11,12 +11,11 @@
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"      // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/Math/IR/Math.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinOps.h"
+#include "mlir/include/mlir/IR/BuiltinOps.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
@@ -32,19 +31,14 @@ namespace heir {
 LogicalResult SchemeSelectionAnalysis::visitOperation(
     Operation *op, ArrayRef<const SchemeInfoLattice *> operands,
     ArrayRef<SchemeInfoLattice *> results) {
-  LLVM_DEBUG(llvm::dbgs()
-      << "Visiting: " << op->getName() << ". ");
+  LLVM_DEBUG(llvm::dbgs() << "Visiting: " << op->getName() << ". \n");
 
-  
   return success();
 }
 
 void annotateModuleWithScheme(Operation *top, DataFlowSolver *solver) {
-
-    LLVM_DEBUG(llvm::dbgs()
-        << "Top operation is: " << top->getName() << "\n");
-
-  }
+  LLVM_DEBUG(llvm::dbgs() << "Top operation is: " << top->getName() << "\n");
+}
 
 }  // namespace heir
 }  // namespace mlir

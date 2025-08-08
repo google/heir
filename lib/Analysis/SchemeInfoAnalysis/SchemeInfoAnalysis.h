@@ -5,14 +5,14 @@
 #include <cassert>
 #include <optional>
 
-#include "llvm/include/llvm/Support/raw_ostream.h"               // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/SparseAnalysis.h"  // from @llvm-project
-#include "mlir/include/mlir/Analysis/DataFlowFramework.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/Diagnostics.h"                    // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"                      // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                          // from @llvm-project
-#include "mlir/include/mlir/Interfaces/CallInterfaces.h"         // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"                      // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Diagnostics.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
+#include "mlir/include/mlir/Interfaces/CallInterfaces.h"   // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -93,82 +93,80 @@ class NatureOfComputation {
            numCmpOps == rhs.numCmpOps && numNonLinOps == rhs.numNonLinOps;
   }
 
- NatureOfComputation operator+(const NatureOfComputation &rhs) const {
-	if (!isInitialized() && !rhs.isInitialized()) {
-      return *this; // return the current object
+  NatureOfComputation operator+(const NatureOfComputation &rhs) const {
+    if (!isInitialized() && !rhs.isInitialized()) {
+      return *this;  // return the current object
     }
 
     if (isInitialized() && !rhs.isInitialized()) {
-      return *this; // return the current object
+      return *this;  // return the current object
     }
 
     if (!isInitialized() && rhs.isInitialized()) {
-      return rhs; // return the rhs object
+      return rhs;  // return the rhs object
     }
 
     // Both are initialized
     return NatureOfComputation(
-        numBoolOps + rhs.numBoolOps,
-        numBitOps + rhs.numBitOps,
+        numBoolOps + rhs.numBoolOps, numBitOps + rhs.numBitOps,
         numIntArithOps + rhs.numIntArithOps,
-        numRealArithOps + rhs.numRealArithOps,
-        numCmpOps + rhs.numCmpOps,
+        numRealArithOps + rhs.numRealArithOps, numCmpOps + rhs.numCmpOps,
         numNonLinOps + rhs.numNonLinOps);
   }
 
   StringRef getDominantAttributeName() const {
     assert(isInitialized() && "NatureOfComputation not initialized");
-    //TODO: define what happens when all are equal
+    // TODO: define what happens when all are equal
     int maxCount = numBoolOps;
     StringRef attributeName = numBoolOpsAttrName;
 
     if (numBitOps > maxCount) {
-        maxCount = numBitOps;
-        attributeName = numBitOpsAttrName;
+      maxCount = numBitOps;
+      attributeName = numBitOpsAttrName;
     }
     if (numIntArithOps > maxCount) {
-        maxCount = numIntArithOps;
-        attributeName = numIntArithOpsAttrName;
+      maxCount = numIntArithOps;
+      attributeName = numIntArithOpsAttrName;
     }
     if (numRealArithOps > maxCount) {
-        maxCount = numRealArithOps;
-        attributeName = numRealArithOpsAttrName;
+      maxCount = numRealArithOps;
+      attributeName = numRealArithOpsAttrName;
     }
     if (numCmpOps > maxCount) {
-        maxCount = numCmpOps;
-        attributeName = numCmpOpsAttrName;
+      maxCount = numCmpOps;
+      attributeName = numCmpOpsAttrName;
     }
     if (numNonLinOps > maxCount) {
-        maxCount = numNonLinOps;
-        attributeName = numNonLinOpsAttrName;
+      maxCount = numNonLinOps;
+      attributeName = numNonLinOpsAttrName;
     }
 
     return attributeName;
-}
+  }
 
-int getDominantComputationCount() const {
+  int getDominantComputationCount() const {
     assert(isInitialized() && "NatureOfComputation not initialized");
-    
+
     int maxCount = numBoolOps;
 
     if (numBitOps > maxCount) {
-        maxCount = numBitOps;
+      maxCount = numBitOps;
     }
     if (numIntArithOps > maxCount) {
-        maxCount = numIntArithOps;
+      maxCount = numIntArithOps;
     }
     if (numRealArithOps > maxCount) {
-        maxCount = numRealArithOps;
+      maxCount = numRealArithOps;
     }
     if (numCmpOps > maxCount) {
-        maxCount = numCmpOps;
+      maxCount = numCmpOps;
     }
     if (numNonLinOps > maxCount) {
-        maxCount = numNonLinOps;
+      maxCount = numNonLinOps;
     }
 
-    return maxCount; // Returns the highest count after all comparisons
-}
+    return maxCount;  // Returns the highest count after all comparisons
+  }
 
   static NatureOfComputation max(const NatureOfComputation &lhs,
                                  const NatureOfComputation &rhs) {
@@ -198,8 +196,9 @@ int getDominantComputationCount() const {
     if (isInitialized()) {
       os << "NatureOfComputation(numBoolOps=" << numBoolOps
          << "; numBitOps=" << numBitOps << "; numIntArithOps=" << numIntArithOps
-         << "; numRealArithOps=" << numRealArithOps << "; numCmpOps=" << numCmpOps
-         << "; numNonLinOps=" << numNonLinOps << ")";
+         << "; numRealArithOps=" << numRealArithOps
+         << "; numCmpOps=" << numCmpOps << "; numNonLinOps=" << numNonLinOps
+         << ")";
     } else {
       os << "NatureOfComputation(uninitialized)";
     }
@@ -227,10 +226,10 @@ class SchemeInfoLattice : public dataflow::Lattice<NatureOfComputation> {
 };
 
 class SchemeInfoAnalysis
-    : public dataflow::SparseForwardDataFlowAnalysis<SchemeInfoLattice>{
+    : public dataflow::SparseForwardDataFlowAnalysis<SchemeInfoLattice> {
  public:
   using SparseForwardDataFlowAnalysis::SparseForwardDataFlowAnalysis;
-  
+
   LogicalResult visitOperation(Operation *op,
                                ArrayRef<const SchemeInfoLattice *> operands,
                                ArrayRef<SchemeInfoLattice *> results) override;
