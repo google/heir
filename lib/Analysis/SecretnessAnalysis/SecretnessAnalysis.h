@@ -226,6 +226,8 @@ void annotateSecretness(Operation *top, DataFlowSolver *solver, bool verbose);
 // analysis
 bool isSecret(Value value, DataFlowSolver *solver);
 
+bool isInitialized(Value value, DataFlowSolver *solver);
+
 bool isSecret(const SecretnessLattice *lattice);
 
 bool isSecret(ValueRange values, DataFlowSolver *solver);

@@ -50,25 +50,19 @@ struct SecretInsertToStaticInsertConversion
     auto tensor = insertOp.getDest();
     auto insertedValue = insertOp.getScalar();
 
-    auto *indexSecretnessLattice =
-        solver->lookupState<SecretnessLattice>(index);
-
-    // use secretness from lattice or, if no lattice found, set to unknown
-    auto indexSecretness = indexSecretnessLattice
-                               ? indexSecretnessLattice->getValue()
-                               : Secretness();
-
-    // If lattice is set to unknown,
-    // apply transformation anyway but emit a warning
-    if (!indexSecretness.isInitialized()) {
+    // If lattice is set to unknown, apply transformation anyway but emit a
+    // warning
+    bool initialized = isInitialized(index, solver);
+    if (!initialized) {
       insertOp->emitWarning()
           << "Secretness for tensor.insert index is unknown. "
              "Conservatively, the transformation will be applied:";
     }
 
     // If index is known to be public, no transformation is needed
-    if (indexSecretness.isInitialized() && !indexSecretness.getSecretness())
+    if (initialized && !isSecret(index, solver)) {
       return failure();
+    }
 
     ImplicitLocOpBuilder builder(insertOp->getLoc(), rewriter);
 
