@@ -14,6 +14,7 @@ heir_lattigo_lib(
         "--scheme-to-lattigo",
     ],
     mlir_src = "@heir//tests/Examples/common:cmux.mlir",
+    tags = ["e2e"],
 )
 
 # For Google-internal reasons we must separate the go_test rules from the macro
@@ -23,4 +24,5 @@ go_test(
     name = "cmux_test",
     srcs = ["cmux_test.go"],
     embed = [":main"],
+    tags = ["e2e"],
 )

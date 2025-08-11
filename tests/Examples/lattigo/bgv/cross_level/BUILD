@@ -22,6 +22,7 @@ heir_lattigo_lib(
         "--scheme-to-lattigo=insert-debug-handler-calls=true",
     ],
     mlir_src = "cross_level.mlir",
+    tags = ["e2e"],
 )
 
 # For Google-internal reasons we must separate the go_test rules from the macro
@@ -31,4 +32,5 @@ go_test(
     name = "crossleveldebug_test",
     srcs = ["cross_level_debug_test.go"],
     embed = [":main"],
+    tags = ["e2e"],
 )

@@ -142,7 +142,7 @@ def heir_benchmark_test(name, mlir_src, test_src, heir_opt_flags = [], data = []
         name = name,
         srcs = test_src,
         deps = deps + [":" + import_name],
-        tags = tags,
+        tags = tags + ["e2e"],
         data = data + [generated_obj_name],
         **kwargs
     )

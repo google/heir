@@ -63,6 +63,7 @@ def plaintext_test(name, mlir_src, heir_opt_flags, mlir_translate_flags = None, 
       log_file_visibility: Visibility of the log file.
       data: Data deps to pass to heir_opt
     """
+    tags = ["e2e"]
 
     heir_opt_name = "%s_heir_opt" % name
     generated_heir_opt_name = "%s_heir_opt.mlir" % name
@@ -73,6 +74,7 @@ def plaintext_test(name, mlir_src, heir_opt_flags, mlir_translate_flags = None, 
         pass_flags = heir_opt_flags,
         generated_filename = generated_heir_opt_name,
         data = data,
+        tags = tags,
     )
 
     mlir_translate_name = "%s_mlir_translate" % name
@@ -89,6 +91,7 @@ def plaintext_test(name, mlir_src, heir_opt_flags, mlir_translate_flags = None, 
         src = generated_heir_opt_name,
         pass_flags = _mlir_translate_flags,
         generated_filename = generated_mlir_translate_name,
+        tags = tags,
     )
 
     llc_name = "%s_llc" % name
@@ -106,6 +109,7 @@ def plaintext_test(name, mlir_src, heir_opt_flags, mlir_translate_flags = None, 
         src = generated_mlir_translate_name,
         pass_flags = _llc_flags,
         generated_filename = generated_llc_name,
+        tags = tags,
     )
 
     cc_test_name = "%s_cc_test" % name
@@ -114,6 +118,7 @@ def plaintext_test(name, mlir_src, heir_opt_flags, mlir_translate_flags = None, 
         srcs = [":" + generated_llc_name],
         deps = deps,
         copts = ["-fPIC"],
+        tags = tags,
     )
 
     # the following part is for exporting the log for other tests
@@ -124,6 +129,7 @@ def plaintext_test(name, mlir_src, heir_opt_flags, mlir_translate_flags = None, 
             srcs = [":" + generated_llc_name],
             deps = deps,
             copts = ["-fPIC"],
+            tags = tags,
         )
 
         binary_rule_name = "%s_binary_rule" % name
@@ -133,4 +139,5 @@ def plaintext_test(name, mlir_src, heir_opt_flags, mlir_translate_flags = None, 
             binary = ":" + cc_binary_name,
             generated_filename = log_file_name,
             visibility = log_file_visibility,
+            tags = tags,
         )

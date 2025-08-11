@@ -51,3 +51,6 @@ build:asan --copt -O1
 build:asan --copt -g
 build:asan --copt -fno-omit-frame-pointer
 build:asan --linkopt -fsanitize=address
+
+# exclude e2e tests that execute HEIR from build
+build --build_tag_filters=-e2e
