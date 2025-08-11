@@ -15,4 +15,4 @@ jobs:
           python-version: '3.11'
 
       - name: Run pre-commit github action
-        uses: pre-commit/action@646c83fcd040023954eafda54b4db0192ce70507 # pin@v3
+        uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # pin@v3.0.1
