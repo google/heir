@@ -46,6 +46,11 @@ FailureOr<std::string> convertType(Type type, Location loc, bool constant) {
       // For now, these types are defined in the prelude as aliases.
       .Case<CryptoContextType>(
           [&](auto ty) { return std::string("CryptoContextT"); })
+      .Case<BinFHEContextType>(
+          [&](auto ty) { return std::string("BinFHEContextT"); })
+      .Case<LWESchemeType>([&](auto ty) { return std::string("LWESchemeT"); })
+      .Case<LookupTableType>(
+          [&](auto ty) { return std::string("NativeVector"); })
       .Case<CCParamsType>([&](auto ty) { return std::string("CCParamsT"); })
       .Case<lwe::LWECiphertextType>([&](auto ty) {
         return constant ? std::string("CiphertextT")

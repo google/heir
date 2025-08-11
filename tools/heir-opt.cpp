@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 
+#include "lib/Conversion/CGGIToOpenfhe/CGGIToOpenfhe.h"
 #include "lib/Dialect/Arith/Conversions/ArithToCGGI/ArithToCGGI.h"
 #include "lib/Dialect/Arith/Conversions/ArithToCGGIQuart/ArithToCGGIQuart.h"
 #include "lib/Dialect/Arith/Conversions/ArithToModArith/ArithToModArith.h"
@@ -344,6 +345,7 @@ int main(int argc, char **argv) {
   registerCGGIToJaxitePasses();
   registerCGGIToTfheRustPasses();
   registerCGGIToTfheRustBoolPasses();
+  registerCGGIToOpenfhePasses();
   // This comement registers internal passes
   registerSecretToBGVPasses();
   registerSecretToCKKSPasses();

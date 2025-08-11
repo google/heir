@@ -37,6 +37,8 @@ int main(int argc, char **argv) {
   mlir::heir::openfhe::registerToOpenFhePkeTranslation();
   mlir::heir::openfhe::registerToOpenFhePkeHeaderTranslation();
   mlir::heir::openfhe::registerToOpenFhePkePybindTranslation();
+  mlir::heir::openfhe::registerToOpenFheBinTranslation();
+  mlir::heir::openfhe::registerToOpenFheBinHeaderTranslation();
 
   // Lattigo
   mlir::heir::lattigo::registerToLattigoTranslation();

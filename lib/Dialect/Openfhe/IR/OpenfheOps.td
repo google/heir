@@ -321,4 +321,60 @@ def KeySwitchOp : Openfhe_Op<"key_switch", [
 
 def BootstrapOp : Openfhe_UnaryTypeSwitchOp<"bootstrap"> { let summary = "OpenFHE bootstrap operation of a ciphertext. (For CKKS)"; }
 
+// BinFHE operations
+
+class Openfhe_lwe_BinaryOp<string mnemonic, list<Trait> traits = []>
+  :  Openfhe_Op<mnemonic, traits # [
+    Pure,
+    AllTypesMatch<["lhs", "rhs", "output"]>,
+]>{
+ let arguments = (ins
+    Openfhe_LWEScheme:$cryptoContext,
+    LWECiphertext:$lhs,
+    LWECiphertext:$rhs
+  );
+  let results = (outs LWECiphertext:$output);
+}
+
+def MakeLutOp : Openfhe_Op<"make_lut", [Pure]> {
+  let arguments = (ins
+    Openfhe_BinFHEContext:$cryptoContext,
+    DenseI32ArrayAttr:$values
+  );
+  let results = (outs Openfhe_LUT:$output);
+}
+
+def EvalFuncOp : Openfhe_Op<"eval_func", [Pure]> {
+  let arguments = (ins
+    Openfhe_BinFHEContext:$cryptoContext,
+    Openfhe_LUT:$lut,
+    LWECiphertext:$input
+  );
+  let results = (outs LWECiphertext:$output);
+}
+
+def GetLWESchemeOp : Openfhe_Op<"get_lwe_scheme", [Pure]> {
+  let summary = "Gets pointer to underlying LWE scheme.";
+  let arguments = (ins
+    Openfhe_BinFHEContext:$cryptoContext
+  );
+  let results = (outs Openfhe_LWEScheme:$scheme);
+}
+
+def LWEAddOp : Openfhe_lwe_BinaryOp<"lwe_add"> { let summary = "OpenFHE add operation of two LWE ciphertexts."; }
+def LWESubOp : Openfhe_lwe_BinaryOp<"lwe_sub"> { let summary = "OpenFHE sub operation of two LWE ciphertexts."; }
+
+def LWEMulConstOp : Openfhe_Op<"lwe_mul_const",[
+    Pure,
+    AllTypesMatch<["ciphertext", "output"]>
+]> {
+  let summary = "OpenFHE mul operation of an LWE ciphertext and a constant.";
+  let arguments = (ins
+    Openfhe_LWEScheme:$cryptoContext,
+    LWECiphertext:$ciphertext,
+    I64:$constant
+  );
+  let results = (outs LWECiphertext:$output);
+}
+
 #endif  // LIB_DIALECT_OPENFHE_IR_OPENFHEOPS_TD_
