@@ -20,7 +20,7 @@ FailureOr<PolyT> fromMonomialsImpl(ArrayRef<MonomialT> monomials) {
   // Ensure non-unique exponents are not present. Since we sorted the list by
   // exponent, a linear scan of adjacent monomials suffices.
   if (std::adjacent_find(monomialsCopy.begin(), monomialsCopy.end(),
-                         [](const MonomialT &lhs, const MonomialT &rhs) {
+                         [](const MonomialT& lhs, const MonomialT& rhs) {
                            return lhs.getExponent() == rhs.getExponent();
                          }) != monomialsCopy.end()) {
     return failure();

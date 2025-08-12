@@ -29,13 +29,13 @@ static void setAttrIfMissing(Value value, StringRef attrName, Attribute attr) {
   }
 }
 
-void forwardPropagateAnnotation(Operation *root, StringRef attrName,
+void forwardPropagateAnnotation(Operation* root, StringRef attrName,
                                 function_ref<bool(Type)> shouldPropagate) {
   LLVM_DEBUG(llvm::dbgs() << "Forward propagation of " << attrName << "\n");
   if (attrName.empty()) {
     return;
   }
-  root->walk<WalkOrder::PreOrder>([&](Operation *op) {
+  root->walk<WalkOrder::PreOrder>([&](Operation* op) {
     LLVM_DEBUG(llvm::dbgs() << "Visiting op " << op->getName() << "\n");
     if (op->hasAttr(attrName)) {
       return WalkResult::advance();
@@ -47,7 +47,7 @@ void forwardPropagateAnnotation(Operation *root, StringRef attrName,
       LLVM_DEBUG(llvm::dbgs() << "Op is a terminator\n");
       // Terminators try to inherit their attribute from the parent op's return
       // attr.
-      auto *parentOp = op->getParentOp();
+      auto* parentOp = op->getParentOp();
 
       // An op like `return %0, %1` propagates multiple attributes forward to
       // the parent's multiple result attrs.
@@ -62,7 +62,7 @@ void forwardPropagateAnnotation(Operation *root, StringRef attrName,
           continue;
         }
 
-        llvm::TypeSwitch<Operation *>(parentOp)
+        llvm::TypeSwitch<Operation*>(parentOp)
             .Case<FunctionOpInterface, OperandAndResultAttrInterface>(
                 [&](auto interface) {
                   LLVM_DEBUG(llvm::dbgs()
@@ -71,7 +71,7 @@ void forwardPropagateAnnotation(Operation *root, StringRef attrName,
                              << "\n");
                   return interface.setResultAttr(i, attrName, attr.value());
                 })
-            .Default([&](Operation *op) {
+            .Default([&](Operation* op) {
               LLVM_DEBUG(llvm::dbgs()
                          << "Warning: propagating terminator operand attr " << i
                          << " (" << attr
@@ -115,13 +115,13 @@ void forwardPropagateAnnotation(Operation *root, StringRef attrName,
   });
 }
 
-void backwardPropagateAnnotation(Operation *root, StringRef attrName,
+void backwardPropagateAnnotation(Operation* root, StringRef attrName,
                                  function_ref<bool(Type)> shouldPropagate) {
   if (attrName.empty()) {
     return;
   }
 
-  root->walk<WalkOrder::PostOrder, ReverseIterator>([&](Operation *op) {
+  root->walk<WalkOrder::PostOrder, ReverseIterator>([&](Operation* op) {
     LLVM_DEBUG(llvm::dbgs() << "BackProp(" << attrName << ") visiting op "
                             << op->getName() << "\n");
 
@@ -144,7 +144,7 @@ void backwardPropagateAnnotation(Operation *root, StringRef attrName,
     if (auto attrInterface = dyn_cast<OperandAndResultAttrInterface>(op)) {
       // The attr is attached to the op's operands and can be propagated
       // backward to the op's defining op.
-      for (OpOperand &operand : op->getOpOperands()) {
+      for (OpOperand& operand : op->getOpOperands()) {
         if (!shouldPropagate(operand.get().getType())) {
           LLVM_DEBUG(llvm::dbgs() << "Skipping propagation of " << attrName
                                   << " to operand " << operand.get() << "\n");
@@ -162,18 +162,18 @@ void backwardPropagateAnnotation(Operation *root, StringRef attrName,
       LLVM_DEBUG(llvm::dbgs() << "Op is a terminator\n");
       // Terminators try to inherit their attribute from the parent op's return
       // attr.
-      auto *parentOp = op->getParentOp();
+      auto* parentOp = op->getParentOp();
 
       // An op like `return %0, %1` can inherit multiple attributes from the
       // parent's multiple result attrs.
       for (int i = 0; i < op->getNumOperands(); ++i) {
         Attribute attr =
-            llvm::TypeSwitch<Operation *, Attribute>(parentOp)
+            llvm::TypeSwitch<Operation*, Attribute>(parentOp)
                 .Case<FunctionOpInterface, OperandAndResultAttrInterface>(
                     [&](auto interface) {
                       return interface.getResultAttr(i, attrName);
                     })
-                .Default([&](Operation *op) { return op->getAttr(attrName); });
+                .Default([&](Operation* op) { return op->getAttr(attrName); });
         if (attr) {
           auto operand = op->getOperand(i);
           if (!shouldPropagate(operand.getType())) {

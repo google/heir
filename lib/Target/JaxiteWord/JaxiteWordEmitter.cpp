@@ -42,25 +42,25 @@ void registerToJaxiteWordTranslation() {
   TranslateFromMLIRRegistration reg(
       "emit-jaxiteword",
       "translate the JaxiteWord dialect to python code for jaxiteword",
-      [](Operation *op, llvm::raw_ostream &output) {
+      [](Operation* op, llvm::raw_ostream& output) {
         return translateToJaxiteWord(op, output);
       },
-      [](DialectRegistry &registry) {
+      [](DialectRegistry& registry) {
         registry.insert<func::FuncDialect, jaxiteword::JaxiteWordDialect,
                         arith::ArithDialect, tensor::TensorDialect,
                         lwe::LWEDialect, memref::MemRefDialect>();
       });
 }
 
-LogicalResult translateToJaxiteWord(Operation *op, llvm::raw_ostream &os) {
+LogicalResult translateToJaxiteWord(Operation* op, llvm::raw_ostream& os) {
   SelectVariableNames variableNames(op);
   JaxiteWordEmitter emitter(os, &variableNames);
   return emitter.translate(*op);
 }
 
-LogicalResult JaxiteWordEmitter::translate(Operation &op) {
+LogicalResult JaxiteWordEmitter::translate(Operation& op) {
   LogicalResult status =
-      llvm::TypeSwitch<Operation &, LogicalResult>(op)
+      llvm::TypeSwitch<Operation&, LogicalResult>(op)
           // Builtin ops
           .Case<ModuleOp>([&](auto op) { return printOperation(op); })
           // Func ops
@@ -76,7 +76,7 @@ LogicalResult JaxiteWordEmitter::translate(Operation &op) {
               [&](auto op) { return printOperation(op); })
           // Arith ops
           .Case<arith::ConstantOp>([&](auto op) { return success(); })
-          .Default([&](Operation &) {
+          .Default([&](Operation&) {
             return op.emitOpError("unable to find printer for op");
           });
 
@@ -89,7 +89,7 @@ LogicalResult JaxiteWordEmitter::translate(Operation &op) {
 
 LogicalResult JaxiteWordEmitter::printOperation(ModuleOp moduleOp) {
   os << kModulePrelude << "\n";
-  for (Operation &op : moduleOp) {
+  for (Operation& op : moduleOp) {
     if (failed(translate(op))) {
       return failure();
     }
@@ -147,8 +147,8 @@ LogicalResult JaxiteWordEmitter::printOperation(func::FuncOp funcOp) {
   os << ":\n";
   os.indent();
 
-  for (Block &block : funcOp.getBlocks()) {
-    for (Operation &op : block.getOperations()) {
+  for (Block& block : funcOp.getBlocks()) {
+    for (Operation& op : block.getOperations()) {
       if (failed(translate(op))) {
         return failure();
       }
@@ -271,7 +271,7 @@ LogicalResult JaxiteWordEmitter::printOperation(memref::AllocOp op) {
      << std::accumulate(std::next(op.getMemref().getType().getShape().begin()),
                         op.getMemref().getType().getShape().end(),
                         std::to_string(op.getMemref().getType().getShape()[0]),
-                        [&](const std::string &a, int64_t b) {
+                        [&](const std::string& a, int64_t b) {
                           return a + "*" + std::to_string(b);
                         })
      << "), None)";
@@ -314,12 +314,12 @@ FailureOr<std::string> JaxiteWordEmitter::convertType(Type type) {
 
     return std::string(std::string("list[") + elementTy.value() + "]");
   }
-  return llvm::TypeSwitch<Type &, FailureOr<std::string>>(type)
+  return llvm::TypeSwitch<Type&, FailureOr<std::string>>(type)
       .Case<CiphertextType>(
           [&](auto type) { return std::string("jaxite_word.Ciphertext"); })
       .Case<ModulusListType>(
           [&](auto type) { return std::string("jaxite_word.ModulusList"); })
-      .Default([&](Type &) { return failure(); });
+      .Default([&](Type&) { return failure(); });
 }
 
 LogicalResult JaxiteWordEmitter::emitType(Type type) {
@@ -331,8 +331,8 @@ LogicalResult JaxiteWordEmitter::emitType(Type type) {
   return success();
 }
 
-JaxiteWordEmitter::JaxiteWordEmitter(raw_ostream &os,
-                                     SelectVariableNames *variableNames)
+JaxiteWordEmitter::JaxiteWordEmitter(raw_ostream& os,
+                                     SelectVariableNames* variableNames)
     : os(os), variableNames(variableNames) {}
 
 }  // namespace jaxiteword

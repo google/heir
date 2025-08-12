@@ -34,12 +34,12 @@ struct SecretInsertToStaticInsertConversion
   using OpRewritePattern<tensor::InsertOp>::OpRewritePattern;
 
  public:
-  SecretInsertToStaticInsertConversion(Operation *top, DataFlowSolver *solver,
-                                       MLIRContext *context)
+  SecretInsertToStaticInsertConversion(Operation* top, DataFlowSolver* solver,
+                                       MLIRContext* context)
       : OpRewritePattern(context), top(top), solver(solver) {}
 
   LogicalResult matchAndRewrite(tensor::InsertOp insertOp,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     // TODO(#866): Add support for writes on multi-dimensional tensors
     if (insertOp.getDest().getType().getRank() != 1) {
       insertOp->emitWarning()
@@ -50,7 +50,7 @@ struct SecretInsertToStaticInsertConversion
     auto tensor = insertOp.getDest();
     auto insertedValue = insertOp.getScalar();
 
-    auto *indexSecretnessLattice =
+    auto* indexSecretnessLattice =
         solver->lookupState<SecretnessLattice>(index);
 
     // use secretness from lattice or, if no lattice found, set to unknown
@@ -101,11 +101,11 @@ struct SecretInsertToStaticInsertConversion
 
     auto ifOp = scf::IfOp::create(
         builder, cond,
-        [&](OpBuilder &b, Location loc) {
+        [&](OpBuilder& b, Location loc) {
           // Yield tensor with value inserted at index
           scf::YieldOp::create(b, loc, newInsertOp.getResult());
         },
-        [&](OpBuilder &b, Location loc) {
+        [&](OpBuilder& b, Location loc) {
           // Yield old tensor
           scf::YieldOp::create(b, loc, forOp.getRegionIterArgs().front());
         });
@@ -133,12 +133,12 @@ struct SecretInsertToStaticInsertConversion
 
  private:
   // root operation the pass is on, should never be altered hence never null
-  Operation *top;
-  DataFlowSolver *solver;
+  Operation* top;
+  DataFlowSolver* solver;
 
-  static inline void setValueToSecretness(DataFlowSolver *solver, Value value,
+  static inline void setValueToSecretness(DataFlowSolver* solver, Value value,
                                           Secretness secretness) {
-    auto *lattice = solver->getOrCreateState<SecretnessLattice>(value);
+    auto* lattice = solver->getOrCreateState<SecretnessLattice>(value);
     // solver->propagateIfChanged is bogus
     (void)lattice->join(secretness);
   }
@@ -151,7 +151,7 @@ struct ConvertSecretInsertToStaticInsert
       ConvertSecretInsertToStaticInsertBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
 
     RewritePatternSet patterns(context);
 

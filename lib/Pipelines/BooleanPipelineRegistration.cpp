@@ -44,17 +44,17 @@ static std::vector<std::string> opsToDistribute = {"secret.separator"};
 static std::vector<unsigned> bitWidths = {1, 2, 4, 8, 16};
 
 #ifndef HEIR_NO_YOSYS
-CGGIPipelineBuilder mlirToCGGIPipelineBuilder(const std::string &yosysFilesPath,
-                                              const std::string &abcPath) {
-  return [=](OpPassManager &pm, const MLIRToCGGIPipelineOptions &options) {
+CGGIPipelineBuilder mlirToCGGIPipelineBuilder(const std::string& yosysFilesPath,
+                                              const std::string& abcPath) {
+  return [=](OpPassManager& pm, const MLIRToCGGIPipelineOptions& options) {
     mlirToCGGIPipeline(pm, options, yosysFilesPath, abcPath);
   };
 }
 
-void mlirToCGGIPipeline(OpPassManager &pm,
-                        const MLIRToCGGIPipelineOptions &options,
-                        const std::string &yosysFilesPath,
-                        const std::string &abcPath) {
+void mlirToCGGIPipeline(OpPassManager& pm,
+                        const MLIRToCGGIPipelineOptions& options,
+                        const std::string& yosysFilesPath,
+                        const std::string& abcPath) {
   // TOSA to linalg
   ::mlir::heir::tosaToLinalg(pm);
 
@@ -139,13 +139,13 @@ void mlirToCGGIPipeline(OpPassManager &pm,
 }
 #else
 CGGIPipelineBuilder mlirToCGGIPipelineBuilder() {
-  return [=](OpPassManager &pm, const MLIRToCGGIPipelineOptions &options) {
+  return [=](OpPassManager& pm, const MLIRToCGGIPipelineOptions& options) {
     mlirToCGGIPipeline(pm, options);
   };
 }
 
-void mlirToCGGIPipeline(OpPassManager &pm,
-                        const MLIRToCGGIPipelineOptions &options) {
+void mlirToCGGIPipeline(OpPassManager& pm,
+                        const MLIRToCGGIPipelineOptions& options) {
   // TOSA to linalg
   ::mlir::heir::tosaToLinalg(pm);
 
@@ -198,7 +198,7 @@ void mlirToCGGIPipeline(OpPassManager &pm,
 #endif
 
 CGGIBackendPipelineBuilder toTfheRsPipelineBuilder() {
-  return [=](OpPassManager &pm) {
+  return [=](OpPassManager& pm) {
     // CGGI to Tfhe-Rust exit dialect
     pm.addPass(createCGGIToTfheRust());
     // CSE must be run before canonicalizer, so that redundant ops are
@@ -218,7 +218,7 @@ CGGIBackendPipelineBuilder toTfheRsPipelineBuilder() {
 }
 
 CGGIBackendPipelineBuilder toFptPipelineBuilder() {
-  return [=](OpPassManager &pm) {
+  return [=](OpPassManager& pm) {
     // Vectorize CGGI operations
     pm.addPass(cggi::createBooleanVectorizer());
     pm.addPass(createCanonicalizerPass());
@@ -244,7 +244,7 @@ CGGIBackendPipelineBuilder toFptPipelineBuilder() {
 }
 
 JaxiteBackendPipelineBuilder toJaxitePipelineBuilder() {
-  return [=](OpPassManager &pm, const CGGIBackendOptions &options) {
+  return [=](OpPassManager& pm, const CGGIBackendOptions& options) {
     if (options.parallelism > 0) {
       pm.addPass(cggi::createBooleanVectorizer(
           cggi::BooleanVectorizerOptions{.parallelism = options.parallelism}));

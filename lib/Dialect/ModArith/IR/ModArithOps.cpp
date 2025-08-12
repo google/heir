@@ -56,8 +56,8 @@ std::vector<int64_t> getShapeOrEmpty(Type type) {
 
 template <typename OpType>
 bool isShapeCorrect(OpType op, int64_t rnsLength,
-                    std::vector<int64_t> &modularShape,
-                    std::vector<int64_t> &integerShape) {
+                    std::vector<int64_t>& modularShape,
+                    std::vector<int64_t>& integerShape) {
   auto tmp = modularShape;
   if (rnsLength != 0) tmp.push_back(rnsLength);
   return tmp == integerShape;
@@ -168,7 +168,7 @@ LogicalResult BarrettReduceOp::verify() {
   return success();
 }
 
-ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
+ParseResult ConstantOp::parse(OpAsmParser& parser, OperationState& result) {
   unsigned minBitwidth = 4;  // bitwidth assigned by parser to integer `1`
   Type parsedType;
   if (parser.parseOptionalKeyword("dense").succeeded()) {
@@ -192,12 +192,12 @@ ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
                               "expected at least one integer in dense list.");
 
     unsigned maxWidth = 0;
-    for (auto &parsedInt : parsedInts) {
+    for (auto& parsedInt : parsedInts) {
       // zero becomes `i64` when parsed, so truncate back down to minBitwidth
       parsedInt = parsedInt.isZero() ? parsedInt.trunc(minBitwidth) : parsedInt;
       maxWidth = std::max(maxWidth, parsedInt.getBitWidth());
     }
-    for (auto &parsedInt : parsedInts) {
+    for (auto& parsedInt : parsedInts) {
       parsedInt = parsedInt.zextOrTrunc(maxWidth);
     }
     auto attr = DenseIntElementsAttr::get(
@@ -261,7 +261,7 @@ LogicalResult ConstantOp::verify() {
   return emitOpError("value must be IntegerAttr or DenseIntElementsAttr.");
 }
 
-void ConstantOp::print(OpAsmPrinter &p) {
+void ConstantOp::print(OpAsmPrinter& p) {
   p << " ";
   p.printAttributeWithoutType(getValue());
   p << " : ";
@@ -327,8 +327,8 @@ OpFoldResult ConstantOp::fold(FoldAdaptor adaptor) {
 /// - `foldBinFn` defines how the actual binary operation (+, -, *) should be
 /// performed.
 template <typename FoldAdaptor, typename FoldBinFn>
-static OpFoldResult foldBinModOp(Operation *op, FoldAdaptor adaptor,
-                                 FoldBinFn &&foldBinFn,
+static OpFoldResult foldBinModOp(Operation* op, FoldAdaptor adaptor,
+                                 FoldBinFn&& foldBinFn,
                                  llvm::StringRef opName) {
   // TODO(#1759): support dense attributes
 
@@ -408,7 +408,7 @@ OpFoldResult MulOp::fold(FoldAdaptor adaptor) {
       "Mul");
 }
 
-Operation *ModArithDialect::materializeConstant(OpBuilder &builder,
+Operation* ModArithDialect::materializeConstant(OpBuilder& builder,
                                                 Attribute value, Type type,
                                                 Location loc) {
   // TODO(#1759): support dense attributes
@@ -428,22 +428,22 @@ namespace {
 #include "lib/Dialect/ModArith/IR/ModArithCanonicalization.cpp.inc"
 }  // namespace
 
-void AddOp::getCanonicalizationPatterns(RewritePatternSet &results,
-                                        MLIRContext *context) {
+void AddOp::getCanonicalizationPatterns(RewritePatternSet& results,
+                                        MLIRContext* context) {
   results.add<AddZero, AddAddConstant, AddSubConstantRHS, AddSubConstantLHS,
               AddMulNegativeOneRhs, AddMulNegativeOneLhs>(context);
 }
 
-void SubOp::getCanonicalizationPatterns(RewritePatternSet &results,
-                                        MLIRContext *context) {
+void SubOp::getCanonicalizationPatterns(RewritePatternSet& results,
+                                        MLIRContext* context) {
   results.add<SubZero, SubMulNegativeOneRhs, SubMulNegativeOneLhs,
               SubRHSAddConstant, SubLHSAddConstant, SubRHSSubConstantRHS,
               SubRHSSubConstantLHS, SubLHSSubConstantRHS, SubLHSSubConstantLHS,
               SubSubLHSRHSLHS>(context);
 }
 
-void MulOp::getCanonicalizationPatterns(RewritePatternSet &results,
-                                        MLIRContext *context) {
+void MulOp::getCanonicalizationPatterns(RewritePatternSet& results,
+                                        MLIRContext* context) {
   results.add<MulZero, MulOne, MulMulConstant>(context);
 }
 

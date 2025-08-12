@@ -17,11 +17,11 @@ namespace heir {
 // assuming that no changes to types/operands/attributes are necessary
 template <typename OriginalOp, typename NewOp>
 struct Convert : public mlir::OpRewritePattern<OriginalOp> {
-  Convert(mlir::MLIRContext *context)
+  Convert(mlir::MLIRContext* context)
       : mlir::OpRewritePattern<OriginalOp>(context) {}
 
   llvm::LogicalResult matchAndRewrite(
-      OriginalOp op, mlir::PatternRewriter &rewriter) const override {
+      OriginalOp op, mlir::PatternRewriter& rewriter) const override {
     rewriter.replaceOpWithNewOp<NewOp>(op, op->getOperands(), op->getAttrs());
     return llvm::success();
   }
@@ -34,7 +34,7 @@ class ExpandAffineApply : public OpRewritePattern<affine::AffineApplyOp> {
   using OpRewritePattern<affine::AffineApplyOp>::OpRewritePattern;
 
   LogicalResult matchAndRewrite(affine::AffineApplyOp op,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     auto maybeExpandedMap =
         affine::expandAffineMap(rewriter, op.getLoc(), op.getAffineMap(),
                                 llvm::to_vector<8>(op.getOperands()));

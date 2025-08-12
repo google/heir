@@ -23,7 +23,7 @@ struct LowerUnpack : impl::LowerUnpackBase<LowerUnpack> {
   using LowerUnpackBase::LowerUnpackBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
     RewritePatternSet patterns(context);
     patterns.add<LowerUnpackOp>(context);
     walkAndApplyPatterns(getOperation(), std::move(patterns));

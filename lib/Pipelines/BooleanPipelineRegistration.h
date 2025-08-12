@@ -31,15 +31,15 @@ struct MLIRToCGGIPipelineOptions : public YosysOptimizerPipelineOptions {
 };
 
 using CGGIPipelineBuilder =
-    std::function<void(OpPassManager &, const MLIRToCGGIPipelineOptions &)>;
+    std::function<void(OpPassManager&, const MLIRToCGGIPipelineOptions&)>;
 
-CGGIPipelineBuilder mlirToCGGIPipelineBuilder(const std::string &yosysFilesPath,
-                                              const std::string &abcPath);
+CGGIPipelineBuilder mlirToCGGIPipelineBuilder(const std::string& yosysFilesPath,
+                                              const std::string& abcPath);
 
-void mlirToCGGIPipeline(OpPassManager &pm,
-                        const MLIRToCGGIPipelineOptions &options,
-                        const std::string &yosysFilesPath,
-                        const std::string &abcPath);
+void mlirToCGGIPipeline(OpPassManager& pm,
+                        const MLIRToCGGIPipelineOptions& options,
+                        const std::string& yosysFilesPath,
+                        const std::string& abcPath);
 
 #else
 struct MLIRToCGGIPipelineOptions
@@ -53,12 +53,12 @@ struct MLIRToCGGIPipelineOptions
 };
 
 using CGGIPipelineBuilder =
-    std::function<void(OpPassManager &, const MLIRToCGGIPipelineOptions &)>;
+    std::function<void(OpPassManager&, const MLIRToCGGIPipelineOptions&)>;
 
 CGGIPipelineBuilder mlirToCGGIPipelineBuilder();
 
-void mlirToCGGIPipeline(OpPassManager &pm,
-                        const MLIRToCGGIPipelineOptions &options);
+void mlirToCGGIPipeline(OpPassManager& pm,
+                        const MLIRToCGGIPipelineOptions& options);
 #endif
 
 struct CGGIBackendOptions : public PassPipelineOptions<CGGIBackendOptions> {
@@ -70,10 +70,10 @@ struct CGGIBackendOptions : public PassPipelineOptions<CGGIBackendOptions> {
       llvm::cl::init(-1)};
 };
 
-using CGGIBackendPipelineBuilder = std::function<void(OpPassManager &)>;
+using CGGIBackendPipelineBuilder = std::function<void(OpPassManager&)>;
 
 using JaxiteBackendPipelineBuilder =
-    std::function<void(OpPassManager &, const CGGIBackendOptions &)>;
+    std::function<void(OpPassManager&, const CGGIBackendOptions&)>;
 
 CGGIBackendPipelineBuilder toTfheRsPipelineBuilder();
 

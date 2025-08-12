@@ -31,14 +31,14 @@ struct SecretForToStaticForConversion : OpRewritePattern<scf::ForOp> {
   using OpRewritePattern<scf::ForOp>::OpRewritePattern;
 
  public:
-  SecretForToStaticForConversion(DataFlowSolver *solver, MLIRContext *context,
+  SecretForToStaticForConversion(DataFlowSolver* solver, MLIRContext* context,
                                  bool convertAllScfFor)
       : OpRewritePattern(context),
         solver(solver),
         convertAllScfFor(convertAllScfFor) {}
 
   LogicalResult matchAndRewrite(scf::ForOp forOp,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     Value lowerBound = forOp.getLowerBound();
     Value upperBound = forOp.getUpperBound();
 
@@ -130,7 +130,7 @@ struct SecretForToStaticForConversion : OpRewritePattern<scf::ForOp> {
         mp.map(blockArg,
                newForOp.getBody()->getArguments()[blockArg.getArgNumber()]);
       }
-      for (auto &op : forOp.getBody()->getOperations()) {
+      for (auto& op : forOp.getBody()->getOperations()) {
         // Convert scf.yield to affine.yield
         if (auto yieldOp = dyn_cast<scf::YieldOp>(&op)) {
           SmallVector<Value> mappedOperands;
@@ -177,19 +177,19 @@ struct SecretForToStaticForConversion : OpRewritePattern<scf::ForOp> {
     scf::IfOp ifOp = scf::IfOp::create(
         builder, cond,
         // 'Then' region
-        [&](OpBuilder &b, Location loc) {
+        [&](OpBuilder& b, Location loc) {
           // Copy body of the scf::ForOp
           IRMapping mp;
           for (BlockArgument blockArg : forOp.getBody()->getArguments()) {
             mp.map(blockArg,
                    newForOp.getBody()->getArguments()[blockArg.getArgNumber()]);
           }
-          for (auto &op : forOp.getBody()->getOperations()) {
+          for (auto& op : forOp.getBody()->getOperations()) {
             b.clone(op, mp);
           }
         },
         // 'Else' region
-        [&](OpBuilder &b, Location loc) {
+        [&](OpBuilder& b, Location loc) {
           scf::YieldOp::create(b, loc, newForOp.getRegionIterArgs());
         });
 
@@ -203,7 +203,7 @@ struct SecretForToStaticForConversion : OpRewritePattern<scf::ForOp> {
   }
 
  private:
-  DataFlowSolver *solver;
+  DataFlowSolver* solver;
   bool convertAllScfFor;
 };
 
@@ -212,7 +212,7 @@ struct ConvertSecretForToStaticFor
   using ConvertSecretForToStaticForBase::ConvertSecretForToStaticForBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
 
     RewritePatternSet patterns(context);
 

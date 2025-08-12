@@ -48,7 +48,7 @@ class InsertAfterConstant final : public OpRewritePattern<tensor::InsertOp> {
   using OpRewritePattern<tensor::InsertOp>::OpRewritePattern;
 
   LogicalResult matchAndRewrite(tensor::InsertOp insertOp,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     // Requires a ranked tensor type.
     auto destType =
         llvm::dyn_cast<RankedTensorType>(insertOp.getDest().getType());
@@ -110,7 +110,7 @@ class InsertIntoFromElements final : public OpRewritePattern<tensor::InsertOp> {
   using OpRewritePattern<tensor::InsertOp>::OpRewritePattern;
 
   LogicalResult matchAndRewrite(tensor::InsertOp insertOp,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     // Note: we match on the first insertion after the constant, instead of the
     // later or last ones. This avoid matching on every insertion in the chain.
     auto dest = insertOp.getDest();
@@ -125,7 +125,7 @@ class InsertIntoFromElements final : public OpRewritePattern<tensor::InsertOp> {
     // elements, then replace with a from_elements op.
     DenseMap<int64_t, Value> flatIndexToElement;
     tensor::InsertOp currentInsertOp = insertOp;
-    SmallVector<Operation *> opsToErase;
+    SmallVector<Operation*> opsToErase;
     while (currentInsertOp) {
       auto maybeFlatIndex = getFlattenedIndex(
           destType, getAsOpFoldResult(currentInsertOp.getIndices()));
@@ -187,7 +187,7 @@ class CollapseShapeAfterConstant final
   using OpRewritePattern<tensor::CollapseShapeOp>::OpRewritePattern;
 
   LogicalResult matchAndRewrite(tensor::CollapseShapeOp collapseOp,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     auto constantOp = dyn_cast_or_null<arith::ConstantOp>(
         collapseOp.getSrc().getDefiningOp());
     if (!constantOp) return failure();
@@ -205,13 +205,13 @@ class CollapseShapeAfterConstant final
 struct CollapseEmptyTensor
     : public OpRewritePattern<mlir::tensor::CollapseShapeOp> {
  public:
-  CollapseEmptyTensor(MLIRContext *context)
+  CollapseEmptyTensor(MLIRContext* context)
       : OpRewritePattern<mlir::tensor::CollapseShapeOp>(context) {}
 
   using OpRewritePattern::OpRewritePattern;
 
   LogicalResult matchAndRewrite(mlir::tensor::CollapseShapeOp collapseOp,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     auto emptyOp =
         dyn_cast_or_null<tensor::EmptyOp>(collapseOp.getSrc().getDefiningOp());
     if (!emptyOp) return failure();
@@ -226,8 +226,8 @@ struct CollapseEmptyTensor
 struct FoldConstantTensors
     : public impl::FoldConstantTensorsBase<FoldConstantTensors> {
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
-    auto *module = getOperation();
+    MLIRContext* context = &getContext();
+    auto* module = getOperation();
 
     RewritePatternSet patterns(context);
     patterns.add<InsertAfterConstant, CollapseShapeAfterConstant,

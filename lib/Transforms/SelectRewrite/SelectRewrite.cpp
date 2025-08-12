@@ -51,7 +51,7 @@ struct SelectRewrite : impl::SelectRewriteBase<SelectRewrite> {
   using SelectRewriteBase::SelectRewriteBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
     RewritePatternSet patterns(context);
 
     // popiulate TD patterns

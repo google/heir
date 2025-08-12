@@ -33,10 +33,9 @@ using ::mlir::func::CallOp;
 using ::mlir::func::FuncOp;
 using ::mlir::func::ReturnOp;
 
-FailureOr<Operation *> convertAnyOperand(const TypeConverter *typeConverter,
-                                         Operation *op,
-                                         ArrayRef<Value> operands,
-                                         ConversionPatternRewriter &rewriter) {
+FailureOr<Operation*> convertAnyOperand(const TypeConverter* typeConverter,
+                                        Operation* op, ArrayRef<Value> operands,
+                                        ConversionPatternRewriter& rewriter) {
   if (typeConverter->isLegal(op)) {
     return failure();
   }
@@ -52,15 +51,15 @@ FailureOr<Operation *> convertAnyOperand(const TypeConverter *typeConverter,
 
   SmallVector<std::unique_ptr<Region>, 1> regions;
   IRMapping mapping;
-  for (auto &r : op->getRegions()) {
-    Region *newRegion = new Region(op);
+  for (auto& r : op->getRegions()) {
+    Region* newRegion = new Region(op);
     rewriter.cloneRegionBefore(r, *newRegion, newRegion->end(), mapping);
     if (failed(rewriter.convertRegionTypes(newRegion, *typeConverter)))
       return failure();
     regions.emplace_back(newRegion);
   }
 
-  Operation *newOp = rewriter.create(OperationState(
+  Operation* newOp = rewriter.create(OperationState(
       op->getLoc(), op->getName().getStringRef(), operands, newResultTypes,
       op->getAttrs(), op->getSuccessors(), regions));
 
@@ -69,7 +68,7 @@ FailureOr<Operation *> convertAnyOperand(const TypeConverter *typeConverter,
 }
 
 struct ConvertExtract : public OpConversionPattern<tensor::ExtractOp> {
-  ConvertExtract(mlir::MLIRContext *context)
+  ConvertExtract(mlir::MLIRContext* context)
       : OpConversionPattern<tensor::ExtractOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -80,7 +79,7 @@ struct ConvertExtract : public OpConversionPattern<tensor::ExtractOp> {
   // type converted to tensor<...>.
   LogicalResult matchAndRewrite(
       tensor::ExtractOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     // replace tensor.extract %t[%i] from tensor<shape x SourceType>
     // with an equivalent tensor.slice from tensor<shape x resultshape>
     auto shape = op.getTensor().getType().getShape();
@@ -121,7 +120,7 @@ struct ConvertExtract : public OpConversionPattern<tensor::ExtractOp> {
 };
 
 struct ConvertInsert : public OpConversionPattern<tensor::InsertOp> {
-  ConvertInsert(mlir::MLIRContext *context)
+  ConvertInsert(mlir::MLIRContext* context)
       : OpConversionPattern<tensor::InsertOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -132,7 +131,7 @@ struct ConvertInsert : public OpConversionPattern<tensor::InsertOp> {
   // type converted to tensor<...>.
   LogicalResult matchAndRewrite(
       tensor::InsertOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     // replace tensor.insert %s into %t[%i] with tensor<shape x SourceType>
     // with an equivalent tensor.insert_slice with tensor<shape x resultshape>
     auto shape = op.getDest().getType().getShape();
@@ -174,7 +173,7 @@ struct ConvertInsert : public OpConversionPattern<tensor::InsertOp> {
 
 struct ConvertFromElements
     : public OpConversionPattern<tensor::FromElementsOp> {
-  ConvertFromElements(mlir::MLIRContext *context)
+  ConvertFromElements(mlir::MLIRContext* context)
       : OpConversionPattern<tensor::FromElementsOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -184,7 +183,7 @@ struct ConvertFromElements
   // a concatenation of the converted operands (with appropriate reshape)
   LogicalResult matchAndRewrite(
       tensor::FromElementsOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     // Expand each of the (converted) operands:
     SmallVector<Value> newOperands;
     for (auto o : adaptor.getElements()) {
@@ -216,11 +215,11 @@ struct ConvertFromElements
   }
 };
 
-void addTensorOfTensorConversionPatterns(TypeConverter &typeConverter,
-                                         RewritePatternSet &patterns,
-                                         ConversionTarget &target) {
+void addTensorOfTensorConversionPatterns(TypeConverter& typeConverter,
+                                         RewritePatternSet& patterns,
+                                         ConversionTarget& target) {
   target.addDynamicallyLegalDialect<tensor::TensorDialect>(
-      [&](Operation *op) { return typeConverter.isLegal(op); });
+      [&](Operation* op) { return typeConverter.isLegal(op); });
 
   typeConverter.addConversion([&](TensorType type) -> Type {
     if (!typeConverter.isLegal(type.getElementType())) {
@@ -244,16 +243,16 @@ void addTensorOfTensorConversionPatterns(TypeConverter &typeConverter,
   });
 
   target.addDynamicallyLegalDialect<affine::AffineDialect>(
-      [&](Operation *op) { return typeConverter.isLegal(op); });
+      [&](Operation* op) { return typeConverter.isLegal(op); });
 
   patterns
       .add<ConvertAny<>, ConvertExtract, ConvertInsert, ConvertFromElements>(
           typeConverter, patterns.getContext());
 }
 
-void addStructuralConversionPatterns(TypeConverter &typeConverter,
-                                     RewritePatternSet &patterns,
-                                     ConversionTarget &target) {
+void addStructuralConversionPatterns(TypeConverter& typeConverter,
+                                     RewritePatternSet& patterns,
+                                     ConversionTarget& target) {
   populateFunctionOpInterfaceTypeConversionPattern<FuncOp>(patterns,
                                                            typeConverter);
   target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
@@ -270,7 +269,7 @@ void addStructuralConversionPatterns(TypeConverter &typeConverter,
       [&](func::CallOp op) { return typeConverter.isLegal(op); });
 
   populateBranchOpInterfaceTypeConversionPattern(patterns, typeConverter);
-  target.markUnknownOpDynamicallyLegal([&](Operation *op) {
+  target.markUnknownOpDynamicallyLegal([&](Operation* op) {
     return isNotBranchOpInterfaceOrReturnLikeOp(op) ||
            isLegalForBranchOpInterfaceTypeConversionPattern(op,
                                                             typeConverter) ||
@@ -281,7 +280,7 @@ void addStructuralConversionPatterns(TypeConverter &typeConverter,
                                                        target);
 }
 
-FailureOr<Value> getContextualArgFromFunc(Operation *op, Type argType) {
+FailureOr<Value> getContextualArgFromFunc(Operation* op, Type argType) {
   for (auto blockArg : op->getParentOfType<func::FuncOp>()
                            .getBody()
                            .getBlocks()

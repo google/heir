@@ -16,7 +16,7 @@ namespace mlir {
 namespace heir {
 
 Value insertKeyArgument(func::FuncOp parentFunc, Type encryptionKeyType,
-                        ContextAwareConversionPatternRewriter &rewriter) {
+                        ContextAwareConversionPatternRewriter& rewriter) {
   // The new key type is inserted as the last argument of the parent function.
   auto oldFunctionType = parentFunc.getFunctionType();
   SmallVector<Type, 4> newInputTypes;
@@ -38,7 +38,7 @@ Value insertKeyArgument(func::FuncOp parentFunc, Type encryptionKeyType,
 
 LogicalResult ConvertClientConceal::matchAndRewrite(
     secret::ConcealOp op, OpAdaptor adaptor,
-    ContextAwareConversionPatternRewriter &rewriter) const {
+    ContextAwareConversionPatternRewriter& rewriter) const {
   func::FuncOp parentFunc = op->getParentOfType<func::FuncOp>();
   if (!parentFunc || !parentFunc->hasAttr(kClientEncFuncAttrName)) {
     return op->emitError() << "expected to be inside a function with attribute "
@@ -67,7 +67,7 @@ LogicalResult ConvertClientConceal::matchAndRewrite(
                               "but detected a (scalar) LWE ciphertext";
   }
 
-  auto *ctx = op->getContext();
+  auto* ctx = op->getContext();
   Type encryptionKeyType = usePublicKey
                                ? (Type)lwe::LWEPublicKeyType::get(
                                      ctx, lwe::KeyAttr::get(ctx, 0),
@@ -98,7 +98,7 @@ LogicalResult ConvertClientConceal::matchAndRewrite(
 
 LogicalResult ConvertClientReveal::matchAndRewrite(
     secret::RevealOp op, OpAdaptor adaptor,
-    ContextAwareConversionPatternRewriter &rewriter) const {
+    ContextAwareConversionPatternRewriter& rewriter) const {
   func::FuncOp parentFunc = op->getParentOfType<func::FuncOp>();
   if (!parentFunc || !parentFunc->hasAttr(kClientDecFuncAttrName)) {
     return op->emitError() << "expected to be inside a function with attribute "
@@ -124,7 +124,7 @@ LogicalResult ConvertClientReveal::matchAndRewrite(
                               "but detected a (scalar) LWE ciphertext";
   }
 
-  auto *ctx = op->getContext();
+  auto* ctx = op->getContext();
   auto encryptionKeyType = lwe::LWESecretKeyType::get(
       ctx, lwe::KeyAttr::get(ctx, 0), argCtTy.getCiphertextSpace().getRing());
   Value keyBlockArg =

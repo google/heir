@@ -33,7 +33,7 @@ struct OptimizeRelinearization
   using OptimizeRelinearizationBase::OptimizeRelinearizationBase;
 
   void processSecretGenericOp(secret::GenericOp genericOp,
-                              DataFlowSolver *solver) {
+                              DataFlowSolver* solver) {
     // Remove all relin ops. This makes the IR invalid, because the key basis
     // sizes are incorrect. However, the correctness of the ILP ensures the key
     // basis sizes are made correct at the end.
@@ -51,7 +51,7 @@ struct OptimizeRelinearization
 
     OpBuilder b(&getContext());
 
-    genericOp->walk([&](Operation *op) {
+    genericOp->walk([&](Operation* op) {
       if (!analysis.shouldInsertRelin(op)) return;
 
       LLVM_DEBUG(llvm::dbgs()
@@ -66,7 +66,7 @@ struct OptimizeRelinearization
   }
 
   void runOnOperation() override {
-    Operation *module = getOperation();
+    Operation* module = getOperation();
 
     DataFlowSolver solver;
     dataflow::loadBaselineAnalyses(solver);

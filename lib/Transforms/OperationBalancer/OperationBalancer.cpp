@@ -24,8 +24,8 @@ namespace heir {
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h.inc"
 
 template <typename OpType>
-OpType recursiveProduceBalancedTree(OpBuilder &builder, Location &loc,
-                                    std::vector<Value> &flattenedOperands) {
+OpType recursiveProduceBalancedTree(OpBuilder& builder, Location& loc,
+                                    std::vector<Value>& flattenedOperands) {
   // If there are only two operands, return the operation over the two operands.
   // Else if there are three operands, produce an operation with two of the
   // operands, and produce another operation with the third operand.
@@ -71,23 +71,23 @@ OpType recursiveProduceBalancedTree(OpBuilder &builder, Location &loc,
 }
 
 template <typename OpType>
-void tryBalanceBlock(Block *block) {
+void tryBalanceBlock(Block* block) {
   // visited set checks whether we've already handled an operation
-  std::set<Operation *> visited;
+  std::set<Operation*> visited;
 
-  std::vector<std::vector<Operation *>> deleteOpsOrderLists;
+  std::vector<std::vector<Operation*>> deleteOpsOrderLists;
   std::vector<std::vector<Value>> operandsLists;
-  std::vector<Operation *> roots;
+  std::vector<Operation*> roots;
 
   // Balance from backwards to front.
-  for (auto &op : llvm::reverse(block->getOperations())) {
+  for (auto& op : llvm::reverse(block->getOperations())) {
     if ((!llvm::isa<OpType>(&op)) || (visited.find(&op) != visited.end())) {
       continue;
     }
 
     // deleteOpsOrder will be used to erase the operations in a reverse
     // topological ordering.
-    std::vector<Operation *> deleteOpsOrder;
+    std::vector<Operation*> deleteOpsOrder;
 
     // These operands are the flattened operands in a tree of operations.
     std::vector<Value> operands;
@@ -109,7 +109,7 @@ void tryBalanceBlock(Block *block) {
 
     while (!stack.empty()) {
       Value current = stack.top();
-      Operation *currentOp = current.getDefiningOp();
+      Operation* currentOp = current.getDefiningOp();
       stack.pop();
 
       // The following condition checks whether the current operation is an
@@ -152,9 +152,9 @@ void tryBalanceBlock(Block *block) {
   }
 
   for (size_t i = 0; i < roots.size(); i++) {
-    std::vector<Operation *> deleteOpsOrder = deleteOpsOrderLists[i];
+    std::vector<Operation*> deleteOpsOrder = deleteOpsOrderLists[i];
     std::vector<Value> operands = operandsLists[i];
-    Operation *root = roots[i];
+    Operation* root = roots[i];
 
     LLVM_DEBUG({
       llvm::dbgs() << "\n";

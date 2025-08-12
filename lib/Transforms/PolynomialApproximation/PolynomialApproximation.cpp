@@ -46,112 +46,112 @@ using polynomial::PolynomialType;
 using polynomial::RingAttr;
 using polynomial::TypedFloatPolynomialAttr;
 
-inline APFloat absf(const APFloat &x) {
+inline APFloat absf(const APFloat& x) {
   return APFloat(std::abs(x.convertToDouble()));
 }
-inline APFloat acos(const APFloat &x) {
+inline APFloat acos(const APFloat& x) {
   return APFloat(std::acos(x.convertToDouble()));
 }
-inline APFloat acosh(const APFloat &x) {
+inline APFloat acosh(const APFloat& x) {
   return APFloat(std::acosh(x.convertToDouble()));
 }
-inline APFloat asin(const APFloat &x) {
+inline APFloat asin(const APFloat& x) {
   return APFloat(std::asin(x.convertToDouble()));
 }
-inline APFloat asinh(const APFloat &x) {
+inline APFloat asinh(const APFloat& x) {
   return APFloat(std::asinh(x.convertToDouble()));
 }
-inline APFloat atan(const APFloat &x) {
+inline APFloat atan(const APFloat& x) {
   return APFloat(std::atan(x.convertToDouble()));
 }
-inline APFloat atanh(const APFloat &x) {
+inline APFloat atanh(const APFloat& x) {
   return APFloat(std::atanh(x.convertToDouble()));
 }
-inline APFloat cbrt(const APFloat &x) {
+inline APFloat cbrt(const APFloat& x) {
   return APFloat(std::cbrt(x.convertToDouble()));
 }
-inline APFloat ceil(const APFloat &x) {
+inline APFloat ceil(const APFloat& x) {
   return APFloat(std::ceil(x.convertToDouble()));
 }
-inline APFloat cos(const APFloat &x) {
+inline APFloat cos(const APFloat& x) {
   return APFloat(std::cos(x.convertToDouble()));
 }
-inline APFloat cosh(const APFloat &x) {
+inline APFloat cosh(const APFloat& x) {
   return APFloat(std::cosh(x.convertToDouble()));
 }
-inline APFloat erf(const APFloat &x) {
+inline APFloat erf(const APFloat& x) {
   return APFloat(std::erf(x.convertToDouble()));
 }
-inline APFloat erfc(const APFloat &x) {
+inline APFloat erfc(const APFloat& x) {
   return APFloat(std::erfc(x.convertToDouble()));
 }
-inline APFloat exp(const APFloat &x) {
+inline APFloat exp(const APFloat& x) {
   return APFloat(std::exp(x.convertToDouble()));
 }
-inline APFloat exp2(const APFloat &x) {
+inline APFloat exp2(const APFloat& x) {
   return APFloat(std::exp2(x.convertToDouble()));
 }
-inline APFloat expm1(const APFloat &x) {
+inline APFloat expm1(const APFloat& x) {
   return APFloat(std::expm1(x.convertToDouble()));
 }
-inline APFloat floor(const APFloat &x) {
+inline APFloat floor(const APFloat& x) {
   return APFloat(std::floor(x.convertToDouble()));
 }
-inline APFloat log(const APFloat &x) {
+inline APFloat log(const APFloat& x) {
   return APFloat(std::log(x.convertToDouble()));
 }
-inline APFloat log10(const APFloat &x) {
+inline APFloat log10(const APFloat& x) {
   return APFloat(std::log10(x.convertToDouble()));
 }
-inline APFloat log1p(const APFloat &x) {
+inline APFloat log1p(const APFloat& x) {
   return APFloat(std::log1p(x.convertToDouble()));
 }
-inline APFloat log2(const APFloat &x) {
+inline APFloat log2(const APFloat& x) {
   return APFloat(std::log2(x.convertToDouble()));
 }
-inline APFloat round(const APFloat &x) {
+inline APFloat round(const APFloat& x) {
   return APFloat(std::round(x.convertToDouble()));
 }
 // not available on apple cmath?
 // inline APFloat _roundeven(const APFloat &x) {
 //   return APFloat(roundeven(x.convertToDouble()));
 // }
-inline APFloat rsqrt(const APFloat &x) {
+inline APFloat rsqrt(const APFloat& x) {
   return APFloat(1.0 / std::sqrt(x.convertToDouble()));
 }
-inline APFloat sin(const APFloat &x) {
+inline APFloat sin(const APFloat& x) {
   return APFloat(std::sin(x.convertToDouble()));
 }
-inline APFloat sinh(const APFloat &x) {
+inline APFloat sinh(const APFloat& x) {
   return APFloat(std::sinh(x.convertToDouble()));
 }
-inline APFloat sqrt(const APFloat &x) {
+inline APFloat sqrt(const APFloat& x) {
   return APFloat(std::sqrt(x.convertToDouble()));
 }
-inline APFloat tan(const APFloat &x) {
+inline APFloat tan(const APFloat& x) {
   return APFloat(std::tan(x.convertToDouble()));
 }
-inline APFloat tanh(const APFloat &x) {
+inline APFloat tanh(const APFloat& x) {
   return APFloat(std::tanh(x.convertToDouble()));
 }
-inline APFloat trunc(const APFloat &x) {
+inline APFloat trunc(const APFloat& x) {
   return APFloat(std::trunc(x.convertToDouble()));
 }
-inline APFloat sign(const APFloat &x) {
+inline APFloat sign(const APFloat& x) {
   return APFloat(x.isNegative() ? -1.0 : (x.isZero() ? 0.0 : 1.0));
 }
 
 // Binary ops
-inline APFloat atan2(const APFloat &lhs, const APFloat &rhs) {
+inline APFloat atan2(const APFloat& lhs, const APFloat& rhs) {
   return APFloat(std::atan2(lhs.convertToDouble(), rhs.convertToDouble()));
 }
-inline APFloat fpowi(const APFloat &lhs, const APFloat &rhs) {
+inline APFloat fpowi(const APFloat& lhs, const APFloat& rhs) {
   return APFloat(std::pow(lhs.convertToDouble(), rhs.convertToDouble()));
 }
-inline APFloat powf(const APFloat &lhs, const APFloat &rhs) {
+inline APFloat powf(const APFloat& lhs, const APFloat& rhs) {
   return APFloat(std::pow(lhs.convertToDouble(), rhs.convertToDouble()));
 }
-inline APFloat copysign(const APFloat &lhs, const APFloat &rhs) {
+inline APFloat copysign(const APFloat& lhs, const APFloat& rhs) {
   return APFloat::copySign(lhs, rhs);
 }
 
@@ -161,22 +161,22 @@ inline APFloat copysign(const APFloat &lhs, const APFloat &rhs) {
 // precision and avoid this.  A better approach may be to have the polynomial
 // approximation routines take as input the float semantics used to create
 // APFloats internally.
-inline APFloat maxf(const APFloat &lhs, const APFloat &rhs) {
+inline APFloat maxf(const APFloat& lhs, const APFloat& rhs) {
   APFloat lhsConverted = APFloat(lhs.convertToDouble());
   APFloat rhsConverted = APFloat(rhs.convertToDouble());
   return llvm::maximum(lhsConverted, rhsConverted);
 }
-inline APFloat minf(const APFloat &lhs, const APFloat &rhs) {
+inline APFloat minf(const APFloat& lhs, const APFloat& rhs) {
   APFloat lhsConverted = APFloat(lhs.convertToDouble());
   APFloat rhsConverted = APFloat(rhs.convertToDouble());
   return llvm::minimum(lhsConverted, rhsConverted);
 }
-inline APFloat maxnumf(const APFloat &lhs, const APFloat &rhs) {
+inline APFloat maxnumf(const APFloat& lhs, const APFloat& rhs) {
   APFloat lhsConverted = APFloat(lhs.convertToDouble());
   APFloat rhsConverted = APFloat(rhs.convertToDouble());
   return llvm::maximumnum(lhsConverted, rhsConverted);
 }
-inline APFloat minnumf(const APFloat &lhs, const APFloat &rhs) {
+inline APFloat minnumf(const APFloat& lhs, const APFloat& rhs) {
   APFloat lhsConverted = APFloat(lhs.convertToDouble());
   APFloat rhsConverted = APFloat(rhs.convertToDouble());
   return llvm::minimumnum(lhsConverted, rhsConverted);
@@ -184,14 +184,14 @@ inline APFloat minnumf(const APFloat &lhs, const APFloat &rhs) {
 
 template <typename OpTy>
 struct ConvertUnaryOp : public OpRewritePattern<OpTy> {
-  ConvertUnaryOp(mlir::MLIRContext *context,
-                 const std::function<APFloat(APFloat)> &cppFunc)
+  ConvertUnaryOp(mlir::MLIRContext* context,
+                 const std::function<APFloat(APFloat)>& cppFunc)
       : OpRewritePattern<OpTy>(context, /*benefit=*/1), cppFunc(cppFunc) {}
 
  public:
   LogicalResult matchAndRewrite(OpTy op,
-                                PatternRewriter &rewriter) const override {
-    MLIRContext *ctx = op.getContext();
+                                PatternRewriter& rewriter) const override {
+    MLIRContext* ctx = op.getContext();
     IntegerAttr degreeAttr = op->hasAttr("degree")
                                  ? cast<IntegerAttr>(op->getAttr("degree"))
                                  : rewriter.getI32IntegerAttr(kDefaultDegree);
@@ -254,13 +254,13 @@ FailureOr<APFloat> getSingleValueOrSplat(Value value) {
 
 template <typename OpTy>
 struct ConvertBinaryConstOp : public OpRewritePattern<OpTy> {
-  ConvertBinaryConstOp(mlir::MLIRContext *context,
-                       const std::function<APFloat(APFloat, APFloat)> &cppFunc)
+  ConvertBinaryConstOp(mlir::MLIRContext* context,
+                       const std::function<APFloat(APFloat, APFloat)>& cppFunc)
       : OpRewritePattern<OpTy>(context, /*benefit=*/1), cppFunc(cppFunc) {}
 
  public:
   LogicalResult matchAndRewrite(OpTy op,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     if (op.getNumOperands() != 2) {
       return op.emitOpError("Expected 2 operands; should be unreachable!");
     }
@@ -286,16 +286,16 @@ struct ConvertBinaryConstOp : public OpRewritePattern<OpTy> {
     // convert it to a unary op.
     std::function<APFloat(APFloat)> unaryFunc;
     if (lhsIsConstant) {
-      unaryFunc = [this, constValue](const APFloat &x) {
+      unaryFunc = [this, constValue](const APFloat& x) {
         return cppFunc(constValue, x);
       };
     } else {
-      unaryFunc = [this, constValue](const APFloat &x) {
+      unaryFunc = [this, constValue](const APFloat& x) {
         return cppFunc(x, constValue);
       };
     }
 
-    MLIRContext *ctx = op.getContext();
+    MLIRContext* ctx = op.getContext();
     IntegerAttr degreeAttr = op->hasAttr("degree")
                                  ? cast<IntegerAttr>(op->getAttr("degree"))
                                  : rewriter.getI32IntegerAttr(kDefaultDegree);
@@ -335,7 +335,7 @@ struct PolynomialApproximation
   using PolynomialApproximationBase::PolynomialApproximationBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
     RewritePatternSet patterns(context);
 
     // Math unary ops

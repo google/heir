@@ -21,23 +21,23 @@ namespace mlir {
 namespace heir {
 
 LogicalResult MulDepthAnalysis::visitOperation(
-    Operation *op, ArrayRef<const MulDepthLattice *> operands,
-    ArrayRef<MulDepthLattice *> results) {
-  auto propagate = [&](Value value, const MulDepthState &state) {
-    auto *lattice = getLatticeElement(value);
+    Operation* op, ArrayRef<const MulDepthLattice*> operands,
+    ArrayRef<MulDepthLattice*> results) {
+  auto propagate = [&](Value value, const MulDepthState& state) {
+    auto* lattice = getLatticeElement(value);
     ChangeResult changed = lattice->join(state);
     propagateIfChanged(lattice, changed);
   };
 
-  llvm::TypeSwitch<Operation &>(*op)
+  llvm::TypeSwitch<Operation&>(*op)
       .Case<secret::GenericOp>([&](auto genericOp) {
-        Block *body = genericOp.getBody();
+        Block* body = genericOp.getBody();
         for (auto i = 0; i != body->getNumArguments(); ++i) {
           auto blockArg = body->getArgument(i);
           propagate(blockArg, MulDepthState(0));
         }
       })
-      .Default([&](auto &op) {
+      .Default([&](auto& op) {
         // condition on result secretness
         SmallVector<OpResult> secretDepths;
         getSecretResults(&op, secretDepths);
@@ -53,10 +53,10 @@ LogicalResult MulDepthAnalysis::visitOperation(
 
         // inherit mul depth from secret operands
         int64_t operandsMulDepth = 0;
-        SmallVector<OpOperand *> secretOperands;
+        SmallVector<OpOperand*> secretOperands;
         getSecretOperands(&op, secretOperands);
-        for (auto *operand : secretOperands) {
-          auto &mulDepthState = getLatticeElement(operand->get())->getValue();
+        for (auto* operand : secretOperands) {
+          auto& mulDepthState = getLatticeElement(operand->get())->getValue();
           if (!mulDepthState.isInitialized()) {
             return;
           }
@@ -74,26 +74,26 @@ LogicalResult MulDepthAnalysis::visitOperation(
 }
 
 void MulDepthAnalysis::visitExternalCall(
-    CallOpInterface call, ArrayRef<const MulDepthLattice *> argumentLattices,
-    ArrayRef<MulDepthLattice *> resultLattices) {
+    CallOpInterface call, ArrayRef<const MulDepthLattice*> argumentLattices,
+    ArrayRef<MulDepthLattice*> resultLattices) {
   auto callback = std::bind(&MulDepthAnalysis::propagateIfChangedWrapper, this,
                             std::placeholders::_1, std::placeholders::_2);
   ::mlir::heir::visitExternalCall<MulDepthState, MulDepthLattice>(
       call, argumentLattices, resultLattices, callback);
 }
 
-int64_t getMaxMulDepth(Operation *op, DataFlowSolver &solver) {
+int64_t getMaxMulDepth(Operation* op, DataFlowSolver& solver) {
   int64_t maxMulDepth = 0;
-  op->walk([&](Operation *op) {
+  op->walk([&](Operation* op) {
     if (op->getNumResults() == 0) {
       return;
     }
     // the first result suffices as all results share the same mulDepth.
-    auto *lattice = solver.lookupState<MulDepthLattice>(op->getResult(0));
+    auto* lattice = solver.lookupState<MulDepthLattice>(op->getResult(0));
     if (!lattice) {
       return;
     }
-    auto &state = lattice->getValue();
+    auto& state = lattice->getValue();
     if (!state.isInitialized()) {
       return;
     }

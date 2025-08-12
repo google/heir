@@ -6,7 +6,7 @@
 namespace mlir {
 namespace heir {
 
-APInt multiplicativeInverse(const APInt &x, const APInt &modulo);
+APInt multiplicativeInverse(const APInt& x, const APInt& modulo);
 
 }  // namespace heir
 }  // namespace mlir

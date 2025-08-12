@@ -20,7 +20,7 @@ struct CaptureGenericAmbientScope
       SecretCaptureGenericAmbientScopeBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
     mlir::RewritePatternSet patterns(context);
 
     patterns.add<CaptureAmbientScope>(context);

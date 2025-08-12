@@ -49,14 +49,14 @@ namespace mlir::heir {
 #define GEN_PASS_DEF_SECRETTOBGV
 #include "lib/Dialect/Secret/Conversions/SecretToBGV/SecretToBGV.h.inc"
 
-auto &kArgMgmtAttrName = mgmt::MgmtDialect::kArgMgmtAttrName;
+auto& kArgMgmtAttrName = mgmt::MgmtDialect::kArgMgmtAttrName;
 
 namespace {
 
 // Returns an RLWE RNS ring given the specified number of bits needed and
 // polynomial modulus degree.
 FailureOr<polynomial::RingAttr> getRlweRNSRing(
-    MLIRContext *ctx, const std::vector<int64_t> &primes, int polyModDegree) {
+    MLIRContext* ctx, const std::vector<int64_t>& primes, int polyModDegree) {
   // monomial
   std::vector<polynomial::IntMonomial> monomials;
   monomials.emplace_back(1, polyModDegree);
@@ -93,7 +93,7 @@ polynomial::RingAttr getRlweRNSRingWithLevel(polynomial::RingAttr ringAttr,
 class SecretToBGVTypeConverter
     : public UniquelyNamedAttributeAwareTypeConverter {
  public:
-  SecretToBGVTypeConverter(MLIRContext *ctx, polynomial::RingAttr rlweRing,
+  SecretToBGVTypeConverter(MLIRContext* ctx, polynomial::RingAttr rlweRing,
                            int64_t ptm, bool isBFV)
       : UniquelyNamedAttributeAwareTypeConverter(
             mgmt::MgmtDialect::kArgMgmtAttrName),
@@ -112,7 +112,7 @@ class SecretToBGVTypeConverter
     auto dimension = mgmtAttr.getDimension();
     auto scale = mgmtAttr.getScale();
 
-    auto *ctx = type.getContext();
+    auto* ctx = type.getContext();
     auto plaintextRing = polynomial::RingAttr::get(
         type.getContext(),
         mod_arith::ModArithType::get(
@@ -148,7 +148,7 @@ class SecretToBGVTypeConverter
   bool isBFV;
 };
 
-LogicalResult disallowFloatlike(const Type &type) {
+LogicalResult disallowFloatlike(const Type& type) {
   auto secretType = dyn_cast<secret::SecretType>(type);
   if (!secretType) return success();
 
@@ -162,8 +162,8 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
   using SecretToBGVBase::SecretToBGVBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
-    auto *module = getOperation();
+    MLIRContext* context = &getContext();
+    auto* module = getOperation();
 
     auto schemeParamAttr = module->getAttrOfType<bgv::SchemeParamAttr>(
         bgv::BGVDialect::kSchemeParamAttrName);
@@ -190,7 +190,7 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
     }
     // Ensure that all secret types are uniform and matching the ring
     // parameter size.
-    Operation *foundOp = walkAndDetect(module, [&](Operation *op) {
+    Operation* foundOp = walkAndDetect(module, [&](Operation* op) {
       ValueRange valuesToCheck = op->getOperands();
       if (auto funcOp = dyn_cast<func::FuncOp>(op)) {
         valuesToCheck = funcOp.getArguments();

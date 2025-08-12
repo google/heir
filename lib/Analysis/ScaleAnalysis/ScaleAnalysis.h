@@ -32,11 +32,11 @@ class ScaleState {
     return scale.value();
   }
 
-  bool operator==(const ScaleState &rhs) const { return scale == rhs.scale; }
+  bool operator==(const ScaleState& rhs) const { return scale == rhs.scale; }
 
   bool isInitialized() const { return scale.has_value(); }
 
-  static ScaleState join(const ScaleState &lhs, const ScaleState &rhs) {
+  static ScaleState join(const ScaleState& lhs, const ScaleState& rhs) {
     if (!lhs.isInitialized()) return rhs;
     if (!rhs.isInitialized()) return lhs;
 
@@ -44,7 +44,7 @@ class ScaleState {
     return lhs;
   }
 
-  void print(llvm::raw_ostream &os) const {
+  void print(llvm::raw_ostream& os) const {
     if (isInitialized()) {
       os << "ScaleState(" << scale.value() << ")";
     } else {
@@ -52,8 +52,8 @@ class ScaleState {
     }
   }
 
-  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
-                                       const ScaleState &state) {
+  friend llvm::raw_ostream& operator<<(llvm::raw_ostream& os,
+                                       const ScaleState& state) {
     state.print(os);
     return os;
   }
@@ -73,13 +73,13 @@ struct BGVScaleModel {
   using SchemeParam = bgv::SchemeParam;
   using LocalParam = bgv::LocalParam;
 
-  static int64_t evalMulScale(const LocalParam &param, int64_t lhs,
+  static int64_t evalMulScale(const LocalParam& param, int64_t lhs,
                               int64_t rhs);
-  static int64_t evalMulScaleBackward(const LocalParam &param, int64_t result,
+  static int64_t evalMulScaleBackward(const LocalParam& param, int64_t result,
                                       int64_t lhs);
-  static int64_t evalModReduceScale(const LocalParam &inputParam,
+  static int64_t evalModReduceScale(const LocalParam& inputParam,
                                     int64_t scale);
-  static int64_t evalModReduceScaleBackward(const LocalParam &inputParam,
+  static int64_t evalModReduceScaleBackward(const LocalParam& inputParam,
                                             int64_t resultScale);
 };
 
@@ -87,13 +87,13 @@ struct CKKSScaleModel {
   using SchemeParam = ckks::SchemeParam;
   using LocalParam = ckks::LocalParam;
 
-  static int64_t evalMulScale(const LocalParam &param, int64_t lhs,
+  static int64_t evalMulScale(const LocalParam& param, int64_t lhs,
                               int64_t rhs);
-  static int64_t evalMulScaleBackward(const LocalParam &param, int64_t result,
+  static int64_t evalMulScaleBackward(const LocalParam& param, int64_t result,
                                       int64_t lhs);
-  static int64_t evalModReduceScale(const LocalParam &inputParam,
+  static int64_t evalModReduceScale(const LocalParam& inputParam,
                                     int64_t scale);
-  static int64_t evalModReduceScaleBackward(const LocalParam &inputParam,
+  static int64_t evalModReduceScaleBackward(const LocalParam& inputParam,
                                             int64_t resultScale);
 };
 
@@ -126,13 +126,13 @@ class ScaleAnalysis
   using SchemeParamType = typename ScaleModelT::SchemeParam;
   using LocalParamType = typename ScaleModelT::LocalParam;
 
-  ScaleAnalysis(DataFlowSolver &solver, const SchemeParamType &schemeParam,
+  ScaleAnalysis(DataFlowSolver& solver, const SchemeParamType& schemeParam,
                 int64_t inputScale)
       : dataflow::SparseForwardDataFlowAnalysis<ScaleLattice>(solver),
         schemeParam(schemeParam),
         inputScale(inputScale) {}
 
-  void setToEntryState(ScaleLattice *lattice) override {
+  void setToEntryState(ScaleLattice* lattice) override {
     if (isa<secret::SecretType>(lattice->getAnchor().getType())) {
       propagateIfChanged(lattice, lattice->join(ScaleState(inputScale)));
       return;
@@ -140,15 +140,15 @@ class ScaleAnalysis
     propagateIfChanged(lattice, lattice->join(ScaleState()));
   }
 
-  LogicalResult visitOperation(Operation *op,
-                               ArrayRef<const ScaleLattice *> operands,
-                               ArrayRef<ScaleLattice *> results) override;
+  LogicalResult visitOperation(Operation* op,
+                               ArrayRef<const ScaleLattice*> operands,
+                               ArrayRef<ScaleLattice*> results) override;
 
   void visitExternalCall(CallOpInterface call,
-                         ArrayRef<const ScaleLattice *> argumentLattices,
-                         ArrayRef<ScaleLattice *> resultLattices) override;
+                         ArrayRef<const ScaleLattice*> argumentLattices,
+                         ArrayRef<ScaleLattice*> resultLattices) override;
 
-  void propagateIfChangedWrapper(AnalysisState *state, ChangeResult changed) {
+  void propagateIfChangedWrapper(AnalysisState* state, ChangeResult changed) {
     propagateIfChanged(state, changed);
   }
 
@@ -178,23 +178,23 @@ class ScaleAnalysisBackward
   using SchemeParamType = typename ScaleModelT::SchemeParam;
   using LocalParamType = typename ScaleModelT::LocalParam;
 
-  ScaleAnalysisBackward(DataFlowSolver &solver,
-                        SymbolTableCollection &symbolTable,
-                        const SchemeParamType &schemeParam)
+  ScaleAnalysisBackward(DataFlowSolver& solver,
+                        SymbolTableCollection& symbolTable,
+                        const SchemeParamType& schemeParam)
       : dataflow::SparseBackwardDataFlowAnalysis<ScaleLattice>(solver,
                                                                symbolTable),
         schemeParam(schemeParam) {}
 
-  void setToExitState(ScaleLattice *lattice) override {
+  void setToExitState(ScaleLattice* lattice) override {
     propagateIfChanged(lattice, lattice->join(ScaleState()));
   }
 
-  LogicalResult visitOperation(Operation *op, ArrayRef<ScaleLattice *> operands,
-                               ArrayRef<const ScaleLattice *> results) override;
+  LogicalResult visitOperation(Operation* op, ArrayRef<ScaleLattice*> operands,
+                               ArrayRef<const ScaleLattice*> results) override;
 
   // dummy impl
-  void visitBranchOperand(OpOperand &operand) override {}
-  void visitCallOperand(OpOperand &operand) override {}
+  void visitBranchOperand(OpOperand& operand) override {}
+  void visitCallOperand(OpOperand& operand) override {}
 
  private:
   const SchemeParamType schemeParam;
@@ -204,11 +204,11 @@ class ScaleAnalysisBackward
 // Utils
 //===----------------------------------------------------------------------===//
 
-int64_t getScale(Value value, DataFlowSolver *solver);
+int64_t getScale(Value value, DataFlowSolver* solver);
 
 constexpr StringRef kArgScaleAttrName = "mgmt.scale";
 
-void annotateScale(Operation *top, DataFlowSolver *solver);
+void annotateScale(Operation* top, DataFlowSolver* solver);
 
 int64_t getScaleFromMgmtAttr(Value value);
 

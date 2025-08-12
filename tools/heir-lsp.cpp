@@ -36,7 +36,7 @@
 using namespace mlir;
 using namespace heir;
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   mlir::DialectRegistry registry;
 
   registry.insert<bgv::BGVDialect>();

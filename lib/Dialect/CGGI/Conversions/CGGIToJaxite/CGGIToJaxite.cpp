@@ -38,7 +38,7 @@ namespace mlir::heir {
 
 class CGGIToJaxiteTypeConverter : public TypeConverter {
  public:
-  CGGIToJaxiteTypeConverter(MLIRContext *ctx) {
+  CGGIToJaxiteTypeConverter(MLIRContext* ctx) {
     addConversion([](Type type) { return type; });
     addConversion([](lwe::LWECiphertextType type) -> Type {
       if (type.getPlaintextSpace()
@@ -60,7 +60,7 @@ class CGGIToJaxiteTypeConverter : public TypeConverter {
 // Returns the Value corresponding to a JaxiteArgType in the FuncOp containing
 // this op.
 template <typename JaxiteArgType>
-FailureOr<Value> getContextualJaxiteArg(Operation *op) {
+FailureOr<Value> getContextualJaxiteArg(Operation* op) {
   auto result = getContextualArgFromFunc<JaxiteArgType>(op);
   if (failed(result)) {
     return op->emitOpError() << "Cannot find Jaxite server argument. Did the "
@@ -73,14 +73,14 @@ FailureOr<Value> getContextualJaxiteArg(Operation *op) {
 /// patterns need a server key and params SSA values available, so this pattern
 /// needs a higher benefit.
 struct AddJaxiteContextualArgs : public OpConversionPattern<func::FuncOp> {
-  AddJaxiteContextualArgs(mlir::MLIRContext *context)
+  AddJaxiteContextualArgs(mlir::MLIRContext* context)
       : OpConversionPattern<func::FuncOp>(context, /* benefit= */ 5) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       func::FuncOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     if (!containsDialects<lwe::LWEDialect, cggi::CGGIDialect>(op)) {
       return failure();
     }
@@ -103,14 +103,14 @@ struct AddJaxiteContextualArgs : public OpConversionPattern<func::FuncOp> {
 };
 
 struct ConvertCGGIToJaxiteLut3Op : public OpConversionPattern<cggi::Lut3Op> {
-  ConvertCGGIToJaxiteLut3Op(mlir::MLIRContext *context)
+  ConvertCGGIToJaxiteLut3Op(mlir::MLIRContext* context)
       : OpConversionPattern<cggi::Lut3Op>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       cggi::Lut3Op op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     FailureOr<Value> resultServerKey =
         getContextualJaxiteArg<jaxite::ServerKeySetType>(op.getOperation());
@@ -140,14 +140,14 @@ struct ConvertCGGIToJaxiteLut3Op : public OpConversionPattern<cggi::Lut3Op> {
 
 struct ConvertCGGIToJaxitePmapLut3Op
     : public OpConversionPattern<cggi::PackedLut3Op> {
-  ConvertCGGIToJaxitePmapLut3Op(mlir::MLIRContext *context)
+  ConvertCGGIToJaxitePmapLut3Op(mlir::MLIRContext* context)
       : OpConversionPattern<cggi::PackedLut3Op>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       cggi::PackedLut3Op op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     FailureOr<Value> resultServerKey =
         getContextualJaxiteArg<jaxite::ServerKeySetType>(op.getOperation());
@@ -191,14 +191,14 @@ struct ConvertCGGIToJaxitePmapLut3Op
 
 struct ConvertCGGIToJaxiteTrivialEncryptOp
     : public OpConversionPattern<lwe::TrivialEncryptOp> {
-  ConvertCGGIToJaxiteTrivialEncryptOp(mlir::MLIRContext *context)
+  ConvertCGGIToJaxiteTrivialEncryptOp(mlir::MLIRContext* context)
       : OpConversionPattern<lwe::TrivialEncryptOp>(context, /*benefit=*/2) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       lwe::TrivialEncryptOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result =
         getContextualJaxiteArg<jaxite::ParamsType>(op.getOperation());
     if (failed(result)) return result;
@@ -220,14 +220,14 @@ struct ConvertCGGIToJaxiteTrivialEncryptOp
 };
 
 struct ConvertCGGIToJaxiteEncodeOp : public OpConversionPattern<lwe::EncodeOp> {
-  ConvertCGGIToJaxiteEncodeOp(mlir::MLIRContext *context)
+  ConvertCGGIToJaxiteEncodeOp(mlir::MLIRContext* context)
       : OpConversionPattern<lwe::EncodeOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       lwe::EncodeOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     rewriter.eraseOp(op);
     return success();
   }
@@ -235,8 +235,8 @@ struct ConvertCGGIToJaxiteEncodeOp : public OpConversionPattern<lwe::EncodeOp> {
 
 class CGGIToJaxite : public impl::CGGIToJaxiteBase<CGGIToJaxite> {
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
-    auto *op = getOperation();
+    MLIRContext* context = &getContext();
+    auto* op = getOperation();
 
     CGGIToJaxiteTypeConverter typeConverter(context);
     RewritePatternSet patterns(context);

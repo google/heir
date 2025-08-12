@@ -38,13 +38,13 @@ namespace mlir {
 namespace heir {
 namespace secret {
 
-void YieldOp::print(OpAsmPrinter &p) {
+void YieldOp::print(OpAsmPrinter& p) {
   if (getNumOperands() > 0) p << ' ' << getOperands();
   p.printOptionalAttrDict((*this)->getAttrs());
   if (getNumOperands() > 0) p << " : " << getOperandTypes();
 }
 
-ParseResult YieldOp::parse(OpAsmParser &parser, OperationState &result) {
+ParseResult YieldOp::parse(OpAsmParser& parser, OperationState& result) {
   SmallVector<OpAsmParser::UnresolvedOperand, 2> opInfo;
   SmallVector<Type, 2> types;
   SMLoc loc = parser.getCurrentLocation();
@@ -80,7 +80,7 @@ LogicalResult YieldOp::verify() {
   return success();
 }
 
-void GenericOp::print(OpAsmPrinter &p) {
+void GenericOp::print(OpAsmPrinter& p) {
   ValueRange inputs = getInputs();
 
   p << "(";
@@ -122,8 +122,8 @@ void GenericOp::print(OpAsmPrinter &p) {
 }
 
 static ParseResult parseCommonStructuredOpParts(
-    OpAsmParser &parser, OperationState &result,
-    SmallVectorImpl<Type> &inputTypes, SmallVectorImpl<Attribute> &inputAttrs) {
+    OpAsmParser& parser, OperationState& result,
+    SmallVectorImpl<Type>& inputTypes, SmallVectorImpl<Attribute>& inputAttrs) {
   SMLoc attrsLoc, inputsOperandsLoc;
   SmallVector<OpAsmParser::UnresolvedOperand, 4> inputsOperands;
 
@@ -156,7 +156,7 @@ static ParseResult parseCommonStructuredOpParts(
   return success();
 }
 
-ParseResult GenericOp::parse(OpAsmParser &parser, OperationState &result) {
+ParseResult GenericOp::parse(OpAsmParser& parser, OperationState& result) {
   SmallVector<Attribute> iteratorTypeAttrs;
 
   // Parsing is shared with named ops, except for the region.
@@ -221,11 +221,11 @@ ParseResult GenericOp::parse(OpAsmParser &parser, OperationState &result) {
 }
 
 LogicalResult GenericOp::verify() {
-  Region &region = this->getOperation()->getRegion(0);
+  Region& region = this->getOperation()->getRegion(0);
   if (region.empty()) {
     return emitOpError() << "requires a non-empty region";
   }
-  Block *body = getBody();
+  Block* body = getBody();
 
   // Verify that the operands of the body's basic block are the non-secret
   // analogues of the generic's operands.
@@ -271,13 +271,13 @@ LogicalResult GenericOp::verify() {
   return success();
 }
 
-void ConcealOp::build(OpBuilder &builder, OperationState &result,
+void ConcealOp::build(OpBuilder& builder, OperationState& result,
                       Value cleartextValue) {
   Type resultType = SecretType::get(cleartextValue.getType());
   build(builder, result, resultType, cleartextValue);
 }
 
-void RevealOp::build(OpBuilder &builder, OperationState &result,
+void RevealOp::build(OpBuilder& builder, OperationState& result,
                      Value secretValue) {
   Type resultType =
       llvm::dyn_cast<SecretType>(secretValue.getType()).getValueType();
@@ -285,15 +285,15 @@ void RevealOp::build(OpBuilder &builder, OperationState &result,
 }
 
 /// 'bodyBuilder' is used to build the body of secret.generic.
-void GenericOp::build(OpBuilder &builder, OperationState &result,
+void GenericOp::build(OpBuilder& builder, OperationState& result,
                       ValueRange inputs, TypeRange outputTypes,
                       GenericOp::BodyBuilderFn bodyBuilder) {
   for (Type ty : outputTypes) result.addTypes(ty);
   result.addOperands(inputs);
 
-  Region *bodyRegion = result.addRegion();
+  Region* bodyRegion = result.addRegion();
   bodyRegion->push_back(new Block);
-  Block &bodyBlock = bodyRegion->front();
+  Block& bodyBlock = bodyRegion->front();
   for (Value val : inputs) {
     SecretType secretType = dyn_cast<SecretType>(val.getType());
     Type blockType = secretType ? secretType.getValueType() : val.getType();
@@ -327,9 +327,9 @@ OpFoldResult CastOp::fold(CastOp::FoldAdaptor adaptor) {
   return inputOp.getInput();
 }
 
-OpOperand *GenericOp::getOpOperandForBlockArgument(Value value) {
+OpOperand* GenericOp::getOpOperandForBlockArgument(Value value) {
   // FIXME: why can't I just dyn_cast the Value to a BlockArgument?
-  auto *body = getBody();
+  auto* body = getBody();
   int index = std::find(body->getArguments().begin(),
                         body->getArguments().end(), value) -
               body->getArguments().begin();
@@ -350,16 +350,16 @@ YieldOp GenericOp::getYieldOp() {
 }
 
 GenericOp GenericOp::cloneWithNewResultTypes(TypeRange newTypes,
-                                             PatternRewriter &rewriter,
+                                             PatternRewriter& rewriter,
                                              bool preserveAttrs) {
   auto newOp = GenericOp::create(
       rewriter, getLoc(), getOperands(), newTypes,
-      [&](OpBuilder &b, Location loc, ValueRange blockArguments) {
+      [&](OpBuilder& b, Location loc, ValueRange blockArguments) {
         IRMapping mp;
         for (BlockArgument blockArg : getBody()->getArguments()) {
           mp.map(blockArg, blockArguments[blockArg.getArgNumber()]);
         }
-        for (auto &op : getBody()->getOperations()) {
+        for (auto& op : getBody()->getOperations()) {
           b.clone(op, mp);
         }
       });
@@ -370,7 +370,7 @@ GenericOp GenericOp::cloneWithNewResultTypes(TypeRange newTypes,
 }
 
 std::pair<GenericOp, ValueRange> GenericOp::addNewYieldedValues(
-    ValueRange newValuesToYield, PatternRewriter &rewriter) {
+    ValueRange newValuesToYield, PatternRewriter& rewriter) {
   YieldOp yieldOp = getYieldOp();
   yieldOp.getValuesMutable().append(newValuesToYield);
   auto newTypes = llvm::to_vector<4>(
@@ -387,8 +387,8 @@ std::pair<GenericOp, ValueRange> GenericOp::addNewYieldedValues(
 }
 
 GenericOp GenericOp::removeYieldedValues(ValueRange yieldedValuesToRemove,
-                                         PatternRewriter &rewriter,
-                                         SmallVector<Value> &remainingResults) {
+                                         PatternRewriter& rewriter,
+                                         SmallVector<Value>& remainingResults) {
   YieldOp yieldOp = getYieldOp();
   for ([[maybe_unused]] Value v : yieldedValuesToRemove) {
     assert(llvm::is_contained(yieldOp.getValues(), v) &&
@@ -421,8 +421,8 @@ GenericOp GenericOp::removeYieldedValues(ValueRange yieldedValuesToRemove,
 }
 
 GenericOp GenericOp::removeYieldedValues(ArrayRef<int> yieldedIndicesToRemove,
-                                         PatternRewriter &rewriter,
-                                         SmallVector<Value> &remainingResults) {
+                                         PatternRewriter& rewriter,
+                                         SmallVector<Value>& remainingResults) {
   YieldOp yieldOp = getYieldOp();
   for ([[maybe_unused]] int index : yieldedIndicesToRemove) {
     assert(0 <= index && index < (int)yieldOp.getNumOperands() &&
@@ -451,8 +451,8 @@ GenericOp GenericOp::removeYieldedValues(ArrayRef<int> yieldedIndicesToRemove,
   return cloneWithNewResultTypes(newResultTypes, rewriter);
 }
 
-GenericOp GenericOp::extractOpBeforeGeneric(Operation *opToExtract,
-                                            PatternRewriter &rewriter) {
+GenericOp GenericOp::extractOpBeforeGeneric(Operation* opToExtract,
+                                            PatternRewriter& rewriter) {
   assert(opToExtract->getParentOp() == *this);
   LLVM_DEBUG({
     llvm::dbgs() << "Extracting:\n";
@@ -479,7 +479,7 @@ GenericOp GenericOp::extractOpBeforeGeneric(Operation *opToExtract,
   for (auto operand : opToExtract->getOperands()) {
     if (processedValues.count(operand)) continue;
     // If the yielded value is ambient, skip it and it continues to be ambient.
-    auto *correspondingOperand = getOpOperandForBlockArgument(operand);
+    auto* correspondingOperand = getOpOperandForBlockArgument(operand);
     if (!correspondingOperand) {
       // The operand must be ambient
       continue;
@@ -488,10 +488,10 @@ GenericOp GenericOp::extractOpBeforeGeneric(Operation *opToExtract,
     oldBlockArgs.push_back(operand);
     processedValues.insert(operand);
   }
-  opToExtract->walk([&](Operation *nestedOp) {
+  opToExtract->walk([&](Operation* nestedOp) {
     for (Value operand : nestedOp->getOperands()) {
       if (processedValues.count(operand)) continue;
-      auto *correspondingOperand = getOpOperandForBlockArgument(operand);
+      auto* correspondingOperand = getOpOperandForBlockArgument(operand);
       if (!correspondingOperand) {
         // Assume the operand is ambient, or else a block argument of
         // opToExtract or an op within a nested region of opToExtract.
@@ -508,7 +508,7 @@ GenericOp GenericOp::extractOpBeforeGeneric(Operation *opToExtract,
 
   auto newGeneric = GenericOp::create(
       rewriter, getLoc(), newGenericOperands, newResultTypes,
-      [&](OpBuilder &b, Location loc, ValueRange blockArguments) {
+      [&](OpBuilder& b, Location loc, ValueRange blockArguments) {
         IRMapping mp;
         // the newly-created blockArguments have the same index order as
         // newGenericOperands, which in turn shares the index ordering of
@@ -517,7 +517,7 @@ GenericOp GenericOp::extractOpBeforeGeneric(Operation *opToExtract,
         for (auto [oldArg, newArg] : llvm::zip(oldBlockArgs, blockArguments)) {
           mp.map(oldArg, newArg);
         }
-        auto *newOp = b.clone(*opToExtract, mp);
+        auto* newOp = b.clone(*opToExtract, mp);
         YieldOp::create(b, loc, newOp->getResults());
       });
   LLVM_DEBUG({
@@ -542,8 +542,8 @@ GenericOp GenericOp::extractOpBeforeGeneric(Operation *opToExtract,
   return newGeneric;
 }
 
-void populateGenericCanonicalizers(RewritePatternSet &patterns,
-                                   MLIRContext *ctx) {
+void populateGenericCanonicalizers(RewritePatternSet& patterns,
+                                   MLIRContext* ctx) {
   patterns.add<CollapseSecretlessGeneric, RemoveUnusedYieldedValues,
                RemoveUnusedGenericArgs, RemoveNonSecretGenericArgs,
                HoistPlaintextOps, ConcealThenGeneric>(ctx);
@@ -554,8 +554,8 @@ void populateGenericCanonicalizers(RewritePatternSet &patterns,
 //
 // Note, this is brittle and depends on the two generic ops having identical
 // copies of the same ops in the same order.
-Operation *findCorrespondingOp(GenericOp oldGenericOp, GenericOp newGenericOp,
-                               Operation *op) {
+Operation* findCorrespondingOp(GenericOp oldGenericOp, GenericOp newGenericOp,
+                               Operation* op) {
   assert(oldGenericOp.getBody()->getOperations().size() ==
              newGenericOp.getBody()->getOperations().size() &&
          "findCorrespondingOp requires both oldGenericOp and newGenericOp have "
@@ -576,9 +576,9 @@ Operation *findCorrespondingOp(GenericOp oldGenericOp, GenericOp newGenericOp,
 }
 
 std::pair<GenericOp, GenericOp> extractOpAfterGeneric(
-    GenericOp genericOp, Operation *opToExtract, PatternRewriter &rewriter) {
+    GenericOp genericOp, Operation* opToExtract, PatternRewriter& rewriter) {
   assert(opToExtract->getParentOp() == genericOp);
-  [[maybe_unused]] auto *parent = genericOp->getParentOp();
+  [[maybe_unused]] auto* parent = genericOp->getParentOp();
 
   LLVM_DEBUG({
     llvm::dbgs() << "At start of extracting op after generic:\n";
@@ -649,14 +649,14 @@ std::pair<GenericOp, GenericOp> extractOpAfterGeneric(
   auto newGeneric = GenericOp::create(
       rewriter, genericOpWithNewYields.getLoc(), newGenericOperands,
       newResultTypes,
-      [&](OpBuilder &b, Location loc, ValueRange blockArguments) {
+      [&](OpBuilder& b, Location loc, ValueRange blockArguments) {
         IRMapping mp;
         int i = 0;
         for (Value operand : opToExtract->getOperands()) {
           mp.map(operand, blockArguments[i]);
           ++i;
         }
-        auto *newOp = b.clone(*opToExtract, mp);
+        auto* newOp = b.clone(*opToExtract, mp);
         YieldOp::create(b, loc, newOp->getResults());
       });
   LLVM_DEBUG({
@@ -684,17 +684,17 @@ std::pair<GenericOp, GenericOp> extractOpAfterGeneric(
   return std::pair{replacedGeneric, newGeneric};
 }
 
-void GenericOp::inlineInPlaceDroppingSecrets(PatternRewriter &rewriter,
+void GenericOp::inlineInPlaceDroppingSecrets(PatternRewriter& rewriter,
                                              ValueRange operands) {
-  GenericOp &op = *this;
-  Block *originalBlock = op->getBlock();
-  Block &opEntryBlock = op.getRegion().front();
+  GenericOp& op = *this;
+  Block* originalBlock = op->getBlock();
+  Block& opEntryBlock = op.getRegion().front();
   YieldOp yieldOp = dyn_cast<YieldOp>(op.getRegion().back().getTerminator());
 
   // Inline the op's (unique) block, including the yield op. This also
   // requires splitting the parent block of the generic op, so that we have a
   // clear insertion point for inlining.
-  Block *newBlock = rewriter.splitBlock(originalBlock, Block::iterator(op));
+  Block* newBlock = rewriter.splitBlock(originalBlock, Block::iterator(op));
   rewriter.inlineRegionBefore(op.getRegion(), newBlock);
 
   // Now that op's region is inlined, the operands of its YieldOp are mapped
@@ -709,8 +709,8 @@ void GenericOp::inlineInPlaceDroppingSecrets(PatternRewriter &rewriter,
   rewriter.eraseOp(yieldOp);
 }
 
-void GenericOp::getCanonicalizationPatterns(RewritePatternSet &results,
-                                            MLIRContext *context) {
+void GenericOp::getCanonicalizationPatterns(RewritePatternSet& results,
+                                            MLIRContext* context) {
   populateGenericCanonicalizers(results, context);
 }
 
@@ -721,7 +721,7 @@ OperandRange GenericOp::getEntrySuccessorOperands(RegionBranchPoint point) {
 }
 
 void GenericOp::getSuccessorRegions(RegionBranchPoint point,
-                                    SmallVectorImpl<RegionSuccessor> &regions) {
+                                    SmallVectorImpl<RegionSuccessor>& regions) {
   if (point == RegionBranchPoint::parent()) {
     regions.push_back(RegionSuccessor(&getRegion(), getBody()->getArguments()));
   } else {
@@ -730,7 +730,7 @@ void GenericOp::getSuccessorRegions(RegionBranchPoint point,
 }
 
 void GenericOp::getRegionInvocationBounds(
-    ArrayRef<Attribute> operands, SmallVectorImpl<InvocationBounds> &bounds) {
+    ArrayRef<Attribute> operands, SmallVectorImpl<InvocationBounds>& bounds) {
   // The sole region is invoked exactly once
   bounds.push_back(InvocationBounds(/*lb=*/1, /*ub=*/1));
 }

@@ -41,25 +41,25 @@ namespace jaxite {
 void registerToJaxiteTranslation() {
   TranslateFromMLIRRegistration reg(
       "emit-jaxite", "translate the jaxite dialect to python code for jaxite",
-      [](Operation *op, llvm::raw_ostream &output) {
+      [](Operation* op, llvm::raw_ostream& output) {
         return translateToJaxite(op, output);
       },
-      [](DialectRegistry &registry) {
+      [](DialectRegistry& registry) {
         registry.insert<func::FuncDialect, jaxite::JaxiteDialect,
                         arith::ArithDialect, tensor::TensorDialect,
                         lwe::LWEDialect, memref::MemRefDialect>();
       });
 }
 
-LogicalResult translateToJaxite(Operation *op, llvm::raw_ostream &os) {
+LogicalResult translateToJaxite(Operation* op, llvm::raw_ostream& os) {
   SelectVariableNames variableNames(op);
   JaxiteEmitter emitter(os, &variableNames);
   return emitter.translate(*op);
 }
 
-LogicalResult JaxiteEmitter::translate(Operation &op) {
+LogicalResult JaxiteEmitter::translate(Operation& op) {
   LogicalResult status =
-      llvm::TypeSwitch<Operation &, LogicalResult>(op)
+      llvm::TypeSwitch<Operation&, LogicalResult>(op)
           // Builtin ops
           .Case<ModuleOp>([&](auto op) { return printOperation(op); })
           // Func ops
@@ -76,7 +76,7 @@ LogicalResult JaxiteEmitter::translate(Operation &op) {
               [&](auto op) { return printOperation(op); })
           // Arith ops
           .Case<arith::ConstantOp>([&](auto op) { return success(); })
-          .Default([&](Operation &) {
+          .Default([&](Operation&) {
             return op.emitOpError("unable to find printer for op");
           });
 
@@ -89,7 +89,7 @@ LogicalResult JaxiteEmitter::translate(Operation &op) {
 
 LogicalResult JaxiteEmitter::printOperation(ModuleOp moduleOp) {
   os << kModulePrelude << "\n";
-  for (Operation &op : moduleOp) {
+  for (Operation& op : moduleOp) {
     if (failed(translate(op))) {
       return failure();
     }
@@ -148,8 +148,8 @@ LogicalResult JaxiteEmitter::printOperation(func::FuncOp funcOp) {
 
   os << "temp_nodes: Dict[int, Any] = {}" << "\n";
 
-  for (Block &block : funcOp.getBlocks()) {
-    for (Operation &op : block.getOperations()) {
+  for (Block& block : funcOp.getBlocks()) {
+    for (Operation& op : block.getOperations()) {
       if (failed(translate(op))) {
         return failure();
       }
@@ -324,7 +324,7 @@ LogicalResult JaxiteEmitter::printOperation(memref::AllocOp op) {
      << std::accumulate(std::next(op.getMemref().getType().getShape().begin()),
                         op.getMemref().getType().getShape().end(),
                         std::to_string(op.getMemref().getType().getShape()[0]),
-                        [&](const std::string &a, int64_t b) {
+                        [&](const std::string& a, int64_t b) {
                           return a + "*" + std::to_string(b);
                         })
      << "), None)";
@@ -367,14 +367,14 @@ FailureOr<std::string> JaxiteEmitter::convertType(Type type) {
 
     return std::string(std::string("list[") + elementTy.value() + "]");
   }
-  return llvm::TypeSwitch<Type &, FailureOr<std::string>>(type)
+  return llvm::TypeSwitch<Type&, FailureOr<std::string>>(type)
       .Case<lwe::LWECiphertextType>(
           [&](auto type) { return std::string("types.LweCiphertext"); })
       .Case<ServerKeySetType>(
           [&](auto type) { return std::string("jaxite_bool.ServerKeySet"); })
       .Case<ParamsType>(
           [&](auto type) { return std::string("jaxite_bool.Parameters"); })
-      .Default([&](Type &) { return failure(); });
+      .Default([&](Type&) { return failure(); });
 }
 
 LogicalResult JaxiteEmitter::emitType(Type type) {
@@ -386,8 +386,8 @@ LogicalResult JaxiteEmitter::emitType(Type type) {
   return success();
 }
 
-JaxiteEmitter::JaxiteEmitter(raw_ostream &os,
-                             SelectVariableNames *variableNames)
+JaxiteEmitter::JaxiteEmitter(raw_ostream& os,
+                             SelectVariableNames* variableNames)
     : os(os), variableNames(variableNames) {}
 
 }  // namespace jaxite

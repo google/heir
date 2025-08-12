@@ -17,13 +17,13 @@ func::FuncOp detectEntryFunction(ModuleOp moduleOp,
 
 /// Replace an integer-typed value with a memref of the individual bits. The
 /// lowest order bit of the integer is the first element in the memref.
-Value convertIntegerValueToMemrefOfBits(Value integer, OpBuilder &b,
+Value convertIntegerValueToMemrefOfBits(Value integer, OpBuilder& b,
                                         Location loc);
 
 /// Replace a 1D memref of bits with an integer-typed value. The bits are
 /// interpreted so that the first element of the memref is the lowest order bit
 /// of the result integer.
-Value convertMemrefOfBitsToInteger(Value memref, Type resultType, OpBuilder &b,
+Value convertMemrefOfBitsToInteger(Value memref, Type resultType, OpBuilder& b,
                                    Location loc);
 
 /// Returns first uninitialized index not yet mapped to an output in an

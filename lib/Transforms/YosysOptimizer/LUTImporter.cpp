@@ -18,9 +18,9 @@
 namespace mlir {
 namespace heir {
 
-mlir::Operation *LUTImporter::createOp(Yosys::RTLIL::Cell *cell,
-                                       SmallVector<Value> &inputs,
-                                       ImplicitLocOpBuilder &b) const {
+mlir::Operation* LUTImporter::createOp(Yosys::RTLIL::Cell* cell,
+                                       SmallVector<Value>& inputs,
+                                       ImplicitLocOpBuilder& b) const {
   assert(cell->type.begins_with("\\lut"));
 
   // Create truth table from cell attributes.
@@ -41,12 +41,12 @@ mlir::Operation *LUTImporter::createOp(Yosys::RTLIL::Cell *cell,
 }
 
 SmallVector<Yosys::RTLIL::SigSpec> LUTImporter::getInputs(
-    Yosys::RTLIL::Cell *cell) const {
+    Yosys::RTLIL::Cell* cell) const {
   assert(cell->type.begins_with("\\lut") && "expected lut cells");
 
   // Return all non-P, non-Y named attributes.
   SmallVector<Yosys::RTLIL::SigSpec, 4> inputs;
-  for (auto &conn : cell->connections()) {
+  for (auto& conn : cell->connections()) {
     if (conn.first.contains("P") || conn.first.contains("Y")) {
       continue;
     }
@@ -62,7 +62,7 @@ SmallVector<Yosys::RTLIL::SigSpec> LUTImporter::getInputs(
   return reversed;
 }
 
-Yosys::RTLIL::SigSpec LUTImporter::getOutput(Yosys::RTLIL::Cell *cell) const {
+Yosys::RTLIL::SigSpec LUTImporter::getOutput(Yosys::RTLIL::Cell* cell) const {
   assert(cell->type.begins_with("\\lut"));
   return cell->getPort(Yosys::RTLIL::IdString("\\Y"));
 }

@@ -37,21 +37,21 @@ class MulDepthState {
     return mulDepth.value();
   }
 
-  bool operator==(const MulDepthState &rhs) const {
+  bool operator==(const MulDepthState& rhs) const {
     return mulDepth == rhs.mulDepth;
   }
 
   bool isInitialized() const { return mulDepth.has_value(); }
 
-  static MulDepthState join(const MulDepthState &lhs,
-                            const MulDepthState &rhs) {
+  static MulDepthState join(const MulDepthState& lhs,
+                            const MulDepthState& rhs) {
     if (!lhs.isInitialized()) return rhs;
     if (!rhs.isInitialized()) return lhs;
 
     return MulDepthState{std::max(lhs.getMulDepth(), rhs.getMulDepth())};
   }
 
-  void print(llvm::raw_ostream &os) const {
+  void print(llvm::raw_ostream& os) const {
     if (isInitialized()) {
       os << "MulDepthState(" << mulDepth.value() << ")";
     } else {
@@ -59,8 +59,8 @@ class MulDepthState {
     }
   }
 
-  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
-                                       const MulDepthState &state) {
+  friend llvm::raw_ostream& operator<<(llvm::raw_ostream& os,
+                                       const MulDepthState& state) {
     state.print(os);
     return os;
   }
@@ -81,7 +81,7 @@ class MulDepthAnalysis
   using SparseForwardDataFlowAnalysis::SparseForwardDataFlowAnalysis;
   friend class SecretnessAnalysisDependent<MulDepthAnalysis>;
 
-  void setToEntryState(MulDepthLattice *lattice) override {
+  void setToEntryState(MulDepthLattice* lattice) override {
     if (isa<secret::SecretType>(lattice->getAnchor().getType())) {
       propagateIfChanged(lattice, lattice->join(MulDepthState(0)));
       return;
@@ -89,20 +89,20 @@ class MulDepthAnalysis
     propagateIfChanged(lattice, lattice->join(MulDepthState()));
   }
 
-  LogicalResult visitOperation(Operation *op,
-                               ArrayRef<const MulDepthLattice *> operands,
-                               ArrayRef<MulDepthLattice *> results) override;
+  LogicalResult visitOperation(Operation* op,
+                               ArrayRef<const MulDepthLattice*> operands,
+                               ArrayRef<MulDepthLattice*> results) override;
 
   void visitExternalCall(CallOpInterface call,
-                         ArrayRef<const MulDepthLattice *> argumentLattices,
-                         ArrayRef<MulDepthLattice *> resultLattices) override;
+                         ArrayRef<const MulDepthLattice*> argumentLattices,
+                         ArrayRef<MulDepthLattice*> resultLattices) override;
 
-  void propagateIfChangedWrapper(AnalysisState *state, ChangeResult changed) {
+  void propagateIfChangedWrapper(AnalysisState* state, ChangeResult changed) {
     propagateIfChanged(state, changed);
   }
 };
 
-int64_t getMaxMulDepth(Operation *op, DataFlowSolver &solver);
+int64_t getMaxMulDepth(Operation* op, DataFlowSolver& solver);
 
 }  // namespace heir
 }  // namespace mlir

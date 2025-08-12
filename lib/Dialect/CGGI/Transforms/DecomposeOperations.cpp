@@ -30,10 +30,10 @@ namespace alignment {
 }  // namespace alignment
 
 struct ExpandLut2 : public OpRewritePattern<Lut2Op> {
-  ExpandLut2(mlir::MLIRContext *context)
+  ExpandLut2(mlir::MLIRContext* context)
       : OpRewritePattern<Lut2Op>(context, /*benefit=*/1) {}
   LogicalResult matchAndRewrite(Lut2Op op,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     SmallVector<int32_t> coeffs2 = {2, 1};
     auto createLutLinCombOp =
         LutLinCombOp::create(rewriter, op.getLoc(), op.getOutput().getType(),
@@ -44,10 +44,10 @@ struct ExpandLut2 : public OpRewritePattern<Lut2Op> {
 };
 
 struct ExpandLut3 : public OpRewritePattern<Lut3Op> {
-  ExpandLut3(mlir::MLIRContext *context)
+  ExpandLut3(mlir::MLIRContext* context)
       : OpRewritePattern<Lut3Op>(context, /*benefit=*/1) {}
   LogicalResult matchAndRewrite(Lut3Op op,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     SmallVector<int> coeffs3 = {4, 2, 1};
     auto createLutLinCombOp =
         LutLinCombOp::create(rewriter, op.getLoc(), op.getOutput().getType(),
@@ -58,11 +58,11 @@ struct ExpandLut3 : public OpRewritePattern<Lut3Op> {
 };
 
 struct ExpandLutLinComb : public OpRewritePattern<LutLinCombOp> {
-  ExpandLutLinComb(mlir::MLIRContext *context)
+  ExpandLutLinComb(mlir::MLIRContext* context)
       : OpRewritePattern<LutLinCombOp>(context, /*benefit=*/1) {}
 
   LogicalResult matchAndRewrite(LutLinCombOp op,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     Type scalarTy = rewriter.getIntegerType(
         cast<lwe::LWECiphertextType>(op.getInputs().front().getType())
             .getPlaintextSpace()
@@ -93,7 +93,7 @@ struct DecomposeOperations
   using DecomposeOperationsBase::DecomposeOperationsBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
 
     RewritePatternSet patterns(context);
     // Add patterns generated from DRR

@@ -17,7 +17,7 @@ namespace heir {
 namespace mgmt {
 
 /// Remove all unused mgmt.init ops from the top operation.
-void cleanupInitOp(Operation *top);
+void cleanupInitOp(Operation* top);
 
 }  // namespace mgmt
 }  // namespace heir

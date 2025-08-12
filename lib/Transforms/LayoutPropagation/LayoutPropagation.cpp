@@ -78,7 +78,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
 
   // Top level visit method handling common logic and dispatching to specific
   // visitOperation overloads.
-  LogicalResult visitOperation(Operation *op);
+  LogicalResult visitOperation(Operation* op);
 
   // Op-specific transfer functions
   LogicalResult visitOperation(CollapseShapeOp op);
@@ -97,7 +97,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   // op. If the check fails, the CompatibilityResult::compatible field is
   // false. If there is also a diagnostic populated in the result, the failure
   // is unrecoverable.
-  CompatibilityResult hasCompatibleArgumentLayouts(Operation *op);
+  CompatibilityResult hasCompatibleArgumentLayouts(Operation* op);
 
   // Op-specific compatibility functions
   CompatibilityResult hasCompatibleArgumentLayouts(ReduceOp op);
@@ -105,7 +105,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   CompatibilityResult hasCompatibleArgumentLayouts(MatvecOp op);
 
   // Insert conversion ops to rectify incompatible operand layouts
-  void rectifyIncompatibleOperandLayouts(Operation *op);
+  void rectifyIncompatibleOperandLayouts(Operation* op);
 
   // Op-specific overrides
   void rectifyIncompatibleOperandLayouts(ReduceOp op);
@@ -117,22 +117,22 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   // Create an assign_layout op for the given value, and return the resulting
   // op. The given builder should have its insertion point set before calling.
   FailureOr<AssignLayoutOp> assignDefaultLayoutForOpOperand(
-      Operation *op, Value operand, IRRewriter &builder);
+      Operation* op, Value operand, IRRewriter& builder);
 
   // Helper to pass layouts through generic ops
-  void passLayoutThroughOp(Operation *op);
+  void passLayoutThroughOp(Operation* op);
 
   // Add an op attribute denoting the layouts of the op results. Assumes the
   // assignedLayouts map contains the layout for the result SSA values already.
-  void setResultLayoutAttr(Operation *op);
+  void setResultLayoutAttr(Operation* op);
 
   void runOnOperation() override;
 
   DenseMap<Value, LayoutAttr> assignedLayouts;
-  DataFlowSolver *solver;
+  DataFlowSolver* solver;
 };
 
-void visitDebugInfo(Operation *op) {
+void visitDebugInfo(Operation* op) {
   LLVM_DEBUG(llvm::dbgs() << "Visiting: " << op->getName() << "\n");
 }
 
@@ -142,7 +142,7 @@ void debugAssignLayout(Value value, LayoutAttr layout) {
 }
 
 FailureOr<AssignLayoutOp> LayoutPropagation::assignDefaultLayoutForOpOperand(
-    Operation *op, Value operand, IRRewriter &builder) {
+    Operation* op, Value operand, IRRewriter& builder) {
   FailureOr<LayoutAttr> layout = defaultLayoutForType(operand.getType());
   if (failed(layout)) {
     return failure();
@@ -157,7 +157,7 @@ FailureOr<AssignLayoutOp> LayoutPropagation::assignDefaultLayoutForOpOperand(
   // This may create duplicate layout assignment ops, and we expect CSE
   // to later clean them up. Otherwise we risk replacing a use of the
   // cleartext value in some other context.
-  builder.replaceUsesWithIf(operand, toReplace, [&](OpOperand &otherOperand) {
+  builder.replaceUsesWithIf(operand, toReplace, [&](OpOperand& otherOperand) {
     return otherOperand.getOwner() == op;
   });
   debugAssignLayout(toReplace, layoutAttr);
@@ -198,8 +198,8 @@ LayoutAttr convertLayoutForReduce(LayoutAttr inputLayout,
   for (int dim : outDimsToReduce) outDimsBV.set(dim);
 
   auto insertIfNotInDimsBV = [&](ArrayRef<int64_t> test,
-                                 SmallVector<int64_t> &vec,
-                                 llvm::SmallBitVector &dimsBV) {
+                                 SmallVector<int64_t>& vec,
+                                 llvm::SmallBitVector& dimsBV) {
     for (int i = 0; i < test.size(); ++i) {
       if (!dimsBV.test(i)) {
         vec.push_back(test[i]);
@@ -217,7 +217,7 @@ LayoutAttr convertLayoutForReduce(LayoutAttr inputLayout,
   SmallVector<int64_t> insertedDims =
       shiftByRemoved(alignment.getInsertedDims().asArrayRef(), outDimsToReduce);
 
-  MLIRContext *ctx = inputLayout.getContext();
+  MLIRContext* ctx = inputLayout.getContext();
   AlignmentAttr newAlignment = AlignmentAttr::get(
       ctx, DenseI64ArrayAttr::get(ctx, in), DenseI64ArrayAttr::get(ctx, out),
       DenseI64ArrayAttr::get(ctx, insertedDims),
@@ -226,7 +226,7 @@ LayoutAttr convertLayoutForReduce(LayoutAttr inputLayout,
   return LayoutAttr::get(resultMap, newAlignment);
 }
 
-LogicalResult LayoutPropagation::visitOperation(Operation *op) {
+LogicalResult LayoutPropagation::visitOperation(Operation* op) {
   visitDebugInfo(op);
 
   if (!isa<func::FuncOp, func::ReturnOp, GenericOp, YieldOp>(op) &&
@@ -270,7 +270,7 @@ LogicalResult LayoutPropagation::visitOperation(Operation *op) {
     rectifyIncompatibleOperandLayouts(op);
   }
 
-  return TypeSwitch<Operation *, LogicalResult>(op)
+  return TypeSwitch<Operation*, LogicalResult>(op)
       // func ops
       .Case<func::FuncOp, func::ReturnOp>(
           [&](auto op) { return visitOperation(op); })
@@ -287,7 +287,7 @@ LogicalResult LayoutPropagation::visitOperation(Operation *op) {
       .Case<CollapseShapeOp, ExpandShapeOp>(
           [&](auto op) { return visitOperation(op); })
       // AddI, AddF, mgmt.* all pass the layout through unchanged.
-      .Default([&](Operation *op) {
+      .Default([&](Operation* op) {
         passLayoutThroughOp(op);
         return success();
       });
@@ -318,7 +318,7 @@ LogicalResult LayoutPropagation::visitOperation(func::FuncOp op) {
 
 LogicalResult LayoutPropagation::visitOperation(func::ReturnOp op) {
   func::FuncOp func = op->getParentOfType<func::FuncOp>();
-  for (OpOperand &operand : op->getOpOperands()) {
+  for (OpOperand& operand : op->getOpOperands()) {
     if (!assignedLayouts.contains(operand.get())) {
       if (isSecret(operand.get(), solver)) {
         return op->emitError("secret return value has no assigned layout");
@@ -336,7 +336,7 @@ LogicalResult LayoutPropagation::visitOperation(func::ReturnOp op) {
 
 LogicalResult LayoutPropagation::visitOperation(GenericOp op) {
   // Every block argument has the same layout as its corresponding operand.
-  for (OpOperand &operand : op->getOpOperands()) {
+  for (OpOperand& operand : op->getOpOperands()) {
     if (!assignedLayouts.contains(operand.get())) {
       // Assume it is not a tensor type and doesn't need a layout.
       continue;
@@ -357,7 +357,7 @@ LogicalResult LayoutPropagation::visitOperation(GenericOp op) {
 LogicalResult LayoutPropagation::visitOperation(YieldOp op) {
   // The results of the generic op has the same layouts as the yielded values
   GenericOp generic = op->getParentOfType<GenericOp>();
-  for (OpOperand &operand : op->getOpOperands()) {
+  for (OpOperand& operand : op->getOpOperands()) {
     Type operandType = operand.get().getType();
     if (!assignedLayouts.contains(operand.get())) {
       // If it's a tensor type, it may be something like a tensor.empty()
@@ -466,7 +466,7 @@ LogicalResult LayoutPropagation::visitOperation(CollapseShapeOp op) {
 }
 
 LogicalResult LayoutPropagation::visitOperation(ExpandShapeOp op) {
-  MLIRContext *context = &getContext();
+  MLIRContext* context = &getContext();
   // Only support rank-reduced types for now, i.e., where the expanded shape
   // only adds static dimensions of size 1.
   SliceVerificationResult res =
@@ -542,7 +542,7 @@ LogicalResult LayoutPropagation::visitOperation(ExpandShapeOp op) {
   // Then replace the old dimension identifier expressions with new ones
   AffineMap resultLayout = resLayout1.replace(oldDimsToNewDims);
 
-  MLIRContext *ctx = inputLayout.getContext();
+  MLIRContext* ctx = inputLayout.getContext();
   AlignmentAttr newAlignment = AlignmentAttr::get(
       ctx, DenseI64ArrayAttr::get(ctx, newAlignmentIn),
       DenseI64ArrayAttr::get(ctx, newAlignmentOut),
@@ -609,7 +609,7 @@ LogicalResult LayoutPropagation::visitOperation(MatvecOp op) {
     convertLayoutOp->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName,
                              squatDiagonalLayoutAttr);
     Value toReplace = convertLayoutOp.getResult();
-    builder.replaceUsesWithIf(matrix, toReplace, [&](OpOperand &operand) {
+    builder.replaceUsesWithIf(matrix, toReplace, [&](OpOperand& operand) {
       return operand.getOwner() == op;
     });
     debugAssignLayout(toReplace, squatDiagonalLayoutAttr);
@@ -635,7 +635,7 @@ LogicalResult LayoutPropagation::visitOperation(MatvecOp op) {
 }
 
 LogicalResult LayoutPropagation::visitOperation(ReduceOp op) {
-  for (const auto &[tensor, result] :
+  for (const auto& [tensor, result] :
        llvm::zip(op.getInputs(), op.getResults())) {
     LayoutAttr resultLayout =
         convertLayoutForReduce(assignedLayouts.at(tensor), op.getDimensions());
@@ -648,7 +648,7 @@ LogicalResult LayoutPropagation::visitOperation(ReduceOp op) {
 
 LogicalResult LayoutPropagation::visitOperation(affine::AffineForOp op) {
   // Transfer the layout of the inits to the region iter args
-  for (const auto &[init, iterArg, result] :
+  for (const auto& [init, iterArg, result] :
        llvm::zip(op.getInits(), op.getRegionIterArgs(), op.getResults())) {
     LayoutAttr layout;
 
@@ -701,8 +701,8 @@ LogicalResult LayoutPropagation::visitOperation(tensor::ExtractOp op) {
 }
 
 CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
-    Operation *op) {
-  return TypeSwitch<Operation *, CompatibilityResult>(op)
+    Operation* op) {
+  return TypeSwitch<Operation*, CompatibilityResult>(op)
       // Trivially true ops
       .Case<func::FuncOp, GenericOp, YieldOp, affine::AffineForOp,
             affine::AffineYieldOp>(
@@ -711,10 +711,10 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
       .Case<ReduceOp, MatvecOp, VecmatOp>(
           [&](auto op) { return hasCompatibleArgumentLayouts(op); })
       // By default, assume operands must all have the same layout.
-      .Default([&](Operation *op) {
+      .Default([&](Operation* op) {
         std::optional<LayoutAttr> firstFoundLayout;
 
-        for (auto &operand : op->getOpOperands()) {
+        for (auto& operand : op->getOpOperands()) {
           if (isa<RankedTensorType>(operand.get().getType())) {
             if (!assignedLayouts.contains(operand.get())) {
               // If the operand has no layout, we can't propagate layout
@@ -739,7 +739,7 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
     ReduceOp op) {
   // The arguments of a ReduceOp are the tensor(s) to reduce and the
   // initializer values for the reduction.
-  for (const auto &[input, init] : llvm::zip(op.getInputs(), op.getInits())) {
+  for (const auto& [input, init] : llvm::zip(op.getInputs(), op.getInits())) {
     if (!assignedLayouts.contains(input)) {
       return {false, op->emitError("input tensor has no assigned layout")};
     }
@@ -799,11 +799,11 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
   return {true, std::nullopt};
 }
 
-void LayoutPropagation::rectifyIncompatibleOperandLayouts(Operation *op) {
+void LayoutPropagation::rectifyIncompatibleOperandLayouts(Operation* op) {
   LLVM_DEBUG({
     auto diag = op->emitRemark() << "Inserting layout conversion op due to "
                                     "disagreeing operand layouts";
-    auto &note = diag.attachNote();
+    auto& note = diag.attachNote();
     for (auto operand : op->getOperands()) {
       LayoutAttr operandLayout;
       if (assignedLayouts.contains(operand))
@@ -812,11 +812,11 @@ void LayoutPropagation::rectifyIncompatibleOperandLayouts(Operation *op) {
     }
   });
 
-  TypeSwitch<Operation *>(op)
+  TypeSwitch<Operation*>(op)
       // Ops with special rules
       .Case<ReduceOp>(
           [&](auto op) { return rectifyIncompatibleOperandLayouts(op); })
-      .Default([&](Operation *op) {
+      .Default([&](Operation* op) {
         // Default target layout is chosen arbitrarily as the first operand's
         // layout for now. A different pass is responsible for optimizing the
         // placement and mechanics of the layout conversion ops.
@@ -826,7 +826,7 @@ void LayoutPropagation::rectifyIncompatibleOperandLayouts(Operation *op) {
         });
         LayoutAttr targetLayout = assignedLayouts.at(*it);
 
-        for (auto &opOperand : op->getOpOperands()) {
+        for (auto& opOperand : op->getOpOperands()) {
           if (!assignedLayouts.contains(opOperand.get())) continue;
           LayoutAttr sourceLayout = assignedLayouts.at(opOperand.get());
 
@@ -852,7 +852,7 @@ void LayoutPropagation::rectifyIncompatibleOperandLayouts(ReduceOp op) {
   mlir::IRRewriter builder(&getContext());
   builder.setInsertionPoint(op);
 
-  for (const auto &[input, init] : llvm::zip(op.getInputs(), op.getInits())) {
+  for (const auto& [input, init] : llvm::zip(op.getInputs(), op.getInits())) {
     LayoutAttr inputLayout = assignedLayouts.at(input);
     LayoutAttr initLayout = assignedLayouts.at(init);
     LayoutAttr reducedInputLayout =
@@ -862,7 +862,7 @@ void LayoutPropagation::rectifyIncompatibleOperandLayouts(ReduceOp op) {
       ConvertLayoutOp convertOp = ConvertLayoutOp::create(
           builder, op->getLoc(), init, initLayout, reducedInputLayout);
       Value toReplace = convertOp.getResult();
-      builder.replaceUsesWithIf(init, toReplace, [&](OpOperand &operand) {
+      builder.replaceUsesWithIf(init, toReplace, [&](OpOperand& operand) {
         return operand.getOwner() == op;
       });
       assignedLayouts.insert({toReplace, reducedInputLayout});
@@ -871,7 +871,7 @@ void LayoutPropagation::rectifyIncompatibleOperandLayouts(ReduceOp op) {
   }
 }
 
-void LayoutPropagation::passLayoutThroughOp(Operation *op) {
+void LayoutPropagation::passLayoutThroughOp(Operation* op) {
   // All inputs have the same layout, so just propagate it to all results
   LayoutAttr layout = assignedLayouts.at(op->getOperand(0));
   for (Value result : op->getResults()) {
@@ -974,7 +974,7 @@ FailureOr<LayoutAttr> LayoutPropagation::defaultLayoutForType(Type type) {
   return LayoutAttr::get(map, alignment);
 }
 
-void LayoutPropagation::setResultLayoutAttr(Operation *op) {
+void LayoutPropagation::setResultLayoutAttr(Operation* op) {
   OpBuilder builder(&getContext());
   SmallVector<Attribute> resultLayouts = llvm::map_to_vector(
       op->getResults(),
@@ -1003,7 +1003,7 @@ void LayoutPropagation::runOnOperation() {
   LLVM_DEBUG(llvm::dbgs() << "Running layout propagation on operation: "
                           << getOperation()->getName() << "\n");
   WalkResult result =
-      getOperation()->walk<WalkOrder::PreOrder>([&](Operation *op) {
+      getOperation()->walk<WalkOrder::PreOrder>([&](Operation* op) {
         LogicalResult result = visitOperation(op);
         if (failed(result)) {
           return WalkResult::interrupt();

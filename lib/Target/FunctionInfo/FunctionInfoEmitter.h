@@ -15,7 +15,7 @@ namespace functioninfo {
 
 void registerToFunctionInfoTranslation();
 
-LogicalResult translateToFunctionInfo(Operation *op, llvm::raw_ostream &os);
+LogicalResult translateToFunctionInfo(Operation* op, llvm::raw_ostream& os);
 
 /// FunctionInfoEmitter is a simple helper (created for use with the python
 /// frontend) that reads the first func.func in the module and emits the
@@ -27,8 +27,8 @@ LogicalResult translateToFunctionInfo(Operation *op, llvm::raw_ostream &os);
 // mlir str
 class FunctionInfoEmitter {
  public:
-  FunctionInfoEmitter(llvm::raw_ostream &os);
-  LogicalResult translate(Operation &operation);
+  FunctionInfoEmitter(llvm::raw_ostream& os);
+  LogicalResult translate(Operation& operation);
 
  private:
   raw_indented_ostream os;

@@ -24,7 +24,7 @@ namespace heir {
 // All of this is based on the ElementwiseToLinalg Pass in
 // mlir/lib/Dialect/Linalg/Transforms/ElementwiseToLinalg.cpp
 
-static bool isElementwiseMappableOpOnRankedTensors(Operation *op) {
+static bool isElementwiseMappableOpOnRankedTensors(Operation* op) {
   if (!OpTrait::hasElementwiseMappableTraits(op)) return false;
 
   return llvm::any_of(op->getOperandTypes(),
@@ -34,10 +34,10 @@ static bool isElementwiseMappableOpOnRankedTensors(Operation *op) {
 namespace {
 
 struct ConvertAnyElementwiseMappableOpOnRankedTensors : public RewritePattern {
-  ConvertAnyElementwiseMappableOpOnRankedTensors(MLIRContext *context)
+  ConvertAnyElementwiseMappableOpOnRankedTensors(MLIRContext* context)
       : RewritePattern(MatchAnyOpTypeTag(), /*benefit=*/1, context) {}
-  LogicalResult matchAndRewrite(Operation *op,
-                                PatternRewriter &rewriter) const final {
+  LogicalResult matchAndRewrite(Operation* op,
+                                PatternRewriter& rewriter) const final {
     if (!isElementwiseMappableOpOnRankedTensors(op))
       return rewriter.notifyMatchFailure(
           op, "requires elementwise op on ranked tensors");
@@ -101,7 +101,7 @@ struct ConvertAnyElementwiseMappableOpOnRankedTensors : public RewritePattern {
 
     // "lowered" operation is the same operation, but over non-tensor
     // operands
-    auto *scalarOp =
+    auto* scalarOp =
         rewriter.create(op->getLoc(), op->getName().getIdentifier(),
                         newOperands, resultTypes, op->getAttrs());
 
@@ -125,12 +125,12 @@ struct ElementwiseToAffine
   using ElementwiseToAffineBase::ElementwiseToAffineBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
     ConversionTarget target(*context);
     RewritePatternSet patterns(context);
 
     patterns.add<ConvertAnyElementwiseMappableOpOnRankedTensors>(context);
-    target.markUnknownOpDynamicallyLegal([&](Operation *op) {
+    target.markUnknownOpDynamicallyLegal([&](Operation* op) {
       bool convertAll = convertDialects.empty() && convertOps.empty();
       bool convertDialect = llvm::is_contained(
           convertDialects, op->getDialect()->getNamespace().str());

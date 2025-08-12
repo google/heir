@@ -21,7 +21,7 @@ namespace rewrites {
 
 struct PolyMulToNTT : impl::PolyMulToNTTBase<PolyMulToNTT> {
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
     RewritePatternSet patterns(context);
     // TODO(#1095): migrate to mod arith type
     // patterns.add<rewrites::NTTRewritePolyMul>(patterns.getContext());

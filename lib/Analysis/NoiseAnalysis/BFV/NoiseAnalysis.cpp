@@ -29,7 +29,7 @@ namespace heir {
 
 // explicit specialization of NoiseAnalysis for NoiseByBoundCoeffModel
 template <typename NoiseModel>
-void NoiseAnalysis<NoiseModel>::setToEntryState(LatticeType *lattice) {
+void NoiseAnalysis<NoiseModel>::setToEntryState(LatticeType* lattice) {
   if (isa<secret::SecretType>(lattice->getAnchor().getType())) {
     Value value = lattice->getAnchor();
     auto localParam = LocalParamType(&schemeParam, getLevelFromMgmtAttr(value),
@@ -49,8 +49,8 @@ void NoiseAnalysis<NoiseModel>::setToEntryState(LatticeType *lattice) {
 // explicit specialization of NoiseAnalysis for NoiseByBoundCoeffModel
 template <typename NoiseModel>
 void NoiseAnalysis<NoiseModel>::visitExternalCall(
-    CallOpInterface call, ArrayRef<const LatticeType *> argumentLattices,
-    ArrayRef<LatticeType *> resultLattices) {
+    CallOpInterface call, ArrayRef<const LatticeType*> argumentLattices,
+    ArrayRef<LatticeType*> resultLattices) {
   auto callback =
       std::bind(&NoiseAnalysis<NoiseModel>::propagateIfChangedWrapper, this,
                 std::placeholders::_1, std::placeholders::_2);
@@ -61,8 +61,8 @@ void NoiseAnalysis<NoiseModel>::visitExternalCall(
 // explicit specialization of NoiseAnalysis for NoiseByBoundCoeffModel
 template <typename NoiseModel>
 LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
-    Operation *op, ArrayRef<const LatticeType *> operands,
-    ArrayRef<LatticeType *> results) {
+    Operation* op, ArrayRef<const LatticeType*> operands,
+    ArrayRef<LatticeType*> results) {
   auto getLocalParam = [&](Value value) {
     auto level = getLevelFromMgmtAttr(value);
     auto dimension = getDimensionFromMgmtAttr(value);
@@ -74,22 +74,22 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
                             << doubleToString2Prec(noiseModel.toLogBound(
                                    getLocalParam(value), noise))
                             << " to " << value << "\n");
-    LatticeType *lattice = this->getLatticeElement(value);
+    LatticeType* lattice = this->getLatticeElement(value);
     auto changeResult = lattice->join(noise);
     this->propagateIfChanged(lattice, changeResult);
   };
 
-  auto getOperandNoises = [&](Operation *op,
-                              SmallVectorImpl<NoiseState> &noises) {
-    SmallVector<OpOperand *> secretOperands;
-    SmallVector<OpOperand *> nonSecretOperands;
+  auto getOperandNoises = [&](Operation* op,
+                              SmallVectorImpl<NoiseState>& noises) {
+    SmallVector<OpOperand*> secretOperands;
+    SmallVector<OpOperand*> nonSecretOperands;
     this->getSecretOperands(op, secretOperands);
     this->getNonSecretOperands(op, nonSecretOperands);
 
-    for (auto *operand : secretOperands) {
+    for (auto* operand : secretOperands) {
       noises.push_back(this->getLatticeElement(operand->get())->getValue());
     }
-    for (auto *operand : nonSecretOperands) {
+    for (auto* operand : nonSecretOperands) {
       (void)operand;
       // at least one operand is secret
       auto localParam = getLocalParam(secretOperands[0]->get());
@@ -98,7 +98,7 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
   };
 
   auto res =
-      llvm::TypeSwitch<Operation &, LogicalResult>(*op)
+      llvm::TypeSwitch<Operation&, LogicalResult>(*op)
           .template Case<secret::RevealOp, secret::ConcealOp>([&](auto op) {
             // Reveal outputs are not secret, so no noise. Conceal outputs are
             // a fresh encryption. Both are handled properly by setToEntryState
@@ -111,8 +111,8 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
             return success();
           })
           .template Case<secret::GenericOp>([&](auto genericOp) {
-            Block *body = genericOp.getBody();
-            for (Value &arg : body->getArguments()) {
+            Block* body = genericOp.getBody();
+            for (Value& arg : body->getArguments()) {
               auto localParam = getLocalParam(arg);
               NoiseState encrypted = noiseModel.evalEncrypt(localParam);
               propagate(arg, encrypted);
@@ -175,7 +175,7 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
             propagate(relinearizeOp.getResult(), relinearize);
             return success();
           })
-          .Default([&](auto &op) {
+          .Default([&](auto& op) {
             // condition on result secretness
             SmallVector<OpResult> secretResults;
             this->getSecretResults(&op, secretResults);
@@ -189,7 +189,7 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
                   << "Unsupported operation for noise analysis encountered.";
             }
 
-            SmallVector<OpOperand *> secretOperands;
+            SmallVector<OpOperand*> secretOperands;
             this->getSecretOperands(&op, secretOperands);
             if (secretOperands.empty()) {
               return success();
@@ -197,8 +197,8 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
 
             // inherit noise from the first secret operand
             NoiseState first;
-            for (auto *operand : secretOperands) {
-              auto &noise = this->getLatticeElement(operand->get())->getValue();
+            for (auto* operand : secretOperands) {
+              auto& noise = this->getLatticeElement(operand->get())->getValue();
               if (!noise.isInitialized()) {
                 return success();
               }

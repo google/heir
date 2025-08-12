@@ -32,7 +32,7 @@ func::FuncOp getOrCreateExternalDebugFunc(ModuleOp module, Type valueType) {
   valueType.print(os);
   funcName += sanitizeIdentifier(buffer, buffer2);
 
-  auto *context = module.getContext();
+  auto* context = module.getContext();
   auto lookup = module.lookupSymbol<func::FuncOp>(funcName);
   if (lookup) return lookup;
 
@@ -46,7 +46,7 @@ func::FuncOp getOrCreateExternalDebugFunc(ModuleOp module, Type valueType) {
   return funcOp;
 }
 
-LogicalResult insertExternalCall(secret::GenericOp op, DataFlowSolver &solver) {
+LogicalResult insertExternalCall(secret::GenericOp op, DataFlowSolver& solver) {
   auto module = op->getParentOfType<ModuleOp>();
 
   ImplicitLocOpBuilder b =
@@ -68,7 +68,7 @@ LogicalResult insertExternalCall(secret::GenericOp op, DataFlowSolver &solver) {
   }
 
   // insert after each op
-  op.walk([&](Operation *op) {
+  op.walk([&](Operation* op) {
     if (mlir::isa<secret::GenericOp>(op)) {
       return;
     }

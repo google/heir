@@ -64,8 +64,8 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
   // when debugging, as a failing IR can be printed before running this pass in
   // isolation.
   int nextOpaqueId = 0;
-  llvm::DenseMap<Operation *, int> opaqueIds;
-  auto uniqueName = [&](Operation *op) {
+  llvm::DenseMap<Operation*, int> opaqueIds;
+  auto uniqueName = [&](Operation* op) {
     std::string varName;
     llvm::raw_string_ostream ss(varName);
     ss << op->getName() << "_";
@@ -81,7 +81,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
   };
 
   // Map an operation to a decision to relinearize its results.
-  llvm::DenseMap<Operation *, math_opt::Variable> decisionVariables;
+  llvm::DenseMap<Operation*, math_opt::Variable> decisionVariables;
   // keyBasisVars maps SSA values to variables tracking the key basis degree
   // of the ciphertext at that point in the computation. If the SSA value is
   // the result of an op, this variable corresponds to the degree _after_ the
@@ -98,7 +98,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
   // of the ciphertext at that point in the computation, as well as the decision
   // variable to track whether to insert a relinearization operation after the
   // operation.
-  opToRunOn->walk([&](Operation *op) {
+  opToRunOn->walk([&](Operation* op) {
     std::string name = uniqueName(op);
 
     if (isa<ModuleOp>(op)) {
@@ -143,8 +143,8 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
 
     LLVM_DEBUG(llvm::dbgs()
                << "Handling block arguments for " << op->getName() << "\n");
-    for (Region &region : op->getRegions()) {
-      for (Block &block : region.getBlocks()) {
+    for (Region& region : op->getRegions()) {
+      for (Block& block : region.getBlocks()) {
         for (BlockArgument arg : block.getArguments()) {
           if (!isSecret(arg, solver)) {
             continue;
@@ -163,7 +163,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
 
   // Constraints to initialize the key basis degree variables at the start of
   // the computation.
-  for (auto &[value, var] : keyBasisVars) {
+  for (auto& [value, var] : keyBasisVars) {
     if (llvm::isa<BlockArgument>(value)) {
       // If the dimension is 3, the key basis is [0, 1, 2] and the degree is 2.
       auto constrainedDegree = getDimension(value, solver).value_or(2) - 1;
@@ -179,7 +179,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
   // through from the input unchanged. If we don't require this, the output
   // of the addition must be a max over the input degrees.
   if (!allowMixedDegreeOperands) {
-    opToRunOn->walk([&](Operation *op) {
+    opToRunOn->walk([&](Operation* op) {
       if (op->getNumOperands() <= 1) {
         return;
       }
@@ -193,7 +193,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
       std::string name = uniqueName(op);
 
       // only equality for secret operands
-      SmallVector<OpOperand *, 4> secretOperands;
+      SmallVector<OpOperand*, 4> secretOperands;
       getSecretOperands(op, secretOperands, solver);
       if (secretOperands.size() <= 1) {
         return;
@@ -202,7 +202,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
       auto anchorVar = keyBasisVars.at(secretOperands[0]->get());
 
       // degree(operand 0) == degree(operand i)
-      for (OpOperand *opOperand : secretOperands) {
+      for (OpOperand* opOperand : secretOperands) {
         if (!keyBasisVars.contains(opOperand->get())) {
           continue;
         }
@@ -221,11 +221,11 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
   // Some ops require a linear key basis. Yield is a special case
   // where we require returned values from funcs to be linearized.
   // TODO(#1398): determine whether we need linear key basis for modreduce.
-  opToRunOn->walk([&](Operation *op) {
-    llvm::TypeSwitch<Operation &>(*op)
+  opToRunOn->walk([&](Operation* op) {
+    llvm::TypeSwitch<Operation&>(*op)
         .Case<tensor_ext::RotateOp, secret::YieldOp, mgmt::ModReduceOp>(
             [&](auto op) {
-              for (OpOperand &operand : op->getOpOperands()) {
+              for (OpOperand& operand : op->getOpOperands()) {
                 // skip non secret argument
                 if (!isSecret(operand.get(), solver)) {
                   continue;
@@ -251,11 +251,11 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
   // the max of the operand degree. This next block of code adds inequality
   // constraints to ensure the result is larger than the arguments, but it will
   // not be constrained by the model to be equal to that max value.
-  std::unordered_set<const math_opt::Variable *> extraVarsForObjective;
+  std::unordered_set<const math_opt::Variable*> extraVarsForObjective;
 
   // Add constraints that set the before_relin variables appropriately
-  opToRunOn->walk([&](Operation *op) {
-    llvm::TypeSwitch<Operation &>(*op)
+  opToRunOn->walk([&](Operation* op) {
+    llvm::TypeSwitch<Operation&>(*op)
         .Case<arith::MulIOp, arith::MulFOp>([&](auto op) {
           // if plain mul, skip
           if (!isSecret(op.getResult(), solver)) {
@@ -280,7 +280,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
             }
           } else {
             // ct-pt op
-            SmallVector<OpOperand *, 4> secretOperands;
+            SmallVector<OpOperand*, 4> secretOperands;
             getSecretOperands(op, secretOperands, solver);
             auto argDegreeVar = keyBasisVars.at(secretOperands[0]->get());
 
@@ -298,7 +298,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
                                       cstName);
           }
         })
-        .Default([&](Operation &op) {
+        .Default([&](Operation& op) {
           // For any other op, the key basis does not change unless we insert
           // a relin op. The operands may have the same basis degree, if that
           // is required by the backend and allowMixedDegreeOperands is false,
@@ -321,19 +321,19 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
           if (!isSecret(op.getResults(), solver)) {
             return;
           }
-          SmallVector<OpOperand *, 4> secretOperands;
+          SmallVector<OpOperand*, 4> secretOperands;
           getSecretOperands(&op, secretOperands, solver);
 
           std::string opName = uniqueName(&op);
           if (allowMixedDegreeOperands) {
-            for (OpOperand *opOperand : secretOperands) {
+            for (OpOperand* opOperand : secretOperands) {
               std::string ddPrefix =
                   "DecisionDynamics_Mixed_" + opName + "_" +
                   std::to_string(opOperand->getOperandNumber());
               auto argDegreeVar = keyBasisVars.at(opOperand->get());
               for (OpResult opResult : op.getOpResults()) {
                 Value result = opResult;
-                const math_opt::Variable &resultBeforeRelinVar =
+                const math_opt::Variable& resultBeforeRelinVar =
                     beforeRelinVars.at(result);
                 cstName =
                     ddPrefix + "_" + std::to_string(opResult.getResultNumber());
@@ -367,13 +367,13 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
   // of operations at varying degrees, as well as the cost of relinearizing
   // based on the starting degree of the input.
   math_opt::LinearExpression obj;
-  for (auto &[op, decisionVar] : decisionVariables) {
+  for (auto& [op, decisionVar] : decisionVariables) {
     obj += decisionVar;
   }
   model.Minimize(obj);
 
   // Add constraints that control the effect of relinearization insertion.
-  opToRunOn->walk([&](Operation *op) {
+  opToRunOn->walk([&](Operation* op) {
     // We don't need a type switch here because the only difference
     // between mul and other ops is how the before_relin variable is related to
     // the operand variables.
@@ -441,7 +441,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
     return failure();
   }
 
-  const math_opt::SolveResult &result = status.value();
+  const math_opt::SolveResult& result = status.value();
 
   switch (result.termination.reason) {
     case math_opt::TerminationReason::kOptimal:
@@ -453,7 +453,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
                      << "Solution:\n";
         llvm::dbgs() << "Objective value = " << result.objective_value()
                      << "\n";
-        for (const auto &[var, value] : result.variable_values()) {
+        for (const auto& [var, value] : result.variable_values()) {
           llvm::dbgs() << var.name() << " = " << value << "\n";
         }
       });

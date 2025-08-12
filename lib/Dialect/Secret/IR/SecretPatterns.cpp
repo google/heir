@@ -52,11 +52,11 @@ namespace secret {
 namespace {
 
 // Returns whether an operation retrieves constant global data.
-bool isConstantGlobal(Operation *op) {
+bool isConstantGlobal(Operation* op) {
   auto getGlobal = dyn_cast<memref::GetGlobalOp>(op);
   if (!getGlobal) return false;
 
-  auto *symbolTableOp = getGlobal->getParentWithTrait<OpTrait::SymbolTable>();
+  auto* symbolTableOp = getGlobal->getParentWithTrait<OpTrait::SymbolTable>();
   if (!symbolTableOp) return false;
   auto global = dyn_cast_or_null<memref::GlobalOp>(
       SymbolTable::lookupSymbolIn(symbolTableOp, getGlobal.getNameAttr()));
@@ -66,9 +66,9 @@ bool isConstantGlobal(Operation *op) {
   return isa<DenseElementsAttr>(global.getConstantInitValue());
 }
 
-llvm::SmallVector<Value> buildResolvedIndices(Operation *op,
+llvm::SmallVector<Value> buildResolvedIndices(Operation* op,
                                               OperandRange opIndices,
-                                              PatternRewriter &rewriter) {
+                                              PatternRewriter& rewriter) {
   affine::MemRefAccess access(op);
   affine::AffineValueMap thisMap;
   access.getAccessMap(&thisMap);
@@ -90,7 +90,7 @@ llvm::SmallVector<Value> buildResolvedIndices(Operation *op,
 }  // namespace
 
 LogicalResult CollapseSecretlessGeneric::matchAndRewrite(
-    GenericOp op, PatternRewriter &rewriter) const {
+    GenericOp op, PatternRewriter& rewriter) const {
   for (Type ty : op.getOperandTypes()) {
     if (dyn_cast<SecretType>(ty)) {
       return failure();
@@ -114,14 +114,14 @@ LogicalResult CollapseSecretlessGeneric::matchAndRewrite(
   auto setAttrs = [&](Value value, DictionaryAttr attrDict) {
     if (attrs) {
       SmallVector<NamedAttribute> attrList;
-      for (auto &attr : attrDict) {
+      for (auto& attr : attrDict) {
         setAttributeAssociatedWith(value, attr.getName(), attr.getValue());
       }
     }
   };
   rewriter.inlineBlockBefore(op.getBody(), op.getOperation(), op.getInputs());
   rewriter.setInsertionPointAfter(op.getOperation());
-  for (auto &opOperand : yieldOp->getOpOperands()) {
+  for (auto& opOperand : yieldOp->getOpOperands()) {
     auto opIndex = opOperand.getOperandNumber();
     // Copy any attributes of the op onto operations in the body.
     auto resultAttr = op.getResultAttrDict(opIndex);
@@ -137,9 +137,9 @@ LogicalResult CollapseSecretlessGeneric::matchAndRewrite(
 };
 
 LogicalResult RemoveUnusedGenericArgs::matchAndRewrite(
-    GenericOp op, PatternRewriter &rewriter) const {
+    GenericOp op, PatternRewriter& rewriter) const {
   bool hasUnusedOps = false;
-  Block *body = op.getBody();
+  Block* body = op.getBody();
   for (unsigned int i = 0; i < body->getArguments().size(); ++i) {
     BlockArgument arg = body->getArguments()[i];
     if (arg.use_empty()) {
@@ -151,7 +151,7 @@ LogicalResult RemoveUnusedGenericArgs::matchAndRewrite(
       });
       // Ensure the next iteration uses the right arg number
       --i;
-    } else if (llvm::any_of(arg.getUsers(), [&](Operation *user) {
+    } else if (llvm::any_of(arg.getUsers(), [&](Operation* user) {
                  return llvm::isa<YieldOp>(user);
                })) {
       LLVM_DEBUG(llvm::dbgs() << arg << " is passed through to yield\n");
@@ -164,7 +164,7 @@ LogicalResult RemoveUnusedGenericArgs::matchAndRewrite(
       SmallVector<Value> resultsToReplace;
       SmallVector<Value> replacementValues;
 
-      for (auto &opOperand : op.getYieldOp()->getOpOperands()) {
+      for (auto& opOperand : op.getYieldOp()->getOpOperands()) {
         if (opOperand.get() == arg) {
           yieldedValuesToRemove.push_back(opOperand.get());
           resultsToReplace.push_back(
@@ -188,9 +188,9 @@ LogicalResult RemoveUnusedGenericArgs::matchAndRewrite(
 }
 
 LogicalResult RemoveUnusedYieldedValues::matchAndRewrite(
-    GenericOp op, PatternRewriter &rewriter) const {
+    GenericOp op, PatternRewriter& rewriter) const {
   SmallVector<int> resultIndicesToRemove;
-  for (auto &opOperand : op.getYieldOp()->getOpOperands()) {
+  for (auto& opOperand : op.getYieldOp()->getOpOperands()) {
     Value result = op.getResults()[opOperand.getOperandNumber()];
     if (result.use_empty()) {
       LLVM_DEBUG(op.emitRemark() << " result of generic at index "
@@ -212,12 +212,12 @@ LogicalResult RemoveUnusedYieldedValues::matchAndRewrite(
 }
 
 LogicalResult RemoveNonSecretGenericArgs::matchAndRewrite(
-    GenericOp op, PatternRewriter &rewriter) const {
+    GenericOp op, PatternRewriter& rewriter) const {
   bool deletedAny = false;
   for (unsigned i = 0; i < op->getNumOperands(); i++) {
     if (!isa<SecretType>(op->getOperand(i).getType())) {
       deletedAny = true;
-      Block *body = op.getBody();
+      Block* body = op.getBody();
       BlockArgument correspondingArg = body->getArgument(i);
 
       rewriter.replaceAllUsesWith(correspondingArg, op->getOperand(i));
@@ -233,12 +233,12 @@ LogicalResult RemoveNonSecretGenericArgs::matchAndRewrite(
 }
 
 LogicalResult CaptureAmbientScope::matchAndRewrite(
-    GenericOp genericOp, PatternRewriter &rewriter) const {
-  Value *foundValue = nullptr;
+    GenericOp genericOp, PatternRewriter& rewriter) const {
+  Value* foundValue = nullptr;
   rewriter.setInsertionPointToStart(genericOp.getBody());
-  genericOp.getBody()->walk([&](Operation *op) -> WalkResult {
+  genericOp.getBody()->walk([&](Operation* op) -> WalkResult {
     for (Value operand : op->getOperands()) {
-      Region *operandRegion = operand.getParentRegion();
+      Region* operandRegion = operand.getParentRegion();
       if (operandRegion && !genericOp.getRegion().isAncestor(operandRegion)) {
         foundValue = &operand;
         // If this is an index operand of an affine operation, update to memref
@@ -247,7 +247,7 @@ LogicalResult CaptureAmbientScope::matchAndRewrite(
         if (isa<IndexType>(operand.getType())) {
           auto point = rewriter.saveInsertionPoint();
           rewriter.setInsertionPointAfter(op);
-          llvm::TypeSwitch<Operation *>(op)
+          llvm::TypeSwitch<Operation*>(op)
               .Case<affine::AffineLoadOp>([&](affine::AffineLoadOp op) {
                 rewriter.replaceOp(
                     op,
@@ -278,7 +278,7 @@ LogicalResult CaptureAmbientScope::matchAndRewrite(
   rewriter.modifyOpInPlace(genericOp, [&]() {
     BlockArgument newArg =
         genericOp.getBody()->addArgument(value.getType(), genericOp.getLoc());
-    rewriter.replaceUsesWithIf(value, newArg, [&](mlir::OpOperand &operand) {
+    rewriter.replaceUsesWithIf(value, newArg, [&](mlir::OpOperand& operand) {
       return operand.getOwner()->getParentOfType<secret::GenericOp>() ==
              genericOp;
     });
@@ -289,7 +289,7 @@ LogicalResult CaptureAmbientScope::matchAndRewrite(
 }
 
 LogicalResult MergeAdjacentGenerics::matchAndRewrite(
-    GenericOp genericOp, PatternRewriter &rewriter) const {
+    GenericOp genericOp, PatternRewriter& rewriter) const {
   GenericOp nextGenericOp = dyn_cast<GenericOp>(genericOp->getNextNode());
   if (!nextGenericOp) {
     return failure();
@@ -342,16 +342,16 @@ LogicalResult MergeAdjacentGenerics::matchAndRewrite(
 
   auto newGeneric = GenericOp::create(
       rewriter, genericOp.getLoc(), newOperands, newResultTypes,
-      [&](OpBuilder &b, Location loc, ValueRange blockArguments) {
+      [&](OpBuilder& b, Location loc, ValueRange blockArguments) {
         IRMapping mp;
         for (BlockArgument blockArg : genericOp.getBody()->getArguments()) {
           mp.map(blockArg, blockArguments[blockArg.getArgNumber()]);
         }
 
         SmallVector<YieldOp> clonedYieldOps;
-        auto &firstOps = genericOp.getBody()->getOperations();
-        for (auto &op : firstOps) {
-          auto *newOp = b.clone(op, mp);
+        auto& firstOps = genericOp.getBody()->getOperations();
+        for (auto& op : firstOps) {
+          auto* newOp = b.clone(op, mp);
           if (auto clonedYield = dyn_cast<YieldOp>(newOp)) {
             clonedYieldOps.push_back(clonedYield);
           }
@@ -362,7 +362,7 @@ LogicalResult MergeAdjacentGenerics::matchAndRewrite(
         // the first generic. Otherwise, map it to the corresponding block
         // argument of the new generic.
         for (BlockArgument blockArg : nextGenericOp.getBody()->getArguments()) {
-          OpOperand *correspondingOperand =
+          OpOperand* correspondingOperand =
               nextGenericOp.getOpOperandForBlockArgument(blockArg);
           std::optional<int> resultIndex =
               genericOp.findResultIndex(correspondingOperand->get());
@@ -382,9 +382,9 @@ LogicalResult MergeAdjacentGenerics::matchAndRewrite(
                                correspondingOperand->get())]);
         }
 
-        auto &secondOps = nextGenericOp.getBody()->getOperations();
-        for (auto &op : secondOps) {
-          auto *newOp = b.clone(op, mp);
+        auto& secondOps = nextGenericOp.getBody()->getOperations();
+        for (auto& op : secondOps) {
+          auto* newOp = b.clone(op, mp);
           if (auto clonedYield = dyn_cast<YieldOp>(newOp)) {
             clonedYieldOps.push_back(clonedYield);
           }
@@ -421,9 +421,9 @@ LogicalResult MergeAdjacentGenerics::matchAndRewrite(
 }
 
 LogicalResult YieldStoredMemrefs::matchAndRewrite(
-    GenericOp genericOp, PatternRewriter &rewriter) const {
+    GenericOp genericOp, PatternRewriter& rewriter) const {
   Value memref;
-  auto walkResult = genericOp.getBody()->walk([&](Operation *op) -> WalkResult {
+  auto walkResult = genericOp.getBody()->walk([&](Operation* op) -> WalkResult {
     if (auto storeOp = dyn_cast<memref::StoreOp>(op)) {
       memref = storeOp.getMemRef();
     } else if (auto storeOp = dyn_cast<affine::AffineStoreOp>(op)) {
@@ -457,11 +457,11 @@ LogicalResult YieldStoredMemrefs::matchAndRewrite(
 }
 
 LogicalResult DedupeYieldedValues::matchAndRewrite(
-    GenericOp genericOp, PatternRewriter &rewriter) const {
+    GenericOp genericOp, PatternRewriter& rewriter) const {
   llvm::SmallDenseMap<Value, int, 4> yieldedValueToIndex;
   int indexToRemove = -1;
   int replacementIndex = -1;
-  for (auto &opOperand : genericOp.getYieldOp()->getOpOperands()) {
+  for (auto& opOperand : genericOp.getYieldOp()->getOpOperands()) {
     if (yieldedValueToIndex.contains(opOperand.get())) {
       indexToRemove = opOperand.getOperandNumber();
       replacementIndex = yieldedValueToIndex[opOperand.get()];
@@ -497,7 +497,7 @@ LogicalResult DedupeYieldedValues::matchAndRewrite(
   return success();
 }
 
-bool HoistOpBeforeGeneric::canHoist(Operation &op, GenericOp genericOp) const {
+bool HoistOpBeforeGeneric::canHoist(Operation& op, GenericOp genericOp) const {
   bool inConfiguredList =
       std::find(opTypes.begin(), opTypes.end(), op.getName().getStringRef()) !=
       opTypes.end();
@@ -515,8 +515,8 @@ bool HoistOpBeforeGeneric::canHoist(Operation &op, GenericOp genericOp) const {
 }
 
 LogicalResult HoistOpBeforeGeneric::matchAndRewrite(
-    GenericOp genericOp, PatternRewriter &rewriter) const {
-  auto &opRange = genericOp.getBody()->getOperations();
+    GenericOp genericOp, PatternRewriter& rewriter) const {
+  auto& opRange = genericOp.getBody()->getOperations();
   if (opRange.size() <= 2) {
     // This corresponds to a fixed point of the pattern: if an op is hoisted,
     // it will be in a single-op generic, (yield is the second op), and if
@@ -524,31 +524,31 @@ LogicalResult HoistOpBeforeGeneric::matchAndRewrite(
     return failure();
   }
 
-  auto it = std::find_if(opRange.begin(), opRange.end(), [&](Operation &op) {
+  auto it = std::find_if(opRange.begin(), opRange.end(), [&](Operation& op) {
     return canHoist(op, genericOp);
   });
   if (it == opRange.end()) {
     return failure();
   }
 
-  Operation *opToHoist = &*it;
+  Operation* opToHoist = &*it;
   LLVM_DEBUG(llvm::dbgs() << "Hoisting " << *opToHoist << "\n");
   genericOp.extractOpBeforeGeneric(opToHoist, rewriter);
   return success();
 }
 
-bool HoistOpAfterGeneric::canHoist(Operation &op) const {
+bool HoistOpAfterGeneric::canHoist(Operation& op) const {
   bool inConfiguredList =
       std::find(opTypes.begin(), opTypes.end(), op.getName().getStringRef()) !=
       opTypes.end();
   bool allUsesAreYields = llvm::all_of(
-      op.getUsers(), [&](Operation *user) { return isa<YieldOp>(user); });
+      op.getUsers(), [&](Operation* user) { return isa<YieldOp>(user); });
   return inConfiguredList && allUsesAreYields;
 }
 
 LogicalResult HoistOpAfterGeneric::matchAndRewrite(
-    GenericOp genericOp, PatternRewriter &rewriter) const {
-  auto &opRange = genericOp.getBody()->getOperations();
+    GenericOp genericOp, PatternRewriter& rewriter) const {
+  auto& opRange = genericOp.getBody()->getOperations();
   if (opRange.size() <= 2) {
     // This corresponds to a fixed point of the pattern: if an op is hoisted,
     // it will be in a single-op generic, (yield is the second op), and if
@@ -557,12 +557,12 @@ LogicalResult HoistOpAfterGeneric::matchAndRewrite(
   }
 
   auto it = std::find_if(opRange.begin(), opRange.end(),
-                         [&](Operation &op) { return canHoist(op); });
+                         [&](Operation& op) { return canHoist(op); });
   if (it == opRange.end()) {
     return failure();
   }
 
-  Operation *opToHoist = &*it;
+  Operation* opToHoist = &*it;
   LLVM_DEBUG(llvm::dbgs() << "Hoisting " << *opToHoist << "\n");
 
   extractOpAfterGeneric(genericOp, opToHoist, rewriter);
@@ -570,8 +570,8 @@ LogicalResult HoistOpAfterGeneric::matchAndRewrite(
 }
 
 LogicalResult HoistPlaintextOps::matchAndRewrite(
-    GenericOp genericOp, PatternRewriter &rewriter) const {
-  auto &opRange = genericOp.getBody()->getOperations();
+    GenericOp genericOp, PatternRewriter& rewriter) const {
+  auto& opRange = genericOp.getBody()->getOperations();
   if (opRange.size() <= 2) {
     // This corresponds to a fixed point of the pattern: if an op is hoisted,
     // it will be in a single-op generic, (yield is the second op), and if
@@ -582,7 +582,7 @@ LogicalResult HoistPlaintextOps::matchAndRewrite(
     return failure();
   }
 
-  auto canHoist = [&](Operation &op) {
+  auto canHoist = [&](Operation& op) {
     if (isa<YieldOp>(op)) {
       return false;
     }
@@ -623,9 +623,9 @@ LogicalResult HoistPlaintextOps::matchAndRewrite(
 
   // We can't hoist them as they are detected because the process of hoisting
   // alters the context generic op.
-  llvm::SmallVector<Operation *> opsToHoist;
+  llvm::SmallVector<Operation*> opsToHoist;
   bool hoistedAny = false;
-  for (Operation &op : opRange) {
+  for (Operation& op : opRange) {
     if (canHoist(op)) {
       opsToHoist.push_back(&op);
       hoistedAny = true;
@@ -634,7 +634,7 @@ LogicalResult HoistPlaintextOps::matchAndRewrite(
 
   LLVM_DEBUG(llvm::dbgs() << "Found " << opsToHoist.size()
                           << " ops to hoist\n");
-  for (Operation *op : opsToHoist) {
+  for (Operation* op : opsToHoist) {
     genericOp.extractOpBeforeGeneric(op, rewriter);
   }
 
@@ -642,9 +642,9 @@ LogicalResult HoistPlaintextOps::matchAndRewrite(
 }
 
 LogicalResult ConcealThenGeneric::matchAndRewrite(
-    GenericOp genericOp, PatternRewriter &rewriter) const {
+    GenericOp genericOp, PatternRewriter& rewriter) const {
   bool updated = false;
-  for (auto &opOperand : genericOp->getOpOperands()) {
+  for (auto& opOperand : genericOp->getOpOperands()) {
     auto concealOp =
         dyn_cast_or_null<ConcealOp>(opOperand.get().getDefiningOp());
     if (!concealOp) {
@@ -662,9 +662,9 @@ LogicalResult ConcealThenGeneric::matchAndRewrite(
 }
 
 void genericAbsorbConstants(secret::GenericOp genericOp,
-                            mlir::IRRewriter &rewriter) {
+                            mlir::IRRewriter& rewriter) {
   rewriter.setInsertionPointToStart(genericOp.getBody());
-  genericOp.getBody()->walk([&](Operation *op) -> WalkResult {
+  genericOp.getBody()->walk([&](Operation* op) -> WalkResult {
     for (Value operand : op->getOperands()) {
       // If this is a block argument, get the generic's corresponding operand.
       Value opOperand = operand;
@@ -677,16 +677,16 @@ void genericAbsorbConstants(secret::GenericOp genericOp,
       if (isGenericBlockArg) {
         opOperand = genericOp.getOpOperandForBlockArgument(blockArg)->get();
       }
-      auto *definingOp = opOperand.getDefiningOp();
+      auto* definingOp = opOperand.getDefiningOp();
       bool isConstantLike =
           definingOp && (definingOp->hasTrait<OpTrait::ConstantLike>() ||
                          isConstantGlobal(definingOp));
       if (isConstantLike) {
         // If the definingOp is outside of the generic region, then copy it
         // inside the region.
-        Region *operandRegion = definingOp->getParentRegion();
+        Region* operandRegion = definingOp->getParentRegion();
         if (operandRegion && !genericOp.getRegion().isAncestor(operandRegion)) {
-          auto *copiedOp = rewriter.clone(*definingOp);
+          auto* copiedOp = rewriter.clone(*definingOp);
           rewriter.replaceAllUsesWith(operand, copiedOp->getResults());
           // If this was a block argument, additionally remove the block
           // argument.
@@ -705,7 +705,7 @@ void genericAbsorbConstants(secret::GenericOp genericOp,
 }
 
 void genericAbsorbDealloc(secret::GenericOp genericOp,
-                          mlir::IRRewriter &rewriter) {
+                          mlir::IRRewriter& rewriter) {
   // Check the generic's returned memrefs. If their only use outside the generic
   // is a dealloc, then move the dealloc inside the generic body.
   for (auto result : genericOp.getResults()) {
@@ -715,7 +715,7 @@ void genericAbsorbDealloc(secret::GenericOp genericOp,
         continue;
       }
       // Ensure that the single user is a secret.generic.
-      auto &memrefUse = *result.getUses().begin();
+      auto& memrefUse = *result.getUses().begin();
       auto genericUseOp = dyn_cast<secret::GenericOp>(memrefUse.getOwner());
       if (!genericUseOp) {
         continue;
@@ -739,14 +739,14 @@ void genericAbsorbDealloc(secret::GenericOp genericOp,
 }
 
 LogicalResult extractGenericBody(secret::GenericOp genericOp,
-                                 mlir::IRRewriter &rewriter) {
+                                 mlir::IRRewriter& rewriter) {
   auto module = genericOp->getParentOfType<ModuleOp>();
   if (!module) {
     return failure();
   }
 
-  SmallVector<Operation *> opsToCopy;
-  for (auto &op : genericOp.getBody()->getOperations()) {
+  SmallVector<Operation*> opsToCopy;
+  for (auto& op : genericOp.getBody()->getOperations()) {
     if (isa<secret::YieldOp>(op)) {
       continue;
     }
@@ -768,7 +768,7 @@ LogicalResult extractGenericBody(secret::GenericOp genericOp,
 
   // Populate function body by cloning the ops in the inner body and mapping
   // the func args and func outputs.
-  Block *block = func.addEntryBlock();
+  Block* block = func.addEntryBlock();
   builder.setInsertionPointToEnd(block);
 
   // Map the input values to the block arguments.
@@ -777,7 +777,7 @@ LogicalResult extractGenericBody(secret::GenericOp genericOp,
     mp.map(inputs[index], block->getArgument(index));
   }
 
-  for (auto &op : opsToCopy) {
+  for (auto& op : opsToCopy) {
     builder.clone(*op, mp);
   }
 
@@ -792,7 +792,7 @@ LogicalResult extractGenericBody(secret::GenericOp genericOp,
   rewriter.modifyOpInPlace(
       yieldOp, [&]() { yieldOp->setOperands(callOp.getResults()); });
 
-  for (auto &op : llvm::reverse(opsToCopy)) {
+  for (auto& op : llvm::reverse(opsToCopy)) {
     rewriter.eraseOp(op);
   }
 

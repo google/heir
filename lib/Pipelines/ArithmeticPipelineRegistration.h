@@ -24,7 +24,7 @@ struct SimdVectorizerOptions
       llvm::cl::init(false)};
 };
 
-void heirSIMDVectorizerPipelineBuilder(OpPassManager &manager,
+void heirSIMDVectorizerPipelineBuilder(OpPassManager& manager,
                                        bool disableLoopUnroll);
 
 struct MlirToRLWEPipelineOptions : public SimdVectorizerOptions {
@@ -123,20 +123,20 @@ struct BackendOptions : public PassPipelineOptions<BackendOptions> {
 };
 
 using RLWEPipelineBuilder =
-    std::function<void(OpPassManager &, const MlirToRLWEPipelineOptions &)>;
+    std::function<void(OpPassManager&, const MlirToRLWEPipelineOptions&)>;
 
 using BackendPipelineBuilder =
-    std::function<void(OpPassManager &, const BackendOptions &)>;
+    std::function<void(OpPassManager&, const BackendOptions&)>;
 
-void mlirToRLWEPipeline(OpPassManager &pm,
-                        const MlirToRLWEPipelineOptions &options,
+void mlirToRLWEPipeline(OpPassManager& pm,
+                        const MlirToRLWEPipelineOptions& options,
                         RLWEScheme scheme);
 
 void mlirToSecretArithmeticPipelineBuilder(
-    OpPassManager &pm, const MlirToRLWEPipelineOptions &options);
+    OpPassManager& pm, const MlirToRLWEPipelineOptions& options);
 
-void mlirToPlaintextPipelineBuilder(OpPassManager &pm,
-                                    const PlaintextBackendOptions &options);
+void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
+                                    const PlaintextBackendOptions& options);
 
 RLWEPipelineBuilder mlirToRLWEPipelineBuilder(RLWEScheme scheme);
 

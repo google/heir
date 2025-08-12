@@ -80,26 +80,26 @@ int16_t DefaultTfheRustHLBitWidth = 32;
 void registerToTfheRustHLTranslation() {
   TranslateFromMLIRRegistration reg(
       "emit-tfhe-rust-hl", "translate the tfhe-rs dialect to HL Rust code",
-      [](Operation *op, llvm::raw_ostream &output) {
+      [](Operation* op, llvm::raw_ostream& output) {
         return translateToTfheRustHL(op, output);
       },
-      [](DialectRegistry &registry) {
+      [](DialectRegistry& registry) {
         registry.insert<func::FuncDialect, tfhe_rust::TfheRustDialect,
                         affine::AffineDialect, arith::ArithDialect,
                         tensor::TensorDialect, memref::MemRefDialect>();
       });
 }
 
-LogicalResult translateToTfheRustHL(Operation *op, llvm::raw_ostream &os) {
+LogicalResult translateToTfheRustHL(Operation* op, llvm::raw_ostream& os) {
   SelectVariableNames variableNames(op);
   TfheRustHLEmitter emitter(os, &variableNames);
   LogicalResult result = emitter.translate(*op);
   return result;
 }
 
-LogicalResult TfheRustHLEmitter::translate(Operation &op) {
+LogicalResult TfheRustHLEmitter::translate(Operation& op) {
   LogicalResult status =
-      llvm::TypeSwitch<Operation &, LogicalResult>(op)
+      llvm::TypeSwitch<Operation&, LogicalResult>(op)
           // Builtin ops
           .Case<ModuleOp>([&](auto op) { return printOperation(op); })
           // Func ops
@@ -129,7 +129,7 @@ LogicalResult TfheRustHLEmitter::translate(Operation &op) {
           // Tensor ops
           .Case<tensor::ExtractOp, tensor::FromElementsOp, tensor::InsertOp>(
               [&](auto op) { return printOperation(op); })
-          .Default([&](Operation &) {
+          .Default([&](Operation&) {
             return op.emitOpError("unable to find printer for op");
           });
 
@@ -144,7 +144,7 @@ LogicalResult TfheRustHLEmitter::printOperation(ModuleOp moduleOp) {
   os << kModulePrelude << "\n";
 
   // Find default type of the module and use a Type alias
-  moduleOp.getOperation()->walk([&](Operation *op) {
+  moduleOp.getOperation()->walk([&](Operation* op) {
     for (Type resultType : op->getResultTypes()) {
       if (resultType.hasTrait<EncryptedInteger>()) {
         auto size = getTfheRustBitWidth(resultType);
@@ -160,7 +160,7 @@ LogicalResult TfheRustHLEmitter::printOperation(ModuleOp moduleOp) {
   });
 
   // Emit rest the actual program
-  for (Operation &op : moduleOp) {
+  for (Operation& op : moduleOp) {
     if (failed(translate(op))) {
       return failure();
     }
@@ -213,8 +213,8 @@ LogicalResult TfheRustHLEmitter::printOperation(func::FuncOp funcOp) {
   os << " {\n";
   os.indent();
 
-  for (Block &block : funcOp.getBlocks()) {
-    for (Operation &op : block.getOperations()) {
+  for (Block& block : funcOp.getBlocks()) {
+    for (Operation& op : block.getOperations()) {
       if (failed(translate(op))) {
         return failure();
       }
@@ -240,7 +240,7 @@ LogicalResult TfheRustHLEmitter::printOperation(func::ReturnOp op) {
           variableNames->getNameForValue(value) + std::string(".get(&(") +
           std::accumulate(std::next(shape.begin()), shape.end(),
                           std::string("i0"),
-                          [&](const std::string &a, int64_t value) {
+                          [&](const std::string& a, int64_t value) {
                             return a + ", i" + std::to_string(++i);
                           }) +
           std::string(")).unwrap().clone()");
@@ -294,12 +294,12 @@ LogicalResult TfheRustHLEmitter::printMethod(
     std::string_view op, SmallVector<std::string> operandTypes) {
   emitAssignPrefix(result);
 
-  auto *operandTypesIt = operandTypes.begin();
+  auto* operandTypesIt = operandTypes.begin();
   os << commaSeparatedValues(nonSksOperands, [&](Value value) {
-    auto *prefix = value.getType().hasTrait<PassByReference>() ? "&" : "";
+    auto* prefix = value.getType().hasTrait<PassByReference>() ? "&" : "";
     // First check if a DefiningOp exists
     // if not: comes from function definition
-    mlir::Operation *op = value.getDefiningOp();
+    mlir::Operation* op = value.getDefiningOp();
     if (op) {
       auto referencePredicate =
           isa<tensor::ExtractOp>(op) || isa<memref::LoadOp>(op);
@@ -341,7 +341,7 @@ LogicalResult TfheRustHLEmitter::printOperation(affine::AffineForOp op) {
   os.indent();
 
   // Walk the body of the parallel operation in Program order
-  for (auto &op : op.getBody()->getOperations()) {
+  for (auto& op : op.getBody()->getOperations()) {
     if (failed(translate(op))) {
       return failure();
     }
@@ -452,7 +452,7 @@ LogicalResult TfheRustHLEmitter::printOperation(memref::AllocOp op) {
      << std::accumulate(
             std::next(op.getMemref().getType().getShape().begin()),
             op.getMemref().getType().getShape().end(), std::string("usize"),
-            [&](const std::string &a, int64_t value) { return a + ", usize"; })
+            [&](const std::string& a, int64_t value) { return a + ", usize"; })
      << "), ";
   if (failed(emitType(op.getMemref().getType().getElementType()))) {
     return op.emitOpError() << "Failed to get memref element type";
@@ -491,7 +491,7 @@ LogicalResult TfheRustHLEmitter::printOperation(memref::GetGlobalOp op) {
      << " = [";
 
   // Populate data by iterating through constant data attribute
-  auto printValue = [](const APInt &value) -> std::string {
+  auto printValue = [](const APInt& value) -> std::string {
     llvm::SmallString<40> s;
     value.toStringSigned(s, 10);
     return std::string(s);
@@ -500,7 +500,7 @@ LogicalResult TfheRustHLEmitter::printOperation(memref::GetGlobalOp op) {
   auto cstIter = cstAttr.value().value_begin<APInt>();
   auto cstIterEnd = cstAttr.value().value_end<APInt>();
   os << std::accumulate(std::next(cstIter), cstIterEnd, printValue(*cstIter),
-                        [&](const std::string &a, const APInt &value) {
+                        [&](const std::string& a, const APInt& value) {
                           return a + ", " + printValue(value);
                         });
 
@@ -519,7 +519,7 @@ LogicalResult TfheRustHLEmitter::printOperation(memref::StoreOp op) {
   // Note: we may not need to clone all the time, but the BTreeMap stores
   // Ciphertexts, not &Ciphertexts. This is because results computed inside for
   // loops will not live long enough.
-  const auto *suffix = ".clone()";
+  const auto* suffix = ".clone()";
   os << variableNames->getNameForValue(op.getValueToStore()) << suffix
      << ");\n";
   return success();
@@ -588,7 +588,7 @@ LogicalResult TfheRustHLEmitter::printOperation(affine::AffineStoreOp op) {
   // Ciphertexts, not &Ciphertexts. This is because results computed inside for
   // loops will not live long enough.
 
-  const auto *suffix = ".clone()";
+  const auto* suffix = ".clone()";
   os << variableNames->getNameForValue(op.getValueToStore()) << suffix
      << ");\n";
   return success();
@@ -640,11 +640,11 @@ LogicalResult TfheRustHLEmitter::printOperation(tensor::FromElementsOp op) {
   emitAssignPrefix(op.getResult());
   os << "vec![" << commaSeparatedValues(op.getOperands(), [&](Value value) {
     // Check if block argument, if so, clone.
-    const auto *cloneStr = isa<BlockArgument>(value) ? ".clone()" : "";
+    const auto* cloneStr = isa<BlockArgument>(value) ? ".clone()" : "";
     // Get the name of defining operation its dialect
     auto tfheOp =
         value.getDefiningOp()->getDialect()->getNamespace() == "tfhe_rust";
-    const auto *prefix = tfheOp ? "&" : "";
+    const auto* prefix = tfheOp ? "&" : "";
     return std::string(prefix) + variableNames->getNameForValue(value) +
            cloneStr;
   }) << "];\n";
@@ -656,11 +656,11 @@ LogicalResult TfheRustHLEmitter::printOperation(tensor::InsertOp op) {
   emitAssignPrefix(op.getResult());
   os << "vec![" << commaSeparatedValues(op.getOperands(), [&](Value value) {
     // Check if block argument, if so, clone.
-    const auto *cloneStr = isa<BlockArgument>(value) ? ".clone()" : "";
+    const auto* cloneStr = isa<BlockArgument>(value) ? ".clone()" : "";
     // Get the name of defining operation its dialect
     auto tfheOp =
         value.getDefiningOp()->getDialect()->getNamespace() == "tfhe_rust";
-    const auto *prefix = tfheOp ? "&" : "";
+    const auto* prefix = tfheOp ? "&" : "";
     return std::string(prefix) + variableNames->getNameForValue(value) +
            cloneStr;
   }) << "];\n";
@@ -725,7 +725,7 @@ FailureOr<std::string> TfheRustHLEmitter::convertType(Type type) {
     ;
   }
 
-  return llvm::TypeSwitch<Type &, FailureOr<std::string>>(type)
+  return llvm::TypeSwitch<Type&, FailureOr<std::string>>(type)
       .Case<RankedTensorType>(
           [&](RankedTensorType type) -> FailureOr<std::string> {
             // Tensor types are emitted as vectors
@@ -757,7 +757,7 @@ FailureOr<std::string> TfheRustHLEmitter::convertType(Type type) {
       })
       .Case<LookupTableType>(
           [&](auto type) { return std::string("LookupTableOwned"); })
-      .Default([&](Type &) { return failure(); });
+      .Default([&](Type&) { return failure(); });
 }
 
 LogicalResult TfheRustHLEmitter::emitType(Type type) {
@@ -772,7 +772,7 @@ LogicalResult TfheRustHLEmitter::emitType(Type type) {
 std::string TfheRustHLEmitter::checkOrigin(Value value) {
   // First check if a DefiningOp exists
   // if not: comes from function definition
-  mlir::Operation *opParent = value.getDefiningOp();
+  mlir::Operation* opParent = value.getDefiningOp();
   if (opParent) {
     if (!isa<tensor::FromElementsOp, tensor::ExtractOp, affine::AffineLoadOp,
              memref::LoadOp>(opParent))
@@ -785,8 +785,8 @@ std::string TfheRustHLEmitter::checkOrigin(Value value) {
   return "";
 }
 
-TfheRustHLEmitter::TfheRustHLEmitter(raw_ostream &os,
-                                     SelectVariableNames *variableNames)
+TfheRustHLEmitter::TfheRustHLEmitter(raw_ostream& os,
+                                     SelectVariableNames* variableNames)
     : os(os), variableNames(variableNames) {}
 }  // namespace tfhe_rust
 }  // namespace heir

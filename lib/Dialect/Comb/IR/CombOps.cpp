@@ -155,7 +155,7 @@ LogicalResult ReplicateOp::verify() {
 // Variadic operations
 //===----------------------------------------------------------------------===//
 
-static LogicalResult verifyUTBinOp(Operation *op) {
+static LogicalResult verifyUTBinOp(Operation* op) {
   if (op->getOperands().empty())
     return op->emitOpError("requires 1 or more args");
   return success();
@@ -202,7 +202,7 @@ LogicalResult ConcatOp::verify() {
   return success();
 }
 
-void ConcatOp::build(OpBuilder &builder, OperationState &result, Value hd,
+void ConcatOp::build(OpBuilder& builder, OperationState& result, Value hd,
                      ValueRange tl) {
   result.addOperands(ValueRange{hd});
   result.addOperands(tl);
@@ -211,9 +211,9 @@ void ConcatOp::build(OpBuilder &builder, OperationState &result, Value hd,
 }
 
 LogicalResult ConcatOp::inferReturnTypes(
-    MLIRContext *context, std::optional<Location> loc, ValueRange operands,
+    MLIRContext* context, std::optional<Location> loc, ValueRange operands,
     DictionaryAttr attrs, mlir::OpaqueProperties properties,
-    mlir::RegionRange regions, SmallVectorImpl<Type> &results) {
+    mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
   unsigned resultWidth = getTotalWidth(operands);
   results.push_back(IntegerType::get(context, resultWidth));
   return success();

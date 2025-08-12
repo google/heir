@@ -17,8 +17,8 @@
 namespace mlir {
 namespace heir {
 
-int getOperandNumber(Operation *op, Value value) {
-  for (OpOperand &operand : op->getOpOperands()) {
+int getOperandNumber(Operation* op, Value value) {
+  for (OpOperand& operand : op->getOpOperands()) {
     if (operand.get() == value) return operand.getOperandNumber();
   }
   return -1;
@@ -26,11 +26,11 @@ int getOperandNumber(Operation *op, Value value) {
 
 Attribute findAttributeForBlockArgument(BlockArgument blockArg,
                                         StringRef attrName) {
-  auto *parentOp = blockArg.getOwner()->getParentOp();
+  auto* parentOp = blockArg.getOwner()->getParentOp();
   assert(parentOp != nullptr &&
          "Missing parent op! Was this value not properly remapped?");
 
-  return llvm::TypeSwitch<Operation *, Attribute>(parentOp)
+  return llvm::TypeSwitch<Operation*, Attribute>(parentOp)
       .Case<FunctionOpInterface>([&](auto op) -> Attribute {
         return op.getArgAttr(blockArg.getArgNumber(), attrName);
       })
@@ -52,10 +52,10 @@ Attribute findAttributeForBlockArgument(BlockArgument blockArg,
       .Case<OperandAndResultAttrInterface>([&](auto op) -> Attribute {
         return op.getOperandAttr(blockArg.getArgNumber(), attrName);
       })
-      .Default([](Operation *op) { return nullptr; });
+      .Default([](Operation* op) { return nullptr; });
 }
 
-Attribute getUndistinguishedResultAttr(Operation *op, int resultNumber,
+Attribute getUndistinguishedResultAttr(Operation* op, int resultNumber,
                                        StringRef attrName) {
   Attribute attr = op->getAttr(attrName);
   // Some ops store the relevant attribute as an array attr with a name
@@ -89,19 +89,19 @@ Attribute getUndistinguishedResultAttr(Operation *op, int resultNumber,
 }
 
 Attribute findAttributeForResult(Value result, StringRef attrName) {
-  auto *parentOp = result.getDefiningOp();
+  auto* parentOp = result.getDefiningOp();
   assert(parentOp &&
          "Missing defining op, but the input value is not a BlockArgument. "
          "This is madness.");
   int resultNumber = cast<OpResult>(result).getResultNumber();
 
-  return llvm::TypeSwitch<Operation *, Attribute>(parentOp)
+  return llvm::TypeSwitch<Operation*, Attribute>(parentOp)
       .Case<OperandAndResultAttrInterface>([&](auto op) -> Attribute {
         Attribute attr = op.getResultAttr(resultNumber, attrName);
         if (attr) return attr;
         return getUndistinguishedResultAttr(op, resultNumber, attrName);
       })
-      .Default([&](Operation *op) {
+      .Default([&](Operation* op) {
         return getUndistinguishedResultAttr(op, resultNumber, attrName);
       });
 }
@@ -122,11 +122,11 @@ FailureOr<Attribute> findAttributeAssociatedWith(Value value,
 
 void setAttributeForBlockArgument(BlockArgument blockArg, StringRef attrName,
                                   Attribute attr) {
-  auto *parentOp = blockArg.getOwner()->getParentOp();
+  auto* parentOp = blockArg.getOwner()->getParentOp();
   assert(parentOp != nullptr &&
          "Missing parent op! Was this value not properly remapped?");
 
-  llvm::TypeSwitch<Operation *>(parentOp)
+  llvm::TypeSwitch<Operation*>(parentOp)
       .Case<FunctionOpInterface>([&](auto op) {
         return op.setArgAttr(blockArg.getArgNumber(), attrName, attr);
       })
@@ -147,16 +147,16 @@ void setAttributeForBlockArgument(BlockArgument blockArg, StringRef attrName,
 }
 
 void setAttributeForResult(Value result, StringRef attrName, Attribute attr) {
-  auto *parentOp = result.getDefiningOp();
+  auto* parentOp = result.getDefiningOp();
   assert(parentOp &&
          "Missing defining op, but the input value is not a BlockArgument. "
          "This is madness.");
   int resultNumber = cast<OpResult>(result).getResultNumber();
 
-  llvm::TypeSwitch<Operation *>(parentOp)
+  llvm::TypeSwitch<Operation*>(parentOp)
       .Case<OperandAndResultAttrInterface>(
           [&](auto op) { op.setResultAttr(resultNumber, attrName, attr); })
-      .Default([&](Operation *op) {
+      .Default([&](Operation* op) {
         // For a single-result op, the attribute applies to the result as a
         // whole, even if the attr is an array attr. This is used for
         // secret.execution_result with tensor-typed results.
@@ -195,9 +195,9 @@ void setAttributeAssociatedWith(Value value, StringRef attrName,
   }
 }
 
-void clearAttrs(Operation *op, StringRef attrName) {
-  op->walk([&](Operation *op) {
-    llvm::TypeSwitch<Operation *>(op)
+void clearAttrs(Operation* op, StringRef attrName) {
+  op->walk([&](Operation* op) {
+    llvm::TypeSwitch<Operation*>(op)
         .Case<FunctionOpInterface>([&](auto op) {
           for (auto i = 0; i != op.getNumArguments(); ++i) {
             op.removeArgAttr(i, attrName);
@@ -216,15 +216,15 @@ void clearAttrs(Operation *op, StringRef attrName) {
           }
           op->removeAttr(attrName);
         })
-        .Default([&](Operation *op) { op->removeAttr(attrName); });
+        .Default([&](Operation* op) { op->removeAttr(attrName); });
   });
 }
 
-void copyReturnOperandAttrsToFuncResultAttrs(Operation *op,
+void copyReturnOperandAttrsToFuncResultAttrs(Operation* op,
                                              StringRef attrName) {
   op->walk([&](func::FuncOp funcOp) {
-    for (auto &block : funcOp.getBlocks()) {
-      for (OpOperand &returnOperand : block.getTerminator()->getOpOperands()) {
+    for (auto& block : funcOp.getBlocks()) {
+      for (OpOperand& returnOperand : block.getTerminator()->getOpOperands()) {
         FailureOr<Attribute> attr =
             findAttributeAssociatedWith(returnOperand.get(), attrName);
         if (failed(attr)) continue;
@@ -235,9 +235,9 @@ void copyReturnOperandAttrsToFuncResultAttrs(Operation *op,
   });
 }
 
-void populateOperandAttrInterface(Operation *op, StringRef attrName) {
+void populateOperandAttrInterface(Operation* op, StringRef attrName) {
   op->walk<WalkOrder::PreOrder>([&](OperandAndResultAttrInterface opInt) {
-    for (auto &opOperand : opInt->getOpOperands()) {
+    for (auto& opOperand : opInt->getOpOperands()) {
       FailureOr<Attribute> attrResult =
           findAttributeAssociatedWith(opOperand.get(), attrName);
 
@@ -250,11 +250,11 @@ void populateOperandAttrInterface(Operation *op, StringRef attrName) {
 }
 
 void convertArrayOfDicts(ArrayAttr arrayOfDicts,
-                         SmallVector<NamedAttribute> &result) {
+                         SmallVector<NamedAttribute>& result) {
   if (!arrayOfDicts) return;
 
   if (arrayOfDicts.size() == 1) {
-    for (auto &namedAttr : cast<DictionaryAttr>(arrayOfDicts[0]))
+    for (auto& namedAttr : cast<DictionaryAttr>(arrayOfDicts[0]))
       result.push_back(namedAttr);
     return;
   }
@@ -269,7 +269,7 @@ void convertArrayOfDicts(ArrayAttr arrayOfDicts,
     }
   }
 
-  for (auto &[name, attributes] : arrayAttrs) {
+  for (auto& [name, attributes] : arrayAttrs) {
     NamedAttribute attr(name,
                         ArrayAttr::get(arrayOfDicts.getContext(), attributes));
     result.push_back(attr);

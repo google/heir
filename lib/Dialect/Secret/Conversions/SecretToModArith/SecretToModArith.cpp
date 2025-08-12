@@ -44,7 +44,7 @@ bool isModArithOrContainerOfModArith(Type type) {
 
 class SecretToModArithTypeConverter : public TypeConverter {
  public:
-  SecretToModArithTypeConverter(MLIRContext *ctx, int64_t ptm)
+  SecretToModArithTypeConverter(MLIRContext* ctx, int64_t ptm)
       : plaintextModulus(ptm) {
     addConversion([](Type type) { return type; });
     addConversion(
@@ -52,7 +52,7 @@ class SecretToModArithTypeConverter : public TypeConverter {
   }
 
   Type convertPlaintextType(Type type) const {
-    auto *ctx = type.getContext();
+    auto* ctx = type.getContext();
     return TypeSwitch<Type, Type>(type)
         .Case<ShapedType>([this](ShapedType shapedType) {
           return shapedType.cloneWith(
@@ -91,14 +91,14 @@ template <typename T, typename Y = T>
 class SecretGenericOpConversion
     : public OpConversionPattern<secret::GenericOp> {
  public:
-  SecretGenericOpConversion(const TypeConverter &typeConverter,
-                            MLIRContext *context, PatternBenefit benefit = 1)
+  SecretGenericOpConversion(const TypeConverter& typeConverter,
+                            MLIRContext* context, PatternBenefit benefit = 1)
       : OpConversionPattern<secret::GenericOp>(typeConverter, context,
                                                benefit) {}
 
   LogicalResult matchAndRewrite(
       secret::GenericOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const final {
+      ConversionPatternRewriter& rewriter) const final {
     if (op.getBody()->getOperations().size() > 2) {
       // Each secret.generic should contain at most one instruction -
       // secret-distribute-generic can be used to distribute through the
@@ -106,7 +106,7 @@ class SecretGenericOpConversion
       return failure();
     }
 
-    auto &innerOp = op.getBody()->getOperations().front();
+    auto& innerOp = op.getBody()->getOperations().front();
     if (!isa<T>(innerOp)) {
       return failure();
     }
@@ -116,7 +116,7 @@ class SecretGenericOpConversion
     // in which case we can get them in type-converted form from the adaptor.
     SmallVector<Value> inputs;
     for (Value operand : innerOp.getOperands()) {
-      if (auto *secretArg = op.getOpOperandForBlockArgument(operand)) {
+      if (auto* secretArg = op.getOpOperandForBlockArgument(operand)) {
         inputs.push_back(adaptor.getInputs()[secretArg->getOperandNumber()]);
       } else {
         inputs.push_back(operand);
@@ -128,7 +128,7 @@ class SecretGenericOpConversion
             getTypeConverter()->convertTypes(op.getResultTypes(), resultTypes)))
       return failure();
 
-    FailureOr<Operation *> newOpResult =
+    FailureOr<Operation*> newOpResult =
         matchAndRewriteInner(op, resultTypes, inputs, rewriter);
     if (failed(newOpResult)) return failure();
     return success();
@@ -136,9 +136,9 @@ class SecretGenericOpConversion
 
   // Default method for replacing the secret.generic with the target
   // operation.
-  virtual FailureOr<Operation *> matchAndRewriteInner(
+  virtual FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
-      ConversionPatternRewriter &rewriter) const {
+      ConversionPatternRewriter& rewriter) const {
     return rewriter.replaceOpWithNewOp<Y>(op, outputTypes, inputs)
         .getOperation();
   }
@@ -149,22 +149,22 @@ class SecretGenericOpConversion
 // type-converted operands and results of the outer generic op.
 class ConvertAnyNestedGeneric : public OpConversionPattern<secret::GenericOp> {
  public:
-  ConvertAnyNestedGeneric(const TypeConverter &typeConverter,
-                          MLIRContext *context, PatternBenefit benefit = 1)
+  ConvertAnyNestedGeneric(const TypeConverter& typeConverter,
+                          MLIRContext* context, PatternBenefit benefit = 1)
       : OpConversionPattern<secret::GenericOp>(typeConverter, context,
                                                benefit) {}
 
   LogicalResult matchAndRewrite(
       secret::GenericOp outerOp, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const final {
+      ConversionPatternRewriter& rewriter) const final {
     if (outerOp.getBody()->getOperations().size() > 2) {
       return failure();
     }
-    Operation *innerOp = &outerOp.getBody()->getOperations().front();
+    Operation* innerOp = &outerOp.getBody()->getOperations().front();
 
     SmallVector<Value> inputs;
     for (Value operand : innerOp->getOperands()) {
-      if (auto *secretArg = outerOp.getOpOperandForBlockArgument(operand)) {
+      if (auto* secretArg = outerOp.getOpOperandForBlockArgument(operand)) {
         inputs.push_back(adaptor.getInputs()[secretArg->getOperandNumber()]);
       } else {
         inputs.push_back(operand);
@@ -178,15 +178,15 @@ class ConvertAnyNestedGeneric : public OpConversionPattern<secret::GenericOp> {
 
     SmallVector<std::unique_ptr<Region>, 1> regions;
     IRMapping mapping;
-    for (auto &r : innerOp->getRegions()) {
-      Region *newRegion = new Region(innerOp);
+    for (auto& r : innerOp->getRegions()) {
+      Region* newRegion = new Region(innerOp);
       rewriter.cloneRegionBefore(r, *newRegion, newRegion->end(), mapping);
       if (failed(rewriter.convertRegionTypes(newRegion, *typeConverter)))
         return failure();
       regions.emplace_back(newRegion);
     }
 
-    Operation *newOp = rewriter.create(OperationState(
+    Operation* newOp = rewriter.create(OperationState(
         outerOp.getLoc(), innerOp->getName().getStringRef(), inputs,
         resultTypes, innerOp->getAttrs(), innerOp->getSuccessors(), regions));
     rewriter.replaceOp(outerOp, newOp);
@@ -197,7 +197,7 @@ class ConvertAnyNestedGeneric : public OpConversionPattern<secret::GenericOp> {
 // "encode" a cleartext to mod_arith by sign extending and encapsulating it.
 // If the cleartext is a float type, let it pass through unchanged.
 Value encodeCleartext(Value cleartext, Type resultType,
-                      ImplicitLocOpBuilder &b) {
+                      ImplicitLocOpBuilder& b) {
   if (isa<FloatType>(getElementTypeOrSelf(cleartext.getType()))) {
     return cleartext;
   }
@@ -222,14 +222,14 @@ Value encodeCleartext(Value cleartext, Type resultType,
 }
 
 struct ConvertConceal : public OpConversionPattern<secret::ConcealOp> {
-  ConvertConceal(const SecretToModArithTypeConverter &typeConverter,
-                 mlir::MLIRContext *context, PatternBenefit benefit)
+  ConvertConceal(const SecretToModArithTypeConverter& typeConverter,
+                 mlir::MLIRContext* context, PatternBenefit benefit)
       : OpConversionPattern<secret::ConcealOp>(context, benefit),
         typeConv(typeConverter) {}
 
   LogicalResult matchAndRewrite(
       secret::ConcealOp op, secret::ConcealOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     // We start with something like an i16 (or tensor<Nxi16>) and the result
     // should be a (tensor of) !mod_arith.int<17 : i64> so we need to first
@@ -243,18 +243,18 @@ struct ConvertConceal : public OpConversionPattern<secret::ConcealOp> {
   }
 
  private:
-  const SecretToModArithTypeConverter &typeConv;
+  const SecretToModArithTypeConverter& typeConv;
 };
 
 struct ConvertReveal : public OpConversionPattern<secret::RevealOp> {
-  ConvertReveal(const SecretToModArithTypeConverter &typeConverter,
-                mlir::MLIRContext *context, PatternBenefit benefit)
+  ConvertReveal(const SecretToModArithTypeConverter& typeConverter,
+                mlir::MLIRContext* context, PatternBenefit benefit)
       : OpConversionPattern<secret::RevealOp>(typeConverter, context, benefit) {
   }
 
   LogicalResult matchAndRewrite(
       secret::RevealOp op, secret::RevealOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     if (isa<FloatType>(getElementTypeOrSelf(adaptor.getInput().getType()))) {
       rewriter.replaceOp(op, adaptor.getInput());
       return success();
@@ -304,14 +304,14 @@ class SecretGenericOpCipherPlainConversion
   // Ciphertext-plaintext ops should take precedence over ciphertext-ciphertext
   // ops because the ops being converted (e.g., addi) don't have a plaintext
   // variant.
-  SecretGenericOpCipherPlainConversion(const TypeConverter &typeConverter,
-                                       MLIRContext *context,
+  SecretGenericOpCipherPlainConversion(const TypeConverter& typeConverter,
+                                       MLIRContext* context,
                                        PatternBenefit benefit)
       : SecretGenericOpConversion<T, Y>(typeConverter, context, benefit) {}
 
-  FailureOr<Operation *> matchAndRewriteInner(
+  FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     // Verify that exactly one of the two inputs is a ciphertext.
     if (inputs.size() != 2 ||
         llvm::count_if(inputs, [&](Value input) {
@@ -341,9 +341,9 @@ class SecretGenericOpCipherPlainConversion
 struct ConvertDebugCall : public SecretGenericOpConversion<func::CallOp> {
   using SecretGenericOpConversion<func::CallOp>::SecretGenericOpConversion;
 
-  FailureOr<Operation *> matchAndRewriteInner(
+  FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     auto innerOp = cast<func::CallOp>(op.getBody()->getOperations().front());
     if (innerOp.getArgOperands().size() != 1) {
       // Debug calls have a single argument.
@@ -366,8 +366,8 @@ struct SecretToModArith : public impl::SecretToModArithBase<SecretToModArith> {
   using SecretToModArithBase::SecretToModArithBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
-    auto *module = getOperation();
+    MLIRContext* context = &getContext();
+    auto* module = getOperation();
 
     SecretToModArithTypeConverter typeConverter(context, plaintextModulus);
     RewritePatternSet patterns(context);

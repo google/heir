@@ -14,7 +14,7 @@ namespace heir {
 enum Mode { Boolean, LUT };
 
 std::unique_ptr<mlir::Pass> createYosysOptimizer(
-    const std::string &yosysFilesPath, const std::string &abcPath, bool abcFast,
+    const std::string& yosysFilesPath, const std::string& abcPath, bool abcFast,
     int unrollFactor = 0, bool useSubmodules = true, Mode mode = LUT,
     bool printStats = false);
 
@@ -55,8 +55,8 @@ struct YosysOptimizerPipelineOptions
 // registerYosysOptimizerPipeline registers a Yosys pipeline pass using
 // runfiles, the location of Yosys techlib files, and abcPath, the location of
 // the abc binary.
-void registerYosysOptimizerPipeline(const std::string &yosysFilesPath,
-                                    const std::string &abcPath);
+void registerYosysOptimizerPipeline(const std::string& yosysFilesPath,
+                                    const std::string& abcPath);
 
 }  // namespace heir
 }  // namespace mlir

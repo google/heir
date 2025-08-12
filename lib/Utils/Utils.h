@@ -17,50 +17,50 @@
 namespace mlir {
 namespace heir {
 
-using OpPredicate = std::function<bool(Operation *)>;
-using IsValidTypeFn = std::function<LogicalResult(const Type &)>;
-using IsValidValueFn = std::function<LogicalResult(const Value &)>;
-using ValueProcessor = std::function<void(const Value &)>;
+using OpPredicate = std::function<bool(Operation*)>;
+using IsValidTypeFn = std::function<LogicalResult(const Type&)>;
+using IsValidValueFn = std::function<LogicalResult(const Value&)>;
+using ValueProcessor = std::function<void(const Value&)>;
 
-using TypePredicate = std::function<bool(const Type &)>;
+using TypePredicate = std::function<bool(const Type&)>;
 
-using DialectPredicate = std::function<bool(Dialect *)>;
+using DialectPredicate = std::function<bool(Dialect*)>;
 
-using IndexTupleConsumer = std::function<void(const std::vector<int64_t> &)>;
+using IndexTupleConsumer = std::function<void(const std::vector<int64_t>&)>;
 
 template <typename... OpTys>
 OpPredicate OpEqual() {
-  return [](Operation *op) { return mlir::isa<OpTys...>(op); };
+  return [](Operation* op) { return mlir::isa<OpTys...>(op); };
 }
 
 template <typename... TypeTys>
 TypePredicate TypeEqual() {
-  return [](const Type &type) { return mlir::isa<TypeTys...>(type); };
+  return [](const Type& type) { return mlir::isa<TypeTys...>(type); };
 }
 
 template <typename... DialectTys>
 DialectPredicate DialectEqual() {
-  return [](Dialect *dialect) { return mlir::isa<DialectTys...>(dialect); };
+  return [](Dialect* dialect) { return mlir::isa<DialectTys...>(dialect); };
 }
 
 // Walks the given op, applying the predicate to traversed ops until the
 // predicate returns true, then returns the operation that matched, or
 // nullptr if there were no matches.
-Operation *walkAndDetect(Operation *op, OpPredicate predicate);
+Operation* walkAndDetect(Operation* op, OpPredicate predicate);
 
 // specialization for detecting a specific operation type
 template <typename... OpTys>
-bool containsAnyOperations(Operation *op) {
-  Operation *foundOp = walkAndDetect(op, OpEqual<OpTys...>());
+bool containsAnyOperations(Operation* op) {
+  Operation* foundOp = walkAndDetect(op, OpEqual<OpTys...>());
   return foundOp != nullptr;
 }
 
 /// Apply isValidType to the operands and results, returning an appropriate
 /// logical result.
-LogicalResult validateTypes(Operation *op, IsValidTypeFn isValidType);
+LogicalResult validateTypes(Operation* op, IsValidTypeFn isValidType);
 
 /// Apply isValidType to the operands, returning an appropriate logical result.
-LogicalResult validateValues(Operation *op, IsValidValueFn isValidValue);
+LogicalResult validateValues(Operation* op, IsValidValueFn isValidValue);
 
 /// Walk the IR and apply a predicate to all argument values
 /// encountered, returning failure if any type is invalid. Invalidity is
@@ -68,14 +68,14 @@ LogicalResult validateValues(Operation *op, IsValidValueFn isValidValue);
 /// err is provided, report and error to the user when the first invalid value
 /// is encountered.
 LogicalResult walkAndValidateValues(
-    Operation *op, IsValidValueFn isValidValue,
+    Operation* op, IsValidValueFn isValidValue,
     std::optional<std::string> err = std::nullopt);
 
 /// Walk the IR and apply a predicate to all SSA values and produced values.
 /// Values will be visited once for the operation that defines them, and once
 /// for each use. The valueProcessor must be aware that it may be called
 /// multiple times for the same value.
-void walkValues(Operation *op, ValueProcessor valueProcessor);
+void walkValues(Operation* op, ValueProcessor valueProcessor);
 
 /// Walk the IR and apply a predicate to all argument and result types
 /// encountered, returning failure if any type is invalid. Invalidity is
@@ -84,7 +84,7 @@ void walkValues(Operation *op, ValueProcessor valueProcessor);
 /// is encountered.
 template <typename OpTy>
 LogicalResult walkAndValidateTypes(
-    Operation *op, IsValidTypeFn isValidType,
+    Operation* op, IsValidTypeFn isValidType,
     std::optional<std::string> err = std::nullopt) {
   LogicalResult res = success();
   op->walk([&](OpTy op) {
@@ -97,8 +97,8 @@ LogicalResult walkAndValidateTypes(
 
 // Returns true if the op contains ops from the given dialects.
 template <typename... Dialects>
-bool containsDialects(Operation *op) {
-  Operation *foundOp = walkAndDetect(op, [&](Operation *op) {
+bool containsDialects(Operation* op) {
+  Operation* foundOp = walkAndDetect(op, [&](Operation* op) {
     return DialectEqual<Dialects...>()(op->getDialect());
   });
   return foundOp != nullptr;
@@ -106,10 +106,10 @@ bool containsDialects(Operation *op) {
 
 // Returns true if the op contains argument values of the given type.
 // NOTE: any_of instead of all_of
-bool containsArgumentOfType(Operation *op, TypePredicate predicate);
+bool containsArgumentOfType(Operation* op, TypePredicate predicate);
 
 template <typename... TypeTys>
-bool containsArgumentOfType(Operation *op) {
+bool containsArgumentOfType(Operation* op) {
   return containsArgumentOfType(op, TypeEqual<TypeTys...>());
 }
 
@@ -124,7 +124,7 @@ bool containsArgumentOfType(Operation *op) {
 // E.g., if shape is {2, 3, 4}, fixedIndices is {1}, and fixedIndexValues is
 // {2}, then this will iterate over dimensions 0 and 2 in the usual order, but
 // dimension 1 will always be 2.
-void iterateIndices(ArrayRef<int64_t> shape, const IndexTupleConsumer &process,
+void iterateIndices(ArrayRef<int64_t> shape, const IndexTupleConsumer& process,
                     ArrayRef<int64_t> fixedIndices = {},
                     ArrayRef<int64_t> fixedIndexValues = {});
 

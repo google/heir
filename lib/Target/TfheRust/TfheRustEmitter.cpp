@@ -54,22 +54,22 @@ namespace tfhe_rust {
 
 namespace {
 
-bool isLevelledOp(Operation *op) {
+bool isLevelledOp(Operation* op) {
   return isa<ApplyLookupTableOp, AddOp, ScalarLeftShiftOp>(op);
 }
 
 bool usedByLevelledOp(Value value) {
   return llvm::any_of(value.getUsers(),
-                      [](Operation *op) { return isLevelledOp(op); });
+                      [](Operation* op) { return isLevelledOp(op); });
 }
 
 bool usedByNonLevelledOp(Value value) {
   return llvm::any_of(value.getUsers(),
-                      [](Operation *op) { return !isLevelledOp(op); });
+                      [](Operation* op) { return !isLevelledOp(op); });
 }
 
-std::pair<graph::Graph<Operation *>, Operation *> getGraph(Operation *op) {
-  graph::Graph<Operation *> graph;
+std::pair<graph::Graph<Operation*>, Operation*> getGraph(Operation* op) {
+  graph::Graph<Operation*> graph;
 
   auto block = op->getBlock();
   while (op != nullptr) {
@@ -78,7 +78,7 @@ std::pair<graph::Graph<Operation *>, Operation *> getGraph(Operation *op) {
     }
     graph.addVertex(op);
     for (auto operand : op->getOperands()) {
-      auto *definingOp = operand.getDefiningOp();
+      auto* definingOp = operand.getDefiningOp();
       if (!definingOp || definingOp->getBlock() != block ||
           !isLevelledOp(definingOp)) {
         continue;
@@ -140,17 +140,17 @@ void registerToTfheRustTranslation() {
   TranslateFromMLIRRegistration reg(
       "emit-tfhe-rust",
       "translate the tfhe_rs dialect to Rust code for tfhe-rs",
-      [](Operation *op, llvm::raw_ostream &output) {
+      [](Operation* op, llvm::raw_ostream& output) {
         return translateToTfheRust(op, output, useLevels);
       },
-      [](DialectRegistry &registry) {
+      [](DialectRegistry& registry) {
         registry.insert<func::FuncDialect, tfhe_rust::TfheRustDialect,
                         arith::ArithDialect, tensor::TensorDialect,
                         memref::MemRefDialect, affine::AffineDialect>();
       });
 }
 
-LogicalResult translateToTfheRust(Operation *op, llvm::raw_ostream &os,
+LogicalResult translateToTfheRust(Operation* op, llvm::raw_ostream& os,
                                   bool useLevels) {
   SelectVariableNames variableNames(op);
   TfheRustEmitter emitter(os, &variableNames, useLevels);
@@ -158,7 +158,7 @@ LogicalResult translateToTfheRust(Operation *op, llvm::raw_ostream &os,
   return result;
 }
 
-LogicalResult TfheRustEmitter::emitBlock(::mlir::Operation *op, int batch) {
+LogicalResult TfheRustEmitter::emitBlock(::mlir::Operation* op, int batch) {
   // Translate ops in the block until we get to a tfhe_rust.ApplyLookupTable,
   // AddOp, ScalarLeftShitOp
   while (op != nullptr && !isLevelledOp(op)) {
@@ -183,7 +183,7 @@ LogicalResult TfheRustEmitter::emitBlock(::mlir::Operation *op, int batch) {
       os << "static LEVEL_" << batch << "_" << level
          << " : [((OpType, usize), &[GateInput]); " << levels[level].size()
          << "] = [";
-      for (auto &op : levels[level]) {
+      for (auto& op : levels[level]) {
         // Print the operation type and its ciphertext args
         os << llvm::formatv(
             "(({0}, {1}), &[{2}]), ", operationType(op),
@@ -209,12 +209,12 @@ LogicalResult TfheRustEmitter::emitBlock(::mlir::Operation *op, int batch) {
   return emitBlock(nextOp, ++batch);
 }
 
-LogicalResult TfheRustEmitter::translateBlock(Block &block) {
+LogicalResult TfheRustEmitter::translateBlock(Block& block) {
   if (useLevels) {
-    Operation *op = &block.getOperations().front();
+    Operation* op = &block.getOperations().front();
     return emitBlock(op, 0);
   }
-  for (Operation &op : block.getOperations()) {
+  for (Operation& op : block.getOperations()) {
     if (failed(translate(op))) {
       return failure();
     }
@@ -222,9 +222,9 @@ LogicalResult TfheRustEmitter::translateBlock(Block &block) {
   return success();
 }
 
-LogicalResult TfheRustEmitter::translate(Operation &op) {
+LogicalResult TfheRustEmitter::translate(Operation& op) {
   LogicalResult status =
-      llvm::TypeSwitch<Operation &, LogicalResult>(op)
+      llvm::TypeSwitch<Operation&, LogicalResult>(op)
           // Builtin ops
           .Case<ModuleOp>([&](auto op) { return printOperation(op); })
           // Func ops
@@ -258,7 +258,7 @@ LogicalResult TfheRustEmitter::translate(Operation &op) {
           })
           .Case<memref::AllocOp, memref::GetGlobalOp, memref::LoadOp,
                 memref::StoreOp>([&](auto op) { return printOperation(op); })
-          .Default([&](Operation &) {
+          .Default([&](Operation&) {
             return op.emitOpError("unable to find printer for op");
           });
 
@@ -271,7 +271,7 @@ LogicalResult TfheRustEmitter::translate(Operation &op) {
 
 LogicalResult TfheRustEmitter::printOperation(ModuleOp moduleOp) {
   os << kModulePrelude << "\n";
-  for (Operation &op : moduleOp) {
+  for (Operation& op : moduleOp) {
     if (failed(translate(op))) {
       return failure();
     }
@@ -353,7 +353,7 @@ LogicalResult TfheRustEmitter::printOperation(func::FuncOp funcOp) {
     }
   }
 
-  for (Block &block : funcOp.getBlocks()) {
+  for (Block& block : funcOp.getBlocks()) {
     if (failed(translateBlock(block))) {
       return funcOp.emitOpError()
              << "Failed to translate block of func " << funcOp.getName();
@@ -429,7 +429,7 @@ LogicalResult TfheRustEmitter::printSksMethod(
           return value.empty() ? "" : " as " + value;
         }));
   }
-  auto *operandTypesIt = operandTypes.begin();
+  auto* operandTypesIt = operandTypes.begin();
   os << variableNames->getNameForValue(sks) << "." << op << "(";
   os << commaSeparatedValues(nonSksOperands, [&](Value value) {
     auto valueStr = variableNames->getNameForValue(value);
@@ -494,8 +494,8 @@ LogicalResult TfheRustEmitter::printOperation(GenerateLookupTableOp op) {
   return success();
 }
 
-std::string TfheRustEmitter::operationType(Operation *op) {
-  return llvm::TypeSwitch<Operation *, std::string>(op)
+std::string TfheRustEmitter::operationType(Operation* op) {
+  return llvm::TypeSwitch<Operation*, std::string>(op)
       .Case<tfhe_rust::ApplyLookupTableOp>([&](ApplyLookupTableOp op) {
         return "LUT3(\"" + variableNames->getNameForValue(op.getLookupTable()) +
                "\")";
@@ -504,7 +504,7 @@ std::string TfheRustEmitter::operationType(Operation *op) {
         return "LSH(" + std::to_string(op.getShiftAmount().getSExtValue()) +
                ")";
       })
-      .Case<tfhe_rust::AddOp>([&](Operation *) { return "ADD"; });
+      .Case<tfhe_rust::AddOp>([&](Operation*) { return "ADD"; });
 }
 
 LogicalResult TfheRustEmitter::printOperation(affine::AffineForOp forOp) {
@@ -771,7 +771,7 @@ FailureOr<std::string> TfheRustEmitter::convertType(Type type) {
     return std::string("Ciphertext");
   }
 
-  return llvm::TypeSwitch<Type &, FailureOr<std::string>>(type)
+  return llvm::TypeSwitch<Type&, FailureOr<std::string>>(type)
       .Case<RankedTensorType>(
           [&](RankedTensorType type) -> FailureOr<std::string> {
             // Tensor types are emitted as vectors
@@ -801,7 +801,7 @@ FailureOr<std::string> TfheRustEmitter::convertType(Type type) {
       .Case<ServerKeyType>([&](auto type) { return std::string("ServerKey"); })
       .Case<LookupTableType>(
           [&](auto type) { return std::string("LookupTableOwned"); })
-      .Default([&](Type &) { return failure(); });
+      .Default([&](Type&) { return failure(); });
 }
 
 FailureOr<std::string> TfheRustEmitter::defaultValue(Type type) {
@@ -810,9 +810,9 @@ FailureOr<std::string> TfheRustEmitter::defaultValue(Type type) {
     return std::string(
         llvm::formatv("{0}.create_trivial(0 as u64)", serverKeyArg));
   };
-  return llvm::TypeSwitch<Type &, FailureOr<std::string>>(type)
+  return llvm::TypeSwitch<Type&, FailureOr<std::string>>(type)
       .Case<IntegerType>([&](IntegerType type) { return std::string("0"); })
-      .Default([&](Type &) { return failure(); });
+      .Default([&](Type&) { return failure(); });
 }
 
 LogicalResult TfheRustEmitter::printOperation(BitAndOp op) {
@@ -829,8 +829,8 @@ LogicalResult TfheRustEmitter::emitType(Type type) {
   return success();
 }
 
-TfheRustEmitter::TfheRustEmitter(raw_ostream &os,
-                                 SelectVariableNames *variableNames,
+TfheRustEmitter::TfheRustEmitter(raw_ostream& os,
+                                 SelectVariableNames* variableNames,
                                  bool useLevels)
     : useLevels(useLevels), os(os), variableNames(variableNames) {}
 }  // namespace tfhe_rust

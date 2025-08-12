@@ -65,15 +65,15 @@ class TargetSlot {
   bool isInitialized() const { return value.has_value(); }
 
   /// Get a known slot target.
-  const int64_t &getValue() const {
+  const int64_t& getValue() const {
     assert(isInitialized());
     return *value;
   }
 
-  bool operator==(const TargetSlot &rhs) const { return value == rhs.value; }
+  bool operator==(const TargetSlot& rhs) const { return value == rhs.value; }
 
   /// Join two target slots.
-  static TargetSlot join(const TargetSlot &lhs, const TargetSlot &rhs) {
+  static TargetSlot join(const TargetSlot& lhs, const TargetSlot& rhs) {
     if (!lhs.isInitialized()) return rhs;
     if (!rhs.isInitialized()) return lhs;
     // If they are both initialized, use an arbitrary deterministic rule to
@@ -83,14 +83,14 @@ class TargetSlot {
                                                       : rhs.getValue()};
   }
 
-  void print(raw_ostream &os) const { os << value; }
+  void print(raw_ostream& os) const { os << value; }
 
  private:
   /// The target slot, if known.
   std::optional<int64_t> value;
 
-  friend mlir::Diagnostic &operator<<(mlir::Diagnostic &diagnostic,
-                                      const TargetSlot &foo) {
+  friend mlir::Diagnostic& operator<<(mlir::Diagnostic& diagnostic,
+                                      const TargetSlot& foo) {
     if (foo.isInitialized()) {
       return diagnostic << foo.getValue();
     }
@@ -98,7 +98,7 @@ class TargetSlot {
   }
 };
 
-inline raw_ostream &operator<<(raw_ostream &os, const TargetSlot &v) {
+inline raw_ostream& operator<<(raw_ostream& os, const TargetSlot& v) {
   v.print(os);
   return os;
 }
@@ -118,8 +118,8 @@ class TargetSlotLattice : public dataflow::Lattice<TargetSlot> {
 class TargetSlotAnalysis
     : public dataflow::SparseBackwardDataFlowAnalysis<TargetSlotLattice> {
  public:
-  explicit TargetSlotAnalysis(DataFlowSolver &solver,
-                              SymbolTableCollection &symbolTable)
+  explicit TargetSlotAnalysis(DataFlowSolver& solver,
+                              SymbolTableCollection& symbolTable)
       : SparseBackwardDataFlowAnalysis(solver, symbolTable) {}
   ~TargetSlotAnalysis() override = default;
   using SparseBackwardDataFlowAnalysis::SparseBackwardDataFlowAnalysis;
@@ -127,12 +127,12 @@ class TargetSlotAnalysis
   // Given the computed results of the operation, update its operand lattice
   // values.
   LogicalResult visitOperation(
-      Operation *op, ArrayRef<TargetSlotLattice *> operands,
-      ArrayRef<const TargetSlotLattice *> results) override;
+      Operation* op, ArrayRef<TargetSlotLattice*> operands,
+      ArrayRef<const TargetSlotLattice*> results) override;
 
-  void visitBranchOperand(OpOperand &operand) override {};
-  void visitCallOperand(OpOperand &operand) override {};
-  void setToExitState(TargetSlotLattice *lattice) override {};
+  void visitBranchOperand(OpOperand& operand) override {};
+  void visitCallOperand(OpOperand& operand) override {};
+  void setToExitState(TargetSlotLattice* lattice) override {};
 };
 
 }  // namespace target_slot_analysis

@@ -49,8 +49,8 @@ namespace mlir {
 namespace heir {
 namespace lattigo {
 
-LogicalResult translateToLattigo(Operation *op, llvm::raw_ostream &os,
-                                 const std::string &packageName) {
+LogicalResult translateToLattigo(Operation* op, llvm::raw_ostream& os,
+                                 const std::string& packageName) {
   SelectVariableNames variableNames(op);
   std::string bufferedStr;
   llvm::raw_string_ostream strOs(bufferedStr);
@@ -64,9 +64,9 @@ LogicalResult translateToLattigo(Operation *op, llvm::raw_ostream &os,
   return result;
 }
 
-LogicalResult LattigoEmitter::translate(Operation &op) {
+LogicalResult LattigoEmitter::translate(Operation& op) {
   LogicalResult status =
-      llvm::TypeSwitch<Operation &, LogicalResult>(op)
+      llvm::TypeSwitch<Operation&, LogicalResult>(op)
           // Builtin ops
           .Case<ModuleOp>([&](auto op) { return printOperation(op); })
           // Func ops
@@ -108,7 +108,7 @@ LogicalResult LattigoEmitter::translate(Operation &op) {
               CKKSSubOp, CKKSMulOp, CKKSRelinearizeOp, CKKSRescaleOp,
               CKKSRotateOp, CKKSRelinearizeNewOp, CKKSRescaleNewOp,
               CKKSRotateNewOp>([&](auto op) { return printOperation(op); })
-          .Default([&](Operation &) {
+          .Default([&](Operation&) {
             return emitError(op.getLoc(), "unable to find printer for op");
           });
 
@@ -134,7 +134,7 @@ LogicalResult LattigoEmitter::printOperation(ModuleOp moduleOp) {
     return moduleOp.emitError("Unknown scheme");
   }
 
-  for (Operation &op : moduleOp) {
+  for (Operation& op : moduleOp) {
     if (failed(translate(op))) {
       return failure();
     }
@@ -179,8 +179,8 @@ LogicalResult LattigoEmitter::printOperation(func::FuncOp funcOp) {
   os.indent();
 
   // body
-  for (Block &block : funcOp.getBlocks()) {
-    for (Operation &op : block.getOperations()) {
+  for (Block& block : funcOp.getBlocks()) {
+    for (Operation& op : block.getOperations()) {
       if (failed(translate(op))) {
         return failure();
       }
@@ -222,7 +222,7 @@ LogicalResult LattigoEmitter::printOperation(func::CallOp op) {
     auto ciphertext = op->getOperand(op->getNumOperands() - 1);
     os << debugAttrMapName << R"(["asm.is_block_arg"] = ")"
        << isa<BlockArgument>(ciphertext) << "\"\n";
-    if (auto *definingOp = ciphertext.getDefiningOp()) {
+    if (auto* definingOp = ciphertext.getDefiningOp()) {
       os << debugAttrMapName << R"(["asm.op_name"] = ")"
          << definingOp->getName() << "\"\n";
     }
@@ -274,7 +274,7 @@ LogicalResult LattigoEmitter::printOperation(affine::AffineForOp op) {
                       op.getConstantLowerBound(), op.getConstantUpperBound(),
                       op.getStepAsInt());
   os.indent();
-  for (Operation &op : *op.getBody()) {
+  for (Operation& op : *op.getBody()) {
     if (failed(translate(op))) {
       return op.emitOpError() << "Failed to translate for loop block";
     }
@@ -406,9 +406,9 @@ LogicalResult LattigoEmitter::printOperation(arith::ConstantOp op) {
   return success();
 }
 
-void LattigoEmitter::emitIf(const std::string &cond,
-                            const std::function<void()> &trueBranch,
-                            const std::function<void()> &falseBranch) {
+void LattigoEmitter::emitIf(const std::string& cond,
+                            const std::function<void()>& trueBranch,
+                            const std::function<void()>& falseBranch) {
   os << "if " << cond << " {\n";
   os.indent();
   trueBranch();
@@ -538,7 +538,7 @@ LogicalResult LattigoEmitter::printOperation(arith::IndexCastOp op) {
   return typecast(op.getOperand(), op.getOut());
 }
 
-LogicalResult LattigoEmitter::printBinaryOp(Operation *op, ::mlir::Value lhs,
+LogicalResult LattigoEmitter::printBinaryOp(Operation* op, ::mlir::Value lhs,
                                             ::mlir::Value rhs,
                                             std::string_view opName) {
   assert(op->getNumResults() == 1 && "Expected single-result op!");
@@ -940,7 +940,7 @@ LogicalResult LattigoEmitter::printOperation(RLWEDropLevelOp op) {
 }
 
 namespace {
-const auto *negateTemplate = R"GO(
+const auto* negateTemplate = R"GO(
   for {0} := 0; {0} < len({1}.Value); {0}++ {
     {2}.GetRLWEParameters().RingQ().AtLevel({1}.LevelQ()).Neg({1}.Value[{0}], {1}.Value[{0}])
   }
@@ -1257,7 +1257,7 @@ LogicalResult LattigoEmitter::printOperation(CKKSEncodeOp op) {
   os.indent();
   if (getElementTypeOrSelf(op.getValue().getType()).getIntOrFloatBitWidth() ==
       1) {
-    const auto *boolToFloat64Template = R"GO(
+    const auto* boolToFloat64Template = R"GO(
       if {0} {
         {1} = 1.0
       } else {
@@ -1559,9 +1559,9 @@ LogicalResult LattigoEmitter::emitType(Type type) {
   return success();
 }
 
-LattigoEmitter::LattigoEmitter(raw_ostream &os,
-                               SelectVariableNames *variableNames,
-                               const std::string &packageName)
+LattigoEmitter::LattigoEmitter(raw_ostream& os,
+                               SelectVariableNames* variableNames,
+                               const std::string& packageName)
     : os(os), variableNames(variableNames), packageName(packageName) {}
 
 struct TranslateOptions {
@@ -1581,10 +1581,10 @@ void registerToLattigoTranslation() {
   TranslateFromMLIRRegistration reg(
       "emit-lattigo",
       "translate the lattigo dialect to GO code against the Lattigo API",
-      [](Operation *op, llvm::raw_ostream &output) {
+      [](Operation* op, llvm::raw_ostream& output) {
         return translateToLattigo(op, output, translateOptions->packageName);
       },
-      [](DialectRegistry &registry) {
+      [](DialectRegistry& registry) {
         registry.insert<affine::AffineDialect, rns::RNSDialect,
                         arith::ArithDialect, func::FuncDialect,
                         tensor::TensorDialect, tensor_ext::TensorExtDialect,

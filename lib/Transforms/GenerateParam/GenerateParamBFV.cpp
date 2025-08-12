@@ -42,7 +42,7 @@ namespace heir {
 struct GenerateParamBFV : impl::GenerateParamBFVBase<GenerateParamBFV> {
   using GenerateParamBFVBase::GenerateParamBFVBase;
 
-  void annotateSchemeParam(const bgv::SchemeParam &schemeParam) {
+  void annotateSchemeParam(const bgv::SchemeParam& schemeParam) {
     getOperation()->setAttr(
         bgv::BGVDialect::kSchemeParamAttrName,
         bgv::SchemeParamAttr::get(
@@ -62,9 +62,9 @@ struct GenerateParamBFV : impl::GenerateParamBFVBase<GenerateParamBFV> {
 
   template <typename NoiseAnalysis>
   typename NoiseAnalysis::SchemeParamType generateParamByMaxNoise(
-      DataFlowSolver *solver,
-      const typename NoiseAnalysis::SchemeParamType &schemeParam,
-      const typename NoiseAnalysis::NoiseModel &noiseModel) {
+      DataFlowSolver* solver,
+      const typename NoiseAnalysis::SchemeParamType& schemeParam,
+      const typename NoiseAnalysis::NoiseModel& noiseModel) {
     using NoiseLatticeType = typename NoiseAnalysis::LatticeType;
     using LocalParamType = typename NoiseAnalysis::LocalParamType;
 
@@ -84,7 +84,7 @@ struct GenerateParamBFV : impl::GenerateParamBFVBase<GenerateParamBFV> {
 
     getOperation()->walk([&](secret::GenericOp genericOp) {
       // find the max noise
-      genericOp.getBody()->walk([&](Operation *op) {
+      genericOp.getBody()->walk([&](Operation* op) {
         for (Value result : op->getResults()) {
           auto bound = getBound(result);
           maxNoiseBound = std::max(maxNoiseBound, bound);
@@ -125,7 +125,7 @@ struct GenerateParamBFV : impl::GenerateParamBFVBase<GenerateParamBFV> {
   }
 
   template <typename NoiseModel>
-  void run(const NoiseModel &model) {
+  void run(const NoiseModel& model) {
     std::optional<int> maxLevel = getMaxLevel(getOperation());
 
     // plaintext modulus from command line option

@@ -12,7 +12,7 @@ TEST(PolynomialTest, TestDouble) {
   FloatPolynomial polynomial = FloatPolynomial::fromCoefficients({1., 2., 3.});
   FloatPolynomial result = polynomial.add(polynomial);
   int degree = 0;
-  for (const FloatMonomial &term : result.getTerms()) {
+  for (const FloatMonomial& term : result.getTerms()) {
     EXPECT_EQ(term.getCoefficient(), APFloat(2.0 * (1 + degree)));
     ++degree;
   }
@@ -30,7 +30,7 @@ TEST(PolynomialTest, TestMonomialMul) {
   FloatPolynomial polynomial = FloatPolynomial::fromCoefficients({1., 2., 3.});
   FloatPolynomial result = polynomial.monomialMul(2);
   int i = 0;
-  for (const FloatMonomial &term : polynomial.getTerms()) {
+  for (const FloatMonomial& term : polynomial.getTerms()) {
     auto resultTerm = result.getTerms()[i];
     EXPECT_EQ(term.getCoefficient(), resultTerm.getCoefficient());
     EXPECT_EQ(term.getExponent() + 2, resultTerm.getExponent());
@@ -42,7 +42,7 @@ TEST(PolynomialTest, TestScale) {
   FloatPolynomial polynomial = FloatPolynomial::fromCoefficients({1., 2., 3.});
   FloatPolynomial result = polynomial.scale(APFloat(5.));
   int i = 0;
-  for (const FloatMonomial &term : polynomial.getTerms()) {
+  for (const FloatMonomial& term : polynomial.getTerms()) {
     auto resultTerm = result.getTerms()[i];
     EXPECT_EQ(term.getCoefficient() * APFloat(5.), resultTerm.getCoefficient());
     EXPECT_EQ(term.getExponent(), resultTerm.getExponent());

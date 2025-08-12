@@ -20,8 +20,8 @@ namespace mlir::heir::ckks {
 
 struct CKKSToLWE : public impl::CKKSToLWEBase<CKKSToLWE> {
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
-    auto *module = getOperation();
+    MLIRContext* context = &getContext();
+    auto* module = getOperation();
 
     RewritePatternSet patterns(context);
     patterns

@@ -28,15 +28,15 @@ namespace tfhe_rust {
 void registerToTfheRustHLTranslation();
 
 /// Translates the given operation to TfheRustHL.
-::mlir::LogicalResult translateToTfheRustHL(::mlir::Operation *op,
-                                            llvm::raw_ostream &os);
+::mlir::LogicalResult translateToTfheRustHL(::mlir::Operation* op,
+                                            llvm::raw_ostream& os);
 
 class TfheRustHLEmitter {
  public:
-  TfheRustHLEmitter(raw_ostream &os, SelectVariableNames *variableNames);
+  TfheRustHLEmitter(raw_ostream& os, SelectVariableNames* variableNames);
 
-  LogicalResult translate(::mlir::Operation &operation);
-  bool containsVectorOperands(Operation *op);
+  LogicalResult translate(::mlir::Operation& operation);
+  bool containsVectorOperands(Operation* op);
 
  private:
   /// Output stream to emit to.
@@ -44,7 +44,7 @@ class TfheRustHLEmitter {
 
   /// Pre-populated analysis selecting unique variable names for all the SSA
   /// values.
-  SelectVariableNames *variableNames;
+  SelectVariableNames* variableNames;
 
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);

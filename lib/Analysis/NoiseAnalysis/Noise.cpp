@@ -24,7 +24,7 @@ std::string NoiseState::toString() const {
   }
 }
 
-NoiseState NoiseState::operator+(const NoiseState &rhs) const {
+NoiseState NoiseState::operator+(const NoiseState& rhs) const {
   assert(isKnown() && rhs.isKnown());
 
   auto value = getLog2Arithmetic() + rhs.getLog2Arithmetic();
@@ -33,7 +33,7 @@ NoiseState NoiseState::operator+(const NoiseState &rhs) const {
   return NoiseState(NoiseType::SET, value, degree);
 }
 
-NoiseState NoiseState::operator*(const NoiseState &rhs) const {
+NoiseState NoiseState::operator*(const NoiseState& rhs) const {
   assert(isKnown() && rhs.isKnown());
 
   auto value = getLog2Arithmetic() * rhs.getLog2Arithmetic();
@@ -42,11 +42,11 @@ NoiseState NoiseState::operator*(const NoiseState &rhs) const {
   return NoiseState(NoiseType::SET, value, degree);
 }
 
-llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const NoiseState &noise) {
+llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const NoiseState& noise) {
   return os << noise.toString();
 }
 
-Diagnostic &operator<<(Diagnostic &diagnostic, const NoiseState &noise) {
+Diagnostic& operator<<(Diagnostic& diagnostic, const NoiseState& noise) {
   return diagnostic << noise.toString();
 }
 

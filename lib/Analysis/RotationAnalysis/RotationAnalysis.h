@@ -56,7 +56,7 @@ class PartialReduction {
            accessedIndices.size() == (size_t)tensorType.getShape()[0];
   }
 
-  const std::set<int64_t> &getAccessedIndices() const {
+  const std::set<int64_t>& getAccessedIndices() const {
     return accessedIndices;
   }
 
@@ -64,9 +64,9 @@ class PartialReduction {
 
   Value getRoot() const { return root; }
 
-  const SmallVector<Value> &getSavedValues() const { return savedValues; }
+  const SmallVector<Value>& getSavedValues() const { return savedValues; }
 
-  void print(raw_ostream &os) const {
+  void print(raw_ostream& os) const {
     os << "{ opName: " << (opName.has_value() ? opName->getStringRef() : "None")
        << "; " << " tensor: " << tensor << "; " << "rotations: [";
     for (auto index : accessedIndices) {
@@ -100,7 +100,7 @@ class PartialReduction {
   // Shift the rotation indices by the given amount. This helps in a situation
   // where an IR repeatedly rotates by 1, to ensure that rotations accumulate
   // like {1, 2, 3, ...} rather than {1, 1, 1, ...}
-  static PartialReduction rotate(const PartialReduction &lhs,
+  static PartialReduction rotate(const PartialReduction& lhs,
                                  const int64_t shift, Value result) {
     // only tensor can rotate
     assert(lhs.savedValues.empty() &&
@@ -134,7 +134,7 @@ class PartialReduction {
 
   // Determine if two PartialRotations are legal to join at an op whose
   // OperationName is given.
-  static bool canJoin(const PartialReduction &lhs, const PartialReduction &rhs,
+  static bool canJoin(const PartialReduction& lhs, const PartialReduction& rhs,
                       OperationName opName) {
     if (lhs.tensor != rhs.tensor) {
       return false;
@@ -176,8 +176,8 @@ class PartialReduction {
 
   // Join two partial reductions. This assumes the lhs and rhs have already
   // been checked to have compatible tensors and opNames via canJoin.
-  static PartialReduction join(const PartialReduction &lhs,
-                               const PartialReduction &rhs, Value newRoot,
+  static PartialReduction join(const PartialReduction& lhs,
+                               const PartialReduction& rhs, Value newRoot,
                                OperationName opName) {
     assert(!lhs.accessedIndices.empty() &&
            "Internal state of RotationAnalysis is broken; empty rotation sets "
@@ -216,7 +216,7 @@ class PartialReduction {
 
   // Determine if a Value is legal to join at an op whose
   // OperationName is given.
-  static bool canSave(const PartialReduction &lhs, Value rhs,
+  static bool canSave(const PartialReduction& lhs, Value rhs,
                       OperationName opName) {
     // If the lhs op is not set, then any op is legal.
     if (lhs.opName.has_value() && *lhs.opName != opName) {
@@ -239,7 +239,7 @@ class PartialReduction {
 
   // Save value within a partial reduction. This assumes the lhs and rhs have
   // already been checked to have compatible opNames via canSave.
-  static PartialReduction save(const PartialReduction &lhs, Value rhs,
+  static PartialReduction save(const PartialReduction& lhs, Value rhs,
                                Value newRoot, OperationName opName) {
     assert(!lhs.accessedIndices.empty() &&
            "Internal state of RotationAnalysis is broken; empty rotation sets "
@@ -300,7 +300,7 @@ class PartialReduction {
   SmallVector<Value> savedValues;
 };
 
-inline raw_ostream &operator<<(raw_ostream &os, const PartialReduction &v) {
+inline raw_ostream& operator<<(raw_ostream& os, const PartialReduction& v) {
   v.print(os);
   return os;
 }
@@ -319,10 +319,10 @@ class RotationAnalysis {
   // The constructor requires a DataFlowSolver initialized with a sparse
   // constant propagation analysis, which is used to determine the static
   // values of rotation shifts.
-  RotationAnalysis(const DataFlowSolver &solver) : solver(solver) {}
+  RotationAnalysis(const DataFlowSolver& solver) : solver(solver) {}
   ~RotationAnalysis() = default;
 
-  void run(Operation *op);
+  void run(Operation* op);
 
   /// Add partial reduction
   void addPartialReduction(PartialReduction reduction) {
@@ -337,7 +337,7 @@ class RotationAnalysis {
     }
   }
 
-  const std::vector<PartialReduction> &getRootedReductionsAt(
+  const std::vector<PartialReduction>& getRootedReductionsAt(
       Value value) const {
     return rootToPartialReductions.at(value);
   }
@@ -349,7 +349,7 @@ class RotationAnalysis {
  private:
   // The constant propagation analysis used to determine the static values of
   // rotation shifts.
-  const DataFlowSolver &solver;
+  const DataFlowSolver& solver;
 
   // A mapping from a root of a PartialReduction to its PartitalReduction. Note
   // each tensor SSA value can be the root of many partial reductions.

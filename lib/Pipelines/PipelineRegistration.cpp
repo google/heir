@@ -36,7 +36,7 @@ using mlir::func::FuncOp;
 
 namespace mlir::heir {
 
-void tosaToLinalg(OpPassManager &manager) {
+void tosaToLinalg(OpPassManager& manager) {
   manager.addNestedPass<FuncOp>(createTosaToLinalgNamed());
   manager.addNestedPass<FuncOp>(createTosaToLinalg());
   manager.addNestedPass<FuncOp>(createTosaToArithPass({true, false}));
@@ -47,7 +47,7 @@ void tosaToLinalg(OpPassManager &manager) {
   manager.addPass(bufferization::createEmptyTensorToAllocTensorPass());
 }
 
-void oneShotBufferize(OpPassManager &manager) {
+void oneShotBufferize(OpPassManager& manager) {
   // One-shot bufferize, from
   // https://mlir.llvm.org/docs/Bufferization/#ownership-based-buffer-deallocation
   bufferization::OneShotBufferizePassOptions bufferizationOptions;
@@ -64,7 +64,7 @@ void oneShotBufferize(OpPassManager &manager) {
   manager.addPass(createCanonicalizerPass());
 }
 
-void tosaPipelineBuilder(OpPassManager &manager, bool unroll) {
+void tosaPipelineBuilder(OpPassManager& manager, bool unroll) {
   // TOSA to linalg
   tosaToLinalg(manager);
   // Bufferize
@@ -91,7 +91,7 @@ void tosaPipelineBuilder(OpPassManager &manager, bool unroll) {
   manager.addPass(createSymbolDCEPass());
 }
 
-void polynomialToLLVMPipelineBuilder(OpPassManager &manager) {
+void polynomialToLLVMPipelineBuilder(OpPassManager& manager) {
   // Poly
   manager.addPass(createElementwiseToAffine());
   manager.addPass(polynomial::createPolynomialToModArith());
@@ -140,7 +140,7 @@ void polynomialToLLVMPipelineBuilder(OpPassManager &manager) {
   manager.addPass(createSymbolDCEPass());
 }
 
-void basicMLIRToLLVMPipelineBuilder(OpPassManager &manager) {
+void basicMLIRToLLVMPipelineBuilder(OpPassManager& manager) {
   // Linalg
   manager.addNestedPass<FuncOp>(createConvertElementwiseToLinalgPass());
   // Needed to lower affine.map and affine.apply
@@ -177,7 +177,7 @@ void basicMLIRToLLVMPipelineBuilder(OpPassManager &manager) {
   manager.addPass(createSymbolDCEPass());
 }
 
-void convertToDataObliviousPipelineBuilder(OpPassManager &manager) {
+void convertToDataObliviousPipelineBuilder(OpPassManager& manager) {
   // Access Transformation
   manager.addPass(createConvertSecretExtractToStaticExtract());
   manager.addPass(createConvertSecretInsertToStaticInsert());

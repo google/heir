@@ -37,7 +37,7 @@ namespace mlir::heir {
 
 class CGGIToTfheRustBoolTypeConverter : public TypeConverter {
  public:
-  CGGIToTfheRustBoolTypeConverter(MLIRContext *ctx) {
+  CGGIToTfheRustBoolTypeConverter(MLIRContext* ctx) {
     addConversion([](Type type) { return type; });
     addConversion([ctx](lwe::LWECiphertextType type) -> Type {
       return tfhe_rust_bool::EncryptedBoolType::get(ctx);
@@ -51,7 +51,7 @@ class CGGIToTfheRustBoolTypeConverter : public TypeConverter {
 
 /// Returns the Value corresponding to a server key in the FuncOp containing
 /// this op.
-FailureOr<Value> getContextualBoolServerKey(Operation *op) {
+FailureOr<Value> getContextualBoolServerKey(Operation* op) {
   Value serverKey = op->getParentOfType<func::FuncOp>()
                         .getBody()
                         .getBlocks()
@@ -70,14 +70,14 @@ FailureOr<Value> getContextualBoolServerKey(Operation *op) {
 /// patterns need a server key SSA value available, so this pattern needs a
 /// higher benefit.
 struct AddBoolServerKeyArg : public OpConversionPattern<func::FuncOp> {
-  AddBoolServerKeyArg(mlir::MLIRContext *context)
+  AddBoolServerKeyArg(mlir::MLIRContext* context)
       : OpConversionPattern<func::FuncOp>(context, /* benefit= */ 2) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       func::FuncOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     if (!containsDialects<lwe::LWEDialect, cggi::CGGIDialect>(op)) {
       return failure();
     }
@@ -102,7 +102,7 @@ struct ConvertCGGITRBBinOp : public OpConversionPattern<BinOp> {
 
   LogicalResult matchAndRewrite(
       BinOp op, typename BinOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op->getLoc(), rewriter);
     FailureOr<Value> result = getContextualBoolServerKey(op);
     if (failed(result)) return result;
@@ -117,14 +117,14 @@ struct ConvertCGGITRBBinOp : public OpConversionPattern<BinOp> {
 };
 
 struct ConvertBoolNotOp : public OpConversionPattern<cggi::NotOp> {
-  ConvertBoolNotOp(mlir::MLIRContext *context)
+  ConvertBoolNotOp(mlir::MLIRContext* context)
       : OpConversionPattern<cggi::NotOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       cggi::NotOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op->getLoc(), rewriter);
     FailureOr<Value> result = getContextualBoolServerKey(op);
     if (failed(result)) return result;
@@ -138,20 +138,20 @@ struct ConvertBoolNotOp : public OpConversionPattern<cggi::NotOp> {
 };
 
 struct ConvertPackedOp : public OpConversionPattern<cggi::PackedOp> {
-  ConvertPackedOp(mlir::MLIRContext *context)
+  ConvertPackedOp(mlir::MLIRContext* context)
       : OpConversionPattern<cggi::PackedOp>(context, /*benefit=*/1) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       cggi::PackedOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op->getLoc(), rewriter);
     FailureOr<Value> result = getContextualBoolServerKey(op);
     if (failed(result)) return result;
 
     Value serverKey = result.value();
-    auto *context = getContext();
+    auto* context = getContext();
     SmallVector<tfhe_rust_bool::TfheRustBoolGateEnumAttr, 4>
         vectorizedGateOperands;
 
@@ -179,14 +179,14 @@ struct ConvertPackedOp : public OpConversionPattern<cggi::PackedOp> {
 
 struct ConvertBoolTrivialEncryptOp
     : public OpConversionPattern<lwe::TrivialEncryptOp> {
-  ConvertBoolTrivialEncryptOp(mlir::MLIRContext *context)
+  ConvertBoolTrivialEncryptOp(mlir::MLIRContext* context)
       : OpConversionPattern<lwe::TrivialEncryptOp>(context, /*benefit=*/1) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       lwe::TrivialEncryptOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result = getContextualBoolServerKey(op.getOperation());
     if (failed(result)) return result;
 
@@ -207,14 +207,14 @@ struct ConvertBoolTrivialEncryptOp
 };
 
 struct ConvertBoolEncodeOp : public OpConversionPattern<lwe::EncodeOp> {
-  ConvertBoolEncodeOp(mlir::MLIRContext *context)
+  ConvertBoolEncodeOp(mlir::MLIRContext* context)
       : OpConversionPattern<lwe::EncodeOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       lwe::EncodeOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     rewriter.eraseOp(op);
     return success();
   }
@@ -223,8 +223,8 @@ struct ConvertBoolEncodeOp : public OpConversionPattern<lwe::EncodeOp> {
 class CGGIToTfheRustBool
     : public impl::CGGIToTfheRustBoolBase<CGGIToTfheRustBool> {
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
-    auto *op = getOperation();
+    MLIRContext* context = &getContext();
+    auto* op = getOperation();
 
     CGGIToTfheRustBoolTypeConverter typeConverter(context);
     RewritePatternSet patterns(context);
@@ -255,7 +255,7 @@ class CGGIToTfheRustBool
                                  memref::StoreOp, memref::LoadOp,
                                  memref::SubViewOp, memref::CopyOp,
                                  tensor::FromElementsOp, tensor::ExtractOp>(
-        [&](Operation *op) {
+        [&](Operation* op) {
           return typeConverter.isLegal(op->getOperandTypes()) &&
                  typeConverter.isLegal(op->getResultTypes());
         });

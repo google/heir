@@ -20,22 +20,22 @@ namespace heir {
 // operation.
 FailureOr<Value> implementAssignLayout(
     tensor_ext::AssignLayoutOp op, int64_t ciphertextSize,
-    ImplicitLocOpBuilder &builder,
-    const std::function<void(Operation *)> &createdOpCallback);
+    ImplicitLocOpBuilder& builder,
+    const std::function<void(Operation*)>& createdOpCallback);
 
 // Lower tensor_ext.unpack. Returns the final value produced by the unpacking
 // implementation. Applies createdOpCallback to each created operation.
 Value implementUnpackOp(
-    tensor_ext::UnpackOp op, ImplicitLocOpBuilder &builder,
-    const std::function<void(Operation *)> &createdOpCallback =
-        [](Operation *op) {});
+    tensor_ext::UnpackOp op, ImplicitLocOpBuilder& builder,
+    const std::function<void(Operation*)>& createdOpCallback =
+        [](Operation* op) {});
 
 // A pattern to wrap implementUnpackOp
 struct LowerUnpackOp : public OpRewritePattern<tensor_ext::UnpackOp> {
   using OpRewritePattern<tensor_ext::UnpackOp>::OpRewritePattern;
 
   LogicalResult matchAndRewrite(tensor_ext::UnpackOp op,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder builder(op.getLoc(), rewriter);
     rewriter.replaceOp(op, implementUnpackOp(op, builder));
     return success();

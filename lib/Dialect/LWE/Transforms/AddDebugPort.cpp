@@ -25,7 +25,7 @@ namespace lwe {
 #include "lib/Dialect/LWE/Transforms/Passes.h.inc"
 
 FailureOr<Type> getPrivateKeyType(func::FuncOp op) {
-  const auto *type = llvm::find_if(op.getArgumentTypes(), [](Type type) {
+  const auto* type = llvm::find_if(op.getArgumentTypes(), [](Type type) {
     return mlir::isa<LWECiphertextType>(type);
   });
 
@@ -44,11 +44,11 @@ FailureOr<Type> getPrivateKeyType(func::FuncOp op) {
 
 func::FuncOp getOrCreateExternalDebugFunc(
     ModuleOp module, Type lwePrivateKeyType,
-    LWECiphertextType lweCiphertextType, const DenseMap<Type, int> &typeToInt) {
+    LWECiphertextType lweCiphertextType, const DenseMap<Type, int>& typeToInt) {
   std::string funcName =
       "__heir_debug_" + std::to_string(typeToInt.at(lweCiphertextType));
 
-  auto *context = module.getContext();
+  auto* context = module.getContext();
   auto lookup = module.lookupSymbol<func::FuncOp>(funcName);
   if (lookup) return lookup;
 
@@ -87,7 +87,7 @@ LogicalResult insertExternalCall(func::FuncOp op, Type lwePrivateKeyType) {
       // get attribute associated with value
       SmallVector<NamedAttribute> attrs;
       if (auto blockArg = dyn_cast<BlockArgument>(value)) {
-        auto *parentOp = blockArg.getOwner()->getParentOp();
+        auto* parentOp = blockArg.getOwner()->getParentOp();
         auto funcOp = dyn_cast<FunctionOpInterface>(parentOp);
         if (funcOp) {
           // always dialect attr
@@ -96,7 +96,7 @@ LogicalResult insertExternalCall(func::FuncOp op, Type lwePrivateKeyType) {
           }
         }
       } else {
-        auto *parentOp = value.getDefiningOp();
+        auto* parentOp = value.getDefiningOp();
         for (auto namedAttr : parentOp->getDialectAttrs()) {
           attrs.push_back(namedAttr);
         }
@@ -130,7 +130,7 @@ LogicalResult insertExternalCall(func::FuncOp op, Type lwePrivateKeyType) {
   }
 
   // insert after each HE op
-  op.walk([&](Operation *op) {
+  op.walk([&](Operation* op) {
     b.setInsertionPointAfter(op);
     for (Value result : op->getResults()) {
       insertCall(result);

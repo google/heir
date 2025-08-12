@@ -33,7 +33,7 @@ using ::mlir::func::CallOp;
 using ::mlir::func::FuncOp;
 using ::mlir::func::ReturnOp;
 
-static Value materializeSource(OpBuilder &builder, Type type, ValueRange inputs,
+static Value materializeSource(OpBuilder& builder, Type type, ValueRange inputs,
                                Location loc) {
   assert(inputs.size() == 1);
   auto inputType = inputs[0].getType();
@@ -46,7 +46,7 @@ static Value materializeSource(OpBuilder &builder, Type type, ValueRange inputs,
   return ConcealOp::create(builder, loc, inputs[0]);
 }
 
-static Value materializeTarget(OpBuilder &builder, Type type, ValueRange inputs,
+static Value materializeTarget(OpBuilder& builder, Type type, ValueRange inputs,
                                Location loc) {
   assert(inputs.size() == 1);
   auto inputType = inputs[0].getType();
@@ -71,28 +71,28 @@ class ForgetSecretsTypeConverter : public TypeConverter {
 };
 
 struct ConvertGeneric : public OpConversionPattern<GenericOp> {
-  ConvertGeneric(mlir::MLIRContext *context)
+  ConvertGeneric(mlir::MLIRContext* context)
       : OpConversionPattern<GenericOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       GenericOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     op.inlineInPlaceDroppingSecrets(rewriter, adaptor.getOperands());
     return success();
   }
 };
 
 struct ConvertCast : public OpConversionPattern<CastOp> {
-  ConvertCast(mlir::MLIRContext *context)
+  ConvertCast(mlir::MLIRContext* context)
       : OpConversionPattern<CastOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       CastOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     auto sourceType = adaptor.getInput().getType();
     auto targetType = getTypeConverter()->convertType(op.getResult().getType());
 
@@ -129,8 +129,8 @@ struct ForgetSecrets : impl::SecretForgetSecretsBase<ForgetSecrets> {
   using SecretForgetSecretsBase::SecretForgetSecretsBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
-    auto *func = getOperation();
+    MLIRContext* context = &getContext();
+    auto* func = getOperation();
     ConversionTarget target(*context);
     ForgetSecretsTypeConverter typeConverter;
 

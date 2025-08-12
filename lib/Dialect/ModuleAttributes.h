@@ -22,22 +22,22 @@ constexpr const static ::llvm::StringLiteral kCKKSSchemeAttrName =
 constexpr const static ::llvm::StringLiteral kCGGISchemeAttrName =
     "scheme.cggi";
 
-bool moduleIsBGV(Operation *moduleOp);
-bool moduleIsBFV(Operation *moduleOp);
-bool moduleIsBGVOrBFV(Operation *moduleOp);
-bool moduleIsCKKS(Operation *moduleOp);
-bool moduleIsCGGI(Operation *moduleOp);
+bool moduleIsBGV(Operation* moduleOp);
+bool moduleIsBFV(Operation* moduleOp);
+bool moduleIsBGVOrBFV(Operation* moduleOp);
+bool moduleIsCKKS(Operation* moduleOp);
+bool moduleIsCGGI(Operation* moduleOp);
 
 // Fetch the scheme parameter attribute from the parent module op. This
 // parameter is only set on the module after a parameter selection pass runs.
-Attribute getSchemeParamAttr(Operation *op);
+Attribute getSchemeParamAttr(Operation* op);
 
-void moduleClearScheme(Operation *moduleOp);
+void moduleClearScheme(Operation* moduleOp);
 
-void moduleSetBGV(Operation *moduleOp);
-void moduleSetBFV(Operation *moduleOp);
-void moduleSetCKKS(Operation *moduleOp);
-void moduleSetCGGI(Operation *moduleOp);
+void moduleSetBGV(Operation* moduleOp);
+void moduleSetBFV(Operation* moduleOp);
+void moduleSetCKKS(Operation* moduleOp);
+void moduleSetCGGI(Operation* moduleOp);
 
 /*===----------------------------------------------------------------------===*/
 // Module Attributes for Backend
@@ -50,13 +50,13 @@ constexpr const static ::llvm::StringLiteral kOpenfheBackendAttrName =
 constexpr const static ::llvm::StringLiteral kLattigoBackendAttrName =
     "backend.lattigo";
 
-bool moduleIsOpenfhe(Operation *moduleOp);
-bool moduleIsLattigo(Operation *moduleOp);
+bool moduleIsOpenfhe(Operation* moduleOp);
+bool moduleIsLattigo(Operation* moduleOp);
 
-void moduleClearBackend(Operation *moduleOp);
+void moduleClearBackend(Operation* moduleOp);
 
-void moduleSetOpenfhe(Operation *moduleOp);
-void moduleSetLattigo(Operation *moduleOp);
+void moduleSetOpenfhe(Operation* moduleOp);
+void moduleSetLattigo(Operation* moduleOp);
 
 // Func attributes for client helpers
 //
@@ -71,7 +71,7 @@ constexpr const static ::llvm::StringLiteral kClientEncFuncAttrName =
 constexpr const static ::llvm::StringLiteral kClientDecFuncAttrName =
     "client.dec_func";
 
-inline bool isClientHelper(Operation *op) {
+inline bool isClientHelper(Operation* op) {
   return op->hasAttr(kClientDecFuncAttrName) ||
          op->hasAttr(kClientDecFuncAttrName);
 }

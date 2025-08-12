@@ -35,12 +35,12 @@ namespace mlir::heir::arith {
 #include "lib/Dialect/Arith/Conversions/ArithToCGGI/ArithToCGGI.h.inc"
 
 static lwe::LWECiphertextType convertArithToCGGIType(IntegerType type,
-                                                     MLIRContext *ctx) {
+                                                     MLIRContext* ctx) {
   return lwe::getDefaultCGGICiphertextType(ctx, type.getIntOrFloatBitWidth(),
                                            type.getIntOrFloatBitWidth());
 }
 
-static Type convertArithLikeToCGGIType(ShapedType type, MLIRContext *ctx) {
+static Type convertArithLikeToCGGIType(ShapedType type, MLIRContext* ctx) {
   if (auto arithType = llvm::dyn_cast<IntegerType>(type.getElementType())) {
     return type.cloneWith(type.getShape(),
                           convertArithToCGGIType(arithType, ctx));
@@ -49,8 +49,8 @@ static Type convertArithLikeToCGGIType(ShapedType type, MLIRContext *ctx) {
 }
 
 // Function to check if an operation is allowed to remain in the Arith dialect
-static bool allowedRemainArith(Operation *op) {
-  return llvm::TypeSwitch<Operation *, bool>(op)
+static bool allowedRemainArith(Operation* op) {
+  return llvm::TypeSwitch<Operation*, bool>(op)
       .Case<mlir::arith::ConstantOp>([](auto op) {
         // This lambda will be called for any of the matched operation types
         return true;
@@ -64,7 +64,7 @@ static bool allowedRemainArith(Operation *op) {
       .Case<mlir::arith::ExtUIOp, mlir::arith::ExtSIOp, mlir::arith::TruncIOp>(
           [](auto op) {
             // This lambda will be called for any of the matched operation types
-            if (auto *defOp = op.getIn().getDefiningOp()) {
+            if (auto* defOp = op.getIn().getDefiningOp()) {
               return allowedRemainArith(defOp);
             }
             return false;
@@ -81,23 +81,23 @@ static bool allowedRemainArith(Operation *op) {
             }
             return false;
           })
-      .Default([](Operation *) {
+      .Default([](Operation*) {
         // Default case for operations that don't match any of the types
         return false;
       });
 }
 
-static bool hasLWEAnnotation(Operation *op) {
+static bool hasLWEAnnotation(Operation* op) {
   mlir::StringAttr check =
       op->getAttrOfType<mlir::StringAttr>("lwe_annotation");
 
   if (check) return true;
 
   // Check recursively if a defining op has a LWE annotation
-  return llvm::TypeSwitch<Operation *, bool>(op)
+  return llvm::TypeSwitch<Operation*, bool>(op)
       .Case<mlir::arith::ExtUIOp, mlir::arith::ExtSIOp, mlir::arith::TruncIOp>(
           [](auto op) {
-            if (auto *defOp = op.getIn().getDefiningOp()) {
+            if (auto* defOp = op.getIn().getDefiningOp()) {
               return hasLWEAnnotation(defOp);
             }
             return op->template getAttrOfType<mlir::StringAttr>(
@@ -115,10 +115,10 @@ static bool hasLWEAnnotation(Operation *op) {
             }
             return false;
           })
-      .Default([](Operation *) { return false; });
+      .Default([](Operation*) { return false; });
 }
 
-static Value materializeTarget(OpBuilder &builder, Type type, ValueRange inputs,
+static Value materializeTarget(OpBuilder& builder, Type type, ValueRange inputs,
                                Location loc) {
   assert(inputs.size() == 1);
   auto inputType = inputs[0].getType();
@@ -155,7 +155,7 @@ static Value materializeTarget(OpBuilder &builder, Type type, ValueRange inputs,
 
 class ArithToCGGITypeConverter : public TypeConverter {
  public:
-  ArithToCGGITypeConverter(MLIRContext *ctx) {
+  ArithToCGGITypeConverter(MLIRContext* ctx) {
     addConversion([](Type type) { return type; });
 
     // Convert Integer types to LWE ciphertext types
@@ -174,14 +174,14 @@ class ArithToCGGITypeConverter : public TypeConverter {
 };
 
 struct ConvertTruncIOp : public OpConversionPattern<mlir::arith::TruncIOp> {
-  ConvertTruncIOp(mlir::MLIRContext *context)
+  ConvertTruncIOp(mlir::MLIRContext* context)
       : OpConversionPattern<mlir::arith::TruncIOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       mlir::arith::TruncIOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     auto outType = convertArithToCGGIType(
@@ -195,14 +195,14 @@ struct ConvertTruncIOp : public OpConversionPattern<mlir::arith::TruncIOp> {
 };
 
 struct ConvertExtUIOp : public OpConversionPattern<mlir::arith::ExtUIOp> {
-  ConvertExtUIOp(mlir::MLIRContext *context)
+  ConvertExtUIOp(mlir::MLIRContext* context)
       : OpConversionPattern<mlir::arith::ExtUIOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       mlir::arith::ExtUIOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     auto outType = convertArithToCGGIType(
@@ -216,14 +216,14 @@ struct ConvertExtUIOp : public OpConversionPattern<mlir::arith::ExtUIOp> {
 };
 
 struct ConvertExtSIOp : public OpConversionPattern<mlir::arith::ExtSIOp> {
-  ConvertExtSIOp(mlir::MLIRContext *context)
+  ConvertExtSIOp(mlir::MLIRContext* context)
       : OpConversionPattern<mlir::arith::ExtSIOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       mlir::arith::ExtSIOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     auto outType = convertArithToCGGIType(
@@ -237,20 +237,20 @@ struct ConvertExtSIOp : public OpConversionPattern<mlir::arith::ExtSIOp> {
 };
 
 struct ConvertCmpOp : public OpConversionPattern<mlir::arith::CmpIOp> {
-  ConvertCmpOp(mlir::MLIRContext *context)
+  ConvertCmpOp(mlir::MLIRContext* context)
       : OpConversionPattern<mlir::arith::CmpIOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       mlir::arith::CmpIOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     auto lweBooleanType =
         lwe::getDefaultCGGICiphertextType(op->getContext(), 1);
 
-    if (auto *lhsDefOp = op.getLhs().getDefiningOp()) {
+    if (auto* lhsDefOp = op.getLhs().getDefiningOp()) {
       if (!hasLWEAnnotation(lhsDefOp) && allowedRemainArith(lhsDefOp)) {
         auto result = cggi::CmpOp::create(b, lweBooleanType, op.getPredicate(),
                                           adaptor.getRhs(), op.getLhs());
@@ -259,7 +259,7 @@ struct ConvertCmpOp : public OpConversionPattern<mlir::arith::CmpIOp> {
       }
     }
 
-    if (auto *rhsDefOp = op.getRhs().getDefiningOp()) {
+    if (auto* rhsDefOp = op.getRhs().getDefiningOp()) {
       if (!hasLWEAnnotation(rhsDefOp) && allowedRemainArith(rhsDefOp)) {
         auto result = cggi::CmpOp::create(b, lweBooleanType, op.getPredicate(),
                                           adaptor.getLhs(), op.getRhs());
@@ -277,14 +277,14 @@ struct ConvertCmpOp : public OpConversionPattern<mlir::arith::CmpIOp> {
 };
 
 struct ConvertSubOp : public OpConversionPattern<mlir::arith::SubIOp> {
-  ConvertSubOp(mlir::MLIRContext *context)
+  ConvertSubOp(mlir::MLIRContext* context)
       : OpConversionPattern<mlir::arith::SubIOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       mlir::arith::SubIOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     if (auto rhsDefOp = op.getRhs().getDefiningOp()) {
@@ -304,14 +304,14 @@ struct ConvertSubOp : public OpConversionPattern<mlir::arith::SubIOp> {
 };
 
 struct ConvertSelectOp : public OpConversionPattern<mlir::arith::SelectOp> {
-  ConvertSelectOp(mlir::MLIRContext *context)
+  ConvertSelectOp(mlir::MLIRContext* context)
       : OpConversionPattern<mlir::arith::SelectOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       mlir::arith::SelectOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     auto cmuxOp = cggi::SelectOp::create(
@@ -325,14 +325,14 @@ struct ConvertSelectOp : public OpConversionPattern<mlir::arith::SelectOp> {
 
 template <typename SourceArithShOp, typename TargetCGGIShOp>
 struct ConvertShOp : public OpConversionPattern<SourceArithShOp> {
-  ConvertShOp(mlir::MLIRContext *context)
+  ConvertShOp(mlir::MLIRContext* context)
       : OpConversionPattern<SourceArithShOp>(context) {}
 
   using OpConversionPattern<SourceArithShOp>::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       SourceArithShOp op, typename SourceArithShOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     auto cteShiftSizeOp =
@@ -376,14 +376,14 @@ struct ConvertShOp : public OpConversionPattern<SourceArithShOp> {
 
 template <typename SourceArithOp, typename TargetCGGIOp>
 struct ConvertArithBinOp : public OpConversionPattern<SourceArithOp> {
-  ConvertArithBinOp(mlir::MLIRContext *context)
+  ConvertArithBinOp(mlir::MLIRContext* context)
       : OpConversionPattern<SourceArithOp>(context) {}
 
   using OpConversionPattern<SourceArithOp>::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       SourceArithOp op, typename SourceArithOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     if (auto lhsDefOp = op.getLhs().getDefiningOp()) {
@@ -412,17 +412,17 @@ struct ConvertArithBinOp : public OpConversionPattern<SourceArithOp> {
 };
 
 struct ConvertAllocOp : public OpConversionPattern<mlir::memref::AllocOp> {
-  ConvertAllocOp(mlir::MLIRContext *context)
+  ConvertAllocOp(mlir::MLIRContext* context)
       : OpConversionPattern<mlir::memref::AllocOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       mlir::memref::AllocOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    for (auto *userOp : op->getUsers()) {
+    for (auto* userOp : op->getUsers()) {
       userOp->setAttr("lwe_annotation",
                       mlir::StringAttr::get(userOp->getContext(), "LWE"));
     }
@@ -437,8 +437,8 @@ struct ConvertAllocOp : public OpConversionPattern<mlir::memref::AllocOp> {
 
 struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
-    auto *module = getOperation();
+    MLIRContext* context = &getContext();
+    auto* module = getOperation();
     ArithToCGGITypeConverter typeConverter(context);
 
     RewritePatternSet patterns(context);
@@ -448,9 +448,9 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
     target.addLegalOp<mlir::arith::ConstantOp>();
 
     target.addDynamicallyLegalOp<mlir::arith::SubIOp, mlir::arith::AddIOp,
-                                 mlir::arith::MulIOp>([&](Operation *op) {
-      if (auto *defLhsOp = op->getOperand(0).getDefiningOp()) {
-        if (auto *defRhsOp = op->getOperand(1).getDefiningOp()) {
+                                 mlir::arith::MulIOp>([&](Operation* op) {
+      if (auto* defLhsOp = op->getOperand(0).getDefiningOp()) {
+        if (auto* defRhsOp = op->getOperand(1).getDefiningOp()) {
           return !hasLWEAnnotation(defLhsOp) && !hasLWEAnnotation(defRhsOp) &&
                  allowedRemainArith(defLhsOp) && allowedRemainArith(defRhsOp);
         }
@@ -458,16 +458,16 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
       return false;
     });
 
-    target.addDynamicallyLegalOp<mlir::arith::ExtSIOp>([&](Operation *op) {
-      if (auto *defOp =
+    target.addDynamicallyLegalOp<mlir::arith::ExtSIOp>([&](Operation* op) {
+      if (auto* defOp =
               cast<mlir::arith::ExtSIOp>(op).getOperand().getDefiningOp()) {
         return !hasLWEAnnotation(defOp) && allowedRemainArith(defOp);
       }
       return false;
     });
 
-    target.addDynamicallyLegalOp<mlir::arith::ExtUIOp>([&](Operation *op) {
-      if (auto *defOp =
+    target.addDynamicallyLegalOp<mlir::arith::ExtUIOp>([&](Operation* op) {
+      if (auto* defOp =
               cast<mlir::arith::ExtUIOp>(op).getOperand().getDefiningOp()) {
         return !hasLWEAnnotation(defOp) && allowedRemainArith(defOp);
       }
@@ -476,14 +476,14 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
 
     target.addDynamicallyLegalOp<memref::SubViewOp, memref::CopyOp,
                                  tensor::FromElementsOp, tensor::ExtractOp>(
-        [&](Operation *op) {
+        [&](Operation* op) {
           return typeConverter.isLegal(op->getOperandTypes()) &&
                  typeConverter.isLegal(op->getResultTypes());
         });
 
     // Affine Def
 
-    target.addDynamicallyLegalOp<affine::AffineStoreOp>([&](Operation *op) {
+    target.addDynamicallyLegalOp<affine::AffineStoreOp>([&](Operation* op) {
       if (typeConverter.isLegal(op->getOperandTypes()) &&
           typeConverter.isLegal(op->getResultTypes())) {
         return true;
@@ -494,7 +494,7 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
         return false;
       }
 
-      if (auto *defOp =
+      if (auto* defOp =
               cast<affine::AffineStoreOp>(op).getValue().getDefiningOp()) {
         if (isa<mlir::arith::ConstantOp>(defOp) ||
             isa<mlir::memref::GetGlobalOp>(defOp)) {
@@ -505,7 +505,7 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
     });
 
     // Convert LoadOp if memref comes from an argument
-    target.addDynamicallyLegalOp<affine::AffineLoadOp>([&](Operation *op) {
+    target.addDynamicallyLegalOp<affine::AffineLoadOp>([&](Operation* op) {
       if (typeConverter.isLegal(op->getOperandTypes()) &&
           typeConverter.isLegal(op->getResultTypes())) {
         return true;
@@ -524,10 +524,10 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
       return true;
     });
 
-    target.addDynamicallyLegalOp<memref::AllocOp>([&](Operation *op) {
+    target.addDynamicallyLegalOp<memref::AllocOp>([&](Operation* op) {
       // Check if all Store ops are constants or GetGlobals, if not store op,
       // accepts Check if there is at least one Store op that is a constants
-      auto containsAnyStoreOp = llvm::any_of(op->getUses(), [&](OpOperand &op) {
+      auto containsAnyStoreOp = llvm::any_of(op->getUses(), [&](OpOperand& op) {
         if (auto defOp = dyn_cast<memref::StoreOp>(op.getOwner())) {
           return !hasLWEAnnotation(defOp.getValue().getDefiningOp()) &&
                  allowedRemainArith(defOp.getValue().getDefiningOp());
@@ -535,7 +535,7 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
         return false;
       });
       auto allStoreOpsAreArith =
-          llvm::all_of(op->getUses(), [&](OpOperand &op) {
+          llvm::all_of(op->getUses(), [&](OpOperand& op) {
             if (auto defOp = dyn_cast<memref::StoreOp>(op.getOwner())) {
               return !hasLWEAnnotation(defOp.getValue().getDefiningOp()) &&
                      allowedRemainArith(defOp.getValue().getDefiningOp());
@@ -549,7 +549,7 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
               typeConverter.isLegal(op->getResultTypes()));
     });
 
-    target.addDynamicallyLegalOp<memref::StoreOp>([&](Operation *op) {
+    target.addDynamicallyLegalOp<memref::StoreOp>([&](Operation* op) {
       if (typeConverter.isLegal(op->getOperandTypes()) &&
           typeConverter.isLegal(op->getResultTypes())) {
         return true;
@@ -560,7 +560,7 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
         return false;
       }
 
-      if (auto *defOp = cast<memref::StoreOp>(op).getValue().getDefiningOp()) {
+      if (auto* defOp = cast<memref::StoreOp>(op).getValue().getDefiningOp()) {
         if (isa<mlir::arith::ConstantOp>(defOp) ||
             isa<mlir::memref::GetGlobalOp>(defOp)) {
           return true;
@@ -570,7 +570,7 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
     });
 
     // Convert LoadOp if memref comes from an argument
-    target.addDynamicallyLegalOp<memref::LoadOp>([&](Operation *op) {
+    target.addDynamicallyLegalOp<memref::LoadOp>([&](Operation* op) {
       if (typeConverter.isLegal(op->getOperandTypes()) &&
           typeConverter.isLegal(op->getResultTypes())) {
         return true;
@@ -589,7 +589,7 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
     });
 
     // Convert Dealloc if memref comes from an argument
-    target.addDynamicallyLegalOp<memref::DeallocOp>([&](Operation *op) {
+    target.addDynamicallyLegalOp<memref::DeallocOp>([&](Operation* op) {
       if (typeConverter.isLegal(op->getOperandTypes()) &&
           typeConverter.isLegal(op->getResultTypes())) {
         return true;

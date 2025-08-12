@@ -35,10 +35,10 @@ namespace heir {
 //===----------------------------------------------------------------------===//
 
 LogicalResult LevelAnalysis::visitOperation(
-    Operation *op, ArrayRef<const LevelLattice *> operands,
-    ArrayRef<LevelLattice *> results) {
-  auto propagate = [&](Value value, const LevelState &state) {
-    auto *lattice = getLatticeElement(value);
+    Operation* op, ArrayRef<const LevelLattice*> operands,
+    ArrayRef<LevelLattice*> results) {
+  auto propagate = [&](Value value, const LevelState& state) {
+    auto* lattice = getLatticeElement(value);
     ChangeResult changed = lattice->join(state);
     propagateIfChanged(lattice, changed);
   };
@@ -46,10 +46,10 @@ LogicalResult LevelAnalysis::visitOperation(
   LLVM_DEBUG(llvm::dbgs() << "Forward Propagate visiting " << op->getName()
                           << "\n");
 
-  llvm::TypeSwitch<Operation &>(*op)
+  llvm::TypeSwitch<Operation&>(*op)
       .Case<mgmt::ModReduceOp>([&](auto modReduceOp) {
         // implicitly ensure that the operand is secret
-        const auto *operandLattice = operands[0];
+        const auto* operandLattice = operands[0];
         if (!operandLattice->getValue().isInitialized()) {
           return;
         }
@@ -58,7 +58,7 @@ LogicalResult LevelAnalysis::visitOperation(
       })
       .Case<mgmt::LevelReduceOp>([&](auto levelReduceOp) {
         // implicitly ensure that the operand is secret
-        const auto *operandLattice = operands[0];
+        const auto* operandLattice = operands[0];
         if (!operandLattice->getValue().isInitialized()) {
           return;
         }
@@ -72,7 +72,7 @@ LogicalResult LevelAnalysis::visitOperation(
         // TODO(#1207): reset level to currentLevel - bootstrapDepth
         propagate(bootstrapOp.getResult(), LevelState(0));
       })
-      .Default([&](auto &op) {
+      .Default([&](auto& op) {
         // condition on result secretness
         SmallVector<OpResult> secretResults;
         getSecretResults(&op, secretResults);
@@ -81,10 +81,10 @@ LogicalResult LevelAnalysis::visitOperation(
         }
 
         auto levelResult = 0;
-        SmallVector<OpOperand *> secretOperands;
+        SmallVector<OpOperand*> secretOperands;
         getSecretOperands(&op, secretOperands);
-        for (auto *operand : secretOperands) {
-          auto &levelState = getLatticeElement(operand->get())->getValue();
+        for (auto* operand : secretOperands) {
+          auto& levelState = getLatticeElement(operand->get())->getValue();
           if (!levelState.isInitialized()) {
             return;
           }
@@ -99,8 +99,8 @@ LogicalResult LevelAnalysis::visitOperation(
 }
 
 void LevelAnalysis::visitExternalCall(
-    CallOpInterface call, ArrayRef<const LevelLattice *> argumentLattices,
-    ArrayRef<LevelLattice *> resultLattices) {
+    CallOpInterface call, ArrayRef<const LevelLattice*> argumentLattices,
+    ArrayRef<LevelLattice*> resultLattices) {
   auto callback = std::bind(&LevelAnalysis::propagateIfChangedWrapper, this,
                             std::placeholders::_1, std::placeholders::_2);
   ::mlir::heir::visitExternalCall<LevelState, LevelLattice>(
@@ -112,10 +112,10 @@ void LevelAnalysis::visitExternalCall(
 //===----------------------------------------------------------------------===//
 
 LogicalResult LevelAnalysisBackward::visitOperation(
-    Operation *op, ArrayRef<LevelLattice *> operands,
-    ArrayRef<const LevelLattice *> results) {
-  auto propagate = [&](Value value, const LevelState &state) {
-    auto *lattice = getLatticeElement(value);
+    Operation* op, ArrayRef<LevelLattice*> operands,
+    ArrayRef<const LevelLattice*> results) {
+  auto propagate = [&](Value value, const LevelState& state) {
+    auto* lattice = getLatticeElement(value);
     ChangeResult changed = lattice->join(state);
     if (changed == ChangeResult::Change) {
       LLVM_DEBUG(llvm::dbgs()
@@ -124,7 +124,7 @@ LogicalResult LevelAnalysisBackward::visitOperation(
     propagateIfChanged(lattice, changed);
   };
 
-  llvm::TypeSwitch<Operation &>(*op).Default([&](auto &op) {
+  llvm::TypeSwitch<Operation&>(*op).Default([&](auto& op) {
     // condition on result secretness
     SmallVector<OpResult> secretResults;
     getSecretResults(&op, secretResults);
@@ -134,7 +134,7 @@ LogicalResult LevelAnalysisBackward::visitOperation(
 
     auto levelResult = 0;
     for (auto result : secretResults) {
-      auto &levelState = getLatticeElement(result)->getValue();
+      auto& levelState = getLatticeElement(result)->getValue();
       if (!levelState.isInitialized()) {
         return;
       }
@@ -142,9 +142,9 @@ LogicalResult LevelAnalysisBackward::visitOperation(
     }
 
     // only back-prop for non-secret operands
-    SmallVector<OpOperand *> nonSecretOperands;
+    SmallVector<OpOperand*> nonSecretOperands;
     getNonSecretOperands(&op, nonSecretOperands);
-    for (auto *operand : nonSecretOperands) {
+    for (auto* operand : nonSecretOperands) {
       propagate(operand->get(), LevelState(levelResult));
     }
   });
@@ -157,7 +157,7 @@ LogicalResult LevelAnalysisBackward::visitOperation(
 
 // Walk the entire IR and return the maximum assigned level of all secret
 // Values.
-static int getMaxLevel(Operation *top, DataFlowSolver *solver) {
+static int getMaxLevel(Operation* top, DataFlowSolver* solver) {
   auto maxLevel = 0;
   walkValues(top, [&](Value value) {
     if (mgmt::shouldHaveMgmtAttribute(value, solver)) {
@@ -172,7 +172,7 @@ static int getMaxLevel(Operation *top, DataFlowSolver *solver) {
 }
 
 /// baseLevel is for B/FV scheme, where all the analysis result would be 0
-void annotateLevel(Operation *top, DataFlowSolver *solver, int baseLevel) {
+void annotateLevel(Operation* top, DataFlowSolver* solver, int baseLevel) {
   auto maxLevel = getMaxLevel(top, solver);
 
   auto getIntegerAttr = [&](int level) {
@@ -208,7 +208,7 @@ LevelState::LevelType getLevelFromMgmtAttr(Value value) {
   return mgmtAttr.getLevel();
 }
 
-std::optional<int> getMaxLevel(Operation *root) {
+std::optional<int> getMaxLevel(Operation* root) {
   int maxLevel = 0;
   root->walk([&](func::FuncOp funcOp) {
     // Skip client helpers

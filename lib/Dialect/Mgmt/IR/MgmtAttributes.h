@@ -35,7 +35,7 @@ void setMgmtAttrAssociatedWith(Value value, MgmtAttr mgmtAttr);
 /// by later conversion passes, and it includes secret values (which become
 /// ciphertexts) as well as some non-secret values (e.g., the result of a
 /// mgmt.init op) which become plaintexts with specific encoding details.
-bool shouldHaveMgmtAttribute(Value value, DataFlowSolver *solver);
+bool shouldHaveMgmtAttribute(Value value, DataFlowSolver* solver);
 
 }  // namespace mgmt
 }  // namespace heir

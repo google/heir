@@ -33,7 +33,7 @@ SmallVector<int64_t> createPermutation(Value value, int64_t slots,
   int64_t minUnusedInput = 0;
   while (minUnusedInput != -1) {
     IndexTupleConsumer evaluateNextIndex =
-        [&](const std::vector<int64_t> &indices) {
+        [&](const std::vector<int64_t>& indices) {
           SmallVector<int64_t> fromResults;
           SmallVector<int64_t> toResults;
           evaluateStatic(fromLayout.getMap(), indices, fromResults);
@@ -88,7 +88,7 @@ Cost computeCostOfLayoutConversion(Value value, int64_t slots,
       shiftNetwork.computeShiftNetwork(permKey);
 
   int64_t maxRotations = 0;
-  for (const tensor_ext::RotationGroup &group : vveRotationGroups) {
+  for (const tensor_ext::RotationGroup& group : vveRotationGroups) {
     tensor_ext::ShiftStrategy rotationStrategy;
     rotationStrategy.evaluate(permKey, group);
     int64_t numRounds = rotationStrategy.getRounds().size();

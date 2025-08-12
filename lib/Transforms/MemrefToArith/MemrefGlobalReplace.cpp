@@ -39,13 +39,13 @@ namespace heir {
 // memref aliasing and copy operations are expanded.
 class MemrefGlobalLoweringPattern final : public mlir::ConversionPattern {
  public:
-  explicit MemrefGlobalLoweringPattern(mlir::MLIRContext *context)
+  explicit MemrefGlobalLoweringPattern(mlir::MLIRContext* context)
       : mlir::ConversionPattern(mlir::memref::GlobalOp::getOperationName(),
                                 /*benefit=*/1, context) {}
 
   mlir::LogicalResult matchAndRewrite(
-      mlir::Operation *op, mlir::ArrayRef<mlir::Value> operands,
-      mlir::ConversionPatternRewriter &rewriter) const override {
+      mlir::Operation* op, mlir::ArrayRef<mlir::Value> operands,
+      mlir::ConversionPatternRewriter& rewriter) const override {
     auto global = dyn_cast<mlir::memref::GlobalOp>(op);
     auto memRefType = mlir::cast<mlir::MemRefType>(global.getType());
     auto resultElementType = memRefType.getElementType();
@@ -66,12 +66,12 @@ class MemrefGlobalLoweringPattern final : public mlir::ConversionPattern {
     auto blockUse = SymbolTable::getSymbolUses(global.getSymNameAttr(),
                                                global->getParentRegion());
     bool getGlobalRemoveable = true;
-    for (const auto &use : *blockUse) {
+    for (const auto& use : *blockUse) {
       auto getGlobal = mlir::cast<mlir::memref::GetGlobalOp>(use.getUser());
       assert(getGlobal);
 
       auto memrefUsers = getGlobal.getResult().getUsers();
-      for (auto *user : memrefUsers) {
+      for (auto* user : memrefUsers) {
         // Require all users are affine readers. While some memref.load
         // ops could be supported if the index inputs are statically known,
         // for now requiring affine reads (and the precondition that loops
@@ -89,7 +89,7 @@ class MemrefGlobalLoweringPattern final : public mlir::ConversionPattern {
         }
 
         auto flattenedIndex =
-            llvm::TypeSwitch<Operation *, FailureOr<uint64_t>>(user)
+            llvm::TypeSwitch<Operation*, FailureOr<uint64_t>>(user)
                 .Case<memref::LoadOp>(
                     [&](memref::LoadOp loadOp) -> FailureOr<uint64_t> {
                       auto [strides, offsets] =
@@ -113,7 +113,7 @@ class MemrefGlobalLoweringPattern final : public mlir::ConversionPattern {
                       }
                       return loadIndex.value();
                     })
-                .Default([](Operation *op) -> FailureOr<int64_t> {
+                .Default([](Operation* op) -> FailureOr<int64_t> {
                   return failure();
                 });
         if (failed(flattenedIndex)) {

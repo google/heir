@@ -21,33 +21,33 @@ class NoiseByBoundCoeffModel {
   using LocalParamType = bgv::LocalParam;
 
  private:
-  double getExpansionFactor(const LocalParamType &param) const;
+  double getExpansionFactor(const LocalParamType& param) const;
   double getExpansionFactorForModulusSwitching(
-      const LocalParamType &param) const;
-  double getBoundErr(const LocalParamType &param) const;
-  double getBoundKey(const LocalParamType &param) const;
+      const LocalParamType& param) const;
+  double getBoundErr(const LocalParamType& param) const;
+  double getBoundKey(const LocalParamType& param) const;
 
-  StateType evalEncryptPk(const LocalParamType &param) const;
-  StateType evalEncryptSk(const LocalParamType &param) const;
-  StateType evalRelinearizeHYBRID(const LocalParamType &inputParam,
-                                  const StateType &input) const;
+  StateType evalEncryptPk(const LocalParamType& param) const;
+  StateType evalEncryptSk(const LocalParamType& param) const;
+  StateType evalRelinearizeHYBRID(const LocalParamType& inputParam,
+                                  const StateType& input) const;
 
  public:
-  StateType evalEncrypt(const LocalParamType &param) const;
-  StateType evalConstant(const LocalParamType &param) const;
-  StateType evalAdd(const StateType &lhs, const StateType &rhs) const;
-  StateType evalMul(const LocalParamType &resultParam, const StateType &lhs,
-                    const StateType &rhs) const;
-  StateType evalRelinearize(const LocalParamType &inputParam,
-                            const StateType &input) const;
+  StateType evalEncrypt(const LocalParamType& param) const;
+  StateType evalConstant(const LocalParamType& param) const;
+  StateType evalAdd(const StateType& lhs, const StateType& rhs) const;
+  StateType evalMul(const LocalParamType& resultParam, const StateType& lhs,
+                    const StateType& rhs) const;
+  StateType evalRelinearize(const LocalParamType& inputParam,
+                            const StateType& input) const;
 
   // logTotal: log(Q / (t * 2))
   // logBound: bound on ||e|| predicted by the model
   // logBudget: logTotal - logBound
   // as ||e|| < Q / (t * 2) for correct decryption
-  double toLogBound(const LocalParamType &param, const StateType &noise) const;
-  double toLogBudget(const LocalParamType &param, const StateType &noise) const;
-  double toLogTotal(const LocalParamType &param) const;
+  double toLogBound(const LocalParamType& param, const StateType& noise) const;
+  double toLogBudget(const LocalParamType& param, const StateType& noise) const;
+  double toLogTotal(const LocalParamType& param) const;
 
  private:
   NoiseModelVariant variant;

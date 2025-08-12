@@ -27,13 +27,13 @@ inline ::llvm::SmallVector<int64_t> identity(int64_t n) {
 // evaluation of `map` on the 1D input domain {1..rank}. Returns failure() if
 // the map is not a permutation.
 ::llvm::LogicalResult makeExplicit1DMapping(
-    ::mlir::AffineMap map, unsigned rank, ::llvm::SmallVector<int64_t> &result);
+    ::mlir::AffineMap map, unsigned rank, ::llvm::SmallVector<int64_t>& result);
 
 // Returns true if the materialized mapping is a permutation.
 bool isPermutation(::llvm::ArrayRef<int64_t> materializedMapping);
 
 template <typename T>
-void printPermutation(::llvm::ArrayRef<int64_t> permutation, T &os) {
+void printPermutation(::llvm::ArrayRef<int64_t> permutation, T& os) {
   for (int i = 0; i < permutation.size(); i++) {
     os << i << " -> " << permutation[i] << ", ";
     if (i % 10 == 9) {
@@ -47,22 +47,21 @@ AffineMap getRowMajorLayoutMap(RankedTensorType inputType,
                                RankedTensorType outputType);
 
 bool isLayoutRowMajor(RankedTensorType inputType, RankedTensorType outputType,
-                      const AffineMap &layout);
+                      const AffineMap& layout);
 
 AffineMap getDiagonalLayoutMap(RankedTensorType inputType,
                                RankedTensorType outputType);
 
 bool isLayoutSquatDiagonal(RankedTensorType inputType,
                            RankedTensorType outputType,
-                           const AffineMap &layout);
+                           const AffineMap& layout);
 
-template void printPermutation(::llvm::ArrayRef<int64_t>,
-                               ::llvm::raw_ostream &);
-template void printPermutation(::llvm::ArrayRef<int64_t>, ::mlir::Diagnostic &);
+template void printPermutation(::llvm::ArrayRef<int64_t>, ::llvm::raw_ostream&);
+template void printPermutation(::llvm::ArrayRef<int64_t>, ::mlir::Diagnostic&);
 
 // Evaluate an affine map on statically known inputs and populate `results`.
 void evaluateStatic(AffineMap map, ArrayRef<int64_t> values,
-                    SmallVector<int64_t> &results);
+                    SmallVector<int64_t>& results);
 
 }  // namespace heir
 }  // namespace mlir

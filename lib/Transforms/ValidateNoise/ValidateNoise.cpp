@@ -41,9 +41,9 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
 
   template <typename NoiseAnalysis>
   LogicalResult validateNoiseForValue(
-      Value value, DataFlowSolver *solver,
-      const typename NoiseAnalysis::SchemeParamType &schemeParam,
-      const typename NoiseAnalysis::NoiseModel &model) {
+      Value value, DataFlowSolver* solver,
+      const typename NoiseAnalysis::SchemeParamType& schemeParam,
+      const typename NoiseAnalysis::NoiseModel& model) {
     using NoiseLatticeType = typename NoiseAnalysis::LatticeType;
     using LocalParamType = typename NoiseAnalysis::LocalParamType;
 
@@ -58,7 +58,7 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
       return success();
     }
 
-    const auto *noiseLattice = solver->lookupState<NoiseLatticeType>(value);
+    const auto* noiseLattice = solver->lookupState<NoiseLatticeType>(value);
     if (!noiseLattice || !noiseLattice->getValue().isInitialized()) {
       return failure();
     }
@@ -116,9 +116,9 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
 
   template <typename NoiseAnalysis>
   LogicalResult validate(
-      DataFlowSolver *solver,
-      const typename NoiseAnalysis::SchemeParamType &schemeParam,
-      const typename NoiseAnalysis::NoiseModel &model) {
+      DataFlowSolver* solver,
+      const typename NoiseAnalysis::SchemeParamType& schemeParam,
+      const typename NoiseAnalysis::NoiseModel& model) {
     LogicalResult result = success();
     walkValues(getOperation(), [&](Value value) {
       if (shouldSkipValidation(value)) {
@@ -133,7 +133,7 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
   }
 
   template <typename NoiseModel>
-  void run(const NoiseModel &model) {
+  void run(const NoiseModel& model) {
     std::optional<int> maxLevel = getMaxLevel(getOperation());
 
     auto schemeParamAttr = getOperation()->getAttrOfType<bgv::SchemeParamAttr>(

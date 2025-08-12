@@ -60,7 +60,7 @@ void ContextAwareTypeConverter::SignatureConversion::remapInput(
 }
 
 LogicalResult ContextAwareTypeConverter::convertType(
-    Type t, Value v, SmallVectorImpl<Type> &results) const {
+    Type t, Value v, SmallVectorImpl<Type>& results) const {
   auto contextAttr = getContextualAttr(v);
   // If no usable attribute is found, then we don't need to convert the type,
   // and we can return the type as-is
@@ -74,7 +74,7 @@ LogicalResult ContextAwareTypeConverter::convertType(
 }
 
 LogicalResult ContextAwareTypeConverter::convertType(
-    Type t, Attribute attr, SmallVectorImpl<Type> &results) const {
+    Type t, Attribute attr, SmallVectorImpl<Type>& results) const {
   assert(t && "expected non-null type");
   TypeAndAttribute key{t, attr};
 
@@ -95,7 +95,7 @@ LogicalResult ContextAwareTypeConverter::convertType(
   std::unique_lock<decltype(cacheMutex)> cacheWriteLock(cacheMutex,
                                                         std::defer_lock);
 
-  for (const ConversionCallbackFn &converter : llvm::reverse(conversions)) {
+  for (const ConversionCallbackFn& converter : llvm::reverse(conversions)) {
     if (std::optional<LogicalResult> result = converter(t, attr, results)) {
       if (t.getContext()->isMultithreadingEnabled()) cacheWriteLock.lock();
       if (!succeeded(*result)) {
@@ -124,15 +124,15 @@ Type ContextAwareTypeConverter::convertType(Type t, Attribute attr) const {
 
 LogicalResult ContextAwareTypeConverter::convertTypes(
     TypeRange types, ArrayRef<Attribute> attributes,
-    SmallVectorImpl<Type> &results) const {
-  for (const auto &[type, attr] : llvm::zip(types, attributes))
+    SmallVectorImpl<Type>& results) const {
+  for (const auto& [type, attr] : llvm::zip(types, attributes))
     if (failed(convertType(type, attr, results))) return failure();
   return success();
 }
 
 LogicalResult ContextAwareTypeConverter::convertTypes(
-    TypeRange types, ValueRange values, SmallVectorImpl<Type> &results) const {
-  for (const auto &[type, value] : llvm::zip(types, values)) {
+    TypeRange types, ValueRange values, SmallVectorImpl<Type>& results) const {
+  for (const auto& [type, value] : llvm::zip(types, values)) {
     auto resultAttr = getContextualAttr(value);
     if (failed(resultAttr)) {
       // If the attribute cannot be found, the does not need to be converted
@@ -154,7 +154,7 @@ bool ContextAwareTypeConverter::isLegal(TypeRange types,
     return isLegal(std::get<0>(pair), std::get<1>(pair));
   });
 }
-bool ContextAwareTypeConverter::isLegal(Operation *op) const {
+bool ContextAwareTypeConverter::isLegal(Operation* op) const {
   // HEIR: this is a hack to ensure that the attribute lookup will not fail.
   // If the attribute lookup fails, it may be because the block containing
   // this op has been unlinked and the values not yet remapped. A
@@ -197,8 +197,8 @@ bool ContextAwareTypeConverter::isLegal(Operation *op) const {
          isLegal(resultTypes, resultAttrs);
 }
 
-bool ContextAwareTypeConverter::isLegal(Region *region) const {
-  return llvm::all_of(*region, [this](Block &block) {
+bool ContextAwareTypeConverter::isLegal(Region* region) const {
+  return llvm::all_of(*region, [this](Block& block) {
     auto argumentAttrs = llvm::map_to_vector(
         block.getArguments(),
         [this](Value v) { return getContextualAttr(v).value_or(nullptr); });
@@ -218,16 +218,16 @@ bool ContextAwareTypeConverter::isSignatureLegal(
 }
 
 Value ContextAwareTypeConverter::materializeSourceConversion(
-    OpBuilder &builder, Location loc, Type resultType,
+    OpBuilder& builder, Location loc, Type resultType,
     ValueRange inputs) const {
-  for (const MaterializationCallbackFn &fn :
+  for (const MaterializationCallbackFn& fn :
        llvm::reverse(sourceMaterializations))
     if (Value result = fn(builder, resultType, inputs, loc)) return result;
   return nullptr;
 }
 
 Value ContextAwareTypeConverter::materializeTargetConversion(
-    OpBuilder &builder, Location loc, Type resultType, ValueRange inputs,
+    OpBuilder& builder, Location loc, Type resultType, ValueRange inputs,
     Type originalType) const {
   SmallVector<Value> result = materializeTargetConversion(
       builder, loc, TypeRange(resultType), inputs, originalType);
@@ -237,9 +237,9 @@ Value ContextAwareTypeConverter::materializeTargetConversion(
 }
 
 SmallVector<Value> ContextAwareTypeConverter::materializeTargetConversion(
-    OpBuilder &builder, Location loc, TypeRange resultTypes, ValueRange inputs,
+    OpBuilder& builder, Location loc, TypeRange resultTypes, ValueRange inputs,
     Type originalType) const {
-  for (const TargetMaterializationCallbackFn &fn :
+  for (const TargetMaterializationCallbackFn& fn :
        llvm::reverse(targetMaterializations)) {
     SmallVector<Value> result =
         fn(builder, resultTypes, inputs, loc, originalType);
@@ -253,7 +253,7 @@ SmallVector<Value> ContextAwareTypeConverter::materializeTargetConversion(
 }
 
 std::optional<ContextAwareTypeConverter::SignatureConversion>
-ContextAwareTypeConverter::convertBlockSignature(Block *block) const {
+ContextAwareTypeConverter::convertBlockSignature(Block* block) const {
   // HEIR: don't reuse convertSignatureArgs, instead get the context
   // value and convert the types directly. This is because the code
   // cannot be shared with FuncOp type conversion anymore (blocks have
@@ -313,7 +313,7 @@ Attribute ContextAwareTypeConverter::AttributeConversionResult::getResult()
 
 std::optional<Attribute> ContextAwareTypeConverter::convertTypeAttribute(
     Type type, Attribute attr) const {
-  for (const TypeAttributeConversionCallbackFn &fn :
+  for (const TypeAttributeConversionCallbackFn& fn :
        llvm::reverse(typeAttributeConversions)) {
     AttributeConversionResult res = fn(type, attr);
     if (res.hasResult()) return res.getResult();

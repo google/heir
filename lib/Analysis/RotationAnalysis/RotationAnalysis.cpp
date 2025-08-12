@@ -21,8 +21,8 @@ namespace mlir {
 namespace heir {
 namespace rotation_analysis {
 
-void RotationAnalysis::run(Operation *op) {
-  op->walk<WalkOrder::PreOrder>([&](Operation *op) {
+void RotationAnalysis::run(Operation* op) {
+  op->walk<WalkOrder::PreOrder>([&](Operation* op) {
     // If the op has no tensor results and no regions and no operand
     // with existing partial reduction, then there's nothing to do.
     if (op->getNumRegions() == 0 &&
@@ -40,8 +40,8 @@ void RotationAnalysis::run(Operation *op) {
     }
 
     // Block args within regions can be the start of a new reduction.
-    for (Region &region : op->getRegions()) {
-      for (Block &block : region) {
+    for (Region& region : op->getRegions()) {
+      for (Block& block : region) {
         for (Value arg : block.getArguments()) {
           initializeFromValueIfOneDimTensor(arg);
         }
@@ -54,10 +54,10 @@ void RotationAnalysis::run(Operation *op) {
     //   reductions if the shift is known to be constant.
     // - Binary ops join partial reductions of operands and set the opName.
     // - Everything else is ignored.
-    llvm::TypeSwitch<Operation &>(*op)
+    llvm::TypeSwitch<Operation&>(*op)
         .Case<tensor_ext::RotateOp>([&](auto rotateOp) {
           LLVM_DEBUG({ llvm::dbgs() << "Visiting: " << *op << "\n"; });
-          const dataflow::Lattice<dataflow::ConstantValue> *shiftLattice =
+          const dataflow::Lattice<dataflow::ConstantValue>* shiftLattice =
               solver.lookupState<dataflow::Lattice<dataflow::ConstantValue>>(
                   rotateOp.getShift());
 
@@ -85,7 +85,7 @@ void RotationAnalysis::run(Operation *op) {
           // rotate the accessed indices appropriately.
           Value tensor = rotateOp.getTensor();
           Value result = rotateOp.getResult();
-          for (const auto &reduction : rootToPartialReductions[tensor]) {
+          for (const auto& reduction : rootToPartialReductions[tensor]) {
             addPartialReduction(
                 PartialReduction::rotate(reduction, shiftValue, result));
           }
@@ -99,7 +99,7 @@ void RotationAnalysis::run(Operation *op) {
             return;
           }
 
-          const dataflow::Lattice<dataflow::ConstantValue> *indexLattice =
+          const dataflow::Lattice<dataflow::ConstantValue>* indexLattice =
               solver.lookupState<dataflow::Lattice<dataflow::ConstantValue>>(
                   extractOp.getIndices().front());
 
@@ -127,7 +127,7 @@ void RotationAnalysis::run(Operation *op) {
           // rotate the accessed indices appropriately.
           Value tensor = extractOp.getTensor();
           Value result = extractOp.getResult();
-          for (const auto &reduction : rootToPartialReductions[tensor]) {
+          for (const auto& reduction : rootToPartialReductions[tensor]) {
             addPartialReduction(
                 PartialReduction::rotate(reduction, indexValue, result));
           }
@@ -151,8 +151,8 @@ void RotationAnalysis::run(Operation *op) {
                 // increases the number of indices and all else stays the same).
                 // But for now even on the box_blur_64x64 example this is far
                 // from the bottleneck.
-                for (const auto &lhsReduction : rootToPartialReductions[lhs]) {
-                  for (const auto &rhsReduction :
+                for (const auto& lhsReduction : rootToPartialReductions[lhs]) {
+                  for (const auto& rhsReduction :
                        rootToPartialReductions[rhs]) {
                     if (PartialReduction::canJoin(lhsReduction, rhsReduction,
                                                   opName)) {
@@ -166,7 +166,7 @@ void RotationAnalysis::run(Operation *op) {
 
               // If can not join, try saving in one side
               if (!canJoin && rootToPartialReductions.contains(lhs)) {
-                for (const auto &lhsReduction : rootToPartialReductions[lhs]) {
+                for (const auto& lhsReduction : rootToPartialReductions[lhs]) {
                   if (PartialReduction::canSave(lhsReduction, rhs, opName)) {
                     addPartialReduction(PartialReduction::save(
                         lhsReduction, rhs, newRoot, opName));
@@ -175,7 +175,7 @@ void RotationAnalysis::run(Operation *op) {
               }
 
               if (!canJoin && rootToPartialReductions.contains(rhs)) {
-                for (const auto &rhsReduction : rootToPartialReductions[rhs]) {
+                for (const auto& rhsReduction : rootToPartialReductions[rhs]) {
                   if (PartialReduction::canSave(rhsReduction, lhs, opName)) {
                     addPartialReduction(PartialReduction::save(
                         rhsReduction, lhs, newRoot, opName));

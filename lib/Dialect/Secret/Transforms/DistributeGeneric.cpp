@@ -60,14 +60,14 @@ std::optional<Value> ofrToValue(std::optional<OpFoldResult> ofr) {
 }
 
 struct FoldSecretSeparators : public OpRewritePattern<GenericOp> {
-  FoldSecretSeparators(mlir::MLIRContext *context)
+  FoldSecretSeparators(mlir::MLIRContext* context)
       : OpRewritePattern<GenericOp>(context, /*benefit=*/4) {}
 
  public:
   LogicalResult matchAndRewrite(GenericOp op,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     // Erase a generic that only contains a separator operation and no results.
-    auto &operations = op.getBody()->getOperations();
+    auto& operations = op.getBody()->getOperations();
     if (operations.size() != 2 ||
         !isa<secret::SeparatorOp>(operations.front())) {
       return failure();
@@ -83,8 +83,8 @@ struct FoldSecretSeparators : public OpRewritePattern<GenericOp> {
 
 // Uses the dataflow analysis to persist an ArrayAttr of BoolAttr on each
 // LoopLikeOp to denote which of its iter args should be promoted to secrets.
-void persistSecretAnalysisResultsOnLoopInits(Operation *operation,
-                                             DataFlowSolver *solver) {
+void persistSecretAnalysisResultsOnLoopInits(Operation* operation,
+                                             DataFlowSolver* solver) {
   operation->walk([&](LoopLikeOpInterface loop) {
     SmallVector<Attribute> initSecretness(
         loop.getInits().size(), BoolAttr::get(operation->getContext(), false));
@@ -149,14 +149,14 @@ bool shouldLoopInitBeLiftedToSecret(LoopLikeOpInterface loop,
 // secret.generics, and otherwise will split it at the first op from the entry
 // block, and will always create two secret.generics.
 struct SplitGeneric : public OpRewritePattern<GenericOp> {
-  SplitGeneric(mlir::MLIRContext *context,
+  SplitGeneric(mlir::MLIRContext* context,
                llvm::ArrayRef<std::string> opsToDistribute)
       : OpRewritePattern<GenericOp>(context, /*benefit=*/1),
         opsToDistribute(opsToDistribute) {}
 
   LogicalResult distributeThroughRegionHoldingOp(
-      GenericOp genericOp, Operation &opToDistribute,
-      PatternRewriter &rewriter) const {
+      GenericOp genericOp, Operation& opToDistribute,
+      PatternRewriter& rewriter) const {
     assert(opToDistribute.getNumRegions() > 0 &&
            "opToDistribute must have at least one region");
     assert(genericOp.getBody()->getOperations().size() == 2 &&
@@ -205,7 +205,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       rewriter.setInsertionPoint(genericOp);
       IRMapping mp;
       for (Value iterInit : loop.getInits()) {
-        if (auto *genericOperand =
+        if (auto* genericOperand =
                 genericOp.getOpOperandForBlockArgument(iterInit)) {
           mp.map(iterInit, genericOperand->get());
         }
@@ -215,7 +215,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       // loop with secret bounds.
       auto hasSecretType = [&](OpFoldResult v) {
         if (auto value = dyn_cast<Value>(v)) {
-          if (auto *genericOperand =
+          if (auto* genericOperand =
                   genericOp.getOpOperandForBlockArgument(value)) {
             return isa<SecretType>(genericOperand->get().getType());
           }
@@ -240,7 +240,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       // Update the cloned loop's iter_args to be secret types if corresponded
       // to secret types in the original generic.
       DenseMap<Value, Value> newInitsToOperands;
-      for (const auto &[operand, blockArg] : llvm::zip(
+      for (const auto& [operand, blockArg] : llvm::zip(
                clonedLoop.getInitsMutable(), clonedLoop.getRegionIterArgs())) {
         BlockArgument iterArg = clonedLoop.getTiedLoopRegionIterArg(&operand);
         // The index of the iterArg to pass to shouldLoopInitBeLiftedToSecret
@@ -272,7 +272,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
                  << "after cloning loop before generic "
                     "(expected type conflicts here)");
 
-      Block &clonedLoopBody = clonedLoop->getRegion(0).getBlocks().front();
+      Block& clonedLoopBody = clonedLoop->getRegion(0).getBlocks().front();
       rewriter.setInsertionPoint(&clonedLoopBody.getOperations().front());
 
       // The secret generic is replacing the loop body, which means its
@@ -289,7 +289,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       // If a generic operand is used as a loop iter arg initializer, then the
       // new generic needs to have the (now secret) iter arg as its operand.
       SmallVector<Value> newGenericOperands;
-      for (OpOperand &oldGenericOperand : genericOp->getOpOperands()) {
+      for (OpOperand& oldGenericOperand : genericOp->getOpOperands()) {
         auto blockArg = genericOp.getBody()->getArgument(
             oldGenericOperand.getOperandNumber());
         // The loop may have more iter args than the original generic had
@@ -317,11 +317,11 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
         newGenericOperands.push_back(newInit);
       }
 
-      SmallVector<Operation *> opsToErase;
+      SmallVector<Operation*> opsToErase;
       GenericOp newGenericOp = GenericOp::create(
           rewriter, clonedLoopBody.getOperations().front().getLoc(),
           newGenericOperands, loopResultTypes,
-          [&](OpBuilder &b, Location loc, ValueRange blockArguments) {
+          [&](OpBuilder& b, Location loc, ValueRange blockArguments) {
             IRMapping mp;
             for (BlockArgument blockArg : genericOp.getBody()->getArguments()) {
               mp.map(blockArg, blockArguments[blockArg.getArgNumber()]);
@@ -333,7 +333,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
             for (Value value : newGenericOperands) {
               mp.map(value, blockArguments[index++]);
             }
-            for (Operation &op : clonedLoopBody.getOperations()) {
+            for (Operation& op : clonedLoopBody.getOperations()) {
               if (&op == &opToDistribute) continue;
 
               // This ensures that the loop terminator isn't added to the body
@@ -360,7 +360,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       // plaintext value now yielded by the generic, now needs to yield the
       // result of the secret generic.
 
-      Operation *clonedLoopTerminator = clonedLoopBody.getTerminator();
+      Operation* clonedLoopTerminator = clonedLoopBody.getTerminator();
       // This should not introduce a type conflict because we ensured that the
       // generic yielded the cleartext analogue of what the original
       // terminator yielded.
@@ -421,7 +421,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       LLVM_DEBUG(clonedLoop->getParentOp()->emitRemark()
                  << "after replacing original generic with appropriate values");
 
-      for (Operation *op : reverse(opsToErase)) {
+      for (Operation* op : reverse(opsToErase)) {
         rewriter.eraseOp(op);
       }
 
@@ -444,9 +444,9 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
   ///
   /// Returns a new version of the targetGeneric, which replaces the input
   /// `targetGeneric`.
-  GenericOp moveOpToEarlierGeneric(Operation &opToMove, GenericOp sourceGeneric,
+  GenericOp moveOpToEarlierGeneric(Operation& opToMove, GenericOp sourceGeneric,
                                    GenericOp targetGeneric,
-                                   PatternRewriter &rewriter) const {
+                                   PatternRewriter& rewriter) const {
     LLVM_DEBUG(opToMove.emitRemark() << "Moving op to earlier generic\n");
 
     assert(opToMove.getParentOp() == sourceGeneric &&
@@ -456,8 +456,8 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
 
     IRMapping cloningMp;
     mlir::DominanceInfo dom(sourceGeneric->getParentOfType<func::FuncOp>());
-    opToMove.walk([&](Operation *op) {
-      for (OpOperand &operand : op->getOpOperands()) {
+    opToMove.walk([&](Operation* op) {
+      for (OpOperand& operand : op->getOpOperands()) {
         if (operand.get().getParentBlock() == sourceGeneric.getBody()) {
           LLVM_DEBUG(llvm::dbgs() << "opToMove depends on block argument "
                                   << operand.get() << " of source generic\n");
@@ -476,7 +476,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
           // to, in which case the targetGeneric's result corresponds to a
           // yielded value in targetGeneric, and we can map the op's operand
           // to that yielded value.
-          auto *definingOp = sourceGenericArg.getDefiningOp();
+          auto* definingOp = sourceGenericArg.getDefiningOp();
           if (definingOp == targetGeneric.getOperation()) {
             int resultIndex =
                 std::find(targetGeneric.getResults().begin(),
@@ -523,7 +523,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
         // The op operand may be defined within a region contained in opToMove
         // so no need to map it's IR value.
         if (opToMove.getNumRegions() > 0 &&
-            llvm::any_of(opToMove.getRegions(), [&](Region &region) {
+            llvm::any_of(opToMove.getRegions(), [&](Region& region) {
               return region.isAncestor(operand.get().getParentRegion());
             })) {
           continue;
@@ -543,7 +543,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
 
     LLVM_DEBUG(llvm::dbgs()
                << "Cloning " << opToMove << " to target generic\n");
-    Operation *clonedOp = rewriter.clone(opToMove, cloningMp);
+    Operation* clonedOp = rewriter.clone(opToMove, cloningMp);
     clonedOp->moveBefore(targetGeneric.getYieldOp());
     auto [modifiedGeneric, newResults] =
         targetGeneric.addNewYieldedValues(clonedOp->getResults(), rewriter);
@@ -574,14 +574,14 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
   /// the first contains the ops preceding `opToDistribute`, and the second
   /// starts with `opToDistribute`, which can then be given as input to
   /// `splitGenericAfterFirstOp`.
-  void splitGenericBeforeOp(GenericOp genericOp, Operation &stopBefore,
-                            PatternRewriter &rewriter) const {
+  void splitGenericBeforeOp(GenericOp genericOp, Operation& stopBefore,
+                            PatternRewriter& rewriter) const {
     LLVM_DEBUG(genericOp.emitRemark()
                << " splitting generic before op " << stopBefore << "\n");
 
     auto newGeneric = splitGenericAfterFirstOp(genericOp, rewriter);
     while (&genericOp.getBody()->getOperations().front() != &stopBefore) {
-      auto &op = genericOp.getBody()->getOperations().front();
+      auto& op = genericOp.getBody()->getOperations().front();
       newGeneric = moveOpToEarlierGeneric(op, genericOp, newGeneric, rewriter);
     }
   }
@@ -589,8 +589,8 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
   // Splits a generic op after a given opToDistribute. A newly created
   // GenericOp contains the opToDistribute
   GenericOp splitGenericAfterFirstOp(GenericOp genericOp,
-                                     PatternRewriter &rewriter) const {
-    Operation &firstOp = genericOp.getBody()->front();
+                                     PatternRewriter& rewriter) const {
+    Operation& firstOp = genericOp.getBody()->front();
     LLVM_DEBUG(firstOp.emitRemark() << " splitting generic after this op\n");
     auto newGeneric = genericOp.extractOpBeforeGeneric(&firstOp, rewriter);
     LLVM_DEBUG(newGeneric.emitRemark() << " created new generic op\n");
@@ -598,8 +598,8 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
   }
 
   LogicalResult matchAndRewrite(GenericOp op,
-                                PatternRewriter &rewriter) const override {
-    Block *body = op.getBody();
+                                PatternRewriter& rewriter) const override {
+    Block* body = op.getBody();
     unsigned numOps = body->getOperations().size();
     assert(numOps > 0 &&
            "secret.generic must have nonempty body (the verifier should "
@@ -612,12 +612,12 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       return failure();
     }
 
-    Operation *opToDistribute = nullptr;
+    Operation* opToDistribute = nullptr;
     bool first = true;
     if (opsToDistribute.empty()) {
       opToDistribute = &body->front();
     } else {
-      for (Operation &op : body->getOperations()) {
+      for (Operation& op : body->getOperations()) {
         // op.getName().getStringRef() is the qualified op name (e.g.,
         // affine.for)
         if (std::find(opsToDistribute.begin(), opsToDistribute.end(),
@@ -658,7 +658,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
 };
 
 // should be called right before all splitting
-void moveDialectAttrsToFuncArgument(Operation *top) {
+void moveDialectAttrsToFuncArgument(Operation* top) {
   top->walk([&](secret::GenericOp genericOp) {
     for (auto i = 0; i != genericOp->getNumOperands(); ++i) {
       auto operand = genericOp.getOperand(i);
@@ -668,7 +668,7 @@ void moveDialectAttrsToFuncArgument(Operation *top) {
             dyn_cast<func::FuncOp>(funcBlockArg.getOwner()->getParentOp());
         NamedAttrList attrs(genericOp.removeOperandAttrDict(i));
         // only set attr using name with dialect prefix
-        for (auto &namedAttr : attrs) {
+        for (auto& namedAttr : attrs) {
           if (namedAttr.getName().getValue().find(".") != StringRef::npos) {
             funcOp.setArgAttr(funcBlockArg.getArgNumber(), namedAttr.getName(),
                               namedAttr.getValue());
@@ -681,9 +681,9 @@ void moveDialectAttrsToFuncArgument(Operation *top) {
 
 // should be called when done with all splitting
 // assume only one inner op
-void moveMgmtAttrAnnotationFromInnerToOuter(Operation *top) {
+void moveMgmtAttrAnnotationFromInnerToOuter(Operation* top) {
   top->walk([&](secret::GenericOp genericOp) {
-    auto *innerOp = &genericOp.getBody()->front();
+    auto* innerOp = &genericOp.getBody()->front();
     auto yieldOp = genericOp.getYieldOp();
     Attribute attr = innerOp->removeAttr(mgmt::MgmtDialect::kArgMgmtAttrName);
     if (!attr) {
@@ -697,7 +697,7 @@ void moveMgmtAttrAnnotationFromInnerToOuter(Operation *top) {
       return;
     }
 
-    for (OpOperand &yieldOperand : yieldOp->getOpOperands()) {
+    for (OpOperand& yieldOperand : yieldOp->getOpOperands()) {
       // The yield operand is produced by the inner op result, but may not
       // correspond exactly to the quantity and order of results.
       //
@@ -711,7 +711,7 @@ void moveMgmtAttrAnnotationFromInnerToOuter(Operation *top) {
       //   %0 = op.foo ... {mgmt.mgmt = attr} : i16
       //   secret.yield %0, %0 : i16, i16
       //
-      const auto &innerOpResult = cast<OpResult>(yieldOperand.get());
+      const auto& innerOpResult = cast<OpResult>(yieldOperand.get());
 
       if (auto mgmtAttr = dyn_cast<mgmt::MgmtAttr>(attr)) {
         genericOp.setResultAttr(yieldOperand.getOperandNumber(),
@@ -731,7 +731,7 @@ struct DistributeGeneric
   using SecretDistributeGenericBase::SecretDistributeGenericBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
     mlir::RewritePatternSet patterns(context);
 
     LLVM_DEBUG({
@@ -740,7 +740,7 @@ struct DistributeGeneric
         llvm::dbgs() << "on all ops\n";
       } else {
         llvm::dbgs() << "on ops: \n";
-        for (const auto &op : opsToDistribute) {
+        for (const auto& op : opsToDistribute) {
           llvm::dbgs() << " - " << op << "\n";
         }
       }

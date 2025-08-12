@@ -26,7 +26,7 @@ struct PutCiphertextInFirstOperand : public OpRewritePattern<Op> {
  public:
   using OpRewritePattern<Op>::OpRewritePattern;
 
-  LogicalResult matchAndRewrite(Op op, PatternRewriter &rewriter) const final {
+  LogicalResult matchAndRewrite(Op op, PatternRewriter& rewriter) const final {
     auto lhs = op->getOperand(0);
     auto rhs = op->getOperand(1);
 

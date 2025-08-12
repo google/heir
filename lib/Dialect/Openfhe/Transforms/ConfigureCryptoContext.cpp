@@ -82,7 +82,7 @@ struct ConfigureCryptoContext
   // Helper function to check if the function has RelinOp
   bool hasRelinOp(func::FuncOp op) {
     bool result = false;
-    op.walk<WalkOrder::PreOrder>([&](Operation *op) {
+    op.walk<WalkOrder::PreOrder>([&](Operation* op) {
       if (isa<openfhe::RelinOp>(op)) {
         result = true;
         return WalkResult::interrupt();
@@ -107,7 +107,7 @@ struct ConfigureCryptoContext
   // Helper function to check if the function has BootstrapOp
   bool hasBootstrapOp(func::FuncOp op) {
     bool result = false;
-    op.walk<WalkOrder::PreOrder>([&](Operation *op) {
+    op.walk<WalkOrder::PreOrder>([&](Operation* op) {
       if (isa<openfhe::BootstrapOp>(op)) {
         result = true;
         return WalkResult::interrupt();
@@ -118,8 +118,8 @@ struct ConfigureCryptoContext
   }
 
   // function that generates the crypto context with proper parameters
-  LogicalResult generateGenFunc(func::FuncOp op, const std::string &genFuncName,
-                                ImplicitLocOpBuilder &builder) {
+  LogicalResult generateGenFunc(func::FuncOp op, const std::string& genFuncName,
+                                ImplicitLocOpBuilder& builder) {
     Type openfheContextType =
         openfhe::CryptoContextType::get(builder.getContext());
     SmallVector<Type> funcArgTypes;
@@ -161,8 +161,8 @@ struct ConfigureCryptoContext
 
   // function that configures the crypto context with proper keygeneration
   LogicalResult generateConfigFunc(func::FuncOp op,
-                                   const std::string &configFuncName,
-                                   ImplicitLocOpBuilder &builder) {
+                                   const std::string& configFuncName,
+                                   ImplicitLocOpBuilder& builder) {
     Type openfheContextType =
         openfhe::CryptoContextType::get(builder.getContext());
     Type privateKeyType = openfhe::PrivateKeyType::get(builder.getContext());

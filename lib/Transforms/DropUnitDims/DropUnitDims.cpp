@@ -72,7 +72,7 @@ static SmallVector<ReassociationIndices> getReassociationForReshapeAtDim(
 
 /// Collapse the given `value` so that the type matches the type of
 /// `origOutput`.
-static Value collapseValue(RewriterBase &rewriter, Location loc, Value operand,
+static Value collapseValue(RewriterBase& rewriter, Location loc, Value operand,
                            ArrayRef<int64_t> targetShape,
                            ArrayRef<ReassociationIndices> reassociation) {
   auto tensorType = cast<RankedTensorType>(operand.getType());
@@ -83,7 +83,7 @@ static Value collapseValue(RewriterBase &rewriter, Location loc, Value operand,
 }
 
 /// Returns a collapsed `val` where the collapsing occurs at dims in positions.
-static Value collapseDimsAt(PatternRewriter &rewriter, Value val,
+static Value collapseDimsAt(PatternRewriter& rewriter, Value val,
                             ArrayRef<int64_t> positions) {
   auto valType = cast<ShapedType>(val.getType());
   SmallVector<int64_t> collapsedShape(valType.getShape());
@@ -106,7 +106,7 @@ struct ReduceLinalgMap : OpRewritePattern<linalg::MapOp> {
   using OpRewritePattern<linalg::MapOp>::OpRewritePattern;
 
   /// Collapse all collapsible operands.
-  SmallVector<Value> collapseOperands(PatternRewriter &rewriter,
+  SmallVector<Value> collapseOperands(PatternRewriter& rewriter,
                                       ArrayRef<Value> operands,
                                       ArrayRef<int64_t> collapseDims) const {
     return llvm::map_to_vector(operands, [&](auto operand) {
@@ -115,7 +115,7 @@ struct ReduceLinalgMap : OpRewritePattern<linalg::MapOp> {
   }
 
   /// Expand result tensor.
-  Value expandResult(PatternRewriter &rewriter, Value result,
+  Value expandResult(PatternRewriter& rewriter, Value result,
                      RankedTensorType expandedType,
                      SmallVector<int64_t> dims) const {
     return tensor::ExpandShapeOp::create(
@@ -124,7 +124,7 @@ struct ReduceLinalgMap : OpRewritePattern<linalg::MapOp> {
   }
 
   LogicalResult matchAndRewrite(linalg::MapOp mapOp,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     if (mapOp.hasUserDefinedMaps()) {
       return rewriter.notifyMatchFailure(
           mapOp, "ops with user-defined maps are not supported");
@@ -135,7 +135,7 @@ struct ReduceLinalgMap : OpRewritePattern<linalg::MapOp> {
     if (mapper->getOperations().size() != 2) return failure();
 
     // The operation should be elementwise.
-    Operation &mappingOp = mapper->getOperations().front();
+    Operation& mappingOp = mapper->getOperations().front();
     if (!mappingOp.hasTrait<mlir::OpTrait::Elementwise>()) {
       return failure();
     }
@@ -178,12 +178,12 @@ struct ReduceLinalgMap : OpRewritePattern<linalg::MapOp> {
     collapsedResultTy.push_back(collapsedInit.getType());
     linalg::MapOp collapsedOp = linalg::MapOp::create(
         rewriter, loc, collapsedInputs, collapsedInit,
-        [&](OpBuilder &b, Location loc, ValueRange blockArguments) {
+        [&](OpBuilder& b, Location loc, ValueRange blockArguments) {
           IRMapping mp;
           for (BlockArgument blockArg : mapper->getArguments()) {
             mp.map(blockArg, blockArguments[blockArg.getArgNumber()]);
           }
-          for (auto &op : mapper->getOperations()) {
+          for (auto& op : mapper->getOperations()) {
             b.clone(op, mp);
           }
         },
@@ -201,7 +201,7 @@ struct DropUnitDims : impl::DropUnitDimsBase<DropUnitDims> {
   using DropUnitDimsBase::DropUnitDimsBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
     RewritePatternSet patterns(context);
     linalg::populateContractionOpRankReducingPatterns(patterns);
     patterns.add<ReduceLinalgMap>(context);

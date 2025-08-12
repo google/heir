@@ -32,21 +32,21 @@ namespace lattigo {
 void registerTranslateOptions();
 
 /// Translates the given operation to Lattigo
-::mlir::LogicalResult translateToLattigo(::mlir::Operation *op,
-                                         llvm::raw_ostream &os,
-                                         const std::string &packageName);
+::mlir::LogicalResult translateToLattigo(::mlir::Operation* op,
+                                         llvm::raw_ostream& os,
+                                         const std::string& packageName);
 
 class LattigoEmitter {
  public:
-  LattigoEmitter(raw_ostream &os, SelectVariableNames *variableNames,
-                 const std::string &packageName);
+  LattigoEmitter(raw_ostream& os, SelectVariableNames* variableNames,
+                 const std::string& packageName);
 
-  LogicalResult translate(::mlir::Operation &operation);
+  LogicalResult translate(::mlir::Operation& operation);
 
-  void emitPrelude(raw_ostream &os) const {
+  void emitPrelude(raw_ostream& os) const {
     os << "package " << packageName << "\n";
     os << "import (\n";
-    for (const auto &import : imports) {
+    for (const auto& import : imports) {
       os << "    " << import << "\n";
     }
     os << ")\n";
@@ -58,9 +58,9 @@ class LattigoEmitter {
 
   /// Pre-populated analysis selecting unique variable names for all the SSA
   /// values.
-  SelectVariableNames *variableNames;
+  SelectVariableNames* variableNames;
 
-  const std::string &packageName;
+  const std::string& packageName;
 
   // go treats unused imports as compile-time errors, so any extra imports that
   // are unused for some programs need to be dynamically added at the end.
@@ -68,13 +68,13 @@ class LattigoEmitter {
   std::set<std::string> imports;
 
   // general binary op helper
-  LogicalResult printBinaryOp(Operation *op, ::mlir::Value lhs,
+  LogicalResult printBinaryOp(Operation* op, ::mlir::Value lhs,
                               ::mlir::Value rhs, std::string_view opName);
   // General typecast helper
   LogicalResult typecast(Value operand, Value result);
   // emit an if statement
-  void emitIf(const std::string &cond, const std::function<void()> &trueBranch,
-              const std::function<void()> &falseBranch);
+  void emitIf(const std::string& cond, const std::function<void()>& trueBranch,
+              const std::function<void()>& falseBranch);
 
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);
@@ -190,7 +190,7 @@ class LattigoEmitter {
 
   // find the actual value used for inplace op
   ::mlir::Value getStorageValue(::mlir::Value value) {
-    if (auto *op = value.getDefiningOp()) {
+    if (auto* op = value.getDefiningOp()) {
       if (auto inplaceOpInterface = mlir::dyn_cast<InplaceOpInterface>(op)) {
         auto inplace =
             op->getOperand(inplaceOpInterface.getInplaceOperandIndex());

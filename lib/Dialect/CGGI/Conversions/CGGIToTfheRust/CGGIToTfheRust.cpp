@@ -36,7 +36,7 @@ namespace mlir::heir {
 
 class CGGIToTfheRustTypeConverter : public TypeConverter {
  public:
-  CGGIToTfheRustTypeConverter(MLIRContext *ctx) {
+  CGGIToTfheRustTypeConverter(MLIRContext* ctx) {
     addConversion([](Type type) { return type; });
     addConversion([ctx](lwe::LWECiphertextType type) -> Type {
       int width = type.getPlaintextSpace()
@@ -58,7 +58,7 @@ class CGGIToTfheRustTypeConverter : public TypeConverter {
 
 /// Returns the Value corresponding to a server key in the FuncOp containing
 /// this op.
-static FailureOr<Value> getContextualServerKey(Operation *op) {
+static FailureOr<Value> getContextualServerKey(Operation* op) {
   Value serverKey = op->getParentOfType<func::FuncOp>()
                         .getBody()
                         .getBlocks()
@@ -77,14 +77,14 @@ static FailureOr<Value> getContextualServerKey(Operation *op) {
 /// patterns need a server key SSA value available, so this pattern needs a
 /// higher benefit.
 struct AddServerKeyArg : public OpConversionPattern<func::FuncOp> {
-  AddServerKeyArg(mlir::MLIRContext *context)
+  AddServerKeyArg(mlir::MLIRContext* context)
       : OpConversionPattern<func::FuncOp>(context, /* benefit= */ 2) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       func::FuncOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     if (!containsDialects<lwe::LWEDialect, cggi::CGGIDialect>(op)) {
       return failure();
     }
@@ -99,14 +99,14 @@ struct AddServerKeyArg : public OpConversionPattern<func::FuncOp> {
 };
 
 struct AddServerKeyArgCall : public OpConversionPattern<func::CallOp> {
-  AddServerKeyArgCall(mlir::MLIRContext *context)
+  AddServerKeyArgCall(mlir::MLIRContext* context)
       : OpConversionPattern<func::CallOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       func::CallOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> sk = getContextualServerKey(op.getOperation());
 
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
@@ -139,14 +139,14 @@ struct AddServerKeyArgCall : public OpConversionPattern<func::CallOp> {
 /// pattern, so a separate step is required at the end to collect all the
 /// identical lookup tables, and this can be done with a --cse pass.
 struct ConvertLut3Op : public OpConversionPattern<cggi::Lut3Op> {
-  ConvertLut3Op(mlir::MLIRContext *context)
+  ConvertLut3Op(mlir::MLIRContext* context)
       : OpConversionPattern<cggi::Lut3Op>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       cggi::Lut3Op op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     FailureOr<Value> result = getContextualServerKey(op.getOperation());
     if (failed(result)) return result;
@@ -172,14 +172,14 @@ struct ConvertLut3Op : public OpConversionPattern<cggi::Lut3Op> {
 };
 
 struct ConvertLut2Op : public OpConversionPattern<cggi::Lut2Op> {
-  ConvertLut2Op(mlir::MLIRContext *context)
+  ConvertLut2Op(mlir::MLIRContext* context)
       : OpConversionPattern<cggi::Lut2Op>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       cggi::Lut2Op op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     FailureOr<Value> result = getContextualServerKey(op.getOperation());
     if (failed(result)) return result;
@@ -208,7 +208,7 @@ struct ConvertCGGITRBinOp : public OpConversionPattern<BinOp> {
 
   LogicalResult matchAndRewrite(
       BinOp op, typename BinOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op->getLoc(), rewriter);
     FailureOr<Value> result = getContextualServerKey(op);
     if (failed(result)) return result;
@@ -228,7 +228,7 @@ struct ConvertScalarMulOp : public OpConversionPattern<lwe::MulScalarOp> {
   using OpConversionPattern<lwe::MulScalarOp>::OpConversionPattern;
   LogicalResult matchAndRewrite(
       lwe::MulScalarOp op, lwe::MulScalarOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op->getLoc(), rewriter);
     FailureOr<Value> result = getContextualServerKey(op);
     if (failed(result)) return result;
@@ -250,7 +250,7 @@ struct ConvertCGGICtxtBinOp : public OpConversionPattern<BinOp> {
 
   LogicalResult matchAndRewrite(
       BinOp op, typename BinOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op->getLoc(), rewriter);
     FailureOr<Value> result = getContextualServerKey(op);
     if (failed(result)) return result;
@@ -284,7 +284,7 @@ struct ConvertSelectOp : public OpConversionPattern<cggi::SelectOp> {
 
   LogicalResult matchAndRewrite(
       cggi::SelectOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op->getLoc(), rewriter);
     FailureOr<Value> result = getContextualServerKey(op);
     if (failed(result)) return result;
@@ -304,7 +304,7 @@ struct ConvertCmpOp : public OpConversionPattern<cggi::CmpOp> {
 
   LogicalResult matchAndRewrite(
       cggi::CmpOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op->getLoc(), rewriter);
     FailureOr<Value> result = getContextualServerKey(op);
     if (failed(result)) return result;
@@ -321,14 +321,14 @@ struct ConvertCmpOp : public OpConversionPattern<cggi::CmpOp> {
 };
 
 struct ConvertShROp : public OpConversionPattern<cggi::ScalarShiftRightOp> {
-  ConvertShROp(mlir::MLIRContext *context)
+  ConvertShROp(mlir::MLIRContext* context)
       : OpConversionPattern<cggi::ScalarShiftRightOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       cggi::ScalarShiftRightOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     FailureOr<Value> result = getContextualServerKey(op);
     if (failed(result)) return result;
@@ -342,14 +342,14 @@ struct ConvertShROp : public OpConversionPattern<cggi::ScalarShiftRightOp> {
 };
 
 struct ConvertShLOp : public OpConversionPattern<cggi::ScalarShiftLeftOp> {
-  ConvertShLOp(mlir::MLIRContext *context)
+  ConvertShLOp(mlir::MLIRContext* context)
       : OpConversionPattern<cggi::ScalarShiftLeftOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       cggi::ScalarShiftLeftOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     FailureOr<Value> result = getContextualServerKey(op);
     if (failed(result)) return result;
@@ -363,14 +363,14 @@ struct ConvertShLOp : public OpConversionPattern<cggi::ScalarShiftLeftOp> {
 };
 
 struct ConvertCastOp : public OpConversionPattern<cggi::CastOp> {
-  ConvertCastOp(mlir::MLIRContext *context)
+  ConvertCastOp(mlir::MLIRContext* context)
       : OpConversionPattern<cggi::CastOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       cggi::CastOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     FailureOr<Value> result = getContextualServerKey(op);
     if (failed(result)) return result;
@@ -386,14 +386,14 @@ struct ConvertCastOp : public OpConversionPattern<cggi::CastOp> {
 };
 
 struct ConvertNotOp : public OpConversionPattern<cggi::NotOp> {
-  ConvertNotOp(mlir::MLIRContext *context)
+  ConvertNotOp(mlir::MLIRContext* context)
       : OpConversionPattern<cggi::NotOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       cggi::NotOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op->getLoc(), rewriter);
     FailureOr<Value> result = getContextualServerKey(op);
     if (failed(result)) return result;
@@ -430,14 +430,14 @@ struct ConvertNotOp : public OpConversionPattern<cggi::NotOp> {
 
 struct ConvertProgrammableBootstrapOp
     : public OpConversionPattern<cggi::ProgrammableBootstrapOp> {
-  ConvertProgrammableBootstrapOp(mlir::MLIRContext *context)
+  ConvertProgrammableBootstrapOp(mlir::MLIRContext* context)
       : OpConversionPattern<cggi::ProgrammableBootstrapOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       cggi::ProgrammableBootstrapOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result = getContextualServerKey(op.getOperation());
     if (failed(result)) return result;
     Value serverKey = result.value();
@@ -453,14 +453,14 @@ struct ConvertProgrammableBootstrapOp
 
 struct ConvertTrivialEncryptOp
     : public OpConversionPattern<lwe::TrivialEncryptOp> {
-  ConvertTrivialEncryptOp(mlir::MLIRContext *context)
+  ConvertTrivialEncryptOp(mlir::MLIRContext* context)
       : OpConversionPattern<lwe::TrivialEncryptOp>(context, /*benefit=*/2) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       lwe::TrivialEncryptOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result = getContextualServerKey(op.getOperation());
     if (failed(result)) return result;
 
@@ -488,14 +488,14 @@ struct ConvertTrivialEncryptOp
 };
 
 struct ConvertTrivialOp : public OpConversionPattern<cggi::CreateTrivialOp> {
-  ConvertTrivialOp(mlir::MLIRContext *context)
+  ConvertTrivialOp(mlir::MLIRContext* context)
       : OpConversionPattern<cggi::CreateTrivialOp>(context, /*benefit=*/2) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       cggi::CreateTrivialOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result = getContextualServerKey(op.getOperation());
     if (failed(result)) return result;
 
@@ -524,14 +524,14 @@ struct ConvertTrivialOp : public OpConversionPattern<cggi::CreateTrivialOp> {
 };
 
 struct ConvertEncodeOp : public OpConversionPattern<lwe::EncodeOp> {
-  ConvertEncodeOp(mlir::MLIRContext *context)
+  ConvertEncodeOp(mlir::MLIRContext* context)
       : OpConversionPattern<lwe::EncodeOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       lwe::EncodeOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     rewriter.eraseOp(op);
     return success();
   }
@@ -539,8 +539,8 @@ struct ConvertEncodeOp : public OpConversionPattern<lwe::EncodeOp> {
 
 class CGGIToTfheRust : public impl::CGGIToTfheRustBase<CGGIToTfheRust> {
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
-    auto *op = getOperation();
+    MLIRContext* context = &getContext();
+    auto* op = getOperation();
 
     CGGIToTfheRustTypeConverter typeConverter(context);
     RewritePatternSet patterns(context);
@@ -578,7 +578,7 @@ class CGGIToTfheRust : public impl::CGGIToTfheRustBase<CGGIToTfheRust> {
         memref::AllocOp, memref::DeallocOp, memref::StoreOp, memref::LoadOp,
         memref::SubViewOp, memref::CopyOp, affine::AffineLoadOp,
         tensor::InsertOp, tensor::InsertSliceOp, affine::AffineStoreOp,
-        tensor::FromElementsOp, tensor::ExtractOp>([&](Operation *op) {
+        tensor::FromElementsOp, tensor::ExtractOp>([&](Operation* op) {
       return typeConverter.isLegal(op->getOperandTypes()) &&
              typeConverter.isLegal(op->getResultTypes());
     });

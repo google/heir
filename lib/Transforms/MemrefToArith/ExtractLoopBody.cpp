@@ -40,8 +40,8 @@ using ::mlir::affine::AffineForOp;
 // checkUsedForLoad checks if an operation was used to compute a load statement.
 // If exclusive is true, it returns whether the op was used only to compute the
 // load statement (and not in any other logic).
-static bool checkUsedForLoad(Operation *op, bool exclusive) {
-  std::queue<Operation *> users;
+static bool checkUsedForLoad(Operation* op, bool exclusive) {
+  std::queue<Operation*> users;
   for (auto user : op->getUsers()) {
     users.push(user);
   }
@@ -49,12 +49,12 @@ static bool checkUsedForLoad(Operation *op, bool exclusive) {
   bool usedForLoad = false;
   bool usedForStore = false;
   for (; !users.empty(); users.pop()) {
-    Operation *user = users.front();
-    llvm::TypeSwitch<Operation &>(*user)
+    Operation* user = users.front();
+    llvm::TypeSwitch<Operation&>(*user)
         .Case<memref::LoadOp>([&](auto use) { usedForLoad = true; })
         .Case<affine::AffineLoadOp>([&](auto use) { usedForLoad = true; })
         .Case<affine::AffineStoreOp>([&](auto use) { usedForStore = true; })
-        .Default([&](Operation &use) {
+        .Default([&](Operation& use) {
           for (auto user : use.getUsers()) {
             users.push(user);
           }
@@ -98,12 +98,12 @@ void extractLoopBody(AffineForOp loop, unsigned int minimumLoopSize,
   SmallVector<Type, 4> inputTypes;
   SmallVector<Value, 4> inputs;
   SmallVector<Value> results;
-  SmallVector<Operation *, 10> opsToCopy;
-  SmallPtrSet<Operation *, 4> constantOps;
+  SmallVector<Operation*, 10> opsToCopy;
+  SmallPtrSet<Operation*, 4> constantOps;
 
-  mlir::Region &innerLoopBody = nestedLoops[nestedLoops.size() - 1].getRegion();
-  innerLoopBody.walk<WalkOrder::PreOrder>([&](Operation *op) {
-    return llvm::TypeSwitch<Operation &, WalkResult>(*op)
+  mlir::Region& innerLoopBody = nestedLoops[nestedLoops.size() - 1].getRegion();
+  innerLoopBody.walk<WalkOrder::PreOrder>([&](Operation* op) {
+    return llvm::TypeSwitch<Operation&, WalkResult>(*op)
         .Case<affine::AffineLoadOp, memref::LoadOp>([&](auto op) {
           inputTypes.push_back(op.getResult().getType());
           inputs.push_back(op.getResult());
@@ -115,7 +115,7 @@ void extractLoopBody(AffineForOp loop, unsigned int minimumLoopSize,
         })
         .Case<affine::AffineYieldOp>(
             [&](auto op) { return WalkResult::skip(); })
-        .Default([&](Operation &op) {
+        .Default([&](Operation& op) {
           // Don't copy operations only used to compute load statements.
           if (checkUsedForLoad(&op, /*exclusive=*/true))
             return WalkResult::advance();
@@ -160,7 +160,7 @@ void extractLoopBody(AffineForOp loop, unsigned int minimumLoopSize,
 
   // Populate function body by cloning the ops in the inner body and mapping
   // the func args and func outputs.
-  Block *block = funcOp.addEntryBlock();
+  Block* block = funcOp.addEntryBlock();
   builder.setInsertionPointToStart(block);
 
   // Map the input values to the block arguments.
@@ -170,7 +170,7 @@ void extractLoopBody(AffineForOp loop, unsigned int minimumLoopSize,
   }
 
   // Build the function body.
-  Operation *clonedOp;
+  Operation* clonedOp;
   for (auto op : constantOps) {
     clonedOp = builder.clone(*op, mp);
   }
@@ -187,7 +187,7 @@ void extractLoopBody(AffineForOp loop, unsigned int minimumLoopSize,
   result.getDefiningOp()->replaceAllUsesWith(callOp);
 
   // Erase previous ops, except for the load statements and its dependents.
-  for (SmallVectorImpl<Operation *>::reverse_iterator rit = opsToCopy.rbegin();
+  for (SmallVectorImpl<Operation*>::reverse_iterator rit = opsToCopy.rbegin();
        rit != opsToCopy.rend(); ++rit) {
     auto op = *rit;
     // If the operation was also used for a load statement, don't erase.

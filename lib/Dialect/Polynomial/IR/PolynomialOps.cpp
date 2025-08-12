@@ -44,7 +44,7 @@ namespace polynomial {
 /// emitOpError.
 template <typename Op>
 LogicalResult coefficientTypeMatchesScalarType(Type polynomialLikeType,
-                                               Type scalarType, Op *op) {
+                                               Type scalarType, Op* op) {
   PolynomialType polyType;
 
   if (auto shapedPolyType = dyn_cast<ShapedType>(polynomialLikeType)) {
@@ -66,7 +66,7 @@ LogicalResult coefficientTypeMatchesScalarType(Type polynomialLikeType,
   return success();
 }
 
-void FromTensorOp::build(OpBuilder &builder, OperationState &result,
+void FromTensorOp::build(OpBuilder& builder, OperationState& result,
                          Value input, RingAttr ring) {
   TensorType tensorType = dyn_cast<TensorType>(input.getType());
 
@@ -162,8 +162,8 @@ LogicalResult ModSwitchOp::verify() {
 }
 
 /// Test if a value is a primitive nth root of unity modulo cmod.
-bool isPrimitiveNthRootOfUnity(const APInt &root, const APInt &n,
-                               const APInt &cmod) {
+bool isPrimitiveNthRootOfUnity(const APInt& root, const APInt& n,
+                               const APInt& cmod) {
   // The first or subsequent multiplications, may overflow the input bit width,
   // so scale them up to ensure they do not overflow.
   unsigned requiredBitWidth =
@@ -183,7 +183,7 @@ bool isPrimitiveNthRootOfUnity(const APInt &root, const APInt &n,
 
 /// Verify that the types involved in an NTT or INTT operation are
 /// compatible.
-static LogicalResult verifyNTTOp(Operation *op, PolynomialType poly,
+static LogicalResult verifyNTTOp(Operation* op, PolynomialType poly,
                                  RankedTensorType tensorType,
                                  std::optional<PrimitiveRootAttr> root) {
   Attribute encoding = tensorType.getEncoding();
@@ -311,7 +311,7 @@ LogicalResult KeySwitchInnerOp::verify() {
   return success();
 }
 
-ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
+ParseResult ConstantOp::parse(OpAsmParser& parser, OperationState& result) {
   auto loc = parser.getCurrentLocation();
 
   // Using the built-in parser.parseAttribute requires the full
@@ -363,7 +363,7 @@ ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
       loc, "Failed to parse polynomimal.constant op for unknown reasons.");
 }
 
-void ConstantOp::print(OpAsmPrinter &p) {
+void ConstantOp::print(OpAsmPrinter& p) {
   p << " ";
   if (auto intPoly = dyn_cast<TypedIntPolynomialAttr>(getValue())) {
     p << "int";
@@ -379,9 +379,9 @@ void ConstantOp::print(OpAsmPrinter &p) {
 }
 
 LogicalResult ConstantOp::inferReturnTypes(
-    MLIRContext *context, std::optional<mlir::Location> location,
+    MLIRContext* context, std::optional<mlir::Location> location,
     ConstantOp::Adaptor adaptor,
-    llvm::SmallVectorImpl<mlir::Type> &inferredReturnTypes) {
+    llvm::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
   Attribute operand = adaptor.getValue();
   if (auto intPoly = dyn_cast<TypedIntPolynomialAttr>(operand)) {
     inferredReturnTypes.push_back(intPoly.getType());
@@ -402,13 +402,13 @@ namespace {
 #include "lib/Dialect/Polynomial/IR/PolynomialCanonicalization.cpp.inc"
 }  // namespace
 
-void NTTOp::getCanonicalizationPatterns(RewritePatternSet &results,
-                                        MLIRContext *context) {
+void NTTOp::getCanonicalizationPatterns(RewritePatternSet& results,
+                                        MLIRContext* context) {
   results.add<NTTAfterINTT>(context);
 }
 
-void INTTOp::getCanonicalizationPatterns(RewritePatternSet &results,
-                                         MLIRContext *context) {
+void INTTOp::getCanonicalizationPatterns(RewritePatternSet& results,
+                                         MLIRContext* context) {
   results.add<INTTAfterNTT>(context);
 }
 

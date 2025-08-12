@@ -23,7 +23,7 @@ struct ChebyshevDecomposition {
 
 // Decomposes the polynomial in the Chebyshev polynomials basis.
 ChebyshevDecomposition decompose(
-    const ChebyshevBasisPolynomial &cheb_polynomial, int decomposition_degree);
+    const ChebyshevBasisPolynomial& cheb_polynomial, int decomposition_degree);
 
 }  // namespace polynomial
 }  // namespace heir

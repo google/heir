@@ -34,8 +34,8 @@ namespace tensor_ext {
 // populateWithGenerated, which can conflict with other generated patterns.
 #include "lib/Dialect/TensorExt/IR/TensorExtCanonicalization.cpp.inc"
 
-void RotateOp::getCanonicalizationPatterns(RewritePatternSet &results,
-                                           MLIRContext *context) {
+void RotateOp::getCanonicalizationPatterns(RewritePatternSet& results,
+                                           MLIRContext* context) {
   populateWithGenerated(results);
 }
 
@@ -54,8 +54,8 @@ LogicalResult RotateOp::verify() {
   return success();
 }
 
-LogicalResult verifyLayoutMatchesType(const Attribute &layoutAttr, Type type,
-                                      Operation *op) {
+LogicalResult verifyLayoutMatchesType(const Attribute& layoutAttr, Type type,
+                                      Operation* op) {
   auto shapedType = dyn_cast<ShapedType>(type);
 
   if (auto layout = dyn_cast<LayoutAttr>(layoutAttr)) {
@@ -167,7 +167,7 @@ LogicalResult PermuteOp::verify() {
     auto denseElementsAttr = dyn_cast<DenseIntElementsAttr>(getPermutation());
     if (denseElementsAttr) {
       permutationResult = llvm::map_to_vector(
-          denseElementsAttr, [](const APInt &i) { return i.getSExtValue(); });
+          denseElementsAttr, [](const APInt& i) { return i.getSExtValue(); });
       if (!isPermutation(permutationResult)) {
         return emitOpError() << "expected permutation, but got a dense "
                                 "attr that was not a permutation.";

@@ -40,12 +40,12 @@ namespace mlir::heir::arith {
 static constexpr unsigned maxIntWidth = 16;
 
 static lwe::LWECiphertextType convertArithToCGGIType(IntegerType type,
-                                                     MLIRContext *ctx) {
+                                                     MLIRContext* ctx) {
   return lwe::getDefaultCGGICiphertextType(ctx, type.getIntOrFloatBitWidth());
 }
 
 static std::optional<Type> convertArithToCGGIQuartType(IntegerType type,
-                                                       MLIRContext *ctx) {
+                                                       MLIRContext* ctx) {
   auto lweType = lwe::getDefaultCGGICiphertextType(ctx, maxIntWidth);
 
   float width = type.getWidth();
@@ -59,7 +59,7 @@ static std::optional<Type> convertArithToCGGIQuartType(IntegerType type,
 }
 
 static std::optional<Type> convertArithLikeToCGGIQuartType(ShapedType type,
-                                                           MLIRContext *ctx) {
+                                                           MLIRContext* ctx) {
   if (auto arithType = llvm::dyn_cast<IntegerType>(type.getElementType())) {
     float width = arithType.getWidth();
     float realWidth = maxIntWidth >> 1;
@@ -89,7 +89,7 @@ static std::optional<Type> convertArithLikeToCGGIQuartType(ShapedType type,
 
 class ArithToCGGIQuartTypeConverter : public TypeConverter {
  public:
-  ArithToCGGIQuartTypeConverter(MLIRContext *ctx) {
+  ArithToCGGIQuartTypeConverter(MLIRContext* ctx) {
     addConversion([](Type type) { return type; });
 
     // Convert Integer types to LWE ciphertext types
@@ -116,7 +116,7 @@ static Value createTrivialOpMaxWidth(ImplicitLocOpBuilder b, int value) {
 /// by `lastOffset`. Returns a value of tensor type with the last dimension
 /// reduced to x1 or fully scalarized, e.g.:
 ///   - tensor<2xi16>   --> i16
-static Value extractLastDimSlice(ConversionPatternRewriter &rewriter,
+static Value extractLastDimSlice(ConversionPatternRewriter& rewriter,
                                  Location loc, Value input,
                                  int64_t lastOffset) {
   ArrayRef<int64_t> shape = cast<RankedTensorType>(input.getType()).getShape();
@@ -146,7 +146,7 @@ static Value extractLastDimSlice(ConversionPatternRewriter &rewriter,
 /// Extracts four tensor slices from the `input` whose type is `tensor<...x4T>`,
 /// with the first element at offset 0, second element at offset 1 and so on.
 static SmallVector<Value> extractLastDimHalves(
-    ConversionPatternRewriter &rewriter, Location loc, Value input) {
+    ConversionPatternRewriter& rewriter, Location loc, Value input) {
   auto tenShape = cast<ShapedType>(input.getType()).getShape();
   auto nbChunks = tenShape.back();
   SmallVector<Value> newTrivialOps;
@@ -158,7 +158,7 @@ static SmallVector<Value> extractLastDimHalves(
   return newTrivialOps;
 };
 
-static Value createScalarOrSplatConstant(OpBuilder &builder, Location loc,
+static Value createScalarOrSplatConstant(OpBuilder& builder, Location loc,
                                          Type type, int64_t value) {
   auto intAttr = builder.getIntegerAttr(
       IntegerType::get(builder.getContext(), maxIntWidth), value);
@@ -166,7 +166,7 @@ static Value createScalarOrSplatConstant(OpBuilder &builder, Location loc,
   return cggi::CreateTrivialOp::create(builder, loc, type, intAttr);
 }
 
-static Value insertLastDimSlice(ConversionPatternRewriter &rewriter,
+static Value insertLastDimSlice(ConversionPatternRewriter& rewriter,
                                 Location loc, Value source, Value dest,
                                 int64_t lastOffset) {
   assert(lastOffset <
@@ -188,7 +188,7 @@ static Value insertLastDimSlice(ConversionPatternRewriter &rewriter,
 /// When all `resultComponents` are scalars, the result type is `tensor<NxT>`;
 /// when `resultComponents` are `tensor<...x1xT>`s, the result type is
 /// `tensor<...xNxT>`, where `N` is the number of `resultComponents`.
-static Value constructResultTensor(ConversionPatternRewriter &rewriter,
+static Value constructResultTensor(ConversionPatternRewriter& rewriter,
                                    Location loc, RankedTensorType resultType,
                                    ValueRange resultComponents) {
   Value resultVec = createScalarOrSplatConstant(rewriter, loc, resultType, 0);
@@ -200,14 +200,14 @@ static Value constructResultTensor(ConversionPatternRewriter &rewriter,
 
 struct ConvertQuartConstantOp
     : public OpConversionPattern<mlir::arith::ConstantOp> {
-  ConvertQuartConstantOp(mlir::MLIRContext *context)
+  ConvertQuartConstantOp(mlir::MLIRContext* context)
       : OpConversionPattern<mlir::arith::ConstantOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       mlir::arith::ConstantOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     if (isa<IndexType>(op.getValue().getType())) {
       return failure();
     }
@@ -247,14 +247,14 @@ struct ConvertQuartConstantOp
 
 struct ConvertQuartTruncIOp
     : public OpConversionPattern<mlir::arith::TruncIOp> {
-  ConvertQuartTruncIOp(mlir::MLIRContext *context)
+  ConvertQuartTruncIOp(mlir::MLIRContext* context)
       : OpConversionPattern<mlir::arith::TruncIOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       mlir::arith::TruncIOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     auto newResultTy = getTypeConverter()->convertType<RankedTensorType>(
@@ -288,7 +288,7 @@ struct ConvertQuartExt final : OpConversionPattern<ArithExtOp> {
 
   LogicalResult matchAndRewrite(
       ArithExtOp op, typename ArithExtOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op->getLoc(), rewriter);
 
     auto newResultTy = cast<ShapedType>(
@@ -326,7 +326,7 @@ struct ConvertQuartAddI final : OpConversionPattern<mlir::arith::AddIOp> {
 
   LogicalResult matchAndRewrite(
       mlir::arith::AddIOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     Location loc = op->getLoc();
     ImplicitLocOpBuilder b(loc, rewriter);
 
@@ -391,7 +391,7 @@ struct ConvertQuartMulI final : OpConversionPattern<mlir::arith::MulIOp> {
 
   LogicalResult matchAndRewrite(
       mlir::arith::MulIOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     Location loc = op->getLoc();
     ImplicitLocOpBuilder b(loc, rewriter);
 
@@ -483,8 +483,8 @@ struct ConvertQuartMulI final : OpConversionPattern<mlir::arith::MulIOp> {
 
 struct ArithToCGGIQuart : public impl::ArithToCGGIQuartBase<ArithToCGGIQuart> {
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
-    auto *module = getOperation();
+    MLIRContext* context = &getContext();
+    auto* module = getOperation();
     ArithToCGGIQuartTypeConverter typeConverter(context);
 
     RewritePatternSet patterns(context);
@@ -493,7 +493,7 @@ struct ArithToCGGIQuart : public impl::ArithToCGGIQuartBase<ArithToCGGIQuart> {
     target.addLegalDialect<tensor::TensorDialect>();
     target.addLegalDialect<memref::MemRefDialect>();
 
-    auto opLegalCallback = [&typeConverter](Operation *op) {
+    auto opLegalCallback = [&typeConverter](Operation* op) {
       return typeConverter.isLegal(op);
     };
 
@@ -504,7 +504,7 @@ struct ArithToCGGIQuart : public impl::ArithToCGGIQuartBase<ArithToCGGIQuart> {
         memref::AllocOp, memref::DeallocOp, memref::StoreOp, memref::LoadOp,
         memref::SubViewOp, memref::CopyOp, affine::AffineLoadOp,
         affine::AffineStoreOp, tensor::FromElementsOp, tensor::ExtractOp>(
-        [&](Operation *op) {
+        [&](Operation* op) {
           return typeConverter.isLegal(op->getOperandTypes()) &&
                  typeConverter.isLegal(op->getResultTypes());
         });

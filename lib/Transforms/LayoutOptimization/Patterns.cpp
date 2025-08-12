@@ -21,11 +21,11 @@ namespace heir {
 namespace {}  // namespace
 
 LogicalResult HoistArgLayouts::matchAndRewrite(
-    func::FuncOp func, PatternRewriter &rewriter) const {
+    func::FuncOp func, PatternRewriter& rewriter) const {
   bool changed = false;
 
   auto getFirstLayoutConversionOp =
-      [&](OpOperand &use) -> std::optional<tensor_ext::ConvertLayoutOp> {
+      [&](OpOperand& use) -> std::optional<tensor_ext::ConvertLayoutOp> {
     auto genericOp = dyn_cast<secret::GenericOp>(use.getOwner());
     if (!genericOp) {
       // A block argument may be returned directly, so no layout conversion is
@@ -43,7 +43,7 @@ LogicalResult HoistArgLayouts::matchAndRewrite(
     return convertLayoutOp;
   };
 
-  for (auto &blockArg : func.getArguments()) {
+  for (auto& blockArg : func.getArguments()) {
     // Check that all uses of the block argument have the same layout
     // conversion. Otherwise, hoisting may not produce a benefit; it would
     // require duplicating the function argument or updating the layout
@@ -53,7 +53,7 @@ LogicalResult HoistArgLayouts::matchAndRewrite(
     if (maybeLayoutOps.empty()) continue;
     auto maybeLayouts = llvm::map_range(
         llvm::to_vector(maybeLayoutOps),
-        [](auto &maybeLayoutOp) -> std::optional<tensor_ext::LayoutAttr> {
+        [](auto& maybeLayoutOp) -> std::optional<tensor_ext::LayoutAttr> {
           if (!maybeLayoutOp.has_value()) return std::nullopt;
           return maybeLayoutOp->getToLayout();
         });

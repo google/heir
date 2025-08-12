@@ -23,13 +23,13 @@ namespace mlir::heir::tensor_ext {
 #include "lib/Dialect/TensorExt/Conversions/TensorExtToTensor/TensorExtToTensor.h.inc"
 
 struct ConvertRotateOp : public OpRewritePattern<RotateOp> {
-  ConvertRotateOp(mlir::MLIRContext *context)
+  ConvertRotateOp(mlir::MLIRContext* context)
       : OpRewritePattern<RotateOp>(context) {}
 
   using OpRewritePattern::OpRewritePattern;
 
   LogicalResult matchAndRewrite(RotateOp op,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     auto shift = op.getShift();
     auto constantOp =
         dyn_cast_or_null<arith::ConstantOp>(shift.getDefiningOp());
@@ -98,7 +98,7 @@ struct ConvertRotateOp : public OpRewritePattern<RotateOp> {
 struct TensorExtToTensor
     : public impl::TensorExtToTensorBase<TensorExtToTensor> {
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
 
     RewritePatternSet patterns(context);
     patterns.add<ConvertRotateOp>(context);

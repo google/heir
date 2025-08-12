@@ -8,8 +8,8 @@
 /// StridedMemRef descriptor type with static rank.
 template <typename T, int N>
 struct StridedMemRefType {
-  T *basePtr;
-  T *data;
+  T* basePtr;
+  T* data;
   int64_t offset;
   int64_t sizes[N];
   int64_t strides[N];
@@ -22,7 +22,7 @@ struct StridedMemRefType {
 template <typename T>
 struct UnrankedMemRefType {
   int64_t rank;
-  void *descriptor;
+  void* descriptor;
 };
 
 // A reference to one of the StridedMemRef types.
@@ -30,15 +30,15 @@ template <typename T>
 class DynamicMemRefType {
  public:
   int64_t rank;
-  T *basePtr;
-  T *data;
+  T* basePtr;
+  T* data;
   int64_t offset;
-  const int64_t *sizes;
-  const int64_t *strides;
+  const int64_t* sizes;
+  const int64_t* strides;
 
-  explicit DynamicMemRefType(const ::UnrankedMemRefType<T> &memRef)
+  explicit DynamicMemRefType(const ::UnrankedMemRefType<T>& memRef)
       : rank(memRef.rank) {
-    auto *desc = static_cast<StridedMemRefType<T, 1> *>(memRef.descriptor);
+    auto* desc = static_cast<StridedMemRefType<T, 1>*>(memRef.descriptor);
     basePtr = desc->basePtr;
     data = desc->data;
     offset = desc->offset;
@@ -47,8 +47,8 @@ class DynamicMemRefType {
   }
 };
 
-extern "C" void memrefCopy(int64_t elemSize, UnrankedMemRefType<char> *srcArg,
-                           UnrankedMemRefType<char> *dstArg) {
+extern "C" void memrefCopy(int64_t elemSize, UnrankedMemRefType<char>* srcArg,
+                           UnrankedMemRefType<char>* dstArg) {
   DynamicMemRefType<char> src(*srcArg);
   DynamicMemRefType<char> dst(*dstArg);
 
@@ -59,17 +59,17 @@ extern "C" void memrefCopy(int64_t elemSize, UnrankedMemRefType<char> *srcArg,
   for (int rankp = 0; rankp < rank; ++rankp)
     if (src.sizes[rankp] == 0) return;
 
-  char *srcPtr = src.data + src.offset * elemSize;
-  char *dstPtr = dst.data + dst.offset * elemSize;
+  char* srcPtr = src.data + src.offset * elemSize;
+  char* dstPtr = dst.data + dst.offset * elemSize;
 
   if (rank == 0) {
     memcpy(dstPtr, srcPtr, elemSize);
     return;
   }
 
-  int64_t *indices = static_cast<int64_t *>(alloca(sizeof(int64_t) * rank));
-  int64_t *srcStrides = static_cast<int64_t *>(alloca(sizeof(int64_t) * rank));
-  int64_t *dstStrides = static_cast<int64_t *>(alloca(sizeof(int64_t) * rank));
+  int64_t* indices = static_cast<int64_t*>(alloca(sizeof(int64_t) * rank));
+  int64_t* srcStrides = static_cast<int64_t*>(alloca(sizeof(int64_t) * rank));
+  int64_t* dstStrides = static_cast<int64_t*>(alloca(sizeof(int64_t) * rank));
 
   // Initialize index and scale strides.
   for (int rankp = 0; rankp < rank; ++rankp) {

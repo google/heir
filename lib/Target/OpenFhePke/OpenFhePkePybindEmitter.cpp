@@ -18,19 +18,19 @@ namespace mlir {
 namespace heir {
 namespace openfhe {
 
-LogicalResult translateToOpenFhePkePybind(Operation *op, llvm::raw_ostream &os,
-                                          const std::string &headerInclude,
-                                          const std::string &pythonModuleName) {
+LogicalResult translateToOpenFhePkePybind(Operation* op, llvm::raw_ostream& os,
+                                          const std::string& headerInclude,
+                                          const std::string& pythonModuleName) {
   OpenFhePkePybindEmitter emitter(os, headerInclude, pythonModuleName);
   return emitter.translate(*op);
 }
 
-LogicalResult OpenFhePkePybindEmitter::translate(Operation &op) {
+LogicalResult OpenFhePkePybindEmitter::translate(Operation& op) {
   LogicalResult status =
-      llvm::TypeSwitch<Operation &, LogicalResult>(op)
+      llvm::TypeSwitch<Operation&, LogicalResult>(op)
           .Case<ModuleOp>([&](auto op) { return printOperation(op); })
           .Case<func::FuncOp>([&](auto op) { return printOperation(op); })
-          .Default([&](Operation &) {
+          .Default([&](Operation&) {
             return op.emitOpError("unable to find printer for op");
           });
 
@@ -49,7 +49,7 @@ LogicalResult OpenFhePkePybindEmitter::printOperation(ModuleOp moduleOp) {
   os << llvm::formatv(kPybindModuleTemplate.data(), pythonModuleName_) << "\n";
   os.indent();
 
-  for (Operation &op : moduleOp) {
+  for (Operation& op : moduleOp) {
     if (failed(translate(op))) {
       return failure();
     }

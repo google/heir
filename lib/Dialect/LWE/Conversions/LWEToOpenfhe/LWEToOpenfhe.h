@@ -22,10 +22,10 @@ namespace mlir::heir::lwe {
 
 class ToOpenfheTypeConverter : public TypeConverter {
  public:
-  ToOpenfheTypeConverter(MLIRContext *ctx);
+  ToOpenfheTypeConverter(MLIRContext* ctx);
 };
 
-FailureOr<Value> getContextualCryptoContext(Operation *op);
+FailureOr<Value> getContextualCryptoContext(Operation* op);
 
 template <typename UnaryOp, typename OpenfheOp>
 struct ConvertUnaryOp : public OpConversionPattern<UnaryOp> {
@@ -33,7 +33,7 @@ struct ConvertUnaryOp : public OpConversionPattern<UnaryOp> {
 
   LogicalResult matchAndRewrite(
       UnaryOp op, typename UnaryOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
     if (failed(result)) return result;
 
@@ -50,7 +50,7 @@ struct ConvertLWEBinOp : public OpConversionPattern<BinOp> {
 
   LogicalResult matchAndRewrite(
       BinOp op, typename BinOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
     if (failed(result)) return result;
 
@@ -68,7 +68,7 @@ struct ConvertCiphertextPlaintextOp : public OpConversionPattern<BinOp> {
 
   LogicalResult matchAndRewrite(
       BinOp op, typename BinOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
     if (failed(result)) return result;
 
@@ -82,14 +82,14 @@ struct ConvertCiphertextPlaintextOp : public OpConversionPattern<BinOp> {
 
 template <typename RotateOp, typename OpenfheOp>
 struct ConvertRotateOp : public OpConversionPattern<RotateOp> {
-  ConvertRotateOp(mlir::MLIRContext *context)
+  ConvertRotateOp(mlir::MLIRContext* context)
       : OpConversionPattern<RotateOp>(context) {}
 
   using OpConversionPattern<RotateOp>::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       RotateOp op, typename RotateOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
     if (failed(result)) return result;
 
@@ -108,14 +108,14 @@ inline bool checkRelinToBasis(llvm::ArrayRef<int> toBasis) {
 
 template <typename RelinOp, typename OpenfheOp>
 struct ConvertRelinOp : public OpConversionPattern<RelinOp> {
-  ConvertRelinOp(mlir::MLIRContext *context)
+  ConvertRelinOp(mlir::MLIRContext* context)
       : OpConversionPattern<RelinOp>(context) {}
 
   using OpConversionPattern<RelinOp>::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       RelinOp op, typename RelinOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
     if (failed(result)) return result;
 
@@ -140,14 +140,14 @@ struct ConvertRelinOp : public OpConversionPattern<RelinOp> {
 // alias for openfhe::ModReduceOp
 template <typename ModulusSwitchOp>
 struct ConvertModulusSwitchOp : public OpConversionPattern<ModulusSwitchOp> {
-  ConvertModulusSwitchOp(mlir::MLIRContext *context)
+  ConvertModulusSwitchOp(mlir::MLIRContext* context)
       : OpConversionPattern<ModulusSwitchOp>(context) {}
 
   using OpConversionPattern<ModulusSwitchOp>::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       ModulusSwitchOp op, typename ModulusSwitchOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
     if (failed(result)) return result;
 
@@ -161,14 +161,14 @@ struct ConvertModulusSwitchOp : public OpConversionPattern<ModulusSwitchOp> {
 
 template <typename LevelReduceOp>
 struct ConvertLevelReduceOp : public OpConversionPattern<LevelReduceOp> {
-  ConvertLevelReduceOp(mlir::MLIRContext *context)
+  ConvertLevelReduceOp(mlir::MLIRContext* context)
       : OpConversionPattern<LevelReduceOp>(context) {}
 
   using OpConversionPattern<LevelReduceOp>::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       LevelReduceOp op, typename LevelReduceOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
     if (failed(result)) return result;
 

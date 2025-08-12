@@ -36,24 +36,24 @@ namespace heir {
 // ScaleModel
 //===----------------------------------------------------------------------===//
 
-int64_t BGVScaleModel::evalMulScale(const bgv::LocalParam &param, int64_t lhs,
+int64_t BGVScaleModel::evalMulScale(const bgv::LocalParam& param, int64_t lhs,
                                     int64_t rhs) {
-  const auto *schemeParam = param.getSchemeParam();
+  const auto* schemeParam = param.getSchemeParam();
   auto t = schemeParam->getPlaintextModulus();
   return lhs * rhs % t;
 }
 
-int64_t BGVScaleModel::evalMulScaleBackward(const bgv::LocalParam &param,
+int64_t BGVScaleModel::evalMulScaleBackward(const bgv::LocalParam& param,
                                             int64_t result, int64_t lhs) {
-  const auto *schemeParam = param.getSchemeParam();
+  const auto* schemeParam = param.getSchemeParam();
   auto t = schemeParam->getPlaintextModulus();
   auto lhsInv = multiplicativeInverse(APInt(64, lhs), APInt(64, t));
   return result * lhsInv.getSExtValue() % t;
 }
 
-int64_t BGVScaleModel::evalModReduceScale(const bgv::LocalParam &inputParam,
+int64_t BGVScaleModel::evalModReduceScale(const bgv::LocalParam& inputParam,
                                           int64_t scale) {
-  const auto *schemeParam = inputParam.getSchemeParam();
+  const auto* schemeParam = inputParam.getSchemeParam();
   auto t = schemeParam->getPlaintextModulus();
   auto qi = schemeParam->getQi();
   auto level = inputParam.getCurrentLevel();
@@ -62,29 +62,29 @@ int64_t BGVScaleModel::evalModReduceScale(const bgv::LocalParam &inputParam,
 }
 
 int64_t BGVScaleModel::evalModReduceScaleBackward(
-    const bgv::LocalParam &inputParam, int64_t resultScale) {
-  const auto *schemeParam = inputParam.getSchemeParam();
+    const bgv::LocalParam& inputParam, int64_t resultScale) {
+  const auto* schemeParam = inputParam.getSchemeParam();
   auto t = schemeParam->getPlaintextModulus();
   auto qi = schemeParam->getQi();
   auto level = inputParam.getCurrentLevel();
   return resultScale * (qi[level] % t) % t;
 }
 
-int64_t CKKSScaleModel::evalMulScale(const ckks::LocalParam &param, int64_t lhs,
+int64_t CKKSScaleModel::evalMulScale(const ckks::LocalParam& param, int64_t lhs,
                                      int64_t rhs) {
   // TODO(#1640): support high-precision scale management
   return lhs + rhs;
 }
 
-int64_t CKKSScaleModel::evalMulScaleBackward(const ckks::LocalParam &param,
+int64_t CKKSScaleModel::evalMulScaleBackward(const ckks::LocalParam& param,
                                              int64_t result, int64_t lhs) {
   // TODO(#1640): support high-precision scale management
   return result - lhs;
 }
 
-int64_t CKKSScaleModel::evalModReduceScale(const ckks::LocalParam &inputParam,
+int64_t CKKSScaleModel::evalModReduceScale(const ckks::LocalParam& inputParam,
                                            int64_t scale) {
-  const auto *schemeParam = inputParam.getSchemeParam();
+  const auto* schemeParam = inputParam.getSchemeParam();
   // TODO(#1640): rescale using logqi instead of logDefaultScale
   // auto logqi = schemeParam->getLogqi();
   // auto level = inputParam.getCurrentLevel();
@@ -93,8 +93,8 @@ int64_t CKKSScaleModel::evalModReduceScale(const ckks::LocalParam &inputParam,
 }
 
 int64_t CKKSScaleModel::evalModReduceScaleBackward(
-    const ckks::LocalParam &inputParam, int64_t resultScale) {
-  const auto *schemeParam = inputParam.getSchemeParam();
+    const ckks::LocalParam& inputParam, int64_t resultScale) {
+  const auto* schemeParam = inputParam.getSchemeParam();
   // TODO(#1640): rescale using logqi instead of logDefaultScale
   // auto logqi = schemeParam->getLogqi();
   // auto level = inputParam.getCurrentLevel();
@@ -108,16 +108,16 @@ int64_t CKKSScaleModel::evalModReduceScaleBackward(
 
 template <typename ScaleModelT>
 LogicalResult ScaleAnalysis<ScaleModelT>::visitOperation(
-    Operation *op, ArrayRef<const ScaleLattice *> operands,
-    ArrayRef<ScaleLattice *> results) {
+    Operation* op, ArrayRef<const ScaleLattice*> operands,
+    ArrayRef<ScaleLattice*> results) {
   auto getLocalParam = [&](Value value) {
     auto level = getLevelFromMgmtAttr(value);
     auto dimension = getDimensionFromMgmtAttr(value);
     return LocalParamType(&schemeParam, level, dimension);
   };
 
-  auto propagate = [&](Value value, const ScaleState &state) {
-    auto *lattice = getLatticeElement(value);
+  auto propagate = [&](Value value, const ScaleState& state) {
+    auto* lattice = getLatticeElement(value);
     ChangeResult changed = lattice->join(state);
     if (changed == ChangeResult::Change) {
       LLVM_DEBUG(llvm::dbgs()
@@ -126,11 +126,11 @@ LogicalResult ScaleAnalysis<ScaleModelT>::visitOperation(
     propagateIfChanged(lattice, changed);
   };
 
-  auto getOperandScales = [&](Operation *op, SmallVectorImpl<int64_t> &scales) {
-    SmallVector<OpOperand *> secretOperands;
+  auto getOperandScales = [&](Operation* op, SmallVectorImpl<int64_t>& scales) {
+    SmallVector<OpOperand*> secretOperands;
     this->getSecretOperands(op, secretOperands);
 
-    for (auto *operand : secretOperands) {
+    for (auto* operand : secretOperands) {
       auto operandState = getLatticeElement(operand->get())->getValue();
       if (!operandState.isInitialized()) {
         continue;
@@ -145,7 +145,7 @@ LogicalResult ScaleAnalysis<ScaleModelT>::visitOperation(
     }
   };
 
-  llvm::TypeSwitch<Operation &>(*op)
+  llvm::TypeSwitch<Operation&>(*op)
       .template Case<arith::MulIOp, arith::MulFOp>([&](auto mulOp) {
         SmallVector<int64_t> scales;
         getOperandScales(mulOp, scales);
@@ -192,7 +192,7 @@ LogicalResult ScaleAnalysis<ScaleModelT>::visitOperation(
           propagate(initOp.getResult(), ScaleState(mgmtAttr.getScale()));
         }
       })
-      .Default([&](auto &op) {
+      .Default([&](auto& op) {
         // condition on result secretness
         SmallVector<OpResult> secretResults;
         this->getSecretResults(&op, secretResults);
@@ -216,8 +216,8 @@ LogicalResult ScaleAnalysis<ScaleModelT>::visitOperation(
 
 template <typename ScaleModelT>
 void ScaleAnalysis<ScaleModelT>::visitExternalCall(
-    CallOpInterface call, ArrayRef<const ScaleLattice *> argumentLattices,
-    ArrayRef<ScaleLattice *> resultLattices) {
+    CallOpInterface call, ArrayRef<const ScaleLattice*> argumentLattices,
+    ArrayRef<ScaleLattice*> resultLattices) {
   auto callback = std::bind(&ScaleAnalysis::propagateIfChangedWrapper, this,
                             std::placeholders::_1, std::placeholders::_2);
   ::mlir::heir::visitExternalCall<ScaleState, ScaleLattice>(
@@ -234,16 +234,16 @@ template class ScaleAnalysis<CKKSScaleModel>;
 
 template <typename ScaleModelT>
 LogicalResult ScaleAnalysisBackward<ScaleModelT>::visitOperation(
-    Operation *op, ArrayRef<ScaleLattice *> operands,
-    ArrayRef<const ScaleLattice *> results) {
+    Operation* op, ArrayRef<ScaleLattice*> operands,
+    ArrayRef<const ScaleLattice*> results) {
   auto getLocalParam = [&](Value value) {
     auto level = getLevelFromMgmtAttr(value);
     auto dimension = getDimensionFromMgmtAttr(value);
     return LocalParamType(&schemeParam, level, dimension);
   };
 
-  auto propagate = [&](Value value, const ScaleState &state) {
-    auto *lattice = getLatticeElement(value);
+  auto propagate = [&](Value value, const ScaleState& state) {
+    auto* lattice = getLatticeElement(value);
     ChangeResult changed = lattice->join(state);
     if (changed == ChangeResult::Change) {
       LLVM_DEBUG(llvm::dbgs()
@@ -253,9 +253,9 @@ LogicalResult ScaleAnalysisBackward<ScaleModelT>::visitOperation(
   };
 
   auto getSecretOrInittedOperands =
-      [&](Operation *op, SmallVectorImpl<OpOperand *> &secretOperands) {
+      [&](Operation* op, SmallVectorImpl<OpOperand*>& secretOperands) {
         this->getSecretOperands(op, secretOperands);
-        for (auto &opOperand : op->getOpOperands()) {
+        for (auto& opOperand : op->getOpOperands()) {
           if (!this->isSecretInternal(op, opOperand.get()) &&
               isa_and_nonnull<mgmt::InitOp>(opOperand.get().getDefiningOp())) {
             // Treat it as if it were secret for the purpose of scale
@@ -266,14 +266,14 @@ LogicalResult ScaleAnalysisBackward<ScaleModelT>::visitOperation(
       };
 
   auto getOperandScales =
-      [&](Operation *op, SmallVectorImpl<int64_t> &operandWithoutScaleIndices,
-          SmallVectorImpl<int64_t> &scales) {
+      [&](Operation* op, SmallVectorImpl<int64_t>& operandWithoutScaleIndices,
+          SmallVectorImpl<int64_t>& scales) {
         LLVM_DEBUG(llvm::dbgs()
                    << "Operand scales for " << op->getName() << ": ");
-        SmallVector<OpOperand *> secretOperands;
+        SmallVector<OpOperand*> secretOperands;
         getSecretOrInittedOperands(op, secretOperands);
 
-        for (auto *operand : secretOperands) {
+        for (auto* operand : secretOperands) {
           auto operandState = getLatticeElement(operand->get())->getValue();
           if (!operandState.isInitialized()) {
             LLVM_DEBUG(llvm::dbgs()
@@ -294,7 +294,7 @@ LogicalResult ScaleAnalysisBackward<ScaleModelT>::visitOperation(
         LLVM_DEBUG(llvm::dbgs() << "\n");
       };
 
-  auto getResultScales = [&](Operation *op, SmallVectorImpl<int64_t> &scales) {
+  auto getResultScales = [&](Operation* op, SmallVectorImpl<int64_t>& scales) {
     LLVM_DEBUG(llvm::dbgs() << "Result scales for " << op->getName() << ": ");
     SmallVector<OpResult> secretResults;
     this->getSecretResults(op, secretResults);
@@ -313,7 +313,7 @@ LogicalResult ScaleAnalysisBackward<ScaleModelT>::visitOperation(
 
   LLVM_DEBUG(llvm::dbgs() << "Backward analysis visiting: " << op->getName()
                           << "\n");
-  llvm::TypeSwitch<Operation &>(*op)
+  llvm::TypeSwitch<Operation&>(*op)
       .template Case<arith::MulIOp, arith::MulFOp>([&](auto mulOp) {
         SmallVector<int64_t> resultScales;
         getResultScales(mulOp, resultScales);
@@ -368,7 +368,7 @@ LogicalResult ScaleAnalysisBackward<ScaleModelT>::visitOperation(
         // Do not back propagate through adjust scale op
         return;
       })
-      .Default([&](auto &op) {
+      .Default([&](auto& op) {
         // condition on result secretness
         SmallVector<OpResult> secretResults;
         this->getSecretResults(&op, secretResults);
@@ -399,8 +399,8 @@ template class ScaleAnalysisBackward<CKKSScaleModel>;
 // Utils
 //===----------------------------------------------------------------------===//
 
-int64_t getScale(Value value, DataFlowSolver *solver) {
-  auto *lattice = solver->lookupState<ScaleLattice>(value);
+int64_t getScale(Value value, DataFlowSolver* solver) {
+  auto* lattice = solver->lookupState<ScaleLattice>(value);
   if (!lattice) {
     assert(false && "ScaleLattice not found");
     return 0;
@@ -421,7 +421,7 @@ int64_t getScaleFromMgmtAttr(Value value) {
   return mgmtAttr.getScale();
 }
 
-void annotateScale(Operation *top, DataFlowSolver *solver) {
+void annotateScale(Operation* top, DataFlowSolver* solver) {
   auto getIntegerAttr = [&](int scale) {
     return IntegerAttr::get(IntegerType::get(top->getContext(), 64), scale);
   };

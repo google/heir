@@ -30,16 +30,16 @@ struct SecretWhileToStaticForConversion : OpRewritePattern<scf::WhileOp> {
   using OpRewritePattern<scf::WhileOp>::OpRewritePattern;
 
  public:
-  SecretWhileToStaticForConversion(DataFlowSolver *solver, MLIRContext *context)
+  SecretWhileToStaticForConversion(DataFlowSolver* solver, MLIRContext* context)
       : OpRewritePattern(context), solver(solver) {}
 
   // TODO(#846): Add support for do-while loops
   LogicalResult matchAndRewrite(scf::WhileOp whileOp,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     auto conditionOp = whileOp.getConditionOp();
     auto whileCondition = conditionOp->getOperand(0);
 
-    auto *beforeRegionArgs = whileOp.getBefore().front().getArguments().data();
+    auto* beforeRegionArgs = whileOp.getBefore().front().getArguments().data();
 
     auto conditionOpArgs =
         // Get Loop variables: includes all arguments without the condition
@@ -63,7 +63,7 @@ struct SecretWhileToStaticForConversion : OpRewritePattern<scf::WhileOp> {
       counter++;
     }
 
-    auto *conditionSecretnessLattice =
+    auto* conditionSecretnessLattice =
         solver->lookupState<SecretnessLattice>(whileCondition);
 
     if (!conditionSecretnessLattice) {
@@ -114,7 +114,7 @@ struct SecretWhileToStaticForConversion : OpRewritePattern<scf::WhileOp> {
     }
 
     Value condition;
-    for (auto &op : whileOp.getBefore().getOps()) {
+    for (auto& op : whileOp.getBefore().getOps()) {
       if (auto conditionOp = dyn_cast<scf::ConditionOp>(op)) {
         // Get condition used in scf.condition op
         condition = mp.lookup(conditionOp.getOperand(0));
@@ -126,17 +126,17 @@ struct SecretWhileToStaticForConversion : OpRewritePattern<scf::WhileOp> {
 
     auto ifOp = scf::IfOp::create(
         builder, condition,
-        [&](OpBuilder &b, Location loc) {
+        [&](OpBuilder& b, Location loc) {
           for (BlockArgument blockArg : whileOp.getAfterArguments()) {
             mp.map(blockArg, newForOp.getBody()
                                  ->getArguments()[blockArg.getArgNumber() + 1]);
           }
-          for (auto &op : whileOp.getAfter().getOps()) {
+          for (auto& op : whileOp.getAfter().getOps()) {
             // Copy op in "after" region to the ifOp's "then" region
             b.clone(op, mp);
           }
         },
-        [&](OpBuilder &b, Location loc) {
+        [&](OpBuilder& b, Location loc) {
           scf::YieldOp::create(b, loc, newForOp.getRegionIterArgs());
         });
 
@@ -150,7 +150,7 @@ struct SecretWhileToStaticForConversion : OpRewritePattern<scf::WhileOp> {
   }
 
  private:
-  DataFlowSolver *solver;
+  DataFlowSolver* solver;
 };
 
 struct ConvertSecretWhileToStaticFor
@@ -158,7 +158,7 @@ struct ConvertSecretWhileToStaticFor
   using ConvertSecretWhileToStaticForBase::ConvertSecretWhileToStaticForBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
 
     RewritePatternSet patterns(context);
 

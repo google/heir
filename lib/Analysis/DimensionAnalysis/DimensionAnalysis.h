@@ -37,21 +37,21 @@ class DimensionState {
   }
   DimensionType get() const { return getDimension(); }
 
-  bool operator==(const DimensionState &rhs) const {
+  bool operator==(const DimensionState& rhs) const {
     return dimension == rhs.dimension;
   }
 
   bool isInitialized() const { return dimension.has_value(); }
 
-  static DimensionState join(const DimensionState &lhs,
-                             const DimensionState &rhs) {
+  static DimensionState join(const DimensionState& lhs,
+                             const DimensionState& rhs) {
     if (!lhs.isInitialized()) return rhs;
     if (!rhs.isInitialized()) return lhs;
 
     return DimensionState{std::max(lhs.getDimension(), rhs.getDimension())};
   }
 
-  void print(llvm::raw_ostream &os) const {
+  void print(llvm::raw_ostream& os) const {
     if (isInitialized()) {
       os << "DimensionState(" << dimension.value() << ")";
     } else {
@@ -59,8 +59,8 @@ class DimensionState {
     }
   }
 
-  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
-                                       const DimensionState &state) {
+  friend llvm::raw_ostream& operator<<(llvm::raw_ostream& os,
+                                       const DimensionState& state) {
     state.print(os);
     return os;
   }
@@ -81,7 +81,7 @@ class DimensionAnalysis
   using SparseForwardDataFlowAnalysis::SparseForwardDataFlowAnalysis;
   friend class SecretnessAnalysisDependent<DimensionAnalysis>;
 
-  void setToEntryState(DimensionLattice *lattice) override {
+  void setToEntryState(DimensionLattice* lattice) override {
     if (isa<secret::SecretType>(lattice->getAnchor().getType())) {
       propagateIfChanged(lattice, lattice->join(DimensionState(2)));
       return;
@@ -89,15 +89,15 @@ class DimensionAnalysis
     propagateIfChanged(lattice, lattice->join(DimensionState()));
   }
 
-  LogicalResult visitOperation(Operation *op,
-                               ArrayRef<const DimensionLattice *> operands,
-                               ArrayRef<DimensionLattice *> results) override;
+  LogicalResult visitOperation(Operation* op,
+                               ArrayRef<const DimensionLattice*> operands,
+                               ArrayRef<DimensionLattice*> results) override;
 
   void visitExternalCall(CallOpInterface call,
-                         ArrayRef<const DimensionLattice *> argumentLattices,
-                         ArrayRef<DimensionLattice *> resultLattices) override;
+                         ArrayRef<const DimensionLattice*> argumentLattices,
+                         ArrayRef<DimensionLattice*> resultLattices) override;
 
-  void propagateIfChangedWrapper(AnalysisState *state, ChangeResult changed) {
+  void propagateIfChangedWrapper(AnalysisState* state, ChangeResult changed) {
     propagateIfChanged(state, changed);
   }
 };
@@ -115,25 +115,25 @@ class DimensionAnalysisBackward
   using SparseBackwardDataFlowAnalysis::SparseBackwardDataFlowAnalysis;
   friend class SecretnessAnalysisDependent<DimensionAnalysis>;
 
-  void setToExitState(DimensionLattice *lattice) override;
+  void setToExitState(DimensionLattice* lattice) override;
 
   LogicalResult visitOperation(
-      Operation *op, ArrayRef<DimensionLattice *> operands,
-      ArrayRef<const DimensionLattice *> results) override;
+      Operation* op, ArrayRef<DimensionLattice*> operands,
+      ArrayRef<const DimensionLattice*> results) override;
 
   // dummy impl
-  void visitBranchOperand(OpOperand &operand) override {}
-  void visitCallOperand(OpOperand &operand) override {}
+  void visitBranchOperand(OpOperand& operand) override {}
+  void visitCallOperand(OpOperand& operand) override {}
 };
 
 std::optional<DimensionState::DimensionType> getDimension(
-    Value value, DataFlowSolver *solver);
+    Value value, DataFlowSolver* solver);
 
 DimensionState::DimensionType getDimensionFromMgmtAttr(Value value);
 
 constexpr StringRef kArgDimensionAttrName = "mgmt.dimension";
 
-void annotateDimension(Operation *top, DataFlowSolver *solver);
+void annotateDimension(Operation* top, DataFlowSolver* solver);
 
 }  // namespace heir
 }  // namespace mlir

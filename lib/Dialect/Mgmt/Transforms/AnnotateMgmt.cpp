@@ -28,7 +28,7 @@ namespace mgmt {
 #define GEN_PASS_DEF_ANNOTATEMGMT
 #include "lib/Dialect/Mgmt/Transforms/Passes.h.inc"
 
-void annotateMgmtAttr(Operation *top) {
+void annotateMgmtAttr(Operation* top) {
   auto mergeIntoMgmtAttr = [&](Attribute levelAttr, Attribute dimensionAttr,
                                Attribute scaleAttr) {
     auto level = cast<IntegerAttr>(levelAttr).getInt();

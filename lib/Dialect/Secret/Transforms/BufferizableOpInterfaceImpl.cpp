@@ -22,31 +22,31 @@ namespace secret {
 struct SeparatorOpInterface
     : public bufferization::BufferizableOpInterface::ExternalModel<
           SeparatorOpInterface, secret::SeparatorOp> {
-  bool bufferizesToMemoryRead(Operation *op, OpOperand &opOperand,
-                              const bufferization::AnalysisState &state) const {
+  bool bufferizesToMemoryRead(Operation* op, OpOperand& opOperand,
+                              const bufferization::AnalysisState& state) const {
     return true;
   };
 
   bool bufferizesToMemoryWrite(
-      Operation *op, OpOperand &opOperand,
-      const bufferization::AnalysisState &state) const {
+      Operation* op, OpOperand& opOperand,
+      const bufferization::AnalysisState& state) const {
     return false;
   };
 
   bufferization::AliasingValueList getAliasingValues(
-      Operation *op, OpOperand &opOperand,
-      const bufferization::AnalysisState &state) const {
+      Operation* op, OpOperand& opOperand,
+      const bufferization::AnalysisState& state) const {
     return {};
   };
 
-  bool mustBufferizeInPlace(Operation *op, OpOperand &opOperand,
-                            const bufferization::AnalysisState &state) const {
+  bool mustBufferizeInPlace(Operation* op, OpOperand& opOperand,
+                            const bufferization::AnalysisState& state) const {
     return true;
   };
 
-  LogicalResult bufferize(Operation *op, RewriterBase &rewriter,
-                          const bufferization::BufferizationOptions &options,
-                          bufferization::BufferizationState &state) const {
+  LogicalResult bufferize(Operation* op, RewriterBase& rewriter,
+                          const bufferization::BufferizationOptions& options,
+                          bufferization::BufferizationState& state) const {
     auto separator = cast<secret::SeparatorOp>(op);
 
     SmallVector<Value> newInputs;
@@ -65,8 +65,8 @@ struct SeparatorOpInterface
   };
 };
 
-void registerBufferizableOpInterfaceExternalModels(DialectRegistry &registry) {
-  registry.addExtension(+[](MLIRContext *ctx, SecretDialect *dialect) {
+void registerBufferizableOpInterfaceExternalModels(DialectRegistry& registry) {
+  registry.addExtension(+[](MLIRContext* ctx, SecretDialect* dialect) {
     SeparatorOp::attachInterface<SeparatorOpInterface>(*ctx);
   });
 }

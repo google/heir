@@ -27,9 +27,9 @@
 namespace mlir {
 namespace heir {
 
-FailureOr<Operation *> convertGeneral(
-    const ContextAwareTypeConverter *typeConverter, Operation *op,
-    ArrayRef<Value> operands, ContextAwareConversionPatternRewriter &rewriter) {
+FailureOr<Operation*> convertGeneral(
+    const ContextAwareTypeConverter* typeConverter, Operation* op,
+    ArrayRef<Value> operands, ContextAwareConversionPatternRewriter& rewriter) {
   LLVM_DEBUG({
     llvm::dbgs() << "convertGeneral: operand types are\n\n";
     for (auto operand : operands) {
@@ -46,15 +46,15 @@ FailureOr<Operation *> convertGeneral(
   }
 
   SmallVector<std::unique_ptr<Region>, 1> regions;
-  for (auto &region : op->getRegions()) {
-    Region *newRegion = new Region(op);
+  for (auto& region : op->getRegions()) {
+    Region* newRegion = new Region(op);
     if (failed(rewriter.convertRegionTypes(&region, *typeConverter)))
       return failure();
     newRegion->takeBody(region);
     regions.push_back(std::unique_ptr<Region>(newRegion));
   }
 
-  Operation *newOp = rewriter.create(OperationState(
+  Operation* newOp = rewriter.create(OperationState(
       op->getLoc(), op->getName().getStringRef(), operands, newResultTypes,
       op->getAttrs(), op->getSuccessors(), regions));
 
@@ -63,8 +63,8 @@ FailureOr<Operation *> convertGeneral(
 }
 
 static LogicalResult convertFuncOpTypes(
-    FunctionOpInterface funcOp, const ContextAwareTypeConverter &typeConverter,
-    ContextAwareConversionPatternRewriter &rewriter) {
+    FunctionOpInterface funcOp, const ContextAwareTypeConverter& typeConverter,
+    ContextAwareConversionPatternRewriter& rewriter) {
   FunctionType type = dyn_cast<FunctionType>(funcOp.getFunctionType());
   if (!type) return failure();
 
@@ -96,7 +96,7 @@ static LogicalResult convertFuncOpTypes(
 
 LogicalResult ContextAwareFuncConversion::matchAndRewrite(
     func::FuncOp op, OpAdaptor adaptor,
-    ContextAwareConversionPatternRewriter &rewriter) const {
+    ContextAwareConversionPatternRewriter& rewriter) const {
   SmallVector<Type> oldFuncOperandTypes(op.getFunctionType().getInputs());
   SmallVector<Type> oldFuncResultTypes(op.getFunctionType().getResults());
 
@@ -110,10 +110,10 @@ LogicalResult ContextAwareFuncConversion::matchAndRewrite(
   return success();
 }
 
-FailureOr<Operation *> SecretGenericFuncCallConversion::matchAndRewriteInner(
+FailureOr<Operation*> SecretGenericFuncCallConversion::matchAndRewriteInner(
     secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
     ArrayRef<NamedAttribute> attributes,
-    ContextAwareConversionPatternRewriter &rewriter) const {
+    ContextAwareConversionPatternRewriter& rewriter) const {
   // check if any args are secret from wrapping generic
   // clone the callee (and update a unique name, for now always) the call
   // operands add a note that we don't have to always clone to be secret
@@ -148,9 +148,9 @@ FailureOr<Operation *> SecretGenericFuncCallConversion::matchAndRewriteInner(
   return newCallOp.getOperation();
 }
 
-void addStructuralConversionPatterns(ContextAwareTypeConverter &typeConverter,
-                                     RewritePatternSet &patterns,
-                                     ConversionTarget &target) {
+void addStructuralConversionPatterns(ContextAwareTypeConverter& typeConverter,
+                                     RewritePatternSet& patterns,
+                                     ConversionTarget& target) {
   patterns
       .add<ContextAwareFuncConversion, ConvertAnyContextAware<func::ReturnOp>>(
           typeConverter, patterns.getContext());

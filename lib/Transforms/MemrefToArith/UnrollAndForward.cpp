@@ -70,7 +70,7 @@ typedef std::pair<Value, uint64_t> NormalizedMemrefAccess;
 
 class NormalizedMemrefAccessHash {
  public:
-  size_t operator()(const NormalizedMemrefAccess &pair) const {
+  size_t operator()(const NormalizedMemrefAccess& pair) const {
     return mlir::hash_value(pair.first) ^ std::hash<uint64_t>()(pair.second);
   }
 };
@@ -78,7 +78,7 @@ class NormalizedMemrefAccessHash {
 // For each normalized input key, this contains the store ops
 // that writes to the corresponding underlying memory location, even if the
 // memref being written to has a different name/metadata.
-typedef std::unordered_multimap<NormalizedMemrefAccess, Operation *,
+typedef std::unordered_multimap<NormalizedMemrefAccess, Operation*,
                                 NormalizedMemrefAccessHash>
     StoreMap;
 
@@ -87,24 +87,24 @@ typedef std::unordered_multimap<NormalizedMemrefAccess, Operation *,
 // store operations and is never read from is unused. If this memref is aliased
 // and the alias is never read from, then the memref is unused.
 static LogicalResult eraseUnusedMemrefOps(AllocOp allocOp) {
-  std::vector<Operation *> storeOps;
-  std::vector<Operation *> memrefAliasOps;
+  std::vector<Operation*> storeOps;
+  std::vector<Operation*> memrefAliasOps;
 
   auto memref = allocOp.getMemref();
-  std::queue<Operation *> users;
+  std::queue<Operation*> users;
   for (auto user : memref.getUsers()) {
     users.push(user);
   }
 
   for (; !users.empty(); users.pop()) {
-    Operation *user = users.front();
+    Operation* user = users.front();
     if (auto storeOp = dyn_cast<AffineStoreOp>(user)) {
       storeOps.push_back(storeOp);
       continue;
     }
 
     bool read =
-        llvm::TypeSwitch<Operation &, bool>(*user)
+        llvm::TypeSwitch<Operation&, bool>(*user)
             .Case<CollapseShapeOp, ExpandShapeOp, ReinterpretCastOp, SubViewOp>(
                 [&](auto op) {
                   for (auto user : op.getResult().getUsers()) {
@@ -120,7 +120,7 @@ static LogicalResult eraseUnusedMemrefOps(AllocOp allocOp) {
               memrefAliasOps.push_back(op);
               return false;
             })
-            .Default([&](Operation &) { return true; });
+            .Default([&](Operation&) { return true; });
 
     if (read) {
       // This is not a read-only memref.
@@ -141,7 +141,7 @@ static LogicalResult eraseUnusedMemrefOps(AllocOp allocOp) {
 // Extract a static access index from the MemRefAccess, and flatten it to a 1-d
 // index of the underlying address space.
 static FailureOr<int64_t> materializeAndFlatten(MemRefAccess access,
-                                                Operation &op,
+                                                Operation& op,
                                                 MemRefType type) {
   auto optionalAccessIndices = materialize(access);
   if (!optionalAccessIndices) {
@@ -182,10 +182,10 @@ static Value findSourceMemRef(Value memRef) {
   // we can exit because the memref we have is the source.
   // 2. The defining op is a memref.alloc, in which case we'd infinitely loop.
   // So we break out by swapping in nullptr for the "defining op."
-  Operation *op = memRef.getDefiningOp();
+  Operation* op = memRef.getDefiningOp();
   while (op != nullptr) {
     auto [value, newOp] =
-        llvm::TypeSwitch<Operation &, std::pair<Value, Operation *>>(*op)
+        llvm::TypeSwitch<Operation&, std::pair<Value, Operation*>>(*op)
             .Case<ReinterpretCastOp, ExtractStridedMetadataOp, SubViewOp>(
                 [&](auto op) {
                   return std::make_pair(op.getSource(),
@@ -197,7 +197,7 @@ static Value findSourceMemRef(Value memRef) {
             .Case<ExpandShapeOp, CollapseShapeOp>([&](auto op) {
               return std::make_pair(op.getSrc(), op.getSrc().getDefiningOp());
             })
-            .Default([&](Operation &) {
+            .Default([&](Operation&) {
               llvm_unreachable("Unknown defining op");
               return std::make_pair(nullptr, nullptr);
             });
@@ -210,9 +210,9 @@ static Value findSourceMemRef(Value memRef) {
 }
 
 // Go through all ops between from and to and add all stores to the storeMap.
-static LogicalResult updateStoreMap(Operation *from, Operation *to,
-                                    StoreMap &storeMap) {
-  for (Operation *op = from; op != to; op = op->getNextNode()) {
+static LogicalResult updateStoreMap(Operation* from, Operation* to,
+                                    StoreMap& storeMap) {
+  for (Operation* op = from; op != to; op = op->getNextNode()) {
     auto storeOp = dyn_cast<AffineStoreOp>(op);
     if (!storeOp) {
       continue;
@@ -240,10 +240,10 @@ static LogicalResult updateStoreMap(Operation *from, Operation *to,
 // of subview/expand/collapse/etc so that the target load is loading directly
 // from the argument memref.
 static LogicalResult forwardFullyUnrolledStoreToLoad(
-    AffineReadOpInterface loadOp, std::vector<Operation *> &opsToErase,
-    StoreMap &storeMap) {
+    AffineReadOpInterface loadOp, std::vector<Operation*>& opsToErase,
+    StoreMap& storeMap) {
   auto loadMemRef = loadOp.getMemRef();
-  Operation *loadDefiningOp = loadMemRef.getDefiningOp();
+  Operation* loadDefiningOp = loadMemRef.getDefiningOp();
 
   if (loadDefiningOp && dyn_cast<GetGlobalOp>(loadDefiningOp)) {
     // A later pass handles forwarding from getglobal.
@@ -260,7 +260,7 @@ static LogicalResult forwardFullyUnrolledStoreToLoad(
   Value loadSourceMemref = findSourceMemRef(loadMemRef);
   NormalizedMemrefAccess loadIndexKey = {loadSourceMemref, loadAccessIndex};
 
-  std::optional<Operation *> storeOpOrNull;
+  std::optional<Operation*> storeOpOrNull;
   // storeMap is an index of all stores that impact the given index.
   auto storeRes = storeMap.equal_range(loadIndexKey);
   for (auto it = storeRes.first; it != storeRes.second; ++it) {
@@ -340,13 +340,13 @@ void UnrollAndForwardPass::runOnOperation() {
 
   // Hold an intermediate computation of getFlattenedAccessIndex to avoid
   // repeated computations of MemRefAccess::getAccessMap
-  std::vector<Operation *> opsToErase;
+  std::vector<Operation*> opsToErase;
 
   // Hold a multi-map indexing all fully unrolled store operations by their
   // [Memref Value and flat index].
   StoreMap storeMap;
   // Add any stores to the store map that are not contained in any for loops.
-  Operation &start = *func->getRegion(0).getOps().begin();
+  Operation& start = *func->getRegion(0).getOps().begin();
   auto end = *func.getOps<func::ReturnOp>().begin();
   if (failed(updateStoreMap(&start, end.getOperation(), storeMap))) {
     func.emitError() << "Failed to update store map";
@@ -410,7 +410,7 @@ void UnrollAndForwardPass::runOnOperation() {
 
     // Erase all load op's whose results were replaced with store fwd'ed
     // ones.
-    for (auto *op : opsToErase) {
+    for (auto* op : opsToErase) {
       op->erase();
     }
     opsToErase.clear();
@@ -429,7 +429,7 @@ void UnrollAndForwardPass::runOnOperation() {
       continue;
     }
   }
-  for (auto *op : opsToErase) {
+  for (auto* op : opsToErase) {
     op->erase();
   }
   opsToErase.clear();

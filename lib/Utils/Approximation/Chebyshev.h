@@ -19,7 +19,7 @@ namespace approximation {
 /// This is a port of the chebfun routine at
 /// https://github.com/chebfun/chebfun/blob/db207bc9f48278ca4def15bf90591bfa44d0801d/%40chebtech2/chebpts.m#L34
 void getChebyshevPoints(int64_t numPoints,
-                        ::llvm::SmallVector<::llvm::APFloat> &results);
+                        ::llvm::SmallVector<::llvm::APFloat>& results);
 
 /// Generate the first `numPolynomials` Chebyshev polynomials of the first
 /// kind, storing them in the results outparameter.
@@ -27,13 +27,13 @@ void getChebyshevPoints(int64_t numPoints,
 /// The first few polynomials are 1, x, 2x^2 - 1, 4x^3 - 3x, ...
 void getChebyshevPolynomials(
     int64_t numPolynomials,
-    ::llvm::SmallVector<polynomial::FloatPolynomial> &results);
+    ::llvm::SmallVector<polynomial::FloatPolynomial>& results);
 
 /// Convert a vector of Chebyshev coefficients to the monomial basis. If the
 /// Chebyshev polynomials are T_0, T_1, ..., then entry i of the input vector
 /// is the coefficient of T_i.
 polynomial::FloatPolynomial chebyshevToMonomial(
-    const ::llvm::SmallVector<::llvm::APFloat> &coefficients);
+    const ::llvm::SmallVector<::llvm::APFloat>& coefficients);
 
 /// Interpolate Chebyshev coefficients for a given set of points. The values in
 /// chebEvalPoints are assumed to be evaluations of the target function on the
@@ -50,15 +50,15 @@ polynomial::FloatPolynomial chebyshevToMonomial(
 /// https://people.math.ethz.ch/~hiptmair/Seminars/CONVQUAD/Articles/HEN79.pdf
 void interpolateChebyshev(
     ::llvm::ArrayRef<::llvm::APFloat> chebEvalPoints,
-    ::llvm::SmallVector<::llvm::APFloat> &outputChebCoeffs);
+    ::llvm::SmallVector<::llvm::APFloat>& outputChebCoeffs);
 
 /// Computes a Chebyshev interpolant of the given function on the unit interval,
 /// automatically choosing the degree of the approximation to ensure that (a)
 /// the degree is not more than maxDegree, or (b) the absolute error is less
 /// than the given tolerance.
 void interpolateChebyshevWithSmartDegreeSelection(
-    const std::function<APFloat(APFloat)> &func,
-    ::llvm::SmallVector<::llvm::APFloat> &outputChebCoeffs,
+    const std::function<APFloat(APFloat)>& func,
+    ::llvm::SmallVector<::llvm::APFloat>& outputChebCoeffs,
     double tolerance = 1e-16, int64_t maxDegree = 129);
 
 }  // namespace approximation

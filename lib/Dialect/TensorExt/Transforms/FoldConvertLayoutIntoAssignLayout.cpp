@@ -24,7 +24,7 @@ struct FoldConvertLayout : public OpRewritePattern<AssignLayoutOp> {
 
  public:
   LogicalResult matchAndRewrite(AssignLayoutOp op,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     if (op.getResult().getUsers().empty()) {
       rewriter.eraseOp(op);
       return success();
@@ -34,8 +34,8 @@ struct FoldConvertLayout : public OpRewritePattern<AssignLayoutOp> {
     // Can't modify the users while iterating over them, so copy them to a
     // vector first.
     SmallVector<OpOperand, 4> users(op.getResult().getUsers());
-    for (const OpOperand &user : users) {
-      Operation *owner = user.getOwner();
+    for (const OpOperand& user : users) {
+      Operation* owner = user.getOwner();
       if (auto convertLayoutOp = dyn_cast<ConvertLayoutOp>(owner)) {
         if (convertLayoutOp.getFromLayout() != op.getLayout()) {
           // This should be considered invalid, but check again here for
@@ -64,7 +64,7 @@ struct FoldConvertLayoutIntoAssignLayout
       FoldConvertLayoutIntoAssignLayoutBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
     RewritePatternSet patterns(context);
     patterns.add<FoldConvertLayout>(context);
     (void)applyPatternsGreedily(getOperation(), std::move(patterns));

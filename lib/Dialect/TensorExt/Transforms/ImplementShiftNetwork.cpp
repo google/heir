@@ -49,8 +49,8 @@ inline int64_t normalizeShift(int64_t input, int64_t output,
 
 SmallVector<ShiftRound> ShiftStrategy::getRounds() const { return rounds; }
 
-void ShiftStrategy::evaluate(const Permutation &permutation,
-                             const RotationGroup &group) {
+void ShiftStrategy::evaluate(const Permutation& permutation,
+                             const RotationGroup& group) {
   int64_t ciphertextSize = permutation.size();
 
   // Stores the amount that each ciphertext index is shifted left. The
@@ -116,7 +116,7 @@ void ShiftStrategy::evaluate(const Permutation &permutation,
 }
 
 ArrayRef<RotationGroup> VosVosErkinShiftNetworks::computeShiftNetwork(
-    const Permutation &permutation) {
+    const Permutation& permutation) {
   if (rotationGroups.count(permutation)) {
     return rotationGroups[permutation];
   }
@@ -135,7 +135,7 @@ ArrayRef<RotationGroup> VosVosErkinShiftNetworks::computeShiftNetwork(
   for (int64_t i = 0; i < ciphertextSize; i++) {
     conflictGraph.addVertex(i);
   }
-  for (const ShiftRound &round : strategy.getRounds()) {
+  for (const ShiftRound& round : strategy.getRounds()) {
     for (int64_t i = 0; i < ciphertextSize; i++) {
       for (int64_t j = i + 1; j < ciphertextSize; j++) {
         if (round.positions[i] == round.positions[j]) {
@@ -161,7 +161,7 @@ ArrayRef<RotationGroup> VosVosErkinShiftNetworks::computeShiftNetwork(
 
   SmallVector<RotationGroup> resultRotationGroups;
   resultRotationGroups.reserve(64);
-  for (const auto &entry : coloring) {
+  for (const auto& entry : coloring) {
     int64_t index = entry.first;
     int64_t color = entry.second;
     if (color >= resultRotationGroups.size()) {
@@ -195,7 +195,7 @@ int64_t VosVosErkinShiftNetworks::getCiphertextSize() const {
 // Create a tensor with zeros everywhere except for the indices specified in
 // the input `indices` vector.
 Value createMask(TypedValue<RankedTensorType> tensor,
-                 const SmallVector<int64_t> &indices, IRRewriter &rewriter) {
+                 const SmallVector<int64_t>& indices, IRRewriter& rewriter) {
   auto elementType = tensor.getType().getElementType();
   SmallVector<Attribute> maskAttrs(tensor.getType().getDimSize(0),
                                    rewriter.getIntegerAttr(elementType, 0));
@@ -210,8 +210,8 @@ Value createMask(TypedValue<RankedTensorType> tensor,
 }
 
 Value rotateGroup(TypedValue<RankedTensorType> tensor,
-                  const RotationGroup &group, int64_t ciphertextSize,
-                  const Permutation &permutation, IRRewriter &rewriter) {
+                  const RotationGroup& group, int64_t ciphertextSize,
+                  const Permutation& permutation, IRRewriter& rewriter) {
   std::optional<Value> result = std::nullopt;
 
   // Re-run the shift strategy on a single rotation group, and use the
@@ -220,7 +220,7 @@ Value rotateGroup(TypedValue<RankedTensorType> tensor,
   strategy.evaluate(permutation, group);
 
   [[maybe_unused]] int roundNum = 0;
-  for (const ShiftRound &round : strategy.getRounds()) {
+  for (const ShiftRound& round : strategy.getRounds()) {
     int64_t rotationAmount = round.rotationAmount;
     if (round.rotatedIndices.empty()) {
       LLVM_DEBUG(llvm::dbgs() << "Skipping shift by " << rotationAmount
@@ -248,7 +248,7 @@ Value rotateGroup(TypedValue<RankedTensorType> tensor,
 }
 
 LogicalResult convertPermuteOp(PermuteOp op,
-                               VosVosErkinShiftNetworks &shiftNetworks,
+                               VosVosErkinShiftNetworks& shiftNetworks,
                                int64_t ciphertextSize) {
   LLVM_DEBUG(llvm::dbgs() << "Converting layout op: " << op << "\n");
   IRRewriter rewriter(op.getContext());
@@ -276,7 +276,7 @@ LogicalResult convertPermuteOp(PermuteOp op,
         dyn_cast<DenseIntElementsAttr>(op.getPermutation());
     if (denseElementsAttr) {
       permutation = llvm::map_to_vector(
-          denseElementsAttr, [](const APInt &i) { return i.getSExtValue(); });
+          denseElementsAttr, [](const APInt& i) { return i.getSExtValue(); });
     } else {
       return failure();
     }
@@ -286,7 +286,7 @@ LogicalResult convertPermuteOp(PermuteOp op,
     auto diag = op.emitError(
         "expected a permutation, but got a mapping that was not a "
         "permutation.");
-    Diagnostic &note = diag.attachNote() << "mapping was:\n";
+    Diagnostic& note = diag.attachNote() << "mapping was:\n";
     printPermutation(permutation, note);
     return diag;
   }
@@ -307,7 +307,7 @@ LogicalResult convertPermuteOp(PermuteOp op,
   rewriter.setInsertionPointAfter(op);
   std::optional<Value> result = std::nullopt;
   [[maybe_unused]] int groupIndex = 0;
-  for (const RotationGroup &group : rotationGroup) {
+  for (const RotationGroup& group : rotationGroup) {
     LLVM_DEBUG(llvm::dbgs()
                << "Implementing rotations for group " << groupIndex++ << "\n");
     Value perGroupResult =

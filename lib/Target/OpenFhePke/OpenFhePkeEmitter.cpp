@@ -85,7 +85,7 @@ bool isSingleContiguousSlice(ArrayRef<int64_t> sizes,
                              ArrayRef<int64_t> sourceShape) {
   // Find and drop leading and trailing unit sizes.
   ArrayRef<int64_t> range = sizes;
-  const auto *nonUnitFrontIt =
+  const auto* nonUnitFrontIt =
       llvm::find_if(range, [](int64_t size) { return size != 1; });
   size_t numUnitFrontSizes = std::distance(range.begin(), nonUnitFrontIt);
   int64_t numDroppedFrontDims = std::min(numUnitFrontSizes + 1, range.size());
@@ -104,7 +104,7 @@ bool isSingleContiguousSlice(ArrayRef<int64_t> sizes,
 }
 
 /// Print the integer element of a DenseElementsAttr.
-static void printDenseIntElement(const APInt &value, raw_ostream &os,
+static void printDenseIntElement(const APInt& value, raw_ostream& os,
                                  Type type) {
   if (type.isInteger(1))
     os << (value.getBoolValue() ? "true" : "false");
@@ -114,7 +114,7 @@ static void printDenseIntElement(const APInt &value, raw_ostream &os,
 
 /// Print a floating point value in a way that the parser will be able to
 /// round-trip losslessly.
-static LogicalResult printFloatValue(const APFloat &apValue, raw_ostream &os) {
+static LogicalResult printFloatValue(const APFloat& apValue, raw_ostream& os) {
   assert(apValue.isFinite() && "expected finite value");
   SmallString<128> strValue;
   apValue.toString(strValue);
@@ -171,8 +171,8 @@ FailureOr<std::string> printOneDimDenseElementsAttr(DenseElementsAttr attr) {
 }
 
 // Adds the given DenseElementsAttr to the weights map.
-LogicalResult addWeightTo(DenseElementsAttr attr, std::string &name,
-                          Weights *weights) {
+LogicalResult addWeightTo(DenseElementsAttr attr, std::string& name,
+                          Weights* weights) {
   // Only double, float, and int_{8, 16, 32, 64}t are supported.
   return llvm::TypeSwitch<Type, LogicalResult>(attr.getElementType())
       .Case<Float32Type>([&](auto type) {
@@ -232,9 +232,9 @@ FailureOr<std::string> getWeightType(Type type) {
 
 }  // namespace
 
-LogicalResult translateToOpenFhePke(Operation *op, llvm::raw_ostream &os,
-                                    const OpenfheImportType &importType,
-                                    const std::string &weightsFile,
+LogicalResult translateToOpenFhePke(Operation* op, llvm::raw_ostream& os,
+                                    const OpenfheImportType& importType,
+                                    const std::string& weightsFile,
                                     bool skipVectorResizing) {
   SelectVariableNames variableNames(op);
   OpenFhePkeEmitter emitter(os, &variableNames, importType, weightsFile,
@@ -243,9 +243,9 @@ LogicalResult translateToOpenFhePke(Operation *op, llvm::raw_ostream &os,
   return result;
 }
 
-LogicalResult OpenFhePkeEmitter::translate(Operation &op) {
+LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
   LogicalResult status =
-      llvm::TypeSwitch<Operation &, LogicalResult>(op)
+      llvm::TypeSwitch<Operation&, LogicalResult>(op)
           // Builtin ops
           .Case<ModuleOp>([&](auto op) { return printOperation(op); })
           // Func ops
@@ -276,7 +276,7 @@ LogicalResult OpenFhePkeEmitter::translate(Operation &op) {
                 GenRotKeyOp, GenBootstrapKeyOp, MakePackedPlaintextOp,
                 MakeCKKSPackedPlaintextOp, SetupBootstrapOp, BootstrapOp>(
               [&](auto op) { return printOperation(op); })
-          .Default([&](Operation &) {
+          .Default([&](Operation&) {
             return emitError(op.getLoc(), "unable to find printer for op");
           });
 
@@ -304,7 +304,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(ModuleOp moduleOp) {
   if (!weightsFile_.empty()) {
     os << getWeightsPrelude() << "\n";
   }
-  for (Operation &op : moduleOp) {
+  for (Operation& op : moduleOp) {
     if (failed(translate(op))) {
       return failure();
     }
@@ -400,8 +400,8 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::FuncOp funcOp) {
                         weightsFile_);
   }
 
-  for (Block &block : funcOp.getBlocks()) {
-    for (Operation &op : block.getOperations()) {
+  for (Block& block : funcOp.getBlocks()) {
+    for (Operation& op : block.getOperations()) {
       if (failed(translate(op))) {
         return failure();
       }
@@ -439,7 +439,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::CallOp op) {
     auto ciphertext = op->getOperand(op->getNumOperands() - 1);
     os << debugAttrMapName << R"(["asm.is_block_arg"] = ")"
        << isa<BlockArgument>(ciphertext) << "\";\n";
-    if (auto *definingOp = ciphertext.getDefiningOp()) {
+    if (auto* definingOp = ciphertext.getDefiningOp()) {
       os << debugAttrMapName << R"(["asm.op_name"] = ")"
          << definingOp->getName() << "\";\n";
     }
@@ -519,7 +519,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(affine::AffineForOp op) {
                       variableNames->getNameForValue(op.getInductionVar()),
                       op.getConstantLowerBound(), op.getConstantUpperBound());
   os.indent();
-  for (Operation &op : *op.getBody()) {
+  for (Operation& op : *op.getBody()) {
     if (failed(translate(op))) {
       return op.emitOpError() << "Failed to translate for loop block";
     }
@@ -842,7 +842,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::IndexCastOp op) {
   return success();
 }
 
-LogicalResult OpenFhePkeEmitter::printBinaryOp(Operation *op, ::mlir::Value lhs,
+LogicalResult OpenFhePkeEmitter::printBinaryOp(Operation* op, ::mlir::Value lhs,
                                                ::mlir::Value rhs,
                                                std::string_view opName) {
   assert(op->getNumResults() == 1 && "Expected single-result op!");
@@ -1205,7 +1205,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(
   // cyclic repetition to mitigate openfhe zero-padding (#645)
   std::string filledPrefix =
       variableNames->getNameForValue(op.getResult()) + "_filled";
-  std::string &inputVarFilledName = filledPrefix;
+  std::string& inputVarFilledName = filledPrefix;
   std::string inputVarFilledLengthName = filledPrefix + "_n";
 
   os << "auto " << inputVarFilledLengthName << " = " << cc
@@ -1504,10 +1504,10 @@ LogicalResult OpenFhePkeEmitter::emitType(Type type, Location loc,
   return success();
 }
 
-OpenFhePkeEmitter::OpenFhePkeEmitter(raw_ostream &os,
-                                     SelectVariableNames *variableNames,
-                                     const OpenfheImportType &importType,
-                                     const std::string &weightsFile,
+OpenFhePkeEmitter::OpenFhePkeEmitter(raw_ostream& os,
+                                     SelectVariableNames* variableNames,
+                                     const OpenfheImportType& importType,
+                                     const std::string& weightsFile,
                                      bool skipVectorResizing)
     : importType_(importType),
       os(os),

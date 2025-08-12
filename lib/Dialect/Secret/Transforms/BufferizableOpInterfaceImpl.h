@@ -8,7 +8,7 @@ class DialectRegistry;
 namespace heir {
 namespace secret {
 
-void registerBufferizableOpInterfaceExternalModels(DialectRegistry &registry);
+void registerBufferizableOpInterfaceExternalModels(DialectRegistry& registry);
 
 }  // namespace secret
 }  // namespace heir

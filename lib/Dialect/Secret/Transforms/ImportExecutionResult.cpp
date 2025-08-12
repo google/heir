@@ -25,9 +25,9 @@ namespace secret {
 
 // this is in correspondence with insertExternalCall in AddDebugPort.cpp
 LogicalResult annotateResult(secret::GenericOp op,
-                             const std::vector<std::vector<double>> &data,
-                             DataFlowSolver &solver) {
-  auto getArrayOfDoubleAttr = [&](const std::vector<double> &row) {
+                             const std::vector<std::vector<double>>& data,
+                             DataFlowSolver& solver) {
+  auto getArrayOfDoubleAttr = [&](const std::vector<double>& row) {
     auto type = Float64Type::get(op.getContext());
     SmallVector<Attribute> elements =
         llvm::to_vector<4>(llvm::map_range(row, [&](double value) -> Attribute {
@@ -58,7 +58,7 @@ LogicalResult annotateResult(secret::GenericOp op,
   }
 
   // insert after each op
-  op.walk([&](Operation *op) {
+  op.walk([&](Operation* op) {
     if (mlir::isa<secret::GenericOp>(op)) {
       return;
     }

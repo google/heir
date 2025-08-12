@@ -34,12 +34,12 @@ struct SecretExtractToStaticExtractConversion
   using OpRewritePattern<tensor::ExtractOp>::OpRewritePattern;
 
  public:
-  SecretExtractToStaticExtractConversion(Operation *top, DataFlowSolver *solver,
-                                         MLIRContext *context)
+  SecretExtractToStaticExtractConversion(Operation* top, DataFlowSolver* solver,
+                                         MLIRContext* context)
       : OpRewritePattern(context), top(top), solver(solver) {}
 
   LogicalResult matchAndRewrite(tensor::ExtractOp extractOp,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     // TODO(#866): Add support for reads on multi-dimensional tensors
     if (extractOp.getTensor().getType().getRank() != 1) {
       extractOp->emitWarning()
@@ -49,7 +49,7 @@ struct SecretExtractToStaticExtractConversion
 
     auto index = extractOp.getIndices().front();
 
-    auto *indexSecretnessLattice =
+    auto* indexSecretnessLattice =
         solver->lookupState<SecretnessLattice>(index);
 
     // Use secretness from lattice or, if no lattice found, set to unknown
@@ -113,11 +113,11 @@ struct SecretExtractToStaticExtractConversion
 
     auto ifOp = scf::IfOp::create(
         builder, cond,
-        [&](OpBuilder &b, Location loc) {
+        [&](OpBuilder& b, Location loc) {
           // Yield value extracted at index
           scf::YieldOp::create(b, loc, newExtractOp.getResult());
         },
-        [&](OpBuilder &b, Location loc) {
+        [&](OpBuilder& b, Location loc) {
           // Yield previous value
           scf::YieldOp::create(b, loc, forOp.getRegionIterArgs().front());
         });
@@ -147,12 +147,12 @@ struct SecretExtractToStaticExtractConversion
 
  private:
   // root operation the pass is on, should never be altered hence never null
-  Operation *top;
-  DataFlowSolver *solver;
+  Operation* top;
+  DataFlowSolver* solver;
 
-  static inline void setValueToSecretness(DataFlowSolver *solver, Value value,
+  static inline void setValueToSecretness(DataFlowSolver* solver, Value value,
                                           Secretness secretness) {
-    auto *lattice = solver->getOrCreateState<SecretnessLattice>(value);
+    auto* lattice = solver->getOrCreateState<SecretnessLattice>(value);
     // solver->propagateIfChanged is bogus
     (void)lattice->join(secretness);
   }
@@ -165,7 +165,7 @@ struct ConvertSecretExtractToStaticExtract
       ConvertSecretExtractToStaticExtractBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
 
     RewritePatternSet patterns(context);
 

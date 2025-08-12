@@ -29,11 +29,11 @@ namespace heir {
 #include "lib/Transforms/Secretize/Passes.h.inc"
 
 struct WrapWithGeneric : public OpRewritePattern<func::FuncOp> {
-  WrapWithGeneric(mlir::MLIRContext *context)
+  WrapWithGeneric(mlir::MLIRContext* context)
       : mlir::OpRewritePattern<func::FuncOp>(context) {}
 
   LogicalResult matchAndRewrite(func::FuncOp op,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     bool hasSecrets = false;
 
     SmallVector<Type, 4> newInputs;
@@ -74,22 +74,22 @@ struct WrapWithGeneric : public OpRewritePattern<func::FuncOp> {
     }
     // Create a new block where we will insert the new secret.generic and move
     // the function ops into.
-    Block &opEntryBlock = op.getRegion().front();
-    auto *newBlock = rewriter.createBlock(
+    Block& opEntryBlock = op.getRegion().front();
+    auto* newBlock = rewriter.createBlock(
         &opEntryBlock, opEntryBlock.getArgumentTypes(),
         SmallVector<Location>(opEntryBlock.getNumArguments(), op.getLoc()));
 
     rewriter.setInsertionPointToStart(newBlock);
     auto newGeneric = secret::GenericOp::create(
         rewriter, op.getLoc(), op.getArguments(), newOutputs,
-        [&](OpBuilder &b, Location loc, ValueRange blockArguments) {
+        [&](OpBuilder& b, Location loc, ValueRange blockArguments) {
           //  Map the input values to the block arguments.
           IRMapping mp;
           for (unsigned i = 0; i < blockArguments.size(); ++i) {
             mp.map(opEntryBlock.getArgument(i), blockArguments[i]);
           }
 
-          auto *returnOp = opEntryBlock.getTerminator();
+          auto* returnOp = opEntryBlock.getTerminator();
           secret::YieldOp::create(b, loc,
                                   llvm::to_vector(llvm::map_range(
                                       returnOp->getOperands(), [&](Value v) {
@@ -98,7 +98,7 @@ struct WrapWithGeneric : public OpRewritePattern<func::FuncOp> {
           returnOp->erase();
         });
 
-    Block &genericBlock = newGeneric.getRegion().front();
+    Block& genericBlock = newGeneric.getRegion().front();
     rewriter.inlineBlockBefore(&opEntryBlock,
                                &genericBlock.getOperations().back(),
                                genericBlock.getArguments());
@@ -109,11 +109,11 @@ struct WrapWithGeneric : public OpRewritePattern<func::FuncOp> {
 };
 
 struct ConvertFuncCall : public OpRewritePattern<func::CallOp> {
-  ConvertFuncCall(mlir::MLIRContext *context, Operation *top)
+  ConvertFuncCall(mlir::MLIRContext* context, Operation* top)
       : mlir::OpRewritePattern<func::CallOp>(context), top(top) {}
 
   LogicalResult matchAndRewrite(func::CallOp op,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     auto module = mlir::cast<ModuleOp>(top);
     auto callee = module.lookupSymbol<func::FuncOp>(op.getCallee());
     if (callee.isDeclaration()) {
@@ -152,7 +152,7 @@ struct ConvertFuncCall : public OpRewritePattern<func::CallOp> {
   }
 
  private:
-  Operation *top;
+  Operation* top;
 };
 
 struct WrapGeneric : impl::WrapGenericBase<WrapGeneric> {
@@ -169,7 +169,7 @@ struct WrapGeneric : impl::WrapGenericBase<WrapGeneric> {
   }
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
 
     mlir::RewritePatternSet patterns(context);
     patterns.add<WrapWithGeneric>(context);

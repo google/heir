@@ -78,36 +78,36 @@ class NoiseState {
     return NoiseState(noiseType, value, degree);
   }
 
-  bool operator==(const NoiseState &rhs) const {
+  bool operator==(const NoiseState& rhs) const {
     return noiseType == rhs.noiseType && value == rhs.value &&
            degree == rhs.degree;
   }
 
-  bool operator!=(const NoiseState &rhs) const { return !(*this == rhs); }
+  bool operator!=(const NoiseState& rhs) const { return !(*this == rhs); }
 
   // Although NoiseState stores log(e), we expose the operation
   // as if we are doing e1 + e2 using log(e1) and log(e2)
-  NoiseState operator+(const NoiseState &rhs) const;
+  NoiseState operator+(const NoiseState& rhs) const;
 
   // for int/double
   template <typename T>
-  NoiseState operator+(const T &rhs) const {
+  NoiseState operator+(const T& rhs) const {
     assert(isKnown());
     return *this + NoiseState::of(rhs);
   }
 
   // Although NoiseState stores log(e), we expose the operation
   // as if we are doing e1 * e2 using log(e1) and log(e2)
-  NoiseState operator*(const NoiseState &rhs) const;
+  NoiseState operator*(const NoiseState& rhs) const;
 
   // for int/double
   template <typename T>
-  NoiseState operator*(const T &rhs) const {
+  NoiseState operator*(const T& rhs) const {
     assert(isKnown());
     return *this * NoiseState::of(rhs);
   }
 
-  static NoiseState join(const NoiseState &lhs, const NoiseState &rhs) {
+  static NoiseState join(const NoiseState& lhs, const NoiseState& rhs) {
     // Uninitialized noises correspond to values that are not secret,
     // which may be the inputs to an encryption operation.
     if (lhs.noiseType == NoiseType::UNINITIALIZED) {
@@ -124,15 +124,15 @@ class NoiseState {
         std::max(lhs.getDegree(), rhs.getDegree()));
   }
 
-  void print(llvm::raw_ostream &os) const { os << toString(); }
+  void print(llvm::raw_ostream& os) const { os << toString(); }
 
   std::string toString() const;
 
-  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
-                                       const NoiseState &noise);
+  friend llvm::raw_ostream& operator<<(llvm::raw_ostream& os,
+                                       const NoiseState& noise);
 
-  friend Diagnostic &operator<<(Diagnostic &diagnostic,
-                                const NoiseState &noise);
+  friend Diagnostic& operator<<(Diagnostic& diagnostic,
+                                const NoiseState& noise);
 
  private:
   NoiseType noiseType;

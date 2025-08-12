@@ -17,11 +17,11 @@
 namespace mlir {
 namespace heir {
 
-mlir::Operation *BooleanGateImporter::createOp(Yosys::RTLIL::Cell *cell,
-                                               SmallVector<Value> &inputs,
-                                               ImplicitLocOpBuilder &b) const {
+mlir::Operation* BooleanGateImporter::createOp(Yosys::RTLIL::Cell* cell,
+                                               SmallVector<Value>& inputs,
+                                               ImplicitLocOpBuilder& b) const {
   // standard cell names look like $_CELL_
-  auto op = llvm::StringSwitch<mlir::Operation *>(
+  auto op = llvm::StringSwitch<mlir::Operation*>(
                 cell->type.substr(2, cell->type.size() - 3))
                 .Case("NOT", comb::InvOp::create(b, inputs[0], false))
                 .Case("XNOR", comb::XNorOp::create(b, inputs, false))
@@ -38,10 +38,10 @@ mlir::Operation *BooleanGateImporter::createOp(Yosys::RTLIL::Cell *cell,
 }
 
 SmallVector<Yosys::RTLIL::SigSpec> BooleanGateImporter::getInputs(
-    Yosys::RTLIL::Cell *cell) const {
+    Yosys::RTLIL::Cell* cell) const {
   // Return all non-Y named attributes.
   SmallVector<Yosys::RTLIL::SigSpec> inputs;
-  for (auto &conn : cell->connections()) {
+  for (auto& conn : cell->connections()) {
     if (conn.first.contains("Y")) {
       continue;
     }
@@ -52,7 +52,7 @@ SmallVector<Yosys::RTLIL::SigSpec> BooleanGateImporter::getInputs(
 }
 
 Yosys::RTLIL::SigSpec BooleanGateImporter::getOutput(
-    Yosys::RTLIL::Cell *cell) const {
+    Yosys::RTLIL::Cell* cell) const {
   return cell->getPort(Yosys::RTLIL::IdString("\\Y"));
 }
 

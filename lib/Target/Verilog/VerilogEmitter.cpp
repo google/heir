@@ -90,7 +90,7 @@ std::string wireDeclaration(IntegerType iType, int32_t width) {
 
 // printRawDataFromAttr prints a string of the form <BIT_SIZE>'h<HEX_DATA>
 // representing the dense element attribute.
-void printRawDataFromAttr(DenseElementsAttr attr, raw_ostream &os) {
+void printRawDataFromAttr(DenseElementsAttr attr, raw_ostream& os) {
   auto iType = dyn_cast<IntegerType>(attr.getElementType());
   assert(iType);
 
@@ -179,10 +179,10 @@ func::FuncOp getCalledFunction(func::CallOp callOp) {
 
 int32_t getMaxShapedTypeSize(Value index) {
   int32_t maxSize = 0;
-  for (auto &use : index.getUses()) {
-    Operation *user = use.getOwner();
+  for (auto& use : index.getUses()) {
+    Operation* user = use.getOwner();
     int32_t memrefSize =
-        llvm::TypeSwitch<Operation *, int32_t>(user)
+        llvm::TypeSwitch<Operation*, int32_t>(user)
             .Case<affine::AffineLoadOp, affine::AffineStoreOp, memref::LoadOp,
                   memref::StoreOp>(
                 [&](auto op) { return op.getMemRefType().getNumElements(); })
@@ -195,13 +195,13 @@ int32_t getMaxShapedTypeSize(Value index) {
             .Case<func::CallOp>([&](func::CallOp op) {
               // Index is passed into a function, get largest use.
               func::FuncOp func = getCalledFunction(op);
-              auto &operand =
+              auto& operand =
                   func.getBody().getArguments()[use.getOperandNumber()];
               assert(isa<IndexType>(operand.getType()) &&
                      "expected block arg of index type use to be index type");
               return getMaxShapedTypeSize(operand);
             })
-            .Default([&](Operation *) { return 0; });
+            .Default([&](Operation*) { return 0; });
     maxSize = std::max(maxSize, memrefSize);
   }
 
@@ -213,10 +213,10 @@ int32_t getMaxShapedTypeSize(Value index) {
 void registerToVerilogTranslation() {
   TranslateFromMLIRRegistration reg(
       "emit-verilog", "translate from arithmetic to verilog",
-      [](Operation *op, llvm::raw_ostream &output) {
+      [](Operation* op, llvm::raw_ostream& output) {
         return translateToVerilog(op, output);
       },
-      [](DialectRegistry &registry) {
+      [](DialectRegistry& registry) {
         registry.insert<arith::ArithDialect, func::FuncDialect,
                         memref::MemRefDialect, affine::AffineDialect,
                         secret::SecretDialect, math::MathDialect,
@@ -224,16 +224,16 @@ void registerToVerilogTranslation() {
       });
 }
 
-LogicalResult translateToVerilog(Operation *op, llvm::raw_ostream &os,
+LogicalResult translateToVerilog(Operation* op, llvm::raw_ostream& os,
                                  std::optional<llvm::StringRef> moduleName) {
   return translateToVerilog(op, os, moduleName, /*allowSecretOps=*/false);
 }
 
-LogicalResult translateToVerilog(Operation *op, llvm::raw_ostream &os,
+LogicalResult translateToVerilog(Operation* op, llvm::raw_ostream& os,
                                  std::optional<llvm::StringRef> moduleName,
                                  bool allowSecretOps) {
   if (!allowSecretOps) {
-    Operation *foundOp = walkAndDetect(op, [&](Operation *op) {
+    Operation* foundOp = walkAndDetect(op, [&](Operation* op) {
       return isa<secret::SecretDialect>(op->getDialect());
     });
     if (foundOp != nullptr) {
@@ -248,16 +248,16 @@ LogicalResult translateToVerilog(Operation *op, llvm::raw_ostream &os,
   return result;
 }
 
-LogicalResult translateToVerilog(Operation *op, llvm::raw_ostream &os) {
+LogicalResult translateToVerilog(Operation* op, llvm::raw_ostream& os) {
   return translateToVerilog(op, os, std::nullopt);
 }
 
-VerilogEmitter::VerilogEmitter(raw_ostream &os) : os_(os), value_count_(0) {}
+VerilogEmitter::VerilogEmitter(raw_ostream& os) : os_(os), value_count_(0) {}
 
 LogicalResult VerilogEmitter::translate(
-    Operation &op, std::optional<llvm::StringRef> moduleName) {
+    Operation& op, std::optional<llvm::StringRef> moduleName) {
   LogicalResult status =
-      llvm::TypeSwitch<Operation &, LogicalResult>(op)
+      llvm::TypeSwitch<Operation&, LogicalResult>(op)
           // Ops that use moduleName
           .Case<ModuleOp, func::FuncOp, secret::GenericOp>(
               [&](auto op) { return printOperation(op, moduleName); })
@@ -321,7 +321,7 @@ LogicalResult VerilogEmitter::translate(
               [&](auto op) { return printOperation(op); })
           .Case<UnrealizedConversionCastOp>(
               [&](auto op) { return printOperation(op); })
-          .Default([&](Operation &) {
+          .Default([&](Operation&) {
             return op.emitOpError("unable to find printer for op");
           });
 
@@ -336,7 +336,7 @@ LogicalResult VerilogEmitter::printOperation(
     ModuleOp moduleOp, std::optional<llvm::StringRef> moduleName) {
   // We have no use in separating things by modules, so just descend
   // to the underlying ops and continue.
-  for (Operation &op : moduleOp) {
+  for (Operation& op : moduleOp) {
     if (failed(translate(op, moduleName))) {
       return failure();
     }
@@ -346,7 +346,7 @@ LogicalResult VerilogEmitter::printOperation(
 }
 
 LogicalResult VerilogEmitter::printFunctionLikeOp(
-    Operation *op, llvm::StringRef verilogModuleName,
+    Operation* op, llvm::StringRef verilogModuleName,
     ArrayRef<BlockArgument> arguments, TypeRange resultTypes,
     Region::BlockListType::iterator blocksBegin,
     Region::BlockListType::iterator blocksEnd) {
@@ -423,7 +423,7 @@ LogicalResult VerilogEmitter::printFunctionLikeOp(
   // body. Collect any globals used.
   llvm::SmallVector<memref::GetGlobalOp> getGlobals;
   WalkResult result =
-      op->walk<WalkOrder::PreOrder>([&](Operation *op) -> WalkResult {
+      op->walk<WalkOrder::PreOrder>([&](Operation* op) -> WalkResult {
         if (auto globalOp = dyn_cast<memref::GetGlobalOp>(op)) {
           getGlobals.push_back(globalOp);
         }
@@ -453,7 +453,7 @@ LogicalResult VerilogEmitter::printFunctionLikeOp(
         }
         // Also generate intermediate result values the CTLZ computation.
         if (auto ctlzOp = dyn_cast<math::CountLeadingZerosOp>(op)) {
-          auto *ctx = op->getContext();
+          auto* ctx = op->getContext();
           auto ctlzStruct =
               ctlzStructForResult(getOrCreateName(ctlzOp.getResult()));
           llvm::SmallVector<std::pair<StringRef, int>, 4> tempWires = {
@@ -494,7 +494,7 @@ LogicalResult VerilogEmitter::printFunctionLikeOp(
 
   os_ << "\n";
   while (blocksBegin != blocksEnd) {
-    for (Operation &op : blocksBegin->getOperations()) {
+    for (Operation& op : blocksBegin->getOperations()) {
       if (failed(translate(op, std::nullopt))) {
         return failure();
       }
@@ -508,7 +508,7 @@ LogicalResult VerilogEmitter::printFunctionLikeOp(
 
 LogicalResult VerilogEmitter::printOperation(
     func::FuncOp funcOp, std::optional<llvm::StringRef> moduleName) {
-  auto *blocks = &funcOp.getBlocks();
+  auto* blocks = &funcOp.getBlocks();
   return printFunctionLikeOp(
       funcOp.getOperation(), moduleName.value_or(funcOp.getName()),
       funcOp.getArguments(), funcOp.getFunctionType().getResults(),
@@ -795,7 +795,7 @@ LogicalResult VerilogEmitter::printOperation(affine::AffineParallelOp op) {
   os_.indent();
 
   // Declare the wires local to the for loop.
-  WalkResult result = op->walk<WalkOrder::PreOrder>([&](Operation *op) {
+  WalkResult result = op->walk<WalkOrder::PreOrder>([&](Operation* op) {
     for (OpResult result : op->getResults()) {
       if (failed(emitWireDeclaration(result))) {
         return WalkResult(op->emitError()
@@ -807,7 +807,7 @@ LogicalResult VerilogEmitter::printOperation(affine::AffineParallelOp op) {
   });
   if (result.wasInterrupted()) return failure();
 
-  for (auto &operation : op.getBody()->getOperations()) {
+  for (auto& operation : op.getBody()->getOperations()) {
     if (failed(translate(operation, std::nullopt))) {
       operation.emitError("failed to translate operation.");
       return failure();
@@ -990,7 +990,7 @@ LogicalResult VerilogEmitter::printOperation(
     std::optional<llvm::StringRef> moduleName) {
   // Translate all the functions called in the module.
   auto module = op->getParentOfType<ModuleOp>();
-  SetVector<Operation *> funcs;
+  SetVector<Operation*> funcs;
   op->walk([&](func::CallOp callOp) {
     auto func = module.lookupSymbol<func::FuncOp>(callOp.getCallee());
     funcs.insert(func.getOperation());
@@ -1014,7 +1014,7 @@ LogicalResult VerilogEmitter::printOperation(
   llvm::SmallVector<Type, 4> resultTypes;
   for (auto ty : op.getResultTypes())
     resultTypes.push_back(cast<secret::SecretType>(ty).getValueType());
-  auto *blocks = &op.getRegion().getBlocks();
+  auto* blocks = &op.getRegion().getBlocks();
   return printFunctionLikeOp(op.getOperation(), name,
                              op.getRegion().getBlocks().front().getArguments(),
                              resultTypes, blocks->begin(), blocks->end());
@@ -1024,7 +1024,7 @@ LogicalResult VerilogEmitter::emitType(Type type) {
   return emitType(type, os_);
 }
 
-LogicalResult VerilogEmitter::emitType(Type type, raw_ostream &os) {
+LogicalResult VerilogEmitter::emitType(Type type, raw_ostream& os) {
   if (auto idxType =
           dyn_cast<IndexType>(type)) {  // emit index types as 32-bit integers
     int32_t width = 32;
@@ -1047,7 +1047,7 @@ LogicalResult VerilogEmitter::emitType(Type type, raw_ostream &os) {
 
 // Emit a wire declaration for an index value whose width corresponds to the
 // smallest width required to index into any memref used by the value.
-LogicalResult VerilogEmitter::emitIndexType(Value indexValue, raw_ostream &os) {
+LogicalResult VerilogEmitter::emitIndexType(Value indexValue, raw_ostream& os) {
   // Operations on index types are not supported in this emitter, so we just
   // need to check the immediate users and inspect the memrefs they contain.
   int32_t maxSize = getMaxShapedTypeSize(indexValue);

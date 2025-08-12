@@ -19,7 +19,7 @@ struct MergeAdjacentGenericsPass
   using SecretMergeAdjacentGenericsBase::SecretMergeAdjacentGenericsBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
     mlir::RewritePatternSet patterns(context);
 
     patterns.add<MergeAdjacentGenerics>(context);

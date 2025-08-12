@@ -16,7 +16,7 @@ template <typename ConcreteType>
 class SameOperandsAndResultRings
     : public OpTrait::TraitBase<ConcreteType, SameOperandsAndResultRings> {
  public:
-  static LogicalResult verifyTrait(Operation *op) {
+  static LogicalResult verifyTrait(Operation* op) {
     polynomial::RingAttr rings = nullptr;
     auto initOrCheckRings =
         [&](polynomial::RingAttr ring) {
@@ -57,7 +57,7 @@ class SameOperandsAndResultPlaintextTypes
     : public OpTrait::TraitBase<ConcreteType,
                                 SameOperandsAndResultPlaintextTypes> {
  public:
-  static LogicalResult verifyTrait(Operation *op) {
+  static LogicalResult verifyTrait(Operation* op) {
     lwe::LWEPlaintextType plaintextTypes = nullptr;
     auto initOrCheckPlaintextTypes = [&](LWEPlaintextType ps) {
       if (plaintextTypes == nullptr) {
@@ -106,7 +106,7 @@ template <typename ConcreteType>
 class AllCiphertextTypesMatch
     : public OpTrait::TraitBase<ConcreteType, AllCiphertextTypesMatch> {
  public:
-  static LogicalResult verifyTrait(Operation *op) {
+  static LogicalResult verifyTrait(Operation* op) {
     LWECiphertextType ciphertextTypes = nullptr;
     auto initOrCheckCiphertextTypes = [&](LWECiphertextType ct) {
       if (ciphertextTypes == nullptr) {
@@ -141,7 +141,7 @@ class AllCiphertextTypesMatch
 };
 
 // Helper that verifies if an op is a ciphertext plaintext operation.
-inline LogicalResult verifyCiphertextPlaintextOp(Operation *op) {
+inline LogicalResult verifyCiphertextPlaintextOp(Operation* op) {
   if (op->getNumOperands() != 2) {
     return op->emitOpError()
            << "ciphertext plaintext operation requires two operands";
@@ -182,7 +182,7 @@ template <typename ConcreteType>
 class IsCiphertextPlaintextOp
     : public OpTrait::TraitBase<ConcreteType, IsCiphertextPlaintextOp> {
  public:
-  static LogicalResult verifyTrait(Operation *op) {
+  static LogicalResult verifyTrait(Operation* op) {
     return verifyCiphertextPlaintextOp(op);
   }
 };

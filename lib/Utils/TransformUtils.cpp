@@ -57,7 +57,7 @@ func::FuncOp detectEntryFunction(ModuleOp moduleOp,
   return entryFunc;
 }
 
-Value convertIntegerValueToMemrefOfBits(Value integer, OpBuilder &b,
+Value convertIntegerValueToMemrefOfBits(Value integer, OpBuilder& b,
                                         Location loc) {
   IntegerType argType = mlir::cast<IntegerType>(integer.getType());
   int width = argType.getWidth();
@@ -84,7 +84,7 @@ Value convertIntegerValueToMemrefOfBits(Value integer, OpBuilder &b,
   return allocOp.getResult();
 }
 
-Value convertMemrefOfBitsToInteger(Value memref, Type resultType, OpBuilder &b,
+Value convertMemrefOfBitsToInteger(Value memref, Type resultType, OpBuilder& b,
                                    Location loc) {
   auto memrefType = cast<MemRefType>(memref.getType());
   auto integerType = cast<IntegerType>(resultType);

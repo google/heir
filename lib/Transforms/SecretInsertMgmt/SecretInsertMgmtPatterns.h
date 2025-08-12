@@ -15,17 +15,17 @@ template <typename MulOp>
 struct MultRelinearize : public OpRewritePattern<MulOp> {
   using OpRewritePattern<MulOp>::OpRewritePattern;
 
-  MultRelinearize(MLIRContext *context, Operation *top, DataFlowSolver *solver)
+  MultRelinearize(MLIRContext* context, Operation* top, DataFlowSolver* solver)
       : OpRewritePattern<MulOp>(context, /*benefit=*/1),
         top(top),
         solver(solver) {}
 
   LogicalResult matchAndRewrite(MulOp mulOp,
-                                PatternRewriter &rewriter) const override;
+                                PatternRewriter& rewriter) const override;
 
  private:
-  Operation *top;
-  DataFlowSolver *solver;
+  Operation* top;
+  DataFlowSolver* solver;
 };
 
 /// Insert mgmt.modreduce op immediately after the matched mul op.
@@ -33,18 +33,18 @@ template <typename MulOp>
 struct ModReduceAfterMult : public OpRewritePattern<MulOp> {
   using OpRewritePattern<MulOp>::OpRewritePattern;
 
-  ModReduceAfterMult(MLIRContext *context, Operation *top,
-                     DataFlowSolver *solver)
+  ModReduceAfterMult(MLIRContext* context, Operation* top,
+                     DataFlowSolver* solver)
       : OpRewritePattern<MulOp>(context, /*benefit=*/1),
         top(top),
         solver(solver) {}
 
   LogicalResult matchAndRewrite(MulOp op,
-                                PatternRewriter &rewriter) const override;
+                                PatternRewriter& rewriter) const override;
 
  private:
-  Operation *top;
-  DataFlowSolver *solver;
+  Operation* top;
+  DataFlowSolver* solver;
 };
 
 /// Insert mgmt.modreduce op for each operand of the matched mul op.
@@ -52,20 +52,20 @@ template <typename Op>
 struct ModReduceBefore : public OpRewritePattern<Op> {
   using OpRewritePattern<Op>::OpRewritePattern;
 
-  ModReduceBefore(MLIRContext *context, bool includeFirstMul, Operation *top,
-                  DataFlowSolver *solver)
+  ModReduceBefore(MLIRContext* context, bool includeFirstMul, Operation* top,
+                  DataFlowSolver* solver)
       : OpRewritePattern<Op>(context, /*benefit=*/1),
         includeFirstMul(includeFirstMul),
         top(top),
         solver(solver) {}
 
   LogicalResult matchAndRewrite(Op op,
-                                PatternRewriter &rewriter) const override;
+                                PatternRewriter& rewriter) const override;
 
  private:
   bool includeFirstMul;
-  Operation *top;
-  DataFlowSolver *solver;
+  Operation* top;
+  DataFlowSolver* solver;
 };
 
 /// Insert cross level operation sequence to match the level of operands
@@ -89,20 +89,20 @@ template <typename Op>
 struct MatchCrossLevel : public OpRewritePattern<Op> {
   using OpRewritePattern<Op>::OpRewritePattern;
 
-  MatchCrossLevel(MLIRContext *context, int *idCounter, Operation *top,
-                  DataFlowSolver *solver)
+  MatchCrossLevel(MLIRContext* context, int* idCounter, Operation* top,
+                  DataFlowSolver* solver)
       : OpRewritePattern<Op>(context, /*benefit=*/1),
         idCounter(idCounter),
         top(top),
         solver(solver) {}
 
   LogicalResult matchAndRewrite(Op op,
-                                PatternRewriter &rewriter) const override;
+                                PatternRewriter& rewriter) const override;
 
  private:
-  int *idCounter;
-  Operation *top;
-  DataFlowSolver *solver;
+  int* idCounter;
+  Operation* top;
+  DataFlowSolver* solver;
 };
 
 /// Similar to MatchCrossLevel, see its description for behavior.
@@ -118,20 +118,20 @@ template <typename Op>
 struct MatchCrossMulDepth : public OpRewritePattern<Op> {
   using OpRewritePattern<Op>::OpRewritePattern;
 
-  MatchCrossMulDepth(MLIRContext *context, int *idCounter, Operation *top,
-                     DataFlowSolver *solver)
+  MatchCrossMulDepth(MLIRContext* context, int* idCounter, Operation* top,
+                     DataFlowSolver* solver)
       : OpRewritePattern<Op>(context, /*benefit=*/1),
         idCounter(idCounter),
         top(top),
         solver(solver) {}
 
   LogicalResult matchAndRewrite(Op op,
-                                PatternRewriter &rewriter) const override;
+                                PatternRewriter& rewriter) const override;
 
  private:
-  int *idCounter;
-  Operation *top;
-  DataFlowSolver *solver;
+  int* idCounter;
+  Operation* top;
+  DataFlowSolver* solver;
 };
 
 /// Insert mgmt.init op for plaintext operand.
@@ -141,18 +141,18 @@ template <typename Op>
 struct UseInitOpForPlaintextOperand : public OpRewritePattern<Op> {
   using OpRewritePattern<Op>::OpRewritePattern;
 
-  UseInitOpForPlaintextOperand(MLIRContext *context, Operation *top,
-                               DataFlowSolver *solver)
+  UseInitOpForPlaintextOperand(MLIRContext* context, Operation* top,
+                               DataFlowSolver* solver)
       : OpRewritePattern<Op>(context, /*benefit=*/1),
         top(top),
         solver(solver) {}
 
   LogicalResult matchAndRewrite(Op op,
-                                PatternRewriter &rewriter) const override;
+                                PatternRewriter& rewriter) const override;
 
  private:
-  Operation *top;
-  DataFlowSolver *solver;
+  Operation* top;
+  DataFlowSolver* solver;
 };
 
 /// when reached a certain depth (water line), bootstrap
@@ -162,19 +162,19 @@ template <typename Op>
 struct BootstrapWaterLine : public OpRewritePattern<Op> {
   using OpRewritePattern<Op>::OpRewritePattern;
 
-  BootstrapWaterLine(MLIRContext *context, Operation *top,
-                     DataFlowSolver *solver, int waterline)
+  BootstrapWaterLine(MLIRContext* context, Operation* top,
+                     DataFlowSolver* solver, int waterline)
       : OpRewritePattern<Op>(context, /*benefit=*/1),
         top(top),
         solver(solver),
         waterline(waterline) {}
 
   LogicalResult matchAndRewrite(Op op,
-                                PatternRewriter &rewriter) const override;
+                                PatternRewriter& rewriter) const override;
 
  private:
-  Operation *top;
-  DataFlowSolver *solver;
+  Operation* top;
+  DataFlowSolver* solver;
   int waterline;
 };
 

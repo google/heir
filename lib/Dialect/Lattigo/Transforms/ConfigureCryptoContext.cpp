@@ -36,7 +36,7 @@ namespace lattigo {
 // Helper function to check if the function has RelinearizeOp
 bool hasRelinOp(func::FuncOp op) {
   bool result = false;
-  op.walk<WalkOrder::PreOrder>([&](Operation *op) {
+  op.walk<WalkOrder::PreOrder>([&](Operation* op) {
     if (isa<BGVRelinearizeOp, BGVRelinearizeNewOp, CKKSRelinearizeOp,
             CKKSRelinearizeNewOp>(op)) {
       result = true;
@@ -102,7 +102,7 @@ struct LattigoBGVScheme {
   using NewEvaluatorOp = BGVNewEvaluatorOp;
   using SchemeParamAttrType = bgv::SchemeParamAttr;
 
-  static int getLogN(Operation *moduleOp) {
+  static int getLogN(Operation* moduleOp) {
     auto schemeParamAttr = getSchemeParamAttr(moduleOp);
     if (schemeParamAttr) {
       return schemeParamAttr.getLogN();
@@ -112,7 +112,7 @@ struct LattigoBGVScheme {
   }
 
   static ParametersLiteralAttrType getParametersLiteralAttr(
-      MLIRContext *ctx, Operation *moduleOp) {
+      MLIRContext* ctx, Operation* moduleOp) {
     auto schemeParamAttr = getSchemeParamAttr(moduleOp);
     if (schemeParamAttr) {
       auto logN = schemeParamAttr.getLogN();
@@ -134,19 +134,19 @@ struct LattigoBGVScheme {
         /*ptm*/ 0x10001);
   }
 
-  static SchemeParamAttrType getSchemeParamAttr(Operation *moduleOp) {
+  static SchemeParamAttrType getSchemeParamAttr(Operation* moduleOp) {
     return moduleOp->getAttrOfType<bgv::SchemeParamAttr>(
         bgv::BGVDialect::kSchemeParamAttrName);
   }
 
-  static void cleanSchemeParamAttr(Operation *moduleOp) {
+  static void cleanSchemeParamAttr(Operation* moduleOp) {
     auto schemeParamAttr = getSchemeParamAttr(moduleOp);
     if (schemeParamAttr) {
       moduleOp->removeAttr(bgv::BGVDialect::kSchemeParamAttrName);
     }
   }
 
-  static Value getNewEvaluatorOp(ImplicitLocOpBuilder &builder, Value params,
+  static Value getNewEvaluatorOp(ImplicitLocOpBuilder& builder, Value params,
                                  Value evalKeySet) {
     return NewEvaluatorOp::create(builder,
                                   EvaluatorType::get(builder.getContext()),
@@ -164,7 +164,7 @@ struct LattigoCKKSScheme {
   using NewEvaluatorOp = CKKSNewEvaluatorOp;
   using SchemeParamAttrType = ckks::SchemeParamAttr;
 
-  static int getLogN(Operation *moduleOp) {
+  static int getLogN(Operation* moduleOp) {
     auto schemeParamAttr = getSchemeParamAttr(moduleOp);
     if (schemeParamAttr) {
       return schemeParamAttr.getLogN();
@@ -174,7 +174,7 @@ struct LattigoCKKSScheme {
   }
 
   static ParametersLiteralAttrType getParametersLiteralAttr(
-      MLIRContext *ctx, Operation *moduleOp) {
+      MLIRContext* ctx, Operation* moduleOp) {
     auto schemeParamAttr = getSchemeParamAttr(moduleOp);
     if (schemeParamAttr) {
       auto logN = schemeParamAttr.getLogN();
@@ -196,19 +196,19 @@ struct LattigoCKKSScheme {
         /*logDefaultScale*/ 45);
   }
 
-  static SchemeParamAttrType getSchemeParamAttr(Operation *moduleOp) {
+  static SchemeParamAttrType getSchemeParamAttr(Operation* moduleOp) {
     return moduleOp->getAttrOfType<ckks::SchemeParamAttr>(
         ckks::CKKSDialect::kSchemeParamAttrName);
   }
 
-  static void cleanSchemeParamAttr(Operation *moduleOp) {
+  static void cleanSchemeParamAttr(Operation* moduleOp) {
     auto schemeParamAttr = getSchemeParamAttr(moduleOp);
     if (schemeParamAttr) {
       moduleOp->removeAttr(ckks::CKKSDialect::kSchemeParamAttrName);
     }
   }
 
-  static Value getNewEvaluatorOp(ImplicitLocOpBuilder &builder, Value params,
+  static Value getNewEvaluatorOp(ImplicitLocOpBuilder& builder, Value params,
                                  Value evalKeySet) {
     return NewEvaluatorOp::create(
         builder, EvaluatorType::get(builder.getContext()), params, evalKeySet);
@@ -254,7 +254,7 @@ LogicalResult convertFuncForScheme(func::FuncOp op) {
       func::FuncOp::create(builder, configFuncName, configFuncType);
   builder.setInsertionPointToEnd(configFuncOp.addEntryBlock());
 
-  auto *moduleOp = op->getParentOp();
+  auto* moduleOp = op->getParentOp();
   int logN = LattigoScheme::getLogN(moduleOp);
   auto paramAttr =
       LattigoScheme::getParametersLiteralAttr(builder.getContext(), moduleOp);

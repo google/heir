@@ -13,7 +13,7 @@ struct HoistArgLayouts : public OpRewritePattern<func::FuncOp> {
 
  public:
   LogicalResult matchAndRewrite(func::FuncOp func,
-                                PatternRewriter &rewriter) const override;
+                                PatternRewriter& rewriter) const override;
 };
 
 }  // namespace heir

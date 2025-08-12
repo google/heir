@@ -23,9 +23,9 @@ namespace heir {
 namespace tfhe_rust {
 
 // TODO: Fix this function to match the list of implemented ops
-LogicalResult canEmitFuncForTfheRust(func::FuncOp &funcOp) {
-  WalkResult failIfInterrupted = funcOp.walk([&](Operation *op) {
-    return TypeSwitch<Operation *, WalkResult>(op)
+LogicalResult canEmitFuncForTfheRust(func::FuncOp& funcOp) {
+  WalkResult failIfInterrupted = funcOp.walk([&](Operation* op) {
+    return TypeSwitch<Operation*, WalkResult>(op)
         // This list should match the list of implemented overloads of
         // `printOperation`.
         .Case<ModuleOp, func::FuncOp, func::ReturnOp, func::CallOp,
@@ -48,7 +48,7 @@ LogicalResult canEmitFuncForTfheRust(func::FuncOp &funcOp) {
               ::mlir::heir::tfhe_rust_bool::XorOp,
               ::mlir::heir::tfhe_rust_bool::XnorOp>(
             [&](auto op) { return WalkResult::advance(); })
-        .Default([&](Operation *op) {
+        .Default([&](Operation* op) {
           llvm::errs()
               << "Skipping function " << funcOp.getName()
               << " which cannot be emitted because it has an unsupported op: "

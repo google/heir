@@ -32,13 +32,13 @@ namespace heir {
 struct FoldConstantLinalgTranspose
     : public OpRewritePattern<mlir::linalg::TransposeOp> {
  public:
-  FoldConstantLinalgTranspose(MLIRContext *context)
+  FoldConstantLinalgTranspose(MLIRContext* context)
       : OpRewritePattern<mlir::linalg::TransposeOp>(context) {}
 
   using OpRewritePattern::OpRewritePattern;
 
   LogicalResult matchAndRewrite(mlir::linalg::TransposeOp transposeOp,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     ArrayRef<int64_t> outputShape = transposeOp.getInit().getType().getShape();
     ArrayRef<int64_t> permutation = transposeOp.getPermutation();
 
@@ -175,13 +175,13 @@ struct FoldConstantLinalgTranspose
 
 struct FoldConstantFill : public OpRewritePattern<mlir::linalg::FillOp> {
  public:
-  FoldConstantFill(MLIRContext *context)
+  FoldConstantFill(MLIRContext* context)
       : OpRewritePattern<mlir::linalg::FillOp>(context) {}
 
   using OpRewritePattern::OpRewritePattern;
 
   LogicalResult matchAndRewrite(mlir::linalg::FillOp fillOp,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     auto value = getAsOpFoldResult(fillOp.getInputs()[0]);
     if (isa<Value>(value)) return failure();
     if (fillOp.getResults().empty()) {
@@ -200,13 +200,13 @@ struct FoldConstantFill : public OpRewritePattern<mlir::linalg::FillOp> {
 struct FoldConstantBroadcast
     : public OpRewritePattern<mlir::linalg::BroadcastOp> {
  public:
-  FoldConstantBroadcast(MLIRContext *context)
+  FoldConstantBroadcast(MLIRContext* context)
       : OpRewritePattern<mlir::linalg::BroadcastOp>(context) {}
 
   using OpRewritePattern::OpRewritePattern;
 
   LogicalResult matchAndRewrite(mlir::linalg::BroadcastOp broadcastOp,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     auto value = getAsOpFoldResult(broadcastOp.getInput());
     if (isa<Value>(value)) return failure();
     auto outputTy = cast<RankedTensorType>(broadcastOp.getResultTypes()[0]);
@@ -229,13 +229,13 @@ struct FoldConstantBroadcast
 // tensor was created with a tensor.empty operation.
 struct LinalgMapToElementwise : public OpRewritePattern<mlir::linalg::MapOp> {
  public:
-  LinalgMapToElementwise(MLIRContext *context)
+  LinalgMapToElementwise(MLIRContext* context)
       : OpRewritePattern<mlir::linalg::MapOp>(context) {}
 
   using OpRewritePattern::OpRewritePattern;
 
   LogicalResult matchAndRewrite(mlir::linalg::MapOp mapOp,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     auto dest = mapOp.getInit().getDefiningOp<tensor::EmptyOp>();
     if (!dest) return failure();
 
@@ -244,7 +244,7 @@ struct LinalgMapToElementwise : public OpRewritePattern<mlir::linalg::MapOp> {
     if (mapper->getOperations().size() != 2) return failure();
 
     // The operation should be elementwise.
-    Operation &op = mapper->getOperations().front();
+    Operation& op = mapper->getOperations().front();
     if (!op.hasTrait<mlir::OpTrait::Elementwise>()) return failure();
 
     auto elementwiseOp = rewriter.create(
@@ -259,13 +259,13 @@ struct LinalgMapToElementwise : public OpRewritePattern<mlir::linalg::MapOp> {
 struct BroadcastToExpandShape
     : public OpRewritePattern<mlir::linalg::BroadcastOp> {
  public:
-  BroadcastToExpandShape(MLIRContext *context)
+  BroadcastToExpandShape(MLIRContext* context)
       : OpRewritePattern<mlir::linalg::BroadcastOp>(context) {}
 
   using OpRewritePattern::OpRewritePattern;
 
   LogicalResult matchAndRewrite(mlir::linalg::BroadcastOp broadcastOp,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     // If the broadcast is only reassociating dimensions, replace with
     // expand_shape.
     SliceVerificationResult res = isRankReducedType(
@@ -281,13 +281,13 @@ struct BroadcastToExpandShape
 struct RewriteTransposedVecmat
     : public OpRewritePattern<mlir::linalg::VecmatOp> {
  public:
-  RewriteTransposedVecmat(MLIRContext *context)
+  RewriteTransposedVecmat(MLIRContext* context)
       : OpRewritePattern<mlir::linalg::VecmatOp>(context) {}
 
   using OpRewritePattern::OpRewritePattern;
 
   LogicalResult matchAndRewrite(mlir::linalg::VecmatOp vecmatOp,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     auto transposeOp =
         vecmatOp.getInputs()[1].getDefiningOp<linalg::TransposeOp>();
     if (!transposeOp) return failure();
@@ -303,13 +303,13 @@ struct RewriteTransposedVecmat
 struct RewriteTransposedMatvec
     : public OpRewritePattern<mlir::linalg::MatvecOp> {
  public:
-  RewriteTransposedMatvec(MLIRContext *context)
+  RewriteTransposedMatvec(MLIRContext* context)
       : OpRewritePattern<mlir::linalg::MatvecOp>(context) {}
 
   using OpRewritePattern::OpRewritePattern;
 
   LogicalResult matchAndRewrite(mlir::linalg::MatvecOp matvecOp,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     auto transposeOp =
         matvecOp.getInputs()[0].getDefiningOp<linalg::TransposeOp>();
     if (!transposeOp) return failure();
@@ -325,8 +325,8 @@ struct RewriteTransposedMatvec
 struct LinalgCanonicalizations
     : public impl::LinalgCanonicalizationsBase<LinalgCanonicalizations> {
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
-    auto *module = getOperation();
+    MLIRContext* context = &getContext();
+    auto* module = getOperation();
 
     RewritePatternSet patterns(context);
     patterns.add<FoldConstantLinalgTranspose, FoldConstantFill,

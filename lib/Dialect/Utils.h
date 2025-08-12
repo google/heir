@@ -39,11 +39,11 @@ FailureOr<int64_t> get1DExtractionIndex(Op op) {
   return insertOffsetAttr.getInt();
 }
 
-inline Operation *cloneWithNewResultTypes(Operation *op,
+inline Operation* cloneWithNewResultTypes(Operation* op,
                                           TypeRange newResultTypes,
-                                          IRMapping &mapper) {
+                                          IRMapping& mapper) {
   SmallVector<Value, 8> operands;
-  SmallVector<Block *, 2> successors;
+  SmallVector<Block*, 2> successors;
 
   // Remap the operands.
   operands.reserve(op->getNumOperands());
@@ -52,11 +52,11 @@ inline Operation *cloneWithNewResultTypes(Operation *op,
 
   // Remap the successors.
   successors.reserve(op->getNumSuccessors());
-  for (Block *successor : op->getSuccessors())
+  for (Block* successor : op->getSuccessors())
     successors.push_back(mapper.lookupOrDefault(successor));
 
   // Create the new operation.
-  auto *newOp = Operation::create(
+  auto* newOp = Operation::create(
       op->getLoc(), op->getName(), newResultTypes, operands, op->getAttrs(),
       op->getPropertiesStorage(), successors, op->getNumRegions());
   mapper.map(op, newOp);
@@ -72,7 +72,7 @@ inline Operation *cloneWithNewResultTypes(Operation *op,
   return newOp;
 }
 
-inline Operation *cloneWithNewResultTypes(Operation *op,
+inline Operation* cloneWithNewResultTypes(Operation* op,
                                           TypeRange newResultTypes) {
   IRMapping mapper;
   return cloneWithNewResultTypes(op, newResultTypes, mapper);

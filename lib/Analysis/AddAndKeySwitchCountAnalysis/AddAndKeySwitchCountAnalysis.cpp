@@ -26,17 +26,17 @@ namespace mlir {
 namespace heir {
 
 LogicalResult CountAnalysis::visitOperation(
-    Operation *op, ArrayRef<const CountLattice *> operands,
-    ArrayRef<CountLattice *> results) {
-  auto propagate = [&](Value value, const CountState &state) {
-    auto *lattice = getLatticeElement(value);
+    Operation* op, ArrayRef<const CountLattice*> operands,
+    ArrayRef<CountLattice*> results) {
+  auto propagate = [&](Value value, const CountState& state) {
+    auto* lattice = getLatticeElement(value);
     ChangeResult changed = lattice->join(state);
     propagateIfChanged(lattice, changed);
   };
 
-  llvm::TypeSwitch<Operation &>(*op)
+  llvm::TypeSwitch<Operation&>(*op)
       .Case<arith::AddIOp, arith::SubIOp, arith::AddFOp, arith::SubFOp>(
-          [&](auto &op) {
+          [&](auto& op) {
             // condition on result secretness
             SmallVector<OpResult> secretResults;
             getSecretResults(op, secretResults);
@@ -45,9 +45,9 @@ LogicalResult CountAnalysis::visitOperation(
             }
 
             CountState zeroState(0, 0);
-            SmallVector<OpOperand *> secretOperands;
+            SmallVector<OpOperand*> secretOperands;
             getSecretOperands(op, secretOperands);
-            for (auto *operand : secretOperands) {
+            for (auto* operand : secretOperands) {
               auto countState =
                   operands[operand->getOperandNumber()]->getValue();
               zeroState = zeroState + countState;
@@ -57,7 +57,7 @@ LogicalResult CountAnalysis::visitOperation(
               propagate(result, zeroState);
             }
           })
-      .Case<arith::MulIOp, arith::MulFOp>([&](auto &op) {
+      .Case<arith::MulIOp, arith::MulFOp>([&](auto& op) {
         SmallVector<OpResult> secretResults;
         getSecretResults(op, secretResults);
         if (secretResults.empty()) {
@@ -69,8 +69,8 @@ LogicalResult CountAnalysis::visitOperation(
         // distinguishing ct-ct and ct-pt
         propagate(op.getResult(), CountState(1, 0));
       })
-      .Case<mgmt::RelinearizeOp, tensor_ext::RotateOp>([&](auto &op) {
-        SmallVector<OpOperand *> secretOperands;
+      .Case<mgmt::RelinearizeOp, tensor_ext::RotateOp>([&](auto& op) {
+        SmallVector<OpOperand*> secretOperands;
         getSecretOperands(op, secretOperands);
         if (secretOperands.empty()) {
           return;
@@ -90,7 +90,7 @@ LogicalResult CountAnalysis::visitOperation(
         propagate(modReduceOp.getResult(), CountState(0, 0));
       })
       .Default(
-          [&](auto &op) {
+          [&](auto& op) {
             // condition on result secretness
             SmallVector<OpResult> secretResults;
             getSecretResults(&op, secretResults);
@@ -104,7 +104,7 @@ LogicalResult CountAnalysis::visitOperation(
                   << "Unsupported operation for count analysis encountered.";
             }
 
-            SmallVector<OpOperand *> secretOperands;
+            SmallVector<OpOperand*> secretOperands;
             getSecretOperands(&op, secretOperands);
             if (secretOperands.empty()) {
               return;
@@ -112,8 +112,8 @@ LogicalResult CountAnalysis::visitOperation(
 
             // inherit count from the first secret operand
             CountState first;
-            for (auto *operand : secretOperands) {
-              auto &countState = getLatticeElement(operand->get())->getValue();
+            for (auto* operand : secretOperands) {
+              auto& countState = getLatticeElement(operand->get())->getValue();
               if (!countState.isInitialized()) {
                 return;
               }
@@ -128,7 +128,7 @@ LogicalResult CountAnalysis::visitOperation(
   return success();
 }
 
-void annotateCount(Operation *top, DataFlowSolver *solver) {
+void annotateCount(Operation* top, DataFlowSolver* solver) {
   [[maybe_unused]] auto getIntegerAttr = [&](int level) {
     return IntegerAttr::get(IntegerType::get(top->getContext(), 64), level);
   };
@@ -162,7 +162,7 @@ void annotateCount(Operation *top, DataFlowSolver *solver) {
       });
     }
 
-    genericOp.getBody()->walk<WalkOrder::PreOrder>([&](Operation *op) {
+    genericOp.getBody()->walk<WalkOrder::PreOrder>([&](Operation* op) {
       if (op->getNumResults() == 0) {
         return;
       }
@@ -180,7 +180,7 @@ void annotateCount(Operation *top, DataFlowSolver *solver) {
     });
 
     // annotate mgmt::OpenfheParamsAttr to func::FuncOp containing the genericOp
-    auto *funcOp = genericOp->getParentOp();
+    auto* funcOp = genericOp->getParentOp();
     auto openfheParamAttr = mgmt::OpenfheParamsAttr::get(
         funcOp->getContext(), maxAddCount, maxKeySwitchCount);
     funcOp->setAttr(mgmt::MgmtDialect::kArgOpenfheParamsAttrName,

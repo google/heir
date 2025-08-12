@@ -48,7 +48,7 @@ namespace {
 // getTypeForWire gets the MLIR type corresponding to the RTLIL wire. If the
 // wire is an integer with multiple bits, then the MLIR type is a memref of
 // bits.
-Type getTypeForWire(OpBuilder &b, Wire *wire) {
+Type getTypeForWire(OpBuilder& b, Wire* wire) {
   auto intTy = b.getI1Type();
   if (wire->width == 1) {
     return intTy;
@@ -59,7 +59,7 @@ Type getTypeForWire(OpBuilder &b, Wire *wire) {
 }  // namespace
 
 llvm::SmallVector<std::string, 10> getTopologicalOrder(
-    std::stringstream &torderOutput) {
+    std::stringstream& torderOutput) {
   llvm::SmallVector<std::string, 10> cells;
   std::string line;
   while (std::getline(torderOutput, line)) {
@@ -72,19 +72,19 @@ llvm::SmallVector<std::string, 10> getTopologicalOrder(
   return cells;
 }
 
-void RTLILImporter::addWireValue(Wire *wire, Value value) {
+void RTLILImporter::addWireValue(Wire* wire, Value value) {
   wireNameToValue.insert(std::make_pair(wire->name.str(), value));
 }
 
-Value RTLILImporter::getWireValue(Wire *wire) {
+Value RTLILImporter::getWireValue(Wire* wire) {
   auto wireName = wire->name.str();
   assert(wireNameToValue.contains(wireName));
   return wireNameToValue.at(wireName);
 }
 
 Value RTLILImporter::getBit(
-    const SigSpec &conn, ImplicitLocOpBuilder &b,
-    llvm::MapVector<Wire *, SmallVector<Value>> &retBitValues) {
+    const SigSpec& conn, ImplicitLocOpBuilder& b,
+    llvm::MapVector<Wire*, SmallVector<Value>>& retBitValues) {
   // Because the cells are in topological order, and Yosys should have
   // removed redundant wire-wire mappings, the cell's inputs must be a bit
   // of an input wire, in the map of already defined wires (which are
@@ -114,8 +114,8 @@ Value RTLILImporter::getBit(
 }
 
 void RTLILImporter::addResultBit(
-    const SigSpec &conn, Value result,
-    llvm::MapVector<Wire *, SmallVector<Value>> &retBitValues) {
+    const SigSpec& conn, Value result,
+    llvm::MapVector<Wire*, SmallVector<Value>>& retBitValues) {
   if (!conn.is_wire() && !conn.is_bit()) {
     LLVM_DEBUG(llvm::errs()
                << "expected output connection to be an output wire or bit,"
@@ -133,18 +133,18 @@ void RTLILImporter::addResultBit(
 }
 
 func::FuncOp RTLILImporter::importModule(
-    Module *module, const SmallVector<std::string, 10> &cellOrdering,
+    Module* module, const SmallVector<std::string, 10>& cellOrdering,
     std::optional<SmallVector<Type>> resultTypes) {
   // Gather input and output wires of the module to match up with the block
   // arguments.
-  std::map<int, Wire *> wireArgs;
-  std::map<int, Wire *> wireRet;
+  std::map<int, Wire*> wireArgs;
+  std::map<int, Wire*> wireRet;
 
   OpBuilder builder(context);
   // Maintain a map from RTLIL output wires to the Values that comprise it
   // in order to reconstruct the multi-bit output.
-  llvm::MapVector<Wire *, SmallVector<Value>> retBitValues;
-  for (auto *wire : module->wires()) {
+  llvm::MapVector<Wire*, SmallVector<Value>> retBitValues;
+  for (auto* wire : module->wires()) {
     // The RTLIL module may also have intermediate wires that are neither inputs
     // nor outputs.
     if (wire->port_input) {
@@ -160,10 +160,10 @@ func::FuncOp RTLILImporter::importModule(
   int numInputs = wireArgs.size();
   SmallVector<Type, 4> argTypes;
   SmallVector<Type, 4> retTypes;
-  for (auto &[_, wireArg] : wireArgs) {
+  for (auto& [_, wireArg] : wireArgs) {
     argTypes.push_back(getTypeForWire(builder, wireArg));
   }
-  for (auto &[_, wireReg] : wireRet) {
+  for (auto& [_, wireReg] : wireRet) {
     retTypes.push_back(getTypeForWire(builder, wireReg));
   }
 
@@ -173,13 +173,13 @@ func::FuncOp RTLILImporter::importModule(
       builder.getUnknownLoc(), module->name.str().replace(0, 1, ""), funcType);
   function.setPrivate();
 
-  auto *block = function.addEntryBlock();
+  auto* block = function.addEntryBlock();
   auto b = ImplicitLocOpBuilder::atBlockBegin(function.getLoc(), block);
 
   // Set the return bits to default 0
   auto constantOp = b.createOrFold<arith::ConstantOp>(
       b.getIntegerAttr(b.getIntegerType(1), 0));
-  for (auto &[wire, values] : retBitValues) {
+  for (auto& [wire, values] : retBitValues) {
     values.assign(wire->width, constantOp);
   }
 
@@ -189,22 +189,22 @@ func::FuncOp RTLILImporter::importModule(
   }
 
   // Convert cells to Operations according to topological order.
-  for (const auto &cellName : cellOrdering) {
+  for (const auto& cellName : cellOrdering) {
     assert(module->cells_.count(cellName) != 0 &&
            "expected cell in RTLIL design");
-    auto *cell = module->cells_[cellName];
+    auto* cell = module->cells_[cellName];
 
     SmallVector<Value> inputValues;
-    for (const auto &conn : getInputs(cell)) {
+    for (const auto& conn : getInputs(cell)) {
       inputValues.push_back(getBit(conn, b, retBitValues));
     }
-    auto *op = createOp(cell, inputValues, b);
+    auto* op = createOp(cell, inputValues, b);
     auto resultConn = getOutput(cell);
     addResultBit(resultConn, op->getResult(0), retBitValues);
   }
 
   // Wire up remaining connections.
-  for (const auto &conn : module->connections()) {
+  for (const auto& conn : module->connections()) {
     auto output = conn.first;
     // These must be output wire connections (either an output bit or a bit of a
     // multi-bit output wire).
@@ -212,7 +212,7 @@ func::FuncOp RTLILImporter::importModule(
             (output.is_chunk() && output.as_chunk().is_wire()) ||
             (output.is_bit() && output.as_bit().is_wire()) ||
             llvm::all_of(output.chunks(),
-                         [](const auto &chunk) { return chunk.is_wire(); })) &&
+                         [](const auto& chunk) { return chunk.is_wire(); })) &&
            "expected output to be a wire, chunk, or bit of a wire");
     if ((output.is_chunk() && !output.is_wire()) ||
         ((conn.second.is_chunk() && !conn.second.is_wire()) ||
@@ -239,7 +239,7 @@ func::FuncOp RTLILImporter::importModule(
 
   SmallVector<Value, 4> returnValues;
   for (unsigned i = 0; i < retTypes.size(); i++) {
-    auto *resultWire = wireRet[numInputs + i];  // Indexed after input ports
+    auto* resultWire = wireRet[numInputs + i];  // Indexed after input ports
     auto retBits = retBitValues[resultWire];
     // If we are returning a whole wire as is (e.g. the input wire) or a single
     // bit, we do not need to concat any return bits.

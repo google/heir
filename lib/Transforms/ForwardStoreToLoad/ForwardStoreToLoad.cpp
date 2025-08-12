@@ -31,7 +31,7 @@ class AffineStoreLowering : public OpRewritePattern<affine::AffineStoreOp> {
   using OpRewritePattern<affine::AffineStoreOp>::OpRewritePattern;
 
   LogicalResult matchAndRewrite(affine::AffineStoreOp op,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     // Expand affine map from 'affineStoreOp'.
     SmallVector<Value, 8> indices(op.getMapOperands());
     auto maybeExpandedMap = affine::expandAffineMap(rewriter, op.getLoc(),
@@ -53,7 +53,7 @@ class AffineLoadLowering : public OpRewritePattern<affine::AffineLoadOp> {
   using OpRewritePattern<affine::AffineLoadOp>::OpRewritePattern;
 
   LogicalResult matchAndRewrite(affine::AffineLoadOp op,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     // Expand affine map from 'affineLoadOp'.
     SmallVector<Value, 8> indices(op.getMapOperands());
     auto resultOperands = affine::expandAffineMap(rewriter, op.getLoc(),
@@ -67,8 +67,8 @@ class AffineLoadLowering : public OpRewritePattern<affine::AffineLoadOp> {
   }
 };
 
-bool ForwardSingleStoreToLoad::isForwardableOp(Operation *potentialStore,
-                                               memref::LoadOp &loadOp) const {
+bool ForwardSingleStoreToLoad::isForwardableOp(Operation* potentialStore,
+                                               memref::LoadOp& loadOp) const {
   if (!dominanceInfo.properlyDominates(potentialStore, loadOp.getOperation())) {
     LLVM_DEBUG(llvm::dbgs() << "store op does not dominate load op\n");
     return false;
@@ -81,7 +81,7 @@ bool ForwardSingleStoreToLoad::isForwardableOp(Operation *potentialStore,
     return false;
   }
 
-  return llvm::TypeSwitch<Operation &, bool>(*potentialStore)
+  return llvm::TypeSwitch<Operation&, bool>(*potentialStore)
       .Case<memref::StoreOp>([&](auto storeOp) {
         ValueRange storeIndices = storeOp.getIndices();
         ValueRange loadIndices = loadOp.getIndices();
@@ -114,25 +114,25 @@ bool ForwardSingleStoreToLoad::isForwardableOp(Operation *potentialStore,
 
         return true;
       })
-      .Default([&](Operation &) {
+      .Default([&](Operation&) {
         LLVM_DEBUG(llvm::dbgs()
                    << "Unsupported op type, cannot check for forwardability\n");
         return false;
       });
 }
 
-FailureOr<Value> getStoredValue(Operation *storeOp) {
-  return llvm::TypeSwitch<Operation &, FailureOr<Value>>(*storeOp)
+FailureOr<Value> getStoredValue(Operation* storeOp) {
+  return llvm::TypeSwitch<Operation&, FailureOr<Value>>(*storeOp)
       .Case<memref::StoreOp>(
           [&](auto storeOp) { return storeOp.getValueToStore(); })
-      .Default([&](Operation &) { return failure(); });
+      .Default([&](Operation&) { return failure(); });
 }
 
 LogicalResult ForwardSingleStoreToLoad::matchAndRewrite(
-    memref::LoadOp loadOp, PatternRewriter &rewriter) const {
+    memref::LoadOp loadOp, PatternRewriter& rewriter) const {
   LLVM_DEBUG(llvm::dbgs() << "Considering loadOp for replacement: " << loadOp
                           << "\n");
-  for (Operation *use : loadOp.getMemRef().getUsers()) {
+  for (Operation* use : loadOp.getMemRef().getUsers()) {
     LLVM_DEBUG(llvm::dbgs()
                << "Considering memref use for forwarding: " << *use << "\n");
     if (isForwardableOp(use, loadOp)) {
@@ -150,8 +150,8 @@ LogicalResult ForwardSingleStoreToLoad::matchAndRewrite(
   return failure();
 }
 
-bool RemoveUnusedStore::isPostDominated(Operation *potentialOp,
-                                        memref::StoreOp &storeOp) const {
+bool RemoveUnusedStore::isPostDominated(Operation* potentialOp,
+                                        memref::StoreOp& storeOp) const {
   if (!dominanceInfo.properlyDominates(storeOp.getOperation(), potentialOp)) {
     LLVM_DEBUG(llvm::dbgs()
                << "store op is not properly dominated by potential store\n");
@@ -164,7 +164,7 @@ bool RemoveUnusedStore::isPostDominated(Operation *potentialOp,
     return false;
   }
 
-  return llvm::TypeSwitch<Operation &, bool>(*potentialOp)
+  return llvm::TypeSwitch<Operation&, bool>(*potentialOp)
       .Case<memref::StoreOp>([&](auto potentialStore) {
         ValueRange storeIndices = storeOp.getIndices();
         ValueRange potentialStoreIndices = potentialStore.getIndices();
@@ -204,7 +204,7 @@ bool RemoveUnusedStore::isPostDominated(Operation *potentialOp,
 
         return true;
       })
-      .Default([&](Operation &) {
+      .Default([&](Operation&) {
         LLVM_DEBUG(llvm::dbgs()
                    << "Unsupported op type, cannot check for forwardability\n");
         return false;
@@ -212,10 +212,10 @@ bool RemoveUnusedStore::isPostDominated(Operation *potentialOp,
 }
 
 LogicalResult RemoveUnusedStore::matchAndRewrite(
-    memref::StoreOp storeOp, PatternRewriter &rewriter) const {
+    memref::StoreOp storeOp, PatternRewriter& rewriter) const {
   LLVM_DEBUG(llvm::dbgs() << "Considering storeOp for removal: " << storeOp
                           << "\n");
-  for (Operation *use : storeOp.getMemRef().getUsers()) {
+  for (Operation* use : storeOp.getMemRef().getUsers()) {
     if (isPostDominated(use, storeOp)) {
       LLVM_DEBUG(llvm::dbgs() << "Store is usurped by: " << *use << "\n");
       rewriter.eraseOp(storeOp);
@@ -230,7 +230,7 @@ struct ForwardStoreToLoad : impl::ForwardStoreToLoadBase<ForwardStoreToLoad> {
   using ForwardStoreToLoadBase::ForwardStoreToLoadBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
     RewritePatternSet patterns(context);
     DominanceInfo dom(getOperation());
     patterns.add<AffineLoadLowering, AffineStoreLowering>(context);

@@ -30,7 +30,7 @@ struct CompareToSignRewrite
     using OpRewritePattern<arith::CmpFOp>::OpRewritePattern;
 
     LogicalResult matchAndRewrite(arith::CmpFOp op,
-                                  PatternRewriter &rewriter) const override {
+                                  PatternRewriter& rewriter) const override {
       Value lhs = op.getLhs();
       Value rhs = op.getRhs();
       Value sub;  // will be set to a - b for a < b or b - a for b > a
@@ -76,7 +76,7 @@ struct CompareToSignRewrite
     using OpRewritePattern<arith::CmpIOp>::OpRewritePattern;
 
     LogicalResult matchAndRewrite(arith::CmpIOp op,
-                                  PatternRewriter &rewriter) const override {
+                                  PatternRewriter& rewriter) const override {
       Location loc = op.getLoc();
       Value lhs = op.getLhs();
       Value rhs = op.getRhs();
@@ -127,7 +127,7 @@ struct CompareToSignRewrite
   // TODO (#1929): Implement patterns for other comparison operations
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
     RewritePatternSet patterns(context);
 
     patterns.add<CmpFOpRewritePattern, CmpIOpRewritePattern>(context);

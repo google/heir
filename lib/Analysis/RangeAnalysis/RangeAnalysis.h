@@ -1,5 +1,5 @@
-#ifndef LIB_ANALYSIS_CKKSRANGEANALYSIS_CKKSRANGEANALYSIS_H_
-#define LIB_ANALYSIS_CKKSRANGEANALYSIS_CKKSRANGEANALYSIS_H_
+#ifndef LIB_ANALYSIS_RANGEANALYSIS_RANGEANALYSIS_H_
+#define LIB_ANALYSIS_RANGEANALYSIS_RANGEANALYSIS_H_
 
 #include <algorithm>
 #include <cassert>
@@ -35,18 +35,18 @@ class RangeState {
   }
   RangeType get() const { return getRange(); }
 
-  bool operator==(const RangeState &rhs) const { return range == rhs.range; }
+  bool operator==(const RangeState& rhs) const { return range == rhs.range; }
 
   bool isInitialized() const { return range.has_value(); }
 
-  static RangeState join(const RangeState &lhs, const RangeState &rhs) {
+  static RangeState join(const RangeState& lhs, const RangeState& rhs) {
     if (!lhs.isInitialized()) return rhs;
     if (!rhs.isInitialized()) return lhs;
 
     return RangeState{std::max(lhs.getRange(), rhs.getRange())};
   }
 
-  void print(llvm::raw_ostream &os) const {
+  void print(llvm::raw_ostream& os) const {
     if (isInitialized()) {
       os << "RangeState(normal: "
          << doubleToString2Prec(range.value().getValue())
@@ -57,8 +57,8 @@ class RangeState {
     }
   }
 
-  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
-                                       const RangeState &state) {
+  friend llvm::raw_ostream& operator<<(llvm::raw_ostream& os,
+                                       const RangeState& state) {
     state.print(os);
     return os;
   }
@@ -79,24 +79,24 @@ class RangeAnalysis
   using SparseForwardDataFlowAnalysis::SparseForwardDataFlowAnalysis;
   friend class SecretnessAnalysisDependent<RangeAnalysis>;
 
-  RangeAnalysis(DataFlowSolver &solver, Log2Arithmetic inputRange)
+  RangeAnalysis(DataFlowSolver& solver, Log2Arithmetic inputRange)
       : dataflow::SparseForwardDataFlowAnalysis<RangeLattice>(solver),
         inputRange(inputRange) {}
 
-  void setToEntryState(RangeLattice *lattice) override {
+  void setToEntryState(RangeLattice* lattice) override {
     // This handles both secret input and plaintext func arg
     propagateIfChanged(lattice, lattice->join(RangeState({inputRange})));
   }
 
-  LogicalResult visitOperation(Operation *op,
-                               ArrayRef<const RangeLattice *> operands,
-                               ArrayRef<RangeLattice *> results) override;
+  LogicalResult visitOperation(Operation* op,
+                               ArrayRef<const RangeLattice*> operands,
+                               ArrayRef<RangeLattice*> results) override;
 
   void visitExternalCall(CallOpInterface call,
-                         ArrayRef<const RangeLattice *> argumentLattices,
-                         ArrayRef<RangeLattice *> resultLattices) override;
+                         ArrayRef<const RangeLattice*> argumentLattices,
+                         ArrayRef<RangeLattice*> resultLattices) override;
 
-  void propagateIfChangedWrapper(AnalysisState *state, ChangeResult changed) {
+  void propagateIfChangedWrapper(AnalysisState* state, ChangeResult changed) {
     propagateIfChanged(state, changed);
   }
 
@@ -105,9 +105,9 @@ class RangeAnalysis
 };
 
 std::optional<RangeState::RangeType> getRange(Value value,
-                                              DataFlowSolver *solver);
+                                              DataFlowSolver* solver);
 
 }  // namespace heir
 }  // namespace mlir
 
-#endif  // LIB_ANALYSIS_CKKSRANGEANALYSIS_CKKSRANGEANALYSIS_H_
+#endif  // LIB_ANALYSIS_RANGEANALYSIS_RANGEANALYSIS_H_

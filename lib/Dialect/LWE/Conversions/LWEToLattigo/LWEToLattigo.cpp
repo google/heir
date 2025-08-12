@@ -37,7 +37,7 @@ namespace mlir::heir::lwe {
 
 class ToLattigoTypeConverter : public TypeConverter {
  public:
-  ToLattigoTypeConverter(MLIRContext *ctx) {
+  ToLattigoTypeConverter(MLIRContext* ctx) {
     addConversion([](Type type) { return type; });
     addConversion([ctx](lwe::LWECiphertextType type) -> Type {
       return lattigo::RLWECiphertextType::get(ctx);
@@ -56,7 +56,7 @@ class ToLattigoTypeConverter : public TypeConverter {
 
 namespace {
 template <typename EvaluatorType>
-FailureOr<Value> getContextualEvaluator(Operation *op) {
+FailureOr<Value> getContextualEvaluator(Operation* op) {
   auto result = getContextualArgFromFunc<EvaluatorType>(op);
   if (failed(result)) {
     return op->emitOpError()
@@ -66,14 +66,14 @@ FailureOr<Value> getContextualEvaluator(Operation *op) {
   return result.value();
 }
 
-FailureOr<Value> getContextualEvaluator(Operation *op, Type type) {
+FailureOr<Value> getContextualEvaluator(Operation* op, Type type) {
   return getContextualArgFromFunc(op, type);
 }
 
 // NOTE: we can not use containsDialect
 // for FuncOp declaration, which does not have a body
 template <typename... Dialects>
-bool containsArgumentOfDialect(Operation *op) {
+bool containsArgumentOfDialect(Operation* op) {
   auto funcOp = dyn_cast<func::FuncOp>(op);
   if (!funcOp) {
     return false;
@@ -84,8 +84,8 @@ bool containsArgumentOfDialect(Operation *op) {
 }
 
 struct AddEvaluatorArg : public OpConversionPattern<func::FuncOp> {
-  AddEvaluatorArg(mlir::MLIRContext *context,
-                  const std::vector<std::pair<Type, OpPredicate>> &evaluators)
+  AddEvaluatorArg(mlir::MLIRContext* context,
+                  const std::vector<std::pair<Type, OpPredicate>>& evaluators)
       : OpConversionPattern<func::FuncOp>(context, /* benefit= */ 2),
         evaluators(evaluators) {}
 
@@ -93,10 +93,10 @@ struct AddEvaluatorArg : public OpConversionPattern<func::FuncOp> {
 
   LogicalResult matchAndRewrite(
       func::FuncOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     SmallVector<Type, 4> selectedEvaluators;
 
-    for (const auto &evaluator : evaluators) {
+    for (const auto& evaluator : evaluators) {
       auto predicate = evaluator.second;
       if (predicate(op)) {
         selectedEvaluators.push_back(evaluator.first);
@@ -128,14 +128,14 @@ struct AddEvaluatorArg : public OpConversionPattern<func::FuncOp> {
 
 template <typename KeyType>
 struct RemoveKeyArg : public OpConversionPattern<func::FuncOp> {
-  RemoveKeyArg(mlir::MLIRContext *context)
+  RemoveKeyArg(mlir::MLIRContext* context)
       : OpConversionPattern<func::FuncOp>(context, /* benefit= */ 2) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       func::FuncOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ::llvm::BitVector argsToErase(op.getNumArguments());
 
     for (auto i = 0; i != op.getNumArguments(); ++i) {
@@ -154,17 +154,17 @@ struct RemoveKeyArg : public OpConversionPattern<func::FuncOp> {
 };
 
 struct ConvertFuncCallOp : public OpConversionPattern<func::CallOp> {
-  ConvertFuncCallOp(mlir::MLIRContext *context,
-                    const std::vector<std::pair<Type, OpPredicate>> &evaluators)
+  ConvertFuncCallOp(mlir::MLIRContext* context,
+                    const std::vector<std::pair<Type, OpPredicate>>& evaluators)
       : OpConversionPattern<func::CallOp>(context), evaluators(evaluators) {}
 
   using OpConversionPattern<func::CallOp>::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       func::CallOp op, typename func::CallOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     SmallVector<Value> selectedevaluatorsValues;
-    for (const auto &evaluator : evaluators) {
+    for (const auto& evaluator : evaluators) {
       auto result = getContextualEvaluator(op.getOperation(), evaluator.first);
       // filter out non-existent evaluators
       if (failed(result)) {
@@ -197,14 +197,14 @@ struct ConvertFuncCallOp : public OpConversionPattern<func::CallOp> {
 
 template <typename KeyType>
 struct RemoveKeyArgForFuncCall : public OpConversionPattern<func::CallOp> {
-  RemoveKeyArgForFuncCall(mlir::MLIRContext *context)
+  RemoveKeyArgForFuncCall(mlir::MLIRContext* context)
       : OpConversionPattern<func::CallOp>(context) {}
 
   using OpConversionPattern<func::CallOp>::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       func::CallOp op, typename func::CallOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     auto callee = op.getCallee();
     auto operands = adaptor.getOperands();
     auto resultTypes = op.getResultTypes();
@@ -228,7 +228,7 @@ struct ConvertRlweUnaryOp : public OpConversionPattern<UnaryOp> {
 
   LogicalResult matchAndRewrite(
       UnaryOp op, typename UnaryOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result =
         getContextualEvaluator<EvaluatorType>(op.getOperation());
     if (failed(result)) return result;
@@ -249,7 +249,7 @@ struct ConvertRlweBinOp : public OpConversionPattern<BinOp> {
 
   LogicalResult matchAndRewrite(
       BinOp op, typename BinOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result =
         getContextualEvaluator<EvaluatorType>(op.getOperation());
     if (failed(result)) return result;
@@ -269,7 +269,7 @@ struct ConvertRlweCommutativePlainOp : public OpConversionPattern<PlainOp> {
 
   LogicalResult matchAndRewrite(
       PlainOp op, typename PlainOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result =
         getContextualEvaluator<EvaluatorType>(op.getOperation());
     if (failed(result)) return result;
@@ -297,7 +297,7 @@ struct ConvertRlweSubPlainOp : public OpConversionPattern<PlainOp> {
 
   LogicalResult matchAndRewrite(
       PlainOp op, typename PlainOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result =
         getContextualEvaluator<EvaluatorType>(op.getOperation());
     if (failed(result)) return result;
@@ -332,14 +332,14 @@ struct ConvertRlweSubPlainOp : public OpConversionPattern<PlainOp> {
 template <typename EvaluatorType, typename RlweRotateOp,
           typename LattigoRotateOp>
 struct ConvertRlweRotateOp : public OpConversionPattern<RlweRotateOp> {
-  ConvertRlweRotateOp(mlir::MLIRContext *context)
+  ConvertRlweRotateOp(mlir::MLIRContext* context)
       : OpConversionPattern<RlweRotateOp>(context) {}
 
   using OpConversionPattern<RlweRotateOp>::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       RlweRotateOp op, typename RlweRotateOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result =
         getContextualEvaluator<EvaluatorType>(op.getOperation());
     if (failed(result)) return result;
@@ -361,7 +361,7 @@ struct ConvertRlweLevelReduceOp : public OpConversionPattern<LevelReduceOp> {
 
   LogicalResult matchAndRewrite(
       LevelReduceOp op, typename LevelReduceOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result =
         getContextualEvaluator<EvaluatorType>(op.getOperation());
     if (failed(result)) return result;
@@ -383,7 +383,7 @@ struct ConvertRlweEncodeOp : public OpConversionPattern<EncodeOp> {
 
   LogicalResult matchAndRewrite(
       EncodeOp op, typename EncodeOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result =
         getContextualEvaluator<EvaluatorType>(op.getOperation());
     if (failed(result)) return result;
@@ -418,7 +418,7 @@ struct ConvertRlweDecodeOp : public OpConversionPattern<DecodeOp> {
 
   LogicalResult matchAndRewrite(
       DecodeOp op, typename DecodeOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result =
         getContextualEvaluator<EvaluatorType>(op.getOperation());
     if (failed(result)) return result;
@@ -451,7 +451,7 @@ struct ConvertLWEReinterpretApplicationData
 
   LogicalResult matchAndRewrite(
       lwe::ReinterpretApplicationDataOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     // Erase reinterpret application data.
     // If operand has no defining op, we can not replace it with defining op.
     rewriter.replaceAllOpUsesWith(op, adaptor.getOperands()[0]);
@@ -572,7 +572,7 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
 
   void saveFuncCallOpDialectAttrs() {
     funcCallOpDialectAttrs.clear();
-    auto *module = getOperation();
+    auto* module = getOperation();
     module->walk([&](func::CallOp callOp) {
       SmallVector<NamedAttribute> dialectAttrs;
       for (auto namedAttr : callOp->getDialectAttrs()) {
@@ -583,8 +583,8 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
   }
 
   void restoreFuncCallOpDialectAttrs() {
-    auto *module = getOperation();
-    auto *funcCallOpDialectAttrsIter = funcCallOpDialectAttrs.begin();
+    auto* module = getOperation();
+    auto* funcCallOpDialectAttrsIter = funcCallOpDialectAttrs.begin();
     module->walk([&](func::CallOp callOp) {
       callOp->setDialectAttrs(*funcCallOpDialectAttrsIter);
       ++funcCallOpDialectAttrsIter;
@@ -595,8 +595,8 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
     // Save the dialect attributes of func::CallOp before conversion.
     saveFuncCallOpDialectAttrs();
 
-    MLIRContext *context = &getContext();
-    auto *module = getOperation();
+    MLIRContext* context = &getContext();
+    auto* module = getOperation();
     ToLattigoTypeConverter typeConverter(context);
 
     ConversionTarget target(*context);
@@ -640,7 +640,7 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
       return (!containsCryptoArg || hasCryptoContextArg);
     });
 
-    OpPredicate containsEncryptUseSk = [&](Operation *op) -> bool {
+    OpPredicate containsEncryptUseSk = [&](Operation* op) -> bool {
       if (auto funcOp = dyn_cast<func::FuncOp>(op)) {
         // for declaration, assume its uses are decrypt
         if (funcOp.isDeclaration()) {
@@ -648,7 +648,7 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
         }
         return llvm::any_of(funcOp.getArguments(), [&](BlockArgument arg) {
           return mlir::isa<lwe::LWESecretKeyType>(arg.getType()) &&
-                 llvm::any_of(arg.getUses(), [&](OpOperand &use) {
+                 llvm::any_of(arg.getUses(), [&](OpOperand& use) {
                    return mlir::isa<lwe::RLWEEncryptOp>(use.getOwner());
                  });
         });
@@ -657,20 +657,20 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
     };
 
     auto gateByBGVModuleAttr =
-        [&](const OpPredicate &inputPredicate) -> OpPredicate {
-      return [module, inputPredicate](Operation *op) {
+        [&](const OpPredicate& inputPredicate) -> OpPredicate {
+      return [module, inputPredicate](Operation* op) {
         return moduleIsBGVOrBFV(module) && inputPredicate(op);
       };
     };
 
     auto gateByCKKSModuleAttr =
-        [&](const OpPredicate &inputPredicate) -> OpPredicate {
-      return [module, inputPredicate](Operation *op) {
+        [&](const OpPredicate& inputPredicate) -> OpPredicate {
+      return [module, inputPredicate](Operation* op) {
         return moduleIsCKKS(module) && inputPredicate(op);
       };
     };
 
-    OpPredicate containsNoEncryptUseSk = [&](Operation *op) -> bool {
+    OpPredicate containsNoEncryptUseSk = [&](Operation* op) -> bool {
       if (auto funcOp = dyn_cast<func::FuncOp>(op)) {
         bool findKey =
             llvm::any_of(funcOp.getArgumentTypes(), [&](Type argType) {
@@ -684,7 +684,7 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
         bool noEncrypt =
             llvm::all_of(funcOp.getArguments(), [&](BlockArgument arg) {
               return !mlir::isa<lwe::LWESecretKeyType>(arg.getType()) ||
-                     llvm::none_of(arg.getUses(), [&](OpOperand &use) {
+                     llvm::none_of(arg.getUses(), [&](OpOperand& use) {
                        return mlir::isa<lwe::RLWEEncryptOp>(use.getOwner());
                      });
             });

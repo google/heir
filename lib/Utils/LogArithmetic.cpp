@@ -6,7 +6,7 @@
 namespace mlir {
 namespace heir {
 
-Log2Arithmetic Log2Arithmetic::operator+(const Log2Arithmetic &rhs) const {
+Log2Arithmetic Log2Arithmetic::operator+(const Log2Arithmetic& rhs) const {
   // give sum of two log value
   double log2a = getLog2Value();
   double log2b = rhs.getLog2Value();
@@ -34,7 +34,7 @@ Log2Arithmetic Log2Arithmetic::operator+(const Log2Arithmetic &rhs) const {
   return Log2Arithmetic(log2Sum);
 }
 
-Log2Arithmetic Log2Arithmetic::operator*(const Log2Arithmetic &rhs) const {
+Log2Arithmetic Log2Arithmetic::operator*(const Log2Arithmetic& rhs) const {
   // give product of two log value
   auto log2a = getLog2Value();
   auto log2b = rhs.getLog2Value();

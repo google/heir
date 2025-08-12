@@ -34,18 +34,18 @@ namespace heir {
 //===----------------------------------------------------------------------===//
 
 LogicalResult RangeAnalysis::visitOperation(
-    Operation *op, ArrayRef<const RangeLattice *> operands,
-    ArrayRef<RangeLattice *> results) {
-  auto propagate = [&](Value value, const RangeState &state) {
-    auto *lattice = getLatticeElement(value);
+    Operation* op, ArrayRef<const RangeLattice*> operands,
+    ArrayRef<RangeLattice*> results) {
+  auto propagate = [&](Value value, const RangeState& state) {
+    auto* lattice = getLatticeElement(value);
     LLVM_DEBUG(llvm::dbgs()
                << "Propagate RangeState to " << value << ": " << state << "\n");
     ChangeResult changed = lattice->join(state);
     propagateIfChanged(lattice, changed);
   };
 
-  llvm::TypeSwitch<Operation &>(*op)
-      .Case<arith::AddFOp, arith::AddIOp>([&](auto &op) {
+  llvm::TypeSwitch<Operation&>(*op)
+      .Case<arith::AddFOp, arith::AddIOp>([&](auto& op) {
         // condition on result secretness
         SmallVector<OpResult> secretResults;
         getSecretResults(op, secretResults);
@@ -55,8 +55,8 @@ LogicalResult RangeAnalysis::visitOperation(
 
         auto rangeResult = Log2Arithmetic::of(0);
 
-        for (auto &operand : op->getOpOperands()) {
-          auto &rangeState = getLatticeElement(operand.get())->getValue();
+        for (auto& operand : op->getOpOperands()) {
+          auto& rangeState = getLatticeElement(operand.get())->getValue();
           if (!rangeState.isInitialized()) {
             return;
           }
@@ -67,7 +67,7 @@ LogicalResult RangeAnalysis::visitOperation(
           propagate(result, RangeState(rangeResult));
         }
       })
-      .Case<arith::MulFOp, arith::MulIOp>([&](auto &op) {
+      .Case<arith::MulFOp, arith::MulIOp>([&](auto& op) {
         // condition on result secretness
         SmallVector<OpResult> secretResults;
         getSecretResults(op, secretResults);
@@ -77,8 +77,8 @@ LogicalResult RangeAnalysis::visitOperation(
 
         auto rangeResult = Log2Arithmetic::of(1);
 
-        for (auto &operand : op->getOpOperands()) {
-          auto &rangeState = getLatticeElement(operand.get())->getValue();
+        for (auto& operand : op->getOpOperands()) {
+          auto& rangeState = getLatticeElement(operand.get())->getValue();
           if (!rangeState.isInitialized()) {
             return;
           }
@@ -89,7 +89,7 @@ LogicalResult RangeAnalysis::visitOperation(
           propagate(result, RangeState(rangeResult));
         }
       })
-      .Case<arith::ConstantOp>([&](auto &op) {
+      .Case<arith::ConstantOp>([&](auto& op) {
         // For constant, the range is [constant]
         std::optional<Log2Arithmetic> range = std::nullopt;
         TypedAttr constAttr = op.getValue();
@@ -136,7 +136,7 @@ LogicalResult RangeAnalysis::visitOperation(
           propagate(result, RangeState(range.value()));
         }
       })
-      .Case<mgmt::InitOp>([&](auto &op) {
+      .Case<mgmt::InitOp>([&](auto& op) {
         auto inputState = getLatticeElement(op->getOperand(0))->getValue();
         if (!inputState.isInitialized()) {
           return;
@@ -155,7 +155,7 @@ LogicalResult RangeAnalysis::visitOperation(
         propagate(op.getResult(), resultState);
       })
       // Rotation does not change the CKKS range
-      .Default([&](auto &op) {
+      .Default([&](auto& op) {
         // condition on result secretness
         SmallVector<OpResult> secretResults;
         getSecretResults(&op, secretResults);
@@ -163,7 +163,7 @@ LogicalResult RangeAnalysis::visitOperation(
           return;
         }
 
-        SmallVector<OpOperand *> secretOperands;
+        SmallVector<OpOperand*> secretOperands;
         getSecretOperands(&op, secretOperands);
         if (secretOperands.empty()) {
           return;
@@ -171,8 +171,8 @@ LogicalResult RangeAnalysis::visitOperation(
 
         // short-circuit to get range
         RangeState rangeState;
-        for (auto *operand : secretOperands) {
-          auto &operandRangeState =
+        for (auto* operand : secretOperands) {
+          auto& operandRangeState =
               getLatticeElement(operand->get())->getValue();
           if (operandRangeState.isInitialized()) {
             rangeState = operandRangeState;
@@ -188,8 +188,8 @@ LogicalResult RangeAnalysis::visitOperation(
 }
 
 void RangeAnalysis::visitExternalCall(
-    CallOpInterface call, ArrayRef<const RangeLattice *> argumentLattices,
-    ArrayRef<RangeLattice *> resultLattices) {
+    CallOpInterface call, ArrayRef<const RangeLattice*> argumentLattices,
+    ArrayRef<RangeLattice*> resultLattices) {
   auto callback = std::bind(&RangeAnalysis::propagateIfChangedWrapper, this,
                             std::placeholders::_1, std::placeholders::_2);
   ::mlir::heir::visitExternalCall<RangeState, RangeLattice>(
@@ -201,8 +201,8 @@ void RangeAnalysis::visitExternalCall(
 //===----------------------------------------------------------------------===//
 
 std::optional<RangeState::RangeType> getRange(Value value,
-                                              DataFlowSolver *solver) {
-  auto *lattice = solver->lookupState<RangeLattice>(value);
+                                              DataFlowSolver* solver) {
+  auto* lattice = solver->lookupState<RangeLattice>(value);
   if (!lattice) {
     return std::nullopt;
   }

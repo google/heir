@@ -148,7 +148,7 @@ using namespace mlir;
 using namespace tosa;
 using namespace heir;
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   mlir::DialectRegistry registry;
 
   // This comment inserts internal dialects
@@ -303,12 +303,12 @@ int main(int argc, char **argv) {
   llvm::errs() << "HEIR_YOSYS_SCRIPTS_DIR #define not properly set";
   return EXIT_FAILURE;
 #endif
-  const char *abcEnvPath = HEIR_ABC_BINARY;
-  const char *yosysRunfilesEnvPath = HEIR_YOSYS_SCRIPTS_DIR;
+  const char* abcEnvPath = HEIR_ABC_BINARY;
+  const char* yosysRunfilesEnvPath = HEIR_YOSYS_SCRIPTS_DIR;
   // When running in a lit test, these #defines must be overridden
   // by environment variables set in tests/lit.cfg.py
-  char *overriddenAbcEnvPath = std::getenv("HEIR_ABC_BINARY");
-  char *overriddenYosysRunfilesEnvPath = std::getenv("HEIR_YOSYS_SCRIPTS_DIR");
+  char* overriddenAbcEnvPath = std::getenv("HEIR_ABC_BINARY");
+  char* overriddenYosysRunfilesEnvPath = std::getenv("HEIR_YOSYS_SCRIPTS_DIR");
   if (overriddenAbcEnvPath != nullptr) abcEnvPath = overriddenAbcEnvPath;
   if (overriddenYosysRunfilesEnvPath != nullptr)
     yosysRunfilesEnvPath = overriddenYosysRunfilesEnvPath;
@@ -360,7 +360,7 @@ int main(int argc, char **argv) {
       "heir-tosa-to-arith",
       "Run passes to lower TOSA models with stripped "
       "quant types to arithmetic",
-      [](OpPassManager &pm, const TosaToArithOptions &options) {
+      [](OpPassManager& pm, const TosaToArithOptions& options) {
         ::mlir::heir::tosaPipelineBuilder(pm, options.unroll);
       });
 
@@ -378,7 +378,7 @@ int main(int argc, char **argv) {
       "Run scheme-agnostic passes to convert FHE programs that operate on "
       "scalar types to equivalent programs that operate on vectors and use "
       "tensor_ext.rotate",
-      [](OpPassManager &pm, const SimdVectorizerOptions &options) {
+      [](OpPassManager& pm, const SimdVectorizerOptions& options) {
         ::mlir::heir::heirSIMDVectorizerPipelineBuilder(
             pm, options.experimentalDisableLoopUnroll);
       });
@@ -387,8 +387,8 @@ int main(int argc, char **argv) {
       "mlir-to-secret-arithmetic",
       "Convert a func using standard MLIR dialects to secret dialect with "
       "arithmetic ops",
-      [](OpPassManager &pm,
-         const mlir::heir::MlirToRLWEPipelineOptions &options) {
+      [](OpPassManager& pm,
+         const mlir::heir::MlirToRLWEPipelineOptions& options) {
         mlirToSecretArithmeticPipelineBuilder(pm, options);
       });
 
@@ -396,8 +396,8 @@ int main(int argc, char **argv) {
       "mlir-to-plaintext-backend",
       "Convert a func using standard MLIR dialects to plaintext backend "
       "executed in secret arithmetic",
-      [](OpPassManager &pm,
-         const mlir::heir::PlaintextBackendOptions &options) {
+      [](OpPassManager& pm,
+         const mlir::heir::PlaintextBackendOptions& options) {
         mlirToPlaintextPipelineBuilder(pm, options);
       });
 

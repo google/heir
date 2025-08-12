@@ -63,7 +63,7 @@ struct ConvertAlignedExtractInsertToRotate
   }
 
   LogicalResult matchAndRewrite(tensor::InsertOp insertOp,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     LLVM_DEBUG(llvm::dbgs() << "Visiting insert op: " << insertOp << "\n");
     auto extractOp = insertOp.getScalar().getDefiningOp<tensor::ExtractOp>();
     if (!extractOp) {
@@ -113,7 +113,7 @@ struct ConvertAlignedExtractInsertToRotate
     while (true) {
       bool foundNext = false;
 
-      for (auto *user : current.getResult().getUsers()) {
+      for (auto* user : current.getResult().getUsers()) {
         if (auto nextInsert = dyn_cast<tensor::InsertOp>(user)) {
           auto nextExtract =
               nextInsert.getScalar().getDefiningOp<tensor::ExtractOp>();
@@ -179,7 +179,7 @@ struct CollapseInsertionChains
   using CollapseInsertionChainsBase::CollapseInsertionChainsBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
     RewritePatternSet patterns(context);
 
     patterns.add<ConvertAlignedExtractInsertToRotate>(context);

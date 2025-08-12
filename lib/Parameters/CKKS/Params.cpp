@@ -50,7 +50,7 @@ SchemeParam SchemeParam::getSchemeParamFromAttr(SchemeParamAttr attr) {
       logDefaultScale);
 }
 
-void SchemeParam::print(llvm::raw_ostream &os) const {
+void SchemeParam::print(llvm::raw_ostream& os) const {
   os << "logDefaultScale: " << logDefaultScale << "\n";
   RLWESchemeParam::print(os);
 }

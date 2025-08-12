@@ -23,21 +23,21 @@ struct DoNothingHoistingImpl
     : public LayoutConversionHoistableOpInterface::ExternalModel<
           DoNothingHoistingImpl<OpTy>, OpTy> {
   std::vector<::mlir::heir::Hoister> getHoisters(
-      Operation *op, tensor_ext::ConvertLayoutOp convertLayoutOp) const {
+      Operation* op, tensor_ext::ConvertLayoutOp convertLayoutOp) const {
     return {createTrivialHoister(op)};
   }
 };
 
 }  // namespace
 
-void registerOperandAndResultAttrInterface(DialectRegistry &registry) {
-  registry.addExtension(+[](MLIRContext *ctx, affine::AffineDialect *dialect) {
+void registerOperandAndResultAttrInterface(DialectRegistry& registry) {
+  registry.addExtension(+[](MLIRContext* ctx, affine::AffineDialect* dialect) {
     affine::AffineForOp::attachInterface<OperandAndResultAttrInterface>(*ctx);
   });
 }
 
-void registerLayoutConversionHoistableInterface(DialectRegistry &registry) {
-  registry.addExtension(+[](MLIRContext *ctx, arith::ArithDialect *dialect) {
+void registerLayoutConversionHoistableInterface(DialectRegistry& registry) {
+  registry.addExtension(+[](MLIRContext* ctx, arith::ArithDialect* dialect) {
     arith::AddFOp::attachInterface<DoNothingHoistingImpl<arith::AddFOp>>(*ctx);
     arith::AddIOp::attachInterface<DoNothingHoistingImpl<arith::AddIOp>>(*ctx);
     arith::MulFOp::attachInterface<DoNothingHoistingImpl<arith::MulFOp>>(*ctx);

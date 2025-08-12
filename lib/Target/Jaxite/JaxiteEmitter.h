@@ -24,14 +24,14 @@ namespace jaxite {
 void registerToJaxiteTranslation();
 
 /// Translates the given operation to Jaxire.
-::mlir::LogicalResult translateToJaxite(::mlir::Operation *op,
-                                        llvm::raw_ostream &os);
+::mlir::LogicalResult translateToJaxite(::mlir::Operation* op,
+                                        llvm::raw_ostream& os);
 
 class JaxiteEmitter {
  public:
-  JaxiteEmitter(raw_ostream &os, SelectVariableNames *variableNames);
+  JaxiteEmitter(raw_ostream& os, SelectVariableNames* variableNames);
 
-  LogicalResult translate(::mlir::Operation &operation);
+  LogicalResult translate(::mlir::Operation& operation);
 
  private:
   // Output stream to emit to.
@@ -39,7 +39,7 @@ class JaxiteEmitter {
 
   // Pre-populated analysis selecting unique variable names for all the SSA
   // values.
-  SelectVariableNames *variableNames;
+  SelectVariableNames* variableNames;
 
   // Server key arg to run ciphertext ops on the server.
   std::string serverKeySetArg_;

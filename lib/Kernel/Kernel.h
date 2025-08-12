@@ -20,10 +20,10 @@ enum class KernelName {
   MatvecDiagonal,
 };
 
-bool isSupportedKernel(Operation *op, KernelName name);
+bool isSupportedKernel(Operation* op, KernelName name);
 
-inline raw_ostream &operator<<(raw_ostream &os,
-                               const heir::KernelName &kernelName) {
+inline raw_ostream& operator<<(raw_ostream& os,
+                               const heir::KernelName& kernelName) {
   switch (kernelName) {
     case heir::KernelName::Trivial:
       os << "Trivial";
@@ -44,7 +44,7 @@ inline raw_ostream &operator<<(raw_ostream &os,
 
 template <>
 struct FieldParser<heir::KernelName> {
-  static FailureOr<heir::KernelName> parse(AsmParser &parser) {
+  static FailureOr<heir::KernelName> parse(AsmParser& parser) {
     std::string kernelName;
     if (parser.parseString(&kernelName)) return failure();
 

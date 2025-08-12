@@ -32,10 +32,10 @@ namespace simfhe {
 void registerToSimFHETranslation() {
   TranslateFromMLIRRegistration reg(
       "emit-simfhe", "translate ckks dialect to SimFHE python code",
-      [](Operation *op, llvm::raw_ostream &output) {
+      [](Operation* op, llvm::raw_ostream& output) {
         return translateToSimFHE(op, output);
       },
-      [](DialectRegistry &registry) {
+      [](DialectRegistry& registry) {
         registry.insert<func::FuncDialect, ckks::CKKSDialect, lwe::LWEDialect,
                         polynomial::PolynomialDialect,
                         mod_arith::ModArithDialect, rns::RNSDialect>();
@@ -43,26 +43,26 @@ void registerToSimFHETranslation() {
       });
 }
 
-LogicalResult translateToSimFHE(Operation *op, llvm::raw_ostream &os) {
+LogicalResult translateToSimFHE(Operation* op, llvm::raw_ostream& os) {
   SelectVariableNames variableNames(op);
   SimFHEEmitter emitter(os, &variableNames);
   return emitter.translate(*op);
 }
 
-SimFHEEmitter::SimFHEEmitter(llvm::raw_ostream &os,
-                             SelectVariableNames *variableNames)
+SimFHEEmitter::SimFHEEmitter(llvm::raw_ostream& os,
+                             SelectVariableNames* variableNames)
     : os(os), variableNames(variableNames) {}
 
-LogicalResult SimFHEEmitter::translate(Operation &op) {
+LogicalResult SimFHEEmitter::translate(Operation& op) {
   LogicalResult status =
-      llvm::TypeSwitch<Operation &, LogicalResult>(op)
+      llvm::TypeSwitch<Operation&, LogicalResult>(op)
           .Case<ModuleOp, func::FuncOp, func::ReturnOp, ckks::AddOp,
                 ckks::AddPlainOp, ckks::SubOp, ckks::SubPlainOp, ckks::MulOp,
                 ckks::MulPlainOp, ckks::NegateOp, ckks::RotateOp,
                 ckks::RelinearizeOp, ckks::RescaleOp, ckks::LevelReduceOp,
                 ckks::BootstrapOp>(
               [&](auto innerOp) { return printOperation(innerOp); })
-          .Default([&](Operation &) {
+          .Default([&](Operation&) {
             return op.emitOpError("unable to find printer for op");
           });
   if (failed(status)) {
@@ -75,12 +75,12 @@ LogicalResult SimFHEEmitter::translate(Operation &op) {
 LogicalResult SimFHEEmitter::printOperation(ModuleOp moduleOp) {
   os << kModulePrelude << "\n";
   SmallVector<func::FuncOp> funcs;
-  for (Operation &op : moduleOp) {
+  for (Operation& op : moduleOp) {
     if (auto func = dyn_cast<func::FuncOp>(op)) {
       funcs.push_back(func);
     }
   }
-  for (Operation &op : moduleOp) {
+  for (Operation& op : moduleOp) {
     if (failed(translate(op))) {
       return failure();
     }
@@ -117,8 +117,8 @@ LogicalResult SimFHEEmitter::printOperation(func::FuncOp funcOp) {
   os << "scheme_params : params.SchemeParams):\n";
   os.indent();
   os << "stats = PerfCounter()\n";
-  for (Block &block : funcOp.getBlocks()) {
-    for (Operation &op : block.getOperations()) {
+  for (Block& block : funcOp.getBlocks()) {
+    for (Operation& op : block.getOperations()) {
       if (failed(translate(op))) {
         return failure();
       }

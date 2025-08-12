@@ -23,9 +23,9 @@ namespace heir {
 namespace target_slot_analysis {
 
 LogicalResult TargetSlotAnalysis::visitOperation(
-    Operation *op, ArrayRef<TargetSlotLattice *> operands,
-    ArrayRef<const TargetSlotLattice *> results) {
-  llvm::TypeSwitch<Operation &>(*op)
+    Operation* op, ArrayRef<TargetSlotLattice*> operands,
+    ArrayRef<const TargetSlotLattice*> results) {
+  llvm::TypeSwitch<Operation&>(*op)
       .Case<tensor::InsertOp>([&](auto insertOp) {
         LLVM_DEBUG({ llvm::dbgs() << "Visiting: " << *op << "\n"; });
         auto insertIndices = insertOp.getIndices();
@@ -36,7 +36,7 @@ LogicalResult TargetSlotAnalysis::visitOperation(
         }
 
         Value insertIndexValue = insertOp.getIndices()[0];
-        const dataflow::Lattice<dataflow::ConstantValue> *insertIndexLattice =
+        const dataflow::Lattice<dataflow::ConstantValue>* insertIndexLattice =
             getOrCreate<dataflow::Lattice<dataflow::ConstantValue>>(
                 insertIndexValue);
 
@@ -66,7 +66,7 @@ LogicalResult TargetSlotAnalysis::visitOperation(
 
         // The target slot propagates to the value inserted, which is the first
         // positional argument
-        TargetSlotLattice *lattice = operands[0];
+        TargetSlotLattice* lattice = operands[0];
         TargetSlot newSlot = TargetSlot{insertIndexConst};
         LLVM_DEBUG({
           llvm::dbgs() << "Joining " << lattice->getValue() << " and "
@@ -77,11 +77,11 @@ LogicalResult TargetSlotAnalysis::visitOperation(
         ChangeResult changed = lattice->join(newSlot);
         propagateIfChanged(lattice, changed);
       })
-      .Default([&](Operation &op) {
+      .Default([&](Operation& op) {
         // By default, an op propagates its result target slots to all its
         // operands.
-        for (const TargetSlotLattice *r : results) {
-          for (TargetSlotLattice *operand : operands) {
+        for (const TargetSlotLattice* r : results) {
+          for (TargetSlotLattice* operand : operands) {
             ChangeResult result = operand->join(*r);
             propagateIfChanged(operand, result);
           }

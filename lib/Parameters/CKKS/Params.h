@@ -15,7 +15,7 @@ namespace ckks {
 // Parameter for CKKS scheme at ModuleOp level
 class SchemeParam : public RLWESchemeParam {
  public:
-  SchemeParam(const RLWESchemeParam &rlweSchemeParam, int logDefaultScale)
+  SchemeParam(const RLWESchemeParam& rlweSchemeParam, int logDefaultScale)
       : RLWESchemeParam(rlweSchemeParam), logDefaultScale(logDefaultScale) {}
 
  private:
@@ -24,7 +24,7 @@ class SchemeParam : public RLWESchemeParam {
 
  public:
   int64_t getLogDefaultScale() const { return logDefaultScale; }
-  void print(llvm::raw_ostream &os) const override;
+  void print(llvm::raw_ostream& os) const override;
 
   static SchemeParam getConcreteSchemeParam(std::vector<double> logqi,
                                             int logDefaultScale, int slotNumber,
@@ -37,12 +37,12 @@ class SchemeParam : public RLWESchemeParam {
 // Parameter for each SSA ciphertext SSA value.
 class LocalParam : public RLWELocalParam {
  public:
-  LocalParam(const SchemeParam *schemeParam, int currentLevel, int dimension)
+  LocalParam(const SchemeParam* schemeParam, int currentLevel, int dimension)
       : RLWELocalParam(schemeParam, currentLevel, dimension) {}
 
  public:
-  const SchemeParam *getSchemeParam() const {
-    return static_cast<const SchemeParam *>(schemeParam);
+  const SchemeParam* getSchemeParam() const {
+    return static_cast<const SchemeParam*>(schemeParam);
   }
 };
 

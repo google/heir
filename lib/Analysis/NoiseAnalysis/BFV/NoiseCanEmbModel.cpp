@@ -23,20 +23,20 @@ namespace bfv {
 
 using Model = NoiseCanEmbModel;
 
-double Model::toLogBound(const LocalParamType &param,
-                         const StateType &noise) const {
+double Model::toLogBound(const LocalParamType& param,
+                         const StateType& noise) const {
   auto cm = getRingExpansionFactor(param);
   // ||a|| <= c_m * ||a||^{can}
   // noise.getValue stores log2(||a||^{can})
   return log2(cm) + noise.getValue();
 }
 
-double Model::toLogBudget(const LocalParamType &param,
-                          const StateType &noise) const {
+double Model::toLogBudget(const LocalParamType& param,
+                          const StateType& noise) const {
   return toLogTotal(param) - toLogBound(param, noise);
 }
 
-double Model::toLogTotal(const LocalParamType &param) const {
+double Model::toLogTotal(const LocalParamType& param) const {
   double total = 0;
   auto logqi = param.getSchemeParam()->getLogqi();
   for (auto i = 0; i <= param.getCurrentLevel(); ++i) {
@@ -45,17 +45,17 @@ double Model::toLogTotal(const LocalParamType &param) const {
   return total - 1.0;
 }
 
-double Model::getVarianceErr(const LocalParamType &param) const {
+double Model::getVarianceErr(const LocalParamType& param) const {
   auto std0 = param.getSchemeParam()->getStd0();
   return std0 * std0;
 }
 
-double Model::getVarianceKey(const LocalParamType &param) const {
+double Model::getVarianceKey(const LocalParamType& param) const {
   // assume UNIFORM_TERNARY
   return 2.0 / 3.0;
 }
 
-double Model::getRingExpansionFactor(const LocalParamType &param) const {
+double Model::getRingExpansionFactor(const LocalParamType& param) const {
   [[maybe_unused]] auto N = param.getSchemeParam()->getRingDim();
   // Assert that N is a power of 2
   assert((N > 0) && ((N & (N - 1)) == 0) && "N must be a power of 2");
@@ -63,14 +63,14 @@ double Model::getRingExpansionFactor(const LocalParamType &param) const {
   return 1.;
 }
 
-double Model::getAssuranceFactor(const LocalParamType &param) const {
+double Model::getAssuranceFactor(const LocalParamType& param) const {
   // probability that a exceeds its standard deviation by more than a factor of
   // D is roughly erfc(D) with erfc(6) = 2^-55, erfc(5) = 2^-40, erfc(4.5) =
   // 2^-32
   return 6.;
 }
 
-double Model::getBScale(const LocalParamType &param) const {
+double Model::getBScale(const LocalParamType& param) const {
   auto varianceKey = getVarianceKey(param);
   auto d = getAssuranceFactor(param);
   auto phi = getPhi(param);
@@ -80,12 +80,12 @@ double Model::getBScale(const LocalParamType &param) const {
   return d * sqrt(innerTerm);
 }
 
-double Model::getPhi(const LocalParamType &param) const {
+double Model::getPhi(const LocalParamType& param) const {
   return param.getSchemeParam()->getRingDim();
 }
 
 typename Model::StateType Model::evalEncryptPk(
-    const LocalParamType &param) const {
+    const LocalParamType& param) const {
   auto varianceError = getVarianceErr(param);
   // uniform ternary
   auto varianceKey = getVarianceKey(param);
@@ -103,7 +103,7 @@ typename Model::StateType Model::evalEncryptPk(
 }
 
 typename Model::StateType Model::evalEncryptSk(
-    const LocalParamType &param) const {
+    const LocalParamType& param) const {
   auto varianceError = getVarianceErr(param);
   auto d = getAssuranceFactor(param);
   auto phi = getPhi(param);
@@ -117,7 +117,7 @@ typename Model::StateType Model::evalEncryptSk(
 }
 
 typename Model::StateType Model::evalEncrypt(
-    const LocalParamType &param) const {
+    const LocalParamType& param) const {
   auto usePublicKey = param.getSchemeParam()->getUsePublicKey();
   auto isEncryptionTechniqueExtended =
       param.getSchemeParam()->isEncryptionTechniqueExtended();
@@ -133,7 +133,7 @@ typename Model::StateType Model::evalEncrypt(
 }
 
 typename Model::StateType Model::evalConstant(
-    const LocalParamType &param) const {
+    const LocalParamType& param) const {
   auto t = param.getSchemeParam()->getPlaintextModulus();
   auto phi = getPhi(param);
 
@@ -142,15 +142,15 @@ typename Model::StateType Model::evalConstant(
   return StateType::of(t * sqrt(phi / 12.0));
 }
 
-typename Model::StateType Model::evalAdd(const StateType &lhs,
-                                         const StateType &rhs) const {
+typename Model::StateType Model::evalAdd(const StateType& lhs,
+                                         const StateType& rhs) const {
   // v_add <= v_0 + v_1
   return lhs + rhs;
 }
 
-typename Model::StateType Model::evalMul(const LocalParamType &resultParam,
-                                         const StateType &lhs,
-                                         const StateType &rhs) const {
+typename Model::StateType Model::evalMul(const LocalParamType& resultParam,
+                                         const StateType& lhs,
+                                         const StateType& rhs) const {
   // for canonical embedding, ||e1 * e2||^can <= ||e1||^can * ||e2||^can
   auto v0 = lhs;
   auto v1 = rhs;
@@ -182,8 +182,8 @@ typename Model::StateType Model::evalMul(const LocalParamType &resultParam,
   return term1 + term2;
 }
 
-typename Model::StateType Model::evalModReduce(const LocalParamType &inputParam,
-                                               const StateType &input) const {
+typename Model::StateType Model::evalModReduce(const LocalParamType& inputParam,
+                                               const StateType& input) const {
   auto currentLogqi =
       inputParam.getSchemeParam()->getLogqi()[inputParam.getCurrentLevel()];
   double modulus = pow(2.0, currentLogqi);
@@ -202,7 +202,7 @@ typename Model::StateType Model::evalModReduce(const LocalParamType &inputParam,
 }
 
 typename Model::StateType Model::evalRelinearizeHYBRID(
-    const LocalParamType &inputParam, const StateType &input) const {
+    const LocalParamType& inputParam, const StateType& input) const {
   // assume HYBRID and noise is negligible
   // compared with noise of multiplication
   // TODO: assert this happens after multiplication
@@ -210,7 +210,7 @@ typename Model::StateType Model::evalRelinearizeHYBRID(
 }
 
 typename Model::StateType Model::evalRelinearize(
-    const LocalParamType &inputParam, const StateType &input) const {
+    const LocalParamType& inputParam, const StateType& input) const {
   // assume HYBRID
   // if we further introduce BV to SchemeParam we can have alternative
   // implementation.

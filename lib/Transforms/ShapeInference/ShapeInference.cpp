@@ -56,7 +56,7 @@ void handleInterface(RegionBranchOpInterface regionBranchOp) {
   // mismatches might remain in those regions.
   regionBranchOp.getSuccessorRegions(RegionBranchPoint::parent(), successors);
 
-  for (auto &successor : successors) {
+  for (auto& successor : successors) {
     // We are interested in successor _regions_ here,
     // so ignore if the op has a control-flow edge loop to itself
     if (successor.isParent()) continue;
@@ -143,12 +143,12 @@ void handleInterface(RegionBranchTerminatorOpInterface terminator) {
 }  // namespace
 
 struct InferShape : public OpRewritePattern<func::FuncOp> {
-  InferShape(MLIRContext *context)
+  InferShape(MLIRContext* context)
       : OpRewritePattern<func::FuncOp>(context, /*benefit=*/1) {}
 
  public:
   LogicalResult matchAndRewrite(func::FuncOp funcOp,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     /// Helper to determine whether any IR modifications are necessary
     bool changed = false;
 
@@ -221,7 +221,7 @@ struct InferShape : public OpRewritePattern<func::FuncOp> {
       // operands to block arguments for region-bearing ops before
       // the region itself is walked.
       auto walkResult =
-          funcOp.getBody().walk<WalkOrder::PreOrder>([&](Operation *op) {
+          funcOp.getBody().walk<WalkOrder::PreOrder>([&](Operation* op) {
             LLVM_DEBUG(llvm::dbgs() << "ShapeInference:\t\twalking op: "
                                     << op->getName() << "\n");
 
@@ -414,7 +414,7 @@ struct ShapeInference : impl::ShapeInferenceBase<ShapeInference> {
   using ShapeInferenceBase::ShapeInferenceBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
     RewritePatternSet patterns(context);
     patterns.add<InferShape>(context);
     walkAndApplyPatterns(getOperation(), std::move(patterns));

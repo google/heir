@@ -44,7 +44,7 @@ std::pair<ChebyshevBasisPolynomial, ChebyshevBasisPolynomial> dividePolynomials(
 }  // namespace
 
 ChebyshevDecomposition decompose(
-    const ChebyshevBasisPolynomial &cheb_polynomial, int decomposition_degree) {
+    const ChebyshevBasisPolynomial& cheb_polynomial, int decomposition_degree) {
   ChebyshevBasisPolynomial p = cheb_polynomial;
   ChebyshevDecomposition result{.generatorDegree = decomposition_degree};
   while (!p.empty()) {

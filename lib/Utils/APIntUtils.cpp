@@ -19,7 +19,7 @@ namespace heir {
 /// (potentially large) APInts around.
 /// WARNING: a value of '0' may be returned,
 ///          signifying that no multiplicative inverse exists!
-APInt multiplicativeInverse(const APInt &x, const APInt &modulo) {
+APInt multiplicativeInverse(const APInt& x, const APInt& modulo) {
   assert(x.ult(modulo) && "This APInt must be smaller than the modulo");
   // Using the properties listed at the following web page (accessed 06/21/08):
   //   http://www.numbertheory.org/php/euclid.html

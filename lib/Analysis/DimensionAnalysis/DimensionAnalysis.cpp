@@ -31,20 +31,20 @@ namespace heir {
 //===----------------------------------------------------------------------===//
 
 LogicalResult DimensionAnalysis::visitOperation(
-    Operation *op, ArrayRef<const DimensionLattice *> operands,
-    ArrayRef<DimensionLattice *> results) {
-  auto propagate = [&](Value value, const DimensionState &state) {
-    auto *lattice = getLatticeElement(value);
+    Operation* op, ArrayRef<const DimensionLattice*> operands,
+    ArrayRef<DimensionLattice*> results) {
+  auto propagate = [&](Value value, const DimensionState& state) {
+    auto* lattice = getLatticeElement(value);
     ChangeResult changed = lattice->join(state);
     propagateIfChanged(lattice, changed);
   };
 
-  llvm::TypeSwitch<Operation &>(*op)
+  llvm::TypeSwitch<Operation&>(*op)
       .Case<mgmt::RelinearizeOp>([&](auto relinearizeOp) {
         // implicitly ensure that the operand is secret
         propagate(relinearizeOp.getResult(), DimensionState(2));
       })
-      .Default([&](auto &op) {
+      .Default([&](auto& op) {
         // condition on result secretness
         SmallVector<OpResult> secretResults;
         getSecretResults(&op, secretResults);
@@ -61,10 +61,10 @@ LogicalResult DimensionAnalysis::visitOperation(
         // for mul, initialize to 0, for max, initialize to 2
         auto dimensionResult = isMul ? 0 : 2;
 
-        SmallVector<OpOperand *> secretOperands;
+        SmallVector<OpOperand*> secretOperands;
         getSecretOperands(&op, secretOperands);
-        for (auto *operand : secretOperands) {
-          auto &dimensionState = getLatticeElement(operand->get())->getValue();
+        for (auto* operand : secretOperands) {
+          auto& dimensionState = getLatticeElement(operand->get())->getValue();
           if (!dimensionState.isInitialized()) {
             return;
           }
@@ -89,8 +89,8 @@ LogicalResult DimensionAnalysis::visitOperation(
 }
 
 void DimensionAnalysis::visitExternalCall(
-    CallOpInterface call, ArrayRef<const DimensionLattice *> argumentLattices,
-    ArrayRef<DimensionLattice *> resultLattices) {
+    CallOpInterface call, ArrayRef<const DimensionLattice*> argumentLattices,
+    ArrayRef<DimensionLattice*> resultLattices) {
   auto callback = std::bind(&DimensionAnalysis::propagateIfChangedWrapper, this,
                             std::placeholders::_1, std::placeholders::_2);
   ::mlir::heir::visitExternalCall<DimensionState, DimensionLattice>(
@@ -101,15 +101,15 @@ void DimensionAnalysis::visitExternalCall(
 // DimensionAnalysis (Backward)
 //===----------------------------------------------------------------------===//
 
-void DimensionAnalysisBackward::setToExitState(DimensionLattice *lattice) {
+void DimensionAnalysisBackward::setToExitState(DimensionLattice* lattice) {
   propagateIfChanged(lattice, lattice->join(DimensionState()));
 }
 
 LogicalResult DimensionAnalysisBackward::visitOperation(
-    Operation *op, ArrayRef<DimensionLattice *> operands,
-    ArrayRef<const DimensionLattice *> results) {
-  auto propagate = [&](Value value, const DimensionState &state) {
-    auto *lattice = getLatticeElement(value);
+    Operation* op, ArrayRef<DimensionLattice*> operands,
+    ArrayRef<const DimensionLattice*> results) {
+  auto propagate = [&](Value value, const DimensionState& state) {
+    auto* lattice = getLatticeElement(value);
     ChangeResult changed = lattice->join(state);
     propagateIfChanged(lattice, changed);
   };
@@ -123,7 +123,7 @@ LogicalResult DimensionAnalysisBackward::visitOperation(
 
   auto dimensionResult = 0;
   for (auto result : secretResults) {
-    auto &dimensionState = getLatticeElement(result)->getValue();
+    auto& dimensionState = getLatticeElement(result)->getValue();
     if (!dimensionState.isInitialized()) {
       return success();
     }
@@ -131,14 +131,14 @@ LogicalResult DimensionAnalysisBackward::visitOperation(
   }
 
   // only back-prop for non-secret operands
-  SmallVector<OpOperand *> nonSecretOperands;
+  SmallVector<OpOperand*> nonSecretOperands;
   getNonSecretOperands(op, nonSecretOperands);
-  for (auto *operand : nonSecretOperands) {
+  for (auto* operand : nonSecretOperands) {
     propagate(operand->get(), DimensionState(dimensionResult));
   }
 
   // also backprop to mgmt.init if it is not secret
-  for (auto &opOperand : op->getOpOperands()) {
+  for (auto& opOperand : op->getOpOperands()) {
     if (!isSecretInternal(op, opOperand.get()) &&
         isa_and_nonnull<mgmt::InitOp>(opOperand.get().getDefiningOp())) {
       propagate(opOperand.get(), DimensionState(dimensionResult));
@@ -153,8 +153,8 @@ LogicalResult DimensionAnalysisBackward::visitOperation(
 //===----------------------------------------------------------------------===//
 
 std::optional<DimensionState::DimensionType> getDimension(
-    Value value, DataFlowSolver *solver) {
-  auto *lattice = solver->lookupState<DimensionLattice>(value);
+    Value value, DataFlowSolver* solver) {
+  auto* lattice = solver->lookupState<DimensionLattice>(value);
   if (!lattice) {
     return std::nullopt;
   }
@@ -172,13 +172,13 @@ int getDimensionFromMgmtAttr(Value value) {
   return mgmtAttr.getDimension();
 }
 
-void annotateDimension(Operation *top, DataFlowSolver *solver) {
+void annotateDimension(Operation* top, DataFlowSolver* solver) {
   auto getIntegerAttr = [&](int dimension) {
     return IntegerAttr::get(IntegerType::get(top->getContext(), 64), dimension);
   };
 
   auto getDimensionValue = [&](Value value) -> int {
-    auto *lattice = solver->lookupState<DimensionLattice>(value);
+    auto* lattice = solver->lookupState<DimensionLattice>(value);
     if (lattice && lattice->getValue().isInitialized()) {
       return lattice->getValue().getDimension();
     }

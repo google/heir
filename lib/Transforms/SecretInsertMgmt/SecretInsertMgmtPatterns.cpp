@@ -26,7 +26,7 @@ namespace heir {
 
 template <typename MulOp>
 LogicalResult MultRelinearize<MulOp>::matchAndRewrite(
-    MulOp mulOp, PatternRewriter &rewriter) const {
+    MulOp mulOp, PatternRewriter& rewriter) const {
   Value result = mulOp.getResult();
   bool secret = isSecret(result, solver);
   if (!secret) {
@@ -52,7 +52,7 @@ LogicalResult MultRelinearize<MulOp>::matchAndRewrite(
 
 template <typename MulOp>
 LogicalResult ModReduceAfterMult<MulOp>::matchAndRewrite(
-    MulOp mulOp, PatternRewriter &rewriter) const {
+    MulOp mulOp, PatternRewriter& rewriter) const {
   Value result = mulOp.getResult();
   bool secret = isSecret(result, solver);
   if (!secret) {
@@ -69,7 +69,7 @@ LogicalResult ModReduceAfterMult<MulOp>::matchAndRewrite(
 
 template <typename Op>
 LogicalResult ModReduceBefore<Op>::matchAndRewrite(
-    Op op, PatternRewriter &rewriter) const {
+    Op op, PatternRewriter& rewriter) const {
   // guard against secret::YieldOp
   if (op->getResults().size() > 0) {
     for (auto result : op->getResults()) {
@@ -83,9 +83,9 @@ LogicalResult ModReduceBefore<Op>::matchAndRewrite(
 
   auto maxLevel = 0;
   int64_t mulDepth = 0;
-  SmallVector<OpOperand *, 2> secretOperands;
+  SmallVector<OpOperand*, 2> secretOperands;
   getSecretOperands(op, secretOperands, solver);
-  for (auto *operand : secretOperands) {
+  for (auto* operand : secretOperands) {
     auto levelState =
         solver->lookupState<LevelLattice>(operand->get())->getValue();
     if (!levelState.isInitialized()) {
@@ -115,7 +115,7 @@ LogicalResult ModReduceBefore<Op>::matchAndRewrite(
                           << " Level: " << maxLevel + 1 << "\n");
 
   SmallVector<Value, 2> secretOperandValues = llvm::to_vector(
-      llvm::map_range(secretOperands, [](OpOperand *op) { return op->get(); }));
+      llvm::map_range(secretOperands, [](OpOperand* op) { return op->get(); }));
   // iterating over Values instead of OpOperands
   // because one Value can corresponds to multiple OpOperands
   for (auto operand : secretOperandValues) {
@@ -132,7 +132,7 @@ LogicalResult ModReduceBefore<Op>::matchAndRewrite(
 
 template <typename Op>
 LogicalResult MatchCrossLevel<Op>::matchAndRewrite(
-    Op op, PatternRewriter &rewriter) const {
+    Op op, PatternRewriter& rewriter) const {
   Value result = op.getResult();
   bool secret = isSecret(result, solver);
   if (!secret) {
@@ -145,9 +145,9 @@ LogicalResult MatchCrossLevel<Op>::matchAndRewrite(
   auto resultLevel = resultLevelState.getLevel();
 
   bool inserted = false;
-  SmallVector<OpOperand *, 2> secretOperands;
+  SmallVector<OpOperand*, 2> secretOperands;
   getSecretOperands(op, secretOperands, solver);
-  for (auto *operand : secretOperands) {
+  for (auto* operand : secretOperands) {
     auto levelState =
         solver->lookupState<LevelLattice>(operand->get())->getValue();
     if (!levelState.isInitialized()) {
@@ -187,21 +187,21 @@ LogicalResult MatchCrossLevel<Op>::matchAndRewrite(
 
 template <typename Op>
 LogicalResult MatchCrossMulDepth<Op>::matchAndRewrite(
-    Op op, PatternRewriter &rewriter) const {
+    Op op, PatternRewriter& rewriter) const {
   Value result = op.getResult();
   bool secret = isSecret(result, solver);
   if (!secret) {
     return failure();
   }
 
-  SmallVector<OpOperand *, 2> secretOperands;
+  SmallVector<OpOperand*, 2> secretOperands;
   getSecretOperands(op, secretOperands, solver);
   if (secretOperands.size() < 2) {
     return failure();
   }
 
   SmallVector<int64_t, 2> mulDepths;
-  for (auto *operand : secretOperands) {
+  for (auto* operand : secretOperands) {
     auto mulDepthState =
         solver->lookupState<MulDepthLattice>(operand->get())->getValue();
     if (!mulDepthState.isInitialized()) {
@@ -221,7 +221,7 @@ LogicalResult MatchCrossMulDepth<Op>::matchAndRewrite(
   // for one operand being mulResult and another not,
   // we should match their scale by adding one adjust scale op
   for (auto i = 0; i < secretOperands.size(); i++) {
-    auto *operand = secretOperands[i];
+    auto* operand = secretOperands[i];
     auto mulDepth = mulDepths[i];
     if (!mulDepth) {
       rewriter.setInsertionPoint(op);
@@ -243,7 +243,7 @@ LogicalResult MatchCrossMulDepth<Op>::matchAndRewrite(
 
 template <typename Op>
 LogicalResult UseInitOpForPlaintextOperand<Op>::matchAndRewrite(
-    Op op, PatternRewriter &rewriter) const {
+    Op op, PatternRewriter& rewriter) const {
   // If all results are non-secret and the operation is pure, nothing to do.
   // This handles common cases like index arithmetic within a loop.
   bool hasNoSecretResults = op->getResults().empty() ||
@@ -256,7 +256,7 @@ LogicalResult UseInitOpForPlaintextOperand<Op>::matchAndRewrite(
 
   // insert mgmt::InitOp as an mgmt attribute placeholder for plaintext operand
   bool inserted = false;
-  for (auto &operand : op->getOpOperands()) {
+  for (auto& operand : op->getOpOperands()) {
     bool secret = isSecret(operand.get(), solver);
     auto definingOp = operand.get().getDefiningOp();
     bool alreadyInitted =
@@ -277,7 +277,7 @@ LogicalResult UseInitOpForPlaintextOperand<Op>::matchAndRewrite(
 
 template <typename Op>
 LogicalResult BootstrapWaterLine<Op>::matchAndRewrite(
-    Op op, PatternRewriter &rewriter) const {
+    Op op, PatternRewriter& rewriter) const {
   auto levelLattice = solver->lookupState<LevelLattice>(op->getResult(0));
   if (!levelLattice->getValue().isInitialized()) {
     return failure();

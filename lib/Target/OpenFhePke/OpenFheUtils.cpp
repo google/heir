@@ -42,7 +42,7 @@ std::string getModulePrelude(OpenfheScheme scheme,
 std::string getWeightsPrelude() { return std::string(kWeightsPreludeTemplate); }
 
 FailureOr<std::string> convertType(Type type, Location loc, bool constant) {
-  return llvm::TypeSwitch<Type &, FailureOr<std::string>>(type)
+  return llvm::TypeSwitch<Type&, FailureOr<std::string>>(type)
       // For now, these types are defined in the prelude as aliases.
       .Case<CryptoContextType>(
           [&](auto ty) { return std::string("CryptoContextT"); })
@@ -99,10 +99,10 @@ FailureOr<std::string> convertType(Type type, Location loc, bool constant) {
         auto result = "std::vector<" + eltTyResult.value() + ">";
         return FailureOr<std::string>(std::string(result));
       })
-      .Default([&](Type &) { return failure(); });
+      .Default([&](Type&) { return failure(); });
 }
 
-FailureOr<Value> getContextualCryptoContext(Operation *op) {
+FailureOr<Value> getContextualCryptoContext(Operation* op) {
   Value cryptoContext = op->getParentOfType<func::FuncOp>()
                             .getBody()
                             .getBlocks()

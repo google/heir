@@ -17,13 +17,13 @@ namespace heir {
 // indexes per dimension. Returns a std::nullopt if the indices are not
 // constants (e.g. derived from inputs).
 std::optional<std::vector<uint64_t>> materialize(
-    const affine::MemRefAccess &access);
+    const affine::MemRefAccess& access);
 
 // Extract and flatten the index of a MemRefAccess to the corresponding index in
 // a 1-dimensional flattened array. Returns a std::nullopt if the indices are
 // not constants (e.g. derived from inputs).
 std::optional<uint64_t> getFlattenedAccessIndex(
-    const affine::MemRefAccess &access, mlir::Type memRefType);
+    const affine::MemRefAccess& access, mlir::Type memRefType);
 
 // Unflatten a flattened index for a memref with strided and offset metadata.
 llvm::SmallVector<int64_t> unflattenIndex(int64_t index,

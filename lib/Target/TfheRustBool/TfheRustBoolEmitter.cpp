@@ -65,10 +65,10 @@ void registerToTfheRustBoolTranslation() {
   TranslateFromMLIRRegistration reg(
       "emit-tfhe-rust-bool",
       "translate the tfhe-rs-bool dialect to Rust code for boolean tfhe-rs",
-      [](Operation *op, llvm::raw_ostream &output) {
+      [](Operation* op, llvm::raw_ostream& output) {
         return translateToTfheRustBool(op, output, /*packedAPI=*/false);
       },
-      [](DialectRegistry &registry) {
+      [](DialectRegistry& registry) {
         registry.insert<func::FuncDialect, tfhe_rust_bool::TfheRustBoolDialect,
                         affine::AffineDialect, arith::ArithDialect,
                         tensor::TensorDialect, memref::MemRefDialect>();
@@ -78,17 +78,17 @@ void registerToTfheRustBoolTranslation() {
       "emit-tfhe-rust-bool-packed",
       "translate the tfhe-rs-bool dialect to Rust code for Belfort FPGA "
       "(boolean) tfhe-rs API",
-      [](Operation *op, llvm::raw_ostream &output) {
+      [](Operation* op, llvm::raw_ostream& output) {
         return translateToTfheRustBool(op, output, /*packedAPI=*/true);
       },
-      [](DialectRegistry &registry) {
+      [](DialectRegistry& registry) {
         registry.insert<func::FuncDialect, tfhe_rust_bool::TfheRustBoolDialect,
                         affine::AffineDialect, arith::ArithDialect,
                         tensor::TensorDialect, memref::MemRefDialect>();
       });
 }
 
-LogicalResult translateToTfheRustBool(Operation *op, llvm::raw_ostream &os,
+LogicalResult translateToTfheRustBool(Operation* op, llvm::raw_ostream& os,
                                       bool packedAPI) {
   SelectVariableNames variableNames(op);
   TfheRustBoolEmitter emitter(os, &variableNames, packedAPI);
@@ -96,9 +96,9 @@ LogicalResult translateToTfheRustBool(Operation *op, llvm::raw_ostream &os,
   return result;
 }
 
-LogicalResult TfheRustBoolEmitter::translate(Operation &op) {
+LogicalResult TfheRustBoolEmitter::translate(Operation& op) {
   LogicalResult status =
-      llvm::TypeSwitch<Operation &, LogicalResult>(op)
+      llvm::TypeSwitch<Operation&, LogicalResult>(op)
           // Builtin ops
           .Case<ModuleOp>([&](auto op) { return printOperation(op); })
           // Func ops
@@ -120,7 +120,7 @@ LogicalResult TfheRustBoolEmitter::translate(Operation &op) {
           // Tensor ops
           .Case<tensor::ExtractOp, tensor::FromElementsOp>(
               [&](auto op) { return printOperation(op); })
-          .Default([&](Operation &) {
+          .Default([&](Operation&) {
             return op.emitOpError("unable to find printer for op");
           });
 
@@ -133,7 +133,7 @@ LogicalResult TfheRustBoolEmitter::translate(Operation &op) {
 
 LogicalResult TfheRustBoolEmitter::printOperation(ModuleOp moduleOp) {
   os << (packedAPI ? kFPGAModulePrelude : kModulePrelude) << "\n";
-  for (Operation &op : moduleOp) {
+  for (Operation& op : moduleOp) {
     if (failed(translate(op))) {
       return failure();
     }
@@ -185,8 +185,8 @@ LogicalResult TfheRustBoolEmitter::printOperation(func::FuncOp funcOp) {
   os << " {\n";
   os.indent();
 
-  for (Block &block : funcOp.getBlocks()) {
-    for (Operation &op : block.getOperations()) {
+  for (Block& block : funcOp.getBlocks()) {
+    for (Operation& op : block.getOperations()) {
       if (failed(translate(op))) {
         return failure();
       }
@@ -200,7 +200,7 @@ LogicalResult TfheRustBoolEmitter::printOperation(func::FuncOp funcOp) {
 
 LogicalResult TfheRustBoolEmitter::printOperation(func::ReturnOp op) {
   std::function<std::string(Value)> valueOrClonedValue = [&](Value value) {
-    auto *suffix = "";
+    auto* suffix = "";
     if (isa<BlockArgument>(value)) {
       suffix = ".clone()";
     }
@@ -248,7 +248,7 @@ LogicalResult TfheRustBoolEmitter::printSksMethod(
   // operations with a single gate
   std::string gateStr = StringRef(op).upper();
   if (packedAPI && symbolizeTfheRustBoolGateEnum(gateStr).has_value()) {
-    auto *opParent = nonSksOperands[0].getDefiningOp();
+    auto* opParent = nonSksOperands[0].getDefiningOp();
 
     size_t numberOfOperands = 0;
 
@@ -309,13 +309,13 @@ LogicalResult TfheRustBoolEmitter::printSksMethod(
   if (!isa<TensorType>(nonSksOperands[0].getType())) {
     emitAssignPrefix(result);
 
-    auto *operandTypesIt = operandTypes.begin();
+    auto* operandTypesIt = operandTypes.begin();
     os << variableNames->getNameForValue(sks) << "." << op << "(";
     os << commaSeparatedValues(nonSksOperands, [&](Value value) {
-      auto *prefix = value.getType().hasTrait<PassByReference>() ? "&" : "";
+      auto* prefix = value.getType().hasTrait<PassByReference>() ? "&" : "";
       // First check if a DefiningOp exists
       // if not: comes from function definition
-      mlir::Operation *op = value.getDefiningOp();
+      mlir::Operation* op = value.getDefiningOp();
       if (op) {
         auto referencePredicate =
             isa<tensor::ExtractOp>(op) || isa<memref::LoadOp>(op);
@@ -349,7 +349,7 @@ LogicalResult TfheRustBoolEmitter::printOperation(affine::AffineForOp op) {
      << " {\n";
   os.indent();
 
-  auto res = op.getBody()->walk([&](Operation *op) {
+  auto res = op.getBody()->walk([&](Operation* op) {
     if (failed(translate(*op))) {
       return WalkResult::interrupt();
     }
@@ -450,7 +450,7 @@ LogicalResult TfheRustBoolEmitter::printOperation(memref::AllocOp op) {
      << std::accumulate(
             std::next(op.getMemref().getType().getShape().begin()),
             op.getMemref().getType().getShape().end(), std::string("usize"),
-            [&](const std::string &a, int64_t value) { return a + ", usize"; })
+            [&](const std::string& a, int64_t value) { return a + ", usize"; })
      << "), ";
   if (failed(emitType(op.getMemref().getType().getElementType()))) {
     return op.emitOpError() << "Failed to get memref element type";
@@ -471,7 +471,7 @@ LogicalResult TfheRustBoolEmitter::printOperation(memref::StoreOp op) {
   // Note: we may not need to clone all the time, but the BTreeMap stores
   // Ciphertexts, not &Ciphertexts. This is because results computed inside for
   // loops will not live long enough.
-  const auto *suffix = ".clone()";
+  const auto* suffix = ".clone()";
   os << variableNames->getNameForValue(op.getValueToStore()) << suffix
      << ");\n";
   return success();
@@ -520,11 +520,11 @@ LogicalResult TfheRustBoolEmitter::printOperation(tensor::FromElementsOp op) {
   emitAssignPrefix(op.getResult());
   os << "vec![" << commaSeparatedValues(op.getOperands(), [&](Value value) {
     // Check if block argument, if so, clone.
-    const auto *cloneStr = isa<BlockArgument>(value) ? ".clone()" : "";
+    const auto* cloneStr = isa<BlockArgument>(value) ? ".clone()" : "";
     // Get the name of defining operation its dialect
     auto tfheOp =
         value.getDefiningOp()->getDialect()->getNamespace() == "tfhe_rust_bool";
-    const auto *prefix = tfheOp ? "&" : "";
+    const auto* prefix = tfheOp ? "&" : "";
     return std::string(prefix) + variableNames->getNameForValue(value) +
            cloneStr;
   }) << "];\n";
@@ -604,7 +604,7 @@ FailureOr<std::string> TfheRustBoolEmitter::convertType(Type type) {
 
     return std::string(std::string("Vec<") + elementTy.value() + ">");
   }
-  return llvm::TypeSwitch<Type &, FailureOr<std::string>>(type)
+  return llvm::TypeSwitch<Type&, FailureOr<std::string>>(type)
       .Case<EncryptedBoolType>(
           [&](auto type) { return std::string("Ciphertext"); })
       .Case<PackedServerKeyType>(
@@ -619,7 +619,7 @@ FailureOr<std::string> TfheRustBoolEmitter::convertType(Type type) {
         return (type.isUnsigned() ? std::string("u") : "") + "i" +
                std::to_string(width.value());
       })
-      .Default([&](Type &) { return failure(); });
+      .Default([&](Type&) { return failure(); });
 }
 
 LogicalResult TfheRustBoolEmitter::emitType(Type type) {
@@ -637,7 +637,7 @@ std::pair<std::string, std::string> TfheRustBoolEmitter::checkOrigin(
   std::string suffix = "";
   // First check if a DefiningOp exists
   // if not: comes from function definition
-  mlir::Operation *opParent = value.getDefiningOp();
+  mlir::Operation* opParent = value.getDefiningOp();
   if (opParent) {
     if (!isa<tensor::FromElementsOp>(opParent) &&
         !isa<tensor::ExtractOp>(opParent))
@@ -651,8 +651,8 @@ std::pair<std::string, std::string> TfheRustBoolEmitter::checkOrigin(
   return std::make_pair(prefix, suffix);
 }
 
-TfheRustBoolEmitter::TfheRustBoolEmitter(raw_ostream &os,
-                                         SelectVariableNames *variableNames,
+TfheRustBoolEmitter::TfheRustBoolEmitter(raw_ostream& os,
+                                         SelectVariableNames* variableNames,
                                          bool packedAPI)
     : os(os), variableNames(variableNames), packedAPI(packedAPI) {}
 }  // namespace tfhe_rust_bool

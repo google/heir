@@ -20,7 +20,7 @@ static std::unordered_map<KernelName, std::string> correspondingOp = {
 std::set<std::string> requiredNontrivial = {"linalg"};
 }  // namespace
 
-bool isSupportedKernel(Operation *op, KernelName name) {
+bool isSupportedKernel(Operation* op, KernelName name) {
   std::string dialect = std::string(op->getDialect()->getNamespace());
   if (name == KernelName::Trivial) {
     return requiredNontrivial.count(dialect) == 0;

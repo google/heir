@@ -18,21 +18,21 @@ namespace tfhe_rust {
 // matcher. A later pass could remove the attributes, but they are harmless
 // and not emitted in the final codegen.
 template <typename SksOp>
-LogicalResult doHoist(SksOp op, PatternRewriter &rewriter) {
+LogicalResult doHoist(SksOp op, PatternRewriter& rewriter) {
   if (op->hasAttr("hoisted")) {
     return failure();
   }
   DominanceInfo dom(op);
-  Operation *lastOperandDefiner = nullptr;
-  Block *lastBlock = nullptr;
+  Operation* lastOperandDefiner = nullptr;
+  Block* lastBlock = nullptr;
   for (Value operand : op->getOperands()) {
-    if (auto *defOp = operand.getDefiningOp()) {
+    if (auto* defOp = operand.getDefiningOp()) {
       if (lastOperandDefiner == nullptr ||
           dom.dominates(lastOperandDefiner, defOp)) {
         lastOperandDefiner = defOp;
       }
     } else if (auto blockArg = dyn_cast<BlockArgument>(operand)) {
-      Block *block = blockArg.getOwner();
+      Block* block = blockArg.getOwner();
       if (lastBlock == nullptr || dom.dominates(lastBlock, block)) {
         lastBlock = block;
       }
@@ -53,12 +53,12 @@ LogicalResult doHoist(SksOp op, PatternRewriter &rewriter) {
 }
 
 LogicalResult HoistGenerateLookupTable::matchAndRewrite(
-    GenerateLookupTableOp op, PatternRewriter &rewriter) const {
+    GenerateLookupTableOp op, PatternRewriter& rewriter) const {
   return doHoist(op, rewriter);
 }
 
 LogicalResult HoistCreateTrivial::matchAndRewrite(
-    CreateTrivialOp op, PatternRewriter &rewriter) const {
+    CreateTrivialOp op, PatternRewriter& rewriter) const {
   return doHoist(op, rewriter);
 }
 

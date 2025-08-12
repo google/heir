@@ -36,7 +36,7 @@ LogicalResult LWECiphertextType::verify(
   return success();
 }
 
-LWECiphertextType getDefaultCGGICiphertextType(MLIRContext *ctx,
+LWECiphertextType getDefaultCGGICiphertextType(MLIRContext* ctx,
                                                int messageWidth,
                                                int plaintextBits) {
   auto ciphertextBits = 32;

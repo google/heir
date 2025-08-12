@@ -43,7 +43,7 @@ SmallVector<SmallVector<int64_t>> getAllIndices(TensorType tensorType) {
         if (oldResult.empty()) {
           result.push_back({i});
         }
-        for (const auto &res : oldResult) {
+        for (const auto& res : oldResult) {
           SmallVector<int64_t> newResult = res;
           newResult.push_back(i);
           result.push_back(newResult);
@@ -59,13 +59,13 @@ SmallVector<SmallVector<int64_t>> getAllIndices(TensorType tensorType) {
 
 }  // namespace
 
-static Value buildFromElementsOp(OpBuilder &builder,
+static Value buildFromElementsOp(OpBuilder& builder,
                                  RankedTensorType resultType, ValueRange inputs,
                                  Location loc) {
   return tensor::FromElementsOp::create(builder, loc, resultType, inputs);
 }
 
-static SmallVector<Value> buildExtractOps(OpBuilder &builder,
+static SmallVector<Value> buildExtractOps(OpBuilder& builder,
                                           TypeRange resultTypes,
                                           ValueRange inputs, Location loc) {
   // This pass only operates on tensors of static shape
@@ -77,7 +77,7 @@ static SmallVector<Value> buildExtractOps(OpBuilder &builder,
   // Create extract ops in "natural" order (dimension-by-dimension)
   SmallVector<Value> values;
   ImplicitLocOpBuilder b(loc, builder);
-  const auto *maxDimension = llvm::max_element(inputType.getShape());
+  const auto* maxDimension = llvm::max_element(inputType.getShape());
   SmallVector<Value> constVals;
   for (auto i = 0; i < *maxDimension; ++i) {
     constVals.push_back(arith::ConstantIndexOp::create(b, i));
@@ -99,7 +99,7 @@ class ConvertFromElementsOp
 
   LogicalResult matchAndRewrite(
       tensor::FromElementsOp op, OneToNOpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     // Conversion has no Conversion-level illegality handling
     if (typeConverter->isLegal(op)) return failure();
     // This pass only operates on tensors of static shape,
@@ -117,7 +117,7 @@ class ConvertInsertOp : public OpConversionPattern<tensor::InsertOp> {
 
   LogicalResult matchAndRewrite(
       tensor::InsertOp op, OneToNOpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     // Conversion has no Conversion-level illegality handling
     if (typeConverter->isLegal(op)) return failure();
 
@@ -153,7 +153,7 @@ class ConvertExtractOp : public OpConversionPattern<tensor::ExtractOp> {
 
   LogicalResult matchAndRewrite(
       tensor::ExtractOp op, OneToNOpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     // Conversion has no Conversion-level illegality handling
     if (typeConverter->isLegal(op)) return failure();
 
@@ -189,7 +189,7 @@ class ConvertConstantOp : public OpConversionPattern<arith::ConstantOp> {
 
   LogicalResult matchAndRewrite(
       arith::ConstantOp op, OneToNOpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     // Conversion has no Conversion-level illegality handling
     if (typeConverter->isLegal(op)) return failure();
 
@@ -221,7 +221,7 @@ struct TensorToScalars : impl::TensorToScalarsBase<TensorToScalars> {
   using TensorToScalarsBase::TensorToScalarsBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
     mlir::ConversionTarget target(getContext());
 
     // do not unroll tensors with more than maxSize elements
@@ -231,7 +231,7 @@ struct TensorToScalars : impl::TensorToScalarsBase<TensorToScalars> {
     typeConverter.addConversion(
         [maxSizeInt](
             RankedTensorType tensorType,
-            SmallVectorImpl<Type> &types) -> std::optional<LogicalResult> {
+            SmallVectorImpl<Type>& types) -> std::optional<LogicalResult> {
           if (!tensorType.hasStaticShape()) return std::nullopt;
           if (tensorType.getNumElements() > maxSizeInt) return std::nullopt;
           types = SmallVector<Type>(tensorType.getNumElements(),
@@ -248,7 +248,7 @@ struct TensorToScalars : impl::TensorToScalarsBase<TensorToScalars> {
     target.addDynamicallyLegalOp<arith::ConstantOp>(
         [&](arith::ConstantOp op) { return typeConverter.isLegal(op); });
     target.addDynamicallyLegalDialect<func::FuncDialect, scf::SCFDialect>(
-        [&](Operation *op) { return typeConverter.isLegal(op); });
+        [&](Operation* op) { return typeConverter.isLegal(op); });
     RewritePatternSet patterns(context);
     patterns.add<ConvertFromElementsOp, ConvertInsertOp, ConvertExtractOp,
                  ConvertConstantOp>(typeConverter, context);

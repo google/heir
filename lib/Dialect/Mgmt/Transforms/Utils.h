@@ -38,7 +38,7 @@ namespace heir {
 // argument needs a mgmt attr that matches the mgmt attr of @foo's 0th result.
 // Then the mgmt attr needs to be backward propagated in the encryption
 // function and forward propagated in the decryption function.
-LogicalResult copyMgmtAttrToClientHelpers(Operation *op);
+LogicalResult copyMgmtAttrToClientHelpers(Operation* op);
 
 }  // namespace heir
 }  // namespace mlir

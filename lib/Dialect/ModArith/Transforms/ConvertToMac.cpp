@@ -17,11 +17,11 @@ namespace mod_arith {
 #include "lib/Dialect/ModArith/Transforms/Passes.h.inc"
 
 struct FindMac : public OpRewritePattern<mod_arith::AddOp> {
-  FindMac(mlir::MLIRContext *context)
+  FindMac(mlir::MLIRContext* context)
       : OpRewritePattern<mod_arith::AddOp>(context) {}
 
   LogicalResult matchAndRewrite(mod_arith::AddOp op,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     // Assume that we have a form a x b + rhs
@@ -55,7 +55,7 @@ struct ConvertToMac : impl::ConvertToMacBase<ConvertToMac> {
   using ConvertToMacBase::ConvertToMacBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
     RewritePatternSet patterns(context);
 
     patterns.add<FindMac>(context);

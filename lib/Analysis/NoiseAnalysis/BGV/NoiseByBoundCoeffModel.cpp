@@ -18,8 +18,8 @@ using LocalParamType = NoiseByBoundCoeffModel::LocalParamType;
 using StateType = NoiseByBoundCoeffModel::StateType;
 using SchemeParamType = NoiseByBoundCoeffModel::SchemeParamType;
 
-double NoiseByBoundCoeffModel::toLogBound(const LocalParamType &param,
-                                          const StateType &noise) const {
+double NoiseByBoundCoeffModel::toLogBound(const LocalParamType& param,
+                                          const StateType& noise) const {
   auto t = param.getSchemeParam()->getPlaintextModulus();
   // StateType only stores e in (m + t * e), so when we want to print the bound
   // we need to multiply t back.
@@ -27,12 +27,12 @@ double NoiseByBoundCoeffModel::toLogBound(const LocalParamType &param,
   return (noise * t).getValue();
 }
 
-double NoiseByBoundCoeffModel::toLogBudget(const LocalParamType &param,
-                                           const StateType &noise) const {
+double NoiseByBoundCoeffModel::toLogBudget(const LocalParamType& param,
+                                           const StateType& noise) const {
   return toLogTotal(param) - toLogBound(param, noise);
 }
 
-double NoiseByBoundCoeffModel::toLogTotal(const LocalParamType &param) const {
+double NoiseByBoundCoeffModel::toLogTotal(const LocalParamType& param) const {
   double total = 0;
   auto logqi = param.getSchemeParam()->getLogqi();
   for (auto i = 0; i <= param.getCurrentLevel(); ++i) {
@@ -42,7 +42,7 @@ double NoiseByBoundCoeffModel::toLogTotal(const LocalParamType &param) const {
 }
 
 double NoiseByBoundCoeffModel::getExpansionFactor(
-    const LocalParamType &param) const {
+    const LocalParamType& param) const {
   auto n = param.getSchemeParam()->getRingDim();
   switch (variant) {
     case NoiseModelVariant::WORST_CASE:
@@ -60,7 +60,7 @@ double NoiseByBoundCoeffModel::getExpansionFactor(
 }
 
 double NoiseByBoundCoeffModel::getExpansionFactorForModulusSwitching(
-    const LocalParamType &param) const {
+    const LocalParamType& param) const {
   auto n = param.getSchemeParam()->getRingDim();
   switch (variant) {
     case NoiseModelVariant::WORST_CASE:
@@ -78,7 +78,7 @@ double NoiseByBoundCoeffModel::getExpansionFactorForModulusSwitching(
   }
 }
 
-double NoiseByBoundCoeffModel::getBoundErr(const LocalParamType &param) const {
+double NoiseByBoundCoeffModel::getBoundErr(const LocalParamType& param) const {
   auto std0 = param.getSchemeParam()->getStd0();
   // probability of larger than 6 * std0 is less than 2^{-30}
   auto assurance = 6;
@@ -86,14 +86,14 @@ double NoiseByBoundCoeffModel::getBoundErr(const LocalParamType &param) const {
   return boundErr;
 }
 
-double NoiseByBoundCoeffModel::getBoundKey(const LocalParamType &param) const {
+double NoiseByBoundCoeffModel::getBoundKey(const LocalParamType& param) const {
   // assume UNIFORM_TERNARY
   auto boundKey = 1.0;
   return boundKey;
 }
 
 typename NoiseByBoundCoeffModel::StateType
-NoiseByBoundCoeffModel::evalEncryptPk(const LocalParamType &param) const {
+NoiseByBoundCoeffModel::evalEncryptPk(const LocalParamType& param) const {
   auto boundErr = getBoundErr(param);
   auto boundKey = getBoundKey(param);
   auto expansionFactor = getExpansionFactor(param);
@@ -107,7 +107,7 @@ NoiseByBoundCoeffModel::evalEncryptPk(const LocalParamType &param) const {
 }
 
 typename NoiseByBoundCoeffModel::StateType
-NoiseByBoundCoeffModel::evalEncryptSk(const LocalParamType &param) const {
+NoiseByBoundCoeffModel::evalEncryptSk(const LocalParamType& param) const {
   auto boundErr = getBoundErr(param);
 
   // secret key s
@@ -118,7 +118,7 @@ NoiseByBoundCoeffModel::evalEncryptSk(const LocalParamType &param) const {
 }
 
 typename NoiseByBoundCoeffModel::StateType NoiseByBoundCoeffModel::evalEncrypt(
-    const LocalParamType &param) const {
+    const LocalParamType& param) const {
   auto usePublicKey = param.getSchemeParam()->getUsePublicKey();
   auto isEncryptionTechniqueExtended =
       param.getSchemeParam()->isEncryptionTechniqueExtended();
@@ -134,14 +134,14 @@ typename NoiseByBoundCoeffModel::StateType NoiseByBoundCoeffModel::evalEncrypt(
 }
 
 typename NoiseByBoundCoeffModel::StateType NoiseByBoundCoeffModel::evalConstant(
-    const LocalParamType &param) const {
+    const LocalParamType& param) const {
   // constant is m + t * 0
   // v_constant = 0
   return StateType::of(0);
 }
 
 typename NoiseByBoundCoeffModel::StateType NoiseByBoundCoeffModel::evalAdd(
-    const StateType &lhs, const StateType &rhs) const {
+    const StateType& lhs, const StateType& rhs) const {
   // m_0 + tv_0 + m_1 + tv_1 <= [m_0 + m_1]_t + t(v_0 + v_1 + u)
   // v_add = v_0 + v_1 + u
   // where ||u|| <= 1
@@ -149,8 +149,8 @@ typename NoiseByBoundCoeffModel::StateType NoiseByBoundCoeffModel::evalAdd(
 }
 
 typename NoiseByBoundCoeffModel::StateType NoiseByBoundCoeffModel::evalMul(
-    const LocalParamType &resultParam, const StateType &lhs,
-    const StateType &rhs) const {
+    const LocalParamType& resultParam, const StateType& lhs,
+    const StateType& rhs) const {
   auto t = resultParam.getSchemeParam()->getPlaintextModulus();
   auto expansionFactor = getExpansionFactor(resultParam);
   auto ringDim = resultParam.getSchemeParam()->getRingDim();
@@ -169,8 +169,8 @@ typename NoiseByBoundCoeffModel::StateType NoiseByBoundCoeffModel::evalMul(
 }
 
 typename NoiseByBoundCoeffModel::StateType
-NoiseByBoundCoeffModel::evalModReduce(const LocalParamType &inputParam,
-                                      const StateType &input) const {
+NoiseByBoundCoeffModel::evalModReduce(const LocalParamType& inputParam,
+                                      const StateType& input) const {
   // for cv > 2 the rounding error term is different!
   // like (tau_0, tau_1, tau_2) and the error becomes
   // tau_0 + tau_1 s + tau_2 s^2
@@ -197,8 +197,8 @@ NoiseByBoundCoeffModel::evalModReduce(const LocalParamType &inputParam,
 }
 
 typename NoiseByBoundCoeffModel::StateType
-NoiseByBoundCoeffModel::evalRelinearizeHYBRID(const LocalParamType &inputParam,
-                                              const StateType &input) const {
+NoiseByBoundCoeffModel::evalRelinearizeHYBRID(const LocalParamType& inputParam,
+                                              const StateType& input) const {
   // for v_input, after modup and moddown, it remains the same (with rounding).
   // We only need to consider the error from key switching key
   // and rounding error during moddown.
@@ -243,7 +243,7 @@ NoiseByBoundCoeffModel::evalRelinearizeHYBRID(const LocalParamType &inputParam,
 }
 
 NoiseByBoundCoeffModel::StateType NoiseByBoundCoeffModel::evalRelinearize(
-    const LocalParamType &inputParam, const StateType &input) const {
+    const LocalParamType& inputParam, const StateType& input) const {
   // assume HYBRID
   // if we further introduce BV to SchemeParam we can have alternative
   // implementation.

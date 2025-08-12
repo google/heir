@@ -47,7 +47,7 @@ Type materializeLayout(RankedTensorType type, LayoutAttr attr,
   // Evaluate the affine map on the input indices and update the
   // outputTensorShape to be a max over visited indices.
   IndexTupleConsumer evaluateNextIndex =
-      [&](const std::vector<int64_t> &indices) {
+      [&](const std::vector<int64_t>& indices) {
         SmallVector<int64_t> results;
         evaluateStatic(layout, indices, results);
 

@@ -41,15 +41,15 @@ namespace heir {
 // replaced by their type-converted versions, and all regions. Note that the
 // input ArrayRef<Value> for operands must already be type converted (this is
 // true when this is called from a ContextAwareConversionPattern).
-FailureOr<Operation *> convertGeneral(
-    const ContextAwareTypeConverter *typeConverter, Operation *op,
-    ArrayRef<Value> operands, ContextAwareConversionPatternRewriter &rewriter);
+FailureOr<Operation*> convertGeneral(
+    const ContextAwareTypeConverter* typeConverter, Operation* op,
+    ArrayRef<Value> operands, ContextAwareConversionPatternRewriter& rewriter);
 
 template <typename T = void>
 struct ConvertAnyContextAware : public ContextAwareConversionPattern {
   ConvertAnyContextAware(
-      const ContextAwareTypeConverter &anyContextAwareTypeConverter,
-      MLIRContext *context, int benefit = 1)
+      const ContextAwareTypeConverter& anyContextAwareTypeConverter,
+      MLIRContext* context, int benefit = 1)
       : ContextAwareConversionPattern(anyContextAwareTypeConverter,
                                       RewritePattern::MatchAnyOpTypeTag(),
                                       benefit, context) {
@@ -62,7 +62,7 @@ struct ConvertAnyContextAware : public ContextAwareConversionPattern {
   // context is often an attribute attached to an op, and we may want to remove
   // that attribute as part of the means to signal the conversion is done.
   virtual LogicalResult finalizeOpModification(
-      T op, ContextAwareConversionPatternRewriter &rewriter) const {
+      T op, ContextAwareConversionPatternRewriter& rewriter) const {
     return success();
   };
 
@@ -71,8 +71,8 @@ struct ConvertAnyContextAware : public ContextAwareConversionPattern {
   // signatures converter. Note the input ArrayRef<Value> is already type
   // converted.
   LogicalResult matchAndRewrite(
-      Operation *op, ArrayRef<Value> operands,
-      ContextAwareConversionPatternRewriter &rewriter) const override {
+      Operation* op, ArrayRef<Value> operands,
+      ContextAwareConversionPatternRewriter& rewriter) const override {
     if (!isa<T>(op)) {
       return failure();
     }
@@ -87,8 +87,8 @@ struct ConvertAnyContextAware : public ContextAwareConversionPattern {
 template <>
 struct ConvertAnyContextAware<void> : public ContextAwareConversionPattern {
   ConvertAnyContextAware<void>(
-      const ContextAwareTypeConverter &anyContextAwareTypeConverter,
-      MLIRContext *context, int benefit = 1)
+      const ContextAwareTypeConverter& anyContextAwareTypeConverter,
+      MLIRContext* context, int benefit = 1)
       : ContextAwareConversionPattern(anyContextAwareTypeConverter,
                                       RewritePattern::MatchAnyOpTypeTag(),
                                       benefit, context) {
@@ -101,13 +101,13 @@ struct ConvertAnyContextAware<void> : public ContextAwareConversionPattern {
   // context is often an attribute attached to an op, and we may want to remove
   // that attribute as part of the means to signal the conversion is done.
   virtual LogicalResult finalizeOpModification(
-      Operation *op, ContextAwareConversionPatternRewriter &rewriter) const {
+      Operation* op, ContextAwareConversionPatternRewriter& rewriter) const {
     return success();
   };
 
   LogicalResult matchAndRewrite(
-      Operation *op, ArrayRef<Value> operands,
-      ContextAwareConversionPatternRewriter &rewriter) const override {
+      Operation* op, ArrayRef<Value> operands,
+      ContextAwareConversionPatternRewriter& rewriter) const override {
     auto result = convertGeneral(getTypeConverter(), op, operands, rewriter);
     if (failed(result)) return failure();
 
@@ -124,7 +124,7 @@ class SecretGenericOpConversion
 
   LogicalResult matchAndRewrite(
       secret::GenericOp op, OpAdaptor adaptor,
-      ContextAwareConversionPatternRewriter &rewriter) const final {
+      ContextAwareConversionPatternRewriter& rewriter) const final {
     if (op.getBody()->getOperations().size() > 2) {
       // Each secret.generic should contain at most one instruction -
       // secret-distribute-generic can be used to distribute through the
@@ -132,7 +132,7 @@ class SecretGenericOpConversion
       return failure();
     }
 
-    auto &innerOp = op.getBody()->getOperations().front();
+    auto& innerOp = op.getBody()->getOperations().front();
     if (!isa<T>(innerOp)) {
       return failure();
     }
@@ -142,7 +142,7 @@ class SecretGenericOpConversion
     // in which case we can get them in type-converted form from the adaptor.
     SmallVector<Value> inputs;
     for (Value operand : innerOp.getOperands()) {
-      if (auto *secretArg = op.getOpOperandForBlockArgument(operand)) {
+      if (auto* secretArg = op.getOpOperandForBlockArgument(operand)) {
         inputs.push_back(adaptor.getInputs()[secretArg->getOperandNumber()]);
       } else {
         inputs.push_back(operand);
@@ -157,7 +157,7 @@ class SecretGenericOpConversion
     // only preserve dialect attrs
     // we do not want op attrs like overflowFlags from arith.add
     SmallVector<NamedAttribute> attrsToPreserve;
-    for (auto &namedAttr : innerOp.getDialectAttrs()) {
+    for (auto& namedAttr : innerOp.getDialectAttrs()) {
       attrsToPreserve.push_back(namedAttr);
     }
 
@@ -177,10 +177,10 @@ class SecretGenericOpConversion
       dedupedAttrsToPreserve.push_back(preservedAttr);
     }
 
-    FailureOr<Operation *> newOpResult = matchAndRewriteInner(
+    FailureOr<Operation*> newOpResult = matchAndRewriteInner(
         op, resultTypes, inputs, dedupedAttrsToPreserve, rewriter);
     if (failed(newOpResult)) return failure();
-    Operation *newOp = newOpResult.value();
+    Operation* newOp = newOpResult.value();
 
     // The subclass may intentionally set some attribute that we would have
     // otherwise preserved. If this is the case, don't set that attribute in
@@ -199,10 +199,10 @@ class SecretGenericOpConversion
 
   // Default method for replacing the secret.generic with the target
   // operation.
-  virtual FailureOr<Operation *> matchAndRewriteInner(
+  virtual FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter &rewriter) const {
+      ContextAwareConversionPatternRewriter& rewriter) const {
     return rewriter.replaceOpWithNewOp<Y>(op, outputTypes, inputs, attributes)
         .getOperation();
   }
@@ -218,14 +218,14 @@ class SecretGenericOpCipherPlainConversion
   // ops because the ops being converted (e.g., addi) don't have a plaintext
   // variant.
   SecretGenericOpCipherPlainConversion(
-      const ContextAwareTypeConverter &typeConverter, MLIRContext *context)
+      const ContextAwareTypeConverter& typeConverter, MLIRContext* context)
       : SecretGenericOpConversion<T, Y>(typeConverter, context, /*benefit=*/2) {
   }
 
-  FailureOr<Operation *> matchAndRewriteInner(
+  FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter &rewriter) const override {
+      ContextAwareConversionPatternRewriter& rewriter) const override {
     // Verify that exactly one of the two inputs is a ciphertext.
     if (inputs.size() != 2 ||
         llvm::count_if(inputs, [&](Value input) {
@@ -299,10 +299,10 @@ class SecretGenericOpRelinearizeConversion
   using SecretGenericOpConversion<mgmt::RelinearizeOp,
                                   T>::SecretGenericOpConversion;
 
-  FailureOr<Operation *> matchAndRewriteInner(
+  FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter &rewriter) const override {
+      ContextAwareConversionPatternRewriter& rewriter) const override {
     auto inputDimension = cast<lwe::LWECiphertextType>(inputs[0].getType())
                               .getCiphertextSpace()
                               .getSize();
@@ -326,10 +326,10 @@ class SecretGenericOpRotateConversion
   using SecretGenericOpConversion<tensor_ext::RotateOp,
                                   T>::SecretGenericOpConversion;
 
-  FailureOr<Operation *> matchAndRewriteInner(
+  FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter &rewriter) const override {
+      ContextAwareConversionPatternRewriter& rewriter) const override {
     // Check that the offset is a constant.
     auto offset = inputs[1];
     auto constantOffset =
@@ -351,10 +351,10 @@ class SecretGenericOpModulusSwitchConversion
   using SecretGenericOpConversion<mgmt::ModReduceOp,
                                   Y>::SecretGenericOpConversion;
 
-  FailureOr<Operation *> matchAndRewriteInner(
+  FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter &rewriter) const override {
+      ContextAwareConversionPatternRewriter& rewriter) const override {
     auto outputType = outputTypes[0];
     auto outputElementType = getElementTypeOrSelf(outputType);
     auto outputRing = cast<lwe::LWECiphertextType>(outputElementType)
@@ -370,7 +370,7 @@ class SecretGenericOpModulusSwitchConversion
                                        std::multiplies<int64_t>());
       auto emptyOp = rewriter.create<tensor::EmptyOp>(op.getLoc(), shape,
                                                       outputElementType);
-      Operation *resultOp = emptyOp;
+      Operation* resultOp = emptyOp;
       for (int i = 0; i < totalSize; ++i) {
         SmallVector<int64_t> indices;
         auto iCopy = i;
@@ -410,10 +410,10 @@ class SecretGenericOpLevelReduceConversion
   using SecretGenericOpConversion<mgmt::LevelReduceOp,
                                   T>::SecretGenericOpConversion;
 
-  FailureOr<Operation *> matchAndRewriteInner(
+  FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter &rewriter) const override {
+      ContextAwareConversionPatternRewriter& rewriter) const override {
     auto innerOp =
         cast<mgmt::LevelReduceOp>(op.getBody()->getOperations().front());
     auto levelToDrop = innerOp.getLevelToDrop();
@@ -430,26 +430,26 @@ struct ContextAwareFuncConversion
   using ContextAwareOpConversionPattern::ContextAwareOpConversionPattern;
 
   ContextAwareFuncConversion(
-      const ContextAwareTypeConverter &contextAwareTypeConverter,
-      MLIRContext *context)
+      const ContextAwareTypeConverter& contextAwareTypeConverter,
+      MLIRContext* context)
       : ContextAwareOpConversionPattern(context, /*benefit=*/2),
         contextAwareTypeConverter(&contextAwareTypeConverter) {}
 
   LogicalResult matchAndRewrite(
       func::FuncOp op, OpAdaptor adaptor,
-      ContextAwareConversionPatternRewriter &rewriter) const override;
+      ContextAwareConversionPatternRewriter& rewriter) const override;
 
   // An overridable hook that allows subclasses to perform additional
   // modifications of the func op after its type signature has been converted.
   // For example, a subclass may use this hook to modify arg attrs.
   virtual LogicalResult finalizeFuncOpModification(
       func::FuncOp op, ArrayRef<Type> oldArgTypes,
-      ArrayRef<Type> oldResultTypes, PatternRewriter &rewriter) const {
+      ArrayRef<Type> oldResultTypes, PatternRewriter& rewriter) const {
     return success();
   };
 
  private:
-  const ContextAwareTypeConverter *contextAwareTypeConverter;
+  const ContextAwareTypeConverter* contextAwareTypeConverter;
 };
 
 class SecretGenericFuncCallConversion
@@ -458,15 +458,15 @@ class SecretGenericFuncCallConversion
   using SecretGenericOpConversion<func::CallOp,
                                   func::CallOp>::SecretGenericOpConversion;
 
-  FailureOr<Operation *> matchAndRewriteInner(
+  FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter &rewriter) const override;
+      ContextAwareConversionPatternRewriter& rewriter) const override;
 };
 
-void addStructuralConversionPatterns(ContextAwareTypeConverter &typeConverter,
-                                     RewritePatternSet &patterns,
-                                     ConversionTarget &target);
+void addStructuralConversionPatterns(ContextAwareTypeConverter& typeConverter,
+                                     RewritePatternSet& patterns,
+                                     ConversionTarget& target);
 
 }  // namespace heir
 }  // namespace mlir

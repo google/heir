@@ -34,7 +34,7 @@ struct InsertRotate : impl::InsertRotateBase<InsertRotate> {
   using InsertRotateBase::InsertRotateBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
     RewritePatternSet patterns(context);
 
     SymbolTableCollection symbolTable;
@@ -50,9 +50,9 @@ struct InsertRotate : impl::InsertRotateBase<InsertRotate> {
     // Annotate all arith ops with their target slot attribute, so that it can
     // be matched in the DRR rules.
     OpBuilder builder(context);
-    getOperation()->walk([&](Operation *op) {
+    getOperation()->walk([&](Operation* op) {
       if (op->getNumResults() == 0) return;
-      auto *targetSlotLattice =
+      auto* targetSlotLattice =
           solver.lookupState<target_slot_analysis::TargetSlotLattice>(
               op->getResult(0));
       if (targetSlotLattice && targetSlotLattice->getValue().isInitialized()) {

@@ -7,9 +7,9 @@
 
 namespace mlir::heir {
 
-void tosaToLinalg(OpPassManager &manager);
+void tosaToLinalg(OpPassManager& manager);
 
-void oneShotBufferize(OpPassManager &manager);
+void oneShotBufferize(OpPassManager& manager);
 
 struct TosaToArithOptions : public PassPipelineOptions<TosaToArithOptions> {
   PassOptions::Option<bool> unroll{*this, "full-unroll",
@@ -17,13 +17,13 @@ struct TosaToArithOptions : public PassPipelineOptions<TosaToArithOptions> {
                                    llvm::cl::init(true)};
 };
 
-void tosaPipelineBuilder(OpPassManager &manager, bool unroll);
+void tosaPipelineBuilder(OpPassManager& manager, bool unroll);
 
-void polynomialToLLVMPipelineBuilder(OpPassManager &manager);
+void polynomialToLLVMPipelineBuilder(OpPassManager& manager);
 
-void basicMLIRToLLVMPipelineBuilder(OpPassManager &manager);
+void basicMLIRToLLVMPipelineBuilder(OpPassManager& manager);
 
-void convertToDataObliviousPipelineBuilder(OpPassManager &manager);
+void convertToDataObliviousPipelineBuilder(OpPassManager& manager);
 
 }  // namespace mlir::heir
 

@@ -18,20 +18,20 @@ namespace openfhe {
 
 /// Translates the given operation to OpenFhePke.
 ::mlir::LogicalResult translateToOpenFhePkePybind(
-    ::mlir::Operation *op, llvm::raw_ostream &os,
-    const std::string &headerInclude, const std::string &pythonModuleName);
+    ::mlir::Operation* op, llvm::raw_ostream& os,
+    const std::string& headerInclude, const std::string& pythonModuleName);
 
 /// For each function in the mlir module, emits a function pybind declaration
 /// along with any necessary includes.
 class OpenFhePkePybindEmitter {
  public:
-  OpenFhePkePybindEmitter(raw_ostream &os, const std::string &headerInclude,
-                          const std::string &pythonModuleName)
+  OpenFhePkePybindEmitter(raw_ostream& os, const std::string& headerInclude,
+                          const std::string& pythonModuleName)
       : headerInclude_(headerInclude),
         pythonModuleName_(pythonModuleName),
         os(os) {}
 
-  LogicalResult translate(::mlir::Operation &operation);
+  LogicalResult translate(::mlir::Operation& operation);
 
  private:
   const std::string headerInclude_;

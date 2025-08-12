@@ -24,7 +24,7 @@ using polynomial::FloatPolynomial;
 // When we move to C++20, we can use std::numbers::pi
 inline constexpr double kPi = 3.14159265358979323846;
 
-void getChebyshevPoints(int64_t numPoints, SmallVector<APFloat> &results) {
+void getChebyshevPoints(int64_t numPoints, SmallVector<APFloat>& results) {
   if (numPoints == 0) {
     return;
   }
@@ -55,7 +55,7 @@ void getChebyshevPoints(int64_t numPoints, SmallVector<APFloat> &results) {
 }
 
 void getChebyshevPolynomials(int64_t numPolynomials,
-                             SmallVector<FloatPolynomial> &results) {
+                             SmallVector<FloatPolynomial>& results) {
   if (numPolynomials < 1) return;
 
   if (numPolynomials >= 1) {
@@ -70,13 +70,13 @@ void getChebyshevPolynomials(int64_t numPolynomials,
   if (numPolynomials <= 2) return;
 
   for (int64_t i = 2; i < numPolynomials; ++i) {
-    auto &last = results.back();
-    auto &secondLast = results[results.size() - 2];
+    auto& last = results.back();
+    auto& secondLast = results[results.size() - 2];
     results.push_back(last.monomialMul(1).scale(APFloat(2.)).sub(secondLast));
   }
 }
 
-FloatPolynomial chebyshevToMonomial(const SmallVector<APFloat> &coefficients) {
+FloatPolynomial chebyshevToMonomial(const SmallVector<APFloat>& coefficients) {
   SmallVector<FloatPolynomial> chebPolys;
   chebPolys.reserve(coefficients.size());
   getChebyshevPolynomials(coefficients.size(), chebPolys);
@@ -90,7 +90,7 @@ FloatPolynomial chebyshevToMonomial(const SmallVector<APFloat> &coefficients) {
 }
 
 void interpolateChebyshev(ArrayRef<APFloat> chebEvalPoints,
-                          SmallVector<APFloat> &outputChebCoeffs) {
+                          SmallVector<APFloat>& outputChebCoeffs) {
   size_t n = chebEvalPoints.size();
   if (n == 0) {
     return;
@@ -315,8 +315,8 @@ size_t standardChop(SmallVector<APFloat> coeffs, double tol) {
 }
 
 void interpolateChebyshevWithSmartDegreeSelection(
-    const std::function<APFloat(APFloat)> &func,
-    SmallVector<APFloat> &outputChebCoeffs, double tolerance,
+    const std::function<APFloat(APFloat)>& func,
+    SmallVector<APFloat>& outputChebCoeffs, double tolerance,
     int64_t maxDegree) {
   int64_t deg = 17;
   SmallVector<APFloat> chebPts, chebEvalPts, chebCoeffs;
@@ -327,7 +327,7 @@ void interpolateChebyshevWithSmartDegreeSelection(
     chebCoeffs.clear();
     chebPts.reserve(numChebPts);
     getChebyshevPoints(numChebPts, chebPts);
-    for (auto &pt : chebPts) {
+    for (auto& pt : chebPts) {
       chebEvalPts.push_back(func(pt));
     }
     interpolateChebyshev(chebEvalPts, chebCoeffs);
@@ -344,7 +344,7 @@ void interpolateChebyshevWithSmartDegreeSelection(
     deg = 2 * deg - 1;
   }
   outputChebCoeffs.reserve(chebCoeffs.size());
-  for (auto &coeff : chebCoeffs) {
+  for (auto& coeff : chebCoeffs) {
     outputChebCoeffs.push_back(coeff);
   }
 }

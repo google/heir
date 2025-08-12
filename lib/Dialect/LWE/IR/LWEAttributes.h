@@ -20,12 +20,12 @@ namespace lwe {
 
 int64_t getScalingFactorFromEncodingAttr(Attribute encoding);
 
-PlaintextSpaceAttr inferMulOpPlaintextSpaceAttr(MLIRContext *ctx,
+PlaintextSpaceAttr inferMulOpPlaintextSpaceAttr(MLIRContext* ctx,
                                                 PlaintextSpaceAttr x,
                                                 PlaintextSpaceAttr y);
 
 PlaintextSpaceAttr inferModulusSwitchOrRescaleOpPlaintextSpaceAttr(
-    MLIRContext *ctx, PlaintextSpaceAttr x, APInt dividedModulus);
+    MLIRContext* ctx, PlaintextSpaceAttr x, APInt dividedModulus);
 
 Attribute getEncodingAttrWithNewScalingFactor(Attribute encoding,
                                               int64_t newScale);

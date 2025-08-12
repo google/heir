@@ -48,10 +48,10 @@ void registerFromAutoHogTranslation() {
   TranslateToMLIRRegistration reg(
       "import-autohog", "Import from AutoHoG JSON to HEIR MLIR",
       [](llvm::StringRef inputString,
-         MLIRContext *context) -> OwningOpRef<Operation *> {
+         MLIRContext* context) -> OwningOpRef<Operation*> {
         return translateFromAutoHog(inputString, context);
       },
-      [](DialectRegistry &registry) {
+      [](DialectRegistry& registry) {
         // Upstream dialects
         registry.insert<arith::ArithDialect, func::FuncDialect,
                         tensor::TensorDialect>();
@@ -60,16 +60,16 @@ void registerFromAutoHogTranslation() {
       });
 }
 
-void parseIOPorts(const rapidjson::Value &document, StringMap<Port> &ports) {
+void parseIOPorts(const rapidjson::Value& document, StringMap<Port>& ports) {
   LLVM_DEBUG(llvm::dbgs() << "Parsing IO ports\n");
-  auto &docPorts = document["ports"];
+  auto& docPorts = document["ports"];
   assert(docPorts.IsArray() && "Expected 'ports' to be an array");
   for (rapidjson::Value::ConstValueIterator itr = docPorts.Begin();
        itr != docPorts.End(); ++itr) {
-    const rapidjson::Value &port = *itr;
-    const char *portName = port["name"].GetString();
+    const rapidjson::Value& port = *itr;
+    const char* portName = port["name"].GetString();
     LLVM_DEBUG(llvm::dbgs() << "Parsing IO port: " << portName << "\n");
-    const char *portDirection = port["direction"].GetString();
+    const char* portDirection = port["direction"].GetString();
 
     Port ioPort;
     ioPort.portName = std::string(portName);
@@ -90,8 +90,8 @@ void parseIOPorts(const rapidjson::Value &document, StringMap<Port> &ports) {
   // or a cell name.
   for (rapidjson::Value::ConstValueIterator itr = docPorts.Begin();
        itr != docPorts.End(); ++itr) {
-    const rapidjson::Value &port = *itr;
-    const char *portName = port["name"].GetString();
+    const rapidjson::Value& port = *itr;
+    const char* portName = port["name"].GetString();
     Port ioPort = ports[portName];
     LLVM_DEBUG(llvm::dbgs() << "Checking if IO port " << portName
                             << " has a direct IO connection\n");
@@ -100,7 +100,7 @@ void parseIOPorts(const rapidjson::Value &document, StringMap<Port> &ports) {
       if (port.HasMember("bits")) {
         auto bits = port["bits"].GetArray();
         assert(bits.Size() == 1 && "Expected 'bits' to be an array of size 1");
-        auto *connectedPortName = bits[0].GetString();
+        auto* connectedPortName = bits[0].GetString();
         if (ports.contains(connectedPortName) &&
             ports[connectedPortName].type == PortType::INPUT) {
           LLVM_DEBUG(llvm::dbgs() << "IO port " << portName
@@ -121,30 +121,30 @@ void parseIOPorts(const rapidjson::Value &document, StringMap<Port> &ports) {
 ///   Port object (an IO port or another cell).
 /// - Populates the outputPortToConnectedCellPort map, mapping an output ioPort
 ///   to the corresponding local CELL type Port of the current cell.
-void parseCellConnections(const char *cellName,
-                          const rapidjson::Value &cellData,
-                          const StringMap<Port> &ioPorts,
-                          StringMap<Port> &connections,
-                          StringMap<Port> &outputPortToConnectedCellPort) {
+void parseCellConnections(const char* cellName,
+                          const rapidjson::Value& cellData,
+                          const StringMap<Port>& ioPorts,
+                          StringMap<Port>& connections,
+                          StringMap<Port>& outputPortToConnectedCellPort) {
   LLVM_DEBUG(llvm::dbgs() << "Parsing cell connections\n");
-  auto &jsonConnections = cellData["connections"];
+  auto& jsonConnections = cellData["connections"];
   assert(jsonConnections.IsObject() &&
          "Expected 'connections' to be an object");
   for (rapidjson::Value::ConstMemberIterator itr =
            jsonConnections.MemberBegin();
        itr != jsonConnections.MemberEnd(); ++itr) {
-    const char *localPortName = itr->name.GetString();
-    const rapidjson::Value &portData = itr->value;
+    const char* localPortName = itr->name.GetString();
+    const rapidjson::Value& portData = itr->value;
     assert(portData.IsObject() &&
            "Expected 'connections[...]' to be an object");
-    const char *connectedPortName = portData["port"].GetString();
+    const char* connectedPortName = portData["port"].GetString();
 
     Port port;
     port.portName = connectedPortName;
 
     if (portData.HasMember("cell")) {
       port.type = PortType::CELL;
-      const char *connectedCell = portData["cell"].GetString();
+      const char* connectedCell = portData["cell"].GetString();
       port.cellName = connectedCell;
     } else {
       port.type = ioPorts.at(connectedPortName).type;
@@ -162,29 +162,29 @@ void parseCellConnections(const char *cellName,
 /// - Returns a graph::Graph<const char *> object where the nodes are cell names
 ///   and the edges are dependencies between cells.
 graph::Graph<std::string> constructCellGraph(
-    const rapidjson::Document &document) {
+    const rapidjson::Document& document) {
   LLVM_DEBUG(llvm::dbgs() << "Topologically sorting cells\n");
   graph::Graph<std::string> cellGraph;
-  auto &cells = document["cells"];
+  auto& cells = document["cells"];
   assert(cells.IsObject() && "Expected 'cells' to be an object");
   for (rapidjson::Value::ConstMemberIterator itr = cells.MemberBegin();
        itr != cells.MemberEnd(); ++itr) {
-    const rapidjson::Value &cell = itr->value;
+    const rapidjson::Value& cell = itr->value;
     assert(cell.IsObject() && "Expected cell to be an object");
-    const char *cellName = cell["cell_name"].GetString();
+    const char* cellName = cell["cell_name"].GetString();
     cellGraph.addVertex(std::string(cellName));
-    auto &connections = cell["connections"];
+    auto& connections = cell["connections"];
     assert(connections.IsObject() && "Expected 'connections' to be an object");
     for (rapidjson::Value::ConstMemberIterator itr = connections.MemberBegin();
          itr != connections.MemberEnd(); ++itr) {
-      const char *localPortName = itr->name.GetString();
-      const rapidjson::Value &portData = itr->value;
+      const char* localPortName = itr->name.GetString();
+      const rapidjson::Value& portData = itr->value;
       assert(portData.IsObject() &&
              "Expected 'connections[...]' to be an object");
       bool isInput = strcmp(cell["port_directions"][localPortName].GetString(),
                             "input") == 0;
       if (portData.HasMember("cell") && isInput) {
-        const char *connectedCell = portData["cell"].GetString();
+        const char* connectedCell = portData["cell"].GetString();
         // Since the input is not toposorted, we may need to add the incident
         // vertex.
         if (!cellGraph.contains(std::string(connectedCell))) {
@@ -206,7 +206,7 @@ graph::Graph<std::string> constructCellGraph(
 ///
 /// E.g., [1, 0, 1, 0] -> 5
 ///
-int32_t parseLut(const rapidjson::GenericArray<true, rapidjson::Value> &lut) {
+int32_t parseLut(const rapidjson::GenericArray<true, rapidjson::Value>& lut) {
   int32_t result = 0;
   for (size_t i = 0; i < lut.Size(); i++) {
     int32_t bit = lut[i].GetInt();
@@ -225,12 +225,12 @@ int32_t parseLut(const rapidjson::GenericArray<true, rapidjson::Value> &lut) {
 //   index of the operand in the operands vector.
 // - result: the pre-resized vector to populate with the coefficients.
 void parseLinCombCoefficients(
-    const rapidjson::GenericObject<true, rapidjson::Value> &coefficients,
-    const StringMap<int> &inputPortNameToOperandIndex,
-    SmallVector<int> &result) {
+    const rapidjson::GenericObject<true, rapidjson::Value>& coefficients,
+    const StringMap<int>& inputPortNameToOperandIndex,
+    SmallVector<int>& result) {
   for (rapidjson::Value::ConstMemberIterator itr = coefficients.MemberBegin();
        itr != coefficients.MemberEnd(); ++itr) {
-    const char *portName = itr->name.GetString();
+    const char* portName = itr->name.GetString();
     const int coeffValue = itr->value.GetInt();
     assert(inputPortNameToOperandIndex.contains(portName) &&
            "Coefficient port name not found in inputPortNameToOperandIndex");
@@ -238,8 +238,8 @@ void parseLinCombCoefficients(
   }
 }
 
-OwningOpRef<Operation *> translateFromAutoHog(llvm::StringRef inputString,
-                                              MLIRContext *context) {
+OwningOpRef<Operation*> translateFromAutoHog(llvm::StringRef inputString,
+                                             MLIRContext* context) {
   // Have to manually load dialects because they are loaded at parse time,
   // but we have no MLIR inputs.
   context->getOrLoadDialect<arith::ArithDialect>();
@@ -250,7 +250,7 @@ OwningOpRef<Operation *> translateFromAutoHog(llvm::StringRef inputString,
 
   LLVM_DEBUG(llvm::dbgs() << "Translating from AutoHoG JSON to MLIR\n");
   LLVM_DEBUG(llvm::dbgs() << "Input string: \n" << inputString << "\n");
-  const char *json = inputString.data();
+  const char* json = inputString.data();
   rapidjson::StringStream ss(json);
   rapidjson::Document document;
   document.ParseStream(ss);
@@ -259,7 +259,7 @@ OwningOpRef<Operation *> translateFromAutoHog(llvm::StringRef inputString,
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
     document.Accept(writer);
-    const char *output = buffer.GetString();
+    const char* output = buffer.GetString();
     llvm::dbgs() << "Parsed JSON: " << output << "\n";
   });
   assert(document.IsObject() && "JSON failed to parse");
@@ -269,7 +269,7 @@ OwningOpRef<Operation *> translateFromAutoHog(llvm::StringRef inputString,
 
   OpBuilder builder(context);
   ModuleOp moduleOp = ModuleOp::create(builder, builder.getUnknownLoc());
-  OwningOpRef<Operation *> opRef(moduleOp);
+  OwningOpRef<Operation*> opRef(moduleOp);
   moduleOp->setAttr(
       "cggi.circuit_name",
       StringAttr::get(context, document["circuit_name"].GetString()));
@@ -285,7 +285,7 @@ OwningOpRef<Operation *> translateFromAutoHog(llvm::StringRef inputString,
   StringMap<int> outputPortToTensorIndex;
   int numInputs = 0;
   int numOutputs = 0;
-  for (auto &[portName, port] : ioPorts) {
+  for (auto& [portName, port] : ioPorts) {
     if (port.type == PortType::INPUT) {
       inputPortToTensorIndex[portName] = numInputs++;
     } else {
@@ -307,17 +307,17 @@ OwningOpRef<Operation *> translateFromAutoHog(llvm::StringRef inputString,
   auto funcOp =
       func::FuncOp::create(builder, moduleOp->getLoc(), funcName, functionType);
   funcOp.setPrivate();
-  auto *entryBlock = funcOp.addEntryBlock();
+  auto* entryBlock = funcOp.addEntryBlock();
   builder.setInsertionPointToEnd(entryBlock);
   BlockArgument funcArg = funcOp.getArgument(0);
 
   // Parse "cells" field to construct ops
-  StringMap<Operation *> cellsByName;
+  StringMap<Operation*> cellsByName;
   // Keep track of which result index a cell's output port corresponds to.
   StringMap<StringMap<int>> cellOutputPortToResultIndex;
   StringMap<Port> outputPortToConnectedCellPort;
 
-  auto &cells = document["cells"];
+  auto& cells = document["cells"];
   assert(cells.IsObject() && "Expected 'cells' to be an object");
 
   // First we must topologically sort the cells to ensure that we create
@@ -327,17 +327,17 @@ OwningOpRef<Operation *> translateFromAutoHog(llvm::StringRef inputString,
   assert(succeeded(sortResult) && "Circuit contains a cycle in its cell graph");
   LLVM_DEBUG({
     llvm::dbgs() << "Topological sort of cells:\n";
-    for (std::string &cellName : sortResult.value()) {
+    for (std::string& cellName : sortResult.value()) {
       llvm::dbgs() << "  " << cellName << "\n";
     }
   });
 
-  for (std::string &cellName : llvm::reverse(sortResult.value())) {
-    const rapidjson::Value &cell = cells[cellName.c_str()];
+  for (std::string& cellName : llvm::reverse(sortResult.value())) {
+    const rapidjson::Value& cell = cells[cellName.c_str()];
     assert(cell.IsObject() && "Expected cell to be an object");
 
-    const char *cellType = cell["type"].GetString();
-    Operation *op = nullptr;
+    const char* cellType = cell["type"].GetString();
+    Operation* op = nullptr;
 
     SmallVector<Value> operands;
     // Because all the JSON fields are objects, iteration order is arbitrary,
@@ -351,8 +351,8 @@ OwningOpRef<Operation *> translateFromAutoHog(llvm::StringRef inputString,
     for (rapidjson::Value::ConstMemberIterator itr =
              cell["port_directions"].MemberBegin();
          itr != cell["port_directions"].MemberEnd(); ++itr) {
-      const char *wireName = itr->name.GetString();
-      const char *wireDirection = itr->value.GetString();
+      const char* wireName = itr->name.GetString();
+      const char* wireDirection = itr->value.GetString();
       isInput[StringRef(wireName)] = strcmp(wireDirection, "input") == 0;
     }
 
@@ -365,7 +365,7 @@ OwningOpRef<Operation *> translateFromAutoHog(llvm::StringRef inputString,
 
     LLVM_DEBUG(llvm::dbgs() << "Collecting operands and results for cell: "
                             << cellName << " of type " << cellType << "\n");
-    for (const auto &[localPortName, connectedPort] : connections) {
+    for (const auto& [localPortName, connectedPort] : connections) {
       if (isInput[localPortName]) {
         LLVM_DEBUG(llvm::dbgs()
                    << "Processing local input port: " << localPortName << "\n");
@@ -380,7 +380,7 @@ OwningOpRef<Operation *> translateFromAutoHog(llvm::StringRef inputString,
           operands.push_back(operand);
           inputPortNameToOperandIndex[localPortName] = operandIndex++;
         } else if (connectedPort.type == PortType::CELL) {
-          const char *connectedCellName =
+          const char* connectedCellName =
               connectedPort.cellName.value().c_str();
           if (!cellsByName.contains(connectedCellName)) {
             llvm::errs() << "Cell " << cellName
@@ -390,7 +390,7 @@ OwningOpRef<Operation *> translateFromAutoHog(llvm::StringRef inputString,
                             "failed, try debug mode for more info.";
             return opRef;
           }
-          Operation *upstreamOp = cellsByName[connectedCellName];
+          Operation* upstreamOp = cellsByName[connectedCellName];
           Value operand =
               upstreamOp->getResult(cellOutputPortToResultIndex
                                         .at(connectedPort.cellName.value_or(""))
@@ -431,13 +431,13 @@ OwningOpRef<Operation *> translateFromAutoHog(llvm::StringRef inputString,
       parseLinCombCoefficients(cell["weights"].GetObject(),
                                inputPortNameToOperandIndex, coefficients);
       SmallVector<int32_t> lookupTables;
-      const auto &jsonTables = cell["tableT"];
+      const auto& jsonTables = cell["tableT"];
       assert(jsonTables.IsObject() && "Expected 'tableT' to be an object");
 
       for (rapidjson::Value::ConstMemberIterator itr = jsonTables.MemberBegin();
            itr != jsonTables.MemberEnd(); ++itr) {
-        [[maybe_unused]] const char *portName = itr->name.GetString();
-        const rapidjson::Value &table = itr->value;
+        [[maybe_unused]] const char* portName = itr->name.GetString();
+        const rapidjson::Value& table = itr->value;
         assert(!isInput[portName] &&
                "Expected key to tableT to be an output port");
         assert(table.IsArray() && "Expected 'tableT' to be an array");
@@ -489,9 +489,9 @@ OwningOpRef<Operation *> translateFromAutoHog(llvm::StringRef inputString,
 
   LLVM_DEBUG({
     llvm::dbgs() << "cellOutputPortToResultIndex=\n";
-    for (auto &[cellName, portToIndex] : cellOutputPortToResultIndex) {
+    for (auto& [cellName, portToIndex] : cellOutputPortToResultIndex) {
       llvm::dbgs() << "  " << cellName << ":\n";
-      for (auto &[portName, index] : portToIndex) {
+      for (auto& [portName, index] : portToIndex) {
         llvm::dbgs() << "    " << portName << " -> " << index << "\n";
       }
     }
@@ -499,7 +499,7 @@ OwningOpRef<Operation *> translateFromAutoHog(llvm::StringRef inputString,
 
   SmallVector<Value> outputValues;
   outputValues.resize(numOutputs);
-  for (auto &[portName, port] : ioPorts) {
+  for (auto& [portName, port] : ioPorts) {
     if (port.type != PortType::OUTPUT) continue;
     LLVM_DEBUG(llvm::dbgs()
                << "Finding value for output port: " << portName << "\n");
@@ -523,7 +523,7 @@ OwningOpRef<Operation *> translateFromAutoHog(llvm::StringRef inputString,
                  << "Output port " << portName << " is connected to cell port "
                  << cellPort.portName << " of cell "
                  << cellPort.cellName.value_or("") << "\n");
-      Operation *op = cellsByName[cellPort.cellName.value().c_str()];
+      Operation* op = cellsByName[cellPort.cellName.value().c_str()];
       int resultIndex =
           cellOutputPortToResultIndex.at(cellPort.cellName.value_or(""))
               .at(cellPort.portName);

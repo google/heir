@@ -50,8 +50,8 @@ struct ModArithRNSBasisTypeInterface
   }
 };
 
-void registerExternalRNSTypeInterfaces(DialectRegistry &registry) {
-  registry.addExtension(+[](MLIRContext *ctx, ModArithDialect *dialect) {
+void registerExternalRNSTypeInterfaces(DialectRegistry& registry) {
+  registry.addExtension(+[](MLIRContext* ctx, ModArithDialect* dialect) {
     ModArithType::attachInterface<ModArithRNSBasisTypeInterface>(*ctx);
   });
 }

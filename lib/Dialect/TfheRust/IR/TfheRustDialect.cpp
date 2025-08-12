@@ -35,12 +35,12 @@ void TfheRustDialect::initialize() {
 }
 
 void GenerateLookupTableOp::getCanonicalizationPatterns(
-    RewritePatternSet &results, MLIRContext *context) {
+    RewritePatternSet& results, MLIRContext* context) {
   results.add<HoistGenerateLookupTable>(context);
 }
 
-void CreateTrivialOp::getCanonicalizationPatterns(RewritePatternSet &results,
-                                                  MLIRContext *context) {
+void CreateTrivialOp::getCanonicalizationPatterns(RewritePatternSet& results,
+                                                  MLIRContext* context) {
   results.add<HoistCreateTrivial>(context);
 }
 

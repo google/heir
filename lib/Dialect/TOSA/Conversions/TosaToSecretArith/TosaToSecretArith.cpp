@@ -31,7 +31,7 @@ namespace tosa {
 #define GEN_PASS_DEF_TOSATOSECRETARITH
 #include "lib/Dialect/TOSA/Conversions/TosaToSecretArith/TosaToSecretArith.h.inc"
 
-Value createConstantFloat(ImplicitLocOpBuilder &b, double floatValue,
+Value createConstantFloat(ImplicitLocOpBuilder& b, double floatValue,
                           RankedTensorType type) {
   auto elementType = type.getElementType();
 
@@ -52,16 +52,16 @@ Value createConstantFloat(ImplicitLocOpBuilder &b, double floatValue,
 
 struct ConvertTosaSigmoid : public OpRewritePattern<mlir::tosa::SigmoidOp> {
  private:
-  DataFlowSolver *solver;
+  DataFlowSolver* solver;
 
  public:
-  ConvertTosaSigmoid(DataFlowSolver *solver, mlir::MLIRContext *context)
+  ConvertTosaSigmoid(DataFlowSolver* solver, mlir::MLIRContext* context)
       : OpRewritePattern<mlir::tosa::SigmoidOp>(context), solver(solver) {}
 
   using OpRewritePattern::OpRewritePattern;
 
   LogicalResult matchAndRewrite(mlir::tosa::SigmoidOp op,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     bool operandIsSecret = isSecret(op.getOperand(), solver);
     if (!operandIsSecret) {
       return failure();
@@ -111,8 +111,8 @@ struct ConvertTosaSigmoid : public OpRewritePattern<mlir::tosa::SigmoidOp> {
 struct TosaToSecretArith
     : public impl::TosaToSecretArithBase<TosaToSecretArith> {
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
-    auto *module = getOperation();
+    MLIRContext* context = &getContext();
+    auto* module = getOperation();
 
     DataFlowSolver solver;
     dataflow::loadBaselineAnalyses(solver);

@@ -18,8 +18,8 @@ namespace mlir::heir::bgv {
 
 struct BGVToLWE : public impl::BGVToLWEBase<BGVToLWE> {
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
-    auto *module = getOperation();
+    MLIRContext* context = &getContext();
+    auto* module = getOperation();
 
     RewritePatternSet patterns(context);
     patterns

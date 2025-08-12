@@ -22,9 +22,9 @@
 namespace mlir {
 namespace heir {
 
-Operation *walkAndDetect(Operation *op, OpPredicate predicate) {
-  Operation *foundOp = nullptr;
-  op->walk<WalkOrder::PreOrder>([&](Operation *op) {
+Operation* walkAndDetect(Operation* op, OpPredicate predicate) {
+  Operation* foundOp = nullptr;
+  op->walk<WalkOrder::PreOrder>([&](Operation* op) {
     if (predicate(op)) {
       foundOp = op;
       return WalkResult::interrupt();
@@ -34,14 +34,14 @@ Operation *walkAndDetect(Operation *op, OpPredicate predicate) {
   return foundOp;
 }
 
-LogicalResult validateValues(Operation *op, IsValidValueFn isValidValue) {
+LogicalResult validateValues(Operation* op, IsValidValueFn isValidValue) {
   bool argRes = llvm::all_of(op->getOperands(), [&](Value value) {
     return succeeded(isValidValue(value));
   });
   return !argRes ? failure() : success();
 }
 
-LogicalResult validateTypes(Operation *op, IsValidTypeFn isValidType) {
+LogicalResult validateTypes(Operation* op, IsValidTypeFn isValidType) {
   bool argRes = llvm::all_of(op->getOperandTypes(), [&](Type type) {
     return succeeded(isValidType(type));
   });
@@ -51,10 +51,10 @@ LogicalResult validateTypes(Operation *op, IsValidTypeFn isValidType) {
   return (!argRes || !resultRes) ? failure() : success();
 }
 
-LogicalResult walkAndValidateValues(Operation *op, IsValidValueFn isValidValue,
+LogicalResult walkAndValidateValues(Operation* op, IsValidValueFn isValidValue,
                                     std::optional<std::string> err) {
   LogicalResult res = success();
-  op->walk([&](Operation *op) {
+  op->walk([&](Operation* op) {
     res = validateValues(op, isValidValue);
     if (failed(res) && err.has_value()) op->emitError() << err.value();
     return failed(res) ? WalkResult::interrupt() : WalkResult::advance();
@@ -62,15 +62,15 @@ LogicalResult walkAndValidateValues(Operation *op, IsValidValueFn isValidValue,
   return res;
 }
 
-void walkValues(Operation *op, ValueProcessor valueProcessor) {
-  op->walk([&](Operation *op) {
+void walkValues(Operation* op, ValueProcessor valueProcessor) {
+  op->walk([&](Operation* op) {
     // Region-holding ops may not have operands or results, but their region's
     // arguments are BlockArguments that may not be processed by any other
     // means, e.g., an unused function argument, cf.
     // https://github.com/google/heir/issues/1406
     if (op->getNumRegions() > 0) {
-      for (auto &region : op->getRegions()) {
-        for (auto &block : region.getBlocks()) {
+      for (auto& region : op->getRegions()) {
+        for (auto& block : region.getBlocks()) {
           for (auto arg : block.getArguments()) {
             valueProcessor(arg);
           }
@@ -92,14 +92,14 @@ void walkValues(Operation *op, ValueProcessor valueProcessor) {
   });
 }
 
-bool containsArgumentOfType(Operation *op, TypePredicate predicate) {
+bool containsArgumentOfType(Operation* op, TypePredicate predicate) {
   // special treatment for func declaration
   if (auto funcOp = dyn_cast<func::FuncOp>(op)) {
     return llvm::any_of(funcOp.getArgumentTypes(),
                         [&](Type type) { return predicate(type); });
   }
-  return llvm::any_of(op->getRegions(), [&](Region &region) {
-    return llvm::any_of(region.getBlocks(), [&](Block &block) {
+  return llvm::any_of(op->getRegions(), [&](Region& region) {
+    return llvm::any_of(region.getBlocks(), [&](Block& block) {
       return llvm::any_of(block.getArguments(), [&](BlockArgument arg) {
         return predicate(arg.getType());
       });
@@ -107,7 +107,7 @@ bool containsArgumentOfType(Operation *op, TypePredicate predicate) {
   });
 }
 
-void iterateIndices(ArrayRef<int64_t> shape, const IndexTupleConsumer &process,
+void iterateIndices(ArrayRef<int64_t> shape, const IndexTupleConsumer& process,
                     ArrayRef<int64_t> fixedIndices,
                     ArrayRef<int64_t> fixedIndexValues) {
   if (shape.empty()) return;

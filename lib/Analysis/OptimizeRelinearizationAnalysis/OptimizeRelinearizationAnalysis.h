@@ -11,7 +11,7 @@ namespace mlir {
 namespace heir {
 class OptimizeRelinearizationAnalysis {
  public:
-  OptimizeRelinearizationAnalysis(Operation *op, DataFlowSolver *solver,
+  OptimizeRelinearizationAnalysis(Operation* op, DataFlowSolver* solver,
                                   bool useLocBasedVariableNames,
                                   bool allowMixedDegreeOperands)
       : opToRunOn(op),
@@ -24,7 +24,7 @@ class OptimizeRelinearizationAnalysis {
 
   // Return true if a relin op should be inserted after the given
   // operation, according to the solution to the optimization problem.
-  bool shouldInsertRelin(Operation *op) const { return solution.lookup(op); }
+  bool shouldInsertRelin(Operation* op) const { return solution.lookup(op); }
 
   // Return the key basis degree at the given SSA value, as determined by the
   // solution to the optimization problem. When the input value is the result
@@ -39,11 +39,11 @@ class OptimizeRelinearizationAnalysis {
   }
 
  private:
-  Operation *opToRunOn;
-  DataFlowSolver *solver;
+  Operation* opToRunOn;
+  DataFlowSolver* solver;
   bool useLocBasedVariableNames;
   bool allowMixedDegreeOperands;
-  llvm::DenseMap<Operation *, bool> solution;
+  llvm::DenseMap<Operation*, bool> solution;
   llvm::DenseMap<Value, int> solutionKeyBasisDegreeBeforeRelin;
 };
 }  // namespace heir

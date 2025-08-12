@@ -28,17 +28,17 @@ namespace tfhe_rust {
 void registerToTfheRustTranslation();
 
 /// Translates the given operation to TfheRust.
-::mlir::LogicalResult translateToTfheRust(::mlir::Operation *op,
-                                          llvm::raw_ostream &os,
+::mlir::LogicalResult translateToTfheRust(::mlir::Operation* op,
+                                          llvm::raw_ostream& os,
                                           bool useLevels);
 
 class TfheRustEmitter {
  public:
-  TfheRustEmitter(raw_ostream &os, SelectVariableNames *variableNames,
+  TfheRustEmitter(raw_ostream& os, SelectVariableNames* variableNames,
                   bool useLevels);
 
-  LogicalResult translate(::mlir::Operation &operation);
-  LogicalResult translateBlock(::mlir::Block &block);
+  LogicalResult translate(::mlir::Operation& operation);
+  LogicalResult translateBlock(::mlir::Block& block);
 
  private:
   // Whether to execute levelled operations in parallel.
@@ -49,7 +49,7 @@ class TfheRustEmitter {
 
   /// Pre-populated analysis selecting unique variable names for all the SSA
   /// values.
-  SelectVariableNames *variableNames;
+  SelectVariableNames* variableNames;
 
   // Server key arg to create default values when initializing arrays
   std::string serverKeyArg;
@@ -77,7 +77,7 @@ class TfheRustEmitter {
   LogicalResult printOperation(ApplyLookupTableOp op);
   LogicalResult printOperation(GenerateLookupTableOp op);
   LogicalResult printOperation(ScalarLeftShiftOp op);
-  LogicalResult emitBlock(::mlir::Operation *op, int batch);
+  LogicalResult emitBlock(::mlir::Operation* op, int batch);
 
   // Helpers for above
   LogicalResult printSksMethod(::mlir::Value result, ::mlir::Value sks,
@@ -88,7 +88,7 @@ class TfheRustEmitter {
                               ::mlir::Value rhs, std::string_view op);
   void printStoreOp(memref::StoreOp op, std::string valueToStore);
   void printLoadOp(memref::LoadOp op);
-  std::string operationType(Operation *op);
+  std::string operationType(Operation* op);
 
   // Emit a TfheRust type
   LogicalResult emitType(Type type);

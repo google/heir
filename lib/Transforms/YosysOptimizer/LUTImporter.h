@@ -19,17 +19,17 @@ namespace heir {
 // LUTImporter implements the RTLILConfig for importing RTLIL that uses LUTs.
 class LUTImporter : public RTLILImporter {
  public:
-  LUTImporter(MLIRContext *context) : RTLILImporter(context) {}
+  LUTImporter(MLIRContext* context) : RTLILImporter(context) {}
   ~LUTImporter() override = default;
 
  protected:
-  Operation *createOp(Yosys::RTLIL::Cell *cell, SmallVector<Value> &inputs,
-                      ImplicitLocOpBuilder &b) const override;
+  Operation* createOp(Yosys::RTLIL::Cell* cell, SmallVector<Value>& inputs,
+                      ImplicitLocOpBuilder& b) const override;
 
   SmallVector<Yosys::RTLIL::SigSpec> getInputs(
-      Yosys::RTLIL::Cell *cell) const override;
+      Yosys::RTLIL::Cell* cell) const override;
 
-  Yosys::RTLIL::SigSpec getOutput(Yosys::RTLIL::Cell *cell) const override;
+  Yosys::RTLIL::SigSpec getOutput(Yosys::RTLIL::Cell* cell) const override;
 };
 
 }  // namespace heir

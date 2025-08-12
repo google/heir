@@ -15,7 +15,7 @@ namespace bgv {
 // Parameter for BGV scheme at ModuleOp level
 class SchemeParam : public RLWESchemeParam {
  public:
-  SchemeParam(const RLWESchemeParam &rlweSchemeParam, int64_t plaintextModulus)
+  SchemeParam(const RLWESchemeParam& rlweSchemeParam, int64_t plaintextModulus)
       : RLWESchemeParam(rlweSchemeParam), plaintextModulus(plaintextModulus) {}
 
  private:
@@ -24,7 +24,7 @@ class SchemeParam : public RLWESchemeParam {
 
  public:
   int64_t getPlaintextModulus() const { return plaintextModulus; }
-  void print(llvm::raw_ostream &os) const override;
+  void print(llvm::raw_ostream& os) const override;
 
   static SchemeParam getConservativeSchemeParam(
       int level, int64_t plaintextModulus, int slotNumber, bool usePublicKey,
@@ -41,12 +41,12 @@ class SchemeParam : public RLWESchemeParam {
 // Parameter for each BGV ciphertext SSA value.
 class LocalParam : public RLWELocalParam {
  public:
-  LocalParam(const SchemeParam *schemeParam, int currentLevel, int dimension)
+  LocalParam(const SchemeParam* schemeParam, int currentLevel, int dimension)
       : RLWELocalParam(schemeParam, currentLevel, dimension) {}
 
  public:
-  const SchemeParam *getSchemeParam() const {
-    return static_cast<const SchemeParam *>(schemeParam);
+  const SchemeParam* getSchemeParam() const {
+    return static_cast<const SchemeParam*>(schemeParam);
   }
 };
 

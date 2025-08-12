@@ -27,23 +27,23 @@ class Secretness {
   explicit Secretness(bool value) : secretness(value) {}
   ~Secretness() = default;
 
-  const bool &getSecretness() const {
+  const bool& getSecretness() const {
     assert(isInitialized());
     return *secretness;
   }
-  const bool &get() const { return getSecretness(); }
+  const bool& get() const { return getSecretness(); }
   void setSecretness(bool value) { secretness = value; }
 
   // Check if the Secretness state is initialized. It can be uninitialized if
   // the state hasn't yet been set during the analysis.
   bool isInitialized() const { return secretness.has_value(); }
 
-  bool operator==(const Secretness &rhs) const {
+  bool operator==(const Secretness& rhs) const {
     return secretness == rhs.secretness;
   }
 
   // Join two Secretness states
-  static Secretness join(const Secretness &lhs, const Secretness &rhs) {
+  static Secretness join(const Secretness& lhs, const Secretness& rhs) {
     if (!lhs.isInitialized()) return rhs;
     if (!rhs.isInitialized()) return lhs;
 
@@ -59,7 +59,7 @@ class Secretness {
     // Assume every secretness state is initialized/known
     bool uninitializedFound = false;
 
-    for (const auto &secretness : secretnesses) {
+    for (const auto& secretness : secretnesses) {
       // If uninitialized state is found, set to true
       if (!secretness.isInitialized())
         uninitializedFound = true;
@@ -76,14 +76,14 @@ class Secretness {
     return result;
   }
 
-  void print(raw_ostream &os) const { os << "Secretness: " << secretness; }
+  void print(raw_ostream& os) const { os << "Secretness: " << secretness; }
 
  private:
   // Stores the Secretness state if known
   std::optional<bool> secretness;
 };
 
-inline raw_ostream &operator<<(raw_ostream &os, const Secretness &value) {
+inline raw_ostream& operator<<(raw_ostream& os, const Secretness& value) {
   value.print(os);
   return os;
 }
@@ -101,22 +101,22 @@ class SecretnessLattice : public dataflow::Lattice<Secretness> {
 class SecretnessAnalysis
     : public dataflow::SparseForwardDataFlowAnalysis<SecretnessLattice> {
  public:
-  explicit SecretnessAnalysis(DataFlowSolver &solver)
+  explicit SecretnessAnalysis(DataFlowSolver& solver)
       : SparseForwardDataFlowAnalysis(solver) {}
   ~SecretnessAnalysis() override = default;
   using SparseForwardDataFlowAnalysis::SparseForwardDataFlowAnalysis;
   // Set Secretness state for an initialized SSA value
-  void setToEntryState(SecretnessLattice *lattice) override;
+  void setToEntryState(SecretnessLattice* lattice) override;
   // Set Secretness state for SSA value(s) produced by an operation
-  LogicalResult visitOperation(Operation *operation,
-                               ArrayRef<const SecretnessLattice *> operands,
-                               ArrayRef<SecretnessLattice *> results) override;
+  LogicalResult visitOperation(Operation* operation,
+                               ArrayRef<const SecretnessLattice*> operands,
+                               ArrayRef<SecretnessLattice*> results) override;
 
   void visitExternalCall(CallOpInterface call,
-                         ArrayRef<const SecretnessLattice *> argumentLattices,
-                         ArrayRef<SecretnessLattice *> resultLattices) override;
+                         ArrayRef<const SecretnessLattice*> argumentLattices,
+                         ArrayRef<SecretnessLattice*> resultLattices) override;
 
-  void propagateIfChangedWrapper(AnalysisState *state, ChangeResult changed) {
+  void propagateIfChangedWrapper(AnalysisState* state, ChangeResult changed) {
     propagateIfChanged(state, changed);
   }
 };
@@ -132,8 +132,8 @@ class SecretnessAnalysis
 template <typename ChildAnalysis>
 class SecretnessAnalysisDependent {
  private:
-  ChildAnalysis *getChildAnalysis() {
-    return static_cast<ChildAnalysis *>(this);
+  ChildAnalysis* getChildAnalysis() {
+    return static_cast<ChildAnalysis*>(this);
   }
 
  protected:
@@ -148,9 +148,9 @@ class SecretnessAnalysisDependent {
    * @return true if the value is secret, false if the secretness of the value
    * is unknown or false.
    */
-  bool isSecretInternal(Operation *op, Value value) {
+  bool isSecretInternal(Operation* op, Value value) {
     // create dependency on SecretnessAnalysis
-    auto *lattice =
+    auto* lattice =
         getChildAnalysis()->template getOrCreateFor<SecretnessLattice>(
             getChildAnalysis()->getProgramPointAfter(op), value);
     if (!lattice->getValue().isInitialized()) {
@@ -169,9 +169,9 @@ class SecretnessAnalysisDependent {
    * @param op The operation to analyze.
    * @param secretResults A vector to store the secret results.
    */
-  void getSecretResults(Operation *op,
-                        SmallVectorImpl<OpResult> &secretResults) {
-    for (const auto &result : op->getOpResults()) {
+  void getSecretResults(Operation* op,
+                        SmallVectorImpl<OpResult>& secretResults) {
+    for (const auto& result : op->getOpResults()) {
       if (isSecretInternal(op, result)) {
         secretResults.push_back(result);
       }
@@ -188,9 +188,9 @@ class SecretnessAnalysisDependent {
    * @param op The operation to analyze.
    * @param secretOperands A vector to store the secret operands.
    */
-  void getSecretOperands(Operation *op,
-                         SmallVectorImpl<OpOperand *> &secretOperands) {
-    for (auto &operand : op->getOpOperands()) {
+  void getSecretOperands(Operation* op,
+                         SmallVectorImpl<OpOperand*>& secretOperands) {
+    for (auto& operand : op->getOpOperands()) {
       if (isSecretInternal(op, operand.get())) {
         secretOperands.push_back(&operand);
       }
@@ -207,9 +207,9 @@ class SecretnessAnalysisDependent {
    * @param op The operation to analyze.
    * @param nonSecretOperands A vector to store the non-secret operands.
    */
-  void getNonSecretOperands(Operation *op,
-                            SmallVectorImpl<OpOperand *> &nonSecretOperands) {
-    for (auto &operand : op->getOpOperands()) {
+  void getNonSecretOperands(Operation* op,
+                            SmallVectorImpl<OpOperand*>& nonSecretOperands) {
+    for (auto& operand : op->getOpOperands()) {
       if (!isSecretInternal(op, operand.get())) {
         nonSecretOperands.push_back(&operand);
       }
@@ -220,19 +220,19 @@ class SecretnessAnalysisDependent {
 // Annotate the secretness of operation based on the secretness of its results
 // If verbose = true, annotates the secretness of *all* values,
 // including ones with public secretness , missing, or inconclusive analysis.
-void annotateSecretness(Operation *top, DataFlowSolver *solver, bool verbose);
+void annotateSecretness(Operation* top, DataFlowSolver* solver, bool verbose);
 
 // this method is used when DataFlowSolver has finished running the secretness
 // analysis
-bool isSecret(Value value, DataFlowSolver *solver);
+bool isSecret(Value value, DataFlowSolver* solver);
 
-bool isSecret(const SecretnessLattice *lattice);
+bool isSecret(const SecretnessLattice* lattice);
 
-bool isSecret(ValueRange values, DataFlowSolver *solver);
+bool isSecret(ValueRange values, DataFlowSolver* solver);
 
-void getSecretOperands(Operation *op,
-                       SmallVectorImpl<OpOperand *> &secretOperands,
-                       DataFlowSolver *solver);
+void getSecretOperands(Operation* op,
+                       SmallVectorImpl<OpOperand*>& secretOperands,
+                       DataFlowSolver* solver);
 
 }  // namespace heir
 }  // namespace mlir

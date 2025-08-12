@@ -94,17 +94,17 @@ using ::mlir::func::FuncOp;
 void registerMetadataEmitter() {
   mlir::TranslateFromMLIRRegistration reg(
       "emit-metadata", "emit function signature metadata for the given MLIR",
-      [](Operation *op, llvm::raw_ostream &output) {
+      [](Operation* op, llvm::raw_ostream& output) {
         return emitMetadata(op, output);
       },
-      [](mlir::DialectRegistry &registry) {
+      [](mlir::DialectRegistry& registry) {
         registry.insert<mlir::arith::ArithDialect, mlir::func::FuncDialect,
                         mlir::memref::MemRefDialect,
                         mlir::affine::AffineDialect, mlir::scf::SCFDialect>();
       });
 }
 
-LogicalResult emitMetadata(Operation *op, llvm::raw_ostream &os) {
+LogicalResult emitMetadata(Operation* op, llvm::raw_ostream& os) {
   MetadataEmitter emitter;
   FailureOr<llvm::json::Object> result = emitter.translate(*op);
   if (failed(result)) {
@@ -115,10 +115,10 @@ LogicalResult emitMetadata(Operation *op, llvm::raw_ostream &os) {
   return success();
 }
 
-FailureOr<llvm::json::Object> MetadataEmitter::translate(Operation &op) {
-  return llvm::TypeSwitch<Operation &, FailureOr<llvm::json::Object>>(op)
+FailureOr<llvm::json::Object> MetadataEmitter::translate(Operation& op) {
+  return llvm::TypeSwitch<Operation&, FailureOr<llvm::json::Object>>(op)
       .Case<ModuleOp, FuncOp>([&](auto op) { return emitOperation(op); })
-      .Default([&](Operation &) {
+      .Default([&](Operation&) {
         // Empty object is a sentinel for "skip"
         return llvm::json::Object{};
       });
@@ -127,7 +127,7 @@ FailureOr<llvm::json::Object> MetadataEmitter::translate(Operation &op) {
 FailureOr<llvm::json::Object> MetadataEmitter::emitOperation(
     ModuleOp moduleOp) {
   llvm::json::Array functions;
-  for (Operation &op : moduleOp) {
+  for (Operation& op : moduleOp) {
     auto result = translate(op);
     if (failed(result)) {
       return failure();
@@ -145,7 +145,7 @@ FailureOr<llvm::json::Object> MetadataEmitter::emitOperation(
   return std::move(metadata);
 }
 
-FailureOr<llvm::json::Object> MetadataEmitter::typeAsJson(IntegerType &ty) {
+FailureOr<llvm::json::Object> MetadataEmitter::typeAsJson(IntegerType& ty) {
   llvm::json::Object output{
       {"integer", llvm::json::Object{{"width", ty.getWidth()},
                                      {"is_signed", ty.isSigned()}}},
@@ -153,7 +153,7 @@ FailureOr<llvm::json::Object> MetadataEmitter::typeAsJson(IntegerType &ty) {
   return std::move(output);
 }
 
-FailureOr<llvm::json::Object> MetadataEmitter::typeAsJson(MemRefType &ty) {
+FailureOr<llvm::json::Object> MetadataEmitter::typeAsJson(MemRefType& ty) {
   auto elementType =
       llvm::TypeSwitch<Type, FailureOr<llvm::json::Object>>(ty.getElementType())
           .Case<IntegerType, MemRefType>([&](auto t) { return typeAsJson(t); })
@@ -175,10 +175,10 @@ FailureOr<llvm::json::Object> MetadataEmitter::emitOperation(FuncOp funcOp) {
   llvm::json::Array arguments;
   for (auto arg : funcOp.getArguments()) {
     Type type = arg.getType();
-    auto result = llvm::TypeSwitch<Type &, FailureOr<llvm::json::Object>>(type)
+    auto result = llvm::TypeSwitch<Type&, FailureOr<llvm::json::Object>>(type)
                       .Case<IntegerType, MemRefType>(
                           [&](auto ty) { return typeAsJson(ty); })
-                      .Default([&](Type &) { return failure(); });
+                      .Default([&](Type&) { return failure(); });
 
     if (failed(result)) {
       funcOp.emitOpError(
@@ -202,10 +202,10 @@ FailureOr<llvm::json::Object> MetadataEmitter::emitOperation(FuncOp funcOp) {
   if (resultTypes.size() == 1) {
     auto outputType = resultTypes[0];
     auto status =
-        llvm::TypeSwitch<Type &, FailureOr<llvm::json::Object>>(outputType)
+        llvm::TypeSwitch<Type&, FailureOr<llvm::json::Object>>(outputType)
             .Case<IntegerType, MemRefType>(
                 [&](auto ty) { return typeAsJson(ty); })
-            .Default([&](Type &) { return failure(); });
+            .Default([&](Type&) { return failure(); });
 
     if (failed(status)) {
       funcOp.emitOpError(

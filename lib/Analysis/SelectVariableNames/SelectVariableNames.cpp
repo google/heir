@@ -25,7 +25,7 @@ std::string SelectVariableNames::suggestNameForValue(Value value) {
   return defaultPrefix;
 }
 
-SelectVariableNames::SelectVariableNames(Operation *op) {
+SelectVariableNames::SelectVariableNames(Operation* op) {
   int i = 0;
   std::map<std::string, int> prefixCount;
 
@@ -49,13 +49,13 @@ SelectVariableNames::SelectVariableNames(Operation *op) {
     variableToInteger.try_emplace(value, i++);
   };
 
-  auto assignForOp = [&](Operation *op) {
+  auto assignForOp = [&](Operation* op) {
     for (Value result : op->getResults()) {
       assignName(result);
     }
 
-    for (Region &region : op->getRegions()) {
-      for (Block &block : region) {
+    for (Region& region : op->getRegions()) {
+      for (Block& block : region) {
         for (Value arg : block.getArguments()) {
           assignName(arg);
         }
@@ -69,7 +69,7 @@ SelectVariableNames::SelectVariableNames(Operation *op) {
     prefixCount.clear();
 
     assignForOp(funcOp);
-    funcOp->walk<WalkOrder::PreOrder>([&](Operation *op) {
+    funcOp->walk<WalkOrder::PreOrder>([&](Operation* op) {
       assignForOp(op);
       return WalkResult::advance();
     });

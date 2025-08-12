@@ -19,8 +19,8 @@ namespace heir {
 // TODO(#1875): support trivial encryptions
 struct ConvertClientConceal
     : public ContextAwareOpConversionPattern<secret::ConcealOp> {
-  ConvertClientConceal(const ContextAwareTypeConverter &typeConverter,
-                       mlir::MLIRContext *context, bool usePublicKey,
+  ConvertClientConceal(const ContextAwareTypeConverter& typeConverter,
+                       mlir::MLIRContext* context, bool usePublicKey,
                        polynomial::RingAttr ring)
       : ContextAwareOpConversionPattern<secret::ConcealOp>(typeConverter,
                                                            context),
@@ -29,7 +29,7 @@ struct ConvertClientConceal
 
   LogicalResult matchAndRewrite(
       secret::ConcealOp op, OpAdaptor adaptor,
-      ContextAwareConversionPatternRewriter &rewriter) const override;
+      ContextAwareConversionPatternRewriter& rewriter) const override;
 
  private:
   bool usePublicKey;
@@ -41,15 +41,15 @@ struct ConvertClientConceal
 // material args.
 struct ConvertClientReveal
     : public ContextAwareOpConversionPattern<secret::RevealOp> {
-  ConvertClientReveal(const ContextAwareTypeConverter &typeConverter,
-                      mlir::MLIRContext *context, polynomial::RingAttr ring)
+  ConvertClientReveal(const ContextAwareTypeConverter& typeConverter,
+                      mlir::MLIRContext* context, polynomial::RingAttr ring)
       : ContextAwareOpConversionPattern<secret::RevealOp>(typeConverter,
                                                           context),
         ring(ring) {}
 
   LogicalResult matchAndRewrite(
       secret::RevealOp op, OpAdaptor adaptor,
-      ContextAwareConversionPatternRewriter &rewriter) const override;
+      ContextAwareConversionPatternRewriter& rewriter) const override;
 
  private:
   polynomial::RingAttr ring;

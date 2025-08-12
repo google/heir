@@ -54,7 +54,7 @@
 
 namespace mlir::heir {
 
-void heirSIMDVectorizerPipelineBuilder(OpPassManager &manager,
+void heirSIMDVectorizerPipelineBuilder(OpPassManager& manager,
                                        bool disableLoopUnroll) {
   // For now we unroll loops to enable insert-rotate, but we would like to be
   // smarter about this and do an affine loop analysis.
@@ -100,7 +100,7 @@ void heirSIMDVectorizerPipelineBuilder(OpPassManager &manager,
   manager.addPass(createCSEPass());
 }
 
-void lowerAssignLayout(OpPassManager &pm, bool unroll = false) {
+void lowerAssignLayout(OpPassManager& pm, bool unroll = false) {
   // Lower linalg.generics produced by ConvertToCiphertextSemantics
   // (assign_layout lowering) to affine loops.
   pm.addPass(createTensorLinalgToAffineLoops());
@@ -122,7 +122,7 @@ void lowerAssignLayout(OpPassManager &pm, bool unroll = false) {
 }
 
 void mlirToSecretArithmeticPipelineBuilder(
-    OpPassManager &pm, const MlirToRLWEPipelineOptions &options) {
+    OpPassManager& pm, const MlirToRLWEPipelineOptions& options) {
   pm.addPass(createWrapGeneric());
   convertToDataObliviousPipelineBuilder(pm);
   pm.addPass(createSelectRewrite());
@@ -166,8 +166,8 @@ void mlirToSecretArithmeticPipelineBuilder(
   pm.addPass(createAddClientInterface(addClientInterfaceOptions));
 }
 
-void mlirToPlaintextPipelineBuilder(OpPassManager &pm,
-                                    const PlaintextBackendOptions &options) {
+void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
+                                    const PlaintextBackendOptions& options) {
   // Convert to secret arithmetic
   MlirToRLWEPipelineOptions mlirToRLWEPipelineOptions;
   mlirToRLWEPipelineOptions.ciphertextDegree = options.plaintextSize;
@@ -197,8 +197,8 @@ void mlirToPlaintextPipelineBuilder(OpPassManager &pm,
   polynomialToLLVMPipelineBuilder(pm);
 }
 
-void mlirToRLWEPipeline(OpPassManager &pm,
-                        const MlirToRLWEPipelineOptions &options,
+void mlirToRLWEPipeline(OpPassManager& pm,
+                        const MlirToRLWEPipelineOptions& options,
                         const RLWEScheme scheme) {
   if (options.enableArithmetization) {
     mlirToSecretArithmeticPipelineBuilder(pm, options);
@@ -365,13 +365,13 @@ void mlirToRLWEPipeline(OpPassManager &pm,
 }
 
 RLWEPipelineBuilder mlirToRLWEPipelineBuilder(const RLWEScheme scheme) {
-  return [=](OpPassManager &pm, const MlirToRLWEPipelineOptions &options) {
+  return [=](OpPassManager& pm, const MlirToRLWEPipelineOptions& options) {
     mlirToRLWEPipeline(pm, options, scheme);
   };
 }
 
 BackendPipelineBuilder toOpenFhePipelineBuilder() {
-  return [=](OpPassManager &pm, const BackendOptions &options) {
+  return [=](OpPassManager& pm, const BackendOptions& options) {
     // Canonicalize to ensure the ciphertext operands are in the first operand
     // of ct-pt ops.
     pm.addPass(createCanonicalizerPass());
@@ -405,7 +405,7 @@ BackendPipelineBuilder toOpenFhePipelineBuilder() {
 }
 
 BackendPipelineBuilder toLattigoPipelineBuilder() {
-  return [=](OpPassManager &pm, const BackendOptions &options) {
+  return [=](OpPassManager& pm, const BackendOptions& options) {
     // Convert to (common trivial subset of) LWE
     // TODO (#1193): Replace `--bgv-to-lwe` with `--bgv-common-to-lwe`
     pm.addPass(bgv::createBGVToLWE());

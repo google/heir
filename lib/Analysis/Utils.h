@@ -17,18 +17,18 @@ namespace heir {
 // secretness, where the result of the call is secret if any operand is secret.
 template <typename StateT, typename LatticeT>
 void visitExternalCall(CallOpInterface call,
-                       ArrayRef<const LatticeT *> argumentLattices,
-                       ArrayRef<LatticeT *> resultLattices,
-                       const std::function<void(AnalysisState *, ChangeResult)>
-                           &propagateIfChanged) {
+                       ArrayRef<const LatticeT*> argumentLattices,
+                       ArrayRef<LatticeT*> resultLattices,
+                       const std::function<void(AnalysisState*, ChangeResult)>&
+                           propagateIfChanged) {
   StateT resultState = StateT();
 
-  for (const LatticeT *operand : argumentLattices) {
+  for (const LatticeT* operand : argumentLattices) {
     const StateT operandState = operand->getValue();
     resultState = StateT::join(resultState, operandState);
   }
 
-  for (LatticeT *result : resultLattices) {
+  for (LatticeT* result : resultLattices) {
     propagateIfChanged(result, result->join(resultState));
   }
 }

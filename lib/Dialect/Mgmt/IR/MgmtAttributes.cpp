@@ -41,7 +41,7 @@ void setMgmtAttrAssociatedWith(Value value, MgmtAttr mgmtAttr) {
                              mgmtAttr);
 }
 
-bool shouldHaveMgmtAttribute(Value value, DataFlowSolver *solver) {
+bool shouldHaveMgmtAttribute(Value value, DataFlowSolver* solver) {
   return isSecret(value, solver) ||
          (isa_and_nonnull<mgmt::InitOp>(value.getDefiningOp()));
 }

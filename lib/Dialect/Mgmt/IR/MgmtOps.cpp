@@ -15,20 +15,20 @@ namespace mgmt {
 // populateWithGenerated, which can conflict with other generated patterns.
 #include "lib/Dialect/Mgmt/IR/MgmtCanonicalization.cpp.inc"
 
-void ModReduceOp::getCanonicalizationPatterns(RewritePatternSet &results,
-                                              MLIRContext *context) {
+void ModReduceOp::getCanonicalizationPatterns(RewritePatternSet& results,
+                                              MLIRContext* context) {
   results.add<MergeModReduce>(context);
 }
 
-void LevelReduceOp::getCanonicalizationPatterns(RewritePatternSet &results,
-                                                MLIRContext *context) {
+void LevelReduceOp::getCanonicalizationPatterns(RewritePatternSet& results,
+                                                MLIRContext* context) {
   results.add<MergeLevelReduce>(context);
   results.add<ModReduceAfterLevelReduce>(context);
   results.add<AdjustScaleAfterLevelReduce>(context);
 }
 
-void AdjustScaleOp::getCanonicalizationPatterns(RewritePatternSet &results,
-                                                MLIRContext *context) {
+void AdjustScaleOp::getCanonicalizationPatterns(RewritePatternSet& results,
+                                                MLIRContext* context) {
   results.add<ModReduceAfterAdjustScale>(context);
 }
 
@@ -36,7 +36,7 @@ void AdjustScaleOp::getCanonicalizationPatterns(RewritePatternSet &results,
 // Utils
 //===----------------------------------------------------------------------===//
 
-void cleanupInitOp(Operation *top) {
+void cleanupInitOp(Operation* top) {
   top->walk([&](mgmt::InitOp initOp) {
     if (initOp->use_empty()) initOp.erase();
   });

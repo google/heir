@@ -21,19 +21,19 @@ namespace mlir {
 namespace heir {
 namespace openfhe {
 
-LogicalResult translateToOpenFhePkeHeader(Operation *op, llvm::raw_ostream &os,
+LogicalResult translateToOpenFhePkeHeader(Operation* op, llvm::raw_ostream& os,
                                           OpenfheImportType importType) {
   SelectVariableNames variableNames(op);
   OpenFhePkeHeaderEmitter emitter(os, &variableNames, importType);
   return emitter.translate(*op);
 }
 
-LogicalResult OpenFhePkeHeaderEmitter::translate(Operation &op) {
+LogicalResult OpenFhePkeHeaderEmitter::translate(Operation& op) {
   LogicalResult status =
-      llvm::TypeSwitch<Operation &, LogicalResult>(op)
+      llvm::TypeSwitch<Operation&, LogicalResult>(op)
           .Case<ModuleOp>([&](auto op) { return printOperation(op); })
           .Case<func::FuncOp>([&](auto op) { return printOperation(op); })
-          .Default([&](Operation &) {
+          .Default([&](Operation&) {
             return op.emitOpError("unable to find printer for op");
           });
 
@@ -57,7 +57,7 @@ LogicalResult OpenFhePkeHeaderEmitter::printOperation(ModuleOp moduleOp) {
   }
 
   os << getModulePrelude(scheme, importType_) << "\n";
-  for (Operation &op : moduleOp) {
+  for (Operation& op : moduleOp) {
     if (failed(translate(op))) {
       return failure();
     }
@@ -107,7 +107,7 @@ LogicalResult OpenFhePkeHeaderEmitter::emitType(Type type, Location loc) {
 }
 
 OpenFhePkeHeaderEmitter::OpenFhePkeHeaderEmitter(
-    raw_ostream &os, SelectVariableNames *variableNames,
+    raw_ostream& os, SelectVariableNames* variableNames,
     OpenfheImportType importType)
     : importType_(importType), os(os), variableNames(variableNames) {}
 

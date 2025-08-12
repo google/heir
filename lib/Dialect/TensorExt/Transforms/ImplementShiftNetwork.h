@@ -46,7 +46,7 @@ class ShiftStrategy {
   SmallVector<ShiftRound> getRounds() const;
 
   // Run the shifting strategy and populate the `rounds` member variable.
-  void evaluate(const Permutation &permutation, const RotationGroup &group);
+  void evaluate(const Permutation& permutation, const RotationGroup& group);
 
  private:
   SmallVector<ShiftRound> rounds;
@@ -68,7 +68,7 @@ class VosVosErkinShiftNetworks {
   // The returned ArrayRef is owned by this VosVosErkinShiftNetworks instance.
   // The resulting set of rotation groups are is cached, and the cache is used
   // on further calls to avoid recomputing the shift network.
-  ArrayRef<RotationGroup> computeShiftNetwork(const Permutation &permutation);
+  ArrayRef<RotationGroup> computeShiftNetwork(const Permutation& permutation);
 
   int64_t getCiphertextSize() const;
 

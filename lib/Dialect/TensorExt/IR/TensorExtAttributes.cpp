@@ -113,13 +113,13 @@ LogicalResult LayoutAttr::verify(function_ref<InFlightDiagnostic()> emitError,
   return success();
 }
 
-void NewLayoutAttr::print(AsmPrinter &p) const {
+void NewLayoutAttr::print(AsmPrinter& p) const {
   p << "<domainSize=" << getDomainSize() << ", relation=";
   getRelation().print(p.getStream());
   p << '>';
 }
 
-Attribute NewLayoutAttr::parse(AsmParser &parser, Type type) {
+Attribute NewLayoutAttr::parse(AsmParser& parser, Type type) {
   // <domainSize=
   if (failed(parser.parseLess()) || failed(parser.parseKeyword("domainSize")) ||
       parser.parseEqual())

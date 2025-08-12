@@ -50,7 +50,7 @@ using tensor_ext::OriginalTypeAttr;
 using tensor_ext::TensorExtDialect;
 using tensor_ext::UnpackOp;
 
-auto &kOriginalTypeAttrName = TensorExtDialect::kOriginalTypeAttrName;
+auto& kOriginalTypeAttrName = TensorExtDialect::kOriginalTypeAttrName;
 
 namespace {
 Type stripSecretType(Type type) {
@@ -63,7 +63,7 @@ Type stripSecretType(Type type) {
 /// Generates an encryption func for one types.
 LogicalResult generateEncryptionFunc(func::FuncOp op,
                                      BlockArgument funcArgument,
-                                     ImplicitLocOpBuilder &builder,
+                                     ImplicitLocOpBuilder& builder,
                                      int64_t ciphertextSize,
                                      bool enableLayoutAssignment) {
   auto insertionBlock = builder.getInsertionBlock();
@@ -97,7 +97,7 @@ LogicalResult generateEncryptionFunc(func::FuncOp op,
               builder.getI64IntegerAttr(funcArgument.getArgNumber())),
       }));
 
-  Block *entryBlock = encFuncOp.addEntryBlock();
+  Block* entryBlock = encFuncOp.addEntryBlock();
   builder.setInsertionPointToEnd(entryBlock);
   IRRewriter b(builder);
 
@@ -117,7 +117,7 @@ LogicalResult generateEncryptionFunc(func::FuncOp op,
       auto assignLayoutOp = AssignLayoutOp::create(
           builder, operand, originalTypeAttr.getLayout());
       auto res = implementAssignLayout(assignLayoutOp, ciphertextSize, builder,
-                                       [&](Operation *createdOp) {});
+                                       [&](Operation* createdOp) {});
       if (failed(res)) return failure();
       b.replaceOp(assignLayoutOp, res.value());
       valueToEncrypt = res.value();
@@ -137,7 +137,7 @@ LogicalResult generateEncryptionFunc(func::FuncOp op,
 /// Generates a decryption func for one type.
 LogicalResult generateDecryptionFunc(func::FuncOp op, Type decFuncArgType,
                                      int originalFuncReturnIndex,
-                                     ImplicitLocOpBuilder &builder,
+                                     ImplicitLocOpBuilder& builder,
                                      bool enableLayoutAssignment) {
   auto insertionBlock = builder.getInsertionBlock();
   auto insertionPoint = builder.getInsertionPoint();
@@ -188,7 +188,7 @@ LogicalResult generateDecryptionFunc(func::FuncOp op, Type decFuncArgType,
           cast<tensor_ext::LayoutAttr>(originalTypeAttr.getLayout()));
 
       Value res =
-          implementUnpackOp(unpackOp, builder, [&](Operation *createdOp) {});
+          implementUnpackOp(unpackOp, builder, [&](Operation* createdOp) {});
       b.replaceOp(unpackOp, res);
       decValuesToReturn.push_back(res);
     }
@@ -248,7 +248,7 @@ struct AddClientInterface : impl::AddClientInterfaceBase<AddClientInterface> {
   using AddClientInterfaceBase::AddClientInterfaceBase;
 
   void runOnOperation() override {
-    Operation *root = getOperation();
+    Operation* root = getOperation();
     auto result = root->walk<WalkOrder::PreOrder>([&](func::FuncOp op) {
       if (failed(convertFunc(op, ciphertextSize, enableLayoutAssignment))) {
         op->emitError("Failed to add client interface for func");

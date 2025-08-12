@@ -50,7 +50,7 @@ std::string getWeightsPrelude();
 /// Find the CryptoContext SSA value in the input operation's parent func
 /// arguments.
 ::mlir::FailureOr<::mlir::Value> getContextualCryptoContext(
-    ::mlir::Operation *op);
+    ::mlir::Operation* op);
 
 }  // namespace openfhe
 }  // namespace heir

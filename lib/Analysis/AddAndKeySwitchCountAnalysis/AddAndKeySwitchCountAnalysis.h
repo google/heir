@@ -49,14 +49,14 @@ class CountState {
     return keySwitchCount;
   }
 
-  bool operator==(const CountState &rhs) const {
+  bool operator==(const CountState& rhs) const {
     return initialized == rhs.initialized && addCount == rhs.addCount &&
            keySwitchCount == rhs.keySwitchCount;
   }
 
   bool isInitialized() const { return initialized; }
 
-  CountState operator+(const CountState &rhs) const {
+  CountState operator+(const CountState& rhs) const {
     assert(isInitialized() && rhs.isInitialized());
     return CountState{addCount + rhs.addCount,
                       keySwitchCount + rhs.keySwitchCount};
@@ -67,20 +67,20 @@ class CountState {
     return CountState{addCount, keySwitchCount + 1};
   }
 
-  CountState max(const CountState &rhs) const {
+  CountState max(const CountState& rhs) const {
     assert(isInitialized() && rhs.isInitialized());
     return CountState{std::max(addCount, rhs.addCount),
                       std::max(keySwitchCount, rhs.keySwitchCount)};
   }
 
-  static CountState join(const CountState &lhs, const CountState &rhs) {
+  static CountState join(const CountState& lhs, const CountState& rhs) {
     if (!lhs.isInitialized()) return rhs;
     if (!rhs.isInitialized()) return lhs;
 
     return lhs.max(rhs);
   }
 
-  void print(llvm::raw_ostream &os) const {
+  void print(llvm::raw_ostream& os) const {
     if (isInitialized()) {
       os << "CountState(" << addCount << ", " << keySwitchCount << ")";
     } else {
@@ -88,8 +88,8 @@ class CountState {
     }
   }
 
-  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
-                                       const CountState &state) {
+  friend llvm::raw_ostream& operator<<(llvm::raw_ostream& os,
+                                       const CountState& state) {
     state.print(os);
     return os;
   }
@@ -113,7 +113,7 @@ class CountAnalysis
   using SparseForwardDataFlowAnalysis::SparseForwardDataFlowAnalysis;
   friend class SecretnessAnalysisDependent<CountAnalysis>;
 
-  void setToEntryState(CountLattice *lattice) override {
+  void setToEntryState(CountLattice* lattice) override {
     // one addition in Vfresh
     if (isa<secret::SecretType>(lattice->getAnchor().getType())) {
       propagateIfChanged(lattice, lattice->join(CountState(1, 0)));
@@ -122,12 +122,12 @@ class CountAnalysis
     propagateIfChanged(lattice, lattice->join(CountState()));
   }
 
-  LogicalResult visitOperation(Operation *op,
-                               ArrayRef<const CountLattice *> operands,
-                               ArrayRef<CountLattice *> results) override;
+  LogicalResult visitOperation(Operation* op,
+                               ArrayRef<const CountLattice*> operands,
+                               ArrayRef<CountLattice*> results) override;
 };
 
-void annotateCount(Operation *top, DataFlowSolver *solver);
+void annotateCount(Operation* top, DataFlowSolver* solver);
 
 }  // namespace heir
 }  // namespace mlir

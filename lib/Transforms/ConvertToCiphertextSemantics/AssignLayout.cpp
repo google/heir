@@ -44,8 +44,8 @@ bool containsDim(ArrayRef<int64_t> dims, int64_t dim) {
   return llvm::any_of(dims, [dim](int64_t d) { return d == dim; });
 }
 
-Value expandDims(Value value, LayoutAttr layout, ImplicitLocOpBuilder &b,
-                 const std::function<void(Operation *)> &createdOpCallback) {
+Value expandDims(Value value, LayoutAttr layout, ImplicitLocOpBuilder& b,
+                 const std::function<void(Operation*)>& createdOpCallback) {
   LLVM_DEBUG(llvm::dbgs() << "Expanding dims...\n");
   tensor_ext::AlignmentAttr alignment = layout.getAlignment();
 
@@ -92,8 +92,8 @@ Value expandDims(Value value, LayoutAttr layout, ImplicitLocOpBuilder &b,
   return expandOp.getResult();
 }
 
-Value applyPadding(Value value, LayoutAttr layout, ImplicitLocOpBuilder &b,
-                   const std::function<void(Operation *)> &createdOpCallback) {
+Value applyPadding(Value value, LayoutAttr layout, ImplicitLocOpBuilder& b,
+                   const std::function<void(Operation*)>& createdOpCallback) {
   LLVM_DEBUG(llvm::dbgs() << "Applying padding...\n");
   RankedTensorType dataSemanticType = cast<RankedTensorType>(value.getType());
   tensor_ext::AlignmentAttr alignment = layout.getAlignment();
@@ -122,8 +122,8 @@ Value applyPadding(Value value, LayoutAttr layout, ImplicitLocOpBuilder &b,
 
 FailureOr<Value> maybeReplicateAlongAxis(
     tensor_ext::AssignLayoutOp op, Value value, int axis,
-    int64_t outputAxisSize, ImplicitLocOpBuilder &b,
-    const std::function<void(Operation *)> &createdOpCallback) {
+    int64_t outputAxisSize, ImplicitLocOpBuilder& b,
+    const std::function<void(Operation*)>& createdOpCallback) {
   LLVM_DEBUG(llvm::dbgs() << "Replicating...\n");
   RankedTensorType mostRecentType = cast<RankedTensorType>(value.getType());
   int64_t dataDimSize = mostRecentType.getDimSize(axis);
@@ -160,8 +160,8 @@ FailureOr<Value> maybeReplicateAlongAxis(
 
 FailureOr<Value> implementAssignLayoutForTensor(
     tensor_ext::AssignLayoutOp op, int64_t ciphertextSize,
-    ImplicitLocOpBuilder &builder,
-    const std::function<void(Operation *)> &createdOpCallback) {
+    ImplicitLocOpBuilder& builder,
+    const std::function<void(Operation*)>& createdOpCallback) {
   LayoutAttr layout = dyn_cast<LayoutAttr>(op.getLayout());
   if (!layout) {
     return op.emitError()
@@ -259,7 +259,7 @@ FailureOr<Value> implementAssignLayoutForTensor(
         /*inputs=*/mostRecentOutput,
         /*outputs=*/emptyOp.getResult(), indexingMaps, iteratorTypes,
         /*bodyBuilder=*/
-        [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
+        [&](OpBuilder& nestedBuilder, Location nestedLoc, ValueRange args) {
           // Do nothing, which just assigns the input to the output slot.
           auto yieldOp =
               linalg::YieldOp::create(nestedBuilder, nestedLoc, args[0]);
@@ -275,8 +275,8 @@ FailureOr<Value> implementAssignLayoutForTensor(
 
 FailureOr<Value> implementAssignLayoutForScalar(
     tensor_ext::AssignLayoutOp op, int64_t ciphertextSize,
-    ImplicitLocOpBuilder &builder,
-    const std::function<void(Operation *)> &createdOpCallback) {
+    ImplicitLocOpBuilder& builder,
+    const std::function<void(Operation*)>& createdOpCallback) {
   LayoutAttr layout = dyn_cast<LayoutAttr>(op.getLayout());
   if (!layout) {
     return op.emitError()
@@ -306,8 +306,8 @@ FailureOr<Value> implementAssignLayoutForScalar(
 }
 
 Value implementUnpackOpForTensor(
-    tensor_ext::UnpackOp op, ImplicitLocOpBuilder &builder,
-    const std::function<void(Operation *)> &createdOpCallback) {
+    tensor_ext::UnpackOp op, ImplicitLocOpBuilder& builder,
+    const std::function<void(Operation*)>& createdOpCallback) {
   RankedTensorType dataSemanticType =
       cast<RankedTensorType>(op.getResult().getType());
   Value input = op.getValue();
@@ -344,7 +344,7 @@ Value implementUnpackOpForTensor(
         /*inputs=*/mostRecentOutput,
         /*outputs=*/emptyOp.getResult(), indexingMaps, iteratorTypes,
         /*bodyBuilder=*/
-        [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
+        [&](OpBuilder& nestedBuilder, Location nestedLoc, ValueRange args) {
           // Do nothing, which just assigns the input to the output slot.
           auto yieldOp =
               linalg::YieldOp::create(nestedBuilder, nestedLoc, args[0]);
@@ -390,8 +390,8 @@ Value implementUnpackOpForTensor(
 }
 
 Value implementUnpackOpForScalar(
-    tensor_ext::UnpackOp op, ImplicitLocOpBuilder &builder,
-    const std::function<void(Operation *)> &createdOpCallback) {
+    tensor_ext::UnpackOp op, ImplicitLocOpBuilder& builder,
+    const std::function<void(Operation*)>& createdOpCallback) {
   // All we need to do here is determine the index to extract from
   SmallVector<Value> indices;
   LayoutAttr layout = op.getLayout();
@@ -415,7 +415,7 @@ Value implementUnpackOpForScalar(
   return splatOp.getResult();
 }
 
-std::string printRelation(const IntegerRelation &rel) {
+std::string printRelation(const IntegerRelation& rel) {
   std::string str;
   llvm::raw_string_ostream os(str);
   rel.print(os);
@@ -424,8 +424,8 @@ std::string printRelation(const IntegerRelation &rel) {
 
 FailureOr<Value> implementAssignLayoutNew(
     tensor_ext::AssignLayoutOp op, int64_t ciphertextSize,
-    ImplicitLocOpBuilder &builder,
-    const std::function<void(Operation *)> &createdOpCallback) {
+    ImplicitLocOpBuilder& builder,
+    const std::function<void(Operation*)>& createdOpCallback) {
   NewLayoutAttr layout = dyn_cast<NewLayoutAttr>(op.getLayout());
   if (!layout) {
     return op.emitError()
@@ -467,8 +467,8 @@ FailureOr<Value> implementAssignLayoutNew(
 
 FailureOr<Value> implementAssignLayout(
     tensor_ext::AssignLayoutOp op, int64_t ciphertextSize,
-    ImplicitLocOpBuilder &builder,
-    const std::function<void(Operation *)> &createdOpCallback) {
+    ImplicitLocOpBuilder& builder,
+    const std::function<void(Operation*)>& createdOpCallback) {
   // TODO(#2047): add a scalar version or augment scalar version below to
   // support new layout attr
   if (isa<NewLayoutAttr>(op.getLayout()) &&
@@ -487,8 +487,8 @@ FailureOr<Value> implementAssignLayout(
 };
 
 Value implementUnpackOp(
-    tensor_ext::UnpackOp op, ImplicitLocOpBuilder &builder,
-    const std::function<void(Operation *)> &createdOpCallback) {
+    tensor_ext::UnpackOp op, ImplicitLocOpBuilder& builder,
+    const std::function<void(Operation*)>& createdOpCallback) {
   if (isa<RankedTensorType>(op.getResult().getType())) {
     return implementUnpackOpForTensor(op, builder, createdOpCallback);
   }

@@ -102,7 +102,7 @@ inline Type modulusType(Op op, bool mul = false) {
 
 class ModArithToArithTypeConverter : public TypeConverter {
  public:
-  ModArithToArithTypeConverter(MLIRContext *ctx) {
+  ModArithToArithTypeConverter(MLIRContext* ctx) {
     addConversion([](Type type) { return type; });
     addConversion(
         [](ModArithType type) -> Type { return convertModArithType(type); });
@@ -115,42 +115,42 @@ class ModArithToArithTypeConverter : public TypeConverter {
 };
 
 struct ConvertEncapsulate : public OpConversionPattern<EncapsulateOp> {
-  ConvertEncapsulate(mlir::MLIRContext *context)
+  ConvertEncapsulate(mlir::MLIRContext* context)
       : OpConversionPattern<EncapsulateOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       EncapsulateOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     rewriter.replaceOp(op, adaptor.getOperands()[0]);
     return success();
   }
 };
 
 struct ConvertExtract : public OpConversionPattern<ExtractOp> {
-  ConvertExtract(mlir::MLIRContext *context)
+  ConvertExtract(mlir::MLIRContext* context)
       : OpConversionPattern<ExtractOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       ExtractOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     rewriter.replaceOp(op, adaptor.getOperands()[0]);
     return success();
   }
 };
 
 struct ConvertConstant : public OpConversionPattern<ConstantOp> {
-  ConvertConstant(mlir::MLIRContext *context)
+  ConvertConstant(mlir::MLIRContext* context)
       : OpConversionPattern<ConstantOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       ConstantOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     auto constOp =
         arith::ConstantOp::create(rewriter, op.getLoc(), adaptor.getValue());
     rewriter.replaceOp(op, constOp);
@@ -159,14 +159,14 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
 };
 
 struct ConvertReduce : public OpConversionPattern<ReduceOp> {
-  ConvertReduce(mlir::MLIRContext *context)
+  ConvertReduce(mlir::MLIRContext* context)
       : OpConversionPattern<ReduceOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       ReduceOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     auto cmod = arith::ConstantOp::create(b, modulusAttr(op));
@@ -183,14 +183,14 @@ struct ConvertReduce : public OpConversionPattern<ReduceOp> {
 // It is assumed inputs are canonical representatives
 // ModArithType ensures add/sub result can not overflow
 struct ConvertAdd : public OpConversionPattern<AddOp> {
-  ConvertAdd(mlir::MLIRContext *context)
+  ConvertAdd(mlir::MLIRContext* context)
       : OpConversionPattern<AddOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       AddOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     auto cmod = arith::ConstantOp::create(b, modulusAttr(op));
@@ -203,14 +203,14 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
 };
 
 struct ConvertSub : public OpConversionPattern<SubOp> {
-  ConvertSub(mlir::MLIRContext *context)
+  ConvertSub(mlir::MLIRContext* context)
       : OpConversionPattern<SubOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       SubOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     auto cmod = arith::ConstantOp::create(b, modulusAttr(op));
@@ -224,14 +224,14 @@ struct ConvertSub : public OpConversionPattern<SubOp> {
 };
 
 struct ConvertMul : public OpConversionPattern<MulOp> {
-  ConvertMul(mlir::MLIRContext *context)
+  ConvertMul(mlir::MLIRContext* context)
       : OpConversionPattern<MulOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       MulOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     auto cmod = arith::ConstantOp::create(b, modulusAttr(op, true));
@@ -249,14 +249,14 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
 };
 
 struct ConvertMac : public OpConversionPattern<MacOp> {
-  ConvertMac(mlir::MLIRContext *context)
+  ConvertMac(mlir::MLIRContext* context)
       : OpConversionPattern<MacOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       MacOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     auto cmod = arith::ConstantOp::create(b, modulusAttr(op, true));
@@ -277,20 +277,20 @@ struct ConvertMac : public OpConversionPattern<MacOp> {
 };
 
 struct ConvertModSwitch : public OpConversionPattern<ModSwitchOp> {
-  ConvertModSwitch(mlir::MLIRContext *context)
+  ConvertModSwitch(mlir::MLIRContext* context)
       : OpConversionPattern<ModSwitchOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
-  auto getInteger(ImplicitLocOpBuilder *b, IntegerType integerType) const {
-    return [=](const APInt &value) mutable {
+  auto getInteger(ImplicitLocOpBuilder* b, IntegerType integerType) const {
+    return [=](const APInt& value) mutable {
       return b->create<arith::ConstantOp>(IntegerAttr::get(integerType, value));
     };
   }
 
   LogicalResult matchAndRewrite(
       ModSwitchOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     auto inputType = op.getInput().getType();
     auto outputType = op.getOutput().getType();
@@ -404,14 +404,14 @@ namespace rewrites {
 }  // namespace rewrites
 
 struct ConvertBarrettReduce : public OpConversionPattern<BarrettReduceOp> {
-  ConvertBarrettReduce(mlir::MLIRContext *context)
+  ConvertBarrettReduce(mlir::MLIRContext* context)
       : OpConversionPattern<BarrettReduceOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       BarrettReduceOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     // Compute B = 4^{bitWidth} and ratio = floordiv(B / modulus)
@@ -469,7 +469,7 @@ struct ModArithToArith : impl::ModArithToArithBase<ModArithToArith> {
 };
 
 void ModArithToArith::runOnOperation() {
-  MLIRContext *context = &getContext();
+  MLIRContext* context = &getContext();
   ModuleOp module = getOperation();
   ModArithToArithTypeConverter typeConverter(context);
 

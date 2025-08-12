@@ -37,18 +37,18 @@ class LevelState {
   }
   LevelType get() const { return getLevel(); }
 
-  bool operator==(const LevelState &rhs) const { return level == rhs.level; }
+  bool operator==(const LevelState& rhs) const { return level == rhs.level; }
 
   bool isInitialized() const { return level.has_value(); }
 
-  static LevelState join(const LevelState &lhs, const LevelState &rhs) {
+  static LevelState join(const LevelState& lhs, const LevelState& rhs) {
     if (!lhs.isInitialized()) return rhs;
     if (!rhs.isInitialized()) return lhs;
 
     return LevelState{std::max(lhs.getLevel(), rhs.getLevel())};
   }
 
-  void print(llvm::raw_ostream &os) const {
+  void print(llvm::raw_ostream& os) const {
     if (isInitialized()) {
       os << "LevelState(" << level.value() << ")";
     } else {
@@ -56,8 +56,8 @@ class LevelState {
     }
   }
 
-  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
-                                       const LevelState &state) {
+  friend llvm::raw_ostream& operator<<(llvm::raw_ostream& os,
+                                       const LevelState& state) {
     state.print(os);
     return os;
   }
@@ -97,7 +97,7 @@ class LevelAnalysis
   using SparseForwardDataFlowAnalysis::SparseForwardDataFlowAnalysis;
   friend class SecretnessAnalysisDependent<LevelAnalysis>;
 
-  void setToEntryState(LevelLattice *lattice) override {
+  void setToEntryState(LevelLattice* lattice) override {
     if (isa<secret::SecretType>(lattice->getAnchor().getType())) {
       propagateIfChanged(lattice, lattice->join(LevelState(0)));
       return;
@@ -105,15 +105,15 @@ class LevelAnalysis
     propagateIfChanged(lattice, lattice->join(LevelState()));
   }
 
-  LogicalResult visitOperation(Operation *op,
-                               ArrayRef<const LevelLattice *> operands,
-                               ArrayRef<LevelLattice *> results) override;
+  LogicalResult visitOperation(Operation* op,
+                               ArrayRef<const LevelLattice*> operands,
+                               ArrayRef<LevelLattice*> results) override;
 
   void visitExternalCall(CallOpInterface call,
-                         ArrayRef<const LevelLattice *> argumentLattices,
-                         ArrayRef<LevelLattice *> resultLattices) override;
+                         ArrayRef<const LevelLattice*> argumentLattices,
+                         ArrayRef<LevelLattice*> resultLattices) override;
 
-  void propagateIfChangedWrapper(AnalysisState *state, ChangeResult changed) {
+  void propagateIfChangedWrapper(AnalysisState* state, ChangeResult changed) {
     propagateIfChanged(state, changed);
   }
 };
@@ -131,16 +131,16 @@ class LevelAnalysisBackward
   using SparseBackwardDataFlowAnalysis::SparseBackwardDataFlowAnalysis;
   friend class SecretnessAnalysisDependent<LevelAnalysis>;
 
-  void setToExitState(LevelLattice *lattice) override {
+  void setToExitState(LevelLattice* lattice) override {
     propagateIfChanged(lattice, lattice->join(LevelState()));
   }
 
-  LogicalResult visitOperation(Operation *op, ArrayRef<LevelLattice *> operands,
-                               ArrayRef<const LevelLattice *> results) override;
+  LogicalResult visitOperation(Operation* op, ArrayRef<LevelLattice*> operands,
+                               ArrayRef<const LevelLattice*> results) override;
 
   // dummy impl
-  void visitBranchOperand(OpOperand &operand) override {}
-  void visitCallOperand(OpOperand &operand) override {}
+  void visitBranchOperand(OpOperand& operand) override {}
+  void visitCallOperand(OpOperand& operand) override {}
 };
 
 //===----------------------------------------------------------------------===//
@@ -152,11 +152,11 @@ LevelState::LevelType getLevelFromMgmtAttr(Value value);
 constexpr StringRef kArgLevelAttrName = "mgmt.level";
 
 /// baseLevel is for B/FV scheme, where all the analysis result would be 0
-void annotateLevel(Operation *top, DataFlowSolver *solver, int baseLevel = 0);
+void annotateLevel(Operation* top, DataFlowSolver* solver, int baseLevel = 0);
 
 // Get the maximum annotated level from mgmt attributes.
 // Assumes max level at the entrypoint to the main compiled function.
-std::optional<int> getMaxLevel(Operation *root);
+std::optional<int> getMaxLevel(Operation* root);
 
 }  // namespace heir
 }  // namespace mlir

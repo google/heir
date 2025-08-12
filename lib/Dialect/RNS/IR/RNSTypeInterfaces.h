@@ -14,7 +14,7 @@ class DialectRegistry;
 namespace heir {
 namespace rns {
 
-void registerExternalRNSTypeInterfaces(DialectRegistry &registry);
+void registerExternalRNSTypeInterfaces(DialectRegistry& registry);
 
 }  // namespace rns
 }  // namespace heir

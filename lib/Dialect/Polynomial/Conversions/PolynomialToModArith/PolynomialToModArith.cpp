@@ -92,7 +92,7 @@ struct CommonConversionInfo {
 };
 
 FailureOr<CommonConversionInfo> getCommonConversionInfo(
-    Operation *op, const TypeConverter *typeConverter,
+    Operation* op, const TypeConverter* typeConverter,
     std::optional<Type> polyType = std::nullopt) {
   // Most ops have a single result type that is a polynomial
   PolynomialType polyTy;
@@ -129,7 +129,7 @@ FailureOr<CommonConversionInfo> getCommonConversionInfo(
 }
 
 Value getConstantCoefficient(Type type, int64_t value,
-                             ImplicitLocOpBuilder &builder) {
+                             ImplicitLocOpBuilder& builder) {
   return llvm::TypeSwitch<Type, Value>(type)
       .Case<IntegerType>([&](auto intTy) {
         return arith::ConstantOp::create(builder,
@@ -146,14 +146,14 @@ Value getConstantCoefficient(Type type, int64_t value,
       });
 }
 
-std::pair<APInt, APInt> extendWidthsToLargest(const APInt &a, const APInt &b) {
+std::pair<APInt, APInt> extendWidthsToLargest(const APInt& a, const APInt& b) {
   unsigned width = std::max(a.getBitWidth(), b.getBitWidth());
   return {a.zextOrTrunc(width), b.zextOrTrunc(width)};
 }
 
 class PolynomialToModArithTypeConverter : public TypeConverter {
  public:
-  PolynomialToModArithTypeConverter(MLIRContext *ctx) {
+  PolynomialToModArithTypeConverter(MLIRContext* ctx) {
     addConversion([](Type type) { return type; });
     addConversion([](PolynomialType type) -> Type {
       return convertPolynomialType(type);
@@ -170,14 +170,14 @@ class PolynomialToModArithTypeConverter : public TypeConverter {
 };
 
 struct ConvertFromTensor : public OpConversionPattern<FromTensorOp> {
-  ConvertFromTensor(mlir::MLIRContext *context)
+  ConvertFromTensor(mlir::MLIRContext* context)
       : OpConversionPattern<FromTensorOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       FromTensorOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     auto res = getCommonConversionInfo(op, typeConverter);
     if (failed(res)) return failure();
     auto typeInfo = res.value();
@@ -209,28 +209,28 @@ struct ConvertFromTensor : public OpConversionPattern<FromTensorOp> {
 };
 
 struct ConvertToTensor : public OpConversionPattern<ToTensorOp> {
-  ConvertToTensor(mlir::MLIRContext *context)
+  ConvertToTensor(mlir::MLIRContext* context)
       : OpConversionPattern<ToTensorOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       ToTensorOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     rewriter.replaceOp(op, adaptor.getOperands()[0].getDefiningOp());
     return success();
   }
 };
 
 struct ConvertConstant : public OpConversionPattern<ConstantOp> {
-  ConvertConstant(mlir::MLIRContext *context)
+  ConvertConstant(mlir::MLIRContext* context)
       : OpConversionPattern<ConstantOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       ConstantOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     auto res = getCommonConversionInfo(op, typeConverter);
     if (failed(res)) return failure();
@@ -257,8 +257,8 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
     // before iterating over the terms, you will get a use-after-free bug. See
     // the "Temporary range expression" section in
     // https://en.cppreference.com/w/cpp/language/range-for
-    const IntPolynomial &poly = attr.getValue().getPolynomial();
-    for (const auto &term : poly.getTerms()) {
+    const IntPolynomial& poly = attr.getValue().getPolynomial();
+    for (const auto& term : poly.getTerms()) {
       int64_t idx = term.getExponent().getSExtValue();
       APInt coeff = term.getCoefficient();
       // If the coefficient type is a mod_arith type, then we need to ensure
@@ -305,14 +305,14 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
 };
 
 struct ConvertMonomial : public OpConversionPattern<MonomialOp> {
-  ConvertMonomial(mlir::MLIRContext *context)
+  ConvertMonomial(mlir::MLIRContext* context)
       : OpConversionPattern<MonomialOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       MonomialOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     auto res = getCommonConversionInfo(op, typeConverter);
     if (failed(res)) return failure();
@@ -338,14 +338,14 @@ struct ConvertMonomial : public OpConversionPattern<MonomialOp> {
 };
 
 struct ConvertMulScalar : public OpConversionPattern<MulScalarOp> {
-  ConvertMulScalar(mlir::MLIRContext *context)
+  ConvertMulScalar(mlir::MLIRContext* context)
       : OpConversionPattern<MulScalarOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       MulScalarOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     auto res = getCommonConversionInfo(op, typeConverter);
     if (failed(res)) return failure();
     auto typeInfo = res.value();
@@ -393,14 +393,14 @@ bool hasCyclicModulus(MonicMonomialMulOp op) {
 // Implement rotation via tensor.insert_slice
 struct ConvertMonicMonomialMul
     : public OpConversionPattern<MonicMonomialMulOp> {
-  ConvertMonicMonomialMul(mlir::MLIRContext *context)
+  ConvertMonicMonomialMul(mlir::MLIRContext* context)
       : OpConversionPattern<MonicMonomialMulOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       MonicMonomialMulOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     if (!hasCyclicModulus(op)) {
       // When upstreaming, this should be expanded to support all inputs.
       InFlightDiagnostic diag =
@@ -484,14 +484,14 @@ struct ConvertMonicMonomialMul
 };
 
 struct ConvertLeadingTerm : public OpConversionPattern<LeadingTermOp> {
-  ConvertLeadingTerm(mlir::MLIRContext *context)
+  ConvertLeadingTerm(mlir::MLIRContext* context)
       : OpConversionPattern<LeadingTermOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       LeadingTermOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     auto coeffs = adaptor.getInput();
     auto tensorType = cast<RankedTensorType>(coeffs.getType());
@@ -513,7 +513,7 @@ struct ConvertLeadingTerm : public OpConversionPattern<LeadingTermOp> {
         TypeRange{b.getIndexType()},
         /*operands=*/ValueRange{initIndex.getResult()},
         /*beforeBuilder=*/
-        [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
+        [&](OpBuilder& nestedBuilder, Location nestedLoc, ValueRange args) {
           Value index = args[0];
           ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
           auto coeff = tensor::ExtractOp::create(b, coeffs, ValueRange{index});
@@ -525,7 +525,7 @@ struct ConvertLeadingTerm : public OpConversionPattern<LeadingTermOp> {
           scf::ConditionOp::create(b, cmpOp.getResult(), index);
         },
         /*afterBuilder=*/
-        [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
+        [&](OpBuilder& nestedBuilder, Location nestedLoc, ValueRange args) {
           ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
           Value currentIndex = args[0];
           auto nextIndex =
@@ -542,14 +542,14 @@ struct ConvertLeadingTerm : public OpConversionPattern<LeadingTermOp> {
 
 template <typename SourceOp, typename TargetArithOp, typename TargetModArithOp>
 struct ConvertPolyBinop : public OpConversionPattern<SourceOp> {
-  ConvertPolyBinop(mlir::MLIRContext *context)
+  ConvertPolyBinop(mlir::MLIRContext* context)
       : OpConversionPattern<SourceOp>(context) {}
 
   using OpConversionPattern<SourceOp>::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       SourceOp op, typename SourceOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     auto res = getCommonConversionInfo(op, this->typeConverter);
     if (failed(res)) return failure();
     auto typeInfo = res.value();
@@ -585,7 +585,7 @@ RankedTensorType polymulOutputTensorType(PolynomialType type) {
 // Lower polynomial multiplication to a 1D convolution, followed by with a
 // modulus reduction in the ring.
 struct ConvertMul : public OpConversionPattern<MulOp> {
-  ConvertMul(const TypeConverter &typeConverter, mlir::MLIRContext *context,
+  ConvertMul(const TypeConverter& typeConverter, mlir::MLIRContext* context,
              GetFuncCallbackTy cb)
       : OpConversionPattern<MulOp>(typeConverter, context),
         getFuncOpCallback(cb) {}
@@ -594,7 +594,7 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
 
   LogicalResult matchAndRewrite(
       MulOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     auto res = getCommonConversionInfo(op, this->typeConverter);
     if (failed(res)) return failure();
     auto typeInfo = res.value();
@@ -643,7 +643,7 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
         /*indexingMaps=*/indexingMaps,
         /*iteratorTypes=*/iteratorTypes,
         /*bodyBuilder=*/
-        [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
+        [&](OpBuilder& nestedBuilder, Location nestedLoc, ValueRange args) {
           ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
           auto lhs = args[0];
           auto rhs = args[1];
@@ -660,7 +660,7 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
     // 2N - 1 sized result tensor -> reduce modulo ideal to get a N sized tensor
     func::FuncOp divMod = getFuncOpCallback(funcType, typeInfo.ringAttr);
     if (!divMod) {
-      return rewriter.notifyMatchFailure(op, [&](::mlir::Diagnostic &diag) {
+      return rewriter.notifyMatchFailure(op, [&](::mlir::Diagnostic& diag) {
         diag << "Missing software implementation for polynomial mod op of type"
              << funcType << " and for ring " << typeInfo.ringAttr;
       });
@@ -765,7 +765,7 @@ func::FuncOp PolynomialToModArith::buildPolynomialModFunc(FunctionType funcType,
   funcOp->setAttr("llvm.linkage", linkage);
   funcOp.setPrivate();
 
-  Block *funcBody = funcOp.addEntryBlock();
+  Block* funcBody = funcOp.addEntryBlock();
   Value coeffsArg = funcOp.getArgument(0);
 
   builder.setInsertionPointToStart(funcBody);
@@ -837,7 +837,7 @@ func::FuncOp PolynomialToModArith::buildPolynomialModFunc(FunctionType funcType,
       remainder.getType(),
       /*operands=*/remainder,
       /*beforeBuilder=*/
-      [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
+      [&](OpBuilder& nestedBuilder, Location nestedLoc, ValueRange args) {
         Value remainder = args[0];
         ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
         // remainder.degree() >= divisorDeg
@@ -848,7 +848,7 @@ func::FuncOp PolynomialToModArith::buildPolynomialModFunc(FunctionType funcType,
         scf::ConditionOp::create(b, cmpOp, remainder);
       },
       /*afterBuilder=*/
-      [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
+      [&](OpBuilder& nestedBuilder, Location nestedLoc, ValueRange args) {
         ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
         Value remainder = args[0];
         // TODO(#97): move this out of the loop when it has ConstantLike trait
@@ -896,7 +896,7 @@ func::FuncOp PolynomialToModArith::buildPolynomialModFunc(FunctionType funcType,
 }
 
 // Multiply two integers x, y modulo cmod.
-static APInt mulMod(const APInt &_x, const APInt &_y, const APInt &_cmod) {
+static APInt mulMod(const APInt& _x, const APInt& _y, const APInt& _cmod) {
   assert(_x.getBitWidth() == _y.getBitWidth() &&
          "expected same bitwidth of operands");
   auto intermediateBitwidth = _cmod.getBitWidth() * 2;
@@ -908,7 +908,7 @@ static APInt mulMod(const APInt &_x, const APInt &_y, const APInt &_cmod) {
 }
 
 // Compute the first degree powers of root modulo cmod.
-static SmallVector<APInt> precomputeRoots(APInt root, const APInt &cmod,
+static SmallVector<APInt> precomputeRoots(APInt root, const APInt& cmod,
                                           unsigned degree) {
   APInt baseRoot = root;
   root = 1;
@@ -920,7 +920,7 @@ static SmallVector<APInt> precomputeRoots(APInt root, const APInt &cmod,
   return vals;
 }
 
-static Value computeReverseBitOrder(ImplicitLocOpBuilder &b,
+static Value computeReverseBitOrder(ImplicitLocOpBuilder& b,
                                     RankedTensorType tensorType, Type modType,
                                     Value tensor) {
   unsigned degree = tensorType.getShape()[0];
@@ -956,7 +956,7 @@ static Value computeReverseBitOrder(ImplicitLocOpBuilder &b,
       /*indexingMaps=*/indexingMaps,
       /*iteratorTypes=*/iteratorTypes,
       /*bodyBuilder=*/
-      [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
+      [&](OpBuilder& nestedBuilder, Location nestedLoc, ValueRange args) {
         ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
         auto idx = args[0];
         auto elem = tensor::ExtractOp::create(b, tensor, ValueRange{idx});
@@ -965,7 +965,7 @@ static Value computeReverseBitOrder(ImplicitLocOpBuilder &b,
   return shuffleOp.getResult(0);
 }
 
-static std::pair<Value, Value> bflyCT(ImplicitLocOpBuilder &b, Value A, Value B,
+static std::pair<Value, Value> bflyCT(ImplicitLocOpBuilder& b, Value A, Value B,
                                       Value root) {
   auto rootB = mod_arith::MulOp::create(b, B, root);
   auto ctPlus = mod_arith::AddOp::create(b, A, rootB);
@@ -973,7 +973,7 @@ static std::pair<Value, Value> bflyCT(ImplicitLocOpBuilder &b, Value A, Value B,
   return {ctPlus, ctMinus};
 }
 
-static std::pair<Value, Value> bflyGS(ImplicitLocOpBuilder &b, Value A, Value B,
+static std::pair<Value, Value> bflyGS(ImplicitLocOpBuilder& b, Value A, Value B,
                                       Value root) {
   auto gsPlus = mod_arith::AddOp::create(b, A, B);
   auto gsMinus = mod_arith::SubOp::create(b, A, B);
@@ -982,7 +982,7 @@ static std::pair<Value, Value> bflyGS(ImplicitLocOpBuilder &b, Value A, Value B,
 }
 
 template <bool inverse>
-static Value fastNTT(ImplicitLocOpBuilder &b, RingAttr ring,
+static Value fastNTT(ImplicitLocOpBuilder& b, RingAttr ring,
                      PrimitiveRootAttr rootAttr, RankedTensorType tensorType,
                      Type modType, Value input) {
   // Compute the number of stages required to compute the NTT
@@ -1062,7 +1062,7 @@ static Value fastNTT(ImplicitLocOpBuilder &b, RingAttr ring,
       b, stagesLb, stagesUb, stagesStep,
       /*iterArgs=*/ValueRange{initialValue, initialBatchSize, initialRootExp},
       /*bodyBuilder=*/
-      [&](OpBuilder &nestedBuilder, Location nestedLoc, Value index,
+      [&](OpBuilder& nestedBuilder, Location nestedLoc, Value index,
           ValueRange args) {
         ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
         Value batchSize = args[1];
@@ -1076,7 +1076,7 @@ static Value fastNTT(ImplicitLocOpBuilder &b, RingAttr ring,
             b, innerLb, innerUb, innerStep,
             /*iterArgs=*/args[0],
             /*bodyBuilder=*/
-            [&](OpBuilder &nestedBuilder, Location nestedLoc, Value index,
+            [&](OpBuilder& nestedBuilder, Location nestedLoc, Value index,
                 ValueRange args) {
               ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
               Value indexK = arith::MulIOp::create(b, batchSize, index);
@@ -1087,7 +1087,7 @@ static Value fastNTT(ImplicitLocOpBuilder &b, RingAttr ring,
               auto arithLoop = scf::ForOp::create(
                   b, arithLb, arithUb, arithStep, /*iterArgs=*/args[0],
                   /*bodyBuilder=*/
-                  [&](OpBuilder &nestedBuilder, Location nestedLoc,
+                  [&](OpBuilder& nestedBuilder, Location nestedLoc,
                       Value indexJ, ValueRange args) {
                     ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
 
@@ -1150,14 +1150,14 @@ static Value fastNTT(ImplicitLocOpBuilder &b, RingAttr ring,
 }
 
 struct ConvertNTT : public OpConversionPattern<NTTOp> {
-  ConvertNTT(mlir::MLIRContext *context)
+  ConvertNTT(mlir::MLIRContext* context)
       : OpConversionPattern<NTTOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       NTTOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     auto polyTy = dyn_cast<PolynomialType>(op.getInput().getType());
@@ -1202,14 +1202,14 @@ struct ConvertNTT : public OpConversionPattern<NTTOp> {
 };
 
 struct ConvertINTT : public OpConversionPattern<INTTOp> {
-  ConvertINTT(mlir::MLIRContext *context)
+  ConvertINTT(mlir::MLIRContext* context)
       : OpConversionPattern<INTTOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       INTTOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     auto res = getCommonConversionInfo(op, typeConverter);
     if (failed(res)) return failure();
     auto typeInfo = res.value();
@@ -1247,10 +1247,10 @@ struct ConvertINTT : public OpConversionPattern<INTTOp> {
 };
 
 void PolynomialToModArith::runOnOperation() {
-  MLIRContext *context = &getContext();
+  MLIRContext* context = &getContext();
 
   WalkResult result =
-      getOperation()->walk([&](Operation *op) {
+      getOperation()->walk([&](Operation* op) {
         for (Type ty :
              llvm::concat<Type>(op->getOperandTypes(), op->getResultTypes())) {
           if (auto polyTy = dyn_cast<PolynomialType>(ty)) {

@@ -39,7 +39,7 @@ namespace mlir::heir::lwe {
 #define GEN_PASS_DEF_LWETOOPENFHE
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h.inc"
 
-ToOpenfheTypeConverter::ToOpenfheTypeConverter(MLIRContext *ctx) {
+ToOpenfheTypeConverter::ToOpenfheTypeConverter(MLIRContext* ctx) {
   addConversion([](Type type) { return type; });
   addConversion([ctx](lwe::LWEPublicKeyType type) -> Type {
     return openfhe::PublicKeyType::get(ctx);
@@ -49,7 +49,7 @@ ToOpenfheTypeConverter::ToOpenfheTypeConverter(MLIRContext *ctx) {
   });
 }
 
-FailureOr<Value> getContextualCryptoContext(Operation *op) {
+FailureOr<Value> getContextualCryptoContext(Operation* op) {
   auto result = getContextualArgFromFunc<openfhe::CryptoContextType>(op);
   if (failed(result)) {
     return op->emitOpError()
@@ -70,14 +70,14 @@ bool containsArgumentOfDialect(func::FuncOp funcOp) {
 }
 
 struct AddCryptoContextArg : public OpConversionPattern<func::FuncOp> {
-  AddCryptoContextArg(mlir::MLIRContext *context)
+  AddCryptoContextArg(mlir::MLIRContext* context)
       : OpConversionPattern<func::FuncOp>(context, /* benefit= */ 2) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       func::FuncOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     auto containsCryptoOps =
         containsDialects<lwe::LWEDialect, bgv::BGVDialect, ckks::CKKSDialect>(
             op);
@@ -98,14 +98,14 @@ struct AddCryptoContextArg : public OpConversionPattern<func::FuncOp> {
 };
 
 struct ConvertFuncCallOp : public OpConversionPattern<func::CallOp> {
-  ConvertFuncCallOp(mlir::MLIRContext *context)
+  ConvertFuncCallOp(mlir::MLIRContext* context)
       : OpConversionPattern<func::CallOp>(context) {}
 
   using OpConversionPattern<func::CallOp>::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       func::CallOp op, typename func::CallOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
     if (failed(result)) return result;
     auto cryptoContext = result.value();
@@ -128,14 +128,14 @@ struct ConvertFuncCallOp : public OpConversionPattern<func::CallOp> {
 };
 
 struct ConvertEncryptOp : public OpConversionPattern<lwe::RLWEEncryptOp> {
-  ConvertEncryptOp(mlir::MLIRContext *context)
+  ConvertEncryptOp(mlir::MLIRContext* context)
       : OpConversionPattern<lwe::RLWEEncryptOp>(context) {}
 
   using OpConversionPattern<lwe::RLWEEncryptOp>::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       lwe::RLWEEncryptOp op, typename lwe::RLWEEncryptOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
     if (failed(result)) return result;
 
@@ -149,14 +149,14 @@ struct ConvertEncryptOp : public OpConversionPattern<lwe::RLWEEncryptOp> {
 };
 
 struct ConvertDecryptOp : public OpConversionPattern<lwe::RLWEDecryptOp> {
-  ConvertDecryptOp(mlir::MLIRContext *context)
+  ConvertDecryptOp(mlir::MLIRContext* context)
       : OpConversionPattern<RLWEDecryptOp>(context) {}
 
   using OpConversionPattern<RLWEDecryptOp>::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       RLWEDecryptOp op, RLWEDecryptOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
     if (failed(result)) return result;
 
@@ -170,15 +170,15 @@ struct ConvertDecryptOp : public OpConversionPattern<lwe::RLWEDecryptOp> {
 };
 
 struct ConvertEncodeOp : public OpConversionPattern<lwe::RLWEEncodeOp> {
-  explicit ConvertEncodeOp(const mlir::TypeConverter &typeConverter,
-                           mlir::MLIRContext *context)
+  explicit ConvertEncodeOp(const mlir::TypeConverter& typeConverter,
+                           mlir::MLIRContext* context)
       : mlir::OpConversionPattern<lwe::RLWEEncodeOp>(typeConverter, context) {}
 
   // OpenFHE has a convention that all inputs to MakePackedPlaintext are
   // std::vector<int64_t>, so we need to cast the input to that type.
   LogicalResult matchAndRewrite(
       lwe::RLWEEncodeOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
     if (failed(result)) return result;
     Value cryptoContext = result.value();
@@ -257,14 +257,14 @@ struct ConvertEncodeOp : public OpConversionPattern<lwe::RLWEEncodeOp> {
 };
 
 struct ConvertBootstrapOp : public OpConversionPattern<ckks::BootstrapOp> {
-  ConvertBootstrapOp(mlir::MLIRContext *context)
+  ConvertBootstrapOp(mlir::MLIRContext* context)
       : OpConversionPattern<ckks::BootstrapOp>(context) {}
 
   using OpConversionPattern<ckks::BootstrapOp>::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       ckks::BootstrapOp op, ckks::BootstrapOp::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
     if (failed(result)) return result;
 
@@ -289,7 +289,7 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
 
   void saveFuncCallOpDialectAttrs() {
     funcCallOpDialectAttrs.clear();
-    auto *module = getOperation();
+    auto* module = getOperation();
     module->walk([&](func::CallOp callOp) {
       SmallVector<NamedAttribute> dialectAttrs;
       for (auto namedAttr : callOp->getDialectAttrs()) {
@@ -300,8 +300,8 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
   }
 
   void restoreFuncCallOpDialectAttrs() {
-    auto *module = getOperation();
-    auto *funcCallOpDialectAttrsIter = funcCallOpDialectAttrs.begin();
+    auto* module = getOperation();
+    auto* funcCallOpDialectAttrsIter = funcCallOpDialectAttrs.begin();
     module->walk([&](func::CallOp callOp) {
       callOp->setDialectAttrs(*funcCallOpDialectAttrsIter);
       ++funcCallOpDialectAttrsIter;
@@ -312,8 +312,8 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
     // Save the dialect attributes of func::CallOp before conversion.
     saveFuncCallOpDialectAttrs();
 
-    MLIRContext *context = &getContext();
-    auto *module = getOperation();
+    MLIRContext* context = &getContext();
+    auto* module = getOperation();
     ToOpenfheTypeConverter typeConverter(context);
 
     ConversionTarget target(*context);

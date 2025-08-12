@@ -50,7 +50,7 @@ class CiphertextTypeConverter : public TypeConverter {
   // single polynomial and not a tensor of higher dimensions. We may support
   // higher dimensions in the future (for schemes such as TFHE).
   // TODO(#1199): properly lower LWEType (often RNS) to PolynomialType.
-  CiphertextTypeConverter(MLIRContext *ctx) {
+  CiphertextTypeConverter(MLIRContext* ctx) {
     addConversion([](Type type) { return type; });
     addConversion([](lwe::LWECiphertextType type) -> Type {
       return convertCiphertextType(type);
@@ -94,14 +94,14 @@ class CiphertextTypeConverter : public TypeConverter {
 };
 
 struct ConvertRLWEDecrypt : public OpConversionPattern<RLWEDecryptOp> {
-  ConvertRLWEDecrypt(mlir::MLIRContext *context)
+  ConvertRLWEDecrypt(mlir::MLIRContext* context)
       : OpConversionPattern<RLWEDecryptOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       RLWEDecryptOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     auto loc = op.getLoc();
     auto input = adaptor.getInput();
     auto secretKey = adaptor.getSecretKey();
@@ -151,14 +151,14 @@ struct ConvertRLWEDecrypt : public OpConversionPattern<RLWEDecryptOp> {
 };
 
 struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
-  ConvertRLWEEncrypt(mlir::MLIRContext *context)
+  ConvertRLWEEncrypt(mlir::MLIRContext* context)
       : OpConversionPattern<RLWEEncryptOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       RLWEEncryptOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     auto loc = op.getLoc();
     auto input = adaptor.getInput();
     auto key = adaptor.getKey();
@@ -311,14 +311,14 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
 };
 
 struct ConvertRAdd : public OpConversionPattern<RAddOp> {
-  ConvertRAdd(mlir::MLIRContext *context)
+  ConvertRAdd(mlir::MLIRContext* context)
       : OpConversionPattern<RAddOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       RAddOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     rewriter.replaceOpWithNewOp<polynomial::AddOp>(op, adaptor.getOperands()[0],
                                                    adaptor.getOperands()[1]);
     return success();
@@ -326,14 +326,14 @@ struct ConvertRAdd : public OpConversionPattern<RAddOp> {
 };
 
 struct ConvertRAddPlain : public OpConversionPattern<RAddPlainOp> {
-  ConvertRAddPlain(mlir::MLIRContext *context)
+  ConvertRAddPlain(mlir::MLIRContext* context)
       : OpConversionPattern<RAddPlainOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       RAddPlainOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     rewriter.replaceOpWithNewOp<polynomial::AddOp>(op, adaptor.getOperands()[0],
                                                    adaptor.getOperands()[1]);
     return success();
@@ -341,14 +341,14 @@ struct ConvertRAddPlain : public OpConversionPattern<RAddPlainOp> {
 };
 
 struct ConvertRSub : public OpConversionPattern<RSubOp> {
-  ConvertRSub(mlir::MLIRContext *context)
+  ConvertRSub(mlir::MLIRContext* context)
       : OpConversionPattern<RSubOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       RSubOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     rewriter.replaceOpWithNewOp<polynomial::SubOp>(op, adaptor.getLhs(),
                                                    adaptor.getRhs());
     return success();
@@ -356,14 +356,14 @@ struct ConvertRSub : public OpConversionPattern<RSubOp> {
 };
 
 struct ConvertRSubPlain : public OpConversionPattern<RSubPlainOp> {
-  ConvertRSubPlain(mlir::MLIRContext *context)
+  ConvertRSubPlain(mlir::MLIRContext* context)
       : OpConversionPattern<RSubPlainOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       RSubPlainOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     rewriter.replaceOpWithNewOp<polynomial::SubOp>(op, adaptor.getLhs(),
                                                    adaptor.getRhs());
     return success();
@@ -371,14 +371,14 @@ struct ConvertRSubPlain : public OpConversionPattern<RSubPlainOp> {
 };
 
 struct ConvertRNegate : public OpConversionPattern<RNegateOp> {
-  ConvertRNegate(mlir::MLIRContext *context)
+  ConvertRNegate(mlir::MLIRContext* context)
       : OpConversionPattern<RNegateOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       RNegateOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     auto loc = op.getLoc();
     auto arg = adaptor.getOperands()[0];
     polynomial::PolynomialType polyType = cast<polynomial::PolynomialType>(
@@ -411,14 +411,14 @@ struct ConvertRNegate : public OpConversionPattern<RNegateOp> {
 };
 
 struct ConvertRMul : public OpConversionPattern<RMulOp> {
-  ConvertRMul(mlir::MLIRContext *context)
+  ConvertRMul(mlir::MLIRContext* context)
       : OpConversionPattern<RMulOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       RMulOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     auto x = adaptor.getLhs();
     auto xT = cast<RankedTensorType>(x.getType());
     auto y = adaptor.getRhs();
@@ -464,14 +464,14 @@ struct ConvertRMul : public OpConversionPattern<RMulOp> {
 };
 
 struct ConvertRMulPlain : public OpConversionPattern<RMulPlainOp> {
-  ConvertRMulPlain(mlir::MLIRContext *context)
+  ConvertRMulPlain(mlir::MLIRContext* context)
       : OpConversionPattern<RMulPlainOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       RMulPlainOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     auto x = adaptor.getLhs();
     auto xT = cast<RankedTensorType>(x.getType());
     auto y = adaptor.getRhs();
@@ -496,14 +496,14 @@ struct ConvertRMulPlain : public OpConversionPattern<RMulPlainOp> {
 };
 
 struct ConvertRelin : public OpConversionPattern<ckks::RelinearizeOp> {
-  ConvertRelin(mlir::MLIRContext *context)
+  ConvertRelin(mlir::MLIRContext* context)
       : OpConversionPattern<ckks::RelinearizeOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       ckks::RelinearizeOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     if (!op.getKeySwitchingKey()) {
       return failure();
     }
@@ -537,8 +537,8 @@ struct ConvertRelin : public OpConversionPattern<ckks::RelinearizeOp> {
 
 struct LWEToPolynomial : public impl::LWEToPolynomialBase<LWEToPolynomial> {
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
-    auto *module = getOperation();
+    MLIRContext* context = &getContext();
+    auto* module = getOperation();
     CiphertextTypeConverter typeConverter(context);
 
     ConversionTarget target(*context);

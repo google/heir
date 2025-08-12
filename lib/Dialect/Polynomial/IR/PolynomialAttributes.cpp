@@ -22,11 +22,11 @@ namespace mlir {
 namespace heir {
 namespace polynomial {
 
-void IntPolynomialAttr::print(AsmPrinter &p) const {
+void IntPolynomialAttr::print(AsmPrinter& p) const {
   p << '<' << getPolynomial() << '>';
 }
 
-void FloatPolynomialAttr::print(AsmPrinter &p) const {
+void FloatPolynomialAttr::print(AsmPrinter& p) const {
   p << '<' << getPolynomial() << '>';
 }
 
@@ -34,7 +34,7 @@ void FloatPolynomialAttr::print(AsmPrinter &p) const {
 /// given monomial type, and stores the parsed coefficient value on the
 /// monomial.
 template <typename MonomialType>
-using ParseCoefficientFn = std::function<OptionalParseResult(MonomialType &)>;
+using ParseCoefficientFn = std::function<OptionalParseResult(MonomialType&)>;
 
 /// Try to parse a monomial. If successful, populate the fields of the outparam
 /// `monomial` with the results, and the `variable` outparam with the parsed
@@ -43,8 +43,8 @@ using ParseCoefficientFn = std::function<OptionalParseResult(MonomialType &)>;
 ///
 template <typename Monomial>
 ParseResult parseMonomial(
-    AsmParser &parser, Monomial &monomial, llvm::StringRef &variable,
-    bool &isConstantTerm, bool &shouldParseMore,
+    AsmParser& parser, Monomial& monomial, llvm::StringRef& variable,
+    bool& isConstantTerm, bool& shouldParseMore,
     ParseCoefficientFn<Monomial> parseAndStoreCoefficient) {
   OptionalParseResult parsedCoeffResult = parseAndStoreCoefficient(monomial);
 
@@ -107,8 +107,8 @@ ParseResult parseMonomial(
 
 template <typename Monomial>
 LogicalResult parsePolynomialAttr(
-    AsmParser &parser, llvm::SmallVector<Monomial> &monomials,
-    llvm::StringSet<> &variables,
+    AsmParser& parser, llvm::SmallVector<Monomial>& monomials,
+    llvm::StringSet<>& variables,
     ParseCoefficientFn<Monomial> parseAndStoreCoefficient) {
   while (true) {
     Monomial parsedMonomial;
@@ -151,7 +151,7 @@ LogicalResult parsePolynomialAttr(
   return success();
 }
 
-Attribute IntPolynomialAttr::parse(AsmParser &parser, Type type) {
+Attribute IntPolynomialAttr::parse(AsmParser& parser, Type type) {
   if (failed(parser.parseLess())) return {};
 
   llvm::SmallVector<IntMonomial> monomials;
@@ -159,7 +159,7 @@ Attribute IntPolynomialAttr::parse(AsmParser &parser, Type type) {
 
   if (failed(parsePolynomialAttr<IntMonomial>(
           parser, monomials, variables,
-          [&](IntMonomial &monomial) -> OptionalParseResult {
+          [&](IntMonomial& monomial) -> OptionalParseResult {
             APInt parsedCoeff(apintBitWidth, 1);
             OptionalParseResult result =
                 parser.parseOptionalInteger(parsedCoeff);
@@ -177,14 +177,14 @@ Attribute IntPolynomialAttr::parse(AsmParser &parser, Type type) {
   }
   return IntPolynomialAttr::get(parser.getContext(), result.value());
 }
-Attribute FloatPolynomialAttr::parse(AsmParser &parser, Type type) {
+Attribute FloatPolynomialAttr::parse(AsmParser& parser, Type type) {
   if (failed(parser.parseLess())) return {};
 
   llvm::SmallVector<FloatMonomial> monomials;
   llvm::StringSet<> variables;
 
   ParseCoefficientFn<FloatMonomial> parseAndStoreCoefficient =
-      [&](FloatMonomial &monomial) -> OptionalParseResult {
+      [&](FloatMonomial& monomial) -> OptionalParseResult {
     double coeffValue = 1.0;
     ParseResult result = parser.parseFloat(coeffValue);
     monomial.setCoefficient(APFloat(coeffValue));
@@ -205,7 +205,7 @@ Attribute FloatPolynomialAttr::parse(AsmParser &parser, Type type) {
   return FloatPolynomialAttr::get(parser.getContext(), result.value());
 }
 
-void RingAttr::getAliasSuffix(raw_ostream &os) const {
+void RingAttr::getAliasSuffix(raw_ostream& os) const {
   SmallString<32> nameBuffer;
   llvm::raw_svector_ostream nameStream(nameBuffer);
 
@@ -226,7 +226,7 @@ void RingAttr::getAliasSuffix(raw_ostream &os) const {
 }
 
 ::mlir::OpAsmDialectInterface::AliasResult RingAttr::getAlias(
-    ::llvm::raw_ostream &os) const {
+    ::llvm::raw_ostream& os) const {
   using AliasResult = ::mlir::OpAsmDialectInterface::AliasResult;
   os << "ring_";
 

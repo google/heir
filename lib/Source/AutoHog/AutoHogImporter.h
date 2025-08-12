@@ -41,8 +41,8 @@ struct Port {
 void registerFromAutoHogTranslation();
 
 /// Translates the given operation from AutoHog.
-OwningOpRef<Operation *> translateFromAutoHog(llvm::StringRef inputString,
-                                              MLIRContext *context);
+OwningOpRef<Operation*> translateFromAutoHog(llvm::StringRef inputString,
+                                             MLIRContext* context);
 
 }  // namespace heir
 }  // namespace mlir

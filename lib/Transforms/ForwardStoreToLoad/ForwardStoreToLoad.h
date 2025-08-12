@@ -21,36 +21,36 @@ namespace heir {
 
 // Find a memref load and try to forward the most recent store op.
 struct ForwardSingleStoreToLoad : public OpRewritePattern<memref::LoadOp> {
-  ForwardSingleStoreToLoad(mlir::MLIRContext *context, DominanceInfo &dom)
+  ForwardSingleStoreToLoad(mlir::MLIRContext* context, DominanceInfo& dom)
       : OpRewritePattern<memref::LoadOp>(context, /*benefit=*/3),
         dominanceInfo(dom) {}
 
  public:
   LogicalResult matchAndRewrite(memref::LoadOp op,
-                                PatternRewriter &rewriter) const override;
+                                PatternRewriter& rewriter) const override;
 
  private:
   // Updates an internal cache with results of this query so they can be used
   // recursively.
-  bool isForwardableOp(Operation *potentialStore, memref::LoadOp &loadOp) const;
+  bool isForwardableOp(Operation* potentialStore, memref::LoadOp& loadOp) const;
 
-  DominanceInfo &dominanceInfo;
+  DominanceInfo& dominanceInfo;
 };
 
 // Perform unused store elimination
 struct RemoveUnusedStore : public OpRewritePattern<memref::StoreOp> {
-  RemoveUnusedStore(mlir::MLIRContext *context, DominanceInfo &dom)
+  RemoveUnusedStore(mlir::MLIRContext* context, DominanceInfo& dom)
       : OpRewritePattern<memref::StoreOp>(context, /*benefit=*/3),
         dominanceInfo(dom) {}
 
  public:
   LogicalResult matchAndRewrite(memref::StoreOp op,
-                                PatternRewriter &rewriter) const override;
+                                PatternRewriter& rewriter) const override;
 
  private:
-  bool isPostDominated(Operation *potentialOp, memref::StoreOp &storeOp) const;
+  bool isPostDominated(Operation* potentialOp, memref::StoreOp& storeOp) const;
 
-  DominanceInfo &dominanceInfo;
+  DominanceInfo& dominanceInfo;
 };
 
 }  // namespace heir

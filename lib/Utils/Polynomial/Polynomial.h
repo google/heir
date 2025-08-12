@@ -32,29 +32,29 @@ constexpr unsigned apintBitWidth = 64;
 template <class Derived, typename CoefficientType>
 class MonomialBase {
  public:
-  MonomialBase(const CoefficientType &coeff, const APInt &expo)
+  MonomialBase(const CoefficientType& coeff, const APInt& expo)
       : coefficient(coeff), exponent(expo) {}
   virtual ~MonomialBase() = default;
 
-  const CoefficientType &getCoefficient() const { return coefficient; }
-  CoefficientType &getMutableCoefficient() { return coefficient; }
-  const APInt &getExponent() const { return exponent; }
-  void setCoefficient(const CoefficientType &coeff) { coefficient = coeff; }
-  void setExponent(const APInt &exp) { exponent = exp; }
+  const CoefficientType& getCoefficient() const { return coefficient; }
+  CoefficientType& getMutableCoefficient() { return coefficient; }
+  const APInt& getExponent() const { return exponent; }
+  void setCoefficient(const CoefficientType& coeff) { coefficient = coeff; }
+  void setExponent(const APInt& exp) { exponent = exp; }
 
-  bool operator==(const MonomialBase &other) const {
+  bool operator==(const MonomialBase& other) const {
     return other.coefficient == coefficient && other.exponent == exponent;
   }
-  bool operator!=(const MonomialBase &other) const {
+  bool operator!=(const MonomialBase& other) const {
     return other.coefficient != coefficient || other.exponent != exponent;
   }
 
   /// Monomials are ordered by exponent.
-  bool operator<(const MonomialBase &other) const {
+  bool operator<(const MonomialBase& other) const {
     return (exponent.ult(other.exponent));
   }
 
-  Derived add(const Derived &other) const {
+  Derived add(const Derived& other) const {
     assert(exponent == other.exponent);
     CoefficientType newCoeff = coefficient + other.coefficient;
     Derived result;
@@ -63,7 +63,7 @@ class MonomialBase {
     return result;
   }
 
-  Derived scale(const CoefficientType &scalar) const {
+  Derived scale(const CoefficientType& scalar) const {
     CoefficientType newCoeff = coefficient * scalar;
     Derived result;
     result.setCoefficient(newCoeff);
@@ -74,10 +74,10 @@ class MonomialBase {
   virtual bool isMonic() const = 0;
 
   virtual void coefficientToString(
-      llvm::SmallString<16> &coeffString) const = 0;
+      llvm::SmallString<16>& coeffString) const = 0;
 
   template <class D, typename T>
-  friend ::llvm::hash_code hash_value(const MonomialBase<D, T> &arg);
+  friend ::llvm::hash_code hash_value(const MonomialBase<D, T>& arg);
 
  protected:
   CoefficientType coefficient;
@@ -98,7 +98,7 @@ class IntMonomial : public MonomialBase<IntMonomial, APInt> {
 
   bool isMonic() const override { return coefficient == 1; }
 
-  void coefficientToString(llvm::SmallString<16> &coeffString) const override {
+  void coefficientToString(llvm::SmallString<16>& coeffString) const override {
     coefficient.toStringSigned(coeffString);
   }
 };
@@ -116,7 +116,7 @@ class FloatMonomial : public MonomialBase<FloatMonomial, APFloat> {
 
   bool isMonic() const override { return coefficient == APFloat(1.0); }
 
-  void coefficientToString(llvm::SmallString<16> &coeffString) const override {
+  void coefficientToString(llvm::SmallString<16>& coeffString) const override {
     coefficient.toString(coeffString);
   }
 };
@@ -130,17 +130,17 @@ class PolynomialBase {
   explicit PolynomialBase(ArrayRef<Monomial> terms) : terms(terms) {}
 
   explicit operator bool() const { return !terms.empty(); }
-  bool operator==(const PolynomialBase &other) const {
+  bool operator==(const PolynomialBase& other) const {
     return other.terms == terms;
   }
-  bool operator!=(const PolynomialBase &other) const {
+  bool operator!=(const PolynomialBase& other) const {
     return !(other.terms == terms);
   }
 
-  void print(raw_ostream &os, ::llvm::StringRef separator,
+  void print(raw_ostream& os, ::llvm::StringRef separator,
              ::llvm::StringRef exponentiation) const {
     bool first = true;
-    for (const Monomial &term : getTerms()) {
+    for (const Monomial& term : getTerms()) {
       if (first) {
         first = false;
       } else {
@@ -178,7 +178,7 @@ class PolynomialBase {
     }
   }
 
-  Derived add(const Derived &other) const {
+  Derived add(const Derived& other) const {
     SmallVector<Monomial> newTerms;
     auto it1 = terms.begin();
     auto it2 = other.terms.begin();
@@ -218,7 +218,7 @@ class PolynomialBase {
     return Derived(newTerms);
   }
 
-  Derived naiveMul(const Derived &other) const {
+  Derived naiveMul(const Derived& other) const {
     SmallVector<Monomial> newTerms;
     size_t maxDegree = getDegree() + other.getDegree();
     newTerms.reserve(maxDegree + 1);
@@ -249,7 +249,7 @@ class PolynomialBase {
   }
 
   // Compose two polynomials this(other)
-  Derived compose(const Derived &other) const {
+  Derived compose(const Derived& other) const {
     // This = a_0 + a_1x + ... + a_nx^n
     // Other = b_0 + b_1x + ... + b_mx^m
 
@@ -286,7 +286,7 @@ class PolynomialBase {
 
   Derived monomialMul(int exponent) const {
     SmallVector<Monomial> newTerms;
-    for (auto &term : getTerms()) {
+    for (auto& term : getTerms()) {
       Monomial newMonomial;
       newMonomial.setCoefficient(term.getCoefficient());
       newMonomial.setExponent(term.getExponent() + exponent);
@@ -297,16 +297,16 @@ class PolynomialBase {
 
   Derived scale(CoefficientType scalar) const {
     SmallVector<Monomial> newTerms;
-    for (auto &term : getTerms()) {
+    for (auto& term : getTerms()) {
       newTerms.emplace_back(term.scale(scalar));
     }
     return Derived(newTerms);
   }
 
-  virtual Derived sub(const Derived &other) const = 0;
+  virtual Derived sub(const Derived& other) const = 0;
 
   // Prints polynomial to 'os'.
-  void print(raw_ostream &os) const { print(os, " + ", "**"); }
+  void print(raw_ostream& os) const { print(os, " + ", "**"); }
 
   void dump() const {
     std::string result;
@@ -338,7 +338,7 @@ class PolynomialBase {
   ArrayRef<Monomial> getTerms() const { return terms; }
 
   template <class D, typename T, typename C>
-  friend ::llvm::hash_code hash_value(const PolynomialBase<D, T, C> &arg);
+  friend ::llvm::hash_code hash_value(const PolynomialBase<D, T, C>& arg);
 
  private:
   // The monomial terms for this polynomial.
@@ -362,7 +362,7 @@ class IntPolynomial final
   /// coeffs[i] is converted to a monomial with exponent i.
   static IntPolynomial fromCoefficients(ArrayRef<int64_t> coeffs);
 
-  IntPolynomial sub(const IntPolynomial &other) const override {
+  IntPolynomial sub(const IntPolynomial& other) const override {
     return add(other.scale(APInt(apintBitWidth, -1)));
   }
 };
@@ -385,26 +385,26 @@ class FloatPolynomial final
   /// coeffs[i] is converted to a monomial with exponent i.
   static FloatPolynomial fromCoefficients(ArrayRef<double> coeffs);
 
-  FloatPolynomial sub(const FloatPolynomial &other) const override {
+  FloatPolynomial sub(const FloatPolynomial& other) const override {
     return add(other.scale(APFloat(-1.)));
   }
 };
 
 // Make Polynomials hashable.
 template <class D, typename T, typename C>
-inline ::llvm::hash_code hash_value(const PolynomialBase<D, T, C> &arg) {
+inline ::llvm::hash_code hash_value(const PolynomialBase<D, T, C>& arg) {
   return ::llvm::hash_combine_range(arg.terms.begin(), arg.terms.end());
 }
 
 template <class D, typename T>
-inline ::llvm::hash_code hash_value(const MonomialBase<D, T> &arg) {
+inline ::llvm::hash_code hash_value(const MonomialBase<D, T>& arg) {
   return llvm::hash_combine(::llvm::hash_value(arg.coefficient),
                             ::llvm::hash_value(arg.exponent));
 }
 
 template <class D, typename T, typename C>
-inline raw_ostream &operator<<(raw_ostream &os,
-                               const PolynomialBase<D, T, C> &polynomial) {
+inline raw_ostream& operator<<(raw_ostream& os,
+                               const PolynomialBase<D, T, C>& polynomial) {
   polynomial.print(os);
   return os;
 }

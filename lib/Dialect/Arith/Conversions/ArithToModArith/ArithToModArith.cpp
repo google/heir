@@ -62,7 +62,7 @@ static Type convertArithLikeType(ShapedType type, int64_t modulus) {
 }
 
 static auto buildLoadOps(int64_t modulus) {
-  return [=](OpBuilder &builder, Type resultTypes, ValueRange inputs,
+  return [=](OpBuilder& builder, Type resultTypes, ValueRange inputs,
              Location loc) -> Value {
     auto b = ImplicitLocOpBuilder(loc, builder);
 
@@ -71,7 +71,7 @@ static auto buildLoadOps(int64_t modulus) {
 
     if (!loadOp) return {};
 
-    auto *globaMemReflOp = loadOp.getMemRef().getDefiningOp();
+    auto* globaMemReflOp = loadOp.getMemRef().getDefiningOp();
 
     if (!globaMemReflOp) return {};
 
@@ -86,7 +86,7 @@ static auto buildLoadOps(int64_t modulus) {
 
 class ArithToModArithTypeConverter : public TypeConverter {
  public:
-  ArithToModArithTypeConverter(MLIRContext *ctx, int64_t modulus) {
+  ArithToModArithTypeConverter(MLIRContext* ctx, int64_t modulus) {
     addConversion([](Type type) { return type; });
     addConversion([=](IntegerType type) -> mod_arith::ModArithType {
       return convertArithType(type, modulus);
@@ -99,14 +99,14 @@ class ArithToModArithTypeConverter : public TypeConverter {
 };
 
 struct ConvertConstant : public OpConversionPattern<mlir::arith::ConstantOp> {
-  ConvertConstant(mlir::MLIRContext *context)
+  ConvertConstant(mlir::MLIRContext* context)
       : OpConversionPattern<mlir::arith::ConstantOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       ::mlir::arith::ConstantOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     if (isa<IndexType>(op.getValue().getType())) {
@@ -123,7 +123,7 @@ struct ConvertConstant : public OpConversionPattern<mlir::arith::ConstantOp> {
     if (auto denseIntAttr = dyn_cast<DenseIntElementsAttr>(op.getValue())) {
       auto shapedType = cast<ShapedType>(newResultType);
       SmallVector<APInt, 4> newValues;
-      for (const APInt &val : denseIntAttr.getValues<APInt>()) {
+      for (const APInt& val : denseIntAttr.getValues<APInt>()) {
         newValues.push_back(val.sextOrTrunc(newWidth));
       }
       TypedAttr newAttr = DenseIntElementsAttr::get(
@@ -144,14 +144,14 @@ struct ConvertConstant : public OpConversionPattern<mlir::arith::ConstantOp> {
 };
 
 struct ConvertExtSI : public OpConversionPattern<mlir::arith::ExtSIOp> {
-  ConvertExtSI(mlir::MLIRContext *context)
+  ConvertExtSI(mlir::MLIRContext* context)
       : OpConversionPattern<mlir::arith::ExtSIOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       ::mlir::arith::ExtSIOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     auto result = mod_arith::ModSwitchOp::create(
@@ -163,14 +163,14 @@ struct ConvertExtSI : public OpConversionPattern<mlir::arith::ExtSIOp> {
 };
 
 struct ConvertExtUI : public OpConversionPattern<mlir::arith::ExtUIOp> {
-  ConvertExtUI(mlir::MLIRContext *context)
+  ConvertExtUI(mlir::MLIRContext* context)
       : OpConversionPattern<mlir::arith::ExtUIOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       ::mlir::arith::ExtUIOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     auto result = mod_arith::ModSwitchOp::create(
@@ -182,14 +182,14 @@ struct ConvertExtUI : public OpConversionPattern<mlir::arith::ExtUIOp> {
 };
 
 struct ConvertLoadOp : public OpConversionPattern<mlir::memref::LoadOp> {
-  ConvertLoadOp(mlir::MLIRContext *context)
+  ConvertLoadOp(mlir::MLIRContext* context)
       : OpConversionPattern<mlir::memref::LoadOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       ::mlir::memref::LoadOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     auto defineOp = op.getMemRef().getDefiningOp();
@@ -217,7 +217,7 @@ struct ArithToModArith : impl::ArithToModArithBase<ArithToModArith> {
 };
 
 void ArithToModArith::runOnOperation() {
-  MLIRContext *context = &getContext();
+  MLIRContext* context = &getContext();
   ModuleOp module = getOperation();
   ArithToModArithTypeConverter typeConverter(context, modulus);
 
@@ -231,16 +231,16 @@ void ArithToModArith::runOnOperation() {
       });
   target.addDynamicallyLegalOp<mlir::arith::AddIOp, mlir::arith::SubIOp,
                                mlir::arith::MulIOp, mlir::arith::RemUIOp>(
-      [](Operation *op) {
+      [](Operation* op) {
         return isa<IndexType>(op->getOperand(0).getType());
       });
 
-  target.addDynamicallyLegalOp<memref::LoadOp>([&](Operation *op) {
+  target.addDynamicallyLegalOp<memref::LoadOp>([&](Operation* op) {
     auto users = cast<memref::LoadOp>(op).getResult().getUsers();
     if (cast<memref::LoadOp>(op).getResult().getDefiningOp()) {
       if (isa<memref::GetGlobalOp>(
               cast<memref::LoadOp>(op).getResult().getDefiningOp())) {
-        auto detectable = llvm::any_of(users, [](Operation *user) {
+        auto detectable = llvm::any_of(users, [](Operation* user) {
           return isa<mod_arith::EncapsulateOp>(user);
         });
         return detectable;
@@ -257,7 +257,7 @@ void ArithToModArith::runOnOperation() {
       tensor::ExtractSliceOp, tensor::InsertOp, tensor::ExpandShapeOp,
       tensor::ConcatOp, affine::AffineStoreOp, affine::AffineLoadOp,
       affine::AffineForOp, affine::AffineYieldOp, tensor_ext::RotateOp>(
-      [&](Operation *op) {
+      [&](Operation* op) {
         return typeConverter.isLegal(op->getOperandTypes()) &&
                typeConverter.isLegal(op->getResultTypes());
       });

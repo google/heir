@@ -51,7 +51,7 @@ constexpr const static StringLiteral kKernelAttrName =
 
 namespace {
 
-auto &kLayoutAttrName = tensor_ext::TensorExtDialect::kLayoutAttrName;
+auto& kLayoutAttrName = tensor_ext::TensorExtDialect::kLayoutAttrName;
 
 using Cost = int64_t;
 
@@ -73,27 +73,27 @@ struct LayoutOptimization : impl::LayoutOptimizationBase<LayoutOptimization> {
   using LayoutOptimizationBase::LayoutOptimizationBase;
 
   enum OpHoistResult { UNHOISTABLE, SUCCESS, FAILURE };
-  OpHoistResult hoistOp(Operation *op, IRRewriter &builder);
+  OpHoistResult hoistOp(Operation* op, IRRewriter& builder);
 
   std::vector<HoistOption> computeHoistingOptions(
-      Operation *op, ConvertLayoutOp convertLayoutOp);
+      Operation* op, ConvertLayoutOp convertLayoutOp);
 
   // Computes cost of changed operand.
-  OperandChange costOfChangedOperand(OpOperand &operand, Operation *kernel,
+  OperandChange costOfChangedOperand(OpOperand& operand, Operation* kernel,
                                      LayoutAttr newLayout);
 
   // Computes cost of changed result.
-  Cost costOfChangedResult(Operation *kernel, LayoutAttr newLayout);
+  Cost costOfChangedResult(Operation* kernel, LayoutAttr newLayout);
 
   void runOnOperation() override;
 };
 
 void LayoutOptimization::runOnOperation() {
-  auto *ctx = &getContext();
+  auto* ctx = &getContext();
   IRRewriter builder(ctx);
   WalkResult result =
       getOperation()->walk<WalkOrder::PreOrder, ReverseIterator>(
-          [&](Operation *op) {
+          [&](Operation* op) {
             if (auto hoistable =
                     dyn_cast<LayoutConversionHoistableOpInterface>(op)) {
               // TODO(#1888): figure out how to get OpInterface verifier to run
@@ -136,7 +136,7 @@ void LayoutOptimization::runOnOperation() {
 };
 
 LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
-    Operation *op, IRRewriter &builder) {
+    Operation* op, IRRewriter& builder) {
   if (isa<ConvertLayoutOp>(op)) {
     // Folders will canonicalize any hoistable convert layout ops.
     return UNHOISTABLE;
@@ -155,7 +155,7 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
 
   // Check if any results are converted directly after.
   SmallVector<ConvertLayoutOp> resultLayoutConversions;
-  for (auto *user : op->getResult(0).getUsers()) {
+  for (auto* user : op->getResult(0).getUsers()) {
     if (auto convertLayoutOp = dyn_cast<ConvertLayoutOp>(user)) {
       resultLayoutConversions.push_back(convertLayoutOp);
     }
@@ -173,7 +173,7 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
   SmallVector<HoistOption> hoistingOptions;
   for (auto resultLayoutConversion : resultLayoutConversions) {
     auto options = computeHoistingOptions(op, resultLayoutConversion);
-    for (auto &option : options) {
+    for (auto& option : options) {
       LLVM_DEBUG(llvm::dbgs()
                  << "\tHoisting layout " << option.hoistResult.newOutputLayout
                  << " via kernel " << option.hoistResult.newKernel
@@ -198,8 +198,8 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
   }
 
   // Select the least costly layout conversion to hoist.
-  auto *minHoistingCost = llvm::min_element(
-      hoistingOptions, [](const HoistOption &a, const HoistOption &b) {
+  auto* minHoistingCost = llvm::min_element(
+      hoistingOptions, [](const HoistOption& a, const HoistOption& b) {
         return a.cost < b.cost;
       });
 
@@ -234,7 +234,7 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
         builder, op->getLoc(), operand,
         cast<LayoutAttr>(originalLayout.value()), newInputLayout);
     newInput->setAttr(kLayoutAttrName, newInputLayout);
-    builder.replaceUsesWithIf(operand, newInput, [&](OpOperand &operand) {
+    builder.replaceUsesWithIf(operand, newInput, [&](OpOperand& operand) {
       return operand.getOwner() == op;
     });
   }
@@ -249,7 +249,7 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
 
   // Ensure that any other convert_layout ops have their from_layouts updated.
   // Update downstream ops.
-  for (auto *user : op->getResult(0).getUsers()) {
+  for (auto* user : op->getResult(0).getUsers()) {
     if (auto convertLayoutOp = dyn_cast<ConvertLayoutOp>(user)) {
       // Update any convert_layout uses of the op result.
       convertLayoutOp.setFromLayoutAttr(newOutputLayout);
@@ -260,8 +260,8 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
   return SUCCESS;
 }
 
-OperandChange LayoutOptimization::costOfChangedOperand(OpOperand &operand,
-                                                       Operation *kernel,
+OperandChange LayoutOptimization::costOfChangedOperand(OpOperand& operand,
+                                                       Operation* kernel,
                                                        LayoutAttr newLayout) {
   auto value = operand.get();
 
@@ -292,10 +292,10 @@ OperandChange LayoutOptimization::costOfChangedOperand(OpOperand &operand,
                            value, ciphertextSize, originalLayout, newLayout)};
 }
 
-Cost LayoutOptimization::costOfChangedResult(Operation *kernel,
+Cost LayoutOptimization::costOfChangedResult(Operation* kernel,
                                              LayoutAttr newLayout) {
   Cost totalCost = 0;
-  for (auto *user : kernel->getResult(0).getUsers()) {
+  for (auto* user : kernel->getResult(0).getUsers()) {
     if (auto convertLayoutOp = dyn_cast<ConvertLayoutOp>(user)) {
       auto currentValue = convertLayoutOp.getValue();
       Cost originalConversion = computeCostOfLayoutConversion(
@@ -310,14 +310,14 @@ Cost LayoutOptimization::costOfChangedResult(Operation *kernel,
   return totalCost;
 }
 
-static Cost costOfKernelChange(Operation *op, KernelName oldKernel,
-                               const HoistResult &hoistResult) {
+static Cost costOfKernelChange(Operation* op, KernelName oldKernel,
+                               const HoistResult& hoistResult) {
   // TODO(#1888): add the cost of a kernel change.
   return 0;
 }
 
 std::vector<HoistOption> LayoutOptimization::computeHoistingOptions(
-    Operation *op, ConvertLayoutOp convertLayoutOp) {
+    Operation* op, ConvertLayoutOp convertLayoutOp) {
   LayoutConversionHoistableOpInterface hoistableInterface =
       dyn_cast<LayoutConversionHoistableOpInterface>(op);
 
@@ -333,7 +333,7 @@ std::vector<HoistOption> LayoutOptimization::computeHoistingOptions(
                           << " hoisting options for " << *op << "\n");
 
   std::vector<HoistResult> results;
-  for (auto &hoister : hoisters) {
+  for (auto& hoister : hoisters) {
     auto result = hoister(convertLayoutOp);
     if (failed(result)) {
       continue;
@@ -347,19 +347,19 @@ std::vector<HoistOption> LayoutOptimization::computeHoistingOptions(
   auto outputLayout = convertLayoutOp.getToLayout();
   KernelAttr oldKernel = op->getAttrOfType<KernelAttr>(kKernelAttrName);
   std::vector<HoistOption> options;
-  for (HoistResult &result : results) {
-    HoistOption &option = options.emplace_back();
+  for (HoistResult& result : results) {
+    HoistOption& option = options.emplace_back();
     option.hoistResult = result;
     option.cost = 0;
     // A map is used to deduplicate operand changes.
     DenseMap<std::tuple<Value, LayoutAttr, LayoutAttr>, Cost> operandChangeMap;
-    for (auto &operand : op->getOpOperands()) {
+    for (auto& operand : op->getOpOperands()) {
       auto computedCost = costOfChangedOperand(operand, op, outputLayout);
       operandChangeMap[std::make_tuple(operand.get(), computedCost.fromLayout,
                                        computedCost.toLayout)] =
           computedCost.cost;
     }
-    for (auto &[_, cost] : operandChangeMap) {
+    for (auto& [_, cost] : operandChangeMap) {
       option.cost += cost;
     }
     option.cost += costOfChangedResult(op, outputLayout);

@@ -16,21 +16,21 @@ namespace tfhe_rust {
 
 struct HoistGenerateLookupTable
     : public OpRewritePattern<GenerateLookupTableOp> {
-  HoistGenerateLookupTable(mlir::MLIRContext *context)
+  HoistGenerateLookupTable(mlir::MLIRContext* context)
       : OpRewritePattern<GenerateLookupTableOp>(context, /*benefit=*/1) {}
 
  public:
   LogicalResult matchAndRewrite(GenerateLookupTableOp op,
-                                PatternRewriter &rewriter) const override;
+                                PatternRewriter& rewriter) const override;
 };
 
 struct HoistCreateTrivial : public OpRewritePattern<CreateTrivialOp> {
-  HoistCreateTrivial(mlir::MLIRContext *context)
+  HoistCreateTrivial(mlir::MLIRContext* context)
       : OpRewritePattern<CreateTrivialOp>(context, /*benefit=*/1) {}
 
  public:
   LogicalResult matchAndRewrite(CreateTrivialOp op,
-                                PatternRewriter &rewriter) const override;
+                                PatternRewriter& rewriter) const override;
 };
 
 }  // namespace tfhe_rust

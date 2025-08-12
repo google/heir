@@ -32,13 +32,13 @@ struct IfToSelectConversion : OpRewritePattern<scf::IfOp> {
   using OpRewritePattern<scf::IfOp>::OpRewritePattern;
 
  public:
-  IfToSelectConversion(Operation *top, DataFlowSolver *solver,
-                       MLIRContext *context)
+  IfToSelectConversion(Operation* top, DataFlowSolver* solver,
+                       MLIRContext* context)
       : OpRewritePattern(context), top(top), solver(solver) {}
 
   LogicalResult matchAndRewrite(scf::IfOp ifOp,
-                                PatternRewriter &rewriter) const override {
-    auto *lattice = solver->lookupState<SecretnessLattice>(ifOp.getOperand());
+                                PatternRewriter& rewriter) const override {
+    auto* lattice = solver->lookupState<SecretnessLattice>(ifOp.getOperand());
     Secretness secretness = lattice ? lattice->getValue() : Secretness();
 
     // Convert ops with "secret" and, conservatively, "unknown" (uninitialized)
@@ -51,7 +51,7 @@ struct IfToSelectConversion : OpRewritePattern<scf::IfOp> {
     auto elseOps = ifOp.getElseRegion().getOps();
 
     rewriter.setInsertionPointToStart(ifOp.thenBlock());
-    for (auto &operation : llvm::make_early_inc_range(
+    for (auto& operation : llvm::make_early_inc_range(
              llvm::concat<Operation>(thenOps, elseOps))) {
       if (!isPure(&operation)) {
         // Using custom error message, as default looks bad with multiple ops
@@ -80,7 +80,7 @@ struct IfToSelectConversion : OpRewritePattern<scf::IfOp> {
     if (ifOp->getNumResults() > 0) {
       rewriter.setInsertionPoint(ifOp);
 
-      for (const auto &it :
+      for (const auto& it :
            llvm::enumerate(llvm::zip(thenYieldArgs, elseYieldArgs))) {
         Value trueVal = std::get<0>(it.value());
         Value falseVal = std::get<1>(it.value());
@@ -98,15 +98,15 @@ struct IfToSelectConversion : OpRewritePattern<scf::IfOp> {
 
  private:
   // root operation the pass is on, should never be altered hence never null
-  Operation *top;
-  DataFlowSolver *solver;
+  Operation* top;
+  DataFlowSolver* solver;
 };
 
 struct ConvertIfToSelect : impl::ConvertIfToSelectBase<ConvertIfToSelect> {
   using ConvertIfToSelectBase::ConvertIfToSelectBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
 
     RewritePatternSet patterns(context);
 

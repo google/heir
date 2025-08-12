@@ -63,7 +63,7 @@ SchemeParam SchemeParam::getSchemeParamFromAttr(SchemeParamAttr attr) {
       plaintextModulus);
 }
 
-void SchemeParam::print(llvm::raw_ostream &os) const {
+void SchemeParam::print(llvm::raw_ostream& os) const {
   os << "plaintextModulus: " << plaintextModulus << "\n";
   RLWESchemeParam::print(os);
 }

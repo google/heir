@@ -19,18 +19,18 @@ namespace heir {
 // boolean gates.
 class BooleanGateImporter : public RTLILImporter {
  public:
-  BooleanGateImporter(MLIRContext *context) : RTLILImporter(context) {}
+  BooleanGateImporter(MLIRContext* context) : RTLILImporter(context) {}
 
   ~BooleanGateImporter() override = default;
 
  protected:
-  Operation *createOp(Yosys::RTLIL::Cell *cell, SmallVector<Value> &inputs,
-                      ImplicitLocOpBuilder &b) const override;
+  Operation* createOp(Yosys::RTLIL::Cell* cell, SmallVector<Value>& inputs,
+                      ImplicitLocOpBuilder& b) const override;
 
   SmallVector<Yosys::RTLIL::SigSpec> getInputs(
-      Yosys::RTLIL::Cell *cell) const override;
+      Yosys::RTLIL::Cell* cell) const override;
 
-  Yosys::RTLIL::SigSpec getOutput(Yosys::RTLIL::Cell *cell) const override;
+  Yosys::RTLIL::SigSpec getOutput(Yosys::RTLIL::Cell* cell) const override;
 };
 
 }  // namespace heir

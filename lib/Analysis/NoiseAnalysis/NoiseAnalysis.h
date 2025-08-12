@@ -39,29 +39,29 @@ class NoiseAnalysis
   using dataflow::SparseForwardDataFlowAnalysis<
       LatticeType>::SparseForwardDataFlowAnalysis;
 
-  NoiseAnalysis(DataFlowSolver &solver, const SchemeParamType &schemeParam,
-                const NoiseModelT &noiseModel)
+  NoiseAnalysis(DataFlowSolver& solver, const SchemeParamType& schemeParam,
+                const NoiseModelT& noiseModel)
       : dataflow::SparseForwardDataFlowAnalysis<LatticeType>(solver),
         schemeParam(schemeParam),
         noiseModel(noiseModel) {}
 
-  void setToEntryState(LatticeType *lattice) override;
+  void setToEntryState(LatticeType* lattice) override;
 
-  LogicalResult visitOperation(Operation *op,
-                               ArrayRef<const LatticeType *> operands,
-                               ArrayRef<LatticeType *> results) override;
+  LogicalResult visitOperation(Operation* op,
+                               ArrayRef<const LatticeType*> operands,
+                               ArrayRef<LatticeType*> results) override;
 
   void visitExternalCall(CallOpInterface call,
-                         ArrayRef<const LatticeType *> argumentLattices,
-                         ArrayRef<LatticeType *> resultLattices) override;
+                         ArrayRef<const LatticeType*> argumentLattices,
+                         ArrayRef<LatticeType*> resultLattices) override;
 
-  void propagateIfChangedWrapper(AnalysisState *state, ChangeResult changed) {
+  void propagateIfChangedWrapper(AnalysisState* state, ChangeResult changed) {
     this->propagateIfChanged(state, changed);
   }
 
  private:
   const SchemeParamType schemeParam;
-  const NoiseModelT &noiseModel;
+  const NoiseModelT& noiseModel;
 };
 
 }  // namespace heir

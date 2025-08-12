@@ -25,26 +25,26 @@ namespace functioninfo {
 void registerToFunctionInfoTranslation() {
   TranslateFromMLIRRegistration reg(
       "emit-function-info", "Emit function info (helper for python frontend)",
-      [](Operation *op, llvm::raw_ostream &output) {
+      [](Operation* op, llvm::raw_ostream& output) {
         return translateToFunctionInfo(op, output);
       },
-      [](DialectRegistry &registry) {
+      [](DialectRegistry& registry) {
         registry.insert<func::FuncDialect, secret::SecretDialect>();
       });
 }
 
-LogicalResult translateToFunctionInfo(Operation *op, llvm::raw_ostream &os) {
+LogicalResult translateToFunctionInfo(Operation* op, llvm::raw_ostream& os) {
   FunctionInfoEmitter emitter(os);
   return emitter.translate(*op);
 }
 
-FunctionInfoEmitter::FunctionInfoEmitter(llvm::raw_ostream &os) : os(os) {}
+FunctionInfoEmitter::FunctionInfoEmitter(llvm::raw_ostream& os) : os(os) {}
 
-LogicalResult FunctionInfoEmitter::translate(Operation &op) {
+LogicalResult FunctionInfoEmitter::translate(Operation& op) {
   LogicalResult status =
-      llvm::TypeSwitch<Operation &, LogicalResult>(op)
+      llvm::TypeSwitch<Operation&, LogicalResult>(op)
           .Case<ModuleOp>([&](auto innerOp) { return printOperation(innerOp); })
-          .Default([&](Operation &) {
+          .Default([&](Operation&) {
             return op.emitOpError("unable to find printer for op");
           });
   if (failed(status)) {

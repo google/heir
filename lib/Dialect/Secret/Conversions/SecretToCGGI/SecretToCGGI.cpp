@@ -65,8 +65,8 @@ namespace {
 
 // buildSelectTruthTable recursively creates arithmetic operations to compute a
 // lookup table on plaintext integers.
-Value buildSelectTruthTable(Location loc, OpBuilder &b, Value t, Value f,
-                            const APInt &lut, ValueRange lutInputs) {
+Value buildSelectTruthTable(Location loc, OpBuilder& b, Value t, Value f,
+                            const APInt& lut, ValueRange lutInputs) {
   int tableSize = lut.getBitWidth();
   assert(tableSize == (int)(1ull << lutInputs.size()));
   if (tableSize == 1) {
@@ -85,15 +85,15 @@ Value buildSelectTruthTable(Location loc, OpBuilder &b, Value t, Value f,
                                  selectFalse);
 }
 
-Operation *convertWriteOpInterface(
-    Operation *op, SmallVector<Value> indices, Value valueToStore,
+Operation* convertWriteOpInterface(
+    Operation* op, SmallVector<Value> indices, Value valueToStore,
     TypedValue<MemRefType> toMemRef,
-    ContextAwareConversionPatternRewriter &rewriter) {
+    ContextAwareConversionPatternRewriter& rewriter) {
   ImplicitLocOpBuilder b(op->getLoc(), rewriter);
 
   MemRefType toMemRefTy = toMemRef.getType();
   Type valueToStoreType = valueToStore.getType();
-  return llvm::TypeSwitch<Type, Operation *>(valueToStoreType)
+  return llvm::TypeSwitch<Type, Operation*>(valueToStoreType)
       // Plaintext integer into memref
       .Case<IntegerType>([&](auto valType) {
         auto ctTy = cast<lwe::LWECiphertextType>(toMemRefTy.getElementType());
@@ -176,9 +176,9 @@ Operation *convertWriteOpInterface(
   llvm_unreachable("expected integer or memref to store in ciphertext memref");
 }
 
-Operation *convertReadOpInterface(
-    Operation *op, SmallVector<Value> indices, Value fromMemRef,
-    Type outputType, ContextAwareConversionPatternRewriter &rewriter) {
+Operation* convertReadOpInterface(
+    Operation* op, SmallVector<Value> indices, Value fromMemRef,
+    Type outputType, ContextAwareConversionPatternRewriter& rewriter) {
   ImplicitLocOpBuilder b(op->getLoc(), rewriter);
   MemRefType outputMemRefType = dyn_cast<MemRefType>(outputType);
   MemRefType fromMemRefType = cast<MemRefType>(fromMemRef.getType());
@@ -219,8 +219,8 @@ Operation *convertReadOpInterface(
 }
 
 SmallVector<Value> encodeInputs(
-    Operation *op, ValueRange inputs,
-    ContextAwareConversionPatternRewriter &rewriter) {
+    Operation* op, ValueRange inputs,
+    ContextAwareConversionPatternRewriter& rewriter) {
   // Get the ciphertext type.
   lwe::LWECiphertextType ctxtTy;
   for (auto input : inputs) {
@@ -262,7 +262,7 @@ SmallVector<Value> encodeInputs(
 
 class SecretTypeConverter : public ContextAwareTypeConverter {
  public:
-  SecretTypeConverter(MLIRContext *ctx, int minBitWidth) {
+  SecretTypeConverter(MLIRContext* ctx, int minBitWidth) {
     this->minBitWidth = minBitWidth;
     // Convert secret types to LWE ciphertext types
     addConversion([](Type type, Attribute attr) { return type; });
@@ -271,7 +271,7 @@ class SecretTypeConverter : public ContextAwareTypeConverter {
     });
   }
 
-  Type getLWECiphertextForInt(MLIRContext *ctx, Type type) const {
+  Type getLWECiphertextForInt(MLIRContext* ctx, Type type) const {
     if (IntegerType intType = dyn_cast<IntegerType>(type)) {
       if (intType.getWidth() == 1) {
         return lwe::getDefaultCGGICiphertextType(ctx, 1);
@@ -297,7 +297,7 @@ class SecretTypeConverter : public ContextAwareTypeConverter {
     return shapedType.cloneWith(newShape, elementType);
   }
 
-  inline Attribute defaultContext(MLIRContext *ctx) const {
+  inline Attribute defaultContext(MLIRContext* ctx) const {
     return UnitAttr::get(ctx);
   }
 
@@ -308,8 +308,8 @@ class SecretTypeConverter : public ContextAwareTypeConverter {
   }
 
   LogicalResult convertFuncSignature(
-      FunctionOpInterface funcOp, SmallVectorImpl<Type> &newArgTypes,
-      SmallVectorImpl<Type> &newResultTypes) const override {
+      FunctionOpInterface funcOp, SmallVectorImpl<Type>& newArgTypes,
+      SmallVectorImpl<Type>& newResultTypes) const override {
     for (auto argType : funcOp.getArgumentTypes()) {
       newArgTypes.push_back(
           convertType(argType, defaultContext(funcOp.getContext())));
@@ -331,10 +331,10 @@ class SecretGenericOpLUTConversion
   using SecretGenericOpConversion<comb::TruthTableOp,
                                   cggi::Lut3Op>::SecretGenericOpConversion;
 
-  FailureOr<Operation *> matchAndRewriteInner(
+  FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter &rewriter) const override {
+      ContextAwareConversionPatternRewriter& rewriter) const override {
     SmallVector<Value> encodedInputs =
         encodeInputs(op.getOperation(), inputs, rewriter);
 
@@ -353,10 +353,10 @@ class SecretGenericOpMemRefLoadConversion
     : public SecretGenericOpConversion<memref::LoadOp> {
   using SecretGenericOpConversion<memref::LoadOp>::SecretGenericOpConversion;
 
-  FailureOr<Operation *> matchAndRewriteInner(
+  FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter &rewriter) const override {
+      ContextAwareConversionPatternRewriter& rewriter) const override {
     memref::LoadOp loadOp =
         cast<memref::LoadOp>(op.getBody()->getOperations().front());
     if (auto lweType = dyn_cast<lwe::LWECiphertextType>(outputTypes[0])) {
@@ -365,7 +365,7 @@ class SecretGenericOpMemRefLoadConversion
                                               loadOp.getIndices())
           .getOperation();
     }
-    auto *newOp = convertReadOpInterface(loadOp, loadOp.getIndices(), inputs[0],
+    auto* newOp = convertReadOpInterface(loadOp, loadOp.getIndices(), inputs[0],
                                          outputTypes[0], rewriter);
     rewriter.replaceOp(op, newOp);
     return newOp;
@@ -376,10 +376,10 @@ class SecretGenericOpMemRefAllocConversion
     : public SecretGenericOpConversion<memref::AllocOp> {
   using SecretGenericOpConversion<memref::AllocOp>::SecretGenericOpConversion;
 
-  FailureOr<Operation *> matchAndRewriteInner(
+  FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter &rewriter) const override {
+      ContextAwareConversionPatternRewriter& rewriter) const override {
     // Preserve the alignment attribute.
     auto innerOp = cast<memref::AllocOp>(op.getBody()->getOperations().front());
     SmallVector<NamedAttribute> newAttributes(attributes.begin(),
@@ -400,10 +400,10 @@ class SecretGenericOpMemRefCollapseShapeConversion
   using SecretGenericOpConversion<
       memref::CollapseShapeOp>::SecretGenericOpConversion;
 
-  FailureOr<Operation *> matchAndRewriteInner(
+  FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter &rewriter) const override {
+      ContextAwareConversionPatternRewriter& rewriter) const override {
     // Preserve the reassociation attribute.
     auto innerOp =
         cast<memref::CollapseShapeOp>(op.getBody()->getOperations().front());
@@ -424,10 +424,10 @@ class SecretGenericOpGateConversion
   using SecretGenericOpConversion<GateOp,
                                   CGGIGateOp>::SecretGenericOpConversion;
 
-  FailureOr<Operation *> matchAndRewriteInner(
+  FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter &rewriter) const override {
+      ContextAwareConversionPatternRewriter& rewriter) const override {
     return rewriter
         .replaceOpWithNewOp<CGGIGateOp>(
             op, outputTypes, encodeInputs(op.getOperation(), inputs, rewriter),
@@ -456,10 +456,10 @@ class SecretGenericOpAffineLoadConversion
   using SecretGenericOpConversion<
       affine::AffineLoadOp>::SecretGenericOpConversion;
 
-  FailureOr<Operation *> matchAndRewriteInner(
+  FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter &rewriter) const override {
+      ContextAwareConversionPatternRewriter& rewriter) const override {
     affine::AffineLoadOp loadOp =
         cast<affine::AffineLoadOp>(op.getBody()->getOperations().front());
     if (auto lweType = dyn_cast<lwe::LWECiphertextType>(outputTypes[0])) {
@@ -473,7 +473,7 @@ class SecretGenericOpAffineLoadConversion
     if (!indices) {
       op.emitError() << "expected affine access indices";
     }
-    auto *newOp = convertReadOpInterface(
+    auto* newOp = convertReadOpInterface(
         loadOp, {indices.value().begin(), indices.value().end()}, inputs[0],
         outputTypes[0], rewriter);
     rewriter.replaceOp(op, newOp);
@@ -486,10 +486,10 @@ class SecretGenericOpAffineStoreConversion
   using SecretGenericOpConversion<affine::AffineStoreOp,
                                   memref::StoreOp>::SecretGenericOpConversion;
 
-  FailureOr<Operation *> matchAndRewriteInner(
+  FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter &rewriter) const override {
+      ContextAwareConversionPatternRewriter& rewriter) const override {
     affine::AffineStoreOp storeOp =
         cast<affine::AffineStoreOp>(op.getBody()->getOperations().front());
     auto toMemRef = cast<TypedValue<MemRefType>>(inputs[1]);
@@ -498,7 +498,7 @@ class SecretGenericOpAffineStoreConversion
     if (!indices) {
       op.emitError() << "expected affine access indices";
     }
-    auto *newOp = convertWriteOpInterface(
+    auto* newOp = convertWriteOpInterface(
         storeOp, {indices.value().begin(), indices.value().end()}, inputs[0],
         toMemRef, rewriter);
     rewriter.replaceOp(op, newOp);
@@ -510,14 +510,14 @@ class SecretGenericOpMemRefStoreConversion
     : public SecretGenericOpConversion<memref::StoreOp> {
   using SecretGenericOpConversion<memref::StoreOp>::SecretGenericOpConversion;
 
-  FailureOr<Operation *> matchAndRewriteInner(
+  FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter &rewriter) const override {
+      ContextAwareConversionPatternRewriter& rewriter) const override {
     memref::StoreOp storeOp =
         cast<memref::StoreOp>(op.getBody()->getOperations().front());
     auto toMemRef = cast<TypedValue<MemRefType>>(inputs[1]);
-    auto *newOp = convertWriteOpInterface(
+    auto* newOp = convertWriteOpInterface(
         storeOp, {storeOp.getIndices().begin(), storeOp.getIndices().end()},
         inputs[0], toMemRef, rewriter);
     rewriter.replaceOp(op, newOp);
@@ -528,14 +528,14 @@ class SecretGenericOpMemRefStoreConversion
 // ConvertTruthTableOp converts truth table ops with fully plaintext values.
 struct ConvertTruthTableOp
     : public ContextAwareOpConversionPattern<comb::TruthTableOp> {
-  ConvertTruthTableOp(mlir::MLIRContext *context)
+  ConvertTruthTableOp(mlir::MLIRContext* context)
       : ContextAwareOpConversionPattern<comb::TruthTableOp>(context) {}
 
   using ContextAwareOpConversionPattern::ContextAwareOpConversionPattern;
 
   LogicalResult matchAndRewrite(
       comb::TruthTableOp op, OpAdaptor adaptor,
-      ContextAwareConversionPatternRewriter &rewriter) const override {
+      ContextAwareConversionPatternRewriter& rewriter) const override {
     if (op->getNumOperands() != 3) {
       op->emitError() << "expected 3 truth table arguments to lower to CGGI";
     }
@@ -561,14 +561,14 @@ struct ConvertTruthTableOp
 // integers and tensors of single-bit secrets.
 struct ConvertSecretCastOp
     : public ContextAwareOpConversionPattern<secret::CastOp> {
-  ConvertSecretCastOp(mlir::MLIRContext *context)
+  ConvertSecretCastOp(mlir::MLIRContext* context)
       : ContextAwareOpConversionPattern<secret::CastOp>(context) {}
 
   using ContextAwareOpConversionPattern::ContextAwareOpConversionPattern;
 
   LogicalResult matchAndRewrite(
       secret::CastOp op, OpAdaptor adaptor,
-      ContextAwareConversionPatternRewriter &rewriter) const override {
+      ContextAwareConversionPatternRewriter& rewriter) const override {
     // The original secret cast reconciles multi-bit or memrefs of values like
     // secret<i8> to secret<memref<8xi1>> or secret<memref<2x4xi2>> and
     // secret<memref<16xi1>> and vice versa. One of these will always be a
@@ -656,14 +656,14 @@ struct ConvertSecretCastOp
 // ops stored into a memref.
 struct ConvertSecretConcealOp
     : public ContextAwareOpConversionPattern<secret::ConcealOp> {
-  ConvertSecretConcealOp(mlir::MLIRContext *context)
+  ConvertSecretConcealOp(mlir::MLIRContext* context)
       : ContextAwareOpConversionPattern<secret::ConcealOp>(context) {}
 
   using ContextAwareOpConversionPattern::ContextAwareOpConversionPattern;
 
   LogicalResult matchAndRewrite(
       secret::ConcealOp op, OpAdaptor adaptor,
-      ContextAwareConversionPatternRewriter &rewriter) const override {
+      ContextAwareConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     Type convertedTy = getTypeConverter()->convertType(
@@ -726,7 +726,7 @@ struct ConvertSecretConcealOp
         // The input was a memref<<SHAPE>xiN>, so we need to extract each value
         // of the input and store it in the output memref.
         SmallVector<Value> constIndices;
-        const auto *maxDimension = llvm::max_element(inputMemrefTy.getShape());
+        const auto* maxDimension = llvm::max_element(inputMemrefTy.getShape());
         for (auto i = 0; i < *maxDimension; ++i) {
           constIndices.push_back(arith::ConstantIndexOp::create(b, i));
         }
@@ -764,11 +764,11 @@ struct ConvertSecretConcealOp
 
 struct ResolveUnrealizedConversionCast
     : public OpRewritePattern<UnrealizedConversionCastOp> {
-  ResolveUnrealizedConversionCast(mlir::MLIRContext *context)
+  ResolveUnrealizedConversionCast(mlir::MLIRContext* context)
       : OpRewritePattern<UnrealizedConversionCastOp>(context, /*benefit=*/1) {}
 
   LogicalResult matchAndRewrite(UnrealizedConversionCastOp op,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     if (op->getUses().empty()) {
       rewriter.eraseOp(op);
       return success();
@@ -777,9 +777,9 @@ struct ResolveUnrealizedConversionCast
   }
 };
 
-int findLUTSize(MLIRContext *context, Operation *module) {
+int findLUTSize(MLIRContext* context, Operation* module) {
   int maxIntSize = 1;
-  auto processOperation = [&](Operation *op) {
+  auto processOperation = [&](Operation* op) {
     if (isa<comb::CombDialect>(op->getDialect())) {
       int currentSize = 0;
       if (dyn_cast<comb::TruthTableOp>(op))
@@ -799,8 +799,8 @@ int findLUTSize(MLIRContext *context, Operation *module) {
 
 struct SecretToCGGI : public impl::SecretToCGGIBase<SecretToCGGI> {
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
-    auto *module = getOperation();
+    MLIRContext* context = &getContext();
+    auto* module = getOperation();
 
     // Helper for future lowerings that want to know what scheme was used
     module->setAttr(kCGGISchemeAttrName, UnitAttr::get(context));

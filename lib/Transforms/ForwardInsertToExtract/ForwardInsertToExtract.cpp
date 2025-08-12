@@ -36,7 +36,7 @@ namespace heir {
 FailureOr<OpFoldResult> ForwardSingleInsertToExtract::getValueAtIndex(
     TypedValue<RankedTensorType> tensor,
     SmallVector<OpFoldResult> indices) const {
-  auto *def = tensor.getDefiningOp();
+  auto* def = tensor.getDefiningOp();
   if (!def) {
     LLVM_DEBUG(llvm::dbgs() << "No defining op for the extract op\n");
     return failure();
@@ -45,7 +45,7 @@ FailureOr<OpFoldResult> ForwardSingleInsertToExtract::getValueAtIndex(
   LLVM_DEBUG(llvm::dbgs() << "Considering def for forwarding: " << *def
                           << "\n");
 
-  return llvm::TypeSwitch<Operation &, FailureOr<OpFoldResult>>(*def)
+  return llvm::TypeSwitch<Operation&, FailureOr<OpFoldResult>>(*def)
       .Case<tensor::InsertOp>(
           [&](tensor::InsertOp insertOp) -> FailureOr<OpFoldResult> {
             // Check if indices match. If not, continue to defining op of
@@ -91,7 +91,7 @@ FailureOr<OpFoldResult> ForwardSingleInsertToExtract::getValueAtIndex(
         if (failed(flatIndex)) return failure();
         return OpFoldResult(fromElementsOp.getElements()[flatIndex.value()]);
       })
-      .Default([&](Operation &) {
+      .Default([&](Operation&) {
         LLVM_DEBUG(llvm::dbgs()
                    << "Unsupported defining operation, cannot "
                       "traverse backwards to check for forwardable values\n");
@@ -100,7 +100,7 @@ FailureOr<OpFoldResult> ForwardSingleInsertToExtract::getValueAtIndex(
 }
 
 LogicalResult ForwardSingleInsertToExtract::matchAndRewrite(
-    tensor::ExtractOp extractOp, PatternRewriter &rewriter) const {
+    tensor::ExtractOp extractOp, PatternRewriter& rewriter) const {
   LLVM_DEBUG(llvm::dbgs() << "Considering extractOp for replacement: "
                           << extractOp << "\n");
 
@@ -126,7 +126,7 @@ struct ForwardInsertToExtract
   using ForwardInsertToExtractBase::ForwardInsertToExtractBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
     RewritePatternSet patterns(context);
     DominanceInfo dom(getOperation());
     patterns.add<ForwardSingleInsertToExtract>(context, dom);

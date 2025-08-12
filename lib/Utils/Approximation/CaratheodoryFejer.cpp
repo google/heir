@@ -25,7 +25,7 @@ using ::llvm::SmallVector;
 using polynomial::FloatPolynomial;
 
 FloatPolynomial caratheodoryFejerApproximationUnitInterval(
-    const std::function<APFloat(APFloat)> &func, int32_t degree) {
+    const std::function<APFloat(APFloat)>& func, int32_t degree) {
   // Construct the Chebyshev interpolant.
   SmallVector<APFloat> chebCoeffs;
   interpolateChebyshevWithSmartDegreeSelection(func, chebCoeffs);
@@ -52,9 +52,9 @@ FloatPolynomial caratheodoryFejerApproximationUnitInterval(
   // Compute the eigenvalues and eigenvectors of the Hankel matrix
   SelfAdjointEigenSolver<MatrixXd> solver(hankel);
 
-  const VectorXd &eigenvalues = solver.eigenvalues();
+  const VectorXd& eigenvalues = solver.eigenvalues();
   // Eigenvectors are columns of the matrix.
-  const MatrixXd &eigenvectors = solver.eigenvectors();
+  const MatrixXd& eigenvectors = solver.eigenvectors();
 
   // Extract the eigenvector for the (absolute value) largest eigenvalue.
   int32_t maxIndex = 0;
@@ -113,14 +113,14 @@ FloatPolynomial caratheodoryFejerApproximationUnitInterval(
 }
 
 FloatPolynomial caratheodoryFejerApproximation(
-    const std::function<APFloat(APFloat)> &func, int32_t degree, double lower,
+    const std::function<APFloat(APFloat)>& func, int32_t degree, double lower,
     double upper) {
   bool needsScaling = lower != -1.0 || upper != 1.0;
   double midPoint = (lower + upper) / 2;
   double halfLen = (upper - lower) / 2;
   std::function<APFloat(APFloat)> funcScaled;
   if (needsScaling) {
-    funcScaled = [&](const APFloat &x) {
+    funcScaled = [&](const APFloat& x) {
       APFloat input = APFloat(midPoint) + APFloat(halfLen) * x;
       return func(input);
     };

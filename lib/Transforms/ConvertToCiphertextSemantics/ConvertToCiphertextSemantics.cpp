@@ -59,9 +59,9 @@ namespace heir {
 namespace {
 using tensor_ext::LayoutAttr;
 
-auto &kLayoutAttrName = tensor_ext::TensorExtDialect::kLayoutAttrName;
-auto &kMaterializedAttrName = "tensor_ext.layout_materialized";
-auto &kOriginalTypeAttrName =
+auto& kLayoutAttrName = tensor_ext::TensorExtDialect::kLayoutAttrName;
+auto& kMaterializedAttrName = "tensor_ext.layout_materialized";
+auto& kOriginalTypeAttrName =
     tensor_ext::TensorExtDialect::kOriginalTypeAttrName;
 
 }  // namespace
@@ -138,16 +138,16 @@ struct LayoutMaterializationTypeConverter
   int ciphertextSize;
 };
 
-bool hasMaterializedAttr(Operation *op) {
+bool hasMaterializedAttr(Operation* op) {
   return op->hasAttr(kMaterializedAttrName);
 }
 
-void setMaterializedAttr(Operation *op) {
+void setMaterializedAttr(Operation* op) {
   op->setAttr(kMaterializedAttrName, UnitAttr::get(op->getContext()));
 }
 
-void setMaterializedAttr(ArrayRef<Operation *> ops) {
-  for (auto *op : ops) {
+void setMaterializedAttr(ArrayRef<Operation*> ops) {
+  for (auto* op : ops) {
     setMaterializedAttr(op);
   }
 }
@@ -161,12 +161,12 @@ Type maybeExtractSecretType(Type type) {
 
 struct ConvertFunc : public ContextAwareFuncConversion {
  public:
-  ConvertFunc(const ContextAwareTypeConverter &converter, MLIRContext *context)
+  ConvertFunc(const ContextAwareTypeConverter& converter, MLIRContext* context)
       : ContextAwareFuncConversion(converter, context) {}
 
   LogicalResult finalizeFuncOpModification(
       func::FuncOp op, ArrayRef<Type> oldArgTypes,
-      ArrayRef<Type> oldResultTypes, PatternRewriter &rewriter) const override {
+      ArrayRef<Type> oldResultTypes, PatternRewriter& rewriter) const override {
     // Replace layout arg attrs with secret.original_type arg attrs This is
     // necessary so that later encoding/decoding functions can know what the
     // original type of the tensor was and how it was encoded.
@@ -201,15 +201,15 @@ struct ConvertFunc : public ContextAwareFuncConversion {
 
 struct ConvertGeneric : public ConvertAnyContextAware<secret::GenericOp> {
  public:
-  ConvertGeneric(const ContextAwareTypeConverter &converter,
-                 MLIRContext *context)
+  ConvertGeneric(const ContextAwareTypeConverter& converter,
+                 MLIRContext* context)
       : ConvertAnyContextAware(converter, context) {
     setDebugName("ConvertGeneric");
   }
 
   LogicalResult finalizeOpModification(
       secret::GenericOp op,
-      ContextAwareConversionPatternRewriter &rewriter) const override {
+      ContextAwareConversionPatternRewriter& rewriter) const override {
     rewriter.modifyOpInPlace(op, [&] { setMaterializedAttr(op); });
     return success();
   };
@@ -219,15 +219,15 @@ struct ConvertGeneric : public ConvertAnyContextAware<secret::GenericOp> {
 // because it is only meant to handle ops that don't have special
 // materialization rules.
 struct ConvertAnyAddingMaterializedAttr : public ConvertAnyContextAware<> {
-  ConvertAnyAddingMaterializedAttr(const ContextAwareTypeConverter &converter,
-                                   MLIRContext *context)
+  ConvertAnyAddingMaterializedAttr(const ContextAwareTypeConverter& converter,
+                                   MLIRContext* context)
       : ConvertAnyContextAware(converter, context, /*benefit=*/0) {
     setDebugName("ConvertAnyAddingMaterializedAttr");
   }
 
   LogicalResult finalizeOpModification(
-      Operation *op,
-      ContextAwareConversionPatternRewriter &rewriter) const override {
+      Operation* op,
+      ContextAwareConversionPatternRewriter& rewriter) const override {
     rewriter.modifyOpInPlace(op, [&] { setMaterializedAttr(op); });
     return success();
   };
@@ -236,19 +236,19 @@ struct ConvertAnyAddingMaterializedAttr : public ConvertAnyContextAware<> {
 class ConvertAssignLayout
     : public ContextAwareOpConversionPattern<tensor_ext::AssignLayoutOp> {
  public:
-  ConvertAssignLayout(const ContextAwareTypeConverter &typeConverter,
-                      mlir::MLIRContext *context, int64_t ciphertextSize)
+  ConvertAssignLayout(const ContextAwareTypeConverter& typeConverter,
+                      mlir::MLIRContext* context, int64_t ciphertextSize)
       : ContextAwareOpConversionPattern<tensor_ext::AssignLayoutOp>(
             typeConverter, context),
         ciphertextSize(ciphertextSize) {}
 
   LogicalResult matchAndRewrite(
       tensor_ext::AssignLayoutOp op, OpAdaptor adaptor,
-      ContextAwareConversionPatternRewriter &rewriter) const final {
+      ContextAwareConversionPatternRewriter& rewriter) const final {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     auto res =
-        implementAssignLayout(op, ciphertextSize, b, [&](Operation *createdOp) {
+        implementAssignLayout(op, ciphertextSize, b, [&](Operation* createdOp) {
           setMaterializedAttr(createdOp);
           createdOp->setAttr(kLayoutAttrName, op.getLayout());
         });
@@ -276,7 +276,7 @@ class ConvertConvertLayout
 
   LogicalResult matchAndRewrite(
       tensor_ext::ConvertLayoutOp op, OpAdaptor adaptor,
-      ContextAwareConversionPatternRewriter &rewriter) const final {
+      ContextAwareConversionPatternRewriter& rewriter) const final {
     Type dataSemanticType = op.getValue().getType();
     RankedTensorType ciphertextSemanticType =
         cast<RankedTensorType>(adaptor.getValue().getType());
@@ -322,7 +322,7 @@ class ConvertConvertLayout
         }
       });
       IndexTupleConsumer evaluateNextIndex =
-          [&](const std::vector<int64_t> &indices) {
+          [&](const std::vector<int64_t>& indices) {
             SmallVector<int64_t> fromResults;
             SmallVector<int64_t> toResults;
             evaluateStatic(fromLayout.getMap(), indices, fromResults);
@@ -396,7 +396,7 @@ void extendPermutationGreedily(::llvm::MutableArrayRef<int64_t> perm) {
 
   // Set iteration is in sorted order, so we're mapping each unused input to
   // the first output index that hasn't been mapped to yet.
-  for (const auto &[input, output] :
+  for (const auto& [input, output] :
        llvm::zip(unmappedInputs, unmappedOutputs)) {
     perm[input] = output;
   }
@@ -440,10 +440,10 @@ class ConvertLinalgReduce
 
   LogicalResult matchAndRewrite(
       linalg::ReduceOp op, OpAdaptor adaptor,
-      ContextAwareConversionPatternRewriter &rewriter) const final {
+      ContextAwareConversionPatternRewriter& rewriter) const final {
     // Ensure the reduction op is single addition or multiplication, otherwise
     // there is no kernel.
-    Block *body = op.getBlock();
+    Block* body = op.getBlock();
     if (body->getOperations().size() != 2) {
       return op.emitError(
           "linalg.reduce only supported with a single reduction operation");
@@ -460,7 +460,7 @@ class ConvertLinalgReduce
           "linalg.reduce only supported with a single reduction dimension");
     }
 
-    Operation *innerOp = &body->getOperations().front();
+    Operation* innerOp = &body->getOperations().front();
     if (!isa<arith::AddFOp, arith::MulFOp, arith::AddIOp, arith::MulIOp>(
             innerOp)) {
       return op.emitError()
@@ -559,7 +559,7 @@ class ConvertLinalgReduce
       // For each entry with the reduced index fixed, populate the permutation
       // with the desired partial mapping.
       IndexTupleConsumer evaluateNextIndex =
-          [&](const std::vector<int64_t> &indices) {
+          [&](const std::vector<int64_t>& indices) {
             SmallVector<int64_t> results;
             evaluateStatic(layout.getMap(), indices, results);
 
@@ -594,7 +594,7 @@ class ConvertLinalgReduce
 
       SmallVector<Value> operands = {result, permuteOp};
       SmallVector<Type> newResultTypes = {permuteOp.getType()};
-      Operation *nextOp = rewriter.create(
+      Operation* nextOp = rewriter.create(
           OperationState(op->getLoc(), innerOp->getName().getStringRef(),
                          operands, newResultTypes));
       permuteOp->setAttr(kLayoutAttrName, op->getAttr(kLayoutAttrName));
@@ -661,7 +661,7 @@ struct ConvertLinalgMatvec
 
   void haleviShoupKernel(
       linalg::MatvecOp op, OpAdaptor adaptor,
-      ContextAwareConversionPatternRewriter &rewriter) const {
+      ContextAwareConversionPatternRewriter& rewriter) const {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     Value result = adaptor.getOutputs()[0];
     Value packedMatrix = adaptor.getInputs()[0];
@@ -708,11 +708,11 @@ struct ConvertLinalgMatvec
       auto extractRowOp = tensor::ExtractSliceOp::create(
           b, packedVectorType, packedMatrix, offsets, sizes, strides);
 
-      Operation *mulOp = b.create(
+      Operation* mulOp = b.create(
           OperationState(op->getLoc(), mulOpName,
                          {rotateOp.getResult(), extractRowOp.getResult()},
                          {packedVectorType}));
-      Operation *addOp = b.create(OperationState(
+      Operation* addOp = b.create(OperationState(
           op->getLoc(), addOpName, {accumulator, mulOp->getResult(0)},
           {packedVectorType}));
 
@@ -742,7 +742,7 @@ struct ConvertLinalgMatvec
       auto shiftAmountOp = arith::ConstantIntOp::create(b, shift, 64);
       auto rotateOp =
           tensor_ext::RotateOp::create(b, summedShifts, shiftAmountOp);
-      auto *addOp = b.create(OperationState(
+      auto* addOp = b.create(OperationState(
           op->getLoc(), addOpName, {summedShifts, rotateOp.getResult()},
           {rotateOp.getResult().getType()}));
       setMaterializedAttr({shiftAmountOp, rotateOp, addOp});
@@ -782,7 +782,7 @@ struct ConvertLinalgMatvec
         ArrayRef<Value>{},
         /*offsets=*/ArrayRef<int64_t>{0},
         /*sizes=*/ArrayRef{matrixNumRows}, /*strides=*/ArrayRef<int64_t>{1});
-    auto *applyMaskOp = b.create(OperationState(op->getLoc(), mulOpName,
+    auto* applyMaskOp = b.create(OperationState(op->getLoc(), mulOpName,
                                                 {summedShifts, createMaskOp},
                                                 {summedShifts.getType()}));
 
@@ -794,7 +794,7 @@ struct ConvertLinalgMatvec
 
   LogicalResult matchAndRewrite(
       linalg::MatvecOp op, OpAdaptor adaptor,
-      ContextAwareConversionPatternRewriter &rewriter) const final {
+      ContextAwareConversionPatternRewriter& rewriter) const final {
     Value matrix = adaptor.getInputs()[0];
     Value vector = adaptor.getInputs()[1];
     LayoutAttr vectorLayout = getLayoutAttr(vector);
@@ -817,7 +817,7 @@ struct ConvertLinalgMatvec
   }
 };
 
-Value makeMask(ContextAwareConversionPatternRewriter &rewriter, Location loc,
+Value makeMask(ContextAwareConversionPatternRewriter& rewriter, Location loc,
                Value index, RankedTensorType ciphertextSemanticType) {
   // The ciphertext tensor is a 1D tensor, so the applyOp's result is a
   // single value we can use to build a mask.
@@ -835,7 +835,7 @@ Value makeMask(ContextAwareConversionPatternRewriter &rewriter, Location loc,
   return mask.getResult();
 }
 
-Value makeInverseMask(ContextAwareConversionPatternRewriter &rewriter,
+Value makeInverseMask(ContextAwareConversionPatternRewriter& rewriter,
                       Location loc, Value index,
                       RankedTensorType ciphertextSemanticType) {
   // The ciphertext tensor is a 1D tensor, so the applyOp's result is a
@@ -862,7 +862,7 @@ class ConvertTensorExtract
 
   LogicalResult matchAndRewrite(
       tensor::ExtractOp op, OpAdaptor adaptor,
-      ContextAwareConversionPatternRewriter &rewriter) const final {
+      ContextAwareConversionPatternRewriter& rewriter) const final {
     // This is not a good op to have a kernel for, but we have it for
     // completeness.
     //
@@ -920,14 +920,14 @@ class ConvertTensorExtract
         isa<IntegerType>(ciphertextSemanticType.getElementType())
             ? "arith.muli"
             : "arith.mulf";
-    Operation *mulOp = rewriter.create(
+    Operation* mulOp = rewriter.create(
         OperationState(op->getLoc(), mulOpName, {mask, adaptor.getTensor()},
                        {ciphertextSemanticType}));
 
     // Rotate left to the first position
     auto rotateOp = tensor_ext::RotateOp::create(
         rewriter, op.getLoc(), mulOp->getResult(0), applyOp.getResult());
-    Operation *result = rotateOp;
+    Operation* result = rotateOp;
 
     // TODO(#1662): improve scalar layout materialization
 
@@ -947,7 +947,7 @@ class ConvertTensorInsert
 
   LogicalResult matchAndRewrite(
       tensor::InsertOp op, OpAdaptor adaptor,
-      ContextAwareConversionPatternRewriter &rewriter) const final {
+      ContextAwareConversionPatternRewriter& rewriter) const final {
     // This is not a good op to have a kernel for, but we have it for
     // completeness.
     //
@@ -1008,7 +1008,7 @@ class ConvertTensorInsert
     auto zero = arith::ConstantIndexOp::create(rewriter, op.getLoc(), 0);
     Value mask = makeMask(rewriter, op.getLoc(), zero.getResult(),
                           ciphertextSemanticType);
-    Operation *scalarMul = rewriter.create(
+    Operation* scalarMul = rewriter.create(
         OperationState(op->getLoc(), mulOpName, {mask, adaptor.getScalar()},
                        {ciphertextSemanticType}));
 
@@ -1026,7 +1026,7 @@ class ConvertTensorInsert
     //
     Value inverseMask = makeInverseMask(
         rewriter, op.getLoc(), applyOp.getResult(), ciphertextSemanticType);
-    Operation *destMul = rewriter.create(OperationState(
+    Operation* destMul = rewriter.create(OperationState(
         op->getLoc(), mulOpName, {inverseMask, adaptor.getDest()},
         {ciphertextSemanticType}));
 
@@ -1036,7 +1036,7 @@ class ConvertTensorInsert
     //     [a1, ..., a_{k-1}, 0, a_{k+1}, ..., an]
     //   + [ 0, ...,       0, 0,       v, ...,  0]
     //
-    Operation *finalAdd = rewriter.create(
+    Operation* finalAdd = rewriter.create(
         OperationState(op->getLoc(), addOpName,
                        {scalarMul->getResult(0), destMul->getResult(0)},
                        {ciphertextSemanticType}));
@@ -1055,8 +1055,8 @@ struct ConvertToCiphertextSemantics
   using ConvertToCiphertextSemanticsBase::ConvertToCiphertextSemanticsBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
-    auto *module = getOperation();
+    MLIRContext* context = &getContext();
+    auto* module = getOperation();
 
     int64_t ctSize = ciphertextSize;
     LayoutMaterializationTypeConverter typeConverter =
@@ -1064,7 +1064,7 @@ struct ConvertToCiphertextSemantics
 
     RewritePatternSet patterns(context);
     ConversionTarget target(*context);
-    target.markUnknownOpDynamicallyLegal([&](Operation *op) {
+    target.markUnknownOpDynamicallyLegal([&](Operation* op) {
       return isa<ModuleOp>(op) || hasMaterializedAttr(op);
     });
 

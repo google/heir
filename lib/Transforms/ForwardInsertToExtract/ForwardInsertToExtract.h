@@ -22,19 +22,19 @@ namespace heir {
 
 struct ForwardSingleInsertToExtract
     : public OpRewritePattern<tensor::ExtractOp> {
-  ForwardSingleInsertToExtract(mlir::MLIRContext *context, DominanceInfo &dom)
+  ForwardSingleInsertToExtract(mlir::MLIRContext* context, DominanceInfo& dom)
       : OpRewritePattern<tensor::ExtractOp>(context, 3), dominanceInfo(dom) {}
 
  public:
   LogicalResult matchAndRewrite(tensor::ExtractOp op,
-                                PatternRewriter &rewriter) const override;
+                                PatternRewriter& rewriter) const override;
 
  private:
   FailureOr<OpFoldResult> getValueAtIndex(
       TypedValue<RankedTensorType> tensor,
       SmallVector<OpFoldResult> indices) const;
 
-  DominanceInfo &dominanceInfo;
+  DominanceInfo& dominanceInfo;
 };
 
 }  // namespace heir

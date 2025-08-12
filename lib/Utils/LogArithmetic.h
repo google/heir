@@ -23,15 +23,15 @@ class Log2Arithmetic {
 
   Log2Arithmetic() : log2value(NEGATIVE_INFINITY) {}
 
-  Log2Arithmetic operator+(const Log2Arithmetic &rhs) const;
+  Log2Arithmetic operator+(const Log2Arithmetic& rhs) const;
 
-  Log2Arithmetic operator*(const Log2Arithmetic &rhs) const;
+  Log2Arithmetic operator*(const Log2Arithmetic& rhs) const;
 
-  bool operator==(const Log2Arithmetic &rhs) const {
+  bool operator==(const Log2Arithmetic& rhs) const {
     return log2value == rhs.log2value;
   }
 
-  bool operator<(const Log2Arithmetic &rhs) const {
+  bool operator<(const Log2Arithmetic& rhs) const {
     if (log2value == NEGATIVE_INFINITY) {
       return rhs.log2value != NEGATIVE_INFINITY;
     }

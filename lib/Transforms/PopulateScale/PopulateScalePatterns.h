@@ -21,16 +21,16 @@ struct ConvertAdjustScaleToMulPlain
     : public OpRewritePattern<mgmt::AdjustScaleOp> {
   using OpRewritePattern<mgmt::AdjustScaleOp>::OpRewritePattern;
 
-  ConvertAdjustScaleToMulPlain(MLIRContext *context,
-                               AdjustScaleMaterializer *materializer)
+  ConvertAdjustScaleToMulPlain(MLIRContext* context,
+                               AdjustScaleMaterializer* materializer)
       : OpRewritePattern<mgmt::AdjustScaleOp>(context, /*benefit=*/1),
         materializer(materializer) {}
 
   LogicalResult matchAndRewrite(mgmt::AdjustScaleOp op,
-                                PatternRewriter &rewriter) const override;
+                                PatternRewriter& rewriter) const override;
 
  private:
-  AdjustScaleMaterializer *materializer;
+  AdjustScaleMaterializer* materializer;
 };
 
 }  // namespace heir

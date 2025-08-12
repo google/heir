@@ -39,7 +39,7 @@ using linalg::LinalgOp;
 using tensor::ExtractOp;
 using tensor::InsertOp;
 
-static SmallVector<Value> makeCanonicalAffineApplies(OpBuilder &b, Location loc,
+static SmallVector<Value> makeCanonicalAffineApplies(OpBuilder& b, Location loc,
                                                      AffineMap map,
                                                      ArrayRef<Value> vals) {
   if (map.isEmpty()) return {};
@@ -58,19 +58,19 @@ static SmallVector<Value> makeCanonicalAffineApplies(OpBuilder &b, Location loc,
 }
 
 static SmallVector<Value> inlineRegionAndEmitStore(
-    OpBuilder &b, Location loc, LinalgOp op, ArrayRef<Value> indexedValues,
+    OpBuilder& b, Location loc, LinalgOp op, ArrayRef<Value> indexedValues,
     ArrayRef<SmallVector<Value>> indexing, ValueRange outputBuffers) {
-  auto &block = op->getRegion(0).front();
+  auto& block = op->getRegion(0).front();
   IRMapping map;
   map.map(block.getArguments(), indexedValues);
-  for (auto &op : block.without_terminator()) {
-    auto *newOp = b.clone(op, map);
+  for (auto& op : block.without_terminator()) {
+    auto* newOp = b.clone(op, map);
     map.map(op.getResults(), newOp->getResults());
   }
 
-  Operation *terminator = block.getTerminator();
+  Operation* terminator = block.getTerminator();
   SmallVector<Value> insertResults;
-  for (OpOperand &operand : terminator->getOpOperands()) {
+  for (OpOperand& operand : terminator->getOpOperands()) {
     Value toStore = map.lookupOrDefault(operand.get());
     InsertOp insertion = InsertOp::create(
         b, loc, toStore, outputBuffers[operand.getOperandNumber()],
@@ -81,7 +81,7 @@ static SmallVector<Value> inlineRegionAndEmitStore(
   return insertResults;
 }
 
-static SmallVector<Value> emitScalarImplementation(OpBuilder &b, Location loc,
+static SmallVector<Value> emitScalarImplementation(OpBuilder& b, Location loc,
                                                    ArrayRef<Value> allIvs,
                                                    LinalgOp linalgOp,
                                                    ValueRange iterArgs) {
@@ -90,7 +90,7 @@ static SmallVector<Value> emitScalarImplementation(OpBuilder &b, Location loc,
   auto allIvsPlusDims = SmallVector<Value>(allIvs);
 
   // 1.a. Emit load from input operand or for scalars access the operand itself.
-  for (OpOperand *inputOperand : linalgOp.getDpsInputOperands()) {
+  for (OpOperand* inputOperand : linalgOp.getDpsInputOperands()) {
     if (linalgOp.isScalar(inputOperand)) {
       indexedValues.push_back(inputOperand->get());
       continue;
@@ -106,7 +106,7 @@ static SmallVector<Value> emitScalarImplementation(OpBuilder &b, Location loc,
   // thread through the iterArgs of the containing loop nest, which correspond
   // to the iter args of the output tensors of the original linalgOp.
   int iterArgIndex = 0;
-  for (OpOperand &outputOperand : linalgOp.getDpsInitsMutable()) {
+  for (OpOperand& outputOperand : linalgOp.getDpsInitsMutable()) {
     SmallVector<Value> indexing = makeCanonicalAffineApplies(
         b, loc, linalgOp.getMatchingIndexingMap(&outputOperand),
         allIvsPlusDims);
@@ -120,7 +120,7 @@ static SmallVector<Value> emitScalarImplementation(OpBuilder &b, Location loc,
   // Differing from upstream, the outputBuffer must be a region iterArg,
   // similar to 1.b.
   SmallVector<SmallVector<Value>, 8> indexing;
-  for (OpOperand &outputOperand : linalgOp.getDpsInitsMutable()) {
+  for (OpOperand& outputOperand : linalgOp.getDpsInitsMutable()) {
     indexing.push_back(makeCanonicalAffineApplies(
         b, loc, linalgOp.getMatchingIndexingMap(&outputOperand),
         allIvsPlusDims));
@@ -130,14 +130,14 @@ static SmallVector<Value> emitScalarImplementation(OpBuilder &b, Location loc,
 }
 
 static AffineForOp buildAffineLoopFromConstants(
-    OpBuilder &builder, Location loc, int64_t lb, int64_t ub, int64_t step,
+    OpBuilder& builder, Location loc, int64_t lb, int64_t ub, int64_t step,
     ValueRange outputInits, AffineForOp::BodyBuilderFn bodyBuilderFn) {
   return AffineForOp::create(builder, loc, lb, ub, step,
                              /*iterArgs=*/outputInits, bodyBuilderFn);
 }
 
 static AffineForOp buildAffineLoopFromValues(
-    OpBuilder &builder, Location loc, Value lb, Value ub, int64_t step,
+    OpBuilder& builder, Location loc, Value lb, Value ub, int64_t step,
     ValueRange outputInits, AffineForOp::BodyBuilderFn bodyBuilderFn) {
   std::optional<int64_t> lbConst = getConstantIntValue(lb);
   std::optional<int64_t> ubConst = getConstantIntValue(ub);
@@ -151,9 +151,9 @@ static AffineForOp buildAffineLoopFromValues(
 }
 
 AffineForOp buildAffineLoopNestWithCarriedIterArgs(
-    OpBuilder &builder, Location loc, ArrayRef<Value> lbs, ArrayRef<Value> ubs,
+    OpBuilder& builder, Location loc, ArrayRef<Value> lbs, ArrayRef<Value> ubs,
     ArrayRef<int64_t> steps, ValueRange outputInits,
-    function_ref<SmallVector<Value>(OpBuilder &, Location, ValueRange,
+    function_ref<SmallVector<Value>(OpBuilder&, Location, ValueRange,
                                     ValueRange)>
         bodyBuilderFn) {
   assert(lbs.size() == ubs.size() && "Mismatch in number of arguments");
@@ -165,7 +165,7 @@ AffineForOp buildAffineLoopNestWithCarriedIterArgs(
   SmallVector<AffineForOp> loopsFromOuterToInner;
   for (unsigned i = 0, e = lbs.size(); i < e; ++i) {
     // Callback for creating the loop body, always creates the terminator.
-    auto loopBody = [&](OpBuilder &nestedBuilder, Location nestedLoc, Value iv,
+    auto loopBody = [&](OpBuilder& nestedBuilder, Location nestedLoc, Value iv,
                         ValueRange iterArgs) {
       ivs.push_back(iv);
       // In the innermost loop, call the body builder.
@@ -207,9 +207,9 @@ AffineForOp buildAffineLoopNestWithCarriedIterArgs(
 
 // upstream Linalg/Utils/Utils.h::GenerateLoopNest forces memref semantics.
 AffineForOp generateLoopNest(
-    OpBuilder &b, Location loc, ArrayRef<Range> loopRanges, LinalgOp linalgOp,
+    OpBuilder& b, Location loc, ArrayRef<Range> loopRanges, LinalgOp linalgOp,
     ArrayRef<utils::IteratorType> iteratorTypes, ValueRange outputInits,
-    function_ref<SmallVector<Value>(OpBuilder &, Location, ValueRange,
+    function_ref<SmallVector<Value>(OpBuilder&, Location, ValueRange,
                                     ValueRange)>
         bodyBuilderFn) {
   SmallVector<Value, 4> lbs, ubs, steps;
@@ -236,7 +236,7 @@ AffineForOp generateLoopNest(
   // upstream buildAffineLoopNestImpl with loop-carried tensors.
   return buildAffineLoopNestWithCarriedIterArgs(
       b, loc, lbs, ubs, constantSteps, outputInits,
-      [&](OpBuilder &b, Location loc, ValueRange ivs,
+      [&](OpBuilder& b, Location loc, ValueRange ivs,
           ValueRange iterArgs) -> SmallVector<Value> {
         return bodyBuilderFn(b, loc, ivs, iterArgs);
       });
@@ -246,7 +246,7 @@ struct LowerLinalgGenericToLoops : public OpRewritePattern<GenericOp> {
   using OpRewritePattern<GenericOp>::OpRewritePattern;
 
   LogicalResult matchAndRewrite(GenericOp op,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     LinalgOp linalgOp = cast<LinalgOp>(op.getOperation());
     SmallVector<Range, 4> loopRanges =
         linalgOp.createLoopRanges(rewriter, linalgOp.getLoc());
@@ -258,7 +258,7 @@ struct LowerLinalgGenericToLoops : public OpRewritePattern<GenericOp> {
     AffineForOp outermostLoop = generateLoopNest(
         rewriter, op.getLoc(), loopRanges, linalgOp, iteratorTypes,
         op.getOutputs(),
-        [&](OpBuilder &b, Location loc, ValueRange ivs,
+        [&](OpBuilder& b, Location loc, ValueRange ivs,
             ValueRange iterArgs) -> SmallVector<Value> {
           allIvs.append(ivs.begin(), ivs.end());
           return emitScalarImplementation(b, loc, allIvs, op, iterArgs);
@@ -274,7 +274,7 @@ struct TensorLinalgToAffineLoops
   using TensorLinalgToAffineLoopsBase::TensorLinalgToAffineLoopsBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
     RewritePatternSet patterns(context);
     patterns.add<LowerLinalgGenericToLoops, ExpandAffineApply>(context);
     // Greedy is necessary here because LowerLinalgGenericToLoops generates

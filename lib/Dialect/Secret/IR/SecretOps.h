@@ -43,10 +43,10 @@ namespace secret {
 // canonicalize, or a manual application of DedupeYieldedValues and
 // RemoveUnusedYieldedValues.
 std::pair<GenericOp, GenericOp> extractOpAfterGeneric(
-    GenericOp genericOp, Operation *opToExtract, PatternRewriter &rewriter);
+    GenericOp genericOp, Operation* opToExtract, PatternRewriter& rewriter);
 
-void populateGenericCanonicalizers(RewritePatternSet &patterns,
-                                   MLIRContext *ctx);
+void populateGenericCanonicalizers(RewritePatternSet& patterns,
+                                   MLIRContext* ctx);
 }  // namespace secret
 }  // namespace heir
 }  // namespace mlir

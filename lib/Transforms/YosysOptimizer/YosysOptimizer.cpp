@@ -119,14 +119,14 @@ stat;
 
 namespace {
 
-int64_t countArithOps(Operation *op, ModuleOp moduleOp) {
+int64_t countArithOps(Operation* op, ModuleOp moduleOp) {
   int64_t numArithOps = 0;
-  auto isArithOp = [](Operation *op) -> bool {
+  auto isArithOp = [](Operation* op) -> bool {
     return isa<arith::ArithDialect>(op->getDialect()) &&
            !isa<arith::ConstantOp>(op);
   };
 
-  op->walk([&](Operation *op) {
+  op->walk([&](Operation* op) {
     if (isArithOp(op)) {
       numArithOps++;
     }
@@ -182,8 +182,8 @@ struct YosysOptimizer : public impl::YosysOptimizerBase<YosysOptimizer> {
 /// Convert a secret.generic's operands secret.secret<i3>
 /// to secret.secret<memref<3xi1>>.
 LogicalResult convertOpOperands(secret::GenericOp op, func::FuncOp func,
-                                SmallVector<Value> &typeConvertedArgs) {
-  for (OpOperand &opOperand : op->getOpOperands()) {
+                                SmallVector<Value>& typeConvertedArgs) {
+  for (OpOperand& opOperand : op->getOpOperands()) {
     Type convertedType =
         func.getFunctionType().getInputs()[opOperand.getOperandNumber()];
 
@@ -234,8 +234,8 @@ LogicalResult convertOpOperands(secret::GenericOp op, func::FuncOp func,
 /// to secret.secret<i3>.
 LogicalResult convertOpResults(secret::GenericOp op,
                                SmallVector<Type> originalResultTy,
-                               DenseSet<Operation *> &castOps,
-                               SmallVector<Value> &typeConvertedResults) {
+                               DenseSet<Operation*>& castOps,
+                               SmallVector<Value>& typeConvertedResults) {
   for (auto opResult : op->getResults()) {
     // The secret.yield verifier ensures generic can only return secret types.
     assert(mlir::isa<secret::SecretType>(opResult.getType()));
@@ -285,16 +285,16 @@ class FrontloadAffineApply : public OpRewritePattern<affine::AffineApplyOp> {
  public:
   using OpRewritePattern<affine::AffineApplyOp>::OpRewritePattern;
 
-  FrontloadAffineApply(MLIRContext *context, affine::AffineForOp parentOp)
+  FrontloadAffineApply(MLIRContext* context, affine::AffineForOp parentOp)
       : OpRewritePattern(context, /*benefit=*/3), parentOp(parentOp) {}
 
   LogicalResult matchAndRewrite(affine::AffineApplyOp op,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     auto forOp = op->getParentOfType<affine::AffineForOp>();
     if (!forOp) return failure();
     if (forOp != parentOp) return failure();
 
-    for (auto &earlierOp : forOp.getBody()->getOperations()) {
+    for (auto& earlierOp : forOp.getBody()->getOperations()) {
       if (&earlierOp == op) break;
 
       if (!isa<affine::AffineApplyOp>(earlierOp)) {
@@ -310,9 +310,9 @@ class FrontloadAffineApply : public OpRewritePattern<affine::AffineApplyOp> {
   affine::AffineForOp parentOp;
 };
 
-LogicalResult unrollAndMergeGenerics(Operation *op, int unrollFactor,
-                                     DominanceInfo &domInfo,
-                                     PostDominanceInfo &postDomInfo) {
+LogicalResult unrollAndMergeGenerics(Operation* op, int unrollFactor,
+                                     DominanceInfo& domInfo,
+                                     PostDominanceInfo& postDomInfo) {
   SmallVector<affine::AffineForOp> nestedLoops;
 
   auto walkResult =
@@ -365,7 +365,7 @@ LogicalResult unrollAndMergeGenerics(Operation *op, int unrollFactor,
 
 LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
   std::string moduleName = "generic_body";
-  MLIRContext *context = op->getContext();
+  MLIRContext* context = op->getContext();
   auto moduleOp = op->getParentOfType<ModuleOp>();
   if (!moduleOp) return failure();
 
@@ -374,7 +374,7 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
   if (numArithOps == 0) return success();
 
   optStatistics.push_back(RelativeOptimizationStatistics());
-  auto &stats = optStatistics.back();
+  auto& stats = optStatistics.back();
   if (printStats) {
     llvm::raw_string_ostream os(stats.originalOp);
     op->print(os);
@@ -393,7 +393,7 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
   // the instantiation of multiple rewrite patterns.
   LLVM_DEBUG(op.emitRemark() << "Emitting verilog for this op");
 
-  char *filename = std::tmpnam(nullptr);
+  char* filename = std::tmpnam(nullptr);
   std::error_code ec;
   llvm::raw_fd_ostream of(filename, ec);
   if (failed(translateToVerilog(op, of, moduleName,
@@ -442,7 +442,7 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
   Yosys::run_pass("torder -stop * P*;");
   Yosys::log_streams.clear();
   auto topologicalOrder = getTopologicalOrder(cellOrder);
-  Yosys::RTLIL::Design *design = Yosys::yosys_get_design();
+  Yosys::RTLIL::Design* design = Yosys::yosys_get_design();
   auto numCells = design->top_module()->cells().size();
   totalCircuitSize += numCells;
   if (printStats) {
@@ -488,7 +488,7 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
   for (Type ty : func.getFunctionType().getResults())
     op->getResult(resultIndex++).setType(secret::SecretType::get(ty));
 
-  DenseSet<Operation *> castOps;
+  DenseSet<Operation*> castOps;
   SmallVector<Value> typeConvertedResults;
   castOps.reserve(op->getNumResults());
   typeConvertedResults.reserve(op->getNumResults());
@@ -501,7 +501,7 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
   op.getRegion().takeBody(func.getBody());
   op.getOperation()->setOperands(typeConvertedArgs);
 
-  Block &block = op.getRegion().getBlocks().front();
+  Block& block = op.getRegion().getBlocks().front();
   func::ReturnOp returnOp = cast<func::ReturnOp>(block.getTerminator());
   OpBuilder bodyBuilder(&block, block.end());
   secret::YieldOp::create(bodyBuilder, returnOp.getLoc(),
@@ -515,7 +515,7 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
                           << "\n");
 
   op.getResults().replaceUsesWithIf(
-      typeConvertedResults, [&](OpOperand &operand) {
+      typeConvertedResults, [&](OpOperand& operand) {
         return !castOps.contains(operand.getOwner());
       });
   return success();
@@ -524,8 +524,8 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
 // Optimize the body of a secret.generic op.
 void YosysOptimizer::runOnOperation() {
   Yosys::yosys_setup();
-  auto *ctx = &getContext();
-  auto *op = getOperation();
+  auto* ctx = &getContext();
+  auto* op = getOperation();
 
   // Absorb any memref deallocs into generic's that allocate and use the memref.
   mlir::IRRewriter builder(&getContext());
@@ -582,7 +582,7 @@ void YosysOptimizer::runOnOperation() {
     auto result = op->walk([&](secret::GenericOp op) {
       genericAbsorbConstants(op, builder);
 
-      auto isTrivial = op.getBody()->walk([&](Operation *body) {
+      auto isTrivial = op.getBody()->walk([&](Operation* body) {
         if (isa<arith::ArithDialect>(body->getDialect()) &&
             !isa<arith::ConstantOp>(body)) {
           return WalkResult::interrupt();
@@ -634,7 +634,7 @@ void YosysOptimizer::runOnOperation() {
   Yosys::yosys_shutdown();
 
   if (printStats && !optStatistics.empty()) {
-    for (auto &stats : optStatistics) {
+    for (auto& stats : optStatistics) {
       double ratio = (double)stats.numCells / stats.numArithOps;
       llvm::errs() << "Optimization stats for op: \n\n"
                    << stats.originalOp
@@ -650,19 +650,19 @@ void YosysOptimizer::runOnOperation() {
 }
 
 std::unique_ptr<mlir::Pass> createYosysOptimizer(
-    const std::string &yosysFilesPath, const std::string &abcPath, bool abcFast,
+    const std::string& yosysFilesPath, const std::string& abcPath, bool abcFast,
     int unrollFactor, bool useSubmodules, Mode mode, bool printStats) {
   return std::make_unique<YosysOptimizer>(yosysFilesPath, abcPath, abcFast,
                                           unrollFactor, useSubmodules, mode,
                                           printStats);
 }
 
-void registerYosysOptimizerPipeline(const std::string &yosysFilesPath,
-                                    const std::string &abcPath) {
+void registerYosysOptimizerPipeline(const std::string& yosysFilesPath,
+                                    const std::string& abcPath) {
   PassPipelineRegistration<YosysOptimizerPipelineOptions>(
       "yosys-optimizer", "The yosys optimizer pipeline.",
-      [yosysFilesPath, abcPath](OpPassManager &pm,
-                                const YosysOptimizerPipelineOptions &options) {
+      [yosysFilesPath, abcPath](OpPassManager& pm,
+                                const YosysOptimizerPipelineOptions& options) {
         pm.addPass(createYosysOptimizer(
             yosysFilesPath, abcPath, options.abcFast, options.unrollFactor,
             options.useSubmodules, options.mode, options.printStats));

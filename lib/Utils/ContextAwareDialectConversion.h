@@ -44,23 +44,23 @@ class ContextAwareConversionPattern : public RewritePattern {
   /// Hook for derived classes to implement combined matching and rewriting.
   /// This overload supports only 1:1 replacements.
   virtual LogicalResult matchAndRewrite(
-      Operation *op, ArrayRef<Value> operands,
-      ContextAwareConversionPatternRewriter &rewriter) const {
+      Operation* op, ArrayRef<Value> operands,
+      ContextAwareConversionPatternRewriter& rewriter) const {
     llvm_unreachable("matchAndRewrite is not implemented");
   }
   virtual LogicalResult matchAndRewrite(
-      Operation *op, ArrayRef<ValueRange> operands,
-      ContextAwareConversionPatternRewriter &rewriter) const {
+      Operation* op, ArrayRef<ValueRange> operands,
+      ContextAwareConversionPatternRewriter& rewriter) const {
     return matchAndRewrite(op, getOneToOneAdaptorOperands(operands), rewriter);
   }
 
   /// Attempt to match and rewrite the IR root at the specified operation.
-  LogicalResult matchAndRewrite(Operation *op,
-                                PatternRewriter &rewriter) const final;
+  LogicalResult matchAndRewrite(Operation* op,
+                                PatternRewriter& rewriter) const final;
 
   /// Return the type converter held by this pattern, or nullptr if the pattern
   /// does not require type conversion.
-  const ContextAwareTypeConverter *getTypeConverter() const {
+  const ContextAwareTypeConverter* getTypeConverter() const {
     return typeConverter;
   }
 
@@ -71,8 +71,8 @@ class ContextAwareConversionPattern : public RewritePattern {
   /// Construct a conversion pattern with the given converter, and forward the
   /// remaining arguments to RewritePattern.
   template <typename... Args>
-  ContextAwareConversionPattern(const ContextAwareTypeConverter &typeConverter,
-                                Args &&...args)
+  ContextAwareConversionPattern(const ContextAwareTypeConverter& typeConverter,
+                                Args&&... args)
       : RewritePattern(std::forward<Args>(args)...),
         typeConverter(&typeConverter) {}
 
@@ -87,7 +87,7 @@ class ContextAwareConversionPattern : public RewritePattern {
 
  protected:
   /// An optional type converter for use by this pattern.
-  const ContextAwareTypeConverter *typeConverter = nullptr;
+  const ContextAwareTypeConverter* typeConverter = nullptr;
 };
 
 /// ContextAwareOpConversionPattern is a wrapper around
@@ -100,26 +100,26 @@ class ContextAwareOpConversionPattern : public ContextAwareConversionPattern {
   using OpAdaptor = typename SourceOp::Adaptor;
   using ContextAwareConversionPattern::matchAndRewrite;
 
-  ContextAwareOpConversionPattern(MLIRContext *context,
+  ContextAwareOpConversionPattern(MLIRContext* context,
                                   PatternBenefit benefit = 1)
       : ContextAwareConversionPattern(SourceOp::getOperationName(), benefit,
                                       context) {}
   ContextAwareOpConversionPattern(
-      const ContextAwareTypeConverter &typeConverter, MLIRContext *context,
+      const ContextAwareTypeConverter& typeConverter, MLIRContext* context,
       PatternBenefit benefit = 1)
       : ContextAwareConversionPattern(
             typeConverter, SourceOp::getOperationName(), benefit, context) {}
 
   LogicalResult matchAndRewrite(
-      Operation *op, ArrayRef<Value> operands,
-      ContextAwareConversionPatternRewriter &rewriter) const final {
+      Operation* op, ArrayRef<Value> operands,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
     auto sourceOp = cast<SourceOp>(op);
     return matchAndRewrite(sourceOp, OpAdaptor(operands, sourceOp), rewriter);
   }
 
   virtual LogicalResult matchAndRewrite(
       SourceOp op, OpAdaptor adaptor,
-      ContextAwareConversionPatternRewriter &rewriter) const {
+      ContextAwareConversionPatternRewriter& rewriter) const {
     llvm_unreachable("matchAndRewrite is not implemented");
   }
 };
@@ -153,9 +153,9 @@ class ContextAwareConversionPatternRewriter final : public PatternRewriter {
   /// Note: If no type converter was provided or the type converter does not
   /// specify any suitable argument/target materialization rules, the dialect
   /// conversion may fail to legalize unresolved materializations.
-  Block *applySignatureConversion(
-      Block *block, ContextAwareTypeConverter::SignatureConversion &conversion,
-      const ContextAwareTypeConverter *converter = nullptr);
+  Block* applySignatureConversion(
+      Block* block, ContextAwareTypeConverter::SignatureConversion& conversion,
+      const ContextAwareTypeConverter* converter = nullptr);
 
   /// Apply a signature conversion to each block in the given region. This
   /// replaces each block with a new block containing the updated signature. If
@@ -170,9 +170,9 @@ class ContextAwareConversionPatternRewriter final : public PatternRewriter {
   /// Optionally, a special SignatureConversion can be specified for the entry
   /// block. This is because the types of the entry block arguments are often
   /// tied semantically to the operation.
-  FailureOr<Block *> convertRegionTypes(
-      Region *region, const ContextAwareTypeConverter &converter,
-      ContextAwareTypeConverter::SignatureConversion *entryConversion =
+  FailureOr<Block*> convertRegionTypes(
+      Region* region, const ContextAwareTypeConverter& converter,
+      ContextAwareTypeConverter::SignatureConversion* entryConversion =
           nullptr);
 
   /// Replace all the uses of the block argument `from` with value `to`.
@@ -187,7 +187,7 @@ class ContextAwareConversionPatternRewriter final : public PatternRewriter {
   /// type converter of the currently executing pattern. Returns failure if the
   /// remap failed, success otherwise.
   LogicalResult getRemappedValues(ValueRange keys,
-                                  SmallVectorImpl<Value> &results);
+                                  SmallVectorImpl<Value>& results);
 
   //===--------------------------------------------------------------------===//
   // PatternRewriter Hooks
@@ -203,30 +203,30 @@ class ContextAwareConversionPatternRewriter final : public PatternRewriter {
   /// conversion driver will reconcile any surviving type mismatches at the end
   /// of the conversion process with source materializations. The given
   /// operation is erased.
-  void replaceOp(Operation *op, ValueRange newValues) override;
+  void replaceOp(Operation* op, ValueRange newValues) override;
 
   /// Replace the given operation with the results of the new op. The number of
   /// op results must match. The types may differ: the dialect conversion
   /// driver will reconcile any surviving type mismatches at the end of the
   /// conversion process with source materializations. The original operation
   /// is erased.
-  void replaceOp(Operation *op, Operation *newOp) override;
+  void replaceOp(Operation* op, Operation* newOp) override;
 
   /// Replace the given operation with the new value ranges. The number of op
   /// results and value ranges must match. The given  operation is erased.
-  void replaceOpWithMultiple(Operation *op, ArrayRef<ValueRange> newValues);
+  void replaceOpWithMultiple(Operation* op, ArrayRef<ValueRange> newValues);
 
   /// PatternRewriter hook for erasing a dead operation. The uses of this
   /// operation *must* be made dead by the end of the conversion process,
   /// otherwise an assert will be issued.
-  void eraseOp(Operation *op) override;
+  void eraseOp(Operation* op) override;
 
   /// PatternRewriter hook for erase all operations in a block. This is not yet
   /// implemented for dialect conversion.
-  void eraseBlock(Block *block) override;
+  void eraseBlock(Block* block) override;
 
   /// PatternRewriter hook for inlining the ops of a block into another block.
-  void inlineBlockBefore(Block *source, Block *dest, Block::iterator before,
+  void inlineBlockBefore(Block* source, Block* dest, Block::iterator before,
                          ValueRange argValues = std::nullopt) override;
   using PatternRewriter::inlineBlockBefore;
 
@@ -234,16 +234,16 @@ class ContextAwareConversionPatternRewriter final : public PatternRewriter {
   /// Note: These methods only track updates to the given operation itself,
   /// and not nested regions. Updates to regions will still require notification
   /// through other more specific hooks above.
-  void startOpModification(Operation *op) override;
+  void startOpModification(Operation* op) override;
 
   /// PatternRewriter hook for updating the given operation in-place.
-  void finalizeOpModification(Operation *op) override;
+  void finalizeOpModification(Operation* op) override;
 
   /// PatternRewriter hook for updating the given operation in-place.
-  void cancelOpModification(Operation *op) override;
+  void cancelOpModification(Operation* op) override;
 
   /// Return a reference to the internal implementation.
-  detail::ContextAwareConversionPatternRewriterImpl &getImpl();
+  detail::ContextAwareConversionPatternRewriterImpl& getImpl();
 
  private:
   // Allow OperationConverter to construct new rewriters.
@@ -253,7 +253,7 @@ class ContextAwareConversionPatternRewriter final : public PatternRewriter {
   /// conversions. They apply some IR rewrites in a delayed fashion and could
   /// bring the IR into an inconsistent state when used standalone.
   explicit ContextAwareConversionPatternRewriter(
-      MLIRContext *ctx, const ConversionConfig &config);
+      MLIRContext* ctx, const ConversionConfig& config);
 
   // Hide unsupported pattern rewriter API.
   using OpBuilder::setListener;
@@ -270,12 +270,12 @@ class ContextAwareConversionPatternRewriter final : public PatternRewriter {
 /// possible, ignoring operations that failed to legalize. This method only
 /// returns failure if there ops explicitly marked as illegal.
 LogicalResult applyContextAwarePartialConversion(
-    ArrayRef<Operation *> ops, const ConversionTarget &target,
-    const FrozenRewritePatternSet &patterns,
+    ArrayRef<Operation*> ops, const ConversionTarget& target,
+    const FrozenRewritePatternSet& patterns,
     ConversionConfig config = ConversionConfig());
 LogicalResult applyContextAwarePartialConversion(
-    Operation *op, const ConversionTarget &target,
-    const FrozenRewritePatternSet &patterns,
+    Operation* op, const ConversionTarget& target,
+    const FrozenRewritePatternSet& patterns,
     ConversionConfig config = ConversionConfig());
 
 }  // namespace heir

@@ -47,7 +47,7 @@ RLWESchemeParam RLWESchemeParam::getConservativeRLWESchemeParam(
 }
 
 int64_t findPrime(int qi, int ringDim,
-                  const std::vector<int64_t> &existingPrimes) {
+                  const std::vector<int64_t>& existingPrimes) {
   while (qi < 80) {
     try {
       // openfhe FirstPrime will throw exception if it fails to find a prime
@@ -88,7 +88,7 @@ RLWESchemeParam RLWESchemeParam::getConcreteRLWESchemeParam(
   auto dnum = computeDnum(level);
 
   // sanitize qi
-  for (auto &qi : logqi) {
+  for (auto& qi : logqi) {
     if (qi < 20) {
       qi = 20;
     }
@@ -153,7 +153,7 @@ RLWESchemeParam RLWESchemeParam::getConcreteRLWESchemeParam(
                          usePublicKey, encryptionTechniqueExtended);
 }
 
-void RLWESchemeParam::print(llvm::raw_ostream &os) const {
+void RLWESchemeParam::print(llvm::raw_ostream& os) const {
   os << "ringDim: " << ringDim << "\n";
   os << "level: " << level << "\n";
   os << "logqi: ";

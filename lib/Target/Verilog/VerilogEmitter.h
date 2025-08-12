@@ -34,28 +34,28 @@ namespace heir {
 void registerToVerilogTranslation();
 
 /// Translates the given operation to Verilog.
-mlir::LogicalResult translateToVerilog(mlir::Operation *op,
-                                       llvm::raw_ostream &os);
+mlir::LogicalResult translateToVerilog(mlir::Operation* op,
+                                       llvm::raw_ostream& os);
 
 /// Translates the given operation to Verilog with a fixed input name for the
 /// resulting verilog module. Raises an error if the input IR contains secret
 /// ops.
 mlir::LogicalResult translateToVerilog(
-    mlir::Operation *op, llvm::raw_ostream &os,
+    mlir::Operation* op, llvm::raw_ostream& os,
     std::optional<llvm::StringRef> moduleName);
 
 /// Translates the given operation to Verilog with a fixed input name for the
 /// resulting verilog module. If allowSecretOps is false, raises an error if
 /// the input IR contains secret ops.
 mlir::LogicalResult translateToVerilog(
-    mlir::Operation *op, llvm::raw_ostream &os,
+    mlir::Operation* op, llvm::raw_ostream& os,
     std::optional<llvm::StringRef> moduleName, bool allowSecretOps);
 
 class VerilogEmitter {
  public:
-  VerilogEmitter(raw_ostream &os);
+  VerilogEmitter(raw_ostream& os);
 
-  LogicalResult translate(mlir::Operation &operation,
+  LogicalResult translate(mlir::Operation& operation,
                           std::optional<llvm::StringRef> moduleName);
 
  private:
@@ -71,7 +71,7 @@ class VerilogEmitter {
 
   // A helper to generalize the work of emitting a func.func and a
   // secret.generic
-  LogicalResult printFunctionLikeOp(Operation *op,
+  LogicalResult printFunctionLikeOp(Operation* op,
                                     llvm::StringRef verilogModuleName,
                                     ArrayRef<BlockArgument> arguments,
                                     TypeRange resultTypes,
@@ -126,8 +126,8 @@ class VerilogEmitter {
 
   // Emit a Verilog type of the form `wire [width-1:0]`
   LogicalResult emitType(Type type);
-  LogicalResult emitType(Type type, raw_ostream &os);
-  LogicalResult emitIndexType(Value indexValue, raw_ostream &os);
+  LogicalResult emitType(Type type, raw_ostream& os);
+  LogicalResult emitIndexType(Value indexValue, raw_ostream& os);
 
   // Emit a Verilog array shape specifier of the form `[width]`
   LogicalResult emitArrayShapeSuffix(Type type);

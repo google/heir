@@ -36,13 +36,13 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
 
   template <typename ArithOp>
   void tryReplaceRotations(ArithOp op,
-                           const rotation_analysis::PartialReduction &reduction,
+                           const rotation_analysis::PartialReduction& reduction,
                            bool extraction) {
     LLVM_DEBUG(llvm::dbgs()
                << "Trying to replace rotations ending in " << *op << "\n");
     auto b = ImplicitLocOpBuilder(op->getLoc(), op);
     auto tensor = reduction.getTensor();
-    Operation *finalOp = nullptr;
+    Operation* finalOp = nullptr;
     auto tensorShape =
         mlir::cast<RankedTensorType>(tensor.getType()).getShape();
     for (int64_t shiftSize = tensorShape[0] / 2; shiftSize > 0;
@@ -54,7 +54,7 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
       tensor = addOp->getResult(0);
     }
 
-    [[maybe_unused]] auto *parentOp = op->getParentOp();
+    [[maybe_unused]] auto* parentOp = op->getParentOp();
     if (extraction) {
       // We can extract at any index; every index contains the same reduced
       // value.
@@ -84,7 +84,7 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
     rotationAnalysis.run(getOperation());
 
     getOperation()->walk<WalkOrder::PreOrder, ReverseIterator>(
-        [&](Operation *op) {
+        [&](Operation* op) {
           for (Value result : op->getResults()) {
             if (!rotationAnalysis.containsRootedReductions(result)) {
               continue;
@@ -95,10 +95,10 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
             // can be optimized to be only one final extraction
             bool extraction = !mlir::isa<RankedTensorType>(result.getType());
 
-            for (const auto &reduction :
+            for (const auto& reduction :
                  rotationAnalysis.getRootedReductionsAt(result)) {
               if (reduction.isComplete()) {
-                llvm::TypeSwitch<Operation &>(*op)
+                llvm::TypeSwitch<Operation&>(*op)
                     .Case<arith::AddIOp>([&](auto arithOp) {
                       tryReplaceRotations<arith::AddIOp>(arithOp, reduction,
                                                          extraction);

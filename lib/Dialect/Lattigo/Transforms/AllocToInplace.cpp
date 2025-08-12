@@ -64,7 +64,7 @@ class StorageInfo {
  public:
   // User API
   Value getStorageFromValue(Value value) const {
-    for (auto &[storage, values] : storageToReferringValues) {
+    for (auto& [storage, values] : storageToReferringValues) {
       if (value == storage) {
         return storage;
       }
@@ -91,9 +91,9 @@ class StorageInfo {
   // various accelerators. One basic optimization is to use the dead value that
   // is closest to the current operation in the block. But as we do not have the
   // information of the memory layout, we do not implement this optimization.
-  Value getAvailableStorage(Operation *op, Liveness *liveness) const {
+  Value getAvailableStorage(Operation* op, Liveness* liveness) const {
     Value availableStorage;
-    for (auto &[storage, values] : storageToReferringValues) {
+    for (auto& [storage, values] : storageToReferringValues) {
       // storage and all referring values are dead
       if (std::all_of(
               values.begin(), values.end(),
@@ -106,7 +106,7 @@ class StorageInfo {
     return availableStorage;
   }
 
-  void replaceAllocWithInplace(Operation *oldOp, Operation *newOp,
+  void replaceAllocWithInplace(Operation* oldOp, Operation* newOp,
                                Value storage) {
     // add newly created referring value
     for (auto result : newOp->getResults()) {
@@ -126,15 +126,15 @@ template <typename BinOp, typename InplaceOp>
 struct ConvertBinOp : public OpRewritePattern<BinOp> {
   using OpRewritePattern<BinOp>::OpRewritePattern;
 
-  ConvertBinOp(mlir::MLIRContext *context, Liveness *liveness,
-               DenseMap<Block *, StorageInfo> *blockToStorageInfo)
+  ConvertBinOp(mlir::MLIRContext* context, Liveness* liveness,
+               DenseMap<Block*, StorageInfo>* blockToStorageInfo)
       : OpRewritePattern<BinOp>(context),
         liveness(liveness),
         blockToStorageInfo(blockToStorageInfo) {}
 
   LogicalResult matchAndRewrite(BinOp op,
-                                PatternRewriter &rewriter) const override {
-    auto &storageInfo = (*blockToStorageInfo)[op->getBlock()];
+                                PatternRewriter& rewriter) const override {
+    auto& storageInfo = (*blockToStorageInfo)[op->getBlock()];
     auto storage = storageInfo.getAvailableStorage(op, liveness);
     if (!storage) {
       return failure();
@@ -155,23 +155,23 @@ struct ConvertBinOp : public OpRewritePattern<BinOp> {
   }
 
  private:
-  Liveness *liveness;
-  DenseMap<Block *, StorageInfo> *blockToStorageInfo;
+  Liveness* liveness;
+  DenseMap<Block*, StorageInfo>* blockToStorageInfo;
 };
 
 template <typename UnaryOp, typename InplaceOp>
 struct ConvertUnaryOp : public OpRewritePattern<UnaryOp> {
   using OpRewritePattern<UnaryOp>::OpRewritePattern;
 
-  ConvertUnaryOp(mlir::MLIRContext *context, Liveness *liveness,
-                 DenseMap<Block *, StorageInfo> *blockToStorageInfo)
+  ConvertUnaryOp(mlir::MLIRContext* context, Liveness* liveness,
+                 DenseMap<Block*, StorageInfo>* blockToStorageInfo)
       : OpRewritePattern<UnaryOp>(context),
         liveness(liveness),
         blockToStorageInfo(blockToStorageInfo) {}
 
   LogicalResult matchAndRewrite(UnaryOp op,
-                                PatternRewriter &rewriter) const override {
-    auto &storageInfo = (*blockToStorageInfo)[op->getBlock()];
+                                PatternRewriter& rewriter) const override {
+    auto& storageInfo = (*blockToStorageInfo)[op->getBlock()];
     auto storage = storageInfo.getAvailableStorage(op, liveness);
     if (!storage) {
       return failure();
@@ -190,23 +190,23 @@ struct ConvertUnaryOp : public OpRewritePattern<UnaryOp> {
   }
 
  private:
-  Liveness *liveness;
-  DenseMap<Block *, StorageInfo> *blockToStorageInfo;
+  Liveness* liveness;
+  DenseMap<Block*, StorageInfo>* blockToStorageInfo;
 };
 
 template <typename RotateOp, typename InplaceOp>
 struct ConvertRotateOp : public OpRewritePattern<RotateOp> {
   using OpRewritePattern<RotateOp>::OpRewritePattern;
 
-  ConvertRotateOp(mlir::MLIRContext *context, Liveness *liveness,
-                  DenseMap<Block *, StorageInfo> *blockToStorageInfo)
+  ConvertRotateOp(mlir::MLIRContext* context, Liveness* liveness,
+                  DenseMap<Block*, StorageInfo>* blockToStorageInfo)
       : OpRewritePattern<RotateOp>(context),
         liveness(liveness),
         blockToStorageInfo(blockToStorageInfo) {}
 
   LogicalResult matchAndRewrite(RotateOp op,
-                                PatternRewriter &rewriter) const override {
-    auto &storageInfo = (*blockToStorageInfo)[op->getBlock()];
+                                PatternRewriter& rewriter) const override {
+    auto& storageInfo = (*blockToStorageInfo)[op->getBlock()];
     auto storage = storageInfo.getAvailableStorage(op, liveness);
     if (!storage) {
       return failure();
@@ -226,23 +226,23 @@ struct ConvertRotateOp : public OpRewritePattern<RotateOp> {
   }
 
  private:
-  Liveness *liveness;
-  DenseMap<Block *, StorageInfo> *blockToStorageInfo;
+  Liveness* liveness;
+  DenseMap<Block*, StorageInfo>* blockToStorageInfo;
 };
 
 template <typename DropLevelOp, typename InplaceOp>
 struct ConvertDropLevelOp : public OpRewritePattern<DropLevelOp> {
   using OpRewritePattern<DropLevelOp>::OpRewritePattern;
 
-  ConvertDropLevelOp(mlir::MLIRContext *context, Liveness *liveness,
-                     DenseMap<Block *, StorageInfo> *blockToStorageInfo)
+  ConvertDropLevelOp(mlir::MLIRContext* context, Liveness* liveness,
+                     DenseMap<Block*, StorageInfo>* blockToStorageInfo)
       : OpRewritePattern<DropLevelOp>(context),
         liveness(liveness),
         blockToStorageInfo(blockToStorageInfo) {}
 
   LogicalResult matchAndRewrite(DropLevelOp op,
-                                PatternRewriter &rewriter) const override {
-    auto &storageInfo = (*blockToStorageInfo)[op->getBlock()];
+                                PatternRewriter& rewriter) const override {
+    auto& storageInfo = (*blockToStorageInfo)[op->getBlock()];
     auto storage = storageInfo.getAvailableStorage(op, liveness);
     if (!storage) {
       return failure();
@@ -262,8 +262,8 @@ struct ConvertDropLevelOp : public OpRewritePattern<DropLevelOp> {
   }
 
  private:
-  Liveness *liveness;
-  DenseMap<Block *, StorageInfo> *blockToStorageInfo;
+  Liveness* liveness;
+  DenseMap<Block*, StorageInfo>* blockToStorageInfo;
 };
 
 #define GEN_PASS_DEF_ALLOCTOINPLACE
@@ -275,22 +275,22 @@ struct AllocToInplace : impl::AllocToInplaceBase<AllocToInplace> {
   void runOnOperation() override {
     Liveness liveness(getOperation());
 
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
     RewritePatternSet patterns(context);
 
-    DenseMap<Block *, StorageInfo> blockToStorageInfo;
+    DenseMap<Block*, StorageInfo> blockToStorageInfo;
     // Initialize each func block's storage
     getOperation()->walk([&](func::FuncOp funcOp) {
       if (funcOp.isDeclaration()) {
         return;
       }
-      for (auto &block : funcOp.getBody().getBlocks()) {
-        auto &storageInfo = blockToStorageInfo[&block];
+      for (auto& block : funcOp.getBody().getBlocks()) {
+        auto& storageInfo = blockToStorageInfo[&block];
         // arguments are storages
         for (auto arg : block.getArguments()) {
           storageInfo.addStorage(arg);
         }
-        block.walk<WalkOrder::PreOrder>([&](Operation *op) {
+        block.walk<WalkOrder::PreOrder>([&](Operation* op) {
           // inplace op will not allocate new memory, it produces referring
           // values
           if (auto inplaceOpInterface =

@@ -13,7 +13,7 @@ namespace heir {
 /// Sanitize the given name such that it can be used as a valid identifier. If
 /// the string needs to be modified in any way, the provided buffer is used to
 /// store the new copy,
-StringRef sanitizeIdentifier(StringRef name, SmallString<16> &buffer,
+StringRef sanitizeIdentifier(StringRef name, SmallString<16>& buffer,
                              StringRef allowedPunctChars = "_");
 
 }  // namespace heir

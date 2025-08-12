@@ -32,15 +32,15 @@ void setAttributeAssociatedWith(Value value, StringRef attrName,
 // Remove attributes with a given name from a given op, taking into account
 // FunctionOpInterface's arg/result attrs as well as
 // OperandAndResultAttrInterface.
-void clearAttrs(Operation *op, StringRef attrName);
+void clearAttrs(Operation* op, StringRef attrName);
 
 // Walk the op and copy attributes associated with any func.return operands to
 // the enclosing func.func's result attrs.
-void copyReturnOperandAttrsToFuncResultAttrs(Operation *op, StringRef attrName);
+void copyReturnOperandAttrsToFuncResultAttrs(Operation* op, StringRef attrName);
 
 // Walk the op and copy attributes associated with
 // OperandAndResultAttrInterface op operands to the operand attrs of that op.
-void populateOperandAttrInterface(Operation *op, StringRef attrName);
+void populateOperandAttrInterface(Operation* op, StringRef attrName);
 
 // For each attribute name in arrayOfDicts, extract an ArrayAttr of the values
 // for that name and add it to result.
@@ -48,7 +48,7 @@ void populateOperandAttrInterface(Operation *op, StringRef attrName);
 // If there is only one dictionary in the array, extract the attributes
 // directly without wrapping them in array attrs
 void convertArrayOfDicts(ArrayAttr arrayOfDicts,
-                         SmallVector<NamedAttribute> &result);
+                         SmallVector<NamedAttribute>& result);
 
 }  // namespace heir
 }  // namespace mlir

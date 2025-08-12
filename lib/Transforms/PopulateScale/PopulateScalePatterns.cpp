@@ -15,7 +15,7 @@ namespace heir {
 
 template <typename MulOp>
 LogicalResult ConvertAdjustScaleToMulPlain<MulOp>::matchAndRewrite(
-    mgmt::AdjustScaleOp op, PatternRewriter &rewriter) const {
+    mgmt::AdjustScaleOp op, PatternRewriter& rewriter) const {
   auto inputScale = mgmt::findMgmtAttrAssociatedWith(op.getInput()).getScale();
   int64_t scale = mgmt::findMgmtAttrAssociatedWith(op).getScale();
   // no need to adjust scale

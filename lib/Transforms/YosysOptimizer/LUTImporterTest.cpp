@@ -51,7 +51,7 @@ class LUTImporterTestFixture : public Test {
     Yosys::yosys_setup();
   }
 
-  func::FuncOp runImporter(const std::string &rtlil) {
+  func::FuncOp runImporter(const std::string& rtlil) {
     std::unique_ptr<Runfiles> runfiles(Runfiles::CreateForTest());
     SmallString<128> workspaceRelativePath;
     llvm::sys::path::append(workspaceRelativePath, kWorkspaceDir, rtlil);
@@ -68,7 +68,7 @@ class LUTImporterTestFixture : public Test {
     LUTImporter lutImporter = LUTImporter(&context);
 
     auto topologicalOrder = getTopologicalOrder(cellOrder);
-    Yosys::RTLIL::Design *design = Yosys::yosys_get_design();
+    Yosys::RTLIL::Design* design = Yosys::yosys_get_design();
     auto func = lutImporter.importModule(design->top_module(), topologicalOrder,
                                          std::nullopt);
     module_->push_back(func);
@@ -140,7 +140,7 @@ TEST_F(LUTImporterTestFixture, DoubleInput) {
   ASSERT_TRUE(allocOp);
 
   int numStores = 0;
-  for (auto &use : allocOp->getUses()) {
+  for (auto& use : allocOp->getUses()) {
     memref::StoreOp storeOp = dyn_cast_or_null<memref::StoreOp>(use.getOwner());
     if (!storeOp) {
       ASSERT_TRUE(dyn_cast_or_null<func::ReturnOp>(use.getOwner()));
@@ -179,7 +179,7 @@ TEST_F(LUTImporterTestFixture, MultipleInputs) {
 }  // namespace mlir::heir
 
 // We use a custom main function here to avoid issues with Yosys' main driver.
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

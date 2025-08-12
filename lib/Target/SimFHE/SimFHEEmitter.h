@@ -20,7 +20,7 @@ namespace simfhe {
 
 void registerToSimFHETranslation();
 
-LogicalResult translateToSimFHE(Operation *op, llvm::raw_ostream &os);
+LogicalResult translateToSimFHE(Operation* op, llvm::raw_ostream& os);
 
 /// SimFHEEmitter translates CKKS (e.g., the output of `--mlir-to-ckks`) to
 /// Python code that can be used with SimFHE (https://github.com/bu-icsg/SimFHE)
@@ -49,12 +49,12 @@ LogicalResult translateToSimFHE(Operation *op, llvm::raw_ostream &os);
 // it is highly recommended to reach out to the SimFHE authors first.
 class SimFHEEmitter {
  public:
-  SimFHEEmitter(llvm::raw_ostream &os, SelectVariableNames *variableNames);
-  LogicalResult translate(Operation &operation);
+  SimFHEEmitter(llvm::raw_ostream& os, SelectVariableNames* variableNames);
+  LogicalResult translate(Operation& operation);
 
  private:
   raw_indented_ostream os;
-  SelectVariableNames *variableNames;
+  SelectVariableNames* variableNames;
 
   LogicalResult printOperation(ModuleOp moduleOp);
   LogicalResult printOperation(func::FuncOp funcOp);

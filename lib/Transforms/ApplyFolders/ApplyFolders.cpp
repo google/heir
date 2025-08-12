@@ -17,7 +17,7 @@ struct ApplyFolders : impl::ApplyFoldersBase<ApplyFolders> {
   using ApplyFoldersBase::ApplyFoldersBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
     RewritePatternSet patterns(context);
     tensor::ControlConstantExtractSliceFusionFn controlFn =
         [](tensor::ExtractSliceOp op) { return true; };

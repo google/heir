@@ -19,18 +19,18 @@ namespace heir {
 namespace openfhe {
 
 /// Translates the given operation to OpenFhePke.
-::mlir::LogicalResult translateToOpenFhePkeHeader(::mlir::Operation *op,
-                                                  llvm::raw_ostream &os,
+::mlir::LogicalResult translateToOpenFhePkeHeader(::mlir::Operation* op,
+                                                  llvm::raw_ostream& os,
                                                   OpenfheImportType importType);
 
 /// For each function in the mlir module, emits a function header declaration
 /// along with any necessary includes.
 class OpenFhePkeHeaderEmitter {
  public:
-  OpenFhePkeHeaderEmitter(raw_ostream &os, SelectVariableNames *variableNames,
+  OpenFhePkeHeaderEmitter(raw_ostream& os, SelectVariableNames* variableNames,
                           OpenfheImportType importType);
 
-  LogicalResult translate(::mlir::Operation &operation);
+  LogicalResult translate(::mlir::Operation& operation);
 
  private:
   OpenfheImportType importType_;
@@ -40,7 +40,7 @@ class OpenFhePkeHeaderEmitter {
 
   /// Pre-populated analysis selecting unique variable names for all the SSA
   /// values.
-  SelectVariableNames *variableNames;
+  SelectVariableNames* variableNames;
 
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);

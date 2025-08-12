@@ -29,17 +29,17 @@ namespace tfhe_rust_bool {
 void registerToTfheRustBoolTranslation();
 
 /// Translates the given operation to TfheRustBool.
-::mlir::LogicalResult translateToTfheRustBool(::mlir::Operation *op,
-                                              llvm::raw_ostream &os,
+::mlir::LogicalResult translateToTfheRustBool(::mlir::Operation* op,
+                                              llvm::raw_ostream& os,
                                               bool packedAPI);
 
 class TfheRustBoolEmitter {
  public:
-  TfheRustBoolEmitter(raw_ostream &os, SelectVariableNames *variableNames,
+  TfheRustBoolEmitter(raw_ostream& os, SelectVariableNames* variableNames,
                       bool packedAPI);
 
-  LogicalResult translate(::mlir::Operation &operation);
-  bool containsVectorOperands(Operation *op);
+  LogicalResult translate(::mlir::Operation& operation);
+  bool containsVectorOperands(Operation* op);
 
  private:
   /// Output stream to emit to.
@@ -47,7 +47,7 @@ class TfheRustBoolEmitter {
 
   /// Pre-populated analysis selecting unique variable names for all the SSA
   /// values.
-  SelectVariableNames *variableNames;
+  SelectVariableNames* variableNames;
 
   // Boolean to keep track if the packed API is used or not
   bool packedAPI;

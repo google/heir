@@ -12,8 +12,8 @@ namespace heir {
 // Parameter for BGV scheme at ModuleOp level
 class RLWESchemeParam {
  public:
-  RLWESchemeParam(int ringDim, int level, const std::vector<double> &logqi,
-                  int dnum, const std::vector<double> &logpi, bool usePublicKey,
+  RLWESchemeParam(int ringDim, int level, const std::vector<double>& logqi,
+                  int dnum, const std::vector<double>& logpi, bool usePublicKey,
                   bool encryptionTechniqueExtended)
       : ringDim(ringDim),
         level(level),
@@ -23,10 +23,10 @@ class RLWESchemeParam {
         usePublicKey(usePublicKey),
         encryptionTechniqueExtended(encryptionTechniqueExtended) {}
 
-  RLWESchemeParam(int ringDim, int level, const std::vector<double> &logqi,
-                  const std::vector<int64_t> &qi, int dnum,
-                  const std::vector<double> &logpi,
-                  const std::vector<int64_t> &pi, bool usePublicKey,
+  RLWESchemeParam(int ringDim, int level, const std::vector<double>& logqi,
+                  const std::vector<int64_t>& qi, int dnum,
+                  const std::vector<double>& logpi,
+                  const std::vector<int64_t>& pi, bool usePublicKey,
                   bool encryptionTechniqueExtended)
       : ringDim(ringDim),
         level(level),
@@ -80,21 +80,21 @@ class RLWESchemeParam {
  public:
   int getRingDim() const { return ringDim; }
   int getLevel() const { return level; }
-  const std::vector<double> &getLogqi() const { return logqi; }
-  const std::vector<int64_t> &getQi() const { return qi; }
+  const std::vector<double>& getLogqi() const { return logqi; }
+  const std::vector<int64_t>& getQi() const { return qi; }
   int getDnum() const { return dnum; }
-  const std::vector<double> &getLogpi() const { return logpi; }
-  const std::vector<int64_t> &getPi() const { return pi; }
+  const std::vector<double>& getLogpi() const { return logpi; }
+  const std::vector<int64_t>& getPi() const { return pi; }
   double getStd0() const { return std0; }
   bool getUsePublicKey() const { return usePublicKey; }
   bool isEncryptionTechniqueExtended() const {
     return encryptionTechniqueExtended;
   }
 
-  virtual void print(llvm::raw_ostream &os) const;
+  virtual void print(llvm::raw_ostream& os) const;
 
-  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
-                                       const RLWESchemeParam &param) {
+  friend llvm::raw_ostream& operator<<(llvm::raw_ostream& os,
+                                       const RLWESchemeParam& param) {
     param.print(os);
     return os;
   }
@@ -113,19 +113,19 @@ class RLWESchemeParam {
 // Parameter for each RLWE ciphertext SSA value.
 class RLWELocalParam {
  public:
-  RLWELocalParam(const RLWESchemeParam *schemeParam, int currentLevel,
+  RLWELocalParam(const RLWESchemeParam* schemeParam, int currentLevel,
                  int dimension)
       : schemeParam(schemeParam),
         currentLevel(currentLevel),
         dimension(dimension) {}
 
  protected:
-  const RLWESchemeParam *schemeParam;
+  const RLWESchemeParam* schemeParam;
   int currentLevel;
   int dimension;
 
  public:
-  const RLWESchemeParam *getRLWESchemeParam() const { return schemeParam; }
+  const RLWESchemeParam* getRLWESchemeParam() const { return schemeParam; }
 
   int getCurrentLevel() const { return currentLevel; }
   int getDimension() const { return dimension; }

@@ -13,8 +13,8 @@
 namespace mlir {
 namespace heir {
 
-LogicalResult copyMgmtAttrToClientHelpers(Operation *op) {
-  auto &kArgMgmtAttrName = mgmt::MgmtDialect::kArgMgmtAttrName;
+LogicalResult copyMgmtAttrToClientHelpers(Operation* op) {
+  auto& kArgMgmtAttrName = mgmt::MgmtDialect::kArgMgmtAttrName;
 
   ModuleOp moduleOp = cast<ModuleOp>(op);
   WalkResult result = op->walk([&](func::FuncOp funcOp) {
@@ -30,7 +30,7 @@ LogicalResult copyMgmtAttrToClientHelpers(Operation *op) {
     llvm::StringRef originalFuncName =
         cast<StringAttr>(attr.get(kClientHelperFuncName));
 
-    Operation *maybeFunc = moduleOp.lookupSymbol(originalFuncName);
+    Operation* maybeFunc = moduleOp.lookupSymbol(originalFuncName);
     if (!maybeFunc) {
       op->emitError() << "module missing func with name " << originalFuncName;
       return WalkResult::interrupt();

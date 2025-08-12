@@ -22,7 +22,7 @@ struct LowerPolynomialEval
   using LowerPolynomialEvalBase::LowerPolynomialEvalBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    MLIRContext* context = &getContext();
     RewritePatternSet patterns(context);
 
     if (method == PolynomialApproximationMethod::Automatic) {

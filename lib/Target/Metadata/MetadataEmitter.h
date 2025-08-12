@@ -16,20 +16,20 @@ void registerMetadataEmitter();
 
 /// Emits metadata for the given operation. Supports only modules and funcs as
 /// top level inputs.
-mlir::LogicalResult emitMetadata(mlir::Operation *op, llvm::raw_ostream &os);
+mlir::LogicalResult emitMetadata(mlir::Operation* op, llvm::raw_ostream& os);
 
 class MetadataEmitter {
  public:
   MetadataEmitter() = default;
 
-  FailureOr<llvm::json::Object> translate(mlir::Operation &operation);
+  FailureOr<llvm::json::Object> translate(mlir::Operation& operation);
 
  private:
   FailureOr<llvm::json::Object> emitOperation(mlir::ModuleOp op);
   FailureOr<llvm::json::Object> emitOperation(mlir::func::FuncOp op);
 
-  FailureOr<llvm::json::Object> typeAsJson(MemRefType &ty);
-  FailureOr<llvm::json::Object> typeAsJson(IntegerType &ty);
+  FailureOr<llvm::json::Object> typeAsJson(MemRefType& ty);
+  FailureOr<llvm::json::Object> typeAsJson(IntegerType& ty);
 };
 
 }  // namespace heir

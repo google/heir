@@ -24,8 +24,8 @@ namespace bfv {
 // "Revisiting Homomorphic Encryption Schemes for Finite Fields"
 // to see how the formulae there are adapted to this model
 
-double NoiseByVarianceCoeffModel::toLogBound(const LocalParamType &param,
-                                             const StateType &noise) const {
+double NoiseByVarianceCoeffModel::toLogBound(const LocalParamType& param,
+                                             const StateType& noise) const {
   // error probability 2^-32
   // though this only holds if every random variable is Gaussian
   // or similar to Gaussian
@@ -38,13 +38,13 @@ double NoiseByVarianceCoeffModel::toLogBound(const LocalParamType &param,
   return bound;
 }
 
-double NoiseByVarianceCoeffModel::toLogBudget(const LocalParamType &param,
-                                              const StateType &noise) const {
+double NoiseByVarianceCoeffModel::toLogBudget(const LocalParamType& param,
+                                              const StateType& noise) const {
   return toLogTotal(param) - toLogBound(param, noise);
 }
 
 double NoiseByVarianceCoeffModel::toLogTotal(
-    const LocalParamType &param) const {
+    const LocalParamType& param) const {
   double total = 0;
   auto logqi = param.getSchemeParam()->getLogqi();
   for (auto i = 0; i <= param.getSchemeParam()->getLevel(); ++i) {
@@ -55,19 +55,19 @@ double NoiseByVarianceCoeffModel::toLogTotal(
 }
 
 double NoiseByVarianceCoeffModel::getVarianceErr(
-    const LocalParamType &param) const {
+    const LocalParamType& param) const {
   auto std0 = param.getSchemeParam()->getStd0();
   return std0 * std0;
 }
 
 double NoiseByVarianceCoeffModel::getVarianceKey(
-    const LocalParamType &param) const {
+    const LocalParamType& param) const {
   // assume UNIFORM_TERNARY
   return 2.0 / 3.0;
 }
 
 typename NoiseByVarianceCoeffModel::StateType
-NoiseByVarianceCoeffModel::evalEncryptPk(const LocalParamType &param) const {
+NoiseByVarianceCoeffModel::evalEncryptPk(const LocalParamType& param) const {
   auto varianceError = getVarianceErr(param);
   // uniform ternary
   auto varianceKey = getVarianceKey(param);
@@ -83,7 +83,7 @@ NoiseByVarianceCoeffModel::evalEncryptPk(const LocalParamType &param) const {
 }
 
 typename NoiseByVarianceCoeffModel::StateType
-NoiseByVarianceCoeffModel::evalEncryptSk(const LocalParamType &param) const {
+NoiseByVarianceCoeffModel::evalEncryptSk(const LocalParamType& param) const {
   auto varianceError = getVarianceErr(param);
 
   // secret key s
@@ -96,7 +96,7 @@ NoiseByVarianceCoeffModel::evalEncryptSk(const LocalParamType &param) const {
 }
 
 typename NoiseByVarianceCoeffModel::StateType
-NoiseByVarianceCoeffModel::evalEncrypt(const LocalParamType &param) const {
+NoiseByVarianceCoeffModel::evalEncrypt(const LocalParamType& param) const {
   auto usePublicKey = param.getSchemeParam()->getUsePublicKey();
   auto isEncryptionTechniqueExtended =
       param.getSchemeParam()->isEncryptionTechniqueExtended();
@@ -118,14 +118,14 @@ NoiseByVarianceCoeffModel::evalEncrypt(const LocalParamType &param) const {
 }
 
 typename NoiseByVarianceCoeffModel::StateType
-NoiseByVarianceCoeffModel::evalConstant(const LocalParamType &param) const {
+NoiseByVarianceCoeffModel::evalConstant(const LocalParamType& param) const {
   // constant is v = (q/t)m + 0
   return StateType::of(0, 0);
 }
 
 typename NoiseByVarianceCoeffModel::StateType
-NoiseByVarianceCoeffModel::evalAdd(const StateType &lhs,
-                                   const StateType &rhs) const {
+NoiseByVarianceCoeffModel::evalAdd(const StateType& lhs,
+                                   const StateType& rhs) const {
   // v_add = v_0 + v_1
   // assuming independence of course
   // max degree of 's' in v_add is max(d_0, d_1)
@@ -133,9 +133,9 @@ NoiseByVarianceCoeffModel::evalAdd(const StateType &lhs,
 }
 
 typename NoiseByVarianceCoeffModel::StateType
-NoiseByVarianceCoeffModel::evalMul(const LocalParamType &resultParam,
-                                   const StateType &lhs,
-                                   const StateType &rhs) const {
+NoiseByVarianceCoeffModel::evalMul(const LocalParamType& resultParam,
+                                   const StateType& lhs,
+                                   const StateType& rhs) const {
   auto ringDim = resultParam.getSchemeParam()->getRingDim();
   auto v0 = lhs;
   auto d0 = lhs.getDegree();
@@ -198,7 +198,7 @@ NoiseByVarianceCoeffModel::evalMul(const LocalParamType &resultParam,
 
 typename NoiseByVarianceCoeffModel::StateType
 NoiseByVarianceCoeffModel::evalRelinearizeHYBRID(
-    const LocalParamType &inputParam, const StateType &input) const {
+    const LocalParamType& inputParam, const StateType& input) const {
   // for v_input, after modup and moddown, it remains the same (with rounding).
   // We only need to consider the error from key switching key
   // and rounding error during moddown.
@@ -244,8 +244,8 @@ NoiseByVarianceCoeffModel::evalRelinearizeHYBRID(
 }
 
 typename NoiseByVarianceCoeffModel::StateType
-NoiseByVarianceCoeffModel::evalRelinearize(const LocalParamType &inputParam,
-                                           const StateType &input) const {
+NoiseByVarianceCoeffModel::evalRelinearize(const LocalParamType& inputParam,
+                                           const StateType& input) const {
   // assume HYBRID
   // if we further introduce BV to SchemeParam we can have alternative
   // implementation.

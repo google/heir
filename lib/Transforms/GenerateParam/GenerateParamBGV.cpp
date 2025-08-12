@@ -44,9 +44,9 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
 
   template <typename NoiseAnalysis>
   typename NoiseAnalysis::SchemeParamType generateParamByGap(
-      DataFlowSolver *solver,
-      const typename NoiseAnalysis::SchemeParamType &schemeParam,
-      const typename NoiseAnalysis::NoiseModel &noiseModel) {
+      DataFlowSolver* solver,
+      const typename NoiseAnalysis::SchemeParamType& schemeParam,
+      const typename NoiseAnalysis::NoiseModel& noiseModel) {
     using NoiseLatticeType = typename NoiseAnalysis::LatticeType;
     using LocalParamType = typename NoiseAnalysis::LocalParamType;
 
@@ -87,7 +87,7 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
       });
 
       // find the max noise for the first level
-      genericOp.getBody()->walk([&](Operation *op) {
+      genericOp.getBody()->walk([&](Operation* op) {
         for (Value result : op->getResults()) {
           if (getLevelFromMgmtAttr(result) == 0) {
             auto bound = getBound(result);
@@ -107,7 +107,7 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
     auto qiSize = std::vector<double>(maxLevel, 0);
     qiSize[0] = firstModSize;
 
-    for (auto &[level, gap] : levelToGap) {
+    for (auto& [level, gap] : levelToGap) {
       // the prime size should be larger than the gap to ensure after mod reduce
       // the noise is still within the bound
       qiSize[level] = 1 + int(ceil(gap));
@@ -129,7 +129,7 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
     return concreteSchemeParam;
   }
 
-  void annotateSchemeParam(const bgv::SchemeParam &schemeParam) {
+  void annotateSchemeParam(const bgv::SchemeParam& schemeParam) {
     getOperation()->setAttr(
         bgv::BGVDialect::kSchemeParamAttrName,
         bgv::SchemeParamAttr::get(
@@ -148,7 +148,7 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
   }
 
   template <typename NoiseModel>
-  void run(const NoiseModel &model) {
+  void run(const NoiseModel& model) {
     std::optional<int> maxLevel = getMaxLevel(getOperation());
 
     // plaintext modulus from command line option

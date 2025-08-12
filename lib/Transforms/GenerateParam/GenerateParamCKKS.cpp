@@ -55,7 +55,7 @@ struct GenerateParamCKKS : impl::GenerateParamCKKSBase<GenerateParamCKKS> {
 
     std::optional<double> extraBits;
 
-    getOperation()->walk([&](Operation *op) {
+    getOperation()->walk([&](Operation* op) {
       for (auto result : op->getResults()) {
         if (mgmt::shouldHaveMgmtAttribute(result, &solver) &&
             getLevelFromMgmtAttr(result) == 0) {

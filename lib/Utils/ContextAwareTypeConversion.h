@@ -43,13 +43,13 @@ class ContextAwareTypeConverter {
   virtual ~ContextAwareTypeConverter() = default;
   ContextAwareTypeConverter() = default;
   // Copy the registered conversions, but not the caches
-  ContextAwareTypeConverter(const ContextAwareTypeConverter &other)
+  ContextAwareTypeConverter(const ContextAwareTypeConverter& other)
       : conversions(other.conversions),
         argumentMaterializations(other.argumentMaterializations),
         sourceMaterializations(other.sourceMaterializations),
         targetMaterializations(other.targetMaterializations),
         typeAttributeConversions(other.typeAttributeConversions) {}
-  ContextAwareTypeConverter &operator=(const ContextAwareTypeConverter &other) {
+  ContextAwareTypeConverter& operator=(const ContextAwareTypeConverter& other) {
     conversions = other.conversions;
     argumentMaterializations = other.argumentMaterializations;
     sourceMaterializations = other.sourceMaterializations;
@@ -68,8 +68,8 @@ class ContextAwareTypeConverter {
   // context, so the subclass of this type converter must define how to handle
   // function signatures.
   virtual LogicalResult convertFuncSignature(
-      FunctionOpInterface funcOp, SmallVectorImpl<Type> &newArgTypes,
-      SmallVectorImpl<Type> &newResultTypes) const = 0;
+      FunctionOpInterface funcOp, SmallVectorImpl<Type>& newArgTypes,
+      SmallVectorImpl<Type>& newResultTypes) const = 0;
 
   /// This class provides all of the information necessary to convert a type
   /// signature.
@@ -176,7 +176,7 @@ class ContextAwareTypeConverter {
       // Attribute
       typename A =
           typename llvm::function_traits<std::decay_t<FnT>>::template arg_t<1>>
-  void addConversion(FnT &&callback) {
+  void addConversion(FnT&& callback) {
     registerConversion(wrapCallback<T, A>(std::forward<FnT>(callback)));
   }
 
@@ -206,7 +206,7 @@ class ContextAwareTypeConverter {
   /// and so will be argument materializations.
   template <typename FnT, typename T = typename llvm::function_traits<
                               std::decay_t<FnT>>::template arg_t<1>>
-  void addArgumentMaterialization(FnT &&callback) {
+  void addArgumentMaterialization(FnT&& callback) {
     argumentMaterializations.emplace_back(
         wrapMaterialization<T>(std::forward<FnT>(callback)));
   }
@@ -217,7 +217,7 @@ class ContextAwareTypeConverter {
   /// conversion.
   template <typename FnT, typename T = typename llvm::function_traits<
                               std::decay_t<FnT>>::template arg_t<1>>
-  void addSourceMaterialization(FnT &&callback) {
+  void addSourceMaterialization(FnT&& callback) {
     sourceMaterializations.emplace_back(
         wrapMaterialization<T>(std::forward<FnT>(callback)));
   }
@@ -241,7 +241,7 @@ class ContextAwareTypeConverter {
   /// that case the materialization produces a SmallVector<Value>.
   template <typename FnT, typename T = typename llvm::function_traits<
                               std::decay_t<FnT>>::template arg_t<1>>
-  void addTargetMaterialization(FnT &&callback) {
+  void addTargetMaterialization(FnT&& callback) {
     targetMaterializations.emplace_back(
         wrapTargetMaterialization<T>(std::forward<FnT>(callback)));
   }
@@ -270,7 +270,7 @@ class ContextAwareTypeConverter {
           typename llvm::function_traits<std::decay_t<FnT>>::template arg_t<0>,
       typename A =
           typename llvm::function_traits<std::decay_t<FnT>>::template arg_t<1>>
-  void addTypeAttributeConversion(FnT &&callback) {
+  void addTypeAttributeConversion(FnT&& callback) {
     registerTypeAttributeConversion(
         wrapTypeAttributeConversion<T, A>(std::forward<FnT>(callback)));
   }
@@ -282,10 +282,10 @@ class ContextAwareTypeConverter {
   ///
   /// HEIR: the added argument Attribute corresponds to the context of the type
   LogicalResult convertType(Type t, Attribute attr,
-                            SmallVectorImpl<Type> &results) const;
+                            SmallVectorImpl<Type>& results) const;
   /// Here the value is used as context
   LogicalResult convertType(Type t, Value v,
-                            SmallVectorImpl<Type> &results) const;
+                            SmallVectorImpl<Type>& results) const;
 
   /// This hook simplifies defining 1-1 type conversions. This function returns
   /// the type to convert to on success, and a null type on failure.
@@ -310,9 +310,9 @@ class ContextAwareTypeConverter {
   /// HEIR: the added argument array of attributes corresponds to the context of
   /// each type
   LogicalResult convertTypes(TypeRange types, ArrayRef<Attribute> attributes,
-                             SmallVectorImpl<Type> &results) const;
+                             SmallVectorImpl<Type>& results) const;
   LogicalResult convertTypes(TypeRange types, ValueRange values,
-                             SmallVectorImpl<Type> &results) const;
+                             SmallVectorImpl<Type>& results) const;
 
   /// Return true if the given type is legal for this type converter, i.e. the
   /// type converts to itself.
@@ -332,26 +332,26 @@ class ContextAwareTypeConverter {
   bool isLegal(TypeRange types, ArrayRef<Attribute> attributes) const;
 
   /// Return true if the given operation has legal operand and result types.
-  bool isLegal(Operation *op) const;
+  bool isLegal(Operation* op) const;
 
   /// Return true if the types of block arguments within the region are legal.
-  bool isLegal(Region *region) const;
+  bool isLegal(Region* region) const;
 
   /// This function converts the type signature of the given block, by invoking
   /// 'convertSignatureArg' for each argument. This function should return a
   /// valid conversion for the signature on success, std::nullopt otherwise.
-  std::optional<SignatureConversion> convertBlockSignature(Block *block) const;
+  std::optional<SignatureConversion> convertBlockSignature(Block* block) const;
 
   /// Materialize a conversion from a set of types into one result type by
   /// generating a cast sequence of some kind. See the respective
   /// `add*Materialization` for more information on the context for these
   /// methods.
-  Value materializeSourceConversion(OpBuilder &builder, Location loc,
+  Value materializeSourceConversion(OpBuilder& builder, Location loc,
                                     Type resultType, ValueRange inputs) const;
-  Value materializeTargetConversion(OpBuilder &builder, Location loc,
+  Value materializeTargetConversion(OpBuilder& builder, Location loc,
                                     Type resultType, ValueRange inputs,
                                     Type originalType = {}) const;
-  SmallVector<Value> materializeTargetConversion(OpBuilder &builder,
+  SmallVector<Value> materializeTargetConversion(OpBuilder& builder,
                                                  Location loc,
                                                  TypeRange resultType,
                                                  ValueRange inputs,
@@ -369,20 +369,20 @@ class ContextAwareTypeConverter {
   /// types is empty, the type is removed and any usages of the existing value
   /// are expected to be removed during conversion.
   using ConversionCallbackFn = std::function<std::optional<LogicalResult>(
-      Type, Attribute, SmallVectorImpl<Type> &)>;
+      Type, Attribute, SmallVectorImpl<Type>&)>;
 
   /// The signature of the callback used to materialize a source/argument
   /// conversion.
   ///
   /// Arguments: builder, result type, inputs, location
   using MaterializationCallbackFn =
-      std::function<Value(OpBuilder &, Type, ValueRange, Location)>;
+      std::function<Value(OpBuilder&, Type, ValueRange, Location)>;
 
   /// The signature of the callback used to materialize a target conversion.
   ///
   /// Arguments: builder, result types, inputs, location, original type
   using TargetMaterializationCallbackFn = std::function<SmallVector<Value>(
-      OpBuilder &, TypeRange, ValueRange, Location, Type)>;
+      OpBuilder&, TypeRange, ValueRange, Location, Type)>;
 
   /// The signature of the callback used to convert a type attribute.
   using TypeAttributeConversionCallbackFn =
@@ -393,10 +393,10 @@ class ContextAwareTypeConverter {
   /// With callback of form: `std::optional<Type>(T, A)`
   template <typename T, typename A, typename FnT>
   std::enable_if_t<std::is_invocable_v<FnT, T, A>, ConversionCallbackFn>
-  wrapCallback(FnT &&callback) const {
+  wrapCallback(FnT&& callback) const {
     return wrapCallback<T, A>(
         [callback = std::forward<FnT>(callback)](
-            T type, A attr, SmallVectorImpl<Type> &results) {
+            T type, A attr, SmallVectorImpl<Type>& results) {
           if (std::optional<Type> resultOpt = callback(type, attr)) {
             bool wasSuccess = static_cast<bool>(*resultOpt);
             if (wasSuccess) results.push_back(*resultOpt);
@@ -408,12 +408,12 @@ class ContextAwareTypeConverter {
   /// With callback of form: `std::optional<LogicalResult>(
   ///     T, A, SmallVectorImpl<Type> &, ArrayRef<Type>)`.
   template <typename T, typename A, typename FnT>
-  std::enable_if_t<std::is_invocable_v<FnT, T, A, SmallVectorImpl<Type> &>,
+  std::enable_if_t<std::is_invocable_v<FnT, T, A, SmallVectorImpl<Type>&>,
                    ConversionCallbackFn>
-  wrapCallback(FnT &&callback) const {
+  wrapCallback(FnT&& callback) const {
     return [callback = std::forward<FnT>(callback)](
                Type type, Attribute attr,
-               SmallVectorImpl<Type> &results) -> std::optional<LogicalResult> {
+               SmallVectorImpl<Type>& results) -> std::optional<LogicalResult> {
       T derivedType = dyn_cast<T>(type);
       A derivedAttr = dyn_cast<A>(attr);
       if (!derivedType || !derivedAttr) return std::nullopt;
@@ -433,9 +433,9 @@ class ContextAwareTypeConverter {
   /// wrapper will check for the target type to be of the expected class
   /// before calling the callback.
   template <typename T, typename FnT>
-  MaterializationCallbackFn wrapMaterialization(FnT &&callback) const {
+  MaterializationCallbackFn wrapMaterialization(FnT&& callback) const {
     return [callback = std::forward<FnT>(callback)](
-               OpBuilder &builder, Type resultType, ValueRange inputs,
+               OpBuilder& builder, Type resultType, ValueRange inputs,
                Location loc) -> Value {
       if (T derivedType = dyn_cast<T>(resultType))
         return callback(builder, derivedType, inputs, loc);
@@ -453,11 +453,11 @@ class ContextAwareTypeConverter {
   /// - SmallVector<Value>(OpBuilder &, TypeRange, ValueRange, Location, Type)
   template <typename T, typename FnT>
   std::enable_if_t<
-      std::is_invocable_v<FnT, OpBuilder &, T, ValueRange, Location, Type>,
+      std::is_invocable_v<FnT, OpBuilder&, T, ValueRange, Location, Type>,
       TargetMaterializationCallbackFn>
-  wrapTargetMaterialization(FnT &&callback) const {
+  wrapTargetMaterialization(FnT&& callback) const {
     return [callback = std::forward<FnT>(callback)](
-               OpBuilder &builder, TypeRange resultTypes, ValueRange inputs,
+               OpBuilder& builder, TypeRange resultTypes, ValueRange inputs,
                Location loc, Type originalType) -> SmallVector<Value> {
       SmallVector<Value> result;
       if constexpr (std::is_same<T, TypeRange>::value) {
@@ -490,12 +490,12 @@ class ContextAwareTypeConverter {
   /// - SmallVector<Value>(OpBuilder &, TypeRange, ValueRange, Location)
   template <typename T, typename FnT>
   std::enable_if_t<
-      std::is_invocable_v<FnT, OpBuilder &, T, ValueRange, Location>,
+      std::is_invocable_v<FnT, OpBuilder&, T, ValueRange, Location>,
       TargetMaterializationCallbackFn>
-  wrapTargetMaterialization(FnT &&callback) const {
+  wrapTargetMaterialization(FnT&& callback) const {
     return wrapTargetMaterialization<T>(
         [callback = std::forward<FnT>(callback)](
-            OpBuilder &builder, T resultTypes, ValueRange inputs, Location loc,
+            OpBuilder& builder, T resultTypes, ValueRange inputs, Location loc,
             Type originalType) {
           return callback(builder, resultTypes, inputs, loc);
         });
@@ -507,7 +507,7 @@ class ContextAwareTypeConverter {
   /// callback.
   template <typename T, typename A, typename FnT>
   TypeAttributeConversionCallbackFn wrapTypeAttributeConversion(
-      FnT &&callback) const {
+      FnT&& callback) const {
     return [callback = std::forward<FnT>(callback)](
                Type type, Attribute attr) -> AttributeConversionResult {
       if (T derivedType = dyn_cast<T>(type)) {
@@ -563,8 +563,8 @@ struct UniquelyNamedAttributeAwareTypeConverter : ContextAwareTypeConverter {
   }
 
   LogicalResult convertFuncSignature(
-      FunctionOpInterface funcOp, SmallVectorImpl<Type> &newArgTypes,
-      SmallVectorImpl<Type> &newResultTypes) const override {
+      FunctionOpInterface funcOp, SmallVectorImpl<Type>& newArgTypes,
+      SmallVectorImpl<Type>& newResultTypes) const override {
     for (int i = 0; i < funcOp.getNumArguments(); ++i) {
       auto argType = funcOp.getArgumentTypes()[i];
       auto contextAttr = funcOp.getArgAttr(i, attrName);
@@ -613,11 +613,11 @@ struct DenseMapInfo<::mlir::heir::TypeAndAttribute> {
     return {DenseMapInfo<::mlir::Type>::getTombstoneKey(),
             DenseMapInfo<::mlir::Attribute>::getTombstoneKey()};
   }
-  static unsigned getHashValue(const ::mlir::heir::TypeAndAttribute &val) {
+  static unsigned getHashValue(const ::mlir::heir::TypeAndAttribute& val) {
     return llvm::hash_combine(val.type, val.attr);
   }
-  static bool isEqual(const ::mlir::heir::TypeAndAttribute &lhs,
-                      const ::mlir::heir::TypeAndAttribute &rhs) {
+  static bool isEqual(const ::mlir::heir::TypeAndAttribute& lhs,
+                      const ::mlir::heir::TypeAndAttribute& rhs) {
     return lhs.type == rhs.type && lhs.attr == rhs.attr;
   }
 };

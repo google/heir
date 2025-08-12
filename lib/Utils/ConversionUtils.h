@@ -22,14 +22,13 @@
 namespace mlir {
 namespace heir {
 
-FailureOr<Operation *> convertAnyOperand(const TypeConverter *typeConverter,
-                                         Operation *op,
-                                         ArrayRef<Value> operands,
-                                         ConversionPatternRewriter &rewriter);
+FailureOr<Operation*> convertAnyOperand(const TypeConverter* typeConverter,
+                                        Operation* op, ArrayRef<Value> operands,
+                                        ConversionPatternRewriter& rewriter);
 
 template <typename T = void>
 struct ConvertAny : public ConversionPattern {
-  ConvertAny(const TypeConverter &anyTypeConverter, MLIRContext *context)
+  ConvertAny(const TypeConverter& anyTypeConverter, MLIRContext* context)
       : ConversionPattern(anyTypeConverter, RewritePattern::MatchAnyOpTypeTag(),
                           /*benefit=*/1, context) {
     setDebugName("ConvertAny");
@@ -39,8 +38,8 @@ struct ConvertAny : public ConversionPattern {
   // generate a new op where all operands have been replaced with their
   // materialized/typeconverted versions
   LogicalResult matchAndRewrite(
-      Operation *op, ArrayRef<Value> operands,
-      ConversionPatternRewriter &rewriter) const override {
+      Operation* op, ArrayRef<Value> operands,
+      ConversionPatternRewriter& rewriter) const override {
     if (!isa<T>(op)) {
       return failure();
     }
@@ -51,7 +50,7 @@ struct ConvertAny : public ConversionPattern {
 
 template <>
 struct ConvertAny<void> : public ConversionPattern {
-  ConvertAny<void>(const TypeConverter &anyTypeConverter, MLIRContext *context)
+  ConvertAny<void>(const TypeConverter& anyTypeConverter, MLIRContext* context)
       : ConversionPattern(anyTypeConverter, RewritePattern::MatchAnyOpTypeTag(),
                           /*benefit=*/1, context) {
     setDebugName("ConvertAny");
@@ -61,22 +60,22 @@ struct ConvertAny<void> : public ConversionPattern {
   // generate a new op where all operands have been replaced with their
   // materialized/typeconverted versions
   LogicalResult matchAndRewrite(
-      Operation *op, ArrayRef<Value> operands,
-      ConversionPatternRewriter &rewriter) const override {
+      Operation* op, ArrayRef<Value> operands,
+      ConversionPatternRewriter& rewriter) const override {
     return convertAnyOperand(getTypeConverter(), op, operands, rewriter);
   }
 };
 
 template <typename SourceOpTy, typename TargetOpTy>
 struct ConvertBinOp : public OpConversionPattern<SourceOpTy> {
-  ConvertBinOp(mlir::MLIRContext *context)
+  ConvertBinOp(mlir::MLIRContext* context)
       : OpConversionPattern<SourceOpTy>(context) {}
 
   using OpConversionPattern<SourceOpTy>::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       SourceOpTy op, typename SourceOpTy::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     auto result = b.create<TargetOpTy>(adaptor.getLhs().getType(),
@@ -88,7 +87,7 @@ struct ConvertBinOp : public OpConversionPattern<SourceOpTy> {
 
 template <typename T = void>
 struct DropOp : public ConversionPattern {
-  DropOp(const TypeConverter &typeConverter, MLIRContext *context,
+  DropOp(const TypeConverter& typeConverter, MLIRContext* context,
          PatternBenefit benefit = 2)
       : ConversionPattern(typeConverter, RewritePattern::MatchAnyOpTypeTag(),
                           /*benefit=*/2, context) {
@@ -97,8 +96,8 @@ struct DropOp : public ConversionPattern {
   }
 
   LogicalResult matchAndRewrite(
-      Operation *op, ArrayRef<Value> operands,
-      ConversionPatternRewriter &rewriter) const override {
+      Operation* op, ArrayRef<Value> operands,
+      ConversionPatternRewriter& rewriter) const override {
     if (!isa<T>(op)) {
       return failure();
     }
@@ -117,22 +116,22 @@ struct DropOp : public ConversionPattern {
 
 // Adds conversion patterns that deal with tensor<..xsource_type>
 // when source_type will be type converted to tensor<...>, too
-void addTensorOfTensorConversionPatterns(TypeConverter &typeConverter,
-                                         RewritePatternSet &patterns,
-                                         ConversionTarget &target);
+void addTensorOfTensorConversionPatterns(TypeConverter& typeConverter,
+                                         RewritePatternSet& patterns,
+                                         ConversionTarget& target);
 
 // Adds the standard set of conversion patterns for
 // converting types involved in func, cf, etc., which
 // don't depend on the logic of the dialect beyond the
 // type converter.
-void addStructuralConversionPatterns(TypeConverter &typeConverter,
-                                     RewritePatternSet &patterns,
-                                     ConversionTarget &target);
+void addStructuralConversionPatterns(TypeConverter& typeConverter,
+                                     RewritePatternSet& patterns,
+                                     ConversionTarget& target);
 
 // Returns the Value corresponding to a given type in the FuncOp containing
 // this op.
 template <typename ArgType>
-FailureOr<Value> getContextualArgFromFunc(Operation *op) {
+FailureOr<Value> getContextualArgFromFunc(Operation* op) {
   for (auto blockArg : op->getParentOfType<func::FuncOp>()
                            .getBody()
                            .getBlocks()
@@ -147,13 +146,13 @@ FailureOr<Value> getContextualArgFromFunc(Operation *op) {
 
 // Returns the Value corresponding to a given type in the FuncOp containing
 // this op.
-FailureOr<Value> getContextualArgFromFunc(Operation *op, Type argType);
+FailureOr<Value> getContextualArgFromFunc(Operation* op, Type argType);
 
 // FIXME: update this after #1196
 // Returns true if the func contains ops from the given dialects.
 template <typename Dialect>
 bool containsLweOrDialect(func::FuncOp func) {
-  auto walkResult = func.walk([&](Operation *op) {
+  auto walkResult = func.walk([&](Operation* op) {
     if (llvm::isa<Dialect, lwe::LWEDialect>(op->getDialect()))
       return WalkResult::interrupt();
     return WalkResult::advance();
@@ -161,7 +160,7 @@ bool containsLweOrDialect(func::FuncOp func) {
   return walkResult.wasInterrupted();
 }
 
-inline Type encrytpedUIntTypeFromWidth(MLIRContext *ctx, int width) {
+inline Type encrytpedUIntTypeFromWidth(MLIRContext* ctx, int width) {
   // Only supporting unsigned types because the LWE dialect does not have a
   // notion of signedness.
   switch (width) {
@@ -196,7 +195,7 @@ inline Type encrytpedUIntTypeFromWidth(MLIRContext *ctx, int width) {
   }
 }
 
-inline Type encrytpedIntTypeFromWidth(MLIRContext *ctx, int width) {
+inline Type encrytpedIntTypeFromWidth(MLIRContext* ctx, int width) {
   // Only supporting unsigned types because the LWE dialect does not have a
   // notion of signedness.
   switch (width) {

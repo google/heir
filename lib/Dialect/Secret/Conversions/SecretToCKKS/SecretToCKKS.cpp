@@ -63,7 +63,7 @@ namespace {
 // Returns an RLWE ring given the specified number of bits needed and polynomial
 // modulus degree.
 FailureOr<polynomial::RingAttr> getRlweRNSRing(
-    MLIRContext *ctx, const std::vector<int64_t> &primes, int polyModDegree) {
+    MLIRContext* ctx, const std::vector<int64_t>& primes, int polyModDegree) {
   // monomial
   std::vector<polynomial::IntMonomial> monomials;
   monomials.emplace_back(1, polyModDegree);
@@ -116,7 +116,7 @@ FailureOr<std::pair<unsigned, int64_t>> getNonUnitDimension(
 class SecretToCKKSTypeConverter
     : public UniquelyNamedAttributeAwareTypeConverter {
  public:
-  SecretToCKKSTypeConverter(MLIRContext *ctx, polynomial::RingAttr rlweRing,
+  SecretToCKKSTypeConverter(MLIRContext* ctx, polynomial::RingAttr rlweRing,
                             bool packTensorInSlots)
       : UniquelyNamedAttributeAwareTypeConverter(
             mgmt::MgmtDialect::kArgMgmtAttrName) {
@@ -131,7 +131,7 @@ class SecretToCKKSTypeConverter
 
   Type convertSecretTypeWithMgmtAttr(secret::SecretType type,
                                      mgmt::MgmtAttr mgmtAttr) const {
-    auto *ctx = type.getContext();
+    auto* ctx = type.getContext();
     auto level = mgmtAttr.getLevel();
     auto dimension = mgmtAttr.getDimension();
     auto scale = mgmtAttr.getScale();
@@ -196,10 +196,10 @@ class SecretGenericTensorExtractConversion
   using SecretGenericOpConversion<tensor::ExtractOp,
                                   ckks::ExtractOp>::SecretGenericOpConversion;
 
-  FailureOr<Operation *> matchAndRewriteInner(
+  FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter &rewriter) const override {
+      ContextAwareConversionPatternRewriter& rewriter) const override {
     auto inputTy = inputs[0].getType();
     if (!isa<lwe::LWECiphertextType>(getElementTypeOrSelf(inputTy))) {
       return failure();
@@ -241,10 +241,10 @@ class SecretGenericTensorInsertConversion
   using SecretGenericOpConversion<tensor::InsertOp,
                                   tensor::InsertOp>::SecretGenericOpConversion;
 
-  FailureOr<Operation *> matchAndRewriteInner(
+  FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter &rewriter) const override {
+      ContextAwareConversionPatternRewriter& rewriter) const override {
     if (!isa<lwe::LWECiphertextType>(inputs[0].getType())) {
       op.emitError()
           << "expected scalar to insert to be of type RLWE ciphertext"
@@ -265,7 +265,7 @@ class SecretGenericTensorInsertConversion
   }
 };
 
-bool hasSecretOperandsOrResults(Operation *op) {
+bool hasSecretOperandsOrResults(Operation* op) {
   return llvm::any_of(op->getOperands(),
                       [](Value operand) {
                         return isa<secret::SecretType>(operand.getType());
@@ -279,8 +279,8 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
   using SecretToCKKSBase::SecretToCKKSBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
-    auto *module = getOperation();
+    MLIRContext* context = &getContext();
+    auto* module = getOperation();
 
     auto schemeParamAttr = module->getAttrOfType<ckks::SchemeParamAttr>(
         ckks::CKKSDialect::kSchemeParamAttrName);
@@ -350,15 +350,15 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
     target.addLegalOp<arith::ConstantOp, tensor::EmptyOp>();
 
     target.addDynamicallyLegalOp<affine::AffineForOp, affine::AffineYieldOp>(
-        [&](Operation *op) { return typeConverter.isLegal(op); });
+        [&](Operation* op) { return typeConverter.isLegal(op); });
     target.addDynamicallyLegalOp<func::CallOp>(
-        [&](Operation *op) { return typeConverter.isLegal(op); });
+        [&](Operation* op) { return typeConverter.isLegal(op); });
     target.addDynamicallyLegalOp<tensor::ExtractOp, tensor::ExtractSliceOp,
                                  tensor::InsertOp>(
-        [&](Operation *op) { return typeConverter.isLegal(op); });
+        [&](Operation* op) { return typeConverter.isLegal(op); });
 
     target.markUnknownOpDynamicallyLegal(
-        [&](Operation *op) { return !hasSecretOperandsOrResults(op); });
+        [&](Operation* op) { return !hasSecretOperandsOrResults(op); });
 
     patterns.add<
         SecretGenericOpCipherPlainConversion<arith::AddFOp, ckks::AddPlainOp>,

@@ -26,7 +26,7 @@ namespace heir {
 
 /// Returns true if the two operations can be combined into a single vectorized
 /// operation.
-bool areCompatible(Operation *lhs, Operation *rhs) {
+bool areCompatible(Operation* lhs, Operation* rhs) {
   if (lhs->getName() != rhs->getName() ||
       lhs->getDialect() != rhs->getDialect() ||
       lhs->getResultTypes() != rhs->getResultTypes() ||
@@ -36,9 +36,9 @@ bool areCompatible(Operation *lhs, Operation *rhs) {
   return OpTrait::hasElementwiseMappableTraits(lhs);
 }
 
-bool tryVectorizeBlock(Block *block, Dialect *dialect) {
-  graph::Graph<Operation *> graph;
-  for (auto &op : block->getOperations()) {
+bool tryVectorizeBlock(Block* block, Dialect* dialect) {
+  graph::Graph<Operation*> graph;
+  for (auto& op : block->getOperations()) {
     if (!op.hasTrait<OpTrait::Elementwise>()) {
       continue;
     }
@@ -48,12 +48,12 @@ bool tryVectorizeBlock(Block *block, Dialect *dialect) {
     }
 
     graph.addVertex(&op);
-    SetVector<Operation *> backwardSlice;
+    SetVector<Operation*> backwardSlice;
     BackwardSliceOptions options;
     options.omitBlockArguments = true;
 
     (void)mlir::getBackwardSlice(&op, &backwardSlice, options);
-    for (auto *upstreamDep : backwardSlice) {
+    for (auto* upstreamDep : backwardSlice) {
       // An edge from upstreamDep to `op` means that upstreamDep must be
       // computed before `op`.
       graph.addEdge(upstreamDep, &op);
@@ -73,7 +73,7 @@ bool tryVectorizeBlock(Block *block, Dialect *dialect) {
     llvm::dbgs()
         << "Found operations to vectorize. In topo-sorted level order:\n";
     int level_num = 0;
-    for (const auto &level : levels) {
+    for (const auto& level : levels) {
       llvm::dbgs() << "\nLevel " << level_num++ << ":\n";
       for (auto op : level) {
         llvm::dbgs() << " - " << *op << "\n";
@@ -82,11 +82,11 @@ bool tryVectorizeBlock(Block *block, Dialect *dialect) {
   });
 
   bool madeReplacement = false;
-  for (const auto &level : levels) {
-    DenseMap<Operation *, SmallVector<Operation *, 4>> compatibleOps;
-    for (auto *op : level) {
+  for (const auto& level : levels) {
+    DenseMap<Operation*, SmallVector<Operation*, 4>> compatibleOps;
+    for (auto* op : level) {
       bool foundCompatible = false;
-      for (auto &[key, bucket] : compatibleOps) {
+      for (auto& [key, bucket] : compatibleOps) {
         if (areCompatible(key, op)) {
           compatibleOps[key].push_back(op);
           foundCompatible = true;
@@ -100,7 +100,7 @@ bool tryVectorizeBlock(Block *block, Dialect *dialect) {
                << "Partitioned level of size " << level.size() << " into "
                << compatibleOps.size() << " groups of compatible ops\n");
 
-    for (auto &[key, bucket] : compatibleOps) {
+    for (auto& [key, bucket] : compatibleOps) {
       if (bucket.size() < 2) {
         continue;
       }
@@ -123,7 +123,7 @@ bool tryVectorizeBlock(Block *block, Dialect *dialect) {
            ++operandIndex) {
         SmallVector<Value, 4> operands;
         operands.reserve(bucket.size());
-        for (auto *op : bucket) {
+        for (auto* op : bucket) {
           operands.push_back(op->getOperand(operandIndex));
         }
         auto fromElementsOp = tensor::FromElementsOp::create(
@@ -131,12 +131,12 @@ bool tryVectorizeBlock(Block *block, Dialect *dialect) {
         vectorizedOperands.push_back(fromElementsOp.getResult());
       }
 
-      Operation *vectorizedOp = builder.clone(*key);
+      Operation* vectorizedOp = builder.clone(*key);
       vectorizedOp->setOperands(vectorizedOperands);
       vectorizedOp->getResult(0).setType(tensorType);
 
       int bucketIndex = 0;
-      for (auto *op : bucket) {
+      for (auto* op : bucket) {
         auto extractionIndex = arith::ConstantOp::create(
             builder, op->getLoc(), builder.getIndexAttr(bucketIndex));
         auto extractOp = tensor::ExtractOp::create(
@@ -146,7 +146,7 @@ bool tryVectorizeBlock(Block *block, Dialect *dialect) {
         bucketIndex++;
       }
 
-      for (auto *op : bucket) {
+      for (auto* op : bucket) {
         op->erase();
       }
       madeReplacement = true;
@@ -161,9 +161,9 @@ struct StraightLineVectorizer
   using StraightLineVectorizerBase::StraightLineVectorizerBase;
 
   void runOnOperation() override {
-    Dialect *mlirDialect = getContext().getLoadedDialect(dialect);
+    Dialect* mlirDialect = getContext().getLoadedDialect(dialect);
 
-    getOperation()->walk<WalkOrder::PreOrder>([&](Block *block) {
+    getOperation()->walk<WalkOrder::PreOrder>([&](Block* block) {
       if (tryVectorizeBlock(block, mlirDialect)) {
         sortTopologically(block);
       }

@@ -17,7 +17,7 @@ namespace mlir {
 namespace heir {
 
 LogicalResult makeExplicit1DMapping(AffineMap map, unsigned rank,
-                                    SmallVector<int64_t> &result) {
+                                    SmallVector<int64_t>& result) {
   if (map.getNumResults() != 1) return failure();
   if (map.getNumDims() != 1) return failure();
   if (map.getNumSymbols() != 0) return failure();
@@ -89,7 +89,7 @@ AffineMap getRowMajorLayoutMap(RankedTensorType inputType,
 }
 
 bool isLayoutRowMajor(RankedTensorType inputType, RankedTensorType outputType,
-                      const AffineMap &layout) {
+                      const AffineMap& layout) {
   AffineMap expected = getRowMajorLayoutMap(inputType, outputType);
   auto simplified = simplifyAffineMap(layout);
   return simplified == expected;
@@ -111,7 +111,7 @@ AffineMap getDiagonalLayoutMap(RankedTensorType inputType,
 
 bool isLayoutSquatDiagonal(RankedTensorType inputType,
                            RankedTensorType outputType,
-                           const AffineMap &layout) {
+                           const AffineMap& layout) {
   // Squat diagonal forces (i, j) -> (j % n, (i+j) % m) where (n, m) are the
   // dimensions of the output matrix.
   if (outputType.getRank() != 2 || inputType.getRank() != 2) return false;
@@ -120,13 +120,13 @@ bool isLayoutSquatDiagonal(RankedTensorType inputType,
   return simplified == expected;
 }
 
-inline Attribute getIndexAttr(MLIRContext *ctx, int64_t value) {
+inline Attribute getIndexAttr(MLIRContext* ctx, int64_t value) {
   return IntegerAttr::get(IndexType::get(ctx), value);
 }
 
 void evaluateStatic(AffineMap map, ArrayRef<int64_t> values,
-                    SmallVector<int64_t> &results) {
-  MLIRContext *context = map.getContext();
+                    SmallVector<int64_t>& results) {
+  MLIRContext* context = map.getContext();
   SmallVector<Attribute> mapInputs = llvm::map_to_vector(
       values, [&](int64_t i) { return getIndexAttr(context, i); });
 
