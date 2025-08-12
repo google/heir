@@ -1,35 +1,6 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>HEIR – HEIR: Homomorphic Encryption Intermediate Representation</title><link>https://heir.dev/</link><description>Recent content in HEIR: Homomorphic Encryption Intermediate Representation on HEIR</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="https://heir.dev/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: HEIR as a Platform for Research (and new YouTube Channel)</title><link>https://heir.dev/blog/2024/12/05/heir-as-a-platform-for-research-and-new-youtube-channel/</link><pubDate>Thu, 05 Dec 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/12/05/heir-as-a-platform-for-research-and-new-youtube-channel/</guid><description>
-&lt;p>On 2024-12-05, the HEIR team presented a talk aimed at giving researchers a
-high-level overview of the HEIR project, brainstorming where new research might
-be needed, and discussing how the HEIR team could help with research projects.&lt;/p>
-&lt;p>The &lt;a href="https://youtu.be/t_XHw7LVy8s">video recording of this talk&lt;/a> is on YouTube,
-and this is the first video posted on the
-&lt;a href="https://www.youtube.com/@HEIRCompiler">new HEIR YouTube channel&lt;/a>.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-09-05</title><link>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</link><pubDate>Thu, 05 Sep 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>HEIR – HEIR: Homomorphic Encryption Intermediate Representation</title><link>https://heir.dev/</link><description>Recent content in HEIR: Homomorphic Encryption Intermediate Representation on HEIR</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="https://heir.dev/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: HEIR meeting 2024-09-05</title><link>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</link><pubDate>Thu, 05 Sep 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/1tohVmC2pn_XDn3gjCFeo3K4Wfyf7VWu3oK1vimEsFD4/edit?usp=sharing">notes&lt;/a>
 and
 &lt;a href="https://drive.google.com/file/d/1XGheLF7kvJfwAMJJQ-XbDpa4Ld15kj4t/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-09-05.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-04-18</title><link>https://heir.dev/blog/2024/04/18/heir-meeting-2024-04-18/</link><pubDate>Thu, 18 Apr 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/04/18/heir-meeting-2024-04-18/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1BJjfYI2yjR3YEg_ugjDuS-trAkYMlKbU7jpH_M1GF3Q/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1WSsUp9CmjDmEVtGMYk2QXIpZCEetf_Ot/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-04-18.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-04-04</title><link>https://heir.dev/blog/2024/04/04/heir-meeting-2024-04-04/</link><pubDate>Thu, 04 Apr 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/04/04/heir-meeting-2024-04-04/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/121_0mzqYIWYMc7rcW2Et5qS-ux4ut3b-kno1dI9sQq8/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1_Ksjx8s8nD4cLsuZp5_KitYI2mPN72Je/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-04-04.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-03-07</title><link>https://heir.dev/blog/2024/03/07/heir-meeting-2024-03-07/</link><pubDate>Thu, 07 Mar 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/03/07/heir-meeting-2024-03-07/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1felxN5mFBV5LheP79is30jHRxlKLW0NQEo6FPDKxDKM/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1oVJG-fM72nNLiR1eXkzdeaqdDOEpTfK0/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-03-07.&lt;/p>
-&lt;p>Note: there will be no HEIR meeting on 2024-03-21 due to the FHE.org, HACS, and
-RWC conferences. Hope to see you all there!&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-07-18</title><link>https://heir.dev/blog/2023/07/18/heir-meeting-2023-07-18/</link><pubDate>Tue, 18 Jul 2023 10:43:16 -0700</pubDate><guid>https://heir.dev/blog/2023/07/18/heir-meeting-2023-07-18/</guid><description>
-&lt;p>The third HEIR meeting was 2023-07-18
-(&lt;a href="https://docs.google.com/document/d/1DXdyUCmevqY8RJI3kM8oO5nWDEITFIVBPIbucONOB-k/edit?usp=sharing">notes&lt;/a>).&lt;/p>
-&lt;p>We decided to schedule future meetings every two weeks, with alternating focus
-on MLIR and Hardware. See the &lt;a href="https://heir.dev/community/">meeting calendar&lt;/a> to
-join.
-(&lt;a href="https://calendar.google.com/calendar/u/0/embed?src=c85ecb3cda4bfb7daa3da95d5aeb19672930501b49d17896e65fa3f963f17a80@group.calendar.google.com&amp;amp;ctz=America/Los_Angeles">direct link to the calendar&lt;/a>)&lt;/p></description></item></channel></rss>
+from the HEIR meeting on 2024-09-05.&lt;/p></description></item></channel></rss>
