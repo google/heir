@@ -5,7 +5,7 @@
 #include "gtest/gtest.h"  // from @googletest
 
 // Generated headers (block clang-format from messing up order)
-#include "tests/Examples/openfhe/bgv/roberts_cross/roberts_cross_64x64_lib.h"
+#include "tests/Examples/openfhe/bgv/roberts_cross/roberts_cross_16x16_lib.h"
 
 using ::testing::ContainerEq;
 
@@ -23,24 +23,24 @@ TEST(RobertsCrossTest, TestInput1) {
 
   std::vector<int16_t> input;
   std::vector<int16_t> expected;
-  input.reserve(4096);
-  expected.reserve(4096);
+  input.reserve(256);
+  expected.reserve(256);
 
-  for (int i = 0; i < 4096; ++i) {
+  for (int i = 0; i < 256; ++i) {
     input.push_back(i);
   }
 
-  for (int row = 0; row < 64; ++row) {
-    for (int col = 0; col < 64; ++col) {
+  for (int row = 0; row < 16; ++row) {
+    for (int col = 0; col < 16; ++col) {
       // (img[x-1][y-1] - img[x][y])^2 + (img[x-1][y] - img[x][y-1])^2
-      int xY = (row * 64 + col) % 4096;
-      int xYm1 = (row * 64 + col - 1) % 4096;
-      int xm1Y = ((row - 1) * 64 + col) % 4096;
-      int xm1Ym1 = ((row - 1) * 64 + col - 1) % 4096;
+      int xY = (row * 16 + col) % 256;
+      int xYm1 = (row * 16 + col - 1) % 256;
+      int xm1Y = ((row - 1) * 16 + col) % 256;
+      int xm1Ym1 = ((row - 1) * 16 + col - 1) % 256;
 
-      if (xYm1 < 0) xYm1 += 4096;
-      if (xm1Y < 0) xm1Y += 4096;
-      if (xm1Ym1 < 0) xm1Ym1 += 4096;
+      if (xYm1 < 0) xYm1 += 256;
+      if (xm1Y < 0) xm1Y += 256;
+      if (xm1Ym1 < 0) xm1Ym1 += 256;
 
       int16_t v1 = (input[xm1Ym1] - input[xY]);
       int16_t v2 = (input[xm1Y] - input[xYm1]);

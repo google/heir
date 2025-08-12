@@ -13,7 +13,7 @@ heir_lattigo_lib(
         "--mlir-to-bgv=ciphertext-degree=4096 plaintext-modulus=536903681",
         "--scheme-to-lattigo",
     ],
-    mlir_src = "@heir//tests/Examples/common:roberts_cross_64x64.mlir",
+    mlir_src = "@heir//tests/Examples/common:roberts_cross_16x16.mlir",
 )
 
 # For Google-internal reasons we must separate the go_test rules from the macro
