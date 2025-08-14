@@ -84,17 +84,18 @@ int main(int argc, char **argv) {
 
   // "encrypt" each arg, which in plaintext means apply client-side encoding
   // logic
-  memref_1d_f32 encArg0;
+  float enc_arg0_data[8];
+  memref_1d_f32 encArg0 = {enc_arg0_data, enc_arg0_data, 0, 8, 1};
   dot_product__encrypt__arg0(&encArg0,
                              /* arg 0*/
                              arg0, arg0, 0, 8, 1);
-  memref_1d_f32 encArg1;
+  float enc_arg1_data[8];
+  memref_1d_f32 encArg1 = {enc_arg1_data, enc_arg1_data, 0, 8, 1};
   dot_product__encrypt__arg1(&encArg1,
                              /* arg 0*/
                              arg1, arg1, 0, 8, 1);
-
-  // Main function
-  memref_1d_f32 packedRes;
+  float result_data[1];
+  memref_1d_f32 packedRes = {result_data, result_data, 0, 1, 1};
   dot_product(&packedRes,
               /* arg 0*/
               encArg0.allocated, encArg0.aligned, encArg0.offset, encArg0.size,
