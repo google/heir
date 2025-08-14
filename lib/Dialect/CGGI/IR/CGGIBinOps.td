@@ -127,7 +127,7 @@ def CGGI_MaxOp : CGGI_ScalarBinaryOp<"max"> { let summary = "High level operatio
 def CGGI_CmpOp : CGGI_Op<"cmp", [
     Pure,
 ]> {
-  let arguments = (ins Arith_CmpIPredicateAttr:$predicate, LWECiphertextLike:$lhs, AnyTypeOf<[Builtin_Integer,  LWECiphertext]>:$rhs);
+  let arguments = (ins Arith_CmpIPredicateAttr:$predicate, LWECiphertextLike:$lhs, AnyTypeOf<[Builtin_Integer,  LWECiphertextLike]>:$rhs);
   let results = (outs LWECiphertextLike:$output);
   let summary = [{
   High level operation to check the relation of two ciphertexts.

@@ -36,7 +36,7 @@ include "lib/Dialect/CGGI/IR/CGGIPBSOps.td"
 // 1. Allow arith.constant and use an encryption op to bring it to the ciphertext space.
 // 2. Use a trivial op where the constant is embedded in the ciphertext.
 def CGGI_CreateTrivialOp : CGGI_Op<"create_trivial", [Pure]> {
-  let arguments = (ins Builtin_IntegerAttr:$value);
+  let arguments = (ins AnyAttrOf<[Builtin_IntegerAttr, Builtin_ArrayAttr]>:$value);
   let results = (outs LWECiphertextLike:$output);
 }
 

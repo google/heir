@@ -6,6 +6,8 @@
 
 #include "lib/Dialect/CGGI/IR/CGGIDialect.h"
 #include "lib/Dialect/CGGI/IR/CGGIOps.h"
+#include "lib/Dialect/Comb/IR/CombDialect.h"
+#include "lib/Dialect/Comb/IR/CombOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
@@ -15,7 +17,9 @@
 #include "llvm/include/llvm/Support/Casting.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Bufferization/IR/Bufferization.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
@@ -51,7 +55,7 @@ static Type convertArithLikeToCGGIType(ShapedType type, MLIRContext* ctx) {
 // Function to check if an operation is allowed to remain in the Arith dialect
 static bool allowedRemainArith(Operation* op) {
   return llvm::TypeSwitch<Operation*, bool>(op)
-      .Case<mlir::arith::ConstantOp>([](auto op) {
+      .Case<mlir::arith::ConstantOp, mlir::arith::IndexCastUIOp>([](auto op) {
         // This lambda will be called for any of the matched operation types
         return true;
       })
@@ -122,17 +126,42 @@ static Value materializeTarget(OpBuilder& builder, Type type, ValueRange inputs,
                                Location loc) {
   assert(inputs.size() == 1);
   auto inputType = inputs[0].getType();
-  if (!isa<IntegerType>(inputType))
+
+  bool typeCheck = llvm::TypeSwitch<Type, bool>(inputType)
+                       .Case<IntegerType>([](auto type) { return true; })
+                       .Case<ShapedType>([](auto type) {
+                         return isa<IntegerType>(type.getElementType());
+                       })
+                       .Default([](auto type) { return false; });
+
+  if (!typeCheck)
     llvm_unreachable(
         "Non-integer types should never be the input to a materializeTarget.");
 
   if (auto inValue = inputs.front().getDefiningOp<mlir::arith::ConstantOp>()) {
-    auto intAttr = cast<IntegerAttr>(inValue.getValueAttr());
+    if (auto intAttr = cast<IntegerAttr>(inValue.getValueAttr())) {
+      return cggi::CreateTrivialOp::create(builder, loc, type, intAttr);
+    }
+    if (auto denseElementsAttr =
+            cast<DenseElementsAttr>(inValue.getValueAttr())) {
+      ShapedType flattenedType =
+          RankedTensorType::get({denseElementsAttr.getNumElements()},
+                                denseElementsAttr.getType().getElementType());
+      auto flattenedElementsAttr = denseElementsAttr.reshape(flattenedType);
 
-    return cggi::CreateTrivialOp::create(builder, loc, type, intAttr);
+      return cggi::CreateTrivialOp::create(builder, loc, type,
+                                           flattenedElementsAttr);
+    }
   }
+
   // Comes from function/loop argument: Trivial encrypt through LWE
-  auto ciphertextType = cast<lwe::LWECiphertextType>(type);
+  lwe::LWECiphertextType ciphertextType;
+  if (isa<ShapedType>(type)) {
+    ciphertextType =
+        cast<lwe::LWECiphertextType>(cast<ShapedType>(type).getElementType());
+  } else {
+    ciphertextType = cast<lwe::LWECiphertextType>(type);
+  }
 
   auto plaintextBits = ciphertextType.getPlaintextSpace()
                            .getRing()
@@ -146,6 +175,7 @@ static Value materializeTarget(OpBuilder& builder, Type type, ValueRange inputs,
   auto ptxtTy = lwe::LWEPlaintextType::get(builder.getContext(),
                                            ciphertextType.getApplicationData(),
                                            ciphertextType.getPlaintextSpace());
+
   return lwe::TrivialEncryptOp::create(
       builder, loc, type,
       lwe::EncodeOp::create(builder, loc, ptxtTy, inputs[0],
@@ -184,10 +214,11 @@ struct ConvertTruncIOp : public OpConversionPattern<mlir::arith::TruncIOp> {
       ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto outType = convertArithToCGGIType(
-        cast<IntegerType>(op.getResult().getType()), op->getContext());
+    ArithToCGGITypeConverter typeConverter(op->getContext());
+    auto outputType = typeConverter.convertType(op.getResult().getType());
+
     auto castOp =
-        cggi::CastOp::create(b, op.getLoc(), outType, adaptor.getIn());
+        cggi::CastOp::create(b, op.getLoc(), outputType, adaptor.getIn());
 
     rewriter.replaceOp(op, castOp);
     return success();
@@ -205,10 +236,11 @@ struct ConvertExtUIOp : public OpConversionPattern<mlir::arith::ExtUIOp> {
       ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto outType = convertArithToCGGIType(
-        cast<IntegerType>(op.getResult().getType()), op->getContext());
+    ArithToCGGITypeConverter typeConverter(op->getContext());
+    auto outputType = typeConverter.convertType(op.getResult().getType());
+
     auto castOp =
-        cggi::CastOp::create(b, op.getLoc(), outType, adaptor.getIn());
+        cggi::CastOp::create(b, op.getLoc(), outputType, adaptor.getIn());
 
     rewriter.replaceOp(op, castOp);
     return success();
@@ -226,10 +258,11 @@ struct ConvertExtSIOp : public OpConversionPattern<mlir::arith::ExtSIOp> {
       ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto outType = convertArithToCGGIType(
-        cast<IntegerType>(op.getResult().getType()), op->getContext());
+    ArithToCGGITypeConverter typeConverter(op->getContext());
+    auto outputType = typeConverter.convertType(op.getResult().getType());
+
     auto castOp =
-        cggi::CastOp::create(b, op.getLoc(), outType, adaptor.getIn());
+        cggi::CastOp::create(b, op.getLoc(), outputType, adaptor.getIn());
 
     rewriter.replaceOp(op, castOp);
     return success();
@@ -319,6 +352,29 @@ struct ConvertSelectOp : public OpConversionPattern<mlir::arith::SelectOp> {
         adaptor.getTrueValue(), adaptor.getFalseValue());
 
     rewriter.replaceOp(op, cmuxOp);
+    return success();
+  }
+};
+
+struct ConvertLutOp : public OpConversionPattern<mlir::heir::comb::LUTOp> {
+  ConvertLutOp(mlir::MLIRContext* context)
+      : OpConversionPattern<mlir::heir::comb::LUTOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      mlir::heir::comb::LUTOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    ArithToCGGITypeConverter typeConverter(op->getContext());
+    auto outputType = typeConverter.convertType(op.getResult().getType());
+
+    auto lutOp = cggi::SelectorLutLinCombOp::create(
+        b, outputType, adaptor.getInputs(), adaptor.getCoefficientsAttr(),
+        adaptor.getLookupTableAttr());
+
+    rewriter.replaceOp(op, lutOp);
     return success();
   }
 };
@@ -444,8 +500,8 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
     RewritePatternSet patterns(context);
     ConversionTarget target(*context);
     target.addLegalDialect<cggi::CGGIDialect>();
-    target.addIllegalDialect<mlir::arith::ArithDialect>();
-    target.addLegalOp<mlir::arith::ConstantOp>();
+    target.addIllegalDialect<mlir::arith::ArithDialect, comb::CombDialect>();
+    target.addLegalOp<mlir::arith::ConstantOp, mlir::arith::IndexCastUIOp>();
 
     target.addDynamicallyLegalOp<mlir::arith::SubIOp, mlir::arith::AddIOp,
                                  mlir::arith::MulIOp>([&](Operation* op) {
@@ -474,15 +530,18 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
       return false;
     });
 
-    target.addDynamicallyLegalOp<memref::SubViewOp, memref::CopyOp,
-                                 tensor::FromElementsOp, tensor::ExtractOp>(
-        [&](Operation* op) {
-          return typeConverter.isLegal(op->getOperandTypes()) &&
-                 typeConverter.isLegal(op->getResultTypes());
-        });
+    // Tensor ops are allowed only if their operands and results are the correct
+    // type
+    target.addDynamicallyLegalOp<
+        memref::SubViewOp, memref::CopyOp, tensor::FromElementsOp,
+        tensor::ExtractOp, tensor::InsertOp, bufferization::AllocTensorOp,
+        tensor::EmptyOp, tensor::ExtractSliceOp, tensor::ConcatOp,
+        linalg::YieldOp, linalg::GenericOp>([&](Operation* op) {
+      return typeConverter.isLegal(op->getOperandTypes()) &&
+             typeConverter.isLegal(op->getResultTypes());
+    });
 
     // Affine Def
-
     target.addDynamicallyLegalOp<affine::AffineStoreOp>([&](Operation* op) {
       if (typeConverter.isLegal(op->getOperandTypes()) &&
           typeConverter.isLegal(op->getResultTypes())) {
@@ -605,7 +664,7 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
 
     patterns.add<
         ConvertTruncIOp, ConvertExtUIOp, ConvertExtSIOp, ConvertSelectOp,
-        ConvertCmpOp, ConvertSubOp,
+        ConvertCmpOp, ConvertSubOp, ConvertLutOp,
         ConvertShOp<mlir::arith::ShRSIOp, cggi::ScalarShiftRightOp>,
         ConvertShOp<mlir::arith::ShRUIOp, cggi::ScalarShiftRightOp>,
         ConvertShOp<mlir::arith::ShLIOp, cggi::ScalarShiftLeftOp>,
@@ -620,8 +679,11 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
         ConvertAny<memref::DeallocOp>, ConvertAny<memref::SubViewOp>,
         ConvertAny<memref::CopyOp>, ConvertAny<memref::StoreOp>,
         ConvertAny<tensor::FromElementsOp>, ConvertAny<tensor::ExtractOp>,
-        ConvertAny<affine::AffineStoreOp>, ConvertAny<affine::AffineLoadOp> >(
-        typeConverter, context);
+        ConvertAny<tensor::ExtractSliceOp>, ConvertAny<tensor::ConcatOp>,
+        ConvertAny<bufferization::AllocTensorOp>, ConvertAny<linalg::YieldOp>,
+        ConvertAny<linalg::GenericOp>, ConvertAny<tensor::InsertOp>,
+        ConvertAny<tensor::EmptyOp>, ConvertAny<affine::AffineStoreOp>,
+        ConvertAny<affine::AffineLoadOp> >(typeConverter, context);
 
     addStructuralConversionPatterns(typeConverter, patterns, target);
 

@@ -59,7 +59,7 @@ void mlirToCGGIPipeline(OpPassManager& pm,
   ::mlir::heir::tosaToLinalg(pm);
 
   // Bufferize
-  ::mlir::heir::oneShotBufferize(pm);
+  // ::mlir::heir::oneShotBufferize(pm);
 
   // Affine
   pm.addPass(createInlinerPass());
@@ -150,7 +150,7 @@ void mlirToCGGIPipeline(OpPassManager& pm,
   ::mlir::heir::tosaToLinalg(pm);
 
   // Bufferize
-  ::mlir::heir::oneShotBufferize(pm);
+  ::mlir::heir::oneShotBufferize(pm, true);
 
   // Affine
   pm.addNestedPass<FuncOp>(createConvertLinalgToAffineLoopsPass());
