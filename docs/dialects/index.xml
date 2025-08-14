@@ -12244,11 +12244,13 @@ tensor.&lt;/p>
 &lt;/table>
 &lt;h3 id="newlayoutattr">NewLayoutAttr&lt;/h3>
 &lt;p>&lt;em>The description of the layout of a data-semantic tensor.&lt;/em>&lt;/p>
-&lt;p>This attribute describes how a data-semantic tensor is laid out
-among a tensor of ciphertexts. The layout is described by an integer relation
-$(d, s)$, where $d$ is a multiset of data-semantic tensor indices and $s$
-is a multiset of slot indices (or coefficient indices).
-The elements of the relation are defined by a set of quasi-affine constraints.&lt;/p>
+&lt;p>This attribute describes how a data-semantic tensor is laid out among a
+tensor of ciphertexts. The layout is described by an integer relation $(d,
+s)$, where $d$ is a multiset of data-semantic tensor indices and $s$ is a
+multiset of slot indices (or coefficient indices). The slot indices are
+defined by two indices: the ciphertext index and the slot index in that
+order. The elements of the relation are defined by a set of quasi-affine
+constraints.&lt;/p>
 &lt;p>I.e., a point $((2, 3), (7, 0))$ in the relation says that the data entry
 at index $(2, 3)$ is placed in slot 0 of ciphertext 7. This could be
 defined as part of the relation by a constraint like &lt;code>row + col + 2 - ct + slot = 0&lt;/code>.&lt;/p>

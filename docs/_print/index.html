@@ -2889,11 +2889,13 @@ example, a <code>tensor&lt;4xi32></code> is to be laid out in a <code>tensor&lt;
 ciphertext tensor. The data-semantic tensor must be extended somehow to
 fill the 16 slots. If an alignment attribute is not provided, then
 lowerings may raise errors if there is no unambiguous way to align the
-tensor.</p><h4 id=parameters-1>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>map</td><td style=text-align:center><code>::mlir::AffineMap</code></td><td></td></tr><tr><td style=text-align:center>alignment</td><td style=text-align:center><code>::mlir::heir::tensor_ext::AlignmentAttr</code></td><td></td></tr></tbody></table><h3 id=newlayoutattr>NewLayoutAttr</h3><p><em>The description of the layout of a data-semantic tensor.</em></p><p>This attribute describes how a data-semantic tensor is laid out
-among a tensor of ciphertexts. The layout is described by an integer relation
-$(d, s)$, where $d$ is a multiset of data-semantic tensor indices and $s$
-is a multiset of slot indices (or coefficient indices).
-The elements of the relation are defined by a set of quasi-affine constraints.</p><p>I.e., a point $((2, 3), (7, 0))$ in the relation says that the data entry
+tensor.</p><h4 id=parameters-1>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>map</td><td style=text-align:center><code>::mlir::AffineMap</code></td><td></td></tr><tr><td style=text-align:center>alignment</td><td style=text-align:center><code>::mlir::heir::tensor_ext::AlignmentAttr</code></td><td></td></tr></tbody></table><h3 id=newlayoutattr>NewLayoutAttr</h3><p><em>The description of the layout of a data-semantic tensor.</em></p><p>This attribute describes how a data-semantic tensor is laid out among a
+tensor of ciphertexts. The layout is described by an integer relation $(d,
+s)$, where $d$ is a multiset of data-semantic tensor indices and $s$ is a
+multiset of slot indices (or coefficient indices). The slot indices are
+defined by two indices: the ciphertext index and the slot index in that
+order. The elements of the relation are defined by a set of quasi-affine
+constraints.</p><p>I.e., a point $((2, 3), (7, 0))$ in the relation says that the data entry
 at index $(2, 3)$ is placed in slot 0 of ciphertext 7. This could be
 defined as part of the relation by a constraint like <code>row + col + 2 - ct + slot = 0</code>.</p><h4 id=parameters-2>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>domainSize</td><td style=text-align:center><code>unsigned</code></td><td></td></tr><tr><td style=text-align:center>relation</td><td style=text-align:center><code>::mlir::IntegerSet</code></td><td></td></tr></tbody></table><h3 id=originaltypeattr>OriginalTypeAttr</h3><p><em>The original type of a secret tensor whose layout has been converted to ciphertext semantics.</em></p><p>Syntax:</p><pre tabindex=0><code>#tensor_ext.original_type&lt;
   ::mlir::Type,   # originalType
