@@ -30,5 +30,23 @@ FailureOr<int64_t> getFlattenedIndex(RankedTensorType tensorType,
   return flatIndex;
 }
 
+SmallVector<int64_t> getIndicesFromRowMajorShape(int64_t flattenedIndex,
+                                                 SmallVector<int64_t> shape) {
+  int64_t mod = 1;
+  for (int i = 0; i < shape.size(); ++i) {
+    mod *= shape[i];
+  }
+
+  SmallVector<int64_t> indices;
+  int64_t remainder = flattenedIndex;
+  for (int i = 0; i < shape.size(); i++) {
+    mod /= shape[i];
+    auto index = remainder / mod;
+    indices.push_back(index);
+    remainder -= index * mod;
+  }
+  return indices;
+}
+
 }  // namespace heir
 }  // namespace mlir

@@ -152,6 +152,18 @@ Attribute NewLayoutAttr::parse(AsmParser& parser, Type type) {
   return NewLayoutAttr::get(parser.getContext(), domainSize, parsedSet);
 }
 
+LogicalResult NewLayoutAttr::verify(
+    function_ref<InFlightDiagnostic()> emitError, unsigned domainSize,
+    IntegerSet relation) {
+  // The range size (all variables except domain variables) should be 2, i.e.,
+  // the ciphertext index and slot index.
+  unsigned numVars = relation.getNumInputs();
+  if (numVars - domainSize != 2) {
+    return emitError() << "relation must have 2 range variables";
+  }
+  return success();
+}
+
 }  // namespace tensor_ext
 }  // namespace heir
 }  // namespace mlir

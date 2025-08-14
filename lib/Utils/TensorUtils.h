@@ -15,6 +15,11 @@ namespace heir {
 FailureOr<int64_t> getFlattenedIndex(RankedTensorType tensorType,
                                      SmallVector<OpFoldResult> indices);
 
+// Given a row-major layout for the given shape, compute the list of indices
+// that corresponds to the flattenedIndex.
+SmallVector<int64_t> getIndicesFromRowMajorShape(int64_t flattenedIndex,
+                                                 SmallVector<int64_t> shape);
+
 }  // namespace heir
 }  // namespace mlir
 
