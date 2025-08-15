@@ -33,6 +33,9 @@ RUN apt-get update && \
     vim \
     cmake \
     bats \
+    ninja-build \
+    libomp-dev \
+    lld \
     python3-pip python3-numpy python3-wheel python3-setuptools python3-requests \
     libstdc++-14-dev \
     && apt-get clean
@@ -42,8 +45,6 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1 && \
     update-alternatives --install /usr/bin/clang clang /usr/bin/clang-19 1 && \
     update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-19 1
 
-WORKDIR /workspace
-RUN wget https://github.com/ninja-build/ninja/archive/refs/tags/v1.12.1.tar.gz && tar -xzvf v1.12.1.tar.gz && cd ninja-1.12.1 && cmake -S . -B build && cmake --build build --target install -j
 
 # Install Bazelisk on Linux AMD64
 WORKDIR /workspace
