@@ -9,6 +9,7 @@ go_test(
     name = "simplesum_test",
     srcs = ["simple_sum_test.go"],
     embed = [":simplesum"],
+    tags = ["e2e"],
 )
 
 # For Google-internal reasons we must separate the go_test rules from the macro
@@ -23,4 +24,5 @@ heir_lattigo_lib(
         "--scheme-to-lattigo",
     ],
     mlir_src = "@heir//tests/Examples/common:simple_sum.mlir",
+    tags = ["e2e"],
 )

@@ -21,6 +21,7 @@ def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, heir
       **kwargs: Keyword arguments to pass to cc_library and cc_test.
     """
     cc_lib_target_name = "%s_cc_lib" % name
+    tags = tags + ["e2e"]
     openfhe_lib(name, mlir_src, generated_lib_header, cc_lib_target_name, heir_opt_flags, heir_translate_flags, data, tags, deps, **kwargs)
     cc_test(
         name = name,
