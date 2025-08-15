@@ -55,11 +55,15 @@ cc_library(
     ],
     deps = [
         ":Hoisting",
+        "@heir//lib/Dialect/Secret/IR:SecretAttributes",
         "@heir//lib/Dialect/TensorExt/IR:TensorExtAttributes",
         "@heir//lib/Dialect/TensorExt/IR:TensorExtOps",
         "@heir//lib/Kernel",
+        "@heir//lib/Utils:AttributeUtils",
+        "@heir//lib/Utils/Layout:Hoisting",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LinalgDialect",
         "@llvm-project//mlir:Support",
     ],
 )

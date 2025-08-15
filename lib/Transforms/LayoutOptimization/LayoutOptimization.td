@@ -26,57 +26,14 @@ def LayoutOptimization : Pass<"layout-optimization"> {
   The layout conversion that results in the lowest net cost is chosen to be
   hoisted.
 
-  Examples:
-
-  The second layout conversion could be eliminated by performing the first
-  addition operation under #map1.
-
-  ```mlir
-  !tensor = tensor<32xi16>
-  !stensor = !secret.secret<!tensor>
-
-  #map = affine_map<(d0) -> (d0 + 1 mod 32)>
-  #map1 = affine_map<(d0) -> (d0)>
-  module {
-    func.func @push_conversion(%arg0: !stensor {tensor_ext.layout = #map}, %arg1: !stensor {tensor_ext.layout = #map1}, %arg2: !stensor {tensor_ext.layout = #map1}) -> (!stensor {tensor_ext.layout = #map}) {
-      %0 = secret.generic(%arg0 : !stensor {tensor_ext.layout = #map}, %arg1 : !stensor {tensor_ext.layout = #map1}, %arg2 : !stensor {tensor_ext.layout = #map1}) {
-      ^body(%input0: tensor<32xi16>, %input1: tensor<32xi16>, %input2: tensor<32xi16>):
-        %1 = tensor_ext.convert_layout %input1 {from_layout = #map1, tensor_ext.layout = [#map], to_layout = #map} : tensor<32xi16>
-        %2 = arith.addi %input0, %1 {tensor_ext.layout = #map} : tensor<32xi16>
-        %3 = tensor_ext.convert_layout %2 {from_layout = #map, tensor_ext.layout = [#map1], to_layout = #map1} : tensor<32xi16>
-        %4 = arith.addi %3, %input2 {tensor_ext.layout = #map1} : tensor<32xi16>
-        secret.yield %4 : tensor<32xi16>
-      } -> (!stensor {tensor_ext.layout = #map1})
-      return %0 : !stensor
-    }
-  }
-  ```
-
-  This pass produces:
-
-  ```mlir
-  !tensor = tensor<32xi16>
-  !stensor = !secret.secret<!tensor>
-
-  #map = affine_map<(d0) -> (d0 + 1)>
-  #map1 = affine_map<(d0) -> (d0)>
-  module {
-    func.func @push_conversion(%arg0: !stensor {tensor_ext.layout = #map1}, %arg1: !stensor {tensor_ext.layout = #map}, %arg2: !stensor {tensor_ext.layout = #map1}) -> (!stensor {tensor_ext.layout = #map}) {
-      %0 = secret.generic(%arg0 : !stensor {tensor_ext.layout = #map}, %arg1 : !stensor {tensor_ext.layout = #map1}, %arg2 : !stensor {tensor_ext.layout = #map1}) {
-      ^body(%input0: tensor<32xi16>, %input1: tensor<32xi16>, %input2: tensor<32xi16>):
-        %1 = tensor_ext.convert_layout %input0 {from_layout = #map, tensor_ext.layout = #map1, to_layout = #map1} : tensor<32xi16>
-        %2 = arith.addi %1, %input1 {tensor_ext.layout = #map1} : tensor<32xi16>
-        %3 = arith.addi %2, %input2 {tensor_ext.layout = #map1} : tensor<32xi16>
-        secret.yield %3 : tensor<32xi16>
-      } -> (!stensor {tensor_ext.layout = #map1})
-      return %0 : !stensor
-    }
-  }
+  (* example filepath=tests/Transforms/layout_optimization/hoist_matvec.mlir *)
   ```
   }];
 
   let dependentDialects = [
     "mlir::heir::tensor_ext::TensorExtDialect",
+    "mlir::arith::ArithDialect",
+    "mlir::linalg::LinalgDialect",
   ];
 
   let options = [
