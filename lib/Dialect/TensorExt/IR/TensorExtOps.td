@@ -79,6 +79,12 @@ def TensorExt_PermuteOp : TensorExt_Op<"permute", [Pure, AllTypesMatch<["input",
   let hasVerifier = 1;
 }
 
+// One-of attr for layout and new layout
+def LayoutLike : AnyAttrOf<[
+  TensorExt_LayoutAttr,
+  TensorExt_NewLayoutAttr,
+]>;
+
 def TensorExt_ConvertLayoutOp : TensorExt_Op<"convert_layout", [Pure, AllTypesMatch<["value", "output"]>]> {
   let summary = "Convert from one layout to another.";
   let description = [{
@@ -90,17 +96,11 @@ def TensorExt_ConvertLayoutOp : TensorExt_Op<"convert_layout", [Pure, AllTypesMa
   }];
 
   let assemblyFormat = "operands attr-dict `:` type($output)";
-  let arguments = (ins AnyType:$value, TensorExt_LayoutAttr:$from_layout, TensorExt_LayoutAttr:$to_layout);
+  let arguments = (ins AnyType:$value, LayoutLike:$from_layout, LayoutLike:$to_layout);
   let results = (outs AnyType:$output);
   let hasVerifier = 1;
   let hasFolder = 1;
 }
-
-// One-of attr for layout and new layout
-def LayoutLike : AnyAttrOf<[
-  TensorExt_LayoutAttr,
-  TensorExt_NewLayoutAttr,
-]>;
 
 def TensorExt_AssignLayoutOp : TensorExt_Op<"assign_layout", [Pure, AllTypesMatch<["value", "output"]>]> {
   let summary = "Assign a layout to a plaintext tensor or scalar.";

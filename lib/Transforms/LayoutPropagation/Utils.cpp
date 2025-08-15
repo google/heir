@@ -1,10 +1,16 @@
 #include "lib/Transforms/LayoutPropagation/Utils.h"
 
-#include <iostream>
+#include <cassert>
+#include <cstdint>
+#include <memory>
+#include <utility>
 
 #include "llvm/include/llvm/ADT/ArrayRef.h"     // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -51,6 +57,25 @@ SmallVector<int64_t> shiftByInserted(ArrayRef<int64_t> dims,
 SmallVector<int64_t> shiftByRemoved(ArrayRef<int64_t> dims,
                                     ArrayRef<int64_t> removed) {
   return shiftByInserted(dims, removed, false);
+}
+
+NewLayoutAttr convertLayoutForReduce(NewLayoutAttr inputLayout,
+                                     ArrayRef<int64_t> dimsToReduce) {
+  std::unique_ptr<presburger::IntegerRelation> clonedRelation =
+      inputLayout.getIntegerRelation().clone();
+
+  auto offset = clonedRelation->getVarKindOffset(presburger::VarKind::Domain);
+  for (int dim : llvm::reverse(dimsToReduce)) {
+    // Set the dim to reduce equal to 0.
+    auto dimIndex = offset + dim;
+    assert(clonedRelation->getVarKindAt(dimIndex) ==
+           presburger::VarKind::Domain);
+    clonedRelation->setAndEliminate(dimIndex, 0);
+  }
+
+  MLIRContext* context = inputLayout.getContext();
+  return NewLayoutAttr::getFromIntegerRelation(context,
+                                               std::move(*clonedRelation));
 }
 
 }  // namespace heir

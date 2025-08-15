@@ -55,7 +55,11 @@ LogicalResult HoistArgLayouts::matchAndRewrite(
         llvm::to_vector(maybeLayoutOps),
         [](auto& maybeLayoutOp) -> std::optional<tensor_ext::LayoutAttr> {
           if (!maybeLayoutOp.has_value()) return std::nullopt;
-          return maybeLayoutOp->getToLayout();
+          // TODO(#2047): Hoisting new layouts is unsupported.
+          auto toLayout = dyn_cast<tensor_ext::LayoutAttr>(
+              maybeLayoutOp.value().getToLayoutAttr());
+          if (!toLayout) return std::nullopt;
+          return toLayout;
         });
     if (!llvm::all_equal(maybeLayouts)) continue;
 
@@ -63,7 +67,9 @@ LogicalResult HoistArgLayouts::matchAndRewrite(
     auto maybeLayoutOp = *maybeLayoutOps.begin();
     if (!maybeLayoutOp.has_value()) continue;
 
-    tensor_ext::LayoutAttr toLayout = maybeLayoutOp.value().getToLayoutAttr();
+    tensor_ext::LayoutAttr toLayout =
+        cast<tensor_ext::LayoutAttr>(maybeLayoutOp.value().getToLayoutAttr());
+
     rewriter.modifyOpInPlace(func, [&]() {
       // Update the function argument layout and the layout conversion's input
       // attribute

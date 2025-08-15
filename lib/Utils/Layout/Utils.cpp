@@ -12,7 +12,9 @@
 namespace mlir {
 namespace heir {
 
+using presburger::BoundType;
 using presburger::IntegerRelation;
+using presburger::PresburgerSpace;
 using presburger::VarKind;
 
 // Adds a modulo constraint to the result relation. Returns the index of the new
@@ -40,9 +42,21 @@ unsigned int addModConstraint(IntegerRelation& result, ArrayRef<int64_t> exprs,
   return modIndex;
 }
 
-void addRowMajorConstraint(IntegerRelation& result, RankedTensorType tensorType,
-                           int64_t numSlots) {
-  assert(result.getNumDomainVars() == tensorType.getRank());
+presburger::IntegerRelation getRowMajorLayoutRelation(
+    RankedTensorType tensorType, int64_t numSlots) {
+  auto domainSize = tensorType.getRank();
+  IntegerRelation result(PresburgerSpace::getRelationSpace(
+      domainSize, /*numRange=*/2, /*numSymbol=*/0, /*numLocals=*/0));
+
+  // Add bounds for the matrix dimensions.
+  for (int i = 0; i < tensorType.getRank(); ++i) {
+    result.addBound(BoundType::UB, i, tensorType.getDimSize(i) - 1);
+    result.addBound(BoundType::LB, i, 0);
+  }
+  auto rangeOffset = result.getVarKindOffset(VarKind::Range);
+  result.addBound(BoundType::LB, rangeOffset, 0);
+  result.addBound(BoundType::LB, rangeOffset + 1, 0);
+  result.addBound(BoundType::UB, rangeOffset + 1, numSlots - 1);
 
   // 0 = (flattened_expr) floordiv ciphertextSize - ct
   // We first need to add a local var q to represent the floordiv and then add
@@ -93,6 +107,70 @@ void addRowMajorConstraint(IntegerRelation& result, RankedTensorType tensorType,
   eqConstraint[rhsMod] = 1;
   eqConstraint[lhsMod] = -1;
   result.addEquality(eqConstraint);
+
+  return result;
+}
+
+presburger::IntegerRelation getDiagonalLayoutRelation(
+    RankedTensorType matrixType, RankedTensorType diagonalizedType) {
+  unsigned int rows = matrixType.getDimSize(0);
+  unsigned int cols = matrixType.getDimSize(1);
+
+  assert(rows == diagonalizedType.getDimSize(0));
+  // Number of rows must be less than or equal to the number of columns.
+  assert(rows <= cols);
+  // The diagonals of the result must be able to fit an entire diagonal of the
+  // matrix, so ensure that the number of columns (diagonal size) is less than
+  // the result's columns.
+  assert(cols <= diagonalizedType.getDimSize(1));
+  assert(diagonalizedType.getRank() == 2);
+
+  IntegerRelation result(PresburgerSpace::getRelationSpace(
+      matrixType.getRank(), /*numRange=*/2, /*numSymbol=*/0,
+      /*numLocals=*/0));
+
+  // Add bounds for the matrix dimensions.
+  for (int i = 0; i < matrixType.getRank(); ++i) {
+    result.addBound(BoundType::UB, i, matrixType.getDimSize(i) - 1);
+    result.addBound(BoundType::LB, i, 0);
+  }
+  auto rangeOffset = result.getVarKindOffset(VarKind::Range);
+  for (int i = 0; i < diagonalizedType.getRank(); ++i) {
+    result.addBound(BoundType::UB, rangeOffset + i,
+                    diagonalizedType.getDimSize(i) - 1);
+    result.addBound(BoundType::LB, rangeOffset + i, 0);
+  }
+
+  // Add diagonal layout constraints:
+  // slot % rows = row
+  SmallVector<int64_t> slotModCoeffs(result.getNumCols(), 0);
+  slotModCoeffs[result.getVarKindOffset(VarKind::Range) + 1] = 1;
+  auto slotMod = addModConstraint(result, slotModCoeffs, rows);
+  SmallVector<int64_t> slotEquality(result.getNumCols(), 0);
+  slotEquality[result.getVarKindOffset(VarKind::Domain)] = 1;
+  slotEquality[slotMod] = -1;
+  result.addEquality(slotEquality);
+
+  // (ct + slot) % cols = col
+  SmallVector<int64_t> ctSlotCoeffs(result.getNumCols(), 0);
+  ctSlotCoeffs[result.getVarKindOffset(VarKind::Range)] = 1;
+  ctSlotCoeffs[result.getVarKindOffset(VarKind::Range) + 1] = 1;
+  auto ctSlotMod = addModConstraint(result, ctSlotCoeffs, cols);
+  SmallVector<int64_t> ctSlotEquality(result.getNumCols(), 0);
+  ctSlotEquality[result.getVarKindOffset(VarKind::Domain) + 1] = 1;
+  ctSlotEquality[ctSlotMod] = -1;
+  result.addEquality(ctSlotEquality);
+
+  result.simplify();
+  return result;
+}
+
+bool isRelationSquatDiagonal(RankedTensorType matrixType,
+                             RankedTensorType ciphertextSemanticShape,
+                             presburger::IntegerRelation relation) {
+  IntegerRelation diagonalRelation =
+      getDiagonalLayoutRelation(matrixType, ciphertextSemanticShape);
+  return relation.isEqual(diagonalRelation);
 }
 
 }  // namespace heir

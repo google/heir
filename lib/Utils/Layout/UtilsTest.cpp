@@ -23,26 +23,10 @@ using presburger::PresburgerSpace;
 using presburger::VarKind;
 
 void runTest(RankedTensorType tensorType, int64_t numSlots) {
-  IntegerRelation result(PresburgerSpace::getRelationSpace(
-      tensorType.getRank(), /*numRange=*/2, /*numSymbol=*/0,
-      /*numLocals=*/0));
-
-  // Add bounds for tensor dimensions and ciphertext slots.
-  for (int i = 0; i < tensorType.getRank(); ++i) {
-    result.addBound(BoundType::UB, i, tensorType.getDimSize(i) - 1);
-    result.addBound(BoundType::LB, i, 0);
-  }
-  for (int i = result.getVarKindOffset(VarKind::Range);
-       i < result.getNumRangeVars(); ++i) {
-    result.addBound(BoundType::LB, i, 0);
-  }
-  int ctIndex = result.getVarKindEnd(VarKind::Range) - 2;
-  result.addBound(BoundType::UB, ctIndex, numSlots - 1);
-
-  // Run the test
-  addRowMajorConstraint(result, tensorType, numSlots);
+  IntegerRelation result = getRowMajorLayoutRelation(tensorType, numSlots);
 
   // Check that the result relation requires size(tensor) / slots ciphertexts.
+  auto ctIndex = result.getVarKindOffset(VarKind::Range);
   std::optional<int64_t> numCiphertexts =
       result.getConstantBound64(BoundType::UB, ctIndex);
   ASSERT_TRUE(numCiphertexts.has_value());
@@ -107,6 +91,27 @@ TEST(UtilsTest, MultiDimSingleCiphertext) {
       RankedTensorType::get({2, 3, 4}, IndexType::get(&context));
   int64_t numSlots = 24;
   runTest(tensorType, numSlots);
+}
+
+TEST(UtilsTest, DiagonalLayout) {
+  MLIRContext context;
+
+  // Diagonalize a 4x8 matrix into a 4x64 matrix.
+  RankedTensorType matrixType =
+      RankedTensorType::get({4, 8}, IndexType::get(&context));
+  RankedTensorType diagonalizedType =
+      RankedTensorType::get({4, 64}, IndexType::get(&context));
+  IntegerRelation diagonalRelation =
+      getDiagonalLayoutRelation(matrixType, diagonalizedType);
+
+  diagonalRelation.simplify();
+  for (unsigned int i = 0; i < 4; ++i) {
+    for (unsigned int j = 0; j < 64; ++j) {
+      auto maybeExists =
+          diagonalRelation.containsPointNoLocal({j % 4, (i + j) % 8, i, j});
+      EXPECT_TRUE(maybeExists.has_value());
+    }
+  }
 }
 
 }  // namespace
