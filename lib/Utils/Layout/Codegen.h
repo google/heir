@@ -15,5 +15,9 @@ namespace heir {
 FailureOr<isl_ast_node*> generateLoopNest(
     const presburger::IntegerRelation& rel, isl_ctx* ctx);
 
+// A debugging helper to generate a C string representation of the loop nest.
+FailureOr<std::string> generateLoopNestAsCStr(
+    const presburger::IntegerRelation& rel);
+
 }  // namespace heir
 }  // namespace mlir

@@ -12,6 +12,7 @@ cc_library(
     srcs = ["Codegen.cpp"],
     hdrs = ["Codegen.h"],
     deps = [
+        ":IslConversion",
         "@isl",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:Support",
@@ -71,4 +72,43 @@ cc_test(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
     ],
+)
+
+cc_library(
+    name = "IslConversion",
+    srcs = ["IslConversion.cpp"],
+    hdrs = ["IslConversion.h"],
+    deps = [
+        ":Utils",
+        "@isl",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_test(
+    name = "IslConversionTest",
+    srcs = ["IslConversionTest.cpp"],
+    deps = [
+        ":IslConversion",
+        ":Parser",
+        ":Utils",
+        "@googletest//:gtest_main",
+        "@isl",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_binary(
+    name = "debug_packing_1d",
+    srcs = ["debug_packing_1d.c"],
+)
+
+cc_binary(
+    name = "debug_packing_2d",
+    srcs = ["debug_packing_2d.c"],
 )

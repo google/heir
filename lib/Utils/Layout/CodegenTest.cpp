@@ -21,29 +21,12 @@ namespace {
 using presburger::IntegerRelation;
 using ::testing::Eq;
 
-FailureOr<std::string> runAndGetCStr(const IntegerRelation& relation) {
-  isl_ctx* ctx = isl_ctx_alloc();
-  auto result = generateLoopNest(relation, ctx);
-  if (failed(result)) {
-    isl_ctx_free(ctx);
-    return failure();
-  }
-  isl_ast_node* tree = result.value();
-  char* c_str = isl_ast_node_to_C_str(tree);
-  std::string actual = std::string(c_str);
-  free(c_str);
-  isl_ast_node_free(tree);
-  isl_ctx_free(ctx);
-  // Add a leading newline for ease of comparison with multiline strings.
-  return actual.insert(0, "\n");
-}
-
 TEST(CodegenTest, PureAffineEquality) {
   MLIRContext context;
   IntegerRelation relation = relationFromString(
       "(d0, d1) : (d0 - d1 == 0, d0 >= 0, d1 >= 0, 10 >= d0, 10 >= d1)", 1,
       &context);
-  auto result = runAndGetCStr(relation);
+  auto result = generateLoopNestAsCStr(relation);
   ASSERT_TRUE(succeeded(result));
   std::string actual = result.value();
   std::string expected = R"(
@@ -59,7 +42,7 @@ TEST(CodegenTest, EqualityWithMod) {
       "(d0, d1) : ((d0 - d1) mod 2 == 0, d0 >= 0, d1 >= 0, 10 >= d0, 30 >= d1)",
       1, &context);
 
-  auto result = runAndGetCStr(relation);
+  auto result = generateLoopNestAsCStr(relation);
   ASSERT_TRUE(succeeded(result));
   std::string actual = result.value();
   std::string expected = R"(
@@ -79,13 +62,37 @@ TEST(CodegenTest, HaleviShoup) {
       "64 == 0, row >= 0, col >= 0, ct >= 0, slot >= 0, 1023 >= slot, 31 >= "
       "ct, 31 >= row, 63 >= col)",
       2, &context);
-  auto result = runAndGetCStr(relation);
+  auto result = generateLoopNestAsCStr(relation);
   ASSERT_TRUE(succeeded(result));
   std::string actual = result.value();
   std::string expected = R"(
 for (int c0 = 0; c0 <= 31; c0 += 1)
   for (int c1 = 0; c1 <= 1023; c1 += 1)
     S(c1 % 32, -((-c0 - c1 + 1087) % 64) + 63, c0, c1);
+)";
+  ASSERT_THAT(actual, Eq(expected));
+}
+
+TEST(CodegenTest, HaleviShoupWithSimplify) {
+  MLIRContext context;
+  IntegerRelation relation = relationFromString(
+      "(row, col, ct, slot) : "
+      "((slot - row) mod 512 == 0, "
+      "(ct + slot - col) mod 512 == 0, "
+      "row >= 0, col >= 0, ct >= 0, slot >= 0, "
+      "1023 >= slot, 511 >= ct, 511 >= row, 511 >= col)",
+      2, &context);
+
+  // A test to ensure simplifying the relation in FPL doesn't break codegen,
+  // which it did in an earlier iteration of the codegen routine.
+  relation.simplify();
+  auto result = generateLoopNestAsCStr(relation);
+  ASSERT_TRUE(succeeded(result));
+  std::string actual = result.value();
+  std::string expected = R"(
+for (int c0 = 0; c0 <= 511; c0 += 1)
+  for (int c1 = 0; c1 <= 1023; c1 += 1)
+    S(c1 % 512, (c0 + c1) % 512, c0, c1);
 )";
   ASSERT_THAT(actual, Eq(expected));
 }
