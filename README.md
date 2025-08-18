@@ -102,11 +102,16 @@ There are many ways to contribute to HEIR:
 The HEIR project can be cited in in academic work through following entry:
 
 ```text
-@Misc{HEIR,
-  title={{HEIR: Homomorphic Encryption Intermediate Representation}},
-  author={HEIR Contributors},
-  year={2023},
-  note={\url{https://github.com/google/heir}},
+@misc{ali2025heir,
+      title={HEIR: A Universal Compiler for Homomorphic Encryption},
+      author={Asra Ali and Jaeho Choi and Bryant Gipson and Shruthi Gorantala
+              and Jeremy Kun and Wouter Legiest and Lawrence Lim and Alexander
+              Viand and Meron Zerihun Demissie and Hongren Zheng},
+      year={2025},
+      eprint={2508.11095},
+      archivePrefix={arXiv},
+      primaryClass={cs.CR},
+      url={https://arxiv.org/abs/2508.11095},
 }
 ```
 
