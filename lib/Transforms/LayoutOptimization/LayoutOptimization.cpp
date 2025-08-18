@@ -18,9 +18,11 @@
 #include "lib/Transforms/LayoutOptimization/LayoutConversionCost.h"
 #include "lib/Transforms/LayoutOptimization/Patterns.h"
 #include "lib/Utils/AttributeUtils.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"        // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
+#include "lib/Utils/Utils.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/LinalgInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineMap.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
@@ -29,6 +31,7 @@
 #include "mlir/include/mlir/IR/Operation.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
@@ -42,6 +45,7 @@ using ::mlir::heir::secret::KernelAttr;
 using ::mlir::heir::tensor_ext::AssignLayoutOp;
 using ::mlir::heir::tensor_ext::ConvertLayoutOp;
 using tensor_ext::LayoutAttr;
+using tensor_ext::NewLayoutAttr;
 
 constexpr const static StringLiteral kKernelAttrName =
     ::mlir::heir::secret::SecretDialect::kKernelAttrName;
@@ -91,6 +95,41 @@ struct LayoutOptimization : impl::LayoutOptimizationBase<LayoutOptimization> {
 void LayoutOptimization::runOnOperation() {
   auto* ctx = &getContext();
   IRRewriter builder(ctx);
+
+  Operation* foundOp = walkAndDetect(getOperation(), [&](Operation* op) {
+    if (auto convertLayoutOp = dyn_cast<ConvertLayoutOp>(op)) {
+      if (isa<NewLayoutAttr>(convertLayoutOp.getFromLayout()) ||
+          isa<NewLayoutAttr>(convertLayoutOp.getToLayout())) {
+        return true;
+      }
+    }
+    if (auto assignLayoutOp = dyn_cast<AssignLayoutOp>(op)) {
+      if (isa<NewLayoutAttr>(assignLayoutOp.getLayout())) {
+        return true;
+      }
+    }
+
+    ValueRange valuesToCheck = op->getOperands();
+    if (auto funcOp = dyn_cast<func::FuncOp>(op)) {
+      valuesToCheck = funcOp.getArguments();
+    }
+    for (auto value : valuesToCheck) {
+      auto layout = findAttributeAssociatedWith(value, kLayoutAttrName);
+      if (failed(layout)) {
+        continue;
+      }
+      if (isa<NewLayoutAttr>(layout.value())) {
+        return true;
+      }
+    }
+    return false;
+  });
+  if (foundOp != nullptr) {
+    foundOp->emitError("LayoutOptimization does not support NewLayoutAttr");
+    signalPassFailure();
+    return;
+  }
+
   WalkResult result =
       getOperation()->walk<WalkOrder::PreOrder, ReverseIterator>(
           [&](Operation* op) {
@@ -273,9 +312,10 @@ OperandChange LayoutOptimization::costOfChangedOperand(OpOperand& operand,
   if (auto convertLayoutOp = value.getDefiningOp<ConvertLayoutOp>()) {
     // If the operand came from convert_layout, the cost of the change is
     // (folded conversion - original conversion).
-    auto fromLayout = convertLayoutOp.getFromLayout();
+    auto fromLayout = cast<LayoutAttr>(convertLayoutOp.getFromLayout());
     Cost originalConversion = computeCostOfLayoutConversion(
-        value, ciphertextSize, fromLayout, convertLayoutOp.getToLayout());
+        value, ciphertextSize, fromLayout,
+        cast<LayoutAttr>(convertLayoutOp.getToLayout()));
     Cost foldedConversion = computeCostOfLayoutConversion(
         value, ciphertextSize, fromLayout, newLayout);
     return OperandChange{fromLayout, newLayout,
@@ -299,11 +339,12 @@ Cost LayoutOptimization::costOfChangedResult(Operation* kernel,
     if (auto convertLayoutOp = dyn_cast<ConvertLayoutOp>(user)) {
       auto currentValue = convertLayoutOp.getValue();
       Cost originalConversion = computeCostOfLayoutConversion(
-          currentValue, ciphertextSize, convertLayoutOp.getFromLayout(),
-          convertLayoutOp.getToLayout());
-      Cost foldedConversion =
-          computeCostOfLayoutConversion(currentValue, ciphertextSize, newLayout,
-                                        convertLayoutOp.getToLayout());
+          currentValue, ciphertextSize,
+          cast<LayoutAttr>(convertLayoutOp.getFromLayout()),
+          cast<LayoutAttr>(convertLayoutOp.getToLayout()));
+      Cost foldedConversion = computeCostOfLayoutConversion(
+          currentValue, ciphertextSize, newLayout,
+          cast<LayoutAttr>(convertLayoutOp.getToLayout()));
       totalCost += foldedConversion - originalConversion;
     }
   }
@@ -344,7 +385,7 @@ std::vector<HoistOption> LayoutOptimization::computeHoistingOptions(
   LLVM_DEBUG(llvm::dbgs() << results.size()
                           << " successful hoisting options\n");
 
-  auto outputLayout = convertLayoutOp.getToLayout();
+  LayoutAttr outputLayout = cast<LayoutAttr>(convertLayoutOp.getToLayout());
   KernelAttr oldKernel = op->getAttrOfType<KernelAttr>(kKernelAttrName);
   std::vector<HoistOption> options;
   for (HoistResult& result : results) {

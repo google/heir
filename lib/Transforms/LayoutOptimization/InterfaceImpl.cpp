@@ -17,7 +17,7 @@ using tensor_ext::LayoutAttr;
 Hoister createTrivialHoister(Operation* op) {
   return [op](ConvertLayoutOp convertLayoutOp) -> llvm::FailureOr<HoistResult> {
     HoistResult result;
-    auto outputLayout = convertLayoutOp.getToLayout();
+    LayoutAttr outputLayout = cast<LayoutAttr>(convertLayoutOp.getToLayout());
     result.convertLayoutOp = convertLayoutOp;
     result.newInputLayouts =
         SmallVector<LayoutAttr>(op->getNumOperands(), outputLayout);

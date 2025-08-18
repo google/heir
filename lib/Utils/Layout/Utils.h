@@ -15,14 +15,25 @@ namespace heir {
 unsigned int addModConstraint(presburger::IntegerRelation& result,
                               ArrayRef<int64_t> exprs, int64_t modulus);
 
-// Adds a constraint to the given result relation that enforces a row-major
-// layout for the given tensor type and number of slots. This is used for
-// IntegerRelations that represent data layouts in ciphertexts. It expects that
-// the number of domain variables match the rank of the tensor, and that there
-// are two range variables representing the ciphertext index and slot index in
-// that order.
-void addRowMajorConstraint(presburger::IntegerRelation& result,
-                           RankedTensorType tensorType, int64_t numSlots);
+// Returns an IntegerRelation that enforces a row-major layout for the given
+// tensor type and number of slots. This is used for IntegerRelations that
+// represent data layouts in ciphertexts. It expects that the number of domain
+// variables match the rank of the tensor, and that there are two range
+// variables representing the ciphertext index and slot index in that order.
+presburger::IntegerRelation getRowMajorLayoutRelation(
+    RankedTensorType tensorType, int64_t numSlots);
+
+// Returns an IntegerRelation that represents a diagonalized layout for a matrix
+// such that the ith diagonal of the matrix is in the ith row of the
+// result. The number of rows of the input and output must match.
+presburger::IntegerRelation getDiagonalLayoutRelation(
+    RankedTensorType matrixType, RankedTensorType diagonalizedType);
+
+// Returns true if the given relation is a squat diagonal layout for the given
+// matrix type and ciphertext semantic shape.
+bool isRelationSquatDiagonal(RankedTensorType matrixType,
+                             RankedTensorType ciphertextSemanticShape,
+                             presburger::IntegerRelation relation);
 
 }  // namespace heir
 }  // namespace mlir
