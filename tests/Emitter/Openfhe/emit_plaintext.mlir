@@ -31,7 +31,7 @@ module attributes {scheme.bgv} {
     // CHECK: std::vector<int64_t> [[v2:.*]](1024, 1);
     // CHECK-NEXT: auto [[pt:.*]]_filled_n = [[cc]]->GetCryptoParameters()->GetElementParams()->GetRingDimension() / 2;
     // CHECK-NEXT: auto [[pt]]_filled = [[v2]]
-    // CHECK: const auto& [[pt]] = [[cc]]->MakePackedPlaintext
+    // CHECK: auto [[pt]] = [[cc]]->MakePackedPlaintext
     %cst = arith.constant dense<1> : tensor<1024xi64>
     %pt = openfhe.make_packed_plaintext %cc, %cst : (!cc, tensor<1024xi64>) -> !pt
     %ct_0 = openfhe.negate %cc, %ct : (!cc, !ct_L1) -> !ct_L1

@@ -37,8 +37,8 @@ module attributes {scheme.ckks} {
     //RESIZE: }
     //NO-RESIZE-NOT: auto pt_filled
 
-    //RESIZE: const auto& pt = cc->MakeCKKSPackedPlaintext(pt_filled);
-    //NO-RESIZE: const auto& pt = cc->MakeCKKSPackedPlaintext(v1);
+    //RESIZE: auto pt = cc->MakeCKKSPackedPlaintext(pt_filled);
+    //NO-RESIZE: auto pt = cc->MakeCKKSPackedPlaintext(v1);
     %pt = openfhe.make_ckks_packed_plaintext %cc, %0 : (!cc, tensor<1024xf64>) -> !pt
 
     //CHECK: const auto& ct = cc->Encrypt(pk, pt

@@ -1198,7 +1198,9 @@ LogicalResult OpenFhePkeEmitter::printOperation(
   std::string cc = variableNames->getNameForValue(resultCC.value());
 
   if (skipVectorResizing_) {
-    emitAutoAssignPrefix(op.getResult());
+    // Cannot use const auto& here:
+    // https://github.com/openfheorg/openfhe-development/issues/1046
+    os << "auto " << variableNames->getNameForValue(op.getResult()) << " = ";
     os << cc << "->MakePackedPlaintext(" << inputVarName << ");\n";
     return success();
   }
@@ -1219,7 +1221,10 @@ LogicalResult OpenFhePkeEmitter::printOperation(
   os << "  " << inputVarFilledName << ".push_back(" << inputVarName << "[i % "
      << inputVarName << ".size()]);\n";
   os << "}\n";
-  emitAutoAssignPrefix(op.getResult());
+
+  // Cannot use const auto& here:
+  // https://github.com/openfheorg/openfhe-development/issues/1046
+  os << "auto " << variableNames->getNameForValue(op.getResult()) << " = ";
   os << cc << "->MakePackedPlaintext(" << inputVarFilledName << ");\n";
 
   return success();
@@ -1246,7 +1251,9 @@ LogicalResult OpenFhePkeEmitter::printOperation(
   }
 
   if (skipVectorResizing_) {
-    emitAutoAssignPrefix(op.getResult());
+    // Cannot use const auto& here:
+    // https://github.com/openfheorg/openfhe-development/issues/1046
+    os << "auto " << variableNames->getNameForValue(op.getResult()) << " = ";
     os << variableNames->getNameForValue(resultCC.value())
        << "->MakeCKKSPackedPlaintext(" << inputVarName << ");\n";
     return success();
@@ -1267,7 +1274,9 @@ LogicalResult OpenFhePkeEmitter::printOperation(
      << inputVarName << ".size()]);\n";
   os << "}\n";
 
-  emitAutoAssignPrefix(op.getResult());
+  // Cannot use const auto& here:
+  // https://github.com/openfheorg/openfhe-development/issues/1046
+  os << "auto " << variableNames->getNameForValue(op.getResult()) << " = ";
   os << variableNames->getNameForValue(resultCC.value())
      << "->MakeCKKSPackedPlaintext(" << inputVarFilledName << ");\n";
 
