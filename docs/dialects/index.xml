@@ -12274,6 +12274,11 @@ defined as part of the relation by a constraint like &lt;code>row + col + 2 - ct
 &lt;td style="text-align:center">&lt;code>::mlir::IntegerSet&lt;/code>&lt;/td>
 &lt;td>&lt;/td>
 &lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">localSize&lt;/td>
+&lt;td style="text-align:center">&lt;code>unsigned&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
 &lt;/tbody>
 &lt;/table>
 &lt;h3 id="originaltypeattr">OriginalTypeAttr&lt;/h3>
@@ -12376,8 +12381,8 @@ plaintext masks (ciphertext-plaintext multiplications), and additions.&lt;/p>
 &lt;h4 id="attributes-1">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>from_layout&lt;/code>&lt;/td>&lt;td>::mlir::heir::tensor_ext::LayoutAttr&lt;/td>&lt;td>The description of the layout of a data-semantic tensor.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>to_layout&lt;/code>&lt;/td>&lt;td>::mlir::heir::tensor_ext::LayoutAttr&lt;/td>&lt;td>The description of the layout of a data-semantic tensor.&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>from_layout&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>The description of the layout of a data-semantic tensor. or The description of the layout of a data-semantic tensor.&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>to_layout&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>The description of the layout of a data-semantic tensor. or The description of the layout of a data-semantic tensor.&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-1">Operands:&lt;/h4>
 &lt;table>
