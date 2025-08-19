@@ -1073,10 +1073,14 @@ struct ConvertToCiphertextSemantics
     // check for invalid types on values and bail out of the pass
     auto isValidValue = [&](const Value value) -> LogicalResult {
       auto contextualAttr = typeConverter.getContextualAttr(value);
-      // skip arith.constant operator.
+      // skip arith.constant, mulf,addf, muli, addi operators.
       mlir::Operation* defOp = value.getDefiningOp();
       if (defOp) {
         if (llvm::isa<arith::ConstantOp>(defOp)) return success();
+        if (llvm::isa<arith::AddFOp, arith::MulFOp, arith::AddIOp,
+                      arith::MulIOp>(defOp)) {
+          return success();
+        }
       } else {
         // must be argument type...
         if (value.getType().isIntOrIndexOrFloat()) {
