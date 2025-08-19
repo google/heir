@@ -1,4 +1,5 @@
 # Utilities for layout manipulation
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
@@ -12,6 +13,7 @@ cc_library(
     srcs = ["Codegen.cpp"],
     hdrs = ["Codegen.h"],
     deps = [
+        ":IslConversion",
         "@isl",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:Support",
@@ -71,4 +73,43 @@ cc_test(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
     ],
+)
+
+cc_library(
+    name = "IslConversion",
+    srcs = ["IslConversion.cpp"],
+    hdrs = ["IslConversion.h"],
+    deps = [
+        "@isl",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_test(
+    name = "IslConversionTest",
+    srcs = ["IslConversionTest.cpp"],
+    deps = [
+        ":IslConversion",
+        ":Parser",
+        "@googletest//:gtest_main",
+        "@isl",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AffineAnalysis",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:AsmParser",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_binary(
+    name = "debug_packing_1d",
+    srcs = ["debug_packing_1d.c"],
+)
+
+cc_binary(
+    name = "debug_packing_2d",
+    srcs = ["debug_packing_2d.c"],
 )

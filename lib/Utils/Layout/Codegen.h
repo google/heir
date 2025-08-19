@@ -1,3 +1,5 @@
+#include <string>
+
 #include "include/isl/ast_type.h"                                   // from @isl
 #include "include/isl/ctx.h"                                        // from @isl
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
@@ -14,6 +16,10 @@ namespace heir {
 // assignment operator in the innermost loop body.
 FailureOr<isl_ast_node*> generateLoopNest(
     const presburger::IntegerRelation& rel, isl_ctx* ctx);
+
+// A debugging helper to generate a C string representation of the loop nest.
+FailureOr<std::string> generateLoopNestAsCStr(
+    const presburger::IntegerRelation& rel);
 
 }  // namespace heir
 }  // namespace mlir
