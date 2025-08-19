@@ -1,11 +1,17 @@
 #ifndef LIB_TRANSFORMS_LAYOUTPROPAGATION_UTILS_H_
 #define LIB_TRANSFORMS_LAYOUTPROPAGATION_UTILS_H_
 
+#include <cstdint>
+
+#include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "llvm/include/llvm/ADT/ArrayRef.h"     // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"     // from @llvm-project
 
 namespace mlir {
 namespace heir {
+
+using tensor_ext::NewLayoutAttr;
 
 int64_t maxOfMaxes(::llvm::ArrayRef<int64_t> d1, ::llvm::ArrayRef<int64_t> d2);
 
@@ -39,6 +45,11 @@ int64_t maxOfMaxes(::llvm::ArrayRef<int64_t> d1, ::llvm::ArrayRef<int64_t> d2);
 // output = [0, 1, 2, 3]
 ::llvm::SmallVector<int64_t> shiftByRemoved(::llvm::ArrayRef<int64_t> dims,
                                             ::llvm::ArrayRef<int64_t> removed);
+
+// A helper to convert the layout of an input tensor to a reduce op. The result
+// layout is equivalent to setting the summed dimensions to 0.
+NewLayoutAttr convertLayoutForReduce(NewLayoutAttr inputLayout,
+                                     ArrayRef<int64_t> dimsToReduce);
 
 }  // namespace heir
 }  // namespace mlir

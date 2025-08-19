@@ -119,8 +119,8 @@ git_repository(
 git_repository(
     name = "openfhe",
     build_file = "//bazel/openfhe:openfhe.BUILD",
-    # Currently v1.3 2025-05-24
-    commit = "02a8e9c76c3e2eff53392530199c63e4da53eb65",
+    # Currently v1.4 2025-08-18
+    commit = "aa8a86e1143f1e47d4354bdd757080e903ba5875",
     patches = ["@heir//bazel/openfhe:add_config_core.patch"],
     remote = "https://github.com/openfheorg/openfhe-development.git",
 )

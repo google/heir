@@ -76,6 +76,7 @@
 #include "lib/Transforms/GenerateParam/GenerateParam.h"
 #include "lib/Transforms/LayoutOptimization/LayoutOptimization.h"
 #include "lib/Transforms/LayoutPropagation/LayoutPropagation.h"
+#include "lib/Transforms/LayoutPropagation/NewLayoutPropagation.h"
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
 #include "lib/Transforms/LowerPolynomialEval/LowerPolynomialEval.h"
 #include "lib/Transforms/LowerUnpack/LowerUnpack.h"
@@ -285,6 +286,7 @@ int main(int argc, char** argv) {
   registerPolynomialApproximationPasses();
   registerPropagateAnnotationPasses();
   registerLayoutPropagationPasses();
+  registerNewLayoutPropagationPasses();
   registerLayoutOptimizationPasses();
   registerLinalgCanonicalizationsPasses();
   registerFoldConstantTensorsPasses();

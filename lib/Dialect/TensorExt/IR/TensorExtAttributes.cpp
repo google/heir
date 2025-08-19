@@ -1,12 +1,17 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 
 #include <cstdint>
+#include <memory>
 #include <string>
+#include <utility>
 
 #include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/AsmParser/AsmParser.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/AffineMap.h"         // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/Analysis/AffineStructures.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/AffineMap.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"        // from @llvm-project
@@ -17,6 +22,10 @@
 namespace mlir {
 namespace heir {
 namespace tensor_ext {
+
+using presburger::IntegerPolyhedron;
+using presburger::IntegerRelation;
+using presburger::VarKind;
 
 LogicalResult AlignmentAttr::verify(
     function_ref<InFlightDiagnostic()> emitError, mlir::DenseI64ArrayAttr in,
@@ -81,7 +90,7 @@ LogicalResult AlignmentAttr::verify(
     }
   }
 
-  // For each axis, input dim + padding divides or is divisibile by output dim,
+  // For each axis, input dim + padding divides or is divisible by output dim,
   // which enables replication along each axis.
   for (int i = 0; i < out.size(); i++) {
     if (beforeReplication[i] % out[i] != 0 &&
@@ -114,9 +123,13 @@ LogicalResult LayoutAttr::verify(function_ref<InFlightDiagnostic()> emitError,
 }
 
 void NewLayoutAttr::print(AsmPrinter& p) const {
-  p << "<domainSize=" << getDomainSize() << ", relation=";
+  p << "<domainSize=" << getDomainSize();
+  if (getLocalSize() > 0) {
+    p << ", localSize=" << getLocalSize();
+  }
+  p << ", relation=\"";
   getRelation().print(p.getStream());
-  p << '>';
+  p << "\">";
 }
 
 Attribute NewLayoutAttr::parse(AsmParser& parser, Type type) {
@@ -133,10 +146,26 @@ Attribute NewLayoutAttr::parse(AsmParser& parser, Type type) {
   }
   unsigned domainSize = parsedDomainSize.getZExtValue();
 
-  // , relation=
-  if (failed(parser.parseComma()) || failed(parser.parseKeyword("relation")) ||
-      parser.parseEqual())
-    return {};
+  // ,
+  if (failed(parser.parseComma())) return {};
+
+  // localSize=
+  unsigned localSize = 0;
+  if (succeeded(parser.parseOptionalKeyword("localSize"))) {
+    APInt parsedLocalSize(64, 1);
+    if (failed(parser.parseEqual()) ||
+        failed(parser.parseInteger(parsedLocalSize))) {
+      parser.emitError(parser.getCurrentLocation())
+          << "required integer for localSize";
+      return {};
+    }
+    localSize = parsedLocalSize.getZExtValue();
+
+    if (failed(parser.parseComma())) return {};
+  }
+
+  // relation=
+  if (failed(parser.parseKeyword("relation")) || parser.parseEqual()) return {};
 
   std::string parsedRelationString;
   if (failed(parser.parseString(&parsedRelationString))) {
@@ -149,19 +178,60 @@ Attribute NewLayoutAttr::parse(AsmParser& parser, Type type) {
       parseIntegerSet(parsedRelationString, parser.getContext());
 
   if (failed(parser.parseGreater())) return {};
-  return NewLayoutAttr::get(parser.getContext(), domainSize, parsedSet);
+  return NewLayoutAttr::get(parser.getContext(), domainSize, parsedSet,
+                            localSize);
 }
 
 LogicalResult NewLayoutAttr::verify(
     function_ref<InFlightDiagnostic()> emitError, unsigned domainSize,
-    IntegerSet relation) {
+    IntegerSet relation, unsigned localSize) {
   // The range size (all variables except domain variables) should be 2, i.e.,
   // the ciphertext index and slot index.
   unsigned numVars = relation.getNumInputs();
-  if (numVars - domainSize != 2) {
-    return emitError() << "relation must have 2 range variables";
+  if (localSize > numVars) {
+    return emitError() << "localSize (" << localSize
+                       << ") must be less than or equal to the number of "
+                          "variables in the relation ("
+                       << numVars << ")";
+  }
+  if (domainSize > numVars) {
+    return emitError() << "domainSize (" << domainSize
+                       << ") must be less than or equal to the number of "
+                          "variables in the relation ("
+                       << numVars << ")";
+  }
+  if (domainSize + localSize > numVars) {
+    return emitError() << "total number of domain and local variables ("
+                       << domainSize + localSize
+                       << ") must be less than or equal to the number of "
+                          "variables in the relation ("
+                       << numVars << ")";
+  }
+  if (numVars - domainSize - localSize != 2) {
+    return emitError()
+           << "relation must have 2 range variables, but got total vars = "
+           << numVars << ", domainSize = " << domainSize
+           << ", localSize = " << localSize;
   }
   return success();
+}
+
+NewLayoutAttr NewLayoutAttr::getFromIntegerRelation(
+    ::mlir::MLIRContext* context, IntegerRelation relation) {
+  relation.removeTrivialRedundancy();
+  relation.removeDuplicateDivs();
+  relation.simplify();
+
+  std::unique_ptr<IntegerRelation> copy = relation.clone();
+  copy->convertVarKind(VarKind::Domain, 0, copy->getNumDomainVars(),
+                       VarKind::SetDim, 0);
+  copy->convertVarKind(VarKind::Local, 0, copy->getNumLocalVars(),
+                       VarKind::SetDim);
+  affine::FlatAffineValueConstraints integerSet =
+      IntegerPolyhedron(std::move(*copy));
+  return NewLayoutAttr::get(context, relation.getNumDomainVars(),
+                            integerSet.getAsIntegerSet(context),
+                            relation.getNumLocalVars());
 }
 
 }  // namespace tensor_ext

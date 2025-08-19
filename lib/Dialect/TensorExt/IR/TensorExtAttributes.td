@@ -14,13 +14,16 @@ class TensorExt_Attr<string name, string attrMnemonic, list<Trait> traits = []>
   let mnemonic = attrMnemonic;
   let assemblyFormat = "`<` struct(params) `>`";
 
-  let extraClassDeclaration = [{
-    // OpAsmAttrInterface methods.
+  string commonClassDeclaration = [{
+   // OpAsmAttrInterface methods.
     ::mlir::OpAsmDialectInterface::AliasResult getAlias(::llvm::raw_ostream &os) const {
       os << "}] # attrMnemonic # [{";
       return ::mlir::OpAsmDialectInterface::AliasResult::FinalAlias;
     }
   }];
+
+
+  let extraClassDeclaration = commonClassDeclaration;
 }
 
 def TensorExt_AlignmentAttr : TensorExt_Attr<"Alignment", "alignment"> {
@@ -206,20 +209,38 @@ def TensorExt_NewLayoutAttr : TensorExt_Attr<"NewLayout", "new_layout"> {
   // Note that we use IntegerSet here because it's hashable upstream while
   // IntegerRelation is not. So we have a helper function below to reconstruct
   // the relation from the attribute.
-  let parameters = (ins "unsigned":$domainSize, "::mlir::IntegerSet":$relation);
+  let parameters = (ins "unsigned":$domainSize,
+                    "::mlir::IntegerSet":$relation,
+                    DefaultValuedParameter<"unsigned", "0">:$localSize
+  );
   let assemblyFormat = ?;
   let hasCustomAssemblyFormat = 1;
 
   let genVerifyDecl = 1;
 
-  let extraClassDeclaration = [{
+  let builders = [
+    AttrBuilder<(ins "unsigned":$domainSize,
+                    "::mlir::IntegerSet":$relation), [{
+      return get($_ctxt, domainSize, relation, /*localSize=*/0);
+    }]>
+  ];
+
+
+  let extraClassDeclaration = commonClassDeclaration # [{
     presburger::IntegerRelation getIntegerRelation() const {
       presburger::IntegerRelation relation =
           affine::FlatAffineValueConstraints(getRelation());
       relation.convertVarKind(presburger::VarKind::SetDim, 0, getDomainSize(),
                               presburger::VarKind::Domain);
+      // Keep 2 variables for range (SetDim) vars, the verifier asserts this.
+      relation.convertVarKind(presburger::VarKind::SetDim, 2,
+                              2 + getLocalSize(),
+                              presburger::VarKind::Local);
       return relation;
     }
+
+    static NewLayoutAttr getFromIntegerRelation(
+      ::mlir::MLIRContext* context, presburger::IntegerRelation relation);
   }];
 }
 
