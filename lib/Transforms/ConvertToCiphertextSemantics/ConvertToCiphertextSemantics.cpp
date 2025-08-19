@@ -1068,11 +1068,28 @@ struct ConvertToCiphertextSemantics
     // check for invalid types on values and bail out of the pass
     auto isValidValue = [&](const Value value) -> LogicalResult {
       auto contextualAttr = typeConverter.getContextualAttr(value);
+      // skip arith.constant operator.
+      mlir::Operation* defOp = value.getDefiningOp();
+      if (defOp) {
+        if (llvm::isa<arith::ConstantOp>(defOp)) return success();
+      } else {
+        // must be argument type...
+        if (value.getType().isIntOrIndexOrFloat()) {
+          return success();
+        }
+      }
+
       if (failed(contextualAttr)) {
+        module->emitError() << "invalid attribute at value:";
+        value.dump();
         return failure();
       }
       Type result =
           typeConverter.convertType(value.getType(), contextualAttr.value());
+      if (!result) {
+        module->emitError() << "type cannot be converted by type-converter:";
+        value.dump();
+      }
       return result != nullptr ? success() : failure();
     };
     if (!walkAndValidateValues(module, isValidValue).succeeded()) {
