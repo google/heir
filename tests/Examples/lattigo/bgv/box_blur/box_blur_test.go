@@ -7,26 +7,26 @@ import (
 func TestBinops(t *testing.T) {
 	evaluator, params, ecd, enc, dec := box_blur__configure()
 
-	input := make([]int16, 4096)
-	expected := make([]int16, 4096)
+	input := make([]int16, 256)
+	expected := make([]int16, 256)
 
-	for i := 0; i < 4096; i++ {
+	for i := 0; i < 256; i++ {
 		input[i] = int16(i)
 	}
 
-	for row := 0; row < 64; row++ {
-		for col := 0; col < 64; col++ {
+	for row := 0; row < 16; row++ {
+		for col := 0; col < 16; col++ {
 			sum := int16(0)
 			for di := -1; di < 2; di++ {
 				for dj := -1; dj < 2; dj++ {
-					index := (row*64 + col + di*64 + dj) % 4096
+					index := (row*16 + col + di*16 + dj) % 256
 					if index < 0 {
-						index += 4096
+						index += 256
 					}
 					sum += input[index]
 				}
 			}
-			expected[row*64+col] = sum
+			expected[row*16+col] = sum
 		}
 	}
 
@@ -36,7 +36,7 @@ func TestBinops(t *testing.T) {
 
 	result := box_blur__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 
-	for i := 0; i < 4096; i++ {
+	for i := 0; i < 256; i++ {
 		if result[i] != expected[i] {
 			t.Errorf("Decryption error at %d: %d != %d", i, result[i], expected[i])
 		}
