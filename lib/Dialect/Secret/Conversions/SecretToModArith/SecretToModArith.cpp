@@ -59,18 +59,13 @@ class SecretToModArithTypeConverter : public TypeConverter {
               shapedType.getShape(),
               convertPlaintextType(shapedType.getElementType()));
         })
-        .Case<IntegerType>([this, ctx](IntegerType intType) {
-          Type newType;
-          int64_t mod = plaintextModulus;
+        .Case<IntegerType>([this, ctx](IntegerType intType) -> Type {
           if (plaintextModulus == 0) {
-            auto modulusBitSize = (int64_t)intType.getIntOrFloatBitWidth();
-            mod = (1L << (modulusBitSize - 1L));
-            newType = mlir::IntegerType::get(intType.getContext(),
-                                             modulusBitSize + 1);
-          } else {
-            newType = mlir::IntegerType::get(ctx, 64);
+            return intType;
           }
 
+          int64_t mod = plaintextModulus;
+          Type newType = mlir::IntegerType::get(ctx, 64);
           return mod_arith::ModArithType::get(
               ctx, mlir::IntegerAttr::get(newType, mod));
         })
@@ -82,6 +77,8 @@ class SecretToModArithTypeConverter : public TypeConverter {
   Type convertSecretType(secret::SecretType type) const {
     return convertPlaintextType(type.getValueType());
   }
+
+  int64_t getPlaintextModulus() const { return plaintextModulus; }
 
  private:
   int64_t plaintextModulus;
@@ -196,8 +193,8 @@ class ConvertAnyNestedGeneric : public OpConversionPattern<secret::GenericOp> {
 
 // "encode" a cleartext to mod_arith by sign extending and encapsulating it.
 // If the cleartext is a float type, let it pass through unchanged.
-Value encodeCleartext(Value cleartext, Type resultType,
-                      ImplicitLocOpBuilder& b) {
+static Value encodeCleartext(Value cleartext, Type resultType,
+                             ImplicitLocOpBuilder& b) {
   if (isa<FloatType>(getElementTypeOrSelf(cleartext.getType()))) {
     return cleartext;
   }
@@ -231,6 +228,12 @@ struct ConvertConceal : public OpConversionPattern<secret::ConcealOp> {
       secret::ConcealOp op, secret::ConcealOp::Adaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    if (typeConv.getPlaintextModulus() == 0) {
+      // If the plaintext modulus is 0, we can just pass through the
+      // cleartext without any modifications.
+      rewriter.replaceOp(op, adaptor.getCleartext());
+      return success();
+    }
     // We start with something like an i16 (or tensor<Nxi16>) and the result
     // should be a (tensor of) !mod_arith.int<17 : i64> so we need to first
     // sign extend the input to the mod_arith storage type, then encapsulate it
@@ -249,13 +252,19 @@ struct ConvertConceal : public OpConversionPattern<secret::ConcealOp> {
 struct ConvertReveal : public OpConversionPattern<secret::RevealOp> {
   ConvertReveal(const SecretToModArithTypeConverter& typeConverter,
                 mlir::MLIRContext* context, PatternBenefit benefit)
-      : OpConversionPattern<secret::RevealOp>(typeConverter, context, benefit) {
-  }
+      : OpConversionPattern<secret::RevealOp>(typeConverter, context, benefit),
+        typeConv(typeConverter) {}
 
   LogicalResult matchAndRewrite(
       secret::RevealOp op, secret::RevealOp::Adaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     if (isa<FloatType>(getElementTypeOrSelf(adaptor.getInput().getType()))) {
+      rewriter.replaceOp(op, adaptor.getInput());
+      return success();
+    }
+    if (typeConv.getPlaintextModulus() == 0) {
+      // If the plaintext modulus is 0, we can just pass through the
+      // mod_arith.int without any modifications.
       rewriter.replaceOp(op, adaptor.getInput());
       return success();
     }
@@ -289,6 +298,9 @@ struct ConvertReveal : public OpConversionPattern<secret::RevealOp> {
     rewriter.replaceOp(op, result);
     return success();
   }
+
+ private:
+  const SecretToModArithTypeConverter& typeConv;
 };
 
 // This is like
@@ -379,18 +391,24 @@ struct SecretToModArith : public impl::SecretToModArithBase<SecretToModArith> {
     // These patterns have higher benefit to take precedence over the default
     // pattern, which simply converts operand/result types and inlines the
     // operation inside the generic.
-    patterns.add<
-        SecretGenericOpCipherPlainConversion<arith::AddIOp, mod_arith::AddOp>,
-        SecretGenericOpCipherPlainConversion<arith::MulIOp, mod_arith::MulOp>,
-        SecretGenericOpCipherPlainConversion<arith::SubIOp, mod_arith::SubOp>,
-        ConvertReveal, ConvertConceal, ConvertDebugCall>(typeConverter, context,
-                                                         /*benefit=*/3);
+    if (plaintextModulus != 0) {
+      patterns.add<
+          SecretGenericOpCipherPlainConversion<arith::AddIOp, mod_arith::AddOp>,
+          SecretGenericOpCipherPlainConversion<arith::MulIOp, mod_arith::MulOp>,
+          SecretGenericOpCipherPlainConversion<arith::SubIOp, mod_arith::SubOp>,
+          ConvertReveal, ConvertConceal, ConvertDebugCall>(typeConverter,
+                                                           context,
+                                                           /*benefit=*/3);
 
-    patterns.add<SecretGenericOpConversion<arith::AddIOp, mod_arith::AddOp>,
-                 SecretGenericOpConversion<arith::SubIOp, mod_arith::SubOp>,
-                 SecretGenericOpConversion<arith::MulIOp, mod_arith::MulOp>>(
-        typeConverter, context,
-        /*benefit=*/2);
+      patterns.add<SecretGenericOpConversion<arith::AddIOp, mod_arith::AddOp>,
+                   SecretGenericOpConversion<arith::SubIOp, mod_arith::SubOp>,
+                   SecretGenericOpConversion<arith::MulIOp, mod_arith::MulOp>>(
+          typeConverter, context,
+          /*benefit=*/2);
+    } else {
+      patterns.add<ConvertReveal, ConvertConceal, ConvertDebugCall>(
+          typeConverter, context, /*benefit=*/3);
+    }
 
     patterns.add<ConvertAnyNestedGeneric>(typeConverter, context,
                                           /*benefit=*/1);
