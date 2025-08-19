@@ -20,6 +20,7 @@ heir_lattigo_lib(
         "--scheme-to-lattigo=insert-debug-handler-calls=true",
     ],
     mlir_src = "@heir//tests/Examples/common:dot_product_8f.mlir",
+    tags = ["e2e"],
 )
 
 # For Google-internal reasons we must separate the go_test rules from the macro
@@ -29,4 +30,5 @@ go_test(
     name = "dotproduct8fdebug_test",
     srcs = ["dot_product_8f_debug_test.go"],
     embed = [":main"],
+    tags = ["e2e"],
 )

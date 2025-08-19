@@ -14,6 +14,7 @@ heir_lattigo_lib(
         "--scheme-to-lattigo",
     ],
     mlir_src = "@heir//tests/Examples/common:dot_product_8f.mlir",
+    tags = ["e2e"],
 )
 
 # For Google-internal reasons we must separate the go_test rules from the macro
@@ -22,4 +23,5 @@ go_test(
     name = "dotproduct8f_test",
     srcs = ["dot_product_8f_test.go"],
     embed = [":dotproduct8f"],
+    tags = ["e2e"],
 )

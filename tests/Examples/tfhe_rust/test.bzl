@@ -18,6 +18,7 @@ def tfhe_rs_end_to_end_test(name, mlir_src, test_src, heir_opt_flags = [], heir_
       size: Size override to pass to rust_test
       **kwargs: Keyword arguments to pass to cc_library and rust_test.
     """
+    tags = tags + ["e2e"]
     rs_lib_target_name = "%s_rs_lib" % name
     tfhe_rs_lib(name, mlir_src, rs_lib_target_name, heir_opt_flags, heir_translate_flags, data, tags, deps, **kwargs)
     rust_test(
