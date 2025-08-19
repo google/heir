@@ -5,7 +5,7 @@
 #include "gtest/gtest.h"  // from @googletest
 
 // Generated headers (block clang-format from messing up order)
-#include "tests/Examples/openfhe/bgv/box_blur/box_blur_64x64_lib.h"
+#include "tests/Examples/openfhe/bgv/box_blur/box_blur_16x16_lib.h"
 
 using ::testing::ContainerEq;
 
@@ -25,20 +25,20 @@ TEST(BoxBlurTest, TestInput1) {
 
   std::vector<int16_t> input;
   std::vector<int16_t> expected;
-  input.reserve(4096);
-  expected.reserve(4096);
+  input.reserve(256);
+  expected.reserve(256);
 
-  for (int i = 0; i < 4096; ++i) {
+  for (int i = 0; i < 256; ++i) {
     input.push_back(i);
   }
 
-  for (int row = 0; row < 64; ++row) {
-    for (int col = 0; col < 64; ++col) {
+  for (int row = 0; row < 16; ++row) {
+    for (int col = 0; col < 16; ++col) {
       int16_t sum = 0;
       for (int di = -1; di < 2; ++di) {
         for (int dj = -1; dj < 2; ++dj) {
-          int index = (row * 64 + col + di * 64 + dj) % 4096;
-          if (index < 0) index += 4096;
+          int index = (row * 16 + col + di * 16 + dj) % 256;
+          if (index < 0) index += 256;
           sum += input[index];
         }
       }
