@@ -234,6 +234,12 @@ LogicalResult NewLayoutPropagation::visitOperation(Operation* op) {
       .Case<affine::AffineForOp>([&](auto op) { return visitOperation(op); })
       // tensor ops
       .Case<tensor::ExtractOp>([&](auto op) { return visitOperation(op); })
+      .Case<tensor::ExtractSliceOp, tensor::InsertSliceOp>([&](auto op) {
+        // TODO(#2028): Support tensor.extract_slice and tensor.insert_slice in
+        // layout.
+        return op->emitError()
+               << "Layout propagation not supported for this op";
+      })
       // tensor ops
       .Case<CollapseShapeOp, ExpandShapeOp>(
           [&](auto op) { return visitOperation(op); })
