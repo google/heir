@@ -8,7 +8,10 @@ package(
 cc_library(
     name = "Kernel",
     srcs = ["Kernel.cpp"],
-    hdrs = ["Kernel.h"],
+    hdrs = [
+        "Kernel.h",
+        "KernelName.h",
+    ],
     deps = [
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",

@@ -20,7 +20,6 @@ namespace mlir {
 namespace heir {
 
 void registerOperandAndResultAttrInterface(DialectRegistry& registry);
-void registerLayoutConversionHoistableInterface(DialectRegistry& registry);
 
 }  // namespace heir
 }  // namespace mlir

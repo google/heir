@@ -1,6 +1,8 @@
 #ifndef LIB_DIALECT_SECRET_IR_SECRETDIALECT_H_
 #define LIB_DIALECT_SECRET_IR_SECRETDIALECT_H_
 
+// Needed before DialectImplementation.h for Diagnostic printer
+#include "lib/Kernel/KernelName.h"
 #include "mlir/include/mlir/IR/Dialect.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
 

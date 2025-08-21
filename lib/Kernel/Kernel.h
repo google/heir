@@ -3,42 +3,17 @@
 
 #include <string>
 
+#include "lib/Kernel/KernelName.h"
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/OpImplementation.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/OperationSupport.h"       // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 
 namespace mlir {
 namespace heir {
 
-enum class KernelName {
-  // A trivial kernel is one for which there is only a single known option
-  // (e.g., an elementwise addition).
-  Trivial,
-  MatvecNaive,
-  MatvecDiagonal,
-};
-
 bool isSupportedKernel(Operation* op, KernelName name);
 
-inline raw_ostream& operator<<(raw_ostream& os,
-                               const heir::KernelName& kernelName) {
-  switch (kernelName) {
-    case heir::KernelName::Trivial:
-      os << "Trivial";
-      break;
-    case heir::KernelName::MatvecNaive:
-      os << "MatvecNaive";
-      break;
-    case heir::KernelName::MatvecDiagonal:
-      os << "MatvecDiagonal";
-      break;
-    default:
-      os << "Unknown";
-  }
-  return os;
-}
+std::string kernelNameAsStr(const heir::KernelName& kernelName);
 
 }  // namespace heir
 

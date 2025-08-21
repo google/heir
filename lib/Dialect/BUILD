@@ -16,11 +16,8 @@ cc_library(
     deps = [
         ":interfaces_inc_gen",
         "@heir//lib/Dialect/Secret/IR:SecretAttributes",
-        "@heir//lib/Dialect/TensorExt/IR:TensorExtOps",
         "@heir//lib/Transforms/LayoutOptimization:Hoisting",
-        "@heir//lib/Transforms/LayoutOptimization:InterfaceImpl",
         "@llvm-project//mlir:AffineDialect",
-        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
     ],
 )
