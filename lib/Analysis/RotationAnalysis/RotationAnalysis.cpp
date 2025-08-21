@@ -17,6 +17,8 @@
 #include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 
+#define DEBUG_TYPE "rotation-analysis"
+
 namespace mlir {
 namespace heir {
 namespace rotation_analysis {
