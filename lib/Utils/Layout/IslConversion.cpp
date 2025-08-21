@@ -7,8 +7,10 @@
 #include "include/isl/mat.h"                  // from @isl
 #include "include/isl/space.h"                // from @isl
 #include "include/isl/space_type.h"           // from @isl
+#include "include/isl/val.h"                  // from @isl
 #include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 
 #define DEBUG_TYPE "isl-conversion"
@@ -17,7 +19,9 @@ namespace mlir {
 namespace heir {
 
 using presburger::IntegerRelation;
+using presburger::PresburgerSpace;
 
+namespace {
 // Borrowed from
 // https://github.com/EnzymeAD/Enzyme-JAX/blob/ec61fe8bee1abb50ca3883cdded669e978624ad9/src/enzyme_ad/jax/Passes/SimplifyAffineExprs.cpp#L47
 __isl_give isl_mat* createConstraintRows(__isl_keep isl_ctx* ctx,
@@ -55,6 +59,29 @@ __isl_give isl_mat* createConstraintRows(__isl_keep isl_ctx* ctx,
   return mat;
 }
 
+void populateConstraints(IntegerRelation& rel, __isl_keep isl_mat* mat,
+                         bool eq) {
+  unsigned numRows = isl_mat_rows(mat);
+  unsigned numCols = isl_mat_cols(mat);
+
+  for (unsigned i = 0; i < numRows; i++) {
+    SmallVector<int64_t, 8> row;
+    for (unsigned j = 0; j < numCols; j++) {
+      isl_val* val = isl_mat_get_element_val(mat, i, j);
+      row.push_back(isl_val_get_num_si(val));
+      isl_val_free(val);
+    }
+
+    if (eq) {
+      rel.addEquality(row);
+    } else {
+      rel.addInequality(row);
+    }
+  }
+}
+
+}  // namespace
+
 __isl_give isl_basic_map* convertRelationToBasicMap(const IntegerRelation& rel,
                                                     __isl_keep isl_ctx* ctx) {
   isl_mat* eqMat = createConstraintRows(ctx, rel, /*isEq=*/true);
@@ -74,6 +101,41 @@ __isl_give isl_basic_map* convertRelationToBasicMap(const IntegerRelation& rel,
   return isl_basic_map_from_constraint_matrices(
       space, eqMat, ineqMat, isl_dim_in, isl_dim_out, isl_dim_div,
       isl_dim_param, isl_dim_cst);
+}
+
+presburger::IntegerRelation convertBasicMapToRelation(
+    __isl_take isl_basic_map* bmap) {
+  isl_ctx* ctx = isl_basic_map_get_ctx(bmap);
+  // Variables in an IntegerRelation are stored in the order
+  //
+  //   Domain, Range, Symbols, Locals, Constant
+  //
+  // https://github.com/llvm/llvm-project/blob/8b091961b134661a3bbc95646a3a9b2344d684f8/mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h#L144-L145
+  //
+  // Because ISL provides this API that lets you choose the order of the
+  // variables, we can copy these directly to FPL's IntMatrix.
+  isl_mat* eqMat = isl_basic_map_equalities_matrix(
+      bmap, isl_dim_in, isl_dim_out, isl_dim_param, isl_dim_div, isl_dim_cst);
+  isl_mat* ineqMat = isl_basic_map_inequalities_matrix(
+      bmap, isl_dim_in, isl_dim_out, isl_dim_param, isl_dim_div, isl_dim_cst);
+
+  PresburgerSpace fplSpace = PresburgerSpace::getRelationSpace(
+      /*numDomain=*/isl_basic_map_dim(bmap, isl_dim_in),
+      /*numRange=*/isl_basic_map_dim(bmap, isl_dim_out),
+      /*numSymbols=*/isl_basic_map_dim(bmap, isl_dim_param),
+      /*numLocals=*/isl_basic_map_dim(bmap, isl_dim_div));
+  IntegerRelation result(
+      /*numReservedInequalities=*/isl_mat_rows(ineqMat),
+      /*numReservedEqualities=*/isl_mat_rows(eqMat),
+      /*numReservedCols=*/isl_mat_cols(eqMat), fplSpace);
+
+  populateConstraints(result, eqMat, /*eq=*/true);
+  populateConstraints(result, ineqMat, /*eq=*/false);
+
+  isl_basic_map_free(bmap);
+  isl_ctx_free(ctx);
+
+  return result;
 }
 
 }  // namespace heir
