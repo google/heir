@@ -29,25 +29,44 @@ namespace tensor_ext {
 LogicalResult convertRotateAndReduceOp(RotateAndReduceOp op) {
   LLVM_DEBUG(llvm::dbgs() << "Converting tensor_ext.rotate_and_reduce op: "
                           << op << "\n");
-  if (!op.getPlaintexts()) {
-    // TODO(#2122): Implement the case where we accumulate the ciphertext slot
-    // values.
-    return op->emitOpError() << "rotate and reduce not implemented yet for "
-                                "ciphertext value accumulation";
-  }
 
   IRRewriter rewriter(op.getContext());
   TypedValue<RankedTensorType> input = op.getTensor();
+  bool isInt = isa<IntegerType>(input.getType().getElementType());
+
+  if (!op.getPlaintexts()) {
+    // Accumulate all slots within a ciphertext by rotating by n/2, n/4, n/8,
+    // etc and adding to itself at each step
+    rewriter.setInsertionPoint(op);
+    Value tensor = input;
+    auto tensorShape = input.getType().getShape();
+
+    for (int64_t shiftSize = tensorShape[0] / 2; shiftSize > 0;
+         shiftSize /= 2) {
+      auto rotatedTensor = rewriter.create<tensor_ext::RotateOp>(
+          op.getLoc(), tensor.getType(), tensor,
+          rewriter.create<arith::ConstantOp>(op.getLoc(),
+                                             rewriter.getIndexAttr(shiftSize)));
+
+      if (isInt) {
+        tensor =
+            rewriter.create<arith::AddIOp>(op.getLoc(), tensor, rotatedTensor);
+      } else {
+        tensor =
+            rewriter.create<arith::AddFOp>(op.getLoc(), tensor, rotatedTensor);
+      }
+    }
+
+    rewriter.replaceAllUsesWith(op, tensor);
+    return success();
+  }
+
   TypedValue<RankedTensorType> plaintexts = op.getPlaintexts();
   unsigned steps = op.getSteps().getZExtValue();
   unsigned period = op.getPeriod().getZExtValue();
 
-  StringRef mulOpName = isa<IntegerType>(input.getType().getElementType())
-                            ? "arith.muli"
-                            : "arith.mulf";
-  StringRef addOpName = isa<IntegerType>(input.getType().getElementType())
-                            ? "arith.addi"
-                            : "arith.addf";
+  StringRef mulOpName = isInt ? "arith.muli" : "arith.mulf";
+  StringRef addOpName = isInt ? "arith.addi" : "arith.addf";
 
   // Use a value of sqrt(n) as the baby step / giant step size.
   auto babySteps = static_cast<int64_t>(std::floor(std::sqrt(steps)));

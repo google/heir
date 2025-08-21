@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "llvm/include/llvm/Support/Casting.h"             // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"              // from @llvm-project
@@ -18,8 +17,6 @@
 #include "mlir/include/mlir/IR/OperationSupport.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
-
-#define DEBUG_TYPE "rotation-analysis"
 
 namespace mlir {
 namespace heir {
@@ -92,8 +89,6 @@ class PartialReduction {
     // first element.
     reduction.addRotation(0);
 
-    LLVM_DEBUG(llvm::dbgs()
-               << "Initializing at " << tensor << " with rotations [0]\n");
     return reduction;
   }
 
@@ -107,11 +102,6 @@ class PartialReduction {
            "Internal state of RotationAnalysis is broken; tensor having saved "
            "value should be impossible");
 
-    LLVM_DEBUG({
-      llvm::dbgs() << "Rotating\n\t";
-      lhs.print(llvm::dbgs());
-      llvm::dbgs() << " by " << shift;
-    });
     PartialReduction shifted;
     shifted.tensor = lhs.tensor;
     shifted.opName = lhs.opName;
@@ -124,11 +114,6 @@ class PartialReduction {
     for (auto index : lhs.accessedIndices) {
       shifted.addRotation((index + shift) % size);
     }
-    LLVM_DEBUG({
-      llvm::dbgs() << " to\n\t";
-      shifted.print(llvm::dbgs());
-      llvm::dbgs() << "\n";
-    });
     return shifted;
   }
 
@@ -202,15 +187,6 @@ class PartialReduction {
     for (auto value : rhs.savedValues) {
       merged.savedValues.push_back(value);
     }
-    LLVM_DEBUG({
-      llvm::dbgs() << "Joining\n\t";
-      lhs.print(llvm::dbgs());
-      llvm::dbgs() << " and\n\t";
-      rhs.print(llvm::dbgs());
-      llvm::dbgs() << " to get\n\t";
-      merged.print(llvm::dbgs());
-      llvm::dbgs() << "\n";
-    });
     return merged;
   }
 
@@ -254,15 +230,6 @@ class PartialReduction {
     }
     merged.savedValues = lhs.savedValues;
     merged.savedValues.push_back(rhs);
-    LLVM_DEBUG({
-      llvm::dbgs() << "Saving\n\t";
-      rhs.print(llvm::dbgs());
-      llvm::dbgs() << " inside\n\t";
-      lhs.print(llvm::dbgs());
-      llvm::dbgs() << " to get\n\t";
-      merged.print(llvm::dbgs());
-      llvm::dbgs() << "\n";
-    });
     return merged;
   }
 

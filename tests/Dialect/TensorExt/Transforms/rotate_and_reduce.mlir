@@ -1,4 +1,4 @@
-// RUN: heir-opt --rotate-and-reduce --cse --canonicalize %s | FileCheck %s
+// RUN: heir-opt --split-input-file --rotate-and-reduce --cse --canonicalize %s | FileCheck %s
 
 
 // Sum all entries of a tensor into a single scalar
@@ -43,6 +43,8 @@ func.func @simple_sum(%arg0: tensor<8xi32>) -> i32 {
   return %14 : i32
 }
 
+// -----
+
 // Sum all entries of two tensor into a single scalar
 // CHECK: @simple_sum_two_tensor
 // CHECK-COUNT-2: tensor_ext.rotate
@@ -71,6 +73,8 @@ func.func @simple_sum_two_tensor(%arg0: tensor<4xi32>, %arg1: tensor<4xi32>) -> 
   %14 = arith.addi %13, %7 : i32
   return %14 : i32
 }
+
+// -----
 
 // Sum all entries of a tensor
 // CHECK: @simple_sum_mixed_rotation_tensor
@@ -110,6 +114,8 @@ func.func @simple_sum_mixed_rotation_tensor(%arg0: tensor<8xi32>) -> tensor<8xi3
   %13 = arith.addi %12, %arg0 : tensor<8xi32>
   return %13 : tensor<8xi32>
 }
+
+// -----
 
 // Sum all entries of a tensor into a single scalar
 // Mix rotation and extraction in the reduction tree
@@ -155,6 +161,8 @@ func.func @simple_sum_mixed_rotation_extraction(%arg0: tensor<8xi32>) -> i32 {
   return %8 : i32
 }
 
+// -----
+
 // CHECK: @not_supported_mixed_ops
 // CHECK-NOT: tensor_ext.rotate
 func.func @not_supported_mixed_ops(%arg0: tensor<8xi32>) -> i32 {
@@ -183,6 +191,8 @@ func.func @not_supported_mixed_ops(%arg0: tensor<8xi32>) -> i32 {
   %14 = arith.addi %13, %7 : i32
   return %14 : i32
 }
+
+// -----
 
 // CHECK: @not_supported_mixed_ops_mixed_rotation_extraction
 // CHECK-COUNT-2: tensor_ext.rotate
@@ -214,6 +224,8 @@ func.func @not_supported_mixed_ops_mixed_rotation_extraction(%arg0: tensor<8xi32
   %8 = arith.addi %7, %extracted_5 : i32
   return %8 : i32
 }
+
+// -----
 
 // CHECK: @not_supported_missing_indices
 // CHECK-NOT: tensor_ext.rotate
@@ -266,6 +278,8 @@ func.func @not_supported_missing_indices(%arg0: tensor<16xi32>) -> i32 {
   return %v14 : i32
 }
 
+// -----
+
 // CHECK: @not_supported_repeated_indices
 // CHECK-NOT: tensor_ext.rotate
 func.func @not_supported_repeated_indices(%arg0: tensor<8xi32>) -> i32 {
@@ -296,6 +310,8 @@ func.func @not_supported_repeated_indices(%arg0: tensor<8xi32>) -> i32 {
   return %14 : i32
 }
 
+// -----
+
 // CHECK: @not_supported_unsupported_op
 // CHECK-NOT: tensor_ext.rotate
 func.func @not_supported_unsupported_op(%arg0: tensor<8xi32>) -> i32 {
@@ -324,6 +340,8 @@ func.func @not_supported_unsupported_op(%arg0: tensor<8xi32>) -> i32 {
   %14 = arith.subi %13, %7 : i32
   return %14 : i32
 }
+
+// -----
 
 // 2D tensor not supported
 // CHECK: @not_supported_bad_tensor_shape
@@ -354,6 +372,8 @@ func.func @not_supported_bad_tensor_shape(%arg0: tensor<1x8xi32>) -> i32 {
   %14 = arith.addi %13, %7 : i32
   return %14 : i32
 }
+
+// -----
 
 // reducing from multiple input tensors
 // CHECK: @not_supported_multiple_tensors
@@ -386,6 +406,8 @@ func.func @not_supported_multiple_tensors(%arg0: tensor<8xi32>, %arg1: tensor<8x
   return %14 : i32
 }
 
+// -----
+
 // CHECK: @not_supported_non_constant_index_access
 // CHECK-NOT: tensor_ext.rotate
 func.func @not_supported_non_constant_index_access(%arg0: tensor<8xi32>, %arg1: index) -> i32 {
@@ -415,6 +437,8 @@ func.func @not_supported_non_constant_index_access(%arg0: tensor<8xi32>, %arg1: 
   %14 = arith.addi %13, %7 : i32
   return %14 : i32
 }
+
+// -----
 
 // CHECK: @simple_sum_non_tensor_operands
 // CHECK-SAME: (%[[arg0:.*]]: tensor<8xi32>
@@ -461,6 +485,8 @@ func.func @simple_sum_non_tensor_operands(%arg0: tensor<8xi32>) -> i32 {
   %15 = arith.addi %14, %2 : i32
   return %15 : i32
 }
+
+// -----
 
 // CHECK: @simple_sum_multiple_non_tensor_operands
 // CHECK-SAME: (%[[arg0:.*]]: tensor<8xi32>, %[[arg1:.*]]: i32
@@ -521,6 +547,8 @@ func.func @simple_sum_multiple_non_tensor_operands(%arg0: tensor<8xi32>, %arg1: 
   return %20 : i32
 }
 
+// -----
+
 // CHECK: @simple_sum_operand_from_another_tensor
 // CHECK-SAME: (%[[arg0:.*]]: tensor<8xi32>, %[[arg1:.*]]: tensor<8xi32>
 // CHECK-NEXT: %[[c0:.*]] = arith.constant 0
@@ -566,6 +594,8 @@ func.func @simple_sum_operand_from_another_tensor(%arg0: tensor<8xi32>, %arg1: t
   return %15 : i32
 }
 
+// -----
+
 // one tensor reduced and add another tensor
 // TODO(#522): arg1 could be saved and applied later
 // CHECK: @not_supported_save_not_rotated_tensor
@@ -596,6 +626,8 @@ func.func @not_supported_save_not_rotated_tensor(%arg0: tensor<8xi32>, %arg1: te
   %14 = arith.addi %13, %arg0 : tensor<8xi32>
   return %14 : tensor<8xi32>
 }
+
+// -----
 
 // CHECK: @not_supported_mixed_op_non_tensor_operands
 // CHECK-NOT: tensor_ext.rotate
@@ -628,6 +660,8 @@ func.func @not_supported_mixed_op_non_tensor_operands(%arg0: tensor<8xi32>) -> i
   %15 = arith.addi %14, %2 : i32
   return %15 : i32
 }
+
+// -----
 
 // CHECK: @sum_of_linear_rotates
 // CHECK-COUNT-5: tensor_ext.rotate
@@ -693,6 +727,8 @@ func.func @sum_of_linear_rotates(%arg0: !secret.secret<tensor<32xi16>>) -> !secr
   return %0 : !secret.secret<i16>
 }
 
+// -----
+
 // CHECK: @rotate_not_applied_because_rotation_missing
 // CHECK-COUNT-3: tensor_ext.rotate
 func.func @rotate_not_applied_because_rotation_missing(%arg0: !secret.secret<tensor<4xi16>>) -> !secret.secret<i16> {
@@ -715,6 +751,8 @@ func.func @rotate_not_applied_because_rotation_missing(%arg0: !secret.secret<ten
   return %0 : !secret.secret<i16>
 }
 
+// -----
+
 // CHECK: @rotate_not_applied_because_rotation_duplicated
 // CHECK-COUNT-3: tensor_ext.rotate
 func.func @rotate_not_applied_because_rotation_duplicated(%arg0: !secret.secret<tensor<4xi16>>) -> !secret.secret<i16> {
@@ -736,6 +774,8 @@ func.func @rotate_not_applied_because_rotation_duplicated(%arg0: !secret.secret<
   return %0 : !secret.secret<i16>
 }
 
+// -----
+
 // CHECK: @rotate_not_applied_because_multiple_tensors
 // CHECK-COUNT-3: tensor_ext.rotate
 func.func @rotate_not_applied_because_multiple_tensors(
@@ -754,6 +794,8 @@ func.func @rotate_not_applied_because_multiple_tensors(
   return %extracted : i16
 }
 
+// -----
+
 // CHECK: @rotate_not_applied_because_mixed_ops
 // CHECK-COUNT-3: tensor_ext.rotate
 func.func @rotate_not_applied_because_mixed_ops(%arg1 : tensor<4xi16>) -> i16 {
@@ -769,6 +811,8 @@ func.func @rotate_not_applied_because_mixed_ops(%arg1 : tensor<4xi16>) -> i16 {
   %extracted = tensor.extract %6[%c1] : tensor<4xi16>
   return %extracted : i16
 }
+
+// -----
 
 // CHECK: @reduce_add_and_mul
 // 9 rotations because the first rotation can be reused between the two
@@ -887,6 +931,8 @@ func.func @reduce_add_and_mul(%arg1: tensor<32xi16>) -> i16 {
   return %out : i16
 }
 
+// -----
+
 
 // This test caused rotate-and-reduce to crash, so is here as a regression test
 // without any particular assertion required.
@@ -910,6 +956,8 @@ func.func @test_dot_product_regression(%arg0: !secret.secret<tensor<8xi16>>, %ar
   } -> !secret.secret<i16>
   return %0 : !secret.secret<i16>
 }
+
+// -----
 
 // Another crash regression test, this time for tensors of size 1
 // CHECK: @test_size_one_regression
