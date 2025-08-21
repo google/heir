@@ -2,8 +2,8 @@
 #include <stdio.h>
 
 typedef struct {
-  int64_t *allocated;
-  int64_t *aligned;
+  int64_t* allocated;
+  int64_t* aligned;
   int64_t offset;
   int64_t size;
   int64_t stride;
@@ -32,7 +32,7 @@ memref_1d dot_product__encrypt__arg1(
     int64_t stride);
 
 // Decoders for the results
-int16_t dot_product__decrypt__result0(int64_t *allocated, int64_t *aligned,
+int16_t dot_product__decrypt__result0(int64_t* allocated, int64_t* aligned,
                                       int64_t offset, int64_t size,
                                       int64_t stride);
 
