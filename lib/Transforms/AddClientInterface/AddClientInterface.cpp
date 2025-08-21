@@ -30,6 +30,7 @@
 #include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
 
 // IWYU pragma: begin_keep
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/WalkResult.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/Passes.h"   // from @llvm-project
 // IWYU pragma: end_keep
@@ -185,12 +186,15 @@ LogicalResult generateDecryptionFunc(func::FuncOp op, Type decFuncArgType,
       Type dataSemanticType = originalTypeAttr.getOriginalType();
       auto unpackOp = tensor_ext::UnpackOp::create(
           builder, dataSemanticType, decrypted.getResult(),
-          cast<tensor_ext::LayoutAttr>(originalTypeAttr.getLayout()));
+          originalTypeAttr.getLayout());
 
-      Value res =
+      auto res =
           implementUnpackOp(unpackOp, builder, [&](Operation* createdOp) {});
-      b.replaceOp(unpackOp, res);
-      decValuesToReturn.push_back(res);
+      if (failed(res)) {
+        return op.emitError() << "Failed to implement unpack ciphertext data";
+      }
+      b.replaceOp(unpackOp, res.value());
+      decValuesToReturn.push_back(res.value());
     }
   } else {
     // Otherwise, return the input unchanged.

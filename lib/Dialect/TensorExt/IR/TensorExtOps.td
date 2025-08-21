@@ -128,7 +128,7 @@ def TensorExt_UnpackOp : TensorExt_Op<"unpack", [Pure]> {
     tensor.
   }];
 
-  let arguments = (ins AnyType:$value, TensorExt_LayoutAttr:$layout);
+  let arguments = (ins AnyType:$value, LayoutLike:$layout);
   let results = (outs AnyType:$output);
   let hasVerifier = 1;
 }

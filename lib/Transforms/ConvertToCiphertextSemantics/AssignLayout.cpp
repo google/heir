@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <functional>
 #include <optional>
 #include <string>
@@ -8,14 +9,19 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/TypeConversion.h"
+#include "lib/Utils/Layout/Codegen.h"
+#include "llvm/include/llvm/ADT/DynamicAPInt.h"     // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/FlatLinearValueConstraints.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
-#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"     // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/Utils/Utils.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"         // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/ReshapeOpsUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StructuredOpsUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
@@ -313,7 +319,7 @@ Value implementUnpackOpForTensor(
   Value input = op.getValue();
   Value mostRecentOutput = input;
 
-  LayoutAttr layout = op.getLayout();
+  LayoutAttr layout = cast<LayoutAttr>(op.getLayout());
   tensor_ext::AlignmentAttr alignment = layout.getAlignment();
   RankedTensorType replicatedType =
       alignment ? RankedTensorType::get(alignment.getOut(),
@@ -328,7 +334,7 @@ Value implementUnpackOpForTensor(
     createdOpCallback(emptyOp);
 
     SmallVector<utils::IteratorType> iteratorTypes(
-        op.getLayout().getMap().getNumDims(), utils::IteratorType::parallel);
+        layout.getMap().getNumDims(), utils::IteratorType::parallel);
     SmallVector<AffineMap> indexingMaps = {
         // The first map corresponds to how the iteration indices map to the
         // ciphertext-semantic tensor's indices. This is the layout map.
@@ -394,7 +400,7 @@ Value implementUnpackOpForScalar(
     const std::function<void(Operation*)>& createdOpCallback) {
   // All we need to do here is determine the index to extract from
   SmallVector<Value> indices;
-  LayoutAttr layout = op.getLayout();
+  LayoutAttr layout = cast<LayoutAttr>(op.getLayout());
 
   if (auto alignment = layout.getAlignment()) {
     // Note padding only inserts at the end of a tensor axis, so regardless
@@ -431,36 +437,102 @@ FailureOr<Value> implementAssignLayoutNew(
     return op.emitError()
            << "Expected layout to be an IntegerRelation-style layout";
   }
+  IntegerRelation rel = layout.getIntegerRelation();
 
   RankedTensorType dataSemanticType =
       cast<RankedTensorType>(op.getValue().getType());
-  llvm::SmallVector<int64_t> dataSemanticShape;
-
-  IntegerRelation rel = layout.getIntegerRelation();
+  llvm::SmallVector<int64_t> ciphertextSemanticShape;
   for (unsigned varPos = rel.getVarKindOffset(VarKind::Range);
-       varPos < rel.getVarKindEnd(VarKind::Range); ++varPos) {
-    // The input variables are the data semantic tensor's axes.
+       varPos < rel.getVarKindEnd(VarKind::Range) - 1; ++varPos) {
     std::optional<int64_t> dimBound =
         rel.getConstantBound64(BoundType::UB, varPos);
     if (!dimBound) {
       return op.emitError()
-             << "Required all range variables to have an inferable upper "
-                "bound, "
-                "but found no upper bound for variable at position "
-             << varPos << " in relation " << printRelation(rel);
+             << "No upper bound found for range variable at position "
+             << varPos;
     }
-    dataSemanticShape.push_back(1 + dimBound.value());
+    ciphertextSemanticShape.push_back(dimBound.value() +
+                                      1);  // +1 is because UB is inclusive
+  }
+  // Last dimension is always the slot size. The relation may enforce a tighter
+  // bound depending on whether the slots at the end are full, so use the upper
+  // bound.
+  ciphertextSemanticShape.push_back(ciphertextSize);
+
+  auto ciphertextTensor = builder.create<tensor::EmptyOp>(
+      ciphertextSemanticShape, dataSemanticType.getElementType());
+
+  MLIRLoopNestGenerator generator(builder);
+  auto loopNestCstr = generateLoopNestAsCStr(rel);
+  if (failed(loopNestCstr)) {
+    return op.emitError() << "Failed to generate loop nest for relation "
+                          << printRelation(rel);
+  }
+  LLVM_DEBUG(llvm::dbgs() << "Generating loop nest assignment for relation "
+                          << loopNestCstr.value() << "\n");
+
+  auto loop = generator.generateForLoop(
+      rel, {ciphertextTensor},
+      [&](mlir::OpBuilder& builder, Location loc, ValueRange exprs,
+          ValueRange iterArgs) {
+        // Extract from data and insert into ciphertextTensor
+        auto extracted = builder.create<tensor::ExtractOp>(
+            loc, op.getValue(),
+            exprs.drop_back(ciphertextTensor.getType().getRank()));
+        auto inserted = builder.create<tensor::InsertOp>(
+            loc, extracted, iterArgs[0],
+            exprs.drop_front(dataSemanticType.getRank()));
+        return scf::ValueVector({inserted});
+      });
+  if (failed(loop)) {
+    return op.emitError() << "Failed to generate loop nest for relation "
+                          << printRelation(rel);
   }
 
-  [[maybe_unused]] RankedTensorType ciphertextSemanticType =
-      RankedTensorType::get(dataSemanticShape,
-                            dataSemanticType.getElementType());
+  createdOpCallback(loop.value());
+  return loop.value().getResults()[0];
+}
 
-  LLVM_DEBUG(llvm::dbgs() << "Converting AssignLayoutOp to use result type "
-                          << ciphertextSemanticType << "\n");
-  [[maybe_unused]] Value input = op.getValue();
+FailureOr<Value> implementUnpackOpNew(
+    tensor_ext::UnpackOp op, ImplicitLocOpBuilder& builder,
+    const std::function<void(Operation*)>& createdOpCallback) {
+  NewLayoutAttr layout = cast<NewLayoutAttr>(op.getLayout());
+  IntegerRelation rel = layout.getIntegerRelation();
 
-  return failure();
+  MLIRLoopNestGenerator generator(builder);
+  auto loopNestCstr = generateLoopNestAsCStr(rel);
+  if (failed(loopNestCstr)) {
+    return op.emitError() << "Failed to generate loop nest for relation "
+                          << printRelation(rel);
+  }
+  LLVM_DEBUG(llvm::dbgs() << "Generating loop nest assignment for relation "
+                          << loopNestCstr.value() << "\n");
+
+  TypedValue<RankedTensorType> ciphertextTensor =
+      cast<TypedValue<RankedTensorType>>(op.getValue());
+  RankedTensorType dataSemanticType =
+      cast<RankedTensorType>(op.getResult().getType());
+  auto dataTensor = builder.create<tensor::EmptyOp>(
+      dataSemanticType.getShape(), dataSemanticType.getElementType());
+  auto loop = generator.generateForLoop(
+      rel, {dataTensor},
+      [&](mlir::OpBuilder& builder, Location loc, ValueRange exprs,
+          ValueRange iterArgs) {
+        // Extract from ciphertext and insert into dataTensor
+        auto extracted = builder.create<tensor::ExtractOp>(
+            loc, ciphertextTensor,
+            exprs.drop_front(dataSemanticType.getRank()));
+        auto inserted = builder.create<tensor::InsertOp>(
+            loc, extracted, iterArgs[0],
+            exprs.drop_back(ciphertextTensor.getType().getRank()));
+        return scf::ValueVector({inserted});
+      });
+  if (failed(loop)) {
+    return op.emitError() << "Failed to generate loop nest for relation "
+                          << printRelation(rel);
+  }
+  createdOpCallback(loop.value());
+  return loop.value().getResults()[0];
 }
 
 }  // namespace
@@ -469,6 +541,7 @@ FailureOr<Value> implementAssignLayout(
     tensor_ext::AssignLayoutOp op, int64_t ciphertextSize,
     ImplicitLocOpBuilder& builder,
     const std::function<void(Operation*)>& createdOpCallback) {
+  OpBuilder::InsertionGuard guard(builder);
   // TODO(#2047): add a scalar version or augment scalar version below to
   // support new layout attr
   if (isa<NewLayoutAttr>(op.getLayout()) &&
@@ -486,9 +559,17 @@ FailureOr<Value> implementAssignLayout(
                                         createdOpCallback);
 };
 
-Value implementUnpackOp(
+FailureOr<Value> implementUnpackOp(
     tensor_ext::UnpackOp op, ImplicitLocOpBuilder& builder,
     const std::function<void(Operation*)>& createdOpCallback) {
+  OpBuilder::InsertionGuard guard(builder);
+  // TODO(#2047): add a scalar version or augment scalar version below to
+  // support new layout attr
+  if (isa<NewLayoutAttr>(op.getLayout()) &&
+      isa<RankedTensorType>(op.getResult().getType())) {
+    return implementUnpackOpNew(op, builder, createdOpCallback);
+  }
+
   if (isa<RankedTensorType>(op.getResult().getType())) {
     return implementUnpackOpForTensor(op, builder, createdOpCallback);
   }

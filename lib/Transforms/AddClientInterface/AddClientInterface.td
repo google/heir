@@ -16,7 +16,10 @@ def AddClientInterface : Pass<"add-client-interface"> {
   backends like the plaintext backend don't actually encrypt, but still require
   the ciphertext layout/packing logic to convert cleartexts to plaintexts.
   }];
-  let dependentDialects = ["mlir::heir::secret::SecretDialect", "mlir::heir::tensor_ext::TensorExtDialect"];
+  let dependentDialects = ["mlir::heir::secret::SecretDialect",
+                            "mlir::heir::tensor_ext::TensorExtDialect",
+                            "mlir::scf::SCFDialect"
+  ];
 
   let options = [
     Option<
