@@ -34,6 +34,7 @@ namespace tensor_ext {
 struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
   using RotateAndReduceBase::RotateAndReduceBase;
 
+  // TODO(#2123): Rewrite this to use the tensor_ext.rotate_and_reduce op.
   template <typename ArithOp>
   void tryReplaceRotations(ArithOp op,
                            const rotation_analysis::PartialReduction& reduction,
