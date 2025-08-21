@@ -76,6 +76,33 @@ cc_test(
 )
 
 cc_library(
+    name = "Hoisting",
+    srcs = ["Hoisting.cpp"],
+    hdrs = ["Hoisting.h"],
+    deps = [
+        ":IslConversion",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Analysis",
+    ],
+)
+
+cc_test(
+    name = "HoistingTest",
+    srcs = ["HoistingTest.cpp"],
+    deps = [
+        ":Codegen",
+        ":Hoisting",
+        ":IslConversion",
+        ":Parser",
+        "@googletest//:gtest_main",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
     name = "IslConversion",
     srcs = ["IslConversion.cpp"],
     hdrs = ["IslConversion.h"],

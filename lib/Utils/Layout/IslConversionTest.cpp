@@ -1,7 +1,6 @@
 #include <cstdlib>
 #include <string>
 
-#include "gmock/gmock.h"  // from @googletest
 #include "gtest/gtest.h"  // from @googletest
 #include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/Layout/Parser.h"
