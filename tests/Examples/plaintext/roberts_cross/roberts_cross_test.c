@@ -2,8 +2,8 @@
 #include <stdio.h>
 
 typedef struct Memref1D {
-  int16_t *allocated;
-  int16_t *aligned;
+  int16_t* allocated;
+  int16_t* aligned;
   int64_t offset;
   int64_t size;
   int64_t stride;

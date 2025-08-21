@@ -10,8 +10,8 @@ typedef struct Memref1DI16 {
 } memref_i16_1d;
 
 typedef struct Memref1DI64 {
-  int64_t *allocated;
-  int64_t *aligned;
+  int64_t* allocated;
+  int64_t* aligned;
   int64_t offset;
   int64_t size;
   int64_t stride;

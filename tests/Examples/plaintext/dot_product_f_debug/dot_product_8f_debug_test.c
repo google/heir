@@ -3,11 +3,11 @@
 #include <stdint.h>
 #include <stdio.h>
 
-FILE *output;
+FILE* output;
 
 typedef struct {
-  float *allocated;
-  float *aligned;
+  float* allocated;
+  float* aligned;
   int64_t offset;
   int64_t size;
   int64_t stride;
@@ -33,14 +33,14 @@ memref_1d_f32 dot_product__encrypt__arg1(
     int64_t stride);
 
 // Decoders for the results
-float dot_product__decrypt__result0(float *allocated, float *aligned,
+float dot_product__decrypt__result0(float* allocated, float* aligned,
                                     int64_t offset, int64_t size,
                                     int64_t stride);
 
 // debug handler
 void __heir_debug_tensor_8xf32_(
     /* arg 0*/
-    float *allocated, float *aligned, int64_t offset, int64_t size,
+    float* allocated, float* aligned, int64_t offset, int64_t size,
     int64_t stride) {
   for (int i = 0; i < size; i++) {
     fprintf(output, "%.15f ", *(aligned + i * stride));
@@ -54,7 +54,7 @@ void __heir_debug_i1(bool value) { fprintf(output, "%d \n", value); }
 
 void __heir_debug_index(int64_t value) { fprintf(output, "%ld \n", value); }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   // the first argument is the output file
   if (argc > 1) {
     output = fopen(argv[1], "w");
