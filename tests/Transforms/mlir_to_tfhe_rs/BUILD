@@ -10,6 +10,7 @@ glob_lit_tests(
     size_override = {
         "fully_connected.mlir": "large",
         "hello_world_small.mlir": "large",
+        "variance.mlir": "large",
     },
     tags_override = {
         "hello_world.mlir": [
