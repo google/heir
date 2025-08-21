@@ -1,6 +1,7 @@
 #include "lib/Utils/Layout/Utils.h"
 
 #include <cassert>
+#include <cmath>
 #include <cstdint>
 
 #include "lib/Utils/MathUtils.h"
@@ -30,7 +31,7 @@ unsigned int addModConstraint(IntegerRelation& result, ArrayRef<int64_t> exprs,
   // Add equality: mod = expr - q * c
   auto modIndex = result.appendVar(VarKind::Local);
   SmallVector<int64_t> modCoeffs(result.getNumCols(), 0);
-  for (int i = 0; i < exprs.size() - 1; ++i) {
+  for (int i = 0; i < result.getVarKindOffset(VarKind::Local); ++i) {
     modCoeffs[i] = exprs[i];
   }
   modCoeffs.back() = exprs.back();
@@ -55,6 +56,8 @@ presburger::IntegerRelation getRowMajorLayoutRelation(
   }
   auto rangeOffset = result.getVarKindOffset(VarKind::Range);
   result.addBound(BoundType::LB, rangeOffset, 0);
+  result.addBound(BoundType::UB, rangeOffset,
+                  std::ceil((float)tensorType.getNumElements() / numSlots) - 1);
   result.addBound(BoundType::LB, rangeOffset + 1, 0);
   result.addBound(BoundType::UB, rangeOffset + 1, numSlots - 1);
 

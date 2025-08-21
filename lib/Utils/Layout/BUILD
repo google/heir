@@ -16,7 +16,11 @@ cc_library(
         ":IslConversion",
         "@isl",
         "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:SCFDialect",
         "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
     ],
 )
 
@@ -41,10 +45,12 @@ cc_test(
         ":Codegen",
         ":Parser",
         "@googletest//:gtest_main",
-        "@isl",
         "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:SCFDialect",
         "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
     ],
 )
 
@@ -67,6 +73,7 @@ cc_test(
         ":Parser",
         ":Utils",
         "@googletest//:gtest_main",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Utils:TensorUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",

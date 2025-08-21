@@ -93,6 +93,25 @@ for (int c0 = 0; c0 <= 511; c0 += 1)
   ASSERT_THAT(actual, Eq(expected));
 }
 
+TEST(CodegenTest, RowMajor) {
+  MLIRContext context;
+  // Data is 32 being packed into ciphertexts of size 1024 via row-major
+  // layout.
+  IntegerRelation relation = relationFromString(
+      "(row, ct, slot) : ((slot - row) mod 32 == 0, row >= 0, ct >= 0, slot >= "
+      "0, 1023 >= slot, 0 >= "
+      "ct, 31 >= row)",
+      1, &context);
+  auto result = generateLoopNestAsCStr(relation);
+  ASSERT_TRUE(succeeded(result));
+  std::string actual = result.value();
+  std::string expected = R"(
+for (int c1 = 0; c1 <= 1023; c1 += 1)
+  S(c1 % 32, 0, c1);
+)";
+  ASSERT_THAT(actual, Eq(expected));
+}
+
 }  // namespace
 }  // namespace heir
 }  // namespace mlir

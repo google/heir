@@ -25,7 +25,7 @@ FailureOr<Value> implementAssignLayout(
 
 // Lower tensor_ext.unpack. Returns the final value produced by the unpacking
 // implementation. Applies createdOpCallback to each created operation.
-Value implementUnpackOp(
+FailureOr<Value> implementUnpackOp(
     tensor_ext::UnpackOp op, ImplicitLocOpBuilder& builder,
     const std::function<void(Operation*)>& createdOpCallback =
         [](Operation* op) {});
@@ -37,7 +37,9 @@ struct LowerUnpackOp : public OpRewritePattern<tensor_ext::UnpackOp> {
   LogicalResult matchAndRewrite(tensor_ext::UnpackOp op,
                                 PatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder builder(op.getLoc(), rewriter);
-    rewriter.replaceOp(op, implementUnpackOp(op, builder));
+    auto res = implementUnpackOp(op, builder);
+    if (failed(res)) return failure();
+    rewriter.replaceOp(op, res.value());
     return success();
   }
 };
