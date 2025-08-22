@@ -39,3 +39,22 @@ module {
     func.return %0 : tensor<?xf32>
   }
 }
+
+// -----
+
+// Tests multiple uses of dest tensor.
+module{
+  // CHECK: func @multiple_dest
+  // CHECK-SAME: %[[arg0:.*]]: tensor<512xf32>,
+  // CHECK-SAME: %[[arg1:.*]]: tensor<512xf32>)
+  // CHECK: %[[v0:.*]] = arith.mulf %[[arg0]]
+  // CHECK: %[[v1:.*]] = arith.addf %[[arg1]], %[[v0]]
+  // CHECK: return %[[v1]] : tensor<512xf32>
+  func.func @multiple_dest(%arg0: tensor<512xf32>, %arg1: tensor<512xf32>) -> (tensor<512xf32>) {
+    %cst_0 = arith.constant dense<2.000000e+00> : tensor<512xf32>
+    %1 = tensor.empty() : tensor<512xf32>
+    %mapped = linalg.map { arith.mulf } ins(%cst_0, %arg0 : tensor<512xf32>, tensor<512xf32>) outs(%1 : tensor<512xf32>)
+    %mapped_3 = linalg.map { arith.addf } ins(%arg1, %mapped : tensor<512xf32>, tensor<512xf32>) outs(%1 : tensor<512xf32>)
+    return %mapped_3 : tensor<512xf32>
+  }
+}
