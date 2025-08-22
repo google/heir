@@ -15,6 +15,7 @@ cc_library(
         ":InterfaceImpl",
         ":Patterns",
         ":pass_inc_gen",
+        "@heir//lib/Analysis/LayoutFoldingAnalysis",
         "@heir//lib/Dialect:HEIRInterfaces",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
