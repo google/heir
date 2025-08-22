@@ -227,7 +227,7 @@ class BuildBazelExtension(build_ext.build_ext):
         "--ui_event_filters=ERROR",
         f"--symlink_prefix={temp_path / 'bazel-'}",
         "--compilation_mode=opt",
-        f"--cxxopt={'/std:c++17' if IS_WINDOWS else '-std=c++17'}",
+        f"--cxxopt={'/std:c++20' if IS_WINDOWS else '-std=c++20'}",
         f"--@rules_python//python/config_settings:python_version={python_version}",
     ] + cc_choice
 
