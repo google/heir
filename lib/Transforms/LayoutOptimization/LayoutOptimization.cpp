@@ -78,31 +78,32 @@ struct LayoutOptimization : impl::LayoutOptimizationBase<LayoutOptimization> {
   using LayoutOptimizationBase::LayoutOptimizationBase;
 
   enum OpHoistResult { UNHOISTABLE, SUCCESS, FAILURE };
-  OpHoistResult hoistOp(Operation* op, IRRewriter& builder);
+  OpHoistResult hoistOp(Operation* op, IRRewriter& builder,
+                        DataFlowSolver* solver);
 
   std::vector<HoistOption> computeHoistingOptions(
-      Operation* op, ConvertLayoutOp convertLayoutOp);
+      Operation* op, ConvertLayoutOp convertLayoutOp, DataFlowSolver* solver);
 
   // Computes cost of changed operand.
   OperandChange costOfChangedOperand(OpOperand& operand, Operation* kernel,
-                                     Attribute newLayout);
+                                     Attribute newLayout,
+                                     DataFlowSolver* solver);
 
   // Computes cost of changed result.
   Cost costOfChangedResult(Operation* kernel, Attribute newLayout);
 
   void runOnOperation() override;
-
- private:
-  DataFlowSolver solver;
 };
 
 void LayoutOptimization::runOnOperation() {
   auto* ctx = &getContext();
   IRRewriter builder(ctx);
 
+  DataFlowSolver solver;
   dataflow::loadBaselineAnalyses(solver);
   solver.load<LayoutIsFreeAnalysis>();
   auto solveResult = solver.initializeAndRun(getOperation());
+
   if (failed(solveResult)) {
     emitError(getOperation()->getLoc(), "Failed to run the analysis.\n");
     signalPassFailure();
@@ -139,7 +140,7 @@ void LayoutOptimization::runOnOperation() {
             }
 
             // Attempt to hoist layout conversions before this operation.
-            OpHoistResult result = hoistOp(op, builder);
+            OpHoistResult result = hoistOp(op, builder, &solver);
             if (result == FAILURE) {
               return WalkResult::interrupt();
             };
@@ -160,7 +161,7 @@ void LayoutOptimization::runOnOperation() {
 };
 
 LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
-    Operation* op, IRRewriter& builder) {
+    Operation* op, IRRewriter& builder, DataFlowSolver* solver) {
   // Folders will canonicalize assign_layout and convert_layout
   if (isa<ConvertLayoutOp, AssignLayoutOp>(op)) {
     return UNHOISTABLE;
@@ -196,7 +197,7 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
   // Now compute the cost of hoisting each conversion layout.
   SmallVector<HoistOption> hoistingOptions;
   for (auto resultLayoutConversion : resultLayoutConversions) {
-    auto options = computeHoistingOptions(op, resultLayoutConversion);
+    auto options = computeHoistingOptions(op, resultLayoutConversion, solver);
     for (auto& option : options) {
       LLVM_DEBUG(llvm::dbgs()
                  << "\tHoisting layout " << option.hoistResult.newOutputLayout
@@ -285,10 +286,11 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
 
 OperandChange LayoutOptimization::costOfChangedOperand(OpOperand& operand,
                                                        Operation* kernel,
-                                                       Attribute newLayout) {
+                                                       Attribute newLayout,
+                                                       DataFlowSolver* solver) {
   auto value = operand.get();
 
-  if (isLayoutFree(value, &solver)) {
+  if (isLayoutFree(value, solver)) {
     return OperandChange{Attribute(), Attribute(), 0};
   }
 
@@ -340,7 +342,7 @@ static Cost costOfKernelChange(Operation* op, KernelName oldKernel,
 }
 
 std::vector<HoistOption> LayoutOptimization::computeHoistingOptions(
-    Operation* op, ConvertLayoutOp convertLayoutOp) {
+    Operation* op, ConvertLayoutOp convertLayoutOp, DataFlowSolver* solver) {
   LayoutConversionHoistableOpInterface hoistableInterface =
       dyn_cast<LayoutConversionHoistableOpInterface>(op);
 
@@ -383,7 +385,8 @@ std::vector<HoistOption> LayoutOptimization::computeHoistingOptions(
     DenseMap<std::tuple<Value, Attribute, Attribute>, Cost> operandChangeMap;
     SmallVector<Cost> operandChangeCosts;
     for (auto& operand : op->getOpOperands()) {
-      auto computedCost = costOfChangedOperand(operand, op, outputLayout);
+      auto computedCost =
+          costOfChangedOperand(operand, op, outputLayout, solver);
       operandChangeCosts.push_back(computedCost.cost);
       auto key = std::make_tuple(operand.get(), computedCost.fromLayout,
                                  computedCost.toLayout);

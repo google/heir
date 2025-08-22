@@ -57,10 +57,8 @@ class LayoutIsFree {
   bool isFree;
 };
 
-inline raw_ostream& operator<<(raw_ostream& os, const LayoutIsFree& value) {
-  value.print(os);
-  return os;
-}
+raw_ostream& operator<<(raw_ostream& os, const LayoutIsFree& value);
+
 class LayoutIsFreeLattice : public dataflow::Lattice<LayoutIsFree> {
  public:
   using Lattice::Lattice;

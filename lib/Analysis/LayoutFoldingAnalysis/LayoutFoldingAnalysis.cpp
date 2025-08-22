@@ -77,5 +77,10 @@ bool isLayoutFree(Value value, DataFlowSolver* solver) {
   return lattice && lattice->getValue().getValue();
 }
 
+inline raw_ostream& operator<<(raw_ostream& os, const LayoutIsFree& value) {
+  value.print(os);
+  return os;
+}
+
 }  // namespace heir
 }  // namespace mlir
