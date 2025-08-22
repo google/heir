@@ -205,38 +205,34 @@ def TensorExt_NewLayoutAttr : TensorExt_Attr<"NewLayout", "new_layout"> {
     at index $(2, 3)$ is placed in slot 0 of ciphertext 7. This could be
     defined as part of the relation by a constraint like `row + col + 2 - ct +
     slot = 0`.
-  }];
-  // Note that we use IntegerSet here because it's hashable upstream while
-  // IntegerRelation is not. So we have a helper function below to reconstruct
-  // the relation from the attribute.
-  let parameters = (ins "unsigned":$domainSize,
-                    "::mlir::IntegerSet":$relation,
-                    DefaultValuedParameter<"unsigned", "0">:$localSize
-  );
-  let assemblyFormat = ?;
-  let hasCustomAssemblyFormat = 1;
 
+    The attribute stores a string representation of the integer relation,
+    which follows the ISL syntax for `isl_basic_map`. For example:
+
+    ```mlir
+    #vec_layout = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 1024 = 7 and i0 >= 0 and 0 >= i0 and slot >= 0 and 1023 >= slot and ct = 0 }">
+
+    #mat_layout = #tensor_ext.new_layout<"{ [row, col] -> [ct, slot] : (slot - row) mod 512 = 0 and (ct + slot - col) mod 512 = 0 and row >= 0 and col >= 0 and ct >= 0 and slot >= 0 and 1023 >= slot and 511 >= ct and 511 >= row and 511 >= col }">
+
+    // Example with local (existential) variables.
+    #layout = #tensor_ext.new_layout<"{[d0] -> [ct, slot] : exists d3, d4 : -ct + d3 = 0 and d0 - d4 * 1024 = 0 and -d0 + 31 >= 0 and d0 >= 0 and ct >= 0 and slot >= 0 and -slot + 1023 >= 0 and -d0 + d3 * 1024 + 1023 >= 0 and d0 - d3 * 1024 >= 0 and -d0 + d4 * 1024 + 1023 >= 0 and d0 - d4 * 1024 >= 0 }">
+    ```
+  }];
+  let parameters = (ins "mlir::StringAttr":$layout);
   let genVerifyDecl = 1;
+  let assemblyFormat = "`<` $layout `>`";
 
   let builders = [
-    AttrBuilder<(ins "unsigned":$domainSize,
-                    "::mlir::IntegerSet":$relation), [{
-      return get($_ctxt, domainSize, relation, /*localSize=*/0);
-    }]>
+    AttrBuilder<(ins "std::string":$layoutStr), [{
+      return $_get($_ctxt, StringAttr::get($_ctxt, layoutStr));
+    }]>,
   ];
 
-
   let extraClassDeclaration = commonClassDeclaration # [{
-    presburger::IntegerRelation getIntegerRelation() const {
-      presburger::IntegerRelation relation =
-          affine::FlatAffineValueConstraints(getRelation());
-      relation.convertVarKind(presburger::VarKind::SetDim, 0, getDomainSize(),
-                              presburger::VarKind::Domain);
-      // Keep 2 variables for range (SetDim) vars, the verifier asserts this.
-      relation.convertVarKind(presburger::VarKind::SetDim, 2,
-                              2 + getLocalSize(),
-                              presburger::VarKind::Local);
-      return relation;
+    presburger::IntegerRelation getIntegerRelation() const;
+
+    std::string getLayoutStr() const {
+      return getLayout().str();
     }
 
     static NewLayoutAttr getFromIntegerRelation(

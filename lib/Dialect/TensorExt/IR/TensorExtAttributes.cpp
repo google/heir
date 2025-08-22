@@ -1,15 +1,15 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 
+#include <cassert>
 #include <cstdint>
-#include <memory>
+#include <cstdlib>
 #include <string>
-#include <utility>
 
+#include "lib/Utils/Layout/IslConversion.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
-#include "mlir/include/mlir/AsmParser/AsmParser.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Analysis/AffineStructures.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineMap.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
@@ -18,6 +18,12 @@
 #include "mlir/include/mlir/IR/IntegerSet.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"        // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
+
+// ISL
+#include "include/isl/ctx.h"         // from @isl
+#include "include/isl/map.h"         // from @isl
+#include "include/isl/map_type.h"    // from @isl
+#include "include/isl/space_type.h"  // from @isl
 
 namespace mlir {
 namespace heir {
@@ -122,116 +128,51 @@ LogicalResult LayoutAttr::verify(function_ref<InFlightDiagnostic()> emitError,
   return success();
 }
 
-void NewLayoutAttr::print(AsmPrinter& p) const {
-  p << "<domainSize=" << getDomainSize();
-  if (getLocalSize() > 0) {
-    p << ", localSize=" << getLocalSize();
+namespace {
+
+FailureOr<IntegerRelation> getIntegerRelationFromIslStr(std::string islStr) {
+  isl_ctx* ctx = isl_ctx_alloc();
+  isl_basic_map* bmap = isl_basic_map_read_from_str(ctx, islStr.c_str());
+  if (!bmap) {
+    isl_ctx_free(ctx);
+    return failure();
   }
-  p << ", relation=\"";
-  getRelation().print(p.getStream());
-  p << "\">";
+  return convertBasicMapToRelation(bmap);
 }
 
-Attribute NewLayoutAttr::parse(AsmParser& parser, Type type) {
-  // <domainSize=
-  if (failed(parser.parseLess()) || failed(parser.parseKeyword("domainSize")) ||
-      parser.parseEqual())
-    return {};
-
-  APInt parsedDomainSize(64, 1);
-  if (failed(parser.parseInteger(parsedDomainSize))) {
-    parser.emitError(parser.getCurrentLocation())
-        << "required integer for domainSize";
-    return {};
-  }
-  unsigned domainSize = parsedDomainSize.getZExtValue();
-
-  // ,
-  if (failed(parser.parseComma())) return {};
-
-  // localSize=
-  unsigned localSize = 0;
-  if (succeeded(parser.parseOptionalKeyword("localSize"))) {
-    APInt parsedLocalSize(64, 1);
-    if (failed(parser.parseEqual()) ||
-        failed(parser.parseInteger(parsedLocalSize))) {
-      parser.emitError(parser.getCurrentLocation())
-          << "required integer for localSize";
-      return {};
-    }
-    localSize = parsedLocalSize.getZExtValue();
-
-    if (failed(parser.parseComma())) return {};
-  }
-
-  // relation=
-  if (failed(parser.parseKeyword("relation")) || parser.parseEqual()) return {};
-
-  std::string parsedRelationString;
-  if (failed(parser.parseString(&parsedRelationString))) {
-    parser.emitError(parser.getCurrentLocation())
-        << "expected integer relation for relation";
-    return {};
-  }
-
-  IntegerSet parsedSet =
-      parseIntegerSet(parsedRelationString, parser.getContext());
-
-  if (failed(parser.parseGreater())) return {};
-  return NewLayoutAttr::get(parser.getContext(), domainSize, parsedSet,
-                            localSize);
-}
+}  // namespace
 
 LogicalResult NewLayoutAttr::verify(
-    function_ref<InFlightDiagnostic()> emitError, unsigned domainSize,
-    IntegerSet relation, unsigned localSize) {
-  // The range size (all variables except domain variables) should be 2, i.e.,
-  // the ciphertext index and slot index.
-  unsigned numVars = relation.getNumInputs();
-  if (localSize > numVars) {
-    return emitError() << "localSize (" << localSize
-                       << ") must be less than or equal to the number of "
-                          "variables in the relation ("
-                       << numVars << ")";
+    function_ref<InFlightDiagnostic()> emitError, StringAttr layoutStr) {
+  auto result = getIntegerRelationFromIslStr(layoutStr.getValue().str());
+  if (failed(result)) {
+    return emitError() << "Failed to parse the layout string (ISL): "
+                       << layoutStr;
   }
-  if (domainSize > numVars) {
-    return emitError() << "domainSize (" << domainSize
-                       << ") must be less than or equal to the number of "
-                          "variables in the relation ("
-                       << numVars << ")";
-  }
-  if (domainSize + localSize > numVars) {
-    return emitError() << "total number of domain and local variables ("
-                       << domainSize + localSize
-                       << ") must be less than or equal to the number of "
-                          "variables in the relation ("
-                       << numVars << ")";
-  }
-  if (numVars - domainSize - localSize != 2) {
-    return emitError()
-           << "relation must have 2 range variables, but got total vars = "
-           << numVars << ", domainSize = " << domainSize
-           << ", localSize = " << localSize;
-  }
+  // Success if you can parse the ISL string and convert it.
   return success();
+}
+
+IntegerRelation NewLayoutAttr::getIntegerRelation() const {
+  auto result = getIntegerRelationFromIslStr(getLayoutStr());
+  assert(succeeded(result) && "Failed to parse the layout string");
+  return result.value();
 }
 
 NewLayoutAttr NewLayoutAttr::getFromIntegerRelation(
     ::mlir::MLIRContext* context, IntegerRelation relation) {
-  relation.removeTrivialRedundancy();
-  relation.removeDuplicateDivs();
-  relation.simplify();
+  isl_ctx* ctx = isl_ctx_alloc();
+  isl_basic_map* bmap = convertRelationToBasicMap(relation, ctx);
 
-  std::unique_ptr<IntegerRelation> copy = relation.clone();
-  copy->convertVarKind(VarKind::Domain, 0, copy->getNumDomainVars(),
-                       VarKind::SetDim, 0);
-  copy->convertVarKind(VarKind::Local, 0, copy->getNumLocalVars(),
-                       VarKind::SetDim);
-  affine::FlatAffineValueConstraints integerSet =
-      IntegerPolyhedron(std::move(*copy));
-  return NewLayoutAttr::get(context, relation.getNumDomainVars(),
-                            integerSet.getAsIntegerSet(context),
-                            relation.getNumLocalVars());
+  bmap = isl_basic_map_set_dim_name(bmap, isl_dim_out, 0, "ct");
+  bmap = isl_basic_map_set_dim_name(bmap, isl_dim_out, 1, "slot");
+
+  char* resultStr = isl_basic_map_to_str(bmap);
+  std::string layoutStr(resultStr);
+  free(resultStr);
+  isl_basic_map_free(bmap);
+  isl_ctx_free(ctx);
+  return NewLayoutAttr::get(context, layoutStr);
 }
 
 }  // namespace tensor_ext

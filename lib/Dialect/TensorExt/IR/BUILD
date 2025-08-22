@@ -48,10 +48,11 @@ cc_library(
     deps = [
         ":attributes_inc_gen",
         ":dialect_inc_gen",
+        "@heir//lib/Utils/Layout:IslConversion",
+        "@isl",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineAnalysis",
         "@llvm-project//mlir:Analysis",
-        "@llvm-project//mlir:AsmParser",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
     ],

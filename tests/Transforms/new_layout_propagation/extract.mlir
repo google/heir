@@ -2,8 +2,8 @@
 
 // Assigns a scalar layout to the results of extract
 
-// CHECK: [[scalar_layout:.*]] = #tensor_ext.new_layout<domainSize=0
-// CHECK: [[tensor_layout:.*]] = #tensor_ext.new_layout<domainSize=1
+// CHECK: [[scalar_layout:.*]] = #tensor_ext.new_layout<"{ [] ->
+// CHECK: [[tensor_layout:.*]] = #tensor_ext.new_layout<"{ [i0] ->
 
 // CHECK: @dot_product
 // CHECK-SAME: [[arg0:%[^:]*]]: !secret.secret<tensor<8xi16>> {tensor_ext.layout = [[tensor_layout]]}

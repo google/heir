@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <string>
 #include <utility>
 
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
@@ -381,7 +382,7 @@ LogicalResult NewLayoutPropagation::visitOperation(CollapseShapeOp op) {
 
   MLIRContext* ctx = &getContext();
   NewLayoutAttr resultLayoutAttr =
-      NewLayoutAttr::getFromIntegerRelation(ctx, std::move(*clonedRelation));
+      NewLayoutAttr::getFromIntegerRelation(ctx, *clonedRelation);
 
   assignedLayouts.insert({op.getResult(), resultLayoutAttr});
   setResultLayoutAttr(op);
@@ -436,7 +437,7 @@ LogicalResult NewLayoutPropagation::visitOperation(ExpandShapeOp op) {
 
   MLIRContext* ctx = &getContext();
   NewLayoutAttr resultLayoutAttr =
-      NewLayoutAttr::getFromIntegerRelation(ctx, std::move(*clonedRelation));
+      NewLayoutAttr::getFromIntegerRelation(ctx, *clonedRelation);
 
   assignedLayouts.insert({op.getResult(), resultLayoutAttr});
   setResultLayoutAttr(op);
@@ -779,7 +780,7 @@ FailureOr<NewLayoutAttr> NewLayoutPropagation::defaultLayoutForScalarType(
     Type scalarType) {
   // FIXME: Does a scalar have domainSize=0? And should the output type be
   // tensor<1 x ciphertextSize x type> or tensor<ciphertextSize x type>?
-  auto ctx = scalarType.getContext();
+  auto* ctx = scalarType.getContext();
   OpBuilder builder(ctx);
 
   // Only support Int/Index/Float scalars,
@@ -788,12 +789,9 @@ FailureOr<NewLayoutAttr> NewLayoutPropagation::defaultLayoutForScalarType(
     return failure();
   }
 
-  IntegerSet integerSet = mlir::parseIntegerSet(
-      llvm::formatv("(ct, slot) : (0 <= ct, 0 >= ct, slot >=0, {0} >= slot)",
-                    ciphertextSize - 1)
-          .str(),
-      ctx);
-  return NewLayoutAttr::get(ctx, /*domainSize=*/0, /*relation=*/integerSet);
+  std::string relationStr = llvm::formatv(
+      "{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= {0} }", ciphertextSize - 1);
+  return NewLayoutAttr::get(ctx, relationStr);
 }
 
 FailureOr<NewLayoutAttr> NewLayoutPropagation::defaultLayoutForType(Type type) {

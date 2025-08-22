@@ -5,9 +5,10 @@
 
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Utils/AffineMapUtils.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallVectorExtras.h"     // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVectorExtras.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"    // from @llvm-project
+#include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineMap.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
@@ -88,12 +89,13 @@ LogicalResult verifyLayoutMatchesType(const Attribute& layoutAttr, Type type,
   }
 
   if (auto newLayout = dyn_cast<NewLayoutAttr>(layoutAttr)) {
-    if (shapedType && newLayout.getDomainSize() != shapedType.getRank()) {
+    presburger::IntegerRelation rel = newLayout.getIntegerRelation();
+    if (shapedType && rel.getNumDomainVars() != shapedType.getRank()) {
       return op->emitOpError()
              << "requires tensor rank to match the layout's domain size, "
                 "but found rank "
              << shapedType.getRank() << " and domain size "
-             << newLayout.getDomainSize();
+             << rel.getNumDomainVars();
     }
   }
 

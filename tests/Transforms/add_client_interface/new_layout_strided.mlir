@@ -2,7 +2,7 @@
 
 // Go from 16xi16 -> 1x32xi16 with a layout that strides the input by 2
 !ct_ty = !secret.secret<tensor<1x32xi16>>
-#layout = #tensor_ext.new_layout<domainSize=1, relation="(d0, d1, d2) : (d2 - 2 * d0 == 0, d0 >= 0, d2 >= 0, 15 >= d0, 31 >= d2, d1 == 0)">
+#layout = #tensor_ext.new_layout<"{ [d0] -> [ct, slot] : slot - 2 * d0 = 0 and d0 >= 0 and slot >= 0 and 15 >= d0 and 31 >= slot and ct = 0}">
 #original_type = #tensor_ext.original_type<originalType = tensor<16xi16>, layout = #layout>
 
 // The ISL AST for this layout is:

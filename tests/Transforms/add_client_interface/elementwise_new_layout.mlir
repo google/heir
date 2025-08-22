@@ -1,7 +1,7 @@
 // RUN: heir-opt --add-client-interface="ciphertext-size=1024" --canonicalize --cse %s | FileCheck %s
 
 !ct_ty = !secret.secret<tensor<1x1024xi16>>
-#layout = #tensor_ext.new_layout<domainSize=1, localSize=5, relation="(d0, d1, d2, d3, d4, d5, d6, d7) : (-d1 + d3 == 0, d0 - d4 * 1024 - d5 == 0, d2 - d6 * 32 - d7 == 0, d5 - d7 == 0, -d0 + 31 >= 0, d0 >= 0, d1 >= 0, d2 >= 0, -d2 + 1023 >= 0, -d0 + d3 * 1024 + 1023 >= 0, d0 - d3 * 1024 >= 0, -d0 + d4 * 1024 + 1023 >= 0, d0 - d4 * 1024 >= 0, -d2 + d6 * 32 + 31 >= 0, d2 - d6 * 32 >= 0)">
+#layout = #tensor_ext.new_layout<"{[d0] -> [ct, slot] : exists d3, d4, d5, d6, d7 : -ct + d3 = 0 and d0 - d4 * 1024 - d5 = 0 and slot - d6 * 32 - d7 = 0 and d5 - d7 = 0 and -d0 + 31 >= 0 and d0 >= 0 and ct >= 0 and slot >= 0 and -slot + 1023 >= 0 and -d0 + d3 * 1024 + 1023 >= 0 and d0 - d3 * 1024 >= 0 and -d0 + d4 * 1024 + 1023 >= 0 and d0 - d4 * 1024 >= 0 and -slot + d6 * 32 + 31 >= 0 and slot - d6 * 32 >= 0 }">
 #original_type = #tensor_ext.original_type<originalType = tensor<32xi16>, layout = #layout>
 
 // The ISL AST for this layout is:
