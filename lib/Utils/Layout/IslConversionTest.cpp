@@ -79,6 +79,41 @@ TEST(IslConversionTest, RegressionTest) {
   isl_ctx_free(ctx);
 }
 
+TEST(IslConversionTest, SimpleRoundTrip) {
+  MLIRContext context;
+  std::string relStr =
+      "(d0, d1) : ((d0 - d1) mod 7 == 0, d0 >= 0, 20 >= d0, d1 >= 0, 20 >= d1)";
+  IntegerRelation relation =
+      affine::FlatAffineValueConstraints(parseIntegerSet(relStr, &context));
+  relation.convertVarKind(VarKind::SetDim, 0, 1, VarKind::Domain);
+
+  isl_ctx* ctx = isl_ctx_alloc();
+  isl_basic_map* bmap = convertRelationToBasicMap(relation, ctx);
+  IntegerRelation actual = convertBasicMapToRelation(bmap);
+
+  ASSERT_TRUE(relation.isEqual(actual));
+}
+
+TEST(IslConversionTest, RoundTripRegressionTest) {
+  MLIRContext context;
+  std::string relStr =
+      "(d0, d1, d2, d3, d4, d5, d6, d7) : (-d1 + d3 == 0, d0 - d4 * 1024 - d5 "
+      "== 0, d2 - d6 * 32 - d7 == 0, d5 - d7 == 0, -d0 + 31 >= 0, d0 >= 0, d1 "
+      "== 0, d2 >= 0, -d2 + 1023 >= 0, -d0 + d3 * 1024 + 1023 >= 0, d0 - d3 * "
+      "1024 >= 0, -d0 + d4 * 1024 + 1023 >= 0, d0 - d4 * 1024 >= 0, -d2 + d6 * "
+      "32 + 31 >= 0, d2 - d6 * 32 >= 0)";
+  IntegerRelation relation =
+      affine::FlatAffineValueConstraints(parseIntegerSet(relStr, &context));
+  relation.convertVarKind(VarKind::SetDim, 3, 8, VarKind::Local);
+  relation.convertVarKind(VarKind::SetDim, 0, 1, VarKind::Domain);
+
+  isl_ctx* ctx = isl_ctx_alloc();
+  isl_basic_map* bmap = convertRelationToBasicMap(relation, ctx);
+  IntegerRelation actual = convertBasicMapToRelation(bmap);
+
+  ASSERT_TRUE(relation.isEqual(actual));
+}
+
 }  // namespace
 }  // namespace heir
 }  // namespace mlir
