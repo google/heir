@@ -4,18 +4,23 @@
 #include <cstdint>
 #include <utility>
 
+#include "lib/Analysis/LayoutFoldingAnalysis/LayoutFoldingAnalysis.h"
 #include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Secret/IR/SecretAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
+#include "lib/Dialect/Secret/IR/SecretPatterns.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Kernel/Kernel.h"
+#include "lib/Kernel/KernelName.h"
 #include "lib/Transforms/LayoutOptimization/Hoisting.h"
 #include "lib/Transforms/LayoutOptimization/Patterns.h"
 #include "lib/Utils/AttributeUtils.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"        // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"               // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"         // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/LinalgInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineMap.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
@@ -74,14 +79,16 @@ struct LayoutOptimization : impl::LayoutOptimizationBase<LayoutOptimization> {
   using LayoutOptimizationBase::LayoutOptimizationBase;
 
   enum OpHoistResult { UNHOISTABLE, SUCCESS, FAILURE };
-  OpHoistResult hoistOp(Operation* op, IRRewriter& builder);
+  OpHoistResult hoistOp(Operation* op, IRRewriter& builder,
+                        DataFlowSolver* solver);
 
   std::vector<HoistOption> computeHoistingOptions(
-      Operation* op, ConvertLayoutOp convertLayoutOp);
+      Operation* op, ConvertLayoutOp convertLayoutOp, DataFlowSolver* solver);
 
   // Computes cost of changed operand.
   OperandChange costOfChangedOperand(OpOperand& operand, Operation* kernel,
-                                     Attribute newLayout);
+                                     Attribute newLayout,
+                                     DataFlowSolver* solver);
 
   // Computes cost of changed result.
   Cost costOfChangedResult(Operation* kernel, Attribute newLayout);
@@ -92,13 +99,26 @@ struct LayoutOptimization : impl::LayoutOptimizationBase<LayoutOptimization> {
 void LayoutOptimization::runOnOperation() {
   auto* ctx = &getContext();
   IRRewriter builder(ctx);
+
+  DataFlowSolver solver;
+  dataflow::loadBaselineAnalyses(solver);
+  solver.load<LayoutIsFreeAnalysis>();
+  auto solveResult = solver.initializeAndRun(getOperation());
+
+  if (failed(solveResult)) {
+    emitError(getOperation()->getLoc(), "Failed to run the analysis.\n");
+    signalPassFailure();
+    return;
+  }
+
+  SmallVector<Operation*> opsToErase;
   WalkResult result =
       getOperation()->walk<WalkOrder::PreOrder, ReverseIterator>(
           [&](Operation* op) {
+            LLVM_DEBUG(llvm::dbgs()
+                       << "Visiting op: " << op->getName() << " \n");
             if (auto hoistable =
                     dyn_cast<LayoutConversionHoistableOpInterface>(op)) {
-              LLVM_DEBUG(llvm::dbgs() << "Visiting op: " << op->getName()
-                                      << " with hoistable interface\n");
               // TODO(#1888): figure out how to get OpInterface verifier to run
               // automatically.
               KernelName kernelName = KernelName::Trivial;
@@ -122,12 +142,21 @@ void LayoutOptimization::runOnOperation() {
             }
 
             // Attempt to hoist layout conversions before this operation.
-            OpHoistResult result = hoistOp(op, builder);
+            OpHoistResult result = hoistOp(op, builder, &solver);
             if (result == FAILURE) {
               return WalkResult::interrupt();
             };
-            // TODO(#1598): Fold newly added convert_layout ops after each
-            // rewrite.
+
+            // The above may results in sequences of convert_layout ops,
+            // or convert_layout ops that occur directly after assign_layout
+            // ops, and these can be eagerly folded.
+            for (Value value : op->getOperands()) {
+              if (auto convertLayoutOp =
+                      value.getDefiningOp<ConvertLayoutOp>()) {
+                (void)tryFoldLayoutConversionIntoPrevious(
+                    builder, convertLayoutOp, opsToErase);
+              }
+            }
             return WalkResult::advance();
           });
 
@@ -135,15 +164,19 @@ void LayoutOptimization::runOnOperation() {
     signalPassFailure();
   }
 
+  for (auto* op : opsToErase) {
+    builder.eraseOp(op);
+  }
+
   RewritePatternSet patterns(ctx);
-  patterns.add<HoistArgLayouts>(ctx);
+  patterns.add<HoistArgLayouts, FoldLayoutConversions>(ctx);
   if (failed(applyPatternsGreedily(getOperation(), std::move(patterns)))) {
     signalPassFailure();
   }
 };
 
 LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
-    Operation* op, IRRewriter& builder) {
+    Operation* op, IRRewriter& builder, DataFlowSolver* solver) {
   // Folders will canonicalize assign_layout and convert_layout
   if (isa<ConvertLayoutOp, AssignLayoutOp>(op)) {
     return UNHOISTABLE;
@@ -170,16 +203,15 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
 
   // No result has a layout conversion directly after.
   if (resultLayoutConversions.empty()) {
-    LLVM_DEBUG(
-        llvm::dbgs()
-        << "Skipping op, no results needed immediate layout conversion\n");
+    LLVM_DEBUG(llvm::dbgs()
+               << "Skipping op, no results followed by convert_layout\n");
     return UNHOISTABLE;
   }
 
   // Now compute the cost of hoisting each conversion layout.
   SmallVector<HoistOption> hoistingOptions;
   for (auto resultLayoutConversion : resultLayoutConversions) {
-    auto options = computeHoistingOptions(op, resultLayoutConversion);
+    auto options = computeHoistingOptions(op, resultLayoutConversion, solver);
     for (auto& option : options) {
       LLVM_DEBUG(llvm::dbgs()
                  << "\tHoisting layout " << option.hoistResult.newOutputLayout
@@ -268,14 +300,18 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
 
 OperandChange LayoutOptimization::costOfChangedOperand(OpOperand& operand,
                                                        Operation* kernel,
-                                                       Attribute newLayout) {
+                                                       Attribute newLayout,
+                                                       DataFlowSolver* solver) {
   auto value = operand.get();
 
-  if (dyn_cast_or_null<AssignLayoutOp>(value.getDefiningOp())) {
-    // TODO(#1596): Use a proper analysis to determine whether a value's layout
-    // is free to change, rather than relying on tensor_ext.assign_layout.
+  LLVM_DEBUG(llvm::dbgs() << "Checking if operand has free layout: " << value
+                          << "\n");
+  if (isLayoutFree(value, solver)) {
+    LLVM_DEBUG(llvm::dbgs() << "Layout is free!\n");
     return OperandChange{Attribute(), Attribute(), 0};
   }
+  LLVM_DEBUG(llvm::dbgs() << "Layout is not free\n");
+
   if (auto convertLayoutOp = value.getDefiningOp<ConvertLayoutOp>()) {
     // If the operand came from convert_layout, the cost of the change is
     // (folded conversion - original conversion).
@@ -287,6 +323,7 @@ OperandChange LayoutOptimization::costOfChangedOperand(OpOperand& operand,
     return OperandChange{fromLayout, newLayout,
                          foldedConversion - originalConversion};
   }
+
   // Otherwise, we need to insert a new convert_layout op.
   auto originalLayoutResult =
       findAttributeAssociatedWith(value, kLayoutAttrName);
@@ -323,7 +360,7 @@ static Cost costOfKernelChange(Operation* op, KernelName oldKernel,
 }
 
 std::vector<HoistOption> LayoutOptimization::computeHoistingOptions(
-    Operation* op, ConvertLayoutOp convertLayoutOp) {
+    Operation* op, ConvertLayoutOp convertLayoutOp, DataFlowSolver* solver) {
   LayoutConversionHoistableOpInterface hoistableInterface =
       dyn_cast<LayoutConversionHoistableOpInterface>(op);
 
@@ -366,7 +403,8 @@ std::vector<HoistOption> LayoutOptimization::computeHoistingOptions(
     DenseMap<std::tuple<Value, Attribute, Attribute>, Cost> operandChangeMap;
     SmallVector<Cost> operandChangeCosts;
     for (auto& operand : op->getOpOperands()) {
-      auto computedCost = costOfChangedOperand(operand, op, outputLayout);
+      auto computedCost =
+          costOfChangedOperand(operand, op, outputLayout, solver);
       operandChangeCosts.push_back(computedCost.cost);
       auto key = std::make_tuple(operand.get(), computedCost.fromLayout,
                                  computedCost.toLayout);
