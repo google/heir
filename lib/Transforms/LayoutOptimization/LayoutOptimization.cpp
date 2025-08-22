@@ -4,18 +4,22 @@
 #include <cstdint>
 #include <utility>
 
+#include "lib/Analysis/LayoutFoldingAnalysis/LayoutFoldingAnalysis.h"
 #include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Secret/IR/SecretAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Kernel/Kernel.h"
+#include "lib/Kernel/KernelName.h"
 #include "lib/Transforms/LayoutOptimization/Hoisting.h"
 #include "lib/Transforms/LayoutOptimization/Patterns.h"
 #include "lib/Utils/AttributeUtils.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"        // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"               // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"         // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/LinalgInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineMap.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
@@ -87,11 +91,24 @@ struct LayoutOptimization : impl::LayoutOptimizationBase<LayoutOptimization> {
   Cost costOfChangedResult(Operation* kernel, Attribute newLayout);
 
   void runOnOperation() override;
+
+ private:
+  DataFlowSolver solver;
 };
 
 void LayoutOptimization::runOnOperation() {
   auto* ctx = &getContext();
   IRRewriter builder(ctx);
+
+  dataflow::loadBaselineAnalyses(solver);
+  solver.load<LayoutIsFreeAnalysis>();
+  auto solveResult = solver.initializeAndRun(getOperation());
+  if (failed(solveResult)) {
+    emitError(getOperation()->getLoc(), "Failed to run the analysis.\n");
+    signalPassFailure();
+    return;
+  }
+
   WalkResult result =
       getOperation()->walk<WalkOrder::PreOrder, ReverseIterator>(
           [&](Operation* op) {
@@ -271,11 +288,10 @@ OperandChange LayoutOptimization::costOfChangedOperand(OpOperand& operand,
                                                        Attribute newLayout) {
   auto value = operand.get();
 
-  if (dyn_cast_or_null<AssignLayoutOp>(value.getDefiningOp())) {
-    // TODO(#1596): Use a proper analysis to determine whether a value's layout
-    // is free to change, rather than relying on tensor_ext.assign_layout.
+  if (isLayoutFree(value, &solver)) {
     return OperandChange{Attribute(), Attribute(), 0};
   }
+
   if (auto convertLayoutOp = value.getDefiningOp<ConvertLayoutOp>()) {
     // If the operand came from convert_layout, the cost of the change is
     // (folded conversion - original conversion).
@@ -287,6 +303,7 @@ OperandChange LayoutOptimization::costOfChangedOperand(OpOperand& operand,
     return OperandChange{fromLayout, newLayout,
                          foldedConversion - originalConversion};
   }
+
   // Otherwise, we need to insert a new convert_layout op.
   auto originalLayoutResult =
       findAttributeAssociatedWith(value, kLayoutAttrName);
