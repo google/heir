@@ -88,12 +88,13 @@ LogicalResult verifyLayoutMatchesType(const Attribute& layoutAttr, Type type,
   }
 
   if (auto newLayout = dyn_cast<NewLayoutAttr>(layoutAttr)) {
-    if (shapedType && newLayout.getDomainSize() != shapedType.getRank()) {
+    presburger::IntegerRelation rel = newLayout.getIntegerRelation();
+    if (shapedType && rel.getNumDomainVars() != shapedType.getRank()) {
       return op->emitOpError()
              << "requires tensor rank to match the layout's domain size, "
                 "but found rank "
              << shapedType.getRank() << " and domain size "
-             << newLayout.getDomainSize();
+             << rel.getNumDomainVars();
     }
   }
 

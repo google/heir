@@ -11,7 +11,7 @@ module attributes {backend.openfhe, scheme.bgv} {
     ^body(%input0: tensor<1x784xf32>):
       %transposed = linalg.transpose ins(%arg0 : tensor<512x784xf32>) outs(%0 : tensor<784x512xf32>) permutation = [1, 0]
       // CHECK: tensor.collapse_shape
-      // CHECK-SAME: {tensor_ext.layout = #tensor_ext.new_layout<domainSize=1
+      // CHECK-SAME: {tensor_ext.layout = #tensor_ext.new_layout<"{ [i0] ->
       %collapsed = tensor.collapse_shape %input0 [[0, 1]] : tensor<1x784xf32> into tensor<784xf32>
       %3 = linalg.vecmat ins(%collapsed, %transposed : tensor<784xf32>, tensor<784x512xf32>) outs(%cst : tensor<512xf32>) -> tensor<512xf32>
       %4 = arith.addf %arg1, %3 : tensor<512xf32>
@@ -20,7 +20,7 @@ module attributes {backend.openfhe, scheme.bgv} {
       %6 = linalg.vecmat ins(%5, %transposed_1 : tensor<512xf32>, tensor<512x10xf32>) outs(%cst_0 : tensor<10xf32>) -> tensor<10xf32>
       %7 = arith.addf %arg3, %6 : tensor<10xf32>
       // CHECK: tensor.expand_shape
-      // CHECK-SAME: {tensor_ext.layout = #tensor_ext.new_layout
+      // CHECK-SAME: {tensor_ext.layout = #tensor_ext.new_layout<"{ [i0, i1] ->
       %expanded = tensor.expand_shape %7 [[0, 1]] output_shape [1, 10] : tensor<10xf32> into tensor<1x10xf32>
       secret.yield %expanded : tensor<1x10xf32>
     } -> !secret.secret<tensor<1x10xf32>>

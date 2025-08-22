@@ -8,11 +8,11 @@
 // Test that when an operation changes the tensor layour in an incompatible way,
 // a layout conversion operation is inserted.
 
-// CHECK: [[rm_layout:[^ ]*]] = #tensor_ext.new_layout<domainSize=2
+// CHECK: [[rm_layout:[^ ]*]] = #tensor_ext.new_layout<"{ [i0, i1] -> [ct, slot] :
 
 // CHECK: insert_conversion
-// CHECK-SAME: %[[arg0:[^:]+]]: !secret.secret<tensor<32x32xi16>> {tensor_ext.layout = [[rm_layout]]}
-// CHECK-SAME: %[[arg1:[^:]+]]: !secret.secret<tensor<32x32xi16>> {tensor_ext.layout = [[rm_layout]]}
+// CHECK-SAME: %[[arg0:[^:]+]]: !secret.secret<tensor<32x32xi16>> {tensor_ext.layout = [[rm_layout]]
+// CHECK-SAME: %[[arg1:[^:]+]]: !secret.secret<tensor<32x32xi16>> {tensor_ext.layout = [[rm_layout]]
 func.func @insert_conversion(%arg0: !stensor, %arg1: !stensor) -> !stensor2 {
   // CHECK: [[cst:%.*]] = arith.constant dense<0>
   %out_1 = arith.constant dense<0> : !tensor2

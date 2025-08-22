@@ -114,6 +114,28 @@ TEST(IslConversionTest, RoundTripRegressionTest) {
   ASSERT_TRUE(relation.isEqual(actual));
 }
 
+TEST(IslConversionTest, ScalarLayout) {
+  MLIRContext context;
+  std::string relStr =
+      "(ct, slot) : (0 <= ct, 0 >= ct, slot >=0, 1023 >= slot)";
+  IntegerRelation relation =
+      affine::FlatAffineValueConstraints(parseIntegerSet(relStr, &context));
+  // No domain vars, set dims are range vars by default
+
+  std::string expected = "{ [] -> [o0, o1] : o0 = 0 and 0 <= o1 <= 1023 }";
+
+  isl_ctx* ctx = isl_ctx_alloc();
+  isl_basic_map* result = convertRelationToBasicMap(relation, ctx);
+
+  char* resultStr = isl_basic_map_to_str(result);
+  std::string actual(resultStr);
+  free(resultStr);
+  EXPECT_EQ(expected, actual);
+
+  isl_basic_map_free(result);
+  isl_ctx_free(ctx);
+}
+
 }  // namespace
 }  // namespace heir
 }  // namespace mlir

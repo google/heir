@@ -1,10 +1,10 @@
 // RUN: heir-opt --layout-optimization %s | FileCheck %s
 
-#vec_layout = #tensor_ext.new_layout<domainSize=1, relation="(d, ct, slot) : ((d - slot) mod 1024 == 4, d >= 0, 0 >= d, slot >= 0, 1023 >= slot, ct == 0)">
-#vec_layout_2 = #tensor_ext.new_layout<domainSize=1, relation="(d, ct, slot) : ((d - slot) mod 1024 == 7, d >= 0, 0 >= d, slot >= 0, 1023 >= slot, ct == 0)">
-#mat_layout = #tensor_ext.new_layout<domainSize=2, relation="(row, col, ct, slot) : ((slot - row) mod 512 == 0, (ct + slot - col) mod 512 == 0, row >= 0, col >= 0, ct >= 0, slot >= 0, 1023 >= slot, 511 >= ct, 511 >= row, 511 >= col)">
+#vec_layout = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 1024 = 4 and i0 >= 0 and 0 >= i0 and slot >= 0 and 1023 >= slot and ct = 0 }">
+#vec_layout_2 = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 1024 = 7 and i0 >= 0 and 0 >= i0 and slot >= 0 and 1023 >= slot and ct = 0 }">
+#mat_layout = #tensor_ext.new_layout<"{ [row, col] -> [ct, slot] : (slot - row) mod 512 = 0 and (ct + slot - col) mod 512 = 0 and row >= 0 and col >= 0 and ct >= 0 and slot >= 0 and 1023 >= slot and 511 >= ct and 511 >= row and 511 >= col }">
 
-// CHECK: #tensor_ext.new_layout<domainSize=2, localSize=7,
+// CHECK: #tensor_ext.new_layout<"{ [i0, i1] -> [ct, slot]
 
 func.func @main(%arg0: tensor<512x512xf32>, %arg1: !secret.secret<tensor<512xf32>> {tensor_ext.layout = #vec_layout}) -> (!secret.secret<tensor<512xf32>> {tensor_ext.layout = #vec_layout_2}) {
   %cst = arith.constant dense<0.000000e+00> : tensor<512xf32>
