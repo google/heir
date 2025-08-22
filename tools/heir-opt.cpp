@@ -455,6 +455,12 @@ int main(int argc, char** argv) {
       "Transforms a native program to data-oblivious program",
       convertToDataObliviousPipelineBuilder);
 
+  PassPipelineRegistration<>(
+      "math-to-polynomial-approximation",
+      "Approximate math operations that cannot be expressed in FHE using "
+      "polynomial approximations.",
+      mathToPolynomialApproximationBuilder);
+
   return asMainReturnCode(
       MlirOptMain(argc, argv, "HEIR Pass Driver", registry));
 }
