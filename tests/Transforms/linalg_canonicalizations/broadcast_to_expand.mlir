@@ -42,3 +42,17 @@ module {
     func.return %collapsed_1 : tensor<2x3xf32>
   }
 }
+
+// -----
+
+module {
+  // CHECK: func @main
+  // CHECK-SAME: %[[arg0:.*]]: tensor<2x3xf32>
+  // CHECK: %[[v0:.*]] = tensor.expand_shape %[[arg0]] {{\[\[}}0, 1], [2, 3]]
+  // CHECK: return %[[v0]] : tensor<1x2x3x1xf32>
+  func.func @main(%arg1 : tensor<2x3xf32>) -> (tensor<1x2x3x1xf32>) {
+    %2 = tensor.empty() : tensor<1x2x3x1xf32>
+    %broadcasted = linalg.broadcast ins(%arg1 : tensor<2x3xf32>) outs(%2 : tensor<1x2x3x1xf32>) dimensions = [0, 3]
+    func.return %broadcasted : tensor<1x2x3x1xf32>
+  }
+}

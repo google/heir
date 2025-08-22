@@ -14,6 +14,7 @@ cc_library(
     ],
     deps = [
         ":pass_inc_gen",
+        "@heir//lib/Utils:TensorUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:DialectUtils",

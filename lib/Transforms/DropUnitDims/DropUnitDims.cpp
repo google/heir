@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <utility>
 
+#include "lib/Utils/TensorUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"              // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVectorExtras.h"      // from @llvm-project
@@ -35,40 +36,6 @@ namespace heir {
 #include "lib/Transforms/DropUnitDims/DropUnitDims.h.inc"
 
 namespace {
-
-/// The following functions are copied from
-/// llvm-project/mlir/lib/Dialect/Linalg/Transforms/DropUnitDims.cpp, where they
-/// are in an anonymous namespace.
-
-/// Returns reassociation indices for collapsing/expanding a
-/// tensor of rank `rank` at positions in `positions`.
-static SmallVector<ReassociationIndices> getReassociationForReshapeAtDim(
-    int64_t rank, ArrayRef<int64_t> positions) {
-  SmallVector<ReassociationIndices> reassociation;
-  reassociation.reserve(rank - positions.size());
-
-  llvm::DenseMap<int64_t, bool> positionsMap;
-  for (int64_t pos : positions) {
-    positionsMap[pos] = true;
-  }
-  auto isUnitDim = [&](int64_t dim) { return positionsMap.contains(dim); };
-
-  ReassociationIndices reassociationGroup;
-  unsigned dim = 0;
-  while (dim < rank && isUnitDim(dim)) reassociationGroup.push_back(dim++);
-  while (dim < rank) {
-    assert(!isUnitDim(dim) && "expected non unit-extent");
-    reassociationGroup.push_back(dim);
-    ++dim;
-    // Fold all following dimensions that are unit-extent.
-    while (dim < rank && isUnitDim(dim)) {
-      reassociationGroup.push_back(dim++);
-    }
-    reassociation.push_back(reassociationGroup);
-    reassociationGroup.clear();
-  }
-  return reassociation;
-}
 
 /// Collapse the given `value` so that the type matches the type of
 /// `origOutput`.

@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <utility>
 
+#include "lib/Utils/TensorUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
@@ -272,8 +273,13 @@ struct BroadcastToExpandShape
         broadcastOp.getInit().getType(), broadcastOp.getInput().getType());
     if (res != SliceVerificationResult::Success) return failure();
 
+    SmallVector<ReassociationIndices> expandingMap =
+        getReassociationForReshapeAtDim(
+            broadcastOp.getInit().getType().getRank(),
+            broadcastOp.getDimensions());
     rewriter.replaceOpWithNewOp<tensor::ExpandShapeOp>(
-        broadcastOp, broadcastOp.getInit().getType(), broadcastOp.getInput());
+        broadcastOp, broadcastOp.getInit().getType(), broadcastOp.getInput(),
+        expandingMap);
     return success();
   }
 };
