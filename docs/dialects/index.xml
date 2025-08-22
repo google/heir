@@ -12244,7 +12244,11 @@ tensor.&lt;/p>
 &lt;/table>
 &lt;h3 id="newlayoutattr">NewLayoutAttr&lt;/h3>
 &lt;p>&lt;em>The description of the layout of a data-semantic tensor.&lt;/em>&lt;/p>
-&lt;p>This attribute describes how a data-semantic tensor is laid out among a
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#tensor_ext.new_layout&amp;lt;
+mlir::StringAttr # layout
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>This attribute describes how a data-semantic tensor is laid out among a
 tensor of ciphertexts. The layout is described by an integer relation $(d,
 s)$, where $d$ is a multiset of data-semantic tensor indices and $s$ is a
 multiset of slot indices (or coefficient indices). The slot indices are
@@ -12254,7 +12258,15 @@ constraints.&lt;/p>
 &lt;p>I.e., a point $((2, 3), (7, 0))$ in the relation says that the data entry
 at index $(2, 3)$ is placed in slot 0 of ciphertext 7. This could be
 defined as part of the relation by a constraint like &lt;code>row + col + 2 - ct + slot = 0&lt;/code>.&lt;/p>
-&lt;h4 id="parameters-2">Parameters:&lt;/h4>
+&lt;p>The attribute stores a string representation of the integer relation,
+which follows the ISL syntax for &lt;code>isl_basic_map&lt;/code>. For example:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#vec_layout&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#tensor_ext.new_layout&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;{ [i0] -&amp;gt; [ct, slot] : (i0 - slot) mod 1024 = 7 and i0 &amp;gt;= 0 and 0 &amp;gt;= i0 and slot &amp;gt;= 0 and 1023 &amp;gt;= slot and ct = 0 }&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#mat_layout&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#tensor_ext.new_layout&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;{ [row, col] -&amp;gt; [ct, slot] : (slot - row) mod 512 = 0 and (ct + slot - col) mod 512 = 0 and row &amp;gt;= 0 and col &amp;gt;= 0 and ct &amp;gt;= 0 and slot &amp;gt;= 0 and 1023 &amp;gt;= slot and 511 &amp;gt;= ct and 511 &amp;gt;= row and 511 &amp;gt;= col }&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// Example with local (existential) variables.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#000">#layout&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#tensor_ext.new_layout&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;{[d0] -&amp;gt; [ct, slot] : exists d3, d4 : -ct + d3 = 0 and d0 - d4 * 1024 = 0 and -d0 + 31 &amp;gt;= 0 and d0 &amp;gt;= 0 and ct &amp;gt;= 0 and slot &amp;gt;= 0 and -slot + 1023 &amp;gt;= 0 and -d0 + d3 * 1024 + 1023 &amp;gt;= 0 and d0 - d3 * 1024 &amp;gt;= 0 and -d0 + d4 * 1024 + 1023 &amp;gt;= 0 and d0 - d4 * 1024 &amp;gt;= 0 }&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters-2">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -12265,18 +12277,8 @@ defined as part of the relation by a constraint like &lt;code>row + col + 2 - ct
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">domainSize&lt;/td>
-&lt;td style="text-align:center">&lt;code>unsigned&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">relation&lt;/td>
-&lt;td style="text-align:center">&lt;code>::mlir::IntegerSet&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">localSize&lt;/td>
-&lt;td style="text-align:center">&lt;code>unsigned&lt;/code>&lt;/td>
+&lt;td style="text-align:center">layout&lt;/td>
+&lt;td style="text-align:center">&lt;code>mlir::StringAttr&lt;/code>&lt;/td>
 &lt;td>&lt;/td>
 &lt;/tr>
 &lt;/tbody>
