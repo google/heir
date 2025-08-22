@@ -74,6 +74,7 @@
 #include "lib/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
 #include "lib/Transforms/GenerateParam/GenerateParam.h"
+#include "lib/Transforms/InlineActivations/InlineActivations.h"
 #include "lib/Transforms/LayoutOptimization/InterfaceImpl.h"
 #include "lib/Transforms/LayoutOptimization/LayoutOptimization.h"
 #include "lib/Transforms/LayoutPropagation/LayoutPropagation.h"
@@ -296,6 +297,7 @@ int main(int argc, char** argv) {
   registerTensorToScalarsPasses();
   registerTensorLinalgToAffineLoops();
   registerShapeInferencePasses();
+  registerInlineActivationsPass();
   // Register yosys optimizer pipeline if configured.
 #ifndef HEIR_NO_YOSYS
 #ifndef HEIR_ABC_BINARY
