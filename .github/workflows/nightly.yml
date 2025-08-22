@@ -15,6 +15,11 @@ jobs:
     runs-on:
       labels: ubuntu-22.04-8core
     steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libomp-dev
+
       - name: Check out repository code
         uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
 

@@ -48,6 +48,10 @@ jobs:
     runs-on:
       labels: ${{ needs.check-cache.outputs.runner }}
     steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libomp-dev
       - name: Check out repository code
         uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
         with:
@@ -68,9 +72,9 @@ jobs:
       # requires the `PATH` to find the `cargo` binary.
       - name: "Run `bazel build`"
         run: |
-          bazel build --noincompatible_strict_action_env --//:enable_openmp=0 -c fastbuild //...
-          bazel build --noincompatible_strict_action_env --//:enable_openmp=0 --//:enable_yosys=0 --build_tag_filters=-yosys -c fastbuild //...
+          bazel build --noincompatible_strict_action_env --//:enable_yosys=0 --build_tag_filters=-yosys -c fastbuild //...
+          bazel build --noincompatible_strict_action_env -c fastbuild //...
 
       - name: "Run `bazel test`"
         run: |
-          bazel test --noincompatible_strict_action_env --//:enable_openmp=0 -c fastbuild //...
+          bazel test --noincompatible_strict_action_env -c fastbuild //...

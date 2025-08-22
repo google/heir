@@ -19,6 +19,11 @@ jobs:
     runs-on:
       labels: ubuntu-22.04-8core
     steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libomp-dev
+
       - name: Check out repository code
         uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
 
@@ -36,4 +41,14 @@ jobs:
             --host_action_env=CC=clang-${{ matrix.clang-version }} \
             --host_action_env=CXX=clang++-${{ matrix.clang-version }} \
             --//:enable_openmp=0 \
+            -c fastbuild //...
+
+      - name: "Run `bazel build` with Clang ${{ matrix.clang-version }} + OpenMP"
+        run: |
+          bazel build --keep_going --noincompatible_strict_action_env \
+            --action_env=CC=clang-${{ matrix.clang-version }} \
+            --action_env=CXX=clang++-${{ matrix.clang-version }} \
+            --host_action_env=CC=clang-${{ matrix.clang-version }} \
+            --host_action_env=CXX=clang++-${{ matrix.clang-version }} \
+            --//:enable_openmp=1 \
             -c fastbuild //...
