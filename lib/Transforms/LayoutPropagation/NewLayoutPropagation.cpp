@@ -7,11 +7,14 @@
 #include <utility>
 
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "lib/Dialect/Secret/IR/SecretAttributes.h"
+#include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Kernel/KernelName.h"
 #include "lib/Transforms/LayoutPropagation/Utils.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/Layout/Utils.h"
@@ -515,6 +518,13 @@ LogicalResult NewLayoutPropagation::visitOperation(MatvecOp op) {
   assignedLayouts.insert({result, resultLayout});
   setResultLayoutAttr(op);
   debugAssignLayout(result, resultLayout);
+
+  // Add secret.kernel attribute for MatvecDiagonal
+  MLIRContext* ctx = &getContext();
+  auto kernelAttr =
+      secret::KernelAttr::get(ctx, KernelName::MatvecDiagonal, /*force=*/false);
+  op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
+
   return success();
 }
 
