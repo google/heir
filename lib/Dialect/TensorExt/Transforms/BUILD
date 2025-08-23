@@ -14,6 +14,7 @@ cc_library(
     deps = [
         ":CollapseInsertionChains",
         ":FoldConvertLayoutIntoAssignLayout",
+        ":ImplementRotateAndReduce",
         ":ImplementShiftNetwork",
         ":InsertRotate",
         ":RotateAndReduce",
@@ -119,6 +120,25 @@ cc_library(
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
+cc_library(
+    name = "ImplementRotateAndReduce",
+    srcs = ["ImplementRotateAndReduce.cpp"],
+    hdrs = [
+        "ImplementRotateAndReduce.h",
+    ],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
     ],
 )
 

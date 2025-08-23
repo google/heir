@@ -46,6 +46,7 @@ cc_library(
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Utils",
         "@heir//lib/Utils:AffineMapUtils",
+        "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
     ],

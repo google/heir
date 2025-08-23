@@ -58,6 +58,7 @@ namespace heir {
 
 namespace {
 using tensor_ext::LayoutAttr;
+using tensor_ext::NewLayoutAttr;
 
 auto& kLayoutAttrName = tensor_ext::TensorExtDialect::kLayoutAttrName;
 auto& kMaterializedAttrName = "tensor_ext.layout_materialized";
@@ -130,6 +131,38 @@ struct LayoutMaterializationTypeConverter
         [this](IndexType type, LayoutAttr attr) -> std::optional<Type> {
           return materializeScalarLayout(type, attr, getCiphertextSize());
         });
+    addConversion([this](secret::SecretType type,
+                         NewLayoutAttr attr) -> std::optional<Type> {
+      FailureOr<Type> convertedInnerType;
+      auto innerType = type.getValueType();
+
+      if (auto rankedTensorType = dyn_cast<RankedTensorType>(innerType)) {
+        convertedInnerType =
+            materializeNewLayout(rankedTensorType, attr, getCiphertextSize());
+      } else {
+        convertedInnerType =
+            materializeScalarNewLayout(innerType, attr, getCiphertextSize());
+      }
+
+      if (failed(convertedInnerType)) return std::nullopt;
+      return secret::SecretType::get(convertedInnerType.value());
+    });
+    addConversion([this](RankedTensorType type,
+                         NewLayoutAttr attr) -> std::optional<Type> {
+      return materializeNewLayout(type, attr, getCiphertextSize());
+    });
+    addConversion(
+        [this](IntegerType type, NewLayoutAttr attr) -> std::optional<Type> {
+          return materializeScalarNewLayout(type, attr, getCiphertextSize());
+        });
+    addConversion(
+        [this](FloatType type, NewLayoutAttr attr) -> std::optional<Type> {
+          return materializeScalarNewLayout(type, attr, getCiphertextSize());
+        });
+    addConversion(
+        [this](IndexType type, NewLayoutAttr attr) -> std::optional<Type> {
+          return materializeScalarNewLayout(type, attr, getCiphertextSize());
+        });
   }
 
   int getCiphertextSize() const { return ciphertextSize; }
@@ -173,9 +206,11 @@ struct ConvertFunc : public ContextAwareFuncConversion {
     rewriter.modifyOpInPlace(op, [&] {
       setMaterializedAttr(op);
       for (int i = 0; i < op.getNumArguments(); ++i) {
-        auto layoutAttr =
-            dyn_cast_or_null<LayoutAttr>(op.getArgAttr(i, kLayoutAttrName));
-        if (!layoutAttr) continue;
+        auto layoutAttr = op.getArgAttr(i, kLayoutAttrName);
+        if (!layoutAttr || !isa<NewLayoutAttr>(layoutAttr) ||
+            !isa<NewLayoutAttr>(layoutAttr)) {
+          continue;
+        }
 
         op.setArgAttr(i, kOriginalTypeAttrName,
                       tensor_ext::OriginalTypeAttr::get(
@@ -184,9 +219,11 @@ struct ConvertFunc : public ContextAwareFuncConversion {
       }
 
       for (int i = 0; i < op.getNumResults(); ++i) {
-        auto layoutAttr =
-            dyn_cast_or_null<LayoutAttr>(op.getResultAttr(i, kLayoutAttrName));
-        if (!layoutAttr) continue;
+        auto layoutAttr = op.getResultAttr(i, kLayoutAttrName);
+        if (!layoutAttr || !isa<NewLayoutAttr>(layoutAttr) ||
+            !isa<NewLayoutAttr>(layoutAttr)) {
+          continue;
+        }
 
         op.setResultAttr(
             i, kOriginalTypeAttrName,

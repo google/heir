@@ -22,10 +22,24 @@ def IsOneDimTensor : Constraint<
   >
 >;
 
+def DenseElementsAttrIsSplatPred
+    : CPred<"llvm::cast<DenseElementsAttr>($_self).isSplat()">;
+
+// A constant tensor that has elements with the same value.
+def SplatElementsAttr : ElementsAttrBase<DenseElementsAttrIsSplatPred,
+  "splat tensor attr">;
+
+// rotate dense<x>, %t -> dense<x>
+def RotateDenseConstant : Pat<
+  (TensorExt_RotateOp
+    (Arith_ConstantOp:$constantValue SplatElementsAttr:$constantAttr), $shiftAmount),
+  (replaceWithValue $constantValue)
+>;
+
 // rotate %t, 0 -> %t
 def DropZeroRotation : Pat<
-  (TensorExt_RotateOp $tensor, (ConstantLikeMatcher APIntAttr:$c0)),
-  (replaceWithValue $tensor),
+  (TensorExt_RotateOp $denseConstant, (ConstantLikeMatcher APIntAttr:$c0)),
+  (replaceWithValue $denseConstant),
   [(IsZeroIntAttr $c0)]
 >;
 

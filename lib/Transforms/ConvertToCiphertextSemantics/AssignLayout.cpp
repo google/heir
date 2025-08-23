@@ -441,26 +441,11 @@ FailureOr<Value> implementAssignLayoutNew(
 
   RankedTensorType dataSemanticType =
       cast<RankedTensorType>(op.getValue().getType());
-  llvm::SmallVector<int64_t> ciphertextSemanticShape;
-  for (unsigned varPos = rel.getVarKindOffset(VarKind::Range);
-       varPos < rel.getVarKindEnd(VarKind::Range) - 1; ++varPos) {
-    std::optional<int64_t> dimBound =
-        rel.getConstantBound64(BoundType::UB, varPos);
-    if (!dimBound) {
-      return op.emitError()
-             << "No upper bound found for range variable at position "
-             << varPos;
-    }
-    ciphertextSemanticShape.push_back(dimBound.value() +
-                                      1);  // +1 is because UB is inclusive
-  }
-  // Last dimension is always the slot size. The relation may enforce a tighter
-  // bound depending on whether the slots at the end are full, so use the upper
-  // bound.
-  ciphertextSemanticShape.push_back(ciphertextSize);
+  RankedTensorType ciphertextSemanticType = cast<RankedTensorType>(
+      materializeNewLayout(dataSemanticType, layout, ciphertextSize));
 
   auto ciphertextTensor = builder.create<tensor::EmptyOp>(
-      ciphertextSemanticShape, dataSemanticType.getElementType());
+      ciphertextSemanticType.getShape(), dataSemanticType.getElementType());
 
   MLIRLoopNestGenerator generator(builder);
   auto loopNestCstr = generateLoopNestAsCStr(rel);
