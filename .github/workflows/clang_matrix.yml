@@ -35,7 +35,7 @@ jobs:
 
       - name: "Run `bazel build` with Clang ${{ matrix.clang-version }}"
         run: |
-          bazel build --keep_going --noincompatible_strict_action_env \
+          bazel build --keep_going --incompatible_strict_action_env \
             --action_env=CC=clang-${{ matrix.clang-version }} \
             --action_env=CXX=clang++-${{ matrix.clang-version }} \
             --host_action_env=CC=clang-${{ matrix.clang-version }} \
@@ -45,7 +45,7 @@ jobs:
 
       - name: "Run `bazel build` with Clang ${{ matrix.clang-version }} + OpenMP"
         run: |
-          bazel build --keep_going --noincompatible_strict_action_env \
+          bazel build --keep_going --incompatible_strict_action_env \
             --action_env=CC=clang-${{ matrix.clang-version }} \
             --action_env=CXX=clang++-${{ matrix.clang-version }} \
             --host_action_env=CC=clang-${{ matrix.clang-version }} \

@@ -77,14 +77,10 @@ jobs:
           echo "LDFLAGS=-L$(brew --prefix libomp)/lib" >> "$GITHUB_ENV"
           echo "CPPFLAGS=-I$(brew --prefix libomp)/include" >> "$GITHUB_ENV"
 
-      # --noincompatible_strict_action_env is used below to inherit the path
-      # from the parent process, which is required for the build to be cached
-      # and reused in the `Test rust codegen targets` step below, as that step
-      # requires the `PATH` to find the `cargo` binary.
       - name: "Run `bazel build`"
         run: |
-          bazel build --noincompatible_strict_action_env --action_env=PATH="/opt/homebrew/bin:/usr/local/bin:$PATH" -c fastbuild //...
+          bazel build --noincompatible_strict_action_env --action_env=PATH="/opt/homebrew/bin:/usr/local/bin:$PATH" -c opt //...
 
       - name: "Run `bazel test`"
         run: |
-           bazel test --noincompatible_strict_action_env --action_env=PATH="/opt/homebrew/bin:/usr/local/bin:$PATH" -c fastbuild //...
+           bazel test --noincompatible_strict_action_env --action_env=PATH="/opt/homebrew/bin:/usr/local/bin:$PATH" -c opt //...

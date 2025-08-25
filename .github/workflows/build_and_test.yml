@@ -66,15 +66,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ env.ImageVersion }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-
 
-      # --noincompatible_strict_action_env is used below to inherit the path
-      # from the parent process, which is required for the build to be cached
-      # and reused in the `Test rust codegen targets` step below, as that step
-      # requires the `PATH` to find the `cargo` binary.
       - name: "Run `bazel build`"
         run: |
-          bazel build --noincompatible_strict_action_env --//:enable_yosys=0 --build_tag_filters=-yosys -c fastbuild //...
-          bazel build --noincompatible_strict_action_env -c fastbuild //...
+          bazel build --incompatible_strict_action_env -c opt //...
 
       - name: "Run `bazel test`"
         run: |
-          bazel test --noincompatible_strict_action_env -c fastbuild //...
+          bazel test --incompatible_strict_action_env -c opt //...

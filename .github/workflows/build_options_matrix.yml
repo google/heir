@@ -1,0 +1,47 @@
+name: Build options matrix (linux)
+permissions: read-all
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Run at midnight (UTC) every Sunday
+  workflow_dispatch:     # Allow manual triggering
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-multi-option:
+    strategy:
+      matrix:
+        compilation_mode:
+          - "opt"
+          - "fastbuild"
+          - "dbg"
+        enable_openmp:
+          - 0
+          - 1
+        enable_yosys:
+          - 0
+          - 1
+      fail-fast: false
+    runs-on:
+      labels: ubuntu-22.04-8core
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libomp-dev
+
+      - name: Check out repository code
+        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
+
+      - name: "Run `bazel build`"
+        run: |
+          bazel build --incompatible_strict_action_env -c ${{ matrix.compilation_mode }} \
+            --//:enable_openmp=${{ matrix.enable_openmp }} \
+            --//:enable_yosys=${{ matrix.enable_yosys }} //...
+
+      - name: "Run `bazel test`"
+        run: |
+          bazel test --incompatible_strict_action_env -c ${{ matrix.compilation_mode }} \
+            --//:enable_openmp=${{ matrix.enable_openmp }} \
+            --//:enable_yosys=${{ matrix.enable_yosys }} //...
