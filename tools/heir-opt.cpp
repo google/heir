@@ -463,6 +463,10 @@ int main(int argc, char** argv) {
       "polynomial approximations.",
       mathToPolynomialApproximationBuilder);
 
+  PassPipelineRegistration<TorchLinalgToCkksPipelineOptions>(
+      "torch-linalg-to-ckks", "Convert linalg MLIR exported from torch to CKKS",
+      torchLinalgToCkksBuilder);
+
   return asMainReturnCode(
       MlirOptMain(argc, argv, "HEIR Pass Driver", registry));
 }
