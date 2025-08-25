@@ -228,4 +228,40 @@ def FoldConvertLayoutIntoAssignLayout : Pass<"fold-convert-layout-into-assign-la
   let dependentDialects = ["mlir::heir::tensor_ext::TensorExtDialect"];
 }
 
+def ImplementRotateAndReduce : Pass<"implement-rotate-and-reduce"> {
+  let summary = "Implement tensor_ext.rotate_and_reduce ops with baby-steps / giant-steps";
+
+  let description = [{
+  This pass converts `tensor_ext.rotate_and_reduce` ops
+  into a sequence of arithmetic operations and `tensor_ext.rotate` ops, aiming
+  to minimize the number of ciphertext rotation operations using a Baby-Steps /
+  Giant-Steps approach.
+
+  A `tensor_ext.rotate_and_reduce` op computes the reduction of rotated tensors
+  in the form `\sum_{i = 0}^{n} P(i) \cdot rotate(v, T*i)` where `T` is some
+  period of rotation. The naive approach would compute `n` rotations of the
+  ciphertext `v`. The Baby-Steps / Giant-Steps approach from [Faster Homomorphic
+  Linear Transformations in HElib](https://eprint.iacr.org/2018/244.pdf) can
+  compute the sum with `O(sqrt(n))` ciphertext rotations instead by evaluating
+  the sum with the following expression
+
+  \[
+    \sum_{i = 0}^{n} P(i) \cdot rotate(v, T*i) =
+    \sum_{j = 0}^{\sqrt{n}} \sum_{k = 0}^{\sqrt{n}} P(j + gk) rotate(v, T*(j + gk)) =
+    \sum_{j = 0}^{\sqrt{n}} rotate( \sum_{k = 0}^{\sqrt{n}} rotate(P(j + gk), -gk) rotate(v, T*j) , -gk)
+  \]
+
+  This approach uses `\sqrt{n}` ciphertext rotations of `v` in the inner sum
+  (the baby steps) and then `\sqrt{n}` ciphertext rotations of the partial sums
+  (the giant steps) to compute the full sum.
+
+  The input IR must have tensors that correspond to plaintexts or
+  ciphertexts.
+
+  (* example filepath=tests/Dialect/TensorExt/Transforms/implement_rotate_and_reduce.mlir *)
+  }];
+
+  let dependentDialects = ["mlir::heir::tensor_ext::TensorExtDialect"];
+}
+
 #endif  // LIB_DIALECT_TENSOREXT_TRANSFORMS_PASSES_TD_

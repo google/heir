@@ -184,7 +184,6 @@ LogicalResult PermuteOp::verify() {
 
 LogicalResult RotateAndReduceOp::verify() {
   auto numSteps = getSteps().getZExtValue();
-  auto numPlaintexts = getPlaintexts().getType().getDimSize(0);
 
   auto x = getTensor().getType();
   // TODO(#924): Currently RotateAndReduceOp only supports rotating a 1-D
@@ -204,11 +203,14 @@ LogicalResult RotateAndReduceOp::verify() {
            << numSteps << " and tensor dimension=" << x.getDimSize(0);
   }
 
-  if (numPlaintexts != numSteps) {
-    return emitOpError()
-           << "requires plaintext tensor to have the same number of "
-              "elements as steps, but found numPlaintexts="
-           << numPlaintexts << " and steps=" << numSteps;
+  if (getPlaintexts()) {
+    auto numPlaintexts = getPlaintexts().getType().getDimSize(0);
+    if (numPlaintexts != numSteps) {
+      return emitOpError()
+             << "requires plaintext tensor to have the same number of "
+                "elements as steps, but found numPlaintexts="
+             << numPlaintexts << " and steps=" << numSteps;
+    }
   }
 
   auto period = getPeriod().getZExtValue();
