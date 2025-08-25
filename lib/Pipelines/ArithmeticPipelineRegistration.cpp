@@ -30,10 +30,13 @@
 #include "lib/Transforms/CompareToSignRewrite/CompareToSignRewrite.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/ConvertToCiphertextSemantics.h"
 #include "lib/Transforms/DropUnitDims/DropUnitDims.h"
+#include "lib/Transforms/FoldConstantTensors/FoldConstantTensors.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
 #include "lib/Transforms/GenerateParam/GenerateParam.h"
+#include "lib/Transforms/InlineActivations/InlineActivations.h"
 #include "lib/Transforms/LayoutOptimization/LayoutOptimization.h"
 #include "lib/Transforms/LayoutPropagation/LayoutPropagation.h"
+#include "lib/Transforms/LayoutPropagation/NewLayoutPropagation.h"
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
@@ -120,25 +123,27 @@ void lowerAssignLayout(OpPassManager& pm, bool unroll = false) {
 }
 
 void mlirToSecretArithmeticPipelineBuilder(
-    OpPassManager& pm, const MlirToRLWEPipelineOptions& options) {
+    OpPassManager& pm, const MlirToRLWEPipelineOptions& options,
+    bool newLayout) {
   pm.addPass(createWrapGeneric());
   convertToDataObliviousPipelineBuilder(pm);
   pm.addPass(createSelectRewrite());
   pm.addPass(createCompareToSignRewrite());
-
-  // Simplify linalg ops for kernel lowering
-  // Linalg canonicalization
-  pm.addPass(createDropUnitDims());
-  pm.addPass(createLinalgCanonicalizations());
 
   // Vectorize and optimize rotations
   // TODO(#1662): figure out where this fits in the new pipeline
   heirSIMDVectorizerPipelineBuilder(pm, options.experimentalDisableLoopUnroll);
 
   // Layout assignment and optimization
-  LayoutPropagationOptions layoutPropagationOptions;
-  layoutPropagationOptions.ciphertextSize = options.ciphertextDegree;
-  pm.addPass(createLayoutPropagation(layoutPropagationOptions));
+  if (newLayout) {
+    NewLayoutPropagationOptions layoutPropagationOptions;
+    layoutPropagationOptions.ciphertextSize = options.ciphertextDegree;
+    pm.addPass(createNewLayoutPropagation(layoutPropagationOptions));
+  } else {
+    LayoutPropagationOptions layoutPropagationOptions;
+    layoutPropagationOptions.ciphertextSize = options.ciphertextDegree;
+    pm.addPass(createLayoutPropagation(layoutPropagationOptions));
+  }
   pm.addPass(tensor_ext::createFoldConvertLayoutIntoAssignLayout());
   pm.addPass(createLayoutOptimization());
 
@@ -195,9 +200,9 @@ void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
 
 void mlirToRLWEPipeline(OpPassManager& pm,
                         const MlirToRLWEPipelineOptions& options,
-                        const RLWEScheme scheme) {
+                        const RLWEScheme scheme, bool newLayout) {
   if (options.enableArithmetization) {
-    mlirToSecretArithmeticPipelineBuilder(pm, options);
+    mlirToSecretArithmeticPipelineBuilder(pm, options, newLayout);
   } else {
     // Replicate the non-arithmetization related parts of the pipeline
     pm.addPass(createWrapGeneric());
@@ -360,9 +365,10 @@ void mlirToRLWEPipeline(OpPassManager& pm,
   // which can then be lowered to backend specific stuff later.
 }
 
-RLWEPipelineBuilder mlirToRLWEPipelineBuilder(const RLWEScheme scheme) {
+RLWEPipelineBuilder mlirToRLWEPipelineBuilder(const RLWEScheme scheme,
+                                              bool newLayout) {
   return [=](OpPassManager& pm, const MlirToRLWEPipelineOptions& options) {
-    mlirToRLWEPipeline(pm, options, scheme);
+    mlirToRLWEPipeline(pm, options, scheme, newLayout);
   };
 }
 
@@ -431,4 +437,32 @@ BackendPipelineBuilder toLattigoPipelineBuilder() {
         lattigo::createConfigureCryptoContext(configureCryptoContextOptions));
   };
 }
+
+void linalgPreprocessingBuilder(OpPassManager& manager) {
+  manager.addPass(createInlineActivations());
+  manager.addPass(createDropUnitDims());
+  manager.addPass(createLinalgCanonicalizations());
+  manager.addPass(createFoldConstantTensors());
+  manager.addPass(createCanonicalizerPass());
+  manager.addPass(createSymbolDCEPass());
+  manager.addPass(createSCCPPass());
+  manager.addPass(createCSEPass());
+  manager.addPass(createLinalgCanonicalizations());
+}
+
+void torchLinalgToCkksBuilder(OpPassManager& manager,
+                              const TorchLinalgToCkksPipelineOptions& options) {
+  linalgPreprocessingBuilder(manager);
+  MlirToRLWEPipelineOptions suboptions;
+
+  suboptions.enableArithmetization = true;
+  suboptions.ciphertextDegree = options.ciphertextDegree;
+  suboptions.ckksBootstrapWaterline = options.ckksBootstrapWaterline;
+  suboptions.scalingModBits = options.scalingModBits;
+  suboptions.firstModBits = options.firstModBits;
+
+  mlirToRLWEPipelineBuilder(mlir::heir::RLWEScheme::ckksScheme, true)(
+      manager, suboptions);
+}
+
 }  // namespace mlir::heir
