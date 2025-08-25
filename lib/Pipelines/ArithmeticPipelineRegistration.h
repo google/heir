@@ -130,19 +130,50 @@ using BackendPipelineBuilder =
 
 void mlirToRLWEPipeline(OpPassManager& pm,
                         const MlirToRLWEPipelineOptions& options,
-                        RLWEScheme scheme);
+                        RLWEScheme scheme, bool newLayout = false);
 
 void mlirToSecretArithmeticPipelineBuilder(
-    OpPassManager& pm, const MlirToRLWEPipelineOptions& options);
+    OpPassManager& pm, const MlirToRLWEPipelineOptions& options,
+    bool newLayout = false);
 
 void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
                                     const PlaintextBackendOptions& options);
 
-RLWEPipelineBuilder mlirToRLWEPipelineBuilder(RLWEScheme scheme);
+RLWEPipelineBuilder mlirToRLWEPipelineBuilder(RLWEScheme scheme,
+                                              bool newLayout = false);
 
 BackendPipelineBuilder toOpenFhePipelineBuilder();
 
 BackendPipelineBuilder toLattigoPipelineBuilder();
+
+// A subpipeline that preprocesses linalg ops to make them more suitable for
+// FHE.
+void linalgPreprocessingBuilder(OpPassManager& manager);
+
+struct TorchLinalgToCkksPipelineOptions
+    : public PassPipelineOptions<TorchLinalgToCkksPipelineOptions> {
+  PassOptions::Option<int> ciphertextDegree{
+      *this, "ciphertext-degree",
+      llvm::cl::desc("The degree of the polynomials to use for ciphertexts; "
+                     "equivalently, the number of messages that can be packed "
+                     "into a single ciphertext."),
+      llvm::cl::init(1024)};
+  PassOptions::Option<int> firstModBits{
+      *this, "first-mod-bits",
+      llvm::cl::desc("The number of bits in the first modulus for CKKS"),
+      llvm::cl::init(55)};
+  PassOptions::Option<int> scalingModBits{
+      *this, "scaling-mod-bits",
+      llvm::cl::desc("The number of bits in the scaling modulus for CKKS"),
+      llvm::cl::init(45)};
+  PassOptions::Option<int> ckksBootstrapWaterline{
+      *this, "ckks-bootstrap-waterline",
+      llvm::cl::desc("The number of levels to keep until bootstrapping in CKKS "
+                     "(c.f. --secret-insert-mgmt-ckks)"),
+      llvm::cl::init(10)};
+};
+void torchLinalgToCkksBuilder(OpPassManager& manager,
+                              const TorchLinalgToCkksPipelineOptions& options);
 
 }  // namespace mlir::heir
 
