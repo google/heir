@@ -1,15 +1,18 @@
 #ifndef LIB_PIPELINES_PIPELINEREGISTRATION_H_
 #define LIB_PIPELINES_PIPELINEREGISTRATION_H_
 
-#include "mlir/include/mlir/Pass/PassManager.h"   // from @llvm-project
-#include "mlir/include/mlir/Pass/PassOptions.h"   // from @llvm-project
-#include "mlir/include/mlir/Pass/PassRegistry.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/CommandLine.h"  // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"     // from @llvm-project
+#include "mlir/include/mlir/Pass/PassOptions.h"     // from @llvm-project
+#include "mlir/include/mlir/Pass/PassRegistry.h"    // from @llvm-project
 
 namespace mlir::heir {
 
 void tosaToLinalg(OpPassManager& manager);
 
 void oneShotBufferize(OpPassManager& manager);
+
+void mathToPolynomialApproximationBuilder(OpPassManager& pm);
 
 struct TosaToArithOptions : public PassPipelineOptions<TosaToArithOptions> {
   PassOptions::Option<bool> unroll{*this, "full-unroll",

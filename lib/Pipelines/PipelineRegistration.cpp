@@ -8,7 +8,9 @@
 #include "lib/Transforms/ConvertSecretInsertToStaticInsert/ConvertSecretInsertToStaticInsert.h"
 #include "lib/Transforms/ConvertSecretWhileToStaticFor/ConvertSecretWhileToStaticFor.h"
 #include "lib/Transforms/ElementwiseToAffine/ElementwiseToAffine.h"
+#include "lib/Transforms/LowerPolynomialEval/LowerPolynomialEval.h"
 #include "lib/Transforms/MemrefToArith/MemrefToArith.h"
+#include "lib/Transforms/PolynomialApproximation/PolynomialApproximation.h"
 #include "mlir/include/mlir/Conversion/AffineToStandard/AffineToStandard.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/BufferizationToMemRef/BufferizationToMemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ConvertToLLVM/ToLLVMPass.h"  // from @llvm-project
@@ -89,6 +91,13 @@ void tosaPipelineBuilder(OpPassManager& manager, bool unroll) {
   manager.addPass(createSCCPPass());
   manager.addPass(createCSEPass());
   manager.addPass(createSymbolDCEPass());
+}
+
+void mathToPolynomialApproximationBuilder(OpPassManager& pm) {
+  pm.addPass(createPolynomialApproximation());
+  pm.addPass(createLowerPolynomialEval());
+  pm.addPass(createCanonicalizerPass());
+  pm.addPass(createCSEPass());
 }
 
 void polynomialToLLVMPipelineBuilder(OpPassManager& manager) {
