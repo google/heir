@@ -12484,7 +12484,9 @@ reduction is&lt;/p>
 &lt;p>where $P(i)$ is the $i$th diagonal of the plaintext matrix and the period
 $T$ is $1$.&lt;/p>
 &lt;p>An accumulation of the ciphertext slots is also handled via this operation
-by choosing the plaintext $p(P, T*i)$ to be the constant $1$.&lt;/p>
+by omitting the plaintext $p(P, T*i)$ argument and using a period of 1 with
+&lt;code>n = |v|&lt;/code> so that the reduction is simply a sum of all rotation of the
+ciphertext.&lt;/p>
 &lt;p>Efficient lowerings of this operation can use the Baby-Step / Giant-Step
 approach from &lt;a href="https://eprint.iacr.org/2018/244.pdf">Faster Homomorphic Linear Transformations in
 HElib&lt;/a> to reduce the number of
