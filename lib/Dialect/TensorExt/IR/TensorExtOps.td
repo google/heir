@@ -163,7 +163,9 @@ def TensorExt_RotateAndReduceOp : TensorExt_Op<"rotate_and_reduce",[Pure, AllTyp
     $T$ is $1$.
 
     An accumulation of the ciphertext slots is also handled via this operation
-    by choosing the plaintext $p(P, T*i)$ to be the constant $1$.
+    by omitting the plaintext $p(P, T*i)$ argument and using a period of 1 with
+    `n = |v|` so that the reduction is simply a sum of all rotation of the
+    ciphertext.
 
     Efficient lowerings of this operation can use the Baby-Step / Giant-Step
     approach from [Faster Homomorphic Linear Transformations in
@@ -173,12 +175,13 @@ def TensorExt_RotateAndReduceOp : TensorExt_Op<"rotate_and_reduce",[Pure, AllTyp
 
   let arguments = (
     ins AnyRankedTensor:$tensor,
-    AnyRankedTensor:$plaintexts,
+    Optional<AnyRankedTensor>:$plaintexts,
     IndexAttr:$period,
     IndexAttr:$steps
   );
   let results = (outs AnyRankedTensor:$output);
   let hasVerifier = 1;
+  // TODO(#2134): Add canonicalization patterns
 }
 
 
