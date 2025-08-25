@@ -18,6 +18,11 @@
 namespace mlir {
 namespace heir {
 
+constexpr StringRef BGV = "bgv";
+constexpr StringRef BFV = "bfv";
+constexpr StringRef CKKS = "ckks";
+constexpr StringRef CGGI = "cggi";
+
 class SchemeSelectionAnalysis
     : public dataflow::SparseForwardDataFlowAnalysis<SchemeInfoLattice> {
  public:
@@ -32,7 +37,7 @@ class SchemeSelectionAnalysis
   }
 };
 
-void annotateModuleWithScheme(Operation *top, DataFlowSolver *solver);
+std::string annotateModuleWithScheme(Operation *top, DataFlowSolver *solver);
 
 }  // namespace heir
 }  // namespace mlir

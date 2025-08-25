@@ -15,6 +15,7 @@ cc_library(
         ":pass_inc_gen",
         "@heir//lib/Analysis/SchemeInfoAnalysis",
         "@heir//lib/Analysis/SchemeSelectionAnalysis",
+        "@heir//lib/Transforms/AnnotateModule",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",

@@ -2,10 +2,12 @@
 
 #include "lib/Analysis/SchemeInfoAnalysis/SchemeInfoAnalysis.h"
 #include "lib/Analysis/SchemeSelectionAnalysis/SchemeSelectionAnalysis.h"
+#include "lib/Transforms/AnnotateModule/AnnotateModule.h"
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"              // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"            // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 
 namespace mlir {
@@ -33,7 +35,13 @@ struct AnnotateSchemeInfo : impl::AnnotateSchemeInfoBase<AnnotateSchemeInfo> {
     }
 
     annotateNatureOfComputation(getOperation(), &solver);
-    annotateModuleWithScheme(getOperation(), &solver);
+    auto scheme = annotateModuleWithScheme(getOperation(), &solver);
+
+    OpPassManager pipeline("builtin.module");
+    auto option = "annotate-module{scheme=" + scheme + "}";
+    mlir::parsePassPipeline(option, pipeline);
+
+    (void)runPipeline(pipeline, getOperation());
   }
 };
 
