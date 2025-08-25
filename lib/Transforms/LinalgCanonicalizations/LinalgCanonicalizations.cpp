@@ -252,7 +252,7 @@ struct LinalgMapToElementwise : public OpRewritePattern<mlir::linalg::MapOp> {
         mapOp->getLoc(), op.getName().getIdentifier(), mapOp.getInputs(),
         TypeRange(dest.getType()), mapOp->getAttrs(), {}, {});
     rewriter.replaceOp(mapOp, elementwiseOp);
-    rewriter.eraseOp(dest);
+    if (dest.use_empty()) rewriter.eraseOp(dest);
     return success();
   }
 };
