@@ -17,6 +17,24 @@ module {
 // -----
 
 module {
+  // CHECK: func @mulf
+  // CHECK-SAME: %[[arg0:.*]]: tensor<1x512xf32>
+  // CHECK: %[[cst:.*]] = arith.constant dense<2.{{0*}}e+00> : tensor<1x512xf32>
+  // CHECK: %[[v0:.*]] = arith.mulf %[[arg0]], %[[cst]] : tensor<1x512xf32>
+  // CHECK: return %[[v0]] : tensor<1x512xf32>
+  func.func @mulf(%arg0: tensor<1x512xf32>) -> (tensor<1x512xf32>) {
+    %cst = arith.constant dense<2.000000e+00> : tensor<1x512xf32>
+    // The contents of the SSA value given to `outs` are ignored, so it should
+    // be treated the same as an empty.
+    %0 = arith.constant dense<5.000000e+00> : tensor<1x512xf32>
+    %mapped = linalg.map { arith.mulf } ins(%cst, %arg0 : tensor<1x512xf32>, tensor<1x512xf32>) outs(%0 : tensor<1x512xf32>)
+    func.return %mapped : tensor<1x512xf32>
+  }
+}
+
+// -----
+
+module {
   // CHECK: func @unary
   // CHECK-SAME: %[[arg0:.*]]: tensor<1xf32>
   // CHECK: %[[v0:.*]] = math.absf %[[arg0]] : tensor<1xf32>
@@ -32,8 +50,8 @@ module {
 
 module {
   // CHECK: func @out_param
-  // CHECK: linalg.map
-  // CHECK: return
+  // CHECK: math.absf
+  // CHECK-NOT: linalg.map
   func.func @out_param(%arg : tensor<?xf32>, %init : tensor<?xf32>) -> tensor<?xf32> attributes {fusion} {
     %0 = linalg.map { math.absf } ins(%arg : tensor<?xf32>) outs(%init : tensor<?xf32>)
     func.return %0 : tensor<?xf32>

@@ -237,22 +237,21 @@ struct LinalgMapToElementwise : public OpRewritePattern<mlir::linalg::MapOp> {
 
   LogicalResult matchAndRewrite(mlir::linalg::MapOp mapOp,
                                 PatternRewriter& rewriter) const override {
-    auto dest = mapOp.getInit().getDefiningOp<tensor::EmptyOp>();
-    if (!dest) return failure();
-
+    auto dest = mapOp.getInit();
     // The mapper should have exactly two operations (the second is a yield).
-    auto mapper = mapOp.getBody(0);
+    auto* mapper = mapOp.getBody(0);
     if (mapper->getOperations().size() != 2) return failure();
 
     // The operation should be elementwise.
     Operation& op = mapper->getOperations().front();
     if (!op.hasTrait<mlir::OpTrait::Elementwise>()) return failure();
 
-    auto elementwiseOp = rewriter.create(
+    auto* elementwiseOp = rewriter.create(
         mapOp->getLoc(), op.getName().getIdentifier(), mapOp.getInputs(),
         TypeRange(dest.getType()), mapOp->getAttrs(), {}, {});
     rewriter.replaceOp(mapOp, elementwiseOp);
-    if (dest.use_empty()) rewriter.eraseOp(dest);
+    if (dest.use_empty() && dest.getDefiningOp())
+      rewriter.eraseOp(dest.getDefiningOp());
     return success();
   }
 };
