@@ -115,50 +115,52 @@ presburger::IntegerRelation getRowMajorLayoutRelation(
 }
 
 presburger::IntegerRelation getDiagonalLayoutRelation(
-    RankedTensorType matrixType, RankedTensorType diagonalizedType) {
+    RankedTensorType matrixType, int64_t ciphertextSize) {
   unsigned int rows = matrixType.getDimSize(0);
   unsigned int cols = matrixType.getDimSize(1);
 
-  assert(rows == diagonalizedType.getDimSize(0));
   // Number of rows must be less than or equal to the number of columns.
   assert(rows <= cols);
   // The diagonals of the result must be able to fit an entire diagonal of the
   // matrix, so ensure that the number of columns (diagonal size) is less than
   // the result's columns.
-  assert(cols <= diagonalizedType.getDimSize(1));
-  assert(diagonalizedType.getRank() == 2);
+  assert(cols <= ciphertextSize);
+
+  // The number of rows must divide the number of columns.
+  int64_t paddedCols = isPowerOfTwo(cols) ? cols : nextPowerOfTwo(cols);
+  int64_t paddedRows = isPowerOfTwo(rows) ? rows : nextPowerOfTwo(rows);
 
   IntegerRelation result(PresburgerSpace::getRelationSpace(
       matrixType.getRank(), /*numRange=*/2, /*numSymbol=*/0,
       /*numLocals=*/0));
 
-  // Add bounds for the matrix dimensions.
+  // Add bounds for the data matrix dimensions.
   for (int i = 0; i < matrixType.getRank(); ++i) {
     result.addBound(BoundType::UB, i, matrixType.getDimSize(i) - 1);
     result.addBound(BoundType::LB, i, 0);
   }
   auto rangeOffset = result.getVarKindOffset(VarKind::Range);
-  for (int i = 0; i < diagonalizedType.getRank(); ++i) {
-    result.addBound(BoundType::UB, rangeOffset + i,
-                    diagonalizedType.getDimSize(i) - 1);
+  for (int i = 0; i < 2; ++i) {
     result.addBound(BoundType::LB, rangeOffset + i, 0);
   }
+  result.addBound(BoundType::UB, rangeOffset, paddedRows - 1);
+  result.addBound(BoundType::UB, rangeOffset + 1, ciphertextSize - 1);
 
   // Add diagonal layout constraints:
-  // slot % rows = row
+  // slot % padded_rows = row
   SmallVector<int64_t> slotModCoeffs(result.getNumCols(), 0);
   slotModCoeffs[result.getVarKindOffset(VarKind::Range) + 1] = 1;
-  auto slotMod = addModConstraint(result, slotModCoeffs, rows);
+  auto slotMod = addModConstraint(result, slotModCoeffs, paddedRows);
   SmallVector<int64_t> slotEquality(result.getNumCols(), 0);
   slotEquality[result.getVarKindOffset(VarKind::Domain)] = 1;
   slotEquality[slotMod] = -1;
   result.addEquality(slotEquality);
 
-  // (ct + slot) % cols = col
+  // (ct + slot) % padded_cols = col
   SmallVector<int64_t> ctSlotCoeffs(result.getNumCols(), 0);
   ctSlotCoeffs[result.getVarKindOffset(VarKind::Range)] = 1;
   ctSlotCoeffs[result.getVarKindOffset(VarKind::Range) + 1] = 1;
-  auto ctSlotMod = addModConstraint(result, ctSlotCoeffs, cols);
+  auto ctSlotMod = addModConstraint(result, ctSlotCoeffs, paddedCols);
   SmallVector<int64_t> ctSlotEquality(result.getNumCols(), 0);
   ctSlotEquality[result.getVarKindOffset(VarKind::Domain) + 1] = 1;
   ctSlotEquality[ctSlotMod] = -1;
@@ -169,10 +171,10 @@ presburger::IntegerRelation getDiagonalLayoutRelation(
 }
 
 bool isRelationSquatDiagonal(RankedTensorType matrixType,
-                             RankedTensorType ciphertextSemanticShape,
+                             int64_t ciphertextSize,
                              presburger::IntegerRelation relation) {
   IntegerRelation diagonalRelation =
-      getDiagonalLayoutRelation(matrixType, ciphertextSemanticShape);
+      getDiagonalLayoutRelation(matrixType, ciphertextSize);
   return relation.isEqual(diagonalRelation);
 }
 

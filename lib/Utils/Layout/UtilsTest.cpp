@@ -97,12 +97,11 @@ TEST(UtilsTest, DiagonalLayout) {
   MLIRContext context;
 
   // Diagonalize a 4x8 matrix into a 4x64 matrix.
+  int64_t ciphertextSize = 64;
   RankedTensorType matrixType =
       RankedTensorType::get({4, 8}, IndexType::get(&context));
-  RankedTensorType diagonalizedType =
-      RankedTensorType::get({4, 64}, IndexType::get(&context));
   IntegerRelation diagonalRelation =
-      getDiagonalLayoutRelation(matrixType, diagonalizedType);
+      getDiagonalLayoutRelation(matrixType, ciphertextSize);
 
   diagonalRelation.simplify();
   for (unsigned int i = 0; i < 4; ++i) {
@@ -110,6 +109,45 @@ TEST(UtilsTest, DiagonalLayout) {
       auto maybeExists =
           diagonalRelation.containsPointNoLocal({j % 4, (i + j) % 8, i, j});
       EXPECT_TRUE(maybeExists.has_value());
+    }
+  }
+}
+
+TEST(UtilsTest, SquatDiagonalLayout) {
+  MLIRContext context;
+
+  // Diagonalize a 3x5 matrix - this will require padding the row to 4 and the
+  // cols to 8
+  //
+  //  1  2  3  4  5  *  *  *
+  //  6  7  8  9 10  *  *  *
+  // 11 12 13 14 15  *  *  *
+  //  *  *  *  *  *  *  *  *
+
+  // 1  7 13  * 5 *  * *
+  // 2  8 14  * * *  * *
+  // 3  9 15  * * * 11 *
+  // 4 10  *  * * 6 12 *
+  int64_t ciphertextSize = 8;
+  RankedTensorType matrixType =
+      RankedTensorType::get({3, 5}, IndexType::get(&context));
+  IntegerRelation diagonalRelation =
+      getDiagonalLayoutRelation(matrixType, ciphertextSize);
+  int64_t paddedRows = 4;
+  int64_t paddedCols = 8;
+
+  for (unsigned int i = 0; i < 4; ++i) {
+    for (unsigned int j = 0; j < 8; ++j) {
+      auto row = j % paddedRows;
+      auto col = (i + j) % paddedCols;
+      if (row >= matrixType.getDimSize(0) || col >= matrixType.getDimSize(1)) {
+        EXPECT_FALSE(diagonalRelation.containsPointNoLocal({row, col, i, j})
+                         .has_value());
+      } else {
+        auto maybeExists =
+            diagonalRelation.containsPointNoLocal({row, col, i, j});
+        EXPECT_TRUE(maybeExists.has_value());
+      }
     }
   }
 }

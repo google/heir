@@ -27,12 +27,12 @@ presburger::IntegerRelation getRowMajorLayoutRelation(
 // such that the ith diagonal of the matrix is in the ith row of the
 // result. The number of rows of the input and output must match.
 presburger::IntegerRelation getDiagonalLayoutRelation(
-    RankedTensorType matrixType, RankedTensorType diagonalizedType);
+    RankedTensorType matrixType, int64_t ciphertextSize);
 
 // Returns true if the given relation is a squat diagonal layout for the given
 // matrix type and ciphertext semantic shape.
 bool isRelationSquatDiagonal(RankedTensorType matrixType,
-                             RankedTensorType ciphertextSemanticShape,
+                             int64_t ciphertextSize,
                              presburger::IntegerRelation relation);
 
 }  // namespace heir
