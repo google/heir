@@ -1,6 +1,6 @@
-// RUN: heir-opt %s | FileCheck %s
+// RUN: heir-opt %s | heir-opt %s | FileCheck %s
 
-// CHECK: #secret.kernel<name = MatvecNaive, force = true>
+// CHECK: #secret.kernel<name = "MatvecNaive", force = true>
 #alignment = #tensor_ext.alignment<in = [16], out = [8192]>
 #alignment1 = #tensor_ext.alignment<in = [16, 16], out = [16, 16]>
 #layout = #tensor_ext.layout<map = (d0) -> (d0 mod 8192), alignment = #alignment>

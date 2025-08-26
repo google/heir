@@ -67,12 +67,12 @@ std::string kernelNameAsStr(const KernelName& kernelName) {
 }  // namespace heir
 
 std::ostream& operator<<(std::ostream& os, const heir::KernelName& k) {
-  return os << heir::kernelNameAsStr(k);
+  return os << "\"" << heir::kernelNameAsStr(k) << "\"";
 }
 
 llvm::raw_ostream& operator<<(llvm::raw_ostream& os,
                               const heir::KernelName& k) {
-  return os << heir::kernelNameAsStr(k);
+  return os << "\"" << heir::kernelNameAsStr(k) << "\"";
 }
 
 mlir::Diagnostic& operator<<(mlir::Diagnostic& diag,
