@@ -7,7 +7,9 @@
 
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
-#include "lib/Utils/ArithmeticDag.h"
+#include "lib/Kernel/ArithmeticDag.h"
+#include "lib/Kernel/IRMaterializingVisitor.h"
+#include "lib/Utils/MathUtils.h"
 #include "lib/Utils/Polynomial/ChebyshevPatersonStockmeyer.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
@@ -28,20 +30,12 @@
 namespace mlir {
 namespace heir {
 
+using kernel::ArithmeticDagNode;
+using kernel::IRMaterializingVisitor;
+using kernel::SSAValue;
 using polynomial::EvalOp;
 using polynomial::FloatPolynomial;
 using polynomial::TypedFloatPolynomialAttr;
-
-static APFloat convertFloatToSemantics(APFloat value,
-                                       const llvm::fltSemantics& semantics) {
-  if (&value.getSemantics() == &semantics) {
-    return value;
-  }
-  bool losesInfo = false;
-  APFloat converted = value;
-  converted.convert(semantics, APFloat::rmNearestTiesToEven, &losesInfo);
-  return converted;
-}
 
 TypedAttr getScalarOrDenseAttr(Type tensorOrScalarType, APFloat value) {
   return TypeSwitch<Type, TypedAttr>(tensorOrScalarType)
@@ -229,73 +223,6 @@ LogicalResult LowerViaPatersonStockmeyerMonomial::matchAndRewrite(
   return success();
 }
 
-class IRMaterializingVisitor : public CachingVisitor<Value, Value> {
- public:
-  using CachingVisitor<Value, Value>::operator();
-
-  IRMaterializingVisitor(ImplicitLocOpBuilder& builder, Type evaluatedType)
-      : CachingVisitor<Value, Value>(),
-        builder(builder),
-        evaluatedType(evaluatedType) {}
-
-  Value operator()(const ConstantNode& node) override {
-    TypedAttr attr;
-    if (isa<FloatType>(evaluatedType)) {
-      auto floatTy = cast<FloatType>(evaluatedType);
-      APFloat apVal(node.value);
-      APFloat converted =
-          convertFloatToSemantics(apVal, floatTy.getFloatSemantics());
-      attr = static_cast<TypedAttr>(FloatAttr::get(floatTy, converted));
-    } else {
-      attr =
-          static_cast<TypedAttr>(IntegerAttr::get(evaluatedType, node.value));
-    }
-    return arith::ConstantOp::create(builder, evaluatedType, attr);
-  }
-
-  Value operator()(const LeafNode<Value>& node) override { return node.value; }
-
-  template <typename T, typename FloatOp, typename IntOp>
-  Value binop(const T& node) {
-    Value lhs = this->process(node.left);
-    Value rhs = this->process(node.right);
-    return TypeSwitch<Type, Value>(evaluatedType)
-        .template Case<FloatType>(
-            [&](auto ty) { return FloatOp::create(builder, lhs, rhs); })
-        .template Case<IntegerType>(
-            [&](auto ty) { return IntOp::create(builder, lhs, rhs); })
-        .Default([&](Type) {
-          llvm_unreachable(
-              "Unsupported type for binary operation in Chebyshev "
-              "evaluation");
-          return Value();
-        });
-  }
-
-  Value operator()(const AddNode<Value>& node) override {
-    return binop<AddNode<Value>, arith::AddFOp, arith::AddIOp>(node);
-  }
-
-  Value operator()(const SubtractNode<Value>& node) override {
-    return binop<SubtractNode<Value>, arith::SubFOp, arith::SubIOp>(node);
-  }
-
-  Value operator()(const MultiplyNode<Value>& node) override {
-    return binop<MultiplyNode<Value>, arith::MulFOp, arith::MulIOp>(node);
-  }
-
-  Value operator()(const PowerNode<Value>& node) override {
-    assert(false &&
-           "Power operation is not used in Chebyshev Paterson Stockmeyer "
-           "algorithm.");
-    return Value();
-  }
-
- private:
-  ImplicitLocOpBuilder& builder;
-  Type evaluatedType;
-};
-
 LogicalResult LowerViaPatersonStockmeyerChebyshev::matchAndRewrite(
     EvalOp op, PatternRewriter& rewriter) const {
   auto attr = dyn_cast<polynomial::TypedChebyshevPolynomialAttr>(
@@ -307,7 +234,7 @@ LogicalResult LowerViaPatersonStockmeyerChebyshev::matchAndRewrite(
         return llvm::cast<FloatAttr>(attr).getValue().convertToDouble();
       });
 
-  auto xNode = ArithmeticDagNode<Value>::leaf(op.getValue());
+  auto xNode = ArithmeticDagNode<SSAValue>::leaf(op.getValue());
   auto resultNode = polynomial::patersonStockmeyerChebyshevPolynomialEvaluation(
       xNode, chebCoeffs);
 

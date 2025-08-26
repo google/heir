@@ -142,6 +142,10 @@ cc_library(
     name = "MathUtils",
     srcs = ["MathUtils.cpp"],
     hdrs = ["MathUtils.h"],
+    deps = [
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Support",
+    ],
 )
 
 cc_library(
@@ -181,20 +185,5 @@ cc_library(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:MemRefDialect",
         "@llvm-project//mlir:Support",
-    ],
-)
-
-cc_library(
-    name = "ArithmeticDag",
-    srcs = ["ArithmeticDag.h"],
-    hdrs = ["ArithmeticDag.h"],
-)
-
-cc_test(
-    name = "ArithmeticDagTest",
-    srcs = ["ArithmeticDagTest.cpp"],
-    deps = [
-        ":ArithmeticDag",
-        "@googletest//:gtest_main",
     ],
 )
