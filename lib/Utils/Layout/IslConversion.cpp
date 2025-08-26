@@ -1,5 +1,6 @@
 #include <cassert>
 #include <cstdint>
+#include <string>
 
 #include "include/isl/ctx.h"                  // from @isl
 #include "include/isl/map.h"                  // from @isl
@@ -139,6 +140,17 @@ presburger::IntegerRelation convertBasicMapToRelation(
   isl_ctx_free(ctx);
 
   return result;
+}
+
+FailureOr<presburger::IntegerRelation> getIntegerRelationFromIslStr(
+    std::string islStr) {
+  isl_ctx* ctx = isl_ctx_alloc();
+  isl_basic_map* bmap = isl_basic_map_read_from_str(ctx, islStr.c_str());
+  if (!bmap) {
+    isl_ctx_free(ctx);
+    return failure();
+  }
+  return convertBasicMapToRelation(bmap);
 }
 
 }  // namespace heir

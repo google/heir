@@ -128,20 +128,6 @@ LogicalResult LayoutAttr::verify(function_ref<InFlightDiagnostic()> emitError,
   return success();
 }
 
-namespace {
-
-FailureOr<IntegerRelation> getIntegerRelationFromIslStr(std::string islStr) {
-  isl_ctx* ctx = isl_ctx_alloc();
-  isl_basic_map* bmap = isl_basic_map_read_from_str(ctx, islStr.c_str());
-  if (!bmap) {
-    isl_ctx_free(ctx);
-    return failure();
-  }
-  return convertBasicMapToRelation(bmap);
-}
-
-}  // namespace
-
 LogicalResult NewLayoutAttr::verify(
     function_ref<InFlightDiagnostic()> emitError, StringAttr layoutStr) {
   auto result = getIntegerRelationFromIslStr(layoutStr.getValue().str());

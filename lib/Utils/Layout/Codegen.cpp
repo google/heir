@@ -292,9 +292,43 @@ FailureOr<scf::ForOp> MLIRLoopNestGenerator::generateForLoop(
     scf::YieldOp::create(builder_, currentLoc, loops[i + 1].getResults());
   }
 
-  // The body of the innermost loop should contain the user statement S. It may
-  // also contain an if statement to handle conditionals on the qualifiers.
-  // TODO(#2120): Handle ISL if statements.
+  // Handle any conditionals on the qualifiers.
+  Block* innerBlock = loops.back().getBody();
+  SmallVector<scf::IfOp> ifOps;
+  while (isl_ast_node_get_type(node) == isl_ast_node_if) {
+    builder_.setInsertionPointToStart(innerBlock);
+
+    isl_ast_expr* cond = isl_ast_node_if_get_cond(node);
+    Value condVal = buildIslExpr(cond, ivToValue, builder_);
+    isl_ast_expr_free(cond);
+
+    // Build scf if operation with the result types of the iter args
+    auto ifOp = scf::IfOp::create(
+        builder_, currentLoc, TypeRange(loops.back().getRegionIterArgs()),
+        condVal, /*addThenBlock=*/true, /*addElseBlock=*/true);
+
+    // TODO:(#2120): Handle ISL else conditions.
+    isl_ast_node* elseNode = isl_ast_node_if_get_else_node(node);
+    assert(elseNode == nullptr && "expected no else conditions");
+    isl_ast_node_free(elseNode);
+
+    node = isl_ast_node_if_get_then_node(node);
+    innerBlock = &ifOp.getThenRegion().front();
+    ifOps.push_back(ifOp);
+  }
+
+  // For all if statements but the innermost, yield the results of the nested
+  // ifs
+  if (!ifOps.empty()) {
+    for (unsigned i = 0, e = ifOps.size() - 1; i < e; ++i) {
+      builder_.setInsertionPointToEnd(&ifOps[i].getThenRegion().front());
+      scf::YieldOp::create(builder_, currentLoc, ifOps[i + 1].getResults());
+      builder_.setInsertionPointToEnd(&ifOps[i].getElseRegion().front());
+      scf::YieldOp::create(builder_, currentLoc, ifOps[i + 1].getResults());
+    }
+  }
+
+  // The body of the innermost loop should contain the user statement S.
   if (isl_ast_node_get_type(node) != isl_ast_node_user) {
     char* cStr = isl_ast_node_to_C_str(node);
     emitError(builder_.getLoc()) << "unhandled ISL node type: " << cStr;
@@ -302,8 +336,8 @@ FailureOr<scf::ForOp> MLIRLoopNestGenerator::generateForLoop(
     return failure();
   }
 
-  // Generate the indexing expressions inside the loop body.
-  builder_.setInsertionPointToStart(loops.back().getBody());
+  // Generate the indexing expressions inside the inner block.
+  builder_.setInsertionPointToStart(innerBlock);
   isl_ast_expr* expr = isl_ast_node_user_get_expr(node);
   assert(expr != nullptr && "expected pure loop nest with only user statement");
 
@@ -318,12 +352,25 @@ FailureOr<scf::ForOp> MLIRLoopNestGenerator::generateForLoop(
 
   // In the body of the innermost loop, call the body building function using
   // the generated indexing expressions and yield its results.
-  builder_.setInsertionPointToEnd(loops.back().getBody());
+  builder_.setInsertionPointToEnd(innerBlock);
   scf::ValueVector results = bodyBuilder(builder_, currentLoc, exprs,
                                          loops.back().getRegionIterArgs());
   assert(results.size() == initArgs.size() &&
          "loop nest body must return as many values as loop has iteration "
          "arguments");
+
+  if (!ifOps.empty()) {
+    // Yield results of the body builder from the inner most if statement.
+    builder_.setInsertionPointToEnd(&ifOps.back().getThenRegion().front());
+    scf::YieldOp::create(builder_, currentLoc, results);
+    builder_.setInsertionPointToEnd(&ifOps.back().getElseRegion().front());
+    scf::YieldOp::create(builder_, currentLoc,
+                         loops.back().getRegionIterArgs());
+    results = ifOps.front().getResults();
+  }
+
+  // Yield from the innermost loop. These will either be the results from the
+  // outermost if statements, or the results of the body builder.
   builder_.setInsertionPointToEnd(loops.back().getBody());
   scf::YieldOp::create(builder_, currentLoc, results);
 
