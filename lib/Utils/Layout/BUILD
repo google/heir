@@ -45,6 +45,7 @@ cc_test(
         ":Codegen",
         ":Parser",
         "@googletest//:gtest_main",
+        "@heir//lib/Utils/Layout:IslConversion",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",

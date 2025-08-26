@@ -1,6 +1,9 @@
+#include <string>
+
 #include "include/isl/ctx.h"                                        // from @isl
 #include "include/isl/map_type.h"                                   // from @isl
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -15,6 +18,9 @@ __isl_give isl_basic_map* convertRelationToBasicMap(
 // the IntegerRelation.
 presburger::IntegerRelation convertBasicMapToRelation(
     __isl_take isl_basic_map* bmap);
+
+FailureOr<presburger::IntegerRelation> getIntegerRelationFromIslStr(
+    std::string islStr);
 
 }  // namespace heir
 }  // namespace mlir

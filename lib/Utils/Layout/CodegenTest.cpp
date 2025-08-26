@@ -3,6 +3,7 @@
 #include "gmock/gmock.h"  // from @googletest
 #include "gtest/gtest.h"  // from @googletest
 #include "lib/Utils/Layout/Codegen.h"
+#include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/Layout/Parser.h"
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"  // from @llvm-project
@@ -108,6 +109,27 @@ TEST(CodegenTest, RowMajor) {
   std::string expected = R"(
 for (int c1 = 0; c1 <= 1023; c1 += 1)
   S(c1 % 32, 0, c1);
+)";
+  ASSERT_THAT(actual, Eq(expected));
+}
+
+TEST(CodegenTest, HaleviShoupSquat) {
+  MLIRContext context;
+  auto relation = getIntegerRelationFromIslStr(
+      "{ [i0, i1] -> [ct, slot] : (i0 - i1 + ct) mod 16 = 0 and (-i0 + slot) "
+      "mod 16 = 0 and 0 <= i0 <= 9 and 0 <= i1 <= 15 and 0 <= ct <= 15 and 0 "
+      "<= slot <= 1023 }");
+  ASSERT_TRUE(succeeded(relation));
+
+  // Generated code has if statements
+  auto result = generateLoopNestAsCStr(relation.value());
+  ASSERT_TRUE(succeeded(result));
+  std::string actual = result.value();
+  std::string expected = R"(
+for (int c0 = 0; c0 <= 15; c0 += 1)
+  for (int c1 = 0; c1 <= 1023; c1 += 1)
+    if ((c1 + 6) % 16 >= 6)
+      S(c1 % 16, (c0 + c1) % 16, c0, c1);
 )";
   ASSERT_THAT(actual, Eq(expected));
 }
