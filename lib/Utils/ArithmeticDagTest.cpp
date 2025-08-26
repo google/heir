@@ -1,3 +1,4 @@
+#include <cassert>
 #include <cmath>
 #include <iomanip>
 #include <ios>
@@ -41,7 +42,8 @@ struct FlattenedStringVisitor {
 
   std::string operator()(const MultiplyNode<std::string>& node) const {
     std::stringstream ss;
-    ss << node.left->visit(*this) << " * " << node.right->visit(*this);
+    ss << "(" << node.left->visit(*this) << " * " << node.right->visit(*this)
+       << ")";
     return ss.str();
   }
 
@@ -50,10 +52,26 @@ struct FlattenedStringVisitor {
     ss << "(" << node.base->visit(*this) << " ^ " << node.exponent << ")";
     return ss.str();
   }
+
+  std::string operator()(const LeftRotateNode<std::string>& node) const {
+    std::stringstream ss;
+    ss << "(" << node.operand->visit(*this) << " << " << node.shift << ")";
+    return ss.str();
+  }
+
+  std::string operator()(const ExtractNode<std::string>& node) const {
+    std::stringstream ss;
+    ss << node.operand->visit(*this) << "[" << node.index << "]";
+    return ss.str();
+  }
 };
 
 class EvalVisitor : public CachingVisitor<double, double> {
  public:
+  // This is required for this class to see all overloads of the visit function,
+  // including virtual ones not implemented by this class.
+  using CachingVisitor<double, double>::operator();
+
   EvalVisitor() : CachingVisitor<double, double>(), callCount(0) {}
 
   // To test that caching works as expected.
@@ -91,14 +109,16 @@ class EvalVisitor : public CachingVisitor<double, double> {
 };
 
 TEST(ArithmeticDagTest, TestPrint) {
-  auto root = StringLeavedDag::mul(
-      StringLeavedDag::add(StringLeavedDag::leaf("x"),
-                           StringLeavedDag::constant(3.0)),
-      StringLeavedDag::power(StringLeavedDag::leaf("y"), 2));
+  auto root = StringLeavedDag::leftRotate(
+      StringLeavedDag::mul(
+          StringLeavedDag::add(StringLeavedDag::leaf("x"),
+                               StringLeavedDag::constant(3.0)),
+          StringLeavedDag::power(StringLeavedDag::leaf("y"), 2)),
+      7);
 
   FlattenedStringVisitor visitor;
   std::string result = root->visit(visitor);
-  EXPECT_EQ(result, "(x + 3.00) * (y ^ 2)");
+  EXPECT_EQ(result, "(((x + 3.00) * (y ^ 2)) << 7)");
 }
 
 TEST(ArithmeticDagTest, TestProperDag) {
@@ -108,7 +128,7 @@ TEST(ArithmeticDagTest, TestProperDag) {
 
   FlattenedStringVisitor visitor;
   std::string result = root->visit(visitor);
-  EXPECT_EQ(result, "((y ^ 2) + (y ^ 2)) * (y ^ 2)");
+  EXPECT_EQ(result, "(((y ^ 2) + (y ^ 2)) * (y ^ 2))");
 }
 
 TEST(ArithmeticDagTest, TestEvaluationVisitor) {

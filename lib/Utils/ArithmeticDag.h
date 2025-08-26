@@ -51,10 +51,22 @@ struct PowerNode {
 };
 
 template <typename T>
+struct LeftRotateNode {
+  std::shared_ptr<ArithmeticDagNode<T>> operand;
+  size_t shift;
+};
+
+template <typename T>
+struct ExtractNode {
+  std::shared_ptr<ArithmeticDagNode<T>> operand;
+  size_t index;
+};
+
+template <typename T>
 struct ArithmeticDagNode {
  public:
   std::variant<ConstantNode, LeafNode<T>, AddNode<T>, SubtractNode<T>,
-               MultiplyNode<T>, PowerNode<T>>
+               MultiplyNode<T>, PowerNode<T>, LeftRotateNode<T>, ExtractNode<T>>
       node_variant;
 
   explicit ArithmeticDagNode(const T& value)
@@ -128,6 +140,26 @@ struct ArithmeticDagNode {
     return node;
   }
 
+  static std::shared_ptr<ArithmeticDagNode<T>> leftRotate(
+      std::shared_ptr<ArithmeticDagNode<T>> tensor, size_t shift) {
+    assert(tensor && "invalid tensor for leftRotate");
+    auto node =
+        std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
+    node->node_variant.template emplace<LeftRotateNode<T>>(
+        LeftRotateNode<T>{std::move(tensor), shift});
+    return node;
+  }
+
+  static std::shared_ptr<ArithmeticDagNode<T>> extract(
+      std::shared_ptr<ArithmeticDagNode<T>> tensor, size_t index) {
+    assert(tensor && "invalid tensor for extract");
+    auto node =
+        std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
+    node->node_variant.template emplace<ExtractNode<T>>(
+        ExtractNode<T>{std::move(tensor), index});
+    return node;
+  }
+
   ArithmeticDagNode(const ArithmeticDagNode&) = default;
   ArithmeticDagNode& operator=(const ArithmeticDagNode&) = default;
   ArithmeticDagNode(ArithmeticDagNode&&) noexcept = default;
@@ -171,6 +203,13 @@ class CachingVisitor {
 
   // --- Virtual Visit Methods ---
   // Derived classes must override these for the node types they support.
+  //
+  // If some implementations are omitted, the derived class must add
+  //
+  //   using CachingVisitor<double, double>::operator();
+  //
+  // to avoid the name-hiding that occurs when a derived class overrides
+  // one of the operator() methods.
 
   virtual ResultType operator()(const ConstantNode& node) {
     assert(false && "Visit logic for ConstantNode is not implemented.");
@@ -194,6 +233,14 @@ class CachingVisitor {
 
   virtual ResultType operator()(const PowerNode<T>& node) {
     assert(false && "Visit logic for PowerNode is not implemented.");
+  }
+
+  virtual ResultType operator()(const LeftRotateNode<T>& node) {
+    assert(false && "Visit logic for LeftRotateNode is not implemented.");
+  }
+
+  virtual ResultType operator()(const ExtractNode<T>& node) {
+    assert(false && "Visit logic for ExtractNode is not implemented.");
   }
 
  private:

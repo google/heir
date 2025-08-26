@@ -231,6 +231,8 @@ LogicalResult LowerViaPatersonStockmeyerMonomial::matchAndRewrite(
 
 class IRMaterializingVisitor : public CachingVisitor<Value, Value> {
  public:
+  using CachingVisitor<Value, Value>::operator();
+
   IRMaterializingVisitor(ImplicitLocOpBuilder& builder, Type evaluatedType)
       : CachingVisitor<Value, Value>(),
         builder(builder),

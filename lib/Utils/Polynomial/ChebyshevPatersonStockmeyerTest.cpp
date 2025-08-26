@@ -13,6 +13,8 @@ namespace {
 
 class EvalVisitor : public CachingVisitor<double, double> {
  public:
+  using CachingVisitor<double, double>::operator();
+
   EvalVisitor() : CachingVisitor<double, double>() {}
 
   double operator()(const ConstantNode& node) override { return node.value; }
@@ -34,17 +36,12 @@ class EvalVisitor : public CachingVisitor<double, double> {
   double operator()(const MultiplyNode<double>& node) override {
     return this->process(node.left) * this->process(node.right);
   }
-
-  double operator()(const PowerNode<double>& node) override {
-    assert(false &&
-           "Power operation is not used in Chebyshev Paterson Stockmeyer "
-           "algorithm.");
-    return 0.0;
-  }
 };
 
 class MultiplicativeDepthVisitor : public CachingVisitor<double, double> {
  public:
+  using CachingVisitor<double, double>::operator();
+
   MultiplicativeDepthVisitor() : CachingVisitor<double, double>() {}
 
   double operator()(const ConstantNode& node) override { return -1.0; }
@@ -71,13 +68,6 @@ class MultiplicativeDepthVisitor : public CachingVisitor<double, double> {
       return left;
     }
     return std::max(left, right) + 1.0;
-  }
-
-  double operator()(const PowerNode<double>& node) override {
-    assert(false &&
-           "Power operation is not used in Chebyshev Paterson Stockmeyer "
-           "algorithm.");
-    return 0.0;
   }
 };
 
