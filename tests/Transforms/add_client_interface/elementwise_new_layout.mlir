@@ -15,7 +15,7 @@
 // CHECK-DAG: %[[c32:.*]] = arith.constant 32 : index
 // CHECK-DAG: %[[c1:.*]] = arith.constant 1 : index
 // CHECK-DAG: %[[c0:.*]] = arith.constant 0 : index
-// CHECK: %[[v0:.*]] = tensor.empty() : tensor<1x1024xi16>
+// CHECK-DAG: %[[v0:.*]] = arith.constant dense<0> : tensor<1x1024xi16>
 // CHECK: %[[v1:.*]] = scf.for %[[arg1:.*]] = %[[c0]] to %[[c1024]] step %[[c1]] iter_args(%[[arg2:.*]] = %[[v0]]) -> (tensor<1x1024xi16>) {
 // CHECK:  %[[v3:.*]] = arith.remsi %[[arg1]], %[[c32]] : index
 // CHECK:  %[[extracted:.*]] = tensor.extract %[[arg0]][%[[v3]]] : tensor<32xi16>

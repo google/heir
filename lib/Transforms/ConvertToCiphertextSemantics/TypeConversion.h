@@ -19,6 +19,12 @@ Type materializeScalarLayout(Type type, tensor_ext::LayoutAttr attr,
 Type materializeLayout(RankedTensorType type, tensor_ext::LayoutAttr attr,
                        int ciphertextSize);
 
+Type materializeScalarNewLayout(Type type, tensor_ext::NewLayoutAttr attr,
+                                int ciphertextSize);
+
+Type materializeNewLayout(RankedTensorType type, tensor_ext::NewLayoutAttr attr,
+                          int ciphertextSize);
+
 }  // namespace heir
 }  // namespace mlir
 

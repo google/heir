@@ -196,11 +196,13 @@ LogicalResult RotateAndReduceOp::verify() {
                            << x;
     }
   }
-  if (numSteps > x.getDimSize(0)) {
+  // Final dimension is the number of slots
+  if (numSteps > x.getDimSize(x.getRank() - 1)) {
     return emitOpError()
            << "requires steps to be less than or equal "
               "to the input tensor's dimension, but found reductions="
-           << numSteps << " and tensor dimension=" << x.getDimSize(0);
+           << numSteps
+           << " and tensor dimension=" << x.getDimSize(x.getRank() - 1);
   }
 
   if (getPlaintexts()) {

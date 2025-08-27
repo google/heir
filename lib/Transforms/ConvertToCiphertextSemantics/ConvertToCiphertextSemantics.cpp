@@ -21,6 +21,7 @@
 #include "lib/Utils/ContextAwareConversionUtils.h"
 #include "lib/Utils/ContextAwareDialectConversion.h"
 #include "lib/Utils/ContextAwareTypeConversion.h"
+#include "lib/Utils/Layout/Utils.h"
 #include "lib/Utils/MathUtils.h"
 #include "lib/Utils/TransformUtils.h"
 #include "lib/Utils/Utils.h"
@@ -33,6 +34,7 @@
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/Transforms/Transforms.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineExpr.h"  // from @llvm-project
@@ -58,6 +60,7 @@ namespace heir {
 
 namespace {
 using tensor_ext::LayoutAttr;
+using tensor_ext::NewLayoutAttr;
 
 auto& kLayoutAttrName = tensor_ext::TensorExtDialect::kLayoutAttrName;
 auto& kMaterializedAttrName = "tensor_ext.layout_materialized";
@@ -130,6 +133,38 @@ struct LayoutMaterializationTypeConverter
         [this](IndexType type, LayoutAttr attr) -> std::optional<Type> {
           return materializeScalarLayout(type, attr, getCiphertextSize());
         });
+    addConversion([this](secret::SecretType type,
+                         NewLayoutAttr attr) -> std::optional<Type> {
+      FailureOr<Type> convertedInnerType;
+      auto innerType = type.getValueType();
+
+      if (auto rankedTensorType = dyn_cast<RankedTensorType>(innerType)) {
+        convertedInnerType =
+            materializeNewLayout(rankedTensorType, attr, getCiphertextSize());
+      } else {
+        convertedInnerType =
+            materializeScalarNewLayout(innerType, attr, getCiphertextSize());
+      }
+
+      if (failed(convertedInnerType)) return std::nullopt;
+      return secret::SecretType::get(convertedInnerType.value());
+    });
+    addConversion([this](RankedTensorType type,
+                         NewLayoutAttr attr) -> std::optional<Type> {
+      return materializeNewLayout(type, attr, getCiphertextSize());
+    });
+    addConversion(
+        [this](IntegerType type, NewLayoutAttr attr) -> std::optional<Type> {
+          return materializeScalarNewLayout(type, attr, getCiphertextSize());
+        });
+    addConversion(
+        [this](FloatType type, NewLayoutAttr attr) -> std::optional<Type> {
+          return materializeScalarNewLayout(type, attr, getCiphertextSize());
+        });
+    addConversion(
+        [this](IndexType type, NewLayoutAttr attr) -> std::optional<Type> {
+          return materializeScalarNewLayout(type, attr, getCiphertextSize());
+        });
   }
 
   int getCiphertextSize() const { return ciphertextSize; }
@@ -173,9 +208,11 @@ struct ConvertFunc : public ContextAwareFuncConversion {
     rewriter.modifyOpInPlace(op, [&] {
       setMaterializedAttr(op);
       for (int i = 0; i < op.getNumArguments(); ++i) {
-        auto layoutAttr =
-            dyn_cast_or_null<LayoutAttr>(op.getArgAttr(i, kLayoutAttrName));
-        if (!layoutAttr) continue;
+        auto layoutAttr = op.getArgAttr(i, kLayoutAttrName);
+        if (!layoutAttr ||
+            !(isa<LayoutAttr>(layoutAttr) || isa<NewLayoutAttr>(layoutAttr))) {
+          continue;
+        }
 
         op.setArgAttr(i, kOriginalTypeAttrName,
                       tensor_ext::OriginalTypeAttr::get(
@@ -184,9 +221,11 @@ struct ConvertFunc : public ContextAwareFuncConversion {
       }
 
       for (int i = 0; i < op.getNumResults(); ++i) {
-        auto layoutAttr =
-            dyn_cast_or_null<LayoutAttr>(op.getResultAttr(i, kLayoutAttrName));
-        if (!layoutAttr) continue;
+        auto layoutAttr = op.getResultAttr(i, kLayoutAttrName);
+        if (!layoutAttr ||
+            !(isa<LayoutAttr>(layoutAttr) || isa<NewLayoutAttr>(layoutAttr))) {
+          continue;
+        }
 
         op.setResultAttr(
             i, kOriginalTypeAttrName,
@@ -494,7 +533,11 @@ class ConvertLinalgReduce
     if (failed(layoutFetchResult)) {
       return op.emitError() << "failed to fetch layout attribute for input";
     }
-    LayoutAttr layout = cast<LayoutAttr>(layoutFetchResult.value());
+    // TODO(#2047): Support new layout attr
+    LayoutAttr layout = dyn_cast<LayoutAttr>(layoutFetchResult.value());
+    if (!layout) {
+      return op.emitError() << "expected LayoutAttr on linalg.reduce";
+    }
 
     // See DestinationStyleOpInterface: 1-1 relationship between inits and op
     // results, but the init is type converted already and is the starting
@@ -625,7 +668,7 @@ struct ConvertLinalgMatvec
     if (failed(layoutLookup)) {
       return nullptr;
     }
-    return cast<LayoutAttr>(layoutLookup.value());
+    return dyn_cast<LayoutAttr>(layoutLookup.value());
   }
 
   bool supportsHaleviShoup(linalg::MatvecOp op, OpAdaptor adaptor) const {
@@ -805,11 +848,148 @@ struct ConvertLinalgMatvec
     LayoutAttr vectorLayout = getLayoutAttr(vector);
     LayoutAttr matrixLayout = getLayoutAttr(matrix);
 
-    if (!matrixLayout)
-      return op.emitError() << "missing layout attribute for matrix";
+    if (!matrixLayout || !vectorLayout)
+      return rewriter.notifyMatchFailure(
+          op, "missing layout attribute matrix and vector");
 
-    if (!vectorLayout)
-      return op.emitError() << "missing layout attribute for vector";
+    if (supportsHaleviShoup(op, adaptor)) {
+      haleviShoupKernel(op, adaptor, rewriter);
+      return success();
+    }
+
+    // TODO(#1589): implement row-major naive matvec kernel
+    return op.emitError() << "unsupported layout for matrix in matvec: "
+                          << matrixLayout;
+  }
+};
+
+struct ConvertLinalgMatvecNewLayout
+    : public ContextAwareOpConversionPattern<linalg::MatvecOp> {
+ public:
+  using ContextAwareOpConversionPattern<
+      linalg::MatvecOp>::ContextAwareOpConversionPattern;
+
+  NewLayoutAttr getNewLayoutAttr(Value value) const {
+    auto layoutLookup = getTypeConverter()->getContextualAttr(value);
+    if (failed(layoutLookup)) {
+      return nullptr;
+    }
+    return dyn_cast<NewLayoutAttr>(layoutLookup.value());
+  }
+
+  bool supportsHaleviShoup(linalg::MatvecOp op, OpAdaptor adaptor) const {
+    Value matrix = adaptor.getInputs()[0];
+    Value vector = adaptor.getInputs()[1];
+    Value originalVector = op.getInputs()[1];
+    // auto vectorType = cast<RankedTensorType>(vector.getType());
+    auto materializedMatrixType = cast<RankedTensorType>(matrix.getType());
+    auto materializedVectorType = cast<RankedTensorType>(vector.getType());
+
+    // If one of these dimensions is not a power of two, then we can't do
+    // the Halevi-Shoup or Squat Packing Matrix Multiplication conversion.
+    auto dimensions = materializedMatrixType.getShape();
+    int64_t numRows = dimensions[0];
+    int64_t numCols = dimensions[1];
+    if (!isPowerOfTwo(numRows) || !isPowerOfTwo(numCols)) {
+      return false;
+    }
+
+    NewLayoutAttr matrixLayout = getNewLayoutAttr(matrix);
+    NewLayoutAttr vectorLayout = getNewLayoutAttr(vector);
+    bool isSquatDiagonal = isRelationSquatDiagonal(
+        cast<RankedTensorType>(op.getInputs()[0].getType()), numCols,
+        matrixLayout.getIntegerRelation());
+    bool isRowMajor =
+        isRelationRowMajor(cast<RankedTensorType>(originalVector.getType()),
+                           materializedVectorType.getDimSize(1),
+                           vectorLayout.getIntegerRelation());
+
+    LLVM_DEBUG(llvm::dbgs()
+               << "supportsHaleviShoup: " << "isSquatDiagonal="
+               << isSquatDiagonal << " isRowMajor=" << isRowMajor << "\n");
+
+    // TODO(#1578): If the matrix has more rows than columns, what kernel
+    // should be used?
+    bool dimensionsCompatible = numRows <= numCols;
+    return isSquatDiagonal && isRowMajor && dimensionsCompatible;
+  }
+
+  void haleviShoupKernel(
+      linalg::MatvecOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    Value result = adaptor.getOutputs()[0];
+    Value packedMatrix = adaptor.getInputs()[0];
+    Value packedVector = adaptor.getInputs()[1];
+    auto originalMatrixType =
+        cast<RankedTensorType>(op.getInputs()[0].getType());
+    auto packedMatrixType = cast<RankedTensorType>(packedMatrix.getType());
+    auto packedVectorType = cast<RankedTensorType>(packedVector.getType());
+    Type elementType = packedVectorType.getElementType();
+    int64_t numRotations = packedMatrixType.getShape()[0];
+    auto layoutAttr = cast<NewLayoutAttr>(op->getAttr(kLayoutAttrName));
+
+    // Construct a rotate and reduce op
+    // The packed matrix is already diagonalized.
+    auto rotateAndReduceOp = rewriter.create<tensor_ext::RotateAndReduceOp>(
+        op.getLoc(), packedVectorType, packedVector, packedMatrix,
+        /*period=*/rewriter.getIndexAttr(1),
+        /*steps=*/rewriter.getIndexAttr(numRotations));
+    rotateAndReduceOp->setAttr(kLayoutAttrName, layoutAttr);
+    setMaterializedAttr(rotateAndReduceOp);
+
+    // Add the initial accumulator value.
+    StringRef addOpName =
+        isa<IntegerType>(elementType) ? "arith.addi" : "arith.addf";
+    Operation* addBias = b.create(OperationState(
+        op->getLoc(), addOpName, {rotateAndReduceOp.getResult(), result},
+        {packedVectorType}));
+    addBias->setAttr(kLayoutAttrName, layoutAttr);
+    setMaterializedAttr(addBias);
+    Value summedShifts = addBias->getResult(0);
+
+    // If we have a square matrix, we can stop here.
+    if (originalMatrixType.getShape()[0] == originalMatrixType.getShape()[1]) {
+      rewriter.replaceOp(op, summedShifts);
+      return;
+    }
+
+    // Else, we have matrixNumRows < matrixNumCols due to the precondition
+    // applied earlier. This is the post-processing partial-rotate-and-reduce
+    // step required for squat-diagonal packing.
+    int64_t matrixNumRows = packedMatrixType.getShape()[0];
+    int64_t matrixNumCols = packedMatrixType.getShape()[1];
+
+    int64_t numShifts = (int64_t)(log2(matrixNumCols) - log2(matrixNumRows));
+    int64_t shift = matrixNumCols / 2;
+    for (int64_t i = 0; i < numShifts; ++i) {
+      auto shiftAmountOp = arith::ConstantIntOp::create(b, shift, 64);
+      auto rotateOp =
+          tensor_ext::RotateOp::create(b, summedShifts, shiftAmountOp);
+      auto* addOp = b.create(OperationState(
+          op->getLoc(), addOpName, {summedShifts, rotateOp.getResult()},
+          {rotateOp.getResult().getType()}));
+      setMaterializedAttr({shiftAmountOp, rotateOp, addOp});
+      setAttributeAssociatedWith(addOp->getResult(0), kLayoutAttrName,
+                                 layoutAttr);
+      summedShifts = addOp->getResult(0);
+      shift /= 2;
+    }
+
+    rewriter.replaceOp(op, summedShifts);
+  }
+
+  LogicalResult matchAndRewrite(
+      linalg::MatvecOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    Value matrix = adaptor.getInputs()[0];
+    Value vector = adaptor.getInputs()[1];
+    NewLayoutAttr vectorLayout = getNewLayoutAttr(vector);
+    NewLayoutAttr matrixLayout = getNewLayoutAttr(matrix);
+
+    if (!matrixLayout || !vectorLayout)
+      return rewriter.notifyMatchFailure(
+          op, "missing new layout attribute for matrix and vector");
 
     if (supportsHaleviShoup(op, adaptor)) {
       haleviShoupKernel(op, adaptor, rewriter);
@@ -1078,6 +1258,7 @@ struct ConvertToCiphertextSemantics
                  ConvertConvertLayout,
                  // linalg ops
                  ConvertLinalgReduce, ConvertLinalgMatvec,
+                 ConvertLinalgMatvecNewLayout,
                  // tensor ops
                  ConvertTensorExtract, ConvertTensorInsert,
                  // default

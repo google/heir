@@ -50,6 +50,7 @@ def ConvertToCiphertextSemantics : Pass<"convert-to-ciphertext-semantics"> {
     "mlir::heir::tensor_ext::TensorExtDialect",
     "mlir::linalg::LinalgDialect",
     "mlir::tensor::TensorDialect",
+    "mlir::scf::SCFDialect"
   ];
 
   // TODO(#4102): reevaluate flag name

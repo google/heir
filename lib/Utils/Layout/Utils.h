@@ -35,6 +35,11 @@ bool isRelationSquatDiagonal(RankedTensorType matrixType,
                              int64_t ciphertextSize,
                              presburger::IntegerRelation relation);
 
+// Returns true if the given relation is a row-major layout for the given
+// vector type and slot size.
+bool isRelationRowMajor(RankedTensorType vectorType, int64_t numSlots,
+                        presburger::IntegerRelation relation);
+
 }  // namespace heir
 }  // namespace mlir
 

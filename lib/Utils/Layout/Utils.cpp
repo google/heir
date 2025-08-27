@@ -166,7 +166,6 @@ presburger::IntegerRelation getDiagonalLayoutRelation(
   ctSlotEquality[ctSlotMod] = -1;
   result.addEquality(ctSlotEquality);
 
-  result.simplify();
   return result;
 }
 
@@ -176,6 +175,13 @@ bool isRelationSquatDiagonal(RankedTensorType matrixType,
   IntegerRelation diagonalRelation =
       getDiagonalLayoutRelation(matrixType, ciphertextSize);
   return relation.isEqual(diagonalRelation);
+}
+
+bool isRelationRowMajor(RankedTensorType vectorType, int64_t numSlots,
+                        presburger::IntegerRelation relation) {
+  IntegerRelation rowMajorRelation =
+      getRowMajorLayoutRelation(vectorType, numSlots);
+  return relation.isEqual(rowMajorRelation);
 }
 
 }  // namespace heir

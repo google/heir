@@ -24,6 +24,7 @@
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/ReshapeOpsUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StructuredOpsUtils.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"              // from @llvm-project
@@ -441,26 +442,14 @@ FailureOr<Value> implementAssignLayoutNew(
 
   RankedTensorType dataSemanticType =
       cast<RankedTensorType>(op.getValue().getType());
-  llvm::SmallVector<int64_t> ciphertextSemanticShape;
-  for (unsigned varPos = rel.getVarKindOffset(VarKind::Range);
-       varPos < rel.getVarKindEnd(VarKind::Range) - 1; ++varPos) {
-    std::optional<int64_t> dimBound =
-        rel.getConstantBound64(BoundType::UB, varPos);
-    if (!dimBound) {
-      return op.emitError()
-             << "No upper bound found for range variable at position "
-             << varPos;
-    }
-    ciphertextSemanticShape.push_back(dimBound.value() +
-                                      1);  // +1 is because UB is inclusive
-  }
-  // Last dimension is always the slot size. The relation may enforce a tighter
-  // bound depending on whether the slots at the end are full, so use the upper
-  // bound.
-  ciphertextSemanticShape.push_back(ciphertextSize);
+  RankedTensorType ciphertextSemanticType = cast<RankedTensorType>(
+      materializeNewLayout(dataSemanticType, layout, ciphertextSize));
 
-  auto ciphertextTensor = builder.create<tensor::EmptyOp>(
-      ciphertextSemanticShape, dataSemanticType.getElementType());
+  TypedValue<RankedTensorType> ciphertextTensor =
+      cast<TypedValue<RankedTensorType>>(
+          arith::ConstantOp::create(builder, ciphertextSemanticType,
+                                    builder.getZeroAttr(ciphertextSemanticType))
+              .getResult());
 
   MLIRLoopNestGenerator generator(builder);
   auto loopNestCstr = generateLoopNestAsCStr(rel);
@@ -512,8 +501,11 @@ FailureOr<Value> implementUnpackOpNew(
       cast<TypedValue<RankedTensorType>>(op.getValue());
   RankedTensorType dataSemanticType =
       cast<RankedTensorType>(op.getResult().getType());
-  auto dataTensor = builder.create<tensor::EmptyOp>(
-      dataSemanticType.getShape(), dataSemanticType.getElementType());
+
+  auto dataTensor = cast<TypedValue<RankedTensorType>>(
+      mlir::arith::ConstantOp::create(builder,
+                                      builder.getZeroAttr(dataSemanticType))
+          .getResult());
   auto loop = generator.generateForLoop(
       rel, {dataTensor},
       [&](mlir::OpBuilder& builder, Location loc, ValueRange exprs,
