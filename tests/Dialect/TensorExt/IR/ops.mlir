@@ -32,3 +32,13 @@ func.func @test_halevi_shoup_reduction(%0: tensor<16xi32>, %1: tensor<16x16xi32>
   %2 = tensor_ext.rotate_and_reduce %0, %1 {period = 1 : index, steps = 16 : index} : (tensor<16xi32>, tensor<16x16xi32>) -> tensor<16xi32>
   return %2 : tensor<16xi32>
 }
+
+func.func @test_partition_indivisible(%0: tensor<17xi32>) -> (tensor<3x5xi32>, tensor<2xi32>) {
+  %1:2 = tensor_ext.partition %0 {partitionSize = 5 : index} : tensor<17xi32> -> (tensor<3x5xi32>, tensor<2xi32>)
+  return %1#0, %1#1 : tensor<3x5xi32>, tensor<2xi32>
+}
+
+func.func @test_partition_divisible(%0: tensor<15xi32>) -> tensor<3x5xi32> {
+  %1 = tensor_ext.partition %0 {partitionSize = 5 : index} : tensor<15xi32> -> (tensor<3x5xi32>)
+  return %1 : tensor<3x5xi32>
+}

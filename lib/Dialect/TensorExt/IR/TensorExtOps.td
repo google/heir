@@ -184,5 +184,28 @@ def TensorExt_RotateAndReduceOp : TensorExt_Op<"rotate_and_reduce",[Pure, AllTyp
   // TODO(#2134): Add canonicalization patterns
 }
 
+def TensorExt_PartitionOp : TensorExt_Op<"partition", [Pure]> {
+  let summary = "Partition a (possibly indivisible) tensor into pieces of a given size.";
+  let description = [{
+    This op partitions a tensor into pieces of a given size, with an optional
+    last piece that may be of a different size if the input size is not
+    divisible by the partition size.
+
+    Example:
+    ```mlir
+    // Not perfectly divisible
+    %1:2 = tensor_ext.partition %0 {partitionSize = 5 : index} : tensor<17xi32> -> (tensor<3x5xi32>, tensor<2xi32>)
+
+    // Perfectly divisible
+    %1 = tensor_ext.partition %0 {partitionSize = 5 : index} : tensor<15xi32> -> (tensor<3x5xi32>)
+    ```
+  }];
+
+  let arguments = (ins AnyRankedTensor:$input, IndexAttr:$partitionSize);
+  let results = (outs Variadic<AnyRankedTensor>:$output);
+  let assemblyFormat = "$input attr-dict `:` type($input) `->` `(` type($output) `)`";
+  let hasVerifier = 1;
+}
+
 
 #endif  // LIB_DIALECT_TENSOREXT_IR_TENSOREXTOPS_TD_
