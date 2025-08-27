@@ -230,6 +230,7 @@ def ModArith_SubIfGEOp : ModArith_Op<"subifge", [SameOperandsAndResultType]> {
   let assemblyFormat = "operands attr-dict `:` qualified(type($output))";
 }
 
+// TODO (Cleanup): Move this to RNS dialect?
 def ModArith_FastBasisConversionOp : ModArith_Op<"fast_basis_conv", [Pure]> {
   let summary = "Fast RNS basis conversion using precomputed constants";
   let description = [{
@@ -244,11 +245,42 @@ def ModArith_FastBasisConversionOp : ModArith_Op<"fast_basis_conv", [Pure]> {
 
   let arguments = (ins
     ModArithLike:$input
+    // TargetBasis: Essentially, an !rns.rns type but as an attribute
   );
 
   let results = (outs
     ModArithLike:$output
   );
+}
+
+def ModArith_DecomposeOp : ModArith_Op<"partition", [Pure]> {
+  let summary = "re-partition RNS ";
+  let description = [{
+    Performs simple decomposition of a polynomial's coefficients.
+    Depending on which side rescale pulls off of, should start on the left or right.
+    Probably just a fancy tensor reshape?
+
+    Example:
+    ```mlir
+    %decomposed = polynomial.decompose %poly {partition_size = 3}
+      : !polynomial.polynomial<#ring> -> tensor<3x!polynomial.polynomial<#ring>>
+    ```
+  }];
+
+  let arguments = (ins
+    ModArithLike:$input,
+    I32Attr:$partition_size
+  );
+
+  let results = (outs
+    RankedTensorOf<[Polynomial_PolynomialType]>:$output
+  );
+
+  let assemblyFormat = [{
+    $input attr-dict `:` type($input) `->` type($output)
+  // }];
+
+  // TODO (Cleanup): Add a verifier
 }
 
 #endif  // LIB_DIALECT_MODARITH_IR_MODARITHOPS_TD_
