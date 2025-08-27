@@ -149,6 +149,26 @@ implementRotateAndReduce(const T& vector, std::optional<T> plaintexts,
 
   // Use a value of sqrt(n) as the baby step / giant step size.
   int64_t numBabySteps = static_cast<int64_t>(std::floor(std::sqrt(steps)));
+  if (steps % numBabySteps != 0) {
+    // Find the nearest divisible number to use for baby step
+    // TODO(#2162): determine the right tradeoff here
+    int lower = numBabySteps;
+    int upper = numBabySteps;
+
+    while (steps % lower != 0 && steps % upper != steps) {
+      lower--;
+      upper++;
+    }
+
+    if (steps % lower == 0 && lower > 1) {
+      numBabySteps = lower;
+    } else if (steps % upper == 0) {
+      numBabySteps = upper;
+    } else {
+      numBabySteps = steps;
+    }
+  }
+
   int64_t giantStepSize = numBabySteps;
   int64_t numGiantSteps = steps / numBabySteps;
 

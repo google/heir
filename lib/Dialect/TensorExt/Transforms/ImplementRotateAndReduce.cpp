@@ -49,21 +49,6 @@ LogicalResult convertRotateAndReduceOp(RotateAndReduceOp op) {
   }
 
   TypedValue<RankedTensorType> plaintexts = op.getPlaintexts();
-
-  // Validate divisibility of step size
-  auto babySteps = static_cast<int64_t>(std::floor(std::sqrt(steps)));
-  unsigned giantSteps = steps / babySteps;
-  if (giantSteps * babySteps != steps) {
-    return op.emitOpError()
-           << "requires steps to be a multiple of sqrt(steps), but found "
-              "steps="
-           << steps << " and babySteps=" << babySteps;
-  }
-  LLVM_DEBUG(llvm::dbgs()
-             << "Using baby-step / giant-step decomposition of sum of size "
-             << steps << " with babySteps= " << babySteps
-             << " and giantSteps= " << giantSteps << "\n");
-
   auto plaintextsLeaf = std::optional<SSAValue>(plaintexts);
   implementedKernel =
       implementRotateAndReduce(vectorLeaf, plaintextsLeaf, period, steps);
