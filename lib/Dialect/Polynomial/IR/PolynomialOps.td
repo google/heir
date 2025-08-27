@@ -419,5 +419,69 @@ def Polynomial_KeySwitchInnerOp : Polynomial_Op<"key_switch_inner",
   let hasVerifier = 1;
 }
 
+def Polynomial_DecomposeOp : Polynomial_Op<"decompose", [Pure]> {
+  let summary = "Decompose polynomial coefficients into digit representation";
+  let description = [{
+    Performs gadget decomposition of a polynomial's coefficients into a
+    specified base. This is a key operation in key switching and
+    bootstrapping algorithms.
+
+    The decomposition writes each coefficient as:
+    coeff = d_0 + d_1*base + d_2*base^2 + ... + d_(numLevels-1)*base^(numLevels-1)
+
+    Example:
+    ```mlir
+    %decomposed = polynomial.decompose %poly {base = 2, num_levels = 3}
+      : !polynomial.polynomial<#ring> -> tensor<3x!polynomial.polynomial<#ring>>
+    ```
+  }];
+
+  let arguments = (ins
+    Polynomial_PolynomialType:$input,
+    I32Attr:$base,
+    I32Attr:$num_levels
+  );
+
+  let results = (outs
+    RankedTensorOf<[Polynomial_PolynomialType]>:$output
+  );
+
+  let assemblyFormat = [{
+    $input attr-dict `:` type($input) `->` type($output)
+  }];
+
+  // TODO (Cleanup): Add a verifier
+}
+
+def Polynomial_BaseExtendOp : Polynomial_Op<"base_extend", [Pure]> {
+  let summary = "Extend polynomial to additional RNS bases";
+  let description = [{
+    Extends a polynomial from one RNS basis to another, typically used
+    before modulus switching operations. This is crucial for managing
+    noise growth in key switching.
+
+    Example:
+    ```mlir
+    %extended = polynomial.base_extend %poly, #ring2
+      : !polynomial.polynomial<#ring1> -> !polynomial.polynomial<#ring2>
+    ```
+  }];
+
+  let arguments = (ins
+    Polynomial_PolynomialType:$input,
+    Polynomial_RingAttr:$target_ring
+  );
+
+  let results = (outs
+    Polynomial_PolynomialType:$output
+  );
+
+  let assemblyFormat = [{
+    $input `,` $target_ring attr-dict `:` type($input) `->` type($output)
+  }];
+
+  // TODO (Cleanup): Add a verifier
+}
+
 
 #endif  // LIB_DIALECT_POLYNOMIAL_IR_POLYNOMIALOPS_TD_

@@ -1246,6 +1246,58 @@ struct ConvertINTT : public OpConversionPattern<INTTOp> {
   }
 };
 
+struct ConvertKeySwitchInner
+    : public OpConversionPattern<polynomial::KeySwitchInnerOp> {
+  ConvertKeySwitchInner(mlir::MLIRContext* context)
+      : OpConversionPattern<polynomial::KeySwitchInnerOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      polynomial::KeySwitchInnerOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    auto b = ImplicitLocOpBuilder(op.getLoc(), rewriter);
+
+    // FIXME: Implement
+
+    return failure();
+  }
+};
+
+struct ConvertDecompose : public OpConversionPattern<DecomposeOp> {
+  ConvertDecompose(mlir::MLIRContext* context)
+      : OpConversionPattern<DecomposeOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      DecomposeOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    // FIXME: Implement
+
+    return failure();
+  }
+};
+
+struct ConvertBaseExtend : public OpConversionPattern<BaseExtendOp> {
+  ConvertBaseExtend(mlir::MLIRContext* context)
+      : OpConversionPattern<BaseExtendOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      BaseExtendOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    // FIXME: Implement
+
+    return failure();
+  }
+};
+
 void PolynomialToModArith::runOnOperation() {
   MLIRContext* context = &getContext();
 
@@ -1293,7 +1345,8 @@ void PolynomialToModArith::runOnOperation() {
                ConvertPolyBinop<AddOp, arith::AddIOp, mod_arith::AddOp>,
                ConvertPolyBinop<SubOp, arith::SubIOp, mod_arith::SubOp>,
                ConvertLeadingTerm, ConvertMonomial, ConvertMonicMonomialMul,
-               ConvertConstant, ConvertMulScalar, ConvertNTT, ConvertINTT>(
+               ConvertConstant, ConvertMulScalar, ConvertNTT, ConvertINTT,
+               ConvertKeySwitchInner, ConvertDecompose, ConvertBaseExtend>(
       typeConverter, context);
   patterns.add<ConvertMul>(typeConverter, patterns.getContext(), getDivmodOp);
   addStructuralConversionPatterns(typeConverter, patterns, target);

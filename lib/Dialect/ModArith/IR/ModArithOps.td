@@ -230,4 +230,25 @@ def ModArith_SubIfGEOp : ModArith_Op<"subifge", [SameOperandsAndResultType]> {
   let assemblyFormat = "operands attr-dict `:` qualified(type($output))";
 }
 
+def ModArith_FastBasisConversionOp : ModArith_Op<"fast_basis_conv", [Pure]> {
+  let summary = "Fast RNS basis conversion using precomputed constants";
+  let description = [{
+    Converts values between RNS bases using the fast basis conversion algorithm.
+
+    Example:
+    ```mlir
+    %converted = mod_arith.fast_basis_conv %input : !mod_arith.mod_int<65537:i32>
+      -> !mod_arith.mod_int<32768:i32>
+    ```
+  }];
+
+  let arguments = (ins
+    ModArithLike:$input
+  );
+
+  let results = (outs
+    ModArithLike:$output
+  );
+}
+
 #endif  // LIB_DIALECT_MODARITH_IR_MODARITHOPS_TD_
