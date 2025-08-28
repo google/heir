@@ -13,8 +13,6 @@ jobs:
   check-cache:
     runs-on:
       labels: ubuntu-22.04-8core
-    outputs:
-      runner: ${{ steps.runner.outputs.runner }}
     steps:
       - name: Check out repository code
         uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
@@ -25,27 +23,15 @@ jobs:
         with:
           path: |
             ~/.cache/bazel
-          key: ${{ runner.os }}-${{ env.ImageVersion }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
+          key: ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
           restore-keys: |
-            ${{ runner.os }}-${{ env.ImageVersion }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-
+            ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-
           lookup-only: true
-      - name: Select runner
-        id: runner
-        env:
-          CACHE_HIT: ${{ steps.cache.outputs.cache-hit  == 'true' }}
-        run: |
-          set -euo pipefail
-
-          if [[ "${CACHE_HIT}" == "true" ]]; then
-            echo "runner=ubuntu-22.04-8core" >> "$GITHUB_OUTPUT"
-          else
-            echo "runner=ubuntu-22.04-32core" >> "$GITHUB_OUTPUT"
-          fi
 
   build-and-deploy:
     needs: check-cache
     runs-on:
-      labels: ${{ needs.check-cache.outputs.runner }}
+      labels: ubuntu-22.04-32core
     permissions:
       contents: write
     steps:
@@ -58,9 +44,9 @@ jobs:
       with:
         path: |
           ~/.cache/bazel
-        key: ${{ runner.os }}-${{ env.ImageVersion }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
+        key: ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
         restore-keys: |
-          ${{ runner.os }}-${{ env.ImageVersion }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-
+          ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-
 
     # This requires building mlir-tblgen, but may not require a full llvm build
     # as a result. It results in the files being added to their respective
