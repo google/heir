@@ -16,6 +16,7 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/AssignLayout.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/TypeConversion.h"
+#include "lib/Transforms/DropUnitDims/DropUnitDims.h"
 #include "lib/Utils/AffineMapUtils.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/ContextAwareConversionUtils.h"
@@ -27,6 +28,7 @@
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/ArrayRef.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"      // from @llvm-project
 #include "llvm/include/llvm/ADT/StringExtras.h"     // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
@@ -47,13 +49,13 @@
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/OperationSupport.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
-#include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
 
 #define DEBUG_TYPE "convert-to-ciphertext-semantics"
 
@@ -1357,7 +1359,6 @@ class ConvertExpandShape
     if (!sourceLayout) {
       return op.emitError() << "failed to fetch new layout attribute for input";
     }
-    op.dump();
 
     if (resultType != srcType) {
       return rewriter.notifyMatchFailure(
@@ -1381,6 +1382,99 @@ class ConvertExpandShape
                                resultLayout);
 
     rewriter.replaceOp(op, castOp);
+    return success();
+  }
+};
+
+struct DropRotateUnitDims : OpRewritePattern<tensor_ext::RotateOp> {
+  using OpRewritePattern<tensor_ext::RotateOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(tensor_ext::RotateOp rotateOp,
+                                PatternRewriter& rewriter) const override {
+    SmallVector<int64_t> operandUnitDims =
+        getUnitDims(rotateOp.getTensor().getType());
+    if (operandUnitDims.empty()) {
+      LLVM_DEBUG(llvm::dbgs() << "no unit dims to drop");
+      return failure();
+    }
+
+    SmallVector<Value> collapsedOperands =
+        collapseOperands(rewriter, {rotateOp.getTensor()}, operandUnitDims);
+
+    tensor_ext::RotateOp collapsedOp = tensor_ext::RotateOp::create(
+        rewriter, rotateOp.getLoc(), collapsedOperands[0], rotateOp.getShift());
+    rewriter.replaceOp(rotateOp, expandResult(rewriter, collapsedOp.getResult(),
+                                              rotateOp.getOutput().getType(),
+                                              operandUnitDims));
+    return success();
+  }
+};
+
+struct DropRotateAndReduceUnitDims
+    : OpRewritePattern<tensor_ext::RotateAndReduceOp> {
+  using OpRewritePattern<tensor_ext::RotateAndReduceOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(tensor_ext::RotateAndReduceOp rotateOp,
+                                PatternRewriter& rewriter) const override {
+    SmallVector<int64_t> operandUnitDims =
+        getUnitDims(rotateOp.getTensor().getType());
+    if (operandUnitDims.empty()) {
+      LLVM_DEBUG(llvm::dbgs() << "no unit dims to drop");
+      return failure();
+    }
+
+    SmallVector<Value> collapsedOperands =
+        collapseOperands(rewriter, {rotateOp.getTensor()}, operandUnitDims);
+
+    auto collapsedOp = tensor_ext::RotateAndReduceOp::create(
+        rewriter, rotateOp.getLoc(), collapsedOperands[0],
+        rotateOp.getPlaintexts(), rotateOp.getPeriod(), rotateOp.getSteps());
+    rewriter.replaceOp(rotateOp, expandResult(rewriter, collapsedOp.getResult(),
+                                              rotateOp.getOutput().getType(),
+                                              operandUnitDims));
+    return success();
+  }
+};
+
+struct DropElementwiseUnitDims : OpTraitRewritePattern<OpTrait::Elementwise> {
+  explicit DropElementwiseUnitDims(MLIRContext* context)
+      : OpTraitRewritePattern(context) {}
+
+  LogicalResult matchAndRewrite(mlir::Operation* op,
+                                PatternRewriter& rewriter) const override {
+    // Ensure that all operands and results have the same type.
+    SmallVector<Type> operandAndResultTypes =
+        llvm::to_vector(op->getOperandTypes());
+    operandAndResultTypes.append(op->getResultTypes().begin(),
+                                 op->getResultTypes().end());
+    if (!llvm::all_equal(operandAndResultTypes) || op->getNumOperands() == 0 ||
+        op->getNumResults() != 1) {
+      return failure();
+    }
+
+    auto tensorType = dyn_cast<RankedTensorType>(op->getOperand(0).getType());
+    if (!tensorType) {
+      return failure();
+    }
+
+    SmallVector<int64_t> operandUnitDims = getUnitDims(tensorType);
+    if (operandUnitDims.empty()) {
+      LLVM_DEBUG(llvm::dbgs() << "no unit dims to drop");
+      return failure();
+    }
+
+    SmallVector<Value> collapsedOperands = collapseOperands(
+        rewriter, llvm::to_vector(op->getOperands()), operandUnitDims);
+
+    Type resultType = collapsedOperands[0].getType();
+    Operation* collapsedOp = rewriter.create(OperationState(
+        op->getLoc(), op->getName().getStringRef(), collapsedOperands,
+        resultType, op->getAttrs(), op->getSuccessors()));
+
+    rewriter.replaceOp(
+        op, expandResult(rewriter, collapsedOp->getResults()[0],
+                         cast<RankedTensorType>(op->getResult(0).getType()),
+                         operandUnitDims));
     return success();
   }
 };
@@ -1425,6 +1519,10 @@ struct ConvertToCiphertextSemantics
     // Note ConvertAssignLayout generates tensor.concat
     RewritePatternSet cleanupPatterns2(context);
     tensor::populateDecomposeTensorConcatPatterns(cleanupPatterns2);
+    // Drop unit dimensions for tensor_ext ops that require 1-D tensors (i.e.
+    // rotation ops) and elementwise ops.
+    cleanupPatterns2.add<DropRotateUnitDims, DropRotateAndReduceUnitDims,
+                         DropElementwiseUnitDims>(context);
     // Folding here will remove any unrealized conversion cast ops that were
     // inserted to persist new layouts.
     if (failed(applyPatternsGreedily(module, std::move(cleanupPatterns2)))) {

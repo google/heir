@@ -37,11 +37,9 @@ namespace heir {
 
 namespace {
 
-/// Collapse the given `value` so that the type matches the type of
-/// `origOutput`.
-static Value collapseValue(RewriterBase& rewriter, Location loc, Value operand,
-                           ArrayRef<int64_t> targetShape,
-                           ArrayRef<ReassociationIndices> reassociation) {
+Value collapseValue(RewriterBase& rewriter, Location loc, Value operand,
+                    ArrayRef<int64_t> targetShape,
+                    ArrayRef<ReassociationIndices> reassociation) {
   auto tensorType = cast<RankedTensorType>(operand.getType());
   auto targetType =
       RankedTensorType::get(targetShape, tensorType.getElementType());
@@ -49,9 +47,20 @@ static Value collapseValue(RewriterBase& rewriter, Location loc, Value operand,
                                          reassociation);
 }
 
-/// Returns a collapsed `val` where the collapsing occurs at dims in positions.
-static Value collapseDimsAt(PatternRewriter& rewriter, Value val,
-                            ArrayRef<int64_t> positions) {
+}  // namespace
+
+SmallVector<int64_t> getUnitDims(ShapedType type) {
+  SmallVector<int64_t> unitDims;
+  for (int64_t i = 0; i < type.getRank(); ++i) {
+    if (type.getDimSize(i) == 1) {
+      unitDims.push_back(i);
+    }
+  }
+  return unitDims;
+}
+
+Value collapseDimsAt(PatternRewriter& rewriter, Value val,
+                     ArrayRef<int64_t> positions) {
   auto valType = cast<ShapedType>(val.getType());
   SmallVector<int64_t> collapsedShape(valType.getShape());
   for (int64_t pos : llvm::reverse(positions)) {
@@ -62,7 +71,22 @@ static Value collapseDimsAt(PatternRewriter& rewriter, Value val,
       getReassociationForReshapeAtDim(valType.getRank(), positions));
 }
 
-}  // namespace
+/// Collapse all collapsible operands.
+SmallVector<Value> collapseOperands(PatternRewriter& rewriter,
+                                    ArrayRef<Value> operands,
+                                    ArrayRef<int64_t> collapseDims) {
+  return llvm::map_to_vector(operands, [&](auto operand) {
+    return collapseDimsAt(rewriter, operand, collapseDims);
+  });
+}
+
+/// Expand result tensor.
+Value expandResult(PatternRewriter& rewriter, Value result,
+                   RankedTensorType expandedType, SmallVector<int64_t> dims) {
+  return tensor::ExpandShapeOp::create(
+      rewriter, result.getLoc(), expandedType, result,
+      getReassociationForReshapeAtDim(expandedType.getRank(), dims));
+}
 
 // Drop unit dims on linalg.map operations that perform a single elementwise
 // operation. This will only drop batch dims (leading unit dimensions). This
@@ -71,24 +95,6 @@ static Value collapseDimsAt(PatternRewriter& rewriter, Value val,
 // heavily simplified.
 struct ReduceLinalgMap : OpRewritePattern<linalg::MapOp> {
   using OpRewritePattern<linalg::MapOp>::OpRewritePattern;
-
-  /// Collapse all collapsible operands.
-  SmallVector<Value> collapseOperands(PatternRewriter& rewriter,
-                                      ArrayRef<Value> operands,
-                                      ArrayRef<int64_t> collapseDims) const {
-    return llvm::map_to_vector(operands, [&](auto operand) {
-      return collapseDimsAt(rewriter, operand, collapseDims);
-    });
-  }
-
-  /// Expand result tensor.
-  Value expandResult(PatternRewriter& rewriter, Value result,
-                     RankedTensorType expandedType,
-                     SmallVector<int64_t> dims) const {
-    return tensor::ExpandShapeOp::create(
-        rewriter, result.getLoc(), expandedType, result,
-        getReassociationForReshapeAtDim(expandedType.getRank(), dims));
-  }
 
   LogicalResult matchAndRewrite(linalg::MapOp mapOp,
                                 PatternRewriter& rewriter) const override {
@@ -114,14 +120,8 @@ struct ReduceLinalgMap : OpRewritePattern<linalg::MapOp> {
 
     // Check for unit dims in the output shape. A map op requires all inputs and
     // outputs have the same shape.
-    auto outputShape = mapOp.getInit().getType().getShape();
-    SmallVector<int64_t> operandUnitDims;
-    for (int64_t i = 0; i < outputShape.size(); ++i) {
-      if (outputShape[i] == 1) {
-        operandUnitDims.push_back(i);
-      }
-    }
-
+    SmallVector<int64_t> operandUnitDims =
+        getUnitDims(mapOp.getInit().getType());
     if (operandUnitDims.empty()) {
       LLVM_DEBUG(llvm::dbgs() << "no unit dims to drop");
       return failure();

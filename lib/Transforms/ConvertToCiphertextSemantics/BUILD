@@ -16,6 +16,7 @@ cc_library(
         ":pass_inc_gen",
         "@heir//lib/Dialect/Secret/IR:SecretPatterns",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Transforms/DropUnitDims",
         "@heir//lib/Utils",
         "@heir//lib/Utils:AffineMapUtils",
         "@heir//lib/Utils:AttributeUtils",
