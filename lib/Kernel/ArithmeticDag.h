@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <unordered_map>
 #include <utility>
@@ -10,6 +11,7 @@
 
 namespace mlir {
 namespace heir {
+namespace kernel {
 
 // This file contains a generic DAG structure that can be used for representing
 // arithmetic DAGs with leaf nodes of various types.
@@ -53,7 +55,7 @@ struct PowerNode {
 template <typename T>
 struct LeftRotateNode {
   std::shared_ptr<ArithmeticDagNode<T>> operand;
-  size_t shift;
+  int64_t shift;
 };
 
 template <typename T>
@@ -141,7 +143,7 @@ struct ArithmeticDagNode {
   }
 
   static std::shared_ptr<ArithmeticDagNode<T>> leftRotate(
-      std::shared_ptr<ArithmeticDagNode<T>> tensor, size_t shift) {
+      std::shared_ptr<ArithmeticDagNode<T>> tensor, int64_t shift) {
     assert(tensor && "invalid tensor for leftRotate");
     auto node =
         std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
@@ -213,40 +215,49 @@ class CachingVisitor {
 
   virtual ResultType operator()(const ConstantNode& node) {
     assert(false && "Visit logic for ConstantNode is not implemented.");
+    return ResultType();
   }
 
   virtual ResultType operator()(const LeafNode<T>& node) {
     assert(false && "Visit logic for LeafNode is not implemented.");
+    return ResultType();
   }
 
   virtual ResultType operator()(const AddNode<T>& node) {
     assert(false && "Visit logic for AddNode is not implemented.");
+    return ResultType();
   }
 
   virtual ResultType operator()(const SubtractNode<T>& node) {
     assert(false && "Visit logic for SubtractNode is not implemented.");
+    return ResultType();
   }
 
   virtual ResultType operator()(const MultiplyNode<T>& node) {
     assert(false && "Visit logic for MultiplyNode is not implemented.");
+    return ResultType();
   }
 
   virtual ResultType operator()(const PowerNode<T>& node) {
     assert(false && "Visit logic for PowerNode is not implemented.");
+    return ResultType();
   }
 
   virtual ResultType operator()(const LeftRotateNode<T>& node) {
     assert(false && "Visit logic for LeftRotateNode is not implemented.");
+    return ResultType();
   }
 
   virtual ResultType operator()(const ExtractNode<T>& node) {
     assert(false && "Visit logic for ExtractNode is not implemented.");
+    return ResultType();
   }
 
  private:
   std::unordered_map<const ArithmeticDagNode<T>*, ResultType> cache;
 };
 
+}  // namespace kernel
 }  // namespace heir
 }  // namespace mlir
 

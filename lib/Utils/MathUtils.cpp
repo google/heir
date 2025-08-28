@@ -2,6 +2,9 @@
 
 #include <cmath>
 
+#include "llvm/include/llvm/ADT/APFloat.h"   // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
+
 namespace mlir {
 namespace heir {
 
@@ -34,6 +37,17 @@ double erfinv(double a) {
   }
   r = a * p;
   return r;
+}
+
+APFloat convertFloatToSemantics(APFloat value,
+                                const llvm::fltSemantics& semantics) {
+  if (&value.getSemantics() == &semantics) {
+    return value;
+  }
+  bool losesInfo = false;
+  APFloat converted = value;
+  converted.convert(semantics, APFloat::rmNearestTiesToEven, &losesInfo);
+  return converted;
 }
 
 }  // namespace heir

@@ -1,15 +1,22 @@
 #include <algorithm>
-#include <cassert>
 #include <vector>
 
 #include "gtest/gtest.h"  // from @googletest
-#include "lib/Utils/ArithmeticDag.h"
+#include "lib/Kernel/ArithmeticDag.h"
 #include "lib/Utils/Polynomial/ChebyshevPatersonStockmeyer.h"
 
 namespace mlir {
 namespace heir {
 namespace polynomial {
 namespace {
+
+using kernel::AddNode;
+using kernel::ArithmeticDagNode;
+using kernel::CachingVisitor;
+using kernel::ConstantNode;
+using kernel::LeafNode;
+using kernel::MultiplyNode;
+using kernel::SubtractNode;
 
 class EvalVisitor : public CachingVisitor<double, double> {
  public:

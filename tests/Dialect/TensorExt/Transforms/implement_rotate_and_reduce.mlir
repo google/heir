@@ -1,4 +1,4 @@
-// RUN: heir-opt --implement-rotate-and-reduce --canonicalize --cse --sccp %s -split-input-file | FileCheck %s
+// RUN: heir-opt --implement-rotate-and-reduce --canonicalize --cse --sccp %s | FileCheck %s
 
 // CHECK: @test_halevi_shoup_reduction
 // CHECK-SAME: %[[arg0:.*]]: tensor<16xi32>, %[[arg1:.*]]: tensor<16x16xi32>
@@ -6,18 +6,20 @@
 // CHECK-DAG: %[[c8:.*]] = arith.constant 8 : index
 // CHECK-DAG: %[[c4:.*]] = arith.constant 4 : index
 
-// Baby step giant step should reduce the number of ciphertext rotations to 3 (shifts of 0, 1, 2, 3)
-// CHECK-COUNT-3: tensor_ext.rotate %[[arg0]]
 
 // Giant steps (chunked in four) will also need 3 rotations to align the sums.
 // Each giant step consists of 4 plaintext extractions. muls, and rotates
 
-// First chunk of 4 baby steps doesn't rotate the plaintext or the result
+// Baby step giant step should reduce the number of ciphertext rotations to 3 (shifts of 0, 1, 2, 3)
+// First chunk of 4 baby steps is interleaved with the initial rotations.
 // CHECK: arith.muli
+// CHECK: tensor_ext.rotate %[[arg0]]
 // CHECK: arith.muli
 // CHECK: arith.addi
+// CHECK: tensor_ext.rotate %[[arg0]]
 // CHECK: arith.muli
 // CHECK: arith.addi
+// CHECK: tensor_ext.rotate %[[arg0]]
 // CHECK: arith.muli
 // CHECK: arith.addi
 

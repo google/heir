@@ -7,6 +7,38 @@ package(
 )
 
 cc_library(
+    name = "ArithmeticDag",
+    srcs = ["ArithmeticDag.h"],
+    hdrs = ["ArithmeticDag.h"],
+)
+
+cc_test(
+    name = "ArithmeticDagTest",
+    srcs = ["ArithmeticDagTest.cpp"],
+    deps = [
+        ":ArithmeticDag",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "IRMaterializingVisitor",
+    srcs = ["IRMaterializingVisitor.cpp"],
+    hdrs = ["IRMaterializingVisitor.h"],
+    deps = [
+        ":ArithmeticDag",
+        ":KernelImplementation",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Utils:MathUtils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
+    ],
+)
+
+cc_library(
     name = "Kernel",
     srcs = ["Kernel.cpp"],
     hdrs = [
@@ -22,23 +54,37 @@ cc_library(
 
 cc_library(
     name = "KernelImplementation",
-    srcs = ["KernelImplementation.cpp"],
     hdrs = ["KernelImplementation.h"],
     deps = [
+        ":ArithmeticDag",
         ":Kernel",
-        "@heir//lib/Utils:ArithmeticDag",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
+    ],
+)
+
+cc_library(
+    name = "TestingUtils",
+    srcs = ["TestingUtils.cpp"],
+    hdrs = ["TestingUtils.h"],
+    deps = [
+        ":ArithmeticDag",
+        ":KernelImplementation",
     ],
 )
 
 cc_test(
     name = "KernelImplementationTest",
-    srcs = ["KernelImplementationTest.cpp"],
+    srcs = [
+        "KernelImplementationTest.cpp",
+        "RotateAndReduceImplTest.cpp",
+    ],
     deps = [
+        ":ArithmeticDag",
         ":Kernel",
         ":KernelImplementation",
+        ":TestingUtils",
         "@googletest//:gtest_main",
-        "@heir//lib/Utils:ArithmeticDag",
-        "@llvm-project//mlir:IR",
     ],
 )

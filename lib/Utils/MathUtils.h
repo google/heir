@@ -3,6 +3,9 @@
 
 #include <cstdint>
 
+#include "llvm/include/llvm/ADT/APFloat.h"   // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
+
 namespace mlir {
 namespace heir {
 
@@ -23,6 +26,10 @@ inline uint64_t nextPowerOfTwo(uint64_t v) {
 }
 
 inline bool isPowerOfTwo(int64_t n) { return (n > 0) && ((n & (n - 1)) == 0); }
+
+// Convert an input APFloat to the given semantics
+APFloat convertFloatToSemantics(APFloat value,
+                                const llvm::fltSemantics& semantics);
 
 }  // namespace heir
 }  // namespace mlir

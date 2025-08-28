@@ -6,10 +6,11 @@
 #include <string>
 
 #include "gtest/gtest.h"  // from @googletest
-#include "lib/Utils/ArithmeticDag.h"
+#include "lib/Kernel/ArithmeticDag.h"
 
 namespace mlir {
 namespace heir {
+namespace kernel {
 namespace {
 
 using StringLeavedDag = ArithmeticDagNode<std::string>;
@@ -154,5 +155,6 @@ TEST(ArithmeticDagTest, TestEvaluationVisitorSubstract) {
 }
 
 }  // namespace
+}  // namespace kernel
 }  // namespace heir
 }  // namespace mlir
