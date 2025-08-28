@@ -1249,6 +1249,43 @@ struct ConvertToCiphertextSemantics
 
     RewritePatternSet patterns(context);
     ConversionTarget target(*context);
+
+    // check for invalid types on values and bail out of the pass
+    auto isValidValue = [&](const Value value) -> LogicalResult {
+      auto contextualAttr = typeConverter.getContextualAttr(value);
+      // skip arith.constant, mulf,addf, muli, addi operators.
+      mlir::Operation* defOp = value.getDefiningOp();
+      if (defOp) {
+        if (llvm::isa<arith::ConstantOp>(defOp)) return success();
+        if (llvm::isa<arith::AddFOp, arith::MulFOp, arith::AddIOp,
+                      arith::MulIOp>(defOp)) {
+          return success();
+        }
+      } else {
+        // must be argument type...
+        if (value.getType().isIntOrIndexOrFloat()) {
+          return success();
+        }
+      }
+
+      if (failed(contextualAttr)) {
+        module->emitError() << "invalid attribute at value:";
+        value.dump();
+        return failure();
+      }
+      Type result =
+          typeConverter.convertType(value.getType(), contextualAttr.value());
+      if (!result) {
+        module->emitError() << "type cannot be converted by type-converter:";
+        value.dump();
+      }
+      return result != nullptr ? success() : failure();
+    };
+    if (!walkAndValidateValues(module, isValidValue).succeeded()) {
+      module->emitError() << "invalid type in module";
+      return signalPassFailure();
+    }
+
     target.markUnknownOpDynamicallyLegal([&](Operation* op) {
       return isa<ModuleOp>(op) || hasMaterializedAttr(op);
     });
