@@ -4,8 +4,9 @@
 #include <cstdint>
 
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"     // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/Utils/Utils.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"            // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"               // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -39,6 +40,22 @@ bool isRelationSquatDiagonal(RankedTensorType matrixType,
 // vector type and slot size.
 bool isRelationRowMajor(RankedTensorType vectorType, int64_t numSlots,
                         presburger::IntegerRelation relation);
+
+// Returns a new IntegerRelation that is the same as the given relation, but
+// with the given dimensions collapsed. This expects that the reassociation
+// indices result in a rank-reduction of the source type (i.e. the collapsed
+// dimensions are all unit dimensions).
+presburger::IntegerRelation collapseDimensions(
+    presburger::IntegerRelation relation, RankedTensorType sourceType,
+    SmallVector<ReassociationIndices> reassociation);
+
+// Returns a new IntegerRelation that is the same as the given relation, but
+// with the given dimensions expanded. This expects that the reassociation
+// indices result in a rank-expansion of the result type (i.e. the expanded
+// dimensions are all unit dimensions).
+presburger::IntegerRelation expandDimensions(
+    presburger::IntegerRelation relation, RankedTensorType resultType,
+    SmallVector<ReassociationIndices> reassociation);
 
 }  // namespace heir
 }  // namespace mlir

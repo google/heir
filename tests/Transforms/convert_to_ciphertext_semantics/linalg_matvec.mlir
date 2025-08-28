@@ -15,9 +15,12 @@
 func.func @matvec_constant_matrix(
     %arg0: !secret.secret<tensor<16xi16>> {tensor_ext.layout = #vec_layout}) ->
        (!secret.secret<tensor<16xi16>> {tensor_ext.layout = #vec_layout}) {
-  // CHECK: [[cst:%[^ ]+]] = arith.constant dense<1> : tensor<16x16xi16>
+  // CHECK-DAG: [[c0:[^ ]*]] = arith.constant 0 : i64
+  // CHECK-DAG: [[c1:[^ ]*]] = arith.constant 1 : i64
+  // CHECK-DAG: [[cst:%[^ ]+]] = arith.constant dense<1> : tensor<16x16xi16>
+  // CHECK-DAG: [[enc_matrix_out:%[^ ]+]] = arith.constant dense<0> : tensor<16x16xi16>
   %cst = arith.constant dense<1> : tensor<16x16xi16>
-  // CHECK: [[loop_init:%[^ ]+]] = arith.constant dense<0> : tensor<16xi16>
+  // CHECK-DAG: [[loop_init:%[^ ]+]] = arith.constant dense<0> : tensor<16xi16>
   %out = arith.constant dense<0> : tensor<16xi16>
 
   // CHECK: [[output:%[^ ]+]] = secret.generic
@@ -26,13 +29,11 @@ func.func @matvec_constant_matrix(
   // CHECK: ^body([[clear_arg0:%[^ ]+]]: tensor<16xi16>):
   ^body(%input0: tensor<16xi16>):
     // Apply the row-major encoding
-    // CHECK: [[enc_vec_out:%[^ ]+]] = arith.constant dense<0> : tensor<16xi16>
     // CHECK: [[enc_vec:%[^ ]+]] = linalg.generic
     // CHECK-SAME: [[loop_init]]
     %enc_out = tensor_ext.assign_layout %out {layout = #vec_layout, tensor_ext.layout = #vec_layout} : tensor<16xi16>
 
     // Apply the diagonal encoding
-    // CHECK: [[enc_matrix_out:%[^ ]+]] = arith.constant dense<0> : tensor<16x16xi16>
     // CHECK: [[enc_matrix:%[^ ]+]] = linalg.generic
     // CHECK-SAME: indexing_maps = [
     // CHECK-SAME: [[row_major_indexing_map]],
@@ -46,97 +47,81 @@ func.func @matvec_constant_matrix(
     // Now the Halevi-Shoup kernel
 
     // 16 iterations, unrolled
-    // CHECK: [[c0:[^ ]*]] = arith.constant 0
-    // CHECK-NEXT: [[rotated:[^ ]*]] = tensor_ext.rotate [[clear_arg0]], [[c0]]
+    // CHECK: [[rotated:[^ ]*]] = tensor_ext.rotate [[clear_arg0]], [[c0]]
     // CHECK-NEXT: [[row:[^ ]*]] = tensor.extract_slice
     // CHECK-NEXT: [[muled:[^ ]*]] = arith.muli [[rotated]], [[row]]
     // CHECK-NEXT: [[added:[^ ]*]] = arith.addi [[enc_vec]], [[muled]]
 
-    // CHECK: [[c1:[^ ]*]] = arith.constant 1
     // CHECK-NEXT: tensor_ext.rotate [[clear_arg0]], [[c1]]
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
-    // CHECK: arith.constant 2
     // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
-    // CHECK: arith.constant 3
     // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
-    // CHECK: arith.constant 4
     // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
-    // CHECK: arith.constant 5
     // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
-    // CHECK: arith.constant 6
     // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
-    // CHECK: arith.constant 7
     // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
-    // CHECK: arith.constant 8
     // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
-    // CHECK: arith.constant 9
     // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
-    // CHECK: arith.constant 10
     // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
-    // CHECK: arith.constant 11
     // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
-    // CHECK: arith.constant 12
     // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
-    // CHECK: arith.constant 13
     // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
-    // CHECK: arith.constant 14
     // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
-    // CHECK: arith.constant 15
     // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
@@ -167,20 +152,25 @@ func.func @matvec_constant_matrix(
 func.func @squat(
     %arg0: !secret.secret<tensor<16xi16>> {tensor_ext.layout = #input_vec_layout}) ->
        (!secret.secret<tensor<4xi16>> {tensor_ext.layout = #output_vec_layout}) {
-  // CHECK: [[cst:%[^ ]+]] = arith.constant dense<1> : tensor<4x16xi16>
+  // CHECK-DAG: [[c8:%[^ ]*]] = arith.constant 8
+  // CHECK-DAG: [[c4:%[^ ]*]] = arith.constant 4
+  // CHECK-DAG: [[mask_zeros:%[^ ]*]] = arith.constant dense<0> : tensor<16xi16>
+  // CHECK-DAG: [[mask_ones:%[^ ]*]] = arith.constant dense<1> : tensor<4xi16>
+  // CHECK-DAG: [[cst:%[^ ]+]] = arith.constant dense<1> : tensor<4x16xi16>
   %cst = arith.constant dense<1> : tensor<4x16xi16>
-  // CHECK: [[loop_init:%[^ ]+]] = arith.constant dense<0> : tensor<4xi16>
+  // CHECK-DAG: [[loop_init:%[^ ]+]] = arith.constant dense<0> : tensor<4xi16>
   %out = arith.constant dense<0> : tensor<4xi16>
+  // CHECK-DAG: [[enc_matrix_out:%[^ ]+]] = arith.constant dense<0> : tensor<4x16xi16>
 
   // CHECK: [[output:%[^ ]+]] = secret.generic
   // CHECK-SAME: ([[arg0]]
   %0 = secret.generic(%arg0 : !secret.secret<tensor<16xi16>> {tensor_ext.layout = #input_vec_layout}) {
   // CHECK: ^body([[clear_arg0:%[^ ]+]]: tensor<16xi16>):
   ^body(%input0: tensor<16xi16>):
+  // CHECK: linalg.generic
     %enc_out = tensor_ext.assign_layout %out {layout = #output_vec_layout, tensor_ext.layout = #output_vec_layout} : tensor<4xi16>
 
     // Apply the diagonal encoding
-    // CHECK: [[enc_matrix_out:%[^ ]+]] = arith.constant dense<0> : tensor<4x16xi16>
     // CHECK: [[enc_matrix:%[^ ]+]] = linalg.generic
     // CHECK-SAME: indexing_maps = [
     // CHECK-SAME: [[row_major_indexing_map]],
@@ -217,16 +207,12 @@ func.func @squat(
           outs(%enc_out : tensor<4xi16>) -> tensor<4xi16>
 
     // Now the partial reduction step
-    // CHECK-NEXT: [[c8:%[^ ]*]] = arith.constant 8
     // CHECK-NEXT: [[rotated_by_8:%[^ ]*]] = tensor_ext.rotate [[loop_output]], [[c8]]
     // CHECK-NEXT: [[summed1:%[^ ]*]] = arith.addi [[loop_output]], [[rotated_by_8]]
-    // CHECK-NEXT: [[c4:%[^ ]*]] = arith.constant 4
     // CHECK-NEXT: [[rotated_by_4:%[^ ]*]] = tensor_ext.rotate [[summed1]], [[c4]]
     // CHECK-NEXT: [[summed2:%[^ ]*]] = arith.addi [[summed1]], [[rotated_by_4]]
 
     // Now the plaintext mask
-    // CHECK-NEXT: [[mask_zeros:%[^ ]*]] = arith.constant dense<0> : tensor<16xi16>
-    // CHECK-NEXT: [[mask_ones:%[^ ]*]] = arith.constant dense<1> : tensor<4xi16>
     // CHECK-NEXT: [[mask:%[^ ]*]] = tensor.insert_slice [[mask_ones]] into [[mask_zeros]][0] [4] [1]
     // CHECK-NEXT: [[yielded_val:%[^ ]*]] = arith.muli [[summed2]], [[mask]]
 
@@ -248,11 +234,11 @@ func.func @squat(
 
 // CHECK: @f32_padding
 // CHECK-SAME: [[arg0:%[^:]*]]: [[materialized_ty:!secret.secret<tensor<16xf32>>]]
-// CHECK: [[cst:%[^ ]+]] = arith.constant dense<1.000000e+00> : tensor<4x16xf32>
-// CHECK: [[loop_init:%[^ ]+]] = arith.constant dense<0.000000e+00> : tensor<4xf32>
-// CHECK: [[enc_matrix_out:%[^ ]+]] = arith.constant dense<0.000000e+00> : tensor<4x16xf32>
-// CHECK: [[mask_zeros:%[^ ]*]] = arith.constant dense<0.000000e+00> : tensor<16xf32>
-// CHECK: [[mask_ones:%[^ ]*]] = arith.constant dense<1.000000e+00> : tensor<4xf32>
+// CHECK-DAG: [[cst:%[^ ]+]] = arith.constant dense<1.000000e+00> : tensor<4x16xf32>
+// CHECK-DAG: [[loop_init:%[^ ]+]] = arith.constant dense<0.000000e+00> : tensor<4xf32>
+// CHECK-DAG: [[enc_matrix_out:%[^ ]+]] = arith.constant dense<0.000000e+00> : tensor<4x16xf32>
+// CHECK-DAG: [[mask_zeros:%[^ ]*]] = arith.constant dense<0.000000e+00> : tensor<16xf32>
+// CHECK-DAG: [[mask_ones:%[^ ]*]] = arith.constant dense<1.000000e+00> : tensor<4xf32>
 func.func @f32_padding(
     %arg0: !secret.secret<tensor<16xf32>> {tensor_ext.layout = #input_vec_layout}) ->
        (!secret.secret<tensor<4xf32>> {tensor_ext.layout = #output_vec_layout}) {

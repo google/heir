@@ -62,6 +62,7 @@ cc_library(
     deps = [
         "@heir//lib/Utils:MathUtils",
         "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:ArithUtils",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
     ],

@@ -3,12 +3,15 @@
 #include <cassert>
 #include <cmath>
 #include <cstdint>
+#include <memory>
+#include <utility>
 
 #include "lib/Utils/MathUtils.h"
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"     // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/Utils/Utils.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"            // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"               // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -182,6 +185,60 @@ bool isRelationRowMajor(RankedTensorType vectorType, int64_t numSlots,
   IntegerRelation rowMajorRelation =
       getRowMajorLayoutRelation(vectorType, numSlots);
   return relation.isEqual(rowMajorRelation);
+}
+
+presburger::IntegerRelation collapseDimensions(
+    presburger::IntegerRelation relation, RankedTensorType sourceType,
+    SmallVector<ReassociationIndices> reassociation) {
+  std::unique_ptr<IntegerRelation> clonedRelation = relation.clone();
+  for (const ReassociationIndices& associationGroup : reassociation) {
+    // a single-entry association group is a no-op
+    if (associationGroup.size() == 1) {
+      continue;
+    }
+    for (int64_t reassocDim : associationGroup) {
+      if (sourceType.getShape()[reassocDim] == 1) {
+        // Drop this unit dimension
+        clonedRelation->setAndEliminate(reassocDim, 0);
+      }
+    }
+  }
+  return std::move(*clonedRelation);
+}
+
+presburger::IntegerRelation expandDimensions(
+    presburger::IntegerRelation relation, RankedTensorType resultType,
+    SmallVector<ReassociationIndices> reassociation) {
+  // tensor indices correspond to layout dimensions, and adding a dimension of
+  // size 1 has no effect on the affine map expressions, so all we're doing is
+  // adding new dimensions for each reassociation group index corresponding to
+  // an output dimension of size 1. Mainly we have to ensure that the
+  // dimension we're adding is in the correct index of the integer relations
+  // domain variable list.
+  std::unique_ptr<IntegerRelation> clonedRelation = relation.clone();
+  int oldDim = 0;
+  DenseMap<AffineExpr, AffineExpr> oldDimsToNewDims;
+  for (const ReassociationIndices& associationGroup : reassociation) {
+    // a single-entry association group is a no-op
+    if (associationGroup.size() == 1) {
+      ++oldDim;
+      continue;
+    }
+
+    for (int64_t reassocDim : associationGroup) {
+      if (resultType.getShape()[reassocDim] > 1) {
+        ++oldDim;
+      } else {
+        // A new dimension of size 1 is being added, so add a new domain
+        // variable v with 0 <= v < 1.
+        auto newDimIndex = clonedRelation->insertVar(VarKind::Domain, oldDim);
+        clonedRelation->addBound(BoundType::LB, newDimIndex, 0);
+        clonedRelation->addBound(BoundType::UB, newDimIndex, 0);
+        ++oldDim;
+      }
+    }
+  }
+  return std::move(*clonedRelation);
 }
 
 }  // namespace heir

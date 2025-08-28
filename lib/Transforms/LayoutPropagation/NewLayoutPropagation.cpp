@@ -363,26 +363,12 @@ LogicalResult NewLayoutPropagation::visitOperation(CollapseShapeOp op) {
   auto tensor = op.getSrc();
   NewLayoutAttr inputLayout = assignedLayouts.at(tensor);
   IntegerRelation relation = inputLayout.getIntegerRelation();
-  std::unique_ptr<IntegerRelation> clonedRelation = relation.clone();
-
-  for (Attribute associationGroup : op.getReassociation()) {
-    auto associationArray = dyn_cast<ArrayAttr>(associationGroup).getValue();
-    // a single-entry association group is a no-op
-    if (associationArray.size() == 1) {
-      continue;
-    }
-    for (Attribute association : associationArray) {
-      int64_t reassocDim = cast<IntegerAttr>(association).getInt();
-      if (op.getSrcType().getShape()[reassocDim] == 1) {
-        // Drop this unit dimension
-        clonedRelation->setAndEliminate(reassocDim, 0);
-      }
-    }
-  }
+  IntegerRelation collapsedRelation = collapseDimensions(
+      relation, op.getSrcType(), op.getReassociationIndices());
 
   MLIRContext* ctx = &getContext();
   NewLayoutAttr resultLayoutAttr =
-      NewLayoutAttr::getFromIntegerRelation(ctx, *clonedRelation);
+      NewLayoutAttr::getFromIntegerRelation(ctx, collapsedRelation);
 
   assignedLayouts.insert({op.getResult(), resultLayoutAttr});
   setResultLayoutAttr(op);
@@ -402,42 +388,12 @@ LogicalResult NewLayoutPropagation::visitOperation(ExpandShapeOp op) {
   auto tensor = op.getSrc();
   NewLayoutAttr inputLayout = assignedLayouts.at(tensor);
   IntegerRelation relation = inputLayout.getIntegerRelation();
-  std::unique_ptr<IntegerRelation> clonedRelation = relation.clone();
-
-  // tensor indices correspond to layout dimensions, and adding a dimension of
-  // size 1 has no effect on the affine map expressions, so all we're doing is
-  // adding new dimensions for each reassociation group index corresponding to
-  // an output dimension of size 1. Mainly we have to ensure that the
-  // dimension we're adding is in the correct index of the integer relations
-  // domain variable list.
-  int oldDim = 0;
-  DenseMap<AffineExpr, AffineExpr> oldDimsToNewDims;
-  for (Attribute associationGroup : op.getReassociation()) {
-    auto associationArray = dyn_cast<ArrayAttr>(associationGroup).getValue();
-    // a single-entry association group is a no-op
-    if (associationArray.size() == 1) {
-      ++oldDim;
-      continue;
-    }
-
-    for (Attribute association : associationArray) {
-      int64_t reassocDim = cast<IntegerAttr>(association).getInt();
-      if (op.getResultType().getShape()[reassocDim] > 1) {
-        ++oldDim;
-      } else {
-        // A new dimension of size 1 is being added, so add a new domain
-        // variable v with 0 <= v < 1.
-        auto newDimIndex = clonedRelation->insertVar(VarKind::Domain, oldDim);
-        clonedRelation->addBound(BoundType::LB, newDimIndex, 0);
-        clonedRelation->addBound(BoundType::UB, newDimIndex, 0);
-        ++oldDim;
-      }
-    }
-  }
+  IntegerRelation expandedRelation = expandDimensions(
+      relation, op.getResultType(), op.getReassociationIndices());
 
   MLIRContext* ctx = &getContext();
   NewLayoutAttr resultLayoutAttr =
-      NewLayoutAttr::getFromIntegerRelation(ctx, *clonedRelation);
+      NewLayoutAttr::getFromIntegerRelation(ctx, expandedRelation);
 
   assignedLayouts.insert({op.getResult(), resultLayoutAttr});
   setResultLayoutAttr(op);

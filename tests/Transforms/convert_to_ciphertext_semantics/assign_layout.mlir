@@ -31,9 +31,8 @@ func.func @repeat_vector() {
 func.func @prefix_ones() {
   %0 = secret.generic() {
   ^body:
-    // CHECK: [[cst:%[^ ]+]] = arith.constant dense<1>
+    // CHECK: [[cst:%[^ ]+]] = arith.constant dense<1> : tensor<1x1x1x32xi16>
     %v = arith.constant dense<1> : tensor<32xi16>
-    // CHECK: tensor.expand_shape [[cst]] {{\[}}[0, 1, 2, 3]]
     %0 = tensor_ext.assign_layout %v {layout = #layout, tensor_ext.layout = #layout} : tensor<32xi16>
     secret.yield %0 : tensor<32xi16>
   } -> (!secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout})
@@ -50,9 +49,8 @@ func.func @prefix_ones() {
 func.func @suffix_ones() {
   %0 = secret.generic() {
   ^body:
-    // CHECK: [[cst:%[^ ]+]] = arith.constant dense<1>
+    // CHECK: [[cst:%[^ ]+]] = arith.constant dense<1> : tensor<32x1x1x1xi16>
     %v = arith.constant dense<1> : tensor<32xi16>
-    // CHECK: tensor.expand_shape [[cst]] {{\[}}[0, 1, 2, 3]]
     %0 = tensor_ext.assign_layout %v {layout = #layout, tensor_ext.layout = #layout} : tensor<32xi16>
     secret.yield %0 : tensor<32xi16>
   } -> (!secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout})
@@ -74,9 +72,8 @@ func.func @suffix_ones() {
 func.func @prefix_and_suffix_ones() {
   %0 = secret.generic() {
   ^body:
-    // CHECK: [[cst:%[^ ]+]] = arith.constant dense<1>
+    // CHECK: [[cst:%[^ ]+]] = arith.constant dense<1> : tensor<1x1x32x1x1x1x1xi16>
     %v = arith.constant dense<1> : tensor<32xi16>
-    // CHECK: tensor.expand_shape [[cst]] {{\[}}[0, 1, 2, 3, 4, 5, 6]] output_shape {{\[}}1, 1, 32, 1, 1, 1, 1]
     // CHECK-COUNT-31: tensor.insert_slice
     // CHECK: linalg.generic
     %0 = tensor_ext.assign_layout %v {layout = #layout, tensor_ext.layout = #layout} : tensor<32xi16>

@@ -30,6 +30,7 @@
 #include "llvm/include/llvm/ADT/StringExtras.h"     // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
@@ -51,6 +52,7 @@
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
+#include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
 
 #define DEBUG_TYPE "convert-to-ciphertext-semantics"
@@ -869,6 +871,12 @@ struct ConvertLinalgMatvecNewLayout
   using ContextAwareOpConversionPattern<
       linalg::MatvecOp>::ContextAwareOpConversionPattern;
 
+  ConvertLinalgMatvecNewLayout(
+      const ContextAwareTypeConverter& contextAwareTypeConverter,
+      MLIRContext* context)
+      : ContextAwareOpConversionPattern(contextAwareTypeConverter, context,
+                                        /*benefit=*/10) {}
+
   NewLayoutAttr getNewLayoutAttr(Value value) const {
     auto layoutLookup = getTypeConverter()->getContextualAttr(value);
     if (failed(layoutLookup)) {
@@ -1235,6 +1243,148 @@ class ConvertTensorInsert
   }
 };
 
+class ConvertCollapseShape
+    : public ContextAwareOpConversionPattern<tensor::CollapseShapeOp> {
+ public:
+  using ContextAwareOpConversionPattern<
+      tensor::CollapseShapeOp>::ContextAwareOpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      tensor::CollapseShapeOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    // if the layouts are equal (modulo the rank reduction) then this can be a
+    // no-op. check if the layouts are equal after collapsing the dimensions.
+    // then if the input and output types are the same, just replace with input.
+    SliceVerificationResult res =
+        isRankReducedType(op.getSrcType(), op.getResultType());
+    if (res != SliceVerificationResult::Success)
+      return rewriter.notifyMatchFailure(
+          op, "Only rank-reduced types are supported for CollapseShapeOp");
+
+    auto srcType = adaptor.getSrc().getType();
+    FailureOr<Attribute> tensorLayoutResult =
+        getTypeConverter()->getContextualAttr(adaptor.getSrc());
+    if (failed(tensorLayoutResult)) {
+      // If the tensor has no layout, it is a cleartext operation and
+      // can be skipped.
+      setMaterializedAttr(op);
+      return success();
+    }
+    auto tensorLayout = dyn_cast<NewLayoutAttr>(tensorLayoutResult.value());
+    if (!tensorLayout) {
+      return op.emitError() << "failed to fetch new layout attribute for input";
+    }
+    FailureOr<Attribute> resultLayoutResult =
+        getTypeConverter()->getContextualAttr(op.getResult());
+    if (failed(resultLayoutResult)) {
+      return op.emitError() << "failed to fetch layout attribute for input";
+    }
+    NewLayoutAttr resultLayout =
+        dyn_cast<NewLayoutAttr>(resultLayoutResult.value());
+    if (!resultLayout) {
+      return op.emitError() << "failed to fetch new layout attribute for input";
+    }
+    Type resultType =
+        getTypeConverter()->convertType(op.getResultType(), resultLayout);
+
+    if (resultType != srcType) {
+      return rewriter.notifyMatchFailure(
+          op, "result type does not match input type");
+    }
+
+    auto srcRelation = tensorLayout.getIntegerRelation();
+    auto collapsedRelation = collapseDimensions(srcRelation, op.getSrcType(),
+                                                op.getReassociationIndices());
+    if (!collapsedRelation.isEqual(resultLayout.getIntegerRelation())) {
+      return rewriter.notifyMatchFailure(
+          op, "result layout is not equal to input layout");
+    }
+
+    // Put in a no-op unrealized conversion cast operation to persist the new
+    // attribute for downstream ops.
+    auto castOp = rewriter.create<UnrealizedConversionCastOp>(
+        op.getLoc(), resultType, adaptor.getSrc());
+    setMaterializedAttr(castOp);
+    setAttributeAssociatedWith(castOp.getResult(0), kLayoutAttrName,
+                               resultLayout);
+
+    rewriter.replaceOp(op, castOp);
+    return success();
+  }
+};
+
+class ConvertExpandShape
+    : public ContextAwareOpConversionPattern<tensor::ExpandShapeOp> {
+ public:
+  using ContextAwareOpConversionPattern<
+      tensor::ExpandShapeOp>::ContextAwareOpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      tensor::ExpandShapeOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    // if the layouts are equal (modulo the rank reduction) then this can be a
+    // no-op. check if the layouts are equal after collapsing the dimensions.
+    // then if the input and output types are the same, just replace with input.
+    SliceVerificationResult res =
+        isRankReducedType(op.getResultType(), op.getSrcType());
+    if (res != SliceVerificationResult::Success)
+      return rewriter.notifyMatchFailure(
+          op, "Only rank-reduced types are supported for CollapseShapeOp");
+
+    FailureOr<Attribute> resultLayoutResult =
+        getTypeConverter()->getContextualAttr(op.getResult());
+    if (failed(resultLayoutResult)) {
+      return op.emitError() << "failed to fetch layout attribute for input";
+    }
+    NewLayoutAttr resultLayout =
+        dyn_cast<NewLayoutAttr>(resultLayoutResult.value());
+    if (!resultLayout) {
+      return op.emitError() << "failed to fetch new layout attribute for input";
+    }
+    Type resultType =
+        getTypeConverter()->convertType(op.getResultType(), resultLayout);
+
+    auto srcType = adaptor.getSrc().getType();
+    FailureOr<Attribute> sourceLayoutResult =
+        getTypeConverter()->getContextualAttr(adaptor.getSrc());
+    if (failed(sourceLayoutResult)) {
+      // If the tensor has no layout, it is a cleartext operation and
+      // can be skipped.
+      setMaterializedAttr(op);
+      return success();
+    }
+    auto sourceLayout = dyn_cast<NewLayoutAttr>(sourceLayoutResult.value());
+    if (!sourceLayout) {
+      return op.emitError() << "failed to fetch new layout attribute for input";
+    }
+    op.dump();
+
+    if (resultType != srcType) {
+      return rewriter.notifyMatchFailure(
+          op, "result type does not match input type");
+    }
+
+    auto srcRelation = sourceLayout.getIntegerRelation();
+    auto expandedRelation = expandDimensions(srcRelation, op.getResultType(),
+                                             op.getReassociationIndices());
+    if (!expandedRelation.isEqual(resultLayout.getIntegerRelation())) {
+      return rewriter.notifyMatchFailure(
+          op, "result layout is not equal to input layout");
+    }
+
+    // Put in a no-op unrealized conversion cast operation to persist the new
+    // attribute for downstream ops.
+    auto castOp = rewriter.create<UnrealizedConversionCastOp>(
+        op.getLoc(), resultType, adaptor.getSrc());
+    setMaterializedAttr(castOp);
+    setAttributeAssociatedWith(castOp.getResult(0), kLayoutAttrName,
+                               resultLayout);
+
+    rewriter.replaceOp(op, castOp);
+    return success();
+  }
+};
+
 struct ConvertToCiphertextSemantics
     : impl::ConvertToCiphertextSemanticsBase<ConvertToCiphertextSemantics> {
   using ConvertToCiphertextSemanticsBase::ConvertToCiphertextSemanticsBase;
@@ -1261,6 +1411,7 @@ struct ConvertToCiphertextSemantics
                  ConvertLinalgMatvecNewLayout,
                  // tensor ops
                  ConvertTensorExtract, ConvertTensorInsert,
+                 ConvertCollapseShape, ConvertExpandShape,
                  // default
                  ConvertAnyAddingMaterializedAttr>(typeConverter, context);
     patterns.add<ConvertAssignLayout>(typeConverter, context, ciphertextSize);
@@ -1274,7 +1425,11 @@ struct ConvertToCiphertextSemantics
     // Note ConvertAssignLayout generates tensor.concat
     RewritePatternSet cleanupPatterns2(context);
     tensor::populateDecomposeTensorConcatPatterns(cleanupPatterns2);
-    walkAndApplyPatterns(module, std::move(cleanupPatterns2));
+    // Folding here will remove any unrealized conversion cast ops that were
+    // inserted to persist new layouts.
+    if (failed(applyPatternsGreedily(module, std::move(cleanupPatterns2)))) {
+      return signalPassFailure();
+    }
 
     clearAttrs(module, kLayoutAttrName);
     clearAttrs(module, kMaterializedAttrName);
