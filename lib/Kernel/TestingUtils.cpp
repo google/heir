@@ -86,6 +86,9 @@ LiteralValue EvalVisitor::operator()(const LeftRotateNode<LiteralValue>& node) {
   auto operand = this->process(node.operand);
   auto dim = operand.getShape()[0];
   int amount = node.shift;
+  // Normalize amount to be in [0, dim)
+  amount = ((amount % dim) + dim) % dim;
+
   const auto& oVal = operand.getTensor();
   const auto* oVec = std::get_if<std::vector<int>>(&oVal);
   assert(oVec && "unsupported rotate operand");

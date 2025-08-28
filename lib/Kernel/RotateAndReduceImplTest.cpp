@@ -153,6 +153,44 @@ TEST(RotateAndReduceImplTest, TestPeriod2WithNoPlaintext) {
   EXPECT_EQ(expected, actual);
 }
 
+TEST(RotateAndReduceImplTest, TestUnitPeriodWithIndivisibleN10) {
+  int64_t n = 10;
+  int64_t period = 1;
+
+  std::vector<int> vector = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+  std::vector<std::vector<int>> plaintexts = {
+      {1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+      {2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
+      {3, 4, 5, 6, 7, 8, 9, 10, 11, 12},
+      {4, 5, 6, 7, 8, 9, 10, 11, 12, 13},
+      {5, 6, 7, 8, 9, 10, 11, 12, 13, 14},
+      {6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+      {7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
+      {8, 9, 10, 11, 12, 13, 14, 15, 16, 17},
+      {9, 10, 11, 12, 13, 14, 15, 16, 17, 18},
+      {10, 11, 12, 13, 14, 15, 16, 17, 18, 19},
+  };
+
+  std::vector<int> expected = runNaive(vector, plaintexts, period, n);
+  std::vector<int> actual = runImpl(vector, plaintexts, period, n);
+  EXPECT_EQ(expected, actual);
+}
+
+TEST(RotateAndReduceImplTest, TestUnitPeriodWithIndivisibleN6) {
+  int64_t n = 6;
+  int64_t period = 1;
+
+  std::vector<int> vector = {0, 1, 2, 3, 4, 5};
+  std::vector<std::vector<int>> plaintexts = {
+      {1, 2, 3, 4, 5, 6}, {2, 3, 4, 5, 6, 7},  {3, 4, 5, 6, 7, 8},
+      {4, 5, 6, 7, 8, 9}, {5, 6, 7, 8, 9, 10}, {6, 7, 8, 9, 10, 11},
+  };
+
+  std::vector<int> expected = runNaive(vector, plaintexts, period, n);
+  std::vector<int> actual = runImpl(vector, plaintexts, period, n);
+  EXPECT_EQ(expected, actual);
+}
+
 }  // namespace
 }  // namespace kernel
 }  // namespace heir
