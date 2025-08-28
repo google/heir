@@ -14,8 +14,6 @@ jobs:
   check-cache:
     runs-on:
       labels: ubuntu-22.04-8core
-    outputs:
-      runner: ${{ steps.runner.outputs.runner }}
     steps:
       - name: Check out repository code
         uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
@@ -26,50 +24,37 @@ jobs:
         with:
           path: |
             ~/.cache/bazel
-          key: ${{ runner.os }}-${{ env.ImageVersion }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
+          key: ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
           restore-keys: |
-            ${{ runner.os }}-${{ env.ImageVersion }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-
+            ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-
           lookup-only: true
-      - name: Select runner
-        id: runner
-        env:
-          CACHE_HIT: ${{ steps.cache.outputs.cache-hit  == 'true' }}
-        run: |
-          set -euo pipefail
-
-          if [[ "${CACHE_HIT}" == "true" ]]; then
-            echo "runner=ubuntu-22.04-8core" >> "$GITHUB_OUTPUT"
-          else
-            echo "runner=ubuntu-22.04-32core" >> "$GITHUB_OUTPUT"
-          fi
 
   build-and-test:
     needs: check-cache
     runs-on:
-      labels: ${{ needs.check-cache.outputs.runner }}
+      labels: ubuntu-22.04-32core
     steps:
       - name: Install dependencies
         run: |
-          sudo apt-get update
           sudo apt-get install -y libomp-dev
       - name: Check out repository code
         uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
         with:
-          key: ${{ runner.os }}-${{ env.ImageVersion }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
+          key: ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
 
       - name: Cache bazel build artifacts
         uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # pin@v4.2.0
         with:
           path: |
             ~/.cache/bazel
-          key: ${{ runner.os }}-${{ env.ImageVersion }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
+          key: ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
           restore-keys: |
-            ${{ runner.os }}-${{ env.ImageVersion }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-
+            ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-
 
       - name: "Run `bazel build`"
         run: |
-          bazel build --incompatible_strict_action_env -c opt //...
+          bazel build -c opt //...
 
       - name: "Run `bazel test`"
         run: |
-          bazel test --incompatible_strict_action_env -c opt //...
+          bazel test -c opt //...
