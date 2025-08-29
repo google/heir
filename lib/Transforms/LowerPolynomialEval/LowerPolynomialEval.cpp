@@ -25,23 +25,30 @@ struct LowerPolynomialEval
     MLIRContext* context = &getContext();
     RewritePatternSet patterns(context);
 
-    if (method == PolynomialApproximationMethod::Automatic) {
-      patterns.add<LowerViaHorner, LowerViaPatersonStockmeyerChebyshev,
-                   LowerViaPatersonStockmeyerMonomial>(context,
-                                                       /*force=*/false);
-    } else if (method == PolynomialApproximationMethod::Horner) {
-      patterns.add<LowerViaHorner>(context, /*force=*/true);
-    } else if (method == PolynomialApproximationMethod::PatersonStockmeyer) {
-      patterns.add<LowerViaPatersonStockmeyerMonomial>(context,
-                                                       /*force=*/true);
-    } else if (method ==
-               PolynomialApproximationMethod::PatersonStockmeyerChebyshev) {
-      patterns.add<LowerViaPatersonStockmeyerChebyshev>(context,
-                                                        /*force=*/true);
-    } else {
-      getOperation()->emitError() << "Unknown lowering method: " << method;
-      signalPassFailure();
-      return;
+    switch (method) {
+      case PolynomialApproximationMethod::Automatic:
+        patterns.add<LowerViaHorner, LowerViaPatersonStockmeyerMonomial>(
+            context, /*force=*/false);
+        patterns.add<LowerViaPatersonStockmeyerChebyshev>(
+            context,
+            /*force=*/false, minCoefficientThreshold);
+        break;
+      case PolynomialApproximationMethod::Horner:
+        patterns.add<LowerViaHorner>(context, /*force=*/true);
+        break;
+      case PolynomialApproximationMethod::PatersonStockmeyer:
+        patterns.add<LowerViaPatersonStockmeyerMonomial>(context,
+                                                         /*force=*/true);
+        break;
+      case PolynomialApproximationMethod::PatersonStockmeyerChebyshev:
+        patterns.add<LowerViaPatersonStockmeyerChebyshev>(
+            context,
+            /*force=*/true, minCoefficientThreshold);
+        break;
+      default:
+        getOperation()->emitError() << "Unknown lowering method: " << method;
+        signalPassFailure();
+        return;
     }
 
     walkAndApplyPatterns(getOperation(), std::move(patterns));

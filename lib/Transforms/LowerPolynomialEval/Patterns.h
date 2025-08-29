@@ -12,7 +12,7 @@ namespace mlir {
 namespace heir {
 
 struct LoweringBase : public OpRewritePattern<polynomial::EvalOp> {
-  LoweringBase(mlir::MLIRContext* context, bool force = false)
+  LoweringBase(MLIRContext* context, bool force = false)
       : mlir::OpRewritePattern<polynomial::EvalOp>(context), force(force) {}
 
   bool shouldForce() const { return force; }
@@ -21,6 +21,21 @@ struct LoweringBase : public OpRewritePattern<polynomial::EvalOp> {
   // Force the use of this pattern, ignoring any heuristics on whether to apply
   // it.
   const bool force;
+};
+
+struct ChebyshevLoweringBase : public LoweringBase {
+  using LoweringBase::LoweringBase;
+
+  ChebyshevLoweringBase(MLIRContext* context, bool force = false,
+                        double minCoefficientThreshold = 1e-12)
+      : LoweringBase(context, force),
+        minCoefficientThreshold(minCoefficientThreshold) {}
+
+  double getMinCoefficientThreshold() const { return minCoefficientThreshold; }
+
+ private:
+  // Minimum threshold for coefficients to be included in the lowered polynomial
+  const double minCoefficientThreshold;
 };
 
 // Lower polynomial.eval that uses a monomial float polynomial to a series of
@@ -46,8 +61,8 @@ struct LowerViaPatersonStockmeyerMonomial : public LoweringBase {
 // Lower polynomial.eval that uses a Chebyshev float polynomial to a series of
 // adds and muls via the Paterson-Stockmeyer method. Supports scalar and tensor
 // operands of floating point types.
-struct LowerViaPatersonStockmeyerChebyshev : public LoweringBase {
-  using LoweringBase::LoweringBase;
+struct LowerViaPatersonStockmeyerChebyshev : public ChebyshevLoweringBase {
+  using ChebyshevLoweringBase::ChebyshevLoweringBase;
 
   LogicalResult matchAndRewrite(polynomial::EvalOp op,
                                 PatternRewriter& rewriter) const override;
