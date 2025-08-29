@@ -941,10 +941,11 @@ struct ConvertLinalgMatvecNewLayout
 
     // Construct a rotate and reduce op
     // The packed matrix is already diagonalized.
-    auto rotateAndReduceOp = rewriter.create<tensor_ext::RotateAndReduceOp>(
-        op.getLoc(), packedVectorType, packedVector, packedMatrix,
-        /*period=*/rewriter.getIndexAttr(1),
-        /*steps=*/rewriter.getIndexAttr(numRotations));
+    auto rotateAndReduceOp =
+        tensor_ext::RotateAndReduceOp::create(b, packedVector, packedMatrix,
+                                              /*period=*/1,
+                                              /*steps=*/numRotations,
+                                              /*reduceOp=*/"arith.addf");
     rotateAndReduceOp->setAttr(kLayoutAttrName, layoutAttr);
     setMaterializedAttr(rotateAndReduceOp);
 
@@ -1428,7 +1429,8 @@ struct DropRotateAndReduceUnitDims
 
     auto collapsedOp = tensor_ext::RotateAndReduceOp::create(
         rewriter, rotateOp.getLoc(), collapsedOperands[0],
-        rotateOp.getPlaintexts(), rotateOp.getPeriod(), rotateOp.getSteps());
+        rotateOp.getPlaintexts(), rotateOp.getPeriod().getZExtValue(),
+        rotateOp.getSteps().getZExtValue(), rotateOp.getReduceOp());
     rewriter.replaceOp(rotateOp, expandResult(rewriter, collapsedOp.getResult(),
                                               rotateOp.getOutput().getType(),
                                               operandUnitDims));

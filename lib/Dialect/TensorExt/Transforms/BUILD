@@ -73,6 +73,7 @@ cc_library(
         "RotateAndReduce.h",
     ],
     deps = [
+        ":ImplementRotateAndReduce",
         ":pass_inc_gen",
         "@heir//lib/Analysis/RotationAnalysis",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",

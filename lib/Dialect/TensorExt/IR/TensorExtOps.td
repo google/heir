@@ -139,7 +139,7 @@ def TensorExt_RotateAndReduceOp : TensorExt_Op<"rotate_and_reduce",[Pure, AllTyp
     This op reduces products of a plaintext with a periodically rotated
     tensor.
 
-    In generality, the reduction performs is
+    In almost full generality, the reduction performed is
 
     \[
       \sum_{i \in [0, n]} p(P, T*i) \cdot rotate(v, T*i)
@@ -167,6 +167,11 @@ def TensorExt_RotateAndReduceOp : TensorExt_Op<"rotate_and_reduce",[Pure, AllTyp
     `n = |v|` so that the reduction is simply a sum of all rotation of the
     ciphertext.
 
+    If `reduceOp` is set to an MLIR operation name (e.g., `arith.mulf`), then
+    the reduction operation is modified to use that operation instead of a sum.
+    The chosen op must be one of `arith.muli`, `arith.mulf`, `arith.addi`,
+    or `arith.addf`.
+
     Efficient lowerings of this operation can use the Baby-Step / Giant-Step
     approach from [Faster Homomorphic Linear Transformations in
     HElib](https://eprint.iacr.org/2018/244.pdf) to reduce the number of
@@ -177,10 +182,68 @@ def TensorExt_RotateAndReduceOp : TensorExt_Op<"rotate_and_reduce",[Pure, AllTyp
     ins AnyRankedTensor:$tensor,
     Optional<AnyRankedTensor>:$plaintexts,
     IndexAttr:$period,
-    IndexAttr:$steps
+    IndexAttr:$steps,
+    OptionalAttr<Builtin_StringAttr>:$reduceOp
   );
   let results = (outs AnyRankedTensor:$output);
   let hasVerifier = 1;
+
+  let builders = [
+    OpBuilder<(ins
+        "Value":$tensor, "Value":$plaintexts, "int64_t":$period, "int64_t":$steps,
+        "::llvm::StringRef":$reduceOp), [{
+      return build(
+        $_builder,
+        $_state,
+        tensor,
+        plaintexts,
+        $_builder.getIndexAttr(period),
+        $_builder.getIndexAttr(steps),
+        $_builder.getStringAttr(reduceOp)
+      );
+    }]>,
+    OpBuilder<(ins
+        "Value":$tensor, "Value":$plaintexts, "int64_t":$period, "int64_t":$steps,
+        "std::optional<::mlir::StringAttr>":$reduceOp), [{
+        ::llvm::SmallVector<::mlir::NamedAttribute, 3> attrs = {
+          $_builder.getNamedAttr(
+            "period", $_builder.getIndexAttr(period)),
+          $_builder.getNamedAttr(
+            "steps", $_builder.getIndexAttr(steps)),
+        };
+        if (reduceOp.has_value()) {
+          attrs.push_back($_builder.getNamedAttr("reduceOp", reduceOp.value()));
+        }
+      return build(
+        $_builder,
+        $_state,
+        tensor.getType(),
+        ValueRange{tensor, plaintexts},
+        attrs
+      );
+    }]>,
+
+    // Builder for empty plaintexts
+    OpBuilder<(ins
+        "Value":$tensor, "int64_t":$period, "int64_t":$steps,
+        "::llvm::StringRef":$reduceOp), [{
+      return build(
+        $_builder,
+        $_state,
+        tensor.getType(),
+        ValueRange{tensor},
+        {
+          $_builder.getNamedAttr(
+            "period", $_builder.getIndexAttr(period)),
+          $_builder.getNamedAttr(
+            "steps", $_builder.getIndexAttr(steps)),
+          $_builder.getNamedAttr(
+            "reduceOp", $_builder.getStringAttr(reduceOp))
+        }
+      );
+    }]>
+  ];
+
   // TODO(#2134): Add canonicalization patterns
 }
 

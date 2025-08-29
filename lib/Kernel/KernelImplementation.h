@@ -132,15 +132,30 @@ template <typename T>
 std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
                  std::shared_ptr<ArithmeticDagNode<T>>>
 implementRotateAndReduce(const T& vector, std::optional<T> plaintexts,
-                         int64_t period, int64_t steps) {
+                         int64_t period, int64_t steps,
+                         const std::string& reduceOp = "arith.addi") {
   using NodeTy = ArithmeticDagNode<T>;
   auto vectorDag = NodeTy::leaf(vector);
+
+  auto performReduction = [&](std::shared_ptr<NodeTy> left,
+                              std::shared_ptr<NodeTy> right) {
+    if (reduceOp == "arith.addi" || reduceOp == "arith.addf") {
+      return NodeTy::add(left, right);
+    }
+
+    if (reduceOp == "arith.muli" || reduceOp == "arith.mulf") {
+      return NodeTy::mul(left, right);
+    }
+
+    // Default to add for unknown operations
+    return NodeTy::add(left, right);
+  };
 
   if (!plaintexts.has_value()) {
     for (int64_t shiftSize = steps / 2; shiftSize > 0; shiftSize /= 2) {
       auto rotated = NodeTy::leftRotate(vectorDag, shiftSize * period);
-      auto added = NodeTy::add(vectorDag, rotated);
-      vectorDag = added;
+      auto reduced = performReduction(vectorDag, rotated);
+      vectorDag = reduced;
     }
     return vectorDag;
   }
@@ -191,12 +206,13 @@ implementRotateAndReduce(const T& vector, std::optional<T> plaintexts,
       auto rotatedPlaintext =
           NodeTy::leftRotate(plaintext, plaintextRotationAmount);
       auto multiplied = NodeTy::mul(rotatedPlaintext, babyStepVals[i]);
-      innerSum =
-          innerSum == nullptr ? multiplied : NodeTy::add(innerSum, multiplied);
+      innerSum = innerSum == nullptr ? multiplied
+                                     : performReduction(innerSum, multiplied);
     }
 
     auto rotatedSum = NodeTy::leftRotate(innerSum, period * j * giantStepSize);
-    result = result == nullptr ? rotatedSum : NodeTy::add(result, rotatedSum);
+    result =
+        result == nullptr ? rotatedSum : performReduction(result, rotatedSum);
   }
 
   return result;
