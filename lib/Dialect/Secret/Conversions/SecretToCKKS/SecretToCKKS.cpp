@@ -38,6 +38,7 @@
 #include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
@@ -153,7 +154,7 @@ class SecretToCKKSTypeConverter
 
     auto ciphertext = lwe::LWECiphertextType::get(
         ctx,
-        lwe::ApplicationDataAttr::get(ctx, type.getValueType(),
+        lwe::ApplicationDataAttr::get(ctx, valueTy,
                                       lwe::NoOverflowAttr::get(ctx)),
         lwe::PlaintextSpaceAttr::get(
             ctx, plaintextRing,
@@ -164,25 +165,59 @@ class SecretToCKKSTypeConverter
         lwe::KeyAttr::get(ctx, 0),
         lwe::ModulusChainAttr::get(ctx, moduliChain, level));
 
-    // Return a single ciphertext if inputs are packed into a single
-    // ciphertext SIMD slot or the secret value type is a scalar.
-    if (this->packTensorInSlots_ || !isa<TensorType>(valueTy)) {
-      return ciphertext;
+    // Return a single ciphertext if the input is a scalar.
+    if (!isa<TensorType>(valueTy)) return ciphertext;
+
+    // The input is a tensor type.
+    auto tensorTy = cast<RankedTensorType>(valueTy);
+    // If the input is packed into a ciphertext SIMD slots (i.e. it is a tensor
+    // of shape NxciphertextSize) then return Nxciphertext.
+    if (this->packTensorInSlots_) {
+      Type underlyingTy;
+      if (tensorTy.getRank() == 1) {
+        // A 1xciphertextSize tensor is packed into a single ciphertext.
+        underlyingTy = valueTy;
+        return ciphertext = lwe::LWECiphertextType::get(
+                   ctx,
+                   lwe::ApplicationDataAttr::get(ctx, underlyingTy,
+                                                 lwe::NoOverflowAttr::get(ctx)),
+                   lwe::PlaintextSpaceAttr::get(
+                       ctx, plaintextRing,
+                       lwe::InverseCanonicalEncodingAttr::get(ctx, scale)),
+                   lwe::CiphertextSpaceAttr::get(
+                       ctx, getRlweRNSRingWithLevel(ring_, level),
+                       lwe::LweEncryptionType::mix, dimension),
+                   lwe::KeyAttr::get(ctx, 0),
+                   lwe::ModulusChainAttr::get(ctx, moduliChain, level));
+      }
+      // An NxCiphertextSize tensor is packed into N ciphertexts.
+      assert(tensorTy.getRank() == 2 && "expected rank 1 or 2 tensor");
+      underlyingTy = RankedTensorType::get(tensorTy.getShape().drop_front(),
+                                           tensorTy.getElementType());
+      auto ciphertext = lwe::LWECiphertextType::get(
+          ctx,
+          lwe::ApplicationDataAttr::get(ctx, underlyingTy,
+                                        lwe::NoOverflowAttr::get(ctx)),
+          lwe::PlaintextSpaceAttr::get(
+              ctx, plaintextRing,
+              lwe::InverseCanonicalEncodingAttr::get(ctx, scale)),
+          lwe::CiphertextSpaceAttr::get(ctx,
+                                        getRlweRNSRingWithLevel(ring_, level),
+                                        lwe::LweEncryptionType::mix, dimension),
+          lwe::KeyAttr::get(ctx, 0),
+          lwe::ModulusChainAttr::get(ctx, moduliChain, level));
+      return RankedTensorType::get(tensorTy.getShape().drop_back(), ciphertext);
     }
     // If the input IR does not contain aligned ciphertexts, we will not
     // pack tensors into ciphertext SIMD slots, so tensors are converted
     // into tensors of RLWE ciphertexts.
-    assert(dyn_cast<RankedTensorType>(valueTy) &&
-           "expected ranked tensor type");
-    auto scalarType = cast<RankedTensorType>(valueTy).getElementType();
     ciphertext = lwe::LWECiphertextType::get(
         ctx,
-        lwe::ApplicationDataAttr::get(ctx, scalarType,
+        lwe::ApplicationDataAttr::get(ctx, getElementTypeOrSelf(valueTy),
                                       lwe::NoOverflowAttr::get(ctx)),
         ciphertext.getPlaintextSpace(), ciphertext.getCiphertextSpace(),
         ciphertext.getKey(), ciphertext.getModulusChain());
-    return RankedTensorType::get(cast<RankedTensorType>(valueTy).getShape(),
-                                 ciphertext);
+    return RankedTensorType::get(tensorTy.getShape(), ciphertext);
   }
 
  private:
@@ -262,6 +297,83 @@ class SecretGenericTensorInsertConversion
     // multiplication followed by an addition of the scalar encoded into a
     // plaintext in the correct slot.
     return failure();
+  }
+};
+
+class SecretGenericTensorExpandConversion
+    : public SecretGenericOpConversion<tensor::ExpandShapeOp,
+                                       tensor::ExpandShapeOp> {
+ public:
+  using SecretGenericOpConversion<
+      tensor::ExpandShapeOp, tensor::ExpandShapeOp>::SecretGenericOpConversion;
+
+  FailureOr<Operation*> matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ContextAwareConversionPatternRewriter& rewriter) const override {
+    // We expect this operation to occur when dropping unit dimensions in order
+    // to allow rotation ops to operate on 1-D tensors.
+    SliceVerificationResult res = isRankReducedType(
+        cast<ShapedType>(
+            cast<secret::SecretType>(op.getResultTypes()[0]).getValueType()),
+        cast<ShapedType>(
+            cast<secret::SecretType>(op.getOperandTypes()[0]).getValueType()));
+    if (res != SliceVerificationResult::Success) {
+      return rewriter.notifyMatchFailure(
+          op, "expected input type to be a rank reduced type of the output");
+    }
+    if (!isa<lwe::LWECiphertextType>(inputs[0].getType())) {
+      return rewriter.notifyMatchFailure(
+          op, "expected input that was expanded to be of type RLWE ciphertext");
+    }
+
+    if (!isa<RankedTensorType>(outputTypes[0])) {
+      return rewriter.notifyMatchFailure(
+          op, "expected expanded output to be a ranked tensor");
+    }
+    return rewriter
+        .replaceOpWithNewOp<tensor::FromElementsOp>(op, outputTypes, inputs)
+        .getOperation();
+  }
+};
+
+class SecretGenericTensorCollapseConversion
+    : public SecretGenericOpConversion<tensor::CollapseShapeOp,
+                                       tensor::CollapseShapeOp> {
+ public:
+  using SecretGenericOpConversion<
+      tensor::CollapseShapeOp,
+      tensor::CollapseShapeOp>::SecretGenericOpConversion;
+
+  FailureOr<Operation*> matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ContextAwareConversionPatternRewriter& rewriter) const override {
+    // We expect this operation to occur when dropping unit dimensions in order
+    // to allow rotation ops to operate on 1-D tensors.
+    SliceVerificationResult res = isRankReducedType(
+        cast<ShapedType>(
+            cast<secret::SecretType>(op.getOperandTypes()[0]).getValueType()),
+        cast<ShapedType>(
+            cast<secret::SecretType>(op.getResultTypes()[0]).getValueType()));
+    if (res != SliceVerificationResult::Success) {
+      return rewriter.notifyMatchFailure(
+          op, "expected input type to be a rank reduced type of the output");
+    }
+    if (!isa<RankedTensorType>(inputs[0].getType())) {
+      return rewriter.notifyMatchFailure(
+          op, "expected input that was collapsed to be a ranked tensor");
+    }
+    if (!isa<lwe::LWECiphertextType>(outputTypes[0])) {
+      return rewriter.notifyMatchFailure(
+          op, "expected collapsed output to be of type RLWE ciphertext");
+    }
+
+    Value idx = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), 0);
+    return rewriter
+        .replaceOpWithNewOp<tensor::ExtractOp>(op, outputTypes[0], inputs[0],
+                                               idx)
+        .getOperation();
   }
 };
 
@@ -354,7 +466,8 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
     target.addDynamicallyLegalOp<func::CallOp>(
         [&](Operation* op) { return typeConverter.isLegal(op); });
     target.addDynamicallyLegalOp<tensor::ExtractOp, tensor::ExtractSliceOp,
-                                 tensor::InsertOp>(
+                                 tensor::InsertOp, tensor::ExpandShapeOp,
+                                 tensor::CollapseShapeOp>(
         [&](Operation* op) { return typeConverter.isLegal(op); });
 
     target.markUnknownOpDynamicallyLegal(
@@ -394,6 +507,8 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
         SecretGenericOpLevelReduceConversion<ckks::LevelReduceOp>,
         SecretGenericTensorExtractConversion,
         SecretGenericTensorInsertConversion,
+        SecretGenericTensorCollapseConversion,
+        SecretGenericTensorExpandConversion,
         ConvertAnyContextAware<affine::AffineForOp>,
         ConvertAnyContextAware<affine::AffineYieldOp>,
         ConvertAnyContextAware<tensor::ExtractSliceOp>,
