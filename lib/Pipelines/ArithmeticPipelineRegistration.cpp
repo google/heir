@@ -360,6 +360,7 @@ void mlirToRLWEPipeline(OpPassManager& pm,
       exit(EXIT_FAILURE);
   }
 
+  pm.addPass(tensor_ext::createTensorExtToTensor());
   lowerAssignLayout(pm, false);
 
   // TODO (#1145): This should also generate keygen/param gen functions,

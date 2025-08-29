@@ -263,7 +263,8 @@ LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
           // Tensor ops
           .Case<tensor::ConcatOp, tensor::EmptyOp, tensor::InsertOp,
                 tensor::InsertSliceOp, tensor::ExtractOp,
-                tensor::ExtractSliceOp, tensor::SplatOp>(
+                tensor::ExtractSliceOp, tensor::SplatOp,
+                tensor::CollapseShapeOp, tensor::ExpandShapeOp>(
               [&](auto op) { return printOperation(op); })
           // LWE ops
           .Case<lwe::RLWEDecodeOp, lwe::ReinterpretApplicationDataOp>(
@@ -1031,6 +1032,34 @@ LogicalResult OpenFhePkeEmitter::extractRowFromMatrix(
   os << "std::vector<" << elementType.value() << "> " << resultVarName
      << "(std::begin(" << inputVarName << ") + " << flattenStart
      << ", std::begin(" << inputVarName << ") + " << flattenEnd << ");\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(
+    ::mlir::tensor::CollapseShapeOp op) {
+  // A rank-reduced type will have the same number of elements so collapsing is
+  // a no-op on a flattened tensor.
+  SliceVerificationResult res =
+      isRankReducedType(op.getSrcType(), op.getResultType());
+  if (res != SliceVerificationResult::Success) {
+    return op.emitError()
+           << "Only rank-reduced types are supported for CollapseShapeOp";
+  }
+  variableNames->mapValueNameToValue(op.getResult(), op.getSrc());
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(
+    ::mlir::tensor::ExpandShapeOp op) {
+  // A rank-reduced type will have the same number of elements so expanding is
+  // a no-op on a flattened tensor.
+  SliceVerificationResult res =
+      isRankReducedType(op.getResultType(), op.getSrcType());
+  if (res != SliceVerificationResult::Success) {
+    return op.emitError()
+           << "Only rank-reduced types are supported for ExpandShapeOp";
+  }
+  variableNames->mapValueNameToValue(op.getResult(), op.getSrc());
   return success();
 }
 
