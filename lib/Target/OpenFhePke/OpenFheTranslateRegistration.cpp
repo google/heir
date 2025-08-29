@@ -19,6 +19,7 @@
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/DialectRegistry.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
@@ -93,7 +94,7 @@ void registerToOpenFhePkeTranslation() {
                     openfhe::OpenfheDialect, lwe::LWEDialect,
                     tensor_ext::TensorExtDialect, polynomial::PolynomialDialect,
                     tensor::TensorDialect, mod_arith::ModArithDialect,
-                    rns::RNSDialect, affine::AffineDialect>();
+                    rns::RNSDialect, affine::AffineDialect, scf::SCFDialect>();
         rns::registerExternalRNSTypeInterfaces(registry);
       });
 }
@@ -108,11 +109,12 @@ void registerToOpenFhePkeHeaderTranslation() {
                                            options->openfheImportType);
       },
       [](DialectRegistry& registry) {
-        registry.insert<
-            arith::ArithDialect, affine::AffineDialect, func::FuncDialect,
-            tensor::TensorDialect, tensor_ext::TensorExtDialect,
-            openfhe::OpenfheDialect, lwe::LWEDialect, rns::RNSDialect,
-            polynomial::PolynomialDialect, mod_arith::ModArithDialect>();
+        registry.insert<arith::ArithDialect, affine::AffineDialect,
+                        func::FuncDialect, tensor::TensorDialect,
+                        tensor_ext::TensorExtDialect, openfhe::OpenfheDialect,
+                        lwe::LWEDialect, rns::RNSDialect,
+                        polynomial::PolynomialDialect,
+                        mod_arith::ModArithDialect, scf::SCFDialect>();
         rns::registerExternalRNSTypeInterfaces(registry);
       });
 }
