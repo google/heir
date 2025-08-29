@@ -16,9 +16,11 @@ cc_library(
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Utils:ContextAwareDialectConversion",
         "@heir//lib/Utils:ContextAwareTypeConversion",
+        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TransformUtils",
     ],
 )

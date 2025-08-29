@@ -134,6 +134,7 @@ void mlirToSecretArithmeticPipelineBuilder(
   // Vectorize and optimize rotations
   // TODO(#1662): figure out where this fits in the new pipeline
   heirSIMDVectorizerPipelineBuilder(pm, options.experimentalDisableLoopUnroll);
+  mathToPolynomialApproximationBuilder(pm);
 
   // Layout assignment and optimization
   if (newLayout) {
@@ -154,8 +155,6 @@ void mlirToSecretArithmeticPipelineBuilder(
   pm.addPass(
       createConvertToCiphertextSemantics(convertToCiphertextSemanticsOptions));
   pm.addPass(tensor_ext::createImplementRotateAndReduce());
-
-  mathToPolynomialApproximationBuilder(pm);
 
   // Balance Operations
   pm.addPass(createOperationBalancer());
