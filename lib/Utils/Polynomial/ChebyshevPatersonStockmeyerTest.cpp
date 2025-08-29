@@ -4,86 +4,21 @@
 #include "gtest/gtest.h"  // from @googletest
 #include "lib/Kernel/ArithmeticDag.h"
 #include "lib/Utils/Polynomial/ChebyshevPatersonStockmeyer.h"
+#include "lib/Utils/Polynomial/PolynomialTestVisitors.h"
 
 namespace mlir {
 namespace heir {
 namespace polynomial {
 namespace {
 
-using kernel::AddNode;
 using kernel::ArithmeticDagNode;
-using kernel::CachingVisitor;
-using kernel::ConstantNode;
-using kernel::LeafNode;
-using kernel::MultiplyNode;
-using kernel::SubtractNode;
-
-class EvalVisitor : public CachingVisitor<double, double> {
- public:
-  using CachingVisitor<double, double>::operator();
-
-  EvalVisitor() : CachingVisitor<double, double>() {}
-
-  double operator()(const ConstantNode& node) override { return node.value; }
-
-  double operator()(const LeafNode<double>& node) override {
-    return node.value;
-  }
-
-  double operator()(const AddNode<double>& node) override {
-    // Recursive calls use the public `process` method from the base class
-    // to ensure caching is applied at every step.
-    return this->process(node.left) + this->process(node.right);
-  }
-
-  double operator()(const SubtractNode<double>& node) override {
-    return this->process(node.left) - this->process(node.right);
-  }
-
-  double operator()(const MultiplyNode<double>& node) override {
-    return this->process(node.left) * this->process(node.right);
-  }
-};
-
-class MultiplicativeDepthVisitor : public CachingVisitor<double, double> {
- public:
-  using CachingVisitor<double, double>::operator();
-
-  MultiplicativeDepthVisitor() : CachingVisitor<double, double>() {}
-
-  double operator()(const ConstantNode& node) override { return -1.0; }
-
-  double operator()(const LeafNode<double>& node) override { return 0.0; }
-
-  double operator()(const AddNode<double>& node) override {
-    // Recursive calls use the public `process` method from the base class
-    // to ensure caching is applied at every step.
-    return std::max(this->process(node.left), this->process(node.right));
-  }
-
-  double operator()(const SubtractNode<double>& node) override {
-    return std::max(this->process(node.left), this->process(node.right));
-  }
-
-  double operator()(const MultiplyNode<double>& node) override {
-    double left = this->process(node.left);
-    double right = this->process(node.right);
-    if (left < 0.0) {
-      return right;
-    }
-    if (right < 0.0) {
-      return left;
-    }
-    return std::max(left, right) + 1.0;
-  }
-};
 
 double evalChebyshevPolynomial(double x, std::vector<double> coefficients) {
   auto x_node = ArithmeticDagNode<double>::leaf(x);
   auto result_node =
       patersonStockmeyerChebyshevPolynomialEvaluation(x_node, coefficients);
 
-  EvalVisitor visitor;
+  test::EvalVisitor visitor;
   return result_node->visit(visitor);
 }
 
@@ -92,7 +27,7 @@ int evalMultiplicativeDepth(double x, std::vector<double> coefficients) {
   auto result_node =
       patersonStockmeyerChebyshevPolynomialEvaluation(x_node, coefficients);
 
-  MultiplicativeDepthVisitor visitor;
+  test::MultiplicativeDepthVisitor visitor;
   return static_cast<int>(result_node->visit(visitor));
 }
 

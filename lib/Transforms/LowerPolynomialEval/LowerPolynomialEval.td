@@ -44,6 +44,10 @@ def LowerPolynomialEval : Pass<"lower-polynomial-eval"> {
                 clEnumValN(mlir::heir::PolynomialApproximationMethod::PatersonStockmeyerChebyshev,
                            "pscheb", "Paterson-Stockmeyer method (Chebyshev basis)")
           )}]>,
+    Option<"minCoefficientThreshold", "min-coefficient-threshold", "double",
+          /*default=*/"1e-12",
+          "Minimum threshold for coefficients to be included in the lowered polynomial. "
+          "Coefficients with absolute value below this threshold will be dropped.">,
   ];
 }
 
