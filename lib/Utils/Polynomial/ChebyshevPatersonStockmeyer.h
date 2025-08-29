@@ -88,7 +88,8 @@ template <typename T>
 std::shared_ptr<kernel::ArithmeticDagNode<T>>
 patersonStockmeyerChebyshevPolynomialEvaluation(
     std::shared_ptr<kernel::ArithmeticDagNode<T>> x,
-    ::llvm::ArrayRef<double> coefficients) {
+    ::llvm::ArrayRef<double> coefficients,
+    double minCoeffThreshold = kMinCoeffs) {
   using NodeTy = kernel::ArithmeticDagNode<T>;
   int64_t polynomialDegree = coefficients.size() - 1;
   // Choose k optimally - sqrt of maxDegree is typically a good choice
@@ -113,12 +114,13 @@ patersonStockmeyerChebyshevPolynomialEvaluation(
   // Evaluate the polynomial.
   std::shared_ptr<NodeTy> result;
   for (int i = 0; i < decomposition.coeffs.size(); ++i) {
-    if (!hasElementsLargerThan(decomposition.coeffs[i], kMinCoeffs)) continue;
+    if (!hasElementsLargerThan(decomposition.coeffs[i], minCoeffThreshold))
+      continue;
     std::shared_ptr<NodeTy> pol;
     for (int j = 0; j < decomposition.coeffs[i].size(); ++j) {
       double coeff = decomposition.coeffs[i][j];
       // Skip coefficients that are too small.
-      if (std::abs(coeff) < kMinCoeffs) continue;
+      if (std::abs(coeff) < minCoeffThreshold) continue;
 
       auto coefNode = NodeTy::constant(coeff);
       auto termNode = NodeTy::mul(coefNode, chebPolynomialValues[j]);

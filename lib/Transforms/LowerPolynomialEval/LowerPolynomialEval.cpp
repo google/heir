@@ -28,16 +28,20 @@ struct LowerPolynomialEval
     if (method == PolynomialApproximationMethod::Automatic) {
       patterns.add<LowerViaHorner, LowerViaPatersonStockmeyerChebyshev,
                    LowerViaPatersonStockmeyerMonomial>(context,
-                                                       /*force=*/false);
+                                                       /*force=*/false,
+                                                       minCoefficientThreshold);
     } else if (method == PolynomialApproximationMethod::Horner) {
-      patterns.add<LowerViaHorner>(context, /*force=*/true);
+      patterns.add<LowerViaHorner>(context, /*force=*/true,
+                                   minCoefficientThreshold);
     } else if (method == PolynomialApproximationMethod::PatersonStockmeyer) {
       patterns.add<LowerViaPatersonStockmeyerMonomial>(context,
-                                                       /*force=*/true);
+                                                       /*force=*/true,
+                                                       minCoefficientThreshold);
     } else if (method ==
                PolynomialApproximationMethod::PatersonStockmeyerChebyshev) {
-      patterns.add<LowerViaPatersonStockmeyerChebyshev>(context,
-                                                        /*force=*/true);
+      patterns.add<LowerViaPatersonStockmeyerChebyshev>(
+          context,
+          /*force=*/true, minCoefficientThreshold);
     } else {
       getOperation()->emitError() << "Unknown lowering method: " << method;
       signalPassFailure();
