@@ -3501,6 +3501,11 @@ is important for security.&lt;/p>
 &lt;a href="https://ia.cr/2021/204">Revisiting Homomorphic Encryption Schemes for Finite Fields&lt;/a>&lt;/p>
 &lt;p>The pass should be run at the secret arithmetic level when management operations
 have been inserted and the IR is stable.&lt;/p>
+&lt;h3 id="-openfhe-fast-rotation-precompute">&lt;code>-openfhe-fast-rotation-precompute&lt;/code>&lt;/h3>
+&lt;p>&lt;em>Identify and apply EvalFastRotation when possible.&lt;/em>&lt;/p>
+&lt;p>This pass identifies when a ciphertext is rotated by multiple different
+shifts, and replaces the &lt;code>EvalRot&lt;/code> ops with &lt;code>EvalFastRotationPrecompute&lt;/code>
+followed by &lt;code>EvalFastRotate&lt;/code>.&lt;/p>
 &lt;h3 id="-operation-balancer">&lt;code>-operation-balancer&lt;/code>&lt;/h3>
 &lt;p>&lt;em>This pass balances addition and multiplication operations.&lt;/em>&lt;/p>
 &lt;p>This pass examines a tree or graph of add and multiplication operations and
@@ -4107,15 +4112,17 @@ arguments in the function body.&lt;/li>
 &lt;/ul>
 &lt;h4 id="statistics">Statistics&lt;/h4>
 &lt;pre tabindex="0">&lt;code>total circuit size : The total circuit size for all optimized circuits, after optimization is done.
-&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2025-08-07</title><link>https://heir.dev/blog/2025/08/13/heir-meeting-2025-08-07/</link><pubDate>Wed, 13 Aug 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/08/13/heir-meeting-2025-08-07/</guid><description>
+&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2025-01-23</title><link>https://heir.dev/blog/2025/01/23/heir-meeting-2025-01-23/</link><pubDate>Thu, 23 Jan 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/01/23/heir-meeting-2025-01-23/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1v3P8LhabG75UCM3xhNcp9yTes3P7DpOqsVDFKVCSdwg/edit?usp=sharing">notes&lt;/a>
-and &lt;a href="https://youtu.be/t7T9dWtjM8Q">video recording&lt;/a> from the HEIR meeting on
-2025-08-07.&lt;/p></description></item><item><title>Blog: HEIR meeting 2025-07-10</title><link>https://heir.dev/blog/2025/07/10/heir-meeting-2025-07-10/</link><pubDate>Thu, 10 Jul 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/07/10/heir-meeting-2025-07-10/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/17HaAzW2KZMlwgQwVttDblWY3Ta7ey5LvJ0XOKvnnLZE/edit?usp=sharing">notes&lt;/a>
-and &lt;a href="https://youtu.be/dCBWr05kOks">video recording&lt;/a> from the HEIR meeting on
-2025-06-12.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-11-26</title><link>https://heir.dev/blog/2024/11/26/heir-meeting-2024-11-26/</link><pubDate>Tue, 26 Nov 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/11/26/heir-meeting-2024-11-26/</guid><description>
+&lt;a href="https://docs.google.com/document/d/1x8tFUC4vGeO0t-CvFQe4o-H8xgl4zEvBZaye_JlIEVo/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/HMgHNpJeINs">video recording&lt;/a> from the HEIR meeting on
+2025-01-23.&lt;/p></description></item><item><title>Blog: HEIR as a Platform for Research (and new YouTube Channel)</title><link>https://heir.dev/blog/2024/12/05/heir-as-a-platform-for-research-and-new-youtube-channel/</link><pubDate>Thu, 05 Dec 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/12/05/heir-as-a-platform-for-research-and-new-youtube-channel/</guid><description>
+&lt;p>On 2024-12-05, the HEIR team presented a talk aimed at giving researchers a
+high-level overview of the HEIR project, brainstorming where new research might
+be needed, and discussing how the HEIR team could help with research projects.&lt;/p>
+&lt;p>The &lt;a href="https://youtu.be/t_XHw7LVy8s">video recording of this talk&lt;/a> is on YouTube,
+and this is the first video posted on the
+&lt;a href="https://www.youtube.com/@HEIRCompiler">new HEIR YouTube channel&lt;/a>.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-11-26</title><link>https://heir.dev/blog/2024/11/26/heir-meeting-2024-11-26/</link><pubDate>Tue, 26 Nov 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/11/26/heir-meeting-2024-11-26/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/10WTpdVaLz4mgmTwlJ3lVMGD4qmiNEl2Uvt3R3h0XFmc/edit?hl=en&amp;amp;forcehl=1&amp;amp;tab=t.0#heading=h.w3lar3vbuip1">notes&lt;/a>,
 &lt;a href="https://drive.google.com/file/d/13yvX_ap09tTqwJsdABDf3WDl79GF3bJx/view?usp=sharing">video recording&lt;/a>,
@@ -4126,29 +4133,28 @@ from the HEIR meeting on 2024-11-26.&lt;/p></description></item><item><title>Blo
 &lt;a href="https://docs.google.com/document/d/1tlC-g3JKOB9wxfQMEJnKQk0C0eBdtBCzZX8ck7J37fI/edit?usp=sharing">notes&lt;/a>
 and
 &lt;a href="https://drive.google.com/file/d/1OFfrwWesFpxVHw2DFuNAxSB8seLG_tr1/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-10-04.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-09-05</title><link>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</link><pubDate>Thu, 05 Sep 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</guid><description>
+from the HEIR meeting on 2024-10-04.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-08-22</title><link>https://heir.dev/blog/2024/08/22/heir-meeting-2024-08-22/</link><pubDate>Thu, 22 Aug 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/08/22/heir-meeting-2024-08-22/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1tohVmC2pn_XDn3gjCFeo3K4Wfyf7VWu3oK1vimEsFD4/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1iEkzpO6lCVbShMcRenO3j3DptOEP-0bLu_9V4K7c39M/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1XGheLF7kvJfwAMJJQ-XbDpa4Ld15kj4t/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-09-05.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-08-08</title><link>https://heir.dev/blog/2024/08/08/heir-meeting-2024-08-08/</link><pubDate>Thu, 08 Aug 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/08/08/heir-meeting-2024-08-08/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1FLSiaPlX38GNHqqqi_Mz3gMuVSlS4sUcwBWqpt6Fkew/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1sHoRvNlS14RB-r3Rk0y2RyWOERVGNc-t/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-08-08.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-06-27</title><link>https://heir.dev/blog/2024/06/27/heir-meeting-2024-06-27/</link><pubDate>Thu, 27 Jun 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/06/27/heir-meeting-2024-06-27/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1wFrGF7lMiYZmqbr5WQO17HomfoFoOeaj/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-08-22.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-06-27</title><link>https://heir.dev/blog/2024/06/27/heir-meeting-2024-06-27/</link><pubDate>Thu, 27 Jun 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/06/27/heir-meeting-2024-06-27/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/1lc4U2JzHapu99_sigOAYwpjNnfd9_QGrX1HAQ0hle_o/edit?usp=sharing">notes&lt;/a>
 and
 &lt;a href="https://drive.google.com/file/d/1-wMytGj3AHi55sA2jb81AsHOU8EcIq6d/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-06-27.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-03-07</title><link>https://heir.dev/blog/2024/03/07/heir-meeting-2024-03-07/</link><pubDate>Thu, 07 Mar 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/03/07/heir-meeting-2024-03-07/</guid><description>
+from the HEIR meeting on 2024-06-27.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-02-08</title><link>https://heir.dev/blog/2024/02/08/heir-meeting-2024-02-08/</link><pubDate>Thu, 08 Feb 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/02/08/heir-meeting-2024-02-08/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1felxN5mFBV5LheP79is30jHRxlKLW0NQEo6FPDKxDKM/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1w0Cc3YfbSNO4PYVdGjb8KpE5rql8zgoDG2X0Yseon_4/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1oVJG-fM72nNLiR1eXkzdeaqdDOEpTfK0/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-03-07.&lt;/p>
-&lt;p>Note: there will be no HEIR meeting on 2024-03-21 due to the FHE.org, HACS, and
-RWC conferences. Hope to see you all there!&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1rTsc-sWdRCqJWONrgGo5FV7CQd1S_OV-/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-02-08.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-07-18</title><link>https://heir.dev/blog/2023/07/18/heir-meeting-2023-07-18/</link><pubDate>Tue, 18 Jul 2023 10:43:16 -0700</pubDate><guid>https://heir.dev/blog/2023/07/18/heir-meeting-2023-07-18/</guid><description>
+&lt;p>The third HEIR meeting was 2023-07-18
+(&lt;a href="https://docs.google.com/document/d/1DXdyUCmevqY8RJI3kM8oO5nWDEITFIVBPIbucONOB-k/edit?usp=sharing">notes&lt;/a>).&lt;/p>
+&lt;p>We decided to schedule future meetings every two weeks, with alternating focus
+on MLIR and Hardware. See the &lt;a href="https://heir.dev/community/">meeting calendar&lt;/a> to
+join.
+(&lt;a href="https://calendar.google.com/calendar/u/0/embed?src=c85ecb3cda4bfb7daa3da95d5aeb19672930501b49d17896e65fa3f963f17a80@group.calendar.google.com&amp;amp;ctz=America/Los_Angeles">direct link to the calendar&lt;/a>)&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h1 id="bgv-dialect">&amp;lsquo;bgv&amp;rsquo; Dialect&lt;/h1>
 &lt;p>The BGV dialect defines the types and operations of the BGV and B/FV cryptosystem.&lt;/p>
@@ -13347,6 +13353,9 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;h3 id="cryptocontexttype">CryptoContextType&lt;/h3>
 &lt;p>&lt;em>The CryptoContext required to perform homomorphic operations in OpenFHE.&lt;/em>&lt;/p>
 &lt;p>Syntax: &lt;code>!openfhe.crypto_context&lt;/code>&lt;/p>
+&lt;h3 id="digitdecompositiontype">DigitDecompositionType&lt;/h3>
+&lt;p>&lt;em>A precomputed digit decomposition for for EvalFastRotation&lt;/em>&lt;/p>
+&lt;p>Syntax: &lt;code>!openfhe.digit_decomp&lt;/code>&lt;/p>
 &lt;h3 id="evalkeytype">EvalKeyType&lt;/h3>
 &lt;p>&lt;em>The evaluation key required to keyswitch/relinearize/rotate/automorphism operation in OpenFHE.&lt;/em>&lt;/p>
 &lt;p>Syntax: &lt;code>!openfhe.eval_key&lt;/code>&lt;/p>
@@ -13648,10 +13657,100 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="openfhefast_rotation-heiropenfhefastrotationop">&lt;code>openfhe.fast_rotation&lt;/code> (heir::openfhe::FastRotationOp)&lt;/h3>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.fast_rotation` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>index&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>index attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>cyclotomicOrder&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>index attribute&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-7">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>cryptoContext&lt;/code>&lt;/td>
+&lt;td>The CryptoContext required to perform homomorphic operations in OpenFHE.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>precomputedDigitDecomp&lt;/code>&lt;/td>
+&lt;td>A precomputed digit decomposition for for EvalFastRotation&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-6">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="openfhefast_rotation_precompute-heiropenfhefastrotationprecomputeop">&lt;code>openfhe.fast_rotation_precompute&lt;/code> (heir::openfhe::FastRotationPrecomputeOp)&lt;/h3>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.fast_rotation_precompute` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-8">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>cryptoContext&lt;/code>&lt;/td>
+&lt;td>The CryptoContext required to perform homomorphic operations in OpenFHE.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-7">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>A precomputed digit decomposition for for EvalFastRotation&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="openfhegen_bootstrapkey-heiropenfhegenbootstrapkeyop">&lt;code>openfhe.gen_bootstrapkey&lt;/code> (heir::openfhe::GenBootstrapKeyOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `openfhe.gen_bootstrapkey` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;h4 id="operands-7">Operands:&lt;/h4>
+&lt;/code>&lt;/pre>&lt;h4 id="operands-9">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13674,12 +13773,12 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `openfhe.gen_context` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="attributes">Attributes:&lt;/h4>
+&lt;h4 id="attributes-1">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>supportFHE&lt;/code>&lt;/td>&lt;td>::mlir::BoolAttr&lt;/td>&lt;td>bool attribute&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-8">Operands:&lt;/h4>
+&lt;h4 id="operands-10">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13694,7 +13793,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-6">Results:&lt;/h4>
+&lt;h4 id="results-8">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13712,7 +13811,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;h3 id="openfhegen_mulkey-heiropenfhegenmulkeyop">&lt;code>openfhe.gen_mulkey&lt;/code> (heir::openfhe::GenMulKeyOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `openfhe.gen_mulkey` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;h4 id="operands-9">Operands:&lt;/h4>
+&lt;/code>&lt;/pre>&lt;h4 id="operands-11">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13745,7 +13844,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;p>For other flags, see the OpenFHE documentation in
 &lt;a href="https://github.com/openfheorg/openfhe-development/blob/main/src/pke/examples/README.md#description-of-the-cryptocontext-parameters-and-their-restrictions">https://github.com/openfheorg/openfhe-development/blob/main/src/pke/examples/README.md#description-of-the-cryptocontext-parameters-and-their-restrictions&lt;/a>&lt;/p>
 &lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="attributes-1">Attributes:&lt;/h4>
+&lt;h4 id="attributes-2">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>mulDepth&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
@@ -13764,7 +13863,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;tr>&lt;td>&lt;code>keySwitchingTechniqueBV&lt;/code>&lt;/td>&lt;td>::mlir::BoolAttr&lt;/td>&lt;td>bool attribute&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>scalingTechniqueFixedManual&lt;/code>&lt;/td>&lt;td>::mlir::BoolAttr&lt;/td>&lt;td>bool attribute&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="results-7">Results:&lt;/h4>
+&lt;h4 id="results-9">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13782,12 +13881,12 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;h3 id="openfhegen_rotkey-heiropenfhegenrotkeyop">&lt;code>openfhe.gen_rotkey&lt;/code> (heir::openfhe::GenRotKeyOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `openfhe.gen_rotkey` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;h4 id="attributes-2">Attributes:&lt;/h4>
+&lt;/code>&lt;/pre>&lt;h4 id="attributes-3">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>indices&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-10">Operands:&lt;/h4>
+&lt;h4 id="operands-12">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13812,7 +13911,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-11">Operands:&lt;/h4>
+&lt;h4 id="operands-13">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13835,7 +13934,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-8">Results:&lt;/h4>
+&lt;h4 id="results-10">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13857,12 +13956,12 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-3">Attributes:&lt;/h4>
+&lt;h4 id="attributes-4">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>levelToDrop&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-12">Operands:&lt;/h4>
+&lt;h4 id="operands-14">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13881,7 +13980,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-9">Results:&lt;/h4>
+&lt;h4 id="results-11">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13902,7 +14001,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-13">Operands:&lt;/h4>
+&lt;h4 id="operands-15">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13921,7 +14020,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-10">Results:&lt;/h4>
+&lt;h4 id="results-12">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13942,7 +14041,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-14">Operands:&lt;/h4>
+&lt;h4 id="operands-16">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13961,7 +14060,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-11">Results:&lt;/h4>
+&lt;h4 id="results-13">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13983,7 +14082,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-15">Operands:&lt;/h4>
+&lt;h4 id="operands-17">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -14002,7 +14101,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-12">Results:&lt;/h4>
+&lt;h4 id="results-14">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -14024,7 +14123,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-16">Operands:&lt;/h4>
+&lt;h4 id="operands-18">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -14047,7 +14146,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-13">Results:&lt;/h4>
+&lt;h4 id="results-15">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -14069,7 +14168,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-17">Operands:&lt;/h4>
+&lt;h4 id="operands-19">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -14092,7 +14191,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-14">Results:&lt;/h4>
+&lt;h4 id="results-16">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -14114,7 +14213,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-18">Operands:&lt;/h4>
+&lt;h4 id="operands-20">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -14137,7 +14236,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-15">Results:&lt;/h4>
+&lt;h4 id="results-17">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -14159,7 +14258,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-19">Operands:&lt;/h4>
+&lt;h4 id="operands-21">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -14182,7 +14281,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-16">Results:&lt;/h4>
+&lt;h4 id="results-18">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -14204,92 +14303,6 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-20">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>cryptoContext&lt;/code>&lt;/td>
-&lt;td>The CryptoContext required to perform homomorphic operations in OpenFHE.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>ciphertext&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-17">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="openfherelin-heiropenfherelinop">&lt;code>openfhe.relin&lt;/code> (heir::openfhe::RelinOp)&lt;/h3>
-&lt;p>&lt;em>OpenFHE relinearize operation of a ciphertext.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.relin` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-21">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>cryptoContext&lt;/code>&lt;/td>
-&lt;td>The CryptoContext required to perform homomorphic operations in OpenFHE.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>ciphertext&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-18">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="openfherot-heiropenfherotop">&lt;code>openfhe.rot&lt;/code> (heir::openfhe::RotOp)&lt;/h3>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.rot` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-4">Attributes:&lt;/h4>
-&lt;table>
-&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>index&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
-&lt;/table>
 &lt;h4 id="operands-22">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -14324,38 +14337,14 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="openfhesetup_bootstrap-heiropenfhesetupbootstrapop">&lt;code>openfhe.setup_bootstrap&lt;/code> (heir::openfhe::SetupBootstrapOp)&lt;/h3>
+&lt;h3 id="openfherelin-heiropenfherelinop">&lt;code>openfhe.relin&lt;/code> (heir::openfhe::RelinOp)&lt;/h3>
+&lt;p>&lt;em>OpenFHE relinearize operation of a ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.setup_bootstrap` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;h4 id="attributes-5">Attributes:&lt;/h4>
-&lt;table>
-&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>levelBudgetEncode&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>levelBudgetDecode&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
-&lt;/table>
-&lt;h4 id="operands-23">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>cryptoContext&lt;/code>&lt;/td>
-&lt;td>The CryptoContext required to perform homomorphic operations in OpenFHE.&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="openfhesquare-heiropenfhesquareop">&lt;code>openfhe.square&lt;/code> (heir::openfhe::SquareOp)&lt;/h3>
-&lt;p>&lt;em>OpenFHE square operation of a ciphertext.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.square` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.relin` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-24">Operands:&lt;/h4>
+&lt;h4 id="operands-23">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -14389,11 +14378,121 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="openfherot-heiropenfherotop">&lt;code>openfhe.rot&lt;/code> (heir::openfhe::RotOp)&lt;/h3>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.rot` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-5">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>index&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-24">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>cryptoContext&lt;/code>&lt;/td>
+&lt;td>The CryptoContext required to perform homomorphic operations in OpenFHE.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>ciphertext&lt;/code>&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-21">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="openfhesetup_bootstrap-heiropenfhesetupbootstrapop">&lt;code>openfhe.setup_bootstrap&lt;/code> (heir::openfhe::SetupBootstrapOp)&lt;/h3>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.setup_bootstrap` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;h4 id="attributes-6">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>levelBudgetEncode&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>levelBudgetDecode&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-25">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>cryptoContext&lt;/code>&lt;/td>
+&lt;td>The CryptoContext required to perform homomorphic operations in OpenFHE.&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="openfhesquare-heiropenfhesquareop">&lt;code>openfhe.square&lt;/code> (heir::openfhe::SquareOp)&lt;/h3>
+&lt;p>&lt;em>OpenFHE square operation of a ciphertext.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.square` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-26">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>cryptoContext&lt;/code>&lt;/td>
+&lt;td>The CryptoContext required to perform homomorphic operations in OpenFHE.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>ciphertext&lt;/code>&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-22">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="openfhesub_inplace-heiropenfhesubinplaceop">&lt;code>openfhe.sub_inplace&lt;/code> (heir::openfhe::SubInPlaceOp)&lt;/h3>
 &lt;p>&lt;em>Performs in-place homomorphic subtraction, modifying lhs.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `openfhe.sub_inplace` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;h4 id="operands-25">Operands:&lt;/h4>
+&lt;/code>&lt;/pre>&lt;h4 id="operands-27">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -14423,7 +14522,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-26">Operands:&lt;/h4>
+&lt;h4 id="operands-28">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -14446,7 +14545,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-21">Results:&lt;/h4>
+&lt;h4 id="results-23">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -14468,7 +14567,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AllCiphertextTypesMatch&lt;/code>, &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-27">Operands:&lt;/h4>
+&lt;h4 id="operands-29">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -14491,7 +14590,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-22">Results:&lt;/h4>
+&lt;h4 id="results-24">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
