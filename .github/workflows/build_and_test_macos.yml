@@ -10,44 +10,22 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 jobs:
-  check-cache:
-    if: github.event_name != 'pull_request' || github.event.label.name == 'ci:macos'
-    runs-on:
-      labels: macos-15
-    steps:
-      - name: Check out repository code
-        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
-
-      - name: Cache bazel build artifacts
-        id: cache
-        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # pin@v4.2.0
-        with:
-          path: |
-            ~/.cache/bazel
-          key: ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
-          restore-keys: |
-            ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-
-          lookup-only: true
-
   build-and-test:
     if: github.event_name != 'pull_request' || github.event.label.name == 'ci:macos'
-    needs: check-cache
     runs-on:
       labels: macos-15
     steps:
       - name: Check out repository code
         uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
-        with:
-          key: ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
 
       - name: Cache bazel build artifacts
         uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # pin@v4.2.0
         with:
           path: |
             ~/.cache/bazel
-          key: ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
+          key: ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE.bzlmod', 'MODULE.bazel') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
           restore-keys: |
-            ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-
+            ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE.bzlmod', 'MODULE.bazel') }}-
 
       - name: Install coreutils
         run: brew install coreutils

@@ -11,26 +11,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 jobs:
-  check-cache:
-    runs-on:
-      labels: ubuntu-22.04-8core
-    steps:
-      - name: Check out repository code
-        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
-
-      - name: Cache bazel build artifacts
-        id: cache
-        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # pin@v4.2.0
-        with:
-          path: |
-            ~/.cache/bazel
-          key: ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
-          restore-keys: |
-            ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-
-          lookup-only: true
-
   build-and-test:
-    needs: check-cache
     runs-on:
       labels: ubuntu-22.04-32core
     steps:
@@ -39,22 +20,35 @@ jobs:
           sudo apt-get install -y libomp-dev
       - name: Check out repository code
         uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
-        with:
-          key: ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
 
       - name: Cache bazel build artifacts
         uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # pin@v4.2.0
         with:
           path: |
             ~/.cache/bazel
-          key: ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
+          key: ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE.bzlmod', 'MODULE.bazel') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
           restore-keys: |
-            ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-
+            ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE.bzlmod', 'MODULE.bazel') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
+            ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE.bzlmod', 'MODULE.bazel') }}-
 
       - name: "Run `bazel build`"
         run: |
-          bazel build -c opt //...
+          bazel build -c opt //... --explain=bazel-explain.log --verbose_explanations
 
       - name: "Run `bazel test`"
         run: |
           bazel test -c opt //...
+
+      - name: Upload bazel explanation log
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # pin@v4.6.2
+        if: always()
+        with:
+          name: bazel-logs
+          path: bazel-explain.log
+          retention-days: 30
+
+      - uses: actions/cache/save@1bd1e32a3bdc45362d1e726936510720a7c30a57 # pin@v4.2.0
+        with:
+          path: |
+            ~/.cache/bazel
+          key: ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE.bzlmod', 'MODULE.bazel') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
