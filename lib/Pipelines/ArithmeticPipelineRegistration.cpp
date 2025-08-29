@@ -12,6 +12,7 @@
 #include "lib/Dialect/Lattigo/Transforms/ConfigureCryptoContext.h"
 #include "lib/Dialect/Openfhe/Transforms/ConfigureCryptoContext.h"
 #include "lib/Dialect/Openfhe/Transforms/CountAddAndKeySwitch.h"
+#include "lib/Dialect/Openfhe/Transforms/FastRotationPrecompute.h"
 #include "lib/Dialect/Secret/Conversions/SecretToBGV/SecretToBGV.h"
 #include "lib/Dialect/Secret/Conversions/SecretToCKKS/SecretToCKKS.h"
 #include "lib/Dialect/Secret/Conversions/SecretToModArith/SecretToModArith.h"
@@ -407,8 +408,7 @@ BackendPipelineBuilder toOpenFhePipelineBuilder() {
         openfhe::createConfigureCryptoContext(configureCryptoContextOptions));
 
     // Hoist repeated rotations into EvalFastRotation(Precompute)
-    // TODO(#1924): enable openfhe-fast-rotation-precompute in the pipeline
-    // pm.addPass(openfhe::createFastRotationPrecompute());
+    pm.addPass(openfhe::createFastRotationPrecompute());
   };
 }
 

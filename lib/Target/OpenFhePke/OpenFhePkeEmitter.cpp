@@ -679,7 +679,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(FastRotationOp op) {
   os << variableNames->getNameForValue(op.getCryptoContext()) << "->"
      << "EvalFastRotation(" << variableNames->getNameForValue(op.getInput())
      << ", " << op.getIndex().getZExtValue() << ", "
-     << op.getCyclotomicOrder().getZExtValue() << ", "
+     << "2 * cc->GetRingDimension(), "
      << variableNames->getNameForValue(op.getPrecomputedDigitDecomp())
      << ");\n";
   return success();
