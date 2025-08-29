@@ -26,14 +26,29 @@ Value IRMaterializingVisitor::operator()(const LeafNode<SSAValue>& node) {
 
 Value IRMaterializingVisitor::operator()(const ConstantNode& node) {
   TypedAttr attr;
+  APFloat apVal(node.value);
+
   if (isa<FloatType>(evaluatedType)) {
+    // Scalar float case
     auto floatTy = cast<FloatType>(evaluatedType);
-    APFloat apVal(node.value);
     APFloat converted =
         convertFloatToSemantics(apVal, floatTy.getFloatSemantics());
     attr = static_cast<TypedAttr>(FloatAttr::get(floatTy, converted));
+  } else if (isa<ShapedType>(evaluatedType)) {
+    // Tensor case
+    auto shapedType = cast<ShapedType>(evaluatedType);
+    auto elemType = dyn_cast<FloatType>(shapedType.getElementType());
+    if (!elemType) {
+      llvm_unreachable("Unsupported element type for tensor constants");
+    }
+    APFloat converted =
+        convertFloatToSemantics(apVal, elemType.getFloatSemantics());
+    attr =
+        static_cast<TypedAttr>(DenseElementsAttr::get(shapedType, converted));
   } else {
-    attr = static_cast<TypedAttr>(IntegerAttr::get(evaluatedType, node.value));
+    // Integer case
+    Type elementType = getElementTypeOrSelf(evaluatedType);
+    attr = static_cast<TypedAttr>(IntegerAttr::get(elementType, node.value));
   }
   return arith::ConstantOp::create(builder, evaluatedType, attr);
 }

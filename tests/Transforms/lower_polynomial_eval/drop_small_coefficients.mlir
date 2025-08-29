@@ -1,5 +1,5 @@
-// RUN: heir-opt %s --lower-polynomial-eval=method=horner --min-coefficient-threshold=1e-10 | FileCheck %s --check-prefix=CHECK-HORNER
-// RUN: heir-opt %s --lower-polynomial-eval=method=ps --min-coefficient-threshold=1e-10 | FileCheck %s --check-prefix=CHECK-PS
+// RUN: heir-opt %s --lower-polynomial-eval='method=horner min-coefficient-threshold=1e-10' | FileCheck %s --check-prefix=CHECK-HORNER
+// RUN: heir-opt %s --lower-polynomial-eval='method=ps min-coefficient-threshold=1e-10' | FileCheck %s --check-prefix=CHECK-PS
 
 #ring_f64_ = #polynomial.ring<coefficientType = f64>
 !polyty = !polynomial.polynomial<ring = #ring_f64_>
@@ -16,12 +16,14 @@
 // CHECK-HORNER: @test_drop_small_coefficients
 func.func @test_drop_small_coefficients() -> f64 {
     // The small coefficients (1e-15 and 1e-16) should be dropped, leaving only 1.0 + 2.0x**2
+    // Horner's method: ((2.0 * x) * x) + 1.0
     // CHECK-HORNER-NOT: polynomial.eval
     // CHECK-HORNER: %[[C6:.*]] = arith.constant 6.000000e+00 : f64
-    // CHECK-HORNER: %[[C2:.*]] = arith.constant 2.0
-    // CHECK-HORNER: %[[X:.*]] = arith.mulf %[[C2]], %[[C6]]
-    // CHECK-HORNER: %[[C1:.*]] = arith.constant 1.0
-    // CHECK-HORNER: %[[RESULT:.*]] = arith.addf %[[X]], %[[C1]]
+    // CHECK-HORNER: %[[C2:.*]] = arith.constant 2.000000e+00 : f64
+    // CHECK-HORNER: %[[MULT1:.*]] = arith.mulf %[[C2]], %[[C6]] : f64
+    // CHECK-HORNER: %[[MULT2:.*]] = arith.mulf %[[MULT1]], %[[C6]] : f64
+    // CHECK-HORNER: %[[C1:.*]] = arith.constant 1.000000e+00 : f64
+    // CHECK-HORNER: %[[RESULT:.*]] = arith.addf %[[MULT2]], %[[C1]] : f64
     // CHECK-HORNER: return %[[RESULT]]
     %c6 = arith.constant 6.0 : f64
     %0 = polynomial.eval #poly_with_small_coeffs, %c6 : f64
@@ -42,14 +44,15 @@ func.func @test_all_small_coefficients() -> f64 {
 // CHECK-HORNER: @test_mixed_coefficients
 func.func @test_mixed_coefficients() -> f64 {
     // Only large coefficients (5.0x and 3.0x**3) should remain
+    // Horner's method: (((3.0 * x) * x) + 5.0) * x
     // CHECK-HORNER-NOT: polynomial.eval
     // CHECK-HORNER: %[[C6:.*]] = arith.constant 6.000000e+00 : f64
-    // CHECK-HORNER: %[[C3:.*]] = arith.constant 3.0
-    // CHECK-HORNER: %[[X1:.*]] = arith.mulf %[[C3]], %[[C6]]
-    // CHECK-HORNER: %[[X2:.*]] = arith.mulf %[[X1]], %[[C6]]
-    // CHECK-HORNER: %[[C5:.*]] = arith.constant 5.0
-    // CHECK-HORNER: %[[X3:.*]] = arith.addf %[[X2]], %[[C5]]
-    // CHECK-HORNER: %[[RESULT:.*]] = arith.mulf %[[X3]], %[[C6]]
+    // CHECK-HORNER: %[[C3:.*]] = arith.constant 3.000000e+00 : f64
+    // CHECK-HORNER: %[[MULT1:.*]] = arith.mulf %[[C3]], %[[C6]] : f64
+    // CHECK-HORNER: %[[MULT2:.*]] = arith.mulf %[[MULT1]], %[[C6]] : f64
+    // CHECK-HORNER: %[[C5:.*]] = arith.constant 5.000000e+00 : f64
+    // CHECK-HORNER: %[[ADD:.*]] = arith.addf %[[MULT2]], %[[C5]] : f64
+    // CHECK-HORNER: %[[RESULT:.*]] = arith.mulf %[[ADD]], %[[C6]] : f64
     // CHECK-HORNER: return %[[RESULT]]
     %c6 = arith.constant 6.0 : f64
     %0 = polynomial.eval #poly_mixed, %c6 : f64
@@ -60,6 +63,7 @@ func.func @test_mixed_coefficients() -> f64 {
 func.func @test_drop_small_coefficients_ps() -> f64 {
     // Similar test but using Paterson-Stockmeyer method
     // CHECK-PS-NOT: polynomial.eval
+    // CHECK-PS: return
     %c6 = arith.constant 6.0 : f64
     %0 = polynomial.eval #poly_with_small_coeffs, %c6 : f64
     return %0 : f64
