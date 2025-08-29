@@ -401,7 +401,7 @@ module attributes {scheme.ckks} {
 // CHECK-SAME:    CryptoContextT [[CC:[^,]*]],
 // CHECK-SAME:    CiphertextT [[ARG1:[^,]*]]) {
 // CHECK-NEXT:      const auto& [[v3:.*]] = [[CC]]->EvalFastRotationPrecompute([[ARG1]]);
-// CHECK-NEXT:      const auto& [[v4:.*]] = [[CC]]->EvalFastRotation([[ARG1]], 4, 64, [[v3]]);
+// CHECK-NEXT:      const auto& [[v4:.*]] = [[CC]]->EvalFastRotation([[ARG1]], 4, 2 * [[CC]]->GetRingDimension(), [[v3]]);
 // CHECK-NEXT:      return [[v4]];
 // CHECK-NEXT:  }
 module attributes {scheme.ckks} {
