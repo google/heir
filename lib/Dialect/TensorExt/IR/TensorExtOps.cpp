@@ -226,6 +226,55 @@ LogicalResult RotateAndReduceOp::verify() {
   return success();
 }
 
+LogicalResult PartitionOp::verify() {
+  RankedTensorType inputType = getInput().getType();
+  SmallVector<RankedTensorType> outputTypes =
+      llvm::map_to_vector(getOutput().getType(),
+                          [&](Type ty) { return cast<RankedTensorType>(ty); });
+
+  if (outputTypes.empty() || outputTypes.size() > 2) {
+    return emitOpError() << "output must have 1 or 2 types";
+  }
+
+  if (inputType.getRank() != 1) {
+    return emitOpError() << "input tensor must have rank 1";
+  }
+
+  if (llvm::any_of(outputTypes, [&](RankedTensorType ty) {
+        return ty.getElementType() != inputType.getElementType();
+      })) {
+    return emitOpError() << "element types must match";
+  }
+
+  size_t partitionSize = getPartitionSize().getZExtValue();
+  size_t numPieces = inputType.getShape()[0] / partitionSize;
+  size_t extraPartSize = inputType.getShape()[0] % partitionSize;
+
+  if (outputTypes[0].getShape()[0] != numPieces ||
+      outputTypes[0].getShape()[1] != partitionSize) {
+    return emitOpError() << "partition result has incorrect shape";
+  }
+
+  if (extraPartSize != 0) {
+    if (outputTypes.size() != 2) {
+      return emitOpError() << "missing required trailing component";
+    }
+
+    if (outputTypes.back().getRank() != 1 ||
+        extraPartSize != outputTypes.back().getShape()[0]) {
+      return emitOpError() << "trailing component has incorrect shape";
+    }
+
+    return success();
+  }
+
+  if (outputTypes.size() > 1) {
+    return emitOpError() << "output contains unneeded trailing component";
+  }
+
+  return success();
+}
+
 }  // namespace tensor_ext
 }  // namespace heir
 }  // namespace mlir
