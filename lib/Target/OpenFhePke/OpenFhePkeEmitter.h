@@ -7,10 +7,13 @@
 #include <string_view>
 #include <vector>
 
+// IWYU pragma: begin_keep
 #include "include/cereal/cereal.hpp"        // from @cereal
 #include "include/cereal/types/map.hpp"     // from @cereal
 #include "include/cereal/types/string.hpp"  // from @cereal
 #include "include/cereal/types/vector.hpp"  // from @cereal
+// IWYU pragma: end_keep
+
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
@@ -125,14 +128,16 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(DecryptOp op);
   LogicalResult printOperation(EncryptOp op);
   LogicalResult printOperation(GenParamsOp op);
+  LogicalResult printOperation(FastRotationOp op);
+  LogicalResult printOperation(FastRotationPrecomputeOp op);
+  LogicalResult printOperation(GenBootstrapKeyOp op);
   LogicalResult printOperation(GenContextOp op);
   LogicalResult printOperation(GenMulKeyOp op);
   LogicalResult printOperation(GenRotKeyOp op);
-  LogicalResult printOperation(GenBootstrapKeyOp op);
   LogicalResult printOperation(KeySwitchOp op);
   LogicalResult printOperation(LevelReduceOp op);
-  LogicalResult printOperation(MakePackedPlaintextOp op);
   LogicalResult printOperation(MakeCKKSPackedPlaintextOp op);
+  LogicalResult printOperation(MakePackedPlaintextOp op);
   LogicalResult printOperation(ModReduceOp op);
   LogicalResult printOperation(MulConstOp op);
   LogicalResult printOperation(MulNoRelinOp op);

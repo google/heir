@@ -13,9 +13,8 @@
 #include <utility>
 #include <vector>
 
-#include "include/cereal/archives/binary.hpp"           // from @cereal
-#include "include/cereal/archives/json.hpp"             // from @cereal
 #include "include/cereal/archives/portable_binary.hpp"  // from @cereal
+#include "include/cereal/cereal.hpp"                    // from @cereal
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
@@ -29,6 +28,7 @@
 #include "llvm/include/llvm/ADT/StringExtras.h"        // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"         // from @llvm-project
+#include "llvm/include/llvm/Support/ErrorHandling.h"   // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/LogicalResult.h"   // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"     // from @llvm-project
@@ -272,9 +272,10 @@ LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
           // OpenFHE ops
           .Case<AddOp, AddPlainOp, SubOp, SubPlainOp, MulNoRelinOp, MulOp,
                 MulPlainOp, SquareOp, NegateOp, MulConstOp, RelinOp,
-                ModReduceOp, LevelReduceOp, RotOp, AutomorphOp, KeySwitchOp,
-                EncryptOp, DecryptOp, GenParamsOp, GenContextOp, GenMulKeyOp,
-                GenRotKeyOp, GenBootstrapKeyOp, MakePackedPlaintextOp,
+                ModReduceOp, LevelReduceOp, RotOp, AutomorphOp, FastRotationOp,
+                FastRotationPrecomputeOp, KeySwitchOp, EncryptOp, DecryptOp,
+                GenParamsOp, GenContextOp, GenMulKeyOp, GenRotKeyOp,
+                GenBootstrapKeyOp, MakePackedPlaintextOp,
                 MakeCKKSPackedPlaintextOp, SetupBootstrapOp, BootstrapOp>(
               [&](auto op) { return printOperation(op); })
           .Default([&](Operation&) {
@@ -661,6 +662,26 @@ LogicalResult OpenFhePkeEmitter::printOperation(RotOp op) {
      << "EvalRotate" << "("
      << variableNames->getNameForValue(op.getCiphertext()) << ", "
      << op.getIndex().getValue() << ");\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(FastRotationPrecomputeOp op) {
+  // return type of FastRotationPrecomputeOp is weird, so use auto
+  emitAutoAssignPrefix(op.getResult());
+  os << variableNames->getNameForValue(op.getCryptoContext()) << "->"
+     << "EvalFastRotationPrecompute("
+     << variableNames->getNameForValue(op.getInput()) << ");\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(FastRotationOp op) {
+  emitAutoAssignPrefix(op.getResult());
+  os << variableNames->getNameForValue(op.getCryptoContext()) << "->"
+     << "EvalFastRotation(" << variableNames->getNameForValue(op.getInput())
+     << ", " << op.getIndex().getZExtValue() << ", "
+     << op.getCyclotomicOrder().getZExtValue() << ", "
+     << variableNames->getNameForValue(op.getPrecomputedDigitDecomp())
+     << ");\n";
   return success();
 }
 

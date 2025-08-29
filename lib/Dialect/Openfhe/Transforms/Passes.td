@@ -72,4 +72,13 @@ def CountAddAndKeySwitch : Pass<"openfhe-count-add-and-key-switch"> {
   }];
 }
 
+def FastRotationPrecompute : Pass<"openfhe-fast-rotation-precompute"> {
+  let summary = "Identify and apply EvalFastRotation when possible.";
+  let description = [{
+    This pass identifies when a ciphertext is rotated by multiple different
+    shifts, and replaces the `EvalRot` ops with `EvalFastRotationPrecompute`
+    followed by `EvalFastRotate`.
+  }];
+}
+
 #endif  // LIB_DIALECT_OPENFHE_TRANSFORMS_PASSES_TD_

@@ -405,6 +405,10 @@ BackendPipelineBuilder toOpenFhePipelineBuilder() {
     configureCryptoContextOptions.entryFunction = options.entryFunction;
     pm.addPass(
         openfhe::createConfigureCryptoContext(configureCryptoContextOptions));
+
+    // Hoist repeated rotations into EvalFastRotation(Precompute)
+    // TODO(#1924): enable openfhe-fast-rotation-precompute in the pipeline
+    // pm.addPass(openfhe::createFastRotationPrecompute());
   };
 }
 

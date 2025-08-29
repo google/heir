@@ -381,3 +381,33 @@ module attributes {scheme.ckks} {
     return %result : tensor<8xf32>
   }
 }
+
+// -----
+
+!Z1095233372161_i64_ = !mod_arith.int<1095233372161 : i64>
+!Z65537_i64_ = !mod_arith.int<65537 : i64>
+!rns_L0_ = !rns.rns<!Z1095233372161_i64_>
+#ring_Z65537_i64_1_x32_ = #polynomial.ring<coefficientType = !Z65537_i64_, polynomialModulus = <1 + x**32>>
+#ring_rns_L0_1_x32_ = #polynomial.ring<coefficientType = !rns_L0_, polynomialModulus = <1 + x**32>>
+#full_crt_packing_encoding = #lwe.full_crt_packing_encoding<scaling_factor = 0>
+#key = #lwe.key<>
+#modulus_chain_L5_C0_ = #lwe.modulus_chain<elements = <1095233372161 : i64, 1032955396097 : i64, 1005037682689 : i64, 998595133441 : i64, 972824936449 : i64, 959939837953 : i64>, current = 0>
+#plaintext_space = #lwe.plaintext_space<ring = #ring_Z65537_i64_1_x32_, encoding = #full_crt_packing_encoding>
+#ciphertext_space_L0_ = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x32_, encryption_type = lsb>
+!cc = !openfhe.crypto_context
+!ct = !lwe.lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
+
+// CHECK: CiphertextT test_fast_rot(
+// CHECK-SAME:    CryptoContextT [[CC:[^,]*]],
+// CHECK-SAME:    CiphertextT [[ARG1:[^,]*]]) {
+// CHECK-NEXT:      const auto& [[v3:.*]] = [[CC]]->EvalFastRotationPrecompute([[ARG1]]);
+// CHECK-NEXT:      const auto& [[v4:.*]] = [[CC]]->EvalFastRotation([[ARG1]], 4, 64, [[v3]]);
+// CHECK-NEXT:      return [[v4]];
+// CHECK-NEXT:  }
+module attributes {scheme.ckks} {
+  func.func @test_fast_rot(%cc: !cc, %input1: !ct) -> !ct {
+    %precomp = openfhe.fast_rotation_precompute %cc, %input1 : (!cc, !ct) -> !openfhe.digit_decomp
+    %res = openfhe.fast_rotation %cc, %input1, %precomp {index = 4 : index, cyclotomicOrder = 64 : index} : (!cc, !ct, !openfhe.digit_decomp) -> !ct
+    return %res : !ct
+  }
+}

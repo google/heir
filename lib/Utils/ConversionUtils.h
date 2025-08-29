@@ -6,10 +6,9 @@
 #include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Attributes.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/Dialect.h"               // from @llvm-project
-#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/OperationSupport.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"         // from @llvm-project
@@ -17,6 +16,7 @@
 #include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
+#include "mlir/include/mlir/Support/WalkResult.h"       // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
 namespace mlir {
@@ -128,20 +128,21 @@ void addStructuralConversionPatterns(TypeConverter& typeConverter,
                                      RewritePatternSet& patterns,
                                      ConversionTarget& target);
 
-// Returns the Value corresponding to a given type in the FuncOp containing
-// this op.
 template <typename ArgType>
-FailureOr<Value> getContextualArgFromFunc(Operation* op) {
-  for (auto blockArg : op->getParentOfType<func::FuncOp>()
-                           .getBody()
-                           .getBlocks()
-                           .front()
-                           .getArguments()) {
+FailureOr<Value> getContextualArgFromFunc(func::FuncOp op) {
+  for (auto blockArg : op.getBody().getBlocks().front().getArguments()) {
     if (mlir::isa<ArgType>(blockArg.getType())) {
       return blockArg;
     }
   }
   return failure();
+}
+
+// Returns the Value corresponding to a given type in the FuncOp containing
+// this op.
+template <typename ArgType>
+FailureOr<Value> getContextualArgFromFunc(Operation* op) {
+  return getContextualArgFromFunc<ArgType>(op->getParentOfType<func::FuncOp>());
 }
 
 // Returns the Value corresponding to a given type in the FuncOp containing

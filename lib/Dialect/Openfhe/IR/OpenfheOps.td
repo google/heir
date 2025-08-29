@@ -283,7 +283,7 @@ def LevelReduceOp : Openfhe_UnaryTypeSwitchOp<"level_reduce"> {
   );
 }
 
-def RotOp : Openfhe_Op<"rot",[
+def RotOp : Openfhe_Op<"rot", [
   Pure,
   AllTypesMatch<["ciphertext", "output"]>
 ]> {
@@ -320,5 +320,27 @@ def KeySwitchOp : Openfhe_Op<"key_switch", [
 }
 
 def BootstrapOp : Openfhe_UnaryTypeSwitchOp<"bootstrap"> { let summary = "OpenFHE bootstrap operation of a ciphertext. (For CKKS)"; }
+
+def FastRotationPrecomputeOp : Openfhe_Op<"fast_rotation_precompute", [Pure]> {
+  let arguments = (ins
+    Openfhe_CryptoContext:$cryptoContext,
+    LWECiphertext:$input
+  );
+  let results = (outs Openfhe_DigitDecomposition:$output);
+}
+
+// TODO(#1924): support the "Ext" variant for hybrid key switching.
+def FastRotationOp : Openfhe_Op<"fast_rotation", [Pure,
+   AllTypesMatch<["input", "output"]>
+]> {
+  let arguments = (ins
+    Openfhe_CryptoContext:$cryptoContext,
+    LWECiphertext:$input,
+    IndexAttr:$index,
+    IndexAttr:$cyclotomicOrder,
+    Openfhe_DigitDecomposition:$precomputedDigitDecomp
+  );
+  let results = (outs LWECiphertext:$output);
+}
 
 #endif  // LIB_DIALECT_OPENFHE_IR_OPENFHEOPS_TD_

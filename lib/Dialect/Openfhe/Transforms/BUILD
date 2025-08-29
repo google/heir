@@ -14,6 +14,7 @@ cc_library(
     deps = [
         ":ConfigureCryptoContext",
         ":CountAddAndKeySwitch",
+        ":FastRotationPrecompute",
         ":pass_inc_gen",
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
     ],
@@ -56,6 +57,25 @@ cc_library(
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect:ModuleAttributes",
         "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
+    name = "FastRotationPrecompute",
+    srcs = ["FastRotationPrecompute.cpp"],
+    hdrs = [
+        "FastRotationPrecompute.h",
+    ],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@heir//lib/Dialect/Openfhe/IR:Dialect",
+        "@heir//lib/Utils:ConversionUtils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
     ],

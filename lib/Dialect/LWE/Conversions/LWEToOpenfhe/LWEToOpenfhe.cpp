@@ -53,7 +53,7 @@ FailureOr<Value> getContextualCryptoContext(Operation* op) {
   auto result = getContextualArgFromFunc<openfhe::CryptoContextType>(op);
   if (failed(result)) {
     return op->emitOpError()
-           << "Found LWE op in a function without a public key argument."
+           << "Found LWE op in a function without a crypto context argument."
               " Did the AddCryptoContextArg pattern fail to run?";
   }
   return result.value();

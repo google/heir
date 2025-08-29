@@ -55,4 +55,11 @@ def Openfhe_CryptoContext : Openfhe_Type<"CryptoContext", "crypto_context"> {
   let asmName = "cc";
 }
 
+// The otherwise unnamed type std::shared_ptr<std::vector<Element>> which is
+// the return type of EvalFastRotationPrecompute.
+def Openfhe_DigitDecomposition : Openfhe_Type<"DigitDecomposition", "digit_decomp"> {
+  let summary = "A precomputed digit decomposition for for EvalFastRotation";
+  let asmName = "digit_decomp";
+}
+
 #endif  // LIB_DIALECT_OPENFHE_IR_OPENFHETYPES_TD_

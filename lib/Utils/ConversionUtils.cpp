@@ -4,9 +4,6 @@
 #include <cstdint>
 #include <memory>
 
-#include "lib/Dialect/LWE/IR/LWEAttributes.h"
-#include "llvm/include/llvm/ADT/TypeSwitch.h"         // from @llvm-project
-#include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
