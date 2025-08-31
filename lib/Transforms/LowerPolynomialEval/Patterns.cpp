@@ -80,17 +80,47 @@ LogicalResult LowerViaHorner::matchAndRewrite(EvalOp op,
   auto monomialMap = attr.getValue().getPolynomial().getCoeffMap();
   DenseMap<int64_t, TypedAttr> attributeMap;
   for (auto& [key, monomial] : monomialMap) {
-    attributeMap.insert(
-        {key, getScalarOrDenseAttr(evaluatedType, monomial.getCoefficient())});
+    // Drop coefficients below the threshold
+    double coeffValue = monomial.getCoefficient().convertToDouble();
+    if (std::abs(coeffValue) >= getMinCoefficientThreshold()) {
+      attributeMap.insert({key, getScalarOrDenseAttr(
+                                    evaluatedType, monomial.getCoefficient())});
+    }
   }
 
-  // Start with the coefficient of the highest degree term
-  Value result =
-      arith::ConstantOp::create(b, evaluatedType, attributeMap[maxDegree]);
+  // If all coefficients were dropped, return zero
+  if (attributeMap.empty()) {
+    Value result = arith::ConstantOp::create(b, evaluatedType,
+                                             b.getZeroAttr(evaluatedType));
+    rewriter.replaceOp(op, result);
+    return success();
+  }
+
+  // Find the highest degree term that wasn't dropped
+  Value result = nullptr;
+  auto x = op.getOperand();
+  int64_t startDegree = maxDegree;
+
+  // Find the highest degree term that still exists
+  while (startDegree >= 0 &&
+         attributeMap.find(startDegree) == attributeMap.end()) {
+    startDegree--;
+  }
+
+  // If no coefficients remain, return zero
+  if (startDegree < 0) {
+    result = arith::ConstantOp::create(b, evaluatedType,
+                                       b.getZeroAttr(evaluatedType));
+    rewriter.replaceOp(op, result);
+    return success();
+  }
+
+  // Start with the coefficient of the highest remaining degree term
+  result =
+      arith::ConstantOp::create(b, evaluatedType, attributeMap[startDegree]);
 
   // Apply Horner's method, accounting for possible missing terms
-  auto x = op.getOperand();
-  for (int64_t i = maxDegree - 1; i >= 0; i--) {
+  for (int64_t i = startDegree - 1; i >= 0; i--) {
     // Multiply by x
     result = arith::MulFOp::create(b, result, x);
 
@@ -126,8 +156,20 @@ LogicalResult LowerViaPatersonStockmeyerMonomial::matchAndRewrite(
   auto monomialMap = attr.getValue().getPolynomial().getCoeffMap();
   DenseMap<int64_t, TypedAttr> attributeMap;
   for (auto& [key, monomial] : monomialMap) {
-    attributeMap[key] =
-        getScalarOrDenseAttr(evaluatedType, monomial.getCoefficient());
+    // Drop coefficients below the threshold
+    double coeffValue = monomial.getCoefficient().convertToDouble();
+    if (std::abs(coeffValue) >= getMinCoefficientThreshold()) {
+      attributeMap[key] =
+          getScalarOrDenseAttr(evaluatedType, monomial.getCoefficient());
+    }
+  }
+
+  // If all coefficients were dropped, return zero
+  if (attributeMap.empty()) {
+    Value result = arith::ConstantOp::create(b, evaluatedType,
+                                             b.getZeroAttr(evaluatedType));
+    rewriter.replaceOp(op, result);
+    return success();
   }
 
   // Choose k optimally - sqrt of maxDegree is typically a good choice
@@ -241,7 +283,7 @@ LogicalResult LowerViaPatersonStockmeyerChebyshev::matchAndRewrite(
 
   auto xNode = ArithmeticDagNode<SSAValue>::leaf(op.getValue());
   auto resultNode = polynomial::patersonStockmeyerChebyshevPolynomialEvaluation(
-      xNode, chebCoeffs);
+      xNode, chebCoeffs, getMinCoefficientThreshold());
 
   ImplicitLocOpBuilder b(op.getLoc(), rewriter);
   IRMaterializingVisitor visitor(b, op.getValue().getType());
