@@ -13,6 +13,7 @@
 
 #include "lib/Kernel/ArithmeticDag.h"
 #include "lib/Kernel/KernelName.h"
+#include "lib/Utils/MathUtils.h"
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
@@ -200,6 +201,44 @@ implementRotateAndReduce(const T& vector, std::optional<T> plaintexts,
   }
 
   return result;
+}
+
+// Returns an arithmetic DAG that implements the Halevi-Shoup matrix
+// multiplication algorithm. This implementation uses a rotate-and-reduce
+// operation, followed by a summation of partial sums if the matrix is not
+// square.
+template <typename T>
+std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
+                 std::shared_ptr<ArithmeticDagNode<T>>>
+implementHaleviShoup(const T& vector, const T& matrix,
+                     std::vector<int64_t> originalMatrixShape) {
+  using NodeTy = ArithmeticDagNode<T>;
+  int64_t numRotations = matrix.getShape()[0];
+
+  auto rotateAndReduceResult = implementRotateAndReduce<T>(
+      vector, std::optional<T>(matrix), /*period=*/1,
+      /*steps=*/numRotations);
+
+  auto summedShifts = rotateAndReduceResult;
+
+  int64_t matrixNumRows = nextPowerOfTwo(originalMatrixShape[0]);
+  int64_t matrixNumCols = nextPowerOfTwo(originalMatrixShape[1]);
+
+  if (matrixNumRows == matrixNumCols) {
+    return summedShifts;
+  }
+
+  // Post-processing partial-rotate-and-reduce step required for
+  // squat-diagonal packing.
+  int64_t numShifts = (int64_t)(log2(matrixNumCols) - log2(matrixNumRows));
+  int64_t shift = matrixNumCols / 2;
+  for (int64_t i = 0; i < numShifts; ++i) {
+    auto rotated = NodeTy::leftRotate(summedShifts, shift);
+    summedShifts = NodeTy::add(summedShifts, rotated);
+    shift /= 2;
+  }
+
+  return summedShifts;
 }
 
 }  // namespace kernel

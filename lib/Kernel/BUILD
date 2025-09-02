@@ -58,6 +58,7 @@ cc_library(
     deps = [
         ":ArithmeticDag",
         ":Kernel",
+        "@heir//lib/Utils:MathUtils",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
