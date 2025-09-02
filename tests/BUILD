@@ -13,6 +13,7 @@ filegroup(
     data = [
         ":lit.cfg.py",
         "@heir//tools:heir-opt",
+        "@heir//tools:heir-opt-bin",
         "@heir//tools:heir-translate",
         "@llvm-project//llvm:FileCheck",
         "@llvm-project//llvm:count",

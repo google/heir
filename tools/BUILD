@@ -1,6 +1,7 @@
 # HEIR tools
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -12,7 +13,7 @@ WORKSPACE_PATH = ""
 
 # Custom `mlir-opt` replacement that links our dialect and passes
 cc_binary(
-    name = "heir-opt",
+    name = "heir-opt-bin",
     srcs = ["heir-opt.cpp"],
     data = select({
         "@heir//:config_enable_yosys": [
@@ -196,6 +197,12 @@ cc_binary(
         ],
         "//conditions:default": [],
     }),
+)
+
+sh_binary(
+    name = "heir-opt",
+    srcs = ["heir-opt-wrapper.sh"],
+    data = [":heir-opt-bin"],
 )
 
 # Custom `mlir-translate` replacement that adds our custom translations
