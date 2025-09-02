@@ -1,4 +1,4 @@
-load("@heir//tests/Examples/plaintext:test.bzl", "plaintext_test")
+load("@heir//tests/llvm_runner:llvm_runner.bzl", "llvm_runner_test")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 package(default_applicable_licenses = ["@heir//:license"])
@@ -9,7 +9,7 @@ cc_library(
 )
 
 # Secret arithmetic plaintext backend with original integer type semantic
-plaintext_test(
+llvm_runner_test(
     name = "add",
     heir_opt_flags = [
         "--mlir-to-plaintext-backend",
@@ -17,6 +17,6 @@ plaintext_test(
     mlir_src = "add.mlir",
     deps = [
         ":add_test",
-        "@heir//tests/Examples/plaintext:memrefCopy",
+        "@heir//tests/llvm_runner:memrefCopy",
     ],
 )

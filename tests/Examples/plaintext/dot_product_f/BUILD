@@ -1,4 +1,4 @@
-load("@heir//tests/Examples/plaintext:test.bzl", "plaintext_test")
+load("@heir//tests/llvm_runner:llvm_runner.bzl", "llvm_runner_test")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 package(default_applicable_licenses = ["@heir//:license"])
@@ -8,7 +8,7 @@ cc_library(
     srcs = ["dot_product_8f_test.c"],
 )
 
-plaintext_test(
+llvm_runner_test(
     name = "dot_product_8f",
     heir_opt_flags = [
         "--mlir-to-plaintext-backend",
@@ -16,6 +16,6 @@ plaintext_test(
     mlir_src = "@heir//tests/Examples/common:dot_product_8f.mlir",
     deps = [
         ":dot_product_8f_test",
-        "@heir//tests/Examples/plaintext:memrefCopy",
+        "@heir//tests/llvm_runner:memrefCopy",
     ],
 )

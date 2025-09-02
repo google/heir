@@ -49,7 +49,7 @@ binary_rule = rule(
     },
 )
 
-def plaintext_test(name, mlir_src, heir_opt_flags, mlir_translate_flags = None, llc_flags = None, deps = [], log_file_name = None, log_file_visibility = None, data = []):
+def llvm_runner_test(name, mlir_src, heir_opt_flags, mlir_translate_flags = None, llc_flags = None, deps = [], log_file_name = None, log_file_visibility = None, data = []):
     """Define a lit test for the Plaintext Backend.
 
     Args:
