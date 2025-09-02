@@ -14,8 +14,5 @@ llvm_runner_test(
         "--mlir-to-plaintext-backend",
     ],
     mlir_src = "@heir//tests/Examples/common:dot_product_8f.mlir",
-    deps = [
-        ":dot_product_8f_test",
-        "@heir//tests/llvm_runner:memrefCopy",
-    ],
+    deps = [":dot_product_8f_test"],
 )

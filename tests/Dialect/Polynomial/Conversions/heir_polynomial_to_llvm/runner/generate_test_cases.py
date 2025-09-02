@@ -148,15 +148,6 @@ def parse_to_sympy(poly_str: str, var: sympy.Symbol, cmod: int):
   return poly.as_poly(domain=f"ZZ[{cmod}]")
 
 
-def make_coset_regex(x, cmod):
-  """Return a regex that matches x or x +/- cmod."""
-  if x == 0:
-    return "0"
-  if x < 0:
-    return "{{" + f"({x}|{cmod + x})" + "}}"
-  return "{{" + f"({x}|{x - cmod})" + "}}"
-
-
 def main(args: argparse.Namespace) -> None:
   if not args.tests_toml_path:
     print("No test config was passed via --tests_toml_path")

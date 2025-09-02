@@ -64,6 +64,11 @@ def llvm_runner_test(name, mlir_src, heir_opt_flags, mlir_translate_flags = None
       log_file_visibility: Visibility of the log file.
       data: Data deps to pass to heir_opt
     """
+    default_deps = [
+        "@googletest//:gtest_main",
+        "@heir//tests/llvm_runner:memrefCopy",
+    ]
+    default_deps.extend(deps)
 
     heir_opt_name = "%s_heir_opt" % name
     generated_heir_opt_name = "%s_heir_opt.mlir" % name
@@ -116,7 +121,7 @@ def llvm_runner_test(name, mlir_src, heir_opt_flags, mlir_translate_flags = None
     cc_test(
         name = cc_test_name,
         srcs = srcs,
-        deps = deps,
+        deps = default_deps,
         copts = ["-fPIC"],
     )
 
@@ -126,7 +131,7 @@ def llvm_runner_test(name, mlir_src, heir_opt_flags, mlir_translate_flags = None
         cc_binary(
             name = cc_binary_name,
             srcs = srcs,
-            deps = deps,
+            deps = default_deps,
             copts = ["-fPIC"],
         )
 

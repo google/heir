@@ -34,10 +34,7 @@ llvm_runner_test(
         "--mlir-to-plaintext-backend=plaintext-size=4096",
     ],
     mlir_src = "@heir//tests/Examples/common:roberts_cross_16x16.mlir",
-    deps = [
-        ":roberts_cross_test",
-        "@heir//tests/llvm_runner:memrefCopy",
-    ],
+    deps = [":roberts_cross_test"],
 )
 
 # Secret arithmetic plaintext backend with plaintext modulus semantic
@@ -47,10 +44,7 @@ llvm_runner_test(
         "--mlir-to-plaintext-backend=plaintext-size=4096 plaintext-modulus=786433",
     ],
     mlir_src = "@heir//tests/Examples/common:roberts_cross_16x16.mlir",
-    deps = [
-        ":roberts_cross_mod_test",
-        "@heir//tests/llvm_runner:memrefCopy",
-    ],
+    deps = [":roberts_cross_mod_test"],
 )
 
 # Secret arithmetic plaintext backend with plaintext modulus semantic
@@ -60,8 +54,5 @@ llvm_runner_test(
         "--mlir-to-plaintext-backend=plaintext-size=4096 plaintext-modulus=65537",
     ],
     mlir_src = "@heir//tests/Examples/common:roberts_cross_16x16.mlir",
-    deps = [
-        ":roberts_cross_mod_failure_test",
-        "@heir//tests/llvm_runner:memrefCopy",
-    ],
+    deps = [":roberts_cross_mod_failure_test"],
 )

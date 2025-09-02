@@ -28,10 +28,7 @@ llvm_runner_test(
         "--mlir-to-plaintext-backend",
     ],
     mlir_src = "@heir//tests/Examples/common:dot_product_8.mlir",
-    deps = [
-        ":dot_product_8_test",
-        "@heir//tests/llvm_runner:memrefCopy",
-    ],
+    deps = [":dot_product_8_test"],
 )
 
 # Secret arithmetic plaintext backend with plaintext modulus semantic
@@ -41,10 +38,7 @@ llvm_runner_test(
         "--mlir-to-plaintext-backend=plaintext-modulus=257",
     ],
     mlir_src = "@heir//tests/Examples/common:dot_product_8.mlir",
-    deps = [
-        ":dot_product_8_mod_test",
-        "@heir//tests/llvm_runner:memrefCopy",
-    ],
+    deps = [":dot_product_8_mod_test"],
 )
 
 # Secret arithmetic plaintext backend with plaintext modulus semantic
@@ -54,10 +48,7 @@ llvm_runner_test(
         "--mlir-to-plaintext-backend=plaintext-modulus=65537",
     ],
     mlir_src = "@heir//tests/Examples/common:dot_product_8.mlir",
-    deps = [
-        ":dot_product_8_mod_test",
-        "@heir//tests/llvm_runner:memrefCopy",
-    ],
+    deps = [":dot_product_8_mod_test"],
 )
 
 # Secret arithmetic plaintext backend with plaintext modulus semantic
@@ -67,8 +58,5 @@ llvm_runner_test(
         "--mlir-to-plaintext-backend=plaintext-modulus=17",
     ],
     mlir_src = "@heir//tests/Examples/common:dot_product_8.mlir",
-    deps = [
-        ":dot_product_8_mod_failure_test",
-        "@heir//tests/llvm_runner:memrefCopy",
-    ],
+    deps = [":dot_product_8_mod_failure_test"],
 )

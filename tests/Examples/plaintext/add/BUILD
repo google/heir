@@ -15,8 +15,5 @@ llvm_runner_test(
         "--mlir-to-plaintext-backend",
     ],
     mlir_src = "add.mlir",
-    deps = [
-        ":add_test",
-        "@heir//tests/llvm_runner:memrefCopy",
-    ],
+    deps = [":add_test"],
 )
