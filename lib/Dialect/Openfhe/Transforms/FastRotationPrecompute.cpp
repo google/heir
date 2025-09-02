@@ -61,7 +61,11 @@ void processFunc(func::FuncOp funcOp, Value cryptoContext) {
 
     for (RotOp op : ciphertextToRotateOps[ciphertext]) {
       builder.setInsertionPoint(op);
-      // cyclotomic order is 2*N where polynomial modulus is x^N + 1
+      // Cyclotomic order is 2*N where polynomial modulus is x^N + 1 This would
+      // be the right value to use here, IF this actually ended up as the ring
+      // dimension used by OpenFHE. However, OpenFHE sets its own parameters,
+      // and so this ends up being ignored in favor of dynamically reading
+      // `cc->GetRingDimension() * 2`.
       int cyclotomicOrder =
           2 * cast<lwe::LWECiphertextType>(ciphertext.getType())
                   .getCiphertextSpace()
@@ -86,9 +90,9 @@ struct FastRotationPrecompute
     // We must process funcs separately so that rotations are not attempted to
     // be batched across function boundaries.
     getOperation()->walk([&](func::FuncOp op) -> WalkResult {
-      auto result = getContextualArgFromFunc<openfhe::CryptoContextType>(op);
+      auto result = getArgOfType<openfhe::CryptoContextType>(op);
       if (failed(result)) {
-        LDBG() << "Skipping func with no cryptocontex arg: " << op.getSymName()
+        LDBG() << "Skipping func with no cryptocontext arg: " << op.getSymName()
                << "\n";
         return WalkResult::advance();
       }

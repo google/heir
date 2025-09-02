@@ -107,6 +107,7 @@ cc_library(
         "@heir//lib/Dialect/Lattigo/Transforms:ConfigureCryptoContext",
         "@heir//lib/Dialect/Openfhe/Transforms:ConfigureCryptoContext",
         "@heir//lib/Dialect/Openfhe/Transforms:CountAddAndKeySwitch",
+        "@heir//lib/Dialect/Openfhe/Transforms:FastRotationPrecompute",
         "@heir//lib/Dialect/Secret/Conversions/SecretToBGV",
         "@heir//lib/Dialect/Secret/Conversions/SecretToCGGI",
         "@heir//lib/Dialect/Secret/Conversions/SecretToCKKS",

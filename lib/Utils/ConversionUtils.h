@@ -129,8 +129,8 @@ void addStructuralConversionPatterns(TypeConverter& typeConverter,
                                      ConversionTarget& target);
 
 template <typename ArgType>
-FailureOr<Value> getContextualArgFromFunc(func::FuncOp op) {
-  for (auto blockArg : op.getBody().getBlocks().front().getArguments()) {
+FailureOr<Value> getArgOfType(func::FuncOp op) {
+  for (auto blockArg : op.getArguments()) {
     if (mlir::isa<ArgType>(blockArg.getType())) {
       return blockArg;
     }
@@ -142,7 +142,7 @@ FailureOr<Value> getContextualArgFromFunc(func::FuncOp op) {
 // this op.
 template <typename ArgType>
 FailureOr<Value> getContextualArgFromFunc(Operation* op) {
-  return getContextualArgFromFunc<ArgType>(op->getParentOfType<func::FuncOp>());
+  return getArgOfType<ArgType>(op->getParentOfType<func::FuncOp>());
 }
 
 // Returns the Value corresponding to a given type in the FuncOp containing
