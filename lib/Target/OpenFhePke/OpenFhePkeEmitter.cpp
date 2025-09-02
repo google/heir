@@ -35,6 +35,7 @@
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
@@ -260,11 +261,15 @@ LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
                 arith::AddIOp, arith::SubIOp, arith::MulIOp, arith::DivSIOp,
                 arith::CmpIOp, arith::SelectOp>(
               [&](auto op) { return printOperation(op); })
+          // SCF ops
+          .Case<scf::IfOp, scf::ForOp, scf::YieldOp>(
+              [&](auto op) { return printOperation(op); })
           // Tensor ops
           .Case<tensor::ConcatOp, tensor::EmptyOp, tensor::InsertOp,
                 tensor::InsertSliceOp, tensor::ExtractOp,
                 tensor::ExtractSliceOp, tensor::SplatOp,
-                tensor::CollapseShapeOp, tensor::ExpandShapeOp>(
+                tensor::CollapseShapeOp, tensor::ExpandShapeOp,
+                tensor::FromElementsOp>(
               [&](auto op) { return printOperation(op); })
           // LWE ops
           .Case<lwe::RLWEDecodeOp, lwe::ReinterpretApplicationDataOp>(
@@ -534,6 +539,135 @@ LogicalResult OpenFhePkeEmitter::printOperation(affine::AffineForOp op) {
 
 LogicalResult OpenFhePkeEmitter::printOperation(affine::AffineYieldOp op) {
   // Assume all yielded loop values have already been assigned.
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(scf::IfOp op) {
+  // ResultType result;
+  // if (value) {
+  //   result = blah;
+  // } else {
+  //   result = blah;
+  // }
+  for (auto i = 0; i < op.getNumResults(); ++i) {
+    Value result = op.getResults()[i];
+    Value thenYieldedValue = op.thenYield().getResults()[i];
+    Value elseYieldedValue = op.elseYield().getResults()[i];
+
+    // Map the yielded value names to the result names if the yielded value is a
+    // tensor.
+    if (isa<ShapedType>(result.getType())) {
+      variableNames->mapValueNameToValue(thenYieldedValue, result);
+      variableNames->mapValueNameToValue(elseYieldedValue, result);
+      mutableValues.insert(thenYieldedValue);
+      mutableValues.insert(elseYieldedValue);
+    } else {
+      if (failed(emitType(result.getType(), op.getLoc(),
+                          /*constant=*/false))) {
+        return emitError(op.getLoc(),
+                         llvm::formatv("Failed to emit type for {}", result));
+      }
+      os << " " << variableNames->getNameForValue(result) << ";\n";
+      mutableValues.insert(result);
+    }
+  }
+
+  os << llvm::formatv("if ({0}) {{\n",
+                      variableNames->getNameForValue(op.getCondition()));
+  os.indent();
+  for (Operation& op : *op.thenBlock()) {
+    if (failed(translate(op))) {
+      return op.emitOpError() << "Failed to translate for if then block";
+    }
+  }
+  os.unindent();
+  os << "}";
+
+  os << llvm::formatv(" else {{\n");
+  os.indent();
+  for (Operation& op : *op.elseBlock()) {
+    if (failed(translate(op))) {
+      return op.emitOpError() << "Failed to translate for if else block";
+    }
+  }
+  os.unindent();
+  os << "}";
+
+  os << "\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(scf::ForOp op) {
+  for (auto i = 0; i < op.getNumRegionIterArgs(); ++i) {
+    // Assign the loop's results to use as initial iter args. We must use
+    // non-const types so that the loop body can modify them.
+    Value result = op.getResults()[i];
+    Value operand = op.getInitArgs()[i];
+    Value iterArg = op.getRegionIterArgs()[i];
+    Value yieldedValue = op.getYieldedValues()[i];
+
+    // Map the region's iter args to the result names.
+    // Map the yielded value names to the result names.
+    variableNames->mapValueNameToValue(iterArg, result);
+    variableNames->mapValueNameToValue(yieldedValue, result);
+    mutableValues.insert(op.getRegionIterArgs()[i]);
+    mutableValues.insert(op.getYieldedValues()[i]);
+
+    if (variableNames->contains(result) && variableNames->contains(operand) &&
+        variableNames->getNameForValue(result) ==
+            variableNames->getNameForValue(operand)) {
+      // This occurs in cases where the loop is inserting into a tensor and
+      // passing it along as an inter arg.
+      continue;
+    }
+
+    if (failed(emitTypedAssignPrefix(result, op.getLoc(),
+                                     /*constant=*/false))) {
+      return emitError(
+          op.getLoc(),
+          llvm::formatv("Failed to emit typed assign prefix for {}", result));
+    }
+    os << variableNames->getNameForValue(operand);
+    if (!isa<ShapedType>(result.getType())) {
+      // Note that for vector types we don't need to clone.
+      os << "->Clone()";
+    }
+    os << ";\n";
+  }
+
+  auto getConstantOrValue = [&](Value value) -> std::string {
+    return getStringForConstant(value).value_or(
+        variableNames->getNameForValue(value));
+  };
+
+  os << llvm::formatv("for (auto {0} = {1}; {0} < {2}; ++{0}) {{\n",
+                      variableNames->getNameForValue(op.getInductionVar()),
+                      getConstantOrValue(op.getLowerBound()),
+                      getConstantOrValue(op.getUpperBound()));
+  os.indent();
+  for (Operation& op : *op.getBody()) {
+    if (failed(translate(op))) {
+      return op.emitOpError() << "Failed to translate for loop block";
+    }
+  }
+
+  os.unindent();
+  os << "}\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(scf::YieldOp op) {
+  // Assume all yielded loop values have already been assigned.
+  if (auto ifOp = dyn_cast<scf::IfOp>(op->getParentOp())) {
+    for (auto i = 0; i < op.getNumOperands(); ++i) {
+      Value operand = op.getOperands()[i];
+      Value result = ifOp.getResults()[i];
+      if (!isa<ShapedType>(result.getType())) {
+        emitAutoAssignPrefix(result);
+        os << variableNames->getNameForValue(operand) << ";\n";
+      }
+    }
+  }
   return success();
 }
 
@@ -1230,6 +1364,23 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::SplatOp op) {
   os << " " << variableNames->getNameForValue(result) << "("
      << result.getType().getNumElements() << ", "
      << variableNames->getNameForValue(op.getInput()) << ");\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(tensor::FromElementsOp op) {
+  // std::vector<CiphertextType> result = {input[0], ..., input[n]};
+  auto result = op.getResult();
+  if (failed(emitType(result.getType(), op->getLoc()))) {
+    return failure();
+  }
+  if (result.getType().getRank() != 1) {
+    return failure();
+  }
+  os << " " << variableNames->getNameForValue(result) << "{"
+     << commaSeparatedValues(
+            op.getElements(),
+            [&](Value value) { return variableNames->getNameForValue(value); })
+     << "};\n";
   return success();
 }
 
