@@ -3,27 +3,7 @@
 #include <cstdint>
 #include <cstring>
 
-// Copied from CRunnerUtils from MLIR
-
-/// StridedMemRef descriptor type with static rank.
-template <typename T, int N>
-struct StridedMemRefType {
-  T* basePtr;
-  T* data;
-  int64_t offset;
-  int64_t sizes[N];
-  int64_t strides[N];
-};
-
-//===----------------------------------------------------------------------===//
-// Codegen-compatible structure for UnrankedMemRef type.
-//===----------------------------------------------------------------------===//
-// Unranked MemRef
-template <typename T>
-struct UnrankedMemRefType {
-  int64_t rank;
-  void* descriptor;
-};
+#include "tests/llvm_runner/memref_types.h"
 
 // A reference to one of the StridedMemRef types.
 template <typename T>

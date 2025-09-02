@@ -3,6 +3,8 @@
 
 #include <cstdint>
 
+// Copied from CRunnerUtils from MLIR
+
 // StridedMemRef descriptor type with static rank.
 template <typename T, int N>
 struct StridedMemRefType {

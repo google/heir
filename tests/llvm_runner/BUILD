@@ -5,12 +5,8 @@ package(default_applicable_licenses = ["@heir//:license"])
 
 cc_library(
     name = "memrefCopy",
-    srcs = [
-        "memrefCopy.cpp",
-    ],
-    hdrs = [
-        "memref_types.h",
-    ],
+    srcs = ["memrefCopy.cpp"],
+    hdrs = ["memref_types.h"],
     visibility = ["@heir//:__subpackages__"],
 )
 
