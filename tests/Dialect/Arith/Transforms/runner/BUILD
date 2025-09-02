@@ -1,5 +1,5 @@
+load("@heir//bazel:lit.bzl", "glob_lit_tests")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
-load("//bazel:lit.bzl", "glob_lit_tests")
 
 package(default_applicable_licenses = ["@heir//:license"])
 

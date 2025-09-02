@@ -69,6 +69,7 @@
 #include "lib/Transforms/ConvertToCiphertextSemantics/ConvertToCiphertextSemantics.h"
 #include "lib/Transforms/DropUnitDims/DropUnitDims.h"
 #include "lib/Transforms/ElementwiseToAffine/ElementwiseToAffine.h"
+#include "lib/Transforms/EmitCInterface/EmitCInterface.h"
 #include "lib/Transforms/FoldConstantTensors/FoldConstantTensors.h"
 #include "lib/Transforms/ForwardInsertToExtract/ForwardInsertToExtract.h"
 #include "lib/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
@@ -251,6 +252,7 @@ int main(int argc, char** argv) {
   mlir::arith::registerConvertArithToLLVMInterface(registry);
 
   // Custom passes in HEIR
+  registerEmitCInterfacePass();
   cggi::registerCGGIPasses();
   lattigo::registerLattigoPasses();
   lwe::registerLWEPasses();

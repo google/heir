@@ -8,6 +8,9 @@ cc_library(
     srcs = [
         "memrefCopy.cpp",
     ],
+    hdrs = [
+        "memref_types.h",
+    ],
     visibility = ["@heir//:__subpackages__"],
 )
 
