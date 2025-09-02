@@ -17,7 +17,7 @@ func.func private @printMemrefI32(memref<*xi32>) attributes { llvm.emit_c_interf
 
 func.func private @printTensor23(%1: tensor<23xi128>) attributes {llvm.emit_c_interface} {
   %2 = arith.trunci %1 : tensor<23xi128> to tensor<23xi32>
-  %3 = bufferization.to_memref %2 : tensor<23xi32> to memref<23xi32>
+  %3 = bufferization.to_buffer %2 : tensor<23xi32> to memref<23xi32>
   %cast = memref.cast %3 : memref<23xi32> to memref<*xi32>
   call @printMemrefI32(%cast) : (memref<*xi32>) -> ()
   return
