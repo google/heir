@@ -283,7 +283,9 @@ FailureOr<scf::ForOp> MLIRLoopNestGenerator::generateForLoop(
     builder_.setInsertionPointToStart(loop.getBody());
     loops.push_back(loop);
 
-    node = isl_ast_node_for_get_body(node);
+    isl_ast_node* tmp = isl_ast_node_for_get_body(node);
+    isl_ast_node_free(node);
+    node = tmp;
   }
 
   // For all loops but the innermost, yield the results of the nested loop.
@@ -312,7 +314,9 @@ FailureOr<scf::ForOp> MLIRLoopNestGenerator::generateForLoop(
     assert(elseNode == nullptr && "expected no else conditions");
     isl_ast_node_free(elseNode);
 
-    node = isl_ast_node_if_get_then_node(node);
+    isl_ast_node* tmp = isl_ast_node_if_get_then_node(node);
+    isl_ast_node_free(node);
+    node = tmp;
     innerBlock = &ifOp.getThenRegion().front();
     ifOps.push_back(ifOp);
   }
@@ -376,7 +380,6 @@ FailureOr<scf::ForOp> MLIRLoopNestGenerator::generateForLoop(
 
   isl_ast_expr_free(expr);
   isl_ast_node_free(node);
-  isl_ast_node_free(tree);
 
   return loops[0];
 }
