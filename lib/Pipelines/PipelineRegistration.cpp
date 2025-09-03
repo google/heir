@@ -8,6 +8,7 @@
 #include "lib/Transforms/ConvertSecretInsertToStaticInsert/ConvertSecretInsertToStaticInsert.h"
 #include "lib/Transforms/ConvertSecretWhileToStaticFor/ConvertSecretWhileToStaticFor.h"
 #include "lib/Transforms/ElementwiseToAffine/ElementwiseToAffine.h"
+#include "lib/Transforms/EmitCInterface/EmitCInterface.h"
 #include "lib/Transforms/LowerPolynomialEval/LowerPolynomialEval.h"
 #include "lib/Transforms/MemrefToArith/MemrefToArith.h"
 #include "lib/Transforms/PolynomialApproximation/PolynomialApproximation.h"
@@ -101,6 +102,9 @@ void mathToPolynomialApproximationBuilder(OpPassManager& pm) {
 }
 
 void polynomialToLLVMPipelineBuilder(OpPassManager& manager) {
+  // Annotate public functions with a C interface
+  manager.addPass(createEmitCInterface());
+
   // Poly
   manager.addPass(createElementwiseToAffine());
   manager.addPass(polynomial::createPolynomialToModArith());

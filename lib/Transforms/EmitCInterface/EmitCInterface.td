@@ -4,7 +4,7 @@
 include "mlir/Pass/PassBase.td"
 
 def EmitCInterface : Pass<"emit-c-interface"> {
-  let summary = "Adds llvm.emit_c_interface to each external function.";
+  let summary = "Adds llvm.emit_c_interface to each public function.";
 }
 
 #endif  // LIB_TRANSFORMS_EMITCINTERFACE_EMITCINTERFACE_TD_
