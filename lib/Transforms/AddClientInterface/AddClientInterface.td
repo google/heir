@@ -6,15 +6,18 @@ include "mlir/Pass/PassBase.td"
 def AddClientInterface : Pass<"add-client-interface"> {
   let summary = "Add client interfaces to secret functions";
   let description = [{
-  This pass adds encrypt and decrypt functions for each compiled function in the
-  IR. These functions maintain the same interface as the original function,
-  while the compiled function may lose some of this information by the lowerings
-  to ciphertext types (e.g., a scalar ciphertext, when lowered through RLWE schemes,
-  must be encoded as a tensor).
+    This pass adds encrypt and decrypt functions for each compiled function in
+    the IR. These functions maintain the same interface as the original
+    function, while the compiled function may lose some of this information by
+    the lowerings to ciphertext types (e.g., a scalar ciphertext, when lowered
+    through RLWE schemes, must be encoded as a tensor).
 
-  This pass occurs at the secret level, which is necessary because some
-  backends like the plaintext backend don't actually encrypt, but still require
-  the ciphertext layout/packing logic to convert cleartexts to plaintexts.
+    This pass occurs at the secret level, which is necessary because some
+    backends like the plaintext backend don't actually encrypt, but still
+    require the ciphertext layout/packing logic to convert cleartexts to
+    plaintexts.
+
+    (* example filepath=tests/Transforms/add_client_interface/doctest.mlir *)
   }];
   let dependentDialects = ["mlir::heir::secret::SecretDialect",
                             "mlir::heir::tensor_ext::TensorExtDialect",
