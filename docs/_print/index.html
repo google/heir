@@ -3261,7 +3261,7 @@ not well-defined on ciphertext-semantic tensors, while their implementation
 as SIMD/rotation ops are not well-defined on tensor-semantic tensors.</p><p>TODO(#1541): provide example docs</p><h4 id=options-10>Options</h4><pre tabindex=0><code>-ciphertext-size : Power of two length of the ciphertexts the data is packed in.
 </code></pre><h3 id=-drop-unit-dims><code>-drop-unit-dims</code></h3><p><em>Drops unit dimensions from linalg ops.</em></p><p>This pass converts <code>linalg</code> whose operands have unit dimensions
 in their types to specialized ops that drop these unit dimensions.</p><p>For example, a <code>linalg.matmul</code> whose RHS has type <code>tensor&lt;32x1xi32></code> is
-converted to a <code>linalg.matvec</code> op on the underlying <code>tensor&lt;32xi32></code>.</p><h3 id=-expand-copy><code>-expand-copy</code></h3><p><em>Expands memref.copy ops to explicit affine loads and stores</em></p><p>This pass removes memref copy operations by expanding them to affine loads
+converted to a <code>linalg.matvec</code> op on the underlying <code>tensor&lt;32xi32></code>.</p><h3 id=-emit-c-interface><code>-emit-c-interface</code></h3><p><em>Adds llvm.emit_c_interface to each public function.</em></p><h3 id=-expand-copy><code>-expand-copy</code></h3><p><em>Expands memref.copy ops to explicit affine loads and stores</em></p><p>This pass removes memref copy operations by expanding them to affine loads
 and stores. This pass introduces affine loops over the dimensions of the
 MemRef, so must be run prior to any affine loop unrolling in a pipeline.</p><p>Input</p><pre tabindex=0><code>module {
   func.func @memref_copy() {
