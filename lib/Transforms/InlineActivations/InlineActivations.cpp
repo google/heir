@@ -70,6 +70,17 @@ struct InlineActivations : impl::InlineActivationsBase<InlineActivations> {
         continue;
       }
 
+      for (Operation& op : funcOp.getBody().getOps()) {
+        for (auto& attr : caller->getAttrs()) {
+          if (attr.getName() == SymbolTable::getSymbolAttrName() ||
+              attr.getName() == SymbolTable::getVisibilityAttrName() ||
+              attr.getName() == "callee") {
+            continue;
+          }
+          op.setAttr(attr.getName(), attr.getValue());
+        }
+      }
+
       LLVM_DEBUG(llvm::dbgs() << "- Inlining " << caller << "\n");
       if (failed(inlineCall(inliner, config.getCloneCallback(), caller, funcOp,
                             funcOp.getCallableRegion())))
