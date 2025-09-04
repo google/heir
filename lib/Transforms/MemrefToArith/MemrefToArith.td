@@ -13,38 +13,11 @@ def MemrefGlobalReplacePass : Pass<"memref-global-replace", "mlir::ModuleOp"> {
     constants and that the affine load access indices are constants (i.e. not
     variadic). Unroll affine loops prior to running this pass.
 
-     MemRef removal is required to remove any memory allocations from the input
-     model (for example, TensorFlow models contain global memory holding model
-     weights) to support FHE transpilation.
+    MemRef removal is required to remove any memory allocations from the input
+    model (for example, TensorFlow models contain global memory holding model
+    weights) to support FHE transpilation.
 
-     Input
-
-     ```
-     module {
-       memref.global "private" constant @__constant_8xi16 : memref<2x4xi16> = dense<[[-10, 20, 3, 4], [5, 6, 7, 8]]>
-       func.func @main() -> i16 {
-         %c1 = arith.constant 1 : index
-         %c2 = arith.constant 2 : index
-         %0 = memref.get_global @__constant_8xi16 : memref<2x4xi16>
-         %1 = affine.load %0[%c1, %c1 + %c2] : memref<2x4xi16>
-         return %1 : i16
-       }
-     }
-     ```
-
-     Output
-
-     ```
-     module {
-       func.func @main() -> i16 {
-         %c1 = arith.constant 1 : index
-         %c2 = arith.constant 2 : index
-         %c8_i16 = arith.constant 8 : i16
-         return %c8_i16 : i16
-       }
-     }
-     ```
-
+    (* example filepath=tests/Transforms/memref_global_replace/doctest.mlir *)
   }];
 
   let dependentDialects = [
@@ -62,54 +35,7 @@ def ExpandCopyPass : Pass<"expand-copy", "mlir::ModuleOp"> {
     and stores. This pass introduces affine loops over the dimensions of the
     MemRef, so must be run prior to any affine loop unrolling in a pipeline.
 
-    Input
-
-    ```
-    module {
-      func.func @memref_copy() {
-        %alloc = memref.alloc() : memref<2x3xi32>
-        %alloc_0 = memref.alloc() : memref<2x3xi32>
-        memref.copy %alloc, %alloc_0 : memref<1x1xi32> to memref<1x1xi32>
-      }
-    }
-    ```
-
-    Output
-
-    ```
-    module {
-      func.func @memref_copy() {
-        %alloc = memref.alloc() : memref<2x3xi32>
-        %alloc_0 = memref.alloc() : memref<2x3xi32>
-        affine.for %arg0 = 0 to 2 {
-          affine.for %arg1 = 0 to 3 {
-            %1 = affine.load %alloc[%arg0, %arg1] : memref<2x3xi32>
-            affine.store %1, %alloc_0[%arg0, %arg1] : memref<2x3xi32>
-          }
-        }
-      }
-    }
-    ```
-
-    When `--disable-affine-loop=true` is set, then the output becomes
-    ```
-    module {
-      func.func @memref_copy() {
-        %alloc = memref.alloc() : memref<2x3xi32>
-        %alloc_0 = memref.alloc() : memref<2x3xi32>
-        %c0 = arith.constant 0 : index
-        %c1 = arith.constant 1 : index
-        %c2 = arith.constant 2 : index
-        %0 = affine.load %alloc[%c0, %c0] : memref<2x3xi32>
-        affine.store %0, %alloc_0[%c0, %c0] : memref<2x3xi32>
-        %1 = affine.load %alloc[%c0, %c1] : memref<2x3xi32>
-        affine.store %1, %alloc_0[%c0, %c1] : memref<2x3xi32>
-        %2 = affine.load %alloc[%c0, %c2] : memref<2x3xi32>
-        affine.store %2, %alloc_0[%c0, %c2] : memref<2x3xi32>
-        [...]
-      }
-    }
-    ```
+    (* example filepath=tests/Transforms/expand_copy/doctest.mlir *)
   }];
 
   let options = [

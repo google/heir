@@ -1,5 +1,3 @@
-load("//bazel:lit.bzl", "lit_test")
-
 package(
     default_visibility = ["//visibility:public"],
     licenses = ["notice"],
