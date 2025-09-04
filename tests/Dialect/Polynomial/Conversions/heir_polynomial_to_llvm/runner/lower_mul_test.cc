@@ -10,11 +10,6 @@ void _mlir_ciface_test_mul(StridedMemRefType<int32_t, 1>* result);
 
 TEST(LowerMulTest, TestMul) {
   StridedMemRefType<int32_t, 1> result;
-  int32_t data[12];
-  result.data = data;
-  result.offset = 0;
-  result.sizes[0] = 12;
-  result.strides[0] = 1;
   _mlir_ciface_test_mul(&result);
   ASSERT_EQ(result.sizes[0], 12);
   EXPECT_EQ(result.data[0], 1);
@@ -29,6 +24,5 @@ TEST(LowerMulTest, TestMul) {
   EXPECT_EQ(result.data[9], 65535);
   EXPECT_EQ(result.data[10], 1);
   EXPECT_EQ(result.data[11], 1);
-
-  free(result.data);
+  free(result.basePtr);
 }

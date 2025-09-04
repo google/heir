@@ -13,84 +13,31 @@ MAIN_C_SRC_TEMPLATE = """#include <cstdint>
 #include "tests/llvm_runner/memref_types.h"
 
 extern "C" {{
-void _mlir_ciface_test_{test_number}(StridedMemRefType<int32_t, 1> *result);
+void _mlir_ciface_test_{test_number}(StridedMemRefType<{capi_type}, 1> *result);
 }}
 
 TEST(LowerMulTest, Test{test_number}) {{
-  StridedMemRefType<int32_t, 1> result;
-  int32_t data[{degree}];
-  result.data = data;
-  result.offset = 0;
-  result.sizes[0] = {degree};
-  result.strides[0] = 1;
+  StridedMemRefType<{capi_type}, 1> result;
   _mlir_ciface_test_{test_number}(&result);
   ASSERT_EQ(result.sizes[0], {degree});
 {assertions}
-
-  free(result.data);
+  free(result.basePtr);
 }}
 """
 
 
-TEST_TEMPLATE_BEFORE_GEN_TENSOR_OP = """#ideal_{test_number} = #polynomial.int_polynomial<{ideal}>
+TEST_TEMPLATE = """#ideal_{test_number} = #polynomial.int_polynomial<{ideal}>
 !coeff_ty_{test_number} = !mod_arith.int<{cmod}:{cmod_type}>
 #ring_{test_number} = #polynomial.ring<coefficientType=!coeff_ty_{test_number}, polynomialModulus=#ideal_{test_number}>
 !poly_ty_{test_number} = !polynomial.polynomial<ring=#ring_{test_number}>
 
-func.func public @test_{test_number}() -> memref<{degree}xi32> {{
+func.func public @test_{test_number}() -> !poly_ty_{test_number} {{
   %const0 = arith.constant 0 : index
   %0 = polynomial.constant int<{p0}> : !poly_ty_{test_number}
   %1 = polynomial.constant int<{p1}> : !poly_ty_{test_number}
   %2 = polynomial.mul %0, %1 : !poly_ty_{test_number}
+  return %2 : !poly_ty_{test_number}
 """
-
-TEST_TEMPLATE_AFTER_GEN_TENSOR_OP = """
-  %ref = bufferization.to_buffer %tensor : tensor<{degree}xi32> to memref<{degree}xi32>
-  return %ref : memref<{degree}xi32>
-}}
-"""
-
-# We need to compare the final output in i32s because that's the only type
-# currently supported by the c interface. So we need to truncate or extend the
-# bits.
-GEN_TENSOR_OP_TEMPLATE_WITH_TRUNC = """  %3 = polynomial.to_tensor %2 : !poly_ty_{test_number} -> tensor<{degree}x!coeff_ty_{test_number}>
-  %4 = mod_arith.extract %3 : tensor<{degree}x!coeff_ty_{test_number}> -> tensor<{degree}x{cmod_type}>
-  %tensor = arith.{trunc_ext_op} %4 : tensor<{degree}x{cmod_type}> to tensor<{degree}xi32>
-"""
-GEN_TENSOR_OP_TEMPLATE = """  %3 = polynomial.to_tensor %2 : !poly_ty_{test_number} -> tensor<{degree}x!coeff_ty_{test_number}>
-  %tensor = mod_arith.extract %3 : tensor<{degree}x!coeff_ty_{test_number}> -> tensor<{degree}x{cmod_type}>
-"""
-
-TEST_TEMPLATE = """{before}
-{gen_tensor_op}
-{after}"""
-
-
-def make_test_template(
-    container_bit_width: int, test_number: int, degree: int, cmod_type: str
-):
-  if container_bit_width != 32:
-    trunc_ext_op = "trunci" if container_bit_width > 32 else "extsi"
-    return TEST_TEMPLATE.format(
-        before=TEST_TEMPLATE_BEFORE_GEN_TENSOR_OP,
-        after=TEST_TEMPLATE_AFTER_GEN_TENSOR_OP,
-        gen_tensor_op=GEN_TENSOR_OP_TEMPLATE_WITH_TRUNC.format(
-            test_number=test_number,
-            degree=degree,
-            cmod_type=cmod_type,
-            trunc_ext_op=trunc_ext_op,
-        ),
-    )
-  else:
-    return TEST_TEMPLATE.format(
-        before=TEST_TEMPLATE_BEFORE_GEN_TENSOR_OP,
-        after=TEST_TEMPLATE_AFTER_GEN_TENSOR_OP,
-        gen_tensor_op=GEN_TENSOR_OP_TEMPLATE.format(
-            test_number=test_number,
-            degree=degree,
-            cmod_type=cmod_type,
-        ),
-    )
 
 
 parser = argparse.ArgumentParser(
@@ -185,21 +132,19 @@ def main(args: argparse.Namespace) -> None:
         get_key_or_err(test, s)
         for s in ["ideal", "cmod", "p0", "p1", "cmod_type"]
     )
+    capi_type = "int64_t" if cmod_type == "i64" else "int32_t"
 
     x = sympy.Symbol("x")
     parsed_ideal = parse_to_sympy(ideal, x, cmod)
     parsed_p0 = parse_to_sympy(p0, x, cmod)
     parsed_p1 = parse_to_sympy(p1, x, cmod)
-    domain = parsed_p0.domain
 
     expected_remainder = sympy.rem(parsed_p0 * parsed_p1, parsed_ideal, x)
     print(
         f"{expected_remainder.domain} : ({p0}) * ({p1}) ="
         f" {expected_remainder.as_expr()} mod ({ideal})"
     )
-    coeff_list_len = parsed_ideal.degree()
     expected_coeffs = list(reversed(expected_remainder.all_coeffs()))
-    container_width = int(cmod_type[1:])
 
     # For whatever reason, sympy won't preserve the domain of the
     # coefficients after `rem`, so I have to manually convert any fractional
@@ -217,12 +162,11 @@ def main(args: argparse.Namespace) -> None:
 
     with open(f"{args.output_test_stem}{i}.mlir", "w") as outfile:
       outfile.write(
-          make_test_template(
-              container_width, i, parsed_ideal.degree(), cmod_type
-          ).format(
+          TEST_TEMPLATE.format(
               ideal=ideal,
               cmod=cmod,
               cmod_type=cmod_type,
+              capi_type=capi_type,
               p0=p0,
               p1=p1,
               test_number=i,

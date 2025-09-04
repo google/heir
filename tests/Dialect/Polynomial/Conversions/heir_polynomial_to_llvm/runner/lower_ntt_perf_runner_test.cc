@@ -1,4 +1,5 @@
-#include <iostream>
+#include <cstdint>
+#include <cstdlib>
 
 #include "gtest/gtest.h"  // from @googletest
 #include "tests/llvm_runner/memref_types.h"
@@ -9,11 +10,6 @@ void _mlir_ciface_test_poly_ntt(StridedMemRefType<int32_t, 1>* result);
 
 TEST(LowerNttPerfRunnerTest, CorrectOutput) {
   StridedMemRefType<int32_t, 1> result;
-  int32_t data[65536];
-  result.data = data;
-  result.offset = 0;
-  result.sizes[0] = 65536;
-  result.strides[0] = 1;
   _mlir_ciface_test_poly_ntt(&result);
   ASSERT_EQ(result.sizes[0], 65536);
 
@@ -55,4 +51,5 @@ TEST(LowerNttPerfRunnerTest, CorrectOutput) {
   for (int i = 256; i < 65536; ++i) {
     EXPECT_EQ(result.data[i], 42);
   }
+  free(result.basePtr);
 }

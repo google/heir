@@ -7,14 +7,10 @@
 #root = #polynomial.primitive_root<value=1925:i32, degree=8:i32>
 !poly_ty = !polynomial.polynomial<ring=#ring>
 
-func.func public @test_intt() -> memref<4xi32> {
+func.func public @test_intt() -> !poly_ty {
   %coeffsRaw = arith.constant dense<[1467,2807,3471,7621]> : tensor<4xi32>
   %coeffs = tensor.cast %coeffsRaw : tensor<4xi32> to tensor <4xi32, #ring>
   %coeffs_enc = mod_arith.encapsulate %coeffs : tensor<4xi32, #ring> -> tensor<4x!coeff_ty, #ring>
   %0 = polynomial.intt %coeffs_enc {root=#root} : tensor<4x!coeff_ty, #ring> -> !poly_ty
-
-  %1 = polynomial.to_tensor %0 : !poly_ty -> tensor<4x!coeff_ty>
-  %2 = mod_arith.extract %1 : tensor<4x!coeff_ty> -> tensor<4xi32>
-  %3 = bufferization.to_buffer %2 : tensor<4xi32> to memref<4xi32>
-  return %3 : memref<4xi32>
+  return %0 : !poly_ty
 }

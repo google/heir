@@ -3,16 +3,10 @@
 #ring_2 = #polynomial.ring<coefficientType=!coeff_ty_2, polynomialModulus=#ideal_2>
 !poly_ty_2 = !polynomial.polynomial<ring=#ring_2>
 
-func.func public @test_2() -> memref<12xi32> {
+func.func public @test_2() -> !poly_ty_2 {
   %const0 = arith.constant 0 : index
   %0 = polynomial.constant int<1 + x**10> : !poly_ty_2
   %1 = polynomial.constant int<1 + x**11> : !poly_ty_2
   %2 = polynomial.mul %0, %1 : !poly_ty_2
-
-  %3 = polynomial.to_tensor %2 : !poly_ty_2 -> tensor<12x!coeff_ty_2>
-  %tensor = mod_arith.extract %3 : tensor<12x!coeff_ty_2> -> tensor<12xi32>
-
-
-  %ref = bufferization.to_buffer %tensor : tensor<12xi32> to memref<12xi32>
-  return %ref : memref<12xi32>
+  return %2 : !poly_ty_2
 }
