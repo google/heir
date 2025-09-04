@@ -158,7 +158,14 @@ def Polynomial_TypedChebyshevPolynomialAttr : Polynomial_Attr<
         type.getContext(),
         type,
         ChebyshevPolynomialAttr::get(type.getContext(), value));
-    }]>
+    }]>,
+    AttrBuilderWithInferredContext<(ins "Type":$type,
+                                        "const ChebyshevPolynomial &":$value), [{
+      return $_get(
+        type.getContext(),
+        type,
+        ChebyshevPolynomialAttr::get(type.getContext(), value.getCoefficientsArrayAttr(type.getContext())));
+    }]>,
   ];
   let extraClassDeclaration = [{
     using ValueType = ::mlir::heir::polynomial::ChebyshevPolynomialAttr;

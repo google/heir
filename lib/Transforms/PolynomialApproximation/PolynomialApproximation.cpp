@@ -40,11 +40,11 @@ constexpr int64_t kDefaultDegree = 5;
 constexpr double kDefaultDomainLower = -1.0;
 constexpr double kDefaultDomainUpper = 1.0;
 
+using polynomial::ChebyshevPolynomial;
 using polynomial::EvalOp;
-using polynomial::FloatPolynomial;
 using polynomial::PolynomialType;
 using polynomial::RingAttr;
-using polynomial::TypedFloatPolynomialAttr;
+using polynomial::TypedChebyshevPolynomialAttr;
 
 inline APFloat absf(const APFloat& x) {
   return APFloat(std::abs(x.convertToDouble()));
@@ -203,14 +203,15 @@ struct ConvertUnaryOp : public OpRewritePattern<OpTy> {
         op->hasAttr("domain_upper")
             ? cast<FloatAttr>(op->getAttr("domain_upper"))
             : rewriter.getF64FloatAttr(kDefaultDomainUpper);
-    FloatPolynomial poly = approximation::caratheodoryFejerApproximation(
-        cppFunc, degreeAttr.getInt(),
-        domainLowerAttr.getValue().convertToDouble(),
-        domainUpperAttr.getValue().convertToDouble());
+    polynomial::ChebyshevPolynomial poly =
+        approximation::caratheodoryFejerApproximation(
+            cppFunc, degreeAttr.getInt(),
+            domainLowerAttr.getValue().convertToDouble(),
+            domainUpperAttr.getValue().convertToDouble());
     PolynomialType polyType =
         PolynomialType::get(ctx, RingAttr::get(Float64Type::get(ctx)));
-    TypedFloatPolynomialAttr polyAttr =
-        TypedFloatPolynomialAttr::get(polyType, poly);
+    TypedChebyshevPolynomialAttr polyAttr =
+        TypedChebyshevPolynomialAttr::get(polyType, poly);
     auto evalOp =
         rewriter.replaceOpWithNewOp<EvalOp>(op, polyAttr, op.getOperand());
     evalOp->setAttr("domain_lower", domainLowerAttr);
@@ -307,14 +308,14 @@ struct ConvertBinaryConstOp : public OpRewritePattern<OpTy> {
         op->hasAttr("domain_upper")
             ? cast<FloatAttr>(op->getAttr("domain_upper"))
             : rewriter.getF64FloatAttr(kDefaultDomainUpper);
-    FloatPolynomial poly = approximation::caratheodoryFejerApproximation(
+    ChebyshevPolynomial poly = approximation::caratheodoryFejerApproximation(
         unaryFunc, degreeAttr.getInt(),
         domainLowerAttr.getValue().convertToDouble(),
         domainUpperAttr.getValue().convertToDouble());
     PolynomialType polyType =
         PolynomialType::get(ctx, RingAttr::get(Float64Type::get(ctx)));
-    TypedFloatPolynomialAttr polyAttr =
-        TypedFloatPolynomialAttr::get(polyType, poly);
+    TypedChebyshevPolynomialAttr polyAttr =
+        TypedChebyshevPolynomialAttr::get(polyType, poly);
     auto evalOp =
         rewriter.replaceOpWithNewOp<EvalOp>(op, polyAttr, nonConstOperand);
     // These attributes need to be preserved when the polynomial is in the
