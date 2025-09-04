@@ -2,6 +2,9 @@ module(name = "heir")
 
 bazel_dep(name = "bazel_skylib", version = "1.7.1")
 
+# This must come before apple_support cf. https://github.com/bazelbuild/bazel/issues/25728
+bazel_dep(name = "rules_cc", version = "0.2.0")
+
 # Apple compilation support.
 # Note this requires full xcode, not just commandline tools
 #
@@ -25,7 +28,6 @@ bazel_dep(name = "rules_license", version = "1.0.0")
 # rules_foreign_cc provides access to a `make` bazel rule, which is needed
 # to build yosys
 bazel_dep(name = "rules_foreign_cc", version = "0.14.0")
-bazel_dep(name = "rules_cc", version = "0.2.0")
 bazel_dep(name = "rules_go", version = "0.53.0")
 bazel_dep(name = "rules_python", version = "1.2.0")
 bazel_dep(name = "googletest", version = "1.16.0")
