@@ -1,7 +1,8 @@
-The tests in this directory use the `mlir-runner` to run the result of lowering
-`polynomial-to-mod-arith` on some hard-coded test inputs. To reduce the chance
-of the tests being specified incorrectly and the burden of generating expected
-test outputs, the tests are automatically generated.
+The tests in this directory test lowerings of polynomial-to-mod-arith by
+lowering the result to machine code via LLVM and running them on hard-coded
+inputs. To reduce the chance of the tests being specified incorrectly and the
+burden of generating expected test outputs, the tests are automatically
+generated.
 
 `lower_mul_tests.toml` contains test specifications for `polynomial.mul`, and
 each test has the following syntax
@@ -44,26 +45,22 @@ func.func @test() {
   %2 = polynomial.mul %0, %1 : !poly_ty
 
   %tensor = polynomial.to_tensor %2 : !poly_ty -> tensor<12xi32>
-  %ref = bufferization.to_memref %tensor : tensor<12xi32> to memref<12xi32>
+  %ref = bufferization.to_buffer %tensor : tensor<12xi32> to memref<12xi32>
   %U = memref.cast %ref : memref<12xi32> to memref<*xi32>
   func.call @printMemrefI32(%U) : (memref<*xi32>) -> ()
   return
 }
-// expected_result: Poly(x**11 + x**10 - x**9 + 1, x, domain='ZZ[4294967296]')
-// CHECK_TEST_0: [1, 0, 0, 0, 0, 0, 0, 0, 0, -1, 1, 1]
 ```
 
 The script `generate_test_cases.py` reads this file in, parses the polynomials
 using the [`sympy`](https://www.sympy.org/en/index.html) Python package,
-computes the expected output, and prints a nicely formatted lit test to a file.
-These tests use the `mlir-runner` intrinsic `printMemrefIxx` to print the output
-polynomial's coefficients to `stdout` to enable easy assertions.
+computes the expected output, and prints an mlir test to a file as well as a
+`cc_test` with the expected assertions.
 
 After adding or updating `lower_mul_tests.toml`, re-generate the tests in this
 directory with:
 
 ```
-cd tests/polynomial/runner
 rm lower_mul_*.mlir
-bazel run generate_test_cases -- --tests_toml_path $PWD/lower_mul_tests.toml --output_test_stem=$PWD/lower_mul_
+bazel run generate_test_cases -- --tests_toml_path $PWD/lower_mul_tests.toml --output_test_stem=$PWD/lower_mul_ --output_build_file $PWD/BUILD
 ```

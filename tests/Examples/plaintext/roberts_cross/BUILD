@@ -1,4 +1,4 @@
-load("@heir//tests/Examples/plaintext:test.bzl", "plaintext_test")
+load("@heir//tests/llvm_runner:llvm_runner.bzl", "llvm_runner_test")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 package(default_applicable_licenses = ["@heir//:license"])
@@ -28,40 +28,31 @@ cc_library(
 )
 
 # Secret arithmetic plaintext backend with original integer type semantic
-plaintext_test(
+llvm_runner_test(
     name = "roberts_cross",
     heir_opt_flags = [
         "--mlir-to-plaintext-backend=plaintext-size=4096",
     ],
     mlir_src = "@heir//tests/Examples/common:roberts_cross_16x16.mlir",
-    deps = [
-        ":roberts_cross_test",
-        "@heir//tests/Examples/plaintext:memrefCopy",
-    ],
+    deps = [":roberts_cross_test"],
 )
 
 # Secret arithmetic plaintext backend with plaintext modulus semantic
-plaintext_test(
+llvm_runner_test(
     name = "roberts_cross_mod_786433",
     heir_opt_flags = [
         "--mlir-to-plaintext-backend=plaintext-size=4096 plaintext-modulus=786433",
     ],
     mlir_src = "@heir//tests/Examples/common:roberts_cross_16x16.mlir",
-    deps = [
-        ":roberts_cross_mod_test",
-        "@heir//tests/Examples/plaintext:memrefCopy",
-    ],
+    deps = [":roberts_cross_mod_test"],
 )
 
 # Secret arithmetic plaintext backend with plaintext modulus semantic
-plaintext_test(
+llvm_runner_test(
     name = "roberts_cross_mod_65537",
     heir_opt_flags = [
         "--mlir-to-plaintext-backend=plaintext-size=4096 plaintext-modulus=65537",
     ],
     mlir_src = "@heir//tests/Examples/common:roberts_cross_16x16.mlir",
-    deps = [
-        ":roberts_cross_mod_failure_test",
-        "@heir//tests/Examples/plaintext:memrefCopy",
-    ],
+    deps = [":roberts_cross_mod_failure_test"],
 )

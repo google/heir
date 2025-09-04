@@ -1,0 +1,22 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+package(default_applicable_licenses = ["@heir//:license"])
+
+cc_library(
+    name = "memrefCopy",
+    srcs = ["memrefCopy.cpp"],
+    hdrs = ["memref_types.h"],
+    visibility = ["@heir//:__subpackages__"],
+)
+
+bzl_library(
+    name = "llvm_runner_bzl",
+    srcs = ["llvm_runner.bzl"],
+    visibility = ["@heir//:__subpackages__"],
+    deps = [
+        "@heir//tools:heir_opt_bzl",
+        "@heir//tools:llc_bzl",
+        "@heir//tools:mlir_translate_bzl",
+    ],
+)

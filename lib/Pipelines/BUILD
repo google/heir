@@ -24,6 +24,7 @@ cc_library(
         "@heir//lib/Transforms/ConvertSecretInsertToStaticInsert",
         "@heir//lib/Transforms/ConvertSecretWhileToStaticFor",
         "@heir//lib/Transforms/ElementwiseToAffine",
+        "@heir//lib/Transforms/EmitCInterface",
         "@heir//lib/Transforms/LowerPolynomialEval",
         "@heir//lib/Transforms/MemrefToArith:ExpandCopy",
         "@heir//lib/Transforms/MemrefToArith:MemrefToArithRegistration",

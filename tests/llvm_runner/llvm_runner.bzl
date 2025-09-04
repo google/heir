@@ -49,7 +49,7 @@ binary_rule = rule(
     },
 )
 
-def plaintext_test(name, mlir_src, heir_opt_flags, mlir_translate_flags = None, llc_flags = None, deps = [], log_file_name = None, log_file_visibility = None, data = []):
+def llvm_runner_test(name, mlir_src, heir_opt_flags, mlir_translate_flags = None, llc_flags = None, deps = [], main_c_src = None, log_file_name = None, log_file_visibility = None, data = []):
     """Define a lit test for the Plaintext Backend.
 
     Args:
@@ -59,10 +59,19 @@ def plaintext_test(name, mlir_src, heir_opt_flags, mlir_translate_flags = None, 
       mlir_translate_flags: Flags to pass to mlir-translate.
       llc_flags: Flags to pass to llc.
       deps: Deps to pass to cc_test.
+      main_c_src: A C source file containing the main function for the test.
       log_file_name: The name of the log file.
       log_file_visibility: Visibility of the log file.
       data: Data deps to pass to heir_opt
     """
+    default_deps = [
+        "@heir//tests/llvm_runner:memrefCopy",
+    ]
+    test_deps = [
+        "@googletest//:gtest_main",
+    ]
+    test_deps.extend(default_deps)
+    test_deps.extend(deps)
 
     heir_opt_name = "%s_heir_opt" % name
     generated_heir_opt_name = "%s_heir_opt.mlir" % name
@@ -109,10 +118,13 @@ def plaintext_test(name, mlir_src, heir_opt_flags, mlir_translate_flags = None, 
     )
 
     cc_test_name = "%s_cc_test" % name
+    srcs = [":" + generated_llc_name]
+    if main_c_src:
+        srcs.append(main_c_src)
     cc_test(
         name = cc_test_name,
-        srcs = [":" + generated_llc_name],
-        deps = deps,
+        srcs = srcs,
+        deps = test_deps,
         copts = ["-fPIC"],
     )
 
@@ -121,8 +133,8 @@ def plaintext_test(name, mlir_src, heir_opt_flags, mlir_translate_flags = None, 
         cc_binary_name = "%s_cc_binary" % name
         cc_binary(
             name = cc_binary_name,
-            srcs = [":" + generated_llc_name],
-            deps = deps,
+            srcs = srcs,
+            deps = default_deps,
             copts = ["-fPIC"],
         )
 
