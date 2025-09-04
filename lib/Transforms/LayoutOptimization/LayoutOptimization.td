@@ -27,7 +27,6 @@ def LayoutOptimization : Pass<"layout-optimization"> {
   hoisted.
 
   (* example filepath=tests/Transforms/layout_optimization/hoist_matvec.mlir *)
-  ```
   }];
 
   let dependentDialects = [

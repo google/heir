@@ -5,7 +5,7 @@
 !stensor = !secret.secret<!tensor>
 !stensor2 = !secret.secret<!tensor2>
 
-// Test that when an operation changes the tensor layour in an incompatible way,
+// Test that when an operation changes the tensor layout in an incompatible way,
 // a layout conversion operation is inserted.
 
 // CHECK-DAG: [[alignment1d:[^ ]*]] = #tensor_ext.alignment<in = [32], out = [32]>
