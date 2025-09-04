@@ -1,7 +1,7 @@
 #include <cstdint>
 #include <cstdlib>
 
-#include "gtest/gtest.h" // from @googletest
+#include "gtest/gtest.h"  // from @googletest
 #include "tests/llvm_runner/memref_types.h"
 
 extern "C" {
