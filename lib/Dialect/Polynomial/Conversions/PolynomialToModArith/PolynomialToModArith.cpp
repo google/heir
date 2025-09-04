@@ -10,12 +10,15 @@
 #include <utility>
 #include <vector>
 
+#include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
+#include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
+#include "lib/Parameters/CKKS/Params.h"
 #include "lib/Utils/APIntUtils.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
@@ -1246,6 +1249,90 @@ struct ConvertINTT : public OpConversionPattern<INTTOp> {
   }
 };
 
+struct ConvertKeySwitchInner
+    : public OpConversionPattern<polynomial::KeySwitchInnerOp> {
+  ConvertKeySwitchInner(mlir::MLIRContext* context)
+      : OpConversionPattern<polynomial::KeySwitchInnerOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      polynomial::KeySwitchInnerOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    auto b = ImplicitLocOpBuilder(op.getLoc(), rewriter);
+
+    RankedTensorType coefficientTensorType =
+        cast<RankedTensorType>(adaptor.getValue().getType());
+
+    if (coefficientTensorType.getRank() != 1) {
+      return rewriter.notifyMatchFailure(
+          op,
+          "Can only lower key_switch_inner when input is a single polynomial");
+    }
+
+    // TODO(#2157): enable this for more than just CKKS
+    ckks::SchemeParamAttr schemeParamAttr =
+        op->getParentOfType<ModuleOp>()->getAttrOfType<ckks::SchemeParamAttr>(
+            ckks::CKKSDialect::kSchemeParamAttrName);
+    if (!schemeParamAttr) {
+      return rewriter.notifyMatchFailure(
+          op, "Cannot find scheme param attribute on parent module");
+    }
+
+    auto schemeParam =
+        ckks::SchemeParam::getSchemeParamFromAttr(schemeParamAttr);
+
+    int64_t partSize = schemeParam.getPi().size();
+
+    if (partSize <= 0) {
+      return rewriter.notifyMatchFailure(
+          op, "Cannot lower key_switch_inner with empty modulus chain");
+    }
+
+    int64_t numFullPartitions = coefficientTensorType.getShape()[0] / partSize;
+    int64_t sliceSize = partSize * numFullPartitions;
+    int64_t extraPartSize = coefficientTensorType.getShape()[0] - sliceSize;
+
+    // Step 1: partition the coefficients of the polynomial into pieces. Note
+    // the partition may not be even, so there may be one leftover part of an
+    // uneven size that must be tracked manually through the rest of the
+    // lowering.
+
+    // First extract the parts that are divisible and reshape it i.e., a
+    // tensor<17xi32> with partitionSize 5 would first slice-extract to
+    // tensor<15xi32> then reshape to tensor<3x5xi32>.
+    SmallVector<OpFoldResult> offsets(1, b.getIndexAttr(0));
+    SmallVector<OpFoldResult> sizes(1, b.getIndexAttr(sliceSize));
+    SmallVector<OpFoldResult> strides(1, b.getIndexAttr(1));
+    Value extracted = tensor::ExtractSliceOp::create(b, adaptor.getValue(),
+                                                     offsets, sizes, strides);
+
+    SmallVector<int64_t> partitionShape = {numFullPartitions, partSize};
+    RankedTensorType partitionType = RankedTensorType::get(
+        partitionShape, coefficientTensorType.getElementType());
+    // Create a dense constant for targetShape
+    auto shapeOp = mlir::arith::ConstantOp::create(
+        rewriter, op.getLoc(),
+        RankedTensorType::get(partitionType.getRank(), rewriter.getIndexType()),
+        rewriter.getIndexTensorAttr(partitionType.getShape()));
+
+    [[maybe_unused]] Value reshaped =
+        tensor::ReshapeOp::create(b, partitionType, extracted, shapeOp);
+
+    // Then extract the trailing piece that doesn't have the same tensor size.
+    SmallVector<OpFoldResult> extraPartOffsets(1, b.getIndexAttr(sliceSize));
+    SmallVector<OpFoldResult> extraPartSizes(1, b.getIndexAttr(extraPartSize));
+    SmallVector<OpFoldResult> extraPartStrides(1, b.getIndexAttr(1));
+    [[maybe_unused]] Value extraPart =
+        tensor::ExtractSliceOp::create(b, adaptor.getValue(), extraPartOffsets,
+                                       extraPartSizes, extraPartStrides);
+
+    // TODO(#2157): implement the rest
+
+    return success();
+  }
+};
+
 void PolynomialToModArith::runOnOperation() {
   MLIRContext* context = &getContext();
 
@@ -1293,8 +1380,8 @@ void PolynomialToModArith::runOnOperation() {
                ConvertPolyBinop<AddOp, arith::AddIOp, mod_arith::AddOp>,
                ConvertPolyBinop<SubOp, arith::SubIOp, mod_arith::SubOp>,
                ConvertLeadingTerm, ConvertMonomial, ConvertMonicMonomialMul,
-               ConvertConstant, ConvertMulScalar, ConvertNTT, ConvertINTT>(
-      typeConverter, context);
+               ConvertConstant, ConvertMulScalar, ConvertNTT, ConvertINTT,
+               ConvertKeySwitchInner>(typeConverter, context);
   patterns.add<ConvertMul>(typeConverter, patterns.getContext(), getDivmodOp);
   addStructuralConversionPatterns(typeConverter, patterns, target);
   addTensorOfTensorConversionPatterns(typeConverter, patterns, target);
