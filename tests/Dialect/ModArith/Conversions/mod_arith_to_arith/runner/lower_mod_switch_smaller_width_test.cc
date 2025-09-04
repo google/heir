@@ -1,6 +1,6 @@
 #include <cstdint>
 
-#include "gtest/gtest.h" // from @googletest
+#include "gtest/gtest.h"  // from @googletest
 
 extern "C" {
 int16_t _mlir_ciface_lower_mod_switch_smaller_width();
