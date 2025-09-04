@@ -42,17 +42,18 @@ LogicalResult convertRotateAndReduceOp(RotateAndReduceOp op) {
   unsigned period = op.getPeriod().getZExtValue();
   std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel;
   SSAValue vectorLeaf(input);
+  std::optional<SSAValue> plaintextsLeaf = std::nullopt;
 
-  if (!op.getPlaintexts()) {
-    implementedKernel = implementRotateAndReduce(
-        vectorLeaf, std::optional<SSAValue>(), period, steps);
+  if (op.getPlaintexts()) {
+    plaintextsLeaf = std::optional<SSAValue>(op.getPlaintexts());
   }
 
-  TypedValue<RankedTensorType> plaintexts = op.getPlaintexts();
-  auto plaintextsLeaf = std::optional<SSAValue>(plaintexts);
-  implementedKernel =
-      implementRotateAndReduce(vectorLeaf, plaintextsLeaf, period, steps);
-
+  std::string reduceOp = "arith.addi";
+  if (op.getReduceOp().has_value() && *op.getReduceOp() != nullptr) {
+    reduceOp = op.getReduceOp()->getValue().str();
+  }
+  implementedKernel = implementRotateAndReduce(vectorLeaf, plaintextsLeaf,
+                                               period, steps, reduceOp);
   IRRewriter rewriter(op.getContext());
   rewriter.setInsertionPointAfter(op);
   ImplicitLocOpBuilder b(op.getLoc(), rewriter);

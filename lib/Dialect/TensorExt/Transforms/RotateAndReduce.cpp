@@ -1,9 +1,8 @@
 #include "lib/Dialect/TensorExt/Transforms/RotateAndReduce.h"
 
-#include <cstdint>
-
 #include "lib/Analysis/RotationAnalysis/RotationAnalysis.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Dialect/TensorExt/Transforms/ImplementRotateAndReduce.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
@@ -13,13 +12,12 @@
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/Iterators.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"       // from @llvm-project
 
-#define DEBUG_NAME "rotate-and-reduce"
+#define DEBUG_TYPE "rotate-and-reduce"
 
 namespace mlir {
 namespace heir {
@@ -28,13 +26,12 @@ namespace tensor_ext {
 #define GEN_PASS_DEF_ROTATEANDREDUCE
 #include "lib/Dialect/TensorExt/Transforms/Passes.h.inc"
 
-/// A pass that searches for a length N sequence of binary operations that
+/// A pass that searches for a length N sequence of add operations that
 /// reduces a length N vector to a single scalar, and replaces it with a
 /// logarithmic number of rotations and binary operations.
 struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
   using RotateAndReduceBase::RotateAndReduceBase;
 
-  // TODO(#2123): Rewrite this to use the tensor_ext.rotate_and_reduce op.
   template <typename ArithOp>
   void tryReplaceRotations(ArithOp op,
                            const rotation_analysis::PartialReduction& reduction,
@@ -43,17 +40,16 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
                << "Trying to replace rotations ending in " << *op << "\n");
     auto b = ImplicitLocOpBuilder(op->getLoc(), op);
     auto tensor = reduction.getTensor();
-    Operation* finalOp = nullptr;
     auto tensorShape =
         mlir::cast<RankedTensorType>(tensor.getType()).getShape();
-    for (int64_t shiftSize = tensorShape[0] / 2; shiftSize > 0;
-         shiftSize /= 2) {
-      auto rotatedTensor = tensor_ext::RotateOp::create(
-          b, tensor, arith::ConstantOp::create(b, b.getIndexAttr(shiftSize)));
-      auto addOp = ArithOp::create(b, tensor, rotatedTensor);
-      finalOp = addOp;
-      tensor = addOp->getResult(0);
-    }
+
+    // Get the operation name for the reduce_op attribute
+    auto rotateAndReduceOp = tensor_ext::RotateAndReduceOp::create(
+        b, tensor,
+        /*period=*/1,
+        /*steps=*/tensorShape[0],
+        /*reduceOp=*/op->getName().getStringRef());
+    Operation* finalOp = rotateAndReduceOp;
 
     [[maybe_unused]] auto* parentOp = op->getParentOp();
     if (extraction) {
@@ -69,6 +65,12 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
     }
     if (finalOp) op->replaceAllUsesWith(finalOp);
     LLVM_DEBUG(llvm::dbgs() << "Post-replacement: " << *parentOp << "\n");
+
+    // Convert the rotate_and_reduce op to its implementation immediately
+    if (failed(convertRotateAndReduceOp(rotateAndReduceOp))) {
+      LLVM_DEBUG(llvm::dbgs() << "Failed to convert rotate_and_reduce op\n");
+      return;
+    }
   }
 
   void runOnOperation() override {
@@ -98,18 +100,20 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
 
             for (const auto& reduction :
                  rotationAnalysis.getRootedReductionsAt(result)) {
-              if (reduction.isComplete()) {
+              if (reduction.isComplete() &&
+                  cast<RankedTensorType>(reduction.getTensor().getType())
+                          .getNumElements() > 1) {
                 llvm::TypeSwitch<Operation&>(*op)
                     .Case<arith::AddIOp>([&](auto arithOp) {
                       tryReplaceRotations<arith::AddIOp>(arithOp, reduction,
                                                          extraction);
                     })
-                    .Case<arith::MulIOp>([&](auto arithOp) {
-                      tryReplaceRotations<arith::MulIOp>(arithOp, reduction,
-                                                         extraction);
-                    })
                     .Case<arith::AddFOp>([&](auto arithOp) {
                       tryReplaceRotations<arith::AddFOp>(arithOp, reduction,
+                                                         extraction);
+                    })
+                    .Case<arith::MulIOp>([&](auto arithOp) {
+                      tryReplaceRotations<arith::MulIOp>(arithOp, reduction,
                                                          extraction);
                     })
                     .Case<arith::MulFOp>([&](auto arithOp) {
