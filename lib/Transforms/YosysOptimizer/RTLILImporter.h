@@ -17,7 +17,7 @@
 
 // Block clang-format from reordering
 // clang-format off
-#include "kernel/rtlil.h" // from @at_clifford_yosys
+#include "kernel/rtlil.h"  // from @at_clifford_yosys
 // clang-format on
 
 namespace mlir {

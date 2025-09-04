@@ -5,7 +5,7 @@
 {% if enable_types %}
 #include "lib/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Types.h"
 {% endif %}
-#include "mlir/include/mlir/IR/BuiltinOps.h" // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"  // from @llvm-project
 
 #define GET_OP_CLASSES
 #include "lib/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Ops.h.inc"

@@ -9,7 +9,7 @@ import tomli
 MAIN_C_SRC_TEMPLATE = """#include <cstdint>
 #include <cstdlib>
 
-#include "gtest/gtest.h" // from @absltest
+#include "gtest/gtest.h"  // from @absltest
 #include "tests/llvm_runner/memref_types.h"
 
 extern "C" {{

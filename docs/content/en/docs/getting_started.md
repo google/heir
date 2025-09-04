@@ -245,7 +245,7 @@ The results:
 
 ```cpp
 // heir_output.h
-#include "src/pke/include/openfhe.h" // from @openfhe
+#include "src/pke/include/openfhe.h"  // from @openfhe
 
 using namespace lbcrypto;
 using CiphertextT = ConstCiphertext<DCRTPoly>;
@@ -265,7 +265,7 @@ CryptoContextT dot_product__configure_crypto_context(CryptoContextT v37, Private
 
 
 // heir_output.cpp
-#include "src/pke/include/openfhe.h" // from @openfhe
+#include "src/pke/include/openfhe.h"  // from @openfhe
 
 using namespace lbcrypto;
 using CiphertextT = ConstCiphertext<DCRTPoly>;
@@ -359,7 +359,7 @@ Where `dot_product_main.cpp` is a new file containing
 #include <cstdint>
 #include <vector>
 
-#include "src/pke/include/openfhe.h" // from @openfhe
+#include "src/pke/include/openfhe.h"  // from @openfhe
 #include "heir_output.h"
 
 int main(int argc, char *argv[]) {

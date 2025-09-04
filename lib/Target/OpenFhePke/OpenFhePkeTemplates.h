@@ -38,8 +38,8 @@ constexpr std::string_view kWeightsPreludeTemplate = R"cpp(
 #include <string>
 #include <vector>
 
-#include "include/cereal/archives/portable_binary.hpp" // from @cereal
-#include "include/cereal/cereal.hpp" // from @cereal
+#include "include/cereal/archives/portable_binary.hpp"  // from @cereal
+#include "include/cereal/cereal.hpp"  // from @cereal
 
 struct Weights {
   std::map<std::string, std::vector<float>> floats;

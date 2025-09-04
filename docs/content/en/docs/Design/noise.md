@@ -52,7 +52,7 @@ average-case, could be interpreted as the bound or the variance.
 A typical way to use noise analysis:
 
 ```cpp
-#include "mlir/include/mlir/Analysis/DataFlow/Utils.h" // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/Utils.h"  // from @llvm-project
 
 DataFlowSolver solver;
 dataflow::loadBaselineAnalyses(solver);

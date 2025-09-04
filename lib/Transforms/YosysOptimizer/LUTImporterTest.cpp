@@ -28,10 +28,10 @@
 
 // Block clang-format from reordering
 // clang-format off
-#include "tools/cpp/runfiles/runfiles.h" // from @bazel_tools
-#include "kernel/log.h" // from @at_clifford_yosys
-#include "kernel/rtlil.h" // from @at_clifford_yosys
-#include "kernel/yosys.h" // from @at_clifford_yosys
+#include "tools/cpp/runfiles/runfiles.h"  // from @bazel_tools
+#include "kernel/log.h"  // from @at_clifford_yosys
+#include "kernel/rtlil.h"  // from @at_clifford_yosys
+#include "kernel/yosys.h"  // from @at_clifford_yosys
 // clang-format on
 
 namespace mlir::heir {

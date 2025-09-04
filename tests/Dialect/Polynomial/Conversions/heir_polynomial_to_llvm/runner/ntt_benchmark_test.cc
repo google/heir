@@ -1,7 +1,7 @@
 // Block clang-format from reordering
 // clang-format off
-#include "benchmark/benchmark.h" // from @google_benchmark
-#include "gtest/gtest.h" // from @googletest
+#include "benchmark/benchmark.h"  // from @google_benchmark
+#include "gtest/gtest.h"  // from @googletest
 // clang-format on
 #include "tests/Examples/benchmark/Memref.h"
 
