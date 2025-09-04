@@ -12560,7 +12560,7 @@ plaintext masks (ciphertext-plaintext multiplications), and additions.&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.rotate_and_reduce` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This op reduces products of a plaintext with a periodically rotated
 tensor.&lt;/p>
-&lt;p>In generality, the reduction performs is&lt;/p>
+&lt;p>In almost full generality, the reduction performed is&lt;/p>
 &lt;p>[
 \sum_{i \in [0, n]} p(P, T&lt;em>i) \cdot rotate(v, T&lt;/em>i)
 ]&lt;/p>
@@ -12580,6 +12580,10 @@ $T$ is $1$.&lt;/p>
 by omitting the plaintext $p(P, T*i)$ argument and using a period of 1 with
 &lt;code>n = |v|&lt;/code> so that the reduction is simply a sum of all rotation of the
 ciphertext.&lt;/p>
+&lt;p>If &lt;code>reduceOp&lt;/code> is set to an MLIR operation name (e.g., &lt;code>arith.mulf&lt;/code>), then
+the reduction operation is modified to use that operation instead of a sum.
+The chosen op must be one of &lt;code>arith.muli&lt;/code>, &lt;code>arith.mulf&lt;/code>, &lt;code>arith.addi&lt;/code>,
+or &lt;code>arith.addf&lt;/code>.&lt;/p>
 &lt;p>Efficient lowerings of this operation can use the Baby-Step / Giant-Step
 approach from &lt;a href="https://eprint.iacr.org/2018/244.pdf">Faster Homomorphic Linear Transformations in
 HElib&lt;/a> to reduce the number of
@@ -12592,6 +12596,7 @@ ciphertext rotations.&lt;/p>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>period&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>index attribute&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>steps&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>index attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>reduceOp&lt;/code>&lt;/td>&lt;td>::mlir::StringAttr&lt;/td>&lt;td>An Attribute containing a string&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-3">Operands:&lt;/h4>
 &lt;table>
