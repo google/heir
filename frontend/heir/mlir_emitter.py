@@ -308,19 +308,27 @@ def is_start_of_loop(index, body, ssa_ir) -> bool:
 class TextualMlirEmitter:
 
   def __init__(
-      self, ssa_ir: ir.FunctionIR, secret_args: list[int], typemap, return_types
+      self,
+      ssa_ir: ir.FunctionIR,
+      secret_args: list[int],
+      typemap,
+      return_types,
+      func_name: str,
   ):
     """Initialize the emitter with the given SSA IR and type information.
 
-    ssa_ir: output of numba's compiler.run_frontend or similar (must be a function)
+    ssa_ir: output of numba's compiler.run_frontend or similar (must be a
+    function)
     secret_args: list of indices of secret arguments
     typemap: typemap produced by numba's type_inference_stage(...)
     return_types: return types produced by numba's type_inference_stage(...)
+    func_name: the name of the function to emit
     """
     self.ssa_ir = ssa_ir
     self.secret_args = secret_args
     self.typemap = typemap
     self.return_types = (return_types,)
+    self.func_name = func_name
     self.temp_var_id = 0
     self.numba_names_to_ssa_var_names = {}
     # The globals_map maps the numba-assigned name for a global (e.g. '$4load_global.0')
@@ -337,7 +345,6 @@ class TextualMlirEmitter:
     return cfa
 
   def emit(self):
-    func_name = self.ssa_ir.func_id.func_name
     # probably should use unique name...
     # func_name = ssa_ir.func_id.unique_name
     args: list[str] = []
@@ -363,7 +370,7 @@ class TextualMlirEmitter:
 
     body = self.emit_blocks()
 
-    mlir_func = f"""func.func @{func_name}({args_str}) -> ({return_types_str}) {{
+    mlir_func = f"""func.func @{self.func_name}({args_str}) -> ({return_types_str}) {{
 {textwrap.indent(body, '  ')}
 }} {mlirLoc(self.ssa_ir.loc)}
 """

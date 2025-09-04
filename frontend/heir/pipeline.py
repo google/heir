@@ -2,6 +2,7 @@
 
 import os
 import pathlib
+import re
 import shutil
 import tempfile
 from typing import Any, Callable, Optional
@@ -29,6 +30,25 @@ from heir.mlir_emitter import TextualMlirEmitter
 
 Path = pathlib.Path
 HEIRConfig = heir_cli_config.HEIRConfig
+
+
+_UNIQUE_NAME_COUNTER = 0
+
+
+def _get_unique_func_name(func: Callable) -> str:
+  """Create a unique sanitized function name.
+
+  Create a unique function name from the function's module and qualified name,
+  and sanitize it to be a valid C++ identifier. This is used to avoid name
+  collisions when compiling multiple functions with the same name.
+  """
+  global _UNIQUE_NAME_COUNTER
+  sanitized = re.sub(
+      r"[^a-zA-Z0-9_]", "_", f"{func.__module__}_{func.__qualname__}"
+  )
+  unique_name = f"{sanitized}_{_UNIQUE_NAME_COUNTER}"
+  _UNIQUE_NAME_COUNTER += 1
+  return unique_name
 
 
 def run_pipeline(
@@ -63,7 +83,7 @@ def run_pipeline(
         raise InternalCompilerError(
             f"Expected FunctionIR from numba frontend but got {type(numba_ir)}"
         )
-      func_name = numba_ir.func_id.func_name
+      func_name = _get_unique_func_name(function_or_mlir_str)
       arg_names = numba_ir.func_id.arg_names
 
       # (Numba) Type Inference
@@ -113,7 +133,7 @@ def run_pipeline(
 
       # Emit Textual IR
       mlir_raw_textual = TextualMlirEmitter(
-          numba_ir, secret_args, typemap, restype
+          numba_ir, secret_args, typemap, restype, func_name
       ).emit()
 
       if debug:
