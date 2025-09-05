@@ -14,12 +14,11 @@ module{
     %2 = tensor_ext.assign_layout %arg1 {layout = #new_layout2, tensor_ext.layout = #new_layout2} : tensor<512xf32>
     // CHECK: secret.generic(%[[arg2:.*]]: !secret.secret<tensor<1x1024xf32>>)
     // CHECK: ^body(%[[input0:.*]]: tensor<1x1024xf32>)
+    // CHECK: %[[extracted:.*]] = tensor.extract_slice
+    // CHECK: %[[v4:.*]] = tensor_ext.rotate %[[extracted]]
     // CHECK: %[[collapsed:.*]] = tensor.collapse_shape %[[input0]]
     // CHECK-SAME: tensor<1x1024xf32> into tensor<1024xf32>
-    // CHECK: %[[v4:.*]] = tensor_ext.rotate_and_reduce %[[collapsed]]
-    // CHECK: %[[collapsed_2:.*]] = tensor.collapse_shape
-    // CHECK: %[[v5:.*]] = arith.addf %[[v4]], %[[collapsed_2]] : tensor<1024xf32>
-    // CHECK: %[[v6:.*]] = tensor_ext.rotate %[[v5]], %[[c512:.*]] : tensor<1024xf32>
+    // CHECK: %[[v5:.*]] = arith.mulf %[[v4]], %[[collapsed]]
     // CHECK: %[[expanded:.*]] = tensor.expand_shape
     // CHECK-SAME: tensor<1024xf32> into tensor<1x1024xf32>
     // CHECK: secret.yield %[[expanded]]

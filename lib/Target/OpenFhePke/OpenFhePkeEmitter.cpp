@@ -258,8 +258,8 @@ LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
           // Arith ops
           .Case<arith::ConstantOp, arith::ExtSIOp, arith::ExtUIOp,
                 arith::IndexCastOp, arith::ExtFOp, arith::RemSIOp,
-                arith::AddIOp, arith::SubIOp, arith::MulIOp, arith::DivSIOp,
-                arith::CmpIOp, arith::SelectOp>(
+                arith::AddIOp, arith::AndIOp, arith::SubIOp, arith::MulIOp,
+                arith::DivSIOp, arith::CmpIOp, arith::SelectOp>(
               [&](auto op) { return printOperation(op); })
           // SCF ops
           .Case<scf::IfOp, scf::ForOp, scf::YieldOp>(
@@ -1014,6 +1014,10 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::AddIOp op) {
   return printBinaryOp(op, op.getLhs(), op.getRhs(), "+");
 }
 
+LogicalResult OpenFhePkeEmitter::printOperation(arith::AndIOp op) {
+  return printBinaryOp(op, op.getLhs(), op.getRhs(), "&&");
+}
+
 LogicalResult OpenFhePkeEmitter::printOperation(arith::MulIOp op) {
   return printBinaryOp(op, op.getLhs(), op.getRhs(), "*");
 }
@@ -1177,10 +1181,10 @@ LogicalResult OpenFhePkeEmitter::extractRowFromMatrix(
   if (op.isDynamicOffset(0)) {
     flattenStart = llvm::formatv(
         "{0} * {1}", variableNames->getNameForValue(op.getDynamicOffset(0)),
-        op.getSourceType().getShape()[0]);
+        op.getSourceType().getShape()[1]);
   } else {
     flattenStart = llvm::formatv("{0} * {1}", op.getStaticOffset(0),
-                                 op.getSourceType().getShape()[0]);
+                                 op.getSourceType().getShape()[1]);
   }
   auto flattenEnd = llvm::formatv("{0} + {1}", flattenStart,
                                   op.getResultType().getNumElements());
@@ -1370,17 +1374,16 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::SplatOp op) {
 LogicalResult OpenFhePkeEmitter::printOperation(tensor::FromElementsOp op) {
   // std::vector<CiphertextType> result = {input[0], ..., input[n]};
   auto result = op.getResult();
-  if (failed(emitType(result.getType(), op->getLoc()))) {
-    return failure();
-  }
   if (result.getType().getRank() != 1) {
     return failure();
   }
-  os << " " << variableNames->getNameForValue(result) << "{"
-     << commaSeparatedValues(
-            op.getElements(),
-            [&](Value value) { return variableNames->getNameForValue(value); })
-     << "};\n";
+  os << "const ";
+  if (failed(emitTypedAssignPrefix(result, op->getLoc()))) {
+    return failure();
+  }
+  os << "{" << commaSeparatedValues(op.getElements(), [&](Value value) {
+    return variableNames->getNameForValue(value);
+  }) << "};\n";
   return success();
 }
 

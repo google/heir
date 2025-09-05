@@ -191,6 +191,28 @@ TEST(RotateAndReduceImplTest, TestUnitPeriodWithIndivisibleN6) {
   EXPECT_EQ(expected, actual);
 }
 
+TEST(RotateAndReduceImplTest, RegressionTest) {
+  int64_t n = 4;
+  int64_t period = 1;
+
+  std::vector<int> vector = {0, 1, 2, 3, 4, 0, 0, 0, 0, 1, 2, 3, 4, 0, 0, 0,
+                             0, 1, 2, 3, 4, 0, 0, 0, 0, 1, 2, 3, 4, 0, 0, 0};
+  std::vector<std::vector<int>> plaintexts = {
+      {1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+       1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0},
+      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+  };
+
+  std::vector<int> expected = runNaive(vector, plaintexts, period, n);
+  std::vector<int> actual = runImpl(vector, plaintexts, period, n);
+  EXPECT_EQ(expected, actual);
+}
+
 }  // namespace
 }  // namespace kernel
 }  // namespace heir

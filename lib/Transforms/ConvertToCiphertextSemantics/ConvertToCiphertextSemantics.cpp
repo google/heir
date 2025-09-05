@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <memory>
 #include <numeric>
 #include <optional>
 #include <set>
@@ -14,6 +15,9 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Kernel/ArithmeticDag.h"
+#include "lib/Kernel/IRMaterializingVisitor.h"
+#include "lib/Kernel/KernelImplementation.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/AssignLayout.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/TypeConversion.h"
 #include "lib/Transforms/DropUnitDims/DropUnitDims.h"
@@ -52,6 +56,7 @@
 #include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/OperationSupport.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
@@ -63,6 +68,10 @@ namespace mlir {
 namespace heir {
 
 namespace {
+using ::mlir::heir::kernel::ArithmeticDagNode;
+using ::mlir::heir::kernel::implementHaleviShoup;
+using ::mlir::heir::kernel::IRMaterializingVisitor;
+using ::mlir::heir::kernel::SSAValue;
 using tensor_ext::LayoutAttr;
 using tensor_ext::NewLayoutAttr;
 
@@ -927,67 +936,43 @@ struct ConvertLinalgMatvecNewLayout
   void haleviShoupKernel(
       linalg::MatvecOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter& rewriter) const {
-    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    Value result = adaptor.getOutputs()[0];
-    Value packedMatrix = adaptor.getInputs()[0];
-    Value packedVector = adaptor.getInputs()[1];
-    auto originalMatrixType =
-        cast<RankedTensorType>(op.getInputs()[0].getType());
-    auto packedMatrixType = cast<RankedTensorType>(packedMatrix.getType());
-    auto packedVectorType = cast<RankedTensorType>(packedVector.getType());
-    Type elementType = packedVectorType.getElementType();
-    int64_t numRotations = packedMatrixType.getShape()[0];
-    auto layoutAttr = cast<NewLayoutAttr>(op->getAttr(kLayoutAttrName));
+    LLVM_DEBUG(llvm::dbgs()
+               << "Converting linalg.matvec op with halevi shoup kernel: " << op
+               << "\n");
 
-    // Construct a rotate and reduce op
-    // The packed matrix is already diagonalized.
-    auto rotateAndReduceOp =
-        tensor_ext::RotateAndReduceOp::create(b, packedVector, packedMatrix,
-                                              /*period=*/1,
-                                              /*steps=*/numRotations,
-                                              /*reduceOp=*/"arith.addf");
-    rotateAndReduceOp->setAttr(kLayoutAttrName, layoutAttr);
-    setMaterializedAttr(rotateAndReduceOp);
+    TypedValue<RankedTensorType> input =
+        cast<TypedValue<RankedTensorType>>(adaptor.getInputs()[1]);
+    SSAValue vectorLeaf(input);
+    TypedValue<RankedTensorType> matrix =
+        cast<TypedValue<RankedTensorType>>(adaptor.getInputs()[0]);
+    SSAValue matrixLeaf(matrix);
+
+    std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
+        implementHaleviShoup(
+            vectorLeaf, matrixLeaf,
+            cast<RankedTensorType>(op.getInputs()[0].getType()).getShape());
+
+    rewriter.setInsertionPointAfter(op);
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    IRMaterializingVisitor visitor(b, input.getType());
+    Value finalOutput = implementedKernel->visit(visitor);
+
+    auto layoutAttr = cast<NewLayoutAttr>(op->getAttr(kLayoutAttrName));
+    auto finalOutputOp = finalOutput.getDefiningOp();
+    finalOutputOp->setAttr(kLayoutAttrName, layoutAttr);
+    setMaterializedAttr(finalOutputOp);
 
     // Add the initial accumulator value.
+    Type elementType = input.getType().getElementType();
     StringRef addOpName =
         isa<IntegerType>(elementType) ? "arith.addi" : "arith.addf";
-    Operation* addBias = b.create(OperationState(
-        op->getLoc(), addOpName, {rotateAndReduceOp.getResult(), result},
-        {packedVectorType}));
+    Value result = adaptor.getOutputs()[0];
+    Operation* addBias =
+        b.create(OperationState(op->getLoc(), addOpName, {finalOutput, result},
+                                {finalOutput.getType()}));
     addBias->setAttr(kLayoutAttrName, layoutAttr);
     setMaterializedAttr(addBias);
-    Value summedShifts = addBias->getResult(0);
-
-    // If we have a square matrix, we can stop here.
-    if (originalMatrixType.getShape()[0] == originalMatrixType.getShape()[1]) {
-      rewriter.replaceOp(op, summedShifts);
-      return;
-    }
-
-    // Else, we have matrixNumRows < matrixNumCols due to the precondition
-    // applied earlier. This is the post-processing partial-rotate-and-reduce
-    // step required for squat-diagonal packing.
-    int64_t matrixNumRows = packedMatrixType.getShape()[0];
-    int64_t matrixNumCols = packedMatrixType.getShape()[1];
-
-    int64_t numShifts = (int64_t)(log2(matrixNumCols) - log2(matrixNumRows));
-    int64_t shift = matrixNumCols / 2;
-    for (int64_t i = 0; i < numShifts; ++i) {
-      auto shiftAmountOp = arith::ConstantIntOp::create(b, shift, 64);
-      auto rotateOp =
-          tensor_ext::RotateOp::create(b, summedShifts, shiftAmountOp);
-      auto* addOp = b.create(OperationState(
-          op->getLoc(), addOpName, {summedShifts, rotateOp.getResult()},
-          {rotateOp.getResult().getType()}));
-      setMaterializedAttr({shiftAmountOp, rotateOp, addOp});
-      setAttributeAssociatedWith(addOp->getResult(0), kLayoutAttrName,
-                                 layoutAttr);
-      summedShifts = addOp->getResult(0);
-      shift /= 2;
-    }
-
-    rewriter.replaceOp(op, summedShifts);
+    rewriter.replaceOp(op, addBias);
   }
 
   LogicalResult matchAndRewrite(
@@ -1525,6 +1510,7 @@ struct ConvertToCiphertextSemantics
     // rotation ops) and elementwise ops.
     cleanupPatterns2.add<DropRotateUnitDims, DropRotateAndReduceUnitDims,
                          DropElementwiseUnitDims>(context);
+    mlir::tensor::populateReassociativeReshapeFoldingPatterns(cleanupPatterns2);
     // Folding here will remove any unrealized conversion cast ops that were
     // inserted to persist new layouts.
     if (failed(applyPatternsGreedily(module, std::move(cleanupPatterns2)))) {

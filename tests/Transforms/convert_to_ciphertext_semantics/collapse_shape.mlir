@@ -35,7 +35,6 @@ module {
     // CHECK: secret.generic
     // CHECK-NEXT: ^body(%[[input0:.*]]: tensor<1x1024xf32>)
     // CHECK: %[[collapsed:.*]] = tensor.collapse_shape %[[input0]]
-    // CHECK: tensor_ext.rotate_and_reduce %[[collapsed]]
     %7 = secret.generic(%arg4: !secret.secret<tensor<1x784xf32>> {tensor_ext.layout = #new_layout5}) {
     ^body(%input0: tensor<1x784xf32>):
       %collapsed = tensor.collapse_shape %input0 [[0, 1]] {tensor_ext.layout = #new_layout6} : tensor<1x784xf32> into tensor<784xf32>

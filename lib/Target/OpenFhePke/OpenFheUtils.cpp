@@ -92,7 +92,8 @@ FailureOr<std::string> convertType(Type type, Location loc, bool constant) {
         }
       })
       .Case<RankedTensorType>([&](auto ty) {
-        auto eltTyResult = convertType(ty.getElementType(), loc);
+        // std::allocator does not support const types
+        auto eltTyResult = convertType(ty.getElementType(), loc, false);
         if (failed(eltTyResult)) {
           return FailureOr<std::string>();
         }

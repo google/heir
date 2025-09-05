@@ -72,7 +72,7 @@ func.func @suffix_ones() {
 func.func @prefix_and_suffix_ones() {
   %0 = secret.generic() {
   ^body:
-    // CHECK: [[cst:%[^ ]+]] = arith.constant dense<1> : tensor<1x1x32x1x1x1x1xi16>
+    // CHECK: [[cst:%[^ ]+]] = arith.constant dense<1> : tensor<32xi16>
     %v = arith.constant dense<1> : tensor<32xi16>
     // CHECK-COUNT-31: tensor.insert_slice
     // CHECK: linalg.generic

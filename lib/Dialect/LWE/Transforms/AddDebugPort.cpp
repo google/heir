@@ -11,6 +11,7 @@
 #include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
@@ -26,7 +27,7 @@ namespace lwe {
 
 FailureOr<Type> getPrivateKeyType(func::FuncOp op) {
   const auto* type = llvm::find_if(op.getArgumentTypes(), [](Type type) {
-    return mlir::isa<LWECiphertextType>(type);
+    return mlir::isa<LWECiphertextType>(getElementTypeOrSelf(type));
   });
 
   if (type == op.getArgumentTypes().end()) {
@@ -34,7 +35,7 @@ FailureOr<Type> getPrivateKeyType(func::FuncOp op) {
         "Function does not have an argument of LWECiphertextType");
   }
 
-  auto lweCiphertextType = cast<LWECiphertextType>(*type);
+  auto lweCiphertextType = cast<LWECiphertextType>(getElementTypeOrSelf(*type));
 
   auto lwePrivateKeyType =
       LWESecretKeyType::get(op.getContext(), lweCiphertextType.getKey(),

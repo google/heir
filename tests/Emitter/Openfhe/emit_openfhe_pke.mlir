@@ -247,7 +247,7 @@ module attributes {scheme.ckks} {
 module attributes {scheme.ckks} {
   // CHECK: test_extract_slice
   // CHECK-SAME: std::vector<float> [[v0:.*]], size_t [[v1:.*]]) {
-  // CHECK: std::vector<float> [[v2:.*]](std::begin([[v0]]) + [[v1]] * 1, std::begin([[v0]]) + [[v1]] * 1 + 1024);
+  // CHECK: std::vector<float> [[v2:.*]](std::begin([[v0]]) + [[v1]] * 1024, std::begin([[v0]]) + [[v1]] * 1024 + 1024);
   func.func @test_extract_slice(%arg0: tensor<1x1024xf32>, %arg1: index) -> tensor<1024xf32> {
     %1 = tensor.extract_slice %arg0[%arg1, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
     return %1 : tensor<1024xf32>
