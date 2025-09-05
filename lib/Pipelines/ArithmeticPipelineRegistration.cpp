@@ -47,6 +47,7 @@
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/SelectRewrite/SelectRewrite.h"
+#include "lib/Transforms/SplitPreprocessing/SplitPreprocessing.h"
 #include "lib/Transforms/TensorLinalgToAffineLoops/TensorLinalgToAffineLoops.h"
 #include "lib/Transforms/ValidateNoise/ValidateNoise.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"    // from @llvm-project
@@ -160,6 +161,8 @@ void mlirToSecretArithmeticPipelineBuilder(
   // Balance Operations
   pm.addPass(createOperationBalancer());
 
+  // Add a __preprocessed helper for offline pre-packing of plaintexts
+  pm.addPass(createSplitPreprocessing());
   lowerAssignLayout(pm, false);
 
   // Add encrypt/decrypt helper functions for each function argument and return

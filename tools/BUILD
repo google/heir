@@ -141,6 +141,7 @@ cc_binary(
         "@heir//lib/Transforms/Secretize",
         "@heir//lib/Transforms/SelectRewrite",
         "@heir//lib/Transforms/ShapeInference",
+        "@heir//lib/Transforms/SplitPreprocessing",
         "@heir//lib/Transforms/StraightLineVectorizer",
         "@heir//lib/Transforms/TensorLinalgToAffineLoops",
         "@heir//lib/Transforms/TensorToScalars",
