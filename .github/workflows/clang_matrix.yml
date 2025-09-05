@@ -14,41 +14,19 @@ jobs:
     strategy:
       matrix:
         # since upgrading to C++20, only clang-17 and later are supported.
-        clang-version: [17, 18, 19, 20]
+        clang-version: [17, 18, 19, 20, 21]
       fail-fast: false
     runs-on:
-      labels: ubuntu-22.04-8core
+      labels: ubuntu-24.04-64core
     steps:
       - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libomp-dev
+          ./.github/install_clang_version.sh ${{ matrix.clang-version }}
 
       - name: Check out repository code
         uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
 
-      - name: Install Clang ${{ matrix.clang-version }}
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-${{ matrix.clang-version }}
-          clang-${{ matrix.clang-version }} --version
-
-      - name: "Run `bazel build` with Clang ${{ matrix.clang-version }}"
-        run: |
-          bazel build --keep_going --incompatible_strict_action_env \
-            --action_env=CC=clang-${{ matrix.clang-version }} \
-            --action_env=CXX=clang++-${{ matrix.clang-version }} \
-            --host_action_env=CC=clang-${{ matrix.clang-version }} \
-            --host_action_env=CXX=clang++-${{ matrix.clang-version }} \
-            --//:enable_openmp=0 \
-            -c fastbuild //...
-
       - name: "Run `bazel build` with Clang ${{ matrix.clang-version }} + OpenMP"
         run: |
           bazel build --keep_going --incompatible_strict_action_env \
-            --action_env=CC=clang-${{ matrix.clang-version }} \
-            --action_env=CXX=clang++-${{ matrix.clang-version }} \
-            --host_action_env=CC=clang-${{ matrix.clang-version }} \
-            --host_action_env=CXX=clang++-${{ matrix.clang-version }} \
-            --//:enable_openmp=1 \
-            -c fastbuild //...
+            -c opt //...

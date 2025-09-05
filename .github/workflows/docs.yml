@@ -12,78 +12,83 @@ concurrency:
 jobs:
   build-and-deploy:
     runs-on:
-      labels: ubuntu-22.04-32core
+      labels: ubuntu-24.04-16core
     permissions:
       contents: write
     steps:
-    - name: Checkout
-      uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
-      with:
-        fetch-depth: 0         # Fetch all history for .GitInfo and .Lastmod
-    - name: Cache bazel build artifacts
-      uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # pin@v4.2.0
-      with:
-        path: |
-          ~/.cache/bazel
-        key: ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE.bzlmod', 'MODULE.bazel') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
-        restore-keys: |
-          ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE.bzlmod', 'MODULE.bazel') }}-
+      - name: Checkout
+        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
+        with:
+          fetch-depth: 0         # Fetch all history for .GitInfo and .Lastmod
 
+      - name: Install dependencies
+        run: |
+          ./.github/install_clang_version.sh 19
 
-    # This requires building mlir-tblgen, but may not require a full llvm build
-    # as a result. It results in the files being added to their respective
-    # locations (relative to each *_inc_gen target) under bazel-bin. Note the
-    # _filegroup suffix is required to actually write the markdown files to
-    # disk.
-    - name: "Build markdown files from tblgen sources"
-      run: |
-        bazel query "filter('_filegroup', siblings(kind('gentbl_rule', @heir//...)))" | \
-          xargs bazel build --//:enable_openmp=0 -c fastbuild "$@"
+      - name: Cache bazel build artifacts
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # pin@v4.2.0
+        with:
+          path: |
+            ~/.cache/bazel
+          key: ${{ runner.os }}-clang19-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE.bzlmod', 'MODULE.bazel') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
+          restore-keys: |
+            ${{ runner.os }}-clang19-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE.bzlmod', 'MODULE.bazel') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
+            ${{ runner.os }}-clang19-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE.bzlmod', 'MODULE.bazel') }}-
 
-    - name: "Copy markdown files to docs/"
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install pyyaml==6.0.2 fire==0.7.0
-        # heir-opt is needed to generate the doctest examples
-        bazel build --//:enable_openmp=0 -c fastbuild //tools:heir-opt
-        python -m scripts.docs.copy_tblgen_files
+      # This requires building mlir-tblgen, but may not require a full llvm build
+      # as a result. It results in the files being added to their respective
+      # locations (relative to each *_inc_gen target) under bazel-bin. Note the
+      # _filegroup suffix is required to actually write the markdown files to
+      # disk.
+      - name: "Build markdown files from tblgen sources"
+        run: |
+          bazel query "filter('_filegroup', siblings(kind('gentbl_rule', @heir//...)))" | \
+            xargs bazel build --//:enable_openmp=0 -c opt "$@"
 
-    # Please update the local install instructions at docs/README.md if
-    # changing hugo version
-    - name: Setup Hugo
-      uses: peaceiris/actions-hugo@16361eb4acea8698b220b76c0d4e84e1fd22c61d # pin@v2.6.0
-      with:
-        hugo-version: '0.113.0'
-        extended: true
+      - name: "Copy markdown files to docs/"
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyyaml==6.0.2 fire==0.7.0
+          # heir-opt is needed to generate the doctest examples
+          bazel build --//:enable_openmp=0 -c opt //tools:heir-opt
+          python -m scripts.docs.copy_tblgen_files
 
-    # Please update the local install instructions at docs/README.md if
-    # changing node version
-    - name: Setup Node
-      uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v4.0.4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        # The action defaults to search for the dependency file (package-lock.json,
-        # npm-shrinkwrap.json or yarn.lock) in the repository root, and uses its
-        # hash as a part of the cache key.
-        # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-data
-        cache-dependency-path: '**/package-lock.json'
+      # Please update the local install instructions at docs/README.md if
+      # changing hugo version
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@16361eb4acea8698b220b76c0d4e84e1fd22c61d # pin@v2.6.0
+        with:
+          hugo-version: '0.113.0'
+          extended: true
 
-    - name: Install Docsy dependencies
-      working-directory: ./docs
-      run: npm ci
+      # Please update the local install instructions at docs/README.md if
+      # changing node version
+      - name: Setup Node
+        uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v4.0.4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          # The action defaults to search for the dependency file (package-lock.json,
+          # npm-shrinkwrap.json or yarn.lock) in the repository root, and uses its
+          # hash as a part of the cache key.
+          # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-data
+          cache-dependency-path: '**/package-lock.json'
 
-    - name: Build
-      working-directory: ./docs
-      run: hugo --minify
+      - name: Install Docsy dependencies
+        working-directory: ./docs
+        run: npm ci
 
-    - name: Copy CNAME to hugo public dir
-      working-directory: ./docs
-      run: cp CNAME public/CNAME
+      - name: Build
+        working-directory: ./docs
+        run: hugo --minify
 
-    - name: Deploy
-      uses: peaceiris/actions-gh-pages@373f7f263a76c20808c831209c920827a82a2847 # pin@v3.9.3
-      if: github.ref == 'refs/heads/main'
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./docs/public
+      - name: Copy CNAME to hugo public dir
+        working-directory: ./docs
+        run: cp CNAME public/CNAME
+
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@373f7f263a76c20808c831209c920827a82a2847 # pin@v3.9.3
+        if: github.ref == 'refs/heads/main'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs/public

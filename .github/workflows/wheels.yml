@@ -38,11 +38,6 @@ jobs:
       - name: Check out HEIR
         uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libomp-dev
-
       - uses: actions/setup-python@v5
         name: Install Python 3.12
         with:

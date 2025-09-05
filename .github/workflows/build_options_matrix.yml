@@ -24,12 +24,11 @@ jobs:
           - 1
       fail-fast: false
     runs-on:
-      labels: ubuntu-22.04-8core
+      labels: ubuntu-24.04-64core
     steps:
       - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libomp-dev
+          ./.github/install_clang_version.sh 19
 
       - name: Check out repository code
         uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
