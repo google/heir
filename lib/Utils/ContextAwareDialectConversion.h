@@ -227,7 +227,7 @@ class ContextAwareConversionPatternRewriter final : public PatternRewriter {
 
   /// PatternRewriter hook for inlining the ops of a block into another block.
   void inlineBlockBefore(Block* source, Block* dest, Block::iterator before,
-                         ValueRange argValues = std::nullopt) override;
+                         ValueRange argValues = {}) override;
   using PatternRewriter::inlineBlockBefore;
 
   /// PatternRewriter hook for updating the given operation in-place.
