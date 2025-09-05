@@ -238,8 +238,7 @@ LogicalResult LowerViaPatersonStockmeyerChebyshev::matchAndRewrite(
       llvm::map_to_vector(chebCoeffsAttr, [](Attribute attr) {
         return llvm::cast<FloatAttr>(attr).getValue().convertToDouble();
       });
-
-  auto xNode = ArithmeticDagNode<SSAValue>::leaf(op.getValue());
+  SSAValue xNode(op.getValue());
   auto resultNode = polynomial::patersonStockmeyerChebyshevPolynomialEvaluation(
       xNode, chebCoeffs);
 

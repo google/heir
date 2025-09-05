@@ -26,14 +26,17 @@ Value IRMaterializingVisitor::operator()(const LeafNode<SSAValue>& node) {
 
 Value IRMaterializingVisitor::operator()(const ConstantNode& node) {
   TypedAttr attr;
-  if (isa<FloatType>(evaluatedType)) {
-    auto floatTy = cast<FloatType>(evaluatedType);
+  if (auto floatTy = dyn_cast<FloatType>(getElementTypeOrSelf(evaluatedType))) {
     APFloat apVal(node.value);
     APFloat converted =
         convertFloatToSemantics(apVal, floatTy.getFloatSemantics());
     attr = static_cast<TypedAttr>(FloatAttr::get(floatTy, converted));
   } else {
     attr = static_cast<TypedAttr>(IntegerAttr::get(evaluatedType, node.value));
+  }
+  if (isa<ShapedType>(evaluatedType)) {
+    attr = static_cast<TypedAttr>(
+        SplatElementsAttr::get(cast<ShapedType>(evaluatedType), attr));
   }
   return arith::ConstantOp::create(builder, evaluatedType, attr);
 }

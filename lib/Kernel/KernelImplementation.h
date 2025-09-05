@@ -46,6 +46,20 @@ class AbstractValue {
   virtual std::vector<int64_t> getShape() const = 0;
 };
 
+// A type that holds a literal double.
+class LiteralDouble : public AbstractValue {
+ public:
+  LiteralDouble() : d(0.0) {}
+  LiteralDouble(double d) : d(d) {}
+
+  double getValue() const { return d; }
+
+  std::vector<int64_t> getShape() const override { return {}; }
+
+ private:
+  double d;
+};
+
 // A type that holds a literal tensor, which can either be a 1D or 2D tensor.
 //
 // More variants must be added to support higher-dimensional input/output

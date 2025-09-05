@@ -22,7 +22,8 @@ TEST(CaratheodoryFejerTest, ApproximateExpDegree3) {
   auto func = [](const APFloat& x) {
     return APFloat(std::exp(x.convertToDouble()));
   };
-  FloatPolynomial actual = caratheodoryFejerApproximation(func, 3);
+  FloatPolynomial actual =
+      caratheodoryFejerApproximation(func, 3).toMonomialBasis();
 
   auto terms = actual.getTerms();
   EXPECT_THAT(terms[0].getCoefficient().convertToDouble(),
@@ -39,7 +40,8 @@ TEST(CaratheodoryFejerTest, ApproximateExpDegree3MinusTwoTwoInterval) {
   auto func = [](const APFloat& x) {
     return APFloat(std::exp(x.convertToDouble()));
   };
-  FloatPolynomial actual = caratheodoryFejerApproximation(func, 3, -2.0, 2.0);
+  FloatPolynomial actual =
+      caratheodoryFejerApproximation(func, 3, -2.0, 2.0).toMonomialBasis();
   auto terms = actual.getTerms();
   EXPECT_THAT(terms[0].getCoefficient().convertToDouble(),
               DoubleNear(0.9023129365897373, EPSILON));
@@ -56,7 +58,8 @@ TEST(CaratheodoryFejerTest, ApproximateReluDegree14) {
     APFloat zero = APFloat::getZero(x.getSemantics());
     return x > zero ? x : zero;
   };
-  FloatPolynomial actual = caratheodoryFejerApproximation(relu, 14);
+  FloatPolynomial actual =
+      caratheodoryFejerApproximation(relu, 14).toMonomialBasis();
 
   // The reference implementation prints coefficients that are ~1e-12 away from
   // our implementation, mainly because the eigenvalue solver details are
@@ -122,7 +125,8 @@ TEST(CaratheodoryFejerTest, ReluDegree3) {
     APFloat zero = APFloat::getZero(x.getSemantics());
     return x > zero ? x : zero;
   };
-  FloatPolynomial actual = caratheodoryFejerApproximation(relu, 3);
+  FloatPolynomial actual =
+      caratheodoryFejerApproximation(relu, 3).toMonomialBasis();
 
   auto terms = actual.getTerms();
   EXPECT_THAT(terms[0].getCoefficient().convertToDouble(),

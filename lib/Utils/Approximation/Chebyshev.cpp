@@ -54,41 +54,6 @@ void getChebyshevPoints(int64_t numPoints, SmallVector<APFloat>& results) {
   }
 }
 
-void getChebyshevPolynomials(int64_t numPolynomials,
-                             SmallVector<FloatPolynomial>& results) {
-  if (numPolynomials < 1) return;
-
-  if (numPolynomials >= 1) {
-    // 1
-    results.push_back(FloatPolynomial::fromCoefficients({1.}));
-  }
-  if (numPolynomials >= 2) {
-    // x
-    results.push_back(FloatPolynomial::fromCoefficients({0., 1.}));
-  }
-
-  if (numPolynomials <= 2) return;
-
-  for (int64_t i = 2; i < numPolynomials; ++i) {
-    auto& last = results.back();
-    auto& secondLast = results[results.size() - 2];
-    results.push_back(last.monomialMul(1).scale(APFloat(2.)).sub(secondLast));
-  }
-}
-
-FloatPolynomial chebyshevToMonomial(const SmallVector<APFloat>& coefficients) {
-  SmallVector<FloatPolynomial> chebPolys;
-  chebPolys.reserve(coefficients.size());
-  getChebyshevPolynomials(coefficients.size(), chebPolys);
-
-  FloatPolynomial result = FloatPolynomial::zero();
-  for (int64_t i = 0; i < coefficients.size(); ++i) {
-    result = result.add(chebPolys[i].scale(coefficients[i]));
-  }
-
-  return result;
-}
-
 void interpolateChebyshev(ArrayRef<APFloat> chebEvalPoints,
                           SmallVector<APFloat>& outputChebCoeffs) {
   size_t n = chebEvalPoints.size();
