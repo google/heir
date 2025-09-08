@@ -4,7 +4,6 @@ load("@heir//tests/Examples/openfhe:test.bzl", "openfhe_end_to_end_test")
 
 package(default_applicable_licenses = ["@heir//:license"])
 
-# TODO(#2047): change to --mlir-to-ckks when we integrate the new layout system
 openfhe_end_to_end_test(
     name = "halevi_shoup_matvec_test",
     generated_lib_header = "halevi_shoup_matvec_lib.h",

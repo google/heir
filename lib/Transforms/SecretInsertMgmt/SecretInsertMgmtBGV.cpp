@@ -67,7 +67,9 @@ struct SecretInsertMgmtBGV
     RewritePatternSet patternsPlaintext(&getContext());
     patternsPlaintext.add<UseInitOpForPlaintextOperand<arith::AddIOp>,
                           UseInitOpForPlaintextOperand<arith::SubIOp>,
-                          UseInitOpForPlaintextOperand<arith::MulIOp>>(
+                          UseInitOpForPlaintextOperand<arith::MulIOp>,
+                          UseInitOpForPlaintextOperand<tensor::ExtractSliceOp>,
+                          UseInitOpForPlaintextOperand<tensor::InsertSliceOp>>(
         &getContext(), getOperation(), &solver);
     (void)walkAndApplyPatterns(getOperation(), std::move(patternsPlaintext));
 

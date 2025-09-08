@@ -1,13 +1,15 @@
 // RUN: heir-opt --secret-distribute-generic --secret-to-mod-arith=modulus=17 %s | FileCheck %s
 
 // CHECK-NOT: secret.generic
-#alignment = #tensor_ext.alignment<in = [], out = [1024], insertedDims = [0]>
 #map = affine_map<(d0) -> (d0)>
 #map1 = affine_map<(d0) -> (d0 mod 1024)>
-#layout = #tensor_ext.layout<map = (d0) -> (d0 mod 1024), alignment = #alignment>
-#original_type = #tensor_ext.original_type<originalType = i16, layout = #layout>
+#scalar_layout = #tensor_ext.new_layout<"{ [] -> [ct, slot] : 0 <= slot <= 1023 and ct = 0 }">
+#scalar_original_type = #tensor_ext.original_type<originalType = i16, layout = #scalar_layout>
+#vec_layout = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 1024 = 0 and i0 >= 0 and 0 >= i0 and slot >= 0 and 1023 >= slot and ct = 0 }">
+#vec_original_type = #tensor_ext.original_type<originalType = tensor<8xi16>, layout = #vec_layout>
+
 module {
-  func.func @dot_product(%arg0: !secret.secret<tensor<1024xi16>> {tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<8xi16>, layout = #tensor_ext.layout<map = (d0) -> (d0 mod 1024), alignment = <in = [8], out = [1024]>>>}, %arg1: !secret.secret<tensor<1024xi16>> {tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<8xi16>, layout = #tensor_ext.layout<map = (d0) -> (d0 mod 1024), alignment = <in = [8], out = [1024]>>>}) -> (!secret.secret<tensor<1024xi16>> {tensor_ext.original_type = #original_type}) {
+  func.func @dot_product(%arg0: !secret.secret<tensor<1024xi16>> {tensor_ext.original_type = #vec_original_type}, %arg1: !secret.secret<tensor<1024xi16>> {tensor_ext.original_type = #vec_original_type}) -> (!secret.secret<tensor<1024xi16>> {tensor_ext.original_type = #scalar_original_type}) {
     %c7 = arith.constant 7 : index
     %c1_i16 = arith.constant 1 : i16
     %cst = arith.constant dense<0> : tensor<1024xi16>

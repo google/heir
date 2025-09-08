@@ -17,6 +17,7 @@
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
@@ -35,6 +36,7 @@
 
 namespace mlir {
 namespace heir {
+namespace mod_arith {
 
 #define GEN_PASS_DEF_SECRETTOMODARITH
 #include "lib/Dialect/Secret/Conversions/SecretToModArith/SecretToModArith.h.inc"
@@ -348,6 +350,61 @@ class SecretGenericOpCipherPlainConversion
   }
 };
 
+// InsertSlice needs to be able to insert into a tensor.empty() (which is not
+// secret) and can't use the generic cipher/plain pattern above because the
+// builder has a different API.
+class ConvertInsertSlice : public OpConversionPattern<secret::GenericOp> {
+ public:
+  ConvertInsertSlice(const TypeConverter& typeConverter, MLIRContext* context,
+                     PatternBenefit benefit = 1)
+      : OpConversionPattern<secret::GenericOp>(typeConverter, context,
+                                               benefit) {}
+
+  LogicalResult matchAndRewrite(
+      secret::GenericOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const final {
+    if (op.getBody()->getOperations().size() > 2) {
+      return failure();
+    }
+
+    auto innerOp =
+        dyn_cast<tensor::InsertSliceOp>(op.getBody()->getOperations().front());
+    if (!innerOp) {
+      return failure();
+    }
+
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    Value source = innerOp.getSource();
+    Value dest = innerOp.getDest();
+
+    if (op.getOpOperandForBlockArgument(dest) != nullptr) {
+      // A secret dest is already handled by ConvertAnyNestedGeneric, which
+      // properly type converts operations where all operands are secrets, or
+      // where the non-secret operands need no further changes.
+      return failure();
+    }
+
+    Type newDestType = getTypeConverter()->convertType(
+        secret::SecretType::get(dest.getType()));
+    dest = encodeCleartext(dest, newDestType, b);
+
+    if (auto* secretArg = op.getOpOperandForBlockArgument(source)) {
+      source = adaptor.getInputs()[secretArg->getOperandNumber()];
+    } else {
+      // A non-secret source is already handled by ConvertAnyNestedGeneric,
+      // which properly type converts operations where non-secret operands need
+      // no further changes.
+      return failure();
+    }
+
+    auto newOp = tensor::InsertSliceOp::create(
+        b, source, dest, innerOp.getMixedOffsets(), innerOp.getMixedSizes(),
+        innerOp.getMixedStrides());
+    rewriter.replaceOp(op, newOp);
+    return success();
+  }
+};
+
 // The debug port added in secret::AddDebugPort works on the cleartext type, so
 // to avoid type conflicts with the encoded type, we need to insert a
 // secret.reveal before the call.
@@ -397,9 +454,9 @@ struct SecretToModArith : public impl::SecretToModArithBase<SecretToModArith> {
           SecretGenericOpCipherPlainConversion<arith::AddIOp, mod_arith::AddOp>,
           SecretGenericOpCipherPlainConversion<arith::MulIOp, mod_arith::MulOp>,
           SecretGenericOpCipherPlainConversion<arith::SubIOp, mod_arith::SubOp>,
-          ConvertReveal, ConvertConceal, ConvertDebugCall>(typeConverter,
-                                                           context,
-                                                           /*benefit=*/3);
+          ConvertInsertSlice, ConvertReveal, ConvertConceal, ConvertDebugCall>(
+          typeConverter, context,
+          /*benefit=*/3);
 
       patterns.add<SecretGenericOpConversion<arith::AddIOp, mod_arith::AddOp>,
                    SecretGenericOpConversion<arith::SubIOp, mod_arith::SubOp>,
@@ -445,5 +502,6 @@ struct SecretToModArith : public impl::SecretToModArithBase<SecretToModArith> {
   }
 };
 
+}  // namespace mod_arith
 }  // namespace heir
 }  // namespace mlir

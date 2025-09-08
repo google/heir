@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <memory>
 
+#include "lib/Utils/Utils.h"
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
@@ -11,6 +12,7 @@
 #include "mlir/include/mlir/Dialect/SCF/Transforms/Patterns.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Dialect.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/IRMapping.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/OperationSupport.h"       // from @llvm-project
@@ -266,15 +268,32 @@ void addStructuralConversionPatterns(TypeConverter& typeConverter,
       [&](func::CallOp op) { return typeConverter.isLegal(op); });
 
   populateBranchOpInterfaceTypeConversionPattern(patterns, typeConverter);
+  scf::populateSCFStructuralTypeConversionsAndLegality(typeConverter, patterns,
+                                                       target);
+
   target.markUnknownOpDynamicallyLegal([&](Operation* op) {
+    // These rules are needed to handle interface ops that are not directly
+    // registered as legal/illegal with the target.
     return isNotBranchOpInterfaceOrReturnLikeOp(op) ||
            isLegalForBranchOpInterfaceTypeConversionPattern(op,
                                                             typeConverter) ||
            isLegalForReturnOpTypeConversionPattern(op, typeConverter);
   });
+}
 
-  scf::populateSCFStructuralTypeConversionsAndLegality(typeConverter, patterns,
-                                                       target);
+void addTensorConversionPatterns(TypeConverter& typeConverter,
+                                 RewritePatternSet& patterns,
+                                 ConversionTarget& target) {
+  patterns.add<
+      ConvertAny<tensor::EmptyOp>, ConvertAny<tensor::InsertOp>,
+      ConvertAny<tensor::InsertSliceOp>, ConvertAny<tensor::ExtractSliceOp>,
+      ConvertAny<tensor::FromElementsOp>, ConvertAny<tensor::ExtractOp>>(
+      typeConverter, patterns.getContext());
+
+  target.addDynamicallyLegalOp<tensor::EmptyOp, tensor::InsertOp,
+                               tensor::InsertSliceOp, tensor::ExtractOp,
+                               tensor::ExtractSliceOp, tensor::FromElementsOp>(
+      [&](Operation* op) { return typeConverter.isLegal(op); });
 }
 
 FailureOr<Value> getContextualArgFromFunc(Operation* op, Type argType) {

@@ -93,7 +93,7 @@ def BGV_MulPlainOp : BGV_CiphertextPlaintextOp<"mul_plain", [ElementwiseMappable
   let hasCanonicalizer = 1;
 }
 
-def BGV_RotateColumnsOp : BGV_Op<"rotate_cols", [AllTypesMatch<["input", "output"]>]> {
+def BGV_RotateColumnsOp : BGV_Op<"rotate_cols", [ElementwiseMappable, AllTypesMatch<["input", "output"]>]> {
   let summary = "Rotate the columns of the coefficients of the ciphertext using a Galois automorphism.";
 
   let description = [{

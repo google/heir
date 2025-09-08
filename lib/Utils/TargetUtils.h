@@ -8,10 +8,12 @@
 
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/TypeRange.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
+#include "mlir/include/mlir/Support/IndentedOstream.h"   // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 
@@ -33,7 +35,7 @@ std::string commaSeparated(ArrayRef<T> values) {
   }
   return std::accumulate(
       std::next(values.begin()), values.end(), std::to_string(values[0]),
-      [&](const std::string& a, T b) { return a + ", " + std::to_string(b); });
+      [&](const std::string &a, T b) { return a + ", " + std::to_string(b); });
 }
 
 // Return a comma-separated string containing the types in a given TypeRange,
@@ -46,6 +48,10 @@ FailureOr<std::string> commaSeparatedTypes(
 // string by the given mapping function, for example [1][2].
 std::string bracketEnclosedValues(
     ValueRange values, std::function<std::string(Value)> valueToString);
+
+// Returns a string expression for the flattened index of a ShapedType.
+std::string flattenIndexExpression(ArrayRef<int64_t> shape,
+                                   ArrayRef<std::string> indexStrings);
 
 // Returns a string expression for the flattened index of a ShapedType.
 std::string flattenIndexExpression(
@@ -62,6 +68,23 @@ int64_t flattenedIndex(ShapedType type, ValueRange indices,
 
 int64_t flattenedIndex(MemRefType memRefType, ValueRange indices,
                        std::function<int64_t(Value)> valueToInt);
+
+using LoopOpenerFn =
+    std::function<void(raw_indented_ostream &, std::string, int64_t)>;
+using InductionVarNameFn = std::function<std::string(int)>;
+using OffsetToStringFn = std::function<std::string(OpFoldResult)>;
+
+// An emitter for extract_slice that generalizes over C-style loops
+// with flattened source and access indices.
+void emitFlattenedExtractSlice(ShapedType resultType, ShapedType sourceType,
+                               StringRef resultName, StringRef sourceName,
+                               ArrayRef<OpFoldResult> offsets,
+                               ArrayRef<int64_t> sizes,
+                               ArrayRef<int64_t> strides,
+                               const OffsetToStringFn &offsetToString,
+                               const InductionVarNameFn &getInductionVarName,
+                               const LoopOpenerFn &loopOpener,
+                               raw_indented_ostream &os);
 
 inline bool isDebugPort(StringRef debugPortName) {
   return debugPortName.rfind("__heir_debug") == 0;

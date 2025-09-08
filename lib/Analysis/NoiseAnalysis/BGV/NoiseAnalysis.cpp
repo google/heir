@@ -201,6 +201,12 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
               return success();
             }
 
+            SmallVector<OpOperand*> secretOperands;
+            this->getSecretOperands(&op, secretOperands);
+            if (secretOperands.empty()) {
+              return success();
+            }
+
             if (!mlir::isa<arith::ConstantOp, arith::ExtSIOp, arith::ExtUIOp,
                            arith::ExtFOp, mgmt::InitOp,
                            // extract_slice is used for selecting one ciphertext
@@ -210,12 +216,6 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
                            tensor::ExtractSliceOp, tensor::InsertSliceOp>(op)) {
               op.emitError()
                   << "Unsupported operation for noise analysis encountered.";
-            }
-
-            SmallVector<OpOperand*> secretOperands;
-            this->getSecretOperands(&op, secretOperands);
-            if (secretOperands.empty()) {
-              return success();
             }
 
             // inherit noise from the first secret operand

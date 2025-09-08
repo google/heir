@@ -253,11 +253,10 @@ module attributes {scheme.bgv} {
   func.func @extract_slice(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) {
   // CHECK:  [[v0:[^ ]*]] := []int32{5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5}
   // CHECK:  [[v1:[^ ]*]] := [3]int32{}
-  // CHECK:  [[dest:[^ ]*]] := 0
-  // CHECK:  for [[source:[^ ]*]] := 1; [[source]] < 7; [[source]] += 2 {
-  // CHECK:    [[v1]]{{\[}}[[dest]]] = [[v0]]{{\[}}[[source]]]
-  // CHECK:    [[dest]] += 1
+  // CHECK:  for [[dest:[^ ]*]] := 0; [[dest]] < 3; [[dest]] += 1 {
+  // CHECK:    [[v1]]{{\[}}[[dest]]] = [[v0]]{{\[}}1 + [[dest]] * 2]
   // CHECK:  }
+  // CHECK:  [[v1_final:.*]] := [[v1]]{{\[}}:]
     %c5 = arith.constant dense<5> : tensor<20xi32>
     %v = tensor.extract_slice %c5[1] [3] [2] : tensor<20xi32> to tensor<3xi32>
     return

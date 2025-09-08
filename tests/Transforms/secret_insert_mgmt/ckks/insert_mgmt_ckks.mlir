@@ -2,11 +2,13 @@
 
 // TODO(#1181): make this test work without the loop unroll step
 
-#alignment = #tensor_ext.alignment<in = [], out = [1], insertedDims = [0]>
-#layout = #tensor_ext.layout<map = (d0) -> (d0 mod 8), alignment = #alignment>
-#original_type = #tensor_ext.original_type<originalType = f32, layout = #layout>
+#scalar_layout = #tensor_ext.new_layout<"{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= 7 }">
+#scalar_original_type = #tensor_ext.original_type<originalType = f32, layout = #scalar_layout>
+#tensor_layout = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 8 = 0 and 7 >= i0 >= 0 and 7 >= slot >= 0 and ct = 0 }">
+#tensor_original_type = #tensor_ext.original_type<originalType = tensor<8xf32>, layout = #tensor_layout>
+
 module attributes {backend.lattigo, scheme.ckks} {
-  func.func @dot_product(%arg0: !secret.secret<tensor<8xf32>> {tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<8xf32>, layout = #tensor_ext.layout<map = (d0) -> (d0 mod 8)>>}, %arg1: !secret.secret<tensor<8xf32>> {tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<8xf32>, layout = #tensor_ext.layout<map = (d0) -> (d0 mod 8)>>}) -> (!secret.secret<tensor<8xf32>> {tensor_ext.original_type = #original_type}) {
+  func.func @dot_product(%arg0: !secret.secret<tensor<8xf32>> {tensor_ext.original_type = #tensor_original_type}, %arg1: !secret.secret<tensor<8xf32>> {tensor_ext.original_type = #tensor_original_type}) -> (!secret.secret<tensor<8xf32>> {tensor_ext.original_type = #scalar_original_type}) {
     %c0 = arith.constant 0 : index
     %c8 = arith.constant 8 : index
     %cst = arith.constant 1.000000e-01 : f32

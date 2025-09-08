@@ -76,7 +76,6 @@ def TensorExt_PermuteOp : TensorExt_Op<"permute", [Pure, AllTypesMatch<["input",
 
 // One-of attr for layout and new layout
 def LayoutLike : AnyAttrOf<[
-  TensorExt_LayoutAttr,
   TensorExt_NewLayoutAttr,
 ]>;
 

@@ -17,10 +17,10 @@ TEST(CmuxTest, RunTest) {
   auto secretKey = keyPair.secretKey;
   cryptoContext = cmux__configure_crypto_context(cryptoContext, secretKey);
 
-  std::vector<int16_t> arg0 = {1, 2, 3, 4, 5, 6, 7, 8};
-  std::vector<int16_t> arg1 = {2, 3, 4, 5, 6, 7, 8, 9};
-  std::vector<int16_t> cond = {1, 0, 1, 1, 0, 1, 0, 1};
-  std::vector<int16_t> expected = {1, 3, 3, 4, 6, 6, 8, 8};
+  std::vector<int64_t> arg0 = {1, 2, 3, 4, 5, 6, 7, 8};
+  std::vector<int64_t> arg1 = {2, 3, 4, 5, 6, 7, 8, 9};
+  std::vector<bool> cond = {true, false, true, true, false, true, false, true};
+  std::vector<int64_t> expected = {1, 3, 3, 4, 6, 6, 8, 8};
 
   for (auto i = 0; i < cond.size(); ++i) {
     auto condEncrypted = cmux__encrypt__arg2(cryptoContext, cond[i], publicKey);

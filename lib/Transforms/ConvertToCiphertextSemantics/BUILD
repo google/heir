@@ -72,6 +72,7 @@ cc_library(
         ":TypeConversion",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Utils/Layout:Codegen",
+        "@heir//lib/Utils/Layout:Utils",
         "@isl",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",

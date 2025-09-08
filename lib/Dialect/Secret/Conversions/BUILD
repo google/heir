@@ -14,6 +14,7 @@ cc_library(
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@heir//lib/Utils:ContextAwareConversionUtils",
         "@heir//lib/Utils:ContextAwareDialectConversion",
         "@heir//lib/Utils:ContextAwareTypeConversion",
         "@llvm-project//mlir:ArithDialect",

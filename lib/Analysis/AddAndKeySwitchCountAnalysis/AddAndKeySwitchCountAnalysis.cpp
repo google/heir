@@ -99,7 +99,8 @@ LogicalResult CountAnalysis::visitOperation(
             }
 
             if (!mlir::isa<arith::ConstantOp, arith::ExtSIOp, arith::ExtUIOp,
-                           arith::ExtFOp, mgmt::InitOp>(op)) {
+                           arith::ExtFOp, mgmt::InitOp, tensor::ExtractSliceOp,
+                           tensor::InsertSliceOp>(op)) {
               op.emitError()
                   << "Unsupported operation for count analysis encountered.";
             }

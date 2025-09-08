@@ -31,7 +31,7 @@ namespace tensor_ext {
 /// A pattern that searches for sequences of extract + insert, where the
 /// indices extracted and inserted have the same offset, and replaced them with
 /// a single rotate operation.
-struct ConvertAlignedExtractInsertToRotate
+struct FoldSequentialExtractInsertIntoRotate
     : public OpRewritePattern<tensor::InsertOp> {
   using OpRewritePattern::OpRewritePattern;
 
@@ -182,7 +182,7 @@ struct CollapseInsertionChains
     MLIRContext* context = &getContext();
     RewritePatternSet patterns(context);
 
-    patterns.add<ConvertAlignedExtractInsertToRotate>(context);
+    patterns.add<FoldSequentialExtractInsertIntoRotate>(context);
     // TODO (#1221): Investigate whether folding (default: on) can be skipped
     // here.
     (void)applyPatternsGreedily(getOperation(), std::move(patterns));

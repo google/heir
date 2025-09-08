@@ -2,14 +2,15 @@
 
 // CHECK: @hamming
 // CHECK: bgv.sub
-// CHECK-NEXT: bgv.mul
-// CHECK-NEXT: bgv.relinearize
+// CHECK: bgv.mul
+// CHECK: bgv.relinearize
 // CHECK-COUNT-10: bgv.rotate_cols
 // CHECK: bgv.modulus_switch
-// CHECK-NEXT: lwe.rlwe_encode
-// CHECK-NEXT: bgv.mul_plain
-// CHECK-NEXT: bgv.modulus_switch
-// CHECK-NEXT: return
+// CHECK: tensor.extract_slice
+// CHECK: lwe.rlwe_encode
+// CHECK: bgv.mul_plain
+// CHECK: bgv.modulus_switch
+// CHECK: return
 
 func.func @hamming(%arg0: !secret.secret<tensor<1024xi16>>, %arg1: !secret.secret<tensor<1024xi16>>) -> !secret.secret<i16> {
   %c0 = arith.constant 0 : index

@@ -8,16 +8,20 @@
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Utils/ContextAwareDialectConversion.h"
+#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
+#include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"               // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
+
+#define DEBUG_TYPE "secret-conversion-patterns"
 
 namespace mlir {
 namespace heir {
@@ -240,6 +244,176 @@ LogicalResult ConvertClientReveal::matchAndRewrite(
 
   rewriter.replaceOp(op,
                      decryptFn(adaptor.getInput(), op.getResult().getType()));
+  return success();
+}
+
+// Assert the slice parameters are aligned with the ciphertext axis.
+static LogicalResult validateSliceAlignment(
+    Value tensorVal, ArrayRef<OpFoldResult> offsets,
+    ArrayRef<OpFoldResult> sizes, ArrayRef<OpFoldResult> strides, Operation* op,
+    ContextAwareConversionPatternRewriter& rewriter) {
+  auto inputTy = dyn_cast<RankedTensorType>(tensorVal.getType());
+  if (!inputTy) {
+    return rewriter.notifyMatchFailure(op, "expected ranked tensor input");
+  }
+
+  int64_t lastDim = inputTy.getRank() - 1;
+
+  if (offsets.size() != 2 || sizes.size() != 2 || strides.size() != 2) {
+    return rewriter.notifyMatchFailure(
+        op, "expected slice to index a 2D tensor (ct x ciphertext)");
+  }
+
+  // The slice must start at the beginning of a ciphertext row.
+  // E.g., offsets[-1] == 0.
+  if (getConstantIntValue(offsets[lastDim]) != 0) {
+    return rewriter.notifyMatchFailure(
+        op,
+        "expected slice to start at the beginning of a ciphertext "
+        "row");
+  }
+
+  // The slice must not skip any elements in the ciphertext row.
+  // E.g., all strides = 1
+  if (llvm::any_of(strides, [&](OpFoldResult ofr) {
+        return getConstantIntValue(ofr) != 1;
+      })) {
+    return rewriter.notifyMatchFailure(op,
+                                       "expected slice to have unit stride");
+  }
+
+  if (getConstantIntValue(sizes[0]) != 1) {
+    return rewriter.notifyMatchFailure(
+        op,
+        "expected slice to include a full ciphertext row, but first sizes "
+        "entry was not 1");
+  }
+
+  // The slice's size must match the ciphertext size.
+  // E.g., sizes[-1] == 4096.
+  if (inputTy.getDimSize(lastDim) != getConstantIntValue(sizes[lastDim])) {
+    return rewriter.notifyMatchFailure(
+        op, "expected slice to include a full ciphertext row");
+  }
+
+  return success();
+}
+
+// An extract_slice op corresponds to extracting one ciphertext from a tensor
+// of ciphertexts. E.g., the input ciphertext-semantic tensor might be
+// tensor<4x4096>, and the supported extract_slice op extracts one 4096-sized
+// slice aligned with one row of the tensor.
+FailureOr<Operation*> ConvertExtractSlice::matchAndRewriteInner(
+    secret::GenericOp genericOp, TypeRange outputTypes, ValueRange inputs,
+    ArrayRef<NamedAttribute> attributes,
+    ContextAwareConversionPatternRewriter& rewriter) const {
+  tensor::ExtractSliceOp op = cast<tensor::ExtractSliceOp>(
+      genericOp.getBody()->getOperations().front());
+
+  auto offsets = op.getMixedOffsets();
+  auto sizes = op.getMixedSizes();
+  auto strides = op.getMixedStrides();
+
+  auto validationRes =
+      validateSliceAlignment(inputs[0], offsets, sizes, strides, op, rewriter);
+  if (failed(validationRes)) {
+    return validationRes;
+  }
+
+  // Now convert the op to a tensor.extract op that extracts one ciphertext.
+  OpFoldResult offset = offsets[0];
+  Value offsetVal;
+  if (auto idx = getConstantIntValue(offset); idx.has_value()) {
+    offsetVal =
+        arith::ConstantIndexOp::create(rewriter, op.getLoc(), idx.value());
+  } else {
+    offsetVal = cast<Value>(offset);
+  }
+
+  // Exactly one ciphertext output is guaranteed since validateSliceAlignment
+  // ensures that the result size is exactly a ciphertext size
+  auto resultCtTy = cast<lwe::LWECiphertextType>(outputTypes[0]);
+  auto extractOp = tensor::ExtractOp::create(rewriter, op.getLoc(), resultCtTy,
+                                             inputs[0], {offsetVal});
+  rewriter.replaceOp(genericOp, extractOp);
+  return extractOp.getOperation();
+}
+
+// An insert_slice op corresponds to inserting one ciphertext into a tensor
+// of ciphertexts. E.g., the destination ciphertext-semantic tensor might be
+// tensor<4x4096>, and the supported insert_slice op inserts one 4096-sized
+// slice aligned with one row of the tensor.
+FailureOr<Operation*> ConvertInsertSlice::matchAndRewriteInner(
+    secret::GenericOp genericOp, TypeRange outputTypes, ValueRange inputs,
+    ArrayRef<NamedAttribute> attributes,
+    ContextAwareConversionPatternRewriter& rewriter) const {
+  tensor::InsertSliceOp op =
+      cast<tensor::InsertSliceOp>(genericOp.getBody()->getOperations().front());
+  Value scalar = inputs[0];
+  Value dest = inputs[1];
+  auto offsets = op.getMixedOffsets();
+  auto sizes = op.getMixedSizes();
+  auto strides = op.getMixedStrides();
+
+  auto validationRes = validateSliceAlignment(op.getDest(), offsets, sizes,
+                                              strides, op, rewriter);
+  if (failed(validationRes)) {
+    return validationRes;
+  }
+
+  // Now convert the op to a tensor.insert op that inserts one ciphertext.
+  SmallVector<Value> indices;
+  for (size_t i = 0; i < offsets.size() - 1; ++i) {
+    if (auto idx = getConstantIntValue(offsets[i]); idx.has_value()) {
+      indices.push_back(
+          arith::ConstantIndexOp::create(rewriter, op.getLoc(), idx.value()));
+    } else {
+      return rewriter.notifyMatchFailure(
+          op, "expected insert_slice to have constant offsets");
+    }
+  }
+
+  auto resultTensorOfCtsTy = cast<RankedTensorType>(outputTypes[0]);
+  // This is a bit of a hack: if the dest tensor is (a mgmt.init of) a
+  // tensor.empty, then it won't be type converted in the adaptor because it's
+  // not an input to the secret.generic (even if another pattern handles the
+  // tensor.empty properly). However, the tensor.empty needs to be converted to
+  // a tensor.empty of ciphertext types. So just do the conversion here and make
+  // a new tenosr.empty op.
+  if (auto initOp = dyn_cast_or_null<mgmt::InitOp>(dest.getDefiningOp())) {
+    if (auto emptyOp = dyn_cast_or_null<tensor::EmptyOp>(
+            initOp.getOperand().getDefiningOp())) {
+      dest = tensor::EmptyOp::create(rewriter, op.getLoc(),
+                                     resultTensorOfCtsTy.getShape(),
+                                     resultTensorOfCtsTy.getElementType());
+      if (initOp.use_empty()) rewriter.eraseOp(initOp);
+      if (emptyOp.use_empty()) rewriter.eraseOp(emptyOp);
+    }
+  }
+  auto insertOp = tensor::InsertOp::create(
+      rewriter, op.getLoc(), resultTensorOfCtsTy, scalar, dest, indices);
+  rewriter.replaceOp(genericOp, insertOp);
+  return insertOp.getOperation();
+}
+
+LogicalResult ConvertEmpty::matchAndRewrite(
+    mgmt::InitOp op, OpAdaptor adaptor,
+    ContextAwareConversionPatternRewriter& rewriter) const {
+  if (!op.getOperand().getDefiningOp<tensor::EmptyOp>()) return failure();
+
+  auto mgmtAttrResult = getTypeConverter()->getContextualAttr(op.getResult());
+  if (failed(mgmtAttrResult)) return failure();
+
+  RankedTensorType ciphertextType =
+      dyn_cast<RankedTensorType>(getTypeConverter()->convertType(
+          op.getResult().getType(), mgmtAttrResult.value()));
+  LLVM_DEBUG(llvm::dbgs() << "cipherext type: " << ciphertextType << "\n");
+  if (ciphertextType == nullptr)
+    return rewriter.notifyMatchFailure(
+        op, "failed to convert empty tensor type to tensor of ciphertext");
+
+  rewriter.replaceOpWithNewOp<tensor::EmptyOp>(op, ciphertextType.getShape(),
+                                               ciphertextType.getElementType());
   return success();
 }
 

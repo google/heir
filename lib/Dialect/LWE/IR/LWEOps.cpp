@@ -80,8 +80,8 @@ LogicalResult TrivialEncryptOp::verify() {
 }
 
 LogicalResult ReinterpretApplicationDataOp::verify() {
-  auto inputType = getInput().getType();
-  auto outputType = getOutput().getType();
+  auto inputType = getCtTy(getInput());
+  auto outputType = getCtTy(getOutput());
   if (inputType.getPlaintextSpace() != outputType.getPlaintextSpace() ||
       inputType.getCiphertextSpace() != outputType.getCiphertextSpace() ||
       inputType.getKey() != outputType.getKey() ||
@@ -191,6 +191,11 @@ LogicalResult EncodeOp::verify() {
 }
 
 LogicalResult RLWEEncodeOp::verify() {
+  if (auto tensorTy = dyn_cast<ShapedType>(getInput().getType())) {
+    if (tensorTy.getRank() > 1) {
+      return emitOpError() << "RLWEEncodeOp only supports 1D tensors";
+    }
+  }
   return verifyEncodingAndTypeMatch(getInput().getType(), getEncoding());
 }
 

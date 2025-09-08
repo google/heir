@@ -78,7 +78,6 @@
 #include "lib/Transforms/LayoutOptimization/InterfaceImpl.h"
 #include "lib/Transforms/LayoutOptimization/LayoutOptimization.h"
 #include "lib/Transforms/LayoutPropagation/InterfaceImpl.h"
-#include "lib/Transforms/LayoutPropagation/LayoutPropagation.h"
 #include "lib/Transforms/LayoutPropagation/NewLayoutPropagation.h"
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
 #include "lib/Transforms/LowerPolynomialEval/LowerPolynomialEval.h"
@@ -287,7 +286,6 @@ int main(int argc, char** argv) {
   registerOptimizeRelinearizationPasses();
   registerPolynomialApproximationPasses();
   registerPropagateAnnotationPasses();
-  registerLayoutPropagationPasses();
   registerNewLayoutPropagationPasses();
   registerLayoutOptimizationPasses();
   registerLinalgCanonicalizationsPasses();
@@ -353,7 +351,7 @@ int main(int argc, char** argv) {
   // This comement registers internal passes
   registerSecretToBGVPasses();
   registerSecretToCKKSPasses();
-  registerSecretToModArithPasses();
+  mod_arith::registerSecretToModArithPasses();
 
   // Interfaces in HEIR
   secret::registerBufferizableOpInterfaceExternalModels(registry);

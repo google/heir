@@ -7,16 +7,16 @@
 
 extern "C" {
 // For mod-arith, the width is 64 bits
-void _mlir_ciface_roberts_cross(StridedMemRefType<int64_t>* result,
-                                StridedMemRefType<int64_t>* arg0);
+void _mlir_ciface_roberts_cross(StridedMemRefType<int64_t, 2>* result,
+                                StridedMemRefType<int64_t, 2>* arg0);
 
 // Note that our input is i16 but encoder makes it i64 due to mod-arith
 void _mlir_ciface_roberts_cross__encrypt__arg0(
-    StridedMemRefType<int64_t>* result, StridedMemRefType<int16_t>* arg);
+    StridedMemRefType<int64_t, 2>* result, StridedMemRefType<int16_t>* arg);
 
 // Note that our output is i16 but decoder takes i64 due to mod-arith
 void _mlir_ciface_roberts_cross__decrypt__result0(
-    StridedMemRefType<int16_t>* result, StridedMemRefType<int64_t>* arg);
+    StridedMemRefType<int16_t>* result, StridedMemRefType<int64_t, 2>* arg);
 }
 
 TEST(RobertsCrossModTest, Test1) {
@@ -46,11 +46,11 @@ TEST(RobertsCrossModTest, Test1) {
     }
   }
 
-  StridedMemRefType<int64_t> encArg0;
+  StridedMemRefType<int64_t, 2> encArg0;
   StridedMemRefType<int16_t> input0{input, input, 0, 256, 1};
   _mlir_ciface_roberts_cross__encrypt__arg0(&encArg0, &input0);
 
-  StridedMemRefType<int64_t> memref;
+  StridedMemRefType<int64_t, 2> memref;
   _mlir_ciface_roberts_cross(&memref, &encArg0);
 
   StridedMemRefType<int16_t> decRes;

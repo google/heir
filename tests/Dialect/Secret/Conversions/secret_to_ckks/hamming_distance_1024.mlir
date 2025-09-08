@@ -2,14 +2,15 @@
 
 // CHECK: @hamming
 // CHECK: ckks.sub
-// CHECK-NEXT: ckks.mul
-// CHECK-NEXT: ckks.relinearize
+// CHECK: ckks.mul
+// CHECK: ckks.relinearize
 // CHECK-COUNT-10: ckks.rotate
 // CHECK: ckks.rescale
-// CHECK-NEXT: lwe.rlwe_encode
-// CHECK-NEXT: ckks.mul_plain
-// CHECK-NEXT: ckks.rescale
-// CHECK-NEXT: return
+// CHECK: tensor.extract_slice
+// CHECK: lwe.rlwe_encode
+// CHECK: ckks.mul_plain
+// CHECK: ckks.rescale
+// CHECK: return
 
 func.func @hamming(%arg0: !secret.secret<tensor<1024xi16>>, %arg1: !secret.secret<tensor<1024xi16>>) -> !secret.secret<i16> {
   %c0 = arith.constant 0 : index

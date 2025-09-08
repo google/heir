@@ -74,6 +74,7 @@ cc_library(
     deps = [
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/TfheRust/IR:Dialect",
+        "@heir//lib/Utils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:ArithDialect",

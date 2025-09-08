@@ -24,6 +24,7 @@
 #include "lib/Dialect/TensorExt/Transforms/CollapseInsertionChains.h"
 #include "lib/Dialect/TensorExt/Transforms/FoldConvertLayoutIntoAssignLayout.h"
 #include "lib/Dialect/TensorExt/Transforms/ImplementRotateAndReduce.h"
+#include "lib/Dialect/TensorExt/Transforms/ImplementShiftNetwork.h"
 #include "lib/Dialect/TensorExt/Transforms/InsertRotate.h"
 #include "lib/Dialect/TensorExt/Transforms/RotateAndReduce.h"
 #include "lib/Pipelines/PipelineRegistration.h"
@@ -32,12 +33,12 @@
 #include "lib/Transforms/CompareToSignRewrite/CompareToSignRewrite.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/ConvertToCiphertextSemantics.h"
 #include "lib/Transforms/DropUnitDims/DropUnitDims.h"
+#include "lib/Transforms/ElementwiseToAffine/ElementwiseToAffine.h"
 #include "lib/Transforms/FoldConstantTensors/FoldConstantTensors.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
 #include "lib/Transforms/GenerateParam/GenerateParam.h"
 #include "lib/Transforms/InlineActivations/InlineActivations.h"
 #include "lib/Transforms/LayoutOptimization/LayoutOptimization.h"
-#include "lib/Transforms/LayoutPropagation/LayoutPropagation.h"
 #include "lib/Transforms/LayoutPropagation/NewLayoutPropagation.h"
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
@@ -126,8 +127,7 @@ void lowerAssignLayout(OpPassManager& pm, bool unroll = false) {
 }
 
 void mlirToSecretArithmeticPipelineBuilder(
-    OpPassManager& pm, const MlirToRLWEPipelineOptions& options,
-    bool newLayout) {
+    OpPassManager& pm, const MlirToRLWEPipelineOptions& options) {
   pm.addPass(createWrapGeneric());
   convertToDataObliviousPipelineBuilder(pm);
   pm.addPass(createSelectRewrite());
@@ -139,15 +139,9 @@ void mlirToSecretArithmeticPipelineBuilder(
   mathToPolynomialApproximationBuilder(pm);
 
   // Layout assignment and optimization
-  if (newLayout) {
-    NewLayoutPropagationOptions layoutPropagationOptions;
-    layoutPropagationOptions.ciphertextSize = options.ciphertextDegree;
-    pm.addPass(createNewLayoutPropagation(layoutPropagationOptions));
-  } else {
-    LayoutPropagationOptions layoutPropagationOptions;
-    layoutPropagationOptions.ciphertextSize = options.ciphertextDegree;
-    pm.addPass(createLayoutPropagation(layoutPropagationOptions));
-  }
+  NewLayoutPropagationOptions layoutPropagationOptions;
+  layoutPropagationOptions.ciphertextSize = options.ciphertextDegree;
+  pm.addPass(createNewLayoutPropagation(layoutPropagationOptions));
   pm.addPass(tensor_ext::createFoldConvertLayoutIntoAssignLayout());
   pm.addPass(createLayoutOptimization());
 
@@ -157,6 +151,9 @@ void mlirToSecretArithmeticPipelineBuilder(
   pm.addPass(
       createConvertToCiphertextSemantics(convertToCiphertextSemanticsOptions));
   pm.addPass(tensor_ext::createImplementRotateAndReduce());
+
+  // Implement layout conversions as shift networks
+  pm.addPass(tensor_ext::createImplementShiftNetwork());
 
   // Balance Operations
   pm.addPass(createOperationBalancer());
@@ -170,6 +167,11 @@ void mlirToSecretArithmeticPipelineBuilder(
   AddClientInterfaceOptions addClientInterfaceOptions;
   addClientInterfaceOptions.ciphertextSize = options.ciphertextDegree;
   pm.addPass(createAddClientInterface(addClientInterfaceOptions));
+
+  // Clean up after lowering assign_layout and various related packing code
+  pm.addPass(createFoldConstantTensors());
+  pm.addPass(createCanonicalizerPass());
+  pm.addPass(createCSEPass());
 }
 
 void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
@@ -189,7 +191,7 @@ void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
   pm.addPass(secret::createSecretDistributeGeneric());
   pm.addPass(createCanonicalizerPass());
 
-  SecretToModArithOptions secretToModArithOptions;
+  mod_arith::SecretToModArithOptions secretToModArithOptions;
   secretToModArithOptions.plaintextModulus = options.plaintextModulus;
   pm.addPass(createSecretToModArith(secretToModArithOptions));
   lowerAssignLayout(pm, false);
@@ -205,9 +207,9 @@ void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
 
 void mlirToRLWEPipeline(OpPassManager& pm,
                         const MlirToRLWEPipelineOptions& options,
-                        const RLWEScheme scheme, bool newLayout) {
+                        const RLWEScheme scheme) {
   if (options.enableArithmetization) {
-    mlirToSecretArithmeticPipelineBuilder(pm, options, newLayout);
+    mlirToSecretArithmeticPipelineBuilder(pm, options);
   } else {
     // Replicate the non-arithmetization related parts of the pipeline
     pm.addPass(createWrapGeneric());
@@ -364,6 +366,10 @@ void mlirToRLWEPipeline(OpPassManager& pm,
       exit(EXIT_FAILURE);
   }
 
+  ElementwiseToAffineOptions elementwiseOptions;
+  elementwiseOptions.convertDialects = {"ckks", "bgv", "lwe"};
+  pm.addPass(createElementwiseToAffine(elementwiseOptions));
+
   pm.addPass(tensor_ext::createTensorExtToTensor());
   lowerAssignLayout(pm, false);
 
@@ -379,10 +385,9 @@ void mlirToRLWEPipeline(OpPassManager& pm,
   pm.addPass(tensor_ext::createTensorExtToTensor());
 }
 
-RLWEPipelineBuilder mlirToRLWEPipelineBuilder(const RLWEScheme scheme,
-                                              bool newLayout) {
+RLWEPipelineBuilder mlirToRLWEPipelineBuilder(const RLWEScheme scheme) {
   return [=](OpPassManager& pm, const MlirToRLWEPipelineOptions& options) {
-    mlirToRLWEPipeline(pm, options, scheme, newLayout);
+    mlirToRLWEPipeline(pm, options, scheme);
   };
 }
 
@@ -478,8 +483,8 @@ void torchLinalgToCkksBuilder(OpPassManager& manager,
   suboptions.scalingModBits = options.scalingModBits;
   suboptions.firstModBits = options.firstModBits;
 
-  mlirToRLWEPipelineBuilder(mlir::heir::RLWEScheme::ckksScheme, true)(
-      manager, suboptions);
+  mlirToRLWEPipelineBuilder(mlir::heir::RLWEScheme::ckksScheme)(manager,
+                                                                suboptions);
 }
 
 }  // namespace mlir::heir

@@ -31,13 +31,13 @@ namespace mlir::heir::tensor_ext {
 // Implement tensor_ext.rotate in terms of tensor.extract_slice and
 // tensor.insert_slice.
 struct ConvertRotateOp : public OpRewritePattern<RotateOp> {
-  ConvertRotateOp(mlir::MLIRContext* context)
+  ConvertRotateOp(mlir::MLIRContext *context)
       : OpRewritePattern<RotateOp>(context) {}
 
   using OpRewritePattern::OpRewritePattern;
 
   LogicalResult matchAndRewrite(RotateOp op,
-                                PatternRewriter& rewriter) const override {
+                                PatternRewriter &rewriter) const override {
     RankedTensorType tensorType =
         dyn_cast<RankedTensorType>(op.getTensor().getType());
     if (!tensorType) {
@@ -173,7 +173,7 @@ struct ConvertRotateOp : public OpRewritePattern<RotateOp> {
 struct TensorExtToTensor
     : public impl::TensorExtToTensorBase<TensorExtToTensor> {
   void runOnOperation() override {
-    MLIRContext* context = &getContext();
+    MLIRContext *context = &getContext();
 
     RewritePatternSet patterns(context);
     patterns.add<ConvertRotateOp>(context);

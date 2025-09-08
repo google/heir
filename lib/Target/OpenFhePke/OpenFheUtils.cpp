@@ -100,6 +100,9 @@ FailureOr<std::string> convertType(Type type, Location loc, bool constant) {
         if (failed(eltTyResult)) {
           return FailureOr<std::string>();
         }
+        // Note this emitter has the convention that all vectors are flattened
+        // to a 1D tensor, and so accesses must introduce striding
+        // appropriately.
         auto result = "std::vector<" + eltTyResult.value() + ">";
         return FailureOr<std::string>(std::string(result));
       })

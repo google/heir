@@ -3,8 +3,10 @@
 
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
+#include "lib/Utils/ContextAwareConversionUtils.h"
 #include "lib/Utils/ContextAwareDialectConversion.h"
 #include "lib/Utils/ContextAwareTypeConversion.h"
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
@@ -53,6 +55,43 @@ struct ConvertClientReveal
 
  private:
   polynomial::RingAttr ring;
+};
+
+struct ConvertExtractSlice
+    : public SecretGenericOpConversion<tensor::ExtractSliceOp,
+                                       tensor::ExtractOp> {
+  using SecretGenericOpConversion<tensor::ExtractSliceOp,
+                                  tensor::ExtractOp>::SecretGenericOpConversion;
+
+  FailureOr<Operation*> matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ContextAwareConversionPatternRewriter& rewriter) const override;
+};
+
+struct ConvertInsertSlice
+    : public SecretGenericOpConversion<tensor::InsertSliceOp,
+                                       tensor::InsertOp> {
+  using SecretGenericOpConversion<tensor::InsertSliceOp,
+                                  tensor::InsertOp>::SecretGenericOpConversion;
+
+  FailureOr<Operation*> matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ContextAwareConversionPatternRewriter& rewriter) const override;
+};
+
+// An empty ciphertext-semantic tensor can be used as the initializer of a
+// reduction. In this case, there is no containing secret.generic op, and we
+// anchor on the subsequent `mgmt::InitOp` to determine how to convert it to a
+// tensor.empty whose element type is a ciphertext type.
+struct ConvertEmpty : public ContextAwareOpConversionPattern<mgmt::InitOp> {
+  using ContextAwareOpConversionPattern<
+      mgmt::InitOp>::ContextAwareOpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      mgmt::InitOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const override;
 };
 
 }  // namespace heir

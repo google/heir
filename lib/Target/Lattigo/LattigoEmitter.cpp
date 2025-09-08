@@ -28,6 +28,7 @@
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
@@ -80,6 +81,9 @@ LogicalResult LattigoEmitter::translate(Operation& op) {
                 arith::IndexCastOp, arith::ExtFOp, arith::RemSIOp,
                 arith::AddIOp, arith::SubIOp, arith::MulIOp, arith::DivSIOp,
                 arith::CmpIOp, arith::SelectOp>(
+              [&](auto op) { return printOperation(op); })
+          // SCF ops
+          .Case<scf::IfOp, scf::ForOp, scf::YieldOp>(
               [&](auto op) { return printOperation(op); })
           // Tensor ops
           .Case<tensor::ConcatOp, tensor::EmptyOp, tensor::ExtractOp,
@@ -600,6 +604,120 @@ LogicalResult LattigoEmitter::printOperation(arith::CmpIOp op) {
   return failure();
 }
 
+LogicalResult LattigoEmitter::printOperation(scf::IfOp op) {
+  // var result <type>
+  // if cond {
+  //   result = blah  (handled by printOperation(scf::YieldOp))
+  // } else {
+  //   result = blah
+  // }
+  for (auto i = 0; i < op.getNumResults(); ++i) {
+    Value result = op.getResults()[i];
+    Value thenYieldedValue = op.thenYield().getResults()[i];
+    Value elseYieldedValue = op.elseYield().getResults()[i];
+
+    // Map the yielded value names to the result names if the yielded value is a
+    // tensor.
+    if (isa<ShapedType>(result.getType())) {
+      variableNames->mapValueNameToValue(thenYieldedValue, result);
+      variableNames->mapValueNameToValue(elseYieldedValue, result);
+    } else {
+      // var result <type>
+      os << "var " << variableNames->getNameForValue(result) << " ";
+      if (failed(emitType(result.getType()))) {
+        return emitError(op.getLoc(),
+                         llvm::formatv("Failed to emit type for {}", result));
+      }
+      os << "\n";
+    }
+  }
+
+  os << llvm::formatv("if {0} {{\n",
+                      variableNames->getNameForValue(op.getCondition()));
+  os.indent();
+  for (Operation& op : *op.thenBlock()) {
+    if (failed(translate(op))) {
+      return op.emitOpError() << "Failed to translate for if then block";
+    }
+  }
+  os.unindent();
+  os << "}";
+
+  os << llvm::formatv(" else {{\n");
+  os.indent();
+  for (Operation& op : *op.elseBlock()) {
+    if (failed(translate(op))) {
+      return op.emitOpError() << "Failed to translate for if else block";
+    }
+  }
+  os.unindent();
+  os << "}";
+
+  os << "\n";
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(scf::ForOp op) {
+  for (auto i = 0; i < op.getNumRegionIterArgs(); ++i) {
+    // Assign the loop's results to use as initial iter args, which the loop
+    // modifies during its execution.
+    Value result = op.getResults()[i];
+    Value operand = op.getInitArgs()[i];
+    Value iterArg = op.getRegionIterArgs()[i];
+    Value yieldedValue = op.getYieldedValues()[i];
+
+    // Map the region's iter args to the result names.
+    // Map the yielded value names to the result names.
+    variableNames->mapValueNameToValue(iterArg, result);
+    variableNames->mapValueNameToValue(yieldedValue, result);
+
+    if (variableNames->contains(result) && variableNames->contains(operand) &&
+        getName(result) == getName(operand)) {
+      // This occurs in cases where the loop is inserting into a tensor and
+      // passing it along as an inter arg.
+      continue;
+    }
+
+    os << getName(result) << " := " << getName(operand) << "\n";
+  }
+
+  auto getConstantOrValue = [&](Value value) -> std::string {
+    return getStringForConstant(value).value_or(getName(value));
+  };
+
+  os << llvm::formatv("for {0} := {1}; {0} < {2}; {0} += {3} {{\n",
+                      variableNames->getNameForValue(op.getInductionVar()),
+                      getConstantOrValue(op.getLowerBound()),
+                      getConstantOrValue(op.getUpperBound()),
+                      getConstantOrValue(op.getStep()));
+  os.indent();
+  for (Operation& op : *op.getBody()) {
+    if (failed(translate(op))) {
+      return op.emitOpError() << "Failed to translate for loop block";
+    }
+  }
+
+  os.unindent();
+  os << "}\n";
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(scf::YieldOp op) {
+  // Assume all yielded values have already been declared and the yielded
+  // results forwarded in SelectVariableNames.
+  if (auto ifOp = dyn_cast<scf::IfOp>(op->getParentOp())) {
+    for (auto i = 0; i < op.getNumOperands(); ++i) {
+      Value operand = op.getOperands()[i];
+      Value result = ifOp.getResults()[i];
+      if (!isa<ShapedType>(result.getType())) {
+        os << variableNames->getNameForValue(result) << " = "
+           << variableNames->getNameForValue(operand) << "\n";
+      }
+    }
+  }
+  return success();
+}
+
 LogicalResult LattigoEmitter::printOperation(tensor::ConcatOp op) {
   // Use slices.Concat which has the same semantics as 1D tensor.concat
   if (op.getResultType().getRank() != 1) {
@@ -614,11 +732,8 @@ LogicalResult LattigoEmitter::printOperation(tensor::ConcatOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(tensor::EmptyOp op) {
-  // Only support 1D tensors for now, initialize as a slice
+  // Tensors are flattened into 1D slices.
   ShapedType resultType = op.getResult().getType();
-  if (resultType.getRank() != 1) {
-    return op.emitError("Lattigo emitter for ConcatOp only supports rank 1");
-  }
   os << getName(op.getResult()) << " := make([]"
      << convertType(resultType.getElementType()) << ", "
      << resultType.getNumElements() << ")\n";
@@ -638,81 +753,53 @@ LogicalResult LattigoEmitter::printOperation(tensor::ExtractSliceOp op) {
   // Not sure if golang has a strided slice operation like python,
   // so do it as a loop
   RankedTensorType resultType = op.getResult().getType();
-
-  if (resultType.getRank() != op.getSourceType().getRank()) {
-    return op.emitError(
-        "Lattigo emitter for ExtractSliceOp only supports "
-        "result rank equal to source rank");
-  }
+  RankedTensorType sourceType = op.getSource().getType();
 
   // make an array to store the output
   //
-  //   v := [5][6][7]int32{}
+  //   v := [num_elements]int32{}
   //
-  SmallVector<std::string> arrays;
-  for (auto dim : resultType.getShape()) {
-    arrays.push_back("[" + std::to_string(dim) + "]");
-  }
   std::string resultName = getName(op.getResult(), /*force=*/true);
+  std::string sourceName = getName(op.getSource());
   std::string tmpName = resultName + "_array";
-  os << tmpName << " := " << llvm::join(arrays, "")
+  os << tmpName << " := [" << resultType.getNumElements() << "]"
      << convertType(resultType.getElementType()) << "{}\n";
 
-  if (op.getStaticOffsets().empty() || op.getStaticSizes().empty() ||
-      op.getStaticStrides().empty()) {
-    return op.emitError() << "expected static offsets, sizes, and strides";
-  }
+  SmallVector<OpFoldResult> offsets = op.getMixedOffsets();
+  ArrayRef<int64_t> sizes = op.getStaticSizes();
+  ArrayRef<int64_t> strides = op.getStaticStrides();
 
-  SmallVector<int64_t> offsets = SmallVector<int64_t>(op.getStaticOffsets());
-  SmallVector<int64_t> sizes = SmallVector<int64_t>(op.getStaticSizes());
-  SmallVector<int64_t> strides = SmallVector<int64_t>(op.getStaticStrides());
+  auto getOffsetAsString = [&](OpFoldResult offset) -> std::string {
+    if (auto intAttr = offset.dyn_cast<Attribute>()) {
+      return std::to_string(
+          cast<IntegerAttr>(intAttr).getValue().getSExtValue());
+    }
+    return getName(cast<Value>(offset));
+  };
 
-  // Loop nest to copy the right values
-  SmallVector<std::string> sourceIndexNames;
-  SmallVector<std::string> destIndexNames;
-  for (int nestLevel = 0; nestLevel < offsets.size(); nestLevel++) {
-    std::string sourceIndexName =
-        resultName + "_source_" + std::to_string(nestLevel);
-    std::string destIndexName =
-        resultName + "_dest_" + std::to_string(nestLevel);
-    sourceIndexNames.push_back(sourceIndexName);
-    destIndexNames.push_back(destIndexName);
-    // Initialise the destination index to zero, since it is simple, note this
-    // must happen outside the loop.
-    os << destIndexName << " := 0\n";
-    os << "for " << sourceIndexName << " := " << offsets[nestLevel] << "; "
-       << sourceIndexName << " < "
-       << offsets[nestLevel] + sizes[nestLevel] * strides[nestLevel] << "; "
-       << sourceIndexName << " += " << strides[nestLevel] << " {\n";
-    os.indent();
-  }
+  InductionVarNameFn nameFn = [&](int i) {
+    return getName(op.getResult()) + "_i" + std::to_string(i);
+  };
 
-  // Now we're in the innermost loop nest, do the assignment
-  os << tmpName << "[" << llvm::join(destIndexNames, "][")
-     << "] = " << getName(op.getSource()) << "["
-     << llvm::join(sourceIndexNames, "][") << "]\n";
+  LoopOpenerFn opener = [&](raw_indented_ostream& os,
+                            const std::string& inductionVar, int64_t size) {
+    os << "for " << inductionVar << " := 0; " << inductionVar << " < " << size
+       << "; " << inductionVar << " += 1 {\n";
+  };
 
-  // Now unindent and close the loop nest
-  for (int nestLevel = offsets.size() - 1; nestLevel >= 0; nestLevel--) {
-    // Also increment the destination indices
-    os << destIndexNames[nestLevel] << " += 1\n";
-    os.unindent();
-    os << "}\n";
-  }
+  emitFlattenedExtractSlice(resultType, sourceType, tmpName, sourceName,
+                            offsets, sizes, strides, getOffsetAsString, nameFn,
+                            opener, os);
 
   // Convert to slice
-  //
-  // Nb., this creates a slice over the first dimension of the array, so it's a
-  // slice of 1-less-dimensional arrays. This... should be fine? Because later
-  // ops will use the plain indexing operator, it shouldn't matter which type
-  // is used...
-  os << getName(op.getResult()) << " := " << tmpName << "[:]\n";
+  os << resultName << " := " << tmpName << "[:]\n";
   return success();
 }
 
 // Emits a slice copy operation and returns the string containing the emitted
 // variable name of the result
-std::string LattigoEmitter::emitCopySlice(Value source, Value result) {
+std::string LattigoEmitter::emitCopySlice(Value source, Value result,
+                                          bool shouldDeclare) {
   // Tensor semantics create new SSA values for each result. If this causes
   // inefficiencies, cf. https://github.com/google/heir/issues/1871 for ideas.
   //
@@ -723,19 +810,26 @@ std::string LattigoEmitter::emitCopySlice(Value source, Value result) {
   // Cf. https://stackoverflow.com/a/35748636
   const std::string sourceName = getName(source);
   std::string resultName = getName(result, /*force=*/true);
-  os << resultName << " := append(make(" << convertType(result.getType())
-     << ", 0, len(" << sourceName << ")), " << sourceName << "...)\n";
+  std::string assign = shouldDeclare ? ":=" : "=";
+  os << resultName << " " << assign << " append(make("
+     << convertType(result.getType()) << ", 0, len(" << sourceName << ")), "
+     << sourceName << "...)\n";
   return resultName;
 }
 
 LogicalResult LattigoEmitter::printOperation(tensor::InsertOp op) {
-  const std::string resultName = emitCopySlice(op.getDest(), op.getResult());
+  // Check if the result was already declared (e.g., as an iter_arg in scf.for)
+  bool shouldDeclare = !(variableNames->contains(op.getResult()) &&
+                         variableNames->contains(op.getDest()) &&
+                         getName(op.getResult()) == getName(op.getDest()));
+
+  const std::string resultName =
+      emitCopySlice(op.getDest(), op.getResult(), shouldDeclare);
   // result[index] = value
   os << resultName << "[";
-  os << flattenIndexExpression(
-      op.getResult().getType(), op.getIndices(),
-      [&](Value value) { return variableNames->getNameForValue(value); });
-  os << "] = " << variableNames->getNameForValue(op.getScalar()) << "\n";
+  os << flattenIndexExpression(op.getResult().getType(), op.getIndices(),
+                               [&](Value value) { return getName(value); });
+  os << "] = " << getName(op.getScalar()) << "\n";
   return success();
 }
 
@@ -819,13 +913,10 @@ LogicalResult LattigoEmitter::printOperation(tensor::SplatOp op) {
   // don't use getName because the tmpvar is guaranteed to be used
   std::string tmpVar = variableNames->getNameForValue(op.getResult()) + "_0";
   auto scalarTypeString = convertType(op.getInput().getType());
-
   RankedTensorType resultType = op.getResult().getType();
-  if (resultType.getRank() != 1) {
-    return op.emitError("Lattigo emitter for SplatOp only supports rank 1");
-  }
 
   // golang requires a slice input to slices.Repeat
+  // Note that all tensor values are flattened in this emitter.
   //
   //   numbers := []int{v}
   //   repeat := slices.Repeat(numbers, 50)
@@ -1574,10 +1665,11 @@ void registerToLattigoTranslation() {
         return translateToLattigo(op, output, translateOptions->packageName);
       },
       [](DialectRegistry& registry) {
-        registry.insert<affine::AffineDialect, rns::RNSDialect,
-                        arith::ArithDialect, func::FuncDialect,
-                        tensor::TensorDialect, tensor_ext::TensorExtDialect,
-                        lattigo::LattigoDialect, mgmt::MgmtDialect>();
+        registry
+            .insert<affine::AffineDialect, rns::RNSDialect, arith::ArithDialect,
+                    func::FuncDialect, tensor::TensorDialect,
+                    tensor_ext::TensorExtDialect, lattigo::LattigoDialect,
+                    mgmt::MgmtDialect, scf::SCFDialect>();
       });
 }
 

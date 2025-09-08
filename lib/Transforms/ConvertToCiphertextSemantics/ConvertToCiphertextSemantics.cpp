@@ -1,12 +1,10 @@
 #include "lib/Transforms/ConvertToCiphertextSemantics/ConvertToCiphertextSemantics.h"
 
-#include <cmath>
 #include <cstdint>
 #include <memory>
 #include <numeric>
 #include <optional>
 #include <set>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -25,7 +23,6 @@
 #include "lib/Transforms/ConvertToCiphertextSemantics/AssignLayout.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/TypeConversion.h"
 #include "lib/Transforms/DropUnitDims/DropUnitDims.h"
-#include "lib/Utils/AffineMapUtils.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/ContextAwareConversionUtils.h"
 #include "lib/Utils/ContextAwareDialectConversion.h"
@@ -33,7 +30,6 @@
 #include "lib/Utils/Layout/Codegen.h"
 #include "lib/Utils/Layout/Utils.h"
 #include "lib/Utils/MathUtils.h"
-#include "lib/Utils/TransformUtils.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/ArrayRef.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
@@ -43,7 +39,6 @@
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
@@ -59,7 +54,6 @@
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/OperationSupport.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
@@ -80,9 +74,12 @@ using kernel::ArithmeticDagNode;
 using kernel::implementHaleviShoup;
 using kernel::IRMaterializingVisitor;
 using kernel::SSAValue;
+using ::mlir::heir::kernel::ArithmeticDagNode;
+using ::mlir::heir::kernel::implementHaleviShoup;
+using ::mlir::heir::kernel::IRMaterializingVisitor;
+using ::mlir::heir::kernel::SSAValue;
 using presburger::IntegerRelation;
 using presburger::VarKind;
-using tensor_ext::LayoutAttr;
 using tensor_ext::NewLayoutAttr;
 
 auto& kLayoutAttrName = tensor_ext::TensorExtDialect::kLayoutAttrName;
@@ -124,38 +121,6 @@ struct LayoutMaterializationTypeConverter
     // query it at call time. I have no idea why C++ does this. Debugging it
     // felt like having a stroke.
     addConversion([&](Type type, Attribute attr) { return std::nullopt; });
-    addConversion([this](secret::SecretType type,
-                         LayoutAttr attr) -> std::optional<Type> {
-      FailureOr<Type> convertedInnerType;
-      auto innerType = type.getValueType();
-
-      if (auto rankedTensorType = dyn_cast<RankedTensorType>(innerType)) {
-        convertedInnerType =
-            materializeLayout(rankedTensorType, attr, getCiphertextSize());
-      } else {
-        convertedInnerType =
-            materializeScalarLayout(innerType, attr, getCiphertextSize());
-      }
-
-      if (failed(convertedInnerType)) return std::nullopt;
-      return secret::SecretType::get(convertedInnerType.value());
-    });
-    addConversion(
-        [this](RankedTensorType type, LayoutAttr attr) -> std::optional<Type> {
-          return materializeLayout(type, attr, getCiphertextSize());
-        });
-    addConversion(
-        [this](IntegerType type, LayoutAttr attr) -> std::optional<Type> {
-          return materializeScalarLayout(type, attr, getCiphertextSize());
-        });
-    addConversion(
-        [this](FloatType type, LayoutAttr attr) -> std::optional<Type> {
-          return materializeScalarLayout(type, attr, getCiphertextSize());
-        });
-    addConversion(
-        [this](IndexType type, LayoutAttr attr) -> std::optional<Type> {
-          return materializeScalarLayout(type, attr, getCiphertextSize());
-        });
     addConversion([this](secret::SecretType type,
                          NewLayoutAttr attr) -> std::optional<Type> {
       auto innerType = type.getValueType();
@@ -226,8 +191,7 @@ struct ConvertFunc : public ContextAwareFuncConversion {
       setMaterializedAttr(op);
       for (int i = 0; i < op.getNumArguments(); ++i) {
         auto layoutAttr = op.getArgAttr(i, kLayoutAttrName);
-        if (!layoutAttr ||
-            !(isa<LayoutAttr>(layoutAttr) || isa<NewLayoutAttr>(layoutAttr))) {
+        if (!layoutAttr || !isa<NewLayoutAttr>(layoutAttr)) {
           continue;
         }
 
@@ -239,8 +203,7 @@ struct ConvertFunc : public ContextAwareFuncConversion {
 
       for (int i = 0; i < op.getNumResults(); ++i) {
         auto layoutAttr = op.getResultAttr(i, kLayoutAttrName);
-        if (!layoutAttr ||
-            !(isa<LayoutAttr>(layoutAttr) || isa<NewLayoutAttr>(layoutAttr))) {
+        if (!layoutAttr || !isa<NewLayoutAttr>(layoutAttr)) {
           continue;
         }
 
@@ -341,76 +304,20 @@ class ConvertConvertLayout
                << ", ciphertextSemanticType=" << ciphertextSemanticType
                << "\n");
 
-    // TODO(#2047): Support new layout attr
-    LayoutAttr fromLayout = dyn_cast<LayoutAttr>(op.getFromLayout());
-    LayoutAttr toLayout = dyn_cast<LayoutAttr>(op.getToLayout());
+    NewLayoutAttr fromLayout = dyn_cast<NewLayoutAttr>(op.getFromLayout());
+    NewLayoutAttr toLayout = dyn_cast<NewLayoutAttr>(op.getToLayout());
     if (!fromLayout || !toLayout) {
-      return failure();  // soon to be deleted
-    }
-
-    // TODO(#1542): support multi-packed ciphertexts
-    if (ciphertextSemanticType.getRank() != 1) {
       return op.emitError()
-             << "Does not support packing into multiple ciphertexts yet";
+             << "ConvertLayoutOp must have from and to NewLayoutAttrs";
     }
 
-    int64_t numSlots = ciphertextSemanticType.getShape().back();
-    SmallVector<int64_t> permutation(numSlots, kUnset);
-
-    // The algorithm here allows the permutation to be built up "cyclically"
-    // in the following sense: after the original layout permutation is
-    // exhausted, we then repeat that layout permutation with offsets
-    // corresponding to the first unused input and target indices.
-    //
-    // Example: tensor<4xi16> in a ciphertext of size 16,
-    //
-    //  Converting layout d0 -> d0 to d0 -> 4*d0:
-    //
-    //   (0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3)
-    //
-    //     maps to the corresponding layout
-    //
-    //   (0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3)
-    //
-    int64_t minUnusedTarget = 0;
-    int64_t minUnusedInput = 0;
-    while (minUnusedInput != -1) {
-      LLVM_DEBUG({
-        if (minUnusedInput > 0) {
-          llvm::dbgs() << "Repeating for cyclic repetition with"
-                       << " minUnusedInput=" << minUnusedInput
-                       << " minUnusedTarget=" << minUnusedTarget << "\n";
-        }
-      });
-      IndexTupleConsumer evaluateNextIndex =
-          [&](const std::vector<int64_t>& indices) {
-            SmallVector<int64_t> fromResults;
-            SmallVector<int64_t> toResults;
-            evaluateStatic(fromLayout.getMap(), indices, fromResults);
-            evaluateStatic(toLayout.getMap(), indices, toResults);
-            int64_t input =
-                (minUnusedInput + fromResults[fromResults.size() - 1]) %
-                numSlots;
-            int64_t output =
-                (minUnusedTarget + toResults[toResults.size() - 1]) % numSlots;
-            permutation[input] = output;
-          };
-
-      SmallVector<int64_t> dataSemanticShape;
-      if (auto tensorTy = dyn_cast<RankedTensorType>(dataSemanticType)) {
-        dataSemanticShape = SmallVector<int64_t>(tensorTy.getShape());
-      } else {
-        // assumed to be a scalar
-        dataSemanticShape = {1};
-      }
-      iterateIndices(dataSemanticShape, evaluateNextIndex);
-      minUnusedTarget = getMinUnusedTarget(permutation);
-      minUnusedInput = getMinUnusedInput(permutation);
-    }
-
-    auto permuteOp =
-        tensor_ext::PermuteOp::create(rewriter, op.getLoc(), adaptor.getValue(),
-                                      rewriter.getI64TensorAttr(permutation));
+    std::shared_ptr<IntegerRelation> composedLayout =
+        fromLayout.getIntegerRelation().clone();
+    composedLayout->inverse();
+    composedLayout->compose(toLayout.getIntegerRelation());
+    auto permuteOp = tensor_ext::PermuteOp::create(
+        rewriter, op.getLoc(), adaptor.getValue(),
+        NewLayoutAttr::getFromIntegerRelation(getContext(), *composedLayout));
     permuteOp->setAttr(kLayoutAttrName, op->getAttr(kLayoutAttrName));
     setMaterializedAttr(permuteOp);
     rewriter.replaceOp(op, permuteOp);
@@ -572,212 +479,6 @@ class ConvertLinalgReduce
   }
 };
 
-struct ConvertLinalgMatvec
-    : public ContextAwareOpConversionPattern<linalg::MatvecOp> {
- public:
-  using ContextAwareOpConversionPattern<
-      linalg::MatvecOp>::ContextAwareOpConversionPattern;
-
-  LayoutAttr getLayoutAttr(Value value) const {
-    auto layoutLookup = getTypeConverter()->getContextualAttr(value);
-    if (failed(layoutLookup)) {
-      return nullptr;
-    }
-    return dyn_cast<LayoutAttr>(layoutLookup.value());
-  }
-
-  bool supportsHaleviShoup(linalg::MatvecOp op, OpAdaptor adaptor) const {
-    Value matrix = adaptor.getInputs()[0];
-    Value vector = adaptor.getInputs()[1];
-    auto matrixType = cast<RankedTensorType>(matrix.getType());
-    auto vectorType = cast<RankedTensorType>(vector.getType());
-    auto materializedMatrixType =
-        cast<RankedTensorType>(adaptor.getInputs()[0].getType());
-    auto materializedVectorType =
-        cast<RankedTensorType>(adaptor.getInputs()[1].getType());
-
-    // If one of these dimensions is not a power of two, then we can't do
-    // the Halevi-Shoup or Squat Packing Matrix Multiplication conversion.
-    auto dimensions = matrixType.getShape();
-    int64_t numRows = dimensions[0];
-    int64_t numCols = dimensions[1];
-    if (!isPowerOfTwo(numRows) || !isPowerOfTwo(numCols)) {
-      return false;
-    }
-
-    LayoutAttr matrixLayout = getLayoutAttr(matrix);
-    LayoutAttr vectorLayout = getLayoutAttr(vector);
-    bool isSquatDiagonal = isLayoutSquatDiagonal(
-        matrixType, materializedMatrixType, matrixLayout.getMap());
-    bool isRowMajor = isLayoutRowMajor(vectorType, materializedVectorType,
-                                       vectorLayout.getMap());
-
-    LLVM_DEBUG(llvm::dbgs()
-               << "supportsHaleviShoup: " << "isSquatDiagonal="
-               << isSquatDiagonal << " isRowMajor=" << isRowMajor << "\n");
-
-    // TODO(#1578): If the matrix has more rows than columns, what kernel
-    // should be used?
-    bool dimensionsCompatible = numRows <= numCols;
-    return isSquatDiagonal && isRowMajor && dimensionsCompatible;
-  }
-
-  void haleviShoupKernel(
-      linalg::MatvecOp op, OpAdaptor adaptor,
-      ContextAwareConversionPatternRewriter& rewriter) const {
-    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    Value result = adaptor.getOutputs()[0];
-    Value packedMatrix = adaptor.getInputs()[0];
-    Value packedVector = adaptor.getInputs()[1];
-    auto originalMatrixType =
-        cast<RankedTensorType>(op.getInputs()[0].getType());
-    auto packedMatrixType = cast<RankedTensorType>(packedMatrix.getType());
-    auto packedVectorType = cast<RankedTensorType>(packedVector.getType());
-    Type elementType = packedVectorType.getElementType();
-    int64_t numRotations = packedMatrixType.getShape()[0];
-    auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
-
-    StringRef mulOpName =
-        isa<IntegerType>(elementType) ? "arith.muli" : "arith.mulf";
-    StringRef addOpName =
-        isa<IntegerType>(elementType) ? "arith.addi" : "arith.addf";
-    // In each loop iteration we rotate by 1 more, which minimizes the number
-    // of rotation keys needed, but also adds a serial dependency to the order
-    // of operations in the loop.
-    //
-    // TODO(#744): determine how to balance the tradeoff of having many
-    // rotation keys vs overall latency for doing some rotations in parallel
-    // (plus hoisting).
-    //
-    // TODO(#1569): consider emitting linalg ops and/or loops for the rotations
-    // and reductions. Maybe branch on a pass option and support all three?
-    // Need to determine how noise analysis will handle an ambiguous linalg op
-    // before doing this by default.
-    Value accumulator = result;
-    for (int index = 0; index < numRotations; ++index) {
-      // construct vector.rotate(i)
-      auto rotationIndexOp = arith::ConstantIntOp::create(b, index, 64);
-      auto rotateOp =
-          tensor_ext::RotateOp::create(b, packedVector, rotationIndexOp);
-
-      // get the corresponding element of the ciphertext tensor,
-      // which is row i
-      SmallVector<OpFoldResult> offsets = {b.getIndexAttr(index),
-                                           b.getIndexAttr(0)};
-      SmallVector<OpFoldResult> sizes = {
-          b.getIndexAttr(1), b.getIndexAttr(packedMatrixType.getShape()[1])};
-      SmallVector<OpFoldResult> strides = {b.getIndexAttr(1),
-                                           b.getIndexAttr(1)};
-      auto extractRowOp = tensor::ExtractSliceOp::create(
-          b, packedVectorType, packedMatrix, offsets, sizes, strides);
-
-      Operation* mulOp = b.create(
-          OperationState(op->getLoc(), mulOpName,
-                         {rotateOp.getResult(), extractRowOp.getResult()},
-                         {packedVectorType}));
-      Operation* addOp = b.create(OperationState(
-          op->getLoc(), addOpName, {accumulator, mulOp->getResult(0)},
-          {packedVectorType}));
-
-      setMaterializedAttr(
-          {rotationIndexOp, rotateOp, extractRowOp, mulOp, addOp});
-      accumulator = addOp->getResult(0);
-    }
-    // Only the last op will need its layout set for later ops to reference.
-    setAttributeAssociatedWith(accumulator, kLayoutAttrName, layoutAttr);
-
-    Value summedShifts = accumulator;
-    if (originalMatrixType.getShape()[0] == originalMatrixType.getShape()[1]) {
-      rewriter.replaceOp(op, summedShifts);
-      return;
-    }
-
-    // else, necessarily matrixNumRows < matrixNumCols due to the precondition
-    // applied earlier. This is the post-processing partial-rotate-and-reduce
-    // step required for squat-diagonal packing.
-    int64_t matrixNumRows = packedMatrixType.getShape()[0];
-    int64_t matrixNumCols = packedMatrixType.getShape()[1];
-
-    int64_t numShifts = (int64_t)(log2(matrixNumCols) - log2(matrixNumRows));
-    int64_t shift = matrixNumCols / 2;
-
-    for (int64_t i = 0; i < numShifts; ++i) {
-      auto shiftAmountOp = arith::ConstantIntOp::create(b, shift, 64);
-      auto rotateOp =
-          tensor_ext::RotateOp::create(b, summedShifts, shiftAmountOp);
-      auto* addOp = b.create(OperationState(
-          op->getLoc(), addOpName, {summedShifts, rotateOp.getResult()},
-          {rotateOp.getResult().getType()}));
-      setMaterializedAttr({shiftAmountOp, rotateOp, addOp});
-      setAttributeAssociatedWith(addOp->getResult(0), kLayoutAttrName,
-                                 layoutAttr);
-      summedShifts = addOp->getResult(0);
-      shift /= 2;
-    }
-
-    // The result now has the values in the first n entries of the packed
-    // vector, and the remaining entries are naturally replicated copies
-    // of the first n entries. So if the output layout does not require
-    // a special padding, we can stop here.
-    if (!layoutAttr.getAlignment() ||
-        layoutAttr.getAlignment().getPadding().empty()) {
-      // TODO(#1569): also hit this branch if the padding value is dont_care
-      rewriter.replaceOp(op, summedShifts);
-      return;
-    }
-
-    // Otherwise, the output layout requires a particular padding, and we
-    // need to force the replicated values to be zero. This is done by
-    // applying a plaintext-ciphertext mask.
-    TypedAttr padAttr =
-        DenseElementsAttr::get(cast<ShapedType>(result.getType()),
-                               layoutAttr.getAlignment().getPaddingValue());
-    auto zeroOp = arith::ConstantOp::create(b, result.getType(), padAttr);
-
-    // insert a slice of 1's in the first n of the zeros tensor to make a mask
-    SmallVector<int64_t> prefixShape = {matrixNumRows};
-    RankedTensorType prefixType =
-        RankedTensorType::get(prefixShape, elementType);
-    auto oneOp =
-        arith::ConstantOp::create(b, prefixType, b.getOneAttr(prefixType));
-    auto createMaskOp = tensor::InsertSliceOp::create(
-        b, oneOp, zeroOp, ArrayRef<Value>{}, ArrayRef<Value>{},
-        ArrayRef<Value>{},
-        /*offsets=*/ArrayRef<int64_t>{0},
-        /*sizes=*/ArrayRef{matrixNumRows}, /*strides=*/ArrayRef<int64_t>{1});
-    auto* applyMaskOp = b.create(OperationState(op->getLoc(), mulOpName,
-                                                {summedShifts, createMaskOp},
-                                                {summedShifts.getType()}));
-
-    setMaterializedAttr({zeroOp, oneOp, createMaskOp, applyMaskOp});
-    applyMaskOp->setAttr(kLayoutAttrName, layoutAttr);
-
-    rewriter.replaceOp(op, applyMaskOp);
-  }
-
-  LogicalResult matchAndRewrite(
-      linalg::MatvecOp op, OpAdaptor adaptor,
-      ContextAwareConversionPatternRewriter& rewriter) const final {
-    Value matrix = adaptor.getInputs()[0];
-    Value vector = adaptor.getInputs()[1];
-    LayoutAttr vectorLayout = getLayoutAttr(vector);
-    LayoutAttr matrixLayout = getLayoutAttr(matrix);
-
-    if (!matrixLayout || !vectorLayout)
-      return rewriter.notifyMatchFailure(
-          op, "missing layout attribute matrix and vector");
-
-    if (supportsHaleviShoup(op, adaptor)) {
-      haleviShoupKernel(op, adaptor, rewriter);
-      return success();
-    }
-
-    // TODO(#1589): implement row-major naive matvec kernel
-    return op.emitError() << "unsupported layout for matrix in matvec: "
-                          << matrixLayout;
-  }
-};
-
 struct ConvertLinalgMatvecNewLayout
     : public ContextAwareOpConversionPattern<linalg::MatvecOp> {
  public:
@@ -860,7 +561,7 @@ struct ConvertLinalgMatvecNewLayout
     Value finalOutput = implementedKernel->visit(visitor);
 
     auto layoutAttr = cast<NewLayoutAttr>(op->getAttr(kLayoutAttrName));
-    auto finalOutputOp = finalOutput.getDefiningOp();
+    auto* finalOutputOp = finalOutput.getDefiningOp();
     finalOutputOp->setAttr(kLayoutAttrName, layoutAttr);
     setMaterializedAttr(finalOutputOp);
 
@@ -1044,213 +745,6 @@ Value makeInverseMask(ContextAwareConversionPatternRewriter& rewriter,
   setMaterializedAttr({maskHolder, one, mask});
   return mask.getResult();
 }
-
-class ConvertTensorExtract
-    : public ContextAwareOpConversionPattern<tensor::ExtractOp> {
- public:
-  using ContextAwareOpConversionPattern<
-      tensor::ExtractOp>::ContextAwareOpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      tensor::ExtractOp op, OpAdaptor adaptor,
-      ContextAwareConversionPatternRewriter& rewriter) const final {
-    // This is not a good op to have a kernel for, but we have it for
-    // completeness.
-    //
-    // The kernel is implemented by masking the tensor at the given index,
-    // rotating it to the first position, and then (depending on the
-    // replication attribute) replicating it throughout the rest of the tensor.
-
-    FailureOr<Attribute> tensorLayoutResult =
-        getTypeConverter()->getContextualAttr(adaptor.getTensor());
-    if (failed(tensorLayoutResult)) {
-      // If the tensor has no layout, it is a cleartext operation and
-      // can be skipped.
-      setMaterializedAttr(op);
-      return success();
-    }
-    FailureOr<Attribute> resultLayoutResult =
-        getTypeConverter()->getContextualAttr(op.getResult());
-    if (failed(resultLayoutResult)) {
-      return op.emitError() << "failed to fetch layout attribute for input";
-    }
-
-    LayoutAttr tensorLayout = dyn_cast<LayoutAttr>(tensorLayoutResult.value());
-    LayoutAttr resultLayout = dyn_cast<LayoutAttr>(resultLayoutResult.value());
-
-    if (!tensorLayout || !resultLayout) {
-      return failure();  // code will be deleted soon, no need to give message
-    }
-
-    // TODO(#1692) properly handle result layout alignment
-
-    // The indices to extract must be materialized via the layout mapping, which
-    // corresponds to inserting an affine.apply.
-    if (adaptor.getIndices().size() != tensorLayout.getMap().getNumDims()) {
-      std::string mapStr;
-      llvm::raw_string_ostream os(mapStr);
-      tensorLayout.getMap().print(os);
-      return op.emitError()
-             << "mismatching number of indices (" << adaptor.getIndices().size()
-             << ") for map " << mapStr;
-    }
-    auto applyOp = affine::AffineApplyOp::create(
-        rewriter, op.getLoc(), tensorLayout.getMap(), adaptor.getIndices());
-
-    RankedTensorType ciphertextSemanticType =
-        cast<RankedTensorType>(adaptor.getTensor().getType());
-
-    // TODO(#1542): support multi-packed ciphertexts
-    if (ciphertextSemanticType.getRank() != 1) {
-      return op.emitError()
-             << "Does not support packing into multiple ciphertexts yet";
-    }
-
-    // The ciphertext tensor is a 1D tensor, so the applyOp's result is a
-    // single value we can use to build a mask.
-    // A tensor of zeros
-    Value mask = makeMask(rewriter, op.getLoc(), applyOp.getResult(),
-                          ciphertextSemanticType);
-
-    // multiply the mask by the converted value
-    StringRef mulOpName =
-        isa<IntegerType>(ciphertextSemanticType.getElementType())
-            ? "arith.muli"
-            : "arith.mulf";
-    Operation* mulOp = rewriter.create(
-        OperationState(op->getLoc(), mulOpName, {mask, adaptor.getTensor()},
-                       {ciphertextSemanticType}));
-
-    // Rotate left to the first position
-    auto rotateOp = tensor_ext::RotateOp::create(
-        rewriter, op.getLoc(), mulOp->getResult(0), applyOp.getResult());
-    Operation* result = rotateOp;
-
-    // TODO(#1662): improve scalar layout materialization
-
-    setMaterializedAttr({applyOp, mulOp, rotateOp});
-    setAttributeAssociatedWith(result->getResult(0), kLayoutAttrName,
-                               resultLayout);
-    rewriter.replaceOp(op, result);
-    return success();
-  }
-};
-
-class ConvertTensorInsert
-    : public ContextAwareOpConversionPattern<tensor::InsertOp> {
- public:
-  using ContextAwareOpConversionPattern<
-      tensor::InsertOp>::ContextAwareOpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      tensor::InsertOp op, OpAdaptor adaptor,
-      ContextAwareConversionPatternRewriter& rewriter) const final {
-    // This is not a good op to have a kernel for, but we have it for
-    // completeness.
-    //
-    // The kernel is implemented by masking the input at index 0, rotating it
-    // to the needed (materialized) index of the dest ciphertext, masking a
-    // zero in the dest at the same index, and then adding the two masked
-    // tensors.
-
-    FailureOr<Attribute> tensorLayoutResult =
-        getTypeConverter()->getContextualAttr(adaptor.getDest());
-    if (failed(tensorLayoutResult)) {
-      // If the tensor has no layout, it is a cleartext operation and
-      // can be skipped.
-      setMaterializedAttr(op);
-      return success();
-    }
-    FailureOr<Attribute> resultLayoutResult =
-        getTypeConverter()->getContextualAttr(op.getResult());
-    if (failed(resultLayoutResult)) {
-      return op.emitError() << "failed to fetch layout attribute for input";
-    }
-
-    LayoutAttr tensorLayout = dyn_cast<LayoutAttr>(tensorLayoutResult.value());
-    LayoutAttr resultLayout = dyn_cast<LayoutAttr>(resultLayoutResult.value());
-
-    if (!tensorLayout || !resultLayout) {
-      return failure();  // code will be deleted soon, no need to give message
-    }
-
-    // The indices at which to insert must be materialized via the layout
-    // mapping, which corresponds to inserting an affine.apply.
-    auto applyOp = affine::AffineApplyOp::create(
-        rewriter, op.getLoc(), tensorLayout.getMap(), adaptor.getIndices());
-
-    RankedTensorType ciphertextSemanticType =
-        cast<RankedTensorType>(adaptor.getDest().getType());
-
-    // TODO(#1542): support multi-packed ciphertexts
-    if (ciphertextSemanticType.getRank() != 1) {
-      return op.emitError()
-             << "Does not support packing into multiple ciphertexts yet";
-    }
-
-    StringRef mulOpName =
-        isa<IntegerType>(ciphertextSemanticType.getElementType())
-            ? "arith.muli"
-            : "arith.mulf";
-    StringRef addOpName =
-        isa<IntegerType>(ciphertextSemanticType.getElementType())
-            ? "arith.addi"
-            : "arith.addf";
-
-    // TODO(#1662): support more sophisticated scalar layouts
-    //
-    // The scalar to insert is materialized to a tensor like
-    //
-    //   [v, v, v, ..., v]
-    //
-    // Mask the materialized tensor for the scalar to insert at index zero
-    //
-    //   [v, 0, 0, ..., 0]
-    //
-    auto zero = arith::ConstantIndexOp::create(rewriter, op.getLoc(), 0);
-    Value mask = makeMask(rewriter, op.getLoc(), zero.getResult(),
-                          ciphertextSemanticType);
-    Operation* scalarMul = rewriter.create(
-        OperationState(op->getLoc(), mulOpName, {mask, adaptor.getScalar()},
-                       {ciphertextSemanticType}));
-
-    // Rotate to the (materialized) index to insert
-    //
-    //   [0, ..., 0, v, 0, ..., 0]
-    //
-    auto rotateOp = tensor_ext::RotateOp::create(
-        rewriter, op.getLoc(), scalarMul->getResult(0), applyOp.getResult());
-
-    // Inverse-mask the destination tensor so there's a zero at the target
-    // value
-    //
-    //   [a1, a2, ..., an] --> [a1, ..., a_{k-1}, 0, a_{k+1}, ..., an]
-    //
-    Value inverseMask = makeInverseMask(
-        rewriter, op.getLoc(), applyOp.getResult(), ciphertextSemanticType);
-    Operation* destMul = rewriter.create(OperationState(
-        op->getLoc(), mulOpName, {inverseMask, adaptor.getDest()},
-        {ciphertextSemanticType}));
-
-    // Add the two masked tensors together
-    // value
-    //
-    //     [a1, ..., a_{k-1}, 0, a_{k+1}, ..., an]
-    //   + [ 0, ...,       0, 0,       v, ...,  0]
-    //
-    Operation* finalAdd = rewriter.create(
-        OperationState(op->getLoc(), addOpName,
-                       {scalarMul->getResult(0), destMul->getResult(0)},
-                       {ciphertextSemanticType}));
-    Value result = finalAdd->getResult(0);
-
-    setMaterializedAttr(
-        {applyOp, zero, scalarMul, rotateOp, destMul, finalAdd});
-    setAttributeAssociatedWith(result, kLayoutAttrName, resultLayout);
-    rewriter.replaceOp(op, result);
-    return success();
-  }
-};
 
 // Generate IR that loops over the (ciphertext, slot) pairs of the integer
 // relation, and at each iteration checks if the corresponding domain index
@@ -1436,7 +930,10 @@ class ConvertTensorExtractNewLayout
       // to support that.
       //
       // Punting until we have a strong need for this use case.
-      return failure();
+      //
+      // TODO(#2257): Support dynamic indices in tensor.extract
+      return op.emitError() << "tensor.extract with dynamic cleartext indices "
+                               "not supported yet";
     }
 
     MaskResult maskResult = createMaskFromStaticIndices(
@@ -1457,14 +954,16 @@ class ConvertTensorExtractNewLayout
                                               maskResult.maskLayout),
         resultLayout);
 
-    // Intentionally don't materialize convert_layout so it will be processed
-    // by a subsequent pattern.
+    // Intentionally don't set materialized attr on convert_layout so it will be
+    // processed by a subsequent pattern.
     setMaterializedAttr(mulOp);
+    // The layout conversion may be folded away, so the mul op also needs an
+    // attribute
+    setAttributeAssociatedWith(mulOp->getResults()[0], kLayoutAttrName,
+                               resultLayout);
     setAttributeAssociatedWith(convertLayoutOp.getResult(), kLayoutAttrName,
                                resultLayout);
     rewriter.replaceOp(op, convertLayoutOp);
-
-    convertLayoutOp->getParentOfType<func::FuncOp>().dump();
     return success();
   }
 };
@@ -1654,7 +1153,12 @@ class ConvertTensorInsertNewLayout
     NewLayoutAttr destLayout =
         dyn_cast<NewLayoutAttr>(destLayoutResult.value());
 
-    // Initial support for this kernel requires the sizes of the range to match
+    // Initial support for this kernel requires the sizes of the range to
+    // match. Ideally we could be smarter here, for example to take a scalar
+    // layout which is a single slot in a single ciphertext, and insert it into
+    // the correct slot of the single ciphertext of the dest tensor via a mask
+    // and rotate. But this kernel is not expected to be used, so we can instead
+    // incur the cost of a layout conversion before the insert.
     IntegerRelation scalarRel = scalarLayout.getIntegerRelation();
     IntegerRelation destRel = destLayout.getIntegerRelation();
     if (!scalarRel.getRangeSet().isEqual(destRel.getRangeSet())) {
@@ -2010,10 +1514,9 @@ struct ConvertToCiphertextSemantics
                  // tensor_ext ops
                  ConvertConvertLayout, ConvertConvertLayoutNewLayout,
                  // linalg ops
-                 ConvertLinalgReduce, ConvertLinalgMatvec,
-                 ConvertLinalgMatvecNewLayout, ConvertLinalgConv2D,
+                 ConvertLinalgReduce, ConvertLinalgMatvecNewLayout,
+                 ConvertLinalgConv2D,
                  // tensor ops
-                 ConvertTensorExtract, ConvertTensorInsert,
                  ConvertTensorExtractNewLayout, ConvertTensorInsertNewLayout,
                  ConvertCollapseShape, ConvertExpandShape,
                  // default
@@ -2031,11 +1534,7 @@ struct ConvertToCiphertextSemantics
     // Note ConvertAssignLayout generates tensor.concat
     RewritePatternSet cleanupPatterns2(context);
     tensor::populateDecomposeTensorConcatPatterns(cleanupPatterns2);
-    // Drop unit dimensions for tensor_ext ops that require 1-D tensors (i.e.
-    // rotation ops) and elementwise ops.
-    cleanupPatterns2.add<DropRotateUnitDims, DropRotateAndReduceUnitDims,
-                         DropElementwiseUnitDims>(context);
-    mlir::tensor::populateReassociativeReshapeFoldingPatterns(cleanupPatterns2);
+
     // Folding here will remove any unrealized conversion cast ops that were
     // inserted to persist new layouts.
     if (failed(applyPatternsGreedily(module, std::move(cleanupPatterns2)))) {

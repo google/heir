@@ -30,6 +30,7 @@
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -43,6 +44,8 @@
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
+
+#define DEBUG_TYPE "secret-to-bgv"
 
 namespace mlir::heir {
 
@@ -101,6 +104,21 @@ class SecretToBGVTypeConverter
         plaintextModulus(ptm),
         isBFV(isBFV) {
     addConversion([](Type type, Attribute attr) { return type; });
+    addConversion(
+        [this](RankedTensorType type, mgmt::MgmtAttr mgmtAttr) -> Type {
+          // For cases like tensor.empty + mgmt.init, we need to convert this
+          // to a ciphertext type.
+          //
+          // Care must be taken to ensure that types that have already been
+          // converted (i.e., their element type is a ciphertext or plaintext
+          // type) are returned as-is, or else legality checking will consider
+          // ops with these types illegal.
+          if (isa<lwe::LWECiphertextType, lwe::LWEPlaintextType>(
+                  type.getElementType()))
+            return type;
+          return convertSecretTypeWithMgmtAttr(secret::SecretType::get(type),
+                                               mgmtAttr);
+        });
     addConversion([this](secret::SecretType type, mgmt::MgmtAttr mgmtAttr) {
       return convertSecretTypeWithMgmtAttr(type, mgmtAttr);
     });
@@ -108,30 +126,42 @@ class SecretToBGVTypeConverter
 
   Type convertSecretTypeWithMgmtAttr(secret::SecretType type,
                                      mgmt::MgmtAttr mgmtAttr) const {
+    auto* ctx = type.getContext();
     auto level = mgmtAttr.getLevel();
     auto dimension = mgmtAttr.getDimension();
     auto scale = mgmtAttr.getScale();
+    auto tensorValueType = dyn_cast<RankedTensorType>(type.getValueType());
 
-    auto* ctx = type.getContext();
     auto plaintextRing = polynomial::RingAttr::get(
-        type.getContext(),
+        ctx,
         mod_arith::ModArithType::get(
             ctx, IntegerAttr::get(IntegerType::get(ctx, 64), plaintextModulus)),
         ring.getPolynomialModulus());
 
-    SmallVector<IntegerAttr> moduliChain;
+    SmallVector<IntegerAttr> modulusChain;
     for (auto modArithType :
          cast<rns::RNSType>(ring.getCoefficientType()).getBasisTypes()) {
       auto modulus = cast<mod_arith::ModArithType>(modArithType).getModulus();
-      moduliChain.push_back(modulus);
+      modulusChain.push_back(modulus);
     }
 
     auto encryptionType =
         isBFV ? lwe::LweEncryptionType::msb : lwe::LweEncryptionType::lsb;
 
-    return lwe::LWECiphertextType::get(
+    auto messageType = type.getValueType();
+    if (tensorValueType && tensorValueType.getRank() > 1) {
+      // The value type here is a ciphertext-semantic tensor (i.e., packed) and
+      // so the "message type" is what is packed in each ciphertext, i.e., a
+      // single dimensional tensor corresponding to the last axis.
+      // TODO(#2280): this is where we are forced to use the packed cleartexts
+      messageType = RankedTensorType::get(
+          {tensorValueType.getDimSize(tensorValueType.getRank() - 1)},
+          tensorValueType.getElementType());
+    }
+
+    auto ctType = lwe::LWECiphertextType::get(
         ctx,
-        lwe::ApplicationDataAttr::get(ctx, type.getValueType(),
+        lwe::ApplicationDataAttr::get(ctx, messageType,
                                       lwe::NoOverflowAttr::get(ctx)),
         lwe::PlaintextSpaceAttr::get(
             ctx, plaintextRing,
@@ -139,7 +169,23 @@ class SecretToBGVTypeConverter
         lwe::CiphertextSpaceAttr::get(ctx, getRlweRNSRingWithLevel(ring, level),
                                       encryptionType, dimension),
         lwe::KeyAttr::get(ctx, 0),
-        lwe::ModulusChainAttr::get(ctx, moduliChain, level));
+        lwe::ModulusChainAttr::get(ctx, modulusChain, level));
+
+    if (tensorValueType) {
+      // A rank-1 tensor is interpreted as a single ciphertext
+      if (tensorValueType.getRank() == 1) {
+        return ctType;
+      }
+
+      // A rank-2+ tensor is a tensor of ciphertexts, where the last axis
+      // becomes the ciphertext type. This is the most common case where
+      // data is packed in a set of ciphertexts.
+      return RankedTensorType::get(tensorValueType.getShape().drop_back(),
+                                   ctType);
+    }
+
+    llvm_unreachable("unexpected non-tensor secret type");
+    return ctType;
   }
 
  private:
@@ -188,8 +234,10 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
     if (failed(rlweRing)) {
       return signalPassFailure();
     }
-    // Ensure that all secret types are uniform and matching the ring
-    // parameter size.
+    // Ensure that all secret types are uniform and have last dimension
+    // matching the ring parameter size. In other words, this asserts that any
+    // data-semantic tensors have been converted to ciphertext-semantic tensors
+    // with the correct shape.
     Operation* foundOp = walkAndDetect(module, [&](Operation* op) {
       ValueRange valuesToCheck = op->getOperands();
       if (auto funcOp = dyn_cast<func::FuncOp>(op)) {
@@ -198,11 +246,11 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
       for (auto value : valuesToCheck) {
         if (auto secretTy = dyn_cast<secret::SecretType>(value.getType())) {
           auto tensorTy = dyn_cast<RankedTensorType>(secretTy.getValueType());
-          if (tensorTy && tensorTy.getShape() !=
-                              ArrayRef<int64_t>{rlweRing.value()
-                                                    .getPolynomialModulus()
-                                                    .getPolynomial()
-                                                    .getDegree()}) {
+          if (tensorTy && tensorTy.getDimSize(tensorTy.getRank() - 1) !=
+                              rlweRing.value()
+                                  .getPolynomialModulus()
+                                  .getPolynomial()
+                                  .getDegree()) {
             return true;
           }
         }
@@ -211,7 +259,7 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
     });
     if (foundOp != nullptr) {
       foundOp->emitError(
-          "expected batched secret types to be tensors with dimension "
+          "expected secret types to be tensors with last dimension "
           "matching ring parameter");
       signalPassFailure();
       return;
@@ -235,11 +283,12 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
 
     RewritePatternSet patterns(context);
     ConversionTarget target(*context);
-    target.addLegalDialect<bgv::BGVDialect>();
-    target.addLegalDialect<lwe::LWEDialect>();
+    target.addLegalDialect<bgv::BGVDialect, lwe::LWEDialect,
+                           arith::ArithDialect, tensor::TensorDialect>();
+    target.addLegalOp<ModuleOp>();
     target.addIllegalDialect<secret::SecretDialect>();
-    target.addIllegalOp<mgmt::ModReduceOp, mgmt::RelinearizeOp>();
-    target.addIllegalOp<secret::GenericOp>();
+    target.addIllegalOp<mgmt::ModReduceOp, mgmt::RelinearizeOp,
+                        secret::GenericOp>();
 
     patterns.add<
         SecretGenericOpConversion<arith::AddIOp, bgv::AddOp>,
@@ -256,7 +305,8 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
         SecretGenericOpCipherPlainConversion<arith::AddIOp, bgv::AddPlainOp>,
         SecretGenericOpCipherPlainConversion<arith::SubIOp, bgv::SubPlainOp>,
         SecretGenericOpCipherPlainConversion<arith::MulIOp, bgv::MulPlainOp>,
-        SecretGenericFuncCallConversion>(typeConverter, context);
+        SecretGenericFuncCallConversion, ConvertExtractSlice,
+        ConvertInsertSlice>(typeConverter, context);
 
     patterns.add<ConvertClientConceal>(typeConverter, context, usePublicKey,
                                        rlweRing.value());

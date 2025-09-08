@@ -10,10 +10,13 @@
 #include "llvm/include/llvm/Support/FormatVariadic.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/TypeRange.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
+#include "mlir/include/mlir/Support/IndentedOstream.h"   // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 
 namespace mlir {
@@ -59,15 +62,21 @@ std::string bracketEnclosedValues(
                          });
 }
 
+std::string flattenIndexExpression(ArrayRef<int64_t> shape,
+                                   ArrayRef<std::string> indexStrings) {
+  std::string accum = llvm::formatv("{0}", indexStrings[0]);
+  for (size_t i = 1; i < indexStrings.size(); ++i) {
+    accum =
+        llvm::formatv("{0} + {1} * ({2})", indexStrings[i], shape[i], accum);
+  }
+  return accum;
+}
+
 std::string flattenIndexExpression(
     ShapedType type, ValueRange indices,
     std::function<std::string(Value)> valueToString) {
-  std::string accum = llvm::formatv("{0}", valueToString(indices[0]));
-  for (size_t i = 1; i < indices.size(); ++i) {
-    accum = llvm::formatv("{0} + {1} * ({2})", valueToString(indices[i]),
-                          type.getShape()[i], accum);
-  }
-  return accum;
+  return flattenIndexExpression(type.getShape(),
+                                llvm::map_to_vector(indices, valueToString));
 }
 
 // sum of products
@@ -101,6 +110,57 @@ int64_t flattenedIndex(MemRefType memRefType, ValueRange indices,
     index = index + strides[i] * valueToInt(indices[i]);
   }
   return index;
+}
+
+void emitFlattenedExtractSlice(ShapedType resultType, ShapedType sourceType,
+                               StringRef resultName, StringRef sourceName,
+                               ArrayRef<OpFoldResult> offsets,
+                               ArrayRef<int64_t> sizes,
+                               ArrayRef<int64_t> strides,
+                               const OffsetToStringFn& offsetToString,
+                               const InductionVarNameFn& getInductionVarName,
+                               const LoopOpenerFn& loopOpener,
+                               raw_indented_ostream& os) {
+  // Emit a loop nest to copy the right values.
+  // All tensors are flattened, so we need to keep track of the source flattened
+  // index and the target flattened index.
+  int64_t rank = offsets.size();
+  SmallVector<std::string> inductionVarNames;
+  for (int i = 0; i < rank; i++) {
+    inductionVarNames.push_back(getInductionVarName(i));
+  }
+
+  // Create loop nest
+  for (const auto& [i, inductionVar] : llvm::enumerate(inductionVarNames)) {
+    // for (int64_t i0 = 0; i0 < size0; ++i0) {
+    //
+    // Note we are iterating over the target tensor's indices, so offsets and
+    // strides must be accounted for when computing the source index.
+    loopOpener(os, inductionVar, sizes[i]);
+    os.indent();
+  }
+
+  os << resultName << "[";
+  // Target index is just the flattened index of the result tensor. We use the
+  // sizes, not the rank-reduced result type shape, since everything is
+  // flattened and we just need to align things to the number of induction
+  // variables.
+  os << flattenIndexExpression(sizes, inductionVarNames);
+  os << "] = " << sourceName << "[";
+  // Source index requires incorporating the offsets and strides
+  SmallVector<std::string> accessIndices;
+  for (const auto& [i, inductionVar] : llvm::enumerate(inductionVarNames)) {
+    accessIndices.push_back(llvm::formatv("{0} + {1} * {2}",
+                                          offsetToString(offsets[i]),
+                                          inductionVar, strides[i]));
+  }
+  os << flattenIndexExpression(sourceType.getShape(), accessIndices) << "];\n";
+
+  // Close loop nest
+  for (int i = 0; i < rank; i++) {
+    os.unindent();
+    os << "}\n";
+  }
 }
 
 }  // namespace heir

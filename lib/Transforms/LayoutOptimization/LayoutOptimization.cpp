@@ -123,8 +123,8 @@ void LayoutOptimization::runOnOperation() {
                        << "Visiting op: " << op->getName() << " \n");
             if (auto hoistable =
                     dyn_cast<LayoutConversionHoistableOpInterface>(op)) {
-              // TODO(#1888): figure out how to get OpInterface verifier to run
-              // automatically.
+              // TODO(#1888): figure out how to get OpInterface verifier to
+              // run automatically.
               LLVM_DEBUG(llvm::dbgs() << "Visiting op: " << op->getName()
                                       << " with hoistable interface\n");
               KernelName kernelName = KernelName::Trivial;
@@ -152,6 +152,9 @@ void LayoutOptimization::runOnOperation() {
             if (result == FAILURE) {
               return WalkResult::interrupt();
             };
+            if (result == UNHOISTABLE) {
+              return WalkResult::advance();
+            };
 
             // The above may results in sequences of convert_layout ops,
             // or convert_layout ops that occur directly after assign_layout
@@ -163,6 +166,10 @@ void LayoutOptimization::runOnOperation() {
                     builder, convertLayoutOp, opsToErase);
               }
             }
+
+            LLVM_DEBUG(llvm::dbgs()
+                       << "Dump after hoisting and eager folding: "
+                       << op->getParentOfType<func::FuncOp>() << "\n\n");
             return WalkResult::advance();
           });
 
@@ -193,12 +200,6 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
     return UNHOISTABLE;
   }
 
-  LLVM_DEBUG(llvm::dbgs() << "Considering hoisting op: " << op->getName()
-                          << " with layout "
-                          << findAttributeAssociatedWith(op->getResult(0),
-                                                         kLayoutAttrName)
-                          << "\n");
-
   // Check if any results are converted directly after.
   SmallVector<ConvertLayoutOp> resultLayoutConversions;
   for (auto* user : op->getResult(0).getUsers()) {
@@ -213,6 +214,16 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
                << "Skipping op, no results followed by convert_layout\n");
     return UNHOISTABLE;
   }
+
+  LLVM_DEBUG({
+    llvm::dbgs() << "Considering hoisting " << resultLayoutConversions.size()
+                 << " layout conversion through op: " << op->getName()
+                 << "\n\n\t" << *op;
+    for (auto convertLayoutOp : resultLayoutConversions) {
+      llvm::dbgs() << "\n\t" << *convertLayoutOp << "\n";
+    }
+    llvm::dbgs() << "\n";
+  });
 
   // Now compute the cost of hoisting each conversion layout.
   SmallVector<HoistOption> hoistingOptions;
@@ -277,7 +288,8 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
     Attribute newInputLayout = minHoistResult.newInputLayouts[i];
     auto newInput = ConvertLayoutOp::create(
         builder, op->getLoc(), operand, originalLayout.value(), newInputLayout);
-    newInput->setAttr(kLayoutAttrName, newInputLayout);
+    setAttributeAssociatedWith(newInput.getResult(), kLayoutAttrName,
+                               newInputLayout);
     builder.replaceUsesWithIf(operand, newInput, [&](OpOperand& operand) {
       return operand.getOwner() == op;
     });
@@ -311,6 +323,10 @@ Cost LayoutOptimization::costOfLayoutConversion(Attribute fromLayout,
 
   if (!fromLayoutAttr || !toLayoutAttr) {
     return fromLayout == toLayout ? 0 : 1;
+  }
+
+  if (fromLayoutAttr == toLayoutAttr) {
+    return 0;
   }
 
   return computeCostOfLayoutConversion(ciphertextSize, fromLayoutAttr,
@@ -388,7 +404,7 @@ std::vector<HoistOption> LayoutOptimization::computeHoistingOptions(
 
   auto hoisters = hoistableInterface.getHoisters(convertLayoutOp);
   LLVM_DEBUG(llvm::dbgs() << "Evaluating " << hoisters.size()
-                          << " hoisting options for " << *op << "\n");
+                          << " hoisting options for " << op->getName() << "\n");
 
   std::vector<HoistResult> results;
   for (auto& hoister : hoisters) {

@@ -35,8 +35,72 @@ namespace tensor_ext {
 // populateWithGenerated, which can conflict with other generated patterns.
 #include "lib/Dialect/TensorExt/IR/TensorExtCanonicalization.cpp.inc"
 
+template <typename T>
+static SmallVector<T> rotateAttrValues(SmallVector<T> elts, int64_t shift) {
+  SmallVector<T> newElts;
+  newElts.reserve(elts.size());
+  for (int i = 0; i < elts.size(); ++i) {
+    int64_t source = (i + shift + elts.size()) % elts.size();
+    newElts.push_back(elts[source]);
+  }
+  return newElts;
+}
+
+// tensor_ext.rotate (arith.constant dense) -> arith.constant (rotated dense)
+struct FoldRotateOfConst : public OpRewritePattern<tensor_ext::RotateOp> {
+  using OpRewritePattern::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(tensor_ext::RotateOp op,
+                                PatternRewriter& rewriter) const override {
+    auto constantOp = op.getTensor().getDefiningOp<arith::ConstantOp>();
+    if (!constantOp)
+      return rewriter.notifyMatchFailure(op, "requires constant operand");
+
+    // Could be smarter here by using SCCP analysis, though most cases will not
+    // need it because the shift will itself be SCCP'd to a constant.
+    Attribute shiftConst =
+        dyn_cast<Attribute>(getAsOpFoldResult(op.getShift()));
+    if (!shiftConst)
+      return rewriter.notifyMatchFailure(
+          op, "requires constant shift OpFoldResult");
+    int64_t shift = cast<IntegerAttr>(shiftConst).getInt();
+
+    arith::ConstantOp newOp;
+
+    DenseIntElementsAttr denseIntAttr =
+        dyn_cast<DenseIntElementsAttr>(constantOp.getValueAttr());
+    if (denseIntAttr) {
+      SmallVector<APInt> elts(denseIntAttr.getValues<APInt>());
+      SmallVector<APInt> newElts = rotateAttrValues<APInt>(elts, shift);
+      DenseIntElementsAttr newAttr =
+          DenseIntElementsAttr::get(denseIntAttr.getType(), newElts);
+      newOp = arith::ConstantOp::create(
+          rewriter, op.getLoc(), constantOp.getResult().getType(), newAttr);
+    }
+
+    DenseFPElementsAttr denseFloatAttr =
+        dyn_cast<DenseFPElementsAttr>(constantOp.getValueAttr());
+    if (denseFloatAttr) {
+      SmallVector<APFloat> elts(denseFloatAttr.getValues<APFloat>());
+      SmallVector<APFloat> newElts = rotateAttrValues<APFloat>(elts, shift);
+      DenseFPElementsAttr newAttr =
+          DenseFPElementsAttr::get(denseFloatAttr.getType(), newElts);
+      newOp = arith::ConstantOp::create(
+          rewriter, op.getLoc(), constantOp.getResult().getType(), newAttr);
+    }
+
+    if (!newOp)
+      return rewriter.notifyMatchFailure(
+          op, "requires constant operand with dense int or float attribute");
+
+    rewriter.replaceOp(op, newOp);
+    return success();
+  }
+};
+
 void RotateOp::getCanonicalizationPatterns(RewritePatternSet& results,
                                            MLIRContext* context) {
+  results.add<FoldRotateOfConst>(context);
   populateWithGenerated(results);
 }
 
@@ -52,35 +116,6 @@ LogicalResult verifyLayoutMatchesType(const Attribute& layoutAttr, Type type,
                                       Operation* op) {
   auto shapedType = dyn_cast<ShapedType>(type);
 
-  if (auto layout = dyn_cast<LayoutAttr>(layoutAttr)) {
-    int64_t startingRank = 0;
-    if (shapedType) {
-      startingRank = shapedType.getRank();
-    }
-
-    int64_t incRank = 0;
-    if (layout.getAlignment() && layout.getAlignment().getInsertedDims())
-      incRank = layout.getAlignment().getInsertedDims().size();
-
-    int64_t rank = startingRank + incRank;
-    if (rank != layout.getMap().getNumDims()) {
-      return op->emitOpError()
-             << "requires tensor rank (after alignment) to match the layout "
-                "map's dimension count but found rank "
-             << rank << " and layout " << layout;
-    }
-
-    if (layout.getAlignment() && layout.getAlignment().getOut()) {
-      if (layout.getAlignment().getOut().size() != rank) {
-        return op->emitOpError()
-               << "requires tensor rank (after alignment) to match the layout "
-                  "alignment's `out` parameter but `out` rank was "
-               << layout.getAlignment().getOut().size()
-               << " and tensor rank was " << rank;
-      }
-    }
-  }
-
   if (auto newLayout = dyn_cast<NewLayoutAttr>(layoutAttr)) {
     presburger::IntegerRelation rel = newLayout.getIntegerRelation();
     if (shapedType && rel.getNumDomainVars() != shapedType.getRank()) {
@@ -90,9 +125,10 @@ LogicalResult verifyLayoutMatchesType(const Attribute& layoutAttr, Type type,
              << shapedType.getRank() << " and domain size "
              << rel.getNumDomainVars();
     }
+    return success();
   }
 
-  return success();
+  return op->emitOpError("Unsupported layout attribute");
 }
 
 OpFoldResult ConvertLayoutOp::fold(FoldAdaptor adaptor) {

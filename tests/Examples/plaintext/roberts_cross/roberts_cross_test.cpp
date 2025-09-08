@@ -6,14 +6,14 @@
 #include "tests/llvm_runner/memref_types.h"
 
 extern "C" {
-void _mlir_ciface_roberts_cross(StridedMemRefType<int16_t>* result,
-                                StridedMemRefType<int16_t>* input);
+void _mlir_ciface_roberts_cross(StridedMemRefType<int16_t, 2>* result,
+                                StridedMemRefType<int16_t, 2>* input);
 
 void _mlir_ciface_roberts_cross__encrypt__arg0(
-    StridedMemRefType<int16_t>* result, StridedMemRefType<int16_t>* input);
+    StridedMemRefType<int16_t, 2>* result, StridedMemRefType<int16_t>* input);
 
 void _mlir_ciface_roberts_cross__decrypt__result0(
-    StridedMemRefType<int16_t>* result, StridedMemRefType<int16_t>* input);
+    StridedMemRefType<int16_t>* result, StridedMemRefType<int16_t, 2>* input);
 }
 
 TEST(RobertsCrossTest, Test1) {
@@ -43,11 +43,11 @@ TEST(RobertsCrossTest, Test1) {
     }
   }
 
-  StridedMemRefType<int16_t> encArg0;
+  StridedMemRefType<int16_t, 2> encArg0;
   StridedMemRefType<int16_t> input0 = {input, input, 0, 256, 1};
   _mlir_ciface_roberts_cross__encrypt__arg0(&encArg0, &input0);
 
-  StridedMemRefType<int16_t> memref;
+  StridedMemRefType<int16_t, 2> memref;
   _mlir_ciface_roberts_cross(&memref, &encArg0);
 
   StridedMemRefType<int16_t> decRes;

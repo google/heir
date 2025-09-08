@@ -84,6 +84,7 @@ cc_library(
         "@llvm-project//mlir:TensorDialect",
     ],
 )
+
 # TensorExt tablegen and headers
 
 td_library(

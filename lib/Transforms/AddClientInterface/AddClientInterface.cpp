@@ -166,7 +166,7 @@ LogicalResult generatePlaintextPackedFunc(func::FuncOp op,
   auto packFuncOp = func::FuncOp::create(builder, packFuncName, packFuncType);
 
   packFuncOp->setAttr(
-      "client_pack_func",
+      kClientPackFuncAttrName,
       builder.getDictionaryAttr({
           builder.getNamedAttr(kClientHelperFuncName,
                                builder.getStringAttr(op.getSymName())),

@@ -128,6 +128,13 @@ void addStructuralConversionPatterns(TypeConverter& typeConverter,
                                      RewritePatternSet& patterns,
                                      ConversionTarget& target);
 
+// Adds the standard set of conversion patterns for converting types involved
+// in tensor ops that don't depend on the logic of the dialect beyond the type
+// converter.
+void addTensorConversionPatterns(TypeConverter& typeConverter,
+                                 RewritePatternSet& patterns,
+                                 ConversionTarget& target);
+
 template <typename ArgType>
 FailureOr<Value> getArgOfType(func::FuncOp op) {
   for (auto blockArg : op.getArguments()) {
