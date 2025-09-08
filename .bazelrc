@@ -29,6 +29,7 @@ build:linux --linkopt="-fuse-ld=lld"
 # macos specific options
 # openmp is not supported in apple clang
 build:macos --//:enable_openmp=0
+build:macos --no@fuzztest//fuzztest:use_riegeli
 
 # MacOS arm64 config
 build:macos_arm64 --cpu=darwin_arm64
@@ -51,3 +52,5 @@ build:asan --copt -O1
 build:asan --copt -g
 build:asan --copt -fno-omit-frame-pointer
 build:asan --linkopt -fsanitize=address
+
+try-import %workspace%/fuzztest.bazelrc
