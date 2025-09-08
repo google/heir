@@ -3,17 +3,16 @@
 
 #include <cstdint>
 
-#include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
+#include "mlir/include/mlir/IR/Attributes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"       // from @llvm-project
 
 namespace mlir {
 namespace heir {
 
 using Cost = int64_t;
-using tensor_ext::LayoutAttr;
 
-// TODO(#2047) migrate to relation-based layout attr
 Cost computeCostOfLayoutConversion(Value value, int64_t slots,
-                                   LayoutAttr fromLayout, LayoutAttr toLayout);
+                                   Attribute fromLayout, Attribute toLayout);
 
 }  // namespace heir
 }  // namespace mlir
