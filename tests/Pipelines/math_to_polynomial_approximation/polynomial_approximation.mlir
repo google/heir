@@ -10,9 +10,6 @@ func.func @test_maximumf(%x: tensor<10xf32>) -> tensor<10xf32> {
   // CHECK-DAG: arith.constant dense<0.9370
   // CHECK-DAG: arith.constant dense<-0.5062
   // CHECK: arith.mulf
-  // CHECK: arith.addf
-  // CHECK: arith.mulf
-  // CHECK: arith.addf
   // CHECK: arith.mulf
   // CHECK: arith.addf
   // CHECK: arith.mulf

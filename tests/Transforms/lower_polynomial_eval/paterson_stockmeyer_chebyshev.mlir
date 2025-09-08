@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --lower-polynomial-eval=method=pscheb --min-coefficient-threshold=1e-15 | FileCheck %s
+// RUN: heir-opt %s --lower-polynomial-eval="method=pscheb min-coefficient-threshold=1e-15" | FileCheck %s
 
 !poly_ty = !polynomial.polynomial<ring=<coefficientType=f64>>
 // This corresponds to a degree-10 ReLU approximation
