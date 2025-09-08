@@ -101,7 +101,7 @@ class ConvertFromElementsOp
       tensor::FromElementsOp op, OneToNOpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     // Conversion has no Conversion-level illegality handling
-    if (typeConverter->isLegal(op)) return failure();
+    if (typeConverter->isLegal(op.getOperation())) return failure();
     // This pass only operates on tensors of static shape,
     // but no check is necessary here as from_elements' shape is always static
     // Replace the current op with the flattened operands.
@@ -119,7 +119,7 @@ class ConvertInsertOp : public OpConversionPattern<tensor::InsertOp> {
       tensor::InsertOp op, OneToNOpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     // Conversion has no Conversion-level illegality handling
-    if (typeConverter->isLegal(op)) return failure();
+    if (typeConverter->isLegal(op.getOperation())) return failure();
 
     // This pass only operates on tensors of static shape
     if (!op.getResult().getType().hasStaticShape()) return failure();
@@ -155,7 +155,7 @@ class ConvertExtractOp : public OpConversionPattern<tensor::ExtractOp> {
       tensor::ExtractOp op, OneToNOpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     // Conversion has no Conversion-level illegality handling
-    if (typeConverter->isLegal(op)) return failure();
+    if (typeConverter->isLegal(op.getOperation())) return failure();
 
     // This pass only operates on tensors of static shape
     if (!op.getTensor().getType().hasStaticShape()) return failure();
@@ -191,7 +191,7 @@ class ConvertConstantOp : public OpConversionPattern<arith::ConstantOp> {
       arith::ConstantOp op, OneToNOpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     // Conversion has no Conversion-level illegality handling
-    if (typeConverter->isLegal(op)) return failure();
+    if (typeConverter->isLegal(op.getOperation())) return failure();
 
     RankedTensorType tensorType = dyn_cast<RankedTensorType>(op.getType());
     if (!tensorType) {
@@ -245,8 +245,9 @@ struct TensorToScalars : impl::TensorToScalarsBase<TensorToScalars> {
       return typeConverter.isSignatureLegal(op.getFunctionType()) &&
              typeConverter.isLegal(&op.getBody());
     });
-    target.addDynamicallyLegalOp<arith::ConstantOp>(
-        [&](arith::ConstantOp op) { return typeConverter.isLegal(op); });
+    target.addDynamicallyLegalOp<arith::ConstantOp>([&](arith::ConstantOp op) {
+      return typeConverter.isLegal(op.getOperation());
+    });
     target.addDynamicallyLegalDialect<func::FuncDialect, scf::SCFDialect>(
         [&](Operation* op) { return typeConverter.isLegal(op); });
     RewritePatternSet patterns(context);
