@@ -13,12 +13,6 @@ namespace heir {
 // particular, by the pattern to lower AssignLayoutOp, which is also reused in
 // add-lwe-client-interface.
 
-Type materializeScalarLayout(Type type, tensor_ext::LayoutAttr attr,
-                             int ciphertextSize);
-
-Type materializeLayout(RankedTensorType type, tensor_ext::LayoutAttr attr,
-                       int ciphertextSize);
-
 Type materializeScalarNewLayout(Type type, tensor_ext::NewLayoutAttr attr,
                                 int ciphertextSize);
 

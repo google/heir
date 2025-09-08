@@ -19,8 +19,8 @@ using Cost = int64_t;
 static constexpr int kUnset = -1;
 
 SmallVector<int64_t> createPermutation(Value value, int64_t slots,
-                                       tensor_ext::LayoutAttr fromLayout,
-                                       tensor_ext::LayoutAttr toLayout) {
+                                       Attribute fromLayout,
+                                       Attribute toLayout) {
   Type dataSemanticType = value.getType();
   SmallVector<int64_t> permutation(slots, kUnset);
 
@@ -36,6 +36,7 @@ SmallVector<int64_t> createPermutation(Value value, int64_t slots,
         [&](const std::vector<int64_t>& indices) {
           SmallVector<int64_t> fromResults;
           SmallVector<int64_t> toResults;
+          // FIXME: convert to relation-based
           evaluateStatic(fromLayout.getMap(), indices, fromResults);
           evaluateStatic(toLayout.getMap(), indices, toResults);
           int64_t input =
@@ -73,8 +74,7 @@ SmallVector<int64_t> createPermutation(Value value, int64_t slots,
 }
 
 Cost computeCostOfLayoutConversion(Value value, int64_t slots,
-                                   tensor_ext::LayoutAttr fromLayout,
-                                   tensor_ext::LayoutAttr toLayout) {
+                                   Attribute fromLayout, Attribute toLayout) {
   if (fromLayout == toLayout) {
     LLVM_DEBUG(llvm::dbgs() << "Layouts are the same, conversion cost is 0\n";);
     return 0;
