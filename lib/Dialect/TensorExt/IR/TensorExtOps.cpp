@@ -59,35 +59,6 @@ LogicalResult verifyLayoutMatchesType(const Attribute& layoutAttr, Type type,
                                       Operation* op) {
   auto shapedType = dyn_cast<ShapedType>(type);
 
-  if (auto layout = dyn_cast<LayoutAttr>(layoutAttr)) {
-    int64_t startingRank = 0;
-    if (shapedType) {
-      startingRank = shapedType.getRank();
-    }
-
-    int64_t incRank = 0;
-    if (layout.getAlignment() && layout.getAlignment().getInsertedDims())
-      incRank = layout.getAlignment().getInsertedDims().size();
-
-    int64_t rank = startingRank + incRank;
-    if (rank != layout.getMap().getNumDims()) {
-      return op->emitOpError()
-             << "requires tensor rank (after alignment) to match the layout "
-                "map's dimension count but found rank "
-             << rank << " and layout " << layout;
-    }
-
-    if (layout.getAlignment() && layout.getAlignment().getOut()) {
-      if (layout.getAlignment().getOut().size() != rank) {
-        return op->emitOpError()
-               << "requires tensor rank (after alignment) to match the layout "
-                  "alignment's `out` parameter but `out` rank was "
-               << layout.getAlignment().getOut().size()
-               << " and tensor rank was " << rank;
-      }
-    }
-  }
-
   if (auto newLayout = dyn_cast<NewLayoutAttr>(layoutAttr)) {
     presburger::IntegerRelation rel = newLayout.getIntegerRelation();
     if (shapedType && rel.getNumDomainVars() != shapedType.getRank()) {
@@ -97,9 +68,10 @@ LogicalResult verifyLayoutMatchesType(const Attribute& layoutAttr, Type type,
              << shapedType.getRank() << " and domain size "
              << rel.getNumDomainVars();
     }
+    return success();
   }
 
-  return success();
+  return op->emitOpError("Unsupported layout attribute");
 }
 
 OpFoldResult ConvertLayoutOp::fold(FoldAdaptor adaptor) {

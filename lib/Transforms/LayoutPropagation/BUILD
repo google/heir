@@ -8,33 +8,6 @@ package(
 )
 
 cc_library(
-    name = "LayoutPropagation",
-    srcs = ["LayoutPropagation.cpp"],
-    hdrs = ["LayoutPropagation.h"],
-    deps = [
-        ":Utils",
-        ":pass_inc_gen",
-        "@heir//lib/Analysis/SecretnessAnalysis",
-        "@heir//lib/Dialect/Secret/IR:Dialect",
-        "@heir//lib/Dialect/TensorExt/IR:Dialect",
-        "@heir//lib/Utils:AffineMapUtils",
-        "@heir//lib/Utils:AttributeUtils",
-        "@heir//lib/Utils:MathUtils",
-        "@llvm-project//llvm:Support",
-        "@llvm-project//mlir:AffineDialect",
-        "@llvm-project//mlir:Analysis",
-        "@llvm-project//mlir:ArithDialect",
-        "@llvm-project//mlir:FuncDialect",
-        "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:LinalgDialect",
-        "@llvm-project//mlir:LinalgInterfaces",
-        "@llvm-project//mlir:Pass",
-        "@llvm-project//mlir:Support",
-        "@llvm-project//mlir:TensorDialect",
-    ],
-)
-
-cc_library(
     name = "NewLayoutPropagation",
     srcs = ["NewLayoutPropagation.cpp"],
     hdrs = ["NewLayoutPropagation.h"],
@@ -104,12 +77,6 @@ cc_test(
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
     ],
-)
-
-add_heir_transforms(
-    generated_target_name = "pass_inc_gen",
-    pass_name = "LayoutPropagation",
-    td_file = "LayoutPropagation.td",
 )
 
 add_heir_transforms(

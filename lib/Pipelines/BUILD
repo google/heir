@@ -126,7 +126,6 @@ cc_library(
         "@heir//lib/Transforms/GenerateParam",
         "@heir//lib/Transforms/InlineActivations",
         "@heir//lib/Transforms/LayoutOptimization",
-        "@heir//lib/Transforms/LayoutPropagation",
         "@heir//lib/Transforms/LayoutPropagation:NewLayoutPropagation",
         "@heir//lib/Transforms/LinalgCanonicalizations",
         "@heir//lib/Transforms/MemrefToArith:MemrefToArithRegistration",
