@@ -50,7 +50,7 @@ def lit_to_doc(
   """
   lit_test_file = normalize_lit_test_file_arg(lit_test_file)
   mlir_input = get_doctest_input(lit_test_file)
-  command = get_command_without_bazel_prefix(lit_test_file, git_root)
+  command = get_command_without_bazel_prefix(lit_test_file)
   command = command.replace("%s", lit_test_file)
 
   if not is_command_executable("heir-opt"):

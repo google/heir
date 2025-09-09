@@ -1,4 +1,8 @@
-from scripts.lit_to_bazel import convert_to_run_commands, PIPE
+from scripts.lit_to_bazel import (
+    convert_to_run_commands,
+    normalize_lit_test_file_arg,
+    PIPE,
+)
 
 
 def test_convert_to_run_commands_simple():
@@ -82,3 +86,21 @@ def test_convert_to_run_commands_with_multiple_pipes():
       PIPE,
       "FileCheck %s",
   ]
+
+
+def test_normalize_lit_test_file_arg():
+  inputs = [
+      # no change
+      "tests/Transforms/convert_to_ciphertext_semantics/tensor_extract.mlir",
+      # bazel test target
+      "//tests/Transforms/convert_to_ciphertext_semantics:tensor_extract.mlir.test",
+      # No // prefix
+      "tests/Transforms/convert_to_ciphertext_semantics:tensor_extract.mlir.test",
+  ]
+  expected = (
+      "tests/Transforms/convert_to_ciphertext_semantics/tensor_extract.mlir"
+  )
+
+  for input in inputs:
+    actual = normalize_lit_test_file_arg(input)
+    assert actual == expected

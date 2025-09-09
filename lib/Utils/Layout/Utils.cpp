@@ -299,16 +299,15 @@ presburger::IntegerRelation expandDimensions(
   return std::move(*clonedRelation);
 }
 
-presburger::IntegerRelation fixDataIndices(
-    const presburger::IntegerRelation& relation,
-    ArrayRef<int64_t> fixedIndices) {
+presburger::IntegerRelation fixVars(const presburger::IntegerRelation& relation,
+                                    ArrayRef<int64_t> fixedValues,
+                                    presburger::VarKind varKind) {
   std::unique_ptr<IntegerRelation> rel = relation.clone();
 
-  // One constraint for each fixed index.
-  for (auto [dim, value] : llvm::enumerate(fixedIndices)) {
-    assert(value >= 0 && "invalid negative fixed index value");
+  // One constraint for each fixed variable
+  for (auto [dim, value] : llvm::enumerate(fixedValues)) {
     SmallVector<int64_t> constraint(relation.getNumCols(), 0);
-    constraint[dim] = 1;
+    constraint[dim + relation.getVarKindOffset(varKind)] = 1;
     constraint.back() = -value;
     rel->addEquality(constraint);
   }
@@ -326,7 +325,7 @@ isl_stat pointCallback(__isl_take isl_point* pnt, void* user) {
   int dim = isl_space_dim(space, isl_dim_set);
   isl_space_free(space);
 
-  std::vector<int> point(dim);
+  std::vector<int64_t> point(dim);
 
   for (int i = 0; i < dim; i++) {
     isl_val* coord = isl_point_get_coordinate_val(pnt, isl_dim_set, i);
@@ -347,6 +346,35 @@ void getRangePoints(const presburger::IntegerRelation& relation,
   isl_set* set = isl_set_from_basic_set(isl_basic_map_range(bmap));
   isl_set_foreach_point(set, &pointCallback, &collector);
   isl_set_free(set);
+}
+
+std::vector<int64_t> anyRangePoint(
+    const presburger::IntegerRelation& relation) {
+  isl_ctx* ctx = isl_ctx_alloc();
+  auto* bmap = convertRelationToBasicMap(relation, ctx);
+  isl_basic_set* bset = isl_basic_map_range(bmap);
+  isl_point* point = isl_basic_set_sample_point(bset);
+
+  if (!point) {
+    return {};
+  }
+
+  isl_space* space = isl_point_get_space(point);
+  int dim = isl_space_dim(space, isl_dim_set);
+  isl_space_free(space);
+  std::vector<int64_t> result;
+  result.reserve(dim);
+  for (int i = 0; i < dim; i++) {
+    isl_val* coord = isl_point_get_coordinate_val(point, isl_dim_set, i);
+    if (isl_val_is_int(coord)) {
+      result.push_back(isl_val_get_num_si(coord));
+    }
+    isl_val_free(coord);
+  }
+  isl_point_free(point);
+  isl_ctx_free(ctx);
+
+  return result;
 }
 
 }  // namespace heir

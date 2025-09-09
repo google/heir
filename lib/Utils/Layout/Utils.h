@@ -71,19 +71,35 @@ presburger::IntegerRelation expandDimensions(
     const presburger::IntegerRelation& relation, RankedTensorType resultType,
     ArrayRef<ReassociationIndices> reassociation);
 
-// Returns a new relation produced by constraining the data index dimensions of
-// the given relation to the provided values.
+// Returns a new relation produced by constraining the index dimensions of type
+// varKind to the given relation to the provided values.
+// The fixedValues array size should equal the number of variables of type
+// varKind.
+presburger::IntegerRelation fixVars(const presburger::IntegerRelation& relation,
+                                    ArrayRef<int64_t> fixedValues,
+                                    presburger::VarKind varKind);
+
+// Returns a new relation produced by constraining the domain variables of the
+// given relation to the provided values.
 //
-// The fixedIndices array should have size equal to the number of domain
+// The fixedValues array should have size equal to the number of domain
 // variables in the same order as `relation`. This generally should align with
 // the order of the dimensions of the RankedTensorType this relation is laying
 // out.
-presburger::IntegerRelation fixDataIndices(
+inline presburger::IntegerRelation fixDomainVars(
     const presburger::IntegerRelation& relation,
-    ArrayRef<int64_t> fixedIndices);
+    ArrayRef<int64_t> fixedValues) {
+  return fixVars(relation, fixedValues, presburger::VarKind::Domain);
+}
+
+inline presburger::IntegerRelation fixRangeVars(
+    const presburger::IntegerRelation& relation,
+    ArrayRef<int64_t> fixedValues) {
+  return fixVars(relation, fixedValues, presburger::VarKind::Range);
+}
 
 struct PointCollector {
-  std::vector<std::vector<int>> points;
+  std::vector<std::vector<int64_t>> points;
   isl_ctx* ctx;
 
   PointCollector() { ctx = isl_ctx_alloc(); }
@@ -99,6 +115,9 @@ struct PointCollector {
 // possible values.
 void getRangePoints(const presburger::IntegerRelation& relation,
                     PointCollector& collector);
+
+// Sample a point in the range of the relation.
+std::vector<int64_t> anyRangePoint(const presburger::IntegerRelation& relation);
 
 }  // namespace heir
 }  // namespace mlir
