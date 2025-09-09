@@ -44,7 +44,7 @@ void runTest(RankedTensorType tensorType, int64_t numSlots) {
   }
 }
 
-TEST(ModConstraintTest, TestAddModConstraint) {
+TEST(UtilsTest, TestAddModConstraint) {
   MLIRContext context;
 
   IntegerRelation rel =
@@ -150,6 +150,16 @@ TEST(UtilsTest, SquatDiagonalLayout) {
       }
     }
   }
+}
+
+TEST(UtilsTest, TestGetPointsInRelation) {
+  MLIRContext context;
+  IntegerRelation rel =
+      relationFromString("(x) : (x >= 0, 7 >= x, x mod 3 == 0)", 0, &context);
+  std::vector<std::vector<int>> expected = {{0}, {3}, {6}};
+  PointCollector collector;
+  getRangePoints(rel, collector);
+  EXPECT_EQ(collector.points, expected);
 }
 
 }  // namespace

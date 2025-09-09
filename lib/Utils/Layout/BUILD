@@ -60,7 +60,9 @@ cc_library(
     srcs = ["Utils.cpp"],
     hdrs = ["Utils.h"],
     deps = [
+        ":IslConversion",
         "@heir//lib/Utils:MathUtils",
+        "@isl",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithUtils",
         "@llvm-project//mlir:IR",

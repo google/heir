@@ -8,12 +8,16 @@
 #include "mlir/include/mlir/IR/BuiltinTypes.h"            // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"               // from @llvm-project
 
+// ISL
+#include "include/isl/ctx.h"  // from @isl
+#include "include/isl/map.h"  // from @isl
+
 namespace mlir {
 namespace heir {
 
 // Adds a new local variable q to the relation that represents expr % modulus.
 // Returns the index of the new local variable in the relation.
-unsigned int addModConstraint(presburger::IntegerRelation& result,
+unsigned int addModConstraint(presburger::IntegerRelation &result,
                               ArrayRef<int64_t> exprs, int64_t modulus);
 
 // Returns an IntegerRelation that enforces a row-major layout for the given
@@ -34,28 +38,57 @@ presburger::IntegerRelation getDiagonalLayoutRelation(
 // matrix type and ciphertext semantic shape.
 bool isRelationSquatDiagonal(RankedTensorType matrixType,
                              int64_t ciphertextSize,
-                             presburger::IntegerRelation relation);
+                             const presburger::IntegerRelation &relation);
 
 // Returns true if the given relation is a row-major layout for the given
 // vector type and slot size.
 bool isRelationRowMajor(RankedTensorType vectorType, int64_t numSlots,
-                        presburger::IntegerRelation relation);
+                        const presburger::IntegerRelation &relation);
 
 // Returns a new IntegerRelation that is the same as the given relation, but
 // with the given dimensions collapsed. This expects that the reassociation
 // indices result in a rank-reduction of the source type (i.e. the collapsed
 // dimensions are all unit dimensions).
 presburger::IntegerRelation collapseDimensions(
-    presburger::IntegerRelation relation, RankedTensorType sourceType,
-    SmallVector<ReassociationIndices> reassociation);
+    const presburger::IntegerRelation &relation, RankedTensorType sourceType,
+    ArrayRef<ReassociationIndices> reassociation);
 
 // Returns a new IntegerRelation that is the same as the given relation, but
 // with the given dimensions expanded. This expects that the reassociation
 // indices result in a rank-expansion of the result type (i.e. the expanded
 // dimensions are all unit dimensions).
 presburger::IntegerRelation expandDimensions(
-    presburger::IntegerRelation relation, RankedTensorType resultType,
-    SmallVector<ReassociationIndices> reassociation);
+    const presburger::IntegerRelation &relation, RankedTensorType resultType,
+    ArrayRef<ReassociationIndices> reassociation);
+
+// Returns a new relation produced by constraining the data index dimensions of
+// the given relation to the provided values.
+//
+// The fixedIndices array should have size equal to the number of domain
+// variables in the same order as `relation`. This generally should align with
+// the order of the dimensions of the RankedTensorType this relation is laying
+// out.
+presburger::IntegerRelation fixDataIndices(
+    const presburger::IntegerRelation &relation,
+    ArrayRef<int64_t> fixedIndices);
+
+struct PointCollector {
+  std::vector<std::vector<int>> points;
+  isl_ctx *ctx;
+
+  PointCollector() { ctx = isl_ctx_alloc(); }
+
+  ~PointCollector() { isl_ctx_free(ctx); }
+
+  // Delete copy constructor and assignment to avoid double-free
+  PointCollector(const PointCollector &) = delete;
+  PointCollector &operator=(const PointCollector &) = delete;
+};
+
+// Get a list of points in the range of the relation by enumerating all
+// possible values.
+void getRangePoints(const presburger::IntegerRelation &relation,
+                    PointCollector &collector);
 
 }  // namespace heir
 }  // namespace mlir

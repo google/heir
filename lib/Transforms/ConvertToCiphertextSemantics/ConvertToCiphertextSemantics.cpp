@@ -26,6 +26,7 @@
 #include "lib/Utils/ContextAwareConversionUtils.h"
 #include "lib/Utils/ContextAwareDialectConversion.h"
 #include "lib/Utils/ContextAwareTypeConversion.h"
+#include "lib/Utils/Layout/Codegen.h"
 #include "lib/Utils/Layout/Utils.h"
 #include "lib/Utils/MathUtils.h"
 #include "lib/Utils/TransformUtils.h"
@@ -69,10 +70,12 @@ namespace mlir {
 namespace heir {
 
 namespace {
-using ::mlir::heir::kernel::ArithmeticDagNode;
-using ::mlir::heir::kernel::implementHaleviShoup;
-using ::mlir::heir::kernel::IRMaterializingVisitor;
-using ::mlir::heir::kernel::SSAValue;
+using kernel::ArithmeticDagNode;
+using kernel::implementHaleviShoup;
+using kernel::IRMaterializingVisitor;
+using kernel::SSAValue;
+using presburger::IntegerRelation;
+using presburger::VarKind;
 using tensor_ext::LayoutAttr;
 using tensor_ext::NewLayoutAttr;
 
@@ -1140,13 +1143,18 @@ class ConvertTensorInsert
       setMaterializedAttr(op);
       return success();
     }
-    LayoutAttr tensorLayout = cast<LayoutAttr>(tensorLayoutResult.value());
     FailureOr<Attribute> resultLayoutResult =
         getTypeConverter()->getContextualAttr(op.getResult());
     if (failed(resultLayoutResult)) {
       return op.emitError() << "failed to fetch layout attribute for input";
     }
-    LayoutAttr resultLayout = cast<LayoutAttr>(resultLayoutResult.value());
+
+    LayoutAttr tensorLayout = dyn_cast<LayoutAttr>(tensorLayoutResult.value());
+    LayoutAttr resultLayout = dyn_cast<LayoutAttr>(resultLayoutResult.value());
+
+    if (!tensorLayout || !resultLayout) {
+      return failure();  // code will be deleted soon, no need to give message
+    }
 
     // The indices at which to insert must be materialized via the layout
     // mapping, which corresponds to inserting an affine.apply.
@@ -1222,6 +1230,337 @@ class ConvertTensorInsert
         {applyOp, zero, scalarMul, rotateOp, destMul, finalAdd});
     setAttributeAssociatedWith(result, kLayoutAttrName, resultLayout);
     rewriter.replaceOp(op, result);
+    return success();
+  }
+};
+
+class ConvertTensorInsertNewLayout
+    : public ContextAwareOpConversionPattern<tensor::InsertOp> {
+ public:
+  using ContextAwareOpConversionPattern<
+      tensor::InsertOp>::ContextAwareOpConversionPattern;
+
+  // A helper to create two masks for the case of tensor.insert a cleartext
+  // into a ciphertext when the insertion indices are statically known. The
+  // scalarMaskValue is the value inserted into the plaintext mask.
+  //
+  // Returns a pair of scalarMask and destMask.
+  std::pair<Value, Value> createMasksFromStaticIndices(
+      NewLayoutAttr destLayout, ArrayRef<int64_t> staticIndices,
+      tensor::InsertOp op, OpAdaptor adaptor, Value scalarMaskValue,
+      ImplicitLocOpBuilder& b) const {
+    IntegerRelation destRel = destLayout.getIntegerRelation();
+    IntegerRelation fixedRel = fixDataIndices(destRel, staticIndices);
+    fixedRel.projectOut(destRel.getVarKindOffset(VarKind::Domain),
+                        destRel.getNumDomainVars());
+
+    // Now create a pre-masked packed plainext that has zeros in all but those
+    // slots of dest's ciphertext-semantic tensor that the scalar should be
+    // "inserted" into. The nonzero slots contain repeated copies of the scalar
+    // value.
+    RankedTensorType ciphertextSemanticType =
+        cast<RankedTensorType>(adaptor.getDest().getType());
+
+    arith::ConstantOp zeroTensorOp = arith::ConstantOp::create(
+        b, ciphertextSemanticType, b.getZeroAttr(ciphertextSemanticType));
+    arith::ConstantOp zeroScalarOp = arith::ConstantOp::create(
+        b, ciphertextSemanticType.getElementType(),
+        b.getZeroAttr(ciphertextSemanticType.getElementType()));
+    arith::ConstantOp oneOp = arith::ConstantOp::create(
+        b, ciphertextSemanticType, b.getOneAttr(ciphertextSemanticType));
+
+    // collector.points contains all (ciphertext, slot) pairs that correspond
+    // to the locations the scalar should be inserted into.
+    PointCollector collector;
+    getRangePoints(fixedRel, collector);
+
+    // Iterate over all these points, and for the plaintext mask insert a copy
+    // of the scalar, while for the dest mask insert a zero.
+    Value scalarMask = zeroTensorOp.getResult();
+    Value destMask = oneOp.getResult();
+    for (const auto& point : collector.points) {
+      SmallVector<Value> indexCsts;
+      for (int64_t v : point) {
+        auto cst = arith::ConstantIndexOp::create(b, v);
+        indexCsts.push_back(cst);
+        setMaterializedAttr(cst);
+      }
+
+      // Here the scalarMaskValue can be an actual scalar (in the case of a
+      // cleartext scalar) or a 1 (in the case of a secret scalar, so that the
+      // resulting mask requires an extra mul).
+      auto insertIntoScalarMask =
+          tensor::InsertOp::create(b, scalarMaskValue, scalarMask, indexCsts);
+      auto insertIntoDestMask =
+          tensor::InsertOp::create(b, zeroScalarOp, destMask, indexCsts);
+      scalarMask = insertIntoScalarMask.getResult();
+      destMask = insertIntoDestMask.getResult();
+      setMaterializedAttr({insertIntoScalarMask, insertIntoDestMask});
+    }
+
+    setMaterializedAttr({zeroTensorOp, zeroScalarOp, oneOp});
+    return {scalarMask, destMask};
+  }
+
+  // A helper to create two masks for the case of tensor.insert a cleartext
+  // into a ciphertext when the insertion indices are not known statically.
+  // The scalarMaskValue is the value inserted into the plaintext mask.
+  //
+  // Returns a pair of scalarMask and destMask.
+  std::pair<Value, Value> createMasksFromDynamicIndices(
+      NewLayoutAttr destLayout, tensor::InsertOp op, OpAdaptor adaptor,
+      Value scalarMaskValue, ImplicitLocOpBuilder& b) const {
+    IntegerRelation destRel = destLayout.getIntegerRelation();
+    // Here we need to loop over the relation in the same manner as we do
+    // codegen for assign_layout, but insert mask entries instead of copying
+    // from a data tensor.
+    RankedTensorType ciphertextSemanticType =
+        cast<RankedTensorType>(adaptor.getDest().getType());
+
+    arith::ConstantOp zeroTensorOp = arith::ConstantOp::create(
+        b, ciphertextSemanticType, b.getZeroAttr(ciphertextSemanticType));
+    arith::ConstantOp zeroScalarOp = arith::ConstantOp::create(
+        b, ciphertextSemanticType.getElementType(),
+        b.getZeroAttr(ciphertextSemanticType.getElementType()));
+    arith::ConstantOp oneOp = arith::ConstantOp::create(
+        b, ciphertextSemanticType, b.getOneAttr(ciphertextSemanticType));
+
+    Value scalarMask = zeroTensorOp.getResult();
+    Value destMask = oneOp.getResult();
+
+    MLIRLoopNestGenerator generator(b);
+    auto loop = generator.generateForLoop(
+        destRel, {scalarMask, destMask},
+        [&](OpBuilder& builder, Location loc, ValueRange exprs,
+            ValueRange iterArgs) {
+          Value curScalarMask = iterArgs[0];
+          Value curDestMask = iterArgs[1];
+
+          SmallVector<Value> indices;
+          for (int i = destRel.getVarKindOffset(VarKind::Range);
+               i < destRel.getVarKindOffset(VarKind::Range) +
+                       destRel.getNumRangeVars();
+               ++i) {
+            indices.push_back(exprs[i]);
+          }
+
+          // If statement to check that the current set of exprs matches
+          // the dynamic insertion indices.
+          Value exprsMatchIndices;
+
+          // conjunction over all exprs[i] == indices[i] where i is a domain
+          // variable.
+          int domainStart = destRel.getVarKindOffset(VarKind::Domain);
+          for (int i = domainStart;
+               i < domainStart + destRel.getNumDomainVars(); ++i) {
+            auto eqOp =
+                arith::CmpIOp::create(b, arith::CmpIPredicate::eq, exprs[i],
+                                      adaptor.getIndices()[i - domainStart]);
+            setMaterializedAttr(eqOp);
+
+            if (i == domainStart) {
+              exprsMatchIndices = eqOp.getResult();
+            } else {
+              auto andOp =
+                  arith::AndIOp::create(b, exprsMatchIndices, eqOp.getResult());
+              exprsMatchIndices = andOp.getResult();
+              setMaterializedAttr(andOp);
+            }
+          }
+
+          auto ifOp = scf::IfOp::create(
+              b, exprsMatchIndices,
+              /*thenBuilder=*/
+              [&](OpBuilder& builder, Location loc) {
+                auto insertIntoScalarMask = tensor::InsertOp::create(
+                    b, scalarMaskValue, curScalarMask, indices);
+                auto insertIntoDestMask = tensor::InsertOp::create(
+                    b, zeroScalarOp, curDestMask, indices);
+                setMaterializedAttr({insertIntoScalarMask, insertIntoDestMask});
+                scf::YieldOp::create(
+                    b, loc, {insertIntoScalarMask, insertIntoDestMask});
+              },
+              /*elseBuilder=*/
+              [&](OpBuilder& builder, Location loc) {
+                // No-op, just scf.yield the current masks
+                scf::YieldOp::create(b, loc, {curScalarMask, curDestMask});
+              });
+
+          // Here the scalarMaskValue can be an actual scalar (in the case of
+          // a cleartext scalar) or a 1 (in the case of a secret scalar, so
+          // that the resulting mask requires an extra mul).
+          return scf::ValueVector(ifOp.getResults());
+        });
+    if (failed(loop)) {
+      op.emitError() << "Failed to generate loop nest for layout "
+                     << destLayout;
+      return {Value(), Value()};
+    }
+
+    setMaterializedAttr({zeroTensorOp, zeroScalarOp, oneOp, loop.value()});
+    return {loop.value().getResults()[0], loop.value().getResults()[1]};
+  }
+
+  LogicalResult cleartextScalarSecretTensor(
+      tensor::InsertOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const {
+    NewLayoutAttr destLayout = cast<NewLayoutAttr>(
+        getTypeConverter()->getContextualAttr(adaptor.getDest()).value());
+
+    Value scalarMask;
+    Value destMask;
+
+    SmallVector<Value> indices(op.getIndices());
+    auto staticIndicesResult = getConstantIntValues(getAsOpFoldResult(indices));
+    RankedTensorType ciphertextSemanticType =
+        cast<RankedTensorType>(adaptor.getDest().getType());
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    if (staticIndicesResult.has_value()) {
+      SmallVector<int64_t> staticIndices = staticIndicesResult.value();
+      std::pair<Value, Value> results = createMasksFromStaticIndices(
+          destLayout, staticIndices, op, adaptor, adaptor.getScalar(), b);
+      scalarMask = results.first;
+      destMask = results.second;
+    } else {
+      std::pair<Value, Value> results = createMasksFromDynamicIndices(
+          destLayout, op, adaptor, adaptor.getScalar(), b);
+      scalarMask = results.first;
+      destMask = results.second;
+    }
+
+    // Mask the dest with the destMask, then add the result to the
+    // scalarMask
+    StringRef mulOpName =
+        isa<IntegerType>(ciphertextSemanticType.getElementType())
+            ? "arith.muli"
+            : "arith.mulf";
+    StringRef addOpName =
+        isa<IntegerType>(ciphertextSemanticType.getElementType())
+            ? "arith.addi"
+            : "arith.addf";
+
+    Operation* destMul = b.create(OperationState(op.getLoc(), mulOpName,
+                                                 {destMask, adaptor.getDest()},
+                                                 {ciphertextSemanticType}));
+    Operation* finalAdd = b.create(OperationState(
+        op.getLoc(), addOpName, {scalarMask, destMul->getResult(0)},
+        {ciphertextSemanticType}));
+    Value result = finalAdd->getResult(0);
+    setMaterializedAttr({destMul, finalAdd});
+    setAttributeAssociatedWith(result, kLayoutAttrName, destLayout);
+    rewriter.replaceOp(op, result);
+    return success();
+  }
+
+  LogicalResult secretScalarSecretTensor(
+      tensor::InsertOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const {
+    FailureOr<Attribute> scalarLayoutResult =
+        getTypeConverter()->getContextualAttr(adaptor.getScalar());
+    FailureOr<Attribute> destLayoutResult =
+        getTypeConverter()->getContextualAttr(adaptor.getDest());
+
+    NewLayoutAttr scalarLayout =
+        dyn_cast<NewLayoutAttr>(scalarLayoutResult.value());
+    NewLayoutAttr destLayout =
+        dyn_cast<NewLayoutAttr>(destLayoutResult.value());
+
+    // Initial support for this kernel requires the sizes of the range to match
+    IntegerRelation scalarRel = scalarLayout.getIntegerRelation();
+    IntegerRelation destRel = destLayout.getIntegerRelation();
+    if (!scalarRel.getRangeSet().isEqual(destRel.getRangeSet())) {
+      return op.emitError()
+             << "tensor.insert requires scalar and tensor layout to match, but "
+                "got scalar layout "
+             << scalarLayout << " and tensor layout " << destLayout << "\n";
+    }
+
+    Value scalarMask;
+    Value destMask;
+
+    SmallVector<Value> indices(op.getIndices());
+    auto staticIndicesResult = getConstantIntValues(getAsOpFoldResult(indices));
+    RankedTensorType ciphertextSemanticType =
+        cast<RankedTensorType>(adaptor.getDest().getType());
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    // In the cleartextScalar case, we inserted the scalar value directly in
+    // the slots of the plaintext mask. Here we insert a 1, and then multiply
+    // the resulting mask by the packed scalar ciphertext.
+    Value scalarOne = arith::ConstantOp::create(
+        b, ciphertextSemanticType.getElementType(),
+        b.getOneAttr(ciphertextSemanticType.getElementType()));
+
+    if (staticIndicesResult.has_value()) {
+      SmallVector<int64_t> staticIndices = staticIndicesResult.value();
+      std::pair<Value, Value> results = createMasksFromStaticIndices(
+          destLayout, staticIndices, op, adaptor, scalarOne, b);
+      scalarMask = results.first;
+      destMask = results.second;
+    } else {
+      std::pair<Value, Value> results =
+          createMasksFromDynamicIndices(destLayout, op, adaptor, scalarOne, b);
+      scalarMask = results.first;
+      destMask = results.second;
+    }
+
+    // Mask the scalarMask with the packed scalar. Mask the dest with the
+    // destMask, then add the two results.
+    StringRef mulOpName =
+        isa<IntegerType>(ciphertextSemanticType.getElementType())
+            ? "arith.muli"
+            : "arith.mulf";
+    StringRef addOpName =
+        isa<IntegerType>(ciphertextSemanticType.getElementType())
+            ? "arith.addi"
+            : "arith.addf";
+
+    // Mul the masks to the respective ciphertexts
+    Operation* scalarMul = b.create(OperationState(
+        op.getLoc(), mulOpName, {scalarMask, adaptor.getScalar()},
+        {ciphertextSemanticType}));
+    Operation* destMul = b.create(OperationState(op.getLoc(), mulOpName,
+                                                 {destMask, adaptor.getDest()},
+                                                 {ciphertextSemanticType}));
+    Operation* finalAdd = b.create(
+        OperationState(op.getLoc(), addOpName,
+                       {scalarMul->getResult(0), destMul->getResult(0)},
+                       {ciphertextSemanticType}));
+    Value result = finalAdd->getResult(0);
+    setMaterializedAttr({scalarMul, destMul, finalAdd});
+    setAttributeAssociatedWith(result, kLayoutAttrName, destLayout);
+    rewriter.replaceOp(op, result);
+    return success();
+  }
+
+  LogicalResult matchAndRewrite(
+      tensor::InsertOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    FailureOr<Attribute> scalarLayoutResult =
+        getTypeConverter()->getContextualAttr(adaptor.getScalar());
+    FailureOr<Attribute> destLayoutResult =
+        getTypeConverter()->getContextualAttr(adaptor.getDest());
+
+    bool isSecretScalar = succeeded(scalarLayoutResult);
+    bool isSecretDest = succeeded(destLayoutResult);
+
+    if (isSecretScalar && isSecretDest) {
+      return secretScalarSecretTensor(op, adaptor, rewriter);
+    }
+
+    if (!isSecretScalar && isSecretDest) {
+      return cleartextScalarSecretTensor(op, adaptor, rewriter);
+    }
+
+    if (isSecretScalar && !isSecretDest) {
+      return op.emitError() << "dest tensor should have been assigned a layout "
+                               "by layout-propagation";
+    }
+
+    // cleartext scalar and cleartext tensor means this is a cleartext op
+    // that can be elided.
+    setMaterializedAttr(op);
     return success();
   }
 };
@@ -1479,17 +1818,17 @@ struct ConvertToCiphertextSemantics
       return isa<ModuleOp>(op) || hasMaterializedAttr(op);
     });
 
-    patterns.add<ConvertFunc, ConvertGeneric,
-                 // tensor_ext ops
-                 ConvertConvertLayout,
-                 // linalg ops
-                 ConvertLinalgReduce, ConvertLinalgMatvec,
-                 ConvertLinalgMatvecNewLayout,
-                 // tensor ops
-                 ConvertTensorExtract, ConvertTensorInsert,
-                 ConvertCollapseShape, ConvertExpandShape,
-                 // default
-                 ConvertAnyAddingMaterializedAttr>(typeConverter, context);
+    patterns.add<
+        ConvertFunc, ConvertGeneric,
+        // tensor_ext ops
+        ConvertConvertLayout,
+        // linalg ops
+        ConvertLinalgReduce, ConvertLinalgMatvec, ConvertLinalgMatvecNewLayout,
+        // tensor ops
+        ConvertTensorExtract, ConvertTensorInsert, ConvertTensorInsertNewLayout,
+        ConvertCollapseShape, ConvertExpandShape,
+        // default
+        ConvertAnyAddingMaterializedAttr>(typeConverter, context);
     patterns.add<ConvertAssignLayout>(typeConverter, context, ciphertextSize);
 
     if (failed(applyContextAwarePartialConversion(module, target,

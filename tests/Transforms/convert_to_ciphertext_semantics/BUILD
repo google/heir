@@ -10,7 +10,6 @@ glob_lit_tests(
         # TODO(#2047): Remove these tests after migrating to new layout
         "matvec.mlir",
         "tensor_extract.mlir",
-        "tensor_insert.mlir",
         "linalg_matvec_1024.mlir",
         "linalg_matvec_ckks.mlir",
     ],
