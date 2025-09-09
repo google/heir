@@ -83,21 +83,7 @@ def normalize_lit_test_file_arg(lit_test_file: str) -> str:
   return lit_test_file
 
 
-def get_command_without_bazel_prefix(lit_test_file, git_root) -> str:
-  if not git_root:
-    git_root = pathlib.Path(__file__).parent.parent
-    if not os.path.isdir(git_root / ".git"):
-      raise RuntimeError(f"Could not find git root, looked at {git_root}")
-  # if git root is manually specified, just trust it
-
-  if not lit_test_file:
-    raise ValueError("lit_test_file must be provided")
-
-  lit_test_file = normalize_lit_test_file_arg(lit_test_file)
-
-  if not os.path.isfile(lit_test_file):
-    raise ValueError("Unable to find lit_test_file '%s'" % lit_test_file)
-
+def get_command_without_bazel_prefix(lit_test_file) -> str:
   run_lines = []
   with open(lit_test_file, "r") as f:
     for line in f:
@@ -131,8 +117,15 @@ def lit_to_bazel(
     lit_test_file: The lit test file that should be converted to a bazel run
       command.
   """
+  if not lit_test_file:
+    raise ValueError("lit_test_file must be provided")
 
-  command = get_command_without_bazel_prefix(lit_test_file, git_root)
+  lit_test_file = normalize_lit_test_file_arg(lit_test_file)
+
+  if not os.path.isfile(lit_test_file):
+    raise ValueError("Unable to find lit_test_file '%s'" % lit_test_file)
+
+  command = get_command_without_bazel_prefix(lit_test_file)
   # I would consider using bazel-bin/tools/heir-opt, but the yosys
   # requirement requires additional env vars to be set for the yosys and ABC
   # paths, which is not yet worth doing for this script.

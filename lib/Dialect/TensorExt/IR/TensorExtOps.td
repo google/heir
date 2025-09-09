@@ -62,8 +62,13 @@ def PermutationLike : AnyAttrOf<[
   //      0 -> 3, 1 -> 2, 2 -> 0, 3 -> 1
   //
   AnyI64ElementsAttr,
+  //
+  // A layout relation, representing a mapping (ct, slot) -> (ct, slot)
+  // TODO(#2047): remove the other options for PermutationLike
+  TensorExt_NewLayoutAttr,
 ]>;
 
+// TODO(#2047): rename PermuteOp to make it clear it supports more general mappings
 def TensorExt_PermuteOp : TensorExt_Op<"permute", [Pure, AllTypesMatch<["input", "output"]>]> {
   let summary = "Permute a tensor by a static permutation.";
   let description = [{

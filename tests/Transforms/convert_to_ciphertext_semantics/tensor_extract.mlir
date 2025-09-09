@@ -1,35 +1,27 @@
-// RUN: heir-opt %s --convert-to-ciphertext-semantics=ciphertext-size=1024 | FileCheck %s
+// RUN: heir-opt %s --convert-to-ciphertext-semantics=ciphertext-size=16 | FileCheck %s
 
-#alignment = #tensor_ext.alignment<in = [8], out = [8]>
-#layout = #tensor_ext.layout<map = (d0) -> (d0 mod 1024), alignment = #alignment>
+// Tensor is repeated twice, so the packed cleartext should use two nonzero slots
+#layout = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : ct = 0 and (slot - i0) mod 8 = 0 and 0 <= i0 <= 7 and 0 <= slot <= 15 }">
+// Scalar is repeated throughout the ciphertext
+#scalar_layout = #tensor_ext.new_layout<"{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= 15 }">
 
-#scalar_alignment = #tensor_ext.alignment<in = [], out = [1024], insertedDims = [0]>
-#scalar_layout = #tensor_ext.layout<map = (d0) -> (d0 mod 1024), alignment = #scalar_alignment>
+// CHECK: func.func @extract_static_indices
+// CHECK: [[C0:%.+]] = arith.constant 0 : index
+// CHECK: [[C1:%.+]] = arith.constant 1 : i16
+// CHECK: [[CST:%.+]] = arith.constant dense<0> : tensor<1x16xi16>
+// CHECK: [[C3:%.+]] = arith.constant 3 : index
+// CHECK: [[RESULT:%.+]] = secret.generic([[ARG0:%.+]]: !secret.secret<tensor<1x16xi16>>)
+// CHECK: [[INSERTED:%.+]] = tensor.insert [[C1]] into [[CST]]{{\[}}[[C0]], [[C3]]] : tensor<1x16xi16>
+// CHECK: [[COLLAPSED:%.+]] = tensor.collapse_shape [[INSERTED]] {{\[}}[0, 1]] : tensor<1x16xi16> into tensor<16xi16>
+// CHECK: [[COLLAPSED_0:%.+]] = tensor.collapse_shape %input0 {{\[}}[0, 1]] : tensor<1x16xi16> into tensor<16xi16>
+// CHECK: [[MUL:%.+]] = arith.muli [[COLLAPSED]], [[COLLAPSED_0]] : tensor<16xi16>
+// CHECK: [[EXPANDED:%.+]] = tensor.expand_shape [[MUL]] {{\[}}[0, 1]] output_shape [1, 16] : tensor<16xi16> into tensor<1x16xi16>
+// CHECK: [[PERMUTED:%.+]] = tensor_ext.permute [[EXPANDED]] {permutation = {{.*}}} : tensor<1x16xi16>
+// CHECK: secret.yield [[PERMUTED]] : tensor<1x16xi16>
+// CHECK: return [[RESULT]] : !secret.secret<tensor<1x16xi16>>
 
-// CHECK: [[alignment:[^ ]*]] = #tensor_ext.alignment<in = [], out = [1024], insertedDims = [0]>
-// CHECK: [[map:[^ ]*]] = affine_map<(d0) -> (d0 mod 1024)>
-// CHECK: [[layout:[^ ]*]] = #tensor_ext.layout<map = (d0) -> (d0 mod 1024), alignment = [[alignment]]>
-// CHECK: [[original_type:[^ ]*]] = #tensor_ext.original_type<originalType = i16, layout = [[layout]]>
-// CHECK: module {
-// CHECK:   func.func @extract([[arg0:[^:]*]]: !secret.secret<tensor<1024xi16>>
-// CHECK-SAME:    -> (!secret.secret<tensor<1024xi16>> {tensor_ext.original_type = [[original_type]]}) {
-// CHECK:     [[c3:[^ ]*]] = arith.constant 3
-// CHECK:     [[v1:[^ ]*]] = secret.generic([[arg0]]: !secret.secret<tensor<1024xi16>>) {
-// CHECK:     ^body([[input0:[^:]*]]: tensor<1024xi16>):
-// CHECK:       [[v2:%[^ ]*]] = affine.apply [[map]]([[c3]])
-// CHECK-DAG:   [[cst_0:[^ ]*]] = arith.constant dense<0>
-// CHECK-DAG:       [[c1_i16:[^ ]*]] = arith.constant 1
-// CHECK:       [[inserted:[^ ]*]] = tensor.insert [[c1_i16]] into [[cst_0]][
-// CHECK-SAME:        [[v2]]
-// CHECK:       [[v3:[^ ]*]] = arith.muli [[inserted]], [[input0]]
-// CHECK:       [[v4:[^ ]*]] = tensor_ext.rotate [[v3]], [[v2]]
-// CHECK:       secret.yield [[v4]]
-//
-// CHECK:     return [[v1]]
-// CHECK:   }
-// CHECK: }
-
-func.func @extract(%arg0: !secret.secret<tensor<8xi16>> {tensor_ext.layout = #layout}) -> (!secret.secret<i16> {tensor_ext.layout = #scalar_layout}) {
+func.func @extract_static_indices(%arg0: !secret.secret<tensor<8xi16>> {tensor_ext.layout = #layout})
+      -> (!secret.secret<i16> {tensor_ext.layout = #scalar_layout}) {
   %index = arith.constant 3 : index
   %0 = secret.generic(%arg0 : !secret.secret<tensor<8xi16>> {tensor_ext.layout = #layout}) {
   ^body(%input0: tensor<8xi16>):

@@ -339,7 +339,7 @@ class ConvertConvertLayout
     LayoutAttr fromLayout = dyn_cast<LayoutAttr>(op.getFromLayout());
     LayoutAttr toLayout = dyn_cast<LayoutAttr>(op.getToLayout());
     if (!fromLayout || !toLayout) {
-      return op.emitError() << "ConvertLayoutOp must have LayoutAttr operands";
+      return failure();  // soon to be deleted
     }
 
     // TODO(#1542): support multi-packed ciphertexts
@@ -407,6 +407,41 @@ class ConvertConvertLayout
                                       rewriter.getI64TensorAttr(permutation));
     permuteOp->setAttr(kLayoutAttrName, op->getAttr(kLayoutAttrName));
     setMaterializedAttr(permuteOp);
+    rewriter.replaceOp(op, permuteOp);
+    return success();
+  };
+};
+
+class ConvertConvertLayoutNewLayout
+    : public ContextAwareOpConversionPattern<tensor_ext::ConvertLayoutOp> {
+ public:
+  using ContextAwareOpConversionPattern<
+      tensor_ext::ConvertLayoutOp>::ContextAwareOpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      tensor_ext::ConvertLayoutOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    NewLayoutAttr fromLayout = dyn_cast<NewLayoutAttr>(op.getFromLayout());
+    NewLayoutAttr toLayout = dyn_cast<NewLayoutAttr>(op.getToLayout());
+    if (!fromLayout || !toLayout) {
+      return failure();
+    }
+
+    // This is persisted as an operation rather than lowered eagerly to a shift
+    // network so as to allow VosVosErkinShiftNetworks to cache its work across
+    // multiple instances of the same conversion.
+    std::shared_ptr<IntegerRelation> toLayoutClone =
+        toLayout.getIntegerRelation().clone();
+    toLayoutClone->inverse();
+    toLayoutClone->compose(fromLayout.getIntegerRelation());
+    NewLayoutAttr combinedLayout =
+        NewLayoutAttr::getFromIntegerRelation(getContext(), *toLayoutClone);
+
+    auto permuteOp = tensor_ext::PermuteOp::create(
+        rewriter, op.getLoc(), adaptor.getValue(), combinedLayout);
+
+    setMaterializedAttr(permuteOp);
+    setAttributeAssociatedWith(permuteOp, kLayoutAttrName, toLayout);
     rewriter.replaceOp(op, permuteOp);
     return success();
   };
@@ -1057,14 +1092,20 @@ class ConvertTensorExtract
       setMaterializedAttr(op);
       return success();
     }
-    LayoutAttr tensorLayout = cast<LayoutAttr>(tensorLayoutResult.value());
     FailureOr<Attribute> resultLayoutResult =
         getTypeConverter()->getContextualAttr(op.getResult());
     if (failed(resultLayoutResult)) {
       return op.emitError() << "failed to fetch layout attribute for input";
     }
+
+    LayoutAttr tensorLayout = dyn_cast<LayoutAttr>(tensorLayoutResult.value());
+    LayoutAttr resultLayout = dyn_cast<LayoutAttr>(resultLayoutResult.value());
+
+    if (!tensorLayout || !resultLayout) {
+      return failure();  // code will be deleted soon, no need to give message
+    }
+
     // TODO(#1692) properly handle result layout alignment
-    LayoutAttr resultLayout = cast<LayoutAttr>(resultLayoutResult.value());
 
     // The indices to extract must be materialized via the layout mapping, which
     // corresponds to inserting an affine.apply.
@@ -1234,6 +1275,223 @@ class ConvertTensorInsert
   }
 };
 
+// Generate IR that loops over the (ciphertext, slot) pairs of the integer
+// relation, and at each iteration checks if the corresponding domain index
+// tuple matches the dynamicIndices given. If so, it calls thenBuilder
+// (forwarded to the then block of an scf.if) with the calculated slot indices
+// and iter args, and the return values from thenBuilder are yielded as iter
+// args to the next loop iteration.
+//
+// This is used in some kernels in this file to convert insertion accesses of
+// data-semantic tensors into plaintext masks on the corresponding slots of
+// ciphertext-semantic tensors.
+static FailureOr<SmallVector<Value>> generateLoopWithDynamicIndexCheck(
+    ImplicitLocOpBuilder& b, const IntegerRelation& relation,
+    ValueRange iterInits, ValueRange dynamicIndices,
+    function_ref<SmallVector<Value>(OpBuilder&, Location, ValueRange,
+                                    ValueRange)>
+        thenBuilder) {
+  MLIRLoopNestGenerator generator(b);
+  auto loop = generator.generateForLoop(
+      relation, iterInits,
+      [&](OpBuilder& builder, Location loc, ValueRange exprs,
+          ValueRange iterArgs) {
+        SmallVector<Value> indices;
+        for (int i = relation.getVarKindOffset(VarKind::Range);
+             i < relation.getVarKindOffset(VarKind::Range) +
+                     relation.getNumRangeVars();
+             ++i) {
+          indices.push_back(exprs[i]);
+        }
+
+        // If statement to check that the current set of exprs matches
+        // the dynamic insertion indices.
+        Value exprsMatchIndices;
+
+        // conjunction over all exprs[i] == indices[i] where i is a domain
+        // variable.
+        int domainStart = relation.getVarKindOffset(VarKind::Domain);
+        for (int i = domainStart; i < domainStart + relation.getNumDomainVars();
+             ++i) {
+          auto eqOp =
+              arith::CmpIOp::create(b, arith::CmpIPredicate::eq, exprs[i],
+                                    dynamicIndices[i - domainStart]);
+          setMaterializedAttr(eqOp);
+
+          if (i == domainStart) {
+            exprsMatchIndices = eqOp.getResult();
+          } else {
+            auto andOp =
+                arith::AndIOp::create(b, exprsMatchIndices, eqOp.getResult());
+            exprsMatchIndices = andOp.getResult();
+            setMaterializedAttr(andOp);
+          }
+        }
+
+        auto ifOp = scf::IfOp::create(
+            b, exprsMatchIndices,
+            /*thenBuilder=*/
+            [&](OpBuilder& builder, Location loc) {
+              SmallVector<Value> results =
+                  thenBuilder(builder, loc, indices, iterArgs);
+              scf::YieldOp::create(b, loc, results);
+            },
+            /*elseBuilder=*/
+            [&](OpBuilder& builder, Location loc) {
+              // No-op, just scf.yield the current
+              // iter args
+              scf::YieldOp::create(b, loc, iterArgs);
+            });
+        setMaterializedAttr(ifOp);
+
+        // Here the scalarMaskValue can be an actual scalar (in the case of
+        // a cleartext scalar) or a 1 (in the case of a secret scalar, so
+        // that the resulting mask requires an extra mul).
+        return scf::ValueVector(ifOp.getResults());
+      });
+  if (failed(loop)) {
+    return failure();
+  }
+
+  SmallVector<Value> results = loop.value().getResults();
+  return results;
+}
+
+class ConvertTensorExtractNewLayout
+    : public ContextAwareOpConversionPattern<tensor::ExtractOp> {
+ public:
+  using ContextAwareOpConversionPattern<
+      tensor::ExtractOp>::ContextAwareOpConversionPattern;
+
+  struct MaskResult {
+    Value mask;
+    IntegerRelation maskLayout;
+  };
+
+  // A helper to create a mask for the case of tensor.extract from a ciphertext
+  // when the extraction indices are statically known.
+  MaskResult createMaskFromStaticIndices(NewLayoutAttr tensorLayout,
+                                         ArrayRef<int64_t> staticIndices,
+                                         OpAdaptor adaptor,
+                                         ImplicitLocOpBuilder& b) const {
+    IntegerRelation tensorRel = tensorLayout.getIntegerRelation();
+    IntegerRelation relWithFixedDomain =
+        fixDomainVars(tensorRel, staticIndices);
+    relWithFixedDomain.projectOut(tensorRel.getVarKindOffset(VarKind::Domain),
+                                  tensorRel.getNumDomainVars());
+
+    RankedTensorType ciphertextSemanticType =
+        cast<RankedTensorType>(adaptor.getTensor().getType());
+    arith::ConstantOp zeroTensorOp = arith::ConstantOp::create(
+        b, ciphertextSemanticType, b.getZeroAttr(ciphertextSemanticType));
+    arith::ConstantOp oneScalarOp = arith::ConstantOp::create(
+        b, ciphertextSemanticType.getElementType(),
+        b.getOneAttr(ciphertextSemanticType.getElementType()));
+
+    // TODO(#2216): use a smarter mask via the desired scalar result layout
+    std::vector<int64_t> targetSlot = anyRangePoint(relWithFixedDomain);
+    SmallVector<Value> indexCsts;
+    for (int64_t v : targetSlot) {
+      auto cst = arith::ConstantIndexOp::create(b, v);
+      indexCsts.push_back(cst);
+      setMaterializedAttr(cst);
+    }
+
+    auto insertIntoMask =
+        tensor::InsertOp::create(b, oneScalarOp, zeroTensorOp, indexCsts);
+    setMaterializedAttr({insertIntoMask, zeroTensorOp, oneScalarOp});
+
+    // Since we only insert a 1 in a single range index, the actual layout
+    // here requires the additional constraint that we fix the range variables
+    // to that chosen point.
+    IntegerRelation resultRelation =
+        fixRangeVars(relWithFixedDomain, targetSlot);
+    return MaskResult{insertIntoMask.getResult(), resultRelation};
+  }
+
+  LogicalResult matchAndRewrite(
+      tensor::ExtractOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    // Mask the tensor at the given index, rotate it to the first position, and
+    // then ensure its layout matches the expected output layout with a
+    // layout_conversion op.
+    FailureOr<Attribute> tensorLayoutResult =
+        getTypeConverter()->getContextualAttr(adaptor.getTensor());
+    if (failed(tensorLayoutResult)) {
+      // If the tensor has no layout, it is a cleartext operation and
+      // can be skipped.
+      setMaterializedAttr(op);
+      return success();
+    }
+    FailureOr<Attribute> resultLayoutResult =
+        getTypeConverter()->getContextualAttr(op.getResult());
+    if (failed(resultLayoutResult)) {
+      return op.emitError() << "failed to fetch layout attribute for input";
+    }
+
+    NewLayoutAttr tensorLayout =
+        cast<NewLayoutAttr>(tensorLayoutResult.value());
+    NewLayoutAttr resultLayout =
+        cast<NewLayoutAttr>(resultLayoutResult.value());
+    RankedTensorType ciphertextSemanticType =
+        cast<RankedTensorType>(adaptor.getTensor().getType());
+
+    SmallVector<Value> indices(op.getIndices());
+    auto staticIndicesResult = getConstantIntValues(getAsOpFoldResult(indices));
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    if (!staticIndicesResult.has_value()) {
+      // mask = createMaskFromDynamicIndices(tensorLayout, adaptor, b);
+      //
+      // The problem is that, although we could construct the right mask
+      // dynamically, then we need to figure out how to convert the masked
+      // ciphertext from its natural layout (zeros in most slots) to the
+      // appropriate scalar layout (perhaps replicated everywhere, depending on
+      // what layout-optimization picks for the result of this op). This
+      // requires, at the very least, finding the index of the first nonzero
+      // slot (which we can determine from the mask using a loop, yikes), and
+      // then rotating the masked ciphertext to put that first nonzero slot in
+      // slot 0, and masking out the rest of the slots so we statically know the
+      // layout.
+      //
+      // As a consequence, we need to perform a rotation by a dynamic index. And
+      // it's not clear how we could determine which rotation keys to generate
+      // to support that.
+      //
+      // Punting until we have a strong need for this use case.
+      return failure();
+    }
+
+    MaskResult maskResult = createMaskFromStaticIndices(
+        tensorLayout, staticIndicesResult.value(), adaptor, b);
+    Value mask = maskResult.mask;
+
+    StringRef mulOpName =
+        isa<IntegerType>(ciphertextSemanticType.getElementType())
+            ? "arith.muli"
+            : "arith.mulf";
+    Operation* mulOp = rewriter.create(
+        OperationState(op->getLoc(), mulOpName, {mask, adaptor.getTensor()},
+                       {ciphertextSemanticType}));
+
+    auto convertLayoutOp = tensor_ext::ConvertLayoutOp::create(
+        b, mulOp->getResult(0),
+        NewLayoutAttr::getFromIntegerRelation(op.getContext(),
+                                              maskResult.maskLayout),
+        resultLayout);
+
+    // Intentionally don't materialize convert_layout so it will be processed
+    // by a subsequent pattern.
+    setMaterializedAttr(mulOp);
+    setAttributeAssociatedWith(convertLayoutOp.getResult(), kLayoutAttrName,
+                               resultLayout);
+    rewriter.replaceOp(op, convertLayoutOp);
+
+    convertLayoutOp->getParentOfType<func::FuncOp>().dump();
+    return success();
+  }
+};
+
 class ConvertTensorInsertNewLayout
     : public ContextAwareOpConversionPattern<tensor::InsertOp> {
  public:
@@ -1250,7 +1508,7 @@ class ConvertTensorInsertNewLayout
       tensor::InsertOp op, OpAdaptor adaptor, Value scalarMaskValue,
       ImplicitLocOpBuilder& b) const {
     IntegerRelation destRel = destLayout.getIntegerRelation();
-    IntegerRelation fixedRel = fixDataIndices(destRel, staticIndices);
+    IntegerRelation fixedRel = fixDomainVars(destRel, staticIndices);
     fixedRel.projectOut(destRel.getVarKindOffset(VarKind::Domain),
                         destRel.getNumDomainVars());
 
@@ -1327,69 +1585,22 @@ class ConvertTensorInsertNewLayout
 
     Value scalarMask = zeroTensorOp.getResult();
     Value destMask = oneOp.getResult();
+    SmallVector<Value> indices(op.getIndices());
 
-    MLIRLoopNestGenerator generator(b);
-    auto loop = generator.generateForLoop(
-        destRel, {scalarMask, destMask},
-        [&](OpBuilder& builder, Location loc, ValueRange exprs,
+    auto loop = generateLoopWithDynamicIndexCheck(
+        b, destRel, {scalarMask, destMask}, indices,
+        [&](OpBuilder& builder, Location loc, ValueRange slotIndices,
             ValueRange iterArgs) {
           Value curScalarMask = iterArgs[0];
           Value curDestMask = iterArgs[1];
-
-          SmallVector<Value> indices;
-          for (int i = destRel.getVarKindOffset(VarKind::Range);
-               i < destRel.getVarKindOffset(VarKind::Range) +
-                       destRel.getNumRangeVars();
-               ++i) {
-            indices.push_back(exprs[i]);
-          }
-
-          // If statement to check that the current set of exprs matches
-          // the dynamic insertion indices.
-          Value exprsMatchIndices;
-
-          // conjunction over all exprs[i] == indices[i] where i is a domain
-          // variable.
-          int domainStart = destRel.getVarKindOffset(VarKind::Domain);
-          for (int i = domainStart;
-               i < domainStart + destRel.getNumDomainVars(); ++i) {
-            auto eqOp =
-                arith::CmpIOp::create(b, arith::CmpIPredicate::eq, exprs[i],
-                                      adaptor.getIndices()[i - domainStart]);
-            setMaterializedAttr(eqOp);
-
-            if (i == domainStart) {
-              exprsMatchIndices = eqOp.getResult();
-            } else {
-              auto andOp =
-                  arith::AndIOp::create(b, exprsMatchIndices, eqOp.getResult());
-              exprsMatchIndices = andOp.getResult();
-              setMaterializedAttr(andOp);
-            }
-          }
-
-          auto ifOp = scf::IfOp::create(
-              b, exprsMatchIndices,
-              /*thenBuilder=*/
-              [&](OpBuilder& builder, Location loc) {
-                auto insertIntoScalarMask = tensor::InsertOp::create(
-                    b, scalarMaskValue, curScalarMask, indices);
-                auto insertIntoDestMask = tensor::InsertOp::create(
-                    b, zeroScalarOp, curDestMask, indices);
-                setMaterializedAttr({insertIntoScalarMask, insertIntoDestMask});
-                scf::YieldOp::create(
-                    b, loc, {insertIntoScalarMask, insertIntoDestMask});
-              },
-              /*elseBuilder=*/
-              [&](OpBuilder& builder, Location loc) {
-                // No-op, just scf.yield the current masks
-                scf::YieldOp::create(b, loc, {curScalarMask, curDestMask});
-              });
-
-          // Here the scalarMaskValue can be an actual scalar (in the case of
-          // a cleartext scalar) or a 1 (in the case of a secret scalar, so
-          // that the resulting mask requires an extra mul).
-          return scf::ValueVector(ifOp.getResults());
+          auto insertIntoScalarMask = tensor::InsertOp::create(
+              b, scalarMaskValue, curScalarMask, slotIndices);
+          auto insertIntoDestMask = tensor::InsertOp::create(
+              b, zeroScalarOp, curDestMask, slotIndices);
+          setMaterializedAttr({insertIntoScalarMask, insertIntoDestMask});
+          SmallVector<Value> results = {insertIntoScalarMask.getResult(),
+                                        insertIntoDestMask.getResult()};
+          return results;
         });
     if (failed(loop)) {
       op.emitError() << "Failed to generate loop nest for layout "
@@ -1397,8 +1608,8 @@ class ConvertTensorInsertNewLayout
       return {Value(), Value()};
     }
 
-    setMaterializedAttr({zeroTensorOp, zeroScalarOp, oneOp, loop.value()});
-    return {loop.value().getResults()[0], loop.value().getResults()[1]};
+    setMaterializedAttr({zeroTensorOp, zeroScalarOp, oneOp});
+    return {loop.value()[0], loop.value()[1]};
   }
 
   LogicalResult cleartextScalarSecretTensor(
@@ -1714,7 +1925,7 @@ struct DropRotateUnitDims : OpRewritePattern<tensor_ext::RotateOp> {
     SmallVector<int64_t> operandUnitDims =
         getUnitDims(rotateOp.getTensor().getType());
     if (operandUnitDims.empty()) {
-      LLVM_DEBUG(llvm::dbgs() << "no unit dims to drop");
+      LLVM_DEBUG(llvm::dbgs() << "no unit dims to drop\n");
       return failure();
     }
 
@@ -1739,7 +1950,7 @@ struct DropRotateAndReduceUnitDims
     SmallVector<int64_t> operandUnitDims =
         getUnitDims(rotateOp.getTensor().getType());
     if (operandUnitDims.empty()) {
-      LLVM_DEBUG(llvm::dbgs() << "no unit dims to drop");
+      LLVM_DEBUG(llvm::dbgs() << "no unit dims to drop\n");
       return failure();
     }
 
@@ -1780,7 +1991,7 @@ struct DropElementwiseUnitDims : OpTraitRewritePattern<OpTrait::Elementwise> {
 
     SmallVector<int64_t> operandUnitDims = getUnitDims(tensorType);
     if (operandUnitDims.empty()) {
-      LLVM_DEBUG(llvm::dbgs() << "no unit dims to drop");
+      LLVM_DEBUG(llvm::dbgs() << "no unit dims to drop\n");
       return failure();
     }
 
@@ -1818,21 +2029,24 @@ struct ConvertToCiphertextSemantics
       return isa<ModuleOp>(op) || hasMaterializedAttr(op);
     });
 
-    patterns.add<
-        ConvertFunc, ConvertGeneric,
-        // tensor_ext ops
-        ConvertConvertLayout,
-        // linalg ops
-        ConvertLinalgReduce, ConvertLinalgMatvec, ConvertLinalgMatvecNewLayout,
-        // tensor ops
-        ConvertTensorExtract, ConvertTensorInsert, ConvertTensorInsertNewLayout,
-        ConvertCollapseShape, ConvertExpandShape,
-        // default
-        ConvertAnyAddingMaterializedAttr>(typeConverter, context);
+    patterns.add<ConvertFunc, ConvertGeneric,
+                 // tensor_ext ops
+                 ConvertConvertLayout, ConvertConvertLayoutNewLayout,
+                 // linalg ops
+                 ConvertLinalgReduce, ConvertLinalgMatvec,
+                 ConvertLinalgMatvecNewLayout,
+                 // tensor ops
+                 ConvertTensorExtract, ConvertTensorInsert,
+                 ConvertTensorExtractNewLayout, ConvertTensorInsertNewLayout,
+                 ConvertCollapseShape, ConvertExpandShape,
+                 // default
+                 ConvertAnyAddingMaterializedAttr>(typeConverter, context);
     patterns.add<ConvertAssignLayout>(typeConverter, context, ciphertextSize);
 
-    if (failed(applyContextAwarePartialConversion(module, target,
-                                                  std::move(patterns)))) {
+    ConversionConfig config;
+    config.buildMaterializations = false;
+    if (failed(applyContextAwarePartialConversion(
+            module, target, std::move(patterns), config))) {
       return signalPassFailure();
     }
 

@@ -236,7 +236,7 @@ def TensorExt_NewLayoutAttr : TensorExt_Attr<"NewLayout", "new_layout"> {
     }
 
     static NewLayoutAttr getFromIntegerRelation(
-      ::mlir::MLIRContext* context, presburger::IntegerRelation relation);
+      ::mlir::MLIRContext* context, const presburger::IntegerRelation &relation);
   }];
 }
 
