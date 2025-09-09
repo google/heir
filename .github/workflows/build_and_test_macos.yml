@@ -23,9 +23,9 @@ jobs:
         with:
           path: |
             ~/.cache/bazel
-          key: ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE.bzlmod', 'MODULE.bazel') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
+          key: ${{ runner.os }}-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE.bzlmod', 'MODULE.bazel') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
           restore-keys: |
-            ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE.bzlmod', 'MODULE.bazel') }}-
+            ${{ runner.os }}-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE.bzlmod', 'MODULE.bazel') }}-
 
       - name: Install coreutils
         run: brew install coreutils
