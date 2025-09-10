@@ -557,7 +557,10 @@ struct LWEToPolynomial : public impl::LWEToPolynomialBase<LWEToPolynomial> {
     addStructuralConversionPatterns(typeConverter, patterns, target);
 
     // Run full conversion, if any LWE ops were missed out the pass will fail.
-    if (failed(applyFullConversion(module, target, std::move(patterns)))) {
+    ConversionConfig config;
+    config.allowPatternRollback = false;
+    if (failed(
+            applyFullConversion(module, target, std::move(patterns), config))) {
       return signalPassFailure();
     }
   }

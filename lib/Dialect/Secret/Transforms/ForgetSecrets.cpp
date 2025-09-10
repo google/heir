@@ -156,7 +156,10 @@ struct ForgetSecrets : impl::SecretForgetSecretsBase<ForgetSecrets> {
     populateReturnOpTypeConversionPattern(patterns, typeConverter);
     populateCallOpTypeConversionPattern(patterns, typeConverter);
 
-    if (failed(applyPartialConversion(func, target, std::move(patterns)))) {
+    ConversionConfig config;
+    config.allowPatternRollback = false;
+    if (failed(applyPartialConversion(func, target, std::move(patterns),
+                                      config))) {
       signalPassFailure();
     }
 

@@ -161,7 +161,11 @@ struct MemrefGlobalReplacementPass
     mlir::RewritePatternSet patterns(&getContext());
     patterns.add<MemrefGlobalLoweringPattern>(&getContext());
 
-    (void)applyPartialConversion(getOperation(), target, std::move(patterns));
+    ConversionConfig config;
+    // TODO(#2210): re-enable and fix pass or delete
+    // config.allowPatternRollback = false;
+    (void)applyPartialConversion(getOperation(), target, std::move(patterns),
+                                 config);
   }
 };
 

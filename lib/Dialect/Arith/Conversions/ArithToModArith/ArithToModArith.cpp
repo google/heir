@@ -280,7 +280,10 @@ void ArithToModArith::runOnOperation() {
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
 
-  if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
+  ConversionConfig config;
+  config.allowPatternRollback = false;
+  if (failed(applyPartialConversion(module, target, std::move(patterns),
+                                    config))) {
     signalPassFailure();
   }
 }

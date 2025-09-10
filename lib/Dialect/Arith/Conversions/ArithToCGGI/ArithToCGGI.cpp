@@ -625,7 +625,11 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
 
     addStructuralConversionPatterns(typeConverter, patterns, target);
 
-    if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
+    ConversionConfig config;
+    // TODO(#2210): re-enable and fix pass
+    // config.allowPatternRollback = false;
+    if (failed(applyPartialConversion(module, target, std::move(patterns),
+                                      config))) {
       return signalPassFailure();
     }
   }
