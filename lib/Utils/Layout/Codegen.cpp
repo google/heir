@@ -226,6 +226,7 @@ FailureOr<scf::ForOp> MLIRLoopNestGenerator::generateForLoop(
     const presburger::IntegerRelation& rel, ValueRange initArgs,
     function_ref<scf::ValueVector(OpBuilder&, Location, ValueRange, ValueRange)>
         bodyBuilder) {
+  OpBuilder::InsertionGuard guard(builder_);
   isl_ast_node* tree = constructAst(rel, ctx_);
   if (!tree) {
     return failure();

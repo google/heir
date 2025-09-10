@@ -1,49 +1,97 @@
-// RUN: heir-opt %s --convert-to-ciphertext-semantics=ciphertext-size=1024 | FileCheck %s
+// RUN: heir-opt %s --convert-to-ciphertext-semantics=ciphertext-size=16 | FileCheck %s
 
-#alignment = #tensor_ext.alignment<in = [8], out = [8]>
-#layout = #tensor_ext.layout<map = (d0) -> (d0 mod 1024), alignment = #alignment>
+// Tensor is repeated twice, so the packed cleartext should use two nonzero slots
+#layout = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : ct = 0 and (slot - i0) mod 8 = 0 and 0 <= i0 <= 7 and 0 <= slot <= 15 }">
+// Scalar is repeated throughout the ciphertext
+#scalar_layout = #tensor_ext.new_layout<"{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= 15 }">
 
-#scalar_alignment = #tensor_ext.alignment<in = [], out = [1], insertedDims = [0]>
-#scalar_layout = #tensor_ext.layout<map = (d0) -> (d0 mod 1024), alignment = #scalar_alignment>
+// CHECK:   func.func @insert_cleartext_into_secret(%[[arg0:[^:]*]]: !secret.secret<tensor<1x16xi16>>
+// CHECK-DAG:    %[[c11:.*]] = arith.constant 11 : index
+// CHECK-DAG:    %[[c0_index:.*]] = arith.constant 0 : index
+// CHECK-DAG:    %[[c0_i16:.*]] = arith.constant 0 : i16
+// CHECK-DAG:    %[[c3:.*]] = arith.constant 3 : index
+// CHECK-DAG:    %[[c7:.*]] = arith.constant 7 : i16
+// CHECK-DAG:    %[[dense1:.*]] = arith.constant dense<1> : tensor<1x16xi16>
+// CHECK-DAG:    %[[dense0:.*]] = arith.constant dense<0> : tensor<1x16xi16>
+// CHECK:    %[[res:.*]] = secret.generic(%[[arg0]]: !secret.secret<tensor<1x16xi16>>) {
+// CHECK:    ^body(%[[input:.*]]: tensor<1x16xi16>):
+// CHECK:      %[[pt1:.*]] = tensor.insert %[[c7]] into %[[dense0]][%[[c0_index]], %[[c3]]]
+// CHECK:      %[[mask1:.*]] = tensor.insert %[[c0_i16]] into %[[dense1]][%c0, %c3]
+// CHECK:      %[[pt2:.*]] = tensor.insert %[[c7]] into %[[pt1]][%[[c0_index]], %[[c11]]]
+// CHECK:      %[[mask2:.*]] = tensor.insert %[[c0_i16]] into %[[mask1]][%[[c0_index]], %[[c11]]]
+// CHECK:      arith.muli
+// CHECK:      arith.addi
+// CHECK:    return %[[res]]
 
-// CHECK: [[alignment:[^ ]*]] = #tensor_ext.alignment<in = [8], out = [8]>
-// CHECK: [[map:[^ ]*]] = affine_map<(d0) -> (d0 mod 1024)>
-// CHECK: [[layout:[^ ]*]] = #tensor_ext.layout<map = (d0) -> (d0 mod 1024), alignment = [[alignment]]>
-// CHECK: [[original_type:[^ ]*]] = #tensor_ext.original_type<originalType = tensor<8xi16>, layout = [[layout]]>
-// CHECK: module {
-// CHECK:   func.func @insert([[arg0:[^:]*]]: !secret.secret<tensor<1024xi16>> {tensor_ext.original_type = [[original_type]]}) -> (!secret.secret<tensor<1024xi16>> {tensor_ext.original_type = [[original_type]]}) {
-// CHECK:     [[c3:[^ ]*]] = arith.constant 3
-// CHECK:     [[c7_i16:[^ ]*]] = arith.constant 7
-// CHECK:     [[splat:[^ ]*]] = tensor.splat %c7_i16 : tensor<1024xi16>
-// CHECK:     [[v1:[^ ]*]] = secret.generic([[arg0]]: !secret.secret<tensor<1024xi16>>) {
-// CHECK:     ^body([[input0:[^:]*]]: tensor<1024xi16>):
-// CHECK:       [[v2:[^ ]*]] = affine.apply #map([[c3]])
-// CHECK:       [[c0:[^ ]*]] = arith.constant 0
-// CHECK:       [[cst_0:[^ ]*]] = arith.constant dense<0>
-// CHECK:       [[c1_i16:[^ ]*]] = arith.constant 1
-// CHECK:       [[inserted:[^ ]*]] = tensor.insert [[c1_i16]] into [[cst_0]][
-// CHECK-SAME:        [[c0]]
-// CHECK:       [[v3:[^ ]*]] = arith.muli [[inserted]], [[splat]]
-// CHECK:       [[v4:[^ ]*]] = tensor_ext.rotate [[v3]], [[v2]]
-// CHECK:       [[cst_1:[^ ]*]] = arith.constant dense<1>
-// CHECK:       [[c0_i16:[^ ]*]] = arith.constant 0
-// CHECK:       [[inserted_2:[^ ]*]] = tensor.insert [[c0_i16]] into [[cst_1]]
-// CHECK-SAME:        [[v2]]
-// CHECK:       [[v5:[^ ]*]] = arith.muli [[inserted_2]], [[input0]]
-// CHECK:       [[v6:[^ ]*]] = arith.addi [[v3]], [[v5]]
-// CHECK:       secret.yield [[v6]]
-//
-// CHECK:     return [[v1]]
-// CHECK:   }
-// CHECK: }
-
-func.func @insert(%arg0: !secret.secret<tensor<8xi16>> {tensor_ext.layout = #layout}) -> (!secret.secret<tensor<8xi16>> {tensor_ext.layout = #layout}) {
+func.func @insert_cleartext_into_secret(%arg0: !secret.secret<tensor<8xi16>> {tensor_ext.layout = #layout}) -> (!secret.secret<tensor<8xi16>> {tensor_ext.layout = #layout}) {
   %insertIndex = arith.constant 3 : index
   %c7 = arith.constant 7 : i16
-  %c7_laidout = tensor_ext.assign_layout %c7 {layout = #scalar_layout, tensor_ext.layout = #scalar_layout} : i16
   %0 = secret.generic(%arg0 : !secret.secret<tensor<8xi16>> {tensor_ext.layout = #layout}) {
   ^body(%input0: tensor<8xi16>):
-    %0 = tensor.insert %c7_laidout into %input0[%insertIndex] {tensor_ext.layout = #layout} : tensor<8xi16>
+    %0 = tensor.insert %c7 into %input0[%insertIndex] {tensor_ext.layout = #layout} : tensor<8xi16>
+    secret.yield %0 : tensor<8xi16>
+  } -> (!secret.secret<tensor<8xi16>> {tensor_ext.layout = #layout})
+  return %0 : !secret.secret<tensor<8xi16>>
+}
+
+// CHECK:   func.func @insert_cleartext_into_secret_dynamic(%[[arg0:[^:]*]]: !secret.secret<tensor<1x16xi16>>
+// CHECK-DAG:    %[[c0_index:.*]] = arith.constant 0 : index
+// CHECK-DAG:    %[[c0_i16:.*]] = arith.constant 0 : i16
+// CHECK-DAG:    %[[c7:.*]] = arith.constant 7 : i16
+// CHECK-DAG:    %[[dense1:.*]] = arith.constant dense<1> : tensor<1x16xi16>
+// CHECK-DAG:    %[[dense0:.*]] = arith.constant dense<0> : tensor<1x16xi16>
+// CHECK:    %[[res:.*]] = secret.generic(%[[arg0]]: !secret.secret<tensor<1x16xi16>>) {
+// CHECK:    ^body(%[[input:.*]]: tensor<1x16xi16>):
+
+//           The loop that implements the codegen for the masks
+// CHECK:      scf.for
+// CHECK:      scf.if
+// CHECK:      tensor.insert
+// CHECK:      tensor.insert
+// CHECK:      scf.yield
+// CHECK:      } else {
+// CHECK:      scf.yield
+// CHECK:      }
+// CHECK:      scf.yield
+
+// CHECK:      arith.muli
+// CHECK:      arith.addi
+// CHECK:    return
+
+func.func @insert_cleartext_into_secret_dynamic(%arg0: !secret.secret<tensor<8xi16>> {tensor_ext.layout = #layout}, %insertIndex: index) -> (!secret.secret<tensor<8xi16>> {tensor_ext.layout = #layout}) {
+  %c7 = arith.constant 7 : i16
+  %0 = secret.generic(%arg0 : !secret.secret<tensor<8xi16>> {tensor_ext.layout = #layout}) {
+  ^body(%input0: tensor<8xi16>):
+    %0 = tensor.insert %c7 into %input0[%insertIndex] {tensor_ext.layout = #layout} : tensor<8xi16>
+    secret.yield %0 : tensor<8xi16>
+  } -> (!secret.secret<tensor<8xi16>> {tensor_ext.layout = #layout})
+  return %0 : !secret.secret<tensor<8xi16>>
+}
+
+// CHECK:   func.func @insert_secret_into_secret(%[[tensor_secret:[^:]*]]: !secret.secret<tensor<1x16xi16>>
+// CHECK-SAME:       %[[scalar_secret:[^:]*]]: !secret.secret<tensor<1x16xi16>>
+// CHECK-DAG:    %[[c11:.*]] = arith.constant 11 : index
+// CHECK-DAG:    %[[c0_index:.*]] = arith.constant 0 : index
+// CHECK-DAG:    %[[c0_i16:.*]] = arith.constant 0 : i16
+// CHECK-DAG:    %[[c3:.*]] = arith.constant 3 : index
+// CHECK-DAG:    %[[c1:.*]] = arith.constant 1 : i16
+// CHECK-DAG:    %[[dense1:.*]] = arith.constant dense<1> : tensor<1x16xi16>
+// CHECK-DAG:    %[[dense0:.*]] = arith.constant dense<0> : tensor<1x16xi16>
+// CHECK:    %[[res:.*]] = secret.generic(%[[tensor_secret]]: !secret.secret<tensor<1x16xi16>>, %[[scalar_secret]]: !secret.secret<tensor<1x16xi16>>) {
+// CHECK:    ^body(%[[tensor_clear:.*]]: tensor<1x16xi16>, %[[scalar_clear:.*]]: tensor<1x16xi16>):
+
+// This test differs from other tests in that the scalar mask has 1's and is then multiplied with the scalar_clear
+// CHECK:      %[[scalar_mask1:.*]] = tensor.insert %[[c1]] into %[[dense0]][%[[c0_index]], %[[c3]]]
+// CHECK:      tensor.insert %[[c1]] into %[[scalar_mask1]][%[[c0_index]], %[[c11]]]
+// CHECK:      arith.muli
+// CHECK:      arith.muli
+// CHECK:      arith.addi
+// CHECK:    return %[[res]]
+func.func @insert_secret_into_secret(%arg0: !secret.secret<tensor<8xi16>> {tensor_ext.layout = #layout}, %arg1: !secret.secret<i16> {tensor_ext.layout = #scalar_layout}) -> (!secret.secret<tensor<8xi16>> {tensor_ext.layout = #layout}) {
+  %insertIndex = arith.constant 3 : index
+  %0 = secret.generic(%arg0 : !secret.secret<tensor<8xi16>> {tensor_ext.layout = #layout}, %arg1: !secret.secret<i16> {tensor_ext.layout = #scalar_layout}) {
+  ^body(%t: tensor<8xi16>, %scalar: i16):
+    %0 = tensor.insert %scalar into %t[%insertIndex] {tensor_ext.layout = #layout} : tensor<8xi16>
     secret.yield %0 : tensor<8xi16>
   } -> (!secret.secret<tensor<8xi16>> {tensor_ext.layout = #layout})
   return %0 : !secret.secret<tensor<8xi16>>

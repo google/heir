@@ -6,12 +6,22 @@
 #include <memory>
 #include <utility>
 
+#include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/MathUtils.h"
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Utils/Utils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"            // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"               // from @llvm-project
+
+// ISL
+#include "include/isl/ctx.h"       // from @isl
+#include "include/isl/map.h"       // from @isl
+#include "include/isl/map_type.h"  // from @isl
+#include "include/isl/point.h"     // from @isl
+#include "include/isl/set.h"       // from @isl
+#include "include/isl/space.h"     // from @isl
+#include "include/isl/val.h"       // from @isl
 
 namespace mlir {
 namespace heir {
@@ -174,22 +184,22 @@ presburger::IntegerRelation getDiagonalLayoutRelation(
 
 bool isRelationSquatDiagonal(RankedTensorType matrixType,
                              int64_t ciphertextSize,
-                             presburger::IntegerRelation relation) {
+                             const presburger::IntegerRelation& relation) {
   IntegerRelation diagonalRelation =
       getDiagonalLayoutRelation(matrixType, ciphertextSize);
   return relation.isEqual(diagonalRelation);
 }
 
 bool isRelationRowMajor(RankedTensorType vectorType, int64_t numSlots,
-                        presburger::IntegerRelation relation) {
+                        const presburger::IntegerRelation& relation) {
   IntegerRelation rowMajorRelation =
       getRowMajorLayoutRelation(vectorType, numSlots);
   return relation.isEqual(rowMajorRelation);
 }
 
 presburger::IntegerRelation collapseDimensions(
-    presburger::IntegerRelation relation, RankedTensorType sourceType,
-    SmallVector<ReassociationIndices> reassociation) {
+    const presburger::IntegerRelation& relation, RankedTensorType sourceType,
+    ArrayRef<ReassociationIndices> reassociation) {
   std::unique_ptr<IntegerRelation> clonedRelation = relation.clone();
   for (const ReassociationIndices& associationGroup : reassociation) {
     // a single-entry association group is a no-op
@@ -207,8 +217,8 @@ presburger::IntegerRelation collapseDimensions(
 }
 
 presburger::IntegerRelation expandDimensions(
-    presburger::IntegerRelation relation, RankedTensorType resultType,
-    SmallVector<ReassociationIndices> reassociation) {
+    const presburger::IntegerRelation& relation, RankedTensorType resultType,
+    ArrayRef<ReassociationIndices> reassociation) {
   // tensor indices correspond to layout dimensions, and adding a dimension of
   // size 1 has no effect on the affine map expressions, so all we're doing is
   // adding new dimensions for each reassociation group index corresponding to
@@ -239,6 +249,56 @@ presburger::IntegerRelation expandDimensions(
     }
   }
   return std::move(*clonedRelation);
+}
+
+presburger::IntegerRelation fixDataIndices(
+    const presburger::IntegerRelation& relation,
+    ArrayRef<int64_t> fixedIndices) {
+  std::unique_ptr<IntegerRelation> rel = relation.clone();
+
+  // One constraint for each fixed index.
+  for (auto [dim, value] : llvm::enumerate(fixedIndices)) {
+    assert(value >= 0 && "invalid negative fixed index value");
+    SmallVector<int64_t> constraint(relation.getNumCols(), 0);
+    constraint[dim] = 1;
+    constraint.back() = -value;
+    rel->addEquality(constraint);
+  }
+
+  rel->simplify();
+  rel->removeRedundantConstraints();
+  return std::move(*rel);
+}
+
+isl_stat pointCallback(__isl_take isl_point* pnt, void* user) {
+  PointCollector* collector = static_cast<PointCollector*>(user);
+
+  // Use isl_space_dim instead of accessing struct members directly
+  isl_space* space = isl_point_get_space(pnt);
+  int dim = isl_space_dim(space, isl_dim_set);
+  isl_space_free(space);
+
+  std::vector<int> point(dim);
+
+  for (int i = 0; i < dim; i++) {
+    isl_val* coord = isl_point_get_coordinate_val(pnt, isl_dim_set, i);
+    if (isl_val_is_int(coord)) {
+      point[i] = isl_val_get_num_si(coord);
+    }
+    isl_val_free(coord);
+  }
+
+  collector->points.push_back(point);
+  isl_point_free(pnt);
+  return isl_stat_ok;
+}
+
+void getRangePoints(const presburger::IntegerRelation& relation,
+                    PointCollector& collector) {
+  auto* bmap = convertRelationToBasicMap(relation, collector.ctx);
+  isl_set* set = isl_set_from_basic_set(isl_basic_map_range(bmap));
+  isl_set_foreach_point(set, &pointCallback, &collector);
+  isl_set_free(set);
 }
 
 }  // namespace heir
