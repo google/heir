@@ -56,6 +56,7 @@
 #include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/OperationSupport.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
@@ -148,35 +149,29 @@ struct LayoutMaterializationTypeConverter
         });
     addConversion([this](secret::SecretType type,
                          NewLayoutAttr attr) -> std::optional<Type> {
-      FailureOr<Type> convertedInnerType;
       auto innerType = type.getValueType();
 
-      if (auto rankedTensorType = dyn_cast<RankedTensorType>(innerType)) {
-        convertedInnerType =
-            materializeNewLayout(rankedTensorType, attr, getCiphertextSize());
-      } else {
-        convertedInnerType =
-            materializeScalarNewLayout(innerType, attr, getCiphertextSize());
-      }
-
+      FailureOr<Type> convertedInnerType = materializeNewLayout(
+          getElementTypeOrSelf(innerType), attr, getCiphertextSize());
       if (failed(convertedInnerType)) return std::nullopt;
       return secret::SecretType::get(convertedInnerType.value());
     });
     addConversion([this](RankedTensorType type,
                          NewLayoutAttr attr) -> std::optional<Type> {
-      return materializeNewLayout(type, attr, getCiphertextSize());
+      return materializeNewLayout(getElementTypeOrSelf(type), attr,
+                                  getCiphertextSize());
     });
     addConversion(
         [this](IntegerType type, NewLayoutAttr attr) -> std::optional<Type> {
-          return materializeScalarNewLayout(type, attr, getCiphertextSize());
+          return materializeNewLayout(type, attr, getCiphertextSize());
         });
     addConversion(
         [this](FloatType type, NewLayoutAttr attr) -> std::optional<Type> {
-          return materializeScalarNewLayout(type, attr, getCiphertextSize());
+          return materializeNewLayout(type, attr, getCiphertextSize());
         });
     addConversion(
         [this](IndexType type, NewLayoutAttr attr) -> std::optional<Type> {
-          return materializeScalarNewLayout(type, attr, getCiphertextSize());
+          return materializeNewLayout(type, attr, getCiphertextSize());
         });
   }
 

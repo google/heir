@@ -30,6 +30,7 @@
 #include "mlir/include/mlir/IR/Location.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"            // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
@@ -441,9 +442,17 @@ FailureOr<Value> implementAssignLayoutNew(
   IntegerRelation rel = layout.getIntegerRelation();
 
   RankedTensorType dataSemanticType =
-      cast<RankedTensorType>(op.getValue().getType());
+      dyn_cast<RankedTensorType>(op.getValue().getType());
   RankedTensorType ciphertextSemanticType = cast<RankedTensorType>(
-      materializeNewLayout(dataSemanticType, layout, ciphertextSize));
+      materializeNewLayout(getElementTypeOrSelf(op.getValue().getType()),
+                           layout, ciphertextSize));
+  if (!dataSemanticType) {
+    // The input is a scalar, so we can just splat into the ciphertext tensor.
+    auto splatOp =
+        tensor::SplatOp::create(builder, ciphertextSemanticType, op.getValue());
+    createdOpCallback(splatOp);
+    return splatOp.getResult();
+  }
 
   TypedValue<RankedTensorType> ciphertextTensor =
       cast<TypedValue<RankedTensorType>>(
@@ -534,10 +543,7 @@ FailureOr<Value> implementAssignLayout(
     ImplicitLocOpBuilder& builder,
     const std::function<void(Operation*)>& createdOpCallback) {
   OpBuilder::InsertionGuard guard(builder);
-  // TODO(#2047): add a scalar version or augment scalar version below to
-  // support new layout attr
-  if (isa<NewLayoutAttr>(op.getLayout()) &&
-      isa<RankedTensorType>(op.getResult().getType())) {
+  if (isa<NewLayoutAttr>(op.getLayout())) {
     return implementAssignLayoutNew(op, ciphertextSize, builder,
                                     createdOpCallback);
   }

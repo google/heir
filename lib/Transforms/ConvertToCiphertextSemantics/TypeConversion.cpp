@@ -70,12 +70,7 @@ Type materializeLayout(RankedTensorType type, LayoutAttr attr,
   return RankedTensorType::get(outputTensorShape, type.getElementType());
 }
 
-Type materializeScalarNewLayout(Type type, NewLayoutAttr attr,
-                                int ciphertextSize) {
-  return RankedTensorType::get({ciphertextSize}, type);
-}
-
-Type materializeNewLayout(RankedTensorType type, NewLayoutAttr attr,
+Type materializeNewLayout(Type dataType, NewLayoutAttr attr,
                           int ciphertextSize) {
   IntegerRelation rel = attr.getIntegerRelation();
   llvm::SmallVector<int64_t> ciphertextSemanticShape;
@@ -91,7 +86,7 @@ Type materializeNewLayout(RankedTensorType type, NewLayoutAttr attr,
   // bound depending on whether the slots at the end are full, so use the upper
   // bound.
   ciphertextSemanticShape.push_back(ciphertextSize);
-  return RankedTensorType::get(ciphertextSemanticShape, type.getElementType());
+  return RankedTensorType::get(ciphertextSemanticShape, dataType);
 }
 
 }  // namespace heir
