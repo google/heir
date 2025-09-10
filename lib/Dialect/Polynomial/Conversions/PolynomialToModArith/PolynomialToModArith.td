@@ -20,6 +20,12 @@ def PolynomialToModArith : Pass<"polynomial-to-mod-arith", "ModuleOp"> {
     "mlir::scf::SCFDialect",
     "mlir::tensor::TensorDialect",
   ];
+
+  // TODO(#2157): Remove option once key_switch_inner lowering is done
+  let options = [
+    Option<"buildMaterializations", "build-materializations", "bool", /*default=*/"true",
+           "Whether to build materializations">,
+  ];
 }
 
 #endif  // LIB_DIALECT_POLYNOMIAL_CONVERSIONS_POLYNOMIALTOMODARITH_POLYNOMIALTOMODARITH_TD_

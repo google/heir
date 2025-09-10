@@ -18,6 +18,8 @@
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
+#include "lib/Dialect/RNS/IR/RNSOps.h"
+#include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Parameters/CKKS/Params.h"
 #include "lib/Utils/APIntUtils.h"
 #include "lib/Utils/ConversionUtils.h"
@@ -1289,43 +1291,35 @@ struct ConvertKeySwitchInner
           op, "Cannot lower key_switch_inner with empty modulus chain");
     }
 
-    int64_t numFullPartitions = coefficientTensorType.getShape()[0] / partSize;
-    int64_t sliceSize = partSize * numFullPartitions;
-    int64_t extraPartSize = coefficientTensorType.getShape()[0] - sliceSize;
+    // Step 1: partition the RNS limbs of the input polynomial into parts
+    // according to the number of special (key switch) primes in the parameters.
+    //
+    // Since the number of special primes may not evenly divide the number of
+    // RNS limbs, there may be an extra part containing the trailing size.
+    //
+    // Since each part also has a different RNS type, we can't group them
+    // together into a tensor and have to deal with the individual SSA values in
+    // an unrolled manner.
+    rns::RNSType fullRnsChain =
+        cast<rns::RNSType>(coefficientTensorType.getElementType());
+    int rnsLength = fullRnsChain.getBasisTypes().size();
+    int64_t numFullPartitions = rnsLength / partSize;
+    int64_t extraPartStart = partSize * numFullPartitions;
+    int64_t extraPartSize = rnsLength - extraPartStart;
 
-    // Step 1: partition the coefficients of the polynomial into pieces. Note
-    // the partition may not be even, so there may be one leftover part of an
-    // uneven size that must be tracked manually through the rest of the
-    // lowering.
+    SmallVector<Value> fullPartitions;
+    for (int i = 0; i < numFullPartitions; ++i) {
+      fullPartitions.push_back(rns::ExtractSliceOp::create(
+          b, adaptor.getValue(), b.getIndexAttr(i * partSize),
+          b.getIndexAttr(partSize)));
+    }
 
-    // First extract the parts that are divisible and reshape it i.e., a
-    // tensor<17xi32> with partitionSize 5 would first slice-extract to
-    // tensor<15xi32> then reshape to tensor<3x5xi32>.
-    SmallVector<OpFoldResult> offsets(1, b.getIndexAttr(0));
-    SmallVector<OpFoldResult> sizes(1, b.getIndexAttr(sliceSize));
-    SmallVector<OpFoldResult> strides(1, b.getIndexAttr(1));
-    Value extracted = tensor::ExtractSliceOp::create(b, adaptor.getValue(),
-                                                     offsets, sizes, strides);
-
-    SmallVector<int64_t> partitionShape = {numFullPartitions, partSize};
-    RankedTensorType partitionType = RankedTensorType::get(
-        partitionShape, coefficientTensorType.getElementType());
-    // Create a dense constant for targetShape
-    auto shapeOp = mlir::arith::ConstantOp::create(
-        rewriter, op.getLoc(),
-        RankedTensorType::get(partitionType.getRank(), rewriter.getIndexType()),
-        rewriter.getIndexTensorAttr(partitionType.getShape()));
-
-    [[maybe_unused]] Value reshaped =
-        tensor::ReshapeOp::create(b, partitionType, extracted, shapeOp);
-
-    // Then extract the trailing piece that doesn't have the same tensor size.
-    SmallVector<OpFoldResult> extraPartOffsets(1, b.getIndexAttr(sliceSize));
-    SmallVector<OpFoldResult> extraPartSizes(1, b.getIndexAttr(extraPartSize));
-    SmallVector<OpFoldResult> extraPartStrides(1, b.getIndexAttr(1));
-    [[maybe_unused]] Value extraPart =
-        tensor::ExtractSliceOp::create(b, adaptor.getValue(), extraPartOffsets,
-                                       extraPartSizes, extraPartStrides);
+    std::optional<Value> maybeExtraPart;
+    if (extraPartSize > 0) {
+      maybeExtraPart = rns::ExtractSliceOp::create(
+          b, adaptor.getValue(), b.getIndexAttr(extraPartStart),
+          b.getIndexAttr(extraPartSize));
+    }
 
     // TODO(#2157): implement the rest
 
@@ -1388,6 +1382,7 @@ void PolynomialToModArith::runOnOperation() {
 
   ConversionConfig config;
   config.allowPatternRollback = false;
+  config.buildMaterializations = buildMaterializations;
   if (failed(applyPartialConversion(module, target, std::move(patterns),
                                     config))) {
     signalPassFailure();
