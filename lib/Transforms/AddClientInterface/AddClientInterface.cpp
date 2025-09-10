@@ -52,6 +52,7 @@ using tensor_ext::TensorExtDialect;
 using tensor_ext::UnpackOp;
 
 auto& kOriginalTypeAttrName = TensorExtDialect::kOriginalTypeAttrName;
+auto& kLayoutAttrName = TensorExtDialect::kLayoutAttrName;
 
 namespace {
 Type stripSecretType(Type type) {
@@ -131,6 +132,69 @@ LogicalResult generateEncryptionFunc(func::FuncOp op,
   }
 
   func::ReturnOp::create(builder, encValuesToReturn);
+  builder.setInsertionPoint(insertionBlock, insertionPoint);
+  return success();
+}
+
+/// Generates a function that packs a plaintext argument. This is for
+/// client-side helpers that need to pack data into a plaintext tensor before
+/// sending it to the server.
+LogicalResult generatePlaintextPackedFunc(func::FuncOp op,
+                                          BlockArgument funcArgument,
+                                          ImplicitLocOpBuilder& builder,
+                                          int64_t ciphertextSize) {
+  auto insertionBlock = builder.getInsertionBlock();
+  auto insertionPoint = builder.getInsertionPoint();
+  std::string packFuncName("");
+  llvm::raw_string_ostream packNameOs(packFuncName);
+  packNameOs << op.getSymName() << "__packed_plaintext__arg"
+             << funcArgument.getArgNumber();
+
+  auto originalTypeAttr = op.getArgAttrOfType<OriginalTypeAttr>(
+      funcArgument.getArgNumber(), kOriginalTypeAttrName);
+  if (!originalTypeAttr) {
+    return op.emitError() << "function argument at index "
+                          << funcArgument.getArgNumber()
+                          << " missing original type attribute";
+  }
+
+  Type packArgType = originalTypeAttr ? originalTypeAttr.getOriginalType()
+                                      : funcArgument.getType();
+  Type packReturnType = funcArgument.getType();
+
+  FunctionType packFuncType =
+      FunctionType::get(builder.getContext(), {packArgType}, {packReturnType});
+  auto packFuncOp = func::FuncOp::create(builder, packFuncName, packFuncType);
+
+  packFuncOp->setAttr(
+      "client_pack_func",
+      builder.getDictionaryAttr({
+          builder.getNamedAttr(kClientHelperFuncName,
+                               builder.getStringAttr(op.getSymName())),
+          builder.getNamedAttr(
+              kClientHelperIndex,
+              builder.getI64IntegerAttr(funcArgument.getArgNumber())),
+      }));
+
+  Block* entryBlock = packFuncOp.addEntryBlock();
+  builder.setInsertionPointToEnd(entryBlock);
+  IRRewriter b(builder);
+
+  auto operand = packFuncOp.getArgument(0);
+  Value packedValue;
+
+  auto assignLayoutOp =
+      AssignLayoutOp::create(builder, operand, originalTypeAttr.getLayout());
+  auto res = implementAssignLayout(assignLayoutOp, ciphertextSize, builder,
+                                   [&](Operation* createdOp) {});
+  if (failed(res)) {
+    return op.emitError()
+           << "Failed to implement assign layout for plaintext packing";
+  }
+  b.replaceOp(assignLayoutOp, res.value());
+  packedValue = res.value();
+
+  func::ReturnOp::create(builder, packedValue);
   builder.setInsertionPoint(insertionBlock, insertionPoint);
   return success();
 }
@@ -223,16 +287,31 @@ LogicalResult convertFunc(func::FuncOp op, int64_t ciphertextSize,
   // We need one encryption function per argument and one decryption
   // function per return value. This is mainly to avoid complicated C++ codegen
   // when encrypting multiple inputs which requires out-params.
+  //
+  // First, generate encryption functions for all secret arguments.
   for (BlockArgument val : op.getArguments()) {
-    auto argTy = val.getType();
-    if (auto argCtTy = dyn_cast<SecretType>(argTy)) {
+    if (isa<SecretType>(val.getType())) {
       if (failed(generateEncryptionFunc(op, val, builder, ciphertextSize,
                                         enableLayoutAssignment))) {
         return failure();
       }
     }
   }
+  // Then, generate packing functions for all plaintext arguments with layouts.
+  if (enableLayoutAssignment) {
+    for (BlockArgument val : op.getArguments()) {
+      if (!isa<SecretType>(val.getType()) &&
+          op.getArgAttrOfType<OriginalTypeAttr>(val.getArgNumber(),
+                                                kOriginalTypeAttrName)) {
+        if (failed(generatePlaintextPackedFunc(op, val, builder,
+                                               ciphertextSize))) {
+          return failure();
+        }
+      }
+    }
+  }
 
+  // Then, generate decryption functions for all secret return values.
   ArrayRef<Type> returnTypes = op.getFunctionType().getResults();
   for (size_t i = 0; i < returnTypes.size(); ++i) {
     auto returnTy = returnTypes[i];
