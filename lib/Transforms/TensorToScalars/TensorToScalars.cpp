@@ -258,8 +258,10 @@ struct TensorToScalars : impl::TensorToScalarsBase<TensorToScalars> {
                                                         typeConverter);
     populateReturnOpTypeConversionPattern(patterns, typeConverter);
 
+    ConversionConfig config;
+    config.allowPatternRollback = false;
     if (failed(applyPartialConversion(getOperation(), target,
-                                      std::move(patterns))))
+                                      std::move(patterns), config)))
       signalPassFailure();
 
     // Empty PatternSet = only run folders (should never fail)
