@@ -1,9 +1,7 @@
-
-
 !Zp = !mod_arith.int<7681 : i26>
 !Zpv = tensor<4x!Zp>
 
-func.func @test_lower_add() -> memref<4xi32> {
+func.func @test_lower_add() -> tensor<4xi26> {
   // 67108862 is -2
   %x = arith.constant dense<[29498763, 42, 67108862, 7681]> : tensor<4xi26>
   // 36789492 is -30319372, 67108863 is -1
@@ -14,8 +12,5 @@ func.func @test_lower_add() -> memref<4xi32> {
   %my = mod_arith.reduce %ey : !Zpv
   %m1 = mod_arith.add %mx, %my : !Zpv
   %1 = mod_arith.extract %m1 : !Zpv -> tensor<4xi26>
-
-  %2 = arith.extui %1 : tensor<4xi26> to tensor<4xi32>
-  %3 = bufferization.to_buffer %2 : tensor<4xi32> to memref<4xi32>
-  return %3 : memref<4xi32>
+  return %1 : tensor<4xi26>
 }
