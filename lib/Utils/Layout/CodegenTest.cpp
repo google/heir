@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <string>
 
 #include "gmock/gmock.h"  // from @googletest
@@ -5,9 +6,11 @@
 #include "lib/Utils/Layout/Codegen.h"
 #include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/Layout/Parser.h"
+#include "lib/Utils/Layout/Utils.h"
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"  // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"    // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"   // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"     // from @llvm-project
 
 // ISL
 
@@ -152,6 +155,50 @@ for (int c0 = 0; c0 <= 3; c0 += 1)
   for (int c1 = 0; c1 <= 6; c1 += 1)
     if ((c0 + c1 + 3) % 8 >= 3 && c1 % 4 <= 2)
       S((c0 + c1) % 8, c1 % 4, c0, c1);
+)";
+  ASSERT_THAT(actual, Eq(expected));
+}
+
+TEST(CodegenTest, ConvFilterRelationGenerated) {
+  // This is a layout produced for a convolution kernel with 3x3 filter and
+  // padding = strides = 1.
+  MLIRContext context;
+  RankedTensorType filterType =
+      RankedTensorType::get({3, 3}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({3, 3}, IndexType::get(&context));
+  int64_t padding = 1;
+  auto relation = get2dConvFilterRelation(filterType, dataType, padding);
+
+  auto result = generateLoopNestAsCStr(relation);
+  ASSERT_TRUE(succeeded(result));
+  std::string actual = result.value();
+  std::string expected = R"(
+for (int c0 = 0; c0 <= 8; c0 += 1)
+  for (int c1 = max(max(max(-1, c0 - 4), -(c0 % 3) + c0 - 3), -(c0 % 3)); c1 <= min(min(min(9, c0 + 4), -(c0 % 3) + c0 + 5), -(c0 % 3) + 10); c1 += 1)
+    if (c1 + 1 >= (-c0 + c1 + 4) % 3 && ((-c0 + c1 + 4) % 3) + 7 >= c1 && ((-c0 + c1 + 4) % 3) + (c0 % 3) >= 1 && ((-c0 + c1 + 4) % 3) + (c0 % 3) <= 3)
+      S((-c0 + c1 + 4) / 3, (-c0 + c1 + 4) % 3, c0, c1);
+)";
+  ASSERT_THAT(actual, Eq(expected));
+}
+
+TEST(CodegenTest, ConvFilterRelationNoPadding) {
+  // This is a layout produced for a convolution kernel with 3x3 filter and
+  // padding = 0
+  MLIRContext context;
+  RankedTensorType filterType =
+      RankedTensorType::get({3, 3}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({3, 3}, IndexType::get(&context));
+  int64_t padding = 0;
+  auto relation = get2dConvFilterRelation(filterType, dataType, padding);
+
+  auto result = generateLoopNestAsCStr(relation);
+  ASSERT_TRUE(succeeded(result));
+  std::string actual = result.value();
+  std::string expected = R"(
+for (int c1 = 0; c1 <= 8; c1 += 1)
+  S(c1 / 3, c1 % 3, 0, c1);
 )";
   ASSERT_THAT(actual, Eq(expected));
 }
