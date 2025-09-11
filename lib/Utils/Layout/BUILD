@@ -46,6 +46,7 @@ cc_test(
         ":Parser",
         "@googletest//:gtest_main",
         "@heir//lib/Utils/Layout:IslConversion",
+        "@heir//lib/Utils/Layout:Utils",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
@@ -74,10 +75,10 @@ cc_test(
     name = "UtilsTest",
     srcs = ["UtilsTest.cpp"],
     deps = [
+        ":IslConversion",
         ":Parser",
         ":Utils",
         "@googletest//:gtest_main",
-        "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Utils:TensorUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
@@ -149,5 +150,5 @@ cc_binary(
 
 cc_binary(
     name = "debug_packing_2d",
-    srcs = ["debug_packing_2d.c"],
+    srcs = ["debug_packing_2d.cpp"],
 )
