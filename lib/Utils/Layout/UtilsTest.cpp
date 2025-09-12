@@ -22,7 +22,7 @@ using presburger::IntegerRelation;
 using presburger::PresburgerSpace;
 using presburger::VarKind;
 
-void runTest(RankedTensorType tensorType, int64_t numSlots) {
+void runRowMajorTest(RankedTensorType tensorType, int64_t numSlots) {
   IntegerRelation result = getRowMajorLayoutRelation(tensorType, numSlots);
 
   // Check that the result relation requires size(tensor) / slots ciphertexts.
@@ -66,7 +66,7 @@ TEST(UtilsTest, SingleCiphertext) {
       RankedTensorType::get({2}, IndexType::get(&context));
   int64_t numSlots = tensorType.getNumElements();
 
-  runTest(tensorType, numSlots);
+  runRowMajorTest(tensorType, numSlots);
 }
 
 TEST(UtilsTest, TwoCiphertexts) {
@@ -74,7 +74,7 @@ TEST(UtilsTest, TwoCiphertexts) {
   RankedTensorType tensorType =
       RankedTensorType::get({4}, IndexType::get(&context));
   int64_t numSlots = 2;
-  runTest(tensorType, numSlots);
+  runRowMajorTest(tensorType, numSlots);
 }
 
 TEST(UtilsTest, MultiDim) {
@@ -82,7 +82,7 @@ TEST(UtilsTest, MultiDim) {
   RankedTensorType tensorType =
       RankedTensorType::get({2, 3, 4}, IndexType::get(&context));
   int64_t numSlots = 8;
-  runTest(tensorType, numSlots);
+  runRowMajorTest(tensorType, numSlots);
 }
 
 TEST(UtilsTest, MultiDimSingleCiphertext) {
@@ -90,7 +90,7 @@ TEST(UtilsTest, MultiDimSingleCiphertext) {
   RankedTensorType tensorType =
       RankedTensorType::get({2, 3, 4}, IndexType::get(&context));
   int64_t numSlots = 24;
-  runTest(tensorType, numSlots);
+  runRowMajorTest(tensorType, numSlots);
 }
 
 TEST(UtilsTest, DiagonalLayout) {
@@ -160,6 +160,40 @@ TEST(UtilsTest, TestGetPointsInRelation) {
   PointCollector collector;
   getRangePoints(rel, collector);
   EXPECT_EQ(collector.points, expected);
+}
+
+TEST(UtilsTest, PerRowLayout) {
+  MLIRContext context;
+
+  // Per row layout 3x5 matrix
+  //  1  2  3  4  5
+  //  6  7  8  9 10
+  // 11 12 13 14 15
+  // to
+  //  1  2  3  4  5 * * *  1  2  3  4  5 * * *
+  //  6  7  8  9 10 * * *  6  7  8  9 10 * * *
+  // 11 12 13 14 15 * * * 11 12 13 14 15 * * *
+  int64_t ciphertextSize = 16;
+  RankedTensorType matrixType =
+      RankedTensorType::get({3, 5}, IndexType::get(&context));
+  IntegerRelation perRowRelation =
+      getPerRowLayoutRelation(matrixType, ciphertextSize);
+  int64_t paddedCols = 8;
+
+  for (unsigned int i = 0; i < 3; ++i) {
+    for (unsigned int j = 0; j < 16; ++j) {
+      auto row = i;
+      auto col = j % paddedCols;
+      if (col >= matrixType.getDimSize(1)) {
+        EXPECT_FALSE(
+            perRowRelation.containsPointNoLocal({row, col, i, j}).has_value());
+      } else {
+        auto maybeExists =
+            perRowRelation.containsPointNoLocal({row, col, i, j});
+        EXPECT_TRUE(maybeExists.has_value());
+      }
+    }
+  }
 }
 
 }  // namespace

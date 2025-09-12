@@ -55,6 +55,7 @@
 namespace mlir {
 namespace heir {
 
+using linalg::MatmulOp;
 using linalg::MatvecOp;
 using linalg::ReduceOp;
 using linalg::VecmatOp;
@@ -111,6 +112,7 @@ struct NewLayoutPropagation
   LogicalResult visitOperation(ReduceOp op);
   LogicalResult visitOperation(VecmatOp op);
   LogicalResult visitOperation(MatvecOp op);
+  LogicalResult visitOperation(MatmulOp op);
   LogicalResult visitOperation(YieldOp op);
   LogicalResult visitOperation(affine::AffineForOp op);
   LogicalResult visitOperation(func::FuncOp op);
@@ -127,6 +129,7 @@ struct NewLayoutPropagation
   CompatibilityResult hasCompatibleArgumentLayouts(ReduceOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(VecmatOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(MatvecOp op);
+  CompatibilityResult hasCompatibleArgumentLayouts(MatmulOp op);
 
   // Insert conversion ops to rectify incompatible operand layouts
   void rectifyIncompatibleOperandLayouts(Operation* op);
@@ -232,7 +235,7 @@ LogicalResult NewLayoutPropagation::visitOperation(Operation* op) {
       // secret ops
       .Case<GenericOp, YieldOp>([&](auto op) { return visitOperation(op); })
       // linalg ops
-      .Case<MatvecOp, VecmatOp, ReduceOp>(
+      .Case<MatvecOp, VecmatOp, ReduceOp, MatmulOp>(
           [&](auto op) { return visitOperation(op); })
       // affine ops
       .Case<affine::AffineForOp>([&](auto op) { return visitOperation(op); })
@@ -404,20 +407,100 @@ LogicalResult NewLayoutPropagation::visitOperation(ExpandShapeOp op) {
 LogicalResult NewLayoutPropagation::visitOperation(VecmatOp op) {
   auto vecmatOp = cast<linalg::ContractionOpInterface>(*op);
   auto vec = vecmatOp.lhs();
+  auto vecType = cast<RankedTensorType>(vec.getType());
+  auto matrix = vecmatOp.rhs();
+  if (!isSecret(vec, solver) || isSecret(matrix, solver)) {
+    return failure();
+  }
 
-  // The matrix has no assigned layout because it is assumed to be
-  // plaintext/static (this is intended to be enforced by
-  // hasCompatibleArgumentLayouts).
+  MLIRContext* ctx = &getContext();
+  mlir::IRRewriter builder(ctx);
+
+  if (vecType.getDimSize(0) > ciphertextSize) {
+    return op->emitError() << "Vector must fit into a single ciphertext";
+  }
+
+  // Assign a row major layout to the input vec.
   NewLayoutAttr vecLayout = assignedLayouts.at(vec);
+  if (!isRelationRowMajor(vecType, ciphertextSize,
+                          vecLayout.getIntegerRelation())) {
+    // Insert a layout conversion op to make the vec layout per-row
+    builder.setInsertionPoint(op);
 
-  // Always one result, and it's a vector with the same layout
-  // as the input vector
+    IntegerRelation rowMajorRelation =
+        getPerRowLayoutRelation(vecType, ciphertextSize);
+    NewLayoutAttr rowMajorLayoutAttr =
+        NewLayoutAttr::getFromIntegerRelation(ctx, rowMajorRelation);
+
+    ConvertLayoutOp convertLayoutOp = ConvertLayoutOp::create(
+        builder, op->getLoc(), vec, vecLayout, rowMajorLayoutAttr);
+    convertLayoutOp->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName,
+                             rowMajorLayoutAttr);
+    Value toReplace = convertLayoutOp.getResult();
+    builder.replaceUsesWithIf(vec, toReplace, [&](OpOperand& operand) {
+      return operand.getOwner() == op;
+    });
+    debugAssignLayout(toReplace, rowMajorLayoutAttr);
+    assignedLayouts.insert({toReplace, rowMajorLayoutAttr});
+    vec = toReplace;
+  }
+
+  // Assign or change the filter matrix to a diagonal layout. For a vecmat
+  // operation, we need the diagonals to be extracted from the transpose.
+  // So we get the regular diagonal layout for the transpose matrix type, and
+  // then swap the dimensions.
+  auto matrixType = cast<RankedTensorType>(matrix.getType());
+  auto matrixTransposeType = RankedTensorType::get(
+      {matrixType.getDimSize(1), matrixType.getDimSize(0)},
+      matrixType.getElementType());
+  NewLayoutAttr matrixLayout = assignedLayouts.at(matrix);
+  IntegerRelation matrixLayoutRelation = matrixLayout.getIntegerRelation();
+  auto domainOffset = matrixLayout.getIntegerRelation().getVarKindOffset(
+      presburger::VarKind::Domain);
+  auto clonedMatrixRelation = matrixLayoutRelation.clone();
+  clonedMatrixRelation->swapVar(domainOffset, domainOffset + 1);
+  if (!isRelationSquatDiagonal(matrixTransposeType, ciphertextSize,
+                               *clonedMatrixRelation)) {
+    // Insert a layout conversion op to make the matrix layout squat diagonal
+    builder.setInsertionPoint(op);
+
+    IntegerRelation diagonalTransposeRelation =
+        getDiagonalLayoutRelation(matrixTransposeType, ciphertextSize);
+    auto diagonalRelation = diagonalTransposeRelation.clone();
+    diagonalRelation->swapVar(domainOffset, domainOffset + 1);
+    NewLayoutAttr squatDiagonalLayoutAttr =
+        NewLayoutAttr::getFromIntegerRelation(ctx, *diagonalRelation);
+
+    ConvertLayoutOp convertLayoutOp = ConvertLayoutOp::create(
+        builder, op->getLoc(), matrix, matrixLayout, squatDiagonalLayoutAttr);
+    convertLayoutOp->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName,
+                             squatDiagonalLayoutAttr);
+    Value toReplace = convertLayoutOp.getResult();
+    builder.replaceUsesWithIf(matrix, toReplace, [&](OpOperand& operand) {
+      return operand.getOwner() == op;
+    });
+    debugAssignLayout(toReplace, squatDiagonalLayoutAttr);
+    assignedLayouts.insert({toReplace, squatDiagonalLayoutAttr});
+    matrix = toReplace;
+  }
+
+  // The output has the same per-row layout as the input matrix.
   auto result = vecmatOp->getResult(0);
-  NewLayoutAttr resultLayout = vecLayout;
+  RankedTensorType outputType = cast<RankedTensorType>(result.getType());
+  IntegerRelation outputLayoutResult =
+      getRowMajorLayoutRelation(outputType, ciphertextSize);
+  NewLayoutAttr outputLayoutAttr =
+      NewLayoutAttr::getFromIntegerRelation(ctx, outputLayoutResult);
 
-  assignedLayouts.insert({result, resultLayout});
+  assignedLayouts.insert({result, outputLayoutAttr});
   setResultLayoutAttr(op);
-  debugAssignLayout(result, resultLayout);
+  debugAssignLayout(result, outputLayoutAttr);
+
+  // Add secret.kernel attribute for MatmulDiagonal
+  auto kernelAttr =
+      secret::KernelAttr::get(ctx, KernelName::VecmatDiagonal, /*force=*/false);
+  op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
+
   return success();
 }
 
@@ -425,6 +508,11 @@ LogicalResult NewLayoutPropagation::visitOperation(MatvecOp op) {
   auto matvecOp = cast<linalg::ContractionOpInterface>(*op);
   auto matrix = matvecOp.lhs();
   auto matrixType = cast<RankedTensorType>(matrix.getType());
+
+  // Number of rows must be less than or equal to the number of columns.
+  if (matrixType.getDimSize(0) > matrixType.getDimSize(1)) {
+    return op->emitError() << "Matrix rows must be less than columns";
+  }
 
   // TODO(#1597): a layout optimizer should really be selecting the diagonal
   // layout instead of this pass.
@@ -477,6 +565,104 @@ LogicalResult NewLayoutPropagation::visitOperation(MatvecOp op) {
   MLIRContext* ctx = &getContext();
   auto kernelAttr =
       secret::KernelAttr::get(ctx, KernelName::MatvecDiagonal, /*force=*/false);
+  op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
+
+  return success();
+}
+
+LogicalResult NewLayoutPropagation::visitOperation(MatmulOp op) {
+  auto matmulOp = cast<linalg::ContractionOpInterface>(*op);
+  auto inputMatrix = matmulOp.lhs();
+  auto filterMatrix = matmulOp.rhs();
+  if (!isSecret(inputMatrix, solver) || isSecret(filterMatrix, solver)) {
+    // TODO(#1376): Implement bicyclic ciphertext-ciphertext matmul kernel.
+    return failure();
+  }
+
+  MLIRContext* ctx = &getContext();
+  mlir::IRRewriter builder(ctx);
+
+  // Assign a per-row layout to the input matrix. Each row of the input matrix
+  // will be packed into a separate ciphertext.
+  auto inputMatrixType = cast<RankedTensorType>(inputMatrix.getType());
+  NewLayoutAttr inputMatrixLayout = assignedLayouts.at(inputMatrix);
+  if (!isRelationPerRow(inputMatrixType, ciphertextSize,
+                        inputMatrixLayout.getIntegerRelation())) {
+    // Insert a layout conversion op to make the matrix layout per-row
+    builder.setInsertionPoint(op);
+
+    IntegerRelation perRowRelation =
+        getPerRowLayoutRelation(inputMatrixType, ciphertextSize);
+    NewLayoutAttr perRowLayoutAttr =
+        NewLayoutAttr::getFromIntegerRelation(ctx, perRowRelation);
+
+    ConvertLayoutOp convertLayoutOp =
+        ConvertLayoutOp::create(builder, op->getLoc(), inputMatrix,
+                                inputMatrixLayout, perRowLayoutAttr);
+    convertLayoutOp->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName,
+                             perRowLayoutAttr);
+    Value toReplace = convertLayoutOp.getResult();
+    builder.replaceUsesWithIf(inputMatrix, toReplace, [&](OpOperand& operand) {
+      return operand.getOwner() == op;
+    });
+    debugAssignLayout(toReplace, perRowLayoutAttr);
+    assignedLayouts.insert({toReplace, perRowLayoutAttr});
+    inputMatrix = toReplace;
+  }
+
+  // Assign or change the filter matrix a diagonal layout.
+  auto filterMatrixType = cast<RankedTensorType>(filterMatrix.getType());
+  auto filterMatrixTransposeType = RankedTensorType::get(
+      {filterMatrixType.getDimSize(1), filterMatrixType.getDimSize(0)},
+      filterMatrixType.getElementType());
+  NewLayoutAttr filterMatrixLayout = assignedLayouts.at(filterMatrix);
+  IntegerRelation filterMatrixLayoutRelation =
+      filterMatrixLayout.getIntegerRelation();
+  auto clonedFilterMatrixRelation = filterMatrixLayoutRelation.clone();
+  auto domainOffset =
+      filterMatrixLayoutRelation.getVarKindOffset(presburger::VarKind::Domain);
+  clonedFilterMatrixRelation->swapVar(domainOffset, domainOffset + 1);
+  if (!isRelationSquatDiagonal(filterMatrixTransposeType, ciphertextSize,
+                               *clonedFilterMatrixRelation)) {
+    // Insert a layout conversion op to make the matrix layout squat diagonal
+    builder.setInsertionPoint(op);
+
+    IntegerRelation diagonalTransposeRelation =
+        getDiagonalLayoutRelation(filterMatrixTransposeType, ciphertextSize);
+    auto diagonalRelation = diagonalTransposeRelation.clone();
+    diagonalRelation->swapVar(domainOffset, domainOffset + 1);
+    NewLayoutAttr squatDiagonalLayoutAttr =
+        NewLayoutAttr::getFromIntegerRelation(ctx, *diagonalRelation);
+
+    ConvertLayoutOp convertLayoutOp =
+        ConvertLayoutOp::create(builder, op->getLoc(), filterMatrix,
+                                filterMatrixLayout, squatDiagonalLayoutAttr);
+    convertLayoutOp->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName,
+                             squatDiagonalLayoutAttr);
+    Value toReplace = convertLayoutOp.getResult();
+    builder.replaceUsesWithIf(filterMatrix, toReplace, [&](OpOperand& operand) {
+      return operand.getOwner() == op;
+    });
+    debugAssignLayout(toReplace, squatDiagonalLayoutAttr);
+    assignedLayouts.insert({toReplace, squatDiagonalLayoutAttr});
+    filterMatrix = toReplace;
+  }
+
+  // The output has the same per-row layout as the input matrix.
+  auto result = matmulOp->getResult(0);
+  RankedTensorType outputType = cast<RankedTensorType>(result.getType());
+  IntegerRelation outputLayoutResult =
+      getPerRowLayoutRelation(outputType, ciphertextSize);
+  NewLayoutAttr outputLayoutAttr =
+      NewLayoutAttr::getFromIntegerRelation(ctx, outputLayoutResult);
+
+  assignedLayouts.insert({result, outputLayoutAttr});
+  setResultLayoutAttr(op);
+  debugAssignLayout(result, outputLayoutAttr);
+
+  // Add secret.kernel attribute for MatmulDiagonal
+  auto kernelAttr =
+      secret::KernelAttr::get(ctx, KernelName::MatmulDiagonal, /*force=*/false);
   op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
 
   return success();

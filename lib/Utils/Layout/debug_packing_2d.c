@@ -9,10 +9,10 @@
  */
 #include <stdio.h>
 
-#define ROWS 8
-#define COLS 8
-#define CTS 8
-#define SLOTS 16
+#define ROWS 5
+#define COLS 3
+#define CTS 4
+#define SLOTS 8
 
 int data[ROWS][COLS];
 int ciphertexts[CTS][SLOTS];
@@ -48,9 +48,10 @@ int main() {
 
   // Insert the codegenned loop here from debug output.
   // clang-format off
-  for (int c0 = 0; c0 <= 7; c0 += 1)
-    for (int c1 = 0; c1 <= 15; c1 += 1)
-      S((c1 + 3) % 8, (c0 + c1 + 3) % 8, c0, c1);
+  for (int c0 = 0; c0 <= 3; c0 += 1)
+    for (int c1 = 0; c1 <= 6; c1 += 1)
+      if ((c0 + c1 + 3) % 8 >= 3 && c1 % 4 <= 2)
+        S((c0 + c1) % 8, c1 % 4, c0, c1);
   // clang-format on
 
   printf("Data matrix:\n");

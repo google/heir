@@ -34,6 +34,11 @@ presburger::IntegerRelation getRowMajorLayoutRelation(
 presburger::IntegerRelation getDiagonalLayoutRelation(
     RankedTensorType matrixType, int64_t ciphertextSize);
 
+// Returns an IntegerRelation that represents a per-row layout for a matrix
+// such that each row of the matrix is in a separate ciphertext.
+presburger::IntegerRelation getPerRowLayoutRelation(RankedTensorType matrixType,
+                                                    int64_t ciphertextSize);
+
 // Returns true if the given relation is a squat diagonal layout for the given
 // matrix type and ciphertext semantic shape.
 bool isRelationSquatDiagonal(RankedTensorType matrixType,
@@ -44,6 +49,11 @@ bool isRelationSquatDiagonal(RankedTensorType matrixType,
 // vector type and slot size.
 bool isRelationRowMajor(RankedTensorType vectorType, int64_t numSlots,
                         const presburger::IntegerRelation& relation);
+
+// Returns true if the given relation is a per-row layout
+// for the given matrix type and ciphertext semantic shape.
+bool isRelationPerRow(RankedTensorType matrixType, int64_t ciphertextSize,
+                      presburger::IntegerRelation relation);
 
 // Returns a new IntegerRelation that is the same as the given relation, but
 // with the given dimensions collapsed. This expects that the reassociation

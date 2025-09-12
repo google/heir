@@ -19,6 +19,8 @@ namespace {
 static std::unordered_map<KernelName, std::string> correspondingOp = {
     {KernelName::MatvecNaive, "linalg.matvec"},
     {KernelName::MatvecDiagonal, "linalg.matvec"},
+    {KernelName::VecmatDiagonal, "linalg.vecmat"},
+    {KernelName::MatmulDiagonal, "linalg.matmul"},
 };
 
 std::set<std::string> requiredNontrivial = {"linalg"};
@@ -59,6 +61,10 @@ std::string kernelNameAsStr(const KernelName& kernelName) {
       return "MatvecNaive";
     case KernelName::MatvecDiagonal:
       return "MatvecDiagonal";
+    case KernelName::MatmulDiagonal:
+      return "MatmulDiagonal";
+    case KernelName::VecmatDiagonal:
+      return "VecmatDiagonal";
     default:
       return "Unknown";
   }
