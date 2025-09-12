@@ -14,6 +14,26 @@ def LUTOpInterface : OpInterface<"LUTOpInterface"> {
   ];
 }
 
+def OperandLayoutRequirementOpInterface : OpInterface<"OperandLayoutRequirementOpInterface"> {
+  let cppNamespace = "::mlir::heir";
+  let description = [{
+    An interface that signals which operands require a layout for
+    implementation with an FHE kernel.
+
+    By default, all operands require a layout, even cleartext operands.
+  }];
+
+  let methods = [
+    InterfaceMethod<
+      /*desc=*/"Return true if this operand requires a layout",
+      /*retTy=*/"bool",
+      /*methodName=*/"operandRequiresLayout",
+      /*args=*/(ins "unsigned":$operandIndex),
+      /*defaultImplementation=*/[{ return true; }]
+    >,
+  ];
+}
+
 def LayoutConversionHoistableOpInterface : OpInterface<"LayoutConversionHoistableOpInterface"> {
   let cppNamespace = "::mlir::heir";
   let description = [{
@@ -42,7 +62,7 @@ def LayoutConversionHoistableOpInterface : OpInterface<"LayoutConversionHoistabl
   //   }
   //   if (!::mlir::heir::isSupportedKernel($_op, kernelName)) {
   //     return $_op->emitOpError()
-  //            << "has unsupported kernel '" << kernelName << "'";
+  //            << "has unsupported kernel ''";
   //   }
   //   return success();
   // }];

@@ -78,6 +78,7 @@
 #include "lib/Transforms/InlineActivations/InlineActivations.h"
 #include "lib/Transforms/LayoutOptimization/InterfaceImpl.h"
 #include "lib/Transforms/LayoutOptimization/LayoutOptimization.h"
+#include "lib/Transforms/LayoutPropagation/InterfaceImpl.h"
 #include "lib/Transforms/LayoutPropagation/LayoutPropagation.h"
 #include "lib/Transforms/LayoutPropagation/NewLayoutPropagation.h"
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
@@ -364,6 +365,7 @@ int main(int argc, char** argv) {
   rns::registerExternalRNSTypeInterfaces(registry);
   registerOperandAndResultAttrInterface(registry);
   registerLayoutConversionHoistableInterface(registry);
+  registerOperandLayoutRequirementOpInterface(registry);
 
   PassPipelineRegistration<TosaToArithOptions>(
       "heir-tosa-to-arith",
