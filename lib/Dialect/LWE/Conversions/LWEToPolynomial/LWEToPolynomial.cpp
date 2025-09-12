@@ -1,5 +1,7 @@
 #include "lib/Dialect/LWE/Conversions/LWEToPolynomial/LWEToPolynomial.h"
 
+#include <cstdint>
+#include <optional>
 #include <utility>
 
 #include "lib/Dialect/CKKS/IR/CKKSOps.h"
@@ -21,11 +23,13 @@
 #include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
@@ -557,7 +561,10 @@ struct LWEToPolynomial : public impl::LWEToPolynomialBase<LWEToPolynomial> {
     addStructuralConversionPatterns(typeConverter, patterns, target);
 
     // Run full conversion, if any LWE ops were missed out the pass will fail.
-    if (failed(applyFullConversion(module, target, std::move(patterns)))) {
+    ConversionConfig config;
+    config.allowPatternRollback = false;
+    if (failed(
+            applyFullConversion(module, target, std::move(patterns), config))) {
       return signalPassFailure();
     }
   }

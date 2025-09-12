@@ -19,6 +19,7 @@
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
@@ -192,7 +193,7 @@ struct ConvertCGGIToJaxitePmapLut3Op
 struct ConvertCGGIToJaxiteTrivialEncryptOp
     : public OpConversionPattern<lwe::TrivialEncryptOp> {
   ConvertCGGIToJaxiteTrivialEncryptOp(mlir::MLIRContext* context)
-      : OpConversionPattern<lwe::TrivialEncryptOp>(context, /*benefit=*/2) {}
+      : OpConversionPattern<lwe::TrivialEncryptOp>(context, /*benefit=*/10) {}
 
   using OpConversionPattern::OpConversionPattern;
 
@@ -203,6 +204,8 @@ struct ConvertCGGIToJaxiteTrivialEncryptOp
         getContextualJaxiteArg<jaxite::ParamsType>(op.getOperation());
     if (failed(result)) return result;
     Value serverParams = result.value();
+
+    // Find the EncodeOp that should be feeding this TrivialEncrypt
     lwe::EncodeOp encodeOp = op.getInput().getDefiningOp<lwe::EncodeOp>();
     if (!encodeOp || !encodeOp.getInput().getType().isSignlessIntOrFloat() ||
         encodeOp.getInput().getType().getIntOrFloatBitWidth() != 1) {
@@ -210,25 +213,17 @@ struct ConvertCGGIToJaxiteTrivialEncryptOp
                                "boolean LWEPlaintext but found "
                             << op.getInput().getType();
     }
+
     auto createConstantOp = jaxite::ConstantOp::create(
         rewriter, op.getLoc(),
         typeConverter->convertType(op.getOutput().getType()),
         encodeOp.getInput(), serverParams);
     rewriter.replaceOp(op, createConstantOp);
-    return success();
-  }
-};
 
-struct ConvertCGGIToJaxiteEncodeOp : public OpConversionPattern<lwe::EncodeOp> {
-  ConvertCGGIToJaxiteEncodeOp(mlir::MLIRContext* context)
-      : OpConversionPattern<lwe::EncodeOp>(context) {}
-
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      lwe::EncodeOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter& rewriter) const override {
-    rewriter.eraseOp(op);
+    // Erase the EncodeOp if it has no other users
+    if (encodeOp.getResult().hasOneUse()) {
+      rewriter.eraseOp(encodeOp);
+    }
     return success();
   }
 };
@@ -246,6 +241,8 @@ class CGGIToJaxite : public impl::CGGIToJaxiteBase<CGGIToJaxite> {
     target.addLegalDialect<jaxite::JaxiteDialect>();
     target.addIllegalDialect<cggi::CGGIDialect>();
     target.addIllegalDialect<lwe::LWEDialect>();
+    // Mark EncodeOp as legal - we'll handle it within TrivialEncrypt patterns
+    target.addLegalOp<lwe::EncodeOp>();
     // FuncOp is marked legal by the default structural conversion patterns
     // helper, just based on type conversion. We need more, but because the
     // addDynamicallyLegalOp is a set-based method, we can add this after
@@ -267,14 +264,37 @@ class CGGIToJaxite : public impl::CGGIToJaxiteBase<CGGIToJaxite> {
              hasParamsArg;
     });
 
-    // FIXME: still need to update callers to insert the new server key arg, if
-    // needed and possible.
-    patterns.add<AddJaxiteContextualArgs, ConvertCGGIToJaxiteEncodeOp,
-                 ConvertCGGIToJaxiteLut3Op, ConvertCGGIToJaxiteTrivialEncryptOp,
+    patterns.add<AddJaxiteContextualArgs, ConvertCGGIToJaxiteLut3Op,
+                 ConvertCGGIToJaxiteTrivialEncryptOp,
                  ConvertCGGIToJaxitePmapLut3Op, ConvertAny<>>(typeConverter,
                                                               context);
-    if (failed(applyPartialConversion(op, target, std::move(patterns)))) {
+    ConversionConfig config;
+    config.allowPatternRollback = false;
+    if (failed(
+            applyPartialConversion(op, target, std::move(patterns), config))) {
       return signalPassFailure();
+    }
+
+    // Post-conversion cleanup: remove any remaining EncodeOps
+    // These would be EncodeOps that are not used by any TrivialEncrypt
+    // operations
+    SmallVector<lwe::EncodeOp> encodeOpsToErase;
+    op->walk([&](lwe::EncodeOp encodeOp) {
+      if (encodeOp.use_empty()) {
+        encodeOpsToErase.push_back(encodeOp);
+      } else {
+        // This shouldn't happen - all encode ops should have been
+        // erased by ConvertBoolTrivialEncryptOp
+        encodeOp.emitError()
+            << "EncodeOp with TrivialEncrypt users found after conversion - "
+               "this indicates a TrivialEncrypt pattern failed to run";
+        signalPassFailure();
+      }
+    });
+
+    // Erase the unused EncodeOps
+    for (auto encodeOp : encodeOpsToErase) {
+      encodeOp.erase();
     }
   }
 };

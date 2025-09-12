@@ -18,6 +18,7 @@
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
@@ -625,7 +626,11 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
 
     addStructuralConversionPatterns(typeConverter, patterns, target);
 
-    if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
+    ConversionConfig config;
+    // TODO(#2210): re-enable and fix pass
+    // config.allowPatternRollback = false;
+    if (failed(applyPartialConversion(module, target, std::move(patterns),
+                                      config))) {
       return signalPassFailure();
     }
   }

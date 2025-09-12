@@ -185,9 +185,10 @@ struct ConvertFuncCallOp : public OpConversionPattern<func::CallOp> {
       newOperands.push_back(operand);
     }
 
+    SmallVector<NamedAttribute> dialectAttrs(op->getDialectAttrs());
     rewriter
         .replaceOpWithNewOp<func::CallOp>(op, callee, resultTypes, newOperands)
-        ->setDialectAttrs(op->getDialectAttrs());
+        ->setDialectAttrs(dialectAttrs);
     return success();
   }
 
@@ -215,9 +216,11 @@ struct RemoveKeyArgForFuncCall : public OpConversionPattern<func::CallOp> {
         newOperands.push_back(operand);
       }
     }
+
+    SmallVector<NamedAttribute> dialectAttrs(op->getDialectAttrs());
     rewriter
         .replaceOpWithNewOp<func::CallOp>(op, callee, resultTypes, newOperands)
-        ->setDialectAttrs(op->getDialectAttrs());
+        ->setDialectAttrs(dialectAttrs);
     return success();
   }
 };
@@ -402,11 +405,12 @@ struct ConvertRlweEncodeOp : public OpConversionPattern<EncodeOp> {
     auto encoding = op.getEncoding();
     int64_t scale = lwe::getScalingFactorFromEncodingAttr(encoding);
 
+    SmallVector<NamedAttribute> dialectAttrs(op->getDialectAttrs());
     rewriter
         .replaceOpWithNewOp<LattigoEncodeOp>(
             op, this->typeConverter->convertType(op.getOutput().getType()),
             evaluator, input, alloc, rewriter.getI64IntegerAttr(scale))
-        ->setDialectAttrs(op->getDialectAttrs());
+        ->setDialectAttrs(dialectAttrs);
     return success();
   }
 };
@@ -749,7 +753,10 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
     // Misc
     patterns.add<ConvertLWEReinterpretApplicationData>(typeConverter, context);
 
-    if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
+    ConversionConfig config;
+    config.allowPatternRollback = false;
+    if (failed(applyPartialConversion(module, target, std::move(patterns),
+                                      config))) {
       return signalPassFailure();
     }
 
@@ -768,8 +775,11 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
                          lattigo::RLWEPublicKeyType>(operandType);
       });
     });
+
+    ConversionConfig postConfig;
+    postConfig.allowPatternRollback = false;
     if (failed(applyPartialConversion(module, postTarget,
-                                      std::move(postPatterns)))) {
+                                      std::move(postPatterns), postConfig))) {
       return signalPassFailure();
     }
 

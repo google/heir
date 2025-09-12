@@ -18,6 +18,7 @@
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
@@ -494,7 +495,10 @@ void ModArithToArith::runOnOperation() {
       linalg::YieldOp, tensor::ExtractSliceOp, tensor::InsertSliceOp>(
       [&](auto op) { return typeConverter.isLegal(op); });
 
-  if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
+  ConversionConfig config;
+  config.allowPatternRollback = false;
+  if (failed(applyPartialConversion(module, target, std::move(patterns),
+                                    config))) {
     signalPassFailure();
   }
 }

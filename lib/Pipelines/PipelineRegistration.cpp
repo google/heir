@@ -106,7 +106,9 @@ void polynomialToLLVMPipelineBuilder(OpPassManager& manager) {
   manager.addPass(createEmitCInterface());
 
   // Poly
-  manager.addPass(createElementwiseToAffine());
+  ElementwiseToAffineOptions elementwiseOptions;
+  elementwiseOptions.convertDialects = {"polynomial"};
+  manager.addPass(createElementwiseToAffine(elementwiseOptions));
   manager.addPass(polynomial::createPolynomialToModArith());
   manager.addPass(::mlir::heir::mod_arith::createModArithToArith());
   manager.addPass(createCanonicalizerPass());

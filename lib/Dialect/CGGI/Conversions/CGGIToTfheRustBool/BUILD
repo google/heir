@@ -20,7 +20,6 @@ cc_library(
         "@heir//lib/Utils",
         "@heir//lib/Utils:ConversionUtils",
         "@llvm-project//llvm:Support",
-        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:MemRefDialect",
