@@ -143,9 +143,14 @@ LogicalResult UnpackOp::verify() {
 
 LogicalResult PermuteOp::verify() {
   auto tensorTy = getInput().getType();
+  // TODO(#2047): remove other options when NewLayoutAttr is fully supported.
+  if (isa<NewLayoutAttr>(getPermutation())) {
+    return success();
+  }
+
   // TODO(#924): Support more general vector inputs.
   if (tensorTy.getRank() != 1) {
-    return emitOpError() << "requires a 1-D input tensor"
+    return emitOpError() << "requires a 1-D input tensor "
                             "single non-unit dimension, but found "
                          << tensorTy;
   }

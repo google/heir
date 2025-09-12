@@ -156,7 +156,7 @@ TEST(UtilsTest, TestGetPointsInRelation) {
   MLIRContext context;
   IntegerRelation rel =
       relationFromString("(x) : (x >= 0, 7 >= x, x mod 3 == 0)", 0, &context);
-  std::vector<std::vector<int>> expected = {{0}, {3}, {6}};
+  std::vector<std::vector<int64_t>> expected = {{0}, {3}, {6}};
   PointCollector collector;
   getRangePoints(rel, collector);
   EXPECT_EQ(collector.points, expected);
@@ -194,6 +194,14 @@ TEST(UtilsTest, PerRowLayout) {
       }
     }
   }
+}
+
+TEST(UtilsTest, TestAnyRangePoint) {
+  MLIRContext context;
+  IntegerRelation rel =
+      relationFromString("(x) : (x >= 0, 7 >= x, x mod 3 == 0)", 0, &context);
+  std::vector<int64_t> actual = anyRangePoint(rel);
+  EXPECT_TRUE(rel.containsPointNoLocal(actual).has_value());
 }
 
 }  // namespace

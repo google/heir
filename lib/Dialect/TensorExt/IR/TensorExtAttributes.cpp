@@ -146,7 +146,7 @@ IntegerRelation NewLayoutAttr::getIntegerRelation() const {
 }
 
 NewLayoutAttr NewLayoutAttr::getFromIntegerRelation(
-    ::mlir::MLIRContext* context, IntegerRelation relation) {
+    ::mlir::MLIRContext* context, const IntegerRelation& relation) {
   isl_ctx* ctx = isl_ctx_alloc();
   isl_basic_map* bmap = convertRelationToBasicMap(relation, ctx);
 
