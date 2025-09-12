@@ -5,9 +5,11 @@
 #include <cmath>
 #include <cstdint>
 #include <memory>
+#include <type_traits>
 #include <vector>
 
 #include "lib/Kernel/ArithmeticDag.h"
+#include "lib/Kernel/KernelImplementation.h"
 #include "lib/Utils/Polynomial/ChebyshevDecomposition.h"
 #include "llvm/include/llvm/ADT/ArrayRef.h"  // from @llvm-project
 
@@ -22,21 +24,23 @@ constexpr double kMinCoeffs = 1e-15;
 // Computes Arithmetic DAGs of x^0, x^1, ..., x^k.
 // The multiplicative depth is ceil(log2(k)).
 template <typename T>
-std::vector<std::shared_ptr<kernel::ArithmeticDagNode<T>>> computePowers(
-    std::shared_ptr<kernel::ArithmeticDagNode<T>> x, int64_t k) {
+std::enable_if_t<std::is_base_of<kernel::AbstractValue, T>::value,
+                 std::vector<std::shared_ptr<kernel::ArithmeticDagNode<T>>>>
+computePowers(std::shared_ptr<kernel::ArithmeticDagNode<T>> x, int64_t k) {
   using NodeTy = kernel::ArithmeticDagNode<T>;
-  std::vector<std::shared_ptr<NodeTy>> result(k + 1);
-  result[0] = NodeTy::constant(1);
+  std::vector<std::shared_ptr<NodeTy>> result;
+  result.reserve(k + 1);
+  result.push_back(NodeTy::constant(1));
   if (k >= 1) {
-    result[1] = x;
+    result.push_back(x);
   }
   for (int64_t i = 2; i <= k; i++) {
     if (i % 2 == 0) {
       // X^{2n} = X^n * X^n
-      result[i] = NodeTy::mul(result[i / 2], result[i / 2]);
+      result.push_back(NodeTy::mul(result[i / 2], result[i / 2]));
     } else {
       // X^{2n+1} = X^n * X^{n+1}
-      result[i] = NodeTy::mul(result[i / 2], result[i / 2 + 1]);
+      result.push_back(NodeTy::mul(result[i / 2], result[i / 2 + 1]));
     }
   }
   return result;
@@ -46,28 +50,30 @@ std::vector<std::shared_ptr<kernel::ArithmeticDagNode<T>>> computePowers(
 // Chebyshev polynomials.
 // The multiplicative depth is ceil(log2(k)).
 template <typename T>
-std::vector<std::shared_ptr<kernel::ArithmeticDagNode<T>>>
-computeChebyshevPolynomialValues(
-    std::shared_ptr<kernel::ArithmeticDagNode<T>> x, int64_t k) {
+std::enable_if_t<std::is_base_of<kernel::AbstractValue, T>::value,
+                 std::vector<std::shared_ptr<kernel::ArithmeticDagNode<T>>>>
+computeChebyshevPolynomialValues(const T& x, int64_t k) {
   using NodeTy = kernel::ArithmeticDagNode<T>;
-  std::vector<std::shared_ptr<NodeTy>> result(k + 1);
+  std::vector<std::shared_ptr<NodeTy>> result;
+  result.reserve(k + 1);
   auto number1 = NodeTy::constant(1);
   auto number2 = NodeTy::constant(2);
-  result[0] = number1;
+  auto xNode = NodeTy::leaf(x);
+  result.push_back(number1);
   if (k >= 1) {
-    result[1] = x;
+    result.push_back(xNode);
   }
   for (int64_t i = 2; i <= k; i++) {
     if (i % 2 == 0) {
       // T_{2n}(x) = 2(T_n(x))^2 - 1
-      result[i] = NodeTy::sub(
+      result.push_back(NodeTy::sub(
           NodeTy::mul(NodeTy::mul(result[i / 2], result[i / 2]), number2),
-          number1);
+          number1));
     } else {
       // T_{2n+1}(x) = 2*T_n(x) * T_{n+1}(x) - x
-      result[i] = NodeTy::sub(
+      result.push_back(NodeTy::sub(
           NodeTy::mul(NodeTy::mul(result[i / 2], result[i / 2 + 1]), number2),
-          x);
+          xNode));
     }
   }
   return result;
@@ -85,10 +91,10 @@ inline bool hasElementsLargerThan(const std::vector<double>& v,
 // Creates Arithmetic DAG of evaluation a Chebyshev polynomial with
 // PatersonStockmeyer's algorithm.
 template <typename T>
-std::shared_ptr<kernel::ArithmeticDagNode<T>>
+std::enable_if_t<std::is_base_of<kernel::AbstractValue, T>::value,
+                 std::shared_ptr<kernel::ArithmeticDagNode<T>>>
 patersonStockmeyerChebyshevPolynomialEvaluation(
-    std::shared_ptr<kernel::ArithmeticDagNode<T>> x,
-    ::llvm::ArrayRef<double> coefficients) {
+    const T& x, ::llvm::ArrayRef<double> coefficients) {
   using NodeTy = kernel::ArithmeticDagNode<T>;
   int64_t polynomialDegree = coefficients.size() - 1;
   // Choose k optimally - sqrt of maxDegree is typically a good choice

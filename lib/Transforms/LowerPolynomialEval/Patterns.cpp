@@ -239,11 +239,40 @@ LogicalResult LowerViaPatersonStockmeyerChebyshev::matchAndRewrite(
         return llvm::cast<FloatAttr>(attr).getValue().convertToDouble();
       });
 
-  auto xNode = ArithmeticDagNode<SSAValue>::leaf(op.getValue());
+  // Expect domain attributes to be set.
+  auto lowerAttr = op->getAttr("domain_lower");
+  auto upperAttr = op->getAttr("domain_upper");
+  if (!lowerAttr || !upperAttr) return failure();
+  double lower = cast<FloatAttr>(lowerAttr).getValue().convertToDouble();
+  double upper = cast<FloatAttr>(upperAttr).getValue().convertToDouble();
+
+  // The Chebyshev polynomial is defined on the interval [-1, 1]. We need to
+  // rescale the input x in [lower, upper] to be on this unit interval.
+  // The mapping is x -> 2(x-L)/(U-L) - 1 = (2/U-L) * x - (U+L)/(U-L)
+  double rescale = 2 / (upper - lower);
+  double shift = (upper + lower) / (upper - lower);
+
+  ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+  Value xInput = op.getValue();
+  if (rescale != 1.0) {
+    xInput = arith::MulFOp::create(
+                 b, xInput,
+                 arith::ConstantOp::create(
+                     b, op.getType(), b.getFloatAttr(op.getType(), rescale)))
+                 .getResult();
+  }
+  if (shift != 0.0) {
+    xInput = arith::AddFOp::create(
+                 b, xInput,
+                 arith::ConstantOp::create(b, op.getType(),
+                                           b.getFloatAttr(op.getType(), shift)))
+                 .getResult();
+  }
+  SSAValue xNode(xInput);
+
   auto resultNode = polynomial::patersonStockmeyerChebyshevPolynomialEvaluation(
       xNode, chebCoeffs);
 
-  ImplicitLocOpBuilder b(op.getLoc(), rewriter);
   IRMaterializingVisitor visitor(b, op.getValue().getType());
   Value finalOutput = resultNode->visit(visitor);
 

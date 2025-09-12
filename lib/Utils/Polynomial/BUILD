@@ -14,6 +14,7 @@ cc_library(
     hdrs = ["Polynomial.h"],
     deps = [
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
     ],
 )
@@ -50,6 +51,7 @@ cc_library(
     deps = [
         ":ChebyshevDecomposition",
         "@heir//lib/Kernel:ArithmeticDag",
+        "@heir//lib/Kernel:KernelImplementation",
         "@llvm-project//llvm:Support",
     ],
 )
@@ -61,5 +63,6 @@ cc_test(
         ":ChebyshevPatersonStockmeyer",
         "@googletest//:gtest_main",
         "@heir//lib/Kernel:ArithmeticDag",
+        "@heir//lib/Kernel:KernelImplementation",
     ],
 )

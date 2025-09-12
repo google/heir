@@ -26,7 +26,7 @@ namespace approximation {
 ///
 /// The arguments lower and upper provide the bounds of the interval of
 /// approximation. which defaults to [-1, 1].
-polynomial::FloatPolynomial caratheodoryFejerApproximation(
+polynomial::ChebyshevPolynomial caratheodoryFejerApproximation(
     const std::function<::llvm::APFloat(::llvm::APFloat)>& func, int32_t degree,
     double lower = -1.0, double upper = 1.0);
 

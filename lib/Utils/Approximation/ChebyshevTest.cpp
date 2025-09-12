@@ -52,7 +52,7 @@ TEST(ChebyshevTest, TestGetChebyshevPolynomials) {
   SmallVector<FloatPolynomial> chebPolys;
   int64_t n = 9;
   chebPolys.reserve(n);
-  getChebyshevPolynomials(n, chebPolys);
+  polynomial::ChebyshevPolynomial::getChebyshevPolynomials(n, chebPolys);
   EXPECT_THAT(
       chebPolys,
       ElementsAre(
@@ -73,10 +73,12 @@ TEST(ChebyshevTest, TestChebyshevToMonomial) {
   // 1 (1) - 1 (-1 + 2x^2) + 2 (-3x + 4x^3)
   SmallVector<APFloat> chebCoeffs = {APFloat(1.0), APFloat(0.0), APFloat(-1.0),
                                      APFloat(2.0)};
+  polynomial::ChebyshevPolynomial chebPoly =
+      polynomial::ChebyshevPolynomial(chebCoeffs);
   // 2 - 6 x - 2 x^2 + 8 x^3
   FloatPolynomial expected =
       FloatPolynomial::fromCoefficients({2.0, -6.0, -2.0, 8.0});
-  FloatPolynomial actual = chebyshevToMonomial(chebCoeffs);
+  FloatPolynomial actual = chebPoly.toStandardBasis();
   EXPECT_EQ(actual, expected);
 }
 
@@ -115,7 +117,9 @@ TEST(ChebyshevTest, ExpAutoSelectDegree) {
   };
   SmallVector<APFloat> coeffs;
   interpolateChebyshevWithSmartDegreeSelection(func, coeffs);
-  FloatPolynomial result = chebyshevToMonomial(coeffs);
+  polynomial::ChebyshevPolynomial chebPoly =
+      polynomial::ChebyshevPolynomial(coeffs);
+  FloatPolynomial result = chebPoly.toStandardBasis();
 
   // approximate infinity norm error on [-1, 1]
   double error = 0.0;

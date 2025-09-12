@@ -21,14 +21,6 @@ namespace approximation {
 void getChebyshevPoints(int64_t numPoints,
                         ::llvm::SmallVector<::llvm::APFloat>& results);
 
-/// Generate the first `numPolynomials` Chebyshev polynomials of the first
-/// kind, storing them in the results outparameter.
-///
-/// The first few polynomials are 1, x, 2x^2 - 1, 4x^3 - 3x, ...
-void getChebyshevPolynomials(
-    int64_t numPolynomials,
-    ::llvm::SmallVector<polynomial::FloatPolynomial>& results);
-
 /// Convert a vector of Chebyshev coefficients to the monomial basis. If the
 /// Chebyshev polynomials are T_0, T_1, ..., then entry i of the input vector
 /// is the coefficient of T_i.

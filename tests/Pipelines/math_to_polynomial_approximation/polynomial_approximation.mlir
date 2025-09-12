@@ -5,18 +5,21 @@ func.func @test_maximumf(%x: tensor<10xf32>) -> tensor<10xf32> {
   // CHECK-NOT: arith.maximumf
   // CHECK-NOT: polynomial.eval
 
-  // CHECK-DAG: arith.constant dense<0.03831
-  // CHECK-DAG: arith.constant dense<5.0{{0*}}e-01> : tensor<10xf32>
-  // CHECK-DAG: arith.constant dense<0.9370
-  // CHECK-DAG: arith.constant dense<-0.5062
+  // CHECK-DAG: arith.constant dense<-0.12656936
+  // CHECK-DAG: arith.constant dense<2.0{{0*}}e+00> : tensor<10xf32>
+  // CHECK-DAG: arith.constant dense<0.27865994
+  // CHECK-DAG: arith.constant dense<0.316969961
   // CHECK: arith.mulf
   // CHECK: arith.addf
   // CHECK: arith.mulf
-  // CHECK: arith.addf
+  // CHECK: arith.mulf
+  // CHECK: arith.subf
   // CHECK: arith.mulf
   // CHECK: arith.addf
   // CHECK: arith.mulf
-  // CHECK: arith.addf
+  // CHECK: arith.mulf
+  // CHECK: arith.mulf
+  // CHECK: arith.subf
   // CHECK: arith.mulf
   // CHECK: arith.addf
   // CHECK: return
