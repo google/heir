@@ -302,12 +302,7 @@ LogicalResult EvalOp::verify() {
 }
 
 LogicalResult KeySwitchInnerOp::verify() {
-  auto keyPolyType = getKeySwitchingKey().getType().getElementType();
-  if (keyPolyType != getValue().getType()) {
-    return emitOpError() << "keySwitchingKey element type " << keyPolyType
-                         << " does not match input type "
-                         << getValue().getType();
-  }
+  // TODO(#2157): check the ksk's RNS chain extends the value's RNS chain.
   return success();
 }
 

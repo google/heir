@@ -5,9 +5,16 @@
 !Zp3 = !mod_arith.int<3180146689 : i64>
 
 !ty_modarith = !rns.rns<!Zp1, !Zp2, !Zp3>
+!ty_truncated = !rns.rns<!Zp1, !Zp2>
 
 func.func @test_syntax_modarith(%arg0: !ty_modarith) -> !ty_modarith {
+  %0 = rns.extract_slice %arg0 {start = 0 : index, size = 2 : index} : !ty_modarith -> !ty_truncated
   return %arg0 : !ty_modarith
+}
+
+func.func @elementwise_extract_slice(%arg0: tensor<10x!ty_modarith>) -> tensor<10x!ty_truncated> {
+  %0 = rns.extract_slice %arg0 {start = 0 : index, size = 2 : index} : tensor<10x!ty_modarith> -> tensor<10x!ty_truncated>
+  return %0 : tensor<10x!ty_truncated>
 }
 
 // expected-error@+1 {{RNS type has incompatible basis types}}
