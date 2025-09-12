@@ -22,15 +22,15 @@ using ::Eigen::SelfAdjointEigenSolver;
 using ::Eigen::VectorXd;
 using ::llvm::APFloat;
 using ::llvm::SmallVector;
-using polynomial::FloatPolynomial;
+using polynomial::ChebyshevPolynomial;
 
-FloatPolynomial caratheodoryFejerApproximationUnitInterval(
+ChebyshevPolynomial caratheodoryFejerApproximationUnitInterval(
     const std::function<APFloat(APFloat)>& func, int32_t degree) {
   // Construct the Chebyshev interpolant.
   SmallVector<APFloat> chebCoeffs;
   interpolateChebyshevWithSmartDegreeSelection(func, chebCoeffs);
   size_t chebDegree = chebCoeffs.size() - 1;
-  if (chebDegree <= degree) return chebyshevToMonomial(chebCoeffs);
+  if (chebDegree <= degree) return ChebyshevPolynomial(chebCoeffs);
 
   // Use the tail coefficients to construct a Hankel matrix
   // where A[i, j] = c[i+j]
@@ -109,10 +109,10 @@ FloatPolynomial caratheodoryFejerApproximationUnitInterval(
     pk.push_back(chebCoeffs[i] - bb[i]);
   }
 
-  return chebyshevToMonomial(pk);
+  return ChebyshevPolynomial(pk);
 }
 
-FloatPolynomial caratheodoryFejerApproximation(
+ChebyshevPolynomial caratheodoryFejerApproximation(
     const std::function<APFloat(APFloat)>& func, int32_t degree, double lower,
     double upper) {
   bool needsScaling = lower != -1.0 || upper != 1.0;
@@ -127,14 +127,10 @@ FloatPolynomial caratheodoryFejerApproximation(
   } else {
     funcScaled = func;
   }
-  FloatPolynomial approximant =
+  ChebyshevPolynomial approximant =
       caratheodoryFejerApproximationUnitInterval(funcScaled, degree);
-
-  if (needsScaling) {
-    FloatPolynomial y =
-        FloatPolynomial::fromCoefficients({-midPoint / halfLen, 1 / halfLen});
-    approximant = approximant.compose(y);
-  }
+  // The result is a Chebyshev polynomial with domain [-1, 1]. The original
+  // inputs still need to be scaled to this unit interval.
   return approximant;
 }
 

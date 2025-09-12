@@ -7,15 +7,18 @@
 #include <iostream>
 #include <string>
 
-#include "llvm/include/llvm/ADT/APFloat.h"          // from @llvm-project
-#include "llvm/include/llvm/ADT/APInt.h"            // from @llvm-project
-#include "llvm/include/llvm/ADT/ArrayRef.h"         // from @llvm-project
-#include "llvm/include/llvm/ADT/DenseMap.h"         // from @llvm-project
-#include "llvm/include/llvm/ADT/Hashing.h"          // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallString.h"      // from @llvm-project
-#include "llvm/include/llvm/ADT/Twine.h"            // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"         // from @llvm-project
+#include "llvm/include/llvm/ADT/APFloat.h"           // from @llvm-project
+#include "llvm/include/llvm/ADT/APInt.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/ArrayRef.h"          // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseMap.h"          // from @llvm-project
+#include "llvm/include/llvm/ADT/Hashing.h"           // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"         // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallString.h"       // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"       // from @llvm-project
+#include "llvm/include/llvm/ADT/Twine.h"             // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
 
 namespace mlir {
 
@@ -109,6 +112,8 @@ class FloatMonomial : public MonomialBase<FloatMonomial, APFloat> {
  public:
   FloatMonomial(double coeff, uint64_t expo)
       : MonomialBase(APFloat(coeff), APInt(apintBitWidth, expo)) {}
+  FloatMonomial(APFloat coeff, uint64_t expo)
+      : MonomialBase(coeff, APInt(apintBitWidth, expo)) {}
 
   FloatMonomial() : MonomialBase(APFloat((double)0), APInt(apintBitWidth, 0)) {}
 
@@ -388,6 +393,56 @@ class FloatPolynomial final
   FloatPolynomial sub(const FloatPolynomial& other) const override {
     return add(other.scale(APFloat(-1.)));
   }
+};
+
+/// A single-variable polynomial with double coefficients in the Chebyshev
+/// basis.
+///
+/// E.g., c_0 T_0(x) + c_1 T_1(x) + ...
+/// where T_i is the i-th Chebyshev polynomial of the first kind.
+class ChebyshevPolynomial {
+ public:
+  /// Constructs a polynomial with coefficients given by `coeffs`. The value
+  /// coeffs[i] is the coefficient of the i-th Chebyshev polynomial T_i.
+  explicit ChebyshevPolynomial(ArrayRef<APFloat> terms) : terms(terms) {}
+  explicit ChebyshevPolynomial(ArrayRef<double> terms)
+      : terms(llvm::to_vector(llvm::map_range(
+            terms, [](const double& x) -> APFloat { return APFloat(x); }))) {}
+
+  /// Generate the first `numPolynomials` Chebyshev polynomials of the first
+  /// kind, storing them in the results outparameter.
+  ///
+  /// The first few polynomials are 1, x, 2x^2 - 1, 4x^3 - 3x, ...
+  static void getChebyshevPolynomials(
+      int64_t numPolynomials,
+      ::llvm::SmallVector<polynomial::FloatPolynomial>& results);
+
+  // Converts this polynomial from the Chebyshev basis to the standard basis
+  // (i.e. c0 + c1* x + c2 * x^2 ...).
+  FloatPolynomial toStandardBasis() const;
+
+  // Compose this polynomial with another polynomial `other`.
+  // Returns this(other).
+  ChebyshevPolynomial compose(const FloatPolynomial& other) const;
+
+  static ChebyshevPolynomial zero() {
+    return ChebyshevPolynomial(SmallVector<APFloat>());
+  }
+
+  bool isZero() const {
+    return getTerms().empty() ||
+           (getTerms().size() == 1 && getTerms()[0].isZero());
+  }
+
+  unsigned getDegree() const { return isZero() ? 0 : terms.size() - 1; }
+
+  ArrayAttr getCoefficientsArrayAttr(mlir::MLIRContext* context) const;
+
+  ArrayRef<APFloat> getTerms() const { return terms; }
+
+ private:
+  // The terms for this polynomial in the Chebyshev basis.
+  SmallVector<APFloat> terms;
 };
 
 // Make Polynomials hashable.

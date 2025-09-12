@@ -14,8 +14,8 @@
 // CHECK: @test_eval_for_paterson
 func.func @test_eval_for_paterson() -> f64 {
 // CHECK-DAG: [[CST:%.+]] = arith.constant 4.0{{0*}}e-01 : f64
-// CHECK-DAG: [[CST_0:%.+]] = arith.constant 0.32
 // CHECK-DAG: [[CST_1:%.+]] = arith.constant 1.0
+// CHECK-DAG: [[CST_0:%.+]] = arith.constant 0.32
 // CHECK-NEXT: [[V0:%.+]] = arith.mulf [[CST_0]], [[CST_1]]
 // CHECK-NEXT: [[CST_2:%.+]] = arith.constant 5.0{{0*}}e-01
 // CHECK-NEXT: [[V1:%.+]] = arith.mulf [[CST_2]], [[CST]]
@@ -47,6 +47,6 @@ func.func @test_eval_for_paterson() -> f64 {
 // CHECK-NEXT: [[V21:%.+]] = arith.addf [[V15]], [[V20]]
 // CHECK-NEXT: return [[V21]]
     %x = arith.constant 0.4 : f64
-    %0 = polynomial.eval #poly, %x : f64
+    %0 = polynomial.eval #poly, %x {domain_lower = -1.0 : f64, domain_upper = 1.0 : f64} : f64
     return %0 : f64
 }
