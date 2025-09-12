@@ -134,6 +134,28 @@ for (int c0 = 0; c0 <= 15; c0 += 1)
   ASSERT_THAT(actual, Eq(expected));
 }
 
+TEST(CodegenTest, HaleviShoupSquatVecmat) {
+  MLIRContext context;
+  // This is a layout produced for a vecmat with a matrix of size 5x3.
+  auto relation = getIntegerRelationFromIslStr(
+      "{ [i0, i1] -> [ct, slot] : (-i0 + i1 + ct) mod 4 = 0 and (-i0 + ct + "
+      "slot) mod 8 = 0 and 0 <= i0 <= 4 and 0 <= i1 <= 2 and 0 <= ct <= 3 and "
+      "0 <= slot <= 7 }");
+  ASSERT_TRUE(succeeded(relation));
+
+  // Generated code has if statements
+  auto result = generateLoopNestAsCStr(relation.value());
+  ASSERT_TRUE(succeeded(result));
+  std::string actual = result.value();
+  std::string expected = R"(
+for (int c0 = 0; c0 <= 3; c0 += 1)
+  for (int c1 = 0; c1 <= 6; c1 += 1)
+    if ((c0 + c1 + 3) % 8 >= 3 && c1 % 4 <= 2)
+      S((c0 + c1) % 8, c1 % 4, c0, c1);
+)";
+  ASSERT_THAT(actual, Eq(expected));
+}
+
 }  // namespace
 }  // namespace heir
 }  // namespace mlir
