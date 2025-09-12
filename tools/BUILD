@@ -105,6 +105,7 @@ cc_binary(
         "@heir//lib/Pipelines:PipelineRegistration",
         "@heir//lib/Transforms/AddClientInterface",
         "@heir//lib/Transforms/AnnotateModule",
+        "@heir//lib/Transforms/AnnotateSchemeInfo",
         "@heir//lib/Transforms/AnnotateSecretness",
         "@heir//lib/Transforms/ApplyFolders",
         "@heir//lib/Transforms/CompareToSignRewrite",
