@@ -39,6 +39,7 @@ cc_library(
     srcs = ["NewLayoutPropagation.cpp"],
     hdrs = ["NewLayoutPropagation.h"],
     deps = [
+        ":InterfaceImpl",
         ":Utils",
         ":new_pass_inc_gen",
         "@heir//lib/Analysis/SecretnessAnalysis",
@@ -60,6 +61,25 @@ cc_library(
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
+    ],
+)
+
+cc_library(
+    name = "InterfaceImpl",
+    srcs = ["InterfaceImpl.cpp"],
+    hdrs = [
+        "InterfaceImpl.h",
+    ],
+    deps = [
+        "@heir//lib/Dialect:HEIRInterfaces",
+        "@heir//lib/Dialect/Secret/IR:SecretAttributes",
+        "@heir//lib/Dialect/TensorExt/IR:TensorExtAttributes",
+        "@heir//lib/Dialect/TensorExt/IR:TensorExtOps",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LinalgDialect",
+        "@llvm-project//mlir:Support",
     ],
 )
 
