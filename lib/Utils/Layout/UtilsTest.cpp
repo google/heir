@@ -1,8 +1,10 @@
 #include <cmath>
 #include <cstdint>
 #include <optional>
+#include <vector>
 
 #include "gtest/gtest.h"  // from @googletest
+#include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/Layout/Parser.h"
 #include "lib/Utils/Layout/Utils.h"
 #include "lib/Utils/TensorUtils.h"
@@ -19,7 +21,6 @@ namespace {
 
 using presburger::BoundType;
 using presburger::IntegerRelation;
-using presburger::PresburgerSpace;
 using presburger::VarKind;
 
 void runRowMajorTest(RankedTensorType tensorType, int64_t numSlots) {
@@ -202,6 +203,28 @@ TEST(UtilsTest, TestAnyRangePoint) {
       relationFromString("(x) : (x >= 0, 7 >= x, x mod 3 == 0)", 0, &context);
   std::vector<int64_t> actual = anyRangePoint(rel);
   EXPECT_TRUE(rel.containsPointNoLocal(actual).has_value());
+}
+
+TEST(UtilsTest, ConvFilterRelation) {
+  MLIRContext context;
+  RankedTensorType filterType =
+      RankedTensorType::get({3, 3}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({3, 3}, IndexType::get(&context));
+  int64_t padding = 1;
+  IntegerRelation convFilterRelation =
+      get2dConvFilterRelation(filterType, dataType, padding);
+
+  // Handwritten expected relation
+  auto relation = getIntegerRelationFromIslStr(
+      "{ [ifr, ifc] -> [mr, mc] : exists idr, idc : -1 <= idr and idr <= 1 and "
+      "-1 <= idc and idc <= 1 and 0 <= ifr and ifr <= 2 and 0 <= ifc and ifc "
+      "<= 2 and mr = idc + 1 + 3 * (idr + 1) and mc = -4 + mr + ifc + "
+      "ifr * 3 and 0 <= idr + ifr and idr + ifr <= 2 and 0 <= idc + ifc and "
+      "idc + ifc <= 2 }");
+  relation.value().simplify();
+  ASSERT_TRUE(succeeded(relation));
+  EXPECT_TRUE(convFilterRelation.isEqual(relation.value()));
 }
 
 }  // namespace
