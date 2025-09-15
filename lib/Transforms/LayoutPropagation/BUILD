@@ -42,6 +42,7 @@ cc_library(
         ":Utils",
         ":new_pass_inc_gen",
         "@heir//lib/Analysis/SecretnessAnalysis",
+        "@heir//lib/Dialect:HEIRInterfaces",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Kernel",
@@ -58,6 +59,21 @@ cc_library(
         "@llvm-project//mlir:LinalgDialect",
         "@llvm-project//mlir:LinalgInterfaces",
         "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
+    ],
+)
+
+cc_library(
+    name = "InterfaceImpl",
+    srcs = ["InterfaceImpl.cpp"],
+    hdrs = [
+        "InterfaceImpl.h",
+    ],
+    deps = [
+        "@heir//lib/Dialect:HEIRInterfaces",
+        "@heir//lib/Dialect/TensorExt/IR:TensorExtOps",
+        "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
     ],

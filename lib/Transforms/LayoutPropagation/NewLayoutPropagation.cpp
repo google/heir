@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Secret/IR/SecretAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
@@ -67,6 +68,7 @@ using secret::SecretType;
 using secret::YieldOp;
 using tensor::CollapseShapeOp;
 using tensor::ExpandShapeOp;
+using tensor::InsertOp;
 using tensor_ext::AssignLayoutOp;
 using tensor_ext::ConvertLayoutOp;
 using tensor_ext::NewLayoutAttr;
@@ -118,6 +120,7 @@ struct NewLayoutPropagation
   LogicalResult visitOperation(func::FuncOp op);
   LogicalResult visitOperation(func::ReturnOp op);
   LogicalResult visitOperation(tensor::ExtractOp op);
+  LogicalResult visitOperation(tensor::InsertOp op);
 
   // Determine if the operation arguments have compatible layouts for the given
   // op. If the check fails, the CompatibilityResult::compatible field is
@@ -200,16 +203,27 @@ LogicalResult NewLayoutPropagation::visitOperation(Operation* op) {
   // If an operand has no layout, it may for example be produced as a plaintext
   // constant, such as a zero-valued tensor for the initializer of a reduction.
   // In this case, we insert a layout assignment.
-  for (Value operand : op->getOperands()) {
+  for (OpOperand& opOperand : op->getOpOperands()) {
+    Value operand = opOperand.get();
     if (!assignedLayouts.contains(operand)) {
-      if (isa<IndexType>(operand.getType())) {
-        // TODO (#1929): Index types sometimes do need to be layout-matched
-        // (e.g., arith.cmpi) but sometimes do not (e.g., tensor_ext.rotate). We
-        // should probably have an op interface to determine which operands need
-        // a layout?
-        // For now, here's a hack to make it work for the arith.cmpi case:
-        if (!isa<arith::CmpIOp, arith::CmpFOp>(op)) continue;
+      // Some operations may function properly with operands that have no
+      // layout, e.g., a tensor_ext.rotate op doesn't need a layout for the
+      // shift operand, and a tensor.insert op has a kernel that can work with a
+      // cleartext scalar operand (and is, in fact, more efficient than when the
+      // scalar operand is packed).
+      if (auto layoutReqIface =
+              dyn_cast<OperandLayoutRequirementOpInterface>(op)) {
+        if (!layoutReqIface.operandRequiresLayout(
+                opOperand.getOperandNumber())) {
+          LLVM_DEBUG(
+              llvm::dbgs()
+              << "OperandLayoutRequirementOpInterface ensures us that operand "
+              << opOperand.getOperandNumber() << " of op " << op->getName()
+              << " does not need a layout.\n");
+          continue;
+        }
       }
+
       LLVM_DEBUG(llvm::dbgs() << "operand has no layout: " << operand << "\n");
       mlir::IRRewriter builder(&getContext());
       builder.setInsertionPoint(op);
@@ -240,7 +254,8 @@ LogicalResult NewLayoutPropagation::visitOperation(Operation* op) {
       // affine ops
       .Case<affine::AffineForOp>([&](auto op) { return visitOperation(op); })
       // tensor ops
-      .Case<tensor::ExtractOp>([&](auto op) { return visitOperation(op); })
+      .Case<tensor::ExtractOp, tensor::InsertOp>(
+          [&](auto op) { return visitOperation(op); })
       .Case<tensor::ExtractSliceOp, tensor::InsertSliceOp>([&](auto op) {
         // TODO(#2028): Support tensor.extract_slice and tensor.insert_slice in
         // layout.
@@ -731,6 +746,19 @@ LogicalResult NewLayoutPropagation::visitOperation(tensor::ExtractOp op) {
   debugAssignLayout(result, resultLayout);
   setResultLayoutAttr(op);
 
+  return success();
+}
+
+LogicalResult NewLayoutPropagation::visitOperation(tensor::InsertOp op) {
+  // The layout of the result is the same as the layout of the input tensor.
+  // The scalar input is handled by the generic logic in visitOperation,
+  // which will assign a default scalar layout if it is secret and has no
+  // layout.
+  NewLayoutAttr tensorLayout = assignedLayouts.at(op.getDest());
+  Value result = op.getResult();
+  assignedLayouts.insert({result, tensorLayout});
+  debugAssignLayout(result, tensorLayout);
+  setResultLayoutAttr(op);
   return success();
 }
 
