@@ -11,13 +11,18 @@
 #include <string>
 #include <vector>
 
+#include "lib/Utils/MathUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -168,6 +173,34 @@ std::string doubleToString2Prec(double value) {
   std::stringstream stream;
   stream << std::fixed << std::setprecision(2) << value;
   return stream.str();
+}
+
+TypedAttr getScalarOrDenseAttr(Type tensorOrScalarType, APFloat value) {
+  return TypeSwitch<Type, TypedAttr>(tensorOrScalarType)
+      .Case<FloatType>([&](FloatType type) {
+        APFloat converted =
+            convertFloatToSemantics(value, type.getFloatSemantics());
+        return static_cast<TypedAttr>(FloatAttr::get(type, converted));
+      })
+      .Case<ShapedType>([&](ShapedType type) {
+        auto elemType = dyn_cast<FloatType>(type.getElementType());
+        if (!elemType) return TypedAttr();
+        APFloat converted =
+            convertFloatToSemantics(value, elemType.getFloatSemantics());
+        return static_cast<TypedAttr>(DenseElementsAttr::get(type, converted));
+      })
+      .Default([](Type) { return nullptr; });
+}
+
+TypedAttr getScalarOrDenseAttr(Type tensorOrScalarType, APInt value) {
+  return TypeSwitch<Type, TypedAttr>(tensorOrScalarType)
+      .Case<IntegerType>([&](IntegerType type) {
+        return static_cast<TypedAttr>(IntegerAttr::get(type, value));
+      })
+      .Case<ShapedType>([&](ShapedType type) {
+        return static_cast<TypedAttr>(DenseElementsAttr::get(type, value));
+      })
+      .Default([](Type) { return nullptr; });
 }
 
 }  // namespace heir

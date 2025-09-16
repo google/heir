@@ -11,6 +11,7 @@ cc_library(
     srcs = ["Utils.cpp"],
     hdrs = ["Utils.h"],
     deps = [
+        ":MathUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
