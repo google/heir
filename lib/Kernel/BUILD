@@ -29,6 +29,7 @@ cc_library(
         ":ArithmeticDag",
         ":KernelImplementation",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Utils",
         "@heir//lib/Utils:MathUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",

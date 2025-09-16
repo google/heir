@@ -13,6 +13,7 @@
 #include "lib/Utils/MathUtils.h"
 #include "lib/Utils/Polynomial/ChebyshevPatersonStockmeyer.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
+#include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/SmallVectorExtras.h"   // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"         // from @llvm-project
@@ -25,6 +26,7 @@
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
@@ -41,23 +43,6 @@ using kernel::SSAValue;
 using polynomial::EvalOp;
 using polynomial::FloatPolynomial;
 using polynomial::TypedFloatPolynomialAttr;
-
-TypedAttr getScalarOrDenseAttr(Type tensorOrScalarType, APFloat value) {
-  return TypeSwitch<Type, TypedAttr>(tensorOrScalarType)
-      .Case<FloatType>([&](FloatType type) {
-        APFloat converted =
-            convertFloatToSemantics(value, type.getFloatSemantics());
-        return static_cast<TypedAttr>(FloatAttr::get(type, converted));
-      })
-      .Case<ShapedType>([&](ShapedType type) {
-        auto elemType = dyn_cast<FloatType>(type.getElementType());
-        if (!elemType) return TypedAttr();
-        APFloat converted =
-            convertFloatToSemantics(value, elemType.getFloatSemantics());
-        return static_cast<TypedAttr>(DenseElementsAttr::get(type, converted));
-      })
-      .Default([](Type) { return nullptr; });
-}
 
 LogicalResult LowerViaHorner::matchAndRewrite(EvalOp op,
                                               PatternRewriter& rewriter) const {
@@ -249,24 +234,29 @@ LogicalResult LowerViaPatersonStockmeyerChebyshev::matchAndRewrite(
   // The Chebyshev polynomial is defined on the interval [-1, 1]. We need to
   // rescale the input x in [lower, upper] to be on this unit interval.
   // The mapping is x -> 2(x-L)/(U-L) - 1 = (2/U-L) * x - (U+L)/(U-L)
-  double rescale = 2 / (upper - lower);
-  double shift = (upper + lower) / (upper - lower);
+  APFloat rescale = APFloat(2 / (upper - lower));
+  APFloat shift = APFloat((upper + lower) / (upper - lower));
+
+  auto floatTy = dyn_cast<FloatType>(getElementTypeOrSelf(op));
+  if (!floatTy) return failure();
 
   ImplicitLocOpBuilder b(op.getLoc(), rewriter);
   Value xInput = op.getValue();
-  if (rescale != 1.0) {
-    xInput = arith::MulFOp::create(
-                 b, xInput,
-                 arith::ConstantOp::create(
-                     b, op.getType(), b.getFloatAttr(op.getType(), rescale)))
-                 .getResult();
+  if (!rescale.isExactlyValue(1.0)) {
+    xInput =
+        arith::MulFOp::create(
+            b, xInput,
+            arith::ConstantOp::create(
+                b, op.getType(), getScalarOrDenseAttr(op.getType(), rescale)))
+            .getResult();
   }
-  if (shift != 0.0) {
-    xInput = arith::AddFOp::create(
-                 b, xInput,
-                 arith::ConstantOp::create(b, op.getType(),
-                                           b.getFloatAttr(op.getType(), shift)))
-                 .getResult();
+  if (!shift.isZero()) {
+    xInput =
+        arith::AddFOp::create(
+            b, xInput,
+            arith::ConstantOp::create(
+                b, op.getType(), getScalarOrDenseAttr(op.getType(), shift)))
+            .getResult();
   }
   SSAValue xNode(xInput);
 

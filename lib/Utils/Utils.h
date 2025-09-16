@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Dialect.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"      // from @llvm-project
@@ -130,6 +131,12 @@ void iterateIndices(ArrayRef<int64_t> shape, const IndexTupleConsumer& process,
 
 /// Convert a double to a string with 2 decimal precision.
 std::string doubleToString2Prec(double value);
+
+// Get a scalar or dense attribute given the type and value.
+TypedAttr getScalarOrDenseAttr(Type tensorOrScalarType, APInt value);
+
+// Get a scalar or dense attribute given the type and value.
+TypedAttr getScalarOrDenseAttr(Type tensorOrScalarType, APFloat value);
 
 }  // namespace heir
 }  // namespace mlir
