@@ -30,6 +30,7 @@ cc_library(
         "@heir//lib/Kernel:ArithmeticDag",
         "@heir//lib/Kernel:IRMaterializingVisitor",
         "@heir//lib/Kernel:KernelImplementation",
+        "@heir//lib/Utils",
         "@heir//lib/Utils:MathUtils",
         "@heir//lib/Utils/Polynomial",
         "@heir//lib/Utils/Polynomial:ChebyshevPatersonStockmeyer",

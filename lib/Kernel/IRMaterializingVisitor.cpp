@@ -1,9 +1,12 @@
 #include "lib/Kernel/IRMaterializingVisitor.h"
 
+#include <cmath>
+
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Kernel/ArithmeticDag.h"
 #include "lib/Kernel/KernelImplementation.h"
 #include "lib/Utils/MathUtils.h"
+#include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -30,14 +33,14 @@ Value IRMaterializingVisitor::operator()(const ConstantNode& node) {
     APFloat apVal(node.value);
     APFloat converted =
         convertFloatToSemantics(apVal, floatTy.getFloatSemantics());
-    attr = static_cast<TypedAttr>(FloatAttr::get(floatTy, converted));
+    attr = getScalarOrDenseAttr(evaluatedType, converted);
   } else {
-    attr = static_cast<TypedAttr>(IntegerAttr::get(evaluatedType, node.value));
+    // Node values are doubles and we may have to properly support integers.
+    auto intTy = dyn_cast<IntegerType>(getElementTypeOrSelf(evaluatedType));
+    APInt apVal(intTy.getWidth(), std::floor(node.value));
+    attr = getScalarOrDenseAttr(evaluatedType, apVal);
   }
-  if (isa<ShapedType>(evaluatedType)) {
-    attr = static_cast<TypedAttr>(
-        SplatElementsAttr::get(cast<ShapedType>(evaluatedType), attr));
-  }
+
   return arith::ConstantOp::create(builder, evaluatedType, attr);
 }
 
