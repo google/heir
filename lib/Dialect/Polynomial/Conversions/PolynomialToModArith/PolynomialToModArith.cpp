@@ -1301,6 +1301,10 @@ struct ConvertKeySwitchInner
     // Since each part also has a different RNS type, we can't group them
     // together into a tensor and have to deal with the individual SSA values in
     // an unrolled manner.
+    //
+    // The input will be a tensor<N x RNS>, where RNS is the RNS type of the
+    // polynomial. The result after this part is a list of Value of types
+    // tensor<N x R1>, tensor<N x R2>, ...
     rns::RNSType inputRnsChain =
         cast<rns::RNSType>(coefficientTensorType.getElementType());
     int rnsLength = inputRnsChain.getBasisTypes().size();
@@ -1322,45 +1326,55 @@ struct ConvertKeySwitchInner
           b.getIndexAttr(extraPartSize));
     }
 
-    // applying basis conversion
+    // Now we want to convert all the parts to use the same RNS type
+    // which matches the key switching key.
     SmallVector<Type> extModuli;
     for (auto ty : inputRnsChain.getBasisTypes()) extModuli.push_back(ty);
     for (auto prime : schemeParam.getPi())
       extModuli.push_back(
           ModArithType::get(op.getContext(), b.getI64IntegerAttr(prime)));
     RNSType newBasisType = RNSType::get(op.getContext(), extModuli);
-
+    RankedTensorType newRnsTensorType =
+        coefficientTensorType.clone(newBasisType);
     SmallVector<Value> extendedPartitions;
     for (auto value : fullPartitions) {
       extendedPartitions.push_back(
-          ConvertBasisOp::create(b, newBasisType, value));
+          ConvertBasisOp::create(b, newRnsTensorType, value));
     }
     if (maybeExtraPart.has_value()) {
       extendedPartitions.push_back(
-          ConvertBasisOp::create(b, newBasisType, maybeExtraPart.value())
+          ConvertBasisOp::create(b, newRnsTensorType, maybeExtraPart.value())
               .getResult());
     }
 
-    // Nb., input has some of the normal primes, maybe not all,
-    // since you may have applied a level reduction before this op.
+    // Nb., input has some of the normal modulus chain's primes, maybe not all,
+    // since we may have applied a rescale in the IR before this op, which drops
+    // some moduli.
     //
-    // Assumption: ksk has all of the same normal primes as the input, plus the
-    // keyswitch primes (i.e., the new basis type), so this should be enforced
-    // on the input ksk to this op. If not, just drop the extra primes.
+    // FIXME: Assumption: ksk has all of the same normal primes as the input,
+    // plus the keyswitch primes (i.e., the new basis type), so this should be
+    // enforced on the input ksk to this op. If not, we can just drop the extra
+    // primes, but we need to know which to drop.
     //
     // Assumption: ksk is already in NTT form
-
+    //
+    // Now that all the basis-converted input pieces have the same RNS type,
+    // we can stack them from a list of tensor<N x RNS> to a single
+    // tensor<K x N x RNS>, where K is the number of special/keyswitch primes.
+    //
     // Convert extendedPartitions to NTT domain to enable multiplication
     SmallVector<Value> extendedPartitionsNTTed;
     for (auto value : extendedPartitions) {
-      auto fromTensor = FromTensorOp::create(
-          b, op.getKeySwitchingKey().getType().getElementType(), value);
       // FIXME: something is wrong
       extendedPartitionsNTTed.push_back(NTTOp::create(
           b, value.getType(), value,
           PrimitiveRootAttr::get(op.getContext(), b.getI64IntegerAttr(7),
                                  b.getI64IntegerAttr(3))));
     }
+
+    auto fromTensor = FromTensorOp::create(
+        b, op.getKeySwitchingKey().getType().getElementType(),
+        extendedPartitionsNTTed);
 
     // Dot product
     // KSK is a K x 2 x N x RNS
