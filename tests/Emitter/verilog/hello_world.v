@@ -1,5 +1,3 @@
-// TODO(b/284193026): replace this with a full e2e test of the hello_world TOSA model.
-
 // RUN: run_verilog \
 // RUN:  --verilog_module %s \
 // RUN:  --input='arg1=0' \

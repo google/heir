@@ -1,6 +1,7 @@
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@heir//frontend:testing.bzl", "frontend_test")
 load("@rules_python//python:py_library.bzl", "py_library")
+load("//devtools/python/blaze:pytype.bzl", "pytype_strict_library")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -118,4 +119,10 @@ bzl_library(
     srcs = ["testing.bzl"],
     visibility = ["//visibility:public"],
     deps = ["@rules_python//python:defs_bzl"],
+)
+
+pytype_strict_library(
+    name = "example",
+    srcs = ["example.py"],
+    deps = [":frontend"],
 )

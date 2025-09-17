@@ -26,24 +26,6 @@ number of rotations needed, relying on the implicit cost model that rotations
 are generally expensive. The specific set of passes can be found in
 `tools/heir-opt.cpp` where the pipeline is defined.
 
-### `--heir-tosa-to-arith`
-
-Lowers a TOSA MLIR model to `func`, `arith`, and `memref`.
-
-Lowers from TOSA through `linalg` and `affine`, and converts all tensors to
-memrefs. Fully unrolls all loops, and forwards stores to subsequent loads
-whenever possible. The output is suitable as an input to
-`heir-translate --emit-verilog`. Retains `affine.load` and `affine.store` ops
-that cannot be removed (e.g., reading from the input and writing to the output,
-or loading from a memref with a variable index).
-
-The pass pipeline assumes that the input is a valid TOSA MLIR model with
-stripped quantized types. The
-[iree-import-tflite](https://iree.dev/guides/ml-frameworks/tflite) tool can
-lower a TFLite FlatBuffer to textual MLIR with `--output-format=mlir-ir`. See
-[hello_world.tosa.mlir](https://github.com/google/heir/blob/main/tests/Emitter/verilog/hello_world.tosa.mlir)
-for an example.
-
 ### `--yosys-optimizer`
 
 Uses Yosys to booleanize and optimize MLIR functions.
@@ -63,15 +45,8 @@ library and ABC binary compilation, and avoid registration of this pass.
 
 ### `--mlir-to-cggi`
 
-This is an experimental pipeline for lowering standard MLIR (including TOSA) to
-CGGI.
-
-Converts a TOSA MLIR model to tfhe_rust dialect defined by HEIR. It converts a
-TOSA model to optimized boolean circuit using Yosys ABC optimizations. The
-resultant optimized boolean circuit in comb dialect is then converted to cggi
-and then to tfhe_rust exit dialect. This pipeline can be used with
-heir-translate --emit-tfhe-rust to generate code for
-[`tfhe-rs`](https://docs.zama.ai/tfhe-rs) FHE library.
+Converts MLIR IR to the CGGI dialect defined by HEIR. It arithmetizes the IR and
+optimizes the circuit using Yosys ABC optimizations.
 
 The pass requires that the environment variable `HEIR_ABC_BINARY` contains the
 location of the ABC binary and that `HEIR_YOSYS_SCRIPTS_DIR` contains the

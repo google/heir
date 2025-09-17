@@ -90,7 +90,6 @@ cc_binary(
         "@heir//lib/Dialect/Secret/Transforms",
         "@heir//lib/Dialect/Secret/Transforms:BufferizableOpInterface",
         "@heir//lib/Dialect/Secret/Transforms:DistributeGeneric",
-        "@heir//lib/Dialect/TOSA/Conversions/TosaToSecretArith",
         "@heir//lib/Dialect/TensorExt/Conversions/TensorExtToTensor",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/Transforms",
@@ -186,10 +185,6 @@ cc_binary(
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorToLinalg",
         "@llvm-project//mlir:TensorTransforms",
-        "@llvm-project//mlir:TosaDialect",
-        "@llvm-project//mlir:TosaToArith",
-        "@llvm-project//mlir:TosaToLinalg",
-        "@llvm-project//mlir:TosaToTensor",
         "@llvm-project//mlir:Transforms",
         "@llvm-project//mlir:UBToLLVM",
         "@llvm-project//mlir:VectorToLLVM",
@@ -262,7 +257,6 @@ cc_binary(
         "@llvm-project//mlir:SCFDialect",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
-        "@llvm-project//mlir:TosaDialect",
     ],
 )
 

@@ -47,7 +47,6 @@
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/Transforms/BufferizableOpInterfaceImpl.h"
 #include "lib/Dialect/Secret/Transforms/Passes.h"
-#include "lib/Dialect/TOSA/Conversions/TosaToSecretArith/TosaToSecretArith.h"
 #include "lib/Dialect/TensorExt/Conversions/TensorExtToTensor/TensorExtToTensor.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/Transforms/Passes.h"
@@ -135,7 +134,6 @@
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tosa/IR/TosaOps.h"     // from @llvm-project
 #include "mlir/include/mlir/Pass/PassManager.h"            // from @llvm-project
 #include "mlir/include/mlir/Pass/PassRegistry.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
@@ -151,7 +149,6 @@
 // This comment includes internal pipelines
 
 using namespace mlir;
-using namespace tosa;
 using namespace heir;
 
 int main(int argc, char** argv) {
@@ -182,7 +179,6 @@ int main(int argc, char** argv) {
   registry.insert<LLVM::LLVMDialect>();
   registry.insert<::mlir::emitc::EmitCDialect>();
   registry.insert<::mlir::linalg::LinalgDialect>();
-  registry.insert<TosaDialect>();
   registry.insert<affine::AffineDialect>();
   registry.insert<mlir::arith::ArithDialect>();
   registry.insert<bufferization::BufferizationDialect>();
@@ -358,7 +354,6 @@ int main(int argc, char** argv) {
   registerSecretToBGVPasses();
   registerSecretToCKKSPasses();
   registerSecretToModArithPasses();
-  ::mlir::heir::tosa::registerTosaToSecretArithPasses();
 
   // Interfaces in HEIR
   secret::registerBufferizableOpInterfaceExternalModels(registry);
@@ -366,14 +361,6 @@ int main(int argc, char** argv) {
   registerOperandAndResultAttrInterface(registry);
   registerLayoutConversionHoistableInterface(registry);
   registerOperandLayoutRequirementOpInterface(registry);
-
-  PassPipelineRegistration<TosaToArithOptions>(
-      "heir-tosa-to-arith",
-      "Run passes to lower TOSA models with stripped "
-      "quant types to arithmetic",
-      [](OpPassManager& pm, const TosaToArithOptions& options) {
-        ::mlir::heir::tosaPipelineBuilder(pm, options.unroll);
-      });
 
   PassPipelineRegistration<>(
       "heir-polynomial-to-llvm",

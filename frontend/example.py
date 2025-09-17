@@ -4,8 +4,6 @@ from heir import compile
 from heir.mlir import F32, I16, I64, Secret
 from heir.backends.cleartext import CleartextBackend
 
-# TODO (#1162): Also add the tensorflow-to-tosa-to-HEIR example in example.py, even it doesn't use the main Python frontend?
-
 # TODO (#1162): Remove the need for wrapper functions around each `@compile`-d function to isolate backend pybindings
 
 

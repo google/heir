@@ -16,10 +16,6 @@
 #include "mlir/include/mlir/Conversion/BufferizationToMemRef/BufferizationToMemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ConvertToLLVM/ToLLVMPass.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"  // from @llvm-project
-#include "mlir/include/mlir/Conversion/TensorToLinalg/TensorToLinalgPass.h"  // from @llvm-project
-#include "mlir/include/mlir/Conversion/TosaToArith/TosaToArith.h"  // from @llvm-project
-#include "mlir/include/mlir/Conversion/TosaToLinalg/TosaToLinalg.h"  // from @llvm-project
-#include "mlir/include/mlir/Conversion/TosaToTensor/TosaToTensor.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/Transforms/FuncBufferizableOpInterfaceImpl.h"  // from @llvm-project
@@ -33,22 +29,10 @@
 #include "mlir/include/mlir/Transforms/Passes.h"  // from @llvm-project
 
 using namespace mlir;
-using namespace tosa;
 using namespace heir;
 using mlir::func::FuncOp;
 
 namespace mlir::heir {
-
-void tosaToLinalg(OpPassManager& manager) {
-  manager.addNestedPass<FuncOp>(createTosaToLinalgNamed());
-  manager.addNestedPass<FuncOp>(createTosaToLinalg());
-  manager.addNestedPass<FuncOp>(createTosaToArithPass({true, false}));
-  manager.addNestedPass<FuncOp>(createTosaToTensorPass());
-  manager.addPass(bufferization::createEmptyTensorToAllocTensorPass());
-  manager.addNestedPass<FuncOp>(createLinalgDetensorizePass());
-  manager.addPass(createConvertTensorToLinalgPass());
-  manager.addPass(bufferization::createEmptyTensorToAllocTensorPass());
-}
 
 void oneShotBufferize(OpPassManager& manager) {
   // One-shot bufferize, from
@@ -65,33 +49,6 @@ void oneShotBufferize(OpPassManager& manager) {
   manager.addPass(createCSEPass());
   manager.addPass(mlir::createConvertBufferizationToMemRefPass());
   manager.addPass(createCanonicalizerPass());
-}
-
-void tosaPipelineBuilder(OpPassManager& manager, bool unroll) {
-  // TOSA to linalg
-  tosaToLinalg(manager);
-  // Bufferize
-  oneShotBufferize(manager);
-  // Affine
-  manager.addNestedPass<FuncOp>(createConvertLinalgToAffineLoopsPass());
-  manager.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
-  manager.addNestedPass<FuncOp>(affine::createAffineExpandIndexOpsPass());
-  manager.addNestedPass<FuncOp>(memref::createExpandOpsPass());
-  manager.addNestedPass<FuncOp>(affine::createSimplifyAffineStructuresPass());
-  manager.addPass(memref::createFoldMemRefAliasOpsPass());
-  manager.addPass(createExpandCopyPass());
-  manager.addPass(createExtractLoopBodyPass());
-  if (unroll) manager.addPass(createUnrollAndForwardPass());
-
-  // Cleanup
-  manager.addPass(createMemrefGlobalReplacePass());
-  arith::ArithIntRangeNarrowingOptions options;
-  options.bitwidthsSupported = {4, 8, 16};
-  manager.addPass(arith::createArithIntRangeNarrowing(options));
-  manager.addPass(createCanonicalizerPass());
-  manager.addPass(createSCCPPass());
-  manager.addPass(createCSEPass());
-  manager.addPass(createSymbolDCEPass());
 }
 
 void mathToPolynomialApproximationBuilder(OpPassManager& pm) {
