@@ -29,5 +29,16 @@ def RNS_ExtractSliceOp : RNS_Op<"extract_slice", [Pure, ElementwiseMappable, Dec
   let hasVerifier = 1;
 }
 
+def RNS_ConvertBasisOp : RNS_Op<"convert_basis", [Pure, ElementwiseMappable]> {
+  let summary = "Extend the basis of an RNS value to a different basis";
+  let description = [{
+  TODO: fill in
+  }];
+  let arguments = (ins RNSLike:$input);
+  let results = (outs RNSLike:$output);
+  let assemblyFormat = "$input attr-dict `:` type($input) `->` type($output)";
+
+  // FIXME: verifier that all RNS component moduli are odd
+}
 
 #endif  // LIB_DIALECT_RNS_IR_RNSOPS_TD_
