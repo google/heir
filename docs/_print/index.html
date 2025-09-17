@@ -1605,30 +1605,15 @@ arithmetic can be applied across entire ciphertexts, with some limited support
 for rotations via automorphisms of the underlying ring.</p><p>Along the way, this pipeline applies heuristic optimizations to minimize the
 number of rotations needed, relying on the implicit cost model that rotations
 are generally expensive. The specific set of passes can be found in
-<code>tools/heir-opt.cpp</code> where the pipeline is defined.</p><h3 id=--heir-tosa-to-arith><code>--heir-tosa-to-arith</code></h3><p>Lowers a TOSA MLIR model to <code>func</code>, <code>arith</code>, and <code>memref</code>.</p><p>Lowers from TOSA through <code>linalg</code> and <code>affine</code>, and converts all tensors to
-memrefs. Fully unrolls all loops, and forwards stores to subsequent loads
-whenever possible. The output is suitable as an input to
-<code>heir-translate --emit-verilog</code>. Retains <code>affine.load</code> and <code>affine.store</code> ops
-that cannot be removed (e.g., reading from the input and writing to the output,
-or loading from a memref with a variable index).</p><p>The pass pipeline assumes that the input is a valid TOSA MLIR model with
-stripped quantized types. The
-<a href=https://iree.dev/guides/ml-frameworks/tflite>iree-import-tflite</a> tool can
-lower a TFLite FlatBuffer to textual MLIR with <code>--output-format=mlir-ir</code>. See
-<a href=https://github.com/google/heir/blob/main/tests/Emitter/verilog/hello_world.tosa.mlir>hello_world.tosa.mlir</a>
-for an example.</p><h3 id=--yosys-optimizer><code>--yosys-optimizer</code></h3><p>Uses Yosys to booleanize and optimize MLIR functions.</p><p>This pass pipeline requires inputs to be in standard MLIR (<code>arith</code>, <code>affine</code>,
+<code>tools/heir-opt.cpp</code> where the pipeline is defined.</p><h3 id=--yosys-optimizer><code>--yosys-optimizer</code></h3><p>Uses Yosys to booleanize and optimize MLIR functions.</p><p>This pass pipeline requires inputs to be in standard MLIR (<code>arith</code>, <code>affine</code>,
 <code>func</code>, <code>memref</code>). The pass imports the model to Yosys and runs passes to
 booleanize the circuit and then uses ABC to perform optimizations. We use
 standard LUT 3 cells. THe output of this pass includes <code>arith</code> constants and
 <code>comb.truth_table</code> ops.</p><p>The pass requires that the environment variable <code>HEIR_ABC_BINARY</code> contains the
 location of the ABC binary and that <code>HEIR_YOSYS_SCRIPTS_DIR</code> contains the
 location of the Yosys&rsquo; techlib files that are needed to execute the path.</p><p>This pass can be disabled by defining <code>HEIR_NO_YOSYS</code>; this will avoid Yosys
-library and ABC binary compilation, and avoid registration of this pass.</p><h3 id=--mlir-to-cggi><code>--mlir-to-cggi</code></h3><p>This is an experimental pipeline for lowering standard MLIR (including TOSA) to
-CGGI.</p><p>Converts a TOSA MLIR model to tfhe_rust dialect defined by HEIR. It converts a
-TOSA model to optimized boolean circuit using Yosys ABC optimizations. The
-resultant optimized boolean circuit in comb dialect is then converted to cggi
-and then to tfhe_rust exit dialect. This pipeline can be used with
-heir-translate &ndash;emit-tfhe-rust to generate code for
-<a href=https://docs.zama.ai/tfhe-rs><code>tfhe-rs</code></a> FHE library.</p><p>The pass requires that the environment variable <code>HEIR_ABC_BINARY</code> contains the
+library and ABC binary compilation, and avoid registration of this pass.</p><h3 id=--mlir-to-cggi><code>--mlir-to-cggi</code></h3><p>Converts MLIR IR to the CGGI dialect defined by HEIR. It arithmetizes the IR and
+optimizes the circuit using Yosys ABC optimizations.</p><p>The pass requires that the environment variable <code>HEIR_ABC_BINARY</code> contains the
 location of the ABC binary and that <code>HEIR_YOSYS_SCRIPTS_DIR</code> contains the
 location of the Yosys&rsquo; techlib files that are needed to execute the path.</p><h2 id=heir-translate><code>heir-translate</code></h2><h3 id=--emit-tfhe-rust><code>--emit-tfhe-rust</code></h3><p>Code generation for the <a href=https://docs.zama.ai/tfhe-rs><code>tfhe-rs</code></a> FHE library.
 The library is based on the CGGI cryptosystem, and so this pass is most useful
@@ -2733,11 +2718,7 @@ to operate on an <code>rns</code> type. So such situations require dedicated ops
 canonicalization patterns, etc.</p><h2 id=rns-types>RNS types</h2><h3 id=rnstype>RNSType</h3><p><em>A residue number system representation</em></p><p>Syntax:</p><pre tabindex=0><code>!rns.rns&lt;
   ::llvm::ArrayRef&lt;mlir::Type&gt;   # basisTypes
 &gt;
-</code></pre><h4 id=parameters>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>basisTypes</td><td style=text-align:center><code>::llvm::ArrayRef&lt;mlir::Type></code></td><td></td></tr></tbody></table><h2 id=rns-ops>RNS ops</h2><h3 id=rnsextract_slice-heirrnsextractsliceop><code>rns.extract_slice</code> (heir::rns::ExtractSliceOp)</h3><p><em>Extracts a slice of RNS limbs</em></p><p>Syntax:</p><pre tabindex=0><code>operation ::= `rns.extract_slice` $input attr-dict `:` type($input) `-&gt;` type($output)
-</code></pre><p>Given an RNS-typed value with $k$ basis types (limbs), extract the slice of
-RNS components starting at <code>start</code> and having size <code>size</code>.</p><p>The result type is an RNS type containing the subset of basis types
-corresponding to the extracted slice. This is useful for operations like
-truncating or partitioning a modulus chain.</p><p>Traits: <code>AlwaysSpeculatableImplTrait</code>, <code>Elementwise</code>, <code>Scalarizable</code>, <code>Tensorizable</code>, <code>Vectorizable</code></p><p>Interfaces: <code>ConditionallySpeculatable</code>, <code>InferTypeOpInterface</code>, <code>NoMemoryEffect (MemoryEffectOpInterface)</code></p><p>Effects: <code>MemoryEffects::Effect{}</code></p><h4 id=attributes>Attributes:</h4><table><tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr><tr><td><code>start</code></td><td>::mlir::IntegerAttr</td><td>index attribute</td></tr><tr><td><code>size</code></td><td>::mlir::IntegerAttr</td><td>index attribute</td></tr></table><h4 id=operands>Operands:</h4><table><thead><tr><th style=text-align:center>Operand</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center><code>input</code></td><td>rns-like</td></tr></tbody></table><h4 id=results>Results:</h4><table><thead><tr><th style=text-align:center>Result</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center><code>output</code></td><td>rns-like</td></tr></tbody></table><h2 id=rns-additional-definitions>RNS additional definitions</h2><h1 id=typeinterface-definitions>TypeInterface definitions</h1><h2 id=rnsbasistypeinterface-rnsbasistypeinterface>RNSBasisTypeInterface (<code>RNSBasisTypeInterface</code>)</h2><p>This interface is required for a type to be used as a parameter
+</code></pre><h4 id=parameters>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>basisTypes</td><td style=text-align:center><code>::llvm::ArrayRef&lt;mlir::Type></code></td><td></td></tr></tbody></table><h2 id=rns-ops>RNS ops</h2><h2 id=rns-additional-definitions>RNS additional definitions</h2><h1 id=typeinterface-definitions>TypeInterface definitions</h1><h2 id=rnsbasistypeinterface-rnsbasistypeinterface>RNSBasisTypeInterface (<code>RNSBasisTypeInterface</code>)</h2><p>This interface is required for a type to be used as a parameter
 to an <code>rns</code> type.</p><h3 id=methods>Methods:</h3><h4 id=iscompatiblewith><code>isCompatibleWith</code></h4><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c++ data-lang=c++><span style=display:flex><span><span style=color:#204a87;font-weight:700>bool</span> <span style=color:#000>isCompatibleWith</span><span style=color:#000;font-weight:700>(</span><span style=color:#ce5c00;font-weight:700>::</span><span style=color:#000>mlir</span><span style=color:#ce5c00;font-weight:700>::</span><span style=color:#000>Type</span> <span style=color:#000>otherRnsBasisType</span><span style=color:#000;font-weight:700>);</span>
 </span></span></code></pre></div><p>Returns true if this type is compatible with another type in the
 same RNS basis. In particular, the set of types used for a single
@@ -3119,13 +3100,11 @@ loops.</p><h3 id=-arith-to-cggi-quart><code>-arith-to-cggi-quart</code></h3><p><
 into a sequence of lower precision operations, i.e 8b operations.
 Currently, the pass splits the 32b integer into four 8b integers, using the tensor dialect.
 These smaller integers are stored in an 16b integer, so that we don&rsquo;t lose the carry information.
-This pass converts the <code>arith</code> dialect to the <code>cggi</code> dialect.</p><p>Based on the <code>arith-emulate-wide-int</code> pass from the MLIR arith dialect.</p><p>General assumption: the first element in the tensor is also the LSB element.</p><h3 id=-arith-to-cggi><code>-arith-to-cggi</code></h3><p><em>Lower <code>arith</code> to <code>cggi</code> dialect.</em></p><h3 id=-arith-to-mod-arith><code>-arith-to-mod-arith</code></h3><p><em>Lower standard <code>arith</code> to <code>mod-arith</code>.</em></p><p>This pass lowers the <code>arith</code> dialect to their <code>mod-arith</code> equivalents.</p><p>The arith-to-mod-arith pass is required to lower a neural network TOSA
-model to a CGGI backend. This pass will transform the operations to the
-mod-arith dialect, where the find-mac pass can be used to convert
-consecutive multiply addition operations into a single operation. In a
-later pass, these large precision MAC operations (typically
-64 or 32-bit) will be lowered into small precision (8 or 4b) operations
-that can be mapped to CGGI operations.</p><h4 id=options-4>Options</h4><pre tabindex=0><code>-modulus : Modulus to use for the mod-arith dialect. If not specified, the pass will use the natural modulus for that integer type
+This pass converts the <code>arith</code> dialect to the <code>cggi</code> dialect.</p><p>Based on the <code>arith-emulate-wide-int</code> pass from the MLIR arith dialect.</p><p>General assumption: the first element in the tensor is also the LSB element.</p><h3 id=-arith-to-cggi><code>-arith-to-cggi</code></h3><p><em>Lower <code>arith</code> to <code>cggi</code> dialect.</em></p><h3 id=-arith-to-mod-arith><code>-arith-to-mod-arith</code></h3><p><em>Lower standard <code>arith</code> to <code>mod-arith</code>.</em></p><p>This pass lowers the <code>arith</code> dialect to their <code>mod-arith</code> equivalents.</p><p>This pass will transform <code>arith</code> operations to the mod-arith dialect, where
+the find-mac pass can be used to convert consecutive multiply addition
+operations into a single operation. In a later pass, these large precision
+MAC operations (typically 64 or 32-bit) will be lowered into small
+precision (8 or 4b) operations that can be mapped to CGGI operations.</p><h4 id=options-4>Options</h4><pre tabindex=0><code>-modulus : Modulus to use for the mod-arith dialect. If not specified, the pass will use the natural modulus for that integer type
 </code></pre><h3 id=-bgv-to-lwe><code>-bgv-to-lwe</code></h3><p><em>Lower <code>bgv</code> to <code>lwe</code> dialect.</em></p><p>This pass lowers the <code>bgv</code> dialect to <code>lwe</code> dialect.
 Note that some scheme specific ops (e.g., modswitch) that
 have no direct analogue in the <code>lwe</code> dialect are left unchanged.
