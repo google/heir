@@ -3,7 +3,6 @@
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Target/OpenFhePke/OpenFheUtils.h"
-#include "lib/Utils/TargetUtils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"   // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
@@ -13,7 +12,6 @@
 #include "mlir/include/mlir/IR/Location.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/ValueRange.h"            // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
 
@@ -66,34 +64,17 @@ LogicalResult OpenFhePkeHeaderEmitter::printOperation(ModuleOp moduleOp) {
 }
 
 LogicalResult OpenFhePkeHeaderEmitter::printOperation(func::FuncOp funcOp) {
-  // If keeping this consistent alongside OpenFheEmitter gets annoying,
-  // extract to a shared function in a base class.
-  if (funcOp.getNumResults() != 1) {
-    return funcOp.emitOpError() << "Only functions with a single return type "
-                                   "are supported, but this function has "
-                                << funcOp.getNumResults();
-    return failure();
+  auto res = funcDeclarationHelper(
+      funcOp, os, variableNames,
+      [&](Type type, Location loc) { return emitType(type, loc); },
+      [&](Location loc, const std::string& message) {
+        return emitError(loc, message);
+      });
+  if (failed(res)) {
+    return res;
   }
-
-  Type result = funcOp.getResultTypes()[0];
-  if (failed(emitType(result, funcOp->getLoc()))) {
-    return funcOp.emitOpError() << "Failed to emit type " << result;
-  }
-
-  os << " " << funcOp.getName() << "(";
-
-  for (Value arg : funcOp.getArguments()) {
-    if (failed(convertType(arg.getType(), arg.getLoc()))) {
-      return funcOp.emitOpError() << "Failed to emit type " << arg.getType();
-    }
-  }
-
-  os << commaSeparatedValues(funcOp.getArguments(), [&](Value value) {
-    auto res = convertType(value.getType(), funcOp->getLoc());
-    return res.value() + " " + variableNames->getNameForValue(value);
-  });
-  os << ");\n";
-
+  os << ";\n";
+  os.unindent();
   return success();
 }
 

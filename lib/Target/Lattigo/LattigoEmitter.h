@@ -184,10 +184,6 @@ class LattigoEmitter {
                               op, err);
   }
 
-  // Canonicalize Debug Port
-  bool isDebugPort(::llvm::StringRef debugPortName);
-  ::llvm::StringRef canonicalizeDebugPort(::llvm::StringRef debugPortName);
-
   // find the actual value used for inplace op
   ::mlir::Value getStorageValue(::mlir::Value value) {
     if (auto* op = value.getDefiningOp()) {

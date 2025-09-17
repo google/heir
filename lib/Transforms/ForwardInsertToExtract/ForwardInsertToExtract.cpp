@@ -128,8 +128,7 @@ struct ForwardInsertToExtract
   void runOnOperation() override {
     MLIRContext* context = &getContext();
     RewritePatternSet patterns(context);
-    DominanceInfo dom(getOperation());
-    patterns.add<ForwardSingleInsertToExtract>(context, dom);
+    patterns.add<ForwardSingleInsertToExtract>(context);
     // TODO (#1221): Investigate whether folding (default: on) can be skipped
     // here.
     (void)applyPatternsGreedily(getOperation(), std::move(patterns));

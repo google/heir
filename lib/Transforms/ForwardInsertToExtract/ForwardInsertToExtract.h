@@ -3,7 +3,6 @@
 
 #include "mlir/include/mlir/Dialect/Affine/Utils.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Dominance.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
@@ -22,8 +21,8 @@ namespace heir {
 
 struct ForwardSingleInsertToExtract
     : public OpRewritePattern<tensor::ExtractOp> {
-  ForwardSingleInsertToExtract(mlir::MLIRContext* context, DominanceInfo& dom)
-      : OpRewritePattern<tensor::ExtractOp>(context, 3), dominanceInfo(dom) {}
+  ForwardSingleInsertToExtract(mlir::MLIRContext* context)
+      : OpRewritePattern<tensor::ExtractOp>(context, 3) {}
 
  public:
   LogicalResult matchAndRewrite(tensor::ExtractOp op,
@@ -33,8 +32,6 @@ struct ForwardSingleInsertToExtract
   FailureOr<OpFoldResult> getValueAtIndex(
       TypedValue<RankedTensorType> tensor,
       SmallVector<OpFoldResult> indices) const;
-
-  DominanceInfo& dominanceInfo;
 };
 
 }  // namespace heir

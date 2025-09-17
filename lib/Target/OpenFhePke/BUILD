@@ -47,8 +47,10 @@ cc_library(
         "OpenFheUtils.h",
     ],
     deps = [
+        "@heir//lib/Analysis/SelectVariableNames",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
+        "@heir//lib/Utils:TargetUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
@@ -108,6 +110,7 @@ cc_library(
         "OpenFhePkeTemplates.h",
     ],
     deps = [
+        "@heir//lib/Utils:TargetUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",

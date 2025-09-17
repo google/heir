@@ -143,17 +143,6 @@ LogicalResult LattigoEmitter::printOperation(ModuleOp moduleOp) {
   return success();
 }
 
-bool LattigoEmitter::isDebugPort(StringRef debugPortName) {
-  return debugPortName.rfind("__heir_debug") == 0;
-}
-
-StringRef LattigoEmitter::canonicalizeDebugPort(StringRef debugPortName) {
-  if (isDebugPort(debugPortName)) {
-    return "__heir_debug";
-  }
-  return debugPortName;
-}
-
 LogicalResult LattigoEmitter::printOperation(func::FuncOp funcOp) {
   // skip debug functions, should be defined in another file
   if (isDebugPort(funcOp.getName())) {

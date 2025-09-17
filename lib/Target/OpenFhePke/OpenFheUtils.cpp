@@ -2,9 +2,11 @@
 
 #include <string>
 
+#include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeTemplates.h"
+#include "lib/Utils/TargetUtils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"    // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
@@ -17,6 +19,7 @@
 #include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/Support/IndentedOstream.h"   // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 
@@ -115,6 +118,62 @@ FailureOr<Value> getContextualCryptoContext(Operation* op) {
            << "Found op in a function without a crypto context argument.";
   }
   return cryptoContext;
+}
+
+LogicalResult funcDeclarationHelper(::mlir::func::FuncOp funcOp,
+                                    ::mlir::raw_indented_ostream& os,
+                                    SelectVariableNames* variableNames,
+                                    TypeEmitterFn emitType,
+                                    ErrorEmitterFn emitError) {
+  if (funcOp.getNumResults() > 1) {
+    return emitError(funcOp.getLoc(),
+                     llvm::formatv("Only functions with <= 1 return type "
+                                   "are supported, but this function has ",
+                                   funcOp.getNumResults()));
+    return failure();
+  }
+
+  if (funcOp.getNumResults() == 1) {
+    Type result = funcOp.getResultTypes()[0];
+    if (failed(emitType(result, funcOp->getLoc()))) {
+      return emitError(funcOp.getLoc(),
+                       llvm::formatv("Failed to emit type {0}", result));
+    }
+  } else {
+    os << "void";
+  }
+
+  os << " " << canonicalizeDebugPort(funcOp.getName()) << "(";
+  os.indent();
+
+  // Check the types without printing to enable failure outside of
+  // commaSeparatedValues; maybe consider making commaSeparatedValues combine
+  // the results into a FailureOr, like commaSeparatedTypes in tfhe_rust
+  // emitter.
+  for (Value arg : funcOp.getArguments()) {
+    if (failed(convertType(arg.getType(), arg.getLoc()))) {
+      return emitError(funcOp.getLoc(),
+                       llvm::formatv("Failed to emit type {0}", arg.getType()));
+    }
+  }
+
+  if (funcOp.isDeclaration()) {
+    // function declaration
+    os << commaSeparatedTypes(funcOp.getArgumentTypes(), [&](Type type) {
+      return convertType(type, funcOp->getLoc()).value();
+    });
+    // debug attribute map for debug call
+    if (isDebugPort(funcOp.getName())) {
+      os << ", const std::map<std::string, std::string>&";
+    }
+  } else {
+    os << commaSeparatedValues(funcOp.getArguments(), [&](Value value) {
+      return convertType(value.getType(), funcOp->getLoc()).value() + " " +
+             variableNames->getNameForValue(value);
+    });
+  }
+  os << ")";
+  return success();
 }
 
 }  // namespace openfhe

@@ -331,67 +331,16 @@ LogicalResult OpenFhePkeEmitter::printOperation(ModuleOp moduleOp) {
   return success();
 }
 
-bool OpenFhePkeEmitter::isDebugPort(StringRef debugPortName) {
-  return debugPortName.rfind("__heir_debug") == 0;
-}
-
-StringRef OpenFhePkeEmitter::canonicalizeDebugPort(StringRef debugPortName) {
-  if (isDebugPort(debugPortName)) {
-    return "__heir_debug";
-  }
-  return debugPortName;
-}
-
 LogicalResult OpenFhePkeEmitter::printOperation(func::FuncOp funcOp) {
-  if (funcOp.getNumResults() > 1) {
-    return emitError(funcOp.getLoc(),
-                     llvm::formatv("Only functions with a single return type "
-                                   "are supported, but this function has ",
-                                   funcOp.getNumResults()));
-    return failure();
+  auto res = funcDeclarationHelper(
+      funcOp, os, variableNames,
+      [&](Type type, Location loc) { return emitType(type, loc); },
+      [&](Location loc, const std::string& message) {
+        return emitError(loc, message);
+      });
+  if (failed(res)) {
+    return res;
   }
-
-  if (funcOp.getNumResults() == 1) {
-    Type result = funcOp.getResultTypes()[0];
-    if (failed(emitType(result, funcOp->getLoc()))) {
-      return emitError(funcOp.getLoc(),
-                       llvm::formatv("Failed to emit type {0}", result));
-    }
-  } else {
-    os << "void";
-  }
-
-  os << " " << canonicalizeDebugPort(funcOp.getName()) << "(";
-  os.indent();
-
-  // Check the types without printing to enable failure outside of
-  // commaSeparatedValues; maybe consider making commaSeparatedValues combine
-  // the results into a FailureOr, like commaSeparatedTypes in tfhe_rust
-  // emitter.
-  for (Value arg : funcOp.getArguments()) {
-    if (failed(convertType(arg.getType(), arg.getLoc()))) {
-      return emitError(funcOp.getLoc(),
-                       llvm::formatv("Failed to emit type {0}", arg.getType()));
-    }
-  }
-
-  if (funcOp.isDeclaration()) {
-    // function declaration
-    os << commaSeparatedTypes(funcOp.getArgumentTypes(), [&](Type type) {
-      return convertType(type, funcOp->getLoc()).value();
-    });
-    // debug attribute map for debug call
-    if (isDebugPort(funcOp.getName())) {
-      os << ", const std::map<std::string, std::string>&";
-    }
-  } else {
-    os << commaSeparatedValues(funcOp.getArguments(), [&](Value value) {
-      return convertType(value.getType(), funcOp->getLoc()).value() + " " +
-             variableNames->getNameForValue(value);
-    });
-  }
-  os.unindent();
-  os << ")";
 
   // function declaration
   if (funcOp.isDeclaration()) {

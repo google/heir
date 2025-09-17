@@ -3,6 +3,7 @@
 #include <string>
 
 #include "lib/Target/OpenFhePke/OpenFhePkeTemplates.h"
+#include "lib/Utils/TargetUtils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"   // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
@@ -61,7 +62,9 @@ LogicalResult OpenFhePkePybindEmitter::printOperation(ModuleOp moduleOp) {
 }
 
 LogicalResult OpenFhePkePybindEmitter::printOperation(func::FuncOp funcOp) {
-  os << llvm::formatv(kPybindFunctionTemplate.data(), funcOp.getName()) << "\n";
+  os << llvm::formatv(kPybindFunctionTemplate.data(),
+                      canonicalizeDebugPort(funcOp.getName()))
+     << "\n";
   return success();
 }
 
