@@ -152,8 +152,7 @@ def TfheRust_CmpOp : TfheRust_Op<"cmp", [
 def TfheRust_GenerateLookupTableOp : TfheRust_Op<"generate_lookup_table", [Pure]> {
   let arguments = (
     ins TfheRust_ServerKey:$serverKey,
-    // TODO(#246): Generalize to support integer-valued lookup tables; for now
-    // the integer represents a binary-valued truth table as a bit string,
+    // The integer represents a binary-valued truth table as a bit string,
     // evaluated via `(lut >> input) & 1`
     Builtin_IntegerAttr:$truthTable
   );

@@ -30,8 +30,6 @@ def YosysOptimizer : Pass<"yosys-optimizer"> {
       not be used when distributing generics through loops to avoid index
       arguments in the function body.
   }];
-  // TODO(#257): add option for the pass to select the unroll factor
-  // automatically.
 
   let statistics = [
     Statistic<
