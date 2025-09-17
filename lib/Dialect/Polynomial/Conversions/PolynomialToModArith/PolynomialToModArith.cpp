@@ -63,6 +63,7 @@ namespace polynomial {
 
 using namespace mlir::heir::polynomial;
 using namespace mlir::heir::mod_arith;
+using namespace mlir::heir::rns;
 
 #define DEBUG_TYPE "polynomial-to-mod-arith"
 
@@ -1300,9 +1301,9 @@ struct ConvertKeySwitchInner
     // Since each part also has a different RNS type, we can't group them
     // together into a tensor and have to deal with the individual SSA values in
     // an unrolled manner.
-    rns::RNSType fullRnsChain =
+    rns::RNSType inputRnsChain =
         cast<rns::RNSType>(coefficientTensorType.getElementType());
-    int rnsLength = fullRnsChain.getBasisTypes().size();
+    int rnsLength = inputRnsChain.getBasisTypes().size();
     int64_t numFullPartitions = rnsLength / partSize;
     int64_t extraPartStart = partSize * numFullPartitions;
     int64_t extraPartSize = rnsLength - extraPartStart;
@@ -1321,7 +1322,79 @@ struct ConvertKeySwitchInner
           b.getIndexAttr(extraPartSize));
     }
 
-    // TODO(#2157): implement the rest
+    // applying basis conversion
+    SmallVector<Type> extModuli;
+    for (auto ty : inputRnsChain.getBasisTypes()) extModuli.push_back(ty);
+    for (auto prime : schemeParam.getPi())
+      extModuli.push_back(
+          ModArithType::get(op.getContext(), b.getI64IntegerAttr(prime)));
+    RNSType newBasisType = RNSType::get(op.getContext(), extModuli);
+
+    SmallVector<Value> extendedPartitions;
+    for (auto value : fullPartitions) {
+      extendedPartitions.push_back(
+          ConvertBasisOp::create(b, newBasisType, value));
+    }
+    if (maybeExtraPart.has_value()) {
+      extendedPartitions.push_back(
+          ConvertBasisOp::create(b, newBasisType, maybeExtraPart.value())
+              .getResult());
+    }
+
+    // Nb., input has some of the normal primes, maybe not all,
+    // since you may have applied a level reduction before this op.
+    //
+    // Assumption: ksk has all of the same normal primes as the input, plus the
+    // keyswitch primes (i.e., the new basis type), so this should be enforced
+    // on the input ksk to this op. If not, just drop the extra primes.
+    //
+    // Assumption: ksk is already in NTT form
+
+    // Convert extendedPartitions to NTT domain to enable multiplication
+    SmallVector<Value> extendedPartitionsNTTed;
+    for (auto value : extendedPartitions) {
+      auto fromTensor = FromTensorOp::create(
+          b, op.getKeySwitchingKey().getType().getElementType(), value);
+      // FIXME: something is wrong
+      extendedPartitionsNTTed.push_back(NTTOp::create(
+          b, value.getType(), value,
+          PrimitiveRootAttr::get(op.getContext(), b.getI64IntegerAttr(7),
+                                 b.getI64IntegerAttr(3))));
+    }
+
+    // Dot product
+    // KSK is a K x 2 x N x RNS
+    //
+    // extendedPartitions is a K x N x RNS
+    Value tensorPartitions =
+        tensor::FromElementsOp::create(b, extendedPartitionsNTTed);
+    RankedTensorType kskType =
+        cast<RankedTensorType>(adaptor.getKeySwitchingKey().getType());
+    SmallVector<int64_t> broadcastDims(kskType.getShape());
+    // broadcast to K x 2 x N x RNS
+    Value broadcastPartitions =
+        linalg::BroadcastOp::create(
+            b, tensorPartitions,
+            tensor::EmptyOp::create(b, broadcastDims, kskType.getElementType()),
+            broadcastDims)
+            .getResult()[0];
+
+    // elementwise product
+    Value dotProd = mod_arith::MulOp::create(b, broadcastPartitions,
+                                             adaptor.getKeySwitchingKey());
+    // FIXME: sum along the K axis
+    Value summed = linalg::ReduceOp::create();
+
+    // Shape is 2xNxRNS
+
+    // Convert back to polynomial (out of NTT)
+    auto iNTTOp = INTTOp::create(
+        b, resultType, summed,
+        PrimitiveRootAttr::get(op.getContext(), b.getI64IntegerAttr(7),
+                               b.getI64IntegerAttr(3)));
+
+    // Drop all keyswitch primes
+    // "rescale" (aka basis conversion)
 
     return success();
   }
