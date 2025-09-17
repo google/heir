@@ -127,15 +127,14 @@ struct AddEvaluatorArg : public OpConversionPattern<func::FuncOp> {
 };
 
 template <typename KeyType>
-struct RemoveKeyArg : public OpConversionPattern<func::FuncOp> {
+struct RemoveKeyArg : public OpRewritePattern<func::FuncOp> {
   RemoveKeyArg(mlir::MLIRContext* context)
-      : OpConversionPattern<func::FuncOp>(context, /* benefit= */ 2) {}
+      : OpRewritePattern<func::FuncOp>(context, /* benefit= */ 2) {}
 
-  using OpConversionPattern::OpConversionPattern;
+  using OpRewritePattern::OpRewritePattern;
 
-  LogicalResult matchAndRewrite(
-      func::FuncOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter& rewriter) const override {
+  LogicalResult matchAndRewrite(func::FuncOp op,
+                                PatternRewriter& rewriter) const override {
     ::llvm::BitVector argsToErase(op.getNumArguments());
 
     for (auto i = 0; i != op.getNumArguments(); ++i) {
