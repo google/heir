@@ -57,23 +57,11 @@
 <path fill="none" stroke="black" d="M58.06,-743.42C58.17,-741.63 58.29,-739.75 58.41,-737.8"/>
 <polygon fill="black" stroke="black" points="61.91,-737.8 59.04,-727.6 54.93,-737.37 61.91,-737.8"/>
 </g>
-<!-- TOSA -->
-<g id="node2" class="node">
-<title>TOSA</title>
-<polygon fill="white" stroke="black" points="168,-779.6 112,-779.6 112,-743.6 168,-743.6 168,-779.6"/>
-<text text-anchor="middle" x="140" y="-757.9" font-family="Times,serif" font-size="14.00">TOSA</text>
-</g>
 <!-- Memref -->
 <g id="node8" class="node">
 <title>Memref</title>
 <polygon fill="#beaed4" stroke="black" points="176.5,-696.6 103.5,-696.6 103.5,-660.6 176.5,-660.6 176.5,-696.6"/>
 <text text-anchor="middle" x="140" y="-674.9" font-family="Times,serif" font-size="14.00">Memref</text>
-</g>
-<!-- TOSA&#45;&gt;Memref -->
-<g id="edge6" class="edge">
-<title>TOSA&#45;&gt;Memref</title>
-<path fill="none" stroke="black" d="M140,-743.42C140,-741.63 140,-739.75 140,-737.8"/>
-<polygon fill="black" stroke="black" points="143.5,-737.6 140,-727.6 136.5,-737.6 143.5,-737.6"/>
 </g>
 <!-- Python -->
 <g id="node3" class="node">

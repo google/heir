@@ -12,13 +12,12 @@ def ArithToModArith : Pass<"arith-to-mod-arith", "ModuleOp"> {
   let description = [{
     This pass lowers the `arith` dialect to their `mod-arith` equivalents.
 
-    The arith-to-mod-arith pass is required to lower a neural network TOSA
-    model to a CGGI backend. This pass will transform the operations to the
-    mod-arith dialect, where the find-mac pass can be used to convert
-    consecutive multiply addition operations into a single operation. In a
-    later pass, these large precision MAC operations (typically
-    64 or 32-bit) will be lowered into small precision (8 or 4b) operations
-    that can be mapped to CGGI operations.   }];
+    This pass will transform `arith` operations to the mod-arith dialect, where
+    the find-mac pass can be used to convert consecutive multiply addition
+    operations into a single operation. In a later pass, these large precision
+    MAC operations (typically 64 or 32-bit) will be lowered into small
+    precision (8 or 4b) operations that can be mapped to CGGI operations.
+  }];
 
   let dependentDialects = [
     "mlir::arith::ArithDialect",

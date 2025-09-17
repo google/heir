@@ -28,7 +28,6 @@
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"          // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"    // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tosa/IR/TosaOps.h"     // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-lsp-server/MlirLspServerMain.h"  // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-opt/MlirOptMain.h"  // from @llvm-project
@@ -63,7 +62,6 @@ int main(int argc, char** argv) {
   // Add expected MLIR dialects to the registry.
   registry.insert<LLVM::LLVMDialect>();
   registry.insert<::mlir::linalg::LinalgDialect>();
-  registry.insert<::mlir::tosa::TosaDialect>();
   registry.insert<affine::AffineDialect>();
   registry.insert<arith::ArithDialect>();
   registry.insert<bufferization::BufferizationDialect>();

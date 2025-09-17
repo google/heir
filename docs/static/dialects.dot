@@ -11,7 +11,6 @@ digraph G {
     subgraph cluster_inputs {
         label = "Upstream Frontends"
         Polygeist
-        TOSA
     }
 
     subgraph cluster_heir_inputs {
@@ -33,7 +32,6 @@ digraph G {
     lower_from_mlir [shape=point label="" fillcolor=black]
     {Arith Linalg Affine Func Memref} -> lower_from_mlir [arrowhead=none]
 
-    TOSA -> Memref [lhead=cluster_mlir]
     Polygeist -> Func [lhead=cluster_mlir]
     Python -> Affine [lhead=cluster_mlir]
 

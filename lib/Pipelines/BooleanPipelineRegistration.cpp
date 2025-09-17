@@ -55,9 +55,6 @@ void mlirToCGGIPipeline(OpPassManager& pm,
                         const MLIRToCGGIPipelineOptions& options,
                         const std::string& yosysFilesPath,
                         const std::string& abcPath) {
-  // TOSA to linalg
-  ::mlir::heir::tosaToLinalg(pm);
-
   // Bufferize
   ::mlir::heir::oneShotBufferize(pm);
 
@@ -146,9 +143,6 @@ CGGIPipelineBuilder mlirToCGGIPipelineBuilder() {
 
 void mlirToCGGIPipeline(OpPassManager& pm,
                         const MLIRToCGGIPipelineOptions& options) {
-  // TOSA to linalg
-  ::mlir::heir::tosaToLinalg(pm);
-
   // Bufferize
   ::mlir::heir::oneShotBufferize(pm);
 
