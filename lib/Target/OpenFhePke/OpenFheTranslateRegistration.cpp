@@ -79,6 +79,16 @@ void registerTranslateOptions() {
   *pybindOptions;
 }
 
+// Common func to register dialects
+static void registerRelevantDialects(DialectRegistry& registry) {
+  registry.insert<arith::ArithDialect, func::FuncDialect,
+                  openfhe::OpenfheDialect, lwe::LWEDialect,
+                  tensor_ext::TensorExtDialect, polynomial::PolynomialDialect,
+                  tensor::TensorDialect, mod_arith::ModArithDialect,
+                  rns::RNSDialect, affine::AffineDialect, scf::SCFDialect>();
+  rns::registerExternalRNSTypeInterfaces(registry);
+}
+
 void registerToOpenFhePkeTranslation() {
   TranslateFromMLIRRegistration reg(
       "emit-openfhe-pke",
@@ -88,15 +98,7 @@ void registerToOpenFhePkeTranslation() {
                                      options->weightsFile,
                                      options->skipVectorResizing);
       },
-      [](DialectRegistry& registry) {
-        registry
-            .insert<arith::ArithDialect, func::FuncDialect,
-                    openfhe::OpenfheDialect, lwe::LWEDialect,
-                    tensor_ext::TensorExtDialect, polynomial::PolynomialDialect,
-                    tensor::TensorDialect, mod_arith::ModArithDialect,
-                    rns::RNSDialect, affine::AffineDialect, scf::SCFDialect>();
-        rns::registerExternalRNSTypeInterfaces(registry);
-      });
+      registerRelevantDialects);
 }
 
 void registerToOpenFhePkeHeaderTranslation() {
@@ -108,15 +110,7 @@ void registerToOpenFhePkeHeaderTranslation() {
         return translateToOpenFhePkeHeader(op, output,
                                            options->openfheImportType);
       },
-      [](DialectRegistry& registry) {
-        registry.insert<arith::ArithDialect, affine::AffineDialect,
-                        func::FuncDialect, tensor::TensorDialect,
-                        tensor_ext::TensorExtDialect, openfhe::OpenfheDialect,
-                        lwe::LWEDialect, rns::RNSDialect,
-                        polynomial::PolynomialDialect,
-                        mod_arith::ModArithDialect, scf::SCFDialect>();
-        rns::registerExternalRNSTypeInterfaces(registry);
-      });
+      registerRelevantDialects);
 }
 
 void registerToOpenFhePkePybindTranslation() {
@@ -130,14 +124,7 @@ void registerToOpenFhePkePybindTranslation() {
                                            pybindOptions->pybindHeaderInclude,
                                            pybindOptions->pybindModuleName);
       },
-      [](DialectRegistry& registry) {
-        registry.insert<arith::ArithDialect, func::FuncDialect,
-                        tensor::TensorDialect, openfhe::OpenfheDialect,
-                        lwe::LWEDialect, tensor_ext::TensorExtDialect,
-                        polynomial::PolynomialDialect,
-                        mod_arith::ModArithDialect, rns::RNSDialect>();
-        rns::registerExternalRNSTypeInterfaces(registry);
-      });
+      registerRelevantDialects);
 }
 
 }  // namespace openfhe
