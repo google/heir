@@ -38,4 +38,6 @@ def RNS : RNS_Type<"RNS", "rns", [OpAsmTypeInterface]> {
   }];
 }
 
+def RNSLike: TypeOrValueSemanticsContainer<RNS, "rns-like">;
+
 #endif  // LIB_DIALECT_RNS_IR_RNSTYPES_TD_
