@@ -63,6 +63,17 @@ int64_t flattenedIndex(ShapedType type, ValueRange indices,
 int64_t flattenedIndex(MemRefType memRefType, ValueRange indices,
                        std::function<int64_t(Value)> valueToInt);
 
+inline bool isDebugPort(StringRef debugPortName) {
+  return debugPortName.rfind("__heir_debug") == 0;
+}
+
+inline StringRef canonicalizeDebugPort(StringRef debugPortName) {
+  if (isDebugPort(debugPortName)) {
+    return "__heir_debug";
+  }
+  return debugPortName;
+}
+
 }  // namespace heir
 }  // namespace mlir
 

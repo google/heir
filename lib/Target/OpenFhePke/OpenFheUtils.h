@@ -3,10 +3,13 @@
 
 #include <string>
 
-#include "mlir/include/mlir/IR/Location.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"               // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"               // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
+#include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Location.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
+#include "mlir/include/mlir/Support/IndentedOstream.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -51,6 +54,21 @@ std::string getWeightsPrelude();
 /// arguments.
 ::mlir::FailureOr<::mlir::Value> getContextualCryptoContext(
     ::mlir::Operation* op);
+
+using ErrorEmitterFn = std::function<LogicalResult(::mlir::Location loc,
+                                                   const std::string& message)>;
+using TypeEmitterFn =
+    std::function<LogicalResult(::mlir::Type type, ::mlir::Location loc)>;
+
+// Emit the shared parts of a function declaration between its header
+// declaration and its definition. I.e., stop at the closing parent
+// after the argument list, and let the caller decide whether to emit
+// a following semicolon or function body.
+LogicalResult funcDeclarationHelper(::mlir::func::FuncOp funcOp,
+                                    ::mlir::raw_indented_ostream& os,
+                                    SelectVariableNames* variableNames,
+                                    TypeEmitterFn emitType,
+                                    ErrorEmitterFn emitError);
 
 }  // namespace openfhe
 }  // namespace heir
