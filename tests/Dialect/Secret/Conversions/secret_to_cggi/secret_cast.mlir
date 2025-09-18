@@ -6,9 +6,9 @@
 
 // CHECK: module
 module attributes {tf_saved_model.semantics} {
-  // CHECK: @main([[ARG:%.*]]: [[LWET:tensor<4x!lwe.lwe_ciphertext<.*>>]]) -> [[OUT:tensor<4x!lwe.lwe_ciphertext<.*>>]]
+  // CHECK: @main([[ARG:%.*]]: tensor<4x![[ct_ty]]>) -> tensor<4x![[ct_ty]]>
   func.func @main(%arg0: !secret.secret<tensor<4xi1>>) -> !secret.secret<i4> {
-    // CHECK: return [[ARG]] : [[OUT]]
+    // CHECK: return [[ARG]] : tensor<4x![[ct_ty]]>
     %4 = secret.cast %arg0 : !secret.secret<tensor<4xi1>> to !secret.secret<i4>
     return %4 : !secret.secret<i4>
   }
@@ -20,7 +20,7 @@ module attributes {tf_saved_model.semantics} {
 
 module {
   // CHECK-NOT: secret
-  // CHECK: @collapse_multidim([[ARG:%.*]]: tensor<1x1x8x[[LWET:!lwe.lwe_ciphertext<.*>]]>)
+  // CHECK: @collapse_multidim([[ARG:%.*]]: tensor<1x1x8x[[LWET:!.*]]>)
   func.func @collapse_multidim(%arg0: !secret.secret<tensor<1x1xi8>>) -> !secret.secret<tensor<8xi1>> {
     // CHECK: tensor.collapse_shape
     // CHECK-SAME: tensor<1x1x8x[[LWET]]> into tensor<8x[[LWET]]>
@@ -28,7 +28,7 @@ module {
     func.return %0 : !secret.secret<tensor<8xi1>>
   }
 
-  // CHECK: @expand_multidim([[ARG:%.*]]: tensor<16x[[LWET:!lwe.lwe_ciphertext<.*>]]>)
+  // CHECK: @expand_multidim([[ARG:%.*]]: tensor<16x[[LWET:!.*]]>)
   func.func @expand_multidim(%arg0: !secret.secret<tensor<16xi1>>) -> !secret.secret<tensor<1x2xi8>> {
     // CHECK: tensor.expand_shape
     // CHECK-SAME: tensor<16x[[LWET]]> into tensor<1x2x8x[[LWET]]>

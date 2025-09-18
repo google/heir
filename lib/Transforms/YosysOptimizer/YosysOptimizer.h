@@ -33,6 +33,12 @@ struct YosysOptimizerPipelineOptions
                      "value of zero (default) prevents unrolling."),
       llvm::cl::init(0)};
 
+  PassOptions::Option<bool> useSubmodules{
+      *this, "use-submodules",
+      llvm::cl::desc("Extracts secret.generic bodies into submodules before "
+                     "optimizing. Default is true."),
+      llvm::cl::init(true)};
+
   PassOptions::Option<enum Mode> mode{
       *this, "mode",
       llvm::cl::desc("Map gates to boolean gates or lookup table gates."),
