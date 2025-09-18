@@ -1,4 +1,4 @@
-// RUN: heir-opt --layout-optimization %s | FileCheck %s
+// RUN: heir-opt --layout-optimization --canonicalize %s | FileCheck %s
 
 #vec_layout = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 1024 = 4 and i0 >= 0 and 0 >= i0 and slot >= 0 and 1023 >= slot and ct = 0 }">
 #vec_layout_2 = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 1024 = 7 and i0 >= 0 and 0 >= i0 and slot >= 0 and 1023 >= slot and ct = 0 }">
@@ -12,15 +12,12 @@ func.func @main(%arg0: tensor<512x512xf32>, %arg1: !secret.secret<tensor<512xf32
   // CHECK: tensor_ext.assign_layout
   // CHECK-NEXT: tensor_ext.assign_layout
   // CHECK-NEXT: secret.generic
+  // CHECK-NOT: tensor_ext.assign_layout
+  // CHECK-NOT: tensor_ext.convert_layout
   %1 = tensor_ext.assign_layout %0 {layout = #vec_layout, tensor_ext.layout = #vec_layout} : tensor<512xf32>
   %2 = tensor_ext.assign_layout %arg0 {layout = #mat_layout, tensor_ext.layout = #mat_layout} : tensor<512x512xf32>
   %3 = secret.generic(%arg1: !secret.secret<tensor<512xf32>> {tensor_ext.layout = #vec_layout}) {
   ^body(%input0: tensor<512xf32>):
-    // two convert_layout ops here, one for hoisted vec conversion and one for change to matrix layout
-    // CHECK: tensor_ext.convert_layout
-    // CHECK-NEXT: tensor_ext.convert_layout
-    // CHECK-NEXT: linalg.matvec
-    // CHECK-NOT: tensor_ext.convert_layout
     %4 = linalg.matvec {tensor_ext.layout = #vec_layout, secret.kernel = #secret.kernel<name="MatvecDiagonal", force=false>}
         ins(%2, %input0 : tensor<512x512xf32>, tensor<512xf32>) outs(%1 : tensor<512xf32>) -> tensor<512xf32>
     %5 = tensor_ext.convert_layout %4 {from_layout = #vec_layout, tensor_ext.layout = #vec_layout_2, to_layout = #vec_layout_2} : tensor<512xf32>

@@ -52,7 +52,6 @@ using tensor_ext::TensorExtDialect;
 using tensor_ext::UnpackOp;
 
 auto& kOriginalTypeAttrName = TensorExtDialect::kOriginalTypeAttrName;
-auto& kLayoutAttrName = TensorExtDialect::kLayoutAttrName;
 
 namespace {
 Type stripSecretType(Type type) {
