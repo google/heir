@@ -1,6 +1,7 @@
 #include "lib/Utils/TransformUtils.h"
 
 #include <cassert>
+#include <numeric>
 #include <set>
 #include <string>
 #include <string_view>
