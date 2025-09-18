@@ -7,12 +7,12 @@ environment and trigger the build which follows below.
 ## Building Docker Image
 
 You can build the docker image using command for your platform. Replace
-meta-syntactic variables.
+meta-syntactic variables (e.g. replace `heir:@imagename@` with `heir:dev`).
 
 ### Linux
 
 ```
-$ docker buildx build -t heir:@imagename@ .
+$ docker buildx build --platform linux/amd64 -f docker/Dockerfile -t heir:@imagename@ .
 ```
 
 ## Run Docker Image
@@ -23,8 +23,13 @@ Typically we like to map the local HEIR source folder into the container at
 To run the docker image follow the commands:
 
 ```
-$ docker run --user heiruser -v `pwd`/heir:/home/heiruser/heir/  -it heir:@imagename@
+$ docker run --user heiruser --platform linux/amd64 -v "$(pwd)":/home/heiruser/heir -it heir:@imagename@
 ```
+
+Alternatively, from the repository root you can run `./docker/run.sh`. The
+script builds the image with `docker/Dockerfile` and binds your working tree at
+`$(pwd)` directly to `/home/heiruser/heir` so edits inside the container are
+mirrored on the host.
 
 # Compiling HEIR
 
