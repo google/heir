@@ -126,6 +126,8 @@ FailureOr<CommonConversionInfo> getCommonConversionInfo(
           .Case<IntegerType>([&](auto intTy) { return intTy; })
           .Case<ModArithType>(
               [&](ModArithType intTy) { return intTy.getModulus().getType(); })
+          // FIXME: why do we need coefficientStorageType now?
+          .Case<RNSType>([&](RNSType rnsTy) { return rnsTy; })
           .Default([&](Type ty) { return failure(); });
   if (failed(res)) {
     assert(false && "unsupported coefficient type");
@@ -1266,6 +1268,8 @@ struct ConvertKeySwitchInner
 
     RankedTensorType coefficientTensorType =
         cast<RankedTensorType>(adaptor.getValue().getType());
+    PolynomialType originalPolynomialType = cast<PolynomialType>(
+        op.getKeySwitchingKey().getType().getElementType());
 
     if (coefficientTensorType.getRank() != 1) {
       return rewriter.notifyMatchFailure(
@@ -1365,47 +1369,63 @@ struct ConvertKeySwitchInner
     // Convert extendedPartitions to NTT domain to enable multiplication
     SmallVector<Value> extendedPartitionsNTTed;
     for (auto value : extendedPartitions) {
-      // FIXME: something is wrong
-      extendedPartitionsNTTed.push_back(NTTOp::create(
-          b, value.getType(), value,
-          PrimitiveRootAttr::get(op.getContext(), b.getI64IntegerAttr(7),
-                                 b.getI64IntegerAttr(3))));
+      // Temporarily convert the coefficient vector to a polynomial
+      // (this will be lowered later to a no-op)
+      auto fromTensorOp =
+          FromTensorOp::create(b, originalPolynomialType, value);
+      // NTT the polynomial back to a tensor
+      // FIXME: determine the correct root to use with an RNS type.
+      // FIXME: apply the NTT limb-wise?
+      auto nttOp = NTTOp::create(b, value.getType(), fromTensorOp.getResult());
+      extendedPartitionsNTTed.push_back(nttOp.getResult());
     }
 
-    auto fromTensor = FromTensorOp::create(
-        b, op.getKeySwitchingKey().getType().getElementType(),
-        extendedPartitionsNTTed);
+    SmallVector<int64_t> stackedShape(coefficientTensorType.getShape());
+    stackedShape.insert(stackedShape.begin(), extendedPartitionsNTTed.size());
+    RankedTensorType tensorPartitionsType = RankedTensorType::get(
+        stackedShape, coefficientTensorType.getElementType());
+    Value tensorPartitions = tensor::FromElementsOp::create(
+        b, tensorPartitionsType, extendedPartitionsNTTed);
 
-    // Dot product
-    // KSK is a K x 2 x N x RNS
+    // Dot product:
     //
-    // extendedPartitions is a K x N x RNS
-    Value tensorPartitions =
-        tensor::FromElementsOp::create(b, extendedPartitionsNTTed);
+    //  - KSK is a K x 2 x N x RNS
+    //  - tensorPartitions is a K x N x RNS
+    //
+    // Broadcast tensorPartitons to K x 2 x N x RNS
     RankedTensorType kskType =
         cast<RankedTensorType>(adaptor.getKeySwitchingKey().getType());
     SmallVector<int64_t> broadcastDims(kskType.getShape());
-    // broadcast to K x 2 x N x RNS
+    auto broadcastInit =
+        tensor::EmptyOp::create(b, broadcastDims, kskType.getElementType());
     Value broadcastPartitions =
-        linalg::BroadcastOp::create(
-            b, tensorPartitions,
-            tensor::EmptyOp::create(b, broadcastDims, kskType.getElementType()),
-            broadcastDims)
+        linalg::BroadcastOp::create(b, tensorPartitions, broadcastInit,
+                                    broadcastDims)
             .getResult()[0];
 
-    // elementwise product
-    Value dotProd = mod_arith::MulOp::create(b, broadcastPartitions,
-                                             adaptor.getKeySwitchingKey());
-    // FIXME: sum along the K axis
-    Value summed = linalg::ReduceOp::create();
+    auto dotProd = mod_arith::MulOp::create(b, broadcastPartitions,
+                                            adaptor.getKeySwitchingKey());
+
+    // Sum along the K axis to get back to the components of a ciphertext
+    RankedTensorType reducedType = RankedTensorType::get(
+        kskType.getShape().drop_front(), kskType.getElementType());
+    auto reductionInit = tensor::EmptyOp::create(b, reducedType.getShape(),
+                                                 reducedType.getElementType());
+    SmallVector<int64_t> reductionDims = {0};
+    auto reduction = linalg::ReduceOp::create(
+                         b, dotProd->getResults(), reductionInit->getResults(),
+                         reductionDims,
+                         [&](OpBuilder& b, Location loc, ValueRange inputs) {
+                           auto innerOp = mod_arith::AddOp::create(
+                               b, loc, inputs[0], inputs[1]);
+                           linalg::YieldOp::create(b, loc, innerOp.getResult());
+                         })
+                         .getResult(0);
 
     // Shape is 2xNxRNS
 
     // Convert back to polynomial (out of NTT)
-    auto iNTTOp = INTTOp::create(
-        b, resultType, summed,
-        PrimitiveRootAttr::get(op.getContext(), b.getI64IntegerAttr(7),
-                               b.getI64IntegerAttr(3)));
+    auto iNTTOp = INTTOp::create(b, originalPolynomialType, reduction, nullptr);
 
     // Drop all keyswitch primes
     // "rescale" (aka basis conversion)
