@@ -39,6 +39,10 @@ cc_library(
         "@llvm-project//mlir:MemRefTransforms",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:SCFToControlFlow",
+        "@llvm-project//mlir:TensorToLinalg",
+        "@llvm-project//mlir:TosaToArith",
+        "@llvm-project//mlir:TosaToLinalg",
+        "@llvm-project//mlir:TosaToTensor",
         "@llvm-project//mlir:Transforms",
     ],
 )

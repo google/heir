@@ -25,6 +25,10 @@ def YosysOptimizer : Pass<"yosys-optimizer"> {
       factor. If unset, this pass will not unroll any loops.
     - `print-stats`: Prints statistics about the optimized circuits.
     - `mode={Boolean,LUT}`: Map gates to boolean gates or lookup table gates.
+    - `use-submodules`: Extract the body of a generic op into submodules.
+      Useful for large programs with generics that can be isolated. This should
+      not be used when distributing generics through loops to avoid index
+      arguments in the function body.
   }];
 
   let statistics = [
@@ -39,7 +43,7 @@ def YosysOptimizer : Pass<"yosys-optimizer"> {
     "mlir::arith::ArithDialect",
     "mlir::heir::comb::CombDialect",
     "mlir::heir::secret::SecretDialect",
-    "mlir::tensor::TensorDialect"
+    "mlir::memref::MemRefDialect"
   ];
 }
 

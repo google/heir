@@ -16,6 +16,10 @@
 #include "mlir/include/mlir/Conversion/BufferizationToMemRef/BufferizationToMemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ConvertToLLVM/ToLLVMPass.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/TensorToLinalg/TensorToLinalgPass.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/TosaToArith/TosaToArith.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/TosaToLinalg/TosaToLinalg.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/TosaToTensor/TosaToTensor.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/Transforms/FuncBufferizableOpInterfaceImpl.h"  // from @llvm-project
@@ -34,8 +38,8 @@ using mlir::func::FuncOp;
 
 namespace mlir::heir {
 
-void tosaToLinalg(OpPassManager &manager) {
-  manager.addNestedPass<FuncOp>(createTosaToLinalg());
+void tosaToLinalg(OpPassManager& manager) {
+  manager.addNestedPass<FuncOp>(tosa::createTosaToLinalg());
   manager.addNestedPass<FuncOp>(createTosaToArithPass({true, false}));
   manager.addNestedPass<FuncOp>(createTosaToTensorPass());
   manager.addNestedPass<FuncOp>(createLinalgDetensorizePass());

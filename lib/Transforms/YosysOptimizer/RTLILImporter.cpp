@@ -48,7 +48,7 @@ namespace {
 // getTypeForWire gets the MLIR type corresponding to the RTLIL wire. If the
 // wire is an integer with multiple bits, then the MLIR type is a tensor of
 // bits.
-Type getTypeForWire(OpBuilder& b, Wire* wire) {
+static Type getTypeForWire(OpBuilder& b, Wire* wire) {
   auto intTy = b.getI1Type();
   if (wire->width == 1) {
     return intTy;
@@ -108,8 +108,8 @@ Value RTLILImporter::getBit(
     return retBitValues[bit.wire][bit.offset];
   }
   auto argA = getWireValue(bit.wire);
-  auto extractOp = b.create<tensor::ExtractOp>(
-      argA, b.create<arith::ConstantIndexOp>(bit.offset).getResult());
+  auto indices = arith::ConstantIndexOp::create(b, bit.offset);
+  auto extractOp = tensor::ExtractOp::create(b, argA, indices.getResult());
   return extractOp;
 }
 
@@ -255,8 +255,8 @@ func::FuncOp RTLILImporter::importModule(
       // bits.
       assert(retBits.size() > 1);
       // Create a flat tensor from the result bits.
-      Value fromElements = b.create<tensor::FromElementsOp>(
-          RankedTensorType::get({(int64_t)retBits.size()}, b.getI1Type()),
+      Value fromElements = tensor::FromElementsOp::create(
+          b, RankedTensorType::get({(int64_t)retBits.size()}, b.getI1Type()),
           retBits);
       returnValues.push_back(fromElements);
     }

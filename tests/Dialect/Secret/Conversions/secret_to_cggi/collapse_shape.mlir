@@ -2,9 +2,13 @@
 
 // Ensure that we use a collapse_shape operation to reconcile tensor<2x4xlwe_ct>
 // with tensor<8xlwe_ct>.
+
+// CHECK: ![[ct_ty:.*]] = !lwe.lwe_ciphertext
+// CHECK: module
+
 module {
   // CHECK: func.func @collapse_shape
-  // CHECK-SAME: (%[[arg0:.*]]: tensor<2x4x[[lwe_ct:!lwe.lwe_ciphertext<.*>]])
+  // CHECK-SAME:    (%[[arg0:.*]]: tensor<2x4x![[ct_ty]]>) -> tensor<2x4x![[ct_ty]]>
   func.func @collapse_shape(%arg0: !secret.secret<tensor<2xi4>>) -> !secret.secret<tensor<2xi4>> {
     %c3 = arith.constant 3 : index
     %false = arith.constant false

@@ -10,6 +10,6 @@ module {
     %c0_i32 = arith.constant 0 : i32
     %1 = linalg.quantized_matmul ins(%arg0, %cst, %c0_i32, %c0_i32 : tensor<1x1xi8>, tensor<1x3xi8>, i32, i32) outs(%cst_0 : tensor<1x3xi32>) -> tensor<1x3xi32>
     // CHECK: return
-    return %1 : tensor<1x3xi16>
+    return %1 : tensor<1x3xi32>
   }
 }

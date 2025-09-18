@@ -110,9 +110,9 @@ LogicalResult CollapseSecretlessGeneric::matchAndRewrite(
     auto emptyOp = *op.getOps<tensor::EmptyOp>().begin();
     // Don't collapse if the empty tensor is used in operations that have secret
     // operands.
-    if (llvm::any_of(emptyOp->getUsers(), [&](Operation *user) {
+    if (llvm::any_of(emptyOp->getUsers(), [&](Operation* user) {
           for (Value operand : user->getOperands()) {
-            OpOperand *genericOperand =
+            OpOperand* genericOperand =
                 op.getOpOperandForBlockArgument(operand);
             if (genericOperand &&
                 isa<SecretType>(genericOperand->get().getType())) {
@@ -674,7 +674,7 @@ LogicalResult ConcealThenGeneric::matchAndRewrite(
     if (llvm::any_of(genericOp.getBody()
                          ->getArguments()[opOperand.getOperandNumber()]
                          .getUses(),
-                     [&](OpOperand &use) {
+                     [&](OpOperand& use) {
                        auto insertOp =
                            dyn_cast<tensor::InsertOp>(use.getOwner());
                        return insertOp && insertOp.getDest() == use.get();
@@ -693,7 +693,7 @@ LogicalResult ConcealThenGeneric::matchAndRewrite(
 }
 
 LogicalResult ConcealPlaintextInsert::matchAndRewrite(
-    GenericOp op, PatternRewriter &rewriter) const {
+    GenericOp op, PatternRewriter& rewriter) const {
   auto isSecret = [&](Value value) {
     auto genericOperand = op.getOpOperandForBlockArgument(value);
     if (!genericOperand) {
@@ -719,7 +719,7 @@ LogicalResult ConcealPlaintextInsert::matchAndRewrite(
       rewriter.modifyOpInPlace(op, [&]() {
         BlockArgument newArg = op.getBody()->addArgument(
             concealedTensor.getCleartext().getType(), op.getLoc());
-        rewriter.replaceUsesWithIf(dest, newArg, [&](mlir::OpOperand &operand) {
+        rewriter.replaceUsesWithIf(dest, newArg, [&](mlir::OpOperand& operand) {
           auto insertOp = dyn_cast<tensor::InsertOp>(operand.getOwner());
           if (!insertOp) {
             return false;

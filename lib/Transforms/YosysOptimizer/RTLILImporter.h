@@ -47,8 +47,8 @@ class RTLILImporter {
   // also passed to specify the output shape. For example, if a flattened 8 bit
   // vector is returned from the module, it may be assembled into a tensor<8xi1>
   // or tensor<2x4xi1>.
-  func::FuncOp importModule(Yosys::RTLIL::Module *module,
-                            const SmallVector<std::string, 10> &cellOrdering,
+  func::FuncOp importModule(Yosys::RTLIL::Module* module,
+                            const SmallVector<std::string, 10>& cellOrdering,
                             std::optional<SmallVector<Type>> resultTypes);
 
   virtual ~RTLILImporter() = default;

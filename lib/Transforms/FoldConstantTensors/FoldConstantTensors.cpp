@@ -229,11 +229,11 @@ class ExtractOfExtractSlice final : public OpRewritePattern<tensor::ExtractOp> {
  public:
   using OpRewritePattern<tensor::ExtractOp>::OpRewritePattern;
 
-  ExtractOfExtractSlice(MLIRContext *context)
+  ExtractOfExtractSlice(MLIRContext* context)
       : OpRewritePattern<tensor::ExtractOp>(context) {}
 
   LogicalResult matchAndRewrite(tensor::ExtractOp extractOp,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter& rewriter) const override {
     auto extractSliceOp =
         extractOp.getTensor().getDefiningOp<tensor::ExtractSliceOp>();
     if (!extractSliceOp) return failure();

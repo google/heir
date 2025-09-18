@@ -610,6 +610,13 @@ LogicalResult VerilogEmitter::printOperation(arith::ConstantOp op) {
     }
   }
 
+  else if (auto dAttr = dyn_cast<DenseElementsAttr>(attr)) {
+    emitAssignPrefix(op.getResult());
+    printRawDataFromAttr(dAttr, os_);
+    os_ << ";\n";
+    return success();
+  }
+
   SmallString<128> strValue;
   value.toString(strValue, 10, isSigned, false);
 

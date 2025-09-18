@@ -669,7 +669,7 @@ std::pair<GenericOp, GenericOp> extractOpAfterGeneric(
   // results.
   auto extractOpGenericResults =
       llvm::map_to_vector(opToExtract->getResults(), [&](OpResult v) {
-        auto &yieldUse = *v.getUses().begin();
+        auto& yieldUse = *v.getUses().begin();
         assert(isa<YieldOp>(yieldUse.getOwner()) &&
                "expected yield to be the only use of the op to extract");
         return genericOpWithNewYields.getResult(yieldUse.getOperandNumber());

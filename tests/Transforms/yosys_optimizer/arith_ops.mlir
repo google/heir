@@ -34,7 +34,7 @@ func.func @ops(
   // CHECK: return
 }
 
-// CHECK: @truth_table
+// CHEACK: @truth_table
 func.func @truth_table(
     %arg0: !secret.secret<i1>, %arg1: !secret.secret<i1>) -> (!secret.secret<i1>) {
   %1 = secret.generic(%arg0: !secret.secret<i1>, %arg1:

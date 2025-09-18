@@ -1,7 +1,9 @@
 // RUN: heir-opt --secret-distribute-generic --canonicalize --secret-to-cggi --split-input-file %s | FileCheck %s
 
+// CHECK: ![[ct_ty:.*]] = !lwe.lwe_ciphertext
+
 // CHECK: @tensor_extract
-// CHECK-SAME: ([[ARG:%.*]]: [[LWET:tensor<1x1x32x!lwe.lwe_ciphertext<.*>>]]) -> [[OUT:tensor<1x1x32x!lwe.lwe_ciphertext<.*>>]]
+// CHECK-SAME: ([[ARG:%.*]]: tensor<1x1x32x![[ct_ty]]>) -> tensor<1x1x32x![[ct_ty]]>
 func.func @tensor_extract(%arg0: !secret.secret<tensor<1x1xi32>>) -> !secret.secret<tensor<1x1xi32>> {
   %c0 = arith.constant 0 : index
   // CHECK: [[V7:%.*]] = tensor.extract_slice [[ARG]]
@@ -18,14 +20,14 @@ func.func @tensor_extract(%arg0: !secret.secret<tensor<1x1xi32>>) -> !secret.sec
     secret.yield %alloc : tensor<1x1xi32>
   } -> !secret.secret<tensor<1x1xi32>>
 
-  // CHECK: return [[V6]] : [[OUT]]
+  // CHECK: return [[V6]] : tensor<1x1x32x![[ct_ty]]>
   return %6 : !secret.secret<tensor<1x1xi32>>
 }
 
 // -----
 
 // CHECK: @single_bit_plaintext_tensor
-// CHECK-SAME: () -> [[OUT:tensor<1x!lwe.lwe_ciphertext<.*>>]]
+// CHECK-SAME: () -> tensor<1x![[ct_ty]]>
 func.func @single_bit_plaintext_tensor() -> !secret.secret<tensor<1xi1>> {
   // CHECK: [[TRUE:%.*]] = arith.constant true
   // CHECK: [[ENC:%.*]] = lwe.encode [[TRUE]]
@@ -36,6 +38,6 @@ func.func @single_bit_plaintext_tensor() -> !secret.secret<tensor<1xi1>> {
     %from_elements = tensor.from_elements %true : tensor<1xi1>
     secret.yield %from_elements : tensor<1xi1>
   } -> !secret.secret<tensor<1xi1>>
-  // CHECK: return [[V6]] : [[OUT]]
+  // CHECK: return [[V6]] : tensor<1x![[ct_ty]]>
   return %6 : !secret.secret<tensor<1xi1>>
 }

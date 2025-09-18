@@ -245,12 +245,12 @@ struct ConcealThenGeneric : public OpRewritePattern<GenericOp> {
 // Special case for when a secret value is inserted into a plaintext tensor. In
 // this case, we must use a concealed plaintext tensor.
 struct ConcealPlaintextInsert : public OpRewritePattern<GenericOp> {
-  ConcealPlaintextInsert(mlir::MLIRContext *context)
+  ConcealPlaintextInsert(mlir::MLIRContext* context)
       : OpRewritePattern<GenericOp>(context, /*benefit=*/1) {}
 
  public:
   LogicalResult matchAndRewrite(GenericOp op,
-                                PatternRewriter &rewriter) const override;
+                                PatternRewriter& rewriter) const override;
 };
 
 // Inspects a generic body for any constant operands, and copies the constant
