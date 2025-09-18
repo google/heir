@@ -187,18 +187,3 @@ cc_library(
         "@llvm-project//mlir:TensorDialect",
     ],
 )
-
-cc_library(
-    name = "ArithmeticDag",
-    srcs = ["ArithmeticDag.h"],
-    hdrs = ["ArithmeticDag.h"],
-)
-
-cc_test(
-    name = "ArithmeticDagTest",
-    srcs = ["ArithmeticDagTest.cpp"],
-    deps = [
-        ":ArithmeticDag",
-        "@googletest//:gtest_main",
-    ],
-)

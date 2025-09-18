@@ -74,7 +74,10 @@ using std::string;
 // $2: yosys runfiles
 // $3: abc path
 // $4: abc fast option -fast
-// This template uses LUTs to optimize logic.
+// This template uses LUTs to optimize logic. It handles Verilog modules that
+// may call submodules, utilizing splitnets to split output ports of the
+// submodule into individual bits. Note that the splitnets command uses %n to
+// target all submodules besides the main function.
 constexpr std::string_view kYosysLutTemplate = R"(
 read_verilog -sv {0};
 hierarchy -check -top \{1};
@@ -147,12 +150,14 @@ struct YosysOptimizer : public impl::YosysOptimizerBase<YosysOptimizer> {
   using YosysOptimizerBase::YosysOptimizerBase;
 
   YosysOptimizer(std::string yosysFilesPath, std::string abcPath, bool abcFast,
-                 int unrollFactor, Mode mode, bool printStats)
+                 int unrollFactor, bool useSubmodules, Mode mode,
+                 bool printStats)
       : yosysFilesPath(std::move(yosysFilesPath)),
         abcPath(std::move(abcPath)),
         abcFast(abcFast),
         printStats(printStats),
         unrollFactor(unrollFactor),
+        useSubmodules(useSubmodules),
         mode(mode) {}
 
   void runOnOperation() override;
@@ -168,6 +173,7 @@ struct YosysOptimizer : public impl::YosysOptimizerBase<YosysOptimizer> {
   bool abcFast;
   bool printStats;
   int unrollFactor;
+  bool useSubmodules;
   Mode mode;
   llvm::SmallVector<RelativeOptimizationStatistics> optStatistics;
 };
@@ -175,8 +181,8 @@ struct YosysOptimizer : public impl::YosysOptimizerBase<YosysOptimizer> {
 /// Convert a secret.generic's operands secret.secret<i3>
 /// to secret.secret<tensor<3xi1>>.
 LogicalResult convertOpOperands(secret::GenericOp op, func::FuncOp func,
-                                SmallVector<Value> &typeConvertedArgs) {
-  for (OpOperand &opOperand : op->getOpOperands()) {
+                                SmallVector<Value>& typeConvertedArgs) {
+  for (OpOperand& opOperand : op->getOpOperands()) {
     // Get the generic op operand, then find which input that corresponds to.
     Type convertedType =
         func.getFunctionType().getInputs()[opOperand.getOperandNumber()];
@@ -650,7 +656,8 @@ std::unique_ptr<mlir::Pass> createYosysOptimizer(
     const std::string& yosysFilesPath, const std::string& abcPath, bool abcFast,
     int unrollFactor, bool useSubmodules, Mode mode, bool printStats) {
   return std::make_unique<YosysOptimizer>(yosysFilesPath, abcPath, abcFast,
-                                          unrollFactor, mode, printStats);
+                                          unrollFactor, useSubmodules, mode,
+                                          printStats);
 }
 
 void registerYosysOptimizerPipeline(const std::string& yosysFilesPath,
