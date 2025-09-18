@@ -140,3 +140,11 @@ git_repository(
     commit = "58eaa613ffcd2b11c36a773c19531f75fbcfc66c",
     remote = "https://github.com/j2kun/isl.git",
 )
+
+http_archive(
+    name = "libtorch",
+    build_file = "//bazel:libtorch.BUILD",
+    urls = ["https://download.pytorch.org/libtorch/cpu/libtorch-shared-with-deps-2.8.0%2Bcpu.zip"],
+    sha256 = "8dea5bcfed4b53ca0f6852517bea4b4d1f3ff1cc0c21da662e834d34af1ec824",
+    strip_prefix = "libtorch",
+)

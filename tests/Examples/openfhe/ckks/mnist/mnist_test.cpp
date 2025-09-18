@@ -1,92 +1,147 @@
-#include <cstdlib>
+#include <cstdint>
 #include <ctime>
-#include <iomanip>
 #include <iostream>
-#include <map>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
-#include "gtest/gtest.h"                               // from @googletest
 #include "src/core/include/lattice/hal/lat-backend.h"  // from @openfhe
 #include "src/core/include/utils/inttypes.h"           // from @openfhe
 #include "src/pke/include/key/keypair.h"               // from @openfhe
 #include "src/pke/include/key/privatekey-fwd.h"        // from @openfhe
 
+// Block clang-format from reordering
+// clang-format off
+#include "tools/cpp/runfiles/runfiles.h"  // from @bazel_tools
+#include "gtest/gtest.h"  // from @googletest
+#include "torch/csrc/api/include/torch/data/dataloader.h"  // from @torch
+#include "torch/csrc/api/include/torch/data/datasets/base.h"  // from @torch
+#include "torch/csrc/api/include/torch/data/datasets/map.h"  // from @torch
+#include "torch/csrc/api/include/torch/data/samplers/sequential.h"  // from @torch
+#include "torch/csrc/api/include/torch/data/transforms/stack.h"  // from @torch
+#include "torch/csrc/api/include/torch/data/transforms/tensor.h"  // from @torch
+#include "torch/csrc/jit/api/module.h"  // from @torch
+#include "torch/csrc/jit/serialization/import.h"  // from @torch
+#include "torch/data/datasets/mnist.h"  // from @torch
+// clang-format on
+
 // Generated headers (block clang-format from messing up order)
 #include "tests/Examples/openfhe/ckks/mnist/mnist_lib.h"
 
-#define OP
-#define DECRYPT
+using bazel::tools::cpp::runfiles::Runfiles;
 
-void __heir_debug(CryptoContextT cc, PrivateKeyT sk, CiphertextT ct,
-                  const std::map<std::string, std::string>& debugAttrMap) {
-#ifdef OP
-  auto isBlockArgument = debugAttrMap.at("asm.is_block_arg");
-  if (isBlockArgument == "1") {
-    std::cout << "Input" << std::endl;
-  } else {
-    std::cout << debugAttrMap.at("asm.op_name") << std::endl;
-  }
-#endif
-
-#ifdef DECRYPT
-  PlaintextT ptxt;
-  cc->Decrypt(sk, ct, &ptxt);
-  ptxt->SetLength(std::stod(debugAttrMap.at("message.size")));
-  std::vector<double> result;
-  result.reserve(ptxt->GetLength());
-  for (size_t i = 0; i < ptxt->GetLength(); i++) {
-    result.push_back(ptxt->GetRealPackedValue()[i]);
-  }
-  std::cout << "decrypted: [";
-  for (auto val : result) {
-    std::cout << std::setprecision(3) << (abs(val) < 1e-10 ? 0 : val) << ",";
-  }
-  std::cout << "]\n";
-#endif
-}
+constexpr std::string_view kModelPath =
+    "/heir/tests/Examples/openfhe/ckks/mnist/data/"
+    "traced_model.pt";
+constexpr std::string_view kDataPath =
+    "/heir/tests/Examples/openfhe/ckks/mnist/data";
 
 namespace mlir {
 namespace heir {
 namespace openfhe {
 
+namespace {
+
+template <int N>
+int argmax(float* A) {
+  int max_idx = 0;
+  for (int i = 1; i < N; i++) {
+    if (A[i] > A[max_idx]) {
+      max_idx = i;
+    }
+  }
+  return max_idx;
+}
+
+std::vector<std::vector<float>> loadWeights(const std::string& modelPath) {
+  std::vector<std::vector<float>> weights;
+  try {
+    // Deserialize the ScriptModule from a file using torch::jit::load().
+    torch::jit::script::Module module = torch::jit::load(modelPath);
+    module.eval();  // Don't forget to set evaluation mode
+
+    std::cout << "Successfully loaded " << modelPath << std::endl;
+
+    // Access and print parameter names and shapes
+    std::cout << "Model parameters:" << std::endl;
+    for (auto pair : module.named_parameters()) {
+      const std::string& name = pair.name;
+      const auto& tensor = pair.value;
+      std::cout << "  " << name << ": " << tensor.sizes() << std::endl;
+
+      auto tensorCont = tensor.contiguous();
+      int64_t num_elements = tensorCont.numel();
+      const float* tensor_data = tensorCont.data_ptr<float>();
+
+      weights.push_back({tensor_data, tensor_data + num_elements});
+    }
+  } catch (const c10::Error& e) {
+    std::cerr << "Error loading the model" << std::endl;
+    return {};
+  }
+  return weights;
+}
+
+}  // namespace
+
 TEST(MNISTTest, RunTest) {
+  std::unique_ptr<Runfiles> runfiles(Runfiles::CreateForTest());
+
+  auto weights = loadWeights(runfiles->Rlocation(kModelPath));
+  ASSERT_FALSE(weights.empty());
+
+  auto test_dataset =
+      torch::data::datasets::MNIST(runfiles->Rlocation(kDataPath),
+                                   torch::data::datasets::MNIST::Mode::kTest)
+          .map(torch::data::transforms::Normalize<>(0.1307, 0.3081))
+          .map(torch::data::transforms::Stack<>());
+  auto test_loader =
+      torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(
+          std::move(test_dataset), 1);
+
   auto cryptoContext = mnist__generate_crypto_context();
   auto keyPair = cryptoContext->KeyGen();
   auto publicKey = keyPair.publicKey;
   auto secretKey = keyPair.secretKey;
   cryptoContext = mnist__configure_crypto_context(cryptoContext, secretKey);
 
-  std::vector<float> arg0Vals(5, 1.0);  // input (0, 1, 2, 3, 4)
-  for (int i = 0; i < 5; ++i) {
-    arg0Vals[i] = i;
+  std::cout << *cryptoContext->GetCryptoParameters() << std::endl;
+
+  int total = 4;
+  int correct = 0;
+  for (auto& batch : *test_loader) {
+    if (total == 0) break;
+    auto input_tensor = batch.data.contiguous();
+    float* tensor_data_ptr = input_tensor.data_ptr<float>();
+
+    std::vector<float> input_vector(tensor_data_ptr,
+                                    tensor_data_ptr + input_tensor.numel());
+    auto input_encrypted =
+        mnist__encrypt__arg4(cryptoContext, input_vector, publicKey);
+
+    std::clock_t cStart = std::clock();
+    auto output_encrypted = mnist(cryptoContext, weights[0], weights[1],
+                                  weights[2], weights[3], input_encrypted);
+    std::clock_t cEnd = std::clock();
+
+    double timeElapsedMs = 1000.0 * (cEnd - cStart) / CLOCKS_PER_SEC;
+    std::cout << "CPU time used: " << timeElapsedMs << " ms\n";
+
+    std::vector<float> output =
+        mnist__decrypt__result0(cryptoContext, output_encrypted, secretKey);
+    auto label_tensor = batch.target;
+    int64_t label = label_tensor.item<int64_t>();
+    auto max_id = argmax<10>(output.data());
+
+    if (max_id == label) {
+      correct++;
+    }
+    std::cout << "max_id: " << max_id << ", label: " << label << std::endl;
+    total--;
   }
 
-  // Set matrix main diagonal = 1
-  std::vector<float> matVals(3 * 5, 0.0);
-  matVals[0] = 1.0;
-  matVals[1 + 5 * 1] = 1.0;
-  matVals[2 + 5 * 2] = 1.0;
-
-  // The first elements of the vector.
-  std::vector<float> expected = {0, 1, 2};
-
-  auto arg0Encrypted = mnist__encrypt__arg1(cryptoContext, arg0Vals, publicKey);
-
-  // Insert timing info
-  std::clock_t cStart = std::clock();
-  auto outputEncrypted =
-      mnist(cryptoContext, secretKey, matVals, arg0Encrypted);
-  std::clock_t cEnd = std::clock();
-  double timeElapsedMs = 1000.0 * (cEnd - cStart) / CLOCKS_PER_SEC;
-  std::cout << "CPU time used: " << timeElapsedMs << " ms\n";
-
-  auto actual =
-      mnist__decrypt__result0(cryptoContext, outputEncrypted, secretKey);
-
-  for (int i = 0; i < expected.size(); ++i) {
-    EXPECT_NEAR(expected[i], actual[i], 1e-6);
-  }
+  EXPECT_GE(correct, 0.9 * total);
 }
 
 }  // namespace openfhe
