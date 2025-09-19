@@ -3,7 +3,7 @@
 // -> stablehlo -> mlir.
 
 module @jit_func attributes {jax.uses_shape_polymorphism = false, mhlo.num_partitions = 1 : i32, mhlo.num_replicas = 1 : i32} {
-  func.func public @main(%arg0: tensor<512x784xf32> {mhlo.sharding = "{replicated}"}, %arg1: tensor<512xf32> {mhlo.sharding = "{replicated}"}, %arg2: tensor<10x512xf32> {mhlo.sharding = "{replicated}"}, %arg3: tensor<10xf32> {mhlo.sharding = "{replicated}"}, %arg4: tensor<1x784xf32> {secret.secret}) -> (tensor<1x10xf32> {jax.result_info = "result[0]"}) {
+  func.func public @mnist(%arg0: tensor<512x784xf32> {mhlo.sharding = "{replicated}"}, %arg1: tensor<512xf32> {mhlo.sharding = "{replicated}"}, %arg2: tensor<10x512xf32> {mhlo.sharding = "{replicated}"}, %arg3: tensor<10xf32> {mhlo.sharding = "{replicated}"}, %arg4: tensor<1x784xf32> {secret.secret}) -> (tensor<1x10xf32> {jax.result_info = "result[0]"}) {
     %cst = arith.constant dense<1.000000e+00> : tensor<f32>
     %0 = tensor.empty() : tensor<784x512xf32>
     %transposed = linalg.transpose ins(%arg0 : tensor<512x784xf32>) outs(%0 : tensor<784x512xf32>) permutation = [1, 0]
@@ -23,7 +23,7 @@ module @jit_func attributes {jax.uses_shape_polymorphism = false, mhlo.num_parti
     %broadcasted_3 = linalg.broadcast ins(%mapped : tensor<512xf32>) outs(%8 : tensor<1x512xf32>) dimensions = [0]
     %9 = tensor.empty() : tensor<1x512xf32>
     %mapped_4 = linalg.map { arith.addf } ins(%broadcasted_3, %mapped_2 : tensor<1x512xf32>, tensor<1x512xf32>) outs(%9 : tensor<1x512xf32>)
-    %10 = call @relu(%mapped_4) : (tensor<1x512xf32>) -> tensor<1x512xf32>
+    %10 = call @relu(%mapped_4) { domain_lower = -15.0, domain_upper = 12.0 } : (tensor<1x512xf32>) -> tensor<1x512xf32>
     %11 = tensor.empty() : tensor<512x10xf32>
     %transposed_5 = linalg.transpose ins(%arg2 : tensor<10x512xf32>) outs(%11 : tensor<512x10xf32>) permutation = [1, 0]
     %12 = tensor.empty() : tensor<10xf32>
