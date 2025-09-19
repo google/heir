@@ -27,9 +27,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE.bzlmod', 'MODULE.bazel') }}-
 
-      - name: Install coreutils
-        run: brew install coreutils
-
       - name: Install rust
         run: brew install rust
 
@@ -41,10 +38,14 @@ jobs:
           echo "LDFLAGS=-L$(brew --prefix libomp)/lib" >> "$GITHUB_ENV"
           echo "CPPFLAGS=-I$(brew --prefix libomp)/include" >> "$GITHUB_ENV"
 
+      - name: Bazel debug info
+        run: |
+          bazel cquery --output=starlark --starlark:expr="str(providers(target))" @bazel_tools//tools/cpp:current_cc_toolchain | sed 's/,/\n/g'
+
       - name: "Run `bazel build`"
         run: |
-          bazel build --noincompatible_strict_action_env --action_env=PATH="/opt/homebrew/bin:/usr/local/bin:$PATH" -c opt //...
+          bazel build --verbose_failures -c opt //...
 
       - name: "Run `bazel test`"
         run: |
-           bazel test --noincompatible_strict_action_env --action_env=PATH="/opt/homebrew/bin:/usr/local/bin:$PATH" -c opt //...
+           bazel test --verbose_failures -c opt //...
