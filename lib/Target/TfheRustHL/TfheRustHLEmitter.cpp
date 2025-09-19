@@ -127,8 +127,8 @@ LogicalResult TfheRustHLEmitter::translate(Operation& op) {
                 CreateTrivialOp, BitAndOp, BitOrOp, BitXorOp>(
               [&](auto op) { return printOperation(op); })
           // Tensor ops
-          .Case<tensor::ExtractOp, tensor::FromElementsOp, tensor::InsertOp>(
-              [&](auto op) { return printOperation(op); })
+          .Case<tensor::ExtractOp, tensor::FromElementsOp, tensor::InsertOp,
+                tensor::EmptyOp>([&](auto op) { return printOperation(op); })
           .Default([&](Operation&) {
             return op.emitOpError("unable to find printer for op");
           });
@@ -623,6 +623,23 @@ LogicalResult TfheRustHLEmitter::printOperation(affine::AffineLoadOp op) {
   return success();
 }
 
+// Use a BTreeMap<(usize, ...), Ciphertext>.
+LogicalResult TfheRustHLEmitter::printOperation(tensor::EmptyOp op) {
+  os << "let mut " << variableNames->getNameForValue(op.getResult())
+     << " : BTreeMap<("
+     << std::accumulate(
+            std::next(op.getType().getShape().begin()),
+            op.getType().getShape().end(), std::string("usize"),
+            [&](const std::string& a, int64_t value) { return a + ", usize"; })
+     << "), ";
+  if (failed(emitType(op.getType().getElementType()))) {
+    return op.emitOpError() << "Failed to get memref element type";
+  }
+  os << "> = BTreeMap::new();\n";
+
+  return success();
+}
+
 // Produces a &Ciphertext
 LogicalResult TfheRustHLEmitter::printOperation(tensor::ExtractOp op) {
   // We assume here that the indices are SSA values (not integer attributes).
@@ -658,8 +675,12 @@ LogicalResult TfheRustHLEmitter::printOperation(tensor::InsertOp op) {
     // Check if block argument, if so, clone.
     const auto* cloneStr = isa<BlockArgument>(value) ? ".clone()" : "";
     // Get the name of defining operation its dialect
-    auto tfheOp =
-        value.getDefiningOp()->getDialect()->getNamespace() == "tfhe_rust";
+
+    bool tfheOp = false;
+    if (auto* defOp = value.getDefiningOp()) {
+      tfheOp = isa<TfheRustDialect>(defOp->getDialect());
+    }
+
     const auto* prefix = tfheOp ? "&" : "";
     return std::string(prefix) + variableNames->getNameForValue(value) +
            cloneStr;
