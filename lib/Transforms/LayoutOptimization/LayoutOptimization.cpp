@@ -14,6 +14,7 @@
 #include "lib/Kernel/Kernel.h"
 #include "lib/Kernel/KernelName.h"
 #include "lib/Transforms/LayoutOptimization/Hoisting.h"
+#include "lib/Transforms/LayoutOptimization/LayoutConversionCost.h"
 #include "lib/Transforms/LayoutOptimization/Patterns.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"               // from @llvm-project
@@ -41,6 +42,7 @@ namespace heir {
 using ::mlir::heir::secret::KernelAttr;
 using ::mlir::heir::tensor_ext::AssignLayoutOp;
 using ::mlir::heir::tensor_ext::ConvertLayoutOp;
+using ::mlir::heir::tensor_ext::NewLayoutAttr;
 
 constexpr const static StringLiteral kKernelAttrName =
     ::mlir::heir::secret::SecretDialect::kKernelAttrName;
@@ -68,11 +70,33 @@ struct HoistOption {
 
 }  // namespace
 
-// TODO(#2047) restore call to function in LayoutConversionCost.h
-static Cost computeCostOfLayoutConversion(Value value, int64_t slots,
+static Cost computeCostOfLayoutConversion(int64_t ciphertextSize,
                                           Attribute fromLayout,
                                           Attribute toLayout) {
-  return fromLayout == toLayout ? 0 : 1;
+  NewLayoutAttr fromLayoutAttr = dyn_cast<NewLayoutAttr>(fromLayout);
+  NewLayoutAttr toLayoutAttr = dyn_cast<NewLayoutAttr>(toLayout);
+
+  if (!fromLayoutAttr || !toLayoutAttr) {
+    return fromLayout == toLayout ? 0 : 1;
+  }
+
+  presburger::IntegerRelation rel = fromLayoutAttr.getIntegerRelation();
+  std::optional<int64_t> ctUb =
+      rel.getConstantBound64(presburger::BoundType::UB,
+                             rel.getVarKindOffset(presburger::VarKind::Range));
+  std::optional<int64_t> ctLb =
+      rel.getConstantBound64(presburger::BoundType::LB,
+                             rel.getVarKindOffset(presburger::VarKind::Range));
+
+  if (!ctUb.has_value() || !ctLb.has_value()) {
+    llvm::errs() << "Could not determine number of ciphertexts from layout "
+                 << fromLayoutAttr << ", assuming cost 1\n";
+    return 1;
+  }
+
+  int64_t numCiphertexts = ctUb.value() - ctLb.value() + 1;
+  return computeCostOfLayoutConversion(numCiphertexts, ciphertextSize,
+                                       fromLayoutAttr, toLayoutAttr);
 }
 
 struct LayoutOptimization : impl::LayoutOptimizationBase<LayoutOptimization> {
@@ -121,6 +145,8 @@ void LayoutOptimization::runOnOperation() {
                     dyn_cast<LayoutConversionHoistableOpInterface>(op)) {
               // TODO(#1888): figure out how to get OpInterface verifier to run
               // automatically.
+              LLVM_DEBUG(llvm::dbgs() << "Visiting op: " << op->getName()
+                                      << " with hoistable interface\n");
               KernelName kernelName = KernelName::Trivial;
               if (op->hasAttr(kKernelAttrName)) {
                 kernelName =
@@ -317,9 +343,9 @@ OperandChange LayoutOptimization::costOfChangedOperand(OpOperand& operand,
     // (folded conversion - original conversion).
     auto fromLayout = convertLayoutOp.getFromLayout();
     Cost originalConversion = computeCostOfLayoutConversion(
-        value, ciphertextSize, fromLayout, convertLayoutOp.getToLayout());
-    Cost foldedConversion = computeCostOfLayoutConversion(
-        value, ciphertextSize, fromLayout, newLayout);
+        ciphertextSize, fromLayout, convertLayoutOp.getToLayout());
+    Cost foldedConversion =
+        computeCostOfLayoutConversion(ciphertextSize, fromLayout, newLayout);
     return OperandChange{fromLayout, newLayout,
                          foldedConversion - originalConversion};
   }
@@ -330,9 +356,9 @@ OperandChange LayoutOptimization::costOfChangedOperand(OpOperand& operand,
   assert(succeeded(originalLayoutResult) &&
          "Operand does not have a layout attribute");
   auto originalLayout = originalLayoutResult.value();
-  return OperandChange{originalLayout, newLayout,
-                       computeCostOfLayoutConversion(
-                           value, ciphertextSize, originalLayout, newLayout)};
+  return OperandChange{
+      originalLayout, newLayout,
+      computeCostOfLayoutConversion(ciphertextSize, originalLayout, newLayout)};
 }
 
 Cost LayoutOptimization::costOfChangedResult(Operation* kernel,
@@ -340,13 +366,11 @@ Cost LayoutOptimization::costOfChangedResult(Operation* kernel,
   Cost totalCost = 0;
   for (auto* user : kernel->getResult(0).getUsers()) {
     if (auto convertLayoutOp = dyn_cast<ConvertLayoutOp>(user)) {
-      auto currentValue = convertLayoutOp.getValue();
       Cost originalConversion = computeCostOfLayoutConversion(
-          currentValue, ciphertextSize, convertLayoutOp.getFromLayout(),
+          ciphertextSize, convertLayoutOp.getFromLayout(),
           convertLayoutOp.getToLayout());
-      Cost foldedConversion =
-          computeCostOfLayoutConversion(currentValue, ciphertextSize, newLayout,
-                                        convertLayoutOp.getToLayout());
+      Cost foldedConversion = computeCostOfLayoutConversion(
+          ciphertextSize, newLayout, convertLayoutOp.getToLayout());
       totalCost += foldedConversion - originalConversion;
     }
   }
@@ -432,10 +456,10 @@ std::vector<HoistOption> LayoutOptimization::computeHoistingOptions(
                << "\tresult change cost: " << resultChangeCost << "\n");
     option.cost += resultChangeCost;
 
-    // The op may not have a kernel set, in which case the kernel may be trivial
-    // and not explicitly marked; in this case we can ignore kernel costs.
-    // Otherwise, we can ignore a kernel cost if this hoisting option doesn't
-    // change the kernel.
+    // The op may not have a kernel set, in which case the kernel may be
+    // trivial and not explicitly marked; in this case we can ignore kernel
+    // costs. Otherwise, we can ignore a kernel cost if this hoisting option
+    // doesn't change the kernel.
     if ((oldKernel == nullptr &&
          option.hoistResult.newKernel == KernelName::Trivial) ||
         (oldKernel != nullptr &&

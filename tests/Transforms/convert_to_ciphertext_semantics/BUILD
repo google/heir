@@ -8,6 +8,7 @@ glob_lit_tests(
     driver = "@heir//tests:run_lit.sh",
     exclude = [
         # TODO(#2047): Remove these tests after migrating to new layout
+        "linalg_reduce.mlir",
         "matvec.mlir",
         "linalg_matvec_1024.mlir",
         "linalg_matvec_ckks.mlir",

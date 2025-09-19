@@ -8,12 +8,10 @@
 namespace mlir {
 namespace heir {
 
-using Cost = int64_t;
-using tensor_ext::LayoutAttr;
-
-// TODO(#2047) migrate to relation-based layout attr
-Cost computeCostOfLayoutConversion(Value value, int64_t slots,
-                                   LayoutAttr fromLayout, LayoutAttr toLayout);
+int64_t computeCostOfLayoutConversion(int64_t numCiphertexts,
+                                      int64_t ciphertextSize,
+                                      tensor_ext::NewLayoutAttr fromLayout,
+                                      tensor_ext::NewLayoutAttr toLayout);
 
 }  // namespace heir
 }  // namespace mlir

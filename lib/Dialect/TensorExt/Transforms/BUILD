@@ -1,5 +1,6 @@
 load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -94,16 +95,21 @@ cc_library(
         "ImplementShiftNetwork.h",
     ],
     deps = [
+        ":RotationGroupKernel",
         ":pass_inc_gen",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Kernel:IRMaterializingVisitor",
+        "@heir//lib/Utils",
         "@heir//lib/Utils:AffineMapUtils",
         "@heir//lib/Utils/ADT:FrozenVector",
         "@heir//lib/Utils/Graph",
+        "@heir//lib/Utils/Layout:Utils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
     ],
 )
 
@@ -142,6 +148,31 @@ cc_library(
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
+    ],
+)
+
+cc_library(
+    name = "RotationGroupKernel",
+    hdrs = ["RotationGroupKernel.h"],
+    deps = [
+        "@heir//lib/Kernel:AbstractValue",
+        "@heir//lib/Kernel:ArithmeticDag",
+        "@heir//lib/Utils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_test(
+    name = "ImplementShiftNetworkTest",
+    srcs = ["ImplementShiftNetworkTest.cpp"],
+    deps = [
+        ":ImplementShiftNetwork",
+        ":RotationGroupKernel",
+        "@googletest//:gtest_main",
+        "@heir//lib/Kernel:AbstractValue",
+        "@heir//lib/Kernel:ArithmeticDag",
+        "@heir//lib/Kernel:TestingUtils",
     ],
 )
 

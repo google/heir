@@ -986,8 +986,6 @@ void NewLayoutPropagation::passLayoutThroughOp(Operation* op) {
 
 FailureOr<NewLayoutAttr> NewLayoutPropagation::defaultLayoutForScalarType(
     Type scalarType) {
-  // FIXME: Does a scalar have domainSize=0? And should the output type be
-  // tensor<1 x ciphertextSize x type> or tensor<ciphertextSize x type>?
   auto* ctx = scalarType.getContext();
   OpBuilder builder(ctx);
 

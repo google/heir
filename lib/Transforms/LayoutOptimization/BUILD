@@ -13,6 +13,7 @@ cc_library(
     deps = [
         ":Hoisting",
         ":InterfaceImpl",
+        ":LayoutConversionCost",
         ":Patterns",
         ":pass_inc_gen",
         "@heir//lib/Analysis/LayoutFoldingAnalysis",
@@ -94,6 +95,7 @@ cc_library(
     deps = [
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/Transforms:ImplementShiftNetwork",
+        "@heir//lib/Dialect/TensorExt/Transforms:RotationGroupKernel",
         "@heir//lib/Utils",
         "@heir//lib/Utils:AffineMapUtils",
         "@heir//lib/Utils:TransformUtils",

@@ -18,6 +18,7 @@ class FrozenVector {
  public:
   FrozenVector() = default;
   FrozenVector(const llvm::SmallVector<T, N>& other) : vector(other) {}
+  FrozenVector(llvm::ArrayRef<T> other) : vector(other) {}
   FrozenVector(llvm::SmallVector<T, N>&& other) : vector(std::move(other)) {}
 
   using iterator = typename llvm::SmallVector<T, N>::const_iterator;
