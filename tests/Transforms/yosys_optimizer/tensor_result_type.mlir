@@ -8,12 +8,13 @@
 module attributes {tf_saved_model.semantics} {
   // CHECK: @main(%[[arg0:.*]]: [[SECRETI8:!secret.secret<i8>]],
   // CHECK-SAME:  %[[arg1:.*]]: [[SECRET1x1xi8:!secret.secret<tensor<1x1xi8>>]])
-  // CHECK-SAME: -> [[SECRET1x1xi8:!secret.secret<tensor<1x1xi8>>]] {
+  // CHECK-SAME: -> [[SECRET1x1xi8]] {
   // CHECK-NEXT: %[[v0:.*]] = secret.cast %[[arg0]] : [[SECRETI8]] to [[SECRET8xi1:!secret.secret<tensor<8xi1>>]]
-  // CHECK-NEXT: secret.generic(%[[v0]]: [[SECRET8xi1]])
+  // CHECK: secret.generic(%[[v0]]: [[SECRET8xi1]],
   // CHECK:         %[[from_elements:.*]] = tensor.from_elements
   // CHECK-SAME:        [[TENSOR8xi1:tensor<8xi1>]]
-  // CHECK:         secret.yield %[[from_elements]] : [[TENSOR8xi1]]
+  // CHECK:         secret.yield %[[from_elements]]
+  // CHECK-SAME:        [[TENSOR8xi1]]
   func.func @main(%arg0: !secret.secret<i8>, %out: !secret.secret<tensor<1x1xi8>>) -> !secret.secret<tensor<1x1xi8>> {
     %c22 = arith.constant 22 : i8
     %c0 = arith.constant 0 : index
