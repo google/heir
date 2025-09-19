@@ -1,0 +1,53 @@
+name: Test Dockerfile
+permissions: read-all
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  pull_request:
+    paths:
+      - 'docker/**'
+      - '.github/workflows/docker-dev.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-dev-docker-image:
+    runs-on:
+      labels: ubuntu-24.04-16core
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
+
+      - name: Build dev image
+        env:
+          DOCKER_BUILDKIT: 1
+        run: |
+          docker build \
+            --platform linux/amd64 \
+            --file docker/Dockerfile \
+            --tag heir:dev-ci \
+            .
+
+      - name: Smoke test clang availability
+        run: |
+          docker run \
+            --rm \
+            --platform linux/amd64 \
+            --user heiruser \
+            heir:dev-ci \
+            bash -lc 'clang --version'
+
+      - name: Build and test with Bazel inside container
+        run: |
+          docker run \
+            --rm \
+            --platform linux/amd64 \
+            --user heiruser \
+            -v "${PWD}:/home/heiruser/heir" \
+            -w /home/heiruser/heir \
+            heir:dev-ci \
+            bash -lc "set -euo pipefail; bazelisk --version; bazelisk build -c opt //...; bazelisk test -c opt //..."
