@@ -4,7 +4,6 @@
 
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Kernel/ArithmeticDag.h"
-#include "lib/Kernel/KernelImplementation.h"
 #include "lib/Utils/MathUtils.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
@@ -27,18 +26,48 @@ Value IRMaterializingVisitor::operator()(const LeafNode<SSAValue>& node) {
   return node.value.getValue();
 }
 
-Value IRMaterializingVisitor::operator()(const ConstantNode& node) {
+Value IRMaterializingVisitor::operator()(const ConstantScalarNode& node) {
+  // A "ConstantScalarNode" can still have a shaped type, and in that case the
+  // value is treated as a splat. This is preferred in some cases to support
+  // DAGs that can be evaluated elementwise for ElementwiseMappable ops like
+  // arith ops.
   TypedAttr attr;
   if (auto floatTy = dyn_cast<FloatType>(getElementTypeOrSelf(evaluatedType))) {
     APFloat apVal(node.value);
     APFloat converted =
         convertFloatToSemantics(apVal, floatTy.getFloatSemantics());
     attr = getScalarOrDenseAttr(evaluatedType, converted);
-  } else {
+  } else if (auto intTy =
+                 dyn_cast<IntegerType>(getElementTypeOrSelf(evaluatedType))) {
     // Node values are doubles and we may have to properly support integers.
-    auto intTy = dyn_cast<IntegerType>(getElementTypeOrSelf(evaluatedType));
     APInt apVal(intTy.getWidth(), std::floor(node.value));
     attr = getScalarOrDenseAttr(evaluatedType, apVal);
+  }
+
+  return arith::ConstantOp::create(builder, evaluatedType, attr);
+}
+
+Value IRMaterializingVisitor::operator()(const ConstantTensorNode& node) {
+  RankedTensorType tensorTy = cast<RankedTensorType>(evaluatedType);
+  TypedAttr attr;
+  if (auto floatTy = dyn_cast<FloatType>(tensorTy.getElementType())) {
+    SmallVector<APFloat> values;
+    for (double v : node.value) {
+      APFloat apVal(v);
+      APFloat converted =
+          convertFloatToSemantics(apVal, floatTy.getFloatSemantics());
+      values.push_back(converted);
+    }
+    attr = DenseElementsAttr::get(tensorTy, values);
+  } else {
+    // Node values are doubles and we must convert them to integers
+    auto intTy = cast<IntegerType>(tensorTy.getElementType());
+    SmallVector<APInt> values;
+    for (double v : node.value) {
+      APInt apVal(intTy.getWidth(), std::floor(v));
+      values.push_back(apVal);
+    }
+    attr = DenseElementsAttr::get(tensorTy, values);
   }
 
   return arith::ConstantOp::create(builder, evaluatedType, attr);

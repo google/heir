@@ -134,6 +134,29 @@ struct PointCollector {
   PointCollector& operator=(const PointCollector&) = delete;
 };
 
+struct PointPairCollector {
+  using Point = std::vector<int64_t>;
+  std::vector<std::pair<Point, Point>> points;
+  isl_ctx* ctx;
+  int domainDims;
+  int rangeDims;
+
+  PointPairCollector(int domainDims, int rangeDims)
+      : domainDims(domainDims), rangeDims(rangeDims) {
+    ctx = isl_ctx_alloc();
+  }
+
+  ~PointPairCollector() { isl_ctx_free(ctx); }
+
+  // Delete copy constructor and assignment to avoid double-free
+  PointPairCollector(const PointPairCollector&) = delete;
+  PointPairCollector& operator=(const PointPairCollector&) = delete;
+};
+
+// Get a list of points in the relation by enumerating all possible values.
+void enumeratePoints(const presburger::IntegerRelation& relation,
+                     PointPairCollector& collector);
+
 // Get a list of points in the range of the relation by enumerating all
 // possible values.
 void getRangePoints(const presburger::IntegerRelation& relation,

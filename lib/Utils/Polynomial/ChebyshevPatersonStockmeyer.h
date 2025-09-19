@@ -30,7 +30,7 @@ computePowers(std::shared_ptr<kernel::ArithmeticDagNode<T>> x, int64_t k) {
   using NodeTy = kernel::ArithmeticDagNode<T>;
   std::vector<std::shared_ptr<NodeTy>> result;
   result.reserve(k + 1);
-  result.push_back(NodeTy::constant(1));
+  result.push_back(NodeTy::constantScalar(1));
   if (k >= 1) {
     result.push_back(x);
   }
@@ -56,8 +56,8 @@ computeChebyshevPolynomialValues(const T& x, int64_t k) {
   using NodeTy = kernel::ArithmeticDagNode<T>;
   std::vector<std::shared_ptr<NodeTy>> result;
   result.reserve(k + 1);
-  auto number1 = NodeTy::constant(1);
-  auto number2 = NodeTy::constant(2);
+  auto number1 = NodeTy::constantScalar(1);
+  auto number2 = NodeTy::constantScalar(2);
   auto xNode = NodeTy::leaf(x);
   result.push_back(number1);
   if (k >= 1) {
@@ -126,7 +126,7 @@ patersonStockmeyerChebyshevPolynomialEvaluation(
       // Skip coefficients that are too small.
       if (std::abs(coeff) < kMinCoeffs) continue;
 
-      auto coefNode = NodeTy::constant(coeff);
+      auto coefNode = NodeTy::constantScalar(coeff);
       auto termNode = NodeTy::mul(coefNode, chebPolynomialValues[j]);
       if (pol) {
         pol = NodeTy::add(pol, termNode);

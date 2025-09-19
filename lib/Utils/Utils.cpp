@@ -203,5 +203,27 @@ TypedAttr getScalarOrDenseAttr(Type tensorOrScalarType, APInt value) {
       .Default([](Type) { return nullptr; });
 }
 
+Operation* makeAppropriatelyTypedAddOp(OpBuilder& builder, Location loc,
+                                       Value lhs, Value rhs) {
+  assert(lhs.getType() == rhs.getType() &&
+         "lhs and rhs must have the same type");
+  StringRef addOpName = isa<IntegerType>(getElementTypeOrSelf(lhs.getType()))
+                            ? "arith.addi"
+                            : "arith.addf";
+  return builder.create(
+      OperationState(loc, addOpName, {lhs, rhs}, {lhs.getType()}));
+}
+
+Operation* makeAppropriatelyTypedMulOp(OpBuilder& builder, Location loc,
+                                       Value lhs, Value rhs) {
+  assert(lhs.getType() == rhs.getType() &&
+         "lhs and rhs must have the same type");
+  StringRef addOpName = isa<IntegerType>(getElementTypeOrSelf(lhs.getType()))
+                            ? "arith.muli"
+                            : "arith.mulf";
+  return builder.create(
+      OperationState(loc, addOpName, {lhs, rhs}, {lhs.getType()}));
+}
+
 }  // namespace heir
 }  // namespace mlir

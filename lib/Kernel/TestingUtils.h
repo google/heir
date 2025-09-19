@@ -4,8 +4,8 @@
 #include <memory>
 #include <string>
 
+#include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
-#include "lib/Kernel/KernelImplementation.h"
 
 namespace mlir {
 namespace heir {
@@ -20,6 +20,7 @@ class EvalVisitor : public CachingVisitor<LiteralValue, LiteralValue> {
 
   EvalVisitor() : CachingVisitor<LiteralValue, LiteralValue>() {}
 
+  LiteralValue operator()(const ConstantTensorNode& node) override;
   LiteralValue operator()(const LeafNode<LiteralValue>& node) override;
   LiteralValue operator()(const AddNode<LiteralValue>& node) override;
   LiteralValue operator()(const SubtractNode<LiteralValue>& node) override;
@@ -30,6 +31,9 @@ class EvalVisitor : public CachingVisitor<LiteralValue, LiteralValue> {
 
 LiteralValue evalKernel(
     const std::shared_ptr<ArithmeticDagNode<LiteralValue>>& dag);
+
+std::vector<LiteralValue> multiEvalKernel(
+    ArrayRef<std::shared_ptr<ArithmeticDagNode<LiteralValue>>> dags);
 
 // A visitor that prints the dag in textual form
 class PrintVisitor : public CachingVisitor<LiteralValue, std::string> {

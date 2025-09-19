@@ -414,7 +414,7 @@ presburger::IntegerRelation collapseDimensions(
       }
     }
   }
-  return std::move(*clonedRelation);
+  return *clonedRelation;
 }
 
 presburger::IntegerRelation expandDimensions(
@@ -449,7 +449,7 @@ presburger::IntegerRelation expandDimensions(
       }
     }
   }
-  return std::move(*clonedRelation);
+  return *clonedRelation;
 }
 
 presburger::IntegerRelation fixVars(const presburger::IntegerRelation& relation,
@@ -467,7 +467,7 @@ presburger::IntegerRelation fixVars(const presburger::IntegerRelation& relation,
 
   rel->simplify();
   rel->removeRedundantConstraints();
-  return std::move(*rel);
+  return *rel;
 }
 
 isl_stat pointCallback(__isl_take isl_point* pnt, void* user) {
@@ -498,6 +498,47 @@ void getRangePoints(const presburger::IntegerRelation& relation,
   auto* bmap = convertRelationToBasicMap(relation, collector.ctx);
   isl_set* set = isl_set_from_basic_set(isl_basic_map_range(bmap));
   isl_set_foreach_point(set, &pointCallback, &collector);
+  isl_set_free(set);
+}
+
+isl_stat pointPairCallback(__isl_take isl_point* pnt, void* user) {
+  PointPairCollector* collector = static_cast<PointPairCollector*>(user);
+
+  isl_space* space = isl_point_get_space(pnt);
+  isl_space_free(space);
+
+  std::vector<int64_t> domainPoint(collector->domainDims);
+  std::vector<int64_t> rangePoint(collector->rangeDims);
+
+  // Extract domain coordinates
+  for (int i = 0; i < collector->domainDims; i++) {
+    isl_val* coord = isl_point_get_coordinate_val(pnt, isl_dim_set, i);
+    if (isl_val_is_int(coord)) {
+      domainPoint[i] = isl_val_get_num_si(coord);
+    }
+    isl_val_free(coord);
+  }
+
+  // Extract range coordinates
+  for (int i = 0; i < collector->rangeDims; i++) {
+    isl_val* coord = isl_point_get_coordinate_val(pnt, isl_dim_set,
+                                                  collector->domainDims + i);
+    if (isl_val_is_int(coord)) {
+      rangePoint[i] = isl_val_get_num_si(coord);
+    }
+    isl_val_free(coord);
+  }
+
+  collector->points.emplace_back(domainPoint, rangePoint);
+  isl_point_free(pnt);
+  return isl_stat_ok;
+}
+
+void enumeratePoints(const presburger::IntegerRelation& relation,
+                     PointPairCollector& collector) {
+  auto* bmap = convertRelationToBasicMap(relation, collector.ctx);
+  isl_set* set = isl_set_from_basic_set(isl_basic_map_wrap(bmap));
+  isl_set_foreach_point(set, &pointPairCallback, &collector);
   isl_set_free(set);
 }
 

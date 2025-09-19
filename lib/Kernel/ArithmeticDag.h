@@ -8,6 +8,9 @@
 #include <unordered_map>
 #include <utility>
 #include <variant>
+#include <vector>
+
+#include "llvm/include/llvm/ADT/ArrayRef.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -24,8 +27,12 @@ struct LeafNode {
   T value;
 };
 
-struct ConstantNode {
+struct ConstantScalarNode {
   double value;
+};
+
+struct ConstantTensorNode {
+  std::vector<double> value;
 };
 
 template <typename T>
@@ -67,8 +74,9 @@ struct ExtractNode {
 template <typename T>
 struct ArithmeticDagNode {
  public:
-  std::variant<ConstantNode, LeafNode<T>, AddNode<T>, SubtractNode<T>,
-               MultiplyNode<T>, PowerNode<T>, LeftRotateNode<T>, ExtractNode<T>>
+  std::variant<ConstantScalarNode, ConstantTensorNode, LeafNode<T>, AddNode<T>,
+               SubtractNode<T>, MultiplyNode<T>, PowerNode<T>,
+               LeftRotateNode<T>, ExtractNode<T>>
       node_variant;
 
   explicit ArithmeticDagNode(const T& value)
@@ -90,12 +98,24 @@ struct ArithmeticDagNode {
         new ArithmeticDagNode<T>(value));
   }
 
-  static std::shared_ptr<ArithmeticDagNode<T>> constant(double constant) {
+  static std::shared_ptr<ArithmeticDagNode<T>> constantScalar(double constant) {
     auto node =
         std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
     // Note, to satisfy variant we need to use aggregate initialization inside
     // emplace
-    node->node_variant.template emplace<ConstantNode>(ConstantNode{constant});
+    node->node_variant.template emplace<ConstantScalarNode>(
+        ConstantScalarNode{constant});
+    return node;
+  }
+
+  static std::shared_ptr<ArithmeticDagNode<T>> constantTensor(
+      std::vector<double> constant) {
+    auto node =
+        std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
+    // Note, to satisfy variant we need to use aggregate initialization inside
+    // emplace
+    node->node_variant.template emplace<ConstantTensorNode>(
+        ConstantTensorNode{std::move(constant)});
     return node;
   }
 
@@ -193,14 +213,25 @@ class CachingVisitor {
   ResultType process(const std::shared_ptr<ArithmeticDagNode<T>>& node) {
     assert(node != nullptr && "invalid null node!");
 
-    const auto* node_ptr = node.get();
-    if (auto it = cache.find(node_ptr); it != cache.end()) {
+    const auto* nodePtr = node.get();
+    if (auto it = cache.find(nodePtr); it != cache.end()) {
       return it->second;
     }
 
     ResultType result = std::visit(*this, node->node_variant);
-    cache[node_ptr] = result;
+    cache[nodePtr] = result;
     return result;
+  }
+
+  /// An alternate entry point that handles multiple roots.
+  std::vector<ResultType> process(
+      llvm::ArrayRef<std::shared_ptr<ArithmeticDagNode<T>>> nodes) {
+    std::vector<ResultType> results;
+    results.reserve(nodes.size());
+    for (const auto& node : nodes) {
+      results.push_back(process(node));
+    }
+    return results;
   }
 
   // --- Virtual Visit Methods ---
@@ -213,8 +244,13 @@ class CachingVisitor {
   // to avoid the name-hiding that occurs when a derived class overrides
   // one of the operator() methods.
 
-  virtual ResultType operator()(const ConstantNode& node) {
-    assert(false && "Visit logic for ConstantNode is not implemented.");
+  virtual ResultType operator()(const ConstantScalarNode& node) {
+    assert(false && "Visit logic for ConstantScalarNode is not implemented.");
+    return ResultType();
+  }
+
+  virtual ResultType operator()(const ConstantTensorNode& node) {
+    assert(false && "Visit logic for ConstantTensorNode is not implemented.");
     return ResultType();
   }
 

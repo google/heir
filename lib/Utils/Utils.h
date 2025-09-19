@@ -138,6 +138,25 @@ TypedAttr getScalarOrDenseAttr(Type tensorOrScalarType, APInt value);
 // Get a scalar or dense attribute given the type and value.
 TypedAttr getScalarOrDenseAttr(Type tensorOrScalarType, APFloat value);
 
+Operation* makeAppropriatelyTypedAddOp(OpBuilder& builder, Location loc,
+                                       Value lhs, Value rhs);
+Operation* makeAppropriatelyTypedMulOp(OpBuilder& builder, Location loc,
+                                       Value lhs, Value rhs);
+
+inline std::pair<bool, bool> allZeroAllOne(ArrayRef<double> mask) {
+  bool allZero = true;
+  bool allOne = true;
+  for (int64_t v : mask) {
+    if (v != 0.0) {
+      allZero = false;
+    }
+    if (v != 1.0) {
+      allOne = false;
+    }
+  }
+  return {allZero, allOne};
+}
+
 }  // namespace heir
 }  // namespace mlir
 

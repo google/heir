@@ -42,7 +42,8 @@ class IRMaterializingVisitor : public CachingVisitor<SSAValue, Value> {
         });
   }
 
-  Value operator()(const ConstantNode& node) override;
+  Value operator()(const ConstantScalarNode& node) override;
+  Value operator()(const ConstantTensorNode& node) override;
   Value operator()(const LeafNode<SSAValue>& node) override;
   Value operator()(const AddNode<SSAValue>& node) override;
   Value operator()(const SubtractNode<SSAValue>& node) override;

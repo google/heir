@@ -17,9 +17,21 @@ using StringLeavedDag = ArithmeticDagNode<std::string>;
 using DoubleLeavedDag = ArithmeticDagNode<double>;
 
 struct FlattenedStringVisitor {
-  std::string operator()(const ConstantNode& node) const {
+  std::string operator()(const ConstantScalarNode& node) const {
     std::stringstream ss;
     ss << std::fixed << std::setprecision(2) << node.value;
+    return ss.str();
+  }
+
+  std::string operator()(const ConstantTensorNode& node) const {
+    std::stringstream ss;
+    ss << std::fixed << std::setprecision(2);
+    for (size_t i = 0; i < node.value.size(); ++i) {
+      ss << node.value[i];
+      if (i != node.value.size() - 1) {
+        ss << ", ";
+      }
+    }
     return ss.str();
   }
 
@@ -77,7 +89,7 @@ class EvalVisitor : public CachingVisitor<double, double> {
 
   // To test that caching works as expected.
   int callCount;
-  double operator()(const ConstantNode& node) override {
+  double operator()(const ConstantScalarNode& node) override {
     callCount += 1;
     return node.value;
   }
@@ -113,7 +125,7 @@ TEST(ArithmeticDagTest, TestPrint) {
   auto root = StringLeavedDag::leftRotate(
       StringLeavedDag::mul(
           StringLeavedDag::add(StringLeavedDag::leaf("x"),
-                               StringLeavedDag::constant(3.0)),
+                               StringLeavedDag::constantScalar(3.0)),
           StringLeavedDag::power(StringLeavedDag::leaf("y"), 2)),
       7);
 
@@ -135,7 +147,7 @@ TEST(ArithmeticDagTest, TestProperDag) {
 TEST(ArithmeticDagTest, TestEvaluationVisitor) {
   auto shared = DoubleLeavedDag::power(DoubleLeavedDag::leaf(2.0), 2);
   auto root = DoubleLeavedDag::mul(DoubleLeavedDag::add(shared, shared),
-                                   DoubleLeavedDag::constant(3.0));
+                                   DoubleLeavedDag::constantScalar(3.0));
 
   EvalVisitor visitor;
   double result = root->visit(visitor);

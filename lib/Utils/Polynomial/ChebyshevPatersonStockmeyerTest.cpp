@@ -13,7 +13,7 @@ namespace {
 
 using kernel::AddNode;
 using kernel::CachingVisitor;
-using kernel::ConstantNode;
+using kernel::ConstantScalarNode;
 using kernel::LeafNode;
 using kernel::LiteralDouble;
 using kernel::MultiplyNode;
@@ -25,7 +25,7 @@ class EvalVisitor : public CachingVisitor<LiteralDouble, LiteralDouble> {
 
   EvalVisitor() : CachingVisitor<LiteralDouble, LiteralDouble>() {}
 
-  LiteralDouble operator()(const ConstantNode& node) override {
+  LiteralDouble operator()(const ConstantScalarNode& node) override {
     return node.value;
   }
 
@@ -59,7 +59,9 @@ class MultiplicativeDepthVisitor
   MultiplicativeDepthVisitor()
       : CachingVisitor<LiteralDouble, LiteralDouble>() {}
 
-  LiteralDouble operator()(const ConstantNode& node) override { return -1.0; }
+  LiteralDouble operator()(const ConstantScalarNode& node) override {
+    return -1.0;
+  }
 
   LiteralDouble operator()(const LeafNode<LiteralDouble>& node) override {
     return 0.0;

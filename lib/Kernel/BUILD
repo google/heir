@@ -10,6 +10,9 @@ cc_library(
     name = "ArithmeticDag",
     srcs = ["ArithmeticDag.h"],
     hdrs = ["ArithmeticDag.h"],
+    deps = [
+        "@llvm-project//llvm:Support",
+    ],
 )
 
 cc_test(
@@ -54,9 +57,20 @@ cc_library(
 )
 
 cc_library(
+    name = "AbstractValue",
+    hdrs = ["AbstractValue.h"],
+    deps = [
+        ":ArithmeticDag",
+        ":Kernel",
+        "@llvm-project//mlir:IR",
+    ],
+)
+
+cc_library(
     name = "KernelImplementation",
     hdrs = ["KernelImplementation.h"],
     deps = [
+        ":AbstractValue",
         ":ArithmeticDag",
         ":Kernel",
         "@heir//lib/Utils:MathUtils",
