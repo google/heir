@@ -1,5 +1,4 @@
-"""This file is a near-verbatim copy of numba.core.typing.old_builtins.py,
-i.e., numba.core.typing.builtins if config.USE_LEGACY_TYPE_SYSTEM is set
+"""This file is a near-verbatim copy of numba.core.typing.builtins.py,
 
 with two changes: we override (1) integer_binop_cases and
 (2) BitwiseShiftOperation to stop numba from upcasting,
@@ -16,35 +15,30 @@ developers express their computation in terms of 8-bit or 16-bit integers.
 """
 
 import itertools
-
-
-import numpy as np
 import operator
 
-from numba.core import types, errors
 from numba import prange
-from numba.parfors.parfor import internal_prange
-
-from numba.core.typing.templates import (
-    AttributeTemplate,
-    ConcreteTemplate,
-    AbstractTemplate,
-    infer_global,
-    infer,
-    infer_getattr,
-    signature,
-    bound_function,
-    make_callable_template,
-)
-
-
+from numba.core import errors, types
 from numba.core.extending import (
-    typeof_impl,
-    type_callable,
+    make_attribute_wrapper,
     models,
     register_model,
-    make_attribute_wrapper,
+    type_callable,
+    typeof_impl,
 )
+from numba.core.typing.templates import (
+    AbstractTemplate,
+    AttributeTemplate,
+    ConcreteTemplate,
+    bound_function,
+    infer,
+    infer_getattr,
+    infer_global,
+    make_callable_template,
+    signature,
+)
+from numba.parfors.parfor import internal_prange
+import numpy as np
 
 
 @infer_global(print)
@@ -149,9 +143,7 @@ class IterNext(AbstractTemplate):
 
 @infer
 class PairFirst(AbstractTemplate):
-  """
-  Given a heterogeneous pair, return the first element.
-  """
+  """Given a heterogeneous pair, return the first element."""
 
   key = "pair_first"
 
@@ -164,9 +156,7 @@ class PairFirst(AbstractTemplate):
 
 @infer
 class PairSecond(AbstractTemplate):
-  """
-  Given a heterogeneous pair, return the second element.
-  """
+  """Given a heterogeneous pair, return the second element."""
 
   key = "pair_second"
 
@@ -182,8 +172,8 @@ def choose_result_bitwidth(*inputs):
 
 
 def choose_result_int(*inputs):
-  """
-  Choose the integer result type for an operation on integer inputs,
+  """Choose the integer result type for an operation on integer inputs,
+
   according to the integer typing NBEP.
   """
   bitwidth = choose_result_bitwidth(*inputs)
@@ -603,8 +593,8 @@ class CmpOpIsNot(CmpOpIdentity):
 
 
 def normalize_1d_index(index):
-  """
-  Normalize the *index* type (an integer or slice) for indexing a 1D
+  """Normalize the *index* type (an integer or slice) for indexing a 1D
+
   sequence.
   """
   if isinstance(index, types.SliceType):
@@ -741,6 +731,7 @@ class StaticGetItemLiteralStrKeyDict(AbstractTemplate):
 @infer
 class StaticGetItemClass(AbstractTemplate):
   """This handles the "static_getitem" when a Numba type is subscripted e.g:
+
   var = typed.List.empty_list(float64[::1, :])
   It only allows this on simple numerical types. Compound types, like
   records, are not supported.
@@ -900,8 +891,9 @@ class NumberClassAttribute(AttributeTemplate):
   key = types.NumberClass
 
   def resolve___call__(self, classty):
-    """
-    Resolve a NumPy number class's constructor (e.g. calling numpy.int32(...))
+    """Resolve a NumPy number class's constructor (e.g.
+
+    calling numpy.int32(...))
     """
     ty = classty.instance_type
 
@@ -942,8 +934,9 @@ class TypeRefAttribute(AttributeTemplate):
   key = types.TypeRef
 
   def resolve___call__(self, classty):
-    """
-    Resolve a core number's constructor (e.g. calling int(...))
+    """Resolve a core number's constructor (e.g.
+
+    calling int(...))
 
     Note:
 
@@ -991,9 +984,7 @@ class MinMaxBase(AbstractTemplate):
     return self.context.unify_types(*tys)
 
   def generic(self, args, kws):
-    """
-    Resolve a min() or max() call.
-    """
+    """Resolve a min() or max() call."""
     assert not kws
 
     if not args:
@@ -1228,9 +1219,7 @@ class DeferredAttribute(AttributeTemplate):
 
 
 class IndexValue(object):
-  """
-  Index and value
-  """
+  """Index and value"""
 
   def __init__(self, ind, val):
     self.index = ind

@@ -6,11 +6,11 @@ import sys
 class NumbaBuiltinOverrideFinder(abc.MetaPathFinder):
 
   def find_spec(self, fullname, path, target=None):
-    if fullname == "numba.core.typing.old_builtins":
+    if fullname == "numba.core.typing.builtins":
       return util.spec_from_file_location(
           fullname,
           # reverter files are in a sibling directory to this __init__.py file
-          __file__.rsplit("/", 1)[0] + "/numba_nbep1_reverter/old_builtins.py",
+          __file__.rsplit("/", 1)[0] + "/numba_nbep1_reverter/builtins.py",
       )
     elif fullname == "numba.core.typing.typeof":
       return util.spec_from_file_location(

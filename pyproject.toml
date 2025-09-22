@@ -4,25 +4,29 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "heir_py"
-version = "0.0.2"
+version = "0.0.3"
 authors = [
-    { name = "Jeremy Kun", email = "jkun@google.com" },
-    { name = "Asra Ali", email = "asraa@google.com" },
-    { name = "Alexander Viand", email = "alexander.viand@intel.com" },
+  { name = "Jeremy Kun", email = "jkun@google.com" },
+  { name = "Asra Ali", email = "asraa@google.com" },
+  { name = "Alexander Viand", email = "alexander.viand@intel.com" },
 ]
 description = "The HEIR compiler"
 readme = "README.md"
 requires-python = ">=3.11"
 classifiers = [
-    "Topic :: Security :: Cryptography",
-    "Intended Audience :: Developers",
-    "Topic :: Software Development :: Compilers",
+  "Topic :: Security :: Cryptography",
+  "Intended Audience :: Developers",
+  "Topic :: Software Development :: Compilers",
 ]
 license = "MIT AND Apache-2.0"
 dependencies = [
-  "numba>=0.61.0",
-  "numpy~=1.25.1",
-  "llvmlite>=0.44.0",
+  "numba~=0.62.0",
+  # Numpy versioning is a bit tricky:
+  # Numba 0.62 supports >=1.22,<=2.3,
+  # but SciPy 1.14 wants >=1.23.5,<2.3.0" and will warn at runtime if not satisfied,
+  # and finally we actually need <2 because otherwise we get "OverflowError: Python integer -1 out of bounds for uint32"
+  # in some of our tests as Numpy 2 introduces stricter type checking
+  "numpy>=1.23.5,<2",
   "pybind11>=2.13.6",
   "pybind11_global>=2.13.6",
   "colorama>=0.4.6",
@@ -37,14 +41,6 @@ dev = [
   "mpmath==1.3.0",
   # Requirements for running jaxite backend examples
   "jaxite==0.0.2",
-  "jax~=0.4.25",
-  "jaxlib~=0.4.25",
-  "scipy==1.14.1",
-  "attrs==23.1.0",
-  "hypothesis==6.79.1",
-  "ml-dtypes==0.5.1",
-  "opt-einsum==3.3.0",
-  "sortedcontainers==2.4.0",
   # for scripts and repo utils
   "fire==0.7.0",
   "jinja2==3.1.5",
