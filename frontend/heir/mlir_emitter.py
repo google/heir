@@ -629,13 +629,17 @@ class TextualMlirEmitter:
 
     match binop.fn:
       case operator.lt:
-        return f"arith.cmp{suffix} slt, {lhs_ssa}, {rhs_ssa}", ext, ty
+        pred = "olt" if suffix == "f" else "slt"
+        return f"arith.cmp{suffix} {pred}, {lhs_ssa}, {rhs_ssa}", ext, ty
       case operator.ge:
-        return f"arith.cmp{suffix} sge, {lhs_ssa}, {rhs_ssa}", ext, ty
+        pred = "oge" if suffix == "f" else "sge"
+        return f"arith.cmp{suffix} {pred}, {lhs_ssa}, {rhs_ssa}", ext, ty
       case operator.eq:
-        return f"arith.cmp{suffix} eq, {lhs_ssa}, {rhs_ssa}", ext, ty
+        pred = "oeq" if suffix == "f" else "eq"
+        return f"arith.cmp{suffix} {pred}, {lhs_ssa}, {rhs_ssa}", ext, ty
       case operator.ne:
-        return f"arith.cmp{suffix} ne, {lhs_ssa}, {rhs_ssa}", ext, ty
+        pred = "one" if suffix == "f" else "ne"
+        return f"arith.cmp{suffix} {pred}, {lhs_ssa}, {rhs_ssa}", ext, ty
       case operator.add:
         return f"arith.add{suffix} {lhs_ssa}, {rhs_ssa}", ext, ty
       case operator.mul:
