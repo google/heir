@@ -23,9 +23,6 @@ build --action_env=CXX=clang++
 build --host_action_env=CC=clang
 build --host_action_env=CXX=clang++
 
-# linux-specific options
-build:linux --linkopt="-fuse-ld=lld"
-
 # macos specific options
 # openmp is not supported in apple clang
 build:macos --//:enable_openmp=0

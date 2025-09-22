@@ -68,7 +68,7 @@ where = ["frontend"]
 [tool.cibuildwheel]
 build = "cp311-* cp312-* cp313-*"
 build-frontend = "build[uv]"
-skip = "*-musllinux_* pp-*"
+skip = "*-musllinux_*"
 # The test must be run in an isolated directory so that python uses the wheel
 # when running `import heir` instead of the local source files. cibuildwheel
 # creates an isolated directory for this purpose, and cd's to it before running
