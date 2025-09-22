@@ -139,3 +139,19 @@ func.func @column_alignment() {
   } -> (!secret.secret<tensor<4x4xi16>> {tensor_ext.layout = #layout})
   return
 }
+
+// -----
+
+#new_layout2 = #tensor_ext.new_layout<"{ [i0, i1] -> [ct, slot] : (-3i0 - i1 + ct + 8*floor((slot)/8)) mod 16 = 0 and 0 <= i0 <= 2 and 0 <= i1 <= 2 and 0 <= ct <= 7 and 0 <= slot <= 31 and 8*floor((slot)/8) >= -15 + 3i0 + i1 + slot and 8*floor((slot)/8) >= -14 + 3i0 + slot and 8*floor((slot)/8) <= 3i0 + slot and 8*floor((slot)/8) <= 3i0 + i1 + slot and -39 + 8i1 + 9slot <= 24*floor((3slot)/8) <= 8i1 + 9slot }">
+module {
+  // CHECK: @conv2d
+  func.func @conv2d() -> (!secret.secret<tensor<3x3xf32>> {tensor_ext.layout = #new_layout2}) {
+    %cst_0 = arith.constant dense<2.000000e+00> : tensor<3x3xf32>
+    %0 = secret.generic() {
+    ^body:
+      %1 = tensor_ext.assign_layout %cst_0 {layout = #new_layout2, tensor_ext.layout = #new_layout2} : tensor<3x3xf32>
+      secret.yield %1 : tensor<3x3xf32>
+    } -> (!secret.secret<tensor<3x3xf32>> {tensor_ext.layout = #new_layout2})
+    return %0 : !secret.secret<tensor<3x3xf32>>
+  }
+}

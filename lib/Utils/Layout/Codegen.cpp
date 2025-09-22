@@ -190,7 +190,7 @@ Value buildIslExpr(isl_ast_expr* expr, std::map<std::string, Value> ivToValue,
         return args;
       };
       if (islBinaryOpToMlir.contains(type)) {
-        // Binary ops
+        // Binary ops with 1-1 correspondence
         auto mlirOp = islBinaryOpToMlir[isl_ast_expr_get_op_type(expr)];
         SmallVector<Value> args = getArgs(expr);
         auto op = b.create(
@@ -200,7 +200,7 @@ Value buildIslExpr(isl_ast_expr* expr, std::map<std::string, Value> ivToValue,
         // Unary op
         SmallVector<Value> args = getArgs(expr);
         auto op = b.create<arith::SubIOp>(
-            b.getLoc(), b.create<arith::ConstantIndexOp>(0), args[0]);
+            b.getLoc(), arith::ConstantIndexOp::create(b, 0), args[0]);
         return op->getResult(0);
       } else if (islCmpToMlirAttr.contains(type)) {
         // Comparison ops
@@ -208,9 +208,23 @@ Value buildIslExpr(isl_ast_expr* expr, std::map<std::string, Value> ivToValue,
         auto op =
             arith::CmpIOp::create(b, islCmpToMlirAttr[type], args[0], args[1]);
         return op->getResult(0);
+      } else if (type == isl_ast_op_select) {
+        // Select op
+        SmallVector<Value> args = getArgs(expr);
+        auto op = arith::SelectOp::create(b, args[0], args[1], args[2]);
+        return op->getResult(0);
+      } else if (type == isl_ast_expr_op_zdiv_r) {
+        // Remainder op with comparison to zero
+        SmallVector<Value> args = getArgs(expr);
+        auto op = arith::RemSIOp::create(b, args[0], args[1]);
+        auto eqOp = arith::CmpIOp::create(b, arith::CmpIPredicate::eq, op,
+                                          arith::ConstantIndexOp::create(b, 0));
+        return eqOp->getResult(0);
       }
+      isl_ast_expr_op_type opType = isl_ast_expr_get_op_type(expr);
       char* cStr = isl_ast_expr_to_C_str(expr);
-      emitError(b.getLoc()) << "Unsupported ISL operation: " << cStr;
+      emitError(b.getLoc())
+          << "Unsupported ISL operation type " << int(opType) << ": " << cStr;
       free(cStr);
       return Value();
     }
@@ -222,10 +236,154 @@ Value buildIslExpr(isl_ast_expr* expr, std::map<std::string, Value> ivToValue,
   }
 }
 
+FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeFor(
+    isl_ast_node* node, BodyBuilderFn bodyBuilder) {
+  // Collect the string names of the iterators
+  isl_ast_expr* iter = isl_ast_node_for_get_iterator(node);
+  isl_id* identifier = isl_ast_expr_get_id(iter);
+  std::string name_str(isl_id_get_name(identifier));
+  isl_id_free(identifier);
+  isl_ast_expr_free(iter);
+
+  isl_ast_expr* init = isl_ast_node_for_get_init(node);
+  Value lbInt = buildIslExpr(init, ivToValue_, builder_);
+  isl_ast_expr_free(init);
+
+  // The upper bound is always a less than equal operation in the AST codegen.
+  isl_ast_expr* cond = isl_ast_node_for_get_cond(node);
+  assert((isl_ast_expr_get_type(cond) == isl_ast_expr_op &&
+          isl_ast_expr_get_op_type(cond) == isl_ast_op_le) &&
+         "expected upper bound to be a less than equal operation");
+  isl_ast_expr* cond_upper = isl_ast_expr_get_op_arg(cond, 1);
+  Value ubVal = builder_.create<arith::AddIOp>(
+      currentLoc_, buildIslExpr(cond_upper, ivToValue_, builder_),
+      builder_.create<arith::ConstantIndexOp>(currentLoc_, 1));
+  isl_ast_expr_free(cond_upper);
+  isl_ast_expr_free(cond);
+
+  isl_ast_expr* step = isl_ast_node_for_get_inc(node);
+  Value stepInt = buildIslExpr(step, ivToValue_, builder_);
+  isl_ast_expr_free(step);
+
+  // Create the scf for loop
+  auto loop = scf::ForOp::create(
+      builder_, currentLoc_, lbInt, ubVal, stepInt, currentIterArgs_,
+      [&](OpBuilder& nestedBuilder, Location nestedLoc, Value iv,
+          ValueRange args) {
+        ivToValue_.insert(std::make_pair(name_str, iv));
+        // It is safe to store ValueRange args because it points to block
+        // arguments of a loop operation that we also own.
+        currentIterArgs_ = args;
+        currentLoc_ = nestedLoc;
+      });
+
+  // Set the builder to point to the body of the newly created loop. We don't
+  // do this in the callback because the builder is reset when the callback
+  // returns.
+  builder_.setInsertionPointToStart(loop.getBody());
+  loops_.push_back(loop);
+
+  isl_ast_node* tmp = isl_ast_node_for_get_body(node);
+  builder_.setInsertionPointToStart(loop.getBody());
+  auto visitBody = visitAstNode(tmp, bodyBuilder);
+  if (failed(visitBody)) {
+    return failure();
+  }
+  isl_ast_node_free(tmp);
+
+  // Yield the results of the body.
+  if (!visitBody.value().empty()) {
+    builder_.setInsertionPointToEnd(loop.getBody());
+    scf::YieldOp::create(builder_, currentLoc_, visitBody.value());
+  }
+
+  // Return the results of the body.
+  return scf::ValueVector(loop.getResults());
+}
+
+FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeIf(
+    isl_ast_node* node, BodyBuilderFn bodyBuilder) {
+  isl_ast_expr* cond = isl_ast_node_if_get_cond(node);
+  Value condVal = buildIslExpr(cond, ivToValue_, builder_);
+  isl_ast_expr_free(cond);
+
+  // Build scf if operation with the result types of the iter args
+  auto ifOp =
+      scf::IfOp::create(builder_, currentLoc_, TypeRange(currentIterArgs_),
+                        condVal, /*addThenBlock=*/true, /*addElseBlock=*/true);
+
+  // TODO:(#2120): Handle ISL else conditions.
+  isl_ast_node* elseNode = isl_ast_node_if_get_else_node(node);
+  assert(elseNode == nullptr && "expected no else conditions");
+  isl_ast_node_free(elseNode);
+
+  isl_ast_node* tmp = isl_ast_node_if_get_then_node(node);
+  builder_.setInsertionPointToStart(&ifOp.getThenRegion().front());
+  auto visitBody = visitAstNode(tmp, bodyBuilder);
+  if (failed(visitBody)) {
+    return failure();
+  }
+  isl_ast_node_free(tmp);
+
+  // For all if statements but the innermost, yield the results of the nested
+  // ifs
+  if (!visitBody.value().empty()) {
+    builder_.setInsertionPointToEnd(&ifOp.getThenRegion().front());
+    scf::YieldOp::create(builder_, currentLoc_, visitBody.value());
+    builder_.setInsertionPointToEnd(&ifOp.getElseRegion().front());
+    scf::YieldOp::create(builder_, currentLoc_, currentIterArgs_);
+  }
+
+  // Return the results of the body.
+  return scf::ValueVector(ifOp.getResults());
+}
+
+FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeUser(
+    isl_ast_node* node, BodyBuilderFn bodyBuilder) {
+  // Generate the indexing expressions inside the inner block.
+  isl_ast_expr* expr = isl_ast_node_user_get_expr(node);
+
+  SmallVector<Value> exprs;
+  // expr 0 is the statement S
+  for (int i = 1; i < isl_ast_expr_get_op_n_arg(expr); i++) {
+    isl_ast_expr* arg = isl_ast_expr_get_op_arg(expr, i);
+    Value value = buildIslExpr(arg, ivToValue_, builder_);
+    exprs.push_back(value);
+    isl_ast_expr_free(arg);
+  }
+
+  // In the body of the innermost loop, call the body building function using
+  // the generated indexing expressions and yield its results.
+  scf::ValueVector results =
+      bodyBuilder(builder_, currentLoc_, exprs, currentIterArgs_);
+  assert(results.size() == currentIterArgs_.size() &&
+         "loop nest body must return as many values as loop has iteration "
+         "arguments");
+  isl_ast_expr_free(expr);
+
+  return results;
+}
+
+FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNode(
+    isl_ast_node* node, BodyBuilderFn bodyBuilder) {
+  switch (isl_ast_node_get_type(node)) {
+    case isl_ast_node_for:
+      return visitAstNodeFor(node, bodyBuilder);
+    case isl_ast_node_if:
+      return visitAstNodeIf(node, bodyBuilder);
+    case isl_ast_node_user:
+      return visitAstNodeUser(node, bodyBuilder);
+    default:
+      char* cStr = isl_ast_node_to_C_str(node);
+      emitError(builder_.getLoc()) << "unhandled ISL node type: " << cStr;
+      free(cStr);
+      return failure();
+  }
+}
+
 FailureOr<scf::ForOp> MLIRLoopNestGenerator::generateForLoop(
     const presburger::IntegerRelation& rel, ValueRange initArgs,
-    function_ref<scf::ValueVector(OpBuilder&, Location, ValueRange, ValueRange)>
-        bodyBuilder) {
+    BodyBuilderFn bodyBuilder) {
   OpBuilder::InsertionGuard guard(builder_);
   isl_ast_node* tree = constructAst(rel, ctx_);
   if (!tree) {
@@ -233,156 +391,15 @@ FailureOr<scf::ForOp> MLIRLoopNestGenerator::generateForLoop(
   }
 
   isl_ast_node* node = tree;
-  ValueRange currentIterArgs = initArgs;
-  Location currentLoc = builder_.getUnknownLoc();
-  std::map<std::string, Value> ivToValue;
-  SmallVector<scf::ForOp> loops;
-  // Create the loop nest structure
-  while (isl_ast_node_get_type(node) == isl_ast_node_for) {
-    // Collect the string names of the iterators
-    isl_ast_expr* iter = isl_ast_node_for_get_iterator(node);
-    isl_id* identifier = isl_ast_expr_get_id(iter);
-    std::string name_str(isl_id_get_name(identifier));
-    isl_id_free(identifier);
-    isl_ast_expr_free(iter);
+  currentIterArgs_ = initArgs;
 
-    isl_ast_expr* init = isl_ast_node_for_get_init(node);
-    Value lbInt = buildIslExpr(init, ivToValue, builder_);
-    isl_ast_expr_free(init);
-
-    // The upper bound is always a less than equal operation in the AST codegen.
-    isl_ast_expr* cond = isl_ast_node_for_get_cond(node);
-    assert((isl_ast_expr_get_type(cond) == isl_ast_expr_op &&
-            isl_ast_expr_get_op_type(cond) == isl_ast_op_le) &&
-           "expected upper bound to be a less than equal operation");
-    isl_ast_expr* cond_upper = isl_ast_expr_get_op_arg(cond, 1);
-    Value ubVal = builder_.create<arith::AddIOp>(
-        currentLoc, buildIslExpr(cond_upper, ivToValue, builder_),
-        builder_.create<arith::ConstantIndexOp>(currentLoc, 1));
-    isl_ast_expr_free(cond_upper);
-    isl_ast_expr_free(cond);
-
-    isl_ast_expr* step = isl_ast_node_for_get_inc(node);
-    Value stepInt = buildIslExpr(step, ivToValue, builder_);
-    isl_ast_expr_free(step);
-
-    // Create the scf for loop
-    auto loop = scf::ForOp::create(
-        builder_, currentLoc, lbInt, ubVal, stepInt, currentIterArgs,
-        [&](OpBuilder& nestedBuilder, Location nestedLoc, Value iv,
-            ValueRange args) {
-          ivToValue.insert(std::make_pair(name_str, iv));
-          // It is safe to store ValueRange args because it points to block
-          // arguments of a loop operation that we also own.
-          currentIterArgs = args;
-          currentLoc = nestedLoc;
-        });
-
-    // Set the builder to point to the body of the newly created loop. We don't
-    // do this in the callback because the builder is reset when the callback
-    // returns.
-    builder_.setInsertionPointToStart(loop.getBody());
-    loops.push_back(loop);
-
-    isl_ast_node* tmp = isl_ast_node_for_get_body(node);
-    isl_ast_node_free(node);
-    node = tmp;
-  }
-
-  // For all loops but the innermost, yield the results of the nested loop.
-  for (unsigned i = 0, e = loops.size() - 1; i < e; ++i) {
-    builder_.setInsertionPointToEnd(loops[i].getBody());
-    scf::YieldOp::create(builder_, currentLoc, loops[i + 1].getResults());
-  }
-
-  // Handle any conditionals on the qualifiers.
-  Block* innerBlock = loops.back().getBody();
-  SmallVector<scf::IfOp> ifOps;
-  while (isl_ast_node_get_type(node) == isl_ast_node_if) {
-    builder_.setInsertionPointToStart(innerBlock);
-
-    isl_ast_expr* cond = isl_ast_node_if_get_cond(node);
-    Value condVal = buildIslExpr(cond, ivToValue, builder_);
-    isl_ast_expr_free(cond);
-
-    // Build scf if operation with the result types of the iter args
-    auto ifOp = scf::IfOp::create(
-        builder_, currentLoc, TypeRange(loops.back().getRegionIterArgs()),
-        condVal, /*addThenBlock=*/true, /*addElseBlock=*/true);
-
-    // TODO:(#2120): Handle ISL else conditions.
-    isl_ast_node* elseNode = isl_ast_node_if_get_else_node(node);
-    assert(elseNode == nullptr && "expected no else conditions");
-    isl_ast_node_free(elseNode);
-
-    isl_ast_node* tmp = isl_ast_node_if_get_then_node(node);
-    isl_ast_node_free(node);
-    node = tmp;
-    innerBlock = &ifOp.getThenRegion().front();
-    ifOps.push_back(ifOp);
-  }
-
-  // For all if statements but the innermost, yield the results of the nested
-  // ifs
-  if (!ifOps.empty()) {
-    for (unsigned i = 0, e = ifOps.size() - 1; i < e; ++i) {
-      builder_.setInsertionPointToEnd(&ifOps[i].getThenRegion().front());
-      scf::YieldOp::create(builder_, currentLoc, ifOps[i + 1].getResults());
-      builder_.setInsertionPointToEnd(&ifOps[i].getElseRegion().front());
-      scf::YieldOp::create(builder_, currentLoc, ifOps[i + 1].getResults());
-    }
-  }
-
-  // The body of the innermost loop should contain the user statement S.
-  if (isl_ast_node_get_type(node) != isl_ast_node_user) {
-    char* cStr = isl_ast_node_to_C_str(node);
-    emitError(builder_.getLoc()) << "unhandled ISL node type: " << cStr;
-    free(cStr);
+  auto result = visitAstNode(node, bodyBuilder);
+  if (failed(result)) {
     return failure();
   }
-
-  // Generate the indexing expressions inside the inner block.
-  builder_.setInsertionPointToStart(innerBlock);
-  isl_ast_expr* expr = isl_ast_node_user_get_expr(node);
-  assert(expr != nullptr && "expected pure loop nest with only user statement");
-
-  SmallVector<Value> exprs;
-  // expr 0 is the statement S
-  for (int i = 1; i < isl_ast_expr_get_op_n_arg(expr); i++) {
-    isl_ast_expr* arg = isl_ast_expr_get_op_arg(expr, i);
-    Value value = buildIslExpr(arg, ivToValue, builder_);
-    exprs.push_back(value);
-    isl_ast_expr_free(arg);
-  }
-
-  // In the body of the innermost loop, call the body building function using
-  // the generated indexing expressions and yield its results.
-  builder_.setInsertionPointToEnd(innerBlock);
-  scf::ValueVector results = bodyBuilder(builder_, currentLoc, exprs,
-                                         loops.back().getRegionIterArgs());
-  assert(results.size() == initArgs.size() &&
-         "loop nest body must return as many values as loop has iteration "
-         "arguments");
-
-  if (!ifOps.empty()) {
-    // Yield results of the body builder from the inner most if statement.
-    builder_.setInsertionPointToEnd(&ifOps.back().getThenRegion().front());
-    scf::YieldOp::create(builder_, currentLoc, results);
-    builder_.setInsertionPointToEnd(&ifOps.back().getElseRegion().front());
-    scf::YieldOp::create(builder_, currentLoc,
-                         loops.back().getRegionIterArgs());
-    results = ifOps.front().getResults();
-  }
-
-  // Yield from the innermost loop. These will either be the results from the
-  // outermost if statements, or the results of the body builder.
-  builder_.setInsertionPointToEnd(loops.back().getBody());
-  scf::YieldOp::create(builder_, currentLoc, results);
-
-  isl_ast_expr_free(expr);
   isl_ast_node_free(node);
 
-  return loops[0];
+  return loops_.front();
 }
 
 }  // namespace heir

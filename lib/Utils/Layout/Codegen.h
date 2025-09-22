@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <map>
 #include <string>
 
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
@@ -17,6 +18,9 @@
 namespace mlir {
 namespace heir {
 
+using BodyBuilderFn = function_ref<scf::ValueVector(OpBuilder&, Location,
+                                                    ValueRange, ValueRange)>;
+
 // Generate an ISL AST representing a loop nest from an IntegerRelation.
 //
 // This is intended to support the case where the IntegerRelation defines a
@@ -34,20 +38,36 @@ FailureOr<std::string> generateLoopNestAsCStr(
 class MLIRLoopNestGenerator {
  public:
   MLIRLoopNestGenerator(ImplicitLocOpBuilder& builder)
-      : builder_(builder), ctx_(isl_ctx_alloc()) {}
+      : builder_(builder),
+        ctx_(isl_ctx_alloc()),
+        currentLoc_(builder.getUnknownLoc()) {}
 
   ~MLIRLoopNestGenerator() { isl_ctx_free(ctx_); }
 
   // Assumes that the tree is a perfect loop nest.
-  FailureOr<scf::ForOp> generateForLoop(
-      const presburger::IntegerRelation& rel, ValueRange initArgs,
-      function_ref<scf::ValueVector(OpBuilder&, Location, ValueRange,
-                                    ValueRange)>
-          bodyBuilder);
+  FailureOr<scf::ForOp> generateForLoop(const presburger::IntegerRelation& rel,
+                                        ValueRange initArgs,
+                                        BodyBuilderFn bodyBuilder);
 
  private:
+  FailureOr<scf::ValueVector> visitAstNode(isl_ast_node* node,
+                                           BodyBuilderFn bodyBuilder);
+  FailureOr<scf::ValueVector> visitAstNodeFor(isl_ast_node* node,
+                                              BodyBuilderFn bodyBuilder);
+  FailureOr<scf::ValueVector> visitAstNodeIf(isl_ast_node* node,
+                                             BodyBuilderFn bodyBuilder);
+  FailureOr<scf::ValueVector> visitAstNodeUser(isl_ast_node* node,
+                                               BodyBuilderFn bodyBuilder);
+
+  LogicalResult visitAstExpr(isl_ast_expr* expr);
+
   ImplicitLocOpBuilder& builder_;
   isl_ctx* ctx_;
+
+  ValueRange currentIterArgs_;
+  Location currentLoc_;
+  std::map<std::string, Value> ivToValue_;
+  SmallVector<scf::ForOp> loops_;
 };
 
 }  // namespace heir
