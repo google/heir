@@ -36,19 +36,22 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   # for tests/poly/runner/generate_test_cases.py
-  "tomli==2.0.1",
-  "sympy==1.12",
-  "mpmath==1.3.0",
+  "tomli>=2.0.1",
+  "sympy>=1.12",
+  "mpmath>=1.3.0",
   # Requirements for running jaxite backend examples
   "jaxite==0.0.2",
   # for scripts and repo utils
-  "fire==0.7.0",
-  "jinja2==3.1.5",
-  "pre-commit==v3.3.3",
-  "pytest==8.1.1",
+  "fire>=0.7.0",
+  "jinja2>=3.1.5",
+  "pre-commit>=v3.3.3",
+  "pytest>=8.1.1",
   "requests>=2.0.0",
   # Python Formatting
-  "pyink==24.10.1",
+  "pyink>=24.10.1",
+  # For ML integration tests
+  "torch>=2.8.0",
+  "setuptools>=80.9.0",
 ]
 
 [project.urls]

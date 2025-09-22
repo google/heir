@@ -37,7 +37,6 @@ class OpenfheClientInterface(ClientInterface):
 
   def setup(self):
     # TODO (#1119): Rethink the server/client split
-    # TODO (#1162) : Fix "ImportError: generic_type: type "PublicKey" is already registered!" when doing setup twice. (Required to allow multiple compilations in same python file)
 
     if self.compilation_result.setup_funcs is None:
       raise ValueError("No setup functions found in compilation result")

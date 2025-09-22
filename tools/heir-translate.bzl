@@ -1,5 +1,8 @@
 """A rule for running heir-translate."""
 
+load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
+load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+
 def executable_attr(label):
     """A helper for declaring executable dependencies."""
     return attr.label(
@@ -28,8 +31,16 @@ def _heir_translate_impl(ctx):
         executable = ctx.executable._heir_translate_binary,
         toolchain = None,
     )
+
+    cc_info = CcInfo(
+        compilation_context = cc_common.create_compilation_context(
+            includes = depset([generated_file.dirname]),
+        ),
+    )
+
     return [
         DefaultInfo(files = depset([generated_file, ctx.file.src])),
+        cc_info,
     ]
 
 heir_translate = rule(
@@ -57,4 +68,5 @@ heir_translate = rule(
         ),
         "_heir_translate_binary": executable_attr(_HEIR_TRANSLATE),
     },
+    toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
 )
