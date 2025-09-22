@@ -1,6 +1,4 @@
-"""This file is a near-verbatim copy of numba.core.typing.old_builtins.py,
-i.e., numba.core.typing.builtins if config.USE_LEGACY_TYPE_SYSTEM is set
-
+"""This file is a near-verbatim copy of numba.core.typing.builtins.py,
 with two changes: we override (1) integer_binop_cases and
 (2) BitwiseShiftOperation to stop numba from upcasting,
 e.g., int8 + int8 to int64 or int32 (intp in numba)
