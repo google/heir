@@ -9,10 +9,12 @@
  */
 #include <stdio.h>
 
-#define ROWS 5
+#include <algorithm>
+
+#define ROWS 3
 #define COLS 3
-#define CTS 4
-#define SLOTS 8
+#define CTS 9
+#define SLOTS 9
 
 int data[ROWS][COLS];
 int ciphertexts[CTS][SLOTS];
@@ -36,7 +38,7 @@ int main() {
   // Data matrix is 0, 1, 2, ...
   for (int i = 0; i < ROWS; i++) {
     for (int j = 0; j < COLS; j++) {
-      data[i][j] = i * COLS + j;
+      data[i][j] = i * COLS + j + 1;
     }
   }
 
@@ -48,10 +50,11 @@ int main() {
 
   // Insert the codegenned loop here from debug output.
   // clang-format off
-  for (int c0 = 0; c0 <= 3; c0 += 1)
-    for (int c1 = 0; c1 <= 6; c1 += 1)
-      if ((c0 + c1 + 3) % 8 >= 3 && c1 % 4 <= 2)
-        S((c0 + c1) % 8, c1 % 4, c0, c1);
+  for (int c0 = 0; c0 <= 8; c0 += 1)
+    for (int c1 = std::max(std::max(std::max(-1, c0 - 4), -(c0 % 3) + c0 - 3), -(c0 % 3)); c1 <= std::min(std::min(std::min(9, c0 + 4), -(c0 % 3) + c0 + 5), -(c0 % 3) + 10); c1 += 1)
+        if (c1 + 1 >= (-c0 + c1 + 4) % 3 && ((-c0 + c1 + 4) % 3) + 7 >= c1 && ((-c0 + c1 + 4) % 3) + (c0 % 3) >= 1 && ((-c0 + c1 + 4) % 3) + (c0 % 3) <= 3)
+              S((-c0 + c1 + 4) / 3, (-c0 + c1 + 4) % 3, c0, c1);
+
   // clang-format on
 
   printf("Data matrix:\n");

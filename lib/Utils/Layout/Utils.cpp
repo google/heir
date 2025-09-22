@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "lib/Utils/Layout/IslConversion.h"
@@ -30,6 +31,37 @@ using presburger::BoundType;
 using presburger::IntegerRelation;
 using presburger::PresburgerSpace;
 using presburger::VarKind;
+
+namespace {
+
+// Helper that adds constraints built from the array of positions and coeffs.
+// Inequalities are given by (>= 0).
+void addConstraint(IntegerRelation& result,
+                   ArrayRef<std::pair<int64_t, int64_t>> posAndCoeff,
+                   bool equality) {
+  SmallVector<int64_t> eqConstraint(result.getNumCols(), 0);
+  for (auto [pos, coeff] : posAndCoeff) {
+    assert(pos >= 0 && pos < result.getNumCols() && "invalid coeff position");
+    eqConstraint[pos] = coeff;
+  }
+  if (equality) {
+    result.addEquality(eqConstraint);
+  } else {
+    result.addInequality(eqConstraint);
+  }
+}
+
+// Helper that adds inclusive lower and upper bounds for a given position and
+// value.
+void addBounds(IntegerRelation& result, int64_t pos, int64_t lower,
+               std::optional<int64_t> upper = std::nullopt) {
+  result.addBound(BoundType::LB, pos, lower);
+  if (upper.has_value()) {
+    result.addBound(BoundType::UB, pos, upper.value());
+  }
+}
+
+}  // namespace
 
 // Adds a modulo constraint to the result relation. Returns the index of the new
 // local variable that represents the modulo operation result.
@@ -64,15 +96,12 @@ presburger::IntegerRelation getRowMajorLayoutRelation(
 
   // Add bounds for the matrix dimensions.
   for (int i = 0; i < tensorType.getRank(); ++i) {
-    result.addBound(BoundType::UB, i, tensorType.getDimSize(i) - 1);
-    result.addBound(BoundType::LB, i, 0);
+    addBounds(result, i, 0, tensorType.getDimSize(i) - 1);
   }
   auto rangeOffset = result.getVarKindOffset(VarKind::Range);
-  result.addBound(BoundType::LB, rangeOffset, 0);
-  result.addBound(BoundType::UB, rangeOffset,
-                  std::ceil((float)tensorType.getNumElements() / numSlots) - 1);
-  result.addBound(BoundType::LB, rangeOffset + 1, 0);
-  result.addBound(BoundType::UB, rangeOffset + 1, numSlots - 1);
+  addBounds(result, rangeOffset, 0,
+            std::ceil((float)tensorType.getNumElements() / numSlots) - 1);
+  addBounds(result, rangeOffset + 1, 0, numSlots - 1);
 
   // 0 = (flattened_expr) floordiv ciphertextSize - ct
   // We first need to add a local var q to represent the floordiv and then add
@@ -88,10 +117,10 @@ presburger::IntegerRelation getRowMajorLayoutRelation(
   // q = flattened_expr floordiv numSlots
   result.addLocalFloorDiv(rowMajorCoeffs, numSlots);
   // 0 = q - ct
-  SmallVector<int64_t, 8> ctConstraint(result.getNumCols(), 0);
-  ctConstraint[result.getVarKindOffset(VarKind::Range)] = -1;
-  ctConstraint[result.getVarKindEnd(VarKind::Local) - 1] = 1;
-  result.addEquality(ctConstraint);
+  addConstraint(result,
+                {{result.getVarKindOffset(VarKind::Range), -1},
+                 {result.getVarKindEnd(VarKind::Local) - 1, 1}},
+                /*equality=*/true);
 
   // The next constraint computes the slot index assuming the domain
   // size is a power of two. This is required to ensure cyclic rotations
@@ -147,8 +176,7 @@ presburger::IntegerRelation getDiagonalLayoutRelation(
 
   // Add bounds for the data matrix dimensions.
   for (int i = 0; i < matrixType.getRank(); ++i) {
-    result.addBound(BoundType::UB, i, matrixType.getDimSize(i) - 1);
-    result.addBound(BoundType::LB, i, 0);
+    addBounds(result, i, 0, matrixType.getDimSize(i) - 1);
   }
   auto rangeOffset = result.getVarKindOffset(VarKind::Range);
   for (int i = 0; i < 2; ++i) {
@@ -192,21 +220,18 @@ presburger::IntegerRelation getPerRowLayoutRelation(RankedTensorType matrixType,
 
   // Add bounds for the matrix dimensions.
   for (int i = 0; i < matrixType.getRank(); ++i) {
-    result.addBound(BoundType::UB, i, matrixType.getDimSize(i) - 1);
-    result.addBound(BoundType::LB, i, 0);
+    addBounds(result, i, 0, matrixType.getDimSize(i) - 1);
   }
   // Number of ciphertexts is the number of rows.
   auto rangeOffset = result.getVarKindOffset(VarKind::Range);
-  result.addBound(BoundType::LB, rangeOffset, 0);
-  result.addBound(BoundType::UB, rangeOffset, matrixType.getDimSize(0) - 1);
-  result.addBound(BoundType::LB, rangeOffset + 1, 0);
-  result.addBound(BoundType::UB, rangeOffset + 1, ciphertextSize - 1);
+  addBounds(result, rangeOffset, 0, matrixType.getDimSize(0) - 1);
+  addBounds(result, rangeOffset + 1, 0, ciphertextSize - 1);
 
   // 0 = -rows + ct
-  SmallVector<int64_t, 8> ctConstraint(result.getNumCols(), 0);
-  ctConstraint[result.getVarKindOffset(VarKind::Domain)] = -1;
-  ctConstraint[result.getVarKindOffset(VarKind::Range)] = 1;
-  result.addEquality(ctConstraint);
+  addConstraint(result,
+                {{result.getVarKindOffset(VarKind::Domain), -1},
+                 {result.getVarKindOffset(VarKind::Range), 1}},
+                /*equality=*/true);
 
   // The slotMod = slot % nextPowerOfTwo(cols)
   auto paddedCols = nextPowerOfTwo(matrixType.getDimSize(1));
@@ -215,11 +240,99 @@ presburger::IntegerRelation getPerRowLayoutRelation(RankedTensorType matrixType,
   auto slotMod = addModConstraint(result, slotCoeffs, paddedCols);
 
   // slotMod - col = 0
-  SmallVector<int64_t> eqConstraint(result.getNumCols(), 0);
-  eqConstraint[slotMod] = 1;
-  eqConstraint[result.getVarKindOffset(VarKind::Domain) + 1] = -1;
-  result.addEquality(eqConstraint);
+  addConstraint(
+      result,
+      {{slotMod, 1}, {result.getVarKindOffset(VarKind::Domain) + 1, -1}},
+      /*equality=*/true);
 
+  return result;
+}
+
+presburger::IntegerRelation get2dConvFilterRelation(RankedTensorType filterType,
+                                                    RankedTensorType dataType,
+                                                    int64_t padding) {
+  auto domainSize = filterType.getRank();
+  assert(domainSize == 2 && "expected 2-D filter matrix");
+
+  IntegerRelation result(PresburgerSpace::getRelationSpace(
+      domainSize, /*numRange=*/2, /*numSymbol=*/0, /*numLocals=*/2));
+
+  // These are the indices that represent the position of the top left index of
+  // the filter as it slides over the data.
+  auto dataRow = result.getVarKindOffset(VarKind::Local);
+  auto dataCol = result.getVarKindOffset(VarKind::Local) + 1;
+
+  // Filter row and column indices
+  auto filterRow = result.getVarKindOffset(VarKind::Domain);
+  auto filterCol = result.getVarKindOffset(VarKind::Domain) + 1;
+
+  // Matrix row and column indices
+  auto matRow = result.getVarKindOffset(VarKind::Range);
+  auto matCol = result.getVarKindOffset(VarKind::Range) + 1;
+
+  // Constant coefficient
+  auto constCoeff = result.getNumCols() - 1;
+
+  // Filter and datasize
+  auto filterRowSize = filterType.getDimSize(0);
+  auto filterColSize = filterType.getDimSize(1);
+  auto dataRowSize = dataType.getDimSize(0);
+  auto dataColSize = dataType.getDimSize(1);
+
+  auto filterSlidingRows = dataRowSize + 2 * padding - filterRowSize + 1;
+  auto filterSlidingCols = dataColSize + 2 * padding - filterColSize + 1;
+
+  // Add bounds for the filter matrix dimensions.
+  addBounds(result, filterRow, 0, filterRowSize - 1);
+  addBounds(result, filterCol, 0, filterColSize - 1);
+
+  // Add bounds for the locals (the filter sliding indices).
+  // These are indexed starting from -padding since they track the top left
+  // corner of the filter matrix.
+  addBounds(result, dataRow, -padding, filterSlidingRows - 1 - padding);
+  addBounds(result, dataCol, -padding, filterSlidingCols - 1 - padding);
+
+  // Add constraints for when the resulting filter index is in range.
+  // 0 <= filterRow + dataRow < dataRowSize
+  addConstraint(result, {{filterRow, 1}, {dataRow, 1}}, /*equality=*/false);
+  addConstraint(result,
+                {{constCoeff, dataRowSize - 1}, {filterRow, -1}, {dataRow, -1}},
+                /*equality=*/false);
+
+  // 0 <= filterCol + dataCol < dataColSize
+  addConstraint(result, {{filterCol, 1}, {dataCol, 1}}, /*equality=*/false);
+  addConstraint(result,
+                {{constCoeff, dataColSize - 1}, {filterCol, -1}, {dataCol, -1}},
+                /*equality=*/false);
+
+  // Add equalities for the resulting matrix row and column. The matrix row
+  // corresponds to the flattened data index (since it corresponds to one
+  // iteration of the filter as it slides over the data) normalized by adding
+  // the padding offset back to the indices.
+  // The matrix column corresponds to the index into the filter plus the offsets
+  // from the padding and the filter sliding iteration (the matrix row).
+  //
+  // fsr, fsc = filter sliding row size, col size
+  // fr, fc = filter row size, col size
+  // idr, idc = index of data row, col
+  // ifr, ifc = index of filter row, col
+  // mr, mc = matrix row, matrix col
+  //
+  // mr = (idr + P)*fsc + (idc + P) = P + P*fsc + idr * fsc + idc
+  // mc = -(P + fc * P) + mr + (ifc) + fr*(ifr)
+  addConstraint(result,
+                {{matRow, -1},
+                 {constCoeff, (filterSlidingCols + 1) * (padding)},
+                 {dataRow, filterSlidingCols},
+                 {dataCol, 1}},
+                /*equality=*/true);
+  addConstraint(result,
+                {{matCol, -1},
+                 {constCoeff, -(padding + filterColSize * padding)},
+                 {matRow, 1},
+                 {filterCol, 1},
+                 {filterRow, filterRowSize}},
+                /*equality=*/true);
   return result;
 }
 

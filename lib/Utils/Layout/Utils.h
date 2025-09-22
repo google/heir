@@ -39,6 +39,16 @@ presburger::IntegerRelation getDiagonalLayoutRelation(
 presburger::IntegerRelation getPerRowLayoutRelation(RankedTensorType matrixType,
                                                     int64_t ciphertextSize);
 
+// Returns an IntegerRelation that expands a 2-D filter matrix used in a
+// convolution into a 2-D matrix such that the convolution is
+// equivalent a matrix product with the flattened input vector. Each row
+// corresponds to one filter multiplication. This does not include diagonalizing
+// the matrix, this simply returns the expanded data matrix.
+// TODO(#2217): Support non-unit strides.
+presburger::IntegerRelation get2dConvFilterRelation(RankedTensorType filterType,
+                                                    RankedTensorType dataType,
+                                                    int64_t padding);
+
 // Returns true if the given relation is a squat diagonal layout for the given
 // matrix type and ciphertext semantic shape.
 bool isRelationSquatDiagonal(RankedTensorType matrixType,
