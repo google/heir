@@ -125,7 +125,7 @@ git_override(
     remote = "https://github.com/google/re2",
 )
 
-bazel_dep(name = "rules_rust", version = "0.60.0")
+bazel_dep(name = "rules_rust", version = "0.64.0")
 
 crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 crate.spec(
