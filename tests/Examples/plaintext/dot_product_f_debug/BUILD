@@ -10,6 +10,6 @@ llvm_runner_test(
     # log is visible to crypto backend
     log_file_name = "dot_product_8f_debug.log",
     log_file_visibility = ["@heir//tests/Examples:__subpackages__"],
-    main_c_src = "dot_product_8f_debug_test.c",
+    main_c_src = "dot_product_8f_debug_test.cpp",
     mlir_src = "@heir//tests/Examples/common:dot_product_8f.mlir",
 )
