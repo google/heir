@@ -27,4 +27,4 @@ jobs:
         with:
           commit-message: "automated bazel lockfile update"
           title: "[deps] update bazel lockfile"
-          labels: pull-ready, dependencies, bazel
+          labels: pull_ready, dependencies, bazel
