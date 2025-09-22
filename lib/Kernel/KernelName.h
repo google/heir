@@ -17,6 +17,9 @@ enum KernelName : int {
   // LHS matrix is secret, RHS is a plaintext matrix. This expands the matmul
   // into a single matvec using the diagonal matrix vector kernel.
   MatmulDiagonal,
+  // LHS data matrix is secret, RHS is a plaintext filter matrix. This expands
+  // the conv2d into a single matvec using the diagonal matrix vector kernel.
+  Conv2dMatvec,
 };
 
 }  // namespace heir

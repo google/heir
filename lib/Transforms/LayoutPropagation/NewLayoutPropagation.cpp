@@ -56,6 +56,7 @@
 namespace mlir {
 namespace heir {
 
+using linalg::Conv2DOp;
 using linalg::MatmulOp;
 using linalg::MatvecOp;
 using linalg::ReduceOp;
@@ -97,6 +98,23 @@ void debugAssignLayout(Value value, NewLayoutAttr layout) {
                           << value << "\n");
 }
 
+std::pair<Value, NewLayoutAttr> convertToNewLayout(
+    MLIRContext* ctx, mlir::IRRewriter& builder, Operation* op, Value value,
+    NewLayoutAttr oldLayout, IntegerRelation newRelation) {
+  builder.setInsertionPoint(op);
+  NewLayoutAttr newLayoutAttr =
+      NewLayoutAttr::getFromIntegerRelation(ctx, newRelation);
+  ConvertLayoutOp convertLayoutOp = ConvertLayoutOp::create(
+      builder, op->getLoc(), value, oldLayout, newLayoutAttr);
+  convertLayoutOp->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName,
+                           newLayoutAttr);
+  Value toReplace = convertLayoutOp.getResult();
+  builder.replaceUsesWithIf(value, toReplace, [&](OpOperand& operand) {
+    return operand.getOwner() == op;
+  });
+  return std::make_pair(toReplace, newLayoutAttr);
+}
+
 }  // namespace
 
 struct NewLayoutPropagation
@@ -112,6 +130,7 @@ struct NewLayoutPropagation
   LogicalResult visitOperation(ExpandShapeOp op);
   LogicalResult visitOperation(GenericOp op);
   LogicalResult visitOperation(ReduceOp op);
+  LogicalResult visitOperation(Conv2DOp op);
   LogicalResult visitOperation(VecmatOp op);
   LogicalResult visitOperation(MatvecOp op);
   LogicalResult visitOperation(MatmulOp op);
@@ -129,6 +148,7 @@ struct NewLayoutPropagation
   CompatibilityResult hasCompatibleArgumentLayouts(Operation* op);
 
   // Op-specific compatibility functions
+  CompatibilityResult hasCompatibleArgumentLayouts(Conv2DOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(ReduceOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(VecmatOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(MatvecOp op);
@@ -249,7 +269,7 @@ LogicalResult NewLayoutPropagation::visitOperation(Operation* op) {
       // secret ops
       .Case<GenericOp, YieldOp>([&](auto op) { return visitOperation(op); })
       // linalg ops
-      .Case<MatvecOp, VecmatOp, ReduceOp, MatmulOp>(
+      .Case<MatvecOp, VecmatOp, ReduceOp, MatmulOp, Conv2DOp>(
           [&](auto op) { return visitOperation(op); })
       // affine ops
       .Case<affine::AffineForOp>([&](auto op) { return visitOperation(op); })
@@ -440,23 +460,11 @@ LogicalResult NewLayoutPropagation::visitOperation(VecmatOp op) {
   if (!isRelationRowMajor(vecType, ciphertextSize,
                           vecLayout.getIntegerRelation())) {
     // Insert a layout conversion op to make the vec layout per-row
-    builder.setInsertionPoint(op);
-
-    IntegerRelation rowMajorRelation =
-        getPerRowLayoutRelation(vecType, ciphertextSize);
-    NewLayoutAttr rowMajorLayoutAttr =
-        NewLayoutAttr::getFromIntegerRelation(ctx, rowMajorRelation);
-
-    ConvertLayoutOp convertLayoutOp = ConvertLayoutOp::create(
-        builder, op->getLoc(), vec, vecLayout, rowMajorLayoutAttr);
-    convertLayoutOp->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName,
-                             rowMajorLayoutAttr);
-    Value toReplace = convertLayoutOp.getResult();
-    builder.replaceUsesWithIf(vec, toReplace, [&](OpOperand& operand) {
-      return operand.getOwner() == op;
-    });
-    debugAssignLayout(toReplace, rowMajorLayoutAttr);
-    assignedLayouts.insert({toReplace, rowMajorLayoutAttr});
+    auto [toReplace, newVecLayoutAttr] =
+        convertToNewLayout(ctx, builder, op, vec, vecLayout,
+                           getPerRowLayoutRelation(vecType, ciphertextSize));
+    debugAssignLayout(toReplace, newVecLayoutAttr);
+    assignedLayouts.insert({toReplace, newVecLayoutAttr});
     vec = toReplace;
   }
 
@@ -477,25 +485,11 @@ LogicalResult NewLayoutPropagation::visitOperation(VecmatOp op) {
   if (!isRelationSquatDiagonal(matrixTransposeType, ciphertextSize,
                                *clonedMatrixRelation)) {
     // Insert a layout conversion op to make the matrix layout squat diagonal
-    builder.setInsertionPoint(op);
-
-    IntegerRelation diagonalTransposeRelation =
-        getDiagonalLayoutRelation(matrixTransposeType, ciphertextSize);
-    auto diagonalRelation = diagonalTransposeRelation.clone();
-    diagonalRelation->swapVar(domainOffset, domainOffset + 1);
-    NewLayoutAttr squatDiagonalLayoutAttr =
-        NewLayoutAttr::getFromIntegerRelation(ctx, *diagonalRelation);
-
-    ConvertLayoutOp convertLayoutOp = ConvertLayoutOp::create(
-        builder, op->getLoc(), matrix, matrixLayout, squatDiagonalLayoutAttr);
-    convertLayoutOp->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName,
-                             squatDiagonalLayoutAttr);
-    Value toReplace = convertLayoutOp.getResult();
-    builder.replaceUsesWithIf(matrix, toReplace, [&](OpOperand& operand) {
-      return operand.getOwner() == op;
-    });
-    debugAssignLayout(toReplace, squatDiagonalLayoutAttr);
-    assignedLayouts.insert({toReplace, squatDiagonalLayoutAttr});
+    auto [toReplace, newMatrixLayoutAttr] = convertToNewLayout(
+        ctx, builder, op, matrix, matrixLayout,
+        getDiagonalLayoutRelation(matrixTransposeType, ciphertextSize));
+    debugAssignLayout(toReplace, newMatrixLayoutAttr);
+    assignedLayouts.insert({toReplace, newMatrixLayoutAttr});
     matrix = toReplace;
   }
 
@@ -540,23 +534,11 @@ LogicalResult NewLayoutPropagation::visitOperation(MatvecOp op) {
     // Insert a layout conversion op to make the matrix layout squat diagonal
     MLIRContext* ctx = &getContext();
     mlir::IRRewriter builder(ctx);
-    builder.setInsertionPoint(op);
-
-    IntegerRelation diagonalRelation =
-        getDiagonalLayoutRelation(matrixType, ciphertextSize);
-    NewLayoutAttr squatDiagonalLayoutAttr =
-        NewLayoutAttr::getFromIntegerRelation(ctx, diagonalRelation);
-
-    ConvertLayoutOp convertLayoutOp = ConvertLayoutOp::create(
-        builder, op->getLoc(), matrix, matrixLayout, squatDiagonalLayoutAttr);
-    convertLayoutOp->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName,
-                             squatDiagonalLayoutAttr);
-    Value toReplace = convertLayoutOp.getResult();
-    builder.replaceUsesWithIf(matrix, toReplace, [&](OpOperand& operand) {
-      return operand.getOwner() == op;
-    });
-    debugAssignLayout(toReplace, squatDiagonalLayoutAttr);
-    assignedLayouts.insert({toReplace, squatDiagonalLayoutAttr});
+    auto [toReplace, newMatrixLayoutAttr] = convertToNewLayout(
+        ctx, builder, op, matrix, matrixLayout,
+        getDiagonalLayoutRelation(matrixType, ciphertextSize));
+    debugAssignLayout(toReplace, newMatrixLayoutAttr);
+    assignedLayouts.insert({toReplace, newMatrixLayoutAttr});
     matrix = toReplace;
   }
 
@@ -585,6 +567,79 @@ LogicalResult NewLayoutPropagation::visitOperation(MatvecOp op) {
   return success();
 }
 
+LogicalResult NewLayoutPropagation::visitOperation(Conv2DOp op) {
+  Value data = op.getInputs().front();
+  Value filter = op.getInputs().back();
+  auto dataType = cast<RankedTensorType>(data.getType());
+  auto filterType = cast<RankedTensorType>(filter.getType());
+
+  // Flattened data must fit into the ciphertext size.
+  if (dataType.getNumElements() > ciphertextSize) {
+    return op->emitOpError()
+           << "Flattened data must fit into a single ciphertext, but got "
+           << dataType.getNumElements() << " elements and ciphertext size is "
+           << ciphertextSize;
+  }
+
+  MLIRContext* ctx = &getContext();
+  mlir::IRRewriter builder(ctx);
+
+  // TODO(#1597): a layout optimizer should really be selecting the
+  // layout instead of this pass.
+  NewLayoutAttr dataLayout = assignedLayouts.at(data);
+  if (!isRelationRowMajor(dataType, ciphertextSize,
+                          dataLayout.getIntegerRelation())) {
+    auto [toReplace, newDataLayoutAttr] =
+        convertToNewLayout(ctx, builder, op, data, dataLayout,
+                           getRowMajorLayoutRelation(dataType, ciphertextSize));
+    debugAssignLayout(toReplace, newDataLayoutAttr);
+    assignedLayouts.insert({toReplace, newDataLayoutAttr});
+  }
+
+  // The kernel for this operation requires expanding the conv filter matrix
+  // into a larger matrix and then diagonalizing.
+  NewLayoutAttr filterLayout = assignedLayouts.at(filter);
+  if (!isRelation2dConvFilterDiagonalized(filterType, dataType, /*padding=*/0,
+                                          ciphertextSize,
+                                          filterLayout.getIntegerRelation())) {
+    // Insert a layout conversion op to make the matrix layout expanded and
+    // squat diagonal
+    auto convRelation = get2dConvFilterDiagonalizedRelation(
+        filterType, dataType, /*padding=*/0, ciphertextSize);
+    if (failed(convRelation)) {
+      return failure();
+    }
+    auto [toReplace, newFilterLayoutAttr] = convertToNewLayout(
+        ctx, builder, op, filter, filterLayout, convRelation.value());
+    debugAssignLayout(toReplace, newFilterLayoutAttr);
+    assignedLayouts.insert({toReplace, newFilterLayoutAttr});
+  }
+
+  // Always one result, and for the kernels we have right now it's always a
+  // row-major replicated vector. Since the
+  // output matrix will have different shape than the input, assign the new
+  // layout.
+  auto result = op->getResult(0);
+  RankedTensorType outputType = cast<RankedTensorType>(result.getType());
+  FailureOr<NewLayoutAttr> outputLayoutResult =
+      defaultLayoutForType(outputType);
+  if (failed(outputLayoutResult)) {
+    return failure();
+  }
+  NewLayoutAttr resultLayout = outputLayoutResult.value();
+
+  assignedLayouts.insert({result, resultLayout});
+  setResultLayoutAttr(op);
+  debugAssignLayout(result, resultLayout);
+
+  // Add secret.kernel attribute for Conv2dMatvec
+  auto kernelAttr =
+      secret::KernelAttr::get(ctx, KernelName::Conv2dMatvec, /*force=*/false);
+  op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
+
+  return success();
+}
+
 LogicalResult NewLayoutPropagation::visitOperation(MatmulOp op) {
   auto matmulOp = cast<linalg::ContractionOpInterface>(*op);
   auto inputMatrix = matmulOp.lhs();
@@ -604,25 +659,11 @@ LogicalResult NewLayoutPropagation::visitOperation(MatmulOp op) {
   if (!isRelationPerRow(inputMatrixType, ciphertextSize,
                         inputMatrixLayout.getIntegerRelation())) {
     // Insert a layout conversion op to make the matrix layout per-row
-    builder.setInsertionPoint(op);
-
-    IntegerRelation perRowRelation =
-        getPerRowLayoutRelation(inputMatrixType, ciphertextSize);
-    NewLayoutAttr perRowLayoutAttr =
-        NewLayoutAttr::getFromIntegerRelation(ctx, perRowRelation);
-
-    ConvertLayoutOp convertLayoutOp =
-        ConvertLayoutOp::create(builder, op->getLoc(), inputMatrix,
-                                inputMatrixLayout, perRowLayoutAttr);
-    convertLayoutOp->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName,
-                             perRowLayoutAttr);
-    Value toReplace = convertLayoutOp.getResult();
-    builder.replaceUsesWithIf(inputMatrix, toReplace, [&](OpOperand& operand) {
-      return operand.getOwner() == op;
-    });
-    debugAssignLayout(toReplace, perRowLayoutAttr);
-    assignedLayouts.insert({toReplace, perRowLayoutAttr});
-    inputMatrix = toReplace;
+    auto [toReplace, newInputMatrixLayoutAttr] = convertToNewLayout(
+        ctx, builder, op, inputMatrix, inputMatrixLayout,
+        getPerRowLayoutRelation(inputMatrixType, ciphertextSize));
+    debugAssignLayout(toReplace, newInputMatrixLayoutAttr);
+    assignedLayouts.insert({toReplace, newInputMatrixLayoutAttr});
   }
 
   // Assign or change the filter matrix a diagonal layout.
@@ -640,27 +681,11 @@ LogicalResult NewLayoutPropagation::visitOperation(MatmulOp op) {
   if (!isRelationSquatDiagonal(filterMatrixTransposeType, ciphertextSize,
                                *clonedFilterMatrixRelation)) {
     // Insert a layout conversion op to make the matrix layout squat diagonal
-    builder.setInsertionPoint(op);
-
-    IntegerRelation diagonalTransposeRelation =
-        getDiagonalLayoutRelation(filterMatrixTransposeType, ciphertextSize);
-    auto diagonalRelation = diagonalTransposeRelation.clone();
-    diagonalRelation->swapVar(domainOffset, domainOffset + 1);
-    NewLayoutAttr squatDiagonalLayoutAttr =
-        NewLayoutAttr::getFromIntegerRelation(ctx, *diagonalRelation);
-
-    ConvertLayoutOp convertLayoutOp =
-        ConvertLayoutOp::create(builder, op->getLoc(), filterMatrix,
-                                filterMatrixLayout, squatDiagonalLayoutAttr);
-    convertLayoutOp->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName,
-                             squatDiagonalLayoutAttr);
-    Value toReplace = convertLayoutOp.getResult();
-    builder.replaceUsesWithIf(filterMatrix, toReplace, [&](OpOperand& operand) {
-      return operand.getOwner() == op;
-    });
-    debugAssignLayout(toReplace, squatDiagonalLayoutAttr);
-    assignedLayouts.insert({toReplace, squatDiagonalLayoutAttr});
-    filterMatrix = toReplace;
+    auto [toReplace, newFilterMatrixLayoutAttr] = convertToNewLayout(
+        ctx, builder, op, filterMatrix, filterMatrixLayout,
+        getDiagonalLayoutRelation(filterMatrixTransposeType, ciphertextSize));
+    debugAssignLayout(toReplace, newFilterMatrixLayoutAttr);
+    assignedLayouts.insert({toReplace, newFilterMatrixLayoutAttr});
   }
 
   // The output has the same per-row layout as the input matrix.
@@ -770,7 +795,7 @@ CompatibilityResult NewLayoutPropagation::hasCompatibleArgumentLayouts(
             affine::AffineYieldOp>(
           [&](auto op) { return CompatibilityResult{true, std::nullopt}; })
       // Ops with special rules
-      .Case<ReduceOp, MatvecOp, VecmatOp>(
+      .Case<ReduceOp, MatvecOp, VecmatOp, Conv2DOp>(
           [&](auto op) { return hasCompatibleArgumentLayouts(op); })
       // By default, assume operands must all have the same layout.
       .Default([&](Operation* op) {
@@ -857,6 +882,22 @@ CompatibilityResult NewLayoutPropagation::hasCompatibleArgumentLayouts(
 
   if (!assignedLayouts.contains(vec)) {
     return {false, op->emitError("vector operand has no assigned layout")};
+  }
+  return {true, std::nullopt};
+}
+
+CompatibilityResult NewLayoutPropagation::hasCompatibleArgumentLayouts(
+    Conv2DOp op) {
+  // Currently only support secret data and plaintext filters.
+  Value data = op.getInputs().front();
+  Value filter = op.getInputs().back();
+  if (isSecret(filter, solver) || !isSecret(data, solver)) {
+    return {false, op->emitError("Only secret data and plaintext filters are "
+                                 "supported for linalg.conv2d")};
+  }
+
+  if (!assignedLayouts.contains(data)) {
+    return {false, op->emitError("data operand has no assigned layout")};
   }
   return {true, std::nullopt};
 }

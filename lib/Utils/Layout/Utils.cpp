@@ -336,6 +336,34 @@ presburger::IntegerRelation get2dConvFilterRelation(RankedTensorType filterType,
   return result;
 }
 
+FailureOr<presburger::IntegerRelation> get2dConvFilterDiagonalizedRelation(
+    RankedTensorType filterType, RankedTensorType dataType, int64_t padding,
+    int64_t ciphertextSize) {
+  auto expandedFilterRelation =
+      get2dConvFilterRelation(filterType, dataType, padding);
+  // Get size of the expanded filter matrix.
+  auto rowBound = expandedFilterRelation.getConstantBound64(
+      BoundType::UB, expandedFilterRelation.getVarKindOffset(VarKind::Range));
+  if (!rowBound.has_value()) {
+    return failure();
+  }
+  auto colBound = expandedFilterRelation.getConstantBound64(
+      BoundType::UB,
+      expandedFilterRelation.getVarKindOffset(VarKind::Range) + 1);
+  if (!colBound.has_value()) {
+    return failure();
+  }
+  RankedTensorType expandedFilterType = RankedTensorType::get(
+      {rowBound.value(), colBound.value()}, filterType.getElementType());
+
+  auto diagonalizedFilterRelation =
+      getDiagonalLayoutRelation(expandedFilterType, ciphertextSize);
+
+  // Compose these relations.
+  expandedFilterRelation.compose(diagonalizedFilterRelation);
+  return expandedFilterRelation;
+}
+
 bool isRelationSquatDiagonal(RankedTensorType matrixType,
                              int64_t ciphertextSize,
                              const presburger::IntegerRelation& relation) {
@@ -356,6 +384,18 @@ bool isRelationPerRow(RankedTensorType matrixType, int64_t ciphertextSize,
   IntegerRelation perRowRelation =
       getPerRowLayoutRelation(matrixType, ciphertextSize);
   return relation.isEqual(perRowRelation);
+}
+
+bool isRelation2dConvFilterDiagonalized(RankedTensorType filterType,
+                                        RankedTensorType dataType,
+                                        int64_t padding, int64_t ciphertextSize,
+                                        presburger::IntegerRelation relation) {
+  auto diagonalizedRelation = get2dConvFilterDiagonalizedRelation(
+      filterType, dataType, padding, ciphertextSize);
+  if (failed(diagonalizedRelation)) {
+    return false;
+  }
+  return relation.isEqual(diagonalizedRelation.value());
 }
 
 presburger::IntegerRelation collapseDimensions(

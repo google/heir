@@ -49,6 +49,15 @@ presburger::IntegerRelation get2dConvFilterRelation(RankedTensorType filterType,
                                                     RankedTensorType dataType,
                                                     int64_t padding);
 
+// Returns an IntegerRelation that expands a 2-D filter matrix used in a
+// convolution into a 2-D matrix such that the convolution is
+// equivalent a matrix product with the flattened input vector. Each row
+// corresponds to one filter multiplication.
+// TODO(#2217): Support non-unit strides.
+FailureOr<presburger::IntegerRelation> get2dConvFilterDiagonalizedRelation(
+    RankedTensorType filterType, RankedTensorType dataType, int64_t padding,
+    int64_t ciphertextSize);
+
 // Returns true if the given relation is a squat diagonal layout for the given
 // matrix type and ciphertext semantic shape.
 bool isRelationSquatDiagonal(RankedTensorType matrixType,
@@ -64,6 +73,11 @@ bool isRelationRowMajor(RankedTensorType vectorType, int64_t numSlots,
 // for the given matrix type and ciphertext semantic shape.
 bool isRelationPerRow(RankedTensorType matrixType, int64_t ciphertextSize,
                       presburger::IntegerRelation relation);
+
+bool isRelation2dConvFilterDiagonalized(RankedTensorType filterType,
+                                        RankedTensorType dataType,
+                                        int64_t padding, int64_t ciphertextSize,
+                                        presburger::IntegerRelation relation);
 
 // Returns a new IntegerRelation that is the same as the given relation, but
 // with the given dimensions collapsed. This expects that the reassociation
@@ -81,10 +95,9 @@ presburger::IntegerRelation expandDimensions(
     const presburger::IntegerRelation& relation, RankedTensorType resultType,
     ArrayRef<ReassociationIndices> reassociation);
 
-// Returns a new relation produced by constraining the index dimensions of type
-// varKind to the given relation to the provided values.
-// The fixedValues array size should equal the number of variables of type
-// varKind.
+// Returns a new relation produced by constraining the index dimensions of
+// type varKind to the given relation to the provided values. The fixedValues
+// array size should equal the number of variables of type varKind.
 presburger::IntegerRelation fixVars(const presburger::IntegerRelation& relation,
                                     ArrayRef<int64_t> fixedValues,
                                     presburger::VarKind varKind);
