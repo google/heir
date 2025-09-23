@@ -66,6 +66,10 @@ zip-safe = false
 where = ["frontend"]
 
 [tool.cibuildwheel]
+# The default 2_28 wheel uses a C ABI that seems to be too old for openfhe?
+manylinux-x86_64-image = "manylinux_2_34"
+manylinux-aarch64-image = "manylinux_2_34"
+manylinux-i686-image = "manylinux_2_34"
 build = "cp311-* cp312-* cp313-*"
 build-frontend = "build[uv]"
 skip = "*-musllinux_*"
