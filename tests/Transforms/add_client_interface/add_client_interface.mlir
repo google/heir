@@ -1,54 +1,38 @@
-// RUN: heir-opt --add-client-interface=ciphertext-size=1024 %s | FileCheck %s
+// RUN: heir-opt --add-client-interface="ciphertext-size=1024" --canonicalize %s | FileCheck %s
 
-!ct_ty = !secret.secret<tensor<1024xi16>>
+// Data is 32x64, being packed into ciphertexts of size 1024 via Halevi-Shoup
+// diagonal layout.
+!ct_ty = !secret.secret<tensor<32x1024xi16>>
+#layout = #tensor_ext.new_layout<"{ [row, col] -> [ct, slot] : (slot mod 32) - row = 0 and (ct + slot) mod 64 - col = 0 and row >= 0 and col >= 0 and ct >= 0 and slot >= 0 and 1023 - slot >= 0 and 31 - ct >= 0 and 31 - row >= 0 and 64 - col >= 0 }">
+#original_type = #tensor_ext.original_type<originalType = tensor<32x64xi16>, layout = #layout>
 
-#alignment = #tensor_ext.alignment<in = [32], out = [1024]>
-#layout = #tensor_ext.layout<map = (d0) -> (d0), alignment = #alignment>
-#original_type = #tensor_ext.original_type<originalType = tensor<32xi16>, layout = #layout>
+// The ISL generated loop nest is:
+// for (int c0 = 0; c0 <= 31; c0 += 1)
+//   for (int c1 = 0; c1 <= 1023; c1 += 1)
+//     S(c1 % 32, -((-c0 - c1 + 1087) % 64) + 63, c0, c1);
 
-#scalar_alignment = #tensor_ext.alignment<in = [], out = [1024], insertedDims = [0]>
-#scalar_layout = #tensor_ext.layout<map = (d0) -> (d0), alignment = #scalar_alignment>
-#scalar_original_type = #tensor_ext.original_type<originalType = i16, layout = #scalar_layout>
+// CHECK: func.func @add
 
-func.func @simple_sum(
+// CHECK: func.func @add__encrypt__arg
+// CHECK-SAME: %[[arg0:.*]]: tensor<32x64xi16>
+// CHECK-DAG: %[[c1:.*]] = arith.constant 1 : index
+// CHECK-DAG: %[[c32:.*]] = arith.constant 32 : index
+// CHECK-DAG: %[[c1024:.*]] = arith.constant 1024 : index
+// CHECK-DAG: %[[c0:.*]] = arith.constant 0 : index
+// CHECK-DAG: %[[v0:.*]] = arith.constant dense<0> : tensor<32x1024xi16>
+// CHECK: %[[v1:.*]] = scf.for %[[arg1:.*]] = %[[c0]] to %[[c32]] step %[[c1]]
+// CHECK:   %[[v3:.*]] = scf.for %[[arg3:.*]] = %[[c0]] to %[[c1024]] step %[[c1]]
+// CHECK-COUNT-2:          arith.remsi
+// CHECK: %[[v2:.*]] = secret.conceal %[[v1]]
+// CHECK: return %[[v2]] : !secret.secret<tensor<32x1024xi16>>
+
+func.func @add(
     %arg0: !ct_ty {tensor_ext.original_type = #original_type}
-) -> (!ct_ty {tensor_ext.original_type = #scalar_original_type}) {
-  %c16 = arith.constant 16 : index
-  %c8 = arith.constant 8 : index
-  %c4 = arith.constant 4 : index
-  %c2 = arith.constant 2 : index
-  %c1 = arith.constant 1 : index
-  %0 = secret.generic(%arg0 : !ct_ty) {
-  ^body(%pt_arg0: tensor<1024xi16>):
-    %0 = tensor_ext.rotate %pt_arg0, %c16 : tensor<1024xi16>, index
-    %1 = arith.addi %pt_arg0, %0 : tensor<1024xi16>
-    %2 = tensor_ext.rotate %1, %c8 : tensor<1024xi16>, index
-    %3 = arith.addi %1, %2 : tensor<1024xi16>
-    %4 = tensor_ext.rotate %3, %c4 : tensor<1024xi16>, index
-    %5 = arith.addi %3, %4 : tensor<1024xi16>
-    %6 = tensor_ext.rotate %5, %c2 : tensor<1024xi16>, index
-    %7 = arith.addi %5, %6 : tensor<1024xi16>
-    %8 = tensor_ext.rotate %7, %c1 : tensor<1024xi16>, index
-    %9 = arith.addi %7, %8 : tensor<1024xi16>
-    secret.yield %9 : tensor<1024xi16>
+) -> (!ct_ty {tensor_ext.original_type = #original_type}) {
+  %0 = secret.generic(%arg0: !ct_ty) {
+  ^body(%pt_arg0: tensor<32x1024xi16>):
+    %0 = arith.addi %pt_arg0, %pt_arg0 : tensor<32x1024xi16>
+    secret.yield %0 : tensor<32x1024xi16>
   } -> !ct_ty
   return %0 : !ct_ty
 }
-
-// CHECK: @simple_sum
-// CHECK-SAME: (%[[original_input:[^:]*]]: [[ct_ty:!secret.secret<tensor<1024xi16>>]] {tensor_ext.original_type
-// CHECK-SAME: -> ([[ct_ty]]
-
-// CHECK: @simple_sum__encrypt
-// CHECK-SAME: (%[[arg0:[^:]*]]: tensor<32xi16>
-// CHECK-SAME:     -> [[ct_ty]] attributes {client.enc_func = {func_name = "simple_sum", index = 0 : i64}} {
-// CHECK:        %[[laidout:[^ ]*]] = tensor.concat dim(0)
-// CHECK-NEXT:   %[[encrypted:.*]] = secret.conceal %[[laidout]]
-// CHECK-NEXT:   return %[[encrypted]]
-
-// CHECK: @simple_sum__decrypt
-// CHECK-SAME: (%[[arg1:[^:]*]]: [[ct_ty]]
-// CHECK-SAME:     -> i16 attributes {client.dec_func = {func_name = "simple_sum", index = 0 : i64}} {
-// CHECK-NEXT:   %[[decrypted:.*]] = secret.reveal %[[arg1]]
-// CHECK:        %[[extracted:.*]] = tensor.extract %[[decrypted]]
-// CHECK:        return %[[extracted]]
