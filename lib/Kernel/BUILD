@@ -10,6 +10,9 @@ cc_library(
     name = "ArithmeticDag",
     srcs = ["ArithmeticDag.h"],
     hdrs = ["ArithmeticDag.h"],
+    deps = [
+        "@llvm-project//llvm:Support",
+    ],
 )
 
 cc_test(
@@ -26,6 +29,7 @@ cc_library(
     srcs = ["IRMaterializingVisitor.cpp"],
     hdrs = ["IRMaterializingVisitor.h"],
     deps = [
+        ":AbstractValue",
         ":ArithmeticDag",
         ":KernelImplementation",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
@@ -54,15 +58,23 @@ cc_library(
 )
 
 cc_library(
+    name = "AbstractValue",
+    hdrs = ["AbstractValue.h"],
+    deps = [
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
     name = "KernelImplementation",
     hdrs = ["KernelImplementation.h"],
     deps = [
+        ":AbstractValue",
         ":ArithmeticDag",
         ":Kernel",
         "@heir//lib/Utils:MathUtils",
-        "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
-        "@llvm-project//mlir:TensorDialect",
     ],
 )
 
@@ -71,8 +83,9 @@ cc_library(
     srcs = ["TestingUtils.cpp"],
     hdrs = ["TestingUtils.h"],
     deps = [
+        ":AbstractValue",
         ":ArithmeticDag",
-        ":KernelImplementation",
+        "@llvm-project//mlir:Support",
     ],
 )
 

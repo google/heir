@@ -64,6 +64,7 @@ cc_library(
         ":IslConversion",
         "@heir//lib/Utils:MathUtils",
         "@isl",
+        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithUtils",
         "@llvm-project//mlir:IR",

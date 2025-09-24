@@ -15,14 +15,18 @@
 #include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/OperationSupport.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/WalkResult.h"        // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -201,6 +205,28 @@ TypedAttr getScalarOrDenseAttr(Type tensorOrScalarType, APInt value) {
         return static_cast<TypedAttr>(DenseElementsAttr::get(type, value));
       })
       .Default([](Type) { return nullptr; });
+}
+
+Operation* makeAppropriatelyTypedAddOp(OpBuilder& builder, Location loc,
+                                       Value lhs, Value rhs) {
+  assert(lhs.getType() == rhs.getType() &&
+         "lhs and rhs must have the same type");
+  StringRef addOpName = isa<IntegerType>(getElementTypeOrSelf(lhs.getType()))
+                            ? "arith.addi"
+                            : "arith.addf";
+  return builder.create(
+      OperationState(loc, addOpName, {lhs, rhs}, {lhs.getType()}));
+}
+
+Operation* makeAppropriatelyTypedMulOp(OpBuilder& builder, Location loc,
+                                       Value lhs, Value rhs) {
+  assert(lhs.getType() == rhs.getType() &&
+         "lhs and rhs must have the same type");
+  StringRef addOpName = isa<IntegerType>(getElementTypeOrSelf(lhs.getType()))
+                            ? "arith.muli"
+                            : "arith.mulf";
+  return builder.create(
+      OperationState(loc, addOpName, {lhs, rhs}, {lhs.getType()}));
 }
 
 }  // namespace heir

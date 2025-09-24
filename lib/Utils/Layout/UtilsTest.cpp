@@ -1,6 +1,7 @@
 #include <cmath>
 #include <cstdint>
 #include <optional>
+#include <utility>
 #include <vector>
 
 #include "gtest/gtest.h"  // from @googletest
@@ -153,7 +154,7 @@ TEST(UtilsTest, SquatDiagonalLayout) {
   }
 }
 
-TEST(UtilsTest, TestGetPointsInRelation) {
+TEST(UtilsTest, TestGetRangePoints) {
   MLIRContext context;
   IntegerRelation rel =
       relationFromString("(x) : (x >= 0, 7 >= x, x mod 3 == 0)", 0, &context);
@@ -161,6 +162,34 @@ TEST(UtilsTest, TestGetPointsInRelation) {
   PointCollector collector;
   getRangePoints(rel, collector);
   EXPECT_EQ(collector.points, expected);
+}
+
+TEST(UtilsTest, TestEnumeratePoints) {
+  MLIRContext context;
+  // Create a relation with 1 domain variable (x) and 1 range variable (y)
+  IntegerRelation rel = relationFromString(
+      "(x, y) : (x >= 0, 2 >= x, y >= 0, 1 >= y)", 1, &context);
+  PointPairCollector collector(1, 1);  // 1 domain dim, 1 range dim
+  enumeratePoints(rel, collector);
+
+  // Expected points: domain x range pairs for x in [0,2] and y in [0,1]
+  std::vector<std::pair<std::vector<int64_t>, std::vector<int64_t>>> expected =
+      {{{0}, {0}}, {{0}, {1}}, {{1}, {0}}, {{1}, {1}}, {{2}, {0}}, {{2}, {1}}};
+
+  EXPECT_EQ(collector.points.size(), expected.size());
+  for (const auto& expectedPoint : expected) {
+    bool found = false;
+    for (const auto& actualPoint : collector.points) {
+      if (actualPoint.first == expectedPoint.first &&
+          actualPoint.second == expectedPoint.second) {
+        found = true;
+        break;
+      }
+    }
+    EXPECT_TRUE(found) << "Expected point not found: domain="
+                       << expectedPoint.first[0]
+                       << ", range=" << expectedPoint.second[0];
+  }
 }
 
 TEST(UtilsTest, PerRowLayout) {

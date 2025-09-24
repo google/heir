@@ -2,18 +2,31 @@
 
 #include <cassert>
 #include <cstddef>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <type_traits>
 #include <variant>
 #include <vector>
 
+#include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
-#include "lib/Kernel/KernelImplementation.h"
+#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
 namespace kernel {
+
+void printVec(const std::vector<int>& vec) {
+  std::cout << "[";
+  for (size_t i = 0; i < vec.size(); ++i) {
+    std::cout << vec[i];
+    if (i != vec.size() - 1) {
+      std::cout << ", ";
+    }
+  }
+  std::cout << "]";
+}
 
 LiteralValue EvalVisitor::operator()(const LeafNode<LiteralValue>& node) {
   const auto& nodeVal = node.value.getTensor();
@@ -25,6 +38,13 @@ LiteralValue EvalVisitor::operator()(const LeafNode<LiteralValue>& node) {
   if (matVal) {
     assert(matVal->size() == node.value.getShape()[0]);
   }
+
+  std::cout << "Leaf node with shape: ";
+  for (auto dim : node.value.getShape()) {
+    std::cout << dim << " ";
+  }
+  std::cout << "\n";
+
   return node.value.getTensor();
 }
 
@@ -44,6 +64,15 @@ LiteralValue EvalVisitor::operator()(const AddNode<LiteralValue>& node) {
   for (size_t i = 0; i < dim; ++i) {
     result[i] = (*lVec)[i] + (*rVec)[i];
   }
+
+  std::cout << "Add lhs=";
+  printVec(*lVec);
+  std::cout << " rhs=";
+  printVec(*rVec);
+  std::cout << " result=";
+  printVec(result);
+  std::cout << "\n";
+
   return result;
 }
 
@@ -61,6 +90,14 @@ LiteralValue EvalVisitor::operator()(const SubtractNode<LiteralValue>& node) {
   for (size_t i = 0; i < dim; ++i) {
     result[i] = (*lVec)[i] - (*rVec)[i];
   }
+
+  std::cout << "Sub lhs=";
+  printVec(*lVec);
+  std::cout << " rhs=";
+  printVec(*rVec);
+  std::cout << " result=";
+  printVec(result);
+  std::cout << "\n";
   return result;
 }
 
@@ -78,6 +115,13 @@ LiteralValue EvalVisitor::operator()(const MultiplyNode<LiteralValue>& node) {
   for (size_t i = 0; i < dim; ++i) {
     result[i] = (*lVec)[i] * (*rVec)[i];
   }
+  std::cout << "Mul lhs=";
+  printVec(*lVec);
+  std::cout << " rhs=";
+  printVec(*rVec);
+  std::cout << " result=";
+  printVec(result);
+  std::cout << "\n";
   return result;
 }
 
@@ -96,6 +140,13 @@ LiteralValue EvalVisitor::operator()(const LeftRotateNode<LiteralValue>& node) {
   for (size_t i = 0; i < dim; ++i) {
     result[i] = (*oVec)[(i + amount) % oVec->size()];
   }
+
+  std::cout << "Rot vec=";
+  printVec(*oVec);
+  std::cout << " shift=" << amount;
+  std::cout << " result=";
+  printVec(result);
+  std::cout << "\n";
   return result;
 }
 
@@ -115,10 +166,29 @@ LiteralValue EvalVisitor::operator()(const ExtractNode<LiteralValue>& node) {
       tensor.getTensor());
 }
 
+LiteralValue EvalVisitor::operator()(const ConstantTensorNode& node) {
+  // A bit of a hack, only support ints in testing
+  std::vector<int> vec;
+  vec.reserve(node.value.size());
+  for (double v : node.value) {
+    vec.push_back(static_cast<int>(v));
+  }
+  std::cout << "Const vec=";
+  printVec(vec);
+  std::cout << "\n";
+  return LiteralValue(vec);
+}
+
 LiteralValue evalKernel(
     const std::shared_ptr<ArithmeticDagNode<LiteralValue>>& dag) {
   EvalVisitor visitor;
   return visitor.process(dag);
+}
+
+std::vector<LiteralValue> multiEvalKernel(
+    ArrayRef<std::shared_ptr<ArithmeticDagNode<LiteralValue>>> dags) {
+  EvalVisitor visitor;
+  return visitor.process(dags);
 }
 
 std::string PrintVisitor::operator()(const LeafNode<LiteralValue>& node) {

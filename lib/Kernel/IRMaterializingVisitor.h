@@ -1,6 +1,7 @@
 #ifndef LIB_KERNEL_IRMATERIALIZINGVISITOR_H_
 #define LIB_KERNEL_IRMATERIALIZINGVISITOR_H_
 
+#include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
 #include "lib/Kernel/KernelImplementation.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
@@ -42,7 +43,8 @@ class IRMaterializingVisitor : public CachingVisitor<SSAValue, Value> {
         });
   }
 
-  Value operator()(const ConstantNode& node) override;
+  Value operator()(const ConstantScalarNode& node) override;
+  Value operator()(const ConstantTensorNode& node) override;
   Value operator()(const LeafNode<SSAValue>& node) override;
   Value operator()(const AddNode<SSAValue>& node) override;
   Value operator()(const SubtractNode<SSAValue>& node) override;

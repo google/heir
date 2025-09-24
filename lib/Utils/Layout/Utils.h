@@ -2,8 +2,11 @@
 #define LIB_UTILS_LAYOUT_UTILS_H_
 
 #include <cstdint>
+#include <utility>
+#include <vector>
 
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Utils/Utils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"            // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"               // from @llvm-project
@@ -133,6 +136,29 @@ struct PointCollector {
   PointCollector(const PointCollector&) = delete;
   PointCollector& operator=(const PointCollector&) = delete;
 };
+
+struct PointPairCollector {
+  using Point = std::vector<int64_t>;
+  std::vector<std::pair<Point, Point>> points;
+  isl_ctx* ctx;
+  int domainDims;
+  int rangeDims;
+
+  PointPairCollector(int domainDims, int rangeDims)
+      : domainDims(domainDims), rangeDims(rangeDims) {
+    ctx = isl_ctx_alloc();
+  }
+
+  ~PointPairCollector() { isl_ctx_free(ctx); }
+
+  // Delete copy constructor and assignment to avoid double-free
+  PointPairCollector(const PointPairCollector&) = delete;
+  PointPairCollector& operator=(const PointPairCollector&) = delete;
+};
+
+// Get a list of points in the relation by enumerating all possible values.
+void enumeratePoints(const presburger::IntegerRelation& relation,
+                     PointPairCollector& collector);
 
 // Get a list of points in the range of the relation by enumerating all
 // possible values.

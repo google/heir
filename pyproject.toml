@@ -113,7 +113,7 @@ pyink-use-majority-quotes = true
 
 [tool.codespell]
 # words to allow even though codespell thinks they're misspelled
-ignore-words-list = "crate,fpt,LogArithmetic,olt"
+ignore-words-list = "crate,fpt,LogArithmetic,olt,allOne"
 # enable if you want the pre-commit hook to automatically write changes
 write-changes = false
 # files to exclude

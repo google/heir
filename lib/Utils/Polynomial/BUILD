@@ -50,6 +50,7 @@ cc_library(
     hdrs = ["ChebyshevPatersonStockmeyer.h"],
     deps = [
         ":ChebyshevDecomposition",
+        "@heir//lib/Kernel:AbstractValue",
         "@heir//lib/Kernel:ArithmeticDag",
         "@heir//lib/Kernel:KernelImplementation",
         "@llvm-project//llvm:Support",
@@ -62,6 +63,7 @@ cc_test(
     deps = [
         ":ChebyshevPatersonStockmeyer",
         "@googletest//:gtest_main",
+        "@heir//lib/Kernel:AbstractValue",
         "@heir//lib/Kernel:ArithmeticDag",
         "@heir//lib/Kernel:KernelImplementation",
     ],
