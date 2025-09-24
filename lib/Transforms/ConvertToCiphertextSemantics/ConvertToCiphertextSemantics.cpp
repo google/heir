@@ -1,12 +1,10 @@
 #include "lib/Transforms/ConvertToCiphertextSemantics/ConvertToCiphertextSemantics.h"
 
-#include <cmath>
 #include <cstdint>
 #include <memory>
 #include <numeric>
 #include <optional>
 #include <set>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -25,7 +23,6 @@
 #include "lib/Transforms/ConvertToCiphertextSemantics/AssignLayout.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/TypeConversion.h"
 #include "lib/Transforms/DropUnitDims/DropUnitDims.h"
-#include "lib/Utils/AffineMapUtils.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/ContextAwareConversionUtils.h"
 #include "lib/Utils/ContextAwareDialectConversion.h"
@@ -33,8 +30,6 @@
 #include "lib/Utils/Layout/Codegen.h"
 #include "lib/Utils/Layout/Utils.h"
 #include "lib/Utils/MathUtils.h"
-#include "lib/Utils/TransformUtils.h"
-#include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/ArrayRef.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"      // from @llvm-project
@@ -43,7 +38,6 @@
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
@@ -51,15 +45,14 @@
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/Transforms/Transforms.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/AffineExpr.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/AffineMap.h"   // from @llvm-project
-#include "mlir/include/mlir/IR/Builders.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/AffineExpr.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/AffineMap.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/OperationSupport.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
@@ -567,7 +560,7 @@ struct ConvertLinalgMatvecNewLayout
     Value finalOutput = implementedKernel->visit(visitor);
 
     auto layoutAttr = cast<NewLayoutAttr>(op->getAttr(kLayoutAttrName));
-    auto finalOutputOp = finalOutput.getDefiningOp();
+    auto* finalOutputOp = finalOutput.getDefiningOp();
     finalOutputOp->setAttr(kLayoutAttrName, layoutAttr);
     setMaterializedAttr(finalOutputOp);
 
@@ -933,7 +926,10 @@ class ConvertTensorExtractNewLayout
       // to support that.
       //
       // Punting until we have a strong need for this use case.
-      return failure();
+      //
+      // TODO(#2257): Support dynamic indices in tensor.extract
+      return op.emitError() << "tensor.extract with dynamic cleartext indices "
+                               "not supported yet";
     }
 
     MaskResult maskResult = createMaskFromStaticIndices(

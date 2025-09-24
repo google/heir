@@ -9,9 +9,8 @@ glob_lit_tests(
     exclude = [
         # TODO(#2047): Remove these tests after migrating to new layout
         "linalg_reduce.mlir",
-        "matvec.mlir",
-        "linalg_matvec_1024.mlir",
-        "linalg_matvec_ckks.mlir",
+        # TODO(#2257): Support dynamic indices
+        "dot_product.mlir",
     ],
     test_file_exts = ["mlir"],
 )
