@@ -91,6 +91,11 @@ class RLWESchemeParam {
     return encryptionTechniqueExtended;
   }
 
+  int64_t getNttPrimitiveRoot() const {
+    // FIXME: implement
+    return 7;
+  }
+
   virtual void print(llvm::raw_ostream& os) const;
 
   friend llvm::raw_ostream& operator<<(llvm::raw_ostream& os,

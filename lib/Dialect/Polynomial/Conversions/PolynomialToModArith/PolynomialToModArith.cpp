@@ -184,12 +184,10 @@ struct ConvertFromTensor : public OpConversionPattern<FromTensorOp> {
   LogicalResult matchAndRewrite(
       FromTensorOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
-    auto res = getCommonConversionInfo(op, typeConverter);
-    if (failed(res)) return failure();
-    auto typeInfo = res.value();
-
-    auto resultShape = typeInfo.tensorType.getShape()[0];
-    auto resultEltTy = typeInfo.tensorType.getElementType();
+    RankedTensorType resultTy =
+        convertPolynomialType(cast<PolynomialType>(op.getResult().getType()));
+    auto resultShape = resultTy.getShape()[0];
+    auto resultEltTy = resultTy.getElementType();
     auto inputTensorTy = op.getInput().getType();
     auto inputShape = inputTensorTy.getShape()[0];
 
@@ -204,9 +202,9 @@ struct ConvertFromTensor : public OpConversionPattern<FromTensorOp> {
       high.push_back(rewriter.getIndexAttr(resultShape - inputShape));
 
       auto padValue = getConstantCoefficient(resultEltTy, 0, b);
-      coeffValue = tensor::PadOp::create(b, typeInfo.tensorType, coeffValue,
-                                         low, high, padValue,
-                                         /*nofold=*/false);
+      coeffValue =
+          tensor::PadOp::create(b, resultTy, coeffValue, low, high, padValue,
+                                /*nofold=*/false);
     }
 
     rewriter.replaceOp(op, coeffValue);
@@ -1363,27 +1361,45 @@ struct ConvertKeySwitchInner
     // tensor<K x N x RNS>, where K is the number of special/keyswitch primes.
     //
     // Convert extendedPartitions to NTT domain to enable multiplication
-    SmallVector<Value> extendedPartitionsNTTed;
-    for (auto value : extendedPartitions) {
-      // FIXME: something is wrong
-      extendedPartitionsNTTed.push_back(NTTOp::create(
-          b, value.getType(), value,
-          PrimitiveRootAttr::get(op.getContext(), b.getI64IntegerAttr(7),
-                                 b.getI64IntegerAttr(3))));
-    }
+    // SmallVector<Value> extendedPartitionsNTTed;
+    // for (auto value : extendedPartitions) {
+    //   // FIXME: something is wrong
+    //   auto fromTensor = FromTensorOp::create(
+    //       b, op.getKeySwitchingKey().getType().getElementType(), value);
+    //   extendedPartitionsNTTed.push_back(NTTOp::create(
+    //       b, value.getType(), fromTensor.getResult(),
+    //       // FIXME: figure out what to choose here
+    //       PrimitiveRootAttr::get(op.getContext(), b.getI64IntegerAttr(7),
+    //                              b.getI64IntegerAttr(3))));
+    // }
 
-    auto fromTensor = FromTensorOp::create(
-        b, op.getKeySwitchingKey().getType().getElementType(),
-        extendedPartitionsNTTed);
+    SmallVector<Value> extendedPartitionsNTTed = extendedPartitions;
 
     // Dot product
     // KSK is a K x 2 x N x RNS
     //
-    // extendedPartitions is a K x N x RNS
-    Value tensorPartitions =
-        tensor::FromElementsOp::create(b, extendedPartitionsNTTed);
+    // extendedPartitionsNTT is a K-sized list of N x RNS
     RankedTensorType kskType =
         cast<RankedTensorType>(adaptor.getKeySwitchingKey().getType());
+    int64_t N = coefficientTensorType.getNumElements();
+    int64_t k = static_cast<long>(extendedPartitionsNTTed.size());
+    SmallVector<int64_t> stackedShape = {k, N};
+    Value empty =
+        tensor::EmptyOp::create(b, stackedShape, kskType.getElementType());
+
+    Value current = empty;
+    for (int64_t i = 0; i < extendedPartitionsNTTed.size(); i++) {
+      auto one = b.getIndexAttr(1);
+      SmallVector<OpFoldResult> offsets = {b.getIndexAttr(i),
+                                           b.getIndexAttr(0)};
+      SmallVector<OpFoldResult> sizes = {one, b.getIndexAttr(N)};
+      SmallVector<OpFoldResult> strides = {one, one};
+      current = tensor::InsertSliceOp::create(b, op.getLoc(),
+                                              extendedPartitionsNTTed[i],
+                                              current, offsets, sizes, strides);
+    }
+    Value tensorPartitions = current;
+
     SmallVector<int64_t> broadcastDims(kskType.getShape());
     // broadcast to K x 2 x N x RNS
     Value broadcastPartitions =
@@ -1397,15 +1413,15 @@ struct ConvertKeySwitchInner
     Value dotProd = mod_arith::MulOp::create(b, broadcastPartitions,
                                              adaptor.getKeySwitchingKey());
     // FIXME: sum along the K axis
-    Value summed = linalg::ReduceOp::create();
+    // Value summed = linalg::ReduceOp::create();
 
     // Shape is 2xNxRNS
 
     // Convert back to polynomial (out of NTT)
-    auto iNTTOp = INTTOp::create(
-        b, resultType, summed,
-        PrimitiveRootAttr::get(op.getContext(), b.getI64IntegerAttr(7),
-                               b.getI64IntegerAttr(3)));
+    // auto iNTTOp = INTTOp::create(
+    //    b, resultType, summed,
+    //    PrimitiveRootAttr::get(op.getContext(), b.getI64IntegerAttr(7),
+    //                           b.getI64IntegerAttr(3)));
 
     // Drop all keyswitch primes
     // "rescale" (aka basis conversion)
