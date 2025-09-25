@@ -24,26 +24,11 @@ cc_library(
     ],
 )
 
-cc_library(
-    name = "Parser",
-    srcs = ["Parser.cpp"],
-    hdrs = ["Parser.h"],
-    deps = [
-        "@llvm-project//llvm:Support",
-        "@llvm-project//mlir:AffineAnalysis",
-        "@llvm-project//mlir:Analysis",
-        "@llvm-project//mlir:AsmParser",
-        "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:Support",
-    ],
-)
-
 cc_test(
     name = "CodegenTest",
     srcs = ["CodegenTest.cpp"],
     deps = [
         ":Codegen",
-        ":Parser",
         "@googletest//:gtest_main",
         "@heir//lib/Utils/Layout:IslConversion",
         "@heir//lib/Utils/Layout:Utils",
@@ -77,7 +62,6 @@ cc_test(
     srcs = ["UtilsTest.cpp"],
     deps = [
         ":IslConversion",
-        ":Parser",
         ":Utils",
         "@googletest//:gtest_main",
         "@heir//lib/Utils:TensorUtils",
@@ -106,7 +90,6 @@ cc_test(
         ":Codegen",
         ":Hoisting",
         ":IslConversion",
-        ":Parser",
         "@googletest//:gtest_main",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
@@ -132,7 +115,6 @@ cc_test(
     srcs = ["IslConversionTest.cpp"],
     deps = [
         ":IslConversion",
-        ":Parser",
         "@googletest//:gtest_main",
         "@isl",
         "@llvm-project//llvm:Support",

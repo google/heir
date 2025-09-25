@@ -6,7 +6,6 @@
 
 #include "gtest/gtest.h"  // from @googletest
 #include "lib/Utils/Layout/IslConversion.h"
-#include "lib/Utils/Layout/Parser.h"
 #include "lib/Utils/Layout/Utils.h"
 #include "lib/Utils/TensorUtils.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
@@ -49,8 +48,11 @@ void runRowMajorTest(RankedTensorType tensorType, int64_t numSlots) {
 TEST(UtilsTest, TestAddModConstraint) {
   MLIRContext context;
 
-  IntegerRelation rel =
-      relationFromString("(x) : (x >= 0, 100 - x >= 0)", 1, &context);
+  auto maybeRel =
+      getIntegerRelationFromIslStr("{ [x] : x >= 0 and 100 - x >= 0 }");
+  ASSERT_TRUE(succeeded(maybeRel));
+
+  auto rel = maybeRel.value();
   unsigned result = addModConstraint(rel, {1, 0}, 32);  // x % 32
   rel.convertVarKind(VarKind::Local,
                      result - rel.getVarKindOffset(VarKind::Local),
@@ -156,19 +158,22 @@ TEST(UtilsTest, SquatDiagonalLayout) {
 
 TEST(UtilsTest, TestGetRangePoints) {
   MLIRContext context;
-  IntegerRelation rel =
-      relationFromString("(x) : (x >= 0, 7 >= x, x mod 3 == 0)", 0, &context);
+  auto rel = getIntegerRelationFromIslStr(
+      "{ [x] : x >= 0 and 7 >= x and x mod 3 = 0 }");
+  ASSERT_TRUE(succeeded(rel));
   std::vector<std::vector<int64_t>> expected = {{0}, {3}, {6}};
   PointCollector collector;
-  getRangePoints(rel, collector);
+  getRangePoints(rel.value(), collector);
   EXPECT_EQ(collector.points, expected);
 }
 
 TEST(UtilsTest, TestEnumeratePoints) {
   MLIRContext context;
   // Create a relation with 1 domain variable (x) and 1 range variable (y)
-  IntegerRelation rel = relationFromString(
-      "(x, y) : (x >= 0, 2 >= x, y >= 0, 1 >= y)", 1, &context);
+  IntegerRelation rel =
+      getIntegerRelationFromIslStr(
+          "{ [x] -> [y] : x >= 0 and 2 >= x and y >= 0 and 1 >= y }")
+          .value();
   PointPairCollector collector(1, 1);  // 1 domain dim, 1 range dim
   enumeratePoints(rel, collector);
 
@@ -228,10 +233,11 @@ TEST(UtilsTest, PerRowLayout) {
 
 TEST(UtilsTest, TestAnyRangePoint) {
   MLIRContext context;
-  IntegerRelation rel =
-      relationFromString("(x) : (x >= 0, 7 >= x, x mod 3 == 0)", 0, &context);
-  std::vector<int64_t> actual = anyRangePoint(rel);
-  EXPECT_TRUE(rel.containsPointNoLocal(actual).has_value());
+  auto rel = getIntegerRelationFromIslStr(
+      "{ [x] : x >= 0 and 7 >= x and x mod 3 = 0 }");
+  ASSERT_TRUE(succeeded(rel));
+  std::vector<int64_t> actual = anyRangePoint(rel.value());
+  EXPECT_TRUE(rel.value().containsPointNoLocal(actual).has_value());
 }
 
 TEST(UtilsTest, ConvFilterRelation) {

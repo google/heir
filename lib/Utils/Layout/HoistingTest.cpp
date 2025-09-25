@@ -7,7 +7,6 @@
 #include "lib/Utils/Layout/Codegen.h"
 #include "lib/Utils/Layout/Hoisting.h"
 #include "lib/Utils/Layout/IslConversion.h"
-#include "lib/Utils/Layout/Parser.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerRelation.h"  // from @llvm-project
@@ -28,30 +27,29 @@ TEST(HoistingTest, DiagonalLayoutRotateVecSlots) {
   // In this test, the vector is laid out row-major, and the conversion rotates
   // the slots by 3. This should hoist to a rotation of each diagonally-laid-out
   // vector by 3.
-  IntegerRelation fromVecLayout = relationFromString(
-      "(d, ct, slot) : "
-      "((d - slot) mod 8 == 0, "
-      "d >= 0, 7 >= d, slot >= 0, 15 >= slot, ct == 0)",
-      1, &context);
-  IntegerRelation toVecLayout = relationFromString(
-      "(d, ct, slot) : "
-      "((d - (slot + 3)) mod 8 == 0, "
-      "d >= 0, 7 >= d, slot >= 0, 15 >= slot, ct == 0)",
-      1, &context);
-  IntegerRelation matrixLayout = relationFromString(
-      "(row, col, ct, slot) : "
-      "((slot - row) mod 8 == 0, "
-      "(ct + slot - col) mod 8 == 0, "
-      "row >= 0, col >= 0, ct >= 0, slot >= 0, "
-      "15 >= slot, 7 >= ct, 7 >= row, 7 >= col)",
-      2, &context);
-  const IntegerRelation expected = relationFromString(
-      "(row, col, ct, slot) : "
-      "(((slot + 3) - row) mod 8 == 0, "
-      "(ct + (slot + 3) - col) mod 8 == 0, "
-      "row >= 0, col >= 0, ct >= 0, slot >= 0, "
-      "15 >= slot, 7 >= ct, 7 >= row, 7 >= col)",
-      2, &context);
+  auto maybeFromVecLayout = getIntegerRelationFromIslStr(
+      "{ [d] ->  [ct, slot] : (d - slot) mod 8 = 0 and d >= 0 and 7 >= d and "
+      "slot >= 0 and 15 >= slot and ct = 0 }");
+  ASSERT_TRUE(succeeded(maybeFromVecLayout));
+  auto fromVecLayout = maybeFromVecLayout.value();
+  auto maybeToVecLayout = getIntegerRelationFromIslStr(
+      "{ [d] ->  [ct, slot] : (d - (slot + 3)) mod 8 = 0 and d >= 0 and 7 >= d "
+      "and slot >= 0 and 15 >= slot and ct = 0 }");
+  ASSERT_TRUE(succeeded(maybeToVecLayout));
+  auto toVecLayout = maybeToVecLayout.value();
+  auto maybeMatrixLayout = getIntegerRelationFromIslStr(
+      "{ [row, col] -> [ct, slot] : (slot - row) mod 8 = 0 and (ct + slot - "
+      "col) mod 8 = 0 and row >= 0 and col >= 0 and ct >= 0 and slot >= 0 and "
+      "15 >= slot and 7 >= ct and 7 >= row and 7 >= col }");
+  ASSERT_TRUE(succeeded(maybeMatrixLayout));
+  auto matrixLayout = maybeMatrixLayout.value();
+  const IntegerRelation expected =
+      getIntegerRelationFromIslStr(
+          "{ [row, col] -> [ct, slot] : ((slot + 3) - row) mod 8 = 0 and "
+          "(ct + (slot + 3) - col) mod 8 = 0 and row >= 0 and col >= 0 and ct "
+          ">= 0 and slot >= 0 and 15 >= slot and 7 >= ct and 7 >= row and 7 >= "
+          "col }")
+          .value();
 
   IntegerRelation actual =
       hoistConversionThroughMatvec(matrixLayout, fromVecLayout, toVecLayout);
@@ -81,30 +79,29 @@ TEST(HoistingTest, RowMajorLayoutRotateVecSlots) {
   MLIRContext context;
   // Same as DiagonalLayoutRotateVecSlots, but the matrix is laid out in
   // naive row-major order (one row per ciphertext)
-  IntegerRelation fromVecLayout = relationFromString(
-      "(d, ct, slot) : "
-      "((d - slot) mod 8 == 0, "
-      "d >= 0, 7 >= d, slot >= 0, 15 >= slot, ct == 0)",
-      1, &context);
-  IntegerRelation toVecLayout = relationFromString(
-      "(d, ct, slot) : "
-      "((d - (slot + 3)) mod 8 == 0, "
-      "d >= 0, 7 >= d, slot >= 0, 15 >= slot, ct == 0)",
-      1, &context);
-  IntegerRelation matrixLayout = relationFromString(
-      "(row, col, ct, slot) : "
-      "(ct - row == 0, "
-      "(slot - col) mod 8 == 0, "
-      "row >= 0, col >= 0, ct >= 0, slot >= 0, "
-      "15 >= slot, 7 >= ct, 7 >= row, 7 >= col)",
-      2, &context);
-  const IntegerRelation expected = relationFromString(
-      "(row, col, ct, slot) : "
-      "(ct - row == 0, "
-      "((slot + 3) - col) mod 8 == 0, "
-      "row >= 0, col >= 0, ct >= 0, slot >= 0, "
-      "15 >= slot, 7 >= ct, 7 >= row, 7 >= col)",
-      2, &context);
+  auto maybeFromVecLayout = getIntegerRelationFromIslStr(
+      "{[d] -> [ct, slot] : (d - slot) mod 8 = 0 and d >= 0 and 7 >= d and "
+      "slot >= 0 and 15 >= slot and ct = 0}");
+  ASSERT_TRUE(succeeded(maybeFromVecLayout));
+  auto fromVecLayout = maybeFromVecLayout.value();
+  auto maybeToVecLayout = getIntegerRelationFromIslStr(
+      "{[d] -> [ct, slot] : (d - (slot + 3)) mod 8 = 0 and d >= 0 and 7 >= d "
+      "and slot >= 0 and 15 >= slot and ct = 0}");
+  ASSERT_TRUE(succeeded(maybeToVecLayout));
+  auto toVecLayout = maybeToVecLayout.value();
+  auto maybeMatrixLayout = getIntegerRelationFromIslStr(
+      "{[row, col] -> [ct, slot] : ct - row = 0 and (slot - col) mod 8 = 0 "
+      "and row >= 0 and col >= 0 and ct >= 0 and slot >= 0 and 15 >= slot and "
+      "7 >= ct and 7 >= row and 7 >= col}");
+  ASSERT_TRUE(succeeded(maybeMatrixLayout));
+  auto matrixLayout = maybeMatrixLayout.value();
+  const IntegerRelation expected =
+      getIntegerRelationFromIslStr(
+          "{[row, col] -> [ct, slot] : ct - row = 0 and "
+          "((slot + 3) - col) mod 8 = 0 and row >= 0 and col >= 0 and ct >= "
+          "0 and slot >= 0 and 15 >= slot and 7 >= ct and 7 >= row and 7 >= "
+          "col}")
+          .value();
 
   IntegerRelation actual =
       hoistConversionThroughMatvec(matrixLayout, fromVecLayout, toVecLayout);
@@ -134,30 +131,28 @@ TEST(HoistingTest, RowMajorLayoutExpandVecSlots) {
   MLIRContext context;
   // The vector packing changes from repeating the entire vec to repeating
   // individual entries. (e.g., a b c a b c -> a a b b c c)
-  IntegerRelation fromVecLayout = relationFromString(
-      "(d, ct, slot) : "
-      "((d - slot) mod 8 == 0, "
-      "d >= 0, 7 >= d, slot >= 0, 15 >= slot, ct == 0)",
-      1, &context);
-  IntegerRelation toVecLayout = relationFromString(
-      "(d, ct, slot) : "
-      "(d - (slot floordiv 2) == 0, "
-      "d >= 0, 7 >= d, slot >= 0, 15 >= slot, ct == 0)",
-      1, &context);
-  IntegerRelation matrixLayout = relationFromString(
-      "(row, col, ct, slot) : "
-      "(ct - row == 0, "
-      "(slot - col) mod 8 == 0, "
-      "row >= 0, col >= 0, ct >= 0, slot >= 0, "
-      "15 >= slot, 7 >= ct, 7 >= row, 7 >= col)",
-      2, &context);
-  const IntegerRelation expected = relationFromString(
-      "(row, col, ct, slot) : "
-      "(ct - row == 0, "
-      "(slot floordiv 2) - col == 0, "
-      "row >= 0, col >= 0, ct >= 0, slot >= 0, "
-      "15 >= slot, 7 >= ct, 7 >= row, 7 >= col)",
-      2, &context);
+  auto maybeFromVecLayout = getIntegerRelationFromIslStr(
+      "{[d] -> [ct, slot] : (d - slot) mod 8 = 0 and d >= 0 and 7 >= d and "
+      "slot >= 0 and 15 >= slot and ct = 0}");
+  ASSERT_TRUE(succeeded(maybeFromVecLayout));
+  auto fromVecLayout = maybeFromVecLayout.value();
+  auto maybeToVecLayout = getIntegerRelationFromIslStr(
+      "{[d] -> [ct, slot] : d - (slot // 2) = 0 and d >= 0 and 7 >= d "
+      "and slot >= 0 and 15 >= slot and ct = 0}");
+  ASSERT_TRUE(succeeded(maybeToVecLayout));
+  auto toVecLayout = maybeToVecLayout.value();
+  auto maybeMatrixLayout = getIntegerRelationFromIslStr(
+      "{[row, col] -> [ct, slot] : ct - row = 0 and (slot - col) mod 8 = 0 "
+      "and row >= 0 and col >= 0 and ct >= 0 and slot >= 0 and 15 >= slot and "
+      "7 >= ct and 7 >= row and 7 >= col}");
+  ASSERT_TRUE(succeeded(maybeMatrixLayout));
+  auto matrixLayout = maybeMatrixLayout.value();
+  const IntegerRelation expected =
+      getIntegerRelationFromIslStr(
+          "{[row, col] -> [ct, slot] : ct - row = 0 and "
+          "(slot // 2) - col = 0 and row >= 0 and col >= 0 and ct >= 0 "
+          "and slot >= 0 and 15 >= slot and 7 >= ct and 7 >= row and 7 >= col}")
+          .value();
 
   IntegerRelation actual =
       hoistConversionThroughMatvec(matrixLayout, fromVecLayout, toVecLayout);

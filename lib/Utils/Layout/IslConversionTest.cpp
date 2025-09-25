@@ -3,7 +3,6 @@
 
 #include "gtest/gtest.h"  // from @googletest
 #include "lib/Utils/Layout/IslConversion.h"
-#include "lib/Utils/Layout/Parser.h"
 #include "llvm/include/llvm/ADT/StringRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project

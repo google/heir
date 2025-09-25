@@ -5,7 +5,6 @@
 #include "gtest/gtest.h"  // from @googletest
 #include "lib/Utils/Layout/Codegen.h"
 #include "lib/Utils/Layout/IslConversion.h"
-#include "lib/Utils/Layout/Parser.h"
 #include "lib/Utils/Layout/Utils.h"
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
@@ -18,15 +17,16 @@ namespace mlir {
 namespace heir {
 namespace {
 
-using presburger::IntegerRelation;
 using ::testing::Eq;
 
 TEST(CodegenTest, PureAffineEquality) {
   MLIRContext context;
-  IntegerRelation relation = relationFromString(
-      "(d0, d1) : (d0 - d1 == 0, d0 >= 0, d1 >= 0, 10 >= d0, 10 >= d1)", 1,
-      &context);
-  auto result = generateLoopNestAsCStr(relation);
+  auto relation = getIntegerRelationFromIslStr(
+      "{ [d0] -> [d1] : d0 - d1 = 0 and d0 >= 0 and d1 >= 0 and 10 >= d0 and "
+      "10 "
+      ">= d1 }");
+  ASSERT_TRUE(succeeded(relation));
+  auto result = generateLoopNestAsCStr(relation.value());
   ASSERT_TRUE(succeeded(result));
   std::string actual = result.value();
   std::string expected = R"(
@@ -38,11 +38,12 @@ for (int c0 = 0; c0 <= 10; c0 += 1)
 
 TEST(CodegenTest, EqualityWithMod) {
   MLIRContext context;
-  IntegerRelation relation = relationFromString(
-      "(d0, d1) : ((d0 - d1) mod 2 == 0, d0 >= 0, d1 >= 0, 10 >= d0, 30 >= d1)",
-      1, &context);
+  auto relation = getIntegerRelationFromIslStr(
+      "{ [d0] -> [d1] : (d0 - d1) mod 2 = 0 and d0 >= 0 and d1 >= 0 and 10 >= "
+      "d0 and 30 >= d1 }");
+  ASSERT_TRUE(succeeded(relation));
 
-  auto result = generateLoopNestAsCStr(relation);
+  auto result = generateLoopNestAsCStr(relation.value());
   ASSERT_TRUE(succeeded(result));
   std::string actual = result.value();
   std::string expected = R"(
@@ -57,12 +58,13 @@ TEST(CodegenTest, HaleviShoup) {
   MLIRContext context;
   // Data is 32x64, being packed into ciphertexts of size 1024 via Halevi-Shoup
   // diagonal layout.
-  IntegerRelation relation = relationFromString(
-      "(row, col, ct, slot) : ((slot - row) mod 32 == 0, (ct + slot - col) mod "
-      "64 == 0, row >= 0, col >= 0, ct >= 0, slot >= 0, 1023 >= slot, 31 >= "
-      "ct, 31 >= row, 63 >= col)",
-      2, &context);
-  auto result = generateLoopNestAsCStr(relation);
+  auto relation = getIntegerRelationFromIslStr(
+      "{ [row, col] -> [ct, slot] : (slot - row) mod 32 = 0 and (ct + slot - "
+      "col) mod 64 = 0 and row >= 0 and col >= 0 and ct >= 0 and slot >= 0 "
+      "and 1023 >= slot and 31 >= ct and 31 >= row and 63 >= col }");
+  ASSERT_TRUE(succeeded(relation));
+
+  auto result = generateLoopNestAsCStr(relation.value());
   ASSERT_TRUE(succeeded(result));
   std::string actual = result.value();
   std::string expected = R"(
@@ -75,18 +77,18 @@ for (int c0 = 0; c0 <= 31; c0 += 1)
 
 TEST(CodegenTest, HaleviShoupWithSimplify) {
   MLIRContext context;
-  IntegerRelation relation = relationFromString(
-      "(row, col, ct, slot) : "
-      "((slot - row) mod 512 == 0, "
-      "(ct + slot - col) mod 512 == 0, "
-      "row >= 0, col >= 0, ct >= 0, slot >= 0, "
-      "1023 >= slot, 511 >= ct, 511 >= row, 511 >= col)",
-      2, &context);
+  auto relation = getIntegerRelationFromIslStr(
+      "{ [row, col] -> [ct, slot] : "
+      "(slot - row) mod 512 = 0 and "
+      "(ct + slot - col) mod 512 = 0 and "
+      "row >= 0 and col >= 0 and ct >= 0 and slot >= 0 and "
+      "1023 >= slot and 511 >= ct and 511 >= row and 511 >= col }");
+  ASSERT_TRUE(succeeded(relation));
 
   // A test to ensure simplifying the relation in FPL doesn't break codegen,
   // which it did in an earlier iteration of the codegen routine.
-  relation.simplify();
-  auto result = generateLoopNestAsCStr(relation);
+  relation.value().simplify();
+  auto result = generateLoopNestAsCStr(relation.value());
   ASSERT_TRUE(succeeded(result));
   std::string actual = result.value();
   std::string expected = R"(
@@ -101,12 +103,11 @@ TEST(CodegenTest, RowMajor) {
   MLIRContext context;
   // Data is 32 being packed into ciphertexts of size 1024 via row-major
   // layout.
-  IntegerRelation relation = relationFromString(
-      "(row, ct, slot) : ((slot - row) mod 32 == 0, row >= 0, ct >= 0, slot >= "
-      "0, 1023 >= slot, 0 >= "
-      "ct, 31 >= row)",
-      1, &context);
-  auto result = generateLoopNestAsCStr(relation);
+  auto relation = getIntegerRelationFromIslStr(
+      "{ [row] -> [ct, slot] : (slot - row) mod 32 = 0 and row >= 0 and ct >= "
+      "0 and slot >= 0 and 1023 >= slot and 0 >= ct and 31 >= row }");
+  ASSERT_TRUE(succeeded(relation));
+  auto result = generateLoopNestAsCStr(relation.value());
   ASSERT_TRUE(succeeded(result));
   std::string actual = result.value();
   std::string expected = R"(
