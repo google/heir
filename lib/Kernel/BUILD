@@ -96,10 +96,14 @@ cc_test(
         "RotateAndReduceImplTest.cpp",
     ],
     deps = [
+        ":AbstractValue",
         ":ArithmeticDag",
         ":Kernel",
         ":KernelImplementation",
         ":TestingUtils",
         "@googletest//:gtest_main",
+        "@heir//lib/Utils/Layout:Evaluate",
+        "@heir//lib/Utils/Layout:Utils",
+        "@llvm-project//mlir:IR",
     ],
 )

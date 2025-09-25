@@ -323,7 +323,7 @@ presburger::IntegerRelation get2dConvFilterRelation(RankedTensorType filterType,
   // mr, mc = matrix row, matrix col
   //
   // mr = (idr + P)*fsc + (idc + P) = P + P*fsc + idr * fsc + idc
-  // mc = -(P + fc * P) + mr + (ifc) + fr*(ifr)
+  // mc = (idr * dr + idc) + (ifc) + dr*(ifr)
   addConstraint(result,
                 {{matRow, -1},
                  {constCoeff, (filterSlidingCols + 1) * (padding)},
@@ -332,12 +332,31 @@ presburger::IntegerRelation get2dConvFilterRelation(RankedTensorType filterType,
                 /*equality=*/true);
   addConstraint(result,
                 {{matCol, -1},
-                 {constCoeff, -(padding + filterColSize * padding)},
-                 {matRow, 1},
+                 {dataRow, dataRowSize},
+                 {dataCol, 1},
                  {filterCol, 1},
-                 {filterRow, filterRowSize}},
+                 {filterRow, dataRowSize}},
                 /*equality=*/true);
   return result;
+}
+
+RankedTensorType get2dConvFilterExpandedType(RankedTensorType filterType,
+                                             RankedTensorType dataType,
+                                             int64_t padding) {
+  auto filterRowSize = filterType.getDimSize(0);
+  auto filterColSize = filterType.getDimSize(1);
+  auto dataRowSize = dataType.getDimSize(0);
+  auto dataColSize = dataType.getDimSize(1);
+
+  // Number of rows will be the filter sliding rows * filter sliding columns.
+  int64_t filterSlidingRows = dataRowSize + 2 * padding - filterRowSize + 1;
+  int64_t filterSlidingCols = dataColSize + 2 * padding - filterColSize + 1;
+  int64_t rows = filterSlidingRows * filterSlidingCols;
+
+  // Number of columns will be the number of data elements.
+  int64_t cols = dataType.getNumElements();
+
+  return RankedTensorType::get({rows, cols}, filterType.getElementType());
 }
 
 FailureOr<presburger::IntegerRelation> get2dConvFilterDiagonalizedRelation(
@@ -357,8 +376,9 @@ FailureOr<presburger::IntegerRelation> get2dConvFilterDiagonalizedRelation(
   if (!colBound.has_value()) {
     return failure();
   }
-  RankedTensorType expandedFilterType = RankedTensorType::get(
-      {rowBound.value(), colBound.value()}, filterType.getElementType());
+  RankedTensorType expandedFilterType =
+      RankedTensorType::get({rowBound.value() + 1, colBound.value() + 1},
+                            filterType.getElementType());
 
   auto diagonalizedFilterRelation =
       getDiagonalLayoutRelation(expandedFilterType, ciphertextSize);

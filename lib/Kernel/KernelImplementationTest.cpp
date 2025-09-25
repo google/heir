@@ -1,10 +1,15 @@
 #include <vector>
 
 #include "gtest/gtest.h"  // from @googletest
+#include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
 #include "lib/Kernel/KernelImplementation.h"
 #include "lib/Kernel/KernelName.h"
 #include "lib/Kernel/TestingUtils.h"
+#include "lib/Utils/Layout/Evaluate.h"
+#include "lib/Utils/Layout/Utils.h"
+#include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"   // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -68,6 +73,69 @@ TEST(KernelImplementationTest, TestExtract) {
       ArithmeticDagNode<LiteralValue>::leaf(matrixInput), 1);
   LiteralValue actual = evalKernel(dag);
   EXPECT_EQ(std::get<std::vector<int>>(actual.getTensor()), expected);
+}
+
+TEST(KernelImplementationTest, TestHaleviShoupMatvecWithLayout) {
+  MLIRContext context;
+  std::vector<int> vector = {0, 1, 2, 3};
+  // Pre-packed diagonally
+  std::vector<std::vector<int>> matrix = {
+      {0, 1, 2, 3}, {4, 5, 6, 7}, {8, 9, 10, 11}, {12, 13, 14, 15}};
+  auto diagonalLayout = getDiagonalLayoutRelation(
+      RankedTensorType::get({4, 4}, IndexType::get(&context)), 4);
+  std::vector<std::vector<int>> diagonalMatrix =
+      evaluateLayoutOnMatrix(diagonalLayout, matrix);
+
+  std::vector<int> expected = {14, 38, 62, 86};
+  LiteralValue matrixInput = diagonalMatrix;
+  LiteralValue vectorInput = vector;
+
+  auto dag =
+      implementMatvec(KernelName::MatvecDiagonal, matrixInput, vectorInput);
+  LiteralValue actual = evalKernel(dag);
+  EXPECT_EQ(std::get<std::vector<int>>(actual.getTensor()), expected);
+}
+
+TEST(KernelImplementationTest, Test2DConvWithLayout) {
+  MLIRContext context;
+  RankedTensorType dataType =
+      RankedTensorType::get({3, 3}, IndexType::get(&context));
+  RankedTensorType filterType =
+      RankedTensorType::get({2, 2}, IndexType::get(&context));
+
+  // 3x3 input data, 2x2 filter
+  std::vector<std::vector<int>> data = {{1, -1, 0}, {-3, 0, 2}, {8, 9, 1}};
+  std::vector<std::vector<int>> matrix = {{1, -1}, {-1, 1}};
+
+  auto dataLayout = getRowMajorLayoutRelation(dataType, 16);
+  std::vector<std::vector<int>> packedData =
+      evaluateLayoutOnMatrix(dataLayout, data);
+
+  auto filterLayout = get2dConvFilterRelation(filterType, dataType, 0);
+  std::vector<std::vector<int>> packedFilter =
+      evaluateLayoutOnMatrix(filterLayout, matrix);
+
+  auto matrixLayout = get2dConvFilterDiagonalizedRelation(filterType, dataType,
+                                                          /*padding=*/0, 16)
+                          .value();
+  std::vector<std::vector<int>> packedMatrix =
+      evaluateLayoutOnMatrix(matrixLayout, matrix);
+  RankedTensorType expandedMatrixType =
+      get2dConvFilterExpandedType(filterType, dataType, /*padding=*/0);
+
+  std::vector<int> expected = {5, 1, -2, -10};
+  LiteralValue matrixInput = packedMatrix;
+  LiteralValue vectorInput = packedData[0];
+
+  auto dag = implementHaleviShoup(vectorInput, matrixInput,
+                                  expandedMatrixType.getShape());
+  LiteralValue actual = evalKernel(dag);
+  // Result is a 2x2 tensor repeated row-major in a tensor of size 16.
+  std::vector<int> actualVector =
+      std::get<std::vector<int>>(actual.getTensor());
+  std::vector<int> extractedResult = {actualVector.begin(),
+                                      actualVector.begin() + 4};
+  EXPECT_EQ(extractedResult, expected);
 }
 
 }  // namespace
