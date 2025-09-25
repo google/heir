@@ -57,6 +57,33 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "Evaluate",
+    srcs = ["Evaluate.cpp"],
+    hdrs = ["Evaluate.h"],
+    deps = [
+        ":IslConversion",
+        "@isl",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:ArithUtils",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_test(
+    name = "EvaluateTest",
+    srcs = ["EvaluateTest.cpp"],
+    deps = [
+        ":Evaluate",
+        ":IslConversion",
+        ":Utils",
+        "@googletest//:gtest_main",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:IR",
+    ],
+)
+
 cc_test(
     name = "UtilsTest",
     srcs = ["UtilsTest.cpp"],
