@@ -21,7 +21,7 @@ static std::unordered_map<KernelName, std::string> correspondingOp = {
     {KernelName::MatvecDiagonal, "linalg.matvec"},
     {KernelName::VecmatDiagonal, "linalg.vecmat"},
     {KernelName::MatmulDiagonal, "linalg.matmul"},
-    {KernelName::Conv2dMatvec, "linalg.conv2d"},
+    {KernelName::MatmulDiagonal, "linalg.conv2d"},
 };
 
 std::set<std::string> requiredNontrivial = {"linalg"};
@@ -66,8 +66,6 @@ std::string kernelNameAsStr(const KernelName& kernelName) {
       return "MatmulDiagonal";
     case KernelName::VecmatDiagonal:
       return "VecmatDiagonal";
-    case KernelName::Conv2dMatvec:
-      return "Conv2dMatvec";
     default:
       return "Unknown";
   }

@@ -634,7 +634,7 @@ LogicalResult NewLayoutPropagation::visitOperation(Conv2DOp op) {
 
   // Add secret.kernel attribute for Conv2dMatvec
   auto kernelAttr =
-      secret::KernelAttr::get(ctx, KernelName::Conv2dMatvec, /*force=*/false);
+      secret::KernelAttr::get(ctx, KernelName::MatvecDiagonal, /*force=*/false);
   op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
 
   return success();

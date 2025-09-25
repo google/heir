@@ -28,7 +28,6 @@ struct FieldParser<heir::KernelName> {
     if (kernelName == "MatvecDiagonal") return heir::KernelName::MatvecDiagonal;
     if (kernelName == "VecmatDiagonal") return heir::KernelName::VecmatDiagonal;
     if (kernelName == "MatmulDiagonal") return heir::KernelName::MatmulDiagonal;
-    if (kernelName == "Conv2dMatvec") return heir::KernelName::Conv2dMatvec;
 
     return failure();
   }

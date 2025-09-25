@@ -1,6 +1,6 @@
 // RUN: heir-opt --new-layout-propagation --fold-convert-layout-into-assign-layout %s | FileCheck %s
 
-// CHECK: #kernel = #secret.kernel<name = "Conv2dMatvec", force = false>
+// CHECK: #kernel = #secret.kernel<name = "MatvecDiagonal", force = false>
 // CHECK: @conv2d
 // CHECK-SAME: %[[arg0:.*]]: !secret.secret<tensor<5x5xf32>> {tensor_ext.layout = [[rm_layout:.*]]}) ->
 func.func @conv2d(%arg0: !secret.secret<tensor<5x5xf32>>) -> !secret.secret<tensor<3x3xf32>> {
