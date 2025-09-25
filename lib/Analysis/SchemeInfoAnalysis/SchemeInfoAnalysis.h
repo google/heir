@@ -241,6 +241,8 @@ class SchemeInfoAnalysis
 
 void annotateNatureOfComputation(Operation *top, DataFlowSolver *solver);
 
+void annotateModule(Operation *top, DataFlowSolver *solver);
+
 }  // namespace heir
 }  // namespace mlir
 

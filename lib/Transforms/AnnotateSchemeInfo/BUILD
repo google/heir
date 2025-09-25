@@ -13,8 +13,11 @@ cc_library(
     ],
     deps = [
         ":pass_inc_gen",
+        "@heir//lib/Analysis/LevelAnalysis",
+        "@heir//lib/Analysis/MulDepthAnalysis",
         "@heir//lib/Analysis/SchemeInfoAnalysis",
         "@heir//lib/Analysis/SchemeSelectionAnalysis",
+        "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Transforms/AnnotateModule",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",

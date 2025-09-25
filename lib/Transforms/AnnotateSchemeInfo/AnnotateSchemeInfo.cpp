@@ -1,7 +1,10 @@
 #include "lib/Transforms/AnnotateSchemeInfo/AnnotateSchemeInfo.h"
 
+#include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
+#include "lib/Analysis/MulDepthAnalysis/MulDepthAnalysis.h"
 #include "lib/Analysis/SchemeInfoAnalysis/SchemeInfoAnalysis.h"
 #include "lib/Analysis/SchemeSelectionAnalysis/SchemeSelectionAnalysis.h"
+#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Transforms/AnnotateModule/AnnotateModule.h"
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
@@ -23,6 +26,9 @@ struct AnnotateSchemeInfo : impl::AnnotateSchemeInfoBase<AnnotateSchemeInfo> {
     DataFlowSolver solver;
     solver.load<dataflow::DeadCodeAnalysis>();
     solver.load<dataflow::SparseConstantPropagation>();
+    solver.load<SecretnessAnalysis>();
+    solver.load<LevelAnalysis>();
+    solver.load<MulDepthAnalysis>();
     solver.load<SchemeInfoAnalysis>();
     solver.load<SchemeSelectionAnalysis>();
 
