@@ -10,6 +10,8 @@
 #include <utility>
 #include <vector>
 
+#include "lib/Dialect/Secret/IR/SecretAttributes.h"
+#include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
@@ -18,6 +20,7 @@
 #include "lib/Kernel/ArithmeticDag.h"
 #include "lib/Kernel/IRMaterializingVisitor.h"
 #include "lib/Kernel/KernelImplementation.h"
+#include "lib/Kernel/KernelName.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/AssignLayout.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/TypeConversion.h"
 #include "lib/Transforms/DropUnitDims/DropUnitDims.h"
@@ -1031,6 +1034,122 @@ struct ConvertLinalgMatvecNewLayout
   }
 };
 
+struct ConvertLinalgConv2D
+    : public ContextAwareOpConversionPattern<linalg::Conv2DOp> {
+ public:
+  using ContextAwareOpConversionPattern<
+      linalg::Conv2DOp>::ContextAwareOpConversionPattern;
+
+  ConvertLinalgConv2D(
+      const ContextAwareTypeConverter& contextAwareTypeConverter,
+      MLIRContext* context)
+      : ContextAwareOpConversionPattern(contextAwareTypeConverter, context,
+                                        /*benefit=*/10) {}
+
+  NewLayoutAttr getNewLayoutAttr(Value value) const {
+    auto layoutLookup = getTypeConverter()->getContextualAttr(value);
+    if (failed(layoutLookup)) {
+      return nullptr;
+    }
+    return dyn_cast<NewLayoutAttr>(layoutLookup.value());
+  }
+
+  bool supportsExpandedHaleviShoup(linalg::Conv2DOp op,
+                                   OpAdaptor adaptor) const {
+    Value filter = adaptor.getInputs().back();
+    auto materializedFilterType = cast<RankedTensorType>(filter.getType());
+
+    // If one of these dimensions is not a power of two, then we can't do
+    // the Halevi-Shoup or Squat Packing Matrix Multiplication conversion.
+    auto dimensions = materializedFilterType.getShape();
+    int64_t numRows = dimensions[0];
+    int64_t numCols = dimensions[1];
+    bool isPowerOfTwoDims = isPowerOfTwo(numRows) && isPowerOfTwo(numCols);
+
+    // TODO(#1578): If the matrix has more rows than columns, what kernel
+    // should be used?
+    bool isMatrixCompatible = numRows <= numCols;
+
+    auto kernelAttr = op->getAttrOfType<secret::KernelAttr>(
+        secret::SecretDialect::kKernelAttrName);
+    bool isConv2dAsMatvec =
+        kernelAttr && kernelAttr.getName() == KernelName::Conv2dMatvec;
+
+    LLVM_DEBUG(llvm::dbgs()
+               << "supports expanded conv2d as matvec with halevi-shoup: "
+               << "isPowerOfTwoDims=" << isPowerOfTwoDims
+               << " isMatrixCompatible=" << isMatrixCompatible
+               << " isConv2dAsMatvec=" << isConv2dAsMatvec << "\n");
+
+    return isPowerOfTwoDims && isMatrixCompatible && isConv2dAsMatvec;
+  }
+
+  void haleviShoupKernel(
+      linalg::Conv2DOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const {
+    LLVM_DEBUG(llvm::dbgs()
+               << "Converting linalg.conv2d op with halevi shoup kernel: " << op
+               << "\n");
+
+    TypedValue<RankedTensorType> data =
+        cast<TypedValue<RankedTensorType>>(adaptor.getInputs()[0]);
+    SSAValue vectorLeaf(data);
+    TypedValue<RankedTensorType> matrix =
+        cast<TypedValue<RankedTensorType>>(adaptor.getInputs()[1]);
+    SSAValue matrixLeaf(matrix);
+
+    // The original matrix shape is the shape of the expanded filter.
+    RankedTensorType expandedMatrixType = get2dConvFilterExpandedType(
+        cast<RankedTensorType>(op.getInputs()[1].getType()),
+        cast<RankedTensorType>(op.getInputs()[0].getType()), /*padding=*/0);
+    std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
+        implementHaleviShoup(vectorLeaf, matrixLeaf,
+                             expandedMatrixType.getShape());
+
+    rewriter.setInsertionPointAfter(op);
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    IRMaterializingVisitor visitor(b, data.getType());
+    Value finalOutput = implementedKernel->visit(visitor);
+
+    auto layoutAttr = cast<NewLayoutAttr>(op->getAttr(kLayoutAttrName));
+    auto finalOutputOp = finalOutput.getDefiningOp();
+    finalOutputOp->setAttr(kLayoutAttrName, layoutAttr);
+    setMaterializedAttr(finalOutputOp);
+
+    // Add the initial accumulator value.
+    Type elementType = data.getType().getElementType();
+    StringRef addOpName =
+        isa<IntegerType>(elementType) ? "arith.addi" : "arith.addf";
+    Value result = adaptor.getOutputs()[0];
+    Operation* addBias =
+        b.create(OperationState(op->getLoc(), addOpName, {finalOutput, result},
+                                {finalOutput.getType()}));
+    addBias->setAttr(kLayoutAttrName, layoutAttr);
+    setMaterializedAttr(addBias);
+    rewriter.replaceOp(op, addBias);
+  }
+
+  LogicalResult matchAndRewrite(
+      linalg::Conv2DOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    Value data = adaptor.getInputs().front();
+    Value filter = adaptor.getInputs().back();
+    NewLayoutAttr dataLayout = getNewLayoutAttr(data);
+    NewLayoutAttr filterLayout = getNewLayoutAttr(filter);
+
+    if (!dataLayout || !filterLayout)
+      return rewriter.notifyMatchFailure(
+          op, "missing new layout attribute for data and filter");
+
+    if (supportsExpandedHaleviShoup(op, adaptor)) {
+      haleviShoupKernel(op, adaptor, rewriter);
+      return success();
+    }
+
+    return op.emitError() << "unsupported layout for 2d conv";
+  }
+};
+
 Value makeMask(ContextAwareConversionPatternRewriter& rewriter, Location loc,
                Value index, RankedTensorType ciphertextSemanticType) {
   // The ciphertext tensor is a 1D tensor, so the applyOp's result is a
@@ -2034,7 +2153,7 @@ struct ConvertToCiphertextSemantics
                  ConvertConvertLayout, ConvertConvertLayoutNewLayout,
                  // linalg ops
                  ConvertLinalgReduce, ConvertLinalgMatvec,
-                 ConvertLinalgMatvecNewLayout,
+                 ConvertLinalgMatvecNewLayout, ConvertLinalgConv2D,
                  // tensor ops
                  ConvertTensorExtract, ConvertTensorInsert,
                  ConvertTensorExtractNewLayout, ConvertTensorInsertNewLayout,

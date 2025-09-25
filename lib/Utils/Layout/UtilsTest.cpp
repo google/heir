@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "gtest/gtest.h"  // from @googletest
+#include "lib/Utils/Layout/Evaluate.h"
 #include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/Layout/Utils.h"
 #include "lib/Utils/TensorUtils.h"
@@ -317,6 +318,29 @@ TEST(UtilsTest, ConvFilterRelationPadding2) {
       BoundType::UB, convFilterRelation.getVarKindOffset(VarKind::Range));
   ASSERT_TRUE(ctBound.has_value());
   EXPECT_EQ(ctBound.value(), 35);
+}
+
+TEST(UtilsTest, ConvFilterRelationEvaluate) {
+  MLIRContext context;
+  RankedTensorType filterType =
+      RankedTensorType::get({2, 2}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({3, 3}, IndexType::get(&context));
+  int64_t padding = 0;
+  IntegerRelation convFilterRelation =
+      get2dConvFilterRelation(filterType, dataType, padding);
+
+  std::vector<std::vector<int>> filter = {{1, -1}, {-1, 1}};
+  std::vector<std::vector<int>> packedFilter =
+      evaluateLayoutOnMatrix(convFilterRelation, filter);
+
+  std::vector<std::vector<int>> expected = {
+      {1, -1, 0, -1, 1, 0, 0, 0, 0},
+      {0, 1, -1, 0, -1, 1, 0, 0, 0},
+      {0, 0, 0, 1, -1, 0, -1, 1, 0},
+      {0, 0, 0, 0, 1, -1, 0, -1, 1},
+  };
+  EXPECT_EQ(packedFilter, expected);
 }
 
 }  // namespace
