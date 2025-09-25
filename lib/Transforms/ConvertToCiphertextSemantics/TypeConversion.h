@@ -2,7 +2,7 @@
 #define LIB_TRANSFORMS_CONVERTTOCIPHERTEXTSEMANTICS_TYPECONVERSION_H_
 
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
-#include "mlir/include/mlir/IR/Types.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {

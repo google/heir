@@ -11,6 +11,7 @@ def LowerUnpack : Pass<"lower-unpack"> {
   let dependentDialects = [
     "mlir::tensor::TensorDialect",
     "mlir::arith::ArithDialect",
+    "mlir::scf::SCFDialect",
   ];
 }
 
