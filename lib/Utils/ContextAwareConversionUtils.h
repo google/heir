@@ -4,18 +4,17 @@
 #include <cstdint>
 #include <functional>
 #include <numeric>
+#include <optional>
+#include <string>
 
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
-#include "lib/Dialect/LWE/IR/LWETraits.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Utils/AttributeUtils.h"
-#include "lib/Utils/ContextAwareDialectConversion.h"
-#include "lib/Utils/ContextAwareTypeConversion.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
@@ -30,101 +29,23 @@
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
+#include "mlir/include/mlir/Interfaces/FunctionInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
 
-// Replace the input op with a new op where all operands and results have been
-// replaced by their type-converted versions, and all regions. Note that the
-// input ArrayRef<Value> for operands must already be type converted (this is
-// true when this is called from a ContextAwareConversionPattern).
-FailureOr<Operation*> convertGeneral(
-    const ContextAwareTypeConverter* typeConverter, Operation* op,
-    ArrayRef<Value> operands, ContextAwareConversionPatternRewriter& rewriter);
-
-template <typename T = void>
-struct ConvertAnyContextAware : public ContextAwareConversionPattern {
-  ConvertAnyContextAware(
-      const ContextAwareTypeConverter& anyContextAwareTypeConverter,
-      MLIRContext* context, int benefit = 1)
-      : ContextAwareConversionPattern(anyContextAwareTypeConverter,
-                                      RewritePattern::MatchAnyOpTypeTag(),
-                                      benefit, context) {
-    setDebugName("ConvertAnyContextAware");
-    setHasBoundedRewriteRecursion(true);
-  }
-
-  // A hook to allow postprocessing of the op after it is otherwise generically
-  // converted. This is useful in context-aware dialect conversion because the
-  // context is often an attribute attached to an op, and we may want to remove
-  // that attribute as part of the means to signal the conversion is done.
-  virtual LogicalResult finalizeOpModification(
-      T op, ContextAwareConversionPatternRewriter& rewriter) const {
-    return success();
-  };
-
-  // Generate a new op where all operands have been replaced with their
-  // materialized/typeconverted versions, and all regions have their block
-  // signatures converter. Note the input ArrayRef<Value> is already type
-  // converted.
-  LogicalResult matchAndRewrite(
-      Operation* op, ArrayRef<Value> operands,
-      ContextAwareConversionPatternRewriter& rewriter) const override {
-    if (!isa<T>(op)) {
-      return failure();
-    }
-
-    auto result = convertGeneral(getTypeConverter(), op, operands, rewriter);
-    if (failed(result)) return failure();
-
-    return finalizeOpModification(cast<T>(result.value()), rewriter);
-  }
-};
-
-template <>
-struct ConvertAnyContextAware<void> : public ContextAwareConversionPattern {
-  ConvertAnyContextAware<void>(
-      const ContextAwareTypeConverter& anyContextAwareTypeConverter,
-      MLIRContext* context, int benefit = 1)
-      : ContextAwareConversionPattern(anyContextAwareTypeConverter,
-                                      RewritePattern::MatchAnyOpTypeTag(),
-                                      benefit, context) {
-    setDebugName("ConvertAnyContextAware");
-    setHasBoundedRewriteRecursion(true);
-  }
-
-  // A hook to allow postprocessing of the op after it is otherwise generically
-  // converted. This is useful in context-aware dialect conversion because the
-  // context is often an attribute attached to an op, and we may want to remove
-  // that attribute as part of the means to signal the conversion is done.
-  virtual LogicalResult finalizeOpModification(
-      Operation* op, ContextAwareConversionPatternRewriter& rewriter) const {
-    return success();
-  };
-
-  LogicalResult matchAndRewrite(
-      Operation* op, ArrayRef<Value> operands,
-      ContextAwareConversionPatternRewriter& rewriter) const override {
-    auto result = convertGeneral(getTypeConverter(), op, operands, rewriter);
-    if (failed(result)) return failure();
-
-    return finalizeOpModification(result.value(), rewriter);
-  }
-};
-
 template <typename T, typename Y = T>
 class SecretGenericOpConversion
-    : public ContextAwareOpConversionPattern<secret::GenericOp> {
+    : public OpConversionPattern<secret::GenericOp> {
  public:
-  using ContextAwareOpConversionPattern<
-      secret::GenericOp>::ContextAwareOpConversionPattern;
+  using OpConversionPattern<secret::GenericOp>::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       secret::GenericOp op, OpAdaptor adaptor,
-      ContextAwareConversionPatternRewriter& rewriter) const final {
+      ConversionPatternRewriter& rewriter) const final {
     if (op.getBody()->getOperations().size() > 2) {
       // Each secret.generic should contain at most one instruction -
       // secret-distribute-generic can be used to distribute through the
@@ -150,8 +71,7 @@ class SecretGenericOpConversion
     }
 
     SmallVector<Type> resultTypes;
-    if (failed(getTypeConverter()->convertTypes(op.getResultTypes(),
-                                                op.getResults(), resultTypes)))
+    if (failed(getTypeConverter()->convertTypes(op.getResults(), resultTypes)))
       return failure();
 
     // only preserve dialect attrs
@@ -202,7 +122,7 @@ class SecretGenericOpConversion
   virtual FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter& rewriter) const {
+      ConversionPatternRewriter& rewriter) const {
     return rewriter.replaceOpWithNewOp<Y>(op, outputTypes, inputs, attributes)
         .getOperation();
   }
@@ -217,15 +137,15 @@ class SecretGenericOpCipherPlainConversion
   // Ciphertext-plaintext ops should take precedence over ciphertext-ciphertext
   // ops because the ops being converted (e.g., addi) don't have a plaintext
   // variant.
-  SecretGenericOpCipherPlainConversion(
-      const ContextAwareTypeConverter& typeConverter, MLIRContext* context)
+  SecretGenericOpCipherPlainConversion(const TypeConverter& typeConverter,
+                                       MLIRContext* context)
       : SecretGenericOpConversion<T, Y>(typeConverter, context, /*benefit=*/2) {
   }
 
   FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter& rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     // Verify that exactly one of the two inputs is a ciphertext.
     if (inputs.size() != 2 ||
         llvm::count_if(inputs, [&](Value input) {
@@ -302,7 +222,7 @@ class SecretGenericOpRelinearizeConversion
   FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter& rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     auto inputDimension = cast<lwe::LWECiphertextType>(inputs[0].getType())
                               .getCiphertextSpace()
                               .getSize();
@@ -329,7 +249,7 @@ class SecretGenericOpRotateConversion
   FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter& rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     // Check that the offset is a constant.
     auto offset = inputs[1];
     auto constantOffset =
@@ -354,7 +274,7 @@ class SecretGenericOpModulusSwitchConversion
   FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter& rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     auto outputType = outputTypes[0];
     auto outputElementType = getElementTypeOrSelf(outputType);
     auto outputRing = cast<lwe::LWECiphertextType>(outputElementType)
@@ -413,7 +333,7 @@ class SecretGenericOpLevelReduceConversion
   FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter& rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     auto innerOp =
         cast<mgmt::LevelReduceOp>(op.getBody()->getOperations().front());
     auto levelToDrop = innerOp.getLevelToDrop();
@@ -424,20 +344,23 @@ class SecretGenericOpLevelReduceConversion
   }
 };
 
-struct ContextAwareFuncConversion
-    : public ContextAwareOpConversionPattern<func::FuncOp> {
- public:
-  using ContextAwareOpConversionPattern::ContextAwareOpConversionPattern;
+// Users of ContextAwareFuncConversion can provide this to tell this class how
+// to type-convert func arg/return types which have no value to anchor the
+// context.
+using CustomTypeConverter = std::function<std::optional<Type>(Type, Attribute)>;
 
-  ContextAwareFuncConversion(
-      const ContextAwareTypeConverter& contextAwareTypeConverter,
-      MLIRContext* context)
-      : ContextAwareOpConversionPattern(context, /*benefit=*/2),
-        contextAwareTypeConverter(&contextAwareTypeConverter) {}
+struct ContextAwareFuncConversion : public OpConversionPattern<func::FuncOp> {
+ public:
+  ContextAwareFuncConversion(const TypeConverter& typeConverter_,
+                             MLIRContext* context, const std::string& attrName,
+                             CustomTypeConverter customTypeConverter)
+      : OpConversionPattern(typeConverter_, context, /*benefit=*/2),
+        attrName(attrName),
+        customTypeConverter(customTypeConverter) {}
 
   LogicalResult matchAndRewrite(
       func::FuncOp op, OpAdaptor adaptor,
-      ContextAwareConversionPatternRewriter& rewriter) const override;
+      ConversionPatternRewriter& rewriter) const override;
 
   // An overridable hook that allows subclasses to perform additional
   // modifications of the func op after its type signature has been converted.
@@ -449,7 +372,8 @@ struct ContextAwareFuncConversion
   };
 
  private:
-  const ContextAwareTypeConverter* contextAwareTypeConverter;
+  std::string attrName;
+  CustomTypeConverter customTypeConverter;
 };
 
 class SecretGenericFuncCallConversion
@@ -461,12 +385,13 @@ class SecretGenericFuncCallConversion
   FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter& rewriter) const override;
+      ConversionPatternRewriter& rewriter) const override;
 };
 
-void addStructuralConversionPatterns(ContextAwareTypeConverter& typeConverter,
-                                     RewritePatternSet& patterns,
-                                     ConversionTarget& target);
+void addContextAwareStructuralConversionPatterns(
+    TypeConverter& typeConverter, RewritePatternSet& patterns,
+    ConversionTarget& target, const std::string& attrName,
+    CustomTypeConverter customTypeConverter);
 
 }  // namespace heir
 }  // namespace mlir

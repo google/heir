@@ -22,9 +22,9 @@
 namespace mlir {
 namespace heir {
 
-FailureOr<Operation*> convertAnyOperand(const TypeConverter* typeConverter,
-                                        Operation* op, ArrayRef<Value> operands,
-                                        ConversionPatternRewriter& rewriter);
+FailureOr<Operation*> convertGeneral(const TypeConverter* typeConverter,
+                                     Operation* op, ArrayRef<Value> operands,
+                                     ConversionPatternRewriter& rewriter);
 
 template <typename T = void>
 struct ConvertAny : public ConversionPattern {
@@ -35,6 +35,15 @@ struct ConvertAny : public ConversionPattern {
     setHasBoundedRewriteRecursion(true);
   }
 
+  // A hook to allow postprocessing of the op after it is otherwise generically
+  // converted. This is useful in context-aware dialect conversion because the
+  // context is often an attribute attached to an op, and we may want to remove
+  // that attribute as part of the means to signal the conversion is done.
+  virtual LogicalResult finalizeOpModification(
+      T op, ConversionPatternRewriter& rewriter) const {
+    return success();
+  };
+
   // generate a new op where all operands have been replaced with their
   // materialized/typeconverted versions
   LogicalResult matchAndRewrite(
@@ -44,25 +53,39 @@ struct ConvertAny : public ConversionPattern {
       return failure();
     }
 
-    return convertAnyOperand(getTypeConverter(), op, operands, rewriter);
+    auto result = convertGeneral(getTypeConverter(), op, operands, rewriter);
+    if (failed(result)) return failure();
+
+    return finalizeOpModification(cast<T>(result.value()), rewriter);
   }
 };
 
 template <>
 struct ConvertAny<void> : public ConversionPattern {
-  ConvertAny<void>(const TypeConverter& anyTypeConverter, MLIRContext* context)
+  ConvertAny<void>(const TypeConverter& anyTypeConverter, MLIRContext* context,
+                   int benefit = 1)
       : ConversionPattern(anyTypeConverter, RewritePattern::MatchAnyOpTypeTag(),
-                          /*benefit=*/1, context) {
+                          benefit, context) {
     setDebugName("ConvertAny");
     setHasBoundedRewriteRecursion(true);
   }
 
-  // generate a new op where all operands have been replaced with their
-  // materialized/typeconverted versions
+  // A hook to allow postprocessing of the op after it is otherwise generically
+  // converted. This is useful in context-aware dialect conversion because the
+  // context is often an attribute attached to an op, and we may want to remove
+  // that attribute as part of the means to signal the conversion is done.
+  virtual LogicalResult finalizeOpModification(
+      Operation* op, ConversionPatternRewriter& rewriter) const {
+    return success();
+  };
+
   LogicalResult matchAndRewrite(
       Operation* op, ArrayRef<Value> operands,
       ConversionPatternRewriter& rewriter) const override {
-    return convertAnyOperand(getTypeConverter(), op, operands, rewriter);
+    auto result = convertGeneral(getTypeConverter(), op, operands, rewriter);
+    if (failed(result)) return failure();
+
+    return finalizeOpModification(result.value(), rewriter);
   }
 };
 

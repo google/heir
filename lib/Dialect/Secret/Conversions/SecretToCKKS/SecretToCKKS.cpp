@@ -3,6 +3,8 @@
 #include <cassert>
 #include <cstdint>
 #include <iterator>
+#include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -25,12 +27,12 @@
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/ContextAwareConversionUtils.h"
-#include "lib/Utils/ContextAwareDialectConversion.h"
-#include "lib/Utils/ContextAwareTypeConversion.h"
+#include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
@@ -53,6 +55,8 @@
 // IWYU pragma: begin_keep
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 // IWYU pragma: end_keep
+
+#define DEBUG_TYPE "secret-to-ckks"
 
 namespace mlir::heir {
 
@@ -114,20 +118,33 @@ FailureOr<std::pair<unsigned, int64_t>> getNonUnitDimension(
 
 }  // namespace
 
-class SecretToCKKSTypeConverter
-    : public UniquelyNamedAttributeAwareTypeConverter {
+class SecretToCKKSTypeConverter : public TypeConverter {
  public:
   SecretToCKKSTypeConverter(MLIRContext* ctx, polynomial::RingAttr rlweRing,
                             bool packTensorInSlots)
-      : UniquelyNamedAttributeAwareTypeConverter(
-            mgmt::MgmtDialect::kArgMgmtAttrName) {
-    addConversion([](Type type, Attribute attr) { return type; });
-    addConversion([this](secret::SecretType type, mgmt::MgmtAttr mgmtAttr) {
-      return convertSecretTypeWithMgmtAttr(type, mgmtAttr);
+      : ring_(rlweRing), packTensorInSlots_(packTensorInSlots) {
+    addConversion([](Type type) { return type; });
+    addConversion([this](Value value) -> std::optional<Type> {
+      LLVM_DEBUG(llvm::dbgs() << "Converting type for value " << value << "\n");
+      FailureOr<Attribute> attr = findAttributeAssociatedWith(
+          value, mgmt::MgmtDialect::kArgMgmtAttrName);
+      if (failed(attr)) {
+        LLVM_DEBUG(llvm::dbgs()
+                   << "Unable to find context attribute for " << value);
+        return std::nullopt;
+      }
+      LLVM_DEBUG(llvm::dbgs() << "found attribute " << attr.value() << "\n");
+      return convertTypeWithAttr(value.getType(), attr.value());
     });
+  }
 
-    ring_ = rlweRing;
-    packTensorInSlots_ = packTensorInSlots;
+  std::optional<Type> convertTypeWithAttr(Type type, Attribute attr) const {
+    auto secretType = dyn_cast<secret::SecretType>(type);
+    auto mgmtAttr = dyn_cast<mgmt::MgmtAttr>(attr);
+    if (secretType && mgmtAttr)
+      return convertSecretTypeWithMgmtAttr(secretType, mgmtAttr);
+    LLVM_DEBUG(llvm::dbgs() << "Only supported secret types with mgmt attr");
+    return std::nullopt;
   }
 
   Type convertSecretTypeWithMgmtAttr(secret::SecretType type,
@@ -234,7 +251,7 @@ class SecretGenericTensorExtractConversion
   FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter& rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     auto inputTy = inputs[0].getType();
     if (!isa<lwe::LWECiphertextType>(getElementTypeOrSelf(inputTy))) {
       return failure();
@@ -279,7 +296,7 @@ class SecretGenericTensorInsertConversion
   FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter& rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     if (!isa<lwe::LWECiphertextType>(inputs[0].getType())) {
       op.emitError()
           << "expected scalar to insert to be of type RLWE ciphertext"
@@ -310,7 +327,7 @@ class SecretGenericTensorExpandConversion
   FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter& rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     // We expect this operation to occur when dropping unit dimensions in order
     // to allow rotation ops to operate on 1-D tensors.
     SliceVerificationResult res = isRankReducedType(
@@ -348,7 +365,7 @@ class SecretGenericTensorCollapseConversion
   FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter& rewriter) const override {
+      ConversionPatternRewriter& rewriter) const override {
     // We expect this operation to occur when dropping unit dimensions in order
     // to allow rotation ops to operate on 1-D tensors.
     SliceVerificationResult res = isRankReducedType(
@@ -508,22 +525,26 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
         SecretGenericTensorExtractConversion,
         SecretGenericTensorInsertConversion,
         SecretGenericTensorCollapseConversion,
-        SecretGenericTensorExpandConversion,
-        ConvertAnyContextAware<affine::AffineForOp>,
-        ConvertAnyContextAware<affine::AffineYieldOp>,
-        ConvertAnyContextAware<tensor::ExtractSliceOp>,
-        ConvertAnyContextAware<tensor::ExtractOp>,
-        ConvertAnyContextAware<tensor::InsertOp>,
+        SecretGenericTensorExpandConversion, ConvertAny<affine::AffineForOp>,
+        ConvertAny<affine::AffineYieldOp>, ConvertAny<tensor::ExtractSliceOp>,
+        ConvertAny<tensor::ExtractOp>, ConvertAny<tensor::InsertOp>,
         SecretGenericFuncCallConversion>(typeConverter, context);
 
     patterns.add<ConvertClientConceal>(typeConverter, context, usePublicKey,
                                        rlweRing.value());
     patterns.add<ConvertClientReveal>(typeConverter, context, rlweRing.value());
 
-    addStructuralConversionPatterns(typeConverter, patterns, target);
+    addContextAwareStructuralConversionPatterns(
+        typeConverter, patterns, target,
+        std::string(mgmt::MgmtDialect::kArgMgmtAttrName),
+        [&](Type type, Attribute attr) {
+          return typeConverter.convertTypeWithAttr(type, attr);
+        });
 
-    if (failed(applyContextAwarePartialConversion(module, target,
-                                                  std::move(patterns)))) {
+    ConversionConfig config;
+    config.allowPatternRollback = false;
+    if (failed(applyPartialConversion(module, target, std::move(patterns),
+                                      config))) {
       return signalPassFailure();
     }
 

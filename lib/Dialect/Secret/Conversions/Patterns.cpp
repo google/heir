@@ -7,7 +7,6 @@
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
-#include "lib/Utils/ContextAwareDialectConversion.h"
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -18,12 +17,13 @@
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
+#include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
 
 Value insertKeyArgument(func::FuncOp parentFunc, Type encryptionKeyType,
-                        ContextAwareConversionPatternRewriter& rewriter) {
+                        ConversionPatternRewriter& rewriter) {
   // The new key type is inserted as the last argument of the parent function.
   auto oldFunctionType = parentFunc.getFunctionType();
   SmallVector<Type, 4> newInputTypes;
@@ -45,7 +45,7 @@ Value insertKeyArgument(func::FuncOp parentFunc, Type encryptionKeyType,
 
 LogicalResult ConvertClientConceal::matchAndRewrite(
     secret::ConcealOp op, OpAdaptor adaptor,
-    ContextAwareConversionPatternRewriter& rewriter) const {
+    ConversionPatternRewriter& rewriter) const {
   func::FuncOp parentFunc = op->getParentOfType<func::FuncOp>();
   if (!parentFunc || !parentFunc->hasAttr(kClientEncFuncAttrName)) {
     return op->emitError() << "expected to be inside a function with attribute "
@@ -54,7 +54,7 @@ LogicalResult ConvertClientConceal::matchAndRewrite(
 
   // The encryption func encrypts a single value, so it must have a single
   // return type. This return type may be split over multiple ciphertexts. This
-  // relies on the ContextAwareFuncConversion to have already run, so that the
+  // relies on the FuncConversion to have already run, so that the
   // result type is type converted in-place.
   auto resultCtTy = dyn_cast<lwe::LWECiphertextType>(
       getElementTypeOrSelf(parentFunc.getResultTypes()[0]));
@@ -140,7 +140,7 @@ LogicalResult ConvertClientConceal::matchAndRewrite(
 
 LogicalResult ConvertClientReveal::matchAndRewrite(
     secret::RevealOp op, OpAdaptor adaptor,
-    ContextAwareConversionPatternRewriter& rewriter) const {
+    ConversionPatternRewriter& rewriter) const {
   func::FuncOp parentFunc = op->getParentOfType<func::FuncOp>();
   if (!parentFunc || !parentFunc->hasAttr(kClientDecFuncAttrName)) {
     return op->emitError() << "expected to be inside a function with attribute "
@@ -149,7 +149,7 @@ LogicalResult ConvertClientReveal::matchAndRewrite(
 
   // The decryption func decrypts a single value, so it must have a single
   // argument that may be split over multiple ciphertexts. This relies on the
-  // ContextAwareFuncConversion to have already run, so that the argument type
+  // FuncConversion to have already run, so that the argument type
   // is type converted in-place.
   auto argCtTy = dyn_cast<lwe::LWECiphertextType>(
       getElementTypeOrSelf(parentFunc.getArgumentTypes()[0]));

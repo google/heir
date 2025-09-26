@@ -1,12 +1,10 @@
 #include "lib/Utils/ContextAwareConversionUtils.h"
 
 #include <iterator>
-#include <memory>
+#include <string>
 
 #include "lib/Dialect/Secret/IR/SecretOps.h"
-#include "lib/Utils/ContextAwareDialectConversion.h"
-#include "lib/Utils/ContextAwareTypeConversion.h"
-#include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
+#include "lib/Utils/ConversionUtils.h"
 #include "llvm/include/llvm/Support/FormatVariadic.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"            // from @llvm-project
@@ -22,98 +20,98 @@
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
-#define DEBUG_TYPE "context-aware-conversion-utils"
-
 namespace mlir {
 namespace heir {
 
-FailureOr<Operation*> convertGeneral(
-    const ContextAwareTypeConverter* typeConverter, Operation* op,
-    ArrayRef<Value> operands, ContextAwareConversionPatternRewriter& rewriter) {
-  LLVM_DEBUG({
-    llvm::dbgs() << "convertGeneral: operand types are\n\n";
-    for (auto operand : operands) {
-      llvm::dbgs() << "  - " << operand.getType() << "\n";
+// Convert the types in a function signature using the relevant attributes and a
+// custom converter once the attribute is found. Returns true if the signature
+// changed.
+bool convertFuncSignatureUsingAttrs(FunctionOpInterface funcOp,
+                                    SmallVectorImpl<Type>& newArgTypes,
+                                    SmallVectorImpl<Type>& newResultTypes,
+                                    StringRef attrName,
+                                    CustomTypeConverter converterFn) {
+  bool changed = false;
+  for (int i = 0; i < funcOp.getNumArguments(); ++i) {
+    auto argType = funcOp.getArgumentTypes()[i];
+    auto contextAttr = funcOp.getArgAttr(i, attrName);
+    if (!contextAttr) {
+      newArgTypes.push_back(argType);
+      continue;
     }
-    llvm::dbgs() << "\n";
-  });
-  SmallVector<Type> newResultTypes;
-  if (failed(typeConverter->convertTypes(op->getResultTypes(), op->getResults(),
-                                         newResultTypes))) {
-    LLVM_DEBUG(llvm::dbgs()
-               << "convertGeneral: failed to convert result types\n");
-    return failure();
+
+    auto convertedType = converterFn(argType, contextAttr);
+    if (!convertedType.has_value()) {
+      newResultTypes.push_back(argType);
+      continue;
+    }
+    newArgTypes.push_back(convertedType.value());
+    changed = true;
   }
 
-  SmallVector<std::unique_ptr<Region>, 1> regions;
-  for (auto& region : op->getRegions()) {
-    Region* newRegion = new Region(op);
-    if (failed(rewriter.convertRegionTypes(&region, *typeConverter)))
-      return failure();
-    newRegion->takeBody(region);
-    regions.push_back(std::unique_ptr<Region>(newRegion));
+  for (int i = 0; i < funcOp.getNumResults(); ++i) {
+    auto resultType = funcOp.getResultTypes()[i];
+    auto contextAttr = funcOp.getResultAttr(i, attrName);
+    if (!contextAttr) {
+      newResultTypes.push_back(resultType);
+      continue;
+    }
+
+    auto convertedType = converterFn(resultType, contextAttr);
+    if (!convertedType.has_value()) {
+      newResultTypes.push_back(resultType);
+      continue;
+    }
+    newResultTypes.push_back(convertedType.value());
+    changed = true;
   }
 
-  Operation* newOp = rewriter.create(OperationState(
-      op->getLoc(), op->getName().getStringRef(), operands, newResultTypes,
-      op->getAttrs(), op->getSuccessors(), regions));
-
-  rewriter.replaceOp(op, newOp);
-  return newOp;
-}
-
-static LogicalResult convertFuncOpTypes(
-    FunctionOpInterface funcOp, const ContextAwareTypeConverter& typeConverter,
-    ContextAwareConversionPatternRewriter& rewriter) {
-  FunctionType type = dyn_cast<FunctionType>(funcOp.getFunctionType());
-  if (!type) return failure();
-
-  // Convert the original function types.
-  // HEIR: use custom callback because a func need not have a body, and/or
-  // no SSA values to use as the context hook. Punt to the type converter.
-  SmallVector<Type, 1> newArgTypes;
-  SmallVector<Type, 1> newResultTypes;
-
-  if (failed(typeConverter.convertFuncSignature(funcOp, newArgTypes,
-                                                newResultTypes)) ||
-      // HEIR: It's OK to provide a nullptr SignatureConversion to
-      // convertRegionTypes.
-      failed(rewriter.convertRegionTypes(&funcOp.getFunctionBody(),
-                                         typeConverter,
-                                         /*entryConversion=*/nullptr)))
-    return failure();
-
-  // Update the function signature in-place.
-  auto newType =
-      FunctionType::get(rewriter.getContext(), newArgTypes, newResultTypes);
-
-  rewriter.modifyOpInPlace(funcOp, [&] { funcOp.setType(newType); });
-  LLVM_DEBUG(llvm::dbgs() << "converted function signature: " << newType
-                          << "\n");
-
-  return success();
+  return changed;
 }
 
 LogicalResult ContextAwareFuncConversion::matchAndRewrite(
     func::FuncOp op, OpAdaptor adaptor,
-    ContextAwareConversionPatternRewriter& rewriter) const {
-  SmallVector<Type> oldFuncOperandTypes(op.getFunctionType().getInputs());
-  SmallVector<Type> oldFuncResultTypes(op.getFunctionType().getResults());
+    ConversionPatternRewriter& rewriter) const {
+  FunctionType type = dyn_cast<FunctionType>(op.getFunctionType());
+  if (!type) return failure();
 
-  if (failed(convertFuncOpTypes(op, *contextAwareTypeConverter, rewriter)))
+  // Convert the original function types.
+  TypeConverter::SignatureConversion result(type.getNumInputs());
+
+  SmallVector<Type, 4> convertedArgTypes, convertedResultTypes;
+  bool changed = convertFuncSignatureUsingAttrs(
+      cast<FunctionOpInterface>(op.getOperation()), convertedArgTypes,
+      convertedResultTypes, attrName, customTypeConverter);
+
+  // This is used by the later convertRegionTypes
+  result.addInputs(convertedArgTypes);
+
+  if (!changed) return failure();
+
+  if (!op.isDeclaration() &&
+      failed(rewriter.convertRegionTypes(&op.getFunctionBody(),
+                                         *getTypeConverter(), &result)))
     return failure();
+
+  // Update the function signature in-place.
+  auto newType = FunctionType::get(rewriter.getContext(), convertedArgTypes,
+                                   convertedResultTypes);
+
+  SmallVector<Type> oldFuncOperandTypes(type.getInputs());
+  SmallVector<Type> oldFuncResultTypes(type.getResults());
+
+  rewriter.modifyOpInPlace(op, [&] { op.setType(newType); });
 
   if (failed(finalizeFuncOpModification(op, oldFuncOperandTypes,
                                         oldFuncResultTypes, rewriter)))
     return failure();
-
   return success();
 }
 
 FailureOr<Operation*> SecretGenericFuncCallConversion::matchAndRewriteInner(
     secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
     ArrayRef<NamedAttribute> attributes,
-    ContextAwareConversionPatternRewriter& rewriter) const {
+    ConversionPatternRewriter& rewriter) const {
   // check if any args are secret from wrapping generic
   // clone the callee (and update a unique name, for now always) the call
   // operands add a note that we don't have to always clone to be secret
@@ -148,15 +146,23 @@ FailureOr<Operation*> SecretGenericFuncCallConversion::matchAndRewriteInner(
   return newCallOp.getOperation();
 }
 
-void addStructuralConversionPatterns(ContextAwareTypeConverter& typeConverter,
-                                     RewritePatternSet& patterns,
-                                     ConversionTarget& target) {
-  patterns
-      .add<ContextAwareFuncConversion, ConvertAnyContextAware<func::ReturnOp>>(
-          typeConverter, patterns.getContext());
+void addContextAwareStructuralConversionPatterns(
+    TypeConverter& typeConverter, RewritePatternSet& patterns,
+    ConversionTarget& target, const std::string& attrName,
+    CustomTypeConverter customTypeConverter) {
+  patterns.add<ContextAwareFuncConversion>(typeConverter, patterns.getContext(),
+                                           attrName, customTypeConverter);
 
-  target.addDynamicallyLegalOp<func::FuncOp>(
-      [&](func::FuncOp op) { return typeConverter.isSignatureLegal(op); });
+  patterns.add<ConvertAny<func::ReturnOp>>(typeConverter,
+                                           patterns.getContext());
+
+  target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
+    SmallVector<Type, 4> convertedArgTypes, convertedResultTypes;
+    bool changed = convertFuncSignatureUsingAttrs(
+        cast<FunctionOpInterface>(op.getOperation()), convertedArgTypes,
+        convertedResultTypes, attrName, customTypeConverter);
+    return !changed;
+  });
 
   target.addDynamicallyLegalOp<func::ReturnOp>(
       [&](func::ReturnOp op) { return typeConverter.isLegal(op); });

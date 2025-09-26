@@ -93,8 +93,7 @@ cc_library(
     hdrs = ["ContextAwareConversionUtils.h"],
     deps = [
         ":AttributeUtils",
-        ":ContextAwareDialectConversion",
-        ":ContextAwareTypeConversion",
+        ":ConversionUtils",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
@@ -107,35 +106,6 @@ cc_library(
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TransformUtils",
-    ],
-)
-
-cc_library(
-    name = "ContextAwareTypeConversion",
-    srcs = ["ContextAwareTypeConversion.cpp"],
-    hdrs = ["ContextAwareTypeConversion.h"],
-    deps = [
-        ":AttributeUtils",
-        "@llvm-project//llvm:Support",
-        "@llvm-project//mlir:FunctionInterfaces",
-        "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:Support",
-        "@llvm-project//mlir:TransformUtils",
-    ],
-)
-
-cc_library(
-    name = "ContextAwareDialectConversion",
-    srcs = ["ContextAwareDialectConversion.cpp"],
-    hdrs = ["ContextAwareDialectConversion.h"],
-    deps = [
-        ":ContextAwareTypeConversion",
-        "@llvm-project//llvm:Support",
-        "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:Rewrite",
-        "@llvm-project//mlir:Support",
-        "@llvm-project//mlir:TransformUtils",
-        "@llvm-project//mlir:config",
     ],
 )
 
