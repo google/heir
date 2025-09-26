@@ -108,109 +108,18 @@ def ImplementShiftNetwork : Pass<"implement-shift-network"> {
   let description = [{
   This pass converts `tensor_ext.permute` ops into a network of
   `tensor_ext.rotate` ops, aiming to minimize the overall latency of the
-  permutation.
-
-  The input IR must have tensors that correspond to plaintexts or
-  ciphertexts.
+  permutation. The input IR must have tensors that correspond to plaintexts or
+  ciphertexts, and be in "ciphertext semantics," i.e., after an IR has been
+  processed via `convert-to-ciphertext-semantics`.
 
   The method uses graph coloring, an approach based on Vos-Vos-Erkin 2022,
   ["Efficient Circuits for Permuting and Mapping Packed Values Across
    Leveled Homomorphic Ciphertexts"](https://link.springer.com/chapter/10.1007/978-3-031-17140-6_20).
 
-  Example, Figure 3 from the paper above:
-
-  ```mlir
-  // Provide an explicit permutation, though an affine_map can also be used.
-  #map = dense<[13, 8, 4, 0, 11, 7, 14, 5, 15, 3, 12, 6, 10, 2, 9, 1]> : tensor<16xi64>
-  func.func @figure3(%0: tensor<16xi32>) -> tensor<16xi32> {
-    %1 = tensor_ext.permute %0 {permutation = #map} : tensor<16xi32>
-    return %1 : tensor<16xi32>
-  }
-  ```
-
-  Then running `--implement-shift-network=ciphertext-size=16` produces
-  a shift network composed of plaintext-ciphertext masks (`arith.constant` + `arith.muli`)
-  followed by rotations and additions. The Vos-Vos-Erkin method splits the work
-  into multiple independent groups that are added together at the end.
-
-  ```mlir
-  func.func @figure3(%arg0: tensor<16xi32>) -> tensor<16xi32> {
-    %cst = arith.constant dense<[1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0]> : tensor<16xi32>
-    %0 = arith.muli %arg0, %cst : tensor<16xi32>
-    %c1_i32 = arith.constant 1 : i32
-    %1 = tensor_ext.rotate %0, %c1_i32 : tensor<16xi32>, i32
-    %cst_0 = arith.constant dense<[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]> : tensor<16xi32>
-    %2 = arith.muli %arg0, %cst_0 : tensor<16xi32>
-    %c2_i32 = arith.constant 2 : i32
-    %3 = tensor_ext.rotate %2, %c2_i32 : tensor<16xi32>, i32
-    %4 = arith.addi %1, %3 : tensor<16xi32>
-    %cst_1 = arith.constant dense<[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0]> : tensor<16xi32>
-    %5 = arith.muli %arg0, %cst_1 : tensor<16xi32>
-    %c4_i32 = arith.constant 4 : i32
-    %6 = tensor_ext.rotate %5, %c4_i32 : tensor<16xi32>, i32
-    %7 = arith.addi %4, %6 : tensor<16xi32>
-    %cst_2 = arith.constant dense<[0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0]> : tensor<16xi32>
-    %8 = arith.muli %arg0, %cst_2 : tensor<16xi32>
-    %c8_i32 = arith.constant 8 : i32
-    %9 = tensor_ext.rotate %8, %c8_i32 : tensor<16xi32>, i32
-    %10 = arith.addi %7, %9 : tensor<16xi32>
-    %cst_3 = arith.constant dense<[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]> : tensor<16xi32>
-    %11 = arith.muli %arg0, %cst_3 : tensor<16xi32>
-    %c1_i32_4 = arith.constant 1 : i32
-    %12 = tensor_ext.rotate %11, %c1_i32_4 : tensor<16xi32>, i32
-    %cst_5 = arith.constant dense<[0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0]> : tensor<16xi32>
-    %13 = arith.muli %arg0, %cst_5 : tensor<16xi32>
-    %c2_i32_6 = arith.constant 2 : i32
-    %14 = tensor_ext.rotate %13, %c2_i32_6 : tensor<16xi32>, i32
-    %15 = arith.addi %12, %14 : tensor<16xi32>
-    %cst_7 = arith.constant dense<[0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0]> : tensor<16xi32>
-    %16 = arith.muli %arg0, %cst_7 : tensor<16xi32>
-    %c4_i32_8 = arith.constant 4 : i32
-    %17 = tensor_ext.rotate %16, %c4_i32_8 : tensor<16xi32>, i32
-    %18 = arith.addi %15, %17 : tensor<16xi32>
-    %cst_9 = arith.constant dense<[0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0]> : tensor<16xi32>
-    %19 = arith.muli %arg0, %cst_9 : tensor<16xi32>
-    %c8_i32_10 = arith.constant 8 : i32
-    %20 = tensor_ext.rotate %19, %c8_i32_10 : tensor<16xi32>, i32
-    %21 = arith.addi %18, %20 : tensor<16xi32>
-    %22 = arith.addi %10, %21 : tensor<16xi32>
-    %cst_11 = arith.constant dense<[0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0]> : tensor<16xi32>
-    %23 = arith.muli %arg0, %cst_11 : tensor<16xi32>
-    %c1_i32_12 = arith.constant 1 : i32
-    %24 = tensor_ext.rotate %23, %c1_i32_12 : tensor<16xi32>, i32
-    %cst_13 = arith.constant dense<[0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1]> : tensor<16xi32>
-    %25 = arith.muli %arg0, %cst_13 : tensor<16xi32>
-    %c2_i32_14 = arith.constant 2 : i32
-    %26 = tensor_ext.rotate %25, %c2_i32_14 : tensor<16xi32>, i32
-    %27 = arith.addi %24, %26 : tensor<16xi32>
-    %cst_15 = arith.constant dense<[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]> : tensor<16xi32>
-    %28 = arith.muli %arg0, %cst_15 : tensor<16xi32>
-    %c4_i32_16 = arith.constant 4 : i32
-    %29 = tensor_ext.rotate %28, %c4_i32_16 : tensor<16xi32>, i32
-    %30 = arith.addi %27, %29 : tensor<16xi32>
-    %cst_17 = arith.constant dense<[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1]> : tensor<16xi32>
-    %31 = arith.muli %arg0, %cst_17 : tensor<16xi32>
-    %c8_i32_18 = arith.constant 8 : i32
-    %32 = tensor_ext.rotate %31, %c8_i32_18 : tensor<16xi32>, i32
-    %33 = arith.addi %30, %32 : tensor<16xi32>
-    %34 = arith.addi %22, %33 : tensor<16xi32>
-    return %34 : tensor<16xi32>
-  }
-  ```
+  (* example filepath=tests/Dialect/TensorExt/Transforms/implement_shift_network_example.mlir *)
   }];
 
   let dependentDialects = ["mlir::heir::tensor_ext::TensorExtDialect"];
-
-  // TODO(#4102): reevaluate flag name
-  let options = [
-    Option<
-      "ciphertextSize",
-      "ciphertext-size",
-      "int",
-      /*default=*/"1024",
-      "Power of two length of the ciphertexts the data is packed in."
-    >
-  ];
 }
 
 def FoldConvertLayoutIntoAssignLayout : Pass<"fold-convert-layout-into-assign-layout"> {

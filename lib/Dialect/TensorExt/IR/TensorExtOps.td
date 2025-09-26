@@ -52,17 +52,8 @@ def TensorExt_RotateOp : TensorExt_Op<"rotate", [Pure, AllTypesMatch<["tensor", 
 }
 
 def PermutationLike : AnyAttrOf<[
-  // A permutation defined by a compact affine map with one dimension and one result expression.
-  // E.g., affine_map<(d0) -> ((d0 - 4) mod 64)> compactly represents a
-  // permutation defined by a single shift.
-  Builtin_AffineMapAttr,
-  // A permutation defined explicitly by mapping i -> a[i] for indices i of the array attr.
-  // E.g., An array [3, 2, 0, 1] defines the permutation
-  //
-  //      0 -> 3, 1 -> 2, 2 -> 0, 3 -> 1
-  //
+  // A permutation defined explicitly by mapping (ct, slot) -> (ct, slot)
   AnyI64ElementsAttr,
-  //
   // A layout relation, representing a mapping (ct, slot) -> (ct, slot)
   // TODO(#2047): remove the other options for PermutationLike
   TensorExt_NewLayoutAttr,

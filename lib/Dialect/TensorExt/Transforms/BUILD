@@ -1,5 +1,6 @@
 load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -35,7 +36,6 @@ cc_library(
         "@heir//lib/Analysis/TargetSlotAnalysis",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:canonicalize_inc_gen",
-        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
@@ -90,19 +90,34 @@ cc_library(
 cc_library(
     name = "ImplementShiftNetwork",
     srcs = ["ImplementShiftNetwork.cpp"],
-    hdrs = [
-        "ImplementShiftNetwork.h",
-    ],
+    hdrs = ["ImplementShiftNetwork.h"],
     deps = [
+        ":RotationGroupKernel",
+        ":ShiftScheme",
         ":pass_inc_gen",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
-        "@heir//lib/Utils:AffineMapUtils",
+        "@heir//lib/Kernel:AbstractValue",
+        "@heir//lib/Kernel:IRMaterializingVisitor",
+        "@heir//lib/Utils:MathUtils",
         "@heir//lib/Utils/ADT:FrozenVector",
         "@heir//lib/Utils/Graph",
+        "@heir//lib/Utils/Layout:Utils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
+    ],
+)
+
+cc_library(
+    name = "ShiftScheme",
+    srcs = ["ShiftScheme.cpp"],
+    hdrs = ["ShiftScheme.h"],
+    deps = [
+        "@heir//lib/Utils:MathUtils",
+        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Support",
     ],
 )
@@ -142,6 +157,33 @@ cc_library(
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
+    ],
+)
+
+cc_library(
+    name = "RotationGroupKernel",
+    hdrs = ["RotationGroupKernel.h"],
+    deps = [
+        ":ShiftScheme",
+        "@heir//lib/Kernel:AbstractValue",
+        "@heir//lib/Kernel:ArithmeticDag",
+        "@heir//lib/Utils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_test(
+    name = "ImplementShiftNetworkTest",
+    srcs = ["ImplementShiftNetworkTest.cpp"],
+    deps = [
+        ":ImplementShiftNetwork",
+        ":RotationGroupKernel",
+        ":ShiftScheme",
+        "@googletest//:gtest_main",
+        "@heir//lib/Kernel:AbstractValue",
+        "@heir//lib/Kernel:TestingUtils",
+        "@llvm-project//mlir:Support",
     ],
 )
 

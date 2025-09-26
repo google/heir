@@ -17,6 +17,7 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
 #include "lib/Kernel/IRMaterializingVisitor.h"
 #include "lib/Kernel/KernelImplementation.h"
@@ -41,6 +42,7 @@
 #include "llvm/include/llvm/Support/Debug.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
@@ -48,6 +50,7 @@
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/Transforms/Transforms.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineExpr.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineMap.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"    // from @llvm-project
@@ -562,147 +565,10 @@ class ConvertLinalgReduce
              << innerOp->getName();
     }
 
-    // Example: To reduce a tensor<32x32xi16> along dimension 0 using addition,
-    // that is laid out in a ciphertext-semantic tensor<1024xi16> via some
-    // mapping, we need to compute the permutations required to align the
-    // inputs along rows.
-    //
-    // If the layouts are chosen well, for this example if the layout is
-    // row-major, then that permutation corresponds to a simple set of
-    // rotations.
-    //
-    // TODO(#1542): support multi-packed ciphertexts
-
-    RankedTensorType dataSemanticType =
-        cast<RankedTensorType>(op.getInputs()[0].getType());
-    RankedTensorType ciphertextSemanticType =
-        cast<RankedTensorType>(adaptor.getInputs()[0].getType());
-    FailureOr<Attribute> layoutFetchResult =
-        getTypeConverter()->getContextualAttr(adaptor.getInputs()[0]);
-    if (failed(layoutFetchResult)) {
-      return op.emitError() << "failed to fetch layout attribute for input";
-    }
-    // TODO(#2047): Support new layout attr
-    LayoutAttr layout = dyn_cast<LayoutAttr>(layoutFetchResult.value());
-    if (!layout) {
-      return op.emitError() << "expected LayoutAttr on linalg.reduce";
-    }
-
-    // See DestinationStyleOpInterface: 1-1 relationship between inits and op
-    // results, but the init is type converted already and is the starting
-    // point for the reduction kernel implementation.
-    Value init = adaptor.getInits()[0];
-    Value input = adaptor.getInputs()[0];
-
-    LLVM_DEBUG(llvm::dbgs()
-               << "ConvertLinalgReduce:\n"
-               << "\n  - data semantic type: " << dataSemanticType
-               << "\n  - ciphertext semantic type: " << ciphertextSemanticType
-               << "\n  - layout: " << layout << "\n  - dimensions: "
-               << llvm::join(llvm::map_range(
-                                 op.getDimensions(),
-                                 [](int64_t d) { return std::to_string(d); }),
-                             ", ")
-               << "\n  - op: " << innerOp->getName() << "\n  - init: " << init
-               << "\n\n");
-
-    int64_t reductionDim = op.getDimensions()[0];
-    int64_t reductionDimSize = dataSemanticType.getShape()[reductionDim];
-
-    // In the example from above (row-major <32x32> -> <1024>), all values
-    // in the reduced dimension need to map to the same slot. E.g.,
-    //
-    //   (0, 0), (1, 0), (2, 0), ... (31, 0)
-    //
-    // should map to slot (0) in each term of the sum, while
-    //
-    //   (0, 1), (1, 1), (2, 1), ... (31, 1)
-    //
-    // should all map to slot (1). Viewing this with a different iteration
-    // order, there is one summand for each entry of the reduced dimension, and
-    // in that summand we must map
-    //
-    //   (i, 0), (i, 1), (i, 2), ... (i, 31)
-    //
-    // to
-    //
-    //   (0, 1, 2, ..., 31)
-    //
-    // For this example row-major layout, the entry (i, 3) maps to 32*i + 3,
-    // and we need it to map to 3. So this adds a requirement that the
-    // permutation maps 32*i + 3 -> 3. This can be calculated generically by
-    // evaluating the layout at (i, 3) and mapping it to the static index tuple
-    // given by the non-iterating dimensions of the tensor (dim 1 in the
-    // example, which has a value of 3) in this step of the iteration.
-    //
-    // The mechanism above populates one part of a larger permutation of the
-    // ciphertext-semantic tensor, and then we have to find a way to extend
-    // that to a permutation of the whole tensor in a way that will produce
-    // simple shift networks. For now we identify the case that the partial
-    // permutation can be extended to a simple shift, and then we fill in the
-    // rest of the permutation according to that shift. Otherwise, we fill in
-    // the rest of the permutation in a greedy order.
-    //
-    // TODO(#521): Extend rotate-and-reduce so it can be run after this kernel
-    // and find additional rotation optimizations.
-    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    Value result = init;
-    for (int64_t dimIndex = 0; dimIndex < reductionDimSize; ++dimIndex) {
-      SmallVector<int64_t> permutation(ciphertextSemanticType.getNumElements(),
-                                       kUnset);
-      SmallVector<int64_t> fixedIndices = {reductionDim};
-      SmallVector<int64_t> fixedValues = {dimIndex};
-
-      // For each entry with the reduced index fixed, populate the permutation
-      // with the desired partial mapping.
-      IndexTupleConsumer evaluateNextIndex =
-          [&](const std::vector<int64_t>& indices) {
-            SmallVector<int64_t> results;
-            evaluateStatic(layout.getMap(), indices, results);
-
-            // Since we are reducing along a dimension, the input that gives us
-            // the desired output slot should be the slot that the layout maps
-            // the first entry of the reduced dimension to.
-            //
-            // From the running example tensor<32x32> -> tensor<1024> row-major
-            // layout reducing dim 0, if we're at entry dimIndex = 3, then we're
-            // saying that all entries (3, j) should map to (0, j) so that all
-            // the values (0, j), (1, j), (2, j), ... (31, j) are aligned.
-            std::vector<int64_t> inputsForDesiredResults(indices);
-            for (int64_t fixedIndex : fixedIndices) {
-              inputsForDesiredResults[fixedIndex] = 0;
-            }
-            SmallVector<int64_t> desiredResults;
-            evaluateStatic(layout.getMap(), inputsForDesiredResults,
-                           desiredResults);
-
-            // The last dimension of the layout output is the ciphertext
-            // dimension, and it contains the slot that the entry is mapped to.
-            permutation[results[results.size() - 1]] =
-                desiredResults[desiredResults.size() - 1];
-          };
-
-      iterateIndices(dataSemanticType.getShape(), evaluateNextIndex,
-                     fixedIndices, fixedValues);
-      extendPartialPermutation(permutation);
-
-      auto permuteOp = tensor_ext::PermuteOp::create(
-          b, input, b.getI64TensorAttr(permutation));
-
-      SmallVector<Value> operands = {result, permuteOp};
-      SmallVector<Type> newResultTypes = {permuteOp.getType()};
-      Operation* nextOp = rewriter.create(
-          OperationState(op->getLoc(), innerOp->getName().getStringRef(),
-                         operands, newResultTypes));
-      permuteOp->setAttr(kLayoutAttrName, op->getAttr(kLayoutAttrName));
-      nextOp->setAttr(kLayoutAttrName, op->getAttr(kLayoutAttrName));
-      setMaterializedAttr({permuteOp, nextOp});
-      result = nextOp->getResult(0);
-    }
-
-    // TODO(#1591): post-process the layout properly for padding
-    rewriter.replaceOp(op, result);
-    return success();
+    // TODO(#2254): Implement a proper kernel
+    // rewriter.replaceOp(op, result);
+    // return success();
+    return failure();
   }
 };
 

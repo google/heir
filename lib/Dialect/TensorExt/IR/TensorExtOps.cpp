@@ -143,44 +143,26 @@ LogicalResult UnpackOp::verify() {
 
 LogicalResult PermuteOp::verify() {
   auto tensorTy = getInput().getType();
-  // TODO(#2047): remove other options when NewLayoutAttr is fully supported.
+  if (tensorTy.getRank() != 2) {
+    return emitOpError() << "requires input tensor to be rank 2 "
+                         << "(ciphertext, slot), but found rank "
+                         << tensorTy.getRank();
+  }
+
   if (isa<NewLayoutAttr>(getPermutation())) {
     return success();
   }
 
-  // TODO(#924): Support more general vector inputs.
-  if (tensorTy.getRank() != 1) {
-    return emitOpError() << "requires a 1-D input tensor "
-                            "single non-unit dimension, but found "
-                         << tensorTy;
-  }
-
-  // Assert it's a permutation; would that be too slow for a verifier?
-  auto affineMapAttr = dyn_cast<AffineMapAttr>(getPermutation());
-  SmallVector<int64_t> permutationResult;
-  if (affineMapAttr) {
-    if (failed(makeExplicit1DMapping(affineMapAttr.getValue(),
-                                     tensorTy.getNumElements(),
-                                     permutationResult))) {
+  if (auto denseElementsAttr =
+          dyn_cast<DenseIntElementsAttr>(getPermutation())) {
+    // Assert the attr has shape <N x 4>
+    int64_t rank = denseElementsAttr.getType().getRank();
+    int64_t cols = denseElementsAttr.getType().getDimSize(1);
+    if (rank != 2 || cols != 4) {
       return emitOpError()
-             << "failed to materialize affine map attr as permutation";
-    }
-
-    if (!isPermutation(permutationResult)) {
-      return emitOpError() << "expected permutation, but got an affine_map "
-                              "attr that was not a permutation.";
-    }
-  } else {
-    auto denseElementsAttr = dyn_cast<DenseIntElementsAttr>(getPermutation());
-    if (denseElementsAttr) {
-      permutationResult = llvm::map_to_vector(
-          denseElementsAttr, [](const APInt& i) { return i.getSExtValue(); });
-      if (!isPermutation(permutationResult)) {
-        return emitOpError() << "expected permutation, but got a dense "
-                                "attr that was not a permutation.";
-      }
-    } else {
-      return emitOpError() << "unknown permutation type";
+             << "requires permutation attribute to be of shape <N x 4>, but "
+                "found shape <"
+             << denseElementsAttr.getType() << ">";
     }
   }
 
