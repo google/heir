@@ -34,6 +34,15 @@ using mlir::func::FuncOp;
 
 namespace mlir::heir {
 
+void tosaToLinalg(OpPassManager &manager) {
+  manager.addNestedPass<FuncOp>(createTosaToLinalg());
+  manager.addNestedPass<FuncOp>(createTosaToArithPass({true, false}));
+  manager.addNestedPass<FuncOp>(createTosaToTensorPass());
+  manager.addNestedPass<FuncOp>(createLinalgDetensorizePass());
+  manager.addPass(createConvertTensorToLinalgPass());
+  manager.addPass(createLinalgGeneralizeNamedOpsPass());
+}
+
 void oneShotBufferize(OpPassManager& manager) {
   // One-shot bufferize, from
   // https://mlir.llvm.org/docs/Bufferization/#ownership-based-buffer-deallocation

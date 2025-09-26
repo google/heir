@@ -39,8 +39,10 @@ func.func @incomplete(%arg0: i32, %arg1: i32, %arg2: i32) -> (tensor<3xi32>) {
 // CHECK: func @double_insert
 // CHECK-SAME: (%[[arg0:.*]]: i32, %[[arg1:.*]]: i32, %[[arg2:.*]]: i32)
 func.func @double_insert(%arg0: i32, %arg1: i32, %arg2: i32) -> (tensor<3xi32>) {
-  // Folding fails from inserting two different values into the same index.
-  // CHECK-COUNT-3: tensor.insert
+  // Inserting two different values into the same index.
+  // CHECK: %[[C3:.*]] = arith.constant 3 : i32
+  // CHECK: %[[C4:.+]] = tensor.from_elements %[[arg0]], %[[arg2]], %[[C3]]
+  // CHECK-NEXT: return %[[C4]]
   %cst = arith.constant dense<[1, 2, 3]> : tensor<3xi32>
   %c0 = arith.constant 0 : index
   %c1 = arith.constant 1 : index
