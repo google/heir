@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -25,11 +26,11 @@
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/ContextAwareConversionUtils.h"
-#include "lib/Utils/ContextAwareDialectConversion.h"
-#include "lib/Utils/ContextAwareTypeConversion.h"
+#include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -43,6 +44,8 @@
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
+
+#define DEBUG_TYPE "secret-to-bgv"
 
 namespace mlir::heir {
 
@@ -90,20 +93,32 @@ polynomial::RingAttr getRlweRNSRingWithLevel(polynomial::RingAttr ringAttr,
 
 }  // namespace
 
-class SecretToBGVTypeConverter
-    : public UniquelyNamedAttributeAwareTypeConverter {
+class SecretToBGVTypeConverter : public TypeConverter {
  public:
   SecretToBGVTypeConverter(MLIRContext* ctx, polynomial::RingAttr rlweRing,
                            int64_t ptm, bool isBFV)
-      : UniquelyNamedAttributeAwareTypeConverter(
-            mgmt::MgmtDialect::kArgMgmtAttrName),
-        ring(rlweRing),
-        plaintextModulus(ptm),
-        isBFV(isBFV) {
-    addConversion([](Type type, Attribute attr) { return type; });
-    addConversion([this](secret::SecretType type, mgmt::MgmtAttr mgmtAttr) {
-      return convertSecretTypeWithMgmtAttr(type, mgmtAttr);
+      : ring(rlweRing), plaintextModulus(ptm), isBFV(isBFV) {
+    addConversion([this](Value value) -> std::optional<Type> {
+      LLVM_DEBUG(llvm::dbgs() << "Converting type for value " << value << "\n");
+      FailureOr<Attribute> attr = findAttributeAssociatedWith(
+          value, mgmt::MgmtDialect::kArgMgmtAttrName);
+      if (failed(attr)) {
+        LLVM_DEBUG(llvm::dbgs()
+                   << "Unable to find context attribute for " << value);
+        return std::nullopt;
+      }
+      LLVM_DEBUG(llvm::dbgs() << "found attribute " << attr.value() << "\n");
+      return convertTypeWithAttr(value.getType(), attr.value());
     });
+  }
+
+  std::optional<Type> convertTypeWithAttr(Type type, Attribute attr) const {
+    auto secretType = dyn_cast<secret::SecretType>(type);
+    auto mgmtAttr = dyn_cast<mgmt::MgmtAttr>(attr);
+    if (secretType && mgmtAttr)
+      return convertSecretTypeWithMgmtAttr(secretType, mgmtAttr);
+    LLVM_DEBUG(llvm::dbgs() << "Only supported secret types with mgmt attr");
+    return std::nullopt;
   }
 
   Type convertSecretTypeWithMgmtAttr(secret::SecretType type,
@@ -262,10 +277,17 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
                                        rlweRing.value());
     patterns.add<ConvertClientReveal>(typeConverter, context, rlweRing.value());
 
-    addStructuralConversionPatterns(typeConverter, patterns, target);
+    addContextAwareStructuralConversionPatterns(
+        typeConverter, patterns, target,
+        std::string(mgmt::MgmtDialect::kArgMgmtAttrName),
+        [&](Type type, Attribute attr) {
+          return typeConverter.convertTypeWithAttr(type, attr);
+        });
 
-    if (failed(applyContextAwarePartialConversion(module, target,
-                                                  std::move(patterns)))) {
+    ConversionConfig config;
+    config.allowPatternRollback = false;
+    if (failed(applyPartialConversion(module, target, std::move(patterns),
+                                      config))) {
       return signalPassFailure();
     }
 

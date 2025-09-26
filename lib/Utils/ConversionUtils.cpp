@@ -30,30 +30,27 @@ using ::mlir::func::CallOp;
 using ::mlir::func::FuncOp;
 using ::mlir::func::ReturnOp;
 
-FailureOr<Operation*> convertAnyOperand(const TypeConverter* typeConverter,
-                                        Operation* op, ArrayRef<Value> operands,
-                                        ConversionPatternRewriter& rewriter) {
+FailureOr<Operation*> convertGeneral(const TypeConverter* typeConverter,
+                                     Operation* op, ArrayRef<Value> operands,
+                                     ConversionPatternRewriter& rewriter) {
   if (typeConverter->isLegal(op)) {
     return failure();
   }
 
   SmallVector<Type> newOperandTypes;
   SmallVector<Type> newResultTypes;
-  auto result =
-      typeConverter->convertTypes(op->getResultTypes(), newResultTypes);
+  auto result = typeConverter->convertTypes(op->getResults(), newResultTypes);
   if (failed(result)) return failure();
-  if (failed(
-          typeConverter->convertTypes(op->getOperandTypes(), newOperandTypes)))
+  if (failed(typeConverter->convertTypes(op->getOperands(), newOperandTypes)))
     return failure();
 
   SmallVector<std::unique_ptr<Region>, 1> regions;
-  IRMapping mapping;
-  for (auto& r : op->getRegions()) {
+  for (auto& region : op->getRegions()) {
     Region* newRegion = new Region(op);
-    rewriter.cloneRegionBefore(r, *newRegion, newRegion->end(), mapping);
-    if (failed(rewriter.convertRegionTypes(newRegion, *typeConverter)))
+    if (failed(rewriter.convertRegionTypes(&region, *typeConverter)))
       return failure();
-    regions.emplace_back(newRegion);
+    newRegion->takeBody(region);
+    regions.push_back(std::unique_ptr<Region>(newRegion));
   }
 
   Operation* newOp = rewriter.create(OperationState(
