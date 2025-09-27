@@ -37,7 +37,6 @@
 #include "lib/Transforms/GenerateParam/GenerateParam.h"
 #include "lib/Transforms/InlineActivations/InlineActivations.h"
 #include "lib/Transforms/LayoutOptimization/LayoutOptimization.h"
-#include "lib/Transforms/LayoutPropagation/LayoutPropagation.h"
 #include "lib/Transforms/LayoutPropagation/NewLayoutPropagation.h"
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
@@ -126,8 +125,7 @@ void lowerAssignLayout(OpPassManager& pm, bool unroll = false) {
 }
 
 void mlirToSecretArithmeticPipelineBuilder(
-    OpPassManager& pm, const MlirToRLWEPipelineOptions& options,
-    bool newLayout) {
+    OpPassManager& pm, const MlirToRLWEPipelineOptions& options) {
   pm.addPass(createWrapGeneric());
   convertToDataObliviousPipelineBuilder(pm);
   pm.addPass(createSelectRewrite());
@@ -139,15 +137,9 @@ void mlirToSecretArithmeticPipelineBuilder(
   mathToPolynomialApproximationBuilder(pm);
 
   // Layout assignment and optimization
-  if (newLayout) {
-    NewLayoutPropagationOptions layoutPropagationOptions;
-    layoutPropagationOptions.ciphertextSize = options.ciphertextDegree;
-    pm.addPass(createNewLayoutPropagation(layoutPropagationOptions));
-  } else {
-    LayoutPropagationOptions layoutPropagationOptions;
-    layoutPropagationOptions.ciphertextSize = options.ciphertextDegree;
-    pm.addPass(createLayoutPropagation(layoutPropagationOptions));
-  }
+  NewLayoutPropagationOptions layoutPropagationOptions;
+  layoutPropagationOptions.ciphertextSize = options.ciphertextDegree;
+  pm.addPass(createNewLayoutPropagation(layoutPropagationOptions));
   pm.addPass(tensor_ext::createFoldConvertLayoutIntoAssignLayout());
   pm.addPass(createLayoutOptimization());
 
@@ -205,9 +197,9 @@ void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
 
 void mlirToRLWEPipeline(OpPassManager& pm,
                         const MlirToRLWEPipelineOptions& options,
-                        const RLWEScheme scheme, bool newLayout) {
+                        const RLWEScheme scheme) {
   if (options.enableArithmetization) {
-    mlirToSecretArithmeticPipelineBuilder(pm, options, newLayout);
+    mlirToSecretArithmeticPipelineBuilder(pm, options);
   } else {
     // Replicate the non-arithmetization related parts of the pipeline
     pm.addPass(createWrapGeneric());
@@ -371,10 +363,9 @@ void mlirToRLWEPipeline(OpPassManager& pm,
   // which can then be lowered to backend specific stuff later.
 }
 
-RLWEPipelineBuilder mlirToRLWEPipelineBuilder(const RLWEScheme scheme,
-                                              bool newLayout) {
+RLWEPipelineBuilder mlirToRLWEPipelineBuilder(const RLWEScheme scheme) {
   return [=](OpPassManager& pm, const MlirToRLWEPipelineOptions& options) {
-    mlirToRLWEPipeline(pm, options, scheme, newLayout);
+    mlirToRLWEPipeline(pm, options, scheme);
   };
 }
 
@@ -470,8 +461,8 @@ void torchLinalgToCkksBuilder(OpPassManager& manager,
   suboptions.scalingModBits = options.scalingModBits;
   suboptions.firstModBits = options.firstModBits;
 
-  mlirToRLWEPipelineBuilder(mlir::heir::RLWEScheme::ckksScheme, true)(
-      manager, suboptions);
+  mlirToRLWEPipelineBuilder(mlir::heir::RLWEScheme::ckksScheme)(manager,
+                                                                suboptions);
 }
 
 }  // namespace mlir::heir

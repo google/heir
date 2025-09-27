@@ -124,7 +124,6 @@ cc_binary(
         "@heir//lib/Transforms/InlineActivations",
         "@heir//lib/Transforms/LayoutOptimization",
         "@heir//lib/Transforms/LayoutOptimization:InterfaceImpl",
-        "@heir//lib/Transforms/LayoutPropagation",
         "@heir//lib/Transforms/LayoutPropagation:InterfaceImpl",
         "@heir//lib/Transforms/LayoutPropagation:NewLayoutPropagation",
         "@heir//lib/Transforms/LinalgCanonicalizations",

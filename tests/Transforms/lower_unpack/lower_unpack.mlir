@@ -3,8 +3,7 @@
 // CHECK-DAG: [[map_id:.*]] = affine_map<(d0) -> (d0)>
 // CHECK-DAG: [[map_shifted:.*]] = affine_map<(d0) -> ((d0 + 3) mod 1024)>
 
-#scalar_alignment = #tensor_ext.alignment<in = [], out = [1024], insertedDims = [0]>
-#scalar_layout = #tensor_ext.layout<map = (d0) -> (d0), alignment = #scalar_alignment>
+#scalar_layout = #tensor_ext.new_layout<"{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= 1023 }">
 #scalar_original_type = #tensor_ext.original_type<originalType = i16, layout = #scalar_layout>
 
 // CHECK: @unpack_scalar
@@ -15,8 +14,7 @@ func.func @unpack_scalar(%arg0: tensor<1024xi16> {tensor_ext.original_type = #sc
   return %0 : i16
 }
 
-#tensor_alignment = #tensor_ext.alignment<in = [32], out = [1024]>
-#tensor_layout = #tensor_ext.layout<map = (d0) -> ((d0 + 3) mod 1024), alignment = #tensor_alignment>
+#tensor_layout = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 1024 = 3 and 31 >= i0 >= 0 and 1023 >= slot >= 0 and ct = 0 }">
 #tensor_original_type = #tensor_ext.original_type<originalType = tensor<32xi16>, layout = #tensor_layout>
 
 // CHECK: @unpack_rotated_tensor
@@ -31,8 +29,8 @@ func.func @unpack_rotated_tensor(%arg0: tensor<1024xi16> {tensor_ext.original_ty
   return %0 : tensor<32xi16>
 }
 
-#tensor_alignment2 = #tensor_ext.alignment<in = [32], out = [64, 64], insertedDims=[0], padding=[63, 0], paddingValue=0>
-#tensor_layout2 = #tensor_ext.layout<map = (d0, d1) -> (d0, d1), alignment = #tensor_alignment2>
+// size 32 tensor repeated 64 size-64 ciphertexts
+#tensor_layout2 = #tensor_ext.new_layout<"{ [col] -> [ct, slot] : 0 <= ct <= 64 and (slot - col) mod 64 = 0 and 0 <= col <= 63 and 0 <= slot <= 63 }">
 #tensor_original_type2 = #tensor_ext.original_type<originalType = tensor<32xi16>, layout = #tensor_layout2>
 
 // CHECK: @unpack_rotated_tensor

@@ -88,6 +88,10 @@ static Cost computeCostOfLayoutConversion(int64_t ciphertextSize,
     return fromLayout == toLayout ? 0 : 1;
   }
 
+  if (fromLayoutAttr == toLayoutAttr) {
+    return 0;
+  }
+
   presburger::IntegerRelation rel = fromLayoutAttr.getIntegerRelation();
   std::optional<int64_t> ctUb =
       rel.getConstantBound64(presburger::BoundType::UB,
@@ -103,8 +107,13 @@ static Cost computeCostOfLayoutConversion(int64_t ciphertextSize,
   }
 
   int64_t numCiphertexts = ctUb.value() - ctLb.value() + 1;
-  return computeCostOfLayoutConversion(numCiphertexts, ciphertextSize,
-                                       fromLayoutAttr, toLayoutAttr);
+  int64_t cost = computeCostOfLayoutConversion(numCiphertexts, ciphertextSize,
+                                               fromLayoutAttr, toLayoutAttr);
+  LLVM_DEBUG(llvm::dbgs() << "\tCost of converting layout " << fromLayoutAttr
+                          << " to " << toLayoutAttr << " with "
+                          << numCiphertexts << " ciphertexts is " << cost
+                          << "\n");
+  return cost;
 }
 
 struct LayoutOptimization : impl::LayoutOptimizationBase<LayoutOptimization> {
@@ -180,6 +189,9 @@ void LayoutOptimization::runOnOperation() {
             if (result == FAILURE) {
               return WalkResult::interrupt();
             };
+            if (result == UNHOISTABLE) {
+              return WalkResult::advance();
+            };
 
             // The above may results in sequences of convert_layout ops,
             // or convert_layout ops that occur directly after assign_layout
@@ -191,6 +203,10 @@ void LayoutOptimization::runOnOperation() {
                     builder, convertLayoutOp, opsToErase);
               }
             }
+
+            LLVM_DEBUG(llvm::dbgs()
+                       << "Dump after hoisting and eager folding: "
+                       << op->getParentOfType<func::FuncOp>() << "\n\n");
             return WalkResult::advance();
           });
 
@@ -221,12 +237,6 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
     return UNHOISTABLE;
   }
 
-  LLVM_DEBUG(llvm::dbgs() << "Considering hoisting op: " << op->getName()
-                          << " with layout "
-                          << findAttributeAssociatedWith(op->getResult(0),
-                                                         kLayoutAttrName)
-                          << "\n");
-
   // Check if any results are converted directly after.
   SmallVector<ConvertLayoutOp> resultLayoutConversions;
   for (auto* user : op->getResult(0).getUsers()) {
@@ -241,6 +251,16 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
                << "Skipping op, no results followed by convert_layout\n");
     return UNHOISTABLE;
   }
+
+  LLVM_DEBUG({
+    llvm::dbgs() << "Considering hoisting " << resultLayoutConversions.size()
+                 << " layout conversion through op: " << op->getName()
+                 << "\n\n\t" << *op;
+    for (auto convertLayoutOp : resultLayoutConversions) {
+      llvm::dbgs() << "\n\t" << *convertLayoutOp << "\n";
+    }
+    llvm::dbgs() << "\n";
+  });
 
   // Now compute the cost of hoisting each conversion layout.
   SmallVector<HoistOption> hoistingOptions;
@@ -305,7 +325,8 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
     Attribute newInputLayout = minHoistResult.newInputLayouts[i];
     auto newInput = ConvertLayoutOp::create(
         builder, op->getLoc(), operand, originalLayout.value(), newInputLayout);
-    newInput->setAttr(kLayoutAttrName, newInputLayout);
+    setAttributeAssociatedWith(newInput.getResult(), kLayoutAttrName,
+                               newInputLayout);
     builder.replaceUsesWithIf(operand, newInput, [&](OpOperand& operand) {
       return operand.getOwner() == op;
     });
@@ -405,7 +426,7 @@ std::vector<HoistOption> LayoutOptimization::computeHoistingOptions(
 
   auto hoisters = hoistableInterface.getHoisters(convertLayoutOp);
   LLVM_DEBUG(llvm::dbgs() << "Evaluating " << hoisters.size()
-                          << " hoisting options for " << *op << "\n");
+                          << " hoisting options for " << op->getName() << "\n");
 
   std::vector<HoistResult> results;
   for (auto& hoister : hoisters) {
