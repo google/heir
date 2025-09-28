@@ -47,7 +47,8 @@ class VosVosErkinShiftNetworks {
   // Like findShiftScheme but randomly draw from a uniform distribution over all
   // possible shift orders and use the one that results in the best network.
   ShiftScheme findBestShiftScheme(const Mapping& mapping,
-                                  unsigned numShiftOrderTries);
+                                  std::size_t randomSeed,
+                                  unsigned randomTries = 100);
 
  private:
   ShiftStrategy evaluateShiftStrategy(const Mapping& mapping,

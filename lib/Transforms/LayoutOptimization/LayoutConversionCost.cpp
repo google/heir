@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <memory>
+#include <optional>
 
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Dialect/TensorExt/Transforms/ImplementShiftNetwork.h"
@@ -11,8 +12,10 @@
 #include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
 #include "lib/Utils/Layout/Utils.h"
+#include "llvm/ADT/Hashing.h"                 // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 
 #define DEBUG_TYPE "layout-conversion-cost"
@@ -30,7 +33,9 @@ using kernel::LeftRotateNode;
 using kernel::MultiplyNode;
 using kernel::SubtractNode;
 using kernel::SymbolicValue;
+using presburger::BoundType;
 using presburger::IntegerRelation;
+using presburger::VarKind;
 using tensor_ext::CtSlot;
 using tensor_ext::Mapping;
 using tensor_ext::NewLayoutAttr;
@@ -68,10 +73,12 @@ class RotationCountVisitor : public CachingVisitor<SymbolicValue, int64_t> {
   }
 };
 
-int64_t computeCostOfLayoutConversion(int64_t numCiphertexts,
-                                      int64_t ciphertextSize,
-                                      NewLayoutAttr fromLayout,
-                                      NewLayoutAttr toLayout) {
+Cost computeCostOfLayoutConversion(int64_t numCiphertexts,
+                                   int64_t ciphertextSize,
+                                   NewLayoutAttr fromLayout,
+                                   NewLayoutAttr toLayout,
+                                   std::size_t vveRandomSeed,
+                                   unsigned vveRandomTries) {
   if (fromLayout == toLayout) {
     LLVM_DEBUG(llvm::dbgs() << "Layouts are the same, conversion cost is 0\n";);
     return 0;
@@ -90,7 +97,8 @@ int64_t computeCostOfLayoutConversion(int64_t numCiphertexts,
   }
 
   tensor_ext::VosVosErkinShiftNetworks shiftNetwork;
-  ShiftScheme scheme = shiftNetwork.findShiftScheme(mapping);
+  ShiftScheme scheme =
+      shiftNetwork.findBestShiftScheme(mapping, vveRandomSeed, vveRandomTries);
 
   using NodeTy = ArithmeticDagNode<SymbolicValue>;
   using ValueTy = std::shared_ptr<NodeTy>;
@@ -100,9 +108,9 @@ int64_t computeCostOfLayoutConversion(int64_t numCiphertexts,
       implementRotationGroups(inputLeaves, mapping, scheme, ciphertextSize);
 
   // The cost is the maximum number of rotations in any group
-  int64_t maxRotations = 0;
+  Cost maxRotations = 0;
   for (const SmallVector<ValueTy>& groupResult : groupResults) {
-    int64_t groupRotations = 0;
+    Cost groupRotations = 0;
     // Each group consists of a set of output dag nodes corresponding to each
     // ciphertext in the ciphertext-semantic tensor. The total number of
     // rotations is the sum across all such nodes, noting we're caching common
@@ -116,6 +124,42 @@ int64_t computeCostOfLayoutConversion(int64_t numCiphertexts,
 
   LLVM_DEBUG(llvm::dbgs() << "Estimated cost is " << maxRotations << "\n";);
   return maxRotations;
+}
+
+Cost computeCostOfLayoutConversion(int64_t ciphertextSize, Attribute fromLayout,
+                                   Attribute toLayout,
+                                   std::size_t vveRandomSeed,
+                                   unsigned vveRandomTries) {
+  NewLayoutAttr fromLayoutAttr = dyn_cast<NewLayoutAttr>(fromLayout);
+  NewLayoutAttr toLayoutAttr = dyn_cast<NewLayoutAttr>(toLayout);
+
+  // Combine random seed with hashes over from- and to-layout, guaranteeing the
+  // same result for a given random seed and set of layouts.
+
+  llvm::hash_code fromHash = llvm::hash_value(fromLayoutAttr.getLayout());
+  llvm::hash_code toHash = llvm::hash_value(toLayoutAttr.getLayout());
+  vveRandomSeed = llvm::hash_combine(vveRandomSeed, fromHash, toHash);
+
+  if (!fromLayoutAttr || !toLayoutAttr) {
+    return fromLayout == toLayout ? 0 : 1;
+  }
+
+  IntegerRelation rel = fromLayoutAttr.getIntegerRelation();
+  std::optional<int64_t> ctUb = rel.getConstantBound64(
+      BoundType::UB, rel.getVarKindOffset(VarKind::Range));
+  std::optional<int64_t> ctLb = rel.getConstantBound64(
+      BoundType::LB, rel.getVarKindOffset(VarKind::Range));
+
+  if (!ctUb.has_value() || !ctLb.has_value()) {
+    llvm::errs() << "Could not determine number of ciphertexts from layout "
+                 << fromLayoutAttr << ", assuming cost 1\n";
+    return 1;
+  }
+
+  int64_t numCiphertexts = ctUb.value() - ctLb.value() + 1;
+  return computeCostOfLayoutConversion(numCiphertexts, ciphertextSize,
+                                       fromLayoutAttr, toLayoutAttr,
+                                       vveRandomSeed, vveRandomTries);
 }
 
 }  // namespace heir

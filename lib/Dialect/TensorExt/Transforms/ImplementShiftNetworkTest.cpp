@@ -111,7 +111,7 @@ std::vector<std::vector<int>> manuallyApplyMapping(
   if (bestNumRG > naiveNumRG)
     return ::testing::AssertionFailure()
            << "Expected best found network with " << bestNumRG
-           << " rotation groups to not be worsei then naive network which has "
+           << " rotation groups to not be worse then naive network which has "
            << naiveNumRG;
   auto bestResult =
       simulateShiftNetwork(mapping, bestScheme, numCiphertexts, ciphertextSize);
@@ -148,7 +148,6 @@ TEST(ImplementShiftNetworkTest, TestFig3) {
   mapping.add(CtSlot(0, 13), CtSlot(0, 2));
   mapping.add(CtSlot(0, 14), CtSlot(0, 9));
   mapping.add(CtSlot(0, 15), CtSlot(0, 1));
-  checkMapping(mapping, numCts, ctSize);
   EXPECT_TRUE(checkMapping(mapping, numCts, ctSize));
 }
 

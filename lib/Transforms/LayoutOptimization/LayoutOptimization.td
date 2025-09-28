@@ -42,6 +42,23 @@ def LayoutOptimization : Pass<"layout-optimization"> {
       "int",
       /*default=*/"1024",
       "Power of two length of the ciphertexts the data is packed in."
+    >,
+    Option<
+      "vveRandomSeed",
+      "vve-random-seed",
+      "std::size_t",
+      /*default=*/"42",
+      "Random seed for Vos-Vos-Erkin shift network randomization. Will be "
+      "hash-combined with additional seeds based on layouts being converted "
+      "from and to."
+    >,
+    Option<
+      "vveRandomTries",
+      "vve-random-tries",
+      "unsigned",
+      /*default=*/"100",
+      "Number of random tries used to find best Vos-Vos-Erkin shift network "
+      "during layout optimization."
     >
   ];
 }

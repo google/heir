@@ -124,17 +124,17 @@ ShiftScheme VosVosErkinShiftNetworks::findShiftScheme(
 }
 
 ShiftScheme VosVosErkinShiftNetworks::findBestShiftScheme(
-    const Mapping& mapping, unsigned numShiftOrderTries) {
+    const Mapping& mapping, std::size_t randomSeed, unsigned randomTries) {
   SmallVector<int64_t> initShiftOrder = defaultShiftOrder(
       mapping.getCiphertextSize() * mapping.getNumCiphertexts());
 
   std::size_t numRoundsMin = std::numeric_limits<std::size_t>::max();
   SmallVector<int64_t> bestShiftOrder;
 
-  std::random_device rd;
-  std::mt19937 g(rd());
+  std::seed_seq seq{randomSeed};
+  std::mt19937 g(seq);
 
-  for (unsigned i = 0; i < numShiftOrderTries; ++i) {
+  for (unsigned i = 0; i < randomTries; ++i) {
     // In order to get a uniform distribution over all permutations using a
     // Fisher-Yates shuffle we have to apply it to the original vector in each
     // iteration.
