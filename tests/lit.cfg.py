@@ -60,9 +60,5 @@ config.environment["HEIR_YOSYS_SCRIPTS_DIR"] = str(
 # test files with the needed paths.
 substitutions = {
     "%mlir_lib_dir": str(mlir_tools_path),
-    "%shlibext": ".so",
-    "%mlir_runner_utils": os.path.join(
-        mlir_tools_path, "libmlir_runner_utils.so"
-    ),
 }
 config.substitutions.extend(substitutions.items())
