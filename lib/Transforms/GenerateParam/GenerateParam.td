@@ -17,18 +17,18 @@ def GenerateParamBGV : Pass<"generate-param-bgv"> {
     To use public-key encryption/secret-key encryption in the model, the option
     `usePublicKey` could be set accordingly.
 
-    The first two models are taken from KPZ21, and they work by bounding
+    The first two models are taken from [KPZ21](https://ia.cr/2021/204), and they work by bounding
     the coefficient embedding of the ciphertexts. The difference
     of the two models is expansion factor used for multiplication
-    of the coefficients, the first being $2 \sqrt{N}$ and the second
-    being $N$.
+    of the coefficients, the first being $2 \sqrt{N}$ ($4 \sqrt{N}$ in some
+    special cases) and the second being $N$.
 
-    The third model is taken from MP24. It works by tracking the variance
+    The third model is taken from [MP24](https://ia.cr/2019/452). It works by tracking the variance
     of the coefficient embedding of the ciphertexts. This gives a more accurate
     noise estimate, but it may give underestimates in some cases. See the paper
-    for more details.
+    for more details. One possible explanation of the underestimation is [this paper](https://ia.cr/2025/1036).
 
-    The last model is taken from MMLGA22. It uses the canonical embedding to
+    The last model is taken from [MMLGA22](https://ia.cr/2022/706). It uses the canonical embedding to
     bound the critical quantity of a ciphertext that defines whether c can be
     decrypted correctly. According to the authors they achieve more accurate and
     better bounds than KPZ21. See the paper for more details.
@@ -68,26 +68,27 @@ def GenerateParamBFV : Pass<"generate-param-bfv"> {
     The pass generates the BFV scheme parameter using a given noise model.
 
     There are four noise models available:
-    - `bfv-noise-by-bound-coeff-average-case`
-    - `bfv-noise-by-bound-coeff-worst-case` or `bfv-noise-kpz21`
+    - `bfv-noise-by-bound-coeff-average-case` or `bfv-noise-kpz21`
+    - `bfv-noise-by-bound-coeff-worst-case`
     - `bfv-noise-by-variance-coeff` or `bfv-noise-bmcm23`
     - `bfv-noise-canon-emb`
 
     To use public-key encryption/secret-key encryption in the model, the option
     `usePublicKey` could be set accordingly.
 
-    The first two models are taken from KPZ21, and they work by bounding
+    The first two models are taken from [KPZ21](https://ia.cr/2021/204), and they work by bounding
     the coefficient embedding of the ciphertexts. The difference
     of the two models is expansion factor used for multiplication
-    of the coefficients, the first being $2 \sqrt{N}$ and the second
-    being $N$.
+    of the coefficients, the first being $2 \sqrt{N}$ ($4 \sqrt{N}$ in some
+    special cases) and the second being $N$.
 
-    The third model is taken from BMCM23. It works by tracking the variance
+    The third model is taken from [BMCM23](https://ia.cr/2023/600). It works by tracking the variance
     of the coefficient embedding of the ciphertexts. This gives a much tighter
     noise estimate for independent ciphertext input, but may give underestimation
-    for dependent ciphertext input. See [the paper](https://ia.cr/2023/600) for more details.
+    for dependent ciphertext input. See the paper for more details.
+    One possible explanation of the underestimation is [this paper](https://ia.cr/2025/1036)
 
-    The last model is adapted from MMLGA22 with mixes from BMCM23 and KPZ21.
+    The last model is adapted from [MMLGA22](https://ia.cr/2022/706) with mixes from BMCM23 and KPZ21.
     It uses the canonical embedding to bound the critical quantity of a ciphertext
     that defines whether c can be decrypted correctly.
 
