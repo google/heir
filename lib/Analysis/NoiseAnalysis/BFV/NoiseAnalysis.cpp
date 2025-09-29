@@ -184,7 +184,12 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
             }
 
             if (!mlir::isa<arith::ConstantOp, arith::ExtSIOp, arith::ExtUIOp,
-                           arith::ExtFOp, mgmt::InitOp>(op)) {
+                           arith::ExtFOp, mgmt::InitOp,
+                           // extract_slice is used for selecting one ciphertext
+                           // from a tensor of ciphertexts when packing data
+                           // across multiple ciphertexts. It does not change
+                           // noise.
+                           tensor::ExtractSliceOp, tensor::InsertSliceOp>(op)) {
               op.emitError()
                   << "Unsupported operation for noise analysis encountered.";
             }
