@@ -960,10 +960,13 @@ struct ConvertLinalgConv2D
         cast<TypedValue<RankedTensorType>>(adaptor.getInputs()[1]);
     SSAValue matrixLeaf(matrix);
 
+    // The original matrix shape is the shape of the expanded filter.
+    RankedTensorType expandedMatrixType = get2dConvFilterExpandedType(
+        cast<RankedTensorType>(op.getInputs()[1].getType()),
+        cast<RankedTensorType>(op.getInputs()[0].getType()), /*padding=*/0);
     std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
-        implementHaleviShoup(
-            vectorLeaf, matrixLeaf,
-            cast<RankedTensorType>(op.getInputs()[0].getType()).getShape());
+        implementHaleviShoup(vectorLeaf, matrixLeaf,
+                             expandedMatrixType.getShape());
 
     rewriter.setInsertionPointAfter(op);
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);

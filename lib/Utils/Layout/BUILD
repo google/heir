@@ -63,6 +63,7 @@ cc_library(
     hdrs = ["Evaluate.h"],
     deps = [
         ":IslConversion",
+        ":Utils",
         "@isl",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithUtils",
@@ -88,6 +89,7 @@ cc_test(
     name = "UtilsTest",
     srcs = ["UtilsTest.cpp"],
     deps = [
+        ":Evaluate",
         ":IslConversion",
         ":Utils",
         "@googletest//:gtest_main",

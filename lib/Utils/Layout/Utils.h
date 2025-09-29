@@ -52,6 +52,10 @@ presburger::IntegerRelation get2dConvFilterRelation(RankedTensorType filterType,
                                                     RankedTensorType dataType,
                                                     int64_t padding);
 
+RankedTensorType get2dConvFilterExpandedType(RankedTensorType filterType,
+                                             RankedTensorType dataType,
+                                             int64_t padding);
+
 // Returns an IntegerRelation that expands a 2-D filter matrix used in a
 // convolution into a 2-D matrix such that the convolution is
 // equivalent a matrix product with the flattened input vector. Each row
