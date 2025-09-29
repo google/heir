@@ -18,9 +18,6 @@ filegroup(
         "@llvm-project//llvm:count",
         "@llvm-project//llvm:lit",
         "@llvm-project//llvm:not",
-        "@llvm-project//mlir:libmlir_c_runner_utils.so",
-        "@llvm-project//mlir:libmlir_runner_utils.so",
-        "@llvm-project//mlir:mlir-runner",
         # copybara: run_lit.sh
     ],
 )
