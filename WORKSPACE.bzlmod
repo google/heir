@@ -46,9 +46,9 @@ maybe(
 # install dependencies for yosys/ABC circuit optimizers
 http_archive(
     name = "rules_hdl",
-    # Commit 2024-02-14, after merging our patch to fix MacOS builds
-    strip_prefix = "bazel_rules_hdl-9f292fca574e6406a69eeb91daad18a4c8ac2252",
-    url = "https://github.com/hdl/bazel_rules_hdl/archive/9f292fca574e6406a69eeb91daad18a4c8ac2252.tar.gz",
+    # Commit 2025-09-25, fixing dead links for some dependencies like ncurses
+    strip_prefix = "bazel_rules_hdl-cf2bd95334741db74b39b47fa1d4622b0d45ce6c",
+    url = "https://github.com/hdl/bazel_rules_hdl/archive/cf2bd95334741db74b39b47fa1d4622b0d45ce6c.tar.gz",
 )
 
 load("@rules_hdl//dependency_support/at_clifford_yosys:at_clifford_yosys.bzl", "at_clifford_yosys")
