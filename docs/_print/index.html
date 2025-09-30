@@ -3832,15 +3832,16 @@ to tensor.extract ops.</p><p>Does not support complex control flow within a bloc
 arbitrary subregions.</p><h3 id=-forward-store-to-load><code>-forward-store-to-load</code></h3><p><em>Forward stores to loads within a single block</em></p><p>This pass is a simplified version of mem2reg and similar passes.
 It analyzes an operation, finding all basic blocks within that op
 that have memrefs whose stores can be forwarded to loads.</p><p>Does not support complex control flow within a block, nor ops
-with arbitrary subregions.</p><h3 id=-full-loop-unroll><code>-full-loop-unroll</code></h3><p><em>Fully unroll all loops</em></p><p>Scan the IR for affine.for loops and unroll them all.</p><h3 id=-generate-param-bfv><code>-generate-param-bfv</code></h3><p><em>Generate BFV Scheme Parameter</em></p><p>The pass generates the BFV scheme parameter using a given noise model.</p><p>There are four noise models available:</p><ul><li><code>bfv-noise-by-bound-coeff-average-case</code></li><li><code>bfv-noise-by-bound-coeff-worst-case</code> or <code>bfv-noise-kpz21</code></li><li><code>bfv-noise-by-variance-coeff</code> or <code>bfv-noise-bmcm23</code></li><li><code>bfv-noise-canon-emb</code></li></ul><p>To use public-key encryption/secret-key encryption in the model, the option
-<code>usePublicKey</code> could be set accordingly.</p><p>The first two models are taken from KPZ21, and they work by bounding
+with arbitrary subregions.</p><h3 id=-full-loop-unroll><code>-full-loop-unroll</code></h3><p><em>Fully unroll all loops</em></p><p>Scan the IR for affine.for loops and unroll them all.</p><h3 id=-generate-param-bfv><code>-generate-param-bfv</code></h3><p><em>Generate BFV Scheme Parameter</em></p><p>The pass generates the BFV scheme parameter using a given noise model.</p><p>There are four noise models available:</p><ul><li><code>bfv-noise-by-bound-coeff-average-case</code> or <code>bfv-noise-kpz21</code></li><li><code>bfv-noise-by-bound-coeff-worst-case</code></li><li><code>bfv-noise-by-variance-coeff</code> or <code>bfv-noise-bmcm23</code></li><li><code>bfv-noise-canon-emb</code></li></ul><p>To use public-key encryption/secret-key encryption in the model, the option
+<code>usePublicKey</code> could be set accordingly.</p><p>The first two models are taken from <a href=https://ia.cr/2021/204>KPZ21</a>, and they work by bounding
 the coefficient embedding of the ciphertexts. The difference
 of the two models is expansion factor used for multiplication
-of the coefficients, the first being $2 \sqrt{N}$ and the second
-being $N$.</p><p>The third model is taken from BMCM23. It works by tracking the variance
+of the coefficients, the first being $2 \sqrt{N}$ ($4 \sqrt{N}$ in some
+special cases) and the second being $N$.</p><p>The third model is taken from <a href=https://ia.cr/2023/600>BMCM23</a>. It works by tracking the variance
 of the coefficient embedding of the ciphertexts. This gives a much tighter
 noise estimate for independent ciphertext input, but may give underestimation
-for dependent ciphertext input. See <a href=https://ia.cr/2023/600>the paper</a> for more details.</p><p>The last model is adapted from MMLGA22 with mixes from BMCM23 and KPZ21.
+for dependent ciphertext input. See the paper for more details.
+One possible explanation of the underestimation is <a href=https://ia.cr/2025/1036>this paper</a></p><p>The last model is adapted from <a href=https://ia.cr/2022/706>MMLGA22</a> with mixes from BMCM23 and KPZ21.
 It uses the canonical embedding to bound the critical quantity of a ciphertext
 that defines whether c can be decrypted correctly.</p><p>This pass then generates the moduli chain consisting of primes
 of bits specified by the <code>mod-bits</code> field.</p><p>Usually for B/FV <code>mod-bits</code> is set to 60. But when machine word size is
@@ -3875,14 +3876,14 @@ at the module level. Note that we reuse bgv::SchemeParamAttr for BFV.</p><h4 id=
 -use-public-key                : If true, uses a public key for encryption.
 -encryption-technique-extended : If true, uses EXTENDED encryption technique for encryption. (See https://ia.cr/2022/915)
 </code></pre><h3 id=-generate-param-bgv><code>-generate-param-bgv</code></h3><p><em>Generate BGV Scheme Parameter using a given noise model</em></p><p>The pass generates the BGV scheme parameter using a given noise model.</p><p>There are four noise models available:</p><ul><li><code>bgv-noise-by-bound-coeff-average-case</code> or <code>bgv-noise-kpz21</code></li><li><code>bgv-noise-by-bound-coeff-worst-case</code></li><li><code>bgv-noise-by-variance-coeff</code> or <code>bgv-noise-mp24</code></li><li><code>bgv-noise-mono</code></li></ul><p>To use public-key encryption/secret-key encryption in the model, the option
-<code>usePublicKey</code> could be set accordingly.</p><p>The first two models are taken from KPZ21, and they work by bounding
+<code>usePublicKey</code> could be set accordingly.</p><p>The first two models are taken from <a href=https://ia.cr/2021/204>KPZ21</a>, and they work by bounding
 the coefficient embedding of the ciphertexts. The difference
 of the two models is expansion factor used for multiplication
-of the coefficients, the first being $2 \sqrt{N}$ and the second
-being $N$.</p><p>The third model is taken from MP24. It works by tracking the variance
+of the coefficients, the first being $2 \sqrt{N}$ ($4 \sqrt{N}$ in some
+special cases) and the second being $N$.</p><p>The third model is taken from <a href=https://ia.cr/2019/452>MP24</a>. It works by tracking the variance
 of the coefficient embedding of the ciphertexts. This gives a more accurate
 noise estimate, but it may give underestimates in some cases. See the paper
-for more details.</p><p>The last model is taken from MMLGA22. It uses the canonical embedding to
+for more details. One possible explanation of the underestimation is <a href=https://ia.cr/2025/1036>this paper</a>.</p><p>The last model is taken from <a href=https://ia.cr/2022/706>MMLGA22</a>. It uses the canonical embedding to
 bound the critical quantity of a ciphertext that defines whether c can be
 decrypted correctly. According to the authors they achieve more accurate and
 better bounds than KPZ21. See the paper for more details.</p><p>This pass relies on the presence of the <code>mgmt</code> dialect ops to model

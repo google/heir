@@ -2872,23 +2872,24 @@ with arbitrary subregions.&lt;/p>
 &lt;p>The pass generates the BFV scheme parameter using a given noise model.&lt;/p>
 &lt;p>There are four noise models available:&lt;/p>
 &lt;ul>
-&lt;li>&lt;code>bfv-noise-by-bound-coeff-average-case&lt;/code>&lt;/li>
-&lt;li>&lt;code>bfv-noise-by-bound-coeff-worst-case&lt;/code> or &lt;code>bfv-noise-kpz21&lt;/code>&lt;/li>
+&lt;li>&lt;code>bfv-noise-by-bound-coeff-average-case&lt;/code> or &lt;code>bfv-noise-kpz21&lt;/code>&lt;/li>
+&lt;li>&lt;code>bfv-noise-by-bound-coeff-worst-case&lt;/code>&lt;/li>
 &lt;li>&lt;code>bfv-noise-by-variance-coeff&lt;/code> or &lt;code>bfv-noise-bmcm23&lt;/code>&lt;/li>
 &lt;li>&lt;code>bfv-noise-canon-emb&lt;/code>&lt;/li>
 &lt;/ul>
 &lt;p>To use public-key encryption/secret-key encryption in the model, the option
 &lt;code>usePublicKey&lt;/code> could be set accordingly.&lt;/p>
-&lt;p>The first two models are taken from KPZ21, and they work by bounding
+&lt;p>The first two models are taken from &lt;a href="https://ia.cr/2021/204">KPZ21&lt;/a>, and they work by bounding
 the coefficient embedding of the ciphertexts. The difference
 of the two models is expansion factor used for multiplication
-of the coefficients, the first being $2 \sqrt{N}$ and the second
-being $N$.&lt;/p>
-&lt;p>The third model is taken from BMCM23. It works by tracking the variance
+of the coefficients, the first being $2 \sqrt{N}$ ($4 \sqrt{N}$ in some
+special cases) and the second being $N$.&lt;/p>
+&lt;p>The third model is taken from &lt;a href="https://ia.cr/2023/600">BMCM23&lt;/a>. It works by tracking the variance
 of the coefficient embedding of the ciphertexts. This gives a much tighter
 noise estimate for independent ciphertext input, but may give underestimation
-for dependent ciphertext input. See &lt;a href="https://ia.cr/2023/600">the paper&lt;/a> for more details.&lt;/p>
-&lt;p>The last model is adapted from MMLGA22 with mixes from BMCM23 and KPZ21.
+for dependent ciphertext input. See the paper for more details.
+One possible explanation of the underestimation is &lt;a href="https://ia.cr/2025/1036">this paper&lt;/a>&lt;/p>
+&lt;p>The last model is adapted from &lt;a href="https://ia.cr/2022/706">MMLGA22&lt;/a> with mixes from BMCM23 and KPZ21.
 It uses the canonical embedding to bound the critical quantity of a ciphertext
 that defines whether c can be decrypted correctly.&lt;/p>
 &lt;p>This pass then generates the moduli chain consisting of primes
@@ -2944,16 +2945,16 @@ at the module level. Note that we reuse bgv::SchemeParamAttr for BFV.&lt;/p>
 &lt;/ul>
 &lt;p>To use public-key encryption/secret-key encryption in the model, the option
 &lt;code>usePublicKey&lt;/code> could be set accordingly.&lt;/p>
-&lt;p>The first two models are taken from KPZ21, and they work by bounding
+&lt;p>The first two models are taken from &lt;a href="https://ia.cr/2021/204">KPZ21&lt;/a>, and they work by bounding
 the coefficient embedding of the ciphertexts. The difference
 of the two models is expansion factor used for multiplication
-of the coefficients, the first being $2 \sqrt{N}$ and the second
-being $N$.&lt;/p>
-&lt;p>The third model is taken from MP24. It works by tracking the variance
+of the coefficients, the first being $2 \sqrt{N}$ ($4 \sqrt{N}$ in some
+special cases) and the second being $N$.&lt;/p>
+&lt;p>The third model is taken from &lt;a href="https://ia.cr/2019/452">MP24&lt;/a>. It works by tracking the variance
 of the coefficient embedding of the ciphertexts. This gives a more accurate
 noise estimate, but it may give underestimates in some cases. See the paper
-for more details.&lt;/p>
-&lt;p>The last model is taken from MMLGA22. It uses the canonical embedding to
+for more details. One possible explanation of the underestimation is &lt;a href="https://ia.cr/2025/1036">this paper&lt;/a>.&lt;/p>
+&lt;p>The last model is taken from &lt;a href="https://ia.cr/2022/706">MMLGA22&lt;/a>. It uses the canonical embedding to
 bound the critical quantity of a ciphertext that defines whether c can be
 decrypted correctly. According to the authors they achieve more accurate and
 better bounds than KPZ21. See the paper for more details.&lt;/p>
@@ -4277,20 +4278,27 @@ arguments in the function body.&lt;/li>
 &lt;/ul>
 &lt;h4 id="statistics">Statistics&lt;/h4>
 &lt;pre tabindex="0">&lt;code>total circuit size : The total circuit size for all optimized circuits, after optimization is done.
-&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2025-02-20</title><link>https://heir.dev/blog/2025/02/20/heir-meeting-2025-02-20/</link><pubDate>Thu, 20 Feb 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/02/20/heir-meeting-2025-02-20/</guid><description>
+&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2024-09-19</title><link>https://heir.dev/blog/2024/09/19/heir-meeting-2024-09-19/</link><pubDate>Thu, 19 Sep 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/09/19/heir-meeting-2024-09-19/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1Aza4s6Z0NCON9rQR70DOUkKSwBV6bHAmuYV8sIb8n7o/edit?usp=sharing">notes&lt;/a>
-and &lt;a href="https://youtu.be/Y82A6BLAVtc">video recording&lt;/a> from the HEIR meeting on
-2025-02-20.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-06-13</title><link>https://heir.dev/blog/2024/06/13/heir-meeting-2024-06-13/</link><pubDate>Thu, 13 Jun 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/06/13/heir-meeting-2024-06-13/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1rkPxOdbJY5J6qhsciZ0rfdj5_9PG_Ng-6USBUvLrEeU/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1aGIiZPWpk7UMg5FD8ZYHmNhKVZ6NdhfmGMvyHrrlolM/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/19oQOYlvfeHoSwWqOC4hXZTBuaPIf1zQl/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-06-13.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-08-29</title><link>https://heir.dev/blog/2023/09/05/heir-meeting-2023-08-29/</link><pubDate>Tue, 05 Sep 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/09/05/heir-meeting-2023-08-29/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1i-HqUi8pb2ywUJ-OT4fWExYCmeRLu2Cn/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-09-19.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-06-27</title><link>https://heir.dev/blog/2024/06/27/heir-meeting-2024-06-27/</link><pubDate>Thu, 27 Jun 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/06/27/heir-meeting-2024-06-27/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1Lax8Inby5Mg8BZLkcV_5hUiWH-roL22rtszfc0PBGmE/edit?usp=sharing">notes&lt;/a>
-from the HEIR meeting on 2023-08-29. There was an issue with the recording, so
-there is no video recording this week.&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
+&lt;a href="https://docs.google.com/document/d/1lc4U2JzHapu99_sigOAYwpjNnfd9_QGrX1HAQ0hle_o/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1-wMytGj3AHi55sA2jb81AsHOU8EcIq6d/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-06-27.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-02-08</title><link>https://heir.dev/blog/2024/02/08/heir-meeting-2024-02-08/</link><pubDate>Thu, 08 Feb 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/02/08/heir-meeting-2024-02-08/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1w0Cc3YfbSNO4PYVdGjb8KpE5rql8zgoDG2X0Yseon_4/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1rTsc-sWdRCqJWONrgGo5FV7CQd1S_OV-/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-02-08.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-01-25</title><link>https://heir.dev/blog/2024/01/25/heir-meeting-2024-01-25/</link><pubDate>Thu, 25 Jan 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/01/25/heir-meeting-2024-01-25/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1yrkAVR_348vT3SD7apb9QDoFIgz0bjHn-SzT2GOacfs/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/11JTfRy_3LvHjJQe0nJuqe8WGa8F9oHu1/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-01-25.&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h1 id="bgv-dialect">&amp;lsquo;bgv&amp;rsquo; Dialect&lt;/h1>
 &lt;p>The BGV dialect defines the types and operations of the BGV and B/FV cryptosystem.&lt;/p>
