@@ -272,8 +272,8 @@ class SecretGenericOpCipherPlainConversion
 
     Value input0 = inputs[0];
     Value input1 = inputs[1];
-    if (auto ciphertextTy =
-            dyn_cast<lwe::LWECiphertextType>(input0.getType())) {
+    if (auto ciphertextTy = dyn_cast<lwe::LWECiphertextType>(
+            getElementTypeOrSelf(input0.getType()))) {
       auto encoded = encodeCleartext(input1, ciphertextTy);
       if (failed(encoded)) {
         return failure();
@@ -282,8 +282,9 @@ class SecretGenericOpCipherPlainConversion
       return newOp.getOperation();
     }
 
-    auto encoded =
-        encodeCleartext(input0, cast<lwe::LWECiphertextType>(input1.getType()));
+    auto encoded = encodeCleartext(
+        input0,
+        cast<lwe::LWECiphertextType>(getElementTypeOrSelf(input1.getType())));
     if (failed(encoded)) {
       return failure();
     }
@@ -303,9 +304,10 @@ class SecretGenericOpRelinearizeConversion
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
       ContextAwareConversionPatternRewriter& rewriter) const override {
-    auto inputDimension = cast<lwe::LWECiphertextType>(inputs[0].getType())
-                              .getCiphertextSpace()
-                              .getSize();
+    auto inputDimension =
+        cast<lwe::LWECiphertextType>(getElementTypeOrSelf(inputs[0].getType()))
+            .getCiphertextSpace()
+            .getSize();
     SmallVector<int32_t> fromBasis;
     for (int i = 0; i < inputDimension; ++i) {
       fromBasis.push_back(i);

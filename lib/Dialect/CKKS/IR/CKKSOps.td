@@ -5,7 +5,7 @@ include "CKKSDialect.td"
 
 include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
-
+include "lib/Dialect/HEIRInterfaces.td"
 include "lib/Dialect/LWE/IR/LWETypes.td"
 include "lib/Dialect/LWE/IR/LWETraits.td"
 include "lib/Dialect/Polynomial/IR/PolynomialAttributes.td"
@@ -23,93 +23,93 @@ class CKKS_Op<string mnemonic, list<Trait> traits = []> :
 class CKKS_CiphertextPlaintextOp<string mnemonic, list<Trait> traits = []>
       : CKKS_Op<mnemonic, !listconcat(traits, [IsCiphertextPlaintextOp, InferTypeOpAdaptor])> {
   let arguments = (ins
-    LWEPlaintextOrCiphertext:$lhs,
-    LWEPlaintextOrCiphertext:$rhs
+    LWEPlaintextOrCiphertextLike:$lhs,
+    LWEPlaintextOrCiphertextLike:$rhs
   );
 
   let results = (outs
-    LWECiphertext:$output
+    LWECiphertextLike:$output
   );
 }
 
-def CKKS_AddOp : CKKS_Op<"add", [Commutative, SameOperandsAndResultRings,
+def CKKS_AddOp : CKKS_Op<"add", [ElementwiseMappable, Commutative, SameOperandsAndResultRings,
     SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
   let summary = "Addition operation between ciphertexts.";
 
   let arguments = (ins
-    LWECiphertext:$lhs,
-    LWECiphertext:$rhs
+    LWECiphertextLike:$lhs,
+    LWECiphertextLike:$rhs
   );
 
   let results = (outs
-    LWECiphertext:$output
+    LWECiphertextLike:$output
   );
 }
 
-def CKKS_AddPlainOp : CKKS_CiphertextPlaintextOp<"add_plain", [AllCiphertextTypesMatch,
+def CKKS_AddPlainOp : CKKS_CiphertextPlaintextOp<"add_plain", [ElementwiseMappable, AllCiphertextTypesMatch,
       SameOperandsAndResultPlaintextTypes, Commutative]> {
   let summary = "Addition operation between ciphertext-plaintext.";
   let hasCanonicalizer = 1;
 }
 
-def CKKS_SubOp : CKKS_Op<"sub", [SameOperandsAndResultRings,
+def CKKS_SubOp : CKKS_Op<"sub", [ElementwiseMappable, SameOperandsAndResultRings,
     SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
   let summary = "Subtraction operation between ciphertexts.";
 
   let arguments = (ins
-    LWECiphertext:$lhs,
-    LWECiphertext:$rhs
+    LWECiphertextLike:$lhs,
+    LWECiphertextLike:$rhs
   );
 
   let results = (outs
-    LWECiphertext:$output
+    LWECiphertextLike:$output
   );
 }
 
-def CKKS_SubPlainOp : CKKS_CiphertextPlaintextOp<"sub_plain", [AllCiphertextTypesMatch,
+def CKKS_SubPlainOp : CKKS_CiphertextPlaintextOp<"sub_plain", [ElementwiseMappable, AllCiphertextTypesMatch,
       SameOperandsAndResultPlaintextTypes]> {
   let summary = "Subtraction operation between ciphertext-plaintext.";
 }
 
-def CKKS_MulOp : CKKS_Op<"mul", [Commutative, SameOperandsAndResultRings, InferTypeOpAdaptor]> {
+def CKKS_MulOp : CKKS_Op<"mul", [ElementwiseMappable, Commutative, SameOperandsAndResultRings, InferTypeOpAdaptor]> {
   let summary = "Multiplication operation between ciphertexts.";
 
   let arguments = (ins
-    LWECiphertext:$lhs,
-    LWECiphertext:$rhs
+    LWECiphertextLike:$lhs,
+    LWECiphertextLike:$rhs
   );
 
   let results = (outs
-    LWECiphertext:$output
+    LWECiphertextLike:$output
   );
 
   let hasVerifier = 1;
 }
 
 // MulPlain op result ciphertext type could be different from the input
-def CKKS_MulPlainOp : CKKS_CiphertextPlaintextOp<"mul_plain", [InferTypeOpAdaptor, Commutative]> {
+def CKKS_MulPlainOp : CKKS_CiphertextPlaintextOp<"mul_plain", [ElementwiseMappable, InferTypeOpAdaptor, Commutative]> {
   let summary = "Multiplication operation between ciphertext-plaintext.";
   let hasVerifier = 1;
   let hasCanonicalizer = 1;
 }
 
-def CKKS_RotateOp : CKKS_Op<"rotate", [AllTypesMatch<["input", "output"]>]> {
+def CKKS_RotateOp : CKKS_Op<"rotate", [ElementwiseMappable, AllTypesMatch<["input", "output"]>]> {
   let summary = "Rotate the coefficients of the ciphertext using a Galois automorphism.";
 
   let arguments = (ins
-    LWECiphertext:$input,
+    LWECiphertextLike:$input,
     Builtin_IntegerAttr:$offset
   );
 
   let results = (outs
-    LWECiphertext:$output
+    LWECiphertextLike:$output
   );
 
   let hasVerifier = 1;
   let assemblyFormat = "operands attr-dict `:` qualified(type($input))" ;
 }
 
-def CKKS_ExtractOp : CKKS_Op<"extract", [SameOperandsAndResultRings]> {
+def CKKS_ExtractOp : CKKS_Op<"extract", [ElementwiseMappable, SameOperandsAndResultRings]> {
   let summary = "Extract the i-th element of a ciphertext.";
 
   let description = [{
@@ -126,35 +126,38 @@ def CKKS_ExtractOp : CKKS_Op<"extract", [SameOperandsAndResultRings]> {
   }];
 
   let arguments = (ins
-    LWECiphertext:$input,
+    LWECiphertextLike:$input,
     AnySignlessIntegerOrIndex:$offset
   );
 
   let results = (outs
-    LWECiphertext:$output
+    LWECiphertextLike:$output
   );
 
   let hasVerifier = 1;
 }
 
-def CKKS_NegateOp : CKKS_Op<"negate", [SameOperandsAndResultType, Involution]> {
+def CKKS_NegateOp : CKKS_Op<"negate", [ElementwiseMappable, SameOperandsAndResultType, Involution]> {
   let summary = "Negate the coefficients of the ciphertext.";
 
   let arguments = (ins
-    LWECiphertext:$input
+    LWECiphertextLike:$input
   );
 
   let results = (outs
-    LWECiphertext:$output
+    LWECiphertextLike:$output
   );
 
   let assemblyFormat = "operands attr-dict `:` qualified(type($output))" ;
 }
 
-def CKKS_RelinearizeOp : CKKS_Op<"relinearize", [SameOperandsAndResultRings,
-    SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
+def CKKS_RelinearizeOp : CKKS_Op<"relinearize", [
+  SameOperandsAndResultRings,
+  SameOperandsAndResultPlaintextTypes,
+  InferTypeOpAdaptor,
+  DeclareOpInterfaceMethods<ElementwiseByOperandOpInterface>
+]> {
   let summary = "Relinearize the ciphertext.";
-
   let description = [{
     This op takes integer array attributes `from_basis` and `to_basis` that are
     used to indicate the key basis from which and to which the ciphertext is
@@ -166,14 +169,14 @@ def CKKS_RelinearizeOp : CKKS_Op<"relinearize", [SameOperandsAndResultRings,
   }];
 
   let arguments = (ins
-    LWECiphertext:$input,
+    LWECiphertextLike:$input,
     DenseI32ArrayAttr:$from_basis,
     DenseI32ArrayAttr:$to_basis,
-    Optional<RankedTensorOf<[LWECiphertext]>>:$keySwitchingKey
+    Optional<RankedTensorOf<[LWECiphertextLike]>>:$keySwitchingKey
   );
 
   let results = (outs
-    LWECiphertext:$output
+    LWECiphertextLike:$output
   );
 
   let builders = [
@@ -197,39 +200,39 @@ def CKKS_RelinearizeOp : CKKS_Op<"relinearize", [SameOperandsAndResultRings,
   }];
 }
 
-def CKKS_RescaleOp : CKKS_Op<"rescale"> {
+def CKKS_RescaleOp : CKKS_Op<"rescale", [ElementwiseMappable]> {
   let summary = "Rescales the ciphertext, which is the CKKS version of modulus switching in BGV/BFV.";
 
   let arguments = (ins
-    LWECiphertext:$input,
+    LWECiphertextLike:$input,
     Polynomial_RingAttr:$to_ring
   );
 
   let results = (outs
-    LWECiphertext:$output
+    LWECiphertextLike:$output
   );
 
   let hasVerifier = 1;
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
-def CKKS_LevelReduceOp : CKKS_Op<"level_reduce", [SameOperandsAndResultPlaintextTypes]> {
+def CKKS_LevelReduceOp : CKKS_Op<"level_reduce", [ElementwiseMappable, SameOperandsAndResultPlaintextTypes]> {
   let summary = "Lower the modulus level of the ciphertext via dropping RNS limbs.";
 
   let arguments = (ins
-    LWECiphertext:$input,
+    LWECiphertextLike:$input,
     DefaultValuedAttr<I64Attr, "1">:$levelToDrop
   );
 
   let results = (outs
-    LWECiphertext:$output
+    LWECiphertextLike:$output
   );
 
   let hasVerifier = 1;
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
-def CKKS_BootstrapOp : CKKS_Op<"bootstrap"> {
+def CKKS_BootstrapOp : CKKS_Op<"bootstrap", [ElementwiseMappable]> {
   let summary = "Bootstrap the ciphertext to reduce noise and refresh its parameters.";
 
   let description = [{
@@ -238,11 +241,11 @@ def CKKS_BootstrapOp : CKKS_Op<"bootstrap"> {
   }];
 
   let arguments = (ins
-    LWECiphertext:$input
+    LWECiphertextLike:$input
   );
 
   let results = (outs
-    LWECiphertext:$output
+    LWECiphertextLike:$output
   );
 
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;

@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <utility>
 
+#include "lib/Dialect/HEIRInterfaces.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
@@ -24,11 +25,24 @@ namespace heir {
 // All of this is based on the ElementwiseToLinalg Pass in
 // mlir/lib/Dialect/Linalg/Transforms/ElementwiseToLinalg.cpp
 
-static bool isElementwiseMappableOpOnRankedTensors(Operation* op) {
-  if (!OpTrait::hasElementwiseMappableTraits(op)) return false;
+// An op is supported if it is ElementwiseMappable (all operands and results
+// are mapped over), or if it has the ElementwiseByOperandOpInterface, which
+// means only some operands are mapped over.
+static bool isSupported(Operation* op) {
+  if (OpTrait::hasElementwiseMappableTraits(op)) {
+    return llvm::any_of(op->getOperandTypes(),
+                        [](Type type) { return isa<RankedTensorType>(type); });
+  }
 
-  return llvm::any_of(op->getOperandTypes(),
-                      [](Type type) { return isa<RankedTensorType>(type); });
+  if (auto interface = dyn_cast<ElementwiseByOperandOpInterface>(op)) {
+    return llvm::all_of(
+        llvm::enumerate(op->getOperands()), [&](auto indexedOperand) {
+          return !interface.operandIsMappable(indexedOperand.index()) ||
+                 isa<RankedTensorType>(indexedOperand.value().getType());
+        });
+  }
+
+  return false;
 }
 
 namespace {
@@ -38,22 +52,27 @@ struct ConvertAnyElementwiseMappableOpOnRankedTensors : public RewritePattern {
       : RewritePattern(MatchAnyOpTypeTag(), /*benefit=*/1, context) {}
   LogicalResult matchAndRewrite(Operation* op,
                                 PatternRewriter& rewriter) const final {
-    if (!isElementwiseMappableOpOnRankedTensors(op))
+    if (!isSupported(op))
       return rewriter.notifyMatchFailure(
-          op, "requires elementwise op on ranked tensors");
+          op,
+          "unsupported op: not elementwise mappable, or doesn't have "
+          "ElementwiseByOperandOpInterface, or doesn't have tensor operands");
+
+    if (op->getNumResults() != 1)
+      return rewriter.notifyMatchFailure(
+          op, "unsupported op: more than one result");
 
     auto resultType = cast<RankedTensorType>(op->getResult(0).getType());
-    auto elementType = resultType.getElementType();
-    auto shape = resultType.getShape();
-    auto rank = resultType.getRank();
+    Type elementType = resultType.getElementType();
+    ArrayRef<int64_t> shape = resultType.getShape();
+    int64_t rank = resultType.getRank();
 
     // Save insertion point prior to entering loop nest
-    auto ip = rewriter.saveInsertionPoint();
+    OpBuilder::InsertionGuard guard(rewriter);
 
     // Create an empty tensor as initial value of the iter_args
     Value target = tensor::EmptyOp::create(
         rewriter, op->getLoc(), shape, elementType, resultType.getEncoding());
-
     llvm::SmallVector<Value, 1> indices;
 
     // Create a an affine.for loop nest of depth rank
@@ -63,15 +82,12 @@ struct ConvertAnyElementwiseMappableOpOnRankedTensors : public RewritePattern {
                                       /* upperBound*/ shape[i],
                                       /* step*/ 1,
                                       /* iterArgs*/ target);
-
-      // Update target & indices
       target = loop.getRegionIterArgs().front();
       indices.push_back(loop.getInductionVar());
 
-      // If first loop: replace scalar op
       if (i == 0) {
         rewriter.replaceOp(op, loop);
-      } else {  // yield the result of this loop
+      } else {
         affine::AffineYieldOp::create(rewriter, op->getLoc(),
                                       loop->getResults());
       }
@@ -86,17 +102,35 @@ struct ConvertAnyElementwiseMappableOpOnRankedTensors : public RewritePattern {
 
     // Generate a `tensor.extract` for each tensor operand
     SmallVector<Value, 4> newOperands;
-    for (auto operand : op->getOperands()) {
-      if (mlir::isa<RankedTensorType>(operand.getType())) {
-        // We don't need to check the shape, as ElementwiseMappable
-        // requires all tensor operands to have compatible shapes
-        auto extractOp = tensor::ExtractOp::create(rewriter, operand.getLoc(),
-                                                   operand, indices);
-        newOperands.push_back(extractOp);
-      } else {
-        // scalar (technically, "non-tensor") operands can be reused as-is
-        newOperands.push_back(operand);
+    for (OpOperand& opOperand : op->getOpOperands()) {
+      Value operand = opOperand.get();
+      if (mlir::isa<TensorType>(operand.getType())) {
+        if (OpTrait::hasElementwiseMappableTraits(op)) {
+          // We don't need to check the shape, as ElementwiseMappable
+          // requires all tensor operands to have compatible shapes
+          auto extractOp = tensor::ExtractOp::create(rewriter, operand.getLoc(),
+                                                     operand, indices);
+          newOperands.push_back(extractOp);
+          continue;
+        }
+
+        auto interface = cast<ElementwiseByOperandOpInterface>(op);
+        int operandIndex = opOperand.getOperandNumber();
+        if (interface.operandIsMappable(operandIndex)) {
+          // We don't need to check the shape, as
+          // ElementwiseByOperandOpInterface requires all mappable tensor
+          // operands to have compatible shapes
+          auto extractOp = tensor::ExtractOp::create(rewriter, operand.getLoc(),
+                                                     operand, indices);
+          newOperands.push_back(extractOp);
+          continue;
+        }
       }
+
+      // We are left with either non-tensor operands (e.g., scalars) or tensor
+      // operands which are not to be mapped over. These are replicated and
+      // used as-is.
+      newOperands.push_back(operand);
     }
 
     // "lowered" operation is the same operation, but over non-tensor
@@ -111,10 +145,6 @@ struct ConvertAnyElementwiseMappableOpOnRankedTensors : public RewritePattern {
 
     // replace lingalg.yield scalarOp with affine.yield insertedOp
     affine::AffineYieldOp::create(rewriter, op->getLoc(), inserted);
-
-    // reset insertion point
-    rewriter.restoreInsertionPoint(ip);
-
     return success();
   }
 };
@@ -137,8 +167,7 @@ struct ElementwiseToAffine
       bool convertOp =
           llvm::is_contained(convertOps, op->getName().getStringRef().str());
 
-      if (convertAll || convertDialect || convertOp)
-        return !isElementwiseMappableOpOnRankedTensors(op);
+      if (convertAll || convertDialect || convertOp) return !isSupported(op);
       return true;
     });
 

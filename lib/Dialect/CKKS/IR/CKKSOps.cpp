@@ -89,6 +89,13 @@ void AddPlainOp::getCanonicalizationPatterns(RewritePatternSet& results,
   results.add<lwe::PutCiphertextInFirstOperand<AddPlainOp>>(context);
 }
 
+// ElementwiseByOperandOpInterface impl
+
+bool RelinearizeOp::operandIsMappable(unsigned operandIndex) {
+  // only `input`
+  return operandIndex == 0;
+}
+
 }  // namespace ckks
 }  // namespace heir
 }  // namespace mlir

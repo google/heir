@@ -5,6 +5,7 @@
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "mlir/include/mlir/IR/OpDefinition.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"       // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 
@@ -152,26 +153,29 @@ inline LogicalResult verifyCiphertextPlaintextOp(Operation* op) {
   }
 
   auto operandTys = op->getOperandTypes();
-  if (isa<lwe::LWECiphertextType>(operandTys[0])) {
-    if (!isa<lwe::LWEPlaintextType>(operandTys[1])) {
+  if (isa<lwe::LWECiphertextType>(getElementTypeOrSelf(operandTys[0]))) {
+    if (!isa<lwe::LWEPlaintextType>(getElementTypeOrSelf(operandTys[1]))) {
       return op->emitOpError()
              << "expected ciphertext, plaintext operand types, got "
              << operandTys[0] << ", " << operandTys[1];
     }
-  } else if (isa<lwe::LWEPlaintextType>(operandTys[0])) {
-    if (!isa<lwe::LWECiphertextType>(operandTys[1])) {
+  } else if (isa<lwe::LWEPlaintextType>(getElementTypeOrSelf(operandTys[0]))) {
+    if (!isa<lwe::LWECiphertextType>(getElementTypeOrSelf(operandTys[1]))) {
       return op->emitOpError()
              << "expected plaintext, ciphertext operand types, got "
              << operandTys[0] << ", " << operandTys[1];
     }
   } else {
-    return op->emitOpError() << "expected first operand to be a ciphertext or "
-                                "plaintext type, got "
-                             << operandTys[0];
+    return op->emitOpError()
+           << "expected first operand to be a (tensor of) ciphertext or "
+              "plaintext type, got "
+           << operandTys[0];
   }
-  if (!isa<lwe::LWECiphertextType>(op->getResultTypes()[0])) {
-    return op->emitError() << "expected result to be ciphertext, got "
-                           << op->getResultTypes()[0];
+  if (!isa<lwe::LWECiphertextType>(
+          getElementTypeOrSelf(op->getResultTypes()[0]))) {
+    return op->emitError()
+           << "expected result to be (tensor of) ciphertext, got "
+           << op->getResultTypes()[0];
   }
   return success();
 }

@@ -23,70 +23,71 @@ class BGV_Op<string mnemonic, list<Trait> traits = []> :
 class BGV_CiphertextPlaintextOp<string mnemonic, list<Trait> traits = []>
       : BGV_Op<mnemonic, traits # [IsCiphertextPlaintextOp, InferTypeOpAdaptor]> {
   let arguments = (ins
-    LWEPlaintextOrCiphertext:$lhs,
-    LWEPlaintextOrCiphertext:$rhs
+    LWEPlaintextOrCiphertextLike:$lhs,
+    LWEPlaintextOrCiphertextLike:$rhs
   );
 
   let results = (outs
-    LWECiphertext:$output
+    LWECiphertextLike:$output
   );
 }
 
-def BGV_AddOp : BGV_Op<"add", [Commutative,
+def BGV_AddOp : BGV_Op<"add", [Commutative, ElementwiseMappable,
     SameOperandsAndResultRings, SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
   let summary = "Addition operation between ciphertexts.";
 
   let arguments = (ins
-    LWECiphertext:$lhs,
-    LWECiphertext:$rhs
+    LWECiphertextLike:$lhs,
+    LWECiphertextLike:$rhs
   );
 
   let results = (outs
-    LWECiphertext:$output
+    LWECiphertextLike:$output
   );
 }
 
-def BGV_AddPlainOp : BGV_CiphertextPlaintextOp<"add_plain", [AllCiphertextTypesMatch,
-        SameOperandsAndResultPlaintextTypes, Commutative]> {
+def BGV_AddPlainOp : BGV_CiphertextPlaintextOp<"add_plain", [ElementwiseMappable,
+    AllCiphertextTypesMatch, SameOperandsAndResultPlaintextTypes, Commutative]> {
   let summary = "Addition operation between ciphertext-plaintext.";
   let hasCanonicalizer = 1;
 }
 
-def BGV_SubOp : BGV_Op<"sub", [SameOperandsAndResultRings,
+def BGV_SubOp : BGV_Op<"sub", [ElementwiseMappable, SameOperandsAndResultRings,
     SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
   let summary = "Subtraction operation between ciphertexts.";
 
   let arguments = (ins
-    LWECiphertext:$lhs,
-    LWECiphertext:$rhs
+    LWECiphertextLike:$lhs,
+    LWECiphertextLike:$rhs
   );
 
   let results = (outs
-    LWECiphertext:$output
+    LWECiphertextLike:$output
   );
 }
 
-def BGV_SubPlainOp : BGV_CiphertextPlaintextOp<"sub_plain", [AllCiphertextTypesMatch,
-        SameOperandsAndResultPlaintextTypes]> {
+def BGV_SubPlainOp : BGV_CiphertextPlaintextOp<"sub_plain", [ElementwiseMappable,
+      AllCiphertextTypesMatch, SameOperandsAndResultPlaintextTypes]> {
   let summary = "Subtraction operation between ciphertext-plaintext.";
 }
 
-def BGV_MulOp : BGV_Op<"mul", [Commutative, SameOperandsAndResultRings, InferTypeOpAdaptor]> {
+def BGV_MulOp : BGV_Op<"mul", [ElementwiseMappable, Commutative,
+    SameOperandsAndResultRings, InferTypeOpAdaptor]> {
   let summary = "Multiplication operation between ciphertexts.";
 
   let arguments = (ins
-    LWECiphertext:$lhs,
-    LWECiphertext:$rhs
+    LWECiphertextLike:$lhs,
+    LWECiphertextLike:$rhs
   );
 
   let results = (outs
-    LWECiphertext:$output
+    LWECiphertextLike:$output
   );
 
   let hasVerifier = 1;
 }
 
-def BGV_MulPlainOp : BGV_CiphertextPlaintextOp<"mul_plain", [InferTypeOpAdaptor, Commutative]> {
+def BGV_MulPlainOp : BGV_CiphertextPlaintextOp<"mul_plain", [ElementwiseMappable, InferTypeOpAdaptor, Commutative]> {
   let summary = "Multiplication operation between ciphertext-plaintext.";
   let hasVerifier = 1;
   let hasCanonicalizer = 1;
@@ -106,12 +107,12 @@ def BGV_RotateColumnsOp : BGV_Op<"rotate_cols", [AllTypesMatch<["input", "output
   }];
 
   let arguments = (ins
-    LWECiphertext:$input,
+    LWECiphertextLike:$input,
     Builtin_IntegerAttr:$offset
   );
 
   let results = (outs
-    LWECiphertext:$output
+    LWECiphertextLike:$output
   );
 
   let hasVerifier = 1;
@@ -132,34 +133,34 @@ def BGV_RotateRowsOp : BGV_Op<"rotate_rows", [AllTypesMatch<["input", "output"]>
   }];
 
   let arguments = (ins
-    LWECiphertext:$input,
+    LWECiphertextLike:$input,
     Builtin_IntegerAttr:$offset
   );
 
   let results = (outs
-    LWECiphertext:$output
+    LWECiphertextLike:$output
   );
 
   let hasVerifier = 1;
   let assemblyFormat = "operands attr-dict `:` qualified(type($input))" ;
 }
 
-def BGV_NegateOp : BGV_Op<"negate", [Involution, SameOperandsAndResultType]> {
+def BGV_NegateOp : BGV_Op<"negate", [ElementwiseMappable, Involution, SameOperandsAndResultType]> {
   let summary = "Negate the coefficients of the ciphertext.";
 
   let arguments = (ins
-    LWECiphertext:$input
+    LWECiphertextLike:$input
   );
 
   let results = (outs
-    LWECiphertext:$output
+    LWECiphertextLike:$output
   );
 
   let assemblyFormat = "operands attr-dict `:` qualified(type($output))" ;
 }
 
-def BGV_RelinearizeOp : BGV_Op<"relinearize", [SameOperandsAndResultRings,
-    SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
+def BGV_RelinearizeOp : BGV_Op<"relinearize", [ElementwiseMappable,
+    SameOperandsAndResultRings, SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
   let summary = "Relinearize the ciphertext.";
 
   let description = [{
@@ -173,45 +174,45 @@ def BGV_RelinearizeOp : BGV_Op<"relinearize", [SameOperandsAndResultRings,
   }];
 
   let arguments = (ins
-    LWECiphertext:$input,
+    LWECiphertextLike:$input,
     DenseI32ArrayAttr:$from_basis,
     DenseI32ArrayAttr:$to_basis
   );
 
   let results = (outs
-    LWECiphertext:$output
+    LWECiphertextLike:$output
   );
 
   let hasVerifier = 1;
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
-def BGV_ModulusSwitchOp : BGV_Op<"modulus_switch"> {
+def BGV_ModulusSwitchOp : BGV_Op<"modulus_switch", [ElementwiseMappable]> {
   let summary = "Lower the modulus level of the ciphertext via modulus switching.";
 
   let arguments = (ins
-    LWECiphertext:$input,
+    LWECiphertextLike:$input,
     Polynomial_RingAttr:$to_ring
   );
 
   let results = (outs
-    LWECiphertext:$output
+    LWECiphertextLike:$output
   );
 
   let hasVerifier = 1;
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
-def BGV_LevelReduceOp : BGV_Op<"level_reduce", [SameOperandsAndResultPlaintextTypes]> {
+def BGV_LevelReduceOp : BGV_Op<"level_reduce", [ElementwiseMappable, SameOperandsAndResultPlaintextTypes]> {
   let summary = "Lower the modulus level of the ciphertext via dropping RNS limbs.";
 
   let arguments = (ins
-    LWECiphertext:$input,
+    LWECiphertextLike:$input,
     DefaultValuedAttr<I64Attr, "1">:$levelToDrop
   );
 
   let results = (outs
-    LWECiphertext:$output
+    LWECiphertextLike:$output
   );
 
   let hasVerifier = 1;

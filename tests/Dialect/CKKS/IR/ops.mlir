@@ -75,4 +75,25 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
     // CHECK: ring = <coefficientType = !rns.rns<!mod_arith.int<1095233372161 : i64>, !mod_arith.int<1032955396097 : i64>>, polynomialModulus = <1 + x**1024>>
     return %ext : !ct_scalar
   }
+
+  // CHECK: @test_multiply_elementwise
+  func.func @test_multiply_elementwise(%arg0 : tensor<5x!ct>, %arg1: tensor<5x!ct>, %ksk: tensor<10x!ct>) -> tensor<5x!ct> {
+    %add = ckks.add %arg0, %arg1 : (tensor<5x!ct>, tensor<5x!ct>) -> tensor<5x!ct>
+    %sub = ckks.sub %arg0, %arg1 : (tensor<5x!ct>, tensor<5x!ct>) -> tensor<5x!ct>
+    %neg = ckks.negate %arg0 : tensor<5x!ct>
+
+    %0 = ckks.mul %arg0, %arg1  : (tensor<5x!ct>, tensor<5x!ct>) -> tensor<5x!ct1>
+    %1 = ckks.relinearize %0, %ksk {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1> } : (tensor<5x!ct1>, tensor<10x!ct>) -> tensor<5x!ct>
+    %2 = ckks.rescale %1  {to_ring = #ring_rns_L0_1_x1024_} : tensor<5x!ct> -> tensor<5x!ct2>
+    return %arg0 : tensor<5x!ct>
+  }
+
+  // CHECK: @test_ciphertext_plaintext_elementwise
+  func.func @test_ciphertext_plaintext_elementwise(%arg0: tensor<5x!pt>, %arg1: tensor<5x!pt>, %arg2: tensor<5x!pt>, %arg3: tensor<5x!ct>) -> tensor<5x!ct> {
+    %add = ckks.add_plain %arg3, %arg0 : (tensor<5x!ct>, tensor<5x!pt>) -> tensor<5x!ct>
+    %sub = ckks.sub_plain %add, %arg1 : (tensor<5x!ct>, tensor<5x!pt>) -> tensor<5x!ct>
+    %mul = ckks.mul_plain %sub, %arg2 : (tensor<5x!ct>, tensor<5x!pt>) -> tensor<5x!ct>
+    // CHECK: ring = <coefficientType = !rns.rns<!mod_arith.int<1095233372161 : i64>, !mod_arith.int<1032955396097 : i64>>, polynomialModulus = <1 + x**1024>>
+    return %mul : tensor<5x!ct>
+  }
 }

@@ -26,6 +26,7 @@ cc_library(
         ":dialect_inc_gen",
         ":enums_inc_gen",
         ":ops_inc_gen",
+        "@heir//lib/Dialect:HEIRInterfaces",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Patterns",
         "@llvm-project//llvm:Support",
@@ -66,6 +67,7 @@ add_heir_dialect_library(
     td_file = "CKKSOps.td",
     deps = [
         ":td_files",
+        "@heir//lib/Dialect:td_files",
         "@heir//lib/Dialect/LWE/IR:td_files",
         "@heir//lib/Dialect/Polynomial/IR:td_files",
     ],
