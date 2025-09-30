@@ -61,7 +61,6 @@ tfhe_rs_end_to_end_test(
     ],
     mlir_src = "fully_connected.mlir",
     tags = [
-        "manual",
         "yosys",
     ],
     test_src = "src/main_fully_connected.rs",
