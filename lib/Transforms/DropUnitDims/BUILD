@@ -15,6 +15,7 @@ cc_library(
         "@heir//lib/Utils:TensorUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithUtils",
+        "@llvm-project//mlir:DialectUtils",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:LinalgDialect",
         "@llvm-project//mlir:LinalgInterfaces",
