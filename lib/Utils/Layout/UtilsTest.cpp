@@ -1,5 +1,6 @@
 #include <cmath>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -12,9 +13,10 @@
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"   // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"     // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/Utils/Utils.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"             // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"               // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -341,6 +343,70 @@ TEST(UtilsTest, ConvFilterRelationEvaluate) {
       {0, 0, 0, 0, 1, -1, 0, -1, 1},
   };
   EXPECT_EQ(packedFilter, expected);
+}
+
+TEST(UtilsTest, TestGetCollapsedRelation) {
+  MLIRContext context;
+  // Collapse a 2x3x4 matrix to a 6x4 matrix.
+  RankedTensorType sourceType =
+      RankedTensorType::get({2, 3, 4}, IndexType::get(&context));
+  RankedTensorType destType =
+      RankedTensorType::get({6, 4}, IndexType::get(&context));
+  SmallVector<ReassociationIndices> reassociation = {{0, 1}, {2}};
+  IntegerRelation collapsedRelation =
+      getCollapsedRelation(sourceType, destType, reassociation);
+
+  // Evaluate layout presumes a 2-d (ct, slot) output so we can hack-ishly use
+  // it here for the 2D output.
+  std::vector<std::vector<std::vector<int>>> input = {
+      {{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}},
+      {{9, 10, 11, 12}, {13, 14, 15, 16}, {17, 18, 19, 20}},
+  };
+  std::function<int(const std::vector<int64_t>&)> getValueFn =
+      [&](const std::vector<int64_t>& domainPoint) {
+        return input[domainPoint[0]][domainPoint[1]][domainPoint[2]];
+      };
+
+  std::vector<std::vector<int>> actual =
+      evaluateLayout(collapsedRelation, getValueFn);
+  std::vector<std::vector<int>> expected = {
+      {1, 2, 3, 4},    {5, 6, 7, 8},     {9, 10, 11, 12},
+      {9, 10, 11, 12}, {13, 14, 15, 16}, {17, 18, 19, 20},
+  };
+  EXPECT_EQ(actual, expected);
+}
+
+TEST(UtilsTest, TestGetCollapsedRelationUnitDims) {
+  MLIRContext context;
+  // Collapse a 1x3x4 matrix to a 3x4 matrix.
+  RankedTensorType sourceType =
+      RankedTensorType::get({1, 3, 4}, IndexType::get(&context));
+  RankedTensorType destType =
+      RankedTensorType::get({3, 4}, IndexType::get(&context));
+  SmallVector<ReassociationIndices> reassociation = {{0, 1}, {2}};
+  IntegerRelation collapsedRelation =
+      getCollapsedRelation(sourceType, destType, reassociation);
+
+  // Evaluate layout presumes a 2-d (ct, slot) output so we can hack-ishly use
+  // it here for the 2D output.
+  std::vector<std::vector<std::vector<int>>> input = {{
+      {1, 2, 3, 4},
+      {5, 6, 7, 8},
+      {9, 10, 11, 12},
+  }};
+  std::function<int(const std::vector<int64_t>&)> getValueFn =
+      [&](const std::vector<int64_t>& domainPoint) {
+        return input[domainPoint[0]][domainPoint[1]][domainPoint[2]];
+      };
+
+  std::vector<std::vector<int>> actual =
+      evaluateLayout(collapsedRelation, getValueFn);
+  std::vector<std::vector<int>> expected = {
+      {1, 2, 3, 4},
+      {5, 6, 7, 8},
+      {9, 10, 11, 12},
+  };
+  EXPECT_EQ(actual, expected);
 }
 
 }  // namespace

@@ -96,6 +96,7 @@ cc_test(
         "@heir//lib/Utils:TensorUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:ArithUtils",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
     ],

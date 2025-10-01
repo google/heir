@@ -172,6 +172,12 @@ void getRangePoints(const presburger::IntegerRelation& relation,
 // Sample a point in the range of the relation.
 std::vector<int64_t> anyRangePoint(const presburger::IntegerRelation& relation);
 
+// Collapse a relation with the given reassociation indices. Dimensions that are
+// collapsed in a row-major order.
+presburger::IntegerRelation getCollapsedRelation(
+    RankedTensorType sourceType, RankedTensorType destType,
+    ArrayRef<ReassociationIndices> reassociation);
+
 }  // namespace heir
 }  // namespace mlir
 

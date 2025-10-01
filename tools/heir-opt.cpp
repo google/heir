@@ -88,6 +88,7 @@
 #include "lib/Transforms/PolynomialApproximation/PolynomialApproximation.h"
 #include "lib/Transforms/PopulateScale/PopulateScale.h"
 #include "lib/Transforms/PropagateAnnotation/PropagateAnnotation.h"
+#include "lib/Transforms/ReluCanonicalizations/ReluCanonicalizations.h"
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/SelectRewrite/SelectRewrite.h"
@@ -133,6 +134,8 @@
 #include "mlir/include/mlir/Dialect/MemRef/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/Extensions/AllExtensions.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/TensorInferTypeOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Pass/PassManager.h"            // from @llvm-project
 #include "mlir/include/mlir/Pass/PassRegistry.h"           // from @llvm-project
@@ -199,6 +202,8 @@ int main(int argc, char** argv) {
   mlir::arith::registerConvertArithToLLVMInterface(registry);
   cf::registerConvertControlFlowToLLVMInterface(registry);
   func::registerAllExtensions(registry);
+  tensor::registerAllExtensions(registry);
+  tensor::registerInferTypeOpInterfaceExternalModels(registry);
   index::registerConvertIndexToLLVMInterface(registry);
   registerConvertComplexToLLVMInterface(registry);
   registerConvertFuncToLLVMInterface(registry);
@@ -266,6 +271,7 @@ int main(int argc, char** argv) {
   registerFullLoopUnrollPasses();
   registerConvertIfToSelectPasses();
   registerCompareToSignRewritePasses();
+  registerReluCanonicalizationsPasses();
   registerSelectRewritePasses();
   registerConvertSecretForToStaticForPasses();
   registerConvertSecretWhileToStaticForPasses();

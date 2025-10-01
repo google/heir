@@ -44,6 +44,7 @@
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
 #include "lib/Transforms/PopulateScale/PopulateScale.h"
 #include "lib/Transforms/PropagateAnnotation/PropagateAnnotation.h"
+#include "lib/Transforms/ReluCanonicalizations/ReluCanonicalizations.h"
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/SelectRewrite/SelectRewrite.h"
@@ -130,6 +131,7 @@ void mlirToSecretArithmeticPipelineBuilder(
     bool newLayout) {
   pm.addPass(createWrapGeneric());
   convertToDataObliviousPipelineBuilder(pm);
+  pm.addPass(createReLUCanonicalizations());
   pm.addPass(createSelectRewrite());
   pm.addPass(createCompareToSignRewrite());
 
