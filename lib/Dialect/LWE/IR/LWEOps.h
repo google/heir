@@ -4,19 +4,23 @@
 #include <cstddef>
 
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
-#include "lib/Dialect/LWE/IR/LWEDialect.h"
-#include "lib/Dialect/LWE/IR/LWETraits.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
-#include "mlir/include/mlir/IR/BuiltinOps.h"    // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Diagnostics.h"   // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"   // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"         // from @llvm-project
-#include "mlir/include/mlir/Interfaces/InferTypeOpInterface.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/Diagnostics.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
+
+// IWYU pragma: begin_keep
+#include "lib/Dialect/LWE/IR/LWEDialect.h"
+#include "lib/Dialect/LWE/IR/LWETraits.h"
+#include "mlir/include/mlir/IR/BuiltinOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Interfaces/InferTypeOpInterface.h"  // from @llvm-project
+// IWYU pragma: end_keep
 
 #define GET_OP_CLASSES
 #include "lib/Dialect/LWE/IR/LWEOps.h.inc"
@@ -29,12 +33,20 @@ namespace lwe {
 // Op verifiers
 //===----------------------------------------------------------------------===//
 
+inline LWECiphertextType getCtTy(Value v) {
+  return cast<LWECiphertextType>(getElementTypeOrSelf(v.getType()));
+}
+
+inline LWEPlaintextType getPtTy(Value v) {
+  return cast<LWEPlaintextType>(getElementTypeOrSelf(v.getType()));
+}
+
 template <typename Op>
 LogicalResult verifyMulOp(Op* op) {
   // verify dimension matches
-  auto x = op->getLhs().getType();
-  auto y = op->getRhs().getType();
-  auto out = op->getOutput().getType();
+  auto x = getCtTy(op->getLhs());
+  auto y = getCtTy(op->getRhs());
+  auto out = getCtTy(op->getOutput());
   if (out.getCiphertextSpace().getSize() !=
       y.getCiphertextSpace().getSize() + x.getCiphertextSpace().getSize() - 1) {
     return op->emitOpError() << "output.dim == x.dim + y.dim - 1 does not hold";
@@ -54,14 +66,14 @@ template <typename Op>
 LogicalResult verifyMulPlainOp(Op* op) {
   lwe::LWECiphertextType ct;
   lwe::LWEPlaintextType pt;
-  if (isa<lwe::LWECiphertextType>(op->getLhs().getType())) {
-    ct = cast<lwe::LWECiphertextType>(op->getLhs().getType());
-    pt = cast<lwe::LWEPlaintextType>(op->getRhs().getType());
+  if (isa<lwe::LWECiphertextType>(getElementTypeOrSelf(op->getLhs()))) {
+    ct = getCtTy(op->getLhs());
+    pt = getPtTy(op->getRhs());
   } else {
-    ct = cast<lwe::LWECiphertextType>(op->getRhs().getType());
-    pt = cast<lwe::LWEPlaintextType>(op->getLhs().getType());
+    ct = getCtTy(op->getRhs());
+    pt = getPtTy(op->getLhs());
   }
-  auto out = op->getOutput().getType();
+  auto out = getCtTy(op->getOutput());
   // verify dimension matches
   if (ct.getCiphertextSpace().getSize() != out.getCiphertextSpace().getSize()) {
     return op->emitOpError() << "output.dim == x.dim does not hold";
@@ -79,11 +91,11 @@ LogicalResult verifyMulPlainOp(Op* op) {
 
 template <typename Op>
 LogicalResult verifyRotateOp(Op* op) {
-  auto x = op->getInput().getType();
+  auto x = getCtTy(op->getInput());
   if (x.getCiphertextSpace().getSize() != 2) {
     return op->emitOpError() << "x.dim == 2 does not hold";
   }
-  auto out = op->getOutput().getType();
+  auto out = getCtTy(op->getOutput());
   if (out.getCiphertextSpace().getSize() != 2) {
     return op->emitOpError() << "output.dim == 2 does not hold";
   }
@@ -92,8 +104,8 @@ LogicalResult verifyRotateOp(Op* op) {
 
 template <typename Op>
 LogicalResult verifyRelinearizeOp(Op* op) {
-  auto x = op->getInput().getType();
-  auto out = op->getOutput().getType();
+  auto x = getCtTy(op->getInput());
+  auto out = getCtTy(op->getOutput());
   if (x.getCiphertextSpace().getSize() != op->getFromBasis().size()) {
     return op->emitOpError() << "input dimension does not match from_basis";
   }
@@ -105,10 +117,9 @@ LogicalResult verifyRelinearizeOp(Op* op) {
 
 template <typename Op>
 LogicalResult verifyModulusSwitchOrRescaleOp(Op* op) {
-  auto x = op->getInput().getType();
+  auto x = getCtTy(op->getInput());
   auto xRing = x.getCiphertextSpace().getRing();
-
-  auto out = op->getOutput().getType();
+  auto out = getCtTy(op->getOutput());
   auto outRing = out.getCiphertextSpace().getRing();
   if (outRing != op->getToRing()) {
     return op->emitOpError() << "output ring should match to_ring";
@@ -199,17 +210,17 @@ LogicalResult verifyModulusSwitchOrRescaleOp(Op* op) {
 
 template <typename Op>
 LogicalResult verifyExtractOp(Op* op) {
-  auto inputTy = op->getInput().getType();
-  auto tensorTy =
-      dyn_cast<RankedTensorType>(inputTy.getApplicationData().getMessageType());
+  auto inputCtTy = getCtTy(op->getInput());
+  auto tensorTy = dyn_cast<RankedTensorType>(
+      inputCtTy.getApplicationData().getMessageType());
   if (!tensorTy) {
     return op->emitOpError() << "input RLWE ciphertext type must have a ranked "
                                 "tensor as its underlying_type, but found "
-                             << inputTy.getApplicationData().getMessageType();
+                             << inputCtTy.getApplicationData().getMessageType();
   }
 
   auto outputScalarType =
-      op->getOutput().getType().getApplicationData().getMessageType();
+      getCtTy(op->getOutput()).getApplicationData().getMessageType();
   if (tensorTy.getElementType() != outputScalarType) {
     return op->emitOpError()
            << "output RLWE ciphertext's underlying_type must be "
@@ -223,8 +234,8 @@ LogicalResult verifyExtractOp(Op* op) {
 template <typename Op>
 LogicalResult verifyLevelReduceOp(Op* op) {
   auto levelToDrop = op->getLevelToDrop();
-  auto x = op->getInput().getType();
-  auto out = op->getOutput().getType();
+  auto x = getCtTy(op->getInput());
+  auto out = getCtTy(op->getOutput());
 
   if (x.getModulusChain().getCurrent() <= levelToDrop) {
     return op->emitOpError() << "level_to_drop is out of bounds";
@@ -245,16 +256,24 @@ template <typename Adaptor>
 LogicalResult inferAddOpReturnTypes(
     MLIRContext* ctx, Adaptor adaptor,
     SmallVectorImpl<Type>& inferredReturnTypes) {
-  auto x = cast<lwe::LWECiphertextType>(adaptor.getLhs().getType());
-  auto y = cast<lwe::LWECiphertextType>(adaptor.getRhs().getType());
+  auto x = getCtTy(adaptor.getLhs());
+  auto y = getCtTy(adaptor.getRhs());
   auto newDim = std::max(x.getCiphertextSpace().getSize(),
                          y.getCiphertextSpace().getSize());
-  inferredReturnTypes.push_back(lwe::LWECiphertextType::get(
+  auto newCtTy = lwe::LWECiphertextType::get(
       ctx, x.getApplicationData(), x.getPlaintextSpace(),
       lwe::CiphertextSpaceAttr::get(ctx, x.getCiphertextSpace().getRing(),
                                     x.getCiphertextSpace().getEncryptionType(),
                                     newDim),
-      x.getKey(), x.getModulusChain()));
+      x.getKey(), x.getModulusChain());
+
+  if (auto tensorTy = dyn_cast<RankedTensorType>(adaptor.getLhs().getType())) {
+    inferredReturnTypes.push_back(
+        RankedTensorType::get(tensorTy.getShape(), newCtTy));
+    return success();
+  }
+
+  inferredReturnTypes.push_back(newCtTy);
   return success();
 }
 
@@ -262,11 +281,12 @@ template <typename Adaptor>
 LogicalResult inferPlainOpReturnTypes(
     MLIRContext* ctx, Adaptor adaptor,
     SmallVectorImpl<Type>& inferredReturnTypes) {
-  if (auto ct = dyn_cast<lwe::LWECiphertextType>(adaptor.getLhs().getType())) {
-    inferredReturnTypes.push_back(ct);
-  } else if (auto ct =
-                 dyn_cast<lwe::LWECiphertextType>(adaptor.getRhs().getType())) {
-    inferredReturnTypes.push_back(ct);
+  if (auto ct = dyn_cast<lwe::LWECiphertextType>(
+          getElementTypeOrSelf(adaptor.getLhs().getType()))) {
+    inferredReturnTypes.push_back(adaptor.getLhs().getType());
+  } else if (auto ct = dyn_cast<lwe::LWECiphertextType>(
+                 getElementTypeOrSelf(adaptor.getRhs().getType()))) {
+    inferredReturnTypes.push_back(adaptor.getRhs().getType());
   } else {
     emitError(adaptor.getLhs().getLoc())
         << "expected lhs or rhs to be a ciphertext type";
@@ -279,8 +299,8 @@ template <typename Adaptor>
 LogicalResult inferMulOpReturnTypes(
     MLIRContext* ctx, Adaptor adaptor,
     SmallVectorImpl<Type>& inferredReturnTypes) {
-  auto x = cast<lwe::LWECiphertextType>(adaptor.getLhs().getType());
-  auto y = cast<lwe::LWECiphertextType>(adaptor.getRhs().getType());
+  auto x = getCtTy(adaptor.getLhs());
+  auto y = getCtTy(adaptor.getRhs());
   auto newDim =
       x.getCiphertextSpace().getSize() + y.getCiphertextSpace().getSize() - 1;
   auto xPlaintextSpace = x.getPlaintextSpace();
@@ -289,12 +309,20 @@ LogicalResult inferMulOpReturnTypes(
   lwe::PlaintextSpaceAttr newPlaintextSpaceAttr =
       inferMulOpPlaintextSpaceAttr(ctx, xPlaintextSpace, yPlaintextSpace);
 
-  inferredReturnTypes.push_back(lwe::LWECiphertextType::get(
+  auto newCtTy = lwe::LWECiphertextType::get(
       ctx, x.getApplicationData(), newPlaintextSpaceAttr,
       lwe::CiphertextSpaceAttr::get(ctx, x.getCiphertextSpace().getRing(),
                                     x.getCiphertextSpace().getEncryptionType(),
                                     newDim),
-      x.getKey(), x.getModulusChain()));
+      x.getKey(), x.getModulusChain());
+
+  if (auto tensorTy = dyn_cast<RankedTensorType>(adaptor.getLhs().getType())) {
+    inferredReturnTypes.push_back(
+        RankedTensorType::get(tensorTy.getShape(), newCtTy));
+    return success();
+  }
+
+  inferredReturnTypes.push_back(newCtTy);
   return success();
 }
 
@@ -304,12 +332,12 @@ LogicalResult inferMulPlainOpReturnTypes(
     SmallVectorImpl<Type>& inferredReturnTypes) {
   lwe::LWECiphertextType ct;
   lwe::LWEPlaintextType pt;
-  if (isa<lwe::LWECiphertextType>(adaptor.getLhs().getType())) {
-    ct = cast<lwe::LWECiphertextType>(adaptor.getLhs().getType());
-    pt = cast<lwe::LWEPlaintextType>(adaptor.getRhs().getType());
+  if (isa<lwe::LWECiphertextType>(getElementTypeOrSelf(adaptor.getLhs()))) {
+    ct = getCtTy(adaptor.getLhs());
+    pt = getPtTy(adaptor.getRhs());
   } else {
-    ct = cast<lwe::LWECiphertextType>(adaptor.getRhs().getType());
-    pt = cast<lwe::LWEPlaintextType>(adaptor.getLhs().getType());
+    ct = getCtTy(adaptor.getRhs());
+    pt = getPtTy(adaptor.getLhs());
   }
   auto ctPlaintextSpace = ct.getPlaintextSpace();
   auto ptPlaintextSpace = pt.getPlaintextSpace();
@@ -317,9 +345,17 @@ LogicalResult inferMulPlainOpReturnTypes(
   lwe::PlaintextSpaceAttr newPlaintextSpaceAttr =
       inferMulOpPlaintextSpaceAttr(ctx, ctPlaintextSpace, ptPlaintextSpace);
 
-  inferredReturnTypes.push_back(lwe::LWECiphertextType::get(
+  auto newCtTy = lwe::LWECiphertextType::get(
       ctx, ct.getApplicationData(), newPlaintextSpaceAttr,
-      ct.getCiphertextSpace(), ct.getKey(), ct.getModulusChain()));
+      ct.getCiphertextSpace(), ct.getKey(), ct.getModulusChain());
+
+  if (auto tensorTy = dyn_cast<RankedTensorType>(adaptor.getLhs().getType())) {
+    inferredReturnTypes.push_back(
+        RankedTensorType::get(tensorTy.getShape(), newCtTy));
+    return success();
+  }
+
+  inferredReturnTypes.push_back(newCtTy);
   return success();
 }
 
@@ -327,13 +363,22 @@ template <typename Adaptor>
 LogicalResult inferRelinearizeOpReturnTypes(
     MLIRContext* ctx, Adaptor adaptor,
     SmallVectorImpl<Type>& inferredReturnTypes) {
-  auto x = cast<lwe::LWECiphertextType>(adaptor.getInput().getType());
-  inferredReturnTypes.push_back(lwe::LWECiphertextType::get(
+  auto x = getCtTy(adaptor.getInput());
+  auto newCtTy = lwe::LWECiphertextType::get(
       ctx, x.getApplicationData(), x.getPlaintextSpace(),
       lwe::CiphertextSpaceAttr::get(ctx, x.getCiphertextSpace().getRing(),
                                     x.getCiphertextSpace().getEncryptionType(),
                                     adaptor.getToBasis().size()),
-      x.getKey(), x.getModulusChain()));
+      x.getKey(), x.getModulusChain());
+
+  if (auto tensorTy =
+          dyn_cast<RankedTensorType>(adaptor.getInput().getType())) {
+    inferredReturnTypes.push_back(
+        RankedTensorType::get(tensorTy.getShape(), newCtTy));
+    return success();
+  }
+
+  inferredReturnTypes.push_back(newCtTy);
   return success();
 }
 

@@ -34,6 +34,49 @@ def OperandLayoutRequirementOpInterface : OpInterface<"OperandLayoutRequirementO
   ];
 }
 
+def ElementwiseByOperandOpInterface : OpInterface<"ElementwiseByOperandOpInterface"> {
+  let cppNamespace = "::mlir::heir";
+  let description = [{
+    An interface that identifies the operation to be elementwise mappable,
+    i.e., tensorizable and scalarizable, and specifies a subset of operands
+    and results with respect to which this operation can be mapped.
+
+    Non-tensor operands need not specify their mappability under this interface,
+    and they are always replicated wholesale during elementwise mapping.
+
+    Unlike `::mlir::Elementwise` and `::mlir::Scalarizable`, etc., this allows
+    an operation to map across just some operands, while the other operands
+    are kept wholesale. But like `::mlir::Elementwise`, this assumes that all
+    tensors that are mapped over must have the same shape.
+
+    An example of where this is used in HEIR is for scheme dialect operations
+    like `relinearize`, which can be mapped across its first operand, but
+    requires an additional key-switching key operand that is a tensor, but must
+    be replicated and not mapped.
+
+    This trait is designed to work with the `convert-elementwise-to-affine`
+    pass.
+  }];
+
+  let methods = [
+    InterfaceMethod<
+      /*desc=*/"Return true if this operand can be mapped elementise",
+      /*retTy=*/"bool",
+      /*methodName=*/"operandIsMappable",
+      /*args=*/(ins "unsigned":$operandIndex)
+    >,
+
+    // It may make sense some day to allow only a subset of op results to be
+    // mapped, but for now we assume all results are tensors of the same shape
+    // as the mapped operands.
+  ];
+
+  let verify = [{
+    return ::mlir::heir::verifyElementwiseByOperandImpl(
+      cast<ElementwiseByOperandOpInterface>(op));
+  }];
+}
+
 def LayoutConversionHoistableOpInterface : OpInterface<"LayoutConversionHoistableOpInterface"> {
   let cppNamespace = "::mlir::heir";
   let description = [{

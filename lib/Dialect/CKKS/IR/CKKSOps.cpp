@@ -6,6 +6,7 @@
 #include "lib/Dialect/LWE/IR/LWEPatterns.h"
 #include "mlir/include/mlir/IR/Location.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
@@ -87,6 +88,13 @@ void MulPlainOp::getCanonicalizationPatterns(RewritePatternSet& results,
 void AddPlainOp::getCanonicalizationPatterns(RewritePatternSet& results,
                                              MLIRContext* context) {
   results.add<lwe::PutCiphertextInFirstOperand<AddPlainOp>>(context);
+}
+
+// ElementwiseByOperandOpInterface impl
+
+bool RelinearizeOp::operandIsMappable(unsigned operandIndex) {
+  // only `input`
+  return operandIndex == 0;
 }
 
 }  // namespace ckks

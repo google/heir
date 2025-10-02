@@ -1,11 +1,14 @@
 #ifndef LIB_DIALECT_CKKS_IR_CKKSOPS_H_
 #define LIB_DIALECT_CKKS_IR_CKKSOPS_H_
 
+// IWYU_pragma: begin_keep
+#include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/LWE/IR/LWETraits.h"
 #include "mlir/include/mlir/IR/BuiltinOps.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Dialect.h"       // from @llvm-project
 #include "mlir/include/mlir/Interfaces/InferTypeOpInterface.h"  // from @llvm-project
+// IWYU_pragma: end_keep
 
 #define GET_OP_CLASSES
 #include "lib/Dialect/CKKS/IR/CKKSOps.h.inc"

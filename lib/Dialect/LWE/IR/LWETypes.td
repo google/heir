@@ -99,8 +99,10 @@ def LWECiphertext : LWE_Type<"LWECiphertext", "lwe_ciphertext", [MemRefElementTy
   let aliasSuffix = [{ getCiphertextSpace().getAliasSuffix(os); }];
 }
 
-def LWECiphertextLike : TypeOrValueSemanticsContainer<LWECiphertext, "lwe-ciphertext-like">;
 
 def LWEPlaintextOrCiphertext : AnyTypeOf<[LWECiphertext, LWEPlaintext]>;
+
+def LWECiphertextLike : TypeOrValueSemanticsContainer<LWECiphertext, "lwe-ciphertext-like">;
+def LWEPlaintextOrCiphertextLike : TypeOrValueSemanticsContainer<LWEPlaintextOrCiphertext, "lwe-plaintext-or-ciphertext-like">;
 
 #endif  // LIB_DIALECT_LWE_IR_LWETYPES_TD_
