@@ -111,7 +111,8 @@ void mlirToCGGIPipeline(OpPassManager& pm,
       pm.addPass(secret::createSecretDistributeGeneric(distributeOpts));
       pm.addPass(createCanonicalizerPass());
       pm.addPass(createYosysOptimizer(yosysFilesPath, abcPath, options.abcFast,
-                                      options.unrollFactor, options.mode));
+                                      options.unrollFactor,
+                                      options.useSubmodules, options.mode));
       // Cleanup
       pm.addPass(mlir::createCSEPass());
       pm.addPass(createCanonicalizerPass());

@@ -132,7 +132,9 @@ class InsertIntoFromElements final : public OpRewritePattern<tensor::InsertOp> {
           destType, getAsOpFoldResult(currentInsertOp.getIndices()));
       if (failed(maybeFlatIndex)) return failure();
 
+      // Overriding values in the tensor is not supported.
       auto flatIndex = maybeFlatIndex.value();
+      if (flatIndexToElement.contains(flatIndex)) return failure();
       flatIndexToElement[flatIndex] = currentInsertOp.getScalar();
       opsToErase.push_back(currentInsertOp);
 
@@ -155,13 +157,10 @@ class InsertIntoFromElements final : public OpRewritePattern<tensor::InsertOp> {
       }
     }
 
-    auto finalInsertion = opsToErase.back();
-    rewriter.setInsertionPointAfter(finalInsertion);
     rewriter.replaceAllUsesWith(
-        finalInsertion->getResult(0),
+        opsToErase.back()->getResult(0),
         rewriter
-            .create<tensor::FromElementsOp>(finalInsertion->getLoc(), destType,
-                                            values)
+            .create<tensor::FromElementsOp>(insertOp.getLoc(), destType, values)
             .getResult());
     for (auto op : llvm::reverse(opsToErase)) {
       op->erase();
@@ -225,6 +224,28 @@ struct CollapseEmptyTensor
   }
 };
 
+struct ExtractSliceOfSplat
+    : public OpRewritePattern<mlir::tensor::ExtractSliceOp> {
+ public:
+  ExtractSliceOfSplat(MLIRContext* context)
+      : OpRewritePattern<mlir::tensor::ExtractSliceOp>(context) {}
+
+  using OpRewritePattern::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(mlir::tensor::ExtractSliceOp op,
+                                PatternRewriter& rewriter) const override {
+    auto splatOp =
+        dyn_cast_or_null<tensor::SplatOp>(op.getSource().getDefiningOp());
+    if (!splatOp) return failure();
+
+    auto resultTy = op.getResult().getType();
+    auto newSplat = tensor::SplatOp::create(
+        rewriter, op.getLoc(), splatOp.getInput(), resultTy.getShape());
+    rewriter.replaceOp(op, newSplat);
+    return success();
+  }
+};
+
 class ExtractOfExtractSlice final : public OpRewritePattern<tensor::ExtractOp> {
  public:
   using OpRewritePattern<tensor::ExtractOp>::OpRewritePattern;
@@ -264,7 +285,7 @@ struct FoldConstantTensors
     RewritePatternSet patterns(context);
     patterns.add<InsertAfterConstant, CollapseShapeAfterConstant,
                  CollapseEmptyTensor, InsertIntoFromElements,
-                 ExtractOfExtractSlice>(context);
+                 ExtractSliceOfSplat, ExtractOfExtractSlice>(context);
 
     // Run pattern matching and conversion
     if (failed(applyPatternsGreedily(module, std::move(patterns)))) {

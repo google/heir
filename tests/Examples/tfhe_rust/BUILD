@@ -79,7 +79,6 @@ tfhe_rs_end_to_end_test(
     ],
     mlir_src = "sbox.mlir",
     tags = [
-        "manual",
         "yosys",
     ],
     test_src = "src/main_sbox.rs",
@@ -98,7 +97,6 @@ tfhe_rs_end_to_end_test(
     ],
     mlir_src = "multi_output.mlir",
     tags = [
-        "manual",
         "yosys",
     ],
     test_src = "src/main_multi_output.rs",

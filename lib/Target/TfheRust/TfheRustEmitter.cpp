@@ -607,40 +607,70 @@ LogicalResult TfheRustEmitter::printOperation(::mlir::arith::TruncIOp op) {
 LogicalResult TfheRustEmitter::printOperation(tensor::ExtractOp op) {
   // We assume here that the indices are SSA values (not integer
   // attributes).
-  emitAssignPrefix(op.getResult());
 
-  os << "&" << variableNames->getNameForValue(op.getTensor())
-     << bracketEnclosedValues(
-            op.getIndices(),
-            [&](Value value) { return variableNames->getNameForValue(value); })
-     << ";\n";
+  auto* postSuffix = "";
+
+  std::string varName =
+      llvm::formatv("{0}{1}", variableNames->getNameForValue(op.getTensor()),
+                    bracketEnclosedValues(op.getIndices(), [&](Value value) {
+                      return variableNames->getNameForValue(value);
+                    }));
+
+  if (usedByLevelledOp(op) && useLevels) {
+    os << llvm::formatv("temp_nodes.insert({0}, ",
+                        variableNames->getIntForValue(op.getResult()));
+    postSuffix = ".clone())";
+
+    os << varName << postSuffix << ";\n";
+
+    if (usedByNonLevelledOp(op)) {
+      // If not all users are levelled, we need to clone the result.
+      emitAssignPrefix(op.getResult());
+      os << "&" << varName << ".clone();\n";
+    }
+
+    return success();
+  }
+
+  emitAssignPrefix(op.getResult());
+  os << "&";
+
+  os << varName << postSuffix << ";\n";
+
   return success();
 }
 
 LogicalResult TfheRustEmitter::printOperation(tensor::FromElementsOp op) {
   auto resultType = op.getResult().getType();
-
   std::string res = convertType(resultType).value();
 
   emitAssignPrefix(op.getResult(), true, res);
 
-  std::string valuelist =
-      commaSeparatedValues(op.getOperands(), [&](Value value) {
-        // Check if block argument, if so, clone.
-        const auto* cloneStr = "";
-        if (isa<BlockArgument>(value)) {
-          cloneStr = ".clone()";
-        } else if (isa<tensor::ExtractOp>(value.getDefiningOp())) {
-          cloneStr = ".clone()";
-        }
-        return variableNames->getNameForValue(value) + cloneStr;
-      });
+  std::string valueList;
 
-  for (unsigned _dim : llvm::reverse(resultType.getShape())) {
-    valuelist = llvm::formatv("[{0}]", valuelist);
+  for (int i = 0; i < op.getNumOperands(); i++) {
+    if (isLevelledOp(op.getOperand(i).getDefiningOp()) && useLevels) {
+      // Ensure levelled operands are cloned from temp_nodes.
+      valueList =
+          llvm::formatv("{0}temp_nodes[&{1}].clone()", valueList,
+                        variableNames->getIntForValue(op.getOperand(i)));
+
+    } else {
+      valueList =
+          llvm::formatv("{0}{1}.clone()", valueList,
+                        variableNames->getNameForValue(op.getOperand(i)));
+    }
+
+    if (i != op->getNumOperands() - 1) {
+      valueList = llvm::formatv("{0}, ", valueList);
+    }
   }
 
-  os << valuelist << ";\n";
+  for (int i = 0; i < op.getResult().getType().getShape().size(); i++) {
+    valueList = llvm::formatv("[{0}]", valueList);
+  }
+
+  os << valueList << ";\n";
   return success();
 }
 
@@ -651,7 +681,7 @@ LogicalResult TfheRustEmitter::printOperation(memref::AllocOp op) {
   os << std::accumulate(
       std::next(op.getMemref().getType().getShape().begin()),
       op.getMemref().getType().getShape().end(), std::string("usize"),
-      [&](std::string a, int64_t value) { return a + ", usize"; });
+      [&](const std::string& a, int64_t value) { return a + ", usize"; });
   if (op.getType().getRank() > 1) os << ")";
   os << ", ";
   if (failed(emitType(op.getMemref().getType().getElementType()))) {
