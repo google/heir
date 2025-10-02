@@ -1,19 +1,13 @@
 load("@heir//tests/llvm_runner:llvm_runner.bzl", "llvm_runner_test")
-load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 package(default_applicable_licenses = ["@heir//:license"])
 
-cc_library(
-    name = "add_test",
-    srcs = ["add_test.c"],
-)
-
 # Secret arithmetic plaintext backend with original integer type semantic
 llvm_runner_test(
-    name = "add",
+    name = "tensor_extract",
     heir_opt_flags = [
         "--mlir-to-plaintext-backend",
     ],
-    mlir_src = "add.mlir",
-    deps = [":add_test"],
+    main_c_src = "tensor_extract_test.cpp",
+    mlir_src = "tensor_extract.mlir",
 )
