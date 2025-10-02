@@ -1,4 +1,3 @@
-#include "lib/Source/AutoHog/AutoHogImporter.h"
 #include "lib/Target/FunctionInfo/FunctionInfoEmitter.h"
 #include "lib/Target/Jaxite/JaxiteEmitter.h"
 #include "lib/Target/JaxiteWord/JaxiteWordEmitter.h"
@@ -41,9 +40,6 @@ int main(int argc, char** argv) {
   // Lattigo
   mlir::heir::lattigo::registerToLattigoTranslation();
   mlir::heir::lattigo::registerTranslateOptions();
-
-  // AutoHOG input
-  mlir::heir::registerFromAutoHogTranslation();
 
   // This comment inserts internal emitters
 

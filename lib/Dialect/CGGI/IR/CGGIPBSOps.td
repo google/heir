@@ -145,9 +145,6 @@ def CGGI_MultiLutLinCombOp : CGGI_Op<"multi_lut_lincomb", [
     `cggi.lut_lincomb`, but where the linear combination is given to multiple
     lookup tables, each producing a separate output.
 
-    This can be achieved by a special implementation of blind rotate in the CGGI
-    scheme. See [AutoHoG](https://ieeexplore.ieee.org/document/10413195).
-
     Example:
 
     ```mlir
