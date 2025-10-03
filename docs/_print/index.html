@@ -4257,7 +4257,9 @@ hoisted.</p><h4 id=example-16>Example</h4><p>Command: <code>heir-opt --layout-op
 </span></span><span style=display:flex><span>    <span style=color:#204a87;font-weight:700>return</span> <span style=color:#000>%3</span> <span style=color:#000;font-weight:700>:</span> <span style=color:#000;font-weight:700>!</span>secret<span style=color:#000;font-weight:700>.</span>secret<span style=color:#000;font-weight:700>&lt;</span><span style=color:#204a87;font-weight:700>tensor</span><span style=color:#000;font-weight:700>&lt;</span><span style=color:#0000cf;font-weight:700>512x</span><span style=color:#204a87;font-weight:700>f32</span><span style=color:#000;font-weight:700>&gt;&gt;</span>
 </span></span><span style=display:flex><span>  <span style=color:#000;font-weight:700>}</span>
 </span></span><span style=display:flex><span><span style=color:#000;font-weight:700>}</span>
-</span></span></code></pre></div><h4 id=options-17>Options</h4><pre tabindex=0><code>-ciphertext-size : Power of two length of the ciphertexts the data is packed in.
+</span></span></code></pre></div><h4 id=options-17>Options</h4><pre tabindex=0><code>-ciphertext-size  : Power of two length of the ciphertexts the data is packed in.
+-vve-random-seed  : Random seed for Vos-Vos-Erkin shift network randomization. Will be hash-combined with additional seeds based on layouts being converted from and to.
+-vve-random-tries : Number of random tries used to find best Vos-Vos-Erkin shift network during layout optimization.
 </code></pre><h3 id=-layout-propagation><code>-layout-propagation</code></h3><p><em>Propagate ciphertext layouts through the IR</em></p><p>This pass performs a forward propagation of layout (packing) information
 through the input IR, starting from the assumption that each secret tensor
 argument to a function has a row-major layout.</p><p>The chosen layouts (<code>affine_map</code>s) are annotated on ops throughout the IR.
