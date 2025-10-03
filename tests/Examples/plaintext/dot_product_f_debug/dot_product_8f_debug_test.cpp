@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 
+#include "tests/Examples/plaintext/dot_product_f_debug/debug_helper.h"
 #include "tests/llvm_runner/memref_types.h"
 
 FILE* output;
@@ -20,25 +21,6 @@ void _mlir_ciface_dot_product__encrypt__arg1(StridedMemRefType<float>* result,
 
 float _mlir_ciface_dot_product__decrypt__result0(
     StridedMemRefType<float> const*);
-
-// debug handler
-void __heir_debug_tensor_8xf32_(
-    /* arg 0*/
-    float* allocated, float* aligned, int64_t offset, int64_t size,
-    int64_t stride) {
-  for (int i = 0; i < size; i++) {
-    std::fprintf(output, "%.15f ", *(aligned + i * stride));
-  }
-  std::fprintf(output, "\n");
-}
-
-void __heir_debug_f32(float value) { std::fprintf(output, "%.15f \n", value); }
-
-void __heir_debug_i1(bool value) { std::fprintf(output, "%d \n", value); }
-
-void __heir_debug_index(int64_t value) {
-  std::fprintf(output, "%ld \n", value);
-}
 }
 
 int main(int argc, char** argv) {

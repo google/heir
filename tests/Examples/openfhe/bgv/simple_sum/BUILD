@@ -13,6 +13,5 @@ openfhe_end_to_end_test(
         "--scheme-to-openfhe",
     ],
     mlir_src = "@heir//tests/Examples/common:simple_sum.mlir",
-    tags = ["notap"],
     test_src = "simple_sum_test.cpp",
 )

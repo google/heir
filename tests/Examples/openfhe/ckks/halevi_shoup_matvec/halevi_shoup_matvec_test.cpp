@@ -6,67 +6,8 @@
 #include "src/pke/include/key/keypair.h"  // from @openfhe
 
 // Generated headers (block clang-format from messing up order)
+#include "tests/Examples/openfhe/ckks/halevi_shoup_matvec/debug_helper.h"
 #include "tests/Examples/openfhe/ckks/halevi_shoup_matvec/halevi_shoup_matvec_lib.h"
-
-// DecryptCore not accessible from CryptoContext
-// so copy from @openfhe//src/pke/lib/schemerns/rns-pke.cpp
-DCRTPoly DecryptCore(const std::vector<DCRTPoly>& cv,
-                     const PrivateKey<DCRTPoly> privateKey) {
-  const DCRTPoly& s = privateKey->GetPrivateElement();
-
-  size_t sizeQ = s.GetParams()->GetParams().size();
-  size_t sizeQl = cv[0].GetParams()->GetParams().size();
-
-  size_t diffQl = sizeQ - sizeQl;
-
-  auto scopy(s);
-  scopy.DropLastElements(diffQl);
-
-  DCRTPoly sPower(scopy);
-
-  DCRTPoly b(cv[0]);
-  b.SetFormat(Format::EVALUATION);
-
-  DCRTPoly ci;
-  for (size_t i = 1; i < cv.size(); i++) {
-    ci = cv[i];
-    ci.SetFormat(Format::EVALUATION);
-
-    b += sPower * ci;
-    sPower *= scopy;
-  }
-  return b;
-}
-
-#define OP
-#define DECRYPT
-
-void __heir_debug(CryptoContextT cc, PrivateKeyT sk, CiphertextT ct,
-                  const std::map<std::string, std::string>& debugAttrMap) {
-#ifdef OP
-  auto isBlockArgument = debugAttrMap.at("asm.is_block_arg");
-  if (isBlockArgument == "1") {
-    std::cout << "Input" << std::endl;
-  } else {
-    std::cout << debugAttrMap.at("asm.op_name") << std::endl;
-  }
-#endif
-
-#ifdef DECRYPT
-  PlaintextT ptxt;
-  cc->Decrypt(sk, ct, &ptxt);
-  ptxt->SetLength(std::stod(debugAttrMap.at("message.size")));
-  std::vector<double> result;
-  for (size_t i = 0; i < ptxt->GetLength(); i++) {
-    result.push_back(ptxt->GetRealPackedValue()[i]);
-  }
-  std::cout << "decrypted: [";
-  for (auto val : result) {
-    std::cout << std::setprecision(3) << (abs(val) < 1e-10 ? 0 : val) << ",";
-  }
-  std::cout << "]\n";
-#endif
-}
 
 namespace mlir {
 namespace heir {

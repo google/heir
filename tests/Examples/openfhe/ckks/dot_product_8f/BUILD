@@ -14,6 +14,5 @@ openfhe_end_to_end_test(
     ],
     heir_translate_flags = [],
     mlir_src = "@heir//tests/Examples/common:dot_product_8f.mlir",
-    tags = ["notap"],
     test_src = "dot_product_8f_test.cpp",
 )

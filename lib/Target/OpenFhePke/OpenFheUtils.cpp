@@ -144,7 +144,6 @@ LogicalResult funcDeclarationHelper(::mlir::func::FuncOp funcOp,
   }
 
   os << " " << canonicalizeDebugPort(funcOp.getName()) << "(";
-  os.indent();
 
   // Check the types without printing to enable failure outside of
   // commaSeparatedValues; maybe consider making commaSeparatedValues combine

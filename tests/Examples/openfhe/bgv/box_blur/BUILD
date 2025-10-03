@@ -13,6 +13,5 @@ openfhe_end_to_end_test(
         "--scheme-to-openfhe",
     ],
     mlir_src = "@heir//tests/Examples/common:box_blur_16x16.mlir",
-    tags = ["notap"],
     test_src = "box_blur_test.cpp",
 )
