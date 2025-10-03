@@ -223,6 +223,28 @@ struct CollapseEmptyTensor
   }
 };
 
+struct ExtractSliceOfSplat
+    : public OpRewritePattern<mlir::tensor::ExtractSliceOp> {
+ public:
+  ExtractSliceOfSplat(MLIRContext* context)
+      : OpRewritePattern<mlir::tensor::ExtractSliceOp>(context) {}
+
+  using OpRewritePattern::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(mlir::tensor::ExtractSliceOp op,
+                                PatternRewriter& rewriter) const override {
+    auto splatOp =
+        dyn_cast_or_null<tensor::SplatOp>(op.getSource().getDefiningOp());
+    if (!splatOp) return failure();
+
+    auto resultTy = op.getResult().getType();
+    auto newSplat = tensor::SplatOp::create(
+        rewriter, op.getLoc(), splatOp.getInput(), resultTy.getShape());
+    rewriter.replaceOp(op, newSplat);
+    return success();
+  }
+};
+
 struct FoldConstantTensors
     : public impl::FoldConstantTensorsBase<FoldConstantTensors> {
   void runOnOperation() override {
@@ -230,8 +252,10 @@ struct FoldConstantTensors
     auto* module = getOperation();
 
     RewritePatternSet patterns(context);
-    patterns.add<InsertAfterConstant, CollapseShapeAfterConstant,
-                 CollapseEmptyTensor, InsertIntoFromElements>(context);
+    patterns
+        .add<InsertAfterConstant, CollapseShapeAfterConstant,
+             CollapseEmptyTensor, InsertIntoFromElements, ExtractSliceOfSplat>(
+            context);
 
     // Run pattern matching and conversion
     if (failed(applyPatternsGreedily(module, std::move(patterns)))) {
