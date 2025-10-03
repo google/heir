@@ -15,7 +15,8 @@ def FoldConstantTensors : Pass<"fold-constant-tensors"> {
 
     The following folders are supported:
     * `tensor.insert` of a constant tensor
-    * `tensor.collapse_shape` of a constant tensor
+    * `tensor.collapse_shape` of a constant or empty tensor
+    * `tensor.extract_slice` of a splat to a splat of the new shape
   }];
 }
 
