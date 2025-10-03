@@ -117,6 +117,8 @@ SmallVector<int64_t> defaultShiftOrder(int64_t n);
 
 class ShiftStrategy {
  public:
+  ShiftStrategy() : ShiftStrategy(1, 1) {}
+
   ShiftStrategy(int64_t ciphertextSize, int64_t numCiphertexts = 1,
                 ArrayRef<int64_t> shiftOrder = {})
       : ciphertextSize(ciphertextSize),
@@ -147,7 +149,7 @@ struct ShiftScheme {
   SmallVector<RotationGroup> rotationGroups;
   ShiftStrategy strategy;
 
-  ShiftScheme() : strategy(1, 1) {}
+  ShiftScheme() = default;
   ShiftScheme(SmallVector<RotationGroup> rotationGroups, ShiftStrategy strategy)
       : rotationGroups(std::move(rotationGroups)),
         strategy(std::move(strategy)) {}

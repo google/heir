@@ -44,7 +44,19 @@ class VosVosErkinShiftNetworks {
   ShiftScheme findShiftScheme(const Mapping& mapping,
                               ArrayRef<int64_t> shiftOrder = {});
 
+  // Like findShiftScheme but randomly draw from a uniform distribution over all
+  // possible shift orders and use the one that results in the best network.
+  ShiftScheme findBestShiftScheme(const Mapping& mapping,
+                                  std::size_t randomSeed,
+                                  unsigned randomTries = 100);
+
  private:
+  ShiftStrategy evaluateShiftStrategy(const Mapping& mapping,
+                                      ArrayRef<int64_t> shiftOrder);
+
+  CacheKey makeCacheKey(const Mapping& mapping, ArrayRef<int64_t> shiftOrder);
+
+  DenseMap<CacheKey, ShiftStrategy> strategyCache;
   DenseMap<CacheKey, ShiftScheme> schemeCache;
 };
 

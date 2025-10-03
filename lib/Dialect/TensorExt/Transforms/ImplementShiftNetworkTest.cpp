@@ -2,6 +2,7 @@
 #include <iostream>
 #include <vector>
 
+#include "gmock/gmock.h"  // from @googletest
 #include "gtest/gtest.h"  // from @googletest
 #include "lib/Dialect/TensorExt/Transforms/ImplementShiftNetwork.h"
 #include "lib/Dialect/TensorExt/Transforms/RotationGroupKernel.h"
@@ -29,8 +30,10 @@ std::vector<std::vector<int>> manuallyApplyMapping(
   return output;
 }
 
-void simulateShiftNetwork(const Mapping& mapping, const ShiftScheme& scheme,
-                          int64_t numCiphertexts, int64_t ciphertextSize) {
+::testing::AssertionResult simulateShiftNetwork(const Mapping& mapping,
+                                                const ShiftScheme& scheme,
+                                                int64_t numCiphertexts,
+                                                int64_t ciphertextSize) {
   // print the rotation groups
   std::cout << "Rotation groups:\n";
   for (const auto& row : scheme.rotationGroups) {
@@ -74,7 +77,47 @@ void simulateShiftNetwork(const Mapping& mapping, const ShiftScheme& scheme,
     combinedActual.push_back(std::get<std::vector<int>>(val.getTensor()));
   }
 
-  EXPECT_EQ(combinedActual, expected);
+  ::testing::StringMatchResultListener listener;
+  bool matches = ::testing::ExplainMatchResult(testing::ContainerEq(expected),
+                                               combinedActual, &listener);
+  if (matches) {
+    return testing::AssertionSuccess();
+  } else {
+    return testing::AssertionFailure() << listener.str();
+  }
+}
+
+::testing::AssertionResult checkMapping(const Mapping& mapping,
+                                        int64_t numCiphertexts,
+                                        int64_t ciphertextSize,
+                                        unsigned naiveNumRGExpected = 0) {
+  VosVosErkinShiftNetworks shiftNetworks;
+
+  auto naiveScheme = shiftNetworks.findShiftScheme(mapping);
+  unsigned naiveNumRG = naiveScheme.rotationGroups.size();
+  if (naiveNumRGExpected > 0 && naiveNumRG != naiveNumRGExpected)
+    return ::testing::AssertionFailure()
+           << "Expected " << naiveNumRGExpected << " rotation groups but got "
+           << naiveNumRG;
+  auto naiveResult = simulateShiftNetwork(mapping, naiveScheme, numCiphertexts,
+                                          ciphertextSize);
+  if (!naiveResult) return naiveResult;
+
+  // We try a large number of shift orders here such that we can be effectively
+  // certain that we will find a network that is at least as good as the "naive"
+  // one.
+  auto bestScheme = shiftNetworks.findBestShiftScheme(mapping, 1000);
+  unsigned bestNumRG = bestScheme.rotationGroups.size();
+  if (bestNumRG > naiveNumRG)
+    return ::testing::AssertionFailure()
+           << "Expected best found network with " << bestNumRG
+           << " rotation groups to not be worse then naive network which has "
+           << naiveNumRG;
+  auto bestResult =
+      simulateShiftNetwork(mapping, bestScheme, numCiphertexts, ciphertextSize);
+  if (!bestResult) return bestResult;
+
+  return ::testing::AssertionSuccess();
 }
 
 TEST(ImplementShiftNetworkTest, TestTrivial) {
@@ -82,8 +125,7 @@ TEST(ImplementShiftNetworkTest, TestTrivial) {
   int64_t ctSize = 8;
   Mapping mapping(ctSize, numCts);
   mapping.add(CtSlot(0, 0), CtSlot(0, 0));
-  VosVosErkinShiftNetworks shiftNetworks;
-  EXPECT_EQ(shiftNetworks.findShiftScheme(mapping).rotationGroups.size(), 1);
+  EXPECT_TRUE(checkMapping(mapping, numCts, ctSize));
 }
 
 TEST(ImplementShiftNetworkTest, TestFig3) {
@@ -106,10 +148,7 @@ TEST(ImplementShiftNetworkTest, TestFig3) {
   mapping.add(CtSlot(0, 13), CtSlot(0, 2));
   mapping.add(CtSlot(0, 14), CtSlot(0, 9));
   mapping.add(CtSlot(0, 15), CtSlot(0, 1));
-  VosVosErkinShiftNetworks shiftNetworks;
-  auto scheme = shiftNetworks.findShiftScheme(mapping);
-  EXPECT_EQ(scheme.rotationGroups.size(), 3);
-  simulateShiftNetwork(mapping, scheme, numCts, ctSize);
+  EXPECT_TRUE(checkMapping(mapping, numCts, ctSize));
 }
 
 TEST(ImplementShiftNetworkTest, TestFullReplication) {
@@ -132,10 +171,7 @@ TEST(ImplementShiftNetworkTest, TestFullReplication) {
   mapping.add(CtSlot(0, 0), CtSlot(0, 13));
   mapping.add(CtSlot(0, 0), CtSlot(0, 14));
   mapping.add(CtSlot(0, 0), CtSlot(0, 15));
-  VosVosErkinShiftNetworks shiftNetworks;
-  auto scheme = shiftNetworks.findShiftScheme(mapping);
-  EXPECT_EQ(scheme.rotationGroups.size(), 1);
-  simulateShiftNetwork(mapping, scheme, numCts, ctSize);
+  EXPECT_TRUE(checkMapping(mapping, numCts, ctSize));
 }
 
 TEST(ImplementShiftNetworkTest, TestTwoReplication) {
@@ -158,10 +194,7 @@ TEST(ImplementShiftNetworkTest, TestTwoReplication) {
   mapping.add(CtSlot(0, 15), CtSlot(0, 13));
   mapping.add(CtSlot(0, 15), CtSlot(0, 14));
   mapping.add(CtSlot(0, 15), CtSlot(0, 15));
-  VosVosErkinShiftNetworks shiftNetworks;
-  auto scheme = shiftNetworks.findShiftScheme(mapping);
-  EXPECT_EQ(scheme.rotationGroups.size(), 2);
-  simulateShiftNetwork(mapping, scheme, numCts, ctSize);
+  EXPECT_TRUE(checkMapping(mapping, numCts, ctSize));
 }
 
 TEST(ImplementShiftNetworkTest, TestTwoReplicationAlternateShiftOrder) {
@@ -184,10 +217,7 @@ TEST(ImplementShiftNetworkTest, TestTwoReplicationAlternateShiftOrder) {
   mapping.add(CtSlot(0, 15), CtSlot(0, 13));
   mapping.add(CtSlot(0, 15), CtSlot(0, 14));
   mapping.add(CtSlot(0, 15), CtSlot(0, 15));
-  VosVosErkinShiftNetworks shiftNetworks;
-  auto scheme = shiftNetworks.findShiftScheme(mapping, {8, 4, 2, 1});
-  EXPECT_EQ(scheme.rotationGroups.size(), 1);
-  simulateShiftNetwork(mapping, scheme, numCts, ctSize);
+  EXPECT_TRUE(checkMapping(mapping, numCts, ctSize));
 }
 
 TEST(ImplementShiftNetworkTest, TestSwapTwoCiphertexts) {
@@ -203,9 +233,7 @@ TEST(ImplementShiftNetworkTest, TestSwapTwoCiphertexts) {
   mapping.add(CtSlot(1, 2), CtSlot(0, 2));
   mapping.add(CtSlot(1, 3), CtSlot(0, 3));
   VosVosErkinShiftNetworks shiftNetworks;
-  auto scheme = shiftNetworks.findShiftScheme(mapping);
-  EXPECT_EQ(scheme.rotationGroups.size(), 1);
-  simulateShiftNetwork(mapping, scheme, numCts, ctSize);
+  EXPECT_TRUE(checkMapping(mapping, numCts, ctSize));
 }
 
 TEST(ImplementShiftNetworkTest, TestReorderThreeCiphertexts) {
@@ -224,10 +252,7 @@ TEST(ImplementShiftNetworkTest, TestReorderThreeCiphertexts) {
   mapping.add(CtSlot(2, 1), CtSlot(1, 1));
   mapping.add(CtSlot(2, 2), CtSlot(1, 2));
   mapping.add(CtSlot(2, 3), CtSlot(1, 3));
-  VosVosErkinShiftNetworks shiftNetworks;
-  auto scheme = shiftNetworks.findShiftScheme(mapping);
-  EXPECT_EQ(scheme.rotationGroups.size(), 1);
-  simulateShiftNetwork(mapping, scheme, numCts, ctSize);
+  EXPECT_TRUE(checkMapping(mapping, numCts, ctSize));
 }
 
 TEST(ImplementShiftNetworkTest, TestSingleRotSplit) {
@@ -246,10 +271,7 @@ TEST(ImplementShiftNetworkTest, TestSingleRotSplit) {
   mapping.add(CtSlot(2, 1), CtSlot(2, 2));
   mapping.add(CtSlot(2, 2), CtSlot(2, 3));
   mapping.add(CtSlot(2, 3), CtSlot(0, 0));
-  VosVosErkinShiftNetworks shiftNetworks;
-  auto scheme = shiftNetworks.findShiftScheme(mapping);
-  EXPECT_EQ(scheme.rotationGroups.size(), 1);
-  simulateShiftNetwork(mapping, scheme, numCts, ctSize);
+  EXPECT_TRUE(checkMapping(mapping, numCts, ctSize));
 }
 
 TEST(ImplementShiftNetworkTest, TestRANDOM_61) {
@@ -269,9 +291,7 @@ TEST(ImplementShiftNetworkTest, TestRANDOM_61) {
   mapping.add(CtSlot(16, 5), CtSlot(22, 4));
   mapping.add(CtSlot(19, 6), CtSlot(23, 2));
   mapping.add(CtSlot(16, 6), CtSlot(23, 3));
-  VosVosErkinShiftNetworks shiftNetworks;
-  auto scheme = shiftNetworks.findShiftScheme(mapping);
-  simulateShiftNetwork(mapping, scheme, numCts, ctSize);
+  EXPECT_TRUE(checkMapping(mapping, numCts, ctSize));
 }
 
 TEST(ImplementShiftNetworkTest, TestRANDOM_62) {
@@ -470,9 +490,7 @@ TEST(ImplementShiftNetworkTest, TestRANDOM_62) {
   mapping.add(CtSlot(10, 1), CtSlot(23, 5));
   mapping.add(CtSlot(23, 5), CtSlot(23, 6));
   mapping.add(CtSlot(5, 1), CtSlot(23, 7));
-  VosVosErkinShiftNetworks shiftNetworks;
-  auto scheme = shiftNetworks.findShiftScheme(mapping);
-  simulateShiftNetwork(mapping, scheme, numCts, ctSize);
+  EXPECT_TRUE(checkMapping(mapping, numCts, ctSize));
 }
 
 TEST(ImplementShiftNetworkTest, TestRANDOM_64) {
@@ -671,9 +689,7 @@ TEST(ImplementShiftNetworkTest, TestRANDOM_64) {
   mapping.add(CtSlot(10, 1), CtSlot(23, 5));
   mapping.add(CtSlot(23, 5), CtSlot(23, 6));
   mapping.add(CtSlot(5, 1), CtSlot(23, 7));
-  VosVosErkinShiftNetworks shiftNetworks;
-  auto scheme = shiftNetworks.findShiftScheme(mapping);
-  simulateShiftNetwork(mapping, scheme, numCts, ctSize);
+  EXPECT_TRUE(checkMapping(mapping, numCts, ctSize));
 }
 
 }  // namespace
