@@ -3,94 +3,165 @@
 #include <cstdint>
 #include <utility>
 
-#include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
+#include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"               // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
+
+#define DEBUG_TYPE "tensor-ext-to-tensor"
 
 namespace mlir::heir::tensor_ext {
 
 #define GEN_PASS_DEF_TENSOREXTTOTENSOR
 #include "lib/Dialect/TensorExt/Conversions/TensorExtToTensor/TensorExtToTensor.h.inc"
 
+// Implement tensor_ext.rotate in terms of tensor.extract_slice and
+// tensor.insert_slice.
 struct ConvertRotateOp : public OpRewritePattern<RotateOp> {
-  ConvertRotateOp(mlir::MLIRContext* context)
+  ConvertRotateOp(mlir::MLIRContext *context)
       : OpRewritePattern<RotateOp>(context) {}
 
   using OpRewritePattern::OpRewritePattern;
 
   LogicalResult matchAndRewrite(RotateOp op,
-                                PatternRewriter& rewriter) const override {
-    auto shift = op.getShift();
-    auto constantOp =
-        dyn_cast_or_null<arith::ConstantOp>(shift.getDefiningOp());
-    if (!constantOp) {
-      return failure();
+                                PatternRewriter &rewriter) const override {
+    RankedTensorType tensorType =
+        dyn_cast<RankedTensorType>(op.getTensor().getType());
+    if (!tensorType) {
+      return rewriter.notifyMatchFailure(op, "only ranked tensors supported");
     }
 
-    auto shiftValue = cast<IntegerAttr>(constantOp.getValue()).getInt();
-    auto tensorShape =
-        cast<RankedTensorType>(op.getTensor().getType()).getShape();
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    // only support 1D tensors
-    // TODO(#924): Currently RotateOp only supports rotating a 1-D vector, or a
-    // vector with only one non-unit dimension that is treated as the major
-    // dimension.
-    if (tensorShape.size() != 1) {
-      return failure();
+    // For a fully general implementation, in particular if the shift is an SSA
+    // value we have no static information about, we need to ensure the shift
+    // is normalized in the range of the tensor's last dim.
+    int64_t lastDimSize = tensorType.getDimSize(tensorType.getRank() - 1);
+    OpFoldResult shift = getAsOpFoldResult(op.getShift());
+    Type shiftType =
+        (isa<Value>(shift) ? dyn_cast<Value>(shift).getType()
+                           : cast<TypedAttr>(cast<Attribute>(shift)).getType());
+    OpFoldResult normalizedShift;
+    Value dimSize = arith::ConstantOp::create(
+        b, rewriter.getIntegerAttr(shiftType, lastDimSize));
+
+    if (auto shiftAttr = dyn_cast<Attribute>(shift)) {
+      int64_t shift = cast<IntegerAttr>(shiftAttr).getInt();
+      int64_t normalized = shift % lastDimSize;
+      if (normalized < 0) {
+        normalized += lastDimSize;
+      }
+      normalizedShift = rewriter.getIntegerAttr(shiftType, normalized);
+    } else {
+      // normalizedShift = (shift % lastDimSize + lastDimSize) % lastDimSize
+      auto mod = arith::RemSIOp::create(b, op.getShift(), dimSize);
+      auto add = arith::AddIOp::create(b, mod, dimSize);
+      Value normalizedIntShift =
+          arith::RemSIOp::create(b, add, dimSize).getResult();
+      // ExtractSliceOp requires an index type, so cast it to an index
+      // if needed.
+      if (!normalizedIntShift.getType().isIndex()) {
+        normalizedIntShift = arith::IndexCastOp::create(
+            b, rewriter.getIndexType(), normalizedIntShift);
+      }
+      normalizedShift = normalizedIntShift;
     }
 
-    auto tensorSize = tensorShape[0];
-    if (shiftValue < 0) {
-      shiftValue += tensorSize;
-    }
+    // Now a rotation is elementwise on all but the last dimension, so we can
+    // apply a slice extraction where only the last dimension is sliced up to
+    // the rotation point, and a second extraction from the rotation point to
+    // the end, then insert them in swapped order.
 
-    auto tensorElementType = getElementTypeOrSelf(op.getTensor().getType());
-    auto leftTensorType =
-        RankedTensorType::get({shiftValue}, tensorElementType);
-    auto rightTensorType =
-        RankedTensorType::get({tensorSize - shiftValue}, tensorElementType);
+    // Offsets are all zeros except for the rightSlice's last dim, which starts
+    // at the first index shifted left that does not wrap around.
+    SmallVector<OpFoldResult> leftSliceOffsets;
+    SmallVector<OpFoldResult> rightSliceOffsets;
+    for (int i = 0; i < tensorType.getRank() - 1; ++i) {
+      leftSliceOffsets.push_back(b.getIndexAttr(0));
+      rightSliceOffsets.push_back(b.getIndexAttr(0));
+    }
+    leftSliceOffsets.push_back(b.getIndexAttr(0));
+    rightSliceOffsets.push_back(normalizedShift);
+
+    // Sizes are all the full dim size, except for the last dim, where the left
+    // slice goes up to the rotation amount and the right slice goes from there
+    // to the end.
+    SmallVector<OpFoldResult> leftSliceSizes;
+    SmallVector<OpFoldResult> rightSliceSizes;
+    for (int i = 0; i < tensorType.getRank() - 1; ++i) {
+      leftSliceSizes.push_back(b.getIndexAttr(tensorType.getDimSize(i)));
+      rightSliceSizes.push_back(b.getIndexAttr(tensorType.getDimSize(i)));
+    }
+    leftSliceSizes.push_back(normalizedShift);
+
+    OpFoldResult dimMinusShift;
+    if (auto nsAttr = dyn_cast<Attribute>(normalizedShift)) {
+      int64_t ns = cast<IntegerAttr>(nsAttr).getInt();
+      dimMinusShift = b.getIndexAttr(lastDimSize - ns);
+    } else {
+      Value dimSizeCast =
+          (dimSize.getType().isIndex()
+               ? dimSize
+               : arith::IndexCastOp::create(b, rewriter.getIndexType(), dimSize)
+                     .getResult());
+      dimMinusShift =
+          arith::SubIOp::create(b, dimSizeCast, cast<Value>(normalizedShift))
+              .getResult();
+    }
+    rightSliceSizes.push_back(dimMinusShift);
+
+    SmallVector<OpFoldResult> allOneStrides(tensorType.getRank(),
+                                            b.getIndexAttr(1));
+
+    LLVM_DEBUG({
+      llvm::dbgs() << "leftSliceOffsets:\n";
+      for (auto ofr : leftSliceOffsets) {
+        ofr.dump();
+      }
+      llvm::dbgs() << "rightSliceOffsets:\n";
+      for (auto ofr : rightSliceOffsets) {
+        ofr.dump();
+      }
+      llvm::dbgs() << "leftSliceSizes:\n";
+      for (auto ofr : leftSliceSizes) {
+        ofr.dump();
+      }
+      llvm::dbgs() << "rightSliceSizes:\n";
+      for (auto ofr : rightSliceSizes) {
+        ofr.dump();
+      }
+    });
 
     auto left = tensor::ExtractSliceOp::create(
-        rewriter, op.getLoc(), leftTensorType, op.getTensor(),
-        ArrayRef<Value>{}, ArrayRef<Value>{}, ArrayRef<Value>{},
-        /*offsets=*/ArrayRef<int64_t>{0},
-        /*sizes=*/ArrayRef{shiftValue}, /*strides=*/ArrayRef<int64_t>{1});
+        b, op.getTensor(), leftSliceOffsets, leftSliceSizes, allOneStrides);
     auto right = tensor::ExtractSliceOp::create(
-        rewriter, op.getLoc(), rightTensorType, op.getTensor(),
-        ArrayRef<Value>{}, ArrayRef<Value>{}, ArrayRef<Value>{},
-        /*offsets=*/ArrayRef{shiftValue},
-        /*sizes=*/ArrayRef{tensorSize - shiftValue},
-        /*strides=*/ArrayRef<int64_t>{1});
-    // for tensor.concat to lower we need to use
-    // transform.apply_patterns.tensor.decompose_concat which is quite painful
-    // auto concat = tensor::ConcatOp::create(rewriter,
-    //    op.getLoc(), /*dim=*/0,
-    //    ValueRange{right.getResult(), left.getResult()});
-    auto empty = tensor::EmptyOp::create(rewriter, op.getLoc(), tensorShape,
-                                         tensorElementType);
-    auto insertLeftToRight = tensor::InsertSliceOp::create(
-        rewriter, op.getLoc(), left.getResult(), empty, ArrayRef<Value>{},
-        ArrayRef<Value>{}, ArrayRef<Value>{},
-        /*offsets=*/ArrayRef<int64_t>{tensorSize - shiftValue},
-        /*sizes=*/ArrayRef{shiftValue}, /*strides=*/ArrayRef<int64_t>{1});
-    auto insertRightToLeft = tensor::InsertSliceOp::create(
-        rewriter, op.getLoc(), right.getResult(), insertLeftToRight,
-        ArrayRef<Value>{}, ArrayRef<Value>{}, ArrayRef<Value>{},
-        /*offsets=*/ArrayRef<int64_t>{0},
-        /*sizes=*/ArrayRef{tensorSize - shiftValue},
-        /*strides=*/ArrayRef<int64_t>{1});
+        b, op.getTensor(), rightSliceOffsets, rightSliceSizes, allOneStrides);
 
-    rewriter.replaceAllOpUsesWith(op, insertRightToLeft.getResult());
+    // For the insertion, the left slice goes at the back (starting at dim -
+    // shift) and the right slice goes at the front.
+    leftSliceOffsets[leftSliceOffsets.size() - 1] = dimMinusShift;
+    rightSliceOffsets[rightSliceOffsets.size() - 1] = b.getIndexAttr(0);
+
+    auto empty =
+        tensor::EmptyOp::create(rewriter, op.getLoc(), tensorType.getShape(),
+                                tensorType.getElementType());
+    auto insertedLeftSlice = tensor::InsertSliceOp::create(
+        b, left.getResult(), empty, leftSliceOffsets, leftSliceSizes,
+        allOneStrides);
+    auto insertedRightSlice = tensor::InsertSliceOp::create(
+        b, right.getResult(), insertedLeftSlice.getResult(), rightSliceOffsets,
+        rightSliceSizes, allOneStrides);
+
+    rewriter.replaceOp(op, insertedRightSlice);
     return success();
   }
 };
@@ -98,7 +169,7 @@ struct ConvertRotateOp : public OpRewritePattern<RotateOp> {
 struct TensorExtToTensor
     : public impl::TensorExtToTensorBase<TensorExtToTensor> {
   void runOnOperation() override {
-    MLIRContext* context = &getContext();
+    MLIRContext *context = &getContext();
 
     RewritePatternSet patterns(context);
     patterns.add<ConvertRotateOp>(context);

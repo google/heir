@@ -24,11 +24,10 @@ def TensorExt_RotateOp : TensorExt_Op<"rotate", [Pure, AllTypesMatch<["tensor", 
     Negative shift values are interpreted as right-rotations.
 
     This corresponds to the `rotate` operation in arithmetic FHE schemes like
-    BGV.
-
-    This operation's current behavior allows rotating multi-dimensional tensors
-    by rotating along the tensor's only non-unit dimension. This assumes the
-    tensor is packed along the non-unit dimension.
+    BGV. This op currently only supports 1D rotations of the last axis of a
+    tensor. A `tensor<4x64xi32>` is interpreted as 4 ciphertexts each with 64
+    slots, and a rotation on a value of this type rotates each ciphertext by
+    the given amount.
 
     // In the future, the op will be adjusted to support rotations of general
     // multi-dimensional tensors with a vector of rotation indices for each
