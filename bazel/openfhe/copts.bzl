@@ -25,7 +25,6 @@ OPENFHE_COPTS = [
 
 _OPENFHE_LINKOPTS = [
     "-fopenmp",
-    "-lomp",
 ]
 
 _OPENMP_COPTS = [

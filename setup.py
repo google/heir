@@ -203,6 +203,8 @@ class BuildBazelExtension(build_ext.build_ext):
             "--action_env=CXX=g++",
             "--host_action_env=CC=gcc",
             "--host_action_env=CXX=g++",
+            # TODO(#2249): figure out how to enable OpenMP in manylinux wheels
+            "--//:enable_openmp=0",
         ]
         if is_cibuildwheel()
         else [
