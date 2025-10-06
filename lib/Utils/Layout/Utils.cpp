@@ -595,5 +595,38 @@ std::vector<int64_t> anyRangePoint(
   return result;
 }
 
+presburger::IntegerRelation getCollapsedRelation(
+    RankedTensorType sourceType, RankedTensorType destType,
+    ArrayRef<ReassociationIndices> reassociation) {
+  auto domainSize = sourceType.getRank();
+  IntegerRelation result(PresburgerSpace::getRelationSpace(
+      domainSize, /*numRange=*/reassociation.size(), /*numSymbol=*/0,
+      /*numLocals=*/0));
+
+  // Add bounds for the source dimensions.
+  for (int i = 0; i < sourceType.getRank(); ++i) {
+    addBounds(result, i, 0, sourceType.getDimSize(i) - 1);
+  }
+
+  auto domainOffset = result.getVarKindOffset(VarKind::Domain);
+  auto rangeOffset = result.getVarKindOffset(VarKind::Range);
+  for (auto [idx, group] : llvm::enumerate(reassociation)) {
+    // Add bounds for the collapsed dimension.
+    addBounds(result, rangeOffset + idx, 0, destType.getDimSize(idx) - 1);
+    // Add an equality constraint that takes a row major relation of each group
+    // of source indices and set that equal to the idx'th range variable.
+    SmallVector<int64_t> rowMajorCoeffs(result.getNumCols(), 0);
+    unsigned product = 1;
+    for (int64_t dim : llvm::reverse(group)) {
+      rowMajorCoeffs[domainOffset + dim] = product;
+      product *= sourceType.getDimSize(dim);
+    }
+    rowMajorCoeffs[rangeOffset + idx] = -1;
+    result.addEquality(rowMajorCoeffs);
+  }
+
+  return result;
+}
+
 }  // namespace heir
 }  // namespace mlir
