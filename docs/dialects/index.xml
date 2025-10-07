@@ -13658,10 +13658,10 @@ ciphertext rotations.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>This op represents a left-rotation of a tensor by given number of indices.
 Negative shift values are interpreted as right-rotations.&lt;/p>
 &lt;p>This corresponds to the &lt;code>rotate&lt;/code> operation in arithmetic FHE schemes like
-BGV.&lt;/p>
-&lt;p>This operation&amp;rsquo;s current behavior allows rotating multi-dimensional tensors
-by rotating along the tensor&amp;rsquo;s only non-unit dimension. This assumes the
-tensor is packed along the non-unit dimension.&lt;/p>
+BGV. This op currently only supports 1D rotations of the last axis of a
+tensor. A &lt;code>tensor&amp;lt;4x64xi32&amp;gt;&lt;/code> is interpreted as 4 ciphertexts each with 64
+slots, and a rotation on a value of this type rotates each ciphertext by
+the given amount.&lt;/p>
 &lt;p>// In the future, the op will be adjusted to support rotations of general
 // multi-dimensional tensors with a vector of rotation indices for each
 // dimension. The lowering will implement the correct operations to rotate
