@@ -42,15 +42,8 @@ void RotateOp::getCanonicalizationPatterns(RewritePatternSet& results,
 
 LogicalResult RotateOp::verify() {
   auto x = getTensor().getType();
-  // TODO(#924): Currently RotateOp only supports rotating a 1-D vector, or a
-  // vector with only one non-unit dimension that is treated as the major
-  // dimension.
-  if (x.getRank() != 1) {
-    if (llvm::count_if(x.getShape(), [](auto dim) { return dim != 1; }) != 1) {
-      return emitOpError() << "requires a 1-D input tensor or tensor with "
-                              "single non-unit dimension, but found "
-                           << x;
-    }
+  if (x.getRank() < 1) {
+    return emitOpError() << "requires operand rank >= 1";
   }
   return success();
 }

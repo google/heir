@@ -369,6 +369,14 @@ void mlirToRLWEPipeline(OpPassManager& pm,
 
   // TODO (#1145): This should also generate keygen/param gen functions,
   // which can then be lowered to backend specific stuff later.
+
+  // At this point, due to the optimizations of implement-rotate-and-reduce,
+  // the IR may still contain tensor_ext.rotate ops corresponding to rotations
+  // of cleartexts. It also may not have been possible to fold them away
+  // because many different rotations of the same plaintext are needed. In this
+  // case, can just implement the rotations of the cleartexts directly in terms
+  // of tensor ops, and they are already lazily encoded as plaintexts.
+  pm.addPass(tensor_ext::createTensorExtToTensor());
 }
 
 RLWEPipelineBuilder mlirToRLWEPipelineBuilder(const RLWEScheme scheme,

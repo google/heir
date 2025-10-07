@@ -12,6 +12,8 @@ def TensorExtToTensor : Pass<"tensor-ext-to-tensor"> {
     secret arithmetic IR containing `tensor_ext` dialect is lowered
     to the IR containing `tensor` dialect, which could be further
     lowered to the LLVM dialect.
+
+    (* example filepath=tests/Dialect/TensorExt/Conversions/tensor_ext_to_tensor/doctest.mlir *)
   }];
   let dependentDialects = [
     "mlir::heir::tensor_ext::TensorExtDialect",
