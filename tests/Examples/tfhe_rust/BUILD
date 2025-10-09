@@ -60,7 +60,10 @@ tfhe_rs_end_to_end_test(
         "--use-levels",
     ],
     mlir_src = "fully_connected.mlir",
-    tags = ["yosys"],
+    tags = [
+        "manual",
+        "yosys",
+    ],
     test_src = "src/main_fully_connected.rs",
 )
 
@@ -76,7 +79,10 @@ tfhe_rs_end_to_end_test(
         "--use-levels",
     ],
     mlir_src = "sbox.mlir",
-    tags = ["yosys"],
+    tags = [
+        "manual",
+        "yosys",
+    ],
     test_src = "src/main_sbox.rs",
 )
 
@@ -92,7 +98,10 @@ tfhe_rs_end_to_end_test(
         "--use-levels",
     ],
     mlir_src = "multi_output.mlir",
-    tags = ["yosys"],
+    tags = [
+        "manual",
+        "yosys",
+    ],
     test_src = "src/main_multi_output.rs",
 )
 
