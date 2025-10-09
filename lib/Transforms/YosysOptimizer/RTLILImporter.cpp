@@ -17,7 +17,7 @@
 #include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
-#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/ReshapeOpsUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
@@ -46,14 +46,14 @@ using ::Yosys::RTLIL::Wire;
 namespace {
 
 // getTypeForWire gets the MLIR type corresponding to the RTLIL wire. If the
-// wire is an integer with multiple bits, then the MLIR type is a memref of
+// wire is an integer with multiple bits, then the MLIR type is a tensor of
 // bits.
-Type getTypeForWire(OpBuilder& b, Wire* wire) {
+static Type getTypeForWire(OpBuilder& b, Wire* wire) {
   auto intTy = b.getI1Type();
   if (wire->width == 1) {
     return intTy;
   }
-  return MemRefType::get({wire->width}, intTy);
+  return RankedTensorType::get({wire->width}, intTy);
 }
 
 }  // namespace
@@ -108,8 +108,8 @@ Value RTLILImporter::getBit(
     return retBitValues[bit.wire][bit.offset];
   }
   auto argA = getWireValue(bit.wire);
-  auto extractOp = memref::LoadOp::create(
-      b, argA, arith::ConstantIndexOp::create(b, bit.offset).getResult());
+  auto indices = arith::ConstantIndexOp::create(b, bit.offset);
+  auto extractOp = tensor::ExtractOp::create(b, argA, indices.getResult());
   return extractOp;
 }
 
@@ -128,8 +128,13 @@ void RTLILImporter::addResultBit(
   }
   // This must be a bit of the multi-bit output wire.
   auto bit = conn.as_bit();
-  assert(bit.is_wire() && retBitValues.contains(bit.wire));
-  retBitValues[bit.wire][bit.offset] = result;
+  assert(bit.is_wire());
+  if (retBitValues.contains(bit.wire)) {
+    retBitValues[bit.wire][bit.offset] = result;
+    return;
+  }
+  // Occasionally we may update assignment of an input wire.
+  assert(wireNameToValue.contains(bit.wire->name.str()));
 }
 
 func::FuncOp RTLILImporter::importModule(
@@ -246,43 +251,14 @@ func::FuncOp RTLILImporter::importModule(
     if (wireNameToValue.contains(resultWire->name.str())) {
       returnValues.push_back(getWireValue(resultWire));
     } else {
-      // We are in a multi-bit scenario and require a memref to hold the result
+      // We are in a multi-bit scenario and require a tensor to hold the result
       // bits.
       assert(retBits.size() > 1);
-      memref::AllocOp allocOp;
-      TypedValue<MemRefType> memRefToStore;
-      if (resultTypes.has_value() &&
-          dyn_cast<ShapedType>(resultTypes.value()[i])) {
-        auto shapedResultType = cast<ShapedType>(resultTypes.value()[i]);
-        // The original generic returned a memref, so use it's shape as the
-        // allocated memref. This way, even though we return a flattened bit
-        // vector and secret cast it back to the original shape, this alloc op
-        // preserves that original shape, allowing the intermediate stores and
-        // cast to be folded away.
-        SmallVector<int64_t> shape =
-            llvm::to_vector(shapedResultType.getShape());
-        shape.push_back(shapedResultType.getElementTypeBitWidth());
-        allocOp =
-            memref::AllocOp::create(b, MemRefType::get(shape, b.getI1Type()));
-        // Store the result bits after flattening this memref. The collapse op
-        // can be folded away with --fold-memref-alias-ops.
-        SmallVector<mlir::ReassociationIndices> reassociation;
-        auto range = llvm::seq<unsigned>(0, shapedResultType.getRank() + 1);
-        reassociation.emplace_back(range.begin(), range.end());
-        auto collapseOp =
-            memref::CollapseShapeOp::create(b, allocOp, reassociation);
-        memRefToStore = collapseOp.getResult();
-      } else {
-        allocOp = memref::AllocOp::create(
-            b, cast<MemRefType>(getTypeForWire(b, resultWire)));
-        memRefToStore = allocOp.getResult();
-      }
-      for (unsigned j = 0; j < retBits.size(); j++) {
-        memref::StoreOp::create(
-            b, retBits[j], memRefToStore,
-            ValueRange{arith::ConstantIndexOp::create(b, j)});
-      }
-      returnValues.push_back(memRefToStore);
+      // Create a flat tensor from the result bits.
+      Value fromElements = tensor::FromElementsOp::create(
+          b, RankedTensorType::get({(int64_t)retBits.size()}, b.getI1Type()),
+          retBits);
+      returnValues.push_back(fromElements);
     }
   }
   func::ReturnOp::create(b, returnValues);
