@@ -14,6 +14,5 @@ openfhe_end_to_end_test(
         "--openfhe-include-type=source-relative",
     ],
     mlir_src = "simple_ckks_bootstrapping.mlir",
-    tags = ["notap"],
     test_src = "simple_ckks_bootstrapping_test.cpp",
 )

@@ -13,6 +13,5 @@ openfhe_end_to_end_test(
         "--scheme-to-openfhe",
     ],
     mlir_src = "@heir//tests/Examples/common:dot_product_8.mlir",
-    tags = ["notap"],
     test_src = "dot_product_8_sk_test.cpp",
 )

@@ -13,6 +13,5 @@ openfhe_end_to_end_test(
         "--scheme-to-openfhe",
     ],
     mlir_src = "@heir//tests/Examples/common:roberts_cross_16x16.mlir",
-    tags = ["notap"],
     test_src = "roberts_cross_test.cpp",
 )

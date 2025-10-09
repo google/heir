@@ -14,6 +14,5 @@ openfhe_end_to_end_test(
     ],
     heir_translate_flags = [],
     mlir_src = "@heir//tests/Examples/openfhe/ckks/custom_arithmetization:custom_arithmetization.mlir",
-    tags = ["notap"],
     test_src = "custom_arithmetization_test.cpp",
 )
