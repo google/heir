@@ -809,8 +809,6 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::ConstantOp op) {
     }
     os << floatStr.value() << ";\n";
   } else if (auto denseElementsAttr = dyn_cast<DenseElementsAttr>(valueAttr)) {
-    // TODO(#913): This is a simplifying assumption on the layout of the
-    // multi-dimensional when there is only one non-unit dimension.
     // Prints all dense elements attribute as a flattened vector.
     ShapedType flattenedType =
         RankedTensorType::get({denseElementsAttr.getNumElements()},
