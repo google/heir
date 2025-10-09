@@ -35,6 +35,8 @@ bazel_dep(name = "google_benchmark", version = "1.9.1")
 bazel_dep(name = "abseil-cpp", version = "20250127.0", repo_name = "com_google_absl")
 bazel_dep(name = "pybind11_bazel", version = "2.13.6")
 bazel_dep(name = "rules_shell", version = "0.6.1")
+bazel_dep(name = "re2", version = "2025-08-12")
+bazel_dep(name = "isl", version = "0.27")
 
 # Yosys dependencies that are already on the bazel central registry
 # abc can't be used in place because it changes the names of the targets from
@@ -117,14 +119,6 @@ git_override(
     module_name = "hedron_compile_commands",
     commit = "02d15621b528efd877f5d5657c4b738523a0eb17",
     remote = "https://github.com/mikael-s-persson/bazel-compile-commands-extractor",
-)
-
-# Workaround 2025-03-18: re2 has not created a new version yet. This solves an
-# issue with `bazel mod deps`. Cf. https://github.com/google/re2/issues/525
-git_override(
-    module_name = "re2",
-    commit = "c84a140c93352cdabbfb547c531be34515b12228",
-    remote = "https://github.com/google/re2",
 )
 
 bazel_dep(name = "rules_rust", version = "0.64.0")
