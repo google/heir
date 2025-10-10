@@ -35,3 +35,14 @@ func.func @test_no_normalize_multidimension(%0: tensor<1x16xi32>) -> tensor<1x16
   %1 = tensor_ext.rotate %0, %c1 : tensor<1x16xi32>, i32
   return %1 : tensor<1x16xi32>
 }
+
+
+// CHECK: @rotate_constant_to_new_constant
+// CHECK-NEXT: arith.constant
+// CHECK-NEXT: return
+func.func @rotate_constant_to_new_constant() -> tensor<32xi16> {
+  %cst = arith.constant dense<[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0]> : tensor<32xi16>
+  %c8 = arith.constant 8 : index
+  %0 = tensor_ext.rotate %cst, %c8 : tensor<32xi16>, index
+  return %0 : tensor<32xi16>
+}

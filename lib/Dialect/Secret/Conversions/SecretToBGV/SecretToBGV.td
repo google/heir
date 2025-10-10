@@ -26,6 +26,7 @@ def SecretToBGV : Pass<"secret-to-bgv"> {
     "mlir::heir::rns::RNSDialect",
     "mlir::heir::bgv::BGVDialect",
     "mlir::heir::lwe::LWEDialect",
+    "mlir::tensor::TensorDialect",
   ];
 
   let options = [

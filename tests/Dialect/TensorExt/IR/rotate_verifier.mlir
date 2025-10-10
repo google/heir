@@ -1,8 +1,9 @@
 // RUN: heir-opt --verify-diagnostics --split-input-file %s
 
-func.func @test_rotate_verifier_ok(%0: tensor<1x16xi32>) {
+func.func @test_rotate_verifier_ok(%arg0: tensor<1x16xi32>, %arg1: tensor<10x16xi32>) {
   %c1 = arith.constant 1 : i32
-  %1 = tensor_ext.rotate %0, %c1 : tensor<1x16xi32>, i32
+  %1 = tensor_ext.rotate %arg0, %c1 : tensor<1x16xi32>, i32
+  %2 = tensor_ext.rotate %arg1, %c1 : tensor<10x16xi32>, i32
   return
 }
 

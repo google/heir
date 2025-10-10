@@ -73,7 +73,9 @@ struct SecretInsertMgmtCKKS
                           UseInitOpForPlaintextOperand<arith::MulIOp>,
                           UseInitOpForPlaintextOperand<arith::AddFOp>,
                           UseInitOpForPlaintextOperand<arith::SubFOp>,
-                          UseInitOpForPlaintextOperand<arith::MulFOp>>(
+                          UseInitOpForPlaintextOperand<arith::MulFOp>,
+                          UseInitOpForPlaintextOperand<tensor::ExtractSliceOp>,
+                          UseInitOpForPlaintextOperand<tensor::InsertSliceOp>>(
         &getContext(), getOperation(), &solver);
     (void)walkAndApplyPatterns(getOperation(), std::move(patternsPlaintext));
 

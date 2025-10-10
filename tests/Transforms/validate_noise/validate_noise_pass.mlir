@@ -1,11 +1,5 @@
 // RUN: heir-opt --validate-noise=model=bgv-noise-by-bound-coeff-average-case %s | FileCheck %s
 
-#alignment = #tensor_ext.alignment<in = [], out = [1024], insertedDims = [0]>
-#map = affine_map<(d0) -> (d0)>
-#map1 = affine_map<(d0) -> (d0 mod 1024)>
-#layout = #tensor_ext.layout<map = (d0) -> (d0 mod 1024), alignment = #alignment>
-#original_type = #tensor_ext.original_type<originalType = i16, layout = #layout>
-
 module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [134250497, 33832961, 140737488486401], P = [140737488928769, 140737489256449], plaintextModulus = 65537>, scheme.bgv} {
   // CHECK: @dot_product
   func.func @dot_product(%arg0: !secret.secret<tensor<1024xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 2>}, %arg1: !secret.secret<tensor<1024xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 2>}) -> (!secret.secret<tensor<1024xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 0>}) {

@@ -5,6 +5,8 @@ package(default_applicable_licenses = ["@heir//:license"])
 
 openfhe_lib(
     name = "mnist_openfhe",
+    # ensure CppCompile has enough memory to compile this large, unrolled program
+    exec_properties = {"mem": "28g"},
     generated_lib_header = "mnist_openfhe_lib.inc.h",
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=ckks",
@@ -13,10 +15,15 @@ openfhe_lib(
     ],
     mlir_src = "@heir//tests/Examples/common:mnist.mlir",
     pybind_target_name = "mnist_openfhe_pybind",
+    tags = [
+        "nofastbuild",
+        "notap",
+    ],
 )
 
 py_test(
     name = "mnist_test",
+    size = "enormous",
     srcs = ["mnist_test.py"],
     data = [
         "data/t10k-images-idx3-ubyte",
@@ -26,6 +33,7 @@ py_test(
     main = "mnist_test.py",
     tags = [
         "nofastbuild",  # openfhe is slow unless -c opt
+        "requires-mem:28g",
     ],
     deps = [
         ":mnist_openfhe_pybind",

@@ -1,12 +1,15 @@
 // RUN: heir-opt --mlir-print-local-scope --secret-to-bgv=poly-mod-degree=8 %s | FileCheck %s
 
-#alignment = #tensor_ext.alignment<in = [], out = [8], insertedDims = [0]>
 #map = affine_map<(d0) -> (d0)>
 #map1 = affine_map<(d0) -> (d0 mod 8)>
-#layout = #tensor_ext.layout<map = (d0) -> (d0 mod 8), alignment = #alignment>
-#original_type = #tensor_ext.original_type<originalType = i16, layout = #layout>
+
+#scalar_layout = #tensor_ext.new_layout<"{ [] -> [ct, slot] : 0 <= slot <= 7 and ct = 0 }">
+#scalar_original_type = #tensor_ext.original_type<originalType = i16, layout = #scalar_layout>
+#vec_layout = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 8 = 0 and i0 >= 0 and 0 >= i0 and slot >= 0 and 7 >= slot and ct = 0 }">
+#vec_original_type = #tensor_ext.original_type<originalType = tensor<8xi16>, layout = #vec_layout>
+
 module attributes {backend.openfhe, bgv.schemeParam = #bgv.scheme_param<logN = 14, Q = [35184372121601, 35184372744193, 35184373006337], P = [35184373989377, 35184374874113], plaintextModulus = 65537>, scheme.bgv} {
-  func.func @dot_product(%arg0: !secret.secret<tensor<8xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 2>, tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<8xi16>, layout = #tensor_ext.layout<map = (d0) -> (d0 mod 8)>>}, %arg1: !secret.secret<tensor<8xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 2>, tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<8xi16>, layout = #tensor_ext.layout<map = (d0) -> (d0 mod 8)>>}) -> (!secret.secret<tensor<8xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 2>, tensor_ext.original_type = #original_type}) attributes {mgmt.openfhe_params = #mgmt.openfhe_params<evalAddCount = 8, keySwitchCount = 15>} {
+  func.func @dot_product(%arg0: !secret.secret<tensor<8xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 2>, tensor_ext.original_type = #vec_original_type}, %arg1: !secret.secret<tensor<8xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 2>, tensor_ext.original_type = #vec_original_type}) -> (!secret.secret<tensor<8xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 2>, tensor_ext.original_type = #scalar_original_type}) attributes {mgmt.openfhe_params = #mgmt.openfhe_params<evalAddCount = 8, keySwitchCount = 15>} {
     %1 = secret.generic(%arg0: !secret.secret<tensor<8xi16>>, %arg1: !secret.secret<tensor<8xi16>>) {
     ^body(%input0: tensor<8xi16>, %input1: tensor<8xi16>):
       %11 = arith.muli %input0, %input1 : tensor<8xi16>

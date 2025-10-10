@@ -159,6 +159,7 @@ struct NewLayoutPropagation
 
   // Op-specific overrides
   void rectifyIncompatibleOperandLayouts(ReduceOp op);
+  void rectifyIncompatibleOperandLayouts(tensor::InsertOp op);
 
   // Return the default layout for a given type
   FailureOr<NewLayoutAttr> defaultLayoutForType(Type type);
@@ -233,8 +234,9 @@ LogicalResult NewLayoutPropagation::visitOperation(Operation* op) {
       // scalar operand is packed).
       if (auto layoutReqIface =
               dyn_cast<OperandLayoutRequirementOpInterface>(op)) {
-        if (!layoutReqIface.operandRequiresLayout(
-                opOperand.getOperandNumber())) {
+        bool secretness = isSecret(opOperand.get(), solver);
+        if (!layoutReqIface.operandRequiresLayout(opOperand.getOperandNumber(),
+                                                  secretness)) {
           LLVM_DEBUG(
               llvm::dbgs()
               << "OperandLayoutRequirementOpInterface ensures us that operand "
@@ -755,22 +757,14 @@ LogicalResult NewLayoutPropagation::visitOperation(affine::AffineForOp op) {
 }
 
 LogicalResult NewLayoutPropagation::visitOperation(tensor::ExtractOp op) {
-  // Use the default scalar layout for the extracted scalar.
-  FailureOr<NewLayoutAttr> scalarLayout =
-      defaultLayoutForScalarType(op.getResult().getType());
-  if (failed(scalarLayout)) {
-    return op->emitError("Failed to get scalar layout for extract result");
-  }
-
-  LLVM_DEBUG(llvm::dbgs() << "Assigning scalar layout " << scalarLayout.value()
+  std::string relationStr = "{ [] -> [ct, slot] : ct = 0 and slot = 0 }";
+  NewLayoutAttr scalarLayout = NewLayoutAttr::get(op.getContext(), relationStr);
+  LLVM_DEBUG(llvm::dbgs() << "Assigning scalar layout " << scalarLayout
                           << " to value " << op.getResult() << "\n");
-
   Value result = op.getResult();
-  NewLayoutAttr resultLayout = scalarLayout.value();
-  assignedLayouts.insert({result, resultLayout});
-  debugAssignLayout(result, resultLayout);
+  assignedLayouts.insert({result, scalarLayout});
+  debugAssignLayout(result, scalarLayout);
   setResultLayoutAttr(op);
-
   return success();
 }
 
@@ -800,21 +794,29 @@ CompatibilityResult NewLayoutPropagation::hasCompatibleArgumentLayouts(
       // By default, assume operands must all have the same layout.
       .Default([&](Operation* op) {
         std::optional<NewLayoutAttr> firstFoundLayout;
+        // All operands require a layout unless the op implements
+        // OperandLayoutRequirementOpInterface, which allows it to specify which
+        // subset of operands require layouts.
+        auto layoutReqIface = dyn_cast<OperandLayoutRequirementOpInterface>(op);
 
-        for (auto& operand : op->getOpOperands()) {
-          if (isa<RankedTensorType>(operand.get().getType())) {
-            if (!assignedLayouts.contains(operand.get())) {
-              // If the operand has no layout, we can't propagate layout
-              // information to the result.
-              return CompatibilityResult{
-                  false, op->emitError("operand has no assigned layout")};
-            }
-            NewLayoutAttr layout = assignedLayouts.at(operand.get());
+        for (auto& opOperand : op->getOpOperands()) {
+          bool secretness = isSecret(opOperand.get(), solver);
+          if (layoutReqIface && !layoutReqIface.operandRequiresLayout(
+                                    opOperand.getOperandNumber(), secretness)) {
+            continue;
+          }
 
-            if (!firstFoundLayout.has_value()) firstFoundLayout = layout;
-            if (layout != firstFoundLayout.value()) {
-              return CompatibilityResult{false, std::nullopt};
-            }
+          if (!assignedLayouts.contains(opOperand.get())) {
+            // If the operand has no layout, we can't propagate layout
+            // information to the result.
+            return CompatibilityResult{
+                false, op->emitError("operand has no assigned layout")};
+          }
+          NewLayoutAttr layout = assignedLayouts.at(opOperand.get());
+
+          if (!firstFoundLayout.has_value()) firstFoundLayout = layout;
+          if (layout != firstFoundLayout.value()) {
+            return CompatibilityResult{false, std::nullopt};
           }
         }
 
@@ -917,7 +919,7 @@ void NewLayoutPropagation::rectifyIncompatibleOperandLayouts(Operation* op) {
 
   TypeSwitch<Operation*>(op)
       // Ops with special rules
-      .Case<ReduceOp>(
+      .Case<ReduceOp, tensor::InsertOp>(
           [&](auto op) { return rectifyIncompatibleOperandLayouts(op); })
       .Default([&](Operation* op) {
         // Default target layout is chosen arbitrarily as the first operand's
@@ -972,6 +974,43 @@ void NewLayoutPropagation::rectifyIncompatibleOperandLayouts(ReduceOp op) {
       setResultLayoutAttr(convertOp);
     }
   }
+}
+
+void NewLayoutPropagation::rectifyIncompatibleOperandLayouts(
+    tensor::InsertOp op) {
+  // The scalar input's layout must be made to match the tensor input's layout.
+  // Ideally we could be smarter here, for example to take a scalar layout
+  // which is a single slot in a single ciphertext, and insert it into the
+  // correct slot of the single ciphertext of the dest tensor via a mask and
+  // rotate. But this kernel is not expected to be used with ciphertext inputs,
+  // so we instead incur the cost of a layout conversion before the insert.
+  mlir::IRRewriter builder(&getContext());
+  builder.setInsertionPoint(op);
+
+  NewLayoutAttr destLayout = assignedLayouts.at(op.getDest());
+  NewLayoutAttr scalarLayout = assignedLayouts.at(op.getScalar());
+  IntegerRelation destRel = destLayout.getIntegerRelation();
+  std::optional<int64_t> destNumCts = destRel.getConstantBound64(
+      presburger::BoundType::UB,
+      // First range var is the ciphertext index, always has lower bound of
+      // zero
+      destRel.getVarKindOffset(presburger::VarKind::Range));
+  assert(destNumCts.has_value());
+
+  std::string newScalarLayoutStr = llvm::formatv(
+      "{ [] -> [ct, slot] : 0 <= ct <= {0} and 0 <= slot <= {1} }",
+      destNumCts.value(), ciphertextSize - 1);
+  NewLayoutAttr newScalarLayout =
+      NewLayoutAttr::get(op.getContext(), newScalarLayoutStr);
+
+  ConvertLayoutOp convertOp = ConvertLayoutOp::create(
+      builder, op->getLoc(), op.getScalar(), scalarLayout, newScalarLayout);
+  Value toReplace = convertOp.getResult();
+  builder.replaceUsesWithIf(op.getScalar(), toReplace, [&](OpOperand& operand) {
+    return operand.getOwner() == op;
+  });
+  assignedLayouts.insert({toReplace, newScalarLayout});
+  setResultLayoutAttr(convertOp);
 }
 
 void NewLayoutPropagation::passLayoutThroughOp(Operation* op) {

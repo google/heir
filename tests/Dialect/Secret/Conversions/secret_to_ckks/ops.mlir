@@ -55,49 +55,6 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
     return %3 : !efi1
   }
 
-  // CHECK: func @test_extract
-  func.func @test_extract(%arg0 : !efi1 {mgmt.mgmt = #mgmt}) -> (!secret.secret<f32> {mgmt.mgmt = #mgmt}) {
-    %0 = secret.generic(%arg0 :  !efi1) {
-    // CHECK: ckks.extract
-      ^bb0(%ARG0 : tensor<1024xf32>):
-        %c0 = arith.constant 0 : index
-        %1 = tensor.extract %ARG0[%c0] : tensor<1024xf32>
-        secret.yield %1 : f32
-    } -> (!secret.secret<f32> {mgmt.mgmt = #mgmt})
-    // CHECK: return
-    // CHECK-SAME: message_type = f32
-    // CHECK-SAME: polynomialModulus = <1 + x**1024>
-    return %0 : !secret.secret<f32>
-  }
-
-  // Tests that a 2-D tensor is treated as a 1-D tensor along the non-unit dimension.
-  // TODO(#913): Blocked on a layout representation.
-  // CHECK: func @test_mul_2d
-  func.func @test_mul_2d(%arg0 : !secret.secret<tensor<1x1024xf32>> {mgmt.mgmt = #mgmt}) -> (!secret.secret<tensor<1x1024xf32>> {mgmt.mgmt = #mgmt}) {
-    %c0 = arith.constant dense<2.0> : tensor<1024xf32>
-    %c0_attr = mgmt.init %c0 {mgmt.mgmt = #mgmt} : tensor<1024xf32>
-    %0 = secret.generic(%arg0: !secret.secret<tensor<1x1024xf32>>) {
-    ^body(%input0: tensor<1x1024xf32>):
-      %collapsed = tensor.collapse_shape %input0 [[0, 1]] : tensor<1x1024xf32> into tensor<1024xf32>
-      secret.yield %collapsed : tensor<1024xf32>
-    } -> (!secret.secret<tensor<1024xf32>> {mgmt.mgmt = #mgmt})
-    %1 = secret.generic(%0 :  !secret.secret<tensor<1024xf32>>) {
-    // CHECK: ckks.mul_plain
-      ^bb0(%ARG0 : tensor<1024xf32>):
-        %1 = arith.mulf %ARG0, %c0_attr : tensor<1024xf32>
-        secret.yield %1 : tensor<1024xf32>
-    } -> (!secret.secret<tensor<1024xf32>> {mgmt.mgmt = #mgmt})
-    %2 = secret.generic(%1: !secret.secret<tensor<1024xf32>>) {
-    ^body(%input0: tensor<1024xf32>):
-      %expanded = tensor.expand_shape %input0 [[0, 1]] output_shape [1, 1024] : tensor<1024xf32> into tensor<1x1024xf32>
-      secret.yield %expanded : tensor<1x1024xf32>
-    } -> (!secret.secret<tensor<1x1024xf32>> {mgmt.mgmt = #mgmt})
-    // CHECK: return
-    // CHECK-SAME: message_type = tensor<1024xf32>
-    // CHECK-SAME: polynomialModulus = <1 + x**1024>
-    return %2 : !secret.secret<tensor<1x1024xf32>>
-  }
-
   // CHECK: func.func private @callee_secret
   // CHECK: func @test_call
   func.func private @callee(tensor<1x1024xf32>) -> tensor<1x1024xf32>

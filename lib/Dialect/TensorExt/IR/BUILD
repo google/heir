@@ -50,7 +50,6 @@ cc_library(
         ":dialect_inc_gen",
         "@heir//lib/Utils/Layout:IslConversion",
         "@isl",
-        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineAnalysis",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
@@ -78,12 +77,14 @@ cc_library(
         "@llvm-project//mlir:AffineAnalysis",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:DialectUtils",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
     ],
 )
+
 # TensorExt tablegen and headers
 
 td_library(

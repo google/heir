@@ -6,16 +6,17 @@
 #include "tests/llvm_runner/memref_types.h"
 
 extern "C" {
-void _mlir_ciface_dot_product(StridedMemRefType<float>* res,
-                              StridedMemRefType<float>* arg0,
-                              StridedMemRefType<float>* arg1);
+void _mlir_ciface_dot_product(StridedMemRefType<float, 2>* res,
+                              StridedMemRefType<float, 2>* arg0,
+                              StridedMemRefType<float, 2>* arg1);
 
-void _mlir_ciface_dot_product__encrypt__arg0(StridedMemRefType<float>* res,
+void _mlir_ciface_dot_product__encrypt__arg0(StridedMemRefType<float, 2>* res,
                                              StridedMemRefType<float>* arg);
-void _mlir_ciface_dot_product__encrypt__arg1(StridedMemRefType<float>* res,
+void _mlir_ciface_dot_product__encrypt__arg1(StridedMemRefType<float, 2>* res,
                                              StridedMemRefType<float>* arg);
 
-float _mlir_ciface_dot_product__decrypt__result0(StridedMemRefType<float>* arg);
+float _mlir_ciface_dot_product__decrypt__result0(
+    StridedMemRefType<float, 2>* arg);
 }
 
 TEST(DotProductFTest, Test1) {
@@ -23,15 +24,15 @@ TEST(DotProductFTest, Test1) {
   float arg1[8] = {0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
   float expected = 2.5;
 
-  StridedMemRefType<float> encArg0;
+  StridedMemRefType<float, 2> encArg0;
   StridedMemRefType<float> inputs0 = {arg0, arg0, 0, 8, 1};
   _mlir_ciface_dot_product__encrypt__arg0(&encArg0, &inputs0);
 
-  StridedMemRefType<float> encArg1;
+  StridedMemRefType<float, 2> encArg1;
   StridedMemRefType<float> inputs1 = {arg1, arg1, 0, 8, 1};
   _mlir_ciface_dot_product__encrypt__arg0(&encArg1, &inputs1);
 
-  StridedMemRefType<float> packedRes;
+  StridedMemRefType<float, 2> packedRes;
   _mlir_ciface_dot_product(&packedRes, &encArg0, &encArg1);
 
   float res = _mlir_ciface_dot_product__decrypt__result0(&packedRes);

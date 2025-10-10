@@ -19,28 +19,35 @@ template <typename OpTy>
 struct IndexTypesNeedNoLayoutImpl
     : public OperandLayoutRequirementOpInterface::ExternalModel<
           IndexTypesNeedNoLayoutImpl<OpTy>, OpTy> {
-  bool operandRequiresLayout(Operation* op, unsigned operandIndex) const {
+  bool operandRequiresLayout(Operation* op, unsigned operandIndex,
+                             bool isSecret) const {
     bool isIndex = isa<IndexType>(op->getOperand(operandIndex).getType());
-    return !isIndex;
+    return !isIndex || isSecret;
   }
 };
 
 // The kernel for tensor.insert can put cleartexts directly into a plaintext
-// mask, so a layout is not required.
-struct OnlyInsertionDestNeedsLayout
+// mask, so a layout is not required. Otherwise, a layout is required for the
+// scalar.
+struct InsertionLayoutRequirement
     : public OperandLayoutRequirementOpInterface::ExternalModel<
-          OnlyInsertionDestNeedsLayout, tensor::InsertOp> {
-  bool operandRequiresLayout(Operation* op, unsigned operandIndex) const {
-    return operandIndex == tensor::InsertOp::odsIndex_dest;
+          InsertionLayoutRequirement, tensor::InsertOp> {
+  bool operandRequiresLayout(Operation* op, unsigned operandIndex,
+                             bool isSecret) const {
+    if (!isSecret) {
+      return operandIndex == tensor::InsertOp::odsIndex_dest;
+    }
+
+    return operandIndex == tensor::InsertOp::odsIndex_dest ||
+           operandIndex == tensor::InsertOp::odsIndex_scalar;
   }
 };
 
-// The kernel for tensor.insert can put cleartexts directly into a plaintext
-// mask, so a layout is not required.
 struct OnlyExtractionSourceNeedsLayout
     : public OperandLayoutRequirementOpInterface::ExternalModel<
           OnlyExtractionSourceNeedsLayout, tensor::ExtractOp> {
-  bool operandRequiresLayout(Operation* op, unsigned operandIndex) const {
+  bool operandRequiresLayout(Operation* op, unsigned operandIndex,
+                             bool isSecret) const {
     return operandIndex == tensor::ExtractOp::odsIndex_tensor;
   }
 };
@@ -54,7 +61,7 @@ void registerOperandLayoutRequirementOpInterface(DialectRegistry& registry) {
             IndexTypesNeedNoLayoutImpl<tensor_ext::RotateOp>>(*ctx);
       });
   registry.addExtension(+[](MLIRContext* ctx, tensor::TensorDialect* dialect) {
-    tensor::InsertOp::attachInterface<OnlyInsertionDestNeedsLayout>(*ctx);
+    tensor::InsertOp::attachInterface<InsertionLayoutRequirement>(*ctx);
     tensor::ExtractOp::attachInterface<OnlyExtractionSourceNeedsLayout>(*ctx);
   });
 }

@@ -327,6 +327,7 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
 
     RewritePatternSet patterns(context);
     addStructuralConversionPatterns(typeConverter, patterns, target);
+    addTensorConversionPatterns(typeConverter, patterns, target);
 
     target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
       bool hasCryptoContextArg = op.getFunctionType().getNumInputs() > 0 &&
@@ -377,21 +378,12 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
         ConvertLWEBinOp<lwe::RMulOp, openfhe::MulNoRelinOp>,
         ConvertUnaryOp<lwe::RNegateOp, openfhe::NegateOp>,
         ConvertCiphertextPlaintextOp<lwe::RAddPlainOp, openfhe::AddPlainOp>,
-        ConvertCiphertextPlaintextOp<lwe::RSubPlainOp, openfhe::SubPlainOp>,
         ConvertCiphertextPlaintextOp<lwe::RMulPlainOp, openfhe::MulPlainOp>,
+        ConvertCiphertextPlaintextOp<lwe::RSubPlainOp, openfhe::SubPlainOp>,
 
         ///////////////////////////////////
         // Scheme-Specific Op Patterns   //
         ///////////////////////////////////
-
-        // AddPlain
-        ConvertCiphertextPlaintextOp<lwe::RAddPlainOp, openfhe::AddPlainOp>,
-
-        // SubPlain
-        ConvertCiphertextPlaintextOp<lwe::RSubPlainOp, openfhe::SubPlainOp>,
-
-        // MulPlain
-        ConvertCiphertextPlaintextOp<lwe::RMulPlainOp, openfhe::MulPlainOp>,
 
         // Rotate
         ConvertRotateOp<bgv::RotateColumnsOp, openfhe::RotOp>,
@@ -407,9 +399,7 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
         lwe::ConvertLevelReduceOp<bgv::LevelReduceOp>,
         lwe::ConvertLevelReduceOp<ckks::LevelReduceOp>,
         // Bootstrap (CKKS only)
-        ConvertBootstrapOp
-        // End of Pattern List
-        >(typeConverter, context);
+        ConvertBootstrapOp>(typeConverter, context);
 
     ConversionConfig config;
     config.allowPatternRollback = false;

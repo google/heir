@@ -13,6 +13,7 @@
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"      // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"             // from @llvm-project
 #include "mlir/include/mlir/Pass/PassManager.h"            // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
@@ -79,7 +80,9 @@ struct SecretInsertMgmtBFV
                           // these lines are not used by B/FV but used by CKKS.
                           UseInitOpForPlaintextOperand<arith::AddFOp>,
                           UseInitOpForPlaintextOperand<arith::SubFOp>,
-                          UseInitOpForPlaintextOperand<arith::MulFOp>>(
+                          UseInitOpForPlaintextOperand<arith::MulFOp>,
+                          UseInitOpForPlaintextOperand<tensor::ExtractSliceOp>,
+                          UseInitOpForPlaintextOperand<tensor::InsertSliceOp>>(
         &getContext(), getOperation(), &solver);
     (void)walkAndApplyPatterns(getOperation(), std::move(patternsPlaintext));
 

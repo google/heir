@@ -12,9 +12,6 @@
 // Note that if any condition changed the test may fail and changes
 // to this file are expected
 
-#alignment = #tensor_ext.alignment<in = [], out = [1024], insertedDims = [0]>
-#layout = #tensor_ext.layout<map = (d0) -> (d0 mod 1024), alignment = #alignment>
-#original_type = #tensor_ext.original_type<originalType = i16, layout = #layout>
 // expected-error@below {{Noise validation failed.}}
 module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 14, Q = [35184372121601, 35184372744193, 35184373006337, 35184373989377, 35184374874113, 35184376184833], P = [35184376545281, 35184376578049], plaintextModulus = 4295294977>, scheme.bgv} {
   func.func @dot_product(%arg0: !secret.secret<tensor<1024xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 5>}) -> (!secret.secret<tensor<1024xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 0>}) {

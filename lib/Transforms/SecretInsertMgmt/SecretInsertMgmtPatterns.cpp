@@ -309,45 +309,38 @@ LogicalResult BootstrapWaterLine<Op>::matchAndRewrite(
   return solver->initializeAndRun(top);
 }
 
-// for BGV
-template struct MultRelinearize<arith::MulIOp>;
-
-template struct ModReduceAfterMult<arith::MulIOp>;
-
-template struct ModReduceBefore<arith::MulIOp>;
+// For all schemes
+template struct BootstrapWaterLine<mgmt::ModReduceOp>;
 template struct ModReduceBefore<secret::YieldOp>;
+template struct UseInitOpForPlaintextOperand<tensor::ExtractSliceOp>;
+template struct UseInitOpForPlaintextOperand<tensor::InsertSliceOp>;
 
-template struct MatchCrossLevel<arith::MulIOp>;
+// for BGV (integer ops)
 template struct MatchCrossLevel<arith::AddIOp>;
+template struct MatchCrossLevel<arith::MulIOp>;
 template struct MatchCrossLevel<arith::SubIOp>;
-
-template struct MatchCrossMulDepth<arith::MulIOp>;
 template struct MatchCrossMulDepth<arith::AddIOp>;
+template struct MatchCrossMulDepth<arith::MulIOp>;
 template struct MatchCrossMulDepth<arith::SubIOp>;
-
-template struct UseInitOpForPlaintextOperand<arith::MulIOp>;
+template struct ModReduceAfterMult<arith::MulIOp>;
+template struct ModReduceBefore<arith::MulIOp>;
+template struct MultRelinearize<arith::MulIOp>;
 template struct UseInitOpForPlaintextOperand<arith::AddIOp>;
+template struct UseInitOpForPlaintextOperand<arith::MulIOp>;
 template struct UseInitOpForPlaintextOperand<arith::SubIOp>;
 
-// for CKKS
-template struct MultRelinearize<arith::MulFOp>;
-
-template struct ModReduceAfterMult<arith::MulFOp>;
-
-template struct ModReduceBefore<arith::MulFOp>;
-
-template struct BootstrapWaterLine<mgmt::ModReduceOp>;
-
-template struct MatchCrossLevel<arith::MulFOp>;
+// for CKKS (floating point ops)
 template struct MatchCrossLevel<arith::AddFOp>;
+template struct MatchCrossLevel<arith::MulFOp>;
 template struct MatchCrossLevel<arith::SubFOp>;
-
-template struct MatchCrossMulDepth<arith::MulFOp>;
 template struct MatchCrossMulDepth<arith::AddFOp>;
+template struct MatchCrossMulDepth<arith::MulFOp>;
 template struct MatchCrossMulDepth<arith::SubFOp>;
-
-template struct UseInitOpForPlaintextOperand<arith::MulFOp>;
+template struct ModReduceAfterMult<arith::MulFOp>;
+template struct ModReduceBefore<arith::MulFOp>;
+template struct MultRelinearize<arith::MulFOp>;
 template struct UseInitOpForPlaintextOperand<arith::AddFOp>;
+template struct UseInitOpForPlaintextOperand<arith::MulFOp>;
 template struct UseInitOpForPlaintextOperand<arith::SubFOp>;
 
 }  // namespace heir

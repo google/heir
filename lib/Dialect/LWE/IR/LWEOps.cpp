@@ -8,18 +8,19 @@
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
-#include "llvm/include/llvm/ADT/TypeSwitch.h"         // from @llvm-project
-#include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/Location.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/Matchers.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/OpDefinition.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/TypeUtilities.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"               // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
+#include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Location.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Matchers.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -80,8 +81,8 @@ LogicalResult TrivialEncryptOp::verify() {
 }
 
 LogicalResult ReinterpretApplicationDataOp::verify() {
-  auto inputType = getInput().getType();
-  auto outputType = getOutput().getType();
+  auto inputType = getCtTy(getInput());
+  auto outputType = getCtTy(getOutput());
   if (inputType.getPlaintextSpace() != outputType.getPlaintextSpace() ||
       inputType.getCiphertextSpace() != outputType.getCiphertextSpace() ||
       inputType.getKey() != outputType.getKey() ||
@@ -191,6 +192,11 @@ LogicalResult EncodeOp::verify() {
 }
 
 LogicalResult RLWEEncodeOp::verify() {
+  if (auto tensorTy = dyn_cast<ShapedType>(getInput().getType())) {
+    if (tensorTy.getRank() > 1) {
+      return emitOpError() << "RLWEEncodeOp only supports 1D tensors";
+    }
+  }
   return verifyEncodingAndTypeMatch(getInput().getType(), getEncoding());
 }
 

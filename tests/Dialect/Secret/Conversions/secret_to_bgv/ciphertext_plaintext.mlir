@@ -35,6 +35,40 @@ module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 14, Q = [67239937,
     return %0 : !eui1
   }
 
+  // CHECK: func @test_mul_plain_elementwise
+  // CHECK-SAME: %[[arg0:.*]]: tensor<2x!lwe.lwe_ciphertext
+  // CHECK-SAME: %[[arg1:.*]]: tensor<2x1024xi1>
+  func.func @test_mul_plain_elementwise(%arg0 : !secret.secret<tensor<2x1024xi1>> {mgmt.mgmt = #mgmt}, %arg1 : tensor<2x1024xi1>) -> (!secret.secret<tensor<2x1024xi1>> {mgmt.mgmt = #mgmt}) {
+    %arg1_attr = mgmt.init %arg1 {mgmt.mgmt = #mgmt} : tensor<2x1024xi1>
+    %0 = secret.generic(%arg0 : !secret.secret<tensor<2x1024xi1>>) {
+    // CHECK: %[[extracted:.*]] = tensor.extract_slice %[[arg1]]
+    // CHECK: %[[v0:.*]] = lwe.rlwe_encode %[[extracted]]
+    // CHECK: %[[extracted:.*]] = tensor.extract_slice %[[arg1]]
+    // CHECK: %[[v1:.*]] = lwe.rlwe_encode %[[extracted]]
+    // CHECK: %[[v2:.*]] = tensor.from_elements %[[v0]], %[[v1]]
+    // CHECK: bgv.mul_plain %[[arg0]], %[[v2]]
+      ^bb0(%ARG0 : tensor<2x1024xi1>):
+        %1 = arith.muli %ARG0, %arg1_attr : tensor<2x1024xi1>
+        secret.yield %1 : tensor<2x1024xi1>
+    } -> (!secret.secret<tensor<2x1024xi1>> {mgmt.mgmt = #mgmt})
+    return %0 : !secret.secret<tensor<2x1024xi1>>
+  }
+
+  // CHECK: func @test_mul_plain2
+  // CHECK-SAME: %[[arg0:.*]]: !lwe.lwe_ciphertext
+  // CHECK-SAME: %[[arg1:.*]]: tensor<1024xi1>
+  func.func @test_mul_plain2(%arg0 : !eui1 {mgmt.mgmt = #mgmt}, %arg1 : tensor<1024xi1>) -> (!eui1 {mgmt.mgmt = #mgmt}) {
+    %arg1_attr = mgmt.init %arg1 {mgmt.mgmt = #mgmt} : tensor<1024xi1>
+    %0 = secret.generic(%arg0 :  !eui1) {
+    // CHECK: %[[v0:.*]] = lwe.rlwe_encode %[[arg1]]
+    // CHECK: bgv.mul_plain %[[v0]], %[[arg0]]
+      ^bb0(%ARG0 : tensor<1024xi1>):
+        %1 = arith.muli %arg1_attr, %ARG0  : tensor<1024xi1>
+        secret.yield %1 : tensor<1024xi1>
+    } -> (!eui1 {mgmt.mgmt = #mgmt})
+    return %0 : !eui1
+  }
+
   // CHECK: func @test_sub_plain
   // CHECK-SAME: %[[arg0:.*]]: !lwe.lwe_ciphertext
   // CHECK-SAME: %[[arg1:.*]]: tensor<1024xi1>

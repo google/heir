@@ -43,10 +43,12 @@
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
+#include "mlir/include/mlir/Support/IndentedOstream.h"   // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 
@@ -79,29 +81,6 @@ FailureOr<std::string> getStringForConstant(Value value) {
     }
   }
   return failure();
-}
-
-// Returns true if the given array of sizes is contiguous.
-bool isSingleContiguousSlice(ArrayRef<int64_t> sizes,
-                             ArrayRef<int64_t> sourceShape) {
-  // Find and drop leading and trailing unit sizes.
-  ArrayRef<int64_t> range = sizes;
-  const auto* nonUnitFrontIt =
-      llvm::find_if(range, [](int64_t size) { return size != 1; });
-  size_t numUnitFrontSizes = std::distance(range.begin(), nonUnitFrontIt);
-  int64_t numDroppedFrontDims = std::min(numUnitFrontSizes + 1, range.size());
-  const auto nonUnitBackIt = llvm::find_if(
-      llvm::reverse(range), [](int64_t size) { return size != 1; });
-  size_t numUnitBackSizes =
-      std::distance(llvm::reverse(range).begin(), nonUnitBackIt);
-  int64_t numDroppedBackDims = std::min(numUnitBackSizes, range.size());
-
-  auto drop = [numDroppedFrontDims, numDroppedBackDims](auto range) {
-    return range.drop_front(numDroppedFrontDims).drop_back(numDroppedBackDims);
-  };
-
-  // Check that the remaining size matches the source shape.
-  return drop(range) == drop(sourceShape);
 }
 
 /// Print the integer element of a DenseElementsAttr.
@@ -1055,30 +1034,19 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::ConcatOp op) {
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(tensor::EmptyOp op) {
-  // std::vector<std::vector<CiphertextT>> result(dim0,
-  // std::vector<CiphertextT>(dim1)); initStr = (dim1) initStr = (dim0,
-  // std::vector<CiphertextT>{initStr})
-  RankedTensorType resultTy = op.getResult().getType();
-  auto elementTy = convertType(resultTy.getElementType(), op.getLoc());
-  if (failed(elementTy)) {
+  // std::vector<std::vector<CiphertextT>> result(size);
+  RankedTensorType resultType = op.getResult().getType();
+  if (failed(emitType(resultType, op->getLoc()))) {
     return failure();
   }
-  if (failed(emitType(resultTy, op->getLoc()))) {
-    return failure();
-  }
-  os << " " << variableNames->getNameForValue(op.getResult());
-  std::string initStr = llvm::formatv("({0})", resultTy.getShape().back());
-  for (auto dim :
-       llvm::reverse(op.getResult().getType().getShape().drop_back(1))) {
-    initStr = llvm::formatv("({0}, std::vector<{1}>{2})", dim,
-                            elementTy.value(), initStr);
-  }
-  os << initStr << ";\n";
+  os << " " << variableNames->getNameForValue(op.getResult()) << "("
+     << resultType.getNumElements() << ");\n";
   return success();
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(tensor::ExtractOp op) {
-  // const auto& v1 = in[0, 1];
+  // Recall, tensors in this emitter are all flattened.
+  // const auto& v1 = in[0];
   if (isa<lwe::LWECiphertextType>(op.getResult().getType())) {
     emitAutoAssignPrefix(op.getResult());
   } else {
@@ -1094,52 +1062,6 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::ExtractOp op) {
       });
   os << "]";
   os << ";\n";
-  return success();
-}
-
-LogicalResult OpenFhePkeEmitter::extractRowFromMatrix(
-    tensor::ExtractSliceOp op) {
-  // Must be single contiguous slice with constant sizes and strides.
-  if (llvm::any_of(op.getStaticSizes(),
-                   [](int64_t size) { return ShapedType::isDynamic(size); })) {
-    return op.emitError() << "expected static sizes";
-  }
-  if (!llvm::all_of(op.getStaticStrides(),
-                    [](int64_t size) { return size == 1; })) {
-    return op.emitError() << "expected stride 1";
-  }
-  if (!isSingleContiguousSlice(op.getStaticSizes(),
-                               op.getSourceType().getShape())) {
-    return op.emitError() << "expected single contiguous slice";
-  }
-  // Only handle the case of extracting a single row from a 2-D tensor.
-  // Offsets are expected to be [%val, 0]
-  if (op.getMixedOffsets().size() != 2 || op.getStaticOffsets()[1] != 0) {
-    return op.emitError() << "only support extracting one row from a 2D tensor";
-  }
-
-  std::string inputVarName = variableNames->getNameForValue(op.getSource());
-  std::string resultVarName = variableNames->getNameForValue(op.getResult());
-  auto elementType =
-      convertType(op.getSourceType().getElementType(), op->getLoc());
-  if (failed(elementType)) {
-    return failure();
-  }
-
-  std::string flattenStart;
-  if (op.isDynamicOffset(0)) {
-    flattenStart = llvm::formatv(
-        "{0} * {1}", variableNames->getNameForValue(op.getDynamicOffset(0)),
-        op.getSourceType().getShape()[1]);
-  } else {
-    flattenStart = llvm::formatv("{0} * {1}", op.getStaticOffset(0),
-                                 op.getSourceType().getShape()[1]);
-  }
-  auto flattenEnd = llvm::formatv("{0} + {1}", flattenStart,
-                                  op.getResultType().getNumElements());
-  os << "std::vector<" << elementType.value() << "> " << resultVarName
-     << "(std::begin(" << inputVarName << ") + " << flattenStart
-     << ", std::begin(" << inputVarName << ") + " << flattenEnd << ");\n";
   return success();
 }
 
@@ -1173,19 +1095,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(
 
 LogicalResult OpenFhePkeEmitter::printOperation(tensor::ExtractSliceOp op) {
   RankedTensorType resultType = op.getResult().getType();
-
-  // Otherwise we need a loop
-  // For now only support 1D output tensors
-  if (resultType.getRank() != 1) {
-    return op.emitError() << "OpenFHE emitter only supports 1D output tensors "
-                             "for extract_slice";
-  }
-
-  // If the input is a matrix, we can extract a row.
-  if (resultType.getRank() != op.getSourceType().getRank()) {
-    return extractRowFromMatrix(op);
-  }
-
+  RankedTensorType sourceType = op.getSource().getType();
   std::string resultName = variableNames->getNameForValue(op.getResult());
   std::string sourceName = variableNames->getNameForValue(op.getSource());
   // std::vector<ty> result;
@@ -1194,23 +1104,47 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::ExtractSliceOp op) {
   }
   os << " " << resultName << "(" << resultType.getNumElements() << ");\n";
 
+  SmallVector<OpFoldResult> offsets = op.getMixedOffsets();
+  ArrayRef<int64_t> sizes = op.getStaticSizes();
+  ArrayRef<int64_t> strides = op.getStaticStrides();
+
+  auto getOffsetAsString = [&](OpFoldResult offset) -> std::string {
+    if (auto intAttr = offset.dyn_cast<Attribute>()) {
+      return std::to_string(
+          cast<IntegerAttr>(intAttr).getValue().getSExtValue());
+    }
+    return variableNames->getNameForValue(cast<Value>(offset));
+  };
+
   // If everything is 1D and has stride 1, we can use std::copy
   //
   // std::copy(source.begin() + offset, source.begin() + offset + size,
   // result.begin());
   if (resultType.getRank() == 1 && op.getSourceType().getRank() == 1 &&
-      llvm::all_of(op.getStaticStrides(),
-                   [](int64_t stride) { return stride == 1; })) {
-    auto offset = op.getStaticOffsets()[0];
-    auto size = op.getStaticSizes()[0];
-    os << "std::copy(";
-    os << sourceName << ".begin()" << " + " << offset << ", ";
-    os << sourceName << ".begin()" << " + " << offset << " + " << size << ", ";
-    os << resultName << ".begin());\n";
+      llvm::all_of(strides, [](int64_t stride) { return stride == 1; })) {
+    std::string offsetStr = getOffsetAsString(offsets[0]);
+    auto size = sizes[0];
+    os << "std::copy(" << sourceName << ".begin()" << " + " << offsetStr << ", "
+       << sourceName << ".begin()" << " + " << offsetStr << " + " << size
+       << ", " << resultName << ".begin());\n";
     return success();
   }
 
-  return failure();
+  InductionVarNameFn nameFn = [&](int i) {
+    return variableNames->getNameForValue(op.getResult()) + "_i" +
+           std::to_string(i);
+  };
+
+  LoopOpenerFn opener = [&](raw_indented_ostream& os,
+                            const std::string& inductionVar, int64_t size) {
+    os << "for (int64_t " << inductionVar << " = 0; " << inductionVar << " < "
+       << size << "; ++" << inductionVar << ") {\n";
+  };
+
+  emitFlattenedExtractSlice(resultType, sourceType, resultName, sourceName,
+                            offsets, sizes, strides, getOffsetAsString, nameFn,
+                            opener, os);
+  return success();
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(tensor::InsertSliceOp op) {
@@ -1271,8 +1205,12 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::InsertSliceOp op) {
   }
 
   // Now we're in the innermost loop nest, do the assignment
-  os << destName << "[" << llvm::join(destIndexNames, "][")
-     << "] = " << sourceName << "[" << llvm::join(sourceIndexNames, "][")
+  os << destName << "["
+     << flattenIndexExpression(op.getDest().getType().getShape(),
+                               destIndexNames)
+     << "] = " << sourceName << "["
+     << flattenIndexExpression(op.getSource().getType().getShape(),
+                               sourceIndexNames)
      << "];\n";
 
   // Now unindent and close the loop nest
@@ -1289,7 +1227,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::InsertSliceOp op) {
 LogicalResult OpenFhePkeEmitter::printOperation(tensor::InsertOp op) {
   // For a tensor.insert MLIR statement, we assign the destination vector and
   // then map the result value to the destination value.
-  // // %result = tensor.insert %scalar into %dest[%idx]
+  // %result = tensor.insert %scalar into %dest[%idx]
   // dest[idx] = scalar;
   os << variableNames->getNameForValue(op.getDest());
   os << "[";
@@ -1306,12 +1244,10 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::InsertOp op) {
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(tensor::SplatOp op) {
+  // Recall, tensors in this emitter are all flattened.
   // std::vector<CiphertextType> result(num, value);
   auto result = op.getResult();
   if (failed(emitType(result.getType(), op->getLoc()))) {
-    return failure();
-  }
-  if (result.getType().getRank() != 1) {
     return failure();
   }
   os << " " << variableNames->getNameForValue(result) << "("

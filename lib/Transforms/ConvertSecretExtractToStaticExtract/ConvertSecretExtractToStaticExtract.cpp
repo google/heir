@@ -42,9 +42,8 @@ struct SecretExtractToStaticExtractConversion
                                 PatternRewriter& rewriter) const override {
     // TODO(#866): Add support for reads on multi-dimensional tensors
     if (extractOp.getTensor().getType().getRank() != 1) {
-      extractOp->emitWarning()
-          << "Currently, transformation only supports 1D tensors:";
-      return failure();
+      return rewriter.notifyMatchFailure(
+          top, "Currently, transformation only supports 1D tensors:");
     }
 
     auto index = extractOp.getIndices().front();

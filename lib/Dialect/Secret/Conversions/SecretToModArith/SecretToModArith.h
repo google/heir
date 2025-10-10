@@ -3,7 +3,7 @@
 
 #include "mlir/include/mlir/Pass/Pass.h"  // from @llvm-project
 
-namespace mlir::heir {
+namespace mlir::heir::mod_arith {
 
 #define GEN_PASS_DECL
 #include "lib/Dialect/Secret/Conversions/SecretToModArith/SecretToModArith.h.inc"
@@ -11,6 +11,6 @@ namespace mlir::heir {
 #define GEN_PASS_REGISTRATION
 #include "lib/Dialect/Secret/Conversions/SecretToModArith/SecretToModArith.h.inc"
 
-}  // namespace mlir::heir
+}  // namespace mlir::heir::mod_arith
 
 #endif  // LIB_DIALECT_SECRET_CONVERSIONS_SECRETTOMODARITH_SECRETTOMODARITH_H_

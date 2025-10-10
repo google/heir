@@ -70,8 +70,6 @@ def LWEPlaintext : LWE_Type<"LWEPlaintext", "lwe_plaintext", [MemRefElementTypeI
   let aliasName = "pt";
 }
 
-def LWEPlaintextLike : TypeOrValueSemanticsContainer<LWEPlaintext, "lwe-plaintext-like">;
-
 def LWECiphertext : LWE_Type<"LWECiphertext", "lwe_ciphertext", [MemRefElementTypeInterface]> {
   let summary = "A ciphertext type";
 
@@ -101,7 +99,7 @@ def LWECiphertext : LWE_Type<"LWECiphertext", "lwe_ciphertext", [MemRefElementTy
 
 
 def LWEPlaintextOrCiphertext : AnyTypeOf<[LWECiphertext, LWEPlaintext]>;
-
+def LWEPlaintextLike : TypeOrValueSemanticsContainer<LWEPlaintext, "lwe-plaintext-like">;
 def LWECiphertextLike : TypeOrValueSemanticsContainer<LWECiphertext, "lwe-ciphertext-like">;
 def LWEPlaintextOrCiphertextLike : TypeOrValueSemanticsContainer<LWEPlaintextOrCiphertext, "lwe-plaintext-or-ciphertext-like">;
 

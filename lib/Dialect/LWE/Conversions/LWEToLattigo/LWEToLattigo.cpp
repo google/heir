@@ -25,6 +25,7 @@
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
@@ -50,6 +51,10 @@ class ToLattigoTypeConverter : public TypeConverter {
     });
     addConversion([ctx](lwe::LWESecretKeyType type) -> Type {
       return lattigo::RLWESecretKeyType::get(ctx);
+    });
+    addConversion([this](RankedTensorType type) -> Type {
+      return RankedTensorType::get(type.getShape(),
+                                   this->convertType(type.getElementType()));
     });
   }
 };
@@ -79,6 +84,9 @@ bool containsArgumentOfDialect(Operation* op) {
     return false;
   }
   return llvm::any_of(funcOp.getArgumentTypes(), [&](Type argType) {
+    if (isa<ShapedType>(argType)) {
+      argType = cast<ShapedType>(argType).getElementType();
+    }
     return DialectEqual<Dialects...>()(&argType.getDialect());
   });
 }
@@ -104,7 +112,7 @@ struct AddEvaluatorArg : public OpConversionPattern<func::FuncOp> {
     }
 
     if (selectedEvaluators.empty()) {
-      return success();
+      return rewriter.notifyMatchFailure(op, "no evaluator needed");
     }
 
     // Insert all argument at the beginning
@@ -613,6 +621,7 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
 
     RewritePatternSet patterns(context);
     addStructuralConversionPatterns(typeConverter, patterns, target);
+    addTensorConversionPatterns(typeConverter, patterns, target);
 
     target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
       bool hasCryptoContextArg =
@@ -642,6 +651,11 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
               *operandTypes.begin());
       return (!containsCryptoArg || hasCryptoContextArg);
     });
+
+    // All other operations are legal if they have no LWE typed operands or
+    // results
+    target.markUnknownOpDynamicallyLegal(
+        [&](Operation* op) { return typeConverter.isLegal(op); });
 
     OpPredicate containsEncryptUseSk = [&](Operation* op) -> bool {
       if (auto funcOp = dyn_cast<func::FuncOp>(op)) {

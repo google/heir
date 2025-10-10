@@ -18,7 +18,8 @@ def OperandLayoutRequirementOpInterface : OpInterface<"OperandLayoutRequirementO
   let cppNamespace = "::mlir::heir";
   let description = [{
     An interface that signals which operands require a layout for
-    implementation with an FHE kernel.
+    implementation with an FHE kernel. This may also depend on whether
+    the operand is secret.
 
     By default, all operands require a layout, even cleartext operands.
   }];
@@ -28,7 +29,7 @@ def OperandLayoutRequirementOpInterface : OpInterface<"OperandLayoutRequirementO
       /*desc=*/"Return true if this operand requires a layout",
       /*retTy=*/"bool",
       /*methodName=*/"operandRequiresLayout",
-      /*args=*/(ins "unsigned":$operandIndex),
+      /*args=*/(ins "unsigned":$operandIndex, "bool":$isSecret),
       /*defaultImplementation=*/[{ return true; }]
     >,
   ];

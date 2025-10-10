@@ -60,21 +60,21 @@ class LWE_Op<string mnemonic, list<Trait> traits = []> :
         Op<LWE_Dialect, mnemonic,  traits # [Pure]> {
   let cppNamespace = "::mlir::heir::lwe";
   let assemblyFormat = [{
-    operands attr-dict `:`  functional-type(operands, results)
+    operands attr-dict `:` functional-type(operands, results)
   }];
 }
 
 class LWE_BinOp<string mnemonic, list<Trait> traits = []> :
         LWE_Op<mnemonic,  traits # [ElementwiseMappable]> {
-  let arguments = (ins LWECiphertext:$lhs, LWECiphertext:$rhs);
-  let results = (outs LWECiphertext:$output);
+  let arguments = (ins LWECiphertextLike:$lhs, LWECiphertextLike:$rhs);
+  let results = (outs LWECiphertextLike:$output);
   let assemblyFormat = "operands attr-dict `:` type($output)";
 }
 
 class LWE_CiphertextPlaintextOp<string mnemonic, list<Trait> traits = []> :
         LWE_Op<mnemonic, traits #  [IsCiphertextPlaintextOp, InferTypeOpAdaptor]> {
-  let arguments = (ins LWEPlaintextOrCiphertext:$lhs, LWEPlaintextOrCiphertext:$rhs);
-  let results = (outs LWECiphertext:$output);
+  let arguments = (ins LWEPlaintextOrCiphertextLike:$lhs, LWEPlaintextOrCiphertextLike:$rhs);
+  let results = (outs LWECiphertextLike:$output);
 }
 
 def LWE_EncodeOp : LWE_Op<"encode"> {
@@ -132,15 +132,15 @@ def LWE_TrivialEncryptOp: LWE_Op<"trivial_encrypt", [
 }
 
 def LWE_AddOp : LWE_BinOp<"add", [SameOperandsAndResultType,Commutative]> {
-  let arguments = (ins LWECiphertext:$lhs, LWECiphertext:$rhs);
-  let results = (outs LWECiphertext:$output);
+  let arguments = (ins LWECiphertextLike:$lhs, LWECiphertextLike:$rhs);
+  let results = (outs LWECiphertextLike:$output);
   let summary = "Add two LWE ciphertexts";
 }
 
 def LWE_RAddOp : LWE_BinOp<"radd", [SameOperandsAndResultRings, SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor, Commutative]> {
   let summary = "Add two RLWE ciphertexts";
   let assemblyFormat = [{
-    operands attr-dict `:`  functional-type(operands, results)
+    operands attr-dict `:` functional-type(operands, results)
   }];
 }
 
@@ -152,7 +152,7 @@ def LWE_RAddPlainOp : LWE_CiphertextPlaintextOp<"radd_plain", [Commutative, Same
 def LWE_RSubOp : LWE_BinOp<"rsub", [SameOperandsAndResultRings, SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
   let summary = "Subtract two RLWE ciphertexts";
   let assemblyFormat = [{
-    operands attr-dict `:`  functional-type(operands, results)
+    operands attr-dict `:` functional-type(operands, results)
   }];
 }
 
@@ -163,7 +163,7 @@ def LWE_RSubPlainOp : LWE_CiphertextPlaintextOp<"rsub_plain", [SameOperandsAndRe
 def LWE_RMulOp : LWE_BinOp<"rmul", [SameOperandsAndResultRings, InferTypeOpAdaptor, Commutative]> {
   let summary = "Multiplies two RLWE ciphertexts";
   let assemblyFormat = [{
-    operands attr-dict `:`  functional-type(operands, results)
+    operands attr-dict `:` functional-type(operands, results)
   }];
   let hasVerifier = 1;
 }
@@ -265,7 +265,7 @@ def LWE_RLWEDecryptOp : LWE_Op<"rlwe_decrypt", [
   let results = (outs LWEPlaintext:$output);
 }
 
-def ReinterpretApplicationDataOp : LWE_Op<"reinterpret_application_data", []> {
+def ReinterpretApplicationDataOp : LWE_Op<"reinterpret_application_data", [ElementwiseMappable]> {
   let summary = "A placeholder cast from one ciphertext type to another";
   let description = [{
     The `cast` op is thus used to translate application data (e.g., `message_type`)
@@ -274,8 +274,8 @@ def ReinterpretApplicationDataOp : LWE_Op<"reinterpret_application_data", []> {
     or when lowering to an API that does not keep track of types.
   }];
 
-  let arguments = (ins LWECiphertext:$input);
-  let results = (outs LWECiphertext:$output);
+  let arguments = (ins LWECiphertextLike:$input);
+  let results = (outs LWECiphertextLike:$output);
   let assemblyFormat = [{
     $input attr-dict `:` qualified(type($input)) `to` qualified(type($output))
   }];

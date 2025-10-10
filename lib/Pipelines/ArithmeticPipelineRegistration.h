@@ -130,17 +130,15 @@ using BackendPipelineBuilder =
 
 void mlirToRLWEPipeline(OpPassManager& pm,
                         const MlirToRLWEPipelineOptions& options,
-                        RLWEScheme scheme, bool newLayout = false);
+                        RLWEScheme scheme);
 
 void mlirToSecretArithmeticPipelineBuilder(
-    OpPassManager& pm, const MlirToRLWEPipelineOptions& options,
-    bool newLayout = false);
+    OpPassManager& pm, const MlirToRLWEPipelineOptions& options);
 
 void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
                                     const PlaintextBackendOptions& options);
 
-RLWEPipelineBuilder mlirToRLWEPipelineBuilder(RLWEScheme scheme,
-                                              bool newLayout = false);
+RLWEPipelineBuilder mlirToRLWEPipelineBuilder(RLWEScheme scheme);
 
 BackendPipelineBuilder toOpenFhePipelineBuilder();
 

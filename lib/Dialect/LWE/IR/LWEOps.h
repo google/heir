@@ -32,14 +32,17 @@ namespace lwe {
 //===----------------------------------------------------------------------===//
 // Op verifiers
 //===----------------------------------------------------------------------===//
-
-inline LWECiphertextType getCtTy(Value v) {
-  return cast<LWECiphertextType>(getElementTypeOrSelf(v.getType()));
+inline LWECiphertextType getCtTy(Type ty) {
+  return cast<LWECiphertextType>(getElementTypeOrSelf(ty));
 }
 
-inline LWEPlaintextType getPtTy(Value v) {
-  return cast<LWEPlaintextType>(getElementTypeOrSelf(v.getType()));
+inline LWECiphertextType getCtTy(Value v) { return getCtTy(v.getType()); }
+
+inline LWEPlaintextType getPtTy(Type ty) {
+  return cast<LWEPlaintextType>(getElementTypeOrSelf(ty));
 }
+
+inline LWEPlaintextType getPtTy(Value v) { return getPtTy(v.getType()); }
 
 template <typename Op>
 LogicalResult verifyMulOp(Op* op) {
@@ -284,15 +287,18 @@ LogicalResult inferPlainOpReturnTypes(
   if (auto ct = dyn_cast<lwe::LWECiphertextType>(
           getElementTypeOrSelf(adaptor.getLhs().getType()))) {
     inferredReturnTypes.push_back(adaptor.getLhs().getType());
-  } else if (auto ct = dyn_cast<lwe::LWECiphertextType>(
-                 getElementTypeOrSelf(adaptor.getRhs().getType()))) {
-    inferredReturnTypes.push_back(adaptor.getRhs().getType());
-  } else {
-    emitError(adaptor.getLhs().getLoc())
-        << "expected lhs or rhs to be a ciphertext type";
-    return failure();
+    return success();
   }
-  return success();
+
+  if (auto ct = dyn_cast<lwe::LWECiphertextType>(
+          getElementTypeOrSelf(adaptor.getRhs().getType()))) {
+    inferredReturnTypes.push_back(adaptor.getRhs().getType());
+    return success();
+  }
+
+  emitError(adaptor.getLhs().getLoc())
+      << "expected lhs or rhs to be a ciphertext type";
+  return failure();
 }
 
 template <typename Adaptor>

@@ -8,28 +8,37 @@
 FILE* output;
 
 extern "C" {
-void _mlir_ciface_dot_product(StridedMemRefType<float>* result,
-                              StridedMemRefType<float>* arg0,
-                              StridedMemRefType<float>* arg1);
+void _mlir_ciface_dot_product(StridedMemRefType<float, 2>* result,
+                              StridedMemRefType<float, 2>* arg0,
+                              StridedMemRefType<float, 2>* arg1);
 
-void _mlir_ciface_dot_product__encrypt__arg0(StridedMemRefType<float>* result,
-                                             StridedMemRefType<float>* arg);
+void _mlir_ciface_dot_product__encrypt__arg0(
+    StridedMemRefType<float, 2>* result, StridedMemRefType<float>* arg);
 
-void _mlir_ciface_dot_product__encrypt__arg1(StridedMemRefType<float>* result,
-                                             StridedMemRefType<float>* arg);
+void _mlir_ciface_dot_product__encrypt__arg1(
+    StridedMemRefType<float, 2>* result, StridedMemRefType<float>* arg);
 
 float _mlir_ciface_dot_product__decrypt__result0(
-    StridedMemRefType<float> const*);
+    StridedMemRefType<float, 2> const*);
 
-// debug handler
 void __heir_debug_tensor_8xf32_(
     /* arg 0*/
     float* allocated, float* aligned, int64_t offset, int64_t size,
     int64_t stride) {
   for (int i = 0; i < size; i++) {
-    std::fprintf(output, "%.15f ", *(aligned + i * stride));
+    std::fprintf(output, "%.10f ", *(aligned + i * stride));
   }
   std::fprintf(output, "\n");
+}
+
+// debug handler
+void __heir_debug_tensor_1x8xf32_(
+    /* arg 0*/
+    float* allocated, float* aligned, int64_t offset, int64_t size,
+    int64_t stride) {
+  for (int i = 0; i < size; i++) {
+    __heir_debug_tensor_8xf32_(allocated, aligned + i * stride, offset, 8, 1);
+  }
 }
 
 void __heir_debug_f32(float value) { std::fprintf(output, "%.15f \n", value); }
@@ -45,7 +54,7 @@ int main(int argc, char** argv) {
   // the first argument is the output file
   if (argc > 1) {
     output = fopen(argv[1], "w");
-    if (output == NULL) {
+    if (output == nullptr) {
       fprintf(stderr, "Error opening file\n");
       return 1;
     }
@@ -57,15 +66,15 @@ int main(int argc, char** argv) {
   float arg1[8] = {0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
   float expected = 2.5;
 
-  StridedMemRefType<float> encArg0;
+  StridedMemRefType<float, 2> encArg0;
   StridedMemRefType<float> input0 = {arg0, arg0, 0, 8, 1};
   _mlir_ciface_dot_product__encrypt__arg0(&encArg0, &input0);
 
-  StridedMemRefType<float> encArg1;
+  StridedMemRefType<float, 2> encArg1;
   StridedMemRefType<float> input1 = {arg1, arg1, 0, 8, 1};
   _mlir_ciface_dot_product__encrypt__arg1(&encArg1, &input1);
 
-  StridedMemRefType<float> packedRes;
+  StridedMemRefType<float, 2> packedRes;
   _mlir_ciface_dot_product(&packedRes, &encArg0, &encArg1);
 
   float res = _mlir_ciface_dot_product__decrypt__result0(&packedRes);

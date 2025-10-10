@@ -244,18 +244,6 @@ module attributes {scheme.ckks} {
 
 // -----
 
-module attributes {scheme.ckks} {
-  // CHECK: test_extract_slice
-  // CHECK-SAME: std::vector<float> [[v0:.*]], size_t [[v1:.*]]) {
-  // CHECK: std::vector<float> [[v2:.*]](std::begin([[v0]]) + [[v1]] * 1024, std::begin([[v0]]) + [[v1]] * 1024 + 1024);
-  func.func @test_extract_slice(%arg0: tensor<1x1024xf32>, %arg1: index) -> tensor<1024xf32> {
-    %1 = tensor.extract_slice %arg0[%arg1, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
-    return %1 : tensor<1024xf32>
-  }
-}
-
-// -----
-
 module attributes {scheme.bgv} {
   // CHECK: test_gen_params_op
   func.func @test_gen_params_op() -> !openfhe.cc_params {
@@ -345,7 +333,7 @@ module attributes {scheme.ckks} {
 module attributes {scheme.ckks} {
   // CHECK: test_insert_slice_2d
   // CHECK: std::vector<float> [[v0:[^(]*]](64, 0.100000001);
-  // CHECK: std::vector<float> [[v1:[^(]*]](32, std::vector<float>(32));
+  // CHECK: std::vector<float> [[v1:[^(]*]](1024);
 
   // TODO(#1703): this test is quite wrong, but only because the type
   // declaration and initializations above are bad, which is owned by a
@@ -355,7 +343,7 @@ module attributes {scheme.ckks} {
   // CHECK:  for (int64_t [[v1]]_0 = 8; [[v1]]_0 < 24; [[v1]]_0 += 2) {
   // CHECK:    int64_t [[v0]]_1 = 0;
   // CHECK:    for (int64_t [[v1]]_1 = 8; [[v1]]_1 < 24; [[v1]]_1 += 2) {
-  // CHECK:      [[v1]]{{\[}}[[v1]]_0]{{\[}}[[v1]]_1] = [[v0]]{{\[}}[[v0]]_0]{{\[}}[[v0]]_1];
+  // CHECK:      [[v1]]{{\[}}[[v1]]_1 + 32 * ([[v1]]_0)] = [[v0]]{{\[}}[[v0]]_1 + 8 * ([[v0]]_0)];
   // CHECK:      [[v0]]_1 += 1;
   // CHECK:    }
   // CHECK:    [[v0]]_0 += 1;

@@ -19,7 +19,8 @@
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"   // from @llvm-project
 
 #define DEBUG_TYPE "layout-conversion-cost"
 
@@ -133,8 +134,16 @@ Cost computeCostOfLayoutConversion(int64_t ciphertextSize, Attribute fromLayout,
                                    Attribute toLayout,
                                    std::size_t vveRandomSeed,
                                    unsigned vveRandomTries) {
+  if (fromLayout == toLayout) {
+    return 0;
+  }
+
   NewLayoutAttr fromLayoutAttr = dyn_cast<NewLayoutAttr>(fromLayout);
   NewLayoutAttr toLayoutAttr = dyn_cast<NewLayoutAttr>(toLayout);
+
+  if (!fromLayoutAttr || !toLayoutAttr) {
+    return fromLayout == toLayout ? 0 : 1;
+  }
 
   // Combine random seed with hashes over from- and to-layout, guaranteeing the
   // same result for a given random seed and set of layouts.
@@ -142,10 +151,6 @@ Cost computeCostOfLayoutConversion(int64_t ciphertextSize, Attribute fromLayout,
   llvm::hash_code fromHash = llvm::hash_value(fromLayoutAttr.getLayout());
   llvm::hash_code toHash = llvm::hash_value(toLayoutAttr.getLayout());
   vveRandomSeed = llvm::hash_combine(vveRandomSeed, fromHash, toHash);
-
-  if (!fromLayoutAttr || !toLayoutAttr) {
-    return fromLayout == toLayout ? 0 : 1;
-  }
 
   IntegerRelation rel = fromLayoutAttr.getIntegerRelation();
   std::optional<int64_t> ctUb = rel.getConstantBound64(

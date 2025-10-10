@@ -11,12 +11,10 @@
 // CHECK: [[CST:%.+]] = arith.constant dense<0> : tensor<1x16xi16>
 // CHECK: [[C3:%.+]] = arith.constant 3 : index
 // CHECK: [[RESULT:%.+]] = secret.generic([[ARG0:%.+]]: !secret.secret<tensor<1x16xi16>>)
+// CHECK: ^body([[ARG0_INNER:%.+]]: tensor<1x16xi16>):
 // CHECK: [[INSERTED:%.+]] = tensor.insert [[C1]] into [[CST]]{{\[}}[[C0]], [[C3]]] : tensor<1x16xi16>
-// CHECK: [[COLLAPSED:%.+]] = tensor.collapse_shape [[INSERTED]] {{\[}}[0, 1]] : tensor<1x16xi16> into tensor<16xi16>
-// CHECK: [[COLLAPSED_0:%.+]] = tensor.collapse_shape %input0 {{\[}}[0, 1]] : tensor<1x16xi16> into tensor<16xi16>
-// CHECK: [[MUL:%.+]] = arith.muli [[COLLAPSED]], [[COLLAPSED_0]] : tensor<16xi16>
-// CHECK: [[EXPANDED:%.+]] = tensor.expand_shape [[MUL]] {{\[}}[0, 1]] output_shape [1, 16] : tensor<16xi16> into tensor<1x16xi16>
-// CHECK: [[PERMUTED:%.+]] = tensor_ext.permute [[EXPANDED]] {permutation = {{.*}}} : tensor<1x16xi16>
+// CHECK: [[MUL:%.+]] = arith.muli [[INSERTED]], [[ARG0_INNER]] : tensor<1x16xi16>
+// CHECK: [[PERMUTED:%.+]] = tensor_ext.permute [[MUL]] {permutation = {{.*}}} : tensor<1x16xi16>
 // CHECK: secret.yield [[PERMUTED]] : tensor<1x16xi16>
 // CHECK: return [[RESULT]] : !secret.secret<tensor<1x16xi16>>
 

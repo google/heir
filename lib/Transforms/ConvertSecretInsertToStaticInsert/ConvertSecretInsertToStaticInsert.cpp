@@ -42,9 +42,7 @@ struct SecretInsertToStaticInsertConversion
                                 PatternRewriter& rewriter) const override {
     // TODO(#866): Add support for writes on multi-dimensional tensors
     if (insertOp.getDest().getType().getRank() != 1) {
-      insertOp->emitWarning()
-          << "Currently, transformation only supports 1D tensors:";
-      return failure();
+      return rewriter.notifyMatchFailure(insertOp, "only supports 1D tensors");
     }
     auto index = insertOp.getIndices().front();
     auto tensor = insertOp.getDest();

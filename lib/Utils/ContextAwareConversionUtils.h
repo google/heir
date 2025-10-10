@@ -1,9 +1,12 @@
 #ifndef LIB_UTILS_CONTEXTAWARECOVNVERSIONUTILS_H_
 #define LIB_UTILS_CONTEXTAWARECOVNVERSIONUTILS_H_
 
+#include <cassert>
 #include <cstdint>
 #include <functional>
 #include <numeric>
+#include <string>
+#include <utility>
 
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
@@ -134,7 +137,10 @@ class SecretGenericOpConversion
 
     auto& innerOp = op.getBody()->getOperations().front();
     if (!isa<T>(innerOp)) {
-      return failure();
+      return rewriter.notifyMatchFailure(
+          op, "expected secret.generic to contain a single " +
+                  std::string(T::getOperationName()) + " op, but found a " +
+                  std::string(innerOp.getName().getStringRef()));
     }
 
     // The inner op's arguments are either plaintext operands, in which case
@@ -226,69 +232,115 @@ class SecretGenericOpCipherPlainConversion
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
       ContextAwareConversionPatternRewriter& rewriter) const override {
-    // Verify that exactly one of the two inputs is a ciphertext.
-    if (inputs.size() != 2 ||
-        llvm::count_if(inputs, [&](Value input) {
-          return isa<lwe::LWECiphertextType>(input.getType());
-        }) != 1) {
+    // Verify that exactly one of the two inputs is ciphertextlike.
+    int numCiphertextLikeInputs = llvm::count_if(inputs, [&](Value input) {
+      return isa<lwe::LWECiphertextType>(getElementTypeOrSelf(input.getType()));
+    });
+    if (inputs.size() != 2 || numCiphertextLikeInputs != 1) {
+      return rewriter.notifyMatchFailure(
+          op, "expected exactly one ciphertext operand and one plaintext");
+    }
+
+    bool swapped = false;
+    Value ciphertextInput = inputs[0];
+    Value cleartextInput = inputs[1];
+
+    // Determine which is ciphertextlike, and make that value canonically
+    // input0. However, since not all ops are commutative, we will need to
+    // remember if we swapped the inputs when reconstructing the op.
+    if (isa<lwe::LWECiphertextType>(
+            getElementTypeOrSelf(cleartextInput.getType()))) {
+      std::swap(ciphertextInput, cleartextInput);
+      swapped = true;
+    }
+
+    auto doReplace = [&](Value ctInput, Value ptInput) {
+      if (swapped) {
+        return rewriter.replaceOpWithNewOp<Y>(op, ptInput, ctInput);
+      }
+      return rewriter.replaceOpWithNewOp<Y>(op, ctInput, ptInput);
+    };
+
+    auto ciphertextElementTy = cast<lwe::LWECiphertextType>(
+        getElementTypeOrSelf(ciphertextInput.getType()));
+
+    // Encode the cleartext as a plaintext
+    auto initOp =
+        dyn_cast_or_null<mgmt::InitOp>(cleartextInput.getDefiningOp());
+    if (!initOp) {
+      return failure();
+    }
+    auto mgmtAttr = mgmt::findMgmtAttrAssociatedWith(initOp);
+    if (!mgmtAttr) {
       return failure();
     }
 
-    auto encodeCleartext =
-        [&](Value cleartext,
-            lwe::LWECiphertextType ciphertextTy) -> FailureOr<Value> {
-      auto initOp = dyn_cast_or_null<mgmt::InitOp>(cleartext.getDefiningOp());
-      if (!initOp) {
-        return failure();
-      }
-      auto mgmtAttr = mgmt::findMgmtAttrAssociatedWith(initOp);
-      if (!mgmtAttr) {
-        return failure();
-      }
+    Attribute ciphertextEncoding =
+        ciphertextElementTy.getPlaintextSpace().getEncoding();
+    Attribute plaintextEncoding = lwe::getEncodingAttrWithNewScalingFactor(
+        ciphertextEncoding, mgmtAttr.getScale());
 
-      Attribute ciphertextEncoding =
-          ciphertextTy.getPlaintextSpace().getEncoding();
-      Attribute plaintextEncoding = lwe::getEncodingAttrWithNewScalingFactor(
-          ciphertextEncoding, mgmtAttr.getScale());
+    if (!plaintextEncoding) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to compute plaintext encoding");
+    }
 
-      if (!plaintextEncoding) {
-        return failure();
-      }
+    // TODO(#1643): inherit level information to plaintext type from init-op
+    // mgmt attr. This actually needs to make LWEPlaintextType RNS aware.
+    auto plaintextTy = lwe::LWEPlaintextType::get(
+        op.getContext(), ciphertextElementTy.getApplicationData(),
+        lwe::PlaintextSpaceAttr::get(
+            op.getContext(), ciphertextElementTy.getPlaintextSpace().getRing(),
+            plaintextEncoding));
+    Value realCleartext = initOp.getInput();
 
-      // TODO(#1643): inherit level information to plaintext type from init-op
-      // mgmt attr. This actually needs to make LWEPlaintextType RNS aware.
-      auto plaintextTy = lwe::LWEPlaintextType::get(
-          op.getContext(), ciphertextTy.getApplicationData(),
-          lwe::PlaintextSpaceAttr::get(
-              op.getContext(), ciphertextTy.getPlaintextSpace().getRing(),
-              plaintextEncoding));
-      Value realCleartext = initOp.getInput();
-      return rewriter
-          .create<lwe::RLWEEncodeOp>(op.getLoc(), plaintextTy, realCleartext,
-                                     plaintextEncoding,
-                                     ciphertextTy.getPlaintextSpace().getRing())
-          .getResult();
-    };
+    // At this point, realCleartext is a ciphertext-semantic tensor, so it
+    // could be a tensor<Nxty>, tensor<k x N x ty>, (where k=1 is possible).
 
-    Value input0 = inputs[0];
-    Value input1 = inputs[1];
-    if (auto ciphertextTy = dyn_cast<lwe::LWECiphertextType>(
-            getElementTypeOrSelf(input0.getType()))) {
-      auto encoded = encodeCleartext(input1, ciphertextTy);
-      if (failed(encoded)) {
-        return failure();
-      }
-      auto newOp = rewriter.replaceOpWithNewOp<Y>(op, input0, *encoded);
+    // For rank 1, it's a single ciphertext and can be encoded directly.
+    auto cleartextTensorTy = cast<RankedTensorType>(realCleartext.getType());
+    int64_t numSlots =
+        cleartextTensorTy.getDimSize(cleartextTensorTy.getRank() - 1);
+    if (cleartextTensorTy.getRank() == 1) {
+      Value encodeOp = lwe::RLWEEncodeOp::create(
+                           rewriter, op.getLoc(), plaintextTy, realCleartext,
+                           plaintextEncoding,
+                           ciphertextElementTy.getPlaintextSpace().getRing())
+                           .getResult();
+      auto newOp = doReplace(ciphertextInput, encodeOp);
       return newOp.getOperation();
     }
 
-    auto encoded = encodeCleartext(
-        input0,
-        cast<lwe::LWECiphertextType>(getElementTypeOrSelf(input1.getType())));
-    if (failed(encoded)) {
-      return failure();
+    assert(cleartextTensorTy.getRank() == 2);
+
+    // For higher rank, we need to extract all the inner rank-1 tensors, encode
+    // them, and reassemble.
+    auto sliceTy =
+        RankedTensorType::get({numSlots}, cleartextTensorTy.getElementType());
+    SmallVector<Value> encodedSlices;
+    for (int64_t i = 0; i < cleartextTensorTy.getShape()[0]; ++i) {
+      SmallVector<OpFoldResult> offsets = {rewriter.getIndexAttr(i),
+                                           rewriter.getIndexAttr(0)};
+      SmallVector<OpFoldResult> sizes = {rewriter.getIndexAttr(1),
+                                         rewriter.getIndexAttr(numSlots)};
+      SmallVector<OpFoldResult> strides = {rewriter.getIndexAttr(1),
+                                           rewriter.getIndexAttr(1)};
+      auto slice = tensor::ExtractSliceOp::create(rewriter, op.getLoc(),
+                                                  sliceTy, realCleartext,
+                                                  offsets, sizes, strides);
+      Value encodedSlice =
+          lwe::RLWEEncodeOp::create(
+              rewriter, op.getLoc(), plaintextTy, slice, plaintextEncoding,
+              ciphertextElementTy.getPlaintextSpace().getRing())
+              .getResult();
+      encodedSlices.push_back(encodedSlice);
     }
-    auto newOp = rewriter.replaceOpWithNewOp<Y>(op, *encoded, input1);
+
+    auto reassembledEncodedSlices = rewriter.create<tensor::FromElementsOp>(
+        op.getLoc(),
+        RankedTensorType::get({cleartextTensorTy.getShape()[0]}, plaintextTy),
+        encodedSlices);
+    auto newOp = doReplace(ciphertextInput, reassembledEncodedSlices);
     return newOp.getOperation();
   }
 };
@@ -362,43 +414,6 @@ class SecretGenericOpModulusSwitchConversion
     auto outputRing = cast<lwe::LWECiphertextType>(outputElementType)
                           .getCiphertextSpace()
                           .getRing();
-
-    // secret-to-ckks allow tensor of ciphertext
-    if (auto outputTensorType = dyn_cast<RankedTensorType>(outputType)) {
-      // need tensor::extract/tensor::insert
-      // manually fully unroll it
-      auto shape = outputTensorType.getShape();
-      auto totalSize = std::accumulate(shape.begin(), shape.end(), 1,
-                                       std::multiplies<int64_t>());
-      auto emptyOp = rewriter.create<tensor::EmptyOp>(op.getLoc(), shape,
-                                                      outputElementType);
-      Operation* resultOp = emptyOp;
-      for (int i = 0; i < totalSize; ++i) {
-        SmallVector<int64_t> indices;
-        auto iCopy = i;
-        for (int64_t j : shape) {
-          indices.push_back(iCopy % j);
-          iCopy /= j;
-        }
-        SmallVector<Value> constants;
-        for (int64_t index : indices) {
-          constants.push_back(rewriter.create<mlir::arith::ConstantOp>(
-              op.getLoc(), rewriter.getIndexAttr(index)));
-        }
-        auto extract = rewriter.create<tensor::ExtractOp>(op.getLoc(),
-                                                          inputs[0], constants);
-        auto modulusSwitchOp = rewriter.create<Y>(
-            op.getLoc(), outputElementType, extract.getResult(), outputRing);
-        modulusSwitchOp->setDialectAttrs(attributes);
-        auto insert = rewriter.create<tensor::InsertOp>(
-            op.getLoc(), modulusSwitchOp.getResult(), resultOp->getResult(0),
-            constants);
-        resultOp = insert;
-      }
-      rewriter.replaceOp(op, resultOp);
-      return resultOp;
-    }
-
     auto newOp = rewriter.replaceOpWithNewOp<Y>(op, outputTypes[0], inputs[0],
                                                 outputRing);
     return newOp.getOperation();
