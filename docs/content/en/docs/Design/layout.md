@@ -226,15 +226,17 @@ patterns from MLIR in HEIR. In the future we hope MLIR will relax these
 constraints via interfaces and traits, and at that point we could consider a
 specialized type.
 
-Before going on, we note that ciphertext-semantic tensors are agnostic to how
-the "slots" are encoded in the underlying FHE scheme. In particular, slots could
-correspond to evaluation points of an RNS polynomial, i.e., to "NTT form" slots.
-But they could also correspond to the coefficients of an RNS polynomial in
-coefficient form. As of 2025-10-01, HEIR's Fhelipe-inspired pipeline
-materializes slots as NTT-form slots in all cases, but this is not required by
-the layout system, and future layout optimizers may take into account
-conversions between NTT and coefficient form as part of a layout conversion
-step.
+Before going on, we note that the layout specification language is agnostic to
+how the "slots" are encoded in the underlying FHE scheme. In particular, slots
+could correspond to evaluation points of an RNS polynomial, i.e., to "NTT form"
+slots. But they could also correspond to the coefficients of an RNS polynomial
+in coefficient form. As of 2025-10-01, HEIR's Fhelipe-inspired pipeline
+materializes slots as NTT-form slots in all cases, but is not required by the
+layout system. The only part of the layout system that depends on NTT-form is
+the implementation of operation kernels in terms of rotation operations, as
+coefficient-form ciphertexts do not have a rotation operation available. Future
+layout optimizers may take into account conversions between NTT and coefficient
+form as part of a layout conversion step.
 
 ## HEIR's Fhelipe-inspired layout optimizer
 
@@ -457,7 +459,7 @@ analyses and simplification routines. As we represent layouts as ISL strings, we
 include a two-way interoperability layer that converts between ISL and FPL
 representations of the same Presburger relation.
 
-## A case study: the Orion kernel
+## A case study: the Orion convolution kernel
 
 **FIXME: write this section**
 
