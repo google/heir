@@ -51,7 +51,7 @@ namespace heir {
 using ::mlir::heir::secret::KernelAttr;
 using ::mlir::heir::tensor_ext::AssignLayoutOp;
 using ::mlir::heir::tensor_ext::ConvertLayoutOp;
-using ::mlir::heir::tensor_ext::NewLayoutAttr;
+using ::mlir::heir::tensor_ext::LayoutAttr;
 
 constexpr const static StringLiteral kKernelAttrName =
     ::mlir::heir::secret::SecretDialect::kKernelAttrName;
@@ -319,8 +319,8 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
 
 Cost LayoutOptimization::costOfLayoutConversion(Attribute fromLayout,
                                                 Attribute toLayout) {
-  NewLayoutAttr fromLayoutAttr = dyn_cast<NewLayoutAttr>(fromLayout);
-  NewLayoutAttr toLayoutAttr = dyn_cast<NewLayoutAttr>(toLayout);
+  LayoutAttr fromLayoutAttr = dyn_cast<LayoutAttr>(fromLayout);
+  LayoutAttr toLayoutAttr = dyn_cast<LayoutAttr>(toLayout);
 
   if (!fromLayoutAttr || !toLayoutAttr) {
     return fromLayout == toLayout ? 0 : 1;

@@ -1,4 +1,4 @@
-// RUN: heir-opt --mlir-print-local-scope --new-layout-propagation %s | FileCheck %s
+// RUN: heir-opt --mlir-print-local-scope --layout-propagation %s | FileCheck %s
 
 module attributes {backend.openfhe, scheme.bgv} {
   // CHECK: @main

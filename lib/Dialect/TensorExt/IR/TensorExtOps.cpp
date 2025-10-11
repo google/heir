@@ -117,7 +117,7 @@ LogicalResult verifyLayoutMatchesType(const Attribute& layoutAttr, Type type,
                                       Operation* op) {
   auto shapedType = dyn_cast<ShapedType>(type);
 
-  if (auto newLayout = dyn_cast<NewLayoutAttr>(layoutAttr)) {
+  if (auto newLayout = dyn_cast<LayoutAttr>(layoutAttr)) {
     presburger::IntegerRelation rel = newLayout.getIntegerRelation();
     if (shapedType && rel.getNumDomainVars() != shapedType.getRank()) {
       return op->emitOpError()
@@ -179,7 +179,7 @@ LogicalResult PermuteOp::verify() {
                          << tensorTy.getRank();
   }
 
-  if (isa<NewLayoutAttr>(getPermutation())) {
+  if (isa<LayoutAttr>(getPermutation())) {
     return success();
   }
 

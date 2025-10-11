@@ -1,4 +1,4 @@
-// RUN: heir-opt --new-layout-propagation=ciphertext-size=1024 %s | FileCheck %s
+// RUN: heir-opt --layout-propagation=ciphertext-size=1024 %s | FileCheck %s
 
 // Test that layout propagation can handle secret scalars
 

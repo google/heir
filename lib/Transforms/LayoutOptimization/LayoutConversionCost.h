@@ -12,8 +12,8 @@ using Cost = int64_t;
 
 Cost computeCostOfLayoutConversion(int64_t numCiphertexts,
                                    int64_t ciphertextSize,
-                                   tensor_ext::NewLayoutAttr fromLayout,
-                                   tensor_ext::NewLayoutAttr toLayout,
+                                   tensor_ext::LayoutAttr fromLayout,
+                                   tensor_ext::LayoutAttr toLayout,
                                    std::size_t vveRandomSeed,
                                    unsigned vveRandomTries);
 

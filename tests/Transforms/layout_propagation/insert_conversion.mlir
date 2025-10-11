@@ -1,4 +1,4 @@
-// RUN: heir-opt --new-layout-propagation --fold-convert-layout-into-assign-layout %s | FileCheck %s
+// RUN: heir-opt --layout-propagation --fold-convert-layout-into-assign-layout %s | FileCheck %s
 
 !tensor = tensor<32x32xi16>
 !tensor2 = tensor<32xi16>

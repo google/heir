@@ -1,5 +1,5 @@
-#ifndef LIB_TRANSFORMS_LAYOUTPROPAGATION_NEWLAYOUTPROPAGATION_H_
-#define LIB_TRANSFORMS_LAYOUTPROPAGATION_NEWLAYOUTPROPAGATION_H_
+#ifndef LIB_TRANSFORMS_LAYOUTPROPAGATION_LAYOUTPROPAGATION_H_
+#define LIB_TRANSFORMS_LAYOUTPROPAGATION_LAYOUTPROPAGATION_H_
 
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
@@ -12,12 +12,12 @@ namespace mlir {
 namespace heir {
 
 #define GEN_PASS_DECL
-#include "lib/Transforms/LayoutPropagation/NewLayoutPropagation.h.inc"
+#include "lib/Transforms/LayoutPropagation/LayoutPropagation.h.inc"
 
 #define GEN_PASS_REGISTRATION
-#include "lib/Transforms/LayoutPropagation/NewLayoutPropagation.h.inc"
+#include "lib/Transforms/LayoutPropagation/LayoutPropagation.h.inc"
 
 }  // namespace heir
 }  // namespace mlir
 
-#endif  // LIB_TRANSFORMS_LAYOUTPROPAGATION_NEWLAYOUTPROPAGATION_H_
+#endif  // LIB_TRANSFORMS_LAYOUTPROPAGATION_LAYOUTPROPAGATION_H_
