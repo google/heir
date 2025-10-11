@@ -18,7 +18,7 @@
   [0, 14, 0, 9],
   [0, 15, 0, 1]]> : tensor<16x4xi64>
 func.func @figure3(%0: tensor<1x16xi32>) -> tensor<1x16xi32> {
-  %1 = tensor_ext.permute %0 {permutation = #map} : tensor<1x16xi32>
+  %1 = tensor_ext.remap %0 {permutation = #map} : tensor<1x16xi32>
   return %1 : tensor<1x16xi32>
 }
 

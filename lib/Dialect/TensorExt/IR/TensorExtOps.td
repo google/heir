@@ -50,24 +50,39 @@ def TensorExt_RotateOp : TensorExt_Op<"rotate", [Pure, AllTypesMatch<["tensor", 
   let hasVerifier = 1;
 }
 
-def PermutationLike : AnyAttrOf<[
-  // A permutation defined explicitly by mapping (ct, slot) -> (ct, slot)
+def MappingLike : AnyAttrOf<[
+  // A list of tuples [a, b, c, d] representing an explicit map (ct, slot) ->
+  // (ct, slot) defined by f(a, b) = (c, d). This mapping is primarily used
+  // for testing implement-shift-network, as not all mappings can be achieved
+  // as a consequence of higher-level layout conversions.
   AnyI64ElementsAttr,
-  // A layout relation, representing a mapping (ct, slot) -> (ct, slot)
+  // A layout relation with domain and range space equal to (ct, slot).
   TensorExt_LayoutAttr,
 ]>;
 
-// TODO(#2047): rename PermuteOp to make it clear it supports more general mappings
-def TensorExt_PermuteOp : TensorExt_Op<"permute", [Pure, AllTypesMatch<["input", "output"]>]> {
-  let summary = "Permute a tensor by a static permutation.";
+def TensorExt_RemapOp : TensorExt_Op<"remap", [Pure, AllTypesMatch<["input", "output"]>]> {
+  let summary = "Reorganize the entries of a tensor by a static mapping.";
   let description = [{
-    This op represents a permutation of a tensor.
+    This op represents a remapping of entries of a tensor.
 
-    This is lowered from a `convert_layout` op, and is implemented in terms of
-    `rotate` operations.
+    This op is primarily inserted as a lowered form of `convert_layout` op, to
+    represent a ciphertext slot-repacking operation. However, it can more
+    generally express any partial mapping from source tensor indices to target
+    indices within a tensor. Unmapped entries from the input tensor are
+    unmodified.
+
+    This operation differs from a `tensor.gather/scatter` operation in that it
+    can replicate values from the source tensor or omit values in the
+    destination tensor. It differs from a "lane shuffle" in that the mapping
+    need not be a permutation. It differs from a "swizzle" in that it cannot
+    change the dimension of the result tensor.
+
+    In the slot form of a ciphertext, this op is lowered to a "shift network"
+    of ciphertext-plaintext mask, rotate, and sum operations by the
+    `implement-shift-network` pass.
   }];
 
-  let arguments = (ins AnyRankedTensor:$input, PermutationLike:$permutation);
+  let arguments = (ins AnyRankedTensor:$input, MappingLike:$permutation);
   let results = (outs AnyRankedTensor:$output);
   let assemblyFormat = "operands attr-dict `:` type($input)";
   let hasVerifier = 1;

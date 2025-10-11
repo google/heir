@@ -12,7 +12,7 @@
 // CHECK: %[[INSERT:.*]] = tensor.insert_slice %[[ROT]] into %[[EMPTY]][0, 0] [1, 64] [1, 1] : tensor<64xi32> into tensor<1x64xi32>
 // CHECK: return %[[INSERT]] : tensor<1x64xi32>
 func.func @test_no_conflicts(%0: tensor<1x64xi32>) -> tensor<1x64xi32> {
-  %1 = tensor_ext.permute %0 {permutation = #map1} : tensor<1x64xi32>
+  %1 = tensor_ext.remap %0 {permutation = #map1} : tensor<1x64xi32>
   return %1 : tensor<1x64xi32>
 }
 
@@ -44,7 +44,7 @@ func.func @test_no_conflicts(%0: tensor<1x64xi32>) -> tensor<1x64xi32> {
 // CHECK: return %[[INSERT]] : tensor<1x64xi32>
 #map2 = #tensor_ext.layout<"{ [ct1, slot1] -> [ct2, slot2] : ct1 = 0 and ct2 = 0 and ((slot1 + 1) - slot2) mod 64 = 0 and slot1 >= 0 and 63 >= slot1 and slot2 >= 0 and 63 >= slot2 }">
 func.func @test_no_conflicts2(%0: tensor<1x64xi32>) -> tensor<1x64xi32> {
-  %1 = tensor_ext.permute %0 {permutation = #map2} : tensor<1x64xi32>
+  %1 = tensor_ext.remap %0 {permutation = #map2} : tensor<1x64xi32>
   return %1 : tensor<1x64xi32>
 }
 
@@ -57,7 +57,7 @@ func.func @test_no_conflicts2(%0: tensor<1x64xi32>) -> tensor<1x64xi32> {
 // CHECK: return %[[INSERT]] : tensor<1x64xi32>
 #map3 = #tensor_ext.layout<"{ [ct1, slot1] -> [ct2, slot2] : ct1 = 0 and ct2 = 0 and slot1 = slot2 and slot1 >= 0 and 63 >= slot1 and slot2 >= 0 and 63 >= slot2 }">
 func.func @identity(%0: tensor<1x64xi32>) -> tensor<1x64xi32> {
-  %1 = tensor_ext.permute %0 {permutation = #map3} : tensor<1x64xi32>
+  %1 = tensor_ext.remap %0 {permutation = #map3} : tensor<1x64xi32>
   return %1 : tensor<1x64xi32>
 }
 
@@ -75,7 +75,7 @@ func.func @identity(%0: tensor<1x64xi32>) -> tensor<1x64xi32> {
 // CHECK-NEXT: return %[[INSERT3]]
 #map4 = #tensor_ext.layout<"{ [ct1, slot1] -> [ct2, slot2] : (ct1 - ct2) mod 4 = 3 and (slot1 - slot2) mod 64 = 0 and 0 <= ct1 <= 3 and 0 <= ct2 <= 3 and 0 <= slot1 <= 63 and 0 <= slot2 <= 63 }">
 func.func @multi_ciphertext_swap_cts(%0: tensor<4x64xi32>) -> tensor<4x64xi32> {
-  %1 = tensor_ext.permute %0 {permutation = #map4} : tensor<4x64xi32>
+  %1 = tensor_ext.remap %0 {permutation = #map4} : tensor<4x64xi32>
   return %1 : tensor<4x64xi32>
 }
 
@@ -87,6 +87,6 @@ func.func @multi_ciphertext_swap_cts(%0: tensor<4x64xi32>) -> tensor<4x64xi32> {
 // CHECK-COUNT-16: tensor_ext.rotate
 #map5 = #tensor_ext.layout<"{ [ct1, slot1] -> [ct2, slot2] : (ct1 - ct2) mod 4 = 3 and (slot1 - slot2) mod 64 = 5 and 0 <= ct1 <= 3 and 0 <= ct2 <= 3 and 0 <= slot1 <= 63 and 0 <= slot2 <= 63 }">
 func.func @multi_ciphertext_complex(%0: tensor<4x64xi32>) -> tensor<4x64xi32> {
-  %1 = tensor_ext.permute %0 {permutation = #map5} : tensor<4x64xi32>
+  %1 = tensor_ext.remap %0 {permutation = #map5} : tensor<4x64xi32>
   return %1 : tensor<4x64xi32>
 }
