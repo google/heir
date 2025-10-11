@@ -312,12 +312,12 @@ class ConvertConvertLayout
         fromLayout.getIntegerRelation().clone();
     composedLayout->inverse();
     composedLayout->compose(toLayout.getIntegerRelation());
-    auto permuteOp = tensor_ext::PermuteOp::create(
+    auto remapOp = tensor_ext::RemapOp::create(
         rewriter, op.getLoc(), adaptor.getValue(),
         LayoutAttr::getFromIntegerRelation(getContext(), *composedLayout));
-    permuteOp->setAttr(kLayoutAttrName, op->getAttr(kLayoutAttrName));
-    setMaterializedAttr(permuteOp);
-    rewriter.replaceOp(op, permuteOp);
+    remapOp->setAttr(kLayoutAttrName, op->getAttr(kLayoutAttrName));
+    setMaterializedAttr(remapOp);
+    rewriter.replaceOp(op, remapOp);
     return success();
   };
 };
@@ -347,12 +347,12 @@ class ConvertConvertLayoutLayout
     LayoutAttr combinedLayout =
         LayoutAttr::getFromIntegerRelation(getContext(), *toLayoutClone);
 
-    auto permuteOp = tensor_ext::PermuteOp::create(
+    auto remapOp = tensor_ext::RemapOp::create(
         rewriter, op.getLoc(), adaptor.getValue(), combinedLayout);
 
-    setMaterializedAttr(permuteOp);
-    setAttributeAssociatedWith(permuteOp, kLayoutAttrName, toLayout);
-    rewriter.replaceOp(op, permuteOp);
+    setMaterializedAttr(remapOp);
+    setAttributeAssociatedWith(remapOp, kLayoutAttrName, toLayout);
+    rewriter.replaceOp(op, remapOp);
     return success();
   };
 };

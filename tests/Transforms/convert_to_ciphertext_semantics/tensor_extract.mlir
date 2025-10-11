@@ -14,7 +14,7 @@
 // CHECK: ^body([[ARG0_INNER:%.+]]: tensor<1x16xi16>):
 // CHECK: [[INSERTED:%.+]] = tensor.insert [[C1]] into [[CST]]{{\[}}[[C0]], [[C3]]] : tensor<1x16xi16>
 // CHECK: [[MUL:%.+]] = arith.muli [[INSERTED]], [[ARG0_INNER]] : tensor<1x16xi16>
-// CHECK: [[PERMUTED:%.+]] = tensor_ext.permute [[MUL]] {permutation = {{.*}}} : tensor<1x16xi16>
+// CHECK: [[PERMUTED:%.+]] = tensor_ext.remap [[MUL]] {permutation = {{.*}}} : tensor<1x16xi16>
 // CHECK: secret.yield [[PERMUTED]] : tensor<1x16xi16>
 // CHECK: return [[RESULT]] : !secret.secret<tensor<1x16xi16>>
 

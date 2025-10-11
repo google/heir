@@ -171,7 +171,7 @@ LogicalResult UnpackOp::verify() {
   return verifyLayoutMatchesType(getLayout(), getResult().getType(), *this);
 }
 
-LogicalResult PermuteOp::verify() {
+LogicalResult RemapOp::verify() {
   auto tensorTy = getInput().getType();
   if (tensorTy.getRank() != 2) {
     return emitOpError() << "requires input tensor to be rank 2 "
