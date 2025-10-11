@@ -45,13 +45,13 @@ func.func @convert_linalg_reduce(
     %1 = tensor_ext.assign_layout %cst {layout = #row_major_vec, tensor_ext.layout = #row_major_vec} : tensor<4xi16>
 
     // First reduction
-    // CHECK:  [[rotate1:%[^ ]*]] = tensor_ext.permute [[pt_arg0]] {permutation = dense<[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]>
+    // CHECK:  [[rotate1:%[^ ]*]] = tensor_ext.remap [[pt_arg0]] {permutation = dense<[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]>
     // CHECK:  [[sum1:%[^ ]*]] = arith.addi [[pt_cst1]], [[rotate1]]
-    // CHECK:  [[rotate2:%[^ ]*]] = tensor_ext.permute [[pt_arg0]] {permutation = dense<[12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]>
+    // CHECK:  [[rotate2:%[^ ]*]] = tensor_ext.remap [[pt_arg0]] {permutation = dense<[12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]>
     // CHECK:  [[sum2:%[^ ]*]] = arith.addi [[sum1]], [[rotate2]] : tensor<16xi16>
-    // CHECK:  [[rotate3:%[^ ]*]] = tensor_ext.permute [[pt_arg0]] {permutation = dense<[8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7]>
+    // CHECK:  [[rotate3:%[^ ]*]] = tensor_ext.remap [[pt_arg0]] {permutation = dense<[8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7]>
     // CHECK:  [[sum3:%[^ ]*]] = arith.addi [[sum2]], [[rotate3]] : tensor<16xi16>
-    // CHECK:  [[rotate4:%[^ ]*]] = tensor_ext.permute [[pt_arg0]] {permutation = dense<[4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3]>
+    // CHECK:  [[rotate4:%[^ ]*]] = tensor_ext.remap [[pt_arg0]] {permutation = dense<[4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3]>
     // CHECK:  [[sum4:%[^ ]*]] = arith.addi [[sum3]], [[rotate4]] : tensor<16xi16>
     %reduced = linalg.reduce { arith.addi {overflowFlags = #arith.overflow<none>} }
       ins(%input0 : tensor<4x4xi16>)
@@ -68,24 +68,24 @@ func.func @convert_linalg_reduce(
     // CHECK-NEXT: [[pt_cst2:[^ ]*]] = tensor.insert_slice [[cst]] into
     // CHECK-SAME: [12] [4] [1]
     %2 = tensor_ext.assign_layout %cst {layout = #row_major_vec, tensor_ext.layout = #row_major_vec} : tensor<4xi16>
-    // CHECK:  [[converted1:%[^ ]*]] = tensor_ext.permute [[pt_cst2]] {permutation = dense<[0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15]>
+    // CHECK:  [[converted1:%[^ ]*]] = tensor_ext.remap [[pt_cst2]] {permutation = dense<[0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15]>
     %3 = tensor_ext.convert_layout %2 {from_layout = #row_major_vec, tensor_ext.layout = #col_major_vec, to_layout = #col_major_vec} : tensor<4xi16>
 
     // second reduction
-    // CHECK:  [[rotate1_2:%[^ ]*]] = tensor_ext.permute [[pt_arg1]] {permutation = dense<[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]>
+    // CHECK:  [[rotate1_2:%[^ ]*]] = tensor_ext.remap [[pt_arg1]] {permutation = dense<[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]>
     // CHECK:  [[sum1_2:%[^ ]*]] = arith.addi [[converted1]], [[rotate1_2]]
-    // CHECK:  [[rotate2_2:%[^ ]*]] = tensor_ext.permute [[pt_arg1]] {permutation = dense<[15, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]>
+    // CHECK:  [[rotate2_2:%[^ ]*]] = tensor_ext.remap [[pt_arg1]] {permutation = dense<[15, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]>
     // CHECK:  [[sum2_2:%[^ ]*]] = arith.addi [[sum1_2]], [[rotate2_2]] : tensor<16xi16>
-    // CHECK:  [[rotate3_2:%[^ ]*]] = tensor_ext.permute [[pt_arg1]] {permutation = dense<[14, 15, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]>
+    // CHECK:  [[rotate3_2:%[^ ]*]] = tensor_ext.remap [[pt_arg1]] {permutation = dense<[14, 15, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]>
     // CHECK:  [[sum3_2:%[^ ]*]] = arith.addi [[sum2_2]], [[rotate3_2]] : tensor<16xi16>
-    // CHECK:  [[rotate4_2:%[^ ]*]] = tensor_ext.permute [[pt_arg1]] {permutation = dense<[13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]>
+    // CHECK:  [[rotate4_2:%[^ ]*]] = tensor_ext.remap [[pt_arg1]] {permutation = dense<[13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]>
     // CHECK:  [[sum4_2:%[^ ]*]] = arith.addi [[sum3_2]], [[rotate4_2]] : tensor<16xi16>
     %reduced_1 = linalg.reduce { arith.addi {overflowFlags = #arith.overflow<none>} }
       ins(%input1 : tensor<4x4xi16>)
       outs(%3 : tensor<4xi16>)
       dimensions = [1]  {tensor_ext.layout = #col_major_vec}
 
-    // CHECK: [[converted2:%[^ ]*]] = tensor_ext.permute [[sum4_2]] {permutation = dense<[0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15]>
+    // CHECK: [[converted2:%[^ ]*]] = tensor_ext.remap [[sum4_2]] {permutation = dense<[0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15]>
     %4 = tensor_ext.convert_layout %reduced_1 {from_layout = #col_major_vec, tensor_ext.layout = #row_major_vec, to_layout = #row_major_vec} : tensor<4xi16>
     // CHECK: arith.addi [[sum4]], [[converted2]]
     %5 = arith.addi %reduced, %4 {tensor_ext.layout = #row_major_vec} : tensor<4xi16>

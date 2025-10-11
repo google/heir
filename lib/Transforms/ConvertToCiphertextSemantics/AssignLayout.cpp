@@ -34,7 +34,7 @@ namespace mlir {
 namespace heir {
 
 using ::mlir::presburger::IntegerRelation;
-using tensor_ext::NewLayoutAttr;
+using tensor_ext::LayoutAttr;
 
 static std::string printRelation(const IntegerRelation& rel) {
   std::string str;
@@ -47,7 +47,7 @@ static FailureOr<Value> implementAssignLayoutNew(
     tensor_ext::AssignLayoutOp op, int64_t ciphertextSize,
     ImplicitLocOpBuilder& builder,
     const std::function<void(Operation*)>& createdOpCallback) {
-  NewLayoutAttr layout = dyn_cast<NewLayoutAttr>(op.getLayout());
+  LayoutAttr layout = dyn_cast<LayoutAttr>(op.getLayout());
   if (!layout) {
     return op.emitError()
            << "Expected layout to be an IntegerRelation-style layout";
@@ -57,8 +57,8 @@ static FailureOr<Value> implementAssignLayoutNew(
   RankedTensorType dataSemanticType =
       dyn_cast<RankedTensorType>(op.getValue().getType());
   RankedTensorType ciphertextSemanticType = cast<RankedTensorType>(
-      materializeNewLayout(getElementTypeOrSelf(op.getValue().getType()),
-                           layout, ciphertextSize));
+      materializeLayout(getElementTypeOrSelf(op.getValue().getType()), layout,
+                        ciphertextSize));
   if (!dataSemanticType) {
     // The input is a scalar, so we can just splat into the ciphertext tensor.
     auto splatOp =
@@ -107,7 +107,7 @@ static FailureOr<Value> implementAssignLayoutNew(
 static FailureOr<Value> implementUnpackOpNew(
     tensor_ext::UnpackOp op, ImplicitLocOpBuilder& builder,
     const std::function<void(Operation*)>& createdOpCallback) {
-  NewLayoutAttr layout = cast<NewLayoutAttr>(op.getLayout());
+  LayoutAttr layout = cast<LayoutAttr>(op.getLayout());
   IntegerRelation rel = layout.getIntegerRelation();
 
   RankedTensorType unpackedTensorType =
@@ -175,7 +175,7 @@ FailureOr<Value> implementAssignLayout(
     ImplicitLocOpBuilder& builder,
     const std::function<void(Operation*)>& createdOpCallback) {
   OpBuilder::InsertionGuard guard(builder);
-  if (isa<NewLayoutAttr>(op.getLayout())) {
+  if (isa<LayoutAttr>(op.getLayout())) {
     return implementAssignLayoutNew(op, ciphertextSize, builder,
                                     createdOpCallback);
   }
@@ -187,7 +187,7 @@ FailureOr<Value> implementUnpackOp(
     tensor_ext::UnpackOp op, ImplicitLocOpBuilder& builder,
     const std::function<void(Operation*)>& createdOpCallback) {
   OpBuilder::InsertionGuard guard(builder);
-  if (isa<NewLayoutAttr>(op.getLayout())) {
+  if (isa<LayoutAttr>(op.getLayout())) {
     return implementUnpackOpNew(op, builder, createdOpCallback);
   }
 

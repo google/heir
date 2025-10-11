@@ -117,7 +117,7 @@ LogicalResult verifyLayoutMatchesType(const Attribute& layoutAttr, Type type,
                                       Operation* op) {
   auto shapedType = dyn_cast<ShapedType>(type);
 
-  if (auto newLayout = dyn_cast<NewLayoutAttr>(layoutAttr)) {
+  if (auto newLayout = dyn_cast<LayoutAttr>(layoutAttr)) {
     presburger::IntegerRelation rel = newLayout.getIntegerRelation();
     if (shapedType && rel.getNumDomainVars() != shapedType.getRank()) {
       return op->emitOpError()
@@ -171,7 +171,7 @@ LogicalResult UnpackOp::verify() {
   return verifyLayoutMatchesType(getLayout(), getResult().getType(), *this);
 }
 
-LogicalResult PermuteOp::verify() {
+LogicalResult RemapOp::verify() {
   auto tensorTy = getInput().getType();
   if (tensorTy.getRank() != 2) {
     return emitOpError() << "requires input tensor to be rank 2 "
@@ -179,7 +179,7 @@ LogicalResult PermuteOp::verify() {
                          << tensorTy.getRank();
   }
 
-  if (isa<NewLayoutAttr>(getPermutation())) {
+  if (isa<LayoutAttr>(getPermutation())) {
     return success();
   }
 

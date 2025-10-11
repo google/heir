@@ -106,7 +106,7 @@ def ImplementShiftNetwork : Pass<"implement-shift-network"> {
   let summary = "Implement tensor_ext.convert_layout ops as shift newtorks";
 
   let description = [{
-  This pass converts `tensor_ext.permute` ops into a network of
+  This pass converts `tensor_ext.remap` ops into a network of
   `tensor_ext.rotate` ops, aiming to minimize the overall latency of the
   permutation. The input IR must have tensors that correspond to plaintexts or
   ciphertexts, and be in "ciphertext semantics," i.e., after an IR has been

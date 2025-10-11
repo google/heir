@@ -78,7 +78,7 @@
 #include "lib/Transforms/LayoutOptimization/InterfaceImpl.h"
 #include "lib/Transforms/LayoutOptimization/LayoutOptimization.h"
 #include "lib/Transforms/LayoutPropagation/InterfaceImpl.h"
-#include "lib/Transforms/LayoutPropagation/NewLayoutPropagation.h"
+#include "lib/Transforms/LayoutPropagation/LayoutPropagation.h"
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
 #include "lib/Transforms/LowerPolynomialEval/LowerPolynomialEval.h"
 #include "lib/Transforms/LowerUnpack/LowerUnpack.h"
@@ -286,7 +286,7 @@ int main(int argc, char** argv) {
   registerOptimizeRelinearizationPasses();
   registerPolynomialApproximationPasses();
   registerPropagateAnnotationPasses();
-  registerNewLayoutPropagationPasses();
+  registerLayoutPropagationPasses();
   registerLayoutOptimizationPasses();
   registerLinalgCanonicalizationsPasses();
   registerFoldConstantTensorsPasses();

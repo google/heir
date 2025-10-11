@@ -1,4 +1,4 @@
-// RUN: heir-opt --new-layout-propagation --fold-convert-layout-into-assign-layout %s | FileCheck %s
+// RUN: heir-opt --layout-propagation --fold-convert-layout-into-assign-layout %s | FileCheck %s
 
 // CHECK: #kernel = #secret.kernel<name = "MatvecDiagonal", force = false>
 // CHECK: @matvec

@@ -52,7 +52,7 @@ ShiftScheme VosVosErkinShiftNetworks::findShiftScheme(
 
   ShiftStrategy strategy = evaluateShiftStrategy(mapping, shiftOrder);
 
-  // Create a graph whose vertices are the input indices to permute, and
+  // Create a graph whose vertices are the input indices to remap, and
   // whose edges are conflicts: an edge being present means the two indices
   // cannot participate in the same rotation group.
   graph::UndirectedGraph<CtSlot> conflictGraph;
@@ -175,7 +175,7 @@ VosVosErkinShiftNetworks::CacheKey VosVosErkinShiftNetworks::makeCacheKey(
   return std::make_pair(mapping, frozenShiftOrder);
 }
 
-void populateMappingFromLayoutAttr(const NewLayoutAttr& layoutAttr,
+void populateMappingFromLayoutAttr(const LayoutAttr& layoutAttr,
                                    Mapping& mapping) {
   PointPairCollector collector(2, 2);
   enumeratePoints(layoutAttr.getIntegerRelation(), collector);
@@ -208,8 +208,8 @@ void populateMappingFromDenseElementsAttr(
   }
 }
 
-LogicalResult convertPermuteOp(PermuteOp op,
-                               VosVosErkinShiftNetworks& shiftNetworks) {
+LogicalResult convertRemapOp(RemapOp op,
+                             VosVosErkinShiftNetworks& shiftNetworks) {
   LLVM_DEBUG(llvm::dbgs() << "Converting layout op: " << op << "\n");
   ImplicitLocOpBuilder b(op.getLoc(), op.getContext());
   RankedTensorType tensorTy = op.getInput().getType();
@@ -222,14 +222,14 @@ LogicalResult convertPermuteOp(PermuteOp op,
   // Populate the mapping with (source, target) pairs
   // This require enumerating over the relation for the op
   Mapping mapping(ciphertextSize, numCiphertexts);
-  if (auto layoutAttr = dyn_cast<NewLayoutAttr>(op.getPermutation())) {
+  if (auto layoutAttr = dyn_cast<LayoutAttr>(op.getPermutation())) {
     populateMappingFromLayoutAttr(layoutAttr, mapping);
   } else if (auto denseElementsAttr =
                  dyn_cast<DenseIntElementsAttr>(op.getPermutation())) {
     populateMappingFromDenseElementsAttr(denseElementsAttr, mapping);
   } else {
     return op.emitOpError()
-           << "requires permutation attribute to be either NewLayoutAttr or "
+           << "requires permutation attribute to be either LayoutAttr or "
               "DenseIntElementsAttr";
   }
 
@@ -294,8 +294,8 @@ struct ImplementShiftNetwork
 
   void runOnOperation() override {
     VosVosErkinShiftNetworks shiftNetworks;
-    getOperation()->walk([&](PermuteOp op) {
-      if (failed(convertPermuteOp(op, shiftNetworks))) {
+    getOperation()->walk([&](RemapOp op) {
+      if (failed(convertRemapOp(op, shiftNetworks))) {
         signalPassFailure();
       }
     });
