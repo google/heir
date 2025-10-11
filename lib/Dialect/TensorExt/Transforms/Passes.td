@@ -154,11 +154,11 @@ def ImplementRotateAndReduce : Pass<"implement-rotate-and-reduce"> {
   compute the sum with `O(sqrt(n))` ciphertext rotations instead by evaluating
   the sum with the following expression
 
-  \[
+  $$
     \sum_{i = 0}^{n} P(i) \cdot rotate(v, T*i) =
     \sum_{j = 0}^{\sqrt{n}} \sum_{k = 0}^{\sqrt{n}} P(j + gk) rotate(v, T*(j + gk)) =
     \sum_{j = 0}^{\sqrt{n}} rotate( \sum_{k = 0}^{\sqrt{n}} rotate(P(j + gk), -gk) rotate(v, T*j) , -gk)
-  \]
+  $$
 
   This approach uses `\sqrt{n}` ciphertext rotations of `v` in the inner sum
   (the baby steps) and then `\sqrt{n}` ciphertext rotations of the partial sums
