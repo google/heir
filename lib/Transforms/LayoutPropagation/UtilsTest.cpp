@@ -64,7 +64,7 @@ TEST(UtilsTest, TestShiftByRemovedCollision) {
   EXPECT_EQ(expected, actual);
 }
 
-TEST(UtilsTest, TestReduceNewLayout) {
+TEST(UtilsTest, TestReduceLayout) {
   MLIRContext context;
   context.loadDialect<tensor_ext::TensorExtDialect>();
 
@@ -73,11 +73,10 @@ TEST(UtilsTest, TestReduceNewLayout) {
       RankedTensorType::get({4, 6}, IndexType::get(&context));
   presburger::IntegerRelation relation =
       getRowMajorLayoutRelation(tensorType, 8);
-  NewLayoutAttr layout =
-      NewLayoutAttr::getFromIntegerRelation(&context, relation);
+  LayoutAttr layout = LayoutAttr::getFromIntegerRelation(&context, relation);
 
   SmallVector<int64_t> dimsToReduce = {0};
-  NewLayoutAttr reducedLayout = convertLayoutForReduce(layout, dimsToReduce);
+  LayoutAttr reducedLayout = convertLayoutForReduce(layout, dimsToReduce);
   presburger::IntegerRelation reducedRelation =
       reducedLayout.getIntegerRelation();
 
@@ -104,7 +103,7 @@ TEST(UtilsTest, TestReduceNewLayout) {
   }
 }
 
-TEST(UtilsTest, TestReduceNewLayoutMultiDim) {
+TEST(UtilsTest, TestReduceLayoutMultiDim) {
   MLIRContext context;
   context.loadDialect<tensor_ext::TensorExtDialect>();
 
@@ -113,11 +112,10 @@ TEST(UtilsTest, TestReduceNewLayoutMultiDim) {
       RankedTensorType::get({3, 2, 4}, IndexType::get(&context));
   presburger::IntegerRelation relation =
       getRowMajorLayoutRelation(tensorType, 8);
-  NewLayoutAttr layout =
-      NewLayoutAttr::getFromIntegerRelation(&context, relation);
+  LayoutAttr layout = LayoutAttr::getFromIntegerRelation(&context, relation);
 
   SmallVector<int64_t> dimsToReduce = {2};
-  NewLayoutAttr reducedLayout = convertLayoutForReduce(layout, dimsToReduce);
+  LayoutAttr reducedLayout = convertLayoutForReduce(layout, dimsToReduce);
   presburger::IntegerRelation reducedRelation =
       reducedLayout.getIntegerRelation();
 
@@ -149,7 +147,7 @@ TEST(UtilsTest, TestReduceNewLayoutMultiDim) {
   }
 }
 
-TEST(UtilsTest, TestReduceNewLayoutManyReductions) {
+TEST(UtilsTest, TestReduceLayoutManyReductions) {
   MLIRContext context;
   context.loadDialect<tensor_ext::TensorExtDialect>();
 
@@ -158,11 +156,10 @@ TEST(UtilsTest, TestReduceNewLayoutManyReductions) {
       RankedTensorType::get({3, 2, 4}, IndexType::get(&context));
   presburger::IntegerRelation relation =
       getRowMajorLayoutRelation(tensorType, 8);
-  NewLayoutAttr layout =
-      NewLayoutAttr::getFromIntegerRelation(&context, relation);
+  LayoutAttr layout = LayoutAttr::getFromIntegerRelation(&context, relation);
 
   SmallVector<int64_t> dimsToReduce = {1, 2};
-  NewLayoutAttr reducedLayout = convertLayoutForReduce(layout, dimsToReduce);
+  LayoutAttr reducedLayout = convertLayoutForReduce(layout, dimsToReduce);
   presburger::IntegerRelation reducedRelation =
       reducedLayout.getIntegerRelation();
 

@@ -24,7 +24,7 @@ namespace mlir {
 namespace heir {
 
 using tensor_ext::ConvertLayoutOp;
-using tensor_ext::NewLayoutAttr;
+using tensor_ext::LayoutAttr;
 static auto& kLayoutAttrName = tensor_ext::TensorExtDialect::kLayoutAttrName;
 using ::mlir::linalg::MatvecOp;
 
@@ -94,8 +94,8 @@ Hoister createTrivialHoister(Operation* op) {
 Hoister createPrecomposingMatvecHoister(linalg::MatvecOp op) {
   return [op](ConvertLayoutOp convertLayoutOp) -> llvm::FailureOr<HoistResult> {
     HoistResult result;
-    auto fromLayout = dyn_cast<NewLayoutAttr>(convertLayoutOp.getFromLayout());
-    auto toLayout = dyn_cast<NewLayoutAttr>(convertLayoutOp.getToLayout());
+    auto fromLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getFromLayout());
+    auto toLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getToLayout());
 
     if (!fromLayout || !toLayout) return failure();
 
@@ -107,8 +107,8 @@ Hoister createPrecomposingMatvecHoister(linalg::MatvecOp op) {
     FailureOr<Attribute> oldMatrixLayoutRes =
         findAttributeAssociatedWith(op->getOperand(0), kLayoutAttrName);
     assert(succeeded(oldMatrixLayoutRes) && "failed to find matrix layout!");
-    NewLayoutAttr oldMatrixLayout =
-        dyn_cast<NewLayoutAttr>(oldMatrixLayoutRes.value());
+    LayoutAttr oldMatrixLayout =
+        dyn_cast<LayoutAttr>(oldMatrixLayoutRes.value());
     if (!oldMatrixLayout) return failure();
 
     result.convertLayoutOp = convertLayoutOp;
@@ -125,7 +125,7 @@ Hoister createPrecomposingMatvecHoister(linalg::MatvecOp op) {
         hoistConversionThroughMatvec(oldMatrixLayout.getIntegerRelation(),
                                      fromLayout.getIntegerRelation(),
                                      toLayout.getIntegerRelation());
-    Attribute newMatrixLayout = NewLayoutAttr::getFromIntegerRelation(
+    Attribute newMatrixLayout = LayoutAttr::getFromIntegerRelation(
         op->getContext(), newMatrixLayoutRelation);
     result.newInputLayouts =
         SmallVector<Attribute>{newMatrixLayout, toLayout, toLayout};

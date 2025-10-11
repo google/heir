@@ -27,7 +27,7 @@ class TensorExt_Attr<string name, string attrMnemonic, list<Trait> traits = []>
 }
 
 // TODO(#2047): replace tensor_ext.layout attribute with this (rename to remove New)
-def TensorExt_NewLayoutAttr : TensorExt_Attr<"NewLayout", "new_layout"> {
+def TensorExt_LayoutAttr : TensorExt_Attr<"Layout", "new_layout"> {
   let summary = "The description of the layout of a data-semantic tensor.";
   let description = [{
     This attribute describes how a data-semantic tensor is laid out among a
@@ -72,7 +72,7 @@ def TensorExt_NewLayoutAttr : TensorExt_Attr<"NewLayout", "new_layout"> {
       return getLayout().str();
     }
 
-    static NewLayoutAttr getFromIntegerRelation(
+    static LayoutAttr getFromIntegerRelation(
       ::mlir::MLIRContext* context, const presburger::IntegerRelation &relation);
   }];
 }

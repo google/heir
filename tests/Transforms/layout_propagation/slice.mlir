@@ -1,4 +1,4 @@
-// RUN: heir-opt --new-layout-propagation %s -verify-diagnostics
+// RUN: heir-opt --layout-propagation %s -verify-diagnostics
 
 module {
   func.func @test(%arg0: !secret.secret<tensor<16xi8>>) -> !secret.secret<tensor<11x16xi8>> {
