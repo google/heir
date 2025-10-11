@@ -150,6 +150,8 @@ void mlirToSecretArithmeticPipelineBuilder(
   convertToCiphertextSemanticsOptions.ciphertextSize = options.ciphertextDegree;
   pm.addPass(
       createConvertToCiphertextSemantics(convertToCiphertextSemanticsOptions));
+
+  pm.addPass(createCanonicalizerPass());
   pm.addPass(tensor_ext::createImplementRotateAndReduce());
 
   // Implement layout conversions as shift networks
