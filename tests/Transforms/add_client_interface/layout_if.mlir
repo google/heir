@@ -1,6 +1,6 @@
 // RUN: heir-opt --add-client-interface="ciphertext-size=1024" --canonicalize --cse %s | FileCheck %s
 !ct_ty = !secret.secret<tensor<16x1024xi16>>
-#layout = #tensor_ext.new_layout<"{ [i0, i1] -> [ct, slot] : (i0 - i1 + ct) mod 16 = 0 and (-i0 + slot) mod 16 = 0 and 0 <= i0 <= 9 and 0 <= i1 <= 15 and 0 <= ct <= 15 and 0 <= slot <= 1023 }">
+#layout = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : (i0 - i1 + ct) mod 16 = 0 and (-i0 + slot) mod 16 = 0 and 0 <= i0 <= 9 and 0 <= i1 <= 15 and 0 <= ct <= 15 and 0 <= slot <= 1023 }">
 #original_type = #tensor_ext.original_type<originalType = tensor<10x16xi16>, layout = #layout>
 
 // CHECK: func.func @add

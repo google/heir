@@ -1,9 +1,9 @@
-#ifndef LIB_TRANSFORMS_LAYOUTPROPAGATION_NEWLAYOUTPROPAGATION_TD_
-#define LIB_TRANSFORMS_LAYOUTPROPAGATION_NEWLAYOUTPROPAGATION_TD_
+#ifndef LIB_TRANSFORMS_LAYOUTPROPAGATION_LAYOUTPROPAGATION_TD_
+#define LIB_TRANSFORMS_LAYOUTPROPAGATION_LAYOUTPROPAGATION_TD_
 
 include "mlir/Pass/PassBase.td"
 
-def NewLayoutPropagation : Pass<"new-layout-propagation"> {
+def LayoutPropagation : Pass<"layout-propagation"> {
   let summary = "Propagate ciphertext layouts through the IR";
   let description = [{
   This pass performs a forward propagation of layout (packing) information
@@ -63,4 +63,4 @@ def NewLayoutPropagation : Pass<"new-layout-propagation"> {
   ];
 }
 
-#endif  // LIB_TRANSFORMS_LAYOUTPROPAGATION_NEWLAYOUTPROPAGATION_TD_
+#endif  // LIB_TRANSFORMS_LAYOUTPROPAGATION_LAYOUTPROPAGATION_TD_

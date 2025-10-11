@@ -1,4 +1,4 @@
-// RUN: heir-opt --new-layout-propagation=ciphertext-size=8 --fold-convert-layout-into-assign-layout %s | FileCheck %s
+// RUN: heir-opt --layout-propagation=ciphertext-size=8 --fold-convert-layout-into-assign-layout %s | FileCheck %s
 
 module {
   // CHECK: func @matmul

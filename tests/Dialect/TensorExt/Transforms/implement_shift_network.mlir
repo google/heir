@@ -2,7 +2,7 @@
 
 // When the permutation is itself a cyclic shift, the resulting shift network
 // should also have a single shift.
-#map1 = #tensor_ext.new_layout<"{ [ct1, slot1] -> [ct2, slot2] : ct1 = 0 and ct2 = 0 and ((slot1 - 1) - slot2) mod 64 = 0 and slot1 >= 0 and 63 >= slot1 and slot2 >= 0 and 63 >= slot2 }">
+#map1 = #tensor_ext.layout<"{ [ct1, slot1] -> [ct2, slot2] : ct1 = 0 and ct2 = 0 and ((slot1 - 1) - slot2) mod 64 = 0 and slot1 >= 0 and 63 >= slot1 and slot2 >= 0 and 63 >= slot2 }">
 // CHECK: func.func @test_no_conflicts
 // CHECK-SAME: (%[[ARG0:.*]]: tensor<1x64xi32>) -> tensor<1x64xi32>
 // CHECK: %[[SLICE:.*]] = tensor.extract_slice %[[ARG0]][0, 0] [1, 64] [1, 1] : tensor<1x64xi32> to tensor<64xi32>
@@ -42,7 +42,7 @@ func.func @test_no_conflicts(%0: tensor<1x64xi32>) -> tensor<1x64xi32> {
 // CHECK: %[[EMPTY:.*]] = tensor.empty() : tensor<1x64xi32>
 // CHECK: %[[INSERT:.*]] = tensor.insert_slice %[[ROT5]] into %[[EMPTY]][0, 0] [1, 64] [1, 1] : tensor<64xi32> into tensor<1x64xi32>
 // CHECK: return %[[INSERT]] : tensor<1x64xi32>
-#map2 = #tensor_ext.new_layout<"{ [ct1, slot1] -> [ct2, slot2] : ct1 = 0 and ct2 = 0 and ((slot1 + 1) - slot2) mod 64 = 0 and slot1 >= 0 and 63 >= slot1 and slot2 >= 0 and 63 >= slot2 }">
+#map2 = #tensor_ext.layout<"{ [ct1, slot1] -> [ct2, slot2] : ct1 = 0 and ct2 = 0 and ((slot1 + 1) - slot2) mod 64 = 0 and slot1 >= 0 and 63 >= slot1 and slot2 >= 0 and 63 >= slot2 }">
 func.func @test_no_conflicts2(%0: tensor<1x64xi32>) -> tensor<1x64xi32> {
   %1 = tensor_ext.permute %0 {permutation = #map2} : tensor<1x64xi32>
   return %1 : tensor<1x64xi32>
@@ -55,7 +55,7 @@ func.func @test_no_conflicts2(%0: tensor<1x64xi32>) -> tensor<1x64xi32> {
 // CHECK: %[[EMPTY:.*]] = tensor.empty() : tensor<1x64xi32>
 // CHECK: %[[INSERT:.*]] = tensor.insert_slice %[[SLICE]] into %[[EMPTY]][0, 0] [1, 64] [1, 1] : tensor<64xi32> into tensor<1x64xi32>
 // CHECK: return %[[INSERT]] : tensor<1x64xi32>
-#map3 = #tensor_ext.new_layout<"{ [ct1, slot1] -> [ct2, slot2] : ct1 = 0 and ct2 = 0 and slot1 = slot2 and slot1 >= 0 and 63 >= slot1 and slot2 >= 0 and 63 >= slot2 }">
+#map3 = #tensor_ext.layout<"{ [ct1, slot1] -> [ct2, slot2] : ct1 = 0 and ct2 = 0 and slot1 = slot2 and slot1 >= 0 and 63 >= slot1 and slot2 >= 0 and 63 >= slot2 }">
 func.func @identity(%0: tensor<1x64xi32>) -> tensor<1x64xi32> {
   %1 = tensor_ext.permute %0 {permutation = #map3} : tensor<1x64xi32>
   return %1 : tensor<1x64xi32>
@@ -73,7 +73,7 @@ func.func @identity(%0: tensor<1x64xi32>) -> tensor<1x64xi32> {
 // CHECK-NEXT: %[[INSERT2:.*]] = tensor.insert_slice %[[SLICE1]] into %[[INSERT1]][2, 0]
 // CHECK-NEXT: %[[INSERT3:.*]] = tensor.insert_slice %[[SLICE2]] into %[[INSERT2]][3, 0]
 // CHECK-NEXT: return %[[INSERT3]]
-#map4 = #tensor_ext.new_layout<"{ [ct1, slot1] -> [ct2, slot2] : (ct1 - ct2) mod 4 = 3 and (slot1 - slot2) mod 64 = 0 and 0 <= ct1 <= 3 and 0 <= ct2 <= 3 and 0 <= slot1 <= 63 and 0 <= slot2 <= 63 }">
+#map4 = #tensor_ext.layout<"{ [ct1, slot1] -> [ct2, slot2] : (ct1 - ct2) mod 4 = 3 and (slot1 - slot2) mod 64 = 0 and 0 <= ct1 <= 3 and 0 <= ct2 <= 3 and 0 <= slot1 <= 63 and 0 <= slot2 <= 63 }">
 func.func @multi_ciphertext_swap_cts(%0: tensor<4x64xi32>) -> tensor<4x64xi32> {
   %1 = tensor_ext.permute %0 {permutation = #map4} : tensor<4x64xi32>
   return %1 : tensor<4x64xi32>
@@ -85,7 +85,7 @@ func.func @multi_ciphertext_swap_cts(%0: tensor<4x64xi32>) -> tensor<4x64xi32> {
 //
 // CHECK: func.func @multi_ciphertext_complex
 // CHECK-COUNT-16: tensor_ext.rotate
-#map5 = #tensor_ext.new_layout<"{ [ct1, slot1] -> [ct2, slot2] : (ct1 - ct2) mod 4 = 3 and (slot1 - slot2) mod 64 = 5 and 0 <= ct1 <= 3 and 0 <= ct2 <= 3 and 0 <= slot1 <= 63 and 0 <= slot2 <= 63 }">
+#map5 = #tensor_ext.layout<"{ [ct1, slot1] -> [ct2, slot2] : (ct1 - ct2) mod 4 = 3 and (slot1 - slot2) mod 64 = 5 and 0 <= ct1 <= 3 and 0 <= ct2 <= 3 and 0 <= slot1 <= 63 and 0 <= slot2 <= 63 }">
 func.func @multi_ciphertext_complex(%0: tensor<4x64xi32>) -> tensor<4x64xi32> {
   %1 = tensor_ext.permute %0 {permutation = #map5} : tensor<4x64xi32>
   return %1 : tensor<4x64xi32>

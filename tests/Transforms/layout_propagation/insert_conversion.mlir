@@ -1,4 +1,4 @@
-// RUN: heir-opt --new-layout-propagation --fold-convert-layout-into-assign-layout %s | FileCheck %s
+// RUN: heir-opt --layout-propagation --fold-convert-layout-into-assign-layout %s | FileCheck %s
 
 !tensor = tensor<32x32xi16>
 !tensor2 = tensor<32xi16>
@@ -8,7 +8,7 @@
 // Test that when an operation changes the tensor layour in an incompatible way,
 // a layout conversion operation is inserted.
 
-// CHECK: [[rm_layout:[^ ]*]] = #tensor_ext.new_layout<"{ [i0, i1] -> [ct, slot] :
+// CHECK: [[rm_layout:[^ ]*]] = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] :
 
 // CHECK: insert_conversion
 // CHECK-SAME: %[[arg0:[^:]+]]: !secret.secret<tensor<32x32xi16>> {tensor_ext.layout = [[rm_layout]]

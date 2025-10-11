@@ -1,6 +1,6 @@
 // RUN: heir-opt --secret-to-bgv="poly-mod-degree=1024" %s | FileCheck %s
 
-#original_type = #tensor_ext.original_type<originalType = tensor<1024xi16>, layout = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 1024 = 0 and 0 <= i0 <= 1023 and 0 <= slot <= 1023 }">>
+#original_type = #tensor_ext.original_type<originalType = tensor<1024xi16>, layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 1024 = 0 and 0 <= i0 <= 1023 and 0 <= slot <= 1023 }">>
 
 module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 14, Q = [67239937, 17179967489, 17180262401, 17180295169, 17180393473, 70368744210433], P = [70368744570881, 70368744701953], plaintextModulus = 65537>} {
 

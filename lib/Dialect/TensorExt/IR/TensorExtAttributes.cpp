@@ -29,8 +29,8 @@ using presburger::IntegerPolyhedron;
 using presburger::IntegerRelation;
 using presburger::VarKind;
 
-LogicalResult NewLayoutAttr::verify(
-    function_ref<InFlightDiagnostic()> emitError, StringAttr layoutStr) {
+LogicalResult LayoutAttr::verify(function_ref<InFlightDiagnostic()> emitError,
+                                 StringAttr layoutStr) {
   auto result = getIntegerRelationFromIslStr(layoutStr.getValue().str());
   if (failed(result)) {
     return emitError() << "Failed to parse the layout string (ISL): "
@@ -40,14 +40,14 @@ LogicalResult NewLayoutAttr::verify(
   return success();
 }
 
-IntegerRelation NewLayoutAttr::getIntegerRelation() const {
+IntegerRelation LayoutAttr::getIntegerRelation() const {
   auto result = getIntegerRelationFromIslStr(getLayoutStr());
   assert(succeeded(result) && "Failed to parse the layout string");
   return result.value();
 }
 
-NewLayoutAttr NewLayoutAttr::getFromIntegerRelation(
-    ::mlir::MLIRContext* context, const IntegerRelation& relation) {
+LayoutAttr LayoutAttr::getFromIntegerRelation(::mlir::MLIRContext* context,
+                                              const IntegerRelation& relation) {
   isl_ctx* ctx = isl_ctx_alloc();
   isl_basic_map* bmap = convertRelationToBasicMap(relation, ctx);
 
@@ -59,7 +59,7 @@ NewLayoutAttr NewLayoutAttr::getFromIntegerRelation(
   free(resultStr);
   isl_basic_map_free(bmap);
   isl_ctx_free(ctx);
-  return NewLayoutAttr::get(context, layoutStr);
+  return LayoutAttr::get(context, layoutStr);
 }
 
 }  // namespace tensor_ext

@@ -1,9 +1,9 @@
 // RUN: heir-opt %s --convert-to-ciphertext-semantics=ciphertext-size=16 | FileCheck %s
 
 // Tensor is repeated twice, so the packed cleartext should use two nonzero slots
-#layout = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : ct = 0 and (slot - i0) mod 8 = 0 and 0 <= i0 <= 7 and 0 <= slot <= 15 }">
+#layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (slot - i0) mod 8 = 0 and 0 <= i0 <= 7 and 0 <= slot <= 15 }">
 // Scalar is repeated throughout the ciphertext
-#scalar_layout = #tensor_ext.new_layout<"{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= 15 }">
+#scalar_layout = #tensor_ext.layout<"{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= 15 }">
 
 // CHECK: func.func @extract_static_indices
 // CHECK: [[C0:%.+]] = arith.constant 0 : index

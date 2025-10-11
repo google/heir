@@ -2,9 +2,9 @@
 
 // TODO(#1181): make this test work without the loop unroll step
 
-#scalar_layout = #tensor_ext.new_layout<"{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= 7 }">
+#scalar_layout = #tensor_ext.layout<"{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= 7 }">
 #scalar_original_type = #tensor_ext.original_type<originalType = f32, layout = #scalar_layout>
-#tensor_layout = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 8 = 0 and 7 >= i0 >= 0 and 7 >= slot >= 0 and ct = 0 }">
+#tensor_layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 8 = 0 and 7 >= i0 >= 0 and 7 >= slot >= 0 and ct = 0 }">
 #tensor_original_type = #tensor_ext.original_type<originalType = tensor<8xf32>, layout = #tensor_layout>
 
 module attributes {backend.lattigo, scheme.ckks} {

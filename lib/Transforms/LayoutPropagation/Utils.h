@@ -11,7 +11,7 @@
 namespace mlir {
 namespace heir {
 
-using tensor_ext::NewLayoutAttr;
+using tensor_ext::LayoutAttr;
 
 int64_t maxOfMaxes(::llvm::ArrayRef<int64_t> d1, ::llvm::ArrayRef<int64_t> d2);
 
@@ -48,8 +48,8 @@ int64_t maxOfMaxes(::llvm::ArrayRef<int64_t> d1, ::llvm::ArrayRef<int64_t> d2);
 
 // A helper to convert the layout of an input tensor to a reduce op. The result
 // layout is equivalent to setting the summed dimensions to 0.
-NewLayoutAttr convertLayoutForReduce(NewLayoutAttr inputLayout,
-                                     ArrayRef<int64_t> dimsToReduce);
+LayoutAttr convertLayoutForReduce(LayoutAttr inputLayout,
+                                  ArrayRef<int64_t> dimsToReduce);
 
 }  // namespace heir
 }  // namespace mlir

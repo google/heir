@@ -3,7 +3,7 @@
 // Data is 32x64, being packed into ciphertexts of size 1024 via Halevi-Shoup
 // diagonal layout.
 !ct_ty = !secret.secret<tensor<32x1024xi16>>
-#layout = #tensor_ext.new_layout<"{ [row, col] -> [ct, slot] : (slot mod 32) - row = 0 and (ct + slot) mod 64 - col = 0 and row >= 0 and col >= 0 and ct >= 0 and slot >= 0 and 1023 - slot >= 0 and 31 - ct >= 0 and 31 - row >= 0 and 64 - col >= 0 }">
+#layout = #tensor_ext.layout<"{ [row, col] -> [ct, slot] : (slot mod 32) - row = 0 and (ct + slot) mod 64 - col = 0 and row >= 0 and col >= 0 and ct >= 0 and slot >= 0 and 1023 - slot >= 0 and 31 - ct >= 0 and 31 - row >= 0 and 64 - col >= 0 }">
 #original_type = #tensor_ext.original_type<originalType = tensor<32x64xi16>, layout = #layout>
 
 // The ISL generated loop nest is:

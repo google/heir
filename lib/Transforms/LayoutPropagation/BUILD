@@ -8,9 +8,9 @@ package(
 )
 
 cc_library(
-    name = "NewLayoutPropagation",
-    srcs = ["NewLayoutPropagation.cpp"],
-    hdrs = ["NewLayoutPropagation.h"],
+    name = "LayoutPropagation",
+    srcs = ["LayoutPropagation.cpp"],
+    hdrs = ["LayoutPropagation.h"],
     deps = [
         ":Utils",
         ":new_pass_inc_gen",
@@ -81,6 +81,6 @@ cc_test(
 
 add_heir_transforms(
     generated_target_name = "new_pass_inc_gen",
-    pass_name = "NewLayoutPropagation",
-    td_file = "NewLayoutPropagation.td",
+    pass_name = "LayoutPropagation",
+    td_file = "LayoutPropagation.td",
 )

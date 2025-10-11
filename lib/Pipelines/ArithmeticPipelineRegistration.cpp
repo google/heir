@@ -39,7 +39,7 @@
 #include "lib/Transforms/GenerateParam/GenerateParam.h"
 #include "lib/Transforms/InlineActivations/InlineActivations.h"
 #include "lib/Transforms/LayoutOptimization/LayoutOptimization.h"
-#include "lib/Transforms/LayoutPropagation/NewLayoutPropagation.h"
+#include "lib/Transforms/LayoutPropagation/LayoutPropagation.h"
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
@@ -139,9 +139,9 @@ void mlirToSecretArithmeticPipelineBuilder(
   mathToPolynomialApproximationBuilder(pm);
 
   // Layout assignment and optimization
-  NewLayoutPropagationOptions layoutPropagationOptions;
+  LayoutPropagationOptions layoutPropagationOptions;
   layoutPropagationOptions.ciphertextSize = options.ciphertextDegree;
-  pm.addPass(createNewLayoutPropagation(layoutPropagationOptions));
+  pm.addPass(createLayoutPropagation(layoutPropagationOptions));
   pm.addPass(tensor_ext::createFoldConvertLayoutIntoAssignLayout());
   pm.addPass(createLayoutOptimization());
 

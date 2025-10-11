@@ -1,9 +1,9 @@
 // RUN: heir-opt %s --convert-to-ciphertext-semantics=ciphertext-size=1024 | FileCheck %s
 
 !data_ty = !secret.secret<tensor<8xi16>>
-#tensor_layout = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (slot - i0) mod 8 = 0 and ct = 0 and 1023 >= slot >= 0 and 7 >= i0 >= 0 }">
+#tensor_layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : (slot - i0) mod 8 = 0 and ct = 0 and 1023 >= slot >= 0 and 7 >= i0 >= 0 }">
 
-#scalar_layout = #tensor_ext.new_layout<"{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= 1023 }">
+#scalar_layout = #tensor_ext.layout<"{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= 1023 }">
 
 // CHECK: dot_product
 // CHECK: secret.secret<tensor<1x1024xi16>>

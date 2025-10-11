@@ -17,10 +17,9 @@ namespace heir {
 using presburger::BoundType;
 using presburger::IntegerRelation;
 using presburger::VarKind;
-using tensor_ext::NewLayoutAttr;
+using tensor_ext::LayoutAttr;
 
-Type materializeNewLayout(Type dataType, NewLayoutAttr attr,
-                          int ciphertextSize) {
+Type materializeLayout(Type dataType, LayoutAttr attr, int ciphertextSize) {
   IntegerRelation rel = attr.getIntegerRelation();
   llvm::SmallVector<int64_t> ciphertextSemanticShape;
   for (unsigned varPos = rel.getVarKindOffset(VarKind::Range);
@@ -38,8 +37,7 @@ Type materializeNewLayout(Type dataType, NewLayoutAttr attr,
   return RankedTensorType::get(ciphertextSemanticShape, dataType);
 }
 
-Type materializeScalarNewLayout(Type type, NewLayoutAttr attr,
-                                int ciphertextSize) {
+Type materializeScalarLayout(Type type, LayoutAttr attr, int ciphertextSize) {
   return RankedTensorType::get({1, ciphertextSize}, type);
 }
 

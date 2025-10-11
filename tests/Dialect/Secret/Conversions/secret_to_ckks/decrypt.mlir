@@ -1,7 +1,7 @@
 // RUN: heir-opt --secret-to-ckks %s | FileCheck %s
 
-#new_layout = #tensor_ext.new_layout<"{ [i0, i1] -> [ct, slot] : i0 = 0 and ct = 0 and (-i1 + slot) mod 16 = 0 and 0 <= i1 <= 9 and 0 <= slot <= 1023 }">
-#original_type = #tensor_ext.original_type<originalType = tensor<1x10xf32>, layout = #new_layout>
+#layout = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : i0 = 0 and ct = 0 and (-i1 + slot) mod 16 = 0 and 0 <= i1 <= 9 and 0 <= slot <= 1023 }">
+#original_type = #tensor_ext.original_type<originalType = tensor<1x10xf32>, layout = #layout>
 module @jit_func attributes {ckks.schemeParam = #ckks.scheme_param<logN = 15, Q = [36028797019488257, 35184372744193, 35184373006337, 35184373989377, 35184376545281, 35184377331713, 35184378511361, 35184378707969], P = [36028797020209153, 36028797020602369, 36028797020864513], logDefaultScale = 45>, jax.uses_shape_polymorphism = false, mhlo.num_partitions = 1 : i32, mhlo.num_replicas = 1 : i32, scheme.ckks} {
   func.func public @main(%arg0: !secret.secret<tensor<1x1024xf32>> {mgmt.mgmt = #mgmt.mgmt<level = 7, scale = 45>, tensor_ext.original_type = #original_type}) -> (!secret.secret<tensor<1x1024xf32>> {mgmt.mgmt = #mgmt.mgmt<level = 7, scale = 45>, tensor_ext.original_type = #original_type}) {
     return %arg0 : !secret.secret<tensor<1x1024xf32>>

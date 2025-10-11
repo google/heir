@@ -41,8 +41,8 @@ using presburger::BoundType;
 using presburger::IntegerRelation;
 using presburger::VarKind;
 using tensor_ext::CtSlot;
+using tensor_ext::LayoutAttr;
 using tensor_ext::Mapping;
-using tensor_ext::NewLayoutAttr;
 using tensor_ext::ShiftScheme;
 
 // A visitor that counts the number of rotations in an ArithmeticDag.
@@ -79,8 +79,7 @@ class RotationCountVisitor : public CachingVisitor<SymbolicValue, int64_t> {
 
 Cost computeCostOfLayoutConversion(int64_t numCiphertexts,
                                    int64_t ciphertextSize,
-                                   NewLayoutAttr fromLayout,
-                                   NewLayoutAttr toLayout,
+                                   LayoutAttr fromLayout, LayoutAttr toLayout,
                                    std::size_t vveRandomSeed,
                                    unsigned vveRandomTries) {
   if (fromLayout == toLayout) {
@@ -138,8 +137,8 @@ Cost computeCostOfLayoutConversion(int64_t ciphertextSize, Attribute fromLayout,
     return 0;
   }
 
-  NewLayoutAttr fromLayoutAttr = dyn_cast<NewLayoutAttr>(fromLayout);
-  NewLayoutAttr toLayoutAttr = dyn_cast<NewLayoutAttr>(toLayout);
+  LayoutAttr fromLayoutAttr = dyn_cast<LayoutAttr>(fromLayout);
+  LayoutAttr toLayoutAttr = dyn_cast<LayoutAttr>(toLayout);
 
   if (!fromLayoutAttr || !toLayoutAttr) {
     return fromLayout == toLayout ? 0 : 1;

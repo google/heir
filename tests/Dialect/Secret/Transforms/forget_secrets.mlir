@@ -113,7 +113,7 @@ func.func @test_convert_call_2() -> i32 {
 // -----
 
 // CHECK-NOT: tensor_ext
-#layout = #tensor_ext.new_layout<"{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= 1023 }">
+#layout = #tensor_ext.layout<"{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= 1023 }">
 #orig_type = #tensor_ext.original_type<originalType = i32, layout = #layout>
 func.func @test_clear_attrs(%Y : !secret.secret<i32> {tensor_ext.original_type = #orig_type}) -> (!secret.secret<i32> {tensor_ext.original_type = #orig_type}) {
   func.return %Y : !secret.secret<i32>

@@ -1,8 +1,8 @@
-// RUN: heir-opt --new-layout-propagation --fold-convert-layout-into-assign-layout %s | FileCheck %s
+// RUN: heir-opt --layout-propagation --fold-convert-layout-into-assign-layout %s | FileCheck %s
 
 // CHECK-DAG: #kernel = #secret.kernel<name = "MatvecDiagonal", force = false>
-// CHECK-DAG: #[[rm_layout1:.*]] = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 16 = 0 and 0 <= i0 <= 9 and 0 <= slot <= 1023 }">
-// CHECK-DAG: #[[rm_layout:.*]] = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 16 = 0 and 0 <= i0 <= 15 and 0 <= slot <= 1023 }">
+// CHECK-DAG: #[[rm_layout1:.*]] = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 16 = 0 and 0 <= i0 <= 9 and 0 <= slot <= 1023 }">
+// CHECK-DAG: #[[rm_layout:.*]] = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 16 = 0 and 0 <= i0 <= 15 and 0 <= slot <= 1023 }">
 // CHECK: @matvec
 // CHECK-SAME: %[[arg0:.*]]: !secret.secret<tensor<16xf32>> {tensor_ext.layout = #[[rm_layout]]}) ->
 func.func @matvec(%arg0: !secret.secret<tensor<16xf32>>) -> !secret.secret<tensor<10xf32>> {
