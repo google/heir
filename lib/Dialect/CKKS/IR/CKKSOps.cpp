@@ -31,8 +31,6 @@ LogicalResult RescaleOp::verify() {
   return lwe::verifyModulusSwitchOrRescaleOp(this);
 }
 
-LogicalResult ExtractOp::verify() { return lwe::verifyExtractOp(this); }
-
 LogicalResult LevelReduceOp::verify() { return lwe::verifyLevelReduceOp(this); }
 
 //===----------------------------------------------------------------------===//
