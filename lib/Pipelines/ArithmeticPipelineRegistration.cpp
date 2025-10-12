@@ -142,7 +142,6 @@ void mlirToSecretArithmeticPipelineBuilder(
   LayoutPropagationOptions layoutPropagationOptions;
   layoutPropagationOptions.ciphertextSize = options.ciphertextDegree;
   pm.addPass(createLayoutPropagation(layoutPropagationOptions));
-  pm.addPass(tensor_ext::createFoldConvertLayoutIntoAssignLayout());
   pm.addPass(createLayoutOptimization());
 
   // Linalg kernel implementation

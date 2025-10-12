@@ -18,6 +18,7 @@ cc_library(
         "@heir//lib/Dialect:HEIRInterfaces",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Dialect/TensorExt/Transforms:Patterns",
         "@heir//lib/Kernel",
         "@heir//lib/Utils:AttributeUtils",
         "@heir//lib/Utils/Layout:Utils",

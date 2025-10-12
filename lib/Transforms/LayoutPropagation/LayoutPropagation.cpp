@@ -16,6 +16,7 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Dialect/TensorExt/Transforms/Patterns.h"
 #include "lib/Kernel/KernelName.h"
 #include "lib/Transforms/LayoutPropagation/Utils.h"
 #include "lib/Utils/AttributeUtils.h"
@@ -32,7 +33,6 @@
 #include "mlir/include/mlir/AsmParser/AsmParser.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Analysis/AffineStructures.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/LinalgInterfaces.h"  // from @llvm-project
@@ -50,6 +50,7 @@
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/WalkResult.h"        // from @llvm-project
+#include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 
 #define DEBUG_TYPE "layout-propagation"
 
@@ -61,9 +62,7 @@ using linalg::MatmulOp;
 using linalg::MatvecOp;
 using linalg::ReduceOp;
 using linalg::VecmatOp;
-using presburger::BoundType;
 using presburger::IntegerRelation;
-using presburger::VarKind;
 using secret::GenericOp;
 using secret::SecretType;
 using secret::YieldOp;
@@ -98,11 +97,9 @@ void debugAssignLayout(Value value, LayoutAttr layout) {
                           << value << "\n");
 }
 
-std::pair<Value, LayoutAttr> convertToLayout(MLIRContext* ctx,
-                                             mlir::IRRewriter& builder,
-                                             Operation* op, Value value,
-                                             LayoutAttr oldLayout,
-                                             IntegerRelation newRelation) {
+std::pair<Value, LayoutAttr> convertToLayout(
+    MLIRContext* ctx, mlir::IRRewriter& builder, Operation* op, Value value,
+    LayoutAttr oldLayout, const IntegerRelation& newRelation) {
   builder.setInsertionPoint(op);
   LayoutAttr layoutAttr = LayoutAttr::getFromIntegerRelation(ctx, newRelation);
   ConvertLayoutOp convertLayoutOp = ConvertLayoutOp::create(
@@ -1097,6 +1094,11 @@ void LayoutPropagation::runOnOperation() {
   if (result.wasInterrupted()) {
     signalPassFailure();
   }
+
+  RewritePatternSet cleanupPatterns(&getContext());
+  cleanupPatterns.add<tensor_ext::FoldConvertLayoutIntoAssignLayoutPattern>(
+      &getContext());
+  (void)applyPatternsGreedily(getOperation(), std::move(cleanupPatterns));
 };
 
 }  // namespace heir
