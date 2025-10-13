@@ -54,7 +54,7 @@ module attributes {backend.lattigo} {
       %22 = arith.addi %20, %21 : tensor<1024xi16>
       %23 = arith.muli %collapsed, %22 : tensor<1024xi16>
       %expanded = tensor.expand_shape %23 [[0, 1]] output_shape [1, 1024] : tensor<1024xi16> into tensor<1x1024xi16>
-      %24 = tensor_ext.permute %expanded {permutation = #layout1} : tensor<1x1024xi16>
+      %24 = tensor_ext.remap %expanded {permutation = #layout1} : tensor<1x1024xi16>
       secret.yield %24 : tensor<1x1024xi16>
     } -> !secret.secret<tensor<1x1024xi16>>
     return %0 : !secret.secret<tensor<1x1024xi16>>

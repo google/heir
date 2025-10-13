@@ -52,7 +52,7 @@ ShiftScheme VosVosErkinShiftNetworks::findShiftScheme(
 
   ShiftStrategy strategy = evaluateShiftStrategy(mapping, shiftOrder);
 
-  // Create a graph whose vertices are the input indices to permute, and
+  // Create a graph whose vertices are the input indices to remap, and
   // whose edges are conflicts: an edge being present means the two indices
   // cannot participate in the same rotation group.
   graph::UndirectedGraph<CtSlot> conflictGraph;
@@ -208,8 +208,8 @@ void populateMappingFromDenseElementsAttr(
   }
 }
 
-LogicalResult convertPermuteOp(PermuteOp op,
-                               VosVosErkinShiftNetworks& shiftNetworks) {
+LogicalResult convertRemapOp(RemapOp op,
+                             VosVosErkinShiftNetworks& shiftNetworks) {
   LLVM_DEBUG(llvm::dbgs() << "Converting layout op: " << op << "\n");
   ImplicitLocOpBuilder b(op.getLoc(), op.getContext());
   RankedTensorType tensorTy = op.getInput().getType();
@@ -294,8 +294,8 @@ struct ImplementShiftNetwork
 
   void runOnOperation() override {
     VosVosErkinShiftNetworks shiftNetworks;
-    getOperation()->walk([&](PermuteOp op) {
-      if (failed(convertPermuteOp(op, shiftNetworks))) {
+    getOperation()->walk([&](RemapOp op) {
+      if (failed(convertRemapOp(op, shiftNetworks))) {
         signalPassFailure();
       }
     });
