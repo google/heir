@@ -1,8 +1,8 @@
-// RUN: heir-opt --new-layout-propagation=ciphertext-size=1024 %s | FileCheck %s
+// RUN: heir-opt --layout-propagation=ciphertext-size=1024 %s | FileCheck %s
 
 // Test that layout propagation can handle secret scalars
 
-// CHECK: #tensor_ext.new_layout<"{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= 1023 }">
+// CHECK: #tensor_ext.layout<"{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= 1023 }">
 
 // CHECK: @scalar_mul
 func.func @scalar_mul(%arg0: !secret.secret<i16>) -> !secret.secret<i16> {

@@ -1,4 +1,4 @@
-// RUN: heir-opt --new-layout-propagation %s | FileCheck %s
+// RUN: heir-opt --layout-propagation %s | FileCheck %s
 
 !stensor = !secret.secret<tensor<32x32xi16>>
 

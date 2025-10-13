@@ -1,8 +1,8 @@
 // RUN: heir-opt --add-client-interface %s | FileCheck %s
 
-#new_layout = #tensor_ext.new_layout<"{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= 1023 }">
-#new_layout1 = #tensor_ext.new_layout<"{ [i0, i1] -> [ct, slot] : i0 = 0 and i1 = 0 and ct = 0 and 0 <= slot <= 1023 }">
-#original_type = #tensor_ext.original_type<originalType = i16, layout = #new_layout>
+#layout = #tensor_ext.layout<"{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= 1023 }">
+#layout1 = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : i0 = 0 and i1 = 0 and ct = 0 and 0 <= slot <= 1023 }">
+#original_type = #tensor_ext.original_type<originalType = i16, layout = #layout>
 module attributes {backend.lattigo} {
   // CHECK: hamming__decrypt__result0
   // CHECK-NEXT: secret.reveal
@@ -10,7 +10,7 @@ module attributes {backend.lattigo} {
   // CHECK-NEXT: arith.constant 0
   // CHECK-NEXT: tensor.extract
   // CHECK-NEXT: return
-  func.func @hamming(%arg0: !secret.secret<tensor<1x1024xi16>> {tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<1024xi16>, layout = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 1024 = 0 and 0 <= i0 <= 1023 and 0 <= slot <= 1023 }">>}, %arg1: !secret.secret<tensor<1x1024xi16>> {tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<1024xi16>, layout = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 1024 = 0 and 0 <= i0 <= 1023 and 0 <= slot <= 1023 }">>}) -> (!secret.secret<tensor<1x1024xi16>> {tensor_ext.original_type = #original_type}) {
+  func.func @hamming(%arg0: !secret.secret<tensor<1x1024xi16>> {tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<1024xi16>, layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 1024 = 0 and 0 <= i0 <= 1023 and 0 <= slot <= 1023 }">>}, %arg1: !secret.secret<tensor<1x1024xi16>> {tensor_ext.original_type = #tensor_ext.original_type<originalType = tensor<1024xi16>, layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 1024 = 0 and 0 <= i0 <= 1023 and 0 <= slot <= 1023 }">>}) -> (!secret.secret<tensor<1x1024xi16>> {tensor_ext.original_type = #original_type}) {
     %c1_i16 = arith.constant 1 : i16
     %cst = arith.constant dense<0> : tensor<1x1024xi16>
     %c0 = arith.constant 0 : index
@@ -54,7 +54,7 @@ module attributes {backend.lattigo} {
       %22 = arith.addi %20, %21 : tensor<1024xi16>
       %23 = arith.muli %collapsed, %22 : tensor<1024xi16>
       %expanded = tensor.expand_shape %23 [[0, 1]] output_shape [1, 1024] : tensor<1024xi16> into tensor<1x1024xi16>
-      %24 = tensor_ext.permute %expanded {permutation = #new_layout1} : tensor<1x1024xi16>
+      %24 = tensor_ext.permute %expanded {permutation = #layout1} : tensor<1x1024xi16>
       secret.yield %24 : tensor<1x1024xi16>
     } -> !secret.secret<tensor<1x1024xi16>>
     return %0 : !secret.secret<tensor<1x1024xi16>>

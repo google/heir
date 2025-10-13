@@ -4,19 +4,19 @@
 // TODO(#2263): without smartly picking power-of-two shits, this test breaks
 // if you change the layout definitions to = 0, = 1, = 2
 //
-// #layout0 = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 0 and 31 >= i0 >= 0 and 63 >= slot >= 0 and ct = 0 }">
-// #layout1 = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 1 and 31 >= i0 >= 0 and 63 >= slot >= 0 and ct = 0 }">
-// #layout2 = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 2 and 31 >= i0 >= 0 and 63 >= slot >= 0 and ct = 0 }">
+// #layout0 = #tensor_ext.layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 0 and 31 >= i0 >= 0 and 63 >= slot >= 0 and ct = 0 }">
+// #layout1 = #tensor_ext.layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 1 and 31 >= i0 >= 0 and 63 >= slot >= 0 and ct = 0 }">
+// #layout2 = #tensor_ext.layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 2 and 31 >= i0 >= 0 and 63 >= slot >= 0 and ct = 0 }">
 //
 // This is because the vos-vos-erkin shift network for converting 0 to 2
 // requires 11 shifts (using rightward shifts to evaluate a leftward shift of
 // 2).
 
-#layout0 = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 5 and 31 >= i0 >= 0 and 63 >= slot >= 0 and ct = 0 }">
-#layout1 = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 4 and 31 >= i0 >= 0 and 63 >= slot >= 0 and ct = 0 }">
-#layout2 = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 3 and 31 >= i0 >= 0 and 63 >= slot >= 0 and ct = 0 }">
+#layout0 = #tensor_ext.layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 5 and 31 >= i0 >= 0 and 63 >= slot >= 0 and ct = 0 }">
+#layout1 = #tensor_ext.layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 4 and 31 >= i0 >= 0 and 63 >= slot >= 0 and ct = 0 }">
+#layout2 = #tensor_ext.layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 3 and 31 >= i0 >= 0 and 63 >= slot >= 0 and ct = 0 }">
 
-// CHECK-DAG: [[layout2:#[^ ]*]] = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 3 and 31 >= i0 >= 0 and 63 >= slot >= 0 and ct = 0 }">
+// CHECK-DAG: [[layout2:#[^ ]*]] = #tensor_ext.layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 3 and 31 >= i0 >= 0 and 63 >= slot >= 0 and ct = 0 }">
 module {
   // CHECK: func @update_uses
   // 4. Fold first tensor_ext.convert_layout's into the function argument's layout.

@@ -1,6 +1,6 @@
-// RUN: heir-opt --new-layout-propagation=ciphertext-size=16 %s | FileCheck %s
+// RUN: heir-opt --layout-propagation=ciphertext-size=16 %s | FileCheck %s
 
-// CHECK: #[[tensor_layout:.*]] = #tensor_ext.new_layout<"{ [i0, i1] -> [ct, slot] : ct = 0 and (4i0 - i1 + slot) mod 8 = 0 and 0 <= i0 <= 1 and 0 <= i1 <= 3 and 0 <= slot <= 15 }">
+// CHECK: #[[tensor_layout:.*]] = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : ct = 0 and (4i0 - i1 + slot) mod 8 = 0 and 0 <= i0 <= 1 and 0 <= i1 <= 3 and 0 <= slot <= 15 }">
 
 // CHECK: @tensor_insert
 func.func @tensor_insert(%arg0: !secret.secret<tensor<2x4xi32>>) -> !secret.secret<tensor<2x4xi32>> {

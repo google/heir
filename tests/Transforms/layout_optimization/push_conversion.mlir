@@ -2,10 +2,10 @@
 
 !s_ty = !secret.secret<tensor<32xi16>>
 
-// CHECK-DAG: [[layout0:#[^ ]*]] = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 0 and 31 >= i0 >= 0 and 63 >= slot >= 0 and ct = 0 }">
+// CHECK-DAG: [[layout0:#[^ ]*]] = #tensor_ext.layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 0 and 31 >= i0 >= 0 and 63 >= slot >= 0 and ct = 0 }">
 
-#layout0 = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 0 and 31 >= i0 >= 0 and 63 >= slot >= 0 and ct = 0 }">
-#layout1 = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 1 and 31 >= i0 >= 0 and 63 >= slot >= 0 and ct = 0 }">
+#layout0 = #tensor_ext.layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 0 and 31 >= i0 >= 0 and 63 >= slot >= 0 and ct = 0 }">
+#layout1 = #tensor_ext.layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 1 and 31 >= i0 >= 0 and 63 >= slot >= 0 and ct = 0 }">
 module {
   // CHECK: func @push_conversion
   // CHECK-SAME: (%[[arg0:.*]]: !secret.secret<tensor<32xi16>> {tensor_ext.layout = [[layout0]]}, %[[arg1:.*]]: !secret.secret<tensor<32xi16>> {tensor_ext.layout = [[layout0]]}, %[[arg2:.*]]: !secret.secret<tensor<32xi16>> {tensor_ext.layout = [[layout0]]})

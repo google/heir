@@ -54,8 +54,7 @@ def PermutationLike : AnyAttrOf<[
   // A permutation defined explicitly by mapping (ct, slot) -> (ct, slot)
   AnyI64ElementsAttr,
   // A layout relation, representing a mapping (ct, slot) -> (ct, slot)
-  // TODO(#2047): remove the other options for PermutationLike
-  TensorExt_NewLayoutAttr,
+  TensorExt_LayoutAttr,
 ]>;
 
 // TODO(#2047): rename PermuteOp to make it clear it supports more general mappings
@@ -74,9 +73,10 @@ def TensorExt_PermuteOp : TensorExt_Op<"permute", [Pure, AllTypesMatch<["input",
   let hasVerifier = 1;
 }
 
-// One-of attr for layout and new layout
+// Forces ops to use a general Attribute and dyn_cast to the specific kind of
+// layout they support.
 def LayoutLike : AnyAttrOf<[
-  TensorExt_NewLayoutAttr,
+  TensorExt_LayoutAttr,
 ]>;
 
 def TensorExt_ConvertLayoutOp : TensorExt_Op<"convert_layout", [Pure, AllTypesMatch<["value", "output"]>]> {

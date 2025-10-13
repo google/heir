@@ -26,8 +26,7 @@ class TensorExt_Attr<string name, string attrMnemonic, list<Trait> traits = []>
   let extraClassDeclaration = commonClassDeclaration;
 }
 
-// TODO(#2047): replace tensor_ext.layout attribute with this (rename to remove New)
-def TensorExt_NewLayoutAttr : TensorExt_Attr<"NewLayout", "new_layout"> {
+def TensorExt_LayoutAttr : TensorExt_Attr<"Layout", "layout"> {
   let summary = "The description of the layout of a data-semantic tensor.";
   let description = [{
     This attribute describes how a data-semantic tensor is laid out among a
@@ -47,12 +46,12 @@ def TensorExt_NewLayoutAttr : TensorExt_Attr<"NewLayout", "new_layout"> {
     which follows the ISL syntax for `isl_basic_map`. For example:
 
     ```mlir
-    #vec_layout = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 1024 = 7 and i0 >= 0 and 0 >= i0 and slot >= 0 and 1023 >= slot and ct = 0 }">
+    #vec_layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 1024 = 7 and i0 >= 0 and 0 >= i0 and slot >= 0 and 1023 >= slot and ct = 0 }">
 
-    #mat_layout = #tensor_ext.new_layout<"{ [row, col] -> [ct, slot] : (slot - row) mod 512 = 0 and (ct + slot - col) mod 512 = 0 and row >= 0 and col >= 0 and ct >= 0 and slot >= 0 and 1023 >= slot and 511 >= ct and 511 >= row and 511 >= col }">
+    #mat_layout = #tensor_ext.layout<"{ [row, col] -> [ct, slot] : (slot - row) mod 512 = 0 and (ct + slot - col) mod 512 = 0 and row >= 0 and col >= 0 and ct >= 0 and slot >= 0 and 1023 >= slot and 511 >= ct and 511 >= row and 511 >= col }">
 
     // Example with local (existential) variables.
-    #layout = #tensor_ext.new_layout<"{[d0] -> [ct, slot] : exists d3, d4 : -ct + d3 = 0 and d0 - d4 * 1024 = 0 and -d0 + 31 >= 0 and d0 >= 0 and ct >= 0 and slot >= 0 and -slot + 1023 >= 0 and -d0 + d3 * 1024 + 1023 >= 0 and d0 - d3 * 1024 >= 0 and -d0 + d4 * 1024 + 1023 >= 0 and d0 - d4 * 1024 >= 0 }">
+    #layout = #tensor_ext.layout<"{[d0] -> [ct, slot] : exists d3, d4 : -ct + d3 = 0 and d0 - d4 * 1024 = 0 and -d0 + 31 >= 0 and d0 >= 0 and ct >= 0 and slot >= 0 and -slot + 1023 >= 0 and -d0 + d3 * 1024 + 1023 >= 0 and d0 - d3 * 1024 >= 0 and -d0 + d4 * 1024 + 1023 >= 0 and d0 - d4 * 1024 >= 0 }">
     ```
   }];
   let parameters = (ins "mlir::StringAttr":$layout);
@@ -72,7 +71,7 @@ def TensorExt_NewLayoutAttr : TensorExt_Attr<"NewLayout", "new_layout"> {
       return getLayout().str();
     }
 
-    static NewLayoutAttr getFromIntegerRelation(
+    static LayoutAttr getFromIntegerRelation(
       ::mlir::MLIRContext* context, const presburger::IntegerRelation &relation);
   }];
 }

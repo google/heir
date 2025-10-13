@@ -59,8 +59,8 @@ SmallVector<int64_t> shiftByRemoved(ArrayRef<int64_t> dims,
   return shiftByInserted(dims, removed, false);
 }
 
-NewLayoutAttr convertLayoutForReduce(NewLayoutAttr inputLayout,
-                                     ArrayRef<int64_t> dimsToReduce) {
+LayoutAttr convertLayoutForReduce(LayoutAttr inputLayout,
+                                  ArrayRef<int64_t> dimsToReduce) {
   std::unique_ptr<presburger::IntegerRelation> clonedRelation =
       inputLayout.getIntegerRelation().clone();
 
@@ -74,8 +74,8 @@ NewLayoutAttr convertLayoutForReduce(NewLayoutAttr inputLayout,
   }
 
   MLIRContext* context = inputLayout.getContext();
-  return NewLayoutAttr::getFromIntegerRelation(context,
-                                               std::move(*clonedRelation));
+  return LayoutAttr::getFromIntegerRelation(context,
+                                            std::move(*clonedRelation));
 }
 
 }  // namespace heir

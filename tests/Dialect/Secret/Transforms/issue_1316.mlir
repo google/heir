@@ -1,7 +1,7 @@
 // RUN: heir-opt --secret-distribute-generic %s
 
 // Smoke test to ensure the lowering can handle multiple results of the generic.
-#row_major = #tensor_ext.new_layout<"{ [i0, i1] -> [ct, slot] : ct = 0 and (-32i0 - i1 + slot) mod 1024 = 0 and 0 <= i0 <= 31 and 0 <= i1 <= 31 and 0 <= slot <= 1023 }">
+#row_major = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : ct = 0 and (-32i0 - i1 + slot) mod 1024 = 0 and 0 <= i0 <= 31 and 0 <= i1 <= 31 and 0 <= slot <= 1023 }">
 #original_type = #tensor_ext.original_type<originalType = i16, layout = #row_major>
 
 module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 12, Q = [4294991873], P = [4295049217], plaintextModulus = 65537>, scheme.bgv} {

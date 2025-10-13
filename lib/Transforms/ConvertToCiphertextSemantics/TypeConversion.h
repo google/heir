@@ -12,11 +12,11 @@ namespace heir {
 // particular, by the pattern to lower AssignLayoutOp, which is also reused in
 // add-client-interface.
 
-Type materializeNewLayout(Type dataType, tensor_ext::NewLayoutAttr attr,
-                          int ciphertextSize);
+Type materializeLayout(Type dataType, tensor_ext::LayoutAttr attr,
+                       int ciphertextSize);
 
-Type materializeScalarNewLayout(Type type, tensor_ext::NewLayoutAttr attr,
-                                int ciphertextSize);
+Type materializeScalarLayout(Type type, tensor_ext::LayoutAttr attr,
+                             int ciphertextSize);
 
 }  // namespace heir
 }  // namespace mlir

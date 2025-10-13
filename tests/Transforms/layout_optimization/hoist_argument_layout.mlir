@@ -1,11 +1,11 @@
 // RUN: heir-opt --layout-optimization --canonicalize %s -split-input-file | FileCheck %s
 
 // Cyclic repetition layout
-#layout = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 0 and 31 >= i0 >= 0 and 1023 >= slot >= 0 and ct = 0 }">
+#layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 0 and 31 >= i0 >= 0 and 1023 >= slot >= 0 and ct = 0 }">
 // zero-padded layout
-#layout1 = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : i0 = slot and 31 >= i0 >= 0 and 1023 >= slot >= 0 and ct = 0 }">
+#layout1 = #tensor_ext.layout<"{ [i0] -> [ct, slot] : i0 = slot and 31 >= i0 >= 0 and 1023 >= slot >= 0 and ct = 0 }">
 
-// CHECK: #[[layout:.*]] = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 0 and 31 >= i0 >= 0 and 1023 >= slot >= 0 and ct = 0 }">
+// CHECK: #[[layout:.*]] = #tensor_ext.layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 0 and 31 >= i0 >= 0 and 1023 >= slot >= 0 and ct = 0 }">
 module {
   // CHECK: func.func @simple_add
   // CHECK-SAME: (%[[arg0:.*]]: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #[[layout]]},
@@ -27,12 +27,12 @@ module {
 // -----
 
 // Cyclic repetition layout
-#layout = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 0 and 31 >= i0 >= 0 and 1023 >= slot >= 0 and ct = 0 }">
+#layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 0 and 31 >= i0 >= 0 and 1023 >= slot >= 0 and ct = 0 }">
 // zero-padded layout
-#layout1 = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : i0 = slot and 31 >= i0 >= 0 and 1023 >= slot >= 0 and ct = 0 }">
+#layout1 = #tensor_ext.layout<"{ [i0] -> [ct, slot] : i0 = slot and 31 >= i0 >= 0 and 1023 >= slot >= 0 and ct = 0 }">
 
-// CHECK-DAG: #[[layout:.*]] = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 0 and 31 >= i0 >= 0 and 1023 >= slot >= 0 and ct = 0 }">
-// CHECK-DAG: #[[layout1:.*]] = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : i0 = slot and 31 >= i0 >= 0 and 1023 >= slot >= 0 and ct = 0 }">
+// CHECK-DAG: #[[layout:.*]] = #tensor_ext.layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 0 and 31 >= i0 >= 0 and 1023 >= slot >= 0 and ct = 0 }">
+// CHECK-DAG: #[[layout1:.*]] = #tensor_ext.layout<"{ [i0] -> [ct, slot] : i0 = slot and 31 >= i0 >= 0 and 1023 >= slot >= 0 and ct = 0 }">
 module {
   // CHECK: func.func @different_conversions
   // CHECK-SAME: (%[[arg0:.*]]: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #[[layout1]]},
@@ -62,11 +62,11 @@ module {
 // -----
 
 // Cyclic repetition layout
-#layout = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 0 and 31 >= i0 >= 0 and 1023 >= slot >= 0 and ct = 0 }">
+#layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 0 and 31 >= i0 >= 0 and 1023 >= slot >= 0 and ct = 0 }">
 // zero-padded layout
-#layout1 = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : i0 = slot and 31 >= i0 >= 0 and 1023 >= slot >= 0 and ct = 0 }">
+#layout1 = #tensor_ext.layout<"{ [i0] -> [ct, slot] : i0 = slot and 31 >= i0 >= 0 and 1023 >= slot >= 0 and ct = 0 }">
 
-// CHECK-DAG: #[[layout:.*]] = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 0 and 31 >= i0 >= 0 and 1023 >= slot >= 0 and ct = 0 }">
+// CHECK-DAG: #[[layout:.*]] = #tensor_ext.layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 0 and 31 >= i0 >= 0 and 1023 >= slot >= 0 and ct = 0 }">
 module {
   // CHECK: func.func @same_conversions
   // CHECK-SAME: (%[[arg0:.*]]: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #[[layout]]},
@@ -98,9 +98,9 @@ module {
 // -----
 
 // Cyclic repetition layout
-#layout = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 0 and 31 >= i0 >= 0 and 1023 >= slot >= 0 and ct = 0 }">
+#layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 0 and 31 >= i0 >= 0 and 1023 >= slot >= 0 and ct = 0 }">
 
-// CHECK-DAG: #[[layout:.*]] = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 0 and 31 >= i0 >= 0 and 1023 >= slot >= 0 and ct = 0 }">
+// CHECK-DAG: #[[layout:.*]] = #tensor_ext.layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 32 = 0 and 31 >= i0 >= 0 and 1023 >= slot >= 0 and ct = 0 }">
 module {
   // CHECK: func.func @return
   // CHECK-SAME: (%[[arg0:.*]]: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #[[layout]]})

@@ -3,9 +3,9 @@
 #map = affine_map<(d0) -> (d0)>
 #map1 = affine_map<(d0) -> (d0 mod 8)>
 
-#scalar_layout = #tensor_ext.new_layout<"{ [] -> [ct, slot] : 0 <= slot <= 7 and ct = 0 }">
+#scalar_layout = #tensor_ext.layout<"{ [] -> [ct, slot] : 0 <= slot <= 7 and ct = 0 }">
 #scalar_original_type = #tensor_ext.original_type<originalType = i16, layout = #scalar_layout>
-#vec_layout = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 8 = 0 and i0 >= 0 and 0 >= i0 and slot >= 0 and 7 >= slot and ct = 0 }">
+#vec_layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 8 = 0 and i0 >= 0 and 0 >= i0 and slot >= 0 and 7 >= slot and ct = 0 }">
 #vec_original_type = #tensor_ext.original_type<originalType = tensor<8xi16>, layout = #vec_layout>
 
 module attributes {backend.openfhe, bgv.schemeParam = #bgv.scheme_param<logN = 14, Q = [35184372121601, 35184372744193, 35184373006337], P = [35184373989377, 35184374874113], plaintextModulus = 65537>, scheme.bgv} {

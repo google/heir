@@ -175,7 +175,7 @@ VosVosErkinShiftNetworks::CacheKey VosVosErkinShiftNetworks::makeCacheKey(
   return std::make_pair(mapping, frozenShiftOrder);
 }
 
-void populateMappingFromLayoutAttr(const NewLayoutAttr& layoutAttr,
+void populateMappingFromLayoutAttr(const LayoutAttr& layoutAttr,
                                    Mapping& mapping) {
   PointPairCollector collector(2, 2);
   enumeratePoints(layoutAttr.getIntegerRelation(), collector);
@@ -222,14 +222,14 @@ LogicalResult convertPermuteOp(PermuteOp op,
   // Populate the mapping with (source, target) pairs
   // This require enumerating over the relation for the op
   Mapping mapping(ciphertextSize, numCiphertexts);
-  if (auto layoutAttr = dyn_cast<NewLayoutAttr>(op.getPermutation())) {
+  if (auto layoutAttr = dyn_cast<LayoutAttr>(op.getPermutation())) {
     populateMappingFromLayoutAttr(layoutAttr, mapping);
   } else if (auto denseElementsAttr =
                  dyn_cast<DenseIntElementsAttr>(op.getPermutation())) {
     populateMappingFromDenseElementsAttr(denseElementsAttr, mapping);
   } else {
     return op.emitOpError()
-           << "requires permutation attribute to be either NewLayoutAttr or "
+           << "requires permutation attribute to be either LayoutAttr or "
               "DenseIntElementsAttr";
   }
 

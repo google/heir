@@ -1,10 +1,10 @@
-// RUN: heir-opt --new-layout-propagation=ciphertext-size=1024 %s | FileCheck %s
+// RUN: heir-opt --layout-propagation=ciphertext-size=1024 %s | FileCheck %s
 
 // Assigns a scalar layout to the results of extract
 
-// CHECK-DAG: [[scalar_layout:.*]] = #tensor_ext.new_layout<"{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= 1023
-// CHECK-DAG: [[scalar_layout_extract:.*]] = #tensor_ext.new_layout<"{ [] -> [ct, slot] : ct = 0 and slot = 0
-// CHECK-DAG: [[tensor_layout:.*]] = #tensor_ext.new_layout<"{ [i0] ->
+// CHECK-DAG: [[scalar_layout:.*]] = #tensor_ext.layout<"{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= 1023
+// CHECK-DAG: [[scalar_layout_extract:.*]] = #tensor_ext.layout<"{ [] -> [ct, slot] : ct = 0 and slot = 0
+// CHECK-DAG: [[tensor_layout:.*]] = #tensor_ext.layout<"{ [i0] ->
 
 // CHECK: @dot_product
 // CHECK-SAME: [[arg0:%[^:]*]]: !secret.secret<tensor<8xi16>> {tensor_ext.layout = [[tensor_layout]]}

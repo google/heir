@@ -80,7 +80,7 @@ using ::mlir::heir::kernel::IRMaterializingVisitor;
 using ::mlir::heir::kernel::SSAValue;
 using presburger::IntegerRelation;
 using presburger::VarKind;
-using tensor_ext::NewLayoutAttr;
+using tensor_ext::LayoutAttr;
 
 auto& kLayoutAttrName = tensor_ext::TensorExtDialect::kLayoutAttrName;
 auto& kMaterializedAttrName = "tensor_ext.layout_materialized";
@@ -122,30 +122,30 @@ struct LayoutMaterializationTypeConverter
     // felt like having a stroke.
     addConversion([&](Type type, Attribute attr) { return std::nullopt; });
     addConversion([this](secret::SecretType type,
-                         NewLayoutAttr attr) -> std::optional<Type> {
+                         LayoutAttr attr) -> std::optional<Type> {
       auto innerType = type.getValueType();
 
-      FailureOr<Type> convertedInnerType = materializeNewLayout(
+      FailureOr<Type> convertedInnerType = materializeLayout(
           getElementTypeOrSelf(innerType), attr, getCiphertextSize());
       if (failed(convertedInnerType)) return std::nullopt;
       return secret::SecretType::get(convertedInnerType.value());
     });
-    addConversion([this](RankedTensorType type,
-                         NewLayoutAttr attr) -> std::optional<Type> {
-      return materializeNewLayout(getElementTypeOrSelf(type), attr,
-                                  getCiphertextSize());
-    });
     addConversion(
-        [this](IntegerType type, NewLayoutAttr attr) -> std::optional<Type> {
-          return materializeNewLayout(type, attr, getCiphertextSize());
+        [this](RankedTensorType type, LayoutAttr attr) -> std::optional<Type> {
+          return materializeLayout(getElementTypeOrSelf(type), attr,
+                                   getCiphertextSize());
         });
     addConversion(
-        [this](FloatType type, NewLayoutAttr attr) -> std::optional<Type> {
-          return materializeNewLayout(type, attr, getCiphertextSize());
+        [this](IntegerType type, LayoutAttr attr) -> std::optional<Type> {
+          return materializeLayout(type, attr, getCiphertextSize());
         });
     addConversion(
-        [this](IndexType type, NewLayoutAttr attr) -> std::optional<Type> {
-          return materializeNewLayout(type, attr, getCiphertextSize());
+        [this](FloatType type, LayoutAttr attr) -> std::optional<Type> {
+          return materializeLayout(type, attr, getCiphertextSize());
+        });
+    addConversion(
+        [this](IndexType type, LayoutAttr attr) -> std::optional<Type> {
+          return materializeLayout(type, attr, getCiphertextSize());
         });
   }
 
@@ -191,7 +191,7 @@ struct ConvertFunc : public ContextAwareFuncConversion {
       setMaterializedAttr(op);
       for (int i = 0; i < op.getNumArguments(); ++i) {
         auto layoutAttr = op.getArgAttr(i, kLayoutAttrName);
-        if (!layoutAttr || !isa<NewLayoutAttr>(layoutAttr)) {
+        if (!layoutAttr || !isa<LayoutAttr>(layoutAttr)) {
           continue;
         }
 
@@ -203,7 +203,7 @@ struct ConvertFunc : public ContextAwareFuncConversion {
 
       for (int i = 0; i < op.getNumResults(); ++i) {
         auto layoutAttr = op.getResultAttr(i, kLayoutAttrName);
-        if (!layoutAttr || !isa<NewLayoutAttr>(layoutAttr)) {
+        if (!layoutAttr || !isa<LayoutAttr>(layoutAttr)) {
           continue;
         }
 
@@ -301,11 +301,11 @@ class ConvertConvertLayout
                << op.getValue().getType() << ", ciphertextSemanticType="
                << adaptor.getValue().getType() << "\n");
 
-    NewLayoutAttr fromLayout = dyn_cast<NewLayoutAttr>(op.getFromLayout());
-    NewLayoutAttr toLayout = dyn_cast<NewLayoutAttr>(op.getToLayout());
+    LayoutAttr fromLayout = dyn_cast<LayoutAttr>(op.getFromLayout());
+    LayoutAttr toLayout = dyn_cast<LayoutAttr>(op.getToLayout());
     if (!fromLayout || !toLayout) {
       return op.emitError()
-             << "ConvertLayoutOp must have from and to NewLayoutAttrs";
+             << "ConvertLayoutOp must have from and to LayoutAttrs";
     }
 
     std::shared_ptr<IntegerRelation> composedLayout =
@@ -314,7 +314,7 @@ class ConvertConvertLayout
     composedLayout->compose(toLayout.getIntegerRelation());
     auto permuteOp = tensor_ext::PermuteOp::create(
         rewriter, op.getLoc(), adaptor.getValue(),
-        NewLayoutAttr::getFromIntegerRelation(getContext(), *composedLayout));
+        LayoutAttr::getFromIntegerRelation(getContext(), *composedLayout));
     permuteOp->setAttr(kLayoutAttrName, op->getAttr(kLayoutAttrName));
     setMaterializedAttr(permuteOp);
     rewriter.replaceOp(op, permuteOp);
@@ -322,7 +322,7 @@ class ConvertConvertLayout
   };
 };
 
-class ConvertConvertLayoutNewLayout
+class ConvertConvertLayoutLayout
     : public ContextAwareOpConversionPattern<tensor_ext::ConvertLayoutOp> {
  public:
   using ContextAwareOpConversionPattern<
@@ -331,8 +331,8 @@ class ConvertConvertLayoutNewLayout
   LogicalResult matchAndRewrite(
       tensor_ext::ConvertLayoutOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter& rewriter) const final {
-    NewLayoutAttr fromLayout = dyn_cast<NewLayoutAttr>(op.getFromLayout());
-    NewLayoutAttr toLayout = dyn_cast<NewLayoutAttr>(op.getToLayout());
+    LayoutAttr fromLayout = dyn_cast<LayoutAttr>(op.getFromLayout());
+    LayoutAttr toLayout = dyn_cast<LayoutAttr>(op.getToLayout());
     if (!fromLayout || !toLayout) {
       return failure();
     }
@@ -344,8 +344,8 @@ class ConvertConvertLayoutNewLayout
         toLayout.getIntegerRelation().clone();
     toLayoutClone->inverse();
     toLayoutClone->compose(fromLayout.getIntegerRelation());
-    NewLayoutAttr combinedLayout =
-        NewLayoutAttr::getFromIntegerRelation(getContext(), *toLayoutClone);
+    LayoutAttr combinedLayout =
+        LayoutAttr::getFromIntegerRelation(getContext(), *toLayoutClone);
 
     auto permuteOp = tensor_ext::PermuteOp::create(
         rewriter, op.getLoc(), adaptor.getValue(), combinedLayout);
@@ -476,24 +476,24 @@ class ConvertLinalgReduce
   }
 };
 
-struct ConvertLinalgMatvecNewLayout
+struct ConvertLinalgMatvecLayout
     : public ContextAwareOpConversionPattern<linalg::MatvecOp> {
  public:
   using ContextAwareOpConversionPattern<
       linalg::MatvecOp>::ContextAwareOpConversionPattern;
 
-  ConvertLinalgMatvecNewLayout(
+  ConvertLinalgMatvecLayout(
       const ContextAwareTypeConverter& contextAwareTypeConverter,
       MLIRContext* context)
       : ContextAwareOpConversionPattern(contextAwareTypeConverter, context,
                                         /*benefit=*/10) {}
 
-  NewLayoutAttr getNewLayoutAttr(Value value) const {
+  LayoutAttr getLayoutAttr(Value value) const {
     auto layoutLookup = getTypeConverter()->getContextualAttr(value);
     if (failed(layoutLookup)) {
       return nullptr;
     }
-    return dyn_cast<NewLayoutAttr>(layoutLookup.value());
+    return dyn_cast<LayoutAttr>(layoutLookup.value());
   }
 
   bool supportsHaleviShoup(linalg::MatvecOp op, OpAdaptor adaptor) const {
@@ -513,8 +513,8 @@ struct ConvertLinalgMatvecNewLayout
       return false;
     }
 
-    NewLayoutAttr matrixLayout = getNewLayoutAttr(matrix);
-    NewLayoutAttr vectorLayout = getNewLayoutAttr(vector);
+    LayoutAttr matrixLayout = getLayoutAttr(matrix);
+    LayoutAttr vectorLayout = getLayoutAttr(vector);
     bool isSquatDiagonal = isRelationSquatDiagonal(
         cast<RankedTensorType>(op.getInputs()[0].getType()), numCols,
         matrixLayout.getIntegerRelation());
@@ -557,7 +557,7 @@ struct ConvertLinalgMatvecNewLayout
     IRMaterializingVisitor visitor(b, input.getType());
     Value finalOutput = implementedKernel->visit(visitor);
 
-    auto layoutAttr = cast<NewLayoutAttr>(op->getAttr(kLayoutAttrName));
+    auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
     auto* finalOutputOp = finalOutput.getDefiningOp();
     finalOutputOp->setAttr(kLayoutAttrName, layoutAttr);
     setMaterializedAttr(finalOutputOp);
@@ -576,8 +576,8 @@ struct ConvertLinalgMatvecNewLayout
       ContextAwareConversionPatternRewriter& rewriter) const final {
     Value matrix = adaptor.getInputs()[0];
     Value vector = adaptor.getInputs()[1];
-    NewLayoutAttr vectorLayout = getNewLayoutAttr(vector);
-    NewLayoutAttr matrixLayout = getNewLayoutAttr(matrix);
+    LayoutAttr vectorLayout = getLayoutAttr(vector);
+    LayoutAttr matrixLayout = getLayoutAttr(matrix);
 
     if (!matrixLayout || !vectorLayout)
       return rewriter.notifyMatchFailure(
@@ -606,12 +606,12 @@ struct ConvertLinalgConv2D
       : ContextAwareOpConversionPattern(contextAwareTypeConverter, context,
                                         /*benefit=*/10) {}
 
-  NewLayoutAttr getNewLayoutAttr(Value value) const {
+  LayoutAttr getLayoutAttr(Value value) const {
     auto layoutLookup = getTypeConverter()->getContextualAttr(value);
     if (failed(layoutLookup)) {
       return nullptr;
     }
-    return dyn_cast<NewLayoutAttr>(layoutLookup.value());
+    return dyn_cast<LayoutAttr>(layoutLookup.value());
   }
 
   bool supportsExpandedHaleviShoup(linalg::Conv2DOp op,
@@ -671,7 +671,7 @@ struct ConvertLinalgConv2D
     IRMaterializingVisitor visitor(b, data.getType());
     Value finalOutput = implementedKernel->visit(visitor);
 
-    auto layoutAttr = cast<NewLayoutAttr>(op->getAttr(kLayoutAttrName));
+    auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
     auto finalOutputOp = finalOutput.getDefiningOp();
     finalOutputOp->setAttr(kLayoutAttrName, layoutAttr);
     setMaterializedAttr(finalOutputOp);
@@ -690,8 +690,8 @@ struct ConvertLinalgConv2D
       ContextAwareConversionPatternRewriter& rewriter) const final {
     Value data = adaptor.getInputs().front();
     Value filter = adaptor.getInputs().back();
-    NewLayoutAttr dataLayout = getNewLayoutAttr(data);
-    NewLayoutAttr filterLayout = getNewLayoutAttr(filter);
+    LayoutAttr dataLayout = getLayoutAttr(data);
+    LayoutAttr filterLayout = getLayoutAttr(filter);
 
     if (!dataLayout || !filterLayout)
       return rewriter.notifyMatchFailure(
@@ -825,7 +825,7 @@ static FailureOr<SmallVector<Value>> generateLoopWithDynamicIndexCheck(
   return results;
 }
 
-class ConvertTensorExtractNewLayout
+class ConvertTensorExtractLayout
     : public ContextAwareOpConversionPattern<tensor::ExtractOp> {
  public:
   using ContextAwareOpConversionPattern<
@@ -838,7 +838,7 @@ class ConvertTensorExtractNewLayout
 
   // A helper to create a mask for the case of tensor.extract from a ciphertext
   // when the extraction indices are statically known.
-  MaskResult createMaskFromStaticIndices(NewLayoutAttr tensorLayout,
+  MaskResult createMaskFromStaticIndices(LayoutAttr tensorLayout,
                                          ArrayRef<int64_t> staticIndices,
                                          OpAdaptor adaptor,
                                          ImplicitLocOpBuilder& b) const {
@@ -897,10 +897,8 @@ class ConvertTensorExtractNewLayout
       return op.emitError() << "failed to fetch layout attribute for input";
     }
 
-    NewLayoutAttr tensorLayout =
-        cast<NewLayoutAttr>(tensorLayoutResult.value());
-    NewLayoutAttr resultLayout =
-        cast<NewLayoutAttr>(resultLayoutResult.value());
+    LayoutAttr tensorLayout = cast<LayoutAttr>(tensorLayoutResult.value());
+    LayoutAttr resultLayout = cast<LayoutAttr>(resultLayoutResult.value());
     RankedTensorType ciphertextSemanticType =
         cast<RankedTensorType>(adaptor.getTensor().getType());
 
@@ -947,8 +945,8 @@ class ConvertTensorExtractNewLayout
 
     auto convertLayoutOp = tensor_ext::ConvertLayoutOp::create(
         b, mulOp->getResult(0),
-        NewLayoutAttr::getFromIntegerRelation(op.getContext(),
-                                              maskResult.maskLayout),
+        LayoutAttr::getFromIntegerRelation(op.getContext(),
+                                           maskResult.maskLayout),
         resultLayout);
 
     // Intentionally don't set materialized attr on convert_layout so it will be
@@ -965,7 +963,7 @@ class ConvertTensorExtractNewLayout
   }
 };
 
-class ConvertTensorInsertNewLayout
+class ConvertTensorInsertLayout
     : public ContextAwareOpConversionPattern<tensor::InsertOp> {
  public:
   using ContextAwareOpConversionPattern<
@@ -977,7 +975,7 @@ class ConvertTensorInsertNewLayout
   //
   // Returns a pair of scalarMask and destMask.
   std::pair<Value, Value> createMasksFromStaticIndices(
-      NewLayoutAttr destLayout, ArrayRef<int64_t> staticIndices,
+      LayoutAttr destLayout, ArrayRef<int64_t> staticIndices,
       tensor::InsertOp op, OpAdaptor adaptor, Value scalarMaskValue,
       ImplicitLocOpBuilder& b) const {
     IntegerRelation destRel = destLayout.getIntegerRelation();
@@ -1039,7 +1037,7 @@ class ConvertTensorInsertNewLayout
   //
   // Returns a pair of scalarMask and destMask.
   std::pair<Value, Value> createMasksFromDynamicIndices(
-      NewLayoutAttr destLayout, tensor::InsertOp op, OpAdaptor adaptor,
+      LayoutAttr destLayout, tensor::InsertOp op, OpAdaptor adaptor,
       Value scalarMaskValue, ImplicitLocOpBuilder& b) const {
     IntegerRelation destRel = destLayout.getIntegerRelation();
     // Here we need to loop over the relation in the same manner as we do
@@ -1088,7 +1086,7 @@ class ConvertTensorInsertNewLayout
   LogicalResult cleartextScalarSecretTensor(
       tensor::InsertOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter& rewriter) const {
-    NewLayoutAttr destLayout = cast<NewLayoutAttr>(
+    LayoutAttr destLayout = cast<LayoutAttr>(
         getTypeConverter()->getContextualAttr(adaptor.getDest()).value());
 
     Value scalarMask;
@@ -1145,10 +1143,8 @@ class ConvertTensorInsertNewLayout
     FailureOr<Attribute> destLayoutResult =
         getTypeConverter()->getContextualAttr(adaptor.getDest());
 
-    NewLayoutAttr scalarLayout =
-        dyn_cast<NewLayoutAttr>(scalarLayoutResult.value());
-    NewLayoutAttr destLayout =
-        dyn_cast<NewLayoutAttr>(destLayoutResult.value());
+    LayoutAttr scalarLayout = dyn_cast<LayoutAttr>(scalarLayoutResult.value());
+    LayoutAttr destLayout = dyn_cast<LayoutAttr>(destLayoutResult.value());
 
     // Initial support for this kernel requires the sizes of the range to
     // match. Ideally we could be smarter here, for example to take a scalar
@@ -1281,7 +1277,7 @@ class ConvertCollapseShape
       setMaterializedAttr(op);
       return success();
     }
-    auto tensorLayout = dyn_cast<NewLayoutAttr>(tensorLayoutResult.value());
+    auto tensorLayout = dyn_cast<LayoutAttr>(tensorLayoutResult.value());
     if (!tensorLayout) {
       return op.emitError() << "failed to fetch new layout attribute for input";
     }
@@ -1290,8 +1286,7 @@ class ConvertCollapseShape
     if (failed(resultLayoutResult)) {
       return op.emitError() << "failed to fetch layout attribute for input";
     }
-    NewLayoutAttr resultLayout =
-        dyn_cast<NewLayoutAttr>(resultLayoutResult.value());
+    LayoutAttr resultLayout = dyn_cast<LayoutAttr>(resultLayoutResult.value());
     if (!resultLayout) {
       return op.emitError() << "failed to fetch new layout attribute for input";
     }
@@ -1347,8 +1342,7 @@ class ConvertExpandShape
     if (failed(resultLayoutResult)) {
       return op.emitError() << "failed to fetch layout attribute for input";
     }
-    NewLayoutAttr resultLayout =
-        dyn_cast<NewLayoutAttr>(resultLayoutResult.value());
+    LayoutAttr resultLayout = dyn_cast<LayoutAttr>(resultLayoutResult.value());
     if (!resultLayout) {
       return op.emitError() << "failed to fetch new layout attribute for input";
     }
@@ -1364,7 +1358,7 @@ class ConvertExpandShape
       setMaterializedAttr(op);
       return success();
     }
-    auto sourceLayout = dyn_cast<NewLayoutAttr>(sourceLayoutResult.value());
+    auto sourceLayout = dyn_cast<LayoutAttr>(sourceLayoutResult.value());
     if (!sourceLayout) {
       return op.emitError() << "failed to fetch new layout attribute for input";
     }
@@ -1509,12 +1503,12 @@ struct ConvertToCiphertextSemantics
 
     patterns.add<ConvertFunc, ConvertGeneric,
                  // tensor_ext ops
-                 ConvertConvertLayout, ConvertConvertLayoutNewLayout,
+                 ConvertConvertLayout, ConvertConvertLayoutLayout,
                  // linalg ops
-                 ConvertLinalgReduce, ConvertLinalgMatvecNewLayout,
+                 ConvertLinalgReduce, ConvertLinalgMatvecLayout,
                  ConvertLinalgConv2D,
                  // tensor ops
-                 ConvertTensorExtractNewLayout, ConvertTensorInsertNewLayout,
+                 ConvertTensorExtractLayout, ConvertTensorInsertLayout,
                  ConvertCollapseShape, ConvertExpandShape,
                  // default
                  ConvertAnyAddingMaterializedAttr>(typeConverter, context);

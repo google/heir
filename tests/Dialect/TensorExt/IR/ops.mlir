@@ -8,8 +8,8 @@ func.func @test_rotate(%0: tensor<16xi32>) -> tensor<16xi32> {
   return %1 : tensor<16xi32>
 }
 
-#layout1 = #tensor_ext.new_layout<"{ [row, col] -> [ct, slot] : (slot - row) mod 16 = 0 and (ct + slot - col) mod 16 = 0 and row >= 0 and col >= 0 and ct >= 0 and slot >= 0 and 31 >= slot and 15 >= ct and 15 >= row and 15 >= col }">
-#layout2 = #tensor_ext.new_layout<"{ [row, col] -> [ct, slot] : (slot - row) mod 16 = 1 and (ct + slot - col) mod 16 = 5 and row >= 0 and col >= 0 and ct >= 0 and slot >= 0 and 31 >= slot and 15 >= ct and 15 >= row and 15 >= col }">
+#layout1 = #tensor_ext.layout<"{ [row, col] -> [ct, slot] : (slot - row) mod 16 = 0 and (ct + slot - col) mod 16 = 0 and row >= 0 and col >= 0 and ct >= 0 and slot >= 0 and 31 >= slot and 15 >= ct and 15 >= row and 15 >= col }">
+#layout2 = #tensor_ext.layout<"{ [row, col] -> [ct, slot] : (slot - row) mod 16 = 1 and (ct + slot - col) mod 16 = 5 and row >= 0 and col >= 0 and ct >= 0 and slot >= 0 and 31 >= slot and 15 >= ct and 15 >= row and 15 >= col }">
 func.func @test_convert_layout(%0: tensor<16x16xi32>) -> tensor<16x16xi32> {
   %1 = tensor_ext.convert_layout %0 {from_layout = #layout1, to_layout = #layout2} : tensor<16x16xi32>
   return %1 : tensor<16x16xi32>

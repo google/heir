@@ -1,7 +1,7 @@
 // RUN: heir-opt --add-client-interface %s | FileCheck %s
 
 !ct_ty = !secret.secret<tensor<1x1024xi16>>
-#layout = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (slot - i0) mod 32 = 0 and ct = 0 and 1023 >= slot >= 0 and 31 >= i0 >= 0 }">
+#layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : (slot - i0) mod 32 = 0 and ct = 0 and 1023 >= slot >= 0 and 31 >= i0 >= 0 }">
 #original_type = #tensor_ext.original_type<originalType = tensor<32xi16>, layout = #layout>
 
 func.func @add(

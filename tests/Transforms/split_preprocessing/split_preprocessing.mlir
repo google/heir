@@ -21,7 +21,7 @@
 // CHECK-NEXT:   return %[[CALL]]
 // CHECK-NEXT: }
 
-#vec_layout = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 1024 = 0 and i0 >= 0 and 0 >= i0 and slot >= 0 and 1023 >= slot and ct = 0 }">
+#vec_layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 1024 = 0 and i0 >= 0 and 0 >= i0 and slot >= 0 and 1023 >= slot and ct = 0 }">
 
 func.func @hoist_one_assign(%arg0: !secret.secret<tensor<4xi32>> {tensor_ext.layout = #vec_layout}) -> (!secret.secret<tensor<4xi32>> {tensor_ext.layout = #vec_layout}) {
   %c1 = arith.constant dense<1> : tensor<4xi32>

@@ -3,9 +3,9 @@
 // CHECK-NOT: secret.generic
 #map = affine_map<(d0) -> (d0)>
 #map1 = affine_map<(d0) -> (d0 mod 1024)>
-#scalar_layout = #tensor_ext.new_layout<"{ [] -> [ct, slot] : 0 <= slot <= 1023 and ct = 0 }">
+#scalar_layout = #tensor_ext.layout<"{ [] -> [ct, slot] : 0 <= slot <= 1023 and ct = 0 }">
 #scalar_original_type = #tensor_ext.original_type<originalType = i16, layout = #scalar_layout>
-#vec_layout = #tensor_ext.new_layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 1024 = 0 and i0 >= 0 and 0 >= i0 and slot >= 0 and 1023 >= slot and ct = 0 }">
+#vec_layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : (i0 - slot) mod 1024 = 0 and i0 >= 0 and 0 >= i0 and slot >= 0 and 1023 >= slot and ct = 0 }">
 #vec_original_type = #tensor_ext.original_type<originalType = tensor<8xi16>, layout = #vec_layout>
 
 module {

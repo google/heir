@@ -1,7 +1,7 @@
 // RUN: heir-opt --canonicalize --split-input-file %s | FileCheck %s
 
-#layout1 = #tensor_ext.new_layout<"{ [row, col] -> [ct, slot] : (slot - row) mod 16 = 0 and (ct + slot - col) mod 16 = 0 and row >= 0 and col >= 0 and ct >= 0 and slot >= 0 and 31 >= slot and 15 >= ct and 15 >= row and 15 >= col }">
-#layout2 = #tensor_ext.new_layout<"{ [row, col] -> [ct, slot] : (slot - row) mod 16 = 1 and (ct + slot - col) mod 16 = 5 and row >= 0 and col >= 0 and ct >= 0 and slot >= 0 and 31 >= slot and 15 >= ct and 15 >= row and 15 >= col }">
+#layout1 = #tensor_ext.layout<"{ [row, col] -> [ct, slot] : (slot - row) mod 16 = 0 and (ct + slot - col) mod 16 = 0 and row >= 0 and col >= 0 and ct >= 0 and slot >= 0 and 31 >= slot and 15 >= ct and 15 >= row and 15 >= col }">
+#layout2 = #tensor_ext.layout<"{ [row, col] -> [ct, slot] : (slot - row) mod 16 = 1 and (ct + slot - col) mod 16 = 5 and row >= 0 and col >= 0 and ct >= 0 and slot >= 0 and 31 >= slot and 15 >= ct and 15 >= row and 15 >= col }">
 
 // CHECK: func @fold
 // CHECK-NOT: tensor_ext.convert_layout
@@ -18,7 +18,7 @@ func.func @fold(%arg0: !secret.secret<tensor<1x32xi16>> {tensor_ext.layout = #la
 
 // -----
 
-#layout1 = #tensor_ext.new_layout<"{ [row, col] -> [ct, slot] : (slot - row) mod 16 = 0 and (ct + slot - col) mod 16 = 0 and row >= 0 and col >= 0 and ct >= 0 and slot >= 0 and 31 >= slot and 15 >= ct and 15 >= row and 15 >= col }">
+#layout1 = #tensor_ext.layout<"{ [row, col] -> [ct, slot] : (slot - row) mod 16 = 0 and (ct + slot - col) mod 16 = 0 and row >= 0 and col >= 0 and ct >= 0 and slot >= 0 and 31 >= slot and 15 >= ct and 15 >= row and 15 >= col }">
 
 // CHECK: func @noop
 // CHECK-NOT: tensor_ext.convert_layout

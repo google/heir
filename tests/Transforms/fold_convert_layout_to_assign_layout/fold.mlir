@@ -1,9 +1,9 @@
 // RUN: heir-opt --fold-convert-layout-into-assign-layout %s | FileCheck %s
 
-// CHECK: [[col_major_matrix:#[^ ]*]] = #tensor_ext.new_layout<"{ [row, col] -> [ct, slot] : ct = 0 and (-16col - row + slot) mod 1024 = 0 and 0 <= row <= 15 and 0 <= col <= 15 and 0 <= slot <= 1023 }">
-#row_major_matrix = #tensor_ext.new_layout<"{ [row, col] -> [ct, slot] : ct = 0 and (-16row - col + slot) mod 1024 = 0 and 0 <= row <= 15 and 0 <= col <= 15 and 0 <= slot <= 1023 }">
-#col_major_matrix = #tensor_ext.new_layout<"{ [row, col] -> [ct, slot] : ct = 0 and (-16col - row + slot) mod 1024 = 0 and 0 <= row <= 15 and 0 <= col <= 15 and 0 <= slot <= 1023 }">
-#col_major_matrix2 = #tensor_ext.new_layout<"{ [row, col] -> [ct, slot] : ct = 0 and (-17col - row + slot) mod 1024 = 0 and 0 <= row <= 15 and 0 <= col <= 15 and 0 <= slot <= 1023 }">
+// CHECK: [[col_major_matrix:#[^ ]*]] = #tensor_ext.layout<"{ [row, col] -> [ct, slot] : ct = 0 and (-16col - row + slot) mod 1024 = 0 and 0 <= row <= 15 and 0 <= col <= 15 and 0 <= slot <= 1023 }">
+#row_major_matrix = #tensor_ext.layout<"{ [row, col] -> [ct, slot] : ct = 0 and (-16row - col + slot) mod 1024 = 0 and 0 <= row <= 15 and 0 <= col <= 15 and 0 <= slot <= 1023 }">
+#col_major_matrix = #tensor_ext.layout<"{ [row, col] -> [ct, slot] : ct = 0 and (-16col - row + slot) mod 1024 = 0 and 0 <= row <= 15 and 0 <= col <= 15 and 0 <= slot <= 1023 }">
+#col_major_matrix2 = #tensor_ext.layout<"{ [row, col] -> [ct, slot] : ct = 0 and (-17col - row + slot) mod 1024 = 0 and 0 <= row <= 15 and 0 <= col <= 15 and 0 <= slot <= 1023 }">
 
 // CHECK: @assign_layout
 // CHECK-SAME: [[arg0:%[^:]*]]: tensor<16x16xi16>)
