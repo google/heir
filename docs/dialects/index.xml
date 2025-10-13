@@ -13327,13 +13327,24 @@ plaintext masks (ciphertext-plaintext multiplications), and additions.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="tensor_extpermute-heirtensor_extpermuteop">&lt;code>tensor_ext.permute&lt;/code> (heir::tensor_ext::PermuteOp)&lt;/h3>
-&lt;p>&lt;em>Permute a tensor by a static permutation.&lt;/em>&lt;/p>
+&lt;h3 id="tensor_extremap-heirtensor_extremapop">&lt;code>tensor_ext.remap&lt;/code> (heir::tensor_ext::RemapOp)&lt;/h3>
+&lt;p>&lt;em>Reorganize the entries of a tensor by a static mapping.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.permute` operands attr-dict `:` type($input)
-&lt;/code>&lt;/pre>&lt;p>This op represents a permutation of a tensor.&lt;/p>
-&lt;p>This is lowered from a &lt;code>convert_layout&lt;/code> op, and is implemented in terms of
-&lt;code>rotate&lt;/code> operations.&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.remap` operands attr-dict `:` type($input)
+&lt;/code>&lt;/pre>&lt;p>This op represents a remapping of entries of a tensor.&lt;/p>
+&lt;p>This op is primarily inserted as a lowered form of &lt;code>convert_layout&lt;/code> op, to
+represent a ciphertext slot-repacking operation. However, it can more
+generally express any partial mapping from source tensor indices to target
+indices within a tensor. Unmapped entries from the input tensor are
+unmodified.&lt;/p>
+&lt;p>This operation differs from a &lt;code>tensor.gather/scatter&lt;/code> operation in that it
+can replicate values from the source tensor or omit values in the
+destination tensor. It differs from a &amp;ldquo;lane shuffle&amp;rdquo; in that the mapping
+need not be a permutation. It differs from a &amp;ldquo;swizzle&amp;rdquo; in that it cannot
+change the dimension of the result tensor.&lt;/p>
+&lt;p>In the slot form of a ciphertext, this op is lowered to a &amp;ldquo;shift network&amp;rdquo;
+of ciphertext-plaintext mask, rotate, and sum operations by the
+&lt;code>implement-shift-network&lt;/code> pass.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
