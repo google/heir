@@ -212,29 +212,6 @@ LogicalResult verifyModulusSwitchOrRescaleOp(Op* op) {
 }
 
 template <typename Op>
-LogicalResult verifyExtractOp(Op* op) {
-  auto inputCtTy = getCtTy(op->getInput());
-  auto tensorTy = dyn_cast<RankedTensorType>(
-      inputCtTy.getApplicationData().getMessageType());
-  if (!tensorTy) {
-    return op->emitOpError() << "input RLWE ciphertext type must have a ranked "
-                                "tensor as its underlying_type, but found "
-                             << inputCtTy.getApplicationData().getMessageType();
-  }
-
-  auto outputScalarType =
-      getCtTy(op->getOutput()).getApplicationData().getMessageType();
-  if (tensorTy.getElementType() != outputScalarType) {
-    return op->emitOpError()
-           << "output RLWE ciphertext's underlying_type must be "
-              "the element type of the input ciphertext's "
-              "underlying tensor type, but found tensor type "
-           << tensorTy << " and output type " << outputScalarType;
-  }
-  return success();
-}
-
-template <typename Op>
 LogicalResult verifyLevelReduceOp(Op* op) {
   auto levelToDrop = op->getLevelToDrop();
   auto x = getCtTy(op->getInput());
