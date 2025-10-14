@@ -323,7 +323,7 @@ presburger::IntegerRelation get2dConvFilterRelation(RankedTensorType filterType,
   // mr, mc = matrix row, matrix col
   //
   // mr = (idr + P)*fsc + (idc + P) = P + P*fsc + idr * fsc + idc
-  // mc = (idr * dr + idc) + (ifc) + dr*(ifr)
+  // mc = (idr * dc + idc) + (ifc) + dc*(ifr)
   addConstraint(result,
                 {{matRow, -1},
                  {constCoeff, (filterSlidingCols + 1) * (padding)},
@@ -332,10 +332,10 @@ presburger::IntegerRelation get2dConvFilterRelation(RankedTensorType filterType,
                 /*equality=*/true);
   addConstraint(result,
                 {{matCol, -1},
-                 {dataRow, dataRowSize},
+                 {dataRow, dataColSize},
                  {dataCol, 1},
                  {filterCol, 1},
-                 {filterRow, dataRowSize}},
+                 {filterRow, dataColSize}},
                 /*equality=*/true);
   return result;
 }
