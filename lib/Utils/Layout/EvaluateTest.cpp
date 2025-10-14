@@ -17,7 +17,7 @@ namespace {
 using presburger::IntegerRelation;
 using ::testing::Eq;
 
-TEST(CodegenTest, EvaluateLayoutOnVectorTrivial) {
+TEST(EvaluateTest, EvaluateLayoutOnVectorTrivial) {
   IntegerRelation relation =
       getIntegerRelationFromIslStr(
           "{ [d0] -> [ct, d1] : d0 - d1 = 0 and d0 >= 0 and d1 >= 0 and 10 >= "
@@ -29,7 +29,7 @@ TEST(CodegenTest, EvaluateLayoutOnVectorTrivial) {
   ASSERT_THAT(result[0], Eq(input));
 }
 
-TEST(CodegenTest, EvaluateLayoutOnVectorRowMajor) {
+TEST(EvaluateTest, EvaluateLayoutOnVectorRowMajor) {
   // Data of size 32 being packed into ciphertexts of size 1024.
   auto relation =
       getIntegerRelationFromIslStr(
@@ -53,7 +53,7 @@ TEST(CodegenTest, EvaluateLayoutOnVectorRowMajor) {
   }
 }
 
-TEST(CodegenTest, EvaluateLayoutFor2DConv) {
+TEST(EvaluateTest, EvaluateLayoutFor2DConv) {
   // Figure 3 in Orion: https://arxiv.org/pdf/2311.03470
   MLIRContext context;
   RankedTensorType filterType =
@@ -75,7 +75,72 @@ TEST(CodegenTest, EvaluateLayoutFor2DConv) {
   ASSERT_THAT(result, Eq(expected));
 }
 
-TEST(CodegenTest, EvaluateLayoutFor2DConvDiagonalized) {
+TEST(EvaluateTest, EvaluateLayoutFor2DConv3x3Data2x2Filter) {
+  MLIRContext context;
+  RankedTensorType filterType =
+      RankedTensorType::get({2, 2}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({3, 3}, IndexType::get(&context));
+  IntegerRelation relation =
+      get2dConvFilterRelation(filterType, dataType, /*padding=*/1);
+
+  std::vector<std::vector<int>> filter = {{1, 2}, {3, 4}};
+  std::vector<std::vector<int>> expected = {
+      {4, 0, 0, 0, 0, 0, 0, 0, 0}, {3, 4, 0, 0, 0, 0, 0, 0, 0},
+      {0, 3, 4, 0, 0, 0, 0, 0, 0}, {0, 0, 3, 0, 0, 0, 0, 0, 0},
+      {2, 0, 0, 4, 0, 0, 0, 0, 0}, {1, 2, 0, 3, 4, 0, 0, 0, 0},
+      {0, 1, 2, 0, 3, 4, 0, 0, 0}, {0, 0, 1, 0, 0, 3, 0, 0, 0},
+      {0, 0, 0, 2, 0, 0, 4, 0, 0}, {0, 0, 0, 1, 2, 0, 3, 4, 0},
+      {0, 0, 0, 0, 1, 2, 0, 3, 4}, {0, 0, 0, 0, 0, 1, 0, 0, 3},
+      {0, 0, 0, 0, 0, 0, 2, 0, 0}, {0, 0, 0, 0, 0, 0, 1, 2, 0},
+      {0, 0, 0, 0, 0, 0, 0, 1, 2}, {0, 0, 0, 0, 0, 0, 0, 0, 1},
+  };
+
+  auto result = evaluateLayoutOnMatrix(relation, filter);
+  ASSERT_THAT(result, Eq(expected));
+}
+
+TEST(EvaluateTest, EvaluateLayoutFor2DConv3x4Data2x2Filter) {
+  MLIRContext context;
+  RankedTensorType filterType =
+      RankedTensorType::get({2, 2}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({3, 4}, IndexType::get(&context));
+  IntegerRelation relation =
+      get2dConvFilterRelation(filterType, dataType, /*padding=*/1);
+
+  std::vector<std::vector<int>> filter = {{1, 2}, {3, 4}};
+  std::vector<std::vector<int>> expected = {
+      {4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+      {3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+      {0, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+      {0, 0, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0},
+      {0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0},
+
+      {2, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0},
+      {1, 2, 0, 0, 3, 4, 0, 0, 0, 0, 0, 0},
+      {0, 1, 2, 0, 0, 3, 4, 0, 0, 0, 0, 0},
+      {0, 0, 1, 2, 0, 0, 3, 4, 0, 0, 0, 0},
+      {0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 0},
+
+      {0, 0, 0, 0, 2, 0, 0, 0, 4, 0, 0, 0},
+      {0, 0, 0, 0, 1, 2, 0, 0, 3, 4, 0, 0},
+      {0, 0, 0, 0, 0, 1, 2, 0, 0, 3, 4, 0},
+      {0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 3, 4},
+      {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3},
+
+      {0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0},
+      {0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0},
+      {0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0},
+      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2},
+      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+  };
+
+  auto result = evaluateLayoutOnMatrix(relation, filter);
+  ASSERT_THAT(result, Eq(expected));
+}
+
+TEST(EvaluateTest, EvaluateLayoutFor2DConvDiagonalized) {
   // Figure 3 in Orion: https://arxiv.org/pdf/2311.03470
   MLIRContext context;
   RankedTensorType filterType =
