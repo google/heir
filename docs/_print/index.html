@@ -4310,35 +4310,11 @@ weights) to support FHE transpilation.</p><h4 id=example-17>Example</h4><p>Comma
 </span></span><span style=display:flex><span><span style=color:#000;font-weight:700>}</span>
 </span></span></code></pre></div><h3 id=-mod-arith-to-arith><code>-mod-arith-to-arith</code></h3><p><em>Lower <code>mod_arith</code> to standard <code>arith</code>.</em></p><p>This pass lowers the <code>mod_arith</code> dialect to their <code>arith</code> equivalents.</p><h3 id=-mod-arith-to-mac><code>-mod-arith-to-mac</code></h3><p><em>Finds consecutive ModArith mul and add operations and converts them to a Mac operation</em></p><p>Walks over the programs to find Add operations, it checks if the any operands
 originates from a mul operation. If so, it converts the Add operation to a
-Mac operation and removes the mul operation.</p><h3 id=-new-layout-propagation><code>-new-layout-propagation</code></h3><p><em>Propagate ciphertext layouts through the IR</em></p><p>This pass performs a forward propagation of layout (packing) information
-through the input IR, starting from the assumption that each secret tensor
-argument to a function has a row-major layout.</p><p>The chosen layouts (Integer Relations) are annotated on ops throughout the IR.
-In particular,</p><ul><li>Ops with a nested region and block arguments use a dictionary attribute to
-mark the layout of each block argument. <code>func.func</code> in particular uses the
-<code>tensor_ext.layout</code> dialect attribute, while others use an affine map
-attribute.</li><li>Other ops annotate their results with layouts as an ArrayAttr of layouts.
-The order of the affine maps corresponds to the order of results.</li></ul><p>When a plaintext SSA value is encountered as an input to a secret operation,
-a <code>tensor_ext.assign_layout</code> op is inserted that assigns it a default layout.
-This semantically corresponds to a plaintext packing operation. This is
-performed as late as possible before the SSA value is used, to avoid
-unnecessary layout conversions of plaintexts. This implies that not all SSA
-values in the IR are annotated with layouts, only those that have secret
-results or secret operands.</p><p>When two incompatible layouts are encountered as operands to the same op,
-<code>tensor_ext.convert_layout</code> ops are inserted. For example, consider the
-<code>linalg.reduce</code> operation for a summation. Summing along each of the two axes
-of a row-major-packed <code>tensor&lt;32x32xi16></code> results in two <code>tensor&lt;32xi16></code>,
-but with incompatible layouts: the first has a compact layout residing in the
-first 32-entries of a ciphertext, while the second is a strided layout with a
-stride of 32.</p><p>The converted op is arbitrarily chosen to have the layout of the first input,
-and later passes are responsible for optimizing the choice of which operand
-is converted and where the conversion operations are placed. This separation
-of duties allows this pass to be reused as a pure dataflow analysis, in which
-case it annotates an un-annotated IR with layout attributes.</p><p>TODO(#2047): Add doctest examples with the new layout</p><h4 id=options-21>Options</h4><pre tabindex=0><code>-ciphertext-size : Power of two length of the ciphertexts the data is packed in.
-</code></pre><h3 id=-openfhe-configure-crypto-context><code>-openfhe-configure-crypto-context</code></h3><p><em>Configure the crypto context in OpenFHE</em></p><p>This pass generates helper functions to generate and configure the OpenFHE crypto context for the given function. Generating the crypto context sets the appropriate encryption parameters, while the configuration generates the necessary evaluation keys (relinearization and rotation keys).</p><p>For the options, reader can refer to the OpenFHE documentation at
+Mac operation and removes the mul operation.</p><h3 id=-openfhe-configure-crypto-context><code>-openfhe-configure-crypto-context</code></h3><p><em>Configure the crypto context in OpenFHE</em></p><p>This pass generates helper functions to generate and configure the OpenFHE crypto context for the given function. Generating the crypto context sets the appropriate encryption parameters, while the configuration generates the necessary evaluation keys (relinearization and rotation keys).</p><p>For the options, reader can refer to the OpenFHE documentation at
 <a href=https://github.com/openfheorg/openfhe-development/blob/main/src/pke/examples/README.md#description-of-the-cryptocontext-parameters-and-their-restrictions>https://github.com/openfheorg/openfhe-development/blob/main/src/pke/examples/README.md#description-of-the-cryptocontext-parameters-and-their-restrictions</a></p><p>For example, for an MLIR function <code>@my_func</code>, the generated helpers have the following signatures</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-mlir data-lang=mlir><span style=display:flex><span><span style=color:#204a87;font-weight:700>func</span><span style=color:#000;font-weight:700>.</span><span style=color:#204a87;font-weight:700>func</span>  <span style=color:#000>@my_func__generate_crypto_context</span><span style=color:#000;font-weight:700>()</span> <span style=color:#000;font-weight:700>-&gt;</span> <span style=color:#000;font-weight:700>!</span>openfhe<span style=color:#000;font-weight:700>.</span>crypto_context
 </span></span><span style=display:flex><span>
 </span></span><span style=display:flex><span><span style=color:#204a87;font-weight:700>func</span><span style=color:#000;font-weight:700>.</span><span style=color:#204a87;font-weight:700>func</span>  <span style=color:#000>@my_func__configure_crypto_context</span><span style=color:#000;font-weight:700>(!</span>openfhe<span style=color:#000;font-weight:700>.</span>crypto_context<span style=color:#000;font-weight:700>,</span> <span style=color:#000;font-weight:700>!</span>openfhe<span style=color:#000;font-weight:700>.</span>private_key<span style=color:#000;font-weight:700>)</span> <span style=color:#000;font-weight:700>-&gt;</span> <span style=color:#000;font-weight:700>!</span>openfhe<span style=color:#000;font-weight:700>.</span>crypto_context
-</span></span></code></pre></div><h4 id=options-22>Options</h4><pre tabindex=0><code>-entry-function                 : Default entry function name of entry function.
+</span></span></code></pre></div><h4 id=options-21>Options</h4><pre tabindex=0><code>-entry-function                 : Default entry function name of entry function.
 -mul-depth                      : Manually specify the mul depth
 -ring-dim                       : Manually specify the ring dimension (insecure is implied)
 -batch-size                     : Manually specify the batch size
@@ -4375,7 +4351,7 @@ deferring it can reduce the need for bootstrapping.</p><p>In this pass, we use a
 relinearization strategy. It solves an ILP for each <code>func</code> op in the IR.</p><p>The assumptions of this pass include:</p><ul><li>All return values of functions must be linearized.</li><li>All ciphertext arguments to an op must have the same key basis</li><li>Rotation op inputs must have be linearized.</li></ul><p>For an ILP model specification, see the
 <a href=https://heir.dev/docs/design/relinearization_ilp/>docs at the HEIR website</a>.
 The model is an adaptation of the ILP described in
-<a href=https://www.jeremykun.com/2023/11/15/mlir-a-global-optimization-and-dataflow-analysis>a blog post by Jeremy Kun</a>.</p><h4 id=options-23>Options</h4><pre tabindex=0><code>-use-loc-based-variable-names : When true, the ILP uses op source locations in variable names, which can help debug ILP model bugs.
+<a href=https://www.jeremykun.com/2023/11/15/mlir-a-global-optimization-and-dataflow-analysis>a blog post by Jeremy Kun</a>.</p><h4 id=options-22>Options</h4><pre tabindex=0><code>-use-loc-based-variable-names : When true, the ILP uses op source locations in variable names, which can help debug ILP model bugs.
 -allow-mixed-degree-operands  : When true, allow ops to have mixed-degree ciphertexts as inputs, e.g., adding two ciphertexts with different key bases; this is supported by many FHE backends, like OpenFHE and Lattigo
 </code></pre><h3 id=-polynomial-approximation><code>-polynomial-approximation</code></h3><p><em>Approximate ops by polynomials</em></p><p>This pass replaces certain operations that are incompatible
 with the FHE computational model with polynomial approximations.</p><p>The pass applies to the following ops in the <code>math</code> dialect. When the
@@ -4397,7 +4373,7 @@ attribute.</p><h4 id=example-18>Example</h4><p>Command: <code>heir-opt --polynom
 </span></span><span style=display:flex><span>  <span style=color:#000;font-weight:700>}</span>
 </span></span><span style=display:flex><span><span style=color:#000;font-weight:700>}</span>
 </span></span></code></pre></div><h3 id=-polynomial-to-mod-arith><code>-polynomial-to-mod-arith</code></h3><p><em>Lower <code>polynomial</code> to standard MLIR dialects.</em></p><p>This pass lowers the <code>polynomial</code> dialect to standard MLIR plus mod_arith,
-including possibly ops from affine, tensor, linalg, and arith.</p><h4 id=options-24>Options</h4><pre tabindex=0><code>-build-materializations : Whether to build materializations
+including possibly ops from affine, tensor, linalg, and arith.</p><h4 id=options-23>Options</h4><pre tabindex=0><code>-build-materializations : Whether to build materializations
 </code></pre><h3 id=-populate-scale-bgv><code>-populate-scale-bgv</code></h3><p><em>Populate the scale for BGV (GHS variant) ciphertext</em></p><p>In the original BGV scheme, it is required that each modulus in
 the modulus chain is a prime number q such that $q \equiv 1 \pmod{t}$,
 the plaintext modulus. This is to ensure that the after each modulus
@@ -4460,7 +4436,7 @@ generated by the <code>generate-param-ckks</code> pass.</p><p>The scaling factor
 </span></span><span style=display:flex><span>    <span style=color:#204a87;font-weight:700>return</span> <span style=color:#000>%0</span> <span style=color:#000;font-weight:700>:</span> <span style=color:#000;font-weight:700>!</span>secret<span style=color:#000;font-weight:700>.</span>secret<span style=color:#000;font-weight:700>&lt;</span><span style=color:#204a87;font-weight:700>f32</span><span style=color:#000;font-weight:700>&gt;</span>
 </span></span><span style=display:flex><span>  <span style=color:#000;font-weight:700>}</span>
 </span></span><span style=display:flex><span><span style=color:#000;font-weight:700>}</span>
-</span></span></code></pre></div><h4 id=options-25>Options</h4><pre tabindex=0><code>-before-mul-include-first-mul : Modulus switching before each multiplication, including the first multiplication (default to false)
+</span></span></code></pre></div><h4 id=options-24>Options</h4><pre tabindex=0><code>-before-mul-include-first-mul : Modulus switching before each multiplication, including the first multiplication (default to false)
 </code></pre><h3 id=-propagate-annotation><code>-propagate-annotation</code></h3><p><em>Propagate annotation from operation to subsequent operations</em></p><p>This pass propagates the attribute from one operation to subsequent operations
 if these operations does not have the attribute already.</p><p>Example: with <code>--propagate-annotation=attr-name=test.attr</code></p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-mlir data-lang=mlir><span style=display:flex><span><span style=color:#204a87;font-weight:700>func</span><span style=color:#000;font-weight:700>.</span><span style=color:#204a87;font-weight:700>func</span> <span style=color:#000>@foo</span><span style=color:#000;font-weight:700>(</span><span style=color:#000>%arg0</span><span style=color:#000;font-weight:700>:</span> <span style=color:#204a87;font-weight:700>i16</span> <span style=color:#000;font-weight:700>{</span><span style=color:#f57900>test.attr =</span> <span style=color:#0000cf;font-weight:700>1</span><span style=color:#000;font-weight:700>})</span> <span style=color:#000;font-weight:700>-&gt;</span> <span style=color:#204a87;font-weight:700>i16</span> <span style=color:#000;font-weight:700>{</span>
 </span></span><span style=display:flex><span>  <span style=color:#000>%0</span> <span style=color:#000;font-weight:700>=</span> arith<span style=color:#000;font-weight:700>.</span>muli <span style=color:#000>%arg0</span><span style=color:#000;font-weight:700>,</span> <span style=color:#000>%arg0</span> <span style=color:#000;font-weight:700>:</span> <span style=color:#204a87;font-weight:700>i16</span>
@@ -4472,7 +4448,7 @@ if these operations does not have the attribute already.</p><p>Example: with <co
 </span></span><span style=display:flex><span>  <span style=color:#000>%1</span> <span style=color:#000;font-weight:700>=</span> mgmt<span style=color:#000;font-weight:700>.</span>relinearize <span style=color:#000>%0</span> <span style=color:#000;font-weight:700>{</span><span style=color:#f57900>test.attr =</span> <span style=color:#0000cf;font-weight:700>1</span> <span style=color:#000;font-weight:700>:</span> <span style=color:#204a87;font-weight:700>i64</span><span style=color:#000;font-weight:700>}</span> <span style=color:#000;font-weight:700>:</span> <span style=color:#204a87;font-weight:700>i16</span>
 </span></span><span style=display:flex><span>  <span style=color:#204a87;font-weight:700>return</span> <span style=color:#000;font-weight:700>{</span><span style=color:#f57900>test.attr =</span> <span style=color:#0000cf;font-weight:700>1</span> <span style=color:#000;font-weight:700>:</span> <span style=color:#204a87;font-weight:700>i64</span><span style=color:#000;font-weight:700>}</span> <span style=color:#000>%1</span> <span style=color:#000;font-weight:700>:</span> <span style=color:#204a87;font-weight:700>i16</span>
 </span></span><span style=display:flex><span><span style=color:#000;font-weight:700>}</span>
-</span></span></code></pre></div><h4 id=options-26>Options</h4><pre tabindex=0><code>-attr-name : The attribute name to propagate with.
+</span></span></code></pre></div><h4 id=options-25>Options</h4><pre tabindex=0><code>-attr-name : The attribute name to propagate with.
 -reverse   : Whether to propagate in reverse
 </code></pre><h3 id=-remove-unused-memref><code>-remove-unused-memref</code></h3><p><em>Cleanup any unused memrefs</em></p><p>Scan the IR for unused memrefs and remove them.</p><p>This pass looks for locally allocated memrefs that are never used and
 deletes them. This pass can be used as a cleanup pass from other IR
@@ -4529,7 +4505,7 @@ program that operates on a secret type annotates the input to a region as
 <code>secret.generic</code>, then uses this pass to simplify it.</p><p>The <code>distribute-through</code> option allows one to specify a comma-separated
 list of op names (e.g., <code>distribute-thorugh="affine.for,scf.if"</code>), which
 limits the distribution to only pass through those ops. If unset, all ops
-are distributed through when possible.</p><h4 id=options-27>Options</h4><pre tabindex=0><code>-distribute-through : comma-separated list of ops that should be distributed through
+are distributed through when possible.</p><h4 id=options-26>Options</h4><pre tabindex=0><code>-distribute-through : comma-separated list of ops that should be distributed through
 </code></pre><h3 id=-secret-extract-generic-body><code>-secret-extract-generic-body</code></h3><p><em>Extract the bodies of all generic ops into functions</em></p><p>This pass extracts the body of all generic ops into functions, and
 replaces the generic bodies with call ops. Used as a sub-operation in
 some passes, and extracted into its own pass for testing purposes.</p><p>This pass works best when <code>--secret-generic-absorb-constants</code> is run
@@ -4551,7 +4527,7 @@ back to the IR by using <code>--secret-import-execution-result=file-name=trace.l
 </span></span><span style=display:flex><span>    <span style=color:#000>%1</span> <span style=color:#000;font-weight:700>=</span> arith<span style=color:#000;font-weight:700>.</span>muli <span style=color:#000;font-weight:700>...</span> <span style=color:#000;font-weight:700>{</span><span style=color:#f57900>secret.execution_result =</span> <span style=color:#000;font-weight:700>[</span><span style=color:#0000cf;font-weight:700>2.0</span> <span style=color:#0000cf;font-weight:700>3.0</span> <span style=color:#0000cf;font-weight:700>4.0</span> <span style=color:#0000cf;font-weight:700>5.0</span> <span style=color:#0000cf;font-weight:700>6.0</span> <span style=color:#0000cf;font-weight:700>7.0</span> <span style=color:#0000cf;font-weight:700>8.0</span> <span style=color:#0000cf;font-weight:700>9.0</span><span style=color:#000;font-weight:700>]}</span>
 </span></span><span style=display:flex><span>  <span style=color:#000;font-weight:700>}</span>
 </span></span><span style=display:flex><span><span style=color:#000;font-weight:700>}</span>
-</span></span></code></pre></div><h4 id=options-28>Options</h4><pre tabindex=0><code>-file-name : file name of the execution result
+</span></span></code></pre></div><h4 id=options-27>Options</h4><pre tabindex=0><code>-file-name : file name of the execution result
 </code></pre><h3 id=-secret-insert-mgmt-bfv><code>-secret-insert-mgmt-bfv</code></h3><p><em>Place BFV ciphertext management operations</em></p><p>This pass inserts relinearization operation for multiplication, and
 compute the multiplicative depth, or the level information.</p><p>For most cases B/FV is instantiated with no mod reduce so it is not a
 leveled scheme. However, for instantiating B/FV parameters it is often
@@ -4615,7 +4591,7 @@ lower to corresponding RNS Type.</p><h4 id=example-22>Example</h4><p>Command: <c
 </span></span><span style=display:flex><span>    <span style=color:#204a87;font-weight:700>return</span> <span style=color:#000>%0</span> <span style=color:#000;font-weight:700>:</span> <span style=color:#000;font-weight:700>!</span>secret<span style=color:#000;font-weight:700>.</span>secret<span style=color:#000;font-weight:700>&lt;</span><span style=color:#204a87;font-weight:700>i16</span><span style=color:#000;font-weight:700>&gt;</span>
 </span></span><span style=display:flex><span>  <span style=color:#000;font-weight:700>}</span>
 </span></span><span style=display:flex><span><span style=color:#000;font-weight:700>}</span>
-</span></span></code></pre></div><h4 id=options-29>Options</h4><pre tabindex=0><code>-after-mul                    : Modulus switching after each multiplication (default to false)
+</span></span></code></pre></div><h4 id=options-28>Options</h4><pre tabindex=0><code>-after-mul                    : Modulus switching after each multiplication (default to false)
 -before-mul-include-first-mul : Modulus switching before each multiplication, including the first multiplication (default to false)
 </code></pre><h3 id=-secret-insert-mgmt-ckks><code>-secret-insert-mgmt-ckks</code></h3><p><em>Place CKKS ciphertext management operations</em></p><p>Check the description of secret-insert-mgmt-bgv. This pass
 implements similar strategy, where mgmt.modreduce stands for
@@ -4624,7 +4600,7 @@ where when all levels are consumed then a bootstrap is inserted.</p><p>The max l
 <code>bootstrap-waterline</code>.</p><p>Number of bootstrap consumed level is not shown here, which is
 handled by further lowering.
 TODO(#1207): handle it here so parameter selection can depend on it.
-TODO(#1207): with this info we can encrypt at max level (with bootstrap consumed level).</p><h4 id=options-30>Options</h4><pre tabindex=0><code>-after-mul                    : Modulus switching after each multiplication (default to false)
+TODO(#1207): with this info we can encrypt at max level (with bootstrap consumed level).</p><h4 id=options-29>Options</h4><pre tabindex=0><code>-after-mul                    : Modulus switching after each multiplication (default to false)
 -before-mul-include-first-mul : Modulus switching before each multiplication, including the first multiplication (default to false)
 -slot-number                  : Default number of slots use for ciphertext space.
 -bootstrap-waterline          : Waterline for insert bootstrap op
@@ -4636,14 +4612,14 @@ through arithmetic operations so that only one ciphertext operation appears
 per generic block. It also requires that <code>canonicalize</code> was run so that
 non-secret values used are removed from the <code>secret.generic</code>&rsquo;s block
 arguments.</p><p>The pass requires that all types are tensors of a uniform shape matching the
-dimension of the ciphertext space specified my <code>poly-mod-degree</code>.</p><h4 id=options-31>Options</h4><pre tabindex=0><code>-poly-mod-degree : Default degree of the cyclotomic polynomial modulus to use for ciphertext space.
+dimension of the ciphertext space specified my <code>poly-mod-degree</code>.</p><h4 id=options-30>Options</h4><pre tabindex=0><code>-poly-mod-degree : Default degree of the cyclotomic polynomial modulus to use for ciphertext space.
 </code></pre><h3 id=-secret-to-cggi><code>-secret-to-cggi</code></h3><p><em>Lower <code>secret</code> to <code>cggi</code> dialect.</em></p><p>This pass lowers the <code>secret</code> dialect to <code>cggi</code> dialect.</p><h3 id=-secret-to-ckks><code>-secret-to-ckks</code></h3><p><em>Lower <code>secret</code> to <code>ckks</code> dialect.</em></p><p>This pass lowers an IR with <code>secret.generic</code> blocks containing arithmetic
 operations to operations on ciphertexts with the CKKS dialect.</p><p>The pass assumes that the <code>secret.generic</code> regions have been distributed
 through arithmetic operations so that only one ciphertext operation appears
 per generic block. It also requires that <code>canonicalize</code> was run so that
 non-secret values used are removed from the <code>secret.generic</code>&rsquo;s block
 arguments.</p><p>The pass requires that all types are tensors of a uniform shape matching the
-dimension of the ciphertext space specified my <code>poly-mod-degree</code>.</p><h4 id=options-32>Options</h4><pre tabindex=0><code>-poly-mod-degree : Default degree of the cyclotomic polynomial modulus to use for ciphertext space.
+dimension of the ciphertext space specified my <code>poly-mod-degree</code>.</p><h4 id=options-31>Options</h4><pre tabindex=0><code>-poly-mod-degree : Default degree of the cyclotomic polynomial modulus to use for ciphertext space.
 </code></pre><h3 id=-secret-to-mod-arith><code>-secret-to-mod-arith</code></h3><p><em>Lower <code>secret</code> to <code>mod-arith</code> dialect.</em></p><p>This pass lowers an IR with <code>secret.generic</code> blocks containing arithmetic
 operations to operations on plaintexts using the <code>mod_arith</code> dialect.
 This is primarily used in the plaintext lowering pipeline, where operations
@@ -4651,11 +4627,11 @@ are performed directly against plaintexts.</p><p>The pass assumes that the <code
 through arithmetic operations so that only one ciphertext operation appears
 per generic block. It also requires that <code>canonicalize</code> was run so that
 non-secret values used are removed from the <code>secret.generic</code>&rsquo;s block
-arguments.</p><h4 id=options-33>Options</h4><pre tabindex=0><code>-modulus   : Modulus to use for the mod-arith dialect. If not specified, the pass will use the natural modulus for that integer type
+arguments.</p><h4 id=options-32>Options</h4><pre tabindex=0><code>-modulus   : Modulus to use for the mod-arith dialect. If not specified, the pass will use the natural modulus for that integer type
 -log-scale : Log base 2 of the scale for encoding floating points as ints.
 </code></pre><h3 id=-secretize><code>-secretize</code></h3><p><em>Adds secret argument attributes to entry function</em></p><p>Helper pass that adds a secret.secret attribute argument to each function argument.
 By default, the pass applies to all functions in the module.
-This may be overridden with the option -function=func_name to apply to a single function only.</p><h4 id=options-34>Options</h4><pre tabindex=0><code>-function : function to add secret annotations to
+This may be overridden with the option -function=func_name to apply to a single function only.</p><h4 id=options-33>Options</h4><pre tabindex=0><code>-function : function to add secret annotations to
 </code></pre><h3 id=-select-rewrite><code>-select-rewrite</code></h3><p><em>Rewrites arith.select to a CMUX style expression</em></p><p>&ldquo;This pass rewrites arith.select %c, %t, %f to %c * %t + (1 - %c) * %f.
 It supports all three variants of arith.select: scalar, shaped, and mixed types.
 In the latter case, it will broadcast/splat the scalar condition value to the required shape.&rdquo;</p><h3 id=-shape-inference><code>-shape-inference</code></h3><p><em>Infer shapes for shaped types</em></p><p>This pass infers the shapes of shaped types in a function,
@@ -4696,7 +4672,7 @@ for preprocessing.</p><h4 id=example-23>Example</h4><p>Command: <code>heir-opt -
 </span></span><span style=display:flex><span>  <span style=color:#000;font-weight:700>}</span>
 </span></span><span style=display:flex><span><span style=color:#000;font-weight:700>}</span>
 </span></span></code></pre></div><h3 id=-straight-line-vectorize><code>-straight-line-vectorize</code></h3><p><em>A vectorizer for straight line programs.</em></p><p>This pass ignores control flow and only vectorizes straight-line programs
-within a given region.</p><h4 id=options-35>Options</h4><pre tabindex=0><code>-dialect : Use this to restrict the dialect whose ops should be vectorized.
+within a given region.</p><h4 id=options-34>Options</h4><pre tabindex=0><code>-dialect : Use this to restrict the dialect whose ops should be vectorized.
 </code></pre><h3 id=-tensor-ext-to-tensor><code>-tensor-ext-to-tensor</code></h3><p><em>Lower <code>tensor_ext</code> to <code>tensor</code> dialect.</em></p><p>This pass lowers the <code>tensor_ext</code> dialect to the <code>tensor</code> dialect.</p><p>This pass is intended to be used for testing purpose where the
 secret arithmetic IR containing <code>tensor_ext</code> dialect is lowered
 to the IR containing <code>tensor</code> dialect, which could be further
@@ -4748,7 +4724,7 @@ handled by memref-global-replace, which should be run after this pass.</p><h3 id
 this is done by the <code>generate-param-&lt;scheme></code> passes.</p><p>For available noise models, see <code>generate-param-&lt;scheme></code> passes.</p><p>The result should be observed using &ndash;debug-only=ValidateNoise.</p><p>Example</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#8f5902;font-style:italic># with commandline --debug-only=ValidateNoise</span>
 </span></span><span style=display:flex><span>Noise Bound: 29.27 Budget: 149.73 Total: 179.00 <span style=color:#204a87;font-weight:700>for</span> value: &lt;block argument&gt; of <span style=color:#204a87>type</span> <span style=color:#4e9a06>&#39;tensor&lt;8xi16&gt;&#39;</span> at index: <span style=color:#0000cf;font-weight:700>0</span>
 </span></span><span style=display:flex><span>Noise Bound: 29.27 Budget: 149.73 Total: 179.00 <span style=color:#204a87;font-weight:700>for</span> value: &lt;block argument&gt; of <span style=color:#204a87>type</span> <span style=color:#4e9a06>&#39;tensor&lt;8xi16&gt;&#39;</span> at index: <span style=color:#0000cf;font-weight:700>1</span>
-</span></span></code></pre></div><h4 id=options-36>Options</h4><pre tabindex=0><code>-model                : Noise model to validate against.
+</span></span></code></pre></div><h4 id=options-35>Options</h4><pre tabindex=0><code>-model                : Noise model to validate against.
 -annotate-noise-bound : Annotate the noise bound to the IR.
 </code></pre><h3 id=-wrap-generic><code>-wrap-generic</code></h3><p><em>Wraps regions using secret args in secret.generic bodies</em></p><p>This pass converts functions (<code>func.func</code>) with <code>{secret.secret}</code> annotated
 arguments to use <code>!secret.secret&lt;...></code> types and wraps the function body in
