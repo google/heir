@@ -296,41 +296,6 @@ class ConvertConvertLayout
   LogicalResult matchAndRewrite(
       tensor_ext::ConvertLayoutOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter& rewriter) const final {
-    LLVM_DEBUG(llvm::dbgs()
-               << "ConvertConvertLayout: dataSemanticType="
-               << op.getValue().getType() << ", ciphertextSemanticType="
-               << adaptor.getValue().getType() << "\n");
-
-    LayoutAttr fromLayout = dyn_cast<LayoutAttr>(op.getFromLayout());
-    LayoutAttr toLayout = dyn_cast<LayoutAttr>(op.getToLayout());
-    if (!fromLayout || !toLayout) {
-      return op.emitError()
-             << "ConvertLayoutOp must have from and to LayoutAttrs";
-    }
-
-    std::shared_ptr<IntegerRelation> composedLayout =
-        fromLayout.getIntegerRelation().clone();
-    composedLayout->inverse();
-    composedLayout->compose(toLayout.getIntegerRelation());
-    auto remapOp = tensor_ext::RemapOp::create(
-        rewriter, op.getLoc(), adaptor.getValue(),
-        LayoutAttr::getFromIntegerRelation(getContext(), *composedLayout));
-    remapOp->setAttr(kLayoutAttrName, op->getAttr(kLayoutAttrName));
-    setMaterializedAttr(remapOp);
-    rewriter.replaceOp(op, remapOp);
-    return success();
-  };
-};
-
-class ConvertConvertLayoutLayout
-    : public ContextAwareOpConversionPattern<tensor_ext::ConvertLayoutOp> {
- public:
-  using ContextAwareOpConversionPattern<
-      tensor_ext::ConvertLayoutOp>::ContextAwareOpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      tensor_ext::ConvertLayoutOp op, OpAdaptor adaptor,
-      ContextAwareConversionPatternRewriter& rewriter) const final {
     LayoutAttr fromLayout = dyn_cast<LayoutAttr>(op.getFromLayout());
     LayoutAttr toLayout = dyn_cast<LayoutAttr>(op.getToLayout());
     if (!fromLayout || !toLayout) {
@@ -340,15 +305,13 @@ class ConvertConvertLayoutLayout
     // This is persisted as an operation rather than lowered eagerly to a shift
     // network so as to allow VosVosErkinShiftNetworks to cache its work across
     // multiple instances of the same conversion.
-    std::shared_ptr<IntegerRelation> toLayoutClone =
-        toLayout.getIntegerRelation().clone();
-    toLayoutClone->inverse();
-    toLayoutClone->compose(fromLayout.getIntegerRelation());
-    LayoutAttr combinedLayout =
-        LayoutAttr::getFromIntegerRelation(getContext(), *toLayoutClone);
-
+    std::shared_ptr<IntegerRelation> composedLayout =
+        fromLayout.getIntegerRelation().clone();
+    composedLayout->inverse();
+    composedLayout->compose(toLayout.getIntegerRelation());
     auto remapOp = tensor_ext::RemapOp::create(
-        rewriter, op.getLoc(), adaptor.getValue(), combinedLayout);
+        rewriter, op.getLoc(), adaptor.getValue(),
+        LayoutAttr::getFromIntegerRelation(getContext(), *composedLayout));
 
     setMaterializedAttr(remapOp);
     setAttributeAssociatedWith(remapOp, kLayoutAttrName, toLayout);
@@ -1503,7 +1466,7 @@ struct ConvertToCiphertextSemantics
 
     patterns.add<ConvertFunc, ConvertGeneric,
                  // tensor_ext ops
-                 ConvertConvertLayout, ConvertConvertLayoutLayout,
+                 ConvertConvertLayout,
                  // linalg ops
                  ConvertLinalgReduce, ConvertLinalgMatvecLayout,
                  ConvertLinalgConv2D,
