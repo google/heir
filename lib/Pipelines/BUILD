@@ -135,6 +135,7 @@ cc_library(
         "@heir//lib/Transforms/OptimizeRelinearization",
         "@heir//lib/Transforms/PopulateScale",
         "@heir//lib/Transforms/PropagateAnnotation",
+        "@heir//lib/Transforms/ReluCanonicalizations",
         "@heir//lib/Transforms/SecretInsertMgmt",
         "@heir//lib/Transforms/Secretize",
         "@heir//lib/Transforms/SelectRewrite",
