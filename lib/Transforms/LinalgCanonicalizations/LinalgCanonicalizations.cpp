@@ -6,6 +6,7 @@
 
 #include "lib/Utils/TensorUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/LinalgInterfaces.h"  // from @llvm-project
@@ -17,9 +18,11 @@
 #include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/IRMapping.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"         // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
@@ -259,9 +262,9 @@ struct LinalgMapToElementwise : public OpRewritePattern<mlir::linalg::MapOp> {
   }
 };
 
-// Folds linalg.generic operations that apply a single elementwise operation
-// into the elementwise operation on the tensors. This requires that the
-// destination tensor was created with a tensor.empty operation.
+// Folds linalg.generic operations that apply a elementwise operations
+// into the elementwise operations on the tensors. The indexing maps must all be
+// identity maps and the iterator types must all be parallel.
 struct LinalgGenericToElementwise
     : public OpRewritePattern<mlir::linalg::GenericOp> {
  public:
@@ -272,42 +275,20 @@ struct LinalgGenericToElementwise
 
   LogicalResult matchAndRewrite(mlir::linalg::GenericOp genericOp,
                                 PatternRewriter& rewriter) const override {
-    // The region should have exactly two operations (the second is a yield).
-    auto* mapper = genericOp.getBody(0);
-    if (mapper->getOperations().size() != 2)
-      return rewriter.notifyMatchFailure(
-          genericOp, "genericOp with multiple operations not supported");
-
-    // The operation should be elementwise.
-    Operation& op = mapper->getOperations().front();
-    if (!op.hasTrait<mlir::OpTrait::Elementwise>())
-      return rewriter.notifyMatchFailure(
-          genericOp, "genericOp with non-elementwise operation not supported");
-
-    SmallVector<Value> newInputs;
-    for (auto argument : op.getOperands()) {
-      if (!isa<BlockArgument>(argument)) {
-        // We have a scalar used as a argument to the elementwise operation.
-        // Construct a splat tensor with that element.
-        newInputs.push_back(tensor::SplatOp::create(
-            rewriter, genericOp->getLoc(), genericOp.getInputs()[0].getType(),
-            argument));
-      } else {
-        auto blockArgument = cast<BlockArgument>(argument);
-        assert(blockArgument.getArgNumber() < genericOp.getInputs().size() &&
-               "expecting that the elementwise operation does not use the "
-               "output's initial values");
-        newInputs.push_back(
-            genericOp.getInputs()[blockArgument.getArgNumber()]);
+    // The operations should be elementwise or constants.
+    for (auto& op : genericOp.getBody()->getOperations()) {
+      if (isa<linalg::YieldOp>(op) || isa<arith::ConstantOp>(op)) continue;
+      if (!OpTrait::hasElementwiseMappableTraits(&op)) {
+        return rewriter.notifyMatchFailure(
+            genericOp,
+            "requires operations in generic body to have elementwise "
+            "mappable traits");
       }
     }
 
     // Check that the indexing maps are the identity.
-    auto indexingMaps = genericOp.getIndexingMaps();
-    for (auto map : indexingMaps) {
-      auto mapAttr = cast<AffineMapAttr>(map).getValue();
-      if (mapAttr != AffineMap::getMultiDimIdentityMap(mapAttr.getNumDims(),
-                                                       rewriter.getContext())) {
+    for (auto mapAttr : genericOp.getIndexingMapsArray()) {
+      if (!mapAttr.isIdentity()) {
         return rewriter.notifyMatchFailure(
             genericOp,
             "genericOp with non-identity indexing map not supported");
@@ -315,8 +296,7 @@ struct LinalgGenericToElementwise
     }
 
     // Check that the iterator types are all parallel.
-    auto iteratorTypes = genericOp.getIteratorTypesArray();
-    for (auto iteratorType : iteratorTypes) {
+    for (auto iteratorType : genericOp.getIteratorTypesArray()) {
       if (iteratorType != utils::IteratorType::parallel) {
         return rewriter.notifyMatchFailure(
             genericOp,
@@ -324,28 +304,68 @@ struct LinalgGenericToElementwise
       }
     }
 
-    auto outputs = genericOp.getOutputs();
-    if (outputs.size() != 1) {
-      return rewriter.notifyMatchFailure(
-          genericOp, "genericOp with multiple outputs not supported");
+    // Now replace the body with corresponding elementwise operations.
+    OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPoint(genericOp);
+    IRMapping bvm;
+
+    // Map the block arguments to the tensor operands of the generic op.
+    for (auto const& [i, arg] :
+         llvm::enumerate(genericOp.getRegion().getArguments())) {
+      bvm.map(arg, genericOp.getOperand(i));
     }
-    auto dest = outputs[0];
-    // Don't copy the linalg specific attrs onto the elementwise op
-    auto attrs = genericOp->getAttrDictionary();
-    SmallVector<NamedAttribute> newAttrs;
-    for (auto attr : attrs) {
-      if (attr.getName() != "indexing_maps" &&
-          attr.getName() != "iterator_types" &&
-          attr.getName() != "operandSegmentSizes") {
-        newAttrs.push_back(attr);
+
+    for (auto& innerOp : genericOp.getBody()->getOperations()) {
+      if (isa<linalg::YieldOp>(innerOp)) {
+        auto results = llvm::to_vector(llvm::map_range(
+            innerOp.getOperands(), [&](Value v) { return bvm.lookup(v); }));
+        rewriter.replaceOp(genericOp, results);
+        break;
       }
+
+      // Since the generic indexing map and iterator types are the same for all
+      // results, each result shape should be the same so use the first result
+      // to infer the shapes of the tensor values.
+      auto resultTensorShape =
+          cast<RankedTensorType>(genericOp.getResult(0).getType()).getShape();
+      for (auto& operand : innerOp.getOpOperands()) {
+        Value operandValue = operand.get();
+        if (auto blockArgument = dyn_cast<BlockArgument>(operandValue)) {
+          assert(blockArgument.getArgNumber() < genericOp.getInputs().size() &&
+                 "expecting that the elementwise operation does not use the "
+                 "output's initial values");
+          // Map the block argument to the operand of the generic op.
+          bvm.map(operandValue,
+                  genericOp.getOperand(blockArgument.getArgNumber()));
+        } else if (operandValue.getParentBlock() != genericOp.getBody()) {
+          // If this isn't a block argument and wasn't defined in the generic,
+          // then it must be a constant from outside the generic. The shape of
+          // the splat constant must match the result of this op since
+          // all of the operations are elementwise.
+          Value splatTensor = tensor::SplatOp::create(
+              rewriter, genericOp.getLoc(),
+              RankedTensorType::get(resultTensorShape, operandValue.getType()),
+              operandValue);
+          bvm.map(operandValue, splatTensor);
+        } else {
+          // This was defined within the generic op so it must be a result of
+          // some other innerOp and its value must have a mapping in bvm.
+          assert(bvm.lookup(operandValue) &&
+                 "expected a mapping for this value");
+        }
+      }
+      auto newInputs = llvm::to_vector(llvm::map_range(
+          innerOp.getOperands(), [&](Value v) { return bvm.lookup(v); }));
+      auto newDestTypes = llvm::to_vector(
+          llvm::map_range(innerOp.getResultTypes(), [&](Type t) -> Type {
+            return RankedTensorType::get(resultTensorShape, t);
+          }));
+      auto* elementwiseOp = rewriter.create(
+          genericOp->getLoc(), innerOp.getName().getIdentifier(), newInputs,
+          newDestTypes, innerOp.getAttrs(), {}, {});
+      bvm.map(innerOp.getResults(), elementwiseOp->getResults());
     }
-    auto* elementwiseOp =
-        rewriter.create(genericOp->getLoc(), op.getName().getIdentifier(),
-                        newInputs, TypeRange(dest.getType()), newAttrs, {}, {});
-    rewriter.replaceOp(genericOp, elementwiseOp);
-    if (dest.use_empty() && dest.getDefiningOp())
-      rewriter.eraseOp(dest.getDefiningOp());
+
     return success();
   }
 };

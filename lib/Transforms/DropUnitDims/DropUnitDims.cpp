@@ -14,6 +14,7 @@
 #include "mlir/include/mlir/Dialect/Linalg/IR/LinalgInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/Transforms/Transforms.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Utils/ReshapeOpsUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/IRMapping.h"              // from @llvm-project
@@ -26,6 +27,7 @@
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
+#include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
 
 #define DEBUG_TYPE "drop-unit-dims"
 
@@ -164,6 +166,50 @@ struct ReduceLinalgMap : OpRewritePattern<linalg::MapOp> {
   }
 };
 
+struct CollapseExtractSlice : public OpRewritePattern<tensor::ExtractSliceOp> {
+  using OpRewritePattern<tensor::ExtractSliceOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(tensor::ExtractSliceOp op,
+                                PatternRewriter& rewriter) const override {
+    auto sourceType = op.getSourceType();
+    auto resultType = op.getResultType();
+    SliceVerificationResult res = isRankReducedType(sourceType, resultType);
+    if (res != SliceVerificationResult::Success)
+      return rewriter.notifyMatchFailure(
+          op, "expected rank reducing extract_slice");
+
+    auto reassociation =
+        getReassociationIndicesForReshape(sourceType, resultType);
+    if (!reassociation) return failure();
+
+    rewriter.replaceOpWithNewOp<tensor::CollapseShapeOp>(
+        op, op.getResultType(), op.getSource(), reassociation.value());
+    return success();
+  }
+};
+
+struct ExpandInsertSlice : public OpRewritePattern<tensor::InsertSliceOp> {
+  using OpRewritePattern<tensor::InsertSliceOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(tensor::InsertSliceOp op,
+                                PatternRewriter& rewriter) const override {
+    auto sourceType = op.getSourceType();
+    auto resultType = op.getResultType();
+    SliceVerificationResult res = isRankReducedType(resultType, sourceType);
+    if (res != SliceVerificationResult::Success)
+      return rewriter.notifyMatchFailure(
+          op, "expected rank expanding insert_slice");
+
+    auto reassociation =
+        getReassociationIndicesForReshape(resultType, sourceType);
+    if (!reassociation) return failure();
+
+    rewriter.replaceOpWithNewOp<tensor::ExpandShapeOp>(
+        op, op.getResultType(), op.getSource(), reassociation.value());
+    return success();
+  }
+};
+
 struct DropUnitDims : impl::DropUnitDimsBase<DropUnitDims> {
   using DropUnitDimsBase::DropUnitDimsBase;
 
@@ -172,8 +218,19 @@ struct DropUnitDims : impl::DropUnitDimsBase<DropUnitDims> {
     RewritePatternSet patterns(context);
     linalg::populateContractionOpRankReducingPatterns(patterns);
     patterns.add<ReduceLinalgMap>(context);
+    linalg::ControlDropUnitDims options;
+    options.rankReductionStrategy =
+        linalg::ControlDropUnitDims::RankReductionStrategy::ExtractInsertSlice;
+    linalg::populateFoldUnitExtentDimsPatterns(patterns, options);
+    linalg::populateMoveInitOperandsToInputPattern(patterns);
+
     if (failed(applyPatternsGreedily(getOperation(), std::move(patterns))))
       signalPassFailure();
+
+    // Convert extract_slice and insert_slice to collapse and expand shape ops.
+    RewritePatternSet collapsePatterns(context);
+    collapsePatterns.add<CollapseExtractSlice, ExpandInsertSlice>(context);
+    walkAndApplyPatterns(getOperation(), std::move(collapsePatterns));
   }
 };
 
