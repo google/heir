@@ -3841,7 +3841,28 @@ if these operations does not have the attribute already.&lt;/p>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-25">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-attr-name : The attribute name to propagate with.
 -reverse : Whether to propagate in reverse
-&lt;/code>&lt;/pre>&lt;h3 id="-remove-unused-memref">&lt;code>-remove-unused-memref&lt;/code>&lt;/h3>
+&lt;/code>&lt;/pre>&lt;h3 id="-relu-canonicalizations">&lt;code>-relu-canonicalizations&lt;/code>&lt;/h3>
+&lt;p>&lt;em>Rewrites comparison and selection to a min/max&lt;/em>&lt;/p>
+&lt;p>This pass rewrites selections with a constant comparison to a min/max
+operation.&lt;/p>
+&lt;h4 id="example-21">Example&lt;/h4>
+&lt;p>Command: &lt;code>heir-opt --relu-canonicalizations --canonicalize tests/Transforms/relu_canonicalizations/doctest.mlir&lt;/code>&lt;/p>
+&lt;p>Input:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@relu&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">f32&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%cst_0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0.000000e+00&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>cmpf ugt&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%cst_0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>select &lt;span style="color:#000">%0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%cst_0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Output:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>module &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@relu&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">f32&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%cst&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0.000000e+00&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>maximumf &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%cst&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="-remove-unused-memref">&lt;code>-remove-unused-memref&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Cleanup any unused memrefs&lt;/em>&lt;/p>
 &lt;p>Scan the IR for unused memrefs and remove them.&lt;/p>
 &lt;p>This pass looks for locally allocated memrefs that are never used and
@@ -3970,7 +3991,7 @@ compute the multiplicative depth, or the level information.&lt;/p>
 &lt;p>For most cases B/FV is instantiated with no mod reduce so it is not a
 leveled scheme. However, for instantiating B/FV parameters it is often
 meaningful to know the multiplicative depth of the circuit.&lt;/p>
-&lt;h4 id="example-21">Example&lt;/h4>
+&lt;h4 id="example-22">Example&lt;/h4>
 &lt;p>Command: &lt;code>heir-opt --secret-insert-mgmt-bfv tests/Transforms/secret_insert_mgmt_bfv/doctest.mlir&lt;/code>&lt;/p>
 &lt;p>Input:&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@func&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;,&lt;/span> &lt;span style="color:#000">%arg1&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
@@ -4021,7 +4042,7 @@ result of multiplication or derived value of a multiplication.&lt;/p>
 includes the level and dimension information of a ciphertext. This
 information is subsequently used by the secret-to-bgv pass to properly
 lower to corresponding RNS Type.&lt;/p>
-&lt;h4 id="example-22">Example&lt;/h4>
+&lt;h4 id="example-23">Example&lt;/h4>
 &lt;p>Command: &lt;code>heir-opt --secret-insert-mgmt-bgv tests/Transforms/secret_insert_mgmt_bgv/doctest.mlir&lt;/code>&lt;/p>
 &lt;p>Input:&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@func&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;,&lt;/span> &lt;span style="color:#000">%arg1&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
@@ -4144,7 +4165,7 @@ passed to the main function. This is used to allow packing of
 plaintexts to be done in advance of the main workload, and passed in as
 arguments. Only plaintexts of &lt;code>arith.constant&lt;/code> ops are currently extracted
 for preprocessing.&lt;/p>
-&lt;h4 id="example-23">Example&lt;/h4>
+&lt;h4 id="example-24">Example&lt;/h4>
 &lt;p>Command: &lt;code>heir-opt --split-preprocessing tests/Transforms/split_preprocessing/split_preprocessing.mlir&lt;/code>&lt;/p>
 &lt;p>Input:&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#vec_layout&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#tensor_ext.layout&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;{ [i0] -&amp;gt; [ct, slot] : (i0 - slot) mod 1024 = 0 and i0 &amp;gt;= 0 and 0 &amp;gt;= i0 and slot &amp;gt;= 0 and 1023 &amp;gt;= slot and ct = 0 }&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
@@ -4190,7 +4211,7 @@ within a given region.&lt;/p>
 secret arithmetic IR containing &lt;code>tensor_ext&lt;/code> dialect is lowered
 to the IR containing &lt;code>tensor&lt;/code> dialect, which could be further
 lowered to the LLVM dialect.&lt;/p>
-&lt;h4 id="example-24">Example&lt;/h4>
+&lt;h4 id="example-25">Example&lt;/h4>
 &lt;p>Command: &lt;code>heir-opt --tensor-ext-to-tensor tests/Dialect/TensorExt/Conversions/tensor_ext_to_tensor/doctest.mlir&lt;/code>&lt;/p>
 &lt;p>Input:&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@test_rotate&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
@@ -4275,7 +4296,7 @@ this is done by the &lt;code>generate-param-&amp;lt;scheme&amp;gt;&lt;/code> pas
 arguments to use &lt;code>!secret.secret&amp;lt;...&amp;gt;&lt;/code> types and wraps the function body in
 a &lt;code>secret.generic&lt;/code> region. The output type is also converted to
 &lt;code>!secret.secret&amp;lt;...&amp;gt;&lt;/code>.&lt;/p>
-&lt;h4 id="example-25">Example&lt;/h4>
+&lt;h4 id="example-26">Example&lt;/h4>
 &lt;p>Command: &lt;code>heir-opt --wrap-generic tests/Transforms/wrap_generic/doctest.mlir&lt;/code>&lt;/p>
 &lt;p>Input:&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@main&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">})&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
@@ -4331,11 +4352,7 @@ and &lt;a href="https://youtu.be/HfCUuwt0E0A">video recording&lt;/a> from the HE
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/1v3P8LhabG75UCM3xhNcp9yTes3P7DpOqsVDFKVCSdwg/edit?usp=sharing">notes&lt;/a>
 and &lt;a href="https://youtu.be/t7T9dWtjM8Q">video recording&lt;/a> from the HEIR meeting on
-2025-08-07.&lt;/p></description></item><item><title>Blog: HEIR meeting 2025-07-10</title><link>https://heir.dev/blog/2025/07/10/heir-meeting-2025-07-10/</link><pubDate>Thu, 10 Jul 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/07/10/heir-meeting-2025-07-10/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/17HaAzW2KZMlwgQwVttDblWY3Ta7ey5LvJ0XOKvnnLZE/edit?usp=sharing">notes&lt;/a>
-and &lt;a href="https://youtu.be/dCBWr05kOks">video recording&lt;/a> from the HEIR meeting on
-2025-06-12.&lt;/p></description></item><item><title>Blog: HEIR meeting 2025-04-17</title><link>https://heir.dev/blog/2025/04/17/heir-meeting-2025-04-17/</link><pubDate>Thu, 17 Apr 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/04/17/heir-meeting-2025-04-17/</guid><description>
+2025-08-07.&lt;/p></description></item><item><title>Blog: HEIR meeting 2025-04-17</title><link>https://heir.dev/blog/2025/04/17/heir-meeting-2025-04-17/</link><pubDate>Thu, 17 Apr 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/04/17/heir-meeting-2025-04-17/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/1be2IqEcj14CF-MA17SjZaS_soRDf-xTrMP-yAKh1BWE/edit?usp=sharing">notes&lt;/a>
 and &lt;a href="https://youtu.be/HHU6rCMxZRc">video recording&lt;/a> from the HEIR meeting on
@@ -4347,7 +4364,11 @@ management in the compiler. This talk
 &lt;p>Jeremy Kun gave a talk at the FHE.org 2025 conference in Sofia last month. The
 &lt;a href="https://www.youtube.com/watch?v=6JPwpTOcydM&amp;amp;list=PLnbmMskCVh1cCnWbmgxI0BM0UD2JHH9fz&amp;amp;index=5">video&lt;/a>
 has been posted on YouTube, and the slides can be found
-&lt;a href="https://docs.google.com/presentation/d/1nKj0i0tyBSGUAI-tYMUDeji-EgqCj4PBrgw_NgMb3fM/edit?usp=sharing">here&lt;/a>.&lt;/p></description></item><item><title>Blog: HEIR meeting 2025-02-20</title><link>https://heir.dev/blog/2025/02/20/heir-meeting-2025-02-20/</link><pubDate>Thu, 20 Feb 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/02/20/heir-meeting-2025-02-20/</guid><description>
+&lt;a href="https://docs.google.com/presentation/d/1nKj0i0tyBSGUAI-tYMUDeji-EgqCj4PBrgw_NgMb3fM/edit?usp=sharing">here&lt;/a>.&lt;/p></description></item><item><title>Blog: HEIR meeting 2025-03-20</title><link>https://heir.dev/blog/2025/03/20/heir-meeting-2025-03-20/</link><pubDate>Thu, 20 Mar 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/03/20/heir-meeting-2025-03-20/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1TMXQBVumA4YmOTH5QgKR27_Sb-60PI7bKyltJ-D3jbE/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/ULRFEmhwzZE">video recording&lt;/a> from the HEIR meeting on
+2025-03-20.&lt;/p></description></item><item><title>Blog: HEIR meeting 2025-02-20</title><link>https://heir.dev/blog/2025/02/20/heir-meeting-2025-02-20/</link><pubDate>Thu, 20 Feb 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/02/20/heir-meeting-2025-02-20/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/1Aza4s6Z0NCON9rQR70DOUkKSwBV6bHAmuYV8sIb8n7o/edit?usp=sharing">notes&lt;/a>
 and &lt;a href="https://youtu.be/Y82A6BLAVtc">video recording&lt;/a> from the HEIR meeting on
@@ -4377,12 +4398,7 @@ from the HEIR meeting on 2024-10-31.&lt;/p></description></item><item><title>Blo
 &lt;a href="https://docs.google.com/document/d/1tlC-g3JKOB9wxfQMEJnKQk0C0eBdtBCzZX8ck7J37fI/edit?usp=sharing">notes&lt;/a>
 and
 &lt;a href="https://drive.google.com/file/d/1OFfrwWesFpxVHw2DFuNAxSB8seLG_tr1/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-10-04.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-09-19</title><link>https://heir.dev/blog/2024/09/19/heir-meeting-2024-09-19/</link><pubDate>Thu, 19 Sep 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/09/19/heir-meeting-2024-09-19/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1aGIiZPWpk7UMg5FD8ZYHmNhKVZ6NdhfmGMvyHrrlolM/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1i-HqUi8pb2ywUJ-OT4fWExYCmeRLu2Cn/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-09-19.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-09-05</title><link>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</link><pubDate>Thu, 05 Sep 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</guid><description>
+from the HEIR meeting on 2024-10-04.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-09-05</title><link>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</link><pubDate>Thu, 05 Sep 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/1tohVmC2pn_XDn3gjCFeo3K4Wfyf7VWu3oK1vimEsFD4/edit?usp=sharing">notes&lt;/a>
 and
@@ -4392,17 +4408,7 @@ from the HEIR meeting on 2024-09-05.&lt;/p></description></item><item><title>Blo
 &lt;a href="https://docs.google.com/document/d/1iEkzpO6lCVbShMcRenO3j3DptOEP-0bLu_9V4K7c39M/edit?usp=sharing">notes&lt;/a>
 and
 &lt;a href="https://drive.google.com/file/d/1wFrGF7lMiYZmqbr5WQO17HomfoFoOeaj/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-08-22.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-08-08</title><link>https://heir.dev/blog/2024/08/08/heir-meeting-2024-08-08/</link><pubDate>Thu, 08 Aug 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/08/08/heir-meeting-2024-08-08/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1FLSiaPlX38GNHqqqi_Mz3gMuVSlS4sUcwBWqpt6Fkew/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1sHoRvNlS14RB-r3Rk0y2RyWOERVGNc-t/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-08-08.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-07-25</title><link>https://heir.dev/blog/2024/07/25/heir-meeting-2024-07-25/</link><pubDate>Thu, 25 Jul 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/07/25/heir-meeting-2024-07-25/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1tIrxc4V5OlAeqx_Z1rl_kuMmkd-HUAKEv90q3i-5QSU/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1_1CbRJeNr5NqcwEMXnfkxOqy9u5wJPyq/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-07-25.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-07-18 (mod_arith dialect)</title><link>https://heir.dev/blog/2024/07/18/heir-meeting-2024-07-18-mod_arith-dialect/</link><pubDate>Thu, 18 Jul 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/07/18/heir-meeting-2024-07-18-mod_arith-dialect/</guid><description>
+from the HEIR meeting on 2024-08-22.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-07-18 (mod_arith dialect)</title><link>https://heir.dev/blog/2024/07/18/heir-meeting-2024-07-18-mod_arith-dialect/</link><pubDate>Thu, 18 Jul 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/07/18/heir-meeting-2024-07-18-mod_arith-dialect/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/1o2-I03DJtNJQDupSHn8LtOXLmxsd3WO1fjvqLbT-SIc/edit?usp=sharing">notes&lt;/a>
 and
@@ -4413,22 +4419,7 @@ modular arithmetic dialect.&lt;/p></description></item><item><title>Blog: HEIR m
 &lt;a href="https://docs.google.com/document/d/1kP1kFKV6qrLVPv4CnIhmqO-7nMDFkCpvhzwIppJEDfU/edit?usp=sharing">notes&lt;/a>
 and
 &lt;a href="https://drive.google.com/file/d/1-f5ZJ5h28FIgk_-LisNsYa77iuWPIAjU/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-07-11.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-06-27</title><link>https://heir.dev/blog/2024/06/27/heir-meeting-2024-06-27/</link><pubDate>Thu, 27 Jun 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/06/27/heir-meeting-2024-06-27/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1lc4U2JzHapu99_sigOAYwpjNnfd9_QGrX1HAQ0hle_o/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1-wMytGj3AHi55sA2jb81AsHOU8EcIq6d/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-06-27.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-06-13</title><link>https://heir.dev/blog/2024/06/13/heir-meeting-2024-06-13/</link><pubDate>Thu, 13 Jun 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/06/13/heir-meeting-2024-06-13/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1rkPxOdbJY5J6qhsciZ0rfdj5_9PG_Ng-6USBUvLrEeU/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/19oQOYlvfeHoSwWqOC4hXZTBuaPIf1zQl/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-06-13.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-05-30</title><link>https://heir.dev/blog/2024/05/30/heir-meeting-2024-05-30/</link><pubDate>Thu, 30 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/30/heir-meeting-2024-05-30/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1mvigwMRTeVQvdpm2hwiewfU8jcJT94ArQBNvngvgkTc/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1CTIyd7HRiNV857VO2EonquWZZlBhysLM/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-05-30.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-05-16</title><link>https://heir.dev/blog/2024/05/16/heir-meeting-2024-05-16/</link><pubDate>Thu, 16 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/16/heir-meeting-2024-05-16/</guid><description>
+from the HEIR meeting on 2024-07-11.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-05-16</title><link>https://heir.dev/blog/2024/05/16/heir-meeting-2024-05-16/</link><pubDate>Thu, 16 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/16/heir-meeting-2024-05-16/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/15MwanXaBap6qNzYj7g1m6zRcqK363O-3iCCcNcGY1Ds/edit?usp=sharing">notes&lt;/a>
 and
@@ -4438,7 +4429,17 @@ from the HEIR meeting on 2024-05-16.&lt;/p></description></item><item><title>Blo
 &lt;a href="https://docs.google.com/document/d/1uEDeIN0iTUmmtlacZg0c2j7VbAHO3A9e0_8mnunUv10/edit?usp=sharing">notes&lt;/a>
 and
 &lt;a href="https://drive.google.com/file/d/1u1q74rUKdXFi08tAKFRKjI-bojuorQK8/view?usp=drivesdk">video recording&lt;/a>
-from the HEIR meeting on 2024-05-02.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-03-07</title><link>https://heir.dev/blog/2024/03/07/heir-meeting-2024-03-07/</link><pubDate>Thu, 07 Mar 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/03/07/heir-meeting-2024-03-07/</guid><description>
+from the HEIR meeting on 2024-05-02.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-04-18</title><link>https://heir.dev/blog/2024/04/18/heir-meeting-2024-04-18/</link><pubDate>Thu, 18 Apr 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/04/18/heir-meeting-2024-04-18/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1BJjfYI2yjR3YEg_ugjDuS-trAkYMlKbU7jpH_M1GF3Q/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1WSsUp9CmjDmEVtGMYk2QXIpZCEetf_Ot/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-04-18.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-04-04</title><link>https://heir.dev/blog/2024/04/04/heir-meeting-2024-04-04/</link><pubDate>Thu, 04 Apr 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/04/04/heir-meeting-2024-04-04/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/121_0mzqYIWYMc7rcW2Et5qS-ux4ut3b-kno1dI9sQq8/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1_Ksjx8s8nD4cLsuZp5_KitYI2mPN72Je/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-04-04.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-03-07</title><link>https://heir.dev/blog/2024/03/07/heir-meeting-2024-03-07/</link><pubDate>Thu, 07 Mar 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/03/07/heir-meeting-2024-03-07/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/1felxN5mFBV5LheP79is30jHRxlKLW0NQEo6FPDKxDKM/edit?usp=sharing">notes&lt;/a>
 and
@@ -4460,7 +4461,12 @@ from the HEIR meeting on 2024-02-08.&lt;/p></description></item><item><title>Blo
 &lt;a href="https://docs.google.com/document/d/1yrkAVR_348vT3SD7apb9QDoFIgz0bjHn-SzT2GOacfs/edit?usp=sharing">notes&lt;/a>
 and
 &lt;a href="https://drive.google.com/file/d/11JTfRy_3LvHjJQe0nJuqe8WGa8F9oHu1/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-01-25.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-12-12</title><link>https://heir.dev/blog/2023/12/12/heir-meeting-2023-12-12/</link><pubDate>Tue, 12 Dec 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/12/12/heir-meeting-2023-12-12/</guid><description>
+from the HEIR meeting on 2024-01-25.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-01-11</title><link>https://heir.dev/blog/2024/01/11/heir-meeting-2024-01-11/</link><pubDate>Thu, 11 Jan 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/01/11/heir-meeting-2024-01-11/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/133yuywcbI1AWnbsJezq8QlCpgXfX5HMk7YjXQBSTwoE/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1gLwcshtNda6M6YMWSsyGrNDvlQ8QiL0O/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-01-11.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-12-12</title><link>https://heir.dev/blog/2023/12/12/heir-meeting-2023-12-12/</link><pubDate>Tue, 12 Dec 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/12/12/heir-meeting-2023-12-12/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/1ekGrOBLoB_F3qjC43r6NzJbWpgT9RILTJyVu5Ax3PCQ/edit?usp=sharing">notes&lt;/a>
 and
@@ -4487,7 +4493,20 @@ from the HEIR meeting on 2023-10-24.&lt;/p>
 &lt;p>Also of note: our talk at FHE.org was last Thursday
 (&lt;a href="https://www.youtube.com/watch?v=kqDFdKUTNA4">recording&lt;/a>), and the similar talk
 at the LLVM developers meeting talk was the previous Wednesday, though the video
-has not yet been posted for that.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-08-29</title><link>https://heir.dev/blog/2023/09/05/heir-meeting-2023-08-29/</link><pubDate>Tue, 05 Sep 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/09/05/heir-meeting-2023-08-29/</guid><description>
+has not yet been posted for that.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-09-26</title><link>https://heir.dev/blog/2023/09/27/heir-meeting-2023-09-26/</link><pubDate>Wed, 27 Sep 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/09/27/heir-meeting-2023-09-26/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1pkG8eaSUddAySJWjQHIFqe0hyYkO0wH9X0JtnR6wlWo/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1xaH-G3SZPVv_gEpUkfhFuvUTUwU2ZKLY/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2023-09-26.&lt;/p>
+&lt;p>Next meeting (Oct 10) is canceled for the MLIR workshop, and I&amp;rsquo;ll post an update
+from that workshop on this blog, hopefully also with a video of the talk that
+Alex Viand and I will be giving at the LLVM developers meeting.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-09-12</title><link>https://heir.dev/blog/2023/09/13/heir-meeting-2023-09-12/</link><pubDate>Wed, 13 Sep 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/09/13/heir-meeting-2023-09-12/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1gOH1V6ORQwJDDo6I4jrDgCqqNFTsfcQbfpdUR6tv_60/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1zFtpBcCCq5d6UD8Nm8r3rfg3sgy-guz7/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2023-09-12.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-08-29</title><link>https://heir.dev/blog/2023/09/05/heir-meeting-2023-08-29/</link><pubDate>Tue, 05 Sep 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/09/05/heir-meeting-2023-08-29/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/1Lax8Inby5Mg8BZLkcV_5hUiWH-roL22rtszfc0PBGmE/edit?usp=sharing">notes&lt;/a>
 from the HEIR meeting on 2023-08-29. There was an issue with the recording, so
@@ -4496,18 +4515,655 @@ there is no video recording this week.&lt;/p></description></item><item><title>B
 &lt;a href="https://docs.google.com/document/d/1vZsKJH4wCAZCtyh3o9nNMLRFwlWQiVdvUMvwJnA4cIc/edit?usp=sharing">notes&lt;/a>
 and
 &lt;a href="https://drive.google.com/file/d/1DDNepYCSqgi-JlBLBzHrsL5CjjiwqcA_/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2023-08-15.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-08-01</title><link>https://heir.dev/blog/2023/08/02/heir-meeting-2023-08-01/</link><pubDate>Wed, 02 Aug 2023 15:46:42 -0700</pubDate><guid>https://heir.dev/blog/2023/08/02/heir-meeting-2023-08-01/</guid><description>
-&lt;p>The fourth HEIR meeting was 2023-08-01
-(&lt;a href="https://docs.google.com/document/d/1gid-MARMUStb3dB9jsXEV_CnPDpf_9cyPXy9uXtZk08/edit?usp=sharing">notes&lt;/a>
+from the HEIR meeting on 2023-08-15.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-06-30</title><link>https://heir.dev/blog/2023/06/30/heir-meeting-2023-06-30/</link><pubDate>Fri, 30 Jun 2023 12:42:22 -0700</pubDate><guid>https://heir.dev/blog/2023/06/30/heir-meeting-2023-06-30/</guid><description>
+&lt;p>The second HEIR meeting was 2023-05-30
+(&lt;a href="https://docs.google.com/document/d/1wxaEtpEDdO2yv5YKmFTc8FVlqHxm49gHzEdcnBFBKWs/edit?usp=sharing">notes&lt;/a>,
 and
-&lt;a href="https://drive.google.com/file/d/1U6HDdKJo3-UHibFPgNrDakU8EpCt5xHZ/view?usp=sharing">video recording&lt;/a>).&lt;/p>
-&lt;p>We&amp;rsquo;re also starting on the Poly and Secret dialects in
-&lt;a href="https://github.com/google/heir/pull/74">#74 (poly)&lt;/a> and
-&lt;a href="https://github.com/google/heir/pull/78">#78 (secret)&lt;/a>, so please join in the
-fun!&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-07-18</title><link>https://heir.dev/blog/2023/07/18/heir-meeting-2023-07-18/</link><pubDate>Tue, 18 Jul 2023 10:43:16 -0700</pubDate><guid>https://heir.dev/blog/2023/07/18/heir-meeting-2023-07-18/</guid><description>
-&lt;p>The third HEIR meeting was 2023-07-18
-(&lt;a href="https://docs.google.com/document/d/1DXdyUCmevqY8RJI3kM8oO5nWDEITFIVBPIbucONOB-k/edit?usp=sharing">notes&lt;/a>).&lt;/p>
-&lt;p>We decided to schedule future meetings every two weeks, with alternating focus
-on MLIR and Hardware. See the &lt;a href="https://heir.dev/community/">meeting calendar&lt;/a> to
-join.
-(&lt;a href="https://calendar.google.com/calendar/u/0/embed?src=c85ecb3cda4bfb7daa3da95d5aeb19672930501b49d17896e65fa3f963f17a80@group.calendar.google.com&amp;amp;ctz=America/Los_Angeles">direct link to the calendar&lt;/a>)&lt;/p></description></item></channel></rss>
+&lt;a href="https://drive.google.com/file/d/1S893iJdeL08BAonLenmkUGNC34PX1qpg/view?usp=sharing">video recording&lt;/a>).&lt;/p>
+&lt;p>There are some initial design discussion threads started on
+&lt;a href="https://github.com/google/heir/discussions">GitHub Discussions&lt;/a> to get the
+design rolling.&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="https://github.com/google/heir/discussions/53">High-Level FHE Dialect&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://github.com/google/heir/discussions/54">Scheme Dialects&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://github.com/google/heir/discussions/55">Poly/Math Dialects&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Blog: Hello, World!</title><link>https://heir.dev/blog/2023/06/13/hello-world/</link><pubDate>Tue, 13 Jun 2023 13:15:10 -0700</pubDate><guid>https://heir.dev/blog/2023/06/13/hello-world/</guid><description>
+&lt;p>Hello, world! We&amp;rsquo;re starting a project to unify homomorphic encryption compiler
+IRs.&lt;/p>
+&lt;p>Our initial meeting was 2023-05-30
+(&lt;a href="https://docs.google.com/document/d/1iyiHfseoVkA1qaP3Ig47kqVC-J1_AIidPaj61jvj2KM/edit?usp=sharing">read-only copy of the minutes&lt;/a>).
+Stay tuned for future updates while we work out a meeting schedule.&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h1 id="bgv-dialect">&amp;lsquo;bgv&amp;rsquo; Dialect&lt;/h1>
+&lt;p>The BGV dialect defines the types and operations of the BGV and B/FV cryptosystem.&lt;/p>
+&lt;p>Due to similarity with the BFV scheme, BGV dialect also represents the B/FV scheme.&lt;/p>
+&lt;p>The semantics of bgv dialect operations are determined by the &lt;code>scheme.bgv&lt;/code> or &lt;code>scheme.bfv&lt;/code>
+annotation at the module level.&lt;/p>
+&lt;p>In B/FV mode, bgv.modulus_switch is an no-op.&lt;/p>
+&lt;h2 id="bgv-attributes">BGV attributes&lt;/h2>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h3 id="schemeparamattr">SchemeParamAttr&lt;/h3>
+&lt;p>&lt;em>BGV Scheme Parameters&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#bgv.scheme_param&amp;lt;
+int, # logN
+DenseI64ArrayAttr, # Q
+DenseI64ArrayAttr, # P
+int64_t, # plaintextModulus
+BGVEncryptionType, # encryptionType
+BGVEncryptionTechnique # encryptionTechnique
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>This attribute is used for recording the scheme parameters for CKKS.&lt;/p>
+&lt;p>The attribute is a struct with the following fields:&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>int&lt;/code> logN: The log of the degree of the polynomial modulus.&lt;/li>
+&lt;li>&lt;code>DenseI64ArrayAttr&lt;/code> Q: The array of primes in the ciphertext modulus.&lt;/li>
+&lt;li>&lt;code>DenseI64ArrayAttr&lt;/code> P: The array of primes in the special modulus, used for key switching.&lt;/li>
+&lt;li>&lt;code>int64_t&lt;/code> plaintextModulus: The plaintext modulus.&lt;/li>
+&lt;/ul>
+&lt;h4 id="parameters">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">logN&lt;/td>
+&lt;td style="text-align:center">&lt;code>int&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">Q&lt;/td>
+&lt;td style="text-align:center">&lt;code>DenseI64ArrayAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">P&lt;/td>
+&lt;td style="text-align:center">&lt;code>DenseI64ArrayAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">plaintextModulus&lt;/td>
+&lt;td style="text-align:center">&lt;code>int64_t&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">encryptionType&lt;/td>
+&lt;td style="text-align:center">&lt;code>BGVEncryptionType&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">encryptionTechnique&lt;/td>
+&lt;td style="text-align:center">&lt;code>BGVEncryptionTechnique&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="bgv-ops">BGV ops&lt;/h2>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h3 id="bgvadd-heirbgvaddop">&lt;code>bgv.add&lt;/code> (heir::bgv::AddOp)&lt;/h3>
+&lt;p>&lt;em>Addition operation between ciphertexts.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.add` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="bgvadd_plain-heirbgvaddplainop">&lt;code>bgv.add_plain&lt;/code> (heir::bgv::AddPlainOp)&lt;/h3>
+&lt;p>&lt;em>Addition operation between ciphertext-plaintext.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.add_plain` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AllCiphertextTypesMatch&lt;/code>, &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>IsCiphertextPlaintextOp&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-1">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>lwe-plaintext-or-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>lwe-plaintext-or-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-1">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="bgvlevel_reduce-heirbgvlevelreduceop">&lt;code>bgv.level_reduce&lt;/code> (heir::bgv::LevelReduceOp)&lt;/h3>
+&lt;p>&lt;em>Lower the modulus level of the ciphertext via dropping RNS limbs.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.level_reduce` operands attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>levelToDrop&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-2">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-2">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="bgvmodulus_switch-heirbgvmodulusswitchop">&lt;code>bgv.modulus_switch&lt;/code> (heir::bgv::ModulusSwitchOp)&lt;/h3>
+&lt;p>&lt;em>Lower the modulus level of the ciphertext via modulus switching.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.modulus_switch` operands attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-1">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>to_ring&lt;/code>&lt;/td>&lt;td>::mlir::heir::polynomial::RingAttr&lt;/td>&lt;td>an attribute specifying a polynomial ring&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-3">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-3">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="bgvmul-heirbgvmulop">&lt;code>bgv.mul&lt;/code> (heir::bgv::MulOp)&lt;/h3>
+&lt;p>&lt;em>Multiplication operation between ciphertexts.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.mul` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-4">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-4">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="bgvmul_plain-heirbgvmulplainop">&lt;code>bgv.mul_plain&lt;/code> (heir::bgv::MulPlainOp)&lt;/h3>
+&lt;p>&lt;em>Multiplication operation between ciphertext-plaintext.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.mul_plain` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>IsCiphertextPlaintextOp&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-5">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>lwe-plaintext-or-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>lwe-plaintext-or-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-5">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="bgvnegate-heirbgvnegateop">&lt;code>bgv.negate&lt;/code> (heir::bgv::NegateOp)&lt;/h3>
+&lt;p>&lt;em>Negate the coefficients of the ciphertext.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.negate` operands attr-dict `:` qualified(type($output))
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Involution&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-6">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-6">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="bgvrelinearize-heirbgvrelinearizeop">&lt;code>bgv.relinearize&lt;/code> (heir::bgv::RelinearizeOp)&lt;/h3>
+&lt;p>&lt;em>Relinearize the ciphertext.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.relinearize` operands attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
+&lt;/code>&lt;/pre>&lt;p>This op takes integer array attributes &lt;code>from_basis&lt;/code> and &lt;code>to_basis&lt;/code> that are
+used to indicate the key basis from which and to which the ciphertext is
+encrypted against. A ciphertext is canonically encrypted against key basis
+&lt;code>(1, s)&lt;/code>. After a multiplication, its size will increase and the basis will be
+&lt;code>(1, s, s^2)&lt;/code>. The array that represents the key basis is constructed by
+listing the powers of &lt;code>s&lt;/code> at each position of the array. For example, &lt;code>(1, s, s^2)&lt;/code> corresponds to &lt;code>[0, 1, 2]&lt;/code>, while &lt;code>(1, s^2)&lt;/code> corresponds to &lt;code>[0, 2]&lt;/code>.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-2">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>from_basis&lt;/code>&lt;/td>&lt;td>::mlir::DenseI32ArrayAttr&lt;/td>&lt;td>i32 dense array attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>to_basis&lt;/code>&lt;/td>&lt;td>::mlir::DenseI32ArrayAttr&lt;/td>&lt;td>i32 dense array attribute&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-7">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-7">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="bgvrotate_cols-heirbgvrotatecolumnsop">&lt;code>bgv.rotate_cols&lt;/code> (heir::bgv::RotateColumnsOp)&lt;/h3>
+&lt;p>&lt;em>Rotate the columns of the coefficients of the ciphertext using a Galois automorphism.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.rotate_cols` operands attr-dict `:` qualified(type($input))
+&lt;/code>&lt;/pre>&lt;p>This operation rotates the columns of the coefficients of the ciphertext using a
+Galois automorphism.&lt;/p>
+&lt;p>Often BGV scheme is instantiated with a ring of the form &lt;code>Z_q[X]/(X^N + 1)&lt;/code> and
+plaintext modulus &lt;code>t&lt;/code> where &lt;code>N&lt;/code> is a power of 2 and &lt;code>t&lt;/code> is a prime number. In
+this case, the plaintext slots can be viewed as a &lt;code>2 x N/2&lt;/code> matrix where
+&lt;code>N/2&lt;/code> is the number of columns and &lt;code>2&lt;/code> is the number of rows.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-3">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>offset&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-8">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-8">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="bgvrotate_rows-heirbgvrotaterowsop">&lt;code>bgv.rotate_rows&lt;/code> (heir::bgv::RotateRowsOp)&lt;/h3>
+&lt;p>&lt;em>Rotate the rows of the coefficients of the ciphertext using a Galois automorphism.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.rotate_rows` operands attr-dict `:` qualified(type($input))
+&lt;/code>&lt;/pre>&lt;p>This operation rotates the rows of the coefficients of the ciphertext using a
+Galois automorphism.&lt;/p>
+&lt;p>Often BGV scheme is instantiated with a ring of the form &lt;code>Z_q[X]/(X^N + 1)&lt;/code> and
+plaintext modulus &lt;code>t&lt;/code> where &lt;code>N&lt;/code> is a power of 2 and &lt;code>t&lt;/code> is a prime number. In
+this case, the plaintext slots can be viewed as a &lt;code>2 x N/2&lt;/code> matrix where
+&lt;code>N/2&lt;/code> is the number of columns and &lt;code>2&lt;/code> is the number of rows.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-4">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>offset&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-9">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-9">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="bgvsub-heirbgvsubop">&lt;code>bgv.sub&lt;/code> (heir::bgv::SubOp)&lt;/h3>
+&lt;p>&lt;em>Subtraction operation between ciphertexts.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.sub` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-10">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-10">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="bgvsub_plain-heirbgvsubplainop">&lt;code>bgv.sub_plain&lt;/code> (heir::bgv::SubPlainOp)&lt;/h3>
+&lt;p>&lt;em>Subtraction operation between ciphertext-plaintext.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.sub_plain` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AllCiphertextTypesMatch&lt;/code>, &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>IsCiphertextPlaintextOp&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-11">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>lwe-plaintext-or-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>lwe-plaintext-or-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-11">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="bgv-additional-definitions">BGV additional definitions&lt;/h2>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h3 id="bgvencryptiontechnique">BGVEncryptionTechnique&lt;/h3>
+&lt;p>&lt;em>An enum attribute representing an encryption technique&lt;/em>&lt;/p>
+&lt;h4 id="cases">Cases:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Symbol&lt;/th>
+&lt;th style="text-align:center">Value&lt;/th>
+&lt;th>String&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">standard&lt;/td>
+&lt;td style="text-align:center">&lt;code>0&lt;/code>&lt;/td>
+&lt;td>standard&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">extended&lt;/td>
+&lt;td style="text-align:center">&lt;code>1&lt;/code>&lt;/td>
+&lt;td>extended&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="bgvencryptiontype">BGVEncryptionType&lt;/h3>
+&lt;p>&lt;em>An enum attribute representing an encryption method&lt;/em>&lt;/p>
+&lt;h4 id="cases-1">Cases:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Symbol&lt;/th>
+&lt;th style="text-align:center">Value&lt;/th>
+&lt;th>String&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">pk&lt;/td>
+&lt;td style="text-align:center">&lt;code>0&lt;/code>&lt;/td>
+&lt;td>pk&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">sk&lt;/td>
+&lt;td style="text-align:center">&lt;code>1&lt;/code>&lt;/td>
+&lt;td>sk&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table></description></item></channel></rss>
