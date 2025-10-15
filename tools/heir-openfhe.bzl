@@ -18,7 +18,7 @@ def openfhe_lib(
         tags = [],
         deps = [],
         **kwargs):
-    """A rule for running generating OpenFHE and running a test on it.
+    """A rule for running generating OpenFHE C++ code and running a test on it.
 
     Args:
       name: The name of the cc_test target and the generated .cc file basename.
