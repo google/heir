@@ -124,8 +124,8 @@ void LayoutOptimization::runOnOperation() {
                        << "Visiting op: " << op->getName() << " \n");
             if (auto hoistable =
                     dyn_cast<LayoutConversionHoistableOpInterface>(op)) {
-              // TODO(#1888): figure out how to get OpInterface verifier to
-              // run automatically.
+              // TODO(#2317): figure out how to get OpInterface verifier to
+              // run automatically instead of doing it manually here
               LLVM_DEBUG(llvm::dbgs() << "Visiting op: " << op->getName()
                                       << " with hoistable interface\n");
               KernelName kernelName = KernelName::Trivial;
@@ -387,7 +387,7 @@ Cost LayoutOptimization::costOfChangedResult(Operation* kernel,
 
 static Cost costOfKernelChange(Operation* op, KernelName oldKernel,
                                const HoistResult& hoistResult) {
-  // TODO(#1888): add the cost of a kernel change.
+  // TODO(#2316): add the cost of a kernel change.
   return 0;
 }
 

@@ -95,8 +95,7 @@ def LayoutConversionHoistableOpInterface : OpInterface<"LayoutConversionHoistabl
     >,
   ];
 
-  // TODO(#1888): figure out how to get OpInterface verifier to run
-  // automatically.
+  // TODO(#2317): figure out how to get OpInterface verifier to run
   // let verify = [{
   //   ::mlir::heir::KernelName kernelName = ::mlir::heir::KernelName::Trivial;
   //   auto attrName = ::mlir::heir::secret::SecretDialect::kKernelAttrName;
