@@ -95,6 +95,7 @@ std::vector<std::vector<int>> manuallyApplyMapping(
 
   auto naiveScheme = shiftNetworks.findShiftScheme(mapping);
   unsigned naiveNumRG = naiveScheme.rotationGroups.size();
+  unsigned naiveNumRounds = naiveScheme.strategy.getRounds().size();
   if (naiveNumRGExpected > 0 && naiveNumRG != naiveNumRGExpected)
     return ::testing::AssertionFailure()
            << "Expected " << naiveNumRGExpected << " rotation groups but got "
@@ -106,13 +107,15 @@ std::vector<std::vector<int>> manuallyApplyMapping(
   // We try a large number of shift orders here such that we can be effectively
   // certain that we will find a network that is at least as good as the "naive"
   // one.
-  auto bestScheme = shiftNetworks.findBestShiftScheme(mapping, 1000);
+  auto bestScheme = shiftNetworks.findBestShiftScheme(
+      mapping, /*randomSeed=*/42, /*randomTries=*/1000);
   unsigned bestNumRG = bestScheme.rotationGroups.size();
-  if (bestNumRG > naiveNumRG)
+  unsigned bestNumRounds = bestScheme.strategy.getRounds().size();
+  if (bestNumRounds > naiveNumRounds)
     return ::testing::AssertionFailure()
-           << "Expected best found network with " << bestNumRG
-           << " rotation groups to not be worse then naive network which has "
-           << naiveNumRG;
+           << "Expected best found network with " << bestNumRounds
+           << " rounds to not be worse then naive network which has "
+           << naiveNumRounds;
   auto bestResult =
       simulateShiftNetwork(mapping, bestScheme, numCiphertexts, ciphertextSize);
   if (!bestResult) return bestResult;
