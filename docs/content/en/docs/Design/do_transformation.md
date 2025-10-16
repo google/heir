@@ -64,8 +64,8 @@ MLIR, loops are expressed using either `affine.for`, `scf.for` or `scf.while`
 operations.
 
 > \[!NOTE\] Early exiting from loops is not supported in `scf` and `affine`, so
-> early exits are not supported in this pipeline. TODO(#922): support early
-> exits
+> early exits are not supported in this pipeline. Early exits are expected to be
+> added to MLIR upstream at some point in the future.
 
 - `affine.for`: This operation lends itself well to expressing data oblivious
   programs because it requires constant loop bounds, eliminating input-dependent
