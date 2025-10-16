@@ -108,7 +108,6 @@ LogicalResult HoistArgLayouts::matchAndRewrite(
         llvm::to_vector(maybeLayoutOps),
         [](auto& maybeLayoutOp) -> std::optional<Attribute> {
           if (!maybeLayoutOp.has_value()) return std::nullopt;
-          // TODO(#2047): Hoisting new layouts is unsupported.
           auto toLayout = maybeLayoutOp.value().getToLayoutAttr();
           if (!toLayout) return std::nullopt;
           return toLayout;
