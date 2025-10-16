@@ -7,7 +7,8 @@ def LinalgCanonicalizations : Pass<"linalg-canonicalizations"> {
   let summary = "This pass canonicalizes the linalg.transpose operation of a constant into a transposed constant.";
 
   let dependentDialects = [
-    "arith::ArithDialect"
+    "arith::ArithDialect",
+    "affine::AffineDialect",
   ];
 
   let description = [{
