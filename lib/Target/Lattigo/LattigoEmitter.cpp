@@ -1086,49 +1086,50 @@ LogicalResult LattigoEmitter::printOperation(BGVNewPlaintextOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(BGVEncodeOp op) {
-  // cyclic repetition to mitigate openfhe zero-padding (#645)
-  // TODO(#1258): move cyclic repetition to earlier pipeline
-
-  // hack: access another op to get params then get MaxSlots
+  // hack: access another op to get params
   auto newPlaintextOp =
       mlir::dyn_cast<BGVNewPlaintextOp>(op.getPlaintext().getDefiningOp());
   if (!newPlaintextOp) {
     return failure();
   }
-  auto maxSlotsName = getName(newPlaintextOp.getParams()) + ".MaxSlots()";
+  auto plaintextName = getName(op.getPlaintext());
+  auto valueName = getName(op.getValue());
 
-  // EncodeOp requires its argument to be a slice of int64
-  // so besides cyclic full packing behavior, we are also doing type conversion
-  auto packedName =
-      getName(op.getValue()) + "_" + getName(op.getPlaintext()) + "_packed";
-  os << packedName << " := make([]int64, ";
-  os << maxSlotsName << ")\n";
-  os << "for i := range " << packedName << " {\n";
-  auto valueNameAtI =
-      getName(op.getValue()) + "[i % len(" + getName(op.getValue()) + ")]";
-  auto packedNameAtI = packedName + "[i]";
-  os.indent();
-  if (getElementTypeOrSelf(op.getValue().getType()).getIntOrFloatBitWidth() ==
-      1) {
-    emitIf(
-        valueNameAtI, [&]() { os << packedNameAtI << " = int64(1)\n"; },
-        [&]() { os << packedNameAtI << " = int64(0)\n"; });
-  } else {
-    // packedName[i] = int64(value[i % len(value)])
-    os << packedNameAtI << " = int64(" << valueNameAtI << ")\n";
+  std::string packedName = valueName;
+  // EncodeOp requires its argument to be a slice of int64 so we emit a loop
+  // implementing type conversion if needed.
+  if (getElementTypeOrSelf(op.getValue().getType()).getIntOrFloatBitWidth() !=
+      64) {
+    packedName = valueName + "_" + plaintextName + "_packed";
+    os << packedName << " := make([]int64, len(";
+    os << valueName << "))\n";
+    os << "for i := range " << packedName << " {\n";
+
+    // packedName[i] = int64(value[i])
+    auto valueNameAtI = valueName + "[i]";
+    auto packedNameAtI = packedName + "[i]";
+    os.indent();
+    if (getElementTypeOrSelf(op.getValue().getType()).getIntOrFloatBitWidth() ==
+        1) {
+      emitIf(
+          valueNameAtI, [&]() { os << packedNameAtI << " = int64(1)\n"; },
+          [&]() { os << packedNameAtI << " = int64(0)\n"; });
+    } else {
+      os << packedNameAtI << " = int64(" << valueNameAtI << ")\n";
+    }
+    os.unindent();
+    os << "}\n";
   }
-  os.unindent();
-  os << "}\n";
 
   // set the scale of plaintext
   auto scale = op.getScale();
-  os << getName(op.getPlaintext()) << ".Scale = ";
+  os << plaintextName << ".Scale = ";
   os << getName(newPlaintextOp.getParams()) << ".NewScale(";
   os << scale << ")\n";
 
   os << getName(op.getEncoder()) << ".Encode(";
   os << packedName << ", ";
-  os << getName(op.getPlaintext()) << ")\n";
+  os << plaintextName << ")\n";
   return success();
 }
 
@@ -1314,56 +1315,56 @@ LogicalResult LattigoEmitter::printOperation(CKKSNewPlaintextOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(CKKSEncodeOp op) {
-  // cyclic repetition to mitigate openfhe zero-padding (#645)
-  // TODO(#1258): move cyclic repetition to earlier pipeline
-
-  // hack: access another op to get params then get MaxSlots
+  // hack: access another op to get params
   auto newPlaintextOp =
       mlir::dyn_cast<CKKSNewPlaintextOp>(op.getPlaintext().getDefiningOp());
   if (!newPlaintextOp) {
     return failure();
   }
-  auto maxSlotsName = getName(newPlaintextOp.getParams()) + ".MaxSlots()";
+  auto plaintextName = getName(op.getPlaintext());
+  auto valueName = getName(op.getValue());
 
-  // EncodeOp requires its argument to be a slice of float64
-  // so besides cyclic full packing behavior, we are also doing type conversion
-  auto packedName =
-      getName(op.getValue()) + "_" + getName(op.getPlaintext()) + "_packed";
-  os << packedName << " := make([]float64, ";
-  os << maxSlotsName << ")\n";
-  os << "for i := range " << packedName << " {\n";
-  auto valueNameAtI =
-      getName(op.getValue()) + "[i % len(" + getName(op.getValue()) + ")]";
-  auto packedNameAtI = packedName + "[i]";
-  os.indent();
-  if (getElementTypeOrSelf(op.getValue().getType()).getIntOrFloatBitWidth() ==
-      1) {
-    const auto* boolToFloat64Template = R"GO(
+  std::string packedName = valueName;
+  // EncodeOp requires its argument to be a slice of int64 so we emit a loop
+  // implementing type conversion if needed.
+  if (getElementTypeOrSelf(op.getValue().getType()).getIntOrFloatBitWidth() !=
+      64) {
+    packedName = valueName + "_" + plaintextName + "_packed";
+    os << packedName << " := make([]float64, len(";
+    os << valueName << "))\n";
+    os << "for i := range " << packedName << " {\n";
+    // packedName[i] = float64(value[i])
+    auto valueNameAtI = valueName + "[i]";
+    auto packedNameAtI = packedName + "[i]";
+    os.indent();
+    if (getElementTypeOrSelf(op.getValue().getType()).getIntOrFloatBitWidth() ==
+        1) {
+      const auto* boolToFloat64Template = R"GO(
       if {0} {
         {1} = 1.0
       } else {
         {1} = 0.0
       }
     )GO";
-    auto res =
-        llvm::formatv(boolToFloat64Template, valueNameAtI, packedNameAtI);
-    os << res;
-  } else {
-    // packedName[i] = float64(value[i % len(value)])
-    os << packedNameAtI << " = float64(" << valueNameAtI << ")\n";
+      auto res =
+          llvm::formatv(boolToFloat64Template, valueNameAtI, packedNameAtI);
+      os << res;
+    } else {
+      os << packedNameAtI << " = float64(" << valueNameAtI << ")\n";
+    }
+    os.unindent();
+    os << "}\n";
   }
-  os.unindent();
-  os << "}\n";
 
   // set the scale of plaintext
   auto scale = op.getScale();
-  os << getName(op.getPlaintext()) << ".Scale = ";
+  os << plaintextName << ".Scale = ";
   os << getName(newPlaintextOp.getParams()) << ".NewScale(math.Pow(2, ";
   os << scale << "))\n";
 
   os << getName(op.getEncoder()) << ".Encode(";
   os << packedName << ", ";
-  os << getName(op.getPlaintext()) << ")\n";
+  os << plaintextName << ")\n";
   return success();
 }
 

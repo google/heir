@@ -73,9 +73,9 @@ module attributes {scheme.bgv} {
   // CHECK: [[value2:[^, ].*]] := []int32
   // CHECK: [[pt1:[^, ].*]] := bgv.NewPlaintext([[param]], [[param]].MaxLevel())
   // CHECK: [[pt2:[^, ].*]] := bgv.NewPlaintext([[param]], [[param]].MaxLevel())
-  // CHECK: [[value1Packed:[^, ].*]][i] = int64([[value1]][i % len([[value1]])])
+  // CHECK: [[value1Packed:[^, ].*]][i] = int64([[value1]][i])
   // CHECK: [[encoder]].Encode([[value1Packed]], [[pt1]])
-  // CHECK: [[value2Packed:[^, ].*]][i] = int64([[value2]][i % len([[value2]])])
+  // CHECK: [[value2Packed:[^, ].*]][i] = int64([[value2]][i])
   // CHECK: [[encoder]].Encode([[value2Packed]], [[pt2]])
   // CHECK: [[ct1:[^, ].*]], [[err:.*]] := [[enc]].EncryptNew([[pt1]])
   // CHECK: [[ct2:[^, ].*]], [[err:.*]] := [[enc]].EncryptNew([[pt2]])
