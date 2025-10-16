@@ -148,9 +148,13 @@ typename Model::StateType Model::evalConstant(
   auto t = param.getSchemeParam()->getPlaintextModulus();
   auto phi = getPhi(param);
 
-  // noise part of the plaintext in a pt-ct multiplication
-  // v_const <= t * sqrt(phi(m) / 12)
-  return StateType::of(t * sqrt(phi / 12.0));
+  // Noise part of the plaintext in a pt-ct multiplication. Changed from
+  // MMLGA22 to account for ciphertext-plaintext muls with large but sparse
+  // plaintext masks. Cf.
+  // https://github.com/google/heir/pull/2319#issuecomment-3424387609
+  //
+  // v_const <= t * phi(m) / 2
+  return StateType::of(t * phi / 2.0);
 }
 
 typename Model::StateType Model::evalAdd(const StateType& lhs,
