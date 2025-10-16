@@ -461,39 +461,31 @@ struct ConvertLinalgMatvecLayout
 
   bool supportsHaleviShoup(linalg::MatvecOp op, OpAdaptor adaptor) const {
     Value matrix = adaptor.getInputs()[0];
-    Value vector = adaptor.getInputs()[1];
-    Value originalVector = op.getInputs()[1];
-    // auto vectorType = cast<RankedTensorType>(vector.getType());
-    auto materializedMatrixType = cast<RankedTensorType>(matrix.getType());
-    auto materializedVectorType = cast<RankedTensorType>(vector.getType());
+    auto matrixType = cast<RankedTensorType>(matrix.getType());
 
     // If one of these dimensions is not a power of two, then we can't do
     // the Halevi-Shoup or Squat Packing Matrix Multiplication conversion.
-    auto dimensions = materializedMatrixType.getShape();
+    auto dimensions = matrixType.getShape();
     int64_t numRows = dimensions[0];
     int64_t numCols = dimensions[1];
-    if (!isPowerOfTwo(numRows) || !isPowerOfTwo(numCols)) {
-      return false;
-    }
-
-    LayoutAttr matrixLayout = getLayoutAttr(matrix);
-    LayoutAttr vectorLayout = getLayoutAttr(vector);
-    bool isSquatDiagonal = isRelationSquatDiagonal(
-        cast<RankedTensorType>(op.getInputs()[0].getType()), numCols,
-        matrixLayout.getIntegerRelation());
-    bool isRowMajor =
-        isRelationRowMajor(cast<RankedTensorType>(originalVector.getType()),
-                           materializedVectorType.getDimSize(1),
-                           vectorLayout.getIntegerRelation());
-
-    LLVM_DEBUG(llvm::dbgs()
-               << "supportsHaleviShoup: " << "isSquatDiagonal="
-               << isSquatDiagonal << " isRowMajor=" << isRowMajor << "\n");
+    bool isPowerOfTwoDims = isPowerOfTwo(numRows) && isPowerOfTwo(numCols);
 
     // TODO(#1578): If the matrix has more rows than columns, what kernel
     // should be used?
     bool dimensionsCompatible = numRows <= numCols;
-    return isSquatDiagonal && isRowMajor && dimensionsCompatible;
+
+    auto kernelAttr = op->getAttrOfType<secret::KernelAttr>(
+        secret::SecretDialect::kKernelAttrName);
+    bool isMatvecDiagonal =
+        kernelAttr && kernelAttr.getName() == KernelName::MatvecDiagonal;
+
+    LLVM_DEBUG(llvm::dbgs()
+               << "supports matvec with halevi-shoup: isPowerOfTwoDims="
+               << isPowerOfTwoDims
+               << " isDimensionsCompatible=" << dimensionsCompatible
+               << " isMatvecDiagonal=" << isMatvecDiagonal << "\n");
+
+    return isPowerOfTwoDims && dimensionsCompatible && isMatvecDiagonal;
   }
 
   void haleviShoupKernel(
