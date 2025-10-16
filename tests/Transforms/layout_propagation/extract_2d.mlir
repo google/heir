@@ -1,8 +1,8 @@
 // RUN: heir-opt %s --layout-propagation=ciphertext-size=16 | FileCheck %s
 
-// CHECK: [[input_layout:#.*]] = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : i0 = 0 and ct = 0 and (-i1 + slot) mod 16 = 0 and 0 <= i1 <= 15 and 0 <= slot <= 15 }">
-// CHECK: [[scalar_layout_extract:#.*]] = #tensor_ext.layout<"{ [] -> [ct, slot] : ct = 0 and slot = 0 }">
-// CHECK: [[scalar_layout_default:#.*]] = #tensor_ext.layout<"{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= 15 }">
+// CHECK-DAG: [[input_layout:#.*]] = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : i0 = 0 and ct = 0 and (-i1 + slot) mod 16 = 0 and 0 <= i1 <= 15 and 0 <= slot <= 15 }">
+// CHECK-DAG: [[scalar_layout_extract:#.*]] = #tensor_ext.layout<"{ [] -> [ct, slot] : ct = 0 and slot = 0 }">
+// CHECK-DAG: [[scalar_layout_default:#.*]] = #tensor_ext.layout<"{ [] -> [ct, slot] : 0 <= ct <= 0 and 0 <= slot <= 15 }">
 
 // CHECK: secret.generic
 // CHECK-NEXT: body
@@ -11,8 +11,7 @@
 // CHECK-NEXT: tensor.extract
 // CHECK-SAME: [[scalar_layout_extract]]
 // CHECK-NEXT: tensor_ext.assign_layout
-// CHECK-SAME: [[scalar_layout_default]]
-// CHECK-NEXT: tensor_ext.convert_layout
+// CHECK-SAME: [[scalar_layout_extract]]
 // CHECK-NEXT: arith.mulf
 // CHECK-NEXT: arith.addf
 // CHECK-NEXT: tensor_ext.convert_layout

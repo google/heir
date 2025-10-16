@@ -42,7 +42,7 @@ def LayoutPropagation : Pass<"layout-propagation"> {
   of duties allows this pass to be reused as a pure dataflow analysis, in which
   case it annotates an un-annotated IR with layout attributes.
 
-  TODO(#2047): Add doctest examples with the new layout
+  (* example filepath=tests/Transforms/layout_propagation/doctest.mlir *)
   }];
   let options = [
     Option<

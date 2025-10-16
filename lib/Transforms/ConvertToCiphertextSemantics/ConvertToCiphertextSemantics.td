@@ -44,7 +44,7 @@ def ConvertToCiphertextSemantics : Pass<"convert-to-ciphertext-semantics"> {
   not well-defined on ciphertext-semantic tensors, while their implementation
   as SIMD/rotation ops are not well-defined on tensor-semantic tensors.
 
-  TODO(#1541): provide example docs
+  (* example filepath=tests/Transforms/convert_to_ciphertext_semantics/doctest.mlir *)
   }];
   let dependentDialects = [
     "mlir::heir::tensor_ext::TensorExtDialect",

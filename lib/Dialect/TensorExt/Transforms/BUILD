@@ -25,6 +25,18 @@ cc_library(
 )
 
 cc_library(
+    name = "Patterns",
+    srcs = ["Patterns.cpp"],
+    hdrs = ["Patterns.h"],
+    deps = [
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Utils:AttributeUtils",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
     name = "InsertRotate",
     srcs = ["InsertRotate.cpp"],
     hdrs = [
@@ -129,12 +141,11 @@ cc_library(
         "FoldConvertLayoutIntoAssignLayout.h",
     ],
     deps = [
+        ":Patterns",
         ":pass_inc_gen",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
-        "@heir//lib/Utils:AttributeUtils",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
-        "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TransformUtils",
     ],
 )
