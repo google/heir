@@ -10,7 +10,7 @@ heir_lattigo_lib(
     go_library_name = "boxblur",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=bgv",
-        "--mlir-to-bgv=plaintext-modulus=786433",
+        "--mlir-to-bgv=plaintext-modulus=786433 ciphertext-degree=2048",
         "--scheme-to-lattigo",
     ],
     mlir_src = "@heir//tests/Examples/common:box_blur_16x16.mlir",
