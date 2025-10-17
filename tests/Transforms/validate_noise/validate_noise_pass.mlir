@@ -1,6 +1,6 @@
 // RUN: heir-opt --validate-noise=model=bgv-noise-by-bound-coeff-average-case %s | FileCheck %s
 
-module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [134250497, 33832961, 140737488486401], P = [140737488928769, 140737489256449], plaintextModulus = 65537>, scheme.bgv} {
+module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [134250497, 2147565569, 140737488486401], P = [140737488928769, 140737489256449], plaintextModulus = 65537>, scheme.bgv} {
   // CHECK: @dot_product
   func.func @dot_product(%arg0: !secret.secret<tensor<1024xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 2>}, %arg1: !secret.secret<tensor<1024xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 2>}) -> (!secret.secret<tensor<1024xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 0>}) {
     %c7 = arith.constant 7 : index
