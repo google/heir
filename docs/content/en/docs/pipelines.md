@@ -222,3 +222,5 @@ Example output:
   ]
 }
 ```
+
+<!-- mdformat global-off -->

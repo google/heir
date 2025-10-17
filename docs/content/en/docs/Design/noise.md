@@ -69,3 +69,5 @@ solver.initializeAndRun(op)
 
 See the [Passes](/docs/passes) page for details. Example passes include
 `generate-param-bgv` and `validate-noise`.
+
+<!-- mdformat global-off -->

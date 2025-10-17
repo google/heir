@@ -82,3 +82,5 @@ current versions to use:
    ```bash
    ./hugo/hugo server --minify
    ```
+
+<!-- mdformat global-off -->

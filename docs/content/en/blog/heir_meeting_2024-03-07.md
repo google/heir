@@ -15,3 +15,5 @@ from the HEIR meeting on 2024-03-07.
 
 Note: there will be no HEIR meeting on 2024-03-21 due to the FHE.org, HACS, and
 RWC conferences. Hope to see you all there!
+
+<!-- mdformat global-off -->

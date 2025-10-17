@@ -185,3 +185,5 @@ difference is that, for "Before multiplication (including the first
 multiplication)" modulus switching policy, the user input should be encoded at
 $\\Delta^2$ or higher, as otherwise the first modulus switching (or rescaling in
 CKKS term) will rescale $\\Delta$ to $1$, rendering full precision loss.
+
+<!-- mdformat global-off -->

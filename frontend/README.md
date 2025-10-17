@@ -87,3 +87,5 @@ internal style guide.
 The `pyink` repo has instructions for setting up `pyink` with VSCode. The
 pre-commit configuration for this repo will automatically run `pyink`, and to
 run a one-time format of the entire project, use `pre-commit run --all-files`.
+
+<!-- mdformat global-off -->

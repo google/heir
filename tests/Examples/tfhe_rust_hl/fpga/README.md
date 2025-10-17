@@ -50,3 +50,5 @@ the following command:
 ```bash
 cargo run --release -- {$INPUT_1}
 ```
+
+<!-- mdformat global-off -->

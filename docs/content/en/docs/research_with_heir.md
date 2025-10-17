@@ -60,3 +60,5 @@ the private repo.
 
 Once you're ready to publish your development work, you can push your commits to
 a branch in the public repository and create a pull request.
+
+<!-- mdformat global-off -->

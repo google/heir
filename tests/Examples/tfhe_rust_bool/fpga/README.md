@@ -51,3 +51,5 @@ If you don't do this correctly, you will see an error like this:
 # |   Read-only file system (os error 30)
 # `-----------------------------
 ```
+
+<!-- mdformat global-off -->

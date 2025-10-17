@@ -11,3 +11,5 @@ Here are the
 [notes](https://docs.google.com/document/d/1Lax8Inby5Mg8BZLkcV_5hUiWH-roL22rtszfc0PBGmE/edit?usp=sharing)
 from the HEIR meeting on 2023-08-29. There was an issue with the recording, so
 there is no video recording this week.
+
+<!-- mdformat global-off -->

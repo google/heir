@@ -463,3 +463,5 @@ would vectorize the dot-product program (`tensor<8xi16>`) then use
 rotate-and-reduce technique to compute the sum.
 
 {{% figure src="/images/dot_product_8.svg" link="/images/dot_product_8.svg" %}}
+
+<!-- mdformat global-off -->

@@ -111,3 +111,5 @@ And the output will be something like
 
 You can find more examples and alternative queries at the
 [Bazel query docs](https://bazel.build/query/language#rdeps).
+
+<!-- mdformat global-off -->

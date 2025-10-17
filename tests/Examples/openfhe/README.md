@@ -5,3 +5,5 @@ These tests exercise OpenFHE codegen for the
 including compiling the generated C++ source and running the resulting binary.
 
 OpenFHE is added as a project-level dependency and built from source.
+
+<!-- mdformat global-off -->

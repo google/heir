@@ -75,3 +75,5 @@ python scripts/templates/templates.py new_dialect \
 Note that all `--enable` flags are `True` by default, so if you know your
 dialect will not have attributes or types, you have to explicitly disable those
 options.
+
+<!-- mdformat global-off -->

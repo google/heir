@@ -262,3 +262,5 @@ make || abort "Build of openfhe-development failed."
 
 Compilation will be significantly slower but should then take less than 8GB of
 memory.
+
+<!-- mdformat global-off -->

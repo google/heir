@@ -14,3 +14,5 @@ We decided to schedule future meetings every two weeks, with alternating focus
 on MLIR and Hardware. See the [meeting calendar](https://heir.dev/community/) to
 join.
 ([direct link to the calendar](https://calendar.google.com/calendar/u/0/embed?src=c85ecb3cda4bfb7daa3da95d5aeb19672930501b49d17896e65fa3f963f17a80@group.calendar.google.com&ctz=America/Los_Angeles))
+
+<!-- mdformat global-off -->

@@ -16,3 +16,5 @@ is generally from the top of the diagram downward.
 <img style="display:block; margin-left:75px; width:500px;" src="/images/dialect-diagram.png" />
 
 The pages in this section describe the design of various subcomponents of HEIR.
+
+<!-- mdformat global-off -->

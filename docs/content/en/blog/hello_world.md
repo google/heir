@@ -13,3 +13,5 @@ IRs.
 Our initial meeting was 2023-05-30
 ([read-only copy of the minutes](https://docs.google.com/document/d/1iyiHfseoVkA1qaP3Ig47kqVC-J1_AIidPaj61jvj2KM/edit?usp=sharing)).
 Stay tuned for future updates while we work out a meeting schedule.
+
+<!-- mdformat global-off -->

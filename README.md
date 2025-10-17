@@ -118,3 +118,5 @@ The HEIR project can be cited in in academic work through following entry:
 ## Support disclaimer
 
 This is not an officially supported Google product.
+
+<!-- mdformat global-off -->

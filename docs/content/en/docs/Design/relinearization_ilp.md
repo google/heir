@@ -228,3 +228,5 @@ equality $\\textup{KB}\_{\\textup{result}(o)} = 1$.
   initialization and constraints effectively force the key basis variables to be
   integer. As a result, the solve time of the above ILP should scale with the
   number of ciphertext-handling ops in the program.
+
+<!-- mdformat global-off -->

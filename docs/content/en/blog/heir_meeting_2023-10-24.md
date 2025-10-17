@@ -17,3 +17,5 @@ Also of note: our talk at FHE.org was last Thursday
 ([recording](https://www.youtube.com/watch?v=kqDFdKUTNA4)), and the similar talk
 at the LLVM developers meeting talk was the previous Wednesday, though the video
 has not yet been posted for that.
+
+<!-- mdformat global-off -->
