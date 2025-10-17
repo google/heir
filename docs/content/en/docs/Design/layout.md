@@ -1,8 +1,7 @@
-______________________________________________________________________
-
+---
 title: Ciphertext Packing System
-
-## weight: 9
+weight: 9
+---
 
 This document describes HEIR's ciphertext packing system, including:
 
