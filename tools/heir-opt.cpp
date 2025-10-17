@@ -34,6 +34,7 @@
 #include "lib/Dialect/ModArith/Transforms/Passes.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Openfhe/Transforms/Passes.h"
+#include "lib/Dialect/Orion/IR/OrionDialect.h"
 #include "lib/Dialect/Polynomial/Conversions/PolynomialToModArith/PolynomialToModArith.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Dialect/Polynomial/Transforms/Passes.h"
@@ -170,6 +171,7 @@ int main(int argc, char** argv) {
   registry.insert<lwe::LWEDialect>();
   registry.insert<mgmt::MgmtDialect>();
   registry.insert<random::RandomDialect>();
+  registry.insert<orion::OrionDialect>();
   registry.insert<openfhe::OpenfheDialect>();
   registry.insert<rns::RNSDialect>();
   registry.insert<secret::SecretDialect>();
