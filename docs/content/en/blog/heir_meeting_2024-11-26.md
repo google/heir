@@ -13,3 +13,5 @@ Here are the
 and
 [a transcription of the recording](https://docs.google.com/document/d/1s5iXtOSpIDJX3JOEB5gQqUPm5lo1gLpRUM10pBfAdoo/edit?usp=sharing)
 from the HEIR meeting on 2024-11-26.
+
+<!-- mdformat global-off -->

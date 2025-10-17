@@ -68,3 +68,5 @@ ABC:
 ```
 ERROR: ABC: execution of command ""external/edu_berkeley_abc/abc" -s -f /tmp/yosys-abc-iEdp1F/abc.script 2>&1" failed: return code 127.
 ```
+
+<!-- mdformat global-off -->

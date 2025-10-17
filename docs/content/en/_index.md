@@ -93,3 +93,5 @@ The HEIR codebase and documentation are maintained by Google.
 
 Logo design by [Edward Chen](https://edwjchen.com/) and
 [Erin Park](https://www.yerinstudio.com/).
+
+<!-- mdformat global-off -->

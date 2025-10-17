@@ -7,3 +7,5 @@ weight: 20
 ---
 
 This section is where the HEIR documentation lives.
+
+<!-- mdformat global-off -->

@@ -16,3 +16,5 @@ We're also starting on the Poly and Secret dialects in
 [#74 (poly)](https://github.com/google/heir/pull/74) and
 [#78 (secret)](https://github.com/google/heir/pull/78), so please join in the
 fun!
+
+<!-- mdformat global-off -->

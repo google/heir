@@ -77,4 +77,14 @@ repos:
     - id: pyink
       language_version: python3.11
 
+- repo: local
+  hooks:
+    - id: disable-mdformat
+      name: Ensure google-internal mdformat is disabled on md files
+      entry: python scripts/disable_mdformat.py
+      language: system
+      types: [markdown]
+      pass_filenames: false # Run on all relevant files
+      always_run: true # Run the hook even if no files changed
+
 exclude: patches/.*\.patch$

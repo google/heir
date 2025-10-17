@@ -335,3 +335,5 @@ vim.keymap.set('n', '<leader>fi', function()
   vim.api.nvim_buf_set_lines(buf, -2, -1, false, { endif })
 end, { noremap = true })
 ```
+
+<!-- mdformat global-off -->

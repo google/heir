@@ -8,3 +8,5 @@ HEIR mainly use the following papers for noise analysis
 - MMLGA22: Finding and Evaluating Parameters for BGV
 - BMCM23: Improving and Automating BFV Parameters Selection: An Average-Case
   Approacha
+
+<!-- mdformat global-off -->

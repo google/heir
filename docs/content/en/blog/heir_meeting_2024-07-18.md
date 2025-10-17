@@ -13,3 +13,5 @@ and
 [video recording](https://drive.google.com/file/d/1bCMuuKnBVf6HP7R2SiZgo1C1vsG6FzF2/view?usp=sharing)
 from the HEIR meeting on 2024-07-18. This special discussion was focused on the
 modular arithmetic dialect.
+
+<!-- mdformat global-off -->

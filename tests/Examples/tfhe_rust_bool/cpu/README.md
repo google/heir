@@ -9,3 +9,5 @@ The tests are generated using a custom Bazel macro found in
 [test.bzl](tests/Examples/tfhe_rust/test.bzl). `tfhe-rs` is added a
 project-level dependency, and it's version is pinned in
 [MODULE.bazel](MODULE.bazel).
+
+<!-- mdformat global-off -->

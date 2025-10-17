@@ -307,3 +307,5 @@ Note that the index computations in the patterns above (e.g., `k+l`,
 `k mod t.size` are realized via emitting `arith` operations. However, for
 constant/compile-time-known indices, these will be subsequently constant-folded
 away by the canonicalization pass.
+
+<!-- mdformat global-off -->

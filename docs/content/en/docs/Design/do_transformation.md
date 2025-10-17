@@ -233,3 +233,5 @@ transformations goes as follows:
   data-dependent tensor read-write operations over the same tensor, we can
   benefit from upstream affine transformations over the resulting multiple
   affine loops produced by the Access-Transformation to fuse these loops.
+
+<!-- mdformat global-off -->

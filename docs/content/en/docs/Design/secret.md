@@ -343,3 +343,5 @@ they can be lowered further. However, we want to keep the lowered ops grouped
 together for circuit optimization (e.g., fusing transposes and constant weights
 into the optimized layer), but because of this limitation, we can't simply wrap
 the `tosa` ops in a `secret.generic` (bufferization would fail).
+
+<!-- mdformat global-off -->

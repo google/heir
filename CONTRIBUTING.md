@@ -34,3 +34,5 @@ information on using pull requests.
 
 Before contributing, please read
 [Contributing to HEIR](https://heir.dev/docs/contributing/).
+
+<!-- mdformat global-off -->

@@ -19,3 +19,5 @@ design rolling.
 - [High-Level FHE Dialect](https://github.com/google/heir/discussions/53)
 - [Scheme Dialects](https://github.com/google/heir/discussions/54)
 - [Poly/Math Dialects](https://github.com/google/heir/discussions/55)
+
+<!-- mdformat global-off -->

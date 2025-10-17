@@ -11,3 +11,5 @@ Here are the
 [notes](https://docs.google.com/document/d/17HaAzW2KZMlwgQwVttDblWY3Ta7ey5LvJ0XOKvnnLZE/edit?usp=sharing)
 and [video recording](https://youtu.be/dCBWr05kOks) from the HEIR meeting on
 2025-06-12.
+
+<!-- mdformat global-off -->

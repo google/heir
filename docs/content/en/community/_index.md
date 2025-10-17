@@ -25,3 +25,4 @@ recordings are posted on the
 {{% /blocks/section %}}
 
 <iframe src="https://calendar.google.com/calendar/embed?src=c85ecb3cda4bfb7daa3da95d5aeb19672930501b49d17896e65fa3f963f17a80%40group.calendar.google.com&ctz=America%2FLos_Angeles" style="border: 0; display:block; margin: 0 auto" width="800" height="600" frameborder="0" scrolling="no"></iframe>
+<!-- mdformat global-off -->

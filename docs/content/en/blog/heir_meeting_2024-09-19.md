@@ -12,3 +12,5 @@ Here are the
 and
 [video recording](https://drive.google.com/file/d/1i-HqUi8pb2ywUJ-OT4fWExYCmeRLu2Cn/view?usp=sharing)
 from the HEIR meeting on 2024-09-19.
+
+<!-- mdformat global-off -->

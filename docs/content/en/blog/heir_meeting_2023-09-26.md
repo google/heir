@@ -16,3 +16,5 @@ from the HEIR meeting on 2023-09-26.
 Next meeting (Oct 10) is canceled for the MLIR workshop, and I'll post an update
 from that workshop on this blog, hopefully also with a video of the talk that
 Alex Viand and I will be giving at the LLVM developers meeting.
+
+<!-- mdformat global-off -->

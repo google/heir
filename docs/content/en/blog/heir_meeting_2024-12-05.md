@@ -14,3 +14,5 @@ be needed, and discussing how the HEIR team could help with research projects.
 The [video recording of this talk](https://youtu.be/t_XHw7LVy8s) is on YouTube,
 and this is the first video posted on the
 [new HEIR YouTube channel](https://www.youtube.com/@HEIRCompiler).
+
+<!-- mdformat global-off -->

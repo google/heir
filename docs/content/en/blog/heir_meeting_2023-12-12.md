@@ -16,3 +16,5 @@ from the HEIR meeting on 2023-12-12.
 This is the last meeting for 2023. Please respond to
 [this poll](https://app.rallly.co/invite/fHNdzrbisHVA) for 2024 scheduling
 preferences.
+
+<!-- mdformat global-off -->

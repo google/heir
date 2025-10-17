@@ -50,3 +50,5 @@ $ pushd ~heir
 $ bazelisk run //tools:heir-opt -- --help
 $ popd
 ```
+
+<!-- mdformat global-off -->

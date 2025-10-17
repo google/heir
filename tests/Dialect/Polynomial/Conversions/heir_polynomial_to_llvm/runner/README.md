@@ -64,3 +64,5 @@ directory with:
 rm lower_mul_*.mlir
 bazel run generate_test_cases -- --tests_toml_path $PWD/lower_mul_tests.toml --output_test_stem=$PWD/lower_mul_ --output_build_file $PWD/BUILD
 ```
+
+<!-- mdformat global-off -->

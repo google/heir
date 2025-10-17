@@ -1,4 +1,4 @@
---------------------------------------------------------------------------------
+______________________________________________________________________
 
 title: Ciphertext Packing System
 
@@ -6,15 +6,15 @@ title: Ciphertext Packing System
 
 This document describes HEIR's ciphertext packing system, including:
 
--   A notation and internal representation of a ciphertext packing, which we
-    call a *layout*.
--   An abstraction layer to associate SSA values with layouts and manipulate and
-    analyze them before a program is converted to concrete FHE operations.
--   A variety of layouts and kernels from the FHE literature.
--   A layout and kernel optimizer based on the
-    [Fhelipe compiler](https://github.com/fhelipe-compiler/fhelipe).
--   A layout conversion implementation of the
-    [Vos-Vos-Erkin graph coloring algorithm](https://link.springer.com/chapter/10.1007/978-3-031-17140-6_20).
+- A notation and internal representation of a ciphertext packing, which we call
+  a *layout*.
+- An abstraction layer to associate SSA values with layouts and manipulate and
+  analyze them before a program is converted to concrete FHE operations.
+- A variety of layouts and kernels from the FHE literature.
+- A layout and kernel optimizer based on the
+  [Fhelipe compiler](https://github.com/fhelipe-compiler/fhelipe).
+- A layout conversion implementation of the
+  [Vos-Vos-Erkin graph coloring algorithm](https://link.springer.com/chapter/10.1007/978-3-031-17140-6_20).
 
 For background on what ciphertext packing is and its role in homomorphic
 encryption, see
@@ -59,9 +59,9 @@ slot can store at most one cleartext value.
 
 HEIR restricts the above definition of a layout as follows:
 
--   The partial function must be expressible as a *Presburger relation*, which
-    will be defined in detail below.
--   Unmapped ciphertext slots always contain zero.\[^zero\]
+- The partial function must be expressible as a *Presburger relation*, which
+  will be defined in detail below.
+- Unmapped ciphertext slots always contain zero.\[^zero\]
 
 We claim that this subset of possible layouts is a superset of all layouts that
 have been used in the FHE literature to date. For example, both the layout
@@ -75,12 +75,12 @@ Next we define a Presburger relation, then move on to examples.
 **Definition:** A *quasi-affine* formula is a multivariate formula built from
 the following operations:
 
--   Integer literals
--   Integer-valued variables
--   addition and subtraction
--   multiplication by an integer constant
--   floor- and ceiling-rounded division by a nonzero integer constant
--   modulus by a nonzero integer constant
+- Integer literals
+- Integer-valued variables
+- addition and subtraction
+- multiplication by an integer constant
+- floor- and ceiling-rounded division by a nonzero integer constant
+- modulus by a nonzero integer constant
 
 Using the BNF grammar from the
 [MLIR website](https://mlir.llvm.org/docs/Dialects/Affine/#affine-expressions),
@@ -163,10 +163,10 @@ Generally, layout attributes are associated with an SSA value by being attached
 to the op that owns the SSA value. In MLIR, which op owns the value has two
 cases:
 
--   For an op result, the layout attribute is stored on the op.
--   For a block argument, the layout attribute is stored on the op owning the
-    block, using the `OperandAndResultAttrInterface` to give a consistent API
-    for accessing the attribute.
+- For an op result, the layout attribute is stored on the op.
+- For a block argument, the layout attribute is stored on the op owning the
+  block, using the `OperandAndResultAttrInterface` to give a consistent API for
+  accessing the attribute.
 
 These two differences are handled properly by a helper library,
 `lib/Utils/AttributeUtils.h`, which exposes setters and getters for layout
@@ -184,10 +184,10 @@ For example, `#layout_attr` is associated with the SSA value `%1`:
 In HEIR, before lowering to scheme ops, we distinguish between types in two
 regimes:
 
--   *Data-semantic tensors*, which are scalars and tensors that represent
-    cleartext data values, largely unchanged from the original input program.
--   *Ciphertext-semantic tensors*, which are rank-2 tensors that represent
-    packed cleartext values in ciphertexts.
+- *Data-semantic tensors*, which are scalars and tensors that represent
+  cleartext data values, largely unchanged from the original input program.
+- *Ciphertext-semantic tensors*, which are rank-2 tensors that represent packed
+  cleartext values in ciphertexts.
 
 The task of analyzing an IR to determine which layouts and kernels to use
 happens in the data-semantic regime. In these passes, chosen layouts are
@@ -198,16 +198,16 @@ In this regime, there are three special `tensor_ext` ops that are no-ops on
 data-semantic type, but are designed to manipulate the layout attributes. These
 ops are:
 
--   `tensor_ext.assign_layout`, which takes a data-semantic value and a layout
-    attribute, and produces the same data-semantic type. This is an "entry
-    point" into the layout system and lowers to a loop that packs the data
-    according to the layout.
--   `tensor_ext.convert_layout`, which makes an explicit conversion between a
-    data-semantic value's current layout and a new layout. Typically this lowers
-    to a shift network.
--   `tensor_ext.unpack`, which clears the layout attribute on a data-semantic
-    value, and serves as an exit point from the layout system. This lowers to a
-    loop which extracts the packed cleartext data back into user data.
+- `tensor_ext.assign_layout`, which takes a data-semantic value and a layout
+  attribute, and produces the same data-semantic type. This is an "entry point"
+  into the layout system and lowers to a loop that packs the data according to
+  the layout.
+- `tensor_ext.convert_layout`, which makes an explicit conversion between a
+  data-semantic value's current layout and a new layout. Typically this lowers
+  to a shift network.
+- `tensor_ext.unpack`, which clears the layout attribute on a data-semantic
+  value, and serves as an exit point from the layout system. This lowers to a
+  loop which extracts the packed cleartext data back into user data.
 
 A layout optimizer is expected to insert `assign_layout` ops for any server-side
 cleartexts that need to be packed at runtime.
@@ -246,11 +246,11 @@ form as part of a layout conversion step.
 The `mlir-to-<scheme>` pipeline involves the following passes that manipulate
 layouts:
 
--   `layout-propagation`
--   `layout-optimization`
--   `convert-to-ciphertext-semantics`
--   `implement-rotate-and-reduce`
--   `add-client-interface`
+- `layout-propagation`
+- `layout-optimization`
+- `convert-to-ciphertext-semantics`
+- `implement-rotate-and-reduce`
+- `add-client-interface`
 
 The two passes that are closest to Fhelipe's design are `layout-propagation` and
 `layout-optimization`. The former sets up initial default layouts for all values
@@ -301,14 +301,14 @@ hoist the `convert_layout` through the op to its arguments.
 
 In doing this, it must consider:
 
--   Changing the kernel of the op, and the cost of implementing the kernel.
-    E.g., a new kernel may be better for the new layout of the operands.
--   Whether the new layout of op results still need to be converted, and the new
-    cost of these conversions. E.g., if the op result has multiple uses, or the
-    op result had multiple layout conversions, only one of which is hoisted.
--   The new cost of operand layout conversions. E.g., if a layout conversion is
-    hoisted to one operand, it may require other operands to be converted to
-    remain compatible.
+- Changing the kernel of the op, and the cost of implementing the kernel. E.g.,
+  a new kernel may be better for the new layout of the operands.
+- Whether the new layout of op results still need to be converted, and the new
+  cost of these conversions. E.g., if the op result has multiple uses, or the op
+  result had multiple layout conversions, only one of which is hoisted.
+- The new cost of operand layout conversions. E.g., if a layout conversion is
+  hoisted to one operand, it may require other operands to be converted to
+  remain compatible.
 
 In all of the above, the "cost" includes an estimate of the latency of a kernel,
 an estimate of the latency of a layout conversion, as well as the knowledge that
@@ -338,9 +338,9 @@ The
 [`convert-to-ciphertext-semantics`](/docs/passes/#-convert-to-ciphertext-semantics)
 pass has two responsibilities that must happen at the same time:
 
--   Converting all data-semantic values to ciphertext-semantic values with
-    corresponding types.
--   Implementing FHE kernels for all ops as chosen by earlier passes.
+- Converting all data-semantic values to ciphertext-semantic values with
+  corresponding types.
+- Implementing FHE kernels for all ops as chosen by earlier passes.
 
 After this pass is complete, the IR must be in the ciphertext-semantic regime
 and all operations on secret-typed values must be constrained by the SIMD FHE
@@ -431,12 +431,12 @@ touching MLIR.
 The directory `lib/Utils/Layout` contains a variety of helper code for
 manipulating layout relations, including:
 
--   Constructing or testing for common kinds of layouts, such as row-major,
-    diagonal, and layouts related to particular machine learning ops like
-    convolution.
--   Generating explicit loops that iterate over the space of points in a layout,
-    which is used to generate packing and unpacking code.
--   Helpers for hoisting layout conversions through ops.
+- Constructing or testing for common kinds of layouts, such as row-major,
+  diagonal, and layouts related to particular machine learning ops like
+  convolution.
+- Generating explicit loops that iterate over the space of points in a layout,
+  which is used to generate packing and unpacking code.
+- Helpers for hoisting layout conversions through ops.
 
 These are implemented using two APIs: one is the Fast Presburger Library (FPL),
 which is part of MLIR and includes useful operations like composing relations
@@ -604,3 +604,5 @@ out if you'd like to be involved in the design.
 
 \[^zero\]: This may be relaxed in the future with additional static analyses
 that can determine that some slots are never read.
+
+<!-- mdformat global-off -->

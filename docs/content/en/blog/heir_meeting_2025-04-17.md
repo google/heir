@@ -16,3 +16,5 @@ Hongren Zheng gave an overview of the `mgmt` dialect which handles ciphertext
 management in the compiler. This talk
 [starts at 27:11](https://youtu.be/HHU6rCMxZRc?si=U_ePY5emqs6e4NoV&t=1631).
 [The slides can be found here](/slides/mgmt-2025-04-17.pdf).
+
+<!-- mdformat global-off -->
