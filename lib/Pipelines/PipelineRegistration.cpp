@@ -63,6 +63,7 @@ void polynomialToLLVMPipelineBuilder(OpPassManager& manager) {
   manager.addPass(createEmitCInterface());
 
   // Poly
+  manager.addPass(createLowerPolynomialEval());
   ElementwiseToAffineOptions elementwiseOptions;
   elementwiseOptions.convertDialects = {"polynomial"};
   manager.addPass(createElementwiseToAffine(elementwiseOptions));
