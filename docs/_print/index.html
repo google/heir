@@ -833,7 +833,7 @@ slot.</p><p>A layout is <em>partial</em> because not all ciphertext slots need t
 function uses ciphertext slots as the domain and cleartext indices as the
 codomain because cleartext values may be replicated among multiple slots, but a
 slot can store at most one cleartext value.</p><p>HEIR restricts the above definition of a layout as follows:</p><ul><li>The partial function must be expressible as a <em>Presburger relation</em>, which
-will be defined in detail below.</li><li>Unmapped ciphertext slots always contain zero.[^zero]</li></ul><p>We claim that this subset of possible layouts is a superset of all layouts that
+will be defined in detail below.</li><li>Unmapped ciphertext slots always contain zero.</li></ul><p>We claim that this subset of possible layouts is a superset of all layouts that
 have been used in the FHE literature to date. For example, both the layout
 notation of Fhelipe and the TileTensors of HeLayers are defined in terms of
 specific parameterized quasi-affine formulas.</p><p>Next we define a Presburger relation, then move on to examples.</p><h3 id=quasi-affine-formulas-and-presburger-relations>Quasi-affine formulas and Presburger relations</h3><p><strong>Definition:</strong> A <em>quasi-affine</em> formula is a multivariate formula built from
@@ -855,7 +855,7 @@ relation over $\mathbb{Z}^{d} \times \mathbb{Z}^{r}$ that can be expressed as
 the solution to a set of equality and inequality constraints defined using
 quasi-affine formulas.</p><p>We will use the Integer Set Library (ISL) notation to describe Presburger
 relations. For an introduction to the ISL notation and library, see
-<a href=https://jeremykun.com/2025/10/07/isl-a-primer/>this article</a>. For a
+<a href=https://jeremykun.com/2025/10/19/isl-a-primer/>this article</a>. For a
 comprehensive reference, see
 <a href=https://libisl.sourceforge.io/manual.pdf>the ISL manual</a>.</p><p><strong>Example 1:</strong> Given a data vector of type <code>tensor&lt;8xi32></code> and a ciphertext with
 32 slots, a layout that repeats the tensor cyclically is given as:</p><pre tabindex=0><code>{
@@ -1122,8 +1122,7 @@ entries to ciphertext slots. Using ciphertexts with 1024 slots, we get:</p><pre 
     and 64*floor((slot)/64) &lt;= -9 + 8ifr + ifc + slot
 }
 </code></pre><h2 id=faq>FAQ</h2><h3 id=can-users-define-kernels-without-modifying-the-compiler>Can users define kernels without modifying the compiler?</h3><p><strong>No</strong> (as of 2025-10-01). However, a kernel DSL is <strong>in scope</strong> for HEIR. Reach
-out if you&rsquo;d like to be involved in the design.</p><p>[^zero]: This may be relaxed in the future with additional static analyses
-that can determine that some slots are never read.</p></div><div class=td-content style=page-break-before:always><h1 id=pg-bddfea9d49299ca5edc4a07ea06fcc23>5.3 - Data-oblivious Transformations</h1><p>A data-oblivious program is one that decouples data input from program
+out if you&rsquo;d like to be involved in the design.</p></div><div class=td-content style=page-break-before:always><h1 id=pg-bddfea9d49299ca5edc4a07ea06fcc23>5.3 - Data-oblivious Transformations</h1><p>A data-oblivious program is one that decouples data input from program
 execution. Such programs exhibit control-flow and memory access patterns that
 are independent of their input(s). This programming model, when applied to
 encrypted data, is necessary for expressing FHE programs. There are 3 major

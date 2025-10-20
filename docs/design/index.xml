@@ -216,7 +216,7 @@ slot can store at most one cleartext value.&lt;/p>
 &lt;ul>
 &lt;li>The partial function must be expressible as a &lt;em>Presburger relation&lt;/em>, which
 will be defined in detail below.&lt;/li>
-&lt;li>Unmapped ciphertext slots always contain zero.[^zero]&lt;/li>
+&lt;li>Unmapped ciphertext slots always contain zero.&lt;/li>
 &lt;/ul>
 &lt;p>We claim that this subset of possible layouts is a superset of all layouts that
 have been used in the FHE literature to date. For example, both the layout
@@ -254,7 +254,7 @@ the solution to a set of equality and inequality constraints defined using
 quasi-affine formulas.&lt;/p>
 &lt;p>We will use the Integer Set Library (ISL) notation to describe Presburger
 relations. For an introduction to the ISL notation and library, see
-&lt;a href="https://jeremykun.com/2025/10/07/isl-a-primer/">this article&lt;/a>. For a
+&lt;a href="https://jeremykun.com/2025/10/19/isl-a-primer/">this article&lt;/a>. For a
 comprehensive reference, see
 &lt;a href="https://libisl.sourceforge.io/manual.pdf">the ISL manual&lt;/a>.&lt;/p>
 &lt;p>&lt;strong>Example 1:&lt;/strong> Given a data vector of type &lt;code>tensor&amp;lt;8xi32&amp;gt;&lt;/code> and a ciphertext with
@@ -640,8 +640,6 @@ and 64*floor((slot)/64) &amp;lt;= -9 + 8ifr + ifc + slot
 &lt;h3 id="can-users-define-kernels-without-modifying-the-compiler">Can users define kernels without modifying the compiler?&lt;/h3>
 &lt;p>&lt;strong>No&lt;/strong> (as of 2025-10-01). However, a kernel DSL is &lt;strong>in scope&lt;/strong> for HEIR. Reach
 out if you&amp;rsquo;d like to be involved in the design.&lt;/p>
-&lt;p>[^zero]: This may be relaxed in the future with additional static analyses
-that can determine that some slots are never read.&lt;/p>
 &lt;!-- mdformat global-off --></description></item><item><title>Docs: Data-oblivious Transformations</title><link>https://heir.dev/docs/design/do_transformation/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/design/do_transformation/</guid><description>
 &lt;p>A data-oblivious program is one that decouples data input from program
 execution. Such programs exhibit control-flow and memory access patterns that
