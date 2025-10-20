@@ -60,6 +60,7 @@
 
 namespace mlir::heir {
 
+// This is HEIR's port of the core HECO optimizations
 void heirSIMDVectorizerPipelineBuilder(OpPassManager& manager,
                                        bool disableLoopUnroll) {
   // For now we unroll loops to enable insert-rotate, but we would like to be
@@ -134,10 +135,6 @@ void mlirToSecretArithmeticPipelineBuilder(
   pm.addPass(createReLUCanonicalizations());
   pm.addPass(createSelectRewrite());
   pm.addPass(createCompareToSignRewrite());
-
-  // Vectorize and optimize rotations
-  // TODO(#1662): figure out where this fits in the new pipeline
-  heirSIMDVectorizerPipelineBuilder(pm, options.experimentalDisableLoopUnroll);
   mathToPolynomialApproximationBuilder(pm);
 
   // Layout assignment and optimization
