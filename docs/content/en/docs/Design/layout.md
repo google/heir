@@ -60,7 +60,7 @@ HEIR restricts the above definition of a layout as follows:
 
 - The partial function must be expressible as a *Presburger relation*, which
   will be defined in detail below.
-- Unmapped ciphertext slots always contain zero.\[^zero\]
+- Unmapped ciphertext slots always contain zero.
 
 We claim that this subset of possible layouts is a superset of all layouts that
 have been used in the FHE literature to date. For example, both the layout
@@ -106,7 +106,7 @@ quasi-affine formulas.
 
 We will use the Integer Set Library (ISL) notation to describe Presburger
 relations. For an introduction to the ISL notation and library, see
-[this article](https://jeremykun.com/2025/10/07/isl-a-primer/). For a
+[this article](https://jeremykun.com/2025/10/19/isl-a-primer/). For a
 comprehensive reference, see
 [the ISL manual](https://libisl.sourceforge.io/manual.pdf).
 
@@ -600,8 +600,5 @@ entries to ciphertext slots. Using ciphertexts with 1024 slots, we get:
 
 **No** (as of 2025-10-01). However, a kernel DSL is **in scope** for HEIR. Reach
 out if you'd like to be involved in the design.
-
-\[^zero\]: This may be relaxed in the future with additional static analyses
-that can determine that some slots are never read.
 
 <!-- mdformat global-off -->

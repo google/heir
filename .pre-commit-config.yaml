@@ -63,6 +63,7 @@ repos:
     additional_dependencies:
     - mdformat-gfm
     - mdformat-frontmatter
+    - mdformat-footnote
 
 # golang hooks
 - repo: https://github.com/dnephin/pre-commit-golang
