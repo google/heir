@@ -156,16 +156,15 @@ typename NoiseByBoundCoeffModel::StateType NoiseByBoundCoeffModel::evalMul(
   auto ringDim = resultParam.getSchemeParam()->getRingDim();
 
   // (m_0 + tv_0) * (m_1 + tv_1) <=
-  //   [m_0 * m_1]_t + t(v_0 * m_1 + v_1 * m_0 + v_0 * v_1 + r_m)
+  //   [m_0 * m_1]_t + t(v_0 * m_1 + v_1 * m_0 + t * v_0 * v_1 + r_m)
   // where m_0 * m_1 = [m_0 * m_1]_t + tr_m
-  // ||r_m|| <= delta * t / 2, delta is the expansion factor
-  // v_mul = v_0 * m_1 + v_1 * m_0 + v_0 * v_1 + r_m
-  // for m_0 * m_1 we have to use the N expansion factor
+  // ||r_m|| <= N * t / 2, delta is the expansion factor
+  // v_mul = v_0 * m_1 + v_1 * m_0 + t * v_0 * v_1 + r_m
+  // for m_0 * m_1 and v * m we have to use the N expansion factor
   // ||v_mul|| <=
-  //   (delta * t / 2) * (2 * ||v_0|| * ||v_1|| + ||v_0|| + ||v_1||)
-  //   + N * (t / 2)
-  return (lhs * rhs * 2 + lhs + rhs) * (expansionFactor * t / 2) +
-         ringDim * t / 2;
+  //   (delta * t) * ||v_0|| * ||v_1|| + (||v_0|| + ||v_1|| + 1) * (N * t / 2)
+  return (lhs * rhs) * expansionFactor * t +
+         (lhs + rhs + 1) * (ringDim * t / 2);
 }
 
 typename NoiseByBoundCoeffModel::StateType
