@@ -385,7 +385,6 @@ class SecretGenericOpLevelReduceConversion
     auto innerOp =
         cast<mgmt::LevelReduceOp>(op.getBody()->getOperations().front());
     auto levelToDrop = innerOp.getLevelToDrop();
-
     auto newOp =
         rewriter.replaceOpWithNewOp<T>(op, outputTypes, inputs[0], levelToDrop);
     return newOp.getOperation();

@@ -50,5 +50,5 @@
 #ciphertext_space = #lwe.ciphertext_space<ring = #ring, encryption_type = msb, size = 3>
 #modulus_chain = #lwe.modulus_chain<elements = <7917 : i32, 65537 : i32>, current = 1>
 
-// expected-error@below {{the level in the ciphertext ring must match the modulus chain's current, but found 0 and 1}}
+// expected-error@below {{the level in the ciphertext ring must match the modulus chain's current}}
 !lwe_ciphertext = !lwe.lwe_ciphertext<application_data = #application_data, plaintext_space = #plaintext_space, key = #key, ciphertext_space = #ciphertext_space, modulus_chain = #modulus_chain>

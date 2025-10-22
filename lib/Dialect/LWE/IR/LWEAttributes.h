@@ -30,6 +30,15 @@ PlaintextSpaceAttr inferModulusSwitchOrRescaleOpPlaintextSpaceAttr(
 Attribute getEncodingAttrWithNewScalingFactor(Attribute encoding,
                                               int64_t newScale);
 
+polynomial::RingAttr getRlweRNSRingWithLevel(polynomial::RingAttr ringAttr,
+                                             int level);
+
+// Get the ring attribute corresponding to the current level of the given
+// modulus chain.
+polynomial::RingAttr getRingFromModulusChain(
+    ModulusChainAttr chainAttr,
+    polynomial::IntPolynomialAttr polynomialModulus);
+
 }  // namespace lwe
 }  // namespace heir
 }  // namespace mlir

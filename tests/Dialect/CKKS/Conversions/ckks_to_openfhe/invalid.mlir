@@ -58,7 +58,7 @@ func.func @test_relin_to_basis_error(%x: !ct1) -> !ct {
 !ct2 = !lwe.lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 
 func.func @test_modswitch_level_error(%x: !ct2) -> !ct {
-  // expected-error@+1 {{output ring should match to_ring}}
+  // expected-error@+1 {{output ciphertext_space ring should match to_ring}}
   %relin_error = bgv.modulus_switch %x  {to_ring=#ring_rns_L0_1_x1024_}: !ct2 -> !ct
   return %relin_error : !ct
 }

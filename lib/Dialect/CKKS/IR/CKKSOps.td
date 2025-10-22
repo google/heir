@@ -188,7 +188,7 @@ def CKKS_RescaleOp : CKKS_Op<"rescale", [ElementwiseMappable]> {
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
-def CKKS_LevelReduceOp : CKKS_Op<"level_reduce", [ElementwiseMappable, SameOperandsAndResultPlaintextTypes]> {
+def CKKS_LevelReduceOp : CKKS_Op<"level_reduce", [ElementwiseMappable, SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
   let summary = "Lower the modulus level of the ciphertext via dropping RNS limbs.";
 
   let arguments = (ins
