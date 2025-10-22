@@ -1,7 +1,10 @@
 #ifndef LIB_DIALECT_ORION_CONVERSIONS_ORIONTOCKKS_ORIONTOCKKS_H_
 #define LIB_DIALECT_ORION_CONVERSIONS_ORIONTOCKKS_ORIONTOCKKS_H_
 
-#include "mlir/include/mlir/Pass/Pass.h"  // from @llvm-project
+// IWYU pragma: begin_keep
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/Pass/Pass.h"                 // from @llvm-project
+// IWYU pragma: end_keep
 
 namespace mlir::heir::orion {
 

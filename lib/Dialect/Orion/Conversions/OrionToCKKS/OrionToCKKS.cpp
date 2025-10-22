@@ -1,62 +1,66 @@
 #include "lib/Dialect/Orion/Conversions/OrionToCKKS/OrionToCKKS.h"
 
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
+#include "lib/Dialect/Orion/Conversions/OrionToCKKS/IRMaterializingVisitor.h"
 #include "lib/Dialect/Orion/IR/OrionDialect.h"
 #include "lib/Dialect/Orion/IR/OrionOps.h"
-#include "lib/Utils/ConversionUtils.h"
-#include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
+#include "lib/Kernel/AbstractValue.h"
+#include "lib/Kernel/ArithmeticDag.h"
+#include "lib/Kernel/KernelImplementation.h"
+#include "lib/Kernel/KernelName.h"
+#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
+#include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
 
 namespace mlir::heir::orion {
+
+using kernel::ArithmeticDagNode;
+using kernel::implementHaleviShoup;
+using kernel::SSAValue;
 
 #define GEN_PASS_DEF_ORIONTOCKKS
 #include "lib/Dialect/Orion/Conversions/OrionToCKKS/OrionToCKKS.h.inc"
 
-struct ConvertChebyshevOp : public OpConversionPattern<ChebyshevOp> {
-  ConvertChebyshevOp(mlir::MLIRContext *context)
-      : OpConversionPattern<ChebyshevOp>(context) {}
+struct ConvertChebyshevOp : public OpRewritePattern<ChebyshevOp> {
+  using OpRewritePattern<ChebyshevOp>::OpRewritePattern;
 
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      ChebyshevOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
+  LogicalResult matchAndRewrite(ChebyshevOp op,
+                                PatternRewriter& rewriter) const override {
     // FIXME: implement
     return failure();
   }
 };
 
-struct ConvertLinearTransformOp
-    : public OpConversionPattern<LinearTransformOp> {
-  ConvertLinearTransformOp(mlir::MLIRContext *context)
-      : OpConversionPattern<LinearTransformOp>(context) {}
+struct ConvertLinearTransformOp : public OpRewritePattern<LinearTransformOp> {
+  using OpRewritePattern<LinearTransformOp>::OpRewritePattern;
 
-  using OpConversionPattern::OpConversionPattern;
+  LogicalResult matchAndRewrite(LinearTransformOp op,
+                                PatternRewriter& rewriter) const override {
+    Value input = op.getInput();
+    TypedValue<RankedTensorType> diagonals = op.getDiagonals();
 
-  LogicalResult matchAndRewrite(
-      LinearTransformOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
-    // FIXME: implement
-    return failure();
+    SSAValue vectorLeaf(input);
+    SSAValue matrixLeaf(diagonals);
+    std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
+        implementHaleviShoup(vectorLeaf, matrixLeaf,
+                             diagonals.getType().getShape());
+
+    rewriter.setInsertionPointAfter(op);
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    IRMaterializingVisitor visitor(b);
+    Value finalOutput = implementedKernel->visit(visitor);
+
+    // FIXME: propagate result type through the rest of the IR
+    rewriter.replaceOp(op, finalOutput);
+    return success();
   }
 };
 
 struct OrionToCKKS : public impl::OrionToCKKSBase<OrionToCKKS> {
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
-    auto *module = getOperation();
-
+    MLIRContext* context = &getContext();
     RewritePatternSet patterns(context);
-    ConversionTarget target(*context);
-    target.addLegalDialect<ckks::CKKSDialect>();
-    target.addIllegalDialect<orion::OrionDialect>();
     patterns.add<ConvertChebyshevOp, ConvertLinearTransformOp>(context);
-
-    ConversionConfig config;
-    config.allowPatternRollback = false;
-    if (failed(applyPartialConversion(module, target, std::move(patterns),
-                                      config))) {
-      return signalPassFailure();
-    }
+    walkAndApplyPatterns(getOperation(), std::move(patterns));
   }
 };
 

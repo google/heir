@@ -8,6 +8,8 @@ def OrionToCKKS : Pass<"orion-to-ckks"> {
   let dependentDialects = [
     "mlir::heir::orion::OrionDialect",
     "mlir::heir::ckks::CKKSDialect",
+    "mlir::tensor::TensorDialect",
+    "mlir::arith::ArithDialect",
   ];
 }
 
