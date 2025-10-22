@@ -6,8 +6,11 @@ include "mlir/Pass/PassBase.td"
 def OrionToCKKS : Pass<"orion-to-ckks"> {
   let summary = "Lower `orion` to `ckks` dialect.";
   let dependentDialects = [
-    "mlir::heir::orion::OrionDialect",
+    "mlir::arith::ArithDialect",
     "mlir::heir::ckks::CKKSDialect",
+    "mlir::heir::orion::OrionDialect",
+    "mlir::heir::tensor_ext::TensorExtDialect",
+    "mlir::tensor::TensorDialect",
   ];
 }
 
