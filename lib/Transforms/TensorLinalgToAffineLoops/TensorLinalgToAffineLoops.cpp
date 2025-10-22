@@ -150,7 +150,7 @@ static AffineForOp buildAffineLoopFromValues(
                              /*iterArgs=*/outputInits, bodyBuilderFn);
 }
 
-AffineForOp buildAffineLoopNestWithCarriedIterArgs(
+SmallVector<Value> buildAffineLoopNestWithCarriedIterArgs(
     OpBuilder& builder, Location loc, ArrayRef<Value> lbs, ArrayRef<Value> ubs,
     ArrayRef<int64_t> steps, ValueRange outputInits,
     function_ref<SmallVector<Value>(OpBuilder&, Location, ValueRange,
@@ -158,6 +158,17 @@ AffineForOp buildAffineLoopNestWithCarriedIterArgs(
         bodyBuilderFn) {
   assert(lbs.size() == ubs.size() && "Mismatch in number of arguments");
   assert(lbs.size() == steps.size() && "Mismatch in number of arguments");
+
+  // If there are no loops to be constructed, construct the body anyway.
+  OpBuilder::InsertionGuard guard(builder);
+  if (lbs.empty()) {
+    if (bodyBuilderFn) {
+      SmallVector<Value> toYield =
+          bodyBuilderFn(builder, loc, ValueRange(), outputInits);
+      return toYield;
+    }
+    return {};
+  }
 
   // Create the loops iteratively and store the induction variables.
   SmallVector<Value, 4> ivs;
@@ -202,11 +213,11 @@ AffineForOp buildAffineLoopNestWithCarriedIterArgs(
     outerYield->setOperands(innerLoopResults);
   }
 
-  return loopsFromOuterToInner.front();
+  return loopsFromOuterToInner.front().getResults();
 }
 
 // upstream Linalg/Utils/Utils.h::GenerateLoopNest forces memref semantics.
-AffineForOp generateLoopNest(
+SmallVector<Value> generateLoopNest(
     OpBuilder& b, Location loc, ArrayRef<Range> loopRanges, LinalgOp linalgOp,
     ArrayRef<utils::IteratorType> iteratorTypes, ValueRange outputInits,
     function_ref<SmallVector<Value>(OpBuilder&, Location, ValueRange,
@@ -255,7 +266,7 @@ struct LowerLinalgGenericToLoops : public OpRewritePattern<GenericOp> {
 
     SmallVector<Value> allIvs;
 
-    AffineForOp outermostLoop = generateLoopNest(
+    SmallVector<Value> outermostLoopResults = generateLoopNest(
         rewriter, op.getLoc(), loopRanges, linalgOp, iteratorTypes,
         op.getOutputs(),
         [&](OpBuilder& b, Location loc, ValueRange ivs,
@@ -264,7 +275,7 @@ struct LowerLinalgGenericToLoops : public OpRewritePattern<GenericOp> {
           return emitScalarImplementation(b, loc, allIvs, op, iterArgs);
         });
 
-    rewriter.replaceOp(op, outermostLoop);
+    rewriter.replaceOp(op, outermostLoopResults);
     return success();
   }
 };
