@@ -27,9 +27,7 @@ def Mgmt_ModReduceOp : Mgmt_Op<"modreduce"> {
     or ckks.rescale depending on the scheme.
   }];
 
-  let arguments = (ins
-    AnyType:$input
-  );
+  let arguments = (ins AnyType:$input);
   let results = (outs AnyType:$output);
   let assemblyFormat = "operands attr-dict `:` type($output)";
 
@@ -81,9 +79,7 @@ def Mgmt_RelinearizeOp : Mgmt_Op<"relinearize"> {
     or ckks.relinearize depending on the scheme.
   }];
 
-  let arguments = (ins
-    AnyType:$input
-  );
+  let arguments = (ins AnyType:$input);
   let results = (outs AnyType:$output);
   let assemblyFormat = "operands attr-dict `:` type($output)";
 }
@@ -99,16 +95,12 @@ def Mgmt_BootstrapOp : Mgmt_Op<"bootstrap"> {
     reduce the noise in a ciphertext, allowing further operations
     to be performed on it without decryption.
 
-    When further lowered, it could be lowered to bgv.bootstrap
-    or ckks.bootstrap depending on the scheme.
-
-    For the current backend, only ckks.bootstrap is supported.
-    Further backend may include bgv.bootstrap.
+    When further lowered, it could be lowered to `bgv.bootstrap` or
+    `ckks.bootstrap` depending on the scheme. Current backends only support
+    `ckks.bootstrap`.
   }];
 
-  let arguments = (ins
-    AnyType:$input
-  );
+  let arguments = (ins AnyType:$input);
   let results = (outs AnyType:$output);
   let assemblyFormat = "operands attr-dict `:` type($output)";
 }
@@ -175,9 +167,7 @@ def Mgmt_InitOp : Mgmt_Op<"init",
     ConditionallySpeculatable is for isSpeculatable check in hoisting canonicalization.
   }];
 
-  let arguments = (ins
-    AnyType:$input
-  );
+  let arguments = (ins AnyType:$input);
   let results = (outs AnyType:$output);
   let assemblyFormat = "operands attr-dict `:` type($output)";
 

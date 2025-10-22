@@ -6,6 +6,7 @@ include "lib/Dialect/LWE/IR/LWETypes.td"
 
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/CommonAttrConstraints.td"
+include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
@@ -18,7 +19,7 @@ class Orion_Op<string mnemonic, list<Trait> traits = []> :
 def Orion_LinearTransformOp : Orion_Op<"linear_transform", [Pure]> {
   // Use a cleartext for the diagonals since they need to be rotated in the
   // BSGS implementation of linear transforms.
-  let arguments = (ins LWECiphertext:$input, FloatLike:$diagonals);
+  let arguments = (ins LWECiphertext:$input, RankedTensorOf<[F64]>:$diagonals);
   let results = (outs LWECiphertext:$result);
   let summary = "Apply a linear transformation to the input ciphertext using pre-computed diagonals";
 }
