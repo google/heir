@@ -22,7 +22,6 @@
 #include "lib/Dialect/Secret/Transforms/ImportExecutionResult.h"
 #include "lib/Dialect/TensorExt/Conversions/TensorExtToTensor/TensorExtToTensor.h"
 #include "lib/Dialect/TensorExt/Transforms/CollapseInsertionChains.h"
-#include "lib/Dialect/TensorExt/Transforms/FoldConvertLayoutIntoAssignLayout.h"
 #include "lib/Dialect/TensorExt/Transforms/ImplementRotateAndReduce.h"
 #include "lib/Dialect/TensorExt/Transforms/ImplementShiftNetwork.h"
 #include "lib/Dialect/TensorExt/Transforms/InsertRotate.h"
@@ -35,6 +34,7 @@
 #include "lib/Transforms/DropUnitDims/DropUnitDims.h"
 #include "lib/Transforms/ElementwiseToAffine/ElementwiseToAffine.h"
 #include "lib/Transforms/FoldConstantTensors/FoldConstantTensors.h"
+#include "lib/Transforms/FoldPlaintextMasks/FoldPlaintextMasks.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
 #include "lib/Transforms/GenerateParam/GenerateParam.h"
 #include "lib/Transforms/InlineActivations/InlineActivations.h"
@@ -127,6 +127,23 @@ void lowerAssignLayout(OpPassManager& pm, bool unroll = false) {
   }
 }
 
+// Implement layout conversions as shift networks
+void implementShiftNetworkPipelineBuilder(OpPassManager& pm) {
+  pm.addPass(tensor_ext::createImplementShiftNetwork());
+  // implement shift networks produces some naive repeated plaintext masks
+
+  // CSE in prep for folding plaintext masks
+  pm.addPass(createCanonicalizerPass());
+  pm.addPass(createCSEPass());
+
+  // Clean up foldable repeated masks
+  pm.addPass(createFoldPlaintextMasks());
+
+  // The cleaned up masks may enable further simplifications
+  pm.addPass(createCanonicalizerPass());
+  pm.addPass(createCSEPass());
+}
+
 void mlirToSecretArithmeticPipelineBuilder(
     OpPassManager& pm, const MlirToRLWEPipelineOptions& options) {
   pm.addPass(createWrapGeneric());
@@ -155,8 +172,7 @@ void mlirToSecretArithmeticPipelineBuilder(
   pm.addPass(createCanonicalizerPass());
   pm.addPass(tensor_ext::createImplementRotateAndReduce());
 
-  // Implement layout conversions as shift networks
-  pm.addPass(tensor_ext::createImplementShiftNetwork());
+  implementShiftNetworkPipelineBuilder(pm);
 
   // Balance Operations
   pm.addPass(createOperationBalancer());
