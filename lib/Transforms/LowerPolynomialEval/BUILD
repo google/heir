@@ -34,6 +34,8 @@ cc_library(
         "@heir//lib/Utils:MathUtils",
         "@heir//lib/Utils/Polynomial",
         "@heir//lib/Utils/Polynomial:ChebyshevPatersonStockmeyer",
+        "@heir//lib/Utils/Polynomial:Horner",
+        "@heir//lib/Utils/Polynomial:PatersonStockmeyer",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",

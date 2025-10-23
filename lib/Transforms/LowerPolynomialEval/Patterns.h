@@ -12,15 +12,21 @@ namespace mlir {
 namespace heir {
 
 struct LoweringBase : public OpRewritePattern<polynomial::EvalOp> {
-  LoweringBase(mlir::MLIRContext* context, bool force = false)
-      : mlir::OpRewritePattern<polynomial::EvalOp>(context), force(force) {}
+  LoweringBase(mlir::MLIRContext* context, bool force = false,
+               double minCoefficientThreshold = 1e-12)
+      : mlir::OpRewritePattern<polynomial::EvalOp>(context),
+        force(force),
+        minCoefficientThreshold(minCoefficientThreshold) {}
 
   bool shouldForce() const { return force; }
+  double getMinCoefficientThreshold() const { return minCoefficientThreshold; }
 
  private:
   // Force the use of this pattern, ignoring any heuristics on whether to apply
   // it.
   const bool force;
+  // Minimum threshold for coefficients to be included in the lowered polynomial
+  const double minCoefficientThreshold;
 };
 
 // Lower polynomial.eval that uses a monomial float polynomial to a series of
