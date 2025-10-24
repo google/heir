@@ -3,6 +3,10 @@ title: SIMD Optimizations
 weight: 9
 ---
 
+**Note:** this functionality has been removed from the main HEIR pipelines, but
+is still available in
+`lib/Pipelines/ArithmeticPipelineRegistration.cpp::heirSIMDVectorizerPipelineBuilder`.
+
 HEIR includes a SIMD (Single Instruction, Multiple Data) optimizer which is
 designed to exploit the restricted SIMD parallelism most (Ring-LWE-based) FHE
 schemes support (also commonly known as "packing" or "batching"). Specifically,
