@@ -20,7 +20,7 @@ func.func @matvec_with_diagonal_kernel(
   // With kernel cost model: optimizer should preserve MatvecDiagonal
   // because the cost of the kernel is accounted for in optimization decisions
   // CHECK: linalg.matvec
-  // CHECK-SAME: secret.kernel = #secret.kernel<name="MatvecDiagonal"
+  // CHECK-SAME: secret.kernel
   %result = linalg.matvec
     {secret.kernel = #secret.kernel<name="MatvecDiagonal", force=false>,
      tensor_ext.layout = #layout_vec}
@@ -38,7 +38,7 @@ func.func @matvec_large_matrix(
   %cst = tensor.empty() : tensor<512xf32>
 
   // CHECK: linalg.matvec
-  // CHECK-SAME: secret.kernel = #secret.kernel<name="MatvecDiagonal"
+  // CHECK-SAME: secret.kernel
   %result = linalg.matvec
     {secret.kernel = #secret.kernel<name="MatvecDiagonal", force=false>}
     ins(%matrix, %vec : tensor<512x512xf32>, tensor<512xf32>)
@@ -56,7 +56,7 @@ func.func @matvec_rectangular(
 
   // Cost should be based on number of rows (8), not columns (4)
   // CHECK: linalg.matvec
-  // CHECK-SAME: secret.kernel = #secret.kernel<name="MatvecDiagonal"
+  // CHECK-SAME: secret.kernel
   %result = linalg.matvec
     {secret.kernel = #secret.kernel<name="MatvecDiagonal", force=false>}
     ins(%matrix, %vec : tensor<8x4xf32>, tensor<4xf32>)

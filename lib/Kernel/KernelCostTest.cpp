@@ -1,4 +1,5 @@
 #include <memory>
+#include <unordered_set>
 
 #include "gtest/gtest.h"
 #include "lib/Kernel/AbstractValue.h"
@@ -11,39 +12,49 @@ namespace heir {
 namespace kernel {
 namespace {
 
-// Visitor to count rotations in a symbolic DAG
-class RotationCountVisitor : public CachingVisitor<SymbolicValue, int64_t> {
+// Visitor to count UNIQUE rotations in a symbolic DAG with CSE deduplication
+class RotationCountVisitor {
  public:
-  using CachingVisitor<SymbolicValue, int64_t>::operator();
+  RotationCountVisitor() {}
 
-  RotationCountVisitor() : CachingVisitor<SymbolicValue, int64_t>() {}
-
-  int64_t operator()(const ConstantScalarNode& node) override { return 0; }
-
-  int64_t operator()(const ConstantTensorNode& node) override { return 0; }
-
-  int64_t operator()(const LeafNode<SymbolicValue>& node) override {
-    return 0;
+  int64_t process(const std::shared_ptr<ArithmeticDagNode<SymbolicValue>>& node) {
+    visitedNodes.clear();
+    return processInternal(node);
   }
 
-  int64_t operator()(const AddNode<SymbolicValue>& node) override {
-    return this->process(node.left) + this->process(node.right);
-  }
+ private:
+  std::unordered_set<const ArithmeticDagNode<SymbolicValue>*> visitedNodes;
 
-  int64_t operator()(const SubtractNode<SymbolicValue>& node) override {
-    return this->process(node.left) + this->process(node.right);
-  }
+  int64_t processInternal(const std::shared_ptr<ArithmeticDagNode<SymbolicValue>>& node) {
+    const auto* nodePtr = node.get();
 
-  int64_t operator()(const MultiplyNode<SymbolicValue>& node) override {
-    return this->process(node.left) + this->process(node.right);
-  }
+    // If we've already visited this node, don't count it again (CSE)
+    if (visitedNodes.count(nodePtr)) {
+      return 0;
+    }
+    visitedNodes.insert(nodePtr);
 
-  int64_t operator()(const LeftRotateNode<SymbolicValue>& node) override {
-    return this->process(node.operand) + 1;
-  }
-
-  int64_t operator()(const ExtractNode<SymbolicValue>& node) override {
-    return this->process(node.operand);
+    return std::visit([this](auto&& arg) -> int64_t {
+      using T = std::decay_t<decltype(arg)>;
+      if constexpr (std::is_same_v<T, ConstantScalarNode>) {
+        return 0;
+      } else if constexpr (std::is_same_v<T, ConstantTensorNode>) {
+        return 0;
+      } else if constexpr (std::is_same_v<T, LeafNode<SymbolicValue>>) {
+        return 0;
+      } else if constexpr (std::is_same_v<T, AddNode<SymbolicValue>>) {
+        return processInternal(arg.left) + processInternal(arg.right);
+      } else if constexpr (std::is_same_v<T, SubtractNode<SymbolicValue>>) {
+        return processInternal(arg.left) + processInternal(arg.right);
+      } else if constexpr (std::is_same_v<T, MultiplyNode<SymbolicValue>>) {
+        return processInternal(arg.left) + processInternal(arg.right);
+      } else if constexpr (std::is_same_v<T, LeftRotateNode<SymbolicValue>>) {
+        return processInternal(arg.operand) + 1;
+      } else if constexpr (std::is_same_v<T, ExtractNode<SymbolicValue>>) {
+        return processInternal(arg.operand);
+      }
+      return 0;
+    }, node->node_variant);
   }
 };
 
@@ -55,7 +66,7 @@ TEST(KernelCostTest, MatvecDiagonal_4x4_CostIs4) {
   auto dag = implementMatvec(KernelName::MatvecDiagonal, matrix, vector);
 
   RotationCountVisitor counter;
-  int64_t rotations = dag->visit(counter);
+  int64_t rotations = counter.process(dag);
 
   // Diagonal algorithm: one rotation per row
   EXPECT_EQ(rotations, 4);
@@ -68,7 +79,7 @@ TEST(KernelCostTest, MatvecDiagonal_100x100_CostIs100) {
   auto dag = implementMatvec(KernelName::MatvecDiagonal, matrix, vector);
 
   RotationCountVisitor counter;
-  int64_t rotations = dag->visit(counter);
+  int64_t rotations = counter.process(dag);
 
   EXPECT_EQ(rotations, 100);
 }
@@ -81,7 +92,7 @@ TEST(KernelCostTest, MatvecDiagonal_Rectangular_8x4) {
   auto dag = implementMatvec(KernelName::MatvecDiagonal, matrix, vector);
 
   RotationCountVisitor counter;
-  int64_t rotations = dag->visit(counter);
+  int64_t rotations = counter.process(dag);
 
   // Cost scales with number of rows (diagonals)
   EXPECT_EQ(rotations, 8);
@@ -95,7 +106,7 @@ TEST(KernelCostTest, MatvecDiagonal_Rectangular_4x8) {
   auto dag = implementMatvec(KernelName::MatvecDiagonal, matrix, vector);
 
   RotationCountVisitor counter;
-  int64_t rotations = dag->visit(counter);
+  int64_t rotations = counter.process(dag);
 
   // Cost scales with number of rows, not columns
   EXPECT_EQ(rotations, 4);
@@ -108,7 +119,7 @@ TEST(KernelCostTest, MatvecDiagonal_SmallMatrix_2x2) {
   auto dag = implementMatvec(KernelName::MatvecDiagonal, matrix, vector);
 
   RotationCountVisitor counter;
-  int64_t rotations = dag->visit(counter);
+  int64_t rotations = counter.process(dag);
 
   EXPECT_EQ(rotations, 2);
 }
@@ -120,7 +131,7 @@ TEST(KernelCostTest, MatvecDiagonal_LargeMatrix_512x512) {
   auto dag = implementMatvec(KernelName::MatvecDiagonal, matrix, vector);
 
   RotationCountVisitor counter;
-  int64_t rotations = dag->visit(counter);
+  int64_t rotations = counter.process(dag);
 
   EXPECT_EQ(rotations, 512);
 }
@@ -151,7 +162,7 @@ TEST(KernelCostTest, CachingVisitorDeduplicatesSubexpressions) {
   auto dag = ArithmeticDagNode<SymbolicValue>::add(rotNode, rotNode);
 
   RotationCountVisitor counter;
-  int64_t rotations = dag->visit(counter);
+  int64_t rotations = counter.process(dag);
 
   // Should count the shared rotation only once due to caching
   EXPECT_EQ(rotations, 1);
