@@ -45,8 +45,8 @@ class RTLILImporter {
   // config. cellOrdering provides topologically sorted list of cells that can
   // be used to sequentially create the MLIR representation. A resultType is
   // also passed to specify the output shape. For example, if a flattened 8 bit
-  // vector is returned from the module, it may be assembled into a memref<8xi1>
-  // or memref<2x4xi1>.
+  // vector is returned from the module, it may be assembled into a tensor<8xi1>
+  // or tensor<2x4xi1>.
   func::FuncOp importModule(Yosys::RTLIL::Module* module,
                             const SmallVector<std::string, 10>& cellOrdering,
                             std::optional<SmallVector<Type>> resultTypes);
