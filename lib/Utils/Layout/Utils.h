@@ -8,6 +8,7 @@
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Utils/Utils.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"            // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"               // from @llvm-project
 
@@ -17,6 +18,16 @@
 
 namespace mlir {
 namespace heir {
+
+// Helper that adds constraints built from the array of positions and coeffs.
+// Inequalities are given by (>= 0).
+void addConstraint(presburger::IntegerRelation& result,
+                   ArrayRef<std::pair<int64_t, int64_t>> posAndCoeff,
+                   bool equality);
+// Helper that adds inclusive lower and upper bounds for a given position and
+// value.
+void addBounds(presburger::IntegerRelation& result, int64_t pos, int64_t lower,
+               std::optional<int64_t> upper = std::nullopt);
 
 // Adds a new local variable q to the relation that represents expr % modulus.
 // Returns the index of the new local variable in the relation.
@@ -177,6 +188,12 @@ std::vector<int64_t> anyRangePoint(const presburger::IntegerRelation& relation);
 presburger::IntegerRelation getCollapsedRelation(
     RankedTensorType sourceType, RankedTensorType destType,
     ArrayRef<ReassociationIndices> reassociation);
+
+// Get layout relation that corresponds to a tensor::insert_slice op.
+FailureOr<presburger::IntegerRelation> getSliceInsertionRelation(
+    RankedTensorType sliceType, RankedTensorType resultType,
+    SmallVector<int64_t> offsets, SmallVector<int64_t> sizes,
+    SmallVector<int64_t> strides);
 
 }  // namespace heir
 }  // namespace mlir

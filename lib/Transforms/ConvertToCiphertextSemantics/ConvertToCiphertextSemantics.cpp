@@ -48,6 +48,7 @@
 #include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineExpr.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineMap.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
@@ -86,6 +87,34 @@ auto& kLayoutAttrName = tensor_ext::TensorExtDialect::kLayoutAttrName;
 auto& kMaterializedAttrName = "tensor_ext.layout_materialized";
 auto& kOriginalTypeAttrName =
     tensor_ext::TensorExtDialect::kOriginalTypeAttrName;
+
+NamedAttribute getArithFMF(OpBuilder& builder) {
+  return mlir::NamedAttribute(
+      mlir::StringAttr::get(builder.getContext(), "fastmath"),
+      mlir::arith::FastMathFlagsAttr::get(
+          builder.getContext(),
+          mlir::arith::FastMathFlags::nsz | mlir::arith::FastMathFlags::nnan));
+}
+
+IntegerRelation restrictRelationToSlice(const IntegerRelation& relation,
+                                        llvm::ArrayRef<int64_t> offsets,
+                                        llvm::ArrayRef<int64_t> sizes) {
+  auto result = relation.clone();
+  // Set the domain vars to the range specified by the offset and size.
+  for (auto [dim, offset] : llvm::enumerate(offsets)) {
+    // d0 - offset >= 0
+    SmallVector<int64_t> leConstraint(result->getNumCols(), 0);
+    leConstraint[dim + result->getVarKindOffset(VarKind::Domain)] = 1;
+    leConstraint.back() = -offset;
+    result->addInequality(leConstraint);
+    // offset + size - d0 - 1 >= 0
+    SmallVector<int64_t> geConstraint(result->getNumCols(), 0);
+    geConstraint[dim + result->getVarKindOffset(VarKind::Domain)] = -1;
+    geConstraint.back() = offset + sizes[dim] - 1;
+    result->addInequality(geConstraint);
+  }
+  return *result;
+}
 
 }  // namespace
 
@@ -922,6 +951,224 @@ class ConvertTensorExtractLayout
   }
 };
 
+class ConvertTensorInsertSlice
+    : public ContextAwareOpConversionPattern<tensor::InsertSliceOp> {
+ public:
+  using ContextAwareOpConversionPattern<
+      tensor::InsertSliceOp>::ContextAwareOpConversionPattern;
+
+  // A helper to create two masks for the case of tensor.insert_slice a
+  // cleartext into a ciphertext when the insertion indices are statically
+  // known. The scalarMaskValue is the value inserted into the plaintext mask.
+  //
+  // Returns a pair of scalarMask and destMask.
+  std::pair<std::vector<Value>, std::vector<Value>>
+  createMasksFromStaticIndicesAtCt(const PointCollector& collector,
+                                   RankedTensorType destCiphertextSemanticType,
+                                   int64_t scalarMaskValue,
+                                   ImplicitLocOpBuilder& b) const {
+    // Now create pre-masked packed plainexts that have zeros in all but those
+    // slots of dest's ciphertext-semantic tensor that the scalar should be
+    // "inserted" into. The nonzero slots contain repeated copies of the scalar
+    // value.
+    auto numCiphertexts = destCiphertextSemanticType.getDimSize(0);
+    Type elementType = destCiphertextSemanticType.getElementType();
+    RankedTensorType singleCiphertextType = RankedTensorType::get(
+        {1, destCiphertextSemanticType.getDimSize(1)}, elementType);
+
+    // Create dense constants for the scalar mask and dest mask.
+    std::vector<SmallVector<Attribute>> scalarMaskAttrs(
+        numCiphertexts,
+        SmallVector<Attribute>(singleCiphertextType.getNumElements(),
+                               b.getZeroAttr(elementType)));
+    std::vector<SmallVector<Attribute>> destMaskAttrs(
+        numCiphertexts,
+        SmallVector<Attribute>(singleCiphertextType.getNumElements(),
+                               b.getOneAttr(elementType)));
+    Attribute scalarMaskAttr =
+        isa<IntegerType>(elementType)
+            ? cast<Attribute>(b.getIntegerAttr(elementType, scalarMaskValue))
+            : b.getFloatAttr(elementType, scalarMaskValue);
+
+    // Iterate over all these points for each ciphertext, and for the plaintext
+    // mask insert a copy of the scalar, while for the dest mask insert a zero.
+    for (auto& point : collector.points) {
+      auto ctIndex = point[0];
+      auto slotIndex = point[1];
+
+      // Here the scalarMaskValue can be an actual scalar (in the case of a
+      // cleartext scalar) or a 1 (in the case of a secret scalar, so that the
+      // resulting mask requires an extra mul).
+      scalarMaskAttrs[ctIndex][slotIndex] = scalarMaskAttr;
+      destMaskAttrs[ctIndex][slotIndex] = b.getZeroAttr(elementType);
+    }
+
+    std::vector<Value> scalarMasks;
+    std::vector<Value> destMasks;
+    for (auto ct = 0; ct < numCiphertexts; ++ct) {
+      arith::ConstantOp scalarMask = arith::ConstantOp::create(
+          b, singleCiphertextType,
+          DenseElementsAttr::get(singleCiphertextType, scalarMaskAttrs[ct]));
+      arith::ConstantOp destMask = arith::ConstantOp::create(
+          b, singleCiphertextType,
+          DenseElementsAttr::get(singleCiphertextType, destMaskAttrs[ct]));
+
+      setMaterializedAttr({scalarMask, destMask});
+      scalarMasks.push_back(scalarMask.getResult());
+      destMasks.push_back(destMask.getResult());
+    }
+
+    return {scalarMasks, destMasks};
+  }
+
+  LogicalResult secretScalarSecretTensor(
+      tensor::InsertSliceOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const {
+    MLIRContext* ctx = op.getContext();
+
+    FailureOr<Attribute> scalarLayoutResult =
+        getTypeConverter()->getContextualAttr(adaptor.getSource());
+    FailureOr<Attribute> destLayoutResult =
+        getTypeConverter()->getContextualAttr(adaptor.getDest());
+
+    LayoutAttr scalarLayout = cast<LayoutAttr>(scalarLayoutResult.value());
+    LayoutAttr destLayout = cast<LayoutAttr>(destLayoutResult.value());
+
+    IntegerRelation scalarRel = scalarLayout.getIntegerRelation();
+    IntegerRelation destRel = destLayout.getIntegerRelation();
+
+    // Initial support for this kernel requires that the scalar source slice
+    // changes layout to match the destination tensor layout at the subspace
+    // defined by the slicing.
+    if (!scalarRel.getRangeSet().isSubsetOf(destRel.getRangeSet())) {
+      return op.emitError()
+             << "tensor.insert requires slice layout to be a subset of the "
+                "dest layout, but "
+                "got slice layout "
+             << scalarLayout << " and tensor layout " << destLayout << "\n";
+    }
+
+    SmallVector<int64_t> staticStrides =
+        SmallVector<int64_t>(op.getStaticStrides());
+    if (!llvm::all_of(staticStrides, [](int64_t s) { return s == 1; })) {
+      return op.emitError()
+             << "only unit strides of a tensor.insert_slice are supported";
+    }
+
+    // Convert the scalar layout to the destination layout subspace.
+    auto maybeSliceLayout = getSliceInsertionRelation(
+        op.getSourceType(), op.getResultType(),
+        SmallVector<int64_t>(op.getStaticOffsets()),
+        SmallVector<int64_t>(op.getStaticSizes()), staticStrides);
+    if (failed(maybeSliceLayout)) {
+      return op.emitError() << "failed to get layout for insert slice";
+    }
+    auto sliceInsertionLayout = maybeSliceLayout.value();
+    sliceInsertionLayout.compose(destRel);
+
+    // In case the slice is already in a layout compatible with the destination
+    // layout, we don't need to insert a conversion.
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    Value convertedSource = adaptor.getSource();
+    if (!scalarRel.isEqual(sliceInsertionLayout)) {
+      LayoutAttr newScalarLayout =
+          LayoutAttr::getFromIntegerRelation(ctx, sliceInsertionLayout);
+      LLVM_DEBUG(llvm::dbgs()
+                 << "converting insert_slice source from " << scalarLayout
+                 << " to " << newScalarLayout << "\n");
+      convertedSource = tensor_ext::ConvertLayoutOp::create(
+          b, op.getLoc(), adaptor.getSource(), scalarLayout, newScalarLayout);
+    }
+
+    // For each ciphertext in the destination, mask the points originating from
+    // the slice with ones and the remaining points from the destination with
+    // ones. To do this, we collect all points of the slice in the destination
+    // layout.
+    IntegerRelation sliceOfDestRelation = restrictRelationToSlice(
+        destRel, op.getStaticOffsets(), op.getStaticSizes());
+    // collector.points contains all (ciphertext, slot) pairs that correspond
+    // to the locations the scalar should be inserted into.
+    RankedTensorType ciphertextSemanticType =
+        cast<RankedTensorType>(adaptor.getDest().getType());
+    PointCollector collector;
+    getRangePoints(sliceOfDestRelation, collector);
+    std::pair<std::vector<Value>, std::vector<Value>> results =
+        createMasksFromStaticIndicesAtCt(collector, ciphertextSemanticType, 1,
+                                         b);
+
+    Value result =
+        tensor::EmptyOp::create(b, ciphertextSemanticType.getShape(),
+                                ciphertextSemanticType.getElementType());
+    auto numCt = ciphertextSemanticType.getDimSize(0);
+    auto slots = ciphertextSemanticType.getDimSize(1);
+    for (auto ct = 0; ct < numCt; ++ct) {
+      Value scalarMask = results.first[ct];
+      Value destMask = results.second[ct];
+
+      // Mask the scalarMask with the packed scalar. Mask the dest with the
+      // destMask, then add the two results.
+      SmallVector<OpFoldResult> ctOffsets;
+      ctOffsets.push_back(rewriter.getIndexAttr(ct));
+      ctOffsets.push_back(rewriter.getIndexAttr(0));
+      SmallVector<OpFoldResult> sizes;
+      sizes.push_back(b.getIndexAttr(1));
+      sizes.push_back(b.getIndexAttr(slots));
+      SmallVector<OpFoldResult> strides(2, b.getIndexAttr(1));
+      Value extractedDest = tensor::ExtractSliceOp::create(
+          b, op.getLoc(), cast<RankedTensorType>(convertedSource.getType()),
+          adaptor.getDest(), ctOffsets, sizes, strides);
+      Operation* scalarMul = makeAppropriatelyTypedMulOp(
+          b, op.getLoc(), scalarMask, convertedSource, {getArithFMF(b)});
+      Operation* destMul = makeAppropriatelyTypedMulOp(
+          b, op.getLoc(), destMask, extractedDest, {getArithFMF(b)});
+      Operation* finalAdd =
+          makeAppropriatelyTypedAddOp(b, op.getLoc(), scalarMul->getResult(0),
+                                      destMul->getResult(0), {getArithFMF(b)});
+
+      // Insert the final result into the ciphertext at position ct.
+      Operation* insertOp = tensor::InsertSliceOp::create(
+          b, finalAdd->getResult(0), result, ctOffsets, sizes, strides);
+      setMaterializedAttr({scalarMul, destMul, finalAdd, insertOp});
+      result = insertOp->getResult(0);
+    }
+
+    setAttributeAssociatedWith(result, kLayoutAttrName, destLayout);
+    rewriter.replaceOp(op, result);
+    return success();
+  }
+
+  LogicalResult matchAndRewrite(
+      tensor::InsertSliceOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    FailureOr<Attribute> sourceLayoutResult =
+        getTypeConverter()->getContextualAttr(adaptor.getSource());
+    FailureOr<Attribute> destLayoutResult =
+        getTypeConverter()->getContextualAttr(adaptor.getDest());
+
+    bool isSecretScalar = succeeded(sourceLayoutResult);
+    bool isSecretDest = succeeded(destLayoutResult);
+
+    if (isSecretScalar && isSecretDest) {
+      return secretScalarSecretTensor(op, adaptor, rewriter);
+    }
+
+    if (!isSecretScalar && isSecretDest) {
+      return op.emitError()
+             << "unsupported case of inserting cleartext into secret tensor";
+    }
+
+    if (isSecretScalar && !isSecretDest) {
+      return op.emitError() << "dest tensor should have been assigned a layout "
+                               "by layout-propagation";
+    }
+
+    // cleartext scalar and cleartext tensor means this is a cleartext op
+    // that can be elided.
+    setMaterializedAttr(op);
+    return success();
+  }
+};
+
 class ConvertTensorInsertLayout
     : public ContextAwareOpConversionPattern<tensor::InsertOp> {
  public:
@@ -1460,17 +1707,17 @@ struct ConvertToCiphertextSemantics
       return isa<ModuleOp>(op) || hasMaterializedAttr(op);
     });
 
-    patterns.add<ConvertFunc, ConvertGeneric,
-                 // tensor_ext ops
-                 ConvertConvertLayout,
-                 // linalg ops
-                 ConvertLinalgReduce, ConvertLinalgMatvecLayout,
-                 ConvertLinalgConv2D,
-                 // tensor ops
-                 ConvertTensorExtractLayout, ConvertTensorInsertLayout,
-                 ConvertCollapseShape, ConvertExpandShape,
-                 // default
-                 ConvertAnyAddingMaterializedAttr>(typeConverter, context);
+    patterns.add<
+        ConvertFunc, ConvertGeneric,
+        // tensor_ext ops
+        ConvertConvertLayout,
+        // linalg ops
+        ConvertLinalgReduce, ConvertLinalgMatvecLayout, ConvertLinalgConv2D,
+        // tensor ops
+        ConvertTensorExtractLayout, ConvertTensorInsertLayout,
+        ConvertCollapseShape, ConvertExpandShape, ConvertTensorInsertSlice,
+        // default
+        ConvertAnyAddingMaterializedAttr>(typeConverter, context);
     patterns.add<ConvertAssignLayout>(typeConverter, context, ciphertextSize);
 
     ConversionConfig config;

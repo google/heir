@@ -52,8 +52,10 @@ cc_library(
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithUtils",
+        "@llvm-project//mlir:DialectUtils",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
     ],
 )
 
@@ -108,8 +110,12 @@ cc_library(
     hdrs = ["Hoisting.h"],
     deps = [
         ":IslConversion",
+        ":Utils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:DialectUtils",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
     ],
 )
 
@@ -120,6 +126,7 @@ cc_test(
         ":Codegen",
         ":Hoisting",
         ":IslConversion",
+        ":Utils",
         "@googletest//:gtest_main",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",

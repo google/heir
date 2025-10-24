@@ -8,6 +8,7 @@
 #include <utility>
 #include <vector>
 
+#include "mlir/include/mlir/IR/Attributes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Dialect.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"         // from @llvm-project
@@ -142,9 +143,11 @@ TypedAttr getScalarOrDenseAttr(Type tensorOrScalarType, APInt value);
 TypedAttr getScalarOrDenseAttr(Type tensorOrScalarType, APFloat value);
 
 Operation* makeAppropriatelyTypedAddOp(OpBuilder& builder, Location loc,
-                                       Value lhs, Value rhs);
+                                       Value lhs, Value rhs,
+                                       ArrayRef<NamedAttribute> attrs = {});
 Operation* makeAppropriatelyTypedMulOp(OpBuilder& builder, Location loc,
-                                       Value lhs, Value rhs);
+                                       Value lhs, Value rhs,
+                                       ArrayRef<NamedAttribute> attrs = {});
 
 inline std::pair<bool, bool> allZeroAllOne(ArrayRef<double> mask) {
   bool allZero = true;

@@ -15,6 +15,7 @@
 #include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
@@ -208,25 +209,27 @@ TypedAttr getScalarOrDenseAttr(Type tensorOrScalarType, APInt value) {
 }
 
 Operation* makeAppropriatelyTypedAddOp(OpBuilder& builder, Location loc,
-                                       Value lhs, Value rhs) {
+                                       Value lhs, Value rhs,
+                                       ArrayRef<NamedAttribute> attrs) {
   assert(lhs.getType() == rhs.getType() &&
          "lhs and rhs must have the same type");
   StringRef addOpName = isa<IntegerType>(getElementTypeOrSelf(lhs.getType()))
                             ? "arith.addi"
                             : "arith.addf";
   return builder.create(
-      OperationState(loc, addOpName, {lhs, rhs}, {lhs.getType()}));
+      OperationState(loc, addOpName, {lhs, rhs}, {lhs.getType()}, attrs));
 }
 
 Operation* makeAppropriatelyTypedMulOp(OpBuilder& builder, Location loc,
-                                       Value lhs, Value rhs) {
+                                       Value lhs, Value rhs,
+                                       ArrayRef<NamedAttribute> attrs) {
   assert(lhs.getType() == rhs.getType() &&
          "lhs and rhs must have the same type");
   StringRef addOpName = isa<IntegerType>(getElementTypeOrSelf(lhs.getType()))
                             ? "arith.muli"
                             : "arith.mulf";
   return builder.create(
-      OperationState(loc, addOpName, {lhs, rhs}, {lhs.getType()}));
+      OperationState(loc, addOpName, {lhs, rhs}, {lhs.getType()}, attrs));
 }
 
 }  // namespace heir

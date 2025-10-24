@@ -14,6 +14,7 @@
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Utils/Utils.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"             // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"               // from @llvm-project
@@ -358,10 +359,16 @@ TEST(UtilsTest, TestGetCollapsedRelation) {
 
   // Evaluate layout presumes a 2-d (ct, slot) output so we can hack-ishly use
   // it here for the 2D output.
-  std::vector<std::vector<std::vector<int>>> input = {
-      {{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}},
-      {{9, 10, 11, 12}, {13, 14, 15, 16}, {17, 18, 19, 20}},
-  };
+  std::vector<std::vector<std::vector<int>>> input = {{
+                                                          {1, 2, 3, 4},
+                                                          {5, 6, 7, 8},
+                                                          {9, 10, 11, 12},
+                                                      },
+                                                      {
+                                                          {9, 10, 11, 12},
+                                                          {13, 14, 15, 16},
+                                                          {17, 18, 19, 20},
+                                                      }};
   std::function<int(const std::vector<int64_t>&)> getValueFn =
       [&](const std::vector<int64_t>& domainPoint) {
         return input[domainPoint[0]][domainPoint[1]][domainPoint[2]];
@@ -407,6 +414,38 @@ TEST(UtilsTest, TestGetCollapsedRelationUnitDims) {
       {9, 10, 11, 12},
   };
   EXPECT_EQ(actual, expected);
+}
+
+TEST(UtilsTest, TestGetSliceInsertionRelation) {
+  MLIRContext context;
+  // Insert a 3x4 slice into a 2x1x3x4 matrix at (1, 0, 0, 0).
+  RankedTensorType sliceType =
+      RankedTensorType::get({3, 4}, IndexType::get(&context));
+  RankedTensorType destType =
+      RankedTensorType::get({2, 1, 3, 4}, IndexType::get(&context));
+  SmallVector<int64_t> offsets = {1, 0, 0, 0};
+  SmallVector<int64_t> sizes = {1, 1, 3, 4};
+  SmallVector<int64_t> strides = {1, 1, 1, 1};
+
+  auto sliceRelation =
+      getSliceInsertionRelation(sliceType, destType, offsets, sizes, strides);
+  ASSERT_TRUE(succeeded(sliceRelation));
+
+  // Expect two ciphertexts.
+  auto ctBound = sliceRelation.value().getConstantBound64(
+      BoundType::UB, sliceRelation.value().getVarKindOffset(VarKind::Range));
+  ASSERT_TRUE(ctBound.has_value());
+  EXPECT_EQ(ctBound.value(), 1);
+
+  // Test the first point.
+  std::vector<std::vector<int64_t>> expectedPoints = {
+      {0, 0, 1, 0, 0, 0}, {0, 1, 1, 0, 0, 1}, {1, 0, 1, 0, 1, 0},
+      {1, 1, 1, 0, 1, 1}, {2, 2, 1, 0, 2, 2},
+  };
+  for (const auto& point : expectedPoints) {
+    auto maybeExists = sliceRelation.value().containsPointNoLocal(point);
+    EXPECT_TRUE(maybeExists.has_value());
+  }
 }
 
 }  // namespace

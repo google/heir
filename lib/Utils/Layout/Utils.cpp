@@ -36,8 +36,6 @@ using presburger::IntegerRelation;
 using presburger::PresburgerSpace;
 using presburger::VarKind;
 
-namespace {
-
 // Helper that adds constraints built from the array of positions and coeffs.
 // Inequalities are given by (>= 0).
 void addConstraint(IntegerRelation& result,
@@ -58,14 +56,12 @@ void addConstraint(IntegerRelation& result,
 // Helper that adds inclusive lower and upper bounds for a given position and
 // value.
 void addBounds(IntegerRelation& result, int64_t pos, int64_t lower,
-               std::optional<int64_t> upper = std::nullopt) {
+               std::optional<int64_t> upper) {
   result.addBound(BoundType::LB, pos, lower);
   if (upper.has_value()) {
     result.addBound(BoundType::UB, pos, upper.value());
   }
 }
-
-}  // namespace
 
 // Adds a modulo constraint to the result relation. Returns the index of the new
 // local variable that represents the modulo operation result.
@@ -623,6 +619,54 @@ presburger::IntegerRelation getCollapsedRelation(
     }
     rowMajorCoeffs[rangeOffset + idx] = -1;
     result.addEquality(rowMajorCoeffs);
+  }
+
+  return result;
+}
+
+FailureOr<presburger::IntegerRelation> getSliceInsertionRelation(
+    RankedTensorType sliceType, RankedTensorType resultType,
+    SmallVector<int64_t> offsets, SmallVector<int64_t> sizes,
+    SmallVector<int64_t> strides) {
+  IntegerRelation result(PresburgerSpace::getRelationSpace(
+      sliceType.getRank(), /*numRange=*/resultType.getRank(), /*numSymbol=*/0,
+      /*numLocals=*/0));
+
+  // Add bounds for the source dimensions.
+  auto domainOffset = result.getVarKindOffset(VarKind::Domain);
+  for (int i = 0; i < sliceType.getRank(); ++i) {
+    addBounds(result, domainOffset + i, 0, sliceType.getDimSize(i) - 1);
+  }
+
+  // Add bounds for the result dimensions.
+  auto rangeOffset = result.getVarKindOffset(VarKind::Range);
+  for (int i = 0; i < resultType.getRank(); ++i) {
+    addBounds(result, rangeOffset + i, 0, resultType.getDimSize(i) - 1);
+  }
+
+  // Source tensor's dimensions (d0, d1, ...) are mapped sequentially to the
+  // destination tensor's dimensions (r0, r1, ...) for which the slice size is
+  // greater than 1.
+  auto constOffset = result.getNumCols() - 1;
+  unsigned int sourceDim = 0;
+  for (auto destDim = 0; destDim < resultType.getRank(); ++destDim) {
+    if (sizes[destDim] > 1) {
+      // Map from the i-th source dimension
+      // r_j = offsets[j] + d_i * strides[j]
+      addConstraint(result,
+                    {{rangeOffset + destDim, -1},
+                     {constOffset, offsets[destDim]},
+                     {domainOffset + sourceDim, strides[destDim]}},
+                    /*equality=*/true);
+      ++sourceDim;
+    } else {
+      // This is a dropped dimension, fixed at the offset
+      // r_j = offsets[j]
+      addConstraint(
+          result,
+          {{rangeOffset + destDim, -1}, {constOffset, offsets[destDim]}},
+          /*equality=*/true);
+    }
   }
 
   return result;

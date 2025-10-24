@@ -20,6 +20,7 @@
 #include "lib/Kernel/KernelName.h"
 #include "lib/Transforms/LayoutPropagation/Utils.h"
 #include "lib/Utils/AttributeUtils.h"
+#include "lib/Utils/Layout/Hoisting.h"
 #include "lib/Utils/Layout/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"               // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVectorExtras.h"       // from @llvm-project
@@ -137,11 +138,12 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   LogicalResult visitOperation(func::ReturnOp op);
   LogicalResult visitOperation(tensor::ExtractOp op);
   LogicalResult visitOperation(tensor::InsertOp op);
+  LogicalResult visitOperation(tensor::InsertSliceOp op);
 
-  // Determine if the operation arguments have compatible layouts for the given
-  // op. If the check fails, the CompatibilityResult::compatible field is
-  // false. If there is also a diagnostic populated in the result, the failure
-  // is unrecoverable.
+  // Determine if the operation arguments have compatible layouts for the
+  // given op. If the check fails, the CompatibilityResult::compatible field
+  // is false. If there is also a diagnostic populated in the result, the
+  // failure is unrecoverable.
   CompatibilityResult hasCompatibleArgumentLayouts(Operation* op);
 
   // Op-specific compatibility functions
@@ -150,6 +152,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   CompatibilityResult hasCompatibleArgumentLayouts(VecmatOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(MatvecOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(MatmulOp op);
+  CompatibilityResult hasCompatibleArgumentLayouts(tensor::InsertSliceOp op);
 
   // Insert conversion ops to rectify incompatible operand layouts
   void rectifyIncompatibleOperandLayouts(Operation* op);
@@ -157,6 +160,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   // Op-specific overrides
   void rectifyIncompatibleOperandLayouts(ReduceOp op);
   void rectifyIncompatibleOperandLayouts(tensor::InsertOp op);
+  void rectifyIncompatibleOperandLayouts(tensor::InsertSliceOp op);
 
   // Return the default layout for a given type
   FailureOr<LayoutAttr> defaultLayoutForType(Type type);
@@ -273,9 +277,9 @@ LogicalResult LayoutPropagation::visitOperation(Operation* op) {
       // affine ops
       .Case<affine::AffineForOp>([&](auto op) { return visitOperation(op); })
       // tensor ops
-      .Case<tensor::ExtractOp, tensor::InsertOp>(
+      .Case<tensor::ExtractOp, tensor::InsertOp, tensor::InsertSliceOp>(
           [&](auto op) { return visitOperation(op); })
-      .Case<tensor::ExtractSliceOp, tensor::InsertSliceOp>([&](auto op) {
+      .Case<tensor::ExtractSliceOp>([&](auto op) {
         // TODO(#2028): Support tensor.extract_slice and tensor.insert_slice in
         // layout.
         return op->emitError()
@@ -773,6 +777,19 @@ LogicalResult LayoutPropagation::visitOperation(tensor::InsertOp op) {
   return success();
 }
 
+LogicalResult LayoutPropagation::visitOperation(tensor::InsertSliceOp op) {
+  // Set the result layout to be the same as the dest tensor.
+  if (!assignedLayouts.contains(op.getDest())) {
+    return op->emitError() << "Destination tensor has no assigned layout";
+  }
+  LayoutAttr destLayout = assignedLayouts.at(op.getDest());
+  Value result = op.getResult();
+  assignedLayouts.insert({result, destLayout});
+  debugAssignLayout(result, destLayout);
+  setResultLayoutAttr(op);
+  return success();
+}
+
 CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
     Operation* op) {
   return TypeSwitch<Operation*, CompatibilityResult>(op)
@@ -781,7 +798,7 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
             affine::AffineYieldOp>(
           [&](auto op) { return CompatibilityResult{true, std::nullopt}; })
       // Ops with special rules
-      .Case<ReduceOp, MatvecOp, VecmatOp, Conv2DOp>(
+      .Case<ReduceOp, MatvecOp, VecmatOp, Conv2DOp, tensor::InsertSliceOp>(
           [&](auto op) { return hasCompatibleArgumentLayouts(op); })
       // By default, assume operands must all have the same layout.
       .Default([&](Operation* op) {
@@ -896,6 +913,39 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
   return {true, std::nullopt};
 }
 
+CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
+    tensor::InsertSliceOp op) {
+  // The arguments of a tensor::InsertSliceOp are the tensors to insert and the
+  // tensor to insert into.
+  auto insert = op.getOperands()[0];
+  auto dest = op.getDest();
+
+  if (!assignedLayouts.contains(insert)) {
+    return {false, op->emitError("input tensor has no assigned layout")};
+  }
+  if (!assignedLayouts.contains(dest)) {
+    return {false, op->emitError("destination tensor has no assigned layout")};
+  }
+
+  auto insertLayout = assignedLayouts.at(insert);
+  auto destLayout = assignedLayouts.at(dest);
+  auto destRelation = destLayout.getIntegerRelation();
+  auto compatibleDestRelation = pushSliceLayoutThroughInsertSlice(
+      SmallVector<int64_t>(op.getStaticSizes()), op.getResultType().getShape(),
+      insertLayout.getIntegerRelation());
+  assert(succeeded(compatibleDestRelation) && "expected to infer slice layout");
+
+  // We compare layout attributes, which is a strict equality check on the
+  // attribute string. This is more strict than comparing the IntegerRelations,
+  // but equality checking on the relations is expensive.
+  if (LayoutAttr::getFromIntegerRelation(
+          op.getContext(), compatibleDestRelation.value()) != destLayout) {
+    return {false, std::nullopt};
+  }
+
+  return {true, std::nullopt};
+}
+
 void LayoutPropagation::rectifyIncompatibleOperandLayouts(Operation* op) {
   LLVM_DEBUG({
     auto diag = op->emitRemark() << "Inserting layout conversion op due to "
@@ -911,7 +961,7 @@ void LayoutPropagation::rectifyIncompatibleOperandLayouts(Operation* op) {
 
   TypeSwitch<Operation*>(op)
       // Ops with special rules
-      .Case<ReduceOp, tensor::InsertOp>(
+      .Case<ReduceOp, tensor::InsertOp, tensor::InsertSliceOp>(
           [&](auto op) { return rectifyIncompatibleOperandLayouts(op); })
       .Default([&](Operation* op) {
         // Default target layout is chosen arbitrarily as the first operand's
@@ -966,6 +1016,35 @@ void LayoutPropagation::rectifyIncompatibleOperandLayouts(ReduceOp op) {
       setResultLayoutAttr(convertOp);
     }
   }
+}
+
+void LayoutPropagation::rectifyIncompatibleOperandLayouts(
+    tensor::InsertSliceOp op) {
+  // Update the dest tensor to align with the source tensor slice.
+  LayoutAttr sliceLayout = assignedLayouts.at(op.getSource());
+  auto maybeNewLayout = pushSliceLayoutThroughInsertSlice(
+      SmallVector<int64_t>(op.getStaticSizes()), op.getResultType().getShape(),
+      sliceLayout.getIntegerRelation());
+  assert(succeeded(maybeNewLayout) && "expected to infer slice layout");
+  auto newLayoutAttr = LayoutAttr::getFromIntegerRelation(
+      op.getContext(), maybeNewLayout.value());
+
+  if (!assignedLayouts.contains(op.getDest())) {
+    assignedLayouts.insert({op.getDest(), newLayoutAttr});
+    return;
+  }
+
+  mlir::IRRewriter builder(&getContext());
+  builder.setInsertionPoint(op);
+  LayoutAttr destLayout = assignedLayouts.at(op.getDest());
+  auto convertLayoutOp = ConvertLayoutOp::create(
+      builder, op->getLoc(), op.getDest(), destLayout, newLayoutAttr);
+  Value toReplace = convertLayoutOp.getResult();
+  builder.replaceUsesWithIf(op.getDest(), toReplace, [&](OpOperand& operand) {
+    return operand.getOwner() == op;
+  });
+  assignedLayouts.insert({toReplace, newLayoutAttr});
+  setResultLayoutAttr(convertLayoutOp);
 }
 
 void LayoutPropagation::rectifyIncompatibleOperandLayouts(tensor::InsertOp op) {
