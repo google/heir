@@ -24,6 +24,15 @@ using kernel::MultiplyNode;
 using kernel::SSAValue;
 using kernel::SubtractNode;
 
+polynomial::RingAttr getRlweRNSRingWithLevel(polynomial::RingAttr ringAttr,
+                                             int level) {
+  auto rnsType = cast<rns::RNSType>(ringAttr.getCoefficientType());
+
+  auto newRnsType = rns::RNSType::get(
+      rnsType.getContext(), rnsType.getBasisTypes().take_front(level + 1));
+  return polynomial::RingAttr::get(newRnsType, ringAttr.getPolynomialModulus());
+}
+
 Value IRMaterializingVisitor::operator()(const LeafNode<SSAValue>& node) {
   return node.value.getValue();
 }
@@ -47,7 +56,9 @@ Value IRMaterializingVisitor::operator()(const SubtractNode<SSAValue>& node) {
 }
 
 Value IRMaterializingVisitor::operator()(const MultiplyNode<SSAValue>& node) {
-  return binop<MultiplyNode<SSAValue>, ckks::MulOp, ckks::MulPlainOp>(node);
+  return binop<MultiplyNode<SSAValue>, ckks::MulOp, ckks::MulPlainOp>(
+      node,
+      /*rescale=*/true);
 }
 
 Value IRMaterializingVisitor::operator()(const LeftRotateNode<SSAValue>& node) {
@@ -55,12 +66,12 @@ Value IRMaterializingVisitor::operator()(const LeftRotateNode<SSAValue>& node) {
   if (auto tensorType = dyn_cast<RankedTensorType>(operand.getType())) {
     // The thing being rotated is a ciphertext-semantic tensor
     Value shift = arith::ConstantIntOp::create(builder, node.shift, 64);
-    return builder.create<tensor_ext::RotateOp>(operand.getType(), operand,
-                                                shift);
+    return tensor_ext::RotateOp::create(builder, operand.getType(), operand,
+                                        shift);
   }
 
   IntegerAttr shift = builder.getI64IntegerAttr(node.shift);
-  return ckks::RotateOp::create(builder, operand.getType(), operand, shift);
+  return ckks::RotateOp::create(builder, operand, shift);
 }
 
 Value IRMaterializingVisitor::operator()(const ExtractNode<SSAValue>& node) {

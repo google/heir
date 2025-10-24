@@ -48,8 +48,6 @@ struct ConvertLinearTransformOp : public OpRewritePattern<LinearTransformOp> {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     IRMaterializingVisitor visitor(b);
     Value finalOutput = implementedKernel->visit(visitor);
-
-    // FIXME: propagate result type through the rest of the IR
     rewriter.replaceOp(op, finalOutput);
     return success();
   }
@@ -61,6 +59,21 @@ struct OrionToCKKS : public impl::OrionToCKKSBase<OrionToCKKS> {
     RewritePatternSet patterns(context);
     patterns.add<ConvertChebyshevOp, ConvertLinearTransformOp>(context);
     walkAndApplyPatterns(getOperation(), std::move(patterns));
+
+    // At this step, the types are wrong and need to be re-propagated In
+    // particular, mul and mul_plain ops are followed by a rescale, and while
+    // the result type drops a limb, the downstream ops are not updated to
+    // match.
+    getOperation()->walk([&](Operation* op) {
+      llvm::TypeSwitch<Operation*>(op)
+          .Case<InferTypeOpInterface>([&](auto op) {
+            // FIXME; implement
+          })
+          .Default([&](Operation* op) {
+            // FIXME: implement
+          });
+      ;
+    });
   }
 };
 

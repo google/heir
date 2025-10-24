@@ -1,6 +1,7 @@
 #ifndef LIB_DIALECT_ORION_CONVERSIONS_ORIONTOCKKS_IRMATERIALIZINGVISITOR_H_
 #define LIB_DIALECT_ORION_CONVERSIONS_ORIONTOCKKS_IRMATERIALIZINGVISITOR_H_
 
+#include "lib/Dialect/CKKS/IR/CKKSOps.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Kernel/AbstractValue.h"
@@ -15,6 +16,9 @@ namespace mlir {
 namespace heir {
 namespace orion {
 
+polynomial::RingAttr getRlweRNSRingWithLevel(polynomial::RingAttr ringAttr,
+                                             int level);
+
 // Walks the arithmetic DAG and generates MLIR for it. This materializer is
 // weird because some SSA values are tensors of ciphertexts while others are
 // ciphertext-semantic tensors of cleartexts. The former requires simple ops
@@ -28,23 +32,50 @@ class IRMaterializingVisitor
   IRMaterializingVisitor(ImplicitLocOpBuilder& builder)
       : CachingVisitor<kernel::SSAValue, Value>(), builder(builder) {}
 
+  Value maybeRescale(ImplicitLocOpBuilder builder, Value value,
+                     lwe::LWECiphertextType resultType, bool rescale) {
+    Value result = value;
+    if (rescale) {
+      auto* ctx = resultType.getContext();
+      int newLevel = resultType.getModulusChain().getCurrent() - 1;
+      if (newLevel <= 0) {
+        emitError(value.getLoc()) << "Encountered situation of rescaling "
+                                     "without any remaining limbs!";
+      }
+      lwe::ModulusChainAttr moddedDownChain = lwe::ModulusChainAttr::get(
+          ctx, resultType.getModulusChain().getElements(), newLevel);
+      auto ring = resultType.getCiphertextSpace().getRing();
+      auto ctType = lwe::LWECiphertextType::get(
+          ctx, resultType.getApplicationData(), resultType.getPlaintextSpace(),
+          lwe::CiphertextSpaceAttr::get(
+              ctx, getRlweRNSRingWithLevel(ring, newLevel),
+              resultType.getCiphertextSpace().getEncryptionType(),
+              resultType.getCiphertextSpace().getSize()),
+          lwe::KeyAttr::get(ctx, 0),
+          lwe::ModulusChainAttr::get(ctx, moddedDownChain.getElements(),
+                                     newLevel));
+      result = ckks::RescaleOp::create(builder, ctType, result,
+                                       ctType.getCiphertextSpace().getRing());
+    }
+    return result;
+  }
+
   template <typename T, typename CtCtOp, typename CtPtOp>
-  Value binop(const T& node) {
+  Value binop(const T& node, bool rescale = false) {
     Value lhs = this->process(node.left);
     Value rhs = this->process(node.right);
     return TypeSwitch<Type, Value>(lhs.getType())
         .template Case<lwe::LWECiphertextType>([&](auto ty) {
           if (isa<RankedTensorType>(rhs.getType())) {
-            // FIXME: (here and below) set the right scaling factor for the
-            // result plaintextType. Needs to get passed through from the input
-            // op!
             lwe::LWEPlaintextType ptTy = lwe::LWEPlaintextType::get(
                 builder.getContext(), ty.getApplicationData(),
                 ty.getPlaintextSpace());
             auto encodedRhs = lwe::RLWEEncodeOp::create(
                 builder, ptTy, rhs, ty.getPlaintextSpace().getEncoding(),
                 ty.getPlaintextSpace().getRing());
-            return CtPtOp::create(builder, lhs, encodedRhs).getResult();
+            return maybeRescale(
+                builder, CtPtOp::create(builder, lhs, encodedRhs).getResult(),
+                ty, rescale);
           }
 
           if (!isa<lwe::LWECiphertextType>(rhs.getType())) {
@@ -53,7 +84,9 @@ class IRMaterializingVisitor
                                     << lhs << "\n\nrhs=" << rhs << "\n";
             return Value();
           }
-          return CtCtOp::create(builder, lhs, rhs).getResult();
+          return maybeRescale(builder,
+                              CtCtOp::create(builder, lhs, rhs).getResult(), ty,
+                              rescale);
         })
         .template Case<RankedTensorType>([&](auto ty) {
           auto ctTy = dyn_cast<lwe::LWECiphertextType>(rhs.getType());
@@ -69,7 +102,9 @@ class IRMaterializingVisitor
           auto encodedLhs = lwe::RLWEEncodeOp::create(
               builder, ptTy, lhs, ctTy.getPlaintextSpace().getEncoding(),
               ctTy.getPlaintextSpace().getRing());
-          return CtPtOp::create(builder, encodedLhs, rhs).getResult();
+          return maybeRescale(
+              builder, CtPtOp::create(builder, encodedLhs, rhs).getResult(),
+              ctTy, rescale);
         })
         .Default([&](Type) {
           emitError(lhs.getLoc())
