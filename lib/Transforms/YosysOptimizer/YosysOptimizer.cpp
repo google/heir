@@ -394,14 +394,6 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
 
   // Translate function to Verilog. Translation will fail if the func contains
   // unsupported operations.
-  // TODO(#374): Directly convert MLIR to Yosys' AST instead of using Verilog.
-  //
-  // After that is done, it might make sense to rewrite this as a
-  // RewritePattern, which only runs if the body does not contain any comb ops,
-  // and generalize this to support converting a secret.generic as well as a
-  // func.func. It's necessary to wait for the migration because the Yosys API
-  // used here maintains global state that apparently does not play nicely with
-  // the instantiation of multiple rewrite patterns.
   LLVM_DEBUG(op.emitRemark() << "Emitting verilog for this op");
 
   char* filename = std::tmpnam(nullptr);
