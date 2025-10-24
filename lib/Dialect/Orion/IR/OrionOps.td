@@ -17,7 +17,9 @@ class Orion_Op<string mnemonic, list<Trait> traits = []> :
 }
 
 def Orion_LinearTransformOp : Orion_Op<"linear_transform", [Pure]> {
-  let arguments = (ins LWECiphertext:$input, RankedTensorOf<[LWEPlaintext]>:$diagonals);
+  // Use a cleartext for the diagonals since they need to be rotated in the
+  // BSGS implementation of linear transforms.
+  let arguments = (ins LWECiphertext:$input, FloatLike:$diagonals);
   let results = (outs LWECiphertext:$result);
   let summary = "Apply a linear transformation to the input ciphertext using pre-computed diagonals";
 }
