@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretPatterns.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
@@ -32,10 +33,11 @@
 #include "mlir/include/mlir/Dialect/Affine/Utils.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
-#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/DialectRegistry.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Dominance.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
@@ -163,6 +165,8 @@ struct YosysOptimizer : public impl::YosysOptimizerBase<YosysOptimizer> {
 
   void runOnOperation() override;
 
+  void getDependentDialects(DialectRegistry& registry) const override;
+
   LogicalResult runOnGenericOp(secret::GenericOp op);
 
  private:
@@ -180,10 +184,11 @@ struct YosysOptimizer : public impl::YosysOptimizerBase<YosysOptimizer> {
 };
 
 /// Convert a secret.generic's operands secret.secret<i3>
-/// to secret.secret<memref<3xi1>>.
-LogicalResult convertOpOperands(secret::GenericOp op, func::FuncOp func,
-                                SmallVector<Value>& typeConvertedArgs) {
+/// to secret.secret<tensor<3xi1>>.
+static LogicalResult convertOpOperands(secret::GenericOp op, func::FuncOp func,
+                                       SmallVector<Value>& typeConvertedArgs) {
   for (OpOperand& opOperand : op->getOpOperands()) {
+    // Get the generic op operand, then find which input that corresponds to.
     Type convertedType =
         func.getFunctionType().getInputs()[opOperand.getOperandNumber()];
 
@@ -194,18 +199,19 @@ LogicalResult convertOpOperands(secret::GenericOp op, func::FuncOp func,
       OpBuilder builder(op);
       if (auto indexType = dyn_cast<IndexType>(input.getType())) {
         // Use arith.index_cast to cast this as an integer type.
-        auto functionMemrefTy = dyn_cast<MemRefType>(convertedType);
-        if (!functionMemrefTy) {
-          op.emitError() << "Expected index type to be converted to memref: "
+        auto functionTensorTy = dyn_cast<TensorType>(convertedType);
+        if (!functionTensorTy) {
+          op.emitError() << "Expected index type to be converted to tensor: "
                          << convertedType;
           return failure();
         }
         input = arith::IndexCastOp::create(
             builder, op.getLoc(),
-            builder.getIntegerType(functionMemrefTy.getNumElements()), input);
+            builder.getIntegerType(functionTensorTy.getNumElements()), input);
       }
+      assert(mlir::isa<IntegerType>(input.getType()));
       auto convertedValue =
-          convertIntegerValueToMemrefOfBits(input, builder, op.getLoc());
+          convertIntegerValueToTensorOfBits(input, builder, op.getLoc());
       typeConvertedArgs.push_back(convertedValue);
 
       continue;
@@ -214,7 +220,7 @@ LogicalResult convertOpOperands(secret::GenericOp op, func::FuncOp func,
     secret::SecretType originalType =
         mlir::cast<secret::SecretType>(opOperand.get().getType());
 
-    if (!mlir::isa<IntegerType, MemRefType>(originalType.getValueType())) {
+    if (!mlir::isa<IntegerType, TensorType>(originalType.getValueType())) {
       op.emitError() << "Unsupported input type to secret.generic: "
                      << originalType.getValueType();
       return failure();
@@ -230,12 +236,11 @@ LogicalResult convertOpOperands(secret::GenericOp op, func::FuncOp func,
   return success();
 }
 
-/// Convert a secret.generic's results from secret.secret<memref<3xi1>>
+/// Convert a secret.generic's results from secret.secret<tensor<3xi1>>
 /// to secret.secret<i3>.
-LogicalResult convertOpResults(secret::GenericOp op,
-                               SmallVector<Type> originalResultTy,
-                               DenseSet<Operation*>& castOps,
-                               SmallVector<Value>& typeConvertedResults) {
+static LogicalResult convertOpResults(
+    secret::GenericOp op, SmallVector<Type> originalResultTy,
+    DenseSet<Operation*>& castOps, SmallVector<Value>& typeConvertedResults) {
   for (auto opResult : op->getResults()) {
     // The secret.yield verifier ensures generic can only return secret types.
     assert(mlir::isa<secret::SecretType>(opResult.getType()));
@@ -243,8 +248,8 @@ LogicalResult convertOpResults(secret::GenericOp op,
         mlir::cast<secret::SecretType>(opResult.getType());
 
     IntegerType elementType;
-    if (MemRefType convertedType =
-            dyn_cast<MemRefType>(secretType.getValueType())) {
+    if (TensorType convertedType =
+            dyn_cast<TensorType>(secretType.getValueType())) {
       if (!mlir::isa<IntegerType>(convertedType.getElementType()) ||
           convertedType.getRank() != 1) {
         op.emitError() << "While booleanizing secret.generic, found converted "
@@ -263,7 +268,7 @@ LogicalResult convertOpResults(secret::GenericOp op,
     }
 
     // Insert a reassembly of the original integer type from its booleanized
-    // memref version.
+    // tensor version.
     OpBuilder builder(op);
     builder.setInsertionPointAfter(op);
     auto castOp = secret::CastOp::create(
@@ -310,9 +315,9 @@ class FrontloadAffineApply : public OpRewritePattern<affine::AffineApplyOp> {
   affine::AffineForOp parentOp;
 };
 
-LogicalResult unrollAndMergeGenerics(Operation* op, int unrollFactor,
-                                     DominanceInfo& domInfo,
-                                     PostDominanceInfo& postDomInfo) {
+static LogicalResult unrollAndMergeGenerics(Operation* op, int unrollFactor,
+                                            DominanceInfo& domInfo,
+                                            PostDominanceInfo& postDomInfo) {
   SmallVector<affine::AffineForOp> nestedLoops;
 
   auto walkResult =
@@ -361,6 +366,12 @@ LogicalResult unrollAndMergeGenerics(Operation* op, int unrollFactor,
       });
 
   return walkResult.wasInterrupted() ? failure() : success();
+}
+
+void YosysOptimizer::getDependentDialects(DialectRegistry& registry) const {
+  registry.insert<heir::secret::SecretDialect, mlir::arith::ArithDialect,
+                  mlir::func::FuncDialect, mlir::affine::AffineDialect,
+                  heir::comb::CombDialect, mlir::tensor::TensorDialect>();
 }
 
 LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
@@ -462,17 +473,16 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
         return cast<secret::SecretType>(ty).getValueType();
       })));
   Yosys::run_pass("delete;");
-
   LLVM_DEBUG(llvm::dbgs() << "Done importing RTLIL, now type-coverting ops\n");
 
   // The pass changes the yielded value types, e.g., from an i8 to a
-  // memref<8xi1>. So the containing secret.generic needs to be updated and
-  // conversions implemented on either side to convert the ints to memrefs
+  // tensor<8xi1>. So the containing secret.generic needs to be updated and
+  // conversions implemented on either side to convert the ints to tensors
   // and back again.
   //
-  // convertOpOperands goes from i8 -> memref<8xi1> or index -> i3 ->
-  // memref<3xi1>
-  // convertOpResults from memref<8xi1> -> i8
+  // convertOpOperands goes from i8 -> tensor<8xi1> or index -> i3 ->
+  // tensor<3xi1>
+  // convertOpResults from tensor<8xi1> -> i8
   SmallVector<Value> typeConvertedArgs;
   typeConvertedArgs.reserve(op->getNumOperands());
   if (failed(convertOpOperands(op, func, typeConvertedArgs))) {
@@ -496,7 +506,6 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
                               typeConvertedResults))) {
     return failure();
   }
-
   // Replace the func.return with a secret.yield
   op.getRegion().takeBody(func.getBody());
   op.getOperation()->setOperands(typeConvertedArgs);
@@ -527,9 +536,7 @@ void YosysOptimizer::runOnOperation() {
   auto* ctx = &getContext();
   auto* op = getOperation();
 
-  // Absorb any memref deallocs into generic's that allocate and use the memref.
   mlir::IRRewriter builder(&getContext());
-  op->walk([&](secret::GenericOp op) { genericAbsorbDealloc(op, builder); });
 
   mlir::RewritePatternSet cleanupPatterns(ctx);
   if (unrollFactor > 1) {
@@ -553,6 +560,12 @@ void YosysOptimizer::runOnOperation() {
         ctx, std::vector<std::string>{"memref.store", "affine.store"});
   }
 
+  // Extracting tensor.inserts into their own generics avoids returning an
+  // entire tensor from Yosys.
+  cleanupPatterns.add<secret::HoistOpBeforeGeneric>(
+      ctx, std::vector<std::string>{"tensor.extract"});
+  cleanupPatterns.add<secret::HoistOpAfterGeneric>(
+      ctx, std::vector<std::string>{"tensor.insert"});
   secret::populateGenericCanonicalizers(cleanupPatterns, ctx);
   // TODO (#1221): Investigate whether folding (default: on) can be skipped
   // here.

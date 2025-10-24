@@ -1,5 +1,6 @@
 #include "lib/Utils/TransformUtils.h"
 
+#include <cassert>
 #include <numeric>
 #include <set>
 #include <string>
@@ -8,9 +9,15 @@
 #include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
-#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Location.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 
 #define DEBUG_TYPE "transform-utils"
 
@@ -57,7 +64,7 @@ func::FuncOp detectEntryFunction(ModuleOp moduleOp,
   return entryFunc;
 }
 
-Value convertIntegerValueToMemrefOfBits(Value integer, OpBuilder& b,
+Value convertIntegerValueToTensorOfBits(Value integer, OpBuilder& b,
                                         Location loc) {
   IntegerType argType = mlir::cast<IntegerType>(integer.getType());
   int width = argType.getWidth();
@@ -65,42 +72,40 @@ Value convertIntegerValueToMemrefOfBits(Value integer, OpBuilder& b,
     return integer;
   }
 
-  auto allocOp =
-      memref::AllocOp::create(b, loc, MemRefType::get({width}, b.getI1Type()));
+  SmallVector<Value> insertValues;
   for (int i = 0; i < width; i++) {
     // These arith ops correspond to extracting the i-th bit
     // from the input
-    auto shiftAmount = arith::ConstantOp::create(b, loc, argType,
-                                                 b.getIntegerAttr(argType, i));
-    auto bitMask = arith::ConstantOp::create(b, loc, argType,
-                                             b.getIntegerAttr(argType, 1 << i));
-    auto andOp = arith::AndIOp::create(b, loc, integer, bitMask);
-    auto shifted = arith::ShRSIOp::create(b, loc, andOp, shiftAmount);
-    memref::StoreOp::create(
-        b, loc, arith::TruncIOp::create(b, loc, b.getI1Type(), shifted),
-        allocOp, ValueRange{arith::ConstantIndexOp::create(b, loc, i)});
+    auto shiftAmount =
+        b.create<arith::ConstantOp>(loc, argType, b.getIntegerAttr(argType, i));
+    auto bitMask = b.create<arith::ConstantOp>(
+        loc, argType, b.getIntegerAttr(argType, 1 << i));
+    auto andOp = b.create<arith::AndIOp>(loc, integer, bitMask);
+    auto shifted = b.create<arith::ShRSIOp>(loc, andOp, shiftAmount);
+    insertValues.push_back(
+        b.create<arith::TruncIOp>(loc, b.getI1Type(), shifted));
   }
 
-  return allocOp.getResult();
+  auto result = b.create<tensor::FromElementsOp>(loc, insertValues);
+  return result;
 }
 
-Value convertMemrefOfBitsToInteger(Value memref, Type resultType, OpBuilder& b,
+Value convertTensorOfBitsToInteger(Value tensor, Type resultType, OpBuilder& b,
                                    Location loc) {
-  auto memrefType = cast<MemRefType>(memref.getType());
+  auto tensorType = cast<TensorType>(tensor.getType());
   auto integerType = cast<IntegerType>(resultType);
-  assert(memrefType.getRank() == 1 && "Expected memref of bits to be 1D");
+  assert(tensorType.getRank() == 1 && "Expected tensor of bits to be 1D");
 
   Value result =
-      arith::ConstantIntOp::create(b, loc, integerType, 0).getResult();
-  for (int i = 0; i < memrefType.getNumElements(); i++) {
-    // The i-th bit of the memref is stored at bit position i
-    auto loadOp = memref::LoadOp::create(
-        b, loc, memref, ValueRange{arith::ConstantIndexOp::create(b, loc, i)});
-    auto extOp =
-        arith::ExtSIOp::create(b, loc, integerType, loadOp.getResult());
-    auto shiftAmount = arith::ConstantIntOp::create(b, loc, integerType, i);
-    auto shifted = arith::ShLIOp::create(b, loc, extOp, shiftAmount);
-    auto orOp = arith::OrIOp::create(b, loc, integerType, result, shifted);
+      b.create<arith::ConstantIntOp>(loc, integerType, 0).getResult();
+  for (int i = 0; i < tensorType.getNumElements(); i++) {
+    // The i-th bit of the tensor is stored at bit position i
+    auto loadOp = b.create<tensor::ExtractOp>(
+        loc, tensor, ValueRange{b.create<arith::ConstantIndexOp>(loc, i)});
+    auto extOp = b.create<arith::ExtSIOp>(loc, integerType, loadOp.getResult());
+    auto shiftAmount = b.create<arith::ConstantIntOp>(loc, integerType, i);
+    auto shifted = b.create<arith::ShLIOp>(loc, extOp, shiftAmount);
+    auto orOp = b.create<arith::OrIOp>(loc, integerType, result, shifted);
     result = orOp.getResult();
   }
 

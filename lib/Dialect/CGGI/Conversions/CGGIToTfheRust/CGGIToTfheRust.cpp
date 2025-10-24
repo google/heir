@@ -581,7 +581,8 @@ class CGGIToTfheRust : public impl::CGGIToTfheRustBase<CGGIToTfheRust> {
     target.addDynamicallyLegalOp<
         memref::AllocOp, memref::DeallocOp, memref::StoreOp, memref::LoadOp,
         memref::SubViewOp, memref::CopyOp, affine::AffineLoadOp,
-        tensor::InsertOp, tensor::InsertSliceOp, affine::AffineStoreOp,
+        tensor::InsertOp, tensor::InsertSliceOp, tensor::EmptyOp,
+        affine::AffineStoreOp, affine::AffineForOp, affine::AffineYieldOp,
         tensor::FromElementsOp, tensor::ExtractOp>([&](Operation* op) {
       return typeConverter.isLegal(op->getOperandTypes()) &&
              typeConverter.isLegal(op->getResultTypes());
@@ -607,9 +608,10 @@ class CGGIToTfheRust : public impl::CGGIToTfheRustBase<CGGIToTfheRust> {
         ConvertAny<memref::StoreOp>, ConvertAny<memref::LoadOp>,
         ConvertAny<memref::SubViewOp>, ConvertAny<memref::CopyOp>,
         ConvertAny<tensor::InsertOp>, ConvertAny<tensor::InsertSliceOp>,
-        ConvertAny<tensor::FromElementsOp>, ConvertAny<tensor::ExtractOp>,
-        ConvertAny<affine::AffineLoadOp>, ConvertAny<affine::AffineStoreOp>>(
-        typeConverter, context);
+        ConvertAny<tensor::EmptyOp>, ConvertAny<tensor::FromElementsOp>,
+        ConvertAny<tensor::ExtractOp>, ConvertAny<affine::AffineLoadOp>,
+        ConvertAny<affine::AffineStoreOp>, ConvertAny<affine::AffineForOp>,
+        ConvertAny<affine::AffineYieldOp>>(typeConverter, context);
 
     if (failed(applyPartialConversion(op, target, std::move(patterns)))) {
       return signalPassFailure();

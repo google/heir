@@ -119,6 +119,7 @@ class VerilogEmitter {
   LogicalResult printOperation(mlir::memref::LoadOp op);
   LogicalResult printOperation(mlir::tensor::ExtractOp op);
   LogicalResult printOperation(mlir::tensor::InsertOp op);
+  LogicalResult printOperation(mlir::tensor::FromElementsOp op);
 
   // Helpers for above
   LogicalResult printBinaryOp(mlir::Value result, mlir::Value lhs,

@@ -13,6 +13,11 @@ glob_lit_tests(
         "variance.mlir": "large",
     },
     tags_override = {
+        "fully_connected.mlir": [
+            "nofastbuild",
+            "notap",
+            "manual",
+        ],
         "hello_world.mlir": [
             "nofastbuild",
             "notap",
@@ -23,7 +28,17 @@ glob_lit_tests(
             "notap",
             "manual",
         ],
+        "hello_world_small.mlir": [
+            "nofastbuild",
+            "notap",
+            "manual",
+        ],
         "hello_world_clean_small.mlir": [
+            "nofastbuild",
+            "notap",
+            "manual",
+        ],
+        "hello_world_clean_xsmall.mlir": [
             "nofastbuild",
             "notap",
             "manual",

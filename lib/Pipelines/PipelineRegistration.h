@@ -7,6 +7,8 @@
 
 namespace mlir::heir {
 
+void tosaToLinalg(OpPassManager& manager);
+
 void oneShotBufferize(OpPassManager& manager);
 
 void mathToPolynomialApproximationBuilder(OpPassManager& pm);

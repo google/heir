@@ -7,7 +7,7 @@ module {
     return %arg0 : !secret.secret<i1>
   }
 
-  // CHECK: func.func @multi([[ARG1:%.*]]: [[M:memref<8x!lwe.*>>]]) -> [[M]]
+  // CHECK: func.func @multi([[ARG1:%.*]]: [[M:tensor<8x!lwe.*>>]]) -> [[M]]
   func.func @multi(%arg0: !secret.secret<i8>) -> !secret.secret<i8> {
     // CHECK: return [[ARG1]] : [[M]]
     return %arg0 :!secret.secret<i8>

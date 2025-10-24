@@ -61,6 +61,7 @@ class TfheRustHLEmitter {
   LogicalResult printOperation(arith::AndIOp op);
   LogicalResult printOperation(arith::ShRSIOp op);
   LogicalResult printOperation(arith::TruncIOp op);
+  LogicalResult printOperation(tensor::EmptyOp op);
   LogicalResult printOperation(tensor::ExtractOp op);
   LogicalResult printOperation(tensor::FromElementsOp op);
   LogicalResult printOperation(tensor::InsertOp op);

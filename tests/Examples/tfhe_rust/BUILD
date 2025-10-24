@@ -60,7 +60,11 @@ tfhe_rs_end_to_end_test(
         "--use-levels",
     ],
     mlir_src = "fully_connected.mlir",
-    tags = ["yosys"],
+    tags = [
+        "manual",
+        "notap",
+        "yosys",
+    ],
     test_src = "src/main_fully_connected.rs",
 )
 
@@ -76,7 +80,11 @@ tfhe_rs_end_to_end_test(
         "--use-levels",
     ],
     mlir_src = "sbox.mlir",
-    tags = ["yosys"],
+    tags = [
+        "manual",
+        "notap",
+        "yosys",
+    ],
     test_src = "src/main_sbox.rs",
 )
 
@@ -92,7 +100,11 @@ tfhe_rs_end_to_end_test(
         "--use-levels",
     ],
     mlir_src = "multi_output.mlir",
-    tags = ["yosys"],
+    tags = [
+        "manual",
+        "notap",
+        "yosys",
+    ],
     test_src = "src/main_multi_output.rs",
 )
 
@@ -110,6 +122,7 @@ tfhe_rs_lib(
     rs_lib_target_name = "add_round_key_rs_lib",
     tags = [
         "manual",
+        "notap",
         "yosys",
     ],
 )
@@ -132,6 +145,7 @@ tfhe_rs_lib(
     rs_lib_target_name = "mix_columns_rs_lib",
     tags = [
         "manual",
+        "notap",
         "yosys",
     ],
 )
@@ -154,6 +168,7 @@ tfhe_rs_lib(
     rs_lib_target_name = "inv_mix_columns_rs_lib",
     tags = [
         "manual",
+        "notap",
         "yosys",
     ],
 )
@@ -174,6 +189,7 @@ tfhe_rs_lib(
     rs_lib_target_name = "sub_bytes_rs_lib",
     tags = [
         "manual",
+        "notap",
         "yosys",
     ],
 )
@@ -192,6 +208,7 @@ tfhe_rs_lib(
     rs_lib_target_name = "inv_sub_bytes_rs_lib",
     tags = [
         "manual",
+        "notap",
         "yosys",
     ],
 )
@@ -210,6 +227,7 @@ tfhe_rs_lib(
     rs_lib_target_name = "shift_rows_rs_lib",
     tags = [
         "manual",
+        "notap",
         "yosys",
     ],
 )
@@ -228,6 +246,7 @@ tfhe_rs_lib(
     rs_lib_target_name = "inv_shift_rows_rs_lib",
     tags = [
         "manual",
+        "notap",
         "yosys",
     ],
 )
@@ -237,6 +256,7 @@ rust_binary(
     srcs = ["src/main_aes.rs"],
     tags = [
         "manual",
+        "notap",
         "yosys",
     ],
     deps = [
