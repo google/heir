@@ -42,10 +42,10 @@ TypedAttr getMatchingOne(Value op) {
   return IntegerAttr::get(intType, 1);
 }
 
-namespace rewrites {
+namespace select_rewrite {
 // In an inner namespace to avoid conflicts
 #include "lib/Transforms/SelectRewrite/SelectRewrite.cpp.inc"
-}  // namespace rewrites
+}  // namespace select_rewrite
 
 struct SelectRewrite : impl::SelectRewriteBase<SelectRewrite> {
   using SelectRewriteBase::SelectRewriteBase;
@@ -53,10 +53,7 @@ struct SelectRewrite : impl::SelectRewriteBase<SelectRewrite> {
   void runOnOperation() override {
     MLIRContext* context = &getContext();
     RewritePatternSet patterns(context);
-
-    // popiulate TD patterns
-    rewrites::populateWithGenerated(patterns);
-
+    select_rewrite::populateWithGenerated(patterns);
     (void)applyPatternsGreedily(getOperation(), std::move(patterns));
   }
 };

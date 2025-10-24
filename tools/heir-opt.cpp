@@ -70,6 +70,7 @@
 #include "lib/Transforms/ElementwiseToAffine/ElementwiseToAffine.h"
 #include "lib/Transforms/EmitCInterface/EmitCInterface.h"
 #include "lib/Transforms/FoldConstantTensors/FoldConstantTensors.h"
+#include "lib/Transforms/FoldPlaintextMasks/FoldPlaintextMasks.h"
 #include "lib/Transforms/ForwardInsertToExtract/ForwardInsertToExtract.h"
 #include "lib/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
@@ -281,6 +282,7 @@ int main(int argc, char** argv) {
   registerAnnotateModulePasses();
   registerAnnotateSecretnessPasses();
   registerApplyFoldersPasses();
+  registerFoldPlaintextMasksPasses();
   registerForwardInsertToExtractPasses();
   registerForwardStoreToLoadPasses();
   registerGenerateParamPasses();
