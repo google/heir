@@ -107,3 +107,15 @@ cc_test(
         "@llvm-project//mlir:IR",
     ],
 )
+
+cc_test(
+    name = "KernelCostTest",
+    srcs = ["KernelCostTest.cpp"],
+    deps = [
+        ":AbstractValue",
+        ":ArithmeticDag",
+        ":Kernel",
+        ":KernelImplementation",
+        "@googletest//:gtest_main",
+    ],
+)
