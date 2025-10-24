@@ -89,6 +89,16 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "RotationCountVisitor",
+    srcs = ["RotationCountVisitor.cpp"],
+    hdrs = ["RotationCountVisitor.h"],
+    deps = [
+        ":AbstractValue",
+        ":ArithmeticDag",
+    ],
+)
+
 cc_test(
     name = "KernelImplementationTest",
     srcs = [
@@ -105,5 +115,18 @@ cc_test(
         "@heir//lib/Utils/Layout:Evaluate",
         "@heir//lib/Utils/Layout:Utils",
         "@llvm-project//mlir:IR",
+    ],
+)
+
+cc_test(
+    name = "KernelCostTest",
+    srcs = ["KernelCostTest.cpp"],
+    deps = [
+        ":AbstractValue",
+        ":ArithmeticDag",
+        ":Kernel",
+        ":KernelImplementation",
+        ":RotationCountVisitor",
+        "@googletest//:gtest_main",
     ],
 )

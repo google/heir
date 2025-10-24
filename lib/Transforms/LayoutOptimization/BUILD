@@ -22,6 +22,7 @@ cc_library(
         "@heir//lib/Dialect/Secret/IR:SecretPatterns",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Kernel",
+        "@heir//lib/Kernel:RotationCountVisitor",
         "@heir//lib/Utils:AttributeUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",

@@ -109,11 +109,14 @@ class SSAValue : public AbstractValue {
 /// An AbstractValue with no backing data, used for analysis.
 class SymbolicValue : public AbstractValue {
  public:
-  SymbolicValue(const std::vector<int64_t>& shape) : shape(shape) {}
+  SymbolicValue(const std::vector<int64_t>& shape, bool isSecret = true)
+      : shape(shape), isSecret_(isSecret) {}
   std::vector<int64_t> getShape() const override { return shape; }
+  bool isSecret() const { return isSecret_; }
 
  private:
   std::vector<int64_t> shape;
+  bool isSecret_;
 };
 
 }  // namespace kernel

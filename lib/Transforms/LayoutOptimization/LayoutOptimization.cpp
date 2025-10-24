@@ -16,13 +16,18 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Kernel/AbstractValue.h"
+#include "lib/Kernel/ArithmeticDag.h"
 #include "lib/Kernel/Kernel.h"
+#include "lib/Kernel/KernelImplementation.h"
 #include "lib/Kernel/KernelName.h"
+#include "lib/Kernel/RotationCountVisitor.h"
 #include "lib/Transforms/LayoutOptimization/Hoisting.h"
 #include "lib/Transforms/LayoutOptimization/LayoutConversionCost.h"
 #include "lib/Transforms/LayoutOptimization/Patterns.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"               // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"         // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
@@ -385,10 +390,138 @@ Cost LayoutOptimization::costOfChangedResult(Operation* kernel,
   return totalCost;
 }
 
+// Helper: Extract operation shape for kernel cost calculation
+static std::optional<ArrayRef<int64_t>> getOperationShape(Operation* op) {
+  return llvm::TypeSwitch<Operation*, std::optional<ArrayRef<int64_t>>>(op)
+      .Case<linalg::MatvecOp>(
+          [](auto matvecOp) -> std::optional<ArrayRef<int64_t>> {
+            // Matrix is operand 0: rows x cols
+            auto matrixType =
+                dyn_cast<RankedTensorType>(matvecOp.getInputs()[0].getType());
+            if (!matrixType) return std::nullopt;
+            return matrixType.getShape();
+          })
+      .Case<linalg::VecmatOp>(
+          [](auto vecmatOp) -> std::optional<ArrayRef<int64_t>> {
+            // Matrix is operand 1: rows x cols
+            auto matrixType =
+                dyn_cast<RankedTensorType>(vecmatOp.getInputs()[1].getType());
+            if (!matrixType) return std::nullopt;
+            return matrixType.getShape();
+          })
+      .Case<linalg::MatmulOp>(
+          [](auto matmulOp) -> std::optional<ArrayRef<int64_t>> {
+            // LHS matrix is operand 0
+            auto lhsType =
+                dyn_cast<RankedTensorType>(matmulOp.getInputs()[0].getType());
+            if (!lhsType) return std::nullopt;
+            return lhsType.getShape();
+          })
+      .Default([](auto) { return std::nullopt; });
+}
+
+// Helper: Build symbolic DAG for a kernel and count rotations
+// Returns FailureOr<Cost> to allow caller to handle unsupported kernels.
+static FailureOr<Cost> computeKernelCostFromDAG(KernelName kernel,
+                                                ArrayRef<int64_t> shape) {
+  using kernel::RotationCountVisitor;
+
+  switch (kernel) {
+    case KernelName::Trivial:
+      return 0;
+
+    case KernelName::MatvecDiagonal: {
+      if (shape.size() < 2) return failure();
+
+      // Use Halevi-Shoup baby-step giant-step algorithm for diagonal matvec
+      // This algorithm achieves O(sqrt(n)) rotations instead of O(n)
+      kernel::SymbolicValue symbolicVector({shape[1]},
+                                           true);  // Vector is encrypted
+      kernel::SymbolicValue symbolicMatrix({shape[0], shape[1]},
+                                           false);  // Matrix is plaintext
+      std::vector<int64_t> originalShape = {shape[0], shape[1]};
+
+      auto kernelDag = kernel::implementHaleviShoup(
+          symbolicVector, symbolicMatrix, originalShape);
+
+      if (!kernelDag) return failure();
+
+      RotationCountVisitor counter;
+      return counter.process(kernelDag);
+    }
+
+    case KernelName::MatvecNaive:
+      // TODO(#1589): implement MatvecNaive kernel cost model
+      return failure();
+
+    case KernelName::VecmatDiagonal: {
+      if (shape.size() < 2) return failure();
+
+      // VecmatDiagonal uses similar structure to MatvecDiagonal
+      // Same baby-step giant-step algorithm applies
+      kernel::SymbolicValue symbolicVector({shape[0]},
+                                           true);  // Vector is encrypted
+      kernel::SymbolicValue symbolicMatrix({shape[0], shape[1]},
+                                           false);  // Matrix is plaintext
+      std::vector<int64_t> originalShape = {shape[0], shape[1]};
+
+      auto kernelDag = kernel::implementHaleviShoup(
+          symbolicVector, symbolicMatrix, originalShape);
+
+      if (!kernelDag) return failure();
+
+      RotationCountVisitor counter;
+      return counter.process(kernelDag);
+    }
+
+    case KernelName::MatmulDiagonal:
+      // TODO(#1376): evaluate bicyclic matmul kernel cost
+      return failure();
+
+    default:
+      return failure();
+  }
+}
+
 static Cost costOfKernelChange(Operation* op, KernelName oldKernel,
                                const HoistResult& hoistResult) {
-  // TODO(#2316): add the cost of a kernel change.
-  return 0;
+  KernelName newKernel = hoistResult.newKernel;
+
+  // No cost if kernel isn't changing
+  if (oldKernel == newKernel) {
+    return 0;
+  }
+
+  // Trivial kernels are free (elementwise operations)
+  if (newKernel == KernelName::Trivial) {
+    return 0;
+  }
+
+  // Extract operation dimensions
+  auto shape = getOperationShape(op);
+  if (!shape.has_value()) {
+    LLVM_DEBUG(llvm::dbgs() << "Could not extract shape for kernel cost\n");
+    // If we can't extract shape, skip this kernel option by returning
+    // a very large cost to discourage its selection
+    return std::numeric_limits<Cost>::max() / 2;
+  }
+
+  // Build symbolic DAG and count rotations
+  // TODO(#2351): enhance cost model to include multiplicative depth
+  FailureOr<Cost> costResult = computeKernelCostFromDAG(newKernel, *shape);
+
+  if (failed(costResult)) {
+    LLVM_DEBUG(llvm::dbgs()
+               << "Failed to compute cost for kernel " << newKernel << "\n");
+    // Skip unsupported kernels by returning large cost
+    return std::numeric_limits<Cost>::max() / 2;
+  }
+
+  Cost cost = *costResult;
+  LLVM_DEBUG(llvm::dbgs() << "Kernel " << newKernel << " cost: " << cost
+                          << " rotations\n");
+
+  return cost;
 }
 
 std::vector<HoistOption> LayoutOptimization::computeHoistingOptions(
