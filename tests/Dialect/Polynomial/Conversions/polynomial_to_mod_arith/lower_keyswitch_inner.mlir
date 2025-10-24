@@ -18,9 +18,9 @@ module attributes {
   // CHECK: @test_single_part
   // CHECK-SAME: (%[[poly:[^:]*]]: tensor<1024x!rns.rns
   // CHECK-SAME: , %[[ksk:[^:]*]]:
-  func.func @test_single_part(%p: !poly, %ksk: tensor<10x2x!poly>) -> (!poly, !poly) {
+  func.func @test_single_part(%p: !poly, %ksk: tensor<2x2x!poly>) -> (!poly, !poly) {
     // CHECK: rns.extract_slice %[[poly]] {size = 2 : i32, start = 0 : i32}
-    %c, %l = polynomial.key_switch_inner %p, %ksk : (!poly, tensor<10x2x!poly>) -> (!poly, !poly)
+    %c, %l = polynomial.key_switch_inner %p, %ksk : (!poly, tensor<2x2x!poly>) -> (!poly, !poly)
     return %c, %l : !poly, !poly
   }
 }
@@ -55,12 +55,12 @@ module attributes {
   // CHECK: @test_indivisible_parts
   // CHECK-SAME: (%[[poly:[^:]*]]: tensor<1024x!rns.rns
   // CHECK-SAME: , %[[ksk:[^:]*]]:
-  func.func @test_indivisible_parts(%p: !poly, %ksk: tensor<10x2x!poly>) -> (!poly, !poly) {
+  func.func @test_indivisible_parts(%p: !poly, %ksk: tensor<4x2x!poly>) -> (!poly, !poly) {
     // CHECK: rns.extract_slice %[[poly]] {size = 3 : i32, start = 0 : i32}
     // CHECK: rns.extract_slice %[[poly]] {size = 3 : i32, start = 3 : i32}
     // CHECK: rns.extract_slice %[[poly]] {size = 3 : i32, start = 6 : i32}
     // CHECK: rns.extract_slice %[[poly]] {size = 2 : i32, start = 9 : i32}
-    %c, %l = polynomial.key_switch_inner %p, %ksk : (!poly, tensor<10x2x!poly>) -> (!poly, !poly)
+    %c, %l = polynomial.key_switch_inner %p, %ksk : (!poly, tensor<4x2x!poly>) -> (!poly, !poly)
     return %c, %l : !poly, !poly
   }
 }
