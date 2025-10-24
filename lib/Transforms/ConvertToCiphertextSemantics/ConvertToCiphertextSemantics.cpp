@@ -509,7 +509,9 @@ struct ConvertLinalgMatvecLayout
 
     rewriter.setInsertionPointAfter(op);
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    IRMaterializingVisitor visitor(b, input.getType());
+    IRMaterializingVisitor visitor(
+        b, input.getType(),
+        [&](Operation* createdOp) { setMaterializedAttr(op); });
     Value finalOutput = implementedKernel->visit(visitor);
 
     auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
@@ -623,7 +625,9 @@ struct ConvertLinalgConv2D
 
     rewriter.setInsertionPointAfter(op);
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    IRMaterializingVisitor visitor(b, data.getType());
+    IRMaterializingVisitor visitor(
+        b, data.getType(),
+        [&](Operation* createdOp) { setMaterializedAttr(op); });
     Value finalOutput = implementedKernel->visit(visitor);
 
     auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));

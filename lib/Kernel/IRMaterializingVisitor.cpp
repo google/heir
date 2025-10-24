@@ -45,7 +45,9 @@ Value IRMaterializingVisitor::operator()(const ConstantScalarNode& node) {
     attr = getScalarOrDenseAttr(evaluatedType, apVal);
   }
 
-  return arith::ConstantOp::create(builder, evaluatedType, attr);
+  auto constantOp = arith::ConstantOp::create(builder, evaluatedType, attr);
+  createdOpCallback(constantOp);
+  return constantOp;
 }
 
 Value IRMaterializingVisitor::operator()(const ConstantTensorNode& node) {
@@ -71,7 +73,9 @@ Value IRMaterializingVisitor::operator()(const ConstantTensorNode& node) {
     attr = DenseElementsAttr::get(tensorTy, values);
   }
 
-  return arith::ConstantOp::create(builder, evaluatedType, attr);
+  auto constantOp = arith::ConstantOp::create(builder, evaluatedType, attr);
+  createdOpCallback(constantOp);
+  return constantOp;
 }
 
 Value IRMaterializingVisitor::operator()(const AddNode<SSAValue>& node) {
@@ -89,7 +93,10 @@ Value IRMaterializingVisitor::operator()(const MultiplyNode<SSAValue>& node) {
 Value IRMaterializingVisitor::operator()(const LeftRotateNode<SSAValue>& node) {
   Value operand = this->process(node.operand);
   Value shift = builder.create<arith::ConstantIndexOp>(node.shift);
-  return builder.create<tensor_ext::RotateOp>(evaluatedType, operand, shift);
+  auto rotateOp =
+      builder.create<tensor_ext::RotateOp>(evaluatedType, operand, shift);
+  createdOpCallback(rotateOp);
+  return rotateOp;
 }
 
 Value IRMaterializingVisitor::operator()(const ExtractNode<SSAValue>& node) {
@@ -115,14 +122,18 @@ Value IRMaterializingVisitor::operator()(const ExtractNode<SSAValue>& node) {
                                     builder.getIndexAttr(1));
 
   if (auto tensorTy = dyn_cast<RankedTensorType>(evaluatedType)) {
-    return builder.create<tensor::ExtractSliceOp>(tensorTy, operand, offsets,
-                                                  sizes, strides);
+    auto extractOp = builder.create<tensor::ExtractSliceOp>(
+        tensorTy, operand, offsets, sizes, strides);
+    createdOpCallback(extractOp);
+    return extractOp;
   }
 
   // Otherwise let the type be inferred, though this will likely result in an
   // issue because the row index is preserved in the result type
-  return builder.create<tensor::ExtractSliceOp>(operand, offsets, sizes,
-                                                strides);
+  auto extractOp =
+      builder.create<tensor::ExtractSliceOp>(operand, offsets, sizes, strides);
+  createdOpCallback(extractOp);
+  return extractOp;
 }
 
 }  // namespace kernel
