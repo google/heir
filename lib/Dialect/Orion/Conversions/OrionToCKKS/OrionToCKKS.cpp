@@ -1,5 +1,7 @@
 #include "lib/Dialect/Orion/Conversions/OrionToCKKS/OrionToCKKS.h"
 
+#include <utility>
+
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/Orion/Conversions/OrionToCKKS/IRMaterializingVisitor.h"
 #include "lib/Dialect/Orion/IR/OrionDialect.h"
@@ -8,9 +10,14 @@
 #include "lib/Kernel/ArithmeticDag.h"
 #include "lib/Kernel/KernelImplementation.h"
 #include "lib/Kernel/KernelName.h"
+#include "lib/Utils/Polynomial/ChebyshevPatersonStockmeyer.h"
+#include "lib/Utils/Utils.h"
+#include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
+
+#define DEBUG_TYPE "orion-to-ckks"
 
 namespace mlir::heir::orion {
 
@@ -21,13 +28,99 @@ using kernel::SSAValue;
 #define GEN_PASS_DEF_ORIONTOCKKS
 #include "lib/Dialect/Orion/Conversions/OrionToCKKS/OrionToCKKS.h.inc"
 
+constexpr int64_t defaultScalingFactor = 26;
+
+lwe::LWEPlaintextType getPlaintextTypeFromCtTypeAndScalingFactor(
+    lwe::LWECiphertextType ctTy, int64_t scalingFactor) {
+  MLIRContext* ctx = ctTy.getContext();
+  auto encodingAttr =
+      lwe::InverseCanonicalEncodingAttr::get(ctx, defaultScalingFactor);
+  return lwe::LWEPlaintextType::get(
+      ctx, ctTy.getApplicationData(),
+      lwe::PlaintextSpaceAttr::get(ctx, ctTy.getPlaintextSpace().getRing(),
+                                   encodingAttr));
+}
+
+Value encodeSplattedCleartextUsingCtAndScalingFactor(
+    ImplicitLocOpBuilder& b, lwe::LWECiphertextType ctTy, int64_t scalingFactor,
+    APFloat value) {
+  MLIRContext* ctx = b.getContext();
+  lwe::LWEPlaintextType ptTy =
+      getPlaintextTypeFromCtTypeAndScalingFactor(ctTy, scalingFactor);
+  int64_t numSlots = ctTy.getCiphertextSpace()
+                         .getRing()
+                         .getPolynomialModulus()
+                         .getPolynomial()
+                         .getDegree() /
+                     2;
+  RankedTensorType cleartextType =
+      RankedTensorType::get({numSlots}, Float32Type::get(ctx));
+
+  // Create a mul_plain op with appropriate scaling factor on the encoded
+  // plaintext constant
+  auto constantOp = arith::ConstantOp::create(
+      b, getScalarOrDenseAttr(cleartextType, std::move(value)));
+  auto encodeOp = lwe::RLWEEncodeOp::create(
+      b, ptTy, constantOp.getResult(), ptTy.getPlaintextSpace().getEncoding(),
+      ptTy.getPlaintextSpace().getRing());
+  return encodeOp.getResult();
+}
+
 struct ConvertChebyshevOp : public OpRewritePattern<ChebyshevOp> {
   using OpRewritePattern<ChebyshevOp>::OpRewritePattern;
 
   LogicalResult matchAndRewrite(ChebyshevOp op,
                                 PatternRewriter& rewriter) const override {
-    // FIXME: implement
-    return failure();
+    ArrayAttr chebCoeffsAttr = op.getCoefficients();
+    SmallVector<double> chebCoeffs =
+        llvm::map_to_vector(chebCoeffsAttr, [](Attribute attr) {
+          return llvm::cast<FloatAttr>(attr).getValue().convertToDouble();
+        });
+
+    double lower = op.getDomainStartAttr().getValue().convertToDouble();
+    double upper = op.getDomainEndAttr().getValue().convertToDouble();
+
+    // The Chebyshev polynomial is defined on the interval [-1, 1]. We need to
+    // rescale the input x in [lower, upper] to be on this unit interval.
+    // The mapping is x -> 2(x-L)/(U-L) - 1 = (2/U-L) * x - (U+L)/(U-L)
+    APFloat rescale = APFloat(2 / (upper - lower));
+    APFloat shift = APFloat((upper + lower) / (upper - lower));
+
+    lwe::LWECiphertextType ctTy = op.getInput().getType();
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    Value xInput = op.getInput();
+
+    if (!rescale.isExactlyValue(1.0)) {
+      // The scaling factor here can be anything, so long as it has enough
+      // precision to support the input. Default of 26 bits should be fine
+      // for evaluation purposes.
+      auto encodedSplatRescale = encodeSplattedCleartextUsingCtAndScalingFactor(
+          b, ctTy, defaultScalingFactor, rescale);
+      xInput =
+          ckks::MulPlainOp::create(b, xInput, encodedSplatRescale).getResult();
+    }
+
+    if (!shift.isZero()) {
+      // unlike mul_plain, add_plain requires the encoded plaintext to have
+      // the same scaling factor as the ciphertext.
+      int64_t scalingFactor = lwe::getScalingFactorFromEncodingAttr(
+          ctTy.getPlaintextSpace().getEncoding());
+      auto encodedSplatShift = encodeSplattedCleartextUsingCtAndScalingFactor(
+          b, ctTy, scalingFactor, shift);
+      xInput =
+          ckks::AddPlainOp::create(b, xInput, encodedSplatShift).getResult();
+    }
+
+    SSAValue xNode(xInput);
+    auto implementedKernel =
+        polynomial::patersonStockmeyerChebyshevPolynomialEvaluation(xNode,
+                                                                    chebCoeffs);
+    IRMaterializingVisitor visitor(
+        b,
+        getPlaintextTypeFromCtTypeAndScalingFactor(ctTy, defaultScalingFactor));
+    Value finalOutput = implementedKernel->visit(visitor);
+    rewriter.replaceOp(op, finalOutput);
+    return success();
   }
 };
 
@@ -75,6 +168,105 @@ WalkResult handleInferTypeOpInterface(InferTypeOpInterface op) {
   return WalkResult::advance();
 }
 
+WalkResult handleRescaleOp(ckks::RescaleOp op) {
+  lwe::LWECiphertextType inputType =
+      cast<lwe::LWECiphertextType>(op.getInput().getType());
+  FailureOr<lwe::LWECiphertextType> outputTypeResult =
+      applyModReduce(inputType);
+  if (failed(outputTypeResult)) {
+    op.emitError() << "Cannot drop one limb from ciphertext type: "
+                   << inputType;
+    return WalkResult::interrupt();
+  }
+  op.getResult().setType(outputTypeResult.value());
+  op.setToRingAttr(outputTypeResult.value().getCiphertextSpace().getRing());
+  return WalkResult::advance();
+}
+
+WalkResult handleBootstrap(ckks::BootstrapOp op) {
+  // First, we need to find the maximum level in the modulus chain from the
+  // ciphertext type.
+  lwe::LWECiphertextType inputType =
+      cast<lwe::LWECiphertextType>(op.getInput().getType());
+  // sub 1 because the max level is the last index in the chain.
+  int64_t maxLevel = inputType.getModulusChain().getElements().size() - 1;
+
+  // Now we cheat a little bit: normally bootstrap itself would consume some
+  // levels, which depends on the chosen backend. In our case, we're lowering to
+  // library backends that handle this opaquely, so as long as we keep the type
+  // system consistent at this step, we're fine.
+  //
+  // TODO(#1207): fix if this pass still matters when lowering to polynomial.
+  FailureOr<lwe::LWECiphertextType> outputTypeResult =
+      cloneAtLevel(inputType, maxLevel);
+  op.getResult().setType(outputTypeResult.value());
+  return WalkResult::advance();
+}
+
+template <typename CtPtOp>
+WalkResult handleNonMulCtPtOp(CtPtOp op) {
+  lwe::LWECiphertextType ctType;
+  Value plaintextOperand;
+  if (isa<lwe::LWECiphertextType>(op.getLhs().getType())) {
+    ctType = cast<lwe::LWECiphertextType>(op.getLhs().getType());
+    plaintextOperand = op.getRhs();
+  } else {
+    ctType = cast<lwe::LWECiphertextType>(op.getRhs().getType());
+    plaintextOperand = op.getLhs();
+  }
+
+  if (auto encodeOp =
+          dyn_cast<lwe::RLWEEncodeOp>(plaintextOperand.getDefiningOp())) {
+    // The plaintext operand is already encoded, so we need to set its
+    // scaling factor to match the ciphertext operand.
+    lwe::LWEPlaintextType oldPtType =
+        cast<lwe::LWEPlaintextType>(encodeOp.getResult().getType());
+
+    LLVM_DEBUG(llvm::dbgs()
+               << "Forcing scaling factor of plaintext operand of "
+               << op->getName()
+               << " to match ciphertext operand. Old scaling factor="
+               << lwe::getScalingFactorFromEncodingAttr(
+                      oldPtType.getPlaintextSpace().getEncoding())
+               << ", new="
+               << lwe::getScalingFactorFromEncodingAttr(
+                      ctType.getPlaintextSpace().getEncoding())
+               << "\n");
+
+    encodeOp.setEncodingAttr(ctType.getPlaintextSpace().getEncoding());
+    lwe::LWEPlaintextType newPtType = lwe::LWEPlaintextType::get(
+        op.getContext(), oldPtType.getApplicationData(),
+        ctType.getPlaintextSpace());
+    encodeOp.getResult().setType(newPtType);
+  } else {
+    // Not sure what to do here.
+    op.emitError() << "Plaintext operand of " << op->getName()
+                   << " is not directly encoded; cannot force scaling factor.";
+  }
+
+  op.getResult().setType(ctType);
+  return WalkResult::advance();
+}
+
+WalkResult handleMulPlain(ckks::MulPlainOp op) {
+  lwe::LWECiphertextType ctType;
+  lwe::LWEPlaintextType ptType;
+  if (isa<lwe::LWECiphertextType>(op.getLhs().getType())) {
+    ctType = cast<lwe::LWECiphertextType>(op.getLhs().getType());
+    ptType = cast<lwe::LWEPlaintextType>(op.getRhs().getType());
+  } else {
+    ctType = cast<lwe::LWECiphertextType>(op.getRhs().getType());
+    ptType = cast<lwe::LWEPlaintextType>(op.getLhs().getType());
+  }
+  auto newCtType = lwe::LWECiphertextType::get(
+      op.getContext(), ctType.getApplicationData(),
+      inferMulOpPlaintextSpaceAttr(op.getContext(), ctType.getPlaintextSpace(),
+                                   ptType.getPlaintextSpace()),
+      ctType.getCiphertextSpace(), ctType.getKey(), ctType.getModulusChain());
+  op.getResult().setType(newCtType);
+  return WalkResult::advance();
+}
+
 struct OrionToCKKS : public impl::OrionToCKKSBase<OrionToCKKS> {
   void runOnOperation() override {
     MLIRContext* context = &getContext();
@@ -100,13 +292,14 @@ struct OrionToCKKS : public impl::OrionToCKKSBase<OrionToCKKS> {
       }
 
       return llvm::TypeSwitch<Operation*, WalkResult>(op)
+          .Case<ckks::RescaleOp>(handleRescaleOp)
+          .Case<ckks::AddPlainOp>(handleNonMulCtPtOp<ckks::AddPlainOp>)
+          .Case<ckks::SubPlainOp>(handleNonMulCtPtOp<ckks::SubPlainOp>)
+          .Case<ckks::MulPlainOp>(handleMulPlain)
+          .Case<ckks::BootstrapOp>(handleBootstrap)
+          // Some ops above implement InferTypeOpInterface, but need special
+          // cases, so this must come after them.
           .Case<InferTypeOpInterface>(handleInferTypeOpInterface)
-          .Case<ckks::RescaleOp>([&](auto rescaleOp) {
-            // A rescale op's proper return type is handled during
-            // IRMaterializingVisitor, so these should all be correct unless the
-            // input IR has a rescale op.
-            return WalkResult::advance();
-          })
           .Default([&](Operation* op) {
             if (llvm::none_of(op->getResults(), [](auto result) {
                   return isa<lwe::LWECiphertextType>(result.getType());

@@ -1,3 +1,0 @@
- encoding = #lwe.inverse_canonical_encoding<scaling_factor = 52>>,
-
- encoding = #lwe.inverse_canonical_encoding<scaling_factor = 26>>,

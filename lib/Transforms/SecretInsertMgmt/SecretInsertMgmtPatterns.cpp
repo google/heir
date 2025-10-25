@@ -302,9 +302,9 @@ LogicalResult BootstrapWaterLine<Op>::matchAndRewrite(
       rewriter, op.getLoc(), op->getResultTypes(), op->getResult(0));
   op->getResult(0).replaceAllUsesExcept(bootstrap, {bootstrap});
 
-  // greedy rewrite! note that we may get undeterministic insertion result
-  // if we use different order of rewrites
-  // currently walkAndApplyPatterns is deterministic
+  // Greedy rewrite! note that we may get nondeterministic insertion result if
+  // we use different order of rewrites. Currently walkAndApplyPatterns is
+  // deterministic
   solver->eraseAllStates();
   return solver->initializeAndRun(top);
 }

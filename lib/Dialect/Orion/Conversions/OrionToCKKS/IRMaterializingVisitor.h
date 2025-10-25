@@ -6,11 +6,12 @@
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
-#include "llvm/include/llvm/ADT/TypeSwitch.h"    // from @llvm-project
-#include "mlir/include/mlir/IR/Builders.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/TypeUtilities.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"          // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"      // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -32,78 +33,92 @@ class IRMaterializingVisitor
   IRMaterializingVisitor(ImplicitLocOpBuilder& builder)
       : CachingVisitor<kernel::SSAValue, Value>(), builder(builder) {}
 
-  Value maybeRescale(ImplicitLocOpBuilder builder, Value value,
-                     lwe::LWECiphertextType resultType, bool rescale) {
+  IRMaterializingVisitor(ImplicitLocOpBuilder& builder,
+                         lwe::LWEPlaintextType ptTy)
+      : CachingVisitor<kernel::SSAValue, Value>(),
+        builder(builder),
+        plaintextType(ptTy) {}
+
+  Value maybeRescale(Value value, lwe::LWECiphertextType resultType,
+                     bool rescale) {
     Value result = value;
     if (rescale) {
-      auto* ctx = resultType.getContext();
-      int newLevel = resultType.getModulusChain().getCurrent() - 1;
-      if (newLevel <= 0) {
-        emitError(value.getLoc()) << "Encountered situation of rescaling "
-                                     "without any remaining limbs!";
+      FailureOr<lwe::LWECiphertextType> ctTypeResult =
+          applyModReduce(resultType);
+      if (failed(ctTypeResult)) {
+        emitError(result.getLoc())
+            << "Cannot rescale ciphertext type: " << resultType;
+        return Value();
       }
-      lwe::ModulusChainAttr moddedDownChain = lwe::ModulusChainAttr::get(
-          ctx, resultType.getModulusChain().getElements(), newLevel);
-      auto ring = resultType.getCiphertextSpace().getRing();
-      auto ctType = lwe::LWECiphertextType::get(
-          ctx, resultType.getApplicationData(), resultType.getPlaintextSpace(),
-          lwe::CiphertextSpaceAttr::get(
-              ctx, getRlweRNSRingWithLevel(ring, newLevel),
-              resultType.getCiphertextSpace().getEncryptionType(),
-              resultType.getCiphertextSpace().getSize()),
-          lwe::KeyAttr::get(ctx, 0),
-          lwe::ModulusChainAttr::get(ctx, moddedDownChain.getElements(),
-                                     newLevel));
+      auto ctType = ctTypeResult.value();
       result = ckks::RescaleOp::create(builder, ctType, result,
                                        ctType.getCiphertextSpace().getRing());
     }
     return result;
   }
 
-  template <typename T, typename CtCtOp, typename CtPtOp>
+  Value encodeCleartextOperand(lwe::LWECiphertextType ctTy, Value cleartext) {
+    lwe::LWEPlaintextType ptTy = lwe::LWEPlaintextType::get(
+        builder.getContext(), ctTy.getApplicationData(),
+        ctTy.getPlaintextSpace());
+    return lwe::RLWEEncodeOp::create(builder, ptTy, cleartext,
+                                     ctTy.getPlaintextSpace().getEncoding(),
+                                     ctTy.getPlaintextSpace().getRing())
+        .getResult();
+  }
+
+  template <typename T, typename CtCtOp, typename CtPtOp, typename CleartextOp>
   Value binop(const T& node, bool rescale = false) {
     Value lhs = this->process(node.left);
     Value rhs = this->process(node.right);
+
     return TypeSwitch<Type, Value>(lhs.getType())
         .template Case<lwe::LWECiphertextType>([&](auto ty) {
           if (isa<RankedTensorType>(rhs.getType())) {
-            lwe::LWEPlaintextType ptTy = lwe::LWEPlaintextType::get(
-                builder.getContext(), ty.getApplicationData(),
-                ty.getPlaintextSpace());
-            auto encodedRhs = lwe::RLWEEncodeOp::create(
-                builder, ptTy, rhs, ty.getPlaintextSpace().getEncoding(),
-                ty.getPlaintextSpace().getRing());
             return maybeRescale(
-                builder, CtPtOp::create(builder, lhs, encodedRhs).getResult(),
+                CtPtOp::create(builder, lhs, encodeCleartextOperand(ty, rhs))
+                    .getResult(),
                 ty, rescale);
           }
 
-          if (!isa<lwe::LWECiphertextType>(rhs.getType())) {
-            emitError(lhs.getLoc()) << "Unsupported types for binary operation "
-                                       "(lhs is ciphertext): \n\nlhs="
-                                    << lhs << "\n\nrhs=" << rhs << "\n";
-            return Value();
+          if (isa<lwe::LWEPlaintextType>(rhs.getType())) {
+            return maybeRescale(CtPtOp::create(builder, lhs, rhs).getResult(),
+                                ty, rescale);
           }
-          return maybeRescale(builder,
-                              CtCtOp::create(builder, lhs, rhs).getResult(), ty,
+
+          return maybeRescale(CtCtOp::create(builder, lhs, rhs).getResult(), ty,
                               rescale);
         })
-        .template Case<RankedTensorType>([&](auto ty) {
+        .template Case<lwe::LWEPlaintextType>([&](auto ty) {
+          if (isa<RankedTensorType>(rhs.getType())) {
+            auto encodeOp = dyn_cast<lwe::RLWEEncodeOp>(lhs.getDefiningOp());
+            return CleartextOp::create(builder, encodeOp.getInput(), rhs)
+                .getResult();
+          }
+
+          if (isa<lwe::LWEPlaintextType>(rhs.getType())) {
+            auto encodedLhs = dyn_cast<lwe::RLWEEncodeOp>(lhs.getDefiningOp());
+            auto encodedRhs = dyn_cast<lwe::RLWEEncodeOp>(rhs.getDefiningOp());
+            return CleartextOp::create(builder, encodedLhs.getInput(),
+                                       encodedRhs.getInput())
+                .getResult();
+          }
+
           auto ctTy = dyn_cast<lwe::LWECiphertextType>(rhs.getType());
           if (!ctTy) {
-            emitError(lhs.getLoc()) << "Unsupported types for binary operation "
-                                       "(lhs is cleartext): \n\nlhs="
-                                    << lhs << "\n\nrhs=" << rhs << "\n";
+            emitError(lhs.getLoc())
+                << "Unsupported types for binary operation: \n\nlhs=" << lhs
+                << "\n\nrhs=" << rhs << "\n";
             return Value();
           }
-          lwe::LWEPlaintextType ptTy = lwe::LWEPlaintextType::get(
-              builder.getContext(), ctTy.getApplicationData(),
-              ctTy.getPlaintextSpace());
-          auto encodedLhs = lwe::RLWEEncodeOp::create(
-              builder, ptTy, lhs, ctTy.getPlaintextSpace().getEncoding(),
-              ctTy.getPlaintextSpace().getRing());
+          return maybeRescale(CtPtOp::create(builder, lhs, rhs).getResult(),
+                              ctTy, rescale);
+        })
+        .template Case<RankedTensorType>([&](auto ty) {
+          auto ctTy = cast<lwe::LWECiphertextType>(rhs.getType());
           return maybeRescale(
-              builder, CtPtOp::create(builder, encodedLhs, rhs).getResult(),
+              CtPtOp::create(builder, encodeCleartextOperand(ctTy, lhs), rhs)
+                  .getResult(),
               ctTy, rescale);
         })
         .Default([&](Type) {
@@ -126,6 +141,7 @@ class IRMaterializingVisitor
 
  private:
   ImplicitLocOpBuilder& builder;
+  lwe::LWEPlaintextType plaintextType;
 };
 
 }  // namespace orion

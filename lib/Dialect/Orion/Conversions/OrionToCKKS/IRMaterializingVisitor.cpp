@@ -4,6 +4,7 @@
 
 #include "lib/Dialect/CKKS/IR/CKKSOps.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Utils/Utils.h"
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
@@ -24,22 +25,29 @@ using kernel::MultiplyNode;
 using kernel::SSAValue;
 using kernel::SubtractNode;
 
-polynomial::RingAttr getRlweRNSRingWithLevel(polynomial::RingAttr ringAttr,
-                                             int level) {
-  auto rnsType = cast<rns::RNSType>(ringAttr.getCoefficientType());
-
-  auto newRnsType = rns::RNSType::get(
-      rnsType.getContext(), rnsType.getBasisTypes().take_front(level + 1));
-  return polynomial::RingAttr::get(newRnsType, ringAttr.getPolynomialModulus());
-}
-
 Value IRMaterializingVisitor::operator()(const LeafNode<SSAValue>& node) {
   return node.value.getValue();
 }
 
 Value IRMaterializingVisitor::operator()(const ConstantScalarNode& node) {
-  llvm_unreachable("not supported");
-  return Value();
+  // Create a constant and encode a plaintext with the splatted value in the
+  // node.
+  MLIRContext* ctx = builder.getContext();
+  int64_t numSlots = plaintextType.getPlaintextSpace()
+                         .getRing()
+                         .getPolynomialModulus()
+                         .getPolynomial()
+                         .getDegree() /
+                     2;
+  RankedTensorType cleartextType =
+      RankedTensorType::get({numSlots}, Float32Type::get(ctx));
+  auto constantOp = arith::ConstantOp::create(
+      builder, getScalarOrDenseAttr(cleartextType, APFloat(node.value)));
+  auto encodeOp =
+      lwe::RLWEEncodeOp::create(builder, plaintextType, constantOp.getResult(),
+                                plaintextType.getPlaintextSpace().getEncoding(),
+                                plaintextType.getPlaintextSpace().getRing());
+  return encodeOp.getResult();
 }
 
 Value IRMaterializingVisitor::operator()(const ConstantTensorNode& node) {
@@ -48,17 +56,19 @@ Value IRMaterializingVisitor::operator()(const ConstantTensorNode& node) {
 }
 
 Value IRMaterializingVisitor::operator()(const AddNode<SSAValue>& node) {
-  return binop<AddNode<SSAValue>, ckks::AddOp, ckks::AddPlainOp>(node);
+  return binop<AddNode<SSAValue>, ckks::AddOp, ckks::AddPlainOp, arith::AddFOp>(
+      node);
 }
 
 Value IRMaterializingVisitor::operator()(const SubtractNode<SSAValue>& node) {
-  return binop<SubtractNode<SSAValue>, ckks::SubOp, ckks::SubPlainOp>(node);
+  return binop<SubtractNode<SSAValue>, ckks::SubOp, ckks::SubPlainOp,
+               arith::SubFOp>(node);
 }
 
 Value IRMaterializingVisitor::operator()(const MultiplyNode<SSAValue>& node) {
-  return binop<MultiplyNode<SSAValue>, ckks::MulOp, ckks::MulPlainOp>(
-      node,
-      /*rescale=*/true);
+  return binop<MultiplyNode<SSAValue>, ckks::MulOp, ckks::MulPlainOp,
+               arith::MulFOp>(node,
+                              /*rescale=*/true);
 }
 
 Value IRMaterializingVisitor::operator()(const LeftRotateNode<SSAValue>& node) {
