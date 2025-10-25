@@ -5,6 +5,7 @@
 #include <optional>
 #include <string>
 #include <tuple>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -16,13 +17,17 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Kernel/AbstractValue.h"
+#include "lib/Kernel/ArithmeticDag.h"
 #include "lib/Kernel/Kernel.h"
+#include "lib/Kernel/KernelImplementation.h"
 #include "lib/Kernel/KernelName.h"
 #include "lib/Transforms/LayoutOptimization/Hoisting.h"
 #include "lib/Transforms/LayoutOptimization/LayoutConversionCost.h"
 #include "lib/Transforms/LayoutOptimization/Patterns.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"               // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"         // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
@@ -385,10 +390,186 @@ Cost LayoutOptimization::costOfChangedResult(Operation* kernel,
   return totalCost;
 }
 
+// Visitor to count UNIQUE rotations in a kernel DAG with CSE deduplication
+class KernelRotationCountVisitor {
+ public:
+  KernelRotationCountVisitor() {}
+
+  int64_t process(
+      const std::shared_ptr<kernel::ArithmeticDagNode<kernel::SymbolicValue>>&
+          node) {
+    visitedNodes.clear();
+    return processInternal(node);
+  }
+
+ private:
+  std::unordered_set<const kernel::ArithmeticDagNode<kernel::SymbolicValue>*>
+      visitedNodes;
+
+  int64_t processInternal(
+      const std::shared_ptr<kernel::ArithmeticDagNode<kernel::SymbolicValue>>&
+          node) {
+    const auto* nodePtr = node.get();
+
+    // If we've already visited this node, don't count it again (CSE)
+    if (visitedNodes.count(nodePtr)) {
+      return 0;
+    }
+    visitedNodes.insert(nodePtr);
+
+    return std::visit(
+        [this](auto&& arg) -> int64_t {
+          using T = std::decay_t<decltype(arg)>;
+          if constexpr (std::is_same_v<T, kernel::ConstantScalarNode>) {
+            return 0;
+          } else if constexpr (std::is_same_v<T, kernel::ConstantTensorNode>) {
+            return 0;
+          } else if constexpr (std::is_same_v<
+                                   T, kernel::LeafNode<kernel::SymbolicValue>>) {
+            return 0;
+          } else if constexpr (std::is_same_v<
+                                   T, kernel::AddNode<kernel::SymbolicValue>>) {
+            return processInternal(arg.left) + processInternal(arg.right);
+          } else if constexpr (std::is_same_v<T, kernel::SubtractNode<
+                                                      kernel::SymbolicValue>>) {
+            return processInternal(arg.left) + processInternal(arg.right);
+          } else if constexpr (std::is_same_v<T, kernel::MultiplyNode<
+                                                      kernel::SymbolicValue>>) {
+            return processInternal(arg.left) + processInternal(arg.right);
+          } else if constexpr (std::is_same_v<T, kernel::LeftRotateNode<
+                                                      kernel::SymbolicValue>>) {
+            return processInternal(arg.operand) + 1;
+          } else if constexpr (std::is_same_v<
+                                   T, kernel::ExtractNode<kernel::SymbolicValue>>) {
+            return processInternal(arg.operand);
+          }
+          return 0;
+        },
+        node->node_variant);
+  }
+};
+
+// Helper: Extract operation shape for kernel cost calculation
+static std::optional<ArrayRef<int64_t>> getOperationShape(Operation* op) {
+  return llvm::TypeSwitch<Operation*, std::optional<ArrayRef<int64_t>>>(op)
+      .Case<linalg::MatvecOp>(
+          [](auto matvecOp) -> std::optional<ArrayRef<int64_t>> {
+            // Matrix is operand 0: rows x cols
+            auto matrixType =
+                dyn_cast<RankedTensorType>(matvecOp.getInputs()[0].getType());
+            if (!matrixType) return std::nullopt;
+            return matrixType.getShape();
+          })
+      .Case<linalg::VecmatOp>(
+          [](auto vecmatOp) -> std::optional<ArrayRef<int64_t>> {
+            // Matrix is operand 1: rows x cols
+            auto matrixType =
+                dyn_cast<RankedTensorType>(vecmatOp.getInputs()[1].getType());
+            if (!matrixType) return std::nullopt;
+            return matrixType.getShape();
+          })
+      .Case<linalg::MatmulOp>(
+          [](auto matmulOp) -> std::optional<ArrayRef<int64_t>> {
+            // LHS matrix is operand 0
+            auto lhsType =
+                dyn_cast<RankedTensorType>(matmulOp.getInputs()[0].getType());
+            if (!lhsType) return std::nullopt;
+            return lhsType.getShape();
+          })
+      .Default([](auto) { return std::nullopt; });
+}
+
+// Helper: Build symbolic DAG for a kernel and count rotations
+static Cost computeKernelCostFromDAG(KernelName kernel,
+                                     ArrayRef<int64_t> shape) {
+  using NodeTy = kernel::ArithmeticDagNode<kernel::SymbolicValue>;
+  std::shared_ptr<NodeTy> kernelDag;
+
+  switch (kernel) {
+    case KernelName::Trivial:
+      return 0;
+
+    case KernelName::MatvecDiagonal: {
+      if (shape.size() < 2) return 0;
+      // Create symbolic matrix (rows x cols) and vector (cols)
+      kernel::SymbolicValue symbolicMatrix({shape[0], shape[1]});
+      kernel::SymbolicValue symbolicVector({shape[1]});
+      kernelDag =
+          kernel::implementMatvec(kernel, symbolicMatrix, symbolicVector);
+      break;
+    }
+
+    case KernelName::MatvecNaive: {
+      if (shape.size() < 2) return 0;
+      kernel::SymbolicValue symbolicMatrix({shape[0], shape[1]});
+      kernel::SymbolicValue symbolicVector({shape[1]});
+      // MatvecNaive not yet implemented in KernelImplementation.h
+      // For now, use diagonal as approximation
+      kernelDag = kernel::implementMatvec(KernelName::MatvecDiagonal,
+                                          symbolicMatrix, symbolicVector);
+      break;
+    }
+
+    case KernelName::VecmatDiagonal: {
+      if (shape.size() < 2) return 0;
+      // VecmatDiagonal: vector (rows) * matrix (rows x cols)
+      // Approximation: similar structure to MatvecDiagonal but transposed
+      kernel::SymbolicValue symbolicVector({shape[0]});
+      kernel::SymbolicValue symbolicMatrix({shape[0], shape[1]});
+      // Use same cost as matvec for now (same number of diagonals)
+      kernelDag = kernel::implementMatvec(KernelName::MatvecDiagonal,
+                                          symbolicMatrix, symbolicVector);
+      break;
+    }
+
+    case KernelName::MatmulDiagonal: {
+      if (shape.size() < 2) return 0;
+      // MatmulDiagonal typically implemented via multiple matvecs
+      // Conservative estimate: cost scales with both dimensions
+      return shape[0] + shape[1];
+    }
+
+    default:
+      return 0;
+  }
+
+  if (!kernelDag) {
+    return 0;
+  }
+
+  // Count rotations in the symbolic DAG with CSE deduplication
+  KernelRotationCountVisitor counter;
+  return counter.process(kernelDag);
+}
+
 static Cost costOfKernelChange(Operation* op, KernelName oldKernel,
                                const HoistResult& hoistResult) {
-  // TODO(#2316): add the cost of a kernel change.
-  return 0;
+  KernelName newKernel = hoistResult.newKernel;
+
+  // No cost if kernel isn't changing
+  if (oldKernel == newKernel) {
+    return 0;
+  }
+
+  // Trivial kernels are free (elementwise operations)
+  if (newKernel == KernelName::Trivial) {
+    return 0;
+  }
+
+  // Extract operation dimensions
+  auto shape = getOperationShape(op);
+  if (!shape.has_value()) {
+    LLVM_DEBUG(llvm::dbgs() << "Could not extract shape for kernel cost\n");
+    return 0;  // Conservative: unknown ops cost nothing
+  }
+
+  // Build symbolic DAG and count rotations
+  Cost cost = computeKernelCostFromDAG(newKernel, *shape);
+
+  LLVM_DEBUG(llvm::dbgs() << "Kernel " << newKernel << " cost: " << cost
+                          << " rotations\n");
+
+  return cost;
 }
 
 std::vector<HoistOption> LayoutOptimization::computeHoistingOptions(
