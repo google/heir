@@ -125,7 +125,8 @@ LogicalResult verifyModulusSwitchOrRescaleOp(Op* op) {
   auto out = getCtTy(op->getOutput());
   auto outRing = out.getCiphertextSpace().getRing();
   if (outRing != op->getToRing()) {
-    return op->emitOpError() << "output ring should match to_ring";
+    return op->emitOpError()
+           << "output ciphertext_space ring should match to_ring";
   }
 
   auto outPlaintextSpace = out.getPlaintextSpace();

@@ -30,6 +30,9 @@ PlaintextSpaceAttr inferModulusSwitchOrRescaleOpPlaintextSpaceAttr(
 Attribute getEncodingAttrWithNewScalingFactor(Attribute encoding,
                                               int64_t newScale);
 
+polynomial::RingAttr getRlweRNSRingWithLevel(polynomial::RingAttr ringAttr,
+                                             int level);
+
 }  // namespace lwe
 }  // namespace heir
 }  // namespace mlir

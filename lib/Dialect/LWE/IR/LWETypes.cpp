@@ -63,6 +63,40 @@ LWECiphertextType getDefaultCGGICiphertextType(MLIRContext* ctx,
       lwe::KeyAttr::get(ctx, 0), /*modulusChain=*/nullptr);
 }
 
+FailureOr<LWECiphertextType> applyModReduce(LWECiphertextType inputType) {
+  auto* ctx = inputType.getContext();
+  int currentLevel = inputType.getModulusChain().getCurrent();
+  int newLevel = inputType.getModulusChain().getCurrent() - 1;
+  if (newLevel <= 0) {
+    return failure();
+  }
+  auto ring = inputType.getCiphertextSpace().getRing();
+  auto newRing = getRlweRNSRingWithLevel(ring, newLevel);
+
+  APInt dividedModulus =
+      inputType.getModulusChain().getElements()[currentLevel].getValue();
+  lwe::ModulusChainAttr moddedDownChain = lwe::ModulusChainAttr::get(
+      ctx, inputType.getModulusChain().getElements(), newLevel);
+  lwe::PlaintextSpaceAttr newPlaintextSpace =
+      inferModulusSwitchOrRescaleOpPlaintextSpaceAttr(
+          ctx, inputType.getPlaintextSpace(), dividedModulus);
+  return lwe::LWECiphertextType::get(
+      ctx, inputType.getApplicationData(), newPlaintextSpace,
+      lwe::CiphertextSpaceAttr::get(
+          ctx, newRing, inputType.getCiphertextSpace().getEncryptionType(),
+          inputType.getCiphertextSpace().getSize()),
+      lwe::KeyAttr::get(ctx, 0),
+      lwe::ModulusChainAttr::get(ctx, moddedDownChain.getElements(), newLevel));
+}
+
+polynomial::RingAttr getRlweRNSRingWithLevel(polynomial::RingAttr ringAttr,
+                                             int level) {
+  auto rnsType = cast<rns::RNSType>(ringAttr.getCoefficientType());
+  auto newRnsType = rns::RNSType::get(
+      rnsType.getContext(), rnsType.getBasisTypes().take_front(level + 1));
+  return polynomial::RingAttr::get(newRnsType, ringAttr.getPolynomialModulus());
+}
+
 }  // namespace lwe
 }  // namespace heir
 }  // namespace mlir
