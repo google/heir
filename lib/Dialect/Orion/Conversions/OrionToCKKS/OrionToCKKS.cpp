@@ -75,6 +75,52 @@ WalkResult handleInferTypeOpInterface(InferTypeOpInterface op) {
   return WalkResult::advance();
 }
 
+WalkResult handleRescaleOp(ckks::RescaleOp op) {
+  lwe::LWECiphertextType inputType =
+      cast<lwe::LWECiphertextType>(op.getInput().getType());
+  FailureOr<lwe::LWECiphertextType> outputTypeResult =
+      applyModReduce(inputType);
+  if (failed(outputTypeResult)) {
+    op.emitError() << "Cannot drop one limb from ciphertext type: "
+                   << inputType;
+    return WalkResult::interrupt();
+  }
+  op.getResult().setType(outputTypeResult.value());
+  op.setToRingAttr(outputTypeResult.value().getCiphertextSpace().getRing());
+  return WalkResult::advance();
+}
+
+template <typename CtPtOp>
+WalkResult handleNonMulCtPtOp(CtPtOp op) {
+  lwe::LWECiphertextType ctType;
+  if (isa<lwe::LWECiphertextType>(op.getLhs().getType())) {
+    ctType = cast<lwe::LWECiphertextType>(op.getLhs().getType());
+  } else {
+    ctType = cast<lwe::LWECiphertextType>(op.getRhs().getType());
+  }
+  op.getResult().setType(ctType);
+  return WalkResult::advance();
+}
+
+WalkResult handleMulPlain(ckks::MulPlainOp op) {
+  lwe::LWECiphertextType ctType;
+  lwe::LWEPlaintextType ptType;
+  if (isa<lwe::LWECiphertextType>(op.getLhs().getType())) {
+    ctType = cast<lwe::LWECiphertextType>(op.getLhs().getType());
+    ptType = cast<lwe::LWEPlaintextType>(op.getRhs().getType());
+  } else {
+    ctType = cast<lwe::LWECiphertextType>(op.getRhs().getType());
+    ptType = cast<lwe::LWEPlaintextType>(op.getLhs().getType());
+  }
+  auto newCtType = lwe::LWECiphertextType::get(
+      op.getContext(), ctType.getApplicationData(),
+      inferMulOpPlaintextSpaceAttr(op.getContext(), ctType.getPlaintextSpace(),
+                                   ptType.getPlaintextSpace()),
+      ctType.getCiphertextSpace(), ctType.getKey(), ctType.getModulusChain());
+  op.getResult().setType(newCtType);
+  return WalkResult::advance();
+}
+
 struct OrionToCKKS : public impl::OrionToCKKSBase<OrionToCKKS> {
   void runOnOperation() override {
     MLIRContext* context = &getContext();
@@ -101,12 +147,10 @@ struct OrionToCKKS : public impl::OrionToCKKSBase<OrionToCKKS> {
 
       return llvm::TypeSwitch<Operation*, WalkResult>(op)
           .Case<InferTypeOpInterface>(handleInferTypeOpInterface)
-          .Case<ckks::RescaleOp>([&](auto rescaleOp) {
-            // A rescale op's proper return type is handled during
-            // IRMaterializingVisitor, so these should all be correct unless the
-            // input IR has a rescale op.
-            return WalkResult::advance();
-          })
+          .Case<ckks::RescaleOp>(handleRescaleOp)
+          .Case<ckks::AddPlainOp>(handleNonMulCtPtOp<ckks::AddPlainOp>)
+          .Case<ckks::SubPlainOp>(handleNonMulCtPtOp<ckks::SubPlainOp>)
+          .Case<ckks::MulPlainOp>(handleMulPlain)
           .Default([&](Operation* op) {
             if (llvm::none_of(op->getResults(), [](auto result) {
                   return isa<lwe::LWECiphertextType>(result.getType());

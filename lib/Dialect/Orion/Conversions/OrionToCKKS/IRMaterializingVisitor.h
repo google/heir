@@ -36,24 +36,14 @@ class IRMaterializingVisitor
                      lwe::LWECiphertextType resultType, bool rescale) {
     Value result = value;
     if (rescale) {
-      auto* ctx = resultType.getContext();
-      int newLevel = resultType.getModulusChain().getCurrent() - 1;
-      if (newLevel <= 0) {
-        emitError(value.getLoc()) << "Encountered situation of rescaling "
-                                     "without any remaining limbs!";
+      FailureOr<lwe::LWECiphertextType> ctTypeResult =
+          applyModReduce(resultType);
+      if (failed(ctTypeResult)) {
+        emitError(result.getLoc())
+            << "Cannot rescale ciphertext type: " << resultType;
+        return Value();
       }
-      lwe::ModulusChainAttr moddedDownChain = lwe::ModulusChainAttr::get(
-          ctx, resultType.getModulusChain().getElements(), newLevel);
-      auto ring = resultType.getCiphertextSpace().getRing();
-      auto ctType = lwe::LWECiphertextType::get(
-          ctx, resultType.getApplicationData(), resultType.getPlaintextSpace(),
-          lwe::CiphertextSpaceAttr::get(
-              ctx, getRlweRNSRingWithLevel(ring, newLevel),
-              resultType.getCiphertextSpace().getEncryptionType(),
-              resultType.getCiphertextSpace().getSize()),
-          lwe::KeyAttr::get(ctx, 0),
-          lwe::ModulusChainAttr::get(ctx, moddedDownChain.getElements(),
-                                     newLevel));
+      auto ctType = ctTypeResult.value();
       result = ckks::RescaleOp::create(builder, ctType, result,
                                        ctType.getCiphertextSpace().getRing());
     }

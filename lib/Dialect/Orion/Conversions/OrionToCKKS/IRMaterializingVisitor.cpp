@@ -24,15 +24,6 @@ using kernel::MultiplyNode;
 using kernel::SSAValue;
 using kernel::SubtractNode;
 
-polynomial::RingAttr getRlweRNSRingWithLevel(polynomial::RingAttr ringAttr,
-                                             int level) {
-  auto rnsType = cast<rns::RNSType>(ringAttr.getCoefficientType());
-
-  auto newRnsType = rns::RNSType::get(
-      rnsType.getContext(), rnsType.getBasisTypes().take_front(level + 1));
-  return polynomial::RingAttr::get(newRnsType, ringAttr.getPolynomialModulus());
-}
-
 Value IRMaterializingVisitor::operator()(const LeafNode<SSAValue>& node) {
   return node.value.getValue();
 }

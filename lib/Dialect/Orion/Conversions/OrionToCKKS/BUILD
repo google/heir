@@ -13,6 +13,7 @@ cc_library(
         ":IRMaterializingVisitor",
         ":pass_inc_gen",
         "@heir//lib/Dialect/CKKS/IR:Dialect",
+        "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Orion/IR:Dialect",
         "@heir//lib/Kernel:ArithmeticDag",
         "@heir//lib/Kernel:IRMaterializingVisitor",
@@ -30,6 +31,7 @@ cc_library(
     hdrs = ["IRMaterializingVisitor.h"],
     deps = [
         "@heir//lib/Dialect/CKKS/IR:Dialect",
+        "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Kernel:AbstractValue",
         "@heir//lib/Kernel:ArithmeticDag",
