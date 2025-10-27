@@ -195,6 +195,12 @@ FailureOr<presburger::IntegerRelation> getSliceInsertionRelation(
     SmallVector<int64_t> offsets, SmallVector<int64_t> sizes,
     SmallVector<int64_t> strides);
 
+// Get layout relation that corresponds to a tensor::extract_slice op.
+FailureOr<presburger::IntegerRelation> getSliceExtractionRelation(
+    RankedTensorType sourceType, RankedTensorType resultType,
+    SmallVector<int64_t> offsets, SmallVector<int64_t> sizes,
+    SmallVector<int64_t> strides);
+
 }  // namespace heir
 }  // namespace mlir
 
