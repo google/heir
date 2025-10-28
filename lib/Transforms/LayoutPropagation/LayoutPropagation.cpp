@@ -139,6 +139,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   LogicalResult visitOperation(tensor::ExtractOp op);
   LogicalResult visitOperation(tensor::InsertOp op);
   LogicalResult visitOperation(tensor::InsertSliceOp op);
+  LogicalResult visitOperation(tensor::ExtractSliceOp op);
 
   // Determine if the operation arguments have compatible layouts for the
   // given op. If the check fails, the CompatibilityResult::compatible field
@@ -277,16 +278,8 @@ LogicalResult LayoutPropagation::visitOperation(Operation* op) {
       // affine ops
       .Case<affine::AffineForOp>([&](auto op) { return visitOperation(op); })
       // tensor ops
-      .Case<tensor::ExtractOp, tensor::InsertOp, tensor::InsertSliceOp>(
-          [&](auto op) { return visitOperation(op); })
-      .Case<tensor::ExtractSliceOp>([&](auto op) {
-        // TODO(#2028): Support tensor.extract_slice and tensor.insert_slice in
-        // layout.
-        return op->emitError()
-               << "Layout propagation not supported for this op";
-      })
-      // tensor ops
-      .Case<CollapseShapeOp, ExpandShapeOp>(
+      .Case<tensor::ExtractOp, tensor::InsertOp, tensor::InsertSliceOp,
+            tensor::ExtractSliceOp, CollapseShapeOp, ExpandShapeOp>(
           [&](auto op) { return visitOperation(op); })
       // AddI, AddF, mgmt.* all pass the layout through unchanged.
       .Default([&](Operation* op) {
@@ -790,6 +783,36 @@ LogicalResult LayoutPropagation::visitOperation(tensor::InsertSliceOp op) {
   return success();
 }
 
+LogicalResult LayoutPropagation::visitOperation(tensor::ExtractSliceOp op) {
+  // Assign the induced layout from extracting a slice from the source tensor.
+  if (!assignedLayouts.contains(op.getSource())) {
+    return op->emitError() << "Source tensor has no assigned layout";
+  }
+  IntegerRelation sourceLayout =
+      assignedLayouts.at(op.getSource()).getIntegerRelation();
+
+  FailureOr<IntegerRelation> maybeSliceExtractionLayout =
+      getSliceExtractionRelation(op.getSourceType(), op.getResultType(),
+                                 SmallVector<int64_t>(op.getStaticOffsets()),
+                                 SmallVector<int64_t>(op.getStaticSizes()),
+                                 SmallVector<int64_t>(op.getStaticStrides()));
+  if (failed(maybeSliceExtractionLayout)) {
+    return failure();
+  }
+  IntegerRelation sliceExtractionLayout = maybeSliceExtractionLayout.value();
+
+  // Compose the inverted slice extraction layout with the source layout to
+  // get the result slice layout.
+  sliceExtractionLayout.inverse();
+  sliceExtractionLayout.compose(sourceLayout);
+  LayoutAttr outputLayout = LayoutAttr::getFromIntegerRelation(
+      op.getContext(), sliceExtractionLayout);
+  assignedLayouts.insert({op.getResult(), outputLayout});
+  debugAssignLayout(op.getResult(), outputLayout);
+  setResultLayoutAttr(op);
+  return success();
+}
+
 CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
     Operation* op) {
   return TypeSwitch<Operation*, CompatibilityResult>(op)
@@ -917,7 +940,7 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
     tensor::InsertSliceOp op) {
   // The arguments of a tensor::InsertSliceOp are the tensors to insert and the
   // tensor to insert into.
-  auto insert = op.getOperands()[0];
+  auto insert = op.getSource();
   auto dest = op.getDest();
 
   if (!assignedLayouts.contains(insert)) {
