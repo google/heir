@@ -43,12 +43,20 @@ int64_t ShiftStrategy::getVirtualShift(const CtSlot& source,
 }
 
 void ShiftStrategy::evaluate(const Mapping& mapping) {
+  LLVM_DEBUG({
+    llvm::dbgs() << "Evaluating shift strategy with shift order: ";
+    for (auto shift : shiftOrder) {
+      llvm::dbgs() << shift << " ";
+    }
+    llvm::dbgs() << "\n";
+  });
+
   // First compute the virtual shifts needed for each source slot
   SmallVector<SourceShift> sourceShifts;
   sourceShifts.reserve(mapping.size());
-  for (const MappingEntry& entry : mapping) {
-    int64_t shift = getVirtualShift(entry.source, entry.target);
-    sourceShifts.push_back({entry.source, shift});
+  for (const auto& [target, source] : mapping) {
+    int64_t shift = getVirtualShift(source, target);
+    sourceShifts.push_back({source, shift});
   }
 
   // Compute the corresponding table of positions after each rotation,

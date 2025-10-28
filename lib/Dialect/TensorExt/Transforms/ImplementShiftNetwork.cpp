@@ -56,8 +56,8 @@ ShiftScheme VosVosErkinShiftNetworks::findShiftScheme(
   // whose edges are conflicts: an edge being present means the two indices
   // cannot participate in the same rotation group.
   graph::UndirectedGraph<CtSlot> conflictGraph;
-  for (const MappingEntry& entry : mapping) {
-    conflictGraph.addVertex(entry.source);
+  for (const auto& [target, source] : mapping) {
+    conflictGraph.addVertex(source);
   }
   for (const auto& [roundNum, round] : llvm::enumerate(strategy.getRounds())) {
     if (roundNum == 0) continue;
@@ -179,9 +179,6 @@ void populateMappingFromLayoutAttr(const LayoutAttr& layoutAttr,
                                    Mapping& mapping) {
   PointPairCollector collector(2, 2);
   enumeratePoints(layoutAttr.getIntegerRelation(), collector);
-  for (const auto& [source, target] : collector.points) {
-    mapping.add(CtSlot{source[0], source[1]}, CtSlot{target[0], target[1]});
-  }
 
   // Put the data from collector into Mapping. Probably can be more efficient
   // here by avoiding a copy and making a custom PointPairCollector that
@@ -232,6 +229,14 @@ LogicalResult convertRemapOp(RemapOp op,
            << "requires permutation attribute to be either LayoutAttr or "
               "DenseIntElementsAttr";
   }
+
+  LLVM_DEBUG({
+    llvm::dbgs() << "Materialized (ct, slot) remapping:\n";
+    for (const auto& [target, source] : mapping) {
+      llvm::dbgs() << "  (" << source.ct << "," << source.slot << ") -> ("
+                   << target.ct << "," << target.slot << ")\n";
+    }
+  });
 
   ShiftScheme scheme = shiftNetworks.findShiftScheme(mapping);
   auto rotationGroups = scheme.rotationGroups;
