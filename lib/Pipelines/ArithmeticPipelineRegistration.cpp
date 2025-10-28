@@ -152,9 +152,14 @@ void mlirToSecretArithmeticPipelineBuilder(
   pm.addPass(createSelectRewrite());
   pm.addPass(createCompareToSignRewrite());
 
-  // Vectorize and optimize rotations
-  // TODO(#1662): figure out where this fits in the new pipeline
-  heirSIMDVectorizerPipelineBuilder(pm, options.experimentalDisableLoopUnroll);
+  // TODO(#589): avoid unrolling loops
+  if (options.experimentalDisableLoopUnroll) pm.addPass(createFullLoopUnroll());
+
+  pm.addPass(createApplyFolders());
+  pm.addPass(createCSEPass());
+  pm.addPass(createSCCPPass());
+  pm.addPass(createCanonicalizerPass());
+
   mathToPolynomialApproximationBuilder(pm);
 
   // Layout assignment and optimization
