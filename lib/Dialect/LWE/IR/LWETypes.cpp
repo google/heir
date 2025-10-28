@@ -66,7 +66,7 @@ FailureOr<LWECiphertextType> applyModReduce(LWECiphertextType inputType) {
   auto* ctx = inputType.getContext();
   int currentLevel = inputType.getModulusChain().getCurrent();
   int newLevel = inputType.getModulusChain().getCurrent() - 1;
-  if (newLevel <= 0) {
+  if (newLevel < 0) {
     return failure();
   }
   auto ring = inputType.getCiphertextSpace().getRing();
