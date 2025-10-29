@@ -476,6 +476,13 @@ bool isRelation2dConvFilterDiagonalized(RankedTensorType filterType,
   return relation.isEqual(diagonalizedRelation.value());
 }
 
+bool isRelationBicyclic(RankedTensorType matrixType, int64_t numSlots,
+                        const presburger::IntegerRelation& relation) {
+  IntegerRelation bicyclicRelation =
+      getBicyclicLayoutRelation(matrixType, numSlots);
+  return relation.isEqual(bicyclicRelation);
+}
+
 presburger::IntegerRelation collapseDimensions(
     const presburger::IntegerRelation& relation, RankedTensorType sourceType,
     ArrayRef<ReassociationIndices> reassociation) {

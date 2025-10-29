@@ -76,6 +76,32 @@ struct MatvecHoistingImpl
   }
 };
 
+struct MatmulHoistingImpl
+    : public LayoutConversionHoistableOpInterface::ExternalModel<
+          MatmulHoistingImpl, linalg::MatmulOp> {
+  std::vector<Hoister> getHoisters(
+      Operation* op, tensor_ext::ConvertLayoutOp convertLayoutOp) const {
+    std::vector<Hoister> hoisters;
+
+    auto kernel = op->getAttrOfType<secret::KernelAttr>(
+        secret::SecretDialect::kKernelAttrName);
+    if (!kernel) {
+      LLVM_DEBUG(llvm::dbgs()
+                 << "Kernel attribute not found on op " << *op << "\n");
+      return hoisters;
+    }
+
+    if (!op->hasAttr(tensor_ext::TensorExtDialect::kLayoutAttrName)) {
+      LLVM_DEBUG(llvm::dbgs()
+                 << "Layout attribute not found on op " << *op << "\n");
+      return hoisters;
+    }
+
+    // TODO(#2385): try hoisting layout conversion through bicyclic matmul
+    return hoisters;
+  }
+};
+
 }  // namespace
 
 Hoister createTrivialHoister(Operation* op) {
@@ -144,6 +170,7 @@ void registerLayoutConversionHoistableInterface(DialectRegistry& registry) {
   });
   registry.addExtension(+[](MLIRContext* ctx, linalg::LinalgDialect* dialect) {
     linalg::MatvecOp::attachInterface<MatvecHoistingImpl>(*ctx);
+    linalg::MatmulOp::attachInterface<MatmulHoistingImpl>(*ctx);
   });
 }
 

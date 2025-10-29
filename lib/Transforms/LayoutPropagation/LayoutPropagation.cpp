@@ -89,8 +89,16 @@ struct CompatibilityResult {
   std::optional<InFlightDiagnostic> diag;
 };
 
-void visitDebugInfo(Operation* op) {
-  LLVM_DEBUG(llvm::dbgs() << "Visiting: " << op->getName() << "\n");
+void visitDebugInfo(Operation* op, DataFlowSolver* solver) {
+  LLVM_DEBUG({
+    llvm::dbgs() << "Visiting: " << op->getName() << "\n";
+    llvm::dbgs() << "Operand secretness:\n";
+    for (OpOperand& opOperand : op->getOpOperands()) {
+      bool secretness = isSecret(opOperand.get(), solver);
+      llvm::dbgs() << "- Operand " << opOperand.getOperandNumber() << ": "
+                   << secretness << "\n";
+    }
+  });
 }
 
 void debugAssignLayout(Value value, LayoutAttr layout) {
@@ -211,7 +219,7 @@ FailureOr<AssignLayoutOp> LayoutPropagation::assignDefaultLayoutForOpOperand(
 }
 
 LogicalResult LayoutPropagation::visitOperation(Operation* op) {
-  visitDebugInfo(op);
+  visitDebugInfo(op, solver);
 
   if (!isa<func::FuncOp, func::ReturnOp, GenericOp, YieldOp>(op) &&
       !isSecret(op->getOperands(), solver) &&
@@ -498,7 +506,6 @@ LogicalResult LayoutPropagation::visitOperation(VecmatOp op) {
   setResultLayoutAttr(op);
   debugAssignLayout(result, outputLayoutAttr);
 
-  // Add secret.kernel attribute for MatmulDiagonal
   auto kernelAttr =
       secret::KernelAttr::get(ctx, KernelName::VecmatDiagonal, /*force=*/false);
   op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
@@ -623,7 +630,6 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DOp op) {
   setResultLayoutAttr(op);
   debugAssignLayout(result, resultLayout);
 
-  // Add secret.kernel attribute for Conv2dMatvec
   auto kernelAttr =
       secret::KernelAttr::get(ctx, KernelName::MatvecDiagonal, /*force=*/false);
   op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
@@ -632,55 +638,90 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DOp op) {
 }
 
 LogicalResult LayoutPropagation::visitOperation(MatmulOp op) {
-  auto matmulOp = cast<linalg::ContractionOpInterface>(*op);
-  auto inputMatrix = matmulOp.lhs();
-  auto filterMatrix = matmulOp.rhs();
-  if (!isSecret(inputMatrix, solver) || isSecret(filterMatrix, solver)) {
-    // TODO(#1376): Implement bicyclic ciphertext-ciphertext matmul kernel.
-    return failure();
-  }
-
   MLIRContext* ctx = &getContext();
   mlir::IRRewriter builder(ctx);
 
+  Value lhs = op.getOperand(0);
+  Value rhs = op.getOperand(1);
+  auto lhsType = cast<RankedTensorType>(lhs.getType());
+  auto rhsType = cast<RankedTensorType>(rhs.getType());
+  auto result = op->getResult(0);
+
+  bool inputSecret = isSecret(lhs, solver);
+  bool filterSecret = isSecret(rhs, solver);
+
+  LLVM_DEBUG(llvm::dbgs() << "lhs=" << lhs << ";\nrhs=" << rhs << "\n");
+
+  if (inputSecret && filterSecret) {
+    LayoutAttr lhsLayout = assignedLayouts.at(lhs);
+    if (!isRelationBicyclic(lhsType, ciphertextSize,
+                            lhsLayout.getIntegerRelation())) {
+      auto [toReplace, newInputMatrixLayoutAttr] =
+          convertToLayout(ctx, builder, op, lhs, lhsLayout,
+                          getBicyclicLayoutRelation(lhsType, ciphertextSize));
+      debugAssignLayout(toReplace, newInputMatrixLayoutAttr);
+      assignedLayouts.insert({toReplace, newInputMatrixLayoutAttr});
+    }
+
+    LayoutAttr rhsLayout = assignedLayouts.at(rhs);
+    if (!isRelationBicyclic(rhsType, ciphertextSize,
+                            rhsLayout.getIntegerRelation())) {
+      auto [toReplace, newFilterMatrixLayoutAttr] =
+          convertToLayout(ctx, builder, op, rhs, rhsLayout,
+                          getBicyclicLayoutRelation(rhsType, ciphertextSize));
+      debugAssignLayout(toReplace, newFilterMatrixLayoutAttr);
+      assignedLayouts.insert({toReplace, newFilterMatrixLayoutAttr});
+    }
+
+    RankedTensorType outputType = cast<RankedTensorType>(result.getType());
+    IntegerRelation outputLayoutResult =
+        getBicyclicLayoutRelation(outputType, ciphertextSize);
+    LayoutAttr outputLayoutAttr =
+        LayoutAttr::getFromIntegerRelation(ctx, outputLayoutResult);
+
+    assignedLayouts.insert({result, outputLayoutAttr});
+    setResultLayoutAttr(op);
+    debugAssignLayout(result, outputLayoutAttr);
+
+    auto kernelAttr = secret::KernelAttr::get(ctx, KernelName::MatmulBicyclic,
+                                              /*force=*/false);
+    op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
+    return success();
+  }
+
   // Assign a per-row layout to the input matrix. Each row of the input matrix
   // will be packed into a separate ciphertext.
-  auto inputMatrixType = cast<RankedTensorType>(inputMatrix.getType());
-  LayoutAttr inputMatrixLayout = assignedLayouts.at(inputMatrix);
-  if (!isRelationPerRow(inputMatrixType, ciphertextSize,
-                        inputMatrixLayout.getIntegerRelation())) {
+  LayoutAttr lhsLayout = assignedLayouts.at(lhs);
+  if (!isRelationPerRow(lhsType, ciphertextSize,
+                        lhsLayout.getIntegerRelation())) {
     // Insert a layout conversion op to make the matrix layout per-row
-    auto [toReplace, newInputMatrixLayoutAttr] = convertToLayout(
-        ctx, builder, op, inputMatrix, inputMatrixLayout,
-        getPerRowLayoutRelation(inputMatrixType, ciphertextSize));
+    auto [toReplace, newInputMatrixLayoutAttr] =
+        convertToLayout(ctx, builder, op, lhs, lhsLayout,
+                        getPerRowLayoutRelation(lhsType, ciphertextSize));
     debugAssignLayout(toReplace, newInputMatrixLayoutAttr);
     assignedLayouts.insert({toReplace, newInputMatrixLayoutAttr});
   }
 
   // Assign or change the filter matrix a diagonal layout.
-  auto filterMatrixType = cast<RankedTensorType>(filterMatrix.getType());
-  auto filterMatrixTransposeType = RankedTensorType::get(
-      {filterMatrixType.getDimSize(1), filterMatrixType.getDimSize(0)},
-      filterMatrixType.getElementType());
-  LayoutAttr filterMatrixLayout = assignedLayouts.at(filterMatrix);
-  IntegerRelation filterMatrixLayoutRelation =
-      filterMatrixLayout.getIntegerRelation();
-  auto clonedFilterMatrixRelation = filterMatrixLayoutRelation.clone();
+  auto rhsTransposeType = RankedTensorType::get(
+      {rhsType.getDimSize(1), rhsType.getDimSize(0)}, rhsType.getElementType());
+  LayoutAttr rhsLayout = assignedLayouts.at(rhs);
+  IntegerRelation rhsLayoutRelation = rhsLayout.getIntegerRelation();
+  auto clonedFilterMatrixRelation = rhsLayoutRelation.clone();
   auto domainOffset =
-      filterMatrixLayoutRelation.getVarKindOffset(presburger::VarKind::Domain);
+      rhsLayoutRelation.getVarKindOffset(presburger::VarKind::Domain);
   clonedFilterMatrixRelation->swapVar(domainOffset, domainOffset + 1);
-  if (!isRelationSquatDiagonal(filterMatrixTransposeType, ciphertextSize,
+  if (!isRelationSquatDiagonal(rhsTransposeType, ciphertextSize,
                                *clonedFilterMatrixRelation)) {
     // Insert a layout conversion op to make the matrix layout squat diagonal
     auto [toReplace, newFilterMatrixLayoutAttr] = convertToLayout(
-        ctx, builder, op, filterMatrix, filterMatrixLayout,
-        getDiagonalLayoutRelation(filterMatrixTransposeType, ciphertextSize));
+        ctx, builder, op, rhs, rhsLayout,
+        getDiagonalLayoutRelation(rhsTransposeType, ciphertextSize));
     debugAssignLayout(toReplace, newFilterMatrixLayoutAttr);
     assignedLayouts.insert({toReplace, newFilterMatrixLayoutAttr});
   }
 
   // The output has the same per-row layout as the input matrix.
-  auto result = matmulOp->getResult(0);
   RankedTensorType outputType = cast<RankedTensorType>(result.getType());
   IntegerRelation outputLayoutResult =
       getPerRowLayoutRelation(outputType, ciphertextSize);
@@ -1022,6 +1063,11 @@ void LayoutPropagation::rectifyIncompatibleOperandLayouts(Operation* op) {
             ConvertLayoutOp convertOp =
                 ConvertLayoutOp::create(builder, op->getLoc(), opOperand.get(),
                                         sourceLayout, targetLayout);
+
+            auto* lattice = solver->getOrCreateState<SecretnessLattice>(
+                convertOp.getResult());
+            lattice->getValue().setSecretness(
+                isSecret(opOperand.get(), solver));
 
             // Layout of the result is the same as the target layout of the
             // conversion. Mostly this is done for consistency: all ops have
