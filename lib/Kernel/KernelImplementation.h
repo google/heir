@@ -15,6 +15,7 @@
 #include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
 #include "lib/Kernel/KernelName.h"
+#include "lib/Utils/APIntUtils.h"
 #include "lib/Utils/MathUtils.h"
 #include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 
@@ -176,6 +177,57 @@ implementHaleviShoup(const T& vector, const T& matrix,
   }
 
   return summedShifts;
+}
+
+// Returns an arithmetic DAG that implements the bicyclic matrix multiplication
+// algorithm.
+//
+// The input matrices packedA and packedB are assumed to be properly packed to
+// meet the conditions for bicyclic multiplication. That is: both matrices are
+// zero-padded so that their dimensions are coprime, they are cyclically
+// repeated to fill all the slots of the ciphertext, and they are packed
+// according to the bicyclic ordering.
+template <typename T>
+std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
+                 std::shared_ptr<ArithmeticDagNode<T>>>
+implementBicyclicMatmul(const T& packedA, const T& packedB, int64_t m,
+                        int64_t n, int64_t p) {
+  using NodeTy = ArithmeticDagNode<T>;
+  auto packedADag = NodeTy::leaf(packedA);
+  auto packedBDag = NodeTy::leaf(packedB);
+
+  // This implements the BMM-I algorithm from https://eprint.iacr.org/2024/1762
+  // with a simplification of the rotation formula in Sec 5.2.1 (equation 9) of
+  // https://eprint.iacr.org/2025/1200
+  //
+  // C = sum_{c=0}^{n-1} rot(A, r1(c)) * rot(B, r2(c))
+  //
+  // where
+  //
+  //  r1(c) = cm(m^{-1} mod n) mod mn
+  //  r2(c) = cp(p^{-1} mod n) mod np
+  //
+  APInt mAPInt = APInt(64, m);
+  APInt nAPInt = APInt(64, n);
+  APInt pAPInt = APInt(64, p);
+
+  APInt mInvModN = multiplicativeInverse(mAPInt, nAPInt);
+  APInt pInvModN = multiplicativeInverse(pAPInt, nAPInt);
+
+  // The part of r1(c), r2(c) that is independent of the loop iterations
+  int64_t r1Const = m * mInvModN.getSExtValue();
+  int64_t r2Const = p * pInvModN.getSExtValue();
+
+  std::shared_ptr<NodeTy> result = nullptr;
+  for (int i = 0; i < n; ++i) {
+    int64_t shiftA = (i * r1Const) % (m * n);
+    int64_t shiftB = (i * r2Const) % (n * p);
+    auto rotA = NodeTy::leftRotate(packedADag, shiftA);
+    auto rotB = NodeTy::leftRotate(packedBDag, shiftB);
+    auto term = NodeTy::mul(rotA, rotB);
+    result = result == nullptr ? term : NodeTy::add(result, term);
+  }
+  return result;
 }
 
 }  // namespace kernel

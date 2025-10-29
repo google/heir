@@ -73,6 +73,7 @@ cc_library(
         ":AbstractValue",
         ":ArithmeticDag",
         ":Kernel",
+        "@heir//lib/Utils:APIntUtils",
         "@heir//lib/Utils:MathUtils",
         "@llvm-project//mlir:Support",
     ],

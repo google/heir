@@ -208,6 +208,64 @@ presburger::IntegerRelation getDiagonalLayoutRelation(
   return result;
 }
 
+presburger::IntegerRelation getBicyclicLayoutRelation(
+    RankedTensorType matrixType, int64_t numSlots) {
+  unsigned int rows = matrixType.getDimSize(0);
+  unsigned int cols = matrixType.getDimSize(1);
+
+  assert(std::gcd(rows, cols) == 1 &&
+         "bicyclic layout requires coprime dimensions");
+
+  IntegerRelation result(PresburgerSpace::getRelationSpace(
+      matrixType.getRank(), /*numRange=*/2, /*numSymbol=*/0,
+      /*numLocals=*/0));
+
+  // Add bounds for the data matrix dimensions.
+  int domainOffset = result.getVarKindOffset(VarKind::Domain);
+  int rangeOffset = result.getVarKindOffset(VarKind::Range);
+  int rowVarIndex = domainOffset;
+  int colVarIndex = domainOffset + 1;
+  int ctVarIndex = rangeOffset;
+  int slotVarIndex = rangeOffset + 1;
+
+  addBounds(result, rowVarIndex, 0, rows - 1);
+  addBounds(result, colVarIndex, 0, cols - 1);
+  addBounds(result, ctVarIndex, 0,
+            std::ceil((float)matrixType.getNumElements() / numSlots) - 1);
+  addBounds(result, slotVarIndex, 0, numSlots - 1);
+
+  // Let k = ct * numSlots + slot.
+  // We need to add constraints for:
+  // row = k % rows
+  // col = k % cols
+
+  // k_mod_rows = (ct * numSlots + slot) % rows
+  SmallVector<int64_t> kCoeffs(result.getNumCols(), 0);
+  kCoeffs[ctVarIndex] = numSlots;
+  kCoeffs[slotVarIndex] = 1;
+  auto kModRows = addModConstraint(result, kCoeffs, rows);
+
+  // row = k_mod_rows
+  SmallVector<int64_t> rowEquality(result.getNumCols(), 0);
+  rowEquality[rowVarIndex] = 1;
+  rowEquality[kModRows] = -1;
+  result.addEquality(rowEquality);
+
+  // k_mod_cols = (ct * numSlots + slot) % cols
+  kCoeffs.resize(result.getNumCols(), 0);
+  kCoeffs[ctVarIndex] = numSlots;
+  kCoeffs[slotVarIndex] = 1;
+  auto kModCols = addModConstraint(result, kCoeffs, cols);
+
+  // col = k_mod_cols
+  SmallVector<int64_t> colEquality(result.getNumCols(), 0);
+  colEquality[colVarIndex] = 1;
+  colEquality[kModCols] = -1;
+  result.addEquality(colEquality);
+
+  return result;
+}
+
 presburger::IntegerRelation getPerRowLayoutRelation(RankedTensorType matrixType,
                                                     int64_t ciphertextSize) {
   auto domainSize = matrixType.getRank();

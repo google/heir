@@ -160,6 +160,45 @@ TEST(UtilsTest, SquatDiagonalLayout) {
   }
 }
 
+TEST(UtilsTest, BicyclicLayout3x5) {
+  MLIRContext context;
+  int64_t numSlots = 15;
+  RankedTensorType matrixType =
+      RankedTensorType::get({3, 5}, IndexType::get(&context));
+  IntegerRelation bicyclicRelation =
+      getBicyclicLayoutRelation(matrixType, numSlots);
+
+  std::vector<std::vector<int>> matrix = {
+      {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}};
+  std::vector<std::vector<int>> packedMatrix =
+      evaluateLayoutOnMatrix(bicyclicRelation, matrix);
+
+  std::vector<std::vector<int>> expected = {
+      {1, 7, 13, 4, 10, 11, 2, 8, 14, 5, 6, 12, 3, 9, 15}};
+  EXPECT_EQ(packedMatrix, expected);
+}
+
+TEST(UtilsTest, BicyclicLayout3x5Repeated) {
+  MLIRContext context;
+
+  int64_t numSlots = 32;
+  RankedTensorType matrixType =
+      RankedTensorType::get({3, 5}, IndexType::get(&context));
+  IntegerRelation bicyclicRelation =
+      getBicyclicLayoutRelation(matrixType, numSlots);
+
+  std::vector<std::vector<int>> matrix = {
+      {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}};
+  std::vector<std::vector<int>> packedMatrix =
+      evaluateLayoutOnMatrix(bicyclicRelation, matrix);
+
+  std::vector<std::vector<int>> expected = {
+      {1, 7, 13, 4, 10, 11, 2, 8, 14, 5, 6, 12, 3, 9, 15,
+       // Cyclically repeated to fill 32 slots
+       1, 7, 13, 4, 10, 11, 2, 8, 14, 5, 6, 12, 3, 9, 15, 1, 7}};
+  EXPECT_EQ(packedMatrix, expected);
+}
+
 TEST(UtilsTest, TestGetRangePoints) {
   MLIRContext context;
   auto rel = getIntegerRelationFromIslStr(

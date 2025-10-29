@@ -48,6 +48,11 @@ presburger::IntegerRelation getRowMajorLayoutRelation(
 presburger::IntegerRelation getDiagonalLayoutRelation(
     RankedTensorType matrixType, int64_t ciphertextSize);
 
+// Returns an IntegerRelation that represents a bicyclic layout for a matrix.
+// See https://eprint.iacr.org/2024/1762 for details.
+presburger::IntegerRelation getBicyclicLayoutRelation(
+    RankedTensorType matrixType, int64_t numSlots);
+
 // Returns an IntegerRelation that represents a per-row layout for a matrix
 // such that each row of the matrix is in a separate ciphertext.
 presburger::IntegerRelation getPerRowLayoutRelation(RankedTensorType matrixType,
