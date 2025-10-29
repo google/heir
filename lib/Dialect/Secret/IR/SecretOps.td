@@ -125,10 +125,6 @@ def Secret_GenericOp : Secret_Op<"generic", [
     // this is used for other operations that may not execute the body (e.g.,
     // a loop with statically-determined zero iterations.
 
-    // RegionBranchPoint::parent() -> body,
-    // body -> RegionBranchPoint::parent()
-    "getSuccessorRegions",
-
     // Generic runs exactly once.
     "getRegionInvocationBounds",
 

@@ -728,7 +728,7 @@ void GenericOp::getCanonicalizationPatterns(RewritePatternSet& results,
 
 // RegionBranchOpInterface implementation for generic/yield
 
-OperandRange GenericOp::getEntrySuccessorOperands(RegionBranchPoint point) {
+OperandRange GenericOp::getEntrySuccessorOperands(RegionSuccessor successor) {
   return getInputs();
 }
 
@@ -737,7 +737,7 @@ void GenericOp::getSuccessorRegions(RegionBranchPoint point,
   if (point == RegionBranchPoint::parent()) {
     regions.push_back(RegionSuccessor(&getRegion(), getBody()->getArguments()));
   } else {
-    regions.push_back(RegionSuccessor(getResults()));
+    regions.push_back(RegionSuccessor(getOperation(), getResults()));
   }
 }
 

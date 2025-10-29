@@ -108,8 +108,8 @@ void handleInterface(RegionBranchTerminatorOpInterface terminator) {
 
   for (auto successor : successors) {
     // the terminator operands that are "passed" to the successor
-    auto succesorOperands =
-        terminator.getSuccessorOperands(RegionBranchPoint::parent());
+    auto succesorOperands = terminator.getSuccessorOperands(RegionSuccessor(
+        terminator.getOperation(), terminator.getOperation()->getResults()));
 
     // Special case: the "return/yield" back to the parent op
     if (successor.isParent()) {
