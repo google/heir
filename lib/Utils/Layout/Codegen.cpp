@@ -43,11 +43,12 @@ namespace heir {
 namespace {
 
 static std::map<isl_ast_expr_op_type, std::string> islBinaryOpToMlir = {
-    {isl_ast_op_add, "arith.addi"},     {isl_ast_op_sub, "arith.subi"},
-    {isl_ast_op_mul, "arith.muli"},     {isl_ast_op_div, "arith.divsi"},
-    {isl_ast_op_pdiv_r, "arith.remsi"}, {isl_ast_op_pdiv_q, "arith.divsi"},
-    {isl_ast_op_max, "arith.maxsi"},    {isl_ast_op_min, "arith.minsi"},
-    {isl_ast_op_and, "arith.andi"},     {isl_ast_op_or, "arith.ori"},
+    {isl_ast_op_add, "arith.addi"},          {isl_ast_op_sub, "arith.subi"},
+    {isl_ast_op_mul, "arith.muli"},          {isl_ast_op_div, "arith.divsi"},
+    {isl_ast_op_pdiv_r, "arith.remsi"},      {isl_ast_op_pdiv_q, "arith.divsi"},
+    {isl_ast_op_max, "arith.maxsi"},         {isl_ast_op_min, "arith.minsi"},
+    {isl_ast_op_and, "arith.andi"},          {isl_ast_op_or, "arith.ori"},
+    {isl_ast_op_fdiv_q, "arith.floordivsi"},
 };
 
 static std::map<isl_ast_expr_op_type, arith::CmpIPredicate> islCmpToMlirAttr = {
@@ -84,28 +85,28 @@ static std::map<isl_ast_expr_op_type, arith::CmpIPredicate> islCmpToMlirAttr = {
 //
 static __isl_give isl_union_map* createSchedule(__isl_keep isl_basic_map* bmap,
                                                 isl_ctx* ctx) {
-  isl_basic_map* schedule_bmap = isl_basic_map_copy(bmap);
-  unsigned numIn = isl_basic_map_dim(schedule_bmap, isl_dim_in);
-  unsigned numOut = isl_basic_map_dim(schedule_bmap, isl_dim_out);
+  isl_basic_map* scheduleBmap = isl_basic_map_copy(bmap);
+  unsigned numIn = isl_basic_map_dim(scheduleBmap, isl_dim_in);
+  unsigned numOut = isl_basic_map_dim(scheduleBmap, isl_dim_out);
 
   // Insert two new dimensions for the original range variables into the domain.
-  schedule_bmap =
-      isl_basic_map_insert_dims(schedule_bmap, isl_dim_in, numIn, numOut);
+  scheduleBmap =
+      isl_basic_map_insert_dims(scheduleBmap, isl_dim_in, numIn, numOut);
 
   // Add constraints to equate the new domain dimensions with the original range
   // dimensions.
   for (unsigned i = 0; i < numOut; ++i) {
     isl_constraint* c = isl_constraint_alloc_equality(
-        isl_basic_map_get_local_space(schedule_bmap));
+        isl_basic_map_get_local_space(scheduleBmap));
     c = isl_constraint_set_coefficient_si(c, isl_dim_in, numIn + i, 1);
     c = isl_constraint_set_coefficient_si(c, isl_dim_out, i, -1);
-    schedule_bmap = isl_basic_map_add_constraint(schedule_bmap, c);
+    scheduleBmap = isl_basic_map_add_constraint(scheduleBmap, c);
   }
 
   // Set the domain tuple name to "S". This will be used in codegen for the
   // statement to be executed, e.g., S(a, b, c, d)
-  schedule_bmap = isl_basic_map_set_tuple_name(schedule_bmap, isl_dim_in, "S");
-  return isl_union_map_from_basic_map(schedule_bmap);
+  scheduleBmap = isl_basic_map_set_tuple_name(scheduleBmap, isl_dim_in, "S");
+  return isl_union_map_from_basic_map(scheduleBmap);
 }
 
 __isl_give isl_ast_node* constructAst(const presburger::IntegerRelation& rel,
@@ -165,15 +166,15 @@ Value buildIslExpr(isl_ast_expr* expr, std::map<std::string, Value> ivToValue,
   switch (isl_ast_expr_get_type(expr)) {
     case isl_ast_expr_id: {
       isl_id* id = isl_ast_expr_get_id(expr);
-      std::string computation_name(isl_id_get_name(id));
+      std::string computationName(isl_id_get_name(id));
       isl_id_free(id);
-      return ivToValue[computation_name];
+      return ivToValue[computationName];
     }
     case isl_ast_expr_int: {
       isl_val* val = isl_ast_expr_get_val(expr);
-      auto int_value = isl_val_get_num_si(val);
+      auto intValue = isl_val_get_num_si(val);
       isl_val_free(val);
-      return b.create<arith::ConstantIndexOp>(int_value);
+      return arith::ConstantIndexOp::create(b, intValue);
     }
     case isl_ast_expr_op: {
       // ISL operations types are defined in
@@ -182,7 +183,7 @@ Value buildIslExpr(isl_ast_expr* expr, std::map<std::string, Value> ivToValue,
       auto getArgs = [&](isl_ast_expr* expr) {
         SmallVector<Value> args;
         for (int i = 0; i < isl_ast_expr_get_op_n_arg(expr); ++i) {
-          auto arg = isl_ast_expr_get_op_arg(expr, i);
+          auto* arg = isl_ast_expr_get_op_arg(expr, i);
           auto argValue = buildIslExpr(arg, ivToValue, b);
           args.push_back(argValue);
           isl_ast_expr_free(arg);
@@ -193,27 +194,35 @@ Value buildIslExpr(isl_ast_expr* expr, std::map<std::string, Value> ivToValue,
         // Binary ops with 1-1 correspondence
         auto mlirOp = islBinaryOpToMlir[isl_ast_expr_get_op_type(expr)];
         SmallVector<Value> args = getArgs(expr);
-        auto op = b.create(
+        auto* op = b.create(
             OperationState(b.getLoc(), mlirOp, args, {args[0].getType()}));
         return op->getResult(0);
-      } else if (type == isl_ast_op_minus) {
+      }
+
+      if (type == isl_ast_op_minus) {
         // Unary op
         SmallVector<Value> args = getArgs(expr);
-        auto op = b.create<arith::SubIOp>(
-            b.getLoc(), arith::ConstantIndexOp::create(b, 0), args[0]);
+        auto op = arith::SubIOp::create(
+            b, b.getLoc(), arith::ConstantIndexOp::create(b, 0), args[0]);
         return op->getResult(0);
-      } else if (islCmpToMlirAttr.contains(type)) {
+      }
+
+      if (islCmpToMlirAttr.contains(type)) {
         // Comparison ops
         SmallVector<Value> args = getArgs(expr);
         auto op =
             arith::CmpIOp::create(b, islCmpToMlirAttr[type], args[0], args[1]);
         return op->getResult(0);
-      } else if (type == isl_ast_op_select) {
+      }
+
+      if (type == isl_ast_op_select) {
         // Select op
         SmallVector<Value> args = getArgs(expr);
         auto op = arith::SelectOp::create(b, args[0], args[1], args[2]);
         return op->getResult(0);
-      } else if (type == isl_ast_expr_op_zdiv_r) {
+      }
+
+      if (type == isl_ast_expr_op_zdiv_r) {
         // Remainder op with comparison to zero
         SmallVector<Value> args = getArgs(expr);
         auto op = arith::RemSIOp::create(b, args[0], args[1]);
@@ -241,7 +250,7 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeFor(
   // Collect the string names of the iterators
   isl_ast_expr* iter = isl_ast_node_for_get_iterator(node);
   isl_id* identifier = isl_ast_expr_get_id(iter);
-  std::string name_str(isl_id_get_name(identifier));
+  std::string nameStr(isl_id_get_name(identifier));
   isl_id_free(identifier);
   isl_ast_expr_free(iter);
 
@@ -254,11 +263,11 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeFor(
   assert((isl_ast_expr_get_type(cond) == isl_ast_expr_op &&
           isl_ast_expr_get_op_type(cond) == isl_ast_op_le) &&
          "expected upper bound to be a less than equal operation");
-  isl_ast_expr* cond_upper = isl_ast_expr_get_op_arg(cond, 1);
-  Value ubVal = builder_.create<arith::AddIOp>(
-      currentLoc_, buildIslExpr(cond_upper, ivToValue_, builder_),
-      builder_.create<arith::ConstantIndexOp>(currentLoc_, 1));
-  isl_ast_expr_free(cond_upper);
+  isl_ast_expr* condUpper = isl_ast_expr_get_op_arg(cond, 1);
+  Value ubVal = arith::AddIOp::create(
+      builder_, currentLoc_, buildIslExpr(condUpper, ivToValue_, builder_),
+      arith::ConstantIndexOp::create(builder_, currentLoc_, 1));
+  isl_ast_expr_free(condUpper);
   isl_ast_expr_free(cond);
 
   isl_ast_expr* step = isl_ast_node_for_get_inc(node);
@@ -270,7 +279,7 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeFor(
       builder_, currentLoc_, lbInt, ubVal, stepInt, currentIterArgs_,
       [&](OpBuilder& nestedBuilder, Location nestedLoc, Value iv,
           ValueRange args) {
-        ivToValue_.insert(std::make_pair(name_str, iv));
+        ivToValue_.insert(std::make_pair(nameStr, iv));
         // It is safe to store ValueRange args because it points to block
         // arguments of a loop operation that we also own.
         currentIterArgs_ = args;
