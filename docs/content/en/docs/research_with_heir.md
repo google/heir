@@ -3,10 +3,34 @@ title: Research with HEIR
 weight: 45
 ---
 
+## Citing HEIR
+
+[HEIR: A Universal Compiler for Homomorphic Encryption](https://arxiv.org/abs/2508.11095)
+
+```
+@misc{ali2025heir,
+      title={HEIR: A Universal Compiler for Homomorphic Encryption},
+      author={Asra Ali and Jaeho Choi and Bryant Gipson and Shruthi Gorantala
+              and Jeremy Kun and Wouter Legiest and Lawrence Lim and Alexander
+              Viand and Meron Zerihun Demissie and Hongren Zheng},
+      year={2025},
+      eprint={2508.11095},
+      archivePrefix={arXiv},
+      primaryClass={cs.CR},
+      url={https://arxiv.org/abs/2508.11095},
+}
+```
+
 ## Publications built on HEIR
 
-[Circuit Optimization Using Arithmetic Table Lookups](https://dl.acm.org/doi/10.1145/3729258)
-(PLDI 2025). Raghav Malik, Vedant Paranjape, Milind Kulkarni.
+- [Circuit Optimization Using Arithmetic Table Lookups](https://dl.acm.org/doi/10.1145/3729258)
+  (PLDI 2025). Raghav Malik, Vedant Paranjape, Milind Kulkarni.
+- [Resource Estimation of CGGI and CKKS scheme workloads on FracTLcore Computing Fabric](https://arxiv.org/abs/2510.16025).
+  Denis Ovichinnikov, Hemant Kavadia, Satya Keerti Chand Kudupudi, Ilya Rempel,
+  Vineet Chadha, Marty Franz, Paul Master, Craig Gentry, Darlene Kindler,
+  Alberto Reyes, Muthu Annamalai.
+- [A Critique on Average-Case Noise Analysis in RLWE-Based Homomorphic Encryption](https://dl.acm.org/doi/10.1145/3733811.3767312)
+  (WAHC '25). Mingyu Gao, Hongren Zheng.
 
 ## Doing private research using HEIR
 
