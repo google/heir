@@ -67,8 +67,7 @@ Value IRMaterializingVisitor::operator()(const SubtractNode<SSAValue>& node) {
 
 Value IRMaterializingVisitor::operator()(const MultiplyNode<SSAValue>& node) {
   return binop<MultiplyNode<SSAValue>, ckks::MulOp, ckks::MulPlainOp,
-               arith::MulFOp>(node,
-                              /*rescale=*/true);
+               arith::MulFOp>(node);
 }
 
 Value IRMaterializingVisitor::operator()(const LeftRotateNode<SSAValue>& node) {

@@ -5,9 +5,12 @@
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "llvm/include/llvm/ADT/STLFunctionalExtras.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
+
+#define DEBUG_TYPE "lwe-types"
 
 namespace mlir {
 namespace heir {

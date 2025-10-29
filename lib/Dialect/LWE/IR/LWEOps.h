@@ -366,6 +366,37 @@ LogicalResult inferRelinearizeOpReturnTypes(
   return success();
 }
 
+template <typename Adaptor>
+LogicalResult inferLevelReduceOpReturnTypes(
+    MLIRContext* ctx, Adaptor adaptor,
+    SmallVectorImpl<Type>& inferredReturnTypes) {
+  auto x = getCtTy(adaptor.getInput());
+  auto levelToDrop = adaptor.getLevelToDrop();
+
+  ModulusChainAttr newModulusChain = lwe::ModulusChainAttr::get(
+      ctx, x.getModulusChain().getElements(),
+      x.getModulusChain().getCurrent() - levelToDrop);
+  polynomial::RingAttr newRing = getRingFromModulusChain(
+      newModulusChain, x.getCiphertextSpace().getRing().getPolynomialModulus());
+
+  auto newCtTy = lwe::LWECiphertextType::get(
+      ctx, x.getApplicationData(), x.getPlaintextSpace(),
+      lwe::CiphertextSpaceAttr::get(ctx, newRing,
+                                    x.getCiphertextSpace().getEncryptionType(),
+                                    x.getCiphertextSpace().getSize()),
+      x.getKey(), newModulusChain);
+
+  if (auto tensorTy =
+          dyn_cast<RankedTensorType>(adaptor.getInput().getType())) {
+    inferredReturnTypes.push_back(
+        RankedTensorType::get(tensorTy.getShape(), newCtTy));
+    return success();
+  }
+
+  inferredReturnTypes.push_back(newCtTy);
+  return success();
+}
+
 }  // namespace lwe
 }  // namespace heir
 }  // namespace mlir

@@ -21,10 +21,11 @@ polynomial::RingAttr getRlweRNSRingWithLevel(polynomial::RingAttr ringAttr,
                                              int level);
 
 // Walks the arithmetic DAG and generates MLIR for it. This materializer is
-// weird because some SSA values are tensors of ciphertexts while others are
-// ciphertext-semantic tensors of cleartexts. The former requires simple ops
-// like tensor.extract and ckks.rotate, while the latter requires
-// tensor.extract_slice and tensor_ext.rotate.
+// meant to handle quirks of the Orion import process. For example it
+// handles scale encoding of cleartexts, and special cases for tensors of
+// ciphertexts vs ciphertext-semantic tensors of cleartexts. The former
+// requires simple ops like tensor.extract and ckks.rotate, while the latter
+// requires tensor.extract_slice and tensor_ext.rotate.
 class IRMaterializingVisitor
     : public kernel::CachingVisitor<kernel::SSAValue, Value> {
  public:
@@ -39,16 +40,48 @@ class IRMaterializingVisitor
         builder(builder),
         plaintextType(ptTy) {}
 
-  Value maybeRescale(Value value, lwe::LWECiphertextType resultType,
-                     bool rescale) {
+  // Relinearize and rescale the ciphertext if relinAndRescale is true.
+  Value relinAndRescale(Value value, lwe::LWECiphertextType resultType,
+                        bool relinearize, bool rescale) {
     Value result = value;
+    if (relinearize) {
+      auto inputDimension = cast<lwe::LWECiphertextType>(value.getType())
+                                .getCiphertextSpace()
+                                .getSize();
+      SmallVector<int32_t> fromBasis;
+      for (int i = 0; i < inputDimension; ++i) {
+        fromBasis.push_back(i);
+      }
+      SmallVector<int32_t> toBasis = {0, 1};
+      auto relinOp = ckks::RelinearizeOp::create(
+          builder, result, builder.getDenseI32ArrayAttr(fromBasis),
+          builder.getDenseI32ArrayAttr(toBasis));
+      result = relinOp.getResult();
+    }
     if (rescale) {
       FailureOr<lwe::LWECiphertextType> ctTypeResult =
           applyModReduce(resultType);
       if (failed(ctTypeResult)) {
         emitError(result.getLoc())
-            << "Cannot rescale ciphertext type: " << resultType;
-        return Value();
+            << "Cannot rescale ciphertext type, inserting extra bootstrap op";
+        // sub 1 because the max level is the last index in the chain.
+        int64_t maxLevel =
+            resultType.getModulusChain().getElements().size() - 1;
+
+        // Now we cheat a little bit: normally bootstrap itself would consume
+        // some levels, which depends on the chosen backend. In our case, we're
+        // lowering to library backends that handle this opaquely.
+        //
+        // TODO(#1207): fix if this pass still matters when lowering to
+        // polynomial.
+        FailureOr<lwe::LWECiphertextType> outputTypeResult =
+            cloneAtLevel(resultType, maxLevel);
+        if (failed(outputTypeResult)) {
+          emitError(result.getLoc()) << "Failed to insert bootstrap";
+          return Value();
+        }
+        result = ckks::BootstrapOp::create(builder, outputTypeResult.value(),
+                                           result);
       }
       auto ctType = ctTypeResult.value();
       result = ckks::RescaleOp::create(builder, ctType, result,
@@ -68,26 +101,33 @@ class IRMaterializingVisitor
   }
 
   template <typename T, typename CtCtOp, typename CtPtOp, typename CleartextOp>
-  Value binop(const T& node, bool rescale = false) {
+  Value binop(const T& node) {
     Value lhs = this->process(node.left);
     Value rhs = this->process(node.right);
+
+    bool relinearize =
+        static_cast<bool>(std::is_same<CtCtOp, ckks::MulOp>::value);
+    bool rescale =
+        static_cast<bool>(std::is_same<CtCtOp, ckks::MulOp>::value) ||
+        static_cast<bool>(std::is_same<CtPtOp, ckks::MulPlainOp>::value);
 
     return TypeSwitch<Type, Value>(lhs.getType())
         .template Case<lwe::LWECiphertextType>([&](auto ty) {
           if (isa<RankedTensorType>(rhs.getType())) {
-            return maybeRescale(
+            return relinAndRescale(
                 CtPtOp::create(builder, lhs, encodeCleartextOperand(ty, rhs))
                     .getResult(),
-                ty, rescale);
+                ty, relinearize, rescale);
           }
 
           if (isa<lwe::LWEPlaintextType>(rhs.getType())) {
-            return maybeRescale(CtPtOp::create(builder, lhs, rhs).getResult(),
-                                ty, rescale);
+            return relinAndRescale(
+                CtPtOp::create(builder, lhs, rhs).getResult(), ty, relinearize,
+                rescale);
           }
 
-          return maybeRescale(CtCtOp::create(builder, lhs, rhs).getResult(), ty,
-                              rescale);
+          return relinAndRescale(CtCtOp::create(builder, lhs, rhs).getResult(),
+                                 ty, relinearize, rescale);
         })
         .template Case<lwe::LWEPlaintextType>([&](auto ty) {
           if (isa<RankedTensorType>(rhs.getType())) {
@@ -111,15 +151,15 @@ class IRMaterializingVisitor
                 << "\n\nrhs=" << rhs << "\n";
             return Value();
           }
-          return maybeRescale(CtPtOp::create(builder, lhs, rhs).getResult(),
-                              ctTy, rescale);
+          return relinAndRescale(CtPtOp::create(builder, lhs, rhs).getResult(),
+                                 ctTy, relinearize, rescale);
         })
         .template Case<RankedTensorType>([&](auto ty) {
           auto ctTy = cast<lwe::LWECiphertextType>(rhs.getType());
-          return maybeRescale(
+          return relinAndRescale(
               CtPtOp::create(builder, encodeCleartextOperand(ctTy, lhs), rhs)
                   .getResult(),
-              ctTy, rescale);
+              ctTy, relinearize, rescale);
         })
         .Default([&](Type) {
           emitError(lhs.getLoc())

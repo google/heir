@@ -1,6 +1,7 @@
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 
 #include <cstdint>
+#include <utility>
 
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
@@ -114,7 +115,7 @@ PlaintextSpaceAttr inferModulusSwitchOrRescaleOpPlaintextSpaceAttr(
   }
 
   auto newScale = inferModulusSwitchOrRescaleOpScalingFactor(
-      xEncoding, dividedModulus, plaintextModulus);
+      xEncoding, std::move(dividedModulus), plaintextModulus);
   return PlaintextSpaceAttr::get(
       ctx, xRing, getEncodingAttrWithNewScalingFactor(xEncoding, newScale));
 }

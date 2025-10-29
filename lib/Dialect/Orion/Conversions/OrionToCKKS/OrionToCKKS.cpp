@@ -2,6 +2,7 @@
 
 #include <utility>
 
+#include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/Orion/Conversions/OrionToCKKS/IRMaterializingVisitor.h"
 #include "lib/Dialect/Orion/IR/OrionDialect.h"
@@ -28,13 +29,11 @@ using kernel::SSAValue;
 #define GEN_PASS_DEF_ORIONTOCKKS
 #include "lib/Dialect/Orion/Conversions/OrionToCKKS/OrionToCKKS.h.inc"
 
-constexpr int64_t defaultScalingFactor = 26;
-
 lwe::LWEPlaintextType getPlaintextTypeFromCtTypeAndScalingFactor(
     lwe::LWECiphertextType ctTy, int64_t scalingFactor) {
   MLIRContext* ctx = ctTy.getContext();
   auto encodingAttr =
-      lwe::InverseCanonicalEncodingAttr::get(ctx, defaultScalingFactor);
+      lwe::InverseCanonicalEncodingAttr::get(ctx, scalingFactor);
   return lwe::LWEPlaintextType::get(
       ctx, ctTy.getApplicationData(),
       lwe::PlaintextSpaceAttr::get(ctx, ctTy.getPlaintextSpace().getRing(),
@@ -66,11 +65,19 @@ Value encodeSplattedCleartextUsingCtAndScalingFactor(
   return encodeOp.getResult();
 }
 
+int64_t getLogDefaultScale(Operation* op) {
+  ModuleOp moduleOp = op->getParentOfType<ModuleOp>();
+  auto ckksSchemeParamAttr = mlir::dyn_cast<ckks::SchemeParamAttr>(
+      moduleOp->getAttr(ckks::CKKSDialect::kSchemeParamAttrName));
+  return ckksSchemeParamAttr.getLogDefaultScale();
+}
+
 struct ConvertChebyshevOp : public OpRewritePattern<ChebyshevOp> {
   using OpRewritePattern<ChebyshevOp>::OpRewritePattern;
 
   LogicalResult matchAndRewrite(ChebyshevOp op,
                                 PatternRewriter& rewriter) const override {
+    int64_t logDefaultScale = getLogDefaultScale(op);
     ArrayAttr chebCoeffsAttr = op.getCoefficients();
     SmallVector<double> chebCoeffs =
         llvm::map_to_vector(chebCoeffsAttr, [](Attribute attr) {
@@ -95,7 +102,7 @@ struct ConvertChebyshevOp : public OpRewritePattern<ChebyshevOp> {
       // precision to support the input. Default of 26 bits should be fine
       // for evaluation purposes.
       auto encodedSplatRescale = encodeSplattedCleartextUsingCtAndScalingFactor(
-          b, ctTy, defaultScalingFactor, rescale);
+          b, ctTy, logDefaultScale, rescale);
       xInput =
           ckks::MulPlainOp::create(b, xInput, encodedSplatRescale).getResult();
     }
@@ -116,8 +123,7 @@ struct ConvertChebyshevOp : public OpRewritePattern<ChebyshevOp> {
         polynomial::patersonStockmeyerChebyshevPolynomialEvaluation(xNode,
                                                                     chebCoeffs);
     IRMaterializingVisitor visitor(
-        b,
-        getPlaintextTypeFromCtTypeAndScalingFactor(ctTy, defaultScalingFactor));
+        b, getPlaintextTypeFromCtTypeAndScalingFactor(ctTy, logDefaultScale));
     Value finalOutput = implementedKernel->visit(visitor);
     rewriter.replaceOp(op, finalOutput);
     return success();
@@ -174,9 +180,33 @@ WalkResult handleRescaleOp(ckks::RescaleOp op) {
   FailureOr<lwe::LWECiphertextType> outputTypeResult =
       applyModReduce(inputType);
   if (failed(outputTypeResult)) {
-    op.emitError() << "Cannot drop one limb from ciphertext type: "
-                   << inputType;
-    return WalkResult::interrupt();
+    op.emitError()
+        << "Cannot drop one limb from ciphertext type, inserting bootstrap\n";
+    int64_t maxLevel = inputType.getModulusChain().getElements().size() - 1;
+
+    // Now we cheat a little bit: normally bootstrap itself would consume
+    // some levels, which depends on the chosen backend. In our case, we're
+    // lowering to library backends that handle this opaquely.
+    //
+    // TODO(#1207): fix if this pass still matters when lowering to
+    // polynomial.
+    FailureOr<lwe::LWECiphertextType> bootstrapResultTypeResult =
+        cloneAtLevel(inputType, maxLevel);
+    if (failed(bootstrapResultTypeResult)) {
+      op.emitError() << "Failed to insert bootstrap";
+      return WalkResult::interrupt();
+    }
+    ImplicitLocOpBuilder builder(op.getLoc(), op->getContext());
+    builder.setInsertionPoint(op);
+    auto bootstrapOp = ckks::BootstrapOp::create(
+        builder, bootstrapResultTypeResult.value(), op.getInput());
+    op.setOperand(bootstrapOp.getResult());
+
+    outputTypeResult = applyModReduce(bootstrapResultTypeResult.value());
+    if (failed(outputTypeResult)) {
+      op.emitError() << "Failed to rescale even after inserting bootstrap\n";
+      return WalkResult::interrupt();
+    }
   }
   op.getResult().setType(outputTypeResult.value());
   op.setToRingAttr(outputTypeResult.value().getCiphertextSpace().getRing());
@@ -222,17 +252,6 @@ WalkResult handleNonMulCtPtOp(CtPtOp op) {
     lwe::LWEPlaintextType oldPtType =
         cast<lwe::LWEPlaintextType>(encodeOp.getResult().getType());
 
-    LLVM_DEBUG(llvm::dbgs()
-               << "Forcing scaling factor of plaintext operand of "
-               << op->getName()
-               << " to match ciphertext operand. Old scaling factor="
-               << lwe::getScalingFactorFromEncodingAttr(
-                      oldPtType.getPlaintextSpace().getEncoding())
-               << ", new="
-               << lwe::getScalingFactorFromEncodingAttr(
-                      ctType.getPlaintextSpace().getEncoding())
-               << "\n");
-
     encodeOp.setEncodingAttr(ctType.getPlaintextSpace().getEncoding());
     lwe::LWEPlaintextType newPtType = lwe::LWEPlaintextType::get(
         op.getContext(), oldPtType.getApplicationData(),
@@ -267,18 +286,84 @@ WalkResult handleMulPlain(ckks::MulPlainOp op) {
   return WalkResult::advance();
 }
 
+template <typename CtCtOp>
+WalkResult handleCtCtOp(CtCtOp op) {
+  lwe::LWECiphertextType lhsType =
+      cast<lwe::LWECiphertextType>(op.getLhs().getType());
+  lwe::LWECiphertextType rhsType =
+      cast<lwe::LWECiphertextType>(op.getRhs().getType());
+  ImplicitLocOpBuilder b(op.getLoc(), op->getContext());
+  b.setInsertionPoint(op);
+
+  // Determine if we need to reduce the level of one operand to match the
+  // other.
+  int64_t lhsLevel = lhsType.getModulusChain().getCurrent();
+  int64_t rhsLevel = rhsType.getModulusChain().getCurrent();
+  if (lhsLevel != rhsLevel) {
+    Value operandToRescale;
+    Value operandToKeep;
+    int64_t levelsToDrop;
+    if (lhsLevel < rhsLevel) {
+      operandToRescale = op.getRhs();
+      operandToKeep = op.getLhs();
+      levelsToDrop = rhsLevel - lhsLevel;
+    } else {
+      operandToRescale = op.getLhs();
+      operandToKeep = op.getRhs();
+      levelsToDrop = lhsLevel - rhsLevel;
+    }
+
+    auto levelReduceOp = ckks::LevelReduceOp::create(
+        b, operandToRescale, b.getI64IntegerAttr(levelsToDrop));
+    int64_t operandIndex = (lhsLevel < rhsLevel) ? 1 : 0;
+    op->setOperand(operandIndex, levelReduceOp.getResult());
+  }
+
+  // Determine if the scale needs to be adjusted. Take the smaller scale
+  // operand and mul_plain by 1 to the larger scale.
+  int64_t lhsScalingFactor = lwe::getScalingFactorFromEncodingAttr(
+      lhsType.getPlaintextSpace().getEncoding());
+  int64_t rhsScalingFactor = lwe::getScalingFactorFromEncodingAttr(
+      rhsType.getPlaintextSpace().getEncoding());
+
+  if (lhsScalingFactor != rhsScalingFactor) {
+    Value operandToRescale;
+    int64_t targetScalingFactor;
+    if (lhsScalingFactor < rhsScalingFactor) {
+      operandToRescale = op.getLhs();
+      targetScalingFactor = rhsScalingFactor;
+    } else {
+      operandToRescale = op.getRhs();
+      targetScalingFactor = lhsScalingFactor;
+    }
+
+    auto encodedSplatOne = encodeSplattedCleartextUsingCtAndScalingFactor(
+        b, cast<lwe::LWECiphertextType>(operandToRescale.getType()),
+        targetScalingFactor, APFloat(1.0));
+    auto mulPlainOp =
+        ckks::MulPlainOp::create(b, operandToRescale, encodedSplatOne);
+    int64_t operandIndex = (lhsScalingFactor < rhsScalingFactor) ? 0 : 1;
+    op->setOperand(operandIndex, mulPlainOp.getResult());
+  }
+
+  // Finally, the result type will be inferred from the new operand types
+  return handleInferTypeOpInterface(op);
+}
+
 struct OrionToCKKS : public impl::OrionToCKKSBase<OrionToCKKS> {
   void runOnOperation() override {
     MLIRContext* context = &getContext();
     RewritePatternSet patterns(context);
+    ModuleOp root = cast<ModuleOp>(getOperation());
+
     patterns.add<ConvertChebyshevOp, ConvertLinearTransformOp>(context);
-    walkAndApplyPatterns(getOperation(), std::move(patterns));
-    Operation* root = getOperation();
+    walkAndApplyPatterns(root, std::move(patterns));
 
     // At this step, the types are wrong and need to be re-propagated In
     // particular, mul and mul_plain ops are followed by a rescale, and while
     // the result type drops a limb, the downstream ops are not updated to
-    // match.
+    // match. Similarly, `mul` ops may need to have some arguments modded down
+    // to match the other argument.
     WalkResult walkResult = root->walk([&](Operation* op) {
       if (op->hasTrait<OpTrait::SameOperandsAndResultType>()) {
         if (!llvm::all_equal(op->getOperandTypes())) {
@@ -296,6 +381,9 @@ struct OrionToCKKS : public impl::OrionToCKKSBase<OrionToCKKS> {
           .Case<ckks::AddPlainOp>(handleNonMulCtPtOp<ckks::AddPlainOp>)
           .Case<ckks::SubPlainOp>(handleNonMulCtPtOp<ckks::SubPlainOp>)
           .Case<ckks::MulPlainOp>(handleMulPlain)
+          .Case<ckks::AddOp>(handleCtCtOp<ckks::AddOp>)
+          .Case<ckks::MulOp>(handleCtCtOp<ckks::MulOp>)
+          .Case<ckks::SubOp>(handleCtCtOp<ckks::SubOp>)
           .Case<ckks::BootstrapOp>(handleBootstrap)
           // Some ops above implement InferTypeOpInterface, but need special
           // cases, so this must come after them.
