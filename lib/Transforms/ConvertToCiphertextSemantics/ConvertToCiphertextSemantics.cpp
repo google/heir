@@ -1066,13 +1066,29 @@ class ConvertTensorInsertSlice
     auto sliceInsertionLayout = maybeSliceLayout.value();
     sliceInsertionLayout.compose(destRel);
 
+    // If we insert at an offset other than the zero, we may need to reindex
+    // the resulting ciphertext so that it is indexed at 0. Shift the range of
+    // the ciphertext output var back to index at 0.
+    auto ctLowerBound = sliceInsertionLayout.getConstantBound64(
+        presburger::BoundType::LB,
+        sliceInsertionLayout.getVarKindOffset(presburger::VarKind::Range));
+    if (!ctLowerBound) {
+      return op.emitError()
+             << "failed to get constant bound on ciphertext index";
+    }
+    // Shift range ct var by -ctLowerBound.
+    auto ctVar =
+        sliceInsertionLayout.getVarKindOffset(presburger::VarKind::Range);
+    auto shiftedSliceInsertionLayout =
+        shiftVar(sliceInsertionLayout, ctVar, -ctLowerBound.value());
+
     // In case the slice is already in a layout compatible with the destination
     // layout, we don't need to insert a conversion.
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     Value convertedSource = adaptor.getSource();
-    if (!scalarRel.isEqual(sliceInsertionLayout)) {
+    if (!scalarRel.isEqual(shiftedSliceInsertionLayout)) {
       LayoutAttr newScalarLayout =
-          LayoutAttr::getFromIntegerRelation(ctx, sliceInsertionLayout);
+          LayoutAttr::getFromIntegerRelation(ctx, shiftedSliceInsertionLayout);
       LLVM_DEBUG(llvm::dbgs()
                  << "converting insert_slice source from " << scalarLayout
                  << " to " << newScalarLayout << "\n");

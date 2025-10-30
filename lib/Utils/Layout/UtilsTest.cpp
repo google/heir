@@ -448,6 +448,38 @@ TEST(UtilsTest, TestGetSliceInsertionRelation) {
   }
 }
 
+TEST(UtilsTest, TestShiftVar) {
+  MLIRContext context;
+  auto rel =
+      getIntegerRelationFromIslStr(
+          "{ [x, y] -> [z] : x >= 0 and y >= 0 and z >= 0 and x + y = z }")
+          .value();
+  // shift x by 10. x is at pos 0.
+  auto shiftedRel = shiftVar(rel, 0, 10);
+  // x' = x+10, so x = x'-10
+  // We check if (x'=10, y=0, z=0) is in the relation.
+  EXPECT_TRUE(shiftedRel.containsPointNoLocal({10, 0, 0}).has_value());
+  // We check if (x'=11, y=1, z=2) is in the relation.
+  EXPECT_TRUE(shiftedRel.containsPointNoLocal({11, 1, 2}).has_value());
+  EXPECT_FALSE(shiftedRel.containsPointNoLocal({1, 1, 2}).has_value());
+}
+
+TEST(UtilsTest, TestShiftVarRangeOffset) {
+  MLIRContext context;
+  auto rel =
+      getIntegerRelationFromIslStr(
+          "{ [x] -> [y, z] : x >= 0 and y >= 0 and z >= 0 and x + y = z }")
+          .value();
+  // shift z by 10. z is at pos 0
+  auto rangeOffset = rel.getVarKindOffset(VarKind::Range);
+  auto shiftedRel = shiftVar(rel, rangeOffset + 1, 10);
+  // z' = z+10
+  // We check if (x'=0, y=0, z=10) is in the relation.
+  EXPECT_TRUE(shiftedRel.containsPointNoLocal({0, 0, 10}).has_value());
+  EXPECT_TRUE(shiftedRel.containsPointNoLocal({1, 1, 12}).has_value());
+  EXPECT_TRUE(shiftedRel.containsPointNoLocal({8, 1, 19}).has_value());
+}
+
 }  // namespace
 }  // namespace heir
 }  // namespace mlir

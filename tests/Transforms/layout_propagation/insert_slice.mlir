@@ -35,3 +35,20 @@ module {
     return %2 : !secret.secret<tensor<1x2x4x4xf32>>
   }
 }
+
+// -----
+
+module {
+  // CHECK: func.func @offset
+  // CHECK: tensor.insert_slice
+  // CHECK: return
+  func.func @offset(%arg0: !secret.secret<tensor<4x4xf32>>) -> !secret.secret<tensor<1x2x4x4xf32>> {
+    %0 = tensor.empty() : tensor<1x2x4x4xf32>
+    %2 = secret.generic(%arg0: !secret.secret<tensor<4x4xf32>>) {
+    ^body(%input0: tensor<4x4xf32>):
+      %inserted_slice = tensor.insert_slice %input0 into %0[0, 1, 0, 0] [1, 1, 4, 4] [1, 1, 1, 1] : tensor<4x4xf32> into tensor<1x2x4x4xf32>
+      secret.yield %inserted_slice : tensor<1x2x4x4xf32>
+    } -> !secret.secret<tensor<1x2x4x4xf32>>
+    return %2 : !secret.secret<tensor<1x2x4x4xf32>>
+  }
+}
