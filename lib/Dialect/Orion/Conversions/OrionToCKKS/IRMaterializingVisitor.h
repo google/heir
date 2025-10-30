@@ -105,11 +105,7 @@ class IRMaterializingVisitor
     Value lhs = this->process(node.left);
     Value rhs = this->process(node.right);
 
-    bool relinearize =
-        static_cast<bool>(std::is_same<CtCtOp, ckks::MulOp>::value);
-    bool rescale =
-        static_cast<bool>(std::is_same<CtCtOp, ckks::MulOp>::value) ||
-        static_cast<bool>(std::is_same<CtPtOp, ckks::MulPlainOp>::value);
+    bool isMul = static_cast<bool>(std::is_same<CtCtOp, ckks::MulOp>::value);
 
     return TypeSwitch<Type, Value>(lhs.getType())
         .template Case<lwe::LWECiphertextType>([&](auto ty) {
@@ -117,17 +113,17 @@ class IRMaterializingVisitor
             return relinAndRescale(
                 CtPtOp::create(builder, lhs, encodeCleartextOperand(ty, rhs))
                     .getResult(),
-                ty, relinearize, rescale);
+                ty, /*relinearize=*/false, /*rescale=*/isMul);
           }
 
           if (isa<lwe::LWEPlaintextType>(rhs.getType())) {
             return relinAndRescale(
-                CtPtOp::create(builder, lhs, rhs).getResult(), ty, relinearize,
-                rescale);
+                CtPtOp::create(builder, lhs, rhs).getResult(), ty,
+                /*relinearize=*/false, /*rescale=*/isMul);
           }
 
           return relinAndRescale(CtCtOp::create(builder, lhs, rhs).getResult(),
-                                 ty, relinearize, rescale);
+                                 ty, /*relinearize=*/isMul, /*rescale=*/isMul);
         })
         .template Case<lwe::LWEPlaintextType>([&](auto ty) {
           if (isa<RankedTensorType>(rhs.getType())) {
@@ -152,14 +148,15 @@ class IRMaterializingVisitor
             return Value();
           }
           return relinAndRescale(CtPtOp::create(builder, lhs, rhs).getResult(),
-                                 ctTy, relinearize, rescale);
+                                 ctTy, /*relinearize=*/false,
+                                 /*rescale=*/isMul);
         })
         .template Case<RankedTensorType>([&](auto ty) {
           auto ctTy = cast<lwe::LWECiphertextType>(rhs.getType());
           return relinAndRescale(
               CtPtOp::create(builder, encodeCleartextOperand(ctTy, lhs), rhs)
                   .getResult(),
-              ctTy, relinearize, rescale);
+              ctTy, /*relinearize=*/false, /*rescale=*/isMul);
         })
         .Default([&](Type) {
           emitError(lhs.getLoc())
