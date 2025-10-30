@@ -195,6 +195,12 @@ FailureOr<presburger::IntegerRelation> getSliceInsertionRelation(
     SmallVector<int64_t> offsets, SmallVector<int64_t> sizes,
     SmallVector<int64_t> strides);
 
+// Shift a var at pos by a constant offset in an IntegerRelation, i.e. replace
+// var with var' = var + offset.
+presburger::IntegerRelation shiftVar(
+    const presburger::IntegerRelation& relation, unsigned int pos,
+    int64_t offset);
+
 }  // namespace heir
 }  // namespace mlir
 

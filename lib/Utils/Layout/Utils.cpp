@@ -672,5 +672,22 @@ FailureOr<presburger::IntegerRelation> getSliceInsertionRelation(
   return result;
 }
 
+presburger::IntegerRelation shiftVar(
+    const presburger::IntegerRelation& relation, unsigned int pos,
+    int64_t offset) {
+  auto varKind = relation.getVarKindAt(pos);
+  auto varKindOffset = relation.getVarKindOffset(varKind);
+  auto shiftedRelation = relation.clone();
+  // Add a new var var' at pos, set var' = var + offset, and then eliminate var
+  // at position pos + 1
+  shiftedRelation->insertVar(varKind, pos - varKindOffset, 1);
+  addConstraint(
+      *shiftedRelation,
+      {{pos, 1}, {pos + 1, -1}, {shiftedRelation->getNumCols() - 1, -offset}},
+      /*equality=*/true);
+  shiftedRelation->projectOut(pos + 1, 1);
+  return *shiftedRelation;
+}
+
 }  // namespace heir
 }  // namespace mlir
