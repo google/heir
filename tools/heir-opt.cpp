@@ -72,6 +72,7 @@
 #include "lib/Transforms/EmitCInterface/EmitCInterface.h"
 #include "lib/Transforms/FoldConstantTensors/FoldConstantTensors.h"
 #include "lib/Transforms/FoldPlaintextMasks/FoldPlaintextMasks.h"
+#include "lib/Transforms/ForwardInsertSliceToExtractSlice/ForwardInsertSliceToExtractSlice.h"
 #include "lib/Transforms/ForwardInsertToExtract/ForwardInsertToExtract.h"
 #include "lib/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
@@ -285,6 +286,7 @@ int main(int argc, char** argv) {
   registerAnnotateSecretnessPasses();
   registerApplyFoldersPasses();
   registerFoldPlaintextMasksPasses();
+  registerForwardInsertSliceToExtractSlicePasses();
   registerForwardInsertToExtractPasses();
   registerForwardStoreToLoadPasses();
   registerGenerateParamPasses();
