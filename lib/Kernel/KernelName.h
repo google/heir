@@ -17,14 +17,14 @@ enum KernelName : int {
   // LHS matrix is secret, RHS is a plaintext matrix. This expands the matmul
   // into a single matvec using the diagonal matrix vector kernel.
   MatmulDiagonal,
+  MatmulBicyclic,
 };
 
+std::ostream& operator<<(std::ostream& os, const KernelName& k);
+llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const KernelName& k);
+mlir::Diagnostic& operator<<(mlir::Diagnostic& diag, const KernelName& k);
+
 }  // namespace heir
-
-std::ostream& operator<<(std::ostream& os, const heir::KernelName& k);
-llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const heir::KernelName& k);
-mlir::Diagnostic& operator<<(mlir::Diagnostic& diag, const heir::KernelName& k);
-
 }  // namespace mlir
 
 #endif  // LIB_KERNEL_KERNELNAME_H_

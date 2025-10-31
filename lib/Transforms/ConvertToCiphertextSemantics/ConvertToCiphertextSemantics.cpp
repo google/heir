@@ -1662,6 +1662,85 @@ struct DropRotateAndReduceUnitDims
   }
 };
 
+struct ConvertLinalgMatmul
+    : public ContextAwareOpConversionPattern<linalg::MatmulOp> {
+ public:
+  using ContextAwareOpConversionPattern<
+      linalg::MatmulOp>::ContextAwareOpConversionPattern;
+
+  ConvertLinalgMatmul(
+      const ContextAwareTypeConverter& contextAwareTypeConverter,
+      MLIRContext* context)
+      : ContextAwareOpConversionPattern(contextAwareTypeConverter, context,
+                                        /*benefit=*/10) {}
+
+  LayoutAttr getLayoutAttr(Value value) const {
+    auto layoutLookup = getTypeConverter()->getContextualAttr(value);
+    if (failed(layoutLookup)) {
+      return nullptr;
+    }
+    return dyn_cast<LayoutAttr>(layoutLookup.value());
+  }
+
+  bool supportsBicyclic(linalg::MatmulOp op, OpAdaptor adaptor) const {
+    auto kernelAttr = op->getAttrOfType<secret::KernelAttr>(
+        secret::SecretDialect::kKernelAttrName);
+    return kernelAttr && kernelAttr.getName() == KernelName::MatmulBicyclic;
+  }
+
+  void bicyclicKernel(linalg::MatmulOp op, OpAdaptor adaptor,
+                      ContextAwareConversionPatternRewriter& rewriter) const {
+    LLVM_DEBUG(llvm::dbgs()
+               << "Converting linalg.matmul op with bicyclic kernel: " << op
+               << "\n");
+
+    TypedValue<RankedTensorType> lhs =
+        cast<TypedValue<RankedTensorType>>(adaptor.getInputs()[0]);
+    SSAValue lhsLeaf(lhs);
+    TypedValue<RankedTensorType> rhs =
+        cast<TypedValue<RankedTensorType>>(adaptor.getInputs()[1]);
+    SSAValue rhsLeaf(rhs);
+
+    auto lhsType = cast<RankedTensorType>(op.getInputs()[0].getType());
+    auto rhsType = cast<RankedTensorType>(op.getInputs()[1].getType());
+
+    std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
+        kernel::implementBicyclicMatmul(lhsLeaf, rhsLeaf, lhsType.getShape()[0],
+                                        lhsType.getShape()[1],
+                                        rhsType.getShape()[1]);
+
+    rewriter.setInsertionPointAfter(op);
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    IRMaterializingVisitor visitor(b, lhs.getType(), [&](Operation* createdOp) {
+      setMaterializedAttr(op);
+    });
+    Value finalOutput = implementedKernel->visit(visitor);
+
+    auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
+    auto* finalOutputOp = finalOutput.getDefiningOp();
+    finalOutputOp->setAttr(kLayoutAttrName, layoutAttr);
+    setMaterializedAttr(finalOutputOp);
+
+    // Add the initial accumulator value.
+    Value result = adaptor.getOutputs()[0];
+    Operation* addBias =
+        makeAppropriatelyTypedAddOp(b, op->getLoc(), finalOutput, result);
+    addBias->setAttr(kLayoutAttrName, layoutAttr);
+    setMaterializedAttr(addBias);
+    rewriter.replaceOp(op, addBias);
+  }
+
+  LogicalResult matchAndRewrite(
+      linalg::MatmulOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    if (supportsBicyclic(op, adaptor)) {
+      bicyclicKernel(op, adaptor, rewriter);
+      return success();
+    }
+    return failure();
+  }
+};
+
 struct ConvertToCiphertextSemantics
     : impl::ConvertToCiphertextSemanticsBase<ConvertToCiphertextSemantics> {
   using ConvertToCiphertextSemanticsBase::ConvertToCiphertextSemanticsBase;
@@ -1680,17 +1759,18 @@ struct ConvertToCiphertextSemantics
       return isa<ModuleOp>(op) || hasMaterializedAttr(op);
     });
 
-    patterns.add<
-        ConvertFunc, ConvertGeneric,
-        // tensor_ext ops
-        ConvertConvertLayout,
-        // linalg ops
-        ConvertLinalgReduce, ConvertLinalgMatvecLayout, ConvertLinalgConv2D,
-        // tensor ops
-        ConvertTensorExtractLayout, ConvertTensorInsertLayout,
-        ConvertCollapseShape, ConvertExpandShape, ConvertTensorInsertSlice,
-        // default
-        ConvertAnyAddingMaterializedAttr>(typeConverter, context);
+    patterns
+        .add<ConvertFunc, ConvertGeneric,
+             // tensor_ext ops
+             ConvertConvertLayout,
+             // linalg ops
+             ConvertLinalgReduce, ConvertLinalgMatvecLayout,
+             ConvertLinalgConv2D, ConvertLinalgMatmul,
+             // tensor ops
+             ConvertTensorExtractLayout, ConvertTensorInsertLayout,
+             ConvertCollapseShape, ConvertExpandShape, ConvertTensorInsertSlice,
+             // default
+             ConvertAnyAddingMaterializedAttr>(typeConverter, context);
     patterns.add<ConvertAssignLayout>(typeConverter, context, ciphertextSize);
 
     ConversionConfig config;
