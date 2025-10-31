@@ -423,10 +423,12 @@ an estimate of the latency of a layout conversion, as well as the knowledge that
 some layout conversions may be free or cheaper because of their context in the
 IR.&lt;/p>
 &lt;blockquote>
-&lt;p>&lt;strong>NOTE:&lt;/strong> The cost of a kernel is currently considered free. This is mainly
-because we don&amp;rsquo;t have many different kernels for each op right now, so the
-choice of kernel is not very interesting.&lt;/p>
-&lt;p>TODO(#2316): implement a cost model for kernels&lt;/p>
+&lt;p>&lt;strong>NOTE:&lt;/strong> The cost of a kernel is calculated using symbolic execution of
+kernel DAGs. The implementation uses a rotation-counting visitor that
+traverses the kernel&amp;rsquo;s arithmetic DAG with CSE deduplication (see
+&lt;code>lib/Kernel/RotationCountVisitor.h&lt;/code>). The cost accounts for rotation
+operations, which dominate FHE latency. Currently, only rotation costs are
+modeled; multiplication depth is not yet included.&lt;/p>
 &lt;/blockquote>
 &lt;p>The cost of a layout conversion is estimated by simulating what the
 &lt;code>implement-shift-network&lt;/code> would do if it ran on a layout conversion. And
