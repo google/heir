@@ -87,6 +87,27 @@ std::vector<std::vector<T>> evaluateLayoutOnMatrix(
   return evaluateLayout(relation, getValueFn);
 }
 
+template <typename T>
+std::vector<std::vector<T>> unpackLayoutToMatrix(
+    const presburger::IntegerRelation& relation,
+    const std::vector<std::vector<T>>& packed,
+    ArrayRef<int64_t> originalShape) {
+  std::vector<std::vector<T>> result(originalShape[0],
+                                     std::vector<T>(originalShape[1], 0));
+
+  // Get all points in the relation.
+  PointPairCollector collector(relation.getNumDomainVars(), /*rangeDims=*/2);
+  enumeratePoints(relation, collector);
+
+  for (const auto& pointPair : collector.points) {
+    std::vector<int64_t> domainPoint = pointPair.first;
+    std::vector<int64_t> rangePoint = pointPair.second;
+    result[domainPoint[0]][domainPoint[1]] =
+        packed[rangePoint[0]][rangePoint[1]];
+  }
+  return result;
+}
+
 }  // namespace heir
 }  // namespace mlir
 

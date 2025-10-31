@@ -138,6 +138,41 @@ TEST(KernelImplementationTest, Test2DConvWithLayout) {
   EXPECT_EQ(extractedResult, expected);
 }
 
+TEST(KernelImplementationTest, BicyclicMatmul) {
+  MLIRContext context;
+  std::vector<std::vector<int>> matrixA = {
+      {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}};
+  std::vector<std::vector<int>> matrixB = {
+      {1, 2}, {3, 4}, {5, 6}, {7, 8}, {9, 10}};
+  int m = 3;
+  int n = 5;
+  int p = 2;
+  int numSlots = m * n * p;
+
+  auto layoutA = getBicyclicLayoutRelation(
+      RankedTensorType::get({m, n}, IndexType::get(&context)), numSlots);
+  auto packedA = evaluateLayoutOnMatrix(layoutA, matrixA);
+
+  auto layoutB = getBicyclicLayoutRelation(
+      RankedTensorType::get({n, p}, IndexType::get(&context)), numSlots);
+  auto packedB = evaluateLayoutOnMatrix(layoutB, matrixB);
+
+  LiteralValue packedAValue = packedA[0];
+  LiteralValue packedBValue = packedB[0];
+
+  auto dag = implementBicyclicMatmul(packedAValue, packedBValue, m, n, p);
+  LiteralValue result = evalKernel(dag);
+  auto resultVec = std::get<std::vector<int>>(result.getTensor());
+
+  auto resultLayout = getBicyclicLayoutRelation(
+      RankedTensorType::get({m, p}, IndexType::get(&context)), numSlots);
+  auto unpackedResult =
+      unpackLayoutToMatrix<int>(resultLayout, {resultVec}, {m, p});
+
+  std::vector<std::vector<int>> expected = {{95, 110}, {220, 260}, {345, 410}};
+  EXPECT_EQ(unpackedResult, expected);
+}
+
 }  // namespace
 }  // namespace kernel
 }  // namespace heir
