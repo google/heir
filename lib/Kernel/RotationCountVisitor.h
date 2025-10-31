@@ -21,7 +21,7 @@ class RotationCountVisitor {
  public:
   using NodeTy = ArithmeticDagNode<SymbolicValue>;
 
-  RotationCountVisitor() {}
+  RotationCountVisitor() = default;
 
   // Main entry point - counts rotations in the DAG
   int64_t process(const std::shared_ptr<NodeTy>& node);
