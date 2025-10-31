@@ -12,6 +12,16 @@ def OrionToCKKS : Pass<"orion-to-ckks"> {
     "mlir::heir::tensor_ext::TensorExtDialect",
     "mlir::tensor::TensorDialect",
   ];
+
+  let options = [
+    Option<
+      "libraryTarget",
+      "library-target",
+      "std::string",
+      /*default=*/"\"openfhe\"",
+      "Backend library to specialize for when lowering chebyshev and linear_transform ops."
+    >,
+  ];
 }
 
 #endif  // LIB_DIALECT_ORION_CONVERSIONS_ORIONTOCKKS_ORIONTOCKKS_TD_

@@ -1,7 +1,5 @@
 #include "lib/Dialect/Orion/Conversions/OrionToCKKS/IRMaterializingVisitor.h"
 
-#include <cmath>
-
 #include "lib/Dialect/CKKS/IR/CKKSOps.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Utils/Utils.h"

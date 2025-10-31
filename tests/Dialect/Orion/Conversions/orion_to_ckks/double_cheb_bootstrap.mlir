@@ -1,7 +1,4 @@
-// RUN: heir-opt --orion-to-ckks %s | FileCheck %s
-
-// This test showcases how Orion's output cheb polys consume too many levels.
-// Need to figure out how our implementation differs.
+// RUN: heir-opt --orion-to-ckks='library-target=lattigo' %s | FileCheck %s
 
 // CHECK: @resnet10
 // CHECK-NOT: orion.linear_transform

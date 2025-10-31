@@ -10,7 +10,6 @@
 #include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
 #include "lib/Kernel/KernelImplementation.h"
-#include "lib/Kernel/KernelName.h"
 #include "lib/Utils/Polynomial/ChebyshevPatersonStockmeyer.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
@@ -73,7 +72,9 @@ int64_t getLogDefaultScale(Operation* op) {
 }
 
 struct ConvertChebyshevOp : public OpRewritePattern<ChebyshevOp> {
-  using OpRewritePattern<ChebyshevOp>::OpRewritePattern;
+  ConvertChebyshevOp(MLIRContext* context, std::string libraryTarget)
+      : OpRewritePattern<ChebyshevOp>(context),
+        libraryTarget(std::move(libraryTarget)) {}
 
   LogicalResult matchAndRewrite(ChebyshevOp op,
                                 PatternRewriter& rewriter) const override {
@@ -122,16 +123,24 @@ struct ConvertChebyshevOp : public OpRewritePattern<ChebyshevOp> {
     auto implementedKernel =
         polynomial::patersonStockmeyerChebyshevPolynomialEvaluation(xNode,
                                                                     chebCoeffs);
+
+    bool rescaleAfterCtPtMul = (libraryTarget == "openfhe");
     IRMaterializingVisitor visitor(
-        b, getPlaintextTypeFromCtTypeAndScalingFactor(ctTy, logDefaultScale));
+        b, getPlaintextTypeFromCtTypeAndScalingFactor(ctTy, logDefaultScale),
+        rescaleAfterCtPtMul, logDefaultScale);
     Value finalOutput = implementedKernel->visit(visitor);
     rewriter.replaceOp(op, finalOutput);
     return success();
   }
+
+ private:
+  std::string libraryTarget;
 };
 
 struct ConvertLinearTransformOp : public OpRewritePattern<LinearTransformOp> {
-  using OpRewritePattern<LinearTransformOp>::OpRewritePattern;
+  ConvertLinearTransformOp(MLIRContext* context, std::string libraryTarget)
+      : OpRewritePattern<LinearTransformOp>(context),
+        libraryTarget(std::move(libraryTarget)) {}
 
   LogicalResult matchAndRewrite(LinearTransformOp op,
                                 PatternRewriter& rewriter) const override {
@@ -146,11 +155,20 @@ struct ConvertLinearTransformOp : public OpRewritePattern<LinearTransformOp> {
 
     rewriter.setInsertionPointAfter(op);
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    IRMaterializingVisitor visitor(b);
+
+    bool rescaleAfterCtPtMul = (libraryTarget == "openfhe");
+    int64_t logDefaultScale = getLogDefaultScale(op);
+    lwe::LWECiphertextType ctTy = op.getInput().getType();
+    IRMaterializingVisitor visitor(
+        b, getPlaintextTypeFromCtTypeAndScalingFactor(ctTy, logDefaultScale),
+        rescaleAfterCtPtMul, logDefaultScale);
     Value finalOutput = implementedKernel->visit(visitor);
     rewriter.replaceOp(op, finalOutput);
     return success();
   }
+
+ private:
+  std::string libraryTarget;
 };
 
 WalkResult handleInferTypeOpInterface(InferTypeOpInterface op) {
@@ -351,12 +369,15 @@ WalkResult handleCtCtOp(CtCtOp op) {
 }
 
 struct OrionToCKKS : public impl::OrionToCKKSBase<OrionToCKKS> {
+  using OrionToCKKSBase::OrionToCKKSBase;
+
   void runOnOperation() override {
     MLIRContext* context = &getContext();
     RewritePatternSet patterns(context);
     ModuleOp root = cast<ModuleOp>(getOperation());
 
-    patterns.add<ConvertChebyshevOp, ConvertLinearTransformOp>(context);
+    patterns.add<ConvertChebyshevOp, ConvertLinearTransformOp>(context,
+                                                               libraryTarget);
     walkAndApplyPatterns(root, std::move(patterns));
 
     // At this step, the types are wrong and need to be re-propagated In

@@ -6,12 +6,11 @@
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
-#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
-#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"    // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"          // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"      // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -31,14 +30,14 @@ class IRMaterializingVisitor
  public:
   using CachingVisitor<kernel::SSAValue, Value>::operator();
 
-  IRMaterializingVisitor(ImplicitLocOpBuilder& builder)
-      : CachingVisitor<kernel::SSAValue, Value>(), builder(builder) {}
-
   IRMaterializingVisitor(ImplicitLocOpBuilder& builder,
-                         lwe::LWEPlaintextType ptTy)
+                         lwe::LWEPlaintextType ptTy, bool rescaleAfterCtPtMul,
+                         int64_t logDefaultScale)
       : CachingVisitor<kernel::SSAValue, Value>(),
         builder(builder),
-        plaintextType(ptTy) {}
+        plaintextType(ptTy),
+        rescaleAfterCtPtMul(rescaleAfterCtPtMul),
+        logDefaultScale(logDefaultScale) {}
 
   // Relinearize and rescale the ciphertext if relinAndRescale is true.
   Value relinAndRescale(Value value, lwe::LWECiphertextType resultType,
@@ -90,13 +89,16 @@ class IRMaterializingVisitor
     return result;
   }
 
-  Value encodeCleartextOperand(lwe::LWECiphertextType ctTy, Value cleartext) {
+  Value encodeCleartextOperand(lwe::LWECiphertextType ctTy, Value cleartext,
+                               int64_t targetLogScale) {
+    MLIRContext* ctx = builder.getContext();
+    auto encoding = lwe::InverseCanonicalEncodingAttr::get(ctx, targetLogScale);
+    auto ring = ctTy.getPlaintextSpace().getRing();
+
     lwe::LWEPlaintextType ptTy = lwe::LWEPlaintextType::get(
-        builder.getContext(), ctTy.getApplicationData(),
-        ctTy.getPlaintextSpace());
-    return lwe::RLWEEncodeOp::create(builder, ptTy, cleartext,
-                                     ctTy.getPlaintextSpace().getEncoding(),
-                                     ctTy.getPlaintextSpace().getRing())
+        ctx, ctTy.getApplicationData(),
+        lwe::PlaintextSpaceAttr::get(ctx, ring, encoding));
+    return lwe::RLWEEncodeOp::create(builder, ptTy, cleartext, encoding, ring)
         .getResult();
   }
 
@@ -110,18 +112,23 @@ class IRMaterializingVisitor
     return TypeSwitch<Type, Value>(lhs.getType())
         .template Case<lwe::LWECiphertextType>([&](auto ty) {
           if (isa<RankedTensorType>(rhs.getType())) {
+            // Ciphertext-plaintext multiplication
+            // Plaintext is encoded with scale Delta^2, so result has scale
+            // Δ·Q[L] This will be rescaled later before ct-ct multiplication
             return relinAndRescale(
                 CtPtOp::create(builder, lhs, encodeCleartextOperand(ty, rhs))
                     .getResult(),
-                ty, /*relinearize=*/false, /*rescale=*/isMul);
+                ty, /*relinearize=*/false, /*rescale=*/false);
           }
 
           if (isa<lwe::LWEPlaintextType>(rhs.getType())) {
+            // Ciphertext-plaintext multiplication: NEVER rescale
             return relinAndRescale(
                 CtPtOp::create(builder, lhs, rhs).getResult(), ty,
-                /*relinearize=*/false, /*rescale=*/isMul);
+                /*relinearize=*/false, /*rescale=*/false);
           }
 
+          // Ciphertext-ciphertext multiplication: rescale as usual
           return relinAndRescale(CtCtOp::create(builder, lhs, rhs).getResult(),
                                  ty, /*relinearize=*/isMul, /*rescale=*/isMul);
         })
@@ -147,16 +154,19 @@ class IRMaterializingVisitor
                 << "\n\nrhs=" << rhs << "\n";
             return Value();
           }
+          // Plaintext-ciphertext multiplication: NEVER rescale
           return relinAndRescale(CtPtOp::create(builder, lhs, rhs).getResult(),
                                  ctTy, /*relinearize=*/false,
-                                 /*rescale=*/isMul);
+                                 /*rescale=*/false);
         })
         .template Case<RankedTensorType>([&](auto ty) {
           auto ctTy = cast<lwe::LWECiphertextType>(rhs.getType());
+          // Cleartext-ciphertext multiplication: NEVER rescale
+          // Plaintext encoded with scale Q[L]
           return relinAndRescale(
               CtPtOp::create(builder, encodeCleartextOperand(ctTy, lhs), rhs)
                   .getResult(),
-              ctTy, /*relinearize=*/false, /*rescale=*/isMul);
+              ctTy, /*relinearize=*/false, /*rescale=*/false);
         })
         .Default([&](Type) {
           emitError(lhs.getLoc())
@@ -179,6 +189,8 @@ class IRMaterializingVisitor
  private:
   ImplicitLocOpBuilder& builder;
   lwe::LWEPlaintextType plaintextType;
+  bool rescaleAfterCtPtMul;
+  int64_t logDefaultScale;
 };
 
 }  // namespace orion
