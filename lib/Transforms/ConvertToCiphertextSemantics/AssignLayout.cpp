@@ -67,6 +67,17 @@ static FailureOr<Value> implementAssignLayoutNew(
     return splatOp.getResult();
   }
 
+  // The input came from an empty tensor, so we can just create an empty
+  // ciphertext semantic tensor type.
+  if (auto emptyOp =
+          dyn_cast_or_null<tensor::EmptyOp>(op.getValue().getDefiningOp())) {
+    auto emptyCiphertextOp = tensor::EmptyOp::create(
+        builder, op.getLoc(), ciphertextSemanticType.getShape(),
+        ciphertextSemanticType.getElementType());
+    createdOpCallback(emptyCiphertextOp);
+    return emptyCiphertextOp.getResult();
+  }
+
   TypedValue<RankedTensorType> ciphertextTensor =
       cast<TypedValue<RankedTensorType>>(
           arith::ConstantOp::create(builder, ciphertextSemanticType,

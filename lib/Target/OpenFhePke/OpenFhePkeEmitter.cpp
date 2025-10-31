@@ -1153,6 +1153,14 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::InsertSliceOp op) {
         "result rank equal to source rank");
   }
 
+  // std::vector<ty> result(dest);
+  std::string destName = variableNames->getNameForValue(op.getDest());
+  std::string resultName = variableNames->getNameForValue(op.getResult());
+  if (failed(emitType(resultType, op->getLoc()))) {
+    return failure();
+  }
+  os << " " << resultName << "(" << destName << ");\n";
+
   // We could relax this by using previously declared SSA values for dynamic
   // offsets, sizes, and strides. But we have no use for it yet and I'm facing
   // a deadline, baby!
@@ -1161,22 +1169,19 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::InsertSliceOp op) {
     return op.emitError() << "expected static offsets, sizes, and strides";
   }
 
-  std::string destName = variableNames->getNameForValue(op.getDest());
   std::string sourceName = variableNames->getNameForValue(op.getSource());
-  // The result tensor is materialized to the destination of the insert
-  variableNames->mapValueNameToValue(op.getResult(), op.getDest());
 
   // If we have a 1D source and target tensor, and the strides are 1,
   // we can use std::copy
   //
-  // std::copy(source.begin(), source.end(), dest.begin() + offset);
+  // std::copy(source.begin(), source.end(), result.begin() + offset);
   if (resultType.getRank() == 1 && op.getSourceType().getRank() == 1 &&
       llvm::all_of(op.getStaticStrides(),
                    [](int64_t stride) { return stride == 1; })) {
     os << "std::copy(";
     os << sourceName << ".begin(), ";
     os << sourceName << ".end(), ";
-    os << destName << ".begin() + " << op.getStaticOffsets()[0] << ");\n";
+    os << resultName << ".begin() + " << op.getStaticOffsets()[0] << ");\n";
     return success();
   }
 
@@ -1203,7 +1208,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::InsertSliceOp op) {
   }
 
   // Now we're in the innermost loop nest, do the assignment
-  os << destName << "["
+  os << resultName << "["
      << flattenIndexExpression(op.getDest().getType().getShape(),
                                destIndexNames)
      << "] = " << sourceName << "["

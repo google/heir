@@ -313,10 +313,14 @@ module attributes {scheme.ckks} {
   // CHECK: test_insert_slice_1d
   // CHECK: std::vector<float> [[v4:[^(]*]](8, 0.100000001);
   // CHECK: std::vector<float> [[v6:[^(]*]](32);
-  // CHECK: std::copy([[v4]].begin(), [[v4]].end(), [[v6]].begin() + 0);
-  // CHECK: std::copy([[v4]].begin(), [[v4]].end(), [[v6]].begin() + 8);
-  // CHECK: std::copy([[v4]].begin(), [[v4]].end(), [[v6]].begin() + 16);
-  // CHECK: std::copy([[v4]].begin(), [[v4]].end(), [[v6]].begin() + 24);
+  // CHECK: std::vector<float> [[v7:[^(]*]]([[v6]]);
+  // CHECK: std::copy([[v4]].begin(), [[v4]].end(), [[v7]].begin() + 0);
+  // CHECK: std::vector<float> [[v8:[^(]*]]([[v7]]);
+  // CHECK: std::copy([[v4]].begin(), [[v4]].end(), [[v8]].begin() + 8);
+  // CHECK: std::vector<float> [[v9:[^(]*]]([[v8]]);
+  // CHECK: std::copy([[v4]].begin(), [[v4]].end(), [[v9]].begin() + 16);
+  // CHECK: std::vector<float> [[v10:[^(]*]]([[v9]]);
+  // CHECK: std::copy([[v4]].begin(), [[v4]].end(), [[v10]].begin() + 24);
   func.func @test_insert_slice_1d() -> tensor<32xf32> {
     %cst_2 = arith.constant dense<1.000000e-01> : tensor<8xf32>
     %0 = tensor.empty() : tensor<32xf32>
@@ -334,6 +338,7 @@ module attributes {scheme.ckks} {
   // CHECK: test_insert_slice_2d
   // CHECK: std::vector<float> [[v0:[^(]*]](64, 0.100000001);
   // CHECK: std::vector<float> [[v1:[^(]*]](1024);
+  // CHECK: std::vector<float> [[v2:[^(]*]]([[v1]]);
 
   // TODO(#1703): this test is quite wrong, but only because the type
   // declaration and initializations above are bad, which is owned by a
@@ -343,7 +348,7 @@ module attributes {scheme.ckks} {
   // CHECK:  for (int64_t [[v1]]_0 = 8; [[v1]]_0 < 24; [[v1]]_0 += 2) {
   // CHECK:    int64_t [[v0]]_1 = 0;
   // CHECK:    for (int64_t [[v1]]_1 = 8; [[v1]]_1 < 24; [[v1]]_1 += 2) {
-  // CHECK:      [[v1]]{{\[}}[[v1]]_1 + 32 * ([[v1]]_0)] = [[v0]]{{\[}}[[v0]]_1 + 8 * ([[v0]]_0)];
+  // CHECK:      [[v2]]{{\[}}[[v1]]_1 + 32 * ([[v1]]_0)] = [[v0]]{{\[}}[[v0]]_1 + 8 * ([[v0]]_0)];
   // CHECK:      [[v0]]_1 += 1;
   // CHECK:    }
   // CHECK:    [[v0]]_0 += 1;

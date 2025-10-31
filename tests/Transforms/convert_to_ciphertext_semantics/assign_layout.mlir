@@ -41,3 +41,21 @@ module {
     return %0 : !secret.secret<i16>
   }
 }
+
+// -----
+
+#layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 16 = 0 and 0 <= i0 <= 15 and 0 <= slot <= 31 }">
+module {
+  // CHECK: @empty
+  func.func @empty() -> (!secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout}) {
+    %0 = secret.generic() {
+      // CHECK: %[[empty:.*]] = tensor.empty() : tensor<1x32xi16>
+      %empty = tensor.empty() : tensor<32xi16>
+      %1 = tensor_ext.assign_layout %empty {layout = #layout, tensor_ext.layout = #layout} : tensor<32xi16>
+      secret.yield %1 : tensor<32xi16>
+    } -> (!secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout})
+    // CHECK: secret.yield %[[empty]] : tensor<1x32xi16>
+    // CHECK: return {{.*}} : !secret.secret<tensor<1x32xi16>>
+    return %0 : !secret.secret<tensor<32xi16>>
+  }
+}
