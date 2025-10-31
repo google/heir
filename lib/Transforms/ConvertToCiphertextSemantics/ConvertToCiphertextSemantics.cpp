@@ -1662,49 +1662,6 @@ struct DropRotateAndReduceUnitDims
   }
 };
 
-struct DropElementwiseUnitDims : OpTraitRewritePattern<OpTrait::Elementwise> {
-  explicit DropElementwiseUnitDims(MLIRContext* context)
-      : OpTraitRewritePattern(context) {}
-
-  LogicalResult matchAndRewrite(mlir::Operation* op,
-                                PatternRewriter& rewriter) const override {
-    // Ensure that all operands and results have the same type.
-    SmallVector<Type> operandAndResultTypes =
-        llvm::to_vector(op->getOperandTypes());
-    operandAndResultTypes.append(op->getResultTypes().begin(),
-                                 op->getResultTypes().end());
-    if (!llvm::all_equal(operandAndResultTypes) || op->getNumOperands() == 0 ||
-        op->getNumResults() != 1) {
-      return failure();
-    }
-
-    auto tensorType = dyn_cast<RankedTensorType>(op->getOperand(0).getType());
-    if (!tensorType) {
-      return failure();
-    }
-
-    SmallVector<int64_t> operandUnitDims = getUnitDims(tensorType);
-    if (operandUnitDims.empty()) {
-      LLVM_DEBUG(llvm::dbgs() << "no unit dims to drop\n");
-      return failure();
-    }
-
-    SmallVector<Value> collapsedOperands = collapseOperands(
-        rewriter, llvm::to_vector(op->getOperands()), operandUnitDims);
-
-    Type resultType = collapsedOperands[0].getType();
-    Operation* collapsedOp = rewriter.create(OperationState(
-        op->getLoc(), op->getName().getStringRef(), collapsedOperands,
-        resultType, op->getAttrs(), op->getSuccessors()));
-
-    rewriter.replaceOp(
-        op, expandResult(rewriter, collapsedOp->getResults()[0],
-                         cast<RankedTensorType>(op->getResult(0).getType()),
-                         operandUnitDims));
-    return success();
-  }
-};
-
 struct ConvertToCiphertextSemantics
     : impl::ConvertToCiphertextSemanticsBase<ConvertToCiphertextSemantics> {
   using ConvertToCiphertextSemanticsBase::ConvertToCiphertextSemanticsBase;

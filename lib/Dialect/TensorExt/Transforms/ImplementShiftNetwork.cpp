@@ -218,7 +218,7 @@ LogicalResult convertRemapOp(RemapOp op,
   int64_t numCiphertexts = tensorTy.getDimSize(0);
   int64_t ciphertextSize = tensorTy.getDimSize(1);
   auto singleCiphertextType =
-      RankedTensorType::get({ciphertextSize}, tensorTy.getElementType());
+      RankedTensorType::get({1, ciphertextSize}, tensorTy.getElementType());
   // Populate the mapping with (source, target) pairs
   // This require enumerating over the relation for the op
   Mapping mapping(ciphertextSize, numCiphertexts);
