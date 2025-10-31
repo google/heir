@@ -1,9 +1,11 @@
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 
 #include <cstdint>
+#include <utility>
 
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
+#include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Utils/APIntUtils.h"
 #include "llvm/include/llvm/ADT/STLFunctionalExtras.h"  // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
@@ -113,9 +115,30 @@ PlaintextSpaceAttr inferModulusSwitchOrRescaleOpPlaintextSpaceAttr(
   }
 
   auto newScale = inferModulusSwitchOrRescaleOpScalingFactor(
-      xEncoding, dividedModulus, plaintextModulus);
+      xEncoding, std::move(dividedModulus), plaintextModulus);
   return PlaintextSpaceAttr::get(
       ctx, xRing, getEncodingAttrWithNewScalingFactor(xEncoding, newScale));
+}
+
+polynomial::RingAttr getRlweRNSRingWithLevel(polynomial::RingAttr ringAttr,
+                                             int level) {
+  auto rnsType = cast<rns::RNSType>(ringAttr.getCoefficientType());
+  auto newRnsType = rns::RNSType::get(
+      rnsType.getContext(), rnsType.getBasisTypes().take_front(level + 1));
+  return polynomial::RingAttr::get(newRnsType, ringAttr.getPolynomialModulus());
+}
+
+polynomial::RingAttr getRingFromModulusChain(
+    ModulusChainAttr chainAttr,
+    polynomial::IntPolynomialAttr polynomialModulus) {
+  SmallVector<Type> limbTypes = llvm::to_vector(llvm::map_range(
+      chainAttr.getElements(), [](mlir::IntegerAttr attr) -> Type {
+        return mod_arith::ModArithType::get(attr.getType().getContext(), attr);
+      }));
+  rns::RNSType rnsType = rns::RNSType::get(
+      chainAttr.getContext(),
+      ArrayRef<Type>(limbTypes).take_front(chainAttr.getCurrent() + 1));
+  return polynomial::RingAttr::get(rnsType, polynomialModulus);
 }
 
 //===----------------------------------------------------------------------===//
