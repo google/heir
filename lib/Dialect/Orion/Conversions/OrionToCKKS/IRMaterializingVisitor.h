@@ -89,10 +89,23 @@ class IRMaterializingVisitor
     return result;
   }
 
-  Value encodeCleartextOperand(lwe::LWECiphertextType ctTy, Value cleartext,
-                               int64_t targetLogScale) {
+  int64_t getTargetLogScale(lwe::LWECiphertextType ty) {
+    // TODO(#2364) without high-precision scale management, we can't
+    // use the exact modulus from the modulus chain.
+    int64_t currentLogModulus = static_cast<int64_t>(std::ceil(
+        std::log2(ty.getModulusChain()
+                      .getElements()[ty.getModulusChain().getCurrent()]
+                      .getInt())));
+    int64_t currentLogScale = lwe::getScalingFactorFromEncodingAttr(
+        ty.getPlaintextSpace().getEncoding());
+    return rescaleAfterCtPtMul ? logDefaultScale
+                               : currentLogModulus + currentLogScale;
+  }
+
+  Value encodeCleartextOperand(lwe::LWECiphertextType ctTy, Value cleartext) {
     MLIRContext* ctx = builder.getContext();
-    auto encoding = lwe::InverseCanonicalEncodingAttr::get(ctx, targetLogScale);
+    int64_t logScale = getTargetLogScale(ctTy);
+    auto encoding = lwe::InverseCanonicalEncodingAttr::get(ctx, logScale);
     auto ring = ctTy.getPlaintextSpace().getRing();
 
     lwe::LWEPlaintextType ptTy = lwe::LWEPlaintextType::get(
@@ -106,41 +119,40 @@ class IRMaterializingVisitor
   Value binop(const T& node) {
     Value lhs = this->process(node.left);
     Value rhs = this->process(node.right);
-
     bool isMul = static_cast<bool>(std::is_same<CtCtOp, ckks::MulOp>::value);
 
     return TypeSwitch<Type, Value>(lhs.getType())
         .template Case<lwe::LWECiphertextType>([&](auto ty) {
           if (isa<RankedTensorType>(rhs.getType())) {
-            // Ciphertext-plaintext multiplication
-            // Plaintext is encoded with scale Delta^2, so result has scale
-            // Δ·Q[L] This will be rescaled later before ct-ct multiplication
+            // Ciphertext-plaintext
+            bool rescale = isMul && rescaleAfterCtPtMul;
             return relinAndRescale(
                 CtPtOp::create(builder, lhs, encodeCleartextOperand(ty, rhs))
                     .getResult(),
-                ty, /*relinearize=*/false, /*rescale=*/false);
+                ty, /*relinearize=*/false, rescale);
           }
 
-          if (isa<lwe::LWEPlaintextType>(rhs.getType())) {
-            // Ciphertext-plaintext multiplication: NEVER rescale
-            return relinAndRescale(
-                CtPtOp::create(builder, lhs, rhs).getResult(), ty,
-                /*relinearize=*/false, /*rescale=*/false);
-          }
+          // FIXME: may need to tweak encoding
+          // if (isa<lwe::LWEPlaintextType>(rhs.getType())) {
+          //   bool rescale = isMul && rescaleAfterCtPtMul;
+          //   return relinAndRescale(
+          //       CtPtOp::create(builder, lhs, rhs).getResult(), ty,
+          //       /*relinearize=*/false, /*rescale=*/rescale);
+          // }
 
-          // Ciphertext-ciphertext multiplication: rescale as usual
+          // Ciphertext-ciphertext
           return relinAndRescale(CtCtOp::create(builder, lhs, rhs).getResult(),
                                  ty, /*relinearize=*/isMul, /*rescale=*/isMul);
         })
+
         .template Case<lwe::LWEPlaintextType>([&](auto ty) {
+          auto encodedLhs = cast<lwe::RLWEEncodeOp>(lhs.getDefiningOp());
           if (isa<RankedTensorType>(rhs.getType())) {
-            auto encodeOp = dyn_cast<lwe::RLWEEncodeOp>(lhs.getDefiningOp());
-            return CleartextOp::create(builder, encodeOp.getInput(), rhs)
+            return CleartextOp::create(builder, encodedLhs.getInput(), rhs)
                 .getResult();
           }
 
           if (isa<lwe::LWEPlaintextType>(rhs.getType())) {
-            auto encodedLhs = dyn_cast<lwe::RLWEEncodeOp>(lhs.getDefiningOp());
             auto encodedRhs = dyn_cast<lwe::RLWEEncodeOp>(rhs.getDefiningOp());
             return CleartextOp::create(builder, encodedLhs.getInput(),
                                        encodedRhs.getInput())
@@ -154,19 +166,18 @@ class IRMaterializingVisitor
                 << "\n\nrhs=" << rhs << "\n";
             return Value();
           }
-          // Plaintext-ciphertext multiplication: NEVER rescale
+          // FIXME: adjust scale of lhs encode op
+          bool rescale = isMul && rescaleAfterCtPtMul;
           return relinAndRescale(CtPtOp::create(builder, lhs, rhs).getResult(),
-                                 ctTy, /*relinearize=*/false,
-                                 /*rescale=*/false);
+                                 ctTy, /*relinearize=*/false, rescale);
         })
         .template Case<RankedTensorType>([&](auto ty) {
           auto ctTy = cast<lwe::LWECiphertextType>(rhs.getType());
-          // Cleartext-ciphertext multiplication: NEVER rescale
-          // Plaintext encoded with scale Q[L]
+          bool rescale = isMul && rescaleAfterCtPtMul;
           return relinAndRescale(
               CtPtOp::create(builder, encodeCleartextOperand(ctTy, lhs), rhs)
                   .getResult(),
-              ctTy, /*relinearize=*/false, /*rescale=*/false);
+              ctTy, /*relinearize=*/false, rescale);
         })
         .Default([&](Type) {
           emitError(lhs.getLoc())

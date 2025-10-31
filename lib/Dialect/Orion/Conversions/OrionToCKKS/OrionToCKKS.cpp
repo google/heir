@@ -129,6 +129,22 @@ struct ConvertChebyshevOp : public OpRewritePattern<ChebyshevOp> {
         b, getPlaintextTypeFromCtTypeAndScalingFactor(ctTy, logDefaultScale),
         rescaleAfterCtPtMul, logDefaultScale);
     Value finalOutput = implementedKernel->visit(visitor);
+
+    // ct-pt muls in the kernel didn't rescale, so rescale at the very end
+    if (!rescaleAfterCtPtMul) {
+      lwe::LWECiphertextType ctTy =
+          cast<lwe::LWECiphertextType>(finalOutput.getType());
+      FailureOr<lwe::LWECiphertextType> ctTypeResult = applyModReduce(ctTy);
+      if (failed(ctTypeResult)) {
+        emitError(op.getLoc()) << "Cannot rescale ciphertext type";
+        return failure();
+      }
+      auto moddedDownTy = ctTypeResult.value();
+      auto rescaleOp = ckks::RescaleOp::create(
+          b, moddedDownTy, finalOutput, ctTy.getCiphertextSpace().getRing());
+      finalOutput = rescaleOp.getResult();
+    }
+
     rewriter.replaceOp(op, finalOutput);
     return success();
   }
@@ -163,6 +179,14 @@ struct ConvertLinearTransformOp : public OpRewritePattern<LinearTransformOp> {
         b, getPlaintextTypeFromCtTypeAndScalingFactor(ctTy, logDefaultScale),
         rescaleAfterCtPtMul, logDefaultScale);
     Value finalOutput = implementedKernel->visit(visitor);
+
+    // ct-pt muls in the kernel didn't rescale, so rescale at the very end
+    if (!rescaleAfterCtPtMul) {
+      auto rescaleOp = ckks::RescaleOp::create(
+          b, ctTy, finalOutput, ctTy.getCiphertextSpace().getRing());
+      finalOutput = rescaleOp.getResult();
+    }
+
     rewriter.replaceOp(op, finalOutput);
     return success();
   }
