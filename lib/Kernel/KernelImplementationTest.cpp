@@ -1,3 +1,4 @@
+#include <iostream>
 #include <vector>
 
 #include "gtest/gtest.h"  // from @googletest
@@ -5,6 +6,7 @@
 #include "lib/Kernel/ArithmeticDag.h"
 #include "lib/Kernel/KernelImplementation.h"
 #include "lib/Kernel/KernelName.h"
+#include "lib/Kernel/RotationCountVisitor.h"
 #include "lib/Kernel/TestingUtils.h"
 #include "lib/Utils/Layout/Evaluate.h"
 #include "lib/Utils/Layout/Utils.h"
@@ -173,6 +175,30 @@ TEST(KernelImplementationTest, BicyclicMatmul) {
   EXPECT_EQ(unpackedResult, expected);
 }
 
+TEST(KernelImplementationTest, BicyclicMatmulRotationCount) {
+  MLIRContext context;
+
+  // All triples (x, x+1, x+2) where x is odd are pairwise coprime.
+  int m = 123;
+  int n = 124;
+  int p = 125;
+
+  SymbolicValue packedAValue({m, n}, true);
+  SymbolicValue packedBValue({n, p}, true);
+  auto dag = implementBicyclicMatmul(packedAValue, packedBValue, m, n, p);
+
+  RotationCountVisitor rotationCounter;
+  int64_t rotationCount = rotationCounter.process(dag);
+
+  // 124 + 2*math.sqrt(124) - 3 = 143
+  // Actual value is 158.
+  //
+  // TODO(#2162): Fix the baby/giant step size selector, along with the
+  // required modifications to the kernel, so that this bound (and a more
+  // extreme bound like a prime m=137) still achieves a roughly n + 2sqrt(n)
+  // rotation count.
+  EXPECT_EQ(rotationCount, 158);
+}
 }  // namespace
 }  // namespace kernel
 }  // namespace heir

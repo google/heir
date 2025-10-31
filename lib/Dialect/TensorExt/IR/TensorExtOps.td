@@ -150,30 +150,27 @@ def TensorExt_RotateAndReduceOp : TensorExt_Op<"rotate_and_reduce",[Pure, AllTyp
 
     In almost full generality, the reduction performed is
 
-    \[
-      \sum_{i \in [0, n]} p(P, T*i) \cdot rotate(v, T*i)
-    \]
+    $$ \sum_{i \in [0, n]} p(P, iT) \cdot rotate(v, iT) $$
 
-    where $f$ is a function, $p(P, T*i)$ is a function of a plaintext $P$ and
-    $rotate(v, T*i)$ is a rotation of the ciphertext $v$ with period $T$. The
+    where $f$ is a function, $p(P, iT)$ is a function of a plaintext $P$ and
+    $rotate(v, iT)$ is a rotation of the ciphertext $v$ with period $T$. The
     operation takes as input the ciphertext vector $v$, the period $T$, the
-    number of reductions $n$, and a tensor of plaintext values `[p(P, 0), p(P,
-    T), ..., p(P, T*(n-1))]`.
+    number of reductions $n$, and a tensor of plaintext values
+
+    `[p(P, 0), p(P, T), ..., p(P, (n-1)T)]`
 
     This can be used to implement a matrix vector product that uses a
     Halevi-Shoup diagonalization of the plaintext matrix. In this case, the
     reduction is
 
-    \[
-      \sum_{i \in [0, n]} P(i) \cdot rotate(v, i)
-    \]
+    $$ \sum_{i \in [0, n]} P(i) \cdot rotate(v, i) $$
 
     where $P(i)$ is the $i$th diagonal of the plaintext matrix and the period
     $T$ is $1$.
 
     An accumulation of the ciphertext slots is also handled via this operation
-    by omitting the plaintext $p(P, T*i)$ argument and using a period of 1 with
-    `n = |v|` so that the reduction is simply a sum of all rotation of the
+    by omitting the plaintext $p(P, Ti)$ argument and using a period of 1 with
+    `n = |v|` so that the reduction is simply a sum of all rotations of the
     ciphertext.
 
     If `reduceOp` is set to an MLIR operation name (e.g., `arith.mulf`), then
