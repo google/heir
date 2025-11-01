@@ -104,9 +104,9 @@ TEST(KernelCostTest, HaleviShoup_LargeMatrix_512x512) {
   RotationCountVisitor counter;
   int64_t rotations = counter.process(dag);
 
-  // Large matrix: 47 ciphertext rotations (O(sqrt(512)) ≈ 22.6)
+  // Large matrix: 45 ciphertext rotations (O(sqrt(512)) ≈ 22.6)
   // Demonstrates O(sqrt(n)) scaling vs O(n) naive approach
-  EXPECT_EQ(rotations, 47);
+  EXPECT_EQ(rotations, 45);
 }
 
 // Test asymptotic O(sqrt(n)) scaling by measuring actual growth rates
