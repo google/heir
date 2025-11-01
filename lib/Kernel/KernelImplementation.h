@@ -86,29 +86,10 @@ implementRotateAndReduce(const T& vector, std::optional<T> plaintexts,
   auto plaintextsDag = NodeTy::leaf(*plaintexts);
 
   // Use a value of sqrt(n) as the baby step / giant step size.
-  int64_t numBabySteps = static_cast<int64_t>(std::floor(std::sqrt(steps)));
-  if (steps % numBabySteps != 0) {
-    // Find the nearest divisible number to use for baby step
-    // TODO(#2162): determine the right tradeoff here
-    int lower = numBabySteps;
-    int upper = numBabySteps;
-
-    while (steps % lower != 0 && steps % upper != steps) {
-      lower--;
-      upper++;
-    }
-
-    if (steps % lower == 0 && lower > 1) {
-      numBabySteps = lower;
-    } else if (steps % upper == 0) {
-      numBabySteps = upper;
-    } else {
-      numBabySteps = steps;
-    }
-  }
-
+  int64_t numBabySteps = static_cast<int64_t>(std::ceil(std::sqrt(steps)));
   int64_t giantStepSize = numBabySteps;
-  int64_t numGiantSteps = steps / numBabySteps;
+  // numGiantSteps = ceil(steps / numBabySteps)
+  int64_t numGiantSteps = (steps + numBabySteps - 1) / numBabySteps;
 
   // Compute sqrt(n) ciphertext rotations of the input as baby-steps.
   SmallVector<std::shared_ptr<NodeTy>> babyStepVals;
@@ -124,6 +105,9 @@ implementRotateAndReduce(const T& vector, std::optional<T> plaintexts,
     // The rotation used for the plaintext
     int64_t plaintextRotationAmount = -giantStepSize * j * period;
     for (int64_t i = 0; i < numBabySteps; ++i) {
+      if (j * giantStepSize + i >= steps) {
+        break;
+      }
       size_t extractionIndex = i + j * giantStepSize;
       auto plaintext = NodeTy::extract(plaintextsDag, extractionIndex);
       auto rotatedPlaintext =
