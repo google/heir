@@ -4135,7 +4135,10 @@ still produce semantically correct results.</p><h4 id=example-11>Example</h4><p>
 </span></span><span style=display:flex><span>    <span style=color:#204a87;font-weight:700>return</span> <span style=color:#000>%0</span> <span style=color:#000;font-weight:700>:</span> <span style=color:#204a87;font-weight:700>tensor</span><span style=color:#000;font-weight:700>&lt;</span><span style=color:#0000cf;font-weight:700>6x</span><span style=color:#204a87;font-weight:700>i32</span><span style=color:#000;font-weight:700>&gt;</span>
 </span></span><span style=display:flex><span>  <span style=color:#000;font-weight:700>}</span>
 </span></span><span style=display:flex><span><span style=color:#000;font-weight:700>}</span>
-</span></span></code></pre></div><h3 id=-forward-insert-to-extract><code>-forward-insert-to-extract</code></h3><p><em>Forward inserts to extracts within a single block</em></p><p>This pass is similar to forward-store-to-load pass where store ops
+</span></span></code></pre></div><h3 id=-forward-insert-slice-to-extract-slice><code>-forward-insert-slice-to-extract-slice</code></h3><p><em>Forward inserts to extracts within a single block</em></p><p>This pass is similar to forward-store-to-load pass where store ops
+are forwarded load ops; here instead tensor.insert_slice ops are forwarded
+to tensor.extract_slice ops.</p><p>Does not support complex control flow within a block, nor ops with
+arbitrary subregions.</p><h3 id=-forward-insert-to-extract><code>-forward-insert-to-extract</code></h3><p><em>Forward inserts to extracts within a single block</em></p><p>This pass is similar to forward-store-to-load pass where store ops
 are forwarded load ops; here instead tensor.insert ops are forwarded
 to tensor.extract ops.</p><p>Does not support complex control flow within a block, nor ops with
 arbitrary subregions.</p><h3 id=-forward-store-to-load><code>-forward-store-to-load</code></h3><p><em>Forward stores to loads within a single block</em></p><p>This pass is a simplified version of mem2reg and similar passes.
