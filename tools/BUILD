@@ -119,6 +119,7 @@ cc_binary(
         "@heir//lib/Transforms/EmitCInterface",
         "@heir//lib/Transforms/FoldConstantTensors",
         "@heir//lib/Transforms/FoldPlaintextMasks",
+        "@heir//lib/Transforms/ForwardInsertSliceToExtractSlice",
         "@heir//lib/Transforms/ForwardInsertToExtract",
         "@heir//lib/Transforms/ForwardStoreToLoad",
         "@heir//lib/Transforms/FullLoopUnroll",
