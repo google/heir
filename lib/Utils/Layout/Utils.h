@@ -206,6 +206,12 @@ presburger::IntegerRelation shiftVar(
     const presburger::IntegerRelation& relation, unsigned int pos,
     int64_t offset);
 
+// Get layout relation that corresponds to a tensor::extract_slice op.
+FailureOr<presburger::IntegerRelation> getSliceExtractionRelation(
+    RankedTensorType sourceType, RankedTensorType resultType,
+    SmallVector<int64_t> offsets, SmallVector<int64_t> sizes,
+    SmallVector<int64_t> strides);
+
 }  // namespace heir
 }  // namespace mlir
 

@@ -1130,13 +1130,14 @@ class ConvertTensorInsertSlice
       sizes.push_back(b.getIndexAttr(1));
       sizes.push_back(b.getIndexAttr(slots));
       SmallVector<OpFoldResult> strides(2, b.getIndexAttr(1));
-      Value extractedDest = tensor::ExtractSliceOp::create(
+      Operation* extractedDest = tensor::ExtractSliceOp::create(
           b, op.getLoc(), cast<RankedTensorType>(convertedSource.getType()),
           adaptor.getDest(), ctOffsets, sizes, strides);
       Operation* scalarMul = makeAppropriatelyTypedMulOp(
           b, op.getLoc(), scalarMask, convertedSource, {getArithFMF(b)});
       Operation* destMul = makeAppropriatelyTypedMulOp(
-          b, op.getLoc(), destMask, extractedDest, {getArithFMF(b)});
+          b, op.getLoc(), destMask, extractedDest->getResult(0),
+          {getArithFMF(b)});
       Operation* finalAdd =
           makeAppropriatelyTypedAddOp(b, op.getLoc(), scalarMul->getResult(0),
                                       destMul->getResult(0), {getArithFMF(b)});
@@ -1144,7 +1145,8 @@ class ConvertTensorInsertSlice
       // Insert the final result into the ciphertext at position ct.
       Operation* insertOp = tensor::InsertSliceOp::create(
           b, finalAdd->getResult(0), result, ctOffsets, sizes, strides);
-      setMaterializedAttr({scalarMul, destMul, finalAdd, insertOp});
+      setMaterializedAttr(
+          {extractedDest, scalarMul, destMul, finalAdd, insertOp});
       result = insertOp->getResult(0);
     }
 
@@ -1472,6 +1474,123 @@ class ConvertTensorInsertLayout
   }
 };
 
+class ConvertTensorExtractSlice
+    : public ContextAwareOpConversionPattern<tensor::ExtractSliceOp> {
+ public:
+  using ContextAwareOpConversionPattern<
+      tensor::ExtractSliceOp>::ContextAwareOpConversionPattern;
+
+  LogicalResult secretSourceSecretResult(
+      tensor::ExtractSliceOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const {
+    MLIRContext* ctx = op.getContext();
+
+    FailureOr<Attribute> sourceLayoutResult =
+        getTypeConverter()->getContextualAttr(adaptor.getSource());
+    FailureOr<Attribute> resultLayoutResult =
+        getTypeConverter()->getContextualAttr(op.getResult());
+    LayoutAttr resultLayout = cast<LayoutAttr>(resultLayoutResult.value());
+    IntegerRelation sourceRel =
+        cast<LayoutAttr>(sourceLayoutResult.value()).getIntegerRelation();
+    IntegerRelation resultRel = resultLayout.getIntegerRelation();
+
+    // Compute the layout relation of the extract_slice operation.
+    auto extractSliceLayout =
+        getSliceExtractionRelation(op.getSourceType(), op.getResultType(),
+                                   SmallVector<int64_t>(op.getStaticOffsets()),
+                                   SmallVector<int64_t>(op.getStaticSizes()),
+                                   SmallVector<int64_t>(op.getStaticStrides()));
+    if (failed(extractSliceLayout)) {
+      return op.emitError() << "failed to get layout for extract slice";
+    }
+
+    // Remap the source ciphertext semantic tensor to the result ciphertext
+    // semantic tensor layout. To do this, we compose the relations to traverse
+    // the following diagram, starting from the source ciphertext tensor to the
+    // extracted slice ciphertext tensor.
+    //  Source tensor ─────────> Slice tensor
+    //     \                        │
+    //    /│\                       │
+    //     │                       \│ /
+    //     │                        \/
+    // Source ciphertext        Slice ciphertext
+    // (ct, slot)               (ct, slot)
+    sourceRel.inverse();
+    sourceRel.compose(extractSliceLayout.value());
+    sourceRel.compose(resultRel);
+
+    // tensor_ext.remap constrains its input and output types to be the same,
+    // i.e., remap occurs within one set of ciphertexts. The output of an
+    // extract_slice, however, may have a layout that has fewer ciphertexts
+    // in it. For example, extracting one row from a data-semantic matrix that
+    // is packed with one row per ciphertext would result in a single output
+    // ciphertext, and the expected layout of the result will reflect that.
+    // To bridge this gap, this kernel post-processes the remap's output to
+    // extract the subset ciphertexts relevant to the layout of the output
+    // slice.
+    LayoutAttr sliceLayoutAttr =
+        LayoutAttr::getFromIntegerRelation(ctx, sourceRel);
+    RankedTensorType sourceCiphertextSemanticType =
+        cast<RankedTensorType>(adaptor.getSource().getType());
+    auto remapSource = tensor_ext::RemapOp::create(
+        rewriter, op.getLoc(), sourceCiphertextSemanticType,
+        adaptor.getSource(), sliceLayoutAttr);
+
+    auto resultCiphertextSemanticType = cast<RankedTensorType>(
+        getTypeConverter()->convertType(op.getResultType(), resultLayout));
+    SmallVector<OpFoldResult> strides(2, rewriter.getIndexAttr(1));
+    SmallVector<OpFoldResult> offsets(2, rewriter.getIndexAttr(0));
+    SmallVector<OpFoldResult> sizes;
+    sizes.push_back(
+        rewriter.getIndexAttr(resultCiphertextSemanticType.getDimSize(0)));
+    sizes.push_back(
+        rewriter.getIndexAttr(resultCiphertextSemanticType.getDimSize(1)));
+    auto extractRemap = tensor::ExtractSliceOp::create(
+        rewriter, op.getLoc(), resultCiphertextSemanticType,
+        remapSource.getResult(), offsets, sizes, strides);
+
+    setMaterializedAttr({remapSource, extractRemap});
+    setAttributeAssociatedWith(extractRemap.getResult(), kLayoutAttrName,
+                               sliceLayoutAttr);
+    rewriter.replaceOp(op, extractRemap.getResult());
+    return success();
+  }
+
+  LogicalResult matchAndRewrite(
+      tensor::ExtractSliceOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    // Extract a secret slice from a secret tensor.
+    FailureOr<Attribute> sourceLayoutResult =
+        getTypeConverter()->getContextualAttr(adaptor.getSource());
+    FailureOr<Attribute> resultLayoutResult =
+        getTypeConverter()->getContextualAttr(op.getResult());
+
+    bool isSecretSource = succeeded(sourceLayoutResult);
+    bool isSecretResult = succeeded(resultLayoutResult);
+
+    if (isSecretSource && isSecretResult) {
+      return secretSourceSecretResult(op, adaptor, rewriter);
+    }
+
+    if (isSecretSource && !isSecretResult) {
+      return op.emitError()
+             << "result tensor should have been assigned a layout "
+                "by layout-propagation";
+    }
+
+    if (!isSecretSource && isSecretResult) {
+      return op.emitError()
+             << "source tensor should have been assigned a layout "
+                "by layout-propagation";
+    }
+
+    // cleartext scalar and cleartext tensor means this is a cleartext op
+    // that can be elided.
+    setMaterializedAttr(op);
+    return success();
+  }
+};
+
 class ConvertCollapseShape
     : public ContextAwareOpConversionPattern<tensor::CollapseShapeOp> {
  public:
@@ -1680,17 +1799,18 @@ struct ConvertToCiphertextSemantics
       return isa<ModuleOp>(op) || hasMaterializedAttr(op);
     });
 
-    patterns.add<
-        ConvertFunc, ConvertGeneric,
-        // tensor_ext ops
-        ConvertConvertLayout,
-        // linalg ops
-        ConvertLinalgReduce, ConvertLinalgMatvecLayout, ConvertLinalgConv2D,
-        // tensor ops
-        ConvertTensorExtractLayout, ConvertTensorInsertLayout,
-        ConvertCollapseShape, ConvertExpandShape, ConvertTensorInsertSlice,
-        // default
-        ConvertAnyAddingMaterializedAttr>(typeConverter, context);
+    patterns.add<ConvertFunc, ConvertGeneric,
+                 // tensor_ext ops
+                 ConvertConvertLayout,
+                 // linalg ops
+                 ConvertLinalgReduce, ConvertLinalgMatvecLayout,
+                 ConvertLinalgConv2D,
+                 // tensor ops
+                 ConvertTensorExtractLayout, ConvertTensorInsertLayout,
+                 ConvertCollapseShape, ConvertExpandShape,
+                 ConvertTensorInsertSlice, ConvertTensorExtractSlice,
+                 // default
+                 ConvertAnyAddingMaterializedAttr>(typeConverter, context);
     patterns.add<ConvertAssignLayout>(typeConverter, context, ciphertextSize);
 
     ConversionConfig config;

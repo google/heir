@@ -747,5 +747,53 @@ presburger::IntegerRelation shiftVar(
   return *shiftedRelation;
 }
 
+FailureOr<presburger::IntegerRelation> getSliceExtractionRelation(
+    RankedTensorType sourceType, RankedTensorType resultType,
+    SmallVector<int64_t> offsets, SmallVector<int64_t> sizes,
+    SmallVector<int64_t> strides) {
+  IntegerRelation result(PresburgerSpace::getRelationSpace(
+      sourceType.getRank(), /*numRange=*/resultType.getRank(), /*numSymbol=*/0,
+      /*numLocals=*/0));
+
+  // Add bounds for the source dimensions.
+  auto domainOffset = result.getVarKindOffset(VarKind::Domain);
+  for (int i = 0; i < sourceType.getRank(); ++i) {
+    addBounds(result, domainOffset + i, 0, sourceType.getDimSize(i) - 1);
+  }
+
+  // Add bounds for the result dimensions.
+  auto rangeOffset = result.getVarKindOffset(VarKind::Range);
+  for (int i = 0; i < resultType.getRank(); ++i) {
+    addBounds(result, rangeOffset + i, 0, resultType.getDimSize(i) - 1);
+  }
+
+  // Destination tensor's dimensions (d0, d1, ...) are mapped sequentially from
+  // the source tensor's dimensions (r0, r1, ...) for which the slice size is
+  // greater than 1.
+  auto constOffset = result.getNumCols() - 1;
+  unsigned int resultDim = 0;
+  for (auto sourceDim = 0; sourceDim < sourceType.getRank(); ++sourceDim) {
+    if (sizes[sourceDim] > 1) {
+      // Map to the i-th result dimension
+      // d_j = offsets[j] + r_i * strides[j]
+      addConstraint(result,
+                    {{domainOffset + sourceDim, -1},
+                     {constOffset, offsets[sourceDim]},
+                     {rangeOffset + resultDim, strides[sourceDim]}},
+                    /*equality=*/true);
+      ++resultDim;
+    } else {
+      // This is a dropped dimension, fixed at the offset
+      // d_j = offsets[j]
+      addConstraint(
+          result,
+          {{domainOffset + sourceDim, -1}, {constOffset, offsets[sourceDim]}},
+          /*equality=*/true);
+    }
+  }
+
+  return result;
+}
+
 }  // namespace heir
 }  // namespace mlir

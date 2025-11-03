@@ -519,6 +519,34 @@ TEST(UtilsTest, TestShiftVarRangeOffset) {
   EXPECT_TRUE(shiftedRel.containsPointNoLocal({8, 1, 19}).has_value());
 }
 
+TEST(UtilsTest, TestGetSliceExtractionRelation) {
+  MLIRContext context;
+  // Extract a 3x4 slice from a 2x1x3x4 matrix at (1, 0, 0, 0).
+  RankedTensorType sourceType =
+      RankedTensorType::get({2, 1, 3, 4}, IndexType::get(&context));
+  RankedTensorType sliceType =
+      RankedTensorType::get({3, 4}, IndexType::get(&context));
+  SmallVector<int64_t> offsets = {1, 0, 0, 0};
+  SmallVector<int64_t> sizes = {1, 1, 3, 4};
+  SmallVector<int64_t> strides = {1, 1, 1, 1};
+
+  auto sliceRelation = getSliceExtractionRelation(sourceType, sliceType,
+                                                  offsets, sizes, strides);
+  ASSERT_TRUE(succeeded(sliceRelation));
+
+  // Test a few points.
+  // The relation maps from source indices to slice indices.
+  // For example, source (1,0,0,0) maps to slice (0,0)
+  std::vector<std::vector<int64_t>> expectedPoints = {
+      {1, 0, 0, 0, 0, 0}, {1, 0, 0, 1, 0, 1}, {1, 0, 1, 0, 1, 0},
+      {1, 0, 1, 1, 1, 1}, {1, 0, 2, 2, 2, 2},
+  };
+  for (const auto& point : expectedPoints) {
+    auto maybeExists = sliceRelation.value().containsPointNoLocal(point);
+    EXPECT_TRUE(maybeExists.has_value());
+  }
+}
+
 }  // namespace
 }  // namespace heir
 }  // namespace mlir
