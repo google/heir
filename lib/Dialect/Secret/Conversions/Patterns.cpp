@@ -12,6 +12,7 @@
 #include "lib/Utils/ContextAwareDialectConversion.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
+#include "llvm/include/llvm/Support/FormatVariadic.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -296,9 +297,16 @@ static LogicalResult validateSliceAlignment(
 
   // The slice's size must match the ciphertext size.
   // E.g., sizes[-1] == 4096.
-  if (inputTy.getDimSize(lastDim) != getConstantIntValue(sizes[lastDim])) {
+  auto lastSize = getConstantIntValue(sizes[lastDim]);
+  if (!lastSize.has_value()) {
     return rewriter.notifyMatchFailure(
-        op, "expected slice to include a full ciphertext row");
+        op, "expected slice to have a constant size in the last dimension");
+  }
+  if (inputTy.getDimSize(lastDim) != lastSize.value()) {
+    return rewriter.notifyMatchFailure(
+        op, llvm::formatv("expected slice to include a full ciphertext row, "
+                          "last size {0} got {1}",
+                          inputTy.getDimSize(lastDim), lastSize.value()));
   }
 
   return success();
@@ -319,8 +327,8 @@ FailureOr<Operation*> ConvertExtractSlice::matchAndRewriteInner(
   auto sizes = op.getMixedSizes();
   auto strides = op.getMixedStrides();
 
-  auto validationRes =
-      validateSliceAlignment(inputs[0], offsets, sizes, strides, op, rewriter);
+  auto validationRes = validateSliceAlignment(op.getSource(), offsets, sizes,
+                                              strides, op, rewriter);
   if (failed(validationRes)) {
     return validationRes;
   }
@@ -336,12 +344,20 @@ FailureOr<Operation*> ConvertExtractSlice::matchAndRewriteInner(
   }
 
   // Exactly one ciphertext output is guaranteed since validateSliceAlignment
-  // ensures that the result size is exactly a ciphertext size
-  auto resultCtTy = cast<lwe::LWECiphertextType>(outputTypes[0]);
-  auto extractOp = tensor::ExtractOp::create(rewriter, op.getLoc(), resultCtTy,
-                                             inputs[0], {offsetVal});
+  // ensures that the result size is exactly a ciphertext size. This may be a
+  // tensor<1x!ct> since ciphertexts are always tensor<Nx!ct>.
+  Operation* extractOp;
+  if (auto resultCtTy = dyn_cast<lwe::LWECiphertextType>(outputTypes[0])) {
+    extractOp = tensor::ExtractOp::create(rewriter, op.getLoc(), resultCtTy,
+                                          inputs[0], {offsetVal});
+  } else {
+    extractOp = tensor::ExtractSliceOp::create(
+        rewriter, op.getLoc(), cast<RankedTensorType>(outputTypes[0]),
+        inputs[0], {offsetVal}, {rewriter.getIndexAttr(1)},
+        {rewriter.getIndexAttr(1)});
+  }
   rewriter.replaceOp(genericOp, extractOp);
-  return extractOp.getOperation();
+  return extractOp;
 }
 
 // An insert_slice op corresponds to inserting one ciphertext into a tensor
@@ -384,7 +400,7 @@ FailureOr<Operation*> ConvertInsertSlice::matchAndRewriteInner(
   // not an input to the secret.generic (even if another pattern handles the
   // tensor.empty properly). However, the tensor.empty needs to be converted to
   // a tensor.empty of ciphertext types. So just do the conversion here and make
-  // a new tenosr.empty op.
+  // a new tensor.empty op.
   if (auto initOp = dyn_cast_or_null<mgmt::InitOp>(dest.getDefiningOp())) {
     if (auto emptyOp = dyn_cast_or_null<tensor::EmptyOp>(
             initOp.getOperand().getDefiningOp())) {
@@ -395,10 +411,26 @@ FailureOr<Operation*> ConvertInsertSlice::matchAndRewriteInner(
       if (emptyOp.use_empty()) rewriter.eraseOp(emptyOp);
     }
   }
-  auto insertOp = tensor::InsertOp::create(
-      rewriter, op.getLoc(), resultTensorOfCtsTy, scalar, dest, indices);
+  // Ensure that we aren't inserting a cleartext scalar into a ciphertext
+  // tensor. This would result in a type-mismatch error once converted to
+  // OpenFHE code, since we cannot insert a Plaintext type into a Ciphertext
+  // container. This probably indicates a bug earlier in the pipeline.
+  if (auto initOp = dyn_cast_or_null<mgmt::InitOp>(scalar.getDefiningOp())) {
+    return op->emitError() << "expected scalar to be a scalar ciphertext";
+  }
+
+  Operation* insertOp;
+  if (auto scalarCtTy = dyn_cast<lwe::LWECiphertextType>(scalar.getType())) {
+    insertOp = tensor::InsertOp::create(
+        rewriter, op.getLoc(), resultTensorOfCtsTy, scalar, dest, indices);
+  } else {
+    insertOp = tensor::InsertSliceOp::create(
+        rewriter, op.getLoc(), scalar, dest,
+        SmallVector<OpFoldResult>{offsets[0]}, {rewriter.getIndexAttr(1)},
+        {rewriter.getIndexAttr(1)});
+  }
   rewriter.replaceOp(genericOp, insertOp);
-  return insertOp.getOperation();
+  return insertOp;
 }
 
 LogicalResult ConvertEmpty::matchAndRewrite(
