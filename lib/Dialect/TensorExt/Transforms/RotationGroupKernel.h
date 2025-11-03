@@ -324,9 +324,9 @@ rotateOneGroup(const Mapping& mapping, ArrayRef<T> initialCiphertexts,
   // A set of indices that constitute the ciphertexts in this group
   // that are the final targets of some source.
   DenseSet<int64_t> finalTargetCiphertexts;
-  for (const MappingEntry& entry : mapping) {
-    if (group.contains(entry.source)) {
-      finalTargetCiphertexts.insert(entry.target.ct);
+  for (const auto& [target, source] : mapping.getTargetToSource()) {
+    if (group.contains(source)) {
+      finalTargetCiphertexts.insert(target.ct);
     }
   }
 
@@ -358,11 +358,10 @@ implementRotationGroups(SmallVector<T>& ciphertexts, const Mapping& mapping,
   for (const RotationGroup& group : rotationGroups) {
     // Compute the subset of SourceShifts needed for this group
     SmallVector<SourceShift> sourceShifts;
-    for (const MappingEntry& entry : mapping) {
-      if (group.contains(entry.source)) {
-        int64_t shift =
-            scheme.strategy.getVirtualShift(entry.source, entry.target);
-        sourceShifts.push_back({entry.source, shift});
+    for (const auto& [target, source] : mapping.getTargetToSource()) {
+      if (group.contains(source)) {
+        int64_t shift = scheme.strategy.getVirtualShift(source, target);
+        sourceShifts.push_back({source, shift});
       }
     }
 

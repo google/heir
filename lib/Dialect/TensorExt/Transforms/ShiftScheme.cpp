@@ -46,9 +46,9 @@ void ShiftStrategy::evaluate(const Mapping& mapping) {
   // First compute the virtual shifts needed for each source slot
   SmallVector<SourceShift> sourceShifts;
   sourceShifts.reserve(mapping.size());
-  for (const MappingEntry& entry : mapping) {
-    int64_t shift = getVirtualShift(entry.source, entry.target);
-    sourceShifts.push_back({entry.source, shift});
+  for (const auto& [target, source] : mapping.getTargetToSource()) {
+    int64_t shift = getVirtualShift(source, target);
+    sourceShifts.push_back({source, shift});
   }
 
   // Compute the corresponding table of positions after each rotation,

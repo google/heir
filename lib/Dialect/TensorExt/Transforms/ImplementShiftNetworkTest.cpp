@@ -23,9 +23,8 @@ std::vector<std::vector<int>> manuallyApplyMapping(
     int64_t ctSize) {
   std::vector<std::vector<int>> output(input.size(),
                                        std::vector<int>(ctSize, 0));
-  for (const auto& entry : mapping) {
-    output[entry.target.ct][entry.target.slot] =
-        input[entry.source.ct][entry.source.slot];
+  for (const auto& [target, source] : mapping.getTargetToSource()) {
+    output[target.ct][target.slot] = input[source.ct][source.slot];
   }
   return output;
 }

@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <functional>
 #include <utility>
 
@@ -54,20 +55,58 @@ struct MappingEntry {
   CtSlot target;
 };
 
+}  // namespace tensor_ext
+}  // namespace heir
+}  // namespace mlir
+
+namespace llvm {
+template <>
+struct DenseMapInfo<mlir::heir::tensor_ext::CtSlot> {
+  static mlir::heir::tensor_ext::CtSlot getEmptyKey() {
+    return mlir::heir::tensor_ext::CtSlot{-1, -1};
+  }
+  static mlir::heir::tensor_ext::CtSlot getTombstoneKey() {
+    return mlir::heir::tensor_ext::CtSlot{-1, -2};
+  }
+  static unsigned getHashValue(const mlir::heir::tensor_ext::CtSlot& Val) {
+    return hash_combine(Val.ct, Val.slot);
+  }
+  static bool isEqual(const mlir::heir::tensor_ext::CtSlot& L,
+                      const mlir::heir::tensor_ext::CtSlot& R) {
+    return L == R;
+  }
+};
+}  // namespace llvm
+
+namespace mlir {
+namespace heir {
+namespace tensor_ext {
+
 // An arbitrary mapping on the slots of a set of ciphertexts.
 class Mapping {
  public:
   Mapping(int64_t ciphertextSize = 1, int64_t numCiphertexts = 1)
       : ciphertextSize(ciphertextSize), numCiphertexts(numCiphertexts) {}
 
-  size_t size() const { return entries.size(); }
+  size_t size() const { return targetToSource.size(); }
 
   void add(CtSlot source, CtSlot target) {
-    entries.emplace_back(MappingEntry{source, target});
+    auto [it, inserted] = targetToSource.insert({target, source});
+    if (!inserted) {
+      // Update the mapping if the new source is closer to the target than the
+      // existing source. This will select for the closest source when there are
+      // multiple valid choices for the source in the mapping but will help
+      // reduce conflicts when the source and target have repetition.
+      // TODO(#2350): Consider a better way to handle multiple valid sources.
+      CtSlot& existingSource = it->second;
+      if (getVirtualDistance(target, source) <
+          getVirtualDistance(target, existingSource)) {
+        targetToSource[target] = source;
+      }
+    }
   }
 
-  auto begin() const { return entries.begin(); }
-  auto end() const { return entries.end(); }
+  DenseMap<CtSlot, CtSlot> getTargetToSource() const { return targetToSource; }
 
   int64_t getCiphertextSize() const { return ciphertextSize; }
   int64_t getNumCiphertexts() const { return numCiphertexts; }
@@ -75,7 +114,14 @@ class Mapping {
  private:
   int64_t ciphertextSize;
   int64_t numCiphertexts;
-  SmallVector<MappingEntry> entries;
+  // Map from target to source to ensure only a single source is mapped to any
+  // target.
+  DenseMap<CtSlot, CtSlot> targetToSource;
+
+  int64_t getVirtualDistance(const CtSlot& lhs, const CtSlot& rhs) {
+    return std::abs(lhs.ct - rhs.ct) * ciphertextSize +
+           std::abs(lhs.slot - rhs.slot);
+  }
 };
 
 // A group of source CtSlots to rotate together
@@ -161,22 +207,6 @@ struct ShiftScheme {
 
 // SourceShift, Mapping, and CtSlot needs DenseMapInfo for use in DenseMap
 namespace llvm {
-template <>
-struct DenseMapInfo<mlir::heir::tensor_ext::CtSlot> {
-  static mlir::heir::tensor_ext::CtSlot getEmptyKey() {
-    return mlir::heir::tensor_ext::CtSlot{-1, -1};
-  }
-  static mlir::heir::tensor_ext::CtSlot getTombstoneKey() {
-    return mlir::heir::tensor_ext::CtSlot{-1, -2};
-  }
-  static unsigned getHashValue(const mlir::heir::tensor_ext::CtSlot& Val) {
-    return hash_combine(Val.ct, Val.slot);
-  }
-  static bool isEqual(const mlir::heir::tensor_ext::CtSlot& L,
-                      const mlir::heir::tensor_ext::CtSlot& R) {
-    return L == R;
-  }
-};
 
 template <>
 struct DenseMapInfo<mlir::heir::tensor_ext::SourceShift> {
@@ -208,9 +238,8 @@ struct DenseMapInfo<mlir::heir::tensor_ext::Mapping> {
   static unsigned getHashValue(const mlir::heir::tensor_ext::Mapping& Val) {
     unsigned hash =
         hash_combine(Val.getCiphertextSize(), Val.getNumCiphertexts());
-    for (const auto& entry : Val) {
-      hash ^= hash_combine(entry.source.ct, entry.source.slot, entry.target.ct,
-                           entry.target.slot);
+    for (const auto& [target, source] : Val.getTargetToSource()) {
+      hash ^= hash_combine(source.ct, source.slot, target.ct, target.slot);
     }
     return hash;
   }
@@ -223,10 +252,12 @@ struct DenseMapInfo<mlir::heir::tensor_ext::Mapping> {
     if (L.size() != R.size()) {
       return false;
     }
-    const auto* itL = L.begin();
-    const auto* itR = R.begin();
-    for (; itL != L.end() && itR != R.end(); ++itL, ++itR) {
-      if (itL->source != itR->source || itL->target != itR->target) {
+
+    const auto& lMap = L.getTargetToSource();
+    const auto& rMap = R.getTargetToSource();
+    for (auto itL = lMap.begin(), itR = rMap.begin();
+         itL != lMap.end() && itR != rMap.end(); ++itL, ++itR) {
+      if (itL->second != itR->second || itL->first != itR->first) {
         return false;
       }
     }

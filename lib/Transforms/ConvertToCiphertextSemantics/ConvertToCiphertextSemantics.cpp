@@ -1559,6 +1559,9 @@ class ConvertTensorExtractSlice
   LogicalResult matchAndRewrite(
       tensor::ExtractSliceOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter& rewriter) const final {
+    // If this is already materialized, then we can skip it.
+    if (hasMaterializedAttr(op)) return failure();
+
     // Extract a secret slice from a secret tensor.
     FailureOr<Attribute> sourceLayoutResult =
         getTypeConverter()->getContextualAttr(adaptor.getSource());
