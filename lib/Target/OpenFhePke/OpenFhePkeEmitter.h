@@ -96,6 +96,7 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(::mlir::affine::AffineForOp op);
   LogicalResult printOperation(::mlir::affine::AffineYieldOp op);
   LogicalResult printOperation(::mlir::arith::AddIOp op);
+  LogicalResult printOperation(::mlir::arith::AddFOp op);
   LogicalResult printOperation(::mlir::arith::AndIOp op);
   LogicalResult printOperation(::mlir::arith::CmpIOp op);
   LogicalResult printOperation(::mlir::arith::ConstantOp op);

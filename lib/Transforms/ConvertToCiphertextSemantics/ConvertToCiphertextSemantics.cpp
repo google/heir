@@ -540,7 +540,7 @@ struct ConvertLinalgMatvecLayout
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     IRMaterializingVisitor visitor(
         b, input.getType(),
-        [&](Operation* createdOp) { setMaterializedAttr(op); });
+        [&](Operation* createdOp) { setMaterializedAttr(createdOp); });
     Value finalOutput = implementedKernel->visit(visitor);
 
     auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
@@ -656,7 +656,7 @@ struct ConvertLinalgConv2D
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     IRMaterializingVisitor visitor(
         b, data.getType(),
-        [&](Operation* createdOp) { setMaterializedAttr(op); });
+        [&](Operation* createdOp) { setMaterializedAttr(createdOp); });
     Value finalOutput = implementedKernel->visit(visitor);
 
     auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
@@ -1833,6 +1833,13 @@ struct ConvertToCiphertextSemantics
     if (failed(applyPatternsGreedily(module, std::move(cleanupPatterns2)))) {
       return signalPassFailure();
     }
+
+    // Walk the IR to validate that there are no remaining unrealized conversion
+    // cast ops.
+    module->walk([&](UnrealizedConversionCastOp op) {
+      op->emitError() << "unexpected unrealized conversion cast op found";
+      signalPassFailure();
+    });
 
     clearAttrs(module, kLayoutAttrName);
     clearAttrs(module, kMaterializedAttrName);

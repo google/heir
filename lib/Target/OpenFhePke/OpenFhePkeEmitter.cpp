@@ -237,8 +237,8 @@ LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
           // Arith ops
           .Case<arith::ConstantOp, arith::ExtSIOp, arith::ExtUIOp,
                 arith::IndexCastOp, arith::ExtFOp, arith::RemSIOp,
-                arith::AddIOp, arith::AndIOp, arith::SubIOp, arith::MulIOp,
-                arith::DivSIOp, arith::CmpIOp, arith::SelectOp>(
+                arith::AddIOp, arith::AddFOp, arith::AndIOp, arith::SubIOp,
+                arith::MulIOp, arith::DivSIOp, arith::CmpIOp, arith::SelectOp>(
               [&](auto op) { return printOperation(op); })
           // SCF ops
           .Case<scf::IfOp, scf::ForOp, scf::YieldOp>(
@@ -248,7 +248,7 @@ LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
                 tensor::InsertSliceOp, tensor::ExtractOp,
                 tensor::ExtractSliceOp, tensor::SplatOp,
                 tensor::CollapseShapeOp, tensor::ExpandShapeOp,
-                tensor::FromElementsOp>(
+                tensor::FromElementsOp, tensor::ConcatOp>(
               [&](auto op) { return printOperation(op); })
           // LWE ops
           .Case<lwe::RLWEDecodeOp, lwe::ReinterpretApplicationDataOp>(
@@ -940,6 +940,10 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::AddIOp op) {
   return printBinaryOp(op, op.getLhs(), op.getRhs(), "+");
 }
 
+LogicalResult OpenFhePkeEmitter::printOperation(arith::AddFOp op) {
+  return printBinaryOp(op, op.getLhs(), op.getRhs(), "+");
+}
+
 LogicalResult OpenFhePkeEmitter::printOperation(arith::AndIOp op) {
   return printBinaryOp(op, op.getLhs(), op.getRhs(), "&&");
 }
@@ -993,21 +997,20 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::CmpIOp op) {
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(tensor::ConcatOp op) {
-  // concat dim(0) %foo, %foo, ...
-  // lower to a loop
-  auto operandType = cast<RankedTensorType>(op.getOperands()[0].getType());
+  // concat dim(0) %value1, %value2, ...
   auto resultType = op.getResult().getType();
   std::string varName = variableNames->getNameForValue(op.getResult());
-  if (resultType.getRank() != 1 || operandType.getRank() != 1) {
-    return failure();
-  }
+
   // std::vector<8192> result;
   if (failed(emitType(resultType, op->getLoc()))) {
     return failure();
   }
   os << " " << varName << ";\n";
 
+  // If all the operands are the same, we can just repeat the operand
+  // insertion in a loop to minimize code size.
   if (llvm::all_equal(op.getOperands())) {
+    auto operandType = cast<RankedTensorType>(op.getOperands()[0].getType());
     std::string operandName =
         variableNames->getNameForValue(op.getOperands()[0]);
     int64_t numRepeats =
@@ -1022,12 +1025,23 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::ConcatOp op) {
 
     os.unindent();
     os << "}\n";
+  }
+
+  // If we are concatenating on dimension 0, insert the operands
+  // one by one into the result vector.
+  if (op.getDim() == 0) {
+    for (auto operand : op.getOperands()) {
+      // result.insert(result.end(), foo.begin(), foo.end());
+      std::string operandName = variableNames->getNameForValue(operand);
+      os << varName << ".insert(" << varName << ".end(), " << operandName
+         << ".begin(), " << operandName << ".end());\n";
+    }
     return success();
   }
 
   // More complicated concat ops are not supported yet. The earlier lowerings
-  // should just produce concat for lack of a "repeat" op. Maybe we should make
-  // a tensor_ext.repeat op?
+  // should just produce concat for lack of a "repeat" op. Maybe we should
+  // make a tensor_ext.repeat op?
   return failure();
 }
 
@@ -1065,8 +1079,8 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::ExtractOp op) {
 
 LogicalResult OpenFhePkeEmitter::printOperation(
     ::mlir::tensor::CollapseShapeOp op) {
-  // A rank-reduced type will have the same number of elements so collapsing is
-  // a no-op on a flattened tensor.
+  // A rank-reduced type will have the same number of elements so collapsing
+  // is a no-op on a flattened tensor.
   SliceVerificationResult res =
       isRankReducedType(op.getSrcType(), op.getResultType());
   if (res != SliceVerificationResult::Success) {
@@ -1329,8 +1343,9 @@ LogicalResult OpenFhePkeEmitter::printOperation(
   if (failed(resultCC)) return resultCC;
   std::string cc = variableNames->getNameForValue(resultCC.value());
 
-  // In certain conditions, we might end up with the input being tensor<..xi64>
-  // which isn't a valid input type for MakeCKKSPackedPlaintext, so we convert
+  // In certain conditions, we might end up with the input being
+  // tensor<..xi64> which isn't a valid input type for
+  // MakeCKKSPackedPlaintext, so we convert
   if (getElementTypeOrSelf(op.getValue().getType()).isInteger()) {
     // This means we will have created a std::vector<int64_t>
     // but we need a std::vector<double>
@@ -1393,10 +1408,10 @@ FailureOr<std::pair<unsigned, int64_t>> getNonUnitDimension(
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(lwe::RLWEDecodeOp op) {
-  // In OpenFHE a plaintext is already decoded by decrypt. The internal OpenFHE
-  // implementation is simple enough (and dependent on currently-hard-coded
-  // encoding choices) that we will eventually need to work at a lower level of
-  // the API to support this operation properly.
+  // In OpenFHE a plaintext is already decoded by decrypt. The internal
+  // OpenFHE implementation is simple enough (and dependent on
+  // currently-hard-coded encoding choices) that we will eventually need to
+  // work at a lower level of the API to support this operation properly.
   bool isCKKS = llvm::isa<lwe::InverseCanonicalEncodingAttr>(op.getEncoding());
   auto tensorTy = dyn_cast<RankedTensorType>(op.getResult().getType());
   if (tensorTy) {

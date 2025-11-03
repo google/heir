@@ -35,6 +35,8 @@
 #include "lib/Transforms/ElementwiseToAffine/ElementwiseToAffine.h"
 #include "lib/Transforms/FoldConstantTensors/FoldConstantTensors.h"
 #include "lib/Transforms/FoldPlaintextMasks/FoldPlaintextMasks.h"
+#include "lib/Transforms/ForwardInsertSliceToExtractSlice/ForwardInsertSliceToExtractSlice.h"
+#include "lib/Transforms/ForwardInsertToExtract/ForwardInsertToExtract.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
 #include "lib/Transforms/GenerateParam/GenerateParam.h"
 #include "lib/Transforms/InlineActivations/InlineActivations.h"
@@ -113,6 +115,7 @@ void lowerAssignLayout(OpPassManager& pm, bool unroll = false) {
   pm.addNestedPass<func::FuncOp>(affine::createAffineExpandIndexOpsPass());
   pm.addNestedPass<func::FuncOp>(affine::createSimplifyAffineStructuresPass());
   pm.addNestedPass<func::FuncOp>(affine::createAffineLoopNormalizePass(true));
+  pm.addNestedPass<func::FuncOp>(createForwardInsertSliceToExtractSlice());
 
   // The lowered assign_layout ops involve plaintext operations that are still
   // inside secret.generic, and are not handled well by downstream noise models
@@ -169,6 +172,7 @@ void mlirToSecretArithmeticPipelineBuilder(
   pm.addPass(
       createConvertToCiphertextSemantics(convertToCiphertextSemanticsOptions));
 
+  pm.addPass(createApplyFolders());
   pm.addPass(createCanonicalizerPass());
   pm.addPass(tensor_ext::createImplementRotateAndReduce());
 
@@ -188,6 +192,7 @@ void mlirToSecretArithmeticPipelineBuilder(
   pm.addPass(createAddClientInterface(addClientInterfaceOptions));
 
   // Clean up after lowering assign_layout and various related packing code
+  pm.addPass(createApplyFolders());
   pm.addPass(createFoldConstantTensors());
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
@@ -384,6 +389,10 @@ void mlirToRLWEPipeline(OpPassManager& pm,
       llvm::errs() << "Unsupported RLWE scheme: " << scheme;
       exit(EXIT_FAILURE);
   }
+
+  pm.addPass(createForwardInsertToExtract());
+  pm.addPass(createCanonicalizerPass());
+  pm.addPass(createCSEPass());
 
   ElementwiseToAffineOptions elementwiseOptions;
   elementwiseOptions.convertDialects = {"ckks", "bgv", "lwe"};

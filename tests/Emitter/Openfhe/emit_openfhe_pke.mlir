@@ -293,8 +293,8 @@ module attributes {scheme.bgv} {
 // -----
 
 module attributes {scheme.bgv} {
-  // CHECK: test_concat
-  func.func @test_concat() -> tensor<64xi16> {
+  // CHECK: test_concat_same
+  func.func @test_concat_same() -> tensor<64xi16> {
     // CHECK: std::vector<int16_t> [[v0:.*]] =
     %cst = arith.constant dense<[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]> : tensor<32xi16>
     // CHECK: std::vector<int16_t> [[v1:.*]];
@@ -304,6 +304,41 @@ module attributes {scheme.bgv} {
     %v = tensor.concat dim(0) %cst, %cst : (tensor<32xi16>, tensor<32xi16>) -> tensor<64xi16>
 
     return %v : tensor<64xi16>
+  }
+}
+
+// -----
+
+module attributes {scheme.bgv} {
+  // CHECK: test_concat
+  func.func @test_concat() -> tensor<64xi16> {
+    // CHECK: std::vector<int16_t> [[c0:.*]] =
+    // CHECK: std::vector<int16_t> [[c1:.*]] =
+    %cst = arith.constant dense<[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]> : tensor<32xi16>
+    %cst0 = arith.constant dense<[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]> : tensor<32xi16>
+    // CHECK: std::vector<int16_t> [[v1:.*]];
+    // CHECK: [[v1]].insert([[v1]].end(), [[c0]].begin(), [[c0]].end());
+    // CHECK: [[v1]].insert([[v1]].end(), [[c1]].begin(), [[c1]].end());
+    %v = tensor.concat dim(0) %cst, %cst0 : (tensor<32xi16>, tensor<32xi16>) -> tensor<64xi16>
+
+    return %v : tensor<64xi16>
+  }
+}
+
+// -----
+
+module attributes {scheme.bgv} {
+  // CHECK: test_concat_multidim
+  func.func @test_concat_multidim() -> tensor<4x16xi16> {
+    // CHECK: std::vector<int16_t> [[c0:.*]] =
+    // CHECK: std::vector<int16_t> [[c1:.*]] =
+    %cst = arith.constant dense<[[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]]> : tensor<2x16xi16>
+    %cst0 = arith.constant dense<[[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]]> : tensor<2x16xi16>
+    // CHECK: std::vector<int16_t> [[v1:.*]];
+    // CHECK: [[v1]].insert([[v1]].end(), [[c0]].begin(), [[c0]].end());
+    // CHECK: [[v1]].insert([[v1]].end(), [[c1]].begin(), [[c1]].end());
+    %v = tensor.concat dim(0) %cst, %cst0 : (tensor<2x16xi16>, tensor<2x16xi16>) -> tensor<4x16xi16>
+    return %v : tensor<4x16xi16>
   }
 }
 

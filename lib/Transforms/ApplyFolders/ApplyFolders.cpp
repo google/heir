@@ -3,15 +3,26 @@
 #include <utility>
 
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/Transforms/Transforms.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
+
+// required for generated patterns
+#include "mlir/include/mlir/IR/Matchers.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
 
 #define GEN_PASS_DEF_APPLYFOLDERS
 #include "lib/Transforms/ApplyFolders/ApplyFolders.h.inc"
+
+namespace {
+
+// keep in anonymous namespace
+#include "lib/Transforms/ApplyFolders/Patterns.cpp.inc"
+
+}  // namespace
 
 struct ApplyFolders : impl::ApplyFoldersBase<ApplyFolders> {
   using ApplyFoldersBase::ApplyFoldersBase;
@@ -22,6 +33,12 @@ struct ApplyFolders : impl::ApplyFoldersBase<ApplyFolders> {
     tensor::ControlConstantExtractSliceFusionFn controlFn =
         [](tensor::ExtractSliceOp op) { return true; };
     tensor::populateFoldConstantExtractSlicePatterns(patterns, controlFn);
+    tensor::populateFoldTensorSubsetOpPatterns(patterns);
+    tensor::populateDecomposeTensorConcatPatterns(patterns);
+    tensor::populateFoldTensorEmptyPatterns(patterns);
+    tensor::populateDropRedundantInsertSliceRankExpansionPatterns(patterns);
+    tensor::populateMergeConsecutiveInsertExtractSlicePatterns(patterns);
+    populateWithGenerated(patterns);
     // Use the greedy pattern driver to apply folders.
     // TODO (#1221): Investigate whether folding (default: on) can be skipped
     // here.
