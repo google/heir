@@ -28,6 +28,8 @@ def OperationBalancer : Pass<"operation-balancer"> {
 
   This pass was inspired by section 2.6 of ['EVA Improved: Compiler and Extension
   Library for CKKS' by Chowdhary et al](https://eprint.iacr.org/2021/1505).
+
+  (* example filepath=tests/Transforms/operation_balancer/doctest.mlir *)
   }];
 }
 
