@@ -410,7 +410,12 @@ struct ConvertRlweEncodeOp : public OpConversionPattern<EncodeOp> {
         this->typeConverter->convertType(op.getOutput().getType()), params);
 
     auto encoding = op.getEncoding();
-    int64_t scale = lwe::getScalingFactorFromEncodingAttr(encoding);
+    // High-precision scale management (#2364): convert APInt to int64_t for
+    // Lattigo
+    auto scaleAPInt = lwe::getScalingFactorFromEncodingAttr(encoding);
+    int64_t scale = scaleAPInt.getBitWidth() <= 64
+                        ? scaleAPInt.getSExtValue()
+                        : scaleAPInt.getLimitedValue(INT64_MAX);
 
     SmallVector<NamedAttribute> dialectAttrs(op->getDialectAttrs());
     rewriter

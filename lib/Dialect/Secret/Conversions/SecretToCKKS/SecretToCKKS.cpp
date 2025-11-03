@@ -134,6 +134,8 @@ class SecretToCKKSTypeConverter
     auto* ctx = type.getContext();
     auto level = mgmtAttr.getLevel();
     auto dimension = mgmtAttr.getDimension();
+    // High-precision scale management (#2364): MgmtAttr now stores APInt
+    // Pass APInt directly to LWE encoding attributes (which now also use APInt)
     auto scale = mgmtAttr.getScale();
     auto tensorValueType = dyn_cast<RankedTensorType>(type.getValueType());
 

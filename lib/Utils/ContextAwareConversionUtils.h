@@ -277,8 +277,11 @@ class SecretGenericOpCipherPlainConversion
 
     Attribute ciphertextEncoding =
         ciphertextElementTy.getPlaintextSpace().getEncoding();
+    // High-precision scale management (#2364): pass APInt directly to LWE
+    // encoding
+    auto scaleAPInt = mgmtAttr.getScale();
     Attribute plaintextEncoding = lwe::getEncodingAttrWithNewScalingFactor(
-        ciphertextEncoding, mgmtAttr.getScale());
+        ciphertextEncoding, scaleAPInt);
 
     if (!plaintextEncoding) {
       return rewriter.notifyMatchFailure(

@@ -18,7 +18,7 @@ namespace mlir {
 namespace heir {
 namespace lwe {
 
-int64_t getScalingFactorFromEncodingAttr(Attribute encoding);
+llvm::APInt getScalingFactorFromEncodingAttr(Attribute encoding);
 
 PlaintextSpaceAttr inferMulOpPlaintextSpaceAttr(MLIRContext* ctx,
                                                 PlaintextSpaceAttr x,
@@ -28,7 +28,7 @@ PlaintextSpaceAttr inferModulusSwitchOrRescaleOpPlaintextSpaceAttr(
     MLIRContext* ctx, PlaintextSpaceAttr x, APInt dividedModulus);
 
 Attribute getEncodingAttrWithNewScalingFactor(Attribute encoding,
-                                              int64_t newScale);
+                                              const llvm::APInt& newScale);
 
 }  // namespace lwe
 }  // namespace heir

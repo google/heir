@@ -1359,8 +1359,10 @@ LogicalResult LattigoEmitter::printOperation(CKKSEncodeOp op) {
   // set the scale of plaintext
   auto scale = op.getScale();
   os << plaintextName << ".Scale = ";
-  os << getName(newPlaintextOp.getParams()) << ".NewScale(math.Pow(2, ";
-  os << scale << "))\n";
+  // High-precision scale management (#2364): scale is now an actual value, not
+  // log scale Emit the scale directly instead of math.Pow(2, scale)
+  os << getName(newPlaintextOp.getParams()) << ".NewScale(";
+  os << scale << ")\n";
 
   os << getName(op.getEncoder()) << ".Encode(";
   os << packedName << ", ";

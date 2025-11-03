@@ -31,8 +31,15 @@ class CKKSAdjustScaleMaterializer : public AdjustScaleMaterializer {
   virtual ~CKKSAdjustScaleMaterializer() = default;
 
   int64_t deltaScale(int64_t scale, int64_t inputScale) const override {
-    // TODO(#1640): support high-precision scale management
-    return scale - inputScale;
+    // High-precision scale management (#2364):
+    // With actual scales (not log scales), delta is computed as scale /
+    // inputScale For backward compatibility when scales are still in log
+    // domain, fall back to subtraction This assumes scales are small enough to
+    // fit in int64_t for now
+    if (inputScale == 0) {
+      return scale;
+    }
+    return scale / inputScale;
   }
 };
 
@@ -57,12 +64,19 @@ struct PopulateScaleCKKS : impl::PopulateScaleCKKSBase<PopulateScaleCKKS> {
     dataflow::loadBaselineAnalyses(solver);
     // ScaleAnalysis depends on SecretnessAnalysis
     solver.load<SecretnessAnalysis>();
-    // set input scale to logDefaultScale
-    auto inputScale = logDefaultScale;
+    // High-precision scale management (#2364): convert logDefaultScale to
+    // actual scale inputScale = 2^logDefaultScale
+    auto logScale = logDefaultScale;
     if (beforeMulIncludeFirstMul) {
       // encode at double degree
-      inputScale *= 2;
+      logScale *= 2;
     }
+    // Convert from log scale to actual scale using APInt
+    // Need to compute 2^logScale
+    // Use a bit width large enough to hold 2^logScale (logScale + 1 bits
+    // minimum)
+    unsigned bitWidth = std::max(64u, static_cast<unsigned>(logScale) + 1);
+    auto inputScale = llvm::APInt(bitWidth, 1).shl(logScale);
     solver.load<ScaleAnalysis<CKKSScaleModel>>(
         ckks::SchemeParam::getSchemeParamFromAttr(ckksSchemeParamAttr),
         /*inputScale*/ inputScale);

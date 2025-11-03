@@ -3,11 +3,11 @@
 // CHECK: func.func @func
 // CHECK:      %[[GENERIC:.*]] = secret.generic(%{{.*}}, %{{.*}}) {
 // CHECK:      ^body(%[[ARG0:.*]]: i16, %[[ARG1:.*]]: i16):
-// CHECK-NEXT:   %[[MUL:.*]] = arith.muli %[[ARG0]], %[[ARG1]] {mgmt.mgmt = #mgmt.mgmt<level = 1, dimension = 3>} : i16
-// CHECK-NEXT:   %[[RELIN:.*]] = mgmt.relinearize %[[MUL]] {mgmt.mgmt = #mgmt.mgmt<level = 1>} : i16
-// CHECK-NEXT:   %[[ADJUST:.*]] = mgmt.adjust_scale %[[ARG1]] {id = 0 : i64, mgmt.mgmt = #mgmt.mgmt<level = 1>} : i16
-// CHECK-NEXT:   %[[ADD:.*]] = arith.addi %[[RELIN]], %[[ADJUST]] {mgmt.mgmt = #mgmt.mgmt<level = 1>} : i16
-// CHECK-NEXT:   %[[MODRED:.*]] = mgmt.modreduce %[[ADD]] {mgmt.mgmt = #mgmt.mgmt<level = 0>} : i16
+// CHECK-NEXT:   %[[MUL:.*]] = arith.muli %[[ARG0]], %[[ARG1]] {mgmt.mgmt = #mgmt.mgmt<level = 1, dimension = 3, scale = 0>} : i16
+// CHECK-NEXT:   %[[RELIN:.*]] = mgmt.relinearize %[[MUL]] {mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 0>} : i16
+// CHECK-NEXT:   %[[ADJUST:.*]] = mgmt.adjust_scale %[[ARG1]] {id = 0 : i64, mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 0>} : i16
+// CHECK-NEXT:   %[[ADD:.*]] = arith.addi %[[RELIN]], %[[ADJUST]] {mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 0>} : i16
+// CHECK-NEXT:   %[[MODRED:.*]] = mgmt.modreduce %[[ADD]] {mgmt.mgmt = #mgmt.mgmt<level = 0, scale = 0>} : i16
 // CHECK-NEXT:   secret.yield %[[MODRED]] : i16
 // CHECK:      return
 func.func @func(%arg0: !secret.secret<i16>, %arg1: !secret.secret<i16>) -> !secret.secret<i16> {
