@@ -99,6 +99,16 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "MultiplicativeDepthVisitor",
+    srcs = ["MultiplicativeDepthVisitor.cpp"],
+    hdrs = ["MultiplicativeDepthVisitor.h"],
+    deps = [
+        ":AbstractValue",
+        ":ArithmeticDag",
+    ],
+)
+
 cc_test(
     name = "KernelImplementationTest",
     srcs = [
@@ -127,6 +137,19 @@ cc_test(
         ":Kernel",
         ":KernelImplementation",
         ":RotationCountVisitor",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "MultiplicativeDepthTest",
+    srcs = ["MultiplicativeDepthTest.cpp"],
+    deps = [
+        ":AbstractValue",
+        ":ArithmeticDag",
+        ":Kernel",
+        ":KernelImplementation",
+        ":MultiplicativeDepthVisitor",
         "@googletest//:gtest_main",
     ],
 )
