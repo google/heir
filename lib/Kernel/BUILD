@@ -131,3 +131,16 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_test(
+    name = "RotateAndReduceFuzzTest",
+    srcs = ["RotateAndReduceFuzzTest.cpp"],
+    deps = [
+        ":AbstractValue",
+        ":ArithmeticDag",
+        ":KernelImplementation",
+        ":TestingUtils",
+        "@fuzztest//fuzztest",
+        "@googletest//:gtest_main",
+    ],
+)

@@ -39,11 +39,11 @@ LiteralValue EvalVisitor::operator()(const LeafNode<LiteralValue>& node) {
     assert(matVal->size() == node.value.getShape()[0]);
   }
 
-  std::cout << "Leaf node with shape: ";
-  for (auto dim : node.value.getShape()) {
-    std::cout << dim << " ";
-  }
-  std::cout << "\n";
+  // std::cout << "Leaf node with shape: ";
+  // for (auto dim : node.value.getShape()) {
+  //   std::cout << dim << " ";
+  // }
+  // std::cout << "\n";
 
   return node.value.getTensor();
 }
@@ -65,13 +65,13 @@ LiteralValue EvalVisitor::operator()(const AddNode<LiteralValue>& node) {
     result[i] = (*lVec)[i] + (*rVec)[i];
   }
 
-  std::cout << "Add lhs=";
-  printVec(*lVec);
-  std::cout << " rhs=";
-  printVec(*rVec);
-  std::cout << " result=";
-  printVec(result);
-  std::cout << "\n";
+  // std::cout << "Add lhs=";
+  // printVec(*lVec);
+  // std::cout << " rhs=";
+  // printVec(*rVec);
+  // std::cout << " result=";
+  // printVec(result);
+  // std::cout << "\n";
 
   return result;
 }
@@ -91,13 +91,13 @@ LiteralValue EvalVisitor::operator()(const SubtractNode<LiteralValue>& node) {
     result[i] = (*lVec)[i] - (*rVec)[i];
   }
 
-  std::cout << "Sub lhs=";
-  printVec(*lVec);
-  std::cout << " rhs=";
-  printVec(*rVec);
-  std::cout << " result=";
-  printVec(result);
-  std::cout << "\n";
+  // std::cout << "Sub lhs=";
+  // printVec(*lVec);
+  // std::cout << " rhs=";
+  // printVec(*rVec);
+  // std::cout << " result=";
+  // printVec(result);
+  // std::cout << "\n";
   return result;
 }
 
@@ -115,13 +115,13 @@ LiteralValue EvalVisitor::operator()(const MultiplyNode<LiteralValue>& node) {
   for (size_t i = 0; i < dim; ++i) {
     result[i] = (*lVec)[i] * (*rVec)[i];
   }
-  std::cout << "Mul lhs=";
-  printVec(*lVec);
-  std::cout << " rhs=";
-  printVec(*rVec);
-  std::cout << " result=";
-  printVec(result);
-  std::cout << "\n";
+  // std::cout << "Mul lhs=";
+  // printVec(*lVec);
+  // std::cout << " rhs=";
+  // printVec(*rVec);
+  // std::cout << " result=";
+  // printVec(result);
+  // std::cout << "\n";
   return result;
 }
 
@@ -141,12 +141,12 @@ LiteralValue EvalVisitor::operator()(const LeftRotateNode<LiteralValue>& node) {
     result[i] = (*oVec)[(i + amount) % oVec->size()];
   }
 
-  std::cout << "Rot vec=";
-  printVec(*oVec);
-  std::cout << " shift=" << amount;
-  std::cout << " result=";
-  printVec(result);
-  std::cout << "\n";
+  // std::cout << "Rot vec=";
+  // printVec(*oVec);
+  // std::cout << " shift=" << amount;
+  // std::cout << " result=";
+  // printVec(result);
+  // std::cout << "\n";
   return result;
 }
 
@@ -173,9 +173,9 @@ LiteralValue EvalVisitor::operator()(const ConstantTensorNode& node) {
   for (double v : node.value) {
     vec.push_back(static_cast<int>(v));
   }
-  std::cout << "Const vec=";
-  printVec(vec);
-  std::cout << "\n";
+  // std::cout << "Const vec=";
+  // printVec(vec);
+  // std::cout << "\n";
   return LiteralValue(vec);
 }
 

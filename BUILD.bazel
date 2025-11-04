@@ -2,6 +2,7 @@
 
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("@rules_license//rules:license.bzl", "license")
+# copybara: fuzztest_ci
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -20,6 +21,8 @@ package_group(
     name = "internal",
     packages = [],
 )
+
+# copybara: fuzztest_ci_invocation
 
 # Disables deps for CI tools and tests.
 # use by passing `--//:enable_openmp=0` or `--//:enable_yosys=0`
