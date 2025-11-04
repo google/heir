@@ -67,17 +67,13 @@ struct FoldSequentialExtractInsertIntoRotate
     LLVM_DEBUG(llvm::dbgs() << "Visiting insert op: " << insertOp << "\n");
     auto extractOp = insertOp.getScalar().getDefiningOp<tensor::ExtractOp>();
     if (!extractOp) {
-      LLVM_DEBUG(llvm::dbgs()
-                 << "Insert op " << insertOp
-                 << " is not directly operating on an extract op.\n");
-      return failure();
+      return rewriter.notifyMatchFailure(
+          insertOp, "insert op does not source from an extract op");
     }
 
     auto shiftRes = calculateShift(insertOp, extractOp);
     if (failed(shiftRes)) {
-      LLVM_DEBUG(llvm::dbgs()
-                 << "Insert op " << insertOp << " has incalculable shift\n");
-      return failure();
+      return rewriter.notifyMatchFailure(insertOp, "failed to calculate shift");
     }
 
     int64_t shift = shiftRes.value();
@@ -121,12 +117,19 @@ struct FoldSequentialExtractInsertIntoRotate
 
           // We're inserting into this tensor from a different tensor than
           // earlier insertions in the chain, so we can't continue.
-          if (nextExtract.getTensor() != extractionSource) return failure();
+          if (nextExtract.getTensor() != extractionSource) {
+            return rewriter.notifyMatchFailure(
+                insertOp, "insertion chain has mismatched source tensor");
+          }
 
           auto nextShiftRes = calculateShift(nextInsert, nextExtract);
-          if (failed(nextShiftRes)) return failure();
+          if (failed(nextShiftRes))
+            return rewriter.notifyMatchFailure(
+                insertOp, "failed to calculate shift for next insert in chain");
 
-          if (nextShiftRes.value() != shift) return failure();
+          if (nextShiftRes.value() != shift)
+            return rewriter.notifyMatchFailure(
+                insertOp, "insertion chain has mismatched shift");
 
           accessedIndices.insert(get1DExtractionIndex(nextInsert).value());
           current = nextInsert;
@@ -159,7 +162,8 @@ struct FoldSequentialExtractInsertIntoRotate
       LLVM_DEBUG(llvm::dbgs()
                  << "Chain has only " << accessedIndices.size()
                  << " accessed indices, but tensor has " << tensorSize << "\n");
-      return failure();
+      return rewriter.notifyMatchFailure(
+          insertOp, "insertion chain does not cover all elements of tensor");
     }
 
     // The last insertion must be replaced because its user is the final end

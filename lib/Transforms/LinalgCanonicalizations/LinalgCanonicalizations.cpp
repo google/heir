@@ -52,10 +52,14 @@ struct FoldConstantLinalgTranspose
 
     auto defConstantOp =
         transposeOp.getInput().getDefiningOp<arith::ConstantOp>();
-    if (!defConstantOp) return failure();
+    if (!defConstantOp)
+      return rewriter.notifyMatchFailure(transposeOp,
+                                         "transpose input must be a constant");
     DenseElementsAttr denseAttr =
         dyn_cast<DenseElementsAttr>(defConstantOp.getValueAttr());
-    if (!denseAttr) return failure();
+    if (!denseAttr)
+      return rewriter.notifyMatchFailure(
+          transposeOp, "constant input must be a dense elements attribute");
 
     auto elementType = denseAttr.getElementType();
     if (elementType.isIntOrIndexOrFloat()) {
@@ -118,7 +122,7 @@ struct FoldConstantLinalgTranspose
       rewriter.replaceOp(transposeOp, transposedConstantOp.getResult());
       return success();
     }
-    return failure();
+    return rewriter.notifyMatchFailure(transposeOp, "unsupported element type");
   }
 
  private:
@@ -191,7 +195,9 @@ struct FoldConstantFill : public OpRewritePattern<mlir::linalg::FillOp> {
   LogicalResult matchAndRewrite(mlir::linalg::FillOp fillOp,
                                 PatternRewriter& rewriter) const override {
     auto value = getAsOpFoldResult(fillOp.getInputs()[0]);
-    if (isa<Value>(value)) return failure();
+    if (isa<Value>(value))
+      return rewriter.notifyMatchFailure(fillOp,
+                                         "fill value must be a constant");
     if (fillOp.getResults().empty()) {
       // memref semantics
       return rewriter.notifyMatchFailure(
@@ -216,13 +222,17 @@ struct FoldConstantBroadcast
   LogicalResult matchAndRewrite(mlir::linalg::BroadcastOp broadcastOp,
                                 PatternRewriter& rewriter) const override {
     auto value = getAsOpFoldResult(broadcastOp.getInput());
-    if (isa<Value>(value)) return failure();
+    if (isa<Value>(value))
+      return rewriter.notifyMatchFailure(broadcastOp,
+                                         "broadcast input must be a constant");
     auto outputTy = cast<RankedTensorType>(broadcastOp.getResultTypes()[0]);
 
     // Replace with the new broadcasted constant.
     // For now, only handle splats.
     auto splatInput = dyn_cast<SplatElementsAttr>(cast<Attribute>(value));
-    if (!splatInput) return failure();
+    if (!splatInput)
+      return rewriter.notifyMatchFailure(
+          broadcastOp, "broadcast input must be a splat attribute");
 
     auto broadcastedInput =
         SplatElementsAttr::get(outputTy, splatInput.getSplatValue<Attribute>());
@@ -247,11 +257,15 @@ struct LinalgMapToElementwise : public OpRewritePattern<mlir::linalg::MapOp> {
     auto dest = mapOp.getInit();
     // The mapper should have exactly two operations (the second is a yield).
     auto* mapper = mapOp.getBody(0);
-    if (mapper->getOperations().size() != 2) return failure();
+    if (mapper->getOperations().size() != 2)
+      return rewriter.notifyMatchFailure(
+          mapOp, "mapper block must have exactly two operations");
 
     // The operation should be elementwise.
     Operation& op = mapper->getOperations().front();
-    if (!op.hasTrait<mlir::OpTrait::Elementwise>()) return failure();
+    if (!op.hasTrait<mlir::OpTrait::Elementwise>())
+      return rewriter.notifyMatchFailure(
+          mapOp, "operation in mapper must be elementwise");
 
     auto* elementwiseOp = rewriter.create(
         mapOp->getLoc(), op.getName().getIdentifier(), mapOp.getInputs(),
@@ -385,7 +399,9 @@ struct BroadcastToExpandShape
     // expand_shape.
     SliceVerificationResult res = isRankReducedType(
         broadcastOp.getInit().getType(), broadcastOp.getInput().getType());
-    if (res != SliceVerificationResult::Success) return failure();
+    if (res != SliceVerificationResult::Success)
+      return rewriter.notifyMatchFailure(
+          broadcastOp, "broadcast must be a rank-reducing broadcast");
 
     SmallVector<ReassociationIndices> expandingMap =
         getReassociationForReshapeAtDim(
@@ -410,7 +426,9 @@ struct RewriteTransposedVecmat
                                 PatternRewriter& rewriter) const override {
     auto transposeOp =
         vecmatOp.getInputs()[1].getDefiningOp<linalg::TransposeOp>();
-    if (!transposeOp) return failure();
+    if (!transposeOp)
+      return rewriter.notifyMatchFailure(
+          vecmatOp, "second input to vecmat must be a transpose op");
 
     rewriter.replaceOpWithNewOp<linalg::MatvecOp>(
         vecmatOp, vecmatOp.getResultTypes()[0],
@@ -432,7 +450,9 @@ struct RewriteTransposedMatvec
                                 PatternRewriter& rewriter) const override {
     auto transposeOp =
         matvecOp.getInputs()[0].getDefiningOp<linalg::TransposeOp>();
-    if (!transposeOp) return failure();
+    if (!transposeOp)
+      return rewriter.notifyMatchFailure(
+          matvecOp, "first input to matvec must be a transpose op");
 
     rewriter.replaceOpWithNewOp<linalg::VecmatOp>(
         matvecOp, matvecOp.getResultTypes()[0],

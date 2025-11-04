@@ -85,7 +85,8 @@ struct AddCryptoContextArg : public OpConversionPattern<func::FuncOp> {
         containsArgumentOfDialect<lwe::LWEDialect, bgv::BGVDialect,
                                   ckks::CKKSDialect>(op);
     if (!(containsCryptoOps || containsCryptoArg)) {
-      return failure();
+      return rewriter.notifyMatchFailure(
+          op, "contains neither ops nor arg types from lwe/bgv/ckks dialects");
     }
 
     auto cryptoContextType = openfhe::CryptoContextType::get(getContext());
@@ -239,7 +240,10 @@ struct ConvertEncodeOp : public OpConversionPattern<lwe::RLWEEncodeOp> {
           // TODO (#1192): support coefficient packing in `--lwe-to-openfhe`
           op.emitError() << "HEIR does not yet support coefficient encoding "
                             " when targeting OpenFHE";
-          return failure();
+          return rewriter.notifyMatchFailure(
+              op,
+              "HEIR does not yet support coefficient encoding when targeting "
+              "OpenFHE");
         })
         .Case<lwe::FullCRTPackingEncodingAttr>([&](auto encoding) {
           rewriter.replaceOpWithNewOp<openfhe::MakePackedPlaintextOp>(
@@ -252,7 +256,7 @@ struct ConvertEncodeOp : public OpConversionPattern<lwe::RLWEEncodeOp> {
               "Unexpected encoding while targeting OpenFHE. "
               "If you expect this type of encoding to be supported "
               "for the OpenFHE backend, please file a bug report.");
-          return failure();
+          return rewriter.notifyMatchFailure(op, "Unknown encoding");
         });
   }
 };
@@ -267,7 +271,9 @@ struct ConvertBootstrapOp : public OpConversionPattern<ckks::BootstrapOp> {
       ckks::BootstrapOp op, ckks::BootstrapOp::Adaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
-    if (failed(result)) return result;
+    if (failed(result)) {
+      return rewriter.notifyMatchFailure(op, "No crypto context arg");
+    }
 
     Value cryptoContext = result.value();
     rewriter.replaceOpWithNewOp<openfhe::BootstrapOp>(

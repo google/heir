@@ -400,7 +400,8 @@ class SecretGenericOpTensorInsertConversion
     if (!isa<lwe::LWECiphertextType>(toTensor.getType().getElementType())) {
       // We may be inserting into a tensor initialized with plaintexts. The
       // pattern ConvertPlaintextTensorInsertOp should apply first.
-      return failure();
+      return rewriter.notifyMatchFailure(
+          op, "tensor element type is not a ciphertext");
     }
     auto* newOp = convertWriteOpInterface(
         insertOp, {insertOp.getIndices().begin(), insertOp.getIndices().end()},
@@ -552,7 +553,7 @@ struct ConvertSecretCastOp
       }
     }
 
-    return failure();
+    return rewriter.notifyMatchFailure(op, "unsupported operand types");
   }
 };
 
@@ -690,7 +691,8 @@ struct ConvertFromElementsOp
     auto tensorTy = cast<TensorType>(outputTypes[0]);
     auto ctTy = dyn_cast<lwe::LWECiphertextType>(tensorTy.getElementType());
     if (!ctTy) {
-      return failure();
+      return rewriter.notifyMatchFailure(
+          op, "tensor element type must be a ciphertext");
     }
 
     auto ptTy = lwe::LWEPlaintextType::get(
@@ -745,7 +747,7 @@ struct ConvertFromElementsOp
     }
     // Otherwise, there are many tensor operands that will need to be
     // concatenated.
-    return failure();
+    return rewriter.notifyMatchFailure(op, "too many tensor operands");
   }
 };
 

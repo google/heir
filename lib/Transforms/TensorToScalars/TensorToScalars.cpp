@@ -104,7 +104,9 @@ class ConvertFromElementsOp
       tensor::FromElementsOp op, OneToNOpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     // Conversion has no Conversion-level illegality handling
-    if (typeConverter->isLegal(op.getOperation())) return failure();
+    if (typeConverter->isLegal(op.getOperation()))
+      return rewriter.notifyMatchFailure(
+          op, "op is legal, cannot apply conversion");
     // This pass only operates on tensors of static shape,
     // but no check is necessary here as from_elements' shape is always static
     // Replace the current op with the flattened operands.
@@ -122,10 +124,13 @@ class ConvertInsertOp : public OpConversionPattern<tensor::InsertOp> {
       tensor::InsertOp op, OneToNOpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     // Conversion has no Conversion-level illegality handling
-    if (typeConverter->isLegal(op.getOperation())) return failure();
+    if (typeConverter->isLegal(op.getOperation()))
+      return rewriter.notifyMatchFailure(
+          op, "op is legal, cannot apply conversion");
 
     // This pass only operates on tensors of static shape
-    if (!op.getResult().getType().hasStaticShape()) return failure();
+    if (!op.getResult().getType().hasStaticShape())
+      return rewriter.notifyMatchFailure(op, "result must have a static shape");
 
     // Compute the insertion offset (in dimension-by-dimension order):
     int64_t multiplier = 1;
@@ -135,7 +140,8 @@ class ConvertInsertOp : public OpConversionPattern<tensor::InsertOp> {
       // We can only support statically known indices
       // that have been constant-folded to a single arith.constant op
       auto cidx = idx.getDefiningOp<arith::ConstantIndexOp>();
-      if (!cidx) return failure();
+      if (!cidx)
+        return rewriter.notifyMatchFailure(op, "index must be a constant");
       offset += cidx.value() * multiplier;
       multiplier *= dim;
     }
@@ -158,10 +164,13 @@ class ConvertExtractOp : public OpConversionPattern<tensor::ExtractOp> {
       tensor::ExtractOp op, OneToNOpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     // Conversion has no Conversion-level illegality handling
-    if (typeConverter->isLegal(op.getOperation())) return failure();
+    if (typeConverter->isLegal(op.getOperation()))
+      return rewriter.notifyMatchFailure(
+          op, "op is legal, cannot apply conversion");
 
     // This pass only operates on tensors of static shape
-    if (!op.getTensor().getType().hasStaticShape()) return failure();
+    if (!op.getTensor().getType().hasStaticShape())
+      return rewriter.notifyMatchFailure(op, "tensor must have a static shape");
 
     // Compute the extraction offset (in dimension-by-dimension order):
     int64_t multiplier = 1;
@@ -173,7 +182,8 @@ class ConvertExtractOp : public OpConversionPattern<tensor::ExtractOp> {
       // We can only support statically known indices
       // that have been constant-folded to a single arith.constant op
       auto constantIdx = dyn_cast<Attribute>(idx);
-      if (!constantIdx) return failure();
+      if (!constantIdx)
+        return rewriter.notifyMatchFailure(op, "index must be a constant");
       offset += cast<IntegerAttr>(constantIdx).getInt() * multiplier;
       multiplier *= dim;
     }
@@ -194,18 +204,24 @@ class ConvertConstantOp : public OpConversionPattern<arith::ConstantOp> {
       arith::ConstantOp op, OneToNOpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     // Conversion has no Conversion-level illegality handling
-    if (typeConverter->isLegal(op.getOperation())) return failure();
+    if (typeConverter->isLegal(op.getOperation()))
+      return rewriter.notifyMatchFailure(
+          op, "op is legal, cannot apply conversion");
 
     RankedTensorType tensorType = dyn_cast<RankedTensorType>(op.getType());
     if (!tensorType) {
-      return failure();
+      return rewriter.notifyMatchFailure(op,
+                                         "constant must be a ranked tensor");
     }
 
     // This pass only operates on tensors of static shape
-    if (!tensorType.hasStaticShape()) return failure();
+    if (!tensorType.hasStaticShape())
+      return rewriter.notifyMatchFailure(op, "tensor must have a static shape");
 
     auto elementsAttr = dyn_cast<DenseElementsAttr>(op.getValueAttr());
-    if (!elementsAttr) return failure();
+    if (!elementsAttr)
+      return rewriter.notifyMatchFailure(
+          op, "constant must be a dense elements attribute");
 
     // Replace the current op with flattened constants.
     SmallVector<Value> constants;

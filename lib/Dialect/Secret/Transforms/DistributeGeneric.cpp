@@ -70,11 +70,13 @@ struct FoldSecretSeparators : public OpRewritePattern<GenericOp> {
     auto& operations = op.getBody()->getOperations();
     if (operations.size() != 2 ||
         !isa<secret::SeparatorOp>(operations.front())) {
-      return failure();
+      return rewriter.notifyMatchFailure(
+          op, "generic must contain only a separator op");
     }
 
     if (op.getNumResults() > 0) {
-      return failure();
+      return rewriter.notifyMatchFailure(
+          op, "generic with separator op cannot have results");
     }
     rewriter.eraseOp(op);
     return success();
@@ -609,7 +611,8 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
     // regions, noting that we check for 2 ops because the last op is enforced
     // to be a yield op by the verifier.
     if (numOps == 2 && body->front().getRegions().empty()) {
-      return failure();
+      return rewriter.notifyMatchFailure(
+          op, "generic has only one op with no regions");
     }
 
     Operation* opToDistribute = nullptr;
@@ -633,7 +636,9 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
 
     // Base case: if none of a generic op's member ops are in the list of ops
     // to process, stop.
-    if (opToDistribute == nullptr) return failure();
+    if (opToDistribute == nullptr)
+      return rewriter.notifyMatchFailure(
+          op, "no ops to distribute found in generic");
 
     if (numOps == 2 && !opToDistribute->getRegions().empty()) {
       LLVM_DEBUG(opToDistribute->emitRemark()
@@ -642,7 +647,8 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       LogicalResult result =
           distributeThroughRegionHoldingOp(op, *opToDistribute, rewriter);
       if (failed(result)) {
-        return failure();
+        return rewriter.notifyMatchFailure(
+            op, "failed to distribute through region holding op");
       }
     } else if (first) {
       splitGenericAfterFirstOp(op, rewriter);

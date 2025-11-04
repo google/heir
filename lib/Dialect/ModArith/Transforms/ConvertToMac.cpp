@@ -31,7 +31,8 @@ struct FindMac : public OpRewritePattern<mod_arith::AddOp> {
     if (!parent) {
       auto parentRhs = op.getRhs().getDefiningOp<mod_arith::MulOp>();
       if (!parentRhs) {
-        return failure();
+        return rewriter.notifyMatchFailure(
+            op, "neither operand is a mod_arith.mul operation");
       }
       // Find we have a form of lhs + a x b
       parent = parentRhs;

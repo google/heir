@@ -123,7 +123,8 @@ struct ConvertRLWEDecrypt : public OpConversionPattern<RLWEDecryptOp> {
       // TODO (#882): For TFHE, which can support higher dimensional keys,
       // plaintexts, and ciphertexts, we need to add support for encrypt and
       // decrypt for those cases.
-      return failure();
+      return rewriter.notifyMatchFailure(op,
+                                         "expected 2 dimensional ciphertext");
     }
 
     ImplicitLocOpBuilder builder(loc, rewriter);
@@ -239,7 +240,8 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
       if (!plaintextModArithType) {
         op.emitError() << "Unsupported plaintext coefficient type: "
                        << plaintextCoeffType;
-        return failure();
+        return rewriter.notifyMatchFailure(
+            op, "unsupported plaintext coefficient type");
       }
 
       // create scalar constant T in the output coefficient space
@@ -285,6 +287,8 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
                << "`lwe.rlwe_encrypt` only supports secret keys with a single "
                   "polynomial, got secret key type "
                << key.getType();
+        return rewriter.notifyMatchFailure(
+            op, "secret key has more than one polynomial");
       }
 
       // Generate random e polynomial from discrete gaussian distribution
@@ -405,7 +409,7 @@ struct ConvertRNegate : public OpConversionPattern<RNegateOp> {
             });
 
     if (failed(neg)) {
-      return failure();
+      return rewriter.notifyMatchFailure(op, "unsupported coefficient type");
     }
 
     rewriter.replaceOp(op, polynomial::MulScalarOp::create(
@@ -431,12 +435,11 @@ struct ConvertRMul : public OpConversionPattern<RMulOp> {
     if (xT.getNumElements() != 2 || yT.getNumElements() != 2) {
       op.emitError() << "`lwe.rmul` expects ciphertext as two polynomials, got "
                      << xT.getNumElements() << " and " << yT.getNumElements();
-      return failure();
+      return rewriter.notifyMatchFailure(op, "ciphertext not two polynomials");
     }
 
     if (xT.getElementType() != yT.getElementType()) {
-      op->emitOpError() << "`lwe.rmul` expects operands of the same type";
-      return failure();
+      return rewriter.notifyMatchFailure(op, "operands not of same type");
     }
 
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
@@ -485,7 +488,8 @@ struct ConvertRMulPlain : public OpConversionPattern<RMulPlainOp> {
       op.emitError() << "`lwe.rmul_plain` expects ciphertext as two "
                         "polynomials and plaintext as 1, got "
                      << xT.getNumElements() << " and " << yT.getNumElements();
-      return failure();
+      return rewriter.notifyMatchFailure(
+          op, "ciphertext not two polynomials or plaintext not one polynomial");
     }
 
     ImplicitLocOpBuilder b(op->getLoc(), rewriter);
@@ -509,7 +513,7 @@ struct ConvertRelin : public OpConversionPattern<ckks::RelinearizeOp> {
       ckks::RelinearizeOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     if (!op.getKeySwitchingKey()) {
-      return failure();
+      return rewriter.notifyMatchFailure(op, "no key switching key provided");
     }
 
     Value zero = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), 0);

@@ -152,7 +152,7 @@ struct RemoveKeyArg : public OpRewritePattern<func::FuncOp> {
     }
 
     if (argsToErase.none()) {
-      return failure();
+      return rewriter.notifyMatchFailure(op, "no key arguments to erase");
     }
 
     rewriter.modifyOpInPlace(op, [&] { (void)op.eraseArguments(argsToErase); });
@@ -442,7 +442,7 @@ struct ConvertRlweDecodeOp : public OpConversionPattern<DecodeOp> {
 
     auto zeroAttr = rewriter.getZeroAttr(outputTensorType);
     if (!zeroAttr) {
-      return op.emitOpError() << "Unsupported type for lowering";
+      return rewriter.notifyMatchFailure(op, "Unsupported type for lowering");
     }
     auto alloc =
         AllocOp::create(rewriter, op.getLoc(), outputTensorType, zeroAttr);

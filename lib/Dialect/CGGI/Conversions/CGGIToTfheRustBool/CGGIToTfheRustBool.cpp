@@ -81,7 +81,8 @@ struct AddBoolServerKeyArg : public OpConversionPattern<func::FuncOp> {
       func::FuncOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     if (!containsDialects<lwe::LWEDialect, cggi::CGGIDialect>(op)) {
-      return failure();
+      return rewriter.notifyMatchFailure(
+          op, "op does not contain lwe or cggi dialects");
     }
 
     Type serverKeyType = tfhe_rust_bool::ServerKeyType::get(getContext());

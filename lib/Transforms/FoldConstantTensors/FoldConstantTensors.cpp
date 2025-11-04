@@ -53,20 +53,26 @@ class InsertAfterConstant final : public OpRewritePattern<tensor::InsertOp> {
     // Requires a ranked tensor type.
     auto destType =
         llvm::dyn_cast<RankedTensorType>(insertOp.getDest().getType());
-    if (!destType) return failure();
+    if (!destType)
+      return rewriter.notifyMatchFailure(insertOp,
+                                         "destination must be a ranked tensor");
 
     // Pattern requires constant indices
     SmallVector<uint64_t> indices;
     for (OpFoldResult indice : getAsOpFoldResult(insertOp.getIndices())) {
       auto indiceAttr = dyn_cast<Attribute>(indice);
-      if (!indiceAttr) return failure();
+      if (!indiceAttr)
+        return rewriter.notifyMatchFailure(insertOp,
+                                           "indices must be constant");
       indices.push_back(llvm::cast<IntegerAttr>(indiceAttr).getInt());
     }
 
     // Requires a constant scalar to insert
     OpFoldResult scalar = getAsOpFoldResult(insertOp.getScalar());
     Attribute scalarAttr = dyn_cast<Attribute>(scalar);
-    if (!scalarAttr) return failure();
+    if (!scalarAttr)
+      return rewriter.notifyMatchFailure(insertOp,
+                                         "scalar to insert must be a constant");
 
     if (auto constantOp = dyn_cast_or_null<arith::ConstantOp>(
             insertOp.getDest().getDefiningOp())) {
@@ -86,7 +92,8 @@ class InsertAfterConstant final : public OpRewritePattern<tensor::InsertOp> {
       }
     }
 
-    return failure();
+    return rewriter.notifyMatchFailure(
+        insertOp, "destination of insert must be a constant");
   }
 };
 
@@ -116,10 +123,14 @@ class InsertIntoFromElements final : public OpRewritePattern<tensor::InsertOp> {
     // later or last ones. This avoid matching on every insertion in the chain.
     auto dest = insertOp.getDest();
     auto destType = llvm::dyn_cast<RankedTensorType>(dest.getType());
-    if (!destType) return failure();
+    if (!destType)
+      return rewriter.notifyMatchFailure(insertOp,
+                                         "destination must be a ranked tensor");
 
     auto constantOp = dyn_cast_or_null<arith::ConstantOp>(dest.getDefiningOp());
-    if (!constantOp) return failure();
+    if (!constantOp)
+      return rewriter.notifyMatchFailure(
+          insertOp, "destination of insert must be a constant");
 
     // Collect the element at the index, and then accumulate all the insertion
     // uses. Each insertion use should only have one use. Once we collect all
@@ -130,13 +141,17 @@ class InsertIntoFromElements final : public OpRewritePattern<tensor::InsertOp> {
     while (currentInsertOp) {
       auto maybeFlatIndex = getFlattenedIndex(
           destType, getAsOpFoldResult(currentInsertOp.getIndices()));
-      if (failed(maybeFlatIndex)) return failure();
+      if (failed(maybeFlatIndex))
+        return rewriter.notifyMatchFailure(currentInsertOp,
+                                           "failed to compute flattened index");
 
       auto flatIndex = maybeFlatIndex.value();
       flatIndexToElement[flatIndex] = currentInsertOp.getScalar();
       opsToErase.push_back(currentInsertOp);
 
-      if (!currentInsertOp->hasOneUse()) return failure();
+      if (!currentInsertOp->hasOneUse())
+        return rewriter.notifyMatchFailure(
+            currentInsertOp, "insert op must have exactly one use");
       auto nextOp = *currentInsertOp->getUsers().begin();
       currentInsertOp = dyn_cast<tensor::InsertOp>(nextOp);
     }
@@ -192,10 +207,14 @@ class CollapseShapeAfterConstant final
                                 PatternRewriter& rewriter) const override {
     auto constantOp = dyn_cast_or_null<arith::ConstantOp>(
         collapseOp.getSrc().getDefiningOp());
-    if (!constantOp) return failure();
+    if (!constantOp)
+      return rewriter.notifyMatchFailure(
+          collapseOp, "source of collapse must be a constant");
 
     auto sourceAttr = llvm::dyn_cast<ElementsAttr>(constantOp.getValue());
-    if (!sourceAttr) return failure();
+    if (!sourceAttr)
+      return rewriter.notifyMatchFailure(
+          collapseOp, "source of collapse must be an elements attribute");
 
     auto resultTy = collapseOp.getResult().getType();
     rewriter.replaceOpWithNewOp<arith::ConstantOp>(
@@ -216,7 +235,9 @@ struct CollapseEmptyTensor
                                 PatternRewriter& rewriter) const override {
     auto emptyOp =
         dyn_cast_or_null<tensor::EmptyOp>(collapseOp.getSrc().getDefiningOp());
-    if (!emptyOp) return failure();
+    if (!emptyOp)
+      return rewriter.notifyMatchFailure(
+          collapseOp, "source of collapse must be an empty tensor");
 
     auto resultTy = collapseOp.getResult().getType();
     rewriter.replaceOpWithNewOp<tensor::EmptyOp>(
@@ -237,7 +258,9 @@ struct ExtractSliceOfSplat
                                 PatternRewriter& rewriter) const override {
     auto splatOp =
         dyn_cast_or_null<tensor::SplatOp>(op.getSource().getDefiningOp());
-    if (!splatOp) return failure();
+    if (!splatOp)
+      return rewriter.notifyMatchFailure(
+          op, "source of extract slice must be a splat op");
 
     auto resultTy = op.getResult().getType();
     auto newSplat = tensor::SplatOp::create(
@@ -258,12 +281,15 @@ class ExtractOfExtractSlice final : public OpRewritePattern<tensor::ExtractOp> {
                                 PatternRewriter& rewriter) const override {
     auto extractSliceOp =
         extractOp.getTensor().getDefiningOp<tensor::ExtractSliceOp>();
-    if (!extractSliceOp) return failure();
+    if (!extractSliceOp)
+      return rewriter.notifyMatchFailure(extractOp,
+                                         "tensor must be an extract_slice op");
 
     auto sourceType = llvm::cast<ShapedType>(extractSliceOp.getSourceType());
     auto sliceType = llvm::cast<ShapedType>(extractOp.getTensor().getType());
     if (!sliceType.hasStaticShape() || !sourceType.hasStaticShape())
-      return failure();
+      return rewriter.notifyMatchFailure(extractOp,
+                                         "slice type must have a static shape");
 
     SmallVector<Value> sourceIndices;
     affine::resolveIndicesIntoOpWithOffsetsAndStrides(
