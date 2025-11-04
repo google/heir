@@ -100,6 +100,21 @@ def Lattigo_RLWECiphertext : Lattigo_RLWEType<"Ciphertext", "ciphertext"> {
   let asmName = "ct";
 }
 
+def Lattigo_RotatedCiphertextList : Lattigo_RLWEType<"RotatedCiphertextList", "rotated_ciphertext_list"> {
+  let description = [{
+    This type represents a list of rotated ciphertexts for the RLWE encryption scheme.
+  }];
+  let asmName = "rcts";
+}
+
+def Lattigo_BGVRotatedCiphertextMap : Lattigo_RLWEType<"BGVRotatedCiphertextMap", "rotated_ct_map"> {
+  let summary = "A map from rotation amount to rotated ciphertext.";
+  let description = [{
+    A map from rotation amount to rotated ciphertext.
+  }];
+  let asmName = "rotated_ct_map";
+}
+
 def Lattigo_RLWECiphertextOrPlaintext : AnyTypeOf<[Lattigo_RLWECiphertext, Lattigo_RLWEPlaintext]>;
 
 // common interface for RLWE
