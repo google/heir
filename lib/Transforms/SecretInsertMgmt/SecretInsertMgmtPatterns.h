@@ -7,6 +7,28 @@
 #include "mlir/include/mlir/IR/PatternMatch.h"             // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 
+// This file include patterns that are combined and orchestrated in the
+// functions defined in `Pipeline.h`. Warning: use these patterns with care,
+// because many of them subtly invalidate the state of their contained
+// DataFlowSolver, and are only expected to work in certain combinations and
+// when run with the walkAndApplyPatterns driver.
+//
+// For example a pattern may insert an op that modifies the mgmt level of
+// downstream users. In this file, such patterns will only update the lattice
+// state of the op result, and only for the lattices that are used by that
+// pattern in later applications (hence, walkAndApply ensures that operand
+// lattice values will have been visited by a previous pattern application).
+//
+// This is primarily done for efficiency purposes, because the extra work
+// required to refresh the entire data flow lattice after inserting a single op
+// is too large to perform on every pattern application. The functions in
+// `Pipeline.h` further ensure that patterns are run in supported groups, and
+// that the data flow solver is re-run between walks of the IR.
+//
+// As such, the invariant the patterns in this file should enforce is: any
+// pattern that queries a lattice state type in order to perform its function
+// must also set the corresponding lattice results of ops it modifies.
+
 namespace mlir {
 namespace heir {
 
@@ -47,7 +69,9 @@ struct ModReduceAfterMult : public OpRewritePattern<MulOp> {
   DataFlowSolver* solver;
 };
 
-/// Insert mgmt.modreduce op for each operand of the matched mul op.
+/// Insert mgmt.modreduce op for each operand of the matched mul op. This
+/// pattern updates the analysis states in the solver of results, and so it
+/// must be used in a walkAndApplyPatterns format, not a greedy rewrite.
 template <typename Op>
 struct ModReduceBefore : public OpRewritePattern<Op> {
   using OpRewritePattern<Op>::OpRewritePattern;

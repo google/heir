@@ -24,6 +24,47 @@
 namespace mlir {
 namespace heir {
 
+LogicalResult updateResultLevelLattice(Operation* op, DataFlowSolver* solver) {
+  // Here we update the analysis state of the result of the original op This
+  // implies any downstream users now have an invalidated state in the data
+  // flow solver, so this is where we are requiring walkAndApplyPatterns for
+  // the use of any pattern that calls this function.
+  SmallVector<const LevelLattice*, 2> operandLattices;
+  for (auto operand : op->getOperands()) {
+    operandLattices.push_back(solver->lookupState<LevelLattice>(operand));
+  }
+
+  if (!op->getResults().empty()) {
+    for (auto result : op->getResults()) {
+      FailureOr<int64_t> resultLevel = deriveResultLevel(op, operandLattices);
+      auto* resultLattice = solver->getOrCreateState<LevelLattice>(result);
+      resultLattice->getValue().setLevel(resultLevel.value());
+    }
+  }
+
+  return success();
+}
+
+LogicalResult updateResultMulDepthLattice(Operation* op,
+                                          DataFlowSolver* solver) {
+  // Same warning as updateResultLevelLattice
+  SmallVector<const MulDepthLattice*, 2> operandLattices;
+  for (auto operand : op->getOperands()) {
+    operandLattices.push_back(solver->lookupState<MulDepthLattice>(operand));
+  }
+
+  if (!op->getResults().empty()) {
+    for (auto result : op->getResults()) {
+      FailureOr<int64_t> resultLevel =
+          deriveResultMulDepth(op, operandLattices);
+      auto* resultLattice = solver->getOrCreateState<MulDepthLattice>(result);
+      resultLattice->getValue().setMulDepth(resultLevel.value());
+    }
+  }
+
+  return success();
+}
+
 template <typename MulOp>
 LogicalResult MultRelinearize<MulOp>::matchAndRewrite(
     MulOp mulOp, PatternRewriter& rewriter) const {
@@ -45,9 +86,7 @@ LogicalResult MultRelinearize<MulOp>::matchAndRewrite(
   auto relinearized =
       mgmt::RelinearizeOp::create(rewriter, mulOp.getLoc(), result);
   result.replaceAllUsesExcept(relinearized, {relinearized});
-
-  solver->eraseAllStates();
-  return solver->initializeAndRun(top);
+  return success();
 }
 
 template <typename MulOp>
@@ -62,9 +101,7 @@ LogicalResult ModReduceAfterMult<MulOp>::matchAndRewrite(
   rewriter.setInsertionPointAfter(mulOp);
   auto modReduced = mgmt::ModReduceOp::create(rewriter, mulOp.getLoc(), result);
   result.replaceAllUsesExcept(modReduced, {modReduced});
-
-  solver->eraseAllStates();
-  return solver->initializeAndRun(top);
+  return success();
 }
 
 template <typename Op>
@@ -81,38 +118,23 @@ LogicalResult ModReduceBefore<Op>::matchAndRewrite(
   }
   // condition on result being secret
 
-  auto maxLevel = 0;
   int64_t mulDepth = 0;
   SmallVector<OpOperand*, 2> secretOperands;
   getSecretOperands(op, secretOperands, solver);
   for (auto* operand : secretOperands) {
-    auto levelState =
-        solver->lookupState<LevelLattice>(operand->get())->getValue();
-    if (!levelState.isInitialized()) {
-      return rewriter.notifyMatchFailure(op, "level state not initialized");
-    }
     auto mulDepthState =
         solver->lookupState<MulDepthLattice>(operand->get())->getValue();
     if (!mulDepthState.isInitialized()) {
       return rewriter.notifyMatchFailure(op, "mul depth state not initialized");
     }
 
-    auto level = levelState.getLevel();
-    maxLevel = std::max(maxLevel, level);
     mulDepth = std::max(mulDepth, mulDepthState.getMulDepth());
-
-    LLVM_DEBUG(llvm::dbgs() << "  ModReduceBefore: Operand: " << operand
-                            << " Level: " << level << " MulDepth: "
-                            << mulDepthState.getMulDepth() << "\n");
   }
 
   // first mulOp in the chain, skip
   if (!includeFirstMul && mulDepth == 0) {
     return rewriter.notifyMatchFailure(op, "skipping first mulOp in the chain");
   }
-
-  LLVM_DEBUG(llvm::dbgs() << "ModReduceBefore: " << op
-                          << " Level: " << maxLevel + 1 << "\n");
 
   SmallVector<Value, 2> secretOperandValues = llvm::to_vector(
       llvm::map_range(secretOperands, [](OpOperand* op) { return op->get(); }));
@@ -124,10 +146,7 @@ LogicalResult ModReduceBefore<Op>::matchAndRewrite(
     op->replaceUsesOfWith(operand, managed);
   }
 
-  // propagateIfChanged only push workitem to the worklist queue
-  // actually execute the transfer for the new values
-  solver->eraseAllStates();
-  return solver->initializeAndRun(top);
+  return success();
 }
 
 template <typename Op>
@@ -180,10 +199,8 @@ LogicalResult MatchCrossLevel<Op>::matchAndRewrite(
   if (!inserted) {
     return rewriter.notifyMatchFailure(op, "no operations inserted");
   }
-  // propagateIfChanged only push workitem to the worklist queue
-  // actually execute the transfer for the new values
-  solver->eraseAllStates();
-  return solver->initializeAndRun(top);
+
+  return updateResultLevelLattice(op, solver);
 }
 
 template <typename Op>
@@ -238,6 +255,7 @@ LogicalResult MatchCrossMulDepth<Op>::matchAndRewrite(
     }
   }
 
+  // FIXME: replace with updateResultMulDepthLattice(op, solver);
   // propagateIfChanged only push workitem to the worklist queue
   // actually execute the transfer for the new values
   solver->eraseAllStates();
@@ -294,7 +312,9 @@ LogicalResult BootstrapWaterLine<Op>::matchAndRewrite(
     return rewriter.notifyMatchFailure(op, "level is less than waterline");
   }
   if (level > waterline) {
-    // should never met!
+    LLVM_DEBUG(llvm::dbgs()
+               << "BootstrapWaterLine: met " << op << " with level: " << level
+               << " but waterline: " << waterline << "\n");
     return rewriter.notifyMatchFailure(op, "level is greater than waterline");
   }
 
@@ -304,11 +324,7 @@ LogicalResult BootstrapWaterLine<Op>::matchAndRewrite(
       rewriter, op.getLoc(), op->getResultTypes(), op->getResult(0));
   op->getResult(0).replaceAllUsesExcept(bootstrap, {bootstrap});
 
-  // greedy rewrite! note that we may get undeterministic insertion result
-  // if we use different order of rewrites
-  // currently walkAndApplyPatterns is deterministic
-  solver->eraseAllStates();
-  return solver->initializeAndRun(top);
+  return updateResultLevelLattice(op, solver);
 }
 
 // For all schemes

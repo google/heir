@@ -20,6 +20,25 @@
 namespace mlir {
 namespace heir {
 
+FailureOr<int64_t> deriveResultMulDepth(
+    Operation* op, ArrayRef<const MulDepthLattice*> operands) {
+  auto isMul = false;
+  if (isa<arith::MulIOp, arith::MulFOp, mgmt::AdjustScaleOp>(op)) {
+    isMul = true;
+  }
+
+  int64_t operandsMulDepth = 0;
+  for (auto* operand : operands) {
+    if (!operand || !operand->getValue().isInitialized()) {
+      continue;
+    }
+    operandsMulDepth =
+        std::max(operandsMulDepth, operand->getValue().getMulDepth());
+  }
+
+  return operandsMulDepth + (isMul ? 1 : 0);
+}
+
 LogicalResult MulDepthAnalysis::visitOperation(
     Operation* op, ArrayRef<const MulDepthLattice*> operands,
     ArrayRef<MulDepthLattice*> results) {
@@ -39,35 +58,26 @@ LogicalResult MulDepthAnalysis::visitOperation(
       })
       .Default([&](auto& op) {
         // condition on result secretness
-        SmallVector<OpResult> secretDepths;
-        getSecretResults(&op, secretDepths);
-        if (secretDepths.empty()) {
+        SmallVector<OpResult> secretResults;
+        getSecretResults(&op, secretResults);
+        if (secretResults.empty()) {
           return;
         }
 
-        auto isMul = false;
-
-        if (isa<arith::MulIOp, arith::MulFOp, mgmt::AdjustScaleOp>(op)) {
-          isMul = true;
-        }
-
-        // inherit mul depth from secret operands
-        int64_t operandsMulDepth = 0;
         SmallVector<OpOperand*> secretOperands;
         getSecretOperands(&op, secretOperands);
+        SmallVector<const MulDepthLattice*, 2> secretOperandLattices;
         for (auto* operand : secretOperands) {
-          auto& mulDepthState = getLatticeElement(operand->get())->getValue();
-          if (!mulDepthState.isInitialized()) {
-            return;
-          }
-          operandsMulDepth =
-              std::max(operandsMulDepth, mulDepthState.getMulDepth());
+          secretOperandLattices.push_back(getLatticeElement(operand->get()));
+        }
+        FailureOr<int64_t> resultsMulDepth =
+            deriveResultMulDepth(&op, secretOperandLattices);
+        if (failed(resultsMulDepth)) {
+          return;
         }
 
-        int64_t resultsMulDepth = operandsMulDepth + (isMul ? 1 : 0);
-
-        for (auto result : secretDepths) {
-          propagate(result, MulDepthState(resultsMulDepth));
+        for (auto result : secretResults) {
+          propagate(result, MulDepthState(resultsMulDepth.value()));
         }
       });
   return success();

@@ -9,6 +9,7 @@
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/Mgmt/Transforms/AnnotateMgmt.h"
 #include "lib/Dialect/ModuleAttributes.h"
+#include "lib/Transforms/SecretInsertMgmt/Pipeline.h"
 #include "lib/Transforms/SecretInsertMgmt/SecretInsertMgmtPatterns.h"
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
@@ -72,26 +73,8 @@ struct SecretInsertMgmtBFV
       maxMulDepth = getMaxMulDepth(getOperation(), solver);
     }
 
-    // handle plaintext operands
-    RewritePatternSet patternsPlaintext(&getContext());
-    patternsPlaintext.add<UseInitOpForPlaintextOperand<arith::AddIOp>,
-                          UseInitOpForPlaintextOperand<arith::SubIOp>,
-                          UseInitOpForPlaintextOperand<arith::MulIOp>,
-                          // these lines are not used by B/FV but used by CKKS.
-                          UseInitOpForPlaintextOperand<arith::AddFOp>,
-                          UseInitOpForPlaintextOperand<arith::SubFOp>,
-                          UseInitOpForPlaintextOperand<arith::MulFOp>,
-                          UseInitOpForPlaintextOperand<tensor::ExtractSliceOp>,
-                          UseInitOpForPlaintextOperand<tensor::InsertSliceOp>>(
-        &getContext(), getOperation(), &solver);
-    (void)walkAndApplyPatterns(getOperation(), std::move(patternsPlaintext));
-
-    RewritePatternSet patternsRelinearize(&getContext());
-    patternsRelinearize.add<MultRelinearize<arith::MulIOp>,
-                            // this line is not used by B/FV but used by CKKS.
-                            MultRelinearize<arith::MulFOp>>(
-        &getContext(), getOperation(), &solver);
-    (void)walkAndApplyPatterns(getOperation(), std::move(patternsRelinearize));
+    insertMgmtInitForPlaintexts(getOperation(), solver, true);
+    insertRelinearizeAfterMult(getOperation(), solver, false);
 
     auto level = maxMulDepth;
     // 1. Canonicalizer moves mgmt::InitOp out of secret.generic.
