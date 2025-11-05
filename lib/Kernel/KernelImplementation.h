@@ -9,7 +9,6 @@
 #include <optional>
 #include <string>
 #include <type_traits>
-#include <variant>
 #include <vector>
 
 #include "lib/Kernel/AbstractValue.h"
@@ -22,6 +21,17 @@
 namespace mlir {
 namespace heir {
 namespace kernel {
+
+// A function that generalizes the reduction operation in all kernels in this
+// file. E.g., whether to use `add` or `mul`
+template <typename T>
+using DagReducer = std::function<std::shared_ptr<ArithmeticDagNode<T>>(
+    std::shared_ptr<ArithmeticDagNode<T>>,
+    std::shared_ptr<ArithmeticDagNode<T>>)>;
+
+template <typename T>
+using DagExtractor = std::function<std::shared_ptr<ArithmeticDagNode<T>>(
+    std::shared_ptr<ArithmeticDagNode<T>>, int64_t)>;
 
 // Returns an arithmetic DAG that implements a matvec kernel. Ensure this is
 // only generated for T a subclass of AbstractValue.
@@ -49,41 +59,69 @@ implementMatvec(KernelName kernelName, const T& matrix, const T& vector) {
   return accumulatedSum;
 }
 
-// Returns an arithmetic DAG that implements a rotate and reduce op. Ensure
-// this is only generated for T a subclass of AbstractValue.
+// Returns an arithmetic DAG that implements a logarithmic rotate-and-reduce
+// accumulation of an input ciphertext.
+//
+// This is a special case of `tensor_ext.rotate_and_reduce`
 template <typename T>
 std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
                  std::shared_ptr<ArithmeticDagNode<T>>>
-implementRotateAndReduce(const T& vector, std::optional<T> plaintexts,
-                         int64_t period, int64_t steps,
-                         const std::string& reduceOp = "arith.addi") {
+implementRotateAndReduceAccumulation(const T& vector, int64_t period,
+                                     int64_t steps, DagReducer<T> reduceFunc) {
   using NodeTy = ArithmeticDagNode<T>;
   auto vectorDag = NodeTy::leaf(vector);
 
-  auto performReduction = [&](std::shared_ptr<NodeTy> left,
-                              std::shared_ptr<NodeTy> right) {
-    if (reduceOp == "arith.addi" || reduceOp == "arith.addf") {
-      return NodeTy::add(left, right);
-    }
-
-    if (reduceOp == "arith.muli" || reduceOp == "arith.mulf") {
-      return NodeTy::mul(left, right);
-    }
-
-    // Default to add for unknown operations
-    return NodeTy::add(left, right);
-  };
-
-  if (!plaintexts.has_value()) {
-    for (int64_t shiftSize = steps / 2; shiftSize > 0; shiftSize /= 2) {
-      auto rotated = NodeTy::leftRotate(vectorDag, shiftSize * period);
-      auto reduced = performReduction(vectorDag, rotated);
-      vectorDag = reduced;
-    }
-    return vectorDag;
+  for (int64_t shiftSize = steps / 2; shiftSize > 0; shiftSize /= 2) {
+    auto rotated = NodeTy::leftRotate(vectorDag, shiftSize * period);
+    auto reduced = reduceFunc(vectorDag, rotated);
+    vectorDag = reduced;
   }
+  return vectorDag;
+}
 
-  auto plaintextsDag = NodeTy::leaf(*plaintexts);
+// A function that generalizes the choice of rotation for the "baby stepped
+// operand" of a baby-step giant-step algorithm. This is required because
+// the rotation used in Halevi-Shoup matvec differs from that of bicyclic
+// matmul.
+using DerivedRotationIndexFn = std::function<int64_t(
+    // giant step size
+    int64_t,
+    // current giant step index
+    int64_t,
+    // current baby step index
+    int64_t,
+    // period
+    int64_t)>;
+
+inline int64_t defaultDerivedRotationIndexFn(int64_t giantStepSize,
+                                             int64_t giantStepIndex,
+                                             int64_t babyStepIndex,
+                                             int64_t period) {
+  return -giantStepSize * giantStepIndex * period;
+}
+
+// Returns an arithmetic DAG that implements a baby-step-giant-step
+// rotate-and-reduce accumulation between an input ciphertext
+// (giantSteppedOperand) and an abstraction over the other argument
+// (babySteppedOperand). In particular, the babySteppedOperand may be a list of
+// plaintexts like in Halevi-Shoup matvec, or a single ciphertext like in
+// bicyclic matmul, and this abstracts over both by taking in an extraction
+// callback.
+//
+// This is a special case of `tensor_ext.rotate_and_reduce`, but with the added
+// abstractions it also supports situations not currently expressible by
+// `tensor_ext.rotate_and_reduce`.
+template <typename T>
+std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
+                 std::shared_ptr<ArithmeticDagNode<T>>>
+implementBabyStepGiantStep(
+    const T& giantSteppedOperand, const T& babySteppedOperand, int64_t period,
+    int64_t steps, DagExtractor<T> extractFunc,
+    const DerivedRotationIndexFn& derivedRotationIndexFn =
+        defaultDerivedRotationIndexFn) {
+  using NodeTy = ArithmeticDagNode<T>;
+  auto giantSteppedDag = NodeTy::leaf(giantSteppedOperand);
+  auto babySteppedDag = NodeTy::leaf(babySteppedOperand);
 
   // Use a value of sqrt(n) as the baby step / giant step size.
   int64_t numBabySteps = static_cast<int64_t>(std::floor(std::sqrt(steps)));
@@ -112,33 +150,122 @@ implementRotateAndReduce(const T& vector, std::optional<T> plaintexts,
 
   // Compute sqrt(n) ciphertext rotations of the input as baby-steps.
   SmallVector<std::shared_ptr<NodeTy>> babyStepVals;
-  babyStepVals.push_back(vectorDag);  // rot by zero
+  babyStepVals.push_back(giantSteppedDag);  // rot by zero
   for (int64_t i = 1; i < numBabySteps; ++i) {
-    babyStepVals.push_back(NodeTy::leftRotate(vectorDag, period * i));
+    babyStepVals.push_back(NodeTy::leftRotate(giantSteppedDag, period * i));
   }
 
   // Compute the inner baby step sums.
   std::shared_ptr<NodeTy> result = nullptr;
   for (int64_t j = 0; j < numGiantSteps; ++j) {
     std::shared_ptr<NodeTy> innerSum = nullptr;
-    // The rotation used for the plaintext
-    int64_t plaintextRotationAmount = -giantStepSize * j * period;
     for (int64_t i = 0; i < numBabySteps; ++i) {
+      int64_t innerRotAmount =
+          derivedRotationIndexFn(giantStepSize, j, i, period);
       size_t extractionIndex = i + j * giantStepSize;
-      auto plaintext = NodeTy::extract(plaintextsDag, extractionIndex);
-      auto rotatedPlaintext =
-          NodeTy::leftRotate(plaintext, plaintextRotationAmount);
+      auto plaintext = extractFunc(babySteppedDag, extractionIndex);
+      auto rotatedPlaintext = NodeTy::leftRotate(plaintext, innerRotAmount);
       auto multiplied = NodeTy::mul(rotatedPlaintext, babyStepVals[i]);
-      innerSum = innerSum == nullptr ? multiplied
-                                     : performReduction(innerSum, multiplied);
+      innerSum =
+          innerSum == nullptr ? multiplied : NodeTy::add(innerSum, multiplied);
     }
 
     auto rotatedSum = NodeTy::leftRotate(innerSum, period * j * giantStepSize);
-    result =
-        result == nullptr ? rotatedSum : performReduction(result, rotatedSum);
+    result = result == nullptr ? rotatedSum : NodeTy::add(result, rotatedSum);
   }
 
   return result;
+}
+
+// Returns an arithmetic DAG that implements a tensor_ext.rotate_and_reduce op.
+//
+// See TensorExtOps.td docs for RotateAndReduceOp for more details.
+//
+// The `vector` argument is a ciphertext value that will be rotated O(sqrt(n))
+// times when the `plaintexts` argument is set (Baby Step Giant Step), or
+// O(log(n)) times when the `plaintexts` argument is not set (log-style
+// rotate-and-reduce accumulation).
+//
+// The `plaintexts` argument, when present, represents a vector of pre-packed
+// plaintexts that will be rotated and multiplied with the rotated `vector`
+// argument in BSGS style.
+//
+// Note that using this kernel results in places in the pipeline where a
+// plaintext type is rotated, but most FHE implementations don't have a
+// plaintext rotation operation (it would be wasteful) and instead expect the
+// "plaintext rotation" to apply to the cleartext. HEIR has places in the
+// pipeline that support this by converting a rotate(encode(cleartext)) to
+// encode(rotate(cleartext)).
+template <typename T>
+std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
+                 std::shared_ptr<ArithmeticDagNode<T>>>
+implementRotateAndReduce(const T& vector, std::optional<T> plaintexts,
+                         int64_t period, int64_t steps,
+                         const std::string& reduceOp = "arith.addi") {
+  using NodeTy = ArithmeticDagNode<T>;
+  auto performReduction = [&](std::shared_ptr<NodeTy> left,
+                              std::shared_ptr<NodeTy> right) {
+    if (reduceOp == "arith.addi" || reduceOp == "arith.addf") {
+      return NodeTy::add(left, right);
+    }
+
+    if (reduceOp == "arith.muli" || reduceOp == "arith.mulf") {
+      return NodeTy::mul(left, right);
+    }
+
+    // Default to add for unknown operations
+    return NodeTy::add(left, right);
+  };
+
+  if (!plaintexts.has_value()) {
+    return implementRotateAndReduceAccumulation<T>(vector, period, steps,
+                                                   performReduction);
+  }
+
+  assert(reduceOp == "arith.addi" ||
+         reduceOp == "arith.addf" &&
+             "Baby-step-giant-step rotate-and-reduce only supports addition "
+             "as the reduction operation");
+
+  auto extractFunc = [](std::shared_ptr<NodeTy> babySteppedDag,
+                        int64_t extractionIndex) {
+    return NodeTy::extract(babySteppedDag, extractionIndex);
+  };
+
+  return implementBabyStepGiantStep<T>(vector, plaintexts.value(), period,
+                                       steps, extractFunc);
+}
+
+// Returns an arithmetic DAG that implements a baby-step-giant-step between
+// ciphertexts.
+//
+// This implements equation 21 in 6.2.2 of LKAA25: "Tricycle: Private
+// Transformer Inference with Tricyclic Encodings"
+// https://eprint.iacr.org/2025/1200
+//
+// This differs from the above implementRotateAndReduce in that, instead of a
+// set of pre-computed plaintexts, both arguments are individual ciphertexts.
+// Normally with one ciphertext, the naive approach uses n - 1 rotations that
+// BSGS reduces to c sqrt(n) + O(1) rotations, if both inputs are ciphertexts
+// then it converts 2n - 2 total rotations to n + c sqrt(n) + O(1) rotations.
+// Essentially, the "n to sqrt(n)" redution applies to the `vector` argument
+// only, while the `plaintexts` argument still gets n-1 rotations.
+template <typename T>
+std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
+                 std::shared_ptr<ArithmeticDagNode<T>>>
+implementCiphertextCiphertextBabyStepGiantStep(
+    const T& giantSteppedOperand, const T& babySteppedOperand, int64_t period,
+    int64_t steps, DerivedRotationIndexFn derivedRotationIndexFn) {
+  using NodeTy = ArithmeticDagNode<T>;
+
+  // Avoid replicating and re-extracting by simulating the extraction step by
+  // just returning the single ciphertext.
+  auto extractFunc = [](std::shared_ptr<NodeTy> babySteppedDag,
+                        int64_t extractionIndex) { return babySteppedDag; };
+
+  return implementBabyStepGiantStep<T>(giantSteppedOperand, babySteppedOperand,
+                                       period, steps, extractFunc,
+                                       derivedRotationIndexFn);
 }
 
 // Returns an arithmetic DAG that implements the Halevi-Shoup matrix
@@ -187,47 +314,56 @@ implementHaleviShoup(const T& vector, const T& matrix,
 // zero-padded so that their dimensions are coprime, they are cyclically
 // repeated to fill all the slots of the ciphertext, and they are packed
 // according to the bicyclic ordering.
+//
+// This function produces a kernel using roughly n + 2sqrt(n) - 3 rotations
+// (for matrix dimensions all order n), by applying the baby-step-giant-step
+// method to reduce the number of rotations of packedA.
+//
+// This implements the BMM-I algorithm from https://eprint.iacr.org/2024/1762
+// with modifications from LKAA25 (https://eprint.iacr.org/2025/1200):
+//
+//  - A simplification of the rotation formula in Sec 5.2.1 (equation 9).
+//  - A baby-step-giant-step optimization of the summation below, from Sec
+//    6.2.2 (equation 21).
+//
+// It computes
+//
+// C = sum_{c=0}^{n-1} rot(A, r1(c)) * rot(B, r2(c))
+//
+// where
+//
+//  r1(c) = cm
+//  r2(c) = p(cm(p^{-1}) mod n) mod np
+//
 template <typename T>
 std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
                  std::shared_ptr<ArithmeticDagNode<T>>>
 implementBicyclicMatmul(const T& packedA, const T& packedB, int64_t m,
                         int64_t n, int64_t p) {
-  using NodeTy = ArithmeticDagNode<T>;
-  auto packedADag = NodeTy::leaf(packedA);
-  auto packedBDag = NodeTy::leaf(packedB);
-
-  // This implements the BMM-I algorithm from https://eprint.iacr.org/2024/1762
-  // with a simplification of the rotation formula in Sec 5.2.1 (equation 9) of
-  // https://eprint.iacr.org/2025/1200
-  //
-  // C = sum_{c=0}^{n-1} rot(A, r1(c)) * rot(B, r2(c))
-  //
-  // where
-  //
-  //  r1(c) = cm(m^{-1} mod n) mod mn
-  //  r2(c) = cp(p^{-1} mod n) mod np
-  //
   APInt mAPInt = APInt(64, m);
   APInt nAPInt = APInt(64, n);
   APInt pAPInt = APInt(64, p);
 
-  APInt mInvModN = multiplicativeInverse(mAPInt, nAPInt);
-  APInt pInvModN = multiplicativeInverse(pAPInt, nAPInt);
+  APInt mInvModN = multiplicativeInverse(mAPInt.urem(nAPInt), nAPInt);
+  APInt pInvModN = multiplicativeInverse(pAPInt.urem(nAPInt), nAPInt);
 
-  // The part of r1(c), r2(c) that is independent of the loop iterations
-  int64_t r1Const = m * mInvModN.getSExtValue();
-  int64_t r2Const = p * pInvModN.getSExtValue();
+  auto derivedRotationIndexFn = [&](int64_t giantStepSize,
+                                    int64_t giantStepIndex,
+                                    int64_t babyStepIndex, int64_t period) {
+    APInt c(64, giantStepIndex * giantStepSize + babyStepIndex);
+    APInt mAPInt(64, m);
 
-  std::shared_ptr<NodeTy> result = nullptr;
-  for (int i = 0; i < n; ++i) {
-    int64_t shiftA = (i * r1Const) % (m * n);
-    int64_t shiftB = (i * r2Const) % (n * p);
-    auto rotA = NodeTy::leftRotate(packedADag, shiftA);
-    auto rotB = NodeTy::leftRotate(packedBDag, shiftB);
-    auto term = NodeTy::mul(rotA, rotB);
-    result = result == nullptr ? term : NodeTy::add(result, term);
-  }
-  return result;
+    // RotY(c) = (p * (c * m * p^{-1} mod n)) mod (n * p)
+    APInt rotyInner = (c * mAPInt * pInvModN.getSExtValue()).urem(nAPInt);
+    APInt roty = (rotyInner * pAPInt).urem(nAPInt * pAPInt);
+
+    APInt result = roty - APInt(64, period) * APInt(64, giantStepSize) *
+                              APInt(64, giantStepIndex);
+    return result.getSExtValue();
+  };
+
+  return implementCiphertextCiphertextBabyStepGiantStep<T>(
+      packedA, packedB, /*period=*/m, /*steps=*/n, derivedRotationIndexFn);
 }
 
 }  // namespace kernel

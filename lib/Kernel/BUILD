@@ -111,6 +111,7 @@ cc_test(
         ":ArithmeticDag",
         ":Kernel",
         ":KernelImplementation",
+        ":RotationCountVisitor",
         ":TestingUtils",
         "@googletest//:gtest_main",
         "@heir//lib/Utils/Layout:Evaluate",
