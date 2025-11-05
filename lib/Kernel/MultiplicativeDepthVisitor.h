@@ -21,6 +21,9 @@ namespace kernel {
 // Multiplicative depth is the maximum number of sequential multiplications
 // in the longest path from inputs to outputs. Addition and rotation do not
 // increase depth.
+//
+// IMPORTANT: Only ciphertext-ciphertext multiplications increase depth.
+// Plaintext-ciphertext multiplications are depth 0 (free in FHE).
 class MultiplicativeDepthVisitor {
  public:
   using NodeTy = ArithmeticDagNode<SymbolicValue>;
@@ -47,6 +50,9 @@ class MultiplicativeDepthVisitor {
 
   // Track visited nodes for cycle detection
   std::unordered_set<const NodeTy*> visitedNodes_;
+
+  // Track whether each node represents a secret (ciphertext) value
+  std::unordered_map<const NodeTy*, bool> nodeSecretStatus_;
 
   const NodeTy* currentNode_ = nullptr;
 

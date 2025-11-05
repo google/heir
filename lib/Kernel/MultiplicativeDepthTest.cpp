@@ -144,7 +144,7 @@ TEST(MultiplicativeDepthTest, ComplexCircuit) {
 }
 
 TEST(MultiplicativeDepthTest, HaleviShoupMatvecDepth) {
-  // Test depth of Halevi-Shoup kernel (should be 1 - only multiplications with plaintext)
+  // Test depth of Halevi-Shoup kernel
   SymbolicValue vector({4}, true);   // Vector is encrypted (secret)
   SymbolicValue matrix({4, 4}, false);  // Matrix is plaintext
   std::vector<int64_t> originalShape = {4, 4};
@@ -155,8 +155,8 @@ TEST(MultiplicativeDepthTest, HaleviShoupMatvecDepth) {
   int64_t depth = visitor.process(dag);
 
   // Halevi-Shoup uses only ciphertext-plaintext multiplications
-  // Depth should be 1
-  EXPECT_EQ(depth, 1);
+  // These are FREE in FHE (depth 0)!
+  EXPECT_EQ(depth, 0);
 }
 
 }  // namespace
