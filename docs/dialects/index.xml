@@ -13484,24 +13484,21 @@ of ciphertext-plaintext mask, rotate, and sum operations by the
 &lt;/code>&lt;/pre>&lt;p>This op reduces products of a plaintext with a periodically rotated
 tensor.&lt;/p>
 &lt;p>In almost full generality, the reduction performed is&lt;/p>
-&lt;p>[
-\sum_{i \in [0, n]} p(P, T&lt;em>i) \cdot rotate(v, T&lt;/em>i)
-]&lt;/p>
-&lt;p>where $f$ is a function, $p(P, T&lt;em>i)$ is a function of a plaintext $P$ and
-$rotate(v, T&lt;/em>i)$ is a rotation of the ciphertext $v$ with period $T$. The
+&lt;p>$$ \sum_{i \in [0, n]} p(P, iT) \cdot rotate(v, iT) $$&lt;/p>
+&lt;p>where $f$ is a function, $p(P, iT)$ is a function of a plaintext $P$ and
+$rotate(v, iT)$ is a rotation of the ciphertext $v$ with period $T$. The
 operation takes as input the ciphertext vector $v$, the period $T$, the
-number of reductions $n$, and a tensor of plaintext values &lt;code>[p(P, 0), p(P, T), ..., p(P, T*(n-1))]&lt;/code>.&lt;/p>
+number of reductions $n$, and a tensor of plaintext values&lt;/p>
+&lt;p>&lt;code>[p(P, 0), p(P, T), ..., p(P, (n-1)T)]&lt;/code>&lt;/p>
 &lt;p>This can be used to implement a matrix vector product that uses a
 Halevi-Shoup diagonalization of the plaintext matrix. In this case, the
 reduction is&lt;/p>
-&lt;p>[
-\sum_{i \in [0, n]} P(i) \cdot rotate(v, i)
-]&lt;/p>
+&lt;p>$$ \sum_{i \in [0, n]} P(i) \cdot rotate(v, i) $$&lt;/p>
 &lt;p>where $P(i)$ is the $i$th diagonal of the plaintext matrix and the period
 $T$ is $1$.&lt;/p>
 &lt;p>An accumulation of the ciphertext slots is also handled via this operation
-by omitting the plaintext $p(P, T*i)$ argument and using a period of 1 with
-&lt;code>n = |v|&lt;/code> so that the reduction is simply a sum of all rotation of the
+by omitting the plaintext $p(P, Ti)$ argument and using a period of 1 with
+&lt;code>n = |v|&lt;/code> so that the reduction is simply a sum of all rotations of the
 ciphertext.&lt;/p>
 &lt;p>If &lt;code>reduceOp&lt;/code> is set to an MLIR operation name (e.g., &lt;code>arith.mulf&lt;/code>), then
 the reduction operation is modified to use that operation instead of a sum.

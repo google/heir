@@ -1481,19 +1481,15 @@ change the dimension of the result tensor.</p><p>In the slot form of a ciphertex
 of ciphertext-plaintext mask, rotate, and sum operations by the
 <code>implement-shift-network</code> pass.</p><p>Traits: <code>AlwaysSpeculatableImplTrait</code></p><p>Interfaces: <code>ConditionallySpeculatable</code>, <code>InferTypeOpInterface</code>, <code>NoMemoryEffect (MemoryEffectOpInterface)</code></p><p>Effects: <code>MemoryEffects::Effect{}</code></p><h4 id=attributes-2>Attributes:</h4><table><tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr><tr><td><code>permutation</code></td><td>::mlir::Attribute</td><td>64-bit integer elements attribute or The description of the layout of a data-semantic tensor.</td></tr></table><h4 id=operands-2>Operands:</h4><table><thead><tr><th style=text-align:center>Operand</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center><code>input</code></td><td>ranked tensor of any type values</td></tr></tbody></table><h4 id=results-2>Results:</h4><table><thead><tr><th style=text-align:center>Result</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center><code>output</code></td><td>ranked tensor of any type values</td></tr></tbody></table><h3 id=tensor_extrotate_and_reduce-heirtensor_extrotateandreduceop><code>tensor_ext.rotate_and_reduce</code> (heir::tensor_ext::RotateAndReduceOp)</h3><p><em>Performs a reduction of a periodically rotated tensor.</em></p><p>Syntax:</p><pre tabindex=0><code>operation ::= `tensor_ext.rotate_and_reduce` operands attr-dict `:` functional-type(operands, results)
 </code></pre><p>This op reduces products of a plaintext with a periodically rotated
-tensor.</p><p>In almost full generality, the reduction performed is</p><p>[
-\sum_{i \in [0, n]} p(P, T<em>i) \cdot rotate(v, T</em>i)
-]</p><p>where $f$ is a function, $p(P, T<em>i)$ is a function of a plaintext $P$ and
-$rotate(v, T</em>i)$ is a rotation of the ciphertext $v$ with period $T$. The
+tensor.</p><p>In almost full generality, the reduction performed is</p><p>$$ \sum_{i \in [0, n]} p(P, iT) \cdot rotate(v, iT) $$</p><p>where $f$ is a function, $p(P, iT)$ is a function of a plaintext $P$ and
+$rotate(v, iT)$ is a rotation of the ciphertext $v$ with period $T$. The
 operation takes as input the ciphertext vector $v$, the period $T$, the
-number of reductions $n$, and a tensor of plaintext values <code>[p(P, 0), p(P, T), ..., p(P, T*(n-1))]</code>.</p><p>This can be used to implement a matrix vector product that uses a
+number of reductions $n$, and a tensor of plaintext values</p><p><code>[p(P, 0), p(P, T), ..., p(P, (n-1)T)]</code></p><p>This can be used to implement a matrix vector product that uses a
 Halevi-Shoup diagonalization of the plaintext matrix. In this case, the
-reduction is</p><p>[
-\sum_{i \in [0, n]} P(i) \cdot rotate(v, i)
-]</p><p>where $P(i)$ is the $i$th diagonal of the plaintext matrix and the period
+reduction is</p><p>$$ \sum_{i \in [0, n]} P(i) \cdot rotate(v, i) $$</p><p>where $P(i)$ is the $i$th diagonal of the plaintext matrix and the period
 $T$ is $1$.</p><p>An accumulation of the ciphertext slots is also handled via this operation
-by omitting the plaintext $p(P, T*i)$ argument and using a period of 1 with
-<code>n = |v|</code> so that the reduction is simply a sum of all rotation of the
+by omitting the plaintext $p(P, Ti)$ argument and using a period of 1 with
+<code>n = |v|</code> so that the reduction is simply a sum of all rotations of the
 ciphertext.</p><p>If <code>reduceOp</code> is set to an MLIR operation name (e.g., <code>arith.mulf</code>), then
 the reduction operation is modified to use that operation instead of a sum.
 The chosen op must be one of <code>arith.muli</code>, <code>arith.mulf</code>, <code>arith.addi</code>,
