@@ -535,6 +535,23 @@ LogicalResult LayoutPropagation::visitOperation(MatvecOp op) {
     matrix = toReplace;
   }
 
+  // We also require the input to be row-major.
+  auto vector = matvecOp.rhs();
+  auto vectorType = cast<RankedTensorType>(vector.getType());
+  LayoutAttr vectorLayout = assignedLayouts.at(vector);
+  if (!isRelationRowMajor(vectorType, ciphertextSize,
+                          vectorLayout.getIntegerRelation())) {
+    // Insert a layout conversion op to make the matrix layout squat diagonal
+    MLIRContext* ctx = &getContext();
+    mlir::IRRewriter builder(ctx);
+    auto [toReplace, newVectorLayoutAttr] =
+        convertToLayout(ctx, builder, op, vector, vectorLayout,
+                        getRowMajorLayoutRelation(vectorType, ciphertextSize));
+    debugAssignLayout(toReplace, newVectorLayoutAttr);
+    assignedLayouts.insert({toReplace, newVectorLayoutAttr});
+    vector = toReplace;
+  }
+
   // Always one result, and for the kernels we have right now it's always a
   // row-major replicated vector. Since the matrix may be rectangular, the
   // output layout may have different alignment from the input layout.

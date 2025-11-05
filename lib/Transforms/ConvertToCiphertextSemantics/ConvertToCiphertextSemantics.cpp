@@ -116,6 +116,30 @@ IntegerRelation restrictRelationToSlice(const IntegerRelation& relation,
   return *result;
 }
 
+// tensor_ext.remap constrains its input and output types to be the same,
+// i.e., remap occurs within one set of ciphertexts. The output of an
+// extract_slice, however, may have a layout that has fewer ciphertexts
+// in it. For example, extracting one row from a data-semantic matrix that
+// is packed with one row per ciphertext would result in a single output
+// ciphertext, and the expected layout of the result will reflect that.
+// To bridge this gap, kernels must post-processes the remap's output to
+// extract the subset ciphertexts relevant to the layout of the output
+// slice.
+Operation* remapAndExtractResult(ImplicitLocOpBuilder& builder, Value input,
+                                 LayoutAttr resultLayout,
+                                 RankedTensorType resultType) {
+  auto remapOp = tensor_ext::RemapOp::create(builder, input, resultLayout);
+
+  SmallVector<OpFoldResult> strides(2, builder.getIndexAttr(1));
+  SmallVector<OpFoldResult> offsets(2, builder.getIndexAttr(0));
+  SmallVector<OpFoldResult> sizes;
+  sizes.push_back(builder.getIndexAttr(resultType.getDimSize(0)));
+  sizes.push_back(builder.getIndexAttr(resultType.getDimSize(1)));
+  auto extractRemap = tensor::ExtractSliceOp::create(
+      builder, resultType, remapOp.getResult(), offsets, sizes, strides);
+  return extractRemap;
+}
+
 }  // namespace
 
 // An unset value of a permutation as it's being built up.
@@ -338,13 +362,19 @@ class ConvertConvertLayout
         fromLayout.getIntegerRelation().clone();
     composedLayout->inverse();
     composedLayout->compose(toLayout.getIntegerRelation());
-    auto remapOp = tensor_ext::RemapOp::create(
-        rewriter, op.getLoc(), adaptor.getValue(),
-        LayoutAttr::getFromIntegerRelation(getContext(), *composedLayout));
 
-    setMaterializedAttr(remapOp);
-    setAttributeAssociatedWith(remapOp, kLayoutAttrName, toLayout);
-    rewriter.replaceOp(op, remapOp);
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    LayoutAttr newLayoutAttr =
+        LayoutAttr::getFromIntegerRelation(getContext(), *composedLayout);
+    auto resultCiphertextSemanticType = cast<RankedTensorType>(
+        getTypeConverter()->convertType(op.getResult().getType(), toLayout));
+    auto remapAndExtract = remapAndExtractResult(
+        b, adaptor.getValue(), newLayoutAttr, resultCiphertextSemanticType);
+
+    setMaterializedAttr(remapAndExtract);
+    setAttributeAssociatedWith(remapAndExtract->getResults()[0],
+                               kLayoutAttrName, toLayout);
+    rewriter.replaceOp(op, remapAndExtract->getResults()[0]);
     return success();
   };
 };
@@ -1519,40 +1549,18 @@ class ConvertTensorExtractSlice
     sourceRel.compose(extractSliceLayout.value());
     sourceRel.compose(resultRel);
 
-    // tensor_ext.remap constrains its input and output types to be the same,
-    // i.e., remap occurs within one set of ciphertexts. The output of an
-    // extract_slice, however, may have a layout that has fewer ciphertexts
-    // in it. For example, extracting one row from a data-semantic matrix that
-    // is packed with one row per ciphertext would result in a single output
-    // ciphertext, and the expected layout of the result will reflect that.
-    // To bridge this gap, this kernel post-processes the remap's output to
-    // extract the subset ciphertexts relevant to the layout of the output
-    // slice.
     LayoutAttr sliceLayoutAttr =
         LayoutAttr::getFromIntegerRelation(ctx, sourceRel);
-    RankedTensorType sourceCiphertextSemanticType =
-        cast<RankedTensorType>(adaptor.getSource().getType());
-    auto remapSource = tensor_ext::RemapOp::create(
-        rewriter, op.getLoc(), sourceCiphertextSemanticType,
-        adaptor.getSource(), sliceLayoutAttr);
-
     auto resultCiphertextSemanticType = cast<RankedTensorType>(
         getTypeConverter()->convertType(op.getResultType(), resultLayout));
-    SmallVector<OpFoldResult> strides(2, rewriter.getIndexAttr(1));
-    SmallVector<OpFoldResult> offsets(2, rewriter.getIndexAttr(0));
-    SmallVector<OpFoldResult> sizes;
-    sizes.push_back(
-        rewriter.getIndexAttr(resultCiphertextSemanticType.getDimSize(0)));
-    sizes.push_back(
-        rewriter.getIndexAttr(resultCiphertextSemanticType.getDimSize(1)));
-    auto extractRemap = tensor::ExtractSliceOp::create(
-        rewriter, op.getLoc(), resultCiphertextSemanticType,
-        remapSource.getResult(), offsets, sizes, strides);
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    auto remapAndExtract = remapAndExtractResult(
+        b, adaptor.getSource(), sliceLayoutAttr, resultCiphertextSemanticType);
 
-    setMaterializedAttr({remapSource, extractRemap});
-    setAttributeAssociatedWith(extractRemap.getResult(), kLayoutAttrName,
+    setMaterializedAttr(remapAndExtract);
+    setAttributeAssociatedWith(remapAndExtract->getResult(0), kLayoutAttrName,
                                sliceLayoutAttr);
-    rewriter.replaceOp(op, extractRemap.getResult());
+    rewriter.replaceOp(op, remapAndExtract->getResult(0));
     return success();
   }
 
@@ -1652,8 +1660,8 @@ class ConvertCollapseShape
 
     // Put in a no-op unrealized conversion cast operation to persist the new
     // attribute for downstream ops.
-    auto castOp = rewriter.create<UnrealizedConversionCastOp>(
-        op.getLoc(), resultType, adaptor.getSrc());
+    auto castOp = UnrealizedConversionCastOp::create(
+        rewriter, op.getLoc(), resultType, adaptor.getSrc());
     setMaterializedAttr(castOp);
     setAttributeAssociatedWith(castOp.getResult(0), kLayoutAttrName,
                                resultLayout);
@@ -1722,8 +1730,8 @@ class ConvertExpandShape
 
     // Put in a no-op unrealized conversion cast operation to persist the new
     // attribute for downstream ops.
-    auto castOp = rewriter.create<UnrealizedConversionCastOp>(
-        op.getLoc(), resultType, adaptor.getSrc());
+    auto castOp = UnrealizedConversionCastOp::create(
+        rewriter, op.getLoc(), resultType, adaptor.getSrc());
     setMaterializedAttr(castOp);
     setAttributeAssociatedWith(castOp.getResult(0), kLayoutAttrName,
                                resultLayout);
