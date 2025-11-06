@@ -35,8 +35,8 @@ FailureOr<OpFoldResult> ForwardSingleInsertSliceToExtractSlice::getValueAtSlice(
     TypedValue<RankedTensorType> tensor, PatternRewriter& rewriter) const {
   auto* def = tensor.getDefiningOp();
   if (!def) {
-    LLVM_DEBUG(llvm::dbgs() << "No defining op for the extract op\n");
-    return failure();
+    return rewriter.notifyMatchFailure(originalExtractOp,
+                                       "No defining op for the extract op");
   }
 
   LLVM_DEBUG(llvm::dbgs() << "Considering def for forwarding: " << *def
@@ -64,7 +64,10 @@ FailureOr<OpFoldResult> ForwardSingleInsertSliceToExtractSlice::getValueAtSlice(
                 SmallVector<int64_t>(insertOp.getStaticOffsets()),
                 SmallVector<int64_t>(insertOp.getStaticSizes()),
                 SmallVector<int64_t>(insertOp.getStaticStrides()));
-            if (failed(insertRel)) return failure();
+            if (failed(insertRel))
+              return rewriter.notifyMatchFailure(
+                  originalExtractOp,
+                  "failed to get slice insertion relation for insert op");
 
             auto extractResultType =
                 cast<RankedTensorType>(originalExtractOp.getResult().getType());
@@ -75,7 +78,10 @@ FailureOr<OpFoldResult> ForwardSingleInsertSliceToExtractSlice::getValueAtSlice(
                 SmallVector<int64_t>(originalExtractOp.getStaticOffsets()),
                 SmallVector<int64_t>(originalExtractOp.getStaticSizes()),
                 SmallVector<int64_t>(originalExtractOp.getStaticStrides()));
-            if (failed(extractRel)) return failure();
+            if (failed(extractRel))
+              return rewriter.notifyMatchFailure(
+                  originalExtractOp,
+                  "failed to get slice insertion relation for extract op");
 
             insertRel->projectOut(0, insertRel->getNumDomainVars());
             extractRel->projectOut(0, extractRel->getNumDomainVars());
@@ -91,7 +97,10 @@ FailureOr<OpFoldResult> ForwardSingleInsertSliceToExtractSlice::getValueAtSlice(
 
             // Slices are not disjoint and not the same. This is a partial
             // overlap, which is not handled.
-            return failure();
+            return rewriter.notifyMatchFailure(
+                originalExtractOp,
+                "partial overlap between insert and extract slices is not "
+                "handled");
           })
       .Case<tensor::EmptyOp>(
           [&](tensor::EmptyOp emptyOp) -> FailureOr<OpFoldResult> {
@@ -103,10 +112,10 @@ FailureOr<OpFoldResult> ForwardSingleInsertSliceToExtractSlice::getValueAtSlice(
                 sliceType.getElementType()));
           })
       .Default([&](Operation&) {
-        LLVM_DEBUG(llvm::dbgs()
-                   << "Unsupported defining operation, cannot "
-                      "traverse backwards to check for forwardable values\n");
-        return failure();
+        return rewriter.notifyMatchFailure(
+            originalExtractOp,
+            "Unsupported defining operation, cannot traverse backwards to "
+            "check for forwardable values");
       });
 }
 
@@ -117,8 +126,8 @@ LogicalResult ForwardSingleInsertSliceToExtractSlice::matchAndRewrite(
 
   auto result = getValueAtSlice(extractOp, extractOp.getSource(), rewriter);
   if (failed(result)) {
-    LLVM_DEBUG(llvm::dbgs() << "no forwardable values found: \n");
-    return failure();
+    return rewriter.notifyMatchFailure(extractOp,
+                                       "no forwardable values found");
   }
   OpFoldResult forwardedResult = result.value();
   if (auto forwardedValue = dyn_cast<Value>(forwardedResult)) {

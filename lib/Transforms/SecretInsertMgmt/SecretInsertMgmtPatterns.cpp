@@ -30,14 +30,14 @@ LogicalResult MultRelinearize<MulOp>::matchAndRewrite(
   Value result = mulOp.getResult();
   bool secret = isSecret(result, solver);
   if (!secret) {
-    return failure();
+    return rewriter.notifyMatchFailure(mulOp, "result must be secret");
   }
 
   // if mul const, skip
   for (auto operand : mulOp.getOperands()) {
     auto secret = isSecret(operand, solver);
     if (!secret) {
-      return failure();
+      return rewriter.notifyMatchFailure(mulOp, "operands must be secret");
     }
   }
 
@@ -56,7 +56,7 @@ LogicalResult ModReduceAfterMult<MulOp>::matchAndRewrite(
   Value result = mulOp.getResult();
   bool secret = isSecret(result, solver);
   if (!secret) {
-    return failure();
+    return rewriter.notifyMatchFailure(mulOp, "result must be secret");
   }
 
   rewriter.setInsertionPointAfter(mulOp);
@@ -75,7 +75,7 @@ LogicalResult ModReduceBefore<Op>::matchAndRewrite(
     for (auto result : op->getResults()) {
       bool secret = isSecret(result, solver);
       if (!secret) {
-        return failure();
+        return rewriter.notifyMatchFailure(op, "results must be secret");
       }
     }
   }
@@ -89,12 +89,12 @@ LogicalResult ModReduceBefore<Op>::matchAndRewrite(
     auto levelState =
         solver->lookupState<LevelLattice>(operand->get())->getValue();
     if (!levelState.isInitialized()) {
-      return failure();
+      return rewriter.notifyMatchFailure(op, "level state not initialized");
     }
     auto mulDepthState =
         solver->lookupState<MulDepthLattice>(operand->get())->getValue();
     if (!mulDepthState.isInitialized()) {
-      return failure();
+      return rewriter.notifyMatchFailure(op, "mul depth state not initialized");
     }
 
     auto level = levelState.getLevel();
@@ -108,7 +108,7 @@ LogicalResult ModReduceBefore<Op>::matchAndRewrite(
 
   // first mulOp in the chain, skip
   if (!includeFirstMul && mulDepth == 0) {
-    return failure();
+    return rewriter.notifyMatchFailure(op, "skipping first mulOp in the chain");
   }
 
   LLVM_DEBUG(llvm::dbgs() << "ModReduceBefore: " << op
@@ -136,11 +136,12 @@ LogicalResult MatchCrossLevel<Op>::matchAndRewrite(
   Value result = op.getResult();
   bool secret = isSecret(result, solver);
   if (!secret) {
-    return failure();
+    return rewriter.notifyMatchFailure(op, "result must be secret");
   }
   auto resultLevelState = solver->lookupState<LevelLattice>(result)->getValue();
   if (!resultLevelState.isInitialized()) {
-    return failure();
+    return rewriter.notifyMatchFailure(op,
+                                       "result level state not initialized");
   }
   auto resultLevel = resultLevelState.getLevel();
 
@@ -151,7 +152,8 @@ LogicalResult MatchCrossLevel<Op>::matchAndRewrite(
     auto levelState =
         solver->lookupState<LevelLattice>(operand->get())->getValue();
     if (!levelState.isInitialized()) {
-      return failure();
+      return rewriter.notifyMatchFailure(op,
+                                         "operand level state not initialized");
     }
 
     auto level = levelState.getLevel();
@@ -175,9 +177,8 @@ LogicalResult MatchCrossLevel<Op>::matchAndRewrite(
       op->replaceUsesOfWith(operand->get(), managed);
     }
   }
-
   if (!inserted) {
-    return failure();
+    return rewriter.notifyMatchFailure(op, "no operations inserted");
   }
   // propagateIfChanged only push workitem to the worklist queue
   // actually execute the transfer for the new values
@@ -191,13 +192,14 @@ LogicalResult MatchCrossMulDepth<Op>::matchAndRewrite(
   Value result = op.getResult();
   bool secret = isSecret(result, solver);
   if (!secret) {
-    return failure();
+    return rewriter.notifyMatchFailure(op, "result must be secret");
   }
 
   SmallVector<OpOperand*, 2> secretOperands;
   getSecretOperands(op, secretOperands, solver);
   if (secretOperands.size() < 2) {
-    return failure();
+    return rewriter.notifyMatchFailure(op,
+                                       "requires at least two secret operands");
   }
 
   SmallVector<int64_t, 2> mulDepths;
@@ -205,7 +207,8 @@ LogicalResult MatchCrossMulDepth<Op>::matchAndRewrite(
     auto mulDepthState =
         solver->lookupState<MulDepthLattice>(operand->get())->getValue();
     if (!mulDepthState.isInitialized()) {
-      return failure();
+      return rewriter.notifyMatchFailure(
+          op, "operand mul depth state not initialized");
     }
     auto mulDepth = mulDepthState.getMulDepth();
     mulDepths.push_back(mulDepth);
@@ -215,7 +218,7 @@ LogicalResult MatchCrossMulDepth<Op>::matchAndRewrite(
   bool mismatch = (mulDepths[0] == 0 && mulDepths[1] == 1) ||
                   (mulDepths[0] == 1 && mulDepths[1] == 0);
   if (!mismatch) {
-    return failure();
+    return rewriter.notifyMatchFailure(op, "no mul depth mismatch");
   }
 
   // for one operand being mulResult and another not,
@@ -251,10 +254,12 @@ LogicalResult UseInitOpForPlaintextOperand<Op>::matchAndRewrite(
                               return !isSecret(result, solver);
                             });
   if (isMemoryEffectFree(op) && hasNoSecretResults) {
-    return failure();
+    return rewriter.notifyMatchFailure(op,
+                                       "op is pure and has no secret results");
   }
 
-  // insert mgmt::InitOp as an mgmt attribute placeholder for plaintext operand
+  // insert mgmt::InitOp as an mgmt attribute placeholder for plaintext
+  // operand
   bool inserted = false;
   for (auto& operand : op->getOpOperands()) {
     bool secret = isSecret(operand.get(), solver);
@@ -270,7 +275,7 @@ LogicalResult UseInitOpForPlaintextOperand<Op>::matchAndRewrite(
     }
   }
   if (!inserted) {
-    return failure();
+    return rewriter.notifyMatchFailure(op, "no mgmt::InitOp was inserted");
   }
   return success();
 }
@@ -280,20 +285,17 @@ LogicalResult BootstrapWaterLine<Op>::matchAndRewrite(
     Op op, PatternRewriter& rewriter) const {
   auto levelLattice = solver->lookupState<LevelLattice>(op->getResult(0));
   if (!levelLattice->getValue().isInitialized()) {
-    return failure();
+    return rewriter.notifyMatchFailure(op, "level lattice is not initialized");
   }
 
   auto level = levelLattice->getValue().getLevel();
 
   if (level < waterline) {
-    return failure();
+    return rewriter.notifyMatchFailure(op, "level is less than waterline");
   }
   if (level > waterline) {
     // should never met!
-    LLVM_DEBUG(llvm::dbgs()
-               << "BootstrapWaterLine: met " << op << " with level: " << level
-               << " but waterline: " << waterline << "\n");
-    return failure();
+    return rewriter.notifyMatchFailure(op, "level is greater than waterline");
   }
 
   // insert mgmt::BootstrapOp after

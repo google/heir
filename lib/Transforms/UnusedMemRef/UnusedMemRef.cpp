@@ -31,7 +31,10 @@ class RemoveUnusedMemrefPattern : public OpRewritePattern<memref::AllocOp> {
                  !isa<memref::StoreOp>(ownerOp) &&
                  !hasSingleEffect<MemoryEffects::Free>(ownerOp, memref);
         })) {
-      return failure();
+      return rewriter.notifyMatchFailure(
+          op,
+          "memref has users that are not affine write ops, memref store "
+          "ops, or do not have a single MemoryEffects::Free effect");
     }
     // Erase all stores, the dealloc, and the alloc on the memref.
     for (auto* user : llvm::make_early_inc_range(memref.getUsers())) {

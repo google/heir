@@ -279,7 +279,8 @@ struct ConvertBinaryConstOp : public OpRewritePattern<OpTy> {
       // we'd need to first run a pass like elementwise-to-affine to unpack the
       // tensor into individual scalars, then loop unroll or else make this pass
       // depend on SCCP analysis to get the constant here.
-      return failure();
+      return rewriter.notifyMatchFailure(
+          op, "neither operand is a single-valued constant");
     }
     bool lhsIsConstant = succeeded(lhsConstResult);
     APFloat constValue =

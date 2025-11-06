@@ -38,7 +38,9 @@ struct PutCiphertextInFirstOperand : public OpRewritePattern<Op> {
       });
       return success();
     }
-    return failure();
+    return rewriter.notifyMatchFailure(
+        op,
+        "ciphertext not in second operand and plaintext not in first operand");
   }
 };
 

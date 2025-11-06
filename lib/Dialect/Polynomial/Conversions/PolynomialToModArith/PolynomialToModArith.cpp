@@ -184,7 +184,10 @@ struct ConvertFromTensor : public OpConversionPattern<FromTensorOp> {
       FromTensorOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     auto res = getCommonConversionInfo(op, typeConverter);
-    if (failed(res)) return failure();
+    if (failed(res)) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to construct common conversion info");
+    }
     auto typeInfo = res.value();
 
     auto resultShape = typeInfo.tensorType.getShape()[0];
@@ -238,11 +241,16 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
       ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     auto res = getCommonConversionInfo(op, typeConverter);
-    if (failed(res)) return failure();
+    if (failed(res))
+      return rewriter.notifyMatchFailure(
+          op, "failed to construct common conversion info");
+
     auto typeInfo = res.value();
 
     auto attr = dyn_cast<TypedIntPolynomialAttr>(op.getValue());
-    if (!attr) return failure();
+    if (!attr)
+      return rewriter.notifyMatchFailure(op,
+                                         "expected typed int polynomial attr");
     SmallVector<Attribute> coeffs;
     Type eltStorageType = typeInfo.coefficientStorageType;
 
@@ -303,7 +311,8 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
         })
         .Default([&](Type ty) {
           op.emitError("unsupported coefficient type: ") << ty;
-          return failure();
+          return rewriter.notifyMatchFailure(op,
+                                             "unsupported coefficient type");
         });
     return success();
   }
@@ -320,7 +329,9 @@ struct ConvertMonomial : public OpConversionPattern<MonomialOp> {
       ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     auto res = getCommonConversionInfo(op, typeConverter);
-    if (failed(res)) return failure();
+    if (failed(res))
+      return rewriter.notifyMatchFailure(
+          op, "failed to construct common conversion info");
     auto typeInfo = res.value();
 
     auto storageTensorType = RankedTensorType::get(
@@ -352,13 +363,15 @@ struct ConvertMulScalar : public OpConversionPattern<MulScalarOp> {
       MulScalarOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     auto res = getCommonConversionInfo(op, typeConverter);
-    if (failed(res)) return failure();
+    if (failed(res))
+      return rewriter.notifyMatchFailure(
+          op, "failed to construct common conversion info");
     auto typeInfo = res.value();
 
     auto coeffType = dyn_cast<ModArithType>(typeInfo.coefficientType);
     if (!coeffType) {
-      op.emitError("expected coefficient type to be mod_arith type");
-      return failure();
+      return rewriter.notifyMatchFailure(
+          op, "expected coefficient type to be mod_arith type");
     }
 
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
@@ -419,7 +432,9 @@ struct ConvertMonicMonomialMul
     }
 
     auto res = getCommonConversionInfo(op, typeConverter);
-    if (failed(res)) return failure();
+    if (failed(res))
+      return rewriter.notifyMatchFailure(
+          op, "failed to construct common conversion info");
     auto typeInfo = res.value();
 
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
@@ -503,7 +518,9 @@ struct ConvertLeadingTerm : public OpConversionPattern<LeadingTermOp> {
 
     auto res =
         getCommonConversionInfo(op, typeConverter, op.getInput().getType());
-    if (failed(res)) return failure();
+    if (failed(res))
+      return rewriter.notifyMatchFailure(
+          op, "failed to construct common conversion info");
     auto typeInfo = res.value();
 
     auto c0 = arith::ConstantOp::create(
@@ -556,7 +573,9 @@ struct ConvertPolyBinop : public OpConversionPattern<SourceOp> {
       SourceOp op, typename SourceOp::Adaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     auto res = getCommonConversionInfo(op, this->typeConverter);
-    if (failed(res)) return failure();
+    if (failed(res))
+      return rewriter.notifyMatchFailure(
+          op, "failed to construct common conversion info");
     auto typeInfo = res.value();
 
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
@@ -575,7 +594,8 @@ struct ConvertPolyBinop : public OpConversionPattern<SourceOp> {
         })
         .Default([&](Type ty) {
           op.emitError("unsupported coefficient type: ") << ty;
-          return failure();
+          return rewriter.notifyMatchFailure(op,
+                                             "unsupported coefficient type");
         });
   }
 };
@@ -601,12 +621,14 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
       MulOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     auto res = getCommonConversionInfo(op, this->typeConverter);
-    if (failed(res)) return failure();
+    if (failed(res))
+      return rewriter.notifyMatchFailure(
+          op, "failed to construct common conversion info");
     auto typeInfo = res.value();
     auto coeffType = dyn_cast<ModArithType>(typeInfo.coefficientType);
     if (!coeffType) {
-      op.emitError("expected coefficient type to be mod_arith type");
-      return failure();
+      return rewriter.notifyMatchFailure(
+          op, "expected coefficient type to be mod_arith type");
     }
 
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
@@ -1167,15 +1189,12 @@ struct ConvertNTT : public OpConversionPattern<NTTOp> {
 
     auto polyTy = dyn_cast<PolynomialType>(op.getInput().getType());
     if (!polyTy) {
-      op.emitError(
-          "Can't directly lower for a tensor of polynomials. "
-          "First run --convert-elementwise-to-affine.");
-      return failure();
+      return rewriter.notifyMatchFailure(
+          op, "missing convert-elementwise-to-affine");
     }
 
     if (!op.getRoot()) {
-      op.emitError("missing root attribute");
-      return failure();
+      return rewriter.notifyMatchFailure(op, "missing root attribute");
     }
 
     RingAttr ring = polyTy.getRing();
@@ -1183,8 +1202,8 @@ struct ConvertNTT : public OpConversionPattern<NTTOp> {
     auto coeffType =
         dyn_cast<ModArithType>(polyTy.getRing().getCoefficientType());
     if (!coeffType) {
-      op.emitError("expected coefficient type to be mod_arith type");
-      return failure();
+      return rewriter.notifyMatchFailure(
+          op, "expected coefficient type to be mod_arith type");
     }
     auto coeffStorageType = coeffType.getModulus().getType();
     auto intTensorType =
@@ -1216,20 +1235,22 @@ struct ConvertINTT : public OpConversionPattern<INTTOp> {
       INTTOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     auto res = getCommonConversionInfo(op, typeConverter);
-    if (failed(res)) return failure();
+    if (failed(res))
+      return rewriter.notifyMatchFailure(
+          op, "failed to construct common conversion info");
     auto typeInfo = res.value();
 
     if (!op.getRoot()) {
       op.emitError("missing root attribute");
-      return failure();
+      return rewriter.notifyMatchFailure(op, "missing root attribute");
     }
 
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     auto coeffType = dyn_cast<ModArithType>(typeInfo.coefficientType);
     if (!coeffType) {
-      op.emitError("expected coefficient type to be mod_arith type");
-      return failure();
+      return rewriter.notifyMatchFailure(
+          op, "expected coefficient type to be mod_arith type");
     }
     auto coeffStorageType = coeffType.getModulus().getType();
     auto inputType = dyn_cast<RankedTensorType>(adaptor.getInput().getType());

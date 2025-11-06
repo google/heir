@@ -36,7 +36,8 @@ class AffineStoreLowering : public OpRewritePattern<affine::AffineStoreOp> {
     SmallVector<Value, 8> indices(op.getMapOperands());
     auto maybeExpandedMap = affine::expandAffineMap(rewriter, op.getLoc(),
                                                     op.getAffineMap(), indices);
-    if (!maybeExpandedMap) return failure();
+    if (!maybeExpandedMap)
+      return rewriter.notifyMatchFailure(op, "failed to expand affine map");
 
     // Build memref.store valueToStore, memref[expandedMap.results].
     rewriter.replaceOpWithNewOp<memref::StoreOp>(
@@ -58,7 +59,8 @@ class AffineLoadLowering : public OpRewritePattern<affine::AffineLoadOp> {
     SmallVector<Value, 8> indices(op.getMapOperands());
     auto resultOperands = affine::expandAffineMap(rewriter, op.getLoc(),
                                                   op.getAffineMap(), indices);
-    if (!resultOperands) return failure();
+    if (!resultOperands)
+      return rewriter.notifyMatchFailure(op, "failed to expand affine map");
 
     // Build vector.load memref[expandedMap.results].
     rewriter.replaceOpWithNewOp<memref::LoadOp>(op, op.getMemRef(),
@@ -125,7 +127,9 @@ FailureOr<Value> getStoredValue(Operation* storeOp) {
   return llvm::TypeSwitch<Operation&, FailureOr<Value>>(*storeOp)
       .Case<memref::StoreOp>(
           [&](auto storeOp) { return storeOp.getValueToStore(); })
-      .Default([&](Operation&) { return failure(); });
+      .Default([&](Operation&) {
+        return storeOp->emitError("unsupported op type for getStoredValue");
+      });
 }
 
 LogicalResult ForwardSingleStoreToLoad::matchAndRewrite(
@@ -139,7 +143,8 @@ LogicalResult ForwardSingleStoreToLoad::matchAndRewrite(
       auto result = getStoredValue(use);
       LLVM_DEBUG(llvm::dbgs() << "Use is forwardable: " << *use << "\n");
       if (failed(result)) {
-        return failure();
+        return rewriter.notifyMatchFailure(loadOp,
+                                           "failed to get stored value");
       }
       auto value = result.value();
       rewriter.replaceAllUsesWith(loadOp, value);
@@ -147,7 +152,7 @@ LogicalResult ForwardSingleStoreToLoad::matchAndRewrite(
     }
     LLVM_DEBUG(llvm::dbgs() << "Use is not forwardable: " << *use << "\n");
   }
-  return failure();
+  return rewriter.notifyMatchFailure(loadOp, "no forwardable op found");
 }
 
 bool RemoveUnusedStore::isPostDominated(Operation* potentialOp,
@@ -223,7 +228,7 @@ LogicalResult RemoveUnusedStore::matchAndRewrite(
     }
     LLVM_DEBUG(llvm::dbgs() << "Use is not removable: " << *use << "\n");
   }
-  return failure();
+  return rewriter.notifyMatchFailure(storeOp, "no post-dominating op found");
 }
 
 struct ForwardStoreToLoad : impl::ForwardStoreToLoadBase<ForwardStoreToLoad> {

@@ -103,12 +103,14 @@ class SecretGenericOpConversion
       // Each secret.generic should contain at most one instruction -
       // secret-distribute-generic can be used to distribute through the
       // arithmetic ops.
-      return failure();
+      return rewriter.notifyMatchFailure(
+          op, "secret.generic should contain at most one instruction");
     }
 
     auto& innerOp = op.getBody()->getOperations().front();
     if (!isa<T>(innerOp)) {
-      return failure();
+      return rewriter.notifyMatchFailure(
+          op, "inner op is not of the expected type");
     }
 
     // The inner op's arguments are either plaintext operands, in which case
@@ -126,11 +128,13 @@ class SecretGenericOpConversion
     SmallVector<Type> resultTypes;
     if (failed(
             getTypeConverter()->convertTypes(op.getResultTypes(), resultTypes)))
-      return failure();
+      return rewriter.notifyMatchFailure(op, "failed to convert result types");
 
     FailureOr<Operation*> newOpResult =
         matchAndRewriteInner(op, resultTypes, inputs, rewriter);
-    if (failed(newOpResult)) return failure();
+    if (failed(newOpResult))
+      return rewriter.notifyMatchFailure(op,
+                                         "failed to rewrite inner operation");
     return success();
   }
 
@@ -158,7 +162,8 @@ class ConvertAnyNestedGeneric : public OpConversionPattern<secret::GenericOp> {
       secret::GenericOp outerOp, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const final {
     if (outerOp.getBody()->getOperations().size() > 2) {
-      return failure();
+      return rewriter.notifyMatchFailure(
+          outerOp, "secret.generic should contain at most one instruction");
     }
     Operation* innerOp = &outerOp.getBody()->getOperations().front();
 
@@ -174,7 +179,8 @@ class ConvertAnyNestedGeneric : public OpConversionPattern<secret::GenericOp> {
     SmallVector<Type> resultTypes;
     if (failed(getTypeConverter()->convertTypes(outerOp.getResultTypes(),
                                                 resultTypes)))
-      return failure();
+      return rewriter.notifyMatchFailure(outerOp,
+                                         "failed to convert result types");
 
     SmallVector<std::unique_ptr<Region>, 1> regions;
     IRMapping mapping;
@@ -182,7 +188,8 @@ class ConvertAnyNestedGeneric : public OpConversionPattern<secret::GenericOp> {
       Region* newRegion = new Region(innerOp);
       rewriter.cloneRegionBefore(r, *newRegion, newRegion->end(), mapping);
       if (failed(rewriter.convertRegionTypes(newRegion, *typeConverter)))
-        return failure();
+        return rewriter.notifyMatchFailure(outerOp,
+                                           "failed to convert region types");
       regions.emplace_back(newRegion);
     }
 
@@ -332,7 +339,8 @@ class SecretGenericOpCipherPlainConversion
         llvm::count_if(inputs, [&](Value input) {
           return isModArithOrContainerOfModArith(input.getType());
         }) != 1) {
-      return failure();
+      return rewriter.notifyMatchFailure(
+          op, "expected exactly one ciphertext input");
     }
 
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
@@ -364,13 +372,15 @@ class ConvertInsertSlice : public OpConversionPattern<secret::GenericOp> {
       secret::GenericOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const final {
     if (op.getBody()->getOperations().size() > 2) {
-      return failure();
+      return rewriter.notifyMatchFailure(
+          op, "secret.generic should contain at most one instruction");
     }
 
     auto innerOp =
         dyn_cast<tensor::InsertSliceOp>(op.getBody()->getOperations().front());
     if (!innerOp) {
-      return failure();
+      return rewriter.notifyMatchFailure(
+          op, "inner op is not a tensor::InsertSliceOp");
     }
 
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
@@ -381,7 +391,8 @@ class ConvertInsertSlice : public OpConversionPattern<secret::GenericOp> {
       // A secret dest is already handled by ConvertAnyNestedGeneric, which
       // properly type converts operations where all operands are secrets, or
       // where the non-secret operands need no further changes.
-      return failure();
+      return rewriter.notifyMatchFailure(
+          op, "secret dest is already handled by ConvertAnyNestedGeneric");
     }
 
     Type newDestType = getTypeConverter()->convertType(
@@ -394,7 +405,9 @@ class ConvertInsertSlice : public OpConversionPattern<secret::GenericOp> {
       // A non-secret source is already handled by ConvertAnyNestedGeneric,
       // which properly type converts operations where non-secret operands need
       // no further changes.
-      return failure();
+      return rewriter.notifyMatchFailure(
+          op,
+          "non-secret source is already handled by ConvertAnyNestedGeneric");
     }
 
     auto newOp = tensor::InsertSliceOp::create(
@@ -417,7 +430,8 @@ struct ConvertDebugCall : public SecretGenericOpConversion<func::CallOp> {
     auto innerOp = cast<func::CallOp>(op.getBody()->getOperations().front());
     if (innerOp.getArgOperands().size() != 1) {
       // Debug calls have a single argument.
-      return failure();
+      return rewriter.notifyMatchFailure(
+          op, "debug calls should have a single argument");
     }
 
     // It's a bit strange: here we're ignoring the type converted operands

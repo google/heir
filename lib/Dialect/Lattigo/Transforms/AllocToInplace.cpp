@@ -137,7 +137,7 @@ struct ConvertBinOp : public OpRewritePattern<BinOp> {
     auto& storageInfo = (*blockToStorageInfo)[op->getBlock()];
     auto storage = storageInfo.getAvailableStorage(op, liveness);
     if (!storage) {
-      return failure();
+      return rewriter.notifyMatchFailure(op, "no available storage found");
     }
 
     // InplaceOp has the form: output = InplaceOp(evaluator, lhs, rhs,
@@ -174,7 +174,7 @@ struct ConvertUnaryOp : public OpRewritePattern<UnaryOp> {
     auto& storageInfo = (*blockToStorageInfo)[op->getBlock()];
     auto storage = storageInfo.getAvailableStorage(op, liveness);
     if (!storage) {
-      return failure();
+      return rewriter.notifyMatchFailure(op, "no available storage found");
     }
 
     // InplaceOp has the form: output = InplaceOp(evaluator, lhs, inplace)
@@ -209,7 +209,7 @@ struct ConvertRotateOp : public OpRewritePattern<RotateOp> {
     auto& storageInfo = (*blockToStorageInfo)[op->getBlock()];
     auto storage = storageInfo.getAvailableStorage(op, liveness);
     if (!storage) {
-      return failure();
+      return rewriter.notifyMatchFailure(op, "no available storage found");
     }
 
     // InplaceOp has the form: output = InplaceOp(evaluator, lhs, inplace)
@@ -245,7 +245,7 @@ struct ConvertDropLevelOp : public OpRewritePattern<DropLevelOp> {
     auto& storageInfo = (*blockToStorageInfo)[op->getBlock()];
     auto storage = storageInfo.getAvailableStorage(op, liveness);
     if (!storage) {
-      return failure();
+      return rewriter.notifyMatchFailure(op, "no available storage found");
     }
 
     // InplaceOp has the form: output = InplaceOp(evaluator, lhs, inplace)

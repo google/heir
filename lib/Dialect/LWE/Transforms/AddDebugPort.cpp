@@ -143,14 +143,14 @@ LogicalResult insertExternalCall(func::FuncOp op, Type lwePrivateKeyType) {
 
 LogicalResult convertFunc(func::FuncOp op) {
   auto type = getPrivateKeyType(op);
-  if (failed(type)) return failure();
+  if (failed(type)) return op.emitError("failed to get private key type");
   auto lwePrivateKeyType = type.value();
 
   if (failed(op.insertArgument(0, lwePrivateKeyType, nullptr, op.getLoc()))) {
-    return failure();
+    return op.emitError("failed to insert private key argument");
   }
   if (failed(insertExternalCall(op, lwePrivateKeyType))) {
-    return failure();
+    return op.emitError("failed to insert external call");
   }
   return success();
 }

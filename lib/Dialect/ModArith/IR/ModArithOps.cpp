@@ -177,16 +177,22 @@ ParseResult ConstantOp::parse(OpAsmParser& parser, OperationState& result) {
     // more easily convert them to the correct bitwidth (ArrayAttr forces I64)
     std::vector<APInt> parsedInts;
     if (parser.parseLess() ||
-        parser.parseCommaSeparatedList(mlir::AsmParser::Delimiter::Square,
-                                       [&] {
-                                         APInt parsedInt;
-                                         if (parser.parseInteger(parsedInt))
-                                           return failure();
-                                         parsedInts.push_back(parsedInt);
-                                         return success();
-                                       }) ||
+        parser.parseCommaSeparatedList(
+            mlir::AsmParser::Delimiter::Square,
+            [&] {
+              APInt parsedInt;
+              if (parser.parseInteger(parsedInt))
+                return parser.emitError(
+                           parser.getNameLoc(),
+                           "failed to parse integer in dense list"),
+                       failure();
+              parsedInts.push_back(parsedInt);
+              return success();
+            }) ||
         parser.parseGreater() || parser.parseColonType(parsedType))
-      return failure();
+      return parser.emitError(parser.getNameLoc(),
+                              "failed to parse dense constant"),
+             failure();
     if (parsedInts.empty())
       return parser.emitError(parser.getNameLoc(),
                               "expected at least one integer in dense list.");
@@ -209,7 +215,9 @@ ParseResult ConstantOp::parse(OpAsmParser& parser, OperationState& result) {
     // Scalar case
     APInt parsedInt;
     if (parser.parseInteger(parsedInt) || parser.parseColonType(parsedType))
-      return failure();
+      return parser.emitError(parser.getNameLoc(),
+                              "failed to parse scalar constant"),
+             failure();
     // zero becomes `i64` when parsed, so truncate back down to minBitwidth
     if (parsedInt.isZero()) parsedInt = parsedInt.trunc(minBitwidth);
     result.addAttribute(

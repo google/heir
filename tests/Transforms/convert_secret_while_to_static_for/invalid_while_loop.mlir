@@ -19,7 +19,7 @@ func.func @while_loop_without_max_iter(%input: !secret.secret<i16>) -> !secret.s
   return %0 : !secret.secret<i16>
 }
 
-// ----
+// -----
 
 // CHECK: @do_while_not_supported
 func.func @do_while_not_supported(%input: !secret.secret<i16>) -> !secret.secret<i16> {

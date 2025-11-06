@@ -55,7 +55,7 @@ struct WrapWithGeneric : public OpRewritePattern<func::FuncOp> {
 
     if (!hasSecrets) {
       // Match failure, no secret inputs.
-      return failure();
+      return rewriter.notifyMatchFailure(op, "no secret inputs found");
     }
 
     auto newOutputs = llvm::to_vector<6>(llvm::map_range(

@@ -436,10 +436,15 @@ FailureOr<Operation*> ConvertInsertSlice::matchAndRewriteInner(
 LogicalResult ConvertEmpty::matchAndRewrite(
     mgmt::InitOp op, OpAdaptor adaptor,
     ContextAwareConversionPatternRewriter& rewriter) const {
-  if (!op.getOperand().getDefiningOp<tensor::EmptyOp>()) return failure();
+  if (!op.getOperand().getDefiningOp<tensor::EmptyOp>()) {
+    return rewriter.notifyMatchFailure(
+        op, "operand's defining op must be tensor.empty");
+  }
 
   auto mgmtAttrResult = getTypeConverter()->getContextualAttr(op.getResult());
-  if (failed(mgmtAttrResult)) return failure();
+  if (failed(mgmtAttrResult)) {
+    return rewriter.notifyMatchFailure(op, "found no mgmt attr");
+  }
 
   RankedTensorType ciphertextType =
       dyn_cast<RankedTensorType>(getTypeConverter()->convertType(

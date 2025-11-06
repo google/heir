@@ -209,7 +209,7 @@ struct ConvertQuartConstantOp
       mlir::arith::ConstantOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     if (isa<IndexType>(op.getValue().getType())) {
-      return failure();
+      return rewriter.notifyMatchFailure(op, "value type is IndexType");
     }
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
@@ -241,7 +241,8 @@ struct ConvertQuartConstantOp
 
       return success();
     }
-    return failure();
+    return rewriter.notifyMatchFailure(op,
+                                       "old value is not an integer attribute");
   }
 };
 

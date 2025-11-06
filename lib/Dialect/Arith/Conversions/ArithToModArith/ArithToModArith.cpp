@@ -113,7 +113,7 @@ struct ConvertConstant : public OpConversionPattern<mlir::arith::ConstantOp> {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     if (isa<IndexType>(op.getValue().getType())) {
-      return failure();
+      return rewriter.notifyMatchFailure(op, "value type is IndexType");
     }
 
     Type newResultType = typeConverter->convertType(op.getResult().getType());

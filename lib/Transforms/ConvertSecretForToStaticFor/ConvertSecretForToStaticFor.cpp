@@ -48,7 +48,9 @@ struct SecretForToStaticForConversion : OpRewritePattern<scf::ForOp> {
     // If both bounds are non-secret constants and we're not converting all
     // scf.for ops, do nothing
     if (!convertAllScfFor && !isLowerBoundSecret && !isUpperBoundSecret)
-      return failure();
+      return rewriter.notifyMatchFailure(
+          forOp,
+          "both bounds are non-secret constants and convertAllScfFor is false");
 
     // Affine.for can only handle strict static (integer attribute) bounds,
     // but scf.for can handle dynamic bounds, so we need to check:

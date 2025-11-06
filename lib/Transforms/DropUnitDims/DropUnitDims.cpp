@@ -107,12 +107,15 @@ struct ReduceLinalgMap : OpRewritePattern<linalg::MapOp> {
 
     // The mapper should have exactly two operations (the second is a yield).
     auto mapper = mapOp.getBody();
-    if (mapper->getOperations().size() != 2) return failure();
+    if (mapper->getOperations().size() != 2)
+      return rewriter.notifyMatchFailure(
+          mapOp, "mapper block must have exactly two operations");
 
     // The operation should be elementwise.
     Operation& mappingOp = mapper->getOperations().front();
     if (!mappingOp.hasTrait<mlir::OpTrait::Elementwise>()) {
-      return failure();
+      return rewriter.notifyMatchFailure(
+          mapOp, "mapping op must have elementwise trait");
     }
 
     auto loc = mapOp.getLoc();
@@ -125,8 +128,7 @@ struct ReduceLinalgMap : OpRewritePattern<linalg::MapOp> {
     SmallVector<int64_t> operandUnitDims =
         getUnitDims(mapOp.getInit().getType());
     if (operandUnitDims.empty()) {
-      LLVM_DEBUG(llvm::dbgs() << "no unit dims to drop");
-      return failure();
+      return rewriter.notifyMatchFailure(mapOp, "no unit dims to drop");
     }
 
     LLVM_DEBUG({
@@ -180,7 +182,9 @@ struct CollapseExtractSlice : public OpRewritePattern<tensor::ExtractSliceOp> {
 
     auto reassociation =
         getReassociationIndicesForReshape(sourceType, resultType);
-    if (!reassociation) return failure();
+    if (!reassociation)
+      return rewriter.notifyMatchFailure(op,
+                                         "failed to get reassociation indices");
 
     rewriter.replaceOpWithNewOp<tensor::CollapseShapeOp>(
         op, op.getResultType(), op.getSource(), reassociation.value());
@@ -202,7 +206,9 @@ struct ExpandInsertSlice : public OpRewritePattern<tensor::InsertSliceOp> {
 
     auto reassociation =
         getReassociationIndicesForReshape(resultType, sourceType);
-    if (!reassociation) return failure();
+    if (!reassociation)
+      return rewriter.notifyMatchFailure(op,
+                                         "failed to get reassociation indices");
 
     rewriter.replaceOpWithNewOp<tensor::ExpandShapeOp>(
         op, op.getResultType(), op.getSource(), reassociation.value());
