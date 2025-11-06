@@ -22,55 +22,72 @@ namespace lwe {
 // Utils
 //===----------------------------------------------------------------------===//
 
-int64_t getScalingFactorFromEncodingAttr(Attribute encoding) {
-  return llvm::TypeSwitch<Attribute, int64_t>(encoding)
+llvm::APInt getScalingFactorFromEncodingAttr(Attribute encoding) {
+  return llvm::TypeSwitch<Attribute, llvm::APInt>(encoding)
       .Case<FullCRTPackingEncodingAttr>(
           [](auto attr) { return attr.getScalingFactor(); })
       .Case<InverseCanonicalEncodingAttr>(
           [](auto attr) { return attr.getScalingFactor(); })
-      .Default([](Attribute) { return 0; });
+      .Default([](Attribute) { return llvm::APInt(64, 0); });
 }
 
-int64_t inferMulOpScalingFactor(Attribute xEncoding, Attribute yEncoding,
-                                int64_t plaintextModulus) {
-  int64_t xScale = getScalingFactorFromEncodingAttr(xEncoding);
-  int64_t yScale = getScalingFactorFromEncodingAttr(yEncoding);
-  return llvm::TypeSwitch<Attribute, int64_t>(xEncoding)
+llvm::APInt inferMulOpScalingFactor(Attribute xEncoding, Attribute yEncoding,
+                                    int64_t plaintextModulus) {
+  llvm::APInt xScale = getScalingFactorFromEncodingAttr(xEncoding);
+  llvm::APInt yScale = getScalingFactorFromEncodingAttr(yEncoding);
+  return llvm::TypeSwitch<Attribute, llvm::APInt>(xEncoding)
       .Case<FullCRTPackingEncodingAttr>(
           // Use 128-bit int in case of large ptm.
           [&](auto attr) {
-            return (APInt(128, xScale) * APInt(128, yScale))
-                .urem(plaintextModulus);
+            llvm::APInt xScale128 = xScale.zext(128);
+            llvm::APInt yScale128 = yScale.zext(128);
+            llvm::APInt result = (xScale128 * yScale128)
+                                     .urem(llvm::APInt(128, plaintextModulus));
+            // Reduce to minimum bit width for consistent comparisons
+            unsigned minBits = result.getActiveBits();
+            if (minBits == 0) minBits = 1;  // APInt needs at least 1 bit
+            return result.trunc(std::max(64u, minBits));
           })
-      .Case<InverseCanonicalEncodingAttr>(
-          [&](auto attr) { return xScale + yScale; })
-      .Default([](Attribute) { return 0; });
+      .Case<InverseCanonicalEncodingAttr>([&](auto attr) {
+        // Ensure both scales have the same bit width before adding
+        unsigned maxBitWidth =
+            std::max(xScale.getBitWidth(), yScale.getBitWidth());
+        llvm::APInt xScaleExt = xScale.zext(maxBitWidth);
+        llvm::APInt yScaleExt = yScale.zext(maxBitWidth);
+        return xScaleExt + yScaleExt;
+      })
+      .Default([](Attribute) { return llvm::APInt(64, 0); });
 }
 
-int64_t inferModulusSwitchOrRescaleOpScalingFactor(Attribute xEncoding,
-                                                   APInt dividedModulus,
-                                                   int64_t plaintextModulus) {
-  int64_t xScale = getScalingFactorFromEncodingAttr(xEncoding);
-  return llvm::TypeSwitch<Attribute, int64_t>(xEncoding)
+llvm::APInt inferModulusSwitchOrRescaleOpScalingFactor(
+    Attribute xEncoding, APInt dividedModulus, int64_t plaintextModulus) {
+  llvm::APInt xScale = getScalingFactorFromEncodingAttr(xEncoding);
+  return llvm::TypeSwitch<Attribute, llvm::APInt>(xEncoding)
       .Case<FullCRTPackingEncodingAttr>([&](auto attr) {
         // Use 128-bit int in case of large ptm.
         auto qInvT = multiplicativeInverse(
             APInt(128, dividedModulus.urem(plaintextModulus)),
             APInt(128, plaintextModulus));
-        return (APInt(128, xScale) * qInvT).urem(plaintextModulus);
+        llvm::APInt xScale128 = xScale.zext(128);
+        llvm::APInt result =
+            (xScale128 * qInvT).urem(llvm::APInt(128, plaintextModulus));
+        // Reduce to minimum bit width for consistent comparisons
+        unsigned minBits = result.getActiveBits();
+        if (minBits == 0) minBits = 1;  // APInt needs at least 1 bit
+        return result.trunc(std::max(64u, minBits));
       })
       .Case<InverseCanonicalEncodingAttr>([&](auto attr) {
         // skip if xScale is 0
-        if (xScale == 0) return xScale;
+        if (xScale.isZero()) return xScale;
         // round to nearest log2 instead of ceil
         auto logQ = dividedModulus.nearestLogBase2();
-        return xScale - logQ;
+        return xScale - llvm::APInt(xScale.getBitWidth(), logQ);
       })
-      .Default([](Attribute) { return 0; });
+      .Default([](Attribute) { return llvm::APInt(64, 0); });
 }
 
 Attribute getEncodingAttrWithNewScalingFactor(Attribute encoding,
-                                              int64_t newScale) {
+                                              const llvm::APInt& newScale) {
   return llvm::TypeSwitch<Attribute, Attribute>(encoding)
       .Case<FullCRTPackingEncodingAttr>([&](auto attr) {
         return FullCRTPackingEncodingAttr::get(encoding.getContext(), newScale);

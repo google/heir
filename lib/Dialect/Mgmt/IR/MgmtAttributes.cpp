@@ -18,9 +18,13 @@ namespace mgmt {
 // MgmtAttr helpers
 //===----------------------------------------------------------------------===//
 
-MgmtAttr getMgmtAttrWithNewScale(MgmtAttr mgmtAttr, int64_t scale) {
+MgmtAttr getMgmtAttrWithNewScale(MgmtAttr mgmtAttr, const llvm::APInt& scale) {
   return MgmtAttr::get(mgmtAttr.getContext(), mgmtAttr.getLevel(),
                        mgmtAttr.getDimension(), scale);
+}
+
+MgmtAttr getMgmtAttrWithNewScale(MgmtAttr mgmtAttr, int64_t scale) {
+  return getMgmtAttrWithNewScale(mgmtAttr, llvm::APInt(64, scale));
 }
 
 //===----------------------------------------------------------------------===//

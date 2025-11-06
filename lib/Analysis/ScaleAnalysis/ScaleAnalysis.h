@@ -9,6 +9,7 @@
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Parameters/BGV/Params.h"
 #include "lib/Parameters/CKKS/Params.h"
+#include "llvm/include/llvm/ADT/APInt.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/SparseAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
@@ -25,14 +26,19 @@ namespace heir {
 class ScaleState {
  public:
   ScaleState() : scale(std::nullopt) {}
-  explicit ScaleState(int64_t scale) : scale(scale) {}
+  explicit ScaleState(const llvm::APInt& scale) : scale(scale) {}
+  explicit ScaleState(int64_t scale) : scale(llvm::APInt(64, scale)) {}
 
-  int64_t getScale() const {
+  const llvm::APInt& getScale() const {
     assert(isInitialized());
     return scale.value();
   }
 
-  bool operator==(const ScaleState& rhs) const { return scale == rhs.scale; }
+  bool operator==(const ScaleState& rhs) const {
+    if (!isInitialized() && !rhs.isInitialized()) return true;
+    if (!isInitialized() || !rhs.isInitialized()) return false;
+    return scale.value() == rhs.scale.value();
+  }
 
   bool isInitialized() const { return scale.has_value(); }
 
@@ -59,9 +65,11 @@ class ScaleState {
   }
 
  private:
-  // This may not represent 2 ** 80 scale for CKKS.
-  // Currently we use logScale for CKKS.
-  std::optional<int64_t> scale;
+  // For CKKS: represents the actual scale value (not log scale)
+  // For BGV: represents the scale in modular arithmetic
+  // This supports high-precision scale management (#2364) using
+  // arbitrary-precision APInt
+  std::optional<llvm::APInt> scale;
 };
 
 class ScaleLattice : public dataflow::Lattice<ScaleState> {
@@ -73,28 +81,32 @@ struct BGVScaleModel {
   using SchemeParam = bgv::SchemeParam;
   using LocalParam = bgv::LocalParam;
 
-  static int64_t evalMulScale(const LocalParam& param, int64_t lhs,
-                              int64_t rhs);
-  static int64_t evalMulScaleBackward(const LocalParam& param, int64_t result,
-                                      int64_t lhs);
-  static int64_t evalModReduceScale(const LocalParam& inputParam,
-                                    int64_t scale);
-  static int64_t evalModReduceScaleBackward(const LocalParam& inputParam,
-                                            int64_t resultScale);
+  static llvm::APInt evalMulScale(const LocalParam& param,
+                                  const llvm::APInt& lhs,
+                                  const llvm::APInt& rhs);
+  static llvm::APInt evalMulScaleBackward(const LocalParam& param,
+                                          const llvm::APInt& result,
+                                          const llvm::APInt& lhs);
+  static llvm::APInt evalModReduceScale(const LocalParam& inputParam,
+                                        const llvm::APInt& scale);
+  static llvm::APInt evalModReduceScaleBackward(const LocalParam& inputParam,
+                                                const llvm::APInt& resultScale);
 };
 
 struct CKKSScaleModel {
   using SchemeParam = ckks::SchemeParam;
   using LocalParam = ckks::LocalParam;
 
-  static int64_t evalMulScale(const LocalParam& param, int64_t lhs,
-                              int64_t rhs);
-  static int64_t evalMulScaleBackward(const LocalParam& param, int64_t result,
-                                      int64_t lhs);
-  static int64_t evalModReduceScale(const LocalParam& inputParam,
-                                    int64_t scale);
-  static int64_t evalModReduceScaleBackward(const LocalParam& inputParam,
-                                            int64_t resultScale);
+  static llvm::APInt evalMulScale(const LocalParam& param,
+                                  const llvm::APInt& lhs,
+                                  const llvm::APInt& rhs);
+  static llvm::APInt evalMulScaleBackward(const LocalParam& param,
+                                          const llvm::APInt& result,
+                                          const llvm::APInt& lhs);
+  static llvm::APInt evalModReduceScale(const LocalParam& inputParam,
+                                        const llvm::APInt& scale);
+  static llvm::APInt evalModReduceScaleBackward(const LocalParam& inputParam,
+                                                const llvm::APInt& resultScale);
 };
 
 /// Forward Analyse the scale of each secret Value
@@ -127,10 +139,16 @@ class ScaleAnalysis
   using LocalParamType = typename ScaleModelT::LocalParam;
 
   ScaleAnalysis(DataFlowSolver& solver, const SchemeParamType& schemeParam,
-                int64_t inputScale)
+                const llvm::APInt& inputScale)
       : dataflow::SparseForwardDataFlowAnalysis<ScaleLattice>(solver),
         schemeParam(schemeParam),
         inputScale(inputScale) {}
+
+  ScaleAnalysis(DataFlowSolver& solver, const SchemeParamType& schemeParam,
+                int64_t inputScale)
+      : dataflow::SparseForwardDataFlowAnalysis<ScaleLattice>(solver),
+        schemeParam(schemeParam),
+        inputScale(llvm::APInt(64, inputScale)) {}
 
   void setToEntryState(ScaleLattice* lattice) override {
     if (isa<secret::SecretType>(lattice->getAnchor().getType())) {
@@ -154,7 +172,7 @@ class ScaleAnalysis
 
  private:
   const SchemeParamType schemeParam;
-  int64_t inputScale;
+  llvm::APInt inputScale;
 };
 
 /// Backward Analyse the scale of plaintext Value / opaque result of
@@ -204,13 +222,13 @@ class ScaleAnalysisBackward
 // Utils
 //===----------------------------------------------------------------------===//
 
-int64_t getScale(Value value, DataFlowSolver* solver);
+llvm::APInt getScale(Value value, DataFlowSolver* solver);
 
 constexpr StringRef kArgScaleAttrName = "mgmt.scale";
 
 void annotateScale(Operation* top, DataFlowSolver* solver);
 
-int64_t getScaleFromMgmtAttr(Value value);
+llvm::APInt getScaleFromMgmtAttr(Value value);
 
 }  // namespace heir
 }  // namespace mlir

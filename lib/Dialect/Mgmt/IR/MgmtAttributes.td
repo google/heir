@@ -3,11 +3,17 @@
 
 include "lib/Dialect/Mgmt/IR/MgmtDialect.td"
 include "mlir/IR/OpBase.td"
+include "mlir/IR/AttrTypeBase.td"
 
 class Mgmt_Attr<string name, string attrMnemonic, list<Trait> traits = []>
     : AttrDef<Mgmt_Dialect, name, traits> {
   let mnemonic = attrMnemonic;
 }
+
+// Custom APInt parameter with safe comparator for scale values
+// Note: APIntParameter defines the C++ storage type and uses the default
+// FieldParser<APInt> for parsing integer values from text
+def ScaleAPIntParameter : APIntParameter<"scale value">;
 
 def Mgmt_MgmtAttr : Mgmt_Attr<"Mgmt", "mgmt"> {
   let summary = "Container attribute for all mgmt parameter";
@@ -17,6 +23,7 @@ def Mgmt_MgmtAttr : Mgmt_Attr<"Mgmt", "mgmt"> {
     The attribute is a struct with the following fields:
       - `level` : the level of the ciphertext, from L to 0
       - `dimension` : the dimension of the ciphertext, defaults to 2
+      - `scale` : the scale of the ciphertext (high-precision APInt), defaults to 0
 
     Internally, this attribute is used by secret-to-<scheme>
     for determining the level and dimension of the ciphertext.
@@ -26,7 +33,7 @@ def Mgmt_MgmtAttr : Mgmt_Attr<"Mgmt", "mgmt"> {
 
     Example:
     ```
-    #mgmt = #mgmt.mgmt<level = 1> // dimension defaults to 2
+    #mgmt = #mgmt.mgmt<level = 1> // dimension defaults to 2, scale defaults to 0
     #mgmt1 = #mgmt.mgmt<level = 1, dimension = 3>
     %0 = secret.generic(%arg0, %arg1 : !secret.secret<i16>) attrs = {mgmt.mgmt = #mgmt} {
        ...
@@ -37,14 +44,22 @@ def Mgmt_MgmtAttr : Mgmt_Attr<"Mgmt", "mgmt"> {
   let parameters = (ins
     "int": $level,
     DefaultValuedParameter<"int", "2">:$dimension,
-    DefaultValuedParameter<"int64_t", "0">:$scale
+    ScaleAPIntParameter:$scale
   );
   let builders = [
     AttrBuilder<(ins "int":$level, "int":$dimension), [{
       return $_get(
         $_ctxt,
         level,
-        dimension, 0);
+        dimension,
+        ::llvm::APInt(64, 0));
+    }]>,
+    AttrBuilder<(ins "int":$level, "int":$dimension, "int64_t":$scale), [{
+      return $_get(
+        $_ctxt,
+        level,
+        dimension,
+        ::llvm::APInt(64, scale));
     }]>,
   ];
   let assemblyFormat = "`<` struct(params) `>`";

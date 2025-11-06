@@ -36,7 +36,19 @@ void annotateMgmtAttr(Operation* top) {
     if (!scaleAttr) {
       return MgmtAttr::get(top->getContext(), level, dimension);
     }
-    auto scale = cast<IntegerAttr>(scaleAttr).getInt();
+    // High-precision scale management (#2364): scale is stored as StringAttr
+    // Parse it back to APInt for MgmtAttr
+    llvm::APInt scale(64, 0);
+    if (auto strAttr = dyn_cast<StringAttr>(scaleAttr)) {
+      // Parse string as APInt with appropriate bit width
+      // Use a large bit width to ensure the string fits
+      unsigned bitWidth =
+          std::max(64u, static_cast<unsigned>(strAttr.getValue().size() * 4));
+      scale = llvm::APInt(bitWidth, strAttr.getValue(), 10);
+    } else {
+      // Fallback for backward compatibility with IntegerAttr
+      scale = llvm::APInt(64, cast<IntegerAttr>(scaleAttr).getInt());
+    }
     return MgmtAttr::get(top->getContext(), level, dimension, scale);
   };
 

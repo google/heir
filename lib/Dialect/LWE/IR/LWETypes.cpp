@@ -54,9 +54,9 @@ LWECiphertextType getDefaultCGGICiphertextType(MLIRContext* ctx,
       ctx,
       lwe::ApplicationDataAttr::get(ctx, IntegerType::get(ctx, messageWidth),
                                     lwe::PreserveOverflowAttr::get(ctx)),
-      lwe::PlaintextSpaceAttr::get(
-          ctx, plaintextRing,
-          lwe::ConstantCoefficientEncodingAttr::get(ctx, scalingFactor)),
+      lwe::PlaintextSpaceAttr::get(ctx, plaintextRing,
+                                   lwe::ConstantCoefficientEncodingAttr::get(
+                                       ctx, llvm::APInt(64, scalingFactor))),
       lwe::CiphertextSpaceAttr::get(ctx, ciphertextRing,
                                     lwe::LweEncryptionType::msb,
                                     /*dimension=*/742),

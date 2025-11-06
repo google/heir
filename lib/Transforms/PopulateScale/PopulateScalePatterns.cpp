@@ -16,14 +16,23 @@ namespace heir {
 template <typename MulOp>
 LogicalResult ConvertAdjustScaleToMulPlain<MulOp>::matchAndRewrite(
     mgmt::AdjustScaleOp op, PatternRewriter& rewriter) const {
-  auto inputScale = mgmt::findMgmtAttrAssociatedWith(op.getInput()).getScale();
-  int64_t scale = mgmt::findMgmtAttrAssociatedWith(op).getScale();
+  auto inputScaleAPInt =
+      mgmt::findMgmtAttrAssociatedWith(op.getInput()).getScale();
+  auto scaleAPInt = mgmt::findMgmtAttrAssociatedWith(op).getScale();
   // no need to adjust scale
-  if (scale == inputScale) {
+  if (scaleAPInt == inputScaleAPInt) {
     rewriter.replaceAllOpUsesWith(op, op->getOperand(0));
     rewriter.eraseOp(op);
     return success();
   }
+
+  // Convert APInt to int64_t for materializer (which still uses int64_t)
+  int64_t scale = scaleAPInt.getBitWidth() <= 64
+                      ? scaleAPInt.getSExtValue()
+                      : scaleAPInt.getLimitedValue(INT64_MAX);
+  int64_t inputScale = inputScaleAPInt.getBitWidth() <= 64
+                           ? inputScaleAPInt.getSExtValue()
+                           : inputScaleAPInt.getLimitedValue(INT64_MAX);
 
   auto deltaScale = materializer->deltaScale(scale, inputScale);
   if (deltaScale < 0) {

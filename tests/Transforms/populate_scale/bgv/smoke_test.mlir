@@ -28,28 +28,28 @@ module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 12, Q = [67239937,
     %inserted = tensor.insert %c1_i16 into %cst[%c31] : tensor<32xi16>
 
     // the plaintext operand in question
-    %0 = mgmt.init %inserted {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<32xi16>
+    %0 = mgmt.init %inserted {mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 0>} : tensor<32xi16>
 
-    %1 = secret.generic(%arg0 : !secret.secret<tensor<32xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 1>}) {
+    %1 = secret.generic(%arg0 : !secret.secret<tensor<32xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 0>}) {
     ^body(%input0: tensor<32xi16>):
-      %2 = tensor_ext.rotate %input0, %c16 {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<32xi16>, index
-      %3 = arith.addi %input0, %2 {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<32xi16>
-      %4 = tensor_ext.rotate %3, %c8 {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<32xi16>, index
-      %5 = arith.addi %3, %4 {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<32xi16>
-      %6 = tensor_ext.rotate %5, %c4 {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<32xi16>, index
-      %7 = arith.addi %5, %6 {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<32xi16>
-      %8 = tensor_ext.rotate %7, %c2 {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<32xi16>, index
-      %9 = arith.addi %7, %8 {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<32xi16>
-      %10 = tensor_ext.rotate %9, %c1 {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<32xi16>, index
-      %11 = arith.addi %9, %10 {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<32xi16>
+      %2 = tensor_ext.rotate %input0, %c16 {mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 0>} : tensor<32xi16>, index
+      %3 = arith.addi %input0, %2 {mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 0>} : tensor<32xi16>
+      %4 = tensor_ext.rotate %3, %c8 {mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 0>} : tensor<32xi16>, index
+      %5 = arith.addi %3, %4 {mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 0>} : tensor<32xi16>
+      %6 = tensor_ext.rotate %5, %c4 {mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 0>} : tensor<32xi16>, index
+      %7 = arith.addi %5, %6 {mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 0>} : tensor<32xi16>
+      %8 = tensor_ext.rotate %7, %c2 {mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 0>} : tensor<32xi16>, index
+      %9 = arith.addi %7, %8 {mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 0>} : tensor<32xi16>
+      %10 = tensor_ext.rotate %9, %c1 {mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 0>} : tensor<32xi16>, index
+      %11 = arith.addi %9, %10 {mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 0>} : tensor<32xi16>
 
       // The mul op in question
-      %12 = arith.muli %0, %11 {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<32xi16>
+      %12 = arith.muli %0, %11 {mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 0>} : tensor<32xi16>
 
-      %13 = tensor_ext.rotate %12, %c31 {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<32xi16>, index
-      %14 = mgmt.modreduce %13 {mgmt.mgmt = #mgmt.mgmt<level = 0>} : tensor<32xi16>
+      %13 = tensor_ext.rotate %12, %c31 {mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 0>} : tensor<32xi16>, index
+      %14 = mgmt.modreduce %13 {mgmt.mgmt = #mgmt.mgmt<level = 0, scale = 0>} : tensor<32xi16>
       secret.yield %14 : tensor<32xi16>
-    } -> (!secret.secret<tensor<32xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 0>})
+    } -> (!secret.secret<tensor<32xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 0, scale = 0>})
     return %1 : !secret.secret<tensor<32xi16>>
   }
 }

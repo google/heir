@@ -18,6 +18,7 @@ namespace mgmt {
 // MgmtAttr helpers
 //===----------------------------------------------------------------------===//
 
+MgmtAttr getMgmtAttrWithNewScale(MgmtAttr mgmtAttr, const llvm::APInt& scale);
 MgmtAttr getMgmtAttrWithNewScale(MgmtAttr mgmtAttr, int64_t scale);
 
 //===----------------------------------------------------------------------===//
