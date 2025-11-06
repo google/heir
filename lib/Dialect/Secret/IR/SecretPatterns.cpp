@@ -21,6 +21,7 @@
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineValueMap.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineExpr.h"             // from @llvm-project
@@ -607,7 +608,8 @@ LogicalResult HoistPlaintextOps::matchAndRewrite(
     // Conservatively preserve a complex op with a nested region
     // This could be a replaced with a recursive call to check that all of the
     // regions' operations can be hoisted.
-    if (op.getNumRegions() != 0) {
+    if (op.getNumRegions() != 0 &&
+        !isa<linalg::LinalgDialect>(op.getDialect())) {
       return false;
     }
     if (!isSpeculatable(&op)) {

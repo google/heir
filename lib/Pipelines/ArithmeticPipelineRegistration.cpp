@@ -165,6 +165,8 @@ void mlirToSecretArithmeticPipelineBuilder(
   layoutPropagationOptions.ciphertextSize = options.ciphertextDegree;
   pm.addPass(createLayoutPropagation(layoutPropagationOptions));
   pm.addPass(createLayoutOptimization());
+  // Layout conversions may be repeated, so run CSE
+  pm.addPass(createCSEPass());
 
   // Linalg kernel implementation
   ConvertToCiphertextSemanticsOptions convertToCiphertextSemanticsOptions;
@@ -367,6 +369,7 @@ void mlirToRLWEPipeline(OpPassManager& pm,
   }
 
   // Prepare to lower to RLWE Scheme
+  pm.addPass(createCanonicalizerPass());
   pm.addPass(secret::createSecretDistributeGeneric());
   pm.addPass(createCanonicalizerPass());
 
