@@ -1,18 +1,25 @@
 #include "lib/Transforms/LayoutOptimization/InterfaceImpl.h"
 
+#include <cassert>
+#include <vector>
+
 #include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Secret/IR/SecretAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Kernel/Kernel.h"
+#include "lib/Kernel/KernelName.h"
 #include "lib/Transforms/LayoutOptimization/Hoisting.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/Layout/Hoisting.h"
-#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
-#include "llvm/include/llvm/Support/LogicalResult.h"     // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"          // from @llvm-project
+#include "llvm/include/llvm/Support/LogicalResult.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/DialectRegistry.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
@@ -72,6 +79,32 @@ struct MatvecHoistingImpl
         break;
     }
 
+    return hoisters;
+  }
+};
+
+struct MatmulHoistingImpl
+    : public LayoutConversionHoistableOpInterface::ExternalModel<
+          MatmulHoistingImpl, linalg::MatmulOp> {
+  std::vector<Hoister> getHoisters(
+      Operation* op, tensor_ext::ConvertLayoutOp convertLayoutOp) const {
+    std::vector<Hoister> hoisters;
+
+    auto kernel = op->getAttrOfType<secret::KernelAttr>(
+        secret::SecretDialect::kKernelAttrName);
+    if (!kernel) {
+      LLVM_DEBUG(llvm::dbgs()
+                 << "Kernel attribute not found on op " << *op << "\n");
+      return hoisters;
+    }
+
+    if (!op->hasAttr(tensor_ext::TensorExtDialect::kLayoutAttrName)) {
+      LLVM_DEBUG(llvm::dbgs()
+                 << "Layout attribute not found on op " << *op << "\n");
+      return hoisters;
+    }
+
+    // TODO(#2385): try hoisting layout conversion through bicyclic matmul
     return hoisters;
   }
 };
@@ -144,6 +177,7 @@ void registerLayoutConversionHoistableInterface(DialectRegistry& registry) {
   });
   registry.addExtension(+[](MLIRContext* ctx, linalg::LinalgDialect* dialect) {
     linalg::MatvecOp::attachInterface<MatvecHoistingImpl>(*ctx);
+    linalg::MatmulOp::attachInterface<MatmulHoistingImpl>(*ctx);
   });
 }
 

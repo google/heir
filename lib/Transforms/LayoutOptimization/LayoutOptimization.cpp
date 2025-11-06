@@ -53,6 +53,8 @@
 namespace mlir {
 namespace heir {
 
+using ::mlir::heir::kernel::RotationCountVisitor;
+using ::mlir::heir::kernel::SymbolicValue;
 using ::mlir::heir::secret::KernelAttr;
 using ::mlir::heir::tensor_ext::AssignLayoutOp;
 using ::mlir::heir::tensor_ext::ConvertLayoutOp;
@@ -390,64 +392,32 @@ Cost LayoutOptimization::costOfChangedResult(Operation* kernel,
   return totalCost;
 }
 
-// Helper: Extract operation shape for kernel cost calculation
-static std::optional<ArrayRef<int64_t>> getOperationShape(Operation* op) {
-  return llvm::TypeSwitch<Operation*, std::optional<ArrayRef<int64_t>>>(op)
-      .Case<linalg::MatvecOp>(
-          [](auto matvecOp) -> std::optional<ArrayRef<int64_t>> {
-            // Matrix is operand 0: rows x cols
-            auto matrixType =
-                dyn_cast<RankedTensorType>(matvecOp.getInputs()[0].getType());
-            if (!matrixType) return std::nullopt;
-            return matrixType.getShape();
-          })
-      .Case<linalg::VecmatOp>(
-          [](auto vecmatOp) -> std::optional<ArrayRef<int64_t>> {
-            // Matrix is operand 1: rows x cols
-            auto matrixType =
-                dyn_cast<RankedTensorType>(vecmatOp.getInputs()[1].getType());
-            if (!matrixType) return std::nullopt;
-            return matrixType.getShape();
-          })
-      .Case<linalg::MatmulOp>(
-          [](auto matmulOp) -> std::optional<ArrayRef<int64_t>> {
-            // LHS matrix is operand 0
-            auto lhsType =
-                dyn_cast<RankedTensorType>(matmulOp.getInputs()[0].getType());
-            if (!lhsType) return std::nullopt;
-            return lhsType.getShape();
-          })
-      .Default([](auto) { return std::nullopt; });
-}
-
-// Helper: Build symbolic DAG for a kernel and count rotations
-// Returns FailureOr<Cost> to allow caller to handle unsupported kernels.
+// Build a symbolic DAG for a kernel and count rotations. Returns
+// FailureOr<Cost> to allow caller to handle unsupported kernels.
 static FailureOr<Cost> computeKernelCostFromDAG(KernelName kernel,
-                                                ArrayRef<int64_t> shape) {
-  using kernel::RotationCountVisitor;
+                                                Operation* op) {
+  // In each of the cases below, the symbolic DAG constructed must match the
+  // lowering of this kernel in ConvertToCiphertextSemantics.cpp.
 
+  RotationCountVisitor costModel;
   switch (kernel) {
     case KernelName::Trivial:
       return 0;
 
     case KernelName::MatvecDiagonal: {
-      if (shape.size() < 2) return failure();
+      auto matrixType = dyn_cast<RankedTensorType>(op->getOperand(0).getType());
+      if (!matrixType) return failure();
+      auto shape = matrixType.getShape();
 
-      // Use Halevi-Shoup baby-step giant-step algorithm for diagonal matvec
-      // This algorithm achieves O(sqrt(n)) rotations instead of O(n)
-      kernel::SymbolicValue symbolicVector({shape[1]},
-                                           true);  // Vector is encrypted
-      kernel::SymbolicValue symbolicMatrix({shape[0], shape[1]},
-                                           false);  // Matrix is plaintext
-      std::vector<int64_t> originalShape = {shape[0], shape[1]};
-
-      auto kernelDag = kernel::implementHaleviShoup(
-          symbolicVector, symbolicMatrix, originalShape);
+      SymbolicValue symbolicVector({shape[1]},
+                                   /*isSecret=*/true);
+      SymbolicValue symbolicMatrix({shape[0], shape[1]},
+                                   /*isSecret=*/false);
+      auto kernelDag =
+          kernel::implementHaleviShoup(symbolicVector, symbolicMatrix, shape);
 
       if (!kernelDag) return failure();
-
-      RotationCountVisitor counter;
-      return counter.process(kernelDag);
+      return costModel.process(kernelDag);
     }
 
     case KernelName::MatvecNaive:
@@ -455,28 +425,37 @@ static FailureOr<Cost> computeKernelCostFromDAG(KernelName kernel,
       return failure();
 
     case KernelName::VecmatDiagonal: {
-      if (shape.size() < 2) return failure();
+      auto matrixType = dyn_cast<RankedTensorType>(op->getOperand(1).getType());
+      if (!matrixType) return failure();
+      auto shape = matrixType.getShape();
 
-      // VecmatDiagonal uses similar structure to MatvecDiagonal
-      // Same baby-step giant-step algorithm applies
-      kernel::SymbolicValue symbolicVector({shape[0]},
-                                           true);  // Vector is encrypted
-      kernel::SymbolicValue symbolicMatrix({shape[0], shape[1]},
-                                           false);  // Matrix is plaintext
-      std::vector<int64_t> originalShape = {shape[0], shape[1]};
-
-      auto kernelDag = kernel::implementHaleviShoup(
-          symbolicVector, symbolicMatrix, originalShape);
+      SymbolicValue symbolicVector({shape[0]}, /*isSecret=*/true);
+      SymbolicValue symbolicMatrix({shape[0], shape[1]},
+                                   /*isSecret=*/false);
+      auto kernelDag =
+          kernel::implementHaleviShoup(symbolicVector, symbolicMatrix, shape);
 
       if (!kernelDag) return failure();
-
-      RotationCountVisitor counter;
-      return counter.process(kernelDag);
+      return costModel.process(kernelDag);
     }
 
-    case KernelName::MatmulDiagonal:
-      // TODO(#1376): evaluate bicyclic matmul kernel cost
-      return failure();
+    case KernelName::MatmulBicyclic: {
+      // TODO(#2368): ensure this reflects required zero-padding of inputs
+      auto lhsType = dyn_cast<RankedTensorType>(op->getOperand(0).getType());
+      if (!lhsType) return failure();
+      auto lhsShape = lhsType.getShape();
+      auto rhsType = dyn_cast<RankedTensorType>(op->getOperand(1).getType());
+      if (!rhsType) return failure();
+      auto rhsShape = rhsType.getShape();
+
+      SymbolicValue lhsLeaf(lhsShape, /*isSecret=*/true);
+      SymbolicValue rhsLeaf(rhsShape, /*isSecret=*/true);
+      auto implementedKernel = kernel::implementBicyclicMatmul(
+          lhsLeaf, rhsLeaf, lhsShape[0], lhsShape[1], rhsShape[1]);
+
+      if (!implementedKernel) return failure();
+      return costModel.process(implementedKernel);
+    }
 
     default:
       return failure();
@@ -497,18 +476,9 @@ static Cost costOfKernelChange(Operation* op, KernelName oldKernel,
     return 0;
   }
 
-  // Extract operation dimensions
-  auto shape = getOperationShape(op);
-  if (!shape.has_value()) {
-    LLVM_DEBUG(llvm::dbgs() << "Could not extract shape for kernel cost\n");
-    // If we can't extract shape, skip this kernel option by returning
-    // a very large cost to discourage its selection
-    return std::numeric_limits<Cost>::max() / 2;
-  }
-
   // Build symbolic DAG and count rotations
   // TODO(#2351): enhance cost model to include multiplicative depth
-  FailureOr<Cost> costResult = computeKernelCostFromDAG(newKernel, *shape);
+  FailureOr<Cost> costResult = computeKernelCostFromDAG(newKernel, op);
 
   if (failed(costResult)) {
     LLVM_DEBUG(llvm::dbgs()

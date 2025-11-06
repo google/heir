@@ -2,6 +2,7 @@
 #define LIB_UTILS_LAYOUT_UTILS_H_
 
 #include <cstdint>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -101,6 +102,11 @@ bool isRelation2dConvFilterDiagonalized(RankedTensorType filterType,
                                         RankedTensorType dataType,
                                         int64_t padding, int64_t ciphertextSize,
                                         presburger::IntegerRelation relation);
+
+// Returns true if the given relation is a bicyclic layout for the given
+// matrix type and ciphertext semantic shape.
+bool isRelationBicyclic(RankedTensorType matrixType, int64_t numSlots,
+                        const presburger::IntegerRelation& relation);
 
 // Returns a new IntegerRelation that is the same as the given relation, but
 // with the given dimensions collapsed. This expects that the reassociation

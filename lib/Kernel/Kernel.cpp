@@ -1,5 +1,6 @@
 #include "lib/Kernel/Kernel.h"
 
+#include <ostream>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -7,6 +8,7 @@
 #include "lib/Kernel/KernelName.h"
 #include "llvm/include/llvm/Support/Debug.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Diagnostics.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/OperationSupport.h"  // from @llvm-project
 
@@ -22,6 +24,7 @@ static std::unordered_map<KernelName, std::string> correspondingOp = {
     {KernelName::VecmatDiagonal, "linalg.vecmat"},
     {KernelName::MatmulDiagonal, "linalg.matmul"},
     {KernelName::MatmulDiagonal, "linalg.conv2d"},
+    {KernelName::MatmulBicyclic, "linalg.matmul"},
 };
 
 std::set<std::string> requiredNontrivial = {"linalg"};
@@ -66,25 +69,24 @@ std::string kernelNameAsStr(const KernelName& kernelName) {
       return "MatmulDiagonal";
     case KernelName::VecmatDiagonal:
       return "VecmatDiagonal";
+    case KernelName::MatmulBicyclic:
+      return "MatmulBicyclic";
     default:
       return "Unknown";
   }
 }
 
+std::ostream& operator<<(std::ostream& os, const KernelName& k) {
+  return os << "\"" << kernelNameAsStr(k) << "\"";
+}
+
+llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const KernelName& k) {
+  return os << "\"" << kernelNameAsStr(k) << "\"";
+}
+
+mlir::Diagnostic& operator<<(mlir::Diagnostic& diag, const KernelName& k) {
+  return diag << kernelNameAsStr(k);
+}
+
 }  // namespace heir
-
-std::ostream& operator<<(std::ostream& os, const heir::KernelName& k) {
-  return os << "\"" << heir::kernelNameAsStr(k) << "\"";
-}
-
-llvm::raw_ostream& operator<<(llvm::raw_ostream& os,
-                              const heir::KernelName& k) {
-  return os << "\"" << heir::kernelNameAsStr(k) << "\"";
-}
-
-mlir::Diagnostic& operator<<(mlir::Diagnostic& diag,
-                             const heir::KernelName& k) {
-  return diag << heir::kernelNameAsStr(k);
-}
-
 }  // namespace mlir

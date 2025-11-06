@@ -30,7 +30,6 @@ cc_library(
         "@heir//lib/Utils:ContextAwareTypeConversion",
         "@heir//lib/Utils:MathUtils",
         "@heir//lib/Utils/Layout:Codegen",
-        "@heir//lib/Utils/Layout:Hoisting",
         "@heir//lib/Utils/Layout:Utils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",

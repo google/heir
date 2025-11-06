@@ -23,7 +23,6 @@ cc_library(
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Kernel",
         "@heir//lib/Kernel:AbstractValue",
-        "@heir//lib/Kernel:ArithmeticDag",
         "@heir//lib/Kernel:KernelImplementation",
         "@heir//lib/Kernel:RotationCountVisitor",
         "@heir//lib/Utils:AttributeUtils",
@@ -69,14 +68,12 @@ cc_library(
         "@heir//lib/Kernel",
         "@heir//lib/Utils:AttributeUtils",
         "@heir//lib/Utils/Layout:Hoisting",
-        "@heir//lib/Utils/Layout:Utils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:LinalgDialect",
         "@llvm-project//mlir:Support",
-        "@llvm-project//mlir:TensorDialect",
     ],
 )
 
