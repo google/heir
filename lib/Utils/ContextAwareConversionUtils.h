@@ -21,10 +21,12 @@
 #include "lib/Utils/ContextAwareTypeConversion.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/Dialect.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/OperationSupport.h"       // from @llvm-project
@@ -39,6 +41,13 @@
 
 namespace mlir {
 namespace heir {
+
+// Utility to encode a cleartext as a plaintext. Handles single
+// plaintext types and tensor<n x plaintext>.
+FailureOr<Value> encodeCleartextAsPlaintext(
+    ImplicitLocOpBuilder& builder, Value cleartext,
+    lwe::LWECiphertextType ciphertextElementType, mgmt::MgmtAttr mgmtAttr,
+    llvm::raw_string_ostream& errStr);
 
 // Replace the input op with a new op where all operands and results have been
 // replaced by their type-converted versions, and all regions. Note that the
@@ -254,16 +263,6 @@ class SecretGenericOpCipherPlainConversion
       swapped = true;
     }
 
-    auto doReplace = [&](Value ctInput, Value ptInput) {
-      if (swapped) {
-        return rewriter.replaceOpWithNewOp<Y>(op, ptInput, ctInput);
-      }
-      return rewriter.replaceOpWithNewOp<Y>(op, ctInput, ptInput);
-    };
-
-    auto ciphertextElementTy = cast<lwe::LWECiphertextType>(
-        getElementTypeOrSelf(ciphertextInput.getType()));
-
     // Encode the cleartext as a plaintext
     auto initOp =
         dyn_cast_or_null<mgmt::InitOp>(cleartextInput.getDefiningOp());
@@ -275,73 +274,25 @@ class SecretGenericOpCipherPlainConversion
       return failure();
     }
 
-    Attribute ciphertextEncoding =
-        ciphertextElementTy.getPlaintextSpace().getEncoding();
-    Attribute plaintextEncoding = lwe::getEncodingAttrWithNewScalingFactor(
-        ciphertextEncoding, mgmtAttr.getScale());
-
-    if (!plaintextEncoding) {
-      return rewriter.notifyMatchFailure(
-          op, "failed to compute plaintext encoding");
-    }
-
-    // TODO(#1643): inherit level information to plaintext type from init-op
-    // mgmt attr. This actually needs to make LWEPlaintextType RNS aware.
-    auto plaintextTy = lwe::LWEPlaintextType::get(
-        op.getContext(), ciphertextElementTy.getApplicationData(),
-        lwe::PlaintextSpaceAttr::get(
-            op.getContext(), ciphertextElementTy.getPlaintextSpace().getRing(),
-            plaintextEncoding));
+    std::string errMsg;
+    llvm::raw_string_ostream errStream(errMsg);
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     Value realCleartext = initOp.getInput();
-
-    // At this point, realCleartext is a ciphertext-semantic tensor, so it
-    // could be a tensor<Nxty>, tensor<k x N x ty>, (where k=1 is possible).
-
-    // For rank 1, it's a single ciphertext and can be encoded directly.
-    auto cleartextTensorTy = cast<RankedTensorType>(realCleartext.getType());
-    int64_t numSlots =
-        cleartextTensorTy.getDimSize(cleartextTensorTy.getRank() - 1);
-    if (cleartextTensorTy.getRank() == 1) {
-      Value encodeOp = lwe::RLWEEncodeOp::create(
-                           rewriter, op.getLoc(), plaintextTy, realCleartext,
-                           plaintextEncoding,
-                           ciphertextElementTy.getPlaintextSpace().getRing())
-                           .getResult();
-      auto newOp = doReplace(ciphertextInput, encodeOp);
-      return newOp.getOperation();
+    auto ciphertextElementTy = cast<lwe::LWECiphertextType>(
+        getElementTypeOrSelf(ciphertextInput.getType()));
+    FailureOr<Value> encodedPlaintext = encodeCleartextAsPlaintext(
+        b, realCleartext, ciphertextElementTy, mgmtAttr, errStream);
+    if (failed(encodedPlaintext)) {
+      return rewriter.notifyMatchFailure(op, errMsg);
     }
 
-    assert(cleartextTensorTy.getRank() == 2);
-
-    // For higher rank, we need to extract all the inner rank-1 tensors, encode
-    // them, and reassemble.
-    auto sliceTy =
-        RankedTensorType::get({numSlots}, cleartextTensorTy.getElementType());
-    SmallVector<Value> encodedSlices;
-    for (int64_t i = 0; i < cleartextTensorTy.getShape()[0]; ++i) {
-      SmallVector<OpFoldResult> offsets = {rewriter.getIndexAttr(i),
-                                           rewriter.getIndexAttr(0)};
-      SmallVector<OpFoldResult> sizes = {rewriter.getIndexAttr(1),
-                                         rewriter.getIndexAttr(numSlots)};
-      SmallVector<OpFoldResult> strides = {rewriter.getIndexAttr(1),
-                                           rewriter.getIndexAttr(1)};
-      auto slice = tensor::ExtractSliceOp::create(rewriter, op.getLoc(),
-                                                  sliceTy, realCleartext,
-                                                  offsets, sizes, strides);
-      Value encodedSlice =
-          lwe::RLWEEncodeOp::create(
-              rewriter, op.getLoc(), plaintextTy, slice, plaintextEncoding,
-              ciphertextElementTy.getPlaintextSpace().getRing())
-              .getResult();
-      encodedSlices.push_back(encodedSlice);
-    }
-
-    auto reassembledEncodedSlices = rewriter.create<tensor::FromElementsOp>(
-        op.getLoc(),
-        RankedTensorType::get({cleartextTensorTy.getShape()[0]}, plaintextTy),
-        encodedSlices);
-    auto newOp = doReplace(ciphertextInput, reassembledEncodedSlices);
-    return newOp.getOperation();
+    auto doReplace = [&](Value ctInput, Value ptInput) {
+      if (swapped) {
+        return rewriter.replaceOpWithNewOp<Y>(op, ptInput, ctInput);
+      }
+      return rewriter.replaceOpWithNewOp<Y>(op, ctInput, ptInput);
+    };
+    return doReplace(ciphertextInput, encodedPlaintext.value()).getOperation();
   }
 };
 

@@ -1,4 +1,4 @@
-// RUN: heir-opt --mlir-print-local-scope --canonicalize --secret-to-ckks %s | FileCheck %s
+// RUN: heir-opt --mlir-print-local-scope --canonicalize --secret-to-ckks --split-input-file %s | FileCheck %s
 
 !eui1 = !secret.secret<tensor<1024xi1>>
 !efi1 = !secret.secret<tensor<1024xf32>>
@@ -20,7 +20,17 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
     } -> (!eui1 {mgmt.mgmt = #mgmt})
     return %0 : !eui1
   }
+}
 
+// -----
+
+
+!eui1 = !secret.secret<tensor<1024xi1>>
+!efi1 = !secret.secret<tensor<1024xf32>>
+
+#mgmt = #mgmt.mgmt<level = 0, dimension = 2>
+
+module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [36028797019389953, 35184372121601, 35184372744193, 35184373006337, 35184373989377, 35184374874113], P = [36028797019488257, 36028797020209153], logDefaultScale = 45>} {
   // CHECK: func @test_muli_plain
   // CHECK-SAME: %[[arg0:.*]]: !lwe.lwe_ciphertext
   // CHECK-SAME: %[[arg1:.*]]: tensor<1024xi1>
@@ -35,7 +45,16 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
     } -> (!eui1 {mgmt.mgmt = #mgmt})
     return %0 : !eui1
   }
+}
 
+// -----
+
+!eui1 = !secret.secret<tensor<1024xi1>>
+!efi1 = !secret.secret<tensor<1024xf32>>
+
+#mgmt = #mgmt.mgmt<level = 0, dimension = 2>
+
+module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [36028797019389953, 35184372121601, 35184372744193, 35184373006337, 35184373989377, 35184374874113], P = [36028797019488257, 36028797020209153], logDefaultScale = 45>} {
   // CHECK: func @test_subi_plain
   // CHECK-SAME: %[[arg0:.*]]: !lwe.lwe_ciphertext
   // CHECK-SAME: %[[arg1:.*]]: tensor<1024xi1>
@@ -50,7 +69,16 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
     } -> (!eui1 {mgmt.mgmt = #mgmt})
     return %0 : !eui1
   }
+}
 
+// -----
+
+!eui1 = !secret.secret<tensor<1024xi1>>
+!efi1 = !secret.secret<tensor<1024xf32>>
+
+#mgmt = #mgmt.mgmt<level = 0, dimension = 2>
+
+module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [36028797019389953, 35184372121601, 35184372744193, 35184373006337, 35184373989377, 35184374874113], P = [36028797019488257, 36028797020209153], logDefaultScale = 45>} {
   // CHECK: func @test_addf_plain
   // CHECK-SAME: %[[arg0:.*]]: !lwe.lwe_ciphertext
   // CHECK-SAME: %[[arg1:.*]]: tensor<1024xf32>
@@ -65,7 +93,16 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
     } -> (!efi1 {mgmt.mgmt = #mgmt})
     return %0 : !efi1
   }
+}
 
+// -----
+
+!eui1 = !secret.secret<tensor<1024xi1>>
+!efi1 = !secret.secret<tensor<1024xf32>>
+
+#mgmt = #mgmt.mgmt<level = 0, dimension = 2>
+
+module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [36028797019389953, 35184372121601, 35184372744193, 35184373006337, 35184373989377, 35184374874113], P = [36028797019488257, 36028797020209153], logDefaultScale = 45>} {
   // CHECK: func @test_mulf_plain
   // CHECK-SAME: %[[arg0:.*]]: !lwe.lwe_ciphertext
   // CHECK-SAME: %[[arg1:.*]]: tensor<1024xf32>
@@ -80,7 +117,16 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
     } -> (!efi1 {mgmt.mgmt = #mgmt})
     return %0 : !efi1
   }
+}
 
+// -----
+
+!eui1 = !secret.secret<tensor<1024xi1>>
+!efi1 = !secret.secret<tensor<1024xf32>>
+
+#mgmt = #mgmt.mgmt<level = 0, dimension = 2>
+
+module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [36028797019389953, 35184372121601, 35184372744193, 35184373006337, 35184373989377, 35184374874113], P = [36028797019488257, 36028797020209153], logDefaultScale = 45>} {
   // CHECK: func @test_subf_plain
   // CHECK-SAME: %[[arg0:.*]]: !lwe.lwe_ciphertext
   // CHECK-SAME: %[[arg1:.*]]: tensor<1024xf32>
@@ -94,5 +140,30 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
         secret.yield %1 : tensor<1024xf32>
     } -> (!efi1 {mgmt.mgmt = #mgmt})
     return %0 : !efi1
+  }
+}
+
+// -----
+
+!ef = !secret.secret<tensor<1024xf32>>
+
+#mgmt = #mgmt.mgmt<level = 0, dimension = 2>
+
+module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [36028797019389953, 35184372121601, 35184372744193, 35184373006337, 35184373989377, 35184374874113], P = [36028797019488257, 36028797020209153], logDefaultScale = 45>} {
+  // CHECK: func @test_divf_plain
+  // CHECK-SAME: %[[arg0:.*]]: !lwe.lwe_ciphertext
+  // CHECK-SAME: %[[arg1:.*]]: tensor<1024xf32>
+  func.func @test_divf_plain(%arg0 : !ef {mgmt.mgmt = #mgmt}, %arg1 : tensor<1024xf32>) -> (!ef {mgmt.mgmt = #mgmt}) {
+    %arg1_attr = mgmt.init %arg1 {mgmt.mgmt = #mgmt} : tensor<1024xf32>
+    %0 = secret.generic(%arg0 :  !ef) {
+    // CHECK: %[[one:.*]] = arith.constant dense<1{{.*}}> : tensor<1024xf32>
+    // CHECK: %[[inverted:.*]] = arith.divf %[[one]], %[[arg1]]
+    // CHECK: %[[v0:.*]] = lwe.rlwe_encode %[[inverted]]
+    // CHECK: ckks.mul_plain %[[arg0]], %[[v0]]
+      ^bb0(%ARG0 : tensor<1024xf32>):
+        %1 = arith.divf %ARG0, %arg1_attr : tensor<1024xf32>
+        secret.yield %1 : tensor<1024xf32>
+    } -> (!ef {mgmt.mgmt = #mgmt})
+    return %0 : !ef
   }
 }
