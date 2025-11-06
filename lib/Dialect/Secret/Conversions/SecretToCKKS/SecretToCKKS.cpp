@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstdint>
 #include <iterator>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -30,8 +31,9 @@
 #include "lib/Utils/ContextAwareTypeConversion.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "lib/Utils/Utils.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"      // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
@@ -204,6 +206,64 @@ bool hasSecretOperandsOrResults(Operation* op) {
          });
 }
 
+class SecretGenericPlaintextDivision
+    : public SecretGenericOpConversion<arith::DivFOp, ckks::MulPlainOp> {
+ public:
+  using SecretGenericOpConversion<arith::DivFOp,
+                                  ckks::MulPlainOp>::SecretGenericOpConversion;
+
+  FailureOr<Operation*> matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ContextAwareConversionPatternRewriter& rewriter) const override {
+    // Check that the divisor is a plaintext.
+    Value ciphertextInput = inputs[0];
+    Value cleartextDivisor = inputs[1];
+    if (isa<lwe::LWECiphertextType>(cleartextDivisor.getType()) ||
+        !isa<lwe::LWECiphertextType>(ciphertextInput.getType())) {
+      return rewriter.notifyMatchFailure(
+          op, "expected plaintext divisor and ciphertext dividend");
+    }
+
+    // Encode 1/cleartext as a plaintext
+    auto initOp =
+        dyn_cast_or_null<mgmt::InitOp>(cleartextDivisor.getDefiningOp());
+    if (!initOp) {
+      return rewriter.notifyMatchFailure(
+          op, "expected plaintext divisor to be defined by mgmt.init");
+    }
+    auto mgmtAttr = mgmt::findMgmtAttrAssociatedWith(initOp);
+    if (!mgmtAttr) {
+      return rewriter.notifyMatchFailure(
+          op, "expected plaintext divisor to have mgmt.mgmt attribute");
+    }
+
+    Value realCleartext = initOp.getInput();
+    Value invertedCleartext = arith::DivFOp::create(
+        rewriter, op.getLoc(),
+        arith::ConstantOp::create(rewriter, op.getLoc(),
+                                  realCleartext.getType(),
+                                  rewriter.getOneAttr(realCleartext.getType())),
+        realCleartext);
+
+    std::string errMsg;
+    llvm::raw_string_ostream errStream(errMsg);
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    auto ciphertextElementTy = cast<lwe::LWECiphertextType>(
+        getElementTypeOrSelf(ciphertextInput.getType()));
+    FailureOr<Value> encodedPlaintext = encodeCleartextAsPlaintext(
+        b, invertedCleartext, ciphertextElementTy, mgmtAttr, errStream);
+    if (failed(encodedPlaintext)) {
+      return rewriter.notifyMatchFailure(op, errMsg);
+    }
+
+    return rewriter
+        .replaceOpWithNewOp<ckks::MulPlainOp>(op, ciphertextInput,
+                                              encodedPlaintext.value())
+        .getOperation();
+  }
+};
+
 struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
   using SecretToCKKSBase::SecretToCKKSBase;
 
@@ -287,6 +347,7 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
         SecretGenericOpModulusSwitchConversion<ckks::RescaleOp>,
         SecretGenericOpRelinearizeConversion<ckks::RelinearizeOp>,
         SecretGenericOpRotateConversion<ckks::RotateOp>,
+        SecretGenericPlaintextDivision,
         SecretGenericOpLevelReduceConversion<ckks::LevelReduceOp>,
         ConvertExtractSlice, ConvertInsertSlice,
         ConvertAnyContextAware<affine::AffineForOp>,
