@@ -9,24 +9,23 @@ func.func @test_eval_for_paterson() -> f64 {
     // CHECK-NOT: polynomial.eval
     %c6 = arith.constant 6.0 : f64
     %0 = polynomial.eval #eval_poly_for_paterson, %c6 : f64
-    // CHECK: %[[C6_P:.*]] = arith.constant 6.0
-    // CHECK: %[[C1_P1:.*]] = arith.constant 1.0
-    // CHECK: %[[XPOW2:.*]] = arith.mulf %[[C6_P]], %[[C6_P]] : f64
-    // CHECK: %[[XPOW3:.*]] = arith.mulf %[[C6_P]], %[[XPOW2]] : f64
-    // CHECK: %[[C1_P2:.*]] = arith.constant 1.0
-    // CHECK: %[[X_P:.*]] = arith.mulf %[[C1_P2]], %[[C6_P]] : f64
-    // CHECK: %[[C1_P3:.*]] = arith.constant 1.0
-    // CHECK: %[[X2_P:.*]] = arith.mulf %[[C1_P3]], %[[XPOW2]] : f64
-    // CHECK: %[[X12_P:.*]] = arith.addf %[[X_P]], %[[X2_P]] : f64
-    // CHECK: %[[C1_P4:.*]] = arith.constant 1.0
-    // CHECK: %[[C1_P5:.*]] = arith.constant 1.0
-    // CHECK: %[[XX_P:.*]] = arith.mulf %[[C1_P5]], %[[C6_P]] : f64
-    // CHECK: %[[XX1_P:.*]] = arith.addf %[[C1_P4]], %[[XX_P]] : f64
-    // CHECK: %[[C1_P6:.*]] = arith.constant 1.0
-    // CHECK: %[[X3_P:.*]] = arith.mulf %[[C1_P6]], %[[XPOW3]] : f64
-    // CHECK: %[[X13_P:.*]] = arith.addf %[[X3_P]], %[[XX1_P]] : f64
-    // CHECK: %[[X6_P:.*]] = arith.mulf %[[X13_P]], %[[XPOW3]] : f64
-    // CHECK: %[[RESULT:.*]] = arith.addf %[[X6_P]], %[[X12_P]] : f64
+    // CHECK: %[[C6:.*]] = arith.constant 6.000000e+00 : f64
+    // CHECK: %[[C1_1:.*]] = arith.constant 1.000000e+00 : f64
+    // CHECK: %[[X2:.*]] = arith.mulf %[[C6]], %[[C6]] : f64
+    // CHECK: %[[X3:.*]] = arith.mulf %[[C6]], %[[X2]] : f64
+    // CHECK: %[[X6_PART:.*]] = arith.mulf %[[C1_1]], %[[X3]] : f64
+    // CHECK: %[[C1_2:.*]] = arith.constant 1.000000e+00 : f64
+    // CHECK: %[[C1_3:.*]] = arith.constant 1.000000e+00 : f64
+    // CHECK: %[[X:.*]] = arith.mulf %[[C1_3]], %[[C6]] : f64
+    // CHECK: %[[CONST_X:.*]] = arith.addf %[[C1_2]], %[[X]] : f64
+    // CHECK: %[[X6_CONST_X:.*]] = arith.addf %[[X6_PART]], %[[CONST_X]] : f64
+    // CHECK: %[[X6_MUL:.*]] = arith.mulf %[[X6_CONST_X]], %[[X3]] : f64
+    // CHECK: %[[C1_4:.*]] = arith.constant 1.000000e+00 : f64
+    // CHECK: %[[X_COEFF:.*]] = arith.mulf %[[C1_4]], %[[C6]] : f64
+    // CHECK: %[[C1_5:.*]] = arith.constant 1.000000e+00 : f64
+    // CHECK: %[[X2_COEFF:.*]] = arith.mulf %[[C1_5]], %[[X2]] : f64
+    // CHECK: %[[X_X2:.*]] = arith.addf %[[X_COEFF]], %[[X2_COEFF]] : f64
+    // CHECK: %[[RESULT:.*]] = arith.addf %[[X6_MUL]], %[[X_X2]] : f64
     // CHECK: return %[[RESULT]] : f64
     return %0 : f64
 }
@@ -36,24 +35,23 @@ func.func @test_tensor_typed_input() -> tensor<8xf64> {
     // CHECK-NOT: polynomial.eval
     %c6 = arith.constant dense<6.0> : tensor<8xf64>
     %0 = polynomial.eval #eval_poly_for_paterson, %c6 : tensor<8xf64>
-    // CHECK: %[[C6_P:.*]] = arith.constant dense<6.0
-    // CHECK: %[[C1_P1:.*]] = arith.constant dense<1.0
-    // CHECK: %[[XPOW2:.*]] = arith.mulf %[[C6_P]], %[[C6_P]] : tensor<8xf64>
-    // CHECK: %[[XPOW3:.*]] = arith.mulf %[[C6_P]], %[[XPOW2]] : tensor<8xf64>
-    // CHECK: %[[C1_P2:.*]] = arith.constant dense<1.0
-    // CHECK: %[[X_P:.*]] = arith.mulf %[[C1_P2]], %[[C6_P]]
-    // CHECK: %[[C1_P3:.*]] = arith.constant dense<1.0
-    // CHECK: %[[X2_P:.*]] = arith.mulf %[[C1_P3]], %[[XPOW2]]
-    // CHECK: %[[X12_P:.*]] = arith.addf %[[X_P]], %[[X2_P]]
-    // CHECK: %[[C1_P4:.*]] = arith.constant dense<1.0
-    // CHECK: %[[C1_P5:.*]] = arith.constant dense<1.0
-    // CHECK: %[[XX_P:.*]] = arith.mulf %[[C1_P5]], %[[C6_P]]
-    // CHECK: %[[XX1_P:.*]] = arith.addf %[[C1_P4]], %[[XX_P]]
-    // CHECK: %[[C1_P6:.*]] = arith.constant dense<1.0
-    // CHECK: %[[X3_P:.*]] = arith.mulf %[[C1_P6]], %[[XPOW3]]
-    // CHECK: %[[X13_P:.*]] = arith.addf %[[X3_P]], %[[XX1_P]]
-    // CHECK: %[[X6_P:.*]] = arith.mulf %[[X13_P]], %[[XPOW3]]
-    // CHECK: %[[RESULT:.*]] = arith.addf %[[X6_P]], %[[X12_P]]
+    // CHECK: %[[C6:.*]] = arith.constant dense<6.000000e+00> : tensor<8xf64>
+    // CHECK: %[[C1_1:.*]] = arith.constant dense<1.000000e+00> : tensor<8xf64>
+    // CHECK: %[[X2:.*]] = arith.mulf %[[C6]], %[[C6]] : tensor<8xf64>
+    // CHECK: %[[X3:.*]] = arith.mulf %[[C6]], %[[X2]] : tensor<8xf64>
+    // CHECK: %[[X6_PART:.*]] = arith.mulf %[[C1_1]], %[[X3]] : tensor<8xf64>
+    // CHECK: %[[C1_2:.*]] = arith.constant dense<1.000000e+00> : tensor<8xf64>
+    // CHECK: %[[C1_3:.*]] = arith.constant dense<1.000000e+00> : tensor<8xf64>
+    // CHECK: %[[X:.*]] = arith.mulf %[[C1_3]], %[[C6]] : tensor<8xf64>
+    // CHECK: %[[CONST_X:.*]] = arith.addf %[[C1_2]], %[[X]] : tensor<8xf64>
+    // CHECK: %[[X6_CONST_X:.*]] = arith.addf %[[X6_PART]], %[[CONST_X]] : tensor<8xf64>
+    // CHECK: %[[X6_MUL:.*]] = arith.mulf %[[X6_CONST_X]], %[[X3]] : tensor<8xf64>
+    // CHECK: %[[C1_4:.*]] = arith.constant dense<1.000000e+00> : tensor<8xf64>
+    // CHECK: %[[X_COEFF:.*]] = arith.mulf %[[C1_4]], %[[C6]] : tensor<8xf64>
+    // CHECK: %[[C1_5:.*]] = arith.constant dense<1.000000e+00> : tensor<8xf64>
+    // CHECK: %[[X2_COEFF:.*]] = arith.mulf %[[C1_5]], %[[X2]] : tensor<8xf64>
+    // CHECK: %[[X_X2:.*]] = arith.addf %[[X_COEFF]], %[[X2_COEFF]] : tensor<8xf64>
+    // CHECK: %[[RESULT:.*]] = arith.addf %[[X6_MUL]], %[[X_X2]] : tensor<8xf64>
     return %0 : tensor<8xf64>
 }
 
@@ -62,11 +60,12 @@ func.func @test_evaluating_x_powers() -> tensor<8xf64> {
     // CHECK-NOT: polynomial.eval
     %c6 = arith.constant dense<6.0> : tensor<8xf64>
     %0 = polynomial.eval #eval_poly_for_paterson_25_power, %c6 : tensor<8xf64>
-    // CHECK: %[[C6_P:.*]] = arith.constant dense<6.0
-    // CHECK: %[[XPOW2:.*]] = arith.mulf %[[C6_P]], %[[C6_P]] : tensor<8xf64>
-    // CHECK: %[[XPOW3:.*]] = arith.mulf %[[C6_P]], %[[XPOW2]] : tensor<8xf64>
-    // CHECK: %[[XPOW4:.*]] = arith.mulf %[[XPOW2]], %[[XPOW2]] : tensor<8xf64>
-    // CHECK: %[[XPOW5:.*]] = arith.mulf %[[XPOW2]], %[[XPOW3]] : tensor<8xf64>
-    // CHECK: %[[XPOW6:.*]] = arith.mulf %[[XPOW3]], %[[XPOW3]] : tensor<8xf64>
+    // CHECK: %[[C6:.*]] = arith.constant dense<6.000000e+00> : tensor<8xf64>
+    // CHECK: %[[C1:.*]] = arith.constant dense<1.000000e+00> : tensor<8xf64>
+    // CHECK: %[[X2:.*]] = arith.mulf %[[C6]], %[[C6]] : tensor<8xf64>
+    // CHECK: %[[X2_COEFF:.*]] = arith.mulf %[[C1]], %[[X2]] : tensor<8xf64>
+    // CHECK: %[[X3:.*]] = arith.mulf %[[C6]], %[[X2]] : tensor<8xf64>
+    // CHECK: %[[X6:.*]] = arith.mulf %[[X3]], %[[X3]] : tensor<8xf64>
+    // CHECK: %[[X26:.*]] = arith.mulf %[[X2_COEFF]], %[[X6]] : tensor<8xf64>
     return %0 : tensor<8xf64>
 }

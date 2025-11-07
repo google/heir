@@ -25,9 +25,8 @@ constexpr double kMinCoeffs = 1e-15;
 // Computes Arithmetic DAGs of x^0, x^1, ..., x^k.
 // The multiplicative depth is ceil(log2(k)).
 template <typename T>
-std::enable_if_t<std::is_base_of<kernel::AbstractValue, T>::value,
-                 std::vector<std::shared_ptr<kernel::ArithmeticDagNode<T>>>>
-computePowers(std::shared_ptr<kernel::ArithmeticDagNode<T>> x, int64_t k) {
+std::vector<std::shared_ptr<kernel::ArithmeticDagNode<T>>> computePowers(
+    std::shared_ptr<kernel::ArithmeticDagNode<T>> x, int64_t k) {
   using NodeTy = kernel::ArithmeticDagNode<T>;
   std::vector<std::shared_ptr<NodeTy>> result;
   result.reserve(k + 1);
@@ -95,7 +94,8 @@ template <typename T>
 std::enable_if_t<std::is_base_of<kernel::AbstractValue, T>::value,
                  std::shared_ptr<kernel::ArithmeticDagNode<T>>>
 patersonStockmeyerChebyshevPolynomialEvaluation(
-    const T& x, ::llvm::ArrayRef<double> coefficients) {
+    const T& x, ::llvm::ArrayRef<double> coefficients,
+    double minCoeffThreshold = kMinCoeffs) {
   using NodeTy = kernel::ArithmeticDagNode<T>;
   int64_t polynomialDegree = coefficients.size() - 1;
   // Choose k optimally - sqrt of maxDegree is typically a good choice
@@ -120,12 +120,13 @@ patersonStockmeyerChebyshevPolynomialEvaluation(
   // Evaluate the polynomial.
   std::shared_ptr<NodeTy> result;
   for (int i = 0; i < decomposition.coeffs.size(); ++i) {
-    if (!hasElementsLargerThan(decomposition.coeffs[i], kMinCoeffs)) continue;
+    if (!hasElementsLargerThan(decomposition.coeffs[i], minCoeffThreshold))
+      continue;
     std::shared_ptr<NodeTy> pol;
     for (int j = 0; j < decomposition.coeffs[i].size(); ++j) {
       double coeff = decomposition.coeffs[i][j];
       // Skip coefficients that are too small.
-      if (std::abs(coeff) < kMinCoeffs) continue;
+      if (std::abs(coeff) < minCoeffThreshold) continue;
 
       auto coefNode = NodeTy::constantScalar(coeff);
       auto termNode = NodeTy::mul(coefNode, chebPolynomialValues[j]);

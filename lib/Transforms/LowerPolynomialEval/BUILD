@@ -27,18 +27,18 @@ cc_library(
     hdrs = ["Patterns.h"],
     deps = [
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
+        "@heir//lib/Kernel:AbstractValue",
         "@heir//lib/Kernel:ArithmeticDag",
         "@heir//lib/Kernel:IRMaterializingVisitor",
-        "@heir//lib/Kernel:KernelImplementation",
         "@heir//lib/Utils",
-        "@heir//lib/Utils:MathUtils",
         "@heir//lib/Utils/Polynomial",
         "@heir//lib/Utils/Polynomial:ChebyshevPatersonStockmeyer",
+        "@heir//lib/Utils/Polynomial:Horner",
+        "@heir//lib/Utils/Polynomial:PatersonStockmeyer",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
-        "@llvm-project//mlir:Transforms",
     ],
 )
 

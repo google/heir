@@ -62,9 +62,58 @@ cc_test(
     srcs = ["ChebyshevPatersonStockmeyerTest.cpp"],
     deps = [
         ":ChebyshevPatersonStockmeyer",
+        ":PolynomialTestVisitors",
+        "@googletest//:gtest_main",
+        "@heir//lib/Kernel:AbstractValue",
+    ],
+)
+
+cc_library(
+    name = "Horner",
+    hdrs = ["Horner.h"],
+    deps = [
+        "@heir//lib/Kernel:ArithmeticDag",
+    ],
+)
+
+cc_library(
+    name = "PatersonStockmeyer",
+    hdrs = ["PatersonStockmeyer.h"],
+    deps = [
+        ":ChebyshevPatersonStockmeyer",
+        "@heir//lib/Kernel:ArithmeticDag",
+    ],
+)
+
+cc_library(
+    name = "PolynomialTestVisitors",
+    hdrs = ["PolynomialTestVisitors.h"],
+    deps = [
+        "@heir//lib/Kernel:AbstractValue",
+        "@heir//lib/Kernel:ArithmeticDag",
+    ],
+)
+
+cc_test(
+    name = "HornerTest",
+    srcs = ["HornerTest.cpp"],
+    deps = [
+        ":Horner",
+        ":PolynomialTestVisitors",
         "@googletest//:gtest_main",
         "@heir//lib/Kernel:AbstractValue",
         "@heir//lib/Kernel:ArithmeticDag",
-        "@heir//lib/Kernel:KernelImplementation",
+    ],
+)
+
+cc_test(
+    name = "PatersonStockmeyerTest",
+    srcs = ["PatersonStockmeyerTest.cpp"],
+    deps = [
+        ":PatersonStockmeyer",
+        ":PolynomialTestVisitors",
+        "@googletest//:gtest_main",
+        "@heir//lib/Kernel:AbstractValue",
+        "@heir//lib/Kernel:ArithmeticDag",
     ],
 )
