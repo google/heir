@@ -4662,7 +4662,8 @@ including the following. The required basis representation of the polynomial
 is listed alongside each method. The chosen method is controlled by the
 <code>method</code> pass option, which defaults to automatically select the method.</p><ul><li><code>"horner"</code>: Horner&rsquo;s method (monomial basis)</li><li><code>"ps"</code> Paterson-Stockmeyer (monomial basis)</li><li><code>"pscheb"</code>: Paterson-Stockmeyer (Chebyshev basis)</li></ul><p>// TODO(#1565): Add support for Chebyshev-basis methods
 // - <code>"clenshaw"</code>: Clenshaw&rsquo;s method (Chebyshev basis)
-// - <code>"bsgs"</code>: Baby Step Giant Step (Chebyshev basis)</p><h4 id=options-19>Options</h4><pre tabindex=0><code>-method : The method used to lower polynomial.eval
+// - <code>"bsgs"</code>: Baby Step Giant Step (Chebyshev basis)</p><h4 id=options-19>Options</h4><pre tabindex=0><code>-method                    : The method used to lower polynomial.eval
+-min-coefficient-threshold : Minimum threshold for coefficients to be included in the lowered polynomial. Coefficients with absolute value below this threshold will be dropped.
 </code></pre><h3 id=-lower-unpack><code>-lower-unpack</code></h3><p><em>Lower tensor_ext.unpack to standard MLIR</em></p><p>This pass lowers tensor_ext.unpack.</p><h3 id=-lwe-add-debug-port><code>-lwe-add-debug-port</code></h3><p><em>Add debug port to (R)LWE encrypted functions</em></p><p>This pass adds debug ports to the specified function in the IR. The debug ports
 are prefixed with &ldquo;__heir_debug&rdquo; and are invoked after each homomorphic operation in the
 function. The debug ports are declarations and user should provide functions with
