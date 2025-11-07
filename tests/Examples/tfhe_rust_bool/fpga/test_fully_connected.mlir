@@ -1,4 +1,4 @@
-// heir-opt --mlir-to-cggi=abc-fast=true --scheme-to-fpt %s | heir-translate --emit-tfhe-rust-bool-packed > %S/src/fn_under_test.rs
+// heir-opt --mlir-to-cggi="abc-fast=true mode=Boolean data-type=Bool" --scheme-to-fpt %s | heir-translate --emit-tfhe-rust-bool-packed > %S/src/fn_under_test.rs
 // cargo run --release --manifest-path %S/Cargo.toml --bin main_fully_connected -- 2 | FileCheck %s
 
 // This takes takes the input x and outputs a FC layer operation.
@@ -11,3 +11,4 @@ module {
     return %2 : tensor<1x3xi32>
   }
 }
+// bazel run //tools:heir-opt -- --mlir-to-cggi="data-type=Bool" $PWD/tests/Examples/tfhe_rust_bool/fpga/test_fully_connected.mlir
