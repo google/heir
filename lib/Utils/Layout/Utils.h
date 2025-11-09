@@ -54,6 +54,11 @@ presburger::IntegerRelation getDiagonalLayoutRelation(
 presburger::IntegerRelation getBicyclicLayoutRelation(
     RankedTensorType matrixType, int64_t numSlots);
 
+// Returns an IntegerRelation that represents a tricyclic layout for a 3-D
+// tensor. The domain ordering is (h, m, n) and the range is (ct, slot).
+presburger::IntegerRelation getTricyclicLayoutRelation(
+    RankedTensorType tensorType, int64_t numSlots);
+
 // Returns an IntegerRelation that represents a per-row layout for a matrix
 // such that each row of the matrix is in a separate ciphertext.
 presburger::IntegerRelation getPerRowLayoutRelation(RankedTensorType matrixType,

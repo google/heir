@@ -199,6 +199,85 @@ TEST(KernelImplementationTest, BicyclicMatmulRotationCount) {
   // rotation count.
   EXPECT_EQ(rotationCount, 158);
 }
+
+TEST(KernelImplementationTest, TricyclicBatchMatmul) {
+  MLIRContext context;
+
+  // Use a small example: h=2, m=3, n=5, p=2 (keeps sizes small for test)
+  int64_t h = 2;
+  int64_t m = 3;
+  int64_t n = 5;
+  int64_t p = 2;
+  int64_t numSlots = h * m * n;  // single ciphertext for simplicity
+
+  // Build simple batch tensors A (h x m x n) and B (h x n x p) with distinct
+  // values
+  std::vector<std::vector<std::vector<int>>> A(
+      h, std::vector<std::vector<int>>(m, std::vector<int>(n, 0)));
+  std::vector<std::vector<std::vector<int>>> B(
+      h, std::vector<std::vector<int>>(n, std::vector<int>(p, 0)));
+
+  int val = 1;
+  for (int ih = 0; ih < h; ++ih) {
+    for (int im = 0; im < m; ++im) {
+      for (int in = 0; in < n; ++in) {
+        A[ih][im][in] = val++;
+      }
+    }
+  }
+  val = 101;
+  for (int ih = 0; ih < h; ++ih) {
+    for (int in = 0; in < n; ++in) {
+      for (int ip = 0; ip < p; ++ip) {
+        B[ih][in][ip] = val++;
+      }
+    }
+  }
+
+  // Pack using the tricyclic layout relation.
+  RankedTensorType typeA =
+      RankedTensorType::get({h, m, n}, IndexType::get(&context));
+  RankedTensorType typeB =
+      RankedTensorType::get({h, n, p}, IndexType::get(&context));
+
+  auto layoutA = getTricyclicLayoutRelation(typeA, numSlots);
+  auto packedA = evaluateLayoutOnTensor(layoutA, A);
+
+  auto layoutB = getTricyclicLayoutRelation(typeB, numSlots);
+  auto packedB = evaluateLayoutOnTensor(layoutB, B);
+
+  LiteralValue packedAValue = packedA[0];
+  LiteralValue packedBValue = packedB[0];
+
+  // Generate kernel DAG and evaluate
+  auto dag = implementTricyclicBatchCiphertextMatmul(packedAValue, packedBValue,
+                                                     h, m, n, p);
+  LiteralValue result = evalKernel(dag);
+  auto resultVec = std::get<std::vector<int>>(result.getTensor());
+
+  // Unpack result into h x m x p tensor
+  auto resultLayout = getTricyclicLayoutRelation(
+      RankedTensorType::get({h, m, p}, IndexType::get(&context)), numSlots);
+  auto unpackedResult =
+      unpackLayoutToTensor<int>(resultLayout, {resultVec}, {h, m, p});
+
+  // Compute expected cleartext batch matmul
+  std::vector<std::vector<std::vector<int>>> expected(
+      h, std::vector<std::vector<int>>(m, std::vector<int>(p, 0)));
+  for (int ih = 0; ih < h; ++ih) {
+    for (int im = 0; im < m; ++im) {
+      for (int ip = 0; ip < p; ++ip) {
+        int sum = 0;
+        for (int ic = 0; ic < n; ++ic) {
+          sum += A[ih][im][ic] * B[ih][ic][ip];
+        }
+        expected[ih][im][ip] = sum;
+      }
+    }
+  }
+
+  EXPECT_EQ(unpackedResult, expected);
+}
 }  // namespace
 }  // namespace kernel
 }  // namespace heir

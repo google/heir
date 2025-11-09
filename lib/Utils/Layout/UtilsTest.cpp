@@ -199,6 +199,45 @@ TEST(UtilsTest, BicyclicLayout3x5Repeated) {
   EXPECT_EQ(packedMatrix, expected);
 }
 
+TEST(UtilsTest, TricyclicLayout2x5x7Structure) {
+  MLIRContext context;
+  // shape h=2, m=5, n=7
+  int64_t h = 2;
+  int64_t m = 5;
+  int64_t n = 7;
+  int64_t numSlots = h * m * n;
+
+  RankedTensorType tensorType =
+      RankedTensorType::get({h, m, n}, IndexType::get(&context));
+  IntegerRelation tricyclicRelation =
+      getTricyclicLayoutRelation(tensorType, numSlots);
+
+  // value = (100*h_idx + 10*m_idx + n_idx)
+  std::vector<std::vector<std::vector<int>>> tensor(
+      h, std::vector<std::vector<int>>(m, std::vector<int>(n, 0)));
+  for (int ih = 0; ih < h; ++ih) {
+    for (int im = 0; im < m; ++im) {
+      for (int in = 0; in < n; ++in) {
+        tensor[ih][im][in] = ih * 100 + im * 10 + in;
+      }
+    }
+  }
+
+  auto packedMatrix = evaluateLayoutOnTensor(tricyclicRelation, tensor);
+
+  // φ(tensor)[k] = tensor[k mod h][k mod m][k mod n]
+  std::vector<int> expected;
+  expected.reserve(numSlots);
+  for (int64_t k = 0; k < numSlots; ++k) {
+    int ih = k % h;
+    int im = k % m;
+    int in = k % n;
+    expected.push_back(ih * 100 + im * 10 + in);
+  }
+
+  EXPECT_EQ(packedMatrix[0], expected);
+}
+
 TEST(UtilsTest, TestGetRangePoints) {
   MLIRContext context;
   auto rel = getIntegerRelationFromIslStr(
