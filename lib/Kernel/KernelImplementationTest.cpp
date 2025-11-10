@@ -190,14 +190,8 @@ TEST(KernelImplementationTest, BicyclicMatmulRotationCount) {
   RotationCountVisitor rotationCounter;
   int64_t rotationCount = rotationCounter.process(dag);
 
-  // 124 + 2*math.sqrt(124) - 3 = 143
-  // Actual value is 158.
-  //
-  // TODO(#2162): Fix the baby/giant step size selector, along with the
-  // required modifications to the kernel, so that this bound (and a more
-  // extreme bound like a prime m=137) still achieves a roughly n + 2sqrt(n)
-  // rotation count.
-  EXPECT_EQ(rotationCount, 158);
+  // 124 + 2*math.sqrt(124) = 146
+  EXPECT_EQ(rotationCount, 146);
 }
 }  // namespace
 }  // namespace kernel

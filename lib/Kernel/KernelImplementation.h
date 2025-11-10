@@ -124,29 +124,10 @@ implementBabyStepGiantStep(
   auto babySteppedDag = NodeTy::leaf(babySteppedOperand);
 
   // Use a value of sqrt(n) as the baby step / giant step size.
-  int64_t numBabySteps = static_cast<int64_t>(std::floor(std::sqrt(steps)));
-  if (steps % numBabySteps != 0) {
-    // Find the nearest divisible number to use for baby step
-    // TODO(#2162): determine the right tradeoff here
-    int lower = numBabySteps;
-    int upper = numBabySteps;
-
-    while (steps % lower != 0 && steps % upper != steps) {
-      lower--;
-      upper++;
-    }
-
-    if (steps % lower == 0 && lower > 1) {
-      numBabySteps = lower;
-    } else if (steps % upper == 0) {
-      numBabySteps = upper;
-    } else {
-      numBabySteps = steps;
-    }
-  }
-
+  int64_t numBabySteps = static_cast<int64_t>(std::ceil(std::sqrt(steps)));
   int64_t giantStepSize = numBabySteps;
-  int64_t numGiantSteps = steps / numBabySteps;
+  // numGiantSteps = ceil(steps / numBabySteps)
+  int64_t numGiantSteps = (steps + numBabySteps - 1) / numBabySteps;
 
   // Compute sqrt(n) ciphertext rotations of the input as baby-steps.
   SmallVector<std::shared_ptr<NodeTy>> babyStepVals;
@@ -160,6 +141,9 @@ implementBabyStepGiantStep(
   for (int64_t j = 0; j < numGiantSteps; ++j) {
     std::shared_ptr<NodeTy> innerSum = nullptr;
     for (int64_t i = 0; i < numBabySteps; ++i) {
+      if (j * giantStepSize + i >= steps) {
+        break;
+      }
       int64_t innerRotAmount =
           derivedRotationIndexFn(giantStepSize, j, i, period);
       size_t extractionIndex = i + j * giantStepSize;
