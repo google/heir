@@ -32,7 +32,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        # TODO(#2403): fix macos build
+        os: [ubuntu-latest] # macos-latest is currently broken
 
     steps:
       - name: Check out HEIR

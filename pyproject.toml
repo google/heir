@@ -8,7 +8,7 @@ version = "0.0.3"
 authors = [
   { name = "Jeremy Kun", email = "jkun@google.com" },
   { name = "Asra Ali", email = "asraa@google.com" },
-  { name = "Alexander Viand", email = "alexander.viand@intel.com" },
+  { name = "Alexander Viand", email = "alexander.viand@gmail.com" },
 ]
 description = "The HEIR compiler"
 readme = "README.md"
@@ -68,7 +68,9 @@ where = ["frontend"]
 [tool.cibuildwheel]
 build = "cp311-* cp312-* cp313-*"
 build-frontend = "build[uv]"
-skip = "*-musllinux_* pp-*"
+
+# TODO(#2403): fix macos build
+skip = "*-musllinux_* pp-* *macos*"
 # The test must be run in an isolated directory so that python uses the wheel
 # when running `import heir` instead of the local source files. cibuildwheel
 # creates an isolated directory for this purpose, and cd's to it before running
