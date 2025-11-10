@@ -1,9 +1,9 @@
 module(name = "heir")
 
-bazel_dep(name = "bazel_skylib", version = "1.7.1")
+bazel_dep(name = "bazel_skylib", version = "1.8.2")
 
 # This must come before apple_support cf. https://github.com/bazelbuild/bazel/issues/25728
-bazel_dep(name = "rules_cc", version = "0.2.0")
+bazel_dep(name = "rules_cc", version = "0.2.4")
 
 # Apple compilation support.
 # Note this requires full xcode, not just commandline tools
@@ -13,7 +13,7 @@ bazel_dep(name = "rules_cc", version = "0.2.0")
 # $ /usr/bin/xcodebuild -version
 #   Xcode 16.2
 #   Build version 16C5032a
-bazel_dep(name = "apple_support", version = "1.21.0", repo_name = "build_bazel_apple_support")
+bazel_dep(name = "apple_support", version = "1.22.1", repo_name = "build_bazel_apple_support")
 bazel_dep(name = "rules_apple", version = "3.20.1")
 
 # Gazelle puglin for BUILD file autogeneration
@@ -29,11 +29,11 @@ bazel_dep(name = "rules_license", version = "1.0.0")
 # to build yosys
 bazel_dep(name = "rules_foreign_cc", version = "0.14.0")
 bazel_dep(name = "rules_go", version = "0.53.0")
-bazel_dep(name = "rules_python", version = "1.2.0")
-bazel_dep(name = "googletest", version = "1.16.0")
+bazel_dep(name = "rules_python", version = "1.5.1")
+bazel_dep(name = "googletest", version = "1.17.0")
 bazel_dep(name = "fuzztest", version = "20250805.0")
 bazel_dep(name = "google_benchmark", version = "1.9.1")
-bazel_dep(name = "abseil-cpp", version = "20250127.0", repo_name = "com_google_absl")
+bazel_dep(name = "abseil-cpp", version = "20250512.1", repo_name = "com_google_absl")
 bazel_dep(name = "pybind11_bazel", version = "2.13.6")
 bazel_dep(name = "rules_shell", version = "0.6.1")
 bazel_dep(name = "re2", version = "2025-08-12")
@@ -45,6 +45,8 @@ bazel_dep(name = "isl", version = "0.27")
 #
 # bazel_dep(name = "abc", version = "0.0.0-20250408-yosyshq.bcr.1", repo_name = "edu_berkeley_abc")
 bazel_dep(name = "soplex", version = "7.1.4.bcr.1")
+bazel_dep(name = "readline", version = "8.2.bcr.3", repo_name = "org_gnu_readline")
+bazel_dep(name = "ncurses", version = "6.4.20221231.bcr.10", repo_name = "net_invisible_island_ncurses")
 
 # The versions of yosys deps zlib and libffi that come with rules_hdl don't
 # build for some versions of MacOS + Xcode (e.g., macOS 15.4 with Xcode 16.3).

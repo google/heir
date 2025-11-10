@@ -53,14 +53,8 @@ http_archive(
 
 load("@rules_hdl//dependency_support/at_clifford_yosys:at_clifford_yosys.bzl", "at_clifford_yosys")
 load("@rules_hdl//dependency_support/edu_berkeley_abc:edu_berkeley_abc.bzl", "edu_berkeley_abc")
-load("@rules_hdl//dependency_support/net_invisible_island_ncurses:net_invisible_island_ncurses.bzl", "net_invisible_island_ncurses")
 load("@rules_hdl//dependency_support/org_gnu_gnulib:org_gnu_gnulib.bzl", "org_gnu_gnulib")
-load("@rules_hdl//dependency_support/org_gnu_readline:org_gnu_readline.bzl", "org_gnu_readline")
 load("@rules_hdl//dependency_support/tk_tcl:tk_tcl.bzl", "tk_tcl")
-
-net_invisible_island_ncurses()
-
-org_gnu_readline()
 
 edu_berkeley_abc()
 
