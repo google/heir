@@ -1,10 +1,20 @@
 #include "lib/Target/OpenFhePke/Interpreter.h"
 
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <map>
+#include <memory>
 #include <string>
+#include <utility>
+#include <variant>
 #include <vector>
 
+#include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
+#include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
@@ -12,23 +22,77 @@
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "lib/Dialect/RNS/IR/RNSTypeInterfaces.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
-#include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"       // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"      // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/OperationSupport.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/OwningOpRef.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
 #include "mlir/include/mlir/Parser/Parser.h"             // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "src/core/include/lattice/hal/lat-backend.h"    // from @openfhe
+#include "src/core/include/lattice/stdlatticeparms.h"    // from @openfhe
+#include "src/pke/include/ciphertext-fwd.h"              // from @openfhe
+#include "src/pke/include/constants-defs.h"              // from @openfhe
+#include "src/pke/include/cryptocontext-fwd.h"           // from @openfhe
+#include "src/pke/include/encoding/plaintext-fwd.h"      // from @openfhe
+#include "src/pke/include/gen-cryptocontext.h"           // from @openfhe
+#include "src/pke/include/key/evalkey-fwd.h"             // from @openfhe
+#include "src/pke/include/key/privatekey-fwd.h"          // from @openfhe
+#include "src/pke/include/key/publickey-fwd.h"           // from @openfhe
 #include "src/pke/include/openfhe.h"                     // from @openfhe
+#include "src/pke/include/scheme/ckksrns/gen-cryptocontext-ckksrns-params.h"  // from @openfhe
+#include "src/pke/include/scheme/ckksrns/gen-cryptocontext-ckksrns.h"  // from @openfhe
 
 namespace mlir {
 namespace heir {
 namespace openfhe {
+
+namespace {
+
+TypedCppValue getValueFromDenseElementsAttr(DenseElementsAttr elementsAttr) {
+  // We flatten all tensors to a 1D shape in row-major order.
+  if (elementsAttr.getType().getElementType().isInteger(32) ||
+      elementsAttr.getType().getElementType().isInteger(64)) {
+    std::vector<int> values;
+    for (auto val : elementsAttr.getValues<APInt>()) {
+      values.push_back(static_cast<int>(val.getSExtValue()));
+    }
+    return values;
+  } else if (elementsAttr.getType().getElementType().isF32()) {
+    // Use float for F32
+    std::vector<float> values;
+    for (auto val : elementsAttr.getValues<APFloat>()) {
+      values.push_back(static_cast<float>(val.convertToFloat()));
+    }
+    return values;
+  } else if (elementsAttr.getType().getElementType().isF64()) {
+    // Use double for F64
+    std::vector<double> values;
+    for (auto val : elementsAttr.getValues<APFloat>()) {
+      values.push_back(val.convertToDouble());
+    }
+    return values;
+  }
+  return TypedCppValue();
+}
+
+}  // namespace
 
 using namespace lbcrypto;
 using CiphertextT = Ciphertext<DCRTPoly>;
@@ -116,32 +180,23 @@ void Interpreter::visit(arith::ConstantOp op) {
       env.try_emplace(op.getResult(), floatAttr.getValueAsDouble());
     }
   } else if (auto elementsAttr = dyn_cast<DenseElementsAttr>(valueAttr)) {
-    // We flatten all tensors to a 1D shape in row-major order.
-    if (elementsAttr.getType().getElementType().isInteger(32) ||
-        elementsAttr.getType().getElementType().isInteger(64)) {
-      std::vector<int> values;
-      for (auto val : elementsAttr.getValues<APInt>()) {
-        values.push_back(static_cast<int>(val.getSExtValue()));
-      }
-      env.try_emplace(op.getResult(), std::move(values));
-    } else if (elementsAttr.getType().getElementType().isF32()) {
-      // Use float for F32
-      std::vector<float> values;
-      for (auto val : elementsAttr.getValues<APFloat>()) {
-        values.push_back(static_cast<float>(val.convertToFloat()));
-      }
-      env.try_emplace(op.getResult(), std::move(values));
-    } else if (elementsAttr.getType().getElementType().isF64()) {
-      // Use double for F64
-      std::vector<double> values;
-      for (auto val : elementsAttr.getValues<APFloat>()) {
-        values.push_back(val.convertToDouble());
-      }
-      env.try_emplace(op.getResult(), std::move(values));
-    } else {
+    auto value = getValueFromDenseElementsAttr(elementsAttr);
+    if (std::holds_alternative<std::monostate>(value.value)) {
       op->emitError() << "Unsupported DenseElementsAttr type "
                       << elementsAttr.getType().getElementType();
     }
+    env.try_emplace(op.getResult(), std::move(value));
+  } else if (auto denseResourceAttr =
+                 dyn_cast<DenseResourceElementsAttr>(valueAttr)) {
+    const auto data = denseResourceAttr.getData();
+    auto denseElementsAttr =
+        DenseElementsAttr::getFromRawBuffer(denseResourceAttr.getType(), data);
+    auto value = getValueFromDenseElementsAttr(denseElementsAttr);
+    if (std::holds_alternative<std::monostate>(value.value)) {
+      op->emitError() << "Unsupported DenseResourceElementsAttr type "
+                      << denseResourceAttr.getType().getElementType();
+    }
+    env.try_emplace(op.getResult(), std::move(value));
   } else {
     op->emitError() << "Unsupported constant attribute type " << valueAttr;
   }

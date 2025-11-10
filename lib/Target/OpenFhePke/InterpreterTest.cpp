@@ -931,6 +931,37 @@ TEST(InterpreterTest, TestDoubleTensorConstant) {
   EXPECT_NEAR(vec[2], 3.3, 0.01);
 }
 
+TEST(InterpreterTest, TestDenseResourceConstant) {
+  MLIRContext context;
+  initContext(context);
+  std::vector<float> expected = {1.1f, 2.2f, 3.3f, 0.0f};
+
+  auto module = parseTest(&context, R"mlir(
+    module {
+      func.func @main() -> tensor<4xf32> {
+        %c = arith.constant dense_resource<dense_elements_f32> : tensor<4xf32>
+        return %c : tensor<4xf32>
+      }
+    }
+    {-#
+      dialect_resources: {
+        builtin: {
+          dense_elements_f32: "0x40000000CDCC8C3FCDCC0C403333534000000000"
+        }
+      }
+    #-}
+  )mlir");
+  Interpreter interpreter(module.get());
+  std::string entryFunction = "main";
+  std::vector<TypedCppValue> results = interpreter.interpret(entryFunction, {});
+  EXPECT_EQ(results.size(), 1);
+  auto vec = std::get<std::vector<float>>(results[0].value);
+  EXPECT_EQ(vec.size(), 4);
+  for (size_t i = 0; i < 4; i++) {
+    EXPECT_NEAR(vec[i], expected[i], 1e-10);
+  }
+}
+
 TEST(InterpreterTest, TestDoubleTensorSplat) {
   MLIRContext context;
   initContext(context);

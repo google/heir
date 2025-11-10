@@ -18,5 +18,3 @@ module {
     return %0 : !secret.secret<tensor<3x2xf32>>
   }
 }
-
-
