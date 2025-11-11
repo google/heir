@@ -1,9 +1,13 @@
-#ifndef LIB_TRANSFORMS_RELUCANONICALIZATIONS_REWRITES_TD_
-#define LIB_TRANSFORMS_RELUCANONICALIZATIONS_REWRITES_TD_
+#ifndef LIB_TRANSFORMS_ACTIVATIONCANONICALIZATIONS_REWRITES_TD_
+#define LIB_TRANSFORMS_ACTIVATIONCANONICALIZATIONS_REWRITES_TD_
 
 include "mlir/Dialect/Arith/IR/ArithOps.td"
 include "mlir/Dialect/Tensor/IR/TensorOps.td"
+include "mlir/Dialect/Math/IR/MathOps.td"
 include "mlir/IR/PatternBase.td"
+include "lib/Dialect/MathExt/IR/MathExtOps.td"
+
+def IsOne : Constraint<CPred<"IsOne($0)">>;
 
 // select(a >= c, a, c) = max(a, c)
 def SelectGreaterThanEqualFloat : Pat<
@@ -32,4 +36,16 @@ def SelectGreaterThanEqualSigned : Pat<
             CPred<"$0.getValue() == arith::CmpIPredicate::sgt || "
                   "$0.getValue() == arith::CmpIPredicate::sge">> $pred)]>;
 
-#endif // LIB_TRANSFORMS_RELUCANONICALIZATIONS_REWRITES_TD_
+// AddFOp is commutative and is canonicalized to have a constant operand be second.
+
+// 1 / (1 + exp(-x)) = math_ext.sigmoid(x).
+def Sigmoid : Pat<
+  (Arith_DivFOp
+    (Arith_ConstantOp $c1_1),
+    (Arith_AddFOp
+      (Math_ExpOp (Arith_NegFOp $x, $_), $_),
+      (Arith_ConstantOp $c1_2), $_), $_),
+  (MathExt_SigmoidOp $x),
+  [(IsOne $c1_1), (IsOne $c1_2)]>;
+
+#endif // LIB_TRANSFORMS_ACTIVATIONCANONICALIZATIONS_REWRITES_TD_

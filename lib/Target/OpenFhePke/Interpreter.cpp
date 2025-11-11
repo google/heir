@@ -29,6 +29,7 @@
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
@@ -158,7 +159,8 @@ void Interpreter::visit(Operation* op) {
             BootstrapOp, EncryptOp, DecryptOp, MakePackedPlaintextOp,
             MakeCKKSPackedPlaintextOp, GenParamsOp, GenContextOp, GenRotKeyOp,
             GenMulKeyOp, GenBootstrapKeyOp, SetupBootstrapOp, FastRotationOp,
-            FastRotationPrecomputeOp>([&](auto op) { visit(op); })
+            FastRotationPrecomputeOp, linalg::BroadcastOp>(
+          [&](auto op) { visit(op); })
       .Default([&](Operation* op) {
         OperationName opName = op->getName();
         op->emitError() << "Unsupported operation " << opName.getStringRef()
@@ -817,6 +819,86 @@ void Interpreter::visit(tensor::ExpandShapeOp op) {
   env.try_emplace(op.getResult(), src);
 }
 
+void Interpreter::visit(linalg::BroadcastOp op) {
+  // BroadcastOp copies the input op into a new tensor by adding the specified
+  // dims.
+  auto input = env.at(op.getInput());
+  auto resultType = cast<RankedTensorType>(op->getResults()[0].getType());
+  auto resultShape = resultType.getShape();
+  auto inputType = cast<RankedTensorType>(op.getInput().getType());
+  auto inputShape = inputType.getShape();
+  auto numOutputElements = resultType.getNumElements();
+
+  auto calculate = [&](const auto& inputVec, auto& outputVec) {
+    outputVec.resize(numOutputElements);
+
+    // Create a map of the broadcast dimensions.
+    DenseMap<int64_t, bool> broadcastDims;
+    for (const auto& dim : op.getDimensions()) {
+      broadcastDims[dim] = true;
+    }
+
+    // Iterate over the output tensor's elements
+    for (int64_t i = 0; i < numOutputElements; ++i) {
+      // Calculate the multi-dimensional index in the output tensor by
+      // unflattening the index in the output shape.
+      std::vector<int64_t> outputIndices(resultShape.size());
+      int64_t temp = i;
+      for (int d = resultShape.size() - 1; d >= 0; --d) {
+        if (resultShape[d] > 0) {
+          outputIndices[d] = temp % resultShape[d];
+          temp /= resultShape[d];
+        } else {
+          outputIndices[d] = 0;
+        }
+      }
+
+      // Calculate the multi-dimensional index in the input tensor.
+      std::vector<int64_t> inputIndices(inputShape.size());
+      int64_t inputDim = 0;
+      for (size_t d = 0; d < resultShape.size(); ++d) {
+        if (!broadcastDims.contains(d)) {
+          // If the output dimension is not broadcast, then the input and
+          // output dimensions are the same.
+          inputIndices[inputDim] = outputIndices[d];
+          inputDim++;
+        }
+      }
+
+      // Calculate the flattened index in the input tensor
+      int64_t inputFlatIndex = 0;
+      if (!inputShape.empty()) {
+        inputFlatIndex = inputIndices[0];
+        for (size_t d = 1; d < inputShape.size(); ++d) {
+          inputFlatIndex = inputFlatIndex * inputShape[d] + inputIndices[d];
+        }
+      }
+
+      outputVec[i] = inputVec[inputFlatIndex];
+    }
+  };
+
+  Value result = op->getResults()[0];
+  if (std::holds_alternative<std::vector<int>>(input.value)) {
+    const auto& inputVec = std::get<std::vector<int>>(input.value);
+    std::vector<int> resultVec;
+    calculate(inputVec, resultVec);
+    env.try_emplace(result, std::move(resultVec));
+  } else if (std::holds_alternative<std::vector<float>>(input.value)) {
+    const auto& inputVec = std::get<std::vector<float>>(input.value);
+    std::vector<float> resultVec;
+    calculate(inputVec, resultVec);
+    env.try_emplace(result, std::move(resultVec));
+  } else if (std::holds_alternative<std::vector<double>>(input.value)) {
+    const auto& inputVec = std::get<std::vector<double>>(input.value);
+    std::vector<double> resultVec;
+    calculate(inputVec, resultVec);
+    env.try_emplace(result, std::move(resultVec));
+  } else {
+    op.emitError("Unsupported tensor type in BroadcastOp");
+  }
+}
+
 // SCF and Affine ops
 void Interpreter::visit(scf::YieldOp op) {
   // YieldOp is handled specially within loop bodies
@@ -1422,6 +1504,7 @@ void initContext(MLIRContext& context) {
   registry.insert<scf::SCFDialect>();
   registry.insert<tensor::TensorDialect>();
   registry.insert<tensor_ext::TensorExtDialect>();
+  registry.insert<linalg::LinalgDialect>();
   rns::registerExternalRNSTypeInterfaces(registry);
   context.appendDialectRegistry(registry);
 }

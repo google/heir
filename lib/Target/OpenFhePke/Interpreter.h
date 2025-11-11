@@ -11,6 +11,7 @@
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
@@ -108,6 +109,7 @@ class Interpreter {
   void visit(tensor::InsertOp op);
   void visit(tensor::InsertSliceOp op);
   void visit(tensor::SplatOp op);
+  void visit(linalg::BroadcastOp op);
 
   // SCF and Affine ops
   void visit(scf::IfOp op);
