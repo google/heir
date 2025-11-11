@@ -37,6 +37,10 @@ class MulDepthState {
     return mulDepth.value();
   }
 
+  void setMulDepth(int64_t depth) {
+    mulDepth = std::make_optional<int64_t>(depth);
+  }
+
   bool operator==(const MulDepthState& rhs) const {
     return mulDepth == rhs.mulDepth;
   }
@@ -101,6 +105,9 @@ class MulDepthAnalysis
     propagateIfChanged(state, changed);
   }
 };
+
+FailureOr<int64_t> deriveResultMulDepth(
+    Operation* op, ArrayRef<const MulDepthLattice*> operands);
 
 int64_t getMaxMulDepth(Operation* op, DataFlowSolver& solver);
 

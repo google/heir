@@ -34,6 +34,47 @@ namespace heir {
 // LevelAnalysis (Forward)
 //===----------------------------------------------------------------------===//
 
+FailureOr<int64_t> deriveResultLevel(Operation* op,
+                                     ArrayRef<const LevelLattice*> operands) {
+  return llvm::TypeSwitch<Operation&, FailureOr<int64_t>>(*op)
+      .Case<mgmt::ModReduceOp>([&](auto modReduceOp) -> FailureOr<int64_t> {
+        // implicitly ensure that the operand is secret
+        const auto* operandLattice = operands[0];
+        if (!operandLattice->getValue().isInitialized()) {
+          return failure();
+        }
+        int64_t level = operandLattice->getValue().getLevel();
+        return level + 1;
+      })
+      .Case<mgmt::LevelReduceOp>([&](auto levelReduceOp) -> FailureOr<int64_t> {
+        // implicitly ensure that the operand is secret
+        const auto* operandLattice = operands[0];
+        if (!operandLattice->getValue().isInitialized()) {
+          return failure();
+        }
+        return operandLattice->getValue().getLevel() +
+               levelReduceOp.getLevelToDrop();
+      })
+      .Case<mgmt::BootstrapOp>([&](auto bootstrapOp) -> FailureOr<int64_t> {
+        // implicitly ensure that the result is secret
+        // reset level to 0
+        // TODO(#1207): reset level to currentLevel - bootstrapDepth
+        return 0;
+      })
+      .Default([&](auto& op) -> FailureOr<int64_t> {
+        auto levelResult = 0;
+        for (auto* levelState : operands) {
+          if (!levelState || !levelState->getValue().isInitialized()) {
+            continue;
+          }
+          levelResult =
+              std::max(levelResult, levelState->getValue().getLevel());
+        }
+
+        return levelResult;
+      });
+}
+
 LogicalResult LevelAnalysis::visitOperation(
     Operation* op, ArrayRef<const LevelLattice*> operands,
     ArrayRef<LevelLattice*> results) {
@@ -46,55 +87,24 @@ LogicalResult LevelAnalysis::visitOperation(
   LLVM_DEBUG(llvm::dbgs() << "Forward Propagate visiting " << op->getName()
                           << "\n");
 
-  llvm::TypeSwitch<Operation&>(*op)
-      .Case<mgmt::ModReduceOp>([&](auto modReduceOp) {
-        // implicitly ensure that the operand is secret
-        const auto* operandLattice = operands[0];
-        if (!operandLattice->getValue().isInitialized()) {
-          return;
-        }
-        auto level = operandLattice->getValue().getLevel();
-        propagate(modReduceOp.getResult(), LevelState(level + 1));
-      })
-      .Case<mgmt::LevelReduceOp>([&](auto levelReduceOp) {
-        // implicitly ensure that the operand is secret
-        const auto* operandLattice = operands[0];
-        if (!operandLattice->getValue().isInitialized()) {
-          return;
-        }
-        auto level = operandLattice->getValue().getLevel();
-        propagate(levelReduceOp.getResult(),
-                  LevelState(level + levelReduceOp.getLevelToDrop()));
-      })
-      .Case<mgmt::BootstrapOp>([&](auto bootstrapOp) {
-        // implicitly ensure that the result is secret
-        // reset level to 0
-        // TODO(#1207): reset level to currentLevel - bootstrapDepth
-        propagate(bootstrapOp.getResult(), LevelState(0));
-      })
-      .Default([&](auto& op) {
-        // condition on result secretness
-        SmallVector<OpResult> secretResults;
-        getSecretResults(&op, secretResults);
-        if (secretResults.empty()) {
-          return;
-        }
+  SmallVector<OpOperand*> secretOperands;
+  getSecretOperands(op, secretOperands);
+  SmallVector<const LevelLattice*, 2> secretOperandLattices;
+  for (auto* operand : secretOperands) {
+    secretOperandLattices.push_back(getLatticeElement(operand->get()));
+  }
+  FailureOr<int64_t> resultLevel = deriveResultLevel(op, secretOperandLattices);
+  if (failed(resultLevel)) {
+    // Ignore failure and continue
+    return success();
+  }
 
-        auto levelResult = 0;
-        SmallVector<OpOperand*> secretOperands;
-        getSecretOperands(&op, secretOperands);
-        for (auto* operand : secretOperands) {
-          auto& levelState = getLatticeElement(operand->get())->getValue();
-          if (!levelState.isInitialized()) {
-            return;
-          }
-          levelResult = std::max(levelResult, levelState.getLevel());
-        }
+  SmallVector<OpResult> secretResults;
+  getSecretResults(op, secretResults);
+  for (auto result : secretResults) {
+    propagate(result, LevelState(resultLevel.value()));
+  }
 
-        for (auto result : secretResults) {
-          propagate(result, LevelState(levelResult));
-        }
-      });
   return success();
 }
 

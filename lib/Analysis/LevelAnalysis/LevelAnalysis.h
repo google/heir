@@ -35,6 +35,9 @@ class LevelState {
     assert(isInitialized());
     return level.value();
   }
+  void setLevel(LevelType value) {
+    level = std::make_optional<LevelType>(value);
+  }
   LevelType get() const { return getLevel(); }
 
   bool operator==(const LevelState& rhs) const { return level == rhs.level; }
@@ -117,6 +120,9 @@ class LevelAnalysis
     propagateIfChanged(state, changed);
   }
 };
+
+FailureOr<int64_t> deriveResultLevel(Operation* op,
+                                     ArrayRef<const LevelLattice*> operands);
 
 /// Backward Analyse the level of plaintext Value
 ///

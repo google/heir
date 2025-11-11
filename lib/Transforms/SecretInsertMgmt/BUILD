@@ -15,8 +15,10 @@ cc_library(
     ],
     hdrs = [
         "Passes.h",
+        "Pipeline.h",
     ],
     deps = [
+        ":Pipeline",
         ":SecretInsertMgmtPatterns",
         ":pass_inc_gen",
         "@heir//lib/Analysis/LevelAnalysis",
@@ -38,6 +40,35 @@ cc_library(
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TransformUtils",
         "@llvm-project//mlir:Transforms",
+    ],
+)
+
+cc_library(
+    name = "Pipeline",
+    srcs = [
+        "Pipeline.cpp",
+        "Pipeline.h",
+    ],
+    hdrs = [
+        "Passes.h",
+    ],
+    deps = [
+        ":SecretInsertMgmtPatterns",
+        ":pass_inc_gen",
+        "@heir//lib/Analysis/LevelAnalysis",
+        "@heir//lib/Analysis/MulDepthAnalysis",
+        "@heir//lib/Analysis/SecretnessAnalysis",
+        "@heir//lib/Dialect:ModuleAttributes",
+        "@heir//lib/Dialect/Mgmt/IR:Dialect",
+        "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
+        "@llvm-project//mlir:TransformUtils",
     ],
 )
 
