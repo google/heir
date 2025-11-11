@@ -10,7 +10,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 jobs:
-  build-and-deploy:
+  docs:
     runs-on:
       labels: ubuntu-24.04-16core
     permissions:
@@ -34,6 +34,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-clang19-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE.bzlmod', 'MODULE.bazel') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
             ${{ runner.os }}-clang19-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE.bzlmod', 'MODULE.bazel') }}-
+
+      - name: "Delete any existing markdown files in bazel-bin/lib"
+        run: |
+          find bazel-bin/lib/ -type f -name "*.md" -delete
 
       # This requires building mlir-tblgen, but may not require a full llvm build
       # as a result. It results in the files being added to their respective

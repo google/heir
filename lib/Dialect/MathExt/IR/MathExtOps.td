@@ -21,4 +21,16 @@ def MathExt_SignOp : MathExt_Op<"sign", [Pure, ElementwiseMappable,SameOperandsA
   let results = (outs SignlessIntegerOrFloatLike:$result);
    let assemblyFormat = "$value attr-dict `:` type($result)";
 }
+
+def MathExt_SigmoidOp : MathExt_Op<"sigmoid", [Pure, ElementwiseMappable, SameOperandsAndResultType]> {
+  let summary = "Returns elementwise sigmoid of the input value";
+  let description = [{
+    Applies the sigmoid logistic function to each element of the input:
+    $$\sigma(x)=\frac{1}{1+\exp{−x}}$$
+  }];
+  let arguments = (ins FloatLike:$value);
+  let results = (outs FloatLike:$result);
+  let assemblyFormat = "$value attr-dict `:` type($result)";
+}
+
 #endif  // LIB_DIALECT_MATHEXT_IR_MATHEXTOPS_TD_

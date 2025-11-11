@@ -140,6 +140,9 @@ inline APFloat trunc(const APFloat& x) {
 inline APFloat sign(const APFloat& x) {
   return APFloat(x.isNegative() ? -1.0 : (x.isZero() ? 0.0 : 1.0));
 }
+inline APFloat sigmoid(const APFloat& x) {
+  return APFloat(1.0) / (APFloat(1.0 + std::exp(-x.convertToDouble())));
+}
 
 // Binary ops
 inline APFloat atan2(const APFloat& lhs, const APFloat& rhs) {
@@ -374,6 +377,7 @@ struct PolynomialApproximation
     patterns.add<ConvertUnaryOp<math::TanhOp>>(context, tanh);
     patterns.add<ConvertUnaryOp<math::TruncOp>>(context, trunc);
     patterns.add<ConvertUnaryOp<math_ext::SignOp>>(context, sign);
+    patterns.add<ConvertUnaryOp<math_ext::SigmoidOp>>(context, sigmoid);
 
     // TODO(#1514): Restore with alternative roundeven
     // patterns.add<ConvertUnaryOp<math::RoundEvenOp>>(context, _roundeven);
