@@ -93,7 +93,8 @@ template <typename T>
 std::vector<std::vector<T>> evaluateLayoutOnTensor(
     const presburger::IntegerRelation& relation,
     const std::vector<std::vector<std::vector<T>>>& tensor) {
-  auto getValueFn = [&](const std::vector<int64_t>& domainPoint) -> T {
+  std::function<T(const std::vector<int64_t>&)> getValueFn =
+      [&](const std::vector<int64_t>& domainPoint) -> T {
     return tensor[domainPoint[0]][domainPoint[1]][domainPoint[2]];
   };
   return evaluateLayout(relation, getValueFn);

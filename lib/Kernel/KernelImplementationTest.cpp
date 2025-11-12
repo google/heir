@@ -203,14 +203,14 @@ TEST(KernelImplementationTest, BicyclicMatmulRotationCount) {
 TEST(KernelImplementationTest, TricyclicBatchMatmul) {
   MLIRContext context;
 
-  // Use a small example: h=2, m=3, n=5, p=2 (keeps sizes small for test)
+  // Small example: h=2, m=3, n=5, p=2
   int64_t h = 2;
   int64_t m = 3;
   int64_t n = 5;
   int64_t p = 2;
-  int64_t numSlots = h * m * n;  // single ciphertext for simplicity
+  int64_t numSlots = h * m * n;
 
-  // Build simple batch tensors A (h x m x n) and B (h x n x p) with distinct
+  // Build batch tensors A (h x m x n) and B (h x n x p) with deterministic
   // values
   std::vector<std::vector<std::vector<int>>> A(
       h, std::vector<std::vector<int>>(m, std::vector<int>(n, 0)));
@@ -218,21 +218,13 @@ TEST(KernelImplementationTest, TricyclicBatchMatmul) {
       h, std::vector<std::vector<int>>(n, std::vector<int>(p, 0)));
 
   int val = 1;
-  for (int ih = 0; ih < h; ++ih) {
-    for (int im = 0; im < m; ++im) {
-      for (int in = 0; in < n; ++in) {
-        A[ih][im][in] = val++;
-      }
-    }
-  }
+  for (int ih = 0; ih < h; ++ih)
+    for (int im = 0; im < m; ++im)
+      for (int in = 0; in < n; ++in) A[ih][im][in] = val++;
   val = 101;
-  for (int ih = 0; ih < h; ++ih) {
-    for (int in = 0; in < n; ++in) {
-      for (int ip = 0; ip < p; ++ip) {
-        B[ih][in][ip] = val++;
-      }
-    }
-  }
+  for (int ih = 0; ih < h; ++ih)
+    for (int in = 0; in < n; ++in)
+      for (int ip = 0; ip < p; ++ip) B[ih][in][ip] = val++;
 
   // Pack using the tricyclic layout relation.
   RankedTensorType typeA =
@@ -246,23 +238,19 @@ TEST(KernelImplementationTest, TricyclicBatchMatmul) {
   auto layoutB = getTricyclicLayoutRelation(typeB, numSlots);
   auto packedB = evaluateLayoutOnTensor(layoutB, B);
 
+  // Use ciphertext 0's slot vectors as literal inputs.
   LiteralValue packedAValue = packedA[0];
   LiteralValue packedBValue = packedB[0];
 
   // Generate kernel DAG and evaluate
-  auto dag = implementTricyclicBatchCiphertextMatmul(packedAValue, packedBValue,
-                                                     h, m, n, p);
+  auto dag =
+      implementTricyclicBatchMatmul(packedAValue, packedBValue, h, m, n, p);
   LiteralValue result = evalKernel(dag);
   auto resultVec = std::get<std::vector<int>>(result.getTensor());
 
-  // Unpack result into h x m x p tensor
-  auto resultLayout = getTricyclicLayoutRelation(
-      RankedTensorType::get({h, m, p}, IndexType::get(&context)), numSlots);
-  auto unpackedResult =
-      unpackLayoutToTensor<int>(resultLayout, {resultVec}, {h, m, p});
-
-  // Compute expected cleartext batch matmul
-  std::vector<std::vector<std::vector<int>>> expected(
+  // Compute expected packed φ(Z) via evaluateLayoutOnTensor for the cleartext
+  // result. First compute plain CPU batched matmul result (h x m x p).
+  std::vector<std::vector<std::vector<int>>> expectedTensor(
       h, std::vector<std::vector<int>>(m, std::vector<int>(p, 0)));
   for (int ih = 0; ih < h; ++ih) {
     for (int im = 0; im < m; ++im) {
@@ -271,12 +259,21 @@ TEST(KernelImplementationTest, TricyclicBatchMatmul) {
         for (int ic = 0; ic < n; ++ic) {
           sum += A[ih][im][ic] * B[ih][ic][ip];
         }
-        expected[ih][im][ip] = sum;
+        expectedTensor[ih][im][ip] = sum;
       }
     }
   }
 
-  EXPECT_EQ(unpackedResult, expected);
+  RankedTensorType resultType =
+      RankedTensorType::get({h, m, p}, IndexType::get(&context));
+  auto resultLayout = getTricyclicLayoutRelation(resultType, numSlots);
+  auto expectedPacked = evaluateLayoutOnTensor(resultLayout, expectedTensor);
+
+  // expectedPacked[0] is the expected slot vector for ciphertext 0.
+  std::vector<int> expVec = expectedPacked[0];
+
+  // Final check: compare expected packed φ(Z) vector with kernel output.
+  EXPECT_EQ(expVec, resultVec);
 }
 }  // namespace
 }  // namespace kernel
