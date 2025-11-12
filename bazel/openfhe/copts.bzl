@@ -20,7 +20,10 @@ OPENFHE_COPTS = [
     "-Wno-non-virtual-dtor",
     "-Wno-shift-op-parentheses",
     "-Wno-unused-private-field",
-    "-fexceptions",
+    # limit glibc and glibcxx to manylinux_2_28
+    "-fno-exceptions",
+    "-D_GLIBC_USE_DEPRECATED_SCANF",
+    "-D_GNU_SOURCE=0",
 ]
 
 _OPENFHE_LINKOPTS = [
