@@ -1,7 +1,6 @@
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 
 #include <cstdint>
-#include <utility>
 
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
@@ -10,11 +9,14 @@
 #include "llvm/include/llvm/ADT/STLFunctionalExtras.h"  // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
+
+#define DEBUG_TYPE "lwe-attributes"
 
 namespace mlir {
 namespace heir {
@@ -66,6 +68,8 @@ int64_t inferModulusSwitchOrRescaleOpScalingFactor(Attribute xEncoding,
         if (xScale == 0) return xScale;
         // round to nearest log2 instead of ceil
         auto logQ = dividedModulus.nearestLogBase2();
+        LLVM_DEBUG(llvm::dbgs() << "inferring new scale; logQ=" << logQ
+                                << ", xScale=" << xScale << "\n");
         return xScale - logQ;
       })
       .Default([](Attribute) { return 0; });
@@ -115,7 +119,9 @@ PlaintextSpaceAttr inferModulusSwitchOrRescaleOpPlaintextSpaceAttr(
   }
 
   auto newScale = inferModulusSwitchOrRescaleOpScalingFactor(
-      xEncoding, std::move(dividedModulus), plaintextModulus);
+      xEncoding, dividedModulus, plaintextModulus);
+  LLVM_DEBUG(llvm::dbgs() << "dividedModulus=" << dividedModulus
+                          << " new scale=" << newScale << "\n");
   return PlaintextSpaceAttr::get(
       ctx, xRing, getEncodingAttrWithNewScalingFactor(xEncoding, newScale));
 }

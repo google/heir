@@ -15,6 +15,7 @@
 #include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Verifier.h"              // from @llvm-project
 #include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
 
 #define DEBUG_TYPE "orion-to-ckks"
@@ -27,6 +28,15 @@ using kernel::SSAValue;
 
 #define GEN_PASS_DEF_ORIONTOCKKS
 #include "lib/Dialect/Orion/Conversions/OrionToCKKS/OrionToCKKS.h.inc"
+
+void debugLevelAndScale(Type ctTy, const std::string& type = "output") {
+  auto ty = cast<lwe::LWECiphertextType>(ctTy);
+  int64_t scale = lwe::getScalingFactorFromEncodingAttr(
+      ty.getPlaintextSpace().getEncoding());
+  int64_t level = ty.getModulusChain().getCurrent();
+  LLVM_DEBUG(llvm::dbgs() << type << " level=" << level << ", scale=" << scale
+                          << "\n");
+}
 
 lwe::LWEPlaintextType getPlaintextTypeFromCtTypeAndScalingFactor(
     lwe::LWECiphertextType ctTy, int64_t scalingFactor) {
@@ -212,8 +222,7 @@ WalkResult handleInferTypeOpInterface(InferTypeOpInterface op) {
   for (auto [result, expectedType] :
        llvm::zip(op->getResults(), expectedResultTypes)) {
     if (result.getType() != expectedType) {
-      LLVM_DEBUG(llvm::dbgs()
-                 << "setting result type to: " << result.getType() << "\n");
+      debugLevelAndScale(result.getType());
       result.setType(expectedType);
     }
   }
@@ -255,8 +264,7 @@ WalkResult handleRescaleOp(ckks::RescaleOp op) {
       return WalkResult::interrupt();
     }
   }
-  LLVM_DEBUG(llvm::dbgs() << "setting output type to: "
-                          << outputTypeResult.value() << "\n");
+  debugLevelAndScale(outputTypeResult.value());
   op.getResult().setType(outputTypeResult.value());
   op.setToRingAttr(outputTypeResult.value().getCiphertextSpace().getRing());
   return WalkResult::advance();
@@ -279,8 +287,7 @@ WalkResult handleBootstrap(ckks::BootstrapOp op) {
   // TODO(#1207): fix if this pass still matters when lowering to polynomial.
   FailureOr<lwe::LWECiphertextType> outputTypeResult =
       cloneAtLevel(inputType, maxLevel);
-  LLVM_DEBUG(llvm::dbgs() << "setting output type to: "
-                          << outputTypeResult.value() << "\n");
+  debugLevelAndScale(outputTypeResult.value());
   op.getResult().setType(outputTypeResult.value());
   return WalkResult::advance();
 }
@@ -316,7 +323,7 @@ WalkResult handleNonMulCtPtOp(CtPtOp op) {
                    << " is not directly encoded; cannot force scaling factor.";
   }
 
-  LLVM_DEBUG(llvm::dbgs() << "setting output type to: " << ctType << "\n");
+  debugLevelAndScale(ctType);
   op.getResult().setType(ctType);
   return WalkResult::advance();
 }
@@ -337,7 +344,7 @@ WalkResult handleMulPlain(ckks::MulPlainOp op) {
       inferMulOpPlaintextSpaceAttr(op.getContext(), ctType.getPlaintextSpace(),
                                    ptType.getPlaintextSpace()),
       ctType.getCiphertextSpace(), ctType.getKey(), ctType.getModulusChain());
-  LLVM_DEBUG(llvm::dbgs() << "setting output type to: " << newCtType << "\n");
+  debugLevelAndScale(newCtType);
   op.getResult().setType(newCtType);
   return WalkResult::advance();
 }
@@ -394,8 +401,7 @@ WalkResult handleCtCtOp(CtCtOp op) {
     auto rescaleOp = ckks::RescaleOp::create(
         b, ctType, operandToRescale, ctType.getCiphertextSpace().getRing());
     int64_t operandIndex = (lhsScalingFactor > rhsScalingFactor) ? 1 : 0;
-    LLVM_DEBUG(llvm::dbgs() << "setting rescaledOperand type to: "
-                            << rescaleOp.getResult().getType() << "\n");
+    debugLevelAndScale(rescaleOp.getResult().getType(), "operand");
     op->setOperand(operandIndex, rescaleOp.getResult());
     return handleInferTypeOpInterface(op);
   }
@@ -404,23 +410,19 @@ WalkResult handleCtCtOp(CtCtOp op) {
     LLVM_DEBUG(llvm::dbgs() << "lhs level = " << lhsLevel << " != rhs level = "
                             << rhsLevel << ", applying level_reduce...\n");
     Value operandToReduce;
-    Value operandToKeep;
     int64_t levelsToDrop;
     if (lhsLevel < rhsLevel) {
       operandToReduce = op.getRhs();
-      operandToKeep = op.getLhs();
       levelsToDrop = rhsLevel - lhsLevel;
     } else {
       operandToReduce = op.getLhs();
-      operandToKeep = op.getRhs();
       levelsToDrop = lhsLevel - rhsLevel;
     }
 
     auto levelReduceOp = ckks::LevelReduceOp::create(
         b, operandToReduce, b.getI64IntegerAttr(levelsToDrop));
     int64_t operandIndex = (lhsLevel < rhsLevel) ? 1 : 0;
-    LLVM_DEBUG(llvm::dbgs() << "setting levelReducedOperand type to: "
-                            << levelReduceOp.getResult().getType() << "\n");
+    debugLevelAndScale(levelReduceOp.getResult().getType(), "operand");
     op->setOperand(operandIndex, levelReduceOp.getResult());
     return handleInferTypeOpInterface(op);
   }
@@ -428,7 +430,7 @@ WalkResult handleCtCtOp(CtCtOp op) {
   if (lhsScalingFactor != rhsScalingFactor) {
     LLVM_DEBUG(llvm::dbgs() << "lhs scale = " << lhsScalingFactor
                             << " != rhs scale = " << rhsScalingFactor
-                            << ", applying rescale...\n");
+                            << ", applying mul_plain rescale...\n");
     Value operandToRescale;
     int64_t targetScalingFactor;
     if (lhsScalingFactor < rhsScalingFactor) {
@@ -445,14 +447,50 @@ WalkResult handleCtCtOp(CtCtOp op) {
     auto mulPlainOp =
         ckks::MulPlainOp::create(b, operandToRescale, encodedSplatOne);
     int64_t operandIndex = (lhsScalingFactor < rhsScalingFactor) ? 0 : 1;
-    LLVM_DEBUG(llvm::dbgs()
-               << "setting rescaled operand type (via mul plain) to: "
-               << mulPlainOp.getResult().getType() << "\n");
+    debugLevelAndScale(mulPlainOp.getResult().getType(), "operand");
     op->setOperand(operandIndex, mulPlainOp.getResult());
     return handleInferTypeOpInterface(op);
   }
 
   return handleInferTypeOpInterface(op);
+}
+
+WalkResult handleMul(ckks::MulOp op) {
+  ImplicitLocOpBuilder b(op.getLoc(), op->getContext());
+  b.setInsertionPoint(op);
+  LLVM_DEBUG(llvm::dbgs() << "Handling Mul op\n");
+  lwe::LWECiphertextType lhsType =
+      cast<lwe::LWECiphertextType>(op.getLhs().getType());
+  lwe::LWECiphertextType rhsType =
+      cast<lwe::LWECiphertextType>(op.getRhs().getType());
+
+  // Mul ops may have differing scales, but not differing levels
+  int64_t lhsLevel = lhsType.getModulusChain().getCurrent();
+  int64_t rhsLevel = rhsType.getModulusChain().getCurrent();
+
+  if (lhsLevel != rhsLevel) {
+    LLVM_DEBUG(llvm::dbgs() << "lhs level = " << lhsLevel << " != rhs level = "
+                            << rhsLevel << ", applying level_reduce...\n");
+    Value operandToReduce;
+    int64_t levelsToDrop;
+    if (lhsLevel < rhsLevel) {
+      operandToReduce = op.getRhs();
+      levelsToDrop = rhsLevel - lhsLevel;
+    } else {
+      operandToReduce = op.getLhs();
+      levelsToDrop = lhsLevel - rhsLevel;
+    }
+    LLVM_DEBUG(llvm::dbgs() << "dropping " << levelsToDrop << " levels\n");
+
+    auto levelReduceOp = ckks::LevelReduceOp::create(
+        b, operandToReduce, b.getI64IntegerAttr(levelsToDrop));
+    int64_t operandIndex = (lhsLevel < rhsLevel) ? 1 : 0;
+    debugLevelAndScale(levelReduceOp.getResult().getType(), "operand");
+    op->setOperand(operandIndex, levelReduceOp.getResult());
+    return handleInferTypeOpInterface(op);
+  }
+
+  return WalkResult::advance();
 }
 
 struct OrionToCKKS : public impl::OrionToCKKSBase<OrionToCKKS> {
@@ -467,9 +505,13 @@ struct OrionToCKKS : public impl::OrionToCKKSBase<OrionToCKKS> {
                                                                libraryTarget);
     walkAndApplyPatterns(root, std::move(patterns));
 
-    LLVM_DEBUG(llvm::dbgs() << "After lowering Chebyshev and LinearTransform "
-                               "ops, but before repropagating types:\n";
-               root.print(llvm::dbgs()); llvm::dbgs() << "\n");
+    LLVM_DEBUG({
+      (void)verify(root);
+      llvm::dbgs() << "After lowering Chebyshev and LinearTransform "
+                      "ops, but before repropagating types:\n";
+      root.print(llvm::dbgs());
+      llvm::dbgs() << "\n";
+    });
 
     // At this step, the types are wrong and need to be re-propagated In
     // particular, mul and mul_plain ops are followed by a rescale, and while
@@ -497,8 +539,8 @@ struct OrionToCKKS : public impl::OrionToCKKSBase<OrionToCKKS> {
           .Case<ckks::SubPlainOp>(handleNonMulCtPtOp<ckks::SubPlainOp>)
           .Case<ckks::MulPlainOp>(handleMulPlain)
           .Case<ckks::AddOp>(handleCtCtOp<ckks::AddOp>)
-          .Case<ckks::MulOp>(handleCtCtOp<ckks::MulOp>)
           .Case<ckks::SubOp>(handleCtCtOp<ckks::SubOp>)
+          .Case<ckks::MulOp>(handleMul)
           .Case<ckks::BootstrapOp>(handleBootstrap)
           // Some ops above implement InferTypeOpInterface, but need special
           // cases, so this must come after them.

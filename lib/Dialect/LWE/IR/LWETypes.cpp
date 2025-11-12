@@ -69,19 +69,26 @@ FailureOr<LWECiphertextType> applyModReduce(LWECiphertextType inputType) {
   auto* ctx = inputType.getContext();
   int currentLevel = inputType.getModulusChain().getCurrent();
   int newLevel = inputType.getModulusChain().getCurrent() - 1;
+  LLVM_DEBUG(llvm::dbgs() << "Applying mod reduce from level " << currentLevel
+                          << " to " << newLevel << "\n");
   if (newLevel < 0) {
     return failure();
   }
   auto ring = inputType.getCiphertextSpace().getRing();
   auto newRing = getRlweRNSRingWithLevel(ring, newLevel);
+  LLVM_DEBUG(llvm::dbgs() << "New ring is " << newRing << "\n");
 
   APInt dividedModulus =
       inputType.getModulusChain().getElements()[currentLevel].getValue();
   lwe::ModulusChainAttr moddedDownChain = lwe::ModulusChainAttr::get(
       ctx, inputType.getModulusChain().getElements(), newLevel);
+  LLVM_DEBUG(llvm::dbgs() << "Modded down chain=" << moddedDownChain << "\n");
   lwe::PlaintextSpaceAttr newPlaintextSpace =
       inferModulusSwitchOrRescaleOpPlaintextSpaceAttr(
           ctx, inputType.getPlaintextSpace(), dividedModulus);
+
+  LLVM_DEBUG(llvm::dbgs() << "new plaintext space=" << newPlaintextSpace
+                          << "\n");
   return lwe::LWECiphertextType::get(
       ctx, inputType.getApplicationData(), newPlaintextSpace,
       lwe::CiphertextSpaceAttr::get(
