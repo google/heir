@@ -96,7 +96,8 @@ class TfheRustEmitter {
   // Emit a default value for the given type
   FailureOr<std::string> defaultValue(Type type);
 
-  void emitAssignPrefix(Value result, bool mut = false, std::string type = "");
+  void emitAssignPrefix(Value result, bool mut = false,
+                        const std::string& type = "");
 };
 
 }  // namespace tfhe_rust

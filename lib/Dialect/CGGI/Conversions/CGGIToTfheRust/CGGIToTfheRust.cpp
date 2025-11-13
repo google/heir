@@ -43,7 +43,7 @@ class CGGIToTfheRustTypeConverter : public TypeConverter {
                       .getRing()
                       .getCoefficientType()
                       .getIntOrFloatBitWidth();
-      return encrytpedUIntTypeFromWidth(ctx, width);
+      return encryptedUIntTypeFromWidth(ctx, width);
     });
     addConversion([this](ShapedType type) -> Type {
       auto elemType = this->convertType(type.getElementType());
@@ -265,9 +265,11 @@ struct ConvertCGGICtxtBinOp : public OpConversionPattern<BinOp> {
 
     if (lhs.getType() != rhs.getType()) {
       if (!isa<lwe::LWECiphertextType>(op.getLhs().getType())) {
-        lhs = tfhe_rust::CreateTrivialOp::create(b, outputType, serverKey, lhs);
+        lhs = tfhe_rust::CreateTrivialOp::create(b, outputType, serverKey, lhs,
+                                                 mlir::Attribute());
       } else if (!isa<lwe::LWECiphertextType>(op.getRhs().getType())) {
-        rhs = tfhe_rust::CreateTrivialOp::create(b, outputType, serverKey, rhs);
+        rhs = tfhe_rust::CreateTrivialOp::create(b, outputType, serverKey, rhs,
+                                                 mlir::Attribute());
       } else {
         return op.emitError()
                << "Expected both operands to be of the same type";
@@ -409,14 +411,12 @@ struct ConvertNotOp : public OpConversionPattern<cggi::NotOp> {
                      .getCoefficientType()
                      .getIntOrFloatBitWidth();
     auto cleartextType = b.getIntegerType(width);
-    auto outputType = encrytpedUIntTypeFromWidth(getContext(), width);
+    auto outputType = encryptedUIntTypeFromWidth(getContext(), width);
 
     // not(x) == trivial_encryption(1) - x
+    auto oneAttr = b.getIntegerAttr(cleartextType, 1);
     Value createTrivialOp = tfhe_rust::CreateTrivialOp::create(
-        b, outputType, serverKey,
-        arith::ConstantOp::create(b, cleartextType,
-                                  b.getIntegerAttr(cleartextType, 1))
-            .getResult());
+        b, outputType, serverKey, mlir::Value(), oneAttr);
     if (shapedTy) {
       createTrivialOp = tensor::FromElementsOp::create(
           b, shapedTy,
@@ -472,7 +472,7 @@ struct ConvertTrivialEncryptOp
                                "result of an EncodeOp, but it was "
                             << op.getInput().getDefiningOp()->getName();
     }
-    auto outputType = encrytpedUIntTypeFromWidth(
+    auto outputType = encryptedUIntTypeFromWidth(
         getContext(), op.getInput()
                           .getDefiningOp<lwe::EncodeOp>()
                           .getOutput()
@@ -482,7 +482,8 @@ struct ConvertTrivialEncryptOp
                           .getCoefficientType()
                           .getIntOrFloatBitWidth());
     auto createTrivialOp = tfhe_rust::CreateTrivialOp::create(
-        rewriter, op.getLoc(), outputType, serverKey, encodeOp.getInput());
+        rewriter, op.getLoc(), outputType, serverKey, encodeOp.getInput(),
+        mlir::Attribute());
     rewriter.replaceOp(op, createTrivialOp);
     return success();
   }
@@ -502,15 +503,12 @@ struct ConvertTrivialOp : public OpConversionPattern<cggi::CreateTrivialOp> {
 
     Value serverKey = result.value();
 
-    if (auto intAttr = cast<IntegerAttr>(op.getValue())) {
+    if (auto intAttr = dyn_cast<IntegerAttr>(op.getValue())) {
       auto intValue = intAttr.getValue().getSExtValue();
       auto inputValue = mlir::IntegerAttr::get(intAttr.getType(), intValue);
       auto constantWidth = intAttr.getValue().getBitWidth();
 
-      auto cteOp = arith::ConstantOp::create(rewriter, op.getLoc(),
-                                             intAttr.getType(), inputValue);
-
-      auto outputType = encrytpedUIntTypeFromWidth(getContext(), constantWidth);
+      auto outputType = encryptedUIntTypeFromWidth(getContext(), constantWidth);
 
       if (auto rankedTensorTy =
               dyn_cast<RankedTensorType>(op.getResult().getType())) {
@@ -519,10 +517,40 @@ struct ConvertTrivialOp : public OpConversionPattern<cggi::CreateTrivialOp> {
       }
 
       auto createTrivialOp = tfhe_rust::CreateTrivialOp::create(
-          rewriter, op.getLoc(), outputType, serverKey, cteOp);
+          rewriter, op.getLoc(), outputType, serverKey, mlir::Value(),
+          inputValue);
       rewriter.replaceOp(op, createTrivialOp);
       return success();
     }
+
+    if (auto arrayAttr = dyn_cast<ArrayAttr>(op.getValue())) {
+      auto maxBitWidhtArray = 0;
+
+      for (auto attr : arrayAttr.getValue()) {
+        if (auto intAttr = dyn_cast<IntegerAttr>(attr)) {
+          auto bitWidth = intAttr.getValue().getBitWidth();
+          if (bitWidth > maxBitWidhtArray) {
+            maxBitWidhtArray = bitWidth;
+          }
+        }
+      }
+
+      auto outputElementType =
+          encryptedUIntTypeFromWidth(getContext(), maxBitWidhtArray);
+
+      auto rankedTensorTy =
+          dyn_cast<RankedTensorType>(op.getResult().getType());
+
+      auto outputType =
+          RankedTensorType::get(rankedTensorTy.getShape(), outputElementType);
+
+      auto createTrivialOp = tfhe_rust::CreateTrivialOp::create(
+          rewriter, op.getLoc(), outputType, serverKey, mlir::Value(),
+          arrayAttr);
+      rewriter.replaceOp(op, createTrivialOp);
+      return success();
+    }
+
     return op.emitError()
            << "Expected CreateTrivialOp to have an integer attribute value.";
   }

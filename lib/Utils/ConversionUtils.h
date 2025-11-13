@@ -168,7 +168,7 @@ bool containsLweOrDialect(func::FuncOp func) {
   return walkResult.wasInterrupted();
 }
 
-inline Type encrytpedUIntTypeFromWidth(MLIRContext* ctx, int width) {
+inline Type encryptedUIntTypeFromWidth(MLIRContext* ctx, int width) {
   // Only supporting unsigned types because the LWE dialect does not have a
   // notion of signedness.
   switch (width) {

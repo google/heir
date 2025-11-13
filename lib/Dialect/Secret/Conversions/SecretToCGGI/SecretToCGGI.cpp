@@ -384,7 +384,7 @@ class SecretGenericOpTensorExtractConversion
     rewriter.replaceOp(op, newOp);
     return newOp;
   }
-};
+};  // namespace mlir::heir
 
 class SecretGenericOpTensorInsertConversion
     : public SecretGenericOpConversion<tensor::InsertOp> {
@@ -478,8 +478,8 @@ struct ConvertSecretCastOp
     // The original secret cast reconciles multi-bit or tensors of values like
     // secret<i8> to secret<tensor<8xi1>> or secret<tensor<2x4xi2>> and
     // secret<tensor<16xi1>> and vice versa. One of these will always be a
-    // flattened tensor<Nxi1> type that Yosys uses as input/output types. After
-    // secret-to-cggi type conversion, both will be tensor types.
+    // flattened tensor<Nxi1> type that Yosys uses as input/output types.
+    // After secret-to-cggi type conversion, both will be tensor types.
     auto lhsTensorTy = dyn_cast<TensorType>(adaptor.getInput().getType());
     auto rhsTensorTy = dyn_cast<TensorType>(typeConverter->convertType(
         op.getOutput().getType(),
@@ -722,6 +722,11 @@ struct ConvertFromElementsOp
                                     overflowAttr),
               b.getIndexAttr(ciphertextBits));
 
+          // b.create<lwe::TrivialEncryptOp>(
+          //      ctTy,
+          //      b.create<lwe::EncodeOp>(ptTy, element, ctTy.getEncoding()),
+          //      lwe::LWEParamsAttr())
+          //     .getResult();
           values.push_back(ctElement);
         }
       }

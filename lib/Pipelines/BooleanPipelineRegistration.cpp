@@ -64,7 +64,7 @@ void mlirToCGGIPipeline(OpPassManager& pm,
   ::mlir::heir::tosaToLinalg(pm);
 
   // Linalg to Affine loops
-  pm.addPass(createDropUnitDims());
+  // pm.addPass(createDropUnitDims());
   pm.addPass(createFoldConstantTensors());
   pm.addPass(createLinalgCanonicalizations());
   pm.addPass(createCanonicalizerPass());
@@ -111,7 +111,8 @@ void mlirToCGGIPipeline(OpPassManager& pm,
       pm.addPass(secret::createSecretDistributeGeneric(distributeOpts));
       pm.addPass(createCanonicalizerPass());
       pm.addPass(createYosysOptimizer(yosysFilesPath, abcPath, options.abcFast,
-                                      options.unrollFactor, options.mode));
+                                      options.unrollFactor,
+                                      options.useSubmodules, options.mode));
       // Cleanup
       pm.addPass(mlir::createCSEPass());
       pm.addPass(createCanonicalizerPass());
