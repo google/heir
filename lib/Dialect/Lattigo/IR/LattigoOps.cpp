@@ -138,6 +138,17 @@ CKKSLinearTransformOp::getRotationIndices() {
   return result;
 }
 
+::llvm::SmallVector<::mlir::OpFoldResult>
+CKKSRotateHoistedNewOp::getRotationIndices() {
+  SmallVector<OpFoldResult> result;
+  auto offsetsAttr = getOffsets();
+  auto* ctx = getContext();
+  for (int64_t offset : offsetsAttr) {
+    result.push_back(IntegerAttr::get(IndexType::get(ctx), offset));
+  }
+  return result;
+}
+
 }  // namespace lattigo
 }  // namespace heir
 }  // namespace mlir

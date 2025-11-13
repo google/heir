@@ -12,6 +12,7 @@
 #include "lib/Dialect/LWE/Transforms/ImplementTrivialEncryptionAsAddition.h"
 #include "lib/Dialect/Lattigo/Transforms/AllocToInPlace.h"
 #include "lib/Dialect/Lattigo/Transforms/ConfigureCryptoContext.h"
+#include "lib/Dialect/Lattigo/Transforms/HoistRotations.h"
 #include "lib/Dialect/Openfhe/Transforms/AllocToInPlace.h"
 #include "lib/Dialect/Openfhe/Transforms/ConfigureCryptoContext.h"
 #include "lib/Dialect/Openfhe/Transforms/CountAddAndKeySwitch.h"
@@ -662,6 +663,8 @@ BackendPipelineBuilder toLattigoPipelineBuilder() {
     // Convert LWE (and scheme-specific BGV ops) to Lattigo
     pm.addPass(lwe::createLWEToLattigo());
     pm.addPass(preprocessing::createPreprocessingToLattigo());
+
+    pm.addPass(lattigo::createLattigoHoistRotations());
 
     // Convert Alloc Ops to InPlace Ops
     pm.addPass(lattigo::createAllocToInPlace());

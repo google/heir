@@ -439,5 +439,24 @@ def Lattigo_CKKSChebyshevOp : Lattigo_CKKSOp<"chebyshev", [AllTypesMatch<["ciphe
   let results = (outs Lattigo_RLWECiphertext:$output);
 }
 
+def Lattigo_CKKSRotateHoistedNewOp : Lattigo_CKKSOp<"rotate_hoisted_new", [
+  DeclareOpInterfaceMethods<RotationOpInterface>
+]> {
+  let summary = "Rotate a ciphertext by a batch of offsets in the Lattigo CKKS dialect";
+  let description = [{
+    This operation rotates a ciphertext value by a batch of offsets in the Lattigo CKKS dialect.
+  }];
+  let arguments = (ins
+    Lattigo_CKKSEvaluator:$evaluator,
+    Lattigo_RLWECiphertext:$input,
+    DenseI64ArrayAttr:$offsets
+  );
+  let results = (outs Lattigo_RotatedCiphertextList:$output);
+  let extraClassDeclaration = [{
+    ::mlir::OpOperand *getRotatedOperand() {
+      return &getOperation()->getOpOperand(1);
+    }
+  }];
+}
 
 #endif  // LIB_DIALECT_LATTIGO_IR_LATTIGOCKKSOPS_TD_

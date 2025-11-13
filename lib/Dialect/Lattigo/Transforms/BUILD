@@ -12,6 +12,7 @@ cc_library(
     deps = [
         ":AllocToInPlace",
         ":ConfigureCryptoContext",
+        ":HoistRotations",
         ":pass_inc_gen",
         "@heir//lib/Dialect/Lattigo/IR:Dialect",
     ],
@@ -59,6 +60,22 @@ cc_library(
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:Transforms",
+    ],
+)
+
+cc_library(
+    name = "HoistRotations",
+    srcs = ["HoistRotations.cpp"],
+    hdrs = ["HoistRotations.h"],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Dialect/Lattigo/IR:Dialect",
+        "@heir//lib/Utils:ConversionUtils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
     ],
 )
 
