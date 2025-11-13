@@ -100,6 +100,13 @@ def Lattigo_RLWECiphertext : Lattigo_RLWEType<"Ciphertext", "ciphertext"> {
   let asmName = "ct";
 }
 
+def Lattigo_RotatedCiphertextList : Lattigo_RLWEType<"RotatedCiphertextList", "rotated_ciphertext_map"> {
+  let description = [{
+    This type represents a list of rotated ciphertexts from a bulk rotation op.
+  }];
+  let asmName = "rotated_ct_map";
+}
+
 def Lattigo_RLWECiphertextOrPlaintext : AnyTypeOf<[Lattigo_RLWECiphertext, Lattigo_RLWEPlaintext]>;
 
 // common interface for RLWE

@@ -4,6 +4,7 @@
 #include "lib/Dialect/Lattigo/IR/LattigoDialect.h"
 #include "lib/Dialect/Lattigo/Transforms/AllocToInplace.h"
 #include "lib/Dialect/Lattigo/Transforms/ConfigureCryptoContext.h"
+#include "lib/Dialect/Lattigo/Transforms/HoistRotations.h"
 
 namespace mlir {
 namespace heir {
