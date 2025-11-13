@@ -47,7 +47,7 @@ def CKKS_AddOp : CKKS_Op<"add", [ElementwiseMappable, Commutative, SameOperandsA
 }
 
 def CKKS_AddPlainOp : CKKS_CiphertextPlaintextOp<"add_plain", [ElementwiseMappable, AllCiphertextTypesMatch,
-      SameOperandsAndResultPlaintextTypes, Commutative]> {
+      SameOperandsAndResultPlaintextTypes, Commutative, InferTypeOpAdaptor]> {
   let summary = "Addition operation between ciphertext-plaintext.";
   let hasCanonicalizer = 1;
 }
@@ -67,7 +67,7 @@ def CKKS_SubOp : CKKS_Op<"sub", [ElementwiseMappable, SameOperandsAndResultRings
 }
 
 def CKKS_SubPlainOp : CKKS_CiphertextPlaintextOp<"sub_plain", [ElementwiseMappable, AllCiphertextTypesMatch,
-      SameOperandsAndResultPlaintextTypes]> {
+      SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
   let summary = "Subtraction operation between ciphertext-plaintext.";
 }
 

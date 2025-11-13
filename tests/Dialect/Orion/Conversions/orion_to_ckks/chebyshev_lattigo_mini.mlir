@@ -1,7 +1,6 @@
-// RUN: heir-opt --orion-to-ckks='library-target=openfhe' %s | FileCheck %s
+// RUN: heir-opt --orion-to-ckks="library-target=lattigo" %s | FileCheck %s
 
-// CHECK: @resnet10
-// CHECK-NOT: orion.linear_transform
+// CHECK: @chebyshev
 // CHECK-NOT: orion.chebyshev
 
 !Z1099502714881_i64 = !mod_arith.int<1099502714881 : i64>
@@ -24,10 +23,8 @@
 #ciphertext_space_L10 = #lwe.ciphertext_space<ring = #ring_rns_L10_1_x65536, encryption_type = mix>
 !ct_L10 = !lwe.lwe_ciphertext<application_data = <message_type = tensor<32768xf64>>, plaintext_space = <ring = #ring_f64_1_x65536, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L10, key = #key, modulus_chain = #modulus_chain_L10_C10>
 module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 16, Q = [36028797019488257, 1099512938497, 1099510054913, 1099507695617, 1099515691009, 1099516870657, 1099506515969, 1099504549889, 1099503894529, 1099503370241, 1099502714881], P = [1099511627776], logDefaultScale = 40>} {
-  func.func @resnet10(%ct: !ct_L10) -> !ct_L10 {
-    %ct_1 = orion.chebyshev %ct {coefficients = [-1.5437065068621281E-22, 0.75601828098297119, 7.4115209650896493E-24, -0.25303265452384949, 3.9355922200500533E-22, 0.15315210819244385, -7.7902292620869194E-23, -0.1109011098742485, -1.132215454117716E-22, 0.087929151952266693, 1.029174679336019E-23, -0.073912657797336578, -7.1981165775152697E-23, 0.064969979226589203, 6.2396644616236723E-23, -0.43697935342788696], domain_end = 1.000000e+00 : f64, domain_start = -1.000000e+00 : f64} : (!ct_L10) -> !ct_L10
-    %ct_2 = orion.chebyshev %ct_1 {coefficients = [6.650302534848487E-24, 1.2368911504745483, 5.1413308989295608E-22, -0.39808535575866699, -3.5209036300668546E-23, 0.22248817980289459, -8.585121482244889E-23, -0.14235951006412506, -1.2667532202571353E-22, 0.095177434384822845, -1.573268091097763E-22, -0.063848823308944702, -2.5584349499902338E-22, 0.04180486872792244, 2.6446414172772963E-22, -0.0401601642370224], domain_end = 1.000000e+00 : f64, domain_start = -1.000000e+00 : f64} : (!ct_L10) -> !ct_L10
-    %ct_3 = ckks.bootstrap %ct_2 : !ct_L10 -> !ct_L10
-    return %ct_3 : !ct_L10
+  func.func @chebyshev(%ct: !ct_L10) -> !ct_L10 {
+    %ct_0 = orion.chebyshev %ct {coefficients = [0.0, 0.75, 0.0, 0.25], domain_end = 1.000000e+00 : f64, domain_start = -1.000000e+00 : f64} : (!ct_L10) -> !ct_L10
+    return %ct_0 : !ct_L10
   }
 }
