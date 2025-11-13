@@ -350,6 +350,58 @@ implementBicyclicMatmul(const T& packedA, const T& packedB, int64_t m,
       packedA, packedB, /*period=*/m, /*steps=*/n, derivedRotationIndexFn);
 }
 
+// Returns an arithmetic DAG that implements the tricyclic batch matrix
+// multiplication algorithm (ciphertext-ciphertext). Uses the tricyclic
+// rotation formulas from LKAA25 (Tricycle paper) and applies BSGS to
+// reduce rotations on the φ(A) side.
+//
+// The inputs packedA and packedB are expected to be tricyclic encodings
+// φ(A) and φ(B) for tensors A ∈ R^{h×m×n} and B ∈ R^{h×n×p}. The function
+// applies equation (22) and the ct-ct BSGS decomposition in Section 6.2.2.
+//
+// Parameters:
+//  - packedA: tricyclic-encoded ciphertext for A (φ(A))
+//  - packedB: tricyclic-encoded ciphertext for B (φ(B))
+//  - h, m, n, p: tricyclic tensor dimensions (h: batch count / heads)
+//
+// Returns φ(Z) where Z = batch_matmul(A, B) as a DAG node.
+template <typename T>
+std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
+                 std::shared_ptr<ArithmeticDagNode<T>>>
+implementTricyclicBatchMatmul(const T& packedA, const T& packedB, int64_t h,
+                              int64_t m, int64_t n, int64_t p) {
+  APInt hAPInt = APInt(64, h);
+  APInt mAPInt = APInt(64, m);
+  APInt nAPInt = APInt(64, n);
+  APInt pAPInt = APInt(64, p);
+
+  APInt pInvModN = multiplicativeInverse(pAPInt.urem(nAPInt), nAPInt);
+
+  APInt modulus = (hAPInt * nAPInt * pAPInt);
+  // This follows Eq. (22) and the ct-ct BSGS decomposition.
+  // RotY(c) = (h * p * ( (c * m * p^{-1}) mod n )) mod (h * n * p)
+  auto derivedRotationIndexFn = [&](int64_t giantStepSize,
+                                    int64_t giantStepIndex,
+                                    int64_t babyStepIndex, int64_t period) {
+    APInt c(64, giantStepIndex * giantStepSize + babyStepIndex);
+
+    // rotyInner = (c * m * p^{-1}) mod n
+    APInt rotyInner = (c * mAPInt * pInvModN.getSExtValue()).urem(nAPInt);
+
+    // rotY calculation from LKAA25 Eq. (22):
+    // RotY(c) = (h * p * (c * m * p^{-1} mod n)) mod (h * n * p)
+    APInt roty = (rotyInner * hAPInt * pAPInt).urem(modulus);
+
+    APInt result = roty - APInt(64, period) * APInt(64, giantStepSize) *
+                              APInt(64, giantStepIndex);
+    return result.getSExtValue();
+  };
+
+  int64_t period = h * m;
+  return implementCiphertextCiphertextBabyStepGiantStep<T>(
+      packedA, packedB, /*period=*/period, /*steps=*/n, derivedRotationIndexFn);
+}
+
 }  // namespace kernel
 }  // namespace heir
 }  // namespace mlir

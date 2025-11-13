@@ -267,6 +267,87 @@ presburger::IntegerRelation getBicyclicLayoutRelation(
   return result;
 }
 
+// Returns an IntegerRelation representing the tricyclic encoding mapping for a
+// 3-D tensor of shape (h, m, n) into ciphertext slots. The relation maps
+// domain vars [h_idx, m_idx, n_idx] to range vars [ct, slot] via
+// k = ct * numSlots + slot and constraining:
+//   h_idx == k % h
+//   m_idx == k % m
+//   n_idx == k % n
+presburger::IntegerRelation getTricyclicLayoutRelation(
+    RankedTensorType tensorType, int64_t numSlots) {
+  assert(tensorType.getRank() == 3 && "tricyclic layout expects a 3-D tensor");
+
+  int64_t h = tensorType.getDimSize(0);
+  int64_t m = tensorType.getDimSize(1);
+  int64_t n = tensorType.getDimSize(2);
+
+  IntegerRelation result(PresburgerSpace::getRelationSpace(
+      tensorType.getRank(), /*numRange=*/2, /*numSymbol=*/0,
+      /*numLocals=*/0));
+
+  // Setup var indices
+  int domainOffset = result.getVarKindOffset(VarKind::Domain);
+  int rangeOffset = result.getVarKindOffset(VarKind::Range);
+  int hVarIndex = domainOffset;
+  int mVarIndex = domainOffset + 1;
+  int nVarIndex = domainOffset + 2;
+  int ctVarIndex = rangeOffset;
+  int slotVarIndex = rangeOffset + 1;
+
+  // Add bounds for domain and range variables.
+  addBounds(result, hVarIndex, 0, h - 1);
+  addBounds(result, mVarIndex, 0, m - 1);
+  addBounds(result, nVarIndex, 0, n - 1);
+  addBounds(result, ctVarIndex, 0,
+            std::ceil((float)tensorType.getNumElements() / numSlots) - 1);
+  addBounds(result, slotVarIndex, 0, numSlots - 1);
+
+  // Let k = ct * numSlots + slot.
+  // We need constraints:
+  //   h_idx = k % h
+  //   m_idx = k % m
+  //   n_idx = k % n
+
+  // k_mod_h = (ct * numSlots + slot) % h
+  SmallVector<int64_t> kCoeffs(result.getNumCols(), 0);
+  kCoeffs[ctVarIndex] = numSlots;
+  kCoeffs[slotVarIndex] = 1;
+  auto kModH = addModConstraint(result, kCoeffs, h);
+
+  // h_idx = k_mod_h
+  SmallVector<int64_t> hEquality(result.getNumCols(), 0);
+  hEquality[hVarIndex] = 1;
+  hEquality[kModH] = -1;
+  result.addEquality(hEquality);
+
+  // k_mod_m = (ct * numSlots + slot) % m
+  kCoeffs.assign(result.getNumCols(), 0);
+  kCoeffs[ctVarIndex] = numSlots;
+  kCoeffs[slotVarIndex] = 1;
+  auto kModM = addModConstraint(result, kCoeffs, m);
+
+  // m_idx = k_mod_m
+  SmallVector<int64_t> mEquality(result.getNumCols(), 0);
+  mEquality[mVarIndex] = 1;
+  mEquality[kModM] = -1;
+  result.addEquality(mEquality);
+
+  // k_mod_n = (ct * numSlots + slot) % n
+  kCoeffs.assign(result.getNumCols(), 0);
+  kCoeffs[ctVarIndex] = numSlots;
+  kCoeffs[slotVarIndex] = 1;
+  auto kModN = addModConstraint(result, kCoeffs, n);
+
+  // n_idx = k_mod_n
+  SmallVector<int64_t> nEquality(result.getNumCols(), 0);
+  nEquality[nVarIndex] = 1;
+  nEquality[kModN] = -1;
+  result.addEquality(nEquality);
+
+  return result;
+}
+
 presburger::IntegerRelation getPerRowLayoutRelation(RankedTensorType matrixType,
                                                     int64_t ciphertextSize) {
   auto domainSize = matrixType.getRank();

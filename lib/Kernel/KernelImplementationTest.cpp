@@ -193,6 +193,82 @@ TEST(KernelImplementationTest, BicyclicMatmulRotationCount) {
   // 124 + 2*math.sqrt(124) = 146
   EXPECT_EQ(rotationCount, 146);
 }
+
+TEST(KernelImplementationTest, TricyclicBatchMatmul) {
+  MLIRContext context;
+
+  // Small example: h=2, m=3, n=5, p=2
+  int64_t h = 2;
+  int64_t m = 3;
+  int64_t n = 5;
+  int64_t p = 2;
+  int64_t numSlots = h * m * n;
+
+  // Build batch tensors A (h x m x n) and B (h x n x p) with deterministic
+  // values
+  std::vector<std::vector<std::vector<int>>> A(
+      h, std::vector<std::vector<int>>(m, std::vector<int>(n, 0)));
+  std::vector<std::vector<std::vector<int>>> B(
+      h, std::vector<std::vector<int>>(n, std::vector<int>(p, 0)));
+
+  int val = 1;
+  for (int ih = 0; ih < h; ++ih)
+    for (int im = 0; im < m; ++im)
+      for (int in = 0; in < n; ++in) A[ih][im][in] = val++;
+  val = 101;
+  for (int ih = 0; ih < h; ++ih)
+    for (int in = 0; in < n; ++in)
+      for (int ip = 0; ip < p; ++ip) B[ih][in][ip] = val++;
+
+  // Pack using the tricyclic layout relation.
+  RankedTensorType typeA =
+      RankedTensorType::get({h, m, n}, IndexType::get(&context));
+  RankedTensorType typeB =
+      RankedTensorType::get({h, n, p}, IndexType::get(&context));
+
+  auto layoutA = getTricyclicLayoutRelation(typeA, numSlots);
+  auto packedA = evaluateLayoutOnTensor(layoutA, A);
+
+  auto layoutB = getTricyclicLayoutRelation(typeB, numSlots);
+  auto packedB = evaluateLayoutOnTensor(layoutB, B);
+
+  // Use ciphertext 0's slot vectors as literal inputs.
+  LiteralValue packedAValue = packedA[0];
+  LiteralValue packedBValue = packedB[0];
+
+  // Generate kernel DAG and evaluate
+  auto dag =
+      implementTricyclicBatchMatmul(packedAValue, packedBValue, h, m, n, p);
+  LiteralValue result = evalKernel(dag);
+  auto resultVec = std::get<std::vector<int>>(result.getTensor());
+
+  // Compute expected packed φ(Z) via evaluateLayoutOnTensor for the cleartext
+  // result. First compute plain CPU batched matmul result (h x m x p).
+  std::vector<std::vector<std::vector<int>>> expectedTensor(
+      h, std::vector<std::vector<int>>(m, std::vector<int>(p, 0)));
+  for (int ih = 0; ih < h; ++ih) {
+    for (int im = 0; im < m; ++im) {
+      for (int ip = 0; ip < p; ++ip) {
+        int sum = 0;
+        for (int ic = 0; ic < n; ++ic) {
+          sum += A[ih][im][ic] * B[ih][ic][ip];
+        }
+        expectedTensor[ih][im][ip] = sum;
+      }
+    }
+  }
+
+  RankedTensorType resultType =
+      RankedTensorType::get({h, m, p}, IndexType::get(&context));
+  auto resultLayout = getTricyclicLayoutRelation(resultType, numSlots);
+  auto expectedPacked = evaluateLayoutOnTensor(resultLayout, expectedTensor);
+
+  // expectedPacked[0] is the expected slot vector for ciphertext 0.
+  std::vector<int> expVec = expectedPacked[0];
+
+  // Final check: compare expected packed φ(Z) vector with kernel output.
+  EXPECT_EQ(expVec, resultVec);
+}
 }  // namespace
 }  // namespace kernel
 }  // namespace heir

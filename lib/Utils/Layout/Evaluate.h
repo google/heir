@@ -87,6 +87,47 @@ std::vector<std::vector<T>> evaluateLayoutOnMatrix(
   return evaluateLayout(relation, getValueFn);
 }
 
+// Evaluate a layout relation on a 3-D tensor (domain ordering: h, m, n).
+// Returns a vector of ciphertexts, each ciphertext is a vector of slots.
+template <typename T>
+std::vector<std::vector<T>> evaluateLayoutOnTensor(
+    const presburger::IntegerRelation& relation,
+    const std::vector<std::vector<std::vector<T>>>& tensor) {
+  std::function<T(const std::vector<int64_t>&)> getValueFn =
+      [&](const std::vector<int64_t>& domainPoint) -> T {
+    return tensor[domainPoint[0]][domainPoint[1]][domainPoint[2]];
+  };
+  return evaluateLayout(relation, getValueFn);
+}
+
+// Unpack a packed (ct x slots) representation back to a 3-D tensor with the
+// given originalShape {h, m, n}.
+template <typename T>
+std::vector<std::vector<std::vector<T>>> unpackLayoutToTensor(
+    const presburger::IntegerRelation& relation,
+    const std::vector<std::vector<T>>& packed,
+    ArrayRef<int64_t> originalShape) {
+  assert(originalShape.size() == 3 && "originalShape must be 3-D");
+  int64_t h = originalShape[0];
+  int64_t m = originalShape[1];
+  int64_t n = originalShape[2];
+
+  std::vector<std::vector<std::vector<T>>> result(
+      h, std::vector<std::vector<T>>(m, std::vector<T>(n, 0)));
+
+  // Get all points in the relation.
+  PointPairCollector collector(relation.getNumDomainVars(), /*rangeDims=*/2);
+  enumeratePoints(relation, collector);
+
+  for (const auto& pointPair : collector.points) {
+    std::vector<int64_t> domainPoint = pointPair.first;
+    std::vector<int64_t> rangePoint = pointPair.second;
+    result[domainPoint[0]][domainPoint[1]][domainPoint[2]] =
+        packed[rangePoint[0]][rangePoint[1]];
+  }
+  return result;
+}
+
 template <typename T>
 std::vector<std::vector<T>> unpackLayoutToMatrix(
     const presburger::IntegerRelation& relation,
