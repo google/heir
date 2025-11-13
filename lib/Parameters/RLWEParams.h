@@ -131,6 +131,14 @@ class RLWELocalParam {
   int getDimension() const { return dimension; }
 };
 
+//===----------------------------------------------------------------------===//
+// Helper functions
+//===----------------------------------------------------------------------===//
+
+int computeDnum(int level);
+int64_t findPrime(int qi, int ringDim,
+                  const std::vector<int64_t>& existingPrimes);
+
 }  // namespace heir
 }  // namespace mlir
 

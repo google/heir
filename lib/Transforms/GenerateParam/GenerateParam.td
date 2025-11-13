@@ -144,8 +144,18 @@ def GenerateParamCKKS : Pass<"generate-param-ckks"> {
     the ciphertext level/dimension. These ops and attributes can be added by
     a pass like `--secret-insert-mgmt-<scheme>` and `--annotate-mgmt`.
 
-    User can provide custom scheme parameters by annotating bgv::SchemeParamAttr
+    User can provide custom scheme parameters by annotating ckks::SchemeParamAttr
     at the module level.
+
+    There are two prime selection implementations available:
+    1. Fixed (from OpenFHE FIXED*)
+    2. Reduced Error (from https://eprint.iacr.org/2020/1118, OpenFHE FLEXIBLE*)
+
+    There is a toggle called `reduced-error` that can choose between them.
+    The default one is "Fixed".
+
+    Reduced Error implementation works better with level-specific scaling
+    factor.
 
     (* example filepath=tests/Transforms/generate_param_ckks/doctest.mlir *)
   }];
@@ -170,6 +180,9 @@ def GenerateParamCKKS : Pass<"generate-param-ckks"> {
     Option<"inputRange", "input-range", "int",
            /*default=*/"1", "The range of the plaintexts for input ciphertexts "
            "for the CKKS scheme; default to [-1, 1]. For other ranges like [-D, D], use D.">,
+    Option<"reducedError", "reduced-error", "bool",
+           /*default=*/"false", "If true, uses the prime selection logic in Reduced Error paper "
+           "(https://eprint.iacr.org/2020/1118).">,
   ];
 }
 

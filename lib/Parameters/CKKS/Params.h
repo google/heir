@@ -26,10 +26,9 @@ class SchemeParam : public RLWESchemeParam {
   int64_t getLogDefaultScale() const { return logDefaultScale; }
   void print(llvm::raw_ostream& os) const override;
 
-  static SchemeParam getConcreteSchemeParam(std::vector<double> logqi,
-                                            int logDefaultScale, int slotNumber,
-                                            bool usePublicKey,
-                                            bool encryptionTechniqueExtended);
+  static SchemeParam getConcreteSchemeParam(
+      int logFirstMod, int logDefaultScale, int numScaleMod, int slotNumber,
+      bool usePublicKey, bool encryptionTechniqueExtended, bool reducedError);
 
   static SchemeParam getSchemeParamFromAttr(SchemeParamAttr attr);
 };

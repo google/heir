@@ -122,13 +122,9 @@ struct GenerateParamCKKS : impl::GenerateParamCKKSBase<GenerateParamCKKS> {
       encryptionTechniqueExtended = true;
     }
 
-    // generate scheme parameters
-    std::vector<double> logPrimes(maxLevel.value_or(0) + 1, scalingModBits);
-    logPrimes[0] = firstModBits;
-
     auto schemeParam = ckks::SchemeParam::getConcreteSchemeParam(
-        logPrimes, scalingModBits, slotNumber, usePublicKey,
-        encryptionTechniqueExtended);
+        firstModBits, scalingModBits, maxLevel.value_or(0), slotNumber,
+        usePublicKey, encryptionTechniqueExtended, reducedError);
 
     LLVM_DEBUG(llvm::dbgs() << "Scheme Param:\n" << schemeParam << "\n");
 
