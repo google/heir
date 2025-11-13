@@ -487,10 +487,9 @@ WalkResult handleMul(ckks::MulOp op) {
     int64_t operandIndex = (lhsLevel < rhsLevel) ? 1 : 0;
     debugLevelAndScale(levelReduceOp.getResult().getType(), "operand");
     op->setOperand(operandIndex, levelReduceOp.getResult());
-    return handleInferTypeOpInterface(op);
   }
 
-  return WalkResult::advance();
+  return handleInferTypeOpInterface(op);
 }
 
 struct OrionToCKKS : public impl::OrionToCKKSBase<OrionToCKKS> {

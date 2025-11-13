@@ -182,12 +182,35 @@ Value IRMaterializingVisitor::operator()(const MultiplyNode<SSAValue>& node) {
       dyn_cast<lwe::LWEPlaintextType>(lhs.getType());
   lwe::LWEPlaintextType rhsPlaintextType =
       dyn_cast<lwe::LWEPlaintextType>(rhs.getType());
+  RankedTensorType lhsTensorType = dyn_cast<RankedTensorType>(lhs.getType());
+  RankedTensorType rhsTensorType = dyn_cast<RankedTensorType>(rhs.getType());
+
+  // Plaintext-Cleartext case
+  if (lhsPlaintextType && rhsTensorType) {
+    auto encodedLhs = cast<lwe::RLWEEncodeOp>(lhs.getDefiningOp());
+    return arith::MulFOp::create(builder, encodedLhs.getInput(), rhs)
+        .getResult();
+  }
+  if (lhsTensorType && rhsPlaintextType) {
+    auto encodedRhs = cast<lwe::RLWEEncodeOp>(rhs.getDefiningOp());
+    return arith::MulFOp::create(builder, lhs, encodedRhs.getInput())
+        .getResult();
+  }
+
+  // Plaintext-plaintext case
+  if (lhsPlaintextType && rhsPlaintextType) {
+    auto encodedLhs = cast<lwe::RLWEEncodeOp>(lhs.getDefiningOp());
+    auto encodedRhs = cast<lwe::RLWEEncodeOp>(rhs.getDefiningOp());
+    auto cleartextOp = arith::MulFOp::create(builder, encodedLhs.getInput(),
+                                             encodedRhs.getInput());
+    return lwe::RLWEEncodeOp::create(
+        builder, lhsPlaintextType, cleartextOp.getResult(),
+        lhsPlaintextType.getPlaintextSpace().getEncoding(),
+        lhsPlaintextType.getPlaintextSpace().getRing());
+  }
 
   // Ciphertext-Plaintext case
   if (lhsCiphertextType && rhsPlaintextType) {
-    LLVM_DEBUG(llvm::dbgs()
-               << "Handling Ct-Pt mul:\n\n  lhs type = " << lhsCiphertextType
-               << ",\n\n  rhs type = " << rhsPlaintextType << "\n\n");
     auto newRhs = encodeCleartextOperand(lhsCiphertextType, rhs,
                                          /*useDefaultScale=*/true);
     auto ctPtOp = ckks::MulPlainOp::create(builder, lhs, newRhs);
@@ -196,9 +219,24 @@ Value IRMaterializingVisitor::operator()(const MultiplyNode<SSAValue>& node) {
                            /*rescale=*/rescaleAfterCtPtMul);
   }
   if (lhsPlaintextType && rhsCiphertextType) {
-    LLVM_DEBUG(llvm::dbgs()
-               << "Handling Ct-Pt mul(1):\n\n  lhs type = " << lhsPlaintextType
-               << ",\n\n  rhs type = " << rhsCiphertextType << "\n\n");
+    auto newLhs = encodeCleartextOperand(rhsCiphertextType, lhs,
+                                         /*useDefaultScale=*/true);
+    auto ctPtOp = ckks::MulPlainOp::create(builder, newLhs, rhs);
+    return relinAndRescale(ctPtOp.getResult(),
+                           /*relinearize=*/false,
+                           /*rescale=*/rescaleAfterCtPtMul);
+  }
+
+  // Ciphertext-Cleartext case
+  if (lhsCiphertextType && rhsTensorType) {
+    auto newRhs = encodeCleartextOperand(lhsCiphertextType, rhs,
+                                         /*useDefaultScale=*/true);
+    auto ctPtOp = ckks::MulPlainOp::create(builder, lhs, newRhs);
+    return relinAndRescale(ctPtOp.getResult(),
+                           /*relinearize=*/false,
+                           /*rescale=*/rescaleAfterCtPtMul);
+  }
+  if (lhsTensorType && rhsCiphertextType) {
     auto newLhs = encodeCleartextOperand(rhsCiphertextType, lhs,
                                          /*useDefaultScale=*/true);
     auto ctPtOp = ckks::MulPlainOp::create(builder, newLhs, rhs);
@@ -209,9 +247,6 @@ Value IRMaterializingVisitor::operator()(const MultiplyNode<SSAValue>& node) {
 
   // Ciphertext-ciphertext case
   assert(lhsCiphertextType && rhsCiphertextType);
-  LLVM_DEBUG(llvm::dbgs() << "Handling Ct-Ct mul(2):\n\n  lhs type = "
-                          << lhsCiphertextType << ",\n\n  rhs type = "
-                          << rhsCiphertextType << "\n\n");
   auto ctCtOp = ckks::MulOp::create(builder, lhs, rhs).getResult();
   return relinAndRescale(ctCtOp, /*relinearize=*/true,
                          /*rescale=*/true);
