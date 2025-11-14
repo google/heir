@@ -10,22 +10,23 @@ namespace heir {
 namespace polynomial {
 namespace {
 
-double evalChebyshevPolynomial(double x, std::vector<double> coefficients) {
-  kernel::LiteralDouble x_node = x;
-  auto result_node =
-      patersonStockmeyerChebyshevPolynomialEvaluation(x_node, coefficients);
+double evalChebyshevPolynomial(double x,
+                               const std::vector<double>& coefficients) {
+  kernel::LiteralDouble xNode = x;
+  auto resultNode =
+      patersonStockmeyerChebyshevPolynomialEvaluation(xNode, coefficients);
 
   test::EvalVisitor visitor;
-  return result_node->visit(visitor);
+  return resultNode->visit(visitor);
 }
 
-int evalMultiplicativeDepth(double x, std::vector<double> coefficients) {
-  kernel::LiteralDouble x_node = x;
-  auto result_node =
-      patersonStockmeyerChebyshevPolynomialEvaluation(x_node, coefficients);
+int evalMultiplicativeDepth(double x, const std::vector<double>& coefficients) {
+  kernel::LiteralDouble xNode = x;
+  auto resultNode =
+      patersonStockmeyerChebyshevPolynomialEvaluation(xNode, coefficients);
 
   test::MultiplicativeDepthVisitor visitor;
-  return static_cast<int>(result_node->visit(visitor));
+  return static_cast<int>(resultNode->visit(visitor));
 }
 
 TEST(PatersonStockmeyerChebyshevPolynomialEvaluation, ConstantPolynomial) {
@@ -82,7 +83,7 @@ TEST(PatersonStockmeyerChebyshevPolynomialEvaluation,
       0.0038349915376337043};
   EXPECT_NEAR(evalChebyshevPolynomial(0.7, coefficients), 0.7013677694556697,
               1e-14);
-  EXPECT_EQ(evalMultiplicativeDepth(0.5, coefficients), 6);
+  EXPECT_EQ(evalMultiplicativeDepth(0.5, coefficients), 5);
 }
 
 }  // namespace

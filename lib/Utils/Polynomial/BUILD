@@ -117,3 +117,16 @@ cc_test(
         "@heir//lib/Kernel:ArithmeticDag",
     ],
 )
+
+cc_test(
+    name = "ChebyshevPatersonStockmeyerFuzzTest",
+    srcs = ["ChebyshevPatersonStockmeyerFuzzTest.cpp"],
+    deps = [
+        ":ChebyshevPatersonStockmeyer",
+        ":PolynomialTestVisitors",
+        "@fuzztest//fuzztest",
+        "@googletest//:gtest_main",
+        "@heir//lib/Kernel:AbstractValue",
+        "@heir//lib/Kernel:ArithmeticDag",
+    ],
+)
