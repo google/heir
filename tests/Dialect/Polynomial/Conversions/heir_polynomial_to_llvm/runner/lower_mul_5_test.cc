@@ -9,7 +9,7 @@ void _mlir_ciface_test_5(StridedMemRefType<int32_t, 1>* result);
 }
 
 TEST(LowerMulTest, Test5) {
-  StridedMemRefType<int32_t, 1> result;
+  StridedMemRefType<int32_t, 1> result{};
   _mlir_ciface_test_5(&result);
   ASSERT_EQ(result.sizes[0], 12);
   EXPECT_EQ(result.data[0], (int32_t)1);
