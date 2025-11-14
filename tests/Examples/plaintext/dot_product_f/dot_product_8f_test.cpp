@@ -30,7 +30,7 @@ TEST(DotProductFTest, Test1) {
 
   StridedMemRefType<float, 2> encArg1;
   StridedMemRefType<float> inputs1 = {arg1, arg1, 0, 8, 1};
-  _mlir_ciface_dot_product__encrypt__arg0(&encArg1, &inputs1);
+  _mlir_ciface_dot_product__encrypt__arg1(&encArg1, &inputs1);
 
   StridedMemRefType<float, 2> packedRes;
   _mlir_ciface_dot_product(&packedRes, &encArg0, &encArg1);
