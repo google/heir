@@ -125,7 +125,8 @@ LogicalResult verifyModulusSwitchOrRescaleOp(Op* op) {
   auto out = getCtTy(op->getOutput());
   auto outRing = out.getCiphertextSpace().getRing();
   if (outRing != op->getToRing()) {
-    return op->emitOpError() << "output ring should match to_ring";
+    return op->emitOpError()
+           << "output ciphertext_space ring should match to_ring";
   }
 
   auto outPlaintextSpace = out.getPlaintextSpace();
@@ -353,6 +354,37 @@ LogicalResult inferRelinearizeOpReturnTypes(
                                     x.getCiphertextSpace().getEncryptionType(),
                                     adaptor.getToBasis().size()),
       x.getKey(), x.getModulusChain());
+
+  if (auto tensorTy =
+          dyn_cast<RankedTensorType>(adaptor.getInput().getType())) {
+    inferredReturnTypes.push_back(
+        RankedTensorType::get(tensorTy.getShape(), newCtTy));
+    return success();
+  }
+
+  inferredReturnTypes.push_back(newCtTy);
+  return success();
+}
+
+template <typename Adaptor>
+LogicalResult inferLevelReduceOpReturnTypes(
+    MLIRContext* ctx, Adaptor adaptor,
+    SmallVectorImpl<Type>& inferredReturnTypes) {
+  auto x = getCtTy(adaptor.getInput());
+  auto levelToDrop = adaptor.getLevelToDrop();
+
+  ModulusChainAttr newModulusChain = lwe::ModulusChainAttr::get(
+      ctx, x.getModulusChain().getElements(),
+      x.getModulusChain().getCurrent() - levelToDrop);
+  polynomial::RingAttr newRing = getRingFromModulusChain(
+      newModulusChain, x.getCiphertextSpace().getRing().getPolynomialModulus());
+
+  auto newCtTy = lwe::LWECiphertextType::get(
+      ctx, x.getApplicationData(), x.getPlaintextSpace(),
+      lwe::CiphertextSpaceAttr::get(ctx, newRing,
+                                    x.getCiphertextSpace().getEncryptionType(),
+                                    x.getCiphertextSpace().getSize()),
+      x.getKey(), newModulusChain);
 
   if (auto tensorTy =
           dyn_cast<RankedTensorType>(adaptor.getInput().getType())) {

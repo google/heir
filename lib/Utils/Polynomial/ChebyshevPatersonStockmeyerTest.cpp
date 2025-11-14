@@ -35,7 +35,7 @@ TEST(PatersonStockmeyerChebyshevPolynomialEvaluation, ConstantPolynomial) {
 }
 
 TEST(PatersonStockmeyerChebyshevPolynomialEvaluation, LinearPolynomial) {
-  std::vector<double> coefficients = {1.0, 2.5};  // Represents 1 + 2.5*x
+  std::vector<double> coefficients = {1.0, 2.5};  // Represents 1 + 2.5*T_1
   EXPECT_EQ(evalChebyshevPolynomial(0.0, coefficients), 1);
   EXPECT_EQ(evalChebyshevPolynomial(0.5, coefficients), 2.25);
   EXPECT_EQ(evalChebyshevPolynomial(1.0, coefficients), 3.5);
