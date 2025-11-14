@@ -67,7 +67,8 @@ class SameOperandsAndResultPlaintextTypes
       }
       if (plaintextTypes != ps) {
         op->emitOpError() << "requires all operands and results to have "
-                             "the same plaintextTypes";
+                             "the same plaintextTypes, but found "
+                          << plaintextTypes << " and " << ps;
         return failure();
       }
       return success();
