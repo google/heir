@@ -17,13 +17,29 @@ namespace lwe {
 // ciphertext modulus of 32 bits. The default 4-bit message space from tfhe-rs
 // has LWE dimension 742. The messageWidth parameter specifies the width of the
 // application data.
-// FIXME: add reference
 LWECiphertextType getDefaultCGGICiphertextType(MLIRContext* ctx,
                                                int messageWidth,
                                                int plaintextBits = 3);
 
+inline LWEPlaintextType getCorrespondingPlaintextType(
+    LWECiphertextType ctType) {
+  MLIRContext* ctx = ctType.getContext();
+  return LWEPlaintextType::get(
+      ctx, ctType.getApplicationData(),
+      PlaintextSpaceAttr::get(ctx, ctType.getCiphertextSpace().getRing(),
+                              ctType.getPlaintextSpace().getEncoding()));
+}
+
+// Return the LWECiphertextType resulting from removing one limb (i.e.,
+// the result type of a modulus switch or rescale op). Returns a failure
+// if the input type does not have enough limbs.
+FailureOr<LWECiphertextType> applyModReduce(LWECiphertextType inputType);
+
+// Return the LWECiphertextType resulting from setting the level to a specific
+// value.
+LWECiphertextType cloneAtLevel(LWECiphertextType inputType, int64_t level);
+
 }  // namespace lwe
 }  // namespace heir
 }  // namespace mlir
-
 #endif  // LIB_DIALECT_LWE_IR_LWETYPES_H_
