@@ -21,11 +21,11 @@ TEST(AddTest, Test1) {
   int16_t arg[1024] = {1, 2, 3, 4, 5, 6, 7, 8};
   int16_t expected = 1;
 
-  StridedMemRefType<int64_t, 2> encArg0;
+  StridedMemRefType<int64_t, 2> encArg0{};
   StridedMemRefType<int16_t> input{arg, arg, 0, 1024, 1};
   _mlir_ciface_tensor_extract__encrypt__arg0(&encArg0, &input);
 
-  StridedMemRefType<int64_t, 2> res;
+  StridedMemRefType<int64_t, 2> res{};
   _mlir_ciface_tensor_extract(&res, &encArg0);
 
   int16_t result = _mlir_ciface_tensor_extract__decrypt__result0(&res);
