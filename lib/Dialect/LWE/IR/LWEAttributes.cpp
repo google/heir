@@ -4,15 +4,19 @@
 
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
+#include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Utils/APIntUtils.h"
 #include "llvm/include/llvm/ADT/STLFunctionalExtras.h"  // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
+
+#define DEBUG_TYPE "lwe-attributes"
 
 namespace mlir {
 namespace heir {
@@ -64,6 +68,8 @@ int64_t inferModulusSwitchOrRescaleOpScalingFactor(Attribute xEncoding,
         if (xScale == 0) return xScale;
         // round to nearest log2 instead of ceil
         auto logQ = dividedModulus.nearestLogBase2();
+        LLVM_DEBUG(llvm::dbgs() << "inferring new scale; logQ=" << logQ
+                                << ", xScale=" << xScale << "\n");
         return xScale - logQ;
       })
       .Default([](Attribute) { return 0; });
@@ -114,8 +120,31 @@ PlaintextSpaceAttr inferModulusSwitchOrRescaleOpPlaintextSpaceAttr(
 
   auto newScale = inferModulusSwitchOrRescaleOpScalingFactor(
       xEncoding, dividedModulus, plaintextModulus);
+  LLVM_DEBUG(llvm::dbgs() << "dividedModulus=" << dividedModulus
+                          << " new scale=" << newScale << "\n");
   return PlaintextSpaceAttr::get(
       ctx, xRing, getEncodingAttrWithNewScalingFactor(xEncoding, newScale));
+}
+
+polynomial::RingAttr getRlweRNSRingWithLevel(polynomial::RingAttr ringAttr,
+                                             int level) {
+  auto rnsType = cast<rns::RNSType>(ringAttr.getCoefficientType());
+  auto newRnsType = rns::RNSType::get(
+      rnsType.getContext(), rnsType.getBasisTypes().take_front(level + 1));
+  return polynomial::RingAttr::get(newRnsType, ringAttr.getPolynomialModulus());
+}
+
+polynomial::RingAttr getRingFromModulusChain(
+    ModulusChainAttr chainAttr,
+    polynomial::IntPolynomialAttr polynomialModulus) {
+  SmallVector<Type> limbTypes = llvm::to_vector(llvm::map_range(
+      chainAttr.getElements(), [](mlir::IntegerAttr attr) -> Type {
+        return mod_arith::ModArithType::get(attr.getType().getContext(), attr);
+      }));
+  rns::RNSType rnsType = rns::RNSType::get(
+      chainAttr.getContext(),
+      ArrayRef<Type>(limbTypes).take_front(chainAttr.getCurrent() + 1));
+  return polynomial::RingAttr::get(rnsType, polynomialModulus);
 }
 
 //===----------------------------------------------------------------------===//

@@ -79,6 +79,12 @@ LogicalResult RelinearizeOp::inferReturnTypes(
   return lwe::inferRelinearizeOpReturnTypes(ctx, adaptor, inferredReturnTypes);
 }
 
+LogicalResult LevelReduceOp::inferReturnTypes(
+    MLIRContext* ctx, std::optional<Location>, LevelReduceOp::Adaptor adaptor,
+    SmallVectorImpl<Type>& inferredReturnTypes) {
+  return lwe::inferLevelReduceOpReturnTypes(ctx, adaptor, inferredReturnTypes);
+}
+
 void MulPlainOp::getCanonicalizationPatterns(RewritePatternSet& results,
                                              MLIRContext* context) {
   results.add<lwe::PutCiphertextInFirstOperand<MulPlainOp>>(context);
