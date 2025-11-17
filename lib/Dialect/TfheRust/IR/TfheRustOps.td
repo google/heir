@@ -181,7 +181,7 @@ def TfheRust_SelectOp : TfheRust_Op<"cmux", [
  **************************/
 
 def TfheRust_CreateTrivialOp : TfheRust_Op<"create_trivial", [Pure]> {
-  let arguments = (ins TfheRust_ServerKey:$serverKey, AnyInteger:$value);
+  let arguments = (ins TfheRust_ServerKey:$serverKey, Optional<AnyInteger>:$value, OptionalAttr<AnyAttrOf<[Builtin_IntegerAttr, Builtin_ArrayAttr]>>:$valueAttr);
   let results = (outs TfheRust_CiphertextLikeType:$output);
   let hasCanonicalizer = 1;
 }

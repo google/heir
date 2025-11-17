@@ -36,8 +36,8 @@ module {
 
 // CHECK: func.func @override_value
 // CHECK-SAME: (%[[input0:.*]]: i32, %[[input1:.*]]: i32)
-// CHECK: %[[c1:.*]] = arith.constant 1 : i32
-// CHECK: %[[v0:.*]] = tensor.from_elements %[[input1]], %[[c1]]
+// CHECK: %[[c0:.*]] = arith.constant 0 : index
+// CHECK: %[[v0:.*]] = tensor.insert %[[input1]]
 // CHECK: return
 module {
   func.func @override_value(%arg0: i32, %arg1: i32) -> tensor<1x2xi32> {
