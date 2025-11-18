@@ -12,6 +12,8 @@ cc_library(
     deps = [
         "@heir//lib/Dialect/CKKS/IR:Dialect",
         "@heir//lib/Parameters:RLWEParams",
+        "@heir//lib/Parameters:RLWESecurityParams",
         "@llvm-project//llvm:Support",
+        "@openfhe//:core",
     ],
 )
