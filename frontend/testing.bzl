@@ -25,7 +25,7 @@ def frontend_test(name, srcs, deps = [], data = [], tags = []):
         srcs_version = "PY3",
         deps = deps + [
             ":frontend",
-            "@com_google_absl_py//absl/testing:absltest",
+            "@abseil-py//absl/testing:absltest",
             "@edu_berkeley_abc//:abc",
         ],
         imports = ["."],

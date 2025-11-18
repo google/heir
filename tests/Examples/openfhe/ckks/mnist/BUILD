@@ -37,7 +37,7 @@ py_test(
     ],
     deps = [
         ":mnist_openfhe_pybind",
-        "@com_google_absl_py//absl/testing:absltest",
+        "@abseil-py//absl/testing:absltest",
         "@heir_pip_deps//numpy",
         "@heir_pip_deps//torch",
     ],

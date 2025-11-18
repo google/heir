@@ -1,6 +1,6 @@
 # TODO(#1446): Migrate remaining dependencies to bazelmod
 
-load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository", "new_git_repository")
+load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe")
 
@@ -64,50 +64,12 @@ org_gnu_gnulib()
 
 at_clifford_yosys()
 
-## Bazel rules.
-git_repository(
-    name = "platforms",
-    commit = "380c85cc2c7b126c6e354f517dc16d89fe760c9f",
-    remote = "https://github.com/bazelbuild/platforms.git",
-)
-
-## ZLIB
-# Would be nice to use llvm-zlib instead here.
-new_git_repository(
-    name = "zlib",
-    build_file = "@com_google_protobuf//:third_party/zlib.BUILD",
-    commit = "04f42ceca40f73e2978b50e93806c2a18c1281fc",
-    remote = "https://github.com/madler/zlib.git",
-)
-
-## Re2
-git_repository(
-    name = "com_google_re2",
-    remote = "https://github.com/google/re2.git",
-    repo_mapping = {"@abseil-cpp": "@com_google_absl"},
-    tag = "2024-04-01",
-)
-
-## Abseil-py
-new_git_repository(
-    name = "com_google_absl_py",
-    commit = "127c98870edf5f03395ce9cf886266fa5f24455e",  # v1.4.0
-    remote = "https://github.com/abseil/abseil-py",
-)
-
 # OpenFHE backend and dependencies
 git_repository(
     name = "cereal",
     build_file = "//bazel/openfhe:cereal.BUILD",
     commit = "ebef1e929807629befafbb2918ea1a08c7194554",
     remote = "https://github.com/USCiLab/cereal.git",
-)
-
-git_repository(
-    name = "rapidjson",
-    build_file = "//bazel/openfhe:rapidjson.BUILD",
-    commit = "9bd618f545ab647e2c3bcbf2f1d87423d6edf800",
-    remote = "https://github.com/Tencent/rapidjson.git",
 )
 
 git_repository(
