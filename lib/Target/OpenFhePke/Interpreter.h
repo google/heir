@@ -1,6 +1,7 @@
 #ifndef LIB_TARGET_OPENFHEPKE_INTERPRETER_H_
 #define LIB_TARGET_OPENFHEPKE_INTERPRETER_H_
 
+#include <memory>
 #include <string>
 #include <variant>
 #include <vector>
@@ -40,25 +41,25 @@ using PublicKeyT = lbcrypto::PublicKey<lbcrypto::DCRTPoly>;
 using FastRotPrecompT = std::shared_ptr<std::vector<lbcrypto::DCRTPoly>>;
 
 struct TypedCppValue {
-  using Variant =
-      std::variant<std::monostate,                    // NULL_TY
-                   bool,                              // BOOL
-                   int,                               // INT
-                   float,                             // FLOAT
-                   double,                            // DOUBLE
-                   std::vector<int>,                  // INT_VECTOR
-                   std::vector<float>,                // FLOAT_VECTOR
-                   std::vector<double>,               // DOUBLE_VECTOR
-                   PlaintextT,                        // PLAINTEXT
-                   std::vector<lbcrypto::Plaintext>,  // PLAINTEXT_VECTOR
-                   CiphertextT,                       // CIPHERTEXT
-                   std::vector<CiphertextT>,          // CIPHERTEXT_VECTOR
-                   PublicKeyT,                        // PUBLIC_KEY
-                   PrivateKeyT,                       // PRIVATE_KEY
-                   EvalKeyT,                          // EVAL_KEY
-                   CryptoContextT,                    // CRYPTO_CONTEXT
-                   FastRotPrecompT                    // FAST_ROTATION_PRECOMP
-                   >;
+  using Variant = std::variant<
+      std::monostate,                             // NULL_TY
+      bool,                                       // BOOL
+      int,                                        // INT
+      float,                                      // FLOAT
+      double,                                     // DOUBLE
+      std::shared_ptr<std::vector<int>>,          // INT_VECTOR
+      std::shared_ptr<std::vector<float>>,        // FLOAT_VECTOR
+      std::shared_ptr<std::vector<double>>,       // DOUBLE_VECTOR
+      PlaintextT,                                 // PLAINTEXT
+      std::shared_ptr<std::vector<PlaintextT>>,   // PLAINTEXT_VECTOR
+      CiphertextT,                                // CIPHERTEXT
+      std::shared_ptr<std::vector<CiphertextT>>,  // CIPHERTEXT_VECTOR
+      PublicKeyT,                                 // PUBLIC_KEY
+      PrivateKeyT,                                // PRIVATE_KEY
+      EvalKeyT,                                   // EVAL_KEY
+      CryptoContextT,                             // CRYPTO_CONTEXT
+      FastRotPrecompT                             // FAST_ROTATION_PRECOMP
+      >;
 
   Variant value;
 
@@ -68,13 +69,40 @@ struct TypedCppValue {
   TypedCppValue(int v) : value(v) {}
   TypedCppValue(float v) : value(v) {}
   TypedCppValue(double v) : value(v) {}
-  TypedCppValue(std::vector<int> v) : value(std::move(v)) {}
-  TypedCppValue(std::vector<float> v) : value(std::move(v)) {}
-  TypedCppValue(std::vector<double> v) : value(std::move(v)) {}
+
+  // Constructors for shared_ptr (preferred - no copy)
+  TypedCppValue(std::shared_ptr<std::vector<int>> v) : value(std::move(v)) {}
+  TypedCppValue(std::shared_ptr<std::vector<float>> v) : value(std::move(v)) {}
+  TypedCppValue(std::shared_ptr<std::vector<double>> v) : value(std::move(v)) {}
+  TypedCppValue(std::shared_ptr<std::vector<PlaintextT>> v)
+      : value(std::move(v)) {}
+  TypedCppValue(std::shared_ptr<std::vector<CiphertextT>> v)
+      : value(std::move(v)) {}
+
+  // Convenience constructors for raw vectors (wraps in shared_ptr)
+  TypedCppValue(const std::vector<int>& v)
+      : value(std::make_shared<std::vector<int>>(v)) {}
+  TypedCppValue(std::vector<int>&& v)
+      : value(std::make_shared<std::vector<int>>(std::move(v))) {}
+  TypedCppValue(const std::vector<float>& v)
+      : value(std::make_shared<std::vector<float>>(v)) {}
+  TypedCppValue(std::vector<float>&& v)
+      : value(std::make_shared<std::vector<float>>(std::move(v))) {}
+  TypedCppValue(const std::vector<double>& v)
+      : value(std::make_shared<std::vector<double>>(v)) {}
+  TypedCppValue(std::vector<double>&& v)
+      : value(std::make_shared<std::vector<double>>(std::move(v))) {}
+  TypedCppValue(const std::vector<PlaintextT>& v)
+      : value(std::make_shared<std::vector<PlaintextT>>(v)) {}
+  TypedCppValue(std::vector<PlaintextT>&& v)
+      : value(std::make_shared<std::vector<PlaintextT>>(std::move(v))) {}
+  TypedCppValue(const std::vector<CiphertextT>& v)
+      : value(std::make_shared<std::vector<CiphertextT>>(v)) {}
+  TypedCppValue(std::vector<CiphertextT>&& v)
+      : value(std::make_shared<std::vector<CiphertextT>>(std::move(v))) {}
+
   TypedCppValue(PlaintextT v) : value(std::move(v)) {}
-  TypedCppValue(std::vector<PlaintextT> v) : value(std::move(v)) {}
   TypedCppValue(CiphertextT v) : value(std::move(v)) {}
-  TypedCppValue(std::vector<CiphertextT> v) : value(std::move(v)) {}
   TypedCppValue(PublicKeyT v) : value(std::move(v)) {}
   TypedCppValue(PrivateKeyT v) : value(std::move(v)) {}
   TypedCppValue(EvalKeyT v) : value(std::move(v)) {}
@@ -103,10 +131,7 @@ class Interpreter {
   void visit(arith::ConstantOp op);
   void visit(arith::DivSIOp op);
   void visit(arith::ExtFOp op);
-  void visit(arith::ExtSIOp op);
-  void visit(arith::ExtUIOp op);
   void visit(arith::FloorDivSIOp op);
-  void visit(arith::IndexCastOp op);
   void visit(arith::MulIOp op);
   void visit(arith::MulFOp op);
   void visit(arith::MinSIOp op);
@@ -114,6 +139,7 @@ class Interpreter {
   void visit(arith::RemSIOp op);
   void visit(arith::SelectOp op);
   void visit(arith::SubIOp op);
+  void visit(arith::SubFOp op);
   void visit(linalg::BroadcastOp op);
   void visit(tensor::CollapseShapeOp op);
   void visit(tensor::ConcatOp op);
@@ -167,18 +193,54 @@ class Interpreter {
   // Other HEIR ops
   void visit(lwe::RLWEDecodeOp op);
 
-  TypedCppValue applyBinop(Operation* op, const TypedCppValue& lhs,
-                           const TypedCppValue& rhs,
-                           std::function<int(int, int)> intFunc,
-                           std::function<double(double, double)> doubleFunc);
-
   int getFlattenedTensorIndex(Value tensor, ValueRange indices);
 
  private:
+  // Helper to erase a value from all storage maps (for liveness)
+  void eraseValue(Value v);
+
+  // Helper to convert TypedCppValue to type-specific storage (for inputs)
+  void storeTypedValue(Value v, const TypedCppValue& typedVal);
+
+  // Helper to convert from type-specific storage to TypedCppValue (for outputs)
+  TypedCppValue loadTypedValue(Value v);
   ModuleOp module;
-  llvm::DenseMap<Value, TypedCppValue> env;
+
+  // Type-specific storage - zero variant overhead!
+  llvm::DenseMap<Value, bool> boolValues;
+  llvm::DenseMap<Value, int> intValues;
+  llvm::DenseMap<Value, float> floatValues;
+  llvm::DenseMap<Value, double> doubleValues;
+
+  // Vectors stored as shared_ptr to avoid expensive copying
+  llvm::DenseMap<Value, std::shared_ptr<std::vector<int>>> intVectors;
+  llvm::DenseMap<Value, std::shared_ptr<std::vector<float>>> floatVectors;
+  llvm::DenseMap<Value, std::shared_ptr<std::vector<double>>> doubleVectors;
+
+  // OpenFHE types (already shared_ptr internally)
+  llvm::DenseMap<Value, PlaintextT> plaintexts;
+  llvm::DenseMap<Value, std::shared_ptr<std::vector<PlaintextT>>>
+      plaintextVectors;
+  llvm::DenseMap<Value, CiphertextT> ciphertexts;
+  llvm::DenseMap<Value, std::shared_ptr<std::vector<CiphertextT>>>
+      ciphertextVectors;
+  llvm::DenseMap<Value, CryptoContextT> cryptoContexts;
+  llvm::DenseMap<Value, PublicKeyT> publicKeys;
+  llvm::DenseMap<Value, PrivateKeyT> privateKeys;
+  llvm::DenseMap<Value, EvalKeyT> evalKeys;
+  llvm::DenseMap<Value, FastRotPrecompT> fastRotPrecomps;
+
   Liveness liveness;
   llvm::DenseMap<Value, std::shared_ptr<CCParamsT>> params_;
+
+  // Jump table for fast operation dispatch
+  using OperationVisitor = std::function<void(Interpreter*, Operation*)>;
+
+  static llvm::DenseMap<TypeID, Interpreter::OperationVisitor>
+      operationDispatchTable;
+  static bool dispatchTableInitialized;
+  static MLIRContext* dispatchTableContext;
+  void initializeDispatchTable();
 
 #ifdef OPENFHE_ENABLE_TIMING
   struct TimingData {
