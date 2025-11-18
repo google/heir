@@ -212,7 +212,7 @@ Value buildIslExpr(isl_ast_expr* expr, std::map<std::string, Value> ivToValue,
         SmallVector<Value> args = getArgs(expr);
         auto op =
             arith::CmpIOp::create(b, islCmpToMlirAttr[type], args[0], args[1]);
-        return op->getResult(0);
+        return arith::ExtSIOp::create(b, b.getI32Type(), op->getResult(0));
       }
 
       if (type == isl_ast_op_select) {
@@ -229,7 +229,7 @@ Value buildIslExpr(isl_ast_expr* expr, std::map<std::string, Value> ivToValue,
         auto eqOp =
             arith::CmpIOp::create(b, arith::CmpIPredicate::eq, op,
                                   arith::ConstantIntOp::create(b, 0, 32));
-        return eqOp->getResult(0);
+        return arith::ExtSIOp::create(b, b.getI32Type(), eqOp->getResult(0));
       }
       isl_ast_expr_op_type opType = isl_ast_expr_get_op_type(expr);
       char* cStr = isl_ast_expr_to_C_str(expr);
@@ -318,9 +318,13 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeIf(
   isl_ast_expr_free(cond);
 
   // Build scf if operation with the result types of the iter args
-  auto ifOp =
-      scf::IfOp::create(builder_, currentLoc_, TypeRange(currentIterArgs_),
-                        condVal, /*addThenBlock=*/true, /*addElseBlock=*/true);
+  // Convert condVal to an i1
+  auto condValI1 =
+      arith::CmpIOp::create(builder_, arith::CmpIPredicate::eq, condVal,
+                            arith::ConstantIntOp::create(builder_, 1, 32));
+  auto ifOp = scf::IfOp::create(builder_, currentLoc_,
+                                TypeRange(currentIterArgs_), condValI1,
+                                /*addThenBlock=*/true, /*addElseBlock=*/true);
 
   // TODO:(#2120): Handle ISL else conditions.
   isl_ast_node* elseNode = isl_ast_node_if_get_else_node(node);

@@ -517,9 +517,9 @@ struct RewriteAvgPoolAsConv2D
     RankedTensorType twoDInputType =
         RankedTensorType::get({inputTy.getDimSize(2), inputTy.getDimSize(3)},
                               inputTy.getElementType());
-    Value convOutput = rewriter.create<tensor::EmptyOp>(
-        poolOp.getLoc(), twoDOutputType.getShape(),
-        twoDOutputType.getElementType());
+    Value convOutput = tensor::EmptyOp::create(rewriter, poolOp.getLoc(),
+                                               twoDOutputType.getShape(),
+                                               twoDOutputType.getElementType());
     for (int n = 0; n < inputTy.getDimSize(0); ++n) {
       for (int c = 0; c < inputTy.getDimSize(1); ++c) {
         // Compute the 2-D constant convolution.
@@ -531,9 +531,9 @@ struct RewriteAvgPoolAsConv2D
             rewriter.getIndexAttr(inputTy.getDimSize(2)),
             rewriter.getIndexAttr(inputTy.getDimSize(3))};
         SmallVector<OpFoldResult> strides(4, rewriter.getIndexAttr(1));
-        auto extractInputOp = rewriter.create<tensor::ExtractSliceOp>(
-            poolOp.getLoc(), twoDInputType, poolOp.getInputs()[0], offsets,
-            inputSizes, strides);
+        auto extractInputOp = tensor::ExtractSliceOp::create(
+            rewriter, poolOp.getLoc(), twoDInputType, poolOp.getInputs()[0],
+            offsets, inputSizes, strides);
 
         auto convOp = linalg::Conv2DOp::create(
             rewriter, poolOp.getLoc(), twoDOutputType,
@@ -543,8 +543,8 @@ struct RewriteAvgPoolAsConv2D
             rewriter.getIndexAttr(1), rewriter.getIndexAttr(1),
             rewriter.getIndexAttr(outputTy.getDimSize(2)),
             rewriter.getIndexAttr(outputTy.getDimSize(3))};
-        outputVal = rewriter.create<tensor::InsertSliceOp>(
-            poolOp.getLoc(), convOp.getResult(0), outputVal, offsets,
+        outputVal = tensor::InsertSliceOp::create(
+            rewriter, poolOp.getLoc(), convOp.getResult(0), outputVal, offsets,
             outputSizes, strides);
       }
     }

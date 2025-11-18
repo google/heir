@@ -674,13 +674,30 @@ struct ConvertLinalgConv2D
         cast<TypedValue<RankedTensorType>>(adaptor.getInputs()[1]);
     SSAValue matrixLeaf(matrix);
 
-    // The original matrix shape is the shape of the expanded filter.
+    // The original matrix shape is the shape of the expanded filter before
+    // diagonalization. This is 28x28 for LeNet
     RankedTensorType expandedMatrixType = get2dConvFilterExpandedType(
         cast<RankedTensorType>(op.getInputs()[1].getType()),
         cast<RankedTensorType>(op.getInputs()[0].getType()), /*padding=*/0);
+
+    // Get non-zero diagonals of the diagonalized expanded filter matrix.
+    LayoutAttr filterLayout = getLayoutAttr(adaptor.getInputs()[1]);
+    auto filterRelation = filterLayout.getIntegerRelation();
+    PointCollector collector;
+    getRangePoints(filterRelation, collector);
+    std::map<int, bool> nonZeroDiagonals;
+    for (auto point : collector.points) {
+      nonZeroDiagonals[point[0]] = true;
+    }
+    for (auto [ct, val] : nonZeroDiagonals) {
+      std::cout << ct << ", ";
+    }
+    std::cout << "\n";
+    std::cout << "nonZero diagonal size: " << nonZeroDiagonals.size() << "\n";
+
     std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
         implementHaleviShoup(vectorLeaf, matrixLeaf,
-                             expandedMatrixType.getShape());
+                             expandedMatrixType.getShape(), nonZeroDiagonals);
 
     rewriter.setInsertionPointAfter(op);
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);

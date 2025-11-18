@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <iostream>
 #include <memory>
 #include <optional>
 #include <string>
@@ -117,6 +118,7 @@ std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
 implementBabyStepGiantStep(
     const T& giantSteppedOperand, const T& babySteppedOperand, int64_t period,
     int64_t steps, DagExtractor<T> extractFunc,
+    std::map<int, bool> nonZeroDiagonals = {},
     const DerivedRotationIndexFn& derivedRotationIndexFn =
         defaultDerivedRotationIndexFn) {
   using NodeTy = ArithmeticDagNode<T>;
@@ -147,6 +149,14 @@ implementBabyStepGiantStep(
       int64_t innerRotAmount =
           derivedRotationIndexFn(giantStepSize, j, i, period);
       size_t extractionIndex = i + j * giantStepSize;
+
+      // If the extractIndex is not in the nonZeroDiagonals, then the value is
+      // zero and we can skip the multiplication.
+      if (!nonZeroDiagonals.empty() &&
+          !nonZeroDiagonals.contains(extractionIndex)) {
+        continue;
+      }
+
       auto plaintext = extractFunc(babySteppedDag, extractionIndex);
       auto rotatedPlaintext = NodeTy::leftRotate(plaintext, innerRotAmount);
       auto multiplied = NodeTy::mul(rotatedPlaintext, babyStepVals[i]);
@@ -154,8 +164,14 @@ implementBabyStepGiantStep(
           innerSum == nullptr ? multiplied : NodeTy::add(innerSum, multiplied);
     }
 
-    auto rotatedSum = NodeTy::leftRotate(innerSum, period * j * giantStepSize);
-    result = result == nullptr ? rotatedSum : NodeTy::add(result, rotatedSum);
+    auto rotatedSum =
+        innerSum == nullptr
+            ? nullptr
+            : NodeTy::leftRotate(innerSum, period * j * giantStepSize);
+    result = result == nullptr
+                 ? rotatedSum
+                 : (rotatedSum == nullptr ? result
+                                          : NodeTy::add(result, rotatedSum));
   }
 
   return result;
@@ -185,6 +201,7 @@ std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
                  std::shared_ptr<ArithmeticDagNode<T>>>
 implementRotateAndReduce(const T& vector, std::optional<T> plaintexts,
                          int64_t period, int64_t steps,
+                         std::map<int, bool> nonZeroDiagonals = {},
                          const std::string& reduceOp = "arith.addi") {
   using NodeTy = ArithmeticDagNode<T>;
   auto performReduction = [&](std::shared_ptr<NodeTy> left,
@@ -217,7 +234,7 @@ implementRotateAndReduce(const T& vector, std::optional<T> plaintexts,
   };
 
   return implementBabyStepGiantStep<T>(vector, plaintexts.value(), period,
-                                       steps, extractFunc);
+                                       steps, extractFunc, nonZeroDiagonals);
 }
 
 // Returns an arithmetic DAG that implements a baby-step-giant-step between
@@ -248,7 +265,7 @@ implementCiphertextCiphertextBabyStepGiantStep(
                         int64_t extractionIndex) { return babySteppedDag; };
 
   return implementBabyStepGiantStep<T>(giantSteppedOperand, babySteppedOperand,
-                                       period, steps, extractFunc,
+                                       period, steps, extractFunc, {},
                                        derivedRotationIndexFn);
 }
 
@@ -260,13 +277,14 @@ template <typename T>
 std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
                  std::shared_ptr<ArithmeticDagNode<T>>>
 implementHaleviShoup(const T& vector, const T& matrix,
-                     std::vector<int64_t> originalMatrixShape) {
+                     std::vector<int64_t> originalMatrixShape,
+                     std::map<int, bool> nonZeroDiagonals = {}) {
   using NodeTy = ArithmeticDagNode<T>;
   int64_t numRotations = matrix.getShape()[0];
 
   auto rotateAndReduceResult = implementRotateAndReduce<T>(
       vector, std::optional<T>(matrix), /*period=*/1,
-      /*steps=*/numRotations);
+      /*steps=*/numRotations, nonZeroDiagonals);
 
   auto summedShifts = rotateAndReduceResult;
 
