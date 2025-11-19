@@ -17,7 +17,7 @@ DATA_DEPS = [
     # copybara: openfhe_core_headers
     # copybara: openfhe_pke_headers
     # copybara: python_runtime_headers
-    "@rapidjson//:headers",
+    "@rapidjson",
 ]
 
 # a single-source build dependency that gives the whole (non-test) source tree;
