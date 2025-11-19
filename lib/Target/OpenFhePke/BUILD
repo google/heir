@@ -123,13 +123,17 @@ cc_library(
     name = "Interpreter",
     srcs = ["Interpreter.cpp"],
     hdrs = ["Interpreter.h"],
+    copts = select({
+        "@heir//:config_openfhe_enable_timing": ["-DOPENFHE_ENABLE_TIMING"],
+        "//conditions:default": [],
+    }),
     deps = [
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Dialect/RNS/IR:Dialect",
-        "@heir//lib/Dialect/RNS/IR:RNSTypeInterfaces",
+        "@heir//lib/Dialect/RNS/IR:RNSTypeInterfaces",  # buildcleaner: keep
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",

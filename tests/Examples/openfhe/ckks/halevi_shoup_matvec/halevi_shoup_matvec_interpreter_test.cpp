@@ -58,6 +58,10 @@ TEST(MatmulInterpreterTest, RunTest) {
   TypedCppValue outputEncrypted =
       interpreter.interpret("matvec", {cc, arg0Enc})[0];
 
+#ifdef OPENFHE_ENABLE_TIMING
+  interpreter.printTimingResults();
+#endif
+
   TypedCppValue actualVal =
       interpreter.interpret("matvec__decrypt__result0",
                             {cc, outputEncrypted, TypedCppValue(secretKey)})[0];

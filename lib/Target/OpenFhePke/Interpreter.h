@@ -5,6 +5,12 @@
 #include <variant>
 #include <vector>
 
+#ifdef OPENFHE_ENABLE_TIMING
+#include <chrono>
+#include <map>
+#include <string>
+#endif
+
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "llvm/include/llvm/ADT/DenseMap.h"  // from @llvm-project
@@ -81,6 +87,10 @@ class Interpreter {
 
   std::vector<TypedCppValue> interpret(const std::string& entryFunction,
                                        ArrayRef<TypedCppValue> inputValues);
+
+#ifdef OPENFHE_ENABLE_TIMING
+  void printTimingResults();
+#endif
 
   void visit(Operation* op);
 
@@ -160,6 +170,14 @@ class Interpreter {
  private:
   ModuleOp module;
   llvm::DenseMap<Value, TypedCppValue> env;
+
+#ifdef OPENFHE_ENABLE_TIMING
+  struct TimingData {
+    std::chrono::duration<double> totalTime{0};
+    int count{0};
+  };
+  std::map<std::string, TimingData> timingResults;
+#endif
 };
 
 void initContext(MLIRContext& context);
@@ -170,4 +188,4 @@ OwningOpRef<ModuleOp> parse(MLIRContext* context, const std::string& mlirStr);
 }  // namespace heir
 }  // namespace mlir
 
-#endif  // LIB_TARGET_OPENFHEPKE_INTERPRETER_H_
+#endif  // LIB_TARGET_OPENFHEPKE_INTERPRIl INTERPRETER_H_

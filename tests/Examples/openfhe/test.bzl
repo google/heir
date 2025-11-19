@@ -39,7 +39,7 @@ def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, heir
         **kwargs
     )
 
-def openfhe_interpreter_test(name, mlir_src, test_src, generated_heir_opt_filename = "", heir_opt_flags = [], data = [], tags = [], deps = [], **kwargs):
+def openfhe_interpreter_test(name, mlir_src, test_src, generated_heir_opt_filename = "", heir_opt_flags = [], data = [], tags = [], deps = [], copts = [], **kwargs):
     """A rule for running generating OpenFHE dialect and exposing it to an interpreter.
 
     Args:
@@ -51,6 +51,7 @@ def openfhe_interpreter_test(name, mlir_src, test_src, generated_heir_opt_filena
       data: Data dependencies to be passed to cc_test/heir_opt
       tags: Tags to pass to cc_test
       deps: Deps to pass to cc_test
+      copts: Additional copts to pass to cc_test
       **kwargs: Keyword arguments to pass to cc_test.
     """
     heir_opt_name = "%s_heir_opt" % name
@@ -78,7 +79,7 @@ def openfhe_interpreter_test(name, mlir_src, test_src, generated_heir_opt_filena
         ],
         tags = tags,
         data = data + [":" + generated_heir_opt_filename],
-        copts = MAYBE_OPENMP_COPTS,
+        copts = MAYBE_OPENMP_COPTS + copts,
         linkopts = MAYBE_OPENFHE_LINKOPTS,
         **kwargs
     )
