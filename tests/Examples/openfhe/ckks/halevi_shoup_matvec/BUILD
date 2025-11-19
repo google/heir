@@ -20,6 +20,10 @@ openfhe_end_to_end_test(
 
 openfhe_interpreter_test(
     name = "halevi_shoup_matvec_interpreter_test",
+    copts = select({
+        "//:config_openfhe_enable_timing": ["-DOPENFHE_ENABLE_TIMING"],
+        "//conditions:default": [],
+    }),
     generated_heir_opt_filename = "module.openfhe.mlir",
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=ckks",

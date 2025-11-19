@@ -123,6 +123,10 @@ cc_library(
     name = "Interpreter",
     srcs = ["Interpreter.cpp"],
     hdrs = ["Interpreter.h"],
+    copts = select({
+        "//:config_openfhe_enable_timing": ["-DOPENFHE_ENABLE_TIMING"],
+        "//conditions:default": [],
+    }),
     deps = [
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/ModArith/IR:Dialect",

@@ -1,11 +1,10 @@
 #include "lib/Target/OpenFhePke/Interpreter.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
-#include <map>
-#include <memory>
 #include <string>
 #include <utility>
 #include <variant>
@@ -20,6 +19,36 @@
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
+
+#ifdef OPENFHE_ENABLE_TIMING
+#define TIME_OPERATION_VOID(op_name, code)                  \
+  do {                                                      \
+    auto start = std::chrono::high_resolution_clock::now(); \
+    code;                                                   \
+    auto end = std::chrono::high_resolution_clock::now();   \
+    timingResults[op_name].totalTime += (end - start);      \
+    timingResults[op_name].count++;                         \
+  } while (0)
+#define TIME_OPERATION(op_name, result_val, code)           \
+  do {                                                      \
+    auto start = std::chrono::high_resolution_clock::now(); \
+    auto result = code;                                     \
+    auto end = std::chrono::high_resolution_clock::now();   \
+    timingResults[op_name].totalTime += (end - start);      \
+    timingResults[op_name].count++;                         \
+    env.try_emplace(result_val, std::move(result));         \
+  } while (0)
+#else
+#define TIME_OPERATION_VOID(op_name, code) \
+  do {                                     \
+    code;                                  \
+  } while (0)
+#define TIME_OPERATION(op_name, result_val, code) \
+  do {                                            \
+    env.try_emplace(result_val, code);            \
+  } while (0)
+#endif
+
 #include "lib/Dialect/RNS/IR/RNSTypeInterfaces.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
@@ -977,6 +1006,49 @@ void Interpreter::visit(affine::AffineForOp op) {
   }
 }
 
+#ifdef OPENFHE_ENABLE_TIMING
+#include <iomanip>
+#include <iostream>
+#include <vector>
+
+void Interpreter::printTimingResults() {
+  double totalTime = 0;
+  for (const auto& entry : timingResults) {
+    totalTime += entry.second.totalTime.count();
+  }
+
+  struct TimingInfo {
+    std::string operation;
+    double totalTime;
+    int count;
+    double percentage;
+  };
+
+  std::vector<TimingInfo> sortedResults;
+  for (const auto& entry : timingResults) {
+    sortedResults.push_back(
+        {entry.first, entry.second.totalTime.count(), entry.second.count,
+         (entry.second.totalTime.count() / totalTime) * 100});
+  }
+
+  std::sort(sortedResults.begin(), sortedResults.end(),
+            [](const TimingInfo& a, const TimingInfo& b) {
+              return a.percentage > b.percentage;
+            });
+
+  std::cout << "--- Timing Results ---\n";
+  std::cout << std::left << std::setw(30) << "Operation" << std::setw(20)
+            << "Total Time (s)" << std::setw(20) << "Total Time (%)"
+            << std::setw(20) << "Count" << "Average Latency (s)\n";
+  for (const auto& entry : sortedResults) {
+    std::cout << std::left << std::setw(30) << entry.operation << std::setw(20)
+              << entry.totalTime << std::setw(20) << entry.percentage
+              << std::setw(20) << entry.count << (entry.totalTime / entry.count)
+              << "\n";
+  }
+}
+#endif
+
 // OpenFHE binary operations
 void Interpreter::visit(AddOp op) {
   auto lhs = env.at(op.getLhs());
@@ -984,7 +1056,7 @@ void Interpreter::visit(AddOp op) {
   auto cc = std::get<CryptoContextT>(env.at(op.getCryptoContext()).value);
   auto lhsCt = std::get<CiphertextT>(lhs.value);
   auto rhsCt = std::get<CiphertextT>(rhs.value);
-  env.try_emplace(op.getOutput(), cc->EvalAdd(lhsCt, rhsCt));
+  TIME_OPERATION("Add", op.getOutput(), cc->EvalAdd(lhsCt, rhsCt));
 }
 
 void Interpreter::visit(AddPlainOp op) {
@@ -994,14 +1066,14 @@ void Interpreter::visit(AddPlainOp op) {
   // AddPlainOp can have ciphertext + plaintext in either order
   if (std::holds_alternative<CiphertextT>(lhs.value) &&
       std::holds_alternative<PlaintextT>(rhs.value)) {
-    env.try_emplace(op.getOutput(),
-                    cc->EvalAdd(std::get<CiphertextT>(lhs.value),
-                                std::get<PlaintextT>(rhs.value)));
+    TIME_OPERATION("AddPlain", op.getOutput(),
+                   cc->EvalAdd(std::get<CiphertextT>(lhs.value),
+                               std::get<PlaintextT>(rhs.value)));
   } else if (std::holds_alternative<PlaintextT>(lhs.value) &&
              std::holds_alternative<CiphertextT>(rhs.value)) {
-    env.try_emplace(op.getOutput(),
-                    cc->EvalAdd(std::get<PlaintextT>(lhs.value),
-                                std::get<CiphertextT>(rhs.value)));
+    TIME_OPERATION("AddPlain", op.getOutput(),
+                   cc->EvalAdd(std::get<PlaintextT>(lhs.value),
+                               std::get<CiphertextT>(rhs.value)));
   } else {
     op.emitError("AddPlainOp requires ciphertext and plaintext");
   }
@@ -1013,7 +1085,7 @@ void Interpreter::visit(SubOp op) {
   auto cc = std::get<CryptoContextT>(env.at(op.getCryptoContext()).value);
   auto lhsCt = std::get<CiphertextT>(lhs.value);
   auto rhsCt = std::get<CiphertextT>(rhs.value);
-  env.try_emplace(op.getOutput(), cc->EvalSub(lhsCt, rhsCt));
+  TIME_OPERATION("Sub", op.getOutput(), cc->EvalSub(lhsCt, rhsCt));
 }
 
 void Interpreter::visit(SubPlainOp op) {
@@ -1023,14 +1095,14 @@ void Interpreter::visit(SubPlainOp op) {
   // SubPlainOp can have ciphertext - plaintext in either order
   if (std::holds_alternative<CiphertextT>(lhs.value) &&
       std::holds_alternative<PlaintextT>(rhs.value)) {
-    env.try_emplace(op.getOutput(),
-                    cc->EvalSub(std::get<CiphertextT>(lhs.value),
-                                std::get<PlaintextT>(rhs.value)));
+    TIME_OPERATION("SubPlain", op.getOutput(),
+                   cc->EvalSub(std::get<CiphertextT>(lhs.value),
+                               std::get<PlaintextT>(rhs.value)));
   } else if (std::holds_alternative<PlaintextT>(lhs.value) &&
              std::holds_alternative<CiphertextT>(rhs.value)) {
-    env.try_emplace(op.getOutput(),
-                    cc->EvalSub(std::get<PlaintextT>(lhs.value),
-                                std::get<CiphertextT>(rhs.value)));
+    TIME_OPERATION("SubPlain", op.getOutput(),
+                   cc->EvalSub(std::get<PlaintextT>(lhs.value),
+                               std::get<CiphertextT>(rhs.value)));
   } else {
     op.emitError("SubPlainOp requires ciphertext and plaintext");
   }
@@ -1042,7 +1114,7 @@ void Interpreter::visit(MulOp op) {
   auto cc = std::get<CryptoContextT>(env.at(op.getCryptoContext()).value);
   auto lhsCt = std::get<CiphertextT>(lhs.value);
   auto rhsCt = std::get<CiphertextT>(rhs.value);
-  env.try_emplace(op.getOutput(), cc->EvalMult(lhsCt, rhsCt));
+  TIME_OPERATION("Mul", op.getOutput(), cc->EvalMult(lhsCt, rhsCt));
 }
 
 void Interpreter::visit(MulNoRelinOp op) {
@@ -1051,7 +1123,8 @@ void Interpreter::visit(MulNoRelinOp op) {
   auto cc = std::get<CryptoContextT>(env.at(op.getCryptoContext()).value);
   auto lhsCt = std::get<CiphertextT>(lhs.value);
   auto rhsCt = std::get<CiphertextT>(rhs.value);
-  env.try_emplace(op.getOutput(), cc->EvalMultNoRelin(lhsCt, rhsCt));
+  TIME_OPERATION("MulNoRelin", op.getOutput(),
+                 cc->EvalMultNoRelin(lhsCt, rhsCt));
 }
 
 void Interpreter::visit(MulPlainOp op) {
@@ -1060,7 +1133,8 @@ void Interpreter::visit(MulPlainOp op) {
   auto cc = std::get<CryptoContextT>(env.at(op.getCryptoContext()).value);
   auto ciphertext = std::get<CiphertextT>(ct.value);
   auto plaintext = std::get<PlaintextT>(pt.value);
-  env.try_emplace(op.getOutput(), cc->EvalMult(ciphertext, plaintext));
+  TIME_OPERATION("MulPlain", op.getOutput(),
+                 cc->EvalMult(ciphertext, plaintext));
 }
 
 void Interpreter::visit(MulConstOp op) {
@@ -1069,7 +1143,8 @@ void Interpreter::visit(MulConstOp op) {
   auto cc = std::get<CryptoContextT>(env.at(op.getCryptoContext()).value);
   auto ciphertext = std::get<CiphertextT>(ct.value);
   int64_t constant = std::get<int>(constantVal.value);
-  env.try_emplace(op.getOutput(), cc->EvalMult(ciphertext, constant));
+  TIME_OPERATION("MulConst", op.getOutput(),
+                 cc->EvalMult(ciphertext, constant));
 }
 
 // OpenFHE unary operations
@@ -1077,28 +1152,28 @@ void Interpreter::visit(NegateOp op) {
   auto ct = env.at(op.getCiphertext());
   auto cc = std::get<CryptoContextT>(env.at(op.getCryptoContext()).value);
   auto ciphertext = std::get<CiphertextT>(ct.value);
-  env.try_emplace(op.getOutput(), cc->EvalNegate(ciphertext));
+  TIME_OPERATION("Negate", op.getOutput(), cc->EvalNegate(ciphertext));
 }
 
 void Interpreter::visit(SquareOp op) {
   auto ct = env.at(op.getCiphertext());
   auto cc = std::get<CryptoContextT>(env.at(op.getCryptoContext()).value);
   auto ciphertext = std::get<CiphertextT>(ct.value);
-  env.try_emplace(op.getOutput(), cc->EvalSquare(ciphertext));
+  TIME_OPERATION("Square", op.getOutput(), cc->EvalSquare(ciphertext));
 }
 
 void Interpreter::visit(RelinOp op) {
   auto ct = env.at(op.getCiphertext());
   auto cc = std::get<CryptoContextT>(env.at(op.getCryptoContext()).value);
   auto ciphertext = std::get<CiphertextT>(ct.value);
-  env.try_emplace(op.getOutput(), cc->Relinearize(ciphertext));
+  TIME_OPERATION("Relin", op.getOutput(), cc->Relinearize(ciphertext));
 }
 
 void Interpreter::visit(ModReduceOp op) {
   auto ct = env.at(op.getCiphertext());
   auto cc = std::get<CryptoContextT>(env.at(op.getCryptoContext()).value);
   auto ciphertext = std::get<CiphertextT>(ct.value);
-  env.try_emplace(op.getOutput(), cc->ModReduce(ciphertext));
+  TIME_OPERATION("ModReduce", op.getOutput(), cc->ModReduce(ciphertext));
 }
 
 void Interpreter::visit(LevelReduceOp op) {
@@ -1106,8 +1181,8 @@ void Interpreter::visit(LevelReduceOp op) {
   auto cc = std::get<CryptoContextT>(env.at(op.getCryptoContext()).value);
   auto ciphertext = std::get<CiphertextT>(ct.value);
   auto levelToDrop = op.getLevelToDrop();
-  env.try_emplace(op.getOutput(),
-                  cc->LevelReduce(ciphertext, nullptr, levelToDrop));
+  TIME_OPERATION("LevelReduce", op.getOutput(),
+                 cc->LevelReduce(ciphertext, nullptr, levelToDrop));
 }
 
 void Interpreter::visit(RotOp op) {
@@ -1115,7 +1190,7 @@ void Interpreter::visit(RotOp op) {
   auto cc = std::get<CryptoContextT>(env.at(op.getCryptoContext()).value);
   auto ciphertext = std::get<CiphertextT>(ct.value);
   auto index = op.getIndex().getValue().getSExtValue();
-  env.try_emplace(op.getOutput(), cc->EvalRotate(ciphertext, index));
+  TIME_OPERATION("Rot", op.getOutput(), cc->EvalRotate(ciphertext, index));
 }
 
 void Interpreter::visit(AutomorphOp op) {
@@ -1127,8 +1202,8 @@ void Interpreter::visit(AutomorphOp op) {
   // For simplicity, we'll use index 0 as in the emitter
   std::map<uint32_t, EvalKeyT> evalKeyMap = {
       {0, std::get<EvalKeyT>(evalKey.value)}};
-  env.try_emplace(op.getOutput(),
-                  cc->EvalAutomorphism(ciphertext, 0, evalKeyMap));
+  TIME_OPERATION("Automorph", op.getOutput(),
+                 cc->EvalAutomorphism(ciphertext, 0, evalKeyMap));
 }
 
 void Interpreter::visit(KeySwitchOp op) {
@@ -1137,14 +1212,14 @@ void Interpreter::visit(KeySwitchOp op) {
   auto evalKey = env.at(op.getEvalKey());
   auto ciphertext = std::get<CiphertextT>(ct.value);
   auto key = std::get<EvalKeyT>(evalKey.value);
-  env.try_emplace(op.getOutput(), cc->KeySwitch(ciphertext, key));
+  TIME_OPERATION("KeySwitch", op.getOutput(), cc->KeySwitch(ciphertext, key));
 }
 
 void Interpreter::visit(BootstrapOp op) {
   auto ct = env.at(op.getCiphertext());
   auto cc = std::get<CryptoContextT>(env.at(op.getCryptoContext()).value);
   auto ciphertext = std::get<CiphertextT>(ct.value);
-  env.try_emplace(op.getOutput(), cc->EvalBootstrap(ciphertext));
+  TIME_OPERATION("Bootstrap", op.getOutput(), cc->EvalBootstrap(ciphertext));
 }
 
 // OpenFHE encryption/decryption operations
@@ -1157,10 +1232,12 @@ void Interpreter::visit(EncryptOp op) {
   auto encKey = env.at(op.getEncryptionKey());
   if (std::holds_alternative<PublicKeyT>(encKey.value)) {
     auto publicKey = std::get<PublicKeyT>(encKey.value);
-    env.try_emplace(op.getCiphertext(), cc->Encrypt(publicKey, plaintext));
+    TIME_OPERATION("Encrypt", op.getCiphertext(),
+                   cc->Encrypt(publicKey, plaintext));
   } else if (std::holds_alternative<PrivateKeyT>(encKey.value)) {
     auto privateKey = std::get<PrivateKeyT>(encKey.value);
-    env.try_emplace(op.getCiphertext(), cc->Encrypt(privateKey, plaintext));
+    TIME_OPERATION("Encrypt", op.getCiphertext(),
+                   cc->Encrypt(privateKey, plaintext));
   } else {
     op.emitError("EncryptOp requires public or private key");
   }
@@ -1173,7 +1250,7 @@ void Interpreter::visit(DecryptOp op) {
   auto ciphertext = std::get<CiphertextT>(ct.value);
   auto key = std::get<PrivateKeyT>(privateKey.value);
   PlaintextT plaintext;
-  cc->Decrypt(key, ciphertext, &plaintext);
+  TIME_OPERATION_VOID("Decrypt", cc->Decrypt(key, ciphertext, &plaintext));
   env.try_emplace(op.getPlaintext(), plaintext);
 }
 
@@ -1184,7 +1261,8 @@ void Interpreter::visit(MakePackedPlaintextOp op) {
     auto vec = std::get<std::vector<int>>(value.value);
     // Convert to int64_t vector as expected by OpenFHE
     std::vector<int64_t> vec64(vec.begin(), vec.end());
-    env.try_emplace(op.getPlaintext(), cc->MakePackedPlaintext(vec64));
+    TIME_OPERATION("MakePackedPlaintext", op.getPlaintext(),
+                   cc->MakePackedPlaintext(vec64));
   } else {
     op.emitError("MakePackedPlaintextOp requires integer vector input");
   }
@@ -1197,16 +1275,19 @@ void Interpreter::visit(MakeCKKSPackedPlaintextOp op) {
     auto vec = std::get<std::vector<float>>(value.value);
     // Convert to double vector as expected by OpenFHE CKKS
     std::vector<double> vecDouble(vec.begin(), vec.end());
-    env.try_emplace(op.getPlaintext(), cc->MakeCKKSPackedPlaintext(vecDouble));
+    TIME_OPERATION("MakeCKKSPackedPlaintext", op.getPlaintext(),
+                   cc->MakeCKKSPackedPlaintext(vecDouble));
   } else if (std::holds_alternative<std::vector<double>>(value.value)) {
     auto vec = std::get<std::vector<double>>(value.value);
     // Already double, use directly
-    env.try_emplace(op.getPlaintext(), cc->MakeCKKSPackedPlaintext(vec));
+    TIME_OPERATION("MakeCKKSPackedPlaintext", op.getPlaintext(),
+                   cc->MakeCKKSPackedPlaintext(vec));
   } else if (std::holds_alternative<std::vector<int>>(value.value)) {
     auto vec = std::get<std::vector<int>>(value.value);
     // Convert to double vector
     std::vector<double> vecDouble(vec.begin(), vec.end());
-    env.try_emplace(op.getPlaintext(), cc->MakeCKKSPackedPlaintext(vecDouble));
+    TIME_OPERATION("MakeCKKSPackedPlaintext", op.getPlaintext(),
+                   cc->MakeCKKSPackedPlaintext(vecDouble));
   } else {
     op.emitError("MakeCKKSPackedPlaintextOp requires numeric vector input");
   }
@@ -1249,7 +1330,8 @@ void Interpreter::visit(GenParamsOp op) {
 void Interpreter::visit(GenContextOp op) {
   auto params = env.at(op.getParams());
   auto ccParams = std::get<CCParamsT>(params.value);
-  CryptoContextT cc = GenCryptoContext(ccParams);
+  CryptoContextT cc;
+  TIME_OPERATION_VOID("GenContext", cc = GenCryptoContext(ccParams));
   cc->Enable(PKE);
   cc->Enable(KEYSWITCH);
   cc->Enable(LEVELEDSHE);
@@ -1265,13 +1347,13 @@ void Interpreter::visit(GenRotKeyOp op) {
   auto pk = std::get<PrivateKeyT>(env.at(op.getPrivateKey()).value);
   std::vector<int32_t> rotIndices(op.getIndices().begin(),
                                   op.getIndices().end());
-  cc->EvalRotateKeyGen(pk, rotIndices);
+  TIME_OPERATION_VOID("GenRotKey", cc->EvalRotateKeyGen(pk, rotIndices));
 }
 
 void Interpreter::visit(GenMulKeyOp op) {
   auto cc = std::get<CryptoContextT>(env.at(op.getCryptoContext()).value);
   auto pk = std::get<PrivateKeyT>(env.at(op.getPrivateKey()).value);
-  cc->EvalMultKeyGen(pk);
+  TIME_OPERATION_VOID("GenMulKey", cc->EvalMultKeyGen(pk));
 }
 
 void Interpreter::visit(GenBootstrapKeyOp op) {
@@ -1279,7 +1361,7 @@ void Interpreter::visit(GenBootstrapKeyOp op) {
   auto pk = std::get<PrivateKeyT>(env.at(op.getPrivateKey()).value);
   // Use full packing - ring dimension / 2
   auto numSlots = cc->GetRingDimension() / 2;
-  cc->EvalBootstrapKeyGen(pk, numSlots);
+  TIME_OPERATION_VOID("GenBootstrapKey", cc->EvalBootstrapKeyGen(pk, numSlots));
 }
 
 void Interpreter::visit(SetupBootstrapOp op) {
@@ -1289,7 +1371,7 @@ void Interpreter::visit(SetupBootstrapOp op) {
           op.getLevelBudgetEncode().getValue().getSExtValue()),
       static_cast<uint32_t>(
           op.getLevelBudgetDecode().getValue().getSExtValue())};
-  cc->EvalBootstrapSetup(levelBudget);
+  TIME_OPERATION_VOID("SetupBootstrap", cc->EvalBootstrapSetup(levelBudget));
 }
 
 void Interpreter::visit(FastRotationOp op) {
@@ -1301,15 +1383,16 @@ void Interpreter::visit(FastRotationOp op) {
       std::get<FastRotPrecompT>(env.at(op.getPrecomputedDigitDecomp()).value);
   auto m = 2 * cc->GetRingDimension();
   auto precomputeData = env.at(op.getPrecomputedDigitDecomp());
-  env.try_emplace(op.getResult(),
-                  cc->EvalFastRotation(ciphertext, index, m, digits));
+  TIME_OPERATION("FastRotation", op.getResult(),
+                 cc->EvalFastRotation(ciphertext, index, m, digits));
 }
 
 void Interpreter::visit(FastRotationPrecomputeOp op) {
   auto cc = std::get<CryptoContextT>(env.at(op.getCryptoContext()).value);
   auto input = env.at(op.getInput());
   auto ciphertext = std::get<CiphertextT>(input.value);
-  env.try_emplace(op.getResult(), cc->EvalFastRotationPrecompute(ciphertext));
+  TIME_OPERATION("FastRotationPrecompute", op.getResult(),
+                 cc->EvalFastRotationPrecompute(ciphertext));
 }
 
 void Interpreter::visit(lwe::RLWEDecodeOp op) {
