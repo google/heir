@@ -2,15 +2,19 @@
 #define LIB_UTILS_POLYNOMIAL_CHEBYSHEVPATERSONSTOCKMEYER_H_
 
 #include <algorithm>
+#include <bit>
+#include <cassert>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
-#include "lib/Kernel/KernelImplementation.h"
 #include "lib/Utils/Polynomial/ChebyshevDecomposition.h"
 #include "llvm/include/llvm/ADT/ArrayRef.h"  // from @llvm-project
 
@@ -21,6 +25,74 @@ namespace polynomial {
 // The minimum absolute value of a coefficient to be considered in the
 // evaluation of the Chebyshev polynomial.
 constexpr double kMinCoeffs = 1e-15;
+
+// A C++ port of Lattigo's `bignum.OptimalSplit` function. This function
+// determines the optimal split point for the Paterson-Stockmeyer algorithm by
+// calculating the number of multiplications for two possible split points and
+// choosing the better one.
+//
+// Warning: this function expresses a particular cost model counting
+// multiplications when choosing two splits of the baby-step giant-step
+// algorithm. However, it's not obviously clear how the calculations below
+// correspond to counting multiplications, and the original author communicated
+// to me (j2kun) that he doesn't remember exactly what he did here. However, he
+// suspects the cost model was not perfect, and while I confirmed this was more
+// optimal than what HEIR was doing earlier for a variety of test polynomials,
+// we would welcome contributions to clarify the existing method, understand
+// where it may fall short, and improve it.
+//
+// Args:
+//   logDegree: std::bit_width(degree) of the polynomial degree (matching
+//   golang's bits.Len64)
+//
+// Returns:
+//   The log2 of the optimal split parameter.
+inline int64_t optimalSplit(int64_t logDegree) {
+  int64_t logSplit = logDegree >> 1;
+  int64_t a = (1LL << logSplit) + (1LL << (logDegree - logSplit)) + logDegree -
+              logSplit - 3;
+  int64_t b = (1LL << (logSplit + 1)) + (1LL << (logDegree - logSplit - 1)) +
+              logDegree - logSplit - 4;
+  if (a > b) {
+    logSplit += 1;
+  }
+  return logSplit;
+}
+
+// Returns a + b = n such that |a-b| is minimized.
+//
+// For Chebyshev basis, tries to keep a and/or b odd if possible to
+// maximize the number of odd terms.
+//
+// Based on [Lee et al. 2020]: High-Precision and Low-Complexity Approximate
+// Homomorphic Encryption by Error Variance Minimization
+//
+// Args:
+//   n: The degree to split
+//
+// Returns:
+//   Pair (a, b) where a + b = n and |a-b| is minimized
+inline std::pair<int64_t, int64_t> splitDegree(int64_t n) {
+  assert(n > 0 && "n should be greater than zero");
+
+  // Check if n is a power of 2
+  if ((n & (n - 1)) == 0) {
+    // Necessary for optimal depth
+    return {n / 2, n / 2};
+  } else {
+    // [Lee et al. 2020] : Maximize the number of odd terms of Chebyshev basis
+    // Find k = floor(log2(n-1))
+    int64_t k = 0;
+    int64_t temp = n - 1;
+    while (temp > 1) {
+      temp >>= 1;
+      k++;
+    }
+    int64_t a = (1LL << k) - 1;
+    int64_t b = n - a;
+    return {a, b};
+  }
+}
 
 // Computes Arithmetic DAGs of x^0, x^1, ..., x^k.
 // The multiplicative depth is ceil(log2(k)).
@@ -44,6 +116,94 @@ std::vector<std::shared_ptr<kernel::ArithmeticDagNode<T>>> computePowers(
     }
   }
   return result;
+}
+
+// Recursively computes T_n(x) for the Chebyshev polynomial T_n.
+//
+// Uses the recurrence relation for Chebyshev polynomials:
+// T_n(x) = 2*T_a(x)*T_b(x) - T_c(x)
+// where n = a+b and c = |a-b|
+//
+// Args:
+//   x: The input node representing the variable
+//   n: The degree of the Chebyshev polynomial to compute
+//   cache: Map caching already computed powers
+//
+// Returns:
+//   Node representing T_n(x)
+template <typename T>
+std::shared_ptr<kernel::ArithmeticDagNode<T>> genChebyshevPowerRecursive(
+    std::shared_ptr<kernel::ArithmeticDagNode<T>> x, int64_t n,
+    std::map<int64_t, std::shared_ptr<kernel::ArithmeticDagNode<T>>>& cache) {
+  using NodeTy = kernel::ArithmeticDagNode<T>;
+
+  // Check cache
+  auto it = cache.find(n);
+  if (it != cache.end()) {
+    return it->second;
+  }
+
+  if (n == 0) {
+    // T_0(x) = 1
+    cache[0] = NodeTy::constantScalar(1);
+    return cache[0];
+  }
+
+  if (n == 1) {
+    // T_1(x) = x
+    cache[1] = x;
+    return x;
+  }
+
+  // Split the degree optimally
+  auto [a, b] = splitDegree(n);
+
+  // Compute T_n(x) = T_a(x) * T_b(x)
+  auto tA = genChebyshevPowerRecursive(x, a, cache);
+  auto tB = genChebyshevPowerRecursive(x, b, cache);
+  auto tN = NodeTy::mul(tA, tB);
+
+  // Apply Chebyshev recurrence: T_n = 2*T_a*T_b - T_c
+  // where c = |a - b|
+  int64_t c = std::abs(a - b);
+  auto two = NodeTy::constantScalar(2);
+  tN = NodeTy::mul(two, tN);
+
+  // Compute T_n = 2*T_a*T_b - T_c
+  if (c == 0) {
+    // T_0 = 1, so subtract 1
+    tN = NodeTy::sub(tN, NodeTy::constantScalar(1));
+  } else {
+    auto tC = genChebyshevPowerRecursive(x, c, cache);
+    tN = NodeTy::sub(tN, tC);
+  }
+
+  // Cache the result
+  cache[n] = tN;
+  return tN;
+}
+
+// Generates Chebyshev polynomials T_0(x), T_1(x), ..., T_maxDegree(x).
+//
+// Args:
+//   x: The input node
+//   maxDegree: Maximum degree to compute
+//
+// Returns:
+//   Map from degree to Node representing T_degree(x)
+template <typename T>
+std::map<int64_t, std::shared_ptr<kernel::ArithmeticDagNode<T>>>
+genChebyshevPowersRecursive(std::shared_ptr<kernel::ArithmeticDagNode<T>> x,
+                            int64_t maxDegree) {
+  std::map<int64_t, std::shared_ptr<kernel::ArithmeticDagNode<T>>> cache;
+
+  // Generate all powers up to maxDegree
+  for (int64_t i = 1; i <= maxDegree; i++) {
+    genChebyshevPowerRecursive(x, i, cache);
+  }
+
+  cache[0] = kernel::ArithmeticDagNode<T>::constantScalar(1);
+  return cache;
 }
 
 // Computes Arithmetic DAGs of T_0(x), T_1(x), ..., T_k(x), where T_i are
@@ -98,55 +258,97 @@ patersonStockmeyerChebyshevPolynomialEvaluation(
     double minCoeffThreshold = kMinCoeffs) {
   using NodeTy = kernel::ArithmeticDagNode<T>;
   int64_t polynomialDegree = coefficients.size() - 1;
-  // Choose k optimally - sqrt of maxDegree is typically a good choice
-  int64_t k =
-      std::max(static_cast<int64_t>(std::ceil(std::sqrt(polynomialDegree))),
-               static_cast<int64_t>(1));
+  if (polynomialDegree < 0) {
+    return nullptr;
+  }
 
-  // Decompose p = coeffs[0] + coeffs[1]*T_k + coeffs[2]*T_k^2 + ... +
-  // coeffs[l]*T_k^l.
+  if (polynomialDegree == 0) {
+    if (std::abs(coefficients[0]) < minCoeffThreshold) {
+      return nullptr;
+    }
+    return NodeTy::constantScalar(coefficients[0]);
+  }
+
+  // Choose k optimally using Lattigo's optimal split
+  int64_t logDegree = std::bit_width(static_cast<uint64_t>(polynomialDegree));
+  int64_t logSplit = optimalSplit(logDegree);
+  int64_t k = 1LL << logSplit;
+
+  // Decompose p = p_0 + p_1 T_k + p_2 T_k^2 + ... + p_l T_k^l,
+  // where each p_i is a Chebyshev polynomial of degree < k.
   polynomial::ChebyshevDecomposition decomposition =
       polynomial::decompose(coefficients, k);
 
-  // Precompute T_0(x), T_1(x), ..., T_k(x).
-  std::vector<std::shared_ptr<NodeTy>> chebPolynomialValues =
-      computeChebyshevPolynomialValues(x, k);
+  // Precompute T_0(x), T_1(x), ..., T_k(x) using recursive approach.
+  auto xNode = NodeTy::leaf(x);
+  auto chebPolynomialValuesMap = genChebyshevPowersRecursive(xNode, k);
 
-  // Precompute (T_k(x))^0, (T_k(x))^1, ..., (T_k(x))^l.
-  int64_t l = decomposition.coeffs.size() - 1;
-  std::vector<std::shared_ptr<NodeTy>> chebKPolynomialPowers =
-      computePowers(chebPolynomialValues.back(), l);
-
-  // Evaluate the polynomial.
-  std::shared_ptr<NodeTy> result;
-  for (int i = 0; i < decomposition.coeffs.size(); ++i) {
-    if (!hasElementsLargerThan(decomposition.coeffs[i], minCoeffThreshold))
+  // Evaluate the baby steps and save them in a list.
+  std::vector<std::shared_ptr<NodeTy>> babySteps;
+  for (const auto& coeffs : decomposition.coeffs) {
+    if (!hasElementsLargerThan(coeffs, minCoeffThreshold)) {
+      babySteps.push_back(nullptr);
       continue;
-    std::shared_ptr<NodeTy> pol;
-    for (int j = 0; j < decomposition.coeffs[i].size(); ++j) {
-      double coeff = decomposition.coeffs[i][j];
-      // Skip coefficients that are too small.
-      if (std::abs(coeff) < minCoeffThreshold) continue;
+    }
 
-      auto coefNode = NodeTy::constantScalar(coeff);
-      auto termNode = NodeTy::mul(coefNode, chebPolynomialValues[j]);
+    std::shared_ptr<NodeTy> pol;
+    for (size_t j = 0; j < coeffs.size(); ++j) {
+      if (std::abs(coeffs[j]) < minCoeffThreshold) {
+        continue;
+      }
+
+      auto termNode = NodeTy::mul(NodeTy::constantScalar(coeffs[j]),
+                                  chebPolynomialValuesMap[j]);
+
       if (pol) {
         pol = NodeTy::add(pol, termNode);
       } else {
         pol = termNode;
       }
     }
-    if (!pol) continue;
-    if (i > 0) {
-      pol = NodeTy::mul(pol, chebKPolynomialPowers[i]);
-    }
-    if (result) {
-      result = NodeTy::add(result, pol);
-    } else {
-      result = pol;
-    }
+    babySteps.push_back(pol);
   }
-  return result;
+
+  // Combine baby steps in tree-like manner.
+  //
+  // Specifically, we're evaluating
+  //
+  //   p = p_0 + p_1 T_k + p_2 T_k^2 + ... + p_l T_k^l,
+  //
+  // where the p_i are the baby steps computed above, and the value of T_k(x)
+  // has been computed and stored as chebPolynomialValuesMap[k].
+  //
+  // This loop reduces the above terms in a tree structure to minimize depth.
+  // Specifically, each round combines two adjacent terms (a, b) as a + b Y,
+  // and then replaces Y with Y^2 for the next round.
+  //
+  // For example, starting with 4 baby steps [p_0, p_1, p_2, p_3],
+  //
+  // The first iteration computes [p_0 + p_1 y, p_2 + p_3 y].
+  //
+  // The second iteration computes [(p_0 + p_1 y) + (p_2 + p_3 y) y^2]
+  //                               = p_0 + p_1 y + p_2 y^2 + p_3 y^3.
+  auto y = chebPolynomialValuesMap[k];
+  auto yPower = y;
+  while (babySteps.size() > 1) {
+    std::vector<std::shared_ptr<NodeTy>> nextBabySteps;
+
+    for (size_t i = 0; i < babySteps.size(); i += 2) {
+      auto combined = babySteps[i];
+
+      if (i + 1 < babySteps.size() && babySteps[i + 1]) {
+        auto scaled = NodeTy::mul(babySteps[i + 1], yPower);
+        combined = combined ? NodeTy::add(combined, scaled) : scaled;
+      }
+
+      nextBabySteps.push_back(combined);
+    }
+
+    babySteps = std::move(nextBabySteps);
+    yPower = NodeTy::mul(yPower, yPower);
+  }
+
+  return babySteps[0];
 }
 
 }  // namespace polynomial
