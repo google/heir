@@ -274,4 +274,89 @@ def Lattigo_CKKSRotateOp : Lattigo_CKKSUnaryInplaceOp<"rotate"> {
   let results = (outs Lattigo_RLWECiphertext:$output);
 }
 
+def Lattigo_CKKSLinearTransformOp : Lattigo_CKKSOp<"linear_transform"> {
+  let summary = "Apply a linear transform on a lattigo CKKS ciphertext";
+  let description = [{
+    This operation applies a linear transform on a CKKS ciphertext using
+    the provided float diagonals.
+
+    The linear transform is defined by a set of diagonals, where each diagonal
+    represents a specific shift and scaling of the input ciphertext slots.
+
+    The `diagonals` input is a 2D tensor where each row represents one non-zero
+    diagonal of the square matrix to evaluate. The diagonal values are floats
+    that will be encoded into plaintexts during code generation.
+
+    The `levelQ` attribute specifies the modulus level at which the operation
+    should be performed.
+
+    The `logBabyStepGiantStepRatio` attribute is used to optimize the linear
+    transformation using the baby-step giant-step algorithm. It defines the
+    ratio between the sizes of the baby steps and giant steps. If unset,
+    it is zero by default.
+
+    During code generation, this op will:
+    1. Create a lintrans.Diagonals map from the input tensor
+    2. Create and encode a lintrans.Transformation
+    3. Create a lintrans.Evaluator
+    4. Evaluate the transformation on the input ciphertext
+  }];
+  let arguments = (ins
+    Lattigo_CKKSEvaluator:$evaluator,
+    Lattigo_CKKSEncoder:$encoder,
+    Lattigo_RLWECiphertext:$input,
+
+    // Parameters corresponding to the lattigo lintrans.Parameters struct
+    2DTensorOf<[AnyFloat]>:$diagonals,
+    DenseI32ArrayAttr:$diagonal_indices,
+    Builtin_IntegerAttr:$levelQ,
+    Builtin_IntegerAttr:$logBabyStepGiantStepRatio
+
+    // The remaining parameters from lintrans.Parameters can be inferred from
+    // the IR are commented out, but in case we need to expose them in the
+    // future, they are listed here.
+
+    // The same auxiliary prime used to generate evaluation keys
+    // Builtin_IntegerAttr:$levelP,
+
+    // For CKKS these are hard-coded to [1, N/2] for N = ring modulus degree
+    // Builtin_IntegerAttr:$logDimensionsRows,
+    // Builtin_IntegerAttr:$logDimensionsCols,
+  );
+  let results = (outs Lattigo_RLWECiphertext:$output);
+}
+
+def Lattigo_CKKSNewPolynomialEvaluatorOp : Lattigo_CKKSOp<"new_polynomial_evaluator"> {
+  let summary = "Create a new polynomial evaluator in the Lattigo CKKS dialect";
+  let description = [{
+    This operation creates a new evaluator for evaluating polynomials in the
+    Lattigo CKKS dialect.
+  }];
+  let arguments = (ins
+    Lattigo_CKKSParameter:$params,
+    Lattigo_CKKSEvaluator:$evaluator
+  );
+  let results = (outs Lattigo_CKKSPolynomialEvaluator:$polynomialEvaluator);
+}
+
+
+def Lattigo_CKKSChebyshevOp : Lattigo_CKKSOp<"chebyshev", [AllTypesMatch<["ciphertext", "output"]>]> {
+  let summary = "Evaluate a chebyshev polynomial on a lattigo CKKS ciphertext";
+  let description = [{
+    This operation evaluates a chebyshev polynomial on a CKKS ciphertext using
+    the Lattigo polynomial evaluator API.
+
+    The codegen constructs the Lattigo polynomial and, using an existing polynomial
+    evaluator, calls the evaluation routine with a given target scale.
+  }];
+  let arguments = (ins
+    Lattigo_CKKSPolynomialEvaluator:$evaluator,
+    Lattigo_RLWECiphertext:$ciphertext,
+    ArrayAttr:$coefficients,
+    Builtin_IntegerAttr:$targetScale
+  );
+  let results = (outs Lattigo_RLWECiphertext:$output);
+}
+
+
 #endif  // LIB_DIALECT_LATTIGO_IR_LATTIGOCKKSOPS_TD_
