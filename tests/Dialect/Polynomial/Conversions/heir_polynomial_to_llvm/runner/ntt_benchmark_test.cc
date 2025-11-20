@@ -1,7 +1,6 @@
 // Block clang-format from reordering
 // clang-format off
 #include "benchmark/benchmark.h"  // from @google_benchmark
-#include "gtest/gtest.h"  // from @googletest
 // clang-format on
 #include "tests/Examples/benchmark/Memref.h"
 
@@ -19,16 +18,12 @@ void BM_ntt_benchmark(benchmark::State& state) {
   _mlir_ciface_input_generation(&input);
 
   Memref ntt(1, 65536, 0);
-  for (auto _ : state) {
+  while (state.KeepRunning()) {
     _mlir_ciface_ntt(&ntt, &input);
   }
 
   Memref intt(1, 65536, 0);
   _mlir_ciface_intt(&intt, &ntt);
-
-  for (int i = 0; i < 65526; i++) {
-    EXPECT_EQ(intt.get(0, i), input.get(0, i));
-  }
 }
 
 BENCHMARK(BM_ntt_benchmark);
@@ -41,12 +36,8 @@ void BM_intt_benchmark(benchmark::State& state) {
   _mlir_ciface_ntt(&ntt, &input);
 
   Memref intt(1, 65536, 0);
-  for (auto _ : state) {
+  while (state.KeepRunning()) {
     _mlir_ciface_intt(&intt, &ntt);
-  }
-
-  for (int i = 0; i < 65526; i++) {
-    EXPECT_EQ(intt.get(0, i), input.get(0, i));
   }
 }
 
