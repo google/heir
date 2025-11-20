@@ -1,9 +1,12 @@
 #include "lib/Target/OpenFhePke/Interpreter.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <map>
+#include <memory>
 #include <string>
 #include <utility>
 #include <variant>
@@ -18,6 +21,7 @@
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
+#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 
 #ifdef OPENFHE_ENABLE_TIMING
 #define TIME_OPERATION_VOID(op_name, code)                  \
@@ -35,7 +39,7 @@
     auto end = std::chrono::high_resolution_clock::now();   \
     timingResults[op_name].totalTime += (end - start);      \
     timingResults[op_name].count++;                         \
-    env.try_emplace(result_val, std::move(result));         \
+    env.insert_or_assign(result_val, std::move(result));    \
   } while (0)
 #else
 #define TIME_OPERATION_VOID(op_name, code) \
@@ -44,7 +48,7 @@
   } while (0)
 #define TIME_OPERATION(op_name, result_val, code) \
   do {                                            \
-    env.try_emplace(result_val, code);            \
+    env.insert_or_assign(result_val, code);       \
   } while (0)
 #endif
 
@@ -173,20 +177,22 @@ std::vector<TypedCppValue> Interpreter::interpret(
 void Interpreter::visit(Operation* op) {
   llvm::TypeSwitch<Operation*>(op)
       .Case<arith::ConstantOp, arith::AddIOp, arith::SubIOp, arith::MulIOp,
-            arith::DivSIOp, arith::RemSIOp, arith::AndIOp, arith::CmpIOp,
-            arith::SelectOp, arith::ExtUIOp, arith::ExtSIOp, arith::ExtFOp,
-            arith::IndexCastOp, tensor::EmptyOp, tensor::ExtractOp,
-            tensor::InsertOp, tensor::SplatOp, tensor::FromElementsOp,
-            tensor::ConcatOp, tensor::ExtractSliceOp, tensor::InsertSliceOp,
-            tensor::CollapseShapeOp, tensor::ExpandShapeOp, scf::ForOp,
-            scf::IfOp, scf::YieldOp, affine::AffineForOp, affine::AffineYieldOp,
-            lwe::RLWEDecodeOp, AddOp, AddPlainOp, SubOp, SubPlainOp, MulOp,
-            MulNoRelinOp, MulPlainOp, MulConstOp, NegateOp, SquareOp, RelinOp,
-            ModReduceOp, LevelReduceOp, RotOp, AutomorphOp, KeySwitchOp,
-            BootstrapOp, EncryptOp, DecryptOp, MakePackedPlaintextOp,
-            MakeCKKSPackedPlaintextOp, GenParamsOp, GenContextOp, GenRotKeyOp,
-            GenMulKeyOp, GenBootstrapKeyOp, SetupBootstrapOp, FastRotationOp,
-            FastRotationPrecomputeOp>([&](auto op) { visit(op); })
+            arith::MulFOp, arith::DivSIOp, arith::RemSIOp, arith::AndIOp,
+            arith::CmpIOp, arith::SelectOp, arith::ExtUIOp, arith::ExtSIOp,
+            arith::ExtFOp, arith::IndexCastOp, arith::MinSIOp, arith::MaxSIOp,
+            tensor::EmptyOp, tensor::ExtractOp, tensor::InsertOp,
+            tensor::SplatOp, tensor::FromElementsOp, tensor::ConcatOp,
+            tensor::ExtractSliceOp, tensor::InsertSliceOp,
+            tensor::CollapseShapeOp, tensor::ExpandShapeOp, linalg::BroadcastOp,
+            scf::ForOp, scf::IfOp, scf::YieldOp, affine::AffineForOp,
+            affine::AffineYieldOp, lwe::RLWEDecodeOp, AddOp, AddPlainOp, SubOp,
+            SubPlainOp, MulOp, MulNoRelinOp, MulPlainOp, MulConstOp, NegateOp,
+            SquareOp, RelinOp, ModReduceOp, LevelReduceOp, RotOp, AutomorphOp,
+            KeySwitchOp, BootstrapOp, EncryptOp, DecryptOp,
+            MakePackedPlaintextOp, MakeCKKSPackedPlaintextOp, GenParamsOp,
+            GenContextOp, GenRotKeyOp, GenMulKeyOp, GenBootstrapKeyOp,
+            SetupBootstrapOp, FastRotationOp, FastRotationPrecomputeOp>(
+          [&](auto op) { visit(op); })
       .Default([&](Operation* op) {
         OperationName opName = op->getName();
         op->emitError() << "Unsupported operation " << opName.getStringRef()
@@ -197,15 +203,15 @@ void Interpreter::visit(Operation* op) {
 void Interpreter::visit(arith::ConstantOp op) {
   auto valueAttr = op.getValue();
   if (auto intAttr = dyn_cast<IntegerAttr>(valueAttr)) {
-    env.try_emplace(op.getResult(), static_cast<int>(intAttr.getInt()));
+    env.insert_or_assign(op.getResult(), static_cast<int>(intAttr.getInt()));
   } else if (auto floatAttr = dyn_cast<FloatAttr>(valueAttr)) {
     // Use float for 32-bit and smaller, double for 64-bit and larger
     if (floatAttr.getType().isF32()) {
-      env.try_emplace(op.getResult(),
-                      static_cast<float>(floatAttr.getValueAsDouble()));
+      env.insert_or_assign(op.getResult(),
+                           static_cast<float>(floatAttr.getValueAsDouble()));
     } else {
       // F64 and larger types use double
-      env.try_emplace(op.getResult(), floatAttr.getValueAsDouble());
+      env.insert_or_assign(op.getResult(), floatAttr.getValueAsDouble());
     }
   } else if (auto elementsAttr = dyn_cast<DenseElementsAttr>(valueAttr)) {
     auto value = getValueFromDenseElementsAttr(elementsAttr);
@@ -213,7 +219,7 @@ void Interpreter::visit(arith::ConstantOp op) {
       op->emitError() << "Unsupported DenseElementsAttr type "
                       << elementsAttr.getType().getElementType();
     }
-    env.try_emplace(op.getResult(), std::move(value));
+    env.insert_or_assign(op.getResult(), std::move(value));
   } else if (auto denseResourceAttr =
                  dyn_cast<DenseResourceElementsAttr>(valueAttr)) {
     const auto data = denseResourceAttr.getData();
@@ -224,7 +230,7 @@ void Interpreter::visit(arith::ConstantOp op) {
       op->emitError() << "Unsupported DenseResourceElementsAttr type "
                       << denseResourceAttr.getType().getElementType();
     }
-    env.try_emplace(op.getResult(), std::move(value));
+    env.insert_or_assign(op.getResult(), std::move(value));
   } else {
     op->emitError() << "Unsupported constant attribute type " << valueAttr;
   }
@@ -296,7 +302,7 @@ void Interpreter::visit(arith::AddIOp op) {
   auto result = applyBinop(
       op, lhs, rhs, [](int a, int b) { return a + b; },
       [](float a, float b) { return a + b; });
-  env.try_emplace(op.getResult(), std::move(result));
+  env.insert_or_assign(op.getResult(), std::move(result));
 }
 
 void Interpreter::visit(arith::SubIOp op) {
@@ -305,7 +311,7 @@ void Interpreter::visit(arith::SubIOp op) {
   auto result = applyBinop(
       op, lhs, rhs, [](int a, int b) { return a - b; },
       [](float a, float b) { return a - b; });
-  env.try_emplace(op.getResult(), std::move(result));
+  env.insert_or_assign(op.getResult(), std::move(result));
 }
 
 void Interpreter::visit(arith::MulIOp op) {
@@ -314,7 +320,16 @@ void Interpreter::visit(arith::MulIOp op) {
   auto result = applyBinop(
       op, lhs, rhs, [](int a, int b) { return a * b; },
       [](float a, float b) { return a * b; });
-  env.try_emplace(op.getResult(), std::move(result));
+  env.insert_or_assign(op.getResult(), std::move(result));
+}
+
+void Interpreter::visit(arith::MulFOp op) {
+  auto lhs = env.at(op.getLhs());
+  auto rhs = env.at(op.getRhs());
+  auto result = applyBinop(
+      op, lhs, rhs, [](int a, int b) { return a * b; },
+      [](float a, float b) { return a * b; });
+  env.insert_or_assign(op.getResult(), std::move(result));
 }
 
 void Interpreter::visit(arith::DivSIOp op) {
@@ -323,7 +338,7 @@ void Interpreter::visit(arith::DivSIOp op) {
   auto result = applyBinop(
       op, lhs, rhs, [](int a, int b) { return a / b; },
       [](float a, float b) { return a / b; });
-  env.try_emplace(op.getResult(), std::move(result));
+  env.insert_or_assign(op.getResult(), std::move(result));
 }
 
 void Interpreter::visit(arith::RemSIOp op) {
@@ -332,7 +347,7 @@ void Interpreter::visit(arith::RemSIOp op) {
   auto result = applyBinop(
       op, lhs, rhs, [](int a, int b) { return a % b; },
       [](float a, float b) { return std::fmod(a, b); });
-  env.try_emplace(op.getResult(), std::move(result));
+  env.insert_or_assign(op.getResult(), std::move(result));
 }
 
 void Interpreter::visit(arith::AndIOp op) {
@@ -341,7 +356,25 @@ void Interpreter::visit(arith::AndIOp op) {
   auto result = applyBinop(
       op, lhs, rhs, [](int a, int b) { return a && b; },
       [](float a, float b) { return static_cast<float>(a && b); });
-  env.try_emplace(op.getResult(), std::move(result));
+  env.insert_or_assign(op.getResult(), std::move(result));
+}
+
+void Interpreter::visit(arith::MaxSIOp op) {
+  auto lhs = env.at(op.getLhs());
+  auto rhs = env.at(op.getRhs());
+  auto result = applyBinop(
+      op, lhs, rhs, [](int a, int b) { return std::max(a, b); },
+      [](float a, float b) { return std::max(a, b); });
+  env.insert_or_assign(op.getResult(), std::move(result));
+}
+
+void Interpreter::visit(arith::MinSIOp op) {
+  auto lhs = env.at(op.getLhs());
+  auto rhs = env.at(op.getRhs());
+  auto result = applyBinop(
+      op, lhs, rhs, [](int a, int b) { return std::min(a, b); },
+      [](float a, float b) { return std::min(a, b); });
+  env.insert_or_assign(op.getResult(), std::move(result));
 }
 
 void Interpreter::visit(arith::CmpIOp op) {
@@ -374,7 +407,7 @@ void Interpreter::visit(arith::CmpIOp op) {
   auto result = applyBinop(
       op, lhs, rhs, [&](int a, int b) { return cmpFunc(a, b) ? 1 : 0; },
       [&](float a, float b) { return cmpFunc(a, b) ? 1.0f : 0.0f; });
-  env.try_emplace(op.getResult(), std::move(result));
+  env.insert_or_assign(op.getResult(), std::move(result));
 }
 
 void Interpreter::visit(arith::SelectOp op) {
@@ -395,15 +428,15 @@ void Interpreter::visit(arith::SelectOp op) {
     op.emitError("Select condition must be bool, int, float, or double");
   }
 
-  env.try_emplace(op.getResult(),
-                  condBool ? std::move(trueValue) : std::move(falseValue));
+  env.insert_or_assign(op.getResult(),
+                       condBool ? std::move(trueValue) : std::move(falseValue));
 }
 
 void Interpreter::visit(arith::ExtUIOp op) {
   auto operand = env.at(op.getIn());
   // For unsigned extension, we just convert the value to a larger type
   if (std::holds_alternative<int>(operand.value)) {
-    env.try_emplace(op.getResult(), std::get<int>(operand.value));
+    env.insert_or_assign(op.getResult(), std::get<int>(operand.value));
   } else {
     op.emitError("ExtUIOp requires int operand");
   }
@@ -413,7 +446,7 @@ void Interpreter::visit(arith::ExtSIOp op) {
   auto operand = env.at(op.getIn());
   // For signed extension, we just convert the value to a larger type
   if (std::holds_alternative<int>(operand.value)) {
-    env.try_emplace(op.getResult(), std::get<int>(operand.value));
+    env.insert_or_assign(op.getResult(), std::get<int>(operand.value));
   } else {
     op.emitError("ExtSIOp requires int operand");
   }
@@ -430,24 +463,24 @@ void Interpreter::visit(arith::ExtFOp op) {
   // ExtFOp can extend float precision or convert int to float/double
   if (std::holds_alternative<float>(operand.value)) {
     if (outputIsDouble) {
-      env.try_emplace(op.getResult(),
-                      static_cast<double>(std::get<float>(operand.value)));
+      env.insert_or_assign(op.getResult(),
+                           static_cast<double>(std::get<float>(operand.value)));
     } else {
-      env.try_emplace(op.getResult(), std::get<float>(operand.value));
+      env.insert_or_assign(op.getResult(), std::get<float>(operand.value));
     }
   } else if (std::holds_alternative<double>(operand.value)) {
-    env.try_emplace(op.getResult(), std::get<double>(operand.value));
+    env.insert_or_assign(op.getResult(), std::get<double>(operand.value));
   } else if (std::holds_alternative<std::vector<float>>(operand.value)) {
     const auto& vec = std::get<std::vector<float>>(operand.value);
     if (outputIsDouble) {
       std::vector<double> result(vec.begin(), vec.end());
-      env.try_emplace(op.getResult(), std::move(result));
+      env.insert_or_assign(op.getResult(), std::move(result));
     } else {
-      env.try_emplace(op.getResult(), vec);
+      env.insert_or_assign(op.getResult(), vec);
     }
   } else if (std::holds_alternative<std::vector<double>>(operand.value)) {
-    env.try_emplace(op.getResult(),
-                    std::get<std::vector<double>>(operand.value));
+    env.insert_or_assign(op.getResult(),
+                         std::get<std::vector<double>>(operand.value));
   } else {
     op->emitError() << "ExtFOp received operand with variant index "
                     << operand.value.index();
@@ -458,7 +491,7 @@ void Interpreter::visit(arith::IndexCastOp op) {
   auto operand = env.at(op.getIn());
   // IndexCastOp converts between index and integer types
   if (std::holds_alternative<int>(operand.value)) {
-    env.try_emplace(op.getResult(), std::get<int>(operand.value));
+    env.insert_or_assign(op.getResult(), std::get<int>(operand.value));
   } else {
     op.emitError("IndexCastOp requires int operand");
   }
@@ -481,15 +514,15 @@ void Interpreter::visit(tensor::EmptyOp op) {
   auto elementType = tensorType.getElementType();
 
   if (elementType.isInteger(32) || elementType.isInteger(64)) {
-    env.try_emplace(op.getResult(), std::vector<int>(numElements));
+    env.insert_or_assign(op.getResult(), std::vector<int>(numElements));
   } else if (elementType.isF32()) {
-    env.try_emplace(op.getResult(), std::vector<float>(numElements));
+    env.insert_or_assign(op.getResult(), std::vector<float>(numElements));
   } else if (elementType.isF64()) {
-    env.try_emplace(op.getResult(), std::vector<double>(numElements));
+    env.insert_or_assign(op.getResult(), std::vector<double>(numElements));
   } else if (isa<lwe::LWEPlaintextType>(elementType)) {
-    env.try_emplace(op.getResult(), std::vector<PlaintextT>(numElements));
+    env.insert_or_assign(op.getResult(), std::vector<PlaintextT>(numElements));
   } else {
-    env.try_emplace(op.getResult(), std::vector<CiphertextT>(numElements));
+    env.insert_or_assign(op.getResult(), std::vector<CiphertextT>(numElements));
   }
 }
 
@@ -498,19 +531,19 @@ void Interpreter::visit(tensor::ExtractOp op) {
   int index = getFlattenedTensorIndex(op.getTensor(), op.getIndices());
   if (std::holds_alternative<std::vector<int>>(tensor.value)) {
     auto& vec = std::get<std::vector<int>>(tensor.value);
-    env.try_emplace(op.getResult(), vec[index]);
+    env.insert_or_assign(op.getResult(), vec[index]);
   } else if (std::holds_alternative<std::vector<float>>(tensor.value)) {
     auto& vec = std::get<std::vector<float>>(tensor.value);
-    env.try_emplace(op.getResult(), vec[index]);
+    env.insert_or_assign(op.getResult(), vec[index]);
   } else if (std::holds_alternative<std::vector<double>>(tensor.value)) {
     auto& vec = std::get<std::vector<double>>(tensor.value);
-    env.try_emplace(op.getResult(), vec[index]);
+    env.insert_or_assign(op.getResult(), vec[index]);
   } else if (std::holds_alternative<std::vector<PlaintextT>>(tensor.value)) {
     auto& vec = std::get<std::vector<PlaintextT>>(tensor.value);
-    env.try_emplace(op.getResult(), vec[index]);
+    env.insert_or_assign(op.getResult(), vec[index]);
   } else if (std::holds_alternative<std::vector<CiphertextT>>(tensor.value)) {
     auto& vec = std::get<std::vector<CiphertextT>>(tensor.value);
-    env.try_emplace(op.getResult(), vec[index]);
+    env.insert_or_assign(op.getResult(), vec[index]);
   } else {
     op.emitError("Unsupported tensor type in ExtractOp");
   }
@@ -528,23 +561,23 @@ void Interpreter::visit(tensor::InsertOp op) {
   if (std::holds_alternative<std::vector<int>>(dest.value)) {
     auto vec = std::get<std::vector<int>>(dest.value);
     vec[index] = std::get<int>(scalar.value);
-    env.try_emplace(op.getResult(), std::move(vec));
+    env.insert_or_assign(op.getResult(), std::move(vec));
   } else if (std::holds_alternative<std::vector<float>>(dest.value)) {
     auto vec = std::get<std::vector<float>>(dest.value);
     vec[index] = std::get<float>(scalar.value);
-    env.try_emplace(op.getResult(), std::move(vec));
+    env.insert_or_assign(op.getResult(), std::move(vec));
   } else if (std::holds_alternative<std::vector<double>>(dest.value)) {
     auto vec = std::get<std::vector<double>>(dest.value);
     vec[index] = std::get<double>(scalar.value);
-    env.try_emplace(op.getResult(), std::move(vec));
+    env.insert_or_assign(op.getResult(), std::move(vec));
   } else if (std::holds_alternative<std::vector<CiphertextT>>(dest.value)) {
     auto vec = std::get<std::vector<CiphertextT>>(dest.value);
     vec[index] = std::get<CiphertextT>(scalar.value);
-    env.try_emplace(op.getResult(), std::move(vec));
+    env.insert_or_assign(op.getResult(), std::move(vec));
   } else if (std::holds_alternative<std::vector<PlaintextT>>(dest.value)) {
     auto vec = std::get<std::vector<PlaintextT>>(dest.value);
     vec[index] = std::get<PlaintextT>(scalar.value);
-    env.try_emplace(op.getResult(), std::move(vec));
+    env.insert_or_assign(op.getResult(), std::move(vec));
   } else {
     op.emitError("Unsupported tensor type in InsertOp");
   }
@@ -557,13 +590,13 @@ void Interpreter::visit(tensor::SplatOp op) {
 
   if (std::holds_alternative<int>(input.value)) {
     int val = std::get<int>(input.value);
-    env.try_emplace(op.getResult(), std::vector<int>(numElements, val));
+    env.insert_or_assign(op.getResult(), std::vector<int>(numElements, val));
   } else if (std::holds_alternative<float>(input.value)) {
     float val = std::get<float>(input.value);
-    env.try_emplace(op.getResult(), std::vector<float>(numElements, val));
+    env.insert_or_assign(op.getResult(), std::vector<float>(numElements, val));
   } else if (std::holds_alternative<double>(input.value)) {
     double val = std::get<double>(input.value);
-    env.try_emplace(op.getResult(), std::vector<double>(numElements, val));
+    env.insert_or_assign(op.getResult(), std::vector<double>(numElements, val));
   } else {
     op.emitError("Unsupported input type in SplatOp");
   }
@@ -582,35 +615,35 @@ void Interpreter::visit(tensor::FromElementsOp op) {
     for (auto element : elements) {
       result.push_back(std::get<int>(env.at(element).value));
     }
-    env.try_emplace(op.getResult(), std::move(result));
+    env.insert_or_assign(op.getResult(), std::move(result));
   } else if (std::holds_alternative<float>(firstElement.value)) {
     std::vector<float> result;
     result.reserve(elements.size());
     for (auto element : elements) {
       result.push_back(std::get<float>(env.at(element).value));
     }
-    env.try_emplace(op.getResult(), std::move(result));
+    env.insert_or_assign(op.getResult(), std::move(result));
   } else if (std::holds_alternative<double>(firstElement.value)) {
     std::vector<double> result;
     result.reserve(elements.size());
     for (auto element : elements) {
       result.push_back(std::get<double>(env.at(element).value));
     }
-    env.try_emplace(op.getResult(), std::move(result));
+    env.insert_or_assign(op.getResult(), std::move(result));
   } else if (std::holds_alternative<CiphertextT>(firstElement.value)) {
     std::vector<CiphertextT> result;
     result.reserve(elements.size());
     for (auto element : elements) {
       result.push_back(std::get<CiphertextT>(env.at(element).value));
     }
-    env.try_emplace(op.getResult(), std::move(result));
+    env.insert_or_assign(op.getResult(), std::move(result));
   } else if (std::holds_alternative<PlaintextT>(firstElement.value)) {
     std::vector<PlaintextT> result;
     result.reserve(elements.size());
     for (auto element : elements) {
       result.push_back(std::get<PlaintextT>(env.at(element).value));
     }
-    env.try_emplace(op.getResult(), std::move(result));
+    env.insert_or_assign(op.getResult(), std::move(result));
   } else {
     op->emitError() << "FromElementsOp received element with variant index "
                     << firstElement.value.index();
@@ -627,21 +660,21 @@ void Interpreter::visit(tensor::ConcatOp op) {
       const auto& vec = std::get<std::vector<int>>(env.at(input).value);
       result.insert(result.end(), vec.begin(), vec.end());
     }
-    env.try_emplace(op.getResult(), std::move(result));
+    env.insert_or_assign(op.getResult(), std::move(result));
   } else if (std::holds_alternative<std::vector<float>>(firstInput.value)) {
     std::vector<float> result;
     for (auto input : inputs) {
       const auto& vec = std::get<std::vector<float>>(env.at(input).value);
       result.insert(result.end(), vec.begin(), vec.end());
     }
-    env.try_emplace(op.getResult(), std::move(result));
+    env.insert_or_assign(op.getResult(), std::move(result));
   } else if (std::holds_alternative<std::vector<double>>(firstInput.value)) {
     std::vector<double> result;
     for (auto input : inputs) {
       const auto& vec = std::get<std::vector<double>>(env.at(input).value);
       result.insert(result.end(), vec.begin(), vec.end());
     }
-    env.try_emplace(op.getResult(), std::move(result));
+    env.insert_or_assign(op.getResult(), std::move(result));
   } else if (std::holds_alternative<std::vector<CiphertextT>>(
                  firstInput.value)) {
     std::vector<CiphertextT> result;
@@ -649,7 +682,7 @@ void Interpreter::visit(tensor::ConcatOp op) {
       const auto& vec = std::get<std::vector<CiphertextT>>(env.at(input).value);
       result.insert(result.end(), vec.begin(), vec.end());
     }
-    env.try_emplace(op.getResult(), std::move(result));
+    env.insert_or_assign(op.getResult(), std::move(result));
   } else if (std::holds_alternative<std::vector<PlaintextT>>(
                  firstInput.value)) {
     std::vector<PlaintextT> result;
@@ -657,7 +690,7 @@ void Interpreter::visit(tensor::ConcatOp op) {
       const auto& vec = std::get<std::vector<PlaintextT>>(env.at(input).value);
       result.insert(result.end(), vec.begin(), vec.end());
     }
-    env.try_emplace(op.getResult(), std::move(result));
+    env.insert_or_assign(op.getResult(), std::move(result));
   } else {
     op.emitError("Unsupported tensor type in ConcatOp");
   }
@@ -710,7 +743,7 @@ void Interpreter::visit(tensor::ExtractSliceOp op) {
     for (int64_t i = 0; i < totalElements; ++i) {
       result.push_back(vec[extractElement(i)]);
     }
-    env.try_emplace(op.getResult(), std::move(result));
+    env.insert_or_assign(op.getResult(), std::move(result));
   } else if (std::holds_alternative<std::vector<float>>(source.value)) {
     const auto& vec = std::get<std::vector<float>>(source.value);
     std::vector<float> result;
@@ -718,7 +751,7 @@ void Interpreter::visit(tensor::ExtractSliceOp op) {
     for (int64_t i = 0; i < totalElements; ++i) {
       result.push_back(vec[extractElement(i)]);
     }
-    env.try_emplace(op.getResult(), std::move(result));
+    env.insert_or_assign(op.getResult(), std::move(result));
   } else if (std::holds_alternative<std::vector<double>>(source.value)) {
     const auto& vec = std::get<std::vector<double>>(source.value);
     std::vector<double> result;
@@ -726,7 +759,7 @@ void Interpreter::visit(tensor::ExtractSliceOp op) {
     for (int64_t i = 0; i < totalElements; ++i) {
       result.push_back(vec[extractElement(i)]);
     }
-    env.try_emplace(op.getResult(), std::move(result));
+    env.insert_or_assign(op.getResult(), std::move(result));
   } else if (std::holds_alternative<std::vector<CiphertextT>>(source.value)) {
     const auto& vec = std::get<std::vector<CiphertextT>>(source.value);
     std::vector<CiphertextT> result;
@@ -734,7 +767,7 @@ void Interpreter::visit(tensor::ExtractSliceOp op) {
     for (int64_t i = 0; i < totalElements; ++i) {
       result.push_back(vec[extractElement(i)]);
     }
-    env.try_emplace(op.getResult(), std::move(result));
+    env.insert_or_assign(op.getResult(), std::move(result));
   } else if (std::holds_alternative<std::vector<PlaintextT>>(source.value)) {
     const auto& vec = std::get<std::vector<PlaintextT>>(source.value);
     std::vector<PlaintextT> result;
@@ -742,7 +775,7 @@ void Interpreter::visit(tensor::ExtractSliceOp op) {
     for (int64_t i = 0; i < totalElements; ++i) {
       result.push_back(vec[extractElement(i)]);
     }
-    env.try_emplace(op.getResult(), std::move(result));
+    env.insert_or_assign(op.getResult(), std::move(result));
   } else {
     op.emitError("Unsupported tensor type in ExtractSliceOp");
   }
@@ -795,35 +828,35 @@ void Interpreter::visit(tensor::InsertSliceOp op) {
     for (int64_t i = 0; i < totalElements; ++i) {
       result[insertElement(i)] = srcVec[i];
     }
-    env.try_emplace(op.getResult(), std::move(result));
+    env.insert_or_assign(op.getResult(), std::move(result));
   } else if (std::holds_alternative<std::vector<float>>(dest.value)) {
     auto result = std::get<std::vector<float>>(dest.value);
     const auto& srcVec = std::get<std::vector<float>>(source.value);
     for (int64_t i = 0; i < totalElements; ++i) {
       result[insertElement(i)] = srcVec[i];
     }
-    env.try_emplace(op.getResult(), std::move(result));
+    env.insert_or_assign(op.getResult(), std::move(result));
   } else if (std::holds_alternative<std::vector<double>>(dest.value)) {
     auto result = std::get<std::vector<double>>(dest.value);
     const auto& srcVec = std::get<std::vector<double>>(source.value);
     for (int64_t i = 0; i < totalElements; ++i) {
       result[insertElement(i)] = srcVec[i];
     }
-    env.try_emplace(op.getResult(), std::move(result));
+    env.insert_or_assign(op.getResult(), std::move(result));
   } else if (std::holds_alternative<std::vector<CiphertextT>>(dest.value)) {
     auto result = std::get<std::vector<CiphertextT>>(dest.value);
     const auto& srcVec = std::get<std::vector<CiphertextT>>(source.value);
     for (int64_t i = 0; i < totalElements; ++i) {
       result[insertElement(i)] = srcVec[i];
     }
-    env.try_emplace(op.getResult(), std::move(result));
+    env.insert_or_assign(op.getResult(), std::move(result));
   } else if (std::holds_alternative<std::vector<PlaintextT>>(dest.value)) {
     auto result = std::get<std::vector<PlaintextT>>(dest.value);
     const auto& srcVec = std::get<std::vector<PlaintextT>>(source.value);
     for (int64_t i = 0; i < totalElements; ++i) {
       result[insertElement(i)] = srcVec[i];
     }
-    env.try_emplace(op.getResult(), std::move(result));
+    env.insert_or_assign(op.getResult(), std::move(result));
   } else {
     op.emitError("Unsupported tensor type in InsertSliceOp");
   }
@@ -834,7 +867,7 @@ void Interpreter::visit(tensor::CollapseShapeOp op) {
   // CollapseShape just changes the shape metadata, the underlying flat data
   // remains the same Since we already flatten all tensors to 1D, we can just
   // copy the value
-  env.try_emplace(op.getResult(), src);
+  env.insert_or_assign(op.getResult(), src);
 }
 
 void Interpreter::visit(tensor::ExpandShapeOp op) {
@@ -842,7 +875,87 @@ void Interpreter::visit(tensor::ExpandShapeOp op) {
   // ExpandShape just changes the shape metadata, the underlying flat data
   // remains the same Since we already flatten all tensors to 1D, we can just
   // copy the value
-  env.try_emplace(op.getResult(), src);
+  env.insert_or_assign(op.getResult(), src);
+}
+
+void Interpreter::visit(linalg::BroadcastOp op) {
+  // BroadcastOp copies the input op into a new tensor by adding the specified
+  // dims.
+  auto input = env.at(op.getInput());
+  auto resultType = cast<RankedTensorType>(op->getResults()[0].getType());
+  auto resultShape = resultType.getShape();
+  auto inputType = cast<RankedTensorType>(op.getInput().getType());
+  auto inputShape = inputType.getShape();
+  auto numOutputElements = resultType.getNumElements();
+
+  auto calculate = [&](const auto& inputVec, auto& outputVec) {
+    outputVec.resize(numOutputElements);
+
+    // Create a map of the broadcast dimensions.
+    DenseMap<int64_t, bool> broadcastDims;
+    for (const auto& dim : op.getDimensions()) {
+      broadcastDims[dim] = true;
+    }
+
+    // Iterate over the output tensor's elements
+    for (int64_t i = 0; i < numOutputElements; ++i) {
+      // Calculate the multi-dimensional index in the output tensor by
+      // unflattening the index in the output shape.
+      std::vector<int64_t> outputIndices(resultShape.size());
+      int64_t temp = i;
+      for (int d = resultShape.size() - 1; d >= 0; --d) {
+        if (resultShape[d] > 0) {
+          outputIndices[d] = temp % resultShape[d];
+          temp /= resultShape[d];
+        } else {
+          outputIndices[d] = 0;
+        }
+      }
+
+      // Calculate the multi-dimensional index in the input tensor.
+      std::vector<int64_t> inputIndices(inputShape.size());
+      int64_t inputDim = 0;
+      for (size_t d = 0; d < resultShape.size(); ++d) {
+        if (!broadcastDims.contains(d)) {
+          // If the output dimension is not broadcast, then the input and
+          // output dimensions are the same.
+          inputIndices[inputDim] = outputIndices[d];
+          inputDim++;
+        }
+      }
+
+      // Calculate the flattened index in the input tensor
+      int64_t inputFlatIndex = 0;
+      if (!inputShape.empty()) {
+        inputFlatIndex = inputIndices[0];
+        for (size_t d = 1; d < inputShape.size(); ++d) {
+          inputFlatIndex = inputFlatIndex * inputShape[d] + inputIndices[d];
+        }
+      }
+
+      outputVec[i] = inputVec[inputFlatIndex];
+    }
+  };
+
+  Value result = op->getResults()[0];
+  if (std::holds_alternative<std::vector<int>>(input.value)) {
+    const auto& inputVec = std::get<std::vector<int>>(input.value);
+    std::vector<int> resultVec;
+    calculate(inputVec, resultVec);
+    env.insert_or_assign(result, std::move(resultVec));
+  } else if (std::holds_alternative<std::vector<float>>(input.value)) {
+    const auto& inputVec = std::get<std::vector<float>>(input.value);
+    std::vector<float> resultVec;
+    calculate(inputVec, resultVec);
+    env.insert_or_assign(result, std::move(resultVec));
+  } else if (std::holds_alternative<std::vector<double>>(input.value)) {
+    const auto& inputVec = std::get<std::vector<double>>(input.value);
+    std::vector<double> resultVec;
+    calculate(inputVec, resultVec);
+    env.insert_or_assign(result, std::move(resultVec));
+  } else {
+    op.emitError("Unsupported tensor type in BroadcastOp");
+  }
 }
 
 // SCF and Affine ops
@@ -898,7 +1011,7 @@ void Interpreter::visit(scf::ForOp op) {
 
   // Store final results
   for (auto [result, finalValue] : llvm::zip(op.getResults(), iterArgs)) {
-    env.try_emplace(result, finalValue);
+    env.insert_or_assign(result, finalValue);
   }
 }
 
@@ -946,7 +1059,7 @@ void Interpreter::visit(scf::IfOp op) {
 
   // Store results
   for (auto [result, value] : llvm::zip(op.getResults(), results)) {
-    env.try_emplace(result, value);
+    env.insert_or_assign(result, value);
   }
 }
 
@@ -1001,7 +1114,7 @@ void Interpreter::visit(affine::AffineForOp op) {
 
   // Store final results
   for (auto [result, finalValue] : llvm::zip(op.getResults(), iterArgs)) {
-    env.try_emplace(result, finalValue);
+    env.insert_or_assign(result, finalValue);
   }
 }
 
@@ -1250,7 +1363,7 @@ void Interpreter::visit(DecryptOp op) {
   auto key = std::get<PrivateKeyT>(privateKey.value);
   PlaintextT plaintext;
   TIME_OPERATION_VOID("Decrypt", cc->Decrypt(key, ciphertext, &plaintext));
-  env.try_emplace(op.getPlaintext(), plaintext);
+  env.insert_or_assign(op.getPlaintext(), plaintext);
 }
 
 void Interpreter::visit(MakePackedPlaintextOp op) {
@@ -1298,39 +1411,38 @@ void Interpreter::visit(GenParamsOp op) {
   int64_t evalAddCount = op.getEvalAddCountAttr().getValue().getSExtValue();
   int64_t keySwitchCount = op.getKeySwitchCountAttr().getValue().getSExtValue();
 
-  CCParamsT params;
-  params.SetMultiplicativeDepth(mulDepth);
-  if (plainMod > 0) params.SetPlaintextModulus(plainMod);
-  if (op.getRingDim() != 0) params.SetRingDim(op.getRingDim());
-  if (op.getBatchSize() != 0) params.SetBatchSize(op.getBatchSize());
-  if (op.getFirstModSize() != 0) params.SetFirstModSize(op.getFirstModSize());
+  auto params = std::make_shared<CCParamsT>();
+  params->SetMultiplicativeDepth(mulDepth);
+  if (plainMod > 0) params->SetPlaintextModulus(plainMod);
+  if (op.getRingDim() != 0) params->SetRingDim(op.getRingDim());
+  if (op.getBatchSize() != 0) params->SetBatchSize(op.getBatchSize());
+  if (op.getFirstModSize() != 0) params->SetFirstModSize(op.getFirstModSize());
   if (op.getScalingModSize() != 0)
-    params.SetScalingModSize(op.getScalingModSize());
-  if (evalAddCount > 0) params.SetEvalAddCount(evalAddCount);
-  if (keySwitchCount > 0) params.SetKeySwitchCount(keySwitchCount);
-  if (op.getDigitSize() != 0) params.SetDigitSize(op.getDigitSize());
+    params->SetScalingModSize(op.getScalingModSize());
+  if (evalAddCount > 0) params->SetEvalAddCount(evalAddCount);
+  if (keySwitchCount > 0) params->SetKeySwitchCount(keySwitchCount);
+  if (op.getDigitSize() != 0) params->SetDigitSize(op.getDigitSize());
   if (op.getNumLargeDigits() != 0)
-    params.SetNumLargeDigits(op.getNumLargeDigits());
+    params->SetNumLargeDigits(op.getNumLargeDigits());
   if (op.getMaxRelinSkDeg() != 0)
-    params.SetMaxRelinSkDeg(op.getMaxRelinSkDeg());
-  if (op.getInsecure()) params.SetSecurityLevel(HEStd_NotSet);
+    params->SetMaxRelinSkDeg(op.getMaxRelinSkDeg());
+  if (op.getInsecure()) params->SetSecurityLevel(HEStd_NotSet);
   if (op.getEncryptionTechniqueExtended())
-    params.SetEncryptionTechnique(EXTENDED);
+    params->SetEncryptionTechnique(EXTENDED);
   if (!op.getKeySwitchingTechniqueBV())
-    params.SetKeySwitchTechnique(HYBRID);
+    params->SetKeySwitchTechnique(HYBRID);
   else
-    params.SetKeySwitchTechnique(BV);
+    params->SetKeySwitchTechnique(BV);
   if (op.getScalingTechniqueFixedManual())
-    params.SetScalingTechnique(FIXEDMANUAL);
+    params->SetScalingTechnique(FIXEDMANUAL);
 
-  env.try_emplace(op.getResult(), std::move(params));
+  params_.insert_or_assign(op.getResult(), std::move(params));
 }
 
 void Interpreter::visit(GenContextOp op) {
-  auto params = env.at(op.getParams());
-  auto ccParams = std::get<CCParamsT>(params.value);
+  auto params = params_.at(op.getParams());
   CryptoContextT cc;
-  TIME_OPERATION_VOID("GenContext", cc = GenCryptoContext(ccParams));
+  TIME_OPERATION_VOID("GenContext", cc = GenCryptoContext(*params));
   cc->Enable(PKE);
   cc->Enable(KEYSWITCH);
   cc->Enable(LEVELEDSHE);
@@ -1338,7 +1450,7 @@ void Interpreter::visit(GenContextOp op) {
     cc->Enable(ADVANCEDSHE);
     cc->Enable(FHE);
   }
-  env.try_emplace(op.getResult(), cc);
+  env.insert_or_assign(op.getResult(), cc);
 }
 
 void Interpreter::visit(GenRotKeyOp op) {
@@ -1444,7 +1556,7 @@ void Interpreter::visit(lwe::RLWEDecodeOp op) {
         for (const auto& val : ckksValues) {
           result.push_back(val.real());
         }
-        env.try_emplace(op.getResult(), std::move(result));
+        env.insert_or_assign(op.getResult(), std::move(result));
       } else {
         // Extract real parts and convert to float
         std::vector<float> result;
@@ -1452,7 +1564,7 @@ void Interpreter::visit(lwe::RLWEDecodeOp op) {
         for (const auto& val : ckksValues) {
           result.push_back(static_cast<float>(val.real()));
         }
-        env.try_emplace(op.getResult(), std::move(result));
+        env.insert_or_assign(op.getResult(), std::move(result));
       }
     } else {
       // Get packed value (vector of int64_t)
@@ -1465,7 +1577,7 @@ void Interpreter::visit(lwe::RLWEDecodeOp op) {
         result.push_back(static_cast<int>(val));
       }
 
-      env.try_emplace(op.getResult(), std::move(result));
+      env.insert_or_assign(op.getResult(), std::move(result));
     }
   } else {
     // Scalar result: get value at index 0
@@ -1479,15 +1591,15 @@ void Interpreter::visit(lwe::RLWEDecodeOp op) {
 
       if (outputIsDouble) {
         double result = ckksValues[0].real();
-        env.try_emplace(op.getResult(), result);
+        env.insert_or_assign(op.getResult(), result);
       } else {
         float result = static_cast<float>(ckksValues[0].real());
-        env.try_emplace(op.getResult(), result);
+        env.insert_or_assign(op.getResult(), result);
       }
     } else {
       auto packedValues = plaintext->GetPackedValue();
       int result = static_cast<int>(packedValues[0]);
-      env.try_emplace(op.getResult(), result);
+      env.insert_or_assign(op.getResult(), result);
     }
   }
 }
@@ -1504,6 +1616,8 @@ void initContext(MLIRContext& context) {
   registry.insert<scf::SCFDialect>();
   registry.insert<tensor::TensorDialect>();
   registry.insert<tensor_ext::TensorExtDialect>();
+  registry.insert<linalg::LinalgDialect>();
+  registry.insert<affine::AffineDialect>();
   rns::registerExternalRNSTypeInterfaces(registry);
   context.appendDialectRegistry(registry);
 }

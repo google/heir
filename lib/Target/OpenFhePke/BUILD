@@ -140,6 +140,7 @@ cc_library(
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LinalgDialect",
         "@llvm-project//mlir:Parser",
         "@llvm-project//mlir:SCFDialect",
         "@llvm-project//mlir:Support",
@@ -155,7 +156,9 @@ cc_test(
     deps = [
         ":Interpreter",
         "@googletest//:gtest_main",
+        "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Parser",
+        "@openfhe//:core",
         "@openfhe//:pke",
     ],
 )

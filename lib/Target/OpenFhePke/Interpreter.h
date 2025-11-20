@@ -13,10 +13,12 @@
 
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
-#include "llvm/include/llvm/ADT/DenseMap.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseMap.h"       // from @llvm-project
+#include "mlir/include/mlir/Analysis/Liveness.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
@@ -55,13 +57,13 @@ struct TypedCppValue {
                    PrivateKeyT,                       // PRIVATE_KEY
                    EvalKeyT,                          // EVAL_KEY
                    CryptoContextT,                    // CRYPTO_CONTEXT
-                   CCParamsT,                         // CRYPTO_CONTEXT_PARAMS
                    FastRotPrecompT                    // FAST_ROTATION_PRECOMP
                    >;
 
   Variant value;
 
   TypedCppValue() = default;
+
   TypedCppValue(bool v) : value(v) {}
   TypedCppValue(int v) : value(v) {}
   TypedCppValue(float v) : value(v) {}
@@ -77,13 +79,12 @@ struct TypedCppValue {
   TypedCppValue(PrivateKeyT v) : value(std::move(v)) {}
   TypedCppValue(EvalKeyT v) : value(std::move(v)) {}
   TypedCppValue(CryptoContextT v) : value(std::move(v)) {}
-  TypedCppValue(CCParamsT v) : value(std::move(v)) {}
   TypedCppValue(FastRotPrecompT v) : value(std::move(v)) {}
 };
 
 class Interpreter {
  public:
-  Interpreter(ModuleOp module) : module(module) {}
+  Interpreter(ModuleOp module) : module(module), liveness(module) {}
 
   std::vector<TypedCppValue> interpret(const std::string& entryFunction,
                                        ArrayRef<TypedCppValue> inputValues);
@@ -105,9 +106,13 @@ class Interpreter {
   void visit(arith::ExtUIOp op);
   void visit(arith::IndexCastOp op);
   void visit(arith::MulIOp op);
+  void visit(arith::MulFOp op);
+  void visit(arith::MinSIOp op);
+  void visit(arith::MaxSIOp op);
   void visit(arith::RemSIOp op);
   void visit(arith::SelectOp op);
   void visit(arith::SubIOp op);
+  void visit(linalg::BroadcastOp op);
   void visit(tensor::CollapseShapeOp op);
   void visit(tensor::ConcatOp op);
   void visit(tensor::EmptyOp op);
@@ -170,6 +175,8 @@ class Interpreter {
  private:
   ModuleOp module;
   llvm::DenseMap<Value, TypedCppValue> env;
+  Liveness liveness;
+  llvm::DenseMap<Value, std::shared_ptr<CCParamsT>> params_;
 
 #ifdef OPENFHE_ENABLE_TIMING
   struct TimingData {

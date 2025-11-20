@@ -1,10 +1,25 @@
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
 
 #include "gtest/gtest.h"  // from @googletest
 #include "lib/Target/OpenFhePke/Interpreter.h"
-#include "mlir/include/mlir/Parser/Parser.h"  // from @llvm-project
-#include "src/pke/include/openfhe.h"          // from @openfhe
+#include "mlir/include/mlir/IR/BuiltinOps.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/OwningOpRef.h"          // from @llvm-project
+#include "mlir/include/mlir/Parser/Parser.h"           // from @llvm-project
+#include "src/core/include/lattice/hal/lat-backend.h"  // from @openfhe
+#include "src/pke/include/constants-defs.h"            // from @openfhe
+#include "src/pke/include/cryptocontext-fwd.h"         // from @openfhe
+#include "src/pke/include/encoding/plaintext-fwd.h"    // from @openfhe
+#include "src/pke/include/gen-cryptocontext.h"         // from @openfhe
+#include "src/pke/include/key/keypair.h"               // from @openfhe
+#include "src/pke/include/openfhe.h"                   // from @openfhe
+#include "src/pke/include/scheme/bgvrns/gen-cryptocontext-bgvrns-params.h"  // from @openfhe
+#include "src/pke/include/scheme/bgvrns/gen-cryptocontext-bgvrns.h"  // from @openfhe
+#include "src/pke/include/scheme/ckksrns/gen-cryptocontext-ckksrns-params.h"  // from @openfhe
+#include "src/pke/include/scheme/ckksrns/gen-cryptocontext-ckksrns.h"  // from @openfhe
 
 namespace mlir {
 namespace heir {
@@ -335,6 +350,91 @@ TEST(InterpreterTest, TestTensorInsert) {
   auto vec = std::get<std::vector<int>>(results[0].value);
   EXPECT_EQ(vec.size(), 3);
   EXPECT_EQ(vec[1], 99);
+}
+
+TEST(InterpreterTest, TestLoop) {
+  MLIRContext context;
+  initContext(context);
+  auto module = parseTest(&context, R"mlir(
+    module {
+      func.func @main() -> tensor<6xi32> {
+        %0 = arith.constant dense<0> : tensor<6xi32>
+        %1 = arith.constant dense<1> : tensor<6xi32>
+        %2 = affine.for %arg1 = 0 to 6 iter_args(%arg2 = %0) -> (tensor<6xi32>) {
+          %extracted = tensor.extract %1[%arg1] : tensor<6xi32>
+          %inserted = tensor.insert %extracted into %arg2[%arg1] : tensor<6xi32>
+          affine.yield %inserted : tensor<6xi32>
+        }
+        return %2 : tensor<6xi32>
+      }
+    }
+  )mlir");
+  Interpreter interpreter(module.get());
+  std::string entryFunction = "main";
+  std::vector<TypedCppValue> inputs = {};
+  std::vector<TypedCppValue> results =
+      interpreter.interpret(entryFunction, inputs);
+  EXPECT_EQ(results.size(), 1);
+  auto vec = std::get<std::vector<int>>(results[0].value);
+  EXPECT_EQ(vec.size(), 6);
+  EXPECT_EQ(vec[1], 1);
+}
+
+TEST(InterpreterTest, TestLinalgBroadcast) {
+  MLIRContext context;
+  initContext(context);
+  auto module = parseTest(&context, R"mlir(
+    module {
+      func.func @main() -> tensor<1x512xf32> {
+        %cst_0 = arith.constant dense<1.000000e+00> : tensor<f32>
+        %1 = tensor.empty() : tensor<1x512xf32>
+        %broadcasted = linalg.broadcast ins(%cst_0 : tensor<f32>) outs(%1 : tensor<1x512xf32>) dimensions = [0, 1]
+        func.return %broadcasted : tensor<1x512xf32>
+      }
+    }
+  )mlir");
+  Interpreter interpreter(module.get());
+  std::string entryFunction = "main";
+  std::vector<TypedCppValue> inputs = {};
+  std::vector<TypedCppValue> results =
+      interpreter.interpret(entryFunction, inputs);
+  EXPECT_EQ(results.size(), 1);
+  auto resultVec = std::get<std::vector<float>>(results[0].value);
+  EXPECT_EQ(resultVec.size(), 512);  // 1x512
+  EXPECT_EQ(resultVec[0], 1.000000f);
+}
+
+TEST(InterpreterTest, TestLinalgBroadcastMultiDim) {
+  MLIRContext context;
+  initContext(context);
+  auto module = parseTest(&context, R"mlir(
+    module {
+      func.func @main() -> tensor<2x3x4x1x5xf32> {
+        %cst_0 = arith.constant dense<[[1.0], [2.0], [3.0]]> : tensor<3x1xf32>
+        %1 = tensor.empty() : tensor<2x3x4x1x5xf32>
+        %broadcasted = linalg.broadcast ins(%cst_0 : tensor<3x1xf32>) outs(%1 : tensor<2x3x4x1x5xf32>) dimensions = [0, 2, 4]
+        func.return %broadcasted : tensor<2x3x4x1x5xf32>
+      }
+    }
+  )mlir");
+  Interpreter interpreter(module.get());
+  std::string entryFunction = "main";
+  std::vector<TypedCppValue> inputs = {};
+  std::vector<TypedCppValue> results =
+      interpreter.interpret(entryFunction, inputs);
+  EXPECT_EQ(results.size(), 1);
+  auto resultVec = std::get<std::vector<float>>(results[0].value);
+  EXPECT_EQ(resultVec.size(), 120);  // 2x3x4x1x5
+  std::vector<std::vector<float>> inputVec = {{1.0f}, {2.0f}, {3.0f}};
+  for (size_t i = 0; i < 2; ++i) {
+    for (size_t j = 0; j < 3; ++j) {
+      for (size_t k = 0; k < 4; ++k) {
+        for (size_t l = 0; l < 5; ++l) {
+          EXPECT_EQ(resultVec[i * 60 + j * 20 + k * 5 + l], inputVec[j][0]);
+        }
+      }
+    }
+  }
 }
 
 // Helper function to set up a basic BGV crypto context for testing
