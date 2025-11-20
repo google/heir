@@ -18,9 +18,30 @@ class Orion_Op<string mnemonic, list<Trait> traits = []> :
 def Orion_LinearTransformOp : Orion_Op<"linear_transform", [Pure]> {
   // Use a cleartext for the diagonals since they need to be rotated in the
   // BSGS implementation of linear transforms.
-  let arguments = (ins LWECiphertext:$input, FloatLike:$diagonals);
+  let arguments = (ins
+    LWECiphertext:$input,
+    FloatLike:$diagonals,
+    Builtin_IntegerAttr:$orion_level,
+    Builtin_FloatAttr:$bsgs_ratio,
+    Builtin_IntegerAttr:$slots
+  );
   let results = (outs LWECiphertext:$result);
   let summary = "Apply a linear transformation to the input ciphertext using pre-computed diagonals";
+  let description = [{
+    This operation applies a linear transformation on a ciphertext using
+    the provided float diagonals.
+
+    The `diagonals` input is a tensor where each row represents one non-zero
+    diagonal of the square matrix to evaluate.
+
+    The `orion_level` attribute specifies the modulus level at which the operation
+    should be performed.
+
+    The `bsgs_ratio` attribute is used to optimize the linear transformation
+    using the baby-step giant-step algorithm.
+
+    The `slots` attribute specifies the number of slots in the ciphertext.
+  }];
 }
 
 def Orion_ChebyshevOp : Orion_Op<"chebyshev", [Pure]> {

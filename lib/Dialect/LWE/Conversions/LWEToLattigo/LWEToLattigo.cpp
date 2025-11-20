@@ -1,6 +1,5 @@
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h"
 
-#include <cassert>
 #include <cstdint>
 #include <utility>
 #include <vector>
@@ -17,6 +16,8 @@
 #include "lib/Dialect/Lattigo/IR/LattigoOps.h"
 #include "lib/Dialect/Lattigo/IR/LattigoTypes.h"
 #include "lib/Dialect/ModuleAttributes.h"
+#include "lib/Dialect/Orion/IR/OrionDialect.h"
+#include "lib/Dialect/Orion/IR/OrionOps.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
@@ -352,7 +353,9 @@ struct ConvertRlweRotateOp : public OpConversionPattern<RlweRotateOp> {
       ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result =
         getContextualEvaluator<EvaluatorType>(op.getOperation());
-    if (failed(result)) return result;
+    if (failed(result))
+      return rewriter.notifyMatchFailure(op,
+                                         "Failed to get contextual evaluator");
 
     Value evaluator = result.value();
     rewriter.replaceOp(
@@ -467,6 +470,38 @@ struct ConvertLWEReinterpretApplicationData
     // If operand has no defining op, we can not replace it with defining op.
     rewriter.replaceAllOpUsesWith(op, adaptor.getOperands()[0]);
     rewriter.eraseOp(op);
+    return success();
+  }
+};
+
+// Orion conversions
+struct ConvertOrionLinearTransformOp
+    : public OpConversionPattern<orion::LinearTransformOp> {
+  using OpConversionPattern<orion::LinearTransformOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      orion::LinearTransformOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    // Get the evaluator from the function context
+    FailureOr<Value> evaluatorResult =
+        getContextualEvaluator<lattigo::CKKSEvaluatorType>(op.getOperation());
+    if (failed(evaluatorResult)) {
+      return op.emitOpError() << "CKKS evaluator not found in function context";
+    }
+    Value evaluator = evaluatorResult.value();
+
+    // Convert bsgs_ratio to logBabyStepGiantStepRatio
+    auto bsgsRatio = op.getBsgsRatioAttr();
+    int64_t logBsgsRatio =
+        static_cast<int64_t>(cast<FloatAttr>(bsgsRatio).getValueAsDouble());
+    auto logBsgsRatioAttr = rewriter.getI64IntegerAttr(logBsgsRatio);
+
+    // Create the Lattigo linear transform op
+    rewriter.replaceOpWithNewOp<lattigo::CKKSLinearTransformOp>(
+        op, this->typeConverter->convertType(op.getResult().getType()),
+        evaluator, adaptor.getInput(), adaptor.getDiagonals(),
+        op.getOrionLevelAttr(), logBsgsRatioAttr);
+
     return success();
   }
 };
@@ -612,7 +647,8 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
 
     ConversionTarget target(*context);
     target.addLegalDialect<lattigo::LattigoDialect>();
-    target.addIllegalDialect<bgv::BGVDialect, ckks::CKKSDialect>();
+    target.addIllegalDialect<bgv::BGVDialect, ckks::CKKSDialect,
+                             orion::OrionDialect>();
     target
         .addIllegalOp<lwe::RLWEEncryptOp, lwe::RLWEDecryptOp, lwe::RLWEEncodeOp,
                       lwe::RLWEDecodeOp, lwe::RAddOp, lwe::RSubOp, lwe::RMulOp,
@@ -755,13 +791,14 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
                                                                 context);
     }
     if (moduleIsCKKS(module)) {
-      patterns.add<
-          ConvertCKKSAddOp, ConvertCKKSSubOp, ConvertCKKSMulOp,
-          ConvertCKKSAddPlainOp, ConvertCKKSSubPlainOp, ConvertCKKSMulPlainOp,
-          ConvertCKKSRelinOp, ConvertCKKSModulusSwitchOp, ConvertCKKSRotateOp,
-          ConvertCKKSEncryptOp, ConvertCKKSDecryptOp, ConvertCKKSEncodeOp,
-          ConvertCKKSDecodeOp, ConvertCKKSLevelReduceOp>(typeConverter,
-                                                         context);
+      patterns.add<ConvertCKKSAddOp, ConvertCKKSSubOp, ConvertCKKSMulOp,
+                   ConvertCKKSAddPlainOp, ConvertCKKSSubPlainOp,
+                   ConvertCKKSMulPlainOp, ConvertCKKSRelinOp,
+                   ConvertCKKSModulusSwitchOp, ConvertCKKSRotateOp,
+                   ConvertCKKSEncryptOp, ConvertCKKSDecryptOp,
+                   ConvertCKKSEncodeOp, ConvertCKKSDecodeOp,
+                   ConvertCKKSLevelReduceOp, ConvertOrionLinearTransformOp>(
+          typeConverter, context);
     }
     // Misc
     patterns.add<ConvertLWEReinterpretApplicationData>(typeConverter, context);

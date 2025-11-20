@@ -274,4 +274,53 @@ def Lattigo_CKKSRotateOp : Lattigo_CKKSUnaryInplaceOp<"rotate"> {
   let results = (outs Lattigo_RLWECiphertext:$output);
 }
 
+def Lattigo_CKKSLinearTransformOp : Lattigo_CKKSOp<"linear_transform"> {
+  let summary = "Apply a linear transform on a lattigo CKKS ciphertext";
+  let description = [{
+    This operation applies a linear transform on a CKKS ciphertext using
+    the provided float diagonals.
+
+    The linear transform is defined by a set of diagonals, where each diagonal
+    represents a specific shift and scaling of the input ciphertext slots.
+
+    The `diagonals` input is a 2D tensor where each row represents one non-zero
+    diagonal of the square matrix to evaluate. The diagonal values are floats
+    that will be encoded into plaintexts during code generation.
+
+    The `levelQ` attribute specifies the modulus level at which the operation
+    should be performed.
+
+    The `logBabyStepGiantStepRatio` attribute is used to optimize the linear
+    transformation using the baby-step giant-step algorithm. It defines the
+    ratio between the sizes of the baby steps and giant steps. If unset,
+    it is zero by default.
+
+    During code generation, this op will:
+    1. Create a lintrans.Diagonals map from the input tensor
+    2. Create and encode a lintrans.Transformation
+    3. Create a lintrans.Evaluator
+    4. Evaluate the transformation on the input ciphertext
+  }];
+  let arguments = (ins
+    Lattigo_CKKSEvaluator:$evaluator,
+    Lattigo_RLWECiphertext:$input,
+    // Parameters corresponding to the lattigo lintrans.Parameters struct,
+    // and those that can be inferred from the IR are commented out.
+
+    RankedTensorOf<[AnyFloat]>:$diagonals,
+
+    Builtin_IntegerAttr:$levelQ,
+
+    // The same auxiliary prime used to generate evaluation keys
+    // Builtin_IntegerAttr:$levelP,
+
+    // For CKKS these are hard-coded to [1, N/2] for N = ring modulus degree
+    // Builtin_IntegerAttr:$logDimensionsRows,
+    // Builtin_IntegerAttr:$logDimensionsCols,
+
+    Builtin_IntegerAttr:$logBabyStepGiantStepRatio
+  );
+  let results = (outs Lattigo_RLWECiphertext:$output);
+}
+
 #endif  // LIB_DIALECT_LATTIGO_IR_LATTIGOCKKSOPS_TD_
