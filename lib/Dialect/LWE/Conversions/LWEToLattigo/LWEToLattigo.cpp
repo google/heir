@@ -1,12 +1,12 @@
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h"
 
-#include <cassert>
 #include <cstdint>
 #include <utility>
 #include <vector>
 
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/BGV/IR/BGVOps.h"
+#include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/CKKS/IR/CKKSOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
@@ -17,9 +17,12 @@
 #include "lib/Dialect/Lattigo/IR/LattigoOps.h"
 #include "lib/Dialect/Lattigo/IR/LattigoTypes.h"
 #include "lib/Dialect/ModuleAttributes.h"
+#include "lib/Dialect/Orion/IR/OrionDialect.h"
+#include "lib/Dialect/Orion/IR/OrionOps.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -33,6 +36,8 @@
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
+
+#define DEBUG_TYPE "lwe-to-lattigo"
 
 namespace mlir::heir::lwe {
 
@@ -75,6 +80,29 @@ FailureOr<Value> getContextualEvaluator(Operation* op, Type type) {
   return getContextualArgFromFunc(op, type);
 }
 
+// Find the unique operation in the current func whose result has type Ty or
+// return Failure.
+template <typename Ty>
+FailureOr<TypedValue<Ty>> findUniqueOpResult(Operation* op) {
+  TypedValue<Ty> foundValue;
+  bool found = false;
+  func::FuncOp funcOp = op->getParentOfType<func::FuncOp>();
+  funcOp->walk([&](Operation* innerOp) {
+    for (auto result : innerOp->getResults()) {
+      if (mlir::isa<Ty>(result.getType())) {
+        foundValue = cast<TypedValue<Ty>>(result);
+        found = true;
+        return WalkResult::interrupt();
+      }
+    }
+    return WalkResult::advance();
+  });
+  if (found) {
+    return foundValue;
+  }
+  return failure();
+}
+
 // NOTE: we can not use containsDialect
 // for FuncOp declaration, which does not have a body
 template <typename... Dialects>
@@ -105,8 +133,13 @@ struct AddEvaluatorArg : public OpConversionPattern<func::FuncOp> {
     SmallVector<Type, 4> selectedEvaluators;
 
     for (const auto& evaluator : evaluators) {
+      LLVM_DEBUG(llvm::dbgs()
+                 << "Checking if evaluator should be added of type: "
+                 << evaluator.first << "\n");
       auto predicate = evaluator.second;
       if (predicate(op)) {
+        LLVM_DEBUG(llvm::dbgs()
+                   << "Adding evaluator of type: " << evaluator.first << "\n");
         selectedEvaluators.push_back(evaluator.first);
       }
     }
@@ -352,7 +385,9 @@ struct ConvertRlweRotateOp : public OpConversionPattern<RlweRotateOp> {
       ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result =
         getContextualEvaluator<EvaluatorType>(op.getOperation());
-    if (failed(result)) return result;
+    if (failed(result))
+      return rewriter.notifyMatchFailure(op,
+                                         "Failed to get contextual evaluator");
 
     Value evaluator = result.value();
     rewriter.replaceOp(
@@ -467,6 +502,104 @@ struct ConvertLWEReinterpretApplicationData
     // If operand has no defining op, we can not replace it with defining op.
     rewriter.replaceAllOpUsesWith(op, adaptor.getOperands()[0]);
     rewriter.eraseOp(op);
+    return success();
+  }
+};
+
+// Orion conversions
+struct ConvertOrionLinearTransformOp
+    : public OpConversionPattern<orion::LinearTransformOp> {
+  using OpConversionPattern<orion::LinearTransformOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      orion::LinearTransformOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    FailureOr<Value> evaluatorResult =
+        getContextualEvaluator<lattigo::CKKSEvaluatorType>(op.getOperation());
+    if (failed(evaluatorResult)) {
+      return op.emitOpError() << "CKKS evaluator not found in function context";
+    }
+    Value evaluator = evaluatorResult.value();
+
+    FailureOr<Value> encoderResult =
+        getContextualEvaluator<lattigo::CKKSEncoderType>(op.getOperation());
+    if (failed(encoderResult)) {
+      return op.emitOpError() << "CKKS encoder not found in function context";
+    }
+    Value encoder = encoderResult.value();
+
+    auto bsgsRatio = op.getBsgsRatioAttr();
+    int64_t logBsgsRatio =
+        static_cast<int64_t>(cast<FloatAttr>(bsgsRatio).getValueAsDouble());
+    auto logBsgsRatioAttr = rewriter.getI64IntegerAttr(logBsgsRatio);
+
+    rewriter.replaceOpWithNewOp<lattigo::CKKSLinearTransformOp>(
+        op, this->typeConverter->convertType(op.getResult().getType()),
+        evaluator, encoder, adaptor.getInput(), adaptor.getDiagonals(),
+        adaptor.getDiagonalIndices(), op.getOrionLevelAttr(), logBsgsRatioAttr);
+
+    return success();
+  }
+};
+
+struct ConvertOrionChebyshevOp
+    : public OpConversionPattern<orion::ChebyshevOp> {
+  using OpConversionPattern<orion::ChebyshevOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      orion::ChebyshevOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    LLVM_DEBUG(llvm::dbgs() << "Lowering Orion ChebyshevOp\n");
+    // Get or create the polynomial evaluator from the function context
+    FailureOr<Value> evaluatorResult =
+        findUniqueOpResult<lattigo::CKKSPolynomialEvaluatorType>(
+            op.getOperation());
+    Value polyEvaluator;
+    if (failed(evaluatorResult)) {
+      LLVM_DEBUG(llvm::dbgs() << "Creating new CKKS polynomial evaluator\n");
+      FailureOr<Value> evaluatorResult =
+          getContextualEvaluator<lattigo::CKKSEvaluatorType>(op.getOperation());
+      if (failed(evaluatorResult)) {
+        return rewriter.notifyMatchFailure(
+            op, "CKKS evaluator not found in function context");
+      }
+      Value evaluator = evaluatorResult.value();
+
+      FailureOr<Value> result2 =
+          getContextualEvaluator<lattigo::CKKSParameterType>(op.getOperation());
+      if (failed(result2))
+        return rewriter.notifyMatchFailure(
+            op, "Failed to get contextual CKKS parameters");
+      Value params = result2.value();
+
+      // Insert op at start of func so it's easy to find later
+      {
+        OpBuilder::InsertionGuard guard(rewriter);
+        rewriter.setInsertionPointToStart(
+            &op->getParentOfType<func::FuncOp>().getBody().front());
+        auto evaluatorOp = lattigo::CKKSNewPolynomialEvaluatorOp::create(
+            rewriter, op.getLoc(),
+            lattigo::CKKSPolynomialEvaluatorType::get(rewriter.getContext()),
+            params, evaluator);
+        polyEvaluator = evaluatorOp.getResult();
+      }
+    } else {
+      polyEvaluator = evaluatorResult.value();
+    }
+
+    // Orion always uses the logDefaultScale for the target scale
+    ckks::SchemeParamAttr schemeParams =
+        cast<ckks::SchemeParamAttr>(getSchemeParamAttr(op));
+    IntegerAttr defaultScale = rewriter.getIntegerAttr(
+        rewriter.getI64Type(), 1L << schemeParams.getLogDefaultScale());
+    LLVM_DEBUG(llvm::dbgs()
+               << "Using default scale: " << defaultScale.getInt() << "\n");
+
+    auto chebyshevOp = lattigo::CKKSChebyshevOp::create(
+        rewriter, op.getLoc(), adaptor.getInput().getType(), polyEvaluator,
+        adaptor.getInput(), adaptor.getCoefficients(), defaultScale);
+    rewriter.replaceOp(op, chebyshevOp.getResult());
+
     return success();
   }
 };
@@ -612,7 +745,8 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
 
     ConversionTarget target(*context);
     target.addLegalDialect<lattigo::LattigoDialect>();
-    target.addIllegalDialect<bgv::BGVDialect, ckks::CKKSDialect>();
+    target.addIllegalDialect<bgv::BGVDialect, ckks::CKKSDialect,
+                             orion::OrionDialect>();
     target
         .addIllegalOp<lwe::RLWEEncryptOp, lwe::RLWEDecryptOp, lwe::RLWEEncodeOp,
                       lwe::RLWEDecodeOp, lwe::RAddOp, lwe::RSubOp, lwe::RMulOp,
@@ -760,8 +894,9 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
           ConvertCKKSAddPlainOp, ConvertCKKSSubPlainOp, ConvertCKKSMulPlainOp,
           ConvertCKKSRelinOp, ConvertCKKSModulusSwitchOp, ConvertCKKSRotateOp,
           ConvertCKKSEncryptOp, ConvertCKKSDecryptOp, ConvertCKKSEncodeOp,
-          ConvertCKKSDecodeOp, ConvertCKKSLevelReduceOp>(typeConverter,
-                                                         context);
+          ConvertCKKSDecodeOp, ConvertCKKSLevelReduceOp,
+          ConvertOrionLinearTransformOp, ConvertOrionChebyshevOp>(typeConverter,
+                                                                  context);
     }
     // Misc
     patterns.add<ConvertLWEReinterpretApplicationData>(typeConverter, context);
