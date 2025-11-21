@@ -236,10 +236,10 @@ LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
               [&](auto op) { return printOperation(op); })
           // Arith ops
           .Case<arith::ConstantOp, arith::ExtSIOp, arith::ExtUIOp,
-                arith::IndexCastOp, arith::ExtFOp, arith::RemSIOp,
-                arith::AddIOp, arith::AddFOp, arith::AndIOp, arith::SubIOp,
-                arith::MulIOp, arith::DivSIOp, arith::CmpIOp, arith::SelectOp>(
-              [&](auto op) { return printOperation(op); })
+                arith::FloorDivSIOp, arith::IndexCastOp, arith::ExtFOp,
+                arith::RemSIOp, arith::AddIOp, arith::AddFOp, arith::AndIOp,
+                arith::SubIOp, arith::MulIOp, arith::DivSIOp, arith::CmpIOp,
+                arith::SelectOp>([&](auto op) { return printOperation(op); })
           // SCF ops
           .Case<scf::IfOp, scf::ForOp, scf::YieldOp>(
               [&](auto op) { return printOperation(op); })
@@ -887,8 +887,25 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::ExtUIOp op) {
     os << "std::vector<int64_t> " << resultVarName << "(std::begin("
        << inputVarName << "), std::end(" << inputVarName << "));\n";
   } else {
-    return op.emitOpError() << "Unsupported input type";
+    // This is an i1 type, so we can just cast it to a bool.
+    if (failed(emitTypedAssignPrefix(op.getResult(), op.getLoc()))) {
+      return failure();
+    }
+    os << inputVarName << ";\n";
   }
+
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(arith::FloorDivSIOp op) {
+  if (failed(emitTypedAssignPrefix(op.getResult(), op.getLoc(), true)))
+    return failure();
+
+  std::string lhs = variableNames->getNameForValue(op.getLhs());
+  std::string rhs = variableNames->getNameForValue(op.getRhs());
+
+  os << "(" << lhs << " / " << rhs << ") - " << "((" << lhs << " % " << rhs
+     << " != 0) && " << "((" << lhs << " < 0) != (" << rhs << " < 0)));\n";
 
   return success();
 }

@@ -13,9 +13,9 @@
 
 // CHECK: func.func @add
 // CHECK: func.func @add__encrypt__arg
-// CHECK-DAG: %[[c31:.*]] = arith.constant 31 : index
-// CHECK-DAG: %[[c0:.*]] = arith.constant 0 : index
-// CHECK-DAG: %[[c2:.*]] = arith.constant 2 : index
+// CHECK-DAG: %[[c31:.*]] = arith.constant 31 : i32
+// CHECK-DAG: %[[c0:.*]] = arith.constant 0 : i32
+// CHECK-DAG: %[[c2:.*]] = arith.constant 2 : i32
 // CHECK: scf.for %[[arg1:.*]] = %[[c0]] to %[[c31]] step %[[c2]]
 // CHECK: arith.divsi %[[arg1]], %[[c2]]
 // CHECK: return
