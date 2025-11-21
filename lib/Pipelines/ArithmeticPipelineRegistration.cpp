@@ -27,6 +27,7 @@
 #include "lib/Dialect/TensorExt/Transforms/InsertRotate.h"
 #include "lib/Dialect/TensorExt/Transforms/RotateAndReduce.h"
 #include "lib/Pipelines/PipelineRegistration.h"
+#include "lib/Transforms/ActivationCanonicalizations/ActivationCanonicalizations.h"
 #include "lib/Transforms/AddClientInterface/AddClientInterface.h"
 #include "lib/Transforms/ApplyFolders/ApplyFolders.h"
 #include "lib/Transforms/CompareToSignRewrite/CompareToSignRewrite.h"
@@ -47,7 +48,6 @@
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
 #include "lib/Transforms/PopulateScale/PopulateScale.h"
 #include "lib/Transforms/PropagateAnnotation/PropagateAnnotation.h"
-#include "lib/Transforms/ReluCanonicalizations/ReluCanonicalizations.h"
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/SelectRewrite/SelectRewrite.h"
@@ -151,7 +151,7 @@ void mlirToSecretArithmeticPipelineBuilder(
     OpPassManager& pm, const MlirToRLWEPipelineOptions& options) {
   pm.addPass(createWrapGeneric());
   convertToDataObliviousPipelineBuilder(pm);
-  pm.addPass(createReLUCanonicalizations());
+  pm.addPass(createActivationCanonicalizations());
   pm.addPass(createSelectRewrite());
   pm.addPass(createCompareToSignRewrite());
 

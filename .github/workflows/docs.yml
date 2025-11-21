@@ -10,7 +10,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 jobs:
-  build-and-deploy:
+  docs:
     runs-on:
       labels: ubuntu-24.04-16core
     permissions:

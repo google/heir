@@ -1,4 +1,4 @@
-// RUN: heir-opt --relu-canonicalizations --canonicalize %s
+// RUN: heir-opt --activation-canonicalizations --canonicalize %s
 
 // CHECK: func.func @relu
 // CHECK-SAME: (%[[ARG0:.*]]: f32) -> f32

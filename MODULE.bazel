@@ -41,7 +41,7 @@ bazel_dep(name = "rules_shell", version = "0.6.1")
 bazel_dep(name = "re2", version = "2025-08-12")
 bazel_dep(name = "isl", version = "0.27")
 
-# Yosys dependencies that are already on the bazel central registry
+# Yosys dependencies that are already on the bazel central registry.
 # abc can't be used in place because it changes the names of the targets from
 # abc-lib -> abc and abc -> abc_bin
 #
