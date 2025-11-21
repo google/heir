@@ -175,6 +175,8 @@ std::vector<TypedCppValue> Interpreter::interpret(
 }
 
 void Interpreter::visit(Operation* op) {
+  std::cout << "Visiting operation: " << op->getName().getStringRef().str()
+            << "\n";
   llvm::TypeSwitch<Operation*>(op)
       .Case<arith::ConstantOp, arith::AddIOp, arith::SubIOp, arith::MulIOp,
             arith::MulFOp, arith::DivSIOp, arith::RemSIOp, arith::AndIOp,
@@ -198,6 +200,16 @@ void Interpreter::visit(Operation* op) {
         op->emitError() << "Unsupported operation " << opName.getStringRef()
                         << " in interpreter";
       });
+  // If any of the operations op operands have no more uses, then remove
+  // them from the end.
+  if (!op->getParentOfType<affine::AffineForOp>() &&
+      !op->getParentOfType<scf::ForOp>()) {
+    for (auto operand : op->getOperands()) {
+      if (liveness.isDeadAfter(operand, op)) {
+        env.erase(operand);
+      }
+    }
+  }
 }
 
 void Interpreter::visit(arith::ConstantOp op) {
