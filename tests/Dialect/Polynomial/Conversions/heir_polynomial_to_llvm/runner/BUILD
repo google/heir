@@ -21,8 +21,7 @@ heir_benchmark_test(
     mlir_src = "ntt_benchmark.mlir",
     test_src = ["ntt_benchmark_test.cc"],
     deps = [
-        "@google_benchmark",
-        "@google_benchmark:benchmark_main",
+        "@google_benchmark//:benchmark_main",
         "@heir//tests/Examples/benchmark:Memref",
     ],
 )
