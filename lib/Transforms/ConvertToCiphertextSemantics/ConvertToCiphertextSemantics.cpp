@@ -787,7 +787,8 @@ static FailureOr<SmallVector<Value>> generateLoopWithDynamicIndexCheck(
              i < relation.getVarKindOffset(VarKind::Range) +
                      relation.getNumRangeVars();
              ++i) {
-          indices.push_back(exprs[i]);
+          indices.push_back(arith::IndexCastOp::create(
+              builder, loc, builder.getIndexType(), exprs[i]));
         }
 
         // If statement to check that the current set of exprs matches
@@ -799,9 +800,11 @@ static FailureOr<SmallVector<Value>> generateLoopWithDynamicIndexCheck(
         int domainStart = relation.getVarKindOffset(VarKind::Domain);
         for (int i = domainStart; i < domainStart + relation.getNumDomainVars();
              ++i) {
-          auto eqOp =
-              arith::CmpIOp::create(b, arith::CmpIPredicate::eq, exprs[i],
-                                    dynamicIndices[i - domainStart]);
+          auto eqOp = arith::CmpIOp::create(
+              b, arith::CmpIPredicate::eq,
+              arith::IndexCastOp::create(builder, loc, builder.getIndexType(),
+                                         exprs[i]),
+              dynamicIndices[i - domainStart]);
           setMaterializedAttr(eqOp);
 
           if (i == domainStart) {
@@ -1318,10 +1321,15 @@ class ConvertTensorInsertLayout
             ValueRange iterArgs) {
           Value curScalarMask = iterArgs[0];
           Value curDestMask = iterArgs[1];
+          SmallVector<Value> slotIndicesAsIndex;
+          for (Value index : slotIndices) {
+            slotIndicesAsIndex.push_back(arith::IndexCastOp::create(
+                builder, loc, builder.getIndexType(), index));
+          }
           auto insertIntoScalarMask = tensor::InsertOp::create(
-              b, scalarMaskValue, curScalarMask, slotIndices);
+              b, scalarMaskValue, curScalarMask, slotIndicesAsIndex);
           auto insertIntoDestMask = tensor::InsertOp::create(
-              b, zeroScalarOp, curDestMask, slotIndices);
+              b, zeroScalarOp, curDestMask, slotIndicesAsIndex);
           setMaterializedAttr({insertIntoScalarMask, insertIntoDestMask});
           SmallVector<Value> results = {insertIntoScalarMask.getResult(),
                                         insertIntoDestMask.getResult()};

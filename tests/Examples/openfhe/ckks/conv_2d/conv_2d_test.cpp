@@ -16,39 +16,14 @@ TEST(Conv2DTest, RunTest) {
   auto secretKey = keyPair.secretKey;
   cryptoContext = conv_2d__configure_crypto_context(cryptoContext, secretKey);
 
-  // ct is a [4,4] input matrix that is flattened row-major
-  // [
-  //  [0 1 2 3]
-  //  [4 5 6 7]
-  //  [8 9 10 11]
-  //  [12 13 14 15]
-  // ]
-  std::vector<float> m;
-  for (int i = 0; i < 4; i++) {
-    for (int j = 0; j < 4; j++) {
-      m.push_back((float)(j + i * 4));
-    }
-  }
+  // ct is a [3, 3] input matrix that is flattened row-major
+  std::vector<float> m(9, 0.1f);
 
-  // pt is a [3, 3] input filter that is packed row major
-  // [
-  //  [0 1 2]
-  //  [3 4 5]
-  //  [6 7 8]
-  // ]
-  std::vector<float> filter;
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 3; j++) {
-      filter.push_back((float)(j + i * 3));
-    }
-  }
+  // pt is a [2, 2] input filter that is packed row major
+  std::vector<float> filter(4, 0.1f);
 
   // expected is the result of the conv 2d row major, which should be a 2x2
-  // [
-  //  [ 258 294]
-  //  [ 402 438]
-  // ]
-  std::vector<float> expected = {258.0, 294.0, 402.0, 438.0};
+  std::vector<float> expected = {0.04f, 0.04f, 0.04f, 0.04f};
 
   auto ctEncrypted =
       conv_2d__encrypt__arg0(cryptoContext, m, keyPair.publicKey);

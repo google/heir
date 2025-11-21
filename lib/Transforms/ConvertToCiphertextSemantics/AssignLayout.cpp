@@ -97,13 +97,23 @@ static FailureOr<Value> implementAssignLayoutNew(
       rel, {ciphertextTensor},
       [&](mlir::OpBuilder& builder, Location loc, ValueRange exprs,
           ValueRange iterArgs) {
+        SmallVector<Value> extractIndices;
+        for (Value idx :
+             exprs.drop_back(ciphertextTensor.getType().getRank())) {
+          extractIndices.push_back(arith::IndexCastOp::create(
+              builder, loc, builder.getIndexType(), idx));
+        }
         // Extract from data and insert into ciphertextTensor
-        auto extracted = builder.create<tensor::ExtractOp>(
-            loc, op.getValue(),
-            exprs.drop_back(ciphertextTensor.getType().getRank()));
-        auto inserted = builder.create<tensor::InsertOp>(
-            loc, extracted, iterArgs[0],
-            exprs.drop_front(dataSemanticType.getRank()));
+        auto extracted = tensor::ExtractOp::create(builder, loc, op.getValue(),
+                                                   extractIndices);
+
+        SmallVector<Value> insertIndices;
+        for (Value idx : exprs.drop_front(dataSemanticType.getRank())) {
+          insertIndices.push_back(arith::IndexCastOp::create(
+              builder, loc, builder.getIndexType(), idx));
+        }
+        auto inserted = tensor::InsertOp::create(builder, loc, extracted,
+                                                 iterArgs[0], insertIndices);
         return scf::ValueVector({inserted});
       });
   if (failed(loop)) {
@@ -164,13 +174,22 @@ static FailureOr<Value> implementUnpackOpNew(
       rel, {dataTensor},
       [&](mlir::OpBuilder& builder, Location loc, ValueRange exprs,
           ValueRange iterArgs) {
+        SmallVector<Value> extractIndices;
+        for (Value idx : exprs.drop_front(dataSemanticType.getRank())) {
+          extractIndices.push_back(arith::IndexCastOp::create(
+              builder, loc, builder.getIndexType(), idx));
+        }
         // Extract from ciphertext and insert into dataTensor
-        auto extracted = builder.create<tensor::ExtractOp>(
-            loc, ciphertextTensor,
-            exprs.drop_front(dataSemanticType.getRank()));
-        auto inserted = builder.create<tensor::InsertOp>(
-            loc, extracted, iterArgs[0],
-            exprs.drop_back(ciphertextTensor.getType().getRank()));
+        auto extracted = tensor::ExtractOp::create(
+            builder, loc, ciphertextTensor, extractIndices);
+        SmallVector<Value> insertIndices;
+        for (Value idx :
+             exprs.drop_back(ciphertextTensor.getType().getRank())) {
+          insertIndices.push_back(arith::IndexCastOp::create(
+              builder, loc, builder.getIndexType(), idx));
+        }
+        auto inserted = tensor::InsertOp::create(builder, loc, extracted,
+                                                 iterArgs[0], insertIndices);
         return scf::ValueVector({inserted});
       });
   if (failed(loop)) {
