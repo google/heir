@@ -9,6 +9,7 @@
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/Verifier.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 
 #define DEBUG_TYPE "orion-to-ckks"
@@ -37,22 +38,8 @@ Value IRMaterializingVisitor::encodeCleartextOperand(
   if (auto encodeOp = cleartext.getDefiningOp<lwe::RLWEEncodeOp>()) {
     // The cleartext is already encoded, so we need to set its scaling factor
     // to match the ciphertext.
-    lwe::LWEPlaintextType oldPtType =
-        cast<lwe::LWEPlaintextType>(encodeOp.getResult().getType());
-    int64_t oldLogScale = lwe::getScalingFactorFromEncodingAttr(
-        oldPtType.getPlaintextSpace().getEncoding());
     lwe::LWEPlaintextType newPtType = getCorrespondingPlaintextType(ctTy);
     encodeOp.setEncodingAttr(newPtType.getPlaintextSpace().getEncoding());
-    LLVM_DEBUG(llvm::dbgs() << "Cleartext is already encoded\n");
-    if (oldLogScale == newLogScale) {
-      LLVM_DEBUG(llvm::dbgs()
-                 << "scaling factor already matches: " << newLogScale << "\n");
-      return encodeOp.getResult();
-    }
-    LLVM_DEBUG(llvm::dbgs() << "adjusting scaling factor from "
-                            << lwe::getScalingFactorFromEncodingAttr(
-                                   oldPtType.getPlaintextSpace().getEncoding())
-                            << " to " << newLogScale << "\n");
     encodeOp.getResult().setType(newPtType);
     LLVM_DEBUG(llvm::dbgs() << "New encode op:" << encodeOp << "\n");
     return encodeOp.getResult();
@@ -68,9 +55,8 @@ Value IRMaterializingVisitor::encodeCleartextOperand(
       ctx, ctTy.getApplicationData(),
       lwe::PlaintextSpaceAttr::get(ctx, ring, encoding));
   auto encodeOp =
-      lwe::RLWEEncodeOp::create(builder, ptTy, cleartext, encoding, ring)
-          .getResult();
-  return encodeOp;
+      lwe::RLWEEncodeOp::create(builder, ptTy, cleartext, encoding, ring);
+  return encodeOp.getResult();
 }
 
 Value IRMaterializingVisitor::relinAndRescale(Value value, bool relinearize,
@@ -93,37 +79,38 @@ Value IRMaterializingVisitor::relinAndRescale(Value value, bool relinearize,
     result = relinOp.getResult();
     ctTy = cast<lwe::LWECiphertextType>(result.getType());
   }
-  if (rescale) {
-    LLVM_DEBUG(llvm::dbgs() << "Rescaling ciphertext from current scale: "
-                            << lwe::getScalingFactorFromEncodingAttr(
-                                   ctTy.getPlaintextSpace().getEncoding())
-                            << " \n");
-    FailureOr<lwe::LWECiphertextType> ctTypeResult = applyModReduce(ctTy);
-    if (failed(ctTypeResult)) {
-      emitError(result.getLoc())
-          << "Cannot rescale ciphertext type, inserting extra bootstrap op";
-      // sub 1 because the max level is the last index in the chain.
-      int64_t maxLevel = ctTy.getModulusChain().getElements().size() - 1;
+  // if (rescale) {
+  //   LLVM_DEBUG(llvm::dbgs() << "Rescaling ciphertext from current scale: "
+  //                           << lwe::getScalingFactorFromEncodingAttr(
+  //                                  ctTy.getPlaintextSpace().getEncoding())
+  //                           << " \n");
+  //   FailureOr<lwe::LWECiphertextType> ctTypeResult = applyModReduce(ctTy);
+  //   if (failed(ctTypeResult)) {
+  //     emitError(result.getLoc())
+  //         << "Cannot rescale ciphertext type, inserting extra bootstrap op";
+  //     // sub 1 because the max level is the last index in the chain.
+  //     int64_t maxLevel = ctTy.getModulusChain().getElements().size() - 1;
 
-      // Now we cheat a little bit: normally bootstrap itself would consume
-      // some levels, which depends on the chosen backend. In our case, we're
-      // lowering to library backends that handle this opaquely.
-      //
-      // TODO(#1207): fix if this pass still matters when lowering to
-      // polynomial.
-      FailureOr<lwe::LWECiphertextType> outputTypeResult =
-          cloneAtLevel(ctTy, maxLevel);
-      if (failed(outputTypeResult)) {
-        emitError(result.getLoc()) << "Failed to insert bootstrap";
-        return Value();
-      }
-      result =
-          ckks::BootstrapOp::create(builder, outputTypeResult.value(), result);
-    }
-    auto ctType = ctTypeResult.value();
-    result = ckks::RescaleOp::create(builder, ctType, result,
-                                     ctType.getCiphertextSpace().getRing());
-  }
+  //     // Now we cheat a little bit: normally bootstrap itself would consume
+  //     // some levels, which depends on the chosen backend. In our case, we're
+  //     // lowering to library backends that handle this opaquely.
+  //     //
+  //     // TODO(#1207): fix if this pass still matters when lowering to
+  //     // polynomial.
+  //     FailureOr<lwe::LWECiphertextType> outputTypeResult =
+  //         cloneAtLevel(ctTy, maxLevel);
+  //     if (failed(outputTypeResult)) {
+  //       emitError(result.getLoc()) << "Failed to insert bootstrap";
+  //       return Value();
+  //     }
+  //     result =
+  //         ckks::BootstrapOp::create(builder, outputTypeResult.value(),
+  //         result);
+  //   }
+  //   auto ctType = ctTypeResult.value();
+  //   result = ckks::RescaleOp::create(builder, ctType, result,
+  //                                    ctType.getCiphertextSpace().getRing());
+  // }
   return result;
 }
 
@@ -203,10 +190,13 @@ Value IRMaterializingVisitor::operator()(const MultiplyNode<SSAValue>& node) {
     auto encodedRhs = cast<lwe::RLWEEncodeOp>(rhs.getDefiningOp());
     auto cleartextOp = arith::MulFOp::create(builder, encodedLhs.getInput(),
                                              encodedRhs.getInput());
-    return lwe::RLWEEncodeOp::create(
+    assert(lhsPlaintextType == rhsPlaintextType &&
+           "Mismatched plaintext types in plaintext-plaintext multiplication");
+    auto result = lwe::RLWEEncodeOp::create(
         builder, lhsPlaintextType, cleartextOp.getResult(),
         lhsPlaintextType.getPlaintextSpace().getEncoding(),
         lhsPlaintextType.getPlaintextSpace().getRing());
+    return result;
   }
 
   // Ciphertext-Plaintext case

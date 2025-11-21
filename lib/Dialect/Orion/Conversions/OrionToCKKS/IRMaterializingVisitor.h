@@ -6,10 +6,13 @@
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
+#include "llvm/include/llvm/Support/Debug.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"          // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"      // from @llvm-project
+
+#define DEBUG_TYPE "orion-to-ckks"
 
 namespace mlir {
 namespace heir {
@@ -47,34 +50,6 @@ class IRMaterializingVisitor
   Value encodeCleartextOperand(lwe::LWECiphertextType ctTy, Value cleartext,
                                bool useDefaultScale = false);
 
-  // Encode a cleartext so that its scaling factor matches the expected scaling
-  // factor if the ctTy is multiplied by a plaintext with the given scaling
-  // factor. This depends on how the target backend handles rescaling.
-  Value encodeCleartextOperandToMatchCtMulOutput(lwe::LWECiphertextType ctTy,
-                                                 Value cleartext,
-                                                 int64_t logScaleOperand) {
-    MLIRContext* ctx = builder.getContext();
-    // TODO(#2364) without high-precision scale management, we can't
-    // use the exact modulus from the modulus chain.
-    int64_t currentLogModulus = static_cast<int64_t>(std::ceil(
-        std::log2(ctTy.getModulusChain()
-                      .getElements()[ctTy.getModulusChain().getCurrent()]
-                      .getInt())));
-    int64_t currentLogScale = lwe::getScalingFactorFromEncodingAttr(
-        ctTy.getPlaintextSpace().getEncoding());
-    int64_t logScale = rescaleAfterCtPtMul
-                           ? logDefaultScale
-                           : currentLogModulus + currentLogScale;
-    auto encoding = lwe::InverseCanonicalEncodingAttr::get(ctx, logScale);
-    auto ring = ctTy.getPlaintextSpace().getRing();
-
-    lwe::LWEPlaintextType ptTy = lwe::LWEPlaintextType::get(
-        ctx, ctTy.getApplicationData(),
-        lwe::PlaintextSpaceAttr::get(ctx, ring, encoding));
-    return lwe::RLWEEncodeOp::create(builder, ptTy, cleartext, encoding, ring)
-        .getResult();
-  }
-
   template <typename T, typename CtCtOp, typename CtPtOp, typename CleartextOp>
   Value nonMulBinop(const T& node) {
     Value lhs = this->process(node.left);
@@ -111,10 +86,11 @@ class IRMaterializingVisitor
       auto encodedRhs = cast<lwe::RLWEEncodeOp>(rhs.getDefiningOp());
       auto cleartextOp = CleartextOp::create(builder, encodedLhs.getInput(),
                                              encodedRhs.getInput());
-      return lwe::RLWEEncodeOp::create(
+      auto encodeOp = lwe::RLWEEncodeOp::create(
           builder, lhsPlaintextType, cleartextOp.getResult(),
           lhsPlaintextType.getPlaintextSpace().getEncoding(),
           lhsPlaintextType.getPlaintextSpace().getRing());
+      return encodeOp;
     }
 
     // Ciphertext-Plaintext case

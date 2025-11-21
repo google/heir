@@ -141,26 +141,27 @@ struct ConvertChebyshevOp : public OpRewritePattern<ChebyshevOp> {
         polynomial::patersonStockmeyerChebyshevPolynomialEvaluation(xNode,
                                                                     chebCoeffs);
 
-    bool rescaleAfterCtPtMul = (libraryTarget == "openfhe");
+    // bool rescaleAfterCtPtMul = (libraryTarget == "openfhe");
+    bool rescaleAfterCtPtMul = false;
     IRMaterializingVisitor visitor(
         b, getPlaintextTypeFromCtTypeAndScalingFactor(ctTy, logDefaultScale),
         rescaleAfterCtPtMul, logDefaultScale);
     Value finalOutput = implementedKernel->visit(visitor);
 
-    // ct-pt muls in the kernel didn't rescale, so rescale at the very end
-    if (!rescaleAfterCtPtMul) {
-      lwe::LWECiphertextType ctTy =
-          cast<lwe::LWECiphertextType>(finalOutput.getType());
-      FailureOr<lwe::LWECiphertextType> ctTypeResult = applyModReduce(ctTy);
-      if (failed(ctTypeResult)) {
-        emitError(op.getLoc()) << "Cannot rescale ciphertext type";
-        return failure();
-      }
-      auto moddedDownTy = ctTypeResult.value();
-      auto rescaleOp = RescaleOp::create(b, moddedDownTy, finalOutput,
-                                         ctTy.getCiphertextSpace().getRing());
-      finalOutput = rescaleOp.getResult();
-    }
+    // // ct-pt muls in the kernel didn't rescale, so rescale at the very end
+    // if (!rescaleAfterCtPtMul) {
+    //   lwe::LWECiphertextType ctTy =
+    //       cast<lwe::LWECiphertextType>(finalOutput.getType());
+    //   FailureOr<lwe::LWECiphertextType> ctTypeResult = applyModReduce(ctTy);
+    //   if (failed(ctTypeResult)) {
+    //     emitError(op.getLoc()) << "Cannot rescale ciphertext type";
+    //     return failure();
+    //   }
+    //   auto moddedDownTy = ctTypeResult.value();
+    //   auto rescaleOp = RescaleOp::create(b, moddedDownTy, finalOutput,
+    //                                      ctTy.getCiphertextSpace().getRing());
+    //   finalOutput = rescaleOp.getResult();
+    // }
 
     rewriter.replaceOp(op, finalOutput);
     return success();
@@ -189,7 +190,8 @@ struct ConvertLinearTransformOp : public OpRewritePattern<LinearTransformOp> {
     rewriter.setInsertionPointAfter(op);
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    bool rescaleAfterCtPtMul = (libraryTarget == "openfhe");
+    // bool rescaleAfterCtPtMul = (libraryTarget == "openfhe");
+    bool rescaleAfterCtPtMul = false;
     int64_t logDefaultScale = getLogDefaultScale(op);
     lwe::LWECiphertextType ctTy = op.getInput().getType();
     IRMaterializingVisitor visitor(
@@ -197,12 +199,12 @@ struct ConvertLinearTransformOp : public OpRewritePattern<LinearTransformOp> {
         rescaleAfterCtPtMul, logDefaultScale);
     Value finalOutput = implementedKernel->visit(visitor);
 
-    // ct-pt muls in the kernel didn't rescale, so rescale at the very end
-    if (!rescaleAfterCtPtMul) {
-      auto rescaleOp = RescaleOp::create(b, ctTy, finalOutput,
-                                         ctTy.getCiphertextSpace().getRing());
-      finalOutput = rescaleOp.getResult();
-    }
+    // // ct-pt muls in the kernel didn't rescale, so rescale at the very end
+    // if (!rescaleAfterCtPtMul) {
+    //   auto rescaleOp = RescaleOp::create(b, ctTy, finalOutput,
+    //                                      ctTy.getCiphertextSpace().getRing());
+    //   finalOutput = rescaleOp.getResult();
+    // }
 
     rewriter.replaceOp(op, finalOutput);
     return success();
@@ -624,30 +626,44 @@ struct OrionToCKKS : public impl::OrionToCKKSBase<OrionToCKKS> {
       llvm::dbgs() << "\n";
     });
 
+    // At this step, there are no rescale operations in the IR, which means the
+    // IR does not verify. Ideally we might have started by inserting rescale
+    // ops into the IR greedily, and then re-optimize later, however, the Orion
+    // output would not have enough levels to do this because it depends on the
+    // lazy rescaling property to avoid bootstrapping during a chebyshev or
+    // linear transform op.
+    //
+    // So to deal with this, the scale blows up and may have some mismatches
+    // in binary operations that require matching scales. Next we apply a scale
+    // selection pass that works as follows:
+    //
+    // Walk the IR in reverse order, constraining the output scale to be
+    // `logDefaultScale`.
+
     // At this step, the types are wrong and need to be re-propagated In
     // particular, mul and mul_plain ops are followed by a rescale, and while
     // the result type drops a limb, the downstream ops are not updated to
     // match. Similarly, `mul` ops may need to have some arguments modded down
     // to match the other argument.
-    RewritePatternSet cleanupPatterns(context);
-    cleanupPatterns
-        .add<FixOperandsForRescale, FixOperandsForBootstrap,
-             FixOperandsForMulPlain, FixOperandsForMul,
-             FixOperandsForBinop<AddOp>, FixOperandsForBinop<SubOp>,
-             FixOperandsForCtPtBinop<AddOp>, FixOperandsForCtPtBinop<SubOp>>(
-            context);
-    cleanupPatterns.add<FixInferTypeOpInterface>(context, /*benefit=*/0);
-    walkAndApplyPatterns(root, std::move(cleanupPatterns));
+    // RewritePatternSet cleanupPatterns(context);
+    // cleanupPatterns
+    //     .add<FixOperandsForRescale, FixOperandsForBootstrap,
+    //          FixOperandsForMulPlain, FixOperandsForMul,
+    //          FixOperandsForBinop<AddOp>, FixOperandsForBinop<SubOp>,
+    //          FixOperandsForCtPtBinop<AddOp>, FixOperandsForCtPtBinop<SubOp>>(
+    //         context);
+    // cleanupPatterns.add<FixInferTypeOpInterface>(context, /*benefit=*/0);
+    // walkAndApplyPatterns(root, std::move(cleanupPatterns));
 
-    // Now propagate the final return types to the function's signature.
-    root->walk([&](func::FuncOp funcOp) {
-      func::ReturnOp returnOp =
-          cast<func::ReturnOp>(funcOp.getBody().back().getTerminator());
-      FunctionType newFuncType = FunctionType::get(
-          funcOp.getContext(), funcOp.getFunctionType().getInputs(),
-          returnOp.getOperandTypes());
-      funcOp.setType(newFuncType);
-    });
+    // // Now propagate the final return types to the function's signature.
+    // root->walk([&](func::FuncOp funcOp) {
+    //   func::ReturnOp returnOp =
+    //       cast<func::ReturnOp>(funcOp.getBody().back().getTerminator());
+    //   FunctionType newFuncType = FunctionType::get(
+    //       funcOp.getContext(), funcOp.getFunctionType().getInputs(),
+    //       returnOp.getOperandTypes());
+    //   funcOp.setType(newFuncType);
+    // });
   }
 };
 
