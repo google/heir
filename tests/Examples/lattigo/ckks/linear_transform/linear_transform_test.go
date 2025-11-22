@@ -27,7 +27,7 @@ func TestLinearTransform(t *testing.T) {
 	rows := 2
 	cols := num_slots
 	// Matrix is flattened 2 x num_slots
-	matrix := make([]float64, rows)
+	matrix := make([]float64, rows*cols)
 	row_sums := make([]float64, rows)
 	value := 0.0
 	for r := 0; r < rows; r++ {
@@ -49,7 +49,7 @@ func TestLinearTransform(t *testing.T) {
 	param, err := ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
 		LogN:            13,
 		Q:               []uint64{536903681, 67043329, 66994177, 67239937, 66961409, 66813953},
-		P:               []uint64{67108864},
+		P:               []uint64{536870909, 536870879},
 		LogDefaultScale: 26,
 	})
 	if err != nil {
@@ -61,7 +61,7 @@ func TestLinearTransform(t *testing.T) {
 	sk, pk := kgen.GenKeyPairNew()
 	encryptor := rlwe.NewEncryptor(param, pk)
 	decryptor := rlwe.NewDecryptor(param, sk)
-	evaluator := ckks.NewEvaluator(param)
+	evaluator := ckks.NewEvaluator(param, nil)
 
 	// This is copied from the generated code so we can get access to the
 	// Lattigo-produced Galois key set to generate... ideally this is moved

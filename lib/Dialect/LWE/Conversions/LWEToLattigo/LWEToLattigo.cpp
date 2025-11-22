@@ -490,6 +490,13 @@ struct ConvertOrionLinearTransformOp
     }
     Value evaluator = evaluatorResult.value();
 
+    FailureOr<Value> encoderResult =
+        getContextualEvaluator<lattigo::CKKSEncoderType>(op.getOperation());
+    if (failed(encoderResult)) {
+      return op.emitOpError() << "CKKS encoder not found in function context";
+    }
+    Value encoder = encoderResult.value();
+
     // Convert bsgs_ratio to logBabyStepGiantStepRatio
     auto bsgsRatio = op.getBsgsRatioAttr();
     int64_t logBsgsRatio =
@@ -499,7 +506,7 @@ struct ConvertOrionLinearTransformOp
     // Create the Lattigo linear transform op
     rewriter.replaceOpWithNewOp<lattigo::CKKSLinearTransformOp>(
         op, this->typeConverter->convertType(op.getResult().getType()),
-        evaluator, adaptor.getInput(), adaptor.getDiagonals(),
+        evaluator, encoder, adaptor.getInput(), adaptor.getDiagonals(),
         op.getOrionLevelAttr(), logBsgsRatioAttr);
 
     return success();

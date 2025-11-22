@@ -303,6 +303,7 @@ def Lattigo_CKKSLinearTransformOp : Lattigo_CKKSOp<"linear_transform"> {
   }];
   let arguments = (ins
     Lattigo_CKKSEvaluator:$evaluator,
+    Lattigo_CKKSEncoder:$encoder,
     Lattigo_RLWECiphertext:$input,
     // Parameters corresponding to the lattigo lintrans.Parameters struct,
     // and those that can be inferred from the IR are commented out.

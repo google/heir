@@ -134,7 +134,6 @@ LogicalResult LattigoEmitter::printOperation(ModuleOp moduleOp) {
   if (moduleIsBGVOrBFV(moduleOp)) {
     imports.insert(std::string(kBgvImport));
   } else if (moduleIsCKKS(moduleOp)) {
-    imports.insert(std::string(kMathImport));
     imports.insert(std::string(kCkksImport));
   } else {
     return moduleOp.emitError("Unknown scheme");
@@ -1358,6 +1357,7 @@ LogicalResult LattigoEmitter::printOperation(CKKSEncodeOp op) {
   }
 
   // set the scale of plaintext
+  imports.insert(std::string(kMathImport));
   auto scale = op.getScale();
   os << plaintextName << ".Scale = ";
   os << getName(newPlaintextOp.getParams()) << ".NewScale(math.Pow(2, ";
@@ -1478,6 +1478,7 @@ LogicalResult LattigoEmitter::printOperation(CKKSLinearTransformOp op) {
 
   // Get the evaluator, input, and parameters from context
   auto evaluatorName = getName(op.getEvaluator());
+  auto encoderName = getName(op.getEncoder());
   auto inputName = getName(op.getInput());
   auto outputName = getName(op.getOutput());
   auto diagonalsName = getName(op.getDiagonals());
@@ -1531,9 +1532,8 @@ LogicalResult LattigoEmitter::printOperation(CKKSLinearTransformOp op) {
 
   // Get encoder - we need to get it from context similar to evaluator
   // For now, assume there's a ckks encoder in the function arguments
-  os << errName << " := lintrans.Encode[float64](" << evaluatorName
-     << ".Encoder.(*ckks.Encoder), " << diagonalsMapName << ", " << ltName
-     << ")\n";
+  os << errName << " := lintrans.Encode[float64](" << encoderName << ", "
+     << diagonalsMapName << ", " << ltName << ")\n";
   printErrPanic(errName);
   os << "\n";
 
