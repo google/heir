@@ -112,7 +112,8 @@ LogicalResult LattigoEmitter::translate(Operation& op) {
               CKKSDecodeOp, CKKSAddNewOp, CKKSSubNewOp, CKKSMulNewOp, CKKSAddOp,
               CKKSSubOp, CKKSMulOp, CKKSRelinearizeOp, CKKSRescaleOp,
               CKKSRotateOp, CKKSRelinearizeNewOp, CKKSRescaleNewOp,
-              CKKSRotateNewOp>([&](auto op) { return printOperation(op); })
+              CKKSRotateNewOp, CKKSLinearTransformOp>(
+              [&](auto op) { return printOperation(op); })
           .Default([&](Operation&) {
             return emitError(op.getLoc(), "unable to find printer for op");
           });
@@ -133,7 +134,6 @@ LogicalResult LattigoEmitter::printOperation(ModuleOp moduleOp) {
   if (moduleIsBGVOrBFV(moduleOp)) {
     imports.insert(std::string(kBgvImport));
   } else if (moduleIsCKKS(moduleOp)) {
-    imports.insert(std::string(kMathImport));
     imports.insert(std::string(kCkksImport));
   } else {
     return moduleOp.emitError("Unknown scheme");
@@ -1357,6 +1357,7 @@ LogicalResult LattigoEmitter::printOperation(CKKSEncodeOp op) {
   }
 
   // set the scale of plaintext
+  imports.insert(std::string(kMathImport));
   auto scale = op.getScale();
   os << plaintextName << ".Scale = ";
   os << getName(newPlaintextOp.getParams()) << ".NewScale(math.Pow(2, ";
@@ -1467,6 +1468,86 @@ LogicalResult LattigoEmitter::printOperation(CKKSRotateOp op) {
   os << op.getOffset().getInt() << ", ";
   os << getName(op.getInplace()) << ")\n";
   printErrPanic(errName);
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(CKKSLinearTransformOp op) {
+  // Add the lintrans import
+  imports.insert(
+      "\"github.com/tuneinsight/lattigo/v6/circuits/ckks/lintrans\"");
+
+  // Get the evaluator, input, and parameters from context
+  auto evaluatorName = getName(op.getEvaluator());
+  auto encoderName = getName(op.getEncoder());
+  auto inputName = getName(op.getInput());
+  auto outputName = getName(op.getOutput());
+  auto diagonalsName = getName(op.getDiagonals());
+
+  // Get the diagonals tensor type to determine dimensions
+  auto diagonalsTensor = cast<RankedTensorType>(op.getDiagonals().getType());
+  if (diagonalsTensor.getRank() != 2) {
+    return op.emitOpError("Expected 2D tensor for diagonals");
+  }
+
+  int64_t numDiagonals = diagonalsTensor.getShape()[0];
+  int64_t slotsPerDiagonal = diagonalsTensor.getShape()[1];
+
+  // Generate unique variable names
+  std::string diagonalsMapName = outputName + "_diags";
+  std::string ltParamsName = outputName + "_params";
+  std::string ltName = outputName + "_lt";
+  std::string ltEvalName = outputName + "_lteval";
+  std::string errName = getErrName();
+
+  // 1. Create lintrans.Diagonals map from the 2D tensor
+  os << "// Create diagonals map for linear transformation\n";
+  os << diagonalsMapName << " := make(lintrans.Diagonals[float64])\n";
+  os << "for i := 0; i < " << numDiagonals << "; i++ {\n";
+  os.indent();
+  os << diagonalsMapName << "[i] = " << diagonalsName << "[i*"
+     << slotsPerDiagonal << ":(i+1)*" << slotsPerDiagonal << "]\n";
+  os.unindent();
+  os << "}\n\n";
+
+  // 2. Create lintrans.Parameters struct
+  os << "// Create linear transformation parameters\n";
+  os << ltParamsName << " := lintrans.Parameters{\n";
+  os.indent();
+  os << "DiagonalsIndexList: " << diagonalsMapName
+     << ".DiagonalsIndexList(),\n";
+  os << "LevelQ: " << op.getLevelQ().getInt() << ",\n";
+  os << "LevelP: " << evaluatorName << ".GetRLWEParameters().MaxLevelP(),\n";
+  os << "Scale: rlwe.NewScale(" << evaluatorName << ".GetRLWEParameters().Q()["
+     << op.getLevelQ().getInt() << "]),\n";
+  os << "LogDimensions: " << inputName << ".LogDimensions,\n";
+  os << "LogBabyStepGiantStepRatio: "
+     << op.getLogBabyStepGiantStepRatio().getInt() << ",\n";
+  os.unindent();
+  os << "}\n\n";
+
+  // 3. Allocate and encode linear transformation
+  os << "// Allocate and encode linear transformation\n";
+  os << ltName << " := lintrans.NewTransformation(" << evaluatorName
+     << ".GetRLWEParameters(), " << ltParamsName << ")\n";
+
+  // Get encoder - we need to get it from context similar to evaluator
+  // For now, assume there's a ckks encoder in the function arguments
+  os << errName << " := lintrans.Encode[float64](" << encoderName << ", "
+     << diagonalsMapName << ", " << ltName << ")\n";
+  printErrPanic(errName);
+  os << "\n";
+
+  // 4. Create lintrans.Evaluator
+  os << "// Create linear transformation evaluator\n";
+  os << ltEvalName << " := lintrans.NewEvaluator(" << evaluatorName << ")\n\n";
+
+  // 5. Evaluate the transformation
+  os << "// Evaluate linear transformation\n";
+  os << outputName << ", " << errName << " := " << ltEvalName
+     << ".EvaluateNew(";
+  os << inputName << ", " << ltName << ")\n";
+  printErrPanic(errName);
+
   return success();
 }
 
