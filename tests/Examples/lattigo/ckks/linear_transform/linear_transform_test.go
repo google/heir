@@ -32,7 +32,7 @@ func TestLinearTransform(t *testing.T) {
 	value := 0.0
 	for r := 0; r < rows; r++ {
 		for c := 0; c < cols; c++ {
-			matrix[r*num_slots+c] = float64(value)
+			matrix[r*cols+c] = value
 			row_sums[r] += value
 			value += 1
 		}
@@ -49,7 +49,7 @@ func TestLinearTransform(t *testing.T) {
 	param, err := ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
 		LogN:            13,
 		Q:               []uint64{536903681, 67043329, 66994177, 67239937, 66961409, 66813953},
-		P:               []uint64{536870909, 536870879},
+		P:               []uint64{536952833, 536690689},
 		LogDefaultScale: 26,
 	})
 	if err != nil {
@@ -83,11 +83,22 @@ func TestLinearTransform(t *testing.T) {
 	}
 	ct1_lt := lintrans.NewTransformation(evaluator.GetRLWEParameters(), ct1_params)
 	galEls := ct1_lt.GaloisElements(param)
+
+	// Manually add Galois key for rotation index 2048
+	rotIndex := 2048
+	logN := 13
+	galoisElement := uint64(1)
+	for i := 0; i < rotIndex; i++ {
+		galoisElement = (galoisElement * 5) % (1 << (logN + 1))
+	}
+	galEls = append(galEls, galoisElement)
+	fmt.Printf("Final galEls: %v\n", galEls)
+
 	evk := rlwe.NewMemEvaluationKeySet(nil, kgen.GenGaloisKeysNew(galEls, sk)...)
 	evaluator = ckks.NewEvaluator(param, evk)
 
 	pt := ckks.NewPlaintext(param, param.MaxLevel())
-	pt.Scale = param.NewScale(math.Pow(2, 26)) // logDefaultScale = 26
+	pt.LogDimensions = ring.Dimensions{Rows: 0, Cols: 12} // 2^(0+12) = 4096 slots
 	encoder.Encode(input_clear, pt)
 	ct_input, err25 := encryptor.EncryptNew(pt)
 	if err25 != nil {
