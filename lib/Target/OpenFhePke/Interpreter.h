@@ -97,6 +97,7 @@ class Interpreter {
 
   // Upstream ops
   void visit(arith::AddIOp op);
+  void visit(arith::AddFOp op);
   void visit(arith::AndIOp op);
   void visit(arith::CmpIOp op);
   void visit(arith::ConstantOp op);
@@ -104,6 +105,7 @@ class Interpreter {
   void visit(arith::ExtFOp op);
   void visit(arith::ExtSIOp op);
   void visit(arith::ExtUIOp op);
+  void visit(arith::FloorDivSIOp op);
   void visit(arith::IndexCastOp op);
   void visit(arith::MulIOp op);
   void visit(arith::MulFOp op);

@@ -7,6 +7,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <ostream>
 #include <string>
 #include <utility>
 #include <variant>
@@ -176,23 +177,23 @@ std::vector<TypedCppValue> Interpreter::interpret(
 
 void Interpreter::visit(Operation* op) {
   llvm::TypeSwitch<Operation*>(op)
-      .Case<arith::ConstantOp, arith::AddIOp, arith::SubIOp, arith::MulIOp,
-            arith::MulFOp, arith::DivSIOp, arith::RemSIOp, arith::AndIOp,
-            arith::CmpIOp, arith::SelectOp, arith::ExtUIOp, arith::ExtSIOp,
-            arith::ExtFOp, arith::IndexCastOp, arith::MinSIOp, arith::MaxSIOp,
-            tensor::EmptyOp, tensor::ExtractOp, tensor::InsertOp,
-            tensor::SplatOp, tensor::FromElementsOp, tensor::ConcatOp,
-            tensor::ExtractSliceOp, tensor::InsertSliceOp,
-            tensor::CollapseShapeOp, tensor::ExpandShapeOp, linalg::BroadcastOp,
-            scf::ForOp, scf::IfOp, scf::YieldOp, affine::AffineForOp,
-            affine::AffineYieldOp, lwe::RLWEDecodeOp, AddOp, AddPlainOp, SubOp,
-            SubPlainOp, MulOp, MulNoRelinOp, MulPlainOp, MulConstOp, NegateOp,
-            SquareOp, RelinOp, ModReduceOp, LevelReduceOp, RotOp, AutomorphOp,
-            KeySwitchOp, BootstrapOp, EncryptOp, DecryptOp,
-            MakePackedPlaintextOp, MakeCKKSPackedPlaintextOp, GenParamsOp,
-            GenContextOp, GenRotKeyOp, GenMulKeyOp, GenBootstrapKeyOp,
-            SetupBootstrapOp, FastRotationOp, FastRotationPrecomputeOp>(
-          [&](auto op) { visit(op); })
+      .Case<arith::ConstantOp, arith::AddIOp, arith::AddFOp, arith::SubIOp,
+            arith::MulIOp, arith::MulFOp, arith::DivSIOp, arith::RemSIOp,
+            arith::AndIOp, arith::CmpIOp, arith::SelectOp, arith::ExtUIOp,
+            arith::ExtSIOp, arith::ExtFOp, arith::FloorDivSIOp,
+            arith::IndexCastOp, arith::MinSIOp, arith::MaxSIOp, tensor::EmptyOp,
+            tensor::ExtractOp, tensor::InsertOp, tensor::SplatOp,
+            tensor::FromElementsOp, tensor::ConcatOp, tensor::ExtractSliceOp,
+            tensor::InsertSliceOp, tensor::CollapseShapeOp,
+            tensor::ExpandShapeOp, linalg::BroadcastOp, scf::ForOp, scf::IfOp,
+            scf::YieldOp, affine::AffineForOp, affine::AffineYieldOp,
+            lwe::RLWEDecodeOp, AddOp, AddPlainOp, SubOp, SubPlainOp, MulOp,
+            MulNoRelinOp, MulPlainOp, MulConstOp, NegateOp, SquareOp, RelinOp,
+            ModReduceOp, LevelReduceOp, RotOp, AutomorphOp, KeySwitchOp,
+            BootstrapOp, EncryptOp, DecryptOp, MakePackedPlaintextOp,
+            MakeCKKSPackedPlaintextOp, GenParamsOp, GenContextOp, GenRotKeyOp,
+            GenMulKeyOp, GenBootstrapKeyOp, SetupBootstrapOp, FastRotationOp,
+            FastRotationPrecomputeOp>([&](auto op) { visit(op); })
       .Default([&](Operation* op) {
         OperationName opName = op->getName();
         op->emitError() << "Unsupported operation " << opName.getStringRef()
@@ -297,6 +298,15 @@ TypedCppValue Interpreter::applyBinop(
 }
 
 void Interpreter::visit(arith::AddIOp op) {
+  auto lhs = env.at(op.getLhs());
+  auto rhs = env.at(op.getRhs());
+  auto result = applyBinop(
+      op, lhs, rhs, [](int a, int b) { return a + b; },
+      [](float a, float b) { return a + b; });
+  env.insert_or_assign(op.getResult(), std::move(result));
+}
+
+void Interpreter::visit(arith::AddFOp op) {
   auto lhs = env.at(op.getLhs());
   auto rhs = env.at(op.getRhs());
   auto result = applyBinop(
@@ -440,6 +450,16 @@ void Interpreter::visit(arith::ExtUIOp op) {
   } else {
     op.emitError("ExtUIOp requires int operand");
   }
+}
+
+void Interpreter::visit(arith::FloorDivSIOp op) {
+  auto lhs = env.at(op.getLhs());
+  auto rhs = env.at(op.getRhs());
+  auto result = applyBinop(
+      op, lhs, rhs,
+      [](int a, int b) { return std::floor(static_cast<float>(a) / b); },
+      [](float a, float b) { return std::floor(a / b); });
+  env.insert_or_assign(op.getResult(), std::move(result));
 }
 
 void Interpreter::visit(arith::ExtSIOp op) {
@@ -1381,7 +1401,31 @@ void Interpreter::visit(MakePackedPlaintextOp op) {
 }
 
 void Interpreter::visit(MakeCKKSPackedPlaintextOp op) {
+  auto checkIfZero = [&](TypedCppValue value) -> bool {
+    if (std::holds_alternative<std::vector<float>>(value.value)) {
+      auto vec = std::get<std::vector<float>>(value.value);
+      if (llvm::all_of(vec, [](float v) { return v == 0.0f; })) {
+        return true;
+      }
+    } else if (std::holds_alternative<std::vector<double>>(value.value)) {
+      auto vec = std::get<std::vector<double>>(value.value);
+      if (llvm::all_of(vec, [](double v) { return v == 0.0; })) {
+        return true;
+      }
+    } else if (std::holds_alternative<std::vector<int>>(value.value)) {
+      auto vec = std::get<std::vector<int>>(value.value);
+      if (llvm::all_of(vec, [](int v) { return v == 0; })) {
+        return true;
+      }
+    }
+    return false;
+  };
+
   auto value = env.at(op.getValue());
+  if (checkIfZero(value)) {
+    op.dump();
+    std::cout << "MakeCKKSPackedPlaintextOp: value is zero" << std::endl;
+  }
   auto cc = std::get<CryptoContextT>(env.at(op.getCryptoContext()).value);
   if (std::holds_alternative<std::vector<float>>(value.value)) {
     auto vec = std::get<std::vector<float>>(value.value);
