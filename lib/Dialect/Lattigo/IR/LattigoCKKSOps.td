@@ -274,4 +274,17 @@ def Lattigo_CKKSRotateOp : Lattigo_CKKSUnaryInplaceOp<"rotate"> {
   let results = (outs Lattigo_RLWECiphertext:$output);
 }
 
+def Lattigo_CKKSRotateHoistedNewOp : Lattigo_CKKSOp<"rotate_hoisted_new"> {
+  let summary = "Rotate a ciphertext by a batch of offsets in the Lattigo CKKS dialect";
+  let description = [{
+    This operation rotates a ciphertext value by a batch of offsets in the Lattigo CKKS dialect.
+  }];
+  let arguments = (ins
+    Lattigo_CKKSEvaluator:$evaluator,
+    Lattigo_RLWECiphertext:$input,
+    DenseI64ArrayAttr:$offsets
+  );
+  let results = (outs Lattigo_RotatedCiphertextList:$output);
+}
+
 #endif  // LIB_DIALECT_LATTIGO_IR_LATTIGOCKKSOPS_TD_

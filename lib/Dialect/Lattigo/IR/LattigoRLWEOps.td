@@ -178,4 +178,18 @@ def Lattigo_RLWENegateOp : Lattigo_RLWEOp<"negate", [InplaceOpInterface]> {
   let extraClassDeclaration = "int getInplaceOperandIndex() { return 2; }";
 }
 
+def Lattigo_RLWELookupRotatedOp : Lattigo_RLWEOp<"lookup_rotated"> {
+  let summary = "Lookup a rotated ciphertext from a batch of rotated ciphertexts in the Lattigo CKKS dialect";
+  let description = [{
+    This operation looks up a rotated ciphertext from the output of a
+    bulk rotation op.
+  }];
+  let arguments = (ins
+    Lattigo_RotatedCiphertextList:$input,
+    Builtin_IntegerAttr:$offset
+  );
+  let results = (outs Lattigo_RLWECiphertext:$output);
+}
+
+
 #endif  // LIB_DIALECT_LATTIGO_IR_LATTIGORLWEOPS_TD_
