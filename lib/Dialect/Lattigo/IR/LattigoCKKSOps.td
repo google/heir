@@ -357,4 +357,13 @@ def Lattigo_CKKSChebyshevOp : Lattigo_CKKSOp<"chebyshev", [AllTypesMatch<["ciphe
 }
 
 
+def Lattigo_CKKSBootstrapOp : Lattigo_CKKSOp<"bootstrap"> {
+  let summary = "Bootstrap a lattigo CKKS ciphertext";
+  let arguments = (ins
+    Lattigo_CKKSBootstrapper:$bootstrapper,
+    Lattigo_RLWECiphertext:$ciphertext
+  );
+  let results = (outs Lattigo_RLWECiphertext:$output);
+}
+
 #endif  // LIB_DIALECT_LATTIGO_IR_LATTIGOCKKSOPS_TD_

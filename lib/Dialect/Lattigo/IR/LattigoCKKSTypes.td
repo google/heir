@@ -38,5 +38,12 @@ def Lattigo_CKKSPolynomialEvaluator : Lattigo_CKKSType<"PolynomialEvaluator", "p
   let asmName = "poly_evaluator";
 }
 
+def Lattigo_CKKSBootstrapper : Lattigo_CKKSType<"Bootstrapper", "bootstrapper"> {
+  let description = [{
+    This type represents the Bootstrapper for the CKKS encryption scheme.
+  }];
+  let asmName = "bootstrapper";
+}
+
 
 #endif  // LIB_DIALECT_LATTIGO_IR_LATTIGOCKKSTYPES_TD_

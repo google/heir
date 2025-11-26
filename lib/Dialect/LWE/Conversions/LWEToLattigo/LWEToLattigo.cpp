@@ -70,8 +70,9 @@ FailureOr<Value> getContextualEvaluator(Operation* op) {
   auto result = getContextualArgFromFunc<EvaluatorType>(op);
   if (failed(result)) {
     return op->emitOpError()
-           << "Found RLWE op in a function without a public "
-              "key argument. Did the AddEvaluatorArg pattern fail to run?";
+           << "Found RLWE op in a function without a needed evaluator "
+              "argument. Did the AddEvaluatorArg pattern fail to run "
+              "for the evaluator needed by this op?";
   }
   return result.value();
 }
@@ -399,6 +400,30 @@ struct ConvertRlweRotateOp : public OpConversionPattern<RlweRotateOp> {
   }
 };
 
+template <typename EvaluatorType, typename RlweBootstrapOp,
+          typename LattigoBootstrapOp>
+struct ConvertRlweBootstrapOp : public OpConversionPattern<RlweBootstrapOp> {
+  using OpConversionPattern<RlweBootstrapOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      RlweBootstrapOp op, typename RlweBootstrapOp::Adaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    FailureOr<Value> result =
+        getContextualEvaluator<EvaluatorType>(op.getOperation());
+    if (failed(result))
+      return rewriter.notifyMatchFailure(op,
+                                         "Failed to get contextual evaluator");
+
+    Value evaluator = result.value();
+    rewriter.replaceOp(
+        op, LattigoBootstrapOp::create(
+                rewriter, op.getLoc(),
+                this->typeConverter->convertType(op.getOutput().getType()),
+                evaluator, adaptor.getInput()));
+    return success();
+  }
+};
+
 template <typename EvaluatorType, typename LevelReduceOp,
           typename LattigoLevelReduceOp>
 struct ConvertRlweLevelReduceOp : public OpConversionPattern<LevelReduceOp> {
@@ -682,6 +707,10 @@ using ConvertCKKSRotateOp =
     ConvertRlweRotateOp<lattigo::CKKSEvaluatorType, ckks::RotateOp,
                         lattigo::CKKSRotateNewOp>;
 
+using ConvertCKKSBootstrapOp =
+    ConvertRlweBootstrapOp<lattigo::CKKSBootstrapperType, ckks::BootstrapOp,
+                           lattigo::CKKSBootstrapOp>;
+
 using ConvertCKKSEncryptOp =
     ConvertRlweUnaryOp<lattigo::RLWEEncryptorType, lwe::RLWEEncryptOp,
                        lattigo::RLWEEncryptOp>;
@@ -867,6 +896,9 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
         {lattigo::CKKSEncoderType::get(context),
          gateByCKKSModuleAttr(
              containsArgumentOfDialect<lwe::LWEDialect, ckks::CKKSDialect>)},
+        {lattigo::CKKSBootstrapperType::get(context),
+         gateByCKKSModuleAttr(
+             containsArgumentOfDialect<lwe::LWEDialect, ckks::CKKSDialect>)},
         {lattigo::RLWEEncryptorType::get(context, /*publicKey*/ true),
          containsArgumentOfType<lwe::LWEPublicKeyType>},
         // for LWESecretKey, if its uses are encrypt, then convert it to an
@@ -894,7 +926,7 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
           ConvertCKKSAddPlainOp, ConvertCKKSSubPlainOp, ConvertCKKSMulPlainOp,
           ConvertCKKSRelinOp, ConvertCKKSModulusSwitchOp, ConvertCKKSRotateOp,
           ConvertCKKSEncryptOp, ConvertCKKSDecryptOp, ConvertCKKSEncodeOp,
-          ConvertCKKSDecodeOp, ConvertCKKSLevelReduceOp,
+          ConvertCKKSDecodeOp, ConvertCKKSLevelReduceOp, ConvertCKKSBootstrapOp,
           ConvertOrionLinearTransformOp, ConvertOrionChebyshevOp>(typeConverter,
                                                                   context);
     }
