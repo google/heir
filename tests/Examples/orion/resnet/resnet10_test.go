@@ -2,13 +2,33 @@ package resnet10
 
 import (
 	"fmt"
+	"github.com/tuneinsight/lattigo/v6/circuits/ckks/bootstrapping"
 	"github.com/tuneinsight/lattigo/v6/circuits/ckks/lintrans"
 	"github.com/tuneinsight/lattigo/v6/core/rlwe"
 	"github.com/tuneinsight/lattigo/v6/ring"
 	"github.com/tuneinsight/lattigo/v6/schemes/ckks"
+	"github.com/tuneinsight/lattigo/v6/utils"
+	"sort"
 	"testing"
 	"time"
 )
+
+func DedupeUint64(s []uint64) []uint64 {
+	if len(s) < 2 {
+		return s
+	}
+	sort.Slice(s, func(x, y int) bool { return s[x] > s[y] })
+	var e = 1
+	for i := 1; i < len(s); i++ {
+		if s[i] == s[i-1] {
+			continue
+		}
+		s[e] = s[i]
+		e++
+	}
+
+	return s[:e]
+}
 
 // MakeFlattenedOnes creates a slice of float64 filled with 1.0s.
 // The size of the slice is determined by the product of the input 2D dimensions (rows * cols).
@@ -29,13 +49,13 @@ func makeRange(n uint64) []uint64 {
 	return a
 }
 
-func generateLintransGaloisKeys(param ckks.Parameters, diagonalIndices []int) []uint64 {
+func generateLintransGaloisKeys(param ckks.Parameters, diagonalIndices []int, level int) []uint64 {
 	lintrans_params := lintrans.Parameters{
 		DiagonalsIndexList:        diagonalIndices,
-		LevelQ:                    5,
+		LevelQ:                    level,
 		LevelP:                    param.MaxLevelP(),
-		Scale:                     rlwe.NewScale(param.Q()[5]),
-		LogDimensions:             ring.Dimensions{Rows: 0, Cols: 12}, // 1x4096
+		Scale:                     rlwe.NewScale(param.Q()[level]),
+		LogDimensions:             ring.Dimensions{Rows: 0, Cols: 15},
 		LogBabyStepGiantStepRatio: 2,
 	}
 	lt := lintrans.NewTransformation(param, lintrans_params)
@@ -90,6 +110,8 @@ func TestMLP(t *testing.T) {
 		Q:               []uint64{36028797019488257, 1099512938497, 1099510054913, 1099507695617, 1099515691009, 1099516870657, 1099506515969, 1099504549889, 1099503894529, 1099503370241, 1099502714881},
 		P:               []uint64{2305843009211596801, 2305843009210023937, 2305843009208713217},
 		LogDefaultScale: 40,
+		Xs:              ring.Ternary{H: 192}, // hard-coded by orion
+		RingType:        ring.Standard,
 	})
 	if err != nil {
 		panic(err)
@@ -116,25 +138,23 @@ func TestMLP(t *testing.T) {
 	indices9 := []int{0, 1, 29, 30, 31, 32, 33, 925, 926, 927, 928, 929, 957, 958, 959, 960, 961, 989, 990, 991, 992, 993, 1021, 1022, 1023, 1024, 1025, 1053, 1054, 1055, 1056, 1057, 1949, 1950, 1951, 1952, 1953, 1981, 1982, 1983, 1984, 1985, 2013, 2014, 2015, 2016, 2017, 2045, 2046, 2047, 2048, 2049, 2077, 2078, 2079, 2080, 2081, 2973, 2974, 2975, 2976, 2977, 3005, 3006, 3007, 3008, 3009, 3037, 3038, 3039, 3040, 3041, 3069, 3070, 3071, 3072, 3073, 3101, 3102, 3103, 3104, 3105, 3997, 3998, 3999, 4000, 4001, 4029, 4030, 4031, 4032, 4033, 4061, 4062, 4063, 4064, 4065, 4093, 4094, 4095, 4096, 4097, 4125, 4126, 4127, 4128, 4129, 5021, 5022, 5023, 5024, 5025, 5053, 5054, 5055, 5056, 5057, 5085, 5086, 5087, 5088, 5089, 5117, 5118, 5119, 5120, 5121, 5149, 5150, 5151, 5152, 5153, 6045, 6046, 6047, 6048, 6049, 6077, 6078, 6079, 6080, 6081, 6109, 6110, 6111, 6112, 6113, 6141, 6142, 6143, 6144, 6145, 6173, 6174, 6175, 6176, 6177, 7069, 7070, 7071, 7072, 7073, 7101, 7102, 7103, 7104, 7105, 7133, 7134, 7135, 7136, 7137, 7165, 7166, 7167, 7168, 7169, 7197, 7198, 7199, 7200, 7201, 8093, 8094, 8095, 8096, 8097, 8125, 8126, 8127, 8128, 8129, 8157, 8158, 8159, 8160, 8161, 8189, 8190, 8191}
 	indices10 := []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 32759, 32760, 32761, 32762, 32763, 32764, 32765, 32766, 32767}
 
-	galEls = append(galEls, generateLintransGaloisKeys(param, indices1)...)
-	galEls = append(galEls, generateLintransGaloisKeys(param, indices2)...)
-	galEls = append(galEls, generateLintransGaloisKeys(param, indices3)...)
-	galEls = append(galEls, generateLintransGaloisKeys(param, indices4)...)
-	galEls = append(galEls, generateLintransGaloisKeys(param, indices5)...)
-	galEls = append(galEls, generateLintransGaloisKeys(param, indices6)...)
-	galEls = append(galEls, generateLintransGaloisKeys(param, indices7)...)
-	galEls = append(galEls, generateLintransGaloisKeys(param, indices8)...)
-	galEls = append(galEls, generateLintransGaloisKeys(param, indices9)...)
-	galEls = append(galEls, generateLintransGaloisKeys(param, indices10)...)
+	galEls = append(galEls, generateLintransGaloisKeys(param, indices1, 10)...)
+	galEls = append(galEls, generateLintransGaloisKeys(param, indices2, 8)...)
+	galEls = append(galEls, generateLintransGaloisKeys(param, indices3, 8)...)
+	galEls = append(galEls, generateLintransGaloisKeys(param, indices4, 10)...)
+	galEls = append(galEls, generateLintransGaloisKeys(param, indices5, 8)...)
+	galEls = append(galEls, generateLintransGaloisKeys(param, indices6, 10)...)
+	galEls = append(galEls, generateLintransGaloisKeys(param, indices7, 10)...)
+	galEls = append(galEls, generateLintransGaloisKeys(param, indices8, 8)...)
+	galEls = append(galEls, generateLintransGaloisKeys(param, indices9, 10)...)
+	galEls = append(galEls, generateLintransGaloisKeys(param, indices10, 10)...)
 
 	// Manually add Galois key for extra rotation indices used in the
 	// mlir file, outside of linear_transform
 	//
 	// For some reason I need to manually add rotation keys used in
 	// linear_transform! That should have been handled by the above code...
-	rotIndices := []uint64{16384, 8192}
-	// fmt.Printf("Adding extra rot indices: %v\n", rotIndices)
-
+	rotIndices := []uint64{16384, 8192, 1025, 1055, 1056, 1057, 2015, 2016, 2017}
 	for _, rotIndex := range rotIndices {
 		galoisElement := uint64(1)
 		for j := uint64(0); j < rotIndex; j++ {
@@ -142,10 +162,39 @@ func TestMLP(t *testing.T) {
 		}
 		galEls = append(galEls, galoisElement)
 	}
+	galEls = DedupeUint64(galEls)
 	fmt.Printf("Final galEls: %v\n", galEls)
 
 	evk := rlwe.NewMemEvaluationKeySet(rk, kgen.GenGaloisKeysNew(galEls, sk)...)
 	evaluator := ckks.NewEvaluator(param, evk)
+
+	// Now construct a bootstrapper
+	// For ResNet, the orion authors use
+	// LogP: [61, 61, 61, 61, 61, 61, 61, 61]
+	// logP := make([]int, 8, 61)
+	btpParametersLit := bootstrapping.ParametersLiteral{
+		LogN: utils.Pointy(param.LogN()),
+		// For whatever reason, when I set these lattigo complains it
+		// runs out of primes...
+		// LogP:     logP,
+		Xs: param.Xs(),
+	}
+
+	btpParams, err := bootstrapping.NewParametersFromLiteral(
+		param, btpParametersLit)
+	if err != nil {
+		panic(err)
+	}
+
+	btpKeys, _, err := btpParams.GenEvaluationKeys(sk)
+	if err != nil {
+		panic(err)
+	}
+
+	var btpEval *bootstrapping.Evaluator
+	if btpEval, err = bootstrapping.NewEvaluator(btpParams, btpKeys); err != nil {
+		panic(err)
+	}
 
 	pt := ckks.NewPlaintext(param, param.MaxLevel())
 	encoder.Encode(input_clear, pt)
@@ -155,7 +204,8 @@ func TestMLP(t *testing.T) {
 	}
 
 	startTime := time.Now()
-	result_ct := resnet10(evaluator, param, encoder, ct_input, arg0, arg1,
+	result_ct := resnet10(
+		evaluator, param, encoder, btpEval, ct_input, arg0, arg1,
 		arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10)
 	duration := time.Since(startTime)
 	fmt.Printf("MLP call took: %v\n", duration)

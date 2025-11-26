@@ -114,7 +114,7 @@ LogicalResult LattigoEmitter::translate(Operation& op) {
               CKKSAddNewOp, CKKSSubNewOp, CKKSMulNewOp, CKKSAddOp, CKKSSubOp,
               CKKSMulOp, CKKSRelinearizeOp, CKKSRescaleOp, CKKSRotateOp,
               CKKSRelinearizeNewOp, CKKSRescaleNewOp, CKKSRotateNewOp,
-              CKKSLinearTransformOp, CKKSChebyshevOp>(
+              CKKSLinearTransformOp, CKKSChebyshevOp, CKKSBootstrapOp>(
               [&](auto op) { return printOperation(op); })
           .Default([&](Operation&) {
             return emitError(op.getLoc(), "unable to find printer for op");
@@ -1588,8 +1588,11 @@ LogicalResult LattigoEmitter::printOperation(CKKSChebyshevOp op) {
 
   std::string errName = getErrName();
   auto coeffsAttr = op.getCoefficients();
+  auto outputName = getName(op.getOutput());
+  std::string coeffsName = outputName + "_coeffs";
+  std::string polyName = outputName + "_poly";
 
-  os << "polyCoeffs := []*big.Float{\n";
+  os << coeffsName << " := []*big.Float{\n";
   os.indent();
   for (auto coeff : coeffsAttr) {
     if (auto floatAttr = mlir::dyn_cast<FloatAttr>(coeff)) {
@@ -1602,13 +1605,29 @@ LogicalResult LattigoEmitter::printOperation(CKKSChebyshevOp op) {
   }
   os.unindent();
   os << "}\n";
-  os << "bignumPoly := bignum.NewPolynomial(bignum.Chebyshev, polyCoeffs, "
-        "nil)\n";
+  os << polyName << " := bignum.NewPolynomial(bignum.Chebyshev, " << coeffsName
+     << ", nil)\n";
   os << getName(op.getOutput()) << ", " << errName << " := ";
-  os << getName(op.getEvaluator()) << ".Evaluate(";
-  os << getName(op.getCiphertext()) << ", ";
-  os << "bignumPoly, ";
+  os << getName(op.getEvaluator()) << ".Evaluate("
+     << getName(op.getCiphertext()) << ", " << polyName << ", ";
   os << "rlwe.NewScale(" << op.getTargetScale().getInt() << "))\n";
+  printErrPanic(errName);
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(CKKSBootstrapOp op) {
+  imports.insert(
+      "\"github.com/tuneinsight/lattigo/v6/circuits/ckks/bootstrapping\"");
+
+  // FIXME: do I need to do this?
+  // postscale := int(1 << (scheme.Params.LogMaxSlots() -
+  // bootstrapper.LogMaxSlots())); scheme.Evaluator.Mul(ctOut, postscale,
+  // ctOut); ctOut.LogDimensions.Cols = scheme.Params.LogMaxSlots();
+
+  std::string errName = getErrName();
+  os << getName(op.getOutput()) << ", " << errName << " := ";
+  os << getName(op.getBootstrapper()) << ".Bootstrap(";
+  os << getName(op.getCiphertext()) << ")\n";
   printErrPanic(errName);
   return success();
 }
@@ -1709,6 +1728,8 @@ FailureOr<std::string> LattigoEmitter::convertType(Type type) {
           [&](auto ty) { return std::string("*ckks.Evaluator"); })
       .Case<CKKSParameterType>(
           [&](auto ty) { return std::string("ckks.Parameters"); })
+      .Case<CKKSBootstrapperType>(
+          [&](auto ty) { return std::string("*bootstrapping.Evaluator"); })
       .Case<IntegerType>([&](auto ty) -> FailureOr<std::string> {
         auto width = ty.getWidth();
         if (width == 1) {
