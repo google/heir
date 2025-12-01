@@ -68,6 +68,47 @@ TEST(InterpreterTest, TestAdd) {
   EXPECT_EQ(std::get<int>(results[0].value), 7);
 }
 
+TEST(InterpreterTest, TestAddFloat) {
+  MLIRContext context;
+  initContext(context);
+  auto module = parseTest(&context, R"mlir(
+    module {
+      func.func @main(%a: f32, %b: f32) -> f32 {
+        %c = arith.addf %a, %b : f32
+        return %c : f32
+      }
+    }
+  )mlir");
+  Interpreter interpreter(module.get());
+  std::string entryFunction = "main";
+  std::vector<TypedCppValue> inputs = {TypedCppValue(3.0f),
+                                       TypedCppValue(4.0f)};
+  std::vector<TypedCppValue> results =
+      interpreter.interpret(entryFunction, inputs);
+  EXPECT_EQ(results.size(), 1);
+  EXPECT_EQ(std::get<float>(results[0].value), 7.0f);
+}
+
+TEST(InterpreterTest, TestFloorDivSI) {
+  MLIRContext context;
+  initContext(context);
+  auto module = parseTest(&context, R"mlir(
+    module {
+      func.func @main(%a: i32, %b: i32) -> i32 {
+        %c = arith.floordivsi %a, %b : i32
+        return %c : i32
+      }
+    }
+  )mlir");
+  Interpreter interpreter(module.get());
+  std::string entryFunction = "main";
+  std::vector<TypedCppValue> inputs = {TypedCppValue(-7), TypedCppValue(3)};
+  std::vector<TypedCppValue> results =
+      interpreter.interpret(entryFunction, inputs);
+  EXPECT_EQ(results.size(), 1);
+  EXPECT_EQ(std::get<int>(results[0].value), -3);
+}
+
 TEST(InterpreterTest, TestElementwiseAdd) {
   MLIRContext context;
   initContext(context);

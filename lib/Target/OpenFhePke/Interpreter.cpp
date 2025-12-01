@@ -21,6 +21,7 @@
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
+#include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 
 #ifdef OPENFHE_ENABLE_TIMING
@@ -176,23 +177,23 @@ std::vector<TypedCppValue> Interpreter::interpret(
 
 void Interpreter::visit(Operation* op) {
   llvm::TypeSwitch<Operation*>(op)
-      .Case<arith::ConstantOp, arith::AddIOp, arith::SubIOp, arith::MulIOp,
-            arith::MulFOp, arith::DivSIOp, arith::RemSIOp, arith::AndIOp,
-            arith::CmpIOp, arith::SelectOp, arith::ExtUIOp, arith::ExtSIOp,
-            arith::ExtFOp, arith::IndexCastOp, arith::MinSIOp, arith::MaxSIOp,
-            tensor::EmptyOp, tensor::ExtractOp, tensor::InsertOp,
-            tensor::SplatOp, tensor::FromElementsOp, tensor::ConcatOp,
-            tensor::ExtractSliceOp, tensor::InsertSliceOp,
-            tensor::CollapseShapeOp, tensor::ExpandShapeOp, linalg::BroadcastOp,
-            scf::ForOp, scf::IfOp, scf::YieldOp, affine::AffineForOp,
-            affine::AffineYieldOp, lwe::RLWEDecodeOp, AddOp, AddPlainOp, SubOp,
-            SubPlainOp, MulOp, MulNoRelinOp, MulPlainOp, MulConstOp, NegateOp,
-            SquareOp, RelinOp, ModReduceOp, LevelReduceOp, RotOp, AutomorphOp,
-            KeySwitchOp, BootstrapOp, EncryptOp, DecryptOp,
-            MakePackedPlaintextOp, MakeCKKSPackedPlaintextOp, GenParamsOp,
-            GenContextOp, GenRotKeyOp, GenMulKeyOp, GenBootstrapKeyOp,
-            SetupBootstrapOp, FastRotationOp, FastRotationPrecomputeOp>(
-          [&](auto op) { visit(op); })
+      .Case<arith::ConstantOp, arith::AddIOp, arith::AddFOp, arith::SubIOp,
+            arith::MulIOp, arith::MulFOp, arith::DivSIOp, arith::RemSIOp,
+            arith::AndIOp, arith::CmpIOp, arith::SelectOp, arith::ExtUIOp,
+            arith::ExtSIOp, arith::ExtFOp, arith::FloorDivSIOp,
+            arith::IndexCastOp, arith::MinSIOp, arith::MaxSIOp, tensor::EmptyOp,
+            tensor::ExtractOp, tensor::InsertOp, tensor::SplatOp,
+            tensor::FromElementsOp, tensor::ConcatOp, tensor::ExtractSliceOp,
+            tensor::InsertSliceOp, tensor::CollapseShapeOp,
+            tensor::ExpandShapeOp, linalg::BroadcastOp, scf::ForOp, scf::IfOp,
+            scf::YieldOp, affine::AffineForOp, affine::AffineYieldOp,
+            lwe::RLWEDecodeOp, AddOp, AddPlainOp, SubOp, SubPlainOp, MulOp,
+            MulNoRelinOp, MulPlainOp, MulConstOp, NegateOp, SquareOp, RelinOp,
+            ModReduceOp, LevelReduceOp, RotOp, AutomorphOp, KeySwitchOp,
+            BootstrapOp, EncryptOp, DecryptOp, MakePackedPlaintextOp,
+            MakeCKKSPackedPlaintextOp, GenParamsOp, GenContextOp, GenRotKeyOp,
+            GenMulKeyOp, GenBootstrapKeyOp, SetupBootstrapOp, FastRotationOp,
+            FastRotationPrecomputeOp>([&](auto op) { visit(op); })
       .Default([&](Operation* op) {
         OperationName opName = op->getName();
         op->emitError() << "Unsupported operation " << opName.getStringRef()
@@ -297,6 +298,15 @@ TypedCppValue Interpreter::applyBinop(
 }
 
 void Interpreter::visit(arith::AddIOp op) {
+  auto lhs = env.at(op.getLhs());
+  auto rhs = env.at(op.getRhs());
+  auto result = applyBinop(
+      op, lhs, rhs, [](int a, int b) { return a + b; },
+      [](float a, float b) { return a + b; });
+  env.insert_or_assign(op.getResult(), std::move(result));
+}
+
+void Interpreter::visit(arith::AddFOp op) {
   auto lhs = env.at(op.getLhs());
   auto rhs = env.at(op.getRhs());
   auto result = applyBinop(
@@ -440,6 +450,19 @@ void Interpreter::visit(arith::ExtUIOp op) {
   } else {
     op.emitError("ExtUIOp requires int operand");
   }
+}
+
+void Interpreter::visit(arith::FloorDivSIOp op) {
+  auto lhs = env.at(op.getLhs());
+  auto rhs = env.at(op.getRhs());
+  auto result = applyBinop(
+      op, lhs, rhs,
+      [](int a, int b) { return std::floor(static_cast<float>(a) / b); },
+      [](float a, float b) {
+        llvm_unreachable("unexpceted float operands in FloorDivSIOp");
+        return std::floor(a / b);
+      });
+  env.insert_or_assign(op.getResult(), std::move(result));
 }
 
 void Interpreter::visit(arith::ExtSIOp op) {
