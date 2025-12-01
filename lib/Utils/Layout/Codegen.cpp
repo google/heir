@@ -174,7 +174,7 @@ Value buildIslExpr(isl_ast_expr* expr, std::map<std::string, Value> ivToValue,
       isl_val* val = isl_ast_expr_get_val(expr);
       auto intValue = isl_val_get_num_si(val);
       isl_val_free(val);
-      return arith::ConstantIndexOp::create(b, intValue);
+      return arith::ConstantIntOp::create(b, intValue, 32);
     }
     case isl_ast_expr_op: {
       // ISL operations types are defined in
@@ -203,7 +203,7 @@ Value buildIslExpr(isl_ast_expr* expr, std::map<std::string, Value> ivToValue,
         // Unary op
         SmallVector<Value> args = getArgs(expr);
         auto op = arith::SubIOp::create(
-            b, b.getLoc(), arith::ConstantIndexOp::create(b, 0), args[0]);
+            b, b.getLoc(), arith::ConstantIntOp::create(b, 0, 32), args[0]);
         return op->getResult(0);
       }
 
@@ -226,8 +226,9 @@ Value buildIslExpr(isl_ast_expr* expr, std::map<std::string, Value> ivToValue,
         // Remainder op with comparison to zero
         SmallVector<Value> args = getArgs(expr);
         auto op = arith::RemSIOp::create(b, args[0], args[1]);
-        auto eqOp = arith::CmpIOp::create(b, arith::CmpIPredicate::eq, op,
-                                          arith::ConstantIndexOp::create(b, 0));
+        auto eqOp =
+            arith::CmpIOp::create(b, arith::CmpIPredicate::eq, op,
+                                  arith::ConstantIntOp::create(b, 0, 32));
         return eqOp->getResult(0);
       }
       isl_ast_expr_op_type opType = isl_ast_expr_get_op_type(expr);
@@ -266,7 +267,7 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeFor(
   isl_ast_expr* condUpper = isl_ast_expr_get_op_arg(cond, 1);
   Value ubVal = arith::AddIOp::create(
       builder_, currentLoc_, buildIslExpr(condUpper, ivToValue_, builder_),
-      arith::ConstantIndexOp::create(builder_, currentLoc_, 1));
+      arith::ConstantIntOp::create(builder_, currentLoc_, 1, 32));
   isl_ast_expr_free(condUpper);
   isl_ast_expr_free(cond);
 

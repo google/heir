@@ -11,15 +11,18 @@
 // CHECK: func.func @add
 // CHECK: func.func @add__encrypt__arg
 // CHECK-SAME: %[[arg0:.*]]: tensor<32xi16>
-// CHECK-DAG: %[[c1024:.*]] = arith.constant 1024 : index
-// CHECK-DAG: %[[c32:.*]] = arith.constant 32 : index
-// CHECK-DAG: %[[c1:.*]] = arith.constant 1 : index
-// CHECK-DAG: %[[c0:.*]] = arith.constant 0 : index
+// CHECK-DAG:  %[[c0_idx:.*]] = arith.constant 0 : index
+// CHECK-DAG: %[[c1024:.*]] = arith.constant 1024 : i32
+// CHECK-DAG: %[[c32:.*]] = arith.constant 32 : i32
+// CHECK-DAG: %[[c1:.*]] = arith.constant 1 : i32
+// CHECK-DAG: %[[c0:.*]] = arith.constant 0 : i32
 // CHECK-DAG: %[[v0:.*]] = arith.constant dense<0> : tensor<1x1024xi16>
-// CHECK: %[[v1:.*]] = scf.for %[[arg1:.*]] = %[[c0]] to %[[c1024]] step %[[c1]] iter_args(%[[arg2:.*]] = %[[v0]]) -> (tensor<1x1024xi16>) {
-// CHECK:  %[[v3:.*]] = arith.remsi %[[arg1]], %[[c32]] : index
-// CHECK:  %[[extracted:.*]] = tensor.extract %[[arg0]][%[[v3]]] : tensor<32xi16>
-// CHECK:  %[[inserted:.*]] = tensor.insert %[[extracted]] into %[[arg2]][%[[c0]], %[[arg1]]] : tensor<1x1024xi16>
+// CHECK: %[[v1:.*]] = scf.for %[[arg1:.*]] = %[[c0]] to %[[c1024]] step %[[c1]] iter_args(%[[arg2:.*]] = %[[v0]]) -> (tensor<1x1024xi16>) : i32 {
+// CHECK:  %[[v3:.*]] = arith.remsi %[[arg1]], %[[c32]] : i32
+// CHECK:  %[[v3_idx:.*]] = arith.index_cast %[[v3]]
+// CHECK:  %[[extracted:.*]] = tensor.extract %[[arg0]][%[[v3_idx]]] : tensor<32xi16>
+// CHECK:  %[[arg1_idx:.*]] = arith.index_cast %[[arg1]]
+// CHECK:  %[[inserted:.*]] = tensor.insert %[[extracted]] into %[[arg2]][%[[c0_idx]], %[[arg1_idx]]] : tensor<1x1024xi16>
 // CHECK:  scf.yield %[[inserted]] : tensor<1x1024xi16>
 // CHECK:  }
 // CHECK: %[[v2:.*]] = secret.conceal %[[v1]]

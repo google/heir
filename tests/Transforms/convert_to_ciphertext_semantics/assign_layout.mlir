@@ -7,9 +7,9 @@
 module {
   func.func @repeat_vector() {
     // CHECK-DAG: %[[c1_i16:.*]] = arith.constant 1 : i16
-    // CHECK-DAG: %[[c32:.*]] = arith.constant 32 : index
-    // CHECK-DAG: %[[c0:.*]] = arith.constant 0 : index
-    // CHECK-DAG: %[[c1:.*]] = arith.constant 1 : index
+    // CHECK-DAG: %[[c32:.*]] = arith.constant 32 : i32
+    // CHECK-DAG: %[[c0:.*]] = arith.constant 0 : i32
+    // CHECK-DAG: %[[c1:.*]] = arith.constant 1 : i32
     %cst = arith.constant dense<1> : tensor<16xi16>
     // CHECK: %[[cst:.*]] = arith.constant dense<0> : tensor<1x32xi16>
     // CHECK: scf.for %[[arg0:.*]] = %[[c0]] to %[[c32]] step %[[c1]]

@@ -5,9 +5,9 @@
 
 // CHECK: func.func @add
 // CHECK: func.func @add__encrypt__arg
-// CHECK-DAG: %[[c1024:.*]] = arith.constant 1024 : index
-// CHECK-DAG: %[[c0:.*]] = arith.constant 0 : index
-// CHECK-DAG: %[[c1:.*]] = arith.constant 1 : index
+// CHECK-DAG: %[[c1024:.*]] = arith.constant 1024 : i32
+// CHECK-DAG: %[[c0:.*]] = arith.constant 0 : i32
+// CHECK-DAG: %[[c1:.*]] = arith.constant 1 : i32
 // CHECK: scf.for %[[arg1:.*]] = %[[c0]] to %[[c1024]] step %[[c1]]
 // CHECK: scf.if
 // CHECK: return

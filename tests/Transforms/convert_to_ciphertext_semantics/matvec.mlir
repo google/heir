@@ -16,8 +16,8 @@ module {
 // CHECK-DAG: arith.constant -8 : index
 // CHECK-DAG: arith.constant 12 : index
 // CHECK-DAG: arith.constant -12 : index
-// CHECK-DAG: arith.constant 1024 : index
-// CHECK-DAG: arith.constant 16 : index
+// CHECK-DAG: arith.constant 1024 : i32
+// CHECK-DAG: arith.constant 16 : i32
 // CHECK: secret.generic
 // first assign_layout
 // CHECK-COUNT-2: scf.for {{.*}}
@@ -114,11 +114,9 @@ module {
 // CHECK-DAG: arith.constant 13 : index
 // CHECK-DAG: arith.constant 14 : index
 // CHECK-DAG: arith.constant 15 : index
-// CHECK-DAG: arith.constant 16 : index
 // CHECK-DAG: arith.constant -4 : index
 // CHECK-DAG: arith.constant -8 : index
 // CHECK-DAG: arith.constant -12 : index
-// CHECK-DAG: arith.constant 1024 : index
 // CHECK-DAG: arith.constant dense<{{.*}}> : tensor<10x16xf32>
 // CHECK: secret.generic
 // first assign_layout with conditionals
