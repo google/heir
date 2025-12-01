@@ -738,6 +738,33 @@ std::vector<int64_t> anyRangePoint(
   return result;
 }
 
+void getCtComplementPoints(const presburger::IntegerRelation& relation,
+                           PointCollector& collector,
+                           RankedTensorType outputType) {
+  // Assert precondition that there must be two range vars.
+  assert(relation.getNumRangeVars() == 2 && "Expected 2 range vars.");
+  assert(outputType.getRank() == 2 && "Expected 2D output type.");
+
+  // Get the range set for the ct var.
+  auto* bmap = convertRelationToBasicMap(relation, collector.ctx);
+  isl_set* set = isl_set_from_basic_set(isl_basic_map_range(bmap));
+  isl_set* ctset = isl_set_project_out(set, isl_dim_set, 1, 1);
+
+  // Get bounding box for the ct var.
+  isl_space* space = isl_set_get_space(ctset);
+  isl_set* bounding_box = isl_set_universe(space);
+  bounding_box = isl_set_lower_bound_si(bounding_box, isl_dim_set, /*pos=*/0,
+                                        /*value=*/0);
+  bounding_box = isl_set_upper_bound_si(bounding_box, isl_dim_set, /*pos=*/0,
+                                        /*value=*/outputType.getDimSize(0) - 1);
+
+  isl_set* complement = isl_set_complement(ctset);
+  isl_set* bounded_complement = isl_set_intersect(complement, bounding_box);
+
+  isl_set_foreach_point(bounded_complement, &pointCallback, &collector);
+  isl_set_free(bounded_complement);
+}
+
 presburger::IntegerRelation getCollapsedRelation(
     RankedTensorType sourceType, RankedTensorType destType,
     ArrayRef<ReassociationIndices> reassociation) {

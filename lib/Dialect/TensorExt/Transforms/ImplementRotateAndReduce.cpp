@@ -53,7 +53,7 @@ LogicalResult convertRotateAndReduceOp(RotateAndReduceOp op) {
     reduceOp = op.getReduceOp()->getValue().str();
   }
   implementedKernel = implementRotateAndReduce(vectorLeaf, plaintextsLeaf,
-                                               period, steps, reduceOp);
+                                               period, steps, {}, reduceOp);
   IRRewriter rewriter(op.getContext());
   rewriter.setInsertionPointAfter(op);
   ImplicitLocOpBuilder b(op.getLoc(), rewriter);

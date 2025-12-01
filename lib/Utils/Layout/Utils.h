@@ -199,6 +199,13 @@ void getRangePoints(const presburger::IntegerRelation& relation,
 // Sample a point in the range of the relation.
 std::vector<int64_t> anyRangePoint(const presburger::IntegerRelation& relation);
 
+// Get a list of ct points that are not in the range of the relation. Assumes
+// that the relation is a layout relation mapping input tensor dimensions to a
+// 2-D image set of (ct, slot) pairs with the given outputType.
+void getCtComplementPoints(const presburger::IntegerRelation& relation,
+                           PointCollector& collector,
+                           RankedTensorType outputType);
+
 // Collapse a relation with the given reassociation indices. Dimensions that are
 // collapsed in a row-major order.
 presburger::IntegerRelation getCollapsedRelation(
