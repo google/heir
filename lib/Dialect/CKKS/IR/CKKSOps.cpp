@@ -1,9 +1,11 @@
 #include "lib/Dialect/CKKS/IR/CKKSOps.h"
 
+#include <cstdint>
 #include <optional>
 
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWEPatterns.h"
+#include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "mlir/include/mlir/IR/Location.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"        // from @llvm-project
@@ -32,6 +34,21 @@ LogicalResult RescaleOp::verify() {
 }
 
 LogicalResult LevelReduceOp::verify() { return lwe::verifyLevelReduceOp(this); }
+
+LogicalResult BootstrapOp::verify() {
+  std::optional<int64_t> targetLevel = getTargetLevel();
+  if (targetLevel.has_value()) {
+    // If a target level is specified, then the result ciphertext must have that
+    // many levels.
+    lwe::LWECiphertextType outputType = lwe::getCtTy(getOutput());
+    if (outputType.getModulusChain().getCurrent() != targetLevel.value()) {
+      return emitOpError() << "output ciphertext must have "
+                           << targetLevel.value() << " levels but has "
+                           << outputType.getModulusChain().getCurrent();
+    }
+  }
+  return success();
+}
 
 //===----------------------------------------------------------------------===//
 // Op type inference.

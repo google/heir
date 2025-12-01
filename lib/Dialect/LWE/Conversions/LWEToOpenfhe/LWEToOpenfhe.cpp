@@ -4,6 +4,7 @@
 
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/BGV/IR/BGVOps.h"
+#include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/CKKS/IR/CKKSOps.h"
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
@@ -14,6 +15,7 @@
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
+#include "lib/Parameters/CKKS/Params.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
@@ -22,6 +24,7 @@
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
@@ -273,6 +276,20 @@ struct ConvertBootstrapOp : public OpConversionPattern<ckks::BootstrapOp> {
     FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
     if (failed(result)) {
       return rewriter.notifyMatchFailure(op, "No crypto context arg");
+    }
+
+    // TODO(#2436): Support bootstrap target level in OpenFHE
+    if (op.getTargetLevel().has_value()) {
+      // Right now we don't support any bootstrap ops with a target level.
+      // Ideally, we would want to check that the target level is equal to the
+      // number of Qis available in the scheme parameters (max levels) minus the
+      // levels consumed by bootstrapping to emit a full bootstrap op. The
+      // latter info is not persisted in the IR. So we simply rely on higher
+      // level passes with access to the bootstrap waterline to remove the
+      // target level attribute.
+      // TODO(#1207): Persist the number of consumed levels from bootstrapping
+      return rewriter.notifyMatchFailure(
+          op, "variadic bootstrapping is not supported in OpenFHE");
     }
 
     Value cryptoContext = result.value();

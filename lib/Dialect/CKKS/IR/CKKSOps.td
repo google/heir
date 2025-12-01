@@ -213,12 +213,15 @@ def CKKS_BootstrapOp : CKKS_Op<"bootstrap", [ElementwiseMappable]> {
   }];
 
   let arguments = (ins
-    LWECiphertextLike:$input
+    LWECiphertextLike:$input,
+    OptionalAttr<I64Attr>:$targetLevel
   );
 
   let results = (outs
     LWECiphertextLike:$output
   );
+
+  let hasVerifier = 1;
 
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
