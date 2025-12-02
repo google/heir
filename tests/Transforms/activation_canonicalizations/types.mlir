@@ -55,3 +55,29 @@ func.func @sigmoid_tensor(%arg0: tensor<1xf32>) -> tensor<1xf32> {
   %result = arith.divf %cst_one, %one_plus_exp : tensor<1xf32>
   return %result : tensor<1xf32>
 }
+
+// -----
+
+#map = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+
+// CHECK: func.func @sigmoid_generic
+// CHECK-SAME: (%[[ARG0:.*]]: tensor<1x16x10x10xf32>) -> tensor<1x16x10x10xf32>
+// CHECK: linalg.generic
+// CHECK-SAME: domain_lower = -1.200000e+01
+// CHECK-SAME: domain_upper = 1.200000e+01
+// CHECK: math_ext.sigmoid
+// CHECK: linalg.yield
+// CHECK: return
+func.func @sigmoid_generic(%arg0: tensor<1x16x10x10xf32>) -> tensor<1x16x10x10xf32> {
+  %0 = tensor.empty() : tensor<1x16x10x10xf32>
+  %cst_1 = arith.constant 1.0 : f32
+  %10 = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel", "parallel", "parallel", "parallel"], domain_lower = -12.0, domain_upper = 12.0 } ins(%arg0 : tensor<1x16x10x10xf32>) outs(%0 : tensor<1x16x10x10xf32>) {
+  ^bb0(%in: f32, %out: f32):
+    %32 = arith.negf %in : f32
+    %33 = math.exp %32 : f32
+    %34 = arith.addf %33, %cst_1 : f32
+    %35 = arith.divf %cst_1, %34 : f32
+    linalg.yield %35 : f32
+  } -> tensor<1x16x10x10xf32>
+  return %10 : tensor<1x16x10x10xf32>
+}

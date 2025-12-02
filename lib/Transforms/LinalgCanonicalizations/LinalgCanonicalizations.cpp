@@ -375,9 +375,18 @@ struct LinalgGenericToElementwise
           llvm::map_range(innerOp.getResultTypes(), [&](Type t) -> Type {
             return RankedTensorType::get(resultTensorShape, t);
           }));
+      SmallVector<NamedAttribute> newAttrs = {innerOp.getAttrs().begin(),
+                                              innerOp.getAttrs().end()};
+      for (auto attr : genericOp->getAttrs()) {
+        if (attr.getName().getValue() != "iterator_types" &&
+            attr.getName().getValue() != "indexing_maps" &&
+            attr.getName().getValue() != "operandSegmentSizes") {
+          newAttrs.push_back(attr);
+        }
+      }
       auto* elementwiseOp = rewriter.create(
           genericOp->getLoc(), innerOp.getName().getIdentifier(), newInputs,
-          newDestTypes, innerOp.getAttrs(), {}, {});
+          newDestTypes, newAttrs, {}, {});
       bvm.map(innerOp.getResults(), elementwiseOp->getResults());
     }
 

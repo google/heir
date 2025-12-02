@@ -151,7 +151,6 @@ void mlirToSecretArithmeticPipelineBuilder(
     OpPassManager& pm, const MlirToRLWEPipelineOptions& options) {
   pm.addPass(createWrapGeneric());
   convertToDataObliviousPipelineBuilder(pm);
-  pm.addPass(createActivationCanonicalizations());
   pm.addPass(createSelectRewrite());
   pm.addPass(createCompareToSignRewrite());
 
@@ -493,6 +492,7 @@ BackendPipelineBuilder toLattigoPipelineBuilder() {
 
 void linalgPreprocessingBuilder(OpPassManager& manager) {
   manager.addPass(createInlineActivations());
+  manager.addPass(createActivationCanonicalizations());
   manager.addPass(createDropUnitDims());
   manager.addPass(createLinalgCanonicalizations());
   manager.addPass(createFoldConstantTensors());
