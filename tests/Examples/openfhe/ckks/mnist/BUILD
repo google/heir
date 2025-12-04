@@ -26,9 +26,9 @@ py_test(
     size = "enormous",
     srcs = ["mnist_test.py"],
     data = [
-        "data/t10k-images-idx3-ubyte",
-        "data/t10k-labels-idx1-ubyte",
-        "data/traced_model.pt",
+        "@heir//tests/Examples/openfhe/ckks/mnist/data:t10k-images-idx3-ubyte",
+        "@heir//tests/Examples/openfhe/ckks/mnist/data:t10k-labels-idx1-ubyte",
+        "@heir//tests/Examples/openfhe/ckks/mnist/data:traced_model.pt",
     ],
     main = "mnist_test.py",
     tags = [

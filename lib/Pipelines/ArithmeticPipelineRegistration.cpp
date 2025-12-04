@@ -154,6 +154,8 @@ void mlirToSecretArithmeticPipelineBuilder(
   pm.addPass(createActivationCanonicalizations());
   pm.addPass(createSelectRewrite());
   pm.addPass(createCompareToSignRewrite());
+  pm.addPass(createCanonicalizerPass());
+  pm.addPass(createCSEPass());
 
   // Vectorize and optimize rotations
   // TODO(#2320): figure out where this fits in the new pipeline
@@ -493,8 +495,8 @@ BackendPipelineBuilder toLattigoPipelineBuilder() {
 
 void linalgPreprocessingBuilder(OpPassManager& manager) {
   manager.addPass(createInlineActivations());
-  manager.addPass(createDropUnitDims());
   manager.addPass(createLinalgCanonicalizations());
+  manager.addPass(createDropUnitDims());
   manager.addPass(createFoldConstantTensors());
   manager.addPass(createCanonicalizerPass());
   manager.addPass(createSymbolDCEPass());

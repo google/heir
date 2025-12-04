@@ -129,7 +129,8 @@ TEST(InterpreterTest, TestElementwiseAdd) {
   std::vector<TypedCppValue> results =
       interpreter.interpret(entryFunction, inputs);
   EXPECT_EQ(results.size(), 1);
-  EXPECT_EQ(std::get<std::vector<int>>(results[0].value), expected);
+  EXPECT_EQ(*std::get<std::shared_ptr<std::vector<int>>>(results[0].value),
+            expected);
 }
 
 TEST(InterpreterTest, TestMul) {
@@ -313,7 +314,7 @@ TEST(InterpreterTest, TestTensorSplat) {
   std::vector<TypedCppValue> results =
       interpreter.interpret(entryFunction, inputs);
   EXPECT_EQ(results.size(), 1);
-  auto vec = std::get<std::vector<int>>(results[0].value);
+  auto vec = *std::get<std::shared_ptr<std::vector<int>>>(results[0].value);
   EXPECT_EQ(vec.size(), 4);
   EXPECT_EQ(vec[0], 42);
   EXPECT_EQ(vec[1], 42);
@@ -339,7 +340,7 @@ TEST(InterpreterTest, TestTensorFromElements) {
   std::vector<TypedCppValue> results =
       interpreter.interpret(entryFunction, inputs);
   EXPECT_EQ(results.size(), 1);
-  auto vec = std::get<std::vector<int>>(results[0].value);
+  auto vec = *std::get<std::shared_ptr<std::vector<int>>>(results[0].value);
   EXPECT_EQ(vec.size(), 3);
   EXPECT_EQ(vec[0], 10);
   EXPECT_EQ(vec[1], 20);
@@ -388,7 +389,7 @@ TEST(InterpreterTest, TestTensorInsert) {
   std::vector<TypedCppValue> results =
       interpreter.interpret(entryFunction, inputs);
   EXPECT_EQ(results.size(), 1);
-  auto vec = std::get<std::vector<int>>(results[0].value);
+  auto vec = *std::get<std::shared_ptr<std::vector<int>>>(results[0].value);
   EXPECT_EQ(vec.size(), 3);
   EXPECT_EQ(vec[1], 99);
 }
@@ -416,7 +417,7 @@ TEST(InterpreterTest, TestLoop) {
   std::vector<TypedCppValue> results =
       interpreter.interpret(entryFunction, inputs);
   EXPECT_EQ(results.size(), 1);
-  auto vec = std::get<std::vector<int>>(results[0].value);
+  auto vec = *std::get<std::shared_ptr<std::vector<int>>>(results[0].value);
   EXPECT_EQ(vec.size(), 6);
   EXPECT_EQ(vec[1], 1);
 }
@@ -440,7 +441,8 @@ TEST(InterpreterTest, TestLinalgBroadcast) {
   std::vector<TypedCppValue> results =
       interpreter.interpret(entryFunction, inputs);
   EXPECT_EQ(results.size(), 1);
-  auto resultVec = std::get<std::vector<float>>(results[0].value);
+  auto resultVec =
+      *std::get<std::shared_ptr<std::vector<float>>>(results[0].value);
   EXPECT_EQ(resultVec.size(), 512);  // 1x512
   EXPECT_EQ(resultVec[0], 1.000000f);
 }
@@ -464,7 +466,8 @@ TEST(InterpreterTest, TestLinalgBroadcastMultiDim) {
   std::vector<TypedCppValue> results =
       interpreter.interpret(entryFunction, inputs);
   EXPECT_EQ(results.size(), 1);
-  auto resultVec = std::get<std::vector<float>>(results[0].value);
+  auto resultVec =
+      *std::get<std::shared_ptr<std::vector<float>>>(results[0].value);
   EXPECT_EQ(resultVec.size(), 120);  // 2x3x4x1x5
   std::vector<std::vector<float>> inputVec = {{1.0f}, {2.0f}, {3.0f}};
   for (size_t i = 0; i < 2; ++i) {
@@ -909,7 +912,8 @@ module attributes {scheme.bgv} {
   std::vector<TypedCppValue> results = interpreter.interpret("main", inputs);
 
   EXPECT_EQ(results.size(), 1);
-  auto resultVec = std::get<std::vector<int>>(results[0].value);
+  auto resultVec =
+      *std::get<std::shared_ptr<std::vector<int>>>(results[0].value);
   EXPECT_EQ(resultVec.size(), vec.size());
   for (size_t i = 0; i < vec.size(); i++) {
     EXPECT_EQ(resultVec[i], vec[i]);
@@ -1007,7 +1011,8 @@ module attributes {scheme.ckks} {
   std::vector<TypedCppValue> results = interpreter.interpret("main", inputs);
 
   EXPECT_EQ(results.size(), 1);
-  auto resultVec = std::get<std::vector<float>>(results[0].value);
+  auto resultVec =
+      *std::get<std::shared_ptr<std::vector<float>>>(results[0].value);
   EXPECT_EQ(resultVec.size(), vec.size());
   for (size_t i = 0; i < vec.size(); i++) {
     EXPECT_NEAR(resultVec[i], static_cast<float>(vec[i]), 0.01f);
@@ -1065,7 +1070,7 @@ TEST(InterpreterTest, TestDoubleTensorConstant) {
   std::string entryFunction = "main";
   std::vector<TypedCppValue> results = interpreter.interpret(entryFunction, {});
   EXPECT_EQ(results.size(), 1);
-  auto vec = std::get<std::vector<double>>(results[0].value);
+  auto vec = *std::get<std::shared_ptr<std::vector<double>>>(results[0].value);
   EXPECT_EQ(vec.size(), 3);
   EXPECT_NEAR(vec[0], 1.1, 0.01);
   EXPECT_NEAR(vec[1], 2.2, 0.01);
@@ -1096,7 +1101,7 @@ TEST(InterpreterTest, TestDenseResourceConstant) {
   std::string entryFunction = "main";
   std::vector<TypedCppValue> results = interpreter.interpret(entryFunction, {});
   EXPECT_EQ(results.size(), 1);
-  auto vec = std::get<std::vector<float>>(results[0].value);
+  auto vec = *std::get<std::shared_ptr<std::vector<float>>>(results[0].value);
   EXPECT_EQ(vec.size(), 4);
   for (size_t i = 0; i < 4; i++) {
     EXPECT_NEAR(vec[i], expected[i], 1e-10);
@@ -1120,7 +1125,7 @@ TEST(InterpreterTest, TestDoubleTensorSplat) {
   std::vector<TypedCppValue> results =
       interpreter.interpret(entryFunction, inputs);
   EXPECT_EQ(results.size(), 1);
-  auto vec = std::get<std::vector<double>>(results[0].value);
+  auto vec = *std::get<std::shared_ptr<std::vector<double>>>(results[0].value);
   EXPECT_EQ(vec.size(), 4);
   for (size_t i = 0; i < 4; ++i) {
     EXPECT_NEAR(vec[i], 3.14, 0.01);
@@ -1165,7 +1170,7 @@ TEST(InterpreterTest, TestExtFOpFloatVectorToDoubleVector) {
   std::vector<TypedCppValue> results =
       interpreter.interpret(entryFunction, inputs);
   EXPECT_EQ(results.size(), 1);
-  auto vec = std::get<std::vector<double>>(results[0].value);
+  auto vec = *std::get<std::shared_ptr<std::vector<double>>>(results[0].value);
   EXPECT_EQ(vec.size(), 3);
   for (size_t i = 0; i < 3; ++i) {
     EXPECT_NEAR(vec[i], a[i], 0.01);
@@ -1242,7 +1247,8 @@ module attributes {scheme.ckks} {
   std::vector<TypedCppValue> results = interpreter.interpret("main", inputs);
 
   EXPECT_EQ(results.size(), 1);
-  auto resultVec = std::get<std::vector<double>>(results[0].value);
+  auto resultVec =
+      *std::get<std::shared_ptr<std::vector<double>>>(results[0].value);
   EXPECT_EQ(resultVec.size(), vec.size());
   for (size_t i = 0; i < vec.size(); i++) {
     EXPECT_NEAR(resultVec[i], vec[i], 0.01);
