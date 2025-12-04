@@ -149,6 +149,7 @@ class LattigoEmitter {
   LogicalResult printOperation(CKKSNewEncoderOp op);
   LogicalResult printOperation(CKKSNewEvaluatorOp op);
   LogicalResult printOperation(CKKSNewPlaintextOp op);
+  LogicalResult printOperation(CKKSNewPolynomialEvaluatorOp op);
   LogicalResult printOperation(CKKSEncodeOp op);
   LogicalResult printOperation(CKKSDecodeOp op);
   LogicalResult printOperation(CKKSAddNewOp op);
@@ -163,6 +164,8 @@ class LattigoEmitter {
   LogicalResult printOperation(CKKSRelinearizeOp op);
   LogicalResult printOperation(CKKSRescaleOp op);
   LogicalResult printOperation(CKKSRotateOp op);
+  LogicalResult printOperation(CKKSLinearTransformOp op);
+  LogicalResult printOperation(CKKSChebyshevOp op);
 
   // Helpers for above
   void printErrPanic(std::string_view errName);

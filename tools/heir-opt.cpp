@@ -344,26 +344,27 @@ int main(int argc, char** argv) {
 #endif
 
   // Dialect conversion passes in HEIR
-  mod_arith::registerModArithToArithPasses();
-  mlir::heir::arith::registerArithToModArithPasses();
-  mlir::heir::arith::registerArithToCGGIPasses();
-  mlir::heir::arith::registerArithToCGGIQuartPasses();
-  mod_arith::registerConvertToMacPass();
   bgv::registerBGVToLWEPasses();
   ckks::registerCKKSToLWEPasses();
-  registerSecretToCGGIPasses();
   lwe::registerLWEToLattigoPasses();
   lwe::registerLWEToOpenfhePasses();
   lwe::registerLWEToPolynomialPasses();
-  polynomial::registerPolynomialToModArithPasses();
-  tensor_ext::registerTensorExtToTensorPasses();
-  registerCGGIToJaxitePasses();
-  registerCGGIToTfheRustPasses();
-  registerCGGIToTfheRustBoolPasses();
-  // This comement registers internal passes
-  registerSecretToBGVPasses();
-  registerSecretToCKKSPasses();
+  mlir::heir::arith::registerArithToCGGIPasses();
+  mlir::heir::arith::registerArithToCGGIQuartPasses();
+  mlir::heir::arith::registerArithToModArithPasses();
+  mod_arith::registerConvertToMacPass();
+  mod_arith::registerModArithToArithPasses();
   mod_arith::registerSecretToModArithPasses();
+  polynomial::registerPolynomialToModArithPasses();
+  registerCGGIToJaxitePasses();
+  registerCGGIToTfheRustBoolPasses();
+  registerCGGIToTfheRustPasses();
+  registerSecretToBGVPasses();
+  registerSecretToCGGIPasses();
+  registerSecretToCKKSPasses();
+  tensor_ext::registerTensorExtToTensorPasses();
+
+  // This comement registers internal passes
 
   // Interfaces in HEIR
   secret::registerBufferizableOpInterfaceExternalModels(registry);

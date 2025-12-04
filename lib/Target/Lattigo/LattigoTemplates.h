@@ -15,9 +15,17 @@ constexpr std::string_view kBgvImport =
     "\"github.com/tuneinsight/lattigo/v6/schemes/bgv\"";
 constexpr std::string_view kCkksImport =
     "\"github.com/tuneinsight/lattigo/v6/schemes/ckks\"";
+constexpr std::string_view kLintransImport =
+  "\"github.com/tuneinsight/lattigo/v6/circuits/ckks/lintrans\"";
+constexpr std::string_view kCkksCircuitPolynomialImport =
+  "\"github.com/tuneinsight/lattigo/v6/circuits/ckks/polynomial\"";
+constexpr std::string_view kLattigoBignumImport=
+  "\"github.com/tuneinsight/lattigo/v6/utils/bignum\"";
 // clang-format on
+
 constexpr std::string_view kMathImport = "\"math\"";
 constexpr std::string_view kSlicesImport = "\"slices\"";
+constexpr std::string_view kMathBigImport = "\"math/big\"";
 
 }  // namespace lattigo
 }  // namespace heir
