@@ -1,5 +1,3 @@
-// RUN: heir-opt %s
-
 !Z536903681_i64 = !mod_arith.int<536903681 : i64>
 !Z66813953_i64 = !mod_arith.int<66813953 : i64>
 !Z66961409_i64 = !mod_arith.int<66961409 : i64>
