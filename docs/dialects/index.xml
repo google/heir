@@ -5628,6 +5628,9 @@ to consider the signedness issue.&lt;/p>
 &lt;h3 id="ckksparametertype">CKKSParameterType&lt;/h3>
 &lt;p>Syntax: &lt;code>!lattigo.ckks.parameter&lt;/code>&lt;/p>
 &lt;p>This type represents the parameters for the CKKS encryption scheme.&lt;/p>
+&lt;h3 id="ckkspolynomialevaluatortype">CKKSPolynomialEvaluatorType&lt;/h3>
+&lt;p>Syntax: &lt;code>!lattigo.ckks.polynomial_evaluator&lt;/code>&lt;/p>
+&lt;p>This type represents the PolynomialEvaluator for the CKKS encryption scheme.&lt;/p>
 &lt;h3 id="rlweciphertexttype">RLWECiphertextType&lt;/h3>
 &lt;p>Syntax: &lt;code>!lattigo.rlwe.ciphertext&lt;/code>&lt;/p>
 &lt;p>This type represents the ciphertext for the RLWE encryption scheme.&lt;/p>
@@ -6669,13 +6672,61 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="lattigockkschebyshev-heirlattigockkschebyshevop">&lt;code>lattigo.ckks.chebyshev&lt;/code> (heir::lattigo::CKKSChebyshevOp)&lt;/h3>
+&lt;p>&lt;em>Evaluate a chebyshev polynomial on a lattigo CKKS ciphertext&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.chebyshev` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>This operation evaluates a chebyshev polynomial on a CKKS ciphertext using
+the Lattigo polynomial evaluator API.&lt;/p>
+&lt;p>The codegen constructs the Lattigo polynomial and, using an existing polynomial
+evaluator, calls the evaluation routine with a given target scale.&lt;/p>
+&lt;h4 id="attributes-5">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>coefficients&lt;/code>&lt;/td>&lt;td>::mlir::ArrayAttr&lt;/td>&lt;td>array attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>targetScale&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-21">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>evaluator&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>ciphertext&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-22">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="lattigockksdecode-heirlattigockksdecodeop">&lt;code>lattigo.ckks.decode&lt;/code> (heir::lattigo::CKKSDecodeOp)&lt;/h3>
 &lt;p>&lt;em>Decode a plaintext value in the Lattigo CKKS dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.decode` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation decodes a plaintext value using the specified encoder in the Lattigo CKKS dialect.&lt;/p>
 &lt;p>The input value tensor should have elements of float type or complex type.&lt;/p>
-&lt;h4 id="operands-21">Operands:&lt;/h4>
+&lt;h4 id="operands-22">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -6698,7 +6749,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-22">Results:&lt;/h4>
+&lt;h4 id="results-23">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -6721,12 +6772,12 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>The input value tensor should have elements of float type or complex type.&lt;/p>
 &lt;p>The &lt;code>scale&lt;/code> attribute indicates the scaling factor for encoding.&lt;/p>
 &lt;p>Interfaces: &lt;code>InplaceOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="attributes-5">Attributes:&lt;/h4>
+&lt;h4 id="attributes-6">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>scale&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-22">Operands:&lt;/h4>
+&lt;h4 id="operands-23">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -6749,7 +6800,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-23">Results:&lt;/h4>
+&lt;h4 id="results-24">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -6764,12 +6815,85 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="lattigockkslinear_transform-heirlattigockkslineartransformop">&lt;code>lattigo.ckks.linear_transform&lt;/code> (heir::lattigo::CKKSLinearTransformOp)&lt;/h3>
+&lt;p>&lt;em>Apply a linear transform on a lattigo CKKS ciphertext&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.linear_transform` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>This operation applies a linear transform on a CKKS ciphertext using
+the provided float diagonals.&lt;/p>
+&lt;p>The linear transform is defined by a set of diagonals, where each diagonal
+represents a specific shift and scaling of the input ciphertext slots.&lt;/p>
+&lt;p>The &lt;code>diagonals&lt;/code> input is a 2D tensor where each row represents one non-zero
+diagonal of the square matrix to evaluate. The diagonal values are floats
+that will be encoded into plaintexts during code generation.&lt;/p>
+&lt;p>The &lt;code>levelQ&lt;/code> attribute specifies the modulus level at which the operation
+should be performed.&lt;/p>
+&lt;p>The &lt;code>logBabyStepGiantStepRatio&lt;/code> attribute is used to optimize the linear
+transformation using the baby-step giant-step algorithm. It defines the
+ratio between the sizes of the baby steps and giant steps. If unset,
+it is zero by default.&lt;/p>
+&lt;p>During code generation, this op will:&lt;/p>
+&lt;ol>
+&lt;li>Create a lintrans.Diagonals map from the input tensor&lt;/li>
+&lt;li>Create and encode a lintrans.Transformation&lt;/li>
+&lt;li>Create a lintrans.Evaluator&lt;/li>
+&lt;li>Evaluate the transformation on the input ciphertext&lt;/li>
+&lt;/ol>
+&lt;h4 id="attributes-7">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>diagonal_indices&lt;/code>&lt;/td>&lt;td>::mlir::DenseI32ArrayAttr&lt;/td>&lt;td>i32 dense array attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>levelQ&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>logBabyStepGiantStepRatio&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-24">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>evaluator&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>encoder&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>diagonals&lt;/code>&lt;/td>
+&lt;td>2D tensor of floating-point values&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-25">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="lattigockksmul_new-heirlattigockksmulnewop">&lt;code>lattigo.ckks.mul_new&lt;/code> (heir::lattigo::CKKSMulNewOp)&lt;/h3>
 &lt;p>&lt;em>Multiply two ciphertexts in the Lattigo CKKS dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.mul_new` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation multiplies two ciphertext values in the Lattigo CKKS dialect.&lt;/p>
-&lt;h4 id="operands-23">Operands:&lt;/h4>
+&lt;h4 id="operands-25">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -6792,7 +6916,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-24">Results:&lt;/h4>
+&lt;h4 id="results-26">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -6815,7 +6939,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
 &lt;p>Interfaces: &lt;code>InplaceOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-24">Operands:&lt;/h4>
+&lt;h4 id="operands-26">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -6842,7 +6966,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-25">Results:&lt;/h4>
+&lt;h4 id="results-27">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -6862,7 +6986,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.new_encoder` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation creates a new encoder for encoding plaintext values in the Lattigo CKKS dialect.&lt;/p>
-&lt;h4 id="operands-25">Operands:&lt;/h4>
+&lt;h4 id="operands-27">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -6877,7 +7001,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-26">Results:&lt;/h4>
+&lt;h4 id="results-28">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -6901,7 +7025,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 operations which does not relying on evaluation keys.&lt;/p>
 &lt;p>To support operations that require evaluation keys,
 the optional evaluation key set should be provided.&lt;/p>
-&lt;h4 id="operands-26">Operands:&lt;/h4>
+&lt;h4 id="operands-28">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -6920,7 +7044,7 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-27">Results:&lt;/h4>
+&lt;h4 id="results-29">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -6940,12 +7064,12 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.new_parameters_from_literal` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation creates new CKKS parameters from a given literal value in the Lattigo CKKS dialect.&lt;/p>
-&lt;h4 id="attributes-6">Attributes:&lt;/h4>
+&lt;h4 id="attributes-8">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>paramsLiteral&lt;/code>&lt;/td>&lt;td>::mlir::heir::lattigo::CKKSParametersLiteralAttr&lt;/td>&lt;td>Literal parameters for Lattigo CKKS&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="results-28">Results:&lt;/h4>
+&lt;h4 id="results-30">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -6965,7 +7089,7 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.new_plaintext` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation creates a new plaintext value in the Lattigo CKKS dialect.&lt;/p>
-&lt;h4 id="operands-27">Operands:&lt;/h4>
+&lt;h4 id="operands-29">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -6980,7 +7104,7 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-29">Results:&lt;/h4>
+&lt;h4 id="results-31">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -6995,12 +7119,52 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="lattigockksnew_polynomial_evaluator-heirlattigockksnewpolynomialevaluatorop">&lt;code>lattigo.ckks.new_polynomial_evaluator&lt;/code> (heir::lattigo::CKKSNewPolynomialEvaluatorOp)&lt;/h3>
+&lt;p>&lt;em>Create a new polynomial evaluator in the Lattigo CKKS dialect&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.new_polynomial_evaluator` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>This operation creates a new evaluator for evaluating polynomials in the
+Lattigo CKKS dialect.&lt;/p>
+&lt;h4 id="operands-30">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>params&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>evaluator&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-32">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>polynomialEvaluator&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="lattigockksrelinearize_new-heirlattigockksrelinearizenewop">&lt;code>lattigo.ckks.relinearize_new&lt;/code> (heir::lattigo::CKKSRelinearizeNewOp)&lt;/h3>
 &lt;p>&lt;em>Relinearize a ciphertext in the Lattigo CKKS dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.relinearize_new` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation relinearizes a ciphertext value in the Lattigo CKKS dialect.&lt;/p>
-&lt;h4 id="operands-28">Operands:&lt;/h4>
+&lt;h4 id="operands-31">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7019,7 +7183,7 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-30">Results:&lt;/h4>
+&lt;h4 id="results-33">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7042,7 +7206,7 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
 &lt;p>Interfaces: &lt;code>InplaceOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-29">Operands:&lt;/h4>
+&lt;h4 id="operands-32">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7065,7 +7229,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-31">Results:&lt;/h4>
+&lt;h4 id="results-34">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7085,7 +7249,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.rescale_new` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation rescales a ciphertext value in the Lattigo CKKS dialect.&lt;/p>
-&lt;h4 id="operands-30">Operands:&lt;/h4>
+&lt;h4 id="operands-33">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7104,7 +7268,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-32">Results:&lt;/h4>
+&lt;h4 id="results-35">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7127,7 +7291,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
 &lt;p>Interfaces: &lt;code>InplaceOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-31">Operands:&lt;/h4>
+&lt;h4 id="operands-34">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7150,7 +7314,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-33">Results:&lt;/h4>
+&lt;h4 id="results-36">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7174,12 +7338,12 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 Lattigo also support a conjugate-invariant version of CKKS, i.e. the ring is
 Z[X + X^{-1} ]/(X^N+1), which allows for a maximum of N slots with each slot being real number.&lt;/p>
 &lt;p>Offset is valid for both positive and negative number.&lt;/p>
-&lt;h4 id="attributes-7">Attributes:&lt;/h4>
+&lt;h4 id="attributes-9">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>offset&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-32">Operands:&lt;/h4>
+&lt;h4 id="operands-35">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7198,7 +7362,7 @@ Z[X + X^{-1} ]/(X^N+1), which allows for a maximum of N slots with each slot bei
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-34">Results:&lt;/h4>
+&lt;h4 id="results-37">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7225,12 +7389,12 @@ Z[X + X^{-1} ]/(X^N+1), which allows for a maximum of N slots with each slot bei
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
 &lt;p>Interfaces: &lt;code>InplaceOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="attributes-8">Attributes:&lt;/h4>
+&lt;h4 id="attributes-10">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>offset&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-33">Operands:&lt;/h4>
+&lt;h4 id="operands-36">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7253,7 +7417,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-35">Results:&lt;/h4>
+&lt;h4 id="results-38">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7273,7 +7437,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.ckks.sub_new` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation subtracts one ciphertext value from another in the Lattigo CKKS dialect.&lt;/p>
-&lt;h4 id="operands-34">Operands:&lt;/h4>
+&lt;h4 id="operands-37">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7296,7 +7460,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-36">Results:&lt;/h4>
+&lt;h4 id="results-39">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7319,7 +7483,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
 &lt;p>Interfaces: &lt;code>InplaceOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-35">Operands:&lt;/h4>
+&lt;h4 id="operands-38">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7346,7 +7510,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-37">Results:&lt;/h4>
+&lt;h4 id="results-40">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7366,7 +7530,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.decrypt` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation decrypts a ciphertext using RLWE&lt;/p>
-&lt;h4 id="operands-36">Operands:&lt;/h4>
+&lt;h4 id="operands-39">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7385,7 +7549,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-38">Results:&lt;/h4>
+&lt;h4 id="results-41">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7404,12 +7568,12 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>&lt;em>Drop level of a ciphertext&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.drop_level_new` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;h4 id="attributes-9">Attributes:&lt;/h4>
+&lt;/code>&lt;/pre>&lt;h4 id="attributes-11">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>levelToDrop&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-37">Operands:&lt;/h4>
+&lt;h4 id="operands-40">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7428,7 +7592,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-39">Results:&lt;/h4>
+&lt;h4 id="results-42">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7451,12 +7615,12 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
 &lt;p>Interfaces: &lt;code>InplaceOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="attributes-10">Attributes:&lt;/h4>
+&lt;h4 id="attributes-12">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>levelToDrop&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-38">Operands:&lt;/h4>
+&lt;h4 id="operands-41">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7479,7 +7643,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-40">Results:&lt;/h4>
+&lt;h4 id="results-43">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7499,7 +7663,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.encrypt` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation encrypts a plaintext using RLWE&lt;/p>
-&lt;h4 id="operands-39">Operands:&lt;/h4>
+&lt;h4 id="operands-42">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7518,7 +7682,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-41">Results:&lt;/h4>
+&lt;h4 id="results-44">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7539,12 +7703,12 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.gen_galois_key` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation generates a new RLWE Galois key&lt;/p>
 &lt;p>galoisElement: Enabling the automorphism X -&amp;gt; X^{galoisElement}.&lt;/p>
-&lt;h4 id="attributes-11">Attributes:&lt;/h4>
+&lt;h4 id="attributes-13">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>galoisElement&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-40">Operands:&lt;/h4>
+&lt;h4 id="operands-43">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7563,7 +7727,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-42">Results:&lt;/h4>
+&lt;h4 id="results-45">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7583,7 +7747,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.gen_key_pair` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation generates a new RLWE key pair&lt;/p>
-&lt;h4 id="operands-41">Operands:&lt;/h4>
+&lt;h4 id="operands-44">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7598,7 +7762,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-43">Results:&lt;/h4>
+&lt;h4 id="results-46">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7622,7 +7786,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.gen_relinearization_key` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation generates a new RLWE relinearization key&lt;/p>
-&lt;h4 id="operands-42">Operands:&lt;/h4>
+&lt;h4 id="operands-45">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7641,7 +7805,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-44">Results:&lt;/h4>
+&lt;h4 id="results-47">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7660,7 +7824,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>&lt;em>Negate a ciphertext&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.negate_new` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;h4 id="operands-43">Operands:&lt;/h4>
+&lt;/code>&lt;/pre>&lt;h4 id="operands-46">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7679,7 +7843,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-45">Results:&lt;/h4>
+&lt;h4 id="results-48">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7702,7 +7866,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code> result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
 &lt;p>Interfaces: &lt;code>InplaceOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-44">Operands:&lt;/h4>
+&lt;h4 id="operands-47">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7725,7 +7889,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-46">Results:&lt;/h4>
+&lt;h4 id="results-49">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7745,7 +7909,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.new_decryptor` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation creates a new RLWE decryptor&lt;/p>
-&lt;h4 id="operands-45">Operands:&lt;/h4>
+&lt;h4 id="operands-48">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7764,7 +7928,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-47">Results:&lt;/h4>
+&lt;h4 id="results-50">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7784,7 +7948,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.new_encryptor` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation creates a new RLWE encryptor&lt;/p>
-&lt;h4 id="operands-46">Operands:&lt;/h4>
+&lt;h4 id="operands-49">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7803,7 +7967,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-48">Results:&lt;/h4>
+&lt;h4 id="results-51">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7823,7 +7987,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.new_evaluation_key_set` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation generates a new RLWE evaluation key set&lt;/p>
-&lt;h4 id="operands-47">Operands:&lt;/h4>
+&lt;h4 id="operands-50">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7838,7 +8002,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-49">Results:&lt;/h4>
+&lt;h4 id="results-52">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7858,7 +8022,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.new_key_generator` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation generates a new RLWE key generator&lt;/p>
-&lt;h4 id="operands-48">Operands:&lt;/h4>
+&lt;h4 id="operands-51">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7873,7 +8037,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-50">Results:&lt;/h4>
+&lt;h4 id="results-53">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -11472,9 +11636,30 @@ expressed as black boxes by Orion.&lt;/p>
 &lt;p>&lt;em>Apply a linear transformation to the input ciphertext using pre-computed diagonals&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `orion.linear_transform` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>This operation applies a linear transformation on a ciphertext using
+the provided float diagonals.&lt;/p>
+&lt;p>The &lt;code>diagonals&lt;/code> input is a tensor where each row represents one non-zero
+diagonal of the square matrix to evaluate.&lt;/p>
+&lt;p>The &lt;code>diagonal_indices&lt;/code> attribute specifies the index of each corresponding diagonal
+in &lt;code>diagonals&lt;/code>. I.e., the first diagonal in the original matrix may have been zero
+and omitted, and as a result the first entry of &lt;code>diagonals&lt;/code> corresponds to
+the diagonal with index &lt;code>diagonal_indices[0]&lt;/code>, and so on.&lt;/p>
+&lt;p>The &lt;code>orion_level&lt;/code> attribute specifies the modulus level at which the operation
+should be performed.&lt;/p>
+&lt;p>The &lt;code>bsgs_ratio&lt;/code> attribute is used to optimize the linear transformation
+using the baby-step giant-step algorithm.&lt;/p>
+&lt;p>The &lt;code>slots&lt;/code> attribute specifies the number of slots in the ciphertext.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-1">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>diagonal_indices&lt;/code>&lt;/td>&lt;td>::mlir::DenseI32ArrayAttr&lt;/td>&lt;td>i32 dense array attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>orion_level&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>bsgs_ratio&lt;/code>&lt;/td>&lt;td>::mlir::FloatAttr&lt;/td>&lt;td>An Attribute containing a floating-point value&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>slots&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;/table>
 &lt;h4 id="operands-1">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
