@@ -716,7 +716,7 @@ LogicalResult ConcealPlaintextInsert::matchAndRewrite(
       }
       rewriter.setInsertionPointAfterValue(dest);
       auto concealedTensor =
-          rewriter.create<secret::ConcealOp>(op.getLoc(), dest);
+          secret::ConcealOp::create(rewriter, op.getLoc(), dest);
       // Add the concealed tensor to the generic arguments.
       rewriter.modifyOpInPlace(op, [&]() {
         BlockArgument newArg = op.getBody()->addArgument(

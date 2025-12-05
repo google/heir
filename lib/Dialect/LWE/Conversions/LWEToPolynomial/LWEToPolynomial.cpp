@@ -516,28 +516,28 @@ struct ConvertRelin : public OpConversionPattern<ckks::RelinearizeOp> {
       return rewriter.notifyMatchFailure(op, "no key switching key provided");
     }
 
-    Value zero = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), 0);
-    Value one = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), 1);
-    Value two = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), 2);
-    Value input0 = rewriter.create<tensor::ExtractOp>(op.getLoc(),
-                                                      adaptor.getInput(), zero);
-    Value input1 = rewriter.create<tensor::ExtractOp>(op.getLoc(),
-                                                      adaptor.getInput(), one);
-    Value input2 = rewriter.create<tensor::ExtractOp>(op.getLoc(),
-                                                      adaptor.getInput(), two);
+    Value zero = arith::ConstantIndexOp::create(rewriter, op.getLoc(), 0);
+    Value one = arith::ConstantIndexOp::create(rewriter, op.getLoc(), 1);
+    Value two = arith::ConstantIndexOp::create(rewriter, op.getLoc(), 2);
+    Value input0 = tensor::ExtractOp::create(rewriter, op.getLoc(),
+                                             adaptor.getInput(), zero);
+    Value input1 = tensor::ExtractOp::create(rewriter, op.getLoc(),
+                                             adaptor.getInput(), one);
+    Value input2 = tensor::ExtractOp::create(rewriter, op.getLoc(),
+                                             adaptor.getInput(), two);
     polynomial::KeySwitchInnerOp ksInnerOp =
-        rewriter.create<polynomial::KeySwitchInnerOp>(
-            op.getLoc(), input2, adaptor.getKeySwitchingKey());
+        polynomial::KeySwitchInnerOp::create(rewriter, op.getLoc(), input2,
+                                             adaptor.getKeySwitchingKey());
 
-    Value comp0 = rewriter.create<polynomial::AddOp>(
-        op.getLoc(), input0, ksInnerOp.getConstantOutput());
-    Value comp1 = rewriter.create<polynomial::AddOp>(
-        op.getLoc(), input1, ksInnerOp.getLinearOutput());
+    Value comp0 = polynomial::AddOp::create(rewriter, op.getLoc(), input0,
+                                            ksInnerOp.getConstantOutput());
+    Value comp1 = polynomial::AddOp::create(rewriter, op.getLoc(), input1,
+                                            ksInnerOp.getLinearOutput());
     Type outputType = RankedTensorType::get(
         {static_cast<int64_t>(2)},
         getElementTypeOrSelf(adaptor.getInput().getType()));
-    auto result = rewriter.create<tensor::FromElementsOp>(
-        op.getLoc(), outputType, ValueRange{comp0, comp1});
+    auto result = tensor::FromElementsOp::create(
+        rewriter, op.getLoc(), outputType, ValueRange{comp0, comp1});
     rewriter.replaceOp(op, result);
     return success();
   }

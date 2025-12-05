@@ -37,8 +37,9 @@ struct ConvertUnaryOp : public OpConversionPattern<UnaryOp> {
     if (failed(result)) return result;
 
     Value cryptoContext = result.value();
-    rewriter.replaceOp(op, rewriter.create<OpenfheOp>(
-                               op.getLoc(), cryptoContext, adaptor.getInput()));
+    rewriter.replaceOp(op,
+                       OpenfheOp::create(rewriter, op.getLoc(), cryptoContext,
+                                         adaptor.getInput()));
     return success();
   }
 };
@@ -93,9 +94,9 @@ struct ConvertRotateOp : public OpConversionPattern<RotateOp> {
     if (failed(result)) return result;
 
     Value cryptoContext = result.value();
-    rewriter.replaceOp(op, rewriter.create<OpenfheOp>(
-                               op.getLoc(), cryptoContext, adaptor.getInput(),
-                               adaptor.getOffset()));
+    rewriter.replaceOp(
+        op, OpenfheOp::create(rewriter, op.getLoc(), cryptoContext,
+                              adaptor.getInput(), adaptor.getOffset()));
     return success();
   }
 };
@@ -151,8 +152,8 @@ struct ConvertModulusSwitchOp : public OpConversionPattern<ModulusSwitchOp> {
     if (failed(result)) return result;
 
     Value cryptoContext = result.value();
-    rewriter.replaceOp(op, rewriter.create<openfhe::ModReduceOp>(
-                               op.getLoc(), op.getOutput().getType(),
+    rewriter.replaceOp(op, openfhe::ModReduceOp::create(
+                               rewriter, op.getLoc(), op.getOutput().getType(),
                                cryptoContext, adaptor.getInput()));
     return success();
   }
@@ -172,10 +173,10 @@ struct ConvertLevelReduceOp : public OpConversionPattern<LevelReduceOp> {
     if (failed(result)) return result;
 
     Value cryptoContext = result.value();
-    rewriter.replaceOp(op,
-                       rewriter.create<openfhe::LevelReduceOp>(
-                           op.getLoc(), op.getOutput().getType(), cryptoContext,
-                           adaptor.getInput(), op.getLevelToDrop()));
+    rewriter.replaceOp(
+        op, openfhe::LevelReduceOp::create(
+                rewriter, op.getLoc(), op.getOutput().getType(), cryptoContext,
+                adaptor.getInput(), op.getLevelToDrop()));
     return success();
   }
 };
