@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -117,6 +118,7 @@ std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
 implementBabyStepGiantStep(
     const T& giantSteppedOperand, const T& babySteppedOperand, int64_t period,
     int64_t steps, DagExtractor<T> extractFunc,
+    std::map<int, bool> zeroDiagonals = {},
     const DerivedRotationIndexFn& derivedRotationIndexFn =
         defaultDerivedRotationIndexFn) {
   using NodeTy = ArithmeticDagNode<T>;
@@ -147,6 +149,12 @@ implementBabyStepGiantStep(
       int64_t innerRotAmount =
           derivedRotationIndexFn(giantStepSize, j, i, period);
       size_t extractionIndex = i + j * giantStepSize;
+
+      // Skip the multiplication if the extraction index is zero.
+      if (zeroDiagonals.contains(extractionIndex)) {
+        continue;
+      }
+
       auto plaintext = extractFunc(babySteppedDag, extractionIndex);
       auto rotatedPlaintext = NodeTy::leftRotate(plaintext, innerRotAmount);
       auto multiplied = NodeTy::mul(rotatedPlaintext, babyStepVals[i]);
@@ -154,11 +162,22 @@ implementBabyStepGiantStep(
           innerSum == nullptr ? multiplied : NodeTy::add(innerSum, multiplied);
     }
 
-    auto rotatedSum = NodeTy::leftRotate(innerSum, period * j * giantStepSize);
-    result = result == nullptr ? rotatedSum : NodeTy::add(result, rotatedSum);
+    // The innerSum may be nullptr if all the multiplications were skipped.
+    auto rotatedSum =
+        innerSum == nullptr
+            ? nullptr
+            : NodeTy::leftRotate(innerSum, period * j * giantStepSize);
+    if (result == nullptr) {
+      result = rotatedSum;
+    } else {
+      result = rotatedSum == nullptr ? result : NodeTy::add(result, rotatedSum);
+    }
   }
 
-  return result;
+  // Hack to make 0 when there are no nonzero diagonals - only appears in
+  // fuzzing edge cases.
+  return result == nullptr ? NodeTy::sub(giantSteppedDag, giantSteppedDag)
+                           : result;
 }
 
 // Returns an arithmetic DAG that implements a tensor_ext.rotate_and_reduce op.
@@ -185,6 +204,7 @@ std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
                  std::shared_ptr<ArithmeticDagNode<T>>>
 implementRotateAndReduce(const T& vector, std::optional<T> plaintexts,
                          int64_t period, int64_t steps,
+                         std::map<int, bool> zeroDiagonals = {},
                          const std::string& reduceOp = "arith.addi") {
   using NodeTy = ArithmeticDagNode<T>;
   auto performReduction = [&](std::shared_ptr<NodeTy> left,
@@ -217,7 +237,7 @@ implementRotateAndReduce(const T& vector, std::optional<T> plaintexts,
   };
 
   return implementBabyStepGiantStep<T>(vector, plaintexts.value(), period,
-                                       steps, extractFunc);
+                                       steps, extractFunc, zeroDiagonals);
 }
 
 // Returns an arithmetic DAG that implements a baby-step-giant-step between
@@ -248,7 +268,7 @@ implementCiphertextCiphertextBabyStepGiantStep(
                         int64_t extractionIndex) { return babySteppedDag; };
 
   return implementBabyStepGiantStep<T>(giantSteppedOperand, babySteppedOperand,
-                                       period, steps, extractFunc,
+                                       period, steps, extractFunc, {},
                                        derivedRotationIndexFn);
 }
 
@@ -260,13 +280,14 @@ template <typename T>
 std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
                  std::shared_ptr<ArithmeticDagNode<T>>>
 implementHaleviShoup(const T& vector, const T& matrix,
-                     std::vector<int64_t> originalMatrixShape) {
+                     std::vector<int64_t> originalMatrixShape,
+                     std::map<int, bool> zeroDiagonals = {}) {
   using NodeTy = ArithmeticDagNode<T>;
   int64_t numRotations = matrix.getShape()[0];
 
   auto rotateAndReduceResult = implementRotateAndReduce<T>(
       vector, std::optional<T>(matrix), /*period=*/1,
-      /*steps=*/numRotations);
+      /*steps=*/numRotations, zeroDiagonals);
 
   auto summedShifts = rotateAndReduceResult;
 
