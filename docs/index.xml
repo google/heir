@@ -4027,7 +4027,7 @@ hoisted.&lt;/p>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Output:&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#kernel&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#secret.kernel&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">name =&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;MatvecDiagonal&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">force =&lt;/span> false&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#layout&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#tensor_ext.layout&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;{ [i0] -&amp;gt; [ct, slot] : (i0 - slot) mod 1024 = 7 and i0 &amp;gt;= 0 and 0 &amp;gt;= i0 and slot &amp;gt;= 0 and 1023 &amp;gt;= slot and ct = 0 }&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#layout1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#tensor_ext.layout&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;{ [i0, i1] -&amp;gt; [ct, slot] : (4 + i0) mod 512 = 0 and (-4 - i1 + ct) mod 512 = 0 and (7 + slot) mod 1024 = 0 and 0 &amp;lt;= i0 &amp;lt;= 511 and 0 &amp;lt;= i1 &amp;lt;= 511 and 0 &amp;lt;= ct &amp;lt;= 511 and 0 &amp;lt;= slot &amp;lt;= 1023 }&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#layout1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#tensor_ext.layout&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;{ [i0, i1] -&amp;gt; [ct, slot] : slot = 1017 and (-4 - i1 + ct) mod 512 = 0 and (4 + i0) mod 512 = 0 and 0 &amp;lt;= i0 &amp;lt;= 511 and 0 &amp;lt;= i1 &amp;lt;= 511 and 0 &amp;lt;= ct &amp;lt;= 511 }&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>module &lt;span style="color:#000;font-weight:bold">{&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@main&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">512x512x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;,&lt;/span> &lt;span style="color:#000">%arg1&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">512x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">tensor_ext.layout =&lt;/span> &lt;span style="color:#000">#layout&lt;/span>&lt;span style="color:#000;font-weight:bold">})&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">512x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">tensor_ext.layout =&lt;/span> &lt;span style="color:#000">#layout&lt;/span>&lt;span style="color:#000;font-weight:bold">})&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>empty&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">512x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
@@ -5011,26 +5011,42 @@ arguments in the function body.&lt;/li>
 &lt;/ul>
 &lt;h4 id="statistics">Statistics&lt;/h4>
 &lt;pre tabindex="0">&lt;code>total circuit size : The total circuit size for all optimized circuits, after optimization is done.
-&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2025-10-30</title><link>https://heir.dev/blog/2025/10/30/heir-meeting-2025-10-30/</link><pubDate>Thu, 30 Oct 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/10/30/heir-meeting-2025-10-30/</guid><description>
+&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2025-12-04</title><link>https://heir.dev/blog/2025/12/04/heir-meeting-2025-12-04/</link><pubDate>Thu, 04 Dec 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/12/04/heir-meeting-2025-12-04/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1nUfA6YtOQCGVEE-StS-oxJst6VvGYSz14lCL-x6D2MA/edit?usp=sharing">notes&lt;/a>
-and &lt;a href="https://www.youtube.com/watch?v=74nh6R5Ex5Q">video recording&lt;/a> from the HEIR
-meeting on 2025-10-30.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2025-04-17</title><link>https://heir.dev/blog/2025/04/17/heir-meeting-2025-04-17/</link><pubDate>Thu, 17 Apr 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/04/17/heir-meeting-2025-04-17/</guid><description>
+&lt;a href="https://docs.google.com/document/d/1Dt63vcqrpXDK2_PexLM4-ce4WP3jc4GZ4Brbic12FGE/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/E4bO0TJXQMg">video recording&lt;/a> from the HEIR meeting on
+2025-12-04.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2025-09-04</title><link>https://heir.dev/blog/2025/09/05/heir-meeting-2025-09-04/</link><pubDate>Fri, 05 Sep 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/09/05/heir-meeting-2025-09-04/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1be2IqEcj14CF-MA17SjZaS_soRDf-xTrMP-yAKh1BWE/edit?usp=sharing">notes&lt;/a>
-and &lt;a href="https://youtu.be/HHU6rCMxZRc">video recording&lt;/a> from the HEIR meeting on
-2025-04-17.&lt;/p>
-&lt;p>Hongren Zheng gave an overview of the &lt;code>mgmt&lt;/code> dialect which handles ciphertext
-management in the compiler. This talk
-&lt;a href="https://youtu.be/HHU6rCMxZRc?si=U_ePY5emqs6e4NoV&amp;amp;t=1631">starts at 27:11&lt;/a>.
-&lt;a href="https://heir.dev/slides/mgmt-2025-04-17.pdf">The slides can be found here&lt;/a>.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-04-04</title><link>https://heir.dev/blog/2024/04/04/heir-meeting-2024-04-04/</link><pubDate>Thu, 04 Apr 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/04/04/heir-meeting-2024-04-04/</guid><description>
+&lt;a href="https://docs.google.com/document/d/1_Eoip7Gxr89V06SOI2rNH-a8SipGzQUsy5XC3mSmxyc/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/HfCUuwt0E0A">video recording&lt;/a> from the HEIR meeting on
+2025-09-04.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2025-01-23</title><link>https://heir.dev/blog/2025/01/23/heir-meeting-2025-01-23/</link><pubDate>Thu, 23 Jan 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/01/23/heir-meeting-2025-01-23/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/121_0mzqYIWYMc7rcW2Et5qS-ux4ut3b-kno1dI9sQq8/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1x8tFUC4vGeO0t-CvFQe4o-H8xgl4zEvBZaye_JlIEVo/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/HMgHNpJeINs">video recording&lt;/a> from the HEIR meeting on
+2025-01-23.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-11-26</title><link>https://heir.dev/blog/2024/11/26/heir-meeting-2024-11-26/</link><pubDate>Tue, 26 Nov 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/11/26/heir-meeting-2024-11-26/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/10WTpdVaLz4mgmTwlJ3lVMGD4qmiNEl2Uvt3R3h0XFmc/edit?hl=en&amp;amp;forcehl=1&amp;amp;tab=t.0#heading=h.w3lar3vbuip1">notes&lt;/a>,
+&lt;a href="https://drive.google.com/file/d/13yvX_ap09tTqwJsdABDf3WDl79GF3bJx/view?usp=sharing">video recording&lt;/a>,
 and
-&lt;a href="https://drive.google.com/file/d/1_Ksjx8s8nD4cLsuZp5_KitYI2mPN72Je/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-04-04.&lt;/p>
+&lt;a href="https://docs.google.com/document/d/1s5iXtOSpIDJX3JOEB5gQqUPm5lo1gLpRUM10pBfAdoo/edit?usp=sharing">a transcription of the recording&lt;/a>
+from the HEIR meeting on 2024-11-26.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-06-27</title><link>https://heir.dev/blog/2024/06/27/heir-meeting-2024-06-27/</link><pubDate>Thu, 27 Jun 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/06/27/heir-meeting-2024-06-27/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1lc4U2JzHapu99_sigOAYwpjNnfd9_QGrX1HAQ0hle_o/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1-wMytGj3AHi55sA2jb81AsHOU8EcIq6d/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-06-27.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-03-07</title><link>https://heir.dev/blog/2024/03/07/heir-meeting-2024-03-07/</link><pubDate>Thu, 07 Mar 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/03/07/heir-meeting-2024-03-07/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1felxN5mFBV5LheP79is30jHRxlKLW0NQEo6FPDKxDKM/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1oVJG-fM72nNLiR1eXkzdeaqdDOEpTfK0/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-03-07.&lt;/p>
+&lt;p>Note: there will be no HEIR meeting on 2024-03-21 due to the FHE.org, HACS, and
+RWC conferences. Hope to see you all there!&lt;/p>
 &lt;!-- mdformat global-off --></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h1 id="bgv-dialect">&amp;lsquo;bgv&amp;rsquo; Dialect&lt;/h1>
