@@ -1,6 +1,7 @@
 #include "lib/Transforms/ConvertToCiphertextSemantics/ConvertToCiphertextSemantics.h"
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <numeric>
 #include <optional>
@@ -674,13 +675,26 @@ struct ConvertLinalgConv2D
         cast<TypedValue<RankedTensorType>>(adaptor.getInputs()[1]);
     SSAValue matrixLeaf(matrix);
 
-    // The original matrix shape is the shape of the expanded filter.
+    // The original matrix shape is the shape of the expanded filter before
+    // diagonalization.
     RankedTensorType expandedMatrixType = get2dConvFilterExpandedType(
         cast<RankedTensorType>(op.getInputs()[1].getType()),
         cast<RankedTensorType>(op.getInputs()[0].getType()), /*padding=*/0);
+
+    // Collect any zero diagonals of the filter matrix.
+    LayoutAttr filterLayout = getLayoutAttr(adaptor.getInputs()[1]);
+    auto filterRelation = filterLayout.getIntegerRelation();
+
+    PointCollector collector;
+    std::map<int, bool> zeroDiagonals;
+    getCtComplementPoints(filterRelation, collector, matrix.getType());
+    for (const auto& point : collector.points) {
+      zeroDiagonals[point[0]] = true;
+    }
+
     std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
         implementHaleviShoup(vectorLeaf, matrixLeaf,
-                             expandedMatrixType.getShape());
+                             expandedMatrixType.getShape(), zeroDiagonals);
 
     rewriter.setInsertionPointAfter(op);
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);

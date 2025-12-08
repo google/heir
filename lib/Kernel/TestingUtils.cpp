@@ -251,6 +251,12 @@ std::string printKernel(
   return visitor.process(dag);
 }
 
+double evalMultiplicativeDepth(
+    const std::shared_ptr<ArithmeticDagNode<LiteralValue>>& dag) {
+  MultiplicativeDepthVisitorImpl visitor;
+  return visitor.process(dag);
+}
+
 }  // namespace kernel
 }  // namespace heir
 }  // namespace mlir
