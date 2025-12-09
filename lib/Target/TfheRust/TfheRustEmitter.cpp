@@ -646,31 +646,47 @@ LogicalResult TfheRustEmitter::printOperation(tensor::FromElementsOp op) {
 
   emitAssignPrefix(op.getResult(), true, res);
 
-  std::string valueList;
+  std::vector<std::string> currentLayer;
+  currentLayer.reserve(op.getNumOperands());
 
   for (int i = 0; i < op.getNumOperands(); i++) {
+    std::string val;
     if (isLevelledOp(op.getOperand(i).getDefiningOp()) && useLevels) {
-      // Ensure levelled operands are cloned from temp_nodes.
-      valueList =
-          llvm::formatv("{0}temp_nodes[&{1}].clone()", valueList,
-                        variableNames->getIntForValue(op.getOperand(i)));
-
+      val = llvm::formatv("temp_nodes[&{0}].clone()",
+                          variableNames->getIntForValue(op.getOperand(i)));
     } else {
-      valueList =
-          llvm::formatv("{0}{1}.clone()", valueList,
-                        variableNames->getNameForValue(op.getOperand(i)));
+      val = llvm::formatv("{0}.clone()",
+                          variableNames->getNameForValue(op.getOperand(i)));
     }
-
-    if (i != op->getNumOperands() - 1) {
-      valueList = llvm::formatv("{0}, ", valueList);
-    }
+    currentLayer.push_back(val);
   }
 
-  for (int i = 0; i < op.getResult().getType().getShape().size(); i++) {
-    valueList = llvm::formatv("[{0}]", valueList);
+  auto rankedType = cast<RankedTensorType>(resultType);
+  ArrayRef<int64_t> shape = rankedType.getShape();
+
+  for (int r = shape.size() - 1; r >= 0; --r) {
+    int64_t dimSize = shape[r];
+    std::vector<std::string> nextLayer;
+
+    for (size_t i = 0; i < currentLayer.size(); i += dimSize) {
+      std::string group;
+
+      for (int j = 0; j < dimSize; ++j) {
+        if (j > 0) group += ", ";
+        group += currentLayer[i + j];
+      }
+
+      nextLayer.push_back(llvm::formatv("[{0}]", group));
+    }
+    currentLayer = std::move(nextLayer);
   }
 
-  os << valueList << ";\n";
+  if (!currentLayer.empty()) {
+    os << currentLayer[0] << ";\n";
+  } else {
+    os << "[];\n";
+  }
+
   return success();
 }
 

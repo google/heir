@@ -21,16 +21,16 @@ mlir::Operation* BooleanGateImporter::createOp(Yosys::RTLIL::Cell* cell,
                                                SmallVector<Value>& inputs,
                                                ImplicitLocOpBuilder& b) const {
   // standard cell names look like $_CELL_
-  auto op = llvm::StringSwitch<mlir::Operation*>(
-                cell->type.substr(2, cell->type.size() - 3))
-                .Case("NOT", comb::InvOp::create(b, inputs[0], false))
-                .Case("XNOR", comb::XNorOp::create(b, inputs, false))
-                .Case("AND", comb::AndOp::create(b, inputs, false))
-                .Case("XOR", comb::XorOp::create(b, inputs, false))
-                .Case("NAND", comb::NandOp::create(b, inputs, false))
-                .Case("NOR", comb::NorOp::create(b, inputs, false))
-                .Case("OR", comb::OrOp::create(b, inputs, false))
-                .Default(nullptr);
+  auto* op = llvm::StringSwitch<mlir::Operation*>(
+                 cell->type.substr(2, cell->type.size() - 3))
+                 .Case("NOT", comb::InvOp::create(b, inputs[0], false))
+                 .Case("XNOR", comb::XNorOp::create(b, inputs, false))
+                 .Case("AND", comb::AndOp::create(b, inputs, false))
+                 .Case("XOR", comb::XorOp::create(b, inputs, false))
+                 .Case("NAND", comb::NandOp::create(b, inputs, false))
+                 .Case("NOR", comb::NorOp::create(b, inputs, false))
+                 .Case("OR", comb::OrOp::create(b, inputs, false))
+                 .Default(nullptr);
   if (op == nullptr) {
     llvm_unreachable("unexpected cell type");
   }
