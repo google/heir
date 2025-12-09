@@ -586,6 +586,45 @@ TEST(UtilsTest, TestGetSliceExtractionRelation) {
   }
 }
 
+TEST(UtilsTest, TestGetCtComplementPoints) {
+  MLIRContext context;
+  RankedTensorType type =
+      RankedTensorType::get({8, 1024}, IndexType::get(&context));
+  auto rel = getIntegerRelationFromIslStr(
+      "{ [x] -> [y, slot] : x >= 0 and 7 >= y and y >= 0 and x = y and x mod 2 "
+      "= 0 and 7 >= x }");
+  ASSERT_TRUE(succeeded(rel));
+  std::vector<std::vector<int64_t>> expected = {{1}, {3}, {5}, {7}};
+  PointCollector collector;
+  getCtComplementPoints(rel.value(), collector, type);
+  EXPECT_EQ(collector.points, expected);
+}
+
+TEST(UtilsTest, TestGetCtComplementFromConvRelation) {
+  MLIRContext context;
+  RankedTensorType type =
+      RankedTensorType::get({1024, 1024}, IndexType::get(&context));
+  auto rel = getIntegerRelationFromIslStr(
+      "{ [i0, i1] -> [ct, slot] : (-32i0 - i1 + ct - 4*floor((slot)/28)) mod "
+      "1024 = 0 and 0 <= i0 <= 4 and 0 <= i1 <= 4 and 0 <= ct <= 1023 and slot "
+      ">= 0 and -28i0 <= slot <= 895 - 28i0 and slot <= 783 and -32i0 - i1 - "
+      "slot <= 4*floor((slot)/28) <= 1023 - 32i0 - i1 - slot and "
+      "28*floor((slot)/28) >= -31 + i1 + slot and 28*floor((slot)/28) <= i1 + "
+      "slot }");
+  ASSERT_TRUE(succeeded(rel));
+
+  // Expect that 241 to 1023 are the complement points.
+  PointCollector collector;
+  getCtComplementPoints(rel.value(), collector, type);
+
+  EXPECT_EQ(collector.points.size(), 783);
+  for (const auto& point : collector.points) {
+    EXPECT_EQ(point.size(), 1);
+    EXPECT_GE(point[0], 241);
+    EXPECT_LE(point[0], 1023);
+  }
+}
+
 }  // namespace
 }  // namespace heir
 }  // namespace mlir
