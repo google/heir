@@ -346,9 +346,9 @@ class SecretGenericOpLUT4Conversion
     comb::TruthTableOp truthOp =
         cast<comb::TruthTableOp>(op.getBody()->getOperations().front());
     return rewriter
-        .replaceOpWithNewOp<cggi::Lut4Op>(op, encodedInputs[0],
-                                          encodedInputs[1], encodedInputs[2],
-                                          encodedInputs[3], truthOp.getLookupTable())
+        .replaceOpWithNewOp<cggi::Lut4Op>(
+            op, encodedInputs[0], encodedInputs[1], encodedInputs[2],
+            encodedInputs[3], truthOp.getLookupTable())
         .getOperation();
   }
 };
@@ -800,7 +800,7 @@ static int findLUTSize(MLIRContext* context, Operation* module) {
     if (isa<comb::CombDialect>(op->getDialect())) {
       int currentSize = 0;
       if (dyn_cast<comb::TruthTableOp>(op))
-        currentSize = 3;
+        currentSize = 4;  // LUT4
       else
         currentSize = op->getResults().getTypes()[0].getIntOrFloatBitWidth();
 
@@ -879,7 +879,9 @@ struct SecretToCGGI : public impl::SecretToCGGIBase<SecretToCGGI> {
         [&](auto op) { return typeConverter.isLegal(op); });
 
     patterns.add<
-        SecretGenericOpLUT4Conversion, SecretGenericOpLUT4Conversion, SecretGenericOpTensorInsertConversion,
+        // SecretGenericOpLUTConversion, 
+        SecretGenericOpLUT4Conversion,
+        SecretGenericOpTensorInsertConversion,
         SecretGenericOpTensorExtractConversion, ConvertTruthTableOp,
         SecretGenericOpInvConversion, SecretGenericOpAndConversion,
         SecretGenericOpNorConversion, SecretGenericOpNandConversion,
