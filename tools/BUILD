@@ -18,6 +18,7 @@ cc_binary(
         "@heir//:config_enable_yosys": [
             "@edu_berkeley_abc//:abc",
             "@heir//lib/Transforms/YosysOptimizer/yosys:techmap.v",
+            "@heir//lib/Transforms/YosysOptimizer/yosys:techmap_lut4.v",
         ],
         "//conditions:default": [],
     }),

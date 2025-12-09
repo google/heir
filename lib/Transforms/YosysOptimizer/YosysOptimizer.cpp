@@ -85,14 +85,14 @@ constexpr std::string_view kYosysLutTemplate = R"(
 read_verilog -sv {0};
 hierarchy -check -top \{1};
 proc; memory; stat;
-techmap -map {2}/techmap.v; stat;
+techmap -map {2}/techmap_lut4.v; stat;
 opt_expr; opt_clean -purge; stat;
 splitnets -ports \{1} %n;
 flatten; opt_expr; opt; opt_clean -purge;
 rename -hide */w:*; rename -enumerate */w:*;
-abc -exe {3} -lut 3 {4}; stat;
+abc -exe {3} -lut 4 {4}; stat;
 opt_clean -purge; stat;
-techmap -map {2}/techmap.v; opt_clean -purge;
+techmap -map {2}/techmap_lut4.v; opt_clean -purge;
 hierarchy -generate * o:Y i:*; opt; opt_clean -purge;
 clean;
 stat;
