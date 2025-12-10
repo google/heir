@@ -7,7 +7,8 @@ on:
 
 jobs:
   create-release:
-    runs-on: ubuntu-latest
+    runs-on:
+      labels: ubuntu-24.04-16core
     permissions:
       contents: write
     outputs:
@@ -20,12 +21,34 @@ jobs:
         id: date
         run: echo "date=$(date +'%Y.%m.%d')" >> "$GITHUB_OUTPUT"
 
+      - name: Install dependencies
+        run: |
+          ./.github/install_clang_version.sh 19
+
+      - name: "Run `bazel build`"
+        run: |
+          bazel build -c opt //tools:all
+
+      - name: Ensure binaries can run
+        shell: bash
+        run: |
+            bazel-bin/tools/heir-opt --help
+            bazel-bin/tools/heir-translate --help
+            bazel-bin/tools/heir-lsp --help
+            [ -f bazel-bin/external/edu_berkeley_abc/abc ]
+
       - name: Create Release
         id: release
         uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8  # pin@v2.3.2
         with:
           tag_name: v${{ steps.date.outputs.date }}
           generate_release_notes: true
+          files: |
+            bazel-bin/tools/heir-opt
+            bazel-bin/tools/heir-translate
+            bazel-bin/tools/heir-lsp
+            bazel-bin/external/edu_berkeley_abc/abc
+            lib/Transforms/YosysOptimizer/yosys/techmap.v
 
   monitor-wheels:
     runs-on: ubuntu-latest
