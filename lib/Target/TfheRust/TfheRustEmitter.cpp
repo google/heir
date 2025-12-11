@@ -646,31 +646,62 @@ LogicalResult TfheRustEmitter::printOperation(tensor::FromElementsOp op) {
 
   emitAssignPrefix(op.getResult(), true, res);
 
-  std::string valueList;
+  // 1. Collect all individual operand strings into a vector
+  std::vector<std::string> currentLayer;
+  currentLayer.reserve(op.getNumOperands());
 
   for (int i = 0; i < op.getNumOperands(); i++) {
+    std::string val;
+    // Check if we need to clone from temp_nodes (LevelledOp logic)
     if (isLevelledOp(op.getOperand(i).getDefiningOp()) && useLevels) {
-      // Ensure levelled operands are cloned from temp_nodes.
-      valueList =
-          llvm::formatv("{0}temp_nodes[&{1}].clone()", valueList,
-                        variableNames->getIntForValue(op.getOperand(i)));
-
+      val = llvm::formatv("temp_nodes[&{0}].clone()",
+                          variableNames->getIntForValue(op.getOperand(i)));
     } else {
-      valueList =
-          llvm::formatv("{0}{1}.clone()", valueList,
-                        variableNames->getNameForValue(op.getOperand(i)));
+      val = llvm::formatv("{0}.clone()",
+                          variableNames->getNameForValue(op.getOperand(i)));
     }
-
-    if (i != op->getNumOperands() - 1) {
-      valueList = llvm::formatv("{0}, ", valueList);
-    }
+    currentLayer.push_back(val);
   }
 
-  for (int i = 0; i < op.getResult().getType().getShape().size(); i++) {
-    valueList = llvm::formatv("[{0}]", valueList);
+  // 2. Retrieve the shape of the result tensor
+  // We assume the type is a RankedTensorType to access getShape()
+  auto rankedType = cast<RankedTensorType>(resultType);
+  ArrayRef<int64_t> shape = rankedType.getShape();
+
+  // 3. Iteratively group elements from the innermost dimension to the outermost
+  // Iterate backwards through the shape (e.g., for 1x2x16, iterate 16, then 2, then 1)
+  for (int r = shape.size() - 1; r >= 0; --r) {
+    int64_t dimSize = shape[r];
+    std::vector<std::string> nextLayer;
+    
+    // We process the current layer in chunks of size 'dimSize'
+    // The total size of currentLayer must be divisible by dimSize
+    for (size_t i = 0; i < currentLayer.size(); i += dimSize) {
+      std::string group;
+      
+      // Join 'dimSize' elements with commas
+      for (int j = 0; j < dimSize; ++j) {
+        if (j > 0) group += ", ";
+        group += currentLayer[i + j];
+      }
+      
+      // Wrap this group in brackets and push to the next layer
+      nextLayer.push_back(llvm::formatv("[{0}]", group));
+    }
+    
+    // Move to the next level of nesting
+    currentLayer = std::move(nextLayer);
   }
 
-  os << valueList << ";\n";
+  // 4. Emit the final result
+  // After the loop, currentLayer should contain exactly one string: the fully nested array
+  if (!currentLayer.empty()) {
+    os << currentLayer[0] << ";\n";
+  } else {
+    // Fallback for empty/0-element tensors if necessary
+    os << "[];\n"; 
+  }
+
   return success();
 }
 

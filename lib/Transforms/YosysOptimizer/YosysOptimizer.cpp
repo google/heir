@@ -554,10 +554,10 @@ void YosysOptimizer::runOnOperation() {
 
   // Extracting tensor.inserts into their own generics avoids returning an
   // entire tensor from Yosys.
-  cleanupPatterns.add<secret::HoistOpBeforeGeneric>(
-      ctx, std::vector<std::string>{"tensor.extract"});
-  cleanupPatterns.add<secret::HoistOpAfterGeneric>(
-      ctx, std::vector<std::string>{"tensor.insert"});
+  // cleanupPatterns.add<secret::HoistOpBeforeGeneric>(
+  //     ctx, std::vector<std::string>{"tensor.extract"});
+  // cleanupPatterns.add<secret::HoistOpAfterGeneric>(
+  //     ctx, std::vector<std::string>{"tensor.insert"});
   secret::populateGenericCanonicalizers(cleanupPatterns, ctx);
   // TODO (#1221): Investigate whether folding (default: on) can be skipped
   // here.

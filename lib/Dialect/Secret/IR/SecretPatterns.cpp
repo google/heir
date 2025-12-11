@@ -535,6 +535,7 @@ bool HoistOpBeforeGeneric::canHoist(Operation& op, GenericOp genericOp) const {
 
 LogicalResult HoistOpBeforeGeneric::matchAndRewrite(
     GenericOp genericOp, PatternRewriter& rewriter) const {
+      llvm::dbgs() << "Trying to hoist before generic:\n";
   auto& opRange = genericOp.getBody()->getOperations();
   if (opRange.size() <= 2) {
     // This corresponds to a fixed point of the pattern: if an op is hoisted,
@@ -590,6 +591,7 @@ LogicalResult HoistOpAfterGeneric::matchAndRewrite(
 
 LogicalResult HoistPlaintextOps::matchAndRewrite(
     GenericOp genericOp, PatternRewriter& rewriter) const {
+
   auto& opRange = genericOp.getBody()->getOperations();
   if (opRange.size() <= 2) {
     // This corresponds to a fixed point of the pattern: if an op is hoisted,

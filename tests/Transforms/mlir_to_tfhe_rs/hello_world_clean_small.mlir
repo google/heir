@@ -3,18 +3,36 @@
 // A reduced dimension version of hello world to speed Yosys up.
 
 // CHECK: module
+// module {
+//   func.func @main(%arg0: tensor<1x1xi8> {iree.identifier = "serving_default_dense_input:0", secret.secret, tf_saved_model.index_path = ["dense_input"]}) -> (tensor<1x1xi32> {iree.identifier = "StatefulPartitionedCall:0", tf_saved_model.index_path = ["dense_2"]}) attributes {tf_saved_model.exported_names = ["serving_default"]} {
+//     %cst = arith.constant dense<[[9, 54, 57]]> : tensor<1x3xi8>
+//     %cst_0 = arith.constant dense<[[0, 0, 5438]]> : tensor<1x3xi32>
+//     %cst_1 = arith.constant dense<[[729, 1954, 610]]> : tensor<1x3xi32>
+//     %cst_2 = arith.constant dense<429> : tensor<1x1xi32>
+//     %c0_i32 = arith.constant 0 : i32
+//     %cst_3 = arith.constant dense<[[12, 9, 12], [26, 25, 36], [19, 33, 32]]> : tensor<3x3xi8>
+//     %cst_4 = arith.constant dense<[[39], [59], [39]]> : tensor<3x1xi8>
+//     %2 = linalg.quantized_matmul ins(%arg0, %cst, %c0_i32, %c0_i32 : tensor<1x1xi8>, tensor<1x3xi8>, i32, i32) outs(%cst_0 : tensor<1x3xi32>) -> tensor<1x3xi32>
+//     %4 = linalg.quantized_matmul ins(%2, %cst_3, %c0_i32, %c0_i32 : tensor<1x3xi32>, tensor<3x3xi8>, i32, i32) outs(%cst_1 : tensor<1x3xi32>) -> tensor<1x3xi32>
+//     %7 = linalg.quantized_matmul ins(%4, %cst_4, %c0_i32, %c0_i32 : tensor<1x3xi32>, tensor<3x1xi8>, i32, i32) outs(%cst_2 : tensor<1x1xi32>) -> tensor<1x1xi32>
+//     // CHECK: return
+//     return %7 : tensor<1x1xi32>
+//   }
+// }
+
+
 module {
   func.func @main(%arg0: tensor<1x1xi8> {iree.identifier = "serving_default_dense_input:0", secret.secret, tf_saved_model.index_path = ["dense_input"]}) -> (tensor<1x1xi32> {iree.identifier = "StatefulPartitionedCall:0", tf_saved_model.index_path = ["dense_2"]}) attributes {tf_saved_model.exported_names = ["serving_default"]} {
-    %cst = arith.constant dense<[[9, 54, 57]]> : tensor<1x3xi8>
-    %cst_0 = arith.constant dense<[[0, 0, 5438]]> : tensor<1x3xi32>
-    %cst_1 = arith.constant dense<[[729, 1954, 610]]> : tensor<1x3xi32>
+    %cst = arith.constant dense<[[9, 54, 57, 31, 37]]> : tensor<1x5xi8>
+    %cst_0 = arith.constant dense<[[7, 11, 54, 79, 99]]> : tensor<1x5xi16>
+    %cst_1 = arith.constant dense<[[72, 196, 244, 9, 5]]> : tensor<1x5xi32>
     %cst_2 = arith.constant dense<429> : tensor<1x1xi32>
-    %c0_i32 = arith.constant 0 : i32
-    %cst_3 = arith.constant dense<[[12, 9, 12], [26, 25, 36], [19, 33, 32]]> : tensor<3x3xi8>
-    %cst_4 = arith.constant dense<[[39], [59], [39]]> : tensor<3x1xi8>
-    %2 = linalg.quantized_matmul ins(%arg0, %cst, %c0_i32, %c0_i32 : tensor<1x1xi8>, tensor<1x3xi8>, i32, i32) outs(%cst_0 : tensor<1x3xi32>) -> tensor<1x3xi32>
-    %4 = linalg.quantized_matmul ins(%2, %cst_3, %c0_i32, %c0_i32 : tensor<1x3xi32>, tensor<3x3xi8>, i32, i32) outs(%cst_1 : tensor<1x3xi32>) -> tensor<1x3xi32>
-    %7 = linalg.quantized_matmul ins(%4, %cst_4, %c0_i32, %c0_i32 : tensor<1x3xi32>, tensor<3x1xi8>, i32, i32) outs(%cst_2 : tensor<1x1xi32>) -> tensor<1x1xi32>
+    %c0_i16 = arith.constant 0 : i16
+    %cst_3 = arith.constant dense<[[12, 9, 12, 26, 49], [26, 25, 36, 97, 47], [19, 33, 32, 32, 67], [85, 14, 26, 85, 75], [84, 92, 52, 15, 26]]> : tensor<5x5xi8>
+    %cst_4 = arith.constant dense<[[39], [59], [39], [78], [34]]> : tensor<5x1xi8>
+    %2 = linalg.quantized_matmul ins(%arg0, %cst, %c0_i16, %c0_i16 : tensor<1x1xi8>, tensor<1x5xi8>, i16, i16) outs(%cst_0 : tensor<1x5xi16>) -> tensor<1x5xi16>
+    %4 = linalg.quantized_matmul ins(%2, %cst_3, %c0_i16, %c0_i16 : tensor<1x5xi16>, tensor<5x5xi8>, i16, i16) outs(%cst_1 : tensor<1x5xi32>) -> tensor<1x5xi32>
+    %7 = linalg.quantized_matmul ins(%4, %cst_4, %c0_i16, %c0_i16 : tensor<1x5xi32>, tensor<5x1xi8>, i16, i16) outs(%cst_2 : tensor<1x1xi32>) -> tensor<1x1xi32>
     // CHECK: return
     return %7 : tensor<1x1xi32>
   }
