@@ -28,6 +28,16 @@ class Openfhe_Type<string name, string typeMnemonic, list<Trait> traits = []>
   }];
 }
 
+def Openfhe_Ciphertext : Openfhe_Type<"Ciphertext", "ciphertext"> {
+  let summary = "An opaque OpenFHE ciphertext type";
+  let asmName = "ct";
+}
+
+def Openfhe_Plaintext : Openfhe_Type<"Plaintext", "plaintext"> {
+  let summary = "An opaque OpenFHE plaintext type";
+  let asmName = "pt";
+}
+
 def Openfhe_PublicKey : Openfhe_Type<"PublicKey", "public_key"> {
   let summary = "The public key required to encrypt plaintext in OpenFHE.";
   let asmName = "pk";

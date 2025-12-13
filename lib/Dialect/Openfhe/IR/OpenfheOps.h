@@ -1,8 +1,6 @@
 #ifndef LIB_DIALECT_OPENFHE_IR_OPENFHEOPS_H_
 #define LIB_DIALECT_OPENFHE_IR_OPENFHEOPS_H_
 
-#include "lib/Dialect/LWE/IR/LWETraits.h"
-#include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
 #include "mlir/include/mlir/IR/BuiltinOps.h"    // from @llvm-project
