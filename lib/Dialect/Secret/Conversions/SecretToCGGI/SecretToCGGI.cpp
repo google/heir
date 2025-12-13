@@ -330,6 +330,29 @@ class SecretGenericOpLUTConversion
   }
 };
 
+class SecretGenericOpLUT4Conversion
+    : public SecretGenericOpConversion<comb::TruthTableOp, cggi::Lut4Op> {
+  using SecretGenericOpConversion<comb::TruthTableOp,
+                                  cggi::Lut4Op>::SecretGenericOpConversion;
+
+  FailureOr<Operation*> matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ContextAwareConversionPatternRewriter& rewriter) const override {
+    SmallVector<Value> encodedInputs =
+        encodeInputs(op.getOperation(), inputs, rewriter);
+
+    // Assemble the lookup table.
+    comb::TruthTableOp truthOp =
+        cast<comb::TruthTableOp>(op.getBody()->getOperations().front());
+    return rewriter
+        .replaceOpWithNewOp<cggi::Lut4Op>(
+            op, encodedInputs[0], encodedInputs[1], encodedInputs[2],
+            encodedInputs[3], truthOp.getLookupTable())
+        .getOperation();
+  }
+};
+
 template <typename GateOp, typename CGGIGateOp>
 class SecretGenericOpGateConversion
     : public SecretGenericOpConversion<GateOp, CGGIGateOp> {
@@ -777,7 +800,7 @@ static int findLUTSize(MLIRContext* context, Operation* module) {
     if (isa<comb::CombDialect>(op->getDialect())) {
       int currentSize = 0;
       if (dyn_cast<comb::TruthTableOp>(op))
-        currentSize = 3;
+        currentSize = 4;  // LUT4
       else
         currentSize = op->getResults().getTypes()[0].getIntOrFloatBitWidth();
 
@@ -856,7 +879,9 @@ struct SecretToCGGI : public impl::SecretToCGGIBase<SecretToCGGI> {
         [&](auto op) { return typeConverter.isLegal(op); });
 
     patterns.add<
-        SecretGenericOpLUTConversion, SecretGenericOpTensorInsertConversion,
+        // SecretGenericOpLUTConversion, 
+        SecretGenericOpLUT4Conversion,
+        SecretGenericOpTensorInsertConversion,
         SecretGenericOpTensorExtractConversion, ConvertTruthTableOp,
         SecretGenericOpInvConversion, SecretGenericOpAndConversion,
         SecretGenericOpNorConversion, SecretGenericOpNandConversion,

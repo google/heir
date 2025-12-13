@@ -124,6 +124,15 @@ void mlirToCGGIPipeline(OpPassManager& pm,
       pm.addPass(secret::createSecretDistributeGeneric());
       pm.addPass(createCanonicalizerPass());
       pm.addPass(createSecretToCGGI());
+
+      // Cleanup
+      pm.addPass(createRemoveDeadValuesPass());
+      pm.addPass(mlir::createCSEPass());
+      pm.addPass(createCanonicalizerPass());
+      pm.addPass(createFoldConstantTensors());
+      pm.addPass(createSCCPPass());
+      pm.addPass(createSymbolDCEPass());
+
       break;
     case Integer:
       pm.addPass(arith::createArithToCGGI());

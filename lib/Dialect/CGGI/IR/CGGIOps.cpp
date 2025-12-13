@@ -24,6 +24,10 @@ std::optional<ValueRange> Lut3Op::getLookupTableInputs() {
   return ValueRange{getC(), getB(), getA()};
 }
 
+std::optional<ValueRange> Lut4Op::getLookupTableInputs() {
+  return ValueRange{getD(), getC(), getB(), getA()};
+}
+
 std::optional<ValueRange> LutLinCombOp::getLookupTableInputs() {
   return ValueRange{getInputs()};
 }

@@ -172,6 +172,53 @@ struct ConvertLut3Op : public OpConversionPattern<cggi::Lut3Op> {
   }
 };
 
+/// Convert a Lut4Op to:
+///   - generate_lookup_table
+///   - scalar_left_shift
+///   - add_op
+///   - apply_lookup_table
+///
+/// Note the generated lookup tables are not uniqued across applications of this
+/// pattern, so a separate step is required at the end to collect all the
+/// identical lookup tables, and this can be done with a --cse pass.
+struct ConvertLut4Op : public OpConversionPattern<cggi::Lut4Op> {
+  ConvertLut4Op(mlir::MLIRContext* context)
+      : OpConversionPattern<cggi::Lut4Op>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      cggi::Lut4Op op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    FailureOr<Value> result = getContextualServerKey(op.getOperation());
+    if (failed(result)) return result;
+
+    Value serverKey = result.value();
+    // A followup -cse pass should combine repeated LUT generation ops.
+    auto lut = tfhe_rust::GenerateLookupTableOp::create(
+        b, serverKey, adaptor.getLookupTable());
+    // Construct input = d << 3 + c << 2 + b << 1 + a
+    auto shiftedD = tfhe_rust::ScalarLeftShiftOp::create(
+        b, serverKey, adaptor.getD(), b.getIndexAttr(3));
+    auto shiftedC = tfhe_rust::ScalarLeftShiftOp::create(
+        b, serverKey, adaptor.getC(), b.getIndexAttr(2));
+    auto shiftedB = tfhe_rust::ScalarLeftShiftOp::create(
+        b, serverKey, adaptor.getB(), b.getIndexAttr(1));
+
+    auto summedCD = tfhe_rust::AddOp::create(b, adaptor.getB().getType(),
+                                             serverKey, shiftedC, shiftedD);
+    auto summedBCD = tfhe_rust::AddOp::create(b, adaptor.getB().getType(),
+                                              serverKey, shiftedB, summedCD);
+    auto summedABCD = tfhe_rust::AddOp::create(
+        b, adaptor.getB().getType(), serverKey, summedBCD, adaptor.getA());
+
+    rewriter.replaceOp(op, tfhe_rust::ApplyLookupTableOp::create(
+                               b, serverKey, summedABCD, lut));
+    return success();
+  }
+};
+
 struct ConvertLut2Op : public OpConversionPattern<cggi::Lut2Op> {
   ConvertLut2Op(mlir::MLIRContext* context)
       : OpConversionPattern<cggi::Lut2Op>(context) {}
@@ -619,9 +666,9 @@ class CGGIToTfheRust : public impl::CGGIToTfheRustBase<CGGIToTfheRust> {
 
     patterns.add<
         AddServerKeyArg, AddServerKeyArgCall, ConvertEncodeOp, ConvertLut2Op,
-        ConvertLut3Op, ConvertNotOp, ConvertTrivialEncryptOp, ConvertTrivialOp,
-        ConvertCGGITRBinOp<lwe::AddOp, tfhe_rust::AddOp>, ConvertScalarMulOp,
-        ConvertCGGITRBinOp<cggi::AddOp, tfhe_rust::AddOp>,
+        ConvertLut3Op, ConvertLut4Op, ConvertNotOp, ConvertTrivialEncryptOp,
+        ConvertTrivialOp, ConvertCGGITRBinOp<lwe::AddOp, tfhe_rust::AddOp>,
+        ConvertScalarMulOp, ConvertCGGITRBinOp<cggi::AddOp, tfhe_rust::AddOp>,
         ConvertCGGITRBinOp<cggi::MulOp, tfhe_rust::MulOp>,
         ConvertCGGITRBinOp<cggi::SubOp, tfhe_rust::SubOp>,
         ConvertCGGITRBinOp<cggi::SubOp, tfhe_rust::SubOp>,

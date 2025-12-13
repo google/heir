@@ -7,4 +7,5 @@ package(
 
 exports_files([
     "techmap.v",
+    "techmap_lut4.v",
 ])

@@ -19,7 +19,7 @@ namespace lwe {
 // application data.
 LWECiphertextType getDefaultCGGICiphertextType(MLIRContext* ctx,
                                                int messageWidth,
-                                               int plaintextBits = 3);
+                                               int plaintextBits = 4);
 
 inline LWEPlaintextType getCorrespondingPlaintextType(
     LWECiphertextType ctType) {
