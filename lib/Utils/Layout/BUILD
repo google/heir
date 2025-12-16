@@ -14,6 +14,7 @@ cc_library(
     hdrs = ["Codegen.h"],
     deps = [
         ":IslConversion",
+        "@heir//lib/Utils",
         "@isl",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithDialect",
