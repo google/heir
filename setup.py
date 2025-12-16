@@ -159,7 +159,7 @@ class BuildBazelExtension(build_ext.build_ext):
         Path("openfhe") / "src" / "binfhe" / "include",
         Path("openfhe") / "src" / "core" / "include",
         Path("openfhe") / "src" / "pke" / "include",
-        Path("cereal") / "include",
+        Path("cereal+") / "include",
     ]
     dirs_to_copy = {external / subdir: libdir / subdir for subdir in subdirs}
 

@@ -10,8 +10,8 @@ def frontend_test(name, srcs, deps = [], data = [], tags = []):
         "openfhe/src/binfhe/include",
         "openfhe/src/core/include",
         "openfhe/src/pke/include",
-        "cereal/include",
-        "rapidjson/include",
+        "cereal+/include",
+        "rapidjson+/include",
     ]
 
     libs = [
