@@ -42,7 +42,7 @@ jobs:
             gh release view "nightly" && gh release delete "nightly" -y --cleanup-tag
 
       - name: GH Release
-        uses: softprops/action-gh-release@a74c6b72af54cfa997e81df42d94703d6313a2d0 #pin@v2.0.6
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b  # v2
         with:
           prerelease: true
           tag_name: nightly

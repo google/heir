@@ -73,4 +73,4 @@ jobs:
           path: dist
           pattern: dist-*
           merge-multiple: true
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      - uses: pypa/gh-action-pypi-publish@v1
