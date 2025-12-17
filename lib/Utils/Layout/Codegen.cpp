@@ -2,11 +2,10 @@
 
 #include <cassert>
 #include <cstdlib>
-#include <map>
 #include <string>
-#include <utility>
 
 #include "lib/Utils/Layout/IslConversion.h"
+#include "lib/Utils/Utils.h"
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"      // from @llvm-project
@@ -210,6 +209,14 @@ Value buildIslExpr(isl_ast_expr* expr, std::map<std::string, Value> ivToValue,
       if (islCmpToMlirAttr.contains(type)) {
         // Comparison ops
         SmallVector<Value> args = getArgs(expr);
+
+        // Sometimes the result of a cmpi op is subsequently checked to be 0 or
+        // 1, so we have to be careful to ensure the argument types are the
+        // correct widths and extend if not.
+        if (!allTypesMatch(args)) {
+          args = extendToCommonWidth(b, args);
+        }
+
         auto op =
             arith::CmpIOp::create(b, islCmpToMlirAttr[type], args[0], args[1]);
         auto indexCastOp = arith::IndexCastOp::create(b, b.getIndexType(), op);

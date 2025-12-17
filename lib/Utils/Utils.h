@@ -163,6 +163,13 @@ inline std::pair<bool, bool> allZeroAllOne(ArrayRef<double> mask) {
   return {allZero, allOne};
 }
 
+/// Returns true if and only if all types in the given values are the same.
+bool allTypesMatch(ArrayRef<Value> values);
+
+/// Extends all (integer-typed) values to the largest bitwidth among them and
+/// returns the new list of values.
+SmallVector<Value> extendToCommonWidth(OpBuilder& b, ArrayRef<Value> values);
+
 }  // namespace heir
 }  // namespace mlir
 
