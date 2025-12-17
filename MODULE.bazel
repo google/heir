@@ -42,6 +42,37 @@ bazel_dep(name = "re2", version = "2025-08-12")
 bazel_dep(name = "isl", version = "0.27")
 bazel_dep(name = "pocketfft", version = "0.0.2")
 
+# LLVM dependency uses module extensions because none of these are in the BCR
+mlir_tutorial_deps = use_extension("//bazel:extensions.bzl", "llvm_deps")
+use_repo(
+    mlir_tutorial_deps,
+    "llvm-raw",
+    "llvm_zlib",
+    "llvm_zstd",
+)
+
+# The subset of LLVM backend targets that should be compiled
+_LLVM_TARGETS = [
+    "X86",
+    # The bazel dependency graph for mlir-opt fails to load (at the analysis
+    # step) without the NVPTX target in this list, because mlir/test:TestGPU
+    # depends on the //llvm:NVPTXCodeGen target, which is not defined unless this
+    # is included. @j2kun asked the LLVM maintiners for tips on how to fix this,
+    # see https://github.com/llvm/llvm-project/issues/63135
+    "NVPTX",
+    # Needed for Apple M1 targets, see
+    # https://github.com/j2kun/mlir-tutorial/issues/11
+    "AArch64",
+]
+
+# Configure LLVM project using use_repo_rule
+llvm_configure = use_repo_rule("@llvm-raw//utils/bazel:configure.bzl", "llvm_configure")
+
+llvm_configure(
+    name = "llvm-project",
+    targets = _LLVM_TARGETS,
+)
+
 # Yosys dependencies that are already on the bazel central registry.
 # abc can't be used in place because it changes the names of the targets from
 # abc-lib -> abc and abc -> abc_bin
