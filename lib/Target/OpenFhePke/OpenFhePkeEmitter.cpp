@@ -797,7 +797,10 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::ConstantOp op) {
       return failure();
     }
     os << intAttr.getValue() << ";\n";
-  } else if (auto floatAttr = dyn_cast<FloatAttr>(valueAttr)) {
+    return success();
+  }
+
+  if (auto floatAttr = dyn_cast<FloatAttr>(valueAttr)) {
     if (failed(emitTypedAssignPrefix(op.getResult(), op->getLoc()))) {
       return failure();
     }
@@ -808,7 +811,17 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::ConstantOp op) {
           llvm::formatv("Failed to print floatAttr {0}", floatAttr));
     }
     os << floatStr.value() << ";\n";
-  } else if (auto denseElementsAttr = dyn_cast<DenseElementsAttr>(valueAttr)) {
+    return success();
+  }
+
+  DenseElementsAttr denseElementsAttr = dyn_cast<DenseElementsAttr>(valueAttr);
+  if (auto denseResourceAttr = dyn_cast<DenseResourceElementsAttr>(valueAttr)) {
+    const auto data = denseResourceAttr.getData();
+    denseElementsAttr =
+        DenseElementsAttr::getFromRawBuffer(denseResourceAttr.getType(), data);
+  }
+
+  if (denseElementsAttr) {
     // Prints all dense elements attribute as a flattened vector.
     ShapedType flattenedType =
         RankedTensorType::get({denseElementsAttr.getNumElements()},
@@ -845,11 +858,9 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::ConstantOp op) {
       os << " = " << result.value() << ";\n";
     }
     return success();
-  } else {
-    return op.emitError() << "Unsupported constant type "
-                          << valueAttr.getType();
   }
-  return success();
+
+  return op.emitError() << "Unsupported constant type " << valueAttr.getType();
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(arith::ExtSIOp op) {
@@ -950,6 +961,31 @@ LogicalResult OpenFhePkeEmitter::printBinaryOp(Operation* op, ::mlir::Value lhs,
                                                ::mlir::Value rhs,
                                                std::string_view opName) {
   assert(op->getNumResults() == 1 && "Expected single-result op!");
+  auto resultType = op->getResult(0).getType();
+  // Tensor case: loop and apply binop to each element.
+  if (auto tensorType = dyn_cast<RankedTensorType>(resultType)) {
+    auto numElements = tensorType.getNumElements();
+    // std::vector<std::vector<ty>> result(size);
+    if (failed(emitType(resultType, op->getLoc()))) {
+      return failure();
+    }
+    os << " " << variableNames->getNameForValue(op->getResult(0)) << "("
+       << numElements << ");\n";
+
+    // for (int i = 0; i < size; ++i) {
+    //   result[i] = lhs[i] op rhs[i];
+    // }
+    os << "for (int i = 0; i < " << numElements << "; ++i) {\n";
+    os.indent();
+    os << variableNames->getNameForValue(op->getResult(0))
+       << "[i] = " << variableNames->getNameForValue(lhs) << "[i] " << opName
+       << " " << variableNames->getNameForValue(rhs) << "[i];\n";
+    os.unindent();
+    os << "}\n";
+    return success();
+  }
+
+  // Scalar version
   if (failed(emitTypedAssignPrefix(op->getResult(0), op->getLoc(), true)))
     return failure();
   os << variableNames->getNameForValue(lhs) << " " << opName << " "

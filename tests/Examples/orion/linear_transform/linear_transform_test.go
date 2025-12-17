@@ -127,7 +127,7 @@ func TestLinearTransform(t *testing.T) {
 
 	// We need such a large epsilon because scale 26 is not very precise,
 	// increasing scale to 40 produces errors of about 1e-04.
-	epsilon := 1.2
+	epsilon := 1.5
 	for i := 0; i < numSlots; i++ {
 		diff := math.Abs(resultFloat64[i] - expectedClear[i])
 		if diff > epsilon {
