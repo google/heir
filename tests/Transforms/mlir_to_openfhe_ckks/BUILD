@@ -9,7 +9,6 @@ glob_lit_tests(
     # TODO(#1642): cross-level operation does not work well with bootstrapping
     # FIXME: todo to re-enable tests
     exclude = [
-        "bootstrap_waterline.mlir",
         "matmul.mlir",
         "naive_matmul.mlir",
     ],

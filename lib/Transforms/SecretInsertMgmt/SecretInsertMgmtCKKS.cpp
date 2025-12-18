@@ -22,16 +22,6 @@ struct SecretInsertMgmtCKKS
   using SecretInsertMgmtCKKSBase::SecretInsertMgmtCKKSBase;
 
   void runOnOperation() override {
-    // for Openfhe, use B/FV style mgmt: only relinearize, no level management.
-    // still maintain the maximal level information though for lowering.
-    if (moduleIsOpenfhe(getOperation())) {
-      OpPassManager pipeline("builtin.module");
-      pipeline.addPass(createSecretInsertMgmtBFV());
-      (void)runPipeline(pipeline, getOperation());
-      moduleSetCKKS(getOperation());
-      return;
-    }
-
     // Helper for future lowerings that want to know what scheme was used
     moduleSetCKKS(getOperation());
 
