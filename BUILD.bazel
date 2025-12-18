@@ -5,7 +5,7 @@ load("@rules_license//rules:license.bzl", "license")
 # copybara: fuzztest_ci
 
 package(
-    default_applicable_licenses = ["@heir//:license"],
+    default_applicable_licenses = [":license"],
     default_visibility = ["//visibility:public"],
 )
 
