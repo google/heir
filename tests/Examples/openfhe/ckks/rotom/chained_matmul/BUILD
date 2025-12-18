@@ -18,7 +18,7 @@ openfhe_lib(
     heir_translate_flags = [],
     mlir_src = "@heir//tests/Examples/openfhe/ckks/rotom/chained_matmul:chained_matmul.mlir",
     pybind_target_name = "chained_matmul_lib",
-    tags = ["notap"],
+    tags = ["nofastbuild"],
 )
 
 # Python test
@@ -28,7 +28,7 @@ py_test(
     srcs = ["chained_matmul_test.py"],
     data = glob(["inputs/*.npz"]) + glob(["results/*.npz"]),
     main = "chained_matmul_test.py",
-    tags = ["notap"],
+    tags = ["nofastbuild"],
     deps = [
         ":chained_matmul_lib",
         "@abseil-py//absl/testing:absltest",
