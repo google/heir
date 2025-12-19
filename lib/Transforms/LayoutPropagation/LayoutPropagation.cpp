@@ -267,6 +267,8 @@ LogicalResult LayoutPropagation::visitOperation(Operation* op) {
 
   auto [compatible, diag] = hasCompatibleArgumentLayouts(op);
   if (!compatible) {
+    LLVM_DEBUG(llvm::dbgs() << "Argument layouts for " << op->getName()
+                            << " are incompatible\n");
     if (diag.has_value()) {
       // An InFlightDiagnostic casts to a failure()
       return diag.value();
@@ -584,6 +586,7 @@ LogicalResult LayoutPropagation::visitOperation(MatvecOp op) {
 }
 
 LogicalResult LayoutPropagation::visitOperation(Conv2DOp op) {
+  LLVM_DEBUG(llvm::dbgs() << "Specializing visitor on Conv2DOp\n");
   Value data = op.getInputs().front();
   Value filter = op.getInputs().back();
   auto dataType = cast<RankedTensorType>(data.getType());
@@ -605,6 +608,8 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DOp op) {
   LayoutAttr dataLayout = assignedLayouts.at(data);
   if (!isRelationRowMajor(dataType, ciphertextSize,
                           dataLayout.getIntegerRelation())) {
+    LLVM_DEBUG(llvm::dbgs() << "conv_2d data input is not row major, inserting "
+                               "layout conversion.\n");
     auto [toReplace, newDataLayoutAttr] =
         convertToLayout(ctx, builder, op, data, dataLayout,
                         getRowMajorLayoutRelation(dataType, ciphertextSize));
@@ -618,6 +623,8 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DOp op) {
   if (!isRelation2dConvFilterDiagonalized(filterType, dataType, /*padding=*/0,
                                           ciphertextSize,
                                           filterLayout.getIntegerRelation())) {
+    LLVM_DEBUG(llvm::dbgs() << "conv_2d filter input is not diagonalized, "
+                               "inserting layout conversion.\n");
     // Insert a layout conversion op to make the matrix layout expanded and
     // squat diagonal
     auto convRelation = get2dConvFilterDiagonalizedRelation(
@@ -625,12 +632,18 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DOp op) {
     if (failed(convRelation)) {
       return failure();
     }
+    LLVM_DEBUG({
+      llvm::dbgs() << "Differ!\n\nFilter layout:";
+      filterLayout.getIntegerRelation().print(llvm::dbgs());
+      llvm::dbgs() << "\n\nExpected layout:";
+      convRelation->print(llvm::dbgs());
+      assert(false && "stop!");
+    });
     auto [toReplace, newFilterLayoutAttr] = convertToLayout(
         ctx, builder, op, filter, filterLayout, convRelation.value());
     debugAssignLayout(toReplace, newFilterLayoutAttr);
     assignedLayouts.insert({toReplace, newFilterLayoutAttr});
   }
-
   // Always one result, and for the kernels we have right now it's always a
   // row-major replicated vector. Since the
   // output matrix will have different shape than the input, assign the new
@@ -890,6 +903,8 @@ LogicalResult LayoutPropagation::visitOperation(tensor::ExtractSliceOp op) {
 
 CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
     Operation* op) {
+  LLVM_DEBUG(llvm::dbgs() << "Checking for compatible argument layouts for: "
+                          << op->getName() << "\n");
   return TypeSwitch<Operation*, CompatibilityResult>(op)
       // Trivially true ops
       .Case<func::FuncOp, GenericOp, YieldOp, affine::AffineForOp,
