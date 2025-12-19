@@ -12,6 +12,7 @@
 #include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/MathUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Utils/Utils.h"  // from @llvm-project
@@ -28,6 +29,8 @@
 #include "include/isl/space_type.h"  // from @isl
 #include "include/isl/val.h"         // from @isl
 #include "include/isl/val_type.h"    // from @isl
+
+#define DEBUG_TYPE "layout-utils"
 
 namespace mlir {
 namespace heir {
@@ -87,6 +90,71 @@ unsigned int addModConstraint(IntegerRelation& result, ArrayRef<int64_t> exprs,
   result.addEquality(modCoeffs);
 
   return modIndex;
+}
+
+bool sameRangeForDomainPoint(const std::vector<int64_t>& domainPoint,
+                             const presburger::IntegerRelation& rel1,
+                             const presburger::IntegerRelation& rel2) {
+  IntegerRelation fixedRel1 = fixDomainVars(rel1, domainPoint);
+  IntegerRelation fixedRel2 = fixDomainVars(rel2, domainPoint);
+
+  if (fixedRel1.computeVolume() != fixedRel1.computeVolume()) return false;
+
+  // If this is still too slow, would it be faster to sample or enumerate range
+  // points?
+  return fixedRel1.isEqual(fixedRel2);
+}
+
+bool sameDomainForRangePoint(const std::vector<int64_t>& rangePoint,
+                             const presburger::IntegerRelation& rel1,
+                             const presburger::IntegerRelation& rel2) {
+  IntegerRelation fixedRel1 = fixRangeVars(rel1, rangePoint);
+  IntegerRelation fixedRel2 = fixRangeVars(rel2, rangePoint);
+
+  if (fixedRel1.computeVolume() != fixedRel1.computeVolume()) return false;
+
+  // If this is still too slow, would it be faster to sample or enumerate range
+  // points?
+  return fixedRel1.isEqual(fixedRel2);
+}
+
+LogicalResult tryProveUnequal(const presburger::IntegerRelation& layout1,
+                              const presburger::IntegerRelation& layout2) {
+  int64_t numDomain = layout1.getNumDomainVars();
+  int64_t numRange = layout1.getNumRangeVars();
+
+  if (numDomain != layout2.getNumDomainVars()) {
+    return success();
+  }
+  if (numRange != layout2.getNumRangeVars()) {
+    return success();
+  }
+
+  if (layout1.computeVolume() != layout2.computeVolume()) {
+    return success();
+  }
+
+  std::vector<std::vector<int64_t>> domainPointsToTest;
+  std::vector<int64_t> zeroDomain(0, numDomain);
+  domainPointsToTest.push_back(std::move(zeroDomain));
+
+  std::vector<std::vector<int64_t>> rangePointsToTest;
+  std::vector<int64_t> zeroRange(0, numRange);
+  rangePointsToTest.push_back(std::move(zeroRange));
+
+  for (const auto& domainPt : domainPointsToTest) {
+    if (!sameRangeForDomainPoint(domainPt, layout1, layout2)) {
+      return success();
+    }
+  }
+
+  for (const auto& rangePt : rangePointsToTest) {
+    if (!sameDomainForRangePoint(rangePt, layout1, layout2)) {
+      return success();
+    }
+  }
+
+  return failure();
 }
 
 presburger::IntegerRelation getRowMajorLayoutRelation(
@@ -546,16 +614,29 @@ bool isRelationPerRow(RankedTensorType matrixType, int64_t ciphertextSize,
   return relation.isEqual(perRowRelation);
 }
 
-bool isRelation2dConvFilterDiagonalized(RankedTensorType filterType,
-                                        RankedTensorType dataType,
-                                        int64_t padding, int64_t ciphertextSize,
-                                        presburger::IntegerRelation relation) {
+bool isRelation2dConvFilterDiagonalized(
+    RankedTensorType filterType, RankedTensorType dataType, int64_t padding,
+    int64_t ciphertextSize, const presburger::IntegerRelation& relation) {
   auto diagonalizedRelation = get2dConvFilterDiagonalizedRelation(
       filterType, dataType, padding, ciphertextSize);
   if (failed(diagonalizedRelation)) {
     return false;
   }
-  return relation.isEqual(diagonalizedRelation.value());
+  LLVM_DEBUG(llvm::dbgs() << "checking fast relation equality\n");
+  bool fastCheck = relation.isObviouslyEqual(diagonalizedRelation.value());
+  LLVM_DEBUG(llvm::dbgs() << "done\n");
+  if (fastCheck) return true;
+
+  LLVM_DEBUG(llvm::dbgs() << "checking medium relation equality\n");
+  LogicalResult inequalityTest =
+      tryProveUnequal(diagonalizedRelation.value(), relation);
+  LLVM_DEBUG(llvm::dbgs() << "done\n");
+  if (succeeded(inequalityTest)) return false;
+
+  LLVM_DEBUG(llvm::dbgs() << "checking slow relation equality\n");
+  bool slowCheck = relation.isEqual(diagonalizedRelation.value());
+  LLVM_DEBUG(llvm::dbgs() << "done\n");
+  return slowCheck;
 }
 
 bool isRelationBicyclic(RankedTensorType matrixType, int64_t numSlots,
