@@ -32,7 +32,6 @@ LogicalResult ConvertAdjustScaleToMulPlain<MulOp>::matchAndRewrite(
   }
 
   // lower to (input * all_ones)
-
   auto mgmtAttr =
       op->getAttrOfType<mgmt::MgmtAttr>(mgmt::MgmtDialect::kArgMgmtAttrName);
 
