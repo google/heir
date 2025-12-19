@@ -17,7 +17,7 @@ def GetTargetSlotAttr : NativeCodeCall<
       " : $_builder.getIndexAttr(0)">;
 
 def CreateSplatOp : NativeCodeCall<
-      "$_builder.create<tensor::SplatOp>($2.getLoc(), $0, $1.getType())">;
+      "tensor::SplatOp::create($_builder, $2.getLoc(), $0, $1.getType())">;
 
 // The patterns in this file are intended to align with the automatic-SIMD
 // batching heuristics from the HECO project. See section 4.4 of
