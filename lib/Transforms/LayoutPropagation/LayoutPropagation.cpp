@@ -632,13 +632,6 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DOp op) {
     if (failed(convRelation)) {
       return failure();
     }
-    LLVM_DEBUG({
-      llvm::dbgs() << "Differ!\n\nFilter layout:";
-      filterLayout.getIntegerRelation().print(llvm::dbgs());
-      llvm::dbgs() << "\n\nExpected layout:";
-      convRelation->print(llvm::dbgs());
-      assert(false && "stop!");
-    });
     auto [toReplace, newFilterLayoutAttr] = convertToLayout(
         ctx, builder, op, filter, filterLayout, convRelation.value());
     debugAssignLayout(toReplace, newFilterLayoutAttr);
