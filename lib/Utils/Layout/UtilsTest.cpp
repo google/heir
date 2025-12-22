@@ -50,8 +50,6 @@ void runRowMajorTest(RankedTensorType tensorType, int64_t numSlots) {
 }
 
 TEST(UtilsTest, TestAddModConstraint) {
-  MLIRContext context;
-
   auto maybeRel =
       getIntegerRelationFromIslStr("{ [x] : x >= 0 and 100 - x >= 0 }");
   ASSERT_TRUE(succeeded(maybeRel));
@@ -64,6 +62,67 @@ TEST(UtilsTest, TestAddModConstraint) {
   for (unsigned x = 0; x <= 100; ++x) {
     EXPECT_TRUE(rel.containsPointNoLocal({x, x % 32}));
   }
+}
+
+TEST(UtilsTest, TestSameRangeForDomainPoint_AgreeOnZeroZero) {
+  auto rel1 =
+      getIntegerRelationFromIslStr("{ [x] -> [y] : x = 0 and y = 0 }").value();
+  EXPECT_TRUE(sameRangeForDomainPoint({0}, rel1, rel1));
+}
+
+TEST(UtilsTest, TestSameRangeForDomainPoint_DifferOnZeroZeroByValue) {
+  auto rel1 =
+      getIntegerRelationFromIslStr("{ [x] -> [y] : x = 0 and y = 0 }").value();
+  auto rel2 =
+      getIntegerRelationFromIslStr("{ [x] -> [y] : x = 0 and y = 1 }").value();
+  EXPECT_FALSE(sameRangeForDomainPoint({0}, rel1, rel2));
+}
+
+TEST(UtilsTest, TestSameRangeForDomainPoint_DifferOnZeroZeroBySize) {
+  // (0, 0) is in both sets, but (0, 1), (0, 2), ... is in rel2
+  auto rel1 =
+      getIntegerRelationFromIslStr("{ [x] -> [y] : x = 0 and y = 0 }").value();
+  auto rel2 = getIntegerRelationFromIslStr(
+                  "{ [x] -> [y] : 0 <= x <= 5 and 0 <= y <= 5 }")
+                  .value();
+  EXPECT_FALSE(sameRangeForDomainPoint({0}, rel1, rel2));
+}
+
+TEST(UtilsTest, TestTryProveUnequal_DifferingDomainVars) {
+  auto rel1 =
+      getIntegerRelationFromIslStr("{ [x, z] -> [y] : x = 0 and y = 0 }")
+          .value();
+  auto rel2 =
+      getIntegerRelationFromIslStr("{ [x] -> [y] : x = 0 and y = 0 }").value();
+  EXPECT_TRUE(succeeded(tryProveUnequal(rel1, rel2)));
+}
+
+TEST(UtilsTest, TestTryProveUnequal_DifferingRangeVars) {
+  auto rel1 =
+      getIntegerRelationFromIslStr("{ [x] -> [y, z] : x = 0 and y = 0 }")
+          .value();
+  auto rel2 =
+      getIntegerRelationFromIslStr("{ [x] -> [y] : x = 0 and y = 0 }").value();
+  EXPECT_TRUE(succeeded(tryProveUnequal(rel1, rel2)));
+}
+
+TEST(UtilsTest, TestTryProveUnequal_DifferingOnTestPoint) {
+  auto rel1 =
+      getIntegerRelationFromIslStr("{ [x] -> [y] : x = 0 and y = 0 }").value();
+  auto rel2 =
+      getIntegerRelationFromIslStr("{ [x] -> [y] : x = 0 and y = 1 }").value();
+  EXPECT_TRUE(succeeded(tryProveUnequal(rel1, rel2)));
+}
+
+TEST(UtilsTest, TestTryProveUnequal_SameRelation) {
+  auto rel1 =
+      getIntegerRelationFromIslStr("{ [x] -> [y] : 0 <= x <= 10 and y = 2*x }")
+          .value();
+  auto rel2 =
+      getIntegerRelationFromIslStr(
+          "{ [x] -> [y] : 0 <= x <= 10 and 0 <= y <= 20 and x = y / 2 }")
+          .value();
+  EXPECT_FALSE(succeeded(tryProveUnequal(rel1, rel2)));
 }
 
 TEST(UtilsTest, SingleCiphertext) {

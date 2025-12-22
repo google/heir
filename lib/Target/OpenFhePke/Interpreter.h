@@ -6,19 +6,11 @@
 #include <variant>
 #include <vector>
 
-#ifdef OPENFHE_ENABLE_TIMING
-#include <chrono>
-#include <map>
-#include <string>
-#endif
-
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
-#include "llvm/include/llvm/ADT/DenseMap.h"       // from @llvm-project
 #include "mlir/include/mlir/Analysis/Liveness.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -242,13 +234,11 @@ class Interpreter {
   static MLIRContext* dispatchTableContext;
   void initializeDispatchTable();
 
-#ifdef OPENFHE_ENABLE_TIMING
   struct TimingData {
     std::chrono::duration<double> totalTime{0};
     int count{0};
   };
   std::map<std::string, TimingData> timingResults;
-#endif
 };
 
 void initContext(MLIRContext& context);

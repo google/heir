@@ -53,11 +53,6 @@ struct PopulateScaleBGV : impl::PopulateScaleBGVBase<PopulateScaleBGV> {
   using PopulateScaleBGVBase::PopulateScaleBGVBase;
 
   void runOnOperation() override {
-    // skip scale management for openfhe
-    if (moduleIsOpenfhe(getOperation())) {
-      return;
-    }
-
     auto bgvSchemeParamAttr = mlir::dyn_cast<bgv::SchemeParamAttr>(
         getOperation()->getAttr(bgv::BGVDialect::kSchemeParamAttrName));
     auto t = bgvSchemeParamAttr.getPlaintextModulus();
