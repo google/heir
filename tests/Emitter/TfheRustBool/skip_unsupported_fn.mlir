@@ -13,9 +13,9 @@ module {
 
   // CHECK: pub fn fn_under_test(
   // CHECK-NEXT:   [[bsks:v[0-9]+]]: &ServerKey,
-  // CHECK-NEXT:   [[input1:v[0-9]+]]: &Vec<Ciphertext>,
-  // CHECK-NEXT:   [[input2:v[0-9]+]]: &Vec<Ciphertext>,
-  // CHECK-NEXT: ) -> Vec<Ciphertext> {
+  // CHECK-NEXT:   [[input1:v[0-9]+]]: &[Ciphertext; 8],
+  // CHECK-NEXT:   [[input2:v[0-9]+]]: &[Ciphertext; 8],
+  // CHECK-NEXT: ) -> [Ciphertext; 8] {
   func.func @fn_under_test(%bsks : !bsks,  %arg0: tensor<8x!eb>, %arg1: tensor<8x!eb>) -> tensor<8x!eb> {
     %c7 = arith.constant 7 : index
     %c6 = arith.constant 6 : index
