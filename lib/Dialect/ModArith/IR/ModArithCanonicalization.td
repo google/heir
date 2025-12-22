@@ -14,7 +14,7 @@ def IsOne : Constraint<CPred<"isa<IntegerAttr>($0) && cast<IntegerAttr>($0).getV
 def IsMinusOne : Constraint<CPred<"isa<IntegerAttr>($1) && cast<IntegerAttr>($1).getValue().zextOrTrunc(cast<ModArithType>($0.getType()).getModulus().getValue().getBitWidth()) == cast<ModArithType>($0.getType()).getModulus().getValue() - APInt(cast<ModArithType>($0.getType()).getModulus().getValue().getBitWidth(), 1)">>;
 
 def CreateZeroConstant : NativeCodeCall<
-   "$_builder.create<ConstantOp>($0.getLoc(), dyn_cast<ModArithType>($0.getType()), IntegerAttr::get(dyn_cast<ModArithType>($0.getType()).getModulus().getType(), 0));">
+   "ConstantOp::create($_builder, $0.getLoc(), dyn_cast<ModArithType>($0.getType()), IntegerAttr::get(dyn_cast<ModArithType>($0.getType()).getModulus().getType(), 0));">
   ;
 
 // add x, 0 -> x

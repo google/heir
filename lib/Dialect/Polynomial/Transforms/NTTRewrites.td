@@ -18,7 +18,7 @@ def InputTensorType : NativeCodeCall<
       " $0.getCoefficientType(), $0)">;
 
 def CreateCModConstant : NativeCodeCall<
-      "$_builder.create<arith::ConstantOp>($0.getLoc(), $2,"
+      "arith::ConstantOp::create($_builder, $0.getLoc(), $2,"
       " DenseElementsAttr::get($2,"
       "  $1.getCoefficientModulus().getValue().sextOrTrunc($2.getElementTypeBitWidth())))">;
 
