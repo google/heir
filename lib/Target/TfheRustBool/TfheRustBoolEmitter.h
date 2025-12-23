@@ -93,6 +93,7 @@ class TfheRustBoolEmitter {
   FailureOr<std::string> convertType(Type type);
 
   void emitAssignPrefix(::mlir::Value result);
+  void emitAssignPrefix(Value result, bool mut, const std::string& type);
   void emitReferenceConversion(::mlir::Value value);
 };
 
