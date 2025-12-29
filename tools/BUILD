@@ -126,6 +126,7 @@ cc_binary(
         "@heir//lib/Transforms/ForwardStoreToLoad",
         "@heir//lib/Transforms/FullLoopUnroll",
         "@heir//lib/Transforms/GenerateParam",
+        "@heir//lib/Transforms/Halo:Transforms",
         "@heir//lib/Transforms/InlineActivations",
         "@heir//lib/Transforms/LayoutOptimization",
         "@heir//lib/Transforms/LayoutOptimization:InterfaceImpl",
