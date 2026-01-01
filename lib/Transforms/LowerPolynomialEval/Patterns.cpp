@@ -40,6 +40,17 @@ using polynomial::EvalOp;
 using polynomial::FloatPolynomial;
 using polynomial::TypedFloatPolynomialAttr;
 
+static int estimateDagCost(ArithmeticDagNode<kernel::SSAValue>* node) {
+  int cost = 0;
+  node->walk([&](auto* n) {
+    if (n->isMul())
+      cost += 2;
+    else if (n->isAdd() || n->isSub())
+      cost += 1;
+  });
+  return cost;
+}
+
 LogicalResult LowerViaHorner::matchAndRewrite(EvalOp op,
                                               PatternRewriter& rewriter) const {
   auto attr =
@@ -157,11 +168,20 @@ LogicalResult LowerViaPatersonStockmeyerChebyshev::matchAndRewrite(
   }
   SSAValue xNode(xInput);
 
-  auto resultNode = polynomial::patersonStockmeyerChebyshevPolynomialEvaluation(
-      xNode, chebCoeffs, getMinCoefficientThreshold());
+  FloatPolynomial monomialPoly = polynomial::ChebyshevPolynomial(chebCoeffs).toStandardBasis();
+  auto chebDag =
+    polynomial::patersonStockmeyerChebyshevPolynomialEvaluation(
+          xNode, chebCoeffs, getMinCoefficientThreshold());
+  auto xDag = kernel::ArithmeticDagNode<kernel::SSAValue>::leaf(xInput);
+  auto monoDag =
+    polynomial::hornerMonomialPolynomialEvaluation(
+        xDag, monomialPoly.getCoeffMap());
+  int chebCost = estimateDagCost(chebDag.get());
+  int monoCost = estimateDagCost(monoDag.get());
+  bool useMonomial = monoCost < chebCost;
 
   IRMaterializingVisitor visitor(b, op.getValue().getType());
-  Value finalOutput = resultNode->visit(visitor);
+  Value finalOutput = (useMonomial ? monoDag.get()->visit(visitor) : chebDag.get()->visit(visitor));
 
   rewriter.replaceOp(op, finalOutput);
   return success();
