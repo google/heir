@@ -769,6 +769,23 @@ func::FuncOp PolynomialToModArith::buildPolynomialModFunc(FunctionType funcType,
   // TODO(#202): this function name probably also needs the input tensor type in
   // the name, or it could conflict with other implementations that have the
   // same cmod+ideal.
+
+  // Added input tensor type shape representation to function name to mitigate
+  // conflicts with other implementations that may have the same cmod + ideal
+  llvm::SmallString<64> tensorTypeStr;
+  llvm::raw_svector_ostream os(tensorTypeStr);
+
+  llvm::interleave(
+      inputType.getShape(), os,
+      [&os](const auto& dimSize) {
+        if (ShapedType::isDynamic(dimSize)) {
+          os << "dyn";
+        } else {
+          os << dimSize;
+        }
+      },
+      "x");
+
   auto coeffTy = ring.getCoefficientType();
   std::string coeffTyId;
   // TODO(#1199): support RNS lowering
@@ -781,9 +798,9 @@ func::FuncOp PolynomialToModArith::buildPolynomialModFunc(FunctionType funcType,
     coeffTyId =
         llvm::formatv("{0}_i{1}", modulusStr, intTy.getIntOrFloatBitWidth());
   }
-  std::string funcName =
-      llvm::formatv("__heir_poly_mod_{0}_{1}", coeffTyId,
-                    ring.getPolynomialModulus().getPolynomial().toIdentifier());
+  std::string funcName = llvm::formatv(
+      "__heir_poly_mod_{0}_{1}_{2}", tensorTypeStr.str(), coeffTyId,
+      ring.getPolynomialModulus().getPolynomial().toIdentifier());
 
   auto funcOp = func::FuncOp::create(builder, funcName, funcType);
   LLVM::linkage::Linkage inlineLinkage = LLVM::linkage::Linkage::LinkonceODR;
