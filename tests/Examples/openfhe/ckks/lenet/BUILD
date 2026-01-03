@@ -44,7 +44,7 @@ heir_opt(
     generated_filename = "lenet.openfhe.mlir",
     pass_flags = [
         "--annotate-module=backend=openfhe scheme=ckks",
-        "--torch-linalg-to-ckks=ciphertext-degree=1024",
+        "--torch-linalg-to-ckks=ciphertext-degree=1024 ckks-bootstrap-waterline=37",
         "--scheme-to-openfhe",
     ],
 )

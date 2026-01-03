@@ -85,7 +85,6 @@ struct AnnotateMgmt : impl::AnnotateMgmtBase<AnnotateMgmt> {
     solver.load<LevelAnalysisBackward>(symbolTable);
     solver.load<DimensionAnalysis>();
     solver.load<DimensionAnalysisBackward>(symbolTable);
-
     if (failed(solver.initializeAndRun(getOperation()))) {
       getOperation()->emitOpError() << "Failed to run the analysis.\n";
       signalPassFailure();
