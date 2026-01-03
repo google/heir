@@ -204,9 +204,6 @@ LogicalResult TfheRustBoolEmitter::printOperation(func::ReturnOp op) {
     if (isa<BlockArgument>(value)) {
       suffix = ".clone()";
     }
-    if (isa<tensor::FromElementsOp>(value.getDefiningOp())) {
-      suffix = ".into_iter().cloned().collect()";
-    }
     if (isa<memref::AllocOp>(value.getDefiningOp())) {
       // MemRefs (BTreeMap<(usize, ...), Ciphertext>) must be converted to
       // Vec<Ciphertext>
@@ -261,11 +258,11 @@ LogicalResult TfheRustBoolEmitter::printSksMethod(
       numberOfOperands = 1;
     }
 
-    if (!opParent) {
-      for (auto nonSksOperand : nonSksOperands) {
-        emitReferenceConversion(nonSksOperand);
-      }
-    }
+    // if (!opParent) {
+    //   for (auto nonSksOperand : nonSksOperands) {
+    //     emitReferenceConversion(nonSksOperand);
+    //   }
+    // }
 
     emitAssignPrefix(result);
     os << variableNames->getNameForValue(sks);
@@ -290,9 +287,10 @@ LogicalResult TfheRustBoolEmitter::printSksMethod(
 
           tie(prefix, suffix) = checkOrigin(value);
           if (numberOfOperands == 1) {
-            prefix = "&vec![&";
+            prefix = "&[&";
             suffix = "]" + suffix;
-          }
+          } else
+            suffix = ".each_ref()";
 
           return prefix + variableNames->getNameForValue(value) + suffix;
         });
@@ -507,27 +505,58 @@ LogicalResult TfheRustBoolEmitter::printOperation(memref::LoadOp op) {
 LogicalResult TfheRustBoolEmitter::printOperation(tensor::ExtractOp op) {
   // We assume here that the indices are SSA values (not integer attributes).
   emitAssignPrefix(op.getResult());
-  os << "&" << variableNames->getNameForValue(op.getTensor()) << "["
-     << commaSeparatedValues(
+  os << "&" << variableNames->getNameForValue(op.getTensor())
+     << bracketEnclosedValues(
             op.getIndices(),
             [&](Value value) { return variableNames->getNameForValue(value); })
-     << "];\n";
+     << ";\n";
   return success();
 }
 
 // Need to produce a Vec<&Ciphertext>
 LogicalResult TfheRustBoolEmitter::printOperation(tensor::FromElementsOp op) {
-  emitAssignPrefix(op.getResult());
-  os << "vec![" << commaSeparatedValues(op.getOperands(), [&](Value value) {
-    // Check if block argument, if so, clone.
-    const auto* cloneStr = isa<BlockArgument>(value) ? ".clone()" : "";
-    // Get the name of defining operation its dialect
-    auto tfheOp =
-        value.getDefiningOp()->getDialect()->getNamespace() == "tfhe_rust_bool";
-    const auto* prefix = tfheOp ? "&" : "";
-    return std::string(prefix) + variableNames->getNameForValue(value) +
-           cloneStr;
-  }) << "];\n";
+  auto resultType = op.getResult().getType();
+  std::string res = convertType(resultType).value();
+
+  emitAssignPrefix(op.getResult(), true, res);
+
+  std::vector<std::string> currentLayer;
+  currentLayer.reserve(op.getNumOperands());
+
+  for (int i = 0; i < op.getNumOperands(); i++) {
+    std::string val;
+    val = llvm::formatv("{0}.clone()",
+                        variableNames->getNameForValue(op.getOperand(i)));
+
+    currentLayer.push_back(val);
+  }
+
+  auto rankedType = cast<RankedTensorType>(resultType);
+  ArrayRef<int64_t> shape = rankedType.getShape();
+
+  for (int r = shape.size() - 1; r >= 0; --r) {
+    int64_t dimSize = shape[r];
+    std::vector<std::string> nextLayer;
+
+    for (size_t i = 0; i < currentLayer.size(); i += dimSize) {
+      std::string group;
+
+      for (int j = 0; j < dimSize; ++j) {
+        if (j > 0) group += ", ";
+        group += currentLayer[i + j];
+      }
+
+      nextLayer.push_back(llvm::formatv("[{0}]", group));
+    }
+    currentLayer = std::move(nextLayer);
+  }
+
+  if (!currentLayer.empty()) {
+    os << currentLayer[0] << ";\n";
+  } else {
+    os << "[];\n";
+  }
+
   return success();
 }
 
@@ -561,6 +590,12 @@ LogicalResult TfheRustBoolEmitter::printOperation(XnorOp op) {
                         {op.getLhs(), op.getRhs()}, "xnor");
 }
 
+void TfheRustBoolEmitter::emitAssignPrefix(Value result, bool mut,
+                                           const std::string& type) {
+  os << "let " << (mut ? "mut " : "") << variableNames->getNameForValue(result)
+     << (type.empty() ? "" : (" : " + type)) << " = ";
+}
+
 LogicalResult TfheRustBoolEmitter::printOperation(PackedOp op) {
   emitAssignPrefix(op.getResult());
   os << variableNames->getNameForValue(op.getServerKey()) << ".packed_gates(\n";
@@ -579,7 +614,8 @@ LogicalResult TfheRustBoolEmitter::printOperation(PackedOp op) {
     std::string suffix;
 
     tie(prefix, suffix) = checkOrigin(value);
-    return prefix + variableNames->getNameForValue(value) + suffix;
+    return prefix + variableNames->getNameForValue(value) + suffix +
+           ".each_ref()";
   });
 
   os << ");\n";
@@ -602,7 +638,11 @@ FailureOr<std::string> TfheRustBoolEmitter::convertType(Type type) {
     auto elementTy = convertType(shapedType.getElementType());
     if (failed(elementTy)) return failure();
 
-    return std::string(std::string("Vec<") + elementTy.value() + ">");
+    std::string res = elementTy.value();
+    for (unsigned dim : llvm::reverse(shapedType.getShape())) {
+      res = llvm::formatv("[{0}; {1}]", res, dim);
+    }
+    return res;
   }
   return llvm::TypeSwitch<Type&, FailureOr<std::string>>(type)
       .Case<EncryptedBoolType>(
