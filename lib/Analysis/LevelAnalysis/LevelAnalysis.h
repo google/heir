@@ -147,6 +147,8 @@ class LevelAnalysisBackward
   // dummy impl
   void visitBranchOperand(OpOperand& operand) override {}
   void visitCallOperand(OpOperand& operand) override {}
+  void visitNonControlFlowArguments(
+      RegionSuccessor& successor, ArrayRef<BlockArgument> arguments) override {}
 };
 
 //===----------------------------------------------------------------------===//

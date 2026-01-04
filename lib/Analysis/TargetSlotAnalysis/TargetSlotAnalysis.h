@@ -132,6 +132,8 @@ class TargetSlotAnalysis
 
   void visitBranchOperand(OpOperand& operand) override {};
   void visitCallOperand(OpOperand& operand) override {};
+  void visitNonControlFlowArguments(
+      RegionSuccessor& successor, ArrayRef<BlockArgument> arguments) override {}
   void setToExitState(TargetSlotLattice* lattice) override {};
 };
 
