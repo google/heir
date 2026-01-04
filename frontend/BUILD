@@ -8,7 +8,7 @@ package(
 )
 
 DATA_DEPS = [
-    "@cereal//:headers",
+    "@cereal",
     "@heir//tools:heir-opt",
     "@heir//tools:heir-translate",
     "@openfhe//:libopenfhe",
