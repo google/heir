@@ -27,7 +27,7 @@
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
-
+#include <bits/stdc++.h>
 #define DEBUG_TYPE "lower-polynomial-eval"
 
 namespace mlir {
@@ -40,16 +40,59 @@ using polynomial::EvalOp;
 using polynomial::FloatPolynomial;
 using polynomial::TypedFloatPolynomialAttr;
 
-static int estimateDagCost(ArithmeticDagNode<kernel::SSAValue>* node) {
-  int cost = 0;
-  node->walk([&](auto* n) {
-    if (n->isMul())
-      cost += 2;
-    else if (n->isAdd() || n->isSub())
-      cost += 1;
-  });
-  return cost;
-}
+using Dag = ArithmeticDagNode<kernel::SSAValue>;
+
+struct DagDebugPrinter {
+  std::unordered_set<const Dag*> visited;
+
+  void print(const std::shared_ptr<Dag>& node, int indent = 0) {
+    if (!node) {
+      indentPrint(indent);
+      std::cout << "<null>\n";
+      return;
+    }
+
+    const Dag* raw = node.get();
+    indentPrint(indent);
+
+    if (visited.count(raw)) {
+      std::cout << "<visited @" << raw << ">\n";
+      return;
+    }
+    visited.insert(raw);
+
+    node->visit([&](auto&& n) {
+      using N = std::decay_t<decltype(n)>;
+
+      if constexpr (std::is_same_v<N, mlir::heir::kernel::LeafNode<mlir::heir::kernel::SSAValue>>) {
+        std::cout << "Leaf(SSAValue)\n";
+      } else if constexpr (std::is_same_v<N, mlir::heir::kernel::ConstantScalarNode>) {
+        std::cout << "ConstScalar(" << n.value << ")\n";
+      } else if constexpr (std::is_same_v<N, mlir::heir::kernel::AddNode<mlir::heir::kernel::SSAValue>>) {
+        std::cout << "Add\n";
+        print(n.left, indent + 2);
+        print(n.right, indent + 2);
+      } else if constexpr (std::is_same_v<N, mlir::heir::kernel::SubtractNode<mlir::heir::kernel::SSAValue>>) {
+        std::cout << "Sub\n";
+        print(n.left, indent + 2);
+        print(n.right, indent + 2);
+      } else if constexpr (std::is_same_v<N, mlir::heir::kernel::MultiplyNode<mlir::heir::kernel::SSAValue>>) {
+        std::cout << "Mul\n";
+        print(n.left, indent + 2);
+        print(n.right, indent + 2);
+      } else if constexpr (std::is_same_v<N, mlir::heir::kernel::PowerNode<mlir::heir::kernel::SSAValue>>) {
+        std::cout << "Power(^" << n.exponent << ")\n";
+        print(n.base, indent + 2);
+      } else {
+        std::cout << "OtherNode\n";
+      }
+    });
+  }
+
+  void indentPrint(int n) {
+    for (int i = 0; i < n; ++i) std::cout << ' ';
+  }
+};
 
 LogicalResult LowerViaHorner::matchAndRewrite(EvalOp op,
                                               PatternRewriter& rewriter) const {
@@ -169,16 +212,33 @@ LogicalResult LowerViaPatersonStockmeyerChebyshev::matchAndRewrite(
   SSAValue xNode(xInput);
 
   FloatPolynomial monomialPoly = polynomial::ChebyshevPolynomial(chebCoeffs).toStandardBasis();
+  std::map<int64_t, double> monomialCoeffs;
+  for (const auto& term : monomialPoly.getTerms()) {
+    int64_t degree = term.getExponent().getZExtValue();
+    double coeff = term.getCoefficient().convertToDouble();
+    monomialCoeffs[degree] = coeff;
+  }
   auto chebDag =
     polynomial::patersonStockmeyerChebyshevPolynomialEvaluation(
           xNode, chebCoeffs, getMinCoefficientThreshold());
   auto xDag = kernel::ArithmeticDagNode<kernel::SSAValue>::leaf(xInput);
   auto monoDag =
     polynomial::hornerMonomialPolynomialEvaluation(
-        xDag, monomialPoly.getCoeffMap());
-  int chebCost = estimateDagCost(chebDag.get());
-  int monoCost = estimateDagCost(monoDag.get());
-  bool useMonomial = monoCost < chebCost;
+        xDag, monomialCoeffs);
+  std::cout<<"chebDag: "<<chebDag.get()<<std::endl;
+  std::cout<<"monoDag: "<<monoDag.get()<<std::endl;
+  DagDebugPrinter printer;
+
+  std::cout << "\n=== Chebyshev DAG ===\n";
+  printer.print(chebDag);
+
+  printer.visited.clear();
+
+  std::cout << "\n=== Monomial (Horner) DAG ===\n";
+  printer.print(monoDag);
+//   int chebCost = estimateDagCost(chebDag.get());
+//   int monoCost = estimateDagCost(monoDag.get());
+  bool useMonomial = true;
 
   IRMaterializingVisitor visitor(b, op.getValue().getType());
   Value finalOutput = (useMonomial ? monoDag.get()->visit(visitor) : chebDag.get()->visit(visitor));
