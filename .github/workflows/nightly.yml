@@ -51,4 +51,5 @@ jobs:
             bazel-bin/tools/heir-translate
             bazel-bin/tools/heir-lsp
             bazel-bin/external/edu_berkeley_abc/abc
-            lib/Transforms/YosysOptimizer/yosys/techmap.v
+            lib/Transforms/YosysOptimizer/yosys/techmap_lut3.v
+            lib/Transforms/YosysOptimizer/yosys/techmap_lut4.v
