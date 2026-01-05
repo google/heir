@@ -35,6 +35,30 @@ void addBounds(presburger::IntegerRelation& result, int64_t pos, int64_t lower,
 unsigned int addModConstraint(presburger::IntegerRelation& result,
                               ArrayRef<int64_t> exprs, int64_t modulus);
 
+/// Tests if two relations have the same range for a given domain point.
+bool sameRangeForDomainPoint(const std::vector<int64_t>& domainPoint,
+                             const presburger::IntegerRelation& rel1,
+                             const presburger::IntegerRelation& rel2);
+
+/// Tests if two relations have the same domain for a given range point.
+bool sameDomainForRangePoint(const std::vector<int64_t>& rangePoint,
+                             const presburger::IntegerRelation& rel1,
+                             const presburger::IntegerRelation& rel2);
+
+/// Attempts to quickly prove inequality of two relations by testing domain and
+/// range point-subsamples that are known to be in both relations. This can be
+/// used as a fast check to avoid a full equality test.
+///
+/// This function should only be used on layouts that map data -> ciphertexts,
+/// which is what allows us to conjure subsets of valid points to test.
+///
+/// For example, for a 2d data domain, it is always true that (0, 0) is in the
+/// domain of some point of the relation, because all tensors have an origin
+/// point. This function will then restrict the relation to the sub-relation of
+/// points with domain (0, 0), and compare the range points.
+LogicalResult tryProveUnequal(const presburger::IntegerRelation& layout1,
+                              const presburger::IntegerRelation& layout2);
+
 // Returns an IntegerRelation that enforces a row-major layout for the given
 // tensor type and number of slots. This is used for IntegerRelations that
 // represent data layouts in ciphertexts. It expects that the number of domain
@@ -103,10 +127,9 @@ bool isRelationRowMajor(RankedTensorType vectorType, int64_t numSlots,
 bool isRelationPerRow(RankedTensorType matrixType, int64_t ciphertextSize,
                       presburger::IntegerRelation relation);
 
-bool isRelation2dConvFilterDiagonalized(RankedTensorType filterType,
-                                        RankedTensorType dataType,
-                                        int64_t padding, int64_t ciphertextSize,
-                                        presburger::IntegerRelation relation);
+bool isRelation2dConvFilterDiagonalized(
+    RankedTensorType filterType, RankedTensorType dataType, int64_t padding,
+    int64_t ciphertextSize, const presburger::IntegerRelation& relation);
 
 // Returns true if the given relation is a bicyclic layout for the given
 // matrix type and ciphertext semantic shape.

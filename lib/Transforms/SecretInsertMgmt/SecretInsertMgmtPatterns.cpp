@@ -312,9 +312,6 @@ LogicalResult BootstrapWaterLine<Op>::matchAndRewrite(
     return rewriter.notifyMatchFailure(op, "level is less than waterline");
   }
   if (level > waterline) {
-    LLVM_DEBUG(llvm::dbgs()
-               << "BootstrapWaterLine: met " << op << " with level: " << level
-               << " but waterline: " << waterline << "\n");
     return rewriter.notifyMatchFailure(op, "level is greater than waterline");
   }
 

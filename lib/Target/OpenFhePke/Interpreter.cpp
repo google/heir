@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <utility>
@@ -1757,7 +1758,10 @@ void Interpreter::visit(GenRotKeyOp op) {
   auto pk = privateKeys.at(op.getPrivateKey());
   std::vector<int32_t> rotIndices(op.getIndices().begin(),
                                   op.getIndices().end());
-  TIME_OPERATION_VOID("GenRotKey", cc->EvalRotateKeyGen(pk, rotIndices));
+  for (auto index : rotIndices) {
+    std::cout << "Generating rot key for " << index << "\n";
+    TIME_OPERATION_VOID("GenRotKey", cc->EvalRotateKeyGen(pk, {index}));
+  }
 }
 
 void Interpreter::visit(GenMulKeyOp op) {

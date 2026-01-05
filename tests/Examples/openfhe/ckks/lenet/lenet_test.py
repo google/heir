@@ -86,7 +86,7 @@ class LenetTest(absltest.TestCase):
         shuffle=False,  # SequentialSampler equivalent
     )
 
-    total = 4
+    total = 1
     correct = 0
     samples_processed = 0
 

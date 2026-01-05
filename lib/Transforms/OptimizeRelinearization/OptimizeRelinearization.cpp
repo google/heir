@@ -23,7 +23,7 @@
 namespace mlir {
 namespace heir {
 
-#define DEBUG_TYPE "OptimizeRelinearization"
+#define DEBUG_TYPE "optimize-relinearization"
 
 #define GEN_PASS_DEF_OPTIMIZERELINEARIZATION
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h.inc"
@@ -85,33 +85,8 @@ struct OptimizeRelinearization
     // optimize-relinearization will invalidate mgmt attr
     // so re-annotate it
 
-    // temporary workaround for B/FV and all schemes of Openfhe
-    auto baseLevel = 0;
-    if (moduleIsBFV(getOperation()) || moduleIsOpenfhe(getOperation())) {
-      // inherit mulDepth information from existing mgmt attr.
-      mgmt::MgmtAttr mgmtAttr = nullptr;
-      getOperation()->walk([&](secret::GenericOp op) {
-        for (auto i = 0; i != op->getBlock()->getNumArguments(); ++i) {
-          if ((mgmtAttr = dyn_cast<mgmt::MgmtAttr>(op.getOperandAttr(
-                   i, mgmt::MgmtDialect::kArgMgmtAttrName)))) {
-            break;
-          }
-        }
-      });
-
-      if (!mgmtAttr) {
-        getOperation()->emitError(
-            "No mgmt attribute found in the module for B/FV");
-        return signalPassFailure();
-      }
-
-      baseLevel = mgmtAttr.getLevel();
-    }
-
     OpPassManager pipeline("builtin.module");
-    mgmt::AnnotateMgmtOptions annotateMgmtOptions;
-    annotateMgmtOptions.baseLevel = baseLevel;
-    pipeline.addPass(mgmt::createAnnotateMgmt(annotateMgmtOptions));
+    pipeline.addPass(mgmt::createAnnotateMgmt());
     (void)runPipeline(pipeline, getOperation());
   }
 };
