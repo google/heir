@@ -89,6 +89,133 @@ unsigned int addModConstraint(IntegerRelation& result, ArrayRef<int64_t> exprs,
   return modIndex;
 }
 
+bool sameRangeForDomainPoint(const std::vector<int64_t>& domainPoint,
+                             const presburger::IntegerRelation& rel1,
+                             const presburger::IntegerRelation& rel2) {
+  IntegerRelation fixedRel1 = fixDomainVars(rel1, domainPoint);
+  IntegerRelation fixedRel2 = fixDomainVars(rel2, domainPoint);
+
+  if (fixedRel1.computeVolume() != fixedRel1.computeVolume()) return false;
+
+  // If this is still too slow, would it be faster to sample or enumerate range
+  // points?
+  return fixedRel1.isEqual(fixedRel2);
+}
+
+bool sameDomainForRangePoint(const std::vector<int64_t>& rangePoint,
+                             const presburger::IntegerRelation& rel1,
+                             const presburger::IntegerRelation& rel2) {
+  IntegerRelation fixedRel1 = fixRangeVars(rel1, rangePoint);
+  IntegerRelation fixedRel2 = fixRangeVars(rel2, rangePoint);
+
+  if (fixedRel1.computeVolume() != fixedRel1.computeVolume()) return false;
+
+  // If this is still too slow, would it be faster to sample or enumerate range
+  // points?
+  return fixedRel1.isEqual(fixedRel2);
+}
+
+LogicalResult tryProveUnequal(const presburger::IntegerRelation& layout1,
+                              const presburger::IntegerRelation& layout2) {
+  int64_t numDomain = layout1.getNumDomainVars();
+  int64_t numRange = layout1.getNumRangeVars();
+
+  if (numDomain != layout2.getNumDomainVars()) {
+    return success();
+  }
+  if (numRange != layout2.getNumRangeVars()) {
+    return success();
+  }
+
+  if (layout1.computeVolume() != layout2.computeVolume()) {
+    return success();
+  }
+
+  std::vector<int64_t> domainVarBounds;
+  for (int i = layout1.getVarKindOffset(VarKind::Domain);
+       i < layout1.getVarKindEnd(VarKind::Domain); ++i) {
+    auto layout1Bound = layout1.getConstantBound64(BoundType::UB, i);
+    auto layout2Bound = layout2.getConstantBound64(BoundType::UB, i);
+    if (layout1Bound != layout2Bound) {
+      return success();
+    }
+
+    if (!layout1Bound.has_value() || !layout2Bound.has_value()) {
+      return failure();
+    }
+
+    domainVarBounds.push_back(*layout1Bound);
+  }
+
+  std::vector<int64_t> rangeVarBounds;
+  for (int i = layout1.getVarKindOffset(VarKind::Range);
+       i < layout1.getVarKindEnd(VarKind::Range); ++i) {
+    auto layout1Bound = layout1.getConstantBound64(BoundType::UB, i);
+    auto layout2Bound = layout2.getConstantBound64(BoundType::UB, i);
+    if (layout1Bound != layout2Bound) {
+      return success();
+    }
+
+    if (!layout1Bound.has_value() || !layout2Bound.has_value()) {
+      return failure();
+    }
+
+    rangeVarBounds.push_back(*layout1Bound);
+  }
+
+  // Since these are layouts mapping data tensors to ciphertext-semantic
+  // tensors, both the domain and range spaces are simple grids from (0, 0, ...,
+  // 0) to (bound0, bound1, ..., boundK). We can sample this grid however we
+  // like, but it should suffice for most cases to check some corners and a few
+  // interior points.
+
+  std::vector<std::vector<int64_t>> domainPointsToTest;
+  std::vector<int64_t> zeroDomain(0, numDomain);
+  // a point on the diagonal, 1/3 along
+  std::vector<int64_t> domainInterior1(0, numDomain);
+  // a point on an anti-diagonal, 1/3 along
+  std::vector<int64_t> domainInterior2(0, numDomain);
+  for (int i = 0; i < numDomain; ++i) {
+    domainInterior1.push_back(domainVarBounds[i] / 3);
+    domainInterior2.push_back(i < numDomain / 2 ? domainVarBounds[i] / 3
+                                                : 2 * domainVarBounds[i] / 3);
+  }
+  domainPointsToTest.push_back(std::move(zeroDomain));
+  domainPointsToTest.push_back(domainVarBounds);
+  domainPointsToTest.push_back(domainInterior1);
+  domainPointsToTest.push_back(domainInterior2);
+
+  std::vector<std::vector<int64_t>> rangePointsToTest;
+  std::vector<int64_t> zeroRange(0, numRange);
+  // a point on the diagonal, 1/3 along
+  std::vector<int64_t> rangeInterior1(0, numRange);
+  // a point on an anti-diagonal, 1/3 along
+  std::vector<int64_t> rangeInterior2(0, numRange);
+  for (int i = 0; i < numRange; ++i) {
+    rangeInterior1.push_back(rangeVarBounds[i] / 3);
+    rangeInterior2.push_back(i < numRange / 2 ? rangeVarBounds[i] / 3
+                                              : 2 * rangeVarBounds[i] / 3);
+  }
+  rangePointsToTest.push_back(std::move(zeroRange));
+  rangePointsToTest.push_back(rangeVarBounds);
+  rangePointsToTest.push_back(rangeInterior1);
+  rangePointsToTest.push_back(rangeInterior2);
+
+  for (const auto& domainPt : domainPointsToTest) {
+    if (!sameRangeForDomainPoint(domainPt, layout1, layout2)) {
+      return success();
+    }
+  }
+
+  for (const auto& rangePt : rangePointsToTest) {
+    if (!sameDomainForRangePoint(rangePt, layout1, layout2)) {
+      return success();
+    }
+  }
+
+  return failure();
+}
+
 presburger::IntegerRelation getRowMajorLayoutRelation(
     RankedTensorType tensorType, int64_t numSlots) {
   auto domainSize = tensorType.getRank();
@@ -267,8 +394,8 @@ presburger::IntegerRelation getBicyclicLayoutRelation(
   return result;
 }
 
-// Returns an IntegerRelation representing the tricyclic encoding mapping for a
-// 3-D tensor of shape (h, m, n) into ciphertext slots. The relation maps
+// Returns an IntegerRelation representing the tricyclic encoding mapping for
+// a 3-D tensor of shape (h, m, n) into ciphertext slots. The relation maps
 // domain vars [h_idx, m_idx, n_idx] to range vars [ct, slot] via
 // k = ct * numSlots + slot and constraining:
 //   h_idx == k % h
@@ -397,8 +524,8 @@ presburger::IntegerRelation get2dConvFilterRelation(RankedTensorType filterType,
   IntegerRelation result(PresburgerSpace::getRelationSpace(
       domainSize, /*numRange=*/2, /*numSymbol=*/0, /*numLocals=*/2));
 
-  // These are the indices that represent the position of the top left index of
-  // the filter as it slides over the data.
+  // These are the indices that represent the position of the top left index
+  // of the filter as it slides over the data.
   auto dataRow = result.getVarKindOffset(VarKind::Local);
   auto dataCol = result.getVarKindOffset(VarKind::Local) + 1;
 
@@ -449,8 +576,9 @@ presburger::IntegerRelation get2dConvFilterRelation(RankedTensorType filterType,
   // corresponds to the flattened data index (since it corresponds to one
   // iteration of the filter as it slides over the data) normalized by adding
   // the padding offset back to the indices.
-  // The matrix column corresponds to the index into the filter plus the offsets
-  // from the padding and the filter sliding iteration (the matrix row).
+  // The matrix column corresponds to the index into the filter plus the
+  // offsets from the padding and the filter sliding iteration (the matrix
+  // row).
   //
   // fsr, fsc = filter sliding row size, col size
   // fr, fc = filter row size, col size
@@ -546,16 +674,23 @@ bool isRelationPerRow(RankedTensorType matrixType, int64_t ciphertextSize,
   return relation.isEqual(perRowRelation);
 }
 
-bool isRelation2dConvFilterDiagonalized(RankedTensorType filterType,
-                                        RankedTensorType dataType,
-                                        int64_t padding, int64_t ciphertextSize,
-                                        presburger::IntegerRelation relation) {
+bool isRelation2dConvFilterDiagonalized(
+    RankedTensorType filterType, RankedTensorType dataType, int64_t padding,
+    int64_t ciphertextSize, const presburger::IntegerRelation& relation) {
   auto diagonalizedRelation = get2dConvFilterDiagonalizedRelation(
       filterType, dataType, padding, ciphertextSize);
   if (failed(diagonalizedRelation)) {
     return false;
   }
-  return relation.isEqual(diagonalizedRelation.value());
+  bool fastCheck = relation.isObviouslyEqual(diagonalizedRelation.value());
+  if (fastCheck) return true;
+
+  LogicalResult inequalityTest =
+      tryProveUnequal(diagonalizedRelation.value(), relation);
+  if (succeeded(inequalityTest)) return false;
+
+  bool slowCheck = relation.isEqual(diagonalizedRelation.value());
+  return slowCheck;
 }
 
 bool isRelationBicyclic(RankedTensorType matrixType, int64_t numSlots,
@@ -783,8 +918,9 @@ presburger::IntegerRelation getCollapsedRelation(
   for (auto [idx, group] : llvm::enumerate(reassociation)) {
     // Add bounds for the collapsed dimension.
     addBounds(result, rangeOffset + idx, 0, destType.getDimSize(idx) - 1);
-    // Add an equality constraint that takes a row major relation of each group
-    // of source indices and set that equal to the idx'th range variable.
+    // Add an equality constraint that takes a row major relation of each
+    // group of source indices and set that equal to the idx'th range
+    // variable.
     SmallVector<int64_t> rowMajorCoeffs(result.getNumCols(), 0);
     unsigned product = 1;
     for (int64_t dim : llvm::reverse(group)) {
@@ -852,8 +988,8 @@ presburger::IntegerRelation shiftVar(
   auto varKind = relation.getVarKindAt(pos);
   auto varKindOffset = relation.getVarKindOffset(varKind);
   auto shiftedRelation = relation.clone();
-  // Add a new var var' at pos, set var' = var + offset, and then eliminate var
-  // at position pos + 1
+  // Add a new var var' at pos, set var' = var + offset, and then eliminate
+  // var at position pos + 1
   shiftedRelation->insertVar(varKind, pos - varKindOffset, 1);
   addConstraint(
       *shiftedRelation,
@@ -868,7 +1004,8 @@ FailureOr<presburger::IntegerRelation> getSliceExtractionRelation(
     SmallVector<int64_t> offsets, SmallVector<int64_t> sizes,
     SmallVector<int64_t> strides) {
   IntegerRelation result(PresburgerSpace::getRelationSpace(
-      sourceType.getRank(), /*numRange=*/resultType.getRank(), /*numSymbol=*/0,
+      sourceType.getRank(), /*numRange=*/resultType.getRank(),
+      /*numSymbol=*/0,
       /*numLocals=*/0));
 
   // Add bounds for the source dimensions.
@@ -883,9 +1020,9 @@ FailureOr<presburger::IntegerRelation> getSliceExtractionRelation(
     addBounds(result, rangeOffset + i, 0, resultType.getDimSize(i) - 1);
   }
 
-  // Destination tensor's dimensions (d0, d1, ...) are mapped sequentially from
-  // the source tensor's dimensions (r0, r1, ...) for which the slice size is
-  // greater than 1.
+  // Destination tensor's dimensions (d0, d1, ...) are mapped sequentially
+  // from the source tensor's dimensions (r0, r1, ...) for which the slice
+  // size is greater than 1.
   auto constOffset = result.getNumCols() - 1;
   unsigned int resultDim = 0;
   for (auto sourceDim = 0; sourceDim < sourceType.getRank(); ++sourceDim) {
