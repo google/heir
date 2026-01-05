@@ -1,16 +1,12 @@
 #ifndef LIB_TARGET_OPENFHEPKE_INTERPRETER_H_
 #define LIB_TARGET_OPENFHEPKE_INTERPRETER_H_
 
+#include <chrono>
+#include <map>
 #include <memory>
 #include <string>
 #include <variant>
 #include <vector>
-
-#ifdef OPENFHE_ENABLE_TIMING
-#include <chrono>
-#include <map>
-#include <string>
-#endif
 
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
@@ -242,13 +238,11 @@ class Interpreter {
   static MLIRContext* dispatchTableContext;
   void initializeDispatchTable();
 
-#ifdef OPENFHE_ENABLE_TIMING
   struct TimingData {
     std::chrono::duration<double> totalTime{0};
     int count{0};
   };
   std::map<std::string, TimingData> timingResults;
-#endif
 };
 
 void initContext(MLIRContext& context);
