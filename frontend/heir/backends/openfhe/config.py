@@ -78,7 +78,7 @@ def development_openfhe_config() -> OpenFHEConfig:
               / "pke"
               / "include"
           ),
-          str(repo_root / "bazel-heir" / "external" / "cereal" / "include"),
+          str(repo_root / "bazel-heir" / "external" / "cereal+" / "include"),
       ],
       include_type="source-relative",
       lib_dir=str(repo_root / "bazel-bin" / "external" / "openfhe"),
@@ -188,7 +188,7 @@ def from_pip_installation() -> OpenFHEConfig:
           str(package_path / "openfhe" / "src" / "binfhe" / "include"),
           str(package_path / "openfhe" / "src" / "core" / "include"),
           str(package_path / "openfhe" / "src" / "pke" / "include"),
-          str(package_path / "cereal" / "include"),
+          str(package_path / "cereal+" / "include"),
       ],
       include_type="source-relative",
       lib_dir=str(package_path),

@@ -3,7 +3,7 @@ module(name = "heir")
 bazel_dep(name = "bazel_skylib", version = "1.8.2")
 
 # This must come before apple_support cf. https://github.com/bazelbuild/bazel/issues/25728
-bazel_dep(name = "rules_cc", version = "0.2.4")
+bazel_dep(name = "rules_cc", version = "0.2.13")
 
 # Apple compilation support.
 # Note this requires full xcode, not just commandline tools
@@ -40,6 +40,7 @@ bazel_dep(name = "pybind11_bazel", version = "2.13.6")
 bazel_dep(name = "rules_shell", version = "0.6.1")
 bazel_dep(name = "re2", version = "2025-08-12")
 bazel_dep(name = "isl", version = "0.27")
+bazel_dep(name = "pocketfft", version = "0.0.2")
 
 # Yosys dependencies that are already on the bazel central registry.
 # abc can't be used in place because it changes the names of the targets from
@@ -65,7 +66,7 @@ bazel_dep(name = "eigen", version = "3.4.0.bcr.3")
 bazel_dep(name = "or-tools", version = "9.12", repo_name = "com_google_ortools")
 
 # openfhe deps
-# bazel_dep(name = "cereal", version = "1.3.2")
+bazel_dep(name = "cereal", version = "1.3.2.bcr.3")
 bazel_dep(name = "rapidjson", version = "1.1.0.bcr.20250205")
 
 # Hermetic python setup
