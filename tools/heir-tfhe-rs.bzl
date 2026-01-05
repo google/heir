@@ -32,7 +32,7 @@ def tfhe_rs_lib(name, mlir_src, rs_lib_target_name, heir_opt_flags = [], heir_tr
             generated_filename = generated_heir_opt_name,
             tags = tags,
             HEIR_YOSYS = True,
-            data = ["@heir//lib/Transforms/YosysOptimizer/yosys:techmap.v"] + data,
+            data = ["@heir//lib/Transforms/YosysOptimizer/yosys:techmap_lut3.v", "@heir//lib/Transforms/YosysOptimizer/yosys:techmap_lut4.v"] + data,
         )
     else:
         generated_heir_opt_name = mlir_src

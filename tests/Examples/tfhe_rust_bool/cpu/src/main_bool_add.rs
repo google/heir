@@ -1,16 +1,15 @@
 use tfhe::boolean::prelude::*;
 
 // Encrypt a u8
-pub fn encrypt(value: u8, client_key: &ClientKey) -> Vec<Ciphertext> {
-    let arr: [u8; 8] = core::array::from_fn(|shift| (value >> shift) & 1);
-
-    let res: Vec<Ciphertext> =
-        arr.iter().map(|bit| client_key.encrypt(if *bit != 0u8 { true } else { false })).collect();
-    res
+pub fn encrypt(value: u8, client_key: &ClientKey) -> [Ciphertext; 8] {
+    core::array::from_fn(|shift| {
+        let bit = (value >> shift) & 1;
+        client_key.encrypt(if bit != 0 { true } else { false })
+    })
 }
 
 // Decrypt a u8
-pub fn decrypt(ciphertexts: &Vec<Ciphertext>, client_key: &ClientKey) -> u8 {
+pub fn decrypt(ciphertexts: &[Ciphertext; 8], client_key: &ClientKey) -> u8 {
     let mut accum = 0u8;
     for (i, ct) in ciphertexts.iter().enumerate() {
         let bit = client_key.decrypt(ct);
