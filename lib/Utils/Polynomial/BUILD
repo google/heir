@@ -56,11 +56,18 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "ChebyshevPatersonStockmeyerTestUtils",
+    srcs = ["ChebyshevPatersonStockmeyerTestUtils.cpp"],
+    hdrs = ["ChebyshevPatersonStockmeyerTestUtils.h"],
+)
+
 cc_test(
     name = "ChebyshevPatersonStockmeyerTest",
     srcs = ["ChebyshevPatersonStockmeyerTest.cpp"],
     deps = [
         ":ChebyshevPatersonStockmeyer",
+        ":ChebyshevPatersonStockmeyerTestUtils",
         ":PolynomialTestVisitors",
         "@googletest//:gtest_main",
         "@heir//lib/Kernel:AbstractValue",
@@ -122,6 +129,7 @@ cc_test(
     srcs = ["ChebyshevPatersonStockmeyerFuzzTest.cpp"],
     deps = [
         ":ChebyshevPatersonStockmeyer",
+        ":ChebyshevPatersonStockmeyerTestUtils",
         ":PolynomialTestVisitors",
         "@fuzztest//fuzztest",
         "@googletest//:gtest_main",
