@@ -28,7 +28,6 @@
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
-#include <bits/stdc++.h>
 #define DEBUG_TYPE "lower-polynomial-eval"
 
 namespace mlir {
