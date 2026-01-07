@@ -6,21 +6,22 @@ menu: {main: {weight: 40}}
 {{% blocks/section color="white" type="row" %}}
 
 {{% blocks/feature icon="fa-brands fa-github" title="Contribute" %}} Use
-[GitHub](https://github.com/google/heir) for pull requests. New users are always
-welcome! {{% /blocks/feature %}}
+[GitHub](https://github.com/google/heir) for bug reports, technical discussion
+in issues, and pull requests. {{% /blocks/feature %}}
 
-{{% blocks/feature icon="fa fa-comments" title="Discuss" %}} We use
-[GitHub discussions](https://github.com/google/heir/discussions) for general
-async discussions. For informal chat, join the
-[FHE.org community Discord](https://discord.com/invite/fhe-org) and use the
+{{% blocks/feature icon="fa fa-comments" title="Discuss" %}} We use the
+[FHE.org community Discord](https://discord.com/invite/fhe-org) for general
+discussions in the
 [#heir](https://discord.com/channels/901152454077452399/1226892677887426560)
 channel. {{% /blocks/feature %}}
 
 {{% blocks/feature icon="fa fa-people-group" title="Meet" %}} Join our open
 design meetings to discuss project direction (see calendar below). Meeting
 recordings are posted on the
-[HEIR YouTube channel](https://www.youtube.com/@HEIRCompiler). {{%
-/blocks/feature %}}
+[HEIR YouTube channel](https://www.youtube.com/@HEIRCompiler). We also host an
+open office hours once a week, and you can
+[book a private help session](https://calendar.app.google/7EkJiWB6rDQyJMz18)
+with the HEIR developers. {{% /blocks/feature %}}
 
 {{% /blocks/section %}}
 
