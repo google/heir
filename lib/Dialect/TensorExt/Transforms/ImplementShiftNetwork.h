@@ -23,6 +23,11 @@ namespace tensor_ext {
 #define GEN_PASS_DECL_IMPLEMENTSHIFTNETWORK
 #include "lib/Dialect/TensorExt/Transforms/Passes.h.inc"
 
+struct ShiftSchemeResult {
+  ShiftScheme scheme;
+  Mapping cleanedMapping;
+};
+
 // Cf. https://link.springer.com/chapter/10.1007/978-3-031-17140-6_20
 // for an explanation of the algorithm.
 class VosVosErkinShiftNetworks {
@@ -41,18 +46,19 @@ class VosVosErkinShiftNetworks {
   // on further calls to avoid recomputing the shift network.
   //
   // The default shiftOrder is LSB to MSB, i.e. 1, 2, 4, 8, ...
-  ShiftScheme findShiftScheme(const Mapping& mapping,
-                              ArrayRef<int64_t> shiftOrder = {});
+  ShiftSchemeResult findShiftScheme(const Mapping& mapping,
+                                    ArrayRef<int64_t> shiftOrder = {});
 
   // Like findShiftScheme but randomly draw from a uniform distribution over all
   // possible shift orders and use the one that results in the best network.
-  ShiftScheme findBestShiftScheme(const Mapping& mapping,
-                                  std::size_t randomSeed,
-                                  unsigned randomTries = 100);
+  ShiftSchemeResult findBestShiftScheme(const Mapping& mapping,
+                                        std::size_t randomSeed,
+                                        unsigned randomTries = 100);
 
  private:
   ShiftStrategy evaluateShiftStrategy(const Mapping& mapping,
-                                      ArrayRef<int64_t> shiftOrder);
+                                      ArrayRef<int64_t> shiftOrder,
+                                      bool useSources = false);
 
   CacheKey makeCacheKey(const Mapping& mapping, ArrayRef<int64_t> shiftOrder);
 
