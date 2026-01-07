@@ -306,16 +306,15 @@ LogicalResult BootstrapWaterLine<Op>::matchAndRewrite(
     return rewriter.notifyMatchFailure(op, "level lattice is not initialized");
   }
 
+  // This simple greedy bootstrapping placement pattern will insert bootstrap
+  // ops when the level is a multiple of the waterline - this way each
+  // operations resulting level after bootstrapping placement is its
+  // multiplicate depth % waterline, so that all levels are less than the
+  // waterline.
   auto level = levelLattice->getValue().getLevel();
-
-  if (level < waterline) {
-    return rewriter.notifyMatchFailure(op, "level is less than waterline");
-  }
-  if (level > waterline) {
-    LLVM_DEBUG(llvm::dbgs()
-               << "BootstrapWaterLine: met " << op << " with level: " << level
-               << " but waterline: " << waterline << "\n");
-    return rewriter.notifyMatchFailure(op, "level is greater than waterline");
+  if (level % waterline != 0) {
+    return rewriter.notifyMatchFailure(op,
+                                       "level is not a multiple of waterline");
   }
 
   // insert mgmt::BootstrapOp after
@@ -324,7 +323,13 @@ LogicalResult BootstrapWaterLine<Op>::matchAndRewrite(
       rewriter, op.getLoc(), op->getResultTypes(), op->getResult(0));
   op->getResult(0).replaceAllUsesExcept(bootstrap, {bootstrap});
 
-  return updateResultLevelLattice(op, solver);
+  // insert mgmt::BootstrapOp into secretness lattice - otherwise mgmt
+  // attributes like level won't be required
+  auto* secretnessLattice =
+      solver->getOrCreateState<SecretnessLattice>(bootstrap);
+  secretnessLattice->getValue().setSecretness(true);
+
+  return updateResultLevelLattice(bootstrap, solver);
 }
 
 // For all schemes
