@@ -766,10 +766,6 @@ func::FuncOp PolynomialToModArith::buildPolynomialModFunc(FunctionType funcType,
   RankedTensorType resultType =
       llvm::cast<RankedTensorType>(funcType.getResult(0));
 
-  // TODO(#202): this function name probably also needs the input tensor type in
-  // the name, or it could conflict with other implementations that have the
-  // same cmod+ideal.
-
   // Added input tensor type shape representation to function name to mitigate
   // conflicts with other implementations that may have the same cmod + ideal
   llvm::SmallString<64> tensorTypeStr;
@@ -785,6 +781,8 @@ func::FuncOp PolynomialToModArith::buildPolynomialModFunc(FunctionType funcType,
         }
       },
       "x");
+  //Trailing identifier to match tensor syntax e.g tensor<2047x!coeff_ty>
+  os << "x"; 
 
   auto coeffTy = ring.getCoefficientType();
   std::string coeffTyId;
