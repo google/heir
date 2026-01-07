@@ -59,6 +59,7 @@
 #include "lib/Transforms/ActivationCanonicalizations/ActivationCanonicalizations.h"
 #include "lib/Transforms/AddClientInterface/AddClientInterface.h"
 #include "lib/Transforms/AnnotateModule/AnnotateModule.h"
+#include "lib/Transforms/AnnotateSchemeInfo/AnnotateSchemeInfo.h"
 #include "lib/Transforms/AnnotateSecretness/AnnotateSecretness.h"
 #include "lib/Transforms/ApplyFolders/ApplyFolders.h"
 #include "lib/Transforms/CompareToSignRewrite/CompareToSignRewrite.h"
@@ -284,6 +285,7 @@ int main(int argc, char** argv) {
   registerDropUnitDims();
   registerAnnotateModulePasses();
   registerAnnotateSecretnessPasses();
+  registerAnnotateSchemeInfoPasses();
   registerApplyFoldersPasses();
   registerFoldPlaintextMasksPasses();
   registerForwardInsertSliceToExtractSlicePasses();
