@@ -75,7 +75,7 @@ void processFunc(func::FuncOp funcOp, Value cryptoContext) {
                   .getDegree();
       auto fastRot = FastRotationOp::create(
           builder, op->getLoc(), op.getType(), op.getCryptoContext(),
-          op.getCiphertext(), op.getIndex(),
+          op.getCiphertext(), builder.getIndexAttr(op.getIndex().getInt()),
           builder.getIndexAttr(cyclotomicOrder), precomputeOp.getResult());
       builder.replaceOp(op, fastRot);
     }
