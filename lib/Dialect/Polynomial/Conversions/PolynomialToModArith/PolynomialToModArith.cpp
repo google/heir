@@ -781,8 +781,8 @@ func::FuncOp PolynomialToModArith::buildPolynomialModFunc(FunctionType funcType,
         }
       },
       "x");
-  //Trailing identifier to match tensor syntax e.g tensor<2047x!coeff_ty>
-  os << "x"; 
+  // Trailing identifier to match tensor syntax e.g tensor<2047x!coeff_ty>
+  os << "x";
 
   auto coeffTy = ring.getCoefficientType();
   std::string coeffTyId;
