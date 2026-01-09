@@ -1,6 +1,8 @@
 #ifndef LIB_TARGET_OPENFHEPKE_OPENFHEPKEHEADEREMITTER_H_
 #define LIB_TARGET_OPENFHEPKE_OPENFHEPKEHEADEREMITTER_H_
 
+#include <string>
+
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Target/OpenFhePke/OpenFheUtils.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
@@ -19,16 +21,17 @@ namespace heir {
 namespace openfhe {
 
 /// Translates the given operation to OpenFhePke.
-::mlir::LogicalResult translateToOpenFhePkeHeader(::mlir::Operation* op,
-                                                  llvm::raw_ostream& os,
-                                                  OpenfheImportType importType);
+::mlir::LogicalResult translateToOpenFhePkeHeader(
+    ::mlir::Operation* op, llvm::raw_ostream& os, OpenfheImportType importType,
+    const std::string& debugImportPath);
 
 /// For each function in the mlir module, emits a function header declaration
 /// along with any necessary includes.
 class OpenFhePkeHeaderEmitter {
  public:
   OpenFhePkeHeaderEmitter(raw_ostream& os, SelectVariableNames* variableNames,
-                          OpenfheImportType importType);
+                          OpenfheImportType importType,
+                          const std::string& debugImportPath);
 
   LogicalResult translate(::mlir::Operation& operation);
 
@@ -41,6 +44,9 @@ class OpenFhePkeHeaderEmitter {
   /// Pre-populated analysis selecting unique variable names for all the SSA
   /// values.
   SelectVariableNames* variableNames;
+
+  /// Include path for debug imports
+  std::string debugImportPath;
 
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);

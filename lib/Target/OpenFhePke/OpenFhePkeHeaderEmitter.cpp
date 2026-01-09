@@ -1,5 +1,7 @@
 #include "lib/Target/OpenFhePke/OpenFhePkeHeaderEmitter.h"
 
+#include <string>
+
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Target/OpenFhePke/OpenFheUtils.h"
@@ -20,9 +22,11 @@ namespace heir {
 namespace openfhe {
 
 LogicalResult translateToOpenFhePkeHeader(Operation* op, llvm::raw_ostream& os,
-                                          OpenfheImportType importType) {
+                                          OpenfheImportType importType,
+                                          const std::string& debugImportPath) {
   SelectVariableNames variableNames(op);
-  OpenFhePkeHeaderEmitter emitter(os, &variableNames, importType);
+  OpenFhePkeHeaderEmitter emitter(os, &variableNames, importType,
+                                  debugImportPath);
   return emitter.translate(*op);
 }
 
@@ -54,12 +58,17 @@ LogicalResult OpenFhePkeHeaderEmitter::printOperation(ModuleOp moduleOp) {
     return emitError(moduleOp.getLoc(), "Missing scheme attribute on module");
   }
 
+  if (!debugImportPath.empty()) {
+    os << "#include \"" << debugImportPath << "\"\n";
+  }
   os << getModulePrelude(scheme, importType_) << "\n";
+
   for (Operation& op : moduleOp) {
     if (failed(translate(op))) {
       return failure();
     }
   }
+
   return success();
 }
 
@@ -89,8 +98,11 @@ LogicalResult OpenFhePkeHeaderEmitter::emitType(Type type, Location loc) {
 
 OpenFhePkeHeaderEmitter::OpenFhePkeHeaderEmitter(
     raw_ostream& os, SelectVariableNames* variableNames,
-    OpenfheImportType importType)
-    : importType_(importType), os(os), variableNames(variableNames) {}
+    OpenfheImportType importType, const std::string& debugImportPath)
+    : importType_(importType),
+      os(os),
+      variableNames(variableNames),
+      debugImportPath(debugImportPath) {}
 
 }  // namespace openfhe
 }  // namespace heir

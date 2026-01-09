@@ -88,6 +88,10 @@ bool containsArgumentOfDialect(func::FuncOp funcOp) {
   });
 }
 
+inline bool isDebugPort(StringRef debugPortName) {
+  return debugPortName.rfind("__heir_debug") == 0;
+}
+
 struct AddCryptoContextArg : public OpConversionPattern<func::FuncOp> {
   AddCryptoContextArg(mlir::MLIRContext* context)
       : OpConversionPattern<func::FuncOp>(context, /* benefit= */ 2) {}
@@ -97,6 +101,21 @@ struct AddCryptoContextArg : public OpConversionPattern<func::FuncOp> {
   LogicalResult matchAndRewrite(
       func::FuncOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
+    auto cryptoContextType = openfhe::CryptoContextType::get(getContext());
+
+    // Special case for debug handler functions: they need to have a crypto
+    // context added to their type signature
+    if (isDebugPort(op.getName())) {
+      FunctionType oldFuncType = op.getFunctionType();
+      SmallVector<Type> newInputTypes;
+      newInputTypes.push_back(cryptoContextType);
+      for (Type ty : oldFuncType.getInputs()) newInputTypes.push_back(ty);
+      FunctionType newFuncType = FunctionType::get(
+          op.getContext(), newInputTypes, oldFuncType.getResults());
+      rewriter.modifyOpInPlace(op, [&] { op.setFunctionType(newFuncType); });
+      return success();
+    }
+
     auto containsCryptoOps =
         containsDialects<lwe::LWEDialect, bgv::BGVDialect, ckks::CKKSDialect>(
             op);
@@ -108,7 +127,6 @@ struct AddCryptoContextArg : public OpConversionPattern<func::FuncOp> {
           op, "contains neither ops nor arg types from lwe/bgv/ckks dialects");
     }
 
-    auto cryptoContextType = openfhe::CryptoContextType::get(getContext());
     rewriter.modifyOpInPlace(op, [&] {
       (void)op.insertArgument(0, cryptoContextType, nullptr, op.getLoc());
     });
@@ -423,6 +441,9 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
       bool hasCryptoContextArg = op.getFunctionType().getNumInputs() > 0 &&
                                  mlir::isa<openfhe::CryptoContextType>(
                                      *op.getFunctionType().getInputs().begin());
+      if (isDebugPort(op.getName())) {
+        return hasCryptoContextArg;
+      }
       auto containsCryptoOps =
           containsDialects<lwe::LWEDialect, bgv::BGVDialect, ckks::CKKSDialect>(
               op);
@@ -437,13 +458,17 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
     // Ensures that callee function signature is consistent
     target.addDynamicallyLegalOp<func::CallOp>([&](func::CallOp op) {
       auto operandTypes = op.getCalleeType().getInputs();
-      auto containsCryptoArg = llvm::any_of(operandTypes, [&](Type argType) {
-        return DialectEqual<lwe::LWEDialect, bgv::BGVDialect,
-                            ckks::CKKSDialect>()(&argType.getDialect());
-      });
       auto hasCryptoContextArg =
           !operandTypes.empty() &&
           mlir::isa<openfhe::CryptoContextType>(*operandTypes.begin());
+      if (isDebugPort(op.getCallee())) {
+        return hasCryptoContextArg;
+      }
+      auto containsCryptoArg = llvm::any_of(operandTypes, [&](Type argType) {
+        return DialectEqual<lwe::LWEDialect, bgv::BGVDialect,
+                            ckks::CKKSDialect>()(
+            &getElementTypeOrSelf(argType).getDialect());
+      });
       return (!containsCryptoArg || hasCryptoContextArg);
     });
 

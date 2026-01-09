@@ -1,4 +1,4 @@
-#include "tests/Examples/openfhe/bfv/dot_product_8_debug/debug_helper.h"
+#include "tests/Examples/openfhe/bfv/debug_helper.h"
 
 #include <cmath>
 #include <cstddef>
@@ -14,7 +14,6 @@
 #include "src/core/include/math/hal/nativeintbackend.h"  // from @openfhe
 #include "src/core/include/utils/inttypes.h"             // from @openfhe
 #include "src/pke/include/encoding/plaintext-fwd.h"      // from @openfhe
-#include "src/pke/include/openfhe.h"                     // from @openfhe
 #include "src/pke/include/scheme/bfvrns/bfvrns-cryptoparameters.h"  // from @openfhe
 
 using lbcrypto::DCRTPoly;
