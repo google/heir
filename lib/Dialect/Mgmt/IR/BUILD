@@ -25,6 +25,7 @@ cc_library(
         "ops_inc_gen",
         ":MgmtAttributes",
         ":MgmtOps",
+        "@heir//lib/Dialect:HEIRInterfaces",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
@@ -66,6 +67,7 @@ cc_library(
         ":canonicalize_inc_gen",
         ":dialect_inc_gen",
         ":ops_inc_gen",
+        "@heir//lib/Dialect:HEIRInterfaces",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
     ],
@@ -82,6 +84,7 @@ td_library(
     # include from the heir-root to enable fully-qualified include-paths
     includes = ["../../../.."],
     deps = [
+        "@heir//lib/Dialect:td_files",
         "@heir//lib/Utils/DRR",
         "@llvm-project//mlir:BuiltinDialectTdFiles",
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",

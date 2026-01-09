@@ -12,6 +12,7 @@ cc_library(
     hdrs = ["SecretnessAnalysis.h"],
     deps = [
         "@heir//lib/Analysis:Utils",
+        "@heir//lib/Dialect:HEIRInterfaces",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",

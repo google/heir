@@ -9,7 +9,7 @@
 !pt = !lattigo.rlwe.plaintext
 module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 12, Q = [17179926529], P = [17179967489], plaintextModulus = 65537>, scheme.bgv} {
   // CHECK: func.func @add
-  func.func @add(%evaluator: !evaluator, %param: !param, %encoder: !encoder, %ct: !ct) -> !ct attributes {mgmt.openfhe_params = #mgmt.openfhe_params<evalAddCount = 8, keySwitchCount = 0>} {
+  func.func @add(%evaluator: !evaluator, %param: !param, %encoder: !encoder, %ct: !ct) -> !ct {
     // CHECK-COUNT-3: lattigo.bgv.add
     // CHECK-NOT: lattigo.bgv.add_new
     %ct_0 = lattigo.bgv.add_new %evaluator, %ct, %ct : (!evaluator, !ct, !ct) -> !ct

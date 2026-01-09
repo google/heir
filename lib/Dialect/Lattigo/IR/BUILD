@@ -28,6 +28,7 @@ cc_library(
         ":LattigoAttributes",
         ":LattigoOps",
         ":LattigoTypes",
+        "@heir//lib/Dialect:HEIRInterfaces",
         "@heir//lib/Utils/Tablegen:InplaceOpInterface",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
@@ -65,6 +66,7 @@ cc_library(
         ":attributes_inc_gen",
         ":dialect_inc_gen",
         ":types_inc_gen",
+        "@heir//lib/Dialect:HEIRInterfaces",
         "@llvm-project//mlir:IR",
     ],
 )
@@ -85,6 +87,7 @@ cc_library(
         ":dialect_inc_gen",
         ":ops_inc_gen",
         ":types_inc_gen",
+        "@heir//lib/Dialect:HEIRInterfaces",
         "@heir//lib/Utils/Tablegen:InplaceOpInterface",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
@@ -110,6 +113,7 @@ td_library(
     # include from the heir-root to enable fully-qualified include-paths
     includes = ["../../../.."],
     deps = [
+        "@heir//lib/Dialect:td_files",
         "@heir//lib/Utils/Tablegen:td_files",
         "@llvm-project//mlir:BuiltinDialectTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",

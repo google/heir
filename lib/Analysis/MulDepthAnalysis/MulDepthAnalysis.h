@@ -7,12 +7,14 @@
 #include <optional>
 
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/SparseAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
 #include "mlir/include/mlir/Interfaces/CallInterfaces.h"   // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
@@ -86,7 +88,8 @@ class MulDepthAnalysis
   friend class SecretnessAnalysisDependent<MulDepthAnalysis>;
 
   void setToEntryState(MulDepthLattice* lattice) override {
-    if (isa<secret::SecretType>(lattice->getAnchor().getType())) {
+    if (isa<SecretTypeInterface>(
+            getElementTypeOrSelf(lattice->getAnchor().getType()))) {
       propagateIfChanged(lattice, lattice->join(MulDepthState(0)));
       return;
     }

@@ -10,13 +10,11 @@
 #include <variant>
 #include <vector>
 
-#include "lib/Dialect/LWE/IR/LWEAttributes.h"
-#include "lib/Dialect/LWE/IR/LWEDialect.h"
-#include "lib/Dialect/LWE/IR/LWEOps.h"
-#include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
+#include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "lib/Dialect/RNS/IR/RNSTypeInterfaces.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
@@ -178,7 +176,8 @@ void Interpreter::initializeDispatchTable() {
   REGISTER_OP(scf::YieldOp);
   REGISTER_OP(affine::AffineForOp);
   REGISTER_OP(affine::AffineYieldOp);
-  REGISTER_OP(lwe::RLWEDecodeOp);
+  REGISTER_OP(DecodeOp);
+  REGISTER_OP(DecodeCKKSOp);
   REGISTER_OP(AddOp);
   REGISTER_OP(AddPlainOp);
   REGISTER_OP(SubOp);
@@ -216,8 +215,8 @@ void Interpreter::initializeDispatchTable() {
 
 void Interpreter::eraseValue(Value v) {
   llvm::TypeSwitch<Type>(v.getType())
-      .Case<lwe::LWEPlaintextType>([&](auto ty) { plaintexts.erase(v); })
-      .Case<lwe::LWECiphertextType>([&](auto ty) { ciphertexts.erase(v); })
+      .Case<PlaintextType>([&](auto ty) { plaintexts.erase(v); })
+      .Case<CiphertextType>([&](auto ty) { ciphertexts.erase(v); })
       .Case<RankedTensorType>([&](auto ty) {
         auto elemType = ty.getElementType();
         if (elemType.isInteger() || elemType.isIndex()) {
@@ -226,9 +225,9 @@ void Interpreter::eraseValue(Value v) {
           floatVectors.erase(v);
         } else if (elemType.isF64()) {
           doubleVectors.erase(v);
-        } else if (isa<lwe::LWEPlaintextType>(elemType)) {
+        } else if (isa<PlaintextType>(elemType)) {
           plaintextVectors.erase(v);
-        } else if (isa<lwe::LWECiphertextType>(elemType)) {
+        } else if (isa<CiphertextType>(elemType)) {
           ciphertextVectors.erase(v);
         } else {
           llvm::errs() << "Unsupported tensor element type " << elemType
@@ -315,11 +314,11 @@ TypedCppValue Interpreter::loadTypedValue(Value v) {
   TypedCppValue result;
 
   llvm::TypeSwitch<Type>(v.getType())
-      .Case<lwe::LWEPlaintextType>([&](auto ty) {
+      .Case<PlaintextType>([&](auto ty) {
         if (auto it = plaintexts.find(v); it != plaintexts.end())
           result = TypedCppValue(it->second);
       })
-      .Case<lwe::LWECiphertextType>([&](auto ty) {
+      .Case<CiphertextType>([&](auto ty) {
         if (auto it = ciphertexts.find(v); it != ciphertexts.end())
           result = TypedCppValue(it->second);
       })
@@ -334,10 +333,10 @@ TypedCppValue Interpreter::loadTypedValue(Value v) {
         } else if (elemType.isF64()) {
           if (auto it = doubleVectors.find(v); it != doubleVectors.end())
             result = TypedCppValue(it->second);
-        } else if (isa<lwe::LWEPlaintextType>(elemType)) {
+        } else if (isa<PlaintextType>(elemType)) {
           if (auto it = plaintextVectors.find(v); it != plaintextVectors.end())
             result = TypedCppValue(it->second);
-        } else if (isa<lwe::LWECiphertextType>(elemType)) {
+        } else if (isa<CiphertextType>(elemType)) {
           if (auto it = ciphertextVectors.find(v);
               it != ciphertextVectors.end())
             result = TypedCppValue(it->second);
@@ -799,7 +798,7 @@ void Interpreter::visit(tensor::EmptyOp op) {
   } else if (elementType.isF64()) {
     doubleVectors[op.getResult()] =
         std::make_shared<std::vector<double>>(numElements);
-  } else if (isa<lwe::LWEPlaintextType>(elementType)) {
+  } else if (isa<PlaintextType>(elementType)) {
     plaintextVectors[op.getResult()] =
         std::make_shared<std::vector<PlaintextT>>(numElements);
   } else {
@@ -819,7 +818,7 @@ void Interpreter::visit(tensor::ExtractOp op) {
     floatValues[op.getResult()] = (*floatVectors.at(op.getTensor()))[index];
   } else if (elemType.isF64()) {
     doubleValues[op.getResult()] = (*doubleVectors.at(op.getTensor()))[index];
-  } else if (isa<lwe::LWEPlaintextType>(elemType)) {
+  } else if (isa<PlaintextType>(elemType)) {
     plaintexts[op.getResult()] = (*plaintextVectors.at(op.getTensor()))[index];
   } else {
     ciphertexts[op.getResult()] =
@@ -854,7 +853,7 @@ void Interpreter::visit(tensor::InsertOp op) {
                    : std::make_shared<std::vector<double>>(*srcVec);
     (*vec)[index] = doubleValues.at(op.getScalar());
     doubleVectors[op.getResult()] = vec;
-  } else if (isa<lwe::LWEPlaintextType>(elemType)) {
+  } else if (isa<PlaintextType>(elemType)) {
     auto srcVec = plaintextVectors.at(op.getDest());
     auto vec = canModifyInPlace
                    ? srcVec
@@ -919,7 +918,7 @@ void Interpreter::visit(tensor::FromElementsOp op) {
       (*result)[i] = doubleValues.at(elements[i]);
     }
     doubleVectors[op.getResult()] = result;
-  } else if (isa<lwe::LWEPlaintextType>(elemType)) {
+  } else if (isa<PlaintextType>(elemType)) {
     auto result = std::make_shared<std::vector<PlaintextT>>(elements.size());
     for (size_t i = 0; i < elements.size(); ++i) {
       (*result)[i] = plaintexts.at(elements[i]);
@@ -976,7 +975,7 @@ void Interpreter::visit(tensor::ConcatOp op) {
       result->insert(result->end(), vec.begin(), vec.end());
     }
     doubleVectors[op.getResult()] = result;
-  } else if (isa<lwe::LWEPlaintextType>(elemType)) {
+  } else if (isa<PlaintextType>(elemType)) {
     size_t totalSize = 0;
     for (auto input : inputs) {
       totalSize += plaintextVectors.at(input)->size();
@@ -1014,7 +1013,7 @@ void Interpreter::visit(tensor::CollapseShapeOp op) {
     floatVectors[op.getResult()] = floatVectors.at(op.getSrc());
   } else if (elemType.isF64()) {
     doubleVectors[op.getResult()] = doubleVectors.at(op.getSrc());
-  } else if (isa<lwe::LWEPlaintextType>(elemType)) {
+  } else if (isa<PlaintextType>(elemType)) {
     plaintextVectors[op.getResult()] = plaintextVectors.at(op.getSrc());
   } else {
     ciphertextVectors[op.getResult()] = ciphertextVectors.at(op.getSrc());
@@ -1032,7 +1031,7 @@ void Interpreter::visit(tensor::ExpandShapeOp op) {
     floatVectors[op.getResult()] = floatVectors.at(op.getSrc());
   } else if (elemType.isF64()) {
     doubleVectors[op.getResult()] = doubleVectors.at(op.getSrc());
-  } else if (isa<lwe::LWEPlaintextType>(elemType)) {
+  } else if (isa<PlaintextType>(elemType)) {
     plaintextVectors[op.getResult()] = plaintextVectors.at(op.getSrc());
   } else {
     ciphertextVectors[op.getResult()] = ciphertextVectors.at(op.getSrc());
@@ -1105,7 +1104,7 @@ void Interpreter::visit(tensor::ExtractSliceOp op) {
     }
     doubleVectors[op.getResult()] =
         std::make_shared<std::vector<double>>(std::move(result));
-  } else if (isa<lwe::LWEPlaintextType>(elemType)) {
+  } else if (isa<PlaintextType>(elemType)) {
     auto result = std::vector<PlaintextT>(totalElements);
     const auto& srcVec = *plaintextVectors.at(op.getSource());
     for (int64_t i = 0; i < totalElements; ++i) {
@@ -1113,7 +1112,7 @@ void Interpreter::visit(tensor::ExtractSliceOp op) {
     }
     plaintextVectors[op.getResult()] =
         std::make_shared<std::vector<PlaintextT>>(std::move(result));
-  } else if (isa<lwe::LWECiphertextType>(elemType)) {
+  } else if (isa<CiphertextType>(elemType)) {
     auto result = std::vector<CiphertextT>(totalElements);
     const auto& srcVec = *ciphertextVectors.at(op.getSource());
     for (int64_t i = 0; i < totalElements; ++i) {
@@ -1197,7 +1196,7 @@ void Interpreter::visit(tensor::InsertSliceOp op) {
       (*destVec)[insertElement(i)] = srcVec[i];
     }
     doubleVectors[op.getResult()] = std::move(destVec);
-  } else if (isa<lwe::LWEPlaintextType>(elemType)) {
+  } else if (isa<PlaintextType>(elemType)) {
     auto srcDestVec = plaintextVectors.at(op.getDest());
     auto destVec = canModifyInPlace
                        ? srcDestVec
@@ -1207,7 +1206,7 @@ void Interpreter::visit(tensor::InsertSliceOp op) {
       (*destVec)[insertElement(i)] = srcVec[i];
     }
     plaintextVectors[op.getResult()] = std::move(destVec);
-  } else if (isa<lwe::LWECiphertextType>(elemType)) {
+  } else if (isa<CiphertextType>(elemType)) {
     auto srcDestVec = ciphertextVectors.at(op.getDest());
     auto destVec =
         canModifyInPlace
@@ -1536,13 +1535,13 @@ void Interpreter::visit(AddPlainOp op) {
   auto lhsVal = op.getLhs();
   auto rhsVal = op.getRhs();
 
-  if (isa<lwe::LWECiphertextType>(lhsVal.getType()) &&
-      isa<lwe::LWEPlaintextType>(rhsVal.getType())) {
+  if (isa<CiphertextType>(lhsVal.getType()) &&
+      isa<PlaintextType>(rhsVal.getType())) {
     auto lhsCt = ciphertexts.at(lhsVal);
     auto rhsPt = plaintexts.at(rhsVal);
     TIME_OPERATION("AddPlain", op.getOutput(), cc->EvalAdd(lhsCt, rhsPt));
-  } else if (isa<lwe::LWEPlaintextType>(lhsVal.getType()) &&
-             isa<lwe::LWECiphertextType>(rhsVal.getType())) {
+  } else if (isa<PlaintextType>(lhsVal.getType()) &&
+             isa<CiphertextType>(rhsVal.getType())) {
     auto lhsPt = plaintexts.at(lhsVal);
     auto rhsCt = ciphertexts.at(rhsVal);
     TIME_OPERATION("AddPlain", op.getOutput(), cc->EvalAdd(lhsPt, rhsCt));
@@ -1557,13 +1556,13 @@ void Interpreter::visit(SubPlainOp op) {
   auto rhsVal = op.getRhs();
 
   // Check which is ciphertext and which is plaintext
-  if (isa<lwe::LWECiphertextType>(lhsVal.getType()) &&
-      isa<lwe::LWEPlaintextType>(rhsVal.getType())) {
+  if (isa<CiphertextType>(lhsVal.getType()) &&
+      isa<PlaintextType>(rhsVal.getType())) {
     auto lhsCt = ciphertexts.at(lhsVal);
     auto rhsPt = plaintexts.at(rhsVal);
     TIME_OPERATION("SubPlain", op.getOutput(), cc->EvalSub(lhsCt, rhsPt));
-  } else if (isa<lwe::LWEPlaintextType>(lhsVal.getType()) &&
-             isa<lwe::LWECiphertextType>(rhsVal.getType())) {
+  } else if (isa<PlaintextType>(lhsVal.getType()) &&
+             isa<CiphertextType>(rhsVal.getType())) {
     auto lhsPt = plaintexts.at(lhsVal);
     auto rhsCt = ciphertexts.at(rhsVal);
     TIME_OPERATION("SubPlain", op.getOutput(), cc->EvalSub(lhsPt, rhsCt));
@@ -1801,11 +1800,12 @@ void Interpreter::visit(FastRotationPrecomputeOp op) {
                        cc->EvalFastRotationPrecompute(ct), fastRotPrecomps);
 }
 
-void Interpreter::visit(lwe::RLWEDecodeOp op) {
-  auto plaintext = plaintexts.at(op.getInput());
-  bool isCKKS = llvm::isa<lwe::InverseCanonicalEncodingAttr>(op.getEncoding());
+void Interpreter::decodeCore(Operation* op, Value input, Value result,
+                             bool isCKKS) {
+  auto plaintext = plaintexts.at(input);
 
-  if (auto tensorTy = dyn_cast<RankedTensorType>(op.getResult().getType())) {
+  // Tensor case
+  if (auto tensorTy = dyn_cast<RankedTensorType>(result.getType())) {
     auto shape = tensorTy.getShape();
     auto nonUnitDims = llvm::count_if(shape, [](auto dim) { return dim != 1; });
     if (nonUnitDims != 1) {
@@ -1828,45 +1828,56 @@ void Interpreter::visit(lwe::RLWEDecodeOp op) {
       auto elemType = tensorTy.getElementType();
 
       if (elemType.isF64()) {
-        auto result = std::make_shared<std::vector<double>>();
-        result->reserve(ckksValues.size());
+        auto res = std::make_shared<std::vector<double>>();
+        res->reserve(ckksValues.size());
         for (const auto& val : ckksValues) {
-          result->push_back(val.real());
+          res->push_back(val.real());
         }
-        doubleVectors[op.getResult()] = result;
+        doubleVectors[result] = res;
       } else {
-        auto result = std::make_shared<std::vector<float>>();
-        result->reserve(ckksValues.size());
+        auto res = std::make_shared<std::vector<float>>();
+        res->reserve(ckksValues.size());
         for (const auto& val : ckksValues) {
-          result->push_back(static_cast<float>(val.real()));
+          res->push_back(static_cast<float>(val.real()));
         }
-        floatVectors[op.getResult()] = result;
+        floatVectors[result] = res;
       }
-    } else {
-      auto packedValues = plaintext->GetPackedValue();
-      auto result = std::make_shared<std::vector<int>>();
-      result->reserve(packedValues.size());
-      for (const auto& val : packedValues) {
-        result->push_back(static_cast<int>(val));
-      }
-      intVectors[op.getResult()] = result;
+      return;
     }
-  } else {
-    // Scalar result
-    if (isCKKS) {
-      auto ckksValues = plaintext->GetCKKSPackedValue();
-      auto elemType = op.getResult().getType();
 
-      if (elemType.isF64()) {
-        doubleValues[op.getResult()] = ckksValues[0].real();
-      } else {
-        floatValues[op.getResult()] = static_cast<float>(ckksValues[0].real());
-      }
-    } else {
-      auto packedValues = plaintext->GetPackedValue();
-      intValues[op.getResult()] = static_cast<int>(packedValues[0]);
+    auto packedValues = plaintext->GetPackedValue();
+    auto res = std::make_shared<std::vector<int>>();
+    res->reserve(packedValues.size());
+    for (const auto& val : packedValues) {
+      res->push_back(static_cast<int>(val));
     }
+    intVectors[result] = res;
+    return;
   }
+
+  // Scalar result
+  if (isCKKS) {
+    auto ckksValues = plaintext->GetCKKSPackedValue();
+    auto elemType = result.getType();
+
+    if (elemType.isF64()) {
+      doubleValues[result] = ckksValues[0].real();
+    } else {
+      floatValues[result] = static_cast<float>(ckksValues[0].real());
+    }
+    return;
+  }
+
+  auto packedValues = plaintext->GetPackedValue();
+  intValues[result] = static_cast<int>(packedValues[0]);
+}
+
+void Interpreter::visit(DecodeOp op) {
+  decodeCore(op, op.getInput(), op.getResult(), false);
+}
+
+void Interpreter::visit(DecodeCKKSOp op) {
+  decodeCore(op, op.getInput(), op.getResult(), true);
 }
 
 void initContext(MLIRContext& context) {
@@ -1874,9 +1885,8 @@ void initContext(MLIRContext& context) {
   registry.insert<OpenfheDialect>();
   registry.insert<arith::ArithDialect>();
   registry.insert<func::FuncDialect>();
-  registry.insert<lwe::LWEDialect>();
+  registry.insert<mgmt::MgmtDialect>();
   registry.insert<mod_arith::ModArithDialect>();
-  registry.insert<polynomial::PolynomialDialect>();
   registry.insert<rns::RNSDialect>();
   registry.insert<scf::SCFDialect>();
   registry.insert<tensor::TensorDialect>();

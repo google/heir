@@ -2,7 +2,6 @@
 
 #include <cstdint>
 
-#include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
 #include "lib/Utils/ConversionUtils.h"
@@ -66,13 +65,7 @@ void processFunc(func::FuncOp funcOp, Value cryptoContext) {
       // dimension used by OpenFHE. However, OpenFHE sets its own parameters,
       // and so this ends up being ignored in favor of dynamically reading
       // `cc->GetRingDimension() * 2`.
-      int cyclotomicOrder =
-          2 * cast<lwe::LWECiphertextType>(ciphertext.getType())
-                  .getCiphertextSpace()
-                  .getRing()
-                  .getPolynomialModulus()
-                  .getPolynomial()
-                  .getDegree();
+      int cyclotomicOrder = 0;
       auto fastRot = FastRotationOp::create(
           builder, op->getLoc(), op.getType(), op.getCryptoContext(),
           op.getCiphertext(), op.getIndex(),

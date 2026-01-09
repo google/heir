@@ -3,14 +3,15 @@
 
 include "lib/Dialect/Mgmt/IR/MgmtDialect.td"
 
+include "lib/Dialect/HEIRInterfaces.td"
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
-class Mgmt_Op<string mnemonic, list<Trait> traits = [Pure, ElementwiseMappable, SameOperandsAndResultType]> :
-        Op<Mgmt_Dialect, mnemonic, traits> {
+class Mgmt_Op<string mnemonic, list<Trait> traits = []> :
+        Op<Mgmt_Dialect, mnemonic, traits # [Pure, ElementwiseMappable, SameOperandsAndResultType]> {
   let cppNamespace = "::mlir::heir::mgmt";
 }
 
@@ -113,7 +114,7 @@ def Mgmt_BootstrapOp : Mgmt_Op<"bootstrap"> {
   let assemblyFormat = "operands attr-dict `:` type($output)";
 }
 
-def Mgmt_AdjustScaleOp : Mgmt_Op<"adjust_scale"> {
+def Mgmt_AdjustScaleOp : Mgmt_Op<"adjust_scale", [IncreasesMulDepthOpInterface]> {
   let summary = "Adjust the scale of the input ciphertext (for BGV and CKKS)";
 
   let description = [{

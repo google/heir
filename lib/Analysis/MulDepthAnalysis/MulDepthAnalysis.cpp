@@ -5,12 +5,10 @@
 #include <functional>
 
 #include "lib/Analysis/Utils.h"
-#include "lib/Dialect/Mgmt/IR/MgmtOps.h"
+#include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"      // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
@@ -22,11 +20,6 @@ namespace heir {
 
 FailureOr<int64_t> deriveResultMulDepth(
     Operation* op, ArrayRef<const MulDepthLattice*> operands) {
-  auto isMul = false;
-  if (isa<arith::MulIOp, arith::MulFOp, mgmt::AdjustScaleOp>(op)) {
-    isMul = true;
-  }
-
   int64_t operandsMulDepth = 0;
   for (auto* operand : operands) {
     if (!operand || !operand->getValue().isInitialized()) {
@@ -36,7 +29,9 @@ FailureOr<int64_t> deriveResultMulDepth(
         std::max(operandsMulDepth, operand->getValue().getMulDepth());
   }
 
-  return operandsMulDepth + (isMul ? 1 : 0);
+  int64_t increase = 0;
+  if (dyn_cast<IncreasesMulDepthOpInterface>(op)) increase = 1;
+  return operandsMulDepth + increase;
 }
 
 LogicalResult MulDepthAnalysis::visitOperation(

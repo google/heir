@@ -4,33 +4,41 @@
 #include <set>
 #include <string>
 
+#include "lib/Analysis/MulDepthAnalysis/MulDepthAnalysis.h"
+#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/BGV/IR/BGVAttributes.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/BGV/IR/BGVEnums.h"
 #include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
-#include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/CKKS/IR/CKKSEnums.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
-#include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
-#include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Utils/TransformUtils.h"
-#include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/TypeUtilities.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
+#include "lib/Utils/Utils.h"
+#include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"         // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                    // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"       // from @llvm-project
+#include "mlir/include/mlir/Support/WalkResult.h"          // from @llvm-project
+
+#define DEBUG_TYPE "openfhe-configure-crypto-context"
 
 namespace mlir {
 namespace heir {
@@ -233,8 +241,9 @@ struct ConfigureCryptoContext
     auto module = op->getParentOfType<ModuleOp>();
 
     // remove bgv.schemeParam attribute if present
-    // fill encryptionTechniqueExtended
+    // fill encryptionTechniqueExtended and plaintextModulus
     config.encryptionTechniqueExtended = false;
+    config.plaintextModulus = 0;
     if (auto schemeParamAttr = module->getAttrOfType<bgv::SchemeParamAttr>(
             bgv::BGVDialect::kSchemeParamAttrName)) {
       if (moduleIsBGV(module) && schemeParamAttr.getEncryptionTechnique() ==
@@ -246,10 +255,15 @@ struct ConfigureCryptoContext
       config.encryptionTechniqueExtended =
           schemeParamAttr.getEncryptionTechnique() ==
           bgv::BGVEncryptionTechnique::extended;
+      if (!moduleIsCKKS(module))
+        config.plaintextModulus = schemeParamAttr.getPlaintextModulus();
       module->removeAttr(bgv::BGVDialect::kSchemeParamAttrName);
     }
 
     // remove ckks.schemeParam attribute if present
+    // For CKKS, plainMod must be 0 to avoid codegen for SetPlaintextModulus.
+    // OpenFHE will throw an exception if you try to set the plaintext modulus
+    // in CKKS.
     if (auto schemeParamAttr = module->getAttrOfType<ckks::SchemeParamAttr>(
             ckks::CKKSDialect::kSchemeParamAttrName)) {
       if (schemeParamAttr.getEncryptionTechnique() ==
@@ -261,19 +275,33 @@ struct ConfigureCryptoContext
       module->removeAttr(ckks::CKKSDialect::kSchemeParamAttrName);
     }
 
-    /// Compute muldepth from multiply aspects...
-    // get mulDepth from function argument ciphertext type
-    for (auto arg : op.getArguments()) {
-      if (auto argType = dyn_cast<lwe::LWECiphertextType>(
-              getElementTypeOrSelf(arg.getType()))) {
-        if (auto rnsType = dyn_cast<rns::RNSType>(
-                argType.getCiphertextSpace().getRing().getCoefficientType())) {
-          config.mulDepth = rnsType.getBasisTypes().size() - 1;
-          // implicitly assume arguments have the same level
-          break;
-        }
-      }
+    LLVM_DEBUG(llvm::dbgs() << "Recomputing mul depth\n");
+    DataFlowSolver solver;
+    dataflow::loadBaselineAnalyses(solver);
+    solver.load<SecretnessAnalysis>();
+    solver.load<MulDepthAnalysis>();
+
+    if (failed(solver.initializeAndRun(op))) {
+      op->emitOpError() << "Failed to run mul depth analysis.\n";
+      return failure();
     }
+
+    config.mulDepth = 0;
+    walkValues(op, [&](Value value) {
+      auto mulDepthState =
+          solver.lookupState<MulDepthLattice>(value)->getValue();
+      if (!mulDepthState.isInitialized()) {
+        LLVM_DEBUG(llvm::dbgs()
+                   << "mul depth uninitialized at " << value << "\n");
+        return;
+      }
+      auto mulDepth = mulDepthState.getMulDepth();
+      if (mulDepth > config.mulDepth) {
+        LLVM_DEBUG(llvm::dbgs()
+                   << "Found larger mul depth=" << mulDepth << "\n");
+        config.mulDepth = mulDepth;
+      }
+    });
 
     config.hasBootstrapOp = hasBootstrapOp(op);
     // TODO(#1207): determine mulDepth earlier in mgmt level
@@ -292,25 +320,6 @@ struct ConfigureCryptoContext
     // relin and rotation
     config.hasRelinOp = hasRelinOp(op);
     config.rotIndices = findAllRotIndices(op);
-
-    // Get plaintext modulus from function argument ciphertext type for CKKS,
-    // plainMod must be 0 to avoid codegen for SetPlaintextModulus. OpenFHE will
-    // throw an exception if you try to set the plaintext modulus in CKKS.
-    if (moduleIsCKKS(module)) {
-      config.plaintextModulus = 0;
-    } else {
-      for (auto arg : op.getArguments()) {
-        if (auto argType = dyn_cast<lwe::LWECiphertextType>(
-                getElementTypeOrSelf(arg.getType()))) {
-          if (auto modArithType = dyn_cast<mod_arith::ModArithType>(
-                  argType.getPlaintextSpace().getRing().getCoefficientType())) {
-            config.plaintextModulus = modArithType.getModulus().getInt();
-            // implicitly assume arguments have the same plaintext modulus
-            break;
-          }
-        }
-      }
-    }
 
     // get evalAddCount/KeySwitchCount from func attribute, if present
     config.evalAddCount = 0;

@@ -3,11 +3,12 @@
 
 include "LattigoAttributes.td"
 
+include "lib/Dialect/HEIRInterfaces.td"
 include "mlir/IR/DialectBase.td"
 include "mlir/IR/AttrTypeBase.td"
 
-class Lattigo_RLWEType<string name, string typeMnemonic>
-    : Lattigo_Type<"RLWE" # name, "rlwe." # typeMnemonic> {
+class Lattigo_RLWEType<string name, string typeMnemonic, list<Trait> traits = []>
+    : Lattigo_Type<"RLWE" # name, "rlwe." # typeMnemonic, traits> {
 }
 
 def Lattigo_RLWEKeyGenerator : Lattigo_RLWEType<"KeyGenerator", "key_generator"> {
@@ -91,7 +92,7 @@ def Lattigo_RLWEPlaintext : Lattigo_RLWEType<"Plaintext", "plaintext"> {
   let asmName = "pt";
 }
 
-def Lattigo_RLWECiphertext : Lattigo_RLWEType<"Ciphertext", "ciphertext"> {
+def Lattigo_RLWECiphertext : Lattigo_RLWEType<"Ciphertext", "ciphertext", [SecretTypeInterface]> {
   let description = [{
     This type represents the ciphertext for the RLWE encryption scheme.
   }];

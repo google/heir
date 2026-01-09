@@ -5,6 +5,7 @@
 #include <functional>
 
 #include "lib/Analysis/Utils.h"
+#include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
@@ -15,6 +16,8 @@
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                    // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
@@ -26,7 +29,7 @@ namespace heir {
 
 void SecretnessAnalysis::setToEntryState(SecretnessLattice* lattice) {
   auto value = lattice->getAnchor();
-  bool secretness = isa<secret::SecretType>(value.getType());
+  bool secretness = isa<SecretTypeInterface>(value.getType());
   auto blockArg = dyn_cast<BlockArgument>(value);
 
   Operation* operation = nullptr;
@@ -48,9 +51,10 @@ void SecretnessAnalysis::setToEntryState(SecretnessLattice* lattice) {
   // check if the operand is either of secret type or annotated with
   // {secret.secret}
   if (auto funcOp = dyn_cast<func::FuncOp>(*operation)) {
-    // Check if it has secret type
-    secretness = isa<secret::SecretType>(
-        funcOp.getArgumentTypes()[blockArg.getArgNumber()]);
+    Type argType = funcOp.getArgumentTypes()[blockArg.getArgNumber()];
+    // Check if it has secret-like type (secret, ciphertext, or shaped type
+    // thereof)
+    secretness = isa<SecretTypeInterface>(getElementTypeOrSelf(argType));
 
     // check if it is annotated as {secret.secret}
     UnitAttr attr = funcOp.getArgAttrOfType<UnitAttr>(

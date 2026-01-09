@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "gtest/gtest.h"  // from @googletest
+#include "tests/Examples/openfhe/bfv/dot_product_8_debug/debug_helper.h"
 
 // Generated headers (block clang-format from messing up order)
 #include "tests/Examples/openfhe/bfv/dot_product_8_debug/dot_product_8_debug_lib.h"

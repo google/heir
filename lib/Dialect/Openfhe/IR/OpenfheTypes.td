@@ -3,6 +3,7 @@
 
 include "OpenfheDialect.td"
 
+include "lib/Dialect/HEIRInterfaces.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/DialectBase.td"
@@ -26,6 +27,16 @@ class Openfhe_Type<string name, string typeMnemonic, list<Trait> traits = []>
       return ::mlir::OpAsmDialectInterface::AliasResult::FinalAlias;
     }
   }];
+}
+
+def Openfhe_Ciphertext : Openfhe_Type<"Ciphertext", "ciphertext", [SecretTypeInterface]> {
+  let summary = "An opaque OpenFHE ciphertext type";
+  let asmName = "ct";
+}
+
+def Openfhe_Plaintext : Openfhe_Type<"Plaintext", "plaintext"> {
+  let summary = "An opaque OpenFHE plaintext type";
+  let asmName = "pt";
 }
 
 def Openfhe_PublicKey : Openfhe_Type<"PublicKey", "public_key"> {

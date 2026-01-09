@@ -3,16 +3,17 @@
 
 include "SecretDialect.td"
 
-include "mlir/IR/DialectBase.td"
+include "lib/Dialect/HEIRInterfaces.td"
 include "mlir/IR/AttrTypeBase.td"
+include "mlir/IR/DialectBase.td"
 
 // A base class for all types in this dialect
-class Secret_Type<string name, string typeMnemonic>
-    : TypeDef<Secret_Dialect, name> {
+class Secret_Type<string name, string typeMnemonic, list<Trait> traits = []>
+    : TypeDef<Secret_Dialect, name, traits> {
   let mnemonic = typeMnemonic;
 }
 
-def Secret : Secret_Type<"Secret", "secret"> {
+def Secret : Secret_Type<"Secret", "secret", [SecretTypeInterface]> {
   let summary = "A secret value";
 
   let description = [{

@@ -34,7 +34,7 @@
 // CHECK: module
 module {
   // CHECK: @test_ops
-  // CHECK-SAME: ([[C:%.+]]: [[S:.*crypto_context]], [[X:%.+]]: [[T:.*lwe_ciphertext.*]], [[Y:%.+]]: [[T]], [[Z:%.+]]: [[P:.*lwe_plaintext[^)]*]])
+  // CHECK-SAME: ([[C:%.+]]: [[S:!openfhe.crypto_context]], [[X:%.+]]: [[T:!openfhe.ciphertext]], [[Y:%.+]]: [[T]], [[Z:%.+]]: [[P:!openfhe.plaintext]])
   func.func @test_ops(%x : !ct, %y : !ct, %z : !pt) -> (!ct, !ct, !ct, !ct_D3, !ct, !ct, !ct, !ct) {
     // CHECK: %[[v1:.*]] = openfhe.negate [[C]], %[[x1:.*]] : ([[S]], [[T]]) -> [[T]]
     %negate = ckks.negate %x  : !ct
@@ -57,7 +57,7 @@ module {
   }
 
   // CHECK: @test_relin
-  // CHECK-SAME: ([[C:.*]]: [[S:.*crypto_context]], [[X:%.+]]: [[T:.*lwe_ciphertext.*]])
+  // CHECK-SAME: ([[C:.*]]: [[S:!openfhe.crypto_context]], [[X:%.+]]: [[T:!openfhe.ciphertext]])
   func.func @test_relin(%x : !ct_D4) -> !ct {
     // CHECK: %[[v6:.*]] = openfhe.relin [[C]], %[[x6:.*]]: ([[S]], [[T]]) -> [[T2:.*]]
     %relin = ckks.relinearize %x  {

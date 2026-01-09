@@ -3,6 +3,7 @@
 
 include "LattigoDialect.td"
 include "LattigoTypes.td"
+include "lib/Dialect/HEIRInterfaces.td"
 include "mlir/IR/OpBase.td"
 
 class Lattigo_BGVOp<string mnemonic, list<Trait> traits = []> :
@@ -105,8 +106,8 @@ def Lattigo_BGVNewEvaluatorOp : Lattigo_BGVOp<"new_evaluator"> {
 
 // ciphertext arithmetic op
 
-class Lattigo_BGVBinaryOp<string mnemonic> :
-        Lattigo_BGVOp<mnemonic> {
+class Lattigo_BGVBinaryOp<string mnemonic, list<Trait> traits = []> :
+        Lattigo_BGVOp<mnemonic, traits> {
   let arguments = (ins
     Lattigo_BGVEvaluator:$evaluator,
     Lattigo_RLWECiphertext:$lhs,
@@ -129,15 +130,15 @@ def Lattigo_BGVSubNewOp : Lattigo_BGVBinaryOp<"sub_new"> {
   }];
 }
 
-def Lattigo_BGVMulNewOp : Lattigo_BGVBinaryOp<"mul_new"> {
+def Lattigo_BGVMulNewOp : Lattigo_BGVBinaryOp<"mul_new", [IncreasesMulDepthOpInterface]> {
   let summary = "Multiply two ciphertexts in the Lattigo BGV dialect";
   let description = [{
     This operation multiplies two ciphertext values in the Lattigo BGV dialect.
   }];
 }
 
-class Lattigo_BGVBinaryInplaceOp<string mnemonic> :
-        Lattigo_BGVOp<mnemonic, [InplaceOpInterface]> {
+class Lattigo_BGVBinaryInplaceOp<string mnemonic, list<Trait> traits = []> :
+        Lattigo_BGVOp<mnemonic, traits # [InplaceOpInterface]> {
   let arguments = (ins
     Lattigo_BGVEvaluator:$evaluator,
     Lattigo_RLWECiphertext:$lhs,
@@ -171,7 +172,7 @@ def Lattigo_BGVSubOp : Lattigo_BGVBinaryInplaceOp<"sub"> {
   }];
 }
 
-def Lattigo_BGVMulOp : Lattigo_BGVBinaryInplaceOp<"mul"> {
+def Lattigo_BGVMulOp : Lattigo_BGVBinaryInplaceOp<"mul", [IncreasesMulDepthOpInterface]> {
   let summary = "Multiply two ciphertexts in the Lattigo BGV dialect";
   let description = [{
     This operation multiplies two ciphertext values in the Lattigo BGV dialect.

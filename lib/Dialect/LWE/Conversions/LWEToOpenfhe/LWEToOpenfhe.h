@@ -6,6 +6,7 @@
 // IWYU pragma: end_keep
 
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
+#include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
@@ -55,9 +56,9 @@ struct ConvertLWEBinOp : public OpConversionPattern<BinOp> {
     if (failed(result)) return result;
 
     Value cryptoContext = result.value();
-    rewriter.replaceOpWithNewOp<OpenfheOp>(op, op.getOutput().getType(),
-                                           cryptoContext, adaptor.getLhs(),
-                                           adaptor.getRhs());
+    rewriter.replaceOpWithNewOp<OpenfheOp>(
+        op, openfhe::CiphertextType::get(op.getContext()), cryptoContext,
+        adaptor.getLhs(), adaptor.getRhs());
     return success();
   }
 };
@@ -73,9 +74,9 @@ struct ConvertCiphertextPlaintextOp : public OpConversionPattern<BinOp> {
     if (failed(result)) return result;
 
     Value cryptoContext = result.value();
-    rewriter.replaceOpWithNewOp<OpenfheOp>(op, op.getOutput().getType(),
-                                           cryptoContext, adaptor.getLhs(),
-                                           adaptor.getRhs());
+    rewriter.replaceOpWithNewOp<OpenfheOp>(
+        op, openfhe::CiphertextType::get(op.getContext()), cryptoContext,
+        adaptor.getLhs(), adaptor.getRhs());
     return success();
   }
 };
@@ -118,6 +119,7 @@ struct ConvertRelinOp : public OpConversionPattern<RelinOp> {
       ConversionPatternRewriter& rewriter) const override {
     FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
     if (failed(result)) return result;
+    Value cryptoContext = result.value();
 
     auto toBasis = adaptor.getToBasis();
 
@@ -128,10 +130,9 @@ struct ConvertRelinOp : public OpConversionPattern<RelinOp> {
       op.emitError() << "toBasis must be [0, 1], got [" << toBasis << "]";
       return failure();
     }
-
-    Value cryptoContext = result.value();
-    rewriter.replaceOpWithNewOp<OpenfheOp>(op, op.getOutput().getType(),
-                                           cryptoContext, adaptor.getInput());
+    rewriter.replaceOpWithNewOp<OpenfheOp>(
+        op, openfhe::CiphertextType::get(op.getContext()), cryptoContext,
+        adaptor.getInput());
     return success();
   }
 };
@@ -153,7 +154,8 @@ struct ConvertModulusSwitchOp : public OpConversionPattern<ModulusSwitchOp> {
 
     Value cryptoContext = result.value();
     rewriter.replaceOp(op, openfhe::ModReduceOp::create(
-                               rewriter, op.getLoc(), op.getOutput().getType(),
+                               rewriter, op.getLoc(),
+                               openfhe::CiphertextType::get(op.getContext()),
                                cryptoContext, adaptor.getInput()));
     return success();
   }
@@ -175,7 +177,8 @@ struct ConvertLevelReduceOp : public OpConversionPattern<LevelReduceOp> {
     Value cryptoContext = result.value();
     rewriter.replaceOp(
         op, openfhe::LevelReduceOp::create(
-                rewriter, op.getLoc(), op.getOutput().getType(), cryptoContext,
+                rewriter, op.getLoc(),
+                openfhe::CiphertextType::get(op.getContext()), cryptoContext,
                 adaptor.getInput(), op.getLevelToDrop()));
     return success();
   }

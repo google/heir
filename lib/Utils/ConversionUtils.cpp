@@ -270,6 +270,12 @@ void addStructuralConversionPatterns(TypeConverter& typeConverter,
   scf::populateSCFStructuralTypeConversionsAndLegality(typeConverter, patterns,
                                                        target);
 
+  target.addDynamicallyLegalOp<affine::AffineForOp, affine::AffineYieldOp>(
+      [&](Operation* op) { return typeConverter.isLegal(op); });
+  patterns
+      .add<ConvertAny<affine::AffineForOp>, ConvertAny<affine::AffineYieldOp>>(
+          typeConverter, patterns.getContext());
+
   target.markUnknownOpDynamicallyLegal([&](Operation* op) {
     // These rules are needed to handle interface ops that are not directly
     // registered as legal/illegal with the target.

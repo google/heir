@@ -19,6 +19,7 @@ namespace heir {
 class ElementwiseByOperandOpInterface;
 
 void registerOperandAndResultAttrInterface(DialectRegistry& registry);
+void registerIncreasesMulDepthOpInterface(DialectRegistry& registry);
 
 LogicalResult verifyElementwiseByOperandImpl(
     ElementwiseByOperandOpInterface op);
@@ -27,7 +28,8 @@ LogicalResult verifyElementwiseByOperandImpl(
 }  // namespace mlir
 
 // IWYU pragma: begin_keep
-#include "lib/Dialect/HEIRInterfaces.h.inc"
+#include "lib/Dialect/HEIROpInterfaces.h.inc"
+#include "lib/Dialect/HEIRTypeInterfaces.h.inc"
 #include "mlir/include/mlir/IR/DialectRegistry.h"  // from @llvm-project
 // IWYU pragma: end_keep
 

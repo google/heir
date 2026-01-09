@@ -99,7 +99,12 @@ void insertModReduceBeforeOrAfterMult(Operation* top, DataFlowSolver& solver,
                                       bool beforeMulIncludeFirstMul,
                                       bool includeFloats) {
   MLIRContext* ctx = top->getContext();
-  LLVM_DEBUG(llvm::dbgs() << "Insert ModReduce Before/After Mult\n");
+  LLVM_DEBUG({
+    auto when = "before mul";
+    if (afterMul) when = "after mul";
+    if (beforeMulIncludeFirstMul) when = "before mul + before first mul";
+    llvm::dbgs() << "Insert ModReduce " << when << "\n";
+  });
 
   RewritePatternSet patterns(ctx);
   if (afterMul) {

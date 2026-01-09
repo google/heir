@@ -22,7 +22,7 @@ cc_library(
         ":dialect_inc_gen",
         ":ops_inc_gen",
         ":types_inc_gen",
-        "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@heir//lib/Dialect:HEIRInterfaces",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
@@ -39,6 +39,7 @@ td_library(
     ],
     includes = ["../../../.."],
     deps = [
+        "@heir//lib/Dialect:td_files",
         "@llvm-project//mlir:BuiltinDialectTdFiles",
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",
@@ -72,6 +73,5 @@ add_heir_dialect_library(
     td_file = "OpenfheOps.td",
     deps = [
         ":td_files",
-        "@heir//lib/Dialect/LWE/IR:td_files",
     ],
 )

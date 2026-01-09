@@ -1,4 +1,30 @@
+#ifndef LIB_DIALECT_HEIR_INTERFACES_TD_
+#define LIB_DIALECT_HEIR_INTERFACES_TD_
+
 include "mlir/IR/OpBase.td"
+
+def SecretTypeInterface : TypeInterface<"SecretTypeInterface"> {
+  let cppNamespace = "::mlir::heir";
+  let description = [{
+    This interface marks that a type represents a secret value. This
+    is an interface (beyond just the `secret.secret` type) so that
+    concrete ciphertext types can also be marked as secret and reuse
+    analyses that depend on `SecretnessAnalysis`.
+  }];
+}
+
+def IncreasesMulDepthOpInterface : OpInterface<"IncreasesMulDepthOpInterface"> {
+  let cppNamespace = "::mlir::heir";
+  let description = [{
+    A trait that signals whether an operation is a mul-like operation, used for
+    generalizing multiplicative depth analysis.
+  }];
+
+  // No methods; We declare an interface instead of a Trait because we need to
+  // attach the interface to upstream MLIR ops, and there is no way to do that
+  // with Traits because Traits are intended to be statically checkable. Cf.
+  // https://discourse.llvm.org/t/how-to-add-addtional-traits-to-existing-ops/62039
+}
 
 def LUTOpInterface : OpInterface<"LUTOpInterface"> {
   let cppNamespace = "::mlir::heir";
@@ -361,3 +387,5 @@ def OperandAndResultAttrInterface : OpInterface<"OperandAndResultAttrInterface">
     }
   }];
 }
+
+#endif  // LIB_DIALECT_HEIR_IR_HEIRINTERFACES_TD_

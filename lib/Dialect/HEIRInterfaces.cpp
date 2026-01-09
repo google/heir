@@ -6,22 +6,31 @@
 
 #include "llvm/include/llvm/ADT/STLExtras.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/DialectRegistry.h"     // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"               // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/DialectRegistry.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"            // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"   // from @llvm-project
 
 namespace mlir {
 namespace heir {
 
-#include "lib/Dialect/HEIRInterfaces.cpp.inc"
+#include "lib/Dialect/HEIROpInterfaces.cpp.inc"
+#include "lib/Dialect/HEIRTypeInterfaces.cpp.inc"
 
 void registerOperandAndResultAttrInterface(DialectRegistry& registry) {
   registry.addExtension(+[](MLIRContext* ctx, affine::AffineDialect* dialect) {
     affine::AffineForOp::attachInterface<OperandAndResultAttrInterface>(*ctx);
+  });
+}
+
+void registerIncreasesMulDepthOpInterface(DialectRegistry& registry) {
+  registry.addExtension(+[](MLIRContext* ctx, arith::ArithDialect* dialect) {
+    arith::MulIOp::attachInterface<IncreasesMulDepthOpInterface>(*ctx);
+    arith::MulFOp::attachInterface<IncreasesMulDepthOpInterface>(*ctx);
   });
 }
 

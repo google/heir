@@ -18,8 +18,10 @@
 #include "lib/Parameters/CKKS/Params.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Utils.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
-#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"   // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
@@ -37,19 +39,33 @@
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 // IWYU pragma: end_keep
 
+#define DEBUG_TYPE "lwe-to-openfhe"
+
 namespace mlir::heir::lwe {
 
 #define GEN_PASS_DEF_LWETOOPENFHE
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h.inc"
 
+Type convertLWEType(Type type) {
+  return llvm::TypeSwitch<Type, Type>(type)
+      .Case<lwe::LWEPublicKeyType>(
+          [&](auto ty) { return openfhe::PublicKeyType::get(ty.getContext()); })
+      .Case<lwe::LWESecretKeyType>([&](auto ty) {
+        return openfhe::PrivateKeyType::get(ty.getContext());
+      })
+      .Case<lwe::LWEPlaintextType>(
+          [&](auto ty) { return openfhe::PlaintextType::get(ty.getContext()); })
+      .Case<lwe::LWECiphertextType>([&](auto ty) {
+        return openfhe::CiphertextType::get(ty.getContext());
+      })
+      .Case<ShapedType>([&](auto ty) {
+        return ty.clone(convertLWEType(ty.getElementType()));
+      })
+      .Default([&](Type ty) { return ty; });
+}
+
 ToOpenfheTypeConverter::ToOpenfheTypeConverter(MLIRContext* ctx) {
-  addConversion([](Type type) { return type; });
-  addConversion([ctx](lwe::LWEPublicKeyType type) -> Type {
-    return openfhe::PublicKeyType::get(ctx);
-  });
-  addConversion([ctx](lwe::LWESecretKeyType type) -> Type {
-    return openfhe::PrivateKeyType::get(ctx);
-  });
+  addConversion([&](Type type) { return convertLWEType(type); });
 }
 
 FailureOr<Value> getContextualCryptoContext(Operation* op) {
@@ -146,9 +162,10 @@ struct ConvertEncryptOp : public OpConversionPattern<lwe::RLWEEncryptOp> {
 
     Value cryptoContext = result.value();
     rewriter.replaceOp(
-        op, openfhe::EncryptOp::create(rewriter, op.getLoc(),
-                                       op.getOutput().getType(), cryptoContext,
-                                       adaptor.getInput(), adaptor.getKey()));
+        op, openfhe::EncryptOp::create(
+                rewriter, op.getLoc(),
+                openfhe::CiphertextType::get(op.getContext()), cryptoContext,
+                adaptor.getInput(), adaptor.getKey()));
     return success();
   }
 };
@@ -167,9 +184,10 @@ struct ConvertDecryptOp : public OpConversionPattern<lwe::RLWEDecryptOp> {
 
     Value cryptoContext = result.value();
     rewriter.replaceOp(
-        op, openfhe::DecryptOp::create(
-                rewriter, op.getLoc(), op.getOutput().getType(), cryptoContext,
-                adaptor.getInput(), adaptor.getSecretKey()));
+        op,
+        openfhe::DecryptOp::create(
+            rewriter, op.getLoc(), openfhe::PlaintextType::get(op.getContext()),
+            cryptoContext, adaptor.getInput(), adaptor.getSecretKey()));
     return success();
   }
 };
@@ -232,7 +250,7 @@ struct ConvertEncodeOp : public OpConversionPattern<lwe::RLWEEncodeOp> {
       }
     }
 
-    lwe::LWEPlaintextType plaintextType = op.getResult().getType();
+    auto plaintextType = openfhe::PlaintextType::get(op.getContext());
     return llvm::TypeSwitch<Attribute, LogicalResult>(op.getEncoding())
         .Case<lwe::InverseCanonicalEncodingAttr>([&](auto encoding) {
           rewriter.replaceOpWithNewOp<openfhe::MakeCKKSPackedPlaintextOp>(
@@ -251,6 +269,45 @@ struct ConvertEncodeOp : public OpConversionPattern<lwe::RLWEEncodeOp> {
         .Case<lwe::FullCRTPackingEncodingAttr>([&](auto encoding) {
           rewriter.replaceOpWithNewOp<openfhe::MakePackedPlaintextOp>(
               op, plaintextType, cryptoContext, input);
+          return success();
+        })
+        .Default([&](Attribute) -> LogicalResult {
+          // encoding isn't support explicitly:
+          op.emitError(
+              "Unexpected encoding while targeting OpenFHE. "
+              "If you expect this type of encoding to be supported "
+              "for the OpenFHE backend, please file a bug report.");
+          return rewriter.notifyMatchFailure(op, "Unknown encoding");
+        });
+  }
+};
+
+struct ConvertDecodeOp : public OpConversionPattern<lwe::RLWEDecodeOp> {
+  explicit ConvertDecodeOp(const mlir::TypeConverter& typeConverter,
+                           mlir::MLIRContext* context)
+      : mlir::OpConversionPattern<lwe::RLWEDecodeOp>(typeConverter, context) {}
+
+  LogicalResult matchAndRewrite(
+      lwe::RLWEDecodeOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    return llvm::TypeSwitch<Attribute, LogicalResult>(op.getEncoding())
+        .Case<lwe::InverseCanonicalEncodingAttr>([&](auto encoding) {
+          rewriter.replaceOpWithNewOp<openfhe::DecodeCKKSOp>(
+              op, op.getResult().getType(), adaptor.getInput());
+          return success();
+        })
+        .Case<lwe::CoefficientEncodingAttr>([&](auto encoding) {
+          // TODO (#1192): support coefficient packing in `--lwe-to-openfhe`
+          op.emitError() << "HEIR does not yet support coefficient encoding "
+                            " when targeting OpenFHE";
+          return rewriter.notifyMatchFailure(
+              op,
+              "HEIR does not yet support coefficient encoding when targeting "
+              "OpenFHE");
+        })
+        .Case<lwe::FullCRTPackingEncodingAttr>([&](auto encoding) {
+          rewriter.replaceOpWithNewOp<openfhe::DecodeOp>(
+              op, op.getResult().getType(), adaptor.getInput());
           return success();
         })
         .Default([&](Attribute) -> LogicalResult {
@@ -295,6 +352,18 @@ struct ConvertBootstrapOp : public OpConversionPattern<ckks::BootstrapOp> {
     Value cryptoContext = result.value();
     rewriter.replaceOpWithNewOp<openfhe::BootstrapOp>(
         op, op.getOutput().getType(), cryptoContext, adaptor.getInput());
+    return success();
+  }
+};
+
+struct EraseLWEReinterpretApplicationData
+    : public OpConversionPattern<lwe::ReinterpretApplicationDataOp> {
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      lwe::ReinterpretApplicationDataOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    rewriter.replaceOp(op, adaptor.getOperands()[0]);
     return success();
   }
 };
@@ -345,8 +414,6 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
     target.addIllegalDialect<bgv::BGVDialect>();
     target.addIllegalDialect<ckks::CKKSDialect>();
     target.addIllegalDialect<lwe::LWEDialect>();
-    // We can keep the following ops, which the emitter can handle directly
-    target.addLegalOp<lwe::ReinterpretApplicationDataOp, lwe::RLWEDecodeOp>();
 
     RewritePatternSet patterns(context);
     addStructuralConversionPatterns(typeConverter, patterns, target);
@@ -391,9 +458,9 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
         // Update Func CallOp Signature
         ConvertFuncCallOp,
 
-        // Handle LWE encode and en/decrypt
-        // Note: `lwe.decode` is handled directly by the OpenFHE emitter
-        ConvertEncodeOp, ConvertEncryptOp, ConvertDecryptOp,
+        // Encoding and encryption
+        ConvertEncodeOp, ConvertDecodeOp, ConvertEncryptOp, ConvertDecryptOp,
+        EraseLWEReinterpretApplicationData,
 
         // Scheme-agnostic RLWE Arithmetic Ops:
         ConvertLWEBinOp<lwe::RAddOp, openfhe::AddOp>,
@@ -425,6 +492,13 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
         ConvertBootstrapOp>(typeConverter, context);
 
     ConversionConfig config;
+    // We need allowPatternRollback here because failure to legalize an op
+    // (like a relinearize op with an invalid basis, as tested in invalid.mlir)
+    // is then processed by ConvertAny<>, and when that fails to legalize, the
+    // hard error makes it so --verify-diagnostics cannot be applied, and
+    // in turn lit tests break. Seems annoying to fix the lit tests (pipe stderr
+    // to stdout and then FileCheck on the combined stream? instead of
+    // --verify-diagnostics)
     config.allowPatternRollback = false;
     if (failed(applyPartialConversion(module, target, std::move(patterns),
                                       config))) {

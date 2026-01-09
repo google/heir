@@ -503,18 +503,8 @@ struct CryptoSetup {
 
 // Common LWE type definitions header for MLIR tests
 static const char* kLWETypesHeader = R"mlir(
-!Z65537 = !mod_arith.int<65537 : i64>
-!Z1095233372161 = !mod_arith.int<1095233372161 : i64>
-!rns_L0 = !rns.rns<!Z1095233372161>
-#ring_pt = #polynomial.ring<coefficientType = !Z65537, polynomialModulus = <1 + x**32>>
-#ring_ct = #polynomial.ring<coefficientType = !rns_L0, polynomialModulus = <1 + x**32>>
-#encoding = #lwe.full_crt_packing_encoding<scaling_factor = 0>
-#key = #lwe.key<>
-#modulus_chain = #lwe.modulus_chain<elements = <1095233372161 : i64>, current = 0>
-#plaintext_space = #lwe.plaintext_space<ring = #ring_pt, encoding = #encoding>
-#ciphertext_space = #lwe.ciphertext_space<ring = #ring_ct, encryption_type = lsb>
-!ct = !lwe.lwe_ciphertext<application_data = <message_type = i32>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space, key = #key, modulus_chain = #modulus_chain>
-!pt = !lwe.lwe_plaintext<application_data = <message_type = i32>, plaintext_space = #plaintext_space>
+!ct = !openfhe.ciphertext
+!pt = !openfhe.plaintext
 )mlir";
 
 TEST(InterpreterTest, TestOpenfheAdd) {
@@ -874,7 +864,7 @@ TEST(InterpreterTest, TestOpenfheRLWEDecodeBGVScalar) {
   std::string mlirStr = std::string(kLWETypesHeader) + R"mlir(
 module attributes {scheme.bgv} {
   func.func @main(%pt: !pt) -> i32 {
-    %result = lwe.rlwe_decode %pt {encoding = #encoding, ring = #ring_pt} : !pt -> i32
+    %result = openfhe.decode %pt : !pt -> i32
     return %result : i32
   }
 }
@@ -900,7 +890,7 @@ TEST(InterpreterTest, TestOpenfheRLWEDecodeBGVTensor) {
   std::string mlirStr = std::string(kLWETypesHeader) + R"mlir(
 module attributes {scheme.bgv} {
   func.func @main(%pt: !pt) -> tensor<8xi32> {
-    %result = lwe.rlwe_decode %pt {encoding = #encoding, ring = #ring_pt} : !pt -> tensor<8xi32>
+    %result = openfhe.decode %pt : !pt -> tensor<8xi32>
     return %result : tensor<8xi32>
   }
 }
@@ -950,19 +940,11 @@ TEST(InterpreterTest, TestOpenfheRLWEDecodeCKKSScalar) {
   MLIRContext context;
   initContext(context);
   std::string mlirStr = R"mlir(
-!Z65537 = !mod_arith.int<65537 : i64>
-!Z1095233372161 = !mod_arith.int<1095233372161 : i64>
-!rns_L0 = !rns.rns<!Z1095233372161>
-#ring_pt = #polynomial.ring<coefficientType = !Z65537, polynomialModulus = <1 + x**32>>
-#ckks_encoding = #lwe.inverse_canonical_encoding<scaling_factor = 0>
-#key = #lwe.key<>
-#modulus_chain = #lwe.modulus_chain<elements = <1095233372161 : i64>, current = 0>
-#plaintext_space = #lwe.plaintext_space<ring = #ring_pt, encoding = #ckks_encoding>
-!pt = !lwe.lwe_plaintext<application_data = <message_type = f32>, plaintext_space = #plaintext_space>
+!pt = !openfhe.plaintext
 
 module attributes {scheme.ckks} {
   func.func @main(%pt: !pt) -> f32 {
-    %result = lwe.rlwe_decode %pt {encoding = #ckks_encoding, ring = #ring_pt} : !pt -> f32
+    %result = openfhe.decode_ckks %pt : !pt -> f32
     return %result : f32
   }
 }
@@ -987,19 +969,11 @@ TEST(InterpreterTest, TestOpenfheRLWEDecodeCKKSTensor) {
   MLIRContext context;
   initContext(context);
   std::string mlirStr = R"mlir(
-!Z65537 = !mod_arith.int<65537 : i64>
-!Z1095233372161 = !mod_arith.int<1095233372161 : i64>
-!rns_L0 = !rns.rns<!Z1095233372161>
-#ring_pt = #polynomial.ring<coefficientType = !Z65537, polynomialModulus = <1 + x**32>>
-#ckks_encoding = #lwe.inverse_canonical_encoding<scaling_factor = 0>
-#key = #lwe.key<>
-#modulus_chain = #lwe.modulus_chain<elements = <1095233372161 : i64>, current = 0>
-#plaintext_space = #lwe.plaintext_space<ring = #ring_pt, encoding = #ckks_encoding>
-!pt = !lwe.lwe_plaintext<application_data = <message_type = tensor<8xf32>>, plaintext_space = #plaintext_space>
+!pt = !openfhe.plaintext
 
 module attributes {scheme.ckks} {
   func.func @main(%pt: !pt) -> tensor<8xf32> {
-    %result = lwe.rlwe_decode %pt {encoding = #ckks_encoding, ring = #ring_pt} : !pt -> tensor<8xf32>
+    %result = openfhe.decode_ckks %pt : !pt -> tensor<8xf32>
     return %result : tensor<8xf32>
   }
 }
@@ -1186,19 +1160,11 @@ TEST(InterpreterTest, TestOpenfheRLWEDecodeCKKSScalarDouble) {
   MLIRContext context;
   initContext(context);
   std::string mlirStr = R"mlir(
-!Z65537 = !mod_arith.int<65537 : i64>
-!Z1095233372161 = !mod_arith.int<1095233372161 : i64>
-!rns_L0 = !rns.rns<!Z1095233372161>
-#ring_pt = #polynomial.ring<coefficientType = !Z65537, polynomialModulus = <1 + x**32>>
-#ckks_encoding = #lwe.inverse_canonical_encoding<scaling_factor = 0>
-#key = #lwe.key<>
-#modulus_chain = #lwe.modulus_chain<elements = <1095233372161 : i64>, current = 0>
-#plaintext_space = #lwe.plaintext_space<ring = #ring_pt, encoding = #ckks_encoding>
-!pt = !lwe.lwe_plaintext<application_data = <message_type = f64>, plaintext_space = #plaintext_space>
+!pt = !openfhe.plaintext
 
 module attributes {scheme.ckks} {
   func.func @main(%pt: !pt) -> f64 {
-    %result = lwe.rlwe_decode %pt {encoding = #ckks_encoding, ring = #ring_pt} : !pt -> f64
+    %result = openfhe.decode_ckks %pt : !pt -> f64
     return %result : f64
   }
 }
@@ -1223,19 +1189,11 @@ TEST(InterpreterTest, TestOpenfheRLWEDecodeCKKSTensorDouble) {
   MLIRContext context;
   initContext(context);
   std::string mlirStr = R"mlir(
-!Z65537 = !mod_arith.int<65537 : i64>
-!Z1095233372161 = !mod_arith.int<1095233372161 : i64>
-!rns_L0 = !rns.rns<!Z1095233372161>
-#ring_pt = #polynomial.ring<coefficientType = !Z65537, polynomialModulus = <1 + x**32>>
-#ckks_encoding = #lwe.inverse_canonical_encoding<scaling_factor = 0>
-#key = #lwe.key<>
-#modulus_chain = #lwe.modulus_chain<elements = <1095233372161 : i64>, current = 0>
-#plaintext_space = #lwe.plaintext_space<ring = #ring_pt, encoding = #ckks_encoding>
-!pt = !lwe.lwe_plaintext<application_data = <message_type = tensor<8xf64>>, plaintext_space = #plaintext_space>
+!pt = !openfhe.plaintext
 
 module attributes {scheme.ckks} {
   func.func @main(%pt: !pt) -> tensor<8xf64> {
-    %result = lwe.rlwe_decode %pt {encoding = #ckks_encoding, ring = #ring_pt} : !pt -> tensor<8xf64>
+    %result = openfhe.decode_ckks %pt : !pt -> tensor<8xf64>
     return %result : tensor<8xf64>
   }
 }

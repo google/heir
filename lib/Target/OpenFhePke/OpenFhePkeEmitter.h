@@ -15,7 +15,6 @@
 // IWYU pragma: end_keep
 
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
-#include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Target/OpenFhePke/OpenFheUtils.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
@@ -126,14 +125,13 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(::mlir::func::FuncOp op);
   LogicalResult printOperation(::mlir::func::CallOp op);
   LogicalResult printOperation(::mlir::func::ReturnOp op);
-  LogicalResult printOperation(::mlir::heir::lwe::RLWEDecodeOp op);
-  LogicalResult printOperation(
-      ::mlir::heir::lwe::ReinterpretApplicationDataOp op);
   LogicalResult printOperation(AddOp op);
   LogicalResult printOperation(AddPlainOp op);
   LogicalResult printOperation(AutomorphOp op);
   LogicalResult printOperation(BootstrapOp op);
   LogicalResult printOperation(DecryptOp op);
+  LogicalResult printOperation(DecodeOp op);
+  LogicalResult printOperation(DecodeCKKSOp op);
   LogicalResult printOperation(EncryptOp op);
   LogicalResult printOperation(GenParamsOp op);
   LogicalResult printOperation(FastRotationOp op);
@@ -166,6 +164,8 @@ class OpenFhePkeEmitter {
                                 std::string_view op);
   LogicalResult printBinaryOp(Operation* op, ::mlir::Value lhs,
                               ::mlir::Value rhs, std::string_view opName);
+  LogicalResult decodeCore(::mlir::Location loc, ::mlir::Value input,
+                           ::mlir::Value result, bool isCKKS);
 
   // A helper for a special case of ExtractSliceOp
   LogicalResult extractRowFromMatrix(tensor::ExtractSliceOp op);

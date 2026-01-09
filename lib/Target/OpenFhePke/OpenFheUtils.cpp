@@ -3,7 +3,6 @@
 #include <string>
 
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
-#include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeTemplates.h"
 #include "lib/Utils/TargetUtils.h"
@@ -50,12 +49,11 @@ FailureOr<std::string> convertType(Type type, Location loc, bool constant) {
       .Case<CryptoContextType>(
           [&](auto ty) { return std::string("CryptoContextT"); })
       .Case<CCParamsType>([&](auto ty) { return std::string("CCParamsT"); })
-      .Case<lwe::LWECiphertextType>([&](auto ty) {
+      .Case<CiphertextType>([&](auto ty) {
         return constant ? std::string("CiphertextT")
                         : std::string("MutableCiphertextT");
       })
-      .Case<lwe::LWEPlaintextType>(
-          [&](auto ty) { return std::string("Plaintext"); })
+      .Case<PlaintextType>([&](auto ty) { return std::string("Plaintext"); })
       .Case<openfhe::EvalKeyType>(
           [&](auto ty) { return std::string("EvalKeyT"); })
       .Case<openfhe::PrivateKeyType>(

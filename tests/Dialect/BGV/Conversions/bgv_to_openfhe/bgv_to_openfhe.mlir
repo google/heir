@@ -33,7 +33,7 @@
 // CHECK: module
 module {
   // CHECK: @test_ops
-  // CHECK-SAME: ([[C:%.+]]: [[S:.*crypto_context]], [[X:%.+]]: [[T:.*lwe_ciphertext.*]], [[Y:%.+]]: [[T]], [[Z:%.+]]: [[P:.*lwe_plaintext.[^)]*]])
+  // CHECK-SAME: ([[C:%.+]]: [[S:.*crypto_context]], [[X:%.+]]: [[T:!openfhe.ciphertext]], [[Y:%.+]]: [[T]], [[Z:%.+]]: [[P:!openfhe.plaintext]])
   func.func @test_ops(%x : !ct, %y : !ct, %z : !pt) -> (!ct, !ct, !ct, !ct_D3, !ct, !ct, !ct, !ct) {
     // CHECK: %[[v1:.*]] = openfhe.negate [[C]], %[[x1:.*]] : ([[S]], [[T]]) -> [[T]]
     %negate = bgv.negate %x  : !ct
@@ -56,7 +56,7 @@ module {
   }
 
   // CHECK: @test_relin
-  // CHECK-SAME: ([[C:.*]]: [[S:.*crypto_context]], [[X:%.+]]: [[T:.*lwe_ciphertext.*]])
+  // CHECK-SAME: ([[C:.*]]: [[S:.*crypto_context]], [[X:%.+]]: [[T:!openfhe.ciphertext]])
   func.func @test_relin(%x : !ct_D4) -> !ct {
     // CHECK: %[[v6:.*]] = openfhe.relin [[C]], %[[x6:.*]]: ([[S]], [[T]]) -> [[T2:.*]]
     %relin = bgv.relinearize %x  {
@@ -66,9 +66,9 @@ module {
   }
 
   // CHECK: @test_modswitch
-  // CHECK-SAME: ([[C:.*]]: [[S:.*crypto_context]], [[X:%.+]]: [[T:.*lwe_ciphertext.*]]) -> [[T1:.*]] {
+  // CHECK-SAME: ([[C:.*]]: [[S:.*crypto_context]], [[X:%.+]]: [[T:!openfhe.ciphertext]]) -> [[T]]
   func.func @test_modswitch(%x : !ct) -> !ct_L0 {
-    // CHECK: %[[v7:.*]] = openfhe.mod_reduce [[C]], %[[x7:.*]] : ([[S]], [[T]]) -> [[T1]]
+    // CHECK: %[[v7:.*]] = openfhe.mod_reduce [[C]], %[[x7:.*]] : ([[S]], [[T]]) -> [[T]]
     %mod_switch = bgv.modulus_switch %x  { to_ring=#ring_rns_L0_1_x1024_ }: !ct -> !ct_L0
     return %mod_switch : !ct_L0
   }

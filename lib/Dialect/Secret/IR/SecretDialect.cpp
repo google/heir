@@ -2,7 +2,6 @@
 
 // IWYU pragma: begin_keep
 #include "lib/Dialect/Secret/IR/SecretAttributes.h"
-#include "lib/Dialect/Secret/IR/SecretDialect.cpp.inc"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
@@ -10,6 +9,7 @@
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
 // IWYU pragma: end_keep
 
+#include "lib/Dialect/Secret/IR/SecretDialect.cpp.inc"
 #define GET_ATTRDEF_CLASSES
 #include "lib/Dialect/Secret/IR/SecretAttributes.cpp.inc"
 #define GET_TYPEDEF_CLASSES

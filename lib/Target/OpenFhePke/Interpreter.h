@@ -8,7 +8,6 @@
 #include <variant>
 #include <vector>
 
-#include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "llvm/include/llvm/ADT/DenseMap.h"       // from @llvm-project
 #include "mlir/include/mlir/Analysis/Liveness.h"  // from @llvm-project
@@ -160,6 +159,8 @@ class Interpreter {
   void visit(AddPlainOp op);
   void visit(AutomorphOp op);
   void visit(BootstrapOp op);
+  void visit(DecodeCKKSOp op);
+  void visit(DecodeOp op);
   void visit(DecryptOp op);
   void visit(EncryptOp op);
   void visit(FastRotationOp op);
@@ -186,9 +187,6 @@ class Interpreter {
   void visit(SubOp op);
   void visit(SubPlainOp op);
 
-  // Other HEIR ops
-  void visit(lwe::RLWEDecodeOp op);
-
   int getFlattenedTensorIndex(Value tensor, ValueRange indices);
 
  private:
@@ -197,6 +195,9 @@ class Interpreter {
 
   // Helper to convert TypedCppValue to type-specific storage (for inputs)
   void storeTypedValue(Value v, const TypedCppValue& typedVal);
+
+  // Helper for decoding
+  void decodeCore(Operation* op, Value input, Value result, bool isCKKS);
 
   // Helper to convert from type-specific storage to TypedCppValue (for outputs)
   TypedCppValue loadTypedValue(Value v);

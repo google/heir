@@ -16,6 +16,7 @@
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 
 // IWYU pragma: begin_keep
+#include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWETraits.h"
 #include "mlir/include/mlir/IR/BuiltinOps.h"  // from @llvm-project

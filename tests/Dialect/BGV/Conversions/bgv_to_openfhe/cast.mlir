@@ -22,12 +22,12 @@
 //The function is adapted from the BGV form of the simple_sum.mlir test
 // CHECK: @encode_i16
 // CHECK-SAME: %[[cc:.*]]: !openfhe.crypto_context
-// CHECK-SAME: %[[arg16:.*]]: tensor<32xi16>
+// CHECK-SAME: %[[arg0:.*]]: tensor<32xi16>
 func.func @encode_i16(%arg0: tensor<32xi16>, %arg1: !pk) -> !pt_i16 {
   %0 = lwe.rlwe_encode %arg0 {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_} : tensor<32xi16> -> !pt_i16
-  // CHECK:     %[[v0:.*]] = arith.extsi %[[arg16]] : tensor<32xi16> to tensor<32xi64>
-  // CHECK:     openfhe.make_packed_plaintext %[[cc]], %[[v0]] {{.*}} tensor<32xi64>) -> !lwe.lwe_plaintext{{.*}} tensor<32xi16>
-  // CHECK-NOT: openfhe.make_packed_plaintext {{.*}} tensor<32xi16> -> !lwe.lwe_plaintext{{.*}} tensor<32xi16>
+  // CHECK:     %[[v0:.*]] = arith.extsi %[[arg0]] : tensor<32xi16> to tensor<32xi64>
+  // CHECK:     openfhe.make_packed_plaintext %[[cc]], %[[v0]] : (!openfhe.crypto_context, tensor<32xi64>) -> !openfhe.plaintext
+  // CHECK-NOT: openfhe.make_packed_plaintext {{.*}} tensor<32xi16>
   return %0 : !pt_i16
 }
 
@@ -37,14 +37,16 @@ func.func @encode_i16(%arg0: tensor<32xi16>, %arg1: !pk) -> !pt_i16 {
 func.func @encode_i32(%arg0: tensor<32xi32>, %arg1: !pk) -> !pt_i32 {
   %0 = lwe.rlwe_encode %arg0 {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_} : tensor<32xi32> -> !pt_i32
   // CHECK:     %[[v0:.*]] = arith.extsi %[[arg0]] : tensor<32xi32> to tensor<32xi64>
-  // CHECK:     openfhe.make_packed_plaintext %[[cc]], %[[v0]] {{.*}} tensor<32xi64>) -> !lwe.lwe_plaintext{{.*}} tensor<32xi32>
-  // CHECK-NOT: openfhe.make_packed_plaintext {{.*}} : tensor<32xi32> -> !lwe.lwe_plaintext{{.*}} tensor<32xi32>
+  // CHECK:     openfhe.make_packed_plaintext %[[cc]], %[[v0]] : (!openfhe.crypto_context, tensor<32xi64>) -> !openfhe.plaintext
+  // CHECK-NOT: openfhe.make_packed_plaintext {{.*}} : tensor<32xi32>
   return %0 : !pt_i32
 }
 
 // CHECK: @encode_i64
+// CHECK-SAME: %[[cc:.*]]: !openfhe.crypto_context
+// CHECK-SAME: %[[arg0:.*]]: tensor<32xi64>
 func.func @encode_i64(%arg0: tensor<32xi64>, %arg1: !pk) -> !pt_i64 {
   %0 = lwe.rlwe_encode %arg0 {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_} : tensor<32xi64> -> !pt_i64
-  // CHECK:     openfhe.make_packed_plaintext {{.*}} tensor<32xi64>) -> !lwe.lwe_plaintext{{.*}} tensor<32xi64>
+  // CHECK:     openfhe.make_packed_plaintext %[[cc]], %[[arg0]] : (!openfhe.crypto_context, tensor<32xi64>) -> !openfhe.plaintext
   return %0 : !pt_i64
 }

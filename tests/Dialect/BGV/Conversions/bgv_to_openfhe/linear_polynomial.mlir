@@ -24,7 +24,7 @@
 !ct_sq_ty = !lwe.lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_D3_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 
 // CHECK: @linear_polynomial
-// CHECK-SAME: (%[[cc:.*]]: [[cc_ty:.*crypto_context]], %[[arg0:.*]]: [[T:.*lwe_ciphertext.*]], %[[arg1:.*]]: [[T]], %[[arg2:.*]]: [[T]], %[[arg3:.*]]: [[T]]) -> [[T]] {
+// CHECK-SAME: (%[[cc:.*]]: [[cc_ty:!openfhe.crypto_context]], %[[arg0:.*]]: [[T:!openfhe.ciphertext]], %[[arg1:.*]]: [[T]], %[[arg2:.*]]: [[T]], %[[arg3:.*]]: [[T]]) -> [[T]]
 func.func @linear_polynomial(%arg0: !ct_ty, %arg1: !ct_ty, %arg2: !ct_ty, %arg3: !ct_ty) -> !ct_ty {
   // CHECK: %[[v0:.*]] = openfhe.mul_no_relin %[[cc]], %[[arg0]], %[[arg2]]
   %0 = bgv.mul %arg0, %arg2  : (!ct_ty, !ct_ty) -> !ct_sq_ty

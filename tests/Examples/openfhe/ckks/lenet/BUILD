@@ -26,6 +26,7 @@ cc_binary(
     srcs = ["lenet_main.cpp"],
     tags = [
         "manual",
+        "nofastbuild",
         "notap",
     ],
     deps = [
@@ -46,6 +47,10 @@ heir_opt(
         "--annotate-module=backend=openfhe scheme=ckks",
         "--torch-linalg-to-ckks=ciphertext-degree=1024",
         "--scheme-to-openfhe",
+    ],
+    tags = [
+        "nofastbuild",
+        "requires-mem:28g",
     ],
 )
 

@@ -16,11 +16,9 @@
 #include "include/cereal/archives/portable_binary.hpp"  // from @cereal
 #include "include/cereal/cereal.hpp"                    // from @cereal
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
-#include "lib/Dialect/LWE/IR/LWEAttributes.h"
-#include "lib/Dialect/LWE/IR/LWEOps.h"
-#include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
+#include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
 #include "lib/Target/OpenFhePke/OpenFheUtils.h"
 #include "lib/Utils/TargetUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
@@ -250,8 +248,7 @@ LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
                 tensor::CollapseShapeOp, tensor::ExpandShapeOp,
                 tensor::FromElementsOp, tensor::ConcatOp>(
               [&](auto op) { return printOperation(op); })
-          // LWE ops
-          .Case<lwe::RLWEDecodeOp, lwe::ReinterpretApplicationDataOp>(
+          .Case<DecodeOp, DecodeCKKSOp>(
               [&](auto op) { return printOperation(op); })
           // OpenFHE ops
           .Case<AddOp, AddPlainOp, SubOp, SubPlainOp, MulNoRelinOp, MulOp,
@@ -1117,7 +1114,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::EmptyOp op) {
 LogicalResult OpenFhePkeEmitter::printOperation(tensor::ExtractOp op) {
   // Recall, tensors in this emitter are all flattened.
   // const auto& v1 = in[0];
-  if (isa<lwe::LWECiphertextType>(op.getResult().getType())) {
+  if (isa<CiphertextType>(op.getResult().getType())) {
     emitAutoAssignPrefix(op.getResult());
   } else {
     if (failed(emitTypedAssignPrefix(op.getResult(), op.getLoc(), true)))
@@ -1130,8 +1127,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::ExtractOp op) {
         auto constantStr = getStringForConstant(value);
         return constantStr.value_or(variableNames->getNameForValue(value));
       });
-  os << "]";
-  os << ";\n";
+  os << "];\n";
   return success();
 }
 
@@ -1348,13 +1344,6 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::FromElementsOp op) {
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(
-    lwe::ReinterpretApplicationDataOp op) {
-  emitAutoAssignPrefix(op.getResult());
-  os << variableNames->getNameForValue(op.getInput()) << ";\n";
-  return success();
-}
-
-LogicalResult OpenFhePkeEmitter::printOperation(
     openfhe::MakePackedPlaintextOp op) {
   std::string inputVarName = variableNames->getNameForValue(op.getValue());
   FailureOr<Value> resultCC = getContextualCryptoContext(op.getOperation());
@@ -1465,27 +1454,26 @@ FailureOr<std::pair<unsigned, int64_t>> getNonUnitDimension(
   return std::make_pair(nonUnitIndex, shape[nonUnitIndex]);
 }
 
-LogicalResult OpenFhePkeEmitter::printOperation(lwe::RLWEDecodeOp op) {
+LogicalResult OpenFhePkeEmitter::decodeCore(Location loc, Value input,
+                                            Value result, bool isCKKS) {
   // In OpenFHE a plaintext is already decoded by decrypt. The internal
   // OpenFHE implementation is simple enough (and dependent on
   // currently-hard-coded encoding choices) that we will eventually need to
   // work at a lower level of the API to support this operation properly.
-  bool isCKKS = llvm::isa<lwe::InverseCanonicalEncodingAttr>(op.getEncoding());
-  auto tensorTy = dyn_cast<RankedTensorType>(op.getResult().getType());
+  auto tensorTy = dyn_cast<RankedTensorType>(result.getType());
   if (tensorTy) {
     auto nonUnitDim = getNonUnitDimension(tensorTy);
     if (failed(nonUnitDim)) {
-      return emitError(op.getLoc(), "Only 1D tensors supported");
+      return emitError(loc, "Only 1D tensors supported");
     }
     // OpenFHE plaintexts must be manually resized to the decoded output size
     // via plaintext->SetLength(<size>);
     auto size = nonUnitDim.value().second;
-    auto inputVarName = variableNames->getNameForValue(op.getInput());
+    auto inputVarName = variableNames->getNameForValue(input);
     os << inputVarName << "->SetLength(" << size << ");\n";
 
     // Get the packed values in OpenFHE's type (vector of int_64t/complex/etc)
-    std::string tmpVar =
-        variableNames->getNameForValue(op.getResult()) + "_cast";
+    std::string tmpVar = variableNames->getNameForValue(result) + "_cast";
     os << "const auto& " << tmpVar << " = ";
     if (isCKKS) {
       os << inputVarName << "->GetCKKSPackedValue();\n";
@@ -1494,8 +1482,8 @@ LogicalResult OpenFhePkeEmitter::printOperation(lwe::RLWEDecodeOp op) {
     }
 
     // Convert to the intended type defined by the program
-    auto outputVarName = variableNames->getNameForValue(op.getResult());
-    if (failed(emitType(tensorTy, op->getLoc()))) {
+    auto outputVarName = variableNames->getNameForValue(result);
+    if (failed(emitType(tensorTy, loc))) {
       return failure();
     }
     if (isCKKS) {
@@ -1514,15 +1502,25 @@ LogicalResult OpenFhePkeEmitter::printOperation(lwe::RLWEDecodeOp op) {
   }
 
   // By convention, a plaintext stores a scalar value in index 0
-  auto result = emitTypedAssignPrefix(op.getResult(), op->getLoc());
-  if (failed(result)) return result;
-  os << variableNames->getNameForValue(op.getInput());
+  auto res = emitTypedAssignPrefix(result, loc);
+  if (failed(res)) return res;
+  os << variableNames->getNameForValue(input);
   if (isCKKS) {
     os << "->GetCKKSPackedValue()[0].real();\n";
   } else {
     os << "->GetPackedValue()[0];\n";
   }
   return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(DecodeOp op) {
+  return decodeCore(op.getLoc(), op.getInput(), op.getResult(),
+                    /*isCKKS=*/false);
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(DecodeCKKSOp op) {
+  return decodeCore(op.getLoc(), op.getInput(), op.getResult(),
+                    /*isCKKS=*/true);
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(EncryptOp op) {

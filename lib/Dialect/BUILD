@@ -14,11 +14,13 @@ cc_library(
     srcs = ["HEIRInterfaces.cpp"],
     hdrs = ["HEIRInterfaces.h"],
     deps = [
-        ":interfaces_inc_gen",
+        ":op_interfaces_inc_gen",
+        ":type_interfaces_inc_gen",
         "@heir//lib/Dialect/Secret/IR:SecretAttributes",
         "@heir//lib/Transforms/LayoutOptimization:Hoisting",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
+        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
     ],
@@ -70,10 +72,23 @@ td_library(
 )
 
 gentbl_cc_library(
-    name = "interfaces_inc_gen",
+    name = "op_interfaces_inc_gen",
     tbl_outs = {
-        "HEIRInterfaces.h.inc": ["-gen-op-interface-decls"],
-        "HEIRInterfaces.cpp.inc": ["-gen-op-interface-defs"],
+        "HEIROpInterfaces.h.inc": ["-gen-op-interface-decls"],
+        "HEIROpInterfaces.cpp.inc": ["-gen-op-interface-defs"],
+    },
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "HEIRInterfaces.td",
+    deps = [
+        ":td_files",
+    ],
+)
+
+gentbl_cc_library(
+    name = "type_interfaces_inc_gen",
+    tbl_outs = {
+        "HEIRTypeInterfaces.h.inc": ["-gen-type-interface-decls"],
+        "HEIRTypeInterfaces.cpp.inc": ["-gen-type-interface-defs"],
     },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "HEIRInterfaces.td",

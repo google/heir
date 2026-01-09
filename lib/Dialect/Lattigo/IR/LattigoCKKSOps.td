@@ -3,6 +3,7 @@
 
 include "LattigoDialect.td"
 include "LattigoTypes.td"
+include "lib/Dialect/HEIRInterfaces.td"
 include "mlir/IR/OpBase.td"
 
 class Lattigo_CKKSOp<string mnemonic, list<Trait> traits = []> :
@@ -99,8 +100,8 @@ def Lattigo_CKKSNewEvaluatorOp : Lattigo_CKKSOp<"new_evaluator"> {
 
 // ciphertext arithmetic op
 
-class Lattigo_CKKSBinaryOp<string mnemonic> :
-        Lattigo_CKKSOp<mnemonic> {
+class Lattigo_CKKSBinaryOp<string mnemonic, list<Trait> traits = []> :
+        Lattigo_CKKSOp<mnemonic, traits> {
   let arguments = (ins
     Lattigo_CKKSEvaluator:$evaluator,
     Lattigo_RLWECiphertext:$lhs,
@@ -123,15 +124,15 @@ def Lattigo_CKKSSubNewOp : Lattigo_CKKSBinaryOp<"sub_new"> {
   }];
 }
 
-def Lattigo_CKKSMulNewOp : Lattigo_CKKSBinaryOp<"mul_new"> {
+def Lattigo_CKKSMulNewOp : Lattigo_CKKSBinaryOp<"mul_new", [IncreasesMulDepthOpInterface]> {
   let summary = "Multiply two ciphertexts in the Lattigo CKKS dialect";
   let description = [{
     This operation multiplies two ciphertext values in the Lattigo CKKS dialect.
   }];
 }
 
-class Lattigo_CKKSBinaryInplaceOp<string mnemonic> :
-        Lattigo_CKKSOp<mnemonic, [InplaceOpInterface]> {
+class Lattigo_CKKSBinaryInplaceOp<string mnemonic, list<Trait> traits = []> :
+        Lattigo_CKKSOp<mnemonic, traits # [InplaceOpInterface]> {
   let arguments = (ins
     Lattigo_CKKSEvaluator:$evaluator,
     Lattigo_RLWECiphertext:$lhs,
@@ -165,7 +166,7 @@ def Lattigo_CKKSSubOp : Lattigo_CKKSBinaryInplaceOp<"sub"> {
   }];
 }
 
-def Lattigo_CKKSMulOp : Lattigo_CKKSBinaryInplaceOp<"mul"> {
+def Lattigo_CKKSMulOp : Lattigo_CKKSBinaryInplaceOp<"mul", [IncreasesMulDepthOpInterface]> {
   let summary = "Multiply two ciphertexts in the Lattigo CKKS dialect";
   let description = [{
     This operation multiplies two ciphertext values in the Lattigo CKKS dialect.

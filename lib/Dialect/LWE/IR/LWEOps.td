@@ -1,6 +1,7 @@
 #ifndef LIB_DIALECT_LWE_IR_LWEOPS_TD_
 #define LIB_DIALECT_LWE_IR_LWEOPS_TD_
 
+include "lib/Dialect/HEIRInterfaces.td"
 include "lib/Dialect/LWE/IR/LWEDialect.td"
 include "lib/Dialect/LWE/IR/LWETraits.td"
 include "lib/Dialect/LWE/IR/LWETypes.td"
@@ -160,7 +161,7 @@ def LWE_RSubPlainOp : LWE_CiphertextPlaintextOp<"rsub_plain", [SameOperandsAndRe
   let summary = "Subtraction between RLWE ciphertext-plaintext";
 }
 
-def LWE_RMulOp : LWE_BinOp<"rmul", [SameOperandsAndResultRings, InferTypeOpAdaptor, Commutative]> {
+def LWE_RMulOp : LWE_BinOp<"rmul", [SameOperandsAndResultRings, InferTypeOpAdaptor, Commutative, IncreasesMulDepthOpInterface]> {
   let summary = "Multiplies two RLWE ciphertexts";
   let assemblyFormat = [{
     operands attr-dict `:` functional-type(operands, results)
@@ -168,7 +169,7 @@ def LWE_RMulOp : LWE_BinOp<"rmul", [SameOperandsAndResultRings, InferTypeOpAdapt
   let hasVerifier = 1;
 }
 
-def LWE_RMulPlainOp : LWE_CiphertextPlaintextOp<"rmul_plain", [Commutative]> {
+def LWE_RMulPlainOp : LWE_CiphertextPlaintextOp<"rmul_plain", [Commutative, IncreasesMulDepthOpInterface]> {
   let summary = "Multiplication between RLWE ciphertext-plaintext";
   let hasVerifier = 1;
   let hasCanonicalizer = 1;

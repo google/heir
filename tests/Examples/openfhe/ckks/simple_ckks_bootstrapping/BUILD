@@ -8,7 +8,7 @@ openfhe_end_to_end_test(
     name = "simple_ckks_bootstrapping_test",
     generated_lib_header = "simple_ckks_bootstrapping_lib.h",
     heir_opt_flags = [
-        "--openfhe-configure-crypto-context=insecure=true ring-dim=128",
+        "--openfhe-configure-crypto-context=insecure=true ring-dim=128 mul-depth=22",
     ],
     heir_translate_flags = [
         "--openfhe-include-type=source-relative",
