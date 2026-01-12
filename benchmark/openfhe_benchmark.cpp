@@ -24,7 +24,7 @@ using namespace lbcrypto;
 [[maybe_unused]] static CryptoContext<DCRTPoly> GenerateCKKSContext(
     uint32_t mdepth = 1) {
   CCParams<CryptoContextCKKSRNS> parameters;
-  // parameters.SetSecurityLevel(HEStd_NotSet);
+  parameters.SetSecurityLevel(HEStd_NotSet);
   parameters.SetScalingTechnique(FIXEDMANUAL);
   parameters.SetRingDim(8192);
   parameters.SetScalingModSize(48);
@@ -269,6 +269,74 @@ void CKKSrns_RelinInPlace(benchmark::State& state) {
   }
 }
 
+void CKKSrns_FastRotation(benchmark::State& state) {
+  CryptoContext<DCRTPoly> cc = GenerateCKKSContext();
+
+  KeyPair<DCRTPoly> keyPair = cc->KeyGen();
+  cc->EvalRotateKeyGen(keyPair.secretKey, {1});
+
+  usint slots = cc->GetEncodingParams()->GetBatchSize();
+  std::vector<std::complex<double>> vectorOfInts1(slots);
+  for (usint i = 0; i < slots; i++) {
+    vectorOfInts1[i] = 1.001 * i;
+  }
+  auto plaintext = cc->MakeCKKSPackedPlaintext(vectorOfInts1);
+  auto ciphertext = cc->Encrypt(keyPair.publicKey, plaintext);
+
+  auto cPrecomp = cc->EvalFastRotationPrecompute(ciphertext);
+  uint32_t M = 2 * cc->GetRingDimension();
+
+  while (state.KeepRunning()) {
+    auto ciphertextRotate = cc->EvalFastRotation(ciphertext, 1, M, cPrecomp);
+  }
+}
+
+void CKKSrns_FastRotationExt(benchmark::State& state) {
+  CryptoContext<DCRTPoly> cc = GenerateCKKSContext();
+
+  KeyPair<DCRTPoly> keyPair = cc->KeyGen();
+  cc->EvalRotateKeyGen(keyPair.secretKey, {1});
+
+  usint slots = cc->GetEncodingParams()->GetBatchSize();
+  std::vector<std::complex<double>> vectorOfInts1(slots);
+  for (usint i = 0; i < slots; i++) {
+    vectorOfInts1[i] = 1.001 * i;
+  }
+  auto plaintext = cc->MakeCKKSPackedPlaintext(vectorOfInts1);
+  auto ciphertext = cc->Encrypt(keyPair.publicKey, plaintext);
+
+  auto cPrecomp = cc->EvalFastRotationPrecompute(ciphertext);
+
+  while (state.KeepRunning()) {
+    auto ciphertextRotate =
+        cc->EvalFastRotationExt(ciphertext, 1, cPrecomp, true);
+  }
+}
+
+void CKKSrns_KeySwitchDown(benchmark::State& state) {
+  CryptoContext<DCRTPoly> cc = GenerateCKKSContext();
+
+  KeyPair<DCRTPoly> keyPair = cc->KeyGen();
+  cc->EvalRotateKeyGen(keyPair.secretKey, {1});
+
+  usint slots = cc->GetEncodingParams()->GetBatchSize();
+  std::vector<std::complex<double>> vectorOfInts1(slots);
+  for (usint i = 0; i < slots; i++) {
+    vectorOfInts1[i] = 1.001 * i;
+  }
+  auto plaintext = cc->MakeCKKSPackedPlaintext(vectorOfInts1);
+  auto ciphertext = cc->Encrypt(keyPair.publicKey, plaintext);
+
+  auto cPrecomp = cc->EvalFastRotationPrecompute(ciphertext);
+
+  auto ciphertextRotate =
+      cc->EvalFastRotationExt(ciphertext, 1, cPrecomp, true);
+
+  while (state.KeepRunning()) {
+    auto ciphertextDown = cc->KeySwitchDown(ciphertextRotate);
+  }
+}
+
 void CKKSrns_Rescale(benchmark::State& state) {
   CryptoContext<DCRTPoly> cc = GenerateCKKSContext();
 
@@ -367,5 +435,8 @@ BENCHMARK(CKKSrns_Relin)->Unit(benchmark::kMicrosecond);
 BENCHMARK(CKKSrns_RelinInPlace)->Unit(benchmark::kMicrosecond);
 BENCHMARK(CKKSrns_Rescale)->Unit(benchmark::kMicrosecond);
 BENCHMARK(CKKSrns_RescaleInPlace)->Unit(benchmark::kMicrosecond);
+BENCHMARK(CKKSrns_FastRotation)->Unit(benchmark::kMicrosecond);
+BENCHMARK(CKKSrns_FastRotationExt)->Unit(benchmark::kMicrosecond);
+BENCHMARK(CKKSrns_KeySwitchDown)->Unit(benchmark::kMicrosecond);
 
 BENCHMARK_MAIN();
