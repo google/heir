@@ -196,23 +196,6 @@ class BuildBazelExtension(build_ext.build_ext):
     # look up the latest available patch version internally.
     python_version = "{}.{}".format(*sys.version_info[:2])
 
-    cc_choice = (
-        [
-            # manylinux host that cibuildwheel uses only has gcc by default
-            "--action_env=CC=gcc",
-            "--action_env=CXX=g++",
-            "--host_action_env=CC=gcc",
-            "--host_action_env=CXX=g++",
-        ]
-        if is_cibuildwheel()
-        else [
-            "--action_env=CC=clang",
-            "--action_env=CXX=clang++",
-            "--host_action_env=CC=clang",
-            "--host_action_env=CXX=clang++",
-        ]
-    )
-
     bazel_argv = [
         "bazel",
         "build",
@@ -229,7 +212,7 @@ class BuildBazelExtension(build_ext.build_ext):
         "--compilation_mode=opt",
         f"--cxxopt={'/std:c++20' if IS_WINDOWS else '-std=c++20'}",
         f"--@rules_python//python/config_settings:python_version={python_version}",
-    ] + cc_choice
+    ]
 
     if IS_WINDOWS:
       # Link with python*.lib.
@@ -238,6 +221,9 @@ class BuildBazelExtension(build_ext.build_ext):
     elif IS_MAC:
       # C++17 needs macOS 10.14 at minimum
       bazel_argv.append("--macos_minimum_os=10.15")
+
+    if is_cibuildwheel() and IS_LINUX:
+      bazel_argv.append("--config=manylinux")
 
     with _maybe_patch_toolchains():
       self.spawn(bazel_argv)
@@ -296,6 +282,14 @@ setuptools.setup(
     package_data={"heir_py": ["py.typed", "*.pyi"]},
     ext_modules=[
         BazelExtension(
+            name="heir_py._abc",
+            bazel_target="@edu_berkeley_abc//:abc",
+            generated_so_file=Path("external") / "edu_berkeley_abc" / "abc",
+            target_file="abc",
+            py_limited_api=py_limited_api,
+            is_binary=True,
+        ),
+        BazelExtension(
             name="heir_py._heir_opt",
             bazel_target="//tools:heir-opt",
             generated_so_file=Path("tools") / "heir-opt",
@@ -308,14 +302,6 @@ setuptools.setup(
             bazel_target="//tools:heir-translate",
             generated_so_file=Path("tools") / "heir-translate",
             target_file="heir-translate",
-            py_limited_api=py_limited_api,
-            is_binary=True,
-        ),
-        BazelExtension(
-            name="heir_py._abc",
-            bazel_target="@edu_berkeley_abc//:abc",
-            generated_so_file=Path("external") / "edu_berkeley_abc" / "abc",
-            target_file="abc",
             py_limited_api=py_limited_api,
             is_binary=True,
         ),
