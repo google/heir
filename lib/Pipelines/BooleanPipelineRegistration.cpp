@@ -22,8 +22,8 @@
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/TensorLinalgToAffineLoops/TensorLinalgToAffineLoops.h"
 #include "lib/Transforms/UnusedMemRef/UnusedMemRef.h"
-#include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
-#include "mlir/include/mlir/Dialect/Affine/Passes.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/Transforms/FuncBufferizableOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/Transforms/Passes.h"  // from @llvm-project

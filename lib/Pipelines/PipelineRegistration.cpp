@@ -20,7 +20,7 @@
 #include "mlir/include/mlir/Conversion/TosaToArith/TosaToArith.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/TosaToLinalg/TosaToLinalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/TosaToTensor/TosaToTensor.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Affine/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/Transforms/FuncBufferizableOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/Transforms/Passes.h"  // from @llvm-project

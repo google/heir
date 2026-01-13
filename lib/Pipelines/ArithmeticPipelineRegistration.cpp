@@ -54,11 +54,11 @@
 #include "lib/Transforms/SplitPreprocessing/SplitPreprocessing.h"
 #include "lib/Transforms/TensorLinalgToAffineLoops/TensorLinalgToAffineLoops.h"
 #include "lib/Transforms/ValidateNoise/ValidateNoise.h"
-#include "llvm/include/llvm/Support/raw_ostream.h"    // from @llvm-project
-#include "mlir/include/mlir/Dialect/Affine/Passes.h"  // from @llvm-project
-#include "mlir/include/mlir/Pass/PassManager.h"       // from @llvm-project
-#include "mlir/include/mlir/Pass/PassOptions.h"       // from @llvm-project
-#include "mlir/include/mlir/Transforms/Passes.h"      // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"   // from @llvm-project
+#include "mlir/include/mlir/Pass/PassOptions.h"   // from @llvm-project
+#include "mlir/include/mlir/Transforms/Passes.h"  // from @llvm-project
 
 namespace mlir::heir {
 
