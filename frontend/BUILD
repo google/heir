@@ -32,6 +32,7 @@ py_library(
         ],
     ),
     data = DATA_DEPS,
+    strict_deps = False,
     deps = [
         "@heir_pip_deps//colorama",
         "@heir_pip_deps//numba",
@@ -123,5 +124,6 @@ bzl_library(
 py_library(
     name = "example",
     srcs = ["example.py"],
+    strict_deps = False,
     deps = [":frontend"],
 )
