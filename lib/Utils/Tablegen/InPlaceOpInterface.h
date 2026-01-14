@@ -6,6 +6,6 @@
 #include "mlir/include/mlir/IR/OpDefinition.h"  // from @llvm-project
 
 // Block clang-format from reordering
-#include "lib/Utils/Tablegen/InplaceOpInterface.h.inc"
+#include "lib/Utils/Tablegen/InPlaceOpInterface.h.inc"
 
 #endif  // LIB_UTILS_TABLEGEN_INPLACEOPINTERFACE_H_

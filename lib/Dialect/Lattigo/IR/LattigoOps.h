@@ -5,7 +5,7 @@
 #include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Lattigo/IR/LattigoDialect.h"
 #include "lib/Dialect/Lattigo/IR/LattigoTypes.h"
-#include "lib/Utils/Tablegen/InplaceOpInterface.h"
+#include "lib/Utils/Tablegen/InPlaceOpInterface.h"
 #include "mlir/include/mlir/IR/BuiltinOps.h"  // from @llvm-project
 // IWYU pragma: end_keep
 

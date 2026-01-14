@@ -42,6 +42,7 @@
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
 #include "mlir/include/mlir/Parser/Parser.h"             // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/TypeID.h"            // from @llvm-project
 #include "src/core/include/lattice/hal/lat-backend.h"    // from @openfhe
 #include "src/core/include/lattice/stdlatticeparms.h"    // from @openfhe
 #include "src/pke/include/ciphertext-fwd.h"              // from @openfhe
@@ -144,69 +145,80 @@ void Interpreter::initializeDispatchTable() {
   };
 
   // Register all supported operations
-  REGISTER_OP(arith::ConstantOp);
-  REGISTER_OP(arith::AddIOp);
+  REGISTER_OP(AddInPlaceOp);
+  REGISTER_OP(AddOp);
+  REGISTER_OP(AddPlainInPlaceOp);
+  REGISTER_OP(AddPlainOp);
+  REGISTER_OP(AutomorphOp);
+  REGISTER_OP(BootstrapOp);
+  REGISTER_OP(DecodeCKKSOp);
+  REGISTER_OP(DecodeOp);
+  REGISTER_OP(DecryptOp);
+  REGISTER_OP(EncryptOp);
+  REGISTER_OP(FastRotationOp);
+  REGISTER_OP(FastRotationPrecomputeOp);
+  REGISTER_OP(GenBootstrapKeyOp);
+  REGISTER_OP(GenContextOp);
+  REGISTER_OP(GenMulKeyOp);
+  REGISTER_OP(GenParamsOp);
+  REGISTER_OP(GenRotKeyOp);
+  REGISTER_OP(KeySwitchInPlaceOp);
+  REGISTER_OP(KeySwitchOp);
+  REGISTER_OP(LevelReduceInPlaceOp);
+  REGISTER_OP(LevelReduceOp);
+  REGISTER_OP(MakeCKKSPackedPlaintextOp);
+  REGISTER_OP(MakePackedPlaintextOp);
+  REGISTER_OP(ModReduceInPlaceOp);
+  REGISTER_OP(ModReduceOp);
+  REGISTER_OP(MulConstInPlaceOp);
+  REGISTER_OP(MulConstOp);
+  REGISTER_OP(MulNoRelinOp);
+  REGISTER_OP(MulOp);
+  REGISTER_OP(MulPlainOp);
+  REGISTER_OP(NegateInPlaceOp);
+  REGISTER_OP(NegateOp);
+  REGISTER_OP(RelinInPlaceOp);
+  REGISTER_OP(RelinOp);
+  REGISTER_OP(RotOp);
+  REGISTER_OP(SetupBootstrapOp);
+  REGISTER_OP(SquareInPlaceOp);
+  REGISTER_OP(SquareOp);
+  REGISTER_OP(SubInPlaceOp);
+  REGISTER_OP(SubOp);
+  REGISTER_OP(SubPlainInPlaceOp);
+  REGISTER_OP(SubPlainOp);
+  REGISTER_OP(affine::AffineForOp);
+  REGISTER_OP(affine::AffineYieldOp);
   REGISTER_OP(arith::AddFOp);
-  REGISTER_OP(arith::SubIOp);
-  REGISTER_OP(arith::SubFOp);
-  REGISTER_OP(arith::MulIOp);
-  REGISTER_OP(arith::MulFOp);
-  REGISTER_OP(arith::DivSIOp);
-  REGISTER_OP(arith::FloorDivSIOp);
-  REGISTER_OP(arith::RemSIOp);
+  REGISTER_OP(arith::AddIOp);
   REGISTER_OP(arith::AndIOp);
   REGISTER_OP(arith::CmpIOp);
-  REGISTER_OP(arith::SelectOp);
+  REGISTER_OP(arith::ConstantOp);
+  REGISTER_OP(arith::DivSIOp);
   REGISTER_OP(arith::ExtFOp);
-  REGISTER_OP(arith::MinSIOp);
+  REGISTER_OP(arith::FloorDivSIOp);
   REGISTER_OP(arith::MaxSIOp);
-  REGISTER_OP(tensor::EmptyOp);
-  REGISTER_OP(tensor::ExtractOp);
-  REGISTER_OP(tensor::InsertOp);
-  REGISTER_OP(tensor::SplatOp);
-  REGISTER_OP(tensor::FromElementsOp);
-  REGISTER_OP(tensor::ConcatOp);
-  REGISTER_OP(tensor::ExtractSliceOp);
-  REGISTER_OP(tensor::InsertSliceOp);
-  REGISTER_OP(tensor::CollapseShapeOp);
-  REGISTER_OP(tensor::ExpandShapeOp);
+  REGISTER_OP(arith::MinSIOp);
+  REGISTER_OP(arith::MulFOp);
+  REGISTER_OP(arith::MulIOp);
+  REGISTER_OP(arith::RemSIOp);
+  REGISTER_OP(arith::SelectOp);
+  REGISTER_OP(arith::SubFOp);
+  REGISTER_OP(arith::SubIOp);
   REGISTER_OP(linalg::BroadcastOp);
   REGISTER_OP(scf::ForOp);
   REGISTER_OP(scf::IfOp);
   REGISTER_OP(scf::YieldOp);
-  REGISTER_OP(affine::AffineForOp);
-  REGISTER_OP(affine::AffineYieldOp);
-  REGISTER_OP(DecodeOp);
-  REGISTER_OP(DecodeCKKSOp);
-  REGISTER_OP(AddOp);
-  REGISTER_OP(AddPlainOp);
-  REGISTER_OP(SubOp);
-  REGISTER_OP(SubPlainOp);
-  REGISTER_OP(MulOp);
-  REGISTER_OP(MulNoRelinOp);
-  REGISTER_OP(MulPlainOp);
-  REGISTER_OP(MulConstOp);
-  REGISTER_OP(NegateOp);
-  REGISTER_OP(SquareOp);
-  REGISTER_OP(RelinOp);
-  REGISTER_OP(ModReduceOp);
-  REGISTER_OP(LevelReduceOp);
-  REGISTER_OP(RotOp);
-  REGISTER_OP(AutomorphOp);
-  REGISTER_OP(KeySwitchOp);
-  REGISTER_OP(BootstrapOp);
-  REGISTER_OP(EncryptOp);
-  REGISTER_OP(DecryptOp);
-  REGISTER_OP(MakePackedPlaintextOp);
-  REGISTER_OP(MakeCKKSPackedPlaintextOp);
-  REGISTER_OP(GenParamsOp);
-  REGISTER_OP(GenContextOp);
-  REGISTER_OP(GenRotKeyOp);
-  REGISTER_OP(GenMulKeyOp);
-  REGISTER_OP(GenBootstrapKeyOp);
-  REGISTER_OP(SetupBootstrapOp);
-  REGISTER_OP(FastRotationOp);
-  REGISTER_OP(FastRotationPrecomputeOp);
+  REGISTER_OP(tensor::CollapseShapeOp);
+  REGISTER_OP(tensor::ConcatOp);
+  REGISTER_OP(tensor::EmptyOp);
+  REGISTER_OP(tensor::ExpandShapeOp);
+  REGISTER_OP(tensor::ExtractOp);
+  REGISTER_OP(tensor::ExtractSliceOp);
+  REGISTER_OP(tensor::FromElementsOp);
+  REGISTER_OP(tensor::InsertOp);
+  REGISTER_OP(tensor::InsertSliceOp);
+  REGISTER_OP(tensor::SplatOp);
 
 #undef REGISTER_OP
 
@@ -276,7 +288,7 @@ void Interpreter::storeTypedValue(Value v, const TypedCppValue& typedVal) {
         } else if constexpr (std::is_same_v<T, double>) {
           doubleValues[v] = arg;
         } else if constexpr (std::is_same_v<
-                                 T, std::shared_ptr<std::vector<int>>>) {
+                                 T, std::shared_ptr<std::vector<int64_t>>>) {
           intVectors[v] = arg;
         } else if constexpr (std::is_same_v<
                                  T, std::shared_ptr<std::vector<float>>>) {
@@ -521,11 +533,11 @@ void Interpreter::visit(arith::ConstantOp op) {
       return;
     }
 
-    std::vector<int> values;
+    std::vector<int64_t> values;
     for (auto val : denseElementsAttr.getValues<APInt>()) {
-      values.push_back(static_cast<int>(val.getSExtValue()));
+      values.push_back(val.getSExtValue());
     }
-    intVectors[op.getResult()] = std::make_shared<std::vector<int>>(values);
+    intVectors[op.getResult()] = std::make_shared<std::vector<int64_t>>(values);
     return;
   }
 
@@ -543,7 +555,7 @@ void Interpreter::visit(arith::ConstantOp op) {
       if (elemType.isInteger() || elemType.isIndex()) {                        \
         const auto& lhsVec = *intVectors.at((op).getLhs());                    \
         const auto& rhsVec = *intVectors.at((op).getRhs());                    \
-        auto result = std::make_shared<std::vector<int>>(numElements);         \
+        auto result = std::make_shared<std::vector<int64_t>>(numElements);     \
         for (int64_t i = 0; i < numElements; ++i) {                            \
           (*result)[i] = lhsVec[i] binop rhsVec[i];                            \
         }                                                                      \
@@ -610,7 +622,7 @@ void Interpreter::visit(arith::ConstantOp op) {
       if (elemType.isInteger() || elemType.isIndex()) {                        \
         const auto& lhsVec = *intVectors.at((op).getLhs());                    \
         const auto& rhsVec = *intVectors.at((op).getRhs());                    \
-        auto result = std::make_shared<std::vector<int>>(numElements);         \
+        auto result = std::make_shared<std::vector<int64_t>>(numElements);     \
         for (int64_t i = 0; i < numElements; ++i) {                            \
           (*result)[i] = func(lhsVec[i], rhsVec[i]);                           \
         }                                                                      \
@@ -791,7 +803,7 @@ void Interpreter::visit(tensor::EmptyOp op) {
 
   if (elementType.isInteger()) {
     intVectors[op.getResult()] =
-        std::make_shared<std::vector<int>>(numElements);
+        std::make_shared<std::vector<int64_t>>(numElements);
   } else if (elementType.isF32()) {
     floatVectors[op.getResult()] =
         std::make_shared<std::vector<float>>(numElements);
@@ -836,8 +848,9 @@ void Interpreter::visit(tensor::InsertOp op) {
 
   if (elemType.isInteger(32) || elemType.isInteger(64)) {
     auto srcVec = intVectors.at(op.getDest());
-    auto vec =
-        canModifyInPlace ? srcVec : std::make_shared<std::vector<int>>(*srcVec);
+    auto vec = canModifyInPlace
+                   ? srcVec
+                   : std::make_shared<std::vector<int64_t>>(*srcVec);
     (*vec)[index] = intValues.at(op.getScalar());
     intVectors[op.getResult()] = vec;
   } else if (elemType.isF32()) {
@@ -878,7 +891,7 @@ void Interpreter::visit(tensor::SplatOp op) {
   if (elemType.isInteger(32) || elemType.isInteger(64)) {
     int val = intValues.at(op.getInput());
     intVectors[op.getResult()] =
-        std::make_shared<std::vector<int>>(numElements, val);
+        std::make_shared<std::vector<int64_t>>(numElements, val);
   } else if (elemType.isF32()) {
     float val = floatValues.at(op.getInput());
     floatVectors[op.getResult()] =
@@ -901,7 +914,7 @@ void Interpreter::visit(tensor::FromElementsOp op) {
   auto elemType = tensorType.getElementType();
 
   if (elemType.isInteger(32) || elemType.isInteger(64)) {
-    auto result = std::make_shared<std::vector<int>>(elements.size());
+    auto result = std::make_shared<std::vector<int64_t>>(elements.size());
     for (size_t i = 0; i < elements.size(); ++i) {
       (*result)[i] = intValues.at(elements[i]);
     }
@@ -944,7 +957,7 @@ void Interpreter::visit(tensor::ConcatOp op) {
     for (auto input : inputs) {
       totalSize += intVectors.at(input)->size();
     }
-    auto result = std::make_shared<std::vector<int>>();
+    auto result = std::make_shared<std::vector<int64_t>>();
     result->reserve(totalSize);
     for (auto input : inputs) {
       const auto& vec = *intVectors.at(input);
@@ -1081,13 +1094,13 @@ void Interpreter::visit(tensor::ExtractSliceOp op) {
   };
 
   if (elemType.isInteger()) {
-    auto result = std::vector<int>(totalElements);
+    auto result = std::vector<int64_t>(totalElements);
     const auto& srcVec = *intVectors.at(op.getSource());
     for (int64_t i = 0; i < totalElements; ++i) {
       result[i] = srcVec[extractElement(i)];
     }
     intVectors[op.getResult()] =
-        std::make_shared<std::vector<int>>(std::move(result));
+        std::make_shared<std::vector<int64_t>>(std::move(result));
   } else if (elemType.isF32()) {
     auto result = std::vector<float>(totalElements);
     const auto& srcVec = *floatVectors.at(op.getSource());
@@ -1170,7 +1183,7 @@ void Interpreter::visit(tensor::InsertSliceOp op) {
     auto srcDestVec = intVectors.at(op.getDest());
     auto destVec = canModifyInPlace
                        ? srcDestVec
-                       : std::make_shared<std::vector<int>>(*srcDestVec);
+                       : std::make_shared<std::vector<int64_t>>(*srcDestVec);
     const auto& srcVec = *intVectors.at(op.getSource());
     for (int64_t i = 0; i < totalElements; ++i) {
       (*destVec)[insertElement(i)] = srcVec[i];
@@ -1282,10 +1295,10 @@ void Interpreter::visit(linalg::BroadcastOp op) {
 
   if (inputType.getElementType().isInteger()) {
     auto inputVec = *intVectors.at(op.getInput());
-    auto outputVec = std::vector<int>(numOutputElements);
+    auto outputVec = std::vector<int64_t>(numOutputElements);
     calculate(inputVec, outputVec);
     intVectors[op->getResults()[0]] =
-        std::make_shared<std::vector<int>>(std::move(outputVec));
+        std::make_shared<std::vector<int64_t>>(std::move(outputVec));
   } else if (inputType.getElementType().isF32()) {
     auto inputVec = *floatVectors.at(op.getInput());
     auto outputVec = std::vector<float>(numOutputElements);
@@ -1513,13 +1526,13 @@ void Interpreter::printTimingResults() {
 }
 #endif
 
-// Macro for handling binary operations on integer types
-#define HANDLE_CT_CT_BINOP(op, opName, evalMethod)                         \
-  do {                                                                     \
-    auto cc = cryptoContexts.at((op).getCryptoContext());                  \
-    auto lhsCt = ciphertexts.at((op).getLhs());                            \
-    auto rhsCt = ciphertexts.at((op).getRhs());                            \
-    TIME_OPERATION("Add", (op).getOutput(), cc->evalMethod(lhsCt, rhsCt)); \
+// Macro for handling binary operations on ciphertext types
+#define HANDLE_CT_CT_BINOP(op, opName, evalMethod)                          \
+  do {                                                                      \
+    auto cc = cryptoContexts.at((op).getCryptoContext());                   \
+    auto lhsCt = ciphertexts.at((op).getLhs());                             \
+    auto rhsCt = ciphertexts.at((op).getRhs());                             \
+    TIME_OPERATION(opName, (op).getOutput(), cc->evalMethod(lhsCt, rhsCt)); \
   } while (0)
 
 // OpenFHE ct-ct binary operations
@@ -1586,12 +1599,12 @@ void Interpreter::visit(MulConstOp op) {
 }
 
 // OpenFHE unary operations
-// Macro for handling binary operations on integer types
-#define HANDLE_CT_UNARY(op, opName, evalMethod)                       \
-  do {                                                                \
-    auto cc = cryptoContexts.at((op).getCryptoContext());             \
-    auto inputCt = ciphertexts.at((op).getCiphertext());              \
-    TIME_OPERATION("Add", (op).getOutput(), cc->evalMethod(inputCt)); \
+// Macro for unary operations on ciphertexts
+#define HANDLE_CT_UNARY(op, opName, evalMethod)                        \
+  do {                                                                 \
+    auto cc = cryptoContexts.at((op).getCryptoContext());              \
+    auto inputCt = ciphertexts.at((op).getCiphertext());               \
+    TIME_OPERATION(opName, (op).getOutput(), cc->evalMethod(inputCt)); \
   } while (0)
 
 void Interpreter::visit(NegateOp op) {
@@ -1846,10 +1859,10 @@ void Interpreter::decodeCore(Operation* op, Value input, Value result,
     }
 
     auto packedValues = plaintext->GetPackedValue();
-    auto res = std::make_shared<std::vector<int>>();
+    auto res = std::make_shared<std::vector<int64_t>>();
     res->reserve(packedValues.size());
     for (const auto& val : packedValues) {
-      res->push_back(static_cast<int>(val));
+      res->push_back(val);
     }
     intVectors[result] = res;
     return;
@@ -1878,6 +1891,99 @@ void Interpreter::visit(DecodeOp op) {
 
 void Interpreter::visit(DecodeCKKSOp op) {
   decodeCore(op, op.getInput(), op.getResult(), true);
+}
+
+//  In-place ops
+
+// Macro for handling binary in-place operations on ciphertext types
+#define HANDLE_CT_CT_BINOP_INPLACE(op, opName, evalMethod)     \
+  do {                                                         \
+    auto cc = cryptoContexts.at((op).getCryptoContext());      \
+    auto lhsCt = ciphertexts.at((op).getLhs());                \
+    auto rhsCt = ciphertexts.at((op).getRhs());                \
+    TIME_OPERATION_VOID(opName, cc->evalMethod(lhsCt, rhsCt)); \
+    ciphertexts[(op).getOutput()] = lhsCt;                     \
+  } while (0)
+
+void Interpreter::visit(AddInPlaceOp op) {
+  HANDLE_CT_CT_BINOP_INPLACE(op, "AddInPlace", EvalAddInPlace);
+}
+void Interpreter::visit(SubInPlaceOp op) {
+  HANDLE_CT_CT_BINOP_INPLACE(op, "SubInPlace", EvalSubInPlace);
+}
+
+// Macro for handling binary in-place ct-pt ops
+#define HANDLE_CT_PT_BINOP_INPLACE(op, opName, evalMethod)           \
+  do {                                                               \
+    auto cc = cryptoContexts.at(op.getCryptoContext());              \
+    auto lhsVal = op.getLhs();                                       \
+    auto rhsVal = op.getRhs();                                       \
+    if (isa<CiphertextType>(lhsVal.getType()) &&                     \
+        isa<PlaintextType>(rhsVal.getType())) {                      \
+      auto lhsCt = ciphertexts.at(lhsVal);                           \
+      auto rhsPt = plaintexts.at(rhsVal);                            \
+      TIME_OPERATION_VOID(opName, cc->evalMethod(lhsCt, rhsPt));     \
+      ciphertexts[op.getOutput()] = lhsCt;                           \
+    } else if (isa<PlaintextType>(lhsVal.getType()) &&               \
+               isa<CiphertextType>(rhsVal.getType())) {              \
+      op.emitError(opName " LHS must be a ciphertext for in-place"); \
+    } else {                                                         \
+      op.emitError(opName " requires ciphertext and plaintext");     \
+    }                                                                \
+  } while (0)
+
+void Interpreter::visit(AddPlainInPlaceOp op) {
+  HANDLE_CT_PT_BINOP_INPLACE(op, "AddPlainInPlace", EvalAddInPlace);
+}
+void Interpreter::visit(SubPlainInPlaceOp op) {
+  HANDLE_CT_PT_BINOP_INPLACE(op, "SubPlainInPlace", EvalSubInPlace);
+}
+
+void Interpreter::visit(MulConstInPlaceOp op) {
+  auto cc = cryptoContexts.at(op.getCryptoContext());
+  auto ct = ciphertexts.at(op.getCiphertext());
+  auto constVal = static_cast<double>(intValues.at(op.getConstant()));
+  TIME_OPERATION_VOID("MulConstInPlace", cc->EvalMultInPlace(ct, constVal));
+  ciphertexts[op.getOutput()] = ct;
+}
+
+// Macro for handling in-place unary operations on integer types
+#define HANDLE_CT_UNARY_INPLACE(op, opName, evalMethod)   \
+  do {                                                    \
+    auto cc = cryptoContexts.at((op).getCryptoContext()); \
+    auto inputCt = ciphertexts.at((op).getCiphertext());  \
+    TIME_OPERATION_VOID(opName, cc->evalMethod(inputCt)); \
+    ciphertexts[(op).getOutput()] = inputCt;              \
+  } while (0)
+
+void Interpreter::visit(ModReduceInPlaceOp op) {
+  HANDLE_CT_UNARY_INPLACE(op, "ModReduceInPlace", ModReduceInPlace);
+}
+void Interpreter::visit(NegateInPlaceOp op) {
+  HANDLE_CT_UNARY_INPLACE(op, "NegateInPlace", EvalNegateInPlace);
+}
+void Interpreter::visit(RelinInPlaceOp op) {
+  HANDLE_CT_UNARY_INPLACE(op, "RelinInPlace", RelinearizeInPlace);
+}
+void Interpreter::visit(SquareInPlaceOp op) {
+  HANDLE_CT_UNARY_INPLACE(op, "SquareInPlace", EvalSquareInPlace);
+}
+
+void Interpreter::visit(KeySwitchInPlaceOp op) {
+  auto cc = cryptoContexts.at(op.getCryptoContext());
+  auto ct = ciphertexts.at(op.getCiphertext());
+  auto key = evalKeys.at(op.getEvalKey());
+  TIME_OPERATION_VOID("KeySwitchInPlace", cc->KeySwitchInPlace(ct, key));
+  ciphertexts[op.getOutput()] = ct;
+}
+
+void Interpreter::visit(LevelReduceInPlaceOp op) {
+  auto cc = cryptoContexts.at(op.getCryptoContext());
+  auto ct = ciphertexts.at(op.getCiphertext());
+  auto levelToDrop = op.getLevelToDrop();
+  TIME_OPERATION_VOID("LevelReduceInPlace",
+                      cc->LevelReduceInPlace(ct, nullptr, levelToDrop));
+  ciphertexts[op.getOutput()] = ct;
 }
 
 void initContext(MLIRContext& context) {

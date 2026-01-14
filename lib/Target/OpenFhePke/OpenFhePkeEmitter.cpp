@@ -15,6 +15,7 @@
 
 #include "include/cereal/archives/portable_binary.hpp"  // from @cereal
 #include "include/cereal/cereal.hpp"                    // from @cereal
+#include "lib/Analysis/Cpp/ConstQualifierAnalysis.h"
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
@@ -215,8 +216,9 @@ LogicalResult translateToOpenFhePke(Operation* op, llvm::raw_ostream& os,
                                     const std::string& weightsFile,
                                     bool skipVectorResizing) {
   SelectVariableNames variableNames(op);
-  OpenFhePkeEmitter emitter(os, &variableNames, importType, weightsFile,
-                            skipVectorResizing);
+  ConstQualifierAnalysis constAnalysis(op);
+  OpenFhePkeEmitter emitter(os, &variableNames, &constAnalysis, importType,
+                            weightsFile, skipVectorResizing);
   LogicalResult result = emitter.translate(*op);
   return result;
 }
@@ -251,13 +253,17 @@ LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
           .Case<DecodeOp, DecodeCKKSOp>(
               [&](auto op) { return printOperation(op); })
           // OpenFHE ops
-          .Case<AddOp, AddPlainOp, SubOp, SubPlainOp, MulNoRelinOp, MulOp,
-                MulPlainOp, SquareOp, NegateOp, MulConstOp, RelinOp,
-                ModReduceOp, LevelReduceOp, RotOp, AutomorphOp, FastRotationOp,
-                FastRotationPrecomputeOp, KeySwitchOp, EncryptOp, DecryptOp,
-                GenParamsOp, GenContextOp, GenMulKeyOp, GenRotKeyOp,
-                GenBootstrapKeyOp, MakePackedPlaintextOp,
-                MakeCKKSPackedPlaintextOp, SetupBootstrapOp, BootstrapOp>(
+          .Case<AddInPlaceOp, AddOp, AddPlainInPlaceOp, AddPlainOp, AutomorphOp,
+                BootstrapOp, DecryptOp, EncryptOp, FastRotationOp,
+                FastRotationPrecomputeOp, GenBootstrapKeyOp, GenContextOp,
+                GenMulKeyOp, GenParamsOp, GenRotKeyOp, KeySwitchInPlaceOp,
+                KeySwitchOp, LevelReduceInPlaceOp, LevelReduceOp,
+                MakeCKKSPackedPlaintextOp, MakePackedPlaintextOp,
+                ModReduceInPlaceOp, ModReduceOp, MulConstInPlaceOp, MulConstOp,
+                MulNoRelinOp, MulOp, MulPlainOp, NegateInPlaceOp, NegateOp,
+                RelinInPlaceOp, RelinOp, RotOp, SetupBootstrapOp,
+                SquareInPlaceOp, SquareOp, SubInPlaceOp, SubOp,
+                SubPlainInPlaceOp, SubPlainOp>(
               [&](auto op) { return printOperation(op); })
           .Default([&](Operation&) {
             return emitError(op.getLoc(), "unable to find printer for op");
@@ -598,13 +604,24 @@ LogicalResult OpenFhePkeEmitter::printOperation(scf::YieldOp op) {
 
 void OpenFhePkeEmitter::emitAutoAssignPrefix(Value result) {
   // If the result values are iter args of a region, then avoid using a auto
-  // assign prefix.
-  if (!mutableValues.contains(result)) {
-    //  Use const auto& because most OpenFHE API methods would
-    // perform a copy if using a plain `auto`.
-    os << "const auto& ";
+  // assign prefix. Prefer auto& or const auto& because most OpenFHE API methods
+  // would perform a copy if using a plain `auto`.
+  bool canBeConst = !mutableValues.contains(result) &&
+                    constQualifierAnalysis->canBeMarkedConst(result);
+
+  if (canBeConst) {
+    // Even if the result is a temporary, you can declare it as `const auto&`;
+    // E.g., an EvalMult where the method returns a temporary value, and we
+    // don't want to copy it, and it's not used for in-place ops later.
+    os << "const auto&";
+  } else {
+    // makes a copy; e.g., EvalMult where the result is mutated in place later.
+    // Most OpenFHE ops return a temporary which cannot be used as a reference
+    // without also marking it as const, so a copy is the only way forward.
+    os << "auto";
   }
-  os << variableNames->getNameForValue(result) << " = ";
+
+  os << " " << variableNames->getNameForValue(result) << " = ";
 }
 
 LogicalResult OpenFhePkeEmitter::emitTypedAssignPrefix(Value result,
@@ -624,7 +641,17 @@ LogicalResult OpenFhePkeEmitter::printEvalMethod(
     ::mlir::Value result, ::mlir::Value cryptoContext,
     ::mlir::ValueRange nonEvalOperands, std::string_view op) {
   emitAutoAssignPrefix(result);
+  os << variableNames->getNameForValue(cryptoContext) << "->" << op << "(";
+  os << commaSeparatedValues(nonEvalOperands, [&](Value value) {
+    return variableNames->getNameForValue(value);
+  });
+  os << ");\n";
+  return success();
+}
 
+LogicalResult OpenFhePkeEmitter::printEvalInPlaceMethod(
+    ::mlir::Value result, ::mlir::Value cryptoContext,
+    ::mlir::ValueRange nonEvalOperands, std::string_view op) {
   os << variableNames->getNameForValue(cryptoContext) << "->" << op << "(";
   os << commaSeparatedValues(nonEvalOperands, [&](Value value) {
     return variableNames->getNameForValue(value);
@@ -761,7 +788,8 @@ LogicalResult OpenFhePkeEmitter::printOperation(AutomorphOp op) {
   // call if it becomes necessary.
   std::string mapName =
       variableNames->getNameForValue(op.getResult()) + "evalkeymap";
-  auto result = convertType(op.getEvalKey().getType(), op->getLoc());
+  auto result =
+      convertType(op.getEvalKey().getType(), op->getLoc(), /*constant=*/true);
   os << "std::map<uint32_t, " << result << "> " << mapName << " = {{0, "
      << variableNames->getNameForValue(op.getEvalKey()) << "}};\n";
 
@@ -781,6 +809,93 @@ LogicalResult OpenFhePkeEmitter::printOperation(KeySwitchOp op) {
 LogicalResult OpenFhePkeEmitter::printOperation(BootstrapOp op) {
   return printEvalMethod(op.getResult(), op.getCryptoContext(),
                          {op.getCiphertext()}, "EvalBootstrap");
+}
+
+// InPlace methods
+LogicalResult OpenFhePkeEmitter::printOperation(AddInPlaceOp op) {
+  (void)printEvalInPlaceMethod(op.getResult(), op.getCryptoContext(),
+                               {op.getLhs(), op.getRhs()}, "EvalAddInPlace");
+  variableNames->mapValueNameToValue(op.getResult(), op.getLhs());
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(AddPlainInPlaceOp op) {
+  (void)printEvalInPlaceMethod(op.getResult(), op.getCryptoContext(),
+                               {op.getLhs(), op.getRhs()}, "EvalAddInPlace");
+  variableNames->mapValueNameToValue(op.getResult(), op.getLhs());
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(KeySwitchInPlaceOp op) {
+  (void)printEvalInPlaceMethod(op.getResult(), op.getCryptoContext(),
+                               {op.getCiphertext(), op.getEvalKey()},
+                               "KeySwitchInPlace");
+  variableNames->mapValueNameToValue(op.getResult(), op.getCiphertext());
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(LevelReduceInPlaceOp op) {
+  os << variableNames->getNameForValue(op.getCryptoContext()) << "->"
+     << "LevelReduceInPlace" << "(";
+  os << commaSeparatedValues({op.getCiphertext()}, [&](Value value) {
+    return variableNames->getNameForValue(value);
+  });
+  os << ", nullptr, ";
+  os << op.getLevelToDrop() << ");\n";
+  variableNames->mapValueNameToValue(op.getResult(), op.getCiphertext());
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(ModReduceInPlaceOp op) {
+  (void)printEvalInPlaceMethod(op.getResult(), op.getCryptoContext(),
+                               {op.getCiphertext()}, "ModReduceInPlace");
+  variableNames->mapValueNameToValue(op.getResult(), op.getCiphertext());
+  return success();
+}
+
+// This one is weird: mul_const has an in-place option, but not ct-ct mul or
+// ct-pt mul.
+LogicalResult OpenFhePkeEmitter::printOperation(MulConstInPlaceOp op) {
+  (void)printEvalInPlaceMethod(op.getResult(), op.getCryptoContext(),
+                               {op.getCiphertext(), op.getConstant()},
+                               "EvalMultInPlace");
+  variableNames->mapValueNameToValue(op.getResult(), op.getCiphertext());
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(NegateInPlaceOp op) {
+  (void)printEvalInPlaceMethod(op.getResult(), op.getCryptoContext(),
+                               {op.getCiphertext()}, "EvalNegateInPlace");
+  variableNames->mapValueNameToValue(op.getResult(), op.getCiphertext());
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(RelinInPlaceOp op) {
+  (void)printEvalInPlaceMethod(op.getResult(), op.getCryptoContext(),
+                               {op.getCiphertext()}, "RelinearizeInPlace");
+  variableNames->mapValueNameToValue(op.getResult(), op.getCiphertext());
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(SquareInPlaceOp op) {
+  (void)printEvalInPlaceMethod(op.getResult(), op.getCryptoContext(),
+                               {op.getCiphertext()}, "EvalSquareInPlace");
+  variableNames->mapValueNameToValue(op.getResult(), op.getCiphertext());
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(SubInPlaceOp op) {
+  (void)printEvalInPlaceMethod(op.getResult(), op.getCryptoContext(),
+                               {op.getLhs(), op.getRhs()}, "EvalSubInPlace");
+  variableNames->mapValueNameToValue(op.getResult(), op.getLhs());
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(SubPlainInPlaceOp op) {
+  (void)printEvalInPlaceMethod(op.getResult(), op.getCryptoContext(),
+                               {op.getLhs(), op.getRhs()}, "EvalSubInPlace");
+  variableNames->mapValueNameToValue(op.getResult(), op.getCiphertext());
+  return success();
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(arith::ConstantOp op) {
@@ -1676,14 +1791,15 @@ LogicalResult OpenFhePkeEmitter::emitType(Type type, Location loc,
   return success();
 }
 
-OpenFhePkeEmitter::OpenFhePkeEmitter(raw_ostream& os,
-                                     SelectVariableNames* variableNames,
-                                     const OpenfheImportType& importType,
-                                     const std::string& weightsFile,
-                                     bool skipVectorResizing)
+OpenFhePkeEmitter::OpenFhePkeEmitter(
+    raw_ostream& os, SelectVariableNames* variableNames,
+    ConstQualifierAnalysis* constQualifierAnalysis,
+    const OpenfheImportType& importType, const std::string& weightsFile,
+    bool skipVectorResizing)
     : importType_(importType),
       os(os),
       variableNames(variableNames),
+      constQualifierAnalysis(constQualifierAnalysis),
       weightsFile_(weightsFile),
       skipVectorResizing_(skipVectorResizing) {}
 }  // namespace openfhe

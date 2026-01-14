@@ -10,7 +10,7 @@ cc_library(
     name = "Transforms",
     hdrs = ["Passes.h"],
     deps = [
-        ":AllocToInplace",
+        ":AllocToInPlace",
         ":ConfigureCryptoContext",
         ":pass_inc_gen",
         "@heir//lib/Dialect/Lattigo/IR:Dialect",
@@ -18,13 +18,14 @@ cc_library(
 )
 
 cc_library(
-    name = "AllocToInplace",
-    srcs = ["AllocToInplace.cpp"],
-    hdrs = ["AllocToInplace.h"],
+    name = "AllocToInPlace",
+    srcs = ["AllocToInPlace.cpp"],
+    hdrs = ["AllocToInPlace.h"],
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Dialect/Lattigo/IR:Dialect",
-        "@heir//lib/Utils/Tablegen:InplaceOpInterface",
+        "@heir//lib/Utils:AllocToInPlaceUtils",
+        "@heir//lib/Utils/Tablegen:InPlaceOpInterface",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",

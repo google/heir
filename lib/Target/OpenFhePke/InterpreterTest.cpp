@@ -1,5 +1,6 @@
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -122,14 +123,14 @@ TEST(InterpreterTest, TestElementwiseAdd) {
   )mlir");
   Interpreter interpreter(module.get());
   std::string entryFunction = "main";
-  std::vector<int> a = {1, 2, 3};
-  std::vector<int> b = {2, 3, 4};
-  std::vector<int> expected = {3, 5, 7};
+  std::vector<int64_t> a = {1, 2, 3};
+  std::vector<int64_t> b = {2, 3, 4};
+  std::vector<int64_t> expected = {3, 5, 7};
   std::vector<TypedCppValue> inputs = {TypedCppValue(a), TypedCppValue(b)};
   std::vector<TypedCppValue> results =
       interpreter.interpret(entryFunction, inputs);
   EXPECT_EQ(results.size(), 1);
-  EXPECT_EQ(*std::get<std::shared_ptr<std::vector<int>>>(results[0].value),
+  EXPECT_EQ(*std::get<std::shared_ptr<std::vector<int64_t>>>(results[0].value),
             expected);
 }
 
@@ -314,7 +315,7 @@ TEST(InterpreterTest, TestTensorSplat) {
   std::vector<TypedCppValue> results =
       interpreter.interpret(entryFunction, inputs);
   EXPECT_EQ(results.size(), 1);
-  auto vec = *std::get<std::shared_ptr<std::vector<int>>>(results[0].value);
+  auto vec = *std::get<std::shared_ptr<std::vector<int64_t>>>(results[0].value);
   EXPECT_EQ(vec.size(), 4);
   EXPECT_EQ(vec[0], 42);
   EXPECT_EQ(vec[1], 42);
@@ -340,7 +341,7 @@ TEST(InterpreterTest, TestTensorFromElements) {
   std::vector<TypedCppValue> results =
       interpreter.interpret(entryFunction, inputs);
   EXPECT_EQ(results.size(), 1);
-  auto vec = *std::get<std::shared_ptr<std::vector<int>>>(results[0].value);
+  auto vec = *std::get<std::shared_ptr<std::vector<int64_t>>>(results[0].value);
   EXPECT_EQ(vec.size(), 3);
   EXPECT_EQ(vec[0], 10);
   EXPECT_EQ(vec[1], 20);
@@ -389,7 +390,7 @@ TEST(InterpreterTest, TestTensorInsert) {
   std::vector<TypedCppValue> results =
       interpreter.interpret(entryFunction, inputs);
   EXPECT_EQ(results.size(), 1);
-  auto vec = *std::get<std::shared_ptr<std::vector<int>>>(results[0].value);
+  auto vec = *std::get<std::shared_ptr<std::vector<int64_t>>>(results[0].value);
   EXPECT_EQ(vec.size(), 3);
   EXPECT_EQ(vec[1], 99);
 }
@@ -417,7 +418,7 @@ TEST(InterpreterTest, TestLoop) {
   std::vector<TypedCppValue> results =
       interpreter.interpret(entryFunction, inputs);
   EXPECT_EQ(results.size(), 1);
-  auto vec = *std::get<std::shared_ptr<std::vector<int>>>(results[0].value);
+  auto vec = *std::get<std::shared_ptr<std::vector<int64_t>>>(results[0].value);
   EXPECT_EQ(vec.size(), 6);
   EXPECT_EQ(vec[1], 1);
 }
@@ -550,6 +551,161 @@ module {
   EXPECT_EQ(resultVec.size(), vec1.size());
   for (size_t i = 0; i < vec1.size(); i++) {
     EXPECT_EQ(resultVec[i], vec1[i] + vec2[i]);
+  }
+}
+
+TEST(InterpreterTest, TestOpenfheAddInPlace) {
+  CryptoSetup setup;
+
+  // Create plaintexts
+  std::vector<int64_t> vec1 = {1, 2, 3, 4};
+  std::vector<int64_t> vec2 = {5, 6, 7, 8};
+  auto pt1 = setup.cc->MakePackedPlaintext(vec1);
+  auto pt2 = setup.cc->MakePackedPlaintext(vec2);
+
+  // Encrypt
+  auto ct1 = setup.cc->Encrypt(setup.keyPair.publicKey, pt1);
+  auto ct2 = setup.cc->Encrypt(setup.keyPair.publicKey, pt2);
+
+  // Test via interpreter
+  MLIRContext context;
+  initContext(context);
+  std::string mlirStr = std::string(kLWETypesHeader) + R"mlir(
+module {
+  func.func @main(%cc: !openfhe.crypto_context, %ct1: !ct, %ct2: !ct) -> !ct {
+    %result = openfhe.add_inplace %cc, %ct1, %ct2 : (!openfhe.crypto_context, !ct, !ct) -> !ct
+    return %result : !ct
+  }
+}
+)mlir";
+  auto module = parse(&context, mlirStr);
+
+  Interpreter interpreter(module.get());
+  std::vector<TypedCppValue> inputs = {TypedCppValue(setup.cc),
+                                       TypedCppValue(ct1), TypedCppValue(ct2)};
+  std::vector<TypedCppValue> results = interpreter.interpret("main", inputs);
+
+  EXPECT_EQ(results.size(), 1);
+  auto resultCt = std::get<CiphertextT>(results[0].value);
+
+  // Decrypt and verify
+  Plaintext resultPt;
+  setup.cc->Decrypt(setup.keyPair.secretKey, resultCt, &resultPt);
+  resultPt->SetLength(vec1.size());
+
+  auto resultVec = resultPt->GetPackedValue();
+  EXPECT_EQ(resultVec.size(), vec1.size());
+  for (size_t i = 0; i < vec1.size(); i++) {
+    EXPECT_EQ(resultVec[i], vec1[i] + vec2[i]);
+  }
+}
+
+TEST(InterpreterTest, TestOpenfheSubInPlace) {
+  CryptoSetup setup;
+
+  std::vector<int64_t> vec1 = {10, 20, 30, 40};
+  std::vector<int64_t> vec2 = {3, 5, 7, 9};
+  auto pt1 = setup.cc->MakePackedPlaintext(vec1);
+  auto pt2 = setup.cc->MakePackedPlaintext(vec2);
+
+  auto ct1 = setup.cc->Encrypt(setup.keyPair.publicKey, pt1);
+  auto ct2 = setup.cc->Encrypt(setup.keyPair.publicKey, pt2);
+
+  MLIRContext context;
+  initContext(context);
+  std::string mlirStr = std::string(kLWETypesHeader) + R"mlir(
+module {
+      func.func @main(%cc: !openfhe.crypto_context, %ct1: !ct, %ct2: !ct) -> !ct {
+        %result = openfhe.sub_inplace %cc, %ct1, %ct2 : (!openfhe.crypto_context, !ct, !ct) -> !ct
+        return %result : !ct
+      }
+}
+)mlir";
+  auto module = parse(&context, mlirStr);
+
+  Interpreter interpreter(module.get());
+  std::vector<TypedCppValue> inputs = {TypedCppValue(setup.cc),
+                                       TypedCppValue(ct1), TypedCppValue(ct2)};
+  std::vector<TypedCppValue> results = interpreter.interpret("main", inputs);
+
+  auto resultCt = std::get<CiphertextT>(results[0].value);
+  Plaintext resultPt;
+  setup.cc->Decrypt(setup.keyPair.secretKey, resultCt, &resultPt);
+  resultPt->SetLength(vec1.size());
+
+  auto resultVec = resultPt->GetPackedValue();
+  for (size_t i = 0; i < vec1.size(); i++) {
+    EXPECT_EQ(resultVec[i], vec1[i] - vec2[i]);
+  }
+}
+
+TEST(InterpreterTest, TestOpenfheNegateInPlace) {
+  CryptoSetup setup;
+
+  std::vector<int64_t> vec = {5, 10, 15, 20};
+  auto pt = setup.cc->MakePackedPlaintext(vec);
+  auto ct = setup.cc->Encrypt(setup.keyPair.publicKey, pt);
+
+  MLIRContext context;
+  initContext(context);
+  std::string mlirStr = std::string(kLWETypesHeader) + R"mlir(
+module {
+      func.func @main(%cc: !openfhe.crypto_context, %ct: !ct) -> !ct {
+        %result = openfhe.negate_inplace %cc, %ct : (!openfhe.crypto_context, !ct) -> !ct
+        return %result : !ct
+      }
+}
+)mlir";
+  auto module = parse(&context, mlirStr);
+
+  Interpreter interpreter(module.get());
+  std::vector<TypedCppValue> inputs = {TypedCppValue(setup.cc),
+                                       TypedCppValue(ct)};
+  std::vector<TypedCppValue> results = interpreter.interpret("main", inputs);
+
+  auto resultCt = std::get<CiphertextT>(results[0].value);
+  Plaintext resultPt;
+  setup.cc->Decrypt(setup.keyPair.secretKey, resultCt, &resultPt);
+  resultPt->SetLength(vec.size());
+
+  auto resultVec = resultPt->GetPackedValue();
+  for (size_t i = 0; i < vec.size(); i++) {
+    EXPECT_EQ(resultVec[i], -vec[i]);
+  }
+}
+
+TEST(InterpreterTest, TestOpenfheSquareInPlace) {
+  CryptoSetup setup(2);  // Need depth for squaring
+
+  std::vector<int64_t> vec = {2, 3, 4, 5};
+  auto pt = setup.cc->MakePackedPlaintext(vec);
+  auto ct = setup.cc->Encrypt(setup.keyPair.publicKey, pt);
+
+  MLIRContext context;
+  initContext(context);
+  std::string mlirStr = std::string(kLWETypesHeader) + R"mlir(
+module {
+      func.func @main(%cc: !openfhe.crypto_context, %ct: !ct) -> !ct {
+        %result = openfhe.square_inplace %cc, %ct : (!openfhe.crypto_context, !ct) -> !ct
+        return %result : !ct
+      }
+}
+)mlir";
+  auto module = parse(&context, mlirStr);
+
+  Interpreter interpreter(module.get());
+  std::vector<TypedCppValue> inputs = {TypedCppValue(setup.cc),
+                                       TypedCppValue(ct)};
+  std::vector<TypedCppValue> results = interpreter.interpret("main", inputs);
+
+  auto resultCt = std::get<CiphertextT>(results[0].value);
+  Plaintext resultPt;
+  setup.cc->Decrypt(setup.keyPair.secretKey, resultCt, &resultPt);
+  resultPt->SetLength(vec.size());
+
+  auto resultVec = resultPt->GetPackedValue();
+  for (size_t i = 0; i < vec.size(); i++) {
+    EXPECT_EQ(resultVec[i], vec[i] * vec[i]);
   }
 }
 
@@ -802,7 +958,7 @@ module {
 
   Interpreter interpreter(module.get());
 
-  std::vector<int> vec = {10, 20, 30, 40};
+  std::vector<int64_t> vec = {10, 20, 30, 40};
   std::vector<TypedCppValue> inputs = {TypedCppValue(setup.cc),
                                        TypedCppValue(vec)};
   std::vector<TypedCppValue> results = interpreter.interpret("main", inputs);
@@ -903,7 +1059,7 @@ module attributes {scheme.bgv} {
 
   EXPECT_EQ(results.size(), 1);
   auto resultVec =
-      *std::get<std::shared_ptr<std::vector<int>>>(results[0].value);
+      *std::get<std::shared_ptr<std::vector<int64_t>>>(results[0].value);
   EXPECT_EQ(resultVec.size(), vec.size());
   for (size_t i = 0; i < vec.size(); i++) {
     EXPECT_EQ(resultVec[i], vec[i]);

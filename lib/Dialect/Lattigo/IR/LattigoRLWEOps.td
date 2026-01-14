@@ -132,7 +132,7 @@ def Lattigo_RLWEDropLevelNewOp : Lattigo_RLWEOp<"drop_level_new"> {
   let results = (outs Lattigo_RLWECiphertext:$output);
 }
 
-def Lattigo_RLWEDropLevelOp : Lattigo_RLWEOp<"drop_level", [InplaceOpInterface]> {
+def Lattigo_RLWEDropLevelOp : Lattigo_RLWEOp<"drop_level", [InPlaceOpInterface]> {
   let summary = "Drop level of a ciphertext";
   let description = [{
     This operation drops the level of a ciphertext
@@ -148,7 +148,7 @@ def Lattigo_RLWEDropLevelOp : Lattigo_RLWEOp<"drop_level", [InplaceOpInterface]>
   );
   let results = (outs Lattigo_RLWECiphertext:$output);
 
-  let extraClassDeclaration = "int getInplaceOperandIndex() { return 2; }";
+  let extraClassDeclaration = "int getInPlaceOperandIndex() { return 2; }";
 }
 
 def Lattigo_RLWENegateNewOp : Lattigo_RLWEOp<"negate_new"> {
@@ -160,7 +160,7 @@ def Lattigo_RLWENegateNewOp : Lattigo_RLWEOp<"negate_new"> {
   let results = (outs Lattigo_RLWECiphertext:$output);
 }
 
-def Lattigo_RLWENegateOp : Lattigo_RLWEOp<"negate", [InplaceOpInterface]> {
+def Lattigo_RLWENegateOp : Lattigo_RLWEOp<"negate", [InPlaceOpInterface]> {
   let summary = "Negate of a ciphertext";
   let description = [{
     This operation negates a ciphertext
@@ -175,7 +175,7 @@ def Lattigo_RLWENegateOp : Lattigo_RLWEOp<"negate", [InplaceOpInterface]> {
   );
   let results = (outs Lattigo_RLWECiphertext:$output);
 
-  let extraClassDeclaration = "int getInplaceOperandIndex() { return 2; }";
+  let extraClassDeclaration = "int getInPlaceOperandIndex() { return 2; }";
 }
 
 #endif  // LIB_DIALECT_LATTIGO_IR_LATTIGORLWEOPS_TD_

@@ -22,7 +22,7 @@ cc_library(
         "@heir//lib/Dialect/RNS/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Utils:TargetUtils",
-        "@heir//lib/Utils/Tablegen:InplaceOpInterface",
+        "@heir//lib/Utils/Tablegen:InPlaceOpInterface",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:ArithDialect",

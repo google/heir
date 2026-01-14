@@ -6,7 +6,7 @@
 module attributes {scheme.ckks} {
   // CHECK: test_affine_for
   // CHECK-SAME: CryptoContextT [[cc:.*]], CiphertextT [[ct:.*]]) {
-  // CHECK: MutableCiphertextT [[ct1:.*]] = [[ct]]->Clone();
+  // CHECK: CiphertextT [[ct1:.*]] = [[ct]]->Clone();
   // CHECK: for (auto [[v0:.*]] = 1; [[v0]] < 2; ++[[v0]]) {
   // CHECK:   [[ct1]] = [[cc]]->EvalRotate([[ct1]], 1);
   // CHECK: }

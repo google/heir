@@ -50,8 +50,8 @@ FailureOr<std::string> convertType(Type type, Location loc, bool constant) {
           [&](auto ty) { return std::string("CryptoContextT"); })
       .Case<CCParamsType>([&](auto ty) { return std::string("CCParamsT"); })
       .Case<CiphertextType>([&](auto ty) {
-        return constant ? std::string("CiphertextT")
-                        : std::string("MutableCiphertextT");
+        return constant ? std::string("ConstCiphertextT")
+                        : std::string("CiphertextT");
       })
       .Case<PlaintextType>([&](auto ty) { return std::string("Plaintext"); })
       .Case<openfhe::EvalKeyType>(

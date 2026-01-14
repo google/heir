@@ -62,7 +62,7 @@ cc_binary(
         "@heir//lib/Dialect/LWE/Transforms",
         "@heir//lib/Dialect/Lattigo/IR:Dialect",
         "@heir//lib/Dialect/Lattigo/Transforms",
-        "@heir//lib/Dialect/Lattigo/Transforms:AllocToInplace",
+        "@heir//lib/Dialect/Lattigo/Transforms:AllocToInPlace",
         "@heir//lib/Dialect/Lattigo/Transforms:ConfigureCryptoContext",
         "@heir//lib/Dialect/MathExt/IR:Dialect",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
@@ -243,7 +243,7 @@ cc_binary(
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Dialect/RNS/IR:Dialect",
-        "@heir//lib/Dialect/RNS/IR:RNSTypeInterfaces",
+        "@heir//lib/Dialect/RNS/IR:RNSTypeInterfaces",  # build_cleaner: keep
         "@heir//lib/Dialect/Random/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",

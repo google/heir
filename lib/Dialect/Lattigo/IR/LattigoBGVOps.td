@@ -43,7 +43,7 @@ def Lattigo_BGVNewEncoderOp : Lattigo_BGVOp<"new_encoder"> {
   let results = (outs Lattigo_BGVEncoder:$encoder);
 }
 
-def Lattigo_BGVEncodeOp : Lattigo_BGVOp<"encode", [InplaceOpInterface]> {
+def Lattigo_BGVEncodeOp : Lattigo_BGVOp<"encode", [InPlaceOpInterface]> {
   let summary = "Encode a plaintext value in the Lattigo BGV dialect";
   let description = [{
     This operation encodes a plaintext value using the specified encoder in the Lattigo BGV dialect.
@@ -60,7 +60,7 @@ def Lattigo_BGVEncodeOp : Lattigo_BGVOp<"encode", [InplaceOpInterface]> {
   );
   let results = (outs Lattigo_RLWEPlaintext:$encoded);
 
-  let extraClassDeclaration = "int getInplaceOperandIndex() { return 2; }";
+  let extraClassDeclaration = "int getInPlaceOperandIndex() { return 2; }";
 }
 
 def Lattigo_BGVDecodeOp : Lattigo_BGVOp<"decode", [AllTypesMatch<["value", "decoded"]>]> {
@@ -137,8 +137,8 @@ def Lattigo_BGVMulNewOp : Lattigo_BGVBinaryOp<"mul_new", [IncreasesMulDepthOpInt
   }];
 }
 
-class Lattigo_BGVBinaryInplaceOp<string mnemonic, list<Trait> traits = []> :
-        Lattigo_BGVOp<mnemonic, traits # [InplaceOpInterface]> {
+class Lattigo_BGVBinaryInPlaceOp<string mnemonic, list<Trait> traits = []> :
+        Lattigo_BGVOp<mnemonic, traits # [InPlaceOpInterface]> {
   let arguments = (ins
     Lattigo_BGVEvaluator:$evaluator,
     Lattigo_RLWECiphertext:$lhs,
@@ -149,10 +149,10 @@ class Lattigo_BGVBinaryInplaceOp<string mnemonic, list<Trait> traits = []> :
   );
   let results = (outs Lattigo_RLWECiphertext:$output);
 
-  let extraClassDeclaration = "int getInplaceOperandIndex() { return 3; }";
+  let extraClassDeclaration = "int getInPlaceOperandIndex() { return 3; }";
 }
 
-def Lattigo_BGVAddOp : Lattigo_BGVBinaryInplaceOp<"add"> {
+def Lattigo_BGVAddOp : Lattigo_BGVBinaryInPlaceOp<"add"> {
   let summary = "Add two ciphertexts in the Lattigo BGV dialect";
   let description = [{
     This operation adds two ciphertext values in the Lattigo BGV dialect.
@@ -162,7 +162,7 @@ def Lattigo_BGVAddOp : Lattigo_BGVBinaryInplaceOp<"add"> {
   }];
 }
 
-def Lattigo_BGVSubOp : Lattigo_BGVBinaryInplaceOp<"sub"> {
+def Lattigo_BGVSubOp : Lattigo_BGVBinaryInPlaceOp<"sub"> {
   let summary = "Subtract two ciphertexts in the Lattigo BGV dialect";
   let description = [{
     This operation subtracts one ciphertext value from another in the Lattigo BGV dialect.
@@ -172,7 +172,7 @@ def Lattigo_BGVSubOp : Lattigo_BGVBinaryInplaceOp<"sub"> {
   }];
 }
 
-def Lattigo_BGVMulOp : Lattigo_BGVBinaryInplaceOp<"mul", [IncreasesMulDepthOpInterface]> {
+def Lattigo_BGVMulOp : Lattigo_BGVBinaryInPlaceOp<"mul", [IncreasesMulDepthOpInterface]> {
   let summary = "Multiply two ciphertexts in the Lattigo BGV dialect";
   let description = [{
     This operation multiplies two ciphertext values in the Lattigo BGV dialect.
@@ -231,20 +231,20 @@ def Lattigo_BGVRotateRowsNewOp : Lattigo_BGVUnaryOp<"rotate_rows_new"> {
   }];
 }
 
-class Lattigo_BGVUnaryInplaceOp<string mnemonic> :
-        Lattigo_BGVOp<mnemonic, [InplaceOpInterface]> {
+class Lattigo_BGVUnaryInPlaceOp<string mnemonic> :
+        Lattigo_BGVOp<mnemonic, [InPlaceOpInterface]> {
   let arguments = (ins
     Lattigo_BGVEvaluator:$evaluator,
     Lattigo_RLWECiphertext:$input,
-    // see BinaryInplaceOp above
+    // see BinaryInPlaceOp above
     Lattigo_RLWECiphertext:$inplace
   );
   let results = (outs Lattigo_RLWECiphertext:$output);
 
-  let extraClassDeclaration = "int getInplaceOperandIndex() { return 2; }";
+  let extraClassDeclaration = "int getInPlaceOperandIndex() { return 2; }";
 }
 
-def Lattigo_BGVRelinearizeOp : Lattigo_BGVUnaryInplaceOp<"relinearize"> {
+def Lattigo_BGVRelinearizeOp : Lattigo_BGVUnaryInPlaceOp<"relinearize"> {
   let summary = "Relinearize a ciphertext in the Lattigo BGV dialect";
   let description = [{
     This operation relinearizes a ciphertext value in the Lattigo BGV dialect.
@@ -254,7 +254,7 @@ def Lattigo_BGVRelinearizeOp : Lattigo_BGVUnaryInplaceOp<"relinearize"> {
   }];
 }
 
-def Lattigo_BGVRescaleOp : Lattigo_BGVUnaryInplaceOp<"rescale"> {
+def Lattigo_BGVRescaleOp : Lattigo_BGVUnaryInPlaceOp<"rescale"> {
   let summary = "Rescale a ciphertext in the Lattigo BGV dialect";
   let description = [{
     This operation rescales a ciphertext value in the Lattigo BGV dialect.
@@ -264,7 +264,7 @@ def Lattigo_BGVRescaleOp : Lattigo_BGVUnaryInplaceOp<"rescale"> {
   }];
 }
 
-def Lattigo_BGVRotateColumnsOp : Lattigo_BGVUnaryInplaceOp<"rotate_columns"> {
+def Lattigo_BGVRotateColumnsOp : Lattigo_BGVUnaryInPlaceOp<"rotate_columns"> {
   let summary = "Rotate columns of a ciphertext in the Lattigo BGV dialect";
   let description = [{
     This operation rotates the columns of a ciphertext value in the Lattigo BGV dialect.
@@ -285,7 +285,7 @@ def Lattigo_BGVRotateColumnsOp : Lattigo_BGVUnaryInplaceOp<"rotate_columns"> {
   let results = (outs Lattigo_RLWECiphertext:$output);
 }
 
-def Lattigo_BGVRotateRowsOp : Lattigo_BGVUnaryInplaceOp<"rotate_rows"> {
+def Lattigo_BGVRotateRowsOp : Lattigo_BGVUnaryInPlaceOp<"rotate_rows"> {
   let summary = "Rotate rows of a ciphertext in the Lattigo BGV dialect";
   let description = [{
     This operation swap the rows of a ciphertext value in the Lattigo BGV dialect.

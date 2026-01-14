@@ -3,7 +3,7 @@
 
 include "mlir/IR/Interfaces.td"
 
-def InplaceOpInterface: OpInterface<"InplaceOpInterface"> {
+def InPlaceOpInterface: OpInterface<"InPlaceOpInterface"> {
   let cppNamespace = "::mlir::heir";
 
   let description = [{
@@ -14,7 +14,7 @@ def InplaceOpInterface: OpInterface<"InplaceOpInterface"> {
     InterfaceMethod<
       /*description=*/"Return the inplace operand for this op.",
       /*retTy=*/"int",
-      /*methodName=*/"getInplaceOperandIndex"
+      /*methodName=*/"getInPlaceOperandIndex"
     >,
   ];
 }

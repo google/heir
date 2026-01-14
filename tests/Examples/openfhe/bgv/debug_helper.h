@@ -6,7 +6,7 @@
 
 #include "src/pke/include/openfhe.h"  // from @openfhe
 
-using CiphertextT = lbcrypto::ConstCiphertext<lbcrypto::DCRTPoly>;
+using CiphertextT = lbcrypto::Ciphertext<lbcrypto::DCRTPoly>;
 using CryptoContextT = lbcrypto::CryptoContext<lbcrypto::DCRTPoly>;
 using PrivateKeyT = lbcrypto::PrivateKey<lbcrypto::DCRTPoly>;
 

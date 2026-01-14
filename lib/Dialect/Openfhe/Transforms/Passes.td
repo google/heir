@@ -81,4 +81,12 @@ def FastRotationPrecompute : Pass<"openfhe-fast-rotation-precompute"> {
   }];
 }
 
+def AllocToInPlace : Pass<"openfhe-alloc-to-inplace"> {
+  let summary = "Utilize OpenFHE's in-place operations when possible";
+  let description = [{
+    This pass converts OpenFHE ops that return new ciphertexts to in-place ops.
+  }];
+  let dependentDialects = ["mlir::heir::openfhe::OpenfheDialect"];
+}
+
 #endif  // LIB_DIALECT_OPENFHE_TRANSFORMS_PASSES_TD_

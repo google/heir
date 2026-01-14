@@ -48,7 +48,7 @@ std::string getWeightsPrelude();
 /// Convert a type to a string, using a const specifier if constant is true.
 ::mlir::FailureOr<std::string> convertType(::mlir::Type type,
                                            ::mlir::Location loc,
-                                           bool constant = true);
+                                           bool constant = false);
 
 /// Find the CryptoContext SSA value in the input operation's parent func
 /// arguments.

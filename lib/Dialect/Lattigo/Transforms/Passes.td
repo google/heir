@@ -3,10 +3,10 @@
 
 include "mlir/Pass/PassBase.td"
 
-def AllocToInplace : Pass<"lattigo-alloc-to-inplace"> {
-  let summary = "Convert AllocOps to InplaceOps in Lattigo";
+def AllocToInPlace : Pass<"lattigo-alloc-to-inplace"> {
+  let summary = "Convert AllocOps to InPlaceOps in Lattigo";
   let description = [{
-    This pass converts AllocOps to InplaceOps in Lattigo.
+    This pass converts AllocOps to InPlaceOps in Lattigo.
 
   }];
   let dependentDialects = ["mlir::heir::lattigo::LattigoDialect"];

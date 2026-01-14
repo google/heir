@@ -20,6 +20,7 @@
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
 #include "src/pke/include/openfhe.h"                     // from @openfhe
 
 namespace mlir {
@@ -42,7 +43,7 @@ struct TypedCppValue {
       int,                                        // INT
       float,                                      // FLOAT
       double,                                     // DOUBLE
-      std::shared_ptr<std::vector<int>>,          // INT_VECTOR
+      std::shared_ptr<std::vector<int64_t>>,      // INT_VECTOR
       std::shared_ptr<std::vector<float>>,        // FLOAT_VECTOR
       std::shared_ptr<std::vector<double>>,       // DOUBLE_VECTOR
       PlaintextT,                                 // PLAINTEXT
@@ -64,9 +65,11 @@ struct TypedCppValue {
   TypedCppValue(int v) : value(v) {}
   TypedCppValue(float v) : value(v) {}
   TypedCppValue(double v) : value(v) {}
+  TypedCppValue(int64_t v) : value(static_cast<int>(v)) {}
 
   // Constructors for shared_ptr (preferred - no copy)
-  TypedCppValue(std::shared_ptr<std::vector<int>> v) : value(std::move(v)) {}
+  TypedCppValue(std::shared_ptr<std::vector<int64_t>> v)
+      : value(std::move(v)) {}
   TypedCppValue(std::shared_ptr<std::vector<float>> v) : value(std::move(v)) {}
   TypedCppValue(std::shared_ptr<std::vector<double>> v) : value(std::move(v)) {}
   TypedCppValue(std::shared_ptr<std::vector<PlaintextT>> v)
@@ -75,10 +78,10 @@ struct TypedCppValue {
       : value(std::move(v)) {}
 
   // Convenience constructors for raw vectors (wraps in shared_ptr)
-  TypedCppValue(const std::vector<int>& v)
-      : value(std::make_shared<std::vector<int>>(v)) {}
-  TypedCppValue(std::vector<int>&& v)
-      : value(std::make_shared<std::vector<int>>(std::move(v))) {}
+  TypedCppValue(const std::vector<int64_t>& v)
+      : value(std::make_shared<std::vector<int64_t>>(v)) {}
+  TypedCppValue(std::vector<int64_t>&& v)
+      : value(std::make_shared<std::vector<int64_t>>(std::move(v))) {}
   TypedCppValue(const std::vector<float>& v)
       : value(std::make_shared<std::vector<float>>(v)) {}
   TypedCppValue(std::vector<float>&& v)
@@ -155,7 +158,9 @@ class Interpreter {
   void visit(affine::AffineYieldOp op);
 
   // OpenFHE ops
+  void visit(AddInPlaceOp op);
   void visit(AddOp op);
+  void visit(AddPlainInPlaceOp op);
   void visit(AddPlainOp op);
   void visit(AutomorphOp op);
   void visit(BootstrapOp op);
@@ -170,21 +175,30 @@ class Interpreter {
   void visit(GenMulKeyOp op);
   void visit(GenParamsOp op);
   void visit(GenRotKeyOp op);
+  void visit(KeySwitchInPlaceOp op);
   void visit(KeySwitchOp op);
+  void visit(LevelReduceInPlaceOp op);
   void visit(LevelReduceOp op);
   void visit(MakeCKKSPackedPlaintextOp op);
   void visit(MakePackedPlaintextOp op);
+  void visit(ModReduceInPlaceOp op);
   void visit(ModReduceOp op);
+  void visit(MulConstInPlaceOp op);
   void visit(MulConstOp op);
   void visit(MulNoRelinOp op);
   void visit(MulOp op);
   void visit(MulPlainOp op);
+  void visit(NegateInPlaceOp op);
   void visit(NegateOp op);
+  void visit(RelinInPlaceOp op);
   void visit(RelinOp op);
   void visit(RotOp op);
   void visit(SetupBootstrapOp op);
+  void visit(SquareInPlaceOp op);
   void visit(SquareOp op);
+  void visit(SubInPlaceOp op);
   void visit(SubOp op);
+  void visit(SubPlainInPlaceOp op);
   void visit(SubPlainOp op);
 
   int getFlattenedTensorIndex(Value tensor, ValueRange indices);
@@ -210,7 +224,7 @@ class Interpreter {
   llvm::DenseMap<Value, double> doubleValues;
 
   // Vectors stored as shared_ptr to avoid expensive copying
-  llvm::DenseMap<Value, std::shared_ptr<std::vector<int>>> intVectors;
+  llvm::DenseMap<Value, std::shared_ptr<std::vector<int64_t>>> intVectors;
   llvm::DenseMap<Value, std::shared_ptr<std::vector<float>>> floatVectors;
   llvm::DenseMap<Value, std::shared_ptr<std::vector<double>>> doubleVectors;
 

@@ -190,3 +190,18 @@ cc_library(
         "@llvm-project//mlir:TensorDialect",
     ],
 )
+
+cc_library(
+    name = "AllocToInPlaceUtils",
+    # avoid http://go/cpp-features#layering_check with an empty cpp file
+    srcs = ["AllocToInPlaceUtils.cpp"],
+    hdrs = ["AllocToInPlaceUtils.h"],
+    deps = [
+        "@heir//lib/Utils/Tablegen:InPlaceOpInterface",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)

@@ -9,19 +9,19 @@ package(
 td_library(
     name = "td_files",
     srcs = [
-        "InplaceOpInterface.td",
+        "InPlaceOpInterface.td",
     ],
     # include from the heir-root to enable fully-qualified include-paths
     includes = ["../../../.."],
 )
 
 cc_library(
-    name = "InplaceOpInterface",
+    name = "InPlaceOpInterface",
     srcs = [
-        "InplaceOpInterface.cpp",
+        "InPlaceOpInterface.cpp",
     ],
     hdrs = [
-        "InplaceOpInterface.h",
+        "InPlaceOpInterface.h",
     ],
     deps = [
         ":inplace_op_interface_inc_gen",
@@ -32,12 +32,12 @@ cc_library(
 gentbl_cc_library(
     name = "inplace_op_interface_inc_gen",
     tbl_outs = {
-        "InplaceOpInterface.h.inc": ["--gen-op-interface-decls"],
-        "InplaceOpInterface.cpp.inc": ["--gen-op-interface-defs"],
-        "InplaceOpInterface.md": ["-gen-op-interface-docs"],
+        "InPlaceOpInterface.h.inc": ["--gen-op-interface-decls"],
+        "InPlaceOpInterface.cpp.inc": ["--gen-op-interface-defs"],
+        "InPlaceOpInterface.md": ["-gen-op-interface-docs"],
     },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "InplaceOpInterface.td",
+    td_file = "InPlaceOpInterface.td",
     deps = [
         "@llvm-project//mlir:BuiltinDialectTdFiles",
     ],

@@ -1178,19 +1178,19 @@ LogicalResult LattigoEmitter::printOperation(BGVMulNewOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(BGVAddOp op) {
-  return printEvalInplaceMethod(op.getEvaluator(),
+  return printEvalInPlaceMethod(op.getEvaluator(),
                                 {op.getLhs(), op.getRhs(), op.getInplace()},
                                 "Add", true);
 }
 
 LogicalResult LattigoEmitter::printOperation(BGVSubOp op) {
-  return printEvalInplaceMethod(op.getEvaluator(),
+  return printEvalInPlaceMethod(op.getEvaluator(),
                                 {op.getLhs(), op.getRhs(), op.getInplace()},
                                 "Sub", true);
 }
 
 LogicalResult LattigoEmitter::printOperation(BGVMulOp op) {
-  return printEvalInplaceMethod(op.getEvaluator(),
+  return printEvalInPlaceMethod(op.getEvaluator(),
                                 {op.getLhs(), op.getRhs(), op.getInplace()},
                                 "Mul", true);
 }
@@ -1204,7 +1204,7 @@ LogicalResult LattigoEmitter::printOperation(BGVRescaleNewOp op) {
   // there is no RescaleNew method in Lattigo, manually create new ciphertext
   os << getName(op.getOutput()) << " := " << getName(op.getInput())
      << ".CopyNew()\n";
-  return printEvalInplaceMethod(
+  return printEvalInPlaceMethod(
       op.getEvaluator(), {op.getInput(), op.getOutput()}, "Rescale", true);
 }
 
@@ -1224,12 +1224,12 @@ LogicalResult LattigoEmitter::printOperation(BGVRotateRowsNewOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(BGVRelinearizeOp op) {
-  return printEvalInplaceMethod(
+  return printEvalInPlaceMethod(
       op.getEvaluator(), {op.getInput(), op.getInplace()}, "Relinearize", true);
 }
 
 LogicalResult LattigoEmitter::printOperation(BGVRescaleOp op) {
-  return printEvalInplaceMethod(
+  return printEvalInPlaceMethod(
       op.getEvaluator(), {op.getInput(), op.getInplace()}, "Rescale", true);
 }
 
@@ -1244,7 +1244,7 @@ LogicalResult LattigoEmitter::printOperation(BGVRotateColumnsOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(BGVRotateRowsOp op) {
-  return printEvalInplaceMethod(
+  return printEvalInPlaceMethod(
       op.getEvaluator(), {op.getInput(), op.getInplace()}, "RotateRows", true);
 }
 
@@ -1414,19 +1414,19 @@ LogicalResult LattigoEmitter::printOperation(CKKSMulNewOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(CKKSAddOp op) {
-  return printEvalInplaceMethod(op.getEvaluator(),
+  return printEvalInPlaceMethod(op.getEvaluator(),
                                 {op.getLhs(), op.getRhs(), op.getInplace()},
                                 "Add", true);
 }
 
 LogicalResult LattigoEmitter::printOperation(CKKSSubOp op) {
-  return printEvalInplaceMethod(op.getEvaluator(),
+  return printEvalInPlaceMethod(op.getEvaluator(),
                                 {op.getLhs(), op.getRhs(), op.getInplace()},
                                 "Sub", true);
 }
 
 LogicalResult LattigoEmitter::printOperation(CKKSMulOp op) {
-  return printEvalInplaceMethod(op.getEvaluator(),
+  return printEvalInPlaceMethod(op.getEvaluator(),
                                 {op.getLhs(), op.getRhs(), op.getInplace()},
                                 "Mul", true);
 }
@@ -1440,7 +1440,7 @@ LogicalResult LattigoEmitter::printOperation(CKKSRescaleNewOp op) {
   // there is no RescaleNew method in Lattigo, manually create new ciphertext
   os << getName(op.getOutput()) << " := " << getName(op.getInput())
      << ".CopyNew()\n";
-  return printEvalInplaceMethod(
+  return printEvalInPlaceMethod(
       op.getEvaluator(), {op.getInput(), op.getOutput()}, "Rescale", true);
 }
 
@@ -1455,12 +1455,12 @@ LogicalResult LattigoEmitter::printOperation(CKKSRotateNewOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(CKKSRelinearizeOp op) {
-  return printEvalInplaceMethod(
+  return printEvalInPlaceMethod(
       op.getEvaluator(), {op.getInput(), op.getInplace()}, "Relinearize", true);
 }
 
 LogicalResult LattigoEmitter::printOperation(CKKSRescaleOp op) {
-  return printEvalInplaceMethod(
+  return printEvalInPlaceMethod(
       op.getEvaluator(), {op.getInput(), op.getInplace()}, "Rescale", true);
 }
 
@@ -1635,7 +1635,7 @@ LogicalResult LattigoEmitter::printNewMethod(::mlir::Value result,
   return success();
 }
 
-LogicalResult LattigoEmitter::printEvalInplaceMethod(
+LogicalResult LattigoEmitter::printEvalInPlaceMethod(
     ::mlir::Value evaluator, ::mlir::ValueRange operands, std::string_view op,
     bool err) {
   std::string errName = getErrName();

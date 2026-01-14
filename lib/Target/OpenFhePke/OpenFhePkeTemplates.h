@@ -20,8 +20,8 @@ constexpr std::string_view kEmbeddedOpenfheImport = R"cpp(
 // clang-format off
 constexpr std::string_view kModulePreludeTemplate = R"cpp(
 using namespace lbcrypto;
-using CiphertextT = ConstCiphertext<DCRTPoly>;
-using MutableCiphertextT = Ciphertext<DCRTPoly>;
+using CiphertextT = Ciphertext<DCRTPoly>;
+using ConstCiphertextT = ConstCiphertext<DCRTPoly>;
 using CCParamsT = CCParams<CryptoContext{0}RNS>;
 using CryptoContextT = CryptoContext<DCRTPoly>;
 using EvalKeyT = EvalKey<DCRTPoly>;

@@ -66,10 +66,12 @@ cc_library(
     deps = [
         ":OpenFheUtils",
         "@cereal",
+        "@heir//lib/Analysis/Cpp:ConstQualifierAnalysis",
         "@heir//lib/Analysis/SelectVariableNames",
         "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
         "@heir//lib/Utils:TargetUtils",
+        "@heir//lib/Utils/Tablegen:InPlaceOpInterface",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:ArithDialect",

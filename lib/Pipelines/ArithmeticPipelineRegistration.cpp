@@ -8,8 +8,9 @@
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h"
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
 #include "lib/Dialect/LWE/Transforms/AddDebugPort.h"
-#include "lib/Dialect/Lattigo/Transforms/AllocToInplace.h"
+#include "lib/Dialect/Lattigo/Transforms/AllocToInPlace.h"
 #include "lib/Dialect/Lattigo/Transforms/ConfigureCryptoContext.h"
+#include "lib/Dialect/Openfhe/Transforms/AllocToInPlace.h"
 #include "lib/Dialect/Openfhe/Transforms/ConfigureCryptoContext.h"
 #include "lib/Dialect/Openfhe/Transforms/CountAddAndKeySwitch.h"
 #include "lib/Dialect/Openfhe/Transforms/FastRotationPrecompute.h"
@@ -442,8 +443,6 @@ BackendPipelineBuilder toOpenFhePipelineBuilder() {
 
     // Convert LWE (and scheme-specific CKKS/BGV ops) to OpenFHE
     pm.addPass(lwe::createLWEToOpenfhe());
-
-    // Simplify, in case the lowering revealed redundancy
     pm.addPass(createCanonicalizerPass());
     pm.addPass(createCSEPass());
 
@@ -455,8 +454,8 @@ BackendPipelineBuilder toOpenFhePipelineBuilder() {
     pm.addPass(
         openfhe::createConfigureCryptoContext(configureCryptoContextOptions));
 
-    // Hoist repeated rotations into EvalFastRotation(Precompute)
     pm.addPass(openfhe::createFastRotationPrecompute());
+    pm.addPass(openfhe::createAllocToInPlace());
   };
 }
 
@@ -477,8 +476,8 @@ BackendPipelineBuilder toLattigoPipelineBuilder() {
     // Convert LWE (and scheme-specific BGV ops) to Lattigo
     pm.addPass(lwe::createLWEToLattigo());
 
-    // Convert Alloc Ops to Inplace Ops
-    pm.addPass(lattigo::createAllocToInplace());
+    // Convert Alloc Ops to InPlace Ops
+    pm.addPass(lattigo::createAllocToInPlace());
 
     // Simplify, in case the lowering revealed redundancy
     pm.addPass(createCanonicalizerPass());

@@ -88,7 +88,7 @@ LogicalResult OpenFhePkeHeaderEmitter::printOperation(func::FuncOp funcOp) {
 }
 
 LogicalResult OpenFhePkeHeaderEmitter::emitType(Type type, Location loc) {
-  auto result = convertType(type, loc);
+  auto result = convertType(type, loc, /*constant=*/false);
   if (failed(result)) {
     return failure();
   }

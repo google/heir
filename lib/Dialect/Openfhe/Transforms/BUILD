@@ -12,11 +12,30 @@ cc_library(
         "Passes.h",
     ],
     deps = [
+        ":AllocToInPlace",
         ":ConfigureCryptoContext",
         ":CountAddAndKeySwitch",
         ":FastRotationPrecompute",
         ":pass_inc_gen",
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
+    ],
+)
+
+cc_library(
+    name = "AllocToInPlace",
+    srcs = ["AllocToInPlace.cpp"],
+    hdrs = ["AllocToInPlace.h"],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Dialect/Openfhe/IR:Dialect",
+        "@heir//lib/Utils:AllocToInPlaceUtils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TransformUtils",
     ],
 )
 

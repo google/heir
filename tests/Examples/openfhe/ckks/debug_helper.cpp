@@ -60,7 +60,7 @@ void __heir_debug(CryptoContextT cc, PrivateKeyT sk, CiphertextT ct,
   if (isBlockArgument == "1") {
     std::cout << "Input" << std::endl;
   } else {
-    std::cout << debugAttrMap.at("asm.op_name") << std::endl;
+    std::cout << debugAttrMap.at("asm.result_ssa_format") << std::endl;
   }
 #endif
 
@@ -69,9 +69,16 @@ void __heir_debug(CryptoContextT cc, PrivateKeyT sk, CiphertextT ct,
   cc->Decrypt(sk, ct, &ptxt);
   ptxt->SetLength(std::stod(debugAttrMap.at("message.size")));
   std::vector<double> result;
+  result.reserve(ptxt->GetLength());
   for (size_t i = 0; i < ptxt->GetLength(); i++) {
     result.push_back(ptxt->GetRealPackedValue()[i]);
   }
+
+  std::cout << "  Decrypted: [";
+  for (double val : result) {
+    std::cout << std::setprecision(3) << val << ", ";
+  }
+  std::cout << "]\n";
 
   // print the scale
   std::cout << "  Scale: " << log2(ct->GetScalingFactor()) << std::endl;
@@ -79,6 +86,8 @@ void __heir_debug(CryptoContextT cc, PrivateKeyT sk, CiphertextT ct,
 #ifdef PRECISION
   if (debugAttrMap.find("secret.execution_result") != debugAttrMap.end()) {
     auto plaintextResultStr = debugAttrMap.at("secret.execution_result");
+    std::cout << "  Expected: " << plaintextResultStr << "\n";
+
     // plaintextResultStr has the form "[1.0, 2.0, 3.0]", parse it into vector
     // of double
     std::vector<double> plaintextResult;

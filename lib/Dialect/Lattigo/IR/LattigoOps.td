@@ -4,7 +4,7 @@
 include "LattigoDialect.td"
 include "LattigoTypes.td"
 include "mlir/IR/OpBase.td"
-include "lib/Utils/Tablegen/InplaceOpInterface.td"
+include "lib/Utils/Tablegen/InPlaceOpInterface.td"
 
 class Lattigo_Op<string mnemonic, list<Trait> traits = []> :
         Op<Lattigo_Dialect, mnemonic, traits> {
