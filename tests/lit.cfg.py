@@ -30,13 +30,15 @@ config.suffixes = [".mlir", ".v"]
 
 runfiles_dir = Path(os.environ["RUNFILES_DIR"])
 
-mlir_tools_relpath = "llvm-project/mlir"
+llvm_project_canonical_name = "+_repo_rules+llvm-project"
+mlir_tools_relpath = llvm_project_canonical_name + "/mlir"
+llvm_tools_relpath = llvm_project_canonical_name + "/llvm"
 mlir_tools_path = runfiles_dir.joinpath(Path(mlir_tools_relpath))
 tool_relpaths = [
     mlir_tools_relpath,
+    llvm_tools_relpath,
     "_main/tools",
     "_main/tests/Emitter/verilog",
-    "llvm-project/llvm",
     "at_clifford_yosys",
 ]
 
