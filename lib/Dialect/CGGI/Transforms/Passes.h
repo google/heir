@@ -2,7 +2,6 @@
 #define LIB_DIALECT_CGGI_TRANSFORMS_PASSES_H_
 
 #include "lib/Dialect/CGGI/IR/CGGIDialect.h"
-#include "lib/Dialect/CGGI/Transforms/BooleanVectorizer.h"
 #include "lib/Dialect/CGGI/Transforms/DecomposeOperations.h"
 
 namespace mlir {

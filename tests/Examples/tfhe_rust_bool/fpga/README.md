@@ -29,7 +29,7 @@ if you overrode the default option when installing Cargo.
 Manually generate the Rust code for the CGGI lowering:
 
 ```bash
-  bazel run //tools:heir-opt -- -cse --cggi-boolean-vectorize --cggi-to-tfhe-rust-bool -cse $(pwd)/tests/Examples/tfhe_rust_bool/fpga/test_cggi_add_bool.mlir | bazel run //tools:heir-translate -- --emit-tfhe-rust-bool-packed
+  bazel run //tools:heir-opt -- -cse --boolean-vectorize --cggi-to-tfhe-rust-bool -cse $(pwd)/tests/Examples/tfhe_rust_bool/fpga/test_cggi_add_bool.mlir | bazel run //tools:heir-translate -- --emit-tfhe-rust-bool-packed
 ```
 
 The `manual` tag is added to the targets in this directory to ensure that they

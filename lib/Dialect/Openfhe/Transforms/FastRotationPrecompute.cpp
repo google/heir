@@ -10,6 +10,7 @@
 #include "llvm/include/llvm/ADT/SmallVector.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/DebugLog.h"         // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"          // from @llvm-project
@@ -68,7 +69,9 @@ void processFunc(func::FuncOp funcOp, Value cryptoContext) {
       int cyclotomicOrder = 0;
       auto fastRot = FastRotationOp::create(
           builder, op->getLoc(), op.getType(), op.getCryptoContext(),
-          op.getCiphertext(), op.getIndex(),
+          op.getCiphertext(),
+          arith::ConstantIndexOp::create(
+              builder, op->getLoc(), op.getIndex().getValue().getSExtValue()),
           builder.getIndexAttr(cyclotomicOrder), precomputeOp.getResult());
       builder.replaceOp(op, fastRot);
     }

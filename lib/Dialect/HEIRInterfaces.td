@@ -104,6 +104,54 @@ def ElementwiseByOperandOpInterface : OpInterface<"ElementwiseByOperandOpInterfa
   }];
 }
 
+def BatchVectorizableOpInterface : OpInterface<"BatchVectorizableOpInterface"> {
+  let cppNamespace = "::mlir::heir";
+  let description = [{
+    An interface that identifies the operation to be batched, and specifies the
+    conditions under which it can be batched with other operations and what
+    batched operation it will be transformed into. This interface is used to
+    support operations in the `batch-vectorize` pass.
+
+    This interface is required to be on operations with the ElementwiseMappable
+    or ElementwiseByOperandOpInterface. These interface determine which operands
+    to map elementwise (or keep as wholesale scalars).
+  }];
+
+    let cppNamespace = "::mlir::heir";
+  let description = [{
+    An interface that signals which operands require a layout for
+    implementation with an FHE kernel. This may also depend on whether
+    the operand is secret.
+
+    By default, all operands require a layout, even cleartext operands.
+  }];
+
+  let methods = [
+    InterfaceMethod<
+      /*desc=*/"Return true if the operation is compatible for batching with this",
+      /*retTy=*/"bool",
+      /*methodName=*/"isBatchCompatible",
+      /*args=*/(ins "::mlir::Operation *":$rhs),
+      /*body=*/[{}],
+      /*defaultImplementation=*/[{
+        ::mlir::Operation *lhs = $_op;
+        return (lhs->getDialect() == rhs->getDialect() &&
+            lhs->getResultTypes() == rhs->getResultTypes() &&
+            lhs->getNumOperands() == rhs->getNumOperands());
+      }]
+    >,
+    InterfaceMethod<
+      /*desc=*/"Return the batched operation given a list of batchable operations",
+      /*retTy=*/"FailureOr<::mlir::Operation *>",
+      /*methodName=*/"buildBatchedOperation",
+      /*args=*/(ins "::mlir::MLIRContext *":$context,
+                    "::mlir::OpBuilder &":$builder,
+                    "::mlir::SmallVector<::mlir::Value>":$vectorizedOperands,
+                    "::mlir::SmallVector<::mlir::Operation*>":$operations)
+    >,
+  ];
+}
+
 def LayoutConversionHoistableOpInterface : OpInterface<"LayoutConversionHoistableOpInterface"> {
   let cppNamespace = "::mlir::heir";
   let description = [{

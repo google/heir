@@ -62,6 +62,7 @@
 #include "lib/Transforms/AnnotateMulDepth/AnnotateMulDepth.h"
 #include "lib/Transforms/AnnotateSecretness/AnnotateSecretness.h"
 #include "lib/Transforms/ApplyFolders/ApplyFolders.h"
+#include "lib/Transforms/BooleanVectorizer/BooleanVectorizer.h"
 #include "lib/Transforms/CompareToSignRewrite/CompareToSignRewrite.h"
 #include "lib/Transforms/ConvertIfToSelect/ConvertIfToSelect.h"
 #include "lib/Transforms/ConvertSecretExtractToStaticExtract/ConvertSecretExtractToStaticExtract.h"
@@ -287,6 +288,7 @@ int main(int argc, char** argv) {
   registerAnnotateSecretnessPasses();
   registerAnnotateMulDepthPasses();
   registerApplyFoldersPasses();
+  registerBooleanVectorizerPasses();
   registerFoldPlaintextMasksPasses();
   registerForwardInsertSliceToExtractSlicePasses();
   registerForwardInsertToExtractPasses();

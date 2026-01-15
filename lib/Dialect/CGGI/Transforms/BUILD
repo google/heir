@@ -13,33 +13,9 @@ cc_library(
         "Passes.h",
     ],
     deps = [
-        ":BooleanVectorizer",
         ":DecomposeOperations",
         ":pass_inc_gen",
         "@heir//lib/Dialect/CGGI/IR:Dialect",
-    ],
-)
-
-cc_library(
-    name = "BooleanVectorizer",
-    srcs = ["BooleanVectorizer.cpp"],
-    hdrs = [
-        "BooleanVectorizer.h",
-    ],
-    deps = [
-        ":pass_inc_gen",
-        "@heir//lib/Dialect/CGGI/IR:Dialect",
-        "@heir//lib/Dialect/LWE/IR:Dialect",
-        "@heir//lib/Utils/Graph",
-        "@llvm-project//llvm:Support",
-        "@llvm-project//mlir:Analysis",
-        "@llvm-project//mlir:ArithDialect",
-        "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:Pass",
-        "@llvm-project//mlir:Support",
-        "@llvm-project//mlir:TensorDialect",
-        "@llvm-project//mlir:TransformUtils",
-        "@llvm-project//mlir:Transforms",
     ],
 )
 

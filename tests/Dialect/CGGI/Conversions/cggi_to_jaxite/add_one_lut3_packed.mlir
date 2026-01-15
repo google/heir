@@ -1,4 +1,4 @@
-// RUN: heir-opt --cggi-boolean-vectorize=parallelism=4 -cse  --cggi-to-jaxite -cse -canonicalize -remove-dead-values %s | FileCheck %s
+// RUN: heir-opt --boolean-vectorize=parallelism=4 -cse  --cggi-to-jaxite -cse -canonicalize -remove-dead-values %s | FileCheck %s
 
 #key = #lwe.key<slot_index = 0>
 #preserve_overflow = #lwe.preserve_overflow<>

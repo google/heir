@@ -1,4 +1,4 @@
-// RUN: heir-opt --cggi-boolean-vectorize -cse %s | FileCheck %s
+// RUN: heir-opt --boolean-vectorize -cse %s | FileCheck %s
 
 #key = #lwe.key<slot_index = 0>
 #preserve_overflow = #lwe.preserve_overflow<>

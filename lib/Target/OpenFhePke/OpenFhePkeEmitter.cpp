@@ -761,10 +761,15 @@ LogicalResult OpenFhePkeEmitter::printOperation(FastRotationPrecomputeOp op) {
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(FastRotationOp op) {
+  auto getConstantOrValue = [&](Value value) -> std::string {
+    return getStringForConstant(value).value_or(
+        variableNames->getNameForValue(value));
+  };
+
   emitAutoAssignPrefix(op.getResult());
   os << variableNames->getNameForValue(op.getCryptoContext()) << "->"
      << "EvalFastRotation(" << variableNames->getNameForValue(op.getInput())
-     << ", " << op.getIndex().getZExtValue() << ", "
+     << ", " << getConstantOrValue(op.getIndex()) << ", "
      << "2 * cc->GetRingDimension(), "
      << variableNames->getNameForValue(op.getPrecomputedDigitDecomp())
      << ");\n";

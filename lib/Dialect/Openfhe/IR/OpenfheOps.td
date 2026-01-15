@@ -451,12 +451,18 @@ def FastRotationPrecomputeOp : Openfhe_Op<"fast_rotation_precompute", [Pure]> {
 
 // TODO(#2519): support the "Ext" variant for hybrid key switching.
 def FastRotationOp : Openfhe_Op<"fast_rotation", [Pure,
-   AllTypesMatch<["input", "output"]>
+  AllTypesMatch<["input", "output"]>,
+  BatchVectorizableOpInterface,
+  // The operation also supports batching many rotations of the same input.
+  DeclareOpInterfaceMethods<ElementwiseByOperandOpInterface>,
+  DeclareOpInterfaceMethods<
+      BatchVectorizableOpInterface,
+      ["isBatchCompatible", "buildBatchedOperation"]>
 ]> {
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
     Openfhe_Ciphertext:$input,
-    IndexAttr:$index,
+    Index:$index,
     IndexAttr:$cyclotomicOrder,
     Openfhe_DigitDecomposition:$precomputedDigitDecomp
   );

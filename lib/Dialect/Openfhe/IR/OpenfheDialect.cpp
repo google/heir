@@ -6,7 +6,8 @@
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
 
 // IWYU pragma: begin_keep
-#include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"    // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"  // from @llvm-project
 // IWYU pragma: end_keep
 
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.cpp.inc"

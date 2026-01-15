@@ -1799,7 +1799,7 @@ void Interpreter::visit(SetupBootstrapOp op) {
 void Interpreter::visit(FastRotationOp op) {
   auto cc = cryptoContexts.at(op.getCryptoContext());
   auto ct = ciphertexts.at(op.getInput());
-  auto index = op.getIndex().getZExtValue();
+  auto index = intValues.at(op.getIndex());
   auto digits = fastRotPrecomps.at(op.getPrecomputedDigitDecomp());
   auto m = 2 * cc->GetRingDimension();
   TIME_OPERATION("FastRotation", op.getResult(),

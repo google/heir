@@ -27,6 +27,7 @@ namespace heir {
 /// Returns true if the two operations can be combined into a single vectorized
 /// operation.
 bool areCompatible(Operation* lhs, Operation* rhs) {
+  if (lhs->getDialect() != rhs->getDialect()) return false;
   if (lhs->getName() != rhs->getName() ||
       lhs->getDialect() != rhs->getDialect() ||
       lhs->getResultTypes() != rhs->getResultTypes() ||

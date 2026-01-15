@@ -361,14 +361,16 @@ module attributes {scheme.ckks} {
 // CHECK: CiphertextT test_fast_rot(
 // CHECK-SAME:    CryptoContextT [[CC:[^,]*]],
 // CHECK-SAME:    CiphertextT [[ARG1:[^,]*]]) {
+// CHECK-NEXT:      size_t [[v0:.*]] = 4;
 // CHECK-NEXT:      const auto& [[v3:.*]] = [[CC]]->EvalFastRotationPrecompute([[ARG1]]);
 // CHECK-NEXT:      const auto& [[v4:.*]] = [[CC]]->EvalFastRotation([[ARG1]], 4, 2 * [[CC]]->GetRingDimension(), [[v3]]);
 // CHECK-NEXT:      return [[v4]];
 // CHECK-NEXT:  }
 module attributes {scheme.ckks} {
   func.func @test_fast_rot(%cc: !cc, %input1: !ct) -> !ct {
+    %c4 = arith.constant 4 : index
     %precomp = openfhe.fast_rotation_precompute %cc, %input1 : (!cc, !ct) -> !openfhe.digit_decomp
-    %res = openfhe.fast_rotation %cc, %input1, %precomp {index = 4 : index, cyclotomicOrder = 64 : index} : (!cc, !ct, !openfhe.digit_decomp) -> !ct
+    %res = openfhe.fast_rotation %cc, %input1, %c4, %precomp {cyclotomicOrder = 64 : index} : (!cc, !ct, index, !openfhe.digit_decomp) -> !ct
     return %res : !ct
   }
 }

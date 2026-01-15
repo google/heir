@@ -2,13 +2,18 @@
  * BOOL OPERATIONS *
  *******************/
 
+include "lib/Dialect/HEIRInterfaces.td"
+
 class CGGI_BinaryOp<string mnemonic>
   : CGGI_Op<mnemonic, [
     Pure,
     Commutative,
     SameOperandsAndResultType,
     ElementwiseMappable,
-    Scalarizable
+    Scalarizable,
+    DeclareOpInterfaceMethods<
+      BatchVectorizableOpInterface,
+      ["isBatchCompatible", "buildBatchedOperation"]>
 ]> {
   let arguments = (ins LWECiphertextLike:$lhs, LWECiphertextLike:$rhs);
   let results = (outs LWECiphertextLike:$output);
@@ -29,7 +34,10 @@ def CGGI_NotOp : CGGI_Op<"not", [
     Involution,
     SameOperandsAndResultType,
     ElementwiseMappable,
-    Scalarizable
+    Scalarizable,
+    DeclareOpInterfaceMethods<
+      BatchVectorizableOpInterface,
+      ["isBatchCompatible", "buildBatchedOperation"]>
 ]> {
   let arguments = (ins LWECiphertextLike:$input);
   let results = (outs LWECiphertextLike:$output);

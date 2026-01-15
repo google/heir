@@ -3,8 +3,12 @@
 #include <cstdint>
 #include <optional>
 
+#include "lib/Dialect/CGGI/IR/CGGIAttributes.h"
+#include "lib/Dialect/CGGI/IR/CGGIEnums.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "mlir/include/mlir/IR/Builders.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"       // from @llvm-project
@@ -129,6 +133,180 @@ LogicalResult MultiLutLinCombOp::verify() {
   }
 
   return success();
+}
+
+FailureOr<PackedOp> buildBatchedBooleanGateOperation(
+    MLIRContext* context, OpBuilder& builder, Operation* key,
+    SmallVector<Value> vectorizedOperands,
+    SmallVector<Operation*> batchedOperations) {
+  // Build gate list for the batched operation
+  SmallVector<CGGIBoolGateEnumAttr> gateListAttrs;
+  for (auto* op : batchedOperations) {
+    FailureOr<CGGIBoolGateEnumAttr> attr =
+        llvm::TypeSwitch<Operation&, FailureOr<CGGIBoolGateEnumAttr>>(*op)
+            .Case<cggi::AndOp>([&context](AndOp op) {
+              return CGGIBoolGateEnumAttr::get(context, CGGIBoolGateEnum::AND);
+            })
+            .Case<cggi::NandOp>([&context](NandOp op) {
+              return CGGIBoolGateEnumAttr::get(context, CGGIBoolGateEnum::NAND);
+            })
+            .Case<cggi::XorOp>([&context](XorOp op) {
+              return CGGIBoolGateEnumAttr::get(context, CGGIBoolGateEnum::XOR);
+            })
+            .Case<cggi::XNorOp>([&context](XNorOp op) {
+              return CGGIBoolGateEnumAttr::get(context, CGGIBoolGateEnum::XNOR);
+            })
+            .Case<cggi::OrOp>([&context](OrOp op) {
+              return CGGIBoolGateEnumAttr::get(context, CGGIBoolGateEnum::OR);
+            })
+            .Case<cggi::NorOp>([&context](NorOp op) {
+              return CGGIBoolGateEnumAttr::get(context, CGGIBoolGateEnum::NOR);
+            })
+            .Default([&](Operation& op) -> FailureOr<CGGIBoolGateEnumAttr> {
+              // Other operations are not supported for vectorization.
+              return failure();
+            });
+    if (failed(attr)) {
+      op->emitOpError("unsupported operation for vectorization");
+      return failure();
+    }
+    gateListAttrs.push_back(attr.value());
+  }
+  auto boolGatesAttr = CGGIBoolGatesAttr::get(context, gateListAttrs);
+  Type elementType = key->getResultTypes()[0];
+  RankedTensorType resultTensorType = RankedTensorType::get(
+      {static_cast<int64_t>(batchedOperations.size())}, elementType);
+  return cggi::PackedOp::create(builder, key->getLoc(), resultTensorType,
+                                boolGatesAttr, vectorizedOperands[0],
+                                vectorizedOperands[1]);
+}
+
+bool isPackedGateOp(Operation* key, Operation* op) {
+  return isa<AndOp, NandOp, XorOp, XNorOp, OrOp, NorOp>(op) &&
+         key->getResultTypes() == op->getResultTypes() &&
+         key->getAttrs() == op->getAttrs();
+}
+
+// BatchVectorizableOpInterface impl
+
+bool AndOp::isBatchCompatible(Operation* rhs) {
+  return isPackedGateOp(this->getOperation(), rhs);
+}
+
+FailureOr<Operation*> AndOp::buildBatchedOperation(
+    MLIRContext* context, OpBuilder& builder,
+    SmallVector<Value> vectorizedOperands,
+    SmallVector<Operation*> batchedOperations) {
+  return buildBatchedBooleanGateOperation(
+      context, builder, this->getOperation(), vectorizedOperands,
+      batchedOperations);
+}
+
+bool NandOp::isBatchCompatible(Operation* rhs) {
+  return isPackedGateOp(this->getOperation(), rhs);
+}
+
+FailureOr<Operation*> NandOp::buildBatchedOperation(
+    MLIRContext* context, OpBuilder& builder,
+    SmallVector<Value> vectorizedOperands,
+    SmallVector<Operation*> batchedOperations) {
+  return buildBatchedBooleanGateOperation(
+      context, builder, this->getOperation(), vectorizedOperands,
+      batchedOperations);
+}
+
+bool NorOp::isBatchCompatible(Operation* rhs) {
+  return isPackedGateOp(this->getOperation(), rhs);
+}
+
+FailureOr<Operation*> NorOp::buildBatchedOperation(
+    MLIRContext* context, OpBuilder& builder,
+    SmallVector<Value> vectorizedOperands,
+    SmallVector<Operation*> batchedOperations) {
+  return buildBatchedBooleanGateOperation(
+      context, builder, this->getOperation(), vectorizedOperands,
+      batchedOperations);
+}
+
+bool OrOp::isBatchCompatible(Operation* rhs) {
+  return isPackedGateOp(this->getOperation(), rhs);
+}
+
+FailureOr<Operation*> OrOp::buildBatchedOperation(
+    MLIRContext* context, OpBuilder& builder,
+    SmallVector<Value> vectorizedOperands,
+    SmallVector<Operation*> batchedOperations) {
+  return buildBatchedBooleanGateOperation(
+      context, builder, this->getOperation(), vectorizedOperands,
+      batchedOperations);
+}
+
+bool XorOp::isBatchCompatible(Operation* rhs) {
+  return isPackedGateOp(this->getOperation(), rhs);
+}
+
+FailureOr<Operation*> XorOp::buildBatchedOperation(
+    MLIRContext* context, OpBuilder& builder,
+    SmallVector<Value> vectorizedOperands,
+    SmallVector<Operation*> batchedOperations) {
+  return buildBatchedBooleanGateOperation(
+      context, builder, this->getOperation(), vectorizedOperands,
+      batchedOperations);
+}
+
+bool XNorOp::isBatchCompatible(Operation* rhs) {
+  return isPackedGateOp(this->getOperation(), rhs);
+}
+
+FailureOr<Operation*> XNorOp::buildBatchedOperation(
+    MLIRContext* context, OpBuilder& builder,
+    SmallVector<Value> vectorizedOperands,
+    SmallVector<Operation*> batchedOperations) {
+  return buildBatchedBooleanGateOperation(
+      context, builder, this->getOperation(), vectorizedOperands,
+      batchedOperations);
+}
+
+bool NotOp::isBatchCompatible(Operation* rhs) {
+  auto lhs = this->getOperation();
+  return isa<NotOp>(rhs) && lhs->getAttrs() == rhs->getAttrs() &&
+         lhs->getResultTypes() == rhs->getResultTypes();
+}
+
+FailureOr<Operation*> NotOp::buildBatchedOperation(
+    MLIRContext* context, OpBuilder& builder,
+    SmallVector<Value> vectorizedOperands,
+    SmallVector<Operation*> batchedOperations) {
+  Type elementType = this->getType();
+  RankedTensorType resultTensorType = RankedTensorType::get(
+      {static_cast<int64_t>(batchedOperations.size())}, elementType);
+  Operation* op = cggi::NotOp::create(builder, this->getLoc(), resultTensorType,
+                                      vectorizedOperands[0]);
+  return op;
+}
+
+bool Lut3Op::isBatchCompatible(Operation* rhs) { return isa<Lut3Op>(rhs); }
+
+FailureOr<Operation*> Lut3Op::buildBatchedOperation(
+    MLIRContext* context, OpBuilder& builder,
+    SmallVector<Value> vectorizedOperands,
+    SmallVector<Operation*> batchedOperations) {
+  SmallVector<Attribute> lutAttrs;
+  for (auto* op : batchedOperations) {
+    if (auto lut3Op = dyn_cast<Lut3Op>(op)) {
+      lutAttrs.push_back(lut3Op.getLookupTable());
+    } else {
+      op->emitOpError("unsupported operation for vectorization");
+      return failure();
+    }
+  }
+  Type elementType = this->getType();
+  RankedTensorType resultTensorType = RankedTensorType::get(
+      {static_cast<int64_t>(batchedOperations.size())}, elementType);
+  Operation* packedLut = cggi::PackedLut3Op::create(
+      builder, this->getLoc(), resultTensorType, builder.getArrayAttr(lutAttrs),
+      vectorizedOperands[0], vectorizedOperands[1], vectorizedOperands[2]);
+  return packedLut;
 }
 
 }  // namespace cggi

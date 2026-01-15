@@ -8,10 +8,10 @@
 #include "lib/Dialect/CGGI/Conversions/CGGIToJaxite/CGGIToJaxite.h"
 #include "lib/Dialect/CGGI/Conversions/CGGIToTfheRust/CGGIToTfheRust.h"
 #include "lib/Dialect/CGGI/Conversions/CGGIToTfheRustBool/CGGIToTfheRustBool.h"
-#include "lib/Dialect/CGGI/Transforms/BooleanVectorizer.h"
 #include "lib/Dialect/Secret/Conversions/SecretToCGGI/SecretToCGGI.h"
 #include "lib/Dialect/Secret/Transforms/DistributeGeneric.h"
 #include "lib/Pipelines/PipelineRegistration.h"
+#include "lib/Transforms/BooleanVectorizer/BooleanVectorizer.h"
 #include "lib/Transforms/DropUnitDims/DropUnitDims.h"
 #include "lib/Transforms/FoldConstantTensors/FoldConstantTensors.h"
 #include "lib/Transforms/ForwardInsertToExtract/ForwardInsertToExtract.h"
@@ -217,7 +217,7 @@ CGGIBackendPipelineBuilder toTfheRsPipelineBuilder() {
 CGGIBackendPipelineBuilder toFptPipelineBuilder() {
   return [=](OpPassManager& pm) {
     // Vectorize CGGI operations
-    pm.addPass(cggi::createBooleanVectorizer());
+    pm.addPass(createBooleanVectorizer());
     pm.addPass(createCanonicalizerPass());
     pm.addPass(createCSEPass());
     pm.addPass(createSCCPPass());
@@ -243,8 +243,8 @@ CGGIBackendPipelineBuilder toFptPipelineBuilder() {
 JaxiteBackendPipelineBuilder toJaxitePipelineBuilder() {
   return [=](OpPassManager& pm, const CGGIBackendOptions& options) {
     if (options.parallelism > 0) {
-      pm.addPass(cggi::createBooleanVectorizer(
-          cggi::BooleanVectorizerOptions{.parallelism = options.parallelism}));
+      pm.addPass(createBooleanVectorizer(
+          BooleanVectorizerOptions{.parallelism = options.parallelism}));
       pm.addPass(createCSEPass());
       pm.addPass(createRemoveDeadValuesPass());
     }
