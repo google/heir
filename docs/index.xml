@@ -2895,14 +2895,19 @@ precision (8 or 4b) operations that can be mapped to CGGI operations.&lt;/p>
 Note that some scheme specific ops (e.g., modswitch) that
 have no direct analogue in the &lt;code>lwe&lt;/code> dialect are left unchanged.
 TODO (#1193): support both &amp;ldquo;common&amp;rdquo; and &amp;ldquo;full&amp;rdquo; lwe lowering&lt;/p>
-&lt;h3 id="-cggi-boolean-vectorize">&lt;code>-cggi-boolean-vectorize&lt;/code>&lt;/h3>
-&lt;p>&lt;em>Group different logic gates with the packed API&lt;/em>&lt;/p>
-&lt;p>This pass groups independent logic gates into a single call of the packed
-operations. Pass is based on the straight-line-vectorizer, but is fundamentally different.
-This pass combines any type of boolean gates and is not restricted to combining the same type of gate operand.&lt;/p>
-&lt;p>Pass is intended for the &lt;code>FPT&lt;/code> tfhe-rs API, where &lt;code>packed_gates&lt;/code> function get a
-the boolean gates are passed as a string vector and a left and right vector of ciphertexts.
-Each boolean gates specified in &lt;code>gates&lt;/code> is then applied element wise.&lt;/p>
+&lt;h3 id="-boolean-vectorize">&lt;code>-boolean-vectorize&lt;/code>&lt;/h3>
+&lt;p>&lt;em>Group operations into batch vectorizable operations&lt;/em>&lt;/p>
+&lt;p>This pass is used to group operations into a single batched operation.&lt;/p>
+&lt;p>The pass supports any operation that implements the
+&lt;code>BatchVectorizableOpInterface&lt;/code>. The op interface controls what operations
+can be batched together, and how to construct the resulting batched
+operation.&lt;/p>
+&lt;p>Pass is based on the straight-line-vectorizer, but is fundamentally different.&lt;/p>
+&lt;p>For e.g., the pass is used by the &lt;code>FPT&lt;/code> tfhe-rs API, where all boolean gates can be
+batched together (regardless of the type of gate). The batched operation
+produces is a &lt;code>packed_gates&lt;/code> function that takes the boolean gates as a
+string vector and a left and right vector of ciphertexts. Each boolean gates
+specified in &lt;code>gates&lt;/code> is then applied element wise to the ciphertext vectors.&lt;/p>
 &lt;pre tabindex="0">&lt;code>let outputs_ct = fpga_key.packed_gates(&amp;amp;gates, &amp;amp;ref_to_ct_lefts, &amp;amp;ref_to_ct_rights);
 &lt;/code>&lt;/pre>&lt;h4 id="options-5">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-parallelism : Parallelism factor for batching. 0 is infinite parallelism
@@ -5048,59 +5053,61 @@ arguments in the function body.&lt;/li>
 &lt;/ul>
 &lt;h4 id="statistics">Statistics&lt;/h4>
 &lt;pre tabindex="0">&lt;code>total circuit size : The total circuit size for all optimized circuits, after optimization is done.
-&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2025-03-20</title><link>https://heir.dev/blog/2025/03/20/heir-meeting-2025-03-20/</link><pubDate>Thu, 20 Mar 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/03/20/heir-meeting-2025-03-20/</guid><description>
+&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2025-09-04</title><link>https://heir.dev/blog/2025/09/05/heir-meeting-2025-09-04/</link><pubDate>Fri, 05 Sep 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/09/05/heir-meeting-2025-09-04/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1TMXQBVumA4YmOTH5QgKR27_Sb-60PI7bKyltJ-D3jbE/edit?usp=sharing">notes&lt;/a>
-and &lt;a href="https://youtu.be/ULRFEmhwzZE">video recording&lt;/a> from the HEIR meeting on
-2025-03-20.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR as a Platform for Research (and new YouTube Channel)</title><link>https://heir.dev/blog/2024/12/05/heir-as-a-platform-for-research-and-new-youtube-channel/</link><pubDate>Thu, 05 Dec 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/12/05/heir-as-a-platform-for-research-and-new-youtube-channel/</guid><description>
-&lt;p>On 2024-12-05, the HEIR team presented a talk aimed at giving researchers a
-high-level overview of the HEIR project, brainstorming where new research might
-be needed, and discussing how the HEIR team could help with research projects.&lt;/p>
-&lt;p>The &lt;a href="https://youtu.be/t_XHw7LVy8s">video recording of this talk&lt;/a> is on YouTube,
-and this is the first video posted on the
-&lt;a href="https://www.youtube.com/@HEIRCompiler">new HEIR YouTube channel&lt;/a>.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-06-13</title><link>https://heir.dev/blog/2024/06/13/heir-meeting-2024-06-13/</link><pubDate>Thu, 13 Jun 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/06/13/heir-meeting-2024-06-13/</guid><description>
+&lt;a href="https://docs.google.com/document/d/1_Eoip7Gxr89V06SOI2rNH-a8SipGzQUsy5XC3mSmxyc/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/HfCUuwt0E0A">video recording&lt;/a> from the HEIR meeting on
+2025-09-04.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: FHE.org 2025 conference talk and slides</title><link>https://heir.dev/blog/2025/04/11/fhe.org-2025-conference-talk-and-slides/</link><pubDate>Fri, 11 Apr 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/04/11/fhe.org-2025-conference-talk-and-slides/</guid><description>
+&lt;p>Jeremy Kun gave a talk at the FHE.org 2025 conference in Sofia last month. The
+&lt;a href="https://www.youtube.com/watch?v=6JPwpTOcydM&amp;amp;list=PLnbmMskCVh1cCnWbmgxI0BM0UD2JHH9fz&amp;amp;index=5">video&lt;/a>
+has been posted on YouTube, and the slides can be found
+&lt;a href="https://docs.google.com/presentation/d/1nKj0i0tyBSGUAI-tYMUDeji-EgqCj4PBrgw_NgMb3fM/edit?usp=sharing">here&lt;/a>.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2025-02-20</title><link>https://heir.dev/blog/2025/02/20/heir-meeting-2025-02-20/</link><pubDate>Thu, 20 Feb 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/02/20/heir-meeting-2025-02-20/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1rkPxOdbJY5J6qhsciZ0rfdj5_9PG_Ng-6USBUvLrEeU/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1Aza4s6Z0NCON9rQR70DOUkKSwBV6bHAmuYV8sIb8n7o/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/Y82A6BLAVtc">video recording&lt;/a> from the HEIR meeting on
+2025-02-20.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2025-01-23</title><link>https://heir.dev/blog/2025/01/23/heir-meeting-2025-01-23/</link><pubDate>Thu, 23 Jan 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/01/23/heir-meeting-2025-01-23/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1x8tFUC4vGeO0t-CvFQe4o-H8xgl4zEvBZaye_JlIEVo/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/HMgHNpJeINs">video recording&lt;/a> from the HEIR meeting on
+2025-01-23.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-08-22</title><link>https://heir.dev/blog/2024/08/22/heir-meeting-2024-08-22/</link><pubDate>Thu, 22 Aug 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/08/22/heir-meeting-2024-08-22/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1iEkzpO6lCVbShMcRenO3j3DptOEP-0bLu_9V4K7c39M/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/19oQOYlvfeHoSwWqOC4hXZTBuaPIf1zQl/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-06-13.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-04-18</title><link>https://heir.dev/blog/2024/04/18/heir-meeting-2024-04-18/</link><pubDate>Thu, 18 Apr 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/04/18/heir-meeting-2024-04-18/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1BJjfYI2yjR3YEg_ugjDuS-trAkYMlKbU7jpH_M1GF3Q/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1WSsUp9CmjDmEVtGMYk2QXIpZCEetf_Ot/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-04-18.&lt;/p>
+&lt;a href="https://drive.google.com/file/d/1wFrGF7lMiYZmqbr5WQO17HomfoFoOeaj/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-08-22.&lt;/p>
 &lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-01-25</title><link>https://heir.dev/blog/2024/01/25/heir-meeting-2024-01-25/</link><pubDate>Thu, 25 Jan 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/01/25/heir-meeting-2024-01-25/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/1yrkAVR_348vT3SD7apb9QDoFIgz0bjHn-SzT2GOacfs/edit?usp=sharing">notes&lt;/a>
 and
 &lt;a href="https://drive.google.com/file/d/11JTfRy_3LvHjJQe0nJuqe8WGa8F9oHu1/view?usp=sharing">video recording&lt;/a>
 from the HEIR meeting on 2024-01-25.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-01-11</title><link>https://heir.dev/blog/2024/01/11/heir-meeting-2024-01-11/</link><pubDate>Thu, 11 Jan 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/01/11/heir-meeting-2024-01-11/</guid><description>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2023-12-12</title><link>https://heir.dev/blog/2023/12/12/heir-meeting-2023-12-12/</link><pubDate>Tue, 12 Dec 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/12/12/heir-meeting-2023-12-12/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/133yuywcbI1AWnbsJezq8QlCpgXfX5HMk7YjXQBSTwoE/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1ekGrOBLoB_F3qjC43r6NzJbWpgT9RILTJyVu5Ax3PCQ/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1gLwcshtNda6M6YMWSsyGrNDvlQ8QiL0O/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-01-11.&lt;/p>
+&lt;a href="https://drive.google.com/file/d/1DaYj9euovyf8vuCi260RQYfEkItn4SEc/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2023-12-12.&lt;/p>
+&lt;p>This is the last meeting for 2023. Please respond to
+&lt;a href="https://app.rallly.co/invite/fHNdzrbisHVA">this poll&lt;/a> for 2024 scheduling
+preferences.&lt;/p>
 &lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2023-08-29</title><link>https://heir.dev/blog/2023/09/05/heir-meeting-2023-08-29/</link><pubDate>Tue, 05 Sep 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/09/05/heir-meeting-2023-08-29/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/1Lax8Inby5Mg8BZLkcV_5hUiWH-roL22rtszfc0PBGmE/edit?usp=sharing">notes&lt;/a>
 from the HEIR meeting on 2023-08-29. There was an issue with the recording, so
 there is no video recording this week.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2023-08-15</title><link>https://heir.dev/blog/2023/08/16/heir-meeting-2023-08-15/</link><pubDate>Wed, 16 Aug 2023 16:15:47 +0000</pubDate><guid>https://heir.dev/blog/2023/08/16/heir-meeting-2023-08-15/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1vZsKJH4wCAZCtyh3o9nNMLRFwlWQiVdvUMvwJnA4cIc/edit?usp=sharing">notes&lt;/a>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2023-08-01</title><link>https://heir.dev/blog/2023/08/02/heir-meeting-2023-08-01/</link><pubDate>Wed, 02 Aug 2023 15:46:42 -0700</pubDate><guid>https://heir.dev/blog/2023/08/02/heir-meeting-2023-08-01/</guid><description>
+&lt;p>The fourth HEIR meeting was 2023-08-01
+(&lt;a href="https://docs.google.com/document/d/1gid-MARMUStb3dB9jsXEV_CnPDpf_9cyPXy9uXtZk08/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1DDNepYCSqgi-JlBLBzHrsL5CjjiwqcA_/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2023-08-15.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: Hello, World!</title><link>https://heir.dev/blog/2023/06/13/hello-world/</link><pubDate>Tue, 13 Jun 2023 13:15:10 -0700</pubDate><guid>https://heir.dev/blog/2023/06/13/hello-world/</guid><description>
-&lt;p>Hello, world! We&amp;rsquo;re starting a project to unify homomorphic encryption compiler
-IRs.&lt;/p>
-&lt;p>Our initial meeting was 2023-05-30
-(&lt;a href="https://docs.google.com/document/d/1iyiHfseoVkA1qaP3Ig47kqVC-J1_AIidPaj61jvj2KM/edit?usp=sharing">read-only copy of the minutes&lt;/a>).
-Stay tuned for future updates while we work out a meeting schedule.&lt;/p>
+&lt;a href="https://drive.google.com/file/d/1U6HDdKJo3-UHibFPgNrDakU8EpCt5xHZ/view?usp=sharing">video recording&lt;/a>).&lt;/p>
+&lt;p>We&amp;rsquo;re also starting on the Poly and Secret dialects in
+&lt;a href="https://github.com/google/heir/pull/74">#74 (poly)&lt;/a> and
+&lt;a href="https://github.com/google/heir/pull/78">#78 (secret)&lt;/a>, so please join in the
+fun!&lt;/p>
 &lt;!-- mdformat global-off --></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h1 id="bgv-dialect">&amp;lsquo;bgv&amp;rsquo; Dialect&lt;/h1>
@@ -5822,7 +5829,7 @@ NOT_GATE = 6;&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `cggi.and` operands attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>BatchVectorizableOpInterface&lt;/code>, &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-1">Operands:&lt;/h4>
 &lt;table>
@@ -6095,7 +6102,7 @@ significant bit to least-significant bit. The input are combined into a
 single ciphertext input to the lookup table using products with plaintexts
 and sums.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>LUTOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>BatchVectorizableOpInterface&lt;/code>, &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>LUTOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-3">Attributes:&lt;/h4>
 &lt;table>
@@ -6397,7 +6404,7 @@ return (
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `cggi.nand` operands attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>BatchVectorizableOpInterface&lt;/code>, &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-12">Operands:&lt;/h4>
 &lt;table>
@@ -6479,7 +6486,7 @@ return (
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `cggi.nor` operands attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>BatchVectorizableOpInterface&lt;/code>, &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-14">Operands:&lt;/h4>
 &lt;table>
@@ -6520,7 +6527,7 @@ return (
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `cggi.not` operands attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Involution&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>BatchVectorizableOpInterface&lt;/code>, &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-15">Operands:&lt;/h4>
 &lt;table>
@@ -6557,7 +6564,7 @@ return (
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `cggi.or` operands attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>BatchVectorizableOpInterface&lt;/code>, &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-16">Operands:&lt;/h4>
 &lt;table>
@@ -6978,7 +6985,7 @@ will be used, and the output will be a i4 number.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `cggi.xnor` operands attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>BatchVectorizableOpInterface&lt;/code>, &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-25">Operands:&lt;/h4>
 &lt;table>
@@ -7019,7 +7026,7 @@ will be used, and the output will be a i4 number.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `cggi.xor` operands attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>BatchVectorizableOpInterface&lt;/code>, &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-26">Operands:&lt;/h4>
 &lt;table>
@@ -15877,12 +15884,11 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `openfhe.fast_rotation` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>BatchVectorizableOpInterface&lt;/code>, &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>ElementwiseByOperandOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>index&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>index attribute&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>cyclotomicOrder&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>index attribute&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-10">Operands:&lt;/h4>
@@ -15901,6 +15907,10 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
 &lt;td>An opaque OpenFHE ciphertext type&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>index&lt;/code>&lt;/td>
+&lt;td>index&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>precomputedDigitDecomp&lt;/code>&lt;/td>
