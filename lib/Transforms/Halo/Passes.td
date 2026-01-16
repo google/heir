@@ -13,6 +13,8 @@ def ReconcileMixedSecretnessIterArgs : Pass<"reconcile-mixed-secretness-iter-arg
   In this situation, lowering the loop to ciphertext types would fail because of
   a ciphertext/plaintext type mismatch. This pass avoids this issue by peeling
   the first iteration of any such loops.
+
+  (* example filepath=tests/Transforms/halo/reconcile_mixed_secretness_iter_args_doctest.mlir *)
   }];
   let dependentDialects = [
     "mlir::heir::secret::SecretDialect",
