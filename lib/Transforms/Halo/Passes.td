@@ -51,5 +51,23 @@ def BootstrapLoopIterArgs : Pass<"bootstrap-loop-iter-args"> {
   ];
 }
 
+def PartialUnrollForLevelConsumption : Pass<"partial-unroll-for-level-consumption"> {
+  let summary = "Partially unroll a loop over ciphertexts to better utilize level consumption.";
+  let description = [{
+  The `bootstrap-loop-iter-args` pass inserts a bootstrap operation at the start of each
+  loop ieration, for each loop-carried iter arg. The loop body may not be sufficiently
+  large to utilize all the levels provided by a bootstrap operation. This pass compensates
+  for that by partially unrolling the loop so that level utilization is improved, and
+  bootstraps are not required for every iteration.
+
+  (* example filepath=tests/Transforms/halo/partial_unroll_for_level_consumption_doctest.mlir *)
+  }];
+  let dependentDialects = [
+    "mlir::heir::secret::SecretDialect",
+    "mlir::affine::AffineDialect",
+    "mlir::scf::SCFDialect",
+    "mlir::heir::mgmt::MgmtDialect",
+  ];
+}
 
 #endif  // LIB_TRANSFORMS_HALO_PASSES_TD_

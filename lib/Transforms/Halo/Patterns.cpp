@@ -127,5 +127,60 @@ LogicalResult PeelPlaintextScfForInit::matchAndRewrite(
   return success();
 }
 
+LogicalResult PartialUnrollForLevelConsumptionAffineFor::matchAndRewrite(
+    affine::AffineForOp forOp, PatternRewriter& rewriter) const {
+  SmallVector<Value> secretIterArgs;
+  secretIterArgs.reserve(forOp.getInits().size());
+  for (Value iterArg : forOp.getRegionIterArgs()) {
+    if (isSecret(iterArg, solver)) {
+      secretIterArgs.push_back(iterArg);
+    }
+  }
+
+  if (secretIterArgs.empty()) {
+    return rewriter.notifyMatchFailure(forOp, "No secret iter args detected");
+  }
+
+  // Now we need to compute how many loop iterations we can unroll.
+  //
+  // To start, assume we have just one iter arg. It is assumed to be the result
+  // of a mgmt.level_reduce_min op just before being yielded. The quantity we
+  // need to compute is the difference between the level just after the
+  // bootstrap op and the level just before the level_reduce_min op.
+  //
+  //  %2 = mgmt.level_reduce_min %1 : i32
+  //  %3 = affine.for %arg1 = 1 to 12 iter_args(%arg2 = %2) -> (i32) {
+  //     %4 = mgmt.bootstrap %arg2 : i32
+  //     LEVEL_START[%arg2] = level(%4)
+  //
+  //     ...
+  //
+  //     LEVEL_END[%arg2] = level(%5)
+  //     %6 = mgmt.level_reduce_min %5 : i32
+  //     affine.yield %6 : i32
+  //  }
+  //
+  // Suppose this difference LEVEL_START - LEVEL_END is T. If T > LEVEL_END,
+  // then we can unroll by a factor of floor(LEVEL_END / T).
+  //
+  // If we have many iter args, the allowable loop unroll factor is the minimum
+  // among all iter args.
+  //
+  // FIXME: if there are two iter args, and the gap between their unroll factors
+  // is very large, it may be worthwhile to insert extra bootstrap operations
+  // for the "bad" iter arg so that you don't have to bootstrap both as often.
+  // I think this will ultimately become a part of an improved bootstrapping
+  // placement algorithm, where we can choose the loop unroll factor in part
+  // based on what a bootstrapping placement algorithm would do when run on the
+  // body of the loop.
+
+  SmallVector<int> unrollFactors;
+  for (Value iterArg : secretIterArgs) {
+    ;
+  }
+
+  return success();
+}
+
 }  // namespace heir
 }  // namespace mlir

@@ -55,9 +55,7 @@ struct BootstrapIterArgsPattern : public OpRewritePattern<T> {
     secretInitIndices.reserve(forOp.getInits().size());
 
     for (auto [i, init] : llvm::enumerate(forOp.getInits())) {
-      auto* initLattice = solver->lookupState<SecretnessLattice>(init);
-      if (initLattice && initLattice->getValue().isInitialized() &&
-          initLattice->getValue().getSecretness()) {
+      if (isSecret(init, solver)) {
         secretInitIndices.push_back(i);
       }
     }
@@ -100,6 +98,21 @@ struct BootstrapIterArgsPattern : public OpRewritePattern<T> {
 
     return success();
   }
+
+ private:
+  DataFlowSolver* solver;
+};
+
+struct PartialUnrollForLevelConsumptionAffineFor
+    : public OpRewritePattern<affine::AffineForOp> {
+  using OpRewritePattern<affine::AffineForOp>::OpRewritePattern;
+  PartialUnrollForLevelConsumptionAffineFor(MLIRContext* context,
+                                            DataFlowSolver* solver)
+      : OpRewritePattern(context), solver(solver) {}
+
+ public:
+  LogicalResult matchAndRewrite(affine::AffineForOp op,
+                                PatternRewriter& rewriter) const override;
 
  private:
   DataFlowSolver* solver;
