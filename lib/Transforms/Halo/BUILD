@@ -10,8 +10,10 @@ cc_library(
     name = "Transforms",
     hdrs = ["Passes.h"],
     deps = [
+        ":BootstrapLoopIterArgs",
         ":ReconcileMixedSecretnessIterArgs",
         ":pass_inc_gen",
+        "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:SCFDialect",
@@ -26,6 +28,8 @@ cc_library(
     ],
     deps = [
         "@heir//lib/Analysis/SecretnessAnalysis",
+        "@heir//lib/Dialect/Mgmt/IR:Dialect",
+        "@heir//lib/Dialect/Secret/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:AffineUtils",
@@ -54,6 +58,26 @@ cc_library(
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
+cc_library(
+    name = "BootstrapLoopIterArgs",
+    srcs = ["BootstrapLoopIterArgs.cpp"],
+    hdrs = [
+        "BootstrapLoopIterArgs.h",
+    ],
+    deps = [
+        ":Patterns",
+        ":pass_inc_gen",
+        "@heir//lib/Analysis/SecretnessAnalysis",
+        "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@llvm-project//mlir:AffineDialect",
+        "@llvm-project//mlir:AffineUtils",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:Transforms",
     ],
 )
 

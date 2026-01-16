@@ -62,6 +62,20 @@ def Mgmt_LevelReduceOp : Mgmt_Op<"level_reduce"> {
   let hasCanonicalizer = 1;
 }
 
+def Mgmt_LevelReduceMinOp : Mgmt_Op<"level_reduce_min"> {
+  let summary = "Reduce the level of input ciphertext to the minimum level";
+  let description = [{
+    This scheme-agonistic operation reduces the ciphertext level
+    to the minimum allowable level (typically 1 RNS limb). This is used in
+    HALO-style optimizations to ensure loop iter args and inits are invariant
+    across loop iterations.
+  }];
+  let arguments = (ins AnyType:$input);
+  let results = (outs AnyType:$output);
+  let assemblyFormat = "operands attr-dict `:` type($output)";
+}
+
+
 def Mgmt_RelinearizeOp : Mgmt_Op<"relinearize"> {
   let summary = "Relinearize the input ciphertext to be _linear_";
 
