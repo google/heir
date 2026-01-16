@@ -132,7 +132,7 @@ LogicalResult DimensionAnalysisBackward::visitOperation(
 
   // only back-prop for non-secret operands
   SmallVector<OpOperand*> nonSecretOperands;
-  getNonSecretOperands(op, nonSecretOperands);
+  getPlaintextOperands(op, nonSecretOperands);
   for (auto* operand : nonSecretOperands) {
     propagate(operand->get(), DimensionState(dimensionResult));
   }

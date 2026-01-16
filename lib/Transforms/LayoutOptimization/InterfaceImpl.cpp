@@ -3,12 +3,12 @@
 #include <cassert>
 #include <vector>
 
-#include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Secret/IR/SecretAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Interface/HoistingInterfaces.h"
 #include "lib/Kernel/Kernel.h"
 #include "lib/Kernel/KernelName.h"
 #include "lib/Transforms/LayoutOptimization/Hoisting.h"

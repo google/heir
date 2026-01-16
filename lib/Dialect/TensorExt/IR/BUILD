@@ -72,6 +72,7 @@ cc_library(
         ":canonicalize_inc_gen",
         ":dialect_inc_gen",
         ":ops_inc_gen",
+        "@heir//lib/Dialect:HEIRInterfaces",
         "@heir//lib/Utils:AffineMapUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineAnalysis",
@@ -98,6 +99,7 @@ td_library(
     # include from the heir-root to enable fully-qualified include-paths
     includes = ["../../../.."],
     deps = [
+        "@heir//lib/Dialect:td_files",
         "@heir//lib/Utils/DRR",
         "@llvm-project//mlir:BuiltinDialectTdFiles",
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",

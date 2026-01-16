@@ -28,9 +28,7 @@ def Mgmt_ModReduceOp : Mgmt_Op<"modreduce"> {
     or ckks.rescale depending on the scheme.
   }];
 
-  let arguments = (ins
-    AnyType:$input
-  );
+  let arguments = (ins AnyType:$input);
   let results = (outs AnyType:$output);
   let assemblyFormat = "operands attr-dict `:` type($output)";
 
@@ -75,7 +73,6 @@ def Mgmt_LevelReduceMinOp : Mgmt_Op<"level_reduce_min"> {
   let assemblyFormat = "operands attr-dict `:` type($output)";
 }
 
-
 def Mgmt_RelinearizeOp : Mgmt_Op<"relinearize"> {
   let summary = "Relinearize the input ciphertext to be _linear_";
 
@@ -96,9 +93,7 @@ def Mgmt_RelinearizeOp : Mgmt_Op<"relinearize"> {
     or ckks.relinearize depending on the scheme.
   }];
 
-  let arguments = (ins
-    AnyType:$input
-  );
+  let arguments = (ins AnyType:$input);
   let results = (outs AnyType:$output);
   let assemblyFormat = "operands attr-dict `:` type($output)";
 }
@@ -121,9 +116,7 @@ def Mgmt_BootstrapOp : Mgmt_Op<"bootstrap"> {
     Further backend may include bgv.bootstrap.
   }];
 
-  let arguments = (ins
-    AnyType:$input
-  );
+  let arguments = (ins AnyType:$input);
   let results = (outs AnyType:$output);
   let assemblyFormat = "operands attr-dict `:` type($output)";
 }
@@ -148,21 +141,15 @@ def Mgmt_AdjustScaleOp : Mgmt_Op<"adjust_scale", [IncreasesMulDepthOpInterface]>
     or `ckks.mul_plain` depending on the scheme.
   }];
 
-  let arguments = (ins
-    AnyType:$input,
-    I64Attr:$id
-  );
+  let arguments = (ins AnyType:$input, I64Attr:$id);
   let results = (outs AnyType:$output);
   let assemblyFormat = "operands attr-dict `:` type($output)";
-
   let hasCanonicalizer = 1;
 }
 
 def Mgmt_InitOp : Mgmt_Op<"init",
     [MemoryEffects<[MemWrite]>, ElementwiseMappable, SameOperandsAndResultType, ConditionallySpeculatable]> {
-
   let summary = "Init the plaintext with mgmt attributes";
-
   let description = [{
     This is a scheme-agnostic operation that initializes the plaintext
     with `mgmt` attributes.
@@ -190,9 +177,7 @@ def Mgmt_InitOp : Mgmt_Op<"init",
     ConditionallySpeculatable is for isSpeculatable check in hoisting canonicalization.
   }];
 
-  let arguments = (ins
-    AnyType:$input
-  );
+  let arguments = (ins AnyType:$input);
   let results = (outs AnyType:$output);
   let assemblyFormat = "operands attr-dict `:` type($output)";
 

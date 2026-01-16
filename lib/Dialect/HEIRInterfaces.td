@@ -40,6 +40,35 @@ def LUTOpInterface : OpInterface<"LUTOpInterface"> {
   ];
 }
 
+def PlaintextOperandInterface : OpInterface<"PlaintextOperandInterface"> {
+  let cppNamespace = "::mlir::heir";
+  let description = [{
+    An interface that identifies which operand indices of an operation may be plaintext.
+    This is relevant primarily for a "plaintext-ciphertext" operation before lowering
+    to scheme-specific APIs, such as an `arith.addi` or a `tensor_ext.rotate_and_reduce`.
+
+    This interface is used in dataflow analyses to determine which operand of a
+    ciphertext-plaintext op requires back-propagating level/dimension
+    information to. Commutative ops for which multiple operands _may_ be plaintexts
+    (e.g., `arith.addi`) should report that both operand indices may be plaintext,
+    and the analysis is responsible for determining the secretness of the operands
+    in question.
+
+    Operands that are cleartext (i.e., never encoded) should not be included here,
+    e.g., the `index` operand of a `tensor_ext.rotate`.
+  }];
+
+  let methods = [
+    InterfaceMethod<
+      /*desc=*/"Return a vector of indices describing which operands may be plaintexts.",
+      /*retTy=*/"SmallVector<unsigned>",
+      /*methodName=*/"maybePlaintextOperands",
+      /*args=*/(ins ),
+      /*defaultImplementation=*/[{ return {}; }]
+    >,
+  ];
+}
+
 def OperandLayoutRequirementOpInterface : OpInterface<"OperandLayoutRequirementOpInterface"> {
   let cppNamespace = "::mlir::heir";
   let description = [{
@@ -150,39 +179,6 @@ def BatchVectorizableOpInterface : OpInterface<"BatchVectorizableOpInterface"> {
                     "::mlir::SmallVector<::mlir::Operation*>":$operations)
     >,
   ];
-}
-
-def LayoutConversionHoistableOpInterface : OpInterface<"LayoutConversionHoistableOpInterface"> {
-  let cppNamespace = "::mlir::heir";
-  let description = [{
-    An interface that abstracts the common information required for the
-    `layout-optimization` pass to evaluate the feasibility and cost of hoisting
-    a `convert_layout` op through a given operation.
-  }];
-
-  let methods = [
-    InterfaceMethod<
-      "Get hoisters for the op.",
-      "std::vector<::mlir::heir::Hoister>",
-      "getHoisters",
-      (ins "::mlir::heir::tensor_ext::ConvertLayoutOp":$convertLayoutOp)
-    >,
-  ];
-
-  // TODO(#2317): figure out how to get OpInterface verifier to run
-  // let verify = [{
-  //   ::mlir::heir::KernelName kernelName = ::mlir::heir::KernelName::Trivial;
-  //   auto attrName = ::mlir::heir::secret::SecretDialect::kKernelAttrName;
-  //   if ($_op->hasAttr(attrName)) {
-  //     auto attr = $_op->getAttrOfType<::mlir::heir::secret::KernelAttr>(attrName);
-  //     kernelName = attr.getName();
-  //   }
-  //   if (!::mlir::heir::isSupportedKernel($_op, kernelName)) {
-  //     return $_op->emitOpError()
-  //            << "has unsupported kernel ''";
-  //   }
-  //   return success();
-  // }];
 }
 
 def OperandAndResultAttrInterface : OpInterface<"OperandAndResultAttrInterface"> {

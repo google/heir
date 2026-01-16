@@ -6,6 +6,7 @@
 #include <optional>
 
 #include "lib/Analysis/Utils.h"
+#include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/ModuleAttributes.h"
@@ -25,7 +26,7 @@
 #include "mlir/include/mlir/Interfaces/CallInterfaces.h"   // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 
-#define DEBUG_TYPE "LevelAnalysis"
+#define DEBUG_TYPE "level-analysis"
 
 namespace mlir {
 namespace heir {
@@ -33,45 +34,93 @@ namespace heir {
 //===----------------------------------------------------------------------===//
 // LevelAnalysis (Forward)
 //===----------------------------------------------------------------------===//
+static void debugLog(StringRef opName, ArrayRef<const LevelLattice*> operands,
+                     const LevelState& result) {
+  LLVM_DEBUG({
+    llvm::dbgs() << "transferForward: " << opName << "(";
+    for (auto* operand : operands) {
+      operand->getValue().print(llvm::dbgs());
+      llvm::dbgs() << ", ";
+    }
+    llvm::dbgs() << ") = ";
+    result.print(llvm::dbgs());
+    llvm::dbgs() << "\n";
+  });
+};
 
-FailureOr<int64_t> deriveResultLevel(Operation* op,
-                                     ArrayRef<const LevelLattice*> operands) {
-  return llvm::TypeSwitch<Operation&, FailureOr<int64_t>>(*op)
-      .Case<mgmt::ModReduceOp>([&](auto modReduceOp) -> FailureOr<int64_t> {
-        // implicitly ensure that the operand is secret
-        const auto* operandLattice = operands[0];
-        if (!operandLattice->getValue().isInitialized()) {
-          return failure();
-        }
-        int64_t level = operandLattice->getValue().getLevel();
-        return level + 1;
-      })
-      .Case<mgmt::LevelReduceOp>([&](auto levelReduceOp) -> FailureOr<int64_t> {
-        // implicitly ensure that the operand is secret
-        const auto* operandLattice = operands[0];
-        if (!operandLattice->getValue().isInitialized()) {
-          return failure();
-        }
-        return operandLattice->getValue().getLevel() +
-               levelReduceOp.getLevelToDrop();
-      })
-      .Case<mgmt::BootstrapOp>([&](auto bootstrapOp) -> FailureOr<int64_t> {
-        // implicitly ensure that the result is secret
-        // reset level to 0
-        // TODO(#1207): reset level to currentLevel - bootstrapDepth
-        return 0;
-      })
-      .Default([&](auto& op) -> FailureOr<int64_t> {
-        auto levelResult = 0;
-        for (auto* levelState : operands) {
-          if (!levelState || !levelState->getValue().isInitialized()) {
-            continue;
-          }
-          levelResult =
-              std::max(levelResult, levelState->getValue().getLevel());
-        }
+LevelState transferForward(mgmt::ModReduceOp op,
+                           ArrayRef<const LevelLattice*> operands) {
+  LevelState result = std::visit(
+      Overloaded{
+          [](MaxLevel) -> LevelState { return LevelState(Invalid{}); },
+          [](Uninit) -> LevelState { return LevelState(Invalid{}); },
+          [](Invalid) -> LevelState { return LevelState(Invalid{}); },
+          [](int val) -> LevelState { return LevelState(val + 1); },
+      },
+      operands[0]->getValue().get());
+  LLVM_DEBUG(debugLog("mod_reduce", operands, result));
+  return result;
+}
 
-        return levelResult;
+LevelState transferForward(mgmt::LevelReduceOp op,
+                           ArrayRef<const LevelLattice*> operands) {
+  LevelState result = std::visit(
+      Overloaded{
+          [](MaxLevel) -> LevelState { return LevelState(Invalid{}); },
+          [](Uninit) -> LevelState { return LevelState(Invalid{}); },
+          [](Invalid) -> LevelState { return LevelState(Invalid{}); },
+          [&](int val) -> LevelState {
+            return LevelState(val + (int)op.getLevelToDrop());
+          },
+      },
+      operands[0]->getValue().get());
+  LLVM_DEBUG(debugLog("level_reduce", operands, result));
+  return result;
+}
+
+LevelState transferForward(mgmt::LevelReduceMinOp op,
+                           ArrayRef<const LevelLattice*> operands) {
+  LevelState result = std::visit(
+      Overloaded{
+          // MaxLevel -> MaxLevel should result in a no-op, so technically
+          // acceptable.
+          [](MaxLevel) -> LevelState { return LevelState(MaxLevel{}); },
+          [](Uninit) -> LevelState { return LevelState(Invalid{}); },
+          [](Invalid) -> LevelState { return LevelState(Invalid{}); },
+          [](int val) -> LevelState { return LevelState(MaxLevel{}); },
+      },
+      operands[0]->getValue().get());
+  LLVM_DEBUG(debugLog("level_reduce_min", operands, result));
+  return result;
+}
+
+LevelState transferForward(mgmt::BootstrapOp op,
+                           ArrayRef<const LevelLattice*> operands) {
+  LevelState result = std::visit(
+      Overloaded{
+          [](MaxLevel) -> LevelState { return LevelState(0); },
+          [](Uninit) -> LevelState { return LevelState(Invalid{}); },
+          [](Invalid) -> LevelState { return LevelState(Invalid{}); },
+          [](int val) -> LevelState { return LevelState(0); },
+      },
+      operands[0]->getValue().get());
+  LLVM_DEBUG(debugLog("bootstrap", operands, result));
+  return result;
+}
+
+LevelState deriveResultLevel(Operation* op,
+                             ArrayRef<const LevelLattice*> operands) {
+  return llvm::TypeSwitch<Operation&, LevelState>(*op)
+      .Case<mgmt::ModReduceOp, mgmt::LevelReduceOp, mgmt::BootstrapOp,
+            mgmt::LevelReduceMinOp>(
+          [&](auto op) -> LevelState { return transferForward(op, operands); })
+      .Default([&](auto& op) -> LevelState {
+        LevelState result;
+        for (auto* operandState : operands) {
+          result = LevelState::join(result, operandState->getValue());
+        }
+        LLVM_DEBUG(debugLog(op.getName().getStringRef(), operands, result));
+        return result;
       });
 }
 
@@ -84,25 +133,11 @@ LogicalResult LevelAnalysis::visitOperation(
     propagateIfChanged(lattice, changed);
   };
 
-  LLVM_DEBUG(llvm::dbgs() << "Forward Propagate visiting " << op->getName()
-                          << "\n");
-
-  SmallVector<OpOperand*> secretOperands;
-  getSecretOperands(op, secretOperands);
-  SmallVector<const LevelLattice*, 2> secretOperandLattices;
-  for (auto* operand : secretOperands) {
-    secretOperandLattices.push_back(getLatticeElement(operand->get()));
-  }
-  FailureOr<int64_t> resultLevel = deriveResultLevel(op, secretOperandLattices);
-  if (failed(resultLevel)) {
-    // Ignore failure and continue
-    return success();
-  }
-
+  LevelState resultLevel = deriveResultLevel(op, operands);
   SmallVector<OpResult> secretResults;
   getSecretResults(op, secretResults);
   for (auto result : secretResults) {
-    propagate(result, LevelState(resultLevel.value()));
+    propagate(result, resultLevel);
   }
 
   return success();
@@ -120,6 +155,20 @@ void LevelAnalysis::visitExternalCall(
 //===----------------------------------------------------------------------===//
 // LevelAnalysis (Backward)
 //===----------------------------------------------------------------------===//
+static void debugLogBackwards(StringRef opName,
+                              ArrayRef<const LevelLattice*> results,
+                              const LevelState& operand, unsigned operandNum) {
+  LLVM_DEBUG({
+    llvm::dbgs() << "transferBackward: " << opName << " results(";
+    for (auto* result : results) {
+      result->getValue().print(llvm::dbgs());
+      llvm::dbgs() << ", ";
+    }
+    llvm::dbgs() << ") -> operand " << operandNum << " = ";
+    operand.print(llvm::dbgs());
+    llvm::dbgs() << "\n";
+  });
+};
 
 LogicalResult LevelAnalysisBackward::visitOperation(
     Operation* op, ArrayRef<LevelLattice*> operands,
@@ -128,36 +177,48 @@ LogicalResult LevelAnalysisBackward::visitOperation(
     auto* lattice = getLatticeElement(value);
     ChangeResult changed = lattice->join(state);
     if (changed == ChangeResult::Change) {
-      LLVM_DEBUG(llvm::dbgs()
-                 << "Back Propagate " << state << " to " << value << "\n");
+      LLVM_DEBUG(llvm::dbgs() << "Back Propagating (changed) " << state
+                              << " to " << value << "\n");
     }
     propagateIfChanged(lattice, changed);
   };
 
-  llvm::TypeSwitch<Operation&>(*op).Default([&](auto& op) {
-    // condition on result secretness
-    SmallVector<OpResult> secretResults;
-    getSecretResults(&op, secretResults);
-    if (secretResults.empty()) {
-      return;
-    }
+  // Operations that cannot have a plaintext operand do not get backward
+  // propagation, since this backward pass is primarily to assign a level
+  // to plaintext operands of ct-pt ops so they can be encoded properly.
+  auto plaintextOperandInterface = dyn_cast<PlaintextOperandInterface>(op);
+  if (!plaintextOperandInterface) {
+    LLVM_DEBUG(llvm::dbgs()
+               << "Not back propagating for " << op->getName()
+               << " because it does not implement PlaintextOperandInterface\n");
+    return success();
+  }
 
-    auto levelResult = 0;
-    for (auto result : secretResults) {
-      auto& levelState = getLatticeElement(result)->getValue();
-      if (!levelState.isInitialized()) {
-        return;
-      }
-      levelResult = std::max(levelResult, levelState.getLevel());
-    }
+  SmallVector<unsigned> secretResultIndices;
+  getSecretResultIndices(op, secretResultIndices);
+  if (secretResultIndices.empty()) {
+    LLVM_DEBUG(llvm::dbgs() << "Not back propagating for " << op->getName()
+                            << " because no results are secret\n");
+    return success();
+  }
 
-    // only back-prop for non-secret operands
-    SmallVector<OpOperand*> nonSecretOperands;
-    getNonSecretOperands(&op, nonSecretOperands);
-    for (auto* operand : nonSecretOperands) {
-      propagate(operand->get(), LevelState(levelResult));
-    }
-  });
+  LLVM_DEBUG(llvm::dbgs() << "Back propagating for PlaintextOperandInterface "
+                          << op->getName() << "\n");
+
+  LevelState levelResult;
+  for (unsigned i : secretResultIndices) {
+    LevelState state = results[i]->getValue();
+    if (state.isInt() || state.isMaxLevel())
+      levelResult = LevelState::join(levelResult, state);
+  }
+
+  SmallVector<OpOperand*> plaintextOperands;
+  getPlaintextOperands(op, plaintextOperands);
+  for (auto* operand : plaintextOperands) {
+    LLVM_DEBUG(debugLogBackwards(op->getName().getStringRef(), results,
+                                 levelResult, operand->getOperandNumber()));
+    propagate(operand->get(), levelResult);
+  }
   return success();
 }
 
@@ -167,13 +228,13 @@ LogicalResult LevelAnalysisBackward::visitOperation(
 
 // Walk the entire IR and return the maximum assigned level of all secret
 // Values.
-static int getMaxLevel(Operation* top, DataFlowSolver* solver) {
+int getMaxLevel(Operation* top, DataFlowSolver* solver) {
   auto maxLevel = 0;
   walkValues(top, [&](Value value) {
     if (mgmt::shouldHaveMgmtAttribute(value, solver)) {
       auto levelState = solver->lookupState<LevelLattice>(value)->getValue();
-      if (levelState.isInitialized()) {
-        auto level = levelState.getLevel();
+      if (levelState.isInt()) {
+        int level = levelState.getInt();
         maxLevel = std::max(maxLevel, level);
       }
     }
@@ -195,10 +256,13 @@ void annotateLevel(Operation* top, DataFlowSolver* solver, int baseLevel) {
         solver->lookupState<LevelLattice>(value)->getValue();
     // The analysis uses 0 to L for ease of analysis, and then we materialize
     // it in the IR in reverse, from L to 0.
-    if (!levelState.isInitialized()) {
+    if (levelState.isMaxLevel()) {
+      return 0;  // reversing, the "max" level becomes level 0
+    }
+    if (!levelState.isInt()) {
       return maxLevel + baseLevel;
     }
-    return maxLevel - levelState.getLevel() + baseLevel;
+    return maxLevel - levelState.getInt() + baseLevel;
   };
 
   walkValues(top, [&](Value value) {
@@ -210,7 +274,7 @@ void annotateLevel(Operation* top, DataFlowSolver* solver, int baseLevel) {
   });
 }
 
-LevelState::LevelType getLevelFromMgmtAttr(Value value) {
+LevelState getLevelFromMgmtAttr(Value value) {
   auto mgmtAttr = mgmt::findMgmtAttrAssociatedWith(value);
   if (!mgmtAttr) {
     assert(false && "MgmtAttr not found");
@@ -221,14 +285,13 @@ LevelState::LevelType getLevelFromMgmtAttr(Value value) {
 std::optional<int> getMaxLevel(Operation* root) {
   int maxLevel = 0;
   root->walk([&](func::FuncOp funcOp) {
-    // Skip client helpers
     if (isClientHelper(funcOp)) {
       return;
     }
 
     for (BlockArgument arg : funcOp.getArguments()) {
       if (isa<secret::SecretType>(arg.getType())) {
-        maxLevel = std::max(maxLevel, getLevelFromMgmtAttr(arg));
+        maxLevel = std::max(maxLevel, (int)getLevelFromMgmtAttr(arg).getInt());
       }
     }
   });

@@ -17,7 +17,6 @@ cc_library(
         ":op_interfaces_inc_gen",
         ":type_interfaces_inc_gen",
         "@heir//lib/Dialect/Secret/IR:SecretAttributes",
-        "@heir//lib/Transforms/LayoutOptimization:Hoisting",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:ArithDialect",

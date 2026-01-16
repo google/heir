@@ -4,6 +4,7 @@
 #include <cassert>
 #include <optional>
 
+#include "lib/Dialect/HEIRInterfaces.h"
 #include "llvm/include/llvm/ADT/ArrayRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/SparseAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
@@ -179,6 +180,19 @@ class SecretnessAnalysisDependent {
   }
 
   /**
+   * @brief Selects the indices of OpResults of an operation that are secret
+   * (secretness = true).
+   */
+  void getSecretResultIndices(Operation* op,
+                              SmallVectorImpl<unsigned>& secretResults) {
+    for (const auto& [i, result] : llvm::enumerate(op->getOpResults())) {
+      if (isSecretInternal(op, result)) {
+        secretResults.push_back(i);
+      }
+    }
+  }
+
+  /**
    * @brief Selects the OpOperands of an operation that are secret (secretness =
    * true).
    *
@@ -199,19 +213,25 @@ class SecretnessAnalysisDependent {
 
   /**
    * @brief Selects the OpOperands of an operation that are not secret
-   * (secretness = false or unknown).
+   * (secretness = false or unknown), but may be plaintexts.
    *
-   * This method iterates through the operands of the given operation and adds
-   * those that are not secret to the provided vector.
+   * The input operation must either have no legal plaintext operands, or else
+   * implement PlaintextOperandInterface to identify which operands may be
+   * plaintext. Those are then filtered by secretness to populate the outparam.
    *
    * @param op The operation to analyze.
-   * @param nonSecretOperands A vector to store the non-secret operands.
+   * @param plaintextOperands A vector to store the non-secret operands.
    */
-  void getNonSecretOperands(Operation* op,
-                            SmallVectorImpl<OpOperand*>& nonSecretOperands) {
-    for (auto& operand : op->getOpOperands()) {
-      if (!isSecretInternal(op, operand.get())) {
-        nonSecretOperands.push_back(&operand);
+  void getPlaintextOperands(Operation* op,
+                            SmallVectorImpl<OpOperand*>& plaintextOperands) {
+    auto opInterface = dyn_cast<PlaintextOperandInterface>(op);
+    if (opInterface) {
+      SmallVector<unsigned> maybePlaintextOperands =
+          opInterface.maybePlaintextOperands();
+      for (unsigned operandIndex : maybePlaintextOperands) {
+        if (!isSecretInternal(op, op->getOperand(operandIndex))) {
+          plaintextOperands.push_back(&op->getOpOperand(operandIndex));
+        }
       }
     }
   }
