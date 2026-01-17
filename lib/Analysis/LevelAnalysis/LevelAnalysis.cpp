@@ -34,8 +34,8 @@ namespace heir {
 // LevelAnalysis (Forward)
 //===----------------------------------------------------------------------===//
 
-static LevelState transferForward(mgmt::ModReduceOp op,
-                                  ArrayRef<const LevelLattice*> operands) {
+LevelState transferForward(mgmt::ModReduceOp op,
+                           ArrayRef<const LevelLattice*> operands) {
   return std::visit(
       Overloaded{
           [](MaxLevel) -> LevelState { return LevelState(Invalid{}); },
@@ -46,8 +46,8 @@ static LevelState transferForward(mgmt::ModReduceOp op,
       operands[0]->getValue().get());
 }
 
-static LevelState transferForward(mgmt::LevelReduceOp op,
-                                  ArrayRef<const LevelLattice*> operands) {
+LevelState transferForward(mgmt::LevelReduceOp op,
+                           ArrayRef<const LevelLattice*> operands) {
   return std::visit(
       Overloaded{
           [](MaxLevel) -> LevelState { return LevelState(Invalid{}); },
@@ -60,8 +60,8 @@ static LevelState transferForward(mgmt::LevelReduceOp op,
       operands[0]->getValue().get());
 }
 
-static LevelState transferForward(mgmt::LevelReduceMinOp op,
-                                  ArrayRef<const LevelLattice*> operands) {
+LevelState transferForward(mgmt::LevelReduceMinOp op,
+                           ArrayRef<const LevelLattice*> operands) {
   return std::visit(
       Overloaded{
           // MaxLevel -> MaxLevel should result in a no-op, so technically
@@ -74,8 +74,8 @@ static LevelState transferForward(mgmt::LevelReduceMinOp op,
       operands[0]->getValue().get());
 }
 
-static LevelState transferForward(mgmt::BootstrapOp op,
-                                  ArrayRef<const LevelLattice*> operands) {
+LevelState transferForward(mgmt::BootstrapOp op,
+                           ArrayRef<const LevelLattice*> operands) {
   return std::visit(
       Overloaded{
           [](MaxLevel) -> LevelState { return LevelState(0); },

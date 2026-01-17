@@ -64,7 +64,7 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
     auto getLocalParam = [&](Value value) {
       auto level = getLevelFromMgmtAttr(value);
       auto dimension = getDimensionFromMgmtAttr(value);
-      return LocalParamType(&schemeParam, level, dimension);
+      return LocalParamType(&schemeParam, level.getInt(), dimension);
     };
 
     auto getBound = [&](Value value) {
@@ -81,7 +81,7 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
         auto operandBound = getBound(op.getOperand());
         auto resultBound = getBound(op.getResult());
         // the gap between the operand and result
-        updateLevelToGap(getLevelFromMgmtAttr(op.getOperand()),
+        updateLevelToGap(getLevelFromMgmtAttr(op.getOperand()).getInt(),
                          operandBound - resultBound);
         return WalkResult::advance();
       });
@@ -89,7 +89,7 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
       // find the max noise for the first level
       genericOp.getBody()->walk([&](Operation* op) {
         for (Value result : op->getResults()) {
-          if (getLevelFromMgmtAttr(result) == 0) {
+          if (getLevelFromMgmtAttr(result).getInt() == 0) {
             auto bound = getBound(result);
             // the bound is from v_ms + v / q, where v / q is negligible
             // so originally bound(v_ms) + 1 is enough

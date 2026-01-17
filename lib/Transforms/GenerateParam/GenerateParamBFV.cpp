@@ -73,7 +73,7 @@ struct GenerateParamBFV : impl::GenerateParamBFVBase<GenerateParamBFV> {
     auto getLocalParam = [&](Value value) {
       auto level = getLevelFromMgmtAttr(value);
       auto dimension = getDimensionFromMgmtAttr(value);
-      return LocalParamType(&schemeParam, level, dimension);
+      return LocalParamType(&schemeParam, level.getInt(), dimension);
     };
 
     auto getBound = [&](Value value) {

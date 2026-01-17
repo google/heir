@@ -7,6 +7,7 @@
 #include <variant>
 
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/SparseAnalysis.h"  // from @llvm-project
@@ -204,6 +205,15 @@ void annotateLevel(Operation* top, DataFlowSolver* solver, int baseLevel = 0);
 // Get the maximum annotated level from mgmt attributes.
 // Assumes max level at the entrypoint to the main compiled function.
 std::optional<int> getMaxLevel(Operation* root);
+
+LevelState transferForward(mgmt::ModReduceOp op,
+                           ArrayRef<const LevelLattice*> operands);
+LevelState transferForward(mgmt::LevelReduceOp op,
+                           ArrayRef<const LevelLattice*> operands);
+LevelState transferForward(mgmt::LevelReduceMinOp op,
+                           ArrayRef<const LevelLattice*> operands);
+LevelState transferForward(mgmt::BootstrapOp op,
+                           ArrayRef<const LevelLattice*> operands);
 
 }  // namespace heir
 }  // namespace mlir

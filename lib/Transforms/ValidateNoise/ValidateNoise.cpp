@@ -50,7 +50,7 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
     auto getLocalParam = [&](Value value) {
       auto level = getLevelFromMgmtAttr(value);
       auto dimension = getDimensionFromMgmtAttr(value);
-      return LocalParamType(&schemeParam, level, dimension);
+      return LocalParamType(&schemeParam, level.getInt(), dimension);
     };
 
     auto secretness = isSecret(value, solver);
