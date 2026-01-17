@@ -19,6 +19,7 @@ def load_ipython_extension(ipython):
       )
   )
   load_nightly("abc")
-  load_nightly("techmap.v")
+  load_nightly("techmap_lut3.v")
+  load_nightly("techmap_lut4.v")
   os.environ["HEIR_YOSYS_SCRIPTS_DIR"] = os.getcwd()
   os.environ["HEIR_ABC_BINARY"] = os.getcwd() + "/abc"

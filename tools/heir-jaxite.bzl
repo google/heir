@@ -30,7 +30,8 @@ def fhe_jaxite_lib(name, mlir_src, heir_opt_pass_flags = [], py_lib_target_name 
             pass_flags = heir_opt_pass_flags,
             generated_filename = generated_heir_opt_name,
             HEIR_YOSYS = True,
-            data = ["@heir//lib/Transforms/YosysOptimizer/yosys:techmap.v"],
+            # HEIR jaxite only supports lut 3 operations
+            data = ["@heir//lib/Transforms/YosysOptimizer/yosys:techmap_lut3.v"],
             tags = tags,
         )
     else:
