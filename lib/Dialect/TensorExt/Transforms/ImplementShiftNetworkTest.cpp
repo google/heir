@@ -91,8 +91,8 @@ std::vector<std::vector<int>> manuallyApplyMapping(
                                         int64_t ciphertextSize,
                                         unsigned naiveNumRGExpected = 0) {
   VosVosErkinShiftNetworks shiftNetworks;
-
-  auto naiveScheme = shiftNetworks.findShiftScheme(mapping);
+  auto naiveSchemeResult = shiftNetworks.findShiftScheme(mapping);
+  const ShiftScheme& naiveScheme = naiveSchemeResult.scheme;
   unsigned naiveNumRG = naiveScheme.rotationGroups.size();
   unsigned naiveNumRounds = naiveScheme.strategy.getRounds().size();
   if (naiveNumRGExpected > 0 && naiveNumRG != naiveNumRGExpected)
@@ -106,8 +106,10 @@ std::vector<std::vector<int>> manuallyApplyMapping(
   // We try a large number of shift orders here such that we can be effectively
   // certain that we will find a network that is at least as good as the "naive"
   // one.
-  auto bestScheme = shiftNetworks.findBestShiftScheme(
-      mapping, /*randomSeed=*/42, /*randomTries=*/1000);
+  auto bestSchemeResult =
+      shiftNetworks.findBestShiftScheme(mapping, /*randomSeed=*/42,
+                                        /*randomTries=*/1000);
+  const ShiftScheme& bestScheme = bestSchemeResult.scheme;
   unsigned bestNumRounds = bestScheme.strategy.getRounds().size();
   if (bestNumRounds > naiveNumRounds)
     return ::testing::AssertionFailure()

@@ -100,15 +100,17 @@ Cost computeCostOfLayoutConversion(int64_t numCiphertexts,
   }
 
   tensor_ext::VosVosErkinShiftNetworks shiftNetwork;
-  ShiftScheme scheme =
+  auto schemeResult =
       shiftNetwork.findBestShiftScheme(mapping, vveRandomSeed, vveRandomTries);
+  ShiftScheme scheme = schemeResult.scheme;
+  Mapping cleanedMapping = schemeResult.cleanedMapping;
 
   using NodeTy = ArithmeticDagNode<SymbolicValue>;
   using ValueTy = std::shared_ptr<NodeTy>;
   SmallVector<SymbolicValue> inputLeaves(numCiphertexts,
                                          SymbolicValue({ciphertextSize}));
-  SmallVector<SmallVector<ValueTy>> groupResults =
-      implementRotationGroups(inputLeaves, mapping, scheme, ciphertextSize);
+  SmallVector<SmallVector<ValueTy>> groupResults = implementRotationGroups(
+      inputLeaves, cleanedMapping, scheme, ciphertextSize);
 
   // The cost is the maximum number of rotations in any group
   Cost maxRotations = 0;
