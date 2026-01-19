@@ -117,6 +117,8 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(::mlir::arith::SubIOp op);
   LogicalResult printOperation(::mlir::scf::IfOp op);
   LogicalResult printOperation(::mlir::scf::ForOp op);
+  LogicalResult printOperation(::mlir::scf::ForallOp op);
+  LogicalResult printOperation(::mlir::scf::InParallelOp op);
   LogicalResult printOperation(::mlir::scf::YieldOp op);
   LogicalResult printOperation(::mlir::tensor::ConcatOp op);
   LogicalResult printOperation(::mlir::tensor::EmptyOp op);
@@ -126,6 +128,7 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(::mlir::tensor::ExpandShapeOp op);
   LogicalResult printOperation(::mlir::tensor::InsertOp op);
   LogicalResult printOperation(::mlir::tensor::InsertSliceOp op);
+  LogicalResult printOperation(::mlir::tensor::ParallelInsertSliceOp op);
   LogicalResult printOperation(::mlir::tensor::SplatOp op);
   LogicalResult printOperation(::mlir::tensor::FromElementsOp op);
   LogicalResult printOperation(::mlir::func::FuncOp op);
