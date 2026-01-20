@@ -92,6 +92,7 @@
 #include "lib/Transforms/PolynomialApproximation/PolynomialApproximation.h"
 #include "lib/Transforms/PopulateScale/PopulateScale.h"
 #include "lib/Transforms/PropagateAnnotation/PropagateAnnotation.h"
+#include "lib/Transforms/ScratchpadPass/ScratchpadPass.h"
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/SelectRewrite/SelectRewrite.h"
@@ -311,6 +312,7 @@ int main(int argc, char** argv) {
   registerShapeInferencePasses();
   registerInlineActivationsPass();
   registerSplitPreprocessingPass();
+  registerScratchpadPass();
   // Register yosys optimizer pipeline if configured.
 #ifndef HEIR_NO_YOSYS
 #ifndef HEIR_ABC_BINARY

@@ -141,6 +141,7 @@ cc_binary(
         "@heir//lib/Transforms/PolynomialApproximation",
         "@heir//lib/Transforms/PopulateScale",
         "@heir//lib/Transforms/PropagateAnnotation",
+        "@heir//lib/Transforms/ScratchpadPass",
         "@heir//lib/Transforms/SecretInsertMgmt",
         "@heir//lib/Transforms/Secretize",
         "@heir//lib/Transforms/SelectRewrite",
