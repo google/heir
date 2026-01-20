@@ -1,6 +1,6 @@
 """A macro providing an end-to-end library for OpenFHE codegen."""
 
-load("@heir//bazel/openfhe:copts.bzl", "MAYBE_OPENFHE_LINKOPTS", "MAYBE_OPENMP_COPTS")
+load("@heir//bazel/openfhe:copts.bzl", "OPENMP_COPTS", "OPENMP_LINKOPTS")
 load("@heir//tools:heir-opt.bzl", "heir_opt")
 load("@heir//tools:heir-translate.bzl", "heir_translate")
 load("@pybind11_bazel//:build_defs.bzl", "pybind_extension")
@@ -82,8 +82,8 @@ def openfhe_lib(
         deps = deps + ["@openfhe//:pke"],
         tags = tags,
         data = data,
-        copts = MAYBE_OPENMP_COPTS,
-        linkopts = MAYBE_OPENFHE_LINKOPTS,
+        copts = OPENMP_COPTS,
+        linkopts = OPENMP_LINKOPTS,
         **kwargs
     )
 
