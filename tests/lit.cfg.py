@@ -39,7 +39,7 @@ tool_relpaths = [
     llvm_tools_relpath,
     "_main/tools",
     "_main/tests/Emitter/verilog",
-    "at_clifford_yosys",
+    "yosys+",
 ]
 
 config.environment["PATH"] = (
@@ -48,7 +48,7 @@ config.environment["PATH"] = (
     + os.environ["PATH"]
 )
 
-abc_relpath = "edu_berkeley_abc/abc"
+abc_relpath = "abc+/abc_bin"
 config.environment["HEIR_ABC_BINARY"] = str(
     runfiles_dir.joinpath(Path(abc_relpath))
 )

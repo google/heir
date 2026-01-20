@@ -59,9 +59,9 @@
 
 // Block clang-format from reordering
 // clang-format off
-#include "kernel/log.h"  // from @at_clifford_yosys
-#include "kernel/rtlil.h"  // from @at_clifford_yosys
-#include "kernel/yosys.h"  // from @at_clifford_yosys
+#include "kernel/log.h"  // from @yosys
+#include "kernel/rtlil.h"  // from @yosys
+#include "kernel/yosys.h"  // from @yosys
 // clang-format on
 
 #define DEBUG_TYPE "yosys-optimizer"

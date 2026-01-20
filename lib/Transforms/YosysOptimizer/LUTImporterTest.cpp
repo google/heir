@@ -30,9 +30,9 @@
 // Block clang-format from reordering
 // clang-format off
 #include "tools/cpp/runfiles/runfiles.h"  // from @bazel_tools
-#include "kernel/log.h"  // from @at_clifford_yosys
-#include "kernel/rtlil.h"  // from @at_clifford_yosys
-#include "kernel/yosys.h"  // from @at_clifford_yosys
+#include "kernel/log.h"  // from @yosys
+#include "kernel/rtlil.h"  // from @yosys
+#include "kernel/yosys.h"  // from @yosys
 // clang-format on
 
 namespace mlir::heir {

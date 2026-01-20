@@ -11,9 +11,6 @@ common --enable_platform_specific_config
 common -c dbg
 common --enable_bzlmod
 
-# required for hybrid bzlmod+workspace builds
-common --enable_workspace
-
 # prevents changes to PATH from causing a full rebuild
 common --incompatible_strict_action_env
 

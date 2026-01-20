@@ -25,10 +25,6 @@ bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.8.2", dev_dependenc
 # implicitly depends upon the target '//:license'. How bizarre.
 bazel_dep(name = "rules_license", version = "1.0.0")
 bazel_dep(name = "platforms", version = "1.0.0")
-
-# rules_foreign_cc provides access to a `make` bazel rule, which is needed
-# to build yosys
-bazel_dep(name = "rules_foreign_cc", version = "0.14.0")
 bazel_dep(name = "rules_go", version = "0.53.0")
 bazel_dep(name = "rules_python", version = "1.5.1")
 bazel_dep(name = "googletest", version = "1.17.0")
@@ -42,6 +38,8 @@ bazel_dep(name = "re2", version = "2025-08-12")
 bazel_dep(name = "isl", version = "0.27")
 bazel_dep(name = "pocketfft", version = "0.0.2")
 bazel_dep(name = "openfhe", version = "1.4.2.bcr.1")
+bazel_dep(name = "abc", version = "0.0.0-20250903-yosyshq.bcr.1")
+bazel_dep(name = "yosys", version = "0.57.bcr.2")
 
 # LLVM dependency uses module extensions because none of these are in the BCR
 llvm_extensions = use_extension("//bazel:extensions.bzl", "llvm_deps")
@@ -74,27 +72,10 @@ llvm_configure(
     targets = _LLVM_TARGETS,
 )
 
-# Yosys dependencies that are already on the bazel central registry.
-# abc can't be used in place because it changes the names of the targets from
-# abc-lib -> abc and abc -> abc_bin
-#
-# bazel_dep(name = "abc", version = "0.0.0-20250408-yosyshq.bcr.1", repo_name = "edu_berkeley_abc")
-bazel_dep(name = "ncurses", version = "6.4.20221231.bcr.10", repo_name = "net_invisible_island_ncurses")
-bazel_dep(name = "readline", version = "8.2.bcr.3", repo_name = "org_gnu_readline")
-bazel_dep(name = "rules_bison", version = "0.3")
-bazel_dep(name = "rules_flex", version = "0.3")
-bazel_dep(name = "soplex", version = "7.1.4.bcr.1")
-
-# The versions of yosys deps zlib and libffi that come with rules_hdl don't
-# build for some versions of MacOS + Xcode (e.g., macOS 15.4 with Xcode 16.3).
-# But these issues were fixed in later versions that happen to be available in
-# the bazel central registry.
-bazel_dep(name = "zlib", version = "1.3.1.bcr.7", repo_name = "net_zlib")
-bazel_dep(name = "libffi", version = "3.4.7.bcr.3", repo_name = "org_sourceware_libffi")
-
 # eigen 4.0.0-20241125.bcr.1 has issues with gitlab changing the checksum
 # Cf. https://github.com/google/heir/issues/1840
 bazel_dep(name = "eigen", version = "3.4.0.bcr.3")
+bazel_dep(name = "soplex", version = "7.1.4.bcr.1")
 bazel_dep(name = "or-tools", version = "9.12", repo_name = "com_google_ortools")
 
 # openfhe deps that are needed for bundling openfhe with the python frontend
