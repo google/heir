@@ -611,7 +611,7 @@ class TextualMlirEmitter:
 
     tmp = self.get_next_name()
     ext = (
-        f"{tmp} = arith.extui {self.get_name(short)} : "
+        f"{tmp} = arith.extsi {self.get_name(short)} : "
         f"{mlirType(self.typemap.get(str(short)))} "
         f"to {mlirType(self.typemap.get(str(long)))} "
         f"{mlirLoc(short.loc)}\n"
