@@ -111,7 +111,7 @@ LogicalResult ScaleAnalysis<ScaleModelT>::visitOperation(
     Operation* op, ArrayRef<const ScaleLattice*> operands,
     ArrayRef<ScaleLattice*> results) {
   auto getLocalParam = [&](Value value) {
-    auto level = getLevelFromMgmtAttr(value);
+    auto level = getLevelFromMgmtAttr(value).getInt();
     auto dimension = getDimensionFromMgmtAttr(value);
     return LocalParamType(&schemeParam, level, dimension);
   };
@@ -237,7 +237,7 @@ LogicalResult ScaleAnalysisBackward<ScaleModelT>::visitOperation(
     Operation* op, ArrayRef<ScaleLattice*> operands,
     ArrayRef<const ScaleLattice*> results) {
   auto getLocalParam = [&](Value value) {
-    auto level = getLevelFromMgmtAttr(value);
+    auto level = getLevelFromMgmtAttr(value).getInt();
     auto dimension = getDimensionFromMgmtAttr(value);
     return LocalParamType(&schemeParam, level, dimension);
   };

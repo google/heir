@@ -1,8 +1,9 @@
 #ifndef LIB_DIALECT_TENSOREXT_IR_TENSOREXTOPS_TD_
 #define LIB_DIALECT_TENSOREXT_IR_TENSOREXTOPS_TD_
 
-include "lib/Dialect/TensorExt/IR/TensorExtDialect.td"
+include "lib/Dialect/HEIRInterfaces.td"
 include "lib/Dialect/TensorExt/IR/TensorExtAttributes.td"
+include "lib/Dialect/TensorExt/IR/TensorExtDialect.td"
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/CommonAttrConstraints.td"
 include "mlir/IR/CommonTypeConstraints.td"
@@ -142,7 +143,11 @@ def TensorExt_UnpackOp : TensorExt_Op<"unpack", [Pure]> {
   let hasVerifier = 1;
 }
 
-def TensorExt_RotateAndReduceOp : TensorExt_Op<"rotate_and_reduce",[Pure, AllTypesMatch<["tensor", "output"]>]> {
+def TensorExt_RotateAndReduceOp : TensorExt_Op<"rotate_and_reduce", [
+  Pure,
+  AllTypesMatch<["tensor", "output"]>,
+  DeclareOpInterfaceMethods<PlaintextOperandInterface>
+]> {
   let summary = "Performs a reduction of a periodically rotated tensor.";
   let description = [{
     This op reduces products of a plaintext with a periodically rotated
@@ -193,6 +198,13 @@ def TensorExt_RotateAndReduceOp : TensorExt_Op<"rotate_and_reduce",[Pure, AllTyp
   );
   let results = (outs AnyRankedTensor:$output);
   let hasVerifier = 1;
+
+  let extraClassDeclaration = [{
+    // PlaintextOperandInterface method
+    ::llvm::SmallVector<unsigned> maybePlaintextOperands() {
+      return {1};
+    }
+  }];
 
   let builders = [
     OpBuilder<(ins

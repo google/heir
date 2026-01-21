@@ -32,8 +32,9 @@ template <typename NoiseModel>
 void NoiseAnalysis<NoiseModel>::setToEntryState(LatticeType* lattice) {
   if (isa<secret::SecretType>(lattice->getAnchor().getType())) {
     Value value = lattice->getAnchor();
-    auto localParam = LocalParamType(&schemeParam, getLevelFromMgmtAttr(value),
-                                     getDimensionFromMgmtAttr(value));
+    auto localParam =
+        LocalParamType(&schemeParam, getLevelFromMgmtAttr(value).getInt(),
+                       getDimensionFromMgmtAttr(value));
     NoiseState encrypted = noiseModel.evalEncrypt(localParam);
     this->propagateIfChanged(lattice, lattice->join(encrypted));
     LLVM_DEBUG(llvm::dbgs() << "Initializing "
@@ -65,7 +66,7 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
     ArrayRef<LatticeType*> results) {
   LLVM_DEBUG(llvm::dbgs() << "NoiseAnalysis: Visiting op " << *op << "\n");
   auto getLocalParam = [&](Value value) {
-    auto level = getLevelFromMgmtAttr(value);
+    auto level = getLevelFromMgmtAttr(value).getInt();
     auto dimension = getDimensionFromMgmtAttr(value);
     return LocalParamType(&schemeParam, level, dimension);
   };
@@ -85,7 +86,7 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
     SmallVector<OpOperand*> secretOperands;
     SmallVector<OpOperand*> nonSecretOperands;
     this->getSecretOperands(op, secretOperands);
-    this->getNonSecretOperands(op, nonSecretOperands);
+    this->getPlaintextOperands(op, nonSecretOperands);
 
     for (auto* operand : secretOperands) {
       noises.push_back(this->getLatticeElement(operand->get())->getValue());

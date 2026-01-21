@@ -16,7 +16,6 @@ cc_library(
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
-        "@llvm-project//mlir:CallOpInterfaces",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",

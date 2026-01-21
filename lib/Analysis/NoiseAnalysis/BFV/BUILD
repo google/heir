@@ -26,7 +26,6 @@ cc_library(
         "@heir//lib/Utils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
-        "@llvm-project//mlir:CallOpInterfaces",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",

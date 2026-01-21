@@ -21,6 +21,13 @@ namespace heir {
 #include "lib/Dialect/HEIROpInterfaces.cpp.inc"
 #include "lib/Dialect/HEIRTypeInterfaces.cpp.inc"
 
+using arith::AddFOp;
+using arith::AddIOp;
+using arith::MulFOp;
+using arith::MulIOp;
+using arith::SubFOp;
+using arith::SubIOp;
+
 void registerOperandAndResultAttrInterface(DialectRegistry& registry) {
   registry.addExtension(+[](MLIRContext* ctx, affine::AffineDialect* dialect) {
     affine::AffineForOp::attachInterface<OperandAndResultAttrInterface>(*ctx);
@@ -29,8 +36,30 @@ void registerOperandAndResultAttrInterface(DialectRegistry& registry) {
 
 void registerIncreasesMulDepthOpInterface(DialectRegistry& registry) {
   registry.addExtension(+[](MLIRContext* ctx, arith::ArithDialect* dialect) {
-    arith::MulIOp::attachInterface<IncreasesMulDepthOpInterface>(*ctx);
-    arith::MulFOp::attachInterface<IncreasesMulDepthOpInterface>(*ctx);
+    MulIOp::attachInterface<IncreasesMulDepthOpInterface>(*ctx);
+    MulFOp::attachInterface<IncreasesMulDepthOpInterface>(*ctx);
+  });
+}
+
+namespace {
+template <typename OpTy>
+struct AnyOperandMayBePlaintextImpl
+    : public PlaintextOperandInterface::ExternalModel<
+          AnyOperandMayBePlaintextImpl<OpTy>, OpTy> {
+  SmallVector<unsigned> maybePlaintextOperands(Operation* op) const {
+    return {0, 1};
+  }
+};
+}  // namespace
+
+void registerPlaintextOperandInterface(DialectRegistry& registry) {
+  registry.addExtension(+[](MLIRContext* ctx, arith::ArithDialect* dialect) {
+    MulIOp::attachInterface<AnyOperandMayBePlaintextImpl<MulIOp>>(*ctx);
+    MulFOp::attachInterface<AnyOperandMayBePlaintextImpl<MulFOp>>(*ctx);
+    AddIOp::attachInterface<AnyOperandMayBePlaintextImpl<AddIOp>>(*ctx);
+    AddFOp::attachInterface<AnyOperandMayBePlaintextImpl<AddFOp>>(*ctx);
+    SubIOp::attachInterface<AnyOperandMayBePlaintextImpl<SubIOp>>(*ctx);
+    SubFOp::attachInterface<AnyOperandMayBePlaintextImpl<SubFOp>>(*ctx);
   });
 }
 

@@ -31,14 +31,14 @@ LogicalResult updateResultLevelLattice(Operation* op, DataFlowSolver* solver) {
   // the use of any pattern that calls this function.
   SmallVector<const LevelLattice*, 2> operandLattices;
   for (auto operand : op->getOperands()) {
-    operandLattices.push_back(solver->lookupState<LevelLattice>(operand));
+    operandLattices.push_back(solver->getOrCreateState<LevelLattice>(operand));
   }
 
   if (!op->getResults().empty()) {
     for (auto result : op->getResults()) {
-      FailureOr<int64_t> resultLevel = deriveResultLevel(op, operandLattices);
+      LevelState resultLevel = deriveResultLevel(op, operandLattices);
       auto* resultLattice = solver->getOrCreateState<LevelLattice>(result);
-      resultLattice->getValue().setLevel(resultLevel.value());
+      resultLattice->getValue() = resultLevel;
     }
   }
 
@@ -50,7 +50,8 @@ LogicalResult updateResultMulDepthLattice(Operation* op,
   // Same warning as updateResultLevelLattice
   SmallVector<const MulDepthLattice*, 2> operandLattices;
   for (auto operand : op->getOperands()) {
-    operandLattices.push_back(solver->lookupState<MulDepthLattice>(operand));
+    operandLattices.push_back(
+        solver->getOrCreateState<MulDepthLattice>(operand));
   }
 
   if (!op->getResults().empty()) {
@@ -162,7 +163,7 @@ LogicalResult MatchCrossLevel<Op>::matchAndRewrite(
     return rewriter.notifyMatchFailure(op,
                                        "result level state not initialized");
   }
-  auto resultLevel = resultLevelState.getLevel();
+  auto resultLevel = resultLevelState.getInt();
 
   bool inserted = false;
   SmallVector<OpOperand*, 2> secretOperands;
@@ -175,7 +176,7 @@ LogicalResult MatchCrossLevel<Op>::matchAndRewrite(
                                          "operand level state not initialized");
     }
 
-    auto level = levelState.getLevel();
+    auto level = levelState.getInt();
     if (level < resultLevel) {
       inserted = true;
       rewriter.setInsertionPoint(op);
@@ -311,7 +312,7 @@ LogicalResult BootstrapWaterLine<Op>::matchAndRewrite(
   // operations resulting level after bootstrapping placement is its
   // multiplicate depth % waterline, so that all levels are less than the
   // waterline.
-  auto level = levelLattice->getValue().getLevel();
+  auto level = levelLattice->getValue().getInt();
   if (level % waterline != 0) {
     return rewriter.notifyMatchFailure(op,
                                        "level is not a multiple of waterline");

@@ -2,6 +2,7 @@
 #define LIB_DIALECT_TENSOREXT_IR_TENSOREXTOPS_H_
 
 // IWYU pragma: begin_keep
+#include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "mlir/include/mlir/IR/BuiltinOps.h"  // from @llvm-project

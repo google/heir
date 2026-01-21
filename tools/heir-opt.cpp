@@ -379,6 +379,7 @@ int main(int argc, char** argv) {
   registerLayoutConversionHoistableInterface(registry);
   registerOperandAndResultAttrInterface(registry);
   registerOperandLayoutRequirementOpInterface(registry);
+  registerPlaintextOperandInterface(registry);
 
   PassPipelineRegistration<>(
       "heir-polynomial-to-llvm",
