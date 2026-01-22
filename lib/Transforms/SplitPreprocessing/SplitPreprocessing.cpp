@@ -1,34 +1,36 @@
 #include "lib/Transforms/SplitPreprocessing/SplitPreprocessing.h"
 
+#include <cstdint>
 #include <memory>
 #include <utility>
 
-#include "lib/Dialect/Secret/IR/SecretPatterns.h"
-#include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
-#include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
-#include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Attributes.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/Block.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/Builders.h"              // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/IRMapping.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/OpDefinition.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
-#include "mlir/include/mlir/Pass/Pass.h"                // from @llvm-project
-#include "mlir/include/mlir/Pass/PassManager.h"         // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
-#include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
-#include "mlir/include/mlir/Transforms/Passes.h"  // from @llvm-project
+#include "lib/Dialect/LWE/IR/LWEOps.h"
+#include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/ModuleAttributes.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
+#include "mlir/include/mlir/Analysis/SliceAnalysis.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Block.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/IRMapping.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/Pass/Pass.h"                 // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"          // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 
 #define DEBUG_TYPE "split-preprocessing"
 
@@ -39,10 +41,19 @@ namespace heir {
 #include "lib/Transforms/SplitPreprocessing/SplitPreprocessing.h.inc"
 
 using func::FuncOp;
-using tensor_ext::AssignLayoutOp;
-using tensor_ext::OriginalTypeAttr;
 
 namespace {
+
+struct PreprocessingAnalysis {
+  SetVector<Operation*> preprocessingOps;
+  // Use a vector of pairs to preserve insertion order for stable function
+  // signatures.
+  SmallVector<std::pair<Value, SmallVector<lwe::RLWEEncodeOp>>>
+      cleartextToEncodeOps;
+  SmallVector<Type> plaintextTypes;
+
+  bool empty() const { return cleartextToEncodeOps.empty(); }
+};
 
 struct SplitPreprocessingPass
     : impl::SplitPreprocessingBase<SplitPreprocessingPass> {
@@ -50,127 +61,264 @@ struct SplitPreprocessingPass
 
   void runOnOperation() override {
     FuncOp funcOp = getOperation();
-    MLIRContext* context = &getContext();
-    OpBuilder builder(context);
-
-    // Run secret canonicalization pattern to hoist tensor_ext.assign_layouts on
-    // plaintexts outside of the secret.generic.
-    mlir::RewritePatternSet patterns(context);
-    patterns
-        .add<secret::HoistPlaintextOps, secret::CollapseSecretlessGeneric,
-             secret::ConcealThenGeneric, secret::RemoveNonSecretGenericArgs>(
-            context);
-    if (failed(applyPatternsGreedily(funcOp, std::move(patterns)))) {
-      funcOp.emitError() << "failed to run secret canonicalization patterns";
-      signalPassFailure();
+    if (funcOp.isDeclaration() || isClientHelper(funcOp)) {
       return;
     }
 
-    SmallVector<Type, 4> newArgTypes;
+    PreprocessingAnalysis analysis = analyzePreprocessing(funcOp);
+    if (analysis.empty()) {
+      return;
+    }
+
+    FuncOp preprocessingFuncOp = createPreprocessingFunction(funcOp, analysis);
+    FuncOp preprocessedFuncOp = createPreprocessedFunction(funcOp, analysis);
+
+    ModuleOp moduleOp = funcOp->getParentOfType<ModuleOp>();
+    moduleOp.insert(funcOp.getOperation(), preprocessingFuncOp);
+    moduleOp.insert(funcOp.getOperation(), preprocessedFuncOp);
+
+    updateOriginalFunc(funcOp, preprocessingFuncOp, preprocessedFuncOp,
+                       analysis);
+  }
+
+  void updateOriginalFunc(FuncOp funcOp, FuncOp preprocessingFuncOp,
+                          FuncOp preprocessedFuncOp,
+                          const PreprocessingAnalysis& analysis) {
+    OpBuilder builder(funcOp.getContext());
+    // Add call operations in the main function body to the preprocessing
+    // and preprocessed functions.
+    builder.setInsertionPointToStart(&funcOp.getBody().front());
+    SmallVector<Value> callPreprocessingArgs;
+    for (const auto& [arg, _] : analysis.cleartextToEncodeOps) {
+      if (isa<BlockArgument>(arg)) {
+        callPreprocessingArgs.push_back(arg);
+      }
+    }
+    auto callPreprocessingOp = func::CallOp::create(
+        builder, funcOp.getLoc(), preprocessingFuncOp, callPreprocessingArgs);
+
+    SmallVector<Value> callPreprocessedArgs;
     for (auto arg : funcOp.getArguments()) {
-      newArgTypes.push_back(arg.getType());
-    }
-
-    DenseMap<AssignLayoutOp, int> assignLayoutToArgIndex;
-    funcOp.walk([&](AssignLayoutOp op) {
-      if (auto bbArg = dyn_cast<BlockArgument>(op.getOperand())) {
-        assignLayoutToArgIndex[op] = bbArg.getArgNumber();
-      } else {
-        // Add new arguments for plaintext layout assignments on constants or
-        // other values defined in the IR.
-        newArgTypes.push_back(op.getResult().getType());
-        assignLayoutToArgIndex[op] = newArgTypes.size() - 1;
+      if (isa<lwe::LWECiphertextType>(getElementTypeOrSelf(arg.getType()))) {
+        callPreprocessedArgs.push_back(arg);
       }
-    });
-    if (assignLayoutToArgIndex.empty()) {
-      return;
     }
+    callPreprocessedArgs.append(callPreprocessingOp.getResults().begin(),
+                                callPreprocessingOp.getResults().end());
+    auto callPreprocessedOp = func::CallOp::create(
+        builder, funcOp.getLoc(), preprocessedFuncOp, callPreprocessedArgs);
 
-    auto newFuncType =
-        FunctionType::get(context, newArgTypes, funcOp.getResultTypes());
-    auto newFuncName = funcOp.getName().str() + "__preprocessed";
-    auto newFuncOp = FuncOp::create(funcOp.getLoc(), newFuncName, newFuncType);
-    newFuncOp.setVisibility(funcOp.getVisibility());
-
-    // Copy func arg attrs and result attrs to new func. This ensures the layout
-    // attributes on the original function arguments are preserved in the new
-    // preprocessed func.
-    for (int i = 0; i < funcOp.getNumArguments(); ++i) {
-      newFuncOp.setArgAttrs(i, funcOp.getArgAttrDict(i));
-    }
-    for (int i = 0; i < funcOp.getNumResults(); ++i) {
-      newFuncOp.setResultAttrs(i, funcOp.getResultAttrDict(i));
-    }
-
-    IRMapping mapping;
-    Block* newEntryBlock = newFuncOp.addEntryBlock();
-    mapping.map(&funcOp.front(), newEntryBlock);
-    for (const auto& [index, value] : llvm::enumerate(funcOp.getArguments())) {
-      mapping.map(value, newEntryBlock->getArgument(index));
-    }
-
-    for (auto& [op, index] : assignLayoutToArgIndex) {
-      BlockArgument arg = newEntryBlock->getArgument(index);
-      // Maps the results of the assign_layout to the new function arguments.
-      LLVM_DEBUG(llvm::dbgs()
-                     << "Mapping " << op.getResult() << " to " << arg << "\n";);
-      mapping.map(op.getResult(), arg);
-    }
-
-    builder.setInsertionPointToEnd(newEntryBlock);
-    for (auto& op : funcOp.getBody().getOps()) {
-      if (auto assignLayoutOp = dyn_cast<AssignLayoutOp>(op)) continue;
-      // If the mapping already contains all the ops results, then there's no
-      // need to clone the op to the new function.
-      if (!op.hasTrait<OpTrait::IsTerminator>() &&
-          llvm::all_of(op.getResults(), [&](OpResult result) {
-            return mapping.contains(result);
-          })) {
-        continue;
-      }
-      builder.clone(op, mapping);
-    }
-
-    // Add original_type attribute to the new arguments.
-    for (auto& [op, index] : assignLayoutToArgIndex) {
-      newFuncOp.setArgAttr(
-          index, tensor_ext::TensorExtDialect::kOriginalTypeAttrName,
-          OriginalTypeAttr::get(context, op.getOperand().getType(),
-                                op.getLayout()));
-    }
-
-    // Insert the new function before the original one.
-    funcOp->getParentOfType<ModuleOp>().insert(funcOp.getOperation(),
-                                               newFuncOp);
-
-    // Replace the body of the original function with a call to the new one.
     Block* originalEntry = &funcOp.getBody().front();
     Operation* originalTerminator = originalEntry->getTerminator();
-    builder.setInsertionPoint(originalTerminator);
+    originalTerminator->setOperands(callPreprocessedOp.getResults());
 
-    SmallVector<Value> callOperands(newFuncOp.getNumArguments(), nullptr);
+    // At this point all operations should have been moved and we can remove all
+    // ops but the calls.
+    DenseSet<Operation*> opsToKeep = {callPreprocessingOp, callPreprocessedOp,
+                                      originalTerminator};
+    for (Operation& op : llvm::make_early_inc_range(
+             llvm::reverse(originalEntry->getOperations()))) {
+      if (!opsToKeep.contains(&op)) op.erase();
+    }
+  }
+
+  FuncOp createPreprocessingFunction(FuncOp funcOp,
+                                     const PreprocessingAnalysis& analysis) {
+    MLIRContext* context = funcOp.getContext();
+    OpBuilder builder(context);
+
+    SmallVector<Type> cleartextArgs;
+    for (const auto& [arg, _] : analysis.cleartextToEncodeOps) {
+      if (isa<BlockArgument>(arg)) {
+        cleartextArgs.push_back(arg.getType());
+      }
+    }
+    auto preprocessingFuncType =
+        FunctionType::get(context, cleartextArgs, analysis.plaintextTypes);
+    auto preprocessingFuncName = funcOp.getName().str() + "__preprocessing";
+    auto preprocessingFuncOp = FuncOp::create(
+        funcOp.getLoc(), preprocessingFuncName, preprocessingFuncType);
+    preprocessingFuncOp.setVisibility(funcOp.getVisibility());
+    // Add a client.pack_func attribute to the new function so that
+    // later passes can reference the original function.
+    preprocessingFuncOp->setAttr(
+        kClientPackFuncAttrName,
+        builder.getDictionaryAttr({
+            builder.getNamedAttr(kClientHelperFuncName,
+                                 builder.getStringAttr(funcOp.getName())),
+        }));
+
+    IRMapping preprocessingMapping;
+    Block* preprocessingEntryBlock = preprocessingFuncOp.addEntryBlock();
+    int index = 0;
+    for (const auto& [arg, _] : analysis.cleartextToEncodeOps) {
+      if (isa<BlockArgument>(arg)) {
+        preprocessingMapping.map(arg,
+                                 preprocessingEntryBlock->getArgument(index++));
+      }
+    }
+
+    // Insert the preprocessing ops into the new function.
+    builder.setInsertionPointToEnd(preprocessingEntryBlock);
+    for (auto op : analysis.preprocessingOps) {
+      builder.clone(*op, preprocessingMapping);
+    }
+    // Make tensor.from_elements ops to collect the plaintext results;
+    SmallVector<Value> plaintextResults;
+    for (const auto& [arg, ops] : analysis.cleartextToEncodeOps) {
+      SmallVector<Value> elements;
+      for (auto encodeOp : ops) {
+        elements.push_back(preprocessingMapping.lookup(encodeOp.getResult()));
+      }
+      auto resultOp =
+          tensor::FromElementsOp::create(builder, funcOp.getLoc(), elements);
+      plaintextResults.push_back(resultOp.getResult());
+    }
+    func::ReturnOp::create(builder, funcOp.getLoc(), plaintextResults);
+
+    return preprocessingFuncOp;
+  }
+
+  FuncOp createPreprocessedFunction(FuncOp funcOp,
+                                    const PreprocessingAnalysis& analysis) {
+    MLIRContext* context = funcOp.getContext();
+    OpBuilder builder(context);
+
+    SmallVector<Type> preprocessedArgTypes;
+    for (auto argType : funcOp.getArgumentTypes()) {
+      if (isa<lwe::LWECiphertextType>(getElementTypeOrSelf(argType))) {
+        preprocessedArgTypes.push_back(argType);
+      }
+    }
+    preprocessedArgTypes.append(analysis.plaintextTypes.begin(),
+                                analysis.plaintextTypes.end());
+    auto preprocessedFuncType = FunctionType::get(context, preprocessedArgTypes,
+                                                  funcOp.getResultTypes());
+    auto preprocessedFuncName = funcOp.getName().str() + "__preprocessed";
+    auto preprocessedFuncOp = FuncOp::create(
+        funcOp.getLoc(), preprocessedFuncName, preprocessedFuncType);
+    preprocessedFuncOp.setVisibility(funcOp.getVisibility());
+    // Add a client.preprocessed_func attribute to the new function so that
+    // later passes can reference the original function.
+    preprocessedFuncOp->setAttr(
+        kClientPreprocessedFuncAttrName,
+        builder.getDictionaryAttr({
+            builder.getNamedAttr(kClientHelperFuncName,
+                                 builder.getStringAttr(funcOp.getName())),
+        }));
+
+    // Build the main function body in the preprocessed function.
+    IRMapping preprocessedMapping;
+    Block* newEntryBlock = preprocessedFuncOp.addEntryBlock();
+    int index = 0;
     for (auto arg : funcOp.getArguments()) {
-      callOperands[arg.getArgNumber()] = arg;
+      if (isa<lwe::LWECiphertextType>(getElementTypeOrSelf(arg.getType()))) {
+        preprocessedMapping.map(arg, newEntryBlock->getArgument(index++));
+      }
     }
-    for (auto& [op, index] : assignLayoutToArgIndex) {
-      callOperands[index] = op.getResult();
+    // Map each of the encode ops to a tensor.extract of the block argument.
+    builder.setInsertionPointToEnd(newEntryBlock);
+    for (const auto& [_, ops] : analysis.cleartextToEncodeOps) {
+      auto newTensorPlaintextArg = newEntryBlock->getArgument(index++);
+      for (auto [idx, encodeOp] : llvm::enumerate(ops)) {
+        auto idxVal =
+            arith::ConstantIndexOp::create(builder, funcOp.getLoc(), idx);
+        auto extracted =
+            tensor::ExtractOp::create(builder, funcOp.getLoc(),
+                                      newTensorPlaintextArg, {idxVal})
+                .getResult();
+        preprocessedMapping.map(encodeOp->getResults()[0], extracted);
+      }
+    }
+    for (auto& op : funcOp.getBody().getOps()) {
+      // Skip ops that are exclusively used for preprocessing.
+      if (analysis.preprocessingOps.contains(&op) &&
+          (isa<lwe::RLWEEncodeOp>(op) ||
+           llvm::all_of(op.getUsers(), [&](Operation* user) {
+             return analysis.preprocessingOps.contains(user);
+           }))) {
+        continue;
+      }
+      builder.clone(op, preprocessedMapping);
     }
 
-    auto callOp =
-        func::CallOp::create(builder, funcOp.getLoc(), newFuncOp, callOperands);
-    originalTerminator->setOperands(callOp.getResults());
+    return preprocessedFuncOp;
+  }
 
-    // Remove dead values in the new function operation - this isn't as simple
-    // as removing all operations except for the assign layouts and their
-    // operand's defining ops since there may be more complex plaintext
-    // operations that are then used to define the operand.
-    // Note: This doesn't remove any dead code from the newly created function,
-    // since a dynamic pipeline must be scheduled under the root operation of
-    // this pass (which is the original func::FuncOp).
-    OpPassManager pipeline(func::FuncOp::getOperationName());
-    pipeline.addPass(createRemoveDeadValuesPass());
-    pipeline.addPass(createCSEPass());
-    (void)runPipeline(pipeline, funcOp);
+  PreprocessingAnalysis analyzePreprocessing(FuncOp funcOp) {
+    PreprocessingAnalysis analysis;
+
+    SmallVector<Value> candidateCleartexts;
+    for (auto arg : funcOp.getBody().getArguments()) {
+      if (!isa<lwe::LWECiphertextType>(getElementTypeOrSelf(arg.getType()))) {
+        candidateCleartexts.push_back(arg);
+      }
+    }
+    for (auto constantOp : funcOp.getBody().getOps<arith::ConstantOp>()) {
+      // This will also end up including constants used as indices for
+      // extractions or rotations, so don't include any index constants.
+      if (constantOp.getType().isIndex()) {
+        continue;
+      }
+      candidateCleartexts.push_back(constantOp.getResult());
+    }
+
+    for (auto candidate : candidateCleartexts) {
+      // Traverse a forward slice to find resulting lwe::RLWEEncodeOps from the
+      // cleartexts.
+      auto parentRegion = candidate.getParentRegion();
+      SetVector<Operation*> forwardSlice;
+      ForwardSliceOptions options;
+      options.inclusive = true;
+      options.filter = [&](Operation* op) {
+        if (op->getParentRegion() != parentRegion) {
+          // Don't include ops inside regions, since we will clone their
+          // parent op.
+          return false;
+        }
+        // Stop when we hit an lwe::RLWEEncodeOp.
+        return llvm::none_of(op->getOperands(), [](Value operand) {
+          return isa_and_nonnull<lwe::RLWEEncodeOp>(operand.getDefiningOp());
+        });
+      };
+      for (Operation* user : candidate.getUsers()) {
+        auto userSlice = getSlice(user, {}, options);
+        forwardSlice.insert(userSlice.begin(), userSlice.end());
+      }
+      if (forwardSlice.empty()) continue;
+
+      // The result is a collection of plaintexts that will be output from the
+      // preprocessing function.
+      SmallVector<lwe::RLWEEncodeOp> encodeOps;
+      for (auto op : forwardSlice) {
+        if (auto encodeOp = dyn_cast<lwe::RLWEEncodeOp>(op)) {
+          encodeOps.push_back(encodeOp);
+        }
+      }
+      if (!encodeOps.empty()) {
+        LLVM_DEBUG(llvm::dbgs()
+                   << "Found cleartext to encode: " << candidate << " with "
+                   << encodeOps.size() << " encode ops." << "\n");
+        if (!llvm::all_equal(
+                llvm::map_range(encodeOps, [](lwe::RLWEEncodeOp encodeOp) {
+                  return encodeOp.getType();
+                }))) {
+          // Unlikely, but possible that the cleartext is used for
+          // different plaintext encoding types, so we skip it in this case.
+          LLVM_DEBUG(llvm::dbgs() << "Plaintexts types from candidate "
+                                  << candidate << " do not match, skipping.\n");
+
+          continue;
+        }
+        analysis.plaintextTypes.push_back(RankedTensorType::get(
+            {static_cast<int64_t>(encodeOps.size())}, encodeOps[0].getType()));
+        analysis.cleartextToEncodeOps.push_back(
+            {candidate, std::move(encodeOps)});
+      }
+      analysis.preprocessingOps.insert(forwardSlice.begin(),
+                                       forwardSlice.end());
+    }
+    return analysis;
   }
 };
 
