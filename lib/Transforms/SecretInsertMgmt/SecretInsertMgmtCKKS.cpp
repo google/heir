@@ -37,6 +37,7 @@ struct SecretInsertMgmtCKKS
 
     InsertMgmtPipelineOptions options;
     options.includeFloats = true;
+    options.levelBudget = levelBudget;
     options.modReduceAfterMul = afterMul;
     options.modReduceBeforeMulIncludeFirstMul = beforeMulIncludeFirstMul;
     options.bootstrapWaterline = bootstrapWaterline;

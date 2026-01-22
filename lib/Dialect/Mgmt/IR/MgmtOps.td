@@ -98,7 +98,7 @@ def Mgmt_RelinearizeOp : Mgmt_Op<"relinearize"> {
   let assemblyFormat = "operands attr-dict `:` type($output)";
 }
 
-def Mgmt_BootstrapOp : Mgmt_Op<"bootstrap"> {
+def Mgmt_BootstrapOp : Mgmt_Op<"bootstrap", [ResetsMulDepthOpInterface]> {
   let summary = "Bootstrap the input ciphertext to refresh its noise budget";
 
   let description = [{
