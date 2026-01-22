@@ -11,7 +11,8 @@
 // CHECK-DAG: %[[c3:.*]] = arith.constant 3 : index
 // CHECK-DAG: %[[c4:.*]] = arith.constant 4 : index
 // CHECK:    %[[precomp:.*]] = openfhe.fast_rotation_precompute %[[cc]], %[[input1]]
-// CHECK:    %[[from_elements:.*]] = tensor.from_elements %[[c1]], %[[c2]], %[[c3]], %[[c4]] : tensor<4xindex>
+// Note: the ordering in which to perform the rotations is arbitrary.
+// CHECK:    %[[from_elements:.*]] = tensor.from_elements {{.*}} : tensor<4xindex>
 // CHECK:    %[[v0:.*]] = tensor.empty() : tensor<4x![[ct]]>
 // CHECK:    %[[v1:.*]] = scf.forall (%[[arg0:.*]]) in (4) shared_outs(%[[arg1:.*]] = %[[v0]]) -> (tensor<4x![[ct]]>) {
 // CHECK:      %[[extracted_9:.*]] = tensor.extract %[[from_elements]][%arg0] : tensor<4xindex>
