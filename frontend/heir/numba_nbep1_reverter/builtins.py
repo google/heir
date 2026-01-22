@@ -1,8 +1,8 @@
 """This file is a near-verbatim copy of numba.core.typing.builtins.py,
 
-with two changes: we override (1) integer_binop_cases and
-(2) BitwiseShiftOperation to stop numba from upcasting,
-e.g., int8 + int8 to int64 or int32 (intp in numba)
+with three changes: we override integer_binop_cases and BitwiseShiftOperation
+to stop numba from upcasting, e.g., int8 + int8 to int64 or int32 (intp in numba),
+and instead add logic that ensures literals are still upcast as expected.
 
 Numba decided to do this for simplicity, see the explanation in NBEP1:
 https://numba.readthedocs.io/en/stable/proposals/integer-typing.html
@@ -190,7 +190,7 @@ machine_ints = sorted(set((types.intp, types.int64))) + sorted(
 # Explicit integer rules for binary operators; smaller ints will be
 # automatically upcast.
 
-### THIS IS THE ONE CHANGE WE MAKE TO THIS FILE:
+### HERE, WE DISABLE THE STANDARD UPCASTING:
 integer_binop_cases = [signature(op, op, op) for op in types.integer_domain]
 # integer_binop_cases = tuple(
 #     signature(choose_result_int(op1, op2), op1, op2)
@@ -198,6 +198,148 @@ integer_binop_cases = [signature(op, op, op) for op in types.integer_domain]
 # )
 
 
+### WE THEN INTRODUCE CUSTOM LOGIC FOR LITERALS:
+def _literal_int_value(arg):
+  if not isinstance(arg, types.Literal):
+    return None
+  val = arg.literal_value
+  if isinstance(val, bool):
+    return None
+  if isinstance(val, int):
+    return val
+  return None
+
+
+def _literal_int_result_type(val):
+  try:
+    return types.literal(val)
+  except Exception as exc:
+    raise errors.TypingError(f"Int literal result is too large: {val}") from exc
+
+
+class LiteralIntBinOp(AbstractTemplate):
+  op = None
+
+  def generic(self, args, kws):
+    assert not kws
+    (arg1, arg2) = args
+    val1 = _literal_int_value(arg1)
+    val2 = _literal_int_value(arg2)
+    if val1 is None or val2 is None:
+      return
+    try:
+      result = self.op(val1, val2)
+    except Exception as exc:
+      raise errors.TypingError(
+          f"Failed to evaluate integer literal op: {exc}"
+      ) from exc
+    if not isinstance(result, int):
+      return
+    result_type = _literal_int_result_type(result)
+    return signature(result_type, arg1, arg2)
+
+
+@infer_global(operator.add)
+class LiteralBinOpAdd(LiteralIntBinOp):
+  op = operator.add
+
+
+@infer_global(operator.iadd)
+class LiteralBinOpIAdd(LiteralIntBinOp):
+  op = operator.add
+
+
+@infer_global(operator.sub)
+class LiteralBinOpSub(LiteralIntBinOp):
+  op = operator.sub
+
+
+@infer_global(operator.isub)
+class LiteralBinOpISub(LiteralIntBinOp):
+  op = operator.sub
+
+
+@infer_global(operator.mul)
+class LiteralBinOpMul(LiteralIntBinOp):
+  op = operator.mul
+
+
+@infer_global(operator.imul)
+class LiteralBinOpIMul(LiteralIntBinOp):
+  op = operator.mul
+
+
+@infer_global(operator.mod)
+class LiteralBinOpMod(LiteralIntBinOp):
+  op = operator.mod
+
+
+@infer_global(operator.imod)
+class LiteralBinOpIMod(LiteralIntBinOp):
+  op = operator.mod
+
+
+@infer_global(operator.floordiv)
+class LiteralBinOpFloorDiv(LiteralIntBinOp):
+  op = operator.floordiv
+
+
+@infer_global(operator.ifloordiv)
+class LiteralBinOpIFloorDiv(LiteralIntBinOp):
+  op = operator.floordiv
+
+
+@infer_global(operator.lshift)
+class LiteralBinOpLShift(LiteralIntBinOp):
+  op = operator.lshift
+
+
+@infer_global(operator.ilshift)
+class LiteralBinOpILShift(LiteralIntBinOp):
+  op = operator.lshift
+
+
+@infer_global(operator.rshift)
+class LiteralBinOpRShift(LiteralIntBinOp):
+  op = operator.rshift
+
+
+@infer_global(operator.irshift)
+class LiteralBinOpIRShift(LiteralIntBinOp):
+  op = operator.rshift
+
+
+@infer_global(operator.and_)
+class LiteralBinOpAnd(LiteralIntBinOp):
+  op = operator.and_
+
+
+@infer_global(operator.iand)
+class LiteralBinOpIAnd(LiteralIntBinOp):
+  op = operator.and_
+
+
+@infer_global(operator.or_)
+class LiteralBinOpOr(LiteralIntBinOp):
+  op = operator.or_
+
+
+@infer_global(operator.ior)
+class LiteralBinOpIOr(LiteralIntBinOp):
+  op = operator.or_
+
+
+@infer_global(operator.xor)
+class LiteralBinOpXor(LiteralIntBinOp):
+  op = operator.xor
+
+
+@infer_global(operator.ixor)
+class LiteralBinOpIXor(LiteralIntBinOp):
+  op = operator.xor
+
+
+### END OF CUSTOM LITERAL LOGIC
 class BinOp(ConcreteTemplate):
   cases = list(integer_binop_cases)
   cases += [signature(op, op, op) for op in sorted(types.real_domain)]
@@ -322,6 +464,7 @@ class PowerBuiltin(BinOpPower):
   pass
 
 
+### PREVENT BITWISESHIFT FROM UPCASTING:
 class BitwiseShiftOperation(ConcreteTemplate):
   # For bitshifts, only the first operand's type matters for the result type.
   # The result type should always match the LHS type (op), not upcast.
