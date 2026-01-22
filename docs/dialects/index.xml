@@ -9650,24 +9650,17 @@ and only in later analyses we know whether they are equivalent or not.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="mgmtlevel_reduce-heirmgmtlevelreduceop">&lt;code>mgmt.level_reduce&lt;/code> (heir::mgmt::LevelReduceOp)&lt;/h3>
-&lt;p>&lt;em>Reduce the level of input ciphertext by dropping the last k RNS limbs&lt;/em>&lt;/p>
+&lt;h3 id="mgmtlevel_reduce_min-heirmgmtlevelreduceminop">&lt;code>mgmt.level_reduce_min&lt;/code> (heir::mgmt::LevelReduceMinOp)&lt;/h3>
+&lt;p>&lt;em>Reduce the level of input ciphertext to the minimum level&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `mgmt.level_reduce` operands attr-dict `:` type($output)
+&lt;pre tabindex="0">&lt;code>operation ::= `mgmt.level_reduce_min` operands attr-dict `:` type($output)
 &lt;/code>&lt;/pre>&lt;p>This scheme-agonistic operation reduces the ciphertext level
-by k, as specified by the &lt;code>levelToDrop&lt;/code> attribute.&lt;/p>
-&lt;p>If &lt;code>levelToDrop&lt;/code> is not specified, it defaults to 1.&lt;/p>
-&lt;p>Input ciphertext is assumed to be in RNS form when further lowered.&lt;/p>
-&lt;p>Later passes may lower this op to &lt;code>bgv.level_reduce&lt;/code>
-or &lt;code>ckks.level_reduce&lt;/code> depending on the scheme.&lt;/p>
+to the minimum allowable level (typically 1 RNS limb). This is used in
+HALO-style optimizations to ensure loop iter args and inits are invariant
+across loop iterations.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-1">Attributes:&lt;/h4>
-&lt;table>
-&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>levelToDrop&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
-&lt;/table>
 &lt;h4 id="operands-3">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -9698,18 +9691,24 @@ or &lt;code>ckks.level_reduce&lt;/code> depending on the scheme.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="mgmtmodreduce-heirmgmtmodreduceop">&lt;code>mgmt.modreduce&lt;/code> (heir::mgmt::ModReduceOp)&lt;/h3>
-&lt;p>&lt;em>Modulus switch the input ciphertext down by one limb (RNS assumed)&lt;/em>&lt;/p>
+&lt;h3 id="mgmtlevel_reduce-heirmgmtlevelreduceop">&lt;code>mgmt.level_reduce&lt;/code> (heir::mgmt::LevelReduceOp)&lt;/h3>
+&lt;p>&lt;em>Reduce the level of input ciphertext by dropping the last k RNS limbs&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `mgmt.modreduce` operands attr-dict `:` type($output)
-&lt;/code>&lt;/pre>&lt;p>This is scheme-agonistic operation that implies modulus switching/rescaling
-by one limb.&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `mgmt.level_reduce` operands attr-dict `:` type($output)
+&lt;/code>&lt;/pre>&lt;p>This scheme-agonistic operation reduces the ciphertext level
+by k, as specified by the &lt;code>levelToDrop&lt;/code> attribute.&lt;/p>
+&lt;p>If &lt;code>levelToDrop&lt;/code> is not specified, it defaults to 1.&lt;/p>
 &lt;p>Input ciphertext is assumed to be in RNS form when further lowered.&lt;/p>
-&lt;p>When further lowered, it could be lowered to bgv.modulus_switch
-or ckks.rescale depending on the scheme.&lt;/p>
+&lt;p>Later passes may lower this op to &lt;code>bgv.level_reduce&lt;/code>
+or &lt;code>ckks.level_reduce&lt;/code> depending on the scheme.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-1">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>levelToDrop&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
+&lt;/table>
 &lt;h4 id="operands-4">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -9726,6 +9725,48 @@ or ckks.rescale depending on the scheme.&lt;/p>
 &lt;/tbody>
 &lt;/table>
 &lt;h4 id="results-4">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>any type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="mgmtmodreduce-heirmgmtmodreduceop">&lt;code>mgmt.modreduce&lt;/code> (heir::mgmt::ModReduceOp)&lt;/h3>
+&lt;p>&lt;em>Modulus switch the input ciphertext down by one limb (RNS assumed)&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `mgmt.modreduce` operands attr-dict `:` type($output)
+&lt;/code>&lt;/pre>&lt;p>This is scheme-agonistic operation that implies modulus switching/rescaling
+by one limb.&lt;/p>
+&lt;p>Input ciphertext is assumed to be in RNS form when further lowered.&lt;/p>
+&lt;p>When further lowered, it could be lowered to bgv.modulus_switch
+or ckks.rescale depending on the scheme.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-5">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>any type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-5">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -9758,7 +9799,7 @@ or ckks.relinearize depending on the scheme.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-5">Operands:&lt;/h4>
+&lt;h4 id="operands-6">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -9773,7 +9814,7 @@ or ckks.relinearize depending on the scheme.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-5">Results:&lt;/h4>
+&lt;h4 id="results-6">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -14226,7 +14267,7 @@ approach from &lt;a href="https://eprint.iacr.org/2018/244.pdf">Faster Homomorph
 HElib&lt;/a> to reduce the number of
 ciphertext rotations.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>PlaintextOperandInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-3">Attributes:&lt;/h4>
 &lt;table>
