@@ -31,6 +31,7 @@
 #include "lib/Transforms/ActivationCanonicalizations/ActivationCanonicalizations.h"
 #include "lib/Transforms/AddClientInterface/AddClientInterface.h"
 #include "lib/Transforms/ApplyFolders/ApplyFolders.h"
+#include "lib/Transforms/BooleanVectorizer/BooleanVectorizer.h"
 #include "lib/Transforms/CompareToSignRewrite/CompareToSignRewrite.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/ConvertToCiphertextSemantics.h"
 #include "lib/Transforms/DropUnitDims/DropUnitDims.h"
@@ -455,6 +456,10 @@ BackendPipelineBuilder toOpenFhePipelineBuilder() {
         openfhe::createConfigureCryptoContext(configureCryptoContextOptions));
 
     pm.addPass(openfhe::createFastRotationPrecompute());
+    // Vectorize any operations
+    pm.addPass(createBooleanVectorizer());
+    pm.addPass(createCanonicalizerPass());
+    pm.addPass(createCSEPass());
     pm.addPass(openfhe::createAllocToInPlace());
   };
 }

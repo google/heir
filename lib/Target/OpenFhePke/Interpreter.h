@@ -147,12 +147,15 @@ class Interpreter {
   void visit(tensor::ExtractSliceOp op);
   void visit(tensor::FromElementsOp op);
   void visit(tensor::InsertOp op);
+  void visit(tensor::ParallelInsertSliceOp op);
   void visit(tensor::InsertSliceOp op);
   void visit(tensor::SplatOp op);
 
   // SCF and Affine ops
   void visit(scf::IfOp op);
   void visit(scf::ForOp op);
+  void visit(scf::ForallOp op);
+  void visit(scf::InParallelOp op);
   void visit(scf::YieldOp op);
   void visit(affine::AffineForOp op);
   void visit(affine::AffineYieldOp op);

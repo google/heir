@@ -905,6 +905,7 @@ TEST(InterpreterTest, TestOpenfheRot) {
   // Cyclically replicate the vector to fill the slots
   std::vector<int64_t> replicatedVec;
   int64_t numSlots = setup.cc->GetRingDimension() / 2;
+  replicatedVec.reserve(numSlots);
   for (int i = 0; i < numSlots; i++)
     replicatedVec.push_back(vec[i % vec.size()]);
 
@@ -1366,6 +1367,83 @@ module attributes {scheme.ckks} {
   EXPECT_EQ(resultVec.size(), vec.size());
   for (size_t i = 0; i < vec.size(); i++) {
     EXPECT_NEAR(resultVec[i], vec[i], 0.01);
+  }
+}
+
+TEST(InterpreterTest, TestOpenfheParallelFastRotation) {
+  CryptoSetup setup;
+
+  // Generate rotation keys
+  setup.cc->EvalRotateKeyGen(setup.keyPair.secretKey, {1, 2, 3, 4});
+
+  std::vector<int64_t> vec = {1, 2, 3, 4, 5, 6, 7, 8};
+  // Cyclically replicate the vector to fill the slots
+  std::vector<int64_t> replicatedVec;
+  int64_t numSlots = setup.cc->GetRingDimension() / 2;
+  replicatedVec.reserve(numSlots);
+  for (int i = 0; i < numSlots; i++)
+    replicatedVec.push_back(vec[i % vec.size()]);
+
+  auto pt = setup.cc->MakePackedPlaintext(replicatedVec);
+  auto ct = setup.cc->Encrypt(setup.keyPair.publicKey, pt);
+
+  std::vector<int64_t> indices = {1, 2, 3, 4};
+
+  MLIRContext context;
+  initContext(context);
+  std::string mlirStr = std::string(kLWETypesHeader) + R"mlir(
+!cc = !openfhe.crypto_context
+!digit_decomp = !openfhe.digit_decomp
+
+module attributes {scheme.ckks} {
+  func.func @main(%cc: !cc, %ct: !ct, %indices: tensor<4xindex>) -> tensor<4x!ct> {
+    %digit_decomp = openfhe.fast_rotation_precompute %cc, %ct : (!cc, !ct) -> !digit_decomp
+    %0 = tensor.empty() : tensor<4x!ct>
+    %1 = scf.forall (%arg0) in (4) shared_outs(%arg1 = %0) -> (tensor<4x!ct>) {
+      %extracted_9 = tensor.extract %indices[%arg0] : tensor<4xindex>
+      %ct_10 = openfhe.fast_rotation %cc, %ct, %extracted_9, %digit_decomp {cyclotomicOrder = 64 : index} : (!cc, !ct, index, !digit_decomp) -> !ct
+      %from_elements_11 = tensor.from_elements %ct_10 : tensor<1x!ct>
+      scf.forall.in_parallel {
+        tensor.parallel_insert_slice %from_elements_11 into %arg1[%arg0] [1] [1] : tensor<1x!ct> into tensor<4x!ct>
+      }
+    }
+    %c0 = arith.constant 0 : index
+    %extracted = tensor.extract %1[%c0] : tensor<4x!ct>
+    %c1_0 = arith.constant 1 : index
+    %extracted_1 = tensor.extract %1[%c1_0] : tensor<4x!ct>
+    %c2_2 = arith.constant 2 : index
+    %extracted_3 = tensor.extract %1[%c2_2] : tensor<4x!ct>
+    %c3_4 = arith.constant 3 : index
+    %extracted_5 = tensor.extract %1[%c3_4] : tensor<4x!ct>
+    %2 = tensor.from_elements %extracted, %extracted_1, %extracted_3, %extracted_5 : tensor<4x!ct>
+    return %2 : tensor<4x!ct>
+  }
+}
+)mlir";
+  auto module = parse(&context, mlirStr);
+
+  Interpreter interpreter(module.get());
+  std::vector<TypedCppValue> inputs = {
+      TypedCppValue(setup.cc), TypedCppValue(ct), TypedCppValue(indices)};
+  std::vector<TypedCppValue> results = interpreter.interpret("main", inputs);
+
+  EXPECT_EQ(results.size(), 1);
+  auto resultVec =
+      *std::get<std::shared_ptr<std::vector<CiphertextT>>>(results[0].value);
+  EXPECT_EQ(resultVec.size(), 4);
+
+  std::vector<std::vector<int64_t>> expected = {{2, 3, 4, 5, 6, 7, 8, 1},
+                                                {3, 4, 5, 6, 7, 8, 1, 2},
+                                                {4, 5, 6, 7, 8, 1, 2, 3},
+                                                {5, 6, 7, 8, 1, 2, 3, 4}};
+  for (int i = 0; i < 4; i++) {
+    // Decrypt and verify
+    Plaintext resultPt;
+    setup.cc->Decrypt(setup.keyPair.secretKey, resultVec[i], &resultPt);
+    resultPt->SetLength(vec.size());
+    auto resultVec = resultPt->GetPackedValue();
+    EXPECT_EQ(resultVec.size(), vec.size());
+    EXPECT_EQ(resultVec, expected[i]);
   }
 }
 

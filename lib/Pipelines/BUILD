@@ -130,6 +130,7 @@ cc_library(
         "@heir//lib/Transforms/ActivationCanonicalizations",
         "@heir//lib/Transforms/AddClientInterface",
         "@heir//lib/Transforms/ApplyFolders",
+        "@heir//lib/Transforms/BooleanVectorizer",
         "@heir//lib/Transforms/CompareToSignRewrite",
         "@heir//lib/Transforms/ConvertToCiphertextSemantics",
         "@heir//lib/Transforms/DropUnitDims",

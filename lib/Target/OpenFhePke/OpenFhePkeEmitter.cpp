@@ -241,14 +241,15 @@ LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
                 arith::SubIOp, arith::MulIOp, arith::DivSIOp, arith::CmpIOp,
                 arith::SelectOp>([&](auto op) { return printOperation(op); })
           // SCF ops
-          .Case<scf::IfOp, scf::ForOp, scf::YieldOp>(
-              [&](auto op) { return printOperation(op); })
+          .Case<scf::IfOp, scf::ForOp, scf::ForallOp, scf::InParallelOp,
+                scf::YieldOp>([&](auto op) { return printOperation(op); })
           // Tensor ops
           .Case<tensor::ConcatOp, tensor::EmptyOp, tensor::InsertOp,
                 tensor::InsertSliceOp, tensor::ExtractOp,
                 tensor::ExtractSliceOp, tensor::SplatOp,
                 tensor::CollapseShapeOp, tensor::ExpandShapeOp,
-                tensor::FromElementsOp, tensor::ConcatOp>(
+                tensor::FromElementsOp, tensor::ConcatOp,
+                tensor::ParallelInsertSliceOp>(
               [&](auto op) { return printOperation(op); })
           .Case<DecodeOp, DecodeCKKSOp>(
               [&](auto op) { return printOperation(op); })
@@ -548,7 +549,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(scf::ForOp op) {
         variableNames->getNameForValue(result) ==
             variableNames->getNameForValue(operand)) {
       // This occurs in cases where the loop is inserting into a tensor and
-      // passing it along as an inter arg.
+      // passing it along as an iter arg.
       continue;
     }
 
@@ -584,6 +585,50 @@ LogicalResult OpenFhePkeEmitter::printOperation(scf::ForOp op) {
 
   os.unindent();
   os << "}\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(scf::ForallOp op) {
+  // Use OMP for parallelization
+  // #pragma omp parallel for
+  os << "#pragma omp parallel for\n";
+
+  for (auto result : op.getResults()) {
+    OpOperand* opOperand = op.getTiedOpOperand(result);
+    BlockArgument blockArg = op.getTiedBlockArgument(opOperand);
+
+    // Map the block argument and the result to the opOperand name.
+    variableNames->mapValueNameToValue(blockArg, opOperand->get());
+    variableNames->mapValueNameToValue(result, opOperand->get());
+  }
+
+  // Later, support for multi-dimensional forall loops. It's pretty unlikely
+  // there would be a multi-dimensional use case (for iterating over multiple
+  // vectorized operands).
+  if (op.getInductionVars().size() > 1) {
+    return op.emitOpError() << "Only 1D forall loops are supported";
+  }
+  os << llvm::formatv("for (auto {0} = {1}; {0} < {2}; ++{0}) {{\n",
+                      variableNames->getNameForValue(op.getInductionVar(0)),
+                      op.getStaticLowerBound()[0], op.getStaticUpperBound()[0]);
+  os.indent();
+  for (Operation& op : *op.getBody()) {
+    if (failed(translate(op))) {
+      return op.emitOpError() << "Failed to translate forall loop block";
+    }
+  }
+
+  os.unindent();
+  os << "}\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(scf::InParallelOp op) {
+  for (Operation& op : *op.getBody()) {
+    if (failed(translate(op))) {
+      return op.emitOpError() << "Failed to translate in parallel block";
+    }
+  }
   return success();
 }
 
@@ -1413,6 +1458,45 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::InsertSliceOp op) {
   }
 
   return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(
+    tensor::ParallelInsertSliceOp op) {
+  RankedTensorType resultType = op.getDest().getType();
+  std::string destName = variableNames->getNameForValue(op.getDest());
+
+  // We could relax this by using previously declared SSA values for dynamic
+  // offsets, sizes, and strides. But we have no use for it yet and I'm facing
+  // a deadline, baby!
+  if (op.getStaticOffsets().empty() || op.getStaticSizes().empty() ||
+      op.getStaticStrides().empty()) {
+    return op.emitError() << "expected static offsets, sizes, and strides";
+  }
+
+  std::string sourceName = variableNames->getNameForValue(op.getSource());
+
+  // If we have a 1D source and target tensor, and the strides are 1,
+  // we can use an assignment or a std::copy
+  //
+  // std::copy(source.begin(), source.end(), result.begin() + offset);
+  if (resultType.getRank() == 1 && op.getSourceType().getRank() == 1 &&
+      llvm::all_of(op.getStaticStrides(),
+                   [](int64_t stride) { return stride == 1; })) {
+    if (op.getStaticSizes()[0] == 1) {
+      auto offset = variableNames->getNameForValue(op.getOffsets()[0]);
+      os << destName << "[" << offset << "] = " << sourceName << "[0];\n";
+    } else {
+      os << "std::copy(";
+      os << sourceName << ".begin(), ";
+      os << sourceName << ".end(), ";
+      os << destName << ".begin() + " << op.getStaticOffsets()[0] << ");\n";
+    }
+    return success();
+  }
+
+  // A multi-dimensional parallel insert slice is unlikely to happen, since we
+  // currently only parallelize operations with a single result.
+  return failure();
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(tensor::InsertOp op) {

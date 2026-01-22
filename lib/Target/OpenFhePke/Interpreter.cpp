@@ -207,6 +207,8 @@ void Interpreter::initializeDispatchTable() {
   REGISTER_OP(arith::SubIOp);
   REGISTER_OP(linalg::BroadcastOp);
   REGISTER_OP(scf::ForOp);
+  REGISTER_OP(scf::ForallOp);
+  REGISTER_OP(scf::InParallelOp);
   REGISTER_OP(scf::IfOp);
   REGISTER_OP(scf::YieldOp);
   REGISTER_OP(tensor::CollapseShapeOp);
@@ -218,6 +220,7 @@ void Interpreter::initializeDispatchTable() {
   REGISTER_OP(tensor::FromElementsOp);
   REGISTER_OP(tensor::InsertOp);
   REGISTER_OP(tensor::InsertSliceOp);
+  REGISTER_OP(tensor::ParallelInsertSliceOp);
   REGISTER_OP(tensor::SplatOp);
 
 #undef REGISTER_OP
@@ -477,7 +480,8 @@ void Interpreter::visit(Operation* op) {
   // If any of the operations op operands have no more uses, then remove them
   // from storage.
   if (!op->getParentOfType<affine::AffineForOp>() &&
-      !op->getParentOfType<scf::ForOp>()) {
+      !op->getParentOfType<scf::ForOp>() &&
+      !op->getParentOfType<scf::ForallOp>()) {
     for (auto operand : op->getOperands()) {
       if (liveness.isDeadAfter(operand, op)) {
         eraseValue(operand);
@@ -824,7 +828,7 @@ void Interpreter::visit(tensor::ExtractOp op) {
   auto tensorType = cast<RankedTensorType>(op.getTensor().getType());
   auto elemType = tensorType.getElementType();
 
-  if (elemType.isInteger()) {
+  if (elemType.isIndex() || elemType.isInteger()) {
     intValues[op.getResult()] = (*intVectors.at(op.getTensor()))[index];
   } else if (elemType.isF32()) {
     floatValues[op.getResult()] = (*floatVectors.at(op.getTensor()))[index];
@@ -1235,6 +1239,81 @@ void Interpreter::visit(tensor::InsertSliceOp op) {
   }
 }
 
+void Interpreter::visit(tensor::ParallelInsertSliceOp op) {
+  auto offsets = op.getOffsets();
+  auto sizes = op.getStaticSizes();
+  auto strides = op.getStaticStrides();
+
+  auto destType = cast<RankedTensorType>(op.getDest().getType());
+  auto destShape = destType.getShape();
+
+  // Calculate total number of elements to insert
+  int64_t totalElements = 1;
+  for (int64_t size : sizes) {
+    totalElements *= size;
+  }
+
+  // For multi-dimensional slices, we need to compute which dest elements to
+  // update
+  auto insertElement = [&](int64_t flatSourceIndex) -> int64_t {
+    // Convert flat source index to multi-dimensional source indices
+    std::vector<int64_t> sourceIndices(sizes.size());
+    int64_t remaining = flatSourceIndex;
+    for (int i = sizes.size() - 1; i >= 0; --i) {
+      sourceIndices[i] = remaining % sizes[i];
+      remaining /= sizes[i];
+    }
+
+    // Convert to dest indices using offsets and strides
+    std::vector<int64_t> destIndices(offsets.size());
+    for (size_t i = 0; i < offsets.size(); ++i) {
+      auto offsetVal = intValues.at(offsets[i]);
+      destIndices[i] = offsetVal + sourceIndices[i] * strides[i];
+    }
+
+    // Convert dest indices to flat index
+    int64_t flatDestIndex = destIndices[0];
+    for (size_t i = 1; i < destIndices.size(); ++i) {
+      flatDestIndex = flatDestIndex * destShape[i] + destIndices[i];
+    }
+    return flatDestIndex;
+  };
+
+  if (auto elemType = destType.getElementType(); elemType.isInteger()) {
+    auto destVec = intVectors.at(op.getDest());
+    const auto& srcVec = *intVectors.at(op.getSource());
+    for (int64_t i = 0; i < totalElements; ++i) {
+      (*destVec)[insertElement(i)] = srcVec[i];
+    }
+  } else if (elemType.isF32()) {
+    auto destVec = floatVectors.at(op.getDest());
+    const auto& srcVec = *floatVectors.at(op.getSource());
+    for (int64_t i = 0; i < totalElements; ++i) {
+      (*destVec)[insertElement(i)] = srcVec[i];
+    }
+  } else if (elemType.isF64()) {
+    auto destVec = doubleVectors.at(op.getDest());
+    const auto& srcVec = *doubleVectors.at(op.getSource());
+    for (int64_t i = 0; i < totalElements; ++i) {
+      (*destVec)[insertElement(i)] = srcVec[i];
+    }
+  } else if (isa<PlaintextType>(elemType)) {
+    auto destVec = plaintextVectors.at(op.getDest());
+    const auto& srcVec = *plaintextVectors.at(op.getSource());
+    for (int64_t i = 0; i < totalElements; ++i) {
+      (*destVec)[insertElement(i)] = srcVec[i];
+    }
+  } else if (isa<CiphertextType>(elemType)) {
+    auto destVec = ciphertextVectors.at(op.getDest());
+    const auto& srcVec = *ciphertextVectors.at(op.getSource());
+    for (int64_t i = 0; i < totalElements; ++i) {
+      (*destVec)[insertElement(i)] = srcVec[i];
+    }
+  } else {
+    op.emitError("Unsupported tensor type in InsertSliceOp\n");
+  }
+}
+
 void Interpreter::visit(linalg::BroadcastOp op) {
   // BroadcastOp copies the input op into a new tensor by adding the specified
   // dims.
@@ -1379,6 +1458,51 @@ void Interpreter::visit(scf::ForOp op) {
   // Store final results
   for (auto [result, finalValue] : llvm::zip(op.getResults(), iterArgs)) {
     storeTypedValue(result, std::move(finalValue));
+  }
+}
+
+void Interpreter::visit(scf::InParallelOp op) {
+  for (auto& bodyOp : op.getBody()->getOperations()) {
+    visit(&bodyOp);
+  }
+}
+
+void Interpreter::visit(scf::ForallOp op) {
+  if (op.getInductionVars().size() != 1) {
+    op.emitError("Only 1D forall loops are supported");
+  }
+
+  int lowerBound = op.getStaticLowerBound()[0];
+  int upperBound = op.getStaticUpperBound()[0];
+  int step = op.getStaticStep()[0];
+
+  // Assign the block arg values to the initial values.
+  for (auto& opOperand : op->getOpOperands()) {
+    BlockArgument blockArg = op.getTiedBlockArgument(&opOperand);
+    storeTypedValue(blockArg, loadTypedValue(opOperand.get()));
+  }
+
+  // Cache operation visitors to avoid dispatch overhead in hot loop
+  std::vector<std::function<void()>> cachedOps;
+  for (auto& bodyOp : op.getBody()->getOperations()) {
+    Operation* opPtr = &bodyOp;  // Capture pointer, not reference to loop var
+    cachedOps.push_back([this, opPtr]() { visit(opPtr); });
+  }
+
+  // TODO(#2544): Execute the loop in parallel
+  for (int i = lowerBound; i < upperBound; i += step) {
+    intValues[op.getInductionVar(0)] = i;
+    // Execute loop body
+    for (auto& cachedOp : cachedOps) {
+      cachedOp();
+    }
+  }
+
+  // Assign the results to the final block arg values.
+  for (auto opResult : op->getOpResults()) {
+    OpOperand* opOperand = op.getTiedOpOperand(opResult);
+    BlockArgument blockArg = op.getTiedBlockArgument(opOperand);
+    storeTypedValue(opResult, loadTypedValue(blockArg));
   }
 }
 
