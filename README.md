@@ -24,10 +24,10 @@ Then run an example:
 
 ```python
 from heir import compile
-from heir.mlir import F32, I16, I64, Secret
+from heir.mlir import I64, Secret
 
 @compile()  # defaults to scheme="bgv", OpenFHE backend, and debug=False
-def func(x: Secret[I16], y: Secret[I16]):
+def func(x: Secret[I64], y: Secret[I64]):
     sum = x + y
     diff = x - y
     mul = x * y
