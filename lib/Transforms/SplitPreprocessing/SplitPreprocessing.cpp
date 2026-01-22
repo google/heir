@@ -1,11 +1,14 @@
 #include "lib/Transforms/SplitPreprocessing/SplitPreprocessing.h"
 
 #include <memory>
+#include <utility>
 
+#include "lib/Dialect/Secret/IR/SecretPatterns.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
@@ -18,10 +21,14 @@
 #include "mlir/include/mlir/IR/IRMapping.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
 #include "mlir/include/mlir/Pass/Pass.h"                // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
+#include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
+
+#define DEBUG_TYPE "split-preprocessing"
 
 namespace mlir {
 namespace heir {
@@ -44,10 +51,23 @@ struct SplitPreprocessingPass
     MLIRContext* context = &getContext();
     OpBuilder builder(context);
 
+    // Run secret canonicalization pattern to hoist tensor_ext.assign_layouts on
+    // plaintexts outside of the secret.generic.
+    mlir::RewritePatternSet patterns(context);
+    patterns
+        .add<secret::HoistPlaintextOps, secret::CollapseSecretlessGeneric,
+             secret::ConcealThenGeneric, secret::RemoveNonSecretGenericArgs>(
+            context);
+    if (failed(applyPatternsGreedily(funcOp, std::move(patterns)))) {
+      funcOp.emitError() << "failed to run secret canonicalization patterns";
+      signalPassFailure();
+      return;
+    }
+
     SmallVector<AssignLayoutOp> assignLayoutOps;
 
     funcOp.walk([&](AssignLayoutOp op) {
-      if (isa<arith::ConstantOp>(op.getOperand().getDefiningOp())) {
+      if (isa_and_nonnull<arith::ConstantOp>(op.getOperand().getDefiningOp())) {
         assignLayoutOps.push_back(op);
       }
     });
@@ -70,7 +90,6 @@ struct SplitPreprocessingPass
     auto newFuncName = funcOp.getName().str() + "__preprocessed";
     auto newFuncOp = FuncOp::create(funcOp.getLoc(), newFuncName, newFuncType);
     newFuncOp.setVisibility(funcOp.getVisibility());
-    builder.setInsertionPointToEnd(newFuncOp.addEntryBlock());
 
     // Copy func arg attrs and result attrs to new func. This ensures the layout
     // attributes on the original function arguments are preserved in the new
@@ -83,28 +102,33 @@ struct SplitPreprocessingPass
     }
 
     IRMapping mapping;
+    Block* newEntryBlock = newFuncOp.addEntryBlock();
+    mapping.map(&funcOp.front(), newEntryBlock);
     for (const auto& [index, value] : llvm::enumerate(funcOp.getArguments())) {
-      BlockArgument arg = newFuncOp.getArgument(index);
-      mapping.map(value, arg);
+      mapping.map(value, newEntryBlock->getArgument(index));
     }
+
     for (const auto& [index, op] : llvm::enumerate(assignLayoutOps)) {
       BlockArgument arg =
-          newFuncOp.getArgument(funcOp.getNumArguments() + index);
-      llvm::errs() << "Mapping " << op.getResult() << " to " << arg << "\n";
+          newEntryBlock->getArgument(funcOp.getNumArguments() + index);
+      // Maps the results of the assign_layout to the new function arguments.
+      LLVM_DEBUG(llvm::dbgs()
+                     << "Mapping " << op.getResult() << " to " << arg << "\n";);
       mapping.map(op.getResult(), arg);
     }
 
+    builder.setInsertionPointToEnd(newEntryBlock);
     for (auto& op : funcOp.getBody().getOps()) {
-      // Skip both the assign layout op and its feeder constant op
-      Operation* opToCheck = &op;
-      if (isa<arith::ConstantOp>(opToCheck) && opToCheck->hasOneUse()) {
-        opToCheck = *op.getUsers().begin();
+      if (auto assignLayoutOp = dyn_cast<AssignLayoutOp>(op)) {
+        if (llvm::is_contained(assignLayoutOps, assignLayoutOp)) continue;
       }
-      if (auto assignLayoutOp = dyn_cast<AssignLayoutOp>(opToCheck)) {
-        if (llvm::find(assignLayoutOps, assignLayoutOp) !=
-            assignLayoutOps.end()) {
-          continue;
-        }
+      // If all the users of the constant op are assign_layouts, then the
+      // constant op doesn't need to be cloned to the new function.
+      if (isa<arith::ConstantOp>(op) &&
+          llvm::all_of(op.getUsers(), [&](Operation* user) {
+            return isa<AssignLayoutOp>(user);
+          })) {
+        continue;
       }
       builder.clone(op, mapping);
     }
@@ -136,7 +160,7 @@ struct SplitPreprocessingPass
     for (auto op : assignLayoutOps) {
       callOperands.push_back(op.getResult());
       opsToKeep.insert(op);
-      if (isa<arith::ConstantOp>(op.getOperand().getDefiningOp())) {
+      if (isa_and_nonnull<arith::ConstantOp>(op.getOperand().getDefiningOp())) {
         opsToKeep.insert(op.getOperand().getDefiningOp());
       }
     }
