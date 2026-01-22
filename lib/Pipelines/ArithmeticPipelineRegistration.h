@@ -49,6 +49,11 @@ struct MlirToRLWEPipelineOptions : public SimdVectorizerOptions {
       llvm::cl::desc("If true, use extended encryption technique (default to "
                      "false)"),
       llvm::cl::init(false)};
+  PassOptions::Option<bool> modulusSwitchAfterMul{
+      *this, "modulus-switch-after-mul",
+      llvm::cl::desc("Modulus switching after the first multiplication "
+                     "(default to false)"),
+      llvm::cl::init(false)};
   PassOptions::Option<bool> modulusSwitchBeforeFirstMul{
       *this, "modulus-switch-before-first-mul",
       llvm::cl::desc("Modulus switching right before the first multiplication "
@@ -84,6 +89,11 @@ struct MlirToRLWEPipelineOptions : public SimdVectorizerOptions {
       *this, "ckks-bootstrap-waterline",
       llvm::cl::desc("The number of levels to keep until bootstrapping in CKKS "
                      "(c.f. --secret-insert-mgmt-ckks)"),
+      llvm::cl::init(10)};
+  PassOptions::Option<int> levelBudget{
+      *this, "level-budget",
+      llvm::cl::desc(
+          "The level budget excluding levels required for bootstrap"),
       llvm::cl::init(10)};
   PassOptions::Option<std::string> plaintextExecutionResultFileName{
       *this, "plaintext-execution-result-file-name",

@@ -24,3 +24,21 @@ cc_binary(
         "@llvm-project//mlir:Support",
     ],
 )
+
+cc_library(
+    name = "bootstrap_example",
+    srcs = ["bootstrap_example.cpp"],
+    hdrs = ["bootstrap_example.h"],
+    deps = [
+        "@openfhe//:core",
+        "@openfhe//:pke",
+    ],
+)
+
+cc_binary(
+    name = "bootstrap_example_main",
+    srcs = ["bootstrap_example_main.cpp"],
+    deps = [
+        ":bootstrap_example",
+    ],
+)

@@ -71,6 +71,7 @@ def Mgmt_LevelReduceMinOp : Mgmt_Op<"level_reduce_min"> {
   let arguments = (ins AnyType:$input);
   let results = (outs AnyType:$output);
   let assemblyFormat = "operands attr-dict `:` type($output)";
+  let hasCanonicalizer = 1;
 }
 
 def Mgmt_RelinearizeOp : Mgmt_Op<"relinearize"> {
@@ -98,7 +99,7 @@ def Mgmt_RelinearizeOp : Mgmt_Op<"relinearize"> {
   let assemblyFormat = "operands attr-dict `:` type($output)";
 }
 
-def Mgmt_BootstrapOp : Mgmt_Op<"bootstrap"> {
+def Mgmt_BootstrapOp : Mgmt_Op<"bootstrap", [ResetsMulDepthOpInterface]> {
   let summary = "Bootstrap the input ciphertext to refresh its noise budget";
 
   let description = [{

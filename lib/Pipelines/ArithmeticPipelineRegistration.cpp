@@ -264,6 +264,7 @@ void mlirToRLWEPipeline(OpPassManager& pm,
   switch (scheme) {
     case RLWEScheme::bgvScheme: {
       auto secretInsertMgmtBGVOptions = SecretInsertMgmtBGVOptions{};
+      secretInsertMgmtBGVOptions.afterMul = options.modulusSwitchAfterMul;
       secretInsertMgmtBGVOptions.beforeMulIncludeFirstMul =
           options.modulusSwitchBeforeFirstMul;
       pm.addPass(createSecretInsertMgmtBGV(secretInsertMgmtBGVOptions));
@@ -275,11 +276,13 @@ void mlirToRLWEPipeline(OpPassManager& pm,
     }
     case RLWEScheme::ckksScheme: {
       auto secretInsertMgmtCKKSOptions = SecretInsertMgmtCKKSOptions{};
+      secretInsertMgmtCKKSOptions.afterMul = options.modulusSwitchAfterMul;
       secretInsertMgmtCKKSOptions.beforeMulIncludeFirstMul =
           options.modulusSwitchBeforeFirstMul;
       secretInsertMgmtCKKSOptions.slotNumber = options.ciphertextDegree;
       secretInsertMgmtCKKSOptions.bootstrapWaterline =
           options.ckksBootstrapWaterline;
+      secretInsertMgmtCKKSOptions.levelBudget = options.levelBudget;
       pm.addPass(createSecretInsertMgmtCKKS(secretInsertMgmtCKKSOptions));
       break;
     }
@@ -288,9 +291,12 @@ void mlirToRLWEPipeline(OpPassManager& pm,
       exit(EXIT_FAILURE);
   }
 
-  OptimizeRelinearizationOptions optimizeRelinearizationOptions;
-  optimizeRelinearizationOptions.allowMixedDegreeOperands = false;
-  pm.addPass(createOptimizeRelinearization(optimizeRelinearizationOptions));
+  // TODO(#2600): support loops in optimize-relinearization
+  if (!options.experimentalDisableLoopUnroll) {
+    OptimizeRelinearizationOptions optimizeRelinearizationOptions;
+    optimizeRelinearizationOptions.allowMixedDegreeOperands = false;
+    pm.addPass(createOptimizeRelinearization(optimizeRelinearizationOptions));
+  }
 
   // IR is stable now
 

@@ -204,7 +204,7 @@ def CKKS_LevelReduceOp : CKKS_Op<"level_reduce", [ElementwiseMappable, SameOpera
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
-def CKKS_BootstrapOp : CKKS_Op<"bootstrap", [ElementwiseMappable]> {
+def CKKS_BootstrapOp : CKKS_Op<"bootstrap", [ElementwiseMappable, ResetsMulDepthOpInterface]> {
   let summary = "Bootstrap the ciphertext to reduce noise and refresh its parameters.";
 
   let description = [{

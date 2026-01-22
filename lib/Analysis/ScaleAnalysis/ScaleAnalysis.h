@@ -170,10 +170,10 @@ class ScaleAnalysis
 template <typename ScaleModelT>
 class ScaleAnalysisBackward
     : public dataflow::SparseBackwardDataFlowAnalysis<ScaleLattice>,
-      public SecretnessAnalysisDependent<ScaleAnalysis<ScaleModelT>> {
+      public SecretnessAnalysisDependent<ScaleAnalysisBackward<ScaleModelT>> {
  public:
   using SparseBackwardDataFlowAnalysis::SparseBackwardDataFlowAnalysis;
-  friend class SecretnessAnalysisDependent<ScaleAnalysis<ScaleModelT>>;
+  friend class SecretnessAnalysisDependent<ScaleAnalysisBackward<ScaleModelT>>;
 
   using SchemeParamType = typename ScaleModelT::SchemeParam;
   using LocalParamType = typename ScaleModelT::LocalParam;

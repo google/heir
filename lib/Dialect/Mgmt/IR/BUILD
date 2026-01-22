@@ -1,5 +1,3 @@
-# Mgmt dialect implementation
-
 load("@heir//lib/Dialect:dialect.bzl", "add_heir_dialect_library")
 load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
@@ -18,6 +16,7 @@ cc_library(
         "MgmtAttributes.h",
         "MgmtDialect.h",
         "MgmtOps.h",
+        "MgmtPatterns.h",
     ],
     deps = [
         "attributes_inc_gen",
@@ -25,6 +24,7 @@ cc_library(
         "ops_inc_gen",
         ":MgmtAttributes",
         ":MgmtOps",
+        ":MgmtPatterns",
         "@heir//lib/Dialect:HEIRInterfaces",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
@@ -62,6 +62,7 @@ cc_library(
     hdrs = [
         "MgmtDialect.h",
         "MgmtOps.h",
+        "MgmtPatterns.h",
     ],
     deps = [
         ":canonicalize_inc_gen",
@@ -70,6 +71,21 @@ cc_library(
         "@heir//lib/Dialect:HEIRInterfaces",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
+    ],
+)
+
+cc_library(
+    name = "MgmtPatterns",
+    srcs = ["MgmtPatterns.cpp"],
+    hdrs = ["MgmtPatterns.h"],
+    deps = [
+        ":MgmtAttributes",
+        ":MgmtOps",
+        "@heir//lib/Analysis/SecretnessAnalysis",
+        "@heir//lib/Utils:AttributeUtils",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
     ],
 )
 

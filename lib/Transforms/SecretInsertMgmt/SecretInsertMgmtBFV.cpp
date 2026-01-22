@@ -73,8 +73,8 @@ struct SecretInsertMgmtBFV
       maxMulDepth = getMaxMulDepth(getOperation(), solver);
     }
 
-    insertMgmtInitForPlaintexts(getOperation(), solver, true);
-    insertRelinearizeAfterMult(getOperation(), solver, false);
+    insertMgmtInitForPlaintexts(getOperation(), true);
+    insertRelinearizeAfterMult(getOperation(), false);
 
     auto level = maxMulDepth;
     // 1. Canonicalizer moves mgmt::InitOp out of secret.generic.
