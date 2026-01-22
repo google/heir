@@ -96,6 +96,7 @@ class LevelState {
   bool isInt() const { return std::holds_alternative<int>(value); }
 
   bool isMaxLevel() const { return std::holds_alternative<MaxLevel>(value); }
+  bool isExhausted() const { return isMaxLevel(); }
 
   int64_t getInt() const { return std::get<int>(value); }
 

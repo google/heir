@@ -207,6 +207,7 @@ LogicalResult doPartialUnroll(ForOp forOp, PatternRewriter& rewriter,
   FailureOr<SmallVector<Value>> secretIterArgsResult =
       isLoopStructuredForHaloUnroll(forOp, solver);
   if (failed(secretIterArgsResult)) {
+    LLVM_DEBUG(llvm::dbgs() << "Loop preconditions not met\n");
     return rewriter.notifyMatchFailure(forOp, "Loop preconditions not met");
   }
   SmallVector<Value> secretIterArgs = secretIterArgsResult.value();
@@ -277,8 +278,24 @@ LogicalResult doPartialUnroll(ForOp forOp, PatternRewriter& rewriter,
                  << "Using forced max level of " << forceMaxLevel << "\n");
     }
     int levelsUsedInLoop = levelEndVal - levelStartVal;
-    if (levelAfterBootstrap / levelsUsedInLoop > 1) {
-      unrollFactors.push_back(levelAfterBootstrap / levelsUsedInLoop);
+
+    if (levelsUsedInLoop == 0) {
+      LLVM_DEBUG(llvm::dbgs() << "Loop uses zero levels. iter_arg=" << iterArg
+                              << "; levelStartVal=" << levelStartVal
+                              << "; levelEndVal=" << levelEndVal
+                              << "; levelAfterBootstrap=" << levelAfterBootstrap
+                              << "; op was: " << forOp << "\n");
+      return failure();
+    }
+
+    int unrollFactor = levelAfterBootstrap / levelsUsedInLoop;
+    LLVM_DEBUG(llvm::dbgs()
+               << "Found unroll factor " << unrollFactor << " for iter_arg="
+               << iterArg << "; levelStartVal=" << levelStartVal
+               << "; levelEndVal=" << levelEndVal
+               << "; levelAfterBootstrap=" << levelAfterBootstrap << "\n");
+    if (unrollFactor > 1) {
+      unrollFactors.push_back(unrollFactor);
     }
   }
 
