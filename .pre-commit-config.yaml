@@ -82,7 +82,7 @@ repos:
   hooks:
     - id: disable-mdformat
       name: Ensure google-internal mdformat is disabled on md files
-      entry: python scripts/disable_mdformat.py
+      entry: python3 scripts/disable_mdformat.py
       language: system
       types: [markdown]
       pass_filenames: false # Run on all relevant files
