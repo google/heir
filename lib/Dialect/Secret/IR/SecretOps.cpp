@@ -737,7 +737,7 @@ void GenericOp::getSuccessorRegions(RegionBranchPoint point,
   if (point == RegionBranchPoint::parent()) {
     regions.push_back(RegionSuccessor(&getRegion(), getBody()->getArguments()));
   } else {
-    regions.push_back(RegionSuccessor(getOperation(), getResults()));
+    regions.push_back(RegionSuccessor::parent(getResults()));
   }
 }
 
