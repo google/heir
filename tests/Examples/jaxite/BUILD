@@ -19,6 +19,7 @@ glob_lit_tests(
 py_library(
     name = "test_utils",
     srcs = ["test_utils.py"],
+    strict_deps = False,
     deps = ["@heir_pip_deps//jaxite"],
 )
 
