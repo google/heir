@@ -1,45 +1,26 @@
 """Build settings for OpenFHE and OpenMP."""
 
-OPENFHE_VERSION_MAJOR = 1
-
-OPENFHE_VERSION_MINOR = 11
-
-OPENFHE_VERSION_PATCH = 3
-
-OPENFHE_VERSION = "{}.{}.{}".format(OPENFHE_VERSION_MAJOR, OPENFHE_VERSION_MINOR, OPENFHE_VERSION_PATCH)
-
-OPENFHE_DEFINES = [
-    "MATHBACKEND=2",
-    "OPENFHE_VERSION=" + OPENFHE_VERSION,
-] + select({
-    "@heir//:config_enable_openmp": ["PARALLEL"],
-    "@heir//:config_disable_openmp": [],
-})
-
-OPENFHE_COPTS = [
-    "-Wno-non-virtual-dtor",
-    "-Wno-shift-op-parentheses",
-    "-Wno-unused-private-field",
-    "-fexceptions",
-]
-
-_OPENFHE_LINKOPTS = [
+_OPENMP_CLANG_LINKOPTS = [
     "-fopenmp",
     "-lomp",
 ]
 
-_OPENMP_COPTS = [
+_OPENMP_GCC_LINKOPTS = [
     "-fopenmp",
-    "-Xpreprocessor",
-    "-Wno-unused-command-line-argument",
+    "-lgomp",
 ]
 
-MAYBE_OPENFHE_LINKOPTS = select({
-    "@heir//:config_enable_openmp": _OPENFHE_LINKOPTS,
-    "@heir//:config_disable_openmp": [],
+OPENMP_LINKOPTS = select({
+    "@openfhe//:clang_openmp": _OPENMP_CLANG_LINKOPTS,
+    "@openfhe//:gcc_openmp": _OPENMP_GCC_LINKOPTS,
+    "//conditions:default": [],
 })
 
-MAYBE_OPENMP_COPTS = select({
-    "@heir//:config_enable_openmp": _OPENMP_COPTS,
-    "@heir//:config_disable_openmp": [],
+OPENMP_COPTS = select({
+    "@openfhe//:config_enable_openmp": [
+        "-fopenmp",
+        "-Xpreprocessor",
+        "-Wno-unused-command-line-argument",
+    ],
+    "//conditions:default": [],
 })

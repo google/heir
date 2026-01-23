@@ -14,7 +14,6 @@ cc_library(
     srcs = ["RTLILImporter.cpp"],
     hdrs = ["RTLILImporter.h"],
     deps = [
-        "@at_clifford_yosys//:kernel",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:DialectUtils",
@@ -23,6 +22,7 @@ cc_library(
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TransformUtils",
+        "@yosys//:kernel",
     ],
 )
 
@@ -32,11 +32,11 @@ cc_library(
     hdrs = ["LUTImporter.h"],
     deps = [
         ":RTLILImporter",
-        "@at_clifford_yosys//:kernel",
         "@heir//lib/Dialect/Comb/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
+        "@yosys//:kernel",
     ],
 )
 
@@ -51,8 +51,6 @@ cc_test(
     deps = [
         ":LUTImporter",
         ":RTLILImporter",
-        "@at_clifford_yosys//:kernel",
-        "@at_clifford_yosys//:version",  # buildcleaner: keep
         "@bazel_tools//tools/cpp/runfiles",
         "@googletest//:gtest",
         "@heir//lib/Dialect/Comb/IR:Dialect",
@@ -62,6 +60,7 @@ cc_test(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
+        "@yosys//:kernel",
     ],
 )
 
@@ -71,11 +70,11 @@ cc_library(
     hdrs = ["BooleanGateImporter.h"],
     deps = [
         ":RTLILImporter",
-        "@at_clifford_yosys//:kernel",
         "@heir//lib/Dialect/Comb/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
+        "@yosys//:kernel",
     ],
 )
 
@@ -86,7 +85,7 @@ cc_library(
         "YosysOptimizer.h",
     ],
     data = [
-        "@edu_berkeley_abc//:abc",
+        "@abc//:abc_bin",
         "@heir//lib/Transforms/YosysOptimizer/yosys:techmap.v",
     ],
     deps = [
@@ -94,8 +93,6 @@ cc_library(
         ":LUTImporter",
         ":RTLILImporter",
         ":pass_inc_gen",
-        "@at_clifford_yosys//:kernel",  # buildcleaner: keep
-        "@at_clifford_yosys//:version",  # buildcleaner: keep
         "@heir//lib/Dialect/Comb/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:SecretPatterns",
         "@heir//lib/Target/Verilog:VerilogEmitter",
@@ -112,6 +109,7 @@ cc_library(
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TransformUtils",
         "@llvm-project//mlir:Transforms",
+        "@yosys//:kernel",  # buildcleaner: keep
     ],
 )
 
