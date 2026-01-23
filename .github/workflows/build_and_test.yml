@@ -16,14 +16,14 @@ jobs:
       labels: ubuntu-24.04-64core
     steps:
       - name: Check out repository code
-        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
 
       - name: Install dependencies
         run: |
           ./.github/install_clang_version.sh 19
 
       - name: Cache bazel build artifacts
-        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # pin@v4.2.0
+        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7  # v5.0.2
         with:
           path: |
             ~/.cache/bazel
