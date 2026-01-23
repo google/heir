@@ -10,7 +10,7 @@ jobs:
       issues: write
       pull-requests: write
     steps:
-    - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
+    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
     - name: todo-backlinks
       uses: j2kun/todo-backlinks@12b447ef971f465feb2a7298a1240157e8712942 # pin@v0.0.5
       env:

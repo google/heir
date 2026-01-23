@@ -15,7 +15,7 @@ jobs:
       tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955  # pin@4.3.0
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
 
       - name: Get current date
         id: date
@@ -70,7 +70,7 @@ jobs:
 
       - name: Create issue on failure
         if: steps.wait_for_wheels.outcome == 'failure'
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # pin@v7.0.1
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd  # v8
         with:
           script: |
             github.rest.issues.create({
