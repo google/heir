@@ -68,7 +68,7 @@ where = ["frontend"]
 [tool.cibuildwheel]
 build = "cp311-* cp312-* cp313-*"
 build-frontend = "build[uv]"
-skip = "*-musllinux_* pp-*"
+skip = "*-musllinux_* pp*"
 # The test must be run in an isolated directory so that python uses the wheel
 # when running `import heir` instead of the local source files. cibuildwheel
 # creates an isolated directory for this purpose, and cd's to it before running
@@ -79,7 +79,7 @@ test-command = "cp {package}/frontend/example.py . && python example.py"
 archs = "auto64"
 before-all = "bash .github/install_cibuildwheel_deps.sh"
 # Use the rootless Bazel installation inside the container.
-environment = { PATH = "$PATH:$HOME/bin" }
+environment = { PATH = "$PATH:$HOME/bin", CC = "/usr/bin/gcc", CXX = "/usr/bin/g++" }
 
 [tool.cibuildwheel.windows]
 archs = "auto64"

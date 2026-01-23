@@ -17,14 +17,14 @@ common --enable_workspace
 # prevents changes to PATH from causing a full rebuild
 common --incompatible_strict_action_env
 
-# compile with clang on all platforms
+# compile with clang by default
 build --action_env=CC=clang
 build --action_env=CXX=clang++
 build --host_action_env=CC=clang
 build --host_action_env=CXX=clang++
 
-# linux-specific options
-build:linux --linkopt="-fuse-ld=lld"
+# uncomment for lld
+# build:linux --linkopt="-fuse-ld=lld"
 
 # macos specific options
 # openmp is not supported in apple clang
@@ -54,3 +54,13 @@ build:asan --copt -fno-omit-frame-pointer
 build:asan --linkopt -fsanitize=address
 
 try-import %workspace%/fuzztest.bazelrc
+
+# manylinux toolchain for cibuildwheel
+# should force the use of the appropriate gcc for the manylinux container
+build:manylinux --action_env=CC=gcc
+build:manylinux --action_env=CXX=g++
+build:manylinux --host_action_env=CC=gcc
+build:manylinux --host_action_env=CXX=g++
+build:manylinux --noincompatible_strict_action_env
+# manylinux doesn't support openmp because it's very platform specific
+build:manylinux --//:enable_openmp=0
