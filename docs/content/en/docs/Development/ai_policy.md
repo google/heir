@@ -1,3 +1,8 @@
+---
+title: AI Tool Use Policy
+weight: 20
+---
+
 # AI Tool Use Policy
 
 _Nb., this policy was adapted from the
