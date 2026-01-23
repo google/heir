@@ -43,7 +43,7 @@ def isIntegerLike(typ: NumbaType | MLIRType) -> bool:
   match typ:
     case I1() | I8() | I16() | I32() | I64() | nt.Integer() | nt.Boolean():
       return True
-    case MLIRType() | nt.Type:
+    case MLIRType() | nt.Type():
       return False
     case _:
       raise InternalCompilerError(
@@ -55,7 +55,7 @@ def isFloatLike(typ: NumbaType | MLIRType) -> bool:
   match typ:
     case nt.F32 | nt.F64 | nt.Float():
       return True
-    case MLIRType() | nt.Type:
+    case MLIRType() | nt.Type():
       return False
     case _:
       raise InternalCompilerError(
@@ -508,7 +508,10 @@ class TextualMlirEmitter:
         )
         return ""
       case ir.Expr(op="binop"):
-        emitted_expr, ext, ty = self.emit_binop(assign.value)
+        result_type = self.typemap.get(assign.target.name)
+        emitted_expr, ext, ty = self.emit_binop(
+            assign.value, result_type=result_type
+        )
         expr = f"{emitted_expr} : {mlirType(ty)} {mlirLoc(assign.loc)}"
         # if the var is being reassigned, then create a new SSA var
         assign_str = self.reassign_and_forward_name(assign.target, expr)
@@ -621,11 +624,47 @@ class TextualMlirEmitter:
       return self.get_name(lhs), tmp, ext, lhs_type
     return tmp, self.get_name(rhs), ext, rhs_type
 
-  def emit_binop(self, binop):
+  def emit_ext_to_type(self, value, from_type, to_type):
+    if from_type == to_type:
+      return self.get_name(value), ""
+    if not isIntegerLike(from_type) or not isIntegerLike(to_type):
+      raise InternalCompilerError(
+          "Extension handling for non-integer (e.g., floats, tensors) types"
+          " is not yet supported."
+      )
+    from_bw = getBitwidth(from_type)
+    to_bw = getBitwidth(to_type)
+    if from_bw > to_bw:
+      raise InternalCompilerError(
+          f"Cannot extend {from_type} to narrower {to_type}."
+      )
+    tmp = self.get_next_name()
+    ext = (
+        f"{tmp} = arith.extsi {self.get_name(value)} : "
+        f"{mlirType(from_type)} to {mlirType(to_type)} "
+        f"{mlirLoc(value.loc)}\n"
+    )
+    return tmp, ext
+
+  def emit_binop(self, binop, result_type=None):
+    base_type = result_type or self.typemap.get(str(binop.lhs))
     # This should be the same, otherwise MLIR will complain
-    suffix = arithSuffix(self.typemap.get(str(binop.lhs)))
+    suffix = arithSuffix(base_type)
 
     lhs_ssa, rhs_ssa, ext, ty = self.emit_ext_if_needed(binop.lhs, binop.rhs)
+
+    if result_type is not None and isIntegerLike(result_type):
+      ty_bw = getBitwidth(ty)
+      result_bw = getBitwidth(result_type)
+      if result_bw < ty_bw:
+        raise InternalCompilerError(
+            f"Result type {result_type} is narrower than operands {ty}."
+        )
+      if result_bw > ty_bw:
+        lhs_ssa, lhs_ext = self.emit_ext_to_type(binop.lhs, ty, result_type)
+        rhs_ssa, rhs_ext = self.emit_ext_to_type(binop.rhs, ty, result_type)
+        ext = f"{ext}{lhs_ext}{rhs_ext}"
+        ty = result_type
 
     match binop.fn:
       case operator.lt:
