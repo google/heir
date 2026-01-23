@@ -2,6 +2,7 @@
 
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("@rules_license//rules:license.bzl", "license")
+load("//devtools/python/blaze:pytype.bzl", "pytype_strict_library")
 # copybara: fuzztest_ci
 
 package(
@@ -82,4 +83,10 @@ config_setting(
         ":openfhe_enable_timing": "1",
     },
     visibility = ["//visibility:public"],
+)
+
+pytype_strict_library(
+    name = "setup",
+    srcs = ["setup.py"],
+    deps = ["//third_party/py/setuptools"],
 )

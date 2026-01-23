@@ -1,6 +1,5 @@
 # TODO(#1446): Migrate remaining dependencies to bazelmod
 
-load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 # install dependencies for yosys/ABC circuit optimizers
@@ -23,13 +22,3 @@ tk_tcl()
 org_gnu_gnulib()
 
 at_clifford_yosys()
-
-# OpenFHE backend and dependencies
-git_repository(
-    name = "openfhe",
-    build_file = "//bazel/openfhe:openfhe.BUILD",
-    # Currently v1.4 2025-08-18
-    commit = "aa8a86e1143f1e47d4354bdd757080e903ba5875",
-    patches = ["@heir//bazel/openfhe:add_config_core.patch"],
-    remote = "https://github.com/openfheorg/openfhe-development.git",
-)
