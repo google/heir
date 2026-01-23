@@ -1,4 +1,125 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>HEIR – Development</title><link>https://heir.dev/docs/development/</link><description>Recent content in Development on HEIR</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="https://heir.dev/docs/development/index.xml" rel="self" type="application/rss+xml"/><item><title>Docs: Bazel tips</title><link>https://heir.dev/docs/development/bazel/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/development/bazel/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>HEIR – Development</title><link>https://heir.dev/docs/development/</link><description>Recent content in Development on HEIR</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="https://heir.dev/docs/development/index.xml" rel="self" type="application/rss+xml"/><item><title>Docs: AI Tool Use Policy</title><link>https://heir.dev/docs/development/ai_policy/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/development/ai_policy/</guid><description>
+&lt;h1 id="ai-tool-use-policy">AI Tool Use Policy&lt;/h1>
+&lt;p>&lt;em>Nb., this policy was adapted from the
+&lt;a href="https://github.com/llvm/llvm-project/pull/154441">LLVM AI Tool Use Policy&lt;/a>.&lt;/em>&lt;/p>
+&lt;h2 id="policy">Policy&lt;/h2>
+&lt;p>This project&amp;rsquo;s policy is that contributors can use whatever tools they would
+like to craft their contributions, but there must be a &lt;strong>human in the loop&lt;/strong>.
+&lt;strong>Contributors must read and review all LLM-generated code or text before they
+ask other project members to review it.&lt;/strong> The contributor is always the author
+and is fully accountable for their contributions. Contributors should be
+sufficiently confident that the contribution is high enough quality that asking
+for a review is a good use of scarce maintainer time, and they should be &lt;strong>able
+to answer questions about their work&lt;/strong> during review.&lt;/p>
+&lt;p>We expect that new contributors will be less confident in their contributions,
+and our guidance to them is to &lt;strong>start with small contributions&lt;/strong> that they can
+fully understand to build confidence. We aspire to be a welcoming community that
+helps new contributors grow their expertise, but learning involves taking small
+steps, getting feedback, and iterating. Passing maintainer feedback to an LLM
+doesn&amp;rsquo;t help anyone grow, and does not sustain our community.&lt;/p>
+&lt;p>Contributors are expected to &lt;strong>be transparent and label contributions that
+contain substantial amounts of tool-generated content&lt;/strong>. Our policy on labelling
+is intended to facilitate reviews, and not to track which parts of the project
+are generated. Contributors should note tool usage in their pull request
+description, commit message, or wherever authorship is normally indicated for
+the work. For instance, use a commit message trailer like
+&lt;code>Assisted-by: &amp;lt;name of code assistant&amp;gt;&lt;/code>. This transparency helps the community
+develop best practices and understand the role of these new tools.&lt;/p>
+&lt;p>This policy includes, but is not limited to, the following kinds of
+contributions:&lt;/p>
+&lt;ul>
+&lt;li>Code, usually in the form of a pull request&lt;/li>
+&lt;li>RFCs or design proposals&lt;/li>
+&lt;li>Issues or security vulnerabilities&lt;/li>
+&lt;li>Comments and feedback on pull requests&lt;/li>
+&lt;/ul>
+&lt;h2 id="details">Details&lt;/h2>
+&lt;p>To ensure sufficient self review and understanding of the work, it is strongly
+recommended that contributors write PR descriptions themselves (if needed, using
+tools for translation or copy-editing). The description should explain the
+motivation, implementation approach, expected impact, and any open questions or
+uncertainties to the same extent as a contribution made without tool assistance.&lt;/p>
+&lt;p>An important implication of this policy is that it bans agents that take action
+in our digital spaces without human approval, such as the GitHub
+&lt;a href="https://github.com/claude/">&lt;code>@claude&lt;/code> agent&lt;/a>. Similarly, automated review tools
+that publish comments without human review are not allowed. However, an opt-in
+review tool that &lt;strong>keeps a human in the loop&lt;/strong> is acceptable under this policy.
+As another example, using an LLM to generate documentation, which a contributor
+manually reviews for correctness, edits, and then posts as a PR, is an approved
+use of tools under this policy.&lt;/p>
+&lt;p>AI tools must not be used to fix GitHub issues labelled
+&lt;a href="https://github.com/google/heir/issues/?q=is%3Aissue%20state%3Aopen%20label%3A%22good%20first%20issue%22">&lt;code>good first issue&lt;/code>&lt;/a>. These issues are generally not urgent,
+and are intended to be learning opportunities for new contributors to get
+familiar with the codebase. Fully automating the process of fixing this issue
+squanders the learning opportunity and doesn&amp;rsquo;t add much value to the project.
+&lt;strong>New contributors using AI tools to fix issues labelled as &amp;ldquo;good first issues&amp;rdquo;
+is forbidden&lt;/strong>..&lt;/p>
+&lt;h2 id="extractive-contributions">Extractive Contributions&lt;/h2>
+&lt;p>The reason for our &amp;ldquo;human-in-the-loop&amp;rdquo; contribution policy is that processing
+patches, PRs, RFCs, and comments is not free &amp;ndash; it takes a lot of maintainer
+time and energy to review those contributions! Sending the unreviewed output of
+an LLM to open source project maintainers &lt;em>extracts&lt;/em> work from them in the form
+of design and code review, so we call this kind of contribution an &amp;ldquo;extractive
+contribution&amp;rdquo;.&lt;/p>
+&lt;p>Our &lt;strong>golden rule&lt;/strong> is that a contribution should be worth more to the project
+than the time it takes to review it. These ideas are captured by this quote from
+the book &lt;a href="https://press.stripe.com/working-in-public">Working in Public&lt;/a> by Nadia Eghbal:&lt;/p>
+&lt;blockquote>
+&lt;p>&amp;ldquo;When attention is being appropriated, producers need to weigh the costs and
+benefits of the transaction. To assess whether the appropriation of attention
+is net-positive, it&amp;rsquo;s useful to distinguish between &lt;em>extractive&lt;/em> and
+&lt;em>non-extractive&lt;/em> contributions. Extractive contributions are those where the
+marginal cost of reviewing and merging that contribution is greater than the
+marginal benefit to the project&amp;rsquo;s producers. In the case of a code
+contribution, it might be a pull request that&amp;rsquo;s too complex or unwieldy to
+review, given the potential upside.&amp;rdquo; &amp;ndash; Nadia Eghbal&lt;/p>
+&lt;/blockquote>
+&lt;p>Prior to the advent of LLMs, open source project maintainers would often review
+any and all changes sent to the project simply because posting a change for
+review was a sign of interest from a potential long-term contributor. While new
+tools enable more development, it shifts effort from the implementer to the
+reviewer, and our policy exists to ensure that we value and do not squander
+maintainer time.&lt;/p>
+&lt;p>Reviewing changes from new contributors is part of growing the next generation
+of contributors and sustaining the project. We want the HEIR project to be
+welcoming and open to aspiring scientists and engineers who are willing to
+invest time and effort to learn and grow, because growing our contributor base
+and recruiting new maintainers helps sustain the project over the long term.&lt;/p>
+&lt;h2 id="handling-violations">Handling Violations&lt;/h2>
+&lt;p>If a maintainer judges that a contribution doesn&amp;rsquo;t comply with this policy, they
+should paste the following response to request changes:&lt;/p>
+&lt;pre tabindex="0">&lt;code>This PR doesn&amp;#39;t appear to comply with our policy on tool-generated content,
+and requires additional justification for why it is valuable enough to the
+project for us to review it. Please see our developer policy on
+AI-generated contributions: https://heir.dev/docs/development/ai_policy/
+&lt;/code>&lt;/pre>&lt;p>The best ways to make a change less extractive and more valuable are to reduce
+its size or complexity or to increase its usefulness to the community. These
+factors are impossible to weigh objectively, and our project policy leaves this
+determination up to the maintainers of the project, i.e. those who are doing the
+work of sustaining the project.&lt;/p>
+&lt;p>If or when it becomes clear that a GitHub issue or PR is off-track and not
+moving in the right direction, maintainers should apply the &lt;code>extractive&lt;/code> label
+to help other reviewers prioritize their review time.&lt;/p>
+&lt;p>If a contributor responds but doesn&amp;rsquo;t make their change meaningfully less
+extractive, maintainers should escalate to the relevant admin to lock the
+conversation.&lt;/p>
+&lt;h2 id="references">References&lt;/h2>
+&lt;p>Our policy was informed by experiences in other communities:&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="https://communityblog.fedoraproject.org/council-policy-proposal-policy-on-ai-assisted-contributions/">Fedora Council Policy Proposal: Policy on AI-Assisted Contributions (fetched 2025-10-01)&lt;/a>:
+Some of the text above was copied from the Fedora project policy proposal,
+which is licensed under the
+&lt;a href="https://creativecommons.org/licenses/by/4.0/">Creative Commons Attribution 4.0 International License&lt;/a>. This link
+serves as attribution.&lt;/li>
+&lt;li>&lt;a href="https://github.com/rust-lang/compiler-team/issues/893">Rust draft policy on burdensome PRs&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://sethmlarson.dev/slop-security-reports">Seth Larson&amp;rsquo;s post&lt;/a> on slop security reports in the Python
+ecosystem&lt;/li>
+&lt;li>The METR paper
+&lt;a href="https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/">Measuring the Impact of Early-2025 AI on Experienced Open-Source Developer Productivity&lt;/a>.&lt;/li>
+&lt;li>&lt;a href="https://www.qemu.org/docs/master/devel/code-provenance.html#use-of-ai-content-generators">QEMU bans use of AI content generators&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://simonwillison.net/2024/May/8/slop/">Slop is the new name for unwanted AI-generated content&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;!-- mdformat global-off --></description></item><item><title>Docs: Bazel tips</title><link>https://heir.dev/docs/development/bazel/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/development/bazel/</guid><description>
 &lt;h2 id="build-file-formatting">BUILD file formatting&lt;/h2>
 &lt;p>The &lt;code>buildifier&lt;/code> tool can be used to format BUILD files. You can download the
 latest Buildifier release from the
@@ -403,125 +524,4 @@ opening.&lt;/li>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">vim.api&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">nvim_buf_set_lines&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">buf&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">2&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">false&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span> &lt;span style="color:#000">ifndef&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">define&lt;/span> &lt;span style="color:#000;font-weight:bold">})&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">vim.api&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">nvim_buf_set_lines&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">buf&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">-&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">2&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">-&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">false&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span> &lt;span style="color:#000">endif&lt;/span> &lt;span style="color:#000;font-weight:bold">})&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">end&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span> &lt;span style="color:#000">noremap&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">true&lt;/span> &lt;span style="color:#000;font-weight:bold">})&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;!-- mdformat global-off --></description></item><item><title>Docs:</title><link>https://heir.dev/docs/development/ai_policy/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/development/ai_policy/</guid><description>
-&lt;h1 id="ai-tool-use-policy">AI Tool Use Policy&lt;/h1>
-&lt;p>&lt;em>Nb., this policy was adapted from the
-&lt;a href="https://github.com/llvm/llvm-project/pull/154441">LLVM AI Tool Use Policy&lt;/a>.&lt;/em>&lt;/p>
-&lt;h2 id="policy">Policy&lt;/h2>
-&lt;p>This project&amp;rsquo;s policy is that contributors can use whatever tools they would
-like to craft their contributions, but there must be a &lt;strong>human in the loop&lt;/strong>.
-&lt;strong>Contributors must read and review all LLM-generated code or text before they
-ask other project members to review it.&lt;/strong> The contributor is always the author
-and is fully accountable for their contributions. Contributors should be
-sufficiently confident that the contribution is high enough quality that asking
-for a review is a good use of scarce maintainer time, and they should be &lt;strong>able
-to answer questions about their work&lt;/strong> during review.&lt;/p>
-&lt;p>We expect that new contributors will be less confident in their contributions,
-and our guidance to them is to &lt;strong>start with small contributions&lt;/strong> that they can
-fully understand to build confidence. We aspire to be a welcoming community that
-helps new contributors grow their expertise, but learning involves taking small
-steps, getting feedback, and iterating. Passing maintainer feedback to an LLM
-doesn&amp;rsquo;t help anyone grow, and does not sustain our community.&lt;/p>
-&lt;p>Contributors are expected to &lt;strong>be transparent and label contributions that
-contain substantial amounts of tool-generated content&lt;/strong>. Our policy on labelling
-is intended to facilitate reviews, and not to track which parts of the project
-are generated. Contributors should note tool usage in their pull request
-description, commit message, or wherever authorship is normally indicated for
-the work. For instance, use a commit message trailer like
-&lt;code>Assisted-by: &amp;lt;name of code assistant&amp;gt;&lt;/code>. This transparency helps the community
-develop best practices and understand the role of these new tools.&lt;/p>
-&lt;p>This policy includes, but is not limited to, the following kinds of
-contributions:&lt;/p>
-&lt;ul>
-&lt;li>Code, usually in the form of a pull request&lt;/li>
-&lt;li>RFCs or design proposals&lt;/li>
-&lt;li>Issues or security vulnerabilities&lt;/li>
-&lt;li>Comments and feedback on pull requests&lt;/li>
-&lt;/ul>
-&lt;h2 id="details">Details&lt;/h2>
-&lt;p>To ensure sufficient self review and understanding of the work, it is strongly
-recommended that contributors write PR descriptions themselves (if needed, using
-tools for translation or copy-editing). The description should explain the
-motivation, implementation approach, expected impact, and any open questions or
-uncertainties to the same extent as a contribution made without tool assistance.&lt;/p>
-&lt;p>An important implication of this policy is that it bans agents that take action
-in our digital spaces without human approval, such as the GitHub
-&lt;a href="https://github.com/claude/">&lt;code>@claude&lt;/code> agent&lt;/a>. Similarly, automated review tools
-that publish comments without human review are not allowed. However, an opt-in
-review tool that &lt;strong>keeps a human in the loop&lt;/strong> is acceptable under this policy.
-As another example, using an LLM to generate documentation, which a contributor
-manually reviews for correctness, edits, and then posts as a PR, is an approved
-use of tools under this policy.&lt;/p>
-&lt;p>AI tools must not be used to fix GitHub issues labelled
-&lt;a href="https://github.com/google/heir/issues/?q=is%3Aissue%20state%3Aopen%20label%3A%22good%20first%20issue%22">&lt;code>good first issue&lt;/code>&lt;/a>. These issues are generally not urgent,
-and are intended to be learning opportunities for new contributors to get
-familiar with the codebase. Fully automating the process of fixing this issue
-squanders the learning opportunity and doesn&amp;rsquo;t add much value to the project.
-&lt;strong>New contributors using AI tools to fix issues labelled as &amp;ldquo;good first issues&amp;rdquo;
-is forbidden&lt;/strong>..&lt;/p>
-&lt;h2 id="extractive-contributions">Extractive Contributions&lt;/h2>
-&lt;p>The reason for our &amp;ldquo;human-in-the-loop&amp;rdquo; contribution policy is that processing
-patches, PRs, RFCs, and comments is not free &amp;ndash; it takes a lot of maintainer
-time and energy to review those contributions! Sending the unreviewed output of
-an LLM to open source project maintainers &lt;em>extracts&lt;/em> work from them in the form
-of design and code review, so we call this kind of contribution an &amp;ldquo;extractive
-contribution&amp;rdquo;.&lt;/p>
-&lt;p>Our &lt;strong>golden rule&lt;/strong> is that a contribution should be worth more to the project
-than the time it takes to review it. These ideas are captured by this quote from
-the book &lt;a href="https://press.stripe.com/working-in-public">Working in Public&lt;/a> by Nadia Eghbal:&lt;/p>
-&lt;blockquote>
-&lt;p>&amp;ldquo;When attention is being appropriated, producers need to weigh the costs and
-benefits of the transaction. To assess whether the appropriation of attention
-is net-positive, it&amp;rsquo;s useful to distinguish between &lt;em>extractive&lt;/em> and
-&lt;em>non-extractive&lt;/em> contributions. Extractive contributions are those where the
-marginal cost of reviewing and merging that contribution is greater than the
-marginal benefit to the project&amp;rsquo;s producers. In the case of a code
-contribution, it might be a pull request that&amp;rsquo;s too complex or unwieldy to
-review, given the potential upside.&amp;rdquo; &amp;ndash; Nadia Eghbal&lt;/p>
-&lt;/blockquote>
-&lt;p>Prior to the advent of LLMs, open source project maintainers would often review
-any and all changes sent to the project simply because posting a change for
-review was a sign of interest from a potential long-term contributor. While new
-tools enable more development, it shifts effort from the implementer to the
-reviewer, and our policy exists to ensure that we value and do not squander
-maintainer time.&lt;/p>
-&lt;p>Reviewing changes from new contributors is part of growing the next generation
-of contributors and sustaining the project. We want the HEIR project to be
-welcoming and open to aspiring scientists and engineers who are willing to
-invest time and effort to learn and grow, because growing our contributor base
-and recruiting new maintainers helps sustain the project over the long term.&lt;/p>
-&lt;h2 id="handling-violations">Handling Violations&lt;/h2>
-&lt;p>If a maintainer judges that a contribution doesn&amp;rsquo;t comply with this policy, they
-should paste the following response to request changes:&lt;/p>
-&lt;pre tabindex="0">&lt;code>This PR doesn&amp;#39;t appear to comply with our policy on tool-generated content,
-and requires additional justification for why it is valuable enough to the
-project for us to review it. Please see our developer policy on
-AI-generated contributions: https://heir.dev/docs/development/ai_policy/
-&lt;/code>&lt;/pre>&lt;p>The best ways to make a change less extractive and more valuable are to reduce
-its size or complexity or to increase its usefulness to the community. These
-factors are impossible to weigh objectively, and our project policy leaves this
-determination up to the maintainers of the project, i.e. those who are doing the
-work of sustaining the project.&lt;/p>
-&lt;p>If or when it becomes clear that a GitHub issue or PR is off-track and not
-moving in the right direction, maintainers should apply the &lt;code>extractive&lt;/code> label
-to help other reviewers prioritize their review time.&lt;/p>
-&lt;p>If a contributor responds but doesn&amp;rsquo;t make their change meaningfully less
-extractive, maintainers should escalate to the relevant admin to lock the
-conversation.&lt;/p>
-&lt;h2 id="references">References&lt;/h2>
-&lt;p>Our policy was informed by experiences in other communities:&lt;/p>
-&lt;ul>
-&lt;li>&lt;a href="https://communityblog.fedoraproject.org/council-policy-proposal-policy-on-ai-assisted-contributions/">Fedora Council Policy Proposal: Policy on AI-Assisted Contributions (fetched 2025-10-01)&lt;/a>:
-Some of the text above was copied from the Fedora project policy proposal,
-which is licensed under the
-&lt;a href="https://creativecommons.org/licenses/by/4.0/">Creative Commons Attribution 4.0 International License&lt;/a>. This link
-serves as attribution.&lt;/li>
-&lt;li>&lt;a href="https://github.com/rust-lang/compiler-team/issues/893">Rust draft policy on burdensome PRs&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://sethmlarson.dev/slop-security-reports">Seth Larson&amp;rsquo;s post&lt;/a> on slop security reports in the Python
-ecosystem&lt;/li>
-&lt;li>The METR paper
-&lt;a href="https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/">Measuring the Impact of Early-2025 AI on Experienced Open-Source Developer Productivity&lt;/a>.&lt;/li>
-&lt;li>&lt;a href="https://www.qemu.org/docs/master/devel/code-provenance.html#use-of-ai-content-generators">QEMU bans use of AI content generators&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://simonwillison.net/2024/May/8/slop/">Slop is the new name for unwanted AI-generated content&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;!-- mdformat global-off --></description></item></channel></rss>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;!-- mdformat global-off --></description></item></channel></rss>
