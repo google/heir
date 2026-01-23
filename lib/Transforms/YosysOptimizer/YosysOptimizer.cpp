@@ -81,18 +81,34 @@ using std::string;
 // may call submodules, utilizing splitnets to split output ports of the
 // submodule into individual bits. Note that the splitnets command uses %n to
 // target all submodules besides the main function.
-constexpr std::string_view kYosysLutTemplate = R"(
+constexpr std::string_view kYosysLut3Template = R"(
 read_verilog -sv {0};
 hierarchy -check -top \{1};
 proc; memory; stat;
-techmap -map {2}/techmap.v; stat;
+techmap -map {2}/techmap_lut3.v; stat;
 opt_expr; opt_clean -purge; stat;
 splitnets -ports \{1} %n;
 flatten; opt_expr; opt; opt_clean -purge;
 rename -hide */w:*; rename -enumerate */w:*;
 abc -exe {3} -lut 3 {4}; stat;
 opt_clean -purge; stat;
-techmap -map {2}/techmap.v; opt_clean -purge;
+techmap -map {2}/techmap_lut3.v; opt_clean -purge;
+hierarchy -generate * o:Y i:*; opt; opt_clean -purge;
+clean;
+stat;
+)";
+constexpr std::string_view kYosysLut4Template = R"(
+read_verilog -sv {0};
+hierarchy -check -top \{1};
+proc; memory; stat;
+techmap -map {2}/techmap_lut4.v; stat;
+opt_expr; opt_clean -purge; stat;
+splitnets -ports \{1} %n;
+flatten; opt_expr; opt; opt_clean -purge;
+rename -hide */w:*; rename -enumerate */w:*;
+abc -exe {3} -lut 4 {4}; stat;
+opt_clean -purge; stat;
+techmap -map {2}/techmap_lut4.v; opt_clean -purge;
 hierarchy -generate * o:Y i:*; opt; opt_clean -purge;
 clean;
 stat;
@@ -107,7 +123,7 @@ constexpr std::string_view kYosysBooleanTemplate = R"(
 read_verilog -sv {0};
 hierarchy -check -top \{1};
 proc; memory; stat;
-techmap -map {3}/techmap.v; stat;
+techmap -map {3}/techmap_lut3.v; stat;
 opt_expr; opt_clean -purge; stat;
 splitnets -ports \{1} %n;
 flatten; opt_expr; opt; opt_clean -purge;
@@ -421,14 +437,21 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
   Yosys::log_error_stderr = true;
   LLVM_DEBUG(Yosys::log_streams.push_back(&std::cout));
 
-  LLVM_DEBUG(
-      llvm::dbgs() << "Using "
-                   << (mode == Mode::LUT ? "LUT cells" : "boolean gates"));
+  LLVM_DEBUG(llvm::dbgs() << "Using "
+                          << (mode == Mode::LUT3   ? "LUT3 cells"
+                              : mode == Mode::LUT4 ? "LUT4 cells"
+                                                   : "boolean gates"));
+
   auto yosysTemplate =
-      llvm::formatv(kYosysLutTemplate.data(), filename, moduleName,
+      llvm::formatv(kYosysLut3Template.data(), filename, moduleName,
                     yosysFilesPath, abcPath, abcFast ? "-fast" : "")
           .str();
-  if (mode == Mode::Boolean) {
+  if (mode == Mode::LUT4) {
+    yosysTemplate =
+        llvm::formatv(kYosysLut4Template.data(), filename, moduleName,
+                      yosysFilesPath, abcPath, abcFast ? "-fast" : "")
+            .str();
+  } else if (mode == Mode::Boolean) {
     yosysTemplate =
         llvm::formatv(kYosysBooleanTemplate.data(), filename, moduleName,
                       abcPath, yosysFilesPath, abcFast ? "-fast" : "")
@@ -454,7 +477,7 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
 
   LLVM_DEBUG(llvm::dbgs() << "Importing RTLIL module\n");
   std::unique_ptr<RTLILImporter> importer;
-  if (mode == Mode::LUT) {
+  if (mode == Mode::LUT3 || mode == Mode::LUT4) {
     importer = std::make_unique<LUTImporter>(context);
   } else {
     importer = std::make_unique<BooleanGateImporter>(context);

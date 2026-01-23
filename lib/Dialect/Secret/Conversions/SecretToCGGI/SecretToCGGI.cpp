@@ -255,7 +255,7 @@ class SecretTypeConverter : public ContextAwareTypeConverter {
   Type getLWECiphertextForInt(MLIRContext* ctx, Type type) const {
     if (IntegerType intType = dyn_cast<IntegerType>(type)) {
       if (intType.getWidth() == 1) {
-        return lwe::getDefaultCGGICiphertextType(ctx, 1);
+        return lwe::getDefaultCGGICiphertextType(ctx, 1, this->minBitWidth);
       }
       return RankedTensorType::get(
           {intType.getWidth()},
@@ -322,11 +322,20 @@ class SecretGenericOpLUTConversion
     // Assemble the lookup table.
     comb::TruthTableOp truthOp =
         cast<comb::TruthTableOp>(op.getBody()->getOperations().front());
-    return rewriter
-        .replaceOpWithNewOp<cggi::Lut3Op>(op, encodedInputs[0],
-                                          encodedInputs[1], encodedInputs[2],
-                                          truthOp.getLookupTable())
-        .getOperation();
+
+    if (encodedInputs.size() == 3)
+      return rewriter
+          .replaceOpWithNewOp<cggi::Lut3Op>(op, encodedInputs[0],
+                                            encodedInputs[1], encodedInputs[2],
+                                            truthOp.getLookupTable())
+          .getOperation();
+    if (encodedInputs.size() == 4)
+      return rewriter
+          .replaceOpWithNewOp<cggi::Lut4Op>(
+              op, encodedInputs[0], encodedInputs[1], encodedInputs[2],
+              encodedInputs[3], truthOp.getLookupTable())
+          .getOperation();
+    return rewriter.notifyMatchFailure(op, "expected 3 or 4 LUT inputs");
   }
 };
 
@@ -722,11 +731,6 @@ struct ConvertFromElementsOp
                                     overflowAttr),
               b.getIndexAttr(ciphertextBits));
 
-          // b.create<lwe::TrivialEncryptOp>(
-          //      ctTy,
-          //      b.create<lwe::EncodeOp>(ptTy, element, ctTy.getEncoding()),
-          //      lwe::LWEParamsAttr())
-          //     .getResult();
           values.push_back(ctElement);
         }
       }
@@ -776,8 +780,8 @@ static int findLUTSize(MLIRContext* context, Operation* module) {
   auto processOperation = [&](Operation* op) {
     if (isa<comb::CombDialect>(op->getDialect())) {
       int currentSize = 0;
-      if (dyn_cast<comb::TruthTableOp>(op))
-        currentSize = 3;
+      if (auto ttOp = dyn_cast<comb::TruthTableOp>(op))
+        currentSize = ttOp.getInputs().size();
       else
         currentSize = op->getResults().getTypes()[0].getIntOrFloatBitWidth();
 

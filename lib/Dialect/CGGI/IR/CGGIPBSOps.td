@@ -69,6 +69,12 @@ def CGGI_Lut3Op : CGGI_LutOp<"lut3",
   let results = (outs LWECiphertextLike:$output);
 }
 
+def CGGI_Lut4Op : CGGI_LutOp<"lut4", [AllTypesMatch<["a", "b", "c", "d", "output"]>]> {
+  let summary = "A lookup table on four inputs.";
+  let arguments = (ins LWECiphertextLike:$d, LWECiphertextLike:$c, LWECiphertextLike:$b, LWECiphertextLike:$a, Builtin_IntegerAttr:$lookup_table);
+  let results = (outs LWECiphertextLike:$output);
+}
+
 def CGGI_PackedLut3Op : CGGI_Op<"packed_lut3", [
     Pure,
     SameOperandsAndResultType,

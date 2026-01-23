@@ -41,12 +41,14 @@ static constexpr unsigned maxIntWidth = 16;
 
 static lwe::LWECiphertextType convertArithToCGGIType(IntegerType type,
                                                      MLIRContext* ctx) {
-  return lwe::getDefaultCGGICiphertextType(ctx, type.getIntOrFloatBitWidth());
+  return lwe::getDefaultCGGICiphertextType(ctx, type.getIntOrFloatBitWidth(),
+                                           type.getIntOrFloatBitWidth());
 }
 
 static std::optional<Type> convertArithToCGGIQuartType(IntegerType type,
                                                        MLIRContext* ctx) {
-  auto lweType = lwe::getDefaultCGGICiphertextType(ctx, maxIntWidth);
+  auto lweType =
+      lwe::getDefaultCGGICiphertextType(ctx, maxIntWidth, maxIntWidth);
 
   float width = type.getWidth();
   float realWidth = maxIntWidth >> 1;
@@ -107,7 +109,8 @@ static Value createTrivialOpMaxWidth(ImplicitLocOpBuilder b, int value) {
   auto maxWideIntType = IntegerType::get(b.getContext(), maxIntWidth);
   auto intAttr = b.getIntegerAttr(maxWideIntType, value);
 
-  auto lweType = lwe::getDefaultCGGICiphertextType(b.getContext(), maxIntWidth);
+  auto lweType = lwe::getDefaultCGGICiphertextType(b.getContext(), maxIntWidth,
+                                                   maxIntWidth);
 
   return cggi::CreateTrivialOp::create(b, lweType, intAttr);
 }
