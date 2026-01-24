@@ -156,6 +156,7 @@ void Interpreter::initializeDispatchTable() {
   REGISTER_OP(DecryptOp);
   REGISTER_OP(EncryptOp);
   REGISTER_OP(FastRotationOp);
+  REGISTER_OP(FastRotationExtOp);
   REGISTER_OP(FastRotationPrecomputeOp);
   REGISTER_OP(GenBootstrapKeyOp);
   REGISTER_OP(GenContextOp);
@@ -164,6 +165,10 @@ void Interpreter::initializeDispatchTable() {
   REGISTER_OP(GenRotKeyOp);
   REGISTER_OP(KeySwitchInPlaceOp);
   REGISTER_OP(KeySwitchOp);
+  REGISTER_OP(KeySwitchDownOp);
+  REGISTER_OP(AddExtOp);
+  REGISTER_OP(AddExtInPlaceOp);
+  REGISTER_OP(MulExtOp);
   REGISTER_OP(LevelReduceInPlaceOp);
   REGISTER_OP(LevelReduceOp);
   REGISTER_OP(MakeCKKSPackedPlaintextOp);
@@ -1935,6 +1940,46 @@ void Interpreter::visit(FastRotationPrecomputeOp op) {
   auto ct = ciphertexts.at(op.getInput());
   TIME_OPERATION_NONCT("FastRotationPrecompute", op.getResult(),
                        cc->EvalFastRotationPrecompute(ct), fastRotPrecomps);
+}
+
+void Interpreter::visit(FastRotationExtOp op) {
+  auto cc = cryptoContexts.at(op.getCryptoContext());
+  auto ct = ciphertexts.at(op.getInput());
+  auto index = intValues.at(op.getIndex());
+  auto digits = fastRotPrecomps.at(op.getPrecomputedDigitDecomp());
+  bool addFirst = op.getAddFirst();
+  TIME_OPERATION("FastRotationExt", op.getResult(),
+                 cc->EvalFastRotationExt(ct, index, digits, addFirst));
+}
+
+void Interpreter::visit(KeySwitchDownOp op) {
+  auto cc = cryptoContexts.at(op.getCryptoContext());
+  auto ct = ciphertexts.at(op.getCiphertext());
+  TIME_OPERATION("KeySwitchDown", op.getResult(), cc->KeySwitchDown(ct));
+}
+
+void Interpreter::visit(AddExtOp op) {
+  auto cc = cryptoContexts.at(op.getCryptoContext());
+  auto lhsCt = ciphertexts.at(op.getLhs());
+  auto rhsCt = ciphertexts.at(op.getRhs());
+  // In extended basis, EvalAdd works on the extended ciphertext
+  TIME_OPERATION("AddExt", op.getOutput(), cc->EvalAdd(lhsCt, rhsCt));
+}
+
+void Interpreter::visit(AddExtInPlaceOp op) {
+  auto cc = cryptoContexts.at(op.getCryptoContext());
+  auto lhsCt = ciphertexts.at(op.getLhs());
+  auto rhsCt = ciphertexts.at(op.getRhs());
+  TIME_OPERATION_VOID("AddExtInPlace", cc->EvalAddInPlace(lhsCt, rhsCt));
+  ciphertexts[op.getOutput()] = lhsCt;
+}
+
+void Interpreter::visit(MulExtOp op) {
+  auto cc = cryptoContexts.at(op.getCryptoContext());
+  auto lhsCt = ciphertexts.at(op.getLhs());
+  auto rhsCt = ciphertexts.at(op.getRhs());
+  // In extended basis, use EvalMultNoRelin
+  TIME_OPERATION("MulExt", op.getOutput(), cc->EvalMultNoRelin(lhsCt, rhsCt));
 }
 
 void Interpreter::decodeCore(Operation* op, Value input, Value result,

@@ -262,10 +262,10 @@ LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
                 LevelReduceInPlaceOp, LevelReduceOp, MakeCKKSPackedPlaintextOp,
                 MakePackedPlaintextOp, ModReduceInPlaceOp, ModReduceOp,
                 MulConstInPlaceOp, MulConstOp, MulNoRelinOp, MulOp, MulPlainOp,
-                AddExtOp, AddExtInPlaceOp, MulExtOp,
-                NegateInPlaceOp, NegateOp, RelinInPlaceOp, RelinOp, RotOp,
-                SetupBootstrapOp, SquareInPlaceOp, SquareOp, SubInPlaceOp,
-                SubOp, SubPlainInPlaceOp, SubPlainOp>(
+                AddExtOp, AddExtInPlaceOp, MulExtOp, NegateInPlaceOp, NegateOp,
+                RelinInPlaceOp, RelinOp, RotOp, SetupBootstrapOp,
+                SquareInPlaceOp, SquareOp, SubInPlaceOp, SubOp,
+                SubPlainInPlaceOp, SubPlainOp>(
               [&](auto op) { return printOperation(op); })
           .Default([&](Operation&) {
             return emitError(op.getLoc(), "unable to find printer for op");
@@ -833,17 +833,15 @@ LogicalResult OpenFhePkeEmitter::printOperation(FastRotationExtOp op) {
      << "EvalFastRotationExt(" << variableNames->getNameForValue(op.getInput())
      << ", " << getConstantOrValue(op.getIndex()) << ", "
      << variableNames->getNameForValue(op.getPrecomputedDigitDecomp()) << ", "
-     << (op.getAddFirst() ? "true" : "false") << ", "
-     << variableNames->getNameForValue(op.getCryptoContext())
-     << "->GetAllEvalAutomorphismKeys());\n";
+     << (op.getAddFirst() ? "true" : "false") << ");\n";
   return success();
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(KeySwitchDownOp op) {
   emitAutoAssignPrefix(op.getResult());
   os << variableNames->getNameForValue(op.getCryptoContext()) << "->"
-     << "KeySwitchDown("
-     << variableNames->getNameForValue(op.getCiphertext()) << ");\n";
+     << "KeySwitchDown(" << variableNames->getNameForValue(op.getCiphertext())
+     << ");\n";
   return success();
 }
 
@@ -865,7 +863,6 @@ LogicalResult OpenFhePkeEmitter::printOperation(MulExtOp op) {
   return printEvalMethod(op.getResult(), op.getCryptoContext(),
                          {op.getLhs(), op.getRhs()}, "EvalMultNoRelin");
 }
-
 
 LogicalResult OpenFhePkeEmitter::printOperation(AutomorphOp op) {
   // EvalAutomorphism has a bit of a strange function signature in OpenFHE:
