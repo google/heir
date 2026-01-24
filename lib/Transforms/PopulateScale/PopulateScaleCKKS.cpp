@@ -42,6 +42,29 @@ class CKKSAdjustScaleMaterializer : public AdjustScaleMaterializer {
 #define GEN_PASS_DEF_POPULATESCALECKKS
 #include "lib/Transforms/PopulateScale/PopulateScale.h.inc"
 
+LogicalResult createAndRunDataflow(Operation* op, DataFlowSolver& solver,
+                                   int64_t logDefaultScale,
+                                   ckks::SchemeParamAttr ckksSchemeParamAttr,
+                                   bool beforeMulIncludeFirstMul) {
+  SymbolTableCollection symbolTable;
+  dataflow::loadBaselineAnalyses(solver);
+  solver.load<SecretnessAnalysis>();
+  auto inputScale = logDefaultScale;
+  if (beforeMulIncludeFirstMul) {
+    LDBG() << "Encoding at scale^2 due to 'include-first-mul' config";
+    inputScale *= 2;
+  }
+  solver.load<ScaleAnalysis<CKKSScaleModel>>(
+      ckks::SchemeParam::getSchemeParamFromAttr(ckksSchemeParamAttr),
+      /*inputScale*/ inputScale);
+  // Back-prop ScaleAnalysis depends on (forward) ScaleAnalysis
+  solver.load<ScaleAnalysisBackward<CKKSScaleModel>>(
+      symbolTable,
+      ckks::SchemeParam::getSchemeParamFromAttr(ckksSchemeParamAttr));
+
+  return solver.initializeAndRun(op);
+}
+
 struct PopulateScaleCKKS : impl::PopulateScaleCKKSBase<PopulateScaleCKKS> {
   using PopulateScaleCKKSBase::PopulateScaleCKKSBase;
 
@@ -57,41 +80,36 @@ struct PopulateScaleCKKS : impl::PopulateScaleCKKSBase<PopulateScaleCKKS> {
     auto logDefaultScale = ckksSchemeParamAttr.getLogDefaultScale();
 
     DataFlowSolver solver;
-    SymbolTableCollection symbolTable;
-    dataflow::loadBaselineAnalyses(solver);
-    // ScaleAnalysis depends on SecretnessAnalysis
-    solver.load<SecretnessAnalysis>();
-    // set input scale to logDefaultScale
-    auto inputScale = logDefaultScale;
-    if (beforeMulIncludeFirstMul) {
-      LDBG() << "Encoding at scale^2 due to 'include-first-mul' config";
-      inputScale *= 2;
-    }
-    solver.load<ScaleAnalysis<CKKSScaleModel>>(
-        ckks::SchemeParam::getSchemeParamFromAttr(ckksSchemeParamAttr),
-        /*inputScale*/ inputScale);
-    // Back-prop ScaleAnalysis depends on (forward) ScaleAnalysis
-    solver.load<ScaleAnalysisBackward<CKKSScaleModel>>(
-        symbolTable,
-        ckks::SchemeParam::getSchemeParamFromAttr(ckksSchemeParamAttr));
-
-    if (failed(solver.initializeAndRun(getOperation()))) {
-      getOperation()->emitOpError() << "Failed to run the analysis.\n";
+    if (failed(createAndRunDataflow(getOperation(), solver, logDefaultScale,
+                                    ckksSchemeParamAttr,
+                                    beforeMulIncludeFirstMul))) {
       signalPassFailure();
       return;
     }
-    LDBG() << "Finished dataflow analysis";
 
     // at this time all adjust_scale should have ScaleLattice for its result.
     // all plaintext (mgmt.init) should have ScaleLattice for its result.
+    // However, due to the naivete of the scale analysis, there can be
+    // sections of IR in which no scale could be propagated through. E.g., an
+    // op surrounded by two adjust_scale ops that block propagation. In this
+    // case these adjust_scale ops should be removed.
     getOperation()->walk([&](mgmt::AdjustScaleOp op) {
       auto* lattice = solver.lookupState<ScaleLattice>(op.getResult());
       if (!lattice || !lattice->getValue().isInitialized()) {
         op.emitOpError() << "Dataflow analysis failed to populate scale "
                             "lattice for result\n";
-        signalPassFailure();
+        op->replaceAllUsesWith(ValueRange{op.getInput()});
+        op->erase();
       }
     });
+
+    DataFlowSolver solver2;
+    if (failed(createAndRunDataflow(getOperation(), solver2, logDefaultScale,
+                                    ckksSchemeParamAttr,
+                                    beforeMulIncludeFirstMul))) {
+      signalPassFailure();
+      return;
+    }
 
     getOperation()->walk([&](mgmt::InitOp op) {
       auto* lattice = solver.lookupState<ScaleLattice>(op.getResult());
@@ -103,10 +121,15 @@ struct PopulateScaleCKKS : impl::PopulateScaleCKKSBase<PopulateScaleCKKS> {
     });
 
     LDBG() << "Running annotate-mgmt sub-pass";
-    annotateScale(getOperation(), &solver);
+    annotateScale(getOperation(), &solver2);
     OpPassManager annotateMgmt("builtin.module");
     annotateMgmt.addPass(mgmt::createAnnotateMgmt());
     (void)runPipeline(annotateMgmt, getOperation());
+
+    LLVM_DEBUG({
+      llvm::dbgs() << "Dumping op after annotate-mgmt pass:\n";
+      getOperation()->dump();
+    });
 
     LDBG() << "convert adjust_scale to mul_plain";
     RewritePatternSet patterns(&getContext());
