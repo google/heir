@@ -22,7 +22,7 @@ func.func @loop(%arg0: tensor<8xf32> {secret.secret}) -> tensor<8xf32> {
   %0 = affine.for %i = 0 to 8 iter_args(%sum_iter = %c1_f32) -> tensor<8xf32> {
     %2 = arith.mulf %arg0, %sum_iter : tensor<8xf32>
     %3 = arith.subf %2, %c1_f32 : tensor<8xf32>
-    affine.yield %2 : tensor<8xf32>
+    affine.yield %3 : tensor<8xf32>
   }
   return %0 : tensor<8xf32>
 }
