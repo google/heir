@@ -84,3 +84,20 @@ module {
     return %alloc : memref<1x80xi8>
   }
 }
+
+// -----
+
+// Regression test for issue #2553: plaintext constant should not become secret
+// When a function only returns values that don't depend on secrets,
+// no secret.generic should be created.
+module {
+    // CHECK: @plaintext_output(%arg0: !secret.secret<i32>) -> i8
+    func.func @plaintext_output(%x: i32 {secret.secret}) -> i8 {
+      // The constant does not depend on the secret input
+      // CHECK-NOT: secret.generic
+      %0 = arith.constant 42 : i8
+      // CHECK: return %{{.*}} : i8
+      func.return %0 : i8
+    }
+}
+
