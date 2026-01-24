@@ -256,15 +256,15 @@ LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
           // OpenFHE ops
           .Case<AddInPlaceOp, AddOp, AddPlainInPlaceOp, AddPlainOp, AutomorphOp,
                 BootstrapOp, DecryptOp, EncryptOp, FastRotationOp,
-                FastRotationPrecomputeOp, GenBootstrapKeyOp, GenContextOp,
-                GenMulKeyOp, GenParamsOp, GenRotKeyOp, KeySwitchInPlaceOp,
-                KeySwitchOp, LevelReduceInPlaceOp, LevelReduceOp,
-                MakeCKKSPackedPlaintextOp, MakePackedPlaintextOp,
-                ModReduceInPlaceOp, ModReduceOp, MulConstInPlaceOp, MulConstOp,
-                MulNoRelinOp, MulOp, MulPlainOp, NegateInPlaceOp, NegateOp,
-                RelinInPlaceOp, RelinOp, RotOp, SetupBootstrapOp,
-                SquareInPlaceOp, SquareOp, SubInPlaceOp, SubOp,
-                SubPlainInPlaceOp, SubPlainOp>(
+                FastRotationExtOp, FastRotationPrecomputeOp, GenBootstrapKeyOp,
+                GenContextOp, GenMulKeyOp, GenParamsOp, GenRotKeyOp,
+                KeySwitchDownOp, KeySwitchInPlaceOp, KeySwitchOp,
+                LevelReduceInPlaceOp, LevelReduceOp, MakeCKKSPackedPlaintextOp,
+                MakePackedPlaintextOp, ModReduceInPlaceOp, ModReduceOp,
+                MulConstInPlaceOp, MulConstOp, MulNoRelinOp, MulOp, MulPlainOp,
+                NegateInPlaceOp, NegateOp, RelinInPlaceOp, RelinOp, RotOp,
+                SetupBootstrapOp, SquareInPlaceOp, SquareOp, SubInPlaceOp,
+                SubOp, SubPlainInPlaceOp, SubPlainOp>(
               [&](auto op) { return printOperation(op); })
           .Default([&](Operation&) {
             return emitError(op.getLoc(), "unable to find printer for op");
@@ -817,6 +817,29 @@ LogicalResult OpenFhePkeEmitter::printOperation(FastRotationOp op) {
      << ", " << getConstantOrValue(op.getIndex()) << ", "
      << "2 * cc->GetRingDimension(), "
      << variableNames->getNameForValue(op.getPrecomputedDigitDecomp())
+     << ");\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(FastRotationExtOp op) {
+  auto getConstantOrValue = [&](Value value) -> std::string {
+    return getStringForConstant(value).value_or(
+        variableNames->getNameForValue(value));
+  };
+
+  emitAutoAssignPrefix(op.getResult());
+  os << variableNames->getNameForValue(op.getCryptoContext()) << "->"
+     << "EvalFastRotationExt(" << variableNames->getNameForValue(op.getInput())
+     << ", " << getConstantOrValue(op.getIndex()) << ", "
+     << variableNames->getNameForValue(op.getPrecomputedDigitDecomp()) << ", "
+     << (op.getAddFirst() ? "true" : "false") << ");\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(KeySwitchDownOp op) {
+  emitAutoAssignPrefix(op.getResult());
+  os << variableNames->getNameForValue(op.getCryptoContext()) << "->"
+     << "KeySwitchDown(" << variableNames->getNameForValue(op.getCiphertext())
      << ");\n";
   return success();
 }
