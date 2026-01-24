@@ -256,15 +256,16 @@ LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
           // OpenFHE ops
           .Case<AddInPlaceOp, AddOp, AddPlainInPlaceOp, AddPlainOp, AutomorphOp,
                 BootstrapOp, DecryptOp, EncryptOp, FastRotationOp,
-                FastRotationPrecomputeOp, GenBootstrapKeyOp, GenContextOp,
-                GenMulKeyOp, GenParamsOp, GenRotKeyOp, KeySwitchInPlaceOp,
-                KeySwitchOp, LevelReduceInPlaceOp, LevelReduceOp,
-                MakeCKKSPackedPlaintextOp, MakePackedPlaintextOp,
-                ModReduceInPlaceOp, ModReduceOp, MulConstInPlaceOp, MulConstOp,
-                MulNoRelinOp, MulOp, MulPlainOp, NegateInPlaceOp, NegateOp,
-                RelinInPlaceOp, RelinOp, RotOp, SetupBootstrapOp,
-                SquareInPlaceOp, SquareOp, SubInPlaceOp, SubOp,
-                SubPlainInPlaceOp, SubPlainOp>(
+                FastRotationExtOp, FastRotationPrecomputeOp, GenBootstrapKeyOp,
+                GenContextOp, GenMulKeyOp, GenParamsOp, GenRotKeyOp,
+                KeySwitchDownOp, KeySwitchInPlaceOp, KeySwitchOp,
+                LevelReduceInPlaceOp, LevelReduceOp, MakeCKKSPackedPlaintextOp,
+                MakePackedPlaintextOp, ModReduceInPlaceOp, ModReduceOp,
+                MulConstInPlaceOp, MulConstOp, MulNoRelinOp, MulOp, MulPlainOp,
+                AddExtOp, AddExtInPlaceOp, MulExtOp,
+                NegateInPlaceOp, NegateOp, RelinInPlaceOp, RelinOp, RotOp,
+                SetupBootstrapOp, SquareInPlaceOp, SquareOp, SubInPlaceOp,
+                SubOp, SubPlainInPlaceOp, SubPlainOp>(
               [&](auto op) { return printOperation(op); })
           .Default([&](Operation&) {
             return emitError(op.getLoc(), "unable to find printer for op");
@@ -820,6 +821,51 @@ LogicalResult OpenFhePkeEmitter::printOperation(FastRotationOp op) {
      << ");\n";
   return success();
 }
+
+LogicalResult OpenFhePkeEmitter::printOperation(FastRotationExtOp op) {
+  auto getConstantOrValue = [&](Value value) -> std::string {
+    return getStringForConstant(value).value_or(
+        variableNames->getNameForValue(value));
+  };
+
+  emitAutoAssignPrefix(op.getResult());
+  os << variableNames->getNameForValue(op.getCryptoContext()) << "->"
+     << "EvalFastRotationExt(" << variableNames->getNameForValue(op.getInput())
+     << ", " << getConstantOrValue(op.getIndex()) << ", "
+     << variableNames->getNameForValue(op.getPrecomputedDigitDecomp()) << ", "
+     << (op.getAddFirst() ? "true" : "false") << ", "
+     << variableNames->getNameForValue(op.getCryptoContext())
+     << "->GetAllEvalAutomorphismKeys());\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(KeySwitchDownOp op) {
+  emitAutoAssignPrefix(op.getResult());
+  os << variableNames->getNameForValue(op.getCryptoContext()) << "->"
+     << "KeySwitchDown("
+     << variableNames->getNameForValue(op.getCiphertext()) << ");\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(AddExtOp op) {
+  // In extended basis, OpenFHE EvalAdd works on the extended ciphertext
+  return printEvalMethod(op.getResult(), op.getCryptoContext(),
+                         {op.getLhs(), op.getRhs()}, "EvalAdd");
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(AddExtInPlaceOp op) {
+  (void)printEvalInPlaceMethod(op.getResult(), op.getCryptoContext(),
+                               {op.getLhs(), op.getRhs()}, "EvalAddInPlace");
+  variableNames->mapValueNameToValue(op.getResult(), op.getLhs());
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(MulExtOp op) {
+  // In extended basis, use EvalMultNoRelin since we're deferring key switching
+  return printEvalMethod(op.getResult(), op.getCryptoContext(),
+                         {op.getLhs(), op.getRhs()}, "EvalMultNoRelin");
+}
+
 
 LogicalResult OpenFhePkeEmitter::printOperation(AutomorphOp op) {
   // EvalAutomorphism has a bit of a strange function signature in OpenFHE:
