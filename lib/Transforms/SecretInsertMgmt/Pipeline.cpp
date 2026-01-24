@@ -87,9 +87,6 @@ LogicalResult runInsertMgmtPipeline(Operation* top,
   // and these op done there could be minimal cost.
   // However, this greedy strategy is temporary so not too much
   // optimization now
-  //
-  // FIXME: determine the interaction between bootstrapWaterline and levelBudget
-  // (are they the same?)
   if (options.bootstrapWaterline.has_value()) {
     DataFlowSolver solver5;
     makeAndRunSolver(top, solver5);
