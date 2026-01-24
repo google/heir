@@ -280,9 +280,7 @@ void mlirToRLWEPipeline(OpPassManager& pm,
       secretInsertMgmtCKKSOptions.slotNumber = options.ciphertextDegree;
       secretInsertMgmtCKKSOptions.bootstrapWaterline =
           options.ckksBootstrapWaterline;
-
-      // FIXME: replace with config for now
-      secretInsertMgmtCKKSOptions.levelBudget = 10;
+      secretInsertMgmtCKKSOptions.levelBudget = options.levelBudget;
       pm.addPass(createSecretInsertMgmtCKKS(secretInsertMgmtCKKSOptions));
       break;
     }
