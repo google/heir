@@ -1,8 +1,8 @@
-load("//third_party/bazel_skylib:bzl_library.bzl", "bzl_library")
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 
 package(
-    default_applicable_licenses = ["//third_party/heir:license"],
-    default_visibility = ["//third_party/heir:internal"],
+    default_applicable_licenses = ["@heir//:license"],
+    default_visibility = ["//visibility:public"],
 )
 
 bzl_library(
