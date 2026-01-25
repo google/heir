@@ -1,5 +1,6 @@
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 
+#include "lib/Dialect/Mgmt/IR/MgmtPatterns.h"
 #include "mlir/include/mlir/IR/MLIRContext.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"  // from @llvm-project
 
@@ -14,6 +15,7 @@ namespace mgmt {
 // Kept inside a namespace because it generates a function called
 // populateWithGenerated, which can conflict with other generated patterns.
 #include "lib/Dialect/Mgmt/IR/MgmtCanonicalization.cpp.inc"
+
 
 void ModReduceOp::getCanonicalizationPatterns(RewritePatternSet& results,
                                               MLIRContext* context) {
@@ -30,6 +32,11 @@ void LevelReduceOp::getCanonicalizationPatterns(RewritePatternSet& results,
 void AdjustScaleOp::getCanonicalizationPatterns(RewritePatternSet& results,
                                                 MLIRContext* context) {
   results.add<ModReduceAfterAdjustScale>(context);
+}
+
+void LevelReduceMinOp::getCanonicalizationPatterns(RewritePatternSet& results,
+                                                   MLIRContext* context) {
+  results.add<ReplaceWithLevelReduce>(context);
 }
 
 //===----------------------------------------------------------------------===//
