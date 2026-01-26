@@ -28,6 +28,7 @@ openfhe_interpreter_test(
         "--annotate-module=backend=openfhe scheme=ckks",
         "--torch-linalg-to-ckks=ciphertext-degree=8192",
         "--scheme-to-openfhe",
+        "--inline",
     ],
     mlir_src = "@heir//tests/Examples/common:matvec.mlir",
     test_src = "halevi_shoup_matvec_interpreter_test.cpp",

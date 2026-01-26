@@ -6,9 +6,12 @@
 #include <numeric>
 #include <optional>
 #include <set>
+#include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
+#include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
@@ -32,12 +35,14 @@
 #include "lib/Utils/Layout/Utils.h"
 #include "lib/Utils/MathUtils.h"
 #include "lib/Utils/Utils.h"
-#include "llvm/include/llvm/ADT/ArrayRef.h"         // from @llvm-project
-#include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallVector.h"      // from @llvm-project
-#include "llvm/include/llvm/ADT/StringExtras.h"     // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"        // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/ArrayRef.h"            // from @llvm-project
+#include "llvm/include/llvm/ADT/Hashing.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
+#include "llvm/include/llvm/ADT/StringExtras.h"        // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"     // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
@@ -318,27 +323,107 @@ class ConvertAssignLayout
   LogicalResult matchAndRewrite(
       tensor_ext::AssignLayoutOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter& rewriter) const final {
-    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    Value input = adaptor.getValue();
 
-    auto res =
-        implementAssignLayout(op, ciphertextSize, b, [&](Operation* createdOp) {
-          setMaterializedAttr(createdOp);
-          createdOp->setAttr(kLayoutAttrName, op.getLayout());
-        });
-    if (failed(res)) return failure();
-
-    if (res.value() == op.getValue()) {
-      setAttributeAssociatedWith(res.value(), kLayoutAttrName, op.getLayout());
-      LLVM_DEBUG(llvm::dbgs()
-                 << "No materialization needed, passing input through\n");
+    // Handle special cases where layout assignment is trivial and doesn't
+    // require iterating over the entire ciphertext space (e.g. a scalar input
+    // or an empty tensor). Don't put these into dedicated functions.
+    // TODO(#2571): Update this if scalar inputs have more complex layouts.
+    bool hasSimpleAssignLayout =
+        !isa<RankedTensorType>(input.getType()) ||
+        isa_and_nonnull<tensor::EmptyOp>(input.getDefiningOp());
+    if (hasSimpleAssignLayout) {
+      ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+      auto res = implementAssignLayout(
+          input, op.getLayout(), ciphertextSize, b, [&](Operation* createdOp) {
+            setMaterializedAttr(createdOp);
+            createdOp->setAttr(kLayoutAttrName, op.getLayout());
+          });
+      if (failed(res)) return failure();
+      if (res.value() == op.getValue()) {
+        setAttributeAssociatedWith(res.value(), kLayoutAttrName,
+                                   op.getLayout());
+        LLVM_DEBUG(llvm::dbgs()
+                   << "No materialization needed, passing input through\n");
+      }
+      rewriter.replaceOp(op, res.value());
+      return success();
     }
 
-    rewriter.replaceOp(op, res.value());
+    // Check cache for existing assign layout function.
+    Attribute layout = op.getLayout();
+    if (!isa<LayoutAttr>(layout)) {
+      return failure();
+    }
+    Type inputType = input.getType();
+    Type resultType = getTypeConverter()->convertType(op.getType(), layout);
+    FunctionKey key(layout, inputType, resultType);
+
+    func::FuncOp func;
+    auto it = functionCache.find(key);
+    if (it != functionCache.end()) {
+      func = it->second;
+    } else {
+      auto maybeFunc =
+          createAssignLayoutFunction(op, adaptor, resultType, rewriter);
+      if (failed(maybeFunc)) return failure();
+      func = maybeFunc.value();
+      functionCache[key] = func;
+    }
+
+    func::CallOp call = rewriter.replaceOpWithNewOp<func::CallOp>(
+        op, func, ValueRange{adaptor.getValue()});
+    setMaterializedAttr(call);
+    call->setAttr(kLayoutAttrName, op.getLayout());
     return success();
   };
 
  private:
   int64_t ciphertextSize;
+
+  FailureOr<func::FuncOp> createAssignLayoutFunction(
+      tensor_ext::AssignLayoutOp op, OpAdaptor adaptor, Type resultType,
+      ContextAwareConversionPatternRewriter& rewriter) const {
+    func::FuncOp originalFunc = op->getParentOfType<func::FuncOp>();
+    ModuleOp module = op->getParentOfType<ModuleOp>();
+    auto loc = op.getLoc();
+
+    Type inputType = op.getValue().getType();
+    std::string funcName = llvm::formatv(
+        "_assign_layout_{0}",
+        llvm::hash_combine(op.getLayout(), inputType, resultType));
+    FunctionType funcType =
+        FunctionType::get(rewriter.getContext(), {inputType}, {resultType});
+    OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPointToStart(module.getBody());
+    auto func = func::FuncOp::create(rewriter, loc, funcName, funcType);
+    func->setAttr(kClientPackFuncAttrName,
+                  rewriter.getDictionaryAttr({rewriter.getNamedAttr(
+                      kClientHelperFuncName,
+                      rewriter.getStringAttr(originalFunc.getSymName()))}));
+    func.setPrivate();
+
+    Block* block = func.addEntryBlock();
+    rewriter.setInsertionPointToStart(block);
+    ImplicitLocOpBuilder b(loc, rewriter);
+    Value blockInput = block->getArgument(0);
+
+    auto res = implementAssignLayout(blockInput, op.getLayout(), ciphertextSize,
+                                     b, [&](Operation* createdOp) {
+                                       setMaterializedAttr(createdOp);
+                                       createdOp->setAttr(kLayoutAttrName,
+                                                          op.getLayout());
+                                     });
+    if (failed(res)) return failure();
+    func::ReturnOp::create(rewriter, loc, res.value());
+    return func;
+  };
+
+  // Cache to store functions generated for a specific layout key is
+  // (LayoutAttribute, InputType, ResultType). Layout is uniqued by the layout
+  // string.
+  using FunctionKey = std::tuple<Attribute, Type, Type>;
+  mutable llvm::DenseMap<FunctionKey, func::FuncOp> functionCache;
 };
 
 class ConvertConvertLayout

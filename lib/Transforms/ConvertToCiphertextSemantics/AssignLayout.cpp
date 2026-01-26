@@ -44,35 +44,30 @@ static std::string printRelation(const IntegerRelation& rel) {
 }
 
 static FailureOr<Value> implementAssignLayoutNew(
-    tensor_ext::AssignLayoutOp op, int64_t ciphertextSize,
+    Value input, LayoutAttr layout, int64_t ciphertextSize,
     ImplicitLocOpBuilder& builder,
     const std::function<void(Operation*)>& createdOpCallback) {
-  LayoutAttr layout = dyn_cast<LayoutAttr>(op.getLayout());
-  if (!layout) {
-    return op.emitError()
-           << "Expected layout to be an IntegerRelation-style layout";
-  }
   IntegerRelation rel = layout.getIntegerRelation();
 
   RankedTensorType dataSemanticType =
-      dyn_cast<RankedTensorType>(op.getValue().getType());
-  RankedTensorType ciphertextSemanticType = cast<RankedTensorType>(
-      materializeLayout(getElementTypeOrSelf(op.getValue().getType()), layout,
-                        ciphertextSize));
+      dyn_cast<RankedTensorType>(input.getType());
+  RankedTensorType ciphertextSemanticType =
+      cast<RankedTensorType>(materializeLayout(
+          getElementTypeOrSelf(input.getType()), layout, ciphertextSize));
   if (!dataSemanticType) {
     // The input is a scalar, so we can just splat into the ciphertext tensor.
+    // TODO(#2571): Validate layout is actually a fully dense layout.
     auto splatOp =
-        tensor::SplatOp::create(builder, ciphertextSemanticType, op.getValue());
+        tensor::SplatOp::create(builder, ciphertextSemanticType, input);
     createdOpCallback(splatOp);
     return splatOp.getResult();
   }
 
   // The input came from an empty tensor, so we can just create an empty
   // ciphertext semantic tensor type.
-  if (auto emptyOp =
-          dyn_cast_or_null<tensor::EmptyOp>(op.getValue().getDefiningOp())) {
+  if (auto emptyOp = dyn_cast_or_null<tensor::EmptyOp>(input.getDefiningOp())) {
     auto emptyCiphertextOp = tensor::EmptyOp::create(
-        builder, op.getLoc(), ciphertextSemanticType.getShape(),
+        builder, builder.getLoc(), ciphertextSemanticType.getShape(),
         ciphertextSemanticType.getElementType());
     createdOpCallback(emptyCiphertextOp);
     return emptyCiphertextOp.getResult();
@@ -87,8 +82,8 @@ static FailureOr<Value> implementAssignLayoutNew(
   MLIRLoopNestGenerator generator(builder);
   auto loopNestCstr = generateLoopNestAsCStr(rel);
   if (failed(loopNestCstr)) {
-    return op.emitError() << "Failed to generate loop nest for relation "
-                          << printRelation(rel);
+    return builder.emitError() << "Failed to generate loop nest for relation "
+                               << printRelation(rel);
   }
   LLVM_DEBUG(llvm::dbgs() << "Generating loop nest assignment for relation "
                           << loopNestCstr.value() << "\n");
@@ -104,8 +99,8 @@ static FailureOr<Value> implementAssignLayoutNew(
               builder, loc, builder.getIndexType(), idx));
         }
         // Extract from data and insert into ciphertextTensor
-        auto extracted = tensor::ExtractOp::create(builder, loc, op.getValue(),
-                                                   extractIndices);
+        auto extracted =
+            tensor::ExtractOp::create(builder, loc, input, extractIndices);
 
         SmallVector<Value> insertIndices;
         for (Value idx : exprs.drop_front(dataSemanticType.getRank())) {
@@ -117,8 +112,8 @@ static FailureOr<Value> implementAssignLayoutNew(
         return scf::ValueVector({inserted});
       });
   if (failed(loop)) {
-    return op.emitError() << "Failed to generate loop nest for relation "
-                          << printRelation(rel);
+    return builder.emitError() << "Failed to generate loop nest for relation "
+                               << printRelation(rel);
   }
 
   createdOpCallback(loop.value());
@@ -201,16 +196,15 @@ static FailureOr<Value> implementUnpackOpNew(
 }
 
 FailureOr<Value> implementAssignLayout(
-    tensor_ext::AssignLayoutOp op, int64_t ciphertextSize,
+    Value input, Attribute layout, int64_t ciphertextSize,
     ImplicitLocOpBuilder& builder,
     const std::function<void(Operation*)>& createdOpCallback) {
   OpBuilder::InsertionGuard guard(builder);
-  if (isa<LayoutAttr>(op.getLayout())) {
-    return implementAssignLayoutNew(op, ciphertextSize, builder,
+  if (LayoutAttr layoutAttr = dyn_cast<LayoutAttr>(layout)) {
+    return implementAssignLayoutNew(input, layoutAttr, ciphertextSize, builder,
                                     createdOpCallback);
   }
-
-  return failure();
+  return builder.emitError() << "Unsupported layout attribute type: " << layout;
 };
 
 FailureOr<Value> implementUnpackOp(

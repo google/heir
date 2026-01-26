@@ -13,9 +13,10 @@ module {
     ^body(%input0: tensor<32x32xf32>):
     // CHECK: secret.generic
     // The plaintext matrix has size 1024x1024 but only 241 rows are non-zero.
-    // CHECK: scf.for
+    // CHECK: func.call @_assign_layout_{{[0-9]+}}
     // CHECK-SAME: tensor<1024x1024xf32>
-    // CHECK: scf.for
+    // CHECK: func.call @_assign_layout_{{[0-9]+}}
+    // CHECK-SAME: tensor<1x1024xf32>
     // CHECK-COUNT-241: arith.mulf
     // CHECK-NOT: arith.mulf
     // CHECK: secret.yield
