@@ -1,8 +1,13 @@
 #include "lib/Utils/MathUtils.h"
 
 #include <cmath>
+#include <cstdint>
+#include <optional>
+#include <vector>
 
+#include "lib/Utils/APIntUtils.h"
 #include "llvm/include/llvm/ADT/APFloat.h"   // from @llvm-project
+#include "llvm/include/llvm/ADT/APInt.h"     // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 
 namespace mlir {
@@ -48,6 +53,57 @@ APFloat convertFloatToSemantics(APFloat value,
   APFloat converted = value;
   converted.convert(semantics, APFloat::rmNearestTiesToEven, &losesInfo);
   return converted;
+}
+
+std::optional<APInt> findPrimitiveRoot(const APInt& q) {
+  if (q.ule(1)) return std::nullopt;
+  if (!q[0]) {
+    if (q == 2) return APInt(q.getBitWidth(), 1);
+    return std::nullopt;
+  }
+
+  APInt phi = q - 1;
+  std::vector<APInt> factors = factorize(phi);
+
+  for (uint64_t g = 2; q.ugt(g); ++g) {
+    APInt g_ap(q.getBitWidth(), g);
+    bool is_primitive = true;
+    for (const auto& p : factors) {
+      if (modularExponentiation(g_ap, phi.udiv(p), q).isOne()) {
+        is_primitive = false;
+        break;
+      }
+    }
+    if (is_primitive) return g_ap;
+  }
+  return std::nullopt;
+}
+
+/// Find a primitive 2nth root of unity modulo a prime q for a given degree n.
+///
+/// This implementation is a port of the primitive_2nth_root logic found in
+/// sympy/ntheory/residue_ntheory.py. While SymPy provides a generalized
+/// nthroot_mod for composite moduli and arbitrary n, this C++ implementation
+/// is specialized for the case where q is prime and 2n divides q - 1, which
+/// is the standard requirement for Number Theoretic Transforms (NTTs).
+///
+/// The algorithm differs from the SymPy script's use of nthroot_mod by directly
+/// computing the 2n-th root from a primitive root g of q. Specifically, it
+/// calculates r = g^((q-1)/2n) mod q. Since g has order q-1, the resulting
+/// r is guaranteed to be a primitive 2n-th root of unity.
+std::optional<APInt> findPrimitive2nthRoot(const APInt& q, uint64_t n) {
+  uint64_t two_n = 2 * n;
+  APInt two_n_ap(q.getBitWidth(), two_n);
+  if (!q.urem(two_n_ap).isOne()) {
+    // 2n must divide q - 1, which means q % 2n == 1
+    return std::nullopt;
+  }
+
+  std::optional<APInt> g = findPrimitiveRoot(q);
+  if (!g) return std::nullopt;
+
+  APInt exponent = (q - 1).udiv(two_n_ap);
+  return modularExponentiation(*g, exponent, q);
 }
 
 }  // namespace heir
