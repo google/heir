@@ -1,7 +1,9 @@
 #include "lib/Utils/APIntUtils.h"
 
 #include <cassert>
+#include <cstdint>
 #include <utility>
+#include <vector>
 
 #include "llvm/include/llvm/ADT/APInt.h"     // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
@@ -57,6 +59,76 @@ APInt multiplicativeInverse(const APInt& x, const APInt& modulo) {
   if (t[i].isNegative()) t[i] += modulo;
 
   return std::move(t[i]);
+}
+
+APInt modularExponentiation(const APInt& base, const APInt& exponent,
+                            const APInt& modulus) {
+  APInt res(modulus.getBitWidth(), 1);
+  APInt b = base.urem(modulus);
+  APInt e = exponent;
+
+  while (e.ugt(0)) {
+    if (e[0]) {
+      res = (res * b).urem(modulus);
+    }
+    b = (b * b).urem(modulus);
+    e = e.lshr(1);
+  }
+  return res;
+}
+
+bool isPrime(const APInt& n) {
+  if (n.ult(2)) return false;
+  if (n.ult(4)) return true;
+  if (!n[0]) return false;
+
+  // Miller-Rabin primality test
+  APInt d = n - 1;
+  unsigned s = d.countTrailingZeros();
+  d = d.lshr(s);
+
+  // Bases to test.
+  // Using the first 12 prime bases makes the test deterministic for all
+  // 64-bit integers. See https://oeis.org/A014233.
+  // We use 20 bases to further reduce the probability of error for
+  // arbitrary-precision integers.
+  std::vector<uint64_t> bases = {2,  3,  5,  7,  11, 13, 17, 19, 23, 29,
+                                 31, 37, 41, 43, 47, 53, 59, 61, 67, 71};
+  for (uint64_t a : bases) {
+    if (n.ule(a)) break;
+    APInt x = modularExponentiation(APInt(n.getBitWidth(), a), d, n);
+    if (x.isOne() || x == n - 1) continue;
+    bool composite = true;
+    for (unsigned r = 1; r < s; ++r) {
+      x = (x * x).urem(n);
+      if (x == n - 1) {
+        composite = false;
+        break;
+      }
+    }
+    if (composite) return false;
+  }
+  return true;
+}
+
+std::vector<APInt> factorize(APInt n) {
+  std::vector<APInt> factors;
+  if (n.ult(2)) return factors;
+
+  APInt d(n.getBitWidth(), 2);
+  while ((d * d).ule(n)) {
+    if (n.urem(d).isZero()) {
+      factors.push_back(d);
+      while (n.urem(d).isZero()) {
+        n = n.udiv(d);
+      }
+    }
+    ++d;
+  }
+  if (n.ugt(1)) {
+    factors.push_back(n);
+  }
+  return factors;
 }
 
 }  // namespace heir

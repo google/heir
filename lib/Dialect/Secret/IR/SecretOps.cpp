@@ -122,6 +122,11 @@ void GenericOp::print(OpAsmPrinter& p) {
   }
 }
 
+ValueRange GenericOp::getSuccessorInputs(RegionSuccessor successor) {
+  return successor.isParent() ? ValueRange(getResults())
+                              : ValueRange(getBodyRegion().getArguments());
+}
+
 static ParseResult parseCommonStructuredOpParts(
     OpAsmParser& parser, OperationState& result,
     SmallVectorImpl<Type>& inputTypes, SmallVectorImpl<Attribute>& inputAttrs) {
@@ -735,9 +740,9 @@ OperandRange GenericOp::getEntrySuccessorOperands(RegionSuccessor successor) {
 void GenericOp::getSuccessorRegions(RegionBranchPoint point,
                                     SmallVectorImpl<RegionSuccessor>& regions) {
   if (point == RegionBranchPoint::parent()) {
-    regions.push_back(RegionSuccessor(&getRegion(), getBody()->getArguments()));
+    regions.push_back(RegionSuccessor(&getRegion()));
   } else {
-    regions.push_back(RegionSuccessor::parent(getResults()));
+    regions.push_back(RegionSuccessor::parent());
   }
 }
 

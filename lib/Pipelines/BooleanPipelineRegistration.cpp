@@ -10,9 +10,7 @@
 #include "lib/Dialect/CGGI/Conversions/CGGIToTfheRustBool/CGGIToTfheRustBool.h"
 #include "lib/Dialect/Secret/Conversions/SecretToCGGI/SecretToCGGI.h"
 #include "lib/Dialect/Secret/Transforms/DistributeGeneric.h"
-#include "lib/Pipelines/PipelineRegistration.h"
 #include "lib/Transforms/BooleanVectorizer/BooleanVectorizer.h"
-#include "lib/Transforms/DropUnitDims/DropUnitDims.h"
 #include "lib/Transforms/FoldConstantTensors/FoldConstantTensors.h"
 #include "lib/Transforms/ForwardInsertToExtract/ForwardInsertToExtract.h"
 #include "lib/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
@@ -21,8 +19,8 @@
 #include "lib/Transforms/MemrefToArith/MemrefToArith.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/TensorLinalgToAffineLoops/TensorLinalgToAffineLoops.h"
-#include "lib/Transforms/UnusedMemRef/UnusedMemRef.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/TensorToLinalg/TensorToLinalgPass.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/Transforms/FuncBufferizableOpInterfaceImpl.h"  // from @llvm-project
@@ -60,8 +58,8 @@ void mlirToCGGIPipeline(OpPassManager& pm,
                         const MLIRToCGGIPipelineOptions& options,
                         const std::string& yosysFilesPath,
                         const std::string& abcPath) {
-  // TOSA to linalg
-  ::mlir::heir::tosaToLinalg(pm);
+  pm.addPass(createConvertTensorToLinalgPass());
+  pm.addPass(createLinalgGeneralizeNamedOpsPass());
 
   // Linalg to Affine loops
   // pm.addPass(createDropUnitDims());
