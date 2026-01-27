@@ -11,6 +11,7 @@
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
+#include "lib/Target/CompilationTarget/CompilationTarget.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
@@ -96,12 +97,16 @@ LevelState transferForward(mgmt::LevelReduceMinOp op,
 
 LevelState transferForward(mgmt::BootstrapOp op,
                            ArrayRef<const LevelLattice*> operands) {
+  auto module = op->getParentOfType<ModuleOp>();
+  const CompilationTarget* target = getTargetConfig(module);
+  int levelsConsumed = target ? target->bootstrapLevelsConsumed : 0;
+
   LevelState result = std::visit(
       Overloaded{
-          [](MaxLevel) -> LevelState { return LevelState(0); },
+          [=](MaxLevel) -> LevelState { return LevelState(levelsConsumed); },
           [](Uninit) -> LevelState { return LevelState(Invalid{}); },
           [](Invalid) -> LevelState { return LevelState(Invalid{}); },
-          [](int val) -> LevelState { return LevelState(0); },
+          [=](int val) -> LevelState { return LevelState(levelsConsumed); },
       },
       operands[0]->getValue().get());
   LLVM_DEBUG(debugLog("bootstrap", operands, result));

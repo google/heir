@@ -16,6 +16,7 @@ cc_library(
         "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@heir//lib/Target/CompilationTarget",
         "@heir//lib/Utils",
         "@heir//lib/Utils:AttributeUtils",
         "@llvm-project//llvm:Support",
