@@ -146,6 +146,7 @@ cc_library(
     srcs = ["MathUtils.cpp"],
     hdrs = ["MathUtils.h"],
     deps = [
+        ":APIntUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Support",
     ],
@@ -163,6 +164,30 @@ cc_test(
     deps = [
         ":LogArithmetic",
         "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "APIntUtilsTest",
+    srcs = ["APIntUtilsTest.cpp"],
+    deps = [
+        ":APIntUtils",
+        "@googletest//:gtest_main",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_test(
+    name = "MathUtilsTest",
+    srcs = ["MathUtilsTest.cpp"],
+    deps = [
+        ":APIntUtils",
+        ":MathUtils",
+        "@fuzztest//fuzztest",
+        "@googletest//:gtest_main",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Support",
     ],
 )
 

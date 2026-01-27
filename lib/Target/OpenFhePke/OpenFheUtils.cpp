@@ -6,6 +6,7 @@
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeTemplates.h"
 #include "lib/Utils/TargetUtils.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"    // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
@@ -126,20 +127,31 @@ LogicalResult funcDeclarationHelper(::mlir::func::FuncOp funcOp,
                                     SelectVariableNames* variableNames,
                                     TypeEmitterFn emitType,
                                     ErrorEmitterFn emitError) {
-  if (funcOp.getNumResults() > 1) {
-    return emitError(funcOp.getLoc(),
-                     llvm::formatv("Only functions with <= 1 return type "
-                                   "are supported, but this function has ",
-                                   funcOp.getNumResults()));
-    return failure();
-  }
-
   if (funcOp.getNumResults() == 1) {
     Type result = funcOp.getResultTypes()[0];
     if (failed(emitType(result, funcOp->getLoc()))) {
       return emitError(funcOp.getLoc(),
                        llvm::formatv("Failed to emit type {0}", result));
     }
+  } else if (funcOp.getNumResults() > 1) {
+    // If there are multiple results, create a struct to hold them.
+    // struct Example {
+    //     Type arg0;
+    //     Type arg1;
+    // };
+    auto structName = llvm::formatv("{0}Struct", funcOp.getName());
+    os << "struct " << structName << " {\n";
+    for (auto [idx, resultTy] : llvm::enumerate(funcOp.getResultTypes())) {
+      os << "  ";
+      if (failed(emitType(resultTy, funcOp->getLoc()))) {
+        return emitError(funcOp.getLoc(),
+                         llvm::formatv("Failed to emit type {0}", resultTy));
+      }
+      os << " arg" << idx << ";\n";
+    }
+    os << "};\n";
+
+    os << structName;
   } else {
     os << "void";
   }

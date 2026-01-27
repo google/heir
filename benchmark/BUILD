@@ -14,3 +14,13 @@ cc_binary(
         "@openfhe//:pke",
     ],
 )
+
+cc_binary(
+    name = "math_utils_benchmark",
+    srcs = ["math_utils_benchmark.cpp"],
+    deps = [
+        "@google_benchmark//:benchmark_main",
+        "@heir//lib/Utils:MathUtils",
+        "@llvm-project//mlir:Support",
+    ],
+)

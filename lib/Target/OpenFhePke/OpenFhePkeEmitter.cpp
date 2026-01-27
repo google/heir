@@ -353,10 +353,6 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::FuncOp funcOp) {
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(func::CallOp op) {
-  if (op.getNumResults() > 1) {
-    return emitError(op.getLoc(), "Only one return value supported");
-  }
-
   // build debug attribute map for debug call
   auto debugAttrMapName = getDebugAttrMapName();
   if (isDebugPort(op.getCallee())) {
@@ -387,8 +383,18 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::CallOp op) {
        << "\";\n";
   }
 
-  if (op.getNumResults() != 0) {
-    emitAutoAssignPrefix(op.getResult(0));
+  std::string structResultName;
+  if (op.getNumResults() == 1) {
+    emitAutoAssignPrefix(op.getResults()[0]);
+  } else if (op.getNumResults() > 1) {
+    // If there are multiple results, then we can return a const auto& of the
+    // struct build for this bundle of results. But then we need to set each
+    // result here as accessors to the result struct. Since each result is
+    // unique, the result name can just be a concatenation of the first result
+    // with the suffix "Struct".
+    structResultName = llvm::formatv(
+        "{0}Struct", variableNames->getNameForValue(op.getResults()[0]));
+    os << "auto" << " " << structResultName << " = ";
   }
 
   os << canonicalizeDebugPort(op.getCallee()) << "(";
@@ -400,15 +406,28 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::CallOp op) {
     os << ", " << debugAttrMapName;
   }
   os << ");\n";
+
+  if (op.getNumResults() > 1) {
+    for (auto [idx, result] : llvm::enumerate(op.getResults())) {
+      emitAutoAssignPrefix(result);
+      os << structResultName << ".arg" << idx << ";\n";
+    }
+  }
   return success();
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(func::ReturnOp op) {
-  if (op.getNumOperands() != 1) {
-    return emitError(op.getLoc(), "Only one return value supported");
+  if (op.getNumOperands() == 1) {
+    os << "return " << variableNames->getNameForValue(op.getOperands()[0])
+       << ";\n";
+  } else if (op.getNumOperands() > 1) {
+    os << "return {";
+    os << commaSeparatedValues(op.getOperands(), [&](Value value) {
+      return variableNames->getNameForValue(value);
+    });
+    os << "};\n";
   }
-  os << "return " << variableNames->getNameForValue(op.getOperands()[0])
-     << ";\n";
+
   return success();
 }
 
