@@ -39,9 +39,6 @@ func.func @float_secret_loop_signless_integer_step(%arg0: f32 {secret.secret}, %
 
 // TODO (#1641): enable i32-based tests once CKKS pipeline allows integer types
 // func.func @secret_loop_index_step(%arg0: i32 {secret.secret}, %arg1: i32 {secret.secret}) -> i32 {
-// TODO (#1641): enable i32-based tests once CKKS pipeline allows integer types
-// func.func @secret_loop_index_step(%arg0: i32 {secret.secret}, %arg1: i32 {secret.secret}) -> i32 {
-// func.func @secret_loop_index_step(%arg0: i32 {secret.secret}, %arg1: i32 {secret.secret}) -> i32 {
 //     %c1 = arith.constant 1 : index
 //     %c1_i32 = arith.constant 1 : i32
 //     %0 = arith.index_cast %arg0 : i32 to index

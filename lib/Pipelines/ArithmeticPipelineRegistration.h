@@ -85,6 +85,10 @@ struct MlirToRLWEPipelineOptions : public SimdVectorizerOptions {
       llvm::cl::desc("The number of levels to keep until bootstrapping in CKKS "
                      "(c.f. --secret-insert-mgmt-ckks)"),
       llvm::cl::init(10)};
+  PassOptions::Option<int> levelBudget{
+      *this, "level-budget",
+      llvm::cl::desc("The level budget exlcuding levels required for bootstrap"),
+      llvm::cl::init(10)};
   PassOptions::Option<std::string> plaintextExecutionResultFileName{
       *this, "plaintext-execution-result-file-name",
       llvm::cl::desc("File name to import execution result from (c.f. --secret-"

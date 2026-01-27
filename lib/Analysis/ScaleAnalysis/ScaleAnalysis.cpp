@@ -192,6 +192,11 @@ LogicalResult ScaleAnalysis<ScaleModelT>::visitOperation(
           propagate(initOp.getResult(), ScaleState(mgmtAttr.getScale()));
         }
       })
+      .template Case<mgmt::BootstrapOp>([&](auto bootstrapOp) {
+        // inputScale is either Delta or Delta^2 depending on the analysis
+        // initialization.
+        propagate(bootstrapOp.getResult(), ScaleState(inputScale));
+      })
       .Default([&](auto& op) {
         // condition on result secretness
         SmallVector<OpResult> secretResults;
