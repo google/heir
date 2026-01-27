@@ -77,6 +77,7 @@
 #include "lib/Pipelines/ArithmeticPipelineRegistration.h"
 #include "lib/Pipelines/BooleanPipelineRegistration.h"
 #include "lib/Pipelines/PipelineRegistration.h"
+#include "lib/Target/CompilationTarget/RegisterAllBackends.h"
 #include "lib/Target/SCIFRBool/SCIFRBoolEmitter.h"
 #include "lib/Transforms/ActivationCanonicalizations/ActivationCanonicalizations.h"
 #include "lib/Transforms/AddClientInterface/AddClientInterface.h"
@@ -240,6 +241,7 @@ struct LLVMDummyInlinerInterface : public DialectInlinerInterface {
 }  // namespace
 
 int main(int argc, char** argv) {
+  registerAllBackends();
   mlir::DialectRegistry registry;
 
   // This comment inserts internal dialects

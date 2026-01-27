@@ -8,6 +8,7 @@ openfhe_end_to_end_test(
     generated_lib_header = "loop_lib.h",
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=ckks",
+        "--apply-config-override=config=bootstrapLevelsConsumed=0",
         "--mlir-to-ckks=ciphertext-degree=8 scaling-mod-bits=55 first-mod-bits=60 level-budget=3 modulus-switch-after-mul=true experimental-disable-loop-unroll=true",
         "--lwe-add-debug-port=insert-debug-after-every-op=true",
         "--scheme-to-openfhe=insert-debug-handler-calls=true",

@@ -131,6 +131,7 @@ cc_binary(
         "@heir//lib/Pipelines:ArithmeticPipelineRegistration",
         "@heir//lib/Pipelines:BooleanPipelineRegistration",
         "@heir//lib/Pipelines:PipelineRegistration",
+        "@heir//lib/Target/CompilationTarget:RegisterAllBackends",
         "@heir//lib/Target/SCIFRBool:SCIFRBoolEmitter",
         "@heir//lib/Transforms/ActivationCanonicalizations",
         "@heir//lib/Transforms/AddClientInterface",

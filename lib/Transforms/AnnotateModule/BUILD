@@ -8,13 +8,18 @@ package(
 
 cc_library(
     name = "AnnotateModule",
-    srcs = ["AnnotateModule.cpp"],
+    srcs = [
+        "AnnotateModule.cpp",
+        "ApplyConfigOverride.cpp",
+    ],
     hdrs = [
         "AnnotateModule.h",
     ],
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Dialect:ModuleAttributes",
+        "@heir//lib/Target/CompilationTarget",
+        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
