@@ -289,9 +289,13 @@ void mlirToRLWEPipeline(OpPassManager& pm,
       exit(EXIT_FAILURE);
   }
 
-  OptimizeRelinearizationOptions optimizeRelinearizationOptions;
-  optimizeRelinearizationOptions.allowMixedDegreeOperands = false;
-  pm.addPass(createOptimizeRelinearization(optimizeRelinearizationOptions));
+  // FIXME: this causes relin in the loop to be deleted
+  // maybe it needs to ensure a yield-like op operand is always linearized?
+  if (!options.experimentalDisableLoopUnroll) {
+    OptimizeRelinearizationOptions optimizeRelinearizationOptions;
+    optimizeRelinearizationOptions.allowMixedDegreeOperands = false;
+    pm.addPass(createOptimizeRelinearization(optimizeRelinearizationOptions));
+  }
 
   // IR is stable now
 
