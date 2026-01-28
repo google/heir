@@ -1,5 +1,3 @@
-# Pipeline registration
-
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 package(
@@ -25,7 +23,6 @@ cc_library(
         "@heir//lib/Transforms/ElementwiseToAffine",
         "@heir//lib/Transforms/EmitCInterface",
         "@heir//lib/Transforms/LowerPolynomialEval",
-        "@heir//lib/Transforms/MemrefToArith:ExpandCopy",
         "@heir//lib/Transforms/MemrefToArith:MemrefToArithRegistration",
         "@heir//lib/Transforms/PolynomialApproximation",
         "@llvm-project//mlir:AffineToStandard",
@@ -39,10 +36,6 @@ cc_library(
         "@llvm-project//mlir:MemRefTransforms",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:SCFToControlFlow",
-        "@llvm-project//mlir:TensorToLinalg",
-        "@llvm-project//mlir:TosaToArith",
-        "@llvm-project//mlir:TosaToLinalg",
-        "@llvm-project//mlir:TosaToTensor",
         "@llvm-project//mlir:Transforms",
     ],
 )
@@ -86,6 +79,7 @@ cc_library(
         "@llvm-project//mlir:LinalgTransforms",
         "@llvm-project//mlir:MemRefTransforms",
         "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:TensorToLinalg",
         "@llvm-project//mlir:Transforms",
     ] + select({
         "@heir//:config_enable_yosys": [
