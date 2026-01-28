@@ -10,7 +10,6 @@
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
-#include "mlir/include/mlir/IR/Block.h"                    // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"             // from @llvm-project
@@ -62,12 +61,11 @@ struct WrapWithGeneric : public OpRewritePattern<func::FuncOp> {
     }
 
     // Externally defined functions have no body - conservatively wrap all
-    // outputs
+    // outputs as secret
     if (op.isDeclaration()) {
-      SmallVector<Type, 6> newOutputs;
-      for (Type resultType : op.getResultTypes()) {
-        newOutputs.push_back(secret::SecretType::get(resultType));
-      }
+      auto newOutputs = llvm::to_vector<6>(llvm::map_range(
+          op.getResultTypes(),
+          [](Type t) -> Type { return secret::SecretType::get(t); }));
       rewriter.modifyOpInPlace(op, [&] {
         op.setFunctionType(
             FunctionType::get(getContext(), {newInputs}, {newOutputs}));
@@ -75,54 +73,21 @@ struct WrapWithGeneric : public OpRewritePattern<func::FuncOp> {
       return success();
     }
 
-    // Phase 1: Identify which operations depend on secrets
+    // Use SecretnessAnalysis to determine which outputs depend on secrets
     Block& opEntryBlock = op.getRegion().front();
     auto* returnOp = opEntryBlock.getTerminator();
 
-    // Track which values are secret (including block arguments)
-    llvm::DenseSet<Value> secretValues;
-    for (unsigned i = 0; i < op.getNumArguments(); i++) {
-      if (isSecret(op.getArgument(i), solver)) {
-        secretValues.insert(op.getArgument(i));
-      }
-    }
-
-    // Track which operations are secret-dependent
-    llvm::DenseSet<Operation*> secretOps;
-    for (Operation& bodyOp : opEntryBlock) {
-      if (&bodyOp == returnOp) continue;
-
-      // An operation is secret if any of its operands are secret
-      bool isSecretOp = llvm::any_of(bodyOp.getOperands(), [&](Value operand) {
-        return secretValues.contains(operand) || isSecret(operand, solver);
-      });
-
-      if (isSecretOp) {
-        secretOps.insert(&bodyOp);
-        // All results of a secret op become secret
-        for (Value result : bodyOp.getResults()) {
-          secretValues.insert(result);
-        }
-      }
-    }
-
-    // Phase 2: Determine output types and which outputs need to be in generic
+    // Determine output types: only wrap in secret if the value depends on
+    // secrets
     SmallVector<Type, 6> newOutputs;
-    SmallVector<Value> secretReturnValues;
-    SmallVector<Value> plaintextReturnValues;
-    SmallVector<unsigned> secretReturnIndices;
-    SmallVector<unsigned> plaintextReturnIndices;
-
+    bool hasSecretOutputs = false;
     for (auto [i, resultType] : llvm::enumerate(op.getResultTypes())) {
       Value returnVal = returnOp->getOperand(i);
-      if (secretValues.contains(returnVal) || isSecret(returnVal, solver)) {
+      if (isSecret(returnVal, solver)) {
         newOutputs.push_back(secret::SecretType::get(resultType));
-        secretReturnValues.push_back(returnVal);
-        secretReturnIndices.push_back(i);
+        hasSecretOutputs = true;
       } else {
         newOutputs.push_back(resultType);
-        plaintextReturnValues.push_back(returnVal);
-        plaintextReturnIndices.push_back(i);
       }
     }
 
@@ -132,126 +97,43 @@ struct WrapWithGeneric : public OpRewritePattern<func::FuncOp> {
           FunctionType::get(getContext(), {newInputs}, {newOutputs}));
     });
 
-    // If there are no secret-dependent operations AND no secret return values,
-    // we don't need a generic at all (purely plaintext function).
-    // But if there are secret return values (e.g., function directly returns
-    // its secret input), we still need a generic even with no operations.
-    if (secretOps.empty() && secretReturnValues.empty()) {
-      // Purely plaintext function - no generic needed
+    // If no outputs depend on secrets, don't create a generic block.
+    // This fixes issue #2553: functions that return only plaintext values
+    // should not have their outputs wrapped in secret types.
+    if (!hasSecretOutputs) {
       return success();
     }
 
-    // Phase 3: Collect inputs for the secret.generic block
-    // These are: (1) secret arguments, (2) plaintext values used by secret ops
-    SmallVector<Value> genericInputs;
-    SmallVector<Type> genericInputTypes;
-
-    // Add all function arguments that are used by secret ops (or are secret)
-    for (unsigned i = 0; i < op.getNumArguments(); i++) {
-      genericInputs.push_back(op.getArgument(i));
-      genericInputTypes.push_back(op.getArgument(i).getType());
-    }
-
-    // Collect plaintext-defined values that are used inside secret ops
-    SmallVector<Value> plaintextValuesUsedInGeneric;
-    for (Operation* secretOp : secretOps) {
-      for (Value operand : secretOp->getOperands()) {
-        // If the operand is from outside the secretOps set (i.e., plaintext)
-        if (!secretValues.contains(operand)) {
-          Operation* defOp = operand.getDefiningOp();
-          // It's a plaintext value defined by a non-secret op in this function
-          if (defOp && !secretOps.contains(defOp) &&
-              defOp->getParentRegion() == &op.getRegion()) {
-            if (!llvm::is_contained(plaintextValuesUsedInGeneric, operand)) {
-              plaintextValuesUsedInGeneric.push_back(operand);
-              genericInputs.push_back(operand);
-              genericInputTypes.push_back(operand.getType());
-            }
-          }
-        }
-      }
-    }
-
-    // Phase 4: Build the secret.generic with only secret ops
-    SmallVector<Type> genericOutputTypes;
-    for (Value v : secretReturnValues) {
-      genericOutputTypes.push_back(secret::SecretType::get(v.getType()));
-    }
-
-    // Create a new block for the rewritten function
+    // Create a new block where we will insert the new secret.generic and move
+    // the function ops into.
     auto* newBlock = rewriter.createBlock(
         &opEntryBlock, opEntryBlock.getArgumentTypes(),
         SmallVector<Location>(opEntryBlock.getNumArguments(), op.getLoc()));
 
     rewriter.setInsertionPointToStart(newBlock);
-
-    // Build mapping from old block args to new block args
-    IRMapping outerMapping;
-    for (unsigned i = 0; i < opEntryBlock.getNumArguments(); ++i) {
-      outerMapping.map(opEntryBlock.getArgument(i), newBlock->getArgument(i));
-    }
-
-    // Clone plaintext operations to the new block (before the generic)
-    for (Operation& bodyOp : opEntryBlock) {
-      if (&bodyOp == returnOp) continue;
-      if (!secretOps.contains(&bodyOp)) {
-        Operation* clonedOp = rewriter.clone(bodyOp, outerMapping);
-        for (unsigned i = 0; i < bodyOp.getNumResults(); ++i) {
-          outerMapping.map(bodyOp.getResult(i), clonedOp->getResult(i));
-        }
-      }
-    }
-
-    // Update genericInputs to use the new block's values
-    SmallVector<Value> mappedGenericInputs;
-    for (Value v : genericInputs) {
-      mappedGenericInputs.push_back(outerMapping.lookupOrDefault(v));
-    }
-
-    // Now create the secret.generic
     auto newGeneric = secret::GenericOp::create(
-        rewriter, op.getLoc(), mappedGenericInputs, genericOutputTypes,
+        rewriter, op.getLoc(), op.getArguments(), newOutputs,
         [&](OpBuilder& b, Location loc, ValueRange blockArguments) {
-          // Map inputs to block arguments
-          IRMapping innerMapping;
-          for (unsigned i = 0; i < genericInputs.size(); ++i) {
-            innerMapping.map(genericInputs[i], blockArguments[i]);
+          //  Map the input values to the block arguments.
+          IRMapping mp;
+          for (unsigned i = 0; i < blockArguments.size(); ++i) {
+            mp.map(opEntryBlock.getArgument(i), blockArguments[i]);
           }
 
-          // Clone only secret operations into the generic
-          for (Operation& bodyOp : opEntryBlock) {
-            if (&bodyOp == returnOp) continue;
-            if (secretOps.contains(&bodyOp)) {
-              Operation* clonedOp = b.clone(bodyOp, innerMapping);
-              for (unsigned i = 0; i < bodyOp.getNumResults(); ++i) {
-                innerMapping.map(bodyOp.getResult(i), clonedOp->getResult(i));
-              }
-            }
-          }
-
-          // Yield only the secret return values
-          SmallVector<Value> yieldValues;
-          for (Value v : secretReturnValues) {
-            yieldValues.push_back(innerMapping.lookupOrDefault(v));
-          }
-          secret::YieldOp::create(b, loc, yieldValues);
+          // Yield the return values, mapped through the IR mapping
+          secret::YieldOp::create(b, loc,
+                                  llvm::to_vector(llvm::map_range(
+                                      returnOp->getOperands(), [&](Value v) {
+                                        return mp.lookupOrDefault(v);
+                                      })));
+          returnOp->erase();
         });
 
-    // Build the final return values in the correct order
-    SmallVector<Value> finalReturnValues(op.getNumResults());
-    unsigned secretResultIdx = 0;
-    for (unsigned idx : secretReturnIndices) {
-      finalReturnValues[idx] = newGeneric.getResult(secretResultIdx++);
-    }
-    for (unsigned idx : plaintextReturnIndices) {
-      Value returnVal = returnOp->getOperand(idx);
-      finalReturnValues[idx] = outerMapping.lookupOrDefault(returnVal);
-    }
-
-    func::ReturnOp::create(rewriter, op.getLoc(), finalReturnValues);
-
-    // Erase the old block
-    rewriter.eraseBlock(&opEntryBlock);
+    Block& genericBlock = newGeneric.getRegion().front();
+    rewriter.inlineBlockBefore(&opEntryBlock,
+                               &genericBlock.getOperations().back(),
+                               genericBlock.getArguments());
+    func::ReturnOp::create(rewriter, op.getLoc(), newGeneric.getResults());
 
     return success();
   }
@@ -311,11 +193,12 @@ struct WrapGeneric : impl::WrapGenericBase<WrapGeneric> {
   using WrapGenericBase::WrapGenericBase;
 
   void detectSecretGeneric() {
-    // Note: Since we now correctly handle functions that return only
-    // plaintext values (which don't get a secret.generic), we should not
-    // warn about missing secret.generic ops. The warning was intended
-    // for the case where users forgot to annotate secret inputs, but that
-    // is already caught by the hasSecrets check in WrapWithGeneric.
+    bool hasSecretGeneric = false;
+    getOperation().walk([&](secret::GenericOp op) { hasSecretGeneric = true; });
+    // Note: We no longer warn if no secret.generic is found, because
+    // functions that return only plaintext values intentionally don't
+    // create a secret.generic block. The hasSecrets check in WrapWithGeneric
+    // already catches the case where users forget to annotate secret inputs.
   }
 
   void runOnOperation() override {
