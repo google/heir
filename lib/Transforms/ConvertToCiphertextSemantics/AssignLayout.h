@@ -5,6 +5,8 @@
 #include <functional>
 
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "mlir/include/mlir/IR/Attributes.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"          // from @llvm-project
@@ -19,7 +21,7 @@ namespace heir {
 // encoding implementation. Applies createdOpCallback to each created
 // operation.
 FailureOr<Value> implementAssignLayout(
-    tensor_ext::AssignLayoutOp op, int64_t ciphertextSize,
+    Value input, Attribute layout, int64_t ciphertextSize,
     ImplicitLocOpBuilder& builder,
     const std::function<void(Operation*)>& createdOpCallback);
 

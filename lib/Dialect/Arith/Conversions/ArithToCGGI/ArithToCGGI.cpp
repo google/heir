@@ -160,11 +160,12 @@ static Value materializeTarget(OpBuilder& builder, Type type, ValueRange inputs,
   if (auto shapedType = dyn_cast<ShapedType>(type)) {
     auto tensorElementSize =
         shapedType.getElementType().getIntOrFloatBitWidth();
-    ciphertextType = lwe::getDefaultCGGICiphertextType(builder.getContext(),
-                                                       tensorElementSize);
+    ciphertextType = lwe::getDefaultCGGICiphertextType(
+        builder.getContext(), tensorElementSize, tensorElementSize);
   } else {
     ciphertextType = lwe::getDefaultCGGICiphertextType(
-        builder.getContext(), inputType.getIntOrFloatBitWidth());
+        builder.getContext(), inputType.getIntOrFloatBitWidth(),
+        inputType.getIntOrFloatBitWidth());
   }
 
   auto plaintextBits = ciphertextType.getPlaintextSpace()

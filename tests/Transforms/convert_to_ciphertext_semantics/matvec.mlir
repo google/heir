@@ -4,6 +4,17 @@
 #layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 16 = 0 and 0 <= i0 <= 15 and 0 <= slot <= 1023 }">
 #layout1 = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : (i0 - i1 + ct) mod 16 = 0 and (-i0 + slot) mod 16 = 0 and 0 <= i0 <= 15 and 0 <= i1 <= 15 and 0 <= ct <= 15 and 0 <= slot <= 1023 }">
 module {
+// first assign_layout
+// CHECK: func.func private @_assign_layout_{{[0-9]+}}
+// CHECK-SAME: %[[ARG0:.*]]: tensor<16xf32>) -> tensor<1x1024xf32>
+// CHECK-SAME: {func_name = "square"}
+// CHECK: scf.for {{.*}}
+// second assign_layout
+// CHECK: func.func private @_assign_layout_{{[0-9]+}}
+// CHECK-SAME: %[[ARG0:.*]]: tensor<16x16xf32>) -> tensor<16x1024xf32>
+// CHECK-SAME: {func_name = "square"}
+// CHECK-COUNT-2: scf.for {{.*}}
+
 // CHECK: func.func @square
 // CHECK-SAME: (%[[ARG0:.*]]: !secret.secret<tensor<1x1024xf32>> {tensor_ext.original_type = #original_type}) -> (!secret.secret<tensor<1x1024xf32>> {tensor_ext.original_type = #original_type})
 // CHECK-DAG: arith.constant 0 : index
@@ -16,13 +27,8 @@ module {
 // CHECK-DAG: arith.constant -8 : index
 // CHECK-DAG: arith.constant 12 : index
 // CHECK-DAG: arith.constant -12 : index
-// CHECK-DAG: arith.constant 1024 : i32
-// CHECK-DAG: arith.constant 16 : i32
 // CHECK: secret.generic
-// first assign_layout
-// CHECK-COUNT-2: scf.for {{.*}}
-// second assign_layout
-// CHECK: scf.for {{.*}}
+// CHECK-COUNT-2: func.call @_assign_layout
 // CHECK: tensor_ext.rotate
 // CHECK: arith.mulf
 // CHECK: tensor_ext.rotate
@@ -96,6 +102,27 @@ module {
 
 // -----
 
+// first assign_layout with conditionals
+// CHECK: func.func private @_assign_layout_{{[0-9]+}}
+// CHECK-SAME: %[[ARG0:.*]]: tensor<10xf32>) -> tensor<1x1024xf32>
+// CHECK-SAME: {func_name = "squat"}
+// CHECK: scf.for {{.*}}
+// CHECK: arith.addi
+// CHECK: arith.remsi
+// CHECK: arith.cmpi sge
+// CHECK: scf.if
+// CHECK: return
+// second assign_layout with conditionals
+// CHECK: func.func private @_assign_layout_{{[0-9]+}}
+// CHECK-SAME: %[[ARG0:.*]]: tensor<10x16xf32>) -> tensor<16x1024xf32>
+// CHECK-SAME: {func_name = "squat"}
+// CHECK-COUNT-2: scf.for {{.*}}
+// CHECK: arith.addi
+// CHECK: arith.remsi
+// CHECK: arith.cmpi sge
+// CHECK: scf.if
+// CHECK: return
+
 // CHECK: func.func @squat
 // CHECK-SAME: (%[[ARG0:.*]]: !secret.secret<tensor<1x1024xf32>> {{.*}}) -> (!secret.secret<tensor<1x1024xf32>> {tensor_ext.original_type = #original_type})
 // CHECK-DAG: arith.constant 0 : index
@@ -119,18 +146,7 @@ module {
 // CHECK-DAG: arith.constant -12 : index
 // CHECK-DAG: arith.constant dense<{{.*}}> : tensor<10x16xf32>
 // CHECK: secret.generic
-// first assign_layout with conditionals
-// CHECK-COUNT-2: scf.for {{.*}}
-// CHECK: arith.addi
-// CHECK: arith.remsi
-// CHECK: arith.cmpi sge
-// CHECK: scf.if
-// second assign_layout with conditionals
-// CHECK: scf.for {{.*}}
-// CHECK: arith.addi
-// CHECK: arith.remsi
-// CHECK: arith.cmpi sge
-// CHECK: scf.if
+// CHECK-COUNT-2: func.call @_assign_layout
 // matrix-vector multiplication pattern
 // CHECK: tensor_ext.rotate
 // CHECK: arith.mulf

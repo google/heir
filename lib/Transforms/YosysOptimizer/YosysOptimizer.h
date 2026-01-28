@@ -11,11 +11,11 @@
 namespace mlir {
 namespace heir {
 
-enum Mode { Boolean, LUT };
+enum Mode { Boolean, LUT3, LUT4 };
 
 std::unique_ptr<mlir::Pass> createYosysOptimizer(
     const std::string& yosysFilesPath, const std::string& abcPath, bool abcFast,
-    int unrollFactor = 0, bool useSubmodules = true, Mode mode = LUT,
+    int unrollFactor = 0, bool useSubmodules = true, Mode mode = LUT3,
     bool printStats = false);
 
 #define GEN_PASS_DECL
@@ -42,9 +42,10 @@ struct YosysOptimizerPipelineOptions
   PassOptions::Option<enum Mode> mode{
       *this, "mode",
       llvm::cl::desc("Map gates to boolean gates or lookup table gates."),
-      llvm::cl::init(LUT),
+      llvm::cl::init(LUT3),
       llvm::cl::values(clEnumVal(Boolean, "use boolean gates"),
-                       clEnumVal(LUT, "use lookup tables"))};
+                       clEnumVal(LUT3, "use 3-input lookup tables"),
+                       clEnumVal(LUT4, "use 4-input lookup tables"))};
 
   PassOptions::Option<bool> printStats{
       *this, "print-stats",

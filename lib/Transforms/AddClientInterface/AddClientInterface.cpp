@@ -117,8 +117,9 @@ LogicalResult generateEncryptionFunc(func::FuncOp op,
       // after this pass.
       auto assignLayoutOp = AssignLayoutOp::create(
           builder, operand, originalTypeAttr.getLayout());
-      auto res = implementAssignLayout(assignLayoutOp, ciphertextSize, builder,
-                                       [&](Operation* createdOp) {});
+      auto res = implementAssignLayout(
+          assignLayoutOp.getValue(), assignLayoutOp.getLayout(), ciphertextSize,
+          builder, [&](Operation* createdOp) {});
       if (failed(res)) return failure();
       b.replaceOp(assignLayoutOp, res.value());
       valueToEncrypt = res.value();
@@ -184,8 +185,9 @@ LogicalResult generatePlaintextPackedFunc(func::FuncOp op,
 
   auto assignLayoutOp =
       AssignLayoutOp::create(builder, operand, originalTypeAttr.getLayout());
-  auto res = implementAssignLayout(assignLayoutOp, ciphertextSize, builder,
-                                   [&](Operation* createdOp) {});
+  auto res = implementAssignLayout(assignLayoutOp.getValue(),
+                                   assignLayoutOp.getLayout(), ciphertextSize,
+                                   builder, [&](Operation* createdOp) {});
   if (failed(res)) {
     return op.emitError()
            << "Failed to implement assign layout for plaintext packing";

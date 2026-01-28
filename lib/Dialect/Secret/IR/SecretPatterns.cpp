@@ -6,6 +6,7 @@
 #include <optional>
 #include <string>
 
+#include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Utils/AttributeUtils.h"
@@ -86,6 +87,18 @@ llvm::SmallVector<Value> buildResolvedIndices(Operation* op,
     }
   }
   return indices;
+}
+
+bool isCallToPackingHelper(Operation* op) {
+  auto callOp = dyn_cast<func::CallOp>(op);
+  if (!callOp) return false;
+  SymbolRefAttr sym =
+      llvm::dyn_cast_if_present<SymbolRefAttr>(callOp.getCallableForCallee());
+  if (!sym) return false;
+  auto funcOp = dyn_cast_or_null<func::FuncOp>(
+      SymbolTable::lookupNearestSymbolFrom(callOp, sym));
+  if (!funcOp) return false;
+  return funcOp->hasAttr(kClientPackFuncAttrName);
 }
 
 }  // namespace
@@ -612,7 +625,8 @@ LogicalResult HoistPlaintextOps::matchAndRewrite(
         !isa<linalg::LinalgDialect>(op.getDialect())) {
       return false;
     }
-    if (!isSpeculatable(&op)) {
+    // Make an exception for function calls that are layout assignments.
+    if (!isSpeculatable(&op) && !isCallToPackingHelper(&op)) {
       return false;
     }
     for (Value operand : op.getOperands()) {

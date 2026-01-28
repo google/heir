@@ -11,6 +11,7 @@ cc_library(
     hdrs = ["Passes.h"],
     deps = [
         ":BootstrapLoopIterArgs",
+        ":PartialUnrollForLevelConsumption",
         ":ReconcileMixedSecretnessIterArgs",
         ":pass_inc_gen",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
@@ -27,13 +28,15 @@ cc_library(
         "Patterns.h",
     ],
     deps = [
+        "@heir//lib/Analysis/LevelAnalysis",
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
-        "@heir//lib/Dialect/Secret/IR:Dialect",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AffineAnalysis",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:AffineUtils",
         "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:SCFDialect",
         "@llvm-project//mlir:SCFTransforms",
@@ -78,6 +81,27 @@ cc_library(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:SCFDialect",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
+cc_library(
+    name = "PartialUnrollForLevelConsumption",
+    srcs = ["PartialUnrollForLevelConsumption.cpp"],
+    hdrs = [
+        "PartialUnrollForLevelConsumption.h",
+    ],
+    deps = [
+        ":Patterns",
+        ":pass_inc_gen",
+        "@heir//lib/Analysis/LevelAnalysis",
+        "@heir//lib/Analysis/SecretnessAnalysis",
+        "@heir//lib/Dialect/Mgmt/IR:MgmtOps",
+        "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TransformUtils",
     ],

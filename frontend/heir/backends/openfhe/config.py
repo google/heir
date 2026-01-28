@@ -50,12 +50,12 @@ def development_openfhe_config() -> OpenFHEConfig:
 
   return OpenFHEConfig(
       include_dirs=[
-          str(repo_root / "bazel-heir" / "external" / "openfhe"),
+          str(repo_root / "bazel-heir" / "external" / "openfhe+"),
           str(
               repo_root
               / "bazel-heir"
               / "external"
-              / "openfhe"
+              / "openfhe+"
               / "src"
               / "binfhe"
               / "include"
@@ -64,7 +64,7 @@ def development_openfhe_config() -> OpenFHEConfig:
               repo_root
               / "bazel-heir"
               / "external"
-              / "openfhe"
+              / "openfhe+"
               / "src"
               / "core"
               / "include"
@@ -73,7 +73,7 @@ def development_openfhe_config() -> OpenFHEConfig:
               repo_root
               / "bazel-heir"
               / "external"
-              / "openfhe"
+              / "openfhe+"
               / "src"
               / "pke"
               / "include"
@@ -81,7 +81,7 @@ def development_openfhe_config() -> OpenFHEConfig:
           str(repo_root / "bazel-heir" / "external" / "cereal+" / "include"),
       ],
       include_type="source-relative",
-      lib_dir=str(repo_root / "bazel-bin" / "external" / "openfhe"),
+      lib_dir=str(repo_root / "bazel-bin" / "external" / "openfhe+"),
       link_libs=["openfhe"],
   )
 
@@ -184,10 +184,10 @@ def from_pip_installation() -> OpenFHEConfig:
   package_path = importlib.resources.files("heir")
   return OpenFHEConfig(
       include_dirs=[
-          str(package_path / "openfhe"),
-          str(package_path / "openfhe" / "src" / "binfhe" / "include"),
-          str(package_path / "openfhe" / "src" / "core" / "include"),
-          str(package_path / "openfhe" / "src" / "pke" / "include"),
+          str(package_path / "openfhe+"),
+          str(package_path / "openfhe+" / "src" / "binfhe" / "include"),
+          str(package_path / "openfhe+" / "src" / "core" / "include"),
+          str(package_path / "openfhe+" / "src" / "pke" / "include"),
           str(package_path / "cereal+" / "include"),
       ],
       include_type="source-relative",

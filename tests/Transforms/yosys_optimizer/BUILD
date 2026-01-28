@@ -7,7 +7,8 @@ filegroup(
     testonly = True,
     data = [
         "@edu_berkeley_abc//:abc",
-        "@heir//lib/Transforms/YosysOptimizer/yosys:techmap.v",
+        "@heir//lib/Transforms/YosysOptimizer/yosys:techmap_lut3.v",
+        "@heir//lib/Transforms/YosysOptimizer/yosys:techmap_lut4.v",
     ],
 )
 

@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <set>
 #include <string>
+#include <vector>
 
 #include "lib/Analysis/MulDepthAnalysis/MulDepthAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
@@ -37,6 +38,8 @@
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"       // from @llvm-project
 #include "mlir/include/mlir/Support/WalkResult.h"          // from @llvm-project
+#include "src/core/include/lattice/constants-lattice.h"    // from @openfhe
+#include "src/pke/include/scheme/ckksrns/ckksrns-fhe.h"    // from @openfhe
 
 #define DEBUG_TYPE "openfhe-configure-crypto-context"
 
@@ -304,10 +307,14 @@ struct ConfigureCryptoContext
     });
 
     config.hasBootstrapOp = hasBootstrapOp(op);
-    // TODO(#1207): determine mulDepth earlier in mgmt level
-    // approxModDepth = 14, this solely depends on secretKeyDist
-    // here we use the value for UNIFORM_TERNARY
-    int bootstrapDepth = levelBudgetEncode + 14 + levelBudgetDecode;
+    // TODO(#1207): determine mulDepth earlier in mgmt level. This solely
+    // depends on the level budgets and secretKeyDist here we use the value for
+    // UNIFORM_TERNARY
+    std::vector<uint32_t> levelBudgets = {
+        static_cast<uint32_t>(levelBudgetEncode),
+        static_cast<uint32_t>(levelBudgetDecode)};
+    int bootstrapDepth = lbcrypto::FHECKKSRNS::GetBootstrapDepth(
+        levelBudgets, lbcrypto::UNIFORM_TERNARY);
     if (config.hasBootstrapOp) {
       config.mulDepth += bootstrapDepth;
     }

@@ -6,7 +6,10 @@
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"            // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"        // from @llvm-project
 
 namespace mlir {
@@ -55,9 +58,7 @@ struct BootstrapIterArgsPattern : public OpRewritePattern<T> {
     secretInitIndices.reserve(forOp.getInits().size());
 
     for (auto [i, init] : llvm::enumerate(forOp.getInits())) {
-      auto* initLattice = solver->lookupState<SecretnessLattice>(init);
-      if (initLattice && initLattice->getValue().isInitialized() &&
-          initLattice->getValue().getSecretness()) {
+      if (isSecret(init, solver)) {
         secretInitIndices.push_back(i);
       }
     }
@@ -103,6 +104,53 @@ struct BootstrapIterArgsPattern : public OpRewritePattern<T> {
 
  private:
   DataFlowSolver* solver;
+};
+
+struct PartialUnrollForLevelConsumptionAffineFor
+    : public OpRewritePattern<affine::AffineForOp> {
+  using OpRewritePattern<affine::AffineForOp>::OpRewritePattern;
+  PartialUnrollForLevelConsumptionAffineFor(MLIRContext* context,
+                                            int forceMaxLevel,
+                                            DataFlowSolver* solver)
+      : OpRewritePattern(context),
+        forceMaxLevel(forceMaxLevel),
+        solver(solver) {}
+
+ public:
+  LogicalResult matchAndRewrite(affine::AffineForOp op,
+                                PatternRewriter& rewriter) const override;
+
+  int forceMaxLevel;
+  DataFlowSolver* solver;
+};
+
+struct PartialUnrollForLevelConsumptionSCFFor
+    : public OpRewritePattern<scf::ForOp> {
+  using OpRewritePattern<scf::ForOp>::OpRewritePattern;
+  PartialUnrollForLevelConsumptionSCFFor(MLIRContext* context,
+                                         int forceMaxLevel,
+                                         DataFlowSolver* solver)
+      : OpRewritePattern(context),
+        forceMaxLevel(forceMaxLevel),
+        solver(solver) {}
+
+ public:
+  LogicalResult matchAndRewrite(scf::ForOp op,
+                                PatternRewriter& rewriter) const override;
+
+  int forceMaxLevel;
+  DataFlowSolver* solver;
+};
+
+// Remove any bootstrap ops that are marked for deletion in
+// PartialUnrollForLevelConsumption.
+struct DeleteAnnotatedOps : public RewritePattern {
+  explicit DeleteAnnotatedOps(MLIRContext* context)
+      : RewritePattern(MatchAnyOpTypeTag(), /*benefit=*/1, context) {}
+
+ public:
+  LogicalResult matchAndRewrite(Operation* op,
+                                PatternRewriter& rewriter) const override;
 };
 
 }  // namespace heir

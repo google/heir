@@ -156,9 +156,9 @@ class BuildBazelExtension(build_ext.build_ext):
     external = out_root / "external"
     libdir = Path(self.build_lib) / "heir"
     subdirs = [
-        Path("openfhe") / "src" / "binfhe" / "include",
-        Path("openfhe") / "src" / "core" / "include",
-        Path("openfhe") / "src" / "pke" / "include",
+        Path("openfhe+") / "src" / "binfhe" / "include",
+        Path("openfhe+") / "src" / "core" / "include",
+        Path("openfhe+") / "src" / "pke" / "include",
         Path("cereal+") / "include",
     ]
     dirs_to_copy = {external / subdir: libdir / subdir for subdir in subdirs}
@@ -322,7 +322,7 @@ setuptools.setup(
         BazelExtension(
             name="heir_py._libopenfhe",
             bazel_target="@openfhe//:libopenfhe",
-            generated_so_file=Path("external") / "openfhe" / "libopenfhe.so",
+            generated_so_file=Path("external") / "openfhe+" / "libopenfhe.so",
             target_file="libopenfhe.so",
             py_limited_api=py_limited_api,
             copy_include_files=True,

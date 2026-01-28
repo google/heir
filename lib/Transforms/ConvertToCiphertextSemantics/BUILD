@@ -14,6 +14,7 @@ cc_library(
         ":AssignLayout",
         ":TypeConversion",
         ":pass_inc_gen",
+        "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Dialect/Secret/IR:SecretAttributes",
         "@heir//lib/Dialect/Secret/IR:SecretPatterns",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",

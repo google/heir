@@ -2,18 +2,23 @@
 
 
 // Test that a vector of size 16xi16 is replicated to 1x32xi16.
+// CHECK: func.func private @_assign_layout_{{[0-9]+}}
+// CHECK-SAME: %[[ARG0:.*]]: tensor<16xi16>) -> tensor<1x32xi16>
+// CHECK-DAG: %[[c16:.*]] = arith.constant 16 : i32
+// CHECK-DAG: %[[c32:.*]] = arith.constant 32 : i32
+// CHECK-DAG: %[[c0:.*]] = arith.constant 0 : i32
+// CHECK-DAG: %[[c1:.*]] = arith.constant 1 : i32
+// CHECK-DAG: %[[cst:.*]] = arith.constant dense<0> : tensor<1x32xi16>
+// CHECK: scf.for %[[arg1:.*]] = %[[c0]] to %[[c32]] step %[[c1]]
+// CHECK: tensor.insert
+
 // CHECK: @repeat_vector
 #layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 16 = 0 and 0 <= i0 <= 15 and 0 <= slot <= 31 }">
 module {
   func.func @repeat_vector() {
-    // CHECK-DAG: %[[c1_i16:.*]] = arith.constant 1 : i16
-    // CHECK-DAG: %[[c32:.*]] = arith.constant 32 : i32
-    // CHECK-DAG: %[[c0:.*]] = arith.constant 0 : i32
-    // CHECK-DAG: %[[c1:.*]] = arith.constant 1 : i32
     %cst = arith.constant dense<1> : tensor<16xi16>
-    // CHECK: %[[cst:.*]] = arith.constant dense<0> : tensor<1x32xi16>
-    // CHECK: scf.for %[[arg0:.*]] = %[[c0]] to %[[c32]] step %[[c1]]
-    // CHECK: tensor.insert %[[c1_i16]]
+    // CHECK: %[[cst:.*]] = arith.constant dense<1> : tensor<16xi16>
+    // CHECK: func.call @_assign_layout_{{[0-9]+}}(%[[cst]])
     %0 = secret.generic() {
       %1 = tensor_ext.assign_layout %cst {layout = #layout, tensor_ext.layout = #layout} : tensor<16xi16>
       secret.yield %1 : tensor<16xi16>
