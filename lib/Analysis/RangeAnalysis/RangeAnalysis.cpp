@@ -46,13 +46,6 @@ LogicalResult RangeAnalysis::visitOperation(
 
   llvm::TypeSwitch<Operation&>(*op)
       .Case<arith::AddFOp, arith::AddIOp>([&](auto& op) {
-        // condition on result secretness
-        SmallVector<OpResult> secretResults;
-        getSecretResults(op, secretResults);
-        if (secretResults.empty()) {
-          return;
-        }
-
         auto rangeResult = Log2Arithmetic::of(0);
 
         for (auto& operand : op->getOpOperands()) {
@@ -63,18 +56,11 @@ LogicalResult RangeAnalysis::visitOperation(
           rangeResult = rangeResult + rangeState.getRange();
         }
 
-        for (auto result : secretResults) {
+        for (auto result : op->getResults()) {
           propagate(result, RangeState(rangeResult));
         }
       })
       .Case<arith::MulFOp, arith::MulIOp>([&](auto& op) {
-        // condition on result secretness
-        SmallVector<OpResult> secretResults;
-        getSecretResults(op, secretResults);
-        if (secretResults.empty()) {
-          return;
-        }
-
         auto rangeResult = Log2Arithmetic::of(1);
 
         for (auto& operand : op->getOpOperands()) {
@@ -85,7 +71,7 @@ LogicalResult RangeAnalysis::visitOperation(
           rangeResult = rangeResult * rangeState.getRange();
         }
 
-        for (auto result : secretResults) {
+        for (auto result : op->getResults()) {
           propagate(result, RangeState(rangeResult));
         }
       })
@@ -156,31 +142,21 @@ LogicalResult RangeAnalysis::visitOperation(
       })
       // Rotation does not change the CKKS range
       .Default([&](auto& op) {
-        // condition on result secretness
-        SmallVector<OpResult> secretResults;
-        getSecretResults(&op, secretResults);
-        if (secretResults.empty()) {
-          return;
-        }
-
-        SmallVector<OpOperand*> secretOperands;
-        getSecretOperands(&op, secretOperands);
-        if (secretOperands.empty()) {
+        if (op.getNumOperands() == 0 || op.getNumResults() == 0) {
           return;
         }
 
         // short-circuit to get range
         RangeState rangeState;
-        for (auto* operand : secretOperands) {
-          auto& operandRangeState =
-              getLatticeElement(operand->get())->getValue();
+        for (auto operand : op.getOperands()) {
+          auto& operandRangeState = getLatticeElement(operand)->getValue();
           if (operandRangeState.isInitialized()) {
             rangeState = operandRangeState;
             break;
           }
         }
 
-        for (auto result : secretResults) {
+        for (auto result : op.getResults()) {
           propagate(result, rangeState);
         }
       });
