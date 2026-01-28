@@ -10,6 +10,7 @@
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"               // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
+#include "llvm/include/llvm/Support/DebugLog.h"            // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Analysis/LoopAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
@@ -155,23 +156,35 @@ FailureOr<SmallVector<Value>> isLoopStructuredForHaloUnroll(
   for (Value iterArg : forOp.getRegionIterArgs()) {
     if (isSecret(iterArg, solver)) {
       if (!iterArg.hasOneUse()) {
+        LDBG() << "Iter arg " << iterArg << " has " << iterArg.getNumUses()
+               << " uses, expected 1";
         return failure();
       }
-      if (!isa<mgmt::BootstrapOp>(*iterArg.getUsers().begin())) {
+      auto* user = *iterArg.getUsers().begin();
+      if (!isa<mgmt::BootstrapOp>(user)) {
+        LDBG() << "Iter arg " << iterArg
+               << " single use is not a bootstrap op, instead "
+               << user->getName();
         return failure();
       }
 
       Value yieldedValue =
           forOp.getTiedLoopYieldedValue(cast<BlockArgument>(iterArg))->get();
       if (!isa<mgmt::LevelReduceMinOp>(yieldedValue.getDefiningOp())) {
+        LDBG() << "Yielded value " << yieldedValue
+               << " is not the result of a level_reduce_min op, instead "
+               << yieldedValue.getDefiningOp()->getName();
         return failure();
       }
 
       secretIterArgs.push_back(iterArg);
+    } else {
+      LDBG() << "Iter arg " << iterArg << " is not secret";
     }
   }
 
   if (secretIterArgs.empty()) {
+    LDBG() << "No secret iter args found";
     return failure();
   }
 

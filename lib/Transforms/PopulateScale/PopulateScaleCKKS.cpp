@@ -69,12 +69,6 @@ struct PopulateScaleCKKS : impl::PopulateScaleCKKSBase<PopulateScaleCKKS> {
   using PopulateScaleCKKSBase::PopulateScaleCKKSBase;
 
   void runOnOperation() override {
-    // skip scale management for openfhe
-    if (moduleIsOpenfhe(getOperation())) {
-      LDBG() << "Skipping scale management for openfhe";
-      return;
-    }
-
     auto ckksSchemeParamAttr = mlir::dyn_cast<ckks::SchemeParamAttr>(
         getOperation()->getAttr(ckks::CKKSDialect::kSchemeParamAttrName));
     auto logDefaultScale = ckksSchemeParamAttr.getLogDefaultScale();

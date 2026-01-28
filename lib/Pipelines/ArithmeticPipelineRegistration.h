@@ -49,6 +49,12 @@ struct MlirToRLWEPipelineOptions : public SimdVectorizerOptions {
       llvm::cl::desc("If true, use extended encryption technique (default to "
                      "false)"),
       llvm::cl::init(false)};
+  // FIXME: default to true!
+  PassOptions::Option<bool> modulusSwitchAfterMul{
+      *this, "modulus-switch-after-mul",
+      llvm::cl::desc("Modulus switching after the first multiplication "
+                     "(default to false)"),
+      llvm::cl::init(false)};
   PassOptions::Option<bool> modulusSwitchBeforeFirstMul{
       *this, "modulus-switch-before-first-mul",
       llvm::cl::desc("Modulus switching right before the first multiplication "
@@ -87,7 +93,8 @@ struct MlirToRLWEPipelineOptions : public SimdVectorizerOptions {
       llvm::cl::init(10)};
   PassOptions::Option<int> levelBudget{
       *this, "level-budget",
-      llvm::cl::desc("The level budget exlcuding levels required for bootstrap"),
+      llvm::cl::desc(
+          "The level budget excluding levels required for bootstrap"),
       llvm::cl::init(10)};
   PassOptions::Option<std::string> plaintextExecutionResultFileName{
       *this, "plaintext-execution-result-file-name",

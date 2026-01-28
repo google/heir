@@ -7,7 +7,7 @@ openfhe_end_to_end_test(
     generated_lib_header = "loop_lib.h",
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=ckks",
-        "--mlir-to-ckks=ciphertext-degree=8192 level-budget=3 experimental-disable-loop-unroll=true",
+        "--mlir-to-ckks=ciphertext-degree=8192 level-budget=3 modulus-switch-after-mul=true experimental-disable-loop-unroll=true",
         "--scheme-to-openfhe",
     ],
     mlir_src = "@heir//tests/Examples/common:loop.mlir",

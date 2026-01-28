@@ -25,59 +25,63 @@
 namespace mlir {
 namespace heir {
 
+void runSolver(Operation* top, DataFlowSolver& solver) {
+  if (failed(solver.initializeAndRun(top))) {
+    LDBG() << "Failed to run solver!";
+  }
+}
+
 void makeAndRunSolver(Operation* top, DataFlowSolver& solver) {
   dataflow::loadBaselineAnalyses(solver);
   solver.load<SecretnessAnalysis>();
   solver.load<LevelAnalysis>();
   solver.load<MulDepthAnalysis>();
-  rerunDataflow(solver, top);
+  runSolver(top, solver);
+}
+
+void makeAndRunSecretnessSolver(Operation* top, DataFlowSolver& solver) {
+  dataflow::loadBaselineAnalyses(solver);
+  solver.load<SecretnessAnalysis>();
+  runSolver(top, solver);
+}
+
+void makeAndRunSecretnessAndMulDepthSolver(Operation* top,
+                                           DataFlowSolver& solver) {
+  dataflow::loadBaselineAnalyses(solver);
+  solver.load<SecretnessAnalysis>();
+  solver.load<MulDepthAnalysis>();
+  runSolver(top, solver);
+}
+
+void makeAndRunSecretnessAndLevelSolver(Operation* top,
+                                        DataFlowSolver& solver) {
+  dataflow::loadBaselineAnalyses(solver);
+  solver.load<SecretnessAnalysis>();
+  solver.load<LevelAnalysis>();
+  runSolver(top, solver);
 }
 
 LogicalResult runInsertMgmtPipeline(Operation* top,
                                     const InsertMgmtPipelineOptions& options) {
   LDBG() << "Starting insert-mgmt pipeline";
-
-  /// This section only relies on secretness analysis
-  DataFlowSolver solver;
-  dataflow::loadBaselineAnalyses(solver);
-  solver.load<SecretnessAnalysis>();
-
-  if (failed(solver.initializeAndRun(top))) {
-    top->emitOpError() << "Failed to run the analysis.";
-    return failure();
-  }
-
-  LDBG() << "Inserting mgmt.init";
-  insertMgmtInitForPlaintexts(top, solver, options.includeFloats);
-  rerunDataflow(solver, top);
-  LDBG() << "Making loops type and level invariant";
-  makeLoopsTypeAndLevelInvariant(top, solver);
+  makeLoopsTypeAndLevelInvariant(top);
   LLVM_DEBUG(top->dump());
 
-  /// This section only relies on secretness and mul depth
-  DataFlowSolver solver2;
-  dataflow::loadBaselineAnalyses(solver2);
-  solver2.load<SecretnessAnalysis>();
-  solver2.load<MulDepthAnalysis>();
-  rerunDataflow(solver2, top);
+  insertMgmtInitForPlaintexts(top, options.includeFloats);
+  LLVM_DEBUG(top->dump());
 
   LDBG() << "Inserting mod reduce";
-  insertModReduceBeforeOrAfterMult(top, solver2, options.modReduceAfterMul,
+  insertModReduceBeforeOrAfterMult(top, options.modReduceAfterMul,
                                    options.modReduceBeforeMulIncludeFirstMul,
                                    options.includeFloats);
   LLVM_DEBUG(top->dump());
 
-  /// The remainder relies on all the analyses
-  DataFlowSolver solver3;
-  makeAndRunSolver(top, solver3);
   // this must be run after ModReduceAfterMult
   LDBG() << "Inserting relinearize";
-  insertRelinearizeAfterMult(top, solver3, options.includeFloats);
+  insertRelinearizeAfterMult(top, options.includeFloats);
 
-  DataFlowSolver solver4;
-  makeAndRunSolver(top, solver4);
   LDBG() << "Unrolling loops for level consumption";
-  unrollLoopsForLevelUtilization(top, solver4, options.levelBudget);
+  unrollLoopsForLevelUtilization(top, options.levelBudget);
   LLVM_DEBUG(top->dump());
 
   // insert BootstrapOp after mgmt::ModReduceOp
@@ -88,32 +92,24 @@ LogicalResult runInsertMgmtPipeline(Operation* top,
   // However, this greedy strategy is temporary so not too much
   // optimization now
   if (options.bootstrapWaterline.has_value()) {
-    DataFlowSolver solver5;
-    makeAndRunSolver(top, solver5);
     LDBG() << "Bootstrap waterline";
-    insertBootstrapWaterLine(top, solver5, options.bootstrapWaterline.value());
+    insertBootstrapWaterLine(top, options.bootstrapWaterline.value());
   }
 
   int idCounter = 0;  // for making adjust_scale op different to avoid cse
-  DataFlowSolver solver6;
-  makeAndRunSolver(top, solver6);
   LDBG() << "Handling cross level ops";
-  handleCrossLevelOps(top, solver6, &idCounter, options.includeFloats);
+  handleCrossLevelOps(top, &idCounter, options.includeFloats);
 
-  DataFlowSolver solver7;
-  makeAndRunSolver(top, solver7);
   LDBG() << "Handling cross mul depth ops";
-  handleCrossMulDepthOps(top, solver7, &idCounter, options.includeFloats);
+  handleCrossMulDepthOps(top, &idCounter, options.includeFloats);
   return success();
 }
 
-void rerunDataflow(DataFlowSolver& solver, Operation* top) {
-  solver.eraseAllStates();
-  (void)solver.initializeAndRun(top);
-}
+void insertMgmtInitForPlaintexts(Operation* top, bool includeFloats) {
+  LDBG() << "Inserting mgmt.init";
+  DataFlowSolver solver;
+  makeAndRunSecretnessSolver(top, solver);
 
-void insertMgmtInitForPlaintexts(Operation* top, DataFlowSolver& solver,
-                                 bool includeFloats) {
   MLIRContext* ctx = top->getContext();
   RewritePatternSet patterns(ctx);
   patterns.add<UseInitOpForPlaintextOperand<arith::AddIOp>,
@@ -133,10 +129,12 @@ void insertMgmtInitForPlaintexts(Operation* top, DataFlowSolver& solver,
   (void)walkAndApplyPatterns(top, std::move(patterns));
 }
 
-void insertModReduceBeforeOrAfterMult(Operation* top, DataFlowSolver& solver,
-                                      bool afterMul,
+void insertModReduceBeforeOrAfterMult(Operation* top, bool afterMul,
                                       bool beforeMulIncludeFirstMul,
                                       bool includeFloats) {
+  DataFlowSolver solver;
+  makeAndRunSecretnessAndMulDepthSolver(top, solver);
+
   MLIRContext* ctx = top->getContext();
   LLVM_DEBUG({
     auto when = "before mul";
@@ -164,8 +162,10 @@ void insertModReduceBeforeOrAfterMult(Operation* top, DataFlowSolver& solver,
   (void)walkAndApplyPatterns(top, std::move(patterns));
 }
 
-void insertRelinearizeAfterMult(Operation* top, DataFlowSolver& solver,
-                                bool includeFloats) {
+void insertRelinearizeAfterMult(Operation* top, bool includeFloats) {
+  DataFlowSolver solver;
+  makeAndRunSecretnessSolver(top, solver);
+
   MLIRContext* ctx = top->getContext();
   RewritePatternSet patterns(ctx);
   patterns.add<MultRelinearize<arith::MulIOp>>(ctx, top, &solver);
@@ -174,8 +174,9 @@ void insertRelinearizeAfterMult(Operation* top, DataFlowSolver& solver,
   (void)walkAndApplyPatterns(top, std::move(patterns));
 }
 
-void handleCrossLevelOps(Operation* top, DataFlowSolver& solver, int* idCounter,
-                         bool includeFloats) {
+void handleCrossLevelOps(Operation* top, int* idCounter, bool includeFloats) {
+  DataFlowSolver solver;
+  makeAndRunSecretnessAndLevelSolver(top, solver);
   MLIRContext* ctx = top->getContext();
   RewritePatternSet patterns(ctx);
   patterns.add<MatchCrossLevel<arith::AddIOp>, MatchCrossLevel<arith::SubIOp>,
@@ -189,8 +190,10 @@ void handleCrossLevelOps(Operation* top, DataFlowSolver& solver, int* idCounter,
 // this only happen for before-mul but not include-first-mul case
 // at the first level, a Value can be both mulResult or not mulResult
 // we should match their scale by adding one adjust scale op
-void handleCrossMulDepthOps(Operation* top, DataFlowSolver& solver,
-                            int* idCounter, bool includeFloats) {
+void handleCrossMulDepthOps(Operation* top, int* idCounter,
+                            bool includeFloats) {
+  DataFlowSolver solver;
+  makeAndRunSolver(top, solver);
   MLIRContext* ctx = top->getContext();
   RewritePatternSet patterns(ctx);
   patterns
@@ -204,8 +207,9 @@ void handleCrossMulDepthOps(Operation* top, DataFlowSolver& solver,
   (void)walkAndApplyPatterns(top, std::move(patterns));
 }
 
-void insertBootstrapWaterLine(Operation* top, DataFlowSolver& solver,
-                              int bootstrapWaterline) {
+void insertBootstrapWaterLine(Operation* top, int bootstrapWaterline) {
+  DataFlowSolver solver;
+  makeAndRunSolver(top, solver);
   MLIRContext* ctx = top->getContext();
   RewritePatternSet patterns(ctx);
   patterns.add<BootstrapWaterLine<mgmt::ModReduceOp>>(ctx, top, &solver,
@@ -213,23 +217,30 @@ void insertBootstrapWaterLine(Operation* top, DataFlowSolver& solver,
   (void)walkAndApplyPatterns(top, std::move(patterns));
 }
 
-void makeLoopsTypeAndLevelInvariant(Operation* top, DataFlowSolver& solver) {
+void makeLoopsTypeAndLevelInvariant(Operation* top) {
+  LDBG() << "Making loops type and level invariant";
   MLIRContext* ctx = top->getContext();
+
+  DataFlowSolver solver;
+  makeAndRunSecretnessSolver(top, solver);
+
   RewritePatternSet patterns(ctx);
   patterns.add<PeelPlaintextAffineForInit, PeelPlaintextScfForInit>(ctx,
                                                                     &solver);
   walkAndApplyPatterns(top, std::move(patterns));
 
-  rerunDataflow(solver, top);
+  DataFlowSolver solver2;
+  makeAndRunSecretnessSolver(top, solver2);
 
   patterns.clear();
   patterns.add<BootstrapIterArgsPattern<affine::AffineForOp>,
-               BootstrapIterArgsPattern<scf::ForOp>>(ctx, &solver);
+               BootstrapIterArgsPattern<scf::ForOp>>(ctx, &solver2);
   walkAndApplyPatterns(top, std::move(patterns));
 }
 
-void unrollLoopsForLevelUtilization(Operation* top, DataFlowSolver& solver,
-                                    int levelBudget) {
+void unrollLoopsForLevelUtilization(Operation* top, int levelBudget) {
+  DataFlowSolver solver;
+  makeAndRunSolver(top, solver);
   MLIRContext* ctx = top->getContext();
   RewritePatternSet patterns(ctx);
   patterns.add<PartialUnrollForLevelConsumptionAffineFor,

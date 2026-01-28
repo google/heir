@@ -264,6 +264,7 @@ void mlirToRLWEPipeline(OpPassManager& pm,
   switch (scheme) {
     case RLWEScheme::bgvScheme: {
       auto secretInsertMgmtBGVOptions = SecretInsertMgmtBGVOptions{};
+      secretInsertMgmtBGVOptions.afterMul = options.modulusSwitchAfterMul;
       secretInsertMgmtBGVOptions.beforeMulIncludeFirstMul =
           options.modulusSwitchBeforeFirstMul;
       pm.addPass(createSecretInsertMgmtBGV(secretInsertMgmtBGVOptions));
@@ -275,6 +276,7 @@ void mlirToRLWEPipeline(OpPassManager& pm,
     }
     case RLWEScheme::ckksScheme: {
       auto secretInsertMgmtCKKSOptions = SecretInsertMgmtCKKSOptions{};
+      secretInsertMgmtCKKSOptions.afterMul = options.modulusSwitchAfterMul;
       secretInsertMgmtCKKSOptions.beforeMulIncludeFirstMul =
           options.modulusSwitchBeforeFirstMul;
       secretInsertMgmtCKKSOptions.slotNumber = options.ciphertextDegree;
