@@ -11,7 +11,6 @@ cc_library(
     hdrs = ["RangeAnalysis.h"],
     deps = [
         "@heir//lib/Analysis:Utils",
-        "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Utils",
         "@heir//lib/Utils:LogArithmetic",
