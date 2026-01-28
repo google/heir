@@ -26,8 +26,9 @@ LogicalResult ReplaceWithLevelReduce::matchAndRewrite(
   }
 
   int64_t levelDiff = operandMgmtAttr.getLevel() - resultMgmtAttr.getLevel();
-  rewriter.replaceOpWithNewOp<LevelReduceOp>(
+  auto levelReduceOp = rewriter.replaceOpWithNewOp<LevelReduceOp>(
       op, op.getInput(), rewriter.getI64IntegerAttr(levelDiff));
+  setMgmtAttrAssociatedWith(levelReduceOp.getResult(), resultMgmtAttr);
 
   return success();
 }

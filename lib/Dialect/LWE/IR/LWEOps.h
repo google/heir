@@ -219,7 +219,7 @@ LogicalResult verifyLevelReduceOp(Op* op) {
   auto x = getCtTy(op->getInput());
   auto out = getCtTy(op->getOutput());
 
-  if (x.getModulusChain().getCurrent() <= levelToDrop) {
+  if (x.getModulusChain().getCurrent() < levelToDrop) {
     return op->emitOpError() << "level_to_drop is out of bounds";
   }
 
