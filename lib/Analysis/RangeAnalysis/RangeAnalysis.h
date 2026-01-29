@@ -5,7 +5,6 @@
 #include <cassert>
 #include <optional>
 
-#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Utils/LogArithmetic.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
@@ -73,11 +72,9 @@ class RangeLattice : public dataflow::Lattice<RangeState> {
 };
 
 class RangeAnalysis
-    : public dataflow::SparseForwardDataFlowAnalysis<RangeLattice>,
-      public SecretnessAnalysisDependent<RangeAnalysis> {
+    : public dataflow::SparseForwardDataFlowAnalysis<RangeLattice> {
  public:
   using SparseForwardDataFlowAnalysis::SparseForwardDataFlowAnalysis;
-  friend class SecretnessAnalysisDependent<RangeAnalysis>;
 
   RangeAnalysis(DataFlowSolver& solver, Log2Arithmetic inputRange)
       : dataflow::SparseForwardDataFlowAnalysis<RangeLattice>(solver),

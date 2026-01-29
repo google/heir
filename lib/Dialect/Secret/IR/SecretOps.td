@@ -127,6 +127,7 @@ def Secret_GenericOp : Secret_Op<"generic", [
 
     // Generic runs exactly once.
     "getRegionInvocationBounds",
+    "getSuccessorInputs",
 
     // Cleartext types are compatible to forward to secret region results.
     "areTypesCompatible"
