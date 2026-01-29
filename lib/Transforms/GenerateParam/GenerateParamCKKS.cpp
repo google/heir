@@ -4,7 +4,6 @@
 
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/RangeAnalysis/RangeAnalysis.h"
-#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/CKKS/IR/CKKSEnums.h"
@@ -43,8 +42,6 @@ struct GenerateParamCKKS : impl::GenerateParamCKKSBase<GenerateParamCKKS> {
   std::optional<int> getExtraBitsForLevel0() {
     DataFlowSolver solver;
     dataflow::loadBaselineAnalyses(solver);
-    // RangeAnalysis depends on SecretnessAnalysis
-    solver.load<SecretnessAnalysis>();
     // For double input in range [-1, 1], we use Log2Arithmetic::of(1) to
     // represent it.
     solver.load<RangeAnalysis>(Log2Arithmetic::of(inputRange));

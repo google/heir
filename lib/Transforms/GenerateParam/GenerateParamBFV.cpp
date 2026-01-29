@@ -10,7 +10,6 @@
 #include "lib/Analysis/NoiseAnalysis/BFV/NoiseCanEmbModel.h"
 #include "lib/Analysis/NoiseAnalysis/Noise.h"
 #include "lib/Analysis/NoiseAnalysis/NoiseAnalysis.h"
-#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/BGV/IR/BGVAttributes.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/BGV/IR/BGVEnums.h"

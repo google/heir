@@ -27,7 +27,6 @@ cc_library(
         "@heir//lib/Analysis/NoiseAnalysis/BGV:NoiseByVarianceCoeffModel",
         "@heir//lib/Analysis/NoiseAnalysis/BGV:NoiseCanEmbModel",
         "@heir//lib/Analysis/RangeAnalysis",
-        "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Dialect/BGV/IR:Dialect",
         "@heir//lib/Dialect/CKKS/IR:Dialect",
