@@ -395,8 +395,8 @@ module attributes {scheme.ckks} {
     %c1 = arith.constant 1 : index
     %c2 = arith.constant 2 : index
     %precomp = openfhe.fast_rotation_precompute %cc, %input1 : (!cc, !ct) -> !openfhe.digit_decomp
-    %rot1 = openfhe.fast_rotation_ext %cc, %input1, %c1, %precomp {cyclotomicOrder = 64 : index, addFirst = true} : (!cc, !ct, index, !openfhe.digit_decomp) -> !ct
-    %rot2 = openfhe.fast_rotation_ext %cc, %input1, %c2, %precomp {cyclotomicOrder = 64 : index, addFirst = false} : (!cc, !ct, index, !openfhe.digit_decomp) -> !ct
+    %rot1 = openfhe.fast_rotation_ext %cc, %input1, %c1, %precomp {addFirst = true} : (!cc, !ct, index, !openfhe.digit_decomp) -> !ct
+    %rot2 = openfhe.fast_rotation_ext %cc, %input1, %c2, %precomp {addFirst = false} : (!cc, !ct, index, !openfhe.digit_decomp) -> !ct
     %sum = openfhe.add_ext %cc, %rot1, %rot2 : (!cc, !ct, !ct) -> !ct
     %result = openfhe.key_switch_down %cc, %sum : (!cc, !ct) -> !ct
     return %result : !ct

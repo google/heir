@@ -114,7 +114,6 @@ bool FastRotationExtOp::isBatchCompatible(Operation* rhs) {
           getInput() == rhsRotate.getInput() &&
           getPrecomputedDigitDecomp() ==
               rhsRotate.getPrecomputedDigitDecomp() &&
-          getCyclotomicOrder() == rhsRotate.getCyclotomicOrder() &&
           getAddFirst() == rhsRotate.getAddFirst());
 }
 
@@ -159,7 +158,7 @@ FailureOr<Operation*> FastRotationExtOp::buildBatchedOperation(
 
         auto rotateOp = openfhe::FastRotationExtOp::create(
             b, loc, ctType, getCryptoContext(), getInput(), idx,
-            getCyclotomicOrder(), getPrecomputedDigitDecomp(), getAddFirst());
+            getPrecomputedDigitDecomp(), getAddFirst());
         Value rotatedVal = rotateOp.getResult();
         Value slice = tensor::FromElementsOp::create(b, loc, rotatedVal);
 

@@ -505,7 +505,6 @@ def FastRotationExtOp : Openfhe_Op<"fast_rotation_ext", [Pure,
     Openfhe_CryptoContext:$cryptoContext,
     Openfhe_Ciphertext:$input,
     Index:$index,
-    IndexAttr:$cyclotomicOrder,
     Openfhe_DigitDecomposition:$precomputedDigitDecomp,
     DefaultValuedAttr<BoolAttr, "true">:$addFirst
   );
