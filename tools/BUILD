@@ -35,7 +35,12 @@ cc_binary(
         "//conditions:default": ["HEIR_NO_YOSYS=1"],
     }),
     includes = ["include"],
-    deps = [
+    deps = select({
+        "@heir//:config_enable_yosys": [
+            "@heir//lib/Transforms/YosysOptimizer",
+        ],
+        "//conditions:default": [],
+    }) + [
         "@heir//lib/Analysis/NoiseAnalysis",  # buildcleaner: keep
         "@heir//lib/Analysis/NoiseAnalysis/BFV:NoiseAnalysis",  # buildcleaner: keep
         "@heir//lib/Analysis/NoiseAnalysis/BGV:NoiseAnalysis",  # buildcleaner: keep
@@ -46,6 +51,7 @@ cc_binary(
         "@heir//lib/Dialect/BGV/Conversions/BGVToLWE",
         "@heir//lib/Dialect/BGV/IR:Dialect",
         "@heir//lib/Dialect/CGGI/Conversions/CGGIToJaxite",
+        "@heir//lib/Dialect/CGGI/Conversions/CGGIToSCIFRBool",
         "@heir//lib/Dialect/CGGI/Conversions/CGGIToTfheRust",
         "@heir//lib/Dialect/CGGI/Conversions/CGGIToTfheRustBool",
         "@heir//lib/Dialect/CGGI/IR:Dialect",
@@ -84,6 +90,13 @@ cc_binary(
         "@heir//lib/Dialect/RNS/IR:Dialect",
         "@heir//lib/Dialect/RNS/IR:RNSTypeInterfaces",
         "@heir//lib/Dialect/Random/IR:Dialect",
+        "@heir//lib/Dialect/SCIFRBool/IR:Dialect",
+        "@heir//lib/Dialect/SCIFRBool/Transforms:CGGIEstimator",
+        "@heir//lib/Dialect/SCIFRBool/Transforms:EstimationAnalysis",
+        "@heir//lib/Dialect/SCIFRBool/Transforms:ReplaceOpWithSection",
+        "@heir//lib/Dialect/SCIFRCkks/Transforms",
+        "@heir//lib/Dialect/SCIFRCkks/Transforms:CKKSEstimator",
+        "@heir//lib/Dialect/SCIFRCkks/Transforms:OpenfheEstimator",
         "@heir//lib/Dialect/Secret/Conversions/SecretToBGV",
         "@heir//lib/Dialect/Secret/Conversions/SecretToCGGI",
         "@heir//lib/Dialect/Secret/Conversions/SecretToCKKS",
@@ -104,6 +117,7 @@ cc_binary(
         "@heir//lib/Pipelines:ArithmeticPipelineRegistration",
         "@heir//lib/Pipelines:BooleanPipelineRegistration",
         "@heir//lib/Pipelines:PipelineRegistration",
+        "@heir//lib/Target/SCIFRBool:SCIFRBoolEmitter",
         "@heir//lib/Transforms/ActivationCanonicalizations",
         "@heir//lib/Transforms/AddClientInterface",
         "@heir//lib/Transforms/AnnotateModule",
@@ -201,12 +215,7 @@ cc_binary(
         "@llvm-project//mlir:Transforms",
         "@llvm-project//mlir:UBToLLVM",
         "@llvm-project//mlir:VectorToLLVM",
-    ] + select({
-        "@heir//:config_enable_yosys": [
-            "@heir//lib/Transforms/YosysOptimizer",
-        ],
-        "//conditions:default": [],
-    }),
+    ],
 )
 
 # Custom `mlir-translate` replacement that adds our custom translations
@@ -221,6 +230,7 @@ cc_binary(
         "@heir//lib/Target/Lattigo:LattigoEmitter",
         "@heir//lib/Target/Metadata:MetadataEmitter",
         "@heir//lib/Target/OpenFhePke:OpenFheRegistration",
+        "@heir//lib/Target/SCIFRBool:SCIFRBoolEmitter",
         "@heir//lib/Target/SimFHE:SimFHEEmitter",
         "@heir//lib/Target/TfheRust:TfheRustEmitter",
         "@heir//lib/Target/TfheRustBool:TfheRustBoolEmitter",
