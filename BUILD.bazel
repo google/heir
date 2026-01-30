@@ -83,3 +83,23 @@ config_setting(
     },
     visibility = ["//visibility:public"],
 )
+
+# Cornami Backend
+string_flag(
+    name = "enable_cornami_mx2",
+    build_setting_default = "1",
+)
+
+config_setting(
+    name = "config_enable_cornami_mx2",
+    flag_values = {
+        ":enable_cornami_mx2": "1",
+    },
+)
+
+config_setting(
+    name = "config_disable_cornami_mx2",
+    flag_values = {
+        ":enable_cornami_mx2": "0",
+    },
+)

@@ -1,0 +1,90 @@
+load("@heir//lib/Dialect:dialect.bzl", "add_heir_dialect_library")
+load("@llvm-project//mlir:tblgen.bzl", "td_library")
+
+package(
+    default_applicable_licenses = ["@heir//:license"],
+    default_visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "Dialect",
+    srcs = [
+        "SCIFRBoolDialect.cpp",
+    ],
+    hdrs = [
+        "SCIFRBoolDialect.h",
+        "SCIFRBoolOps.h",
+        "SCIFRBoolTypes.h",
+    ],
+    deps = [
+        ":dialect_inc_gen",
+        ":ops_inc_gen",
+        ":types_inc_gen",
+        "@heir//lib/Dialect:HEIRInterfaces",
+        "@heir//lib/Dialect/CGGI/IR:Dialect",
+        "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:BytecodeOpInterface",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:InferTypeOpInterface",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
+    ],
+)
+
+td_library(
+    name = "td_files",
+    srcs = [
+        "SCIFRBoolDialect.td",
+        "SCIFRBoolOps.td",
+        "SCIFRBoolTypes.td",
+    ],
+    # include from the heir-root to enable fully-qualified include-paths
+    includes = ["../../../.."],
+    deps = [
+        "@llvm-project//mlir:ArithOpsTdFiles",
+        "@llvm-project//mlir:BuiltinDialectTdFiles",
+        "@llvm-project//mlir:BytecodeOpInterface",
+        "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
+        "@llvm-project//mlir:OpBaseTdFiles",
+        "@llvm-project//mlir:PassBaseTdFiles",
+        "@llvm-project//mlir:SideEffectInterfacesTdFiles",
+    ],
+)
+
+add_heir_dialect_library(
+    name = "dialect_inc_gen",
+    dialect = "SCIFRBool",
+    kind = "dialect",
+    td_file = "SCIFRBoolDialect.td",
+    deps = [
+        ":td_files",
+    ],
+)
+
+add_heir_dialect_library(
+    name = "ops_inc_gen",
+    dialect = "SCIFRBool",
+    kind = "op",
+    td_file = "SCIFRBoolOps.td",
+    deps = [
+        ":td_files",
+        "@heir//lib/Dialect:td_files",
+        "@heir//lib/Dialect/LWE/IR:td_files",
+        "@heir//lib/Dialect/Polynomial/IR:td_files",
+        "@llvm-project//mlir:BytecodeOpInterface",
+    ],
+)
+
+add_heir_dialect_library(
+    name = "types_inc_gen",
+    dialect = "SCIFRBool",
+    kind = "type",
+    td_file = "SCIFRBoolTypes.td",
+    deps = [
+        ":td_files",
+    ],
+)
