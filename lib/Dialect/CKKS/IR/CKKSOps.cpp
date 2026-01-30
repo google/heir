@@ -102,6 +102,67 @@ LogicalResult LevelReduceOp::inferReturnTypes(
   return lwe::inferLevelReduceOpReturnTypes(ctx, adaptor, inferredReturnTypes);
 }
 
+LogicalResult KeySwitchInnerOp::inferReturnTypes(
+    MLIRContext* ctx, std::optional<Location>, ValueRange operands,
+    DictionaryAttr attrs, mlir::OpaqueProperties properties,
+    mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
+  KeySwitchInnerOpAdaptor op(operands, attrs, properties, regions);
+  lwe::LWERingEltType ringEltType =
+      cast<lwe::LWERingEltType>(op.getValue().getType());
+  results.push_back(ringEltType);
+  results.push_back(ringEltType);
+  return success();
+}
+
+LogicalResult ExtractCoeffOp::inferReturnTypes(
+    MLIRContext* ctx, std::optional<Location>, ValueRange operands,
+    DictionaryAttr attrs, mlir::OpaqueProperties properties,
+    mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
+  ExtractCoeffOpAdaptor op(operands, attrs, properties, regions);
+
+  lwe::LWECiphertextType ctType =
+      cast<lwe::LWECiphertextType>(op.getValue().getType());
+  polynomial::RingAttr ringAttr = ctType.getCiphertextSpace().getRing();
+  lwe::LWERingEltType outputType =
+      lwe::LWERingEltType::get(ctx, ringAttr, ctType.getModulusChain());
+
+  results.push_back(outputType);
+  return success();
+}
+
+LogicalResult KeySwitchInnerOp::verify() {
+  // TODO(#2157): check the ksk's RNS chain extends the value's RNS chain.
+  return success();
+}
+
+LogicalResult ExtractCoeffOp::verify() {
+  int numCTCoeffs = this->getValue().getType().getCiphertextSpace().getSize();
+  int idx = this->getIndex().getZExtValue();
+
+  if (idx < 0) {
+    return emitOpError() << "index " << idx << " cannot be negative";
+  }
+
+  if (idx >= numCTCoeffs) {
+    return emitOpError()
+           << "index " << idx
+           << " must be smaller than the number of ciphertext components "
+           << numCTCoeffs;
+  }
+
+  return success();
+}
+
+LogicalResult FromCoeffsOp::verify() {
+  int numCoeffs = this->getCoeffs().size();
+  if (numCoeffs < 1) {
+    return emitOpError()
+           << "Ciphertexts must have at least two components; got "
+           << numCoeffs;
+  }
+  return success();
+}
+
 void MulPlainOp::getCanonicalizationPatterns(RewritePatternSet& results,
                                              MLIRContext* context) {
   results.add<lwe::PutCiphertextInFirstOperand<MulPlainOp>>(context);
