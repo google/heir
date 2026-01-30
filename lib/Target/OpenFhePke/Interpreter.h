@@ -172,6 +172,7 @@ class Interpreter {
   void visit(DecryptOp op);
   void visit(EncryptOp op);
   void visit(FastRotationOp op);
+  void visit(FastRotationExtOp op);
   void visit(FastRotationPrecomputeOp op);
   void visit(GenBootstrapKeyOp op);
   void visit(GenContextOp op);
@@ -180,6 +181,10 @@ class Interpreter {
   void visit(GenRotKeyOp op);
   void visit(KeySwitchInPlaceOp op);
   void visit(KeySwitchOp op);
+  void visit(KeySwitchDownOp op);
+  void visit(AddExtOp op);
+  void visit(AddExtInPlaceOp op);
+  void visit(MulExtOp op);
   void visit(LevelReduceInPlaceOp op);
   void visit(LevelReduceOp op);
   void visit(MakeCKKSPackedPlaintextOp op);

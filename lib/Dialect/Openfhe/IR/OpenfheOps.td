@@ -302,6 +302,14 @@ def AddPlainInPlaceOp : Openfhe_BinaryPlainInPlaceOp<"add_plain_inplace"> {
   let summary = "In-place addition of a ciphertext and a plaintext, modifying the ciphertext operand.";
 }
 
+def AddExtOp : Openfhe_BinaryOp<"add_ext"> {
+  let summary = "Addition of two ciphertexts in extended (P*Q) basis.";
+}
+
+def AddExtInPlaceOp : Openfhe_BinaryInPlaceOp<"add_ext_inplace"> {
+  let summary = "In-place addition in extended (P*Q) basis, modifying lhs.";
+}
+
 def SubPlainOp : Openfhe_BinaryPlainOp<"sub_plain"> {
   let summary = "Subtraction of a ciphertext and a plaintext.";
 }
@@ -322,6 +330,10 @@ def MulNoRelinOp : Openfhe_BinaryOp<"mul_no_relin", [IncreasesMulDepthOpInterfac
 
 def MulPlainOp : Openfhe_BinaryPlainOp<"mul_plain", [Pure, IncreasesMulDepthOpInterface]> {
   let summary = "Multiplication of a ciphertext and a plaintext.";
+}
+
+def MulExtOp : Openfhe_BinaryOp<"mul_ext"> {
+  let summary = "Multiplication of two ciphertexts in extended (P*Q) basis.";
 }
 
 def MulConstOp : Openfhe_Op<"mul_const",[
@@ -435,6 +447,17 @@ def KeySwitchInPlaceOp : Openfhe_Op<"key_switch_inplace",
   let extraClassDeclaration = "int getInPlaceOperandIndex() { return 1; }";
 }
 
+def KeySwitchDownOp : Openfhe_Op<"key_switch_down", [Pure,
+  AllTypesMatch<["ciphertext", "output"]>
+]> {
+  let summary = "Key switch down from extended (P*Q) basis to normal (Q) basis.";
+  let arguments = (ins
+    Openfhe_CryptoContext:$cryptoContext,
+    Openfhe_Ciphertext:$ciphertext
+  );
+  let results = (outs Openfhe_Ciphertext:$output);
+}
+
 // No in-place bootstrap variant
 def BootstrapOp : Openfhe_UnaryOp<"bootstrap"> {
   let summary = "OpenFHE bootstrap operation of a ciphertext. (For CKKS)";
@@ -465,6 +488,25 @@ def FastRotationOp : Openfhe_Op<"fast_rotation", [Pure,
     Index:$index,
     IndexAttr:$cyclotomicOrder,
     Openfhe_DigitDecomposition:$precomputedDigitDecomp
+  );
+  let results = (outs Openfhe_Ciphertext:$output);
+}
+
+def FastRotationExtOp : Openfhe_Op<"fast_rotation_ext", [Pure,
+  AllTypesMatch<["input", "output"]>,
+  BatchVectorizableOpInterface,
+  DeclareOpInterfaceMethods<ElementwiseByOperandOpInterface>,
+  DeclareOpInterfaceMethods<
+      BatchVectorizableOpInterface,
+      ["isBatchCompatible", "buildBatchedOperation"]>
+]> {
+  let summary = "Fast (hoisted) rotation in extended (P*Q) CRT basis.";
+  let arguments = (ins
+    Openfhe_CryptoContext:$cryptoContext,
+    Openfhe_Ciphertext:$input,
+    Index:$index,
+    Openfhe_DigitDecomposition:$precomputedDigitDecomp,
+    DefaultValuedAttr<BoolAttr, "true">:$addFirst
   );
   let results = (outs Openfhe_Ciphertext:$output);
 }
