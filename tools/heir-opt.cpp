@@ -15,6 +15,7 @@
 #include "lib/Dialect/CGGI/Transforms/Passes.h"
 #include "lib/Dialect/CKKS/Conversions/CKKSToLWE/CKKSToLWE.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
+#include "lib/Dialect/CKKS/Transforms/Passes.h"
 #include "lib/Dialect/Comb/IR/CombDialect.h"
 #include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Jaxite/IR/JaxiteDialect.h"
@@ -263,6 +264,7 @@ int main(int argc, char** argv) {
   // Custom passes in HEIR
   registerEmitCInterfacePass();
   cggi::registerCGGIPasses();
+  ckks::registerCKKSPasses();
   lattigo::registerLattigoPasses();
   lwe::registerLWEPasses();
   mgmt::registerMgmtPasses();

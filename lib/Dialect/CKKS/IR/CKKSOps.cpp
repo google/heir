@@ -102,6 +102,21 @@ LogicalResult LevelReduceOp::inferReturnTypes(
   return lwe::inferLevelReduceOpReturnTypes(ctx, adaptor, inferredReturnTypes);
 }
 
+LogicalResult KeySwitchInnerOp::verify() {
+  // TODO(#2157): check the ksk's RNS chain extends the value's RNS chain.
+  return success();
+}
+
+LogicalResult ExtractCoeffOp::verify() {
+  return success();
+}
+
+LogicalResult CTFromCoeffsOp::verify() {
+  return success();
+}
+
+
+
 void MulPlainOp::getCanonicalizationPatterns(RewritePatternSet& results,
                                              MLIRContext* context) {
   results.add<lwe::PutCiphertextInFirstOperand<MulPlainOp>>(context);
