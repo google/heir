@@ -27,7 +27,7 @@ TEST(LoopTest, RunTest) {
                                  -4.66914279, -7.};
 
   auto arg0Encrypted = loop__encrypt__arg0(cryptoContext, arg0, publicKey);
-  auto outputEncrypted = loop(cryptoContext, arg0Encrypted);
+  auto outputEncrypted = loop(cryptoContext, secretKey, arg0Encrypted);
   auto actual =
       loop__decrypt__result0(cryptoContext, outputEncrypted, secretKey);
 
