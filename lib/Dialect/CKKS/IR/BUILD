@@ -78,6 +78,7 @@ add_heir_dialect_library(
     deps = [
         ":td_files",
         "@heir//lib/Dialect:td_files",
+        # "@heir//lib/Parameters/CKKS:Params", // TODO avoid circular dependency
         "@heir//lib/Dialect/LWE/IR:td_files",
         "@heir//lib/Dialect/Polynomial/IR:td_files",
     ],

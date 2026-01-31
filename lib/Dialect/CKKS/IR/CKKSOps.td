@@ -7,6 +7,7 @@ include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "lib/Dialect/HEIRInterfaces.td"
 include "lib/Dialect/LWE/IR/LWETypes.td"
+include "lib/Dialect/RNS/IR/RNSTypes.td"
 include "lib/Dialect/LWE/IR/LWETraits.td"
 include "lib/Dialect/Polynomial/IR/PolynomialAttributes.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
@@ -144,7 +145,7 @@ def CKKS_RelinearizeOp : CKKS_Op<"relinearize", [
     LWECiphertextLike:$input,
     DenseI32ArrayAttr:$from_basis,
     DenseI32ArrayAttr:$to_basis,
-    Optional<RankedTensorOf<[LWECiphertextLike]>>:$keySwitchingKey
+    Optional<RankedTensorOf<[LWECiphertext]>>:$keySwitchingKey
   );
 
   let results = (outs
@@ -289,6 +290,33 @@ def CKKS_FromCoeffsOp : CKKS_Op<"from_coeffs", [Pure]> {
     LWECiphertext:$output
   );
   let hasVerifier = 1;
+}
+
+// Should this be a CKKS op or an LWE op?
+def CKKS_ExtractSliceOp : CKKS_Op<"extract_slice", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
+  let summary = "Extract a subset of the ring element's RNS basis";
+  let arguments = (ins
+      LWERingElt:$value,
+      IndexAttr:$start,
+      IndexAttr:$size
+  );
+  let results = (outs
+    LWERingElt:$output
+  );
+  let hasVerifier = 1;
+}
+
+// Should this be a CKKS op or an LWE op?
+def CKKS_ConvertBasisOp : CKKS_Op<"convert_basis", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
+  let summary = "Change a ring element's RNS basis";
+  let arguments = (ins
+      LWERingElt:$value,
+      // RNS:$targetBasis
+      TypeAttr:$targetBasis
+  );
+  let results = (outs
+    LWERingElt:$output
+  );
 }
 
 #endif  // LIB_DIALECT_CKKS_IR_CKKSOPS_TD_

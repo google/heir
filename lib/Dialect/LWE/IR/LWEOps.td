@@ -168,9 +168,22 @@ def LWE_RMulOp : LWE_BinOp<"rmul", [SameOperandsAndResultRings, InferTypeOpAdapt
   }];
   let hasVerifier = 1;
 }
-
 def LWE_RMulPlainOp : LWE_CiphertextPlaintextOp<"rmul_plain", [Commutative, IncreasesMulDepthOpInterface]> {
   let summary = "Multiplication between RLWE ciphertext-plaintext";
+  let hasVerifier = 1;
+  let hasCanonicalizer = 1;
+}
+
+// TODO: Should this have IncreasesMulDepthOpInterface? For the purposes of keyswitching, no. However, if the ring element is an encoded plaintext, then "yes".
+// I would say that "IncreasesMulDepth" should be a property of the non-ciphertext input rather than the op itself.
+//
+// TODO: What about IsCiphertextPlaintextOp?
+//
+// TODO: I see a lot of the types in other ops are more generic than the strict ones I use; not sure how to generalize (or why I would want to).
+def LWE_RRingMulOp : LWE_Op<"ring_mul", [Commutative, InferTypeOpAdaptor, ElementwiseMappable]> {
+  let summary = "Multiplication between an RLWE ring element and a ciphertext";
+  let arguments = (ins LWERingElt:$lhs, LWECiphertext:$rhs);
+  let results = (outs LWECiphertext:$output);
   let hasVerifier = 1;
   let hasCanonicalizer = 1;
 }

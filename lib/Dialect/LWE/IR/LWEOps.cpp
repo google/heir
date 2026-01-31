@@ -42,6 +42,38 @@ LogicalResult RMulOp::verify() { return lwe::verifyMulOp(this); }
 
 LogicalResult RMulPlainOp::verify() { return lwe::verifyMulPlainOp(this); }
 
+LogicalResult RRingMulOp::verify() {
+  lwe::LWECiphertextType ct;
+  lwe::LWERingEltType pt;
+  // TODO: Can the verifier be run before OR after canonicalization, or does
+  // canonicalization always run (e.g.) first?
+  if (isa<lwe::LWECiphertextType>(getElementTypeOrSelf(getLhs()))) {
+    ct = getCtTy(getLhs());
+    pt = cast<LWERingEltType>(getElementTypeOrSelf(getRhs()));
+  } else {
+    ct = getCtTy(getRhs());
+    pt = cast<LWERingEltType>(getElementTypeOrSelf(getLhs()));
+  }
+  lwe::LWECiphertextType out = getCtTy(getOutput());
+  // verify dimension matches
+  if (ct.getCiphertextSpace().getSize() != out.getCiphertextSpace().getSize()) {
+    return emitOpError() << "output.dim == x.dim does not hold";
+  }
+  // verify ring and modulusChain matches
+  auto ctCiphertext = ct.getCiphertextSpace();
+  if (ctCiphertext.getRing() != pt.getRing()) {
+    return emitOpError() << "Input rings do not match";
+  }
+  // Note: KeySwitch keys don't have a ModulusChain
+  // if (ct.getModulusChain() != pt.getModulusChain()) {
+  //   return emitOpError() << "Input modulus chains do not match";
+  // }
+  if (ct != out) {
+    return emitOpError() << "Input ciphertext type does not match output type";
+  }
+  return success();
+}
+
 LogicalResult TrivialEncryptOp::verify() {
   auto applicationData = this->getInput().getType().getApplicationData();
   auto outApplicationData = this->getOutput().getType().getApplicationData();
@@ -244,6 +276,18 @@ LogicalResult RMulPlainOp::inferReturnTypes(
   return lwe::inferMulPlainOpReturnTypes(ctx, adaptor, inferredReturnTypes);
 }
 
+LogicalResult RRingMulOp::inferReturnTypes(
+    // TODO: Why can I not write RRingMulOp::Adaptor here?
+    MLIRContext* ctx, std::optional<Location>, Adaptor adaptor,
+    SmallVectorImpl<Type>& inferredReturnTypes) {
+  if (isa<lwe::LWECiphertextType>(getElementTypeOrSelf(adaptor.getLhs()))) {
+    inferredReturnTypes.push_back(adaptor.getLhs().getType());
+  } else {
+    inferredReturnTypes.push_back(adaptor.getRhs().getType());
+  }
+  return success();
+}
+
 void RAddPlainOp::getCanonicalizationPatterns(RewritePatternSet& results,
                                               MLIRContext* context) {
   results.add<lwe::PutCiphertextInFirstOperand<RAddPlainOp>>(context);
@@ -252,6 +296,11 @@ void RAddPlainOp::getCanonicalizationPatterns(RewritePatternSet& results,
 void RMulPlainOp::getCanonicalizationPatterns(RewritePatternSet& results,
                                               MLIRContext* context) {
   results.add<lwe::PutCiphertextInFirstOperand<RMulPlainOp>>(context);
+}
+
+void RRingMulOp::getCanonicalizationPatterns(RewritePatternSet& results,
+                                             MLIRContext* context) {
+  results.add<lwe::PutCiphertextInFirstOperand<RRingMulOp>>(context);
 }
 
 }  // namespace lwe

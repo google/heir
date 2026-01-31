@@ -7,7 +7,9 @@
 #include "lib/Dialect/LWE/IR/LWEPatterns.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
+#include "lib/Dialect/RNS/IR/RNSOps.h"
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
+// #include "lib/Parameters/CKKS/Params.h"
 #include "mlir/include/mlir/IR/Location.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/OperationSupport.h"    // from @llvm-project
@@ -114,8 +116,10 @@ LogicalResult KeySwitchInnerOp::inferReturnTypes(
   KeySwitchInnerOpAdaptor op(operands, attrs, properties, regions);
   lwe::LWERingEltType ringEltType =
       cast<lwe::LWERingEltType>(op.getValue().getType());
-  results.push_back(ringEltType);
-  results.push_back(ringEltType);
+  lwe::LWERingEltType outRingType =
+      lwe::LWERingEltType::get(ctx, ringEltType.getRing());
+  results.push_back(outRingType);
+  results.push_back(outRingType);
   return success();
 }
 
@@ -128,15 +132,122 @@ LogicalResult ExtractCoeffOp::inferReturnTypes(
   lwe::LWECiphertextType ctType =
       cast<lwe::LWECiphertextType>(op.getValue().getType());
   polynomial::RingAttr ringAttr = ctType.getCiphertextSpace().getRing();
-  lwe::LWERingEltType outputType =
-      lwe::LWERingEltType::get(ctx, ringAttr, ctType.getModulusChain());
+  lwe::LWERingEltType outputType = lwe::LWERingEltType::get(ctx, ringAttr);
 
   results.push_back(outputType);
   return success();
 }
 
+LogicalResult ExtractSliceOp::inferReturnTypes(
+    MLIRContext* ctx, std::optional<Location>, ValueRange operands,
+    DictionaryAttr attrs, mlir::OpaqueProperties properties,
+    mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
+  ExtractSliceOpAdaptor op(operands, attrs, properties, regions);
+  lwe::LWERingEltType inputType =
+      cast<lwe::LWERingEltType>(op.getValue().getType());
+  polynomial::RingAttr ringAttr = inputType.getRing();
+  rns::RNSType elementType = cast<rns::RNSType>(ringAttr.getCoefficientType());
+
+  int64_t start = op.getStart().getZExtValue();
+  int64_t size = op.getSize().getZExtValue();
+
+  rns::RNSType truncatedEltType = rns::RNSType::get(
+      ctx, elementType.getBasisTypes().drop_front(start).take_front(size));
+
+  polynomial::RingAttr outputRingAttr = polynomial::RingAttr::get(
+      ctx, truncatedEltType, ringAttr.getPolynomialModulus());
+  lwe::LWERingEltType resultType =
+      lwe::LWERingEltType::get(ctx, outputRingAttr);
+  results.push_back(resultType);
+  return success();
+}
+
+LogicalResult ConvertBasisOp::inferReturnTypes(
+    MLIRContext* ctx, std::optional<Location>, ValueRange operands,
+    DictionaryAttr attrs, mlir::OpaqueProperties properties,
+    mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
+  ConvertBasisOpAdaptor op(operands, attrs, properties, regions);
+  lwe::LWERingEltType inputType =
+      cast<lwe::LWERingEltType>(op.getValue().getType());
+  polynomial::RingAttr ringAttr = inputType.getRing();
+  rns::RNSType elementType = cast<rns::RNSType>(op.getTargetBasis());
+  polynomial::RingAttr outputRingAttr = polynomial::RingAttr::get(
+      ctx, elementType, ringAttr.getPolynomialModulus());
+  lwe::LWERingEltType resultType =
+      lwe::LWERingEltType::get(ctx, outputRingAttr);
+  results.push_back(resultType);
+  return success();
+}
+
 LogicalResult KeySwitchInnerOp::verify() {
-  // TODO(#2157): check the ksk's RNS chain extends the value's RNS chain.
+  RankedTensorType keyTensorType = getKeySwitchingKey().getType();
+  lwe::LWECiphertextType ctType =
+      cast<lwe::LWECiphertextType>(keyTensorType.getElementType());
+  polynomial::RingAttr ringType = ctType.getCiphertextSpace().getRing();
+  rns::RNSType keyRNSType =
+      dyn_cast<rns::RNSType>(ringType.getCoefficientType());
+  if (!keyRNSType) {
+    return emitOpError() << "Keyswitch key must be a ring element of RNS types";
+  }
+
+  lwe::LWERingEltType ringEltType =
+      cast<lwe::LWERingEltType>(getValue().getType());
+  rns::RNSType inputRNSType =
+      dyn_cast<rns::RNSType>(ringEltType.getRing().getCoefficientType());
+  if (!inputRNSType) {
+    return emitOpError() << "Value must be a ring element of RNS types";
+  }
+
+  int kskRank = keyTensorType.getRank();
+  if (kskRank != 1) {
+    return emitOpError()
+           << "KeySwitchingKey must be a rank-1 tensor, but it has rank  "
+           << kskRank;
+  }
+
+  // TODO: I'm probably doing something wrong, but when I try to link against
+  // Parameters, I get a circular dependency error.
+  //
+  // SchemeParamAttr schemeParamAttr =
+  //     getParentOfType<ModuleOp>()->getAttrOfType<SchemeParamAttr>(
+  //         CKKSDialect::kSchemeParamAttrName);
+  // if (!schemeParamAttr) {
+  //   return emitOpError() << "Cannot find scheme param attribute on parent
+  //   module");
+  // }
+  // auto schemeParam = SchemeParam::getSchemeParamFromAttr(schemeParamAttr);
+
+  // SmallVector<Type> extModuli;
+  // Builder b(getContext());
+  // for (auto ty : inputRNSType.getBasisTypes()) {
+  //   extModuli.push_back(ty);
+  // }
+  // for (auto prime : schemeParam.getPi()) {
+  //   extModuli.push_back(
+  //       mod_arith::ModArithType::get(getContext(),
+  //       b.getI64IntegerAttr(prime)));
+  // }
+  // rns::RNSType expectedKeyRNSType = rns::RNSType::get(getContext(),
+  // extModuli);
+
+  // if (keyRNSType != expectedKeyRNSType) {
+  //   return emitOpError() << "Key's RNS type " << keyRNSType << " must be the
+  //   same as the input's RNS type " << inputRNSType << ", plus the key-switch
+  //   moduli " << schemeParam.getPi();
+  // }
+
+  // int64_t partSize = schemeParam.getPi().size();
+  // int rnsLength = inputRNSType.getBasisTypes().size();
+  // int64_t numFullPartitions = rnsLength / partSize;
+  // int64_t extraPartStart = partSize * numFullPartitions;
+  // int64_t extraPartSize = rnsLength - extraPartStart;
+  // int64_t numParts = numFullPartitions + extraPartSize;
+  // int kskLen = keyTensorType.getShape()[0];
+  // if (kskLen != numParts) {
+  //   return emitOpError() << "KeySwitchingKey must have shape " << numParts <<
+  //   "xRNS, but it has shape " << kskLen << "xRNS";
+  // }
+
   return success();
 }
 
@@ -166,6 +277,16 @@ LogicalResult FromCoeffsOp::verify() {
            << numCoeffs;
   }
   return success();
+}
+
+LogicalResult ExtractSliceOp::verify() {
+  lwe::LWERingEltType ringEltType =
+      cast<lwe::LWERingEltType>(this->getValue().getType());
+  rns::RNSType rnsType =
+      cast<rns::RNSType>(ringEltType.getRing().getCoefficientType());
+  int64_t start = getStart().getZExtValue();
+  int64_t size = getSize().getZExtValue();
+  return verifyExtractSliceOp(this, rnsType, start, size);
 }
 
 void MulPlainOp::getCanonicalizationPatterns(RewritePatternSet& results,
