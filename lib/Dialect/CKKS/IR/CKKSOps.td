@@ -226,4 +226,59 @@ def CKKS_BootstrapOp : CKKS_Op<"bootstrap", [ElementwiseMappable]> {
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
+def CKKS_KeySwitchInnerOp : CKKS_Op<"key_switch_inner", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
+  let summary = "Key switch on an RNS polynomial component";
+  let description = [{
+    Generates a linear ciphertext that, when added to a ciphertext encrypted
+    under the input key, switches it to a ciphertext encrypted under the output
+    key.
+
+    This operation is intended to be an internal implementation detail of
+    higher-level ciphertext operations such as `ckks.relinearize`, isolated
+    here for reuse among multiple op lowerings.
+  }];
+  let arguments = (ins
+      LWERingElt:$value,
+      RankedTensorOf<[LWECiphertext]>: $keySwitchingKey
+  );
+  let results = (outs
+    LWECiphertext:$output
+  );
+  let hasVerifier = 1;
+}
+
+def CKKS_ExtractCoeffOp : CKKS_Op<"extract_coeff", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
+  let summary = "Extract a ciphertext component";
+  let description = [{
+    A ciphertext can be viewed as a polynomial in the indeterminant S,
+    the abstract secret key. For example, a ciphertext with two components
+    [c0, c1] represents the polynomial c0 + c1 * S. This op returns c_i.
+  }];
+  let arguments = (ins
+      LWECiphertext:$value,
+      IndexAttr:$index
+  );
+  let results = (outs
+    LWERingElt:$output
+  );
+  let hasVerifier = 1;
+}
+
+def CKKS_CTFromCoeffsOp : CKKS_Op<"ct_from_coeffs", [Pure]> {
+  let summary = "Create a ciphertext from a vector of components";
+  let description = [{
+    A ciphertext can be viewed as a polynomial in the indeterminant S,
+    the abstract secret key. For example, a ciphertext with two components
+    [c0, c1] represents the polynomial c0 + c1 * S. Given [c0, c1], this op
+    return the corresponding ciphertext.
+  }];
+  let arguments = (ins
+      Variadic<LWERingElt>:$coeffs
+  );
+  let results = (outs
+    LWECiphertext:$output
+  );
+  let hasVerifier = 1;
+}
+
 #endif  // LIB_DIALECT_CKKS_IR_CKKSOPS_TD_

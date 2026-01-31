@@ -301,11 +301,6 @@ LogicalResult EvalOp::verify() {
   return success();
 }
 
-LogicalResult KeySwitchInnerOp::verify() {
-  // TODO(#2157): check the ksk's RNS chain extends the value's RNS chain.
-  return success();
-}
-
 ParseResult ConstantOp::parse(OpAsmParser& parser, OperationState& result) {
   auto loc = parser.getCurrentLocation();
 

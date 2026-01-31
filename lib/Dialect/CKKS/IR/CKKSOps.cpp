@@ -102,6 +102,55 @@ LogicalResult LevelReduceOp::inferReturnTypes(
   return lwe::inferLevelReduceOpReturnTypes(ctx, adaptor, inferredReturnTypes);
 }
 
+LogicalResult KeySwitchInnerOp::inferReturnTypes(
+    MLIRContext* ctx, std::optional<Location>, ValueRange operands,
+    DictionaryAttr attrs, mlir::OpaqueProperties properties,
+    mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
+
+  KeySwitchInnerOpAdaptor op(operands, attrs, properties, regions);
+
+  RankedTensorType tensorType = cast<RankedTensorType>(op.getKeySwitchingKey().getType());
+  lwe::LWECiphertextType ctType = cast<lwe::LWECiphertextType>(tensorType.getElementType());
+  lwe::LWERingEltType ringEltType = cast<lwe::LWERingEltType>(op.getValue().getType());
+  polynomial::RingAttr ringAttr = ringEltType.getRing();
+  lwe::CiphertextSpaceAttr ctAttr = lwe::CiphertextSpaceAttr::get(ctx, ringAttr, ctType.getCiphertextSpace().getEncryptionType(), 2);
+  // Using ctType.getModulusChain is potentially suspect here
+  lwe::LWECiphertextType outputType = lwe::LWECiphertextType::get(ctx, ctType.getApplicationData(), ctType.getPlaintextSpace(), ctAttr, ctType.getKey(), ctType.getModulusChain());
+
+  results.push_back(outputType);
+  return success();
+}
+
+LogicalResult ExtractCoeffOp::inferReturnTypes(
+    MLIRContext* ctx, std::optional<Location>, ValueRange operands,
+    DictionaryAttr attrs, mlir::OpaqueProperties properties,
+    mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
+
+  ExtractCoeffOpAdaptor op(operands, attrs, properties, regions);
+
+  lwe::LWECiphertextType ctType = cast<lwe::LWECiphertextType>(op.getValue().getType());
+  polynomial::RingAttr ringAttr = ctType.getCiphertextSpace().getRing();
+  lwe::LWERingEltType outputType = lwe::LWERingEltType::get(ctx, ringAttr, ctType.getModulusChain());
+
+  results.push_back(outputType);
+  return success();
+}
+
+LogicalResult KeySwitchInnerOp::verify() {
+  // TODO(#2157): check the ksk's RNS chain extends the value's RNS chain.
+  return success();
+}
+
+LogicalResult ExtractCoeffOp::verify() {
+  return success();
+}
+
+LogicalResult CTFromCoeffsOp::verify() {
+  return success();
+}
+
+
+
 void MulPlainOp::getCanonicalizationPatterns(RewritePatternSet& results,
                                              MLIRContext* context) {
   results.add<lwe::PutCiphertextInFirstOperand<MulPlainOp>>(context);
