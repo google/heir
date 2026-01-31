@@ -73,10 +73,19 @@ constexpr const static ::llvm::StringLiteral kClientDecFuncAttrName =
 constexpr const static ::llvm::StringLiteral kClientPackFuncAttrName =
     "client.pack_func";
 
+// Corresponds to a named attribute client.preprocessed_func whose value is a
+// dictionary {func_name = "foo"} that references the name of the function that
+// this was derived from. This preprocessed function contains just the
+// ciphertexts workload of the original function, with any plaintexts processing
+// done ahead of time and passed in with new arguments.
+constexpr const static ::llvm::StringLiteral kClientPreprocessedFuncAttrName =
+    "client.preprocessed_func";
+
 inline bool isClientHelper(Operation* op) {
-  return op->hasAttr(kClientDecFuncAttrName) ||
+  return op->hasAttr(kClientEncFuncAttrName) ||
          op->hasAttr(kClientDecFuncAttrName) ||
-         op->hasAttr(kClientPackFuncAttrName);
+         op->hasAttr(kClientPackFuncAttrName) ||
+         op->hasAttr(kClientPreprocessedFuncAttrName);
 }
 
 // The name of the function this client helper is made for.
