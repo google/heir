@@ -367,9 +367,10 @@ struct ConvertBootstrapOp : public OpConversionPattern<ckks::BootstrapOp> {
           op, "variadic bootstrapping is not supported in OpenFHE");
     }
 
+    Type resultType = convertLWEType(op.getResult().getType());
     Value cryptoContext = result.value();
     rewriter.replaceOpWithNewOp<openfhe::BootstrapOp>(
-        op, op.getOutput().getType(), cryptoContext, adaptor.getInput());
+        op, resultType, cryptoContext, adaptor.getInput());
     return success();
   }
 };

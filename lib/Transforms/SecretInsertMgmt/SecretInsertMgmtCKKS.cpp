@@ -22,21 +22,12 @@ struct SecretInsertMgmtCKKS
   using SecretInsertMgmtCKKSBase::SecretInsertMgmtCKKSBase;
 
   void runOnOperation() override {
-    // for Openfhe, use B/FV style mgmt: only relinearize, no level management.
-    // still maintain the maximal level information though for lowering.
-    if (moduleIsOpenfhe(getOperation())) {
-      OpPassManager pipeline("builtin.module");
-      pipeline.addPass(createSecretInsertMgmtBFV());
-      (void)runPipeline(pipeline, getOperation());
-      moduleSetCKKS(getOperation());
-      return;
-    }
-
     // Helper for future lowerings that want to know what scheme was used
     moduleSetCKKS(getOperation());
 
     InsertMgmtPipelineOptions options;
     options.includeFloats = true;
+    options.levelBudget = levelBudget;
     options.modReduceAfterMul = afterMul;
     options.modReduceBeforeMulIncludeFirstMul = beforeMulIncludeFirstMul;
     options.bootstrapWaterline = bootstrapWaterline;
@@ -53,7 +44,9 @@ struct SecretInsertMgmtCKKS
     //    This is important for AnnotateMgmt.
     //    Canonicalizer also moves mgmt::InitOp out of secret.generic.
     // 2. CSE removes redundant mgmt::ModReduceOp.
-    // 3. AnnotateMgmt will merge level and dimension into MgmtAttr, for further
+    // 3. Canonicalizer will remove mgmt.level_reduce_min ops since now the
+    //    level information is concrete.
+    // 4. AnnotateMgmt will merge level and dimension into MgmtAttr, for further
     //   lowering.
     OpPassManager pipeline("builtin.module");
     pipeline.addPass(createCanonicalizerPass());
