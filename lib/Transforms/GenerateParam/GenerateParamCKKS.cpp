@@ -10,7 +10,6 @@
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Parameters/CKKS/Params.h"
-#include "lib/Parameters/CKKS/Utils.h"
 #include "lib/Utils/LogArithmetic.h"
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project

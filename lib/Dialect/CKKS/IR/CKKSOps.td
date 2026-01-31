@@ -257,38 +257,4 @@ def CKKS_KeySwitchInnerOp : CKKS_Op<"key_switch_inner", [Pure, DeclareOpInterfac
   let hasVerifier = 1;
 }
 
-def CKKS_ExtractCoeffOp : CKKS_Op<"extract_coeff", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
-  let summary = "Extract a ciphertext component";
-  let description = [{
-    A ciphertext can be viewed as a polynomial in the indeterminant `S`,
-    the abstract secret key. For example, a ciphertext with two components
-    `[c0, c1]` represents the polynomial `c0 + c1 * S`. This op returns `c_i`.
-  }];
-  let arguments = (ins
-      LWECiphertext:$value,
-      IndexAttr:$index
-  );
-  let results = (outs
-    LWERingElt:$output
-  );
-  let hasVerifier = 1;
-}
-
-def CKKS_FromCoeffsOp : CKKS_Op<"from_coeffs", [Pure]> {
-  let summary = "Create a ciphertext from a vector of ring elements";
-  let description = [{
-    A ciphertext can be viewed as a polynomial in the indeterminant `S`,
-    the abstract secret key. For example, a ciphertext with two components
-    `[c0, c1]` represents the polynomial `c0 + c1 * S`. Given ring elements
-    `[c0, c1]`, this op returns the corresponding ciphertext.
-  }];
-  let arguments = (ins
-      Variadic<LWERingElt>:$coeffs
-  );
-  let results = (outs
-    LWECiphertext:$output
-  );
-  let hasVerifier = 1;
-}
-
 #endif  // LIB_DIALECT_CKKS_IR_CKKSOPS_TD_

@@ -1,10 +1,9 @@
-#include "lib/Parameters/CKKS/Utils.h"
+#include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
 
 #include <cmath>
 #include <cstdint>
 #include <vector>
 
-#include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
 #include "lib/Dialect/CKKS/IR/CKKSEnums.h"
 #include "lib/Parameters/CKKS/Params.h"
 #include "lib/Parameters/RLWEParams.h"

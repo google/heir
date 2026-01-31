@@ -10,24 +10,9 @@ cc_library(
     name = "Transforms",
     hdrs = ["Passes.h"],
     deps = [
+        ":DecomposeKeySwitch",
         ":DecomposeRelinearize",
         ":pass_inc_gen",
-        "@heir//lib/Dialect/CKKS/IR:Dialect",
-        "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:Support",
-    ],
-)
-
-cc_library(
-    name = "Patterns",
-    srcs = ["Patterns.cpp"],
-    hdrs = ["Patterns.h"],
-    deps = [
-        "@heir//lib/Dialect/CKKS/IR:Dialect",
-        "@heir//lib/Dialect/LWE/IR:Dialect",
-        "@heir//lib/Dialect/Polynomial/IR:Dialect",
-        "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:Support",
     ],
 )
 
@@ -36,12 +21,20 @@ cc_library(
     srcs = ["DecomposeRelinearize.cpp"],
     hdrs = ["DecomposeRelinearize.h"],
     deps = [
-        ":Patterns",
         ":pass_inc_gen",
         "@heir//lib/Dialect/CKKS/IR:Dialect",
-        "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:Pass",
-        "@llvm-project//mlir:TransformUtils",
+        "@llvm-project//mlir:TensorDialect",
+    ],
+)
+
+cc_library(
+    name = "DecomposeKeySwitch",
+    srcs = ["DecomposeKeySwitch.cpp"],
+    hdrs = ["DecomposeKeySwitch.h"],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Dialect/CKKS/IR:Dialect",
+        "@llvm-project//mlir:TensorDialect",
     ],
 )
 

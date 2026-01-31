@@ -8,7 +8,6 @@
 #include "lib/Dialect/Mgmt/Transforms/AnnotateMgmt.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Parameters/CKKS/Params.h"
-#include "lib/Parameters/CKKS/Utils.h"
 #include "lib/Transforms/PopulateScale/PopulateScale.h"
 #include "lib/Transforms/PopulateScale/PopulateScalePatterns.h"
 #include "llvm/include/llvm/Support/DebugLog.h"            // from @llvm-project

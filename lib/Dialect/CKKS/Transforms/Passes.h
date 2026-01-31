@@ -2,7 +2,7 @@
 #define LIB_DIALECT_CKKS_TRANSFORMS_PASSES_H_
 
 // IWYU pragma: begin_keep
-#include "lib/Dialect/CKKS/IR/CKKSDialect.h"
+#include "lib/Dialect/CKKS/Transforms/DecomposeKeySwitch.h"
 #include "lib/Dialect/CKKS/Transforms/DecomposeRelinearize.h"
 // IWYU pragma: end_keep
 

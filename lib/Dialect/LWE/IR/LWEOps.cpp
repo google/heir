@@ -8,6 +8,7 @@
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
+#include "lib/Dialect/RNS/IR/RNSOps.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
@@ -41,6 +42,29 @@ OpFoldResult MulScalarOp::fold(MulScalarOp::FoldAdaptor adaptor) {
 LogicalResult RMulOp::verify() { return lwe::verifyMulOp(this); }
 
 LogicalResult RMulPlainOp::verify() { return lwe::verifyMulPlainOp(this); }
+
+LogicalResult RMulRingEltOp::verify() {
+  lwe::LWECiphertextType ct;
+  lwe::LWERingEltType pt;
+  if (isa<lwe::LWECiphertextType>(getElementTypeOrSelf(getLhs()))) {
+    ct = getCtTy(getLhs());
+    pt = cast<LWERingEltType>(getElementTypeOrSelf(getRhs()));
+  } else {
+    ct = getCtTy(getRhs());
+    pt = cast<LWERingEltType>(getElementTypeOrSelf(getLhs()));
+  }
+  lwe::LWECiphertextType out = getCtTy(getOutput());
+  // verify dimension matches
+  if (ct.getCiphertextSpace().getSize() != out.getCiphertextSpace().getSize()) {
+    return emitOpError() << "output.dim == x.dim does not hold";
+  }
+  // verify ring and modulusChain matches
+  auto ctCiphertext = ct.getCiphertextSpace();
+  if (ctCiphertext.getRing() != pt.getRing()) {
+    return emitOpError() << "Input rings do not match";
+  }
+  return success();
+}
 
 LogicalResult TrivialEncryptOp::verify() {
   auto applicationData = this->getInput().getType().getApplicationData();
@@ -204,6 +228,42 @@ LogicalResult RLWEDecodeOp::verify() {
   return verifyEncodingAndTypeMatch(getResult().getType(), getEncoding());
 }
 
+LogicalResult ExtractCoeffOp::verify() {
+  int numCTCoeffs = this->getValue().getType().getCiphertextSpace().getSize();
+  int idx = this->getIndex().getZExtValue();
+
+  if (idx < 0) {
+    return emitOpError() << "index " << idx << " cannot be negative";
+  }
+
+  if (idx >= numCTCoeffs) {
+    return emitOpError()
+           << "index " << idx
+           << " must be smaller than the number of ciphertext components "
+           << numCTCoeffs;
+  }
+
+  return success();
+}
+
+LogicalResult FromCoeffsOp::verify() {
+  int numCoeffs = this->getCoeffs().size();
+  if (numCoeffs < 1) {
+    return emitOpError()
+           << "Ciphertexts must have at least two components; got "
+           << numCoeffs;
+  }
+  return success();
+}
+
+LogicalResult ExtractSliceOp::verify() {
+  auto ringEltType = cast<lwe::LWERingEltType>(this->getValue().getType());
+  auto rnsType = cast<rns::RNSType>(ringEltType.getRing().getCoefficientType());
+  int64_t start = getStart().getZExtValue();
+  int64_t size = getSize().getZExtValue();
+  return verifyExtractSliceOp(this, rnsType, start, size);
+}
+
 //===----------------------------------------------------------------------===//
 // Op type inference.
 //===----------------------------------------------------------------------===//
@@ -242,6 +302,59 @@ LogicalResult RMulPlainOp::inferReturnTypes(
     MLIRContext* ctx, std::optional<Location>, RMulPlainOp::Adaptor adaptor,
     SmallVectorImpl<Type>& inferredReturnTypes) {
   return lwe::inferMulPlainOpReturnTypes(ctx, adaptor, inferredReturnTypes);
+}
+
+LogicalResult ExtractCoeffOp::inferReturnTypes(
+    MLIRContext* ctx, std::optional<Location>, ValueRange operands,
+    DictionaryAttr attrs, mlir::OpaqueProperties properties,
+    mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
+  ExtractCoeffOpAdaptor op(operands, attrs, properties, regions);
+
+  auto ctType = cast<lwe::LWECiphertextType>(op.getValue().getType());
+  polynomial::RingAttr ringAttr = ctType.getCiphertextSpace().getRing();
+  lwe::LWERingEltType outputType = lwe::LWERingEltType::get(ctx, ringAttr);
+
+  results.push_back(outputType);
+  return success();
+}
+
+LogicalResult ExtractSliceOp::inferReturnTypes(
+    MLIRContext* ctx, std::optional<Location>, ValueRange operands,
+    DictionaryAttr attrs, mlir::OpaqueProperties properties,
+    mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
+  ExtractSliceOpAdaptor op(operands, attrs, properties, regions);
+  auto inputType = cast<lwe::LWERingEltType>(op.getValue().getType());
+  polynomial::RingAttr ringAttr = inputType.getRing();
+  auto elementType = cast<rns::RNSType>(ringAttr.getCoefficientType());
+
+  int64_t start = op.getStart().getZExtValue();
+  int64_t size = op.getSize().getZExtValue();
+
+  rns::RNSType truncatedEltType = rns::RNSType::get(
+      ctx, elementType.getBasisTypes().drop_front(start).take_front(size));
+
+  polynomial::RingAttr outputRingAttr = polynomial::RingAttr::get(
+      ctx, truncatedEltType, ringAttr.getPolynomialModulus());
+  lwe::LWERingEltType resultType =
+      lwe::LWERingEltType::get(ctx, outputRingAttr);
+  results.push_back(resultType);
+  return success();
+}
+
+LogicalResult ConvertBasisOp::inferReturnTypes(
+    MLIRContext* ctx, std::optional<Location>, ValueRange operands,
+    DictionaryAttr attrs, mlir::OpaqueProperties properties,
+    mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
+  ConvertBasisOpAdaptor op(operands, attrs, properties, regions);
+  auto inputType = cast<lwe::LWERingEltType>(op.getValue().getType());
+  polynomial::RingAttr ringAttr = inputType.getRing();
+  rns::RNSType elementType = cast<rns::RNSType>(op.getTargetBasis());
+  polynomial::RingAttr outputRingAttr = polynomial::RingAttr::get(
+      ctx, elementType, ringAttr.getPolynomialModulus());
+  lwe::LWERingEltType resultType =
+      lwe::LWERingEltType::get(ctx, outputRingAttr);
+  results.push_back(resultType);
+  return success();
 }
 
 void RAddPlainOp::getCanonicalizationPatterns(RewritePatternSet& results,
