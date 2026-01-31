@@ -226,7 +226,7 @@ def CKKS_BootstrapOp : CKKS_Op<"bootstrap", [ElementwiseMappable]> {
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
-def CKKS_KeySwitchInnerOp : CKKS_Op<"key_switch_inner"> {
+def CKKS_KeySwitchInnerOp : CKKS_Op<"key_switch_inner", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
   let summary = "Key switch on an RNS polynomial component";
   let description = [{
     Generates a linear ciphertext that, when added to a ciphertext encrypted
@@ -247,7 +247,7 @@ def CKKS_KeySwitchInnerOp : CKKS_Op<"key_switch_inner"> {
   let hasVerifier = 1;
 }
 
-def CKKS_ExtractCoeffOp : CKKS_Op<"extract_coeff"> {
+def CKKS_ExtractCoeffOp : CKKS_Op<"extract_coeff", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
   let summary = "Extract a ciphertext component";
   let description = [{
     A ciphertext can be viewed as a polynomial in the indeterminant S,
@@ -264,7 +264,7 @@ def CKKS_ExtractCoeffOp : CKKS_Op<"extract_coeff"> {
   let hasVerifier = 1;
 }
 
-def CKKS_CTFromCoeffsOp : CKKS_Op<"ct_from_coeffs"> {
+def CKKS_CTFromCoeffsOp : CKKS_Op<"ct_from_coeffs", [Pure]> {
   let summary = "Create a ciphertext from a vector of components";
   let description = [{
     A ciphertext can be viewed as a polynomial in the indeterminant S,
