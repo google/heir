@@ -37,6 +37,9 @@ LogicalResult updateResultLevelLattice(Operation* op, DataFlowSolver* solver) {
   if (!op->getResults().empty()) {
     for (auto result : op->getResults()) {
       LevelState resultLevel = deriveResultLevel(op, operandLattices);
+      if (!resultLevel.isInitialized()) {
+        return failure();
+      }
       auto* resultLattice = solver->getOrCreateState<LevelLattice>(result);
       resultLattice->getValue() = resultLevel;
     }
@@ -58,8 +61,11 @@ LogicalResult updateResultMulDepthLattice(Operation* op,
     for (auto result : op->getResults()) {
       FailureOr<int64_t> resultLevel =
           deriveResultMulDepth(op, operandLattices);
+      if (failed(resultLevel)) {
+        return failure();
+      }
       auto* resultLattice = solver->getOrCreateState<MulDepthLattice>(result);
-      resultLattice->getValue().setMulDepth(resultLevel.value());
+      resultLattice->getValue().setMulDepth(*resultLevel);
     }
   }
 
