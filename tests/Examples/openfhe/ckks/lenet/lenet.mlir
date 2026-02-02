@@ -19,7 +19,7 @@ module {
     %0 = tensor.empty() : tensor<1x6x28x28xf32>
     %broadcasted = linalg.broadcast ins(%cst : tensor<6xf32>) outs(%0 : tensor<1x6x28x28xf32>) dimensions = [0, 2, 3]
     %1 = linalg.conv_2d_nchw_fchw {dilations = dense<1> : vector<2xi64>, strides = dense<1> : vector<2xi64>} ins(%arg0, %cst_3 : tensor<1x1x32x32xf32>, tensor<6x1x5x5xf32>) outs(%broadcasted : tensor<1x6x28x28xf32>) -> tensor<1x6x28x28xf32>
-    %2 = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel", "parallel", "parallel", "parallel"]} ins(%1 : tensor<1x6x28x28xf32>) outs(%0 : tensor<1x6x28x28xf32>) {
+    %2 = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel", "parallel", "parallel", "parallel"], domain_lower = -5.0, domain_upper = 5.0 } ins(%1 : tensor<1x6x28x28xf32>) outs(%0 : tensor<1x6x28x28xf32>) {
     ^bb0(%in: f32, %out: f32):
       %32 = arith.negf %in : f32
       %33 = math.exp %32 : f32
@@ -39,7 +39,7 @@ module {
     %8 = tensor.empty() : tensor<1x16x10x10xf32>
     %broadcasted_12 = linalg.broadcast ins(%cst_5 : tensor<16xf32>) outs(%8 : tensor<1x16x10x10xf32>) dimensions = [0, 2, 3]
     %9 = linalg.conv_2d_nchw_fchw {dilations = dense<1> : vector<2xi64>, strides = dense<1> : vector<2xi64>} ins(%7, %cst_4 : tensor<1x6x14x14xf32>, tensor<16x6x5x5xf32>) outs(%broadcasted_12 : tensor<1x16x10x10xf32>) -> tensor<1x16x10x10xf32>
-    %10 = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel", "parallel", "parallel", "parallel"]} ins(%9 : tensor<1x16x10x10xf32>) outs(%8 : tensor<1x16x10x10xf32>) {
+    %10 = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel", "parallel", "parallel", "parallel"], domain_lower = -12.0, domain_upper = 12.0 } ins(%9 : tensor<1x16x10x10xf32>) outs(%8 : tensor<1x16x10x10xf32>) {
     ^bb0(%in: f32, %out: f32):
       %32 = arith.negf %in : f32
       %33 = math.exp %32 : f32
@@ -66,7 +66,7 @@ module {
       %32 = arith.addf %in, %in_15 : f32
       linalg.yield %32 : f32
     } -> tensor<1x120xf32>
-    %20 = linalg.generic {indexing_maps = [#map1, #map1], iterator_types = ["parallel", "parallel"]} ins(%19 : tensor<1x120xf32>) outs(%16 : tensor<1x120xf32>) {
+    %20 = linalg.generic {indexing_maps = [#map1, #map1], iterator_types = ["parallel", "parallel"], domain_lower = -12.0, domain_upper = 10.0 } ins(%19 : tensor<1x120xf32>) outs(%16 : tensor<1x120xf32>) {
     ^bb0(%in: f32, %out: f32):
       %32 = arith.cmpf ugt, %in, %cst_0 : f32
       %33 = arith.select %32, %in, %cst_0 : f32
@@ -82,7 +82,7 @@ module {
       %32 = arith.addf %in, %in_15 : f32
       linalg.yield %32 : f32
     } -> tensor<1x84xf32>
-    %26 = linalg.generic {indexing_maps = [#map1, #map1], iterator_types = ["parallel", "parallel"]} ins(%25 : tensor<1x84xf32>) outs(%22 : tensor<1x84xf32>) {
+    %26 = linalg.generic {indexing_maps = [#map1, #map1], iterator_types = ["parallel", "parallel"], domain_lower = -8.0, domain_upper = 8.0 } ins(%25 : tensor<1x84xf32>) outs(%22 : tensor<1x84xf32>) {
     ^bb0(%in: f32, %out: f32):
       %32 = arith.cmpf ugt, %in, %cst_0 : f32
       %33 = arith.select %32, %in, %cst_0 : f32
