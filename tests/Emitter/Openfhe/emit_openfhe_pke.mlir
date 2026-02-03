@@ -374,3 +374,31 @@ module attributes {scheme.ckks} {
     return %res : !ct
   }
 }
+
+// -----
+
+!cc = !openfhe.crypto_context
+!ct = !openfhe.ciphertext
+
+// CHECK: CiphertextT test_fast_rot_ext(
+// CHECK-SAME:    CryptoContextT [[CC:[^,]*]],
+// CHECK-SAME:    CiphertextT [[ARG1:[^,]*]]) {
+// CHECK:      const auto& [[precomp:.*]] = [[CC]]->EvalFastRotationPrecompute([[ARG1]]);
+// CHECK:      const auto& [[rot1:.*]] = [[CC]]->EvalFastRotationExt([[ARG1]], 1, [[precomp]], true);
+// CHECK:      const auto& [[rot2:.*]] = [[CC]]->EvalFastRotationExt([[ARG1]], 2, [[precomp]], false);
+// CHECK:      const auto& [[sum:.*]] = [[CC]]->EvalAdd([[rot1]], [[rot2]]);
+// CHECK:      const auto& [[result:.*]] = [[CC]]->KeySwitchDown([[sum]]);
+// CHECK:      return [[result]];
+// CHECK:  }
+module attributes {scheme.ckks} {
+  func.func @test_fast_rot_ext(%cc: !cc, %input1: !ct) -> !ct {
+    %c1 = arith.constant 1 : index
+    %c2 = arith.constant 2 : index
+    %precomp = openfhe.fast_rotation_precompute %cc, %input1 : (!cc, !ct) -> !openfhe.digit_decomp
+    %rot1 = openfhe.fast_rotation_ext %cc, %input1, %c1, %precomp {addFirst = true} : (!cc, !ct, index, !openfhe.digit_decomp) -> !ct
+    %rot2 = openfhe.fast_rotation_ext %cc, %input1, %c2, %precomp {addFirst = false} : (!cc, !ct, index, !openfhe.digit_decomp) -> !ct
+    %sum = openfhe.add %cc, %rot1, %rot2 : (!cc, !ct, !ct) -> !ct
+    %result = openfhe.key_switch_down %cc, %sum : (!cc, !ct) -> !ct
+    return %result : !ct
+  }
+}

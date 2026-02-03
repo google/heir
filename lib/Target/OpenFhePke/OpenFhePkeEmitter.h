@@ -145,6 +145,7 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(DecryptOp op);
   LogicalResult printOperation(EncryptOp op);
   LogicalResult printOperation(FastRotationOp op);
+  LogicalResult printOperation(FastRotationExtOp op);
   LogicalResult printOperation(FastRotationPrecomputeOp op);
   LogicalResult printOperation(GenBootstrapKeyOp op);
   LogicalResult printOperation(GenContextOp op);
@@ -153,6 +154,7 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(GenRotKeyOp op);
   LogicalResult printOperation(KeySwitchInPlaceOp op);
   LogicalResult printOperation(KeySwitchOp op);
+  LogicalResult printOperation(KeySwitchDownOp op);
   LogicalResult printOperation(LevelReduceInPlaceOp op);
   LogicalResult printOperation(LevelReduceOp op);
   LogicalResult printOperation(MakeCKKSPackedPlaintextOp op);
