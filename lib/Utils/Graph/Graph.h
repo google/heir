@@ -255,72 +255,46 @@ class Graph {
   }
 
   FailureOr<std::vector<V>> getShortestPath(V start, V end) {
-    std::function<uint64_t(const V&, const V&)> weight_fn =
-        [this](const V& start, const V& end) -> uint64_t {
-      return this->hasEdge(start, end) ? 1
-                                       : std::numeric_limits<uint64_t>::max();
-    };
-    return getShortestPath(start, end, weight_fn);
+    std::vector<V> path;
+    std::queue<V> q;
+    std::map<V, V> linkback;
+    std::set<V> visited;
+
+    q.push(start);
+    visited.insert(start);
+
+    while (!q.empty()) {
+      V curr = q.front();
+      q.pop();
+
+      if (curr == end) {
+        // Path found, reconstruct it.
+        auto at = end;
+        while (at != start) {
+          path.push_back(at);
+          at = linkback[at];
+        }
+        path.push_back(start);
+        std::reverse(path.begin(), path.end());
+        return path;
+      }
+
+      for (auto& next : edgesOutOf(curr)) {
+        if (visited.find(next) == visited.end()) {
+          visited.insert(next);
+          linkback[next] = curr;
+          q.push(next);
+        }
+      }
+    }
+
+    return failure();  // No path found
   }
 
   // assume uniform weight for edges; alternatively provide weight matrix
   FailureOr<std::vector<V>> getShortestPath(
       V start, V end, std::function<uint64_t(V, V)> weight_fn) {
-    std::vector<V> path;
-    std::queue<V> q;
-
-    std::set<V> visited;
-    std::map<V, uint64_t> distance;  // from @start node
-    std::map<V, V> linkback;
-    for (auto& v : vertices) {
-      distance[v] = std::numeric_limits<uint64_t>::max();
-    }
-    distance[start] = 0;
-
-    q.push(start);
-
-    while (!q.empty()) {
-      const V& curr = q.front();
-      q.pop();
-
-      if (curr == end) {
-        distance[curr] = 0;
-        break;
-      }
-
-      if (!visited.insert(curr).second) {
-        // backedge
-        continue;
-      }
-
-      // nothing to reduce on this edge.
-      if (!outEdges.count(curr)) {
-        continue;
-      }
-
-      for (auto& next : outEdges.at(curr)) {
-        if (distance[next] > distance[curr] + weight_fn(curr, next)) {
-          linkback[curr] = next;
-          distance[next] = distance[curr] + weight_fn(curr, next);
-        } else if (distance[curr] == 0) {
-          linkback[curr] = next;
-        }
-        q.push(next);
-      }
-    }
-
-    if (distance[end] != std::numeric_limits<uint64_t>::max()) {
-      // some path found
-      auto curr = start;
-      while (curr != end) {
-        path.push_back(curr);
-        curr = linkback[curr];
-      }
-      path.push_back(end);
-    } else {
-      return failure();
-    }
-    return path;
+    return getShortestPath(start, end);
   }
 
  private:
