@@ -13,6 +13,7 @@ py_binary(
     data = [
         "@at_clifford_yosys//:yosys",
     ],
+    strict_deps = False,
 )
 
 glob_lit_tests(
