@@ -8,6 +8,7 @@
 #include "lib/Dialect/Mgmt/Transforms/AnnotateMgmt.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Parameters/CKKS/Params.h"
+#include "lib/Parameters/CKKS/Utils.h"
 #include "lib/Transforms/PopulateScale/PopulateScale.h"
 #include "lib/Transforms/PopulateScale/PopulateScalePatterns.h"
 #include "llvm/include/llvm/Support/DebugLog.h"            // from @llvm-project
@@ -54,13 +55,11 @@ LogicalResult createAndRunDataflow(Operation* op, DataFlowSolver& solver,
     LDBG() << "Encoding at scale^2 due to 'include-first-mul' config";
     inputScale *= 2;
   }
-  solver.load<ScaleAnalysis<CKKSScaleModel>>(
-      ckks::SchemeParam::getSchemeParamFromAttr(ckksSchemeParamAttr),
-      /*inputScale*/ inputScale);
+  auto param = ckks::getSchemeParamFromAttr(ckksSchemeParamAttr);
+  solver.load<ScaleAnalysis<CKKSScaleModel>>(param,
+                                             /*inputScale*/ inputScale);
   // Back-prop ScaleAnalysis depends on (forward) ScaleAnalysis
-  solver.load<ScaleAnalysisBackward<CKKSScaleModel>>(
-      symbolTable,
-      ckks::SchemeParam::getSchemeParamFromAttr(ckksSchemeParamAttr));
+  solver.load<ScaleAnalysisBackward<CKKSScaleModel>>(symbolTable, param);
 
   return solver.initializeAndRun(op);
 }

@@ -1,6 +1,5 @@
 #include <cmath>
 #include <optional>
-#include <vector>
 
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/RangeAnalysis/RangeAnalysis.h"
@@ -10,20 +9,23 @@
 #include "lib/Dialect/CKKS/IR/CKKSEnums.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/ModuleAttributes.h"
-#include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Parameters/CKKS/Params.h"
-#include "lib/Transforms/GenerateParam/GenerateParam.h"
+#include "lib/Parameters/CKKS/Utils.h"
 #include "lib/Utils/LogArithmetic.h"
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
-#include "mlir/include/mlir/Transforms/Passes.h"           // from @llvm-project
+
+// IWYU pragma: begin_keep
+#include "lib/Transforms/GenerateParam/GenerateParam.h"
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Transforms/Passes.h"        // from @llvm-project
+// IWYU pragma: end_keep
 
 #define DEBUG_TYPE "GenerateParamCKKS"
 
@@ -106,8 +108,7 @@ struct GenerateParamCKKS : impl::GenerateParamCKKSBase<GenerateParamCKKS> {
             getOperation()->getAttrOfType<ckks::SchemeParamAttr>(
                 ckks::CKKSDialect::kSchemeParamAttrName)) {
       // TODO: put this in validate-noise once CKKS noise model is in
-      auto schemeParam =
-          ckks::SchemeParam::getSchemeParamFromAttr(schemeParamAttr);
+      auto schemeParam = ckks::getSchemeParamFromAttr(schemeParamAttr);
       if (schemeParam.getLevel() < maxLevel.value_or(0)) {
         getOperation()->emitOpError()
             << "The level in the scheme param is smaller than the max level.\n";

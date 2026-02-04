@@ -18,13 +18,12 @@ cc_library(
     hdrs = [
         "CKKSAttributes.h",
         "CKKSDialect.h",
-        "CKKSEnums.h",
         "CKKSOps.h",
     ],
     deps = [
+        ":Enums",
         ":attributes_inc_gen",
         ":dialect_inc_gen",
-        ":enums_inc_gen",
         ":ops_inc_gen",
         "@heir//lib/Dialect:HEIRInterfaces",
         "@heir//lib/Dialect/LWE/IR:Dialect",
@@ -34,6 +33,16 @@ cc_library(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
         "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
+    name = "Enums",
+    srcs = ["CKKSEnums.cpp"],
+    hdrs = ["CKKSEnums.h"],
+    deps = [
+        ":enums_inc_gen",
+        "@llvm-project//mlir:IR",
     ],
 )
 

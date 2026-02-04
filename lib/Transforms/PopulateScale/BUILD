@@ -24,6 +24,7 @@ cc_library(
         "@heir//lib/Dialect/Mgmt/Transforms:AnnotateMgmt",
         "@heir//lib/Parameters/BGV:Params",
         "@heir//lib/Parameters/CKKS:Params",
+        "@heir//lib/Parameters/CKKS:Utils",
         "@heir//lib/Utils:APIntUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",

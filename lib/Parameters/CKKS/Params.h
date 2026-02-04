@@ -2,9 +2,7 @@
 #define LIB_PARAMETERS_CKKS_PARAMS_H_
 
 #include <cstdint>
-#include <vector>
 
-#include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
 #include "lib/Parameters/RLWEParams.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 
@@ -29,8 +27,6 @@ class SchemeParam : public RLWESchemeParam {
   static SchemeParam getConcreteSchemeParam(
       int logFirstMod, int logDefaultScale, int numScaleMod, int slotNumber,
       bool usePublicKey, bool encryptionTechniqueExtended, bool reducedError);
-
-  static SchemeParam getSchemeParamFromAttr(SchemeParamAttr attr);
 };
 
 // Parameter for each SSA ciphertext SSA value.
