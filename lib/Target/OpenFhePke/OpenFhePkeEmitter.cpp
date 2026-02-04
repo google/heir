@@ -455,7 +455,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(affine::AffineForOp op) {
         variableNames->getNameForValue(result) ==
             variableNames->getNameForValue(operand)) {
       // This occurs in cases where the loop is inserting into a tensor and
-      // passing it along as an inter arg.
+      // passing it along as an iter arg.
       continue;
     }
 
@@ -489,7 +489,24 @@ LogicalResult OpenFhePkeEmitter::printOperation(affine::AffineForOp op) {
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(affine::AffineYieldOp op) {
-  // Assume all yielded loop values have already been assigned.
+  // Assign each operand to the corresponding iter arg. This may be strictly
+  // necessary in such cases as the iter_arg being the result of inserting
+  // a value into an empty tensor (defined outside the loop) which is then
+  // passed as an iter_arg.
+  for (auto i = 0; i < op.getNumOperands(); ++i) {
+    affine::AffineForOp loop = op->getParentOfType<affine::AffineForOp>();
+    Value operand = op->getOperand(i);
+    Value iterArg = loop.getRegionIterArgs()[i];
+    if (failed(emitTypedAssignPrefix(iterArg, op.getLoc(),
+                                     /*constant=*/false))) {
+      return emitError(
+          op.getLoc(),
+          llvm::formatv("Failed to emit typed assign prefix for {}", iterArg));
+    }
+
+    os << variableNames->getNameForValue(operand);
+    os << ";\n";
+  }
   return success();
 }
 

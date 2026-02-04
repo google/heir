@@ -1,9 +1,8 @@
 #ifndef LIB_TRANSFORMS_SECRETINSERTMGMT_PIPELINE_H_
 #define LIB_TRANSFORMS_SECRETINSERTMGMT_PIPELINE_H_
 
-#include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
-#include "mlir/include/mlir/Pass/PassManager.h"            // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"      // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -13,6 +12,7 @@ struct InsertMgmtPipelineOptions {
   bool modReduceAfterMul;
   bool modReduceBeforeMulIncludeFirstMul;
   std::optional<int64_t> bootstrapWaterline;
+  int64_t levelBudget;
 };
 
 // Run the secret-insert-mgmt pipeline.
@@ -25,27 +25,23 @@ struct InsertMgmtPipelineOptions {
 LogicalResult runInsertMgmtPipeline(Operation* top,
                                     const InsertMgmtPipelineOptions& options);
 
-void rerunDataflow(DataFlowSolver& solver, Operation* top);
+void insertMgmtInitForPlaintexts(Operation* top, bool includeFloats);
 
-void insertMgmtInitForPlaintexts(Operation* top, DataFlowSolver& solver,
-                                 bool includeFloats);
-
-void insertModReduceBeforeOrAfterMult(Operation* top, DataFlowSolver& solver,
-                                      bool afterMul,
+void insertModReduceBeforeOrAfterMult(Operation* top, bool afterMul,
                                       bool beforeMulIncludeFirstMul,
                                       bool includeFloats);
 
-void insertRelinearizeAfterMult(Operation* top, DataFlowSolver& solver,
-                                bool includeFloats);
+void insertRelinearizeAfterMult(Operation* top, bool includeFloats);
 
-void handleCrossLevelOps(Operation* top, DataFlowSolver& solver, int* idCounter,
-                         bool includeFloats);
+void handleCrossLevelOps(Operation* top, int* idCounter, bool includeFloats);
 
-void handleCrossMulDepthOps(Operation* top, DataFlowSolver& solver,
-                            int* idCounter, bool includeFloats);
+void handleCrossMulDepthOps(Operation* top, int* idCounter, bool includeFloats);
 
-void insertBootstrapWaterLine(Operation* top, DataFlowSolver& solver,
-                              int bootstrapWaterline);
+void insertBootstrapWaterLine(Operation* top, int bootstrapWaterline);
+
+void makeLoopsTypeAndLevelInvariant(Operation* top);
+
+void unrollLoopsForLevelUtilization(Operation* top, int levelBudget);
 
 }  // namespace heir
 }  // namespace mlir

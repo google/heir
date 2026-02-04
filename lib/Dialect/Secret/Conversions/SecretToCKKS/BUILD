@@ -18,7 +18,6 @@ cc_library(
         "@heir//lib/Dialect/CKKS/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
-        "@heir//lib/Dialect/Mgmt/IR:MgmtOps",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Dialect/RNS/IR:RNSTypes",

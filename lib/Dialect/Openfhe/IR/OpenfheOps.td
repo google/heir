@@ -447,7 +447,7 @@ def KeySwitchDownOp : Openfhe_Op<"key_switch_down", [Pure,
 }
 
 // No in-place bootstrap variant
-def BootstrapOp : Openfhe_UnaryOp<"bootstrap"> {
+def BootstrapOp : Openfhe_UnaryOp<"bootstrap", [Pure, ResetsMulDepthOpInterface]> {
   let summary = "OpenFHE bootstrap operation of a ciphertext. (For CKKS)";
 }
 

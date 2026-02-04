@@ -12,7 +12,7 @@ cc_library(
     deps = [
         "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Dialect/LWE/IR:Dialect",
-        "@heir//lib/Dialect/Mgmt/IR:MgmtOps",
+        "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Utils:ContextAwareConversionUtils",

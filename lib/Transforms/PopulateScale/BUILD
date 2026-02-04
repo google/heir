@@ -25,6 +25,7 @@ cc_library(
         "@heir//lib/Parameters/BGV:Params",
         "@heir//lib/Parameters/CKKS:Params",
         "@heir//lib/Utils:APIntUtils",
+        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
