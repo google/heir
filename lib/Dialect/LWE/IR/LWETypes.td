@@ -97,6 +97,28 @@ def LWECiphertext : LWE_Type<"LWECiphertext", "lwe_ciphertext", [MemRefElementTy
   let aliasSuffix = [{ getCiphertextSpace().getAliasSuffix(os); }];
 }
 
+def LWERingElt : LWE_Type<"LWERingElt", "lwe_ring_elt", [MemRefElementTypeInterface]> {
+  let summary = "A ring element";
+
+  let description = [{
+    A single RLWE ring element. An LWE ciphertext will always contain the application data, plaintext space,
+    ciphertext space, and key information.
+
+    A modulus chain is optionally specified for parameter choices in RLWE
+    schemes that use more than one of modulus. When no modulus chain is
+    specified, the ciphertext modulus is always the ciphertext ring's
+    coefficient modulus.
+  }];
+
+  let parameters = (ins
+    "::mlir::heir::polynomial::RingAttr":$ring,
+    OptionalParameter<"ModulusChainAttr">:$modulus_chain
+  );
+
+  let asmName = "ringelt";
+  let aliasName = "ringelt";
+}
+
 
 def LWEPlaintextOrCiphertext : AnyTypeOf<[LWECiphertext, LWEPlaintext]>;
 def LWEPlaintextLike : TypeOrValueSemanticsContainer<LWEPlaintext, "lwe-plaintext-like">;

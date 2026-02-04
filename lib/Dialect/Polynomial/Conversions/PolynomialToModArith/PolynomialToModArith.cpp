@@ -1287,82 +1287,6 @@ struct ConvertINTT : public OpConversionPattern<INTTOp> {
   }
 };
 
-struct ConvertKeySwitchInner
-    : public OpConversionPattern<polynomial::KeySwitchInnerOp> {
-  ConvertKeySwitchInner(mlir::MLIRContext* context)
-      : OpConversionPattern<polynomial::KeySwitchInnerOp>(context) {}
-
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      polynomial::KeySwitchInnerOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter& rewriter) const override {
-    auto b = ImplicitLocOpBuilder(op.getLoc(), rewriter);
-
-    RankedTensorType coefficientTensorType =
-        cast<RankedTensorType>(adaptor.getValue().getType());
-
-    if (coefficientTensorType.getRank() != 1) {
-      return rewriter.notifyMatchFailure(
-          op,
-          "Can only lower key_switch_inner when input is a single polynomial");
-    }
-
-    // TODO(#2157): enable this for more than just CKKS
-    ckks::SchemeParamAttr schemeParamAttr =
-        op->getParentOfType<ModuleOp>()->getAttrOfType<ckks::SchemeParamAttr>(
-            ckks::CKKSDialect::kSchemeParamAttrName);
-    if (!schemeParamAttr) {
-      return rewriter.notifyMatchFailure(
-          op, "Cannot find scheme param attribute on parent module");
-    }
-
-    auto schemeParam =
-        ckks::SchemeParam::getSchemeParamFromAttr(schemeParamAttr);
-
-    int64_t partSize = schemeParam.getPi().size();
-
-    if (partSize <= 0) {
-      return rewriter.notifyMatchFailure(
-          op, "Cannot lower key_switch_inner with empty modulus chain");
-    }
-
-    // Step 1: partition the RNS limbs of the input polynomial into parts
-    // according to the number of special (key switch) primes in the parameters.
-    //
-    // Since the number of special primes may not evenly divide the number of
-    // RNS limbs, there may be an extra part containing the trailing size.
-    //
-    // Since each part also has a different RNS type, we can't group them
-    // together into a tensor and have to deal with the individual SSA values in
-    // an unrolled manner.
-    rns::RNSType fullRnsChain =
-        cast<rns::RNSType>(coefficientTensorType.getElementType());
-    int rnsLength = fullRnsChain.getBasisTypes().size();
-    int64_t numFullPartitions = rnsLength / partSize;
-    int64_t extraPartStart = partSize * numFullPartitions;
-    int64_t extraPartSize = rnsLength - extraPartStart;
-
-    SmallVector<Value> fullPartitions;
-    for (int i = 0; i < numFullPartitions; ++i) {
-      fullPartitions.push_back(rns::ExtractSliceOp::create(
-          b, adaptor.getValue(), b.getIndexAttr(i * partSize),
-          b.getIndexAttr(partSize)));
-    }
-
-    std::optional<Value> maybeExtraPart;
-    if (extraPartSize > 0) {
-      maybeExtraPart = rns::ExtractSliceOp::create(
-          b, adaptor.getValue(), b.getIndexAttr(extraPartStart),
-          b.getIndexAttr(extraPartSize));
-    }
-
-    // TODO(#2157): implement the rest
-
-    return success();
-  }
-};
-
 void PolynomialToModArith::runOnOperation() {
   MLIRContext* context = &getContext();
 
@@ -1410,8 +1334,8 @@ void PolynomialToModArith::runOnOperation() {
                ConvertPolyBinop<AddOp, arith::AddIOp, mod_arith::AddOp>,
                ConvertPolyBinop<SubOp, arith::SubIOp, mod_arith::SubOp>,
                ConvertLeadingTerm, ConvertMonomial, ConvertMonicMonomialMul,
-               ConvertConstant, ConvertMulScalar, ConvertNTT, ConvertINTT,
-               ConvertKeySwitchInner>(typeConverter, context);
+               ConvertConstant, ConvertMulScalar, ConvertNTT, ConvertINTT>(
+      typeConverter, context);
   patterns.add<ConvertMul>(typeConverter, patterns.getContext(), getDivmodOp);
   addStructuralConversionPatterns(typeConverter, patterns, target);
   addTensorOfTensorConversionPatterns(typeConverter, patterns, target);
