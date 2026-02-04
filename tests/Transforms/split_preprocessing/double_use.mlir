@@ -1,22 +1,13 @@
 // RUN: heir-opt --split-preprocessing %s | FileCheck %s
 
-// CHECK-DAG: ![[pt:.*]] = !lwe.lwe_plaintext
-// CHECK-DAG: ![[ct_L1:.*]] = !lwe.lwe_ciphertext
+// Tests that an op used for both pre-processing and pre-processed operations
+// is duplicated.
 
-// CHECK: func.func @hoist_one_assign__preprocessing() -> ![[pt]]
-// CHECK-SAME: client.pack_func = {func_name = "hoist_one_assign"}
+// CHECK: func.func @constant__preprocessing
+// CHECK-NEXT: arith.constant 0 : index
 
-// CHECK: func.func @hoist_one_assign__preprocessed(%[[ct:.*]]: ![[ct_L1]], %[[arg0:.*]]: ![[pt]]) -> ![[ct_L1]]
-// CHECK-SAME: client.preprocessed_func = {func_name = "hoist_one_assign"}
-// CHECK: %[[CT_0:.*]] = ckks.add_plain %ct, %[[arg0]]
-// CHECK: return %[[CT_0]] : ![[ct_L1]]
-
-// CHECK: func.func @hoist_one_assign
-// CHECK-SAME: (%[[CT:.*]]: ![[ct_L1]]
-// CHECK-NEXT:   %[[PT:.*]] = call @hoist_one_assign__preprocessing
-// CHECK-NEXT:   %[[CALL:.*]] = call @hoist_one_assign__preprocessed(%[[CT]], %[[PT]])
-// CHECK-NEXT:   return %[[CALL]]
-// CHECK-NEXT: }
+// CHECK: func.func @constant__preprocessed
+// CHECK-NEXT: arith.constant 0 : index
 
 !Z35184372121601_i64 = !mod_arith.int<35184372121601 : i64>
 !Z36028797018652673_i64 = !mod_arith.int<36028797018652673 : i64>
@@ -34,9 +25,12 @@
 #ciphertext_space_L1 = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x1024, encryption_type = mix>
 !ct_L1 = !lwe.lwe_ciphertext<application_data = <message_type = tensor<1024xf32>>, plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L1, key = #key, modulus_chain = #modulus_chain_L1_C1>
 
-func.func @hoist_one_assign(%ct: !ct_L1) -> (!ct_L1) {
-  %c1 = arith.constant dense<1.0> : tensor<1024xf32>
-  %pt = lwe.rlwe_encode %c1 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
-  %0 = ckks.add_plain %ct, %pt : (!ct_L1, !pt) -> !ct_L1
-  return %0 : !ct_L1
+func.func @constant(%ct: tensor<2x!ct_L1>, %cleartext: tensor<1x1024xf32>) -> (tensor<1x!ct_L1>) {
+  %c0 = arith.constant 0 : index
+  %slice = tensor.extract_slice %cleartext [%c0, %c0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
+  %pt = lwe.rlwe_encode %slice {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
+  %pt_tensor = tensor.from_elements %pt : tensor<1x!pt>
+  %ct_slice = tensor.extract_slice %ct [%c0] [1] [1] : tensor<2x!ct_L1> to tensor<1x!ct_L1>
+  %0 = ckks.add_plain %ct_slice, %pt_tensor : (tensor<1x!ct_L1>, tensor<1x!pt>) -> tensor<1x!ct_L1>
+  return %0 : tensor<1x!ct_L1>
 }
