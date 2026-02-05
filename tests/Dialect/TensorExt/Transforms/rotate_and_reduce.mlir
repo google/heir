@@ -4,10 +4,10 @@
 // Sum all entries of a tensor into a single scalar
 // CHECK: @simple_sum
 // CHECK-SAME: (%[[arg0:.*]]: tensor<8xi32>
-// CHECK-NEXT: %[[c0:.*]] = arith.constant 0
-// CHECK-NEXT: %[[c1:.*]] = arith.constant 1
-// CHECK-NEXT: %[[c2:.*]] = arith.constant 2
-// CHECK-NEXT: %[[c4:.*]] = arith.constant 4
+// CHECK-DAG: %[[c0:.*]] = arith.constant 0
+// CHECK-DAG: %[[c1:.*]] = arith.constant 1
+// CHECK-DAG: %[[c2:.*]] = arith.constant 2
+// CHECK-DAG: %[[c4:.*]] = arith.constant 4
 // CHECK-NEXT: %[[v0:.*]] = tensor_ext.rotate %[[arg0]], %[[c4]]
 // CHECK-NEXT: %[[v1:.*]] = arith.addi %[[arg0]], %[[v0]]
 // CHECK-NEXT: %[[v2:.*]] = tensor_ext.rotate %[[v1]], %[[c2]]
@@ -79,9 +79,9 @@ func.func @simple_sum_two_tensor(%arg0: tensor<4xi32>, %arg1: tensor<4xi32>) -> 
 // Sum all entries of a tensor
 // CHECK: @simple_sum_mixed_rotation_tensor
 // CHECK-SAME: (%[[arg0:.*]]: tensor<8xi32>
-// CHECK-NEXT: %[[c1:.*]] = arith.constant 1
-// CHECK-NEXT: %[[c2:.*]] = arith.constant 2
-// CHECK-NEXT: %[[c4:.*]] = arith.constant 4
+// CHECK-DAG: %[[c1:.*]] = arith.constant 1
+// CHECK-DAG: %[[c2:.*]] = arith.constant 2
+// CHECK-DAG: %[[c4:.*]] = arith.constant 4
 // CHECK-NEXT: %[[v0:.*]] = tensor_ext.rotate %[[arg0]], %[[c4]]
 // CHECK-NEXT: %[[v1:.*]] = arith.addi %[[arg0]], %[[v0]]
 // CHECK-NEXT: %[[v2:.*]] = tensor_ext.rotate %[[v1]], %[[c2]]
@@ -121,10 +121,10 @@ func.func @simple_sum_mixed_rotation_tensor(%arg0: tensor<8xi32>) -> tensor<8xi3
 // Mix rotation and extraction in the reduction tree
 // CHECK: @simple_sum_mixed_rotation_extraction
 // CHECK-SAME: (%[[arg0:.*]]: tensor<8xi32>
-// CHECK-NEXT: %[[c0:.*]] = arith.constant 0
-// CHECK-NEXT: %[[c1:.*]] = arith.constant 1
-// CHECK-NEXT: %[[c2:.*]] = arith.constant 2
-// CHECK-NEXT: %[[c4:.*]] = arith.constant 4
+// CHECK-DAG: %[[c0:.*]] = arith.constant 0
+// CHECK-DAG: %[[c1:.*]] = arith.constant 1
+// CHECK-DAG: %[[c2:.*]] = arith.constant 2
+// CHECK-DAG: %[[c4:.*]] = arith.constant 4
 // CHECK-NEXT: %[[v0:.*]] = tensor_ext.rotate %[[arg0]], %[[c4]]
 // CHECK-NEXT: %[[v1:.*]] = arith.addi %[[arg0]], %[[v0]]
 // CHECK-NEXT: %[[v2:.*]] = tensor_ext.rotate %[[v1]], %[[c2]]
@@ -442,11 +442,11 @@ func.func @not_supported_non_constant_index_access(%arg0: tensor<8xi32>, %arg1: 
 
 // CHECK: @simple_sum_non_tensor_operands
 // CHECK-SAME: (%[[arg0:.*]]: tensor<8xi32>
-// CHECK-NEXT: %[[c0:.*]] = arith.constant 0
-// CHECK-NEXT: %[[c1:.*]] = arith.constant 1
-// CHECK-NEXT: %[[c2:.*]] = arith.constant 2
-// CHECK-NEXT: %[[c4:.*]] = arith.constant 4
-// CHECK-NEXT: %[[c2_i32:.*]] = arith.constant 2
+// CHECK-DAG: %[[c0:.*]] = arith.constant 0
+// CHECK-DAG: %[[c1:.*]] = arith.constant 1
+// CHECK-DAG: %[[c2:.*]] = arith.constant 2
+// CHECK-DAG: %[[c4:.*]] = arith.constant 4
+// CHECK-DAG: %[[c2_i32:.*]] = arith.constant 2
 // CHECK-NEXT: %[[v0:.*]] = tensor_ext.rotate %[[arg0]], %[[c4]]
 // CHECK-NEXT: %[[v1:.*]] = arith.addi %[[arg0]], %[[v0]]
 // CHECK-NEXT: %[[v2:.*]] = tensor_ext.rotate %[[v1]], %[[c2]]
@@ -490,11 +490,11 @@ func.func @simple_sum_non_tensor_operands(%arg0: tensor<8xi32>) -> i32 {
 
 // CHECK: @simple_sum_multiple_non_tensor_operands
 // CHECK-SAME: (%[[arg0:.*]]: tensor<8xi32>, %[[arg1:.*]]: i32
-// CHECK-NEXT: %[[c22_i32:.*]] = arith.constant 22
-// CHECK-NEXT: %[[c0:.*]] = arith.constant 0
-// CHECK-NEXT: %[[c1:.*]] = arith.constant 1
-// CHECK-NEXT: %[[c2:.*]] = arith.constant 2
-// CHECK-NEXT: %[[c4:.*]] = arith.constant 4
+// CHECK-DAG: %[[c22_i32:.*]] = arith.constant 22
+// CHECK-DAG: %[[c0:.*]] = arith.constant 0
+// CHECK-DAG: %[[c1:.*]] = arith.constant 1
+// CHECK-DAG: %[[c2:.*]] = arith.constant 2
+// CHECK-DAG: %[[c4:.*]] = arith.constant 4
 // CHECK-NEXT: %[[v0:.*]] = tensor_ext.rotate %[[arg0]], %[[c4]]
 // CHECK-NEXT: %[[v1:.*]] = arith.addi %[[arg0]], %[[v0]]
 // CHECK-NEXT: %[[v2:.*]] = tensor_ext.rotate %[[v1]], %[[c2]]
@@ -551,10 +551,10 @@ func.func @simple_sum_multiple_non_tensor_operands(%arg0: tensor<8xi32>, %arg1: 
 
 // CHECK: @simple_sum_operand_from_another_tensor
 // CHECK-SAME: (%[[arg0:.*]]: tensor<8xi32>, %[[arg1:.*]]: tensor<8xi32>
-// CHECK-NEXT: %[[c0:.*]] = arith.constant 0
-// CHECK-NEXT: %[[c1:.*]] = arith.constant 1
-// CHECK-NEXT: %[[c2:.*]] = arith.constant 2
-// CHECK-NEXT: %[[c4:.*]] = arith.constant 4
+// CHECK-DAG: %[[c0:.*]] = arith.constant 0
+// CHECK-DAG: %[[c1:.*]] = arith.constant 1
+// CHECK-DAG: %[[c2:.*]] = arith.constant 2
+// CHECK-DAG: %[[c4:.*]] = arith.constant 4
 // CHECK-NEXT: %[[a1:.*]] = tensor.extract %[[arg1]][%[[c0]]]
 // CHECK-NEXT: %[[v0:.*]] = tensor_ext.rotate %[[arg0]], %[[c4]]
 // CHECK-NEXT: %[[v1:.*]] = arith.addi %[[arg0]], %[[v0]]

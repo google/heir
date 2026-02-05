@@ -21,6 +21,7 @@
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
@@ -34,11 +35,28 @@ namespace mlir {
 namespace heir {
 
 using kernel::ArithmeticDagNode;
+using kernel::DagType;
 using kernel::IRMaterializingVisitor;
 using kernel::SSAValue;
 using polynomial::EvalOp;
 using polynomial::FloatPolynomial;
 using polynomial::TypedFloatPolynomialAttr;
+
+namespace {
+// Helper to convert mlir::FloatType to kernel::DagType
+DagType floatTypeToDagType(Type type) {
+  return llvm::TypeSwitch<Type, DagType>(type)
+      .Case<FloatType>([](auto ty) { return DagType::floatTy(ty.getWidth()); })
+      .Case<RankedTensorType>([](auto ty) {
+        return DagType::floatTensor(ty.getElementType().getIntOrFloatBitWidth(),
+                                    ty.getShape().vec());
+      })
+      .Default([](Type) {
+        llvm_unreachable("Unsupported type for polynomial coefficients");
+        return DagType();
+      });
+}
+}  // namespace
 
 LogicalResult LowerViaHorner::matchAndRewrite(EvalOp op,
                                               PatternRewriter& rewriter) const {
@@ -52,6 +70,12 @@ LogicalResult LowerViaHorner::matchAndRewrite(EvalOp op,
   const int degreeThreshold = 5;
   if (!shouldForce() && maxDegree > degreeThreshold) return failure();
 
+  // Only support floating point element types
+  auto floatTy =
+      dyn_cast<FloatType>(getElementTypeOrSelf(op.getResult().getType()));
+  if (!floatTy) return failure();
+  DagType dagType = floatTypeToDagType(op.getResult().getType());
+
   // Convert coefficient map to std::map<int64_t, double>
   auto monomialMap = attr.getValue().getPolynomial().getCoeffMap();
   std::map<int64_t, double> coefficients;
@@ -63,15 +87,16 @@ LogicalResult LowerViaHorner::matchAndRewrite(EvalOp op,
   // Create ArithmeticDag nodes
   auto xNode =
       kernel::ArithmeticDagNode<kernel::SSAValue>::leaf(op.getOperand());
-  auto resultNode =
-      polynomial::hornerMonomialPolynomialEvaluation(xNode, coefficients);
+  auto resultNode = polynomial::hornerMonomialPolynomialEvaluation(
+      xNode, coefficients, dagType);
 
   // Use IRMaterializingVisitor to convert to MLIR
   ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-  kernel::IRMaterializingVisitor visitor(b, op.getValue().getType());
-  Value finalOutput = resultNode->visit(visitor);
-
-  rewriter.replaceOp(op, finalOutput);
+  kernel::IRMaterializingVisitor visitor(b);
+  std::vector<Value> results = resultNode->visit(visitor);
+  assert(results.size() == 1 &&
+         "Expected polynomial evaluation to produce a single value");
+  rewriter.replaceOp(op, results[0]);
   return success();
 }
 
@@ -87,6 +112,11 @@ LogicalResult LowerViaPatersonStockmeyerMonomial::matchAndRewrite(
   const int degreeThreshold = 5;
   if (!shouldForce() && maxDegree > degreeThreshold) return failure();
 
+  // Extract element type from the operation
+  auto floatTy = dyn_cast<FloatType>(getElementTypeOrSelf(op));
+  if (!floatTy) return failure();
+  DagType dagType = floatTypeToDagType(op.getResult().getType());
+
   // Convert coefficient map to std::map<int64_t, double>
   auto monomialMap = attr.getValue().getPolynomial().getCoeffMap();
   std::map<int64_t, double> coefficients;
@@ -99,14 +129,15 @@ LogicalResult LowerViaPatersonStockmeyerMonomial::matchAndRewrite(
   auto xNode =
       kernel::ArithmeticDagNode<kernel::SSAValue>::leaf(op.getOperand());
   auto resultNode = polynomial::patersonStockmeyerMonomialPolynomialEvaluation(
-      xNode, coefficients);
+      xNode, coefficients, dagType);
 
   // Use IRMaterializingVisitor to convert to MLIR
   ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-  kernel::IRMaterializingVisitor visitor(b, op.getValue().getType());
-  Value finalOutput = resultNode->visit(visitor);
-
-  rewriter.replaceOp(op, finalOutput);
+  kernel::IRMaterializingVisitor visitor(b);
+  std::vector<Value> results = resultNode->visit(visitor);
+  assert(results.size() == 1 &&
+         "Expected polynomial evaluation to produce a single value");
+  rewriter.replaceOp(op, results[0]);
   return success();
 }
 
@@ -136,6 +167,7 @@ LogicalResult LowerViaPatersonStockmeyerChebyshev::matchAndRewrite(
 
   auto floatTy = dyn_cast<FloatType>(getElementTypeOrSelf(op));
   if (!floatTy) return failure();
+  DagType dagType = floatTypeToDagType(op.getResult().getType());
 
   ImplicitLocOpBuilder b(op.getLoc(), rewriter);
   Value xInput = op.getValue();
@@ -158,12 +190,13 @@ LogicalResult LowerViaPatersonStockmeyerChebyshev::matchAndRewrite(
   SSAValue xNode(xInput);
 
   auto resultNode = polynomial::patersonStockmeyerChebyshevPolynomialEvaluation(
-      xNode, chebCoeffs, getMinCoefficientThreshold());
+      xNode, chebCoeffs, getMinCoefficientThreshold(), dagType);
 
-  IRMaterializingVisitor visitor(b, op.getValue().getType());
-  Value finalOutput = resultNode->visit(visitor);
-
-  rewriter.replaceOp(op, finalOutput);
+  IRMaterializingVisitor visitor(b);
+  std::vector<Value> results = resultNode->visit(visitor);
+  assert(results.size() == 1 &&
+         "Expected polynomial evaluation to produce a single value");
+  rewriter.replaceOp(op, results[0]);
   return success();
 }
 

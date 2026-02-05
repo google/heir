@@ -21,11 +21,17 @@ template <typename T>
 std::shared_ptr<kernel::ArithmeticDagNode<T>>
 patersonStockmeyerMonomialPolynomialEvaluation(
     std::shared_ptr<kernel::ArithmeticDagNode<T>> x,
-    const std::map<int64_t, double>& coefficients) {
+    const std::map<int64_t, double>& coefficients,
+    kernel::DagType coeffType) {
   using NodeTy = kernel::ArithmeticDagNode<T>;
 
+  bool isTensorType = coeffType.type_variant.index() >= 2;
+
   if (coefficients.empty()) {
-    return NodeTy::constantScalar(0.0);
+    if (isTensorType) {
+      return NodeTy::splat(0.0, coeffType);
+    }
+    return NodeTy::constantScalar(0.0, coeffType);
   }
 
   // Filter coefficients
@@ -41,7 +47,7 @@ patersonStockmeyerMonomialPolynomialEvaluation(
                        static_cast<int64_t>(1));
 
   // Precompute x^1, x^2, ..., x^k
-  std::vector<std::shared_ptr<NodeTy>> xPowers = computePowers(x, k);
+  std::vector<std::shared_ptr<NodeTy>> xPowers = computePowers(x, k, coeffType);
 
   // Number of chunks we'll need
   int64_t m =
@@ -57,7 +63,8 @@ patersonStockmeyerMonomialPolynomialEvaluation(
     for (int64_t j = lowestDegreeInChunk; j <= highestDegreeInChunk; j++) {
       if (coeffMap.count(j)) {
         int64_t powerIndex = j - lowestDegreeInChunk;
-        auto coeff = NodeTy::constantScalar(coeffMap[j]);
+        auto coeff = isTensorType ? NodeTy::splat(coeffMap[j], coeffType)
+                                  : NodeTy::constantScalar(coeffMap[j], coeffType);
 
         std::shared_ptr<NodeTy> term;
         if (powerIndex == 0) {
@@ -75,7 +82,8 @@ patersonStockmeyerMonomialPolynomialEvaluation(
     }
 
     if (!chunkValue) {
-      chunkValue = NodeTy::constantScalar(0.0);
+      chunkValue = isTensorType ? NodeTy::splat(0.0, coeffType)
+                                : NodeTy::constantScalar(0.0, coeffType);
     }
     chunkValues.push_back(chunkValue);
   }

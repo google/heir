@@ -216,6 +216,16 @@ LogicalResult convertRemapOp(RemapOp op,
   int64_t ciphertextSize = tensorTy.getDimSize(1);
   auto singleCiphertextType =
       RankedTensorType::get({1, ciphertextSize}, tensorTy.getElementType());
+
+  // Extract element type and convert to DagType
+  kernel::DagType dagElemType;
+  if (auto floatTy = dyn_cast<FloatType>(tensorTy.getElementType())) {
+    dagElemType = kernel::DagType::floatTy(floatTy.getWidth());
+  } else if (auto intTy = dyn_cast<IntegerType>(tensorTy.getElementType())) {
+    dagElemType = kernel::DagType::integer(intTy.getWidth());
+  } else {
+    return op.emitOpError() << "expected tensor with float or integer element type";
+  }
   // Populate the mapping with (source, target) pairs
   // This require enumerating over the relation for the op
   Mapping mapping(ciphertextSize, numCiphertexts);
@@ -261,9 +271,9 @@ LogicalResult convertRemapOp(RemapOp op,
   }
 
   auto resultNodes =
-      implementShiftNetwork(ciphertexts, mapping, scheme, ciphertextSize);
+      implementShiftNetwork(ciphertexts, mapping, scheme, ciphertextSize, dagElemType);
 
-  kernel::IRMaterializingVisitor visitor(b, singleCiphertextType);
+  kernel::IRMaterializingVisitor visitor(b);
   std::vector<Value> result = visitor.process(resultNodes);
 
   // Finally, recombine with an empty tensor + tensor.insert_slice

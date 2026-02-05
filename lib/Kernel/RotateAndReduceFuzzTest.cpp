@@ -64,7 +64,7 @@ std::pair<std::vector<int>, int> runImpl(
   result = implementRotateAndReduce(vectorInput, plaintextsInput, period, n,
                                     zeroDiagonals, reduceOp);
   std::vector<int> resultTensor =
-      std::get<std::vector<int>>(evalKernel(result).getTensor());
+      std::get<std::vector<int>>(evalKernel(result)[0].get());
   int depth = evalMultiplicativeDepth(result);
   return std::make_pair(resultTensor, depth);
 }

@@ -592,9 +592,10 @@ struct ConvertLinalgMatvecLayout
 
   ConvertLinalgMatvecLayout(
       const ContextAwareTypeConverter& contextAwareTypeConverter,
-      MLIRContext* context)
+      MLIRContext* context, bool experimentalDisableLoopUnroll = false)
       : ContextAwareOpConversionPattern(contextAwareTypeConverter, context,
-                                        /*benefit=*/10) {}
+                                        /*benefit=*/10),
+        experimentalDisableLoopUnroll(experimentalDisableLoopUnroll) {}
 
   LayoutAttr getLayoutAttr(Value value) const {
     auto layoutLookup = getTypeConverter()->getContextualAttr(value);
@@ -650,14 +651,19 @@ struct ConvertLinalgMatvecLayout
     std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
         implementHaleviShoup(
             vectorLeaf, matrixLeaf,
-            cast<RankedTensorType>(op.getInputs()[0].getType()).getShape());
+            cast<RankedTensorType>(op.getInputs()[0].getType()).getShape(),
+            /* zeroDiagonals=*/{},
+            /* unroll= */ !experimentalDisableLoopUnroll);
 
     rewriter.setInsertionPointAfter(op);
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     IRMaterializingVisitor visitor(
-        b, input.getType(),
+        b,
         [&](Operation* createdOp) { setMaterializedAttr(createdOp); });
-    Value finalOutput = implementedKernel->visit(visitor);
+    std::vector<Value> results = implementedKernel->visit(visitor);
+    assert(results.size() == 1 &&
+           "Halevi-Shoup matvec should only produce one output");
+    Value finalOutput = results[0];
 
     auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
     auto* finalOutputOp = finalOutput.getDefiningOp();
@@ -694,6 +700,9 @@ struct ConvertLinalgMatvecLayout
     return op.emitError() << "unsupported layout for matrix in matvec: "
                           << matrixLayout;
   }
+
+ private:
+  bool experimentalDisableLoopUnroll;
 };
 
 struct ConvertLinalgConv2D
@@ -704,9 +713,10 @@ struct ConvertLinalgConv2D
 
   ConvertLinalgConv2D(
       const ContextAwareTypeConverter& contextAwareTypeConverter,
-      MLIRContext* context)
+      MLIRContext* context, bool experimentalDisableLoopUnroll = false)
       : ContextAwareOpConversionPattern(contextAwareTypeConverter, context,
-                                        /*benefit=*/10) {}
+                                        /*benefit=*/10),
+        experimentalDisableLoopUnroll(experimentalDisableLoopUnroll) {}
 
   LayoutAttr getLayoutAttr(Value value) const {
     auto layoutLookup = getTypeConverter()->getContextualAttr(value);
@@ -779,17 +789,21 @@ struct ConvertLinalgConv2D
 
     std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
         implementHaleviShoup(vectorLeaf, matrixLeaf,
-                             expandedMatrixType.getShape(), zeroDiagonals);
+                             expandedMatrixType.getShape(), zeroDiagonals,
+                             /* unroll= */ !experimentalDisableLoopUnroll);
 
     rewriter.setInsertionPointAfter(op);
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     IRMaterializingVisitor visitor(
-        b, data.getType(),
+        b,
         [&](Operation* createdOp) { setMaterializedAttr(createdOp); });
-    Value finalOutput = implementedKernel->visit(visitor);
+    std::vector<Value> results = implementedKernel->visit(visitor);
+    assert(results.size() == 1 &&
+           "Halevi-Shoup conv2d as matvec should only produce one output");
+    Value finalOutput = results[0];
 
     auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
-    auto finalOutputOp = finalOutput.getDefiningOp();
+    auto* finalOutputOp = finalOutput.getDefiningOp();
     finalOutputOp->setAttr(kLayoutAttrName, layoutAttr);
     setMaterializedAttr(finalOutputOp);
 
@@ -821,6 +835,9 @@ struct ConvertLinalgConv2D
 
     return op.emitError() << "unsupported layout for 2d conv";
   }
+
+ private:
+  bool experimentalDisableLoopUnroll;
 };
 
 Value makeMask(ContextAwareConversionPatternRewriter& rewriter, Location loc,
@@ -1661,7 +1678,7 @@ class ConvertTensorExtractSlice
     auto resultCiphertextSemanticType = cast<RankedTensorType>(
         getTypeConverter()->convertType(op.getResultType(), resultLayout));
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    auto remapAndExtract = remapAndExtractResult(
+    auto* remapAndExtract = remapAndExtractResult(
         b, adaptor.getSource(), sliceLayoutAttr, resultCiphertextSemanticType);
 
     setMaterializedAttr(remapAndExtract);
@@ -1952,10 +1969,13 @@ struct ConvertLinalgMatmul
 
     rewriter.setInsertionPointAfter(op);
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    IRMaterializingVisitor visitor(b, lhs.getType(), [&](Operation* createdOp) {
+    IRMaterializingVisitor visitor(b, [&](Operation* createdOp) {
       setMaterializedAttr(op);
     });
-    Value finalOutput = implementedKernel->visit(visitor);
+    std::vector<Value> results = implementedKernel->visit(visitor);
+    assert(results.size() == 1 &&
+           "bicyclic matmul should have a single output");
+    Value finalOutput = results[0];
 
     auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
     auto* finalOutputOp = finalOutput.getDefiningOp();
@@ -2001,12 +2021,13 @@ struct ConvertToCiphertextSemantics
     });
 
     patterns.add<ConvertAnyAddingMaterializedAttr, ConvertConvertLayout,
-                 ConvertFunc, ConvertLinalgConv2D, ConvertLinalgMatmul,
-                 ConvertLinalgMatvecLayout, ConvertLinalgReduce,
+                 ConvertFunc, ConvertLinalgMatmul, ConvertLinalgReduce,
                  ConvertSecretGeneric, ConvertTensorCollapseShape,
                  ConvertTensorExpandShape, ConvertTensorExtractLayout,
                  ConvertTensorExtractSlice, ConvertTensorInsertLayout,
                  ConvertTensorInsertSlice>(typeConverter, context);
+    patterns.add<ConvertLinalgMatvecLayout, ConvertLinalgConv2D>(
+        typeConverter, context, experimentalDisableLoopUnroll);
     patterns.add<ConvertAssignLayout>(typeConverter, context, ciphertextSize);
 
     ConversionConfig config;
