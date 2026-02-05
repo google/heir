@@ -71,6 +71,18 @@ struct ExtractNode {
   size_t index;
 };
 
+// A For loop with static bounds and a single iter_arg
+template <typename T>
+struct ForLoopNode {
+  std::shared_ptr<ArithmeticDagNode<T>> init;
+  std::shared_ptr<ArithmeticDagNode<T>> inductionVar;
+  std::shared_ptr<ArithmeticDagNode<T>> iterArg;
+  std::shared_ptr<ArithmeticDagNode<T>> body;
+  size_t lower;
+  size_t upper;
+  size_t step;
+};
+
 template <typename T>
 struct ArithmeticDagNode {
  public:
@@ -179,6 +191,20 @@ struct ArithmeticDagNode {
         std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
     node->node_variant.template emplace<ExtractNode<T>>(
         ExtractNode<T>{std::move(tensor), index});
+    return node;
+  }
+
+  static std::shared_ptr<ArithmeticDagNode<T>> loop(
+      std::shared_ptr<ArithmeticDagNode<T>> init, size_t lower, size_t upper,
+      size_t step) {
+    assert(init && "invalid init");
+    // FIXME: figure out how to make sense of this
+    auto inductionVar = variable<T>();
+    auto node =
+        std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
+    node->node_variant.template emplace<ForLoopNode<T>>(
+        ForLoopNode<T>{std::move(init), std::move(inductionVar), nullptr,
+                       nullptr, lower, upper, step});
     return node;
   }
 
