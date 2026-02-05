@@ -99,8 +99,10 @@ class LattigoEmitter {
   LogicalResult printOperation(::mlir::scf::ForOp op);
   LogicalResult printOperation(::mlir::scf::IfOp op);
   LogicalResult printOperation(::mlir::scf::YieldOp op);
+  LogicalResult printOperation(::mlir::tensor::CollapseShapeOp op);
   LogicalResult printOperation(::mlir::tensor::ConcatOp op);
   LogicalResult printOperation(::mlir::tensor::EmptyOp op);
+  LogicalResult printOperation(::mlir::tensor::ExpandShapeOp op);
   LogicalResult printOperation(::mlir::tensor::ExtractOp op);
   LogicalResult printOperation(::mlir::tensor::ExtractSliceOp op);
   LogicalResult printOperation(::mlir::tensor::FromElementsOp op);
