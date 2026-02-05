@@ -57,8 +57,11 @@ LogicalResult convertRotateAndReduceOp(RotateAndReduceOp op) {
   IRRewriter rewriter(op.getContext());
   rewriter.setInsertionPointAfter(op);
   ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-  IRMaterializingVisitor visitor(b, input.getType());
-  Value finalOutput = implementedKernel->visit(visitor);
+  IRMaterializingVisitor visitor(b);
+  std::vector<Value> results = implementedKernel->visit(visitor);
+  assert(results.size() == 1 &&
+         "Expected implemented kernel to produce a single result");
+  Value finalOutput = results[0];
   rewriter.replaceOp(op, finalOutput);
   return success();
 }
