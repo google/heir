@@ -118,9 +118,10 @@ std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
 implementBabyStepGiantStep(
     const T& giantSteppedOperand, const T& babySteppedOperand, int64_t period,
     int64_t steps, DagExtractor<T> extractFunc,
-    std::map<int, bool> zeroDiagonals = {},
+    const std::map<int, bool>& zeroDiagonals = {},
     const DerivedRotationIndexFn& derivedRotationIndexFn =
-        defaultDerivedRotationIndexFn) {
+        defaultDerivedRotationIndexFn,
+    bool unroll = true) {
   using NodeTy = ArithmeticDagNode<T>;
   auto giantSteppedDag = NodeTy::leaf(giantSteppedOperand);
   auto babySteppedDag = NodeTy::leaf(babySteppedOperand);
@@ -204,8 +205,9 @@ std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
                  std::shared_ptr<ArithmeticDagNode<T>>>
 implementRotateAndReduce(const T& vector, std::optional<T> plaintexts,
                          int64_t period, int64_t steps,
-                         std::map<int, bool> zeroDiagonals = {},
-                         const std::string& reduceOp = "arith.addi") {
+                         const std::map<int, bool>& zeroDiagonals = {},
+                         const std::string& reduceOp = "arith.addi",
+                         bool unroll = true) {
   using NodeTy = ArithmeticDagNode<T>;
   auto performReduction = [&](std::shared_ptr<NodeTy> left,
                               std::shared_ptr<NodeTy> right) {
@@ -221,6 +223,7 @@ implementRotateAndReduce(const T& vector, std::optional<T> plaintexts,
     return NodeTy::add(left, right);
   };
 
+  // FIXME: allow keeping rolled
   if (!plaintexts.has_value()) {
     return implementRotateAndReduceAccumulation<T>(vector, period, steps,
                                                    performReduction);
@@ -237,7 +240,8 @@ implementRotateAndReduce(const T& vector, std::optional<T> plaintexts,
   };
 
   return implementBabyStepGiantStep<T>(vector, plaintexts.value(), period,
-                                       steps, extractFunc, zeroDiagonals);
+                                       steps, extractFunc, zeroDiagonals,
+                                       /*unroll=*/unroll);
 }
 
 // Returns an arithmetic DAG that implements a baby-step-giant-step between
@@ -281,13 +285,14 @@ std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
                  std::shared_ptr<ArithmeticDagNode<T>>>
 implementHaleviShoup(const T& vector, const T& matrix,
                      std::vector<int64_t> originalMatrixShape,
-                     std::map<int, bool> zeroDiagonals = {}) {
+                     std::map<int, bool> zeroDiagonals = {},
+                     bool unroll = true) {
   using NodeTy = ArithmeticDagNode<T>;
   int64_t numRotations = matrix.getShape()[0];
 
   auto rotateAndReduceResult = implementRotateAndReduce<T>(
       vector, std::optional<T>(matrix), /*period=*/1,
-      /*steps=*/numRotations, zeroDiagonals);
+      /*steps=*/numRotations, zeroDiagonals, /*unroll=*/unroll);
 
   auto summedShifts = rotateAndReduceResult;
 
@@ -300,6 +305,7 @@ implementHaleviShoup(const T& vector, const T& matrix,
 
   // Post-processing partial-rotate-and-reduce step required for
   // squat-diagonal packing.
+  // FIXME: keep rolled if unroll=false
   int64_t numShifts = (int64_t)(log2(matrixNumCols) - log2(matrixNumRows));
   int64_t shift = matrixNumCols / 2;
   for (int64_t i = 0; i < numShifts; ++i) {
