@@ -53,15 +53,22 @@ def ConvertToCiphertextSemantics : Pass<"convert-to-ciphertext-semantics"> {
     "mlir::scf::SCFDialect"
   ];
 
-  // TODO(#4102): reevaluate flag name
   let options = [
+    // TODO(#4102): reevaluate flag name
     Option<
       "ciphertextSize",
       "ciphertext-size",
       "int",
       /*default=*/"1024",
       "Power of two length of the ciphertexts the data is packed in."
-    >
+    >,
+    Option<
+      "experimentalDisableLoopUnroll",
+      "experimental-disable-loop-unroll",
+      "bool",
+      /*default=*/"false",
+      "Keep the kernels rolled."
+    >,
   ];
 }
 

@@ -201,7 +201,7 @@ std::vector<Value> IRMaterializingVisitor::operator()(
   Value lhs = this->process(node.left)[0];
   Value rhs = this->process(node.right)[0];
 
-  auto op = TypeSwitch<Type, Operation*>(getElementTypeOrSelf(evaluatedType))
+  auto op = TypeSwitch<Type, Operation*>(getElementTypeOrSelf(lhs.getType()))
                 .Case<mlir::FloatType>([&](auto ty) {
                   arith::CmpFPredicate pred;
                   switch (node.predicate) {
@@ -226,7 +226,7 @@ std::vector<Value> IRMaterializingVisitor::operator()(
                   }
                   return arith::CmpFOp::create(builder, pred, lhs, rhs);
                 })
-                .Case<mlir::IntegerType>([&](auto ty) {
+                .Case<mlir::IntegerType, mlir::IndexType>([&](auto ty) {
                   arith::CmpIPredicate pred;
                   switch (node.predicate) {
                     case ComparisonPredicate::LT:

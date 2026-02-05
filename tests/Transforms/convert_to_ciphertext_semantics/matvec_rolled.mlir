@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics="ciphertext-size=1024 experimental-disable-loop-unroll=false" | FileCheck %s
+// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics="ciphertext-size=1024 experimental-disable-loop-unroll=true" | FileCheck %s
 
 #kernel = #secret.kernel<name = "MatvecDiagonal", force = false>
 #layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 16 = 0 and 0 <= i0 <= 15 and 0 <= slot <= 1023 }">
@@ -17,72 +17,23 @@ module {
 
 // CHECK: func.func @square
 // CHECK-SAME: (%[[ARG0:.*]]: !secret.secret<tensor<1x1024xf32>> {tensor_ext.original_type = #original_type}) -> (!secret.secret<tensor<1x1024xf32>> {tensor_ext.original_type = #original_type})
-// CHECK-DAG: arith.constant 0 : index
-// CHECK-DAG: arith.constant 1 : index
-// CHECK-DAG: arith.constant 2 : index
-// CHECK-DAG: arith.constant 3 : index
-// CHECK-DAG: arith.constant 4 : index
-// CHECK-DAG: arith.constant -4 : index
-// CHECK-DAG: arith.constant 8 : index
-// CHECK-DAG: arith.constant -8 : index
-// CHECK-DAG: arith.constant 12 : index
-// CHECK-DAG: arith.constant -12 : index
+// CHECK-DAG: %[[C16:.*]] = arith.constant 16 : index
+// CHECK-DAG: %[[C4:.*]] = arith.constant 4 : index
+// CHECK-DAG: %[[C0:.*]] = arith.constant 0 : index
+// CHECK-DAG: %[[C1:.*]] = arith.constant 1 : index
 // CHECK: secret.generic
-// CHECK-COUNT-2: func.call @_assign_layout
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: tensor_ext.rotate
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: arith.addf
-// CHECK: tensor_ext.rotate
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: arith.addf
-// CHECK: tensor_ext.rotate
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: arith.addf
-// CHECK: tensor_ext.rotate
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: arith.addf
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: arith.addf
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: arith.addf
-// CHECK: tensor_ext.rotate
-// CHECK: arith.addf
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: arith.addf
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: arith.addf
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: arith.addf
-// CHECK: tensor_ext.rotate
-// CHECK: arith.addf
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: arith.addf
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: arith.addf
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: arith.addf
-// CHECK: tensor_ext.rotate
-// CHECK: arith.addf
+// CHECK: %[[M:.*]] = func.call @_assign_layout
+// CHECK: %[[V:.*]] = func.call @_assign_layout
+// CHECK: %[[LOOP1:.*]] = scf.for %[[I:.*]] = %[[C0]] to %[[C4]] step %[[C1]]
+// CHECK:   %[[LOOP2:.*]] = scf.for %[[J:.*]] = %[[C0]] to %[[C4]] step %[[C1]]
+// CHECK:     tensor_ext.rotate
+// CHECK:     tensor_ext.rotate
+// CHECK:     arith.mulf
+// CHECK:     arith.addf
+// CHECK:     scf.yield
+// CHECK:   tensor_ext.rotate
+// CHECK:   arith.addf
+// CHECK:   scf.yield
 // CHECK: arith.addf
 // CHECK: secret.yield
 // CHECK: return
@@ -125,83 +76,23 @@ module {
 
 // CHECK: func.func @squat
 // CHECK-SAME: (%[[ARG0:.*]]: !secret.secret<tensor<1x1024xf32>> {{.*}}) -> (!secret.secret<tensor<1x1024xf32>> {tensor_ext.original_type = #original_type})
-// CHECK-DAG: arith.constant 0 : index
-// CHECK-DAG: arith.constant 1 : index
-// CHECK-DAG: arith.constant 2 : index
-// CHECK-DAG: arith.constant 3 : index
-// CHECK-DAG: arith.constant 4 : index
-// CHECK-DAG: arith.constant 5 : index
-// CHECK-DAG: arith.constant 6 : index
-// CHECK-DAG: arith.constant 7 : index
-// CHECK-DAG: arith.constant 8 : index
-// CHECK-DAG: arith.constant 9 : index
-// CHECK-DAG: arith.constant 10 : index
-// CHECK-DAG: arith.constant 11 : index
-// CHECK-DAG: arith.constant 12 : index
-// CHECK-DAG: arith.constant 13 : index
-// CHECK-DAG: arith.constant 14 : index
-// CHECK-DAG: arith.constant 15 : index
-// CHECK-DAG: arith.constant -4 : index
-// CHECK-DAG: arith.constant -8 : index
-// CHECK-DAG: arith.constant -12 : index
-// CHECK-DAG: arith.constant dense<{{.*}}> : tensor<10x16xf32>
+// CHECK-DAG: %[[C16:.*]] = arith.constant 16 : index
+// CHECK-DAG: %[[C4:.*]] = arith.constant 4 : index
+// CHECK-DAG: %[[C0:.*]] = arith.constant 0 : index
+// CHECK-DAG: %[[C1:.*]] = arith.constant 1 : index
 // CHECK: secret.generic
-// CHECK-COUNT-2: func.call @_assign_layout
-// matrix-vector multiplication pattern
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: tensor_ext.rotate
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: arith.addf
-// CHECK: tensor_ext.rotate
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: arith.addf
-// CHECK: tensor_ext.rotate
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: arith.addf
-// CHECK: tensor_ext.rotate
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: arith.addf
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: arith.addf
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: arith.addf
-// CHECK: tensor_ext.rotate
-// CHECK: arith.addf
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: arith.addf
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: arith.addf
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: arith.addf
-// CHECK: tensor_ext.rotate
-// CHECK: arith.addf
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: arith.addf
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: arith.addf
-// CHECK: tensor_ext.rotate
-// CHECK: arith.mulf
-// CHECK: arith.addf
-// CHECK: tensor_ext.rotate
-// CHECK: arith.addf
+// CHECK: %[[M:.*]] = func.call @_assign_layout
+// CHECK: %[[V:.*]] = func.call @_assign_layout
+// CHECK: %[[LOOP1:.*]] = scf.for %[[I:.*]] = %[[C0]] to %[[C4]] step %[[C1]]
+// CHECK:   %[[LOOP2:.*]] = scf.for %[[J:.*]] = %[[C0]] to %[[C4]] step %[[C1]]
+// CHECK:     tensor_ext.rotate
+// CHECK:     tensor_ext.rotate
+// CHECK:     arith.mulf
+// CHECK:     arith.addf
+// CHECK:     scf.yield
+// CHECK:   tensor_ext.rotate
+// CHECK:   arith.addf
+// CHECK:   scf.yield
 // CHECK: arith.addf
 // CHECK: secret.yield
 // CHECK: return
