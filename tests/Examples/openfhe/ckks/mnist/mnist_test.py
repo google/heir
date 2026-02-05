@@ -7,8 +7,8 @@ from torch.utils.data import DataLoader, Dataset
 import absl.testing.absltest
 import tests.Examples.openfhe.ckks.mnist.mnist_openfhe_pybind as mnist
 
-MODEL_PATH = "tests/Examples/openfhe/ckks/mnist/data/traced_model.pt"
-DATA_PATH = "tests/Examples/openfhe/ckks/mnist/data"
+MODEL_PATH = "tests/Examples/common/mnist/data/traced_model.pt"
+DATA_PATH = "tests/Examples/common/mnist/data"
 
 
 class CustomMNISTTestDataset(Dataset):

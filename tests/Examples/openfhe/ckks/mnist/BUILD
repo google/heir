@@ -13,7 +13,7 @@ openfhe_lib(
         "--torch-linalg-to-ckks=ciphertext-degree=1024",
         "--scheme-to-openfhe",
     ],
-    mlir_src = "@heir//tests/Examples/common:mnist.mlir",
+    mlir_src = "@heir//tests/Examples/common/mnist:mnist.mlir",
     pybind_target_name = "mnist_openfhe_pybind",
     tags = [
         "nofastbuild",
@@ -26,9 +26,9 @@ py_test(
     size = "enormous",
     srcs = ["mnist_test.py"],
     data = [
-        "@heir//tests/Examples/openfhe/ckks/mnist/data:t10k-images-idx3-ubyte",
-        "@heir//tests/Examples/openfhe/ckks/mnist/data:t10k-labels-idx1-ubyte",
-        "@heir//tests/Examples/openfhe/ckks/mnist/data:traced_model.pt",
+        "@heir//tests/Examples/common/mnist/data:t10k-images-idx3-ubyte",
+        "@heir//tests/Examples/common/mnist/data:t10k-labels-idx1-ubyte",
+        "@heir//tests/Examples/common/mnist/data:traced_model.pt",
     ],
     main = "mnist_test.py",
     tags = [
