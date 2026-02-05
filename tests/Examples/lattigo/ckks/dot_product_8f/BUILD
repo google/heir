@@ -1,5 +1,3 @@
-# See README.md for setup required to run these tests
-
 load("@heir//tests/Examples/lattigo:test.bzl", "heir_lattigo_lib")
 load("@rules_go//go:def.bzl", "go_test")
 
