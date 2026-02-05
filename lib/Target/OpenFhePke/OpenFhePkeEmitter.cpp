@@ -238,8 +238,9 @@ LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
           .Case<arith::ConstantOp, arith::ExtSIOp, arith::ExtUIOp,
                 arith::FloorDivSIOp, arith::IndexCastOp, arith::ExtFOp,
                 arith::RemSIOp, arith::AddIOp, arith::AddFOp, arith::AndIOp,
-                arith::SubIOp, arith::MulIOp, arith::DivSIOp, arith::CmpIOp,
-                arith::SelectOp>([&](auto op) { return printOperation(op); })
+                arith::SubIOp, arith::MulFOp, arith::MulIOp, arith::DivSIOp,
+                arith::CmpIOp, arith::SelectOp, arith::MaxSIOp, arith::MinSIOp>(
+              [&](auto op) { return printOperation(op); })
           // SCF ops
           .Case<scf::IfOp, scf::ForOp, scf::ForallOp, scf::InParallelOp,
                 scf::YieldOp>([&](auto op) { return printOperation(op); })
@@ -1095,6 +1096,12 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::ExtSIOp op) {
   if (auto tensorTy = dyn_cast<RankedTensorType>(op.getOperand().getType())) {
     os << "std::vector<int64_t> " << resultVarName << "(std::begin("
        << inputVarName << "), std::end(" << inputVarName << "));\n";
+  } else if (auto intTy = dyn_cast<IntegerType>(op.getOperand().getType())) {
+    // This is an i1 type, so the assignment implicitly casts it to an int.
+    if (failed(emitTypedAssignPrefix(op.getResult(), op.getLoc()))) {
+      return failure();
+    }
+    os << inputVarName << ";\n";
   } else {
     return op.emitOpError() << "Unsupported input type";
   }
@@ -1227,6 +1234,10 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::AndIOp op) {
   return printBinaryOp(op, op.getLhs(), op.getRhs(), "&&");
 }
 
+LogicalResult OpenFhePkeEmitter::printOperation(arith::MulFOp op) {
+  return printBinaryOp(op, op.getLhs(), op.getRhs(), "*");
+}
+
 LogicalResult OpenFhePkeEmitter::printOperation(arith::MulIOp op) {
   return printBinaryOp(op, op.getLhs(), op.getRhs(), "*");
 }
@@ -1273,6 +1284,22 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::CmpIOp op) {
       return printBinaryOp(op, op.getLhs(), op.getRhs(), ">=");
   }
   llvm_unreachable("unknown cmpi predicate kind");
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(arith::MaxSIOp op) {
+  if (failed(emitTypedAssignPrefix(op.getResult(), op.getLoc(), true)))
+    return failure();
+  os << "std::max(" << variableNames->getNameForValue(op.getLhs()) << ", "
+     << variableNames->getNameForValue(op.getRhs()) << ");\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(arith::MinSIOp op) {
+  if (failed(emitTypedAssignPrefix(op.getResult(), op.getLoc(), true)))
+    return failure();
+  os << "std::min(" << variableNames->getNameForValue(op.getLhs()) << ", "
+     << variableNames->getNameForValue(op.getRhs()) << ");\n";
+  return success();
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(tensor::ConcatOp op) {

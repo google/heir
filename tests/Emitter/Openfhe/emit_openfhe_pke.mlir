@@ -228,6 +228,20 @@ module attributes {scheme.bgv} {
     %3 = arith.select %2, %c0, %c1 : i64
     return %3 : i64
   }
+  // CHECK: test_max_min
+  // CHECK-SAME: int64_t [[arg0:[^ ]*]],
+  // CHECK-SAME: int64_t [[arg1:[^ ]*]])
+  func.func @test_max_min(%arg0: i64, %arg1: i64) -> i64 {
+    // CHECK: int64_t [[c0:[^ ]*]] = 0;
+    %c0 = arith.constant 0 : i64
+
+    // CHECK: int64_t [[v2:[^ ]*]] = std::max([[c0]], [[arg0]]);
+    // CHECK: int64_t [[v3:[^ ]*]] = std::min([[v2]], [[arg1]]);
+    // CHECK: return [[v3]];
+    %0 = arith.maxsi %c0, %arg0 : i64
+    %1 = arith.minsi %0, %arg1 : i64
+    return %1 : i64
+  }
 }
 
 // -----
