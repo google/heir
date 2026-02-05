@@ -7,9 +7,10 @@
 #include "lib/Dialect/LWE/IR/LWEPatterns.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
-#include "lib/Dialect/RNS/IR/RNSOps.h"
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
-// #include "lib/Parameters/CKKS/Params.h"
+#include "lib/Parameters/CKKS/Params.h"
+// #include "lib/Parameters/CKKS/Utils.h" // Circular dependency
+#include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/OperationSupport.h"    // from @llvm-project
@@ -19,7 +20,6 @@
 #include "mlir/include/mlir/IR/ValueRange.h"          // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
-
 namespace mlir {
 namespace heir {
 namespace ckks {
@@ -114,8 +114,7 @@ LogicalResult KeySwitchInnerOp::inferReturnTypes(
     DictionaryAttr attrs, mlir::OpaqueProperties properties,
     mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
   KeySwitchInnerOpAdaptor op(operands, attrs, properties, regions);
-  lwe::LWERingEltType ringEltType =
-      cast<lwe::LWERingEltType>(op.getValue().getType());
+  auto ringEltType = cast<lwe::LWERingEltType>(op.getValue().getType());
   lwe::LWERingEltType outRingType =
       lwe::LWERingEltType::get(ctx, ringEltType.getRing());
   results.push_back(outRingType);
@@ -123,76 +122,17 @@ LogicalResult KeySwitchInnerOp::inferReturnTypes(
   return success();
 }
 
-LogicalResult ExtractCoeffOp::inferReturnTypes(
-    MLIRContext* ctx, std::optional<Location>, ValueRange operands,
-    DictionaryAttr attrs, mlir::OpaqueProperties properties,
-    mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
-  ExtractCoeffOpAdaptor op(operands, attrs, properties, regions);
-
-  lwe::LWECiphertextType ctType =
-      cast<lwe::LWECiphertextType>(op.getValue().getType());
-  polynomial::RingAttr ringAttr = ctType.getCiphertextSpace().getRing();
-  lwe::LWERingEltType outputType = lwe::LWERingEltType::get(ctx, ringAttr);
-
-  results.push_back(outputType);
-  return success();
-}
-
-LogicalResult ExtractSliceOp::inferReturnTypes(
-    MLIRContext* ctx, std::optional<Location>, ValueRange operands,
-    DictionaryAttr attrs, mlir::OpaqueProperties properties,
-    mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
-  ExtractSliceOpAdaptor op(operands, attrs, properties, regions);
-  lwe::LWERingEltType inputType =
-      cast<lwe::LWERingEltType>(op.getValue().getType());
-  polynomial::RingAttr ringAttr = inputType.getRing();
-  rns::RNSType elementType = cast<rns::RNSType>(ringAttr.getCoefficientType());
-
-  int64_t start = op.getStart().getZExtValue();
-  int64_t size = op.getSize().getZExtValue();
-
-  rns::RNSType truncatedEltType = rns::RNSType::get(
-      ctx, elementType.getBasisTypes().drop_front(start).take_front(size));
-
-  polynomial::RingAttr outputRingAttr = polynomial::RingAttr::get(
-      ctx, truncatedEltType, ringAttr.getPolynomialModulus());
-  lwe::LWERingEltType resultType =
-      lwe::LWERingEltType::get(ctx, outputRingAttr);
-  results.push_back(resultType);
-  return success();
-}
-
-LogicalResult ConvertBasisOp::inferReturnTypes(
-    MLIRContext* ctx, std::optional<Location>, ValueRange operands,
-    DictionaryAttr attrs, mlir::OpaqueProperties properties,
-    mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
-  ConvertBasisOpAdaptor op(operands, attrs, properties, regions);
-  lwe::LWERingEltType inputType =
-      cast<lwe::LWERingEltType>(op.getValue().getType());
-  polynomial::RingAttr ringAttr = inputType.getRing();
-  rns::RNSType elementType = cast<rns::RNSType>(op.getTargetBasis());
-  polynomial::RingAttr outputRingAttr = polynomial::RingAttr::get(
-      ctx, elementType, ringAttr.getPolynomialModulus());
-  lwe::LWERingEltType resultType =
-      lwe::LWERingEltType::get(ctx, outputRingAttr);
-  results.push_back(resultType);
-  return success();
-}
-
 LogicalResult KeySwitchInnerOp::verify() {
   RankedTensorType keyTensorType = getKeySwitchingKey().getType();
-  lwe::LWECiphertextType ctType =
-      cast<lwe::LWECiphertextType>(keyTensorType.getElementType());
+  auto ctType = cast<lwe::LWECiphertextType>(keyTensorType.getElementType());
   polynomial::RingAttr ringType = ctType.getCiphertextSpace().getRing();
-  rns::RNSType keyRNSType =
-      dyn_cast<rns::RNSType>(ringType.getCoefficientType());
+  auto keyRNSType = dyn_cast<rns::RNSType>(ringType.getCoefficientType());
   if (!keyRNSType) {
     return emitOpError() << "Keyswitch key must be a ring element of RNS types";
   }
 
-  lwe::LWERingEltType ringEltType =
-      cast<lwe::LWERingEltType>(getValue().getType());
-  rns::RNSType inputRNSType =
+  auto ringEltType = cast<lwe::LWERingEltType>(getValue().getType());
+  auto inputRNSType =
       dyn_cast<rns::RNSType>(ringEltType.getRing().getCoefficientType());
   if (!inputRNSType) {
     return emitOpError() << "Value must be a ring element of RNS types";
@@ -208,13 +148,14 @@ LogicalResult KeySwitchInnerOp::verify() {
   // TODO: I'm probably doing something wrong, but when I try to link against
   // Parameters, I get a circular dependency error.
   //
-  // SchemeParamAttr schemeParamAttr =
-  //     getParentOfType<ModuleOp>()->getAttrOfType<SchemeParamAttr>(
-  //         CKKSDialect::kSchemeParamAttrName);
-  // if (!schemeParamAttr) {
-  //   return emitOpError() << "Cannot find scheme param attribute on parent
-  //   module");
-  // }
+  SchemeParamAttr schemeParamAttr =
+      getOperation()
+          ->getParentOfType<ModuleOp>()
+          ->getAttrOfType<SchemeParamAttr>(CKKSDialect::kSchemeParamAttrName);
+  if (!schemeParamAttr) {
+    return emitOpError()
+           << "Cannot find scheme param attribute on parent module";
+  }
   // auto schemeParam = SchemeParam::getSchemeParamFromAttr(schemeParamAttr);
 
   // SmallVector<Type> extModuli;
@@ -249,44 +190,6 @@ LogicalResult KeySwitchInnerOp::verify() {
   // }
 
   return success();
-}
-
-LogicalResult ExtractCoeffOp::verify() {
-  int numCTCoeffs = this->getValue().getType().getCiphertextSpace().getSize();
-  int idx = this->getIndex().getZExtValue();
-
-  if (idx < 0) {
-    return emitOpError() << "index " << idx << " cannot be negative";
-  }
-
-  if (idx >= numCTCoeffs) {
-    return emitOpError()
-           << "index " << idx
-           << " must be smaller than the number of ciphertext components "
-           << numCTCoeffs;
-  }
-
-  return success();
-}
-
-LogicalResult FromCoeffsOp::verify() {
-  int numCoeffs = this->getCoeffs().size();
-  if (numCoeffs < 1) {
-    return emitOpError()
-           << "Ciphertexts must have at least two components; got "
-           << numCoeffs;
-  }
-  return success();
-}
-
-LogicalResult ExtractSliceOp::verify() {
-  lwe::LWERingEltType ringEltType =
-      cast<lwe::LWERingEltType>(this->getValue().getType());
-  rns::RNSType rnsType =
-      cast<rns::RNSType>(ringEltType.getRing().getCoefficientType());
-  int64_t start = getStart().getZExtValue();
-  int64_t size = getSize().getZExtValue();
-  return verifyExtractSliceOp(this, rnsType, start, size);
 }
 
 void MulPlainOp::getCanonicalizationPatterns(RewritePatternSet& results,

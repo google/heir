@@ -1,15 +1,11 @@
 // RUN: heir-opt --ckks-decompose-keyswitch %s --mlir-print-ir-after-failure | FileCheck %s
 
-#q0 = 1095233372161 : i64
-#q1 = 1032955396097 : i64
-#p0 = 261405424692085787 : i64
-!Zq0 = !mod_arith.int<#q0>
-!Zq1 = !mod_arith.int<#q1>
-!Zp0 = !mod_arith.int<#p0>
+!Zq0 = !mod_arith.int<1095233372161 : i64>
+!Zq1 = !mod_arith.int<1032955396097 : i64>
+!Zp0 = !mod_arith.int<261405424692085787 : i64>
 
 // Input's type
 #ring_L1x1024 = #polynomial.ring<coefficientType = !rns.rns<!Zq0>, polynomialModulus = <1 + x**1024>>
-#modulus_chain_L1_C1 = #lwe.modulus_chain<elements = <#q0, #q1>, current = 0>
 !ringelt_L1 = !lwe.lwe_ring_elt<ring = #ring_L1x1024>
 
 // KSK type
@@ -27,14 +23,6 @@
                              ciphertext_space = #ciphertext_space_L2,
                              key = #key>
 
-// Output type
-#ciphertext_space_L1 = #lwe.ciphertext_space<ring = #ring_L1x1024, encryption_type = lsb, size = 2>
-!ct_L1 = !lwe.lwe_ciphertext<application_data = <message_type = i3>,
-                             plaintext_space = <ring = #ring_L1x1024, encoding = #inverse_canonical_encoding>,
-                             ciphertext_space = #ciphertext_space_L1,
-                             key = #key,
-                             modulus_chain = #modulus_chain_L1_C1>
-
 module attributes {
     ckks.schemeParam = #ckks.scheme_param<
       logN = 10,
@@ -50,22 +38,17 @@ module attributes {
   // CHECK-SAME: [[ksk:%.+]]: tensor<2x!ct_L1>) -> (!ringelt, !ringelt) {
   func.func @test_keyswitch(%x: !ringelt_L1, %arg0: tensor<2x!ct_L2>) -> (!ringelt_L1, !ringelt_L1) {
     // CHECK-DAG: [[C0:%.+]] = arith.constant 0 : index
-    // CHECK-DAG: [[part0:%.+]] = ckks.extract_slice [[x]] {size = 1 : index, start = 0 : index} : (!ringelt) -> !ringelt
+    // CHECK-DAG: [[part0:%.+]] = lwe.extract_slice [[x]] {size = 1 : index, start = 0 : index} : (!ringelt) -> !ringelt
     // !ringelt1 has the same LWERingElt type as the keyswitch key
-    // CHECK-DAG: [[extPart0:%.+]] = ckks.convert_basis [[part0]] {targetBasis = !rns_L1} : (!ringelt) -> !ringelt1
+    // CHECK-DAG: [[extPart0:%.+]] = lwe.convert_basis [[part0]] {targetBasis = !rns_L1} : (!ringelt) -> !ringelt1
     // CHECK-DAG: [[ksk0:%.+]] = tensor.extract [[ksk]][[[C0]]] : tensor<2x!ct_L1>
-    // CHECK-DAG: [[dp:%.+]] = lwe.ring_mul [[extPart0]], [[ksk0]] : (!ringelt1, !ct_L1) -> !ct_L1
-    // CHECK-DAG: [[constTerm:%.+]] = ckks.extract_coeff [[dp]] {index = 0 : index} : (!ct_L1) -> !ringelt1
-    // CHECK-DAG: [[linearTerm:%.+]] = ckks.extract_coeff [[dp]] {index = 1 : index} : (!ct_L1) -> !ringelt1
-    // CHECK-DAG: [[const_ext:%.+]] = ckks.convert_basis [[constTerm]] {targetBasis = !rns_L0} : (!ringelt1) -> !ringelt
-    // CHECK-DAG: [[linear_ext:%.+]] = ckks.convert_basis [[linearTerm]] {targetBasis = !rns_L0} : (!ringelt1) -> !ringelt
+    // CHECK-DAG: [[dp:%.+]] = lwe.mul_ring_elt [[extPart0]], [[ksk0]] : (!ringelt1, !ct_L1) -> !ct_L1
+    // CHECK-DAG: [[constTerm:%.+]] = lwe.extract_coeff [[dp]] {index = 0 : index} : (!ct_L1) -> !ringelt1
+    // CHECK-DAG: [[linearTerm:%.+]] = lwe.extract_coeff [[dp]] {index = 1 : index} : (!ct_L1) -> !ringelt1
+    // CHECK-DAG: [[const_ext:%.+]] = lwe.convert_basis [[constTerm]] {targetBasis = !rns_L0} : (!ringelt1) -> !ringelt
+    // CHECK-DAG: [[linear_ext:%.+]] = lwe.convert_basis [[linearTerm]] {targetBasis = !rns_L0} : (!ringelt1) -> !ringelt
     // CHECK-DAG: return [[const_ext]], [[linear_ext]] : !ringelt, !ringelt
     %constTerm, %linearTerm = ckks.key_switch_inner %x, %arg0 : (!ringelt_L1, tensor<2x!ct_L2>) -> (!ringelt_L1, !ringelt_L1)
     return %constTerm, %linearTerm: !ringelt_L1, !ringelt_L1
   }
 }
-
-// TODO: Ideally there would be at least two more tests here:
-//  - One to test multiple partitions
-//  - One to test partial partitions
-// However, Jeremy said I couldn't do that in the same file for doctest purposes; where should they go?

@@ -5,7 +5,6 @@
 #include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/LWE/IR/LWETraits.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
-// #include "lib/Parameters/CKKS/Params.h" // TODO avoid circular import
 #include "mlir/include/mlir/IR/BuiltinOps.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Dialect.h"       // from @llvm-project

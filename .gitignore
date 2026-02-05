@@ -17,6 +17,7 @@ hugo_stats.json
 
 # python
 venv
+.venv
 **/dist/
 *.egg-info
 wheelhouse

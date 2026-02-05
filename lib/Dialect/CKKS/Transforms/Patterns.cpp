@@ -3,11 +3,11 @@
 #include <cstdint>
 
 #include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
-#include "lib/Dialect/CKKS/IR/CKKSOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Parameters/CKKS/Params.h"
+#include "lib/Parameters/CKKS/Utils.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -26,16 +26,18 @@ LogicalResult DecomposeRelinearizePattern::matchAndRewrite(
   if (!op.getKeySwitchingKey()) {
     return rewriter.notifyMatchFailure(op, "no key switching key provided");
   }
-  lwe::LWECiphertextType ctType =
-      dyn_cast<lwe::LWECiphertextType>(op.getInput().getType());
+  auto ctType = dyn_cast<lwe::LWECiphertextType>(op.getInput().getType());
   if (ctType.getCiphertextSpace().getSize() != 3) {
     return rewriter.notifyMatchFailure(
         op, "ciphertext must have exactly three components");
   }
 
-  Value input0 = ExtractCoeffOp::create(b, op.getInput(), b.getIndexAttr(0));
-  Value input1 = ExtractCoeffOp::create(b, op.getInput(), b.getIndexAttr(1));
-  Value input2 = ExtractCoeffOp::create(b, op.getInput(), b.getIndexAttr(2));
+  Value input0 =
+      lwe::ExtractCoeffOp::create(b, op.getInput(), b.getIndexAttr(0));
+  Value input1 =
+      lwe::ExtractCoeffOp::create(b, op.getInput(), b.getIndexAttr(1));
+  Value input2 =
+      lwe::ExtractCoeffOp::create(b, op.getInput(), b.getIndexAttr(2));
 
   polynomial::RingAttr ringAttr = ctType.getCiphertextSpace().getRing();
   lwe::CiphertextSpaceAttr ctAttr = lwe::CiphertextSpaceAttr::get(
@@ -46,9 +48,9 @@ LogicalResult DecomposeRelinearizePattern::matchAndRewrite(
       ctAttr, ctType.getKey(), ctType.getModulusChain());
   KeySwitchInnerOp ksPoly =
       KeySwitchInnerOp::create(b, input2, op.getKeySwitchingKey());
-  Value ksCT = FromCoeffsOp::create(
+  Value ksCT = lwe::FromCoeffsOp::create(
       b, outCTType, {ksPoly.getConstTerm(), ksPoly.getLinearTerm()});
-  Value linearCT = FromCoeffsOp::create(b, outCTType, {input0, input1});
+  Value linearCT = lwe::FromCoeffsOp::create(b, outCTType, {input0, input1});
   Value sum = AddOp::create(b, ksCT, linearCT);
   rewriter.replaceOp(op, sum);
   return success();
@@ -58,15 +60,15 @@ LogicalResult DecomposeKeySwitchPattern::matchAndRewrite(
     KeySwitchInnerOp op, PatternRewriter& rewriter) const {
   ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-  // TODO(#2157): enable this for more than just CKKS
   SchemeParamAttr schemeParamAttr =
       op->getParentOfType<ModuleOp>()->getAttrOfType<SchemeParamAttr>(
           CKKSDialect::kSchemeParamAttrName);
   if (!schemeParamAttr) {
-    return rewriter.notifyMatchFailure(
-        op, "Cannot find scheme param attribute on parent module");
+    return op->emitOpError()
+           << "Cannot find scheme param attribute on parent module";
   }
-  auto schemeParam = SchemeParam::getSchemeParamFromAttr(schemeParamAttr);
+  auto schemeParam = getSchemeParamFromAttr(schemeParamAttr);
+
   int64_t partSize = schemeParam.getPi().size();
   if (!partSize) {
     return rewriter.notifyMatchFailure(
@@ -77,9 +79,8 @@ LogicalResult DecomposeKeySwitchPattern::matchAndRewrite(
   // ## Step 1: Decompose Input ##
   // #############################
 
-  lwe::LWERingEltType ringEltType =
-      cast<lwe::LWERingEltType>(op.getValue().getType());
-  rns::RNSType inputRNSType =
+  auto ringEltType = cast<lwe::LWERingEltType>(op.getValue().getType());
+  auto inputRNSType =
       cast<rns::RNSType>(ringEltType.getRing().getCoefficientType());
   if (!inputRNSType) {
     return rewriter.notifyMatchFailure(
@@ -92,9 +93,9 @@ LogicalResult DecomposeKeySwitchPattern::matchAndRewrite(
   int64_t extraPartSize = rnsLength - extraPartStart;
   SmallVector<Value> partitions;
   for (int i = 0; i < numFullPartitions; ++i) {
-    partitions.push_back(ExtractSliceOp::create(b, op.getValue(),
-                                                b.getIndexAttr(i * partSize),
-                                                b.getIndexAttr(partSize)));
+    partitions.push_back(lwe::ExtractSliceOp::create(
+        b, op.getValue(), b.getIndexAttr(i * partSize),
+        b.getIndexAttr(partSize)));
   }
 
   // Partition the RNS limbs of the input ring element into parts
@@ -111,9 +112,9 @@ LogicalResult DecomposeKeySwitchPattern::matchAndRewrite(
   // ring element. The result after this part is a list of Value of types
   // ringelt<R1>, ringelt<R2>, ...
   if (extraPartSize > 0) {
-    partitions.push_back(ExtractSliceOp::create(b, op.getValue(),
-                                                b.getIndexAttr(extraPartStart),
-                                                b.getIndexAttr(extraPartSize)));
+    partitions.push_back(lwe::ExtractSliceOp::create(
+        b, op.getValue(), b.getIndexAttr(extraPartStart),
+        b.getIndexAttr(extraPartSize)));
   }
 
   // ###########################################
@@ -141,7 +142,7 @@ LogicalResult DecomposeKeySwitchPattern::matchAndRewrite(
   SmallVector<Value> extendedPartitions;
   for (auto value : partitions) {
     extendedPartitions.push_back(
-        ConvertBasisOp::create(b, value, TypeAttr::get(newBasisType)));
+        lwe::ConvertBasisOp::create(b, value, TypeAttr::get(newBasisType)));
   }
 
   // ###########################################
@@ -149,12 +150,12 @@ LogicalResult DecomposeKeySwitchPattern::matchAndRewrite(
   // ###########################################
   // KSK is a K x CT
   // extendedPartitions is a K-sized list of RingElts
-  int64_t k = static_cast<long>(extendedPartitions.size());
+  int k = extendedPartitions.size();
   Value sum;
-  for (int64_t i = 0; i < k; i++) {
+  for (int i = 0; i < k; i++) {
     Value idx = arith::ConstantIndexOp::create(b, i).getResult();
     Value ksk = tensor::ExtractOp::create(b, op.getKeySwitchingKey(), idx);
-    Value prod = lwe::RRingMulOp::create(b, extendedPartitions[i], ksk);
+    Value prod = lwe::RMulRingEltOp::create(b, extendedPartitions[i], ksk);
     if (i == 0) {
       sum = prod;
     } else {
@@ -165,12 +166,12 @@ LogicalResult DecomposeKeySwitchPattern::matchAndRewrite(
   // ##########################################
   // ## Step 4: Remove the key-switch primes ##
   // ##########################################
-  Value constTerm = ExtractCoeffOp::create(b, sum, b.getIndexAttr(0));
-  Value linearTerm = ExtractCoeffOp::create(b, sum, b.getIndexAttr(1));
+  Value constTerm = lwe::ExtractCoeffOp::create(b, sum, b.getIndexAttr(0));
+  Value linearTerm = lwe::ExtractCoeffOp::create(b, sum, b.getIndexAttr(1));
   Value modDownConstTerm =
-      ConvertBasisOp::create(b, constTerm, TypeAttr::get(inputRNSType));
+      lwe::ConvertBasisOp::create(b, constTerm, TypeAttr::get(inputRNSType));
   Value modDownLinearTerm =
-      ConvertBasisOp::create(b, linearTerm, TypeAttr::get(inputRNSType));
+      lwe::ConvertBasisOp::create(b, linearTerm, TypeAttr::get(inputRNSType));
 
   rewriter.replaceOp(op, {modDownConstTerm, modDownLinearTerm});
   return success();
