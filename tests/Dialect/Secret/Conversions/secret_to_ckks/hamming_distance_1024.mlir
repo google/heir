@@ -1,13 +1,11 @@
 // RUN: heir-opt --annotate-module="backend=lattigo" --mlir-to-ckks %s | FileCheck %s
 
-// CHECK: @hamming
+// CHECK: @hamming__preprocessed
 // CHECK: ckks.sub
 // CHECK: ckks.mul
 // CHECK: ckks.relinearize
 // CHECK-COUNT-10: ckks.rotate
 // CHECK: ckks.rescale
-// CHECK: tensor.extract_slice
-// CHECK: lwe.rlwe_encode
 // CHECK: ckks.mul_plain
 // CHECK: ckks.rescale
 // CHECK: return

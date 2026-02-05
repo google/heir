@@ -186,8 +186,6 @@ void mlirToSecretArithmeticPipelineBuilder(
   // Balance Operations
   pm.addPass(createOperationBalancer());
 
-  // Add a __preprocessed helper for offline pre-packing of plaintexts
-  pm.addPass(createSplitPreprocessing());
   lowerAssignLayout(pm, false);
 
   // Add encrypt/decrypt helper functions for each function argument and return
@@ -405,6 +403,9 @@ void mlirToRLWEPipeline(OpPassManager& pm,
   pm.addPass(createForwardInsertToExtract());
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
+
+  // Add a __preprocessed helper for offline pre-packing of plaintexts
+  pm.addPass(createSplitPreprocessing());
 
   ElementwiseToAffineOptions elementwiseOptions;
   elementwiseOptions.convertDialects = {"ckks", "bgv", "lwe"};
