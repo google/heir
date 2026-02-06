@@ -23,6 +23,10 @@ build --action_env=CXX=clang++
 build --host_action_env=CC=clang
 build --host_action_env=CXX=clang++
 
+# Only show warnings for targets defined in HEIR code.
+# Warnings for external repos and generated code is (mostly) hidden; see #2616
+build --output_filter="^//(benchmark|frontend|lib|tests|tools)/"
+
 # linux-specific options
 build:linux --linkopt="-fuse-ld=lld"
 
