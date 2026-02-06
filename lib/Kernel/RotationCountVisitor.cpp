@@ -141,6 +141,40 @@ int64_t RotationCountVisitor::operator()(
   return operandCount;
 }
 
+int64_t RotationCountVisitor::operator()(
+    const VariableNode<SymbolicValue>& node) {
+  // Variables are typically placeholders - treat as plaintext by default
+  nodeSecretStatus[currentNode] = false;
+  return 0;
+}
+
+int64_t RotationCountVisitor::operator()(
+    const ForLoopNode<SymbolicValue>& node) {
+  const auto* thisNode = currentNode;  // Save before recursion
+
+  // Process the init value
+  int64_t initCount = processInternal(node.init);
+
+  // Process the induction variable and iter_arg (these are variables)
+  int64_t inductionVarCount = processInternal(node.inductionVar);
+  int64_t iterArgCount = processInternal(node.iterArg);
+
+  // Process the body if it exists
+  int64_t bodyCount = 0;
+  if (node.body) {
+    bodyCount = processInternal(node.body);
+  }
+
+  // A loop's secret status is determined by its init and body
+  bool initIsSecret = nodeSecretStatus[node.init.get()];
+  bool bodyIsSecret = node.body ? nodeSecretStatus[node.body.get()] : false;
+  nodeSecretStatus[thisNode] = initIsSecret || bodyIsSecret;
+
+  // Total rotations are from init + body rotations * number of iterations
+  // For now, we'll count the body rotations only once (conservative estimate)
+  return initCount + inductionVarCount + iterArgCount + bodyCount;
+}
+
 }  // namespace kernel
 }  // namespace heir
 }  // namespace mlir

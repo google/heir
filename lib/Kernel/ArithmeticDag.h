@@ -27,6 +27,16 @@ struct LeafNode {
   T value;
 };
 
+// An indeterminate variable node, used by internal DAG constructs like
+// ForLoopNode to represent the induction variable and iter_arg. These nodes
+// must not be set by the user, and instead must have their values set by the
+// visitor.
+template <typename T>
+struct VariableNode {
+  std::optional<T> value;
+};
+
+
 struct ConstantScalarNode {
   double value;
 };
@@ -88,7 +98,8 @@ struct ArithmeticDagNode {
  public:
   std::variant<ConstantScalarNode, ConstantTensorNode, LeafNode<T>, AddNode<T>,
                SubtractNode<T>, MultiplyNode<T>, PowerNode<T>,
-               LeftRotateNode<T>, ExtractNode<T>>
+               LeftRotateNode<T>, ExtractNode<T>, VariableNode<T>,
+               ForLoopNode<T>>
       node_variant;
 
   explicit ArithmeticDagNode(const T& value)
@@ -194,16 +205,24 @@ struct ArithmeticDagNode {
     return node;
   }
 
+  static std::shared_ptr<ArithmeticDagNode<T>> variable() {
+    auto node =
+        std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
+    node->node_variant.template emplace<VariableNode<T>>(
+        VariableNode<T>{std::nullopt});
+    return node;
+  }
+
   static std::shared_ptr<ArithmeticDagNode<T>> loop(
       std::shared_ptr<ArithmeticDagNode<T>> init, size_t lower, size_t upper,
       size_t step) {
     assert(init && "invalid init");
-    // FIXME: figure out how to make sense of this
-    auto inductionVar = variable<T>();
+    auto inductionVar = variable();
+    auto iterArg = variable();
     auto node =
         std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
     node->node_variant.template emplace<ForLoopNode<T>>(
-        ForLoopNode<T>{std::move(init), std::move(inductionVar), nullptr,
+        ForLoopNode<T>{std::move(init), std::move(inductionVar), iterArg,
                        nullptr, lower, upper, step});
     return node;
   }
@@ -313,6 +332,23 @@ class CachingVisitor {
   virtual ResultType operator()(const ExtractNode<T>& node) {
     assert(false && "Visit logic for ExtractNode is not implemented.");
     return ResultType();
+  }
+
+  virtual ResultType operator()(const VariableNode<T>& node) {
+    assert(false && "Visit logic for VariableNode is not implemented.");
+    return ResultType();
+  }
+
+  virtual ResultType operator()(const ForLoopNode<T>& node) {
+    assert(false && "Visit logic for ForLoopNode is not implemented.");
+    return ResultType();
+  }
+
+ protected:
+  void clearCache() { cache.clear(); }
+
+  void clearCacheEntry(const ArithmeticDagNode<T>* node) {
+    cache.erase(node);
   }
 
  private:
