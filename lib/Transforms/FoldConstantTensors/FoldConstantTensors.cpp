@@ -174,8 +174,8 @@ class InsertIntoFromElements final : public OpRewritePattern<tensor::InsertOp> {
 
     rewriter.replaceAllUsesWith(
         opsToErase.back()->getResult(0),
-        rewriter
-            .create<tensor::FromElementsOp>(insertOp.getLoc(), destType, values)
+        tensor::FromElementsOp::create(rewriter, insertOp.getLoc(), destType,
+                                       values)
             .getResult());
     for (auto op : llvm::reverse(opsToErase)) {
       op->erase();
