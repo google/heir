@@ -21,7 +21,8 @@ struct BenchmarkResult {
   bool success;
 };
 
-BenchmarkResult run_benchmark(uint64_t numSlots,
+BenchmarkResult run_benchmark(uint32_t ringDim,
+                              uint64_t numSlots,
                               uint32_t levelsAvailableAfterBootstrap,
                               uint32_t dcrtBits,
                               std::vector<uint32_t> levelBudget) {
@@ -42,6 +43,7 @@ BenchmarkResult run_benchmark(uint64_t numSlots,
     parameters.SetScalingModSize(dcrtBits);
     parameters.SetScalingTechnique(FLEXIBLEAUTO);
     parameters.SetFirstModSize(dcrtBits + 1);
+    parameters.SetRingDim(ringDim);
     parameters.SetBatchSize(numSlots);
 
     usint bootstrapDepth =
@@ -58,16 +60,9 @@ BenchmarkResult run_benchmark(uint64_t numSlots,
     cryptoContext->Enable(ADVANCEDSHE);
     cryptoContext->Enable(FHE);
 
-    uint32_t rd = cryptoContext->GetRingDimension();
-    result.ringDim = rd;
+    result.ringDim = cryptoContext->GetRingDimension();
 
-    if (rd > 65536) {
-      std::cout << "Skipping depth " << depth << " (ring dim " << rd
-                << " > 65536)" << std::endl;
-      return result;
-    }
-
-    std::cout << "Starting setup for ring dimension " << rd << " and "
+    std::cout << "Starting setup for ring dimension " << result.ringDim << " and "
               << numSlots << " slots..." << std::endl;
     auto startSetup = std::chrono::high_resolution_clock::now();
 
@@ -115,15 +110,23 @@ int main(int argc, char* argv[]) {
   if (argc > 1) out_path = argv[1];
 
   std::ofstream outfile(out_path);
-  for (uint32_t levels : {1, 2}) {
-    std::cout << "\n--- Running benchmark for levelsAvailableAfterBootstrap = "
-              << levels << " ---" << std::endl;
-    BenchmarkResult res = run_benchmark(8, levels, 40, {1, 1});
+
+  // Ring dimensions to test: 2^15 and 2^16 (matching Lattigo)
+  std::vector<uint32_t> ringDims = {32768, 65536};
+
+  for (uint32_t ringDim : ringDims) {
+    uint32_t maxSlots = ringDim / 2;  // Dense slot usage
+
+    // Test dense slot usage (comparable to Lattigo)
+    std::cout << "\n--- Running benchmark for ringDim = " << ringDim
+              << ", numSlots = " << maxSlots << " (dense) ---" << std::endl;
+    BenchmarkResult res = run_benchmark(ringDim, maxSlots, 1, 40, {1, 1});
     if (res.success) {
       outfile << "[[results]]" << std::endl;
       outfile << "security_level = \"HEStd_128_classic\"" << std::endl;
       outfile << "ring_dim = " << res.ringDim << std::endl;
       outfile << "num_slots = " << res.numSlots << std::endl;
+      outfile << "slot_usage = \"dense\"" << std::endl;
       outfile << "dcrt_bits = " << res.dcrtBits << std::endl;
       outfile << "level_budget = [" << res.levelBudget[0] << ", "
               << res.levelBudget[1] << "]" << std::endl;
@@ -132,6 +135,28 @@ int main(int argc, char* argv[]) {
       outfile << "setup_latency_seconds = " << res.setupTime << std::endl;
       outfile << "eval_latency_seconds = " << res.evalTime << std::endl;
       outfile.flush();
+    }
+
+    // Test sparse slot usage (OpenFHE has different codepaths for sparse)
+    for (uint32_t numSlots : {8, 1024}) {
+      std::cout << "\n--- Running benchmark for ringDim = " << ringDim
+                << ", numSlots = " << numSlots << " (sparse) ---" << std::endl;
+      BenchmarkResult res = run_benchmark(ringDim, numSlots, 1, 40, {1, 1});
+      if (res.success) {
+        outfile << "[[results]]" << std::endl;
+        outfile << "security_level = \"HEStd_128_classic\"" << std::endl;
+        outfile << "ring_dim = " << res.ringDim << std::endl;
+        outfile << "num_slots = " << res.numSlots << std::endl;
+        outfile << "slot_usage = \"sparse\"" << std::endl;
+        outfile << "dcrt_bits = " << res.dcrtBits << std::endl;
+        outfile << "level_budget = [" << res.levelBudget[0] << ", "
+                << res.levelBudget[1] << "]" << std::endl;
+        outfile << "levels_available_after_bootstrap = "
+                << res.levelsAvailableAfterBootstrap << std::endl;
+        outfile << "setup_latency_seconds = " << res.setupTime << std::endl;
+        outfile << "eval_latency_seconds = " << res.evalTime << std::endl;
+        outfile.flush();
+      }
     }
   }
   return 0;

@@ -6,12 +6,12 @@ import (
 	"os"
 	"time"
 
-	"google3/third_party/golang/github_com/tuneinsight/lattigo/v/v6/circuits/ckks/bootstrapping/bootstrapping"
+	"github.com/tuneinsight/lattigo/v6/circuits/ckks/bootstrapping"
 	"github.com/tuneinsight/lattigo/v6/core/rlwe"
 	"github.com/tuneinsight/lattigo/v6/ring"
 	"github.com/tuneinsight/lattigo/v6/schemes/ckks"
-	"google3/third_party/golang/github_com/tuneinsight/lattigo/v/v6/utils/sampling/sampling"
-	"google3/third_party/golang/github_com/tuneinsight/lattigo/v/v6/utils/utils"
+	"github.com/tuneinsight/lattigo/v6/utils/sampling"
+	"github.com/tuneinsight/lattigo/v6/utils"
 )
 
 type BenchmarkResult struct {

@@ -1,6 +1,6 @@
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
-load("//tools/build_defs/go:go_binary.bzl", "go_binary")
+load("@rules_go//go:def.bzl", "go_binary")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
