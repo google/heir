@@ -92,7 +92,7 @@ Value IRMaterializingVisitor::operator()(const MultiplyNode<SSAValue>& node) {
 
 Value IRMaterializingVisitor::operator()(const LeftRotateNode<SSAValue>& node) {
   Value operand = this->process(node.operand);
-  Value shift = arith::ConstantIndexOp::create(builder, node.shift);
+  Value shift = this->process(node.shift);
   auto rotateOp =
       tensor_ext::RotateOp::create(builder, evaluatedType, operand, shift);
   createdOpCallback(rotateOp);

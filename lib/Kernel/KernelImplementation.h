@@ -289,6 +289,7 @@ implementHaleviShoup(const T& vector, const T& matrix,
                      std::map<int, bool> zeroDiagonals = {},
                      bool unroll = true) {
   using NodeTy = ArithmeticDagNode<T>;
+  using NodePtr = std::shared_ptr<ArithmeticDagNode<T>>;
   int64_t numRotations = matrix.getShape()[0];
 
   auto rotateAndReduceResult = implementRotateAndReduce<T>(
@@ -308,16 +309,33 @@ implementHaleviShoup(const T& vector, const T& matrix,
 
   // Post-processing partial-rotate-and-reduce step required for
   // squat-diagonal packing.
-  // FIXME: keep rolled if unroll=false
   int64_t numShifts = (int64_t)(log2(matrixNumCols) - log2(matrixNumRows));
-  int64_t shift = matrixNumCols / 2;
-  for (int64_t i = 0; i < numShifts; ++i) {
-    auto rotated = NodeTy::leftRotate(summedShifts, shift);
-    summedShifts = NodeTy::add(summedShifts, rotated);
-    shift /= 2;
+  if (unroll) {
+    int64_t shift = matrixNumCols / 2;
+    for (int64_t i = 0; i < numShifts; ++i) {
+      auto rotated = NodeTy::leftRotate(summedShifts, shift);
+      summedShifts = NodeTy::add(summedShifts, rotated);
+      shift /= 2;
+    }
+
+    return summedShifts;
   }
 
-  return summedShifts;
+  auto shift = NodeTy::constantScalar(matrixNumCols / 2);
+  auto loopNode = NodeTy::loop(
+      {summedShifts, shift}, /*lower=*/0,
+      /*upper=*/numShifts, /*step=*/1,
+      [&](NodePtr inductionVar, const std::vector<NodePtr>& iterArgs) {
+        auto currentSum = iterArgs[0];
+        auto currentShift = iterArgs[1];
+        auto rotated = NodeTy::leftRotate(currentSum, currentShift);
+        auto newSum = NodeTy::add(currentSum, rotated);
+        auto newShift = NodeTy::div(currentShift, NodeTy::constantScalar(2));
+        return NodeTy::yield({newSum, newShift});
+      });
+
+  // only return the final sum, not the shift.
+  return NodeTy::resultAt(loopNode, 0);
 }
 
 // Returns an arithmetic DAG that implements the bicyclic matrix multiplication

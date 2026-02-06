@@ -73,7 +73,7 @@ std::vector<std::vector<int>> manuallyApplyMapping(
   std::vector<std::vector<int>> combinedActual;
   combinedActual.reserve(numCiphertexts);
   for (const LiteralValue& val : actual) {
-    combinedActual.push_back(std::get<std::vector<int>>(val.getTensor()));
+    combinedActual.push_back(std::get<std::vector<int>>(val.get()));
   }
 
   ::testing::StringMatchResultListener listener;
