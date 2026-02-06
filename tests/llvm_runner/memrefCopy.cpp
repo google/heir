@@ -23,7 +23,7 @@ class DynamicMemRefType {
     data = desc->data;
     offset = desc->offset;
     sizes = rank == 0 ? nullptr : desc->sizes;
-    strides = sizes + rank;
+    strides = rank == 0 ? nullptr : sizes + rank;
   }
 };
 
