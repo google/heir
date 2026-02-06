@@ -130,7 +130,11 @@ EvalResults EvalVisitor::operator()(const LeftRotateNode<LiteralValue>& node) {
 
 EvalResults EvalVisitor::operator()(const ExtractNode<LiteralValue>& node) {
   auto tensor = this->process(node.operand)[0];
-  unsigned index = node.index;
+
+  // Evaluate the index expression to get an integer
+  auto evaluatedIndex = this->process(node.index)[0];
+  int index = std::get<int>(evaluatedIndex.get());
+
   return std::visit(
       [&](auto&& t) -> EvalResults {
         if constexpr (std::is_same_v<std::decay_t<decltype(t)>,
@@ -300,7 +304,8 @@ std::string PrintVisitor::operator()(const ExtractNode<LiteralValue>& node) {
   // and the textual form of the entire matrix is too verbose. Could also
   // run a simplification on the generated kernel to inline the extracted
   // tensor instead of printing recursively.
-  return "pt(" + std::to_string(node.index) + ")";
+  std::string indexStr = this->process(node.index);
+  return "pt(" + indexStr + ")";
 }
 
 std::string printKernel(
