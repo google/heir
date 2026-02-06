@@ -147,9 +147,10 @@ int64_t RotationCountVisitor::operator()(
     const ExtractNode<SymbolicValue>& node) {
   const auto* thisNode = currentNode;  // Save before recursion
   int64_t operandCount = processInternal(node.operand);
+  int64_t indexCount = processInternal(node.index);
   bool operandIsSecret = nodeSecretStatus[node.operand.get()];
   nodeSecretStatus[thisNode] = operandIsSecret;
-  return operandCount;
+  return operandCount + indexCount;
 }
 
 int64_t RotationCountVisitor::operator()(

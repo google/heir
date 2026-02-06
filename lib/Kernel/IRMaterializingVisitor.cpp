@@ -101,7 +101,7 @@ Value IRMaterializingVisitor::operator()(const LeftRotateNode<SSAValue>& node) {
 
 Value IRMaterializingVisitor::operator()(const ExtractNode<SSAValue>& node) {
   Value operand = this->process(node.operand);
-  Value index = arith::ConstantIndexOp::create(builder, node.index);
+  Value index = this->process(node.index);
 
   RankedTensorType tensorType = cast<RankedTensorType>(operand.getType());
 

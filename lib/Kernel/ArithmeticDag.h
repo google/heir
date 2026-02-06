@@ -89,7 +89,7 @@ struct LeftRotateNode {
 template <typename T>
 struct ExtractNode {
   std::shared_ptr<ArithmeticDagNode<T>> operand;
-  size_t index;
+  std::shared_ptr<ArithmeticDagNode<T>> index;
 };
 
 template <typename T>
@@ -227,12 +227,17 @@ struct ArithmeticDagNode {
     return node;
   }
 
-  static NodePtr extract(NodePtr tensor, size_t index) {
-    assert(tensor && "invalid tensor for extract");
+  static NodePtr extract(NodePtr tensor, NodePtr index) {
+    assert(tensor && index && "invalid tensor or index for extract");
     auto node = NodePtr(new ArithmeticDagNode<T>());
     node->node_variant.template emplace<ExtractNode<T>>(
-        ExtractNode<T>{std::move(tensor), index});
+        ExtractNode<T>{std::move(tensor), std::move(index)});
     return node;
+  }
+
+  // Convenience overload for static indices
+  static NodePtr extract(NodePtr tensor, size_t index) {
+    return extract(tensor, constantScalar(static_cast<double>(index)));
   }
 
   static NodePtr variable() {
@@ -446,6 +451,7 @@ class CachingVisitor {
             clearSubtreeCache(n.shift);
           } else if constexpr (std::is_same_v<NodeType, ExtractNode<T>>) {
             clearSubtreeCache(n.operand);
+            clearSubtreeCache(n.index);
           } else if constexpr (std::is_same_v<NodeType, ResultAtNode<T>>) {
             clearSubtreeCache(n.operand);
           } else if constexpr (std::is_same_v<NodeType, ForLoopNode<T>>) {
