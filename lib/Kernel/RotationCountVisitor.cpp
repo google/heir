@@ -98,6 +98,21 @@ int64_t RotationCountVisitor::operator()(
   return leftCount + rightCount;
 }
 
+int64_t RotationCountVisitor::operator()(
+    const DivideNode<SymbolicValue>& node) {
+  const auto* thisNode = currentNode;  // Save before recursion
+
+  int64_t leftCount = processInternal(node.left);
+  int64_t rightCount = processInternal(node.right);
+
+  // A value is secret if any operand is secret
+  bool leftIsSecret = nodeSecretStatus[node.left.get()];
+  bool rightIsSecret = nodeSecretStatus[node.right.get()];
+  nodeSecretStatus[thisNode] = leftIsSecret || rightIsSecret;
+
+  return leftCount + rightCount;
+}
+
 int64_t RotationCountVisitor::operator()(const PowerNode<SymbolicValue>& node) {
   const auto* thisNode = currentNode;  // Save before recursion
 
@@ -131,13 +146,18 @@ int64_t RotationCountVisitor::operator()(
 int64_t RotationCountVisitor::operator()(
     const ExtractNode<SymbolicValue>& node) {
   const auto* thisNode = currentNode;  // Save before recursion
-
   int64_t operandCount = processInternal(node.operand);
-
-  // Secret status is inherited from operand
   bool operandIsSecret = nodeSecretStatus[node.operand.get()];
   nodeSecretStatus[thisNode] = operandIsSecret;
+  return operandCount;
+}
 
+int64_t RotationCountVisitor::operator()(
+    const ResultAtNode<SymbolicValue>& node) {
+  const auto* thisNode = currentNode;  // Save before recursion
+  int64_t operandCount = processInternal(node.operand);
+  bool operandIsSecret = nodeSecretStatus[node.operand.get()];
+  nodeSecretStatus[thisNode] = operandIsSecret;
   return operandCount;
 }
 
@@ -149,15 +169,29 @@ int64_t RotationCountVisitor::operator()(
 }
 
 int64_t RotationCountVisitor::operator()(
+    const YieldNode<SymbolicValue>& node) {
+  const auto* thisNode = currentNode;  // Save before recursion
+  bool isSecret = false;
+  int64_t totalCount = 0;
+  for (const auto& element : node.elements) {
+    totalCount += processInternal(element);
+    isSecret = isSecret || nodeSecretStatus[element.get()];
+  }
+  nodeSecretStatus[thisNode] = isSecret;
+  return totalCount;
+}
+
+int64_t RotationCountVisitor::operator()(
     const ForLoopNode<SymbolicValue>& node) {
   const auto* thisNode = currentNode;  // Save before recursion
 
   // Process the init value
-  int64_t initCount = processInternal(node.init);
-
-  // Process the induction variable and iter_arg (these are variables)
-  int64_t inductionVarCount = processInternal(node.inductionVar);
-  int64_t iterArgCount = processInternal(node.iterArg);
+  int64_t initCount = 0;
+  bool initIsSecret = false;
+  for (const auto& init : node.inits) {
+    initCount += processInternal(init);
+    initIsSecret = initIsSecret || nodeSecretStatus[init.get()];
+  }
 
   // Process the body if it exists
   int64_t bodyCount = 0;
@@ -166,13 +200,11 @@ int64_t RotationCountVisitor::operator()(
   }
 
   // A loop's secret status is determined by its init and body
-  bool initIsSecret = nodeSecretStatus[node.init.get()];
   bool bodyIsSecret = node.body ? nodeSecretStatus[node.body.get()] : false;
   nodeSecretStatus[thisNode] = initIsSecret || bodyIsSecret;
 
-  // Total rotations are from init + body rotations * number of iterations
-  // For now, we'll count the body rotations only once (conservative estimate)
-  return initCount + inductionVarCount + iterArgCount + bodyCount;
+  // Total rotations = init + body rotations * number of iterations
+  return initCount + bodyCount * ((node.upper - node.lower) / node.step);
 }
 
 }  // namespace kernel
