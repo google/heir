@@ -241,6 +241,7 @@ implementRotateAndReduce(const T& vector, std::optional<T> plaintexts,
 
   return implementBabyStepGiantStep<T>(vector, plaintexts.value(), period,
                                        steps, extractFunc, zeroDiagonals,
+                                       defaultDerivedRotationIndexFn,
                                        /*unroll=*/unroll);
 }
 
@@ -292,7 +293,9 @@ implementHaleviShoup(const T& vector, const T& matrix,
 
   auto rotateAndReduceResult = implementRotateAndReduce<T>(
       vector, std::optional<T>(matrix), /*period=*/1,
-      /*steps=*/numRotations, zeroDiagonals, /*unroll=*/unroll);
+      /*steps=*/numRotations, zeroDiagonals,
+      /*reuceOp=*/"arith.addi",
+      /*unroll=*/unroll);
 
   auto summedShifts = rotateAndReduceResult;
 
