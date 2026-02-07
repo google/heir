@@ -110,10 +110,11 @@ inline int64_t defaultDerivedRotationIndexFn(int64_t giantStepSize,
   return -giantStepSize * giantStepIndex * period;
 }
 
-// Dynamic version: builds DAG expression for rotation amount from DAG node indices
+// Dynamic version: builds DAG expression for rotation amount from DAG node
+// indices
 template <typename T>
-using DagDerivedRotationIndexFn = std::function<
-    std::shared_ptr<ArithmeticDagNode<T>>(
+using DagDerivedRotationIndexFn =
+    std::function<std::shared_ptr<ArithmeticDagNode<T>>(
         // giant step size (constant)
         int64_t,
         // current giant step index (DAG node)
@@ -125,10 +126,8 @@ using DagDerivedRotationIndexFn = std::function<
 
 template <typename T>
 std::shared_ptr<ArithmeticDagNode<T>> defaultDagDerivedRotationIndexFn(
-    int64_t giantStepSize,
-    std::shared_ptr<ArithmeticDagNode<T>> giantStepIndex,
-    std::shared_ptr<ArithmeticDagNode<T>> babyStepIndex,
-    int64_t period) {
+    int64_t giantStepSize, std::shared_ptr<ArithmeticDagNode<T>> giantStepIndex,
+    std::shared_ptr<ArithmeticDagNode<T>> babyStepIndex, int64_t period) {
   using NodeTy = ArithmeticDagNode<T>;
   // Build: -(giantStepSize * giantStepIndex * period)
   auto gsSize = NodeTy::constantScalar(giantStepSize);
@@ -229,32 +228,14 @@ std::shared_ptr<ArithmeticDagNode<T>> defaultDagExtractor(
 
 // Rolled version of Baby-Step-Giant-Step algorithm.
 //
-// This version uses loop constructs to reduce code size from O(n) to O(1)
-// by rolling both the inner and outer loops using ForLoopNode.
+// FIXME: support zeroDiagonals
 //
-// Key differences from the unrolled version:
-// - Both inner and outer loops are rolled using ForLoopNode
-// - Uses dynamic extraction (ExtractNode with DAG index) to access plaintexts
-// - Recomputes baby-step rotations on-the-fly using loop variable
-// - Does not support zeroDiagonals (for simplicity)
-// - Uses DAG expressions for computing rotation amounts
-//
-// The algorithm structure:
-// 1. For each giant step j (ROLLED):
-//    - For each baby step i (ROLLED):
-//      - Extract plaintext using extractFunc(babySteppedOperand, i + j*giantStepSize)
-//      - Rotate by dagRotationFn(giantStepSize, j, i, period) (DAG expression)
-//      - Compute baby-step rotation on-the-fly: rotate(giantSteppedOperand, i*period)
-//      - Multiply and accumulate
-//    - Rotate accumulated sum by j*giantStepSize*period
-//    - Add to final result
 template <typename T>
 std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
                  std::shared_ptr<ArithmeticDagNode<T>>>
 implementBabyStepGiantStepRolled(
     const T& giantSteppedOperand, const T& babySteppedOperand, int64_t period,
-    int64_t steps,
-    DagExtractorDynamic<T> extractFunc = defaultDagExtractor<T>,
+    int64_t steps, DagExtractorDynamic<T> extractFunc = defaultDagExtractor<T>,
     const DagDerivedRotationIndexFn<T>& dagRotationFn =
         defaultDagDerivedRotationIndexFn<T>) {
   using NodeTy = ArithmeticDagNode<T>;
@@ -290,10 +271,7 @@ implementBabyStepGiantStepRolled(
               auto jOffset = NodeTy::mul(j, gsSize);
               auto extractIdx = NodeTy::add(i, jOffset);
 
-              // Extract plaintext using provided extractor function
               auto plaintext = extractFunc(babySteppedDag, extractIdx);
-
-              // Compute rotation amount using provided rotation function
               auto innerRotAmount = dagRotationFn(giantStepSize, j, i, period);
 
               auto rotatedPlaintext =
@@ -301,9 +279,9 @@ implementBabyStepGiantStepRolled(
 
               // Compute baby-step rotation on-the-fly using loop variable i
               // babyStepVal = rotate(giantSteppedOperand, i * period)
-              auto babyStepVal =
-                  NodeTy::leftRotate(giantSteppedDag,
-                                     NodeTy::mul(i, NodeTy::constantScalar(period)));
+              auto babyStepVal = NodeTy::leftRotate(
+                  giantSteppedDag,
+                  NodeTy::mul(i, NodeTy::constantScalar(period)));
 
               auto multiplied = NodeTy::mul(rotatedPlaintext, babyStepVal);
               auto newInnerSum = NodeTy::add(innerSum, multiplied);
@@ -394,18 +372,17 @@ implementRotateAndReduce(const T& vector, std::optional<T> plaintexts,
     return implementBabyStepGiantStep<T>(vector, plaintexts.value(), period,
                                          steps, extractFunc, zeroDiagonals,
                                          defaultDerivedRotationIndexFn);
-  } else {
-    // Rolled version: uses dynamic extraction and DAG rotation function
-    // Note: rolled version does not support zeroDiagonals
-    auto dynamicExtractFunc = [](std::shared_ptr<NodeTy> babySteppedDag,
-                                 std::shared_ptr<NodeTy> extractionIndex) {
-      return NodeTy::extract(babySteppedDag, extractionIndex);
-    };
-
-    return implementBabyStepGiantStepRolled<T>(
-        vector, plaintexts.value(), period, steps, dynamicExtractFunc,
-        defaultDagDerivedRotationIndexFn<T>);
   }
+  // Rolled version: uses dynamic extraction and DAG rotation function
+  // Note: rolled version does not support zeroDiagonals
+  auto dynamicExtractFunc = [](std::shared_ptr<NodeTy> babySteppedDag,
+                               std::shared_ptr<NodeTy> extractionIndex) {
+    return NodeTy::extract(babySteppedDag, extractionIndex);
+  };
+
+  return implementBabyStepGiantStepRolled<T>(
+      vector, plaintexts.value(), period, steps, dynamicExtractFunc,
+      defaultDagDerivedRotationIndexFn<T>);
 }
 
 // Returns an arithmetic DAG that implements a baby-step-giant-step between

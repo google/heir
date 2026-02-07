@@ -34,9 +34,18 @@ EvalResults EvalVisitor::operator()(const AddNode<LiteralValue>& node) {
   // to ensure caching is applied at every step.
   auto left = this->process(node.left)[0];
   auto right = this->process(node.right)[0];
-  auto dim = left.getShape()[0];
   const auto& lVal = left.get();
   const auto& rVal = right.get();
+
+  // Handle scalar addition
+  const auto* lScalar = std::get_if<int>(&lVal);
+  const auto* rScalar = std::get_if<int>(&rVal);
+  if (lScalar && rScalar) {
+    return {LiteralValue(*lScalar + *rScalar)};
+  }
+
+  // Handle vector addition
+  auto dim = left.getShape()[0];
   const auto* lVec = std::get_if<std::vector<int>>(&lVal);
   const auto* rVec = std::get_if<std::vector<int>>(&rVal);
   assert(lVec && rVec && "unsupported add operands");
@@ -51,9 +60,18 @@ EvalResults EvalVisitor::operator()(const AddNode<LiteralValue>& node) {
 EvalResults EvalVisitor::operator()(const SubtractNode<LiteralValue>& node) {
   auto left = this->process(node.left)[0];
   auto right = this->process(node.right)[0];
-  auto dim = left.getShape()[0];
   const auto& lVal = left.get();
   const auto& rVal = right.get();
+
+  // Handle scalar subtraction
+  const auto* lScalar = std::get_if<int>(&lVal);
+  const auto* rScalar = std::get_if<int>(&rVal);
+  if (lScalar && rScalar) {
+    return {LiteralValue(*lScalar - *rScalar)};
+  }
+
+  // Handle vector subtraction
+  auto dim = left.getShape()[0];
   const auto* lVec = std::get_if<std::vector<int>>(&lVal);
   const auto* rVec = std::get_if<std::vector<int>>(&rVal);
   assert(lVec && rVec && "unsupported sub operands");
@@ -69,9 +87,18 @@ EvalResults EvalVisitor::operator()(const SubtractNode<LiteralValue>& node) {
 EvalResults EvalVisitor::operator()(const MultiplyNode<LiteralValue>& node) {
   auto left = this->process(node.left)[0];
   auto right = this->process(node.right)[0];
-  auto dim = left.getShape()[0];
   const auto& lVal = left.get();
   const auto& rVal = right.get();
+
+  // Handle scalar multiplication
+  const auto* lScalar = std::get_if<int>(&lVal);
+  const auto* rScalar = std::get_if<int>(&rVal);
+  if (lScalar && rScalar) {
+    return {LiteralValue(*lScalar * *rScalar)};
+  }
+
+  // Handle vector multiplication
+  auto dim = left.getShape()[0];
   const auto* lVec = std::get_if<std::vector<int>>(&lVal);
   const auto* rVec = std::get_if<std::vector<int>>(&rVal);
   assert(lVec && rVec && "unsupported mul operands");
@@ -187,6 +214,7 @@ EvalResults EvalVisitor::operator()(const YieldNode<LiteralValue>& node) {
 
 EvalResults EvalVisitor::operator()(const ForLoopNode<LiteralValue>& node) {
   std::vector<LiteralValue> results;
+  results.reserve(node.inits.size());
   for (const auto& init : node.inits) {
     results.push_back(this->process(init)[0]);
   }
