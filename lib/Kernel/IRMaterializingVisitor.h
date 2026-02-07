@@ -112,8 +112,8 @@ class IRMaterializingVisitor {
   const std::function<void(Operation*)> createdOpCallback;
 
   // Type-aware cache: keys are (node pointer, type) pairs
-  std::unordered_map<std::pair<const ArithmeticDagNode<SSAValue>*, Type>,
-                     Value, NodeTypePairHash>
+  std::unordered_map<std::pair<const ArithmeticDagNode<SSAValue>*, Type>, Value,
+                     NodeTypePairHash>
       typeAwareCache;
 };
 

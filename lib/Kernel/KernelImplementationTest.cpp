@@ -18,10 +18,7 @@ namespace kernel {
 namespace {
 
 // Parametrize over whether the kernel is rolled
-class KernelImplementationTest :
-    public testing::TestWithParam<bool> {
-};
-
+class KernelImplementationTest : public testing::TestWithParam<bool> {};
 
 TEST_P(KernelImplementationTest, TestHaleviShoupMatvec) {
   std::vector<int> vector = {0, 1, 2, 3};
@@ -139,8 +136,7 @@ TEST(KernelImplementationTest, Test2DConvWithLayout) {
                                   expandedMatrixType.getShape());
   LiteralValue actual = evalKernel(dag)[0];
   // Result is a 2x2 tensor repeated row-major in a tensor of size 16.
-  std::vector<int> actualVector =
-      std::get<std::vector<int>>(actual.get());
+  std::vector<int> actualVector = std::get<std::vector<int>>(actual.get());
   std::vector<int> extractedResult = {actualVector.begin(),
                                       actualVector.begin() + 4};
   EXPECT_EQ(extractedResult, expected);
@@ -276,8 +272,7 @@ TEST(KernelImplementationTest, TricyclicBatchMatmul) {
   EXPECT_EQ(expVec, resultVec);
 }
 
-INSTANTIATE_TEST_SUITE_P(WithAndWithoutRolledSuite,
-                         KernelImplementationTest,
+INSTANTIATE_TEST_SUITE_P(WithAndWithoutRolledSuite, KernelImplementationTest,
                          testing::Values(false, true));
 
 }  // namespace

@@ -66,7 +66,8 @@ Value IRMaterializingVisitor::operator()(const ConstantScalarNode& node) {
     // Handle index type specially - convert double to index integer
     APInt apVal = APInt(64, static_cast<int64_t>(std::floor(node.value)));
     attr = builder.getIntegerAttr(indexTy, apVal);
-  } else if (auto floatTy = dyn_cast<FloatType>(getElementTypeOrSelf(currentType))) {
+  } else if (auto floatTy =
+                 dyn_cast<FloatType>(getElementTypeOrSelf(currentType))) {
     APFloat apVal(node.value);
     APFloat converted =
         convertFloatToSemantics(apVal, floatTy.getFloatSemantics());
@@ -143,7 +144,8 @@ Value IRMaterializingVisitor::operator()(const LeftRotateNode<SSAValue>& node) {
 }
 
 Value IRMaterializingVisitor::operator()(const ExtractNode<SSAValue>& node) {
-  // Process the operand with its natural type (nullptr = use evaluatedType/currentType)
+  // Process the operand with its natural type (nullptr = use
+  // evaluatedType/currentType)
   Value operand = process(node.operand, nullptr);
   // Index should be materialized as an index type, not the tensor type
   Value index = process(node.index, builder.getIndexType());
