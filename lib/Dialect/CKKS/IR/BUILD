@@ -29,6 +29,7 @@ cc_library(
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Patterns",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
+        "@heir//lib/Parameters/CKKS:Params",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
@@ -78,6 +79,8 @@ add_heir_dialect_library(
     deps = [
         ":td_files",
         "@heir//lib/Dialect:td_files",
+        "@heir//lib/Parameters/CKKS:Params",
+        # "@heir//lib/Parameters/CKKS:Utils", // TODO avoid circular dependency
         "@heir//lib/Dialect/LWE/IR:td_files",
         "@heir//lib/Dialect/Polynomial/IR:td_files",
     ],

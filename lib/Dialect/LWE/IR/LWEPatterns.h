@@ -30,7 +30,7 @@ struct PutCiphertextInFirstOperand : public OpRewritePattern<Op> {
     auto lhs = op->getOperand(0);
     auto rhs = op->getOperand(1);
 
-    if (isa<lwe::LWEPlaintextType>(lhs.getType()) &&
+    if ((isa<lwe::LWEPlaintextType>(lhs.getType())) &&
         isa<lwe::LWECiphertextType>(rhs.getType())) {
       rewriter.modifyOpInPlace(op, [&] {
         op->setOperand(0, rhs);

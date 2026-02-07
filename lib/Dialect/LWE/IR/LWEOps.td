@@ -168,11 +168,20 @@ def LWE_RMulOp : LWE_BinOp<"rmul", [SameOperandsAndResultRings, InferTypeOpAdapt
   }];
   let hasVerifier = 1;
 }
-
 def LWE_RMulPlainOp : LWE_CiphertextPlaintextOp<"rmul_plain", [Commutative, IncreasesMulDepthOpInterface]> {
   let summary = "Multiplication between RLWE ciphertext-plaintext";
   let hasVerifier = 1;
   let hasCanonicalizer = 1;
+}
+
+// TODO: What about IsCiphertextPlaintextOp?
+//
+// TODO: I see a lot of the types in other ops are more generic than the strict ones I use; not sure how to generalize (or why I would want to).
+def LWE_RMulRingEltOp : LWE_Op<"mul_ring_elt", [AllTypesMatch<["rhs", "output"]>]> {
+  let summary = "Multiplication between an RLWE ring element and a ciphertext";
+  let arguments = (ins LWERingElt:$lhs, LWECiphertext:$rhs);
+  let results = (outs LWECiphertext:$output);
+  let hasVerifier = 1;
 }
 
 def LWE_RNegateOp : LWE_Op<"rnegate", [SameOperandsAndResultType, ElementwiseMappable]> {
@@ -283,5 +292,65 @@ def ReinterpretApplicationDataOp : LWE_Op<"reinterpret_application_data", [Eleme
 
   let hasVerifier = 1;
 }
+
+def LWE_ExtractCoeffOp : LWE_Op<"extract_coeff", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
+  let summary = "Extract a ciphertext component";
+  let description = [{
+    A ciphertext can be viewed as a polynomial in the indeterminant `S`,
+    the abstract secret key. For example, a ciphertext with two components
+    `[c0, c1]` represents the polynomial `c0 + c1 * S`. This op returns `c_i`.
+  }];
+  let arguments = (ins
+      LWECiphertext:$value,
+      IndexAttr:$index
+  );
+  let results = (outs
+    LWERingElt:$output
+  );
+  let hasVerifier = 1;
+}
+
+def LWE_FromCoeffsOp : LWE_Op<"from_coeffs", [Pure]> {
+  let summary = "Create a ciphertext from a vector of ring elements";
+  let description = [{
+    A ciphertext can be viewed as a polynomial in the indeterminant `S`,
+    the abstract secret key. For example, a ciphertext with two components
+    `[c0, c1]` represents the polynomial `c0 + c1 * S`. Given ring elements
+    `[c0, c1]`, this op returns the corresponding ciphertext.
+  }];
+  let arguments = (ins
+      Variadic<LWERingElt>:$coeffs
+  );
+  let results = (outs
+    LWECiphertext:$output
+  );
+  let hasVerifier = 1;
+}
+
+def LWE_ExtractSliceOp : LWE_Op<"extract_slice", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
+  let summary = "Extract a subset of the ring element's RNS basis";
+  let arguments = (ins
+      LWERingElt:$value,
+      IndexAttr:$start,
+      IndexAttr:$size
+  );
+  let results = (outs
+    LWERingElt:$output
+  );
+  let hasVerifier = 1;
+}
+
+def LWE_ConvertBasisOp : LWE_Op<"convert_basis", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
+  let summary = "Change a ring element's RNS basis";
+  let arguments = (ins
+      LWERingElt:$value,
+      // RNS:$targetBasis
+      TypeAttr:$targetBasis
+  );
+  let results = (outs
+    LWERingElt:$output
+  );
+}
+
 
 #endif  // LIB_DIALECT_LWE_IR_LWEOPS_TD_

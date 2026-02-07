@@ -111,8 +111,7 @@ def LWERingElt : LWE_Type<"LWERingElt", "lwe_ring_elt", [MemRefElementTypeInterf
   }];
 
   let parameters = (ins
-    "::mlir::heir::polynomial::RingAttr":$ring,
-    OptionalParameter<"ModulusChainAttr">:$modulus_chain
+    "::mlir::heir::polynomial::RingAttr":$ring
   );
 
   let asmName = "ringelt";
