@@ -21,6 +21,7 @@
 #include "lib/Transforms/YosysOptimizer/LUTImporter.h"
 #include "lib/Transforms/YosysOptimizer/RTLILImporter.h"
 #include "lib/Utils/TransformUtils.h"
+#include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/Statistic.h"           // from @llvm-project
@@ -149,8 +150,10 @@ int64_t countArithOps(Operation* op, ModuleOp moduleOp) {
       numArithOps++;
     }
     if (auto callOp = dyn_cast<func::CallOp>(op)) {
-      auto funcOp = moduleOp.lookupSymbol<func::FuncOp>(callOp.getCallee());
-      numArithOps += countArithOps(funcOp, moduleOp);
+      auto funcOp = getCalledFunction(callOp);
+      assert(succeeded(funcOp) &&
+             "expected call op to call an existing function");
+      numArithOps += countArithOps(funcOp.value(), moduleOp);
     }
   });
 

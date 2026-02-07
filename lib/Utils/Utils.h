@@ -8,7 +8,8 @@
 #include <utility>
 #include <vector>
 
-#include "mlir/include/mlir/IR/Attributes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Dialect.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"         // from @llvm-project
@@ -98,6 +99,35 @@ LogicalResult walkAndValidateTypes(
     return failed(res) ? WalkResult::interrupt() : WalkResult::advance();
   });
   return res;
+}
+
+/// Get the function op that a call op is calling.
+FailureOr<func::FuncOp> getCalledFunction(func::CallOp callOp);
+
+// Helper to traverse op and any nested functions called.
+// Applies callback to matching ops of type OpType in func, and in any funcs
+// called by func. The walk is interrupted if callback returns interrupt().
+template <typename FnT>
+WalkResult walkFuncAndCallees(func::FuncOp func, FnT&& callback) {
+  if (func.walk(std::forward<FnT>(callback)).wasInterrupted()) {
+    return WalkResult::interrupt();
+  }
+  if (func.walk([&](func::CallOp callOp) {
+            auto maybeCallee = getCalledFunction(callOp);
+            if (!succeeded(maybeCallee)) {
+              return WalkResult::advance();
+            }
+            if (maybeCallee.value()
+                    .walk(std::forward<FnT>(callback))
+                    .wasInterrupted()) {
+              return WalkResult::interrupt();
+            }
+            return WalkResult::advance();
+          })
+          .wasInterrupted()) {
+    return WalkResult::interrupt();
+  }
+  return WalkResult::advance();
 }
 
 // Returns true if the op contains ops from the given dialects.
