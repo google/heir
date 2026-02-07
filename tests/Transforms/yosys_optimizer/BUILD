@@ -6,7 +6,7 @@ filegroup(
     name = "yosys_test_utilities",
     testonly = True,
     data = [
-        "@edu_berkeley_abc//:abc",
+        "@abc//:abc_bin",
         "@heir//lib/Transforms/YosysOptimizer/yosys:techmap_lut3.v",
         "@heir//lib/Transforms/YosysOptimizer/yosys:techmap_lut4.v",
     ],
