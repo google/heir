@@ -8,5 +8,6 @@ package(
 py_binary(
     name = "generate_static_roots",
     srcs = ["generate_static_roots.py"],
+    strict_deps = False,
     deps = ["@heir_pip_deps//sympy"],
 )

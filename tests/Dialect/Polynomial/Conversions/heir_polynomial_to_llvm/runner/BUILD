@@ -9,6 +9,7 @@ py_binary(
     srcs = [
         "generate_test_cases.py",
     ],
+    strict_deps = False,
     deps = [
         "@heir_pip_deps//sympy",
         "@heir_pip_deps//tomli",
