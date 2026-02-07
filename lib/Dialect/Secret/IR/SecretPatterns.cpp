@@ -10,6 +10,7 @@
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Utils/AttributeUtils.h"
+#include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/DenseMap.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
@@ -92,13 +93,9 @@ llvm::SmallVector<Value> buildResolvedIndices(Operation* op,
 bool isCallToPackingHelper(Operation* op) {
   auto callOp = dyn_cast<func::CallOp>(op);
   if (!callOp) return false;
-  SymbolRefAttr sym =
-      llvm::dyn_cast_if_present<SymbolRefAttr>(callOp.getCallableForCallee());
-  if (!sym) return false;
-  auto funcOp = dyn_cast_or_null<func::FuncOp>(
-      SymbolTable::lookupNearestSymbolFrom(callOp, sym));
-  if (!funcOp) return false;
-  return funcOp->hasAttr(kClientPackFuncAttrName);
+  auto funcOp = getCalledFunction(callOp);
+  if (failed(funcOp)) return false;
+  return funcOp.value()->hasAttr(kClientPackFuncAttrName);
 }
 
 }  // namespace
