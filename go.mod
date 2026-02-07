@@ -3,7 +3,6 @@ module github.com/google/heir
 go 1.24.2
 
 require (
-	github.com/nlpodyssey/gopickle v0.3.0
 	github.com/tuneinsight/lattigo/v6 v6.1.0
 )
 
