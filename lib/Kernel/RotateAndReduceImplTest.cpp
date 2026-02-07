@@ -1,5 +1,4 @@
 #include <cstdint>
-#include <iostream>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -60,8 +59,7 @@ std::vector<int> runImpl(const std::vector<int>& vec,
     plaintextsInput = std::optional<LiteralValue>(LiteralValue(plaintexts));
   }
   result = implementRotateAndReduce(vectorInput, plaintextsInput, period, n);
-  std::cerr << "Rotate and reduce dag: " << printKernel(result) << "\n";
-  return std::get<std::vector<int>>(evalKernel(result).getTensor());
+  return std::get<std::vector<int>>(evalKernel(result)[0].get());
 }
 
 TEST(RotateAndReduceImplTest, TestUnitPeriodWithPlaintextsSimpleValues) {
