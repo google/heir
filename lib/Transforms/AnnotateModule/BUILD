@@ -15,6 +15,7 @@ cc_library(
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Dialect:ModuleAttributes",
+        "@heir//lib/Target/CompilationTarget",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
