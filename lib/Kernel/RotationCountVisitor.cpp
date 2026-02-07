@@ -169,8 +169,7 @@ int64_t RotationCountVisitor::operator()(
   return 0;
 }
 
-int64_t RotationCountVisitor::operator()(
-    const YieldNode<SymbolicValue>& node) {
+int64_t RotationCountVisitor::operator()(const YieldNode<SymbolicValue>& node) {
   const auto* thisNode = currentNode;  // Save before recursion
   bool isSecret = false;
   int64_t totalCount = 0;

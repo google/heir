@@ -240,7 +240,6 @@ class EvalVisitor : public CachingVisitor<double, EvalResults> {
     }
     return results;
   }
-
 };
 
 TEST(ArithmeticDagTest, TestPrint) {
