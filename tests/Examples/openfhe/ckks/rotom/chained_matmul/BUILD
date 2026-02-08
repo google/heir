@@ -28,6 +28,7 @@ py_test(
     srcs = ["chained_matmul_test.py"],
     data = glob(["inputs/*.npz"]) + glob(["results/*.npz"]),
     main = "chained_matmul_test.py",
+    strict_deps = False,
     tags = ["nofastbuild"],
     deps = [
         ":chained_matmul_lib",

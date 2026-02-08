@@ -31,6 +31,7 @@ py_test(
         "@heir//tests/Examples/openfhe/ckks/mnist/data:traced_model.pt",
     ],
     main = "mnist_test.py",
+    strict_deps = False,
     tags = [
         "nofastbuild",  # openfhe is slow unless -c opt
         "requires-mem:28g",
