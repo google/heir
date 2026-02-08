@@ -85,6 +85,7 @@ py_test(
         "@heir//tests/Examples/openfhe/ckks/mnist/data:t10k-labels-idx1-ubyte",
     ],
     main = "lenet_test.py",
+    strict_deps = False,
     tags = [
         "manual",
         "nofastbuild",  # openfhe is slow unless -c opt
