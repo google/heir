@@ -14,6 +14,7 @@ cc_library(
     deps = [
         ":AllocToInPlace",
         ":ConfigureCryptoContext",
+        ":ConvertToExtendedBasis",
         ":CountAddAndKeySwitch",
         ":FastRotationPrecompute",
         ":pass_inc_gen",
@@ -96,6 +97,23 @@ cc_library(
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
         "@heir//lib/Utils:ConversionUtils",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
+    name = "ConvertToExtendedBasis",
+    srcs = ["ConvertToExtendedBasis.cpp"],
+    hdrs = [
+        "ConvertToExtendedBasis.h",
+    ],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Dialect/Openfhe/IR:Dialect",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
