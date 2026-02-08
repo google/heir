@@ -5,6 +5,7 @@
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Openfhe/Transforms/AllocToInPlace.h"
 #include "lib/Dialect/Openfhe/Transforms/ConfigureCryptoContext.h"
+#include "lib/Dialect/Openfhe/Transforms/ConvertToExtendedBasis.h"
 #include "lib/Dialect/Openfhe/Transforms/CountAddAndKeySwitch.h"
 #include "lib/Dialect/Openfhe/Transforms/FastRotationPrecompute.h"
 // IWYU pragma: end_keep

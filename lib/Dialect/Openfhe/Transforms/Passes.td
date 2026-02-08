@@ -81,6 +81,16 @@ def FastRotationPrecompute : Pass<"openfhe-fast-rotation-precompute"> {
   }];
 }
 
+def ConvertToExtendedBasis : Pass<"openfhe-convert-to-extended-basis"> {
+  let summary = "Convert rotation operations to extended (P*Q) basis";
+  let description = [{
+    This pass converts `openfhe.fast_rotation` operations to use extended basis
+    operations. Each `fast_rotation` is replaced with `fast_rotation_ext` followed
+    by `key_switch_down`, enabling subsequent optimization to defer key-switches.
+  }];
+  let dependentDialects = ["mlir::heir::openfhe::OpenfheDialect"];
+}
+
 def AllocToInPlace : Pass<"openfhe-alloc-to-inplace"> {
   let summary = "Utilize OpenFHE's in-place operations when possible";
   let description = [{
