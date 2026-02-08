@@ -447,6 +447,7 @@ def KeySwitchDownOp : Openfhe_Op<"key_switch_down", [Pure,
     Openfhe_Ciphertext:$ciphertext
   );
   let results = (outs Openfhe_Ciphertext:$output);
+  let hasFolder = 1;
 }
 
 // No in-place bootstrap variant
