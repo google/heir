@@ -53,6 +53,7 @@ cc_library(
         "@heir//lib/Dialect:HEIRInterfaces",
         "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Kernel",
+        "@heir//lib/Utils",
         "@heir//lib/Utils:AttributeUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineAnalysis",

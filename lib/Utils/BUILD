@@ -97,6 +97,7 @@ cc_library(
         ":AttributeUtils",
         ":ContextAwareDialectConversion",
         ":ContextAwareTypeConversion",
+        ":Utils",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",

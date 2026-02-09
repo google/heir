@@ -4,11 +4,13 @@
 #include <cstdint>
 #include <functional>
 #include <optional>
+#include <queue>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "mlir/include/mlir/IR/Attributes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Dialect.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"         // from @llvm-project
@@ -98,6 +100,35 @@ LogicalResult walkAndValidateTypes(
     return failed(res) ? WalkResult::interrupt() : WalkResult::advance();
   });
   return res;
+}
+
+/// Get the function op that a call op is calling.
+FailureOr<func::FuncOp> getCalledFunction(func::CallOp callOp);
+
+// Helper to traverse op and any nested functions called.
+// Applies callback to matching ops of type OpType in func, and in any funcs
+// called by func. The walk is interrupted if callback returns interrupt().
+template <typename FnT>
+WalkResult walkFuncAndCallees(func::FuncOp func, FnT&& callback) {
+  std::queue<func::FuncOp> worklist;
+  worklist.push(func);
+  DenseSet<func::FuncOp> done = {};
+  while (!worklist.empty()) {
+    func::FuncOp next = worklist.front();
+    worklist.pop();
+    WalkResult result = next.walk([&](Operation* op) {
+      if (auto callOp = dyn_cast<func::CallOp>(op)) {
+        auto maybeCallee = getCalledFunction(callOp);
+        if (succeeded(maybeCallee) && !done.contains(maybeCallee.value()) &&
+            maybeCallee.value() != next)
+          worklist.push(maybeCallee.value());
+      }
+      return callback(op);
+    });
+    if (result.wasInterrupted()) return WalkResult::interrupt();
+    done.insert(next);
+  }
+  return WalkResult::advance();
 }
 
 // Returns true if the op contains ops from the given dialects.
