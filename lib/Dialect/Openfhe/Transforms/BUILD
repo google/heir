@@ -17,6 +17,7 @@ cc_library(
         ":ConvertToExtendedBasis",
         ":CountAddAndKeySwitch",
         ":FastRotationPrecompute",
+        ":HoistKeySwitchDown",
         ":pass_inc_gen",
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
     ],
@@ -119,6 +120,22 @@ cc_library(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
+    name = "HoistKeySwitchDown",
+    srcs = ["HoistKeySwitchDown.cpp"],
+    hdrs = [
+        "HoistKeySwitchDown.h",
+    ],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Dialect/Openfhe/IR:Dialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TransformUtils",
     ],
 )
 
