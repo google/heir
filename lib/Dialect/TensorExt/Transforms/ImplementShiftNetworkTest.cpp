@@ -68,22 +68,23 @@ std::vector<std::vector<int>> manuallyApplyMapping(
   auto expected = manuallyApplyMapping(mapping, input, ciphertextSize);
   auto dag =
       implementShiftNetwork(inputLeaves, mapping, scheme, ciphertextSize);
-  std::vector<LiteralValue> actual = multiEvalKernel(dag);
+  std::vector<kernel::EvalResults> actual = multiEvalKernel(dag);
 
   std::vector<std::vector<int>> combinedActual;
   combinedActual.reserve(numCiphertexts);
-  for (const LiteralValue& val : actual) {
-    combinedActual.push_back(std::get<std::vector<int>>(val.get()));
+  for (const kernel::EvalResults& results : actual) {
+    for (const LiteralValue& val : results) {
+      combinedActual.push_back(std::get<std::vector<int>>(val.get()));
+    }
   }
 
   ::testing::StringMatchResultListener listener;
   bool matches = ::testing::ExplainMatchResult(testing::ContainerEq(expected),
                                                combinedActual, &listener);
-  if (matches) {
+  if (matches)
     return testing::AssertionSuccess();
-  } else {
-    return testing::AssertionFailure() << listener.str();
-  }
+
+  return testing::AssertionFailure() << listener.str();
 }
 
 ::testing::AssertionResult checkMapping(const Mapping& mapping,
