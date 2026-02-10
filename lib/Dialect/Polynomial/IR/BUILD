@@ -18,6 +18,7 @@ cc_library(
         ":ops_inc_gen",
         ":types_inc_gen",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
+        "@heir//lib/Dialect/RNS/IR:Dialect",
         "@heir//lib/Dialect/RNS/IR:RNSOps",
         "@heir//lib/Dialect/RNS/IR:RNSTypes",
         "@heir//lib/Utils/Polynomial",
@@ -42,6 +43,7 @@ td_library(
     includes = ["../../../.."],
     deps = [
         "@heir//lib/Dialect/ModArith/IR:td_files",
+        "@heir//lib/Dialect/RNS/IR:td_files",
         "@llvm-project//mlir:ArithOpsTdFiles",
         "@llvm-project//mlir:BuiltinDialectTdFiles",
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",

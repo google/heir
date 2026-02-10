@@ -12,9 +12,11 @@ package(
 cc_library(
     name = "Dialect",
     srcs = [
+        "RNSAttributes.cpp",
         "RNSDialect.cpp",
     ],
     hdrs = [
+        "RNSAttributes.h",
         "RNSDialect.h",
         "RNSOps.h",
         "RNSTypeInterfaces.h",
@@ -23,6 +25,7 @@ cc_library(
     deps = [
         ":RNSOps",
         ":RNSTypes",
+        ":attributes_inc_gen",
         ":dialect_inc_gen",
         ":ops_inc_gen",
         ":type_interfaces_inc_gen",
@@ -101,6 +104,7 @@ cc_library(
 td_library(
     name = "td_files",
     srcs = [
+        "RNSAttributes.td",
         "RNSDialect.td",
         "RNSOps.td",
         "RNSTypeInterfaces.td",
@@ -120,6 +124,16 @@ add_heir_dialect_library(
     dialect = "RNS",
     kind = "dialect",
     td_file = "RNSDialect.td",
+    deps = [
+        ":td_files",
+    ],
+)
+
+add_heir_dialect_library(
+    name = "attributes_inc_gen",
+    dialect = "RNS",
+    kind = "attribute",
+    td_file = "RNSAttributes.td",
     deps = [
         ":td_files",
     ],
