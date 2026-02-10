@@ -39,7 +39,7 @@ bazel_dep(name = "isl", version = "0.27")
 bazel_dep(name = "pocketfft", version = "0.0.2")
 bazel_dep(name = "openfhe", version = "1.4.2.bcr.1")
 bazel_dep(name = "abc", version = "0.0.0-20250903-yosyshq.bcr.1")
-bazel_dep(name = "yosys", version = "0.57.bcr.1")
+bazel_dep(name = "yosys", version = "0.57.bcr.2")
 
 # LLVM dependency uses module extensions because none of these are in the BCR
 llvm_extensions = use_extension("//bazel:extensions.bzl", "llvm_deps")

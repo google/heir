@@ -24,6 +24,7 @@ cc_library(
         "@llvm-project//mlir:TransformUtils",
         "@yosys//:backend_rtlil",
         "@yosys//:kernel",
+        "@yosys//:frontend_liberty",
     ],
 )
 
@@ -38,6 +39,7 @@ cc_library(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
         "@yosys//:kernel",
+        "@yosys//:frontend_liberty",
     ],
 )
 
@@ -76,6 +78,7 @@ cc_library(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
         "@yosys//:kernel",
+        "@yosys//:frontend_liberty",
     ],
 )
 
@@ -114,6 +117,8 @@ cc_library(
         "@yosys//:backend_rtlil",
         "@yosys//:frontend_verilog",
         "@yosys//:kernel",  # buildcleaner: keep
+        "@yosys//:pass_cmds",
+        "@yosys//:pass_techmap",
     ],
 )
 
