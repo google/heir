@@ -22,6 +22,7 @@ cc_library(
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TransformUtils",
+        "@yosys//:backend_rtlil",
         "@yosys//:kernel",
     ],
 )
@@ -110,6 +111,8 @@ cc_library(
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TransformUtils",
         "@llvm-project//mlir:Transforms",
+        "@yosys//:backend_rtlil",
+        "@yosys//:frontend_verilog",
         "@yosys//:kernel",  # buildcleaner: keep
     ],
 )
