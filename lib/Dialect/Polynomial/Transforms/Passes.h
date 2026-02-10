@@ -2,7 +2,7 @@
 #define LIB_DIALECT_POLYNOMAIL_TRANSFORMS_PASSES_H_
 
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
-#include "lib/Dialect/Polynomial/Transforms/NTTRewrites.h"
+#include "lib/Dialect/Polynomial/Transforms/PolyMulToNTT.h"
 
 namespace mlir {
 namespace heir {

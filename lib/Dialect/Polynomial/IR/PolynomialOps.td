@@ -313,7 +313,7 @@ def Polynomial_ConstantOp : Op<Polynomial_Dialect, "constant",
   let hasCustomAssemblyFormat = 1;
 }
 
-def Polynomial_NTTOp : Polynomial_Op<"ntt", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
+def Polynomial_NTTOp : Polynomial_Op<"ntt", [Pure, ElementwiseMappable, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
   let summary = "Computes point-value tensor representation of a polynomial.";
   let description = [{
     `polynomial.ntt` computes the forward integer Number Theoretic Transform
@@ -331,16 +331,16 @@ def Polynomial_NTTOp : Polynomial_Op<"ntt", [Pure, DeclareOpInterfaceMethods<Inf
     The choice of primitive root may be optionally specified.
   }];
   let arguments = (ins
-    Polynomial_PolynomialType:$input,
+    PolynomialLike:$input,
     OptionalAttr<Polynomial_PrimitiveRootAttr>:$root
   );
-  let results = (outs Polynomial_PolynomialType:$output);
+  let results = (outs PolynomialLike:$output);
   let assemblyFormat = "$input attr-dict `:` qualified(type($input))";
   let hasCanonicalizer = 1;
   let hasVerifier = 1;
 }
 
-def Polynomial_INTTOp : Polynomial_Op<"intt", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
+def Polynomial_INTTOp : Polynomial_Op<"intt", [Pure, ElementwiseMappable, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
   let summary = "Computes the reverse integer Number Theoretic Transform (NTT).";
   let description = [{
     `polynomial.intt` computes the reverse integer Number Theoretic Transform
@@ -355,10 +355,10 @@ def Polynomial_INTTOp : Polynomial_Op<"intt", [Pure, DeclareOpInterfaceMethods<I
     The choice of primitive root may be optionally specified.
   }];
   let arguments = (
-    ins Polynomial_PolynomialType:$input,
+    ins PolynomialLike:$input,
     OptionalAttr<Polynomial_PrimitiveRootAttr>:$root
   );
-  let results = (outs Polynomial_PolynomialType:$output);
+  let results = (outs PolynomialLike:$output);
   let assemblyFormat = "$input attr-dict `:` qualified(type($input))";
   let hasCanonicalizer = 1;
   let hasVerifier = 1;
@@ -408,11 +408,11 @@ def Polynomial_ExtractSliceOp : Polynomial_Op<"extract_slice", [Pure, DeclareOpI
   }];
   let arguments = (ins Polynomial_PolynomialType:$input, IndexAttr:$start, IndexAttr:$size);
   let results = (outs Polynomial_PolynomialType:$output);
-  let assemblyFormat = "$input attr-dict `:` type($input)";
+  let assemblyFormat = "$input attr-dict `:` type($input) `->` type($output)";
   let hasVerifier = 1;
 }
 
-def Polynomial_ConvertBasisOp : Polynomial_Op<"convert_basis", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
+def Polynomial_ConvertBasisOp : Polynomial_Op<"convert_basis", [Pure, ElementwiseMappable, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
   let summary = "Change a polynomial's RNS basis";
   let description = [{
     Given a polynomial with RNS coefficients, output a polynomial where the coefficients
@@ -421,13 +421,13 @@ def Polynomial_ConvertBasisOp : Polynomial_Op<"convert_basis", [Pure, DeclareOpI
     by the output modulus.
   }];
   let arguments = (ins
-      Polynomial_PolynomialType:$value,
+      PolynomialLike:$value,
       TypeAttr:$targetBasis
   );
   let results = (outs
-    Polynomial_PolynomialType:$output
+    PolynomialLike:$output
   );
-  let assemblyFormat = "$value attr-dict `:` type($value)";
+  let assemblyFormat = "$value attr-dict `:` type($value) `->` type($output)";
 }
 
 #endif  // LIB_DIALECT_POLYNOMIAL_IR_POLYNOMIALOPS_TD_

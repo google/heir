@@ -14,26 +14,32 @@ cc_library(
         "Passes.h",
     ],
     deps = [
-        ":NTTRewrites",
+        ":PolyMulToNTT",
         ":pass_inc_gen",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
     ],
 )
 
 cc_library(
-    name = "NTTRewrites",
-    srcs = ["NTTRewrites.cpp"],
+    name = "PolyMulToNTT",
+    srcs = [
+        "NTTSolver.cpp",
+        "PolyMulToNTT.cpp",
+    ],
     hdrs = [
-        "NTTRewrites.h",
+        "NTTSolver.h",
+        "PolyMulToNTT.h",
     ],
     deps = [
-        ":ntt_rewrites_inc_gen",
         ":pass_inc_gen",
-        "@heir//lib/Dialect/ModArith/IR:Dialect",
+        "@com_google_ortools//ortools/sat:cp_model",
+        "@com_google_ortools//ortools/sat:cp_model_solver",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TransformUtils",
     ],
 )
@@ -52,19 +58,5 @@ gentbl_cc_library(
     deps = [
         "@llvm-project//mlir:OpBaseTdFiles",
         "@llvm-project//mlir:PassBaseTdFiles",
-    ],
-)
-
-gentbl_cc_library(
-    name = "ntt_rewrites_inc_gen",
-    includes = ["../../../.."],
-    tbl_outs = {"NTTRewrites.cpp.inc": ["-gen-rewriters"]},
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "NTTRewrites.td",
-    deps = [
-        "@heir//lib/Dialect/ModArith/IR:td_files",
-        "@heir//lib/Dialect/Polynomial/IR:td_files",
-        "@heir//lib/Utils/DRR",
-        "@llvm-project//mlir:ArithOpsTdFiles",
     ],
 )
