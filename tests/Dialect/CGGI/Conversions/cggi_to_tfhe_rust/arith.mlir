@@ -1,12 +1,10 @@
 // RUN: heir-opt --cggi-to-tfhe-rust %s | FileCheck %s
 
 #key = #lwe.key<slot_index = 0>
-#preserve_overflow = #lwe.preserve_overflow<>
-#app_data = #lwe.application_data<message_type = i1, overflow = #preserve_overflow>
 #poly = #polynomial.int_polynomial<x>
 #pspace = #lwe.plaintext_space<ring = #polynomial.ring<coefficientType = i32, polynomialModulus = #poly>, encoding = #lwe.constant_coefficient_encoding<scaling_factor = 268435456>>
 #cspace = #lwe.ciphertext_space<ring = #polynomial.ring<coefficientType = i32, polynomialModulus = #poly>, encryption_type = msb, size = 742>
-!ct_ty = !lwe.lwe_ciphertext<application_data = #app_data, plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
+!ct_ty = !lwe.lwe_ciphertext<plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
 
 // CHECK: @test_affine
 // CHECK-SAME: (%[[ARG0:.*]]: !tfhe_rust.server_key, %[[ARG1:.*]]: memref<1x1x!tfhe_rust.eui32>) -> [[T:.*]] {

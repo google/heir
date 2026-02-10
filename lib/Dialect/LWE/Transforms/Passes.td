@@ -34,6 +34,8 @@ def AddDebugPort : Pass<"lwe-add-debug-port"> {
     Option<"entryFunction", "entry-function", "std::string",
            /*default=*/"", "Default entry function "
            "name of entry function.">,
+    Option<"messageSize", "message-size", "int",
+           /*default=*/"1", "The size of the message in the ciphertext.">,
   ];
 }
 

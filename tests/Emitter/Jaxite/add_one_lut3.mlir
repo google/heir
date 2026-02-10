@@ -4,12 +4,10 @@
 !params = !jaxite.params
 
 #key = #lwe.key<slot_index = 0>
-#preserve_overflow = #lwe.preserve_overflow<>
-#app_data = #lwe.application_data<message_type = i1, overflow = #preserve_overflow>
 #poly = #polynomial.int_polynomial<x>
 #pspace = #lwe.plaintext_space<ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>, encoding = #lwe.constant_coefficient_encoding<scaling_factor = 268435456>>
 #cspace = #lwe.ciphertext_space<ring = #polynomial.ring<coefficientType = i32, polynomialModulus = #poly>, encryption_type = msb, size = 742>
-!eb = !lwe.lwe_ciphertext<application_data = #app_data, plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
+!eb = !lwe.lwe_ciphertext<plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
 
 // CHECK: def test_add_one_lut3(
 // CHECK-NEXT:   [[v0:.*]]: list[types.LweCiphertext],

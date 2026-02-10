@@ -1,22 +1,21 @@
 // RUN: heir-opt %s | FileCheck %s
 
 // This simply tests for syntax.
-#preserve_overflow = #lwe.preserve_overflow<>
 #poly = #polynomial.int_polynomial<x>
 
 #key = #lwe.key<slot_index = 0>
 #pspace = #lwe.plaintext_space<ring = #polynomial.ring<coefficientType = i4, polynomialModulus = #poly>, encoding = #lwe.constant_coefficient_encoding<scaling_factor = 268435456>>
 #cspace = #lwe.ciphertext_space<ring = #polynomial.ring<coefficientType = i32, polynomialModulus = #poly>, encryption_type = msb, size = 742>
-!plaintext = !lwe.lwe_plaintext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #pspace>
-!ciphertext = !lwe.lwe_ciphertext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
+!plaintext = !lwe.lwe_plaintext<plaintext_space = #pspace>
+!ciphertext = !lwe.lwe_ciphertext<plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
 
 module {
   //CHECK: test_syntax
   func.func @test_syntax(%arg0 : !ciphertext) -> !ciphertext {
     %0 = arith.constant 0 : i1
     %1 = arith.constant 1 : i1
-    %2 = lwe.encode %0 { overflow = #preserve_overflow, plaintext_bits = 4 : index } : i1 to !plaintext
-    %3 = lwe.encode %1 { overflow = #preserve_overflow, plaintext_bits = 4 : index } : i1 to !plaintext
+    %2 = lwe.encode %0 { plaintext_bits = 4 : index } : i1 to !plaintext
+    %3 = lwe.encode %1 { plaintext_bits = 4 : index } : i1 to !plaintext
     %4 = lwe.trivial_encrypt %2 { ciphertext_bits = 32 : index }: !plaintext to !ciphertext
     %5 = lwe.trivial_encrypt %3 { ciphertext_bits = 32 : index }: !plaintext to !ciphertext
     %6 = cggi.lut3 %arg0, %4, %5 {lookup_table = 127 : index} : !ciphertext

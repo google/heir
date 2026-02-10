@@ -1,12 +1,10 @@
 // RUN: heir-opt --cggi-decompose-operations %s | FileCheck %s
 
 #key = #lwe.key<slot_index = 0>
-#preserve_overflow = #lwe.preserve_overflow<>
-#app_data = #lwe.application_data<message_type = i1, overflow = #preserve_overflow>
 #poly = #polynomial.int_polynomial<x>
 #pspace = #lwe.plaintext_space<ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>, encoding = #lwe.constant_coefficient_encoding<scaling_factor = 268435456>>
 #cspace = #lwe.ciphertext_space<ring = #polynomial.ring<coefficientType = i32, polynomialModulus = #poly>, encryption_type = msb, size = 742>
-!ct_ty = !lwe.lwe_ciphertext<application_data = #app_data, plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
+!ct_ty = !lwe.lwe_ciphertext<plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
 
 // CHECK: @and
 // CHECK-SAME: %[[arg0:.*]]: ![[ct:.*]], %[[arg1:.*]]: ![[ct]]

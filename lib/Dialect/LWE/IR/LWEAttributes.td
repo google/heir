@@ -42,41 +42,6 @@ def AnyOverflowAttr : AnyAttrOf<[LWE_NoOverflowAttr, LWE_PreserveOverflowAttr]> 
   string cppType = "Attribute";
 }
 
-def LWE_ApplicationDataAttr : AttrDef<LWE_Dialect, "ApplicationData"> {
-  let mnemonic = "application_data";
-  let description = [{
-    An attribute describing the semantics of the underlying application data.
-
-    The `messageType` parameter is used to describe the type and bits of the
-    original application data, e.g. i1, i32, f32. This type is later mapped
-    into the plaintext space of an FHE scheme by embedding, scaling, or other
-    techniques.
-
-    This attribute also contains information about the overflow semantics of the
-    data in the application. By default, we assume that the application program
-    was written so that the overflow is not expected and the overflow attribute
-    can can be `no_overflow`. For LWE-based CGGI ciphertexts, the overflow
-    attribute will usually be `preserve_overflow`, since messages will overflow
-    into padding bits.
-  }];
-
-  let parameters = (ins
-    "mlir::Type":$message_type,
-    DefaultValuedParameter<"Attribute", "NoOverflowAttr::get($_ctxt)">:$overflow
-  );
-
-  let builders = [
-    AttrBuilderWithInferredContext<(ins "Type":$message_type, "Attribute":$overflow), [{
-      return $_get(message_type.getContext(), message_type, overflow);
-    }]>
-  ];
-
-  let assemblyFormat = "`<` struct(params) `>`";
-
-  // Verify that the overflow attribute is one of preserve or no overflow.
-  let genVerifyDecl = 1;
-}
-
 class LWE_EncodingAttrForLWE<string attrName, string attrMnemonic, list<Trait> traits = []>
     : AttrDef<LWE_Dialect, attrName, traits # [OpAsmAttrInterface]> {
   let mnemonic = attrMnemonic;
@@ -251,8 +216,7 @@ def LWE_PlaintextSpaceAttr : AttrDef<LWE_Dialect, "PlaintextSpace"> {
     ciphertexts, or a prime power for RLWE. LWE ciphertexts use the
     ideal polynomial of degree 1 $x$. The plaintext modulus used in LWE-based
     CGGI plaintexts describes the full message space $\mathbb{Z}_p$ including
-    the padding bits. The application data info attribute describes the space
-    $\mathbb{Z}_p'$ where $p' < p$ that the underlying message belongs to.
+    the padding bits.
 
     For RLWE schemes, this will include the type of encoding of application data
     integers to a plaintext space `Z_p[X]/X^N + 1`. This may be a constant

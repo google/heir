@@ -151,17 +151,6 @@ polynomial::RingAttr getRingFromModulusChain(
 // Attribute Verification
 //===----------------------------------------------------------------------===//
 
-LogicalResult ApplicationDataAttr::verify(
-    ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
-    mlir::Type messageType, Attribute overflow) {
-  if (!mlir::isa<PreserveOverflowAttr, NoOverflowAttr>(overflow)) {
-    return emitError() << "overflow must be either preserve_overflow or "
-                       << "no_overflow, but found " << overflow << "\n";
-  }
-
-  return success();
-}
-
 LogicalResult PlaintextSpaceAttr::verify(
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
     mlir::heir::polynomial::RingAttr ring, Attribute encoding) {

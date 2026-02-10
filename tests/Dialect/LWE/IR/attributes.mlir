@@ -8,31 +8,29 @@
 #pspace = #lwe.plaintext_space<
   ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>,
   encoding = #lwe.constant_coefficient_encoding<scaling_factor = 256>>
-!plaintext = !lwe.lwe_plaintext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #pspace>
+!plaintext = !lwe.lwe_plaintext<plaintext_space = #pspace>
 
 // CHECK: test_valid_lwe_encode
 func.func @test_valid_lwe_encode() {
     %0 = arith.constant 0 : i1
     // CHECK: constant_coefficient_encoding
-    %2 = lwe.encode %0 { overflow = #preserve_overflow, plaintext_bits = 3 : index }: i1 to !plaintext
+    %2 = lwe.encode %0 { plaintext_bits = 3 : index }: i1 to !plaintext
   return
 }
 
 // -----
 
 #poly = #polynomial.int_polynomial<x>
-#no_overflow = #lwe.no_overflow<>
 #key = #lwe.key<slot_index = 0>
 #pspace = #lwe.plaintext_space<
   ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>,
   encoding = #lwe.constant_coefficient_encoding<scaling_factor = 256>>
-!plaintext_nooverflow = !lwe.lwe_plaintext<application_data = <message_type = i1>, plaintext_space = #pspace>
+!plaintext_nooverflow = !lwe.lwe_plaintext<plaintext_space = #pspace>
 
 // CHECK: test_valid_lwe_default_overflow
 func.func @test_valid_lwe_default_overflow() {
     %0 = arith.constant 0 : i1
-    // CHECK: no_overflow
-    %2 = lwe.encode %0 { overflow = #no_overflow, plaintext_bits = 3 : index }: i1 to !plaintext_nooverflow
+    %2 = lwe.encode %0 { plaintext_bits = 3 : index }: i1 to !plaintext_nooverflow
   return
 }
 
@@ -44,29 +42,10 @@ func.func @test_valid_lwe_default_overflow() {
 #pspace = #lwe.plaintext_space<
   ring = #polynomial.ring<coefficientType = !modarith, polynomialModulus = #poly>,
   encoding = #lwe.constant_coefficient_encoding<scaling_factor = 256>>
-!plaintext_modarith = !lwe.lwe_plaintext<application_data = <message_type = i4>, plaintext_space = #pspace>
+!plaintext_modarith = !lwe.lwe_plaintext<plaintext_space = #pspace>
 
 // CHECK: test_valid_lwe_modarith_type
 func.func @test_valid_lwe_modarith_type(%arg0: !plaintext_modarith) {
-  return
-}
-
-// -----
-
-#preserve_overflow = #lwe.preserve_overflow<>
-#application = #lwe.application_data<message_type = i1, overflow = #preserve_overflow>
-
-// CHECK: test_fn
-func.func @test_fn() {
-  return
-}
-
-// -----
-
-#application = #lwe.application_data<message_type = i1>
-
-// CHECK: test_fn
-func.func @test_fn() {
   return
 }
 

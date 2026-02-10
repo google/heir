@@ -20,7 +20,6 @@ module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 14, Q = [67239937,
         secret.yield %1 : tensor<1024xi1>
     } -> (!eui1 {mgmt.mgmt = #mgmt1})
     // CHECK: return
-    // CHECK-SAME: message_type = tensor<1024xi1>
     // CHECK-SAME: polynomialModulus = <1 + x**1024>
     // CHECK-SAME: size = 3
     return %1 : !eui1

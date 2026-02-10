@@ -19,12 +19,10 @@
   size=2>
 
 !ct = !lwe.lwe_ciphertext<
-  application_data=<message_type=i3>,
   plaintext_space=#plaintext_space,
   ciphertext_space=#ciphertext_space,
   key=#lwe.key<>>
 !pt = !lwe.lwe_plaintext<
-  application_data=<message_type=i3>,
   plaintext_space=#plaintext_space>
 
 // CHECK: @test_ct_pt_canonicalize(

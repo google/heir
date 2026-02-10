@@ -124,8 +124,6 @@ def CKKS_NegateOp : CKKS_Op<"negate", [ElementwiseMappable, SameOperandsAndResul
 }
 
 def CKKS_RelinearizeOp : CKKS_Op<"relinearize", [
-  SameOperandsAndResultRings,
-  SameOperandsAndResultPlaintextTypes,
   InferTypeOpAdaptor,
   DeclareOpInterfaceMethods<ElementwiseByOperandOpInterface>
 ]> {
@@ -146,10 +144,7 @@ def CKKS_RelinearizeOp : CKKS_Op<"relinearize", [
     DenseI32ArrayAttr:$to_basis,
     Optional<RankedTensorOf<[LWECiphertextLike]>>:$keySwitchingKey
   );
-
-  let results = (outs
-    LWECiphertextLike:$output
-  );
+  let results = (outs LWECiphertextLike:$output);
 
   let builders = [
     OpBuilder<(ins

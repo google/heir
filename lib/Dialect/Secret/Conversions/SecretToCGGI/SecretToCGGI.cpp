@@ -99,10 +99,8 @@ Operation* convertWriteOpInterface(
         auto ctTy =
             dyn_cast<lwe::LWECiphertextType>(toTensorTy.getElementType());
         auto ptxtTy = lwe::LWEPlaintextType::get(b.getContext(),
-                                                 ctTy.getApplicationData(),
                                                  ctTy.getPlaintextSpace());
 
-        auto overflowAttr = ctTy.getApplicationData().getOverflow();
         auto ciphertextBits = ctTy.getCiphertextSpace()
                                   .getRing()
                                   .getCoefficientType()
@@ -116,8 +114,7 @@ Operation* convertWriteOpInterface(
           auto ctValue = lwe::TrivialEncryptOp::create(
               b, ctTy,
               lwe::EncodeOp::create(b, op->getLoc(), ptxtTy, valueToStore,
-                                    b.getIndexAttr(plaintextBits),
-                                    overflowAttr),
+                                    b.getIndexAttr(plaintextBits)),
               b.getIndexAttr(ciphertextBits));
 
           return tensor::InsertOp::create(b, ctValue, toTensor, indices);
@@ -139,7 +136,7 @@ Operation* convertWriteOpInterface(
         auto ctValue = lwe::TrivialEncryptOp::create(
             b, ctTy,
             lwe::EncodeOp::create(b, op->getLoc(), ptxtTy, bitValue,
-                                  b.getIndexAttr(plaintextBits), overflowAttr),
+                                  b.getIndexAttr(plaintextBits)),
             b.getIndexAttr(ciphertextBits));
 
         indices.push_back(idx);
@@ -212,7 +209,6 @@ SmallVector<Value> encodeInputs(
   }
 
   // Encode any plaintexts in the inputs.
-  auto overflow = ctxtTy.getApplicationData().getOverflow();
   auto ptxtSpace = ctxtTy.getPlaintextSpace();
   auto plaintextBits = rewriter.getIndexAttr(
       ptxtSpace.getRing().getCoefficientType().getIntOrFloatBitWidth());
@@ -220,8 +216,7 @@ SmallVector<Value> encodeInputs(
                                                   .getRing()
                                                   .getCoefficientType()
                                                   .getIntOrFloatBitWidth());
-  auto ptxtTy = lwe::LWEPlaintextType::get(
-      rewriter.getContext(), ctxtTy.getApplicationData(), ptxtSpace);
+  auto ptxtTy = lwe::LWEPlaintextType::get(rewriter.getContext(), ptxtSpace);
   return llvm::to_vector(llvm::map_range(inputs, [&](auto input) -> Value {
     if (!isa<lwe::LWECiphertextType>(input.getType())) {
       IntegerType integerTy = dyn_cast<IntegerType>(input.getType());
@@ -230,7 +225,7 @@ SmallVector<Value> encodeInputs(
       return lwe::TrivialEncryptOp::create(
                  rewriter, op->getLoc(), ctxtTy,
                  lwe::EncodeOp::create(rewriter, op->getLoc(), ptxtTy, input,
-                                       plaintextBits, overflow),
+                                       plaintextBits),
                  ciphertextBits)
           .getResult();
     }
@@ -254,7 +249,7 @@ class SecretTypeConverter : public ContextAwareTypeConverter {
   Type getLWECiphertextForInt(MLIRContext* ctx, Type type) const {
     if (IntegerType intType = dyn_cast<IntegerType>(type)) {
       if (intType.getWidth() == 1) {
-        return lwe::getDefaultCGGICiphertextType(ctx, 1, this->minBitWidth);
+        return lwe::getDefaultCGGICiphertextType(ctx, this->minBitWidth);
       }
       return RankedTensorType::get(
           {intType.getWidth()},
@@ -584,8 +579,8 @@ struct ConvertSecretConcealOp
                                       ->getContextualAttr(op.getResult())
                                       .value_or(nullptr));
     auto ctTy = cast<lwe::LWECiphertextType>(getElementTypeOrSelf(convertedTy));
-    auto ptxtTy = lwe::LWEPlaintextType::get(
-        b.getContext(), ctTy.getApplicationData(), ctTy.getPlaintextSpace());
+    auto ptxtTy =
+        lwe::LWEPlaintextType::get(b.getContext(), ctTy.getPlaintextSpace());
 
     Value valueToStore = adaptor.getCleartext();
     Value resultValue;
@@ -598,7 +593,6 @@ struct ConvertSecretConcealOp
                                  .getRing()
                                  .getCoefficientType()
                                  .getIntOrFloatBitWidth();
-        auto overflowAttr = ctTy.getApplicationData().getOverflow();
         auto ciphertextBits = ctTy.getCiphertextSpace()
                                   .getRing()
                                   .getCoefficientType()
@@ -607,7 +601,7 @@ struct ConvertSecretConcealOp
         return {lwe::TrivialEncryptOp::create(
             b, b.getLoc(), ctTy,
             lwe::EncodeOp::create(b, b.getLoc(), ptxtTy, value,
-                                  b.getIndexAttr(plaintextBits), overflowAttr),
+                                  b.getIndexAttr(plaintextBits)),
             b.getIndexAttr(ciphertextBits))};
       }
       SmallVector<Value> elementValues;
@@ -625,7 +619,6 @@ struct ConvertSecretConcealOp
                                  .getRing()
                                  .getCoefficientType()
                                  .getIntOrFloatBitWidth();
-        auto overflowAttr = ctTy.getApplicationData().getOverflow();
         auto ciphertextBits = ctTy.getCiphertextSpace()
                                   .getRing()
                                   .getCoefficientType()
@@ -634,7 +627,7 @@ struct ConvertSecretConcealOp
         auto ctValue = lwe::TrivialEncryptOp::create(
             b, b.getLoc(), ctTy,
             lwe::EncodeOp::create(b, b.getLoc(), ptxtTy, bitValue,
-                                  b.getIndexAttr(plaintextBits), overflowAttr),
+                                  b.getIndexAttr(plaintextBits)),
             b.getIndexAttr(ciphertextBits));
 
         elementValues.push_back(ctValue);
@@ -703,8 +696,8 @@ struct ConvertFromElementsOp
           op, "tensor element type must be a ciphertext");
     }
 
-    auto ptTy = lwe::LWEPlaintextType::get(
-        b.getContext(), ctTy.getApplicationData(), ctTy.getPlaintextSpace());
+    auto ptTy =
+        lwe::LWEPlaintextType::get(b.getContext(), ctTy.getPlaintextSpace());
     // All elements of the operation must have the same type. If they are
     // scalars, construct a from_elements op, encoding plaintexts as necessary.
     if (!isa<ShapedType>(inputs[0].getType())) {
@@ -717,7 +710,6 @@ struct ConvertFromElementsOp
                                    .getRing()
                                    .getCoefficientType()
                                    .getIntOrFloatBitWidth();
-          auto overflowAttr = ctTy.getApplicationData().getOverflow();
           auto ciphertextBits = ctTy.getCiphertextSpace()
                                     .getRing()
                                     .getCoefficientType()
@@ -726,8 +718,7 @@ struct ConvertFromElementsOp
           auto ctElement = lwe::TrivialEncryptOp::create(
               b, b.getLoc(), ctTy,
               lwe::EncodeOp::create(b, b.getLoc(), ptTy, element,
-                                    b.getIndexAttr(plaintextBits),
-                                    overflowAttr),
+                                    b.getIndexAttr(plaintextBits)),
               b.getIndexAttr(ciphertextBits));
 
           values.push_back(ctElement);

@@ -20,8 +20,7 @@ namespace lwe {
 
 LogicalResult LWECiphertextType::verify(
     llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
-    ApplicationDataAttr, PlaintextSpaceAttr,
-    CiphertextSpaceAttr ciphertextSpace, KeyAttr keyAttr,
+    PlaintextSpaceAttr, CiphertextSpaceAttr ciphertextSpace, KeyAttr keyAttr,
     ModulusChainAttr modulusChain) {
   if (keyAttr.getSlotIndex() != 0 && (ciphertextSpace.getSize() != 2)) {
     return emitError() << "a ciphertext with nontrivial slot rotation must "
@@ -42,7 +41,6 @@ LogicalResult LWECiphertextType::verify(
 }
 
 LWECiphertextType getDefaultCGGICiphertextType(MLIRContext* ctx,
-                                               int messageWidth,
                                                int plaintextBits) {
   auto ciphertextBits = 32;
   auto scalingFactor = 1 << (ciphertextBits - plaintextBits);
@@ -57,8 +55,6 @@ LWECiphertextType getDefaultCGGICiphertextType(MLIRContext* ctx,
 
   return lwe::LWECiphertextType::get(
       ctx,
-      lwe::ApplicationDataAttr::get(ctx, IntegerType::get(ctx, messageWidth),
-                                    lwe::PreserveOverflowAttr::get(ctx)),
       lwe::PlaintextSpaceAttr::get(
           ctx, plaintextRing,
           lwe::ConstantCoefficientEncodingAttr::get(ctx, scalingFactor)),
@@ -93,7 +89,7 @@ FailureOr<LWECiphertextType> applyModReduce(LWECiphertextType inputType) {
   LLVM_DEBUG(llvm::dbgs() << "new plaintext space=" << newPlaintextSpace
                           << "\n");
   return lwe::LWECiphertextType::get(
-      ctx, inputType.getApplicationData(), newPlaintextSpace,
+      ctx, newPlaintextSpace,
       lwe::CiphertextSpaceAttr::get(
           ctx, newRing, inputType.getCiphertextSpace().getEncryptionType(),
           inputType.getCiphertextSpace().getSize()),
@@ -108,7 +104,7 @@ LWECiphertextType cloneAtLevel(LWECiphertextType inputType, int64_t level) {
       ctx, inputType.getModulusChain().getElements(), level);
   auto newRing = getRingFromModulusChain(newChain, ring.getPolynomialModulus());
   return lwe::LWECiphertextType::get(
-      ctx, inputType.getApplicationData(), inputType.getPlaintextSpace(),
+      ctx, inputType.getPlaintextSpace(),
       lwe::CiphertextSpaceAttr::get(
           ctx, newRing, inputType.getCiphertextSpace().getEncryptionType(),
           inputType.getCiphertextSpace().getSize()),

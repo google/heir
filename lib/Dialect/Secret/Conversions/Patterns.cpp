@@ -98,7 +98,6 @@ LogicalResult ConvertClientConceal::matchAndRewrite(
       insertKeyArgument(parentFunc, encryptionKeyType, rewriter);
 
   auto plaintextTy = lwe::LWEPlaintextType::get(op.getContext(),
-                                                resultCtTy.getApplicationData(),
                                                 resultCtTy.getPlaintextSpace());
 
   auto encryptFn = [&](Value cleartext) -> lwe::RLWEEncryptOp {
@@ -186,7 +185,6 @@ LogicalResult ConvertClientReveal::matchAndRewrite(
 
   auto decryptFn = [&](Value ciphertext, Type resultTy) -> lwe::RLWEDecodeOp {
     auto plaintextTy = lwe::LWEPlaintextType::get(op.getContext(),
-                                                  argCtTy.getApplicationData(),
                                                   argCtTy.getPlaintextSpace());
     auto decrypted = lwe::RLWEDecryptOp::create(
         rewriter, op.getLoc(), plaintextTy, ciphertext, keyBlockArg);

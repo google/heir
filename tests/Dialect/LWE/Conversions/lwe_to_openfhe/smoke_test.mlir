@@ -10,9 +10,9 @@
 #ring_Z65537_i64_1_x32 = #polynomial.ring<coefficientType = !Z65537_i64, polynomialModulus = <1 + x**32>>
 #ring_rns_L1_1_x32 = #polynomial.ring<coefficientType = !rns_L1, polynomialModulus = <1 + x**32>>
 !pkey_L1 = !lwe.lwe_public_key<key = #key, ring = #ring_rns_L1_1_x32>
-!pt = !lwe.lwe_plaintext<application_data = <message_type = tensor<32xi16>>, plaintext_space = <ring = #ring_Z65537_i64_1_x32, encoding = #full_crt_packing_encoding>>
+!pt = !lwe.lwe_plaintext<plaintext_space = <ring = #ring_Z65537_i64_1_x32, encoding = #full_crt_packing_encoding>>
 #ciphertext_space_L1 = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x32, encryption_type = lsb>
-!ct_L1 = !lwe.lwe_ciphertext<application_data = <message_type = tensor<32xi16>>, plaintext_space = <ring = #ring_Z65537_i64_1_x32, encoding = #full_crt_packing_encoding>, ciphertext_space = #ciphertext_space_L1, key = #key, modulus_chain = #modulus_chain_L1_C1>
+!ct_L1 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_Z65537_i64_1_x32, encoding = #full_crt_packing_encoding>, ciphertext_space = #ciphertext_space_L1, key = #key, modulus_chain = #modulus_chain_L1_C1>
 module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 12, Q = [67239937, 34359754753], P = [34359771137], plaintextModulus = 65537>, scheme.bgv} {
   func.func @simple_sum__encrypt__arg0(%arg0: tensor<32xi16>, %pk: !pkey_L1) -> !ct_L1 {
     %cst = arith.constant dense<0> : tensor<4096xi16>

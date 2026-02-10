@@ -13,9 +13,9 @@
 
 #plaintext_space = #lwe.plaintext_space<ring = #ring_Z65537_i64_1_x32_, encoding = #full_crt_packing_encoding>
 
-!pt_i16 = !lwe.lwe_plaintext<application_data = <message_type = tensor<32xi16>>, plaintext_space = #plaintext_space>
-!pt_i32 = !lwe.lwe_plaintext<application_data = <message_type = tensor<32xi32>>, plaintext_space = #plaintext_space>
-!pt_i64 = !lwe.lwe_plaintext<application_data = <message_type = tensor<32xi64>>, plaintext_space = #plaintext_space>
+!pt_i16 = !lwe.lwe_plaintext<plaintext_space = #plaintext_space>
+!pt_i32 = !lwe.lwe_plaintext<plaintext_space = #plaintext_space>
+!pt_i64 = !lwe.lwe_plaintext<plaintext_space = #plaintext_space>
 
 !pk = !lwe.lwe_public_key<ring = #ring_rns_L0_1_x32_, key = #key>
 

@@ -202,9 +202,8 @@ module {
     %9 = openfhe.make_packed_plaintext %arg0, %cst : (!openfhe.crypto_context, tensor<8xi64>) -> !rlwe_pt_L1_
     %10 = openfhe.mul_plain %arg0, %8, %9 : (!openfhe.crypto_context, !rlwe_ct_L1_, !rlwe_pt_L1_) -> !rlwe_ct_L1_
     %11 = openfhe.rot %arg0, %10 {index = 7 : index} : (!openfhe.crypto_context, !rlwe_ct_L1_) -> !rlwe_ct_L1_
-    %12 = lwe.reinterpret_application_data %11 : !rlwe_ct_L1_ to !rlwe_ct_L1_1
-    %13 = openfhe.mod_reduce %arg0, %12 : (!openfhe.crypto_context, !rlwe_ct_L1_1) -> !rlwe_ct_L0_
-    return %13 : !rlwe_ct_L0_
+    %12 = openfhe.mod_reduce %arg0, %11 : (!openfhe.crypto_context, !rlwe_ct_L1_1) -> !rlwe_ct_L0_
+    return %12 : !rlwe_ct_L0_
   }
   func.func @dot_product__encrypt__arg0(%arg0: !openfhe.crypto_context, %arg1: tensor<8xi16>, %arg2: !openfhe.public_key) -> !rlwe_ct_L2_ {
     ...

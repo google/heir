@@ -3,13 +3,11 @@
 // RUN: heir-opt --cggi-decompose-operations=expand-lincomb=false --straight-line-vectorize %s | FileCheck %s --check-prefix=CANONICAL
 
 #key = #lwe.key<slot_index = 0>
-#preserve_overflow = #lwe.preserve_overflow<>
-#app_data = #lwe.application_data<message_type = i1, overflow = #preserve_overflow>
 #poly = #polynomial.int_polynomial<x>
 #pspace = #lwe.plaintext_space<ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>, encoding = #lwe.constant_coefficient_encoding<scaling_factor = 268435456>>
 #cspace = #lwe.ciphertext_space<ring = #polynomial.ring<coefficientType = i32, polynomialModulus = #poly>, encryption_type = msb, size = 742>
-!pt_ty = !lwe.lwe_plaintext<application_data = #app_data, plaintext_space = #pspace>
-!ct_ty = !lwe.lwe_ciphertext<application_data = #app_data, plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
+!pt_ty = !lwe.lwe_plaintext<plaintext_space = #pspace>
+!ct_ty = !lwe.lwe_ciphertext<plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
 
 // CHECK: add_one
 // CHECK-COUNT-9: cggi.lut3
@@ -34,9 +32,9 @@ func.func @add_one(%arg0: tensor<8x!ct_ty>) -> tensor<8x!ct_ty> {
   %extracted_4 = tensor.extract %arg0[%c5] : tensor<8x!ct_ty>
   %extracted_5 = tensor.extract %arg0[%c6] : tensor<8x!ct_ty>
   %extracted_6 = tensor.extract %arg0[%c7] : tensor<8x!ct_ty>
-  %0 = lwe.encode %true { overflow = #preserve_overflow, plaintext_bits = 3 : index } : i1 to !pt_ty
+  %0 = lwe.encode %true { plaintext_bits = 3 : index } : i1 to !pt_ty
   %1 = lwe.trivial_encrypt %0 { ciphertext_bits = 32 : index } : !pt_ty to !ct_ty
-  %2 = lwe.encode %false { overflow = #preserve_overflow, plaintext_bits = 3 : index } : i1 to !pt_ty
+  %2 = lwe.encode %false { plaintext_bits = 3 : index } : i1 to !pt_ty
   %3 = lwe.trivial_encrypt %2 { ciphertext_bits = 32 : index } : !pt_ty to !ct_ty
   %4 = cggi.lut3 %extracted, %1, %3 {lookup_table = 8 : ui8} : !ct_ty
   %5 = cggi.lut3 %4, %extracted_0, %3 {lookup_table = 150 : ui8} : !ct_ty

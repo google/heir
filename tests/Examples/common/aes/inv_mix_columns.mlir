@@ -11,7 +11,7 @@ module {
       %c0 = arith.constant 0 : i8
       %c1 = arith.constant 1 : i8
       %2:2 = affine.for %4 = 0 to 4 iter_args(%5 = %x, %6 = %z) -> (i8, i8) {
-        // z = if y & (1 << i): z^x else z
+        // z = if y & (1 < i): z^x else z
         %44 = arith.index_cast %4 : index to i8
         %ysh = arith.shrsi %y, %44 : i8
         %ysha = arith.andi %ysh, %c1 : i8

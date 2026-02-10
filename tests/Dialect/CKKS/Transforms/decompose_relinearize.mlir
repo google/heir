@@ -14,8 +14,7 @@
 #modulus_chain_L5_C1 = #lwe.modulus_chain<elements = <#q0, #q1>, current = 1>
 #inverse_canonical_encoding = #lwe.inverse_canonical_encoding<scaling_factor = 0>
 #key = #lwe.key<>
-!ct_L1_D3 = !lwe.lwe_ciphertext<application_data = <message_type = i3>,
-                                plaintext_space = <ring = #ring_L1x1024,
+!ct_L1_D3 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_L1x1024,
                                 encoding = #inverse_canonical_encoding>,
                                 ciphertext_space = #ciphertext_space_L1_D3,
                                 key = #key,
@@ -23,8 +22,7 @@
 
 // Output's type
 #ciphertext_space_L1_D2 = #lwe.ciphertext_space<ring = #ring_L1x1024, encryption_type = lsb, size = 2>
-!ct_L1_D2 = !lwe.lwe_ciphertext<application_data = <message_type = i3>,
-                                plaintext_space = <ring = #ring_L1x1024,
+!ct_L1_D2 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_L1x1024,
                                 encoding = #inverse_canonical_encoding>,
                                 ciphertext_space = #ciphertext_space_L1_D2,
                                 key = #key,
@@ -34,8 +32,7 @@
 !rns_L2 = !rns.rns<!Zq0, !Zq1, !Zp0>
 #ring_L2x1024 = #polynomial.ring<coefficientType = !rns_L2, polynomialModulus = <1 + x**1024>>
 #ciphertext_space_L2 = #lwe.ciphertext_space<ring = #ring_L2x1024, encryption_type = lsb, size = 2>
-!ct_L2 = !lwe.lwe_ciphertext<application_data = <message_type = i3>,
-                             plaintext_space = <ring = #ring_L2x1024, encoding = #inverse_canonical_encoding>,
+!ct_L2 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_L2x1024, encoding = #inverse_canonical_encoding>,
                              ciphertext_space = #ciphertext_space_L2,
                              key = #key>
 

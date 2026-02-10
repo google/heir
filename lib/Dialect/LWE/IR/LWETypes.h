@@ -18,16 +18,14 @@ namespace lwe {
 // has LWE dimension 742. The messageWidth parameter specifies the width of the
 // application data.
 LWECiphertextType getDefaultCGGICiphertextType(MLIRContext* ctx,
-                                               int messageWidth,
                                                int plaintextBits);
 
 inline LWEPlaintextType getCorrespondingPlaintextType(
     LWECiphertextType ctType) {
   MLIRContext* ctx = ctType.getContext();
   return LWEPlaintextType::get(
-      ctx, ctType.getApplicationData(),
-      PlaintextSpaceAttr::get(ctx, ctType.getCiphertextSpace().getRing(),
-                              ctType.getPlaintextSpace().getEncoding()));
+      ctx, PlaintextSpaceAttr::get(ctx, ctType.getCiphertextSpace().getRing(),
+                                   ctType.getPlaintextSpace().getEncoding()));
 }
 
 // Return the LWECiphertextType resulting from removing one limb (i.e.,

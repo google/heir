@@ -2,13 +2,11 @@
 // RUN: heir-opt --cggi-to-tfhe-rust -cse %s | FileCheck %s --check-prefixes=CHECK-GATES,CHECK-COMMON
 
 #key = #lwe.key<slot_index = 0>
-#preserve_overflow = #lwe.preserve_overflow<>
-#app_data = #lwe.application_data<message_type = i1, overflow = #preserve_overflow>
 #poly = #polynomial.int_polynomial<x>
 #pspace = #lwe.plaintext_space<ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>, encoding = #lwe.constant_coefficient_encoding<scaling_factor = 268435456>>
 #cspace = #lwe.ciphertext_space<ring = #polynomial.ring<coefficientType = i32, polynomialModulus = #poly>, encryption_type = msb, size = 742>
-!pt_ty = !lwe.lwe_plaintext<application_data = #app_data, plaintext_space = #pspace>
-!ct_ty = !lwe.lwe_ciphertext<application_data = #app_data, plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
+!pt_ty = !lwe.lwe_plaintext<plaintext_space = #pspace>
+!ct_ty = !lwe.lwe_ciphertext<plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
 
 // CHECK-COMMON: @binary_gates
 // CHECK-COMMON-SAME: %[[sks:.*]]: [[sks_ty:!tfhe_rust.server_key]], %[[arg1:.*]]: [[ct_ty:!tfhe_rust.eui3]], %[[arg2:.*]]: [[ct_ty]]

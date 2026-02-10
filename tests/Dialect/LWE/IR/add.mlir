@@ -1,7 +1,6 @@
 // RUN: heir-opt %s | FileCheck %s
 
 #poly = #polynomial.int_polynomial<x>
-#preserve_overflow = #lwe.preserve_overflow<>
 #key = #lwe.key<slot_index = 0>
 #pspace = #lwe.plaintext_space<
   ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>,
@@ -10,7 +9,7 @@
 #cspace = #lwe.ciphertext_space<
   ring = #polynomial.ring<coefficientType = !cmod, polynomialModulus = #poly>,
   encryption_type = msb, size = 10>
-!ct = !lwe.lwe_ciphertext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
+!ct = !lwe.lwe_ciphertext<plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
 
 // CHECK: test_add
 func.func @test_add(%0: !ct, %1: !ct) -> !ct {

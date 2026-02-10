@@ -367,17 +367,6 @@ struct ConvertBootstrapOp : public OpConversionPattern<ckks::BootstrapOp> {
   }
 };
 
-struct EraseLWEReinterpretApplicationData
-    : public OpConversionPattern<lwe::ReinterpretApplicationDataOp> {
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      lwe::ReinterpretApplicationDataOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter& rewriter) const override {
-    rewriter.replaceOp(op, adaptor.getOperands()[0]);
-    return success();
-  }
-};
 }  // namespace
 
 struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
@@ -478,7 +467,6 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
 
         // Encoding and encryption
         ConvertEncodeOp, ConvertDecodeOp, ConvertEncryptOp, ConvertDecryptOp,
-        EraseLWEReinterpretApplicationData,
 
         // Scheme-agnostic RLWE Arithmetic Ops:
         ConvertLWEBinOp<lwe::RAddOp, openfhe::AddOp>,

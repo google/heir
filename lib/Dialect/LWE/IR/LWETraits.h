@@ -33,7 +33,7 @@ class SameOperandsAndResultRings
           return success();
         };
     for (auto rTy : op->getResultTypes()) {
-      auto ct = dyn_cast<lwe::LWECiphertextType>(rTy);
+      auto ct = dyn_cast<lwe::LWECiphertextType>(getElementTypeOrSelf(rTy));
       if (!ct) continue;
       if (failed(initOrCheckRings(ct.getCiphertextSpace().getRing()))) {
         return failure();
@@ -41,7 +41,7 @@ class SameOperandsAndResultRings
     }
 
     for (auto oTy : op->getOperandTypes()) {
-      auto ct = dyn_cast<lwe::LWECiphertextType>(oTy);
+      auto ct = dyn_cast<lwe::LWECiphertextType>(getElementTypeOrSelf(oTy));
       if (!ct) continue;  // Check only ciphertexts
       if (failed(initOrCheckRings(ct.getCiphertextSpace().getRing()))) {
         return failure();
@@ -59,43 +59,37 @@ class SameOperandsAndResultPlaintextTypes
                                 SameOperandsAndResultPlaintextTypes> {
  public:
   static LogicalResult verifyTrait(Operation* op) {
-    lwe::LWEPlaintextType plaintextTypes = nullptr;
-    auto initOrCheckPlaintextTypes = [&](LWEPlaintextType ps) {
-      if (plaintextTypes == nullptr) {
-        plaintextTypes = ps;
+    lwe::PlaintextSpaceAttr plaintextSpace = nullptr;
+    auto initOrCheckPlaintextSpace = [&](PlaintextSpaceAttr ps) {
+      if (plaintextSpace == nullptr) {
+        plaintextSpace = ps;
         return success();
       }
-      if (plaintextTypes != ps) {
+      if (plaintextSpace != ps) {
         op->emitOpError() << "requires all operands and results to have "
-                             "the same plaintextTypes, but found "
-                          << plaintextTypes << " and " << ps;
+                             "the same plaintextSpace, but found "
+                          << plaintextSpace << " and " << ps;
         return failure();
       }
       return success();
     };
-    auto getPlaintextTypeFromCiphertextType = [&](LWECiphertextType ct) {
-      return lwe::LWEPlaintextType::get(
-          op->getContext(), ct.getApplicationData(), ct.getPlaintextSpace());
-    };
 
     for (auto rTy : op->getResultTypes()) {
-      auto ct = dyn_cast<lwe::LWECiphertextType>(rTy);
+      auto ct = dyn_cast<lwe::LWECiphertextType>(getElementTypeOrSelf(rTy));
       if (!ct) continue;
-      if (failed(initOrCheckPlaintextTypes(
-              getPlaintextTypeFromCiphertextType(ct)))) {
+      if (failed(initOrCheckPlaintextSpace(ct.getPlaintextSpace()))) {
         return failure();
       }
     }
 
     for (auto oTy : op->getOperandTypes()) {
-      auto ct = dyn_cast<lwe::LWECiphertextType>(oTy);
-      auto pt = dyn_cast<lwe::LWEPlaintextType>(oTy);
+      auto ct = dyn_cast<lwe::LWECiphertextType>(getElementTypeOrSelf(oTy));
+      auto pt = dyn_cast<lwe::LWEPlaintextType>(getElementTypeOrSelf(oTy));
       if (!ct && !pt) continue;  // Check only ciphertexts and plaintexts
-      if (ct && failed(initOrCheckPlaintextTypes(
-                    getPlaintextTypeFromCiphertextType(ct)))) {
+      if (ct && failed(initOrCheckPlaintextSpace(ct.getPlaintextSpace()))) {
         return failure();
       }
-      if (pt && failed(initOrCheckPlaintextTypes(pt))) {
+      if (pt && failed(initOrCheckPlaintextSpace(pt.getPlaintextSpace()))) {
         return failure();
       }
     }
@@ -124,7 +118,7 @@ class AllCiphertextTypesMatch
     };
 
     for (auto rTy : op->getResultTypes()) {
-      auto ct = dyn_cast<lwe::LWECiphertextType>(rTy);
+      auto ct = dyn_cast<lwe::LWECiphertextType>(getElementTypeOrSelf(rTy));
       if (!ct) continue;
       if (failed(initOrCheckCiphertextTypes(ct))) {
         return failure();
@@ -132,7 +126,7 @@ class AllCiphertextTypesMatch
     }
 
     for (auto oTy : op->getOperandTypes()) {
-      auto ct = dyn_cast<lwe::LWECiphertextType>(oTy);
+      auto ct = dyn_cast<lwe::LWECiphertextType>(getElementTypeOrSelf(oTy));
       if (!ct) continue;  // Check only ciphertexts
       if (ct && failed(initOrCheckCiphertextTypes(ct))) {
         return failure();

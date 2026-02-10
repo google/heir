@@ -56,9 +56,8 @@ FailureOr<Value> encodeCleartextAsPlaintext(
   // TODO(#1643): inherit level information to plaintext type from init-op
   // mgmt attr. This actually needs to make LWEPlaintextType RNS aware.
   auto plaintextTy = lwe::LWEPlaintextType::get(
-      ctx, ciphertextElementType.getApplicationData(),
-      lwe::PlaintextSpaceAttr::get(ctx, plaintextSpace.getRing(),
-                                   plaintextEncoding));
+      ctx, lwe::PlaintextSpaceAttr::get(ctx, plaintextSpace.getRing(),
+                                        plaintextEncoding));
 
   // cleartext is a ciphertext-semantic tensor, so it
   // could be a tensor<Nxty>, tensor<k x N x ty>, (where k=1 is possible).

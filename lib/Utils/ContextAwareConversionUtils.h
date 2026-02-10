@@ -392,6 +392,41 @@ class SecretGenericOpLevelReduceConversion
   }
 };
 
+/// A pattern that replaces a secret.generic with its first converted operand.
+/// This is useful for operations that become identities after type conversion,
+/// such as arith.extui or arith.trunci when application_data is removed.
+template <typename T>
+struct SecretGenericOpIdentityConversion
+    : public ContextAwareOpConversionPattern<secret::GenericOp> {
+  using ContextAwareOpConversionPattern<
+      secret::GenericOp>::ContextAwareOpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      secret::GenericOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const override {
+    if (op.getBody()->getOperations().size() > 2) {
+      return failure();
+    }
+
+    auto& innerOp = op.getBody()->getOperations().front();
+    if (!isa<T>(innerOp)) {
+      return failure();
+    }
+
+    SmallVector<Value> inputs;
+    for (Value operand : innerOp.getOperands()) {
+      if (auto* secretArg = op.getOpOperandForBlockArgument(operand)) {
+        inputs.push_back(adaptor.getInputs()[secretArg->getOperandNumber()]);
+      } else {
+        inputs.push_back(operand);
+      }
+    }
+
+    rewriter.replaceOp(op, inputs[0]);
+    return success();
+  }
+};
+
 struct ContextAwareFuncConversion
     : public ContextAwareOpConversionPattern<func::FuncOp> {
  public:

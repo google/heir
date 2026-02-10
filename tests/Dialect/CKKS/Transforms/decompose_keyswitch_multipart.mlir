@@ -23,8 +23,7 @@
 #key = #lwe.key<>
 // ModulusChain probably isn't appropriate for keyswitch keys. The problem is that in order to be a valid ciphertext, the modulus chain needs to include
 // the key-switch primes, but these don't correspond to available "levels".
-!ct_L2 = !lwe.lwe_ciphertext<application_data = <message_type = i3>,
-                             plaintext_space = <ring = #ring_L2x1024, encoding = #inverse_canonical_encoding>,
+!ct_L2 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_L2x1024, encoding = #inverse_canonical_encoding>,
                              ciphertext_space = #ciphertext_space_L2,
                              key = #key>
 
@@ -74,8 +73,7 @@ module attributes {
 #ciphertext_space_L7 = #lwe.ciphertext_space<ring = #ring_L7x1024, encryption_type = lsb, size = 2>
 // ModulusChain probably isn't appropriate for keyswitch keys. The problem is that in order to be a valid ciphertext, the modulus chain needs to include
 // the key-switch primes, but these don't correspond to available "levels".
-!ct_L7 = !lwe.lwe_ciphertext<application_data = <message_type = i3>,
-                             plaintext_space = <ring = #ring_L7x1024, encoding = #inverse_canonical_encoding>,
+!ct_L7 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_L7x1024, encoding = #inverse_canonical_encoding>,
                              ciphertext_space = #ciphertext_space_L7,
                              key = #key>
 

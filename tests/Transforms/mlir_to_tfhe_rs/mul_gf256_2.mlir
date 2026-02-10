@@ -4,9 +4,9 @@
 //     '''Rinjdael multiplication in the ring GF(256) with RHS limited to 2 bits'''
 //     z = 0
 //     for i in range(2):
-//         if y & (1 << i):
+//         if y & (1 < i):
 //             z ^= x
-//         x = (x << 1)
+//         x = (x < 1)
 //         if x >= 256:
 //             x = (x & 255) ^ 27
 //     return z

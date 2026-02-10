@@ -163,8 +163,6 @@ class SecretToBGVTypeConverter
 
     auto ctType = lwe::LWECiphertextType::get(
         ctx,
-        lwe::ApplicationDataAttr::get(ctx, messageType,
-                                      lwe::NoOverflowAttr::get(ctx)),
         lwe::PlaintextSpaceAttr::get(
             ctx, plaintextRing,
             lwe::FullCRTPackingEncodingAttr::get(ctx, scale)),
@@ -296,10 +294,8 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
         SecretGenericOpConversion<arith::AddIOp, bgv::AddOp>,
         SecretGenericOpConversion<arith::SubIOp, bgv::SubOp>,
         SecretGenericOpConversion<arith::MulIOp, bgv::MulOp>,
-        SecretGenericOpConversion<arith::ExtUIOp,
-                                  lwe::ReinterpretApplicationDataOp>,
-        SecretGenericOpConversion<arith::ExtSIOp,
-                                  lwe::ReinterpretApplicationDataOp>,
+        SecretGenericOpIdentityConversion<arith::ExtUIOp>,
+        SecretGenericOpIdentityConversion<arith::ExtSIOp>,
         SecretGenericOpRelinearizeConversion<bgv::RelinearizeOp>,
         SecretGenericOpModulusSwitchConversion<bgv::ModulusSwitchOp>,
         SecretGenericOpRotateConversion<bgv::RotateColumnsOp>,

@@ -46,8 +46,8 @@ LogicalResult DecomposeRelinearizePattern::matchAndRewrite(
       op.getContext(), ringAttr,
       ctType.getCiphertextSpace().getEncryptionType(), 2);
   lwe::LWECiphertextType outCTType = lwe::LWECiphertextType::get(
-      op.getContext(), ctType.getApplicationData(), ctType.getPlaintextSpace(),
-      ctAttr, ctType.getKey(), ctType.getModulusChain());
+      op.getContext(), ctType.getPlaintextSpace(), ctAttr, ctType.getKey(),
+      ctType.getModulusChain());
   KeySwitchInnerOp ksPoly =
       KeySwitchInnerOp::create(b, input2, op.getKeySwitchingKey());
   Value ksCT = lwe::FromCoeffsOp::create(

@@ -1,7 +1,7 @@
 // RUN: heir-opt --mlir-print-local-scope --secret-distribute-generic --split-input-file --secret-to-cggi --cse %s | FileCheck %s
 
 // CHECK-NOT: secret
-// CHECK: @boolean_gates([[ARG:%.*]]: [[LWET:!lwe.lwe_ciphertext<.*message_type = i1.*>]]) -> [[LWET]]
+// CHECK: @boolean_gates([[ARG:%.*]]: [[LWET:!lwe.lwe_ciphertext<.*>]]) -> [[LWET]]
 func.func @boolean_gates(%arg0: !secret.secret<i1>) -> !secret.secret<i1> {
   // CHECK: [[VAL1:%.+]] = cggi.and [[ARG]], [[ARG]] : [[LWET]]
   // CHECK: [[VAL2:%.+]] = cggi.or [[VAL1]], [[ARG]] : [[LWET]]

@@ -63,7 +63,6 @@ def LWESecretOrPublicKey : AnyTypeOf<[LWESecretKey, LWEPublicKey]>;
 def LWEPlaintext : LWE_Type<"LWEPlaintext", "lwe_plaintext", [MemRefElementTypeInterface]> {
   let summary = "A plaintext type";
   let parameters = (ins
-    "ApplicationDataAttr":$application_data,
     "PlaintextSpaceAttr":$plaintext_space
   );
   let asmName = "pt";
@@ -74,8 +73,8 @@ def LWECiphertext : LWE_Type<"LWECiphertext", "lwe_ciphertext", [MemRefElementTy
   let summary = "A ciphertext type";
 
   let description = [{
-    An LWE ciphertext will always contain the application data, plaintext space,
-    ciphertext space, and key information.
+    An LWE ciphertext will always contain the plaintext space, ciphertext space,
+    and key information.
 
     A modulus chain is optionally specified for parameter choices in RLWE
     schemes that use more than one of modulus. When no modulus chain is
@@ -84,7 +83,6 @@ def LWECiphertext : LWE_Type<"LWECiphertext", "lwe_ciphertext", [MemRefElementTy
   }];
 
   let parameters = (ins
-    "ApplicationDataAttr":$application_data,
     "PlaintextSpaceAttr":$plaintext_space,
     "CiphertextSpaceAttr":$ciphertext_space,
     "KeyAttr":$key,
@@ -101,8 +99,8 @@ def LWERingElt : LWE_Type<"LWERingElt", "lwe_ring_elt", [MemRefElementTypeInterf
   let summary = "A ring element";
 
   let description = [{
-    A single RLWE ring element. An LWE ciphertext will always contain the application data, plaintext space,
-    ciphertext space, and key information.
+    A single RLWE ring element. An RLWE ring element will always contain the
+    ring and key information.
 
     A modulus chain is optionally specified for parameter choices in RLWE
     schemes that use more than one of modulus. When no modulus chain is

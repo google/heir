@@ -43,8 +43,7 @@ namespace mlir::heir::arith {
 
 static lwe::LWECiphertextType convertArithToCGGIType(IntegerType type,
                                                      MLIRContext* ctx) {
-  return lwe::getDefaultCGGICiphertextType(ctx, type.getIntOrFloatBitWidth(),
-                                           type.getIntOrFloatBitWidth());
+  return lwe::getDefaultCGGICiphertextType(ctx, type.getIntOrFloatBitWidth());
 }
 
 static Type convertArithLikeToCGGIType(ShapedType type, MLIRContext* ctx) {
@@ -160,31 +159,28 @@ static Value materializeTarget(OpBuilder& builder, Type type, ValueRange inputs,
   if (auto shapedType = dyn_cast<ShapedType>(type)) {
     auto tensorElementSize =
         shapedType.getElementType().getIntOrFloatBitWidth();
-    ciphertextType = lwe::getDefaultCGGICiphertextType(
-        builder.getContext(), tensorElementSize, tensorElementSize);
+    ciphertextType = lwe::getDefaultCGGICiphertextType(builder.getContext(),
+                                                       tensorElementSize);
   } else {
     ciphertextType = lwe::getDefaultCGGICiphertextType(
-        builder.getContext(), inputType.getIntOrFloatBitWidth(),
-        inputType.getIntOrFloatBitWidth());
+        builder.getContext(), inputType.getIntOrFloatBitWidth());
   }
 
   auto plaintextBits = ciphertextType.getPlaintextSpace()
                            .getRing()
                            .getCoefficientType()
                            .getIntOrFloatBitWidth();
-  auto overflowAttr = ciphertextType.getApplicationData().getOverflow();
   auto ciphertextBits = ciphertextType.getCiphertextSpace()
                             .getRing()
                             .getCoefficientType()
                             .getIntOrFloatBitWidth();
   auto ptxtTy = lwe::LWEPlaintextType::get(builder.getContext(),
-                                           ciphertextType.getApplicationData(),
                                            ciphertextType.getPlaintextSpace());
 
   auto trivialEnc = lwe::TrivialEncryptOp::create(
       builder, loc, type,
       lwe::EncodeOp::create(builder, loc, ptxtTy, inputs[0],
-                            builder.getIndexAttr(plaintextBits), overflowAttr),
+                            builder.getIndexAttr(plaintextBits)),
       builder.getIndexAttr(ciphertextBits));
 
   return trivialEnc;

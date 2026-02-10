@@ -23,18 +23,15 @@
   encryption_type=lsb,
   size=3>
 !ct = !lwe.lwe_ciphertext<
-  application_data=<message_type=i3>,
   plaintext_space=#plaintext_space,
   ciphertext_space=#ciphertext_space,
   key=#lwe.key<>>
 !post_mul_ct = !lwe.lwe_ciphertext<
-  application_data=<message_type=i3>,
   plaintext_space=#plaintext_space,
   ciphertext_space=#post_mul_ciphertext_space,
   key=#lwe.key<>>
 
 !pt = !lwe.lwe_plaintext<
-  application_data=<message_type=i3>,
   plaintext_space=#plaintext_space>
 
 // CHECK: test_radd

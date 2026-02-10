@@ -22,7 +22,6 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
         secret.yield %1 : tensor<1024xi1>
     } -> (!eui1 {mgmt.mgmt = #mgmt1})
     // CHECK: return
-    // CHECK-SAME: message_type = tensor<1024xi1>
     // CHECK-SAME: polynomialModulus = <1 + x**1024>
     // CHECK-SAME: size = 3
     return %1 : !eui1
@@ -49,7 +48,6 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
       secret.yield %4 : tensor<1024xf32>
     } -> (!efi1 {mgmt.mgmt = #mgmt1})
     // CHECK: return
-    // CHECK-SAME: message_type = tensor<1024xf32>
     // CHECK-SAME: polynomialModulus = <1 + x**1024>
     // CHECK-SAME: size = 3
     return %3 : !efi1
@@ -66,7 +64,6 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
       secret.yield %1 : tensor<1x1024xf32>
     } -> (!secret.secret<tensor<1x1024xf32>> {mgmt.mgmt = #mgmt})
     // CHECK: return
-    // CHECK-SAME: message_type = tensor<1024xf32>
     // CHECK-SAME: coefficientType = !rns.rns<!mod_arith.int<36028797019389953 : i64>>, polynomialModulus = <1 + x**1024>
     return %0 : !secret.secret<tensor<1x1024xf32>>
   }

@@ -79,35 +79,31 @@ class LWE_CiphertextPlaintextOp<string mnemonic, list<Trait> traits = []> :
 }
 
 def LWE_EncodeOp : LWE_Op<"encode"> {
-  let summary = "Encode an integer to yield an LWE plaintext";
+  let summary = "Encodes a cleartext into a plaintext";
   let description = [{
-    Encode an integer to yield an LWE plaintext.
+    The `encode` op encodes a cleartext into a plaintext. It takes the
+    cleartext value and a parameter `plaintext_bits` describing how many
+    bits of the cleartext should be encoded into the plaintext.
 
-    This op uses an overflow attribute to indicate the overflow semantics. For
-    CGGI ciphertexts, this will typically be `preserve_overflow` to indicate
-    that the message bits can overflow into the carry bit space.
-
-    The LWE plaintext ring is constructed with a plaintext bit width using `plaintext_bits` and a
-    polynomial modulus of `x`.
+    The LWE plaintext ring is constructed with a plaintext bit width using
+    `plaintext_bits` and a polynomial modulus of `x`.
 
     Examples:
 
     ```
-    %Y = lwe.encode %value {overflow = #overflow, plaintext_bits = 3}: i1 to !lwe.lwe_plaintext<application_data = #app_data, plaintext_space = #space>
+    %Y = lwe.encode %value {plaintext_bits = 3}: i1 to !lwe.lwe_plaintext<plaintext_space = #space>
     ```
   }];
 
   let arguments = (ins
     SignlessIntegerOrFloatLike:$input,
-    IndexAttr:$plaintext_bits,
-    AnyOverflowAttr:$overflow
+    IndexAttr:$plaintext_bits
   );
 
   let results = (outs LWEPlaintext:$output);
   let assemblyFormat = "$input attr-dict `:` qualified(type($input)) `to` qualified(type($output))";
 
   // Verify that the input type and the application data are compatible.
-  // Verifies that the overflow attribute is one of preserve or no overflow.
   let hasVerifier = 1;
 }
 
@@ -271,24 +267,6 @@ def LWE_RLWEDecryptOp : LWE_Op<"rlwe_decrypt", [
     LWESecretKey:$secret_key
   );
   let results = (outs LWEPlaintext:$output);
-}
-
-def ReinterpretApplicationDataOp : LWE_Op<"reinterpret_application_data", [ElementwiseMappable]> {
-  let summary = "A placeholder cast from one ciphertext type to another";
-  let description = [{
-    The `cast` op is thus used to translate application data (e.g., `message_type`)
-    between ciphertexts in particular situations, such as when the bitwidth of the
-    message type changes, but this change is not observed in the plaintext space,
-    or when lowering to an API that does not keep track of types.
-  }];
-
-  let arguments = (ins LWECiphertextLike:$input);
-  let results = (outs LWECiphertextLike:$output);
-  let assemblyFormat = [{
-    $input attr-dict `:` qualified(type($input)) `to` qualified(type($output))
-  }];
-
-  let hasVerifier = 1;
 }
 
 def LWE_ExtractCoeffOp : LWE_Op<"extract_coeff", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {

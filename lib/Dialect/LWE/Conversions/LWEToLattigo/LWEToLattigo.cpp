@@ -529,21 +529,6 @@ struct ConvertRlweDecodeOp : public OpConversionPattern<DecodeOp> {
   }
 };
 
-struct ConvertLWEReinterpretApplicationData
-    : public OpConversionPattern<lwe::ReinterpretApplicationDataOp> {
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      lwe::ReinterpretApplicationDataOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter& rewriter) const override {
-    // Erase reinterpret application data.
-    // If operand has no defining op, we can not replace it with defining op.
-    rewriter.replaceAllOpUsesWith(op, adaptor.getOperands()[0]);
-    rewriter.eraseOp(op);
-    return success();
-  }
-};
-
 // Orion conversions
 struct ConvertOrionLinearTransformOp
     : public OpConversionPattern<orion::LinearTransformOp> {
@@ -792,8 +777,7 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
     target
         .addIllegalOp<lwe::RLWEEncryptOp, lwe::RLWEDecryptOp, lwe::RLWEEncodeOp,
                       lwe::RLWEDecodeOp, lwe::RAddOp, lwe::RSubOp, lwe::RMulOp,
-                      lwe::RMulPlainOp, lwe::RSubPlainOp, lwe::RAddPlainOp,
-                      lwe::ReinterpretApplicationDataOp>();
+                      lwe::RMulPlainOp, lwe::RSubPlainOp, lwe::RAddPlainOp>();
 
     RewritePatternSet patterns(context);
     addStructuralConversionPatterns(typeConverter, patterns, target);
@@ -952,7 +936,6 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
           typeConverter, context);
     }
     // Misc
-    patterns.add<ConvertLWEReinterpretApplicationData>(typeConverter, context);
 
     ConversionConfig config;
     config.allowPatternRollback = false;

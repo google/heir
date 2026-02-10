@@ -7,6 +7,7 @@
 #include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
@@ -16,7 +17,8 @@
 #include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
 #include "mlir/include/mlir/Interfaces/FunctionInterfaces.h"  // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"        // from @llvm-project
+#include "mlir/include/mlir/Support/WalkResult.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -64,7 +66,8 @@ func::FuncOp getOrCreateExternalDebugFunc(
   return funcOp;
 }
 
-LogicalResult insertExternalCall(func::FuncOp op, Type lwePrivateKeyType) {
+LogicalResult insertExternalCall(func::FuncOp op, Type lwePrivateKeyType,
+                                 int messageSize) {
   auto module = op->getParentOfType<ModuleOp>();
 
   // map ciphertext type to unique int
@@ -103,16 +106,6 @@ LogicalResult insertExternalCall(func::FuncOp op, Type lwePrivateKeyType) {
         }
       }
 
-      auto messageType =
-          lweCiphertextType.getApplicationData().getMessageType();
-      auto messageSize = 1;
-      if (auto tensorMessageType = dyn_cast<TensorType>(messageType)) {
-        auto shape = tensorMessageType.getShape();
-        if (shape.size() != 1) {
-          op->emitWarning("Only support 1D tensor for message type");
-        }
-        messageSize = shape[0];
-      }
       attrs.push_back(b.getNamedAttr(
           "message.size", b.getStringAttr(std::to_string(messageSize))));
 
@@ -141,7 +134,7 @@ LogicalResult insertExternalCall(func::FuncOp op, Type lwePrivateKeyType) {
   return success();
 }
 
-LogicalResult convertFunc(func::FuncOp op) {
+LogicalResult convertFunc(func::FuncOp op, int messageSize) {
   auto type = getPrivateKeyType(op);
   if (failed(type)) return op.emitError("failed to get private key type");
   auto lwePrivateKeyType = type.value();
@@ -149,7 +142,7 @@ LogicalResult convertFunc(func::FuncOp op) {
   if (failed(op.insertArgument(0, lwePrivateKeyType, nullptr, op.getLoc()))) {
     return op.emitError("failed to insert private key argument");
   }
-  if (failed(insertExternalCall(op, lwePrivateKeyType))) {
+  if (failed(insertExternalCall(op, lwePrivateKeyType, messageSize))) {
     return op.emitError("failed to insert external call");
   }
   return success();
@@ -161,7 +154,7 @@ struct AddDebugPort : impl::AddDebugPortBase<AddDebugPort> {
   void runOnOperation() override {
     auto funcOp =
         detectEntryFunction(cast<ModuleOp>(getOperation()), entryFunction);
-    if (funcOp && failed(convertFunc(funcOp))) {
+    if (funcOp && failed(convertFunc(funcOp, messageSize))) {
       funcOp->emitError("Failed to configure the crypto context for func");
       signalPassFailure();
     }

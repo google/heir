@@ -72,16 +72,6 @@ LogicalResult RMulRingEltOp::verify() {
 }
 
 LogicalResult TrivialEncryptOp::verify() {
-  auto applicationData = this->getInput().getType().getApplicationData();
-  auto outApplicationData = this->getOutput().getType().getApplicationData();
-
-  if (applicationData != outApplicationData) {
-    return this->emitOpError()
-           << "application data of the input and output must match, but "
-           << "found input attr " << applicationData << " and output attr "
-           << outApplicationData;
-  }
-
   auto plaintextSpace = this->getInput().getType().getPlaintextSpace();
   auto outPlaintextSpace = this->getOutput().getType().getPlaintextSpace();
 
@@ -104,22 +94,6 @@ LogicalResult TrivialEncryptOp::verify() {
               "parameter, expected "
            << this->getCiphertextBits().getZExtValue() << " but found "
            << outCiphertextModulus;
-  }
-
-  return success();
-}
-
-LogicalResult ReinterpretApplicationDataOp::verify() {
-  auto inputType = getCtTy(getInput());
-  auto outputType = getCtTy(getOutput());
-  if (inputType.getPlaintextSpace() != outputType.getPlaintextSpace() ||
-      inputType.getCiphertextSpace() != outputType.getCiphertextSpace() ||
-      inputType.getKey() != outputType.getKey() ||
-      inputType.getModulusChain() != outputType.getModulusChain()) {
-    return emitOpError()
-           << "the only allowed difference in the input and output are in the "
-              "application_data field, but found input type "
-           << inputType << " and output type " << outputType;
   }
 
   return success();
@@ -175,14 +149,6 @@ LogicalResult verifyEncodingAndTypeMatch(mlir::Type type,
 LogicalResult EncodeOp::verify() {
   auto plaintextType = getOutput().getType();
 
-  // Output type must have application data that matches the input type.
-  auto applicationDataTy = plaintextType.getApplicationData().getMessageType();
-  if (applicationDataTy != getInput().getType()) {
-    return emitOpError()
-           << "output type application data must match input type, expected "
-           << getInput().getType() << " but got " << applicationDataTy;
-  }
-
   // LWE plaintext types must have plaintext ring modulus f(x) = x and
   // coefficient type matching input message bits parameter.
   auto plaintextRing = plaintextType.getPlaintextSpace().getRing();
@@ -210,13 +176,6 @@ LogicalResult EncodeOp::verify() {
            << integerTy.getWidth();
   }
 
-  // Overflow attr must matches overflow parameter in output type.
-  if (getOverflow() != plaintextType.getApplicationData().getOverflow()) {
-    return emitOpError()
-           << "output type overflow must match overflow parameter, expected "
-           << getOverflow() << " but got "
-           << plaintextType.getApplicationData().getOverflow();
-  }
   return success();
 }
 

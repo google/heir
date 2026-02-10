@@ -1,10 +1,5 @@
 // RUN: heir-opt --verify-diagnostics --split-input-file %s
 
-// expected-error@below {{overflow must be either preserve_overflow or no_overflow, but found i1}}
-#application = #lwe.application_data<message_type = i1, overflow = i1>
-
-// -----
-
 #poly = #polynomial.int_polynomial<x**1024 + 10>
 #ring = #polynomial.ring<coefficientType=!mod_arith.int<65536:i32>, polynomialModulus=#poly>
 #crt = #lwe.full_crt_packing_encoding<scaling_factor = 10000>
@@ -26,15 +21,13 @@
 #ring = #polynomial.ring<coefficientType = !mod_arith.int<12220:i32>, polynomialModulus=#my_poly>
 !public_key = !lwe.lwe_public_key<key = #key, ring = #ring>
 
-#preserve_overflow = #lwe.preserve_overflow<>
-#application_data = #lwe.application_data<message_type = i1, overflow = #preserve_overflow>
 #inverse_canonical_enc = #lwe.inverse_canonical_encoding<scaling_factor = 10000>
 #plaintext_space = #lwe.plaintext_space<ring = #ring, encoding = #inverse_canonical_enc>
 #ciphertext_space = #lwe.ciphertext_space<ring = #ring, encryption_type = msb, size = 3>
 #modulus_chain = #lwe.modulus_chain<elements = <7917 : i32>, current = 0>
 
 // expected-error@below {{a ciphertext with nontrivial slot rotation must have size 2, but found size 3}}
-!lwe_ciphertext = !lwe.lwe_ciphertext<application_data = #application_data, plaintext_space = #plaintext_space, key = #key, ciphertext_space = #ciphertext_space, modulus_chain = #modulus_chain>
+!lwe_ciphertext = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space, key = #key, modulus_chain = #modulus_chain>
 
 // -----
 
@@ -43,12 +36,10 @@
 #ring = #polynomial.ring<coefficientType = !rns.rns<!mod_arith.int<12220:i32>>, polynomialModulus=#my_poly>
 !public_key = !lwe.lwe_public_key<key = #key, ring = #ring>
 
-#preserve_overflow = #lwe.preserve_overflow<>
-#application_data = #lwe.application_data<message_type = i1, overflow = #preserve_overflow>
 #inverse_canonical_enc = #lwe.inverse_canonical_encoding<scaling_factor = 10000>
 #plaintext_space = #lwe.plaintext_space<ring = #ring, encoding = #inverse_canonical_enc>
 #ciphertext_space = #lwe.ciphertext_space<ring = #ring, encryption_type = msb, size = 3>
 #modulus_chain = #lwe.modulus_chain<elements = <7917 : i32, 65537 : i32>, current = 1>
 
 // expected-error@below {{the level in the ciphertext ring must match the modulus chain's current}}
-!lwe_ciphertext = !lwe.lwe_ciphertext<application_data = #application_data, plaintext_space = #plaintext_space, key = #key, ciphertext_space = #ciphertext_space, modulus_chain = #modulus_chain>
+!lwe_ciphertext = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space, key = #key, modulus_chain = #modulus_chain>
