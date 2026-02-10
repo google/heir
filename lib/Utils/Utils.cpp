@@ -11,6 +11,7 @@
 #include "lib/Utils/MathUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"            // from @llvm-project
@@ -20,6 +21,7 @@
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/OperationSupport.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/SymbolTable.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
@@ -259,6 +261,16 @@ SmallVector<Value> extendToCommonWidth(OpBuilder& b, ArrayRef<Value> values) {
     }
   }
   return extendedValues;
+}
+
+FailureOr<func::FuncOp> getCalledFunction(func::CallOp callOp) {
+  SymbolRefAttr sym =
+      llvm::dyn_cast_or_null<SymbolRefAttr>(callOp.getCallableForCallee());
+  if (!sym) return failure();
+  auto maybeFuncOp = dyn_cast_or_null<func::FuncOp>(
+      SymbolTable::lookupNearestSymbolFrom(callOp, sym));
+  if (!maybeFuncOp) return failure();
+  return maybeFuncOp;
 }
 
 }  // namespace heir

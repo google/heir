@@ -92,16 +92,16 @@ Value IRMaterializingVisitor::operator()(const MultiplyNode<SSAValue>& node) {
 
 Value IRMaterializingVisitor::operator()(const LeftRotateNode<SSAValue>& node) {
   Value operand = this->process(node.operand);
-  Value shift = builder.create<arith::ConstantIndexOp>(node.shift);
+  Value shift = arith::ConstantIndexOp::create(builder, node.shift);
   auto rotateOp =
-      builder.create<tensor_ext::RotateOp>(evaluatedType, operand, shift);
+      tensor_ext::RotateOp::create(builder, evaluatedType, operand, shift);
   createdOpCallback(rotateOp);
   return rotateOp;
 }
 
 Value IRMaterializingVisitor::operator()(const ExtractNode<SSAValue>& node) {
   Value operand = this->process(node.operand);
-  Value index = builder.create<arith::ConstantIndexOp>(node.index);
+  Value index = arith::ConstantIndexOp::create(builder, node.index);
 
   RankedTensorType tensorType = cast<RankedTensorType>(operand.getType());
 
@@ -122,8 +122,8 @@ Value IRMaterializingVisitor::operator()(const ExtractNode<SSAValue>& node) {
                                     builder.getIndexAttr(1));
 
   if (auto tensorTy = dyn_cast<RankedTensorType>(evaluatedType)) {
-    auto extractOp = builder.create<tensor::ExtractSliceOp>(
-        tensorTy, operand, offsets, sizes, strides);
+    auto extractOp = tensor::ExtractSliceOp::create(builder, tensorTy, operand,
+                                                    offsets, sizes, strides);
     createdOpCallback(extractOp);
     return extractOp;
   }
@@ -131,7 +131,7 @@ Value IRMaterializingVisitor::operator()(const ExtractNode<SSAValue>& node) {
   // Otherwise let the type be inferred, though this will likely result in an
   // issue because the row index is preserved in the result type
   auto extractOp =
-      builder.create<tensor::ExtractSliceOp>(operand, offsets, sizes, strides);
+      tensor::ExtractSliceOp::create(builder, operand, offsets, sizes, strides);
   createdOpCallback(extractOp);
   return extractOp;
 }

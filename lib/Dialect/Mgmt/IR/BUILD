@@ -1,5 +1,3 @@
-# Mgmt dialect implementation
-
 load("@heir//lib/Dialect:dialect.bzl", "add_heir_dialect_library")
 load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
@@ -12,64 +10,30 @@ package(
 cc_library(
     name = "Dialect",
     srcs = [
+        "MgmtAttributes.cpp",
         "MgmtDialect.cpp",
+        "MgmtOps.cpp",
+        "MgmtPatterns.cpp",
     ],
     hdrs = [
         "MgmtAttributes.h",
         "MgmtDialect.h",
         "MgmtOps.h",
+        "MgmtPatterns.h",
     ],
     deps = [
-        "attributes_inc_gen",
-        "dialect_inc_gen",
-        "ops_inc_gen",
-        ":MgmtAttributes",
-        ":MgmtOps",
+        ":attributes_inc_gen",
+        ":canonicalize_inc_gen",
+        ":dialect_inc_gen",
+        ":ops_inc_gen",
+        "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect:HEIRInterfaces",
+        "@heir//lib/Utils:AttributeUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
-    ],
-)
-
-cc_library(
-    name = "MgmtAttributes",
-    srcs = [
-        "MgmtAttributes.cpp",
-    ],
-    hdrs = [
-        "MgmtAttributes.h",
-        "MgmtDialect.h",
-    ],
-    deps = [
-        ":MgmtOps",
-        ":attributes_inc_gen",
-        ":dialect_inc_gen",
-        "@heir//lib/Analysis/SecretnessAnalysis",
-        "@heir//lib/Utils:AttributeUtils",
-        "@llvm-project//mlir:Analysis",
-        "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
-    ],
-)
-
-cc_library(
-    name = "MgmtOps",
-    srcs = [
-        "MgmtOps.cpp",
-    ],
-    hdrs = [
-        "MgmtDialect.h",
-        "MgmtOps.h",
-    ],
-    deps = [
-        ":canonicalize_inc_gen",
-        ":dialect_inc_gen",
-        ":ops_inc_gen",
-        "@heir//lib/Dialect:HEIRInterfaces",
-        "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:InferTypeOpInterface",
     ],
 )
 

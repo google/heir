@@ -1,6 +1,5 @@
 // RUN: heir-opt --secretize='function=main' --torch-linalg-to-ckks='ciphertext-degree=4096' %s | FileCheck %s
 
-
 module {
   func.func @main(%arg0: tensor<1x3x8x8xf32>) -> tensor<1x4x8x8xf32> {
     %cst = arith.constant dense_resource<torch_tensor_4_torch.float32> : tensor<4xf32>

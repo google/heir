@@ -16,9 +16,9 @@
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
+#include "llvm/include/llvm/Support/DebugLog.h"            // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"      // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
@@ -192,6 +192,11 @@ LogicalResult ScaleAnalysis<ScaleModelT>::visitOperation(
           propagate(initOp.getResult(), ScaleState(mgmtAttr.getScale()));
         }
       })
+      .template Case<mgmt::BootstrapOp>([&](auto bootstrapOp) {
+        // inputScale is either Delta or Delta^2 depending on the analysis
+        // initialization.
+        propagate(bootstrapOp.getResult(), ScaleState(inputScale));
+      })
       .Default([&](auto& op) {
         // condition on result secretness
         SmallVector<OpResult> secretResults;
@@ -254,10 +259,18 @@ LogicalResult ScaleAnalysisBackward<ScaleModelT>::visitOperation(
 
   auto getSecretOrInittedOperands =
       [&](Operation* op, SmallVectorImpl<OpOperand*>& secretOperands) {
-        this->getSecretOperands(op, secretOperands);
+        LLVM_DEBUG(
+            { llvm::dbgs() << "secretness of operands for " << *op << ":\n"; });
         for (auto& opOperand : op->getOpOperands()) {
-          if (!this->isSecretInternal(op, opOperand.get()) &&
-              isa_and_nonnull<mgmt::InitOp>(opOperand.get().getDefiningOp())) {
+          bool isSecret = this->isSecretInternal(op, opOperand.get());
+          bool isMgmtDefined =
+              isa_and_nonnull<mgmt::InitOp>(opOperand.get().getDefiningOp());
+          LLVM_DEBUG({
+            llvm::dbgs() << " " << opOperand.getOperandNumber()
+                         << ": isSecret=" << isSecret
+                         << ", isMgmtDefined=" << isMgmtDefined << "\n";
+          });
+          if (isSecret || isMgmtDefined) {
             // Treat it as if it were secret for the purpose of scale
             // propagation
             secretOperands.push_back(&opOperand);
@@ -311,8 +324,7 @@ LogicalResult ScaleAnalysisBackward<ScaleModelT>::visitOperation(
     LLVM_DEBUG(llvm::dbgs() << "\n");
   };
 
-  LLVM_DEBUG(llvm::dbgs() << "Backward analysis visiting: " << op->getName()
-                          << "\n");
+  LDBG() << "Backward analysis visiting: " << *op;
   llvm::TypeSwitch<Operation&>(*op)
       .template Case<arith::MulIOp, arith::MulFOp>([&](auto mulOp) {
         SmallVector<int64_t> resultScales;
@@ -335,11 +347,15 @@ LogicalResult ScaleAnalysisBackward<ScaleModelT>::visitOperation(
         }
         auto presentScale = operandScales[0];
 
-        // propagate scale to other operand
-        auto scaleOther = ScaleModelT::evalMulScaleBackward(
-            getLocalParam(mulOp.getResult()), resultScales[0], presentScale);
-        propagate(mulOp->getOperand(operandWithoutScaleIndices[0]),
-                  ScaleState(scaleOther));
+        // propagate scale to other operand; this is guarded
+        // by the loop for a weird reason: the secretness of the
+        // non-scale-holding operand might not be initialized yet, depending
+        // on the order in which the analyses run.
+        for (auto otherIndex : operandWithoutScaleIndices) {
+          auto scaleOther = ScaleModelT::evalMulScaleBackward(
+              getLocalParam(mulOp.getResult()), resultScales[0], presentScale);
+          propagate(mulOp->getOperand(otherIndex), ScaleState(scaleOther));
+        }
       })
       .template Case<mgmt::ModReduceOp>([&](auto modReduceOp) {
         SmallVector<int64_t> resultScales;

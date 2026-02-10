@@ -57,6 +57,7 @@ struct SecretInsertMgmtBGV
 
     InsertMgmtPipelineOptions options;
     options.includeFloats = true;
+    options.levelBudget = levelBudget;
     options.modReduceAfterMul = afterMul;
     options.modReduceBeforeMulIncludeFirstMul = beforeMulIncludeFirstMul;
     LogicalResult result = runInsertMgmtPipeline(getOperation(), options);

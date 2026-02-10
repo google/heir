@@ -45,6 +45,7 @@ cc_library(
         "@heir//lib/Dialect/BGV/IR:Dialect",
         "@heir//lib/Dialect/CKKS/IR:Dialect",
         "@heir//lib/Dialect/Lattigo/IR:Dialect",
+        "@heir//lib/Utils",
         "@heir//lib/Utils:TransformUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:FuncDialect",

@@ -70,7 +70,7 @@ void handleInterface(RegionBranchOpInterface regionBranchOp) {
 
     // The "inputs" (block arguments) of the current successor
     // that are defined by the "forwarded" operands of the op
-    auto successorInputs = successor.getSuccessorInputs();
+    auto successorInputs = regionBranchOp.getSuccessorInputs(successor);
     // Note: the block arguments might also contain "produced"
     // values (e.g., the index in a loop), the types of which
     // could technically also somehow depend on the updated
@@ -106,10 +106,12 @@ void handleInterface(RegionBranchTerminatorOpInterface terminator) {
   SmallVector<Attribute> operands(terminator->getNumOperands());
   terminator.getSuccessorRegions(operands, successors);
 
+  // Get the parent RegionBranchOpInterface to access successor inputs
+  auto parentOp = dyn_cast<RegionBranchOpInterface>(terminator->getParentOp());
+
   for (auto successor : successors) {
     // the terminator operands that are "passed" to the successor
-    auto succesorOperands = terminator.getSuccessorOperands(
-        RegionSuccessor::parent(terminator.getOperation()->getResults()));
+    auto successorOperands = terminator.getSuccessorOperands(successor);
 
     // Special case: the "return/yield" back to the parent op
     if (successor.isParent()) {
@@ -118,7 +120,7 @@ void handleInterface(RegionBranchTerminatorOpInterface terminator) {
       /// The RegionBranchTerminatorOpInterface requires that
       /// the successor operands and the parent's results match
       for (auto [operand, result] : llvm::zip(
-               succesorOperands, terminator->getParentOp()->getResults())) {
+               successorOperands, terminator->getParentOp()->getResults())) {
         LLVM_DEBUG(llvm::dbgs()
                    << "ShapeInference:\t\t\tupdating parent result " << result
                    << " with type of successor operand " << operand << "\n");
@@ -128,13 +130,19 @@ void handleInterface(RegionBranchTerminatorOpInterface terminator) {
       LLVM_DEBUG(llvm::dbgs() << "ShapeInference:\t\t\t"
                                  "found region successor: "
                               << successor.getSuccessor()->getLoc() << "\n");
-      for (auto [operand, input] :
-           llvm::zip(succesorOperands, successor.getSuccessorInputs())) {
-        LLVM_DEBUG(llvm::dbgs() << "ShapeInference:\t\t\t"
-                                   "updating successor input: "
-                                << input << " with type of successor operand: "
-                                << operand << "\n");
-        input.setType(operand.getType());
+      // Get the successor inputs from the parent operation - these are the
+      // block arguments that need to be updated.
+      if (parentOp) {
+        auto successorInputs = parentOp.getSuccessorInputs(successor);
+        for (auto [operand, input] :
+             llvm::zip(successorOperands, successorInputs)) {
+          LLVM_DEBUG(llvm::dbgs()
+                     << "ShapeInference:\t\t\t"
+                        "updating successor input: "
+                     << input << " with type of successor operand: " << operand
+                     << "\n");
+          input.setType(operand.getType());
+        }
       }
     }
   }

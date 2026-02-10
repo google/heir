@@ -49,6 +49,7 @@
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
+#include "mlir/include/mlir/Support/WalkResult.h"        // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-translate/Translation.h"  // from @llvm-project
 
 namespace mlir {
@@ -169,14 +170,6 @@ CtlzValueStruct ctlzStructForResult(StringRef result) {
                          .temp4 = llvm::formatv("{0}_{1}", result, "temp4")};
 }
 
-func::FuncOp getCalledFunction(func::CallOp callOp) {
-  SymbolRefAttr sym =
-      llvm::dyn_cast_if_present<SymbolRefAttr>(callOp.getCallableForCallee());
-  if (!sym) return nullptr;
-  return dyn_cast_or_null<func::FuncOp>(
-      SymbolTable::lookupNearestSymbolFrom(callOp, sym));
-}
-
 int32_t getMaxShapedTypeSize(Value index) {
   int32_t maxSize = 0;
   for (auto& use : index.getUses()) {
@@ -194,9 +187,11 @@ int32_t getMaxShapedTypeSize(Value index) {
             })
             .Case<func::CallOp>([&](func::CallOp op) {
               // Index is passed into a function, get largest use.
-              func::FuncOp func = getCalledFunction(op);
+              auto func = getCalledFunction(op);
+              assert(succeeded(func) &&
+                     "expected call op to call an existing function");
               auto& operand =
-                  func.getBody().getArguments()[use.getOperandNumber()];
+                  func->getBody().getArguments()[use.getOperandNumber()];
               assert(isa<IndexType>(operand.getType()) &&
                      "expected block arg of index type use to be index type");
               return getMaxShapedTypeSize(operand);
@@ -1006,12 +1001,18 @@ LogicalResult VerilogEmitter::printOperation(
     mlir::heir::secret::GenericOp op,
     std::optional<llvm::StringRef> moduleName) {
   // Translate all the functions called in the module.
-  auto module = op->getParentOfType<ModuleOp>();
   SetVector<Operation*> funcs;
-  op->walk([&](func::CallOp callOp) {
-    auto func = module.lookupSymbol<func::FuncOp>(callOp.getCallee());
-    funcs.insert(func.getOperation());
+  auto result = op->walk([&](func::CallOp callOp) {
+    auto func = getCalledFunction(callOp);
+    if (failed(func)) {
+      return WalkResult::interrupt();
+    }
+    funcs.insert(func->getOperation());
+    return WalkResult::advance();
   });
+  if (result.wasInterrupted()) {
+    return op->emitError() << "failed to get all called functions.";
+  }
 
   for (auto func : funcs) {
     if (failed(translate(*func, std::nullopt))) {

@@ -12,6 +12,7 @@
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Utils/ContextAwareDialectConversion.h"
 #include "lib/Utils/ContextAwareTypeConversion.h"
+#include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"    // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
@@ -194,8 +195,11 @@ FailureOr<Operation*> SecretGenericFuncCallConversion::matchAndRewriteInner(
   // update the called func's type signature
 
   func::CallOp callOp = *op.getBody()->getOps<func::CallOp>().begin();
-  auto module = callOp->getParentOfType<ModuleOp>();
-  func::FuncOp callee = module.lookupSymbol<func::FuncOp>(callOp.getCallee());
+  auto maybeCallee = getCalledFunction(callOp);
+  if (failed(maybeCallee)) {
+    return op->emitError() << "failed to get called function";
+  }
+  auto callee = maybeCallee.value();
 
   // For now, ensure that there is only one caller to the callee.
   auto calleeUses = callee.getSymbolUses(callee->getParentOp());

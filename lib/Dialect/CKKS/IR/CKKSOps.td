@@ -204,7 +204,7 @@ def CKKS_LevelReduceOp : CKKS_Op<"level_reduce", [ElementwiseMappable, SameOpera
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
-def CKKS_BootstrapOp : CKKS_Op<"bootstrap", [ElementwiseMappable]> {
+def CKKS_BootstrapOp : CKKS_Op<"bootstrap", [ElementwiseMappable, ResetsMulDepthOpInterface]> {
   let summary = "Bootstrap the ciphertext to reduce noise and refresh its parameters.";
 
   let description = [{
@@ -224,6 +224,71 @@ def CKKS_BootstrapOp : CKKS_Op<"bootstrap", [ElementwiseMappable]> {
   let hasVerifier = 1;
 
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
+}
+
+def CKKS_KeySwitchInnerOp : CKKS_Op<"key_switch_inner", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
+  let summary = "Fundamental key-switching kernel.";
+  let description = [{
+    The key-switching key is the encryption of a key `s_{in}` under the key `s_{out}`.
+    The input `value` is a ring element of a ciphertext that gets multiplied with
+    `s_{in}`. KeySwitchInner outputs a linear ciphertext `ct'` such that decrypting
+    `ct'` under `s_{out}` is `value * s_{in}`. By adding `ct'` to the components
+    of the original ciphertext that do are *not* multiplied by `s_{in}`, we obtain
+    a ciphertext that encrypts the same message as the original ciphertext, but under
+    `s_{out}`.
+
+    Concretely, for relinearization, a ciphertext `[c_0, c_1, c_2]` decrypts as
+    `c_0 + c_1*s + c_2*s^2`, and the key-switch key is an encryption of `s^2` under `s`.
+    Then we apply `KeySwitchInner` to `c_2`, which produces `[c_0', c_1']`, where
+    `c_0'+c_1'*s = c_2 * s^2`. Then relinearization outputs `[c_0+c_0', c_1+c_1']`.
+
+    This operation is intended to be an internal implementation detail of
+    higher-level ciphertext operations such as `ckks.relinearize`, isolated
+    here for reuse among multiple op lowerings.
+  }];
+  let arguments = (ins
+      LWERingElt:$value,
+      RankedTensorOf<[LWECiphertext]>: $keySwitchingKey
+  );
+  let results = (outs
+    LWERingElt:$constTerm,
+    LWERingElt:$linearTerm
+  );
+  let hasVerifier = 1;
+}
+
+def CKKS_ExtractCoeffOp : CKKS_Op<"extract_coeff", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
+  let summary = "Extract a ciphertext component";
+  let description = [{
+    A ciphertext can be viewed as a polynomial in the indeterminant `S`,
+    the abstract secret key. For example, a ciphertext with two components
+    `[c0, c1]` represents the polynomial `c0 + c1 * S`. This op returns `c_i`.
+  }];
+  let arguments = (ins
+      LWECiphertext:$value,
+      IndexAttr:$index
+  );
+  let results = (outs
+    LWERingElt:$output
+  );
+  let hasVerifier = 1;
+}
+
+def CKKS_FromCoeffsOp : CKKS_Op<"from_coeffs", [Pure]> {
+  let summary = "Create a ciphertext from a vector of ring elements";
+  let description = [{
+    A ciphertext can be viewed as a polynomial in the indeterminant `S`,
+    the abstract secret key. For example, a ciphertext with two components
+    `[c0, c1]` represents the polynomial `c0 + c1 * S`. Given ring elements
+    `[c0, c1]`, this op returns the corresponding ciphertext.
+  }];
+  let arguments = (ins
+      Variadic<LWERingElt>:$coeffs
+  );
+  let results = (outs
+    LWECiphertext:$output
+  );
+  let hasVerifier = 1;
 }
 
 #endif  // LIB_DIALECT_CKKS_IR_CKKSOPS_TD_

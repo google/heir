@@ -23,6 +23,93 @@ namespace mlir {
 namespace heir {
 namespace openfhe {
 
+namespace {
+
+// Trait to get the operation creator for each rotation type
+template <typename RotationOpType>
+struct RotationOpCreator {
+  static_assert(sizeof(RotationOpType) == 0,
+                "RotationOpCreator not specialized for this type");
+};
+
+template <>
+struct RotationOpCreator<FastRotationOp> {
+  static Operation* create(OpBuilder& b, Location loc, Type ctType,
+                           FastRotationOp sourceOp, Value idx) {
+    return openfhe::FastRotationOp::create(
+        b, loc, ctType, sourceOp.getCryptoContext(), sourceOp.getInput(), idx,
+        sourceOp.getCyclotomicOrder(), sourceOp.getPrecomputedDigitDecomp());
+  }
+};
+
+template <>
+struct RotationOpCreator<FastRotationExtOp> {
+  static Operation* create(OpBuilder& b, Location loc, Type ctType,
+                           FastRotationExtOp sourceOp, Value idx) {
+    return openfhe::FastRotationExtOp::create(
+        b, loc, ctType, sourceOp.getCryptoContext(), sourceOp.getInput(), idx,
+        sourceOp.getPrecomputedDigitDecomp(), sourceOp.getAddFirst());
+  }
+};
+
+template <typename RotationOpType>
+FailureOr<Operation*> buildBatchedRotationOperation(
+    RotationOpType sourceOp, MLIRContext* context, OpBuilder& builder,
+    const SmallVector<Operation*>& batchedOperations) {
+  SmallVector<Value> indexVals;
+  indexVals.reserve(batchedOperations.size());
+
+  for (auto* op : batchedOperations) {
+    auto rotateOp = cast<RotationOpType>(op);
+    indexVals.push_back(rotateOp.getIndex());
+  }
+
+  auto indexTensor = tensor::FromElementsOp::create(
+      builder, sourceOp.getLoc(),
+      RankedTensorType::get({static_cast<int64_t>(batchedOperations.size())},
+                            builder.getIndexType()),
+      indexVals);
+
+  Location loc = sourceOp.getLoc();
+  int64_t batchSize = batchedOperations.size();
+  Type ctType = sourceOp.getResult().getType();
+  auto initTensor = tensor::EmptyOp::create(
+      builder, loc, ArrayRef<int64_t>({batchSize}), ctType);
+
+  std::vector<OpFoldResult> lowerBounds = {builder.getIndexAttr(0)};
+  std::vector<OpFoldResult> upperBounds = {builder.getIndexAttr(batchSize)};
+  std::vector<OpFoldResult> steps = {builder.getIndexAttr(1)};
+
+  Operation* forallOp = scf::ForallOp::create(
+      builder, loc, lowerBounds, upperBounds, steps,
+      /*outputs=*/ValueRange{initTensor},
+      /*mapping=*/std::nullopt,
+      /*bodyBuilder=*/
+      [&](OpBuilder& b, Location loc, ValueRange regionArgs) {
+        Value j = regionArgs[0];
+        Value sharedOut = regionArgs.take_back()[0];
+        Value idx =
+            tensor::ExtractOp::create(b, loc, indexTensor, ValueRange{j});
+
+        Operation* rotateOp = RotationOpCreator<RotationOpType>::create(
+            b, loc, ctType, sourceOp, idx);
+
+        Value rotatedVal = rotateOp->getResult(0);
+        Value slice = tensor::FromElementsOp::create(b, loc, rotatedVal);
+
+        auto term = scf::InParallelOp::create(b, loc);
+        b.setInsertionPointToStart(term.getBody());
+        tensor::ParallelInsertSliceOp::create(
+            b, loc, slice, sharedOut,
+            /*offsets=*/SmallVector<OpFoldResult>{j},
+            /*sizes=*/SmallVector<OpFoldResult>{b.getIndexAttr(1)},
+            /*strides=*/SmallVector<OpFoldResult>{b.getIndexAttr(1)});
+      });
+  return forallOp;
+}
+
+}  // anonymous namespace
+
 // ElementwiseByOperandOpInterface methods
 
 bool FastRotationOp::operandIsMappable(unsigned operandIndex) {
@@ -47,56 +134,34 @@ FailureOr<Operation*> FastRotationOp::buildBatchedOperation(
     MLIRContext* context, OpBuilder& builder,
     SmallVector<Value> vectorizedOperands,
     SmallVector<Operation*> batchedOperations) {
-  SmallVector<Value> indexVals;
-  for (auto* op : batchedOperations) {
-    if (auto rotateOp = dyn_cast<FastRotationOp>(op)) {
-      indexVals.push_back(rotateOp.getIndex());
-    } else {
-      op->emitOpError("unsupported operation for vectorization");
-      return failure();
-    }
-  }
-  auto indexTensor = tensor::FromElementsOp::create(
-      builder, getLoc(),
-      RankedTensorType::get({static_cast<int64_t>(batchedOperations.size())},
-                            builder.getIndexType()),
-      indexVals);
+  return buildBatchedRotationOperation(*this, context, builder,
+                                       batchedOperations);
+}
 
-  Location loc = getLoc();
-  int64_t batchSize = batchedOperations.size();
-  Type ctType = getResult().getType();
-  auto initTensor = tensor::EmptyOp::create(
-      builder, loc, ArrayRef<int64_t>({batchSize}), ctType);
+// FastRotationExtOp interface methods
 
-  std::vector<OpFoldResult> lowerBounds = {builder.getIndexAttr(0)};
-  std::vector<OpFoldResult> upperBounds = {builder.getIndexAttr(batchSize)};
-  std::vector<OpFoldResult> steps = {builder.getIndexAttr(1)};
-  Operation* forallOp = scf::ForallOp::create(
-      builder, loc, lowerBounds, upperBounds, steps,
-      /*outputs=*/ValueRange{initTensor},
-      /*mapping=*/std::nullopt,
-      /*bodyBuilder=*/
-      [&](OpBuilder& b, Location loc, ValueRange regionArgs) {
-        Value j = regionArgs[0];
-        Value sharedOut = regionArgs.take_back()[0];
-        Value idx =
-            tensor::ExtractOp::create(b, loc, indexTensor, ValueRange{j});
+bool FastRotationExtOp::operandIsMappable(unsigned operandIndex) {
+  // All operands are wholesale, just the index attributes are mappable.
+  return false;
+}
 
-        auto rotateOp = openfhe::FastRotationOp::create(
-            b, loc, ctType, getCryptoContext(), getInput(), idx,
-            getCyclotomicOrder(), getPrecomputedDigitDecomp());
-        Value rotatedVal = rotateOp.getResult();
-        Value slice = tensor::FromElementsOp::create(b, loc, rotatedVal);
+bool FastRotationExtOp::isBatchCompatible(Operation* rhs) {
+  FastRotationExtOp rhsRotate = dyn_cast<FastRotationExtOp>(rhs);
+  if (!rhsRotate) return false;
+  // Only different rotations of the same ciphertext can be batched.
+  return (getCryptoContext() == rhsRotate.getCryptoContext() &&
+          getInput() == rhsRotate.getInput() &&
+          getPrecomputedDigitDecomp() ==
+              rhsRotate.getPrecomputedDigitDecomp() &&
+          getAddFirst() == rhsRotate.getAddFirst());
+}
 
-        auto term = scf::InParallelOp::create(b, loc);
-        b.setInsertionPointToStart(term.getBody());
-        tensor::ParallelInsertSliceOp::create(
-            b, loc, slice, sharedOut,
-            /*offsets=*/SmallVector<OpFoldResult>{j},
-            /*sizes=*/SmallVector<OpFoldResult>{b.getIndexAttr(1)},
-            /*strides=*/SmallVector<OpFoldResult>{b.getIndexAttr(1)});
-      });
-  return forallOp;
+FailureOr<Operation*> FastRotationExtOp::buildBatchedOperation(
+    MLIRContext* context, OpBuilder& builder,
+    SmallVector<Value> vectorizedOperands,
+    SmallVector<Operation*> batchedOperations) {
+  return buildBatchedRotationOperation(*this, context, builder,
+                                       batchedOperations);
 }
 
 }  // namespace openfhe

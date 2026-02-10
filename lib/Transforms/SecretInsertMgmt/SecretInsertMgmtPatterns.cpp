@@ -108,16 +108,19 @@ LogicalResult ModReduceAfterMult<MulOp>::matchAndRewrite(
 template <typename Op>
 LogicalResult ModReduceBefore<Op>::matchAndRewrite(
     Op op, PatternRewriter& rewriter) const {
-  // guard against secret::YieldOp
-  if (op->getResults().size() > 0) {
-    for (auto result : op->getResults()) {
-      bool secret = isSecret(result, solver);
-      if (!secret) {
-        return rewriter.notifyMatchFailure(op, "results must be secret");
+  LLVM_DEBUG(llvm::dbgs() << "ModReduceBefore: Testing " << op << "\n");
+  if (!llvm::all_of(op->getResults(),
+                    [&](Value result) { return isSecret(result, solver); })) {
+    LLVM_DEBUG({
+      llvm::dbgs() << "ModReduceBefore: not all results are secret:\n";
+      for (const auto& [i, result] : llvm::enumerate(op->getResults())) {
+        bool secretness = isSecret(result, solver);
+        llvm::dbgs() << " - result " << i << " : "
+                     << (secretness ? "secret" : "not secret") << "\n";
       }
-    }
+    });
+    return rewriter.notifyMatchFailure(op, "results must be secret");
   }
-  // condition on result being secret
 
   int64_t mulDepth = 0;
   SmallVector<OpOperand*, 2> secretOperands;
@@ -126,14 +129,21 @@ LogicalResult ModReduceBefore<Op>::matchAndRewrite(
     auto mulDepthState =
         solver->lookupState<MulDepthLattice>(operand->get())->getValue();
     if (!mulDepthState.isInitialized()) {
+      LLVM_DEBUG(
+          llvm::dbgs()
+          << "ModReduceBefore: mul depth state not initialized for operand "
+          << operand->get() << "\n");
       return rewriter.notifyMatchFailure(op, "mul depth state not initialized");
     }
 
     mulDepth = std::max(mulDepth, mulDepthState.getMulDepth());
   }
+  LLVM_DEBUG(llvm::dbgs() << "ModReduceBefore: effective mul depth: "
+                          << mulDepth << "\n");
 
   // first mulOp in the chain, skip
   if (!includeFirstMul && mulDepth == 0) {
+    LLVM_DEBUG(llvm::dbgs() << "ModReduceBefore: skipping first mul\n");
     return rewriter.notifyMatchFailure(op, "skipping first mulOp in the chain");
   }
 
@@ -207,11 +217,13 @@ LogicalResult MatchCrossLevel<Op>::matchAndRewrite(
 template <typename Op>
 LogicalResult MatchCrossMulDepth<Op>::matchAndRewrite(
     Op op, PatternRewriter& rewriter) const {
+  LLVM_DEBUG(llvm::dbgs() << "MatchCrossMulDepth: Testing " << op << "\n");
   Value result = op.getResult();
   bool secret = isSecret(result, solver);
   if (!secret) {
     return rewriter.notifyMatchFailure(op, "result must be secret");
   }
+  LLVM_DEBUG(llvm::dbgs() << "MatchCrossMulDepth: found secret result\n");
 
   SmallVector<OpOperand*, 2> secretOperands;
   getSecretOperands(op, secretOperands, solver);
@@ -219,6 +231,7 @@ LogicalResult MatchCrossMulDepth<Op>::matchAndRewrite(
     return rewriter.notifyMatchFailure(op,
                                        "requires at least two secret operands");
   }
+  LLVM_DEBUG(llvm::dbgs() << "MatchCrossMulDepth: found secret operands\n");
 
   SmallVector<int64_t, 2> mulDepths;
   for (auto* operand : secretOperands) {
@@ -231,6 +244,7 @@ LogicalResult MatchCrossMulDepth<Op>::matchAndRewrite(
     auto mulDepth = mulDepthState.getMulDepth();
     mulDepths.push_back(mulDepth);
   }
+  LLVM_DEBUG(llvm::dbgs() << "MatchCrossMulDepth: found mul depth lattice\n");
 
   // only the input level can have mul depth mismatch.
   bool mismatch = (mulDepths[0] == 0 && mulDepths[1] == 1) ||
@@ -238,6 +252,7 @@ LogicalResult MatchCrossMulDepth<Op>::matchAndRewrite(
   if (!mismatch) {
     return rewriter.notifyMatchFailure(op, "no mul depth mismatch");
   }
+  LLVM_DEBUG(llvm::dbgs() << "MatchCrossMulDepth: found mul depth mismatch\n");
 
   // for one operand being mulResult and another not,
   // we should match their scale by adding one adjust scale op
@@ -253,6 +268,9 @@ LogicalResult MatchCrossMulDepth<Op>::matchAndRewrite(
           rewriter, op.getLoc(), managed,
           rewriter.getI64IntegerAttr((*idCounter)++));
       op->replaceUsesOfWith(operand->get(), managed);
+      LLVM_DEBUG(llvm::dbgs()
+                 << "MatchCrossMulDepth: inserting adjust scale op=" << managed
+                 << "\n");
     }
   }
 
@@ -302,9 +320,11 @@ LogicalResult UseInitOpForPlaintextOperand<Op>::matchAndRewrite(
 template <typename Op>
 LogicalResult BootstrapWaterLine<Op>::matchAndRewrite(
     Op op, PatternRewriter& rewriter) const {
-  auto levelLattice = solver->lookupState<LevelLattice>(op->getResult(0));
-  if (!levelLattice->getValue().isInitialized()) {
-    return rewriter.notifyMatchFailure(op, "level lattice is not initialized");
+  LevelState levelState =
+      solver->getOrCreateState<LevelLattice>(op->getResult(0))->getValue();
+  if (!levelState.isInt() && !levelState.isExhausted()) {
+    return rewriter.notifyMatchFailure(op,
+                                       "level lattice is uninit or invalid");
   }
 
   // This simple greedy bootstrapping placement pattern will insert bootstrap
@@ -312,11 +332,12 @@ LogicalResult BootstrapWaterLine<Op>::matchAndRewrite(
   // operations resulting level after bootstrapping placement is its
   // multiplicate depth % waterline, so that all levels are less than the
   // waterline.
-  auto level = levelLattice->getValue().getInt();
-  if (level % waterline != 0) {
+  if (levelState.isInt() && levelState.getInt() % waterline != 0) {
     return rewriter.notifyMatchFailure(op,
                                        "level is not a multiple of waterline");
   }
+
+  // An "isExhausted" LevelState means we have to bootstrap
 
   // insert mgmt::BootstrapOp after
   rewriter.setInsertionPointAfter(op);

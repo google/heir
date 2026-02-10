@@ -4,10 +4,8 @@
 
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/BGV/IR/BGVOps.h"
-#include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/CKKS/IR/CKKSOps.h"
-#include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
@@ -15,18 +13,14 @@
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
-#include "lib/Parameters/CKKS/Params.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Utils.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"   // from @llvm-project
-#include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"   // from @llvm-project
-#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
@@ -38,8 +32,6 @@
 // IWYU pragma: begin_keep
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 // IWYU pragma: end_keep
-
-#define DEBUG_TYPE "lwe-to-openfhe"
 
 namespace mlir::heir::lwe {
 
@@ -367,9 +359,10 @@ struct ConvertBootstrapOp : public OpConversionPattern<ckks::BootstrapOp> {
           op, "variadic bootstrapping is not supported in OpenFHE");
     }
 
+    Type resultType = convertLWEType(op.getResult().getType());
     Value cryptoContext = result.value();
     rewriter.replaceOpWithNewOp<openfhe::BootstrapOp>(
-        op, op.getOutput().getType(), cryptoContext, adaptor.getInput());
+        op, resultType, cryptoContext, adaptor.getInput());
     return success();
   }
 };

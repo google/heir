@@ -228,6 +228,20 @@ module attributes {scheme.bgv} {
     %3 = arith.select %2, %c0, %c1 : i64
     return %3 : i64
   }
+  // CHECK: test_max_min
+  // CHECK-SAME: int64_t [[arg0:[^ ]*]],
+  // CHECK-SAME: int64_t [[arg1:[^ ]*]])
+  func.func @test_max_min(%arg0: i64, %arg1: i64) -> i64 {
+    // CHECK: int64_t [[c0:[^ ]*]] = 0;
+    %c0 = arith.constant 0 : i64
+
+    // CHECK: int64_t [[v2:[^ ]*]] = std::max([[c0]], [[arg0]]);
+    // CHECK: int64_t [[v3:[^ ]*]] = std::min([[v2]], [[arg1]]);
+    // CHECK: return [[v3]];
+    %0 = arith.maxsi %c0, %arg0 : i64
+    %1 = arith.minsi %0, %arg1 : i64
+    return %1 : i64
+  }
 }
 
 // -----
@@ -372,5 +386,33 @@ module attributes {scheme.ckks} {
     %precomp = openfhe.fast_rotation_precompute %cc, %input1 : (!cc, !ct) -> !openfhe.digit_decomp
     %res = openfhe.fast_rotation %cc, %input1, %c4, %precomp {cyclotomicOrder = 64 : index} : (!cc, !ct, index, !openfhe.digit_decomp) -> !ct
     return %res : !ct
+  }
+}
+
+// -----
+
+!cc = !openfhe.crypto_context
+!ct = !openfhe.ciphertext
+
+// CHECK: CiphertextT test_fast_rot_ext(
+// CHECK-SAME:    CryptoContextT [[CC:[^,]*]],
+// CHECK-SAME:    CiphertextT [[ARG1:[^,]*]]) {
+// CHECK:      const auto& [[precomp:.*]] = [[CC]]->EvalFastRotationPrecompute([[ARG1]]);
+// CHECK:      const auto& [[rot1:.*]] = [[CC]]->EvalFastRotationExt([[ARG1]], 1, [[precomp]], true);
+// CHECK:      const auto& [[rot2:.*]] = [[CC]]->EvalFastRotationExt([[ARG1]], 2, [[precomp]], false);
+// CHECK:      const auto& [[sum:.*]] = [[CC]]->EvalAdd([[rot1]], [[rot2]]);
+// CHECK:      const auto& [[result:.*]] = [[CC]]->KeySwitchDown([[sum]]);
+// CHECK:      return [[result]];
+// CHECK:  }
+module attributes {scheme.ckks} {
+  func.func @test_fast_rot_ext(%cc: !cc, %input1: !ct) -> !ct {
+    %c1 = arith.constant 1 : index
+    %c2 = arith.constant 2 : index
+    %precomp = openfhe.fast_rotation_precompute %cc, %input1 : (!cc, !ct) -> !openfhe.digit_decomp
+    %rot1 = openfhe.fast_rotation_ext %cc, %input1, %c1, %precomp {addFirst = true} : (!cc, !ct, index, !openfhe.digit_decomp) -> !ct
+    %rot2 = openfhe.fast_rotation_ext %cc, %input1, %c2, %precomp {addFirst = false} : (!cc, !ct, index, !openfhe.digit_decomp) -> !ct
+    %sum = openfhe.add %cc, %rot1, %rot2 : (!cc, !ct, !ct) -> !ct
+    %result = openfhe.key_switch_down %cc, %sum : (!cc, !ct) -> !ct
+    return %result : !ct
   }
 }

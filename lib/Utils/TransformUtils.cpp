@@ -76,17 +76,17 @@ Value convertIntegerValueToTensorOfBits(Value integer, OpBuilder& b,
   for (int i = 0; i < width; i++) {
     // These arith ops correspond to extracting the i-th bit
     // from the input
-    auto shiftAmount =
-        b.create<arith::ConstantOp>(loc, argType, b.getIntegerAttr(argType, i));
-    auto bitMask = b.create<arith::ConstantOp>(
-        loc, argType, b.getIntegerAttr(argType, 1 << i));
-    auto andOp = b.create<arith::AndIOp>(loc, integer, bitMask);
-    auto shifted = b.create<arith::ShRSIOp>(loc, andOp, shiftAmount);
+    auto shiftAmount = arith::ConstantOp::create(b, loc, argType,
+                                                 b.getIntegerAttr(argType, i));
+    auto bitMask = arith::ConstantOp::create(b, loc, argType,
+                                             b.getIntegerAttr(argType, 1 << i));
+    auto andOp = arith::AndIOp::create(b, loc, integer, bitMask);
+    auto shifted = arith::ShRSIOp::create(b, loc, andOp, shiftAmount);
     insertValues.push_back(
-        b.create<arith::TruncIOp>(loc, b.getI1Type(), shifted));
+        arith::TruncIOp::create(b, loc, b.getI1Type(), shifted));
   }
 
-  auto result = b.create<tensor::FromElementsOp>(loc, insertValues);
+  auto result = tensor::FromElementsOp::create(b, loc, insertValues);
   return result;
 }
 
@@ -97,15 +97,16 @@ Value convertTensorOfBitsToInteger(Value tensor, Type resultType, OpBuilder& b,
   assert(tensorType.getRank() == 1 && "Expected tensor of bits to be 1D");
 
   Value result =
-      b.create<arith::ConstantIntOp>(loc, integerType, 0).getResult();
+      arith::ConstantIntOp::create(b, loc, integerType, 0).getResult();
   for (int i = 0; i < tensorType.getNumElements(); i++) {
     // The i-th bit of the tensor is stored at bit position i
-    auto loadOp = b.create<tensor::ExtractOp>(
-        loc, tensor, ValueRange{b.create<arith::ConstantIndexOp>(loc, i)});
-    auto extOp = b.create<arith::ExtSIOp>(loc, integerType, loadOp.getResult());
-    auto shiftAmount = b.create<arith::ConstantIntOp>(loc, integerType, i);
-    auto shifted = b.create<arith::ShLIOp>(loc, extOp, shiftAmount);
-    auto orOp = b.create<arith::OrIOp>(loc, integerType, result, shifted);
+    auto loadOp = tensor::ExtractOp::create(
+        b, loc, tensor, ValueRange{arith::ConstantIndexOp::create(b, loc, i)});
+    auto extOp =
+        arith::ExtSIOp::create(b, loc, integerType, loadOp.getResult());
+    auto shiftAmount = arith::ConstantIntOp::create(b, loc, integerType, i);
+    auto shifted = arith::ShLIOp::create(b, loc, extOp, shiftAmount);
+    auto orOp = arith::OrIOp::create(b, loc, integerType, result, shifted);
     result = orOp.getResult();
   }
 
