@@ -3,18 +3,21 @@
 
 include "mlir/Pass/PassBase.td"
 
-def PolyMulToNTT : Pass<"convert-polynomial-mul-to-ntt"> {
-  let summary = "Rewrites polynomial operations to their NTT equivalents";
+// TODO(#1095): migrate to mod arith type
+def PolyMulToNTT : Pass <"convert-polynomial-mul-to-ntt", "func::FuncOp"> {
+  let summary = "Optimally inserts NTT/INTT into a Polynomial IR";
   let description = [{
-    Applies a rewrite pattern to convert polynomial multiplication to the
-    equivalent using the number-theoretic transforms (NTT) when possible.
-
-    Polynomial multiplication can be rewritten as polynomial.NTT
-    on each operand, followed by modulo elementwise multiplication of the
-    point-value representation and then the inverse-NTT back to coefficient
-    representation.
+    This pass converts polynomial multiplication operations to use the Number
+    Theoretic Transform (NTT) domain. It uses a demand-based analysis to
+    minimize the number of NTT and INTT operations inserted into the graph,
+    rather than a local greedy approach.
   }];
-  let dependentDialects = ["mlir::heir::polynomial::PolynomialDialect", "heir::mod_arith::ModArithDialect"];
+  let dependentDialects = ["mlir::heir::polynomial::PolynomialDialect"];
+
+  let statistics = [
+    Statistic<"numNttsInserted", "num-ntts-inserted", "Number of NTT ops inserted">,
+    Statistic<"numInttsInserted", "num-intts-inserted", "Number of INTT ops inserted">
+  ];
 }
 
 #endif  // LIB_DIALECT_POLYNOMIAL_TRANSFORMS_PASSES_TD_

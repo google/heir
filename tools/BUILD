@@ -60,6 +60,7 @@ cc_binary(
         "@heir//lib/Dialect/LWE/Conversions/LWEToOpenfhe",
         "@heir//lib/Dialect/LWE/Conversions/LWEToPolynomial",
         "@heir//lib/Dialect/LWE/IR:Dialect",
+        # Why do we sometimes use `Transforms` alone (like LWE), and other times use specific transforms (like Lattigo)?
         "@heir//lib/Dialect/LWE/Transforms",
         "@heir//lib/Dialect/Lattigo/IR:Dialect",
         "@heir//lib/Dialect/Lattigo/Transforms",
@@ -80,7 +81,6 @@ cc_binary(
         "@heir//lib/Dialect/Polynomial/Conversions/PolynomialToModArith",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/Transforms",
-        "@heir//lib/Dialect/Polynomial/Transforms:NTTRewrites",
         "@heir//lib/Dialect/RNS/IR:Dialect",
         "@heir//lib/Dialect/RNS/IR:RNSTypeInterfaces",
         "@heir//lib/Dialect/Random/IR:Dialect",
