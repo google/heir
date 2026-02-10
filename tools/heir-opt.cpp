@@ -106,13 +106,13 @@
 #include "lib/Transforms/UnusedMemRef/UnusedMemRef.h"
 #include "lib/Transforms/ValidateNoise/ValidateNoise.h"
 #if HEIR_BACKEND_CORNAMI
-#include "lib/Backend/cornami/Dialect/SCIFRBool/Analysis/Passes.h"
-#include "lib/Backend/cornami/Dialect/SCIFRBool/Conversions/CGGIToSCIFRBool.h"
-#include "lib/Backend/cornami/Dialect/SCIFRBool/Conversions/ReplaceOpWithSection.h"
-#include "lib/Backend/cornami/Dialect/SCIFRBool/IR/SCIFRBoolDialect.h"
-#include "lib/Backend/cornami/Dialect/SCIFRBool/IR/SCIFRBoolOps.h"
-#include "lib/Backend/cornami/Dialect/SCIFRBool/Transforms/SCIFRBoolEmitter.h"
-#include "lib/Backend/cornami/Dialect/SCIFRCkks/Analysis/Passes.h"
+#include "lib/Dialect/CGGI/Conversions/CGGIToSCIFRBool/CGGIToSCIFRBool.h"
+#include "lib/Dialect/SCIFRBool/Conversions/ReplaceOpWithSection.h"
+#include "lib/Dialect/SCIFRBool/IR/SCIFRBoolDialect.h"
+#include "lib/Dialect/SCIFRBool/IR/SCIFRBoolOps.h"
+#include "lib/Dialect/SCIFRBool/Transforms/Passes.h"
+#include "lib/Dialect/SCIFRBool/Transforms/SCIFRBoolEmitter.h"
+#include "lib/Dialect/SCIFRCkks/Transforms/Passes.h"
 #endif /* HEIR_BACKEND_CORNAMI */
 #include "mlir/include/mlir/Conversion/AffineToStandard/AffineToStandard.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ArithToLLVM/ArithToLLVM.h"  // from @llvm-project
