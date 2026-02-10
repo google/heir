@@ -12,6 +12,7 @@
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
+#include "lib/Dialect/RNS/IR/RNSOps.h"
 #include "lib/Dialect/Random/IR/RandomEnums.h"
 #include "lib/Dialect/Random/IR/RandomOps.h"
 #include "lib/Dialect/Random/IR/RandomTypes.h"
