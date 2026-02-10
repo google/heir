@@ -146,8 +146,11 @@ class LattigoEmitter {
   LogicalResult printOperation(BGVRotateRowsOp op);
   // CKKS
   LogicalResult printOperation(CKKSNewParametersFromLiteralOp op);
+  LogicalResult printOperation(CKKSNewBootstrappingParametersFromLiteralOp op);
+  LogicalResult printOperation(CKKSGenEvaluationKeysBootstrappingOp op);
   LogicalResult printOperation(CKKSNewEncoderOp op);
   LogicalResult printOperation(CKKSNewEvaluatorOp op);
+  LogicalResult printOperation(CKKSNewBootstrappingEvaluatorOp op);
   LogicalResult printOperation(CKKSNewPlaintextOp op);
   LogicalResult printOperation(CKKSNewPolynomialEvaluatorOp op);
   LogicalResult printOperation(CKKSEncodeOp op);
@@ -163,6 +166,7 @@ class LattigoEmitter {
   LogicalResult printOperation(CKKSMulOp op);
   LogicalResult printOperation(CKKSRelinearizeOp op);
   LogicalResult printOperation(CKKSRescaleOp op);
+  LogicalResult printOperation(CKKSBootstrapOp op);
   LogicalResult printOperation(CKKSRotateOp op);
   LogicalResult printOperation(CKKSLinearTransformOp op);
   LogicalResult printOperation(CKKSChebyshevOp op);

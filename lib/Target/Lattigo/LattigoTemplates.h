@@ -21,6 +21,10 @@ constexpr std::string_view kCkksCircuitPolynomialImport =
   "\"github.com/tuneinsight/lattigo/v6/circuits/ckks/polynomial\"";
 constexpr std::string_view kLattigoBignumImport=
   "\"github.com/tuneinsight/lattigo/v6/utils/bignum\"";
+constexpr std::string_view kBootstrappingImport =
+  "\"github.com/tuneinsight/lattigo/v6/circuits/ckks/bootstrapping\"";
+constexpr std::string_view kLattigoUtilsImport =
+  "\"github.com/tuneinsight/lattigo/v6/utils\"";
 // clang-format on
 
 constexpr std::string_view kMathImport = "\"math\"";

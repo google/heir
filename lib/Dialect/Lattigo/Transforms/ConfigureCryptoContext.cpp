@@ -50,6 +50,17 @@ bool hasRelinOp(func::FuncOp op) {
   return result;
 }
 
+// Helper function to check if the function has BootstrapOp
+bool hasBootstrapOp(func::FuncOp funcOp) {
+  auto result = walkFuncAndCallees(funcOp, [&](Operation* op) {
+    if (isa<lattigo::CKKSBootstrapOp>(op)) {
+      return WalkResult::interrupt();
+    }
+    return WalkResult::advance();
+  });
+  return result.wasInterrupted();
+}
+
 // Helper function to find all the rotation indices in the function
 // TODO(#1186): handle rotate rows
 SmallVector<int64_t> findAllRotIndices(func::FuncOp op) {
@@ -164,6 +175,7 @@ struct LattigoBGVScheme {
 
 struct LattigoCKKSScheme {
   using EvaluatorType = CKKSEvaluatorType;
+  using BootstrappingEvaluatorType = CKKSBootstrappingEvaluatorType;
   using ParameterType = CKKSParameterType;
   using EncoderType = CKKSEncoderType;
   using ParametersLiteralAttrType = CKKSParametersLiteralAttr;
@@ -204,6 +216,17 @@ struct LattigoCKKSScheme {
         /*logDefaultScale*/ 45);
   }
 
+  static CKKSBootstrappingParametersLiteralAttr
+  getBootstrappingParametersLiteralAttr(MLIRContext* ctx, Operation* moduleOp) {
+    auto schemeParamAttr = getSchemeParamAttr(moduleOp);
+    if (schemeParamAttr) {
+      auto logN = schemeParamAttr.getLogN();
+      return CKKSBootstrappingParametersLiteralAttr::get(ctx, logN);
+    }
+    return CKKSBootstrappingParametersLiteralAttr::get(
+        ctx, /*logN*/ getLogN(moduleOp));
+  }
+
   static SchemeParamAttrType getSchemeParamAttr(Operation* moduleOp) {
     return moduleOp->getAttrOfType<ckks::SchemeParamAttr>(
         ckks::CKKSDialect::kSchemeParamAttrName);
@@ -240,15 +263,23 @@ LogicalResult convertFuncForScheme(func::FuncOp op) {
   ImplicitLocOpBuilder builder =
       ImplicitLocOpBuilder::atBlockEnd(module.getLoc(), module.getBody());
 
-  // __configure() -> (evaluator, params, encoder, encryptor, decryptor)
+  // __configure() -> ((optional) bootstrapping evaluator, evaluator, params,
+  // encoder, encryptor, decryptor)
   SmallVector<Type> funcArgTypes;
   SmallVector<Type> funcResultTypes;
 
+  Type bootstrappingEvaluatorType =
+      CKKSBootstrappingEvaluatorType::get(builder.getContext());
   Type evaluatorType = EvaluatorType::get(builder.getContext());
   Type paramsType = ParameterType::get(builder.getContext());
   Type encoderType = EncoderType::get(builder.getContext());
   RLWEEncryptorType encryptorType = findEncryptorType(module);
   Type decryptorType = RLWEDecryptorType::get(builder.getContext());
+
+  bool hasBootstrap = hasBootstrapOp(op);
+  if (hasBootstrap) {
+    funcResultTypes.push_back(bootstrappingEvaluatorType);
+  }
   funcResultTypes.push_back(evaluatorType);
   funcResultTypes.push_back(paramsType);
   funcResultTypes.push_back(encoderType);
@@ -321,11 +352,23 @@ LogicalResult convertFuncForScheme(func::FuncOp op) {
   }
 
   // evalKeySet is optional so nulltpr is acceptable
+  SmallVector<Value> results;
+  if (hasBootstrap) {
+    auto ctx = builder.getContext();
+    auto btParamsLiteral =
+        LattigoCKKSScheme::getBootstrappingParametersLiteralAttr(ctx, moduleOp);
+    auto btParams = CKKSNewBootstrappingParametersFromLiteralOp::create(
+        builder, params, btParamsLiteral);
+    auto bEvalKeySet = lattigo::CKKSGenEvaluationKeysBootstrappingOp::create(
+        builder, btParams, sk);
+    auto bEval = lattigo::CKKSNewBootstrappingEvaluatorOp::create(
+        builder, btParams, bEvalKeySet);
+    results.push_back(bEval);
+  }
   Value evaluator =
       LattigoScheme::getNewEvaluatorOp(builder, params, evalKeySet);
 
-  SmallVector<Value> results = {evaluator, params, encoder, encryptor,
-                                decryptor};
+  results.append({evaluator, params, encoder, encryptor, decryptor});
   func::ReturnOp::create(builder, results);
   return success();
 }

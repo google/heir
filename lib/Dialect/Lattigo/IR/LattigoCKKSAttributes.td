@@ -38,4 +38,20 @@ def Lattigo_CKKSParametersLiteral
     );
 }
 
+def Lattigo_CKKSBootstrappingParametersLiteral
+    : Lattigo_CKKSAttribute<"BootstrappingParametersLiteral", "bootstrapping_parameters_literal"> {
+    let summary = "Literal bootstrapping parameters for Lattigo CKKS";
+    let description = [{
+        This attribute represents the literal bootstrapping parameters for Lattigo CKKS.
+
+        This is in accordance with https://pkg.go.dev/github.com/tuneinsight/lattigo/v6/circuits/ckks/bootstrapping#ParametersLiteral
+        where some field are not present in the current implementation.
+
+        This struct contains only optional fields.
+    }];
+    let parameters = (ins
+      OptionalParameter<"int">:$logN
+    );
+}
+
 #endif  // LIB_DIALECT_LATTIGO_IR_LATTIGOCKKSATTRIBUTES_TD_

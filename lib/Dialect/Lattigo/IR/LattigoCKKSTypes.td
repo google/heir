@@ -17,11 +17,33 @@ def Lattigo_CKKSParameter : Lattigo_CKKSType<"Parameter", "parameter"> {
   let asmName = "param";
 }
 
+def Lattigo_CKKSBootstrappingEvaluationKeys : Lattigo_CKKSType<"BootstrappingEvaluationKeys", "bootstrapping_eval_keys"> {
+  let description = [{
+    This type represents the eval keys for bootstrapping for the CKKS encryption scheme.
+  }];
+  let asmName = "bootstrapping_eval_keys";
+}
+
+
+def Lattigo_CKKSBootstrappingParameter : Lattigo_CKKSType<"BootstrappingParameter", "bootstrapping_parameter"> {
+  let description = [{
+    This type represents the bootstrapping parameters for the CKKS encryption scheme.
+  }];
+  let asmName = "bootstrapping_param";
+}
+
 def Lattigo_CKKSEvaluator : Lattigo_CKKSType<"Evaluator", "evaluator"> {
   let description = [{
     This type represents the evaluator for the CKKS encryption scheme.
   }];
   let asmName = "evaluator";
+}
+
+def Lattigo_CKKSBootstrappingEvaluator : Lattigo_CKKSType<"BootstrappingEvaluator", "bootstrapping_evaluator"> {
+  let description = [{
+    This type represents the bootstrapping evaluator for the CKKS encryption scheme.
+  }];
+  let asmName = "bootstrapping_evaluator";
 }
 
 def Lattigo_CKKSEncoder : Lattigo_CKKSType<"Encoder", "encoder"> {

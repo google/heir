@@ -7,6 +7,7 @@
 #include "lib/Dialect/Lattigo/IR/LattigoTypes.h"
 #include "lib/Utils/Tablegen/InPlaceOpInterface.h"
 #include "mlir/include/mlir/IR/BuiltinOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Interfaces/InferTypeOpInterface.h"  // from @llvm-project
 // IWYU pragma: end_keep
 
 #define GET_OP_CLASSES

@@ -32,6 +32,7 @@ cc_library(
         "@heir//lib/Utils/Tablegen:InPlaceOpInterface",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:InferTypeOpInterface",
     ],
 )
 
@@ -90,6 +91,7 @@ cc_library(
         "@heir//lib/Dialect:HEIRInterfaces",
         "@heir//lib/Utils/Tablegen:InPlaceOpInterface",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:InferTypeOpInterface",
         "@llvm-project//mlir:Support",
     ],
 )
@@ -116,6 +118,7 @@ td_library(
         "@heir//lib/Dialect:td_files",
         "@heir//lib/Utils/Tablegen:td_files",
         "@llvm-project//mlir:BuiltinDialectTdFiles",
+        "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",
     ],
 )
