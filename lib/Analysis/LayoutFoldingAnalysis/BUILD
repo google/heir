@@ -10,9 +10,6 @@ cc_library(
     srcs = ["LayoutFoldingAnalysis.cpp"],
     hdrs = ["LayoutFoldingAnalysis.h"],
     deps = [
-        "@heir//lib/Dialect/Mgmt/IR:MgmtOps",
-        "@heir//lib/Dialect/Secret/IR:Dialect",
-        "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",

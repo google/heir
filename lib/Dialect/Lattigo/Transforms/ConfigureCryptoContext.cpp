@@ -13,6 +13,8 @@
 #include "lib/Dialect/Lattigo/IR/LattigoTypes.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Utils/TransformUtils.h"
+#include "lib/Utils/Utils.h"
+#include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
@@ -25,6 +27,7 @@
 #include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
+#include "mlir/include/mlir/Support/WalkResult.h"       // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -36,7 +39,7 @@ namespace lattigo {
 // Helper function to check if the function has RelinearizeOp
 bool hasRelinOp(func::FuncOp op) {
   bool result = false;
-  op.walk<WalkOrder::PreOrder>([&](Operation* op) {
+  walkFuncAndCallees(op, [&](Operation* op) {
     if (isa<BGVRelinearizeOp, BGVRelinearizeNewOp, CKKSRelinearizeOp,
             CKKSRelinearizeNewOp>(op)) {
       result = true;
@@ -51,20 +54,25 @@ bool hasRelinOp(func::FuncOp op) {
 // TODO(#1186): handle rotate rows
 SmallVector<int64_t> findAllRotIndices(func::FuncOp op) {
   std::set<int64_t> distinctRotIndices;
-  op.walk([&](BGVRotateColumnsNewOp rotOp) {
-    distinctRotIndices.insert(rotOp.getOffset().getInt());
-    return WalkResult::advance();
-  });
-  op.walk([&](BGVRotateColumnsOp rotOp) {
-    distinctRotIndices.insert(rotOp.getOffset().getInt());
-    return WalkResult::advance();
-  });
-  op.walk([&](CKKSRotateOp rotOp) {
-    distinctRotIndices.insert(rotOp.getOffset().getInt());
-    return WalkResult::advance();
-  });
-  op.walk([&](CKKSRotateNewOp rotOp) {
-    distinctRotIndices.insert(rotOp.getOffset().getInt());
+  walkFuncAndCallees(op, [&](Operation* op) {
+    llvm::TypeSwitch<Operation*>(op)
+        .Case<BGVRotateColumnsNewOp>([&](BGVRotateColumnsNewOp rotOp) {
+          distinctRotIndices.insert(rotOp.getOffset().getInt());
+          return WalkResult::advance();
+        })
+        .Case<BGVRotateColumnsOp>([&](BGVRotateColumnsOp rotOp) {
+          distinctRotIndices.insert(rotOp.getOffset().getInt());
+          return WalkResult::advance();
+        })
+        .Case<CKKSRotateOp>([&](CKKSRotateOp rotOp) {
+          distinctRotIndices.insert(rotOp.getOffset().getInt());
+          return WalkResult::advance();
+        })
+        .Case<CKKSRotateNewOp>([&](CKKSRotateNewOp rotOp) {
+          distinctRotIndices.insert(rotOp.getOffset().getInt());
+          return WalkResult::advance();
+        })
+        .Default([&](Operation* op) { return WalkResult::advance(); });
     return WalkResult::advance();
   });
   SmallVector<int64_t> rotIndicesResult(distinctRotIndices.begin(),

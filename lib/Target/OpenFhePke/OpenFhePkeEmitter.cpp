@@ -238,8 +238,9 @@ LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
           .Case<arith::ConstantOp, arith::ExtSIOp, arith::ExtUIOp,
                 arith::FloorDivSIOp, arith::IndexCastOp, arith::ExtFOp,
                 arith::RemSIOp, arith::AddIOp, arith::AddFOp, arith::AndIOp,
-                arith::SubIOp, arith::MulIOp, arith::DivSIOp, arith::CmpIOp,
-                arith::SelectOp>([&](auto op) { return printOperation(op); })
+                arith::SubIOp, arith::MulFOp, arith::MulIOp, arith::DivSIOp,
+                arith::CmpIOp, arith::SelectOp, arith::MaxSIOp, arith::MinSIOp>(
+              [&](auto op) { return printOperation(op); })
           // SCF ops
           .Case<scf::IfOp, scf::ForOp, scf::ForallOp, scf::InParallelOp,
                 scf::YieldOp>([&](auto op) { return printOperation(op); })
@@ -256,15 +257,15 @@ LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
           // OpenFHE ops
           .Case<AddInPlaceOp, AddOp, AddPlainInPlaceOp, AddPlainOp, AutomorphOp,
                 BootstrapOp, DecryptOp, EncryptOp, FastRotationOp,
-                FastRotationPrecomputeOp, GenBootstrapKeyOp, GenContextOp,
-                GenMulKeyOp, GenParamsOp, GenRotKeyOp, KeySwitchInPlaceOp,
-                KeySwitchOp, LevelReduceInPlaceOp, LevelReduceOp,
-                MakeCKKSPackedPlaintextOp, MakePackedPlaintextOp,
-                ModReduceInPlaceOp, ModReduceOp, MulConstInPlaceOp, MulConstOp,
-                MulNoRelinOp, MulOp, MulPlainOp, NegateInPlaceOp, NegateOp,
-                RelinInPlaceOp, RelinOp, RotOp, SetupBootstrapOp,
-                SquareInPlaceOp, SquareOp, SubInPlaceOp, SubOp,
-                SubPlainInPlaceOp, SubPlainOp>(
+                FastRotationExtOp, FastRotationPrecomputeOp, GenBootstrapKeyOp,
+                GenContextOp, GenMulKeyOp, GenParamsOp, GenRotKeyOp,
+                KeySwitchDownOp, KeySwitchInPlaceOp, KeySwitchOp,
+                LevelReduceInPlaceOp, LevelReduceOp, MakeCKKSPackedPlaintextOp,
+                MakePackedPlaintextOp, ModReduceInPlaceOp, ModReduceOp,
+                MulConstInPlaceOp, MulConstOp, MulNoRelinOp, MulOp, MulPlainOp,
+                NegateInPlaceOp, NegateOp, RelinInPlaceOp, RelinOp, RotOp,
+                SetupBootstrapOp, SquareInPlaceOp, SquareOp, SubInPlaceOp,
+                SubOp, SubPlainInPlaceOp, SubPlainOp>(
               [&](auto op) { return printOperation(op); })
           .Default([&](Operation&) {
             return emitError(op.getLoc(), "unable to find printer for op");
@@ -455,7 +456,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(affine::AffineForOp op) {
         variableNames->getNameForValue(result) ==
             variableNames->getNameForValue(operand)) {
       // This occurs in cases where the loop is inserting into a tensor and
-      // passing it along as an inter arg.
+      // passing it along as an iter arg.
       continue;
     }
 
@@ -489,7 +490,24 @@ LogicalResult OpenFhePkeEmitter::printOperation(affine::AffineForOp op) {
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(affine::AffineYieldOp op) {
-  // Assume all yielded loop values have already been assigned.
+  // Assign each operand to the corresponding iter arg. This may be strictly
+  // necessary in such cases as the iter_arg being the result of inserting
+  // a value into an empty tensor (defined outside the loop) which is then
+  // passed as an iter_arg.
+  for (auto i = 0; i < op.getNumOperands(); ++i) {
+    affine::AffineForOp loop = op->getParentOfType<affine::AffineForOp>();
+    Value operand = op->getOperand(i);
+    Value iterArg = loop.getRegionIterArgs()[i];
+    if (failed(emitTypedAssignPrefix(iterArg, op.getLoc(),
+                                     /*constant=*/false))) {
+      return emitError(
+          op.getLoc(),
+          llvm::formatv("Failed to emit typed assign prefix for {}", iterArg));
+    }
+
+    os << variableNames->getNameForValue(operand);
+    os << ";\n";
+  }
   return success();
 }
 
@@ -840,6 +858,29 @@ LogicalResult OpenFhePkeEmitter::printOperation(FastRotationOp op) {
   return success();
 }
 
+LogicalResult OpenFhePkeEmitter::printOperation(FastRotationExtOp op) {
+  auto getConstantOrValue = [&](Value value) -> std::string {
+    return getStringForConstant(value).value_or(
+        variableNames->getNameForValue(value));
+  };
+
+  emitAutoAssignPrefix(op.getResult());
+  os << variableNames->getNameForValue(op.getCryptoContext()) << "->"
+     << "EvalFastRotationExt(" << variableNames->getNameForValue(op.getInput())
+     << ", " << getConstantOrValue(op.getIndex()) << ", "
+     << variableNames->getNameForValue(op.getPrecomputedDigitDecomp()) << ", "
+     << (op.getAddFirst() ? "true" : "false") << ");\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(KeySwitchDownOp op) {
+  emitAutoAssignPrefix(op.getResult());
+  os << variableNames->getNameForValue(op.getCryptoContext()) << "->"
+     << "KeySwitchDown(" << variableNames->getNameForValue(op.getCiphertext())
+     << ");\n";
+  return success();
+}
+
 LogicalResult OpenFhePkeEmitter::printOperation(AutomorphOp op) {
   // EvalAutomorphism has a bit of a strange function signature in OpenFHE:
   //
@@ -1055,6 +1096,12 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::ExtSIOp op) {
   if (auto tensorTy = dyn_cast<RankedTensorType>(op.getOperand().getType())) {
     os << "std::vector<int64_t> " << resultVarName << "(std::begin("
        << inputVarName << "), std::end(" << inputVarName << "));\n";
+  } else if (auto intTy = dyn_cast<IntegerType>(op.getOperand().getType())) {
+    // This is an i1 type, so the assignment implicitly casts it to an int.
+    if (failed(emitTypedAssignPrefix(op.getResult(), op.getLoc()))) {
+      return failure();
+    }
+    os << inputVarName << ";\n";
   } else {
     return op.emitOpError() << "Unsupported input type";
   }
@@ -1187,6 +1234,10 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::AndIOp op) {
   return printBinaryOp(op, op.getLhs(), op.getRhs(), "&&");
 }
 
+LogicalResult OpenFhePkeEmitter::printOperation(arith::MulFOp op) {
+  return printBinaryOp(op, op.getLhs(), op.getRhs(), "*");
+}
+
 LogicalResult OpenFhePkeEmitter::printOperation(arith::MulIOp op) {
   return printBinaryOp(op, op.getLhs(), op.getRhs(), "*");
 }
@@ -1233,6 +1284,22 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::CmpIOp op) {
       return printBinaryOp(op, op.getLhs(), op.getRhs(), ">=");
   }
   llvm_unreachable("unknown cmpi predicate kind");
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(arith::MaxSIOp op) {
+  if (failed(emitTypedAssignPrefix(op.getResult(), op.getLoc(), true)))
+    return failure();
+  os << "std::max(" << variableNames->getNameForValue(op.getLhs()) << ", "
+     << variableNames->getNameForValue(op.getRhs()) << ");\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(arith::MinSIOp op) {
+  if (failed(emitTypedAssignPrefix(op.getResult(), op.getLoc(), true)))
+    return failure();
+  os << "std::min(" << variableNames->getNameForValue(op.getLhs()) << ", "
+     << variableNames->getNameForValue(op.getRhs()) << ");\n";
+  return success();
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(tensor::ConcatOp op) {

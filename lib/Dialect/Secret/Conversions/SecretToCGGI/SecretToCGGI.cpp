@@ -165,8 +165,8 @@ Operation* convertWriteOpInterface(
         SmallVector<OpFoldResult> strides(rank, oneIdxAttr);
         SmallVector<OpFoldResult> sizes(rank - 1, oneIdxAttr);
         sizes.push_back(rewriter.getIndexAttr(toTensorTy.getShape()[rank - 1]));
-        return b.create<tensor::InsertSliceOp>(valueToStore, toTensor, offsets,
-                                               sizes, strides);
+        return tensor::InsertSliceOp::create(b, valueToStore, toTensor, offsets,
+                                             sizes, strides);
       });
   llvm_unreachable("expected integer or tensor to store in ciphertext tensor");
 }
@@ -195,8 +195,8 @@ Operation* convertReadOpInterface(
   SmallVector<OpFoldResult> sizes(rank - 1, oneIdxAttr);
   sizes.push_back(rewriter.getIndexAttr(fromTensorType.getShape()[rank - 1]));
 
-  return b.create<tensor::ExtractSliceOp>(outputTy, fromTensor, offsets, sizes,
-                                          strides);
+  return tensor::ExtractSliceOp::create(b, outputTy, fromTensor, offsets, sizes,
+                                        strides);
 }
 
 SmallVector<Value> encodeInputs(
@@ -227,12 +227,11 @@ SmallVector<Value> encodeInputs(
       IntegerType integerTy = dyn_cast<IntegerType>(input.getType());
       assert(integerTy && integerTy.getWidth() == 1 &&
              "LUT inputs should be single-bit integers");
-      return rewriter
-          .create<lwe::TrivialEncryptOp>(
-              op->getLoc(), ctxtTy,
-              lwe::EncodeOp::create(rewriter, op->getLoc(), ptxtTy, input,
-                                    plaintextBits, overflow),
-              ciphertextBits)
+      return lwe::TrivialEncryptOp::create(
+                 rewriter, op->getLoc(), ctxtTy,
+                 lwe::EncodeOp::create(rewriter, op->getLoc(), ptxtTy, input,
+                                       plaintextBits, overflow),
+                 ciphertextBits)
           .getResult();
     }
     return input;

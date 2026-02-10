@@ -111,7 +111,10 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(::mlir::arith::ExtUIOp op);
   LogicalResult printOperation(::mlir::arith::FloorDivSIOp op);
   LogicalResult printOperation(::mlir::arith::IndexCastOp op);
+  LogicalResult printOperation(::mlir::arith::MaxSIOp op);
+  LogicalResult printOperation(::mlir::arith::MinSIOp op);
   LogicalResult printOperation(::mlir::arith::MulIOp op);
+  LogicalResult printOperation(::mlir::arith::MulFOp op);
   LogicalResult printOperation(::mlir::arith::RemSIOp op);
   LogicalResult printOperation(::mlir::arith::SelectOp op);
   LogicalResult printOperation(::mlir::arith::SubIOp op);
@@ -145,6 +148,7 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(DecryptOp op);
   LogicalResult printOperation(EncryptOp op);
   LogicalResult printOperation(FastRotationOp op);
+  LogicalResult printOperation(FastRotationExtOp op);
   LogicalResult printOperation(FastRotationPrecomputeOp op);
   LogicalResult printOperation(GenBootstrapKeyOp op);
   LogicalResult printOperation(GenContextOp op);
@@ -153,6 +157,7 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(GenRotKeyOp op);
   LogicalResult printOperation(KeySwitchInPlaceOp op);
   LogicalResult printOperation(KeySwitchOp op);
+  LogicalResult printOperation(KeySwitchDownOp op);
   LogicalResult printOperation(LevelReduceInPlaceOp op);
   LogicalResult printOperation(LevelReduceOp op);
   LogicalResult printOperation(MakeCKKSPackedPlaintextOp op);

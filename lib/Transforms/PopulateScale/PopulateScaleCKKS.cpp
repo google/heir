@@ -8,8 +8,10 @@
 #include "lib/Dialect/Mgmt/Transforms/AnnotateMgmt.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Parameters/CKKS/Params.h"
+#include "lib/Parameters/CKKS/Utils.h"
 #include "lib/Transforms/PopulateScale/PopulateScale.h"
 #include "lib/Transforms/PopulateScale/PopulateScalePatterns.h"
+#include "llvm/include/llvm/Support/DebugLog.h"            // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"      // from @llvm-project
@@ -22,6 +24,8 @@
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 #include "mlir/include/mlir/Transforms/Passes.h"           // from @llvm-project
 #include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
+
+#define DEBUG_TYPE "populate-scale-ckks"
 
 namespace mlir {
 namespace heir {
@@ -39,53 +43,88 @@ class CKKSAdjustScaleMaterializer : public AdjustScaleMaterializer {
 #define GEN_PASS_DEF_POPULATESCALECKKS
 #include "lib/Transforms/PopulateScale/PopulateScale.h.inc"
 
+LogicalResult createAndRunDataflow(Operation* op, DataFlowSolver& solver,
+                                   int64_t logDefaultScale,
+                                   ckks::SchemeParamAttr ckksSchemeParamAttr,
+                                   bool beforeMulIncludeFirstMul) {
+  SymbolTableCollection symbolTable;
+  dataflow::loadBaselineAnalyses(solver);
+  solver.load<SecretnessAnalysis>();
+  auto inputScale = logDefaultScale;
+  if (beforeMulIncludeFirstMul) {
+    LDBG() << "Encoding at scale^2 due to 'include-first-mul' config";
+    inputScale *= 2;
+  }
+  auto param = ckks::getSchemeParamFromAttr(ckksSchemeParamAttr);
+  solver.load<ScaleAnalysis<CKKSScaleModel>>(param,
+                                             /*inputScale*/ inputScale);
+  // Back-prop ScaleAnalysis depends on (forward) ScaleAnalysis
+  solver.load<ScaleAnalysisBackward<CKKSScaleModel>>(symbolTable, param);
+
+  return solver.initializeAndRun(op);
+}
+
 struct PopulateScaleCKKS : impl::PopulateScaleCKKSBase<PopulateScaleCKKS> {
   using PopulateScaleCKKSBase::PopulateScaleCKKSBase;
 
   void runOnOperation() override {
-    // skip scale management for openfhe
-    if (moduleIsOpenfhe(getOperation())) {
-      return;
-    }
-
     auto ckksSchemeParamAttr = mlir::dyn_cast<ckks::SchemeParamAttr>(
         getOperation()->getAttr(ckks::CKKSDialect::kSchemeParamAttrName));
     auto logDefaultScale = ckksSchemeParamAttr.getLogDefaultScale();
 
     DataFlowSolver solver;
-    SymbolTableCollection symbolTable;
-    dataflow::loadBaselineAnalyses(solver);
-    // ScaleAnalysis depends on SecretnessAnalysis
-    solver.load<SecretnessAnalysis>();
-    // set input scale to logDefaultScale
-    auto inputScale = logDefaultScale;
-    if (beforeMulIncludeFirstMul) {
-      // encode at double degree
-      inputScale *= 2;
-    }
-    solver.load<ScaleAnalysis<CKKSScaleModel>>(
-        ckks::SchemeParam::getSchemeParamFromAttr(ckksSchemeParamAttr),
-        /*inputScale*/ inputScale);
-    // Back-prop ScaleAnalysis depends on (forward) ScaleAnalysis
-    solver.load<ScaleAnalysisBackward<CKKSScaleModel>>(
-        symbolTable,
-        ckks::SchemeParam::getSchemeParamFromAttr(ckksSchemeParamAttr));
-
-    if (failed(solver.initializeAndRun(getOperation()))) {
-      getOperation()->emitOpError() << "Failed to run the analysis.\n";
+    if (failed(createAndRunDataflow(getOperation(), solver, logDefaultScale,
+                                    ckksSchemeParamAttr,
+                                    beforeMulIncludeFirstMul))) {
       signalPassFailure();
       return;
     }
+
     // at this time all adjust_scale should have ScaleLattice for its result.
     // all plaintext (mgmt.init) should have ScaleLattice for its result.
+    // However, due to the naivete of the scale analysis, there can be
+    // sections of IR in which no scale could be propagated through. E.g., an
+    // op surrounded by two adjust_scale ops that block propagation. In this
+    // case these adjust_scale ops should be removed.
+    getOperation()->walk([&](mgmt::AdjustScaleOp op) {
+      auto* lattice = solver.lookupState<ScaleLattice>(op.getResult());
+      if (!lattice || !lattice->getValue().isInitialized()) {
+        op.emitOpError() << "Dataflow analysis failed to populate scale "
+                            "lattice for result\n";
+        op->replaceAllUsesWith(ValueRange{op.getInput()});
+        op->erase();
+      }
+    });
 
-    // pass scale to AnnotateMgmt pass
-    annotateScale(getOperation(), &solver);
+    DataFlowSolver solver2;
+    if (failed(createAndRunDataflow(getOperation(), solver2, logDefaultScale,
+                                    ckksSchemeParamAttr,
+                                    beforeMulIncludeFirstMul))) {
+      signalPassFailure();
+      return;
+    }
+
+    getOperation()->walk([&](mgmt::InitOp op) {
+      auto* lattice = solver.lookupState<ScaleLattice>(op.getResult());
+      if (!lattice || !lattice->getValue().isInitialized()) {
+        op.emitOpError() << "Dataflow analysis failed to populate scale "
+                            "lattice for result\n";
+        signalPassFailure();
+      }
+    });
+
+    LDBG() << "Running annotate-mgmt sub-pass";
+    annotateScale(getOperation(), &solver2);
     OpPassManager annotateMgmt("builtin.module");
     annotateMgmt.addPass(mgmt::createAnnotateMgmt());
     (void)runPipeline(annotateMgmt, getOperation());
 
-    // convert adjust scale to mul plain
+    LLVM_DEBUG({
+      llvm::dbgs() << "Dumping op after annotate-mgmt pass:\n";
+      getOperation()->dump();
+    });
+
+    LDBG() << "convert adjust_scale to mul_plain";
     RewritePatternSet patterns(&getContext());
     CKKSAdjustScaleMaterializer materializer;
     // TODO(#1641): handle arith.muli in CKKS

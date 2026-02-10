@@ -71,7 +71,6 @@ cc_library(
         "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
         "@heir//lib/Utils:TargetUtils",
-        "@heir//lib/Utils/Tablegen:InPlaceOpInterface",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:ArithDialect",

@@ -16,7 +16,7 @@ cc_library(
         "@com_google_ortools//ortools/math_opt/solvers:gscip_solver",
         "@heir//lib/Analysis/DimensionAnalysis",
         "@heir//lib/Analysis/SecretnessAnalysis",
-        "@heir//lib/Dialect/Mgmt/IR:MgmtOps",
+        "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@llvm-project//llvm:Support",

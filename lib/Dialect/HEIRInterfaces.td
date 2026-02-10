@@ -26,6 +26,14 @@ def IncreasesMulDepthOpInterface : OpInterface<"IncreasesMulDepthOpInterface"> {
   // https://discourse.llvm.org/t/how-to-add-addtional-traits-to-existing-ops/62039
 }
 
+def ResetsMulDepthOpInterface : OpInterface<"ResetsMulDepthOpInterface"> {
+  let cppNamespace = "::mlir::heir";
+  let description = [{
+    An interface that signals when an operation resets multiplicative depth
+    among its results, such as a `mgmt.bootstrap`.
+  }];
+}
+
 def LUTOpInterface : OpInterface<"LUTOpInterface"> {
   let cppNamespace = "::mlir::heir";
   let description = [{
