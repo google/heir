@@ -1,5 +1,6 @@
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 
+#include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Mgmt/IR/MgmtPatterns.h"
 #include "mlir/include/mlir/IR/MLIRContext.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"     // from @llvm-project
@@ -48,6 +49,8 @@ void cleanupInitOp(Operation* top) {
     if (initOp->use_empty()) initOp.erase();
   });
 }
+
+int LevelReduceOp::getLevelsToDrop() { return getLevelToDrop(); }
 
 }  // namespace mgmt
 }  // namespace heir

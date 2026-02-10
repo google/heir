@@ -48,21 +48,7 @@ static void debugLog(StringRef opName, ArrayRef<const LevelLattice*> operands,
   });
 };
 
-LevelState transferForward(mgmt::ModReduceOp op,
-                           ArrayRef<const LevelLattice*> operands) {
-  LevelState result = std::visit(
-      Overloaded{
-          [](MaxLevel) -> LevelState { return LevelState(Invalid{}); },
-          [](Uninit) -> LevelState { return LevelState(Invalid{}); },
-          [](Invalid) -> LevelState { return LevelState(Invalid{}); },
-          [](int val) -> LevelState { return LevelState(val + 1); },
-      },
-      operands[0]->getValue().get());
-  LLVM_DEBUG(debugLog("mod_reduce", operands, result));
-  return result;
-}
-
-LevelState transferForward(mgmt::LevelReduceOp op,
+LevelState transferForward(ReducesLevelOpInterface op,
                            ArrayRef<const LevelLattice*> operands) {
   LevelState result = std::visit(
       Overloaded{
@@ -70,15 +56,15 @@ LevelState transferForward(mgmt::LevelReduceOp op,
           [](Uninit) -> LevelState { return LevelState(Invalid{}); },
           [](Invalid) -> LevelState { return LevelState(Invalid{}); },
           [&](int val) -> LevelState {
-            return LevelState(val + (int)op.getLevelToDrop());
+            return LevelState(val + op.getLevelsToDrop());
           },
       },
       operands[0]->getValue().get());
-  LLVM_DEBUG(debugLog("level_reduce", operands, result));
+  LLVM_DEBUG(debugLog("ReduceLevelOpInterface", operands, result));
   return result;
 }
 
-LevelState transferForward(mgmt::LevelReduceMinOp op,
+LevelState transferForward(ReducesAllLevelsOpInterface op,
                            ArrayRef<const LevelLattice*> operands) {
   LevelState result = std::visit(
       Overloaded{
@@ -90,11 +76,11 @@ LevelState transferForward(mgmt::LevelReduceMinOp op,
           [](int val) -> LevelState { return LevelState(MaxLevel{}); },
       },
       operands[0]->getValue().get());
-  LLVM_DEBUG(debugLog("level_reduce_min", operands, result));
+  LLVM_DEBUG(debugLog("ReduceAllLevelsOpInterface", operands, result));
   return result;
 }
 
-LevelState transferForward(mgmt::BootstrapOp op,
+LevelState transferForward(ResetsLevelOpInterface op,
                            ArrayRef<const LevelLattice*> operands) {
   LevelState result = std::visit(
       Overloaded{
@@ -104,15 +90,18 @@ LevelState transferForward(mgmt::BootstrapOp op,
           [](int val) -> LevelState { return LevelState(0); },
       },
       operands[0]->getValue().get());
-  LLVM_DEBUG(debugLog("bootstrap", operands, result));
+  LLVM_DEBUG(debugLog("ResetsLevelOpInterface", operands, result));
   return result;
 }
 
 LevelState deriveResultLevel(Operation* op,
                              ArrayRef<const LevelLattice*> operands) {
   return llvm::TypeSwitch<Operation&, LevelState>(*op)
-      .Case<mgmt::ModReduceOp, mgmt::LevelReduceOp, mgmt::BootstrapOp,
-            mgmt::LevelReduceMinOp>(
+      .Case<ResetsLevelOpInterface>(
+          [&](auto op) -> LevelState { return transferForward(op, operands); })
+      .Case<ReducesAllLevelsOpInterface>(
+          [&](auto op) -> LevelState { return transferForward(op, operands); })
+      .Case<ReducesLevelOpInterface>(
           [&](auto op) -> LevelState { return transferForward(op, operands); })
       .Default([&](auto& op) -> LevelState {
         LevelState result;
