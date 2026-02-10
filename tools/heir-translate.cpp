@@ -14,7 +14,7 @@
 #include "mlir/include/mlir/Tools/mlir-translate/MlirTranslateMain.h"  // from @llvm-project
 
 #if HEIR_BACKEND_CORNAMI
-#include "lib/Backend/cornami/Target/SCIFRBoolEmitter.h"
+#include "lib/Target/SCIFRBool/SCIFRBoolEmitter.h"
 #endif /* HEIR_BACKEND_CORNAMI */
 
 int main(int argc, char** argv) {

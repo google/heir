@@ -212,15 +212,15 @@ cc_binary(
         "//conditions:default": [],
     }) + select({
         "@heir//:config_enable_cornami_mx2": [
-            "@heir//lib/Backend/cornami/Dialect/SCIFRBool/Analysis",
-            "@heir//lib/Backend/cornami/Dialect/SCIFRBool/Analysis:CGGIEstimator",
-            "@heir//lib/Backend/cornami/Dialect/SCIFRBool/Conversions:CGGIToSCIFRBool",
-            "@heir//lib/Backend/cornami/Dialect/SCIFRBool/Conversions:ReplaceOpWithSection",
-            "@heir//lib/Backend/cornami/Dialect/SCIFRBool/IR:Dialect",
-            "@heir//lib/Backend/cornami/Dialect/SCIFRBool/Transforms:CGGIEmitter",
-            "@heir//lib/Backend/cornami/Dialect/SCIFRCkks/Analysis",
-            "@heir//lib/Backend/cornami/Dialect/SCIFRCkks/Analysis:CKKSEstimator",
-            "@heir//lib/Backend/cornami/Dialect/SCIFRCkks/Analysis:OpenfheEstimator",
+            "@heir//lib/Dialect/CGGI/Conversions/CGGIToSCIFRBool",
+            "@heir//lib/Dialect/SCIFRBool/Conversions:ReplaceOpWithSection",
+            "@heir//lib/Dialect/SCIFRBool/IR:Dialect",
+            "@heir//lib/Dialect/SCIFRBool/Transforms:CGGIEmitter",
+            "@heir//lib/Dialect/SCIFRBool/Transforms:CGGIEstimator",
+            "@heir//lib/Dialect/SCIFRBool/Transforms:EstimationAnalysis",
+            "@heir//lib/Dialect/SCIFRCkks/Transforms",
+            "@heir//lib/Dialect/SCIFRCkks/Transforms:CKKSEstimator",
+            "@heir//lib/Dialect/SCIFRCkks/Transforms:OpenfheEstimator",
         ],
         "//conditions:default": [],
     }),
@@ -256,7 +256,7 @@ cc_binary(
         "@llvm-project//mlir:TranslateLib",
     ] + select({
         "@heir//:config_enable_cornami_mx2": [
-            "@heir//lib/Backend/cornami/Target:SCIFRBoolEmitter",
+            "@heir//lib/Target/SCIFRBool:SCIFRBoolEmitter",
         ],
         "//conditions:default": [],
     }),
