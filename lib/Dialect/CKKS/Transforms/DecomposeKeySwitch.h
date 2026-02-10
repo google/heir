@@ -1,5 +1,5 @@
-#ifndef LIB_DIALECT_CKKS_TRANSFORMS_DECOMPOSE_RELINEARIZE_H_
-#define LIB_DIALECT_CKKS_TRANSFORMS_DECOMPOSE_RELINEARIZE_H_
+#ifndef LIB_DIALECT_CKKS_TRANSFORMS_DECOMPOSE_KEYSWITCH_H_
+#define LIB_DIALECT_CKKS_TRANSFORMS_DECOMPOSE_KEYSWITCH_H_
 
 #include "lib/Dialect/CKKS/IR/CKKSOps.h"
 #include "mlir/include/mlir/IR/PatternMatch.h"        // from @llvm-project
@@ -14,14 +14,14 @@ namespace mlir {
 namespace heir {
 namespace ckks {
 
-#define GEN_PASS_DECL_DECOMPOSERELINEARIZE
+#define GEN_PASS_DECL_DECOMPOSEKEYSWITCH
 #include "lib/Dialect/CKKS/Transforms/Passes.h.inc"
 
-struct DecomposeRelinearizePattern : public OpRewritePattern<RelinearizeOp> {
-  using OpRewritePattern<RelinearizeOp>::OpRewritePattern;
+struct DecomposeKeySwitchPattern : public OpRewritePattern<KeySwitchInnerOp> {
+  using OpRewritePattern<KeySwitchInnerOp>::OpRewritePattern;
 
  public:
-  LogicalResult matchAndRewrite(RelinearizeOp op,
+  LogicalResult matchAndRewrite(KeySwitchInnerOp op,
                                 PatternRewriter& rewriter) const override;
 };
 
@@ -29,4 +29,4 @@ struct DecomposeRelinearizePattern : public OpRewritePattern<RelinearizeOp> {
 }  // namespace heir
 }  // namespace mlir
 
-#endif  // LIB_DIALECT_CKKS_TRANSFORMS_DECOMPOSE_RELINEARIZE_H_
+#endif  // LIB_DIALECT_CKKS_TRANSFORMS_DECOMPOSE_KEYSWITCH_H_

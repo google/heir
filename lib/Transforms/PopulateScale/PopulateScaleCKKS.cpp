@@ -5,12 +5,10 @@
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
+#include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Mgmt/Transforms/AnnotateMgmt.h"
-#include "lib/Dialect/ModuleAttributes.h"
-#include "lib/Parameters/CKKS/Params.h"
-#include "lib/Parameters/CKKS/Utils.h"
-#include "lib/Transforms/PopulateScale/PopulateScale.h"
 #include "lib/Transforms/PopulateScale/PopulateScalePatterns.h"
+#include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "llvm/include/llvm/Support/DebugLog.h"            // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
@@ -19,11 +17,18 @@
 #include "mlir/include/mlir/IR/PatternMatch.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/SymbolTable.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
 #include "mlir/include/mlir/Pass/PassManager.h"            // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 #include "mlir/include/mlir/Transforms/Passes.h"           // from @llvm-project
 #include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
+
+// IWYU pragma: begin_keep
+#include "lib/Dialect/ModuleAttributes.h"
+#include "lib/Parameters/CKKS/Params.h"
+#include "lib/Transforms/PopulateScale/PopulateScale.h"
+// IWYU pragma: end_keep
 
 #define DEBUG_TYPE "populate-scale-ckks"
 

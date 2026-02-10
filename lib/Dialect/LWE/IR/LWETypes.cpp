@@ -1,5 +1,7 @@
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 
+#include <cstdint>
+
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
@@ -28,7 +30,8 @@ LogicalResult LWECiphertextType::verify(
   }
   if (auto rnsType = mlir::dyn_cast<rns::RNSType>(
           ciphertextSpace.getRing().getCoefficientType())) {
-    if (rnsType.getBasisTypes().size() - 1 != modulusChain.getCurrent()) {
+    if (modulusChain &&
+        rnsType.getBasisTypes().size() - 1 != modulusChain.getCurrent()) {
       return emitError()
              << "the level in the ciphertext ring "
                 "must match the modulus chain's current, but found rns="
