@@ -313,7 +313,7 @@ def Polynomial_ConstantOp : Op<Polynomial_Dialect, "constant",
   let hasCustomAssemblyFormat = 1;
 }
 
-def Polynomial_NTTOp : Polynomial_Op<"ntt", [Pure]> {
+def Polynomial_NTTOp : Polynomial_Op<"ntt", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
   let summary = "Computes point-value tensor representation of a polynomial.";
   let description = [{
     `polynomial.ntt` computes the forward integer Number Theoretic Transform
@@ -334,13 +334,13 @@ def Polynomial_NTTOp : Polynomial_Op<"ntt", [Pure]> {
     Polynomial_PolynomialType:$input,
     OptionalAttr<Polynomial_PrimitiveRootAttr>:$root
   );
-  let results = (outs RankedTensorOf<[ModArith_ModArithType]>:$output);
-  let assemblyFormat = "$input attr-dict `:` qualified(type($input)) `->` type($output)";
+  let results = (outs Polynomial_PolynomialType:$output);
+  let assemblyFormat = "$input attr-dict `:` qualified(type($input))";
   let hasCanonicalizer = 1;
   let hasVerifier = 1;
 }
 
-def Polynomial_INTTOp : Polynomial_Op<"intt", [Pure]> {
+def Polynomial_INTTOp : Polynomial_Op<"intt", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
   let summary = "Computes the reverse integer Number Theoretic Transform (NTT).";
   let description = [{
     `polynomial.intt` computes the reverse integer Number Theoretic Transform
@@ -355,11 +355,11 @@ def Polynomial_INTTOp : Polynomial_Op<"intt", [Pure]> {
     The choice of primitive root may be optionally specified.
   }];
   let arguments = (
-    ins RankedTensorOf<[ModArith_ModArithType]>:$input,
+    ins Polynomial_PolynomialType:$input,
     OptionalAttr<Polynomial_PrimitiveRootAttr>:$root
   );
   let results = (outs Polynomial_PolynomialType:$output);
-  let assemblyFormat = "$input attr-dict `:` qualified(type($input)) `->` type($output)";
+  let assemblyFormat = "$input attr-dict `:` qualified(type($input))";
   let hasCanonicalizer = 1;
   let hasVerifier = 1;
 }

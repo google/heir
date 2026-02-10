@@ -42,6 +42,15 @@ func.func @test_syntax_modarith(%arg0: !ty_modarith) -> !ty_modarith {
 
 // -----
 
+!Zp1_attr = !mod_arith.int<17 : i64>
+!Zp2_attr = !mod_arith.int<257 : i64>
+!ty_attr = !rns.rns<!Zp1_attr, !Zp2_attr>
+
+// expected-error@below {{expected 2 values to match the RNS basis size, but found 1}}
+#bad_value = #rns.value<[3] : !ty_attr>
+
+// -----
+
 !Zp1_verify = !mod_arith.int<3721063133 : i64>
 !Zp2_verify = !mod_arith.int<2737228591 : i64>
 !Zp3_verify = !mod_arith.int<3180146689 : i64>
