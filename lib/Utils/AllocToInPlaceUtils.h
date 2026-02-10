@@ -1,3 +1,7 @@
+#include <optional>
+
+#include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
+#include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #ifndef LIB_UTILS_ALLOCTOINPLACEUTILS_H_
 #define LIB_UTILS_ALLOCTOINPLACEUTILS_H_
 
@@ -20,6 +24,18 @@
 
 namespace mlir {
 namespace heir {
+
+static std::optional<LevelState> getLevel(Value value, DataFlowSolver* solver) {
+  auto* lattice = solver->lookupState<LevelLattice>(value);
+  if (!lattice || !lattice->getValue().isInitialized()) {
+    return std::nullopt;
+  }
+  auto latticeVal = lattice->getValue();
+  if (!latticeVal.isInt()) {
+    return std::nullopt;
+  }
+  return lattice->getValue().getInt();
+}
 
 // CallerProvidedStorageInfo provides an analysis of SSA values that
 // can be reused for in-place operations that require the caller to pass
@@ -104,11 +120,22 @@ class CallerProvidedStorageInfo {
   // various accelerators. One basic optimization is to use the dead value that
   // is closest to the current operation in the block. But as we do not have the
   // information of the memory layout, we do not implement this optimization.
-  Value getAvailableStorage(Operation* op, Liveness* liveness) const {
+  Value getAvailableStorage(Operation* op, Liveness* liveness,
+                            DataFlowSolver* solver) const {
     LLVM_DEBUG(llvm::dbgs()
                << "getAvailableStorage for op " << op->getName() << "\n");
     for (auto& [storage, values] : storageToReferringValues) {
       // storage and all referring values are dead
+      if (solver) {
+        auto opLevel = getLevel(op->getResult(0), solver);
+        auto storageLevel = getLevel(storage, solver);
+        if (!opLevel.has_value() || !storageLevel.has_value()) {
+          continue;
+        }
+        if (opLevel.value() != storageLevel.value()) {
+          continue;
+        }
+      }
       if (std::all_of(
               values.begin(), values.end(),
               [&](Value value) { return liveness->isDeadAfter(value, op); }) &&

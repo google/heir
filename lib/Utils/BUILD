@@ -232,7 +232,9 @@ cc_library(
     srcs = ["AllocToInPlaceUtils.cpp"],
     hdrs = ["AllocToInPlaceUtils.h"],
     deps = [
+        "@heir//lib/Analysis/LevelAnalysis",
         "@heir//lib/Utils/Tablegen:InPlaceOpInterface",
+        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",

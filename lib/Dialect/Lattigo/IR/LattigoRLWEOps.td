@@ -122,7 +122,8 @@ def Lattigo_RLWEDecryptOp : Lattigo_RLWEOp<"decrypt"> {
   let results = (outs Lattigo_RLWEPlaintext:$plaintext);
 }
 
-def Lattigo_RLWEDropLevelNewOp : Lattigo_RLWEOp<"drop_level_new"> {
+def Lattigo_RLWEDropLevelNewOp : Lattigo_RLWEOp<"drop_level_new", 
+  [DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop"]>]> {
   let summary = "Drop level of a ciphertext";
   let arguments = (ins
     Lattigo_RLWEEvaluator:$evaluator,
@@ -132,7 +133,8 @@ def Lattigo_RLWEDropLevelNewOp : Lattigo_RLWEOp<"drop_level_new"> {
   let results = (outs Lattigo_RLWECiphertext:$output);
 }
 
-def Lattigo_RLWEDropLevelOp : Lattigo_RLWEOp<"drop_level", [InPlaceOpInterface]> {
+def Lattigo_RLWEDropLevelOp : Lattigo_RLWEOp<"drop_level", 
+  [InPlaceOpInterface, DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop"]>]> {
   let summary = "Drop level of a ciphertext";
   let description = [{
     This operation drops the level of a ciphertext
