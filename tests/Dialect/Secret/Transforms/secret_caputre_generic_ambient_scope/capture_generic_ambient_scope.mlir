@@ -40,3 +40,16 @@ func.func @test_capture_within_region(%value : i32) {
   } -> (!secret.secret<i32>)
   func.return
 }
+
+// CHECK: func.func @issue_2488
+func.func @issue_2488(%arg0: i64, %arg1: !secret.secret<i1>) -> !secret.secret<i64> {
+  // CHECK: secret.generic(%arg1: !secret.secret<i1>, %arg0: i64)
+  // CHECK: ^body(%{{.*}}: i1, %{{.*}}: i64):
+  %0 = secret.generic(%arg1 : !secret.secret<i1>) {
+  ^bb0(%arg2: i1):
+    %1 = arith.extui %arg2 : i1 to i64
+    %2 = arith.muli %1, %arg0 : i64
+    secret.yield %2 : i64
+  } -> (!secret.secret<i64>)
+  return %0 : !secret.secret<i64>
+}

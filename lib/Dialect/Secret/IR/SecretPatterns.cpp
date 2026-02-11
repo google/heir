@@ -263,13 +263,13 @@ LogicalResult RemoveNonSecretGenericArgs::matchAndRewrite(
 
 LogicalResult CaptureAmbientScope::matchAndRewrite(
     GenericOp genericOp, PatternRewriter& rewriter) const {
-  Value* foundValue = nullptr;
+  Value foundValue;
   rewriter.setInsertionPointToStart(genericOp.getBody());
   genericOp.getBody()->walk([&](Operation* op) -> WalkResult {
     for (Value operand : op->getOperands()) {
       Region* operandRegion = operand.getParentRegion();
       if (operandRegion && !genericOp.getRegion().isAncestor(operandRegion)) {
-        foundValue = &operand;
+        foundValue = operand;
         // If this is an index operand of an affine operation, update to memref
         // ops. Affine dimensions must be block arguments for affine.for or
         // affine.parallel.
@@ -299,11 +299,11 @@ LogicalResult CaptureAmbientScope::matchAndRewrite(
     return WalkResult::advance();
   });
 
-  if (foundValue == nullptr) {
+  if (!foundValue) {
     return failure();
   }
 
-  Value value = *foundValue;
+  Value value = foundValue;
   rewriter.modifyOpInPlace(genericOp, [&]() {
     BlockArgument newArg =
         genericOp.getBody()->addArgument(value.getType(), genericOp.getLoc());
