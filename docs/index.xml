@@ -3094,14 +3094,14 @@ bootstrap defined by the lookup table.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>module attributes &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">ckks.schemeParam =&lt;/span> &lt;span style="color:#000">#ckks.scheme_param&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">logN =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">10&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">Q =&lt;/span> &lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1095233372161&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1032955396097&lt;/span>&lt;span style="color:#000;font-weight:bold">],&lt;/span> &lt;span style="color:#f57900">P =&lt;/span> &lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">261405424692085787&lt;/span>&lt;span style="color:#000;font-weight:bold">],&lt;/span> &lt;span style="color:#f57900">logDefaultScale =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">45&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;}&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@test_keyswitch&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%ringelt&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ringelt&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1x&lt;/span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>ct_L1&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>ringelt&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ringelt&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%c0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%ringelt_0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>extract_slice &lt;span style="color:#000">%ringelt&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">size =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">start =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>ringelt&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ringelt
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%ringelt_1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>convert_basis &lt;span style="color:#000">%ringelt_0&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">targetBasis =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rns_L1&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>ringelt&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ringelt1
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%ringelt_0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>extract_slice &lt;span style="color:#000">%ringelt&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">size =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">start =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ringelt
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%ringelt_1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>convert_basis &lt;span style="color:#000">%ringelt_0&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">targetBasis =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rns_L1&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ringelt
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%extracted&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>extract &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#000">%c0&lt;/span>&lt;span style="color:#000;font-weight:bold">]&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1x&lt;/span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>ct_L1&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%ct&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>mul_ring_elt &lt;span style="color:#000">%ringelt_1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%extracted&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>ringelt1&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ct_L1&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ct_L1
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%ringelt_2&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>extract_coeff &lt;span style="color:#000">%ct&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">index =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>ct_L1&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ringelt1
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%ringelt_3&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>extract_coeff &lt;span style="color:#000">%ct&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">index =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>ct_L1&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ringelt1
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%ringelt_4&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>convert_basis &lt;span style="color:#000">%ringelt_2&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">targetBasis =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rns_L0&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>ringelt1&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ringelt
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%ringelt_5&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>convert_basis &lt;span style="color:#000">%ringelt_3&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">targetBasis =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rns_L0&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>ringelt1&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ringelt
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%ringelt_2&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>extract_coeff &lt;span style="color:#000">%ct&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">index =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ct_L1
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%ringelt_3&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>extract_coeff &lt;span style="color:#000">%ct&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">index =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ct_L1
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%ringelt_4&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>convert_basis &lt;span style="color:#000">%ringelt_2&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">targetBasis =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rns_L0&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ringelt1
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%ringelt_5&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>convert_basis &lt;span style="color:#000">%ringelt_3&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">targetBasis =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rns_L0&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ringelt1
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%ringelt_4&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%ringelt_5&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ringelt&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ringelt
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
@@ -3156,7 +3156,6 @@ bootstrap defined by the lookup table.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">{&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@test_relin&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%ct&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ct_L1_D3&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">2x&lt;/span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>ct_L2&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ct_L1_D2 &lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%ct_0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> ckks&lt;span style="color:#000;font-weight:bold">.&lt;/span>relinearize &lt;span style="color:#000">%ct&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg0&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">from_basis =&lt;/span> array&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">2&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;,&lt;/span> &lt;span style="color:#f57900">to_basis =&lt;/span> array&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>ct_L1_D3&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">2x&lt;/span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>ct_L2&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ct_L1_D2
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%ct_0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ct_L1_D2
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
@@ -3181,9 +3180,9 @@ bootstrap defined by the lookup table.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#f57900">ct_L2 =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>lwe_ciphertext&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">plaintext_space =&lt;/span> &lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">ring =&lt;/span> &lt;span style="color:#000">#ring_rns_L2_1_x1024&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">encoding =&lt;/span> &lt;span style="color:#000">#inverse_canonical_encoding&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;,&lt;/span> &lt;span style="color:#f57900">ciphertext_space =&lt;/span> &lt;span style="color:#000">#ciphertext_space_L2&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">key =&lt;/span> &lt;span style="color:#000">#key&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>module attributes &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">ckks.schemeParam =&lt;/span> &lt;span style="color:#000">#ckks.scheme_param&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">logN =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">10&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">Q =&lt;/span> &lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1095233372161&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1032955396097&lt;/span>&lt;span style="color:#000;font-weight:bold">],&lt;/span> &lt;span style="color:#f57900">P =&lt;/span> &lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">261405424692085787&lt;/span>&lt;span style="color:#000;font-weight:bold">],&lt;/span> &lt;span style="color:#f57900">logDefaultScale =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">45&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;}&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@test_relin&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%ct&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ct_L1_D3&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">2x&lt;/span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>ct_L2&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ct_L1 &lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%ringelt&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>extract_coeff &lt;span style="color:#000">%ct&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">index =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>ct_L1_D3&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ringelt
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%ringelt_0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>extract_coeff &lt;span style="color:#000">%ct&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">index =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>ct_L1_D3&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ringelt
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%ringelt_1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>extract_coeff &lt;span style="color:#000">%ct&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">index =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">2&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>ct_L1_D3&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ringelt
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%ringelt&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>extract_coeff &lt;span style="color:#000">%ct&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">index =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ct_L1_D3
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%ringelt_0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>extract_coeff &lt;span style="color:#000">%ct&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">index =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ct_L1_D3
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%ringelt_1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>extract_coeff &lt;span style="color:#000">%ct&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">index =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">2&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ct_L1_D3
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%constTerm&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%linearTerm&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> ckks&lt;span style="color:#000;font-weight:bold">.&lt;/span>key_switch_inner &lt;span style="color:#000">%ringelt_1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>ringelt&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">2x&lt;/span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>ct_L2&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>ringelt&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ringelt&lt;span style="color:#000;font-weight:bold">)&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%ct_2&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>from_coeffs &lt;span style="color:#000">%constTerm&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%linearTerm&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>ringelt&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ringelt&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ct_L1
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%ct_3&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>from_coeffs &lt;span style="color:#000">%ringelt&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%ringelt_0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>ringelt&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ringelt&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ct_L1
@@ -3578,7 +3577,7 @@ as SIMD/rotation ops are not well-defined on tensor-semantic tensors.&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#layout&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#tensor_ext.layout&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;{ [i0] -&amp;gt; [ct, slot] : ct = 0 and (-i0 + slot) mod 4 = 0 and 0 &amp;lt;= i0 &amp;lt; 4 and 0 &amp;lt;= slot &amp;lt; 4 }&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#original_type&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#tensor_ext.original_type&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">originalType =&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;,&lt;/span> &lt;span style="color:#f57900">layout =&lt;/span> &lt;span style="color:#000">#layout&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>module &lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> private &lt;span style="color:#000">@_assign_layout_2860977394914706746&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> attributes &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">client.pack_func =&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">func_name =&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;matvec&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">}}&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> private &lt;span style="color:#000">@_assign_layout_5220128590412560452&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> attributes &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">client.pack_func =&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">func_name =&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;matvec&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">}}&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%c0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%cst&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> dense&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">0.000000e+00&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%c0_i32&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
@@ -3593,7 +3592,7 @@ as SIMD/rotation ops are not well-defined on tensor-semantic tensors.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> private &lt;span style="color:#000">@_assign_layout_4411749156026250429&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> attributes &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">client.pack_func =&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">func_name =&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;matvec&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">}}&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> private &lt;span style="color:#000">@_assign_layout_12881307504742495895&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> attributes &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">client.pack_func =&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">func_name =&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;matvec&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">}}&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%cst&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> dense&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">0.000000e+00&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%c0_i32&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%c1_i32&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
@@ -3624,8 +3623,8 @@ as SIMD/rotation ops are not well-defined on tensor-semantic tensors.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%cst_0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> dense&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">2.000000e+00&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>generic&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f57900">^body&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%input0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;):&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>call &lt;span style="color:#000">@_assign_layout_4411749156026250429&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%cst_0&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%2&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>call &lt;span style="color:#000">@_assign_layout_2860977394914706746&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%cst&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>call &lt;span style="color:#000">@_assign_layout_12881307504742495895&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%cst_0&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%2&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>call &lt;span style="color:#000">@_assign_layout_5220128590412560452&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%cst&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%extracted_slice&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>extract_slice &lt;span style="color:#000">%1&lt;/span>&lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#000">%c0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">]&lt;/span> &lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">4&lt;/span>&lt;span style="color:#000;font-weight:bold">]&lt;/span> &lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#000;font-weight:bold">]&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> to &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%3&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ext&lt;span style="color:#000;font-weight:bold">.&lt;/span>rotate &lt;span style="color:#000">%extracted_slice&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%c0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%4&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>mulf &lt;span style="color:#000">%3&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%input0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
@@ -5477,43 +5476,23 @@ arguments in the function body.&lt;/li>
 &lt;/ul>
 &lt;h4 id="statistics">Statistics&lt;/h4>
 &lt;pre tabindex="0">&lt;code>total circuit size : The total circuit size for all optimized circuits, after optimization is done.
-&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2025-09-04</title><link>https://heir.dev/blog/2025/09/05/heir-meeting-2025-09-04/</link><pubDate>Fri, 05 Sep 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/09/05/heir-meeting-2025-09-04/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1_Eoip7Gxr89V06SOI2rNH-a8SipGzQUsy5XC3mSmxyc/edit?usp=sharing">notes&lt;/a>
-and &lt;a href="https://youtu.be/HfCUuwt0E0A">video recording&lt;/a> from the HEIR meeting on
-2025-09-04.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2025-07-10</title><link>https://heir.dev/blog/2025/07/10/heir-meeting-2025-07-10/</link><pubDate>Thu, 10 Jul 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/07/10/heir-meeting-2025-07-10/</guid><description>
+&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2025-07-10</title><link>https://heir.dev/blog/2025/07/10/heir-meeting-2025-07-10/</link><pubDate>Thu, 10 Jul 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/07/10/heir-meeting-2025-07-10/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/17HaAzW2KZMlwgQwVttDblWY3Ta7ey5LvJ0XOKvnnLZE/edit?usp=sharing">notes&lt;/a>
 and &lt;a href="https://youtu.be/dCBWr05kOks">video recording&lt;/a> from the HEIR meeting on
 2025-06-12.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2025-04-17</title><link>https://heir.dev/blog/2025/04/17/heir-meeting-2025-04-17/</link><pubDate>Thu, 17 Apr 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/04/17/heir-meeting-2025-04-17/</guid><description>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-10-31</title><link>https://heir.dev/blog/2024/10/31/heir-meeting-2024-10-31/</link><pubDate>Thu, 31 Oct 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/10/31/heir-meeting-2024-10-31/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1be2IqEcj14CF-MA17SjZaS_soRDf-xTrMP-yAKh1BWE/edit?usp=sharing">notes&lt;/a>
-and &lt;a href="https://youtu.be/HHU6rCMxZRc">video recording&lt;/a> from the HEIR meeting on
-2025-04-17.&lt;/p>
-&lt;p>Hongren Zheng gave an overview of the &lt;code>mgmt&lt;/code> dialect which handles ciphertext
-management in the compiler. This talk
-&lt;a href="https://youtu.be/HHU6rCMxZRc?si=U_ePY5emqs6e4NoV&amp;amp;t=1631">starts at 27:11&lt;/a>.
-&lt;a href="https://heir.dev/slides/mgmt-2025-04-17.pdf">The slides can be found here&lt;/a>.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-07-25</title><link>https://heir.dev/blog/2024/07/25/heir-meeting-2024-07-25/</link><pubDate>Thu, 25 Jul 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/07/25/heir-meeting-2024-07-25/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1tIrxc4V5OlAeqx_Z1rl_kuMmkd-HUAKEv90q3i-5QSU/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1QUxT00gd1ZSayzdtxY5T5-Wiod-eNnCFGoqVceWQ83Y/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1_1CbRJeNr5NqcwEMXnfkxOqy9u5wJPyq/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-07-25.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2023-11-28</title><link>https://heir.dev/blog/2023/11/28/heir-meeting-2023-11-28/</link><pubDate>Tue, 28 Nov 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/11/28/heir-meeting-2023-11-28/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1Q9a7O7HwxKMDqI23l3154KIOw1ofANkX/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-10-31.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-09-05</title><link>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</link><pubDate>Thu, 05 Sep 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1-kkkG__qlAtsp50YXxHC7Dq__Qvgb4BcLZCopzJOzE4/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1tohVmC2pn_XDn3gjCFeo3K4Wfyf7VWu3oK1vimEsFD4/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1ykxaqlfVExqGC6saiSnfM2A7_TpWqKiE/view">video recording&lt;/a>
-from the HEIR meeting on 2023-11-28.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: Hello, World!</title><link>https://heir.dev/blog/2023/06/13/hello-world/</link><pubDate>Tue, 13 Jun 2023 13:15:10 -0700</pubDate><guid>https://heir.dev/blog/2023/06/13/hello-world/</guid><description>
-&lt;p>Hello, world! We&amp;rsquo;re starting a project to unify homomorphic encryption compiler
-IRs.&lt;/p>
-&lt;p>Our initial meeting was 2023-05-30
-(&lt;a href="https://docs.google.com/document/d/1iyiHfseoVkA1qaP3Ig47kqVC-J1_AIidPaj61jvj2KM/edit?usp=sharing">read-only copy of the minutes&lt;/a>).
-Stay tuned for future updates while we work out a meeting schedule.&lt;/p>
+&lt;a href="https://drive.google.com/file/d/1XGheLF7kvJfwAMJJQ-XbDpa4Ld15kj4t/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-09-05.&lt;/p>
 &lt;!-- mdformat global-off --></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h1 id="bgv-dialect">&amp;lsquo;bgv&amp;rsquo; Dialect&lt;/h1>
@@ -14498,8 +14477,11 @@ KeyAttr, # key
 &lt;h3 id="lweconvert_basis-heirlweconvertbasisop">&lt;code>lwe.convert_basis&lt;/code> (heir::lwe::ConvertBasisOp)&lt;/h3>
 &lt;p>&lt;em>Change a ring element&amp;rsquo;s RNS basis&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lwe.convert_basis` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.convert_basis` $value attr-dict `:` type($value)
+&lt;/code>&lt;/pre>&lt;p>Given a ring element with an RNS basis, output a ring element with the target
+output basis. The output value is equivalent to lifting the ring element to its
+centered representative over the integers, and reducing by the output modulus.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes">Attributes:&lt;/h4>
@@ -14589,7 +14571,7 @@ bits of the cleartext should be encoded into the plaintext.&lt;/p>
 &lt;h3 id="lweextract_coeff-heirlweextractcoeffop">&lt;code>lwe.extract_coeff&lt;/code> (heir::lwe::ExtractCoeffOp)&lt;/h3>
 &lt;p>&lt;em>Extract a ciphertext component&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lwe.extract_coeff` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.extract_coeff` $value attr-dict `:` type($value)
 &lt;/code>&lt;/pre>&lt;p>A ciphertext can be viewed as a polynomial in the indeterminant &lt;code>S&lt;/code>,
 the abstract secret key. For example, a ciphertext with two components
 &lt;code>[c0, c1]&lt;/code> represents the polynomial &lt;code>c0 + c1 * S&lt;/code>. This op returns &lt;code>c_i&lt;/code>.&lt;/p>
@@ -14634,8 +14616,13 @@ the abstract secret key. For example, a ciphertext with two components
 &lt;h3 id="lweextract_slice-heirlweextractsliceop">&lt;code>lwe.extract_slice&lt;/code> (heir::lwe::ExtractSliceOp)&lt;/h3>
 &lt;p>&lt;em>Extract a subset of the ring element&amp;rsquo;s RNS basis&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lwe.extract_slice` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.extract_slice` $input attr-dict `:` type($input)
+&lt;/code>&lt;/pre>&lt;p>Given a ring element an RNS basis with $k$ limbs, extract the slice of
+RNS components, starting at &lt;code>start&lt;/code> and having size &lt;code>size&lt;/code>.&lt;/p>
+&lt;p>The result type is a ring element with RNS type containing the subset of basis types
+corresponding to the extracted slice. This is useful for operations like
+truncating or partitioning a modulus chain.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-3">Attributes:&lt;/h4>
@@ -14654,7 +14641,7 @@ the abstract secret key. For example, a ciphertext with two components
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>value&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
 &lt;td>A ring element&lt;/td>
 &lt;/tr>
 &lt;/tbody>
@@ -18755,6 +18742,52 @@ the coefficient type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="polynomialconvert_basis-heirpolynomialconvertbasisop">&lt;code>polynomial.convert_basis&lt;/code> (heir::polynomial::ConvertBasisOp)&lt;/h3>
+&lt;p>&lt;em>Change a polynomial&amp;rsquo;s RNS basis&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `polynomial.convert_basis` $value attr-dict `:` type($value)
+&lt;/code>&lt;/pre>&lt;p>Given a polynomial with RNS coefficients, output a polynomial where the coefficients
+have the target output basis. The output value of each coefficient is equivalent to
+lifting the coefficient to its centered representative over the integers, and reducing
+by the output modulus.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-1">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>targetBasis&lt;/code>&lt;/td>&lt;td>::mlir::TypeAttr&lt;/td>&lt;td>any type attribute&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-1">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>value&lt;/code>&lt;/td>
+&lt;td>An element of a polynomial ring.&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-2">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>An element of a polynomial ring.&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="polynomialeval-heirpolynomialevalop">&lt;code>polynomial.eval&lt;/code> (heir::polynomial::EvalOp)&lt;/h3>
 &lt;p>&lt;em>Evaluate a static polynomial attribute at a given SSA value.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
@@ -18776,12 +18809,12 @@ if the input is compatible with the polynomial coefficient type.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-1">Attributes:&lt;/h4>
+&lt;h4 id="attributes-2">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>polynomial&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>a typed float_polynomial or a typed int_polynomial or a typed chebyshev_polynomial&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-1">Operands:&lt;/h4>
+&lt;h4 id="operands-2">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -18796,7 +18829,7 @@ if the input is compatible with the polynomial coefficient type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-2">Results:&lt;/h4>
+&lt;h4 id="results-3">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -18808,6 +18841,54 @@ if the input is compatible with the polynomial coefficient type.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
 &lt;td>any type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="polynomialextract_slice-heirpolynomialextractsliceop">&lt;code>polynomial.extract_slice&lt;/code> (heir::polynomial::ExtractSliceOp)&lt;/h3>
+&lt;p>&lt;em>Extract a subset of the polynomial&amp;rsquo;s RNS basis&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `polynomial.extract_slice` $input attr-dict `:` type($input)
+&lt;/code>&lt;/pre>&lt;p>Given a polynomial with RNS coefficients with $k$ basis types (limbs), extract the slice of
+RNS components for each coefficient, starting at &lt;code>start&lt;/code> and having size &lt;code>size&lt;/code>.&lt;/p>
+&lt;p>The result type is a polynomial with RNS type containing the subset of basis types
+corresponding to the extracted slice. This is useful for operations like
+truncating or partitioning a modulus chain.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-3">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>start&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>index attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>size&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>index attribute&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-3">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>An element of a polynomial ring.&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-4">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>An element of a polynomial ring.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -18830,7 +18911,7 @@ all higher-degree terms have coefficient zero.&lt;/p>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-2">Operands:&lt;/h4>
+&lt;h4 id="operands-4">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -18845,7 +18926,7 @@ all higher-degree terms have coefficient zero.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-3">Results:&lt;/h4>
+&lt;h4 id="results-5">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -18875,12 +18956,12 @@ encoding attribute of the tensor.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-2">Attributes:&lt;/h4>
+&lt;h4 id="attributes-4">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>root&lt;/code>&lt;/td>&lt;td>::mlir::heir::polynomial::PrimitiveRootAttr&lt;/td>&lt;td>an attribute containing an integer and its degree as a root of unity&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-3">Operands:&lt;/h4>
+&lt;h4 id="operands-5">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -18895,7 +18976,7 @@ encoding attribute of the tensor.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-4">Results:&lt;/h4>
+&lt;h4 id="results-6">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -18927,7 +19008,7 @@ coefficient type of the polynomial&amp;rsquo;s ring attribute.&lt;/p>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-4">Operands:&lt;/h4>
+&lt;h4 id="operands-6">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -18942,7 +19023,7 @@ coefficient type of the polynomial&amp;rsquo;s ring attribute.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-5">Results:&lt;/h4>
+&lt;h4 id="results-7">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -18975,7 +19056,7 @@ coefficient type of the polynomial&amp;rsquo;s ring attribute.&lt;/p>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-5">Operands:&lt;/h4>
+&lt;h4 id="operands-7">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -18990,7 +19071,7 @@ coefficient type of the polynomial&amp;rsquo;s ring attribute.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-6">Results:&lt;/h4>
+&lt;h4 id="results-8">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -19019,7 +19100,7 @@ coefficients of the input.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-6">Operands:&lt;/h4>
+&lt;h4 id="operands-8">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -19038,7 +19119,7 @@ coefficients of the input.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-7">Results:&lt;/h4>
+&lt;h4 id="results-9">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -19070,7 +19151,7 @@ the &lt;code>coefficient&lt;/code> input type.&lt;/p>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-7">Operands:&lt;/h4>
+&lt;h4 id="operands-9">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -19089,7 +19170,7 @@ the &lt;code>coefficient&lt;/code> input type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-8">Results:&lt;/h4>
+&lt;h4 id="results-10">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -19125,7 +19206,7 @@ the coefficient type.&lt;/p>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-8">Operands:&lt;/h4>
+&lt;h4 id="operands-10">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -19144,7 +19225,7 @@ the coefficient type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-9">Results:&lt;/h4>
+&lt;h4 id="results-11">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -19176,7 +19257,7 @@ coefficientType.&lt;/p>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-9">Operands:&lt;/h4>
+&lt;h4 id="operands-11">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -19195,7 +19276,7 @@ coefficientType.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-10">Results:&lt;/h4>
+&lt;h4 id="results-12">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -19227,12 +19308,12 @@ the list of $n$ evaluations&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-3">Attributes:&lt;/h4>
+&lt;h4 id="attributes-5">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>root&lt;/code>&lt;/td>&lt;td>::mlir::heir::polynomial::PrimitiveRootAttr&lt;/td>&lt;td>an attribute containing an integer and its degree as a root of unity&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-10">Operands:&lt;/h4>
+&lt;h4 id="operands-12">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -19247,7 +19328,7 @@ the list of $n$ evaluations&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-11">Results:&lt;/h4>
+&lt;h4 id="results-13">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -19283,7 +19364,7 @@ the coefficient type.&lt;/p>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-11">Operands:&lt;/h4>
+&lt;h4 id="operands-13">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -19302,7 +19383,7 @@ the coefficient type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-12">Results:&lt;/h4>
+&lt;h4 id="results-14">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -19341,7 +19422,7 @@ attribute&amp;rsquo;s polynomialModulus, including zeroes.&lt;/p>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-12">Operands:&lt;/h4>
+&lt;h4 id="operands-14">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -19356,7 +19437,7 @@ attribute&amp;rsquo;s polynomialModulus, including zeroes.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-13">Results:&lt;/h4>
+&lt;h4 id="results-15">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>

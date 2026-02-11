@@ -8982,8 +8982,11 @@ KeyAttr, # key
 &lt;h3 id="lweconvert_basis-heirlweconvertbasisop">&lt;code>lwe.convert_basis&lt;/code> (heir::lwe::ConvertBasisOp)&lt;/h3>
 &lt;p>&lt;em>Change a ring element&amp;rsquo;s RNS basis&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lwe.convert_basis` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.convert_basis` $value attr-dict `:` type($value)
+&lt;/code>&lt;/pre>&lt;p>Given a ring element with an RNS basis, output a ring element with the target
+output basis. The output value is equivalent to lifting the ring element to its
+centered representative over the integers, and reducing by the output modulus.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes">Attributes:&lt;/h4>
@@ -9073,7 +9076,7 @@ bits of the cleartext should be encoded into the plaintext.&lt;/p>
 &lt;h3 id="lweextract_coeff-heirlweextractcoeffop">&lt;code>lwe.extract_coeff&lt;/code> (heir::lwe::ExtractCoeffOp)&lt;/h3>
 &lt;p>&lt;em>Extract a ciphertext component&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lwe.extract_coeff` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.extract_coeff` $value attr-dict `:` type($value)
 &lt;/code>&lt;/pre>&lt;p>A ciphertext can be viewed as a polynomial in the indeterminant &lt;code>S&lt;/code>,
 the abstract secret key. For example, a ciphertext with two components
 &lt;code>[c0, c1]&lt;/code> represents the polynomial &lt;code>c0 + c1 * S&lt;/code>. This op returns &lt;code>c_i&lt;/code>.&lt;/p>
@@ -9118,8 +9121,13 @@ the abstract secret key. For example, a ciphertext with two components
 &lt;h3 id="lweextract_slice-heirlweextractsliceop">&lt;code>lwe.extract_slice&lt;/code> (heir::lwe::ExtractSliceOp)&lt;/h3>
 &lt;p>&lt;em>Extract a subset of the ring element&amp;rsquo;s RNS basis&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lwe.extract_slice` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.extract_slice` $input attr-dict `:` type($input)
+&lt;/code>&lt;/pre>&lt;p>Given a ring element an RNS basis with $k$ limbs, extract the slice of
+RNS components, starting at &lt;code>start&lt;/code> and having size &lt;code>size&lt;/code>.&lt;/p>
+&lt;p>The result type is a ring element with RNS type containing the subset of basis types
+corresponding to the extracted slice. This is useful for operations like
+truncating or partitioning a modulus chain.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-3">Attributes:&lt;/h4>
@@ -9138,7 +9146,7 @@ the abstract secret key. For example, a ciphertext with two components
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>value&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
 &lt;td>A ring element&lt;/td>
 &lt;/tr>
 &lt;/tbody>
@@ -13239,6 +13247,52 @@ the coefficient type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="polynomialconvert_basis-heirpolynomialconvertbasisop">&lt;code>polynomial.convert_basis&lt;/code> (heir::polynomial::ConvertBasisOp)&lt;/h3>
+&lt;p>&lt;em>Change a polynomial&amp;rsquo;s RNS basis&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `polynomial.convert_basis` $value attr-dict `:` type($value)
+&lt;/code>&lt;/pre>&lt;p>Given a polynomial with RNS coefficients, output a polynomial where the coefficients
+have the target output basis. The output value of each coefficient is equivalent to
+lifting the coefficient to its centered representative over the integers, and reducing
+by the output modulus.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-1">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>targetBasis&lt;/code>&lt;/td>&lt;td>::mlir::TypeAttr&lt;/td>&lt;td>any type attribute&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-1">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>value&lt;/code>&lt;/td>
+&lt;td>An element of a polynomial ring.&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-2">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>An element of a polynomial ring.&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="polynomialeval-heirpolynomialevalop">&lt;code>polynomial.eval&lt;/code> (heir::polynomial::EvalOp)&lt;/h3>
 &lt;p>&lt;em>Evaluate a static polynomial attribute at a given SSA value.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
@@ -13260,12 +13314,12 @@ if the input is compatible with the polynomial coefficient type.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-1">Attributes:&lt;/h4>
+&lt;h4 id="attributes-2">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>polynomial&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>a typed float_polynomial or a typed int_polynomial or a typed chebyshev_polynomial&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-1">Operands:&lt;/h4>
+&lt;h4 id="operands-2">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13280,7 +13334,7 @@ if the input is compatible with the polynomial coefficient type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-2">Results:&lt;/h4>
+&lt;h4 id="results-3">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13292,6 +13346,54 @@ if the input is compatible with the polynomial coefficient type.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
 &lt;td>any type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="polynomialextract_slice-heirpolynomialextractsliceop">&lt;code>polynomial.extract_slice&lt;/code> (heir::polynomial::ExtractSliceOp)&lt;/h3>
+&lt;p>&lt;em>Extract a subset of the polynomial&amp;rsquo;s RNS basis&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `polynomial.extract_slice` $input attr-dict `:` type($input)
+&lt;/code>&lt;/pre>&lt;p>Given a polynomial with RNS coefficients with $k$ basis types (limbs), extract the slice of
+RNS components for each coefficient, starting at &lt;code>start&lt;/code> and having size &lt;code>size&lt;/code>.&lt;/p>
+&lt;p>The result type is a polynomial with RNS type containing the subset of basis types
+corresponding to the extracted slice. This is useful for operations like
+truncating or partitioning a modulus chain.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-3">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>start&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>index attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>size&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>index attribute&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-3">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>An element of a polynomial ring.&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-4">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>An element of a polynomial ring.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -13314,7 +13416,7 @@ all higher-degree terms have coefficient zero.&lt;/p>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-2">Operands:&lt;/h4>
+&lt;h4 id="operands-4">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13329,7 +13431,7 @@ all higher-degree terms have coefficient zero.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-3">Results:&lt;/h4>
+&lt;h4 id="results-5">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13359,12 +13461,12 @@ encoding attribute of the tensor.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-2">Attributes:&lt;/h4>
+&lt;h4 id="attributes-4">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>root&lt;/code>&lt;/td>&lt;td>::mlir::heir::polynomial::PrimitiveRootAttr&lt;/td>&lt;td>an attribute containing an integer and its degree as a root of unity&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-3">Operands:&lt;/h4>
+&lt;h4 id="operands-5">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13379,7 +13481,7 @@ encoding attribute of the tensor.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-4">Results:&lt;/h4>
+&lt;h4 id="results-6">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13411,7 +13513,7 @@ coefficient type of the polynomial&amp;rsquo;s ring attribute.&lt;/p>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-4">Operands:&lt;/h4>
+&lt;h4 id="operands-6">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13426,7 +13528,7 @@ coefficient type of the polynomial&amp;rsquo;s ring attribute.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-5">Results:&lt;/h4>
+&lt;h4 id="results-7">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13459,7 +13561,7 @@ coefficient type of the polynomial&amp;rsquo;s ring attribute.&lt;/p>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-5">Operands:&lt;/h4>
+&lt;h4 id="operands-7">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13474,7 +13576,7 @@ coefficient type of the polynomial&amp;rsquo;s ring attribute.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-6">Results:&lt;/h4>
+&lt;h4 id="results-8">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13503,7 +13605,7 @@ coefficients of the input.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-6">Operands:&lt;/h4>
+&lt;h4 id="operands-8">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13522,7 +13624,7 @@ coefficients of the input.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-7">Results:&lt;/h4>
+&lt;h4 id="results-9">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13554,7 +13656,7 @@ the &lt;code>coefficient&lt;/code> input type.&lt;/p>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-7">Operands:&lt;/h4>
+&lt;h4 id="operands-9">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13573,7 +13675,7 @@ the &lt;code>coefficient&lt;/code> input type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-8">Results:&lt;/h4>
+&lt;h4 id="results-10">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13609,7 +13711,7 @@ the coefficient type.&lt;/p>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-8">Operands:&lt;/h4>
+&lt;h4 id="operands-10">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13628,7 +13730,7 @@ the coefficient type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-9">Results:&lt;/h4>
+&lt;h4 id="results-11">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13660,7 +13762,7 @@ coefficientType.&lt;/p>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-9">Operands:&lt;/h4>
+&lt;h4 id="operands-11">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13679,7 +13781,7 @@ coefficientType.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-10">Results:&lt;/h4>
+&lt;h4 id="results-12">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13711,12 +13813,12 @@ the list of $n$ evaluations&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-3">Attributes:&lt;/h4>
+&lt;h4 id="attributes-5">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>root&lt;/code>&lt;/td>&lt;td>::mlir::heir::polynomial::PrimitiveRootAttr&lt;/td>&lt;td>an attribute containing an integer and its degree as a root of unity&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-10">Operands:&lt;/h4>
+&lt;h4 id="operands-12">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13731,7 +13833,7 @@ the list of $n$ evaluations&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-11">Results:&lt;/h4>
+&lt;h4 id="results-13">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13767,7 +13869,7 @@ the coefficient type.&lt;/p>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-11">Operands:&lt;/h4>
+&lt;h4 id="operands-13">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13786,7 +13888,7 @@ the coefficient type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-12">Results:&lt;/h4>
+&lt;h4 id="results-14">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13825,7 +13927,7 @@ attribute&amp;rsquo;s polynomialModulus, including zeroes.&lt;/p>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-12">Operands:&lt;/h4>
+&lt;h4 id="operands-14">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -13840,7 +13942,7 @@ attribute&amp;rsquo;s polynomialModulus, including zeroes.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-13">Results:&lt;/h4>
+&lt;h4 id="results-15">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
