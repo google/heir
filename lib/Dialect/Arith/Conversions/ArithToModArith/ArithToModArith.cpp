@@ -10,6 +10,7 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Utils/ConversionUtils.h"
+#include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
@@ -117,8 +118,13 @@ struct ConvertConstant : public OpConversionPattern<mlir::arith::ConstantOp> {
     }
 
     Type newResultType = typeConverter->convertType(op.getResult().getType());
-    mod_arith::ModArithType newResultEltTy =
-        cast<mod_arith::ModArithType>(getElementTypeOrSelf(newResultType));
+    auto newResultEltTy =
+        dyn_cast<mod_arith::ModArithType>(getElementTypeOrSelf(newResultType));
+    if (!newResultEltTy) {
+      return rewriter.notifyMatchFailure(
+          op, "result type element is not a mod_arith type");
+    }
+
     IntegerType storageType =
         cast<IntegerType>(newResultEltTy.getModulus().getType());
     unsigned newWidth = storageType.getWidth();
@@ -136,7 +142,11 @@ struct ConvertConstant : public OpConversionPattern<mlir::arith::ConstantOp> {
       return success();
     }
 
-    IntegerAttr oldAttr = cast<IntegerAttr>(op.getValue());
+    auto oldAttr = dyn_cast<IntegerAttr>(op.getValue());
+    if (!oldAttr) {
+      return rewriter.notifyMatchFailure(op,
+                                         "value is not an integer attribute");
+    }
     IntegerAttr newAttr =
         IntegerAttr::get(storageType, oldAttr.getValue().zextOrTrunc(newWidth));
     auto result = mod_arith::ConstantOp::create(b, newResultType, newAttr);
@@ -222,6 +232,19 @@ struct ArithToModArith : impl::ArithToModArithBase<ArithToModArith> {
 void ArithToModArith::runOnOperation() {
   MLIRContext* context = &getContext();
   ModuleOp module = getOperation();
+
+  if (failed(walkAndValidateTypes<Operation*>(
+          module,
+          [&](Type type) -> LogicalResult {
+            if (isa<FloatType>(getElementTypeOrSelf(type))) {
+              return failure();
+            }
+            return success();
+          },
+          "arith-to-mod-arith: floating point types are not supported"))) {
+    return signalPassFailure();
+  }
+
   ArithToModArithTypeConverter typeConverter(context, modulus);
 
   ConversionTarget target(*context);

@@ -78,6 +78,18 @@ LogicalResult walkAndValidateValues(
     Operation* op, IsValidValueFn isValidValue,
     std::optional<std::string> err = std::nullopt);
 
+namespace detail {
+template <typename T>
+Operation* getOperation(T& op) {
+  return op.getOperation();
+}
+
+template <>
+inline Operation* getOperation<Operation*>(Operation*& op) {
+  return op;
+}
+}  // namespace detail
+
 /// Walk the IR and apply a predicate to all SSA values and produced values.
 /// Values will be visited once for the operation that defines them, and once
 /// for each use. The valueProcessor must be aware that it may be called
@@ -95,8 +107,9 @@ LogicalResult walkAndValidateTypes(
     std::optional<std::string> err = std::nullopt) {
   LogicalResult res = success();
   op->walk([&](OpTy op) {
-    res = validateTypes(op.getOperation(), isValidType);
-    if (failed(res) && err.has_value()) op->emitError() << err.value();
+    Operation* operation = detail::getOperation(op);
+    res = validateTypes(operation, isValidType);
+    if (failed(res) && err.has_value()) operation->emitError() << err.value();
     return failed(res) ? WalkResult::interrupt() : WalkResult::advance();
   });
   return res;
