@@ -27,6 +27,7 @@ def _heir_translate_impl(ctx):
     ctx.actions.run(
         inputs = ctx.attr.src.files,
         outputs = [generated_file],
+        mnemonic = "HeirTranslate",
         arguments = [args],
         executable = ctx.executable._heir_translate_binary,
         toolchain = None,

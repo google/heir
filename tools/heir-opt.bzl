@@ -32,6 +32,7 @@ def _heir_opt_impl(ctx):
 
     ctx.actions.run(
         inputs = ctx.attr.src.files,
+        mnemonic = "HeirOpt",
         tools = ctx.files.data,
         outputs = [generated_file],
         arguments = [args],
