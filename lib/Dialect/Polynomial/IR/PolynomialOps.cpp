@@ -9,6 +9,8 @@
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
+#include "lib/Dialect/RNS/IR/RNSOps.h"
+#include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "llvm/include/llvm/ADT/APInt.h"                 // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
@@ -25,6 +27,7 @@
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/OperationSupport.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Region.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 
@@ -301,6 +304,21 @@ LogicalResult EvalOp::verify() {
   return success();
 }
 
+LogicalResult ExtractSliceOp::verify() {
+  auto polyType = dyn_cast<PolynomialType>(getInput().getType());
+  if (!polyType) {
+    return failure();
+  }
+  auto rnsType =
+      dyn_cast<rns::RNSType>(polyType.getRing().getCoefficientType());
+  if (!rnsType) {
+    return failure();
+  }
+  int64_t start = getStart().getZExtValue();
+  int64_t size = getSize().getZExtValue();
+  return verifyExtractSliceOp(this, rnsType, start, size);
+}
+
 ParseResult ConstantOp::parse(OpAsmParser& parser, OperationState& result) {
   auto loc = parser.getCurrentLocation();
 
@@ -381,6 +399,45 @@ LogicalResult ConstantOp::inferReturnTypes(
     assert(false && "unexpected attribute type");
     return failure();
   }
+  return success();
+}
+
+LogicalResult ConvertBasisOp::inferReturnTypes(
+    MLIRContext* ctx, std::optional<Location>, ValueRange operands,
+    DictionaryAttr attrs, mlir::OpaqueProperties properties,
+    mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
+  ConvertBasisOpAdaptor op(operands, attrs, properties, regions);
+  auto inputType = dyn_cast<PolynomialType>(op.getValue().getType());
+  if (!inputType) {
+    return failure();
+  }
+  polynomial::RingAttr ringAttr = inputType.getRing();
+  rns::RNSType elementType = dyn_cast<rns::RNSType>(op.getTargetBasis());
+  if (!elementType) {
+    return failure();
+  }
+  polynomial::RingAttr outputRingAttr = polynomial::RingAttr::get(
+      ctx, elementType, ringAttr.getPolynomialModulus());
+  PolynomialType resultType = PolynomialType::get(ctx, outputRingAttr);
+  results.push_back(resultType);
+  return success();
+}
+
+LogicalResult ExtractSliceOp::inferReturnTypes(
+    MLIRContext* context, std::optional<Location> loc, ValueRange operands,
+    DictionaryAttr attrs, mlir::OpaqueProperties properties,
+    mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
+  ExtractSliceOpAdaptor op(operands, attrs, properties, regions);
+  auto polyType = dyn_cast<PolynomialType>(op.getInput().getType());
+  RingAttr ringAttr = polyType.getRing();
+  rns::RNSType elementType =
+      dyn_cast<rns::RNSType>(ringAttr.getCoefficientType());
+  if (!elementType) return failure();
+  rns::RNSType outputRNSType =
+      inferExtractSliceReturnTypes(context, &op, elementType);
+  RingAttr outputRingAttr =
+      RingAttr::get(outputRNSType, ringAttr.getPolynomialModulus());
+  results.push_back(PolynomialType::get(context, outputRingAttr));
   return success();
 }
 

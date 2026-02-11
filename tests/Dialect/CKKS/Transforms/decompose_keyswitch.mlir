@@ -36,15 +36,15 @@ module attributes {
   // CHECK-SAME: [[ksk:%.+]]: tensor<1x!ct_L1>) -> (!ringelt, !ringelt) {
   func.func @test_keyswitch(%x: !ringelt_L1, %arg0: tensor<1x!ct_L2>) -> (!ringelt_L1, !ringelt_L1) {
     // CHECK-DAG: [[C0:%.+]] = arith.constant 0 : index
-    // CHECK-DAG: [[part0:%.+]] = lwe.extract_slice [[x]] {size = 1 : index, start = 0 : index} : (!ringelt) -> !ringelt
+    // CHECK-DAG: [[part0:%.+]] = lwe.extract_slice [[x]] {size = 1 : index, start = 0 : index} : !ringelt
     // !ringelt1 has the same LWERingElt type as the keyswitch key
-    // CHECK-DAG: [[extPart0:%.+]] = lwe.convert_basis [[part0]] {targetBasis = !rns_L1} : (!ringelt) -> !ringelt1
+    // CHECK-DAG: [[extPart0:%.+]] = lwe.convert_basis [[part0]] {targetBasis = !rns_L1} : !ringelt
     // CHECK-DAG: [[ksk0:%.+]] = tensor.extract [[ksk]][[[C0]]] : tensor<1x!ct_L1>
     // CHECK-DAG: [[dp:%.+]] = lwe.mul_ring_elt [[extPart0]], [[ksk0]] : (!ringelt1, !ct_L1) -> !ct_L1
-    // CHECK-DAG: [[constTerm:%.+]] = lwe.extract_coeff [[dp]] {index = 0 : index} : (!ct_L1) -> !ringelt1
-    // CHECK-DAG: [[linearTerm:%.+]] = lwe.extract_coeff [[dp]] {index = 1 : index} : (!ct_L1) -> !ringelt1
-    // CHECK-DAG: [[const_ext:%.+]] = lwe.convert_basis [[constTerm]] {targetBasis = !rns_L0} : (!ringelt1) -> !ringelt
-    // CHECK-DAG: [[linear_ext:%.+]] = lwe.convert_basis [[linearTerm]] {targetBasis = !rns_L0} : (!ringelt1) -> !ringelt
+    // CHECK-DAG: [[constTerm:%.+]] = lwe.extract_coeff [[dp]] {index = 0 : index} : !ct_L1
+    // CHECK-DAG: [[linearTerm:%.+]] = lwe.extract_coeff [[dp]] {index = 1 : index} : !ct_L1
+    // CHECK-DAG: [[const_ext:%.+]] = lwe.convert_basis [[constTerm]] {targetBasis = !rns_L0} : !ringelt1
+    // CHECK-DAG: [[linear_ext:%.+]] = lwe.convert_basis [[linearTerm]] {targetBasis = !rns_L0} : !ringelt1
     // CHECK-DAG: return [[const_ext]], [[linear_ext]] : !ringelt, !ringelt
     %constTerm, %linearTerm = ckks.key_switch_inner %x, %arg0 : (!ringelt_L1, tensor<1x!ct_L2>) -> (!ringelt_L1, !ringelt_L1)
     return %constTerm, %linearTerm: !ringelt_L1, !ringelt_L1

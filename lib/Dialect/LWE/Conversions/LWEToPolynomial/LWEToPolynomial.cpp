@@ -4,7 +4,6 @@
 #include <optional>
 #include <utility>
 
-#include "lib/Dialect/CKKS/IR/CKKSOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
@@ -27,7 +26,6 @@
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
@@ -93,6 +91,10 @@ class CiphertextTypeConverter : public TypeConverter {
       // TODO(#2045): Use size information (number of polynomials) from the LWE
       // key type instead of hardcoding to 2.
       return RankedTensorType::get({2}, polyTy);
+    });
+    addConversion([ctx](lwe::LWERingEltType type) -> Type {
+      auto ring = type.getRing();
+      return polynomial::PolynomialType::get(ctx, ring);
     });
   }
 };
@@ -503,6 +505,118 @@ struct ConvertRMulPlain : public OpConversionPattern<RMulPlainOp> {
   }
 };
 
+struct ConvertRMulRingElt : public OpConversionPattern<RMulRingEltOp> {
+  ConvertRMulRingElt(mlir::MLIRContext* context)
+      : OpConversionPattern<RMulRingEltOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      RMulRingEltOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    auto x = adaptor.getLhs();
+    auto y = adaptor.getRhs();
+    auto yT = dyn_cast<RankedTensorType>(y.getType());
+    if (!yT) {
+      op.emitError() << "yT is not a RankedTensorType";
+    }
+
+    if (yT.getNumElements() != 2) {
+      op.emitError() << "`lwe.rmul_ring_elt` expects ciphertext to be two "
+                        "polynomials; got "
+                     << yT.getNumElements();
+      return rewriter.notifyMatchFailure(
+          op,
+          "ciphertext not two polynomials or ring element not one polynomial");
+    }
+
+    ImplicitLocOpBuilder b(op->getLoc(), rewriter);
+    // z = mul([x0], [y0, y1]) := [x0y0, x0y1] (Multiply ciphertext [2dim] with
+    // plaintext [1dim])
+    auto repeatedX = tensor::FromElementsOp::create(b, ArrayRef<Value>{x, x});
+    auto z = polynomial::MulOp::create(b, repeatedX, y);
+
+    rewriter.replaceOp(op, z);
+    return success();
+  }
+};
+
+struct ConvertExtractCoeff : public OpConversionPattern<ExtractCoeffOp> {
+  ConvertExtractCoeff(mlir::MLIRContext* context)
+      : OpConversionPattern<ExtractCoeffOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      ExtractCoeffOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    ImplicitLocOpBuilder b(op->getLoc(), rewriter);
+    int64_t indexInt = op.getIndex().getZExtValue();
+    Value indexValue = b.create<arith::ConstantIndexOp>(indexInt);
+    Value polyOut =
+        tensor::ExtractOp::create(b, adaptor.getValue(), indexValue);
+    rewriter.replaceOp(op, polyOut);
+    return success();
+  }
+};
+
+struct ConvertFromCoeffs : public OpConversionPattern<FromCoeffsOp> {
+  ConvertFromCoeffs(mlir::MLIRContext* context)
+      : OpConversionPattern<FromCoeffsOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      FromCoeffsOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    ImplicitLocOpBuilder b(op->getLoc(), rewriter);
+    ValueRange convertedCoeffs = adaptor.getCoeffs();
+    Type resultType = getTypeConverter()->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(op,
+                                         "Result type could not be converted");
+    }
+    Value outputTensor =
+        b.create<tensor::FromElementsOp>(resultType, convertedCoeffs);
+    rewriter.replaceOp(op, outputTensor);
+    return success();
+  }
+};
+
+struct ConvertExtractSlice : public OpConversionPattern<ExtractSliceOp> {
+  ConvertExtractSlice(mlir::MLIRContext* context)
+      : OpConversionPattern<ExtractSliceOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      ExtractSliceOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    ImplicitLocOpBuilder b(op->getLoc(), rewriter);
+    Value polySlice = polynomial::ExtractSliceOp::create(
+        b, adaptor.getInput(), adaptor.getStart(), adaptor.getSize());
+    rewriter.replaceOp(op, polySlice);
+    return success();
+  }
+};
+
+struct ConvertConvertBasis : public OpConversionPattern<ConvertBasisOp> {
+  ConvertConvertBasis(mlir::MLIRContext* context)
+      : OpConversionPattern<ConvertBasisOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      ConvertBasisOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    ImplicitLocOpBuilder b(op->getLoc(), rewriter);
+    rewriter.replaceOp(
+        op, polynomial::ConvertBasisOp::create(b, adaptor.getValue(),
+                                               adaptor.getTargetBasis()));
+    return success();
+  }
+};
+
 struct LWEToPolynomial : public impl::LWEToPolynomialBase<LWEToPolynomial> {
   void runOnOperation() override {
     MLIRContext* context = &getContext();
@@ -514,13 +628,21 @@ struct LWEToPolynomial : public impl::LWEToPolynomialBase<LWEToPolynomial> {
 
     RewritePatternSet patterns(context);
 
-    patterns.add<ConvertRLWEDecrypt, ConvertRLWEEncrypt, ConvertRAdd,
-                 ConvertRSub, ConvertRNegate, ConvertRMul, ConvertRAddPlain,
-                 ConvertRSubPlain, ConvertRMulPlain>(typeConverter, context);
+    patterns
+        .add<ConvertRLWEDecrypt, ConvertRLWEEncrypt, ConvertRAdd, ConvertRSub,
+             ConvertRNegate, ConvertRMul, ConvertRAddPlain, ConvertRSubPlain,
+             ConvertRMulPlain, ConvertRMulRingElt, ConvertExtractCoeff,
+             ConvertFromCoeffs, ConvertExtractSlice, ConvertConvertBasis>(
+            typeConverter, context);
     target.addIllegalOp<RLWEDecryptOp, RLWEEncryptOp, RAddOp, RSubOp, RNegateOp,
-                        RMulOp, RAddPlainOp, RSubPlainOp, RMulPlainOp>();
+                        RMulOp, RMulRingEltOp, RAddPlainOp, RSubPlainOp,
+                        RMulPlainOp, ExtractCoeffOp, FromCoeffsOp,
+                        ExtractSliceOp, ConvertBasisOp>();
 
     addStructuralConversionPatterns(typeConverter, patterns, target);
+    // This helps handle tensors of ciphertexts,
+    // which get lowered to multi-dimensional tensors of polynomials
+    addTensorOfTensorConversionPatterns(typeConverter, patterns, target);
 
     // Run full conversion, if any LWE ops were missed out the pass will fail.
     ConversionConfig config;

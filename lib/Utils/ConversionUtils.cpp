@@ -243,9 +243,8 @@ void addTensorOfTensorConversionPatterns(TypeConverter& typeConverter,
   target.addDynamicallyLegalDialect<affine::AffineDialect>(
       [&](Operation* op) { return typeConverter.isLegal(op); });
 
-  patterns
-      .add<ConvertAny<>, ConvertExtract, ConvertInsert, ConvertFromElements>(
-          typeConverter, patterns.getContext());
+  patterns.add<ConvertExtract, ConvertInsert, ConvertFromElements>(
+      typeConverter, patterns.getContext());
 }
 
 void addStructuralConversionPatterns(TypeConverter& typeConverter,

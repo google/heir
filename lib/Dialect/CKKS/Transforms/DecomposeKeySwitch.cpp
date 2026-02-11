@@ -56,7 +56,7 @@ LogicalResult DecomposeKeySwitchPattern::matchAndRewrite(
 
   auto ringEltType = cast<lwe::LWERingEltType>(op.getValue().getType());
   auto inputRNSType =
-      cast<rns::RNSType>(ringEltType.getRing().getCoefficientType());
+      dyn_cast<rns::RNSType>(ringEltType.getRing().getCoefficientType());
   if (!inputRNSType) {
     return rewriter.notifyMatchFailure(
         op, "Input type must be an RNS ring element");

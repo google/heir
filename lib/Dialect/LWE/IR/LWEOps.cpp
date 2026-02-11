@@ -221,8 +221,11 @@ LogicalResult FromCoeffsOp::verify() {
 }
 
 LogicalResult ExtractSliceOp::verify() {
-  auto ringEltType = cast<lwe::LWERingEltType>(this->getValue().getType());
-  auto rnsType = cast<rns::RNSType>(ringEltType.getRing().getCoefficientType());
+  auto ringEltType = dyn_cast<lwe::LWERingEltType>(this->getInput().getType());
+  if (!ringEltType) return failure();
+  auto rnsType =
+      dyn_cast<rns::RNSType>(ringEltType.getRing().getCoefficientType());
+  if (!rnsType) return failure();
   int64_t start = getStart().getZExtValue();
   int64_t size = getSize().getZExtValue();
   return verifyExtractSliceOp(this, rnsType, start, size);
@@ -287,21 +290,16 @@ LogicalResult ExtractSliceOp::inferReturnTypes(
     DictionaryAttr attrs, mlir::OpaqueProperties properties,
     mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
   ExtractSliceOpAdaptor op(operands, attrs, properties, regions);
-  auto inputType = cast<lwe::LWERingEltType>(op.getValue().getType());
+  auto inputType = dyn_cast<lwe::LWERingEltType>(op.getInput().getType());
+  if (!inputType) return failure();
   polynomial::RingAttr ringAttr = inputType.getRing();
-  auto elementType = cast<rns::RNSType>(ringAttr.getCoefficientType());
-
-  int64_t start = op.getStart().getZExtValue();
-  int64_t size = op.getSize().getZExtValue();
-
-  rns::RNSType truncatedEltType = rns::RNSType::get(
-      ctx, elementType.getBasisTypes().drop_front(start).take_front(size));
-
+  auto elementType = dyn_cast<rns::RNSType>(ringAttr.getCoefficientType());
+  if (!elementType) return failure();
+  rns::RNSType outputRNSType =
+      inferExtractSliceReturnTypes(ctx, &op, elementType);
   polynomial::RingAttr outputRingAttr = polynomial::RingAttr::get(
-      ctx, truncatedEltType, ringAttr.getPolynomialModulus());
-  lwe::LWERingEltType resultType =
-      lwe::LWERingEltType::get(ctx, outputRingAttr);
-  results.push_back(resultType);
+      ctx, outputRNSType, ringAttr.getPolynomialModulus());
+  results.push_back(lwe::LWERingEltType::get(ctx, outputRingAttr));
   return success();
 }
 
@@ -310,9 +308,11 @@ LogicalResult ConvertBasisOp::inferReturnTypes(
     DictionaryAttr attrs, mlir::OpaqueProperties properties,
     mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
   ConvertBasisOpAdaptor op(operands, attrs, properties, regions);
-  auto inputType = cast<lwe::LWERingEltType>(op.getValue().getType());
+  auto inputType = dyn_cast<lwe::LWERingEltType>(op.getValue().getType());
+  if (!inputType) return failure();
   polynomial::RingAttr ringAttr = inputType.getRing();
-  rns::RNSType elementType = cast<rns::RNSType>(op.getTargetBasis());
+  rns::RNSType elementType = dyn_cast<rns::RNSType>(op.getTargetBasis());
+  if (!elementType) return failure();
   polynomial::RingAttr outputRingAttr = polynomial::RingAttr::get(
       ctx, elementType, ringAttr.getPolynomialModulus());
   lwe::LWERingEltType resultType =

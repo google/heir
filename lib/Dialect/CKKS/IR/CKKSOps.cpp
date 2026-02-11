@@ -129,7 +129,11 @@ LogicalResult KeySwitchInnerOp::inferReturnTypes(
 
 LogicalResult KeySwitchInnerOp::verify() {
   RankedTensorType keyTensorType = getKeySwitchingKey().getType();
-  auto ctType = cast<lwe::LWECiphertextType>(keyTensorType.getElementType());
+  auto ctType =
+      dyn_cast<lwe::LWECiphertextType>(keyTensorType.getElementType());
+  if (!ctType) {
+    return emitOpError() << "KSKs must be a tensor of Ciphertexts";
+  }
   polynomial::RingAttr ringType = ctType.getCiphertextSpace().getRing();
   auto keyRNSType = dyn_cast<rns::RNSType>(ringType.getCoefficientType());
   if (!keyRNSType) {

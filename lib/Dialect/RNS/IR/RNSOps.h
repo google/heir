@@ -4,7 +4,8 @@
 #include <cstdint>
 
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
-#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"    // from @llvm-project
 
 // IWYU pragma: begin_keep
 #include "mlir/include/mlir/IR/BuiltinOps.h"    // from @llvm-project
@@ -41,6 +42,15 @@ LogicalResult verifyExtractSliceOp(Op* op, RNSType rnsType, int start,
   }
 
   return success();
+}
+
+template <typename Op>
+RNSType inferExtractSliceReturnTypes(MLIRContext* ctx, Op* op,
+                                     RNSType elementType) {
+  int64_t start = op->getStart().getZExtValue();
+  int64_t size = op->getSize().getZExtValue();
+  return RNSType::get(
+      ctx, elementType.getBasisTypes().drop_front(start).take_front(size));
 }
 
 }  // namespace rns

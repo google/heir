@@ -24,23 +24,23 @@ LogicalResult ExtractSliceOp::inferReturnTypes(
     mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
   ExtractSliceOpAdaptor op(operands, attrs, properties, regions);
   RNSType elementType =
-      cast<RNSType>(getElementTypeOrSelf(op.getInput().getType()));
-  int64_t start = op.getStart().getZExtValue();
-  int64_t size = op.getSize().getZExtValue();
-
-  rns::RNSType truncatedType = rns::RNSType::get(
-      context, elementType.getBasisTypes().drop_front(start).take_front(size));
+      dyn_cast<RNSType>(getElementTypeOrSelf(op.getInput().getType()));
+  if (!elementType) return failure();
+  RNSType truncatedType =
+      inferExtractSliceReturnTypes(context, &op, elementType);
   Type resultType = truncatedType;
   if (auto shapedType = dyn_cast<ShapedType>(op.getInput().getType())) {
     resultType = shapedType.clone(truncatedType);
   }
-
   results.push_back(resultType);
   return success();
 }
 
 LogicalResult ExtractSliceOp::verify() {
-  auto rnsType = cast<RNSType>(getElementTypeOrSelf(getInput().getType()));
+  auto rnsType = dyn_cast<RNSType>(getElementTypeOrSelf(getInput().getType()));
+  if (!rnsType) {
+    return failure();
+  }
   int64_t start = getStart().getZExtValue();
   int64_t size = getSize().getZExtValue();
 

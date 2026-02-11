@@ -284,6 +284,7 @@ def LWE_ExtractCoeffOp : LWE_Op<"extract_coeff", [Pure, DeclareOpInterfaceMethod
     LWERingElt:$output
   );
   let hasVerifier = 1;
+  let assemblyFormat = "$value attr-dict `:` type($value)";
 }
 
 def LWE_FromCoeffsOp : LWE_Op<"from_coeffs", [Pure]> {
@@ -305,27 +306,41 @@ def LWE_FromCoeffsOp : LWE_Op<"from_coeffs", [Pure]> {
 
 def LWE_ExtractSliceOp : LWE_Op<"extract_slice", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
   let summary = "Extract a subset of the ring element's RNS basis";
+  let description = [{
+    Given a ring element an RNS basis with $k$ limbs, extract the slice of
+    RNS components, starting at `start` and having size `size`.
+
+    The result type is a ring element with RNS type containing the subset of basis types
+    corresponding to the extracted slice. This is useful for operations like
+    truncating or partitioning a modulus chain.
+  }];
   let arguments = (ins
-      LWERingElt:$value,
+      LWERingElt:$input,
       IndexAttr:$start,
       IndexAttr:$size
   );
   let results = (outs
     LWERingElt:$output
   );
+  let assemblyFormat = "$input attr-dict `:` type($input)";
   let hasVerifier = 1;
 }
 
 def LWE_ConvertBasisOp : LWE_Op<"convert_basis", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
   let summary = "Change a ring element's RNS basis";
+  let description = [{
+    Given a ring element with an RNS basis, output a ring element with the target
+    output basis. The output value is equivalent to lifting the ring element to its
+    centered representative over the integers, and reducing by the output modulus.
+  }];
   let arguments = (ins
       LWERingElt:$value,
-      // RNS:$targetBasis
       TypeAttr:$targetBasis
   );
   let results = (outs
     LWERingElt:$output
   );
+  let assemblyFormat = "$value attr-dict `:` type($value)";
 }
 
 #endif  // LIB_DIALECT_LWE_IR_LWEOPS_TD_
