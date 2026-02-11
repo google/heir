@@ -46,7 +46,7 @@ LWECiphertextType getDefaultCGGICiphertextType(MLIRContext* ctx,
   auto scalingFactor = 1 << (ciphertextBits - plaintextBits);
 
   polynomial::IntPolynomial polyX =
-      polynomial::IntPolynomial::fromCoefficients({1, 0});
+      polynomial::IntPolynomial::fromCoefficients({0, 1});
   auto polyXAttr = polynomial::IntPolynomialAttr::get(ctx, polyX);
   auto plaintextRing = polynomial::RingAttr::get(
       IntegerType::get(ctx, plaintextBits), polyXAttr);

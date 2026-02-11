@@ -140,6 +140,14 @@ LogicalResult verifyEncodingAndTypeMatch(mlir::Type type,
     return success();
   }
 
+  if (isa<ConstantCoefficientEncodingAttr>(encoding)) {
+    return success(getElementTypeOrSelf(type).isInteger());
+  }
+
+  if (isa<CoefficientEncodingAttr>(encoding)) {
+    return success(getElementTypeOrSelf(type).isInteger());
+  }
+
   // This code should never be hit unless we added an encoding and forgot to
   // update this function. Assert(false) for DEBUG, return failure for NDEBUG.
   assert(false && "Encoding not handled in encode/decode verifier.");
@@ -153,14 +161,14 @@ LogicalResult EncodeOp::verify() {
   // coefficient type matching input message bits parameter.
   auto plaintextRing = plaintextType.getPlaintextSpace().getRing();
 
-  auto polyTerms =
-      plaintextRing.getPolynomialModulus().getPolynomial().getTerms();
+  auto poly = plaintextRing.getPolynomialModulus().getPolynomial();
+  auto polyTerms = poly.getTerms();
   if (polyTerms.size() != 1) {
     return emitOpError()
            << "LWE plaintext ring modulus must have exactly one term";
   }
   const auto& firstTerm = polyTerms[0];
-  if (firstTerm.getCoefficient() != 1 && firstTerm.getExponent() != 1) {
+  if (firstTerm.getCoefficient() != 1 || firstTerm.getExponent() != 1) {
     return emitOpError() << "LWE plaintext ring modulus must be x";
   }
   auto integerTy = dyn_cast<IntegerType>(plaintextRing.getCoefficientType());
