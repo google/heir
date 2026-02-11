@@ -64,29 +64,6 @@ static Type convertArithLikeType(ShapedType type, int64_t modulus) {
   return type;
 }
 
-static auto buildLoadOps(int64_t modulus) {
-  return [=](OpBuilder& builder, Type resultTypes, ValueRange inputs,
-             Location loc) -> Value {
-    auto b = ImplicitLocOpBuilder(loc, builder);
-
-    assert(inputs.size() == 1);
-    auto loadOp = inputs[0].getDefiningOp<memref::LoadOp>();
-
-    if (!loadOp) return {};
-
-    auto* globaMemReflOp = loadOp.getMemRef().getDefiningOp();
-
-    if (!globaMemReflOp) return {};
-
-    auto integerType = getIntegerType(loadOp.getType(), modulus);
-    auto modArithType = convertArithType(loadOp.getType(), modulus);
-    auto extui =
-        mlir::arith::ExtUIOp::create(b, integerType, loadOp.getResult());
-
-    return mod_arith::EncapsulateOp::create(b, modArithType, extui);
-  };
-}
-
 class ArithToModArithTypeConverter : public TypeConverter {
  public:
   ArithToModArithTypeConverter(MLIRContext* ctx, int64_t modulus) {
@@ -97,7 +74,49 @@ class ArithToModArithTypeConverter : public TypeConverter {
     addConversion([=](ShapedType type) -> Type {
       return convertArithLikeType(type, modulus);
     });
-    addTargetMaterialization(buildLoadOps(modulus));
+
+    addSourceMaterialization([=](OpBuilder& builder, Type resultType,
+                                 ValueRange inputs, Location loc) -> Value {
+      if (inputs.size() != 1) return nullptr;
+      auto modArithTy = dyn_cast<mod_arith::ModArithType>(
+          getElementTypeOrSelf(inputs[0].getType()));
+      if (!modArithTy) return nullptr;
+
+      auto storageType = cast<IntegerType>(modArithTy.getModulus().getType());
+      Type extractTy = storageType;
+      if (auto shapedTy = dyn_cast<ShapedType>(inputs[0].getType())) {
+        extractTy = shapedTy.cloneWith(shapedTy.getShape(), storageType);
+      }
+      Value extracted =
+          builder.create<mod_arith::ExtractOp>(loc, extractTy, inputs[0]);
+
+      auto originalIntTy = getElementTypeOrSelf(resultType);
+      if (storageType != originalIntTy) {
+        Type truncTy = resultType;
+        extracted =
+            builder.create<mlir::arith::TruncIOp>(loc, truncTy, extracted);
+      }
+      return extracted;
+    });
+
+    addTargetMaterialization([=](OpBuilder& builder, Type resultType,
+                                 ValueRange inputs, Location loc) -> Value {
+      if (inputs.size() != 1) return nullptr;
+      auto modArithTy =
+          dyn_cast<mod_arith::ModArithType>(getElementTypeOrSelf(resultType));
+      if (!modArithTy) return nullptr;
+
+      auto storageType = cast<IntegerType>(modArithTy.getModulus().getType());
+      Value input = inputs[0];
+      if (getElementTypeOrSelf(input.getType()) != storageType) {
+        Type extendedTy = storageType;
+        if (auto shapedTy = dyn_cast<ShapedType>(input.getType())) {
+          extendedTy = shapedTy.cloneWith(shapedTy.getShape(), storageType);
+        }
+        input = builder.create<mlir::arith::ExtUIOp>(loc, extendedTy, input);
+      }
+      return builder.create<mod_arith::EncapsulateOp>(loc, resultType, input);
+    });
   }
 };
 
@@ -117,8 +136,11 @@ struct ConvertConstant : public OpConversionPattern<mlir::arith::ConstantOp> {
     }
 
     Type newResultType = typeConverter->convertType(op.getResult().getType());
-    mod_arith::ModArithType newResultEltTy =
-        cast<mod_arith::ModArithType>(getElementTypeOrSelf(newResultType));
+    auto newResultEltTy =
+        dyn_cast<mod_arith::ModArithType>(getElementTypeOrSelf(newResultType));
+    if (!newResultEltTy) {
+      return rewriter.notifyMatchFailure(op, "not a mod_arith type");
+    }
     IntegerType storageType =
         cast<IntegerType>(newResultEltTy.getModulus().getType());
     unsigned newWidth = storageType.getWidth();
@@ -226,17 +248,24 @@ void ArithToModArith::runOnOperation() {
 
   ConversionTarget target(*context);
   target.addLegalDialect<mod_arith::ModArithDialect>();
-  target.addIllegalDialect<mlir::arith::ArithDialect>();
-
-  target.addDynamicallyLegalOp<mlir::arith::ConstantOp>(
-      [](mlir::arith::ConstantOp op) {
-        return isa<IndexType>(op.getValue().getType());
-      });
-  target.addDynamicallyLegalOp<mlir::arith::AddIOp, mlir::arith::SubIOp,
-                               mlir::arith::MulIOp, mlir::arith::RemUIOp>(
-      [](Operation* op) {
-        return isa<IndexType>(op->getOperand(0).getType());
-      });
+  target.addDynamicallyLegalDialect<mlir::arith::ArithDialect>([&](Operation*
+                                                                       op) {
+    if (isa<mlir::arith::SIToFPOp, mlir::arith::UIToFPOp, mlir::arith::FPToSIOp,
+            mlir::arith::FPToUIOp, mlir::arith::CmpFOp, mlir::arith::SelectOp,
+            mlir::arith::IndexCastOp, mlir::arith::TruncIOp,
+            mlir::arith::ExtSIOp, mlir::arith::ExtUIOp>(op)) {
+      return llvm::none_of(
+                 op->getOperandTypes(),
+                 [](Type t) {
+                   return isa<mod_arith::ModArithType>(getElementTypeOrSelf(t));
+                 }) &&
+             llvm::none_of(op->getResultTypes(), [](Type t) {
+               return isa<mod_arith::ModArithType>(getElementTypeOrSelf(t));
+             });
+    }
+    return typeConverter.isLegal(op->getOperandTypes()) &&
+           typeConverter.isLegal(op->getResultTypes());
+  });
 
   target.addDynamicallyLegalOp<memref::LoadOp>([&](Operation* op) {
     auto users = cast<memref::LoadOp>(op).getResult().getUsers();
