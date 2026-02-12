@@ -115,6 +115,16 @@ func TestMNIST(t *testing.T) {
 		t.Fatalf("Failed to load weights: %v", err)
 	}
 
+	// Dump the weights for debugging/comparison with openfhe
+	// fmt.Printf("Weights:\n")
+	// for i := 0; i < len(weights); i++ {
+	// 	for j := 0; j < len(weights[i]); j++ {
+	// 		fmt.Printf("%d, %d, %.6f\n", i, j, weights[i][j])
+	// 	}
+	// }
+	// t.Errorf("intended failure")
+	// return;
+
 	images, err := loadMNISTImages(imagesPath)
 	if err != nil {
 		t.Fatalf("Failed to load images: %v", err)
@@ -137,6 +147,12 @@ func TestMNIST(t *testing.T) {
 	for i := 0; i < total; i++ {
 		input := images[i]
 		label := labels[i]
+
+		// Print the input and label for debugging/comparison with openfhe
+	  // t.Logf("Sample %d: label=%d, input=\n", i, label)
+		// for j := 0; j < 784; j++ {
+		// 	t.Logf("%d, %.6f\n", j, input[j])
+		// }
 
 		// Convert float64 input to float32 for encryption helper
 		inputFloat32 := make([]float32, len(input))

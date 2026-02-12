@@ -78,6 +78,14 @@ class MNISTTest(absl.testing.absltest.TestCase):
     weights = load_weights(MODEL_PATH)
     self.assertFalse(not weights, "load_weights failed")
 
+    # Dump weights for debugging, one weight per line
+    # print("Weights:")
+    # for i, weight in enumerate(weights):
+    #   for j, value in enumerate(weight):
+    #     print(f"{i}, {j}, {value:.6f}")
+    # self.assertFalse(True)
+    # return
+
     # Note: The C++ code this was ported from uses a custom stack transform
     # after normalization. In Python, DataLoader handles batching, which
     # effectively stacks the tensors.
@@ -105,8 +113,15 @@ class MNISTTest(absl.testing.absltest.TestCase):
       if samples_processed >= total:
         break
 
+      label = batch_target.item()
       input_tensor = batch_data.contiguous()  # (1, 1, 28, 28)
       input_vector = input_tensor.flatten().tolist()
+
+      # dump the input vector for debugging
+      # print(f"\n\nSample: {samples_processed}, label: {label}, input:")
+      # for i, value in enumerate(input_vector):
+      #     print(f"{i}, {value:.6f}")
+
       input_encrypted = mnist.mnist__encrypt__arg4(
           crypto_context, input_vector, public_key
       )
@@ -124,7 +139,6 @@ class MNISTTest(absl.testing.absltest.TestCase):
       output = mnist.mnist__decrypt__result0(
           crypto_context, output_encrypted, secret_key
       )
-      label = batch_target.item()
       max_id = max(range(len(output)), key=lambda index: output[index])
 
       # NOTE: For the test to pass with the default placeholder 'output',
