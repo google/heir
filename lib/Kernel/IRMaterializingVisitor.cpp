@@ -23,40 +23,35 @@ namespace mlir {
 namespace heir {
 namespace kernel {
 
-Value IRMaterializingVisitor::process(
+std::vector<Value> IRMaterializingVisitor::process(
     const std::shared_ptr<ArithmeticDagNode<SSAValue>>& node, Type type) {
   assert(node != nullptr && "invalid null node!");
-
-  // Use provided type, or fall back to evaluatedType
   Type targetType = type ? type : evaluatedType;
 
-  // Check cache with (node, type) as key
   const auto* nodePtr = node.get();
   auto cacheKey = std::make_pair(nodePtr, targetType);
   if (auto it = typeAwareCache.find(cacheKey); it != typeAwareCache.end()) {
-    return it->second;
+    return {it->second};
   }
 
-  // Set currentType for the visitor methods to use
+  // Set currentType so the visitors can use the targetType
   Type savedType = currentType;
+
   currentType = targetType;
-
-  // Visit the node
-  Value result = std::visit(*this, node->node_variant);
-
-  // Restore previous currentType
+  std::vector<Value> result = std::visit(*this, node->node_variant);
   currentType = savedType;
 
-  // Cache the result
   typeAwareCache[cacheKey] = result;
   return result;
 }
 
-Value IRMaterializingVisitor::operator()(const LeafNode<SSAValue>& node) {
-  return node.value.getValue();
+std::vector<Value> IRMaterializingVisitor::operator()(
+    const LeafNode<SSAValue>& node) {
+  return {node.value.getValue()};
 }
 
-Value IRMaterializingVisitor::operator()(const ConstantScalarNode& node) {
+std::vector<Value> IRMaterializingVisitor::operator()(
+    const ConstantScalarNode& node) {
   // A "ConstantScalarNode" can still have a shaped type, and in that case the
   // value is treated as a splat. This is preferred in some cases to support
   // DAGs that can be evaluated elementwise for ElementwiseMappable ops like
@@ -81,10 +76,11 @@ Value IRMaterializingVisitor::operator()(const ConstantScalarNode& node) {
 
   auto constantOp = arith::ConstantOp::create(builder, currentType, attr);
   createdOpCallback(constantOp);
-  return constantOp;
+  return {constantOp};
 }
 
-Value IRMaterializingVisitor::operator()(const ConstantTensorNode& node) {
+std::vector<Value> IRMaterializingVisitor::operator()(
+    const ConstantTensorNode& node) {
   RankedTensorType tensorTy = cast<RankedTensorType>(currentType);
   TypedAttr attr;
   if (auto floatTy = dyn_cast<FloatType>(tensorTy.getElementType())) {
@@ -109,46 +105,53 @@ Value IRMaterializingVisitor::operator()(const ConstantTensorNode& node) {
 
   auto constantOp = arith::ConstantOp::create(builder, currentType, attr);
   createdOpCallback(constantOp);
-  return constantOp;
+  return {constantOp};
 }
 
-Value IRMaterializingVisitor::operator()(const AddNode<SSAValue>& node) {
+std::vector<Value> IRMaterializingVisitor::operator()(
+    const AddNode<SSAValue>& node) {
   return binop<AddNode<SSAValue>, arith::AddFOp, arith::AddIOp>(node);
 }
 
-Value IRMaterializingVisitor::operator()(const SubtractNode<SSAValue>& node) {
+std::vector<Value> IRMaterializingVisitor::operator()(
+    const SubtractNode<SSAValue>& node) {
   return binop<SubtractNode<SSAValue>, arith::SubFOp, arith::SubIOp>(node);
 }
 
-Value IRMaterializingVisitor::operator()(const MultiplyNode<SSAValue>& node) {
+std::vector<Value> IRMaterializingVisitor::operator()(
+    const MultiplyNode<SSAValue>& node) {
   return binop<MultiplyNode<SSAValue>, arith::MulFOp, arith::MulIOp>(node);
 }
 
-Value IRMaterializingVisitor::operator()(const DivideNode<SSAValue>& node) {
+std::vector<Value> IRMaterializingVisitor::operator()(
+    const DivideNode<SSAValue>& node) {
   return binop<DivideNode<SSAValue>, arith::DivFOp, arith::DivSIOp>(node);
 }
 
-Value IRMaterializingVisitor::operator()(const PowerNode<SSAValue>& node) {
+std::vector<Value> IRMaterializingVisitor::operator()(
+    const PowerNode<SSAValue>& node) {
   assert(false && "PowerNode materialization not implemented");
-  return Value();
+  return {Value()};
 }
 
-Value IRMaterializingVisitor::operator()(const LeftRotateNode<SSAValue>& node) {
-  Value operand = process(node.operand, currentType);
+std::vector<Value> IRMaterializingVisitor::operator()(
+    const LeftRotateNode<SSAValue>& node) {
+  Value operand = process(node.operand, currentType)[0];
   // Shift should be materialized as an index type
-  Value shift = process(node.shift, builder.getIndexType());
+  Value shift = process(node.shift, builder.getIndexType())[0];
   auto rotateOp =
       tensor_ext::RotateOp::create(builder, currentType, operand, shift);
   createdOpCallback(rotateOp);
-  return rotateOp;
+  return {rotateOp};
 }
 
-Value IRMaterializingVisitor::operator()(const ExtractNode<SSAValue>& node) {
+std::vector<Value> IRMaterializingVisitor::operator()(
+    const ExtractNode<SSAValue>& node) {
   // Process the operand with its natural type (nullptr = use
   // evaluatedType/currentType)
-  Value operand = process(node.operand, nullptr);
-  // Index should be materialized as an index type, not the tensor type
-  Value index = process(node.index, builder.getIndexType());
+  Value operand = process(node.operand, nullptr)[0];
+  // Index should be materialized as an index type
+  Value index = process(node.index, builder.getIndexType())[0];
 
   RankedTensorType tensorType = cast<RankedTensorType>(operand.getType());
 
@@ -172,7 +175,7 @@ Value IRMaterializingVisitor::operator()(const ExtractNode<SSAValue>& node) {
     auto extractOp = tensor::ExtractSliceOp::create(builder, tensorTy, operand,
                                                     offsets, sizes, strides);
     createdOpCallback(extractOp);
-    return extractOp;
+    return {extractOp};
   }
 
   // Otherwise let the type be inferred, though this will likely result in an
@@ -180,27 +183,31 @@ Value IRMaterializingVisitor::operator()(const ExtractNode<SSAValue>& node) {
   auto extractOp =
       tensor::ExtractSliceOp::create(builder, operand, offsets, sizes, strides);
   createdOpCallback(extractOp);
-  return extractOp;
+  return {extractOp};
 }
 
-Value IRMaterializingVisitor::operator()(const VariableNode<SSAValue>& node) {
-  assert(false && "VariableNode materialization not implemented");
-  return Value();
+std::vector<Value> IRMaterializingVisitor::operator()(
+    const VariableNode<SSAValue>& node) {
+  assert(node.value.has_value() && "VariableNode value is not set");
+  return {node.value->getValue()};
 }
 
-Value IRMaterializingVisitor::operator()(const ForLoopNode<SSAValue>& node) {
+std::vector<Value> IRMaterializingVisitor::operator()(
+    const ForLoopNode<SSAValue>& node) {
   assert(false && "ForLoopNode materialization not implemented");
-  return Value();
+  return {Value()};
 }
 
-Value IRMaterializingVisitor::operator()(const YieldNode<SSAValue>& node) {
+std::vector<Value> IRMaterializingVisitor::operator()(
+    const YieldNode<SSAValue>& node) {
   assert(false && "YieldNode materialization not implemented");
-  return Value();
+  return {Value()};
 }
 
-Value IRMaterializingVisitor::operator()(const ResultAtNode<SSAValue>& node) {
+std::vector<Value> IRMaterializingVisitor::operator()(
+    const ResultAtNode<SSAValue>& node) {
   assert(false && "ResultAtNode materialization not implemented");
-  return Value();
+  return {Value()};
 }
 
 }  // namespace kernel

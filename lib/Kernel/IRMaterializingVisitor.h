@@ -40,9 +40,15 @@ class IRMaterializingVisitor {
         currentType(evaluatedType),
         createdOpCallback(createdOpCallback) {}
 
-  // Main entry point: process a single DAG node with default type
-  Value process(const std::shared_ptr<ArithmeticDagNode<SSAValue>>& node) {
-    return process(node, nullptr);
+  // Main entry point: process a single DAG node with default type.
+  // The output of the dag is enforced to be a single value, though
+  // internal nodes may return multiple values.
+  Value process(
+      const std::shared_ptr<ArithmeticDagNode<SSAValue>>& node) {
+    std::vector<Value> results = process(node, nullptr);
+    assert(results.size() == 1 &&
+           "Expected DAG to materialize to a single value, but got multiple");
+    return results[0];
   }
 
   // Process multiple DAG nodes
@@ -51,36 +57,38 @@ class IRMaterializingVisitor {
     std::vector<Value> results;
     results.reserve(nodes.size());
     for (const auto& node : nodes) {
-      results.push_back(process(node, nullptr));
+      for (Value v : process(node, nullptr)) {
+        results.push_back(v);
+      }
     }
     return results;
   }
 
   // Type-aware process method that allows specifying the expected type for
   // materialization. If type is null, uses evaluatedType.
-  Value process(const std::shared_ptr<ArithmeticDagNode<SSAValue>>& node,
-                Type type);
+  std::vector<Value> process(
+      const std::shared_ptr<ArithmeticDagNode<SSAValue>>& node, Type type);
 
   // Visitor operator() overloads for each node type
-  Value operator()(const ConstantScalarNode& node);
-  Value operator()(const ConstantTensorNode& node);
-  Value operator()(const LeafNode<SSAValue>& node);
-  Value operator()(const AddNode<SSAValue>& node);
-  Value operator()(const SubtractNode<SSAValue>& node);
-  Value operator()(const MultiplyNode<SSAValue>& node);
-  Value operator()(const DivideNode<SSAValue>& node);
-  Value operator()(const PowerNode<SSAValue>& node);
-  Value operator()(const LeftRotateNode<SSAValue>& node);
-  Value operator()(const ExtractNode<SSAValue>& node);
-  Value operator()(const VariableNode<SSAValue>& node);
-  Value operator()(const ForLoopNode<SSAValue>& node);
-  Value operator()(const YieldNode<SSAValue>& node);
-  Value operator()(const ResultAtNode<SSAValue>& node);
+  std::vector<Value> operator()(const ConstantScalarNode& node);
+  std::vector<Value> operator()(const ConstantTensorNode& node);
+  std::vector<Value> operator()(const LeafNode<SSAValue>& node);
+  std::vector<Value> operator()(const AddNode<SSAValue>& node);
+  std::vector<Value> operator()(const SubtractNode<SSAValue>& node);
+  std::vector<Value> operator()(const MultiplyNode<SSAValue>& node);
+  std::vector<Value> operator()(const DivideNode<SSAValue>& node);
+  std::vector<Value> operator()(const PowerNode<SSAValue>& node);
+  std::vector<Value> operator()(const LeftRotateNode<SSAValue>& node);
+  std::vector<Value> operator()(const ExtractNode<SSAValue>& node);
+  std::vector<Value> operator()(const VariableNode<SSAValue>& node);
+  std::vector<Value> operator()(const ForLoopNode<SSAValue>& node);
+  std::vector<Value> operator()(const YieldNode<SSAValue>& node);
+  std::vector<Value> operator()(const ResultAtNode<SSAValue>& node);
 
  private:
   // Helper for binary operations
   template <typename T, typename FloatOp, typename IntOp>
-  Value binop(const T& node) {
+  std::vector<Value> binop(const T& node) {
     Value lhs = process(node.left, currentType);
     Value rhs = process(node.right, currentType);
     auto op = TypeSwitch<Type, Operation*>(getElementTypeOrSelf(currentType))
@@ -94,7 +102,7 @@ class IRMaterializingVisitor {
                     return nullptr;
                   });
     createdOpCallback(op);
-    return op->getResult(0);
+    return {op->getResult(0)};
   }
 
   // Hash function for (node pointer, type) pairs used as cache keys
@@ -112,8 +120,8 @@ class IRMaterializingVisitor {
   const std::function<void(Operation*)> createdOpCallback;
 
   // Type-aware cache: keys are (node pointer, type) pairs
-  std::unordered_map<std::pair<const ArithmeticDagNode<SSAValue>*, Type>, Value,
-                     NodeTypePairHash>
+  std::unordered_map<std::pair<const ArithmeticDagNode<SSAValue>*, Type>,
+                     std::vector<Value>, NodeTypePairHash>
       typeAwareCache;
 };
 
