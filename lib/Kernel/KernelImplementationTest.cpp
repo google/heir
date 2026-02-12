@@ -101,7 +101,7 @@ TEST(KernelImplementationTest, TestHaleviShoupMatvecWithLayout) {
   EXPECT_EQ(std::get<std::vector<int>>(actual.get()), expected);
 }
 
-TEST_P(KernelImplementationTest, Test2DConvWithLayout) {
+TEST(KernelImplementationTest, Test2DConvWithLayout) {
   MLIRContext context;
   RankedTensorType dataType =
       RankedTensorType::get({3, 3}, IndexType::get(&context));
@@ -133,8 +133,7 @@ TEST_P(KernelImplementationTest, Test2DConvWithLayout) {
   LiteralValue vectorInput = packedData[0];
 
   auto dag = implementHaleviShoup(vectorInput, matrixInput,
-                                  expandedMatrixType.getShape(),
-                                  /*zeroDiagonals=*/{}, /*unroll=*/GetParam());
+                                  expandedMatrixType.getShape());
   LiteralValue actual = evalKernel(dag)[0];
   // Result is a 2x2 tensor repeated row-major in a tensor of size 16.
   std::vector<int> actualVector = std::get<std::vector<int>>(actual.get());
