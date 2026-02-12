@@ -1796,18 +1796,6 @@ class ConvertTensorExpandShape
       return rewriter.notifyMatchFailure(
           op, "Only rank-reduced types are supported for CollapseShapeOp");
 
-    FailureOr<Attribute> resultLayoutResult =
-        getTypeConverter()->getContextualAttr(op.getResult());
-    if (failed(resultLayoutResult)) {
-      return op.emitError() << "failed to fetch layout attribute for input";
-    }
-    LayoutAttr resultLayout = dyn_cast<LayoutAttr>(resultLayoutResult.value());
-    if (!resultLayout) {
-      return op.emitError() << "failed to fetch new layout attribute for input";
-    }
-    Type resultType =
-        getTypeConverter()->convertType(op.getResultType(), resultLayout);
-
     auto srcType = adaptor.getSrc().getType();
     FailureOr<Attribute> sourceLayoutResult =
         getTypeConverter()->getContextualAttr(adaptor.getSrc());
@@ -1821,6 +1809,21 @@ class ConvertTensorExpandShape
     if (!sourceLayout) {
       return op.emitError() << "failed to fetch new layout attribute for input";
     }
+
+    FailureOr<Attribute> resultLayoutResult =
+        getTypeConverter()->getContextualAttr(op.getResult());
+    if (failed(resultLayoutResult)) {
+      // The result may not have a layout if the source was a plaintext. Since
+      // that is checked above, this should not happen.
+      return op.emitError() << "failed to fetch layout attribute for result";
+    }
+    LayoutAttr resultLayout = dyn_cast<LayoutAttr>(resultLayoutResult.value());
+    if (!resultLayout) {
+      return op.emitError()
+             << "failed to fetch new layout attribute for result";
+    }
+    Type resultType =
+        getTypeConverter()->convertType(op.getResultType(), resultLayout);
 
     if (resultType != srcType) {
       return rewriter.notifyMatchFailure(
