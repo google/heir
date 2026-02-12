@@ -20,6 +20,7 @@ cc_library(
         ":OpenFhePkeEmitter",
         ":OpenFhePkeHeaderEmitter",
         ":OpenFhePkePybindEmitter",
+        ":OpenFhePkeDebugHeaderEmitter",
         ":OpenFheUtils",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
@@ -145,6 +146,25 @@ cc_library(
         "@llvm-project//mlir:TensorDialect",
         "@openfhe//:core",
         "@openfhe//:pke",
+    ],
+)
+
+cc_library(
+    name = "OpenFhePkeDebugHeaderEmitter",
+    srcs = ["OpenFhePkeDebugHeaderEmitter.cpp"],
+    hdrs = [
+        "OpenFhePkeDebugHeaderEmitter.h",
+        "OpenFhePkeTemplates.h",
+    ],
+    deps = [
+        ":OpenFheUtils",
+        "@heir//lib/Analysis/SelectVariableNames",
+        "@heir//lib/Dialect:ModuleAttributes",
+        "@heir//lib/Utils:TargetUtils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
     ],
 )
 
