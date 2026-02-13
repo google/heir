@@ -23,6 +23,35 @@ namespace mlir {
 namespace heir {
 namespace kernel {
 
+Value IRMaterializingVisitor::process(
+    const std::shared_ptr<ArithmeticDagNode<SSAValue>>& node, Type type) {
+  assert(node != nullptr && "invalid null node!");
+
+  // Use provided type, or fall back to evaluatedType
+  Type targetType = type ? type : evaluatedType;
+
+  // Check cache with (node, type) as key
+  const auto* nodePtr = node.get();
+  auto cacheKey = std::make_pair(nodePtr, targetType);
+  if (auto it = typeAwareCache.find(cacheKey); it != typeAwareCache.end()) {
+    return it->second;
+  }
+
+  // Set currentType for the visitor methods to use
+  Type savedType = currentType;
+  currentType = targetType;
+
+  // Visit the node
+  Value result = std::visit(*this, node->node_variant);
+
+  // Restore previous currentType
+  currentType = savedType;
+
+  // Cache the result
+  typeAwareCache[cacheKey] = result;
+  return result;
+}
+
 Value IRMaterializingVisitor::operator()(const LeafNode<SSAValue>& node) {
   return node.value.getValue();
 }
@@ -33,25 +62,30 @@ Value IRMaterializingVisitor::operator()(const ConstantScalarNode& node) {
   // DAGs that can be evaluated elementwise for ElementwiseMappable ops like
   // arith ops.
   TypedAttr attr;
-  if (auto floatTy = dyn_cast<FloatType>(getElementTypeOrSelf(evaluatedType))) {
+  if (auto indexTy = dyn_cast<IndexType>(getElementTypeOrSelf(currentType))) {
+    // Handle index type specially - convert double to index integer
+    APInt apVal = APInt(64, static_cast<int64_t>(std::floor(node.value)));
+    attr = builder.getIntegerAttr(indexTy, apVal);
+  } else if (auto floatTy =
+                 dyn_cast<FloatType>(getElementTypeOrSelf(currentType))) {
     APFloat apVal(node.value);
     APFloat converted =
         convertFloatToSemantics(apVal, floatTy.getFloatSemantics());
-    attr = getScalarOrDenseAttr(evaluatedType, converted);
+    attr = getScalarOrDenseAttr(currentType, converted);
   } else if (auto intTy =
-                 dyn_cast<IntegerType>(getElementTypeOrSelf(evaluatedType))) {
+                 dyn_cast<IntegerType>(getElementTypeOrSelf(currentType))) {
     // Node values are doubles and we may have to properly support integers.
     APInt apVal(intTy.getWidth(), std::floor(node.value));
-    attr = getScalarOrDenseAttr(evaluatedType, apVal);
+    attr = getScalarOrDenseAttr(currentType, apVal);
   }
 
-  auto constantOp = arith::ConstantOp::create(builder, evaluatedType, attr);
+  auto constantOp = arith::ConstantOp::create(builder, currentType, attr);
   createdOpCallback(constantOp);
   return constantOp;
 }
 
 Value IRMaterializingVisitor::operator()(const ConstantTensorNode& node) {
-  RankedTensorType tensorTy = cast<RankedTensorType>(evaluatedType);
+  RankedTensorType tensorTy = cast<RankedTensorType>(currentType);
   TypedAttr attr;
   if (auto floatTy = dyn_cast<FloatType>(tensorTy.getElementType())) {
     SmallVector<APFloat> values;
@@ -73,7 +107,7 @@ Value IRMaterializingVisitor::operator()(const ConstantTensorNode& node) {
     attr = DenseElementsAttr::get(tensorTy, values);
   }
 
-  auto constantOp = arith::ConstantOp::create(builder, evaluatedType, attr);
+  auto constantOp = arith::ConstantOp::create(builder, currentType, attr);
   createdOpCallback(constantOp);
   return constantOp;
 }
@@ -90,18 +124,31 @@ Value IRMaterializingVisitor::operator()(const MultiplyNode<SSAValue>& node) {
   return binop<MultiplyNode<SSAValue>, arith::MulFOp, arith::MulIOp>(node);
 }
 
+Value IRMaterializingVisitor::operator()(const DivideNode<SSAValue>& node) {
+  return binop<DivideNode<SSAValue>, arith::DivFOp, arith::DivSIOp>(node);
+}
+
+Value IRMaterializingVisitor::operator()(const PowerNode<SSAValue>& node) {
+  assert(false && "PowerNode materialization not implemented");
+  return Value();
+}
+
 Value IRMaterializingVisitor::operator()(const LeftRotateNode<SSAValue>& node) {
-  Value operand = this->process(node.operand);
-  Value shift = arith::ConstantIndexOp::create(builder, node.shift);
+  Value operand = process(node.operand, currentType);
+  // Shift should be materialized as an index type
+  Value shift = process(node.shift, builder.getIndexType());
   auto rotateOp =
-      tensor_ext::RotateOp::create(builder, evaluatedType, operand, shift);
+      tensor_ext::RotateOp::create(builder, currentType, operand, shift);
   createdOpCallback(rotateOp);
   return rotateOp;
 }
 
 Value IRMaterializingVisitor::operator()(const ExtractNode<SSAValue>& node) {
-  Value operand = this->process(node.operand);
-  Value index = arith::ConstantIndexOp::create(builder, node.index);
+  // Process the operand with its natural type (nullptr = use
+  // evaluatedType/currentType)
+  Value operand = process(node.operand, nullptr);
+  // Index should be materialized as an index type, not the tensor type
+  Value index = process(node.index, builder.getIndexType());
 
   RankedTensorType tensorType = cast<RankedTensorType>(operand.getType());
 
@@ -121,7 +168,7 @@ Value IRMaterializingVisitor::operator()(const ExtractNode<SSAValue>& node) {
   SmallVector<OpFoldResult> strides(tensorType.getRank(),
                                     builder.getIndexAttr(1));
 
-  if (auto tensorTy = dyn_cast<RankedTensorType>(evaluatedType)) {
+  if (auto tensorTy = dyn_cast<RankedTensorType>(currentType)) {
     auto extractOp = tensor::ExtractSliceOp::create(builder, tensorTy, operand,
                                                     offsets, sizes, strides);
     createdOpCallback(extractOp);
@@ -134,6 +181,26 @@ Value IRMaterializingVisitor::operator()(const ExtractNode<SSAValue>& node) {
       tensor::ExtractSliceOp::create(builder, operand, offsets, sizes, strides);
   createdOpCallback(extractOp);
   return extractOp;
+}
+
+Value IRMaterializingVisitor::operator()(const VariableNode<SSAValue>& node) {
+  assert(false && "VariableNode materialization not implemented");
+  return Value();
+}
+
+Value IRMaterializingVisitor::operator()(const ForLoopNode<SSAValue>& node) {
+  assert(false && "ForLoopNode materialization not implemented");
+  return Value();
+}
+
+Value IRMaterializingVisitor::operator()(const YieldNode<SSAValue>& node) {
+  assert(false && "YieldNode materialization not implemented");
+  return Value();
+}
+
+Value IRMaterializingVisitor::operator()(const ResultAtNode<SSAValue>& node) {
+  assert(false && "ResultAtNode materialization not implemented");
+  return Value();
 }
 
 }  // namespace kernel

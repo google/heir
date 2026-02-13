@@ -30,9 +30,16 @@ using DagReducer = std::function<std::shared_ptr<ArithmeticDagNode<T>>(
     std::shared_ptr<ArithmeticDagNode<T>>,
     std::shared_ptr<ArithmeticDagNode<T>>)>;
 
+// Static extraction: takes tensor and static integer index
 template <typename T>
 using DagExtractor = std::function<std::shared_ptr<ArithmeticDagNode<T>>(
     std::shared_ptr<ArithmeticDagNode<T>>, int64_t)>;
+
+// Dynamic extraction: takes tensor and DAG node representing runtime index
+template <typename T>
+using DagExtractorDynamic = std::function<std::shared_ptr<ArithmeticDagNode<T>>(
+    std::shared_ptr<ArithmeticDagNode<T>>,
+    std::shared_ptr<ArithmeticDagNode<T>>)>;
 
 // Returns an arithmetic DAG that implements a matvec kernel. Ensure this is
 // only generated for T a subclass of AbstractValue.
@@ -84,6 +91,8 @@ implementRotateAndReduceAccumulation(const T& vector, int64_t period,
 // operand" of a baby-step giant-step algorithm. This is required because
 // the rotation used in Halevi-Shoup matvec differs from that of bicyclic
 // matmul.
+//
+// Static version: computes rotation amount from static integer indices
 using DerivedRotationIndexFn = std::function<int64_t(
     // giant step size
     int64_t,
@@ -99,6 +108,35 @@ inline int64_t defaultDerivedRotationIndexFn(int64_t giantStepSize,
                                              int64_t babyStepIndex,
                                              int64_t period) {
   return -giantStepSize * giantStepIndex * period;
+}
+
+// Dynamic version: builds DAG expression for rotation amount from DAG node
+// indices
+template <typename T>
+using DagDerivedRotationIndexFn =
+    std::function<std::shared_ptr<ArithmeticDagNode<T>>(
+        // giant step size (constant)
+        int64_t,
+        // current giant step index (DAG node)
+        std::shared_ptr<ArithmeticDagNode<T>>,
+        // current baby step index (DAG node)
+        std::shared_ptr<ArithmeticDagNode<T>>,
+        // period (constant)
+        int64_t)>;
+
+template <typename T>
+std::shared_ptr<ArithmeticDagNode<T>> defaultDagDerivedRotationIndexFn(
+    int64_t giantStepSize, std::shared_ptr<ArithmeticDagNode<T>> giantStepIndex,
+    std::shared_ptr<ArithmeticDagNode<T>> babyStepIndex, int64_t period) {
+  using NodeTy = ArithmeticDagNode<T>;
+  // Build: -(giantStepSize * giantStepIndex * period)
+  auto gsSize = NodeTy::constantScalar(giantStepSize);
+  auto periodNode = NodeTy::constantScalar(period);
+  auto negOne = NodeTy::constantScalar(-1);
+
+  auto temp = NodeTy::mul(giantStepIndex, gsSize);
+  temp = NodeTy::mul(temp, periodNode);
+  return NodeTy::mul(temp, negOne);
 }
 
 // Returns an arithmetic DAG that implements a baby-step-giant-step
@@ -118,7 +156,7 @@ std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
 implementBabyStepGiantStep(
     const T& giantSteppedOperand, const T& babySteppedOperand, int64_t period,
     int64_t steps, DagExtractor<T> extractFunc,
-    std::map<int, bool> zeroDiagonals = {},
+    const std::map<int, bool>& zeroDiagonals = {},
     const DerivedRotationIndexFn& derivedRotationIndexFn =
         defaultDerivedRotationIndexFn) {
   using NodeTy = ArithmeticDagNode<T>;
@@ -180,6 +218,97 @@ implementBabyStepGiantStep(
                            : result;
 }
 
+// Default dynamic extractor: simple extraction at runtime index
+template <typename T>
+std::shared_ptr<ArithmeticDagNode<T>> defaultDagExtractor(
+    std::shared_ptr<ArithmeticDagNode<T>> tensor,
+    std::shared_ptr<ArithmeticDagNode<T>> index) {
+  return ArithmeticDagNode<T>::extract(tensor, index);
+}
+
+// Rolled version of Baby-Step-Giant-Step algorithm.
+//
+// FIXME: support zeroDiagonals
+//
+template <typename T>
+std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
+                 std::shared_ptr<ArithmeticDagNode<T>>>
+implementBabyStepGiantStepRolled(
+    const T& giantSteppedOperand, const T& babySteppedOperand, int64_t period,
+    int64_t steps, DagExtractorDynamic<T> extractFunc = defaultDagExtractor<T>,
+    const DagDerivedRotationIndexFn<T>& dagRotationFn =
+        defaultDagDerivedRotationIndexFn<T>) {
+  using NodeTy = ArithmeticDagNode<T>;
+  using NodePtr = std::shared_ptr<NodeTy>;
+
+  auto giantSteppedDag = NodeTy::leaf(giantSteppedOperand);
+  auto babySteppedDag = NodeTy::leaf(babySteppedOperand);
+
+  int64_t numBabySteps = static_cast<int64_t>(std::ceil(std::sqrt(steps)));
+  int64_t giantStepSize = numBabySteps;
+  int64_t numGiantSteps = (steps + numBabySteps - 1) / numBabySteps;
+
+  // Initialize outer sum to zero
+  auto zero = NodeTy::sub(giantSteppedDag, giantSteppedDag);
+
+  // Outer loop over giant steps (j = 0 to numGiantSteps)
+  auto outerLoop = NodeTy::loop(
+      {zero}, /*lower=*/0, /*upper=*/numGiantSteps, /*step=*/1,
+      [&](NodePtr j, const std::vector<NodePtr>& outerIterArgs) {
+        auto outerSum = outerIterArgs[0];
+
+        // Inner loop over baby steps (i = 0 to numBabySteps)
+        // Initialize inner sum to zero
+        auto innerZero = NodeTy::sub(giantSteppedDag, giantSteppedDag);
+
+        auto innerLoop = NodeTy::loop(
+            {innerZero}, /*lower=*/0, /*upper=*/numBabySteps, /*step=*/1,
+            [&](NodePtr i, const std::vector<NodePtr>& innerIterArgs) {
+              auto innerSum = innerIterArgs[0];
+
+              // Compute extraction index: i + j * giantStepSize
+              auto gsSize = NodeTy::constantScalar(giantStepSize);
+              auto jOffset = NodeTy::mul(j, gsSize);
+              auto extractIdx = NodeTy::add(i, jOffset);
+
+              auto plaintext = extractFunc(babySteppedDag, extractIdx);
+              auto innerRotAmount = dagRotationFn(giantStepSize, j, i, period);
+
+              auto rotatedPlaintext =
+                  NodeTy::leftRotate(plaintext, innerRotAmount);
+
+              // Compute baby-step rotation on-the-fly using loop variable i
+              // babyStepVal = rotate(giantSteppedOperand, i * period)
+              auto babyStepVal = NodeTy::leftRotate(
+                  giantSteppedDag,
+                  NodeTy::mul(i, NodeTy::constantScalar(period)));
+
+              auto multiplied = NodeTy::mul(rotatedPlaintext, babyStepVal);
+              auto newInnerSum = NodeTy::add(innerSum, multiplied);
+
+              return NodeTy::yield({newInnerSum});
+            });
+
+        // Extract result from inner loop
+        auto innerResult = NodeTy::resultAt(innerLoop, 0);
+
+        // Rotate by j * giantStepSize * period
+        auto gsSize = NodeTy::constantScalar(giantStepSize);
+        auto periodNode = NodeTy::constantScalar(period);
+        auto outerRotAmount = NodeTy::mul(j, gsSize);
+        outerRotAmount = NodeTy::mul(outerRotAmount, periodNode);
+
+        auto rotatedSum = NodeTy::leftRotate(innerResult, outerRotAmount);
+
+        // Accumulate into outer sum
+        auto newOuterSum = NodeTy::add(outerSum, rotatedSum);
+
+        return NodeTy::yield({newOuterSum});
+      });
+
+  return NodeTy::resultAt(outerLoop, 0);
+}
+
 // Returns an arithmetic DAG that implements a tensor_ext.rotate_and_reduce op.
 //
 // See TensorExtOps.td docs for RotateAndReduceOp for more details.
@@ -204,8 +333,9 @@ std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
                  std::shared_ptr<ArithmeticDagNode<T>>>
 implementRotateAndReduce(const T& vector, std::optional<T> plaintexts,
                          int64_t period, int64_t steps,
-                         std::map<int, bool> zeroDiagonals = {},
-                         const std::string& reduceOp = "arith.addi") {
+                         const std::map<int, bool>& zeroDiagonals = {},
+                         const std::string& reduceOp = "arith.addi",
+                         bool unroll = true) {
   using NodeTy = ArithmeticDagNode<T>;
   auto performReduction = [&](std::shared_ptr<NodeTy> left,
                               std::shared_ptr<NodeTy> right) {
@@ -221,6 +351,7 @@ implementRotateAndReduce(const T& vector, std::optional<T> plaintexts,
     return NodeTy::add(left, right);
   };
 
+  // FIXME: allow keeping rolled
   if (!plaintexts.has_value()) {
     return implementRotateAndReduceAccumulation<T>(vector, period, steps,
                                                    performReduction);
@@ -231,13 +362,27 @@ implementRotateAndReduce(const T& vector, std::optional<T> plaintexts,
              "Baby-step-giant-step rotate-and-reduce only supports addition "
              "as the reduction operation");
 
-  auto extractFunc = [](std::shared_ptr<NodeTy> babySteppedDag,
-                        int64_t extractionIndex) {
+  if (unroll) {
+    // Unrolled version: uses static extraction
+    auto extractFunc = [](std::shared_ptr<NodeTy> babySteppedDag,
+                          int64_t extractionIndex) {
+      return NodeTy::extract(babySteppedDag, extractionIndex);
+    };
+
+    return implementBabyStepGiantStep<T>(vector, plaintexts.value(), period,
+                                         steps, extractFunc, zeroDiagonals,
+                                         defaultDerivedRotationIndexFn);
+  }
+  // Rolled version: uses dynamic extraction and DAG rotation function
+  // Note: rolled version does not support zeroDiagonals
+  auto dynamicExtractFunc = [](std::shared_ptr<NodeTy> babySteppedDag,
+                               std::shared_ptr<NodeTy> extractionIndex) {
     return NodeTy::extract(babySteppedDag, extractionIndex);
   };
 
-  return implementBabyStepGiantStep<T>(vector, plaintexts.value(), period,
-                                       steps, extractFunc, zeroDiagonals);
+  return implementBabyStepGiantStepRolled<T>(
+      vector, plaintexts.value(), period, steps, dynamicExtractFunc,
+      defaultDagDerivedRotationIndexFn<T>);
 }
 
 // Returns an arithmetic DAG that implements a baby-step-giant-step between
@@ -281,13 +426,17 @@ std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
                  std::shared_ptr<ArithmeticDagNode<T>>>
 implementHaleviShoup(const T& vector, const T& matrix,
                      std::vector<int64_t> originalMatrixShape,
-                     std::map<int, bool> zeroDiagonals = {}) {
+                     std::map<int, bool> zeroDiagonals = {},
+                     bool unroll = true) {
   using NodeTy = ArithmeticDagNode<T>;
+  using NodePtr = std::shared_ptr<ArithmeticDagNode<T>>;
   int64_t numRotations = matrix.getShape()[0];
 
   auto rotateAndReduceResult = implementRotateAndReduce<T>(
       vector, std::optional<T>(matrix), /*period=*/1,
-      /*steps=*/numRotations, zeroDiagonals);
+      /*steps=*/numRotations, zeroDiagonals,
+      /*reuceOp=*/"arith.addi",
+      /*unroll=*/unroll);
 
   auto summedShifts = rotateAndReduceResult;
 
@@ -301,14 +450,32 @@ implementHaleviShoup(const T& vector, const T& matrix,
   // Post-processing partial-rotate-and-reduce step required for
   // squat-diagonal packing.
   int64_t numShifts = (int64_t)(log2(matrixNumCols) - log2(matrixNumRows));
-  int64_t shift = matrixNumCols / 2;
-  for (int64_t i = 0; i < numShifts; ++i) {
-    auto rotated = NodeTy::leftRotate(summedShifts, shift);
-    summedShifts = NodeTy::add(summedShifts, rotated);
-    shift /= 2;
+  if (unroll) {
+    int64_t shift = matrixNumCols / 2;
+    for (int64_t i = 0; i < numShifts; ++i) {
+      auto rotated = NodeTy::leftRotate(summedShifts, shift);
+      summedShifts = NodeTy::add(summedShifts, rotated);
+      shift /= 2;
+    }
+
+    return summedShifts;
   }
 
-  return summedShifts;
+  auto shift = NodeTy::constantScalar(matrixNumCols / 2);
+  auto loopNode = NodeTy::loop(
+      {summedShifts, shift}, /*lower=*/0,
+      /*upper=*/numShifts, /*step=*/1,
+      [&](NodePtr inductionVar, const std::vector<NodePtr>& iterArgs) {
+        auto currentSum = iterArgs[0];
+        auto currentShift = iterArgs[1];
+        auto rotated = NodeTy::leftRotate(currentSum, currentShift);
+        auto newSum = NodeTy::add(currentSum, rotated);
+        auto newShift = NodeTy::div(currentShift, NodeTy::constantScalar(2));
+        return NodeTy::yield({newSum, newShift});
+      });
+
+  // only return the final sum, not the shift.
+  return NodeTy::resultAt(loopNode, 0);
 }
 
 // Returns an arithmetic DAG that implements the bicyclic matrix multiplication
