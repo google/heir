@@ -106,14 +106,12 @@ class MNISTTest(absl.testing.absltest.TestCase):
 
     # 4. Evaluation Loop
     total = 4
-    correct = 0
     samples_processed = 0
 
     for batch_data, batch_target in test_loader:
       if samples_processed >= total:
         break
 
-      label = batch_target.item()
       input_tensor = batch_data.contiguous()  # (1, 1, 28, 28)
       input_vector = input_tensor.flatten().tolist()
 
@@ -135,25 +133,17 @@ class MNISTTest(absl.testing.absltest.TestCase):
       time_elapsed_ms = (end_time - start_time) * 1000.0
       print(f"CPU time used: {time_elapsed_ms:.2f} ms")
 
-      output = [0.0] * 10
+      output = [0.0] * 512
       output = mnist.mnist__decrypt__result0(
           crypto_context, output_encrypted, secret_key
       )
-      max_id = max(range(len(output)), key=lambda index: output[index])
 
-      # NOTE: For the test to pass with the default placeholder 'output',
-      # the `mnist__decrypt__result0` function must be fixed to return an
-      # output vector that results in `max_id == label` for 90% of samples.
-      if max_id == label:
-        correct += 1
-
-      print(f"max_id: {max_id}, label: {label}")
-      print("logits:")
+      print("output:")
       for i, value in enumerate(output):
         print(f"{i}, {value:.6f}")
       samples_processed += 1
 
-    self.assertGreaterEqual(correct, 0.75 * total)
+    self.assertTrue(False); # dummy to dump logs
 
 
 if __name__ == "__main__":

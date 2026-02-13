@@ -27,12 +27,27 @@ struct LeafNode {
   T value;
 };
 
+// An indeterminate variable node, used by internal DAG constructs like
+// ForLoopNode to represent the induction variable and iter_arg. These nodes
+// must not be set by the user, and instead must have their values set by the
+// visitor.
+template <typename T>
+struct VariableNode {
+  std::optional<T> value;
+};
+
 struct ConstantScalarNode {
   double value;
 };
 
 struct ConstantTensorNode {
   std::vector<double> value;
+};
+
+// Yield values to a loop.
+template <typename T>
+struct YieldNode {
+  std::vector<std::shared_ptr<ArithmeticDagNode<T>>> elements;
 };
 
 template <typename T>
@@ -54,6 +69,12 @@ struct MultiplyNode {
 };
 
 template <typename T>
+struct DivideNode {
+  std::shared_ptr<ArithmeticDagNode<T>> left;
+  std::shared_ptr<ArithmeticDagNode<T>> right;
+};
+
+template <typename T>
 struct PowerNode {
   std::shared_ptr<ArithmeticDagNode<T>> base;
   size_t exponent;
@@ -62,21 +83,43 @@ struct PowerNode {
 template <typename T>
 struct LeftRotateNode {
   std::shared_ptr<ArithmeticDagNode<T>> operand;
-  int64_t shift;
+  std::shared_ptr<ArithmeticDagNode<T>> shift;
 };
 
 template <typename T>
 struct ExtractNode {
   std::shared_ptr<ArithmeticDagNode<T>> operand;
+  std::shared_ptr<ArithmeticDagNode<T>> index;
+};
+
+template <typename T>
+struct ResultAtNode {
+  std::shared_ptr<ArithmeticDagNode<T>> operand;
   size_t index;
+};
+
+// A For loop with static bounds
+template <typename T>
+struct ForLoopNode {
+  using NodePtr = std::shared_ptr<ArithmeticDagNode<T>>;
+  NodePtr inductionVar;
+  std::vector<NodePtr> inits;
+  std::vector<NodePtr> iterArgs;
+  NodePtr body;
+  size_t lower;
+  size_t upper;
+  size_t step;
 };
 
 template <typename T>
 struct ArithmeticDagNode {
+  using NodePtr = std::shared_ptr<ArithmeticDagNode<T>>;
+
  public:
   std::variant<ConstantScalarNode, ConstantTensorNode, LeafNode<T>, AddNode<T>,
-               SubtractNode<T>, MultiplyNode<T>, PowerNode<T>,
-               LeftRotateNode<T>, ExtractNode<T>>
+               SubtractNode<T>, MultiplyNode<T>, DivideNode<T>, PowerNode<T>,
+               LeftRotateNode<T>, ExtractNode<T>, VariableNode<T>,
+               ForLoopNode<T>, YieldNode<T>, ResultAtNode<T>>
       node_variant;
 
   explicit ArithmeticDagNode(const T& value)
@@ -89,18 +132,16 @@ struct ArithmeticDagNode {
 
  public:
   // Static factory methods
-  static std::shared_ptr<ArithmeticDagNode<T>> leaf(const T& value) {
+  static NodePtr leaf(const T& value) {
     // This factory method differs from the others because T may not have a
     // default constructor to use with emplace. In that case, we need to rely
     // on the move or copy constructors, which corresponds to the two
     // ArithmeticDagNode constructors above.
-    return std::shared_ptr<ArithmeticDagNode<T>>(
-        new ArithmeticDagNode<T>(value));
+    return NodePtr(new ArithmeticDagNode<T>(value));
   }
 
-  static std::shared_ptr<ArithmeticDagNode<T>> constantScalar(double constant) {
-    auto node =
-        std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
+  static NodePtr constantScalar(double constant) {
+    auto node = NodePtr(new ArithmeticDagNode<T>());
     // Note, to satisfy variant we need to use aggregate initialization inside
     // emplace
     node->node_variant.template emplace<ConstantScalarNode>(
@@ -108,77 +149,146 @@ struct ArithmeticDagNode {
     return node;
   }
 
-  static std::shared_ptr<ArithmeticDagNode<T>> constantTensor(
-      std::vector<double> constant) {
-    auto node =
-        std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
-    // Note, to satisfy variant we need to use aggregate initialization inside
-    // emplace
+  static NodePtr constantTensor(std::vector<double> constant) {
+    auto node = NodePtr(new ArithmeticDagNode<T>());
     node->node_variant.template emplace<ConstantTensorNode>(
         ConstantTensorNode{std::move(constant)});
     return node;
   }
 
-  static std::shared_ptr<ArithmeticDagNode<T>> add(
-      std::shared_ptr<ArithmeticDagNode<T>> lhs,
-      std::shared_ptr<ArithmeticDagNode<T>> rhs) {
+  static NodePtr yield(std::vector<NodePtr> values) {
+    auto node = NodePtr(new ArithmeticDagNode<T>());
+    node->node_variant.template emplace<YieldNode<T>>(
+        YieldNode<T>{std::move(values)});
+    return node;
+  }
+
+  static NodePtr resultAt(NodePtr value, size_t index) {
+    auto node = NodePtr(new ArithmeticDagNode<T>());
+    node->node_variant.template emplace<ResultAtNode<T>>(
+        ResultAtNode<T>{std::move(value), index});
+    return node;
+  }
+
+  static NodePtr add(NodePtr lhs, NodePtr rhs) {
     assert(lhs && rhs && "invalid add");
-    auto node =
-        std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
+    auto node = NodePtr(new ArithmeticDagNode<T>());
     node->node_variant.template emplace<AddNode<T>>(
         AddNode<T>{std::move(lhs), std::move(rhs)});
     return node;
   }
 
-  static std::shared_ptr<ArithmeticDagNode<T>> sub(
-      std::shared_ptr<ArithmeticDagNode<T>> lhs,
-      std::shared_ptr<ArithmeticDagNode<T>> rhs) {
+  static NodePtr sub(NodePtr lhs, NodePtr rhs) {
     assert(lhs && rhs && "invalid sub");
-    auto node =
-        std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
+    auto node = NodePtr(new ArithmeticDagNode<T>());
     node->node_variant.template emplace<SubtractNode<T>>(
         SubtractNode<T>{std::move(lhs), std::move(rhs)});
     return node;
   }
 
-  static std::shared_ptr<ArithmeticDagNode<T>> mul(
-      std::shared_ptr<ArithmeticDagNode<T>> lhs,
-      std::shared_ptr<ArithmeticDagNode<T>> rhs) {
+  static NodePtr mul(NodePtr lhs, NodePtr rhs) {
     assert(lhs && rhs && "invalid mul");
-    auto node =
-        std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
+    auto node = NodePtr(new ArithmeticDagNode<T>());
     node->node_variant.template emplace<MultiplyNode<T>>(
         MultiplyNode<T>{std::move(lhs), std::move(rhs)});
     return node;
   }
 
-  static std::shared_ptr<ArithmeticDagNode<T>> power(
-      std::shared_ptr<ArithmeticDagNode<T>> base, size_t exponent) {
+  static NodePtr div(NodePtr lhs, NodePtr rhs) {
+    assert(lhs && rhs && "invalid div");
+    auto node = NodePtr(new ArithmeticDagNode<T>());
+    node->node_variant.template emplace<DivideNode<T>>(
+        DivideNode<T>{std::move(lhs), std::move(rhs)});
+    return node;
+  }
+
+  static NodePtr power(NodePtr base, size_t exponent) {
     assert(base && "invalid base for power");
-    auto node =
-        std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
+    auto node = NodePtr(new ArithmeticDagNode<T>());
     node->node_variant.template emplace<PowerNode<T>>(
         PowerNode<T>{std::move(base), exponent});
     return node;
   }
 
-  static std::shared_ptr<ArithmeticDagNode<T>> leftRotate(
-      std::shared_ptr<ArithmeticDagNode<T>> tensor, int64_t shift) {
+  static NodePtr leftRotate(NodePtr tensor, int64_t shift) {
     assert(tensor && "invalid tensor for leftRotate");
-    auto node =
-        std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
+    auto shiftNode = constantScalar(static_cast<double>(shift));
+    auto node = NodePtr(new ArithmeticDagNode<T>());
     node->node_variant.template emplace<LeftRotateNode<T>>(
-        LeftRotateNode<T>{std::move(tensor), shift});
+        LeftRotateNode<T>{std::move(tensor), std::move(shiftNode)});
     return node;
   }
 
-  static std::shared_ptr<ArithmeticDagNode<T>> extract(
-      std::shared_ptr<ArithmeticDagNode<T>> tensor, size_t index) {
-    assert(tensor && "invalid tensor for extract");
-    auto node =
-        std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
+  static NodePtr leftRotate(NodePtr tensor, NodePtr shift) {
+    assert(tensor && "invalid tensor for leftRotate");
+    auto node = NodePtr(new ArithmeticDagNode<T>());
+    node->node_variant.template emplace<LeftRotateNode<T>>(
+        LeftRotateNode<T>{std::move(tensor), std::move(shift)});
+    return node;
+  }
+
+  static NodePtr extract(NodePtr tensor, NodePtr index) {
+    assert(tensor && index && "invalid tensor or index for extract");
+    auto node = NodePtr(new ArithmeticDagNode<T>());
     node->node_variant.template emplace<ExtractNode<T>>(
-        ExtractNode<T>{std::move(tensor), index});
+        ExtractNode<T>{std::move(tensor), std::move(index)});
+    return node;
+  }
+
+  // Convenience overload for static indices
+  static NodePtr extract(NodePtr tensor, size_t index) {
+    return extract(tensor, constantScalar(static_cast<double>(index)));
+  }
+
+  static NodePtr variable() {
+    auto node = NodePtr(new ArithmeticDagNode<T>());
+    node->node_variant.template emplace<VariableNode<T>>(
+        VariableNode<T>{std::nullopt});
+    return node;
+  }
+
+  using BodyBuilderFunc =
+      std::function<NodePtr(NodePtr inductionVar, const NodePtr& iterArg)>;
+
+  // Construct a loop with a single iter arg. Note that the body builder must
+  // have as its root node a YieldNode.
+  static NodePtr loop(NodePtr init, size_t lower, size_t upper, size_t step,
+                      const BodyBuilderFunc& bodyBuilder = nullptr) {
+    assert(init && "invalid init");
+    auto inductionVar = variable();
+    auto iterArg = variable();
+    auto body = bodyBuilder ? bodyBuilder(inductionVar, iterArg) : nullptr;
+    auto node = NodePtr(new ArithmeticDagNode<T>());
+    node->node_variant.template emplace<ForLoopNode<T>>(
+        ForLoopNode<T>{std::move(inductionVar),
+                       {std::move(init)},
+                       {std::move(iterArg)},
+                       body,
+                       lower,
+                       upper,
+                       step});
+    return node;
+  }
+
+  using BodyBuilderFuncManyIterArgs = std::function<NodePtr(
+      NodePtr inductionVar, const std::vector<NodePtr>& iterArgs)>;
+
+  // Construct a loop with multiple iter args. Note that the body builder must
+  // have as its root node a YieldNode.
+  static NodePtr loop(
+      std::vector<NodePtr> inits, size_t lower, size_t upper, size_t step,
+      const BodyBuilderFuncManyIterArgs& bodyBuilder = nullptr) {
+    auto inductionVar = variable();
+    std::vector<NodePtr> iterArgs(inits.size());
+    for (size_t i = 0; i < inits.size(); ++i) {
+      iterArgs[i] = variable();
+    }
+
+    auto body = bodyBuilder ? bodyBuilder(inductionVar, iterArgs) : nullptr;
+    auto node = NodePtr(new ArithmeticDagNode<T>());
+    node->node_variant.template emplace<ForLoopNode<T>>(
+        ForLoopNode<T>{std::move(inductionVar), std::move(inits),
+                       std::move(iterArgs), body, lower, upper, step});
     return node;
   }
 
@@ -274,6 +384,11 @@ class CachingVisitor {
     return ResultType();
   }
 
+  virtual ResultType operator()(const DivideNode<T>& node) {
+    assert(false && "Visit logic for DivideNode is not implemented.");
+    return ResultType();
+  }
+
   virtual ResultType operator()(const PowerNode<T>& node) {
     assert(false && "Visit logic for PowerNode is not implemented.");
     return ResultType();
@@ -287,6 +402,74 @@ class CachingVisitor {
   virtual ResultType operator()(const ExtractNode<T>& node) {
     assert(false && "Visit logic for ExtractNode is not implemented.");
     return ResultType();
+  }
+
+  virtual ResultType operator()(const ResultAtNode<T>& node) {
+    assert(false && "Visit logic for ResultAtNode is not implemented.");
+    return ResultType();
+  }
+
+  virtual ResultType operator()(const VariableNode<T>& node) {
+    assert(false && "Visit logic for VariableNode is not implemented.");
+    return ResultType();
+  }
+
+  virtual ResultType operator()(const ForLoopNode<T>& node) {
+    assert(false && "Visit logic for ForLoopNode is not implemented.");
+    return ResultType();
+  }
+
+  virtual ResultType operator()(const YieldNode<T>& node) {
+    assert(false && "Visit logic for YieldNode is not implemented.");
+    return ResultType();
+  }
+
+ protected:
+  void clearCache() { cache.clear(); }
+
+  void clearCacheEntry(const ArithmeticDagNode<T>* node) { cache.erase(node); }
+
+  void clearSubtreeCache(const std::shared_ptr<ArithmeticDagNode<T>>& node) {
+    if (!node) return;
+
+    clearCacheEntry(node.get());
+
+    // Recursively clear cache for child nodes
+    std::visit(
+        [this](auto&& n) {
+          using NodeType = std::decay_t<decltype(n)>;
+          if constexpr (std::is_same_v<NodeType, AddNode<T>> ||
+                        std::is_same_v<NodeType, SubtractNode<T>> ||
+                        std::is_same_v<NodeType, MultiplyNode<T>> ||
+                        std::is_same_v<NodeType, DivideNode<T>>) {
+            clearSubtreeCache(n.left);
+            clearSubtreeCache(n.right);
+          } else if constexpr (std::is_same_v<NodeType, PowerNode<T>>) {
+            clearSubtreeCache(n.base);
+          } else if constexpr (std::is_same_v<NodeType, LeftRotateNode<T>>) {
+            clearSubtreeCache(n.operand);
+            clearSubtreeCache(n.shift);
+          } else if constexpr (std::is_same_v<NodeType, ExtractNode<T>>) {
+            clearSubtreeCache(n.operand);
+            clearSubtreeCache(n.index);
+          } else if constexpr (std::is_same_v<NodeType, ResultAtNode<T>>) {
+            clearSubtreeCache(n.operand);
+          } else if constexpr (std::is_same_v<NodeType, ForLoopNode<T>>) {
+            clearSubtreeCache(n.inductionVar);
+            for (const auto& init : n.inits) {
+              clearSubtreeCache(init);
+            }
+            for (const auto& iterArg : n.iterArgs) {
+              clearSubtreeCache(iterArg);
+            }
+            clearSubtreeCache(n.body);
+          } else if constexpr (std::is_same_v<NodeType, YieldNode<T>>) {
+            for (const auto& element : n.elements) {
+              clearSubtreeCache(element);
+            }
+          }
+        },
+        node->node_variant);
   }
 
  private:
