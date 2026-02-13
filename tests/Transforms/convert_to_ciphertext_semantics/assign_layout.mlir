@@ -68,7 +68,7 @@ module {
 // -----
 // TODO
 // CHECK: @repeat_vector
-#layout = dense<[7, 6, 5, 4, 3, 2, 1, 0]> : tensor<8xi64>
+#layout = dense<[[0, 0, 0, 7], [0, 1, 0, 6], [0, 2, 0, 5], [0, 3, 0, 4], [0, 4, 0, 3], [0, 5, 0, 2], [0, 6, 0, 1], [0, 7, 0, 0]]> : tensor<8x4xi64>
 module {
   func.func @repeat_vector() {
     %cst = arith.constant dense<1> : tensor<8xi16>

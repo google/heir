@@ -196,46 +196,82 @@ static FailureOr<Value> implementUnpackOpNew(
 }
 
 static FailureOr<Value> implementAssignLayoutPermutation(
-    Value input, ElementsAttr permutation, int64_t ciphertextSize,
+    Value input, DenseIntElementsAttr permutation, int64_t ciphertextSize,
     ImplicitLocOpBuilder& builder,
     const std::function<void(Operation*)>& createdOpCallback) {
-  auto inputType = dyn_cast<RankedTensorType>(input.getType());
   auto elementType = getElementTypeOrSelf(input.getType());
 
-  auto permutationType = permutation.getType();
-  if (!permutationType.isIntOrIndex())
-    return emitError(input.getLoc())
-        << "permutation elements have unsupported types";
-
-  auto permValues = SmallVector<int64_t>(permutation.getValues<int64_t>());
-  int64_t numElements = static_cast<int64_t>(permValues.size());
-
-  if (inputType && inputType.getNumElements() != numElements) {
-    return emitError(input.getLoc())
-           << "permutation size (" << numElements
-           << ") does not match input tensor element count ("
-           << inputType.getNumElements() << ")";
-  }
-
+  // permutation is <N x 4 x i64>: each row is [src_ct, src_slot, dst_ct, dst_slot].
+  // src_ct and dst_ct are always 0 (single ciphertext), so treat as 1D:
+  // extract from input[src_slot] and insert into result[0][dst_slot].
   auto ciphertextType = RankedTensorType::get({1, ciphertextSize}, elementType);
-  auto ciphertextTensor = cast<TypedValue<RankedTensorType>>(
+  Value result = cast<TypedValue<RankedTensorType>>(
       arith::ConstantOp::create(builder, ciphertextType,
                                 builder.getZeroAttr(ciphertextType))
           .getResult());
-
   Value ctIdx = arith::ConstantIndexOp::create(builder, 0);
-  Value result = ciphertextTensor;
-  for (int64_t i = 0; i < numElements; ++i) {
-    Value idx = arith::ConstantIndexOp::create(builder, i);
-    Value extracted = tensor::ExtractOp::create(builder, input, ValueRange{idx});
-    Value slotIdx = arith::ConstantIndexOp::create(builder, permValues[i]);
+
+  for (auto it = permutation.value_begin<APInt>();
+       it != permutation.value_end<APInt>();) {
+    ++it;  // skip src_ct (always 0)
+    int64_t srcSlot = (*it++).getSExtValue();
+    ++it;  // skip dst_ct (always 0)
+    int64_t dstSlot = (*it++).getSExtValue();
+
+    Value srcSlotIdx = arith::ConstantIndexOp::create(builder, srcSlot);
+    Value extracted  = tensor::ExtractOp::create(builder, input, ValueRange{srcSlotIdx});
+
+    Value dstSlotIdx = arith::ConstantIndexOp::create(builder, dstSlot);
     result = tensor::InsertOp::create(builder, extracted, result,
-                                      ValueRange{ctIdx, slotIdx});
+                                      ValueRange{ctIdx, dstSlotIdx});
   }
 
   createdOpCallback(result.getDefiningOp());
   return result;
 }
+
+
+// static FailureOr<Value> implementAssignLayoutPermutation(
+//     Value input, DenseIntElementsAttr permutation, int64_t ciphertextSize,
+//     ImplicitLocOpBuilder& builder,
+//     const std::function<void(Operation*)>& createdOpCallback) {
+//   auto inputType = dyn_cast<RankedTensorType>(input.getType());
+//   auto elementType = getElementTypeOrSelf(input.getType());
+
+//   auto permutationType = permutation.getType();
+//   if (!permutationType.isIntOrIndex())
+//     return emitError(input.getLoc())
+//         << "permutation elements have unsupported types";
+
+//   auto permValues = SmallVector<int64_t>(permutation.getValues<int64_t>());
+//   int64_t numElements = static_cast<int64_t>(permValues.size());
+
+//   if (inputType && inputType.getNumElements() != numElements) {
+//     return emitError(input.getLoc())
+//            << "permutation size (" << numElements
+//            << ") does not match input tensor element count ("
+//            << inputType.getNumElements() << ")";
+//   }
+
+//   auto ciphertextType = RankedTensorType::get({1, ciphertextSize}, elementType);
+//   auto ciphertextTensor = cast<TypedValue<RankedTensorType>>(
+//       arith::ConstantOp::create(builder, ciphertextType,
+//                                 builder.getZeroAttr(ciphertextType))
+//           .getResult());
+
+//   Value ctIdx = arith::ConstantIndexOp::create(builder, 0);
+//   Value result = ciphertextTensor;
+//   for (int64_t i = 0; i < numElements; ++i) {
+//     Value idx = arith::ConstantIndexOp::create(builder, i);
+//     Value extracted = tensor::ExtractOp::create(builder, input, ValueRange{idx});
+//     Value slotIdx = arith::ConstantIndexOp::create(builder, permValues[i]);
+//     result = tensor::InsertOp::create(builder, extracted, result,
+//                                       ValueRange{ctIdx, slotIdx});
+//   }
+
+//   createdOpCallback(result.getDefiningOp());
+//   return result;
+// }
 
 FailureOr<Value> implementAssignLayout(
     Value input, Attribute layout, int64_t ciphertextSize,
@@ -245,7 +281,7 @@ FailureOr<Value> implementAssignLayout(
   if (LayoutAttr layoutAttr = dyn_cast<LayoutAttr>(layout)) {
     return implementAssignLayoutNew(input, layoutAttr, ciphertextSize, builder,
                                     createdOpCallback);
-  } else if (ElementsAttr elementAttr = dyn_cast<ElementsAttr>(layout)) {
+  } else if (DenseIntElementsAttr elementAttr = dyn_cast<DenseIntElementsAttr>(layout)) {
     return implementAssignLayoutPermutation(input, elementAttr, ciphertextSize, builder,
                                     createdOpCallback);
   }

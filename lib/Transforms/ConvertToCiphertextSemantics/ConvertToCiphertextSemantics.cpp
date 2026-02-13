@@ -206,6 +206,19 @@ struct LayoutMaterializationTypeConverter
         [this](IndexType type, LayoutAttr attr) -> std::optional<Type> {
           return materializeLayout(type, attr, getCiphertextSize());
         });
+    addConversion(
+        [this](secret::SecretType type, DenseIntElementsAttr attr) 
+            -> std::optional<Type> {
+          return secret::SecretType::get(materializePermutationLayout(
+            getElementTypeOrSelf(type.getValueType()), attr,
+            getCiphertextSize()));
+        });
+    addConversion(
+        [this](RankedTensorType type, DenseIntElementsAttr attr) 
+            -> std::optional<Type> {
+          return materializePermutationLayout(getElementTypeOrSelf(type), 
+                                            attr, getCiphertextSize());
+        });
   }
 
   int getCiphertextSize() const { return ciphertextSize; }

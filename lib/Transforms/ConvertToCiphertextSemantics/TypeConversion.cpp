@@ -41,5 +41,12 @@ Type materializeScalarLayout(Type type, LayoutAttr attr, int ciphertextSize) {
   return RankedTensorType::get({1, ciphertextSize}, type);
 }
 
+Type materializePermutationLayout(Type elementType,
+                                  DenseIntElementsAttr permutation,
+                                  int ciphertextSize) {
+  // src_ct and dst_ct are always 0; output is always a single ciphertext.
+  return RankedTensorType::get({1, ciphertextSize}, elementType);
+}
+
 }  // namespace heir
 }  // namespace mlir
