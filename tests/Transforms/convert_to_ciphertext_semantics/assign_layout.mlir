@@ -64,3 +64,20 @@ module {
     return %0 : !secret.secret<tensor<32xi16>>
   }
 }
+
+// -----
+// TODO
+// CHECK: @repeat_vector
+#layout = dense<[[0, 0, 0, 7], [0, 1, 0, 6], [0, 2, 0, 5], [0, 3, 0, 4], [0, 4, 0, 3], [0, 5, 0, 2], [0, 6, 0, 1], [0, 7, 0, 0]]> : tensor<8x4xi64>
+module {
+  func.func @repeat_vector() {
+    %cst = arith.constant dense<1> : tensor<8xi16>
+    // CHECK: %[[cst:.*]] = arith.constant dense<1> : tensor<16xi16>
+    // CHECK: func.call @_assign_layout_{{[0-9]+}}(%[[cst]])
+    %0 = secret.generic() {
+      %1 = tensor_ext.assign_layout %cst {layout = #layout, tensor_ext.layout = #layout} : tensor<8xi16>
+      secret.yield %1 : tensor<8xi16>
+    } -> (!secret.secret<tensor<8xi16>> {tensor_ext.layout = #layout})
+    return
+  }
+}
