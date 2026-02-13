@@ -129,22 +129,23 @@ LogicalResult verifyLayoutMatchesType(const Attribute& layoutAttr, Type type,
     return success();
   }
 
-  if (auto permLayout = dyn_cast<ElementsAttr>(layoutAttr)) {
-    if (permLayout.getShapedType().getRank() != 1) {
+  if (auto denseElementsAttr =
+          dyn_cast<DenseIntElementsAttr>(layoutAttr)) {
+    // Assert the attr has shape <N x 4>
+    int64_t rank = denseElementsAttr.getType().getRank();
+    if (rank != 2)
       return op->emitOpError()
-             << "requires permutation layout to be a 1-D dense i64 array, "
-                "but found shape " << permLayout.getShapedType();
-    }
-    if (shapedType) {
-      int64_t numElements = shapedType.getNumElements();
-      int64_t permSize = permLayout.getShapedType().getDimSize(0);
-      if (numElements != permSize) {
-        return op->emitOpError()
-               << "requires permutation layout size (" << permSize
-               << ") to match the number of tensor elements (" << numElements
-               << ")";
-      }
-    }
+             << "requires permutation attribute to Rank 2, but "
+             << "found shape <"
+             << denseElementsAttr.getType() << ">";
+
+    int64_t cols = denseElementsAttr.getType().getDimSize(1);
+    if (cols != 4)
+      return op->emitOpError()
+             << "requires permutation attribute to be of shape <N x 4>, but "
+                "found shape <"
+             << denseElementsAttr.getType() << ">"
+             << "Rank: " << rank << " Cols: " << cols << "\n";
     return success();
   }
 
