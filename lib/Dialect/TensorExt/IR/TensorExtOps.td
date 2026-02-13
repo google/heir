@@ -92,6 +92,11 @@ def TensorExt_RemapOp : TensorExt_Op<"remap", [Pure, AllTypesMatch<["input", "ou
 // Forces ops to use a general Attribute and dyn_cast to the specific kind of
 // layout they support.
 def LayoutLike : AnyAttrOf<[
+  // An explicit permutation from logical data indices to ciphertext slot
+  // indices, represented as a 1-D dense i64 array where the i-th entry is the
+  // slot index assigned to the i-th logical element. Used to represent
+  // arbitrary (non-affine) slot assignments.
+  AnyI64ElementsAttr,
   TensorExt_LayoutAttr,
 ]>;
 
