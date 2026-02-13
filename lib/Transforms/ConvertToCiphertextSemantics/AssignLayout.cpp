@@ -195,6 +195,51 @@ static FailureOr<Value> implementUnpackOpNew(
   return loop.value().getResults()[0];
 }
 
+static FailureOr<Value> implementAssignLayoutPermutation(
+    Value input, DenseIntElementsAttr permutation, int64_t ciphertextSize,
+    ImplicitLocOpBuilder& builder,
+    const std::function<void(Operation*)>& createdOpCallback) {
+  auto elementType = getElementTypeOrSelf(input.getType());
+
+  // TODO(#2666): This logic assumes ctxt = 0, this can be extended to handle a
+  // more general case. permutation is <N x 4 x i64>: each row is [src_ct,
+  // src_slot, dst_ct, dst_slot]. src_ct and dst_ct are always 0 (single
+  // ciphertext), so treat as 1D: extract from input[0][src_slot] and insert
+  // into result[0][dst_slot].
+  auto ciphertextType = RankedTensorType::get({1, ciphertextSize}, elementType);
+  auto zeroCtxt = arith::ConstantOp::create(
+      builder, ciphertextType, builder.getZeroAttr(ciphertextType));
+  createdOpCallback(zeroCtxt);
+  Value result = zeroCtxt.getResult();
+  auto ctIdxOp = arith::ConstantIndexOp::create(builder, 0);
+  createdOpCallback(ctIdxOp);
+  Value ctIdx = ctIdxOp.getResult();
+
+  for (auto it = permutation.value_begin<APInt>();
+       it != permutation.value_end<APInt>();) {
+    // skip src_ct (always 0)
+    ++it;
+    int64_t srcSlot = (*it++).getSExtValue();
+    // skip dst_ct (always 0)
+    ++it;
+    int64_t dstSlot = (*it++).getSExtValue();
+
+    auto srcSlotIdx = arith::ConstantIndexOp::create(builder, srcSlot);
+    createdOpCallback(srcSlotIdx);
+    auto extracted = tensor::ExtractOp::create(builder, input,
+                                               ValueRange{ctIdx, srcSlotIdx});
+    createdOpCallback(extracted);
+    auto dstSlotIdx = arith::ConstantIndexOp::create(builder, dstSlot);
+    createdOpCallback(dstSlotIdx);
+    auto insertOp = tensor::InsertOp::create(
+        builder, extracted.getResult(), result, ValueRange{ctIdx, dstSlotIdx});
+    createdOpCallback(insertOp);
+    result = insertOp.getResult();
+  }
+
+  return result;
+}
+
 FailureOr<Value> implementAssignLayout(
     Value input, Attribute layout, int64_t ciphertextSize,
     ImplicitLocOpBuilder& builder,
@@ -203,6 +248,10 @@ FailureOr<Value> implementAssignLayout(
   if (LayoutAttr layoutAttr = dyn_cast<LayoutAttr>(layout)) {
     return implementAssignLayoutNew(input, layoutAttr, ciphertextSize, builder,
                                     createdOpCallback);
+  } else if (DenseIntElementsAttr elementAttr =
+                 dyn_cast<DenseIntElementsAttr>(layout)) {
+    return implementAssignLayoutPermutation(input, elementAttr, ciphertextSize,
+                                            builder, createdOpCallback);
   }
   return builder.emitError() << "Unsupported layout attribute type: " << layout;
 };
