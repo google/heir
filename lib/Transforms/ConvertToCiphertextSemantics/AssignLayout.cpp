@@ -202,6 +202,11 @@ static FailureOr<Value> implementAssignLayoutPermutation(
   auto inputType = dyn_cast<RankedTensorType>(input.getType());
   auto elementType = getElementTypeOrSelf(input.getType());
 
+  auto permutationType = permutation.getType();
+  if (!permutationType.isIntOrIndex())
+    return emitError(input.getLoc())
+        << "permutation elements have unsupported types";
+
   auto permValues = SmallVector<int64_t>(permutation.getValues<int64_t>());
   int64_t numElements = static_cast<int64_t>(permValues.size());
 

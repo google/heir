@@ -129,6 +129,25 @@ LogicalResult verifyLayoutMatchesType(const Attribute& layoutAttr, Type type,
     return success();
   }
 
+  if (auto permLayout = dyn_cast<ElementsAttr>(layoutAttr)) {
+    if (permLayout.getShapedType().getRank() != 1) {
+      return op->emitOpError()
+             << "requires permutation layout to be a 1-D dense i64 array, "
+                "but found shape " << permLayout.getShapedType();
+    }
+    if (shapedType) {
+      int64_t numElements = shapedType.getNumElements();
+      int64_t permSize = permLayout.getShapedType().getDimSize(0);
+      if (numElements != permSize) {
+        return op->emitOpError()
+               << "requires permutation layout size (" << permSize
+               << ") to match the number of tensor elements (" << numElements
+               << ")";
+      }
+    }
+    return success();
+  }
+
   return op->emitOpError("Unsupported layout attribute");
 }
 
