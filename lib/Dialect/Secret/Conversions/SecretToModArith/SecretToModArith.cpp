@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
+#include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
@@ -99,15 +100,18 @@ class SecretGenericOpConversion
   LogicalResult matchAndRewrite(
       secret::GenericOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const final {
-    if (op.getBody()->getOperations().size() > 2) {
-      // Each secret.generic should contain at most one instruction -
-      // secret-distribute-generic can be used to distribute through the
-      // arithmetic ops.
+    Operation* yieldOp = op.getBody()->getTerminator();
+    Operation* innerOp = &op.getBody()->front();
+    if (innerOp == yieldOp) {
+      rewriter.replaceOp(op, adaptor.getInputs());
+      return success();
+    }
+
+    if (innerOp->getNextNode() != yieldOp) {
       return rewriter.notifyMatchFailure(
           op, "secret.generic should contain at most one instruction");
     }
 
-    auto& innerOp = op.getBody()->getOperations().front();
     if (!isa<T>(innerOp)) {
       return rewriter.notifyMatchFailure(
           op, "inner op is not of the expected type");
@@ -117,7 +121,7 @@ class SecretGenericOpConversion
     // they are already type-converted, or else they are ciphertext operands,
     // in which case we can get them in type-converted form from the adaptor.
     SmallVector<Value> inputs;
-    for (Value operand : innerOp.getOperands()) {
+    for (Value operand : innerOp->getOperands()) {
       if (auto* secretArg = op.getOpOperandForBlockArgument(operand)) {
         inputs.push_back(adaptor.getInputs()[secretArg->getOperandNumber()]);
       } else {
@@ -161,11 +165,18 @@ class ConvertAnyNestedGeneric : public OpConversionPattern<secret::GenericOp> {
   LogicalResult matchAndRewrite(
       secret::GenericOp outerOp, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const final {
-    if (outerOp.getBody()->getOperations().size() > 2) {
+    Operation* yieldOp = outerOp.getBody()->getTerminator();
+    Operation* innerOp = &outerOp.getBody()->front();
+
+    if (innerOp == yieldOp) {
+      rewriter.replaceOp(outerOp, adaptor.getInputs());
+      return success();
+    }
+
+    if (innerOp->getNextNode() != yieldOp) {
       return rewriter.notifyMatchFailure(
           outerOp, "secret.generic should contain at most one instruction");
     }
-    Operation* innerOp = &outerOp.getBody()->getOperations().front();
 
     SmallVector<Value> inputs;
     for (Value operand : innerOp->getOperands()) {
@@ -187,7 +198,7 @@ class ConvertAnyNestedGeneric : public OpConversionPattern<secret::GenericOp> {
     for (auto& r : innerOp->getRegions()) {
       Region* newRegion = new Region(innerOp);
       rewriter.cloneRegionBefore(r, *newRegion, newRegion->end(), mapping);
-      if (failed(rewriter.convertRegionTypes(newRegion, *typeConverter)))
+      if (failed(rewriter.convertRegionTypes(newRegion, *getTypeConverter())))
         return rewriter.notifyMatchFailure(outerOp,
                                            "failed to convert region types");
       regions.emplace_back(newRegion);
@@ -446,6 +457,18 @@ struct ConvertDebugCall : public SecretGenericOpConversion<func::CallOp> {
   }
 };
 
+template <typename T>
+struct RemoveMgmtOp : public OpConversionPattern<T> {
+  using OpConversionPattern<T>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      T op, typename T::Adaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    rewriter.replaceOp(op, adaptor.getOperands()[0]);
+    return success();
+  }
+};
+
 struct SecretToModArith : public impl::SecretToModArithBase<SecretToModArith> {
   using SecretToModArithBase::SecretToModArithBase;
 
@@ -481,6 +504,14 @@ struct SecretToModArith : public impl::SecretToModArithBase<SecretToModArith> {
       patterns.add<ConvertReveal, ConvertConceal, ConvertDebugCall>(
           typeConverter, context, /*benefit=*/3);
     }
+
+    patterns
+        .add<RemoveMgmtOp<mgmt::ModReduceOp>, RemoveMgmtOp<mgmt::LevelReduceOp>,
+             RemoveMgmtOp<mgmt::LevelReduceMinOp>,
+             RemoveMgmtOp<mgmt::RelinearizeOp>, RemoveMgmtOp<mgmt::BootstrapOp>,
+             RemoveMgmtOp<mgmt::AdjustScaleOp>, RemoveMgmtOp<mgmt::InitOp>>(
+            typeConverter, context,
+            /*benefit=*/2);
 
     patterns.add<ConvertAnyNestedGeneric>(typeConverter, context,
                                           /*benefit=*/1);
