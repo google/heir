@@ -214,50 +214,62 @@ static LogicalResult verifyNTTOp(Operation* op, PolynomialType input,
     Attribute rootValue = root.value().getValue();
     APInt rootDegree = root.value().getDegree().getValue();
 
-    auto maCoeffType =
-        dyn_cast<mod_arith::ModArithType>(inputRing.getCoefficientType());
-    auto rnsCoeffType = dyn_cast<rns::RNSType>(inputRing.getCoefficientType());
-    if (maCoeffType) {
-      auto rootValueType = dyn_cast<mod_arith::ModArithAttr>(rootValue);
-      if (!rootValueType || maCoeffType != rootValueType.getType()) {
-        return op->emitOpError()
-               << "Ring has ModArith coefficient type " << maCoeffType
-               << ", but primitive root has type " << rootValue;
-      }
-      APInt cmod = maCoeffType.getModulus().getValue();
-      APInt rootValue = rootValueType.getValue().getValue();
-      if (!isPrimitiveNthRootOfUnity(rootValue, rootDegree, cmod)) {
-        return op->emitOpError()
-               << "provided root " << rootValue.getZExtValue()
-               << " is not a primitive root " << "of unity mod "
-               << cmod.getZExtValue() << ", with the specified degree "
-               << rootDegree.getSExtValue();
-      }
-    } else if (rnsCoeffType) {
-      auto rootValueType = dyn_cast<rns::RNSAttr>(rootValue);
-      if (!rootValueType || rnsCoeffType != rootValueType.getType()) {
-        return op->emitOpError()
-               << "Ring has RNS coefficient type " << rnsCoeffType
-               << ", but primitive root has type " << rootValue;
-      }
-      auto basis = rnsCoeffType.getBasisTypes();
-      int rnsLength = basis.size();
-      for (int i = 0; i < rnsLength; i++) {
-        auto limbType = dyn_cast<mod_arith::ModArithType>(basis[i]);
-        APInt cmod = limbType.getModulus().getValue();
-        APInt rootValue = rootValueType.getValues()[i].getValue();
-        if (!isPrimitiveNthRootOfUnity(rootValue, rootDegree, cmod)) {
-          return op->emitOpError()
-                 << "provided root " << rootValue.getZExtValue()
-                 << " is not a primitive root " << "of unity mod "
-                 << cmod.getZExtValue() << ", with the specified degree "
-                 << rootDegree.getSExtValue();
-        }
-      }
-    } else {
-      return op->emitOpError() << "Ring has unsupported coefficient type "
-                               << inputRing.getCoefficientType();
-    }
+    LogicalResult coeffCheck =
+        TypeSwitch<Type, LogicalResult>(inputRing.getCoefficientType())
+            .Case<mod_arith::ModArithType>(
+                [&](mod_arith::ModArithType coeffType) -> LogicalResult {
+                  auto rootValueType =
+                      dyn_cast<mod_arith::ModArithAttr>(rootValue);
+                  if (!rootValueType || inputRing.getCoefficientType() !=
+                                            rootValueType.getType()) {
+                    return op->emitOpError() << "Ring has coefficient type "
+                                             << inputRing.getCoefficientType()
+                                             << ", but primitive root has type "
+                                             << rootValueType.getType();
+                  }
+                  APInt cmod = coeffType.getModulus().getValue();
+                  APInt rootValue = rootValueType.getValue().getValue();
+                  if (!isPrimitiveNthRootOfUnity(rootValue, rootDegree, cmod)) {
+                    return op->emitOpError()
+                           << "provided root " << rootValue.getZExtValue()
+                           << " is not a primitive root " << "of unity mod "
+                           << cmod.getZExtValue()
+                           << ", with the specified degree "
+                           << rootDegree.getSExtValue();
+                  }
+                  return success();
+                })
+            .Case<rns::RNSType>([&](rns::RNSType coeffType) -> LogicalResult {
+              auto rootValueType = dyn_cast<rns::RNSAttr>(rootValue);
+              if (!rootValueType ||
+                  inputRing.getCoefficientType() != rootValueType.getType()) {
+                return op->emitOpError() << "Ring has coefficient type "
+                                         << inputRing.getCoefficientType()
+                                         << ", but primitive root has type "
+                                         << rootValueType.getType();
+              }
+              auto basis = coeffType.getBasisTypes();
+              int rnsLength = basis.size();
+              for (int i = 0; i < rnsLength; i++) {
+                auto limbType = dyn_cast<mod_arith::ModArithType>(basis[i]);
+                APInt cmod = limbType.getModulus().getValue();
+                APInt rootValue = rootValueType.getValues()[i].getValue();
+                if (!isPrimitiveNthRootOfUnity(rootValue, rootDegree, cmod)) {
+                  return op->emitOpError()
+                         << "provided root " << rootValue.getZExtValue()
+                         << " is not a primitive root " << "of unity mod "
+                         << cmod.getZExtValue()
+                         << ", with the specified degree "
+                         << rootDegree.getSExtValue();
+                }
+              }
+              return success();
+            })
+            .Default([&](Type coeffType) -> LogicalResult {
+              return op->emitOpError()
+                     << "Ring has unsupported coefficient type " << coeffType;
+            });
+    if (failed(coeffCheck)) return coeffCheck;
   }
 
   return success();
