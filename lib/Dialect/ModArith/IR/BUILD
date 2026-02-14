@@ -12,16 +12,19 @@ package(
 cc_library(
     name = "Dialect",
     srcs = [
+        "ModArithAttributes.cpp",
         "ModArithDialect.cpp",
         "ModArithOps.cpp",
         "ModArithTypes.cpp",
     ],
     hdrs = [
+        "ModArithAttributes.h",
         "ModArithDialect.h",
         "ModArithOps.h",
         "ModArithTypes.h",
     ],
     deps = [
+        ":attributes_inc_gen",
         ":canonicalization_inc_gen",
         ":dialect_inc_gen",
         ":ops_inc_gen",
@@ -36,9 +39,34 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "Types",
+    srcs = [
+        "ModArithTypes.cpp",
+    ],
+    hdrs = [
+        "ModArithDialect.h",
+        "ModArithTypes.h",
+    ],
+    deps = [
+        ":attributes_inc_gen",
+        ":canonicalization_inc_gen",
+        ":dialect_inc_gen",
+        ":ops_inc_gen",
+        ":types_inc_gen",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:CommonFolders",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:InferTypeOpInterface",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
 td_library(
     name = "td_files",
     srcs = [
+        "ModArithAttributes.td",
         "ModArithCanonicalization.td",
         "ModArithDialect.td",
         "ModArithOps.td",
@@ -62,6 +90,16 @@ add_heir_dialect_library(
     dialect = "ModArith",
     kind = "dialect",
     td_file = "ModArithDialect.td",
+    deps = [
+        ":td_files",
+    ],
+)
+
+add_heir_dialect_library(
+    name = "attributes_inc_gen",
+    dialect = "ModArith",
+    kind = "attribute",
+    td_file = "ModArithAttributes.td",
     deps = [
         ":td_files",
     ],

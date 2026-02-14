@@ -13,17 +13,20 @@
 !coeff_ty2 = !mod_arith.int<256:i32>
 #ideal = #polynomial.int_polynomial<-1 + x**1024>
 #ring = #polynomial.ring<coefficientType=!coeff_ty2, polynomialModulus=#ideal>
-!poly_ty = !polynomial.polynomial<ring=#ring>
 
 #ntt_poly = #polynomial.int_polynomial<-1 + x**8>
 #ntt_ring = #polynomial.ring<coefficientType=!coeff_ty2, polynomialModulus=#ntt_poly>
-!ntt_poly_ty = !polynomial.polynomial<ring=#ntt_ring>
+!poly_ty = !polynomial.polynomial<ring=#ntt_ring>
+!ntt_poly_ty = !polynomial.polynomial<ring=#ntt_ring, form=<isCoeffForm=false>>
+#ntt_ring_1_root_val = #mod_arith.value<31:!coeff_ty2>
+#ntt_ring_1_root = #polynomial.primitive_root<value=#ntt_ring_1_root_val, degree=8:i32>
 
 !coeff_ty3 = !mod_arith.int<786433:i32>
 #ntt_poly_2 = #polynomial.int_polynomial<1 + x**65536>
 #ntt_ring_2 = #polynomial.ring<coefficientType=!coeff_ty3, polynomialModulus=#ntt_poly_2>
-#ntt_ring_2_root = #polynomial.primitive_root<value=283965:i32, degree=131072:i32>
-!ntt_poly_ty_2 = !polynomial.polynomial<ring=#ntt_ring_2>
+#ntt_ring_2_root_val = #mod_arith.value<283965:!coeff_ty3>
+#ntt_ring_2_root = #polynomial.primitive_root<value=#ntt_ring_2_root_val, degree=131072:i32>
+!poly_ty_2 = !polynomial.polynomial<ring=#ntt_ring_2>
 
 module {
   func.func @test_multiply() -> !polynomial.polynomial<ring=#ring1> {
@@ -99,18 +102,18 @@ module {
     return
   }
 
-  func.func @test_ntt(%0 : !ntt_poly_ty) {
-    %1 = polynomial.ntt %0 {root=#polynomial.primitive_root<value=31:i32, degree=8:index>} : !ntt_poly_ty -> tensor<8x!coeff_ty2, #ntt_ring>
+  func.func @test_ntt(%0 : !poly_ty) {
+    %1 = polynomial.ntt %0 {root=#ntt_ring_1_root} : !poly_ty
     return
   }
 
-  func.func @test_ntt_with_overflowing_root(%0 : !ntt_poly_ty_2) {
-    %1 = polynomial.ntt %0 {root=#ntt_ring_2_root} : !ntt_poly_ty_2 -> tensor<65536x!coeff_ty3, #ntt_ring_2>
+  func.func @test_ntt_with_overflowing_root(%0 : !poly_ty_2) {
+    %1 = polynomial.ntt %0 {root=#ntt_ring_2_root} : !poly_ty_2
     return
   }
 
-  func.func @test_intt(%0 : tensor<8x!coeff_ty2, #ntt_ring>) {
-    %1 = polynomial.intt %0 {root=#polynomial.primitive_root<value=31:i32, degree=8:index>} : tensor<8x!coeff_ty2, #ntt_ring> -> !ntt_poly_ty
+  func.func @test_intt(%0 : !ntt_poly_ty) {
+    %1 = polynomial.intt %0 {root=#ntt_ring_1_root} : !ntt_poly_ty
     return
   }
 }

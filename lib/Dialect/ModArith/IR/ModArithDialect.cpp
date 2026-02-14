@@ -4,6 +4,7 @@
 
 // NOLINTBEGIN(misc-include-cleaner): Required to define
 // ModArithDialect, ModArithTypes, ModArithOps,
+#include "lib/Dialect/ModArith/IR/ModArithAttributes.h"
 #include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
@@ -13,6 +14,9 @@
 
 // Generated definitions
 #include "lib/Dialect/ModArith/IR/ModArithDialect.cpp.inc"
+
+#define GET_ATTRDEF_CLASSES
+#include "lib/Dialect/ModArith/IR/ModArithAttributes.cpp.inc"
 
 #define GET_TYPEDEF_CLASSES
 #include "lib/Dialect/ModArith/IR/ModArithTypes.cpp.inc"
@@ -25,6 +29,10 @@ namespace heir {
 namespace mod_arith {
 
 void ModArithDialect::initialize() {
+  addAttributes<
+#define GET_ATTRDEF_LIST
+#include "lib/Dialect/ModArith/IR/ModArithAttributes.cpp.inc"
+      >();
   addTypes<
 #define GET_TYPEDEF_LIST
 #include "lib/Dialect/ModArith/IR/ModArithTypes.cpp.inc"
