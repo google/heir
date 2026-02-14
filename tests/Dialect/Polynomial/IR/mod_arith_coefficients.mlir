@@ -18,13 +18,13 @@
 #ntt_ring = #polynomial.ring<coefficientType=!coeff_ty2, polynomialModulus=#ntt_poly>
 !poly_ty = !polynomial.polynomial<ring=#ntt_ring>
 !ntt_poly_ty = !polynomial.polynomial<ring=#ntt_ring, form=<isCoeffForm=false>>
-#ntt_ring_1_root_val = #mod_arith.value<type=!coeff_ty2, value=31:i32>
+#ntt_ring_1_root_val = #mod_arith.value<31:!coeff_ty2>
 #ntt_ring_1_root = #polynomial.primitive_root<value=#ntt_ring_1_root_val, degree=8:i32>
 
 !coeff_ty3 = !mod_arith.int<786433:i32>
 #ntt_poly_2 = #polynomial.int_polynomial<1 + x**65536>
 #ntt_ring_2 = #polynomial.ring<coefficientType=!coeff_ty3, polynomialModulus=#ntt_poly_2>
-#ntt_ring_2_root_val = #mod_arith.value<type=!coeff_ty3, value=283965:i32>
+#ntt_ring_2_root_val = #mod_arith.value<283965:!coeff_ty3>
 #ntt_ring_2_root = #polynomial.primitive_root<value=#ntt_ring_2_root_val, degree=131072:i32>
 !poly_ty_2 = !polynomial.polynomial<ring=#ntt_ring_2>
 

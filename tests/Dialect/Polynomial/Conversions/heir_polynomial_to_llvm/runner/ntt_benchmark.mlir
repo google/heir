@@ -1,7 +1,7 @@
 !coeff_ty = !mod_arith.int<786433:i32>
 #cycl = #polynomial.int_polynomial<1 + x**65536>
 #ring = #polynomial.ring<coefficientType=!coeff_ty, polynomialModulus=#cycl>
-#root_val = #mod_arith.value<type=!coeff_ty, value=283965:i32>
+#root_val = #mod_arith.value<283965:!coeff_ty>
 #root = #polynomial.primitive_root<value=#root_val, degree=131072:i32>
 !poly_ty = !polynomial.polynomial<ring=#ring>
 !ntt_poly_ty = !polynomial.polynomial<ring=#ring, form=<isCoeffForm=false>>

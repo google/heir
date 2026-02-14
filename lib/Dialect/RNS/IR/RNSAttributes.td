@@ -25,7 +25,7 @@ def RNS_RNSAttr : RNS_Attr<"RNS", "value"> {
     Example:
 
     ```mlir
-    #v = #rns.value<type=!rns.rns<...>, values = [3 : i32, 9 : i32]>
+    #v = #rns.value<[3, 9] : !rns.rns<...>>
     ```
   }];
   let parameters = (ins
@@ -33,7 +33,7 @@ def RNS_RNSAttr : RNS_Attr<"RNS", "value"> {
     "::mlir::heir::rns::RNSType":$type
   );
   let genVerifyDecl = 1;
-  let assemblyFormat = "`<` `[` $values `]` `:` $type `>`";
+  let hasCustomAssemblyFormat = 1;
 }
 
 #endif  // LIB_DIALECT_RNS_IR_RNSATTRIBUTES_TD_

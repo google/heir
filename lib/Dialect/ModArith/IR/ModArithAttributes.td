@@ -24,14 +24,14 @@ def ModArith_ModArithAttr : ModArith_Attr<"ModArith", "value"> {
     Example:
 
     ```mlir
-    #v = #mod_arith.value<type=!mod_arith.int<17 : i32>, value=3 : i32>
+    #v = #mod_arith.value<17 : !mod_arith.int<...>>
     ```
   }];
   let parameters = (ins
     "::mlir::heir::mod_arith::ModArithType":$type,
     "::mlir::IntegerAttr":$value
   );
-  let assemblyFormat = "`<` struct(params) `>`";
+  let hasCustomAssemblyFormat = 1;
 }
 
 #endif  // LIB_DIALECT_MODARITH_IR_MODARITHATTRIBUTES_TD_

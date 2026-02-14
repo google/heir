@@ -6,7 +6,7 @@
 #cycl = #polynomial.int_polynomial<1 + x**4>
 !coeff_ty = !mod_arith.int<7681:i32>
 #ring = #polynomial.ring<coefficientType=!coeff_ty, polynomialModulus=#cycl>
-#root_val = #mod_arith.value<type=!coeff_ty, value=1925:i32>
+#root_val = #mod_arith.value<1925:!coeff_ty>
 #root = #polynomial.primitive_root<value=#root_val, degree=8:i32>
 !poly_ty = !polynomial.polynomial<ring=#ring>
 !ntt_poly_ty = !polynomial.polynomial<ring=#ring, form=<isCoeffForm=false>>
