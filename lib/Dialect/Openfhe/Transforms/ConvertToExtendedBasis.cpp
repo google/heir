@@ -27,14 +27,11 @@ struct ConvertToExtendedBasis
     for (FastRotationOp op : fastRotOps) {
       builder.setInsertionPoint(op);
 
-      // Create FastRotationExtOp - first rotation should have addFirst=true
-      // For now, we set addFirst=true for all; the hoisting pass will optimize
       auto fastRotExt = FastRotationExtOp::create(
           builder, op->getLoc(), op.getType(), op.getCryptoContext(),
           op.getInput(), op.getIndex(), op.getPrecomputedDigitDecomp(),
           /*addFirst=*/true);
 
-      // Create KeySwitchDownOp to convert back from extended basis
       auto keySwitchDown = KeySwitchDownOp::create(
           builder, op->getLoc(), op.getType(), op.getCryptoContext(),
           fastRotExt.getResult());
