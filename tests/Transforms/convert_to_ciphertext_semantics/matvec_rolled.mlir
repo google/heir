@@ -15,20 +15,16 @@ module {
   // CHECK:   scf.for
   // CHECK:     arith.muli
   // CHECK:     arith.addi
-  // CHECK:     arith.index_cast
   // CHECK:     tensor.extract_slice
   // CHECK:     arith.muli
   // CHECK:     arith.muli
-  // CHECK:     arith.index_cast
   // CHECK:     tensor_ext.rotate
-  // CHECK:     arith.index_cast
   // CHECK:     tensor_ext.rotate
   // CHECK:     arith.mulf
   // CHECK:     arith.addf
   // CHECK:     scf.yield
   // CHECK:   }
   // CHECK:   arith.muli
-  // CHECK:   arith.index_cast
   // CHECK:   tensor_ext.rotate
   // CHECK:   arith.addf
   // CHECK:   scf.yield
@@ -68,20 +64,16 @@ module {
 // CHECK:     scf.for
 // CHECK:       arith.muli
 // CHECK:       arith.addi
-// CHECK:       arith.index_cast
 // CHECK:       tensor.extract_slice
 // CHECK:       arith.muli
 // CHECK:       arith.muli
-// CHECK:       arith.index_cast
 // CHECK:       tensor_ext.rotate
-// CHECK:       arith.index_cast
 // CHECK:       tensor_ext.rotate
 // CHECK:       arith.mulf
 // CHECK:       arith.addf
 // CHECK:       scf.yield
 // CHECK:     }
 // CHECK:     arith.muli
-// CHECK:     arith.index_cast
 // CHECK:     tensor_ext.rotate
 // CHECK:     arith.addf
 // CHECK:     scf.yield

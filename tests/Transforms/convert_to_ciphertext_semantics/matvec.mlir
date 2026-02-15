@@ -17,16 +17,16 @@ module {
 
 // CHECK: func.func @square
 // CHECK-SAME: (%[[ARG0:.*]]: !secret.secret<tensor<1x1024xf32>> {tensor_ext.original_type = #original_type}) -> (!secret.secret<tensor<1x1024xf32>> {tensor_ext.original_type = #original_type})
-// CHECK-DAG: arith.constant 0 : index
-// CHECK-DAG: arith.constant 1 : index
-// CHECK-DAG: arith.constant 2 : index
-// CHECK-DAG: arith.constant 3 : index
-// CHECK-DAG: arith.constant 4 : index
-// CHECK-DAG: arith.constant -4 : index
-// CHECK-DAG: arith.constant 8 : index
-// CHECK-DAG: arith.constant -8 : index
-// CHECK-DAG: arith.constant 12 : index
-// CHECK-DAG: arith.constant -12 : index
+// CHECK-DAG: arith.constant 0
+// CHECK-DAG: arith.constant 1
+// CHECK-DAG: arith.constant 2
+// CHECK-DAG: arith.constant 3
+// CHECK-DAG: arith.constant 4
+// CHECK-DAG: arith.constant -4
+// CHECK-DAG: arith.constant 8
+// CHECK-DAG: arith.constant -8
+// CHECK-DAG: arith.constant 12
+// CHECK-DAG: arith.constant -12
 // CHECK: secret.generic
 // CHECK-COUNT-2: func.call @_assign_layout
 // CHECK: tensor_ext.rotate
@@ -125,25 +125,25 @@ module {
 
 // CHECK: func.func @squat
 // CHECK-SAME: (%[[ARG0:.*]]: !secret.secret<tensor<1x1024xf32>> {{.*}}) -> (!secret.secret<tensor<1x1024xf32>> {tensor_ext.original_type = #original_type})
-// CHECK-DAG: arith.constant 0 : index
-// CHECK-DAG: arith.constant 1 : index
-// CHECK-DAG: arith.constant 2 : index
-// CHECK-DAG: arith.constant 3 : index
-// CHECK-DAG: arith.constant 4 : index
-// CHECK-DAG: arith.constant 5 : index
-// CHECK-DAG: arith.constant 6 : index
-// CHECK-DAG: arith.constant 7 : index
-// CHECK-DAG: arith.constant 8 : index
-// CHECK-DAG: arith.constant 9 : index
-// CHECK-DAG: arith.constant 10 : index
-// CHECK-DAG: arith.constant 11 : index
-// CHECK-DAG: arith.constant 12 : index
-// CHECK-DAG: arith.constant 13 : index
-// CHECK-DAG: arith.constant 14 : index
-// CHECK-DAG: arith.constant 15 : index
-// CHECK-DAG: arith.constant -4 : index
-// CHECK-DAG: arith.constant -8 : index
-// CHECK-DAG: arith.constant -12 : index
+// CHECK-DAG: arith.constant 0
+// CHECK-DAG: arith.constant 1
+// CHECK-DAG: arith.constant 2
+// CHECK-DAG: arith.constant 3
+// CHECK-DAG: arith.constant 4
+// CHECK-DAG: arith.constant 5
+// CHECK-DAG: arith.constant 6
+// CHECK-DAG: arith.constant 7
+// CHECK-DAG: arith.constant 8
+// CHECK-DAG: arith.constant 9
+// CHECK-DAG: arith.constant 10
+// CHECK-DAG: arith.constant 11
+// CHECK-DAG: arith.constant 12
+// CHECK-DAG: arith.constant 13
+// CHECK-DAG: arith.constant 14
+// CHECK-DAG: arith.constant 15
+// CHECK-DAG: arith.constant -4
+// CHECK-DAG: arith.constant -8
+// CHECK-DAG: arith.constant -12
 // CHECK-DAG: arith.constant dense<{{.*}}> : tensor<10x16xf32>
 // CHECK: secret.generic
 // CHECK-COUNT-2: func.call @_assign_layout
