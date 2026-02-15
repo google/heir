@@ -252,7 +252,8 @@ def Lattigo_CKKSRotateNewOp : Lattigo_CKKSOp<"rotate_new"> {
   let arguments = (ins
     Lattigo_CKKSEvaluator:$evaluator,
     Lattigo_RLWECiphertext:$input,
-    Builtin_IntegerAttr:$offset
+    Optional<I32>:$shift,
+    OptionalAttr<Builtin_IntegerAttr>:$offset
   );
   let results = (outs Lattigo_RLWECiphertext:$output);
 }
@@ -309,7 +310,8 @@ def Lattigo_CKKSRotateOp : Lattigo_CKKSUnaryInPlaceOp<"rotate"> {
     Lattigo_RLWECiphertext:$input,
     // see BinaryInPlaceOp above
     Lattigo_RLWECiphertext:$inplace,
-    Builtin_IntegerAttr:$offset
+    Optional<I32>:$shift,
+    OptionalAttr<Builtin_IntegerAttr>:$offset
   );
   let results = (outs Lattigo_RLWECiphertext:$output);
 }
