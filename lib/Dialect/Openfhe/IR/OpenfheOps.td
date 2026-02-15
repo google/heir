@@ -390,7 +390,8 @@ def RotOp : Openfhe_Op<"rot", [
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
     Openfhe_Ciphertext:$ciphertext,
-    Builtin_IntegerAttr:$index
+    Optional<I32>:$shift,
+    OptionalAttr<Builtin_IntegerAttr>:$index
   );
   let results = (outs Openfhe_Ciphertext:$output);
 }

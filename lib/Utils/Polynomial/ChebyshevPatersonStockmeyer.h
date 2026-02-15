@@ -98,11 +98,14 @@ inline std::pair<int64_t, int64_t> splitDegree(int64_t n) {
 // The multiplicative depth is ceil(log2(k)).
 template <typename T>
 std::vector<std::shared_ptr<kernel::ArithmeticDagNode<T>>> computePowers(
-    std::shared_ptr<kernel::ArithmeticDagNode<T>> x, int64_t k) {
+    std::shared_ptr<kernel::ArithmeticDagNode<T>> x, int64_t k,
+    kernel::DagType coeffType) {
   using NodeTy = kernel::ArithmeticDagNode<T>;
+  bool isTensorType = coeffType.type_variant.index() >= 2;
   std::vector<std::shared_ptr<NodeTy>> result;
   result.reserve(k + 1);
-  result.push_back(NodeTy::constantScalar(1));
+  result.push_back(isTensorType ? NodeTy::splat(1, coeffType)
+                                : NodeTy::constantScalar(1, coeffType));
   if (k >= 1) {
     result.push_back(x);
   }
@@ -128,14 +131,17 @@ std::vector<std::shared_ptr<kernel::ArithmeticDagNode<T>>> computePowers(
 //   x: The input node representing the variable
 //   n: The degree of the Chebyshev polynomial to compute
 //   cache: Map caching already computed powers
+//   coeffType: The type for coefficient constants
 //
 // Returns:
 //   Node representing T_n(x)
 template <typename T>
 std::shared_ptr<kernel::ArithmeticDagNode<T>> genChebyshevPowerRecursive(
     std::shared_ptr<kernel::ArithmeticDagNode<T>> x, int64_t n,
-    std::map<int64_t, std::shared_ptr<kernel::ArithmeticDagNode<T>>>& cache) {
+    std::map<int64_t, std::shared_ptr<kernel::ArithmeticDagNode<T>>>& cache,
+    kernel::DagType coeffType) {
   using NodeTy = kernel::ArithmeticDagNode<T>;
+  bool isTensorType = coeffType.type_variant.index() >= 2;
 
   // Check cache
   auto it = cache.find(n);
@@ -145,7 +151,8 @@ std::shared_ptr<kernel::ArithmeticDagNode<T>> genChebyshevPowerRecursive(
 
   if (n == 0) {
     // T_0(x) = 1
-    cache[0] = NodeTy::constantScalar(1);
+    cache[0] = isTensorType ? NodeTy::splat(1, coeffType)
+                            : NodeTy::constantScalar(1, coeffType);
     return cache[0];
   }
 
@@ -159,22 +166,25 @@ std::shared_ptr<kernel::ArithmeticDagNode<T>> genChebyshevPowerRecursive(
   auto [a, b] = splitDegree(n);
 
   // Compute T_n(x) = T_a(x) * T_b(x)
-  auto tA = genChebyshevPowerRecursive(x, a, cache);
-  auto tB = genChebyshevPowerRecursive(x, b, cache);
+  auto tA = genChebyshevPowerRecursive(x, a, cache, coeffType);
+  auto tB = genChebyshevPowerRecursive(x, b, cache, coeffType);
   auto tN = NodeTy::mul(tA, tB);
 
   // Apply Chebyshev recurrence: T_n = 2*T_a*T_b - T_c
   // where c = |a - b|
   int64_t c = std::abs(a - b);
-  auto two = NodeTy::constantScalar(2);
+  auto two = isTensorType ? NodeTy::splat(2, coeffType)
+                          : NodeTy::constantScalar(2, coeffType);
   tN = NodeTy::mul(two, tN);
 
   // Compute T_n = 2*T_a*T_b - T_c
   if (c == 0) {
     // T_0 = 1, so subtract 1
-    tN = NodeTy::sub(tN, NodeTy::constantScalar(1));
+    auto one = isTensorType ? NodeTy::splat(1, coeffType)
+                            : NodeTy::constantScalar(1, coeffType);
+    tN = NodeTy::sub(tN, one);
   } else {
-    auto tC = genChebyshevPowerRecursive(x, c, cache);
+    auto tC = genChebyshevPowerRecursive(x, c, cache, coeffType);
     tN = NodeTy::sub(tN, tC);
   }
 
@@ -188,21 +198,25 @@ std::shared_ptr<kernel::ArithmeticDagNode<T>> genChebyshevPowerRecursive(
 // Args:
 //   x: The input node
 //   maxDegree: Maximum degree to compute
+//   coeffType: The type for coefficient constants
 //
 // Returns:
 //   Map from degree to Node representing T_degree(x)
 template <typename T>
 std::map<int64_t, std::shared_ptr<kernel::ArithmeticDagNode<T>>>
 genChebyshevPowersRecursive(std::shared_ptr<kernel::ArithmeticDagNode<T>> x,
-                            int64_t maxDegree) {
+                            int64_t maxDegree, kernel::DagType coeffType) {
   std::map<int64_t, std::shared_ptr<kernel::ArithmeticDagNode<T>>> cache;
+  bool isTensorType = coeffType.type_variant.index() >= 2;
 
   // Generate all powers up to maxDegree
   for (int64_t i = 1; i <= maxDegree; i++) {
-    genChebyshevPowerRecursive(x, i, cache);
+    genChebyshevPowerRecursive(x, i, cache, coeffType);
   }
 
-  cache[0] = kernel::ArithmeticDagNode<T>::constantScalar(1);
+  cache[0] = isTensorType
+      ? kernel::ArithmeticDagNode<T>::splat(1, coeffType)
+      : kernel::ArithmeticDagNode<T>::constantScalar(1, coeffType);
   return cache;
 }
 
@@ -212,12 +226,16 @@ genChebyshevPowersRecursive(std::shared_ptr<kernel::ArithmeticDagNode<T>> x,
 template <typename T>
 std::enable_if_t<std::is_base_of<kernel::AbstractValue, T>::value,
                  std::vector<std::shared_ptr<kernel::ArithmeticDagNode<T>>>>
-computeChebyshevPolynomialValues(const T& x, int64_t k) {
+computeChebyshevPolynomialValues(const T& x, int64_t k,
+                                 kernel::DagType coeffType) {
   using NodeTy = kernel::ArithmeticDagNode<T>;
+  bool isTensorType = coeffType.type_variant.index() >= 2;
   std::vector<std::shared_ptr<NodeTy>> result;
   result.reserve(k + 1);
-  auto number1 = NodeTy::constantScalar(1);
-  auto number2 = NodeTy::constantScalar(2);
+  auto number1 = isTensorType ? NodeTy::splat(1, coeffType)
+                              : NodeTy::constantScalar(1, coeffType);
+  auto number2 = isTensorType ? NodeTy::splat(2, coeffType)
+                              : NodeTy::constantScalar(2, coeffType);
   auto xNode = NodeTy::leaf(x);
   result.push_back(number1);
   if (k >= 1) {
@@ -255,8 +273,9 @@ std::enable_if_t<std::is_base_of<kernel::AbstractValue, T>::value,
                  std::shared_ptr<kernel::ArithmeticDagNode<T>>>
 patersonStockmeyerChebyshevPolynomialEvaluation(
     const T& x, ::llvm::ArrayRef<double> coefficients,
-    double minCoeffThreshold = kMinCoeffs) {
+    double minCoeffThreshold, kernel::DagType coeffType) {
   using NodeTy = kernel::ArithmeticDagNode<T>;
+  bool isTensorType = coeffType.type_variant.index() >= 2;
   int64_t polynomialDegree = coefficients.size() - 1;
   if (polynomialDegree < 0) {
     return nullptr;
@@ -266,7 +285,8 @@ patersonStockmeyerChebyshevPolynomialEvaluation(
     if (std::abs(coefficients[0]) < minCoeffThreshold) {
       return nullptr;
     }
-    return NodeTy::constantScalar(coefficients[0]);
+    return isTensorType ? NodeTy::splat(coefficients[0], coeffType)
+                        : NodeTy::constantScalar(coefficients[0], coeffType);
   }
 
   // Choose k optimally using Lattigo's optimal split
@@ -281,7 +301,7 @@ patersonStockmeyerChebyshevPolynomialEvaluation(
 
   // Precompute T_0(x), T_1(x), ..., T_k(x) using recursive approach.
   auto xNode = NodeTy::leaf(x);
-  auto chebPolynomialValuesMap = genChebyshevPowersRecursive(xNode, k);
+  auto chebPolynomialValuesMap = genChebyshevPowersRecursive(xNode, k, coeffType);
 
   // Evaluate the baby steps and save them in a list.
   std::vector<std::shared_ptr<NodeTy>> babySteps;
@@ -297,8 +317,9 @@ patersonStockmeyerChebyshevPolynomialEvaluation(
         continue;
       }
 
-      auto termNode = NodeTy::mul(NodeTy::constantScalar(coeffs[j]),
-                                  chebPolynomialValuesMap[j]);
+      auto coeffNode = isTensorType ? NodeTy::splat(coeffs[j], coeffType)
+                                    : NodeTy::constantScalar(coeffs[j], coeffType);
+      auto termNode = NodeTy::mul(coeffNode, chebPolynomialValuesMap[j]);
 
       if (pol) {
         pol = NodeTy::add(pol, termNode);

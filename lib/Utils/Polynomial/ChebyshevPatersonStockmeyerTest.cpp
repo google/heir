@@ -2,6 +2,7 @@
 
 #include "gtest/gtest.h"  // from @googletest
 #include "lib/Kernel/AbstractValue.h"
+#include "lib/Kernel/ArithmeticDag.h"
 #include "lib/Utils/Polynomial/ChebyshevPatersonStockmeyer.h"
 #include "lib/Utils/Polynomial/ChebyshevPatersonStockmeyerTestUtils.h"
 #include "lib/Utils/Polynomial/PolynomialTestVisitors.h"
@@ -14,8 +15,10 @@ namespace {
 double evalChebyshevPolynomial(double x,
                                const std::vector<double>& coefficients) {
   kernel::LiteralDouble xNode = x;
+  // Use f64 type for double precision tests, default minCoeffThreshold
   auto resultNode =
-      patersonStockmeyerChebyshevPolynomialEvaluation(xNode, coefficients);
+      patersonStockmeyerChebyshevPolynomialEvaluation(
+          xNode, coefficients, kMinCoeffs, kernel::DagType::floatTy(64));
 
   test::EvalVisitor visitor;
   return resultNode->visit(visitor);
@@ -23,8 +26,10 @@ double evalChebyshevPolynomial(double x,
 
 int evalMultiplicativeDepth(double x, const std::vector<double>& coefficients) {
   kernel::LiteralDouble xNode = x;
+  // Use f64 type for double precision tests, default minCoeffThreshold
   auto resultNode =
-      patersonStockmeyerChebyshevPolynomialEvaluation(xNode, coefficients);
+      patersonStockmeyerChebyshevPolynomialEvaluation(
+          xNode, coefficients, kMinCoeffs, kernel::DagType::floatTy(64));
 
   test::MultiplicativeDepthVisitor visitor;
   return static_cast<int>(resultNode->visit(visitor));

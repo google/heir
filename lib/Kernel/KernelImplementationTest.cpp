@@ -1,4 +1,3 @@
-#include <iostream>
 #include <vector>
 
 #include "gtest/gtest.h"  // from @googletest
@@ -18,7 +17,10 @@ namespace heir {
 namespace kernel {
 namespace {
 
-TEST(KernelImplementationTest, TestHaleviShoupMatvec) {
+// Parametrize over whether the kernel is rolled
+class KernelImplementationTest : public testing::TestWithParam<bool> {};
+
+TEST_P(KernelImplementationTest, TestHaleviShoupMatvec) {
   std::vector<int> vector = {0, 1, 2, 3};
   // Pre-packed diagonally
   std::vector<std::vector<int>> matrix = {
@@ -27,13 +29,13 @@ TEST(KernelImplementationTest, TestHaleviShoupMatvec) {
   LiteralValue matrixInput = matrix;
   LiteralValue vectorInput = vector;
 
-  auto dag =
-      implementMatvec(KernelName::MatvecDiagonal, matrixInput, vectorInput);
-  LiteralValue actual = evalKernel(dag);
-  EXPECT_EQ(std::get<std::vector<int>>(actual.getTensor()), expected);
+  auto dag = implementHaleviShoup(vectorInput, matrixInput, {4, 4},
+                                  /*zeroDiagonals=*/{}, /*unroll=*/GetParam());
+  LiteralValue actual = evalKernel(dag)[0];
+  EXPECT_EQ(std::get<std::vector<int>>(actual.get()), expected);
 }
 
-TEST(KernelImplementationTest, HaleviShoup3x5) {
+TEST_P(KernelImplementationTest, HaleviShoup3x5) {
   // Original matrix:
   // [ 0,  1,  2,  3,  4]
   // [ 5,  6,  7,  8,  9]
@@ -57,9 +59,10 @@ TEST(KernelImplementationTest, HaleviShoup3x5) {
   LiteralValue matrixInput = matrix;
   LiteralValue vectorInput = vector;
 
-  auto dag = implementHaleviShoup(vectorInput, matrixInput, {3, 5});
-  LiteralValue result = evalKernel(dag);
-  auto actual = std::get<std::vector<int>>(result.getTensor());
+  auto dag = implementHaleviShoup(vectorInput, matrixInput, {3, 5},
+                                  /*zeroDiagonals=*/{}, /*unroll=*/GetParam());
+  LiteralValue result = evalKernel(dag)[0];
+  auto actual = std::get<std::vector<int>>(result.get());
 
   // The result is of size 8, but we only care about the first 3 elements.
   EXPECT_EQ(std::vector<int>(actual.begin(), actual.begin() + 3), expected);
@@ -73,8 +76,8 @@ TEST(KernelImplementationTest, TestExtract) {
 
   auto dag = ArithmeticDagNode<LiteralValue>::extract(
       ArithmeticDagNode<LiteralValue>::leaf(matrixInput), 1);
-  LiteralValue actual = evalKernel(dag);
-  EXPECT_EQ(std::get<std::vector<int>>(actual.getTensor()), expected);
+  LiteralValue actual = evalKernel(dag)[0];
+  EXPECT_EQ(std::get<std::vector<int>>(actual.get()), expected);
 }
 
 TEST(KernelImplementationTest, TestHaleviShoupMatvecWithLayout) {
@@ -84,7 +87,7 @@ TEST(KernelImplementationTest, TestHaleviShoupMatvecWithLayout) {
   std::vector<std::vector<int>> matrix = {
       {0, 1, 2, 3}, {4, 5, 6, 7}, {8, 9, 10, 11}, {12, 13, 14, 15}};
   auto diagonalLayout = getDiagonalLayoutRelation(
-      RankedTensorType::get({4, 4}, IndexType::get(&context)), 4);
+      RankedTensorType::get({4, 4}, mlir::IndexType::get(&context)), 4);
   std::vector<std::vector<int>> diagonalMatrix =
       evaluateLayoutOnMatrix(diagonalLayout, matrix);
 
@@ -94,16 +97,16 @@ TEST(KernelImplementationTest, TestHaleviShoupMatvecWithLayout) {
 
   auto dag =
       implementMatvec(KernelName::MatvecDiagonal, matrixInput, vectorInput);
-  LiteralValue actual = evalKernel(dag);
-  EXPECT_EQ(std::get<std::vector<int>>(actual.getTensor()), expected);
+  LiteralValue actual = evalKernel(dag)[0];
+  EXPECT_EQ(std::get<std::vector<int>>(actual.get()), expected);
 }
 
-TEST(KernelImplementationTest, Test2DConvWithLayout) {
+TEST_P(KernelImplementationTest, Test2DConvWithLayout) {
   MLIRContext context;
   RankedTensorType dataType =
-      RankedTensorType::get({3, 3}, IndexType::get(&context));
+      RankedTensorType::get({3, 3}, mlir::IndexType::get(&context));
   RankedTensorType filterType =
-      RankedTensorType::get({2, 2}, IndexType::get(&context));
+      RankedTensorType::get({2, 2}, mlir::IndexType::get(&context));
 
   // 3x3 input data, 2x2 filter
   std::vector<std::vector<int>> data = {{1, -1, 0}, {-3, 0, 2}, {8, 9, 1}};
@@ -130,11 +133,11 @@ TEST(KernelImplementationTest, Test2DConvWithLayout) {
   LiteralValue vectorInput = packedData[0];
 
   auto dag = implementHaleviShoup(vectorInput, matrixInput,
-                                  expandedMatrixType.getShape());
-  LiteralValue actual = evalKernel(dag);
+                                  expandedMatrixType.getShape(),
+                                  /*zeroDiagonals=*/{}, /*unroll=*/GetParam());
+  LiteralValue actual = evalKernel(dag)[0];
   // Result is a 2x2 tensor repeated row-major in a tensor of size 16.
-  std::vector<int> actualVector =
-      std::get<std::vector<int>>(actual.getTensor());
+  std::vector<int> actualVector = std::get<std::vector<int>>(actual.get());
   std::vector<int> extractedResult = {actualVector.begin(),
                                       actualVector.begin() + 4};
   EXPECT_EQ(extractedResult, expected);
@@ -152,22 +155,22 @@ TEST(KernelImplementationTest, BicyclicMatmul) {
   int numSlots = m * n * p;
 
   auto layoutA = getBicyclicLayoutRelation(
-      RankedTensorType::get({m, n}, IndexType::get(&context)), numSlots);
+      RankedTensorType::get({m, n}, mlir::IndexType::get(&context)), numSlots);
   auto packedA = evaluateLayoutOnMatrix(layoutA, matrixA);
 
   auto layoutB = getBicyclicLayoutRelation(
-      RankedTensorType::get({n, p}, IndexType::get(&context)), numSlots);
+      RankedTensorType::get({n, p}, mlir::IndexType::get(&context)), numSlots);
   auto packedB = evaluateLayoutOnMatrix(layoutB, matrixB);
 
   LiteralValue packedAValue = packedA[0];
   LiteralValue packedBValue = packedB[0];
 
   auto dag = implementBicyclicMatmul(packedAValue, packedBValue, m, n, p);
-  LiteralValue result = evalKernel(dag);
-  auto resultVec = std::get<std::vector<int>>(result.getTensor());
+  LiteralValue result = evalKernel(dag)[0];
+  auto resultVec = std::get<std::vector<int>>(result.get());
 
   auto resultLayout = getBicyclicLayoutRelation(
-      RankedTensorType::get({m, p}, IndexType::get(&context)), numSlots);
+      RankedTensorType::get({m, p}, mlir::IndexType::get(&context)), numSlots);
   auto unpackedResult =
       unpackLayoutToMatrix<int>(resultLayout, {resultVec}, {m, p});
 
@@ -222,9 +225,9 @@ TEST(KernelImplementationTest, TricyclicBatchMatmul) {
 
   // Pack using the tricyclic layout relation.
   RankedTensorType typeA =
-      RankedTensorType::get({h, m, n}, IndexType::get(&context));
+      RankedTensorType::get({h, m, n}, mlir::IndexType::get(&context));
   RankedTensorType typeB =
-      RankedTensorType::get({h, n, p}, IndexType::get(&context));
+      RankedTensorType::get({h, n, p}, mlir::IndexType::get(&context));
 
   auto layoutA = getTricyclicLayoutRelation(typeA, numSlots);
   auto packedA = evaluateLayoutOnTensor(layoutA, A);
@@ -239,8 +242,8 @@ TEST(KernelImplementationTest, TricyclicBatchMatmul) {
   // Generate kernel DAG and evaluate
   auto dag =
       implementTricyclicBatchMatmul(packedAValue, packedBValue, h, m, n, p);
-  LiteralValue result = evalKernel(dag);
-  auto resultVec = std::get<std::vector<int>>(result.getTensor());
+  LiteralValue result = evalKernel(dag)[0];
+  auto resultVec = std::get<std::vector<int>>(result.get());
 
   // Compute expected packed φ(Z) via evaluateLayoutOnTensor for the cleartext
   // result. First compute plain CPU batched matmul result (h x m x p).
@@ -259,7 +262,7 @@ TEST(KernelImplementationTest, TricyclicBatchMatmul) {
   }
 
   RankedTensorType resultType =
-      RankedTensorType::get({h, m, p}, IndexType::get(&context));
+      RankedTensorType::get({h, m, p}, mlir::IndexType::get(&context));
   auto resultLayout = getTricyclicLayoutRelation(resultType, numSlots);
   auto expectedPacked = evaluateLayoutOnTensor(resultLayout, expectedTensor);
 
@@ -269,6 +272,10 @@ TEST(KernelImplementationTest, TricyclicBatchMatmul) {
   // Final check: compare expected packed φ(Z) vector with kernel output.
   EXPECT_EQ(expVec, resultVec);
 }
+
+INSTANTIATE_TEST_SUITE_P(WithAndWithoutRolledSuite, KernelImplementationTest,
+                         testing::Values(false, true));
+
 }  // namespace
 }  // namespace kernel
 }  // namespace heir
