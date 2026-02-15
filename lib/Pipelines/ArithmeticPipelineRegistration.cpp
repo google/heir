@@ -4,7 +4,7 @@
 #include <string>
 
 #include "lib/Dialect/BGV/Conversions/BGVToLWE/BGVToLWE.h"
-#include "lib/Dialect/CKKS/Conversions/CKKSToLWE/CKKSToLWE.h"
+#include "lib/Dialect/CKKS/Transforms/CKKSToLWE.h"
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h"
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
 #include "lib/Dialect/LWE/Transforms/AddDebugPort.h"

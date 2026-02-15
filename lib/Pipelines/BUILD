@@ -96,7 +96,7 @@ cc_library(
     deps = [
         ":PipelineRegistration",
         "@heir//lib/Dialect/BGV/Conversions/BGVToLWE",
-        "@heir//lib/Dialect/CKKS/Conversions/CKKSToLWE",
+        "@heir//lib/Dialect/CKKS/Transforms:CKKSToLWE",
         "@heir//lib/Dialect/LWE/Conversions/LWEToLattigo",
         "@heir//lib/Dialect/LWE/Conversions/LWEToOpenfhe",
         "@heir//lib/Dialect/LWE/Conversions/LWEToPolynomial",
