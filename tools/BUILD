@@ -50,7 +50,6 @@ cc_binary(
         "@heir//lib/Dialect/CGGI/Conversions/CGGIToTfheRustBool",
         "@heir//lib/Dialect/CGGI/IR:Dialect",
         "@heir//lib/Dialect/CGGI/Transforms",
-        "@heir//lib/Dialect/CKKS/Conversions/CKKSToLWE",
         "@heir//lib/Dialect/CKKS/IR:Dialect",
         "@heir//lib/Dialect/CKKS/Transforms",
         "@heir//lib/Dialect/Comb/IR:Dialect",
