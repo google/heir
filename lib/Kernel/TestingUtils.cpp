@@ -206,7 +206,31 @@ EvalResults EvalVisitor::operator()(const ConstantScalarNode& node) {
 
 EvalResults EvalVisitor::operator()(const SplatNode& node) {
   // A bit of a hack, casting the double to an int
-  return {LiteralValue(static_cast<int>(node.value))};
+  int splatValue = static_cast<int>(node.value);
+
+  // Check if this is a tensor type
+  if (std::holds_alternative<kernel::IntTensorType>(node.type.type_variant)) {
+    const auto& tensorType = std::get<kernel::IntTensorType>(node.type.type_variant);
+    // Compute total size as product of all dimensions
+    int64_t totalSize = 1;
+    for (int64_t dim : tensorType.shape) {
+      totalSize *= dim;
+    }
+    std::vector<int> result(totalSize, splatValue);
+    return {LiteralValue(result)};
+  } else if (std::holds_alternative<kernel::FloatTensorType>(node.type.type_variant)) {
+    const auto& tensorType = std::get<kernel::FloatTensorType>(node.type.type_variant);
+    // Compute total size as product of all dimensions
+    int64_t totalSize = 1;
+    for (int64_t dim : tensorType.shape) {
+      totalSize *= dim;
+    }
+    std::vector<int> result(totalSize, splatValue);
+    return {LiteralValue(result)};
+  }
+
+  // Scalar type
+  return {LiteralValue(splatValue)};
 }
 
 EvalResults EvalVisitor::operator()(const YieldNode<LiteralValue>& node) {

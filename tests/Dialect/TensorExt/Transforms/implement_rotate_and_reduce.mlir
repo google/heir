@@ -2,9 +2,12 @@
 
 // CHECK: @test_halevi_shoup_reduction
 // CHECK-SAME: %[[arg0:.*]]: tensor<16xi32>, %[[arg1:.*]]: tensor<16x16xi32>
-// CHECK-DAG: %[[c12:.*]] = arith.constant 12 : index
-// CHECK-DAG: %[[c8:.*]] = arith.constant 8 : index
-// CHECK-DAG: %[[c4:.*]] = arith.constant 4 : index
+// CHECK-DAG: %[[cneg4:.*]] = arith.constant -4 : i32
+// CHECK-DAG: %[[cneg8:.*]] = arith.constant -8 : i32
+// CHECK-DAG: %[[cneg12:.*]] = arith.constant -12 : i32
+// CHECK-DAG: %[[c4:.*]] = arith.constant 4 : i32
+// CHECK-DAG: %[[c8:.*]] = arith.constant 8 : i32
+// CHECK-DAG: %[[c12:.*]] = arith.constant 12 : i32
 
 
 // Giant steps (chunked in four) will also need 3 rotations to align the sums.
@@ -25,14 +28,14 @@
 
 // Plaintexts are all rotated by a fixed amount and multiplied by the baby step ciphertexts
 // The result is shifted back to the correct position
-// CHECK-COUNT-4: tensor_ext.rotate %[[extracted:.*]], %[[c12]]
-// CHECK: tensor_ext.rotate %[[v20:.*]], %[[c4]]
+// CHECK-COUNT-4: tensor_ext.rotate %{{.*}}, %[[cneg4]]
+// CHECK: tensor_ext.rotate %{{.*}}, %[[c4]]
 
-// CHECK-COUNT-4: tensor_ext.rotate %[[extracted:.*]], %[[c8]]
-// CHECK: tensor_ext.rotate %[[v33:.*]], %[[c8]]
+// CHECK-COUNT-4: tensor_ext.rotate %{{.*}}, %[[cneg8]]
+// CHECK: tensor_ext.rotate %{{.*}}, %[[c8]]
 
-// CHECK-COUNT-4: tensor_ext.rotate %[[extracted:.*]], %[[c4]]
-// CHECK: tensor_ext.rotate %[[v44:.*]], %[[c12]]
+// CHECK-COUNT-4: tensor_ext.rotate %{{.*}}, %[[cneg12]]
+// CHECK: tensor_ext.rotate %{{.*}}, %[[c12]]
 // CHECK: return
 
 func.func @test_halevi_shoup_reduction(%0: tensor<16xi32>, %1: tensor<16x16xi32>) -> tensor<16xi32> {
