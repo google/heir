@@ -86,6 +86,10 @@ class IRMaterializingVisitor {
   // Helper to ensure a value has index type, inserting a cast if needed
   Value ensureIndexType(Value val);
 
+  // Helper to normalize shapes for binary operations
+  // If one operand is [1, N] and the other is [N], expand [N] to [1, N]
+  std::pair<Value, Value> normalizeShapes(Value lhs, Value rhs);
+
   // Helper for binary operations
   template <typename T, typename FloatOp, typename IntOp>
   std::vector<Value> binop(const T& node) {
@@ -96,13 +100,17 @@ class IRMaterializingVisitor {
            "Binary operation operands must materialize to single values");
     Value lhs = lhsVals[0];
     Value rhs = rhsVals[0];
+
+    // Normalize shapes to handle [1, N] vs [N] mismatches
+    auto [normalizedLhs, normalizedRhs] = normalizeShapes(lhs, rhs);
+
     // Infer operation type from the operands
-    auto op = TypeSwitch<Type, Operation*>(getElementTypeOrSelf(lhs.getType()))
+    auto op = TypeSwitch<Type, Operation*>(getElementTypeOrSelf(normalizedLhs.getType()))
                   .template Case<mlir::FloatType>([&](auto ty) {
-                    return FloatOp::create(builder, lhs, rhs);
+                    return FloatOp::create(builder, normalizedLhs, normalizedRhs);
                   })
                   .template Case<mlir::IntegerType, mlir::IndexType>(
-                      [&](auto ty) { return IntOp::create(builder, lhs, rhs); })
+                      [&](auto ty) { return IntOp::create(builder, normalizedLhs, normalizedRhs); })
                   .Default([&](Type) {
                     llvm_unreachable("Unsupported type for binary operation");
                     return nullptr;

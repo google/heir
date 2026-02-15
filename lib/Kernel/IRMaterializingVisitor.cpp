@@ -72,6 +72,53 @@ Value IRMaterializingVisitor::ensureIndexType(Value val) {
   return builder.create<arith::IndexCastOp>(builder.getIndexType(), val);
 }
 
+std::pair<Value, Value> IRMaterializingVisitor::normalizeShapes(Value lhs,
+                                                                 Value rhs) {
+  auto lhsTy = dyn_cast<RankedTensorType>(lhs.getType());
+  auto rhsTy = dyn_cast<RankedTensorType>(rhs.getType());
+
+  // If either is not a ranked tensor, return as-is
+  if (!lhsTy || !rhsTy) {
+    return {lhs, rhs};
+  }
+
+  // If shapes already match, return as-is
+  if (lhsTy == rhsTy) {
+    return {lhs, rhs};
+  }
+
+  auto lhsShape = lhsTy.getShape();
+  auto rhsShape = rhsTy.getShape();
+
+  // Handle [1, N] vs [N] mismatch
+  if (lhsShape.size() == 2 && lhsShape[0] == 1 && rhsShape.size() == 1 &&
+      lhsShape[1] == rhsShape[0]) {
+    // lhs is [1, N], rhs is [N] -> expand rhs to [1, N]
+    SmallVector<ReassociationIndices> reassociation = {{0, 1}};
+    auto expandedType =
+        RankedTensorType::get({1, rhsShape[0]}, rhsTy.getElementType());
+    auto expandOp =
+        tensor::ExpandShapeOp::create(builder, expandedType, rhs, reassociation);
+    createdOpCallback(expandOp);
+    return {lhs, expandOp};
+  }
+
+  if (rhsShape.size() == 2 && rhsShape[0] == 1 && lhsShape.size() == 1 &&
+      rhsShape[1] == lhsShape[0]) {
+    // rhs is [1, N], lhs is [N] -> expand lhs to [1, N]
+    SmallVector<ReassociationIndices> reassociation = {{0, 1}};
+    auto expandedType =
+        RankedTensorType::get({1, lhsShape[0]}, lhsTy.getElementType());
+    auto expandOp =
+        tensor::ExpandShapeOp::create(builder, expandedType, lhs, reassociation);
+    createdOpCallback(expandOp);
+    return {expandOp, rhs};
+  }
+
+  // Otherwise, return as-is
+  return {lhs, rhs};
+}
+
 std::vector<Value> IRMaterializingVisitor::processInternal(
     const std::shared_ptr<ArithmeticDagNode<SSAValue>>& node) {
   assert(node != nullptr && "invalid null node!");
@@ -202,9 +249,7 @@ std::vector<Value> IRMaterializingVisitor::operator()(
 std::vector<Value> IRMaterializingVisitor::operator()(
     const LeftRotateNode<SSAValue>& node) {
   Value operand = processInternal(node.operand)[0];
-  // Shift gets natural type, then cast to index if needed
   Value shift = processInternal(node.shift)[0];
-  shift = ensureIndexType(shift);
   auto rotateOp =
       tensor_ext::RotateOp::create(builder, operand.getType(), operand, shift);
   createdOpCallback(rotateOp);
@@ -242,30 +287,7 @@ std::vector<Value> IRMaterializingVisitor::operator()(
       tensor::ExtractSliceOp::create(builder, operand, offsets, sizes, strides);
   createdOpCallback(extractOp);
 
-  // If we extracted a single row from a matrix (resulting in shape [1, N, ...]),
-  // collapse the singleton dimension to get shape [N, ...]
-  Value result = extractOp;
-  RankedTensorType extractedType = cast<RankedTensorType>(result.getType());
-  if (extractedType.getRank() > 1 && extractedType.getDimSize(0) == 1) {
-    SmallVector<int64_t> newShape(extractedType.getShape().drop_front());
-    RankedTensorType collapsedType =
-        RankedTensorType::get(newShape, extractedType.getElementType());
-
-    SmallVector<ReassociationIndices> reassociation;
-    // Collapse first dimension with the second
-    reassociation.push_back({0, 1});
-    // Keep remaining dimensions as-is
-    for (int i = 2; i < extractedType.getRank(); ++i) {
-      reassociation.push_back({i});
-    }
-
-    auto collapseOp = tensor::CollapseShapeOp::create(
-        builder, collapsedType, result, reassociation);
-    createdOpCallback(collapseOp);
-    result = collapseOp;
-  }
-
-  return {result};
+  return {extractOp};
 }
 
 std::vector<Value> IRMaterializingVisitor::operator()(
