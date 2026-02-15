@@ -267,7 +267,8 @@ implementBabyStepGiantStepRolled(
               auto innerSum = innerIterArgs[0];
 
               // Compute extraction index: i + j * giantStepSize
-              auto gsSize = NodeTy::constantScalar(giantStepSize, DagType::integer(32));
+              auto gsSize =
+                  NodeTy::constantScalar(giantStepSize, DagType::integer(32));
               auto jOffset = NodeTy::mul(j, gsSize);
               auto extractIdx = NodeTy::add(i, jOffset);
 
@@ -281,7 +282,8 @@ implementBabyStepGiantStepRolled(
               // babyStepVal = rotate(giantSteppedOperand, i * period)
               auto babyStepVal = NodeTy::leftRotate(
                   giantSteppedDag,
-                  NodeTy::mul(i, NodeTy::constantScalar(period, DagType::integer(32))));
+                  NodeTy::mul(
+                      i, NodeTy::constantScalar(period, DagType::integer(32))));
 
               auto multiplied = NodeTy::mul(rotatedPlaintext, babyStepVal);
               auto newInnerSum = NodeTy::add(innerSum, multiplied);
@@ -293,7 +295,8 @@ implementBabyStepGiantStepRolled(
         auto innerResult = NodeTy::resultAt(innerLoop, 0);
 
         // Rotate by j * giantStepSize * period
-        auto gsSize = NodeTy::constantScalar(giantStepSize, DagType::integer(32));
+        auto gsSize =
+            NodeTy::constantScalar(giantStepSize, DagType::integer(32));
         auto periodNode = NodeTy::constantScalar(period, DagType::integer(32));
         auto outerRotAmount = NodeTy::mul(j, gsSize);
         outerRotAmount = NodeTy::mul(outerRotAmount, periodNode);
@@ -470,7 +473,8 @@ implementHaleviShoup(const T& vector, const T& matrix,
         auto currentShift = iterArgs[1];
         auto rotated = NodeTy::leftRotate(currentSum, currentShift);
         auto newSum = NodeTy::add(currentSum, rotated);
-        auto newShift = NodeTy::div(currentShift, NodeTy::constantScalar(2, DagType::integer(32)));
+        auto newShift = NodeTy::div(
+            currentShift, NodeTy::constantScalar(2, DagType::integer(32)));
         return NodeTy::yield({newSum, newShift});
       });
 

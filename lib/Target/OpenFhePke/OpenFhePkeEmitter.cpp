@@ -828,8 +828,19 @@ LogicalResult OpenFhePkeEmitter::printOperation(RotOp op) {
 
   os << variableNames->getNameForValue(op.getCryptoContext()) << "->"
      << "EvalRotate" << "("
-     << variableNames->getNameForValue(op.getCiphertext()) << ", "
-     << op.getIndex().getValue() << ");\n";
+     << variableNames->getNameForValue(op.getCiphertext()) << ", ";
+
+  // Handle both index attribute and shift SSA value
+  if (op.getIndex().has_value()) {
+    os << op.getIndex()->getValue();
+  } else if (op.getShift()) {
+    os << variableNames->getNameForValue(op.getShift());
+  } else {
+    return op.emitError(
+        "RotOp must have either index attribute or shift operand");
+  }
+
+  os << ");\n";
   return success();
 }
 

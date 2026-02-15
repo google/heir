@@ -255,8 +255,9 @@ class EvalVisitor : public CachingVisitor<double, EvalResults> {
 TEST(ArithmeticDagTest, TestPrint) {
   auto root = StringLeavedDag::leftRotate(
       StringLeavedDag::mul(
-          StringLeavedDag::add(StringLeavedDag::leaf("x"),
-                               StringLeavedDag::constantScalar(3.0, DagType::floatTy(32))),
+          StringLeavedDag::add(
+              StringLeavedDag::leaf("x"),
+              StringLeavedDag::constantScalar(3.0, DagType::floatTy(32))),
           StringLeavedDag::power(StringLeavedDag::leaf("y"), 2)),
       7);
 
@@ -277,8 +278,9 @@ TEST(ArithmeticDagTest, TestProperDag) {
 
 TEST(ArithmeticDagTest, TestEvaluationVisitor) {
   auto shared = DoubleLeavedDag::power(DoubleLeavedDag::leaf(2.0), 2);
-  auto root = DoubleLeavedDag::mul(DoubleLeavedDag::add(shared, shared),
-                                   DoubleLeavedDag::constantScalar(3.0, DagType::floatTy(32)));
+  auto root = DoubleLeavedDag::mul(
+      DoubleLeavedDag::add(shared, shared),
+      DoubleLeavedDag::constantScalar(3.0, DagType::floatTy(32)));
 
   EvalVisitor visitor;
   double result = root->visit(visitor)[0];

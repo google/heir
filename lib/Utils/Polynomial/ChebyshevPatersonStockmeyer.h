@@ -215,8 +215,8 @@ genChebyshevPowersRecursive(std::shared_ptr<kernel::ArithmeticDagNode<T>> x,
   }
 
   cache[0] = isTensorType
-      ? kernel::ArithmeticDagNode<T>::splat(1, coeffType)
-      : kernel::ArithmeticDagNode<T>::constantScalar(1, coeffType);
+                 ? kernel::ArithmeticDagNode<T>::splat(1, coeffType)
+                 : kernel::ArithmeticDagNode<T>::constantScalar(1, coeffType);
   return cache;
 }
 
@@ -272,8 +272,8 @@ template <typename T>
 std::enable_if_t<std::is_base_of<kernel::AbstractValue, T>::value,
                  std::shared_ptr<kernel::ArithmeticDagNode<T>>>
 patersonStockmeyerChebyshevPolynomialEvaluation(
-    const T& x, ::llvm::ArrayRef<double> coefficients,
-    double minCoeffThreshold, kernel::DagType coeffType) {
+    const T& x, ::llvm::ArrayRef<double> coefficients, double minCoeffThreshold,
+    kernel::DagType coeffType) {
   using NodeTy = kernel::ArithmeticDagNode<T>;
   bool isTensorType = coeffType.type_variant.index() >= 2;
   int64_t polynomialDegree = coefficients.size() - 1;
@@ -301,7 +301,8 @@ patersonStockmeyerChebyshevPolynomialEvaluation(
 
   // Precompute T_0(x), T_1(x), ..., T_k(x) using recursive approach.
   auto xNode = NodeTy::leaf(x);
-  auto chebPolynomialValuesMap = genChebyshevPowersRecursive(xNode, k, coeffType);
+  auto chebPolynomialValuesMap =
+      genChebyshevPowersRecursive(xNode, k, coeffType);
 
   // Evaluate the baby steps and save them in a list.
   std::vector<std::shared_ptr<NodeTy>> babySteps;
@@ -317,8 +318,9 @@ patersonStockmeyerChebyshevPolynomialEvaluation(
         continue;
       }
 
-      auto coeffNode = isTensorType ? NodeTy::splat(coeffs[j], coeffType)
-                                    : NodeTy::constantScalar(coeffs[j], coeffType);
+      auto coeffNode = isTensorType
+                           ? NodeTy::splat(coeffs[j], coeffType)
+                           : NodeTy::constantScalar(coeffs[j], coeffType);
       auto termNode = NodeTy::mul(coeffNode, chebPolynomialValuesMap[j]);
 
       if (pol) {

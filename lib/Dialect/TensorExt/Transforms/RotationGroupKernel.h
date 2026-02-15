@@ -27,23 +27,30 @@ using kernel::ArithmeticDagNode;
 inline unsigned getBitWidth(const kernel::DagType& dagType) {
   if (std::holds_alternative<kernel::FloatType>(dagType.type_variant)) {
     return std::get<kernel::FloatType>(dagType.type_variant).bitWidth;
-  } else if (std::holds_alternative<kernel::IntegerType>(dagType.type_variant)) {
+  } else if (std::holds_alternative<kernel::IntegerType>(
+                 dagType.type_variant)) {
     return std::get<kernel::IntegerType>(dagType.type_variant).bitWidth;
-  } else if (std::holds_alternative<kernel::FloatTensorType>(dagType.type_variant)) {
+  } else if (std::holds_alternative<kernel::FloatTensorType>(
+                 dagType.type_variant)) {
     return std::get<kernel::FloatTensorType>(dagType.type_variant).bitWidth;
-  } else if (std::holds_alternative<kernel::IntTensorType>(dagType.type_variant)) {
+  } else if (std::holds_alternative<kernel::IntTensorType>(
+                 dagType.type_variant)) {
     return std::get<kernel::IntTensorType>(dagType.type_variant).bitWidth;
   }
   llvm_unreachable("Unsupported DagType variant");
 }
 
 // Helper to create a tensor DagType from an element type and shape
-inline kernel::DagType makeTensorType(const kernel::DagType& elemType, const std::vector<int64_t>& shape) {
+inline kernel::DagType makeTensorType(const kernel::DagType& elemType,
+                                      const std::vector<int64_t>& shape) {
   if (std::holds_alternative<kernel::FloatType>(elemType.type_variant)) {
-    unsigned bitWidth = std::get<kernel::FloatType>(elemType.type_variant).bitWidth;
+    unsigned bitWidth =
+        std::get<kernel::FloatType>(elemType.type_variant).bitWidth;
     return kernel::DagType::floatTensor(bitWidth, shape);
-  } else if (std::holds_alternative<kernel::IntegerType>(elemType.type_variant)) {
-    unsigned bitWidth = std::get<kernel::IntegerType>(elemType.type_variant).bitWidth;
+  } else if (std::holds_alternative<kernel::IntegerType>(
+                 elemType.type_variant)) {
+    unsigned bitWidth =
+        std::get<kernel::IntegerType>(elemType.type_variant).bitWidth;
     return kernel::DagType::intTensor(bitWidth, shape);
   }
   llvm_unreachable("Expected scalar DagType");
@@ -93,7 +100,8 @@ applyVirtualRotation(ArrayRef<std::shared_ptr<ArithmeticDagNode<T>>> input,
   if (rotation % ciphertextSize == 0) {
     SmallVector<ValueTy> masked;
     masked.reserve(numCiphertexts);
-    auto tensorType = makeTensorType(elemType, {1, static_cast<int64_t>(ciphertextSize)});
+    auto tensorType =
+        makeTensorType(elemType, {1, static_cast<int64_t>(ciphertextSize)});
     for (const auto& [ct, mask] : llvm::zip(input, rotateMasks)) {
       // Eagerly skip masking if possible
       auto [allZero, allOne] = allZeroAllOne(mask);
@@ -102,7 +110,8 @@ applyVirtualRotation(ArrayRef<std::shared_ptr<ArithmeticDagNode<T>>> input,
       } else if (allOne) {
         masked.push_back(ct);
       } else {
-        masked.push_back(NodeTy::mul(ct, NodeTy::constantTensor(mask, tensorType)));
+        masked.push_back(
+            NodeTy::mul(ct, NodeTy::constantTensor(mask, tensorType)));
       }
     }
 
@@ -165,14 +174,16 @@ applyVirtualRotation(ArrayRef<std::shared_ptr<ArithmeticDagNode<T>>> input,
     if (target1 == target2) {
       // Eagerly skip masking if possible
       auto [allZero, allOne] = allZeroAllOne(mask);
-      auto tensorType = makeTensorType(elemType, {1, static_cast<int64_t>(ciphertextSize)});
+      auto tensorType =
+          makeTensorType(elemType, {1, static_cast<int64_t>(ciphertextSize)});
       if (allZero) {
         results[target1] = NodeTy::splat(0.0, tensorType);
       } else if (allOne) {
         results[target1] = NodeTy::leftRotate(ct, rotation);
       } else {
         results[target1] = NodeTy::leftRotate(
-            NodeTy::mul(ct, NodeTy::constantTensor(mask, tensorType)), rotation);
+            NodeTy::mul(ct, NodeTy::constantTensor(mask, tensorType)),
+            rotation);
       }
       continue;
     }
@@ -201,14 +212,16 @@ applyVirtualRotation(ArrayRef<std::shared_ptr<ArithmeticDagNode<T>>> input,
     // std::cout << "\n";
 
     // Apply the split masks to the input and rotate
-    auto tensorType = makeTensorType(elemType, {1, static_cast<int64_t>(ciphertextSize)});
+    auto tensorType =
+        makeTensorType(elemType, {1, static_cast<int64_t>(ciphertextSize)});
     std::optional<ValueTy> rotated1;
     {
       auto [allZero, _] = allZeroAllOne(mask1);
       if (allZero) {
         rotated1 = std::nullopt;
       } else {
-        ValueTy masked1 = NodeTy::mul(ct, NodeTy::constantTensor(mask1, tensorType));
+        ValueTy masked1 =
+            NodeTy::mul(ct, NodeTy::constantTensor(mask1, tensorType));
         rotated1 = NodeTy::leftRotate(masked1, rotation);
       }
     }
@@ -219,7 +232,8 @@ applyVirtualRotation(ArrayRef<std::shared_ptr<ArithmeticDagNode<T>>> input,
       if (allZero) {
         rotated2 = std::nullopt;
       } else {
-        ValueTy masked2 = NodeTy::mul(ct, NodeTy::constantTensor(mask2, tensorType));
+        ValueTy masked2 =
+            NodeTy::mul(ct, NodeTy::constantTensor(mask2, tensorType));
         rotated2 = NodeTy::leftRotate(masked2, rotation);
       }
     }
@@ -300,7 +314,8 @@ rotateOneGroup(const Mapping& mapping, ArrayRef<T> initialCiphertexts,
     // skip masking if possible
     SmallVector<std::optional<ValueTy>> fixedCurrent;
     fixedCurrent.reserve(numCiphertexts);
-    auto tensorType = makeTensorType(elemType, {1, static_cast<int64_t>(ciphertextSize)});
+    auto tensorType =
+        makeTensorType(elemType, {1, static_cast<int64_t>(ciphertextSize)});
     for (const auto& [ct, fixedMask] : llvm::zip(current, fixedMasks)) {
       auto [allZero, allOne] = allZeroAllOne(fixedMask);
       if (allZero) {
@@ -362,7 +377,8 @@ rotateOneGroup(const Mapping& mapping, ArrayRef<T> initialCiphertexts,
   // Add up the results, zeroing out any ciphertexts that are not the final
   // target of some rotation, as they contain partially-shifted and fixed
   // values from middle rounds of this group.
-  auto tensorType = makeTensorType(elemType, {1, static_cast<int64_t>(ciphertextSize)});
+  auto tensorType =
+      makeTensorType(elemType, {1, static_cast<int64_t>(ciphertextSize)});
   for (int64_t i = 0; i < numCiphertexts; i++) {
     if (!finalTargetCiphertexts.contains(i)) {
       current[i] = NodeTy::splat(0.0, tensorType);
@@ -403,9 +419,9 @@ implementRotationGroups(SmallVector<T>& ciphertexts, const Mapping& mapping,
     //             << ss.shift << "\n";
     // }
 
-    SmallVector<ValueTy> perGroupResult =
-        rotateOneGroup(mapping, ArrayRef<T>(ciphertexts), sourceShifts,
-                       scheme.strategy.getRounds(), group, ciphertextSize, elemType);
+    SmallVector<ValueTy> perGroupResult = rotateOneGroup(
+        mapping, ArrayRef<T>(ciphertexts), sourceShifts,
+        scheme.strategy.getRounds(), group, ciphertextSize, elemType);
     groupResults.push_back(perGroupResult);
   }
 
@@ -420,8 +436,8 @@ implementShiftNetwork(SmallVector<T>& ciphertexts, const Mapping& mapping,
                       kernel::DagType elemType) {
   using NodeTy = ArithmeticDagNode<T>;
   using ValueTy = std::shared_ptr<NodeTy>;
-  SmallVector<SmallVector<ValueTy>> groupResults =
-      implementRotationGroups(ciphertexts, mapping, scheme, ciphertextSize, elemType);
+  SmallVector<SmallVector<ValueTy>> groupResults = implementRotationGroups(
+      ciphertexts, mapping, scheme, ciphertextSize, elemType);
 
   // Add all the per-group results together
   SmallVector<ValueTy> summedResults = groupResults[0];

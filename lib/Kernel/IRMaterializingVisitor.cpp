@@ -73,7 +73,7 @@ Value IRMaterializingVisitor::ensureIndexType(Value val) {
 }
 
 std::pair<Value, Value> IRMaterializingVisitor::normalizeShapes(Value lhs,
-                                                                 Value rhs) {
+                                                                Value rhs) {
   auto lhsTy = dyn_cast<RankedTensorType>(lhs.getType());
   auto rhsTy = dyn_cast<RankedTensorType>(rhs.getType());
 
@@ -97,8 +97,8 @@ std::pair<Value, Value> IRMaterializingVisitor::normalizeShapes(Value lhs,
     SmallVector<ReassociationIndices> reassociation = {{0, 1}};
     auto expandedType =
         RankedTensorType::get({1, rhsShape[0]}, rhsTy.getElementType());
-    auto expandOp =
-        tensor::ExpandShapeOp::create(builder, expandedType, rhs, reassociation);
+    auto expandOp = tensor::ExpandShapeOp::create(builder, expandedType, rhs,
+                                                  reassociation);
     createdOpCallback(expandOp);
     return {lhs, expandOp};
   }
@@ -109,8 +109,8 @@ std::pair<Value, Value> IRMaterializingVisitor::normalizeShapes(Value lhs,
     SmallVector<ReassociationIndices> reassociation = {{0, 1}};
     auto expandedType =
         RankedTensorType::get({1, lhsShape[0]}, lhsTy.getElementType());
-    auto expandOp =
-        tensor::ExpandShapeOp::create(builder, expandedType, lhs, reassociation);
+    auto expandOp = tensor::ExpandShapeOp::create(builder, expandedType, lhs,
+                                                  reassociation);
     createdOpCallback(expandOp);
     return {expandOp, rhs};
   }
@@ -162,8 +162,7 @@ std::vector<Value> IRMaterializingVisitor::operator()(
   return {constantOp};
 }
 
-std::vector<Value> IRMaterializingVisitor::operator()(
-    const SplatNode& node) {
+std::vector<Value> IRMaterializingVisitor::operator()(const SplatNode& node) {
   Type targetType = dagTypeToMLIRType(node.type, builder);
 
   // SplatNode should always produce a tensor type

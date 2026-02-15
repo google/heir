@@ -210,7 +210,8 @@ EvalResults EvalVisitor::operator()(const SplatNode& node) {
 
   // Check if this is a tensor type
   if (std::holds_alternative<kernel::IntTensorType>(node.type.type_variant)) {
-    const auto& tensorType = std::get<kernel::IntTensorType>(node.type.type_variant);
+    const auto& tensorType =
+        std::get<kernel::IntTensorType>(node.type.type_variant);
     // Compute total size as product of all dimensions
     int64_t totalSize = 1;
     for (int64_t dim : tensorType.shape) {
@@ -218,8 +219,10 @@ EvalResults EvalVisitor::operator()(const SplatNode& node) {
     }
     std::vector<int> result(totalSize, splatValue);
     return {LiteralValue(result)};
-  } else if (std::holds_alternative<kernel::FloatTensorType>(node.type.type_variant)) {
-    const auto& tensorType = std::get<kernel::FloatTensorType>(node.type.type_variant);
+  } else if (std::holds_alternative<kernel::FloatTensorType>(
+                 node.type.type_variant)) {
+    const auto& tensorType =
+        std::get<kernel::FloatTensorType>(node.type.type_variant);
     // Compute total size as product of all dimensions
     int64_t totalSize = 1;
     for (int64_t dim : tensorType.shape) {

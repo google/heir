@@ -21,8 +21,7 @@ template <typename T>
 std::shared_ptr<kernel::ArithmeticDagNode<T>>
 patersonStockmeyerMonomialPolynomialEvaluation(
     std::shared_ptr<kernel::ArithmeticDagNode<T>> x,
-    const std::map<int64_t, double>& coefficients,
-    kernel::DagType coeffType) {
+    const std::map<int64_t, double>& coefficients, kernel::DagType coeffType) {
   using NodeTy = kernel::ArithmeticDagNode<T>;
 
   bool isTensorType = coeffType.type_variant.index() >= 2;
@@ -63,8 +62,9 @@ patersonStockmeyerMonomialPolynomialEvaluation(
     for (int64_t j = lowestDegreeInChunk; j <= highestDegreeInChunk; j++) {
       if (coeffMap.count(j)) {
         int64_t powerIndex = j - lowestDegreeInChunk;
-        auto coeff = isTensorType ? NodeTy::splat(coeffMap[j], coeffType)
-                                  : NodeTy::constantScalar(coeffMap[j], coeffType);
+        auto coeff = isTensorType
+                         ? NodeTy::splat(coeffMap[j], coeffType)
+                         : NodeTy::constantScalar(coeffMap[j], coeffType);
 
         std::shared_ptr<NodeTy> term;
         if (powerIndex == 0) {

@@ -18,13 +18,13 @@ using kernel::AddNode;
 using kernel::CachingVisitor;
 using kernel::ConstantScalarNode;
 using kernel::ConstantTensorNode;
-using kernel::SplatNode;
 using kernel::ExtractNode;
 using kernel::LeafNode;
 using kernel::LeftRotateNode;
 using kernel::LiteralDouble;
 using kernel::MultiplyNode;
 using kernel::PowerNode;
+using kernel::SplatNode;
 using kernel::SubtractNode;
 
 // Visitor that evaluates an ArithmeticDag by performing actual arithmetic

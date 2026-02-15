@@ -335,16 +335,12 @@ class SecretGenericOpRotateConversion
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
       ContextAwareConversionPatternRewriter& rewriter) const override {
-    // Check that the offset is a constant.
-    auto offset = inputs[1];
-    auto constantOffset =
-        dyn_cast<mlir::arith::ConstantOp>(offset.getDefiningOp());
-    if (!constantOffset) {
-      op.emitError("expected constant offset for rotate");
-    }
-    auto offsetAttr = llvm::dyn_cast<IntegerAttr>(constantOffset.getValue());
-    auto newOp =
-        rewriter.replaceOpWithNewOp<T>(op, outputTypes, inputs[0], offsetAttr);
+    // Pass the shift as an SSA value. If it happens to be a constant,
+    // the backend can optimize it to an attribute later if needed.
+    auto shift = inputs[1];
+    auto newOp = rewriter.create<T>(op.getLoc(), outputTypes, inputs[0], shift,
+                                    /*offset=*/nullptr);
+    rewriter.replaceOp(op, newOp);
     return newOp.getOperation();
   }
 };

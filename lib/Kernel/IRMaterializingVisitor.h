@@ -35,8 +35,7 @@ class IRMaterializingVisitor {
       ImplicitLocOpBuilder& builder,
       const std::function<void(Operation*)>& createdOpCallback =
           [](Operation* op) {})
-      : builder(builder),
-        createdOpCallback(createdOpCallback) {}
+      : builder(builder), createdOpCallback(createdOpCallback) {}
 
   // Main entry point: process a single DAG node.
   // The output of the dag is enforced to be a single value, though
@@ -105,16 +104,19 @@ class IRMaterializingVisitor {
     auto [normalizedLhs, normalizedRhs] = normalizeShapes(lhs, rhs);
 
     // Infer operation type from the operands
-    auto op = TypeSwitch<Type, Operation*>(getElementTypeOrSelf(normalizedLhs.getType()))
-                  .template Case<mlir::FloatType>([&](auto ty) {
-                    return FloatOp::create(builder, normalizedLhs, normalizedRhs);
-                  })
-                  .template Case<mlir::IntegerType, mlir::IndexType>(
-                      [&](auto ty) { return IntOp::create(builder, normalizedLhs, normalizedRhs); })
-                  .Default([&](Type) {
-                    llvm_unreachable("Unsupported type for binary operation");
-                    return nullptr;
-                  });
+    auto op =
+        TypeSwitch<Type, Operation*>(
+            getElementTypeOrSelf(normalizedLhs.getType()))
+            .template Case<mlir::FloatType>([&](auto ty) {
+              return FloatOp::create(builder, normalizedLhs, normalizedRhs);
+            })
+            .template Case<mlir::IntegerType, mlir::IndexType>([&](auto ty) {
+              return IntOp::create(builder, normalizedLhs, normalizedRhs);
+            })
+            .Default([&](Type) {
+              llvm_unreachable("Unsupported type for binary operation");
+              return nullptr;
+            });
     createdOpCallback(op);
     return {op->getResult(0)};
   }

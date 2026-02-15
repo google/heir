@@ -24,9 +24,8 @@ double psEvalChebyshevPolynomial(const std::vector<double>& coefficients,
 
   kernel::LiteralDouble xNode = x;
   // Use f64 type for double precision tests, default minCoeffThreshold
-  auto resultNode =
-      patersonStockmeyerChebyshevPolynomialEvaluation(
-          xNode, coefficients, kMinCoeffs, kernel::DagType::floatTy(64));
+  auto resultNode = patersonStockmeyerChebyshevPolynomialEvaluation(
+      xNode, coefficients, kMinCoeffs, kernel::DagType::floatTy(64));
 
   if (!resultNode) return 0.0;
 

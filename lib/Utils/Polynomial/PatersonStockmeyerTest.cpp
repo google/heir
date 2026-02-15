@@ -20,9 +20,8 @@ double evalPatersonStockmeyerPolynomial(
     double x, const std::map<int64_t, double>& coefficients) {
   auto x_node = ArithmeticDagNode<LiteralDouble>::leaf(LiteralDouble(x));
   // Use f64 type for double precision tests
-  auto result_node =
-      patersonStockmeyerMonomialPolynomialEvaluation(
-          x_node, coefficients, kernel::DagType::floatTy(64));
+  auto result_node = patersonStockmeyerMonomialPolynomialEvaluation(
+      x_node, coefficients, kernel::DagType::floatTy(64));
 
   test::EvalVisitor visitor;
   return result_node->visit(visitor);
@@ -33,9 +32,8 @@ int computeMultiplicativeDepth(double x,
                                const std::map<int64_t, double>& coefficients) {
   auto x_node = ArithmeticDagNode<LiteralDouble>::leaf(LiteralDouble(x));
   // Use f64 type for double precision tests
-  auto result_node =
-      patersonStockmeyerMonomialPolynomialEvaluation(
-          x_node, coefficients, kernel::DagType::floatTy(64));
+  auto result_node = patersonStockmeyerMonomialPolynomialEvaluation(
+      x_node, coefficients, kernel::DagType::floatTy(64));
 
   test::MultiplicativeDepthVisitor visitor;
   return static_cast<int>(result_node->visit(visitor));

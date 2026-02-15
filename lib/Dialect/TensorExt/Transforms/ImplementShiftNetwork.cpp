@@ -224,7 +224,8 @@ LogicalResult convertRemapOp(RemapOp op,
   } else if (auto intTy = dyn_cast<IntegerType>(tensorTy.getElementType())) {
     dagElemType = kernel::DagType::integer(intTy.getWidth());
   } else {
-    return op.emitOpError() << "expected tensor with float or integer element type";
+    return op.emitOpError()
+           << "expected tensor with float or integer element type";
   }
   // Populate the mapping with (source, target) pairs
   // This require enumerating over the relation for the op
@@ -270,8 +271,8 @@ LogicalResult convertRemapOp(RemapOp op,
     ciphertexts.push_back(kernel::SSAValue(slice.getResult()));
   }
 
-  auto resultNodes =
-      implementShiftNetwork(ciphertexts, mapping, scheme, ciphertextSize, dagElemType);
+  auto resultNodes = implementShiftNetwork(ciphertexts, mapping, scheme,
+                                           ciphertextSize, dagElemType);
 
   kernel::IRMaterializingVisitor visitor(b);
   std::vector<Value> result = visitor.process(resultNodes);

@@ -33,9 +33,25 @@ void processFunc(func::FuncOp funcOp, Value cryptoContext) {
   llvm::DenseMap<Value, llvm::SmallDenseSet<int64_t>>
       ciphertextToDistinctRotations;
   funcOp->walk([&](RotOp op) {
-    ciphertextToRotateOps[op.getCiphertext()].push_back(op);
-    ciphertextToDistinctRotations[op.getCiphertext()].insert(
-        op.getIndex().getValue().getZExtValue());
+    // Only process rotations with constant indices
+    // If shift is an SSA value, try to extract constant; if index is an
+    // attribute, use it
+    std::optional<int64_t> rotationAmount;
+    if (op.getIndex().has_value()) {
+      rotationAmount = op.getIndex()->getValue().getZExtValue();
+    } else if (op.getShift()) {
+      // Try to get constant value from shift SSA value
+      if (auto constOp = op.getShift().getDefiningOp<arith::ConstantOp>()) {
+        if (auto intAttr = dyn_cast<IntegerAttr>(constOp.getValue())) {
+          rotationAmount = intAttr.getValue().getZExtValue();
+        }
+      }
+    }
+
+    if (rotationAmount.has_value()) {
+      ciphertextToRotateOps[op.getCiphertext()].push_back(op);
+      ciphertextToDistinctRotations[op.getCiphertext()].insert(*rotationAmount);
+    }
   });
 
   for (auto const& [ciphertext, rots] : ciphertextToDistinctRotations) {
@@ -67,11 +83,23 @@ void processFunc(func::FuncOp funcOp, Value cryptoContext) {
       // and so this ends up being ignored in favor of dynamically reading
       // `cc->GetRingDimension() * 2`.
       int cyclotomicOrder = 0;
+
+      // Get the rotation amount as a constant
+      int64_t rotationAmount;
+      if (op.getIndex().has_value()) {
+        rotationAmount = op.getIndex()->getValue().getSExtValue();
+      } else if (op.getShift()) {
+        auto constOp = op.getShift().getDefiningOp<arith::ConstantOp>();
+        auto intAttr = cast<IntegerAttr>(constOp.getValue());
+        rotationAmount = intAttr.getValue().getSExtValue();
+      } else {
+        continue;  // Skip non-constant rotations
+      }
+
       auto fastRot = FastRotationOp::create(
           builder, op->getLoc(), op.getType(), op.getCryptoContext(),
           op.getCiphertext(),
-          arith::ConstantIndexOp::create(
-              builder, op->getLoc(), op.getIndex().getValue().getSExtValue()),
+          arith::ConstantIndexOp::create(builder, op->getLoc(), rotationAmount),
           builder.getIndexAttr(cyclotomicOrder), precomputeOp.getResult());
       builder.replaceOp(op, fastRot);
     }

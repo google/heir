@@ -68,8 +68,8 @@ std::vector<std::vector<int>> manuallyApplyMapping(
   auto expected = manuallyApplyMapping(mapping, input, ciphertextSize);
   // Use f32 as default type for test (type doesn't affect rotation logic)
   kernel::DagType defaultType = kernel::DagType::floatTy(32);
-  auto dag =
-      implementShiftNetwork(inputLeaves, mapping, scheme, ciphertextSize, defaultType);
+  auto dag = implementShiftNetwork(inputLeaves, mapping, scheme, ciphertextSize,
+                                   defaultType);
   std::vector<kernel::EvalResults> actual = multiEvalKernel(dag);
 
   std::vector<std::vector<int>> combinedActual;

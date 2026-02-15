@@ -1216,7 +1216,19 @@ LogicalResult LattigoEmitter::printOperation(BGVRotateColumnsNewOp op) {
   os << getName(op.getOutput()) << ", " << errName
      << " := " << getName(op.getEvaluator()) << ".RotateColumnsNew(";
   os << getName(op.getInput()) << ", ";
-  os << op.getOffset().getInt() << ")\n";
+
+  // Handle both offset attribute and shift SSA value
+  if (op.getOffset().has_value()) {
+    os << op.getOffset()->getInt();
+  } else if (op.getShift()) {
+    os << getName(op.getShift());
+  } else {
+    return op.emitError(
+        "RotateColumnsNewOp must have either offset attribute or shift "
+        "operand");
+  }
+
+  os << ")\n";
   printErrPanic(errName);
   return success();
 }
@@ -1240,7 +1252,18 @@ LogicalResult LattigoEmitter::printOperation(BGVRotateColumnsOp op) {
   auto errName = getErrName();
   os << errName << " := " << getName(op.getEvaluator()) << ".RotateColumns(";
   os << getName(op.getInput()) << ", ";
-  os << op.getOffset().getInt() << ", ";
+
+  // Handle both offset attribute and shift SSA value
+  if (op.getOffset().has_value()) {
+    os << op.getOffset()->getInt();
+  } else if (op.getShift()) {
+    os << getName(op.getShift());
+  } else {
+    return op.emitError(
+        "RotateColumnsOp must have either offset attribute or shift operand");
+  }
+
+  os << ", ";
   os << getName(op.getInplace()) << ")\n";
   printErrPanic(errName);
   return success();
@@ -1468,7 +1491,18 @@ LogicalResult LattigoEmitter::printOperation(CKKSRotateNewOp op) {
   os << getName(op.getOutput()) << ", " << errName
      << " := " << getName(op.getEvaluator()) << ".RotateNew(";
   os << getName(op.getInput()) << ", ";
-  os << op.getOffset().getInt() << ")\n";
+
+  // Handle both offset attribute and shift SSA value
+  if (op.getOffset().has_value()) {
+    os << op.getOffset()->getInt();
+  } else if (op.getShift()) {
+    os << getName(op.getShift());
+  } else {
+    return op.emitError(
+        "CKKSRotateNewOp must have either offset attribute or shift operand");
+  }
+
+  os << ")\n";
   printErrPanic(errName);
   return success();
 }
@@ -1487,7 +1521,18 @@ LogicalResult LattigoEmitter::printOperation(CKKSRotateOp op) {
   auto errName = getErrName();
   os << errName << " := " << getName(op.getEvaluator()) << ".Rotate(";
   os << getName(op.getInput()) << ", ";
-  os << op.getOffset().getInt() << ", ";
+
+  // Handle both offset attribute and shift SSA value
+  if (op.getOffset().has_value()) {
+    os << op.getOffset()->getInt();
+  } else if (op.getShift()) {
+    os << getName(op.getShift());
+  } else {
+    return op.emitError(
+        "CKKSRotateOp must have either offset attribute or shift operand");
+  }
+
+  os << ", ";
   os << getName(op.getInplace()) << ")\n";
   printErrPanic(errName);
   return success();

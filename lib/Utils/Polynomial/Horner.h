@@ -17,8 +17,7 @@ template <typename T>
 std::shared_ptr<kernel::ArithmeticDagNode<T>>
 hornerMonomialPolynomialEvaluation(
     std::shared_ptr<kernel::ArithmeticDagNode<T>> x,
-    const std::map<int64_t, double>& coefficients,
-    kernel::DagType dagType) {
+    const std::map<int64_t, double>& coefficients, kernel::DagType dagType) {
   using NodeTy = kernel::ArithmeticDagNode<T>;
 
   bool isTensorType = dagType.type_variant.index() >= 2;
@@ -38,16 +37,18 @@ hornerMonomialPolynomialEvaluation(
 
   // Start with the coefficient of the highest degree term
   int64_t maxDegree = coeffMap.rbegin()->first;
-  auto result = isTensorType ? NodeTy::splat(coeffMap[maxDegree], dagType)
-                             : NodeTy::constantScalar(coeffMap[maxDegree], dagType);
+  auto result = isTensorType
+                    ? NodeTy::splat(coeffMap[maxDegree], dagType)
+                    : NodeTy::constantScalar(coeffMap[maxDegree], dagType);
 
   // Apply Horner's method
   for (int64_t i = maxDegree - 1; i >= 0; i--) {
     result = NodeTy::mul(result, x);
 
     if (coeffMap.count(i)) {
-      auto coeffNode = isTensorType ? NodeTy::splat(coeffMap.at(i), dagType)
-                                    : NodeTy::constantScalar(coeffMap.at(i), dagType);
+      auto coeffNode = isTensorType
+                           ? NodeTy::splat(coeffMap.at(i), dagType)
+                           : NodeTy::constantScalar(coeffMap.at(i), dagType);
       result = NodeTy::add(result, coeffNode);
     }
   }

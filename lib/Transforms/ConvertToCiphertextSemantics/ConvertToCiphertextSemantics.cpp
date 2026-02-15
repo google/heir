@@ -658,8 +658,7 @@ struct ConvertLinalgMatvecLayout
     rewriter.setInsertionPointAfter(op);
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     IRMaterializingVisitor visitor(
-        b,
-        [&](Operation* createdOp) { setMaterializedAttr(createdOp); });
+        b, [&](Operation* createdOp) { setMaterializedAttr(createdOp); });
     std::vector<Value> results = implementedKernel->visit(visitor);
     assert(results.size() == 1 &&
            "Halevi-Shoup matvec should only produce one output");
@@ -795,8 +794,7 @@ struct ConvertLinalgConv2D
     rewriter.setInsertionPointAfter(op);
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     IRMaterializingVisitor visitor(
-        b,
-        [&](Operation* createdOp) { setMaterializedAttr(createdOp); });
+        b, [&](Operation* createdOp) { setMaterializedAttr(createdOp); });
     std::vector<Value> results = implementedKernel->visit(visitor);
     assert(results.size() == 1 &&
            "Halevi-Shoup conv2d as matvec should only produce one output");
@@ -1969,9 +1967,8 @@ struct ConvertLinalgMatmul
 
     rewriter.setInsertionPointAfter(op);
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    IRMaterializingVisitor visitor(b, [&](Operation* createdOp) {
-      setMaterializedAttr(op);
-    });
+    IRMaterializingVisitor visitor(
+        b, [&](Operation* createdOp) { setMaterializedAttr(op); });
     std::vector<Value> results = implementedKernel->visit(visitor);
     assert(results.size() == 1 &&
            "bicyclic matmul should have a single output");
