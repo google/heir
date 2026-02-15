@@ -7,8 +7,7 @@
 // CHECK-SAME: (%[[ARG0:.*]]: tensor<1x64xi32>) -> tensor<1x64xi32>
 // CHECK: %[[SLICE:.*]] = tensor.extract_slice %[[ARG0]][0, 0] [1, 64] [1, 1] : tensor<1x64xi32> to tensor<1x64xi32>
 // CHECK: %[[C1:.*]] = arith.constant 1 : i32
-// CHECK: %[[C1_IDX:.*]] = arith.index_cast %[[C1]] : i32 to index
-// CHECK: %[[ROT:.*]] = tensor_ext.rotate %[[SLICE]], %[[C1_IDX]] : tensor<1x64xi32>, index
+// CHECK: %[[ROT:.*]] = tensor_ext.rotate %[[SLICE]], %[[C1]] : tensor<1x64xi32>, i32
 // CHECK: %[[EMPTY:.*]] = tensor.empty() : tensor<1x64xi32>
 // CHECK: %[[INSERT:.*]] = tensor.insert_slice %[[ROT]] into %[[EMPTY]][0, 0] [1, 64] [1, 1] : tensor<1x64xi32> into tensor<1x64xi32>
 // CHECK: return %[[INSERT]] : tensor<1x64xi32>
@@ -29,23 +28,17 @@ func.func @test_no_conflicts(%0: tensor<1x64xi32>) -> tensor<1x64xi32> {
 // CHECK-SAME: (%[[ARG0:.*]]: tensor<1x64xi32>) -> tensor<1x64xi32>
 // CHECK: %[[SLICE:.*]] = tensor.extract_slice %[[ARG0]][0, 0] [1, 64] [1, 1] : tensor<1x64xi32> to tensor<1x64xi32>
 // CHECK: %[[C1:.*]] = arith.constant 1 : i32
-// CHECK: %[[C1_IDX:.*]] = arith.index_cast %[[C1]] : i32 to index
-// CHECK: %[[ROT0:.*]] = tensor_ext.rotate %[[SLICE]], %[[C1_IDX]] : tensor<1x64xi32>, index
+// CHECK: %[[ROT0:.*]] = tensor_ext.rotate %[[SLICE]], %[[C1]] : tensor<1x64xi32>, i32
 // CHECK: %[[C2:.*]] = arith.constant 2 : i32
-// CHECK: %[[C2_IDX:.*]] = arith.index_cast %[[C2]] : i32 to index
-// CHECK: %[[ROT1:.*]] = tensor_ext.rotate %[[ROT0]], %[[C2_IDX]] : tensor<1x64xi32>, index
+// CHECK: %[[ROT1:.*]] = tensor_ext.rotate %[[ROT0]], %[[C2]] : tensor<1x64xi32>, i32
 // CHECK: %[[C4:.*]] = arith.constant 4 : i32
-// CHECK: %[[C4_IDX:.*]] = arith.index_cast %[[C4]] : i32 to index
-// CHECK: %[[ROT2:.*]] = tensor_ext.rotate %[[ROT1]], %[[C4_IDX]] : tensor<1x64xi32>, index
+// CHECK: %[[ROT2:.*]] = tensor_ext.rotate %[[ROT1]], %[[C4]] : tensor<1x64xi32>, i32
 // CHECK: %[[C8:.*]] = arith.constant 8 : i32
-// CHECK: %[[C8_IDX:.*]] = arith.index_cast %[[C8]] : i32 to index
-// CHECK: %[[ROT3:.*]] = tensor_ext.rotate %[[ROT2]], %[[C8_IDX]] : tensor<1x64xi32>, index
+// CHECK: %[[ROT3:.*]] = tensor_ext.rotate %[[ROT2]], %[[C8]] : tensor<1x64xi32>, i32
 // CHECK: %[[C16:.*]] = arith.constant 16 : i32
-// CHECK: %[[C16_IDX:.*]] = arith.index_cast %[[C16]] : i32 to index
-// CHECK: %[[ROT4:.*]] = tensor_ext.rotate %[[ROT3]], %[[C16_IDX]] : tensor<1x64xi32>, index
+// CHECK: %[[ROT4:.*]] = tensor_ext.rotate %[[ROT3]], %[[C16]] : tensor<1x64xi32>, i32
 // CHECK: %[[C32:.*]] = arith.constant 32 : i32
-// CHECK: %[[C32_IDX:.*]] = arith.index_cast %[[C32]] : i32 to index
-// CHECK: %[[ROT5:.*]] = tensor_ext.rotate %[[ROT4]], %[[C32_IDX]] : tensor<1x64xi32>, index
+// CHECK: %[[ROT5:.*]] = tensor_ext.rotate %[[ROT4]], %[[C32]] : tensor<1x64xi32>, i32
 // CHECK: %[[EMPTY:.*]] = tensor.empty() : tensor<1x64xi32>
 // CHECK: %[[INSERT:.*]] = tensor.insert_slice %[[ROT5]] into %[[EMPTY]][0, 0] [1, 64] [1, 1] : tensor<1x64xi32> into tensor<1x64xi32>
 // CHECK: return %[[INSERT]] : tensor<1x64xi32>
