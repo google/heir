@@ -16,7 +16,7 @@ cc_binary(
     srcs = ["heir-opt.cpp"],
     data = select({
         "@heir//:config_enable_yosys": [
-            "@edu_berkeley_abc//:abc",
+            "@abc//:abc_bin",
             "@heir//lib/Transforms/YosysOptimizer/yosys:techmap_lut3.v",
             "@heir//lib/Transforms/YosysOptimizer/yosys:techmap_lut4.v",
         ],
@@ -29,7 +29,7 @@ cc_binary(
     # an escaped quote).
     defines = select({
         "@heir//:config_enable_yosys": [
-            "HEIR_ABC_BINARY=\\\"$(rootpath @edu_berkeley_abc//:abc)\\\"",
+            "HEIR_ABC_BINARY=\\\"$(rootpath @abc//:abc_bin)\\\"",
             "HEIR_YOSYS_SCRIPTS_DIR=\\\"" + WORKSPACE_PATH + "lib/Transforms/YosysOptimizer/yosys\\\"",
         ],
         "//conditions:default": ["HEIR_NO_YOSYS=1"],
