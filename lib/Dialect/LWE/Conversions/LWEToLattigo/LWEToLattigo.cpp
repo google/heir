@@ -32,6 +32,7 @@
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
@@ -114,10 +115,8 @@ bool containsArgumentOfDialect(Operation* op) {
     return false;
   }
   return llvm::any_of(funcOp.getArgumentTypes(), [&](Type argType) {
-    if (isa<ShapedType>(argType)) {
-      argType = cast<ShapedType>(argType).getElementType();
-    }
-    return DialectEqual<Dialects...>()(&argType.getDialect());
+    return DialectEqual<Dialects...>()(
+        &getElementTypeOrSelf(argType).getDialect());
   });
 }
 
@@ -794,7 +793,8 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
       return typeConverter.isSignatureLegal(op.getFunctionType()) &&
              typeConverter.isLegal(&op.getBody()) &&
              (!containsArgumentOfDialect<lwe::LWEDialect, bgv::BGVDialect,
-                                         ckks::CKKSDialect>(op) ||
+                                         ckks::CKKSDialect,
+                                         lattigo::LattigoDialect>(op) ||
               hasCryptoContextArg);
     });
 
@@ -809,7 +809,17 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
           !operandTypes.empty() &&
           mlir::isa<lattigo::BGVEvaluatorType, lattigo::CKKSEvaluatorType>(
               *operandTypes.begin());
-      return (!containsCryptoArg || hasCryptoContextArg);
+      // crypto context may need to be added for any function call whose callee
+      // has crypto ops.
+      auto containsCryptoOps = false;
+      FailureOr<func::FuncOp> callee = getCalledFunction(op);
+      if (succeeded(callee)) {
+        containsCryptoOps =
+            containsDialects<lwe::LWEDialect, bgv::BGVDialect,
+                             ckks::CKKSDialect, lattigo::LattigoDialect>(
+                callee.value());
+      }
+      return (!(containsCryptoArg || containsCryptoOps) || hasCryptoContextArg);
     });
 
     // All other operations are legal if they have no LWE typed operands or
