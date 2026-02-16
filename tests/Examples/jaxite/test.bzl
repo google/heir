@@ -9,6 +9,7 @@ def jaxite_end_to_end_test(name, mlir_src, test_src, heir_opt_pass_flags = [], t
     py_test(
         name = name,
         srcs = [test_src],
+        strict_deps = False,
         main = test_src,
         deps = deps + [
             ":" + py_lib_target_name,
