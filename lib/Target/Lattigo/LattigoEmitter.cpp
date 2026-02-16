@@ -1484,6 +1484,10 @@ LogicalResult LattigoEmitter::printOperation(CKKSRescaleOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(CKKSRotateOp op) {
+  auto inputName = getName(op.getInput());
+  auto inplaceName = getName(op.getInplace());
+  os << inplaceName << ".Resize(" << inputName << ".Degree()," << inputName
+     << ".Level())\n";
   auto errName = getErrName();
   os << errName << " := " << getName(op.getEvaluator()) << ".Rotate(";
   os << getName(op.getInput()) << ", ";
