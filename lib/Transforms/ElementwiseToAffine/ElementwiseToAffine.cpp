@@ -13,6 +13,7 @@
 #include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
@@ -157,6 +158,40 @@ struct ElementwiseToAffine
 
   void runOnOperation() override {
     MLIRContext* context = &getContext();
+
+    auto walkResult = getOperation()->walk([&](Operation* op) {
+      bool convertAll = convertDialects.empty() && convertOps.empty();
+      bool convertDialect = llvm::is_contained(
+          convertDialects, op->getDialect()->getNamespace().str());
+      bool convertOp =
+          llvm::is_contained(convertOps, op->getName().getStringRef().str());
+
+      if (convertAll || convertDialect || convertOp) {
+        if (isSupported(op)) {
+          SmallVector<Type> operandAndResultTypes;
+          for (Type ty : op->getOperandTypes())
+            operandAndResultTypes.push_back(ty);
+          for (Type ty : op->getResultTypes())
+            operandAndResultTypes.push_back(ty);
+
+          for (Type ty : operandAndResultTypes) {
+            ShapedType shapedTy = dyn_cast<ShapedType>(ty);
+            if (shapedTy && !shapedTy.hasStaticShape()) {
+              op->emitError()
+                  << "op has operand or result with dynamic shape, "
+                     "which is not supported by elementwise-to-affine";
+              return WalkResult::interrupt();
+            }
+          }
+        }
+      }
+      return WalkResult::advance();
+    });
+
+    if (walkResult.wasInterrupted()) {
+      return signalPassFailure();
+    }
+
     ConversionTarget target(*context);
     RewritePatternSet patterns(context);
 
