@@ -42,13 +42,39 @@ int64_t ShiftStrategy::getVirtualShift(const CtSlot& source,
   return normalizeShift(sourceIndex, targetIndex, virtualCiphertextSize);
 }
 
-void ShiftStrategy::evaluate(const Mapping& mapping) {
+void ShiftStrategy::evaluate(const Mapping& mapping, bool useSources) {
   // First compute the virtual shifts needed for each source slot
   SmallVector<SourceShift> sourceShifts;
-  sourceShifts.reserve(mapping.size());
-  for (const auto& [target, source] : mapping.getTargetToSource()) {
-    int64_t shift = getVirtualShift(source, target);
-    sourceShifts.push_back({source, shift});
+  if (!useSources) {
+    sourceShifts.reserve(mapping.size());
+    for (const auto& [target, source] : mapping.getTargetToSource()) {
+      int64_t shift = getVirtualShift(source, target);
+      sourceShifts.push_back({source, shift});
+    }
+  } else {
+    LLVM_DEBUG(llvm::dbgs() << "Evaluating with all targets \n");
+
+    auto allTargets = mapping.getTargetToSources();
+
+    int counter = 0;
+    llvm::DenseSet<SourceShift> uniqueShifts;
+    for (const auto& kv : allTargets) {
+      const CtSlot& target = kv.first;
+      const auto& sources = kv.second;
+      for (const auto& ctmatch : sources) {
+        int64_t shift = getVirtualShift(ctmatch.source, target);
+        SourceShift ss{ctmatch.source, shift};
+
+        // Ensuring no duplicate pairs, can delete
+        counter += 1;
+        if (uniqueShifts.insert(ss).second) {
+          sourceShifts.push_back(ss);
+        }
+      }
+    }
+    LLVM_DEBUG(llvm::dbgs() << "Total SourceShifts: " << counter << "\n";
+               llvm::dbgs()
+               << "Unique SourceShifts: " << sourceShifts.size() << "\n";);
   }
 
   // Compute the corresponding table of positions after each rotation,
