@@ -1025,8 +1025,8 @@ static std::pair<Value, Value> bflyGS(ImplicitLocOpBuilder& b, Value A, Value B,
 
 template <bool inverse>
 static Value fastNTT(ImplicitLocOpBuilder& b, RingAttr ring,
-                     PrimitiveRootAttr rootAttr, RankedTensorType tensorType,
-                     Type modType, Value input) {
+                     mod_arith::ModArithAttr rootAttr,
+                     RankedTensorType tensorType, Type modType, Value input) {
   // Compute the number of stages required to compute the NTT
   auto degree = tensorType.getShape()[0];
   unsigned stages = (unsigned)std::log2((double)degree);
@@ -1224,16 +1224,19 @@ struct ConvertNTT : public OpConversionPattern<NTTOp> {
     auto intTensorType =
         RankedTensorType::get(inputType.getShape(), coeffStorageType);
     auto modType = adaptor.getInput().getType();
+    auto rootMAAttr =
+        dyn_cast<mod_arith::ModArithAttr>(op.getRoot().value().getValue());
+    if (!rootMAAttr) {
+      return rewriter.notifyMatchFailure(
+          op, "expected primitive root type to be mod_arith type");
+    }
 
     // Compute the ntt and extract the values
     Value nttResult = fastNTT<false>(
-        b, ring, op.getRoot().value(), intTensorType, modType,
+        b, ring, rootMAAttr, intTensorType, modType,
         computeReverseBitOrder(b, intTensorType, modType, adaptor.getInput()));
 
-    // Insert the ring encoding here to the input type
-    auto outputType =
-        RankedTensorType::get(inputType.getShape(), coeffType, ring);
-    auto intResult = tensor::CastOp::create(b, outputType, nttResult);
+    auto intResult = tensor::CastOp::create(b, inputType, nttResult);
     rewriter.replaceOp(op, intResult);
 
     return success();
@@ -1272,11 +1275,17 @@ struct ConvertINTT : public OpConversionPattern<INTTOp> {
     auto intTensorType =
         RankedTensorType::get(inputType.getShape(), coeffStorageType);
     auto modType = typeConverter->convertType(op.getOutput().getType());
+    auto rootMAAttr =
+        dyn_cast<mod_arith::ModArithAttr>(op.getRoot().value().getValue());
+    if (!rootMAAttr) {
+      return rewriter.notifyMatchFailure(
+          op, "expected primitive root type to be mod_arith type");
+    }
 
     // Remove the encoded ring from input tensor type and convert to mod_arith
     // type
     auto input = tensor::CastOp::create(b, modType, adaptor.getInput());
-    auto nttResult = fastNTT<true>(b, typeInfo.ringAttr, op.getRoot().value(),
+    auto nttResult = fastNTT<true>(b, typeInfo.ringAttr, rootMAAttr,
                                    intTensorType, modType, input);
 
     auto reversedBitOrder =

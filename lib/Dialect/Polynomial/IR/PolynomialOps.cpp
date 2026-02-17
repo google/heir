@@ -186,69 +186,100 @@ bool isPrimitiveNthRootOfUnity(const APInt& root, const APInt& n,
 
 /// Verify that the types involved in an NTT or INTT operation are
 /// compatible.
-static LogicalResult verifyNTTOp(Operation* op, PolynomialType poly,
-                                 RankedTensorType tensorType,
-                                 std::optional<PrimitiveRootAttr> root) {
-  Attribute encoding = tensorType.getEncoding();
-  if (!encoding) {
+static LogicalResult verifyNTTOp(Operation* op, PolynomialType input,
+                                 PolynomialType output,
+                                 std::optional<PrimitiveRootAttr> root,
+                                 bool expectedInputForm) {
+  RingAttr inputRing = input.getRing();
+  RingAttr outputRing = output.getRing();
+  if (outputRing != inputRing) {
     return op->emitOpError()
-           << "expects a ring encoding to be provided to the tensor";
-  }
-  auto encodedRing = dyn_cast<RingAttr>(encoding);
-  if (!encodedRing) {
-    return op->emitOpError()
-           << "the provided tensor encoding is not a ring attribute";
+           << "input ring type " << inputRing
+           << " is not equivalent to the output ring " << outputRing;
   }
 
-  RingAttr ring = poly.getRing();
-  if (encodedRing != ring) {
+  FormAttr inputForm = input.getForm();
+  FormAttr outputForm = output.getForm();
+  if (inputForm.getIsCoeffForm() != expectedInputForm) {
     return op->emitOpError()
-           << "encoded ring type " << encodedRing
-           << " is not equivalent to the polynomial ring " << ring;
+           << "expected input with isCoeffForm=" << expectedInputForm;
   }
-
-  unsigned polyDegree = ring.getPolynomialModulus().getPolynomial().getDegree();
-  ArrayRef<int64_t> tensorShape = tensorType.getShape();
-  bool compatible = tensorShape.size() == 1 && tensorShape[0] == polyDegree;
-  if (!compatible) {
-    InFlightDiagnostic diag = op->emitOpError()
-                              << "tensor type " << tensorType
-                              << " does not match output type " << ring;
-    diag.attachNote() << "the tensor must have shape [d] where d "
-                         "is exactly the degree of the polynomialModulus of "
-                         "the polynomial type's ring attribute";
-    return diag;
+  if (inputForm.getIsCoeffForm() == outputForm.getIsCoeffForm()) {
+    return op->emitOpError() << "input and output form must be different, but "
+                                "both have isCoeffForm="
+                             << inputForm.getIsCoeffForm();
   }
-
-  auto coeffType = dyn_cast<mod_arith::ModArithType>(ring.getCoefficientType());
-  if (!coeffType) {
-    return op->emitOpError()
-           << "expected coefficient type to be mod_arith type";
-  }
-  if (failed(coefficientTypeMatchesScalarType(poly, tensorType.getElementType(),
-                                              op)))
-    return failure();
 
   if (root.has_value()) {
-    APInt rootValue = root.value().getValue().getValue();
+    Attribute rootValue = root.value().getValue();
     APInt rootDegree = root.value().getDegree().getValue();
-    auto coeffType =
-        dyn_cast<mod_arith::ModArithType>(ring.getCoefficientType());
 
-    if (!coeffType) {
-      return op->emitOpError() << "when setting a primitive root, the "
-                                  "coefficient type must be mod_arith"
-                               << ", but found " << ring.getCoefficientType();
-    }
-
-    APInt cmod = coeffType.getModulus().getValue();
-    if (!isPrimitiveNthRootOfUnity(rootValue, rootDegree, cmod)) {
-      return op->emitOpError()
-             << "provided root " << rootValue.getZExtValue()
-             << " is not a primitive root " << "of unity mod "
-             << cmod.getZExtValue() << ", with the specified degree "
-             << rootDegree.getZExtValue();
-    }
+    LogicalResult coeffCheck =
+        TypeSwitch<Type, LogicalResult>(inputRing.getCoefficientType())
+            .Case<mod_arith::ModArithType>(
+                [&](mod_arith::ModArithType coeffType) -> LogicalResult {
+                  auto rootValueType =
+                      dyn_cast<mod_arith::ModArithAttr>(rootValue);
+                  if (!rootValueType || inputRing.getCoefficientType() !=
+                                            rootValueType.getType()) {
+                    return op->emitOpError() << "Ring has coefficient type "
+                                             << inputRing.getCoefficientType()
+                                             << ", but primitive root has type "
+                                             << rootValueType.getType();
+                  }
+                  APInt cmod = coeffType.getModulus().getValue();
+                  APInt rootValue = rootValueType.getValue().getValue();
+                  if (!isPrimitiveNthRootOfUnity(rootValue, rootDegree, cmod)) {
+                    return op->emitOpError()
+                           << "provided root " << rootValue.getZExtValue()
+                           << " is not a primitive root " << "of unity mod "
+                           << cmod.getZExtValue()
+                           << ", with the specified degree "
+                           << rootDegree.getSExtValue();
+                  }
+                  return success();
+                })
+            .Case<rns::RNSType>([&](rns::RNSType coeffType) -> LogicalResult {
+              auto rootValueType = dyn_cast<rns::RNSAttr>(rootValue);
+              if (!rootValueType ||
+                  inputRing.getCoefficientType() != rootValueType.getType()) {
+                return op->emitOpError() << "Ring has coefficient type "
+                                         << inputRing.getCoefficientType()
+                                         << ", but primitive root has type "
+                                         << rootValueType.getType();
+              }
+              auto basis = coeffType.getBasisTypes();
+              int rnsLength = basis.size();
+              for (int i = 0; i < rnsLength; i++) {
+                auto limbType = dyn_cast<mod_arith::ModArithType>(basis[i]);
+                APInt cmod = limbType.getModulus().getValue();
+                mod_arith::ModArithAttr rootLimbValue =
+                    dyn_cast<mod_arith::ModArithAttr>(
+                        rootValueType.getValues()[i]);
+                if (!rootLimbValue || rootLimbValue.getType() != limbType) {
+                  return op->emitOpError()
+                         << "Ring has coefficient type "
+                         << inputRing.getCoefficientType()
+                         << ", but primitive root attr had incorrect limb[" << i
+                         << "] = " << rootValueType.getValues()[i];
+                }
+                APInt rootValue = rootLimbValue.getValue().getValue();
+                if (!isPrimitiveNthRootOfUnity(rootValue, rootDegree, cmod)) {
+                  return op->emitOpError()
+                         << "provided root " << rootValue.getZExtValue()
+                         << " is not a primitive root " << "of unity mod "
+                         << cmod.getZExtValue()
+                         << ", with the specified degree "
+                         << rootDegree.getSExtValue();
+                }
+              }
+              return success();
+            })
+            .Default([&](Type coeffType) -> LogicalResult {
+              return op->emitOpError()
+                     << "Ring has unsupported coefficient type " << coeffType;
+            });
+    if (failed(coeffCheck)) return coeffCheck;
   }
 
   return success();
@@ -256,12 +287,12 @@ static LogicalResult verifyNTTOp(Operation* op, PolynomialType poly,
 
 LogicalResult NTTOp::verify() {
   return verifyNTTOp(this->getOperation(), getInput().getType(),
-                     getOutput().getType(), getRoot());
+                     getOutput().getType(), getRoot(), true);
 }
 
 LogicalResult INTTOp::verify() {
-  return verifyNTTOp(this->getOperation(), getOutput().getType(),
-                     getInput().getType(), getRoot());
+  return verifyNTTOp(this->getOperation(), getInput().getType(),
+                     getOutput().getType(), getRoot(), false);
 }
 
 LogicalResult MulScalarOp::verify() {
@@ -399,6 +430,35 @@ LogicalResult ConstantOp::inferReturnTypes(
     assert(false && "unexpected attribute type");
     return failure();
   }
+  return success();
+}
+
+LogicalResult NTTOp::inferReturnTypes(MLIRContext* ctx, std::optional<Location>,
+                                      ValueRange operands, DictionaryAttr attrs,
+                                      mlir::OpaqueProperties properties,
+                                      mlir::RegionRange regions,
+                                      SmallVectorImpl<Type>& results) {
+  NTTOpAdaptor op(operands, attrs, properties, regions);
+  auto inputTy = dyn_cast<PolynomialType>(op.getInput().getType());
+  if (!inputTy) {
+    return failure();
+  }
+  PolynomialType outputTy = PolynomialType::get(ctx, inputTy.getRing(), false);
+  results.push_back(outputTy);
+  return success();
+}
+
+LogicalResult INTTOp::inferReturnTypes(
+    MLIRContext* ctx, std::optional<Location>, ValueRange operands,
+    DictionaryAttr attrs, mlir::OpaqueProperties properties,
+    mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
+  INTTOpAdaptor op(operands, attrs, properties, regions);
+  auto inputTy = dyn_cast<PolynomialType>(op.getInput().getType());
+  if (!inputTy) {
+    return failure();
+  }
+  PolynomialType outputTy = PolynomialType::get(ctx, inputTy.getRing(), true);
+  results.push_back(outputTy);
   return success();
 }
 
