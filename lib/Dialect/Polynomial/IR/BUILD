@@ -15,6 +15,7 @@ cc_library(
         ":attributes_inc_gen",
         ":canonicalization_inc_gen",
         ":dialect_inc_gen",
+        ":enums_inc_gen",
         ":ops_inc_gen",
         ":types_inc_gen",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
@@ -36,6 +37,7 @@ td_library(
         "PolynomialAttributes.td",
         "PolynomialCanonicalization.td",
         "PolynomialDialect.td",
+        "PolynomialEnums.td",
         "PolynomialOps.td",
         "PolynomialTypes.td",
     ],
@@ -67,6 +69,16 @@ add_heir_dialect_library(
     dialect = "Polynomial",
     kind = "attribute",
     td_file = "PolynomialAttributes.td",
+    deps = [
+        ":td_files",
+    ],
+)
+
+add_heir_dialect_library(
+    name = "enums_inc_gen",
+    dialect = "Polynomial",
+    kind = "enum",
+    td_file = "PolynomialEnums.td",
     deps = [
         ":td_files",
     ],

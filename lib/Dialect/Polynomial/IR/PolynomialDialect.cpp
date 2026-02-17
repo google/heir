@@ -28,6 +28,7 @@ using namespace mlir::heir::polynomial;
 #define GET_TYPEDEF_CLASSES
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.cpp.inc"
 #define GET_OP_CLASSES
+#include "lib/Dialect/Polynomial/IR/PolynomialEnums.cpp.inc"
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.cpp.inc"
 
 void PolynomialDialect::initialize() {

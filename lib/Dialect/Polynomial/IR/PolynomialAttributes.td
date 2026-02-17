@@ -5,6 +5,7 @@ include "lib/Dialect/Polynomial/IR/PolynomialDialect.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
 include "mlir/IR/OpBase.td"
 include "mlir/IR/OpAsmInterface.td"
+include "mlir/IR/EnumAttr.td"
 
 class Polynomial_Attr<string name, string attrMnemonic, list<Trait> traits = []>
     : AttrDef<Polynomial_Dialect, name, traits> {
@@ -230,22 +231,6 @@ def Polynomial_RingAttr : Polynomial_Attr<"Ring", "ring", [OpAsmAttrInterface]> 
     // OpAsmAttrInterface methods.
     ::mlir::OpAsmDialectInterface::AliasResult getAlias(::llvm::raw_ostream &os) const;
   }];
-}
-
-def Polynomial_FormAttr : Polynomial_Attr<"Form", "form"> {
-  let summary = "an attribute describing the polynomial representation form";
-  let description = [{
-    Indicates whether a polynomial value is represented in coefficient form or
-    evaluation (NTT) form.
-
-    Example:
-
-    ```mlir
-    #form = #polynomial.form<isCoeffForm = true>
-    ```
-  }];
-  let parameters = (ins "bool":$isCoeffForm);
-  let assemblyFormat = "`<` `isCoeffForm` `=` $isCoeffForm `>`";
 }
 
 def Polynomial_PrimitiveRootAttr: Polynomial_Attr<"PrimitiveRoot", "primitive_root"> {
