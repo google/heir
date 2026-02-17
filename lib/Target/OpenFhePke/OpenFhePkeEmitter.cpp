@@ -828,8 +828,17 @@ LogicalResult OpenFhePkeEmitter::printOperation(RotOp op) {
 
   os << variableNames->getNameForValue(op.getCryptoContext()) << "->"
      << "EvalRotate" << "("
-     << variableNames->getNameForValue(op.getCiphertext()) << ", "
-     << op.getIndex().getValue() << ");\n";
+     << variableNames->getNameForValue(op.getCiphertext()) << ", ";
+
+  if (op.getStaticShiftAttr()) {
+    os << op.getStaticShift()->getValue();
+  } else if (op.getDynamicShift()) {
+    os << variableNames->getNameForValue(op.getDynamicShift());
+  } else {
+    return op.emitError("RotOp must have either static_shift or dynamic_shift");
+  }
+
+  os << ");\n";
   return success();
 }
 

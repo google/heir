@@ -1216,7 +1216,21 @@ LogicalResult LattigoEmitter::printOperation(BGVRotateColumnsNewOp op) {
   os << getName(op.getOutput()) << ", " << errName
      << " := " << getName(op.getEvaluator()) << ".RotateColumnsNew(";
   os << getName(op.getInput()) << ", ";
-  os << op.getOffset().getInt() << ")\n";
+
+  // Handle both static_shift attribute and dynamic_shift SSA value
+  if (op.getStaticShift().has_value()) {
+    os << op.getStaticShift()->getInt();
+  } else if (op.getDynamicShift()) {
+    // RotateColumnsNew expects an int argument for the shift, and golang does
+    // not allow implicit conversion from i32/i64
+    os << "int(" << getName(op.getDynamicShift()) << ")";
+  } else {
+    return op.emitError(
+        "RotateColumnsNewOp must have either static_shift attribute or "
+        "dynamic_shift operand");
+  }
+
+  os << ")\n";
   printErrPanic(errName);
   return success();
 }
@@ -1240,7 +1254,21 @@ LogicalResult LattigoEmitter::printOperation(BGVRotateColumnsOp op) {
   auto errName = getErrName();
   os << errName << " := " << getName(op.getEvaluator()) << ".RotateColumns(";
   os << getName(op.getInput()) << ", ";
-  os << op.getOffset().getInt() << ", ";
+
+  // Handle both static_shift attribute and dynamic_shift SSA value
+  if (op.getStaticShift().has_value()) {
+    os << op.getStaticShift()->getInt();
+  } else if (op.getDynamicShift()) {
+    // RotateColumnsNew expects an int argument for the shift, and golang does
+    // not allow implicit conversion from i32/i64
+    os << "int(" << getName(op.getDynamicShift()) << ")";
+  } else {
+    return op.emitError(
+        "RotateColumnsOp must have either static_shift attribute or "
+        "dynamic_shift operand");
+  }
+
+  os << ", ";
   os << getName(op.getInplace()) << ")\n";
   printErrPanic(errName);
   return success();
@@ -1468,7 +1496,21 @@ LogicalResult LattigoEmitter::printOperation(CKKSRotateNewOp op) {
   os << getName(op.getOutput()) << ", " << errName
      << " := " << getName(op.getEvaluator()) << ".RotateNew(";
   os << getName(op.getInput()) << ", ";
-  os << op.getOffset().getInt() << ")\n";
+
+  // Handle both static_shift attribute and dynamic_shift SSA value
+  if (op.getStaticShift().has_value()) {
+    os << op.getStaticShift()->getInt();
+  } else if (op.getDynamicShift()) {
+    // RotateColumnsNew expects an int argument for the shift, and golang does
+    // not allow implicit conversion from i32/i64
+    os << "int(" << getName(op.getDynamicShift()) << ")";
+  } else {
+    return op.emitError(
+        "CKKSRotateNewOp must have either static_shift attribute or "
+        "dynamic_shift operand");
+  }
+
+  os << ")\n";
   printErrPanic(errName);
   return success();
 }
@@ -1487,7 +1529,21 @@ LogicalResult LattigoEmitter::printOperation(CKKSRotateOp op) {
   auto errName = getErrName();
   os << errName << " := " << getName(op.getEvaluator()) << ".Rotate(";
   os << getName(op.getInput()) << ", ";
-  os << op.getOffset().getInt() << ", ";
+
+  // Handle both static_shift attribute and dynamic_shift SSA value
+  if (op.getStaticShift().has_value()) {
+    os << op.getStaticShift()->getInt();
+  } else if (op.getDynamicShift()) {
+    // RotateColumnsNew expects an int argument for the shift, and golang does
+    // not allow implicit conversion from i32/i64
+    os << "int(" << getName(op.getDynamicShift()) << ")";
+  } else {
+    return op.emitError(
+        "CKKSRotateOp must have either static_shift attribute or "
+        "dynamic_shift operand");
+  }
+
+  os << ", ";
   os << getName(op.getInplace()) << ")\n";
   printErrPanic(errName);
   return success();

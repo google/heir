@@ -51,7 +51,7 @@ func.func @nested_mul(%arg0: !openfhe.crypto_context, %arg1: !ct) -> !ct {
 !ct = !openfhe.ciphertext
 
 func.func @test(%arg0: !openfhe.crypto_context, %arg1: !ct) -> !ct {
-  %0 = openfhe.rot %arg0, %arg1 {index = 4 : index} : (!openfhe.crypto_context, !ct) -> !ct
+  %0 = openfhe.rot %arg0, %arg1 {static_shift = 4 : index} : (!openfhe.crypto_context, !ct) -> !ct
   return %0 : !ct
 }
 

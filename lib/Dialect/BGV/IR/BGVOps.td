@@ -108,7 +108,8 @@ def BGV_RotateColumnsOp : BGV_Op<"rotate_cols", [ElementwiseMappable, AllTypesMa
 
   let arguments = (ins
     LWECiphertextLike:$input,
-    Builtin_IntegerAttr:$offset
+    Optional<SignlessIntegerOrIndexLike>:$dynamic_shift,
+    OptionalAttr<Builtin_IntegerAttr>:$static_shift
   );
 
   let results = (outs
@@ -116,7 +117,7 @@ def BGV_RotateColumnsOp : BGV_Op<"rotate_cols", [ElementwiseMappable, AllTypesMa
   );
 
   let hasVerifier = 1;
-  let assemblyFormat = "operands attr-dict `:` qualified(type($input))" ;
+  let assemblyFormat = "$input (`,` $dynamic_shift^ `:` type($dynamic_shift))? attr-dict `:` qualified(type($input))" ;
 }
 
 def BGV_RotateRowsOp : BGV_Op<"rotate_rows", [AllTypesMatch<["input", "output"]>]> {
@@ -134,7 +135,8 @@ def BGV_RotateRowsOp : BGV_Op<"rotate_rows", [AllTypesMatch<["input", "output"]>
 
   let arguments = (ins
     LWECiphertextLike:$input,
-    Builtin_IntegerAttr:$offset
+    Optional<AnyInteger>:$dynamic_shift,
+    OptionalAttr<Builtin_IntegerAttr>:$static_shift
   );
 
   let results = (outs
@@ -142,7 +144,7 @@ def BGV_RotateRowsOp : BGV_Op<"rotate_rows", [AllTypesMatch<["input", "output"]>
   );
 
   let hasVerifier = 1;
-  let assemblyFormat = "operands attr-dict `:` qualified(type($input))" ;
+  let assemblyFormat = "$input (`,` $dynamic_shift^ `:` type($dynamic_shift))? attr-dict `:` qualified(type($input))" ;
 }
 
 def BGV_NegateOp : BGV_Op<"negate", [ElementwiseMappable, Involution, SameOperandsAndResultType]> {

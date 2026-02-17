@@ -36,6 +36,16 @@
 
 // CHECK: module
 module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [36028797019389953, 35184372121601, 35184372744193, 35184373006337, 35184373989377, 35184374874113], P = [36028797019488257, 36028797020209153], logDefaultScale = 45>} {
+  // CHECK: @test_rotate_dynamic
+  // CHECK-SAME: (%[[arg0:.*]]: !lwe
+  func.func @test_rotate_dynamic(%arg0: !ct) -> !ct {
+    // CHECK: %[[c4:.*]] = arith.constant 4 : i32
+    %c4 = arith.constant 4 : i32
+    // CHECK: ckks.rotate %[[arg0]], %[[c4]] : i32 : !lwe
+    %rot = ckks.rotate %arg0, %c4 : i32 : !ct
+    return %rot : !ct
+  }
+
   // CHECK: @test_multiply
   func.func @test_multiply(%arg0 : !ct, %arg1: !ct, %ksk: tensor<10x!ct>) -> !ct {
     %add = ckks.add %arg0, %arg1 : (!ct, !ct) -> !ct

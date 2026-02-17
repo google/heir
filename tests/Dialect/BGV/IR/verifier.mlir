@@ -20,7 +20,7 @@
 
 func.func @test_input_dimension_error(%input: !ct) {
   // expected-error@+1 {{x.dim == 2 does not hold}}
-  %out = bgv.rotate_cols  %input { offset = 4 }  : !ct
+  %out = bgv.rotate_cols  %input { static_shift = 4 }  : !ct
   return
 }
 

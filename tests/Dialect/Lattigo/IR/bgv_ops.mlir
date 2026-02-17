@@ -146,7 +146,7 @@ module {
   // CHECK: func @test_bgv_rotate_columns_new
   func.func @test_bgv_rotate_columns_new(%evaluator: !evaluator, %ct: !ct) {
     // CHECK: %[[v1:.*]] = lattigo.bgv.rotate_columns_new
-    %output = lattigo.bgv.rotate_columns_new %evaluator, %ct {offset = 1} : (!evaluator, !ct) -> !ct
+    %output = lattigo.bgv.rotate_columns_new %evaluator, %ct {static_shift = 1} : (!evaluator, !ct) -> !ct
     return
   }
 
@@ -174,7 +174,7 @@ module {
   // CHECK: func @test_bgv_rotate_columns
   func.func @test_bgv_rotate_columns(%evaluator: !evaluator, %ct: !ct) {
     // CHECK: %[[v1:.*]] = lattigo.bgv.rotate_columns
-    %output = lattigo.bgv.rotate_columns %evaluator, %ct, %ct {offset = 1} : (!evaluator, !ct, !ct) -> !ct
+    %output = lattigo.bgv.rotate_columns %evaluator, %ct, %ct {static_shift = 1} : (!evaluator, !ct, !ct) -> !ct
     return
   }
 

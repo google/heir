@@ -42,10 +42,10 @@ module attributes {backend.openfhe, scheme.ckks} {
 
     // CHECK-NEXT: [[add_plain_result:%.*]] = openfhe.add_plain [[cc]], [[relin_result]],
     %ct_5 = openfhe.add_plain %cc, %ct_4, %pt : (!cc, !ct, !pt) -> !ct
-    // CHECK-NEXT: openfhe.rot [[cc]], [[add_plain_result]] {index = 6
-    // CHECK-NEXT: openfhe.rot [[cc]], [[relin_result]] {index = 7
-    %ct_6 = openfhe.rot %cc, %ct_5 {index = 6 : index} : (!cc, !ct) -> !ct
-    %ct_7 = openfhe.rot %cc, %ct_4 {index = 7 : index} : (!cc, !ct) -> !ct
+    // CHECK-NEXT: openfhe.rot [[cc]], [[add_plain_result]] {static_shift = 6
+    // CHECK-NEXT: openfhe.rot [[cc]], [[relin_result]] {static_shift = 7
+    %ct_6 = openfhe.rot %cc, %ct_5 {static_shift = 6 : index} : (!cc, !ct) -> !ct
+    %ct_7 = openfhe.rot %cc, %ct_4 {static_shift = 7 : index} : (!cc, !ct) -> !ct
     // CHECK-COUNT-2: openfhe.add_inplace
     %ct_8 = openfhe.add %cc, %ct_6, %ct_7 : (!cc, !ct, !ct) -> !ct
     %ct_9 = openfhe.add %cc, %ct_8, %ct_4 : (!cc, !ct, !ct) -> !ct

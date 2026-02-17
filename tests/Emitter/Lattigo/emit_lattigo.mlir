@@ -48,7 +48,7 @@ module attributes {scheme.bgv} {
     %mul = lattigo.bgv.mul_new %evaluator, %added, %ct2 : (!evaluator, !ct, !ct) -> !ct
     %relin = lattigo.bgv.relinearize_new %evaluator, %mul : (!evaluator, !ct) -> !ct
     %rescale = lattigo.bgv.rescale_new %evaluator, %relin : (!evaluator, !ct) -> !ct
-    %rotate = lattigo.bgv.rotate_columns_new %evaluator, %rescale {offset = 1} : (!evaluator, !ct) -> !ct
+    %rotate = lattigo.bgv.rotate_columns_new %evaluator, %rescale {static_shift = 1} : (!evaluator, !ct) -> !ct
     return %rotate : !ct
   }
 

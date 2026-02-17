@@ -917,7 +917,55 @@ TEST(InterpreterTest, TestOpenfheRot) {
   std::string mlirStr = std::string(kLWETypesHeader) + R"mlir(
 module {
       func.func @main(%cc: !openfhe.crypto_context, %ct: !ct) -> !ct {
-        %result = openfhe.rot %cc, %ct {index = 2 : i32} : (!openfhe.crypto_context, !ct) -> !ct
+        %result = openfhe.rot %cc, %ct {static_shift = 2 : i32} : (!openfhe.crypto_context, !ct) -> !ct
+        return %result : !ct
+      }
+}
+)mlir";
+  auto module = parse(&context, mlirStr);
+
+  Interpreter interpreter(module.get());
+  std::vector<TypedCppValue> inputs = {TypedCppValue(setup.cc),
+                                       TypedCppValue(ct)};
+  std::vector<TypedCppValue> results = interpreter.interpret("main", inputs);
+
+  auto resultCt = std::get<CiphertextT>(results[0].value);
+  Plaintext resultPt;
+  setup.cc->Decrypt(setup.keyPair.secretKey, resultCt, &resultPt);
+  resultPt->SetLength(vec.size());
+
+  auto resultVec = resultPt->GetPackedValue();
+  // Rotation by 2 should shift: [1,2,3,4,5,6,7,8] -> [3,4,5,6,7,8,1,2]
+  EXPECT_EQ(resultVec[0], 3);
+  EXPECT_EQ(resultVec[1], 4);
+  EXPECT_EQ(resultVec[6], 1);
+  EXPECT_EQ(resultVec[7], 2);
+}
+
+TEST(InterpreterTest, TestOpenfheRotDynamicShift) {
+  CryptoSetup setup;
+
+  // Generate rotation keys
+  setup.cc->EvalRotateKeyGen(setup.keyPair.secretKey, {2});
+
+  std::vector<int64_t> vec = {1, 2, 3, 4, 5, 6, 7, 8};
+  // Cyclically replicate the vector to fill the slots
+  std::vector<int64_t> replicatedVec;
+  int64_t numSlots = setup.cc->GetRingDimension() / 2;
+  replicatedVec.reserve(numSlots);
+  for (int i = 0; i < numSlots; i++)
+    replicatedVec.push_back(vec[i % vec.size()]);
+
+  auto pt = setup.cc->MakePackedPlaintext(replicatedVec);
+  auto ct = setup.cc->Encrypt(setup.keyPair.publicKey, pt);
+
+  MLIRContext context;
+  initContext(context);
+  std::string mlirStr = std::string(kLWETypesHeader) + R"mlir(
+module {
+      func.func @main(%cc: !openfhe.crypto_context, %ct: !ct) -> !ct {
+        %0 = arith.constant 2 : i32
+        %result = openfhe.rot %cc, %ct, %0 : (!openfhe.crypto_context, !ct, i32) -> !ct
         return %result : !ct
       }
 }

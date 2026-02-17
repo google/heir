@@ -54,8 +54,14 @@ module attributes {scheme.bgv} {
     }: !ct1 -> !ct
     // CHECK: %[[rescale:.*]] = lattigo.bgv.rescale_new [[C]], %[[relin]] : ([[S]], [[T]]) -> [[T]]
     %rescale = bgv.modulus_switch %relin {to_ring = #ring_rns_L0_1_x1024_} : !ct -> !ct2
-    // CHECK: %[[rot:.*]] = lattigo.bgv.rotate_columns_new [[C]], %[[rescale]] {offset = 1 : i64} : ([[S]], [[T]]) -> [[T]]
-    %rot = bgv.rotate_cols %rescale { offset = 1 } : !ct2
+    // CHECK: %[[rot:.*]] = lattigo.bgv.rotate_columns_new [[C]], %[[rescale]] {static_shift = 1 : i64} : ([[S]], [[T]]) -> [[T]]
+    %rot = bgv.rotate_cols %rescale { static_shift = 1 } : !ct2
+
+    // Test dynamic shift via arith.constant
+    // CHECK: %[[shift:.*]] = arith.constant 4 : i32
+    // CHECK: %[[rot_dyn:.*]] = lattigo.bgv.rotate_columns_new [[C]], %[[rot]], %[[shift]] :
+    %c4 = arith.constant 4 : i32
+    %rot_dyn = bgv.rotate_cols %rot, %c4 : i32 : !ct2
     return
   }
 }

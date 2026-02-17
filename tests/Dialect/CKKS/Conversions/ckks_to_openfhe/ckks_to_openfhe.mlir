@@ -44,9 +44,9 @@ module {
     %sub = ckks.sub %x, %y  : (!ct, !ct) -> !ct
     // CHECK: %[[v4:.*]] = openfhe.mul_no_relin [[C]], %[[x4:.*]], %[[y4:.*]]: ([[S]], [[T]], [[T]]) -> [[T2:.*]]
     %mul = ckks.mul %x, %y  : (!ct, !ct) -> !ct_D3
-    // CHECK: %[[v5:.*]] = openfhe.rot [[C]], %[[x5:.*]] {index = 4 : i64}
+    // CHECK: %[[v5:.*]] = openfhe.rot [[C]], %[[x5:.*]] {static_shift = 4 : i64}
     // CHECK-SAME: ([[S]], [[T]]) -> [[T]]
-    %rot = ckks.rotate %x { offset = 4 } : !ct
+    %rot = ckks.rotate %x { static_shift = 4 } : !ct
     // CHECK: %[[v6:.*]] = openfhe.add_plain [[C]], %[[x6:.*]], %[[z6:.*]]: ([[S]], [[T]], [[P]]) -> [[T]]
     %add_plain = ckks.add_plain %x, %z : (!ct, !pt) -> !ct
     // CHECK: %[[v7:.*]] = openfhe.sub_plain [[C]], %[[x7:.*]], %[[z7:.*]]: ([[S]], [[T]], [[P]]) -> [[T]]
@@ -54,6 +54,16 @@ module {
     // CHECK: %[[v7:.*]] = openfhe.mul_plain [[C]], %[[x8:.*]], %[[z8:.*]]: ([[S]], [[T]], [[P]]) -> [[T]]
     %mul_plain = ckks.mul_plain %x, %z : (!ct, !pt) -> !ct
     return %negate, %add, %sub, %mul, %rot, %add_plain, %sub_plain, %mul_plain : !ct, !ct, !ct, !ct_D3, !ct, !ct, !ct, !ct
+  }
+
+  // CHECK: @test_rotate_dynamic
+  // CHECK-SAME: ([[C:%.+]]: [[S:!openfhe.crypto_context]], [[X:%.+]]: [[T:!openfhe.ciphertext]])
+  func.func @test_rotate_dynamic(%x : !ct) -> !ct {
+    // CHECK: %[[shift:.*]] = arith.constant 4 : i32
+    %c4 = arith.constant 4 : i32
+    // CHECK: %[[v:.*]] = openfhe.rot [[C]], %[[x:.*]], %[[shift]] :
+    %rot = ckks.rotate %x, %c4 : i32 : !ct
+    return %rot : !ct
   }
 
   // CHECK: @test_relin

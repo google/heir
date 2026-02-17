@@ -10,31 +10,31 @@ module attributes {backend.openfhe, scheme.ckks} {
   func.func @rotations(%cc: !cc, %arg0: tensor<1x!ct> {tensor_ext.original_type = #original_type}) -> tensor<25x!ct> {
     %c0 = arith.constant 0 : index
     %extracted = tensor.extract %arg0[%c0] : tensor<1x!ct>
-    %ct1 = openfhe.rot %cc, %extracted {index = 1 : index} : (!cc, !ct) -> !ct
-    %ct2 = openfhe.rot %cc, %extracted {index = 2 : index} : (!cc, !ct) -> !ct
-    %ct3 = openfhe.rot %cc, %extracted {index = 3 : index} : (!cc, !ct) -> !ct
-    %ct4 = openfhe.rot %cc, %extracted {index = 4 : index} : (!cc, !ct) -> !ct
-    %ct5 = openfhe.rot %cc, %extracted {index = 5 : index} : (!cc, !ct) -> !ct
-    %ct6 = openfhe.rot %cc, %extracted {index = 6 : index} : (!cc, !ct) -> !ct
-    %ct7 = openfhe.rot %cc, %extracted {index = 7 : index} : (!cc, !ct) -> !ct
-    %ct8 = openfhe.rot %cc, %extracted {index = 8 : index} : (!cc, !ct) -> !ct
-    %ct9 = openfhe.rot %cc, %extracted {index = 9 : index} : (!cc, !ct) -> !ct
-    %ct10 = openfhe.rot %cc, %extracted {index = 10 : index} : (!cc, !ct) -> !ct
-    %ct11 = openfhe.rot %cc, %extracted {index = 11 : index} : (!cc, !ct) -> !ct
-    %ct12 = openfhe.rot %cc, %extracted {index = 12 : index} : (!cc, !ct) -> !ct
-    %ct13 = openfhe.rot %cc, %extracted {index = 13 : index} : (!cc, !ct) -> !ct
-    %ct14 = openfhe.rot %cc, %extracted {index = 14 : index} : (!cc, !ct) -> !ct
-    %ct15 = openfhe.rot %cc, %extracted {index = 15 : index} : (!cc, !ct) -> !ct
-    %ct16 = openfhe.rot %cc, %extracted {index = 16 : index} : (!cc, !ct) -> !ct
-    %ct17 = openfhe.rot %cc, %extracted {index = 17 : index} : (!cc, !ct) -> !ct
-    %ct18 = openfhe.rot %cc, %extracted {index = 18 : index} : (!cc, !ct) -> !ct
-    %ct19 = openfhe.rot %cc, %extracted {index = 19 : index} : (!cc, !ct) -> !ct
-    %ct20 = openfhe.rot %cc, %extracted {index = 20 : index} : (!cc, !ct) -> !ct
-    %ct21 = openfhe.rot %cc, %extracted {index = 21 : index} : (!cc, !ct) -> !ct
-    %ct22 = openfhe.rot %cc, %extracted {index = 22 : index} : (!cc, !ct) -> !ct
-    %ct23 = openfhe.rot %cc, %extracted {index = 23 : index} : (!cc, !ct) -> !ct
-    %ct24 = openfhe.rot %cc, %extracted {index = 24 : index} : (!cc, !ct) -> !ct
-    %ct25 = openfhe.rot %cc, %extracted {index = 25 : index} : (!cc, !ct) -> !ct
+    %ct1 = openfhe.rot %cc, %extracted {static_shift = 1 : index} : (!cc, !ct) -> !ct
+    %ct2 = openfhe.rot %cc, %extracted {static_shift = 2 : index} : (!cc, !ct) -> !ct
+    %ct3 = openfhe.rot %cc, %extracted {static_shift = 3 : index} : (!cc, !ct) -> !ct
+    %ct4 = openfhe.rot %cc, %extracted {static_shift = 4 : index} : (!cc, !ct) -> !ct
+    %ct5 = openfhe.rot %cc, %extracted {static_shift = 5 : index} : (!cc, !ct) -> !ct
+    %ct6 = openfhe.rot %cc, %extracted {static_shift = 6 : index} : (!cc, !ct) -> !ct
+    %ct7 = openfhe.rot %cc, %extracted {static_shift = 7 : index} : (!cc, !ct) -> !ct
+    %ct8 = openfhe.rot %cc, %extracted {static_shift = 8 : index} : (!cc, !ct) -> !ct
+    %ct9 = openfhe.rot %cc, %extracted {static_shift = 9 : index} : (!cc, !ct) -> !ct
+    %ct10 = openfhe.rot %cc, %extracted {static_shift = 10 : index} : (!cc, !ct) -> !ct
+    %ct11 = openfhe.rot %cc, %extracted {static_shift = 11 : index} : (!cc, !ct) -> !ct
+    %ct12 = openfhe.rot %cc, %extracted {static_shift = 12 : index} : (!cc, !ct) -> !ct
+    %ct13 = openfhe.rot %cc, %extracted {static_shift = 13 : index} : (!cc, !ct) -> !ct
+    %ct14 = openfhe.rot %cc, %extracted {static_shift = 14 : index} : (!cc, !ct) -> !ct
+    %ct15 = openfhe.rot %cc, %extracted {static_shift = 15 : index} : (!cc, !ct) -> !ct
+    %ct16 = openfhe.rot %cc, %extracted {static_shift = 16 : index} : (!cc, !ct) -> !ct
+    %ct17 = openfhe.rot %cc, %extracted {static_shift = 17 : index} : (!cc, !ct) -> !ct
+    %ct18 = openfhe.rot %cc, %extracted {static_shift = 18 : index} : (!cc, !ct) -> !ct
+    %ct19 = openfhe.rot %cc, %extracted {static_shift = 19 : index} : (!cc, !ct) -> !ct
+    %ct20 = openfhe.rot %cc, %extracted {static_shift = 20 : index} : (!cc, !ct) -> !ct
+    %ct21 = openfhe.rot %cc, %extracted {static_shift = 21 : index} : (!cc, !ct) -> !ct
+    %ct22 = openfhe.rot %cc, %extracted {static_shift = 22 : index} : (!cc, !ct) -> !ct
+    %ct23 = openfhe.rot %cc, %extracted {static_shift = 23 : index} : (!cc, !ct) -> !ct
+    %ct24 = openfhe.rot %cc, %extracted {static_shift = 24 : index} : (!cc, !ct) -> !ct
+    %ct25 = openfhe.rot %cc, %extracted {static_shift = 25 : index} : (!cc, !ct) -> !ct
     %res = tensor.from_elements %ct1, %ct2, %ct3, %ct4, %ct5, %ct6, %ct7, %ct8, %ct9, %ct10, %ct11, %ct12, %ct13, %ct14, %ct15, %ct16, %ct17, %ct18, %ct19, %ct20, %ct21, %ct22, %ct23, %ct24, %ct25 : tensor<25x!ct>
     return %res : tensor<25x!ct>
   }

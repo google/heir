@@ -33,15 +33,15 @@
 module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [536903681, 67043329, 66994177, 67239937, 66961409, 66813953], P = [536952833, 536690689], logDefaultScale = 26>, scheme.ckks} {
   func.func @mlp(%ct: !ct_L5, %arg0: tensor<128x4096xf64> {orion.block_col = 0 : i64, orion.block_row = 0 : i64, orion.layer_name = "fc1", orion.layer_role = "weights", orion.level = 5 : i64}, %arg1: tensor<4096xf64> {orion.layer_name = "fc1", orion.layer_role = "bias", orion.level = 5 : i64}, %arg2: tensor<128x4096xf64> {orion.block_col = 0 : i64, orion.block_row = 0 : i64, orion.layer_name = "fc2", orion.layer_role = "weights", orion.level = 3 : i64}, %arg3: tensor<4096xf64> {orion.layer_name = "fc2", orion.layer_role = "bias", orion.level = 3 : i64}, %arg4: tensor<137x4096xf64> {orion.block_col = 0 : i64, orion.block_row = 0 : i64, orion.layer_name = "fc3", orion.layer_role = "weights", orion.level = 1 : i64}, %arg5: tensor<4096xf64> {orion.layer_name = "fc3", orion.layer_role = "bias", orion.level = 1 : i64}) -> !ct_L3 {
     %ct_0 = orion.linear_transform %ct, %arg0 {block_col = 0 : i32, block_row = 0 : i32, bsgs_ratio = 2.000000e+00 : f64, diagonal_count = 128 : i32, diagonal_indices = array<i32: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127>, orion_level = 5 : i32, slots = 4096 : i32} : (!ct_L5, tensor<128x4096xf64>) -> !ct_L5
-    %ct_1 = ckks.rotate %ct_0 {offset = 2048 : i32} : !ct_L5
+    %ct_1 = ckks.rotate %ct_0 {static_shift = 2048 : i32} : !ct_L5
     %ct_2 = ckks.add %ct_1, %ct_0 : (!ct_L5, !ct_L5) -> !ct_L5
-    %ct_3 = ckks.rotate %ct_2 {offset = 1024 : i32} : !ct_L5
+    %ct_3 = ckks.rotate %ct_2 {static_shift = 1024 : i32} : !ct_L5
     %ct_4 = ckks.add %ct_3, %ct_2 : (!ct_L5, !ct_L5) -> !ct_L5
-    %ct_5 = ckks.rotate %ct_4 {offset = 512 : i32} : !ct_L5
+    %ct_5 = ckks.rotate %ct_4 {static_shift = 512 : i32} : !ct_L5
     %ct_6 = ckks.add %ct_5, %ct_4 : (!ct_L5, !ct_L5) -> !ct_L5
-    %ct_7 = ckks.rotate %ct_6 {offset = 256 : i32} : !ct_L5
+    %ct_7 = ckks.rotate %ct_6 {static_shift = 256 : i32} : !ct_L5
     %ct_8 = ckks.add %ct_7, %ct_6 : (!ct_L5, !ct_L5) -> !ct_L5
-    %ct_9 = ckks.rotate %ct_8 {offset = 128 : i32} : !ct_L5
+    %ct_9 = ckks.rotate %ct_8 {static_shift = 128 : i32} : !ct_L5
     %ct_10 = ckks.add %ct_9, %ct_8 : (!ct_L5, !ct_L5) -> !ct_L5
     %pt = lwe.rlwe_encode %arg1 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x8192} : tensor<4096xf64> -> !pt
     %ct_11 = ckks.add_plain %ct_10, %pt : (!ct_L5, !pt) -> !ct_L5
@@ -49,15 +49,15 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [5369036
     %ct_13 = ckks.relinearize %ct_12 {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1>} : (!ct_L5_D3) -> !ct_L5_1
     %ct_14 = ckks.rescale %ct_13 {to_ring = #ring_rns_L4_1_x8192} : !ct_L5_1 -> !ct_L4
     %ct_15 = orion.linear_transform %ct_14, %arg2 {block_col = 0 : i32, block_row = 0 : i32, bsgs_ratio = 2.000000e+00 : f64, diagonal_count = 128 : i32, diagonal_indices = array<i32: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127>, orion_level = 3 : i32, slots = 4096 : i32} : (!ct_L4, tensor<128x4096xf64>) -> !ct_L4
-    %ct_16 = ckks.rotate %ct_15 {offset = 2048 : i32} : !ct_L4
+    %ct_16 = ckks.rotate %ct_15 {static_shift = 2048 : i32} : !ct_L4
     %ct_17 = ckks.add %ct_16, %ct_15 : (!ct_L4, !ct_L4) -> !ct_L4
-    %ct_18 = ckks.rotate %ct_17 {offset = 1024 : i32} : !ct_L4
+    %ct_18 = ckks.rotate %ct_17 {static_shift = 1024 : i32} : !ct_L4
     %ct_19 = ckks.add %ct_18, %ct_17 : (!ct_L4, !ct_L4) -> !ct_L4
-    %ct_20 = ckks.rotate %ct_19 {offset = 512 : i32} : !ct_L4
+    %ct_20 = ckks.rotate %ct_19 {static_shift = 512 : i32} : !ct_L4
     %ct_21 = ckks.add %ct_20, %ct_19 : (!ct_L4, !ct_L4) -> !ct_L4
-    %ct_22 = ckks.rotate %ct_21 {offset = 256 : i32} : !ct_L4
+    %ct_22 = ckks.rotate %ct_21 {static_shift = 256 : i32} : !ct_L4
     %ct_23 = ckks.add %ct_22, %ct_21 : (!ct_L4, !ct_L4) -> !ct_L4
-    %ct_24 = ckks.rotate %ct_23 {offset = 128 : i32} : !ct_L4
+    %ct_24 = ckks.rotate %ct_23 {static_shift = 128 : i32} : !ct_L4
     %ct_25 = ckks.add %ct_24, %ct_23 : (!ct_L4, !ct_L4) -> !ct_L4
     %pt_26 = lwe.rlwe_encode %arg3 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x8192} : tensor<4096xf64> -> !pt
     %ct_27 = ckks.add_plain %ct_25, %pt_26 : (!ct_L4, !pt) -> !ct_L4

@@ -154,7 +154,7 @@ module {
   // CHECK: func @test_ckks_rotate_new
   func.func @test_ckks_rotate_new(%evaluator: !evaluator, %ct: !ct) {
     // CHECK: %[[v1:.*]] = lattigo.ckks.rotate_new
-    %output = lattigo.ckks.rotate_new %evaluator, %ct {offset = 1} : (!evaluator, !ct) -> !ct
+    %output = lattigo.ckks.rotate_new %evaluator, %ct {static_shift = 1} : (!evaluator, !ct) -> !ct
     return
   }
 
@@ -175,7 +175,7 @@ module {
   // CHECK: func @test_ckks_rotate
   func.func @test_ckks_rotate(%evaluator: !evaluator, %ct: !ct) {
     // CHECK: %[[v1:.*]] = lattigo.ckks.rotate
-    %output = lattigo.ckks.rotate %evaluator, %ct, %ct {offset = 1} : (!evaluator, !ct, !ct) -> !ct
+    %output = lattigo.ckks.rotate %evaluator, %ct, %ct {static_shift = 1} : (!evaluator, !ct, !ct) -> !ct
     return
   }
 }

@@ -48,7 +48,7 @@ module {
     %mul_again = ckks.mul %relin, %x  : (!ct, !ct) -> !ct_D3
     // CHECK: stats += evaluator.multiply([[CT6]], scheme_params.arch_param)
     // CHECK:  [[CT7:ct[0-9]+]] = [[CT6]]
-    %rot = ckks.rotate %x { offset = 4 } : !ct
+    %rot = ckks.rotate %x { static_shift = 4 } : !ct
     // CHECK: stats += evaluator.rotate([[CT]], scheme_params.arch_param)
     // CHECK:  [[CT8:ct[0-9]+]] = [[CT]]
     %add_plain = ckks.add_plain %x, %z : (!ct, !pt) -> !ct
