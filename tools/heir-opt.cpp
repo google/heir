@@ -20,6 +20,7 @@
 #include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Jaxite/IR/JaxiteDialect.h"
 #include "lib/Dialect/JaxiteWord/IR/JaxiteWordDialect.h"
+#include "lib/Dialect/KeyMemRuntime/IR/KeyMemRuntimeDialect.h"
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h"
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
 #include "lib/Dialect/LWE/Conversions/LWEToPolynomial/LWEToPolynomial.h"
@@ -172,6 +173,7 @@ int main(int argc, char** argv) {
   registry.insert<comb::CombDialect>();
   registry.insert<jaxite::JaxiteDialect>();
   registry.insert<jaxiteword::JaxiteWordDialect>();
+  registry.insert<kmrt::KeyMemRuntimeDialect>();
   registry.insert<lattigo::LattigoDialect>();
   registry.insert<lwe::LWEDialect>();
   registry.insert<mgmt::MgmtDialect>();
