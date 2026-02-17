@@ -1,5 +1,6 @@
 # OpenFhePke Emitter
 
+load("@heir//bazel/openfhe:copts.bzl", "OPENMP_COPTS", "OPENMP_LINKOPTS")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
@@ -124,7 +125,8 @@ cc_library(
     copts = select({
         "@heir//:config_openfhe_enable_timing": ["-DOPENFHE_ENABLE_TIMING"],
         "//conditions:default": [],
-    }),
+    }) + OPENMP_COPTS,
+    linkopts = OPENMP_LINKOPTS,
     deps = [
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
@@ -150,6 +152,8 @@ cc_library(
 cc_test(
     name = "InterpreterTest",
     srcs = ["InterpreterTest.cpp"],
+    copts = OPENMP_COPTS,
+    linkopts = OPENMP_LINKOPTS,
     deps = [
         ":Interpreter",
         "@googletest//:gtest_main",

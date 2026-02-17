@@ -116,6 +116,11 @@ static inline int floorDivInt(int lhs, int rhs) {
   return static_cast<int>(std::floor(static_cast<float>(lhs) / rhs));
 }
 
+Interpreter::Interpreter(ModuleOp module)
+    : module(module), liveness(std::make_shared<Liveness>(module)) {
+  initializeDispatchTable();
+}
+
 // Static member initialization
 llvm::DenseMap<TypeID, Interpreter::OperationVisitor>
     Interpreter::operationDispatchTable;
@@ -485,7 +490,7 @@ void Interpreter::visit(Operation* op) {
       !op->getParentOfType<scf::ForOp>() &&
       !op->getParentOfType<scf::ForallOp>()) {
     for (auto operand : op->getOperands()) {
-      if (liveness.isDeadAfter(operand, op)) {
+      if (liveness->isDeadAfter(operand, op)) {
         eraseValue(operand);
       }
     }
@@ -850,7 +855,7 @@ void Interpreter::visit(tensor::InsertOp op) {
   auto elemType = tensorType.getElementType();
 
   // Check if we can modify the tensor in-place (no copy needed)
-  bool canModifyInPlace = liveness.isDeadAfter(op.getDest(), op);
+  bool canModifyInPlace = liveness->isDeadAfter(op.getDest(), op);
 
   if (elemType.isInteger(32) || elemType.isInteger(64)) {
     auto srcVec = intVectors.at(op.getDest());
@@ -1183,7 +1188,7 @@ void Interpreter::visit(tensor::InsertSliceOp op) {
     return flatDestIndex;
   };
 
-  bool canModifyInPlace = liveness.isDeadAfter(op.getDest(), op);
+  bool canModifyInPlace = liveness->isDeadAfter(op.getDest(), op);
 
   if (auto elemType = destType.getElementType(); elemType.isInteger()) {
     auto srcDestVec = intVectors.at(op.getDest());
@@ -1484,19 +1489,22 @@ void Interpreter::visit(scf::ForallOp op) {
     storeTypedValue(blockArg, loadTypedValue(opOperand.get()));
   }
 
-  // Cache operation visitors to avoid dispatch overhead in hot loop
-  std::vector<std::function<void()>> cachedOps;
+  // Cache operation visitors to avoids lookup overhead in the parallel loop.
+  std::vector<std::function<void(Interpreter*)>> cachedOps;
   for (auto& bodyOp : op.getBody()->getOperations()) {
-    Operation* opPtr = &bodyOp;  // Capture pointer, not reference to loop var
-    cachedOps.push_back([this, opPtr]() { visit(opPtr); });
+    Operation* opPtr = &bodyOp;
+    cachedOps.push_back([opPtr](Interpreter* interp) { interp->visit(opPtr); });
   }
 
-  // TODO(#2544): Execute the loop in parallel
+// Execute the loop in parallel using OpenMP.
+#pragma omp parallel for
   for (int i = lowerBound; i < upperBound; i += step) {
-    intValues[op.getInductionVar(0)] = i;
-    // Execute loop body
+    // Created a local interpreter for each thread.
+    Interpreter localInterpreter(*this);
+    localInterpreter.intValues[op.getInductionVar(0)] = i;
+    // Execute cached loop body operations using the local interpreter.
     for (auto& cachedOp : cachedOps) {
-      cachedOp();
+      cachedOp(&localInterpreter);
     }
   }
 
