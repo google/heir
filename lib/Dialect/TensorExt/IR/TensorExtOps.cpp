@@ -129,6 +129,24 @@ LogicalResult verifyLayoutMatchesType(const Attribute& layoutAttr, Type type,
     return success();
   }
 
+  if (auto denseElementsAttr = dyn_cast<DenseIntElementsAttr>(layoutAttr)) {
+    // Assert the attr has shape <N x 4>
+    int64_t rank = denseElementsAttr.getType().getRank();
+    if (rank != 2)
+      return op->emitOpError()
+             << "requires permutation attribute to Rank 2, but "
+             << "found shape <" << denseElementsAttr.getType() << ">";
+
+    int64_t cols = denseElementsAttr.getType().getDimSize(1);
+    if (cols != 4)
+      return op->emitOpError()
+             << "requires permutation attribute to be of shape <N x 4>, but "
+                "found shape <"
+             << denseElementsAttr.getType() << ">" << "Rank: " << rank
+             << " Cols: " << cols << "\n";
+    return success();
+  }
+
   return op->emitOpError("Unsupported layout attribute");
 }
 

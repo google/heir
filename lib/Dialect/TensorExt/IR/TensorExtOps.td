@@ -92,6 +92,9 @@ def TensorExt_RemapOp : TensorExt_Op<"remap", [Pure, AllTypesMatch<["input", "ou
 // Forces ops to use a general Attribute and dyn_cast to the specific kind of
 // layout they support.
 def LayoutLike : AnyAttrOf<[
+  // A list of tuples [a, b, c, d] representing an explicit map (ct, slot) ->
+  // (ct, slot) defined by f(a, b) = (c, d).
+  AnyI64ElementsAttr,
   TensorExt_LayoutAttr,
 ]>;
 
