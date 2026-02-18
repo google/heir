@@ -6,7 +6,7 @@
 #root_val = #mod_arith.value<31:!coeff_ty>
 #root = #polynomial.primitive_root<value=#root_val, degree=8:i32>
 !poly_ty = !polynomial.polynomial<ring=#ntt_ring>
-!ntt_poly_ty = !polynomial.polynomial<ring=#ntt_ring, form=<isCoeffForm=false>>
+!ntt_poly_ty = !polynomial.polynomial<ring=#ntt_ring, form=eval>
 !tensor_ty = tensor<8x!coeff_ty, #ntt_ring>
 
 // CHECK: @test_canonicalize_intt_after_ntt

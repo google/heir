@@ -9,7 +9,7 @@
 #root_val = #mod_arith.value<1925:!coeff_ty>
 #root = #polynomial.primitive_root<value=#root_val, degree=8:i32>
 !poly_ty = !polynomial.polynomial<ring=#ring>
-!ntt_poly_ty = !polynomial.polynomial<ring=#ring, form=<isCoeffForm=false>>
+!ntt_poly_ty = !polynomial.polynomial<ring=#ring, form=eval>
 
 // CHECK-DAG: #[[ID_MAP:.*]] = affine_map<(d0) -> (d0)>
 

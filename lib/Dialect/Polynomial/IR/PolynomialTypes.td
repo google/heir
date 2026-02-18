@@ -18,8 +18,8 @@ def Polynomial_PolynomialType : Polynomial_Type<"Polynomial", "polynomial", [OpA
   let parameters = (ins
     Polynomial_RingAttr:$ring,
     DefaultValuedParameter<
-      "::mlir::heir::polynomial::FormAttr",
-      "FormAttr::get($_ctxt, true)">:$form
+      "::mlir::heir::polynomial::Form",
+      "::mlir::heir::polynomial::Form::COEFF">:$form
   );
   let assemblyFormat = "`<` struct(params) `>`";
 
@@ -28,16 +28,7 @@ def Polynomial_PolynomialType : Polynomial_Type<"Polynomial", "polynomial", [OpA
     static PolynomialType get(
         ::mlir::MLIRContext *context,
         ::mlir::heir::polynomial::RingAttr ring) {
-      return PolynomialType::get(context, ring, FormAttr::get(context, true));
-    }
-
-    // Convenience builder from a boolean form flag.
-    static PolynomialType get(
-        ::mlir::MLIRContext *context,
-        ::mlir::heir::polynomial::RingAttr ring,
-        bool isCoeffForm) {
-      return PolynomialType::get(context, ring,
-                                 FormAttr::get(context, isCoeffForm));
+      return PolynomialType::get(context, ring, ::mlir::heir::polynomial::Form::COEFF);
     }
 
     // OpAsmTypeInterface methods.

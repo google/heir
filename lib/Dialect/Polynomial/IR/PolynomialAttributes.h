@@ -8,5 +8,6 @@
 
 #define GET_ATTRDEF_CLASSES
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h.inc"
+#include "lib/Dialect/Polynomial/IR/PolynomialEnums.h.inc"
 
 #endif  // LIB_DIALECT_POLYNOMIAL_IR_POLYNOMIALATTRIBUTES_H_

@@ -17,7 +17,7 @@
 #ntt_poly = #polynomial.int_polynomial<-1 + x**8>
 #ntt_ring = #polynomial.ring<coefficientType=!coeff_ty2, polynomialModulus=#ntt_poly>
 !poly_ty = !polynomial.polynomial<ring=#ntt_ring>
-!ntt_poly_ty = !polynomial.polynomial<ring=#ntt_ring, form=<isCoeffForm=false>>
+!ntt_poly_ty = !polynomial.polynomial<ring=#ntt_ring, form=eval>
 #ntt_ring_1_root_val = #mod_arith.value<31:!coeff_ty2>
 #ntt_ring_1_root = #polynomial.primitive_root<value=#ntt_ring_1_root_val, degree=8:i32>
 

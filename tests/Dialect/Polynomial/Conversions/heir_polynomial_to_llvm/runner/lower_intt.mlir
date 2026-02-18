@@ -7,7 +7,7 @@
 #root_val = #mod_arith.value<1925:!coeff_ty>
 #root = #polynomial.primitive_root<value=#root_val, degree=8:i32>
 !poly_ty = !polynomial.polynomial<ring=#ring>
-!ntt_poly_ty = !polynomial.polynomial<ring=#ring, form=<isCoeffForm = false>>
+!ntt_poly_ty = !polynomial.polynomial<ring=#ring, form=eval>
 
 func.func public @test_intt() -> !poly_ty {
   %coeffs = arith.constant dense<[1467,2807,3471,7621]> : tensor<4xi32>

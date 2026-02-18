@@ -189,7 +189,7 @@ bool isPrimitiveNthRootOfUnity(const APInt& root, const APInt& n,
 static LogicalResult verifyNTTOp(Operation* op, PolynomialType input,
                                  PolynomialType output,
                                  std::optional<PrimitiveRootAttr> root,
-                                 bool expectedInputForm) {
+                                 Form expectedInputForm) {
   RingAttr inputRing = input.getRing();
   RingAttr outputRing = output.getRing();
   if (outputRing != inputRing) {
@@ -198,16 +198,16 @@ static LogicalResult verifyNTTOp(Operation* op, PolynomialType input,
            << " is not equivalent to the output ring " << outputRing;
   }
 
-  FormAttr inputForm = input.getForm();
-  FormAttr outputForm = output.getForm();
-  if (inputForm.getIsCoeffForm() != expectedInputForm) {
+  Form inputForm = input.getForm();
+  Form outputForm = output.getForm();
+  if (inputForm != expectedInputForm) {
     return op->emitOpError()
            << "expected input with isCoeffForm=" << expectedInputForm;
   }
-  if (inputForm.getIsCoeffForm() == outputForm.getIsCoeffForm()) {
+  if (inputForm == outputForm) {
     return op->emitOpError() << "input and output form must be different, but "
                                 "both have isCoeffForm="
-                             << inputForm.getIsCoeffForm();
+                             << inputForm;
   }
 
   if (root.has_value()) {
@@ -287,12 +287,12 @@ static LogicalResult verifyNTTOp(Operation* op, PolynomialType input,
 
 LogicalResult NTTOp::verify() {
   return verifyNTTOp(this->getOperation(), getInput().getType(),
-                     getOutput().getType(), getRoot(), true);
+                     getOutput().getType(), getRoot(), Form::COEFF);
 }
 
 LogicalResult INTTOp::verify() {
   return verifyNTTOp(this->getOperation(), getInput().getType(),
-                     getOutput().getType(), getRoot(), false);
+                     getOutput().getType(), getRoot(), Form::EVAL);
 }
 
 LogicalResult MulScalarOp::verify() {
@@ -443,7 +443,8 @@ LogicalResult NTTOp::inferReturnTypes(MLIRContext* ctx, std::optional<Location>,
   if (!inputTy) {
     return failure();
   }
-  PolynomialType outputTy = PolynomialType::get(ctx, inputTy.getRing(), false);
+  PolynomialType outputTy =
+      PolynomialType::get(ctx, inputTy.getRing(), Form::EVAL);
   results.push_back(outputTy);
   return success();
 }
@@ -457,7 +458,8 @@ LogicalResult INTTOp::inferReturnTypes(
   if (!inputTy) {
     return failure();
   }
-  PolynomialType outputTy = PolynomialType::get(ctx, inputTy.getRing(), true);
+  PolynomialType outputTy =
+      PolynomialType::get(ctx, inputTy.getRing(), Form::COEFF);
   results.push_back(outputTy);
   return success();
 }
