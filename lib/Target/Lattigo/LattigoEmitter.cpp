@@ -91,7 +91,8 @@ LogicalResult LattigoEmitter::translate(Operation& op) {
           // Tensor ops
           .Case<tensor::ConcatOp, tensor::EmptyOp, tensor::ExtractOp,
                 tensor::ExtractSliceOp, tensor::InsertOp, tensor::InsertSliceOp,
-                tensor::FromElementsOp, tensor::SplatOp>(
+                tensor::FromElementsOp, tensor::SplatOp, tensor::ExpandShapeOp,
+                tensor::CollapseShapeOp>(
               [&](auto op) { return printOperation(op); })
           // Lattigo ops
           .Case<
@@ -803,6 +804,32 @@ LogicalResult LattigoEmitter::printOperation(tensor::ExtractSliceOp op) {
   return success();
 }
 
+LogicalResult LattigoEmitter::printOperation(tensor::CollapseShapeOp op) {
+  // A rank-reduced type will have the same number of elements so collapsing
+  // is a no-op on a flattened tensor.
+  SliceVerificationResult res =
+      isRankReducedType(op.getSrcType(), op.getResultType());
+  if (res != SliceVerificationResult::Success) {
+    return op.emitError()
+           << "Only rank-reduced types are supported for CollapseShapeOp";
+  }
+  variableNames->mapValueNameToValue(op.getResult(), op.getSrc());
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(tensor::ExpandShapeOp op) {
+  // A rank-reduced type will have the same number of elements so expanding is
+  // a no-op on a flattened tensor.
+  SliceVerificationResult res =
+      isRankReducedType(op.getResultType(), op.getSrcType());
+  if (res != SliceVerificationResult::Success) {
+    return op.emitError()
+           << "Only rank-reduced types are supported for ExpandShapeOp";
+  }
+  variableNames->mapValueNameToValue(op.getResult(), op.getSrc());
+  return success();
+}
+
 // Emits a slice copy operation and returns the string containing the emitted
 // variable name of the result
 std::string LattigoEmitter::emitCopySlice(Value source, Value result,
@@ -888,14 +915,18 @@ LogicalResult LattigoEmitter::printOperation(tensor::InsertSliceOp op) {
     os << "for " << destIndexName << " := " << offsets[nestLevel] << "; "
        << destIndexName << " < "
        << offsets[nestLevel] + sizes[nestLevel] * strides[nestLevel] << "; "
-       << destIndexName << " += " << strides[nestLevel] << ") {\n";
+       << destIndexName << " += " << strides[nestLevel] << " {\n";
     os.indent();
   }
 
   // Now we're in the innermost loop nest, do the assignment
-  os << destName << "[" << llvm::join(destIndexNames, "][")
-     << "] = " << sourceName << "[" << llvm::join(sourceIndexNames, "][")
-     << "]\n";
+  os << destName << "["
+     << flattenIndexExpression(op.getDest().getType().getShape(),
+                               destIndexNames)
+     << "] = " << sourceName << "["
+     << flattenIndexExpression(op.getSource().getType().getShape(),
+                               sourceIndexNames)
+     << "];\n";
 
   // Now unindent and close the loop nest
   for (int nestLevel = offsets.size() - 1; nestLevel >= 0; nestLevel--) {
