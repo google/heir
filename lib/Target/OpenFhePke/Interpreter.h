@@ -110,7 +110,7 @@ struct TypedCppValue {
 
 class Interpreter {
  public:
-  Interpreter(ModuleOp module) : module(module), liveness(module) {}
+  Interpreter(ModuleOp module);
 
   std::vector<TypedCppValue> interpret(const std::string& entryFunction,
                                        ArrayRef<TypedCppValue> inputValues);
@@ -246,7 +246,8 @@ class Interpreter {
   llvm::DenseMap<Value, EvalKeyT> evalKeys;
   llvm::DenseMap<Value, FastRotPrecompT> fastRotPrecomps;
 
-  Liveness liveness;
+  // liveness as shared_ptr to avoid expensive copying
+  std::shared_ptr<Liveness> liveness;
   llvm::DenseMap<Value, std::shared_ptr<CCParamsT>> params_;
 
   // Jump table for fast operation dispatch
