@@ -14852,7 +14852,7 @@ lowered as ciphertext-plaintext ops.&lt;/p>
 &lt;h4 id="attributes">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>layout&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>The description of the layout of a data-semantic tensor.&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>layout&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>64-bit integer elements attribute or The description of the layout of a data-semantic tensor.&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands">Operands:&lt;/h4>
 &lt;table>
@@ -14898,8 +14898,8 @@ plaintext masks (ciphertext-plaintext multiplications), and additions.&lt;/p>
 &lt;h4 id="attributes-1">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>from_layout&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>The description of the layout of a data-semantic tensor.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>to_layout&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>The description of the layout of a data-semantic tensor.&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>from_layout&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>64-bit integer elements attribute or The description of the layout of a data-semantic tensor.&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>to_layout&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>64-bit integer elements attribute or The description of the layout of a data-semantic tensor.&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-1">Operands:&lt;/h4>
 &lt;table>
@@ -15130,7 +15130,7 @@ tensor.&lt;/p>
 &lt;h4 id="attributes-4">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>layout&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>The description of the layout of a data-semantic tensor.&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>layout&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>64-bit integer elements attribute or The description of the layout of a data-semantic tensor.&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-5">Operands:&lt;/h4>
 &lt;table>
