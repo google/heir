@@ -2,6 +2,7 @@
 
 #include <string>
 
+#include "lib/Dialect/Debug/IR/DebugOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Utils/TransformUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
@@ -11,6 +12,7 @@
 #include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
@@ -66,75 +68,88 @@ func::FuncOp getOrCreateExternalDebugFunc(
   return funcOp;
 }
 
-LogicalResult insertExternalCall(func::FuncOp op, Type lwePrivateKeyType,
+void insertValidationOps(func::FuncOp op) {
+  int count = 0;
+  auto insertValidate = [&](Value value, OpBuilder& b) {
+    Type valueType = value.getType();
+    if (mlir::isa<LWECiphertextType>(valueType)) {
+      b.create<debug::ValidateOp>(value.getLoc(), value,
+                                  "heir_debug_" + std::to_string(count++),
+                                  nullptr);
+    }
+  };
+
+  Block& entryBlock = op.getBody().getBlocks().front();
+  OpBuilder argBuilder(&entryBlock, entryBlock.begin());
+  for (auto arg : op.getArguments()) {
+    insertValidate(arg, argBuilder);
+  }
+
+  op.walk([&](Operation* walkOp) {
+    if (walkOp == op.getOperation() ||
+        walkOp->hasTrait<OpTrait::IsTerminator>())
+      return;
+    OpBuilder opBuilder(walkOp->getBlock(), ++walkOp->getIterator());
+    for (Value result : walkOp->getResults()) {
+      insertValidate(result, opBuilder);
+    }
+  });
+}
+
+LogicalResult lowerValidationOps(func::FuncOp op, Type lwePrivateKeyType,
                                  int messageSize) {
   auto module = op->getParentOfType<ModuleOp>();
-
-  // map ciphertext type to unique int
   DenseMap<Type, int> typeToInt;
+  Value privateKey = op.getArgument(0);
 
-  // implicit assumption the first argument is private key
-  auto privateKey = op.getArgument(0);
-
-  ImplicitLocOpBuilder b = ImplicitLocOpBuilder::atBlockBegin(
-      op.getLoc(), &op.getBody().getBlocks().front());
-
-  auto insertCall = [&](Value value) {
+  auto walkResult = op.walk([&](debug::ValidateOp validateOp) {
+    Value value = validateOp.getInput();
     Type valueType = value.getType();
-    // NOTE: this won't work for shaped input like tensor<2x!lwe.ciphertext>
     if (auto lweCiphertextType = dyn_cast<LWECiphertextType>(valueType)) {
-      // update typeToInt
       if (!typeToInt.count(valueType)) {
         typeToInt[valueType] = typeToInt.size();
       }
 
-      // get attribute associated with value
+      ImplicitLocOpBuilder b(validateOp.getLoc(), validateOp);
       SmallVector<NamedAttribute> attrs;
-      if (auto blockArg = dyn_cast<BlockArgument>(value)) {
-        auto* parentOp = blockArg.getOwner()->getParentOp();
-        auto funcOp = dyn_cast<FunctionOpInterface>(parentOp);
-        if (funcOp) {
-          // always dialect attr
-          for (auto namedAttr : funcOp.getArgAttrs(blockArg.getArgNumber())) {
-            attrs.push_back(namedAttr);
-          }
-        }
-      } else {
-        auto* parentOp = value.getDefiningOp();
-        for (auto namedAttr : parentOp->getDialectAttrs()) {
-          attrs.push_back(namedAttr);
-        }
+      // Transfer metadata from validateOp to CallOp
+      attrs.push_back(b.getNamedAttr("debug.name", validateOp.getNameAttr()));
+      if (validateOp.getMetadata()) {
+        attrs.push_back(
+            b.getNamedAttr("debug.metadata", validateOp.getMetadataAttr()));
       }
-
       attrs.push_back(b.getNamedAttr(
           "message.size", b.getStringAttr(std::to_string(messageSize))));
 
-      func::CallOp::create(
-          b,
+      auto callOp = b.create<func::CallOp>(
           getOrCreateExternalDebugFunc(module, lwePrivateKeyType,
                                        lweCiphertextType, typeToInt),
-          ArrayRef<Value>{privateKey, value})
-          ->setDialectAttrs(attrs);
-    }
-  };
+          ArrayRef<Value>{privateKey, value});
+      callOp->setDialectAttrs(attrs);
 
-  // insert for each argument
-  for (auto arg : op.getArguments()) {
-    insertCall(arg);
-  }
-
-  // insert after each HE op
-  op.walk([&](Operation* op) {
-    b.setInsertionPointAfter(op);
-    for (Value result : op->getResults()) {
-      insertCall(result);
+      validateOp.erase();
     }
     return WalkResult::advance();
   });
-  return success();
+
+  return walkResult.wasInterrupted() ? failure() : success();
 }
 
-LogicalResult convertFunc(func::FuncOp op, int messageSize) {
+LogicalResult convertFunc(func::FuncOp op, int messageSize,
+                          bool insertDebugAfterEveryOp) {
+  if (insertDebugAfterEveryOp) {
+    insertValidationOps(op);
+  }
+
+  // Check if there are any validation ops to lower before adding private key
+  bool hasValidationOps = false;
+  op.walk([&](debug::ValidateOp) {
+    hasValidationOps = true;
+    return WalkResult::interrupt();
+  });
+
+  if (!hasValidationOps) return success();
+
   auto type = getPrivateKeyType(op);
   if (failed(type)) return op.emitError("failed to get private key type");
   auto lwePrivateKeyType = type.value();
@@ -142,8 +157,9 @@ LogicalResult convertFunc(func::FuncOp op, int messageSize) {
   if (failed(op.insertArgument(0, lwePrivateKeyType, nullptr, op.getLoc()))) {
     return op.emitError("failed to insert private key argument");
   }
-  if (failed(insertExternalCall(op, lwePrivateKeyType, messageSize))) {
-    return op.emitError("failed to insert external call");
+
+  if (failed(lowerValidationOps(op, lwePrivateKeyType, messageSize))) {
+    return op.emitError("failed to lower validation ops");
   }
   return success();
 }
@@ -154,8 +170,9 @@ struct AddDebugPort : impl::AddDebugPortBase<AddDebugPort> {
   void runOnOperation() override {
     auto funcOp =
         detectEntryFunction(cast<ModuleOp>(getOperation()), entryFunction);
-    if (funcOp && failed(convertFunc(funcOp, messageSize))) {
-      funcOp->emitError("Failed to configure the crypto context for func");
+    if (funcOp &&
+        failed(convertFunc(funcOp, messageSize, insertDebugAfterEveryOp))) {
+      funcOp->emitError("Failed to add debug port for func");
       signalPassFailure();
     }
   }

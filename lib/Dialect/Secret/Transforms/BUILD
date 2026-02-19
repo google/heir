@@ -173,6 +173,7 @@ cc_library(
         ":pass_inc_gen",
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect:FuncUtils",
+        "@heir//lib/Dialect/Debug/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:FuncDialect",

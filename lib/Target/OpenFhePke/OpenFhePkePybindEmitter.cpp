@@ -62,6 +62,13 @@ LogicalResult OpenFhePkePybindEmitter::printOperation(ModuleOp moduleOp) {
 }
 
 LogicalResult OpenFhePkePybindEmitter::printOperation(func::FuncOp funcOp) {
+  if (funcOp.isDeclaration()) {
+    // Not sure what to do here if we encounter a debug handler declaration... I
+    // think that just won't be compatible with an automated pybind situation.
+    funcOp.emitWarning() << "Encountered C++ func declaration @"
+                         << funcOp.getName() << "; pybind unsupported.";
+    return success();
+  }
   os << llvm::formatv(kPybindFunctionTemplate.data(),
                       canonicalizeDebugPort(funcOp.getName()))
      << "\n";

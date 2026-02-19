@@ -1,4 +1,4 @@
-// RUN: heir-opt --lwe-add-debug-port %s | FileCheck %s
+// RUN: heir-opt --lwe-add-debug-port=insert-debug-after-every-op=true %s | FileCheck %s
 
 !Z1032955396097_i64_ = !mod_arith.int<1032955396097 : i64>
 !Z1095233372161_i64_ = !mod_arith.int<1095233372161 : i64>
@@ -17,7 +17,7 @@ module attributes {scheme.bgv} {
     // CHECK: lwe.radd
     %ct_1 = lwe.radd %ct, %ct_0 : (!ct_L1_, !ct_L1_) -> !ct_L1_
     // CHECK: call @__heir_debug
-    // CHECK-SAME: {message.size = "1"}
+    // CHECK-SAME: {debug.name = "heir_debug_{{.*}}", message.size = "1"}
     return
   }
 }
