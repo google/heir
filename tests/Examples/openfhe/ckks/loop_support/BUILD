@@ -12,12 +12,12 @@ openfhe_end_to_end_test(
         "--scheme-to-openfhe=insert-debug-handler-calls=true",
     ],
     heir_translate_flags = [
-        "--openfhe-debug-helper-include-path=tests/Examples/openfhe/ckks/loop_support/debug_helper.h",
+        "--openfhe-debug-helper-include-path=tests/Examples/openfhe/ckks/debug_helper.h",
     ],
     mlir_src = "@heir//tests/Examples/common:loop.mlir",
     test_src = "loop_test.cpp",
     deps = [
-        ":debug_helper",
+        "@heir//tests/Examples/openfhe/ckks:debug_helper",
     ],
 )
 

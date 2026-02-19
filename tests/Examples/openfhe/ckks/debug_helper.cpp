@@ -1,6 +1,7 @@
 #include "tests/Examples/openfhe/ckks/debug_helper.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <iomanip>
@@ -66,7 +67,12 @@ void __heir_debug(CryptoContextT cc, PrivateKeyT sk, CiphertextT ct,
 
 #ifdef DECRYPT
   PlaintextT ptxt;
+  auto start = std::chrono::high_resolution_clock::now();
   cc->Decrypt(sk, ct, &ptxt);
+  auto end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> elapsed = end - start;
+  std::cout << "  Decryption took " << elapsed.count() << " seconds."
+            << std::endl;
   ptxt->SetLength(std::stod(debugAttrMap.at("message.size")));
   std::vector<double> result;
   result.reserve(ptxt->GetLength());
@@ -132,4 +138,13 @@ void __heir_debug(CryptoContextT cc, PrivateKeyT sk, CiphertextT ct,
   }
 #endif
 #endif
+}
+
+void __heir_debug(CryptoContextT cc, PrivateKeyT sk,
+                  std::vector<CiphertextT> ct,
+                  const std::map<std::string, std::string>& debugAttrMap) {
+  for (size_t i = 0; i < ct.size(); ++i) {
+    if (ct.size() > 1) std::cout << "Tensor index " << i << ":" << std::endl;
+    __heir_debug(cc, sk, ct[i], debugAttrMap);
+  }
 }

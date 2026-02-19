@@ -9,9 +9,9 @@
 #include "lib/Dialect/CGGI/Conversions/CGGIToSCIFRBool/CGGIToSCIFRBool.h"
 #include "lib/Dialect/CGGI/Conversions/CGGIToTfheRust/CGGIToTfheRust.h"
 #include "lib/Dialect/CGGI/Conversions/CGGIToTfheRustBool/CGGIToTfheRustBool.h"
-#include "lib/Dialect/Debug/Transforms/Passes.h"
 #include "lib/Dialect/Debug/Transforms/ValidateNames.h"
 #include "lib/Dialect/Secret/Conversions/SecretToCGGI/SecretToCGGI.h"
+#include "lib/Dialect/Secret/Transforms/AddDebugPort.h"
 #include "lib/Dialect/Secret/Transforms/DistributeGeneric.h"
 #include "lib/Pipelines/PipelineRegistration.h"
 #include "lib/Transforms/BooleanVectorizer/BooleanVectorizer.h"
@@ -64,6 +64,8 @@ void mlirToCGGIPipeline(OpPassManager& pm,
                         const std::string& yosysFilesPath,
                         const std::string& abcPath) {
   pm.addPass(debug::createDebugValidateNames());
+  pm.addPass(secret::createSecretAddDebugPort(secret::SecretAddDebugPortOptions{
+      .insertDebugAfterEveryOp = options.debug}));
   pm.addPass(createConvertTensorToLinalgPass());
   pm.addPass(createLinalgGeneralizeNamedOpsPass());
 
@@ -154,6 +156,8 @@ CGGIPipelineBuilder mlirToCGGIPipelineBuilder() {
 void mlirToCGGIPipeline(OpPassManager& pm,
                         const MLIRToCGGIPipelineOptions& options) {
   pm.addPass(debug::createDebugValidateNames());
+  pm.addPass(secret::createSecretAddDebugPort(secret::SecretAddDebugPortOptions{
+      .insertDebugAfterEveryOp = options.debug}));
   // Bufferize
   ::mlir::heir::oneShotBufferize(pm);
 

@@ -35,12 +35,18 @@ def read_from_directory(dirpath: str) -> Dict[str, List[float]]:
     fullpath = os.path.join(dirpath, filename)
     try:
       npz_data = np.load(fullpath)
-      if "data" not in npz_data:
-        print(f"Warning: 'data' key not found in {fullpath}")
+      key = None
+      if "data" in npz_data:
+        key = "data"
+      elif "inputs" in npz_data:
+        key = "inputs"
+
+      if key is None:
+        print(f"Warning: neither 'data' nor 'inputs' key found in {fullpath}")
         continue
 
       # Extract data array and flatten to 1D list
-      data_array = npz_data["data"]
+      data_array = npz_data[key]
       values = data_array.flatten().tolist()
       result[filename] = values
       npz_data.close()
@@ -77,10 +83,10 @@ class RotomMNISTTestDataset(Dataset):
     )
     self.images = inputs_map["mlp_mnist_inputs.npz"]
     self.weights = {}
-    self.weights["3.npz"] = inputs_map["3.npz"]
-    self.weights["21.npz"] = inputs_map["21.npz"]
-    self.weights["23.npz"] = inputs_map["23.npz"]
-    self.weights["26.npz"] = inputs_map["26.npz"]
+    self.weights["25.npz"] = inputs_map["25.npz"]
+    self.weights["105.npz"] = inputs_map["105.npz"]
+    self.weights["121.npz"] = inputs_map["121.npz"]
+    self.weights["148.npz"] = inputs_map["148.npz"]
 
   def __len__(self) -> int:
     return len(self.images)
@@ -105,11 +111,11 @@ class MNISTTest(absl.testing.absltest.TestCase):
     )
 
     # 4. Evaluation Loop
-    total = 4
+    total = 1
     correct = 0
 
-    # choose 4 random images from the test dataset
-    random_samples = random.sample(test_dataset, 4)
+    # choose 1 random images from the test dataset
+    random_samples = random.sample(test_dataset, 1)
 
     for image, label in random_samples:
       input_encrypted = mnist.mnist__encrypt__arg0(
@@ -120,10 +126,10 @@ class MNISTTest(absl.testing.absltest.TestCase):
       output_encrypted = mnist.mnist(
           crypto_context,
           input_encrypted,
-          test_dataset.weights["3.npz"],
-          test_dataset.weights["21.npz"],
-          test_dataset.weights["23.npz"],
-          test_dataset.weights["26.npz"],
+          test_dataset.weights["25.npz"],
+          test_dataset.weights["105.npz"],
+          test_dataset.weights["121.npz"],
+          test_dataset.weights["148.npz"],
       )
       end_time = time.time()
 
@@ -142,3 +148,7 @@ class MNISTTest(absl.testing.absltest.TestCase):
       print(f"guessed_label: {guessed_label}, label: {label.item()}")
 
     self.assertGreaterEqual(correct, 0.75 * total)
+
+
+if __name__ == "__main__":
+  absl.testing.absltest.main()

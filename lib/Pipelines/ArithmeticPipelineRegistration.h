@@ -94,6 +94,10 @@ struct MlirToRLWEPipelineOptions : public LoopOptions {
       llvm::cl::desc(
           "The level budget excluding levels required for bootstrap"),
       llvm::cl::init(10)};
+  PassOptions::Option<bool> debug{
+      *this, "debug",
+      llvm::cl::desc("Insert debug ports after every secret operation."),
+      llvm::cl::init(false)};
   PassOptions::Option<std::string> plaintextExecutionResultFileName{
       *this, "plaintext-execution-result-file-name",
       llvm::cl::desc("File name to import execution result from (c.f. --secret-"
