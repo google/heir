@@ -7,7 +7,7 @@
 #ring_Z65537_i64_1_x1024 = #polynomial.ring<coefficientType = !Z65537_i64, polynomialModulus = <1 + x**1024>>
 #ring_rns_L0_1_x1024 = #polynomial.ring<coefficientType = !rns_L0, polynomialModulus = <1 + x**1024>>
 #ciphertext_space_L0 = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024, encryption_type = lsb>
-!ct_L0 = !lwe.lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = <ring = #ring_Z65537_i64_1_x1024, encoding = #full_crt_packing_encoding>, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain_L5_C0>
+!ct_L0 = !lwe.lwe_ciphertext< plaintext_space = <ring = #ring_Z65537_i64_1_x1024, encoding = #full_crt_packing_encoding>, ciphertext_space = #ciphertext_space_L0, key = #key, modulus_chain = #modulus_chain_L5_C0>
 module {
   func.func @require_post_pass_toposort_lut3(%arg0: !scifrbool.bootstrap_key_standard, %arg1: !scifrbool.key_switch_key, %arg2: !scifrbool.server_parameters, %arg3: tensor<8x!ct_L0>) -> !ct_L0 {
     %c0 = arith.constant 0 : index
