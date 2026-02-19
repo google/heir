@@ -17,6 +17,7 @@
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/CKKS/Transforms/Passes.h"
 #include "lib/Dialect/Comb/IR/CombDialect.h"
+#include "lib/Dialect/Debug/IR/DebugDialect.h"
 #include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Jaxite/IR/JaxiteDialect.h"
 #include "lib/Dialect/JaxiteWord/IR/JaxiteWordDialect.h"
@@ -171,6 +172,7 @@ int main(int argc, char** argv) {
   registry.insert<ckks::CKKSDialect>();
   registry.insert<cggi::CGGIDialect>();
   registry.insert<comb::CombDialect>();
+  registry.insert<debug::DebugDialect>();
   registry.insert<jaxite::JaxiteDialect>();
   registry.insert<jaxiteword::JaxiteWordDialect>();
   registry.insert<lattigo::LattigoDialect>();
