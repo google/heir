@@ -1,6 +1,6 @@
 module {
   func.func public @just_relu(%arg: tensor<16xf32> {secret.secret}) -> tensor<16xf32> {
-    %10 = call @relu(%arg) { domain_lower = -1.0, domain_upper = 1.0, degree = 25 } : (tensor<16xf32>) -> tensor<16xf32>
+    %10 = call @relu(%arg) { domain_lower = -1.0, domain_upper = 1.0, degree = 10 } : (tensor<16xf32>) -> tensor<16xf32>
     return %10 : tensor<16xf32>
   }
   func.func private @relu(%arg0: tensor<16xf32>) -> tensor<16xf32> {

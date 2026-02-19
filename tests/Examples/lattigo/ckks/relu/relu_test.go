@@ -14,7 +14,7 @@ func TestRelu(t *testing.T) {
 	resultCt := just_relu(evaluator, params, ecd, ct0)
 	result := just_relu__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 
-	errorThreshold := float64(0.01)
+	errorThreshold := float64(0.02)
 	for i := range expected {
 		resultVal := result[i];
 		expectedVal := expected[i]

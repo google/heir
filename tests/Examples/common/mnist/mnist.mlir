@@ -2,7 +2,7 @@
 // composed of feedforward layers and ReLU activation. The export path is torch
 // -> stablehlo -> mlir.
 
-module @jit_func attributes {jax.uses_shape_polymorphism = false, mhlo.num_partitions = 1 : i32, mhlo.num_replicas = 1 : i32} {
+module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 16, Q = [36028797014376449, 35184350330881, 35184382967809, 35184351772673, 35184380870657, 35184353083393, 35184379035649, 35184355704833, 35184378511361, 35184358850561, 35184377331713, 35184363569153, 35184376545281, 35184365273089, 35184373006337, 35184368025601, 35184372744193], P = [1152921504614055937, 1152921504615628801, 1152921504616808449, 1152921504618381313, 1152921504620347393], logDefaultScale = 45>} {
   func.func public @mnist(%arg0: tensor<512x784xf32> {mhlo.sharding = "{replicated}"}, %arg1: tensor<512xf32> {mhlo.sharding = "{replicated}"}, %arg2: tensor<10x512xf32> {mhlo.sharding = "{replicated}"}, %arg3: tensor<10xf32> {mhlo.sharding = "{replicated}"}, %arg4: tensor<1x784xf32> {secret.secret}) -> (tensor<1x10xf32> {jax.result_info = "result[0]"}) {
     %cst = arith.constant dense<1.000000e+00> : tensor<f32>
     %0 = tensor.empty() : tensor<784x512xf32>
