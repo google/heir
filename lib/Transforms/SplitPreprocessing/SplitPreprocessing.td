@@ -14,12 +14,21 @@ def SplitPreprocessing : Pass<"split-preprocessing", "mlir::ModuleOp"> {
 
     The pass identifies all RLWE encoded cleartexts as plaintexts and moves all
     the operations to produce those plaintexts into the preprocessing function.
-    The preprocessing function thus returns all the plaintexts created in the
-    program. The preprocessing function takes any cleartexts used to create
-    plaintexts as inputs.
+    The preprocessing function takes any cleartexts used to create plaintexts as
+    inputs.
+
+    An option controls the maximum number of return values of the preprocessing
+    function. If zero, no return values are allowed and the pass will not
+    separate any operations. Otherwise, the pass will group the plaintexts into
+    tensors of minimal size so that the number of return values is at most this
+    limit.
 
     (* example filepath=tests/Transforms/split_preprocessing/split_preprocessing.mlir *)
   }];
+  let options = [
+    Option<"maxReturnValues", "max-return-values", "int", /*default=*/"8", "Use "
+    "this to restrict the maximum return values of the preprocessing function.">,
+  ];
 }
 
 #endif  // LIB_TRANSFORMS_SPLITPREPROCESSING_SPLITPREPROCESSING_TD_

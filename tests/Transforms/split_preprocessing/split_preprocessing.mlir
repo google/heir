@@ -3,12 +3,13 @@
 // CHECK-DAG: ![[pt:.*]] = !lwe.lwe_plaintext
 // CHECK-DAG: ![[ct_L1:.*]] = !lwe.lwe_ciphertext
 
-// CHECK: func.func @hoist_one_assign__preprocessing() -> ![[pt]]
+// CHECK: func.func @hoist_one_assign__preprocessing() -> tensor<1x![[pt]]>
 // CHECK-SAME: client.pack_func = {func_name = "hoist_one_assign"}
 
-// CHECK: func.func @hoist_one_assign__preprocessed(%[[ct:.*]]: ![[ct_L1]], %[[arg0:.*]]: ![[pt]]) -> ![[ct_L1]]
+// CHECK: func.func @hoist_one_assign__preprocessed(%[[ct:.*]]: ![[ct_L1]], %[[arg0:.*]]: tensor<1x![[pt]]>) -> ![[ct_L1]]
 // CHECK-SAME: client.preprocessed_func = {func_name = "hoist_one_assign"}
-// CHECK: %[[CT_0:.*]] = ckks.add_plain %ct, %[[arg0]]
+// CHECK: %[[extracted:.*]] = tensor.extract %[[arg0]]
+// CHECK: %[[CT_0:.*]] = ckks.add_plain %ct, %[[extracted]]
 // CHECK: return %[[CT_0]] : ![[ct_L1]]
 
 // CHECK: func.func @hoist_one_assign

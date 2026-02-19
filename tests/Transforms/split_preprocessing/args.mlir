@@ -3,7 +3,7 @@
 // CHECK-DAG: ![[pt:.*]] = !lwe.lwe_plaintext
 // CHECK-DAG: ![[ct_L1:.*]] = !lwe.lwe_ciphertext
 
-// CHECK: func.func @hoist_arg__preprocessing(%[[arg0:.*]]: tensor<1024xf32>) -> ![[pt]]
+// CHECK: func.func @hoist_arg__preprocessing(%[[arg0:.*]]: tensor<1024xf32>) -> tensor<1x![[pt]]>
 // CHECK-SAME: client.pack_func = {func_name = "hoist_arg"}
 
 // CHECK: func.func @hoist_arg(
@@ -41,19 +41,19 @@ func.func @hoist_arg(%ct: !ct_L1, %c1: tensor<1024xf32>) -> (!ct_L1) {
 // CHECK-DAG: ![[pt:.*]] = !lwe.lwe_plaintext
 // CHECK-DAG: ![[ct_L1:.*]] = !lwe.lwe_ciphertext
 
-// CHECK: func.func @hoist_arg_and_constant__preprocessing(%[[arg0:.*]]: tensor<1024xf32>) -> (![[pt]], ![[pt]])
+// CHECK: func.func @hoist_arg_and_constant__preprocessing(%[[arg0:.*]]: tensor<1024xf32>) -> (tensor<1x![[pt]]>, tensor<1x![[pt]]>)
 // CHECK-SAME: client.pack_func = {func_name = "hoist_arg_and_constant"}
 
 // CHECK: func.func @hoist_arg_and_constant__preprocessed(%[[arg0:.*]]: ![[ct_L1]],
-// CHECK-SAME: %[[ARG0:.*]]: ![[pt]],
-// CHECK-SAME: %[[ARG1:.*]]: ![[pt]]) -> ![[ct_L1]]
+// CHECK-SAME: %[[ARG0:.*]]: tensor<1x![[pt]]>,
+// CHECK-SAME: %[[ARG1:.*]]: tensor<1x![[pt]]>) -> ![[ct_L1]]
 // CHECK-SAME: client.preprocessed_func = {func_name = "hoist_arg_and_constant"}
 
 // CHECK: func.func @hoist_arg_and_constant
 // CHECK-SAME: (%[[CT:.*]]: ![[ct_L1]],
 // CHECK-SAME: %[[ARG0:.*]]: tensor<1024xf32>)
-// CHECK-NEXT:   %[[PT1:.*]], %[[PT2:.*]] = call @hoist_arg_and_constant__preprocessing(%[[ARG0]])
-// CHECK-NEXT:   %[[CALL:.*]] = call @hoist_arg_and_constant__preprocessed(%[[CT]], %[[PT1]], %[[PT2]])
+// CHECK-NEXT:   %[[PT1:.*]]:2 = call @hoist_arg_and_constant__preprocessing(%[[ARG0]])
+// CHECK-NEXT:   %[[CALL:.*]] = call @hoist_arg_and_constant__preprocessed(%[[CT]], %[[PT1]]#0, %[[PT1]]#1)
 // CHECK-NEXT:   return %[[CALL]]
 // CHECK-NEXT: }
 
@@ -87,12 +87,12 @@ func.func @hoist_arg_and_constant(%ct: !ct_L1, %c1: tensor<1024xf32>) -> (!ct_L1
 // CHECK-DAG: ![[pt:.*]] = !lwe.lwe_plaintext
 // CHECK-DAG: ![[ct_L1:.*]] = !lwe.lwe_ciphertext
 
-// CHECK: func.func @hoist_with_computation__preprocessing(%[[arg0:.*]]: tensor<1x1024xf32>) -> ![[pt]]
+// CHECK: func.func @hoist_with_computation__preprocessing(%[[arg0:.*]]: tensor<1x1024xf32>) -> tensor<1x![[pt]]>
 // CHECK-SAME: client.pack_func = {func_name = "hoist_with_computation"}
 // CHECK-NEXT: tensor.extract_slice
 
 // CHECK: func.func @hoist_with_computation__preprocessed(%[[arg0:.*]]: ![[ct_L1]],
-// CHECK-SAME: %[[ARG0:.*]]: ![[pt]])
+// CHECK-SAME: %[[ARG0:.*]]: tensor<1x![[pt]]>)
 // CHECK-SAME: client.preprocessed_func = {func_name = "hoist_with_computation"}
 
 // CHECK: func.func @hoist_with_computation

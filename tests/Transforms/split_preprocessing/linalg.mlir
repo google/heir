@@ -6,18 +6,18 @@
 // CHECK-DAG: ![[pt:.*]] = !lwe.lwe_plaintext
 // CHECK-DAG: ![[ct_L1:.*]] = !lwe.lwe_ciphertext
 
-// CHECK: func.func @linalg__preprocessing() -> ![[pt]]
+// CHECK: func.func @linalg__preprocessing() -> tensor<1x![[pt]]>
 // CHECK-SAME: client.pack_func = {func_name = "linalg"}
 // CHECK: linalg.broadcast
 // CHECK: lwe.rlwe_encode
 
-// CHECK: func.func @linalg__preprocessed(%[[ct:.*]]: ![[ct_L1]], %[[arg0:.*]]: ![[pt]]) -> ![[ct_L1]]
+// CHECK: func.func @linalg__preprocessed(%[[ct:.*]]: ![[ct_L1]], %[[arg0:.*]]: tensor<1x![[pt]]>) -> ![[ct_L1]]
 // CHECK-SAME: client.preprocessed_func = {func_name = "linalg"}
 
 // CHECK: func.func @linalg
 // CHECK-SAME: (%[[CT:.*]]: ![[ct_L1]])
 // CHECK-NEXT:   %[[PT:.*]] = call @linalg__preprocessing()
-// CHECK-NEXT:   %[[CALL:.*]] = call @linalg__preprocessed(%[[CT]], %[[PT]]) : (![[ct_L1]], ![[pt]]) -> ![[ct_L1]]
+// CHECK-NEXT:   %[[CALL:.*]] = call @linalg__preprocessed(%[[CT]], %[[PT]]) : (![[ct_L1]], tensor<1x![[pt]]>) -> ![[ct_L1]]
 // CHECK-NEXT:   return %[[CALL]]
 // CHECK-NEXT: }
 

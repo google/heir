@@ -100,6 +100,11 @@ struct MlirToRLWEPipelineOptions : public SimdVectorizerOptions {
       llvm::cl::desc("File name to import execution result from (c.f. --secret-"
                      "import-execution-result)"),
       llvm::cl::init("")};
+  PassOptions::Option<int> splitPreprocessing{
+      *this, "split-preprocessing",
+      llvm::cl::desc("Split preprocessing into separate function with N return "
+                     "values (default to no split)"),
+      llvm::cl::init(0)};
 };
 
 struct PlaintextBackendOptions
@@ -179,6 +184,11 @@ struct TorchLinalgToCkksPipelineOptions
       llvm::cl::desc("The number of levels to keep until bootstrapping in CKKS "
                      "(c.f. --secret-insert-mgmt-ckks)"),
       llvm::cl::init(10)};
+  PassOptions::Option<int> splitPreprocessing{
+      *this, "split-preprocessing",
+      llvm::cl::desc("Split preprocessing into separate function with N return "
+                     "values (default to no split)"),
+      llvm::cl::init(0)};
 };
 void torchLinalgToCkksBuilder(OpPassManager& manager,
                               const TorchLinalgToCkksPipelineOptions& options);

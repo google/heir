@@ -1,6 +1,9 @@
 // RUN: heir-opt --split-preprocessing %s
 
-// Just tests for passing pass
+// CHECK: func.func @matvec
+// CHECK: call @matvec__preprocessing
+// CHECK-SAME: -> (tensor<2x!pt>, tensor<2x!pt>, tensor<2x!pt>, tensor<2x!pt>, tensor<2x!pt>, tensor<2x!pt>, tensor<2x!pt>, tensor<2x!pt>, tensor<1x!pt>)
+// CHECK: call @matvec__preprocessed
 
 !Z35184372121601_i64 = !mod_arith.int<35184372121601 : i64>
 !Z36028797018652673_i64 = !mod_arith.int<36028797018652673 : i64>

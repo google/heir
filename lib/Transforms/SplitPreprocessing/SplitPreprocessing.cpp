@@ -6,31 +6,33 @@
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/ModuleAttributes.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
-#include "llvm/include/llvm/ADT/STLFunctionalExtras.h"  // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallVector.h"          // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
-#include "llvm/include/llvm/Support/ErrorHandling.h"    // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
-#include "mlir/include/mlir/Analysis/SliceAnalysis.h"   // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Attributes.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/Block.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/Builders.h"              // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/IRMapping.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/OpDefinition.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/TypeUtilities.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
-#include "mlir/include/mlir/Pass/Pass.h"                // from @llvm-project
-#include "mlir/include/mlir/Pass/PassManager.h"         // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/STLFunctionalExtras.h"   // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
+#include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
+#include "mlir/include/mlir/Analysis/SliceAnalysis.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Block.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/IRMapping.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
+#include "mlir/include/mlir/Pass/Pass.h"                 // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"          // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 
 #define DEBUG_TYPE "split-preprocessing"
 
@@ -43,6 +45,8 @@ namespace heir {
 using func::FuncOp;
 
 namespace {
+
+int ceilDiv(int a, int b) { return (a + b - 1) / b; }
 
 // The following slice analysis code is copied verbatim from
 // https://github.com/llvm/circt/blob/main/lib/Dialect/SV/Transforms/SVExtractTestCode.cpp
@@ -136,7 +140,8 @@ static SetVector<Operation*> getBackwardSlice(
 }
 
 struct PreprocessingAnalysis {
-  SetVector<Operation*> encodeOps;
+  // Groups of encode ops that will be returned together.
+  SmallVector<SetVector<Operation*>> encodeOps;
   // Use a vector to preserve insertion order for stable function signatures.
   SetVector<Value> inputs;
   SetVector<Operation*> opsToClone;
@@ -157,25 +162,30 @@ struct SplitPreprocessingPass
   }
 
   void convertFunc(FuncOp funcOp) {
-    PreprocessingAnalysis analysis = analyzePreprocessing(funcOp);
+    if (maxReturnValues == 0) return;
+
+    PreprocessingAnalysis analysis =
+        analyzePreprocessing(funcOp, maxReturnValues);
     if (analysis.encodeOps.empty()) {
       LLVM_DEBUG({
-        llvm::dbgs() << "No encode ops found in function " << funcOp.getName()
+        llvm::dbgs() << "Failed to split preprocessing for " << funcOp.getName()
                      << "\n";
-      });
-      return;
-    } else if (analysis.encodeOps.size() > 512) {
-      // TODO(#2603): Grouping plaintexts will reduce the number of function
-      // return types.
-      LLVM_DEBUG({
-        llvm::dbgs() << "Too many encode ops (" << analysis.encodeOps.size()
-                     << ") found in function " << funcOp.getName() << "\n";
       });
       return;
     }
 
-    FuncOp preprocessingFuncOp = createPreprocessingFunction(funcOp, analysis);
-    FuncOp preprocessedFuncOp = createPreprocessedFunction(funcOp, analysis);
+    FailureOr<FuncOp> maybePreprocessingFuncOp =
+        createPreprocessingFunction(funcOp, analysis);
+    if (failed(maybePreprocessingFuncOp)) {
+      LLVM_DEBUG({
+        llvm::dbgs() << "Failed to create preprocessing function for "
+                     << funcOp.getName() << "\n";
+      });
+      return;
+    }
+    FuncOp preprocessingFuncOp = maybePreprocessingFuncOp.value();
+    FuncOp preprocessedFuncOp =
+        createPreprocessedFunction(funcOp, preprocessingFuncOp, analysis);
 
     ModuleOp moduleOp = funcOp->getParentOfType<ModuleOp>();
     moduleOp.insert(funcOp.getOperation(), preprocessingFuncOp);
@@ -221,8 +231,8 @@ struct SplitPreprocessingPass
     }
   }
 
-  FuncOp createPreprocessingFunction(FuncOp op,
-                                     const PreprocessingAnalysis& analysis) {
+  FailureOr<FuncOp> createPreprocessingFunction(
+      FuncOp op, const PreprocessingAnalysis& analysis) {
     MLIRContext* context = op.getContext();
     OpBuilder builder(context);
 
@@ -232,8 +242,13 @@ struct SplitPreprocessingPass
     }
 
     SmallVector<Type> newResults;
-    for (const auto& output : analysis.encodeOps) {
-      newResults.push_back(output->getResult(0).getType());
+    for (const auto& batchOfEncodeOps : analysis.encodeOps) {
+      if (batchOfEncodeOps.empty()) {
+        llvm::outs() << "batch of encode ops is empty\n";
+      }
+      Type type = batchOfEncodeOps[0]->getResult(0).getType();
+      int batchSize = batchOfEncodeOps.size();
+      newResults.push_back(RankedTensorType::get({batchSize}, type));
     }
 
     auto funcType = FunctionType::get(context, newInputs, newResults);
@@ -263,17 +278,21 @@ struct SplitPreprocessingPass
       }
       builder.clone(op, map);
     }
-    // TODO(#2603): Find a smart way to group together encoded plaintexts.
     SmallVector<Value> results;
-    for (const auto& encodeOp : analysis.encodeOps) {
-      auto result = map.lookup(encodeOp->getResults()[0]);
-      results.push_back(result);
+    for (const auto& batchOfEncodeOps : analysis.encodeOps) {
+      SmallVector<Value> batchResults;
+      for (const auto& encodeOp : batchOfEncodeOps) {
+        batchResults.push_back(map.lookup(encodeOp->getResult(0)));
+      }
+      results.push_back(tensor::FromElementsOp::create(builder, funcOp.getLoc(),
+                                                       batchResults));
     }
+
     func::ReturnOp::create(builder, funcOp.getLoc(), results);
     return funcOp;
   }
 
-  FuncOp createPreprocessedFunction(FuncOp op,
+  FuncOp createPreprocessedFunction(FuncOp op, FuncOp preprocessingFuncOp,
                                     const PreprocessingAnalysis& analysis) {
     MLIRContext* context = op.getContext();
     OpBuilder builder(context);
@@ -284,8 +303,9 @@ struct SplitPreprocessingPass
         inputTypes.push_back(argType);
       }
     }
-    for (auto encodeOp : analysis.encodeOps) {
-      inputTypes.push_back(encodeOp->getResult(0).getType());
+    for (auto preprocessingResult :
+         preprocessingFuncOp.getFunctionType().getResults()) {
+      inputTypes.push_back(preprocessingResult);
     }
     auto funcType = FunctionType::get(context, inputTypes, op.getResultTypes());
     auto funcName = op.getName().str() + "__preprocessed";
@@ -309,13 +329,23 @@ struct SplitPreprocessingPass
         map.map(arg, entryBlock->getArgument(index++));
       }
     }
-    // Map each of the encode ops to a block argument.
-    for (auto encodeOp : analysis.encodeOps) {
-      auto plaintextArg = entryBlock->getArgument(index++);
-      map.map(encodeOp->getResult(0), plaintextArg);
-    }
-
+    // Map each of the encode ops to a tensor extract of a block argument.
     builder.setInsertionPointToEnd(entryBlock);
+    for (const auto& batchOfEncodeOps : analysis.encodeOps) {
+      auto plaintextTensorArg = entryBlock->getArgument(index++);
+      for (auto [i, encodeOp] : llvm::enumerate(batchOfEncodeOps)) {
+        LLVM_DEBUG({
+          llvm::dbgs() << "mapping encode op: " << *encodeOp
+                       << " to index: " << i << "of block argument at index "
+                       << plaintextTensorArg.getArgNumber() << "\n";
+        });
+        auto idx = arith::ConstantIndexOp::create(builder, funcOp.getLoc(), i);
+        map.map(encodeOp->getResult(0),
+                tensor::ExtractOp::create(builder, funcOp.getLoc(),
+                                          encodeOp->getResult(0).getType(),
+                                          plaintextTensorArg, {idx}));
+      }
+    }
 
     for (auto& toClone : op.getOps()) {
       if (analysis.opsToClone.contains(&toClone) &&
@@ -330,20 +360,89 @@ struct SplitPreprocessingPass
     return funcOp;
   }
 
-  PreprocessingAnalysis analyzePreprocessing(FuncOp funcOp) {
+  PreprocessingAnalysis analyzePreprocessing(FuncOp funcOp,
+                                             int maxReturnValues) {
     PreprocessingAnalysis analysis;
 
+    SetVector<Operation*> encodeOps;
     for (auto encodeOp : funcOp.getBody().getOps<lwe::RLWEEncodeOp>()) {
-      analysis.encodeOps.insert(encodeOp);
+      encodeOps.insert(encodeOp);
     }
-    if (analysis.encodeOps.empty()) {
+    if (encodeOps.empty()) {
       return analysis;
     }
 
-    analysis.opsToClone =
-        getBackwardSlice(analysis.encodeOps, [&](Operation* op) {
-          return op->getParentRegion() == &funcOp.getRegion();
-        });
+    // Group into batches to ensure that the number of new return values doesn't
+    // exceed the limit.
+    int maxBucketSize = 0;
+    DenseMap<Type, SmallVector<Operation*>> encodeOpsByType;
+    for (const auto& encodeOp : encodeOps) {
+      Type type = encodeOp->getResult(0).getType();
+      if (!encodeOpsByType.contains(type)) {
+        encodeOpsByType[type] = {};
+      }
+      encodeOpsByType[type].push_back(encodeOp);
+      if (encodeOpsByType[type].size() > maxBucketSize) {
+        maxBucketSize = encodeOpsByType[type].size();
+      }
+    }
+    // If there are more types than the max return values, then we have to bail
+    // since we can't group values with different types into a tensor.
+    if (encodeOpsByType.size() > maxReturnValues) {
+      LLVM_DEBUG({
+        llvm::dbgs() << "Too many types of encode ops in " << funcOp.getName()
+                     << "\n";
+      });
+      return analysis;
+    }
+
+    int numRemainingBuckets = maxReturnValues - encodeOpsByType.size();
+    DenseMap<Type, int> numBucketsByType;
+    for (const auto& [type, encodeOps] : encodeOpsByType) {
+      numBucketsByType[type] = 1;
+    }
+    while (numRemainingBuckets > 0 && maxBucketSize != 1) {
+      // Add a bucket to the first largest bucket.
+      int largestBucketSize = 0;
+      Type maxBucketType;
+      for (const auto& [type, numOps] : encodeOpsByType) {
+        int buckets = numBucketsByType[type];
+        auto bucketSize = ceilDiv(numOps.size(), buckets);
+        if (bucketSize > largestBucketSize) {
+          maxBucketType = type;
+          largestBucketSize = bucketSize;
+        }
+      }
+      numBucketsByType[maxBucketType]++;
+      numRemainingBuckets -= 1;
+      maxBucketSize = ceilDiv(encodeOpsByType[maxBucketType].size(),
+                              numBucketsByType[maxBucketType]);
+    }
+
+    for (const auto& [type, encodeOps] : encodeOpsByType) {
+      int bucketSize = ceilDiv(encodeOps.size(), numBucketsByType[type]);
+      // The bucket size is the ceiling division, so it's the size of the
+      // largest bucket in the group. So eagerly group as many bucketSize
+      // buckets as possible to minimize the number of buckets.
+      int numBuckets = ceilDiv(encodeOps.size(), bucketSize);
+      LLVM_DEBUG({
+        llvm::dbgs() << "adding " << numBuckets << " buckets for type " << type
+                     << " with " << encodeOps.size() << " encode ops\n";
+      });
+      for (int i = 0; i < numBuckets; i++) {
+        int start = i * bucketSize;
+        int end = start + bucketSize;
+        SetVector<Operation*> batchOps;
+        for (int j = start; j < end && j < encodeOps.size(); j++) {
+          batchOps.insert(encodeOps[j]);
+        }
+        analysis.encodeOps.push_back(batchOps);
+      }
+    }
+
+    analysis.opsToClone = getBackwardSlice(encodeOps, [&](Operation* op) {
+      return op->getParentRegion() == &funcOp.getRegion();
+    });
 
     // Gather any required block arguments for inputs.
     for (auto* op : analysis.opsToClone) {

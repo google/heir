@@ -186,8 +186,6 @@ void mlirToSecretArithmeticPipelineBuilder(
   // Balance Operations
   pm.addPass(createOperationBalancer());
 
-  // Add a __preprocessed helper for offline pre-packing of plaintexts
-  pm.addPass(createSplitPreprocessing());
   lowerAssignLayout(pm, false);
 
   // Add encrypt/decrypt helper functions for each function argument and return
@@ -406,6 +404,11 @@ void mlirToRLWEPipeline(OpPassManager& pm,
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
 
+  // Add a __preprocessed helper for offline pre-packing of plaintexts
+  auto splitPreprocessingOptions = SplitPreprocessingOptions{};
+  splitPreprocessingOptions.maxReturnValues = options.splitPreprocessing;
+  pm.addPass(createSplitPreprocessing(splitPreprocessingOptions));
+
   ElementwiseToAffineOptions elementwiseOptions;
   elementwiseOptions.convertDialects = {"ckks", "bgv", "lwe"};
   pm.addPass(createElementwiseToAffine(elementwiseOptions));
@@ -526,6 +529,7 @@ void torchLinalgToCkksBuilder(OpPassManager& manager,
   suboptions.ckksBootstrapWaterline = options.ckksBootstrapWaterline;
   suboptions.scalingModBits = options.scalingModBits;
   suboptions.firstModBits = options.firstModBits;
+  suboptions.splitPreprocessing = options.splitPreprocessing;
 
   mlirToRLWEPipelineBuilder(mlir::heir::RLWEScheme::ckksScheme)(manager,
                                                                 suboptions);

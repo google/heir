@@ -1,4 +1,4 @@
-// RUN: heir-opt --split-preprocessing %s | FileCheck %s
+// RUN: heir-opt --split-preprocessing=max-return-values=1 %s | FileCheck %s
 
 // Tests that a collection of plaintexts created from a single block arg or
 // constant is returned as a single tensor.
@@ -6,18 +6,18 @@
 // CHECK-DAG: ![[pt:.*]] = !lwe.lwe_plaintext
 // CHECK-DAG: ![[ct_L1:.*]] = !lwe.lwe_ciphertext
 
-// CHECK: func.func @multiple__preprocessing(%[[arg0:.*]]: tensor<2x1024xf32>) -> (tensor<1x![[pt]]>, tensor<1x![[pt]]>)
+// CHECK: func.func @multiple__preprocessing(%[[arg0:.*]]: tensor<2x1024xf32>) -> tensor<2x![[pt]]>
 // CHECK-SAME: client.pack_func = {func_name = "multiple"}
 // CHECK-COUNT-2: lwe.rlwe_encode
 
-// CHECK: func.func @multiple__preprocessed(%[[ct:.*]]: ![[ct_L1]], %[[arg0:.*]]: tensor<1x![[pt]]>, %[[arg1:.*]]: tensor<1x![[pt]]>) -> ![[ct_L1]]
+// CHECK: func.func @multiple__preprocessed(%[[ct:.*]]: ![[ct_L1]], %[[arg0:.*]]: tensor<2x![[pt]]>) -> ![[ct_L1]]
 // CHECK-SAME: client.preprocessed_func = {func_name = "multiple"}
 
 // CHECK: func.func @multiple
 // CHECK-SAME: (%[[CT:.*]]: ![[ct_L1]],
 // CHECK-SAME: %[[ARG0:.*]]: tensor<2x1024xf32>)
-// CHECK-NEXT:   %[[PT:.*]]:2 = call @multiple__preprocessing(%[[ARG0]])
-// CHECK-NEXT:   %[[CALL:.*]] = call @multiple__preprocessed(%[[CT]], %[[PT]]#0, %[[PT]]#1) : (![[ct_L1]], tensor<1x![[pt]]>, tensor<1x![[pt]]>) -> ![[ct_L1]]
+// CHECK-NEXT:   %[[PT:.*]] = call @multiple__preprocessing(%[[ARG0]])
+// CHECK-NEXT:   %[[CALL:.*]] = call @multiple__preprocessed(%[[CT]], %[[PT]]) : (![[ct_L1]], tensor<2x![[pt]]>) -> ![[ct_L1]]
 // CHECK-NEXT:   return %[[CALL]]
 // CHECK-NEXT: }
 

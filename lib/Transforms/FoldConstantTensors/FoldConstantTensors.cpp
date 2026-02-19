@@ -210,7 +210,7 @@ class CollapseShapeAfterConstant final
       return rewriter.notifyMatchFailure(
           collapseOp, "source of collapse must be a constant");
 
-    auto sourceAttr = llvm::dyn_cast<ElementsAttr>(constantOp.getValue());
+    auto sourceAttr = llvm::dyn_cast<DenseElementsAttr>(constantOp.getValue());
     if (!sourceAttr)
       return rewriter.notifyMatchFailure(
           collapseOp, "source of collapse must be an elements attribute");

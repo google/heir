@@ -76,7 +76,8 @@ namespace {
 template <typename... Dialects>
 bool containsArgumentOfDialect(func::FuncOp funcOp) {
   return llvm::any_of(funcOp.getArgumentTypes(), [&](Type argType) {
-    return DialectEqual<Dialects...>()(&argType.getDialect());
+    return DialectEqual<Dialects...>()(
+        &getElementTypeOrSelf(argType).getDialect());
   });
 }
 
@@ -109,11 +110,12 @@ struct AddCryptoContextArg : public OpConversionPattern<func::FuncOp> {
     }
 
     auto containsCryptoOps =
-        containsDialects<lwe::LWEDialect, bgv::BGVDialect, ckks::CKKSDialect>(
-            op);
+        containsDialects<lwe::LWEDialect, bgv::BGVDialect, ckks::CKKSDialect,
+                         openfhe::OpenfheDialect>(op);
     auto containsCryptoArg =
         containsArgumentOfDialect<lwe::LWEDialect, bgv::BGVDialect,
-                                  ckks::CKKSDialect>(op);
+                                  ckks::CKKSDialect, openfhe::OpenfheDialect>(
+            op);
     if (!(containsCryptoOps || containsCryptoArg)) {
       return rewriter.notifyMatchFailure(
           op, "contains neither ops nor arg types from lwe/bgv/ckks dialects");
@@ -427,11 +429,12 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
         return hasCryptoContextArg;
       }
       auto containsCryptoOps =
-          containsDialects<lwe::LWEDialect, bgv::BGVDialect, ckks::CKKSDialect>(
-              op);
+          containsDialects<lwe::LWEDialect, bgv::BGVDialect, ckks::CKKSDialect,
+                           openfhe::OpenfheDialect>(op);
       auto containsCryptoArg =
           containsArgumentOfDialect<lwe::LWEDialect, bgv::BGVDialect,
-                                    ckks::CKKSDialect>(op);
+                                    ckks::CKKSDialect, openfhe::OpenfheDialect>(
+              op);
       return typeConverter.isSignatureLegal(op.getFunctionType()) &&
              typeConverter.isLegal(&op.getBody()) &&
              (!(containsCryptoOps || containsCryptoArg) || hasCryptoContextArg);
@@ -447,11 +450,19 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
         return hasCryptoContextArg;
       }
       auto containsCryptoArg = llvm::any_of(operandTypes, [&](Type argType) {
-        return DialectEqual<lwe::LWEDialect, bgv::BGVDialect,
-                            ckks::CKKSDialect>()(
+        return DialectEqual<lwe::LWEDialect, bgv::BGVDialect, ckks::CKKSDialect,
+                            openfhe::OpenfheDialect>()(
             &getElementTypeOrSelf(argType).getDialect());
       });
-      return (!containsCryptoArg || hasCryptoContextArg);
+      auto containsCryptoOps = false;
+      FailureOr<func::FuncOp> callee = getCalledFunction(op);
+      if (succeeded(callee)) {
+        containsCryptoOps =
+            containsDialects<lwe::LWEDialect, bgv::BGVDialect,
+                             ckks::CKKSDialect, openfhe::OpenfheDialect>(
+                callee.value());
+      }
+      return (!(containsCryptoArg || containsCryptoOps) || hasCryptoContextArg);
     });
 
     patterns.add<
