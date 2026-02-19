@@ -132,8 +132,9 @@
 #include "mlir/include/mlir/Dialect/Func/Extensions/AllExtensions.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/LLVMIR/LLVMDialect.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"    // from @llvm-project
-#include "mlir/include/mlir/Dialect/Linalg/Passes.h"       // from @llvm-project
+#include "mlir/include/mlir/Dialect/LLVMIR/Transforms/InlinerInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/Passes.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Math/IR/Math.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
@@ -260,6 +261,7 @@ int main(int argc, char** argv) {
   scf::registerBufferizableOpInterfaceExternalModels(registry);
   tensor::registerBufferizableOpInterfaceExternalModels(registry);
   mlir::arith::registerConvertArithToLLVMInterface(registry);
+  mlir::LLVM::registerInlinerInterface(registry);
 
   // Custom passes in HEIR
   registerEmitCInterfacePass();

@@ -205,12 +205,12 @@ void mlirToSecretArithmeticPipelineBuilder(
 
 void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
                                     const PlaintextBackendOptions& options) {
+  linalgPreprocessingBuilder(pm);
+
   // Convert to secret arithmetic
   MlirToRLWEPipelineOptions mlirToRLWEPipelineOptions;
   mlirToRLWEPipelineOptions.ciphertextDegree = options.plaintextSize;
   mlirToSecretArithmeticPipelineBuilder(pm, mlirToRLWEPipelineOptions);
-  pm.addPass(createCanonicalizerPass());
-  pm.addPass(createCSEPass());
 
   if (options.debug) {
     // Insert debug handler calls
