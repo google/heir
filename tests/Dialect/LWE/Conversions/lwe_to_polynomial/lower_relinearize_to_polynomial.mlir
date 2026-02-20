@@ -1,4 +1,4 @@
-// RUN: heir-opt --ckks-decompose-relinearize --ckks-decompose-keyswitch --ckks-to-lwe --lwe-to-polynomial %s
+// RUN: heir-opt --ckks-decompose-relinearize --ckks-decompose-keyswitch --ckks-to-lwe --lwe-to-polynomial --convert-polynomial-mul-to-ntt %s
 
 !Z1032955396097_i64 = !mod_arith.int<1032955396097 : i64>
 !Z1095233372161_i64 = !mod_arith.int<1095233372161 : i64>
