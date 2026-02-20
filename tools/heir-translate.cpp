@@ -13,6 +13,10 @@
 #include "llvm/include/llvm/Support/LogicalResult.h"  // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-translate/MlirTranslateMain.h"  // from @llvm-project
 
+#if HEIR_BACKEND_CORNAMI
+#include "lib/Target/SCIFRBool/SCIFRBoolEmitter.h"
+#endif /* HEIR_BACKEND_CORNAMI */
+
 int main(int argc, char** argv) {
   // Verilog output
   mlir::heir::registerToVerilogTranslation();
@@ -40,6 +44,11 @@ int main(int argc, char** argv) {
   // Lattigo
   mlir::heir::lattigo::registerToLattigoTranslation();
   mlir::heir::lattigo::registerTranslateOptions();
+
+#if HEIR_BACKEND_CORNAMI
+  // SCIFRBool
+  mlir::cornami::target::registerToSCIFRBoolTranslation();
+#endif /* HEIR_BACKEND_CORNAMI */
 
   // This comment inserts internal emitters
 

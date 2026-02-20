@@ -106,6 +106,15 @@
 #include "lib/Transforms/TensorToScalars/TensorToScalars.h"
 #include "lib/Transforms/UnusedMemRef/UnusedMemRef.h"
 #include "lib/Transforms/ValidateNoise/ValidateNoise.h"
+#if HEIR_BACKEND_CORNAMI
+#include "lib/Dialect/CGGI/Conversions/CGGIToSCIFRBool/CGGIToSCIFRBool.h"
+#include "lib/Dialect/SCIFRBool/Conversions/ReplaceOpWithSection.h"
+#include "lib/Dialect/SCIFRBool/IR/SCIFRBoolDialect.h"
+#include "lib/Dialect/SCIFRBool/IR/SCIFRBoolOps.h"
+#include "lib/Dialect/SCIFRBool/Transforms/Passes.h"
+#include "lib/Dialect/SCIFRBool/Transforms/SCIFRBoolEmitter.h"
+#include "lib/Dialect/SCIFRCkks/Transforms/Passes.h"
+#endif /* HEIR_BACKEND_CORNAMI */
 #include "mlir/include/mlir/Conversion/AffineToStandard/AffineToStandard.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ArithToLLVM/ArithToLLVM.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ComplexToLLVM/ComplexToLLVM.h"  // from @llvm-project
@@ -375,6 +384,17 @@ int main(int argc, char** argv) {
   registerSecretToCGGIPasses();
   registerSecretToCKKSPasses();
   tensor_ext::registerTensorExtToTensorPasses();
+
+#if HEIR_BACKEND_CORNAMI
+  registry.insert<mlir::scifrbool::SCIFRBoolDialect>();
+  // Register the custom pass to estimate CGGI ops for Tigris
+  mlir::cornami::registerCGGIEstimatorPass();
+  mlir::cornami::registerCKKSEstimatorPass();
+  mlir::cornami::registerOpenfheEstimatorPass();
+  mlir::cornami::registerCGGIEmitterPass();
+  mlir::cornami::registerCGGIToSCIFRBoolPass();
+  mlir::cornami::registerReplaceOpWithSectionPass();
+#endif /* HEIR_BACKEND_CORNAMI */
 
   // This comement registers internal passes
 

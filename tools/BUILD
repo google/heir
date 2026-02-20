@@ -33,6 +33,14 @@ cc_binary(
             "HEIR_YOSYS_SCRIPTS_DIR=\\\"" + WORKSPACE_PATH + "lib/Transforms/YosysOptimizer/yosys\\\"",
         ],
         "//conditions:default": ["HEIR_NO_YOSYS=1"],
+    }) + select({
+        "@heir//:config_enable_cornami_mx2": [
+            "HEIR_BACKEND_CORNAMI=1",
+        ],
+        "@heir//:config_disable_cornami_mx2": [
+            "HEIR_BACKEND_CORNAMI=0",
+        ],
+        "//conditions:default": ["HEIR_BACKEND_CORNAMI=1"],
     }),
     includes = ["include"],
     deps = [
@@ -204,6 +212,19 @@ cc_binary(
             "@heir//lib/Transforms/YosysOptimizer",
         ],
         "//conditions:default": [],
+    }) + select({
+        "@heir//:config_enable_cornami_mx2": [
+            "@heir//lib/Dialect/CGGI/Conversions/CGGIToSCIFRBool",
+            "@heir//lib/Dialect/SCIFRBool/Conversions:ReplaceOpWithSection",
+            "@heir//lib/Dialect/SCIFRBool/IR:Dialect",
+            "@heir//lib/Dialect/SCIFRBool/Transforms:CGGIEmitter",
+            "@heir//lib/Dialect/SCIFRBool/Transforms:CGGIEstimator",
+            "@heir//lib/Dialect/SCIFRBool/Transforms:EstimationAnalysis",
+            "@heir//lib/Dialect/SCIFRCkks/Transforms",
+            "@heir//lib/Dialect/SCIFRCkks/Transforms:CKKSEstimator",
+            "@heir//lib/Dialect/SCIFRCkks/Transforms:OpenfheEstimator",
+        ],
+        "//conditions:default": [],
     }),
 )
 
@@ -211,6 +232,15 @@ cc_binary(
 cc_binary(
     name = "heir-translate",
     srcs = ["heir-translate.cpp"],
+    defines = select({
+        "@heir//:config_enable_cornami_mx2": [
+            "HEIR_BACKEND_CORNAMI=1",
+        ],
+        "@heir//:config_disable_cornami_mx2": [
+            "HEIR_BACKEND_CORNAMI=0",
+        ],
+        "//conditions:default": ["HEIR_BACKEND_CORNAMI=1"],
+    }),
     includes = ["include"],
     deps = [
         "@heir//lib/Target/FunctionInfo:FunctionInfoEmitter",
@@ -226,7 +256,12 @@ cc_binary(
         "@heir//lib/Target/Verilog:VerilogEmitter",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:TranslateLib",
-    ],
+    ] + select({
+        "@heir//:config_enable_cornami_mx2": [
+            "@heir//lib/Target/SCIFRBool:SCIFRBoolEmitter",
+        ],
+        "//conditions:default": [],
+    }),
 )
 
 cc_binary(
