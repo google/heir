@@ -81,10 +81,11 @@ module attributes {scheme.bgv} {
   // CHECK: [[ct2:[^, ].*]], [[err:.*]] := [[enc]].EncryptNew([[pt2]])
   // CHECK: [[res:[^, ].*]] := compute([[eval]], [[ct1]], [[ct2]])
   // CHECK: [[pt5:[^, ].*]] := [[dec]].DecryptNew([[res]])
-  // CHECK: [[value3:[^, ].*]] := []int32
+  // CHECK: [[value3:[^, ].*]] := make([]int32, 4)
   // CHECK: [[value3Int64:[^, ].*]] := make([]int64, len([[value3]]))
   // CHECK: [[encoder]].Decode([[pt5]], [[value3Int64]])
-  // CHECK: [[value3Converted:[^, ].*]][i] = int32([[value3Int64]][i])
+  // CHECK: [[value3Converted:[^, ].*]] := make([]int32, len([[value3]]))
+  // CHECK: [[value3Converted]][i] = int32([[value3Int64]][i])
   // CHECK: [[value4:[^, ].*]] := [[value3Converted]]
   // CHECK: return [[value4]]
   func.func @test_basic_emitter() -> tensor<4xi32> {
@@ -234,8 +235,8 @@ module attributes {scheme.bgv} {
   func.func @tensor_insert(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) -> f32 {
     // CHECK:  [[v0:[^ ]*]] := int64(5)
     // CHECK:  [[v1:[^, ]*]] := float32(7.5)
-    // CHECK:  [[v2:[^ ]*]] := []float32{0, 0, 0, 0, 0, 0, 0, 0}
-    // CHECK:  [[v3:[^ ]*]] := append(make([]float32, 0, len([[v2]])), v2...)
+    // CHECK:  [[v2:[^ ]*]] := make([]float32, 8)
+    // CHECK:  [[v3:[^ ]*]] := append(make([]float32, 0, len([[v2]])), [[v2]]...)
     // CHECK:  [[v3]]{{\[}}[[v0]]] = [[v1]]
     // CHECK:  return [[v1]]
     %c5 = arith.constant 5 : index
@@ -251,7 +252,7 @@ module attributes {scheme.bgv} {
 module attributes {scheme.bgv} {
   // CHECK: func extract_slice
   func.func @extract_slice(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) {
-  // CHECK:  [[v0:[^ ]*]] := []int32{5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5}
+  // CHECK:  [[v0:[^ ]*]] := slices.Repeat([]int32{5}, 20)
   // CHECK:  [[v1:[^ ]*]] := [3]int32{}
   // CHECK:  for [[dest:[^ ]*]] := 0; [[dest]] < 3; [[dest]] += 1 {
   // CHECK:    [[v1]]{{\[}}[[dest]]] = [[v0]]{{\[}}1 + [[dest]] * 2]
@@ -295,7 +296,7 @@ module attributes {scheme.bgv} {
 module attributes {scheme.bgv} {
   // CHECK: func extsi_tensor
   func.func @extsi_tensor(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) {
-  // CHECK:  [[v0:[^ ]*]] := []int16{5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5}
+  // CHECK:  [[v0:[^ ]*]] := slices.Repeat([]int16{5}, 20)
   // CHECK:  [[v1:[^ ]*]] := make([]int32, 20)
   // CHECK:  for [[i:[^,]*]], [[var:[^ ]*]] := range [[v0]] {
   // CHECK:    [[v1]]{{\[}}[[i]]] = int32([[var]])
@@ -351,7 +352,7 @@ module attributes {scheme.bgv} {
 module attributes {scheme.bgv} {
   // CHECK: func extui_tensor
   func.func @extui_tensor(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) {
-    // CHECK:  [[v0:[^ ]*]] := []bool{true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true}
+    // CHECK:  [[v0:[^ ]*]] := slices.Repeat([]bool{true}, 20)
     // CHECK:  [[v1:[^ ]*]] := make([]int32, 20)
     // CHECK:  for [[i:[^,]*]], [[var:[^ ]*]] := range [[v0]] {
     // CHECK:    if [[var]] {
