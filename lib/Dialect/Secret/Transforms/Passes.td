@@ -108,6 +108,12 @@ def SecretAddDebugPort : Pass<"secret-add-debug-port"> {
   are invoked after each operation in the generic body. The debug ports are
   declarations and user should provide functions with the same name in their code.
 
+  If the option `insert-debug-after-every-op` is set to true, it will insert a `debug.validate`
+  op after every operation in the generic body.
+
+  Regardless of the `insert-debug-after-every-op` option, this pass will lower all
+  `debug.validate` ops it encounters in the generic body to function calls.
+
   For example, if the function is called "foo", the debug port is called after
   each homomorphic operation:
   ```mlir
@@ -125,6 +131,12 @@ def SecretAddDebugPort : Pass<"secret-add-debug-port"> {
   }
   ```
   }];
+
+  let options = [
+    Option<"insertDebugAfterEveryOp", "insert-debug-after-every-op", "bool",
+           /*default=*/"false", "Whether to add debug ports after every op">
+  ];
+  let dependentDialects = ["mlir::heir::debug::DebugDialect"];
 }
 
 def SecretImportExecutionResult : Pass<"secret-import-execution-result"> {

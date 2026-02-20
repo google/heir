@@ -12,26 +12,22 @@ cc_library(
         "Passes.h",
     ],
     deps = [
-        ":AddDebugPort",
+        ":ValidateNames",
         ":pass_inc_gen",
-        "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@heir//lib/Dialect/Debug/IR:Dialect",
     ],
 )
 
 cc_library(
-    name = "AddDebugPort",
-    srcs = ["AddDebugPort.cpp"],
+    name = "ValidateNames",
+    srcs = ["ValidateNames.cpp"],
     hdrs = [
-        "AddDebugPort.h",
+        "ValidateNames.h",
     ],
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Dialect/Debug/IR:Dialect",
-        "@heir//lib/Dialect/LWE/IR:Dialect",
-        "@heir//lib/Utils:TransformUtils",
         "@llvm-project//llvm:Support",
-        "@llvm-project//mlir:FuncDialect",
-        "@llvm-project//mlir:FunctionInterfaces",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
@@ -40,6 +36,6 @@ cc_library(
 
 add_heir_transforms(
     header_filename = "Passes.h.inc",
-    pass_name = "LWE",
+    pass_name = "Debug",
     td_file = "Passes.td",
 )

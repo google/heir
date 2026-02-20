@@ -5,6 +5,8 @@
 
 #include "lib/Dialect/BGV/Conversions/BGVToLWE/BGVToLWE.h"
 #include "lib/Dialect/CKKS/Conversions/CKKSToLWE/CKKSToLWE.h"
+#include "lib/Dialect/Debug/Transforms/Passes.h"
+#include "lib/Dialect/Debug/Transforms/ValidateNames.h"
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h"
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
 #include "lib/Dialect/LWE/Transforms/AddDebugPort.h"
@@ -151,6 +153,7 @@ void implementShiftNetworkPipelineBuilder(OpPassManager& pm) {
 
 void mlirToSecretArithmeticPipelineBuilder(
     OpPassManager& pm, const MlirToRLWEPipelineOptions& options) {
+  pm.addPass(debug::createDebugValidateNames());
   pm.addPass(createWrapGeneric());
   convertToDataObliviousPipelineBuilder(pm);
   pm.addPass(createSelectRewrite());
@@ -203,6 +206,7 @@ void mlirToSecretArithmeticPipelineBuilder(
 
 void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
                                     const PlaintextBackendOptions& options) {
+  pm.addPass(debug::createDebugValidateNames());
   linalgPreprocessingBuilder(pm);
 
   // Convert to secret arithmetic
@@ -212,7 +216,11 @@ void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
 
   if (options.debug) {
     // Insert debug handler calls
-    pm.addPass(secret::createSecretAddDebugPort());
+    pm.addPass(secret::createSecretAddDebugPort(
+        secret::SecretAddDebugPortOptions{.insertDebugAfterEveryOp = true}));
+  } else {
+    pm.addPass(secret::createSecretAddDebugPort(
+        secret::SecretAddDebugPortOptions{.insertDebugAfterEveryOp = false}));
   }
 
   pm.addPass(secret::createSecretDistributeGeneric());
@@ -235,6 +243,8 @@ void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
 void mlirToRLWEPipeline(OpPassManager& pm,
                         const MlirToRLWEPipelineOptions& options,
                         const RLWEScheme scheme) {
+  pm.addPass(debug::createDebugValidateNames());
+
   if (options.enableArithmetization) {
     mlirToSecretArithmeticPipelineBuilder(pm, options);
   } else {
@@ -245,6 +255,9 @@ void mlirToRLWEPipeline(OpPassManager& pm,
     addClientInterfaceOptions.enableLayoutAssignment = false;
     pm.addPass(createAddClientInterface(addClientInterfaceOptions));
   }
+
+  pm.addPass(secret::createSecretAddDebugPort(secret::SecretAddDebugPortOptions{
+      .insertDebugAfterEveryOp = options.debug}));
 
   // Only for debugging purpose.
   if (!options.plaintextExecutionResultFileName.empty()) {
@@ -403,6 +416,7 @@ void mlirToRLWEPipeline(OpPassManager& pm,
   pm.addPass(createForwardInsertToExtract());
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
+  pm.addPass(createSymbolDCEPass());
 
   // Add a __preprocessed helper for offline pre-packing of plaintexts
   auto splitPreprocessingOptions = SplitPreprocessingOptions{};
@@ -445,11 +459,10 @@ BackendPipelineBuilder toOpenFhePipelineBuilder() {
     pm.addPass(ckks::createCKKSToLWE());
 
     // insert debug handler calls
-    if (options.debug) {
-      lwe::AddDebugPortOptions addDebugPortOptions;
-      addDebugPortOptions.entryFunction = options.entryFunction;
-      pm.addPass(lwe::createAddDebugPort(addDebugPortOptions));
-    }
+    lwe::AddDebugPortOptions addDebugPortOptions;
+    addDebugPortOptions.entryFunction = options.entryFunction;
+    addDebugPortOptions.insertDebugAfterEveryOp = options.debug;
+    pm.addPass(lwe::createAddDebugPort(addDebugPortOptions));
 
     // Convert LWE (and scheme-specific CKKS/BGV ops) to OpenFHE
     pm.addPass(lwe::createLWEToOpenfhe());
@@ -481,11 +494,10 @@ BackendPipelineBuilder toLattigoPipelineBuilder() {
     pm.addPass(ckks::createCKKSToLWE());
 
     // insert debug handler calls
-    if (options.debug) {
-      lwe::AddDebugPortOptions addDebugPortOptions;
-      addDebugPortOptions.entryFunction = options.entryFunction;
-      pm.addPass(lwe::createAddDebugPort(addDebugPortOptions));
-    }
+    lwe::AddDebugPortOptions addDebugPortOptions;
+    addDebugPortOptions.entryFunction = options.entryFunction;
+    addDebugPortOptions.insertDebugAfterEveryOp = options.debug;
+    pm.addPass(lwe::createAddDebugPort(addDebugPortOptions));
 
     // Convert LWE (and scheme-specific BGV ops) to Lattigo
     pm.addPass(lwe::createLWEToLattigo());
@@ -521,6 +533,7 @@ void linalgPreprocessingBuilder(OpPassManager& manager) {
 
 void torchLinalgToCkksBuilder(OpPassManager& manager,
                               const TorchLinalgToCkksPipelineOptions& options) {
+  manager.addPass(debug::createDebugValidateNames());
   linalgPreprocessingBuilder(manager);
   MlirToRLWEPipelineOptions suboptions;
 

@@ -24,7 +24,7 @@
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/OperationSupport.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/Region.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/SymbolTable.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
 #include "mlir/include/mlir/Interfaces/FunctionInterfaces.h"  // from @llvm-project
@@ -200,12 +200,6 @@ FailureOr<Operation*> SecretGenericFuncCallConversion::matchAndRewriteInner(
   }
   auto callee = maybeCallee.value();
 
-  // For now, ensure that there is only one caller to the callee.
-  auto calleeUses = callee.getSymbolUses(callee->getParentOp());
-  if (std::distance(calleeUses->begin(), calleeUses->end()) != 1) {
-    return op->emitError() << "expected exactly one caller to the callee";
-  }
-
   SmallVector<Type> newInputTypes;
   for (auto val : inputs) {
     newInputTypes.push_back(val.getType());
@@ -213,15 +207,35 @@ FailureOr<Operation*> SecretGenericFuncCallConversion::matchAndRewriteInner(
 
   FunctionType newFunctionType =
       cast<FunctionType>(callee.cloneTypeWith(newInputTypes, outputTypes));
-  auto newFuncOp = rewriter.cloneWithoutRegions(callee);
-  newFuncOp->moveAfter(callee);
-  newFuncOp.setFunctionType(newFunctionType);
-  newFuncOp.setSymName(llvm::formatv("{0}_secret", callee.getSymName()).str());
+
+  std::string newFuncName =
+      llvm::formatv("{0}_secret", callee.getSymName()).str();
+  auto parentOp = callee->getParentOp();
+  auto existingFunc = SymbolTable::lookupSymbolIn(parentOp, newFuncName);
+
+  func::FuncOp newFuncOp;
+  if (existingFunc) {
+    newFuncOp = cast<func::FuncOp>(existingFunc);
+    // TODO(#1145): Verify signature matches newFunctionType if we want to be
+    // safe against name collisions with different signatures.
+  } else {
+    newFuncOp = rewriter.cloneWithoutRegions(callee);
+    newFuncOp->moveAfter(callee);
+    newFuncOp.setFunctionType(newFunctionType);
+    newFuncOp.setSymName(newFuncName);
+  }
 
   auto newCallOp = func::CallOp::create(rewriter, op.getLoc(), outputTypes,
                                         newFuncOp.getName(), inputs);
   rewriter.replaceOp(op, newCallOp);
-  rewriter.eraseOp(callee);
+
+  // Erase callee if no more uses. Note that replaceOp above will eventually
+  // remove the caller inside the secret.generic, so we check if the count is 1.
+  auto calleeUses = callee.getSymbolUses(parentOp);
+  if (calleeUses &&
+      std::distance(calleeUses->begin(), calleeUses->end()) <= 1) {
+    rewriter.eraseOp(callee);
+  }
   return newCallOp.getOperation();
 }
 
