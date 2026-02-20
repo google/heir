@@ -18,6 +18,7 @@
 #include "lib/Dialect/CKKS/Transforms/Passes.h"
 #include "lib/Dialect/Comb/IR/CombDialect.h"
 #include "lib/Dialect/Debug/IR/DebugDialect.h"
+#include "lib/Dialect/Debug/Transforms/Passes.h"
 #include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Jaxite/IR/JaxiteDialect.h"
 #include "lib/Dialect/JaxiteWord/IR/JaxiteWordDialect.h"
@@ -268,6 +269,7 @@ int main(int argc, char** argv) {
   // Custom passes in HEIR
   registerEmitCInterfacePass();
   cggi::registerCGGIPasses();
+  debug::registerDebugPasses();
   ckks::registerCKKSPasses();
   lattigo::registerLattigoPasses();
   lwe::registerLWEPasses();

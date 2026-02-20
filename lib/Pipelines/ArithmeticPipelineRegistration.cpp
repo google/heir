@@ -5,6 +5,8 @@
 
 #include "lib/Dialect/BGV/Conversions/BGVToLWE/BGVToLWE.h"
 #include "lib/Dialect/CKKS/Conversions/CKKSToLWE/CKKSToLWE.h"
+#include "lib/Dialect/Debug/Transforms/Passes.h"
+#include "lib/Dialect/Debug/Transforms/ValidateNames.h"
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h"
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
 #include "lib/Dialect/LWE/Transforms/AddDebugPort.h"
@@ -151,6 +153,7 @@ void implementShiftNetworkPipelineBuilder(OpPassManager& pm) {
 
 void mlirToSecretArithmeticPipelineBuilder(
     OpPassManager& pm, const MlirToRLWEPipelineOptions& options) {
+  pm.addPass(debug::createDebugValidateNames());
   pm.addPass(createWrapGeneric());
   convertToDataObliviousPipelineBuilder(pm);
   pm.addPass(createSelectRewrite());
@@ -203,6 +206,7 @@ void mlirToSecretArithmeticPipelineBuilder(
 
 void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
                                     const PlaintextBackendOptions& options) {
+  pm.addPass(debug::createDebugValidateNames());
   linalgPreprocessingBuilder(pm);
 
   // Convert to secret arithmetic
@@ -235,6 +239,7 @@ void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
 void mlirToRLWEPipeline(OpPassManager& pm,
                         const MlirToRLWEPipelineOptions& options,
                         const RLWEScheme scheme) {
+  pm.addPass(debug::createDebugValidateNames());
   if (options.enableArithmetization) {
     mlirToSecretArithmeticPipelineBuilder(pm, options);
   } else {
@@ -521,6 +526,7 @@ void linalgPreprocessingBuilder(OpPassManager& manager) {
 
 void torchLinalgToCkksBuilder(OpPassManager& manager,
                               const TorchLinalgToCkksPipelineOptions& options) {
+  manager.addPass(debug::createDebugValidateNames());
   linalgPreprocessingBuilder(manager);
   MlirToRLWEPipelineOptions suboptions;
 
