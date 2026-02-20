@@ -16,16 +16,17 @@ module {
     %cst_0 = arith.constant 0.000000e+00 : f32
     %4 = linalg.fill ins(%cst_0 : f32) outs(%3 : tensor<1x512xf32>) -> tensor<1x512xf32>
     %5 = linalg.matmul ins(%arg4, %transposed : tensor<1x784xf32>, tensor<784x512xf32>) outs(%4 : tensor<1x512xf32>) -> tensor<1x512xf32>
-    %6 = tensor.empty() : tensor<1x512xf32>
-    %broadcasted_1 = linalg.broadcast ins(%cst : tensor<f32>) outs(%6 : tensor<1x512xf32>) dimensions = [0, 1]
-    %7 = tensor.empty() : tensor<1x512xf32>
-    %mapped_2 = linalg.map { arith.mulf } ins(%broadcasted_1, %5 : tensor<1x512xf32>, tensor<1x512xf32>) outs(%7 : tensor<1x512xf32>)
-    %8 = tensor.empty() : tensor<1x512xf32>
-    %broadcasted_3 = linalg.broadcast ins(%mapped : tensor<512xf32>) outs(%8 : tensor<1x512xf32>) dimensions = [0]
-    %9 = tensor.empty() : tensor<1x512xf32>
-    %mapped_4 = linalg.map { arith.addf } ins(%broadcasted_3, %mapped_2 : tensor<1x512xf32>, tensor<1x512xf32>) outs(%9 : tensor<1x512xf32>)
-    %10 = call @relu(%mapped_4) { domain_lower = -15.0, domain_upper = 12.0 } : (tensor<1x512xf32>) -> tensor<1x512xf32>
-    return %10 : tensor<1x512xf32>
+    // %6 = tensor.empty() : tensor<1x512xf32>
+    // %broadcasted_1 = linalg.broadcast ins(%cst : tensor<f32>) outs(%6 : tensor<1x512xf32>) dimensions = [0, 1]
+    // %7 = tensor.empty() : tensor<1x512xf32>
+    // %mapped_2 = linalg.map { arith.mulf } ins(%broadcasted_1, %5 : tensor<1x512xf32>, tensor<1x512xf32>) outs(%7 : tensor<1x512xf32>)
+    // %8 = tensor.empty() : tensor<1x512xf32>
+    // %broadcasted_3 = linalg.broadcast ins(%mapped : tensor<512xf32>) outs(%8 : tensor<1x512xf32>) dimensions = [0]
+    // %9 = tensor.empty() : tensor<1x512xf32>
+    // %mapped_4 = linalg.map { arith.addf } ins(%broadcasted_3, %mapped_2 : tensor<1x512xf32>, tensor<1x512xf32>) outs(%9 : tensor<1x512xf32>)
+    // FIXME: restore if previous is working
+    // %10 = call @relu(%mapped_4) { domain_lower = -15.0, domain_upper = 12.0 } : (tensor<1x512xf32>) -> tensor<1x512xf32>
+    return %5 : tensor<1x512xf32>
   }
   func.func private @relu(%arg0: tensor<1x512xf32>) -> tensor<1x512xf32> {
     %cst = arith.constant dense<0.000000e+00> : tensor<f32>

@@ -76,7 +76,7 @@ py_test(
         "requires-mem:28g",
     ],
     deps = [
-        ":mnist_openfhe_pybind",
+        ":mnist_openfhe_layer1_pybind",
         "@abseil-py//absl/testing:absltest",
         "@heir_pip_deps//numpy",
         "@heir_pip_deps//torch",

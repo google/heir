@@ -8,7 +8,7 @@ heir_lattigo_lib(
     go_library_name = "mnist",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=ckks",
-        "--torch-linalg-to-ckks=ciphertext-degree=1024 scaling-mod-bits=50",
+        "--torch-linalg-to-ckks=ciphertext-degree=1024",
         "--scheme-to-lattigo",
     ],
     mlir_src = "@heir//tests/Examples/common/mnist:mnist.mlir",
@@ -36,7 +36,7 @@ heir_lattigo_lib(
     go_library_name = "mnist_layer1",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=ckks",
-        "--torch-linalg-to-ckks=ciphertext-degree=1024 scaling-mod-bits=50",
+        "--torch-linalg-to-ckks=ciphertext-degree=1024 scaling-mod-bits=45",
         "--scheme-to-lattigo",
     ],
     mlir_src = "@heir//tests/Examples/common/mnist:mnist_layer1.mlir",

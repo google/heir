@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
 import absl.testing.absltest
-import tests.Examples.openfhe.ckks.mnist.mnist_openfhe_pybind as mnist
+import tests.Examples.openfhe.ckks.mnist.mnist_openfhe_layer1_pybind as mnist
 
 MODEL_PATH = "tests/Examples/common/mnist/data/traced_model.pt"
 DATA_PATH = "tests/Examples/common/mnist/data"
@@ -62,10 +62,10 @@ def load_weights(model_path: str) -> List[List[float]]:
   weights = []
   module = torch.jit.load(model_path)
   module.eval()
-  print(f"Successfully loaded {model_path}")
-  print("Model parameters:")
+  # print(f"Successfully loaded {model_path}")
+  # print("Model parameters:")
   for name, tensor in module.named_parameters():
-    print(f"  {name}: {list(tensor.size())}")
+    # print(f"  {name}: {list(tensor.size())}")
     # Conversion: .contiguous().flatten().tolist()
     tensor_data = tensor.cpu().contiguous().flatten().tolist()
     weights.append(tensor_data)
@@ -105,7 +105,7 @@ class MNISTTest(absl.testing.absltest.TestCase):
     )
 
     # 4. Evaluation Loop
-    total = 4
+    total = 1
     samples_processed = 0
 
     for batch_data, batch_target in test_loader:
@@ -115,8 +115,12 @@ class MNISTTest(absl.testing.absltest.TestCase):
       input_tensor = batch_data.contiguous()  # (1, 1, 28, 28)
       input_vector = input_tensor.flatten().tolist()
 
+      # FIXME: revert from constant 0.1's to real data
+      for i in range(len(input_vector)):
+        input_vector[i] = 0.1
+
       # dump the input vector for debugging
-      # print(f"\n\nSample: {samples_processed}, label: {label}, input:")
+      # print(f"\n\nSample: {samples_processed}, input:")
       # for i, value in enumerate(input_vector):
       #     print(f"{i}, {value:.6f}")
 
@@ -130,20 +134,18 @@ class MNISTTest(absl.testing.absltest.TestCase):
       )
       end_time = time.time()
 
-      time_elapsed_ms = (end_time - start_time) * 1000.0
-      print(f"CPU time used: {time_elapsed_ms:.2f} ms")
+      time_elapsed_ms = (end_time - start_time)
+      print(f"CPU time used: {time_elapsed_ms:.2f} s")
 
-      output = [0.0] * 512
       output = mnist.mnist__decrypt__result0(
           crypto_context, output_encrypted, secret_key
       )
 
-      print("output:")
+      print(f"output len={len(output)}:")
       for i, value in enumerate(output):
         print(f"{i}, {value:.6f}")
+      self.assertTrue(False); # dummy to dump logs
       samples_processed += 1
-
-    self.assertTrue(False); # dummy to dump logs
 
 
 if __name__ == "__main__":
