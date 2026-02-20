@@ -44,8 +44,8 @@ def development_heir_config() -> HEIRConfig:
       / "bazel-bin"
       / "tools"
       / "heir-opt.runfiles"
-      / "edu_berkeley_abc"
       / "abc"
+      / "abc_bin"
   )
   if not abc_path.exists():
     abc_path = ""

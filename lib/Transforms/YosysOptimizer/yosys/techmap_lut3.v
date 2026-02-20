@@ -294,6 +294,11 @@ endmodule
 module _90_macc;
 endmodule
 
+(* techmap_maccmap *)
+(* techmap_celltype = "$macc_v2" *)
+module _90_macc_v2;
+endmodule
+
 (* techmap_wrap = "alumacc" *)
 (* techmap_celltype = "$lt $le $ge $gt $add $sub $neg $mul" *)
 module _90_alumacc;

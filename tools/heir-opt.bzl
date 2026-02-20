@@ -26,7 +26,7 @@ def _heir_opt_impl(ctx):
         HEIR_BASE_PATH = "_main/"
         runtime_dir = ctx.executable._heir_opt_binary.path + ".runfiles"
         yosys_scripts_dir = runtime_dir + "/" + HEIR_BASE_PATH + "lib/Transforms/YosysOptimizer/yosys"
-        abc_path = runtime_dir + "/edu_berkeley_abc/abc"
+        abc_path = runtime_dir + "/abc+/abc_bin"
         env_vars["HEIR_YOSYS_SCRIPTS_DIR"] = yosys_scripts_dir
         env_vars["HEIR_ABC_BINARY"] = abc_path
 

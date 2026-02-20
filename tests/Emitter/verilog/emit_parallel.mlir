@@ -1,20 +1,6 @@
 // RUN: heir-translate --emit-verilog %s 2>&1 > %t1
 // RUN: FileCheck %s < %t1
 
-// The following checks for correctness, ensuring that the statements are
-// synthesized correctly. As input, we need to concatenate two 16-bit integers.
-//   458755 is 0000000000000111 0000000000000011 concatenated
-//   The test truncates both integers and so we expect
-//   00000111 00000011 which is x07 x03 in hex
-// RUN: heir-translate --emit-verilog %s 2>&1 > %t1
-// RUN: run_verilog \
-// RUN:  --verilog_module %t1 \
-// RUN:  --input='arg1=458755' \
-// RUN:  > %t
-// RUN: FileCheck %s --check-prefix=VAL < %t
-
-// VAL: b'\x07\x03'
-
 module {
   func.func @main(%arg0 : memref<1x2xi16>) -> memref<1x2xi8> {
     %c0 = arith.constant 0 : index

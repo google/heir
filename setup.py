@@ -313,9 +313,9 @@ setuptools.setup(
         ),
         BazelExtension(
             name="heir_py._abc",
-            bazel_target="@edu_berkeley_abc//:abc",
-            generated_so_file=Path("external") / "edu_berkeley_abc" / "abc",
-            target_file="abc",
+            bazel_target="@abc//:abc_bin",
+            generated_so_file=Path("external") / "abc" / "abc_bin",
+            target_file="abc_bin",
             py_limited_api=py_limited_api,
             is_binary=True,
         ),
