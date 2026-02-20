@@ -78,9 +78,9 @@ def SecretInsertMgmtBFV : Pass<"secret-insert-mgmt-bfv", "ModuleOp"> {
 }
 
 def SecretInsertMgmtCKKS : Pass<"secret-insert-mgmt-ckks", "ModuleOp"> {
-  let summary = "Place CKKS ciphertext management operations";
+    let summary = "Place CKKS ciphertext management operations";
 
-  let description = [{
+    let description = [{
     Check the description of secret-insert-mgmt-bgv. This pass
     implements similar strategy, where mgmt.modreduce stands for
     ckks.rescale here.
