@@ -1,8 +1,6 @@
 #include "lib/Target/OpenFhePke/OpenFhePkeEmitter.h"
 
-#include <algorithm>
 #include <cassert>
-#include <cstddef>
 #include <cstdint>
 #include <fstream>
 #include <functional>
@@ -213,12 +211,11 @@ FailureOr<std::string> getWeightType(Type type) {
 
 LogicalResult translateToOpenFhePke(Operation* op, llvm::raw_ostream& os,
                                     const OpenfheImportType& importType,
-                                    const std::string& weightsFile,
-                                    bool skipVectorResizing) {
+                                    const std::string& weightsFile) {
   SelectVariableNames variableNames(op);
   ConstQualifierAnalysis constAnalysis(op);
   OpenFhePkeEmitter emitter(os, &variableNames, &constAnalysis, importType,
-                            weightsFile, skipVectorResizing);
+                            weightsFile);
   LogicalResult result = emitter.translate(*op);
   return result;
 }
@@ -1640,35 +1637,10 @@ LogicalResult OpenFhePkeEmitter::printOperation(
   if (failed(resultCC)) return resultCC;
   std::string cc = variableNames->getNameForValue(resultCC.value());
 
-  if (skipVectorResizing_) {
-    // Cannot use const auto& here:
-    // https://github.com/openfheorg/openfhe-development/issues/1046
-    os << "auto " << variableNames->getNameForValue(op.getResult()) << " = ";
-    os << cc << "->MakePackedPlaintext(" << inputVarName << ");\n";
-    return success();
-  }
-  // cyclic repetition to mitigate openfhe zero-padding (#645)
-  std::string filledPrefix =
-      variableNames->getNameForValue(op.getResult()) + "_filled";
-  std::string& inputVarFilledName = filledPrefix;
-  std::string inputVarFilledLengthName = filledPrefix + "_n";
-
-  os << "auto " << inputVarFilledLengthName << " = " << cc
-     << "->GetCryptoParameters()->GetElementParams()->GetRingDimension() / "
-        "2;\n";
-  os << "auto " << inputVarFilledName << " = " << inputVarName << ";\n";
-  os << inputVarFilledName << ".clear();\n";
-  os << inputVarFilledName << ".reserve(" << inputVarFilledLengthName << ");\n";
-  // inputVarFilledLengthName is unsigned
-  os << "for (unsigned i = 0; i < " << inputVarFilledLengthName << "; ++i) {\n";
-  os << "  " << inputVarFilledName << ".push_back(" << inputVarName << "[i % "
-     << inputVarName << ".size()]);\n";
-  os << "}\n";
-
   // Cannot use const auto& here:
   // https://github.com/openfheorg/openfhe-development/issues/1046
   os << "auto " << variableNames->getNameForValue(op.getResult()) << " = ";
-  os << cc << "->MakePackedPlaintext(" << inputVarFilledName << ");\n";
+  os << cc << "->MakePackedPlaintext(" << inputVarName << ");\n";
 
   return success();
 }
@@ -1694,35 +1666,11 @@ LogicalResult OpenFhePkeEmitter::printOperation(
     inputVarName += "_d";
   }
 
-  if (skipVectorResizing_) {
-    // Cannot use const auto& here:
-    // https://github.com/openfheorg/openfhe-development/issues/1046
-    os << "auto " << variableNames->getNameForValue(op.getResult()) << " = ";
-    os << variableNames->getNameForValue(resultCC.value())
-       << "->MakeCKKSPackedPlaintext(" << inputVarName << ");\n";
-    return success();
-  }
-  // cyclic repetition to mitigate openfhe zero-padding (#645)
-  std::string filledPrefix =
-      variableNames->getNameForValue(op.getResult()) + "_filled";
-  std::string inputVarFilledName = filledPrefix;
-  std::string inputVarFilledLengthName = filledPrefix + "_n";
-  os << "auto " << inputVarFilledLengthName << " = " << cc
-     << "->GetCryptoParameters()->GetElementParams()->GetRingDimension() / "
-        "2;\n";
-  os << "auto " << inputVarFilledName << " = " << inputVarName << ";\n";
-  os << inputVarFilledName << ".clear();\n";
-  os << inputVarFilledName << ".reserve(" << inputVarFilledLengthName << ");\n";
-  os << "for (auto i = 0; i < " << inputVarFilledLengthName << "; ++i) {\n";
-  os << "  " << inputVarFilledName << ".push_back(" << inputVarName << "[i % "
-     << inputVarName << ".size()]);\n";
-  os << "}\n";
-
   // Cannot use const auto& here:
   // https://github.com/openfheorg/openfhe-development/issues/1046
   os << "auto " << variableNames->getNameForValue(op.getResult()) << " = ";
   os << variableNames->getNameForValue(resultCC.value())
-     << "->MakeCKKSPackedPlaintext(" << inputVarFilledName << ");\n";
+     << "->MakeCKKSPackedPlaintext(" << inputVarName << ");\n";
 
   return success();
 }
@@ -1969,14 +1917,12 @@ LogicalResult OpenFhePkeEmitter::emitType(Type type, Location loc,
 OpenFhePkeEmitter::OpenFhePkeEmitter(
     raw_ostream& os, SelectVariableNames* variableNames,
     ConstQualifierAnalysis* constQualifierAnalysis,
-    const OpenfheImportType& importType, const std::string& weightsFile,
-    bool skipVectorResizing)
+    const OpenfheImportType& importType, const std::string& weightsFile)
     : importType_(importType),
       os(os),
       variableNames(variableNames),
       constQualifierAnalysis(constQualifierAnalysis),
-      weightsFile_(weightsFile),
-      skipVectorResizing_(skipVectorResizing) {}
+      weightsFile_(weightsFile) {}
 }  // namespace openfhe
 }  // namespace heir
 }  // namespace mlir

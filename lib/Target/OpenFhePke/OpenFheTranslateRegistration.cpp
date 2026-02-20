@@ -52,12 +52,6 @@ struct TranslateOptions {
   llvm::cl::opt<std::string> weightsFile{
       "weights-file",
       llvm::cl::desc("Emit all dense elements attributes to this binary file")};
-  llvm::cl::opt<bool> skipVectorResizing{
-      "skip-vector-resizing",
-      llvm::cl::desc("Skip resizing vectors to ringdimension/2 when emitting "
-                     "OpenFHE PKE code, i.e., assume the dimensions in the "
-                     "input IR are correct already."),
-      llvm::cl::init(false)};
   llvm::cl::opt<std::string> openfheDebugHelperIncludePath{
       "openfhe-debug-helper-include-path",
       llvm::cl::desc("The path to the header defining debug helper functions")};
@@ -98,8 +92,7 @@ void registerToOpenFhePkeTranslation() {
       "translate the openfhe dialect to C++ code against the OpenFHE pke API",
       [](Operation* op, llvm::raw_ostream& output) {
         return translateToOpenFhePke(op, output, options->openfheImportType,
-                                     options->weightsFile,
-                                     options->skipVectorResizing);
+                                     options->weightsFile);
       },
       registerRelevantDialects);
 }

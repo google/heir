@@ -888,13 +888,15 @@ LogicalResult LattigoEmitter::printOperation(tensor::InsertSliceOp op) {
     os << "for " << destIndexName << " := " << offsets[nestLevel] << "; "
        << destIndexName << " < "
        << offsets[nestLevel] + sizes[nestLevel] * strides[nestLevel] << "; "
-       << destIndexName << " += " << strides[nestLevel] << ") {\n";
+       << destIndexName << " += " << strides[nestLevel] << " {\n";
     os.indent();
   }
 
   // Now we're in the innermost loop nest, do the assignment
-  os << destName << "[" << llvm::join(destIndexNames, "][")
-     << "] = " << sourceName << "[" << llvm::join(sourceIndexNames, "][")
+  os << destName << "["
+     << flattenIndexExpression(resultType.getShape(), destIndexNames)
+     << "] = " << sourceName << "["
+     << flattenIndexExpression(op.getSourceType().getShape(), sourceIndexNames)
      << "]\n";
 
   // Now unindent and close the loop nest

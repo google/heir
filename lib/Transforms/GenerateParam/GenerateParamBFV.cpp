@@ -18,18 +18,22 @@
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Parameters/BGV/Params.h"
-#include "lib/Transforms/GenerateParam/GenerateParam.h"
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/Diagnostics.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
 #include "mlir/include/mlir/Pass/PassManager.h"            // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
-#include "mlir/include/mlir/Transforms/Passes.h"           // from @llvm-project
+#include "mlir/include/mlir/Support/WalkResult.h"          // from @llvm-project
+
+// IWYU pragma: begin_keep
+#include "lib/Transforms/GenerateParam/GenerateParam.h"
+// IWYU pragma: end_keep
 
 #define DEBUG_TYPE "GenerateParamBFV"
 
@@ -43,6 +47,14 @@ struct GenerateParamBFV : impl::GenerateParamBFVBase<GenerateParamBFV> {
   using GenerateParamBFVBase::GenerateParamBFVBase;
 
   void annotateSchemeParam(const bgv::SchemeParam& schemeParam) {
+    auto* context = &getContext();
+    OpBuilder builder(context);
+    getOperation()->setAttr(kRequestedSlotCountAttrName,
+                            builder.getI64IntegerAttr(slotNumber));
+    getOperation()->setAttr(
+        kActualSlotCountAttrName,
+        builder.getI64IntegerAttr(schemeParam.getRingDim()));
+
     getOperation()->setAttr(
         bgv::BGVDialect::kSchemeParamAttrName,
         bgv::SchemeParamAttr::get(
