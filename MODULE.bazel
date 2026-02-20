@@ -1,20 +1,10 @@
 module(name = "heir")
 
 bazel_dep(name = "bazel_skylib", version = "1.9.0")
-
-# This must come before apple_support cf. https://github.com/bazelbuild/bazel/issues/25728
 bazel_dep(name = "rules_cc", version = "0.2.13")
+bazel_dep(name = "toolchains_llvm_bootstrapped", version = "0.5.7")
 
-# Apple compilation support.
-# Note this requires full xcode, not just commandline tools
-#
-# Tested with:
-#
-# $ /usr/bin/xcodebuild -version
-#   Xcode 16.2
-#   Build version 16C5032a
-bazel_dep(name = "apple_support", version = "1.24.1", repo_name = "build_bazel_apple_support")
-bazel_dep(name = "rules_apple", version = "3.20.1")
+register_toolchains("@toolchains_llvm_bootstrapped//toolchain:all")
 
 # Gazelle puglin for BUILD file autogeneration
 bazel_dep(name = "gazelle", version = "0.47.0")
