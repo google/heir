@@ -491,8 +491,7 @@ BackendPipelineBuilder toLattigoPipelineBuilder() {
     pm.addPass(lwe::createLWEToLattigo());
 
     // Convert Alloc Ops to InPlace Ops
-    // TODO(#2635): Disable until this is fixed.
-    // pm.addPass(lattigo::createAllocToInPlace());
+    pm.addPass(lattigo::createAllocToInPlace());
 
     // Simplify, in case the lowering revealed redundancy
     pm.addPass(createCanonicalizerPass());

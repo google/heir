@@ -3,7 +3,15 @@
 // CHECK: func.func @dot_product
 func.func @dot_product(%evaluator: !lattigo.bgv.evaluator, %param: !lattigo.bgv.parameter, %encoder: !lattigo.bgv.encoder, %ct: !lattigo.rlwe.ciphertext, %ct_0: !lattigo.rlwe.ciphertext) -> !lattigo.rlwe.ciphertext attributes {mgmt.openfhe_params = #mgmt.openfhe_params<evalAddCount = 8, keySwitchCount = 15>} {
   // no new allocation found as the two ciphertexts in function argument are enough to store the imtermediate results
-  // CHECK-NOT: _new
+  // a new allocation is only needed for the rescale because of level change
+  // CHECK-NOT: mul_new
+  // CHECK-NOT: relinearize_new
+  // CHECK-NOT: rotate_columns_new
+  // CHECK-NOT: add_new
+  // CHECK: rescale_new
+  // CHECK-NOT: mul_new
+  // CHECK-NOT: rotate_columns_new
+  // CHECK: return
   %c1 = arith.constant 1 : index
   %c2 = arith.constant 2 : index
   %c4 = arith.constant 4 : index

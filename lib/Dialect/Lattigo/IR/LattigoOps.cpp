@@ -42,6 +42,10 @@ LogicalResult RLWENewEncryptorOp::verify() {
   return success();
 }
 
+int RLWEDropLevelNewOp::getLevelsToDrop() { return getLevelToDrop(); }
+
+int RLWEDropLevelOp::getLevelsToDrop() { return getLevelToDrop(); }
+
 }  // namespace lattigo
 }  // namespace heir
 }  // namespace mlir

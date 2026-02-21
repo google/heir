@@ -182,8 +182,8 @@ def Lattigo_BGVMulOp : Lattigo_BGVBinaryInPlaceOp<"mul", [IncreasesMulDepthOpInt
   }];
 }
 
-class Lattigo_BGVUnaryOp<string mnemonic> :
-        Lattigo_BGVOp<mnemonic> {
+class Lattigo_BGVUnaryOp<string mnemonic, list<Trait> traits = []> :
+        Lattigo_BGVOp<mnemonic, traits> {
   let arguments = (ins
     Lattigo_BGVEvaluator:$evaluator,
     Lattigo_RLWECiphertext:$input
@@ -198,7 +198,7 @@ def Lattigo_BGVRelinearizeNewOp : Lattigo_BGVUnaryOp<"relinearize_new"> {
   }];
 }
 
-def Lattigo_BGVRescaleNewOp : Lattigo_BGVUnaryOp<"rescale_new"> {
+def Lattigo_BGVRescaleNewOp : Lattigo_BGVUnaryOp<"rescale_new", [ReducesLevelOpInterface]> {
   let summary = "Rescale a ciphertext in the Lattigo BGV dialect";
   let description = [{
     This operation rescales a ciphertext value in the Lattigo BGV dialect.
@@ -231,8 +231,8 @@ def Lattigo_BGVRotateRowsNewOp : Lattigo_BGVUnaryOp<"rotate_rows_new"> {
   }];
 }
 
-class Lattigo_BGVUnaryInPlaceOp<string mnemonic> :
-        Lattigo_BGVOp<mnemonic, [InPlaceOpInterface]> {
+class Lattigo_BGVUnaryInPlaceOp<string mnemonic, list<Trait> traits = []> :
+        Lattigo_BGVOp<mnemonic, traits # [InPlaceOpInterface]> {
   let arguments = (ins
     Lattigo_BGVEvaluator:$evaluator,
     Lattigo_RLWECiphertext:$input,
@@ -254,7 +254,7 @@ def Lattigo_BGVRelinearizeOp : Lattigo_BGVUnaryInPlaceOp<"relinearize"> {
   }];
 }
 
-def Lattigo_BGVRescaleOp : Lattigo_BGVUnaryInPlaceOp<"rescale"> {
+def Lattigo_BGVRescaleOp : Lattigo_BGVUnaryInPlaceOp<"rescale", [ReducesLevelOpInterface]> {
   let summary = "Rescale a ciphertext in the Lattigo BGV dialect";
   let description = [{
     This operation rescales a ciphertext value in the Lattigo BGV dialect.
