@@ -8,7 +8,6 @@
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h"
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
 #include "lib/Dialect/LWE/Transforms/AddDebugPort.h"
-#include "lib/Dialect/Lattigo/Transforms/AllocToInPlace.h"
 #include "lib/Dialect/Lattigo/Transforms/ConfigureCryptoContext.h"
 #include "lib/Dialect/Openfhe/Transforms/AllocToInPlace.h"
 #include "lib/Dialect/Openfhe/Transforms/ConfigureCryptoContext.h"
@@ -34,6 +33,7 @@
 #include "lib/Transforms/BooleanVectorizer/BooleanVectorizer.h"
 #include "lib/Transforms/CompareToSignRewrite/CompareToSignRewrite.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/ConvertToCiphertextSemantics.h"
+#include "lib/Transforms/CyclicRepetition/CyclicRepetition.h"
 #include "lib/Transforms/DropUnitDims/DropUnitDims.h"
 #include "lib/Transforms/ElementwiseToAffine/ElementwiseToAffine.h"
 #include "lib/Transforms/FoldConstantTensors/FoldConstantTensors.h"
@@ -400,6 +400,7 @@ void mlirToRLWEPipeline(OpPassManager& pm,
       exit(EXIT_FAILURE);
   }
 
+  pm.addPass(createCyclicRepetition());
   pm.addPass(createForwardInsertToExtract());
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());

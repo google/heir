@@ -127,6 +127,7 @@ cc_library(
         "@heir//lib/Transforms/BooleanVectorizer",
         "@heir//lib/Transforms/CompareToSignRewrite",
         "@heir//lib/Transforms/ConvertToCiphertextSemantics",
+        "@heir//lib/Transforms/CyclicRepetition",
         "@heir//lib/Transforms/DropUnitDims",
         "@heir//lib/Transforms/ElementwiseToAffine",
         "@heir//lib/Transforms/FoldConstantTensors",
