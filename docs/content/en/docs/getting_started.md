@@ -192,16 +192,16 @@ module {
     %cst = arith.constant dense<[0, 0, 0, 0, 0, 0, 0, 1]> : tensor<8xi64>
     %0 = openfhe.mul_no_relin %arg0, %arg1, %arg2 : (!openfhe.crypto_context, !rlwe_ct_L2_, !rlwe_ct_L2_) -> !rlwe_ct_L2_D3_
     %1 = openfhe.relin %arg0, %0 : (!openfhe.crypto_context, !rlwe_ct_L2_D3_) -> !rlwe_ct_L2_
-    %2 = openfhe.rot %arg0, %1 {index = 4 : index} : (!openfhe.crypto_context, !rlwe_ct_L2_) -> !rlwe_ct_L2_
+    %2 = openfhe.rot %arg0, %1 {static_shift = 4 : index} : (!openfhe.crypto_context, !rlwe_ct_L2_) -> !rlwe_ct_L2_
     %3 = openfhe.add %arg0, %1, %2 : (!openfhe.crypto_context, !rlwe_ct_L2_, !rlwe_ct_L2_) -> !rlwe_ct_L2_
-    %4 = openfhe.rot %arg0, %3 {index = 2 : index} : (!openfhe.crypto_context, !rlwe_ct_L2_) -> !rlwe_ct_L2_
+    %4 = openfhe.rot %arg0, %3 {static_shift = 2 : index} : (!openfhe.crypto_context, !rlwe_ct_L2_) -> !rlwe_ct_L2_
     %5 = openfhe.add %arg0, %3, %4 : (!openfhe.crypto_context, !rlwe_ct_L2_, !rlwe_ct_L2_) -> !rlwe_ct_L2_
-    %6 = openfhe.rot %arg0, %5 {index = 1 : index} : (!openfhe.crypto_context, !rlwe_ct_L2_) -> !rlwe_ct_L2_
+    %6 = openfhe.rot %arg0, %5 {static_shift = 1 : index} : (!openfhe.crypto_context, !rlwe_ct_L2_) -> !rlwe_ct_L2_
     %7 = openfhe.add %arg0, %5, %6 : (!openfhe.crypto_context, !rlwe_ct_L2_, !rlwe_ct_L2_) -> !rlwe_ct_L2_
     %8 = openfhe.mod_reduce %arg0, %7 : (!openfhe.crypto_context, !rlwe_ct_L2_) -> !rlwe_ct_L1_
     %9 = openfhe.make_packed_plaintext %arg0, %cst : (!openfhe.crypto_context, tensor<8xi64>) -> !rlwe_pt_L1_
     %10 = openfhe.mul_plain %arg0, %8, %9 : (!openfhe.crypto_context, !rlwe_ct_L1_, !rlwe_pt_L1_) -> !rlwe_ct_L1_
-    %11 = openfhe.rot %arg0, %10 {index = 7 : index} : (!openfhe.crypto_context, !rlwe_ct_L1_) -> !rlwe_ct_L1_
+    %11 = openfhe.rot %arg0, %10 {static_shift = 7 : index} : (!openfhe.crypto_context, !rlwe_ct_L1_) -> !rlwe_ct_L1_
     %12 = openfhe.mod_reduce %arg0, %11 : (!openfhe.crypto_context, !rlwe_ct_L1_1) -> !rlwe_ct_L0_
     return %12 : !rlwe_ct_L0_
   }

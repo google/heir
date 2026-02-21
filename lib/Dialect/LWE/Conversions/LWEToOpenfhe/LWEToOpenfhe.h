@@ -95,9 +95,26 @@ struct ConvertRotateOp : public OpConversionPattern<RotateOp> {
     if (failed(result)) return result;
 
     Value cryptoContext = result.value();
-    rewriter.replaceOp(
-        op, OpenfheOp::create(rewriter, op.getLoc(), cryptoContext,
-                              adaptor.getInput(), adaptor.getOffset()));
+    // Pass the dynamic_shift as an SSA value if available, otherwise use the
+    // static_shift attribute (static case for backward compatibility)
+    Value dynamicShift = adaptor.getDynamicShift();
+    IntegerAttr staticShift = op.getStaticShiftAttr();
+    if (!staticShift && !dynamicShift) {
+      return rewriter.notifyMatchFailure(
+          op, "rotate op must have either static or dynamic shift");
+    }
+
+    if (dynamicShift) {
+      rewriter.replaceOp(op,
+                         OpenfheOp::create(rewriter, op.getLoc(), cryptoContext,
+                                           adaptor.getInput(), dynamicShift,
+                                           /*index=*/nullptr));
+    } else {
+      rewriter.replaceOp(
+          op, OpenfheOp::create(rewriter, op.getLoc(), cryptoContext,
+                                adaptor.getInput(), /*dynamic_shift=*/nullptr,
+                                staticShift));
+    }
     return success();
   }
 };

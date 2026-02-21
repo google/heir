@@ -98,7 +98,8 @@ def CKKS_RotateOp : CKKS_Op<"rotate", [ElementwiseMappable, AllTypesMatch<["inpu
 
   let arguments = (ins
     LWECiphertextLike:$input,
-    Builtin_IntegerAttr:$offset
+    Optional<SignlessIntegerOrIndexLike>:$dynamic_shift,
+    OptionalAttr<Builtin_IntegerAttr>:$static_shift
   );
 
   let results = (outs
@@ -106,7 +107,7 @@ def CKKS_RotateOp : CKKS_Op<"rotate", [ElementwiseMappable, AllTypesMatch<["inpu
   );
 
   let hasVerifier = 1;
-  let assemblyFormat = "operands attr-dict `:` qualified(type($input))" ;
+  let assemblyFormat = "$input (`,` $dynamic_shift^ `:` type($dynamic_shift))? attr-dict `:` qualified(type($input))" ;
 }
 
 def CKKS_NegateOp : CKKS_Op<"negate", [ElementwiseMappable, SameOperandsAndResultType, Involution]> {

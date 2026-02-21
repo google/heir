@@ -101,17 +101,17 @@ module attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_param<logN =
     %pt = lwe.rlwe_encode %extracted_slice_16 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
     %from_elements = tensor.from_elements %pt : tensor<1x!pt>
     %14 = ckks.mul_plain %from_elements, %arg0 : (tensor<1x!pt>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
-    %15 = ckks.rotate %arg0 {offset = 1 : index} : tensor<1x!ct_L1>
+    %15 = ckks.rotate %arg0 {static_shift = 1 : index} : tensor<1x!ct_L1>
     %extracted_slice_17 = tensor.extract_slice %extracted_slice_1[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
     %pt_18 = lwe.rlwe_encode %extracted_slice_17 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
     %from_elements_19 = tensor.from_elements %pt_18 : tensor<1x!pt>
     %16 = ckks.mul_plain %from_elements_19, %15 : (tensor<1x!pt>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
-    %17 = ckks.rotate %arg0 {offset = 2 : index} : tensor<1x!ct_L1>
+    %17 = ckks.rotate %arg0 {static_shift = 2 : index} : tensor<1x!ct_L1>
     %extracted_slice_20 = tensor.extract_slice %extracted_slice_2[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
     %pt_21 = lwe.rlwe_encode %extracted_slice_20 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
     %from_elements_22 = tensor.from_elements %pt_21 : tensor<1x!pt>
     %18 = ckks.mul_plain %from_elements_22, %17 : (tensor<1x!pt>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
-    %19 = ckks.rotate %arg0 {offset = 3 : index} : tensor<1x!ct_L1>
+    %19 = ckks.rotate %arg0 {static_shift = 3 : index} : tensor<1x!ct_L1>
     %extracted_slice_23 = tensor.extract_slice %extracted_slice_3[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
     %pt_24 = lwe.rlwe_encode %extracted_slice_23 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
     %from_elements_25 = tensor.from_elements %pt_24 : tensor<1x!pt>
@@ -135,7 +135,7 @@ module attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_param<logN =
     %25 = ckks.add %21, %22 : (tensor<1x!ct_L1>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %26 = ckks.add %23, %24 : (tensor<1x!ct_L1>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %27 = ckks.add %25, %26 : (tensor<1x!ct_L1>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
-    %28 = ckks.rotate %27 {offset = 4 : index} : tensor<1x!ct_L1>
+    %28 = ckks.rotate %27 {static_shift = 4 : index} : tensor<1x!ct_L1>
     %extracted_slice_38 = tensor.extract_slice %6[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
     %pt_39 = lwe.rlwe_encode %extracted_slice_38 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
     %from_elements_40 = tensor.from_elements %pt_39 : tensor<1x!pt>
@@ -155,7 +155,7 @@ module attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_param<logN =
     %33 = ckks.add %29, %30 : (tensor<1x!ct_L1>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %34 = ckks.add %31, %32 : (tensor<1x!ct_L1>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %35 = ckks.add %33, %34 : (tensor<1x!ct_L1>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
-    %36 = ckks.rotate %35 {offset = 8 : index} : tensor<1x!ct_L1>
+    %36 = ckks.rotate %35 {static_shift = 8 : index} : tensor<1x!ct_L1>
     %extracted_slice_50 = tensor.extract_slice %10[0, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
     %pt_51 = lwe.rlwe_encode %extracted_slice_50 {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf32> -> !pt
     %from_elements_52 = tensor.from_elements %pt_51 : tensor<1x!pt>
@@ -175,7 +175,7 @@ module attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_param<logN =
     %41 = ckks.add %37, %38 : (tensor<1x!ct_L1>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %42 = ckks.add %39, %40 : (tensor<1x!ct_L1>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %43 = ckks.add %41, %42 : (tensor<1x!ct_L1>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
-    %44 = ckks.rotate %43 {offset = 12 : index} : tensor<1x!ct_L1>
+    %44 = ckks.rotate %43 {static_shift = 12 : index} : tensor<1x!ct_L1>
     %45 = ckks.add %14, %16 : (tensor<1x!ct_L1>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %46 = ckks.add %18, %20 : (tensor<1x!ct_L1>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>
     %47 = ckks.add %45, %46 : (tensor<1x!ct_L1>, tensor<1x!ct_L1>) -> tensor<1x!ct_L1>

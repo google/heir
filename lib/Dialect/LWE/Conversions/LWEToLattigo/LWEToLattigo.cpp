@@ -405,11 +405,30 @@ struct ConvertRlweRotateOp : public OpConversionPattern<RlweRotateOp> {
                                          "Failed to get contextual evaluator");
 
     Value evaluator = result.value();
-    rewriter.replaceOp(
-        op, LattigoRotateOp::create(
-                rewriter, op.getLoc(),
-                this->typeConverter->convertType(op.getOutput().getType()),
-                evaluator, adaptor.getInput(), adaptor.getOffset()));
+    // Use dynamic_shift SSA value if available, otherwise fall back to
+    // static_shift attribute (static case for backward compatibility)
+    Value dynamicShift = adaptor.getDynamicShift();
+    IntegerAttr staticShift = op.getStaticShiftAttr();
+    if (!staticShift && !dynamicShift) {
+      return rewriter.notifyMatchFailure(
+          op, "rotate op must have either static or dynamic shift");
+    }
+
+    if (dynamicShift) {
+      rewriter.replaceOp(
+          op, LattigoRotateOp::create(
+                  rewriter, op.getLoc(),
+                  this->typeConverter->convertType(op.getOutput().getType()),
+                  evaluator, adaptor.getInput(), dynamicShift,
+                  /*static_shift=*/nullptr));
+    } else {
+      rewriter.replaceOp(
+          op, LattigoRotateOp::create(
+                  rewriter, op.getLoc(),
+                  this->typeConverter->convertType(op.getOutput().getType()),
+                  evaluator, adaptor.getInput(), /*dynamic_shift=*/nullptr,
+                  staticShift));
+    }
     return success();
   }
 };

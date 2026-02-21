@@ -36,6 +36,16 @@
 
 // CHECK: module
 module {
+  // CHECK: @test_rotate_cols_dynamic
+  // CHECK-SAME: (%[[arg0:.*]]: !lwe
+  func.func @test_rotate_cols_dynamic(%arg0: !ct) -> !ct {
+    // CHECK: %[[c4:.*]] = arith.constant 4 : i32
+    %c4 = arith.constant 4 : i32
+    // CHECK: bgv.rotate_cols %[[arg0]], %[[c4]] : i32 : !lwe
+    %rot = bgv.rotate_cols %arg0, %c4 : i32 : !ct
+    return %rot : !ct
+  }
+
   // CHECK: @test_multiply
   func.func @test_multiply(%arg0 : !ct, %arg1: !ct) -> !ct {
     %add = bgv.add %arg0, %arg1 : (!ct, !ct) -> !ct

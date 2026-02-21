@@ -24,6 +24,7 @@
 #include "llvm/include/llvm/Support/raw_ostream.h"         // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
@@ -108,7 +109,17 @@ struct ConfigureCryptoContext
     std::set<int64_t> distinctRotIndices;
     walkFuncAndCallees(op, [&](Operation* op) {
       if (auto rotOp = dyn_cast<openfhe::RotOp>(op)) {
-        distinctRotIndices.insert(rotOp.getIndex().getInt());
+        if (rotOp.getStaticShift().has_value()) {
+          distinctRotIndices.insert(rotOp.getStaticShift()->getInt());
+        } else if (rotOp.getDynamicShift()) {
+          // Try to extract constant from dynamic_shift SSA value
+          if (auto constOp =
+                  rotOp.getDynamicShift().getDefiningOp<arith::ConstantOp>()) {
+            if (auto intAttr = dyn_cast<IntegerAttr>(constOp.getValue())) {
+              distinctRotIndices.insert(intAttr.getInt());
+            }
+          }
+        }
       }
       return WalkResult::advance();
     });

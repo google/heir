@@ -13,7 +13,7 @@ module attributes {scheme.ckks} {
   // CHECK: return [[ct1]];
   func.func @test_affine_for(%cc: !openfhe.crypto_context, %ct: !ct) -> !ct {
     %1 = affine.for %arg0 = 1 to 2 iter_args(%arg1 = %ct) -> (!ct) {
-      %ct_12 = openfhe.rot %cc, %arg1 {index = 1 : index} : (!openfhe.crypto_context, !ct) -> !ct
+      %ct_12 = openfhe.rot %cc, %arg1 {static_shift = 1 : index} : (!openfhe.crypto_context, !ct) -> !ct
       affine.yield %ct_12 : !ct
     }
     return %1 : !ct

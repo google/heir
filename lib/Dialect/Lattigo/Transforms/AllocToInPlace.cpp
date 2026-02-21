@@ -109,12 +109,25 @@ struct ConvertRotateOp : public OpRewritePattern<RotateOp> {
       return rewriter.notifyMatchFailure(op, "no available storage found");
     }
 
-    // InPlaceOp has the form: output = InPlaceOp(evaluator, lhs, inplace)
-    // {offset} where inplace is the actual output but for SSA form we need to
-    // return a new value
-    auto inplaceOp = InPlaceOp::create(
-        rewriter, op.getLoc(), op.getOperand(1).getType(), op.getOperand(0),
-        op.getOperand(1), storage, op.getOffset());
+    // InPlaceOp has the form: output = InPlaceOp(evaluator, input, inplace,
+    // dynamic_shift?, static_shift?) where inplace is the actual output but for
+    // SSA form we need to return a new value. Handle both dynamic_shift SSA
+    // value and static_shift attribute.
+    Value dynamicShift = op.getDynamicShift();
+    IntegerAttr staticShift = op.getStaticShiftAttr();
+    if (!staticShift && !dynamicShift) {
+      return rewriter.notifyMatchFailure(
+          op, "rotate op must have either static or dynamic shift");
+    }
+    auto inplaceOp =
+        staticShift
+            ? InPlaceOp::create(rewriter, op.getLoc(), op.getInput().getType(),
+                                op.getEvaluator(), op.getInput(), storage,
+                                /*dynamic_shift=*/nullptr, staticShift)
+            : InPlaceOp::create(rewriter, op.getLoc(), op.getInput().getType(),
+                                op.getEvaluator(), op.getInput(), storage,
+                                dynamicShift,
+                                /*static_shift=*/nullptr);
 
     // update storage info
     storageInfo.replaceAllocWithInPlace(op, inplaceOp, storage);

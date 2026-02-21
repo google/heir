@@ -1768,8 +1768,18 @@ void Interpreter::visit(LevelReduceOp op) {
 void Interpreter::visit(RotOp op) {
   auto cc = cryptoContexts.at(op.getCryptoContext());
   auto ct = ciphertexts.at(op.getCiphertext());
-  auto index = op.getIndex().getValue().getSExtValue();
-  TIME_OPERATION("Rot", op.getOutput(), cc->EvalRotate(ct, index));
+  IntegerAttr staticShift = op.getStaticShiftAttr();
+  Value dynamicShift = op.getDynamicShift();
+
+  if (staticShift) {
+    TIME_OPERATION("Rot", op.getOutput(),
+                   cc->EvalRotate(ct, staticShift.getValue().getSExtValue()));
+  } else if (dynamicShift) {
+    TIME_OPERATION("Rot", op.getOutput(),
+                   cc->EvalRotate(ct, intValues.at(dynamicShift)));
+  } else {
+    op.emitError("RotOp requires either static or dynamic shift");
+  }
 }
 
 void Interpreter::visit(AutomorphOp op) {

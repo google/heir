@@ -21,7 +21,7 @@
 module attributes {scheme.ckks, ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [536903681, 67043329, 66994177, 67239937, 66961409, 66813953], P = [67108864], logDefaultScale = 26>} {
   func.func @linear_transform(%ct: !ct_L5, %arg0: tensor<2x4096xf64>) -> !ct_L5 {
     %ct_0 = orion.linear_transform %ct, %arg0 {block_col = 0 : i32, block_row = 0 : i32, bsgs_ratio = 2.000000e+00 : f64, diagonal_count = 2 : i32, orion_level = 5 : i32, slots = 4096 : i32, diagonal_indices = array<i32: 0, 1>} : (!ct_L5, tensor<2x4096xf64>) -> !ct_L5
-    %ct_1 = ckks.rotate %ct_0 {offset = 2048 : i32} : !ct_L5
+    %ct_1 = ckks.rotate %ct_0 {static_shift = 2048 : i32} : !ct_L5
     %ct_2 = ckks.add %ct_1, %ct_0 : (!ct_L5, !ct_L5) -> !ct_L5
     return %ct_2 : !ct_L5
   }

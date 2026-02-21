@@ -19,7 +19,7 @@
 
 func.func @test_input_dimension_error(%input: !ct) {
   // expected-error@+1 {{x.dim == 2 does not hold}}
-  %out = ckks.rotate  %input { offset = 4 }  : !ct
+  %out = ckks.rotate  %input { static_shift = 4 }  : !ct
   return
 }
 
