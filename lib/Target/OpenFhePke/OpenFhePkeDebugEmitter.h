@@ -7,37 +7,32 @@
 #include <string_view>
 #include <vector>
 
-
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Target/OpenFhePke/OpenFheUtils.h"
-#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/Location.h"               // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
-#include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
-#include "mlir/include/mlir/Support/IndentedOstream.h"   // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Location.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"            // from @llvm-project
+#include "mlir/include/mlir/Support/IndentedOstream.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
 
 namespace mlir {
 namespace heir {
 namespace openfhe {
 
-/// Translates the given operation to OpenFhePke.
-::mlir::LogicalResult translateToOpenFhePkeDebugEmitter(::mlir::Operation* op,
-                                            llvm::raw_ostream& os,
-                                            OpenfheImportType importType,
-                                            const std::string& debugImportPath);
-
+::mlir::LogicalResult translateToOpenFhePkeDebugEmitter(
+    ::mlir::Operation* op, llvm::raw_ostream& os, OpenfheImportType importType,
+    const std::string& debugImportPath);
 
 class OpenFhePkeDebugEmitter {
  public:
-  OpenFhePkeDebugEmitter(raw_ostream& os,
-                    OpenfheImportType importType, 
-                    const std::string& debugImportPath);
+  OpenFhePkeDebugEmitter(raw_ostream& os, OpenfheImportType importType,
+                         const std::string& debugImportPath);
 
   LogicalResult translate(::mlir::Operation& operation);
 
@@ -57,7 +52,6 @@ class OpenFhePkeDebugEmitter {
   std::string debugImportPath;
 
   bool isEmitted;
-
 };
 
 }  // namespace openfhe

@@ -256,7 +256,6 @@ class OpenFHEBackend(BackendInterface):
         input=heir_opt_output,
         options=pybind_options,
     )
-    
 
     cpp_compiler_backend = cpp_compiler.CppCompilerBackend()
     so_filepath = Path(workspace_dir) / f"{func_name}.so"

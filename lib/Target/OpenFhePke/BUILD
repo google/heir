@@ -17,11 +17,11 @@ cc_library(
         "OpenFheTranslateRegistration.h",
     ],
     deps = [
+        ":OpenFhePkeDebugEmitter",
+        ":OpenFhePkeDebugHeaderEmitter",
         ":OpenFhePkeEmitter",
         ":OpenFhePkeHeaderEmitter",
         ":OpenFhePkePybindEmitter",
-        ":OpenFhePkeDebugHeaderEmitter",
-        ":OpenFhePkeDebugEmitter",
         ":OpenFheUtils",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
@@ -186,7 +186,6 @@ cc_library(
         "@llvm-project//mlir:Support",
     ],
 )
-
 
 cc_test(
     name = "InterpreterTest",

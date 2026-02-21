@@ -3,8 +3,8 @@
 #include <string>
 
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
-#include "lib/Target/OpenFhePke/OpenFhePkeTemplates.h"
 #include "lib/Dialect/ModuleAttributes.h"
+#include "lib/Target/OpenFhePke/OpenFhePkeTemplates.h"
 #include "lib/Target/OpenFhePke/OpenFheUtils.h"
 #include "lib/Utils/TargetUtils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
@@ -23,10 +23,8 @@ namespace mlir {
 namespace heir {
 namespace openfhe {
 
-LogicalResult translateToOpenFhePkeDebugHeaderEmitter(Operation* op, 
-    llvm::raw_ostream& os, 
-    OpenfheImportType importType) {
-    
+LogicalResult translateToOpenFhePkeDebugHeaderEmitter(
+    Operation* op, llvm::raw_ostream& os, OpenfheImportType importType) {
   OpenFhePkeDebugHeaderEmitter emitter(os, importType);
   return emitter.translate(*op);
 }
@@ -71,24 +69,21 @@ LogicalResult OpenFhePkeDebugHeaderEmitter::printOperation(ModuleOp moduleOp) {
   return success();
 }
 
-LogicalResult OpenFhePkeDebugHeaderEmitter::printOperation(func::FuncOp funcOp) {
-
-  if ( (!isDebugPort(funcOp.getName())) ||
-    (isEmitted)
-    ) {
+LogicalResult OpenFhePkeDebugHeaderEmitter::printOperation(
+    func::FuncOp funcOp) {
+  if ((!isDebugPort(funcOp.getName())) || (isEmitted)) {
     return success();
   }
-  
+
   auto res = emitDebugHelperSignature(
-    funcOp, os,
-    [&](Location loc, const std::string& message) {
+      funcOp, os, [&](Location loc, const std::string& message) {
         return emitError(loc, message);
-    });
+      });
 
   if (failed(res)) {
     return res;
   }
-  
+
   os << ";\n";
   os.unindent();
   isEmitted = true;
@@ -96,11 +91,8 @@ LogicalResult OpenFhePkeDebugHeaderEmitter::printOperation(func::FuncOp funcOp) 
 }
 
 OpenFhePkeDebugHeaderEmitter::OpenFhePkeDebugHeaderEmitter(
-    raw_ostream& os,
-    OpenfheImportType importType)
-    : importType_(importType),
-      os(os),
-      isEmitted(false) {}
+    raw_ostream& os, OpenfheImportType importType)
+    : importType_(importType), os(os), isEmitted(false) {}
 
 }  // namespace openfhe
 }  // namespace heir

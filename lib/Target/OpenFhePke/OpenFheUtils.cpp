@@ -188,32 +188,36 @@ LogicalResult funcDeclarationHelper(::mlir::func::FuncOp funcOp,
   return success();
 }
 
-LogicalResult emitDebugHelperSignature(::mlir::func::FuncOp funcOp, 
-                                      ::mlir::raw_indented_ostream& os,
-                                      ErrorEmitterFn emitError) {
-  
+LogicalResult emitDebugHelperSignature(::mlir::func::FuncOp funcOp,
+                                       ::mlir::raw_indented_ostream& os,
+                                       ErrorEmitterFn emitError) {
   auto argTypes = funcOp.getArgumentTypes();
-  
+
   if (argTypes.size() != 3) {
-    return emitError(funcOp.getLoc(),
-                     llvm::formatv("Unexpected debug port signature: expected 3 args, got {0}",
-                                  argTypes.size()));
+    return emitError(
+        funcOp.getLoc(),
+        llvm::formatv(
+            "Unexpected debug port signature: expected 3 args, got {0}",
+            argTypes.size()));
   }
 
   auto ccTy = convertType(argTypes[0], funcOp.getLoc());
   if (failed(ccTy))
-    return emitError(funcOp.getLoc(),
-                     llvm::formatv("Failed to emit type for arg0: {0}", argTypes[0]));
-  
+    return emitError(
+        funcOp.getLoc(),
+        llvm::formatv("Failed to emit type for arg0: {0}", argTypes[0]));
+
   auto skTy = convertType(argTypes[1], funcOp.getLoc());
   if (failed(skTy))
-    return emitError(funcOp.getLoc(),
-                     llvm::formatv("Failed to emit type for arg1: {0}", argTypes[1]));
-  
+    return emitError(
+        funcOp.getLoc(),
+        llvm::formatv("Failed to emit type for arg1: {0}", argTypes[1]));
+
   auto ctTy = convertType(argTypes[2], funcOp.getLoc());
   if (failed(ctTy))
-    return emitError(funcOp.getLoc(),
-                     llvm::formatv("Failed to emit type for arg2: {0}", argTypes[2]));
+    return emitError(
+        funcOp.getLoc(),
+        llvm::formatv("Failed to emit type for arg2: {0}", argTypes[2]));
 
   os << "void";
   os << " " << canonicalizeDebugPort(funcOp.getName()) << "(";
@@ -222,7 +226,7 @@ LogicalResult emitDebugHelperSignature(::mlir::func::FuncOp funcOp,
   os << skTy.value() << " " << kPrivKeyTVar << ", ";
   os << ctTy.value() << " " << kCiphertxtVar << ", ";
   os << "const std::map<std::string, std::string>&";
-  os << " " << kDebugAttrMapParam; 
+  os << " " << kDebugAttrMapParam;
   os << ")";
   return success();
 }

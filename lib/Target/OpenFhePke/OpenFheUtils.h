@@ -4,13 +4,13 @@
 #include <string>
 
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
+#include "llvm/include/llvm/ADT/StringRef.h"            // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
 #include "mlir/include/mlir/Support/IndentedOstream.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
-#include "llvm/include/llvm/ADT/StringRef.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -77,11 +77,11 @@ LogicalResult funcDeclarationHelper(::mlir::func::FuncOp funcOp,
                                     SelectVariableNames* variableNames,
                                     TypeEmitterFn emitType,
                                     ErrorEmitterFn emitError);
-                
+
 // Emit the default debug helper function signature
-LogicalResult emitDebugHelperSignature(::mlir::func::FuncOp funcOp, 
-                                      ::mlir::raw_indented_ostream& os,
-                                      ErrorEmitterFn emitError);
+LogicalResult emitDebugHelperSignature(::mlir::func::FuncOp funcOp,
+                                       ::mlir::raw_indented_ostream& os,
+                                       ErrorEmitterFn emitError);
 
 }  // namespace openfhe
 }  // namespace heir

@@ -2,8 +2,8 @@
 
 #include <string>
 
-#include "lib/Target/OpenFhePke/OpenFhePkeTemplates.h"
 #include "lib/Dialect/ModuleAttributes.h"
+#include "lib/Target/OpenFhePke/OpenFhePkeTemplates.h"
 #include "lib/Target/OpenFhePke/OpenFheUtils.h"
 #include "lib/Utils/TargetUtils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
@@ -22,14 +22,12 @@ namespace mlir {
 namespace heir {
 namespace openfhe {
 
-LogicalResult translateToOpenFhePkeDebugEmitter(Operation* op, llvm::raw_ostream& os,
-                                          OpenfheImportType importType,
-                                          const std::string& debugImportPath) {
-  OpenFhePkeDebugEmitter emitter(os, importType,
-                                  debugImportPath);
+LogicalResult translateToOpenFhePkeDebugEmitter(
+    Operation* op, llvm::raw_ostream& os, OpenfheImportType importType,
+    const std::string& debugImportPath) {
+  OpenFhePkeDebugEmitter emitter(os, importType, debugImportPath);
   return emitter.translate(*op);
 }
-
 
 LogicalResult OpenFhePkeDebugEmitter::translate(Operation& op) {
   LogicalResult status =
@@ -76,12 +74,11 @@ LogicalResult OpenFhePkeDebugEmitter::printOperation(ModuleOp moduleOp) {
   return success();
 }
 
-LogicalResult OpenFhePkeDebugEmitter::emitDebugHelperImpl(){
+LogicalResult OpenFhePkeDebugEmitter::emitDebugHelperImpl() {
   os << "auto " << kIsBlockArgVar << " = " << kDebugAttrMapParam
-  << ".at(\"asm.is_block_arg\");\n";
+     << ".at(\"asm.is_block_arg\");\n";
 
-  os << llvm::formatv("if ({0} == \"1\") {{\n",
-        kIsBlockArgVar);
+  os << llvm::formatv("if ({0} == \"1\") {{\n", kIsBlockArgVar);
   os.indent();
   os << "std::cout << \"Input\" << std::endl;\n";
   os.unindent();
@@ -95,8 +92,8 @@ LogicalResult OpenFhePkeDebugEmitter::emitDebugHelperImpl(){
   os << "\n";
 
   os << "PlaintextT " << kPlaintxtVar << ";\n";
-  os << kCctxtVar << "->Decrypt(" << kPrivKeyTVar << ", " << kCiphertxtVar << ", &"
-     << kPlaintxtVar << ");\n";
+  os << kCctxtVar << "->Decrypt(" << kPrivKeyTVar << ", " << kCiphertxtVar
+     << ", &" << kPlaintxtVar << ");\n";
   os << kPlaintxtVar << "->SetLength(std::stod(" << kDebugAttrMapParam
      << ".at(\"message.size\")));\n";
   os << "std::cout << \"  \" << " << kPlaintxtVar << " << std::endl;\n";
@@ -104,15 +101,14 @@ LogicalResult OpenFhePkeDebugEmitter::emitDebugHelperImpl(){
 }
 
 LogicalResult OpenFhePkeDebugEmitter::printOperation(func::FuncOp funcOp) {
-  if ((!isDebugPort(funcOp.getName())) || isEmitted){
+  if ((!isDebugPort(funcOp.getName())) || isEmitted) {
     return success();
   }
-  
+
   auto res = emitDebugHelperSignature(
-    funcOp, os,
-    [&](Location loc, const std::string& message) {
+      funcOp, os, [&](Location loc, const std::string& message) {
         return emitError(loc, message);
-    });
+      });
 
   if (failed(res)) {
     return res;
@@ -132,7 +128,7 @@ LogicalResult OpenFhePkeDebugEmitter::printOperation(func::FuncOp funcOp) {
 
 OpenFhePkeDebugEmitter::OpenFhePkeDebugEmitter(
     raw_ostream& os, OpenfheImportType importType,
-     const std::string& debugImportPath)
+    const std::string& debugImportPath)
     : importType_(importType),
       os(os),
       debugImportPath(debugImportPath),

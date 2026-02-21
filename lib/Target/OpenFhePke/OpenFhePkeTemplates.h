@@ -117,7 +117,6 @@ PYBIND11_MODULE({0}, m) {{
 constexpr std::string_view kPybindFunctionTemplate =
     "m.def(\"{0}\", &{0}, py::call_guard<py::gil_scoped_release>());";
 
-
 // clang-format off
 constexpr std::string_view KdebugHeaderImports = R"cpp(
 #include <map>

@@ -17,25 +17,21 @@
 namespace mlir {
 namespace heir {
 namespace openfhe {
- 
 
 ::mlir::LogicalResult translateToOpenFhePkeDebugHeaderEmitter(
-    ::mlir::Operation* op, 
-    llvm::raw_ostream& os, 
-    OpenfheImportType importType);
+    ::mlir::Operation* op, llvm::raw_ostream& os, OpenfheImportType importType);
 
 /// For each function in the mlir module, emits a function header declaration
 /// along with any necessary includes.
-class OpenFhePkeDebugHeaderEmitter{
+class OpenFhePkeDebugHeaderEmitter {
  public:
-  OpenFhePkeDebugHeaderEmitter(raw_ostream& os,
-                    OpenfheImportType importType);
+  OpenFhePkeDebugHeaderEmitter(raw_ostream& os, OpenfheImportType importType);
 
   LogicalResult translate(::mlir::Operation& operation);
-  
- private:                    
+
+ private:
   OpenfheImportType importType_;
-  
+
   /// Output stream to emit to.
   raw_indented_ostream os;
 
@@ -44,9 +40,8 @@ class OpenFhePkeDebugHeaderEmitter{
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);
   LogicalResult printOperation(::mlir::func::FuncOp op);
-
 };
-  
+
 }  // namespace openfhe
 }  // namespace heir
 }  // namespace mlir
