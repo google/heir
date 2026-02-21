@@ -12,6 +12,7 @@
 #include "lib/Utils/Polynomial/Horner.h"
 #include "lib/Utils/Polynomial/PatersonStockmeyer.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
+#include "lib/Utils/Polynomial/PolynomialTestVisitors.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/SmallVectorExtras.h"     // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
@@ -27,7 +28,6 @@
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
-
 #define DEBUG_TYPE "lower-polynomial-eval"
 
 namespace mlir {
@@ -157,11 +157,29 @@ LogicalResult LowerViaPatersonStockmeyerChebyshev::matchAndRewrite(
   }
   SSAValue xNode(xInput);
 
-  auto resultNode = polynomial::patersonStockmeyerChebyshevPolynomialEvaluation(
-      xNode, chebCoeffs, getMinCoefficientThreshold());
+  FloatPolynomial monomialPoly = polynomial::ChebyshevPolynomial(chebCoeffs).toStandardBasis();
+  std::map<int64_t, double> monomialCoeffs;
+  for (const auto& term : monomialPoly.getTerms()) {
+    int64_t degree = term.getExponent().getZExtValue();
+    double coeff = term.getCoefficient().convertToDouble();
+    monomialCoeffs[degree] = coeff;
+  }
+  auto chebDag =
+    polynomial::patersonStockmeyerChebyshevPolynomialEvaluation(
+          xNode, chebCoeffs, getMinCoefficientThreshold());
+  auto xDag = kernel::ArithmeticDagNode<kernel::SSAValue>::leaf(xInput);
+  auto monoDag =
+    polynomial::hornerMonomialPolynomialEvaluation(
+        xDag, monomialCoeffs);
+  polynomial::test::MultiplicativeDepthVisitorImpl<kernel::SSAValue> depthVisitor;
+
+  double chebDepth = depthVisitor.process(chebDag);
+  double monoDepth = depthVisitor.process(monoDag);
+
+  bool useMonomial = chebDepth > monoDepth;
 
   IRMaterializingVisitor visitor(b, op.getValue().getType());
-  Value finalOutput = resultNode->visit(visitor);
+  Value finalOutput = (useMonomial ? monoDag.get()->visit(visitor) : chebDag.get()->visit(visitor));
 
   rewriter.replaceOp(op, finalOutput);
   return success();
