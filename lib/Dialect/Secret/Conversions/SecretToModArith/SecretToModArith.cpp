@@ -46,6 +46,27 @@ bool isModArithOrContainerOfModArith(Type type) {
   return isa<mod_arith::ModArithType>(getElementTypeOrSelf(type));
 }
 
+static void replaceWithYieldingResults(ConversionPatternRewriter& rewriter,
+                                       secret::GenericOp op,
+                                       ValueRange adaptorInputs,
+                                       Operation* newOp) {
+  auto yieldOp = cast<secret::YieldOp>(op.getBody()->getTerminator());
+  Operation* innerOp = &op.getBody()->getOperations().front();
+  SmallVector<Value> replacements;
+  for (Value yieldOperand : yieldOp.getOperands()) {
+    if (auto blockArg = dyn_cast<BlockArgument>(yieldOperand)) {
+      replacements.push_back(adaptorInputs[blockArg.getArgNumber()]);
+    } else if (yieldOperand.getDefiningOp() == innerOp) {
+      auto result = cast<OpResult>(yieldOperand);
+      replacements.push_back(newOp->getResult(result.getResultNumber()));
+    } else {
+      // Value from outside the generic
+      replacements.push_back(yieldOperand);
+    }
+  }
+  rewriter.replaceOp(op, replacements);
+}
+
 class SecretToModArithTypeConverter : public TypeConverter {
  public:
   SecretToModArithTypeConverter(MLIRContext* ctx, int64_t ptm)
@@ -130,15 +151,23 @@ class SecretGenericOpConversion
     }
 
     SmallVector<Type> resultTypes;
-    if (failed(
-            getTypeConverter()->convertTypes(op.getResultTypes(), resultTypes)))
-      return rewriter.notifyMatchFailure(op, "failed to convert result types");
+    for (Type t : innerOp.getResultTypes()) {
+      // The type converter doesn't automatically convert result types,
+      // so these need to be manually converted.
+      Type converted =
+          getTypeConverter()->convertType(secret::SecretType::get(t));
+      if (!converted)
+        return rewriter.notifyMatchFailure(op, "failed to convert result type");
+      resultTypes.push_back(converted);
+    }
 
     FailureOr<Operation*> newOpResult =
         matchAndRewriteInner(op, resultTypes, inputs, rewriter);
     if (failed(newOpResult))
       return rewriter.notifyMatchFailure(op,
                                          "failed to rewrite inner operation");
+
+    replaceWithYieldingResults(rewriter, op, adaptor.getInputs(), *newOpResult);
     return success();
   }
 
@@ -147,8 +176,7 @@ class SecretGenericOpConversion
   virtual FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ConversionPatternRewriter& rewriter) const {
-    return rewriter.replaceOpWithNewOp<Y>(op, outputTypes, inputs)
-        .getOperation();
+    return Y::create(rewriter, op.getLoc(), outputTypes, inputs).getOperation();
   }
 };
 
@@ -188,10 +216,16 @@ class ConvertAnyNestedGeneric : public OpConversionPattern<secret::GenericOp> {
     }
 
     SmallVector<Type> resultTypes;
-    if (failed(getTypeConverter()->convertTypes(outerOp.getResultTypes(),
-                                                resultTypes)))
-      return rewriter.notifyMatchFailure(outerOp,
-                                         "failed to convert result types");
+    for (Type t : innerOp->getResultTypes()) {
+      // The type converter doesn't automatically convert result types,
+      // so these need to be manually converted.
+      Type converted =
+          getTypeConverter()->convertType(secret::SecretType::get(t));
+      if (!converted)
+        return rewriter.notifyMatchFailure(outerOp,
+                                           "failed to convert result type");
+      resultTypes.push_back(converted);
+    }
 
     SmallVector<std::unique_ptr<Region>, 1> regions;
     IRMapping mapping;
@@ -207,7 +241,7 @@ class ConvertAnyNestedGeneric : public OpConversionPattern<secret::GenericOp> {
     Operation* newOp = rewriter.create(OperationState(
         outerOp.getLoc(), innerOp->getName().getStringRef(), inputs,
         resultTypes, innerOp->getAttrs(), innerOp->getSuccessors(), regions));
-    rewriter.replaceOp(outerOp, newOp);
+    replaceWithYieldingResults(rewriter, outerOp, adaptor.getInputs(), newOp);
     return success();
   }
 };
@@ -359,13 +393,11 @@ class SecretGenericOpCipherPlainConversion
     Value input1 = inputs[1];
     if (isModArithOrContainerOfModArith(input0.getType())) {
       auto encoded = encodeCleartext(input1, input0.getType(), b);
-      auto newOp = rewriter.replaceOpWithNewOp<Y>(op, input0, encoded);
-      return newOp.getOperation();
+      return Y::create(rewriter, op.getLoc(), input0, encoded).getOperation();
     }
 
     auto encoded = encodeCleartext(input0, input1.getType(), b);
-    auto newOp = rewriter.replaceOpWithNewOp<Y>(op, encoded, input1);
-    return newOp.getOperation();
+    return Y::create(rewriter, op.getLoc(), encoded, input1).getOperation();
   }
 };
 
@@ -424,7 +456,7 @@ class ConvertInsertSlice : public OpConversionPattern<secret::GenericOp> {
     auto newOp = tensor::InsertSliceOp::create(
         b, source, dest, innerOp.getMixedOffsets(), innerOp.getMixedSizes(),
         innerOp.getMixedStrides());
-    rewriter.replaceOp(op, newOp);
+    replaceWithYieldingResults(rewriter, op, adaptor.getInputs(), newOp);
     return success();
   }
 };
@@ -445,15 +477,14 @@ struct ConvertDebugCall : public SecretGenericOpConversion<func::CallOp> {
           op, "debug calls should have a single argument");
     }
 
-    // It's a bit strange: here we're ignoring the type converted operands
+    // it's a bit strange: here we're ignoring the type converted operands
     // because we want to do a reveal and let the reveal pattern handle the
     // type conversion.
     auto revealOp =
         secret::RevealOp::create(rewriter, op.getLoc(), op.getOperands()[0]);
-    auto newCallOp = rewriter.replaceOpWithNewOp<func::CallOp>(
-        op, innerOp.getResultTypes(), innerOp.getCallee(),
-        revealOp.getResult());
-    return newCallOp.getOperation();
+    return func::CallOp::create(rewriter, op.getLoc(), innerOp.getResultTypes(),
+                                innerOp.getCallee(), revealOp.getResult())
+        .getOperation();
   }
 };
 
