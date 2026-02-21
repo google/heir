@@ -351,23 +351,68 @@ FailureOr<std::string> getStringForDenseElementAttr(
   return llvm::join(values, ", ");
 }
 
+bool isConstantOne(OpFoldResult ofr) {
+  auto val = mlir::getConstantIntValue(ofr);
+  return val && *val == 1;
+}
+
 }  // namespace
 
 LogicalResult LattigoEmitter::printOperation(arith::ConstantOp op) {
   auto valueAttr = op.getValue();
   auto type = valueAttr.getType();
+
+  auto typeString = convertType(type);
+  if (failed(typeString)) {
+    return failure();
+  }
+
+  if (auto denseAttr = mlir::dyn_cast<DenseElementsAttr>(valueAttr)) {
+    int64_t numElements = mlir::cast<RankedTensorType>(type).getNumElements();
+    if (denseAttr.isSplat()) {
+      Attribute splatValue = denseAttr.getSplatValue<Attribute>();
+      bool isZero = false;
+      if (auto intAttr = mlir::dyn_cast<IntegerAttr>(splatValue)) {
+        isZero = intAttr.getValue().isZero();
+      } else if (auto floatAttr = mlir::dyn_cast<FloatAttr>(splatValue)) {
+        isZero = floatAttr.getValue().isZero();
+      }
+
+      if (isZero) {
+        os << getName(op.getResult()) << " := make(" << *typeString << ", "
+           << numElements << ")\n";
+        return success();
+      }
+
+      if (numElements > 8) {
+        imports.insert(std::string(kSlicesImport));
+        auto eltTypeString =
+            convertType(mlir::cast<RankedTensorType>(type).getElementType());
+        if (failed(eltTypeString)) return failure();
+
+        std::string valStr;
+        if (auto intAttr = mlir::dyn_cast<IntegerAttr>(splatValue)) {
+          valStr = getStringForConstant(intAttr.getValue()).value();
+        } else if (auto floatAttr = mlir::dyn_cast<FloatAttr>(splatValue)) {
+          valStr = getStringForConstant(floatAttr.getValue()).value();
+        }
+
+        os << getName(op.getResult()) << " := slices.Repeat([]"
+           << *eltTypeString << "{" << valStr << "}, " << numElements << ")\n";
+        return success();
+      }
+    }
+  }
+
   // GO use () for scalar: int64()
   std::string left = "(";
   std::string right = ")";
-  if (isa<RankedTensorType>(type)) {
+  if (mlir::isa<RankedTensorType>(type)) {
     // GO use {} for slice: []int64{}
     left = "{";
     right = "}";
   }
-  auto typeString = convertType(valueAttr.getType());
-  if (failed(typeString)) {
-    return failure();
-  }
+
   std::string valueString;
   valueString = *typeString + left;
   auto res =
@@ -741,8 +786,8 @@ LogicalResult LattigoEmitter::printOperation(tensor::ConcatOp op) {
 LogicalResult LattigoEmitter::printOperation(tensor::EmptyOp op) {
   // Tensors are flattened into 1D slices.
   ShapedType resultType = op.getResult().getType();
-  os << getName(op.getResult()) << " := make([]"
-     << convertType(resultType.getElementType()) << ", "
+  auto typeStr = convertType(resultType.getElementType());
+  os << getName(op.getResult()) << " := make([]" << typeStr.value() << ", "
      << resultType.getNumElements() << ")\n";
   return success();
 }
@@ -757,32 +802,62 @@ LogicalResult LattigoEmitter::printOperation(tensor::ExtractOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(tensor::ExtractSliceOp op) {
-  // Not sure if golang has a strided slice operation like python,
-  // so do it as a loop
   RankedTensorType resultType = op.getResult().getType();
   RankedTensorType sourceType = op.getSource().getType();
+
+  std::string resultName = getName(op.getResult(), /*force=*/true);
+  std::string sourceName = getName(op.getSource());
+
+  auto getOffsetAsString = [&](OpFoldResult offset) -> std::string {
+    if (auto attr = mlir::dyn_cast_or_null<Attribute>(offset)) {
+      return std::to_string(
+          mlir::cast<IntegerAttr>(attr).getValue().getSExtValue());
+    }
+    return getName(mlir::cast<Value>(offset));
+  };
+
+  if (llvm::all_of(op.getMixedStrides(), isConstantOne)) {
+    bool contiguous = false;
+    if (llvm::all_of(ArrayRef<OpFoldResult>(op.getMixedSizes()).drop_back(),
+                     isConstantOne)) {
+      contiguous = true;
+    } else {
+      contiguous = true;
+      for (size_t i = 1; i < sourceType.getRank(); ++i) {
+        auto size = getConstantIntValue(op.getMixedSizes()[i]);
+        if (!size || *size != sourceType.getShape()[i]) {
+          contiguous = false;
+          break;
+        }
+      }
+    }
+
+    if (contiguous) {
+      SmallVector<std::string> offsetStrings;
+      for (auto o : op.getMixedOffsets()) {
+        offsetStrings.push_back(getOffsetAsString(o));
+      }
+      std::string startStr =
+          flattenIndexExpression(sourceType.getShape(), offsetStrings);
+      int64_t numElements = resultType.getNumElements();
+      os << resultName << " := " << sourceName << "[" << startStr << " : "
+         << startStr << " + " << numElements << "]\n";
+      return success();
+    }
+  }
 
   // make an array to store the output
   //
   //   v := [num_elements]int32{}
   //
-  std::string resultName = getName(op.getResult(), /*force=*/true);
-  std::string sourceName = getName(op.getSource());
   std::string tmpName = resultName + "_array";
+  auto eltTypeStr = convertType(resultType.getElementType());
   os << tmpName << " := [" << resultType.getNumElements() << "]"
-     << convertType(resultType.getElementType()) << "{}\n";
+     << eltTypeStr.value() << "{}\n";
 
   SmallVector<OpFoldResult> offsets = op.getMixedOffsets();
   ArrayRef<int64_t> sizes = op.getStaticSizes();
   ArrayRef<int64_t> strides = op.getStaticStrides();
-
-  auto getOffsetAsString = [&](OpFoldResult offset) -> std::string {
-    if (auto intAttr = offset.dyn_cast<Attribute>()) {
-      return std::to_string(
-          cast<IntegerAttr>(intAttr).getValue().getSExtValue());
-    }
-    return getName(cast<Value>(offset));
-  };
 
   InductionVarNameFn nameFn = [&](int i) {
     return getName(op.getResult()) + "_i" + std::to_string(i);
@@ -818,9 +893,9 @@ std::string LattigoEmitter::emitCopySlice(Value source, Value result,
   const std::string sourceName = getName(source);
   std::string resultName = getName(result, /*force=*/true);
   std::string assign = shouldDeclare ? ":=" : "=";
-  os << resultName << " " << assign << " append(make("
-     << convertType(result.getType()) << ", 0, len(" << sourceName << ")), "
-     << sourceName << "...)\n";
+  auto typeStr = convertType(result.getType());
+  os << resultName << " " << assign << " append(make(" << typeStr.value()
+     << ", 0, len(" << sourceName << ")), " << sourceName << "...)\n";
   return resultName;
 }
 
@@ -858,16 +933,41 @@ LogicalResult LattigoEmitter::printOperation(tensor::InsertSliceOp op) {
   const std::string destName = emitCopySlice(op.getDest(), op.getResult());
   const std::string sourceName = getName(op.getSource());
 
-  // If we have a 1D source and target tensor, and the strides are 1,
-  // we can use std::copy
-  //
-  // copy(dest[offset:], source);
-  if (resultType.getRank() == 1 && op.getSourceType().getRank() == 1 &&
-      llvm::all_of(op.getStaticStrides(),
-                   [](int64_t stride) { return stride == 1; })) {
-    os << "copy(" << destName << "[" << op.getStaticOffsets()[0] << ":], "
-       << sourceName << ")\n";
-    return success();
+  auto getOffsetAsString = [&](OpFoldResult offset) -> std::string {
+    if (auto attr = mlir::dyn_cast_or_null<Attribute>(offset)) {
+      return std::to_string(
+          mlir::cast<IntegerAttr>(attr).getValue().getSExtValue());
+    }
+    return getName(mlir::cast<Value>(offset));
+  };
+
+  if (llvm::all_of(op.getMixedStrides(), isConstantOne)) {
+    bool contiguous = false;
+    if (llvm::all_of(ArrayRef<OpFoldResult>(op.getMixedSizes()).drop_back(),
+                     isConstantOne)) {
+      contiguous = true;
+    } else {
+      contiguous = true;
+      for (size_t i = 1; i < op.getSourceType().getRank(); ++i) {
+        auto size = getConstantIntValue(op.getMixedSizes()[i]);
+        if (!size || *size != op.getSourceType().getShape()[i]) {
+          contiguous = false;
+          break;
+        }
+      }
+    }
+
+    if (contiguous) {
+      SmallVector<std::string> offsetStrings;
+      for (auto o : op.getMixedOffsets()) {
+        offsetStrings.push_back(getOffsetAsString(o));
+      }
+      std::string startStr =
+          flattenIndexExpression(resultType.getShape(), offsetStrings);
+      os << "copy(" << destName << "[" << startStr << ":], " << sourceName
+         << ")\n";
+      return success();
+    }
   }
 
   SmallVector<int64_t> offsets = SmallVector<int64_t>(op.getStaticOffsets());
@@ -888,13 +988,15 @@ LogicalResult LattigoEmitter::printOperation(tensor::InsertSliceOp op) {
     os << "for " << destIndexName << " := " << offsets[nestLevel] << "; "
        << destIndexName << " < "
        << offsets[nestLevel] + sizes[nestLevel] * strides[nestLevel] << "; "
-       << destIndexName << " += " << strides[nestLevel] << ") {\n";
+       << destIndexName << " += " << strides[nestLevel] << " {\n";
     os.indent();
   }
 
   // Now we're in the innermost loop nest, do the assignment
-  os << destName << "[" << llvm::join(destIndexNames, "][")
-     << "] = " << sourceName << "[" << llvm::join(sourceIndexNames, "][")
+  os << destName << "["
+     << flattenIndexExpression(resultType.getShape(), destIndexNames)
+     << "] = " << sourceName << "["
+     << flattenIndexExpression(op.getSourceType().getShape(), sourceIndexNames)
      << "]\n";
 
   // Now unindent and close the loop nest
@@ -908,8 +1010,8 @@ LogicalResult LattigoEmitter::printOperation(tensor::InsertSliceOp op) {
   return success();
 }
 LogicalResult LattigoEmitter::printOperation(tensor::FromElementsOp op) {
-  os << getName(op.getResult()) << " := []"
-     << convertType(getElementTypeOrSelf(op.getResult().getType())) << "{";
+  auto typeStr = convertType(getElementTypeOrSelf(op.getResult().getType()));
+  os << getName(op.getResult()) << " := []" << typeStr.value() << "{";
   os << getCommaSeparatedNames(op.getOperands());
   os << "}\n";
   return success();
@@ -929,8 +1031,8 @@ LogicalResult LattigoEmitter::printOperation(tensor::SplatOp op) {
   //   repeat := slices.Repeat(numbers, 50)
   //
   int tensorSize = resultType.getNumElements();
-  os << tmpVar << " := []" << scalarTypeString << "{" << getName(op.getInput())
-     << "}\n";
+  os << tmpVar << " := []" << scalarTypeString.value() << "{"
+     << getName(op.getInput()) << "}\n";
   os << getName(op.getResult()) << " := slices.Repeat(" << tmpVar << ", "
      << tensorSize << ")\n";
   return success();
@@ -1152,13 +1254,15 @@ LogicalResult LattigoEmitter::printOperation(BGVDecodeOp op) {
 
   // type conversion from value to decoded
   auto convertedName = getName(op.getDecoded()) + "_converted";
-  os << convertedName << " := make(" << convertType(op.getDecoded().getType())
-     << ", len(" << getName(op.getValue()) << "))\n";
+  auto convertedType = convertType(op.getDecoded().getType());
+  os << convertedName << " := make(" << convertedType.value() << ", len("
+     << getName(op.getValue()) << "))\n";
   os << "for i := range " << getName(op.getValue()) << " {\n";
   os.indent();
-  os << convertedName
-     << "[i] = " << convertType(getElementTypeOrSelf(op.getDecoded().getType()))
-     << "(" << valueInt64Name << "[i])\n";
+  auto elementConvertedType =
+      convertType(getElementTypeOrSelf(op.getDecoded().getType()));
+  os << convertedName << "[i] = " << elementConvertedType.value() << "("
+     << valueInt64Name << "[i])\n";
   os.unindent();
   os << "}\n";
   os << getName(op.getDecoded()) << " := " << convertedName << "\n";
@@ -1404,13 +1508,15 @@ LogicalResult LattigoEmitter::printOperation(CKKSDecodeOp op) {
 
   // type conversion from value to decoded
   auto convertedName = getName(op.getDecoded()) + "_converted";
-  os << convertedName << " := make(" << convertType(op.getDecoded().getType())
-     << ", len(" << getName(op.getValue()) << "))\n";
+  auto convertedType = convertType(op.getDecoded().getType());
+  os << convertedName << " := make(" << convertedType.value() << ", len("
+     << getName(op.getValue()) << "))\n";
   os << "for i := range " << getName(op.getValue()) << " {\n";
   os.indent();
-  os << convertedName
-     << "[i] = " << convertType(getElementTypeOrSelf(op.getDecoded().getType()))
-     << "(" << valueFloat64Name << "[i])\n";
+  auto elementConvertedType =
+      convertType(getElementTypeOrSelf(op.getDecoded().getType()));
+  os << convertedName << "[i] = " << elementConvertedType.value() << "("
+     << valueFloat64Name << "[i])\n";
   os.unindent();
   os << "}\n";
   os << getName(op.getDecoded()) << " := " << convertedName << "\n";
