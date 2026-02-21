@@ -85,6 +85,11 @@ namespace tensor_ext {
 // An arbitrary mapping on the slots of a set of ciphertexts.
 class Mapping {
  public:
+  struct CtMatch {
+    CtSlot source;
+    int64_t distance;
+  };
+
   Mapping(int64_t ciphertextSize = 1, int64_t numCiphertexts = 1)
       : ciphertextSize(ciphertextSize), numCiphertexts(numCiphertexts) {}
 
@@ -92,6 +97,11 @@ class Mapping {
 
   void add(CtSlot source, CtSlot target) {
     auto [it, inserted] = targetToSource.insert({target, source});
+    // Save map of targets & all possible sources with their distances between
+    // target & source
+    targetToSources[target].push_back(
+        CtMatch{source, getVirtualDistance(target, source)});
+
     if (!inserted) {
       // Update the mapping if the new source is closer to the target than the
       // existing source. This will select for the closest source when there are
@@ -106,7 +116,17 @@ class Mapping {
     }
   }
 
+  void clearTargetToSource() { targetToSource.clear(); }
+
   DenseMap<CtSlot, CtSlot> getTargetToSource() const { return targetToSource; }
+  DenseMap<CtSlot, SmallVector<CtMatch>> getTargetToSources() const {
+    return targetToSources;
+  }
+
+  void setTargetToSource(
+      const llvm::DenseMap<CtSlot, CtSlot>& newTargetToSource) {
+    targetToSource = newTargetToSource;
+  }
 
   int64_t getCiphertextSize() const { return ciphertextSize; }
   int64_t getNumCiphertexts() const { return numCiphertexts; }
@@ -117,6 +137,7 @@ class Mapping {
   // Map from target to source to ensure only a single source is mapped to any
   // target.
   DenseMap<CtSlot, CtSlot> targetToSource;
+  DenseMap<CtSlot, SmallVector<CtMatch>> targetToSources;
 
   int64_t getVirtualDistance(const CtSlot& lhs, const CtSlot& rhs) {
     return std::abs(lhs.ct - rhs.ct) * ciphertextSize +
@@ -182,7 +203,7 @@ class ShiftStrategy {
   SmallVector<ShiftRound> getRounds() const { return rounds; }
 
   // Run the shifting strategy and populate the list of rounds in the strategy
-  void evaluate(const Mapping& mapping);
+  void evaluate(const Mapping& mapping, bool useSources = false);
 
  private:
   int64_t ciphertextSize;
