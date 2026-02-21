@@ -109,71 +109,6 @@ func loadMNISTLabels(path string) ([]int, error) {
 	return labels, nil
 }
 
-func mnist__configure__override() (*ckks.Evaluator, ckks.Parameters, *ckks.Encoder, *rlwe.Encryptor, *rlwe.Decryptor) {
-  param, err1073 := ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-    LogN: 13,
-    Q: []uint64{36028797018652673, 35184372121601},
-    P: []uint64{1152921504606994433},
-    LogDefaultScale: 45,
-  })
-  if err1073 != nil {
-    panic(err1073)
-  }
-  encoder := ckks.NewEncoder(param)
-  kgen := rlwe.NewKeyGenerator(param)
-  sk, pk := kgen.GenKeyPairNew()
-  encryptor := rlwe.NewEncryptor(param, pk)
-  decryptor := rlwe.NewDecryptor(param, sk)
-  gk := kgen.GenGaloisKeyNew(5, sk)
-  gk1 := kgen.GenGaloisKeyNew(25, sk)
-  gk2 := kgen.GenGaloisKeyNew(125, sk)
-  gk3 := kgen.GenGaloisKeyNew(625, sk)
-  gk4 := kgen.GenGaloisKeyNew(3125, sk)
-  gk5 := kgen.GenGaloisKeyNew(15625, sk)
-  gk6 := kgen.GenGaloisKeyNew(12589, sk)
-  gk7 := kgen.GenGaloisKeyNew(13793, sk)
-  gk8 := kgen.GenGaloisKeyNew(3429, sk)
-  gk9 := kgen.GenGaloisKeyNew(761, sk)
-  gk10 := kgen.GenGaloisKeyNew(3805, sk)
-  gk11 := kgen.GenGaloisKeyNew(2641, sk)
-  gk12 := kgen.GenGaloisKeyNew(13205, sk)
-  gk13 := kgen.GenGaloisKeyNew(489, sk)
-  gk14 := kgen.GenGaloisKeyNew(2445, sk)
-  gk15 := kgen.GenGaloisKeyNew(12225, sk)
-  gk16 := kgen.GenGaloisKeyNew(11973, sk)
-  gk17 := kgen.GenGaloisKeyNew(10713, sk)
-  gk18 := kgen.GenGaloisKeyNew(4413, sk)
-  gk19 := kgen.GenGaloisKeyNew(5681, sk)
-  gk20 := kgen.GenGaloisKeyNew(12021, sk)
-  gk21 := kgen.GenGaloisKeyNew(10953, sk)
-  gk22 := kgen.GenGaloisKeyNew(5613, sk)
-  gk23 := kgen.GenGaloisKeyNew(15721, sk)
-  gk24 := kgen.GenGaloisKeyNew(14133, sk)
-  gk25 := kgen.GenGaloisKeyNew(13585, sk)
-  gk26 := kgen.GenGaloisKeyNew(1469, sk)
-  gk27 := kgen.GenGaloisKeyNew(4345, sk)
-  gk28 := kgen.GenGaloisKeyNew(9093, sk)
-  gk29 := kgen.GenGaloisKeyNew(2849, sk)
-  gk30 := kgen.GenGaloisKeyNew(653, sk)
-  gk31 := kgen.GenGaloisKeyNew(11657, sk)
-  gk32 := kgen.GenGaloisKeyNew(9429, sk)
-  gk33 := kgen.GenGaloisKeyNew(4657, sk)
-  gk34 := kgen.GenGaloisKeyNew(7261, sk)
-  gk35 := kgen.GenGaloisKeyNew(8985, sk)
-  gk36 := kgen.GenGaloisKeyNew(2853, sk)
-  gk37 := kgen.GenGaloisKeyNew(6721, sk)
-  gk38 := kgen.GenGaloisKeyNew(9005, sk)
-  gk39 := kgen.GenGaloisKeyNew(425, sk)
-  gk40 := kgen.GenGaloisKeyNew(9845, sk)
-  gk41 := kgen.GenGaloisKeyNew(13137, sk)
-  gk42 := kgen.GenGaloisKeyNew(9981, sk)
-  gk43 := kgen.GenGaloisKeyNew(6457, sk)
-  gk44 := kgen.GenGaloisKeyNew(14337, sk)
-  ekset := rlwe.NewMemEvaluationKeySet(nil, gk, gk1, gk2, gk3, gk4, gk5, gk6, gk7, gk8, gk9, gk10, gk11, gk12, gk13, gk14, gk15, gk16, gk17, gk18, gk19, gk20, gk21, gk22, gk23, gk24, gk25, gk26, gk27, gk28, gk29, gk30, gk31, gk32, gk33, gk34, gk35, gk36, gk37, gk38, gk39, gk40, gk41, gk42, gk43, gk44)
-  evaluator := ckks.NewEvaluator(param, ekset)
-  return evaluator, param, encoder, encryptor, decryptor
-}
-
 func TestMNIST(t *testing.T) {
 	weights, err := loadWeights(modelPath)
 	if err != nil {
@@ -185,7 +120,7 @@ func TestMNIST(t *testing.T) {
 		t.Fatalf("Failed to load images: %v", err)
 	}
 
-	evaluator, params, encoder, encryptor, decryptor := mnist__configure__override()
+	evaluator, params, encoder, encryptor, decryptor := mnist__configure()
 	input := images[0]
 
 	// Convert float64 input to float32 for encryption helper
