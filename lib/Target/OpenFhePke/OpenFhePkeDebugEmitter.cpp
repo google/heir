@@ -1,8 +1,7 @@
-#include "lib/Target/OpenFhePke/OpenFhePkeDebugHeaderEmitter.h"
+#include "lib/Target/OpenFhePke/OpenFhePkeDebugEmitter.h"
 
 #include <string>
 
-#include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeTemplates.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Target/OpenFhePke/OpenFheUtils.h"
@@ -23,15 +22,16 @@ namespace mlir {
 namespace heir {
 namespace openfhe {
 
-LogicalResult translateToOpenFhePkeDebugHeaderEmitter(Operation* op, 
-    llvm::raw_ostream& os, 
-    OpenfheImportType importType) {
-    
-  OpenFhePkeDebugHeaderEmitter emitter(os, importType);
+LogicalResult translateToOpenFhePkeDebugEmitter(Operation* op, llvm::raw_ostream& os,
+                                          OpenfheImportType importType,
+                                          const std::string& debugImportPath) {
+  OpenFhePkeDebugEmitter emitter(os, importType,
+                                  debugImportPath);
   return emitter.translate(*op);
 }
 
-LogicalResult OpenFhePkeDebugHeaderEmitter::translate(Operation& op) {
+
+LogicalResult OpenFhePkeDebugEmitter::translate(Operation& op) {
   LogicalResult status =
       llvm::TypeSwitch<Operation&, LogicalResult>(op)
           .Case<ModuleOp>([&](auto op) { return printOperation(op); })
@@ -47,7 +47,7 @@ LogicalResult OpenFhePkeDebugHeaderEmitter::translate(Operation& op) {
   return success();
 }
 
-LogicalResult OpenFhePkeDebugHeaderEmitter::printOperation(ModuleOp moduleOp) {
+LogicalResult OpenFhePkeDebugEmitter::printOperation(ModuleOp moduleOp) {
   OpenfheScheme scheme;
   if (moduleIsBGV(moduleOp)) {
     scheme = OpenfheScheme::BGV;
@@ -59,7 +59,12 @@ LogicalResult OpenFhePkeDebugHeaderEmitter::printOperation(ModuleOp moduleOp) {
     return emitError(moduleOp.getLoc(), "Missing scheme attribute on module");
   }
 
+  if (!debugImportPath.empty()) {
+    os << "#include \"" << debugImportPath << "\"\n";
+  }
+
   os << KdebugHeaderImports << "\n";
+  os << "#include <iostream>" << "\n";
   os << getModulePrelude(scheme, importType_) << "\n";
 
   for (Operation& op : moduleOp) {
@@ -71,11 +76,35 @@ LogicalResult OpenFhePkeDebugHeaderEmitter::printOperation(ModuleOp moduleOp) {
   return success();
 }
 
-LogicalResult OpenFhePkeDebugHeaderEmitter::printOperation(func::FuncOp funcOp) {
+LogicalResult OpenFhePkeDebugEmitter::emitDebugHelperImpl(){
+  os << "auto " << kIsBlockArgVar << " = " << kDebugAttrMapParam
+  << ".at(\"asm.is_block_arg\");\n";
 
-  if ( (!isDebugPort(funcOp.getName())) ||
-    (isEmitted)
-    ) {
+  os << llvm::formatv("if ({0} == \"1\") {{\n",
+        kIsBlockArgVar);
+  os.indent();
+  os << "std::cout << \"Input\" << std::endl;\n";
+  os.unindent();
+  os << "}";
+  os << llvm::formatv(" else {{\n");
+  os.indent();
+  os << "std::cout" << " " << "<< ";
+  os << kDebugAttrMapParam << ".at" << "(\"asm.op_name\") << std::endl;\n";
+  os.unindent();
+  os << "}\n";
+  os << "\n";
+
+  os << "PlaintextT " << kPlaintxtVar << ";\n";
+  os << kCctxtVar << "->Decrypt(" << kPrivKeyTVar << ", " << kCiphertxtVar << ", &"
+     << kPlaintxtVar << ");\n";
+  os << kPlaintxtVar << "->SetLength(std::stod(" << kDebugAttrMapParam
+     << ".at(\"message.size\")));\n";
+  os << "std::cout << \"  \" << " << kPlaintxtVar << " << std::endl;\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeDebugEmitter::printOperation(func::FuncOp funcOp) {
+  if ((!isDebugPort(funcOp.getName())) || isEmitted){
     return success();
   }
   
@@ -88,18 +117,25 @@ LogicalResult OpenFhePkeDebugHeaderEmitter::printOperation(func::FuncOp funcOp) 
   if (failed(res)) {
     return res;
   }
-  
-  os << ";\n";
+
+  os << " {\n";
+  os.indent();
+  res = emitDebugHelperImpl();
+  if (failed(res)) {
+    return res;
+  }
   os.unindent();
+  os << "}\n";
   isEmitted = true;
   return success();
 }
 
-OpenFhePkeDebugHeaderEmitter::OpenFhePkeDebugHeaderEmitter(
-    raw_ostream& os,
-    OpenfheImportType importType)
+OpenFhePkeDebugEmitter::OpenFhePkeDebugEmitter(
+    raw_ostream& os, OpenfheImportType importType,
+     const std::string& debugImportPath)
     : importType_(importType),
       os(os),
+      debugImportPath(debugImportPath),
       isEmitted(false) {}
 
 }  // namespace openfhe

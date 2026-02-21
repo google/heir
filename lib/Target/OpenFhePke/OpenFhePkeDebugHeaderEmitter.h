@@ -28,7 +28,7 @@ namespace openfhe {
 /// along with any necessary includes.
 class OpenFhePkeDebugHeaderEmitter{
  public:
-  OpenFhePkeDebugHeaderEmitter(raw_ostream& os, SelectVariableNames* variableNames,
+  OpenFhePkeDebugHeaderEmitter(raw_ostream& os,
                     OpenfheImportType importType);
 
   LogicalResult translate(::mlir::Operation& operation);
@@ -39,18 +39,12 @@ class OpenFhePkeDebugHeaderEmitter{
   /// Output stream to emit to.
   raw_indented_ostream os;
 
-  /// Pre-populated analysis selecting unique variable names for all the SSA
-  /// values.
-  SelectVariableNames* variableNames;
-
   bool isEmitted;
 
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);
   LogicalResult printOperation(::mlir::func::FuncOp op);
 
-  // Emit an OpenFhe type
-  LogicalResult emitType(::mlir::Type type, ::mlir::Location loc);
 };
   
 }  // namespace openfhe

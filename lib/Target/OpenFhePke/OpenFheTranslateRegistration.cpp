@@ -13,6 +13,7 @@
 #include "lib/Target/OpenFhePke/OpenFhePkeHeaderEmitter.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeDebugHeaderEmitter.h"
 #include "lib/Target/OpenFhePke/OpenFhePkePybindEmitter.h"
+#include "lib/Target/OpenFhePke/OpenFhePkeDebugEmitter.h"
 #include "lib/Target/OpenFhePke/OpenFheUtils.h"
 #include "llvm/include/llvm/Support/CommandLine.h"    // from @llvm-project
 #include "llvm/include/llvm/Support/ManagedStatic.h"  // from @llvm-project
@@ -131,6 +132,20 @@ void registerToOpenFhePkePybindTranslation() {
       },
       registerRelevantDialects);
 }
+
+ 
+void registerToOpenFhePkeDebugTranslation(){
+  TranslateFromMLIRRegistration reg(
+      "emit-openfhe-pke-debug",
+      "Emit a C++ file containing default debug helper implementation.",
+      [](Operation* op, llvm::raw_ostream& output) {
+        return translateToOpenFhePkeDebugEmitter(
+          op, output, options->openfheImportType,
+          options->openfheDebugHelperIncludePath);
+      },
+      registerRelevantDialects);
+}
+
 
 void registerToOpenFhePkeDebugHeaderTranslation(){
   TranslateFromMLIRRegistration reg(

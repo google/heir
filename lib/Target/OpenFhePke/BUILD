@@ -21,6 +21,7 @@ cc_library(
         ":OpenFhePkeHeaderEmitter",
         ":OpenFhePkePybindEmitter",
         ":OpenFhePkeDebugHeaderEmitter",
+        ":OpenFhePkeDebugEmitter",
         ":OpenFheUtils",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
@@ -167,6 +168,25 @@ cc_library(
         "@llvm-project//mlir:Support",
     ],
 )
+
+cc_library(
+    name = "OpenFhePkeDebugEmitter",
+    srcs = ["OpenFhePkeDebugEmitter.cpp"],
+    hdrs = [
+        "OpenFhePkeDebugEmitter.h",
+        "OpenFhePkeTemplates.h",
+    ],
+    deps = [
+        ":OpenFheUtils",
+        "@heir//lib/Dialect:ModuleAttributes",
+        "@heir//lib/Utils:TargetUtils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
 
 cc_test(
     name = "InterpreterTest",
