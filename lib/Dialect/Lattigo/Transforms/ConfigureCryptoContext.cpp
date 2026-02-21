@@ -16,6 +16,7 @@
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
@@ -65,22 +66,37 @@ bool hasBootstrapOp(func::FuncOp funcOp) {
 // TODO(#1186): handle rotate rows
 SmallVector<int64_t> findAllRotIndices(func::FuncOp op) {
   std::set<int64_t> distinctRotIndices;
+  auto insertRotIndex = [&](auto rotOp) {
+    // Handle both offset attribute and shift SSA value
+    if (rotOp.getOffset().has_value()) {
+      distinctRotIndices.insert(rotOp.getOffset()->getInt());
+    } else if (rotOp.getShift()) {
+      // Try to extract constant from shift SSA value
+      if (auto constOp =
+              rotOp.getShift().template getDefiningOp<arith::ConstantOp>()) {
+        if (auto intAttr = dyn_cast<IntegerAttr>(constOp.getValue())) {
+          distinctRotIndices.insert(intAttr.getInt());
+        }
+      }
+    }
+  };
+
   walkFuncAndCallees(op, [&](Operation* op) {
     llvm::TypeSwitch<Operation*>(op)
         .Case<BGVRotateColumnsNewOp>([&](BGVRotateColumnsNewOp rotOp) {
-          distinctRotIndices.insert(rotOp.getOffset().getInt());
+          insertRotIndex(rotOp);
           return WalkResult::advance();
         })
         .Case<BGVRotateColumnsOp>([&](BGVRotateColumnsOp rotOp) {
-          distinctRotIndices.insert(rotOp.getOffset().getInt());
+          insertRotIndex(rotOp);
           return WalkResult::advance();
         })
         .Case<CKKSRotateOp>([&](CKKSRotateOp rotOp) {
-          distinctRotIndices.insert(rotOp.getOffset().getInt());
+          insertRotIndex(rotOp);
           return WalkResult::advance();
         })
         .Case<CKKSRotateNewOp>([&](CKKSRotateNewOp rotOp) {
-          distinctRotIndices.insert(rotOp.getOffset().getInt());
+          insertRotIndex(rotOp);
           return WalkResult::advance();
         })
         .Default([&](Operation* op) { return WalkResult::advance(); });

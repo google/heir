@@ -405,11 +405,13 @@ struct ConvertRlweRotateOp : public OpConversionPattern<RlweRotateOp> {
                                          "Failed to get contextual evaluator");
 
     Value evaluator = result.value();
+    // Use shift if available
+    Value shift = adaptor.getShift();
     rewriter.replaceOp(
         op, LattigoRotateOp::create(
                 rewriter, op.getLoc(),
                 this->typeConverter->convertType(op.getOutput().getType()),
-                evaluator, adaptor.getInput(), adaptor.getOffset()));
+                evaluator, adaptor.getInput(), shift, /*offset=*/nullptr));
     return success();
   }
 };

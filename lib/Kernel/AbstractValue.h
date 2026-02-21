@@ -51,27 +51,31 @@ class LiteralDouble : public AbstractValue {
   double d;
 };
 
-// A type that holds a literal tensor, which can either be a 1D or 2D tensor.
+// A type that holds a literal value, which can either be a scalar, 1D or 2D
+// tensor.
 //
 // More variants must be added to support higher-dimensional input/output
 // tensors.
 class LiteralValue : public AbstractValue {
-  using CiphertextSemanticTensor =
-      std::variant<std::vector<int>, std::vector<std::vector<int>>>;
+  using ValueTy =
+      std::variant<int, std::vector<int>, std::vector<std::vector<int>>>;
 
  public:
-  LiteralValue() : tensor({}) {}
-  LiteralValue(const CiphertextSemanticTensor& tensor) : tensor(tensor) {}
-  LiteralValue(std::vector<int> vec) : tensor(vec) {}
-  LiteralValue(std::vector<std::vector<int>> vec) : tensor(vec) {}
+  LiteralValue() : value({}) {}
+  LiteralValue(const ValueTy& tensor) : value(tensor) {}
+  LiteralValue(int vec) : value(vec) {}
+  LiteralValue(std::vector<int> vec) : value(vec) {}
+  LiteralValue(std::vector<std::vector<int>> vec) : value(vec) {}
 
-  const CiphertextSemanticTensor& getTensor() const { return tensor; }
+  const ValueTy& get() const { return value; }
 
   std::vector<int64_t> getShape() const override {
     return std::visit(
         [](auto&& arg) -> std::vector<int64_t> {
           using T = std::decay_t<decltype(arg)>;
-          if constexpr (std::is_same_v<T, std::vector<int>>) {
+          if constexpr (std::is_same_v<T, int>) {
+            return {};
+          } else if constexpr (std::is_same_v<T, std::vector<int>>) {
             return {static_cast<int64_t>(arg.size())};
           } else if constexpr (std::is_same_v<T,
                                               std::vector<std::vector<int>>>) {
@@ -79,15 +83,15 @@ class LiteralValue : public AbstractValue {
             return {static_cast<int64_t>(arg.size()),
                     static_cast<int64_t>(arg[0].size())};
           } else {
-            assert(false && "Unsupported tensor type");
+            assert(false && "Unsupported value type");
             return {};
           }
         },
-        tensor);
+        value);
   }
 
  private:
-  CiphertextSemanticTensor tensor;
+  ValueTy value;
 };
 
 class SSAValue : public AbstractValue {

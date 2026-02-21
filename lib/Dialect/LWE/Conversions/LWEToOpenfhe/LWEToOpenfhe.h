@@ -95,9 +95,12 @@ struct ConvertRotateOp : public OpConversionPattern<RotateOp> {
     if (failed(result)) return result;
 
     Value cryptoContext = result.value();
+    // Pass the shift as an SSA value if available, otherwise use the offset
+    // attribute
+    Value shift = adaptor.getShift();
     rewriter.replaceOp(
         op, OpenfheOp::create(rewriter, op.getLoc(), cryptoContext,
-                              adaptor.getInput(), adaptor.getOffset()));
+                              adaptor.getInput(), shift, /*index=*/nullptr));
     return success();
   }
 };

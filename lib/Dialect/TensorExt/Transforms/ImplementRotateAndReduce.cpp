@@ -9,16 +9,17 @@
 #include "lib/Kernel/ArithmeticDag.h"
 #include "lib/Kernel/IRMaterializingVisitor.h"
 #include "lib/Kernel/KernelImplementation.h"
-#include "llvm/include/llvm/Support/Debug.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/Diagnostics.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/OpDefinition.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/OperationSupport.h"    // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"               // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/OperationSupport.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 
 #define DEBUG_TYPE "implement-rotate-and-reduce"
 
@@ -57,8 +58,25 @@ LogicalResult convertRotateAndReduceOp(RotateAndReduceOp op) {
   IRRewriter rewriter(op.getContext());
   rewriter.setInsertionPointAfter(op);
   ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-  IRMaterializingVisitor visitor(b, input.getType());
-  Value finalOutput = implementedKernel->visit(visitor);
+  IRMaterializingVisitor visitor(b);
+  std::vector<Value> results = implementedKernel->visit(visitor);
+  assert(results.size() == 1 &&
+         "Expected implemented kernel to produce a single result");
+  Value finalOutput = results[0];
+
+  // If the result has a singleton first dimension and the expected type is 1D,
+  // collapse the result to match the expected type
+  auto resultType = dyn_cast<RankedTensorType>(finalOutput.getType());
+  auto expectedType = dyn_cast<RankedTensorType>(op.getType());
+  if (resultType && expectedType && resultType.getRank() == 2 &&
+      resultType.getDimSize(0) == 1 && expectedType.getRank() == 1 &&
+      resultType.getDimSize(1) == expectedType.getDimSize(0)) {
+    SmallVector<ReassociationIndices> reassociation = {{0, 1}};
+    auto collapseOp = tensor::CollapseShapeOp::create(
+        b, expectedType, finalOutput, reassociation);
+    finalOutput = collapseOp;
+  }
+
   rewriter.replaceOp(op, finalOutput);
   return success();
 }

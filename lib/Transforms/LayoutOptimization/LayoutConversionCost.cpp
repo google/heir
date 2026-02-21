@@ -35,6 +35,7 @@ using kernel::ConstantTensorNode;
 using kernel::LeafNode;
 using kernel::LeftRotateNode;
 using kernel::MultiplyNode;
+using kernel::SplatNode;
 using kernel::SubtractNode;
 using kernel::SymbolicValue;
 using presburger::BoundType;
@@ -107,8 +108,11 @@ Cost computeCostOfLayoutConversion(int64_t numCiphertexts,
   using ValueTy = std::shared_ptr<NodeTy>;
   SmallVector<SymbolicValue> inputLeaves(numCiphertexts,
                                          SymbolicValue({ciphertextSize}));
-  SmallVector<SmallVector<ValueTy>> groupResults =
-      implementRotationGroups(inputLeaves, mapping, scheme, ciphertextSize);
+  // Use f32 as default type for cost estimation (actual type doesn't affect
+  // rotation count)
+  kernel::DagType defaultType = kernel::DagType::floatTy(32);
+  SmallVector<SmallVector<ValueTy>> groupResults = implementRotationGroups(
+      inputLeaves, mapping, scheme, ciphertextSize, defaultType);
 
   // The cost is the maximum number of rotations in any group
   Cost maxRotations = 0;

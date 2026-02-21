@@ -109,12 +109,14 @@ struct ConvertRotateOp : public OpRewritePattern<RotateOp> {
       return rewriter.notifyMatchFailure(op, "no available storage found");
     }
 
-    // InPlaceOp has the form: output = InPlaceOp(evaluator, lhs, inplace)
-    // {offset} where inplace is the actual output but for SSA form we need to
-    // return a new value
+    // InPlaceOp has the form: output = InPlaceOp(evaluator, input, inplace,
+    // shift?, offset?) where inplace is the actual output but for SSA form we
+    // need to return a new value Handle both shift SSA value and offset
+    // attribute
+    Value shift = op.getShift();
     auto inplaceOp = InPlaceOp::create(
-        rewriter, op.getLoc(), op.getOperand(1).getType(), op.getOperand(0),
-        op.getOperand(1), storage, op.getOffset());
+        rewriter, op.getLoc(), op.getInput().getType(), op.getEvaluator(),
+        op.getInput(), storage, shift, /*offset=*/nullptr);
 
     // update storage info
     storageInfo.replaceAllocWithInPlace(op, inplaceOp, storage);
