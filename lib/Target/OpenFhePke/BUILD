@@ -18,6 +18,8 @@ cc_library(
         "OpenFheTranslateRegistration.h",
     ],
     deps = [
+        ":OpenFhePkeDebugEmitter",
+        ":OpenFhePkeDebugHeaderEmitter",
         ":OpenFhePkeEmitter",
         ":OpenFhePkeHeaderEmitter",
         ":OpenFhePkePybindEmitter",
@@ -146,6 +148,43 @@ cc_library(
         "@llvm-project//mlir:TensorDialect",
         "@openfhe//:core",
         "@openfhe//:pke",
+    ],
+)
+
+cc_library(
+    name = "OpenFhePkeDebugHeaderEmitter",
+    srcs = ["OpenFhePkeDebugHeaderEmitter.cpp"],
+    hdrs = [
+        "OpenFhePkeDebugHeaderEmitter.h",
+        "OpenFhePkeTemplates.h",
+    ],
+    deps = [
+        ":OpenFheUtils",
+        "@heir//lib/Analysis/SelectVariableNames",
+        "@heir//lib/Dialect:ModuleAttributes",
+        "@heir//lib/Utils:TargetUtils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
+    name = "OpenFhePkeDebugEmitter",
+    srcs = ["OpenFhePkeDebugEmitter.cpp"],
+    hdrs = [
+        "OpenFhePkeDebugEmitter.h",
+        "OpenFhePkeTemplates.h",
+    ],
+    deps = [
+        ":OpenFheUtils",
+        "@heir//lib/Dialect:ModuleAttributes",
+        "@heir//lib/Utils:TargetUtils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
     ],
 )
 
