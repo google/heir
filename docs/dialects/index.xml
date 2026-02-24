@@ -408,7 +408,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;h3 id="bgvrotate_cols-heirbgvrotatecolumnsop">&lt;code>bgv.rotate_cols&lt;/code> (heir::bgv::RotateColumnsOp)&lt;/h3>
 &lt;p>&lt;em>Rotate the columns of the coefficients of the ciphertext using a Galois automorphism.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.rotate_cols` operands attr-dict `:` qualified(type($input))
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.rotate_cols` $input (`,` $dynamic_shift^ `:` type($dynamic_shift))? attr-dict `:` qualified(type($input))
 &lt;/code>&lt;/pre>&lt;p>This operation rotates the columns of the coefficients of the ciphertext using a
 Galois automorphism.&lt;/p>
 &lt;p>Often BGV scheme is instantiated with a ring of the form &lt;code>Z_q[X]/(X^N + 1)&lt;/code> and
@@ -421,7 +421,7 @@ this case, the plaintext slots can be viewed as a &lt;code>2 x N/2&lt;/code> mat
 &lt;h4 id="attributes-3">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>offset&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>static_shift&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-8">Operands:&lt;/h4>
 &lt;table>
@@ -435,6 +435,10 @@ this case, the plaintext slots can be viewed as a &lt;code>2 x N/2&lt;/code> mat
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
 &lt;td>lwe-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>dynamic_shift&lt;/code>&lt;/td>
+&lt;td>signless-integer-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -456,7 +460,7 @@ this case, the plaintext slots can be viewed as a &lt;code>2 x N/2&lt;/code> mat
 &lt;h3 id="bgvrotate_rows-heirbgvrotaterowsop">&lt;code>bgv.rotate_rows&lt;/code> (heir::bgv::RotateRowsOp)&lt;/h3>
 &lt;p>&lt;em>Rotate the rows of the coefficients of the ciphertext using a Galois automorphism.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.rotate_rows` operands attr-dict `:` qualified(type($input))
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.rotate_rows` $input (`,` $dynamic_shift^ `:` type($dynamic_shift))? attr-dict `:` qualified(type($input))
 &lt;/code>&lt;/pre>&lt;p>This operation rotates the rows of the coefficients of the ciphertext using a
 Galois automorphism.&lt;/p>
 &lt;p>Often BGV scheme is instantiated with a ring of the form &lt;code>Z_q[X]/(X^N + 1)&lt;/code> and
@@ -469,7 +473,7 @@ this case, the plaintext slots can be viewed as a &lt;code>2 x N/2&lt;/code> mat
 &lt;h4 id="attributes-4">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>offset&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>static_shift&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-9">Operands:&lt;/h4>
 &lt;table>
@@ -483,6 +487,10 @@ this case, the plaintext slots can be viewed as a &lt;code>2 x N/2&lt;/code> mat
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
 &lt;td>lwe-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>dynamic_shift&lt;/code>&lt;/td>
+&lt;td>integer&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -2578,14 +2586,14 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;h3 id="ckksrotate-heirckksrotateop">&lt;code>ckks.rotate&lt;/code> (heir::ckks::RotateOp)&lt;/h3>
 &lt;p>&lt;em>Rotate the coefficients of the ciphertext using a Galois automorphism.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `ckks.rotate` operands attr-dict `:` qualified(type($input))
+&lt;pre tabindex="0">&lt;code>operation ::= `ckks.rotate` $input (`,` $dynamic_shift^ `:` type($dynamic_shift))? attr-dict `:` qualified(type($input))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-4">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>offset&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>static_shift&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-10">Operands:&lt;/h4>
 &lt;table>
@@ -2599,6 +2607,10 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
 &lt;td>lwe-ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>dynamic_shift&lt;/code>&lt;/td>
+&lt;td>signless-integer-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -6522,7 +6534,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h4 id="attributes-3">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>offset&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>static_shift&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-13">Operands:&lt;/h4>
 &lt;table>
@@ -6540,6 +6552,10 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
 &lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>dynamic_shift&lt;/code>&lt;/td>
+&lt;td>signless integer or index&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -6571,7 +6587,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h4 id="attributes-4">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>offset&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>static_shift&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-14">Operands:&lt;/h4>
 &lt;table>
@@ -6593,6 +6609,10 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>inplace&lt;/code>&lt;/td>
 &lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>dynamic_shift&lt;/code>&lt;/td>
+&lt;td>signless integer or index&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -7736,7 +7756,7 @@ Z[X + X^{-1} ]/(X^N+1), which allows for a maximum of N slots with each slot bei
 &lt;h4 id="attributes-10">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>offset&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>static_shift&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-39">Operands:&lt;/h4>
 &lt;table>
@@ -7754,6 +7774,10 @@ Z[X + X^{-1} ]/(X^N+1), which allows for a maximum of N slots with each slot bei
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
 &lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>dynamic_shift&lt;/code>&lt;/td>
+&lt;td>signless integer or index&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -7787,7 +7811,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;h4 id="attributes-11">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>offset&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>static_shift&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-40">Operands:&lt;/h4>
 &lt;table>
@@ -7809,6 +7833,10 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>inplace&lt;/code>&lt;/td>
 &lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>dynamic_shift&lt;/code>&lt;/td>
+&lt;td>signless integer or index&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -12475,7 +12503,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;h4 id="attributes-7">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>index&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>static_shift&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-35">Operands:&lt;/h4>
 &lt;table>
@@ -12493,6 +12521,10 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>ciphertext&lt;/code>&lt;/td>
 &lt;td>An opaque OpenFHE ciphertext type&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>dynamic_shift&lt;/code>&lt;/td>
+&lt;td>signless integer or index&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
