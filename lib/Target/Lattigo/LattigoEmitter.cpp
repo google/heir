@@ -92,7 +92,8 @@ LogicalResult LattigoEmitter::translate(Operation& op) {
           // Tensor ops
           .Case<tensor::ConcatOp, tensor::EmptyOp, tensor::ExtractOp,
                 tensor::ExtractSliceOp, tensor::InsertOp, tensor::InsertSliceOp,
-                tensor::FromElementsOp, tensor::SplatOp>(
+                tensor::FromElementsOp, tensor::SplatOp, tensor::ExpandShapeOp,
+                tensor::CollapseShapeOp>(
               [&](auto op) { return printOperation(op); })
           // Lattigo ops
           .Case<
@@ -876,6 +877,32 @@ LogicalResult LattigoEmitter::printOperation(tensor::ExtractSliceOp op) {
 
   // Convert to slice
   os << resultName << " := " << tmpName << "[:]\n";
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(tensor::CollapseShapeOp op) {
+  // A rank-reduced type will have the same number of elements so collapsing
+  // is a no-op on a flattened tensor.
+  SliceVerificationResult res =
+      isRankReducedType(op.getSrcType(), op.getResultType());
+  if (res != SliceVerificationResult::Success) {
+    return op.emitError()
+           << "Only rank-reduced types are supported for CollapseShapeOp";
+  }
+  variableNames->mapValueNameToValue(op.getResult(), op.getSrc());
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(tensor::ExpandShapeOp op) {
+  // A rank-reduced type will have the same number of elements so expanding is
+  // a no-op on a flattened tensor.
+  SliceVerificationResult res =
+      isRankReducedType(op.getResultType(), op.getSrcType());
+  if (res != SliceVerificationResult::Success) {
+    return op.emitError()
+           << "Only rank-reduced types are supported for ExpandShapeOp";
+  }
+  variableNames->mapValueNameToValue(op.getResult(), op.getSrc());
   return success();
 }
 
