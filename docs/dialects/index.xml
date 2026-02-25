@@ -416,7 +416,7 @@ plaintext modulus &lt;code>t&lt;/code> where &lt;code>N&lt;/code> is a power of 
 this case, the plaintext slots can be viewed as a &lt;code>2 x N/2&lt;/code> matrix where
 &lt;code>N/2&lt;/code> is the number of columns and &lt;code>2&lt;/code> is the number of rows.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>RotationOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-3">Attributes:&lt;/h4>
 &lt;table>
@@ -468,7 +468,7 @@ plaintext modulus &lt;code>t&lt;/code> where &lt;code>N&lt;/code> is a power of 
 this case, the plaintext slots can be viewed as a &lt;code>2 x N/2&lt;/code> matrix where
 &lt;code>N/2&lt;/code> is the number of columns and &lt;code>2&lt;/code> is the number of rows.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>RotationOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-4">Attributes:&lt;/h4>
 &lt;table>
@@ -2588,7 +2588,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `ckks.rotate` $input (`,` $dynamic_shift^ `:` type($dynamic_shift))? attr-dict `:` qualified(type($input))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>RotationOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-4">Attributes:&lt;/h4>
 &lt;table>
@@ -6530,7 +6530,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/code>&lt;/pre>&lt;p>This operation rotates the columns of a ciphertext value in the Lattigo BGV dialect.&lt;/p>
 &lt;p>Lattigo exposes the SIMD slot of BGV as a N/2 x 2 matrix, where N/2 is the column.&lt;/p>
 &lt;p>Offset is valid for both positive and negative number.&lt;/p>
-&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>RotationOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="attributes-3">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -6583,7 +6583,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>Offset is valid for both positive and negative number.&lt;/p>
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
-&lt;p>Interfaces: &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>RotationOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="attributes-4">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -7752,7 +7752,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 Lattigo also support a conjugate-invariant version of CKKS, i.e. the ring is
 Z[X + X^{-1} ]/(X^N+1), which allows for a maximum of N slots with each slot being real number.&lt;/p>
 &lt;p>Offset is valid for both positive and negative number.&lt;/p>
-&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>RotationOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="attributes-10">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -7807,7 +7807,7 @@ Z[X + X^{-1} ]/(X^N+1), which allows for a maximum of N slots with each slot bei
 &lt;p>Offset is valid for both positive and negative number.&lt;/p>
 &lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
 a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
-&lt;p>Interfaces: &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>RotationOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="attributes-11">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -11432,7 +11432,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `openfhe.fast_rotation_ext` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>BatchVectorizableOpInterface&lt;/code>, &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>ElementwiseByOperandOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>BatchVectorizableOpInterface&lt;/code>, &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>ElementwiseByOperandOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>RotationOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes">Attributes:&lt;/h4>
 &lt;table>
@@ -11485,7 +11485,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `openfhe.fast_rotation` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>BatchVectorizableOpInterface&lt;/code>, &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>ElementwiseByOperandOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>BatchVectorizableOpInterface&lt;/code>, &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>ElementwiseByOperandOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>RotationOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-1">Attributes:&lt;/h4>
 &lt;table>
@@ -12498,7 +12498,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `openfhe.rot` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>RotationOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-7">Attributes:&lt;/h4>
 &lt;table>
@@ -15158,7 +15158,7 @@ the given amount.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%c7&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">7&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ext&lt;span style="color:#000;font-weight:bold">.&lt;/span>rotate &lt;span style="color:#000">%0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%c7&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>RotationOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-4">Operands:&lt;/h4>
 &lt;table>
