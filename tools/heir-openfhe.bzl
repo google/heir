@@ -17,6 +17,7 @@ def openfhe_lib(
         data = [],
         tags = [],
         deps = [],
+        generate_debug_helper = False,
         **kwargs):
     """A rule for running generating OpenFHE C++ code and running a test on it.
 
@@ -32,6 +33,7 @@ def openfhe_lib(
       data: Data dependencies to be passed to heir_opt
       tags: Tags to pass to cc_test and cc_library
       deps: Deps to pass to cc_test and cc_library
+      generate_debug_helper: Flag for generating default debug helper code,
       **kwargs: Keyword arguments to pass to cc_library and cc_test.
     """
     cc_codegen_target = name + ".heir_translate_cc"
@@ -40,8 +42,8 @@ def openfhe_lib(
     generated_cc_filename = "%s_lib.inc.cc" % name
     heir_opt_name = "%s_heir_opt" % name
     generated_heir_opt_name = "%s_heir_opt.mlir" % name
-    heir_translate_cc_flags = heir_translate_flags + ["--emit-openfhe-pke", "--openfhe-include-type=source-relative"]
-    heir_translate_h_flags = heir_translate_flags + ["--emit-openfhe-pke-header", "--openfhe-include-type=source-relative"]
+    generated_debug_h_filename = "%s_debug_helper.h" % name
+    generated_debug_cc_filename = "%s_debug_helper.cc" % name
 
     cc_lib_target = cc_lib_target_name
     if not cc_lib_target:
@@ -61,6 +63,61 @@ def openfhe_lib(
         )
     else:
         generated_heir_opt_name = mlir_src
+
+    if generate_debug_helper:
+        heir_translate_debug_header_flags = heir_translate_flags + [
+            "--emit-openfhe-pke-debug-header",
+            "--openfhe-include-type=source-relative",
+        ]
+
+        debug_header_codegen_target = name + ".heir_debug_h"
+        heir_translate(
+            name = debug_header_codegen_target,
+            src = generated_heir_opt_name,
+            pass_flags = heir_translate_debug_header_flags,
+            generated_filename = generated_debug_h_filename,
+        )
+
+        heir_translate_flags = heir_translate_flags + [
+            "--openfhe-debug-helper-include-path=%s" % generated_debug_h_filename,
+        ]
+
+        heir_translate_debug_flags = heir_translate_flags + [
+            "--emit-openfhe-pke-debug",
+            "--openfhe-include-type=source-relative",
+        ]
+
+        cc_debug_codegen_target = name + ".heir_debug_cc"
+        heir_translate(
+            name = cc_debug_codegen_target,
+            src = generated_heir_opt_name,
+            pass_flags = heir_translate_debug_flags,
+            generated_filename = generated_debug_cc_filename,
+        )
+
+        debug_lib_target = "%s_debug_helper_lib" % name
+        cc_library(
+            name = debug_lib_target,
+            srcs = [generated_debug_cc_filename],
+            hdrs = [generated_debug_h_filename],
+            deps = deps + ["@openfhe//:pke"],
+            tags = tags,
+            data = data,
+            copts = OPENMP_COPTS,
+            linkopts = OPENMP_LINKOPTS,
+            **kwargs
+        )
+
+        deps = deps + [debug_lib_target]
+
+    heir_translate_cc_flags = heir_translate_flags + [
+        "--emit-openfhe-pke",
+        "--openfhe-include-type=source-relative",
+    ]
+    heir_translate_h_flags = heir_translate_flags + [
+        "--emit-openfhe-pke-header",
+        "--openfhe-include-type=source-relative",
+    ]
 
     heir_translate(
         name = cc_codegen_target,
