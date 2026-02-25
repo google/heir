@@ -31,6 +31,7 @@ class EvalVisitor : public CachingVisitor<LiteralValue, EvalResults> {
   EvalResults operator()(const AddNode<LiteralValue>& node) override;
   EvalResults operator()(const SubtractNode<LiteralValue>& node) override;
   EvalResults operator()(const MultiplyNode<LiteralValue>& node) override;
+  EvalResults operator()(const FloorDivNode<LiteralValue>& node) override;
   EvalResults operator()(const LeftRotateNode<LiteralValue>& node) override;
   EvalResults operator()(const ExtractNode<LiteralValue>& node) override;
 };
@@ -52,6 +53,7 @@ class PrintVisitor : public CachingVisitor<LiteralValue, std::string> {
   std::string operator()(const AddNode<LiteralValue>& node) override;
   std::string operator()(const SubtractNode<LiteralValue>& node) override;
   std::string operator()(const MultiplyNode<LiteralValue>& node) override;
+  std::string operator()(const FloorDivNode<LiteralValue>& node) override;
   std::string operator()(const LeftRotateNode<LiteralValue>& node) override;
   std::string operator()(const ExtractNode<LiteralValue>& node) override;
   std::string operator()(const ConstantScalarNode& node) override;
@@ -95,6 +97,11 @@ class MultiplicativeDepthVisitorImpl
       return left;
     }
     return std::max(left, right) + 1.0;
+  }
+
+  double operator()(const FloorDivNode<LiteralValue>& node) override {
+    // Division by plaintext doesn't increase multiplicative depth
+    return this->process(node.left);
   }
 
   double operator()(const ConstantTensorNode& node) override {

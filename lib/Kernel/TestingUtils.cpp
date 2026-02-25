@@ -110,6 +110,27 @@ EvalResults EvalVisitor::operator()(const MultiplyNode<LiteralValue>& node) {
   return {result};
 }
 
+EvalResults EvalVisitor::operator()(const FloorDivNode<LiteralValue>& node) {
+  auto left = this->process(node.left)[0];
+  const auto& lVal = left.get();
+
+  // Scalar case
+  const auto* lScalar = std::get_if<int>(&lVal);
+  if (*lScalar) {
+    return {LiteralValue(*lScalar / node.divisor)};
+  }
+
+  // Vector case
+  auto dim = left.getShape()[0];
+  const auto* lVec = std::get_if<std::vector<int>>(&lVal);
+  assert(lVec && "unsupported floorDiv operands");
+  std::vector<int> result(dim);
+  for (size_t i = 0; i < dim; ++i) {
+    result[i] = (*lVec)[i] / node.divisor;
+  }
+  return {result};
+}
+
 // Cyclic left-rotation by a given index
 EvalResults EvalVisitor::operator()(const LeftRotateNode<LiteralValue>& node) {
   auto operand = this->process(node.operand)[0];
@@ -253,6 +274,11 @@ std::string PrintVisitor::operator()(const MultiplyNode<LiteralValue>& node) {
   std::string left = this->process(node.left);
   std::string right = this->process(node.right);
   return "(" + left + " * " + right + ")";
+}
+
+std::string PrintVisitor::operator()(const FloorDivNode<LiteralValue>& node) {
+  std::string left = this->process(node.left);
+  return "(" + left + " / " + std::to_string(node.divisor) + ")";
 }
 
 std::string PrintVisitor::operator()(const LeftRotateNode<LiteralValue>& node) {
