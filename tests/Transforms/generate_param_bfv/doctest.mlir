@@ -1,6 +1,6 @@
 // RUN: heir-opt --generate-param-bfv %s | FileCheck %s
 
-// CHECK: module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 12, Q = [2147565569], P = [2147573761], plaintextModulus = 65537>}
+// CHECK: module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 12, Q = [2147565569], P = [2147573761], plaintextModulus = 65537>
 module {
   func.func @add(%arg0: !secret.secret<i16> {mgmt.mgmt = #mgmt.mgmt<level = 0>}) -> (!secret.secret<i16> {mgmt.mgmt = #mgmt.mgmt<level = 0>}) {
     %0 = secret.generic(%arg0: !secret.secret<i16> {mgmt.mgmt = #mgmt.mgmt<level = 0>}) attrs = {arg0 = {mgmt.mgmt = #mgmt.mgmt<level = 0>}} {

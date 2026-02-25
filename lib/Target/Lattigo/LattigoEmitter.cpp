@@ -1,6 +1,7 @@
 #include "lib/Target/Lattigo/LattigoEmitter.h"
 
 #include <cassert>
+#include <cmath>
 #include <cstdint>
 #include <functional>
 #include <ios>
@@ -841,7 +842,7 @@ LogicalResult LattigoEmitter::printOperation(tensor::ExtractSliceOp op) {
           flattenIndexExpression(sourceType.getShape(), offsetStrings);
       int64_t numElements = resultType.getNumElements();
       os << resultName << " := " << sourceName << "[" << startStr << " : "
-         << startStr << " + " << numElements << "]\n";
+         << startStr << " + " << std::to_string(numElements) << "]\n";
       return success();
     }
   }
@@ -905,8 +906,12 @@ LogicalResult LattigoEmitter::printOperation(tensor::InsertOp op) {
                          variableNames->contains(op.getDest()) &&
                          getName(op.getResult()) == getName(op.getDest()));
 
-  const std::string resultName =
-      emitCopySlice(op.getDest(), op.getResult(), shouldDeclare);
+  std::string resultName;
+  if (!shouldDeclare) {
+    resultName = getName(op.getResult(), /*force=*/true);
+  } else {
+    resultName = emitCopySlice(op.getDest(), op.getResult(), shouldDeclare);
+  }
   // result[index] = value
   os << resultName << "[";
   os << flattenIndexExpression(op.getResult().getType(), op.getIndices(),
@@ -930,7 +935,17 @@ LogicalResult LattigoEmitter::printOperation(tensor::InsertSliceOp op) {
     return op.emitError() << "expected static offsets, sizes, and strides";
   }
 
-  const std::string destName = emitCopySlice(op.getDest(), op.getResult());
+  // Check if the result was already declared (e.g., as an iter_arg in scf.for)
+  bool shouldDeclare = !(variableNames->contains(op.getResult()) &&
+                         variableNames->contains(op.getDest()) &&
+                         getName(op.getResult()) == getName(op.getDest()));
+
+  std::string destName;
+  if (!shouldDeclare) {
+    destName = getName(op.getResult(), /*force=*/true);
+  } else {
+    destName = emitCopySlice(op.getDest(), op.getResult(), shouldDeclare);
+  }
   const std::string sourceName = getName(op.getSource());
 
   auto getOffsetAsString = [&](OpFoldResult offset) -> std::string {
@@ -1202,6 +1217,12 @@ LogicalResult LattigoEmitter::printOperation(BGVEncodeOp op) {
   }
   auto plaintextName = getName(op.getPlaintext());
   auto valueName = getName(op.getValue());
+  auto maxSlotsName = getName(newPlaintextOp.getParams()) + ".MaxSlots()";
+  auto numSlotsAttr = dyn_cast_or_null<IntegerAttr>(
+      op->getParentOfType<ModuleOp>()->getAttr(kRequestedSlotCountAttrName));
+  if (numSlotsAttr) {
+    maxSlotsName = std::to_string(numSlotsAttr.getInt());
+  }
 
   std::string packedName = valueName;
   // EncodeOp requires its argument to be a slice of int64 so we emit a loop
@@ -1209,12 +1230,12 @@ LogicalResult LattigoEmitter::printOperation(BGVEncodeOp op) {
   if (getElementTypeOrSelf(op.getValue().getType()).getIntOrFloatBitWidth() !=
       64) {
     packedName = valueName + "_" + plaintextName + "_packed";
-    os << packedName << " := make([]int64, len(";
-    os << valueName << "))\n";
+    os << packedName << " := make([]int64, ";
+    os << maxSlotsName << ")\n";
     os << "for i := range " << packedName << " {\n";
 
     // packedName[i] = int64(value[i])
-    auto valueNameAtI = valueName + "[i]";
+    auto valueNameAtI = valueName + "[i % len(" + valueName + ")]";
     auto packedNameAtI = packedName + "[i]";
     os.indent();
     if (getElementTypeOrSelf(op.getValue().getType()).getIntOrFloatBitWidth() ==
@@ -1477,6 +1498,17 @@ LogicalResult LattigoEmitter::printOperation(CKKSEncodeOp op) {
   }
   auto plaintextName = getName(op.getPlaintext());
   auto valueName = getName(op.getValue());
+  auto maxSlotsName = getName(newPlaintextOp.getParams()) + ".MaxSlots()";
+  auto numSlotsAttr = dyn_cast_or_null<IntegerAttr>(
+      op->getParentOfType<ModuleOp>()->getAttr(kRequestedSlotCountAttrName));
+  if (numSlotsAttr) {
+    maxSlotsName = std::to_string(numSlotsAttr.getInt());
+    imports.insert(std::string(kRingImport));
+    int logNumSlots = (int)log2(numSlotsAttr.getInt());
+    os << plaintextName
+       << ".LogDimensions = ring.Dimensions{Rows: 0, Cols: " << logNumSlots
+       << "}\n";
+  }
 
   std::string packedName = valueName;
   // EncodeOp requires its argument to be a slice of int64 so we emit a loop
@@ -1484,11 +1516,11 @@ LogicalResult LattigoEmitter::printOperation(CKKSEncodeOp op) {
   if (getElementTypeOrSelf(op.getValue().getType()).getIntOrFloatBitWidth() !=
       64) {
     packedName = valueName + "_" + plaintextName + "_packed";
-    os << packedName << " := make([]float64, len(";
-    os << valueName << "))\n";
+    os << packedName << " := make([]float64, ";
+    os << maxSlotsName << ")\n";
     os << "for i := range " << packedName << " {\n";
     // packedName[i] = float64(value[i])
-    auto valueNameAtI = valueName + "[i]";
+    auto valueNameAtI = valueName + "[i % len(" + valueName + ")]";
     auto packedNameAtI = packedName + "[i]";
     os.indent();
     if (getElementTypeOrSelf(op.getValue().getType()).getIntOrFloatBitWidth() ==
@@ -1766,12 +1798,19 @@ LogicalResult LattigoEmitter::printOperation(
   auto btParams = op.getBtParamsLiteral();
   auto paramName = getName(op.getParams());
   auto errName = getErrName();
+  auto numSlotsAttr = dyn_cast_or_null<IntegerAttr>(
+      op->getParentOfType<ModuleOp>()->getAttr(kRequestedSlotCountAttrName));
   os << getName(op.getResult()) << ", " << errName
      << " := bootstrapping.NewParametersFromLiteral(";
   os << paramName << ", ";
   os << "bootstrapping.ParametersLiteral{\n";
   os.indent();
   os << "LogN: utils.Pointy(" << btParams.getLogN() << "),\n";
+  if (numSlotsAttr) {
+    int numSlots = numSlotsAttr.getInt();
+    int logNumSlots = (int)log2(numSlots);
+    os << "LogSlots: " << logNumSlots << "),\n";
+  }
   os.unindent();
   os << "})\n";
   printErrPanic(errName);

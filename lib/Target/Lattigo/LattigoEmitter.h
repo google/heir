@@ -216,7 +216,7 @@ class LattigoEmitter {
     // When the value has no uses, we can not assign it a name otherwise GO
     // would complain "declared and not used." Force in cases when the
     // generated code ensures the variable is referenced.
-    if (value.use_empty() && !force) {
+    if (!force && value.use_empty()) {
       return "_";
     }
     return variableNames->getNameForValue(getStorageValue(value));

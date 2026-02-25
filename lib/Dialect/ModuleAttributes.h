@@ -22,6 +22,11 @@ constexpr const static ::llvm::StringLiteral kCKKSSchemeAttrName =
 constexpr const static ::llvm::StringLiteral kCGGISchemeAttrName =
     "scheme.cggi";
 
+constexpr const static ::llvm::StringLiteral kRequestedSlotCountAttrName =
+    "scheme.requested_slot_count";
+constexpr const static ::llvm::StringLiteral kActualSlotCountAttrName =
+    "scheme.actual_slot_count";
+
 bool moduleIsBGV(Operation* moduleOp);
 bool moduleIsBFV(Operation* moduleOp);
 bool moduleIsBGVOrBFV(Operation* moduleOp);

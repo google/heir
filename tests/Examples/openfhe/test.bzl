@@ -5,7 +5,7 @@ load("@heir//tools:heir-openfhe.bzl", "openfhe_lib")
 load("@heir//tools:heir-opt.bzl", "heir_opt")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
-def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, heir_opt_flags = [], heir_translate_flags = [], data = [], tags = [], deps = [], **kwargs):
+def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, heir_opt_flags = [], heir_translate_flags = [], data = [], size = "small", tags = [], deps = [], **kwargs):
     """A rule for running generating OpenFHE and running a test on it.
 
     Args:
@@ -17,6 +17,7 @@ def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, heir
       heir_opt_flags: Flags to pass to heir-opt before heir-translate
       heir_translate_flags: Flags to pass to heir-translate
       data: Data dependencies to be passed to cc_test/heir_opt
+      size: Size to pass to cc_test
       tags: Tags to pass to cc_test
       deps: Deps to pass to cc_test and cc_library
       **kwargs: Keyword arguments to pass to cc_library and cc_test.
@@ -34,6 +35,7 @@ def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, heir
         ],
         tags = tags,
         data = data,
+        size = size,
         copts = OPENMP_COPTS,
         linkopts = OPENMP_LINKOPTS,
         **kwargs

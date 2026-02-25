@@ -14,6 +14,7 @@
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
@@ -128,15 +129,21 @@ struct GenerateParamCKKS : impl::GenerateParamCKKSBase<GenerateParamCKKS> {
 
     LLVM_DEBUG(llvm::dbgs() << "Scheme Param:\n" << schemeParam << "\n");
 
+    auto* context = &getContext();
+    OpBuilder builder(context);
+    getOperation()->setAttr(kRequestedSlotCountAttrName,
+                            builder.getI64IntegerAttr(slotNumber));
+    getOperation()->setAttr(
+        kActualSlotCountAttrName,
+        builder.getI64IntegerAttr(schemeParam.getRingDim() / 2));
+
     // annotate ckks::SchemeParamAttr to ModuleOp
     getOperation()->setAttr(
         ckks::CKKSDialect::kSchemeParamAttrName,
         ckks::SchemeParamAttr::get(
-            &getContext(), log2(schemeParam.getRingDim()),
-            DenseI64ArrayAttr::get(&getContext(),
-                                   ArrayRef(schemeParam.getQi())),
-            DenseI64ArrayAttr::get(&getContext(),
-                                   ArrayRef(schemeParam.getPi())),
+            context, log2(schemeParam.getRingDim()),
+            DenseI64ArrayAttr::get(context, ArrayRef(schemeParam.getQi())),
+            DenseI64ArrayAttr::get(context, ArrayRef(schemeParam.getPi())),
             schemeParam.getLogDefaultScale(),
             usePublicKey ? ckks::CKKSEncryptionType::pk
                          : ckks::CKKSEncryptionType::sk,

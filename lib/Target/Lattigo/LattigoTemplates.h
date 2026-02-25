@@ -11,6 +11,8 @@ namespace lattigo {
 // clang-format off
 constexpr std::string_view kRlweImport =
     "\"github.com/tuneinsight/lattigo/v6/core/rlwe\"";
+constexpr std::string_view kRingImport =
+    "\"github.com/tuneinsight/lattigo/v6/ring\"";
 constexpr std::string_view kBgvImport =
     "\"github.com/tuneinsight/lattigo/v6/schemes/bgv\"";
 constexpr std::string_view kCkksImport =
