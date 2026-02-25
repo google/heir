@@ -64,6 +64,7 @@ td_library(
 add_heir_dialect_library(
     name = "dialect_inc_gen",
     dialect = "ModArith",
+    dialect_doc_name = "mod_arith",
     kind = "dialect",
     td_file = "ModArithDialect.td",
     deps = [
@@ -74,6 +75,7 @@ add_heir_dialect_library(
 add_heir_dialect_library(
     name = "attributes_inc_gen",
     dialect = "ModArith",
+    dialect_doc_name = "mod_arith",
     kind = "attribute",
     td_file = "ModArithAttributes.td",
     deps = [
@@ -84,6 +86,7 @@ add_heir_dialect_library(
 add_heir_dialect_library(
     name = "types_inc_gen",
     dialect = "ModArith",
+    dialect_doc_name = "mod_arith",
     kind = "type",
     td_file = "ModArithTypes.td",
     deps = [
@@ -94,6 +97,7 @@ add_heir_dialect_library(
 add_heir_dialect_library(
     name = "ops_inc_gen",
     dialect = "ModArith",
+    dialect_doc_name = "mod_arith",
     kind = "op",
     td_file = "ModArithOps.td",
     deps = [

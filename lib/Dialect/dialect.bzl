@@ -8,7 +8,8 @@ def add_heir_dialect_library(
         dialect = None,
         kind = None,
         td_file = None,
-        deps = []):
+        deps = [],
+        dialect_doc_name = None):
     """Generates a .inc library for a HEIR dialect.
 
     Args:
@@ -17,6 +18,7 @@ def add_heir_dialect_library(
         kind: The kind of tablegen file to generate.
         td_file: The .td file to use for tablegen.
         deps: The dependencies of the generated target.
+        dialect_doc_name: The name of the dialect to use for documentation generation.
     """
     if name == None:
         fail("name must be provided to add_heir_dialect_library.")
@@ -62,7 +64,9 @@ def add_heir_dialect_library(
 
     _tblgen_command_decls = [_tblgen_command_prefix + _tblgen_command_infix + _tblgen_command_suffix_decls]
     _tblgen_command_defs = [_tblgen_command_prefix + _tblgen_command_infix + _tblgen_command_suffix_defs]
-    _tblgen_command_doc = [_tblgen_command_prefix + _tblgen_command_infix + _tblgen_command_suffix_doc]
+
+    _doc_dialect_name = dialect_doc_name if dialect_doc_name else dialect.lower()
+    _tblgen_command_doc = [_tblgen_command_prefix + _tblgen_command_infix + _tblgen_command_suffix_doc, "-dialect", _doc_dialect_name]
 
     gentbl_cc_library(
         name = name,

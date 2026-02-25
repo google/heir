@@ -1,6 +1,7 @@
 #ifndef LIB_DIALECT_CGGI_IR_CGGIENUMS_TD_
 #define LIB_DIALECT_CGGI_IR_CGGIENUMS_TD_
 
+include "lib/Dialect/CGGI/IR/CGGIDialect.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/BuiltinDialect.td"
 include "mlir/IR/CommonAttrConstraints.td"

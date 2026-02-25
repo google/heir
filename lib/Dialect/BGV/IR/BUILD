@@ -44,6 +44,8 @@ td_library(
         "BGVEnums.td",
         "BGVOps.td",
     ],
+    # include from the heir-root to enable fully-qualified include-paths
+    includes = ["../../../.."],
     deps = [
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",

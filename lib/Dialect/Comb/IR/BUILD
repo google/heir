@@ -84,7 +84,10 @@ gentbl_cc_library(
         "Comb.cpp.inc": [
             "-gen-op-defs",
         ],
-        "CombOps.md": ["-gen-op-doc"],
+        "CombOps.md": [
+            "-gen-op-doc",
+            "-dialect=comb",
+        ],
     },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "Comb.td",
@@ -104,7 +107,10 @@ gentbl_cc_library(
         "CombTypes.cpp.inc": [
             "-gen-typedef-defs",
         ],
-        "CombTypes.md": ["-gen-typedef-doc"],
+        "CombTypes.md": [
+            "-gen-typedef-doc",
+            "-dialect=comb",
+        ],
     },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "Comb.td",
@@ -123,7 +129,10 @@ gentbl_cc_library(
         "CombEnums.cpp.inc": [
             "-gen-enum-defs",
         ],
-        "CombEnums.md": ["-gen-enum-doc"],
+        "CombEnums.md": [
+            "-gen-enum-doc",
+            "-dialect=comb",
+        ],
     },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "Comb.td",

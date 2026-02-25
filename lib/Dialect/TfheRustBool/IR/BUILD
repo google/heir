@@ -53,6 +53,7 @@ td_library(
 add_heir_dialect_library(
     name = "dialect_inc_gen",
     dialect = "TfheRustBool",
+    dialect_doc_name = "tfhe_rust_bool",
     kind = "dialect",
     td_file = "TfheRustBoolDialect.td",
     deps = [
@@ -63,6 +64,7 @@ add_heir_dialect_library(
 add_heir_dialect_library(
     name = "attributes_inc_gen",
     dialect = "TfheRustBool",
+    dialect_doc_name = "tfhe_rust_bool",
     kind = "attribute",
     td_file = "TfheRustBoolAttributes.td",
     deps = [
@@ -74,6 +76,7 @@ add_heir_dialect_library(
 add_heir_dialect_library(
     name = "enums_inc_gen",
     dialect = "TfheRustBool",
+    dialect_doc_name = "tfhe_rust_bool",
     kind = "enum",
     td_file = "TfheRustBoolEnums.td",
     deps = [
@@ -85,6 +88,7 @@ add_heir_dialect_library(
 add_heir_dialect_library(
     name = "types_inc_gen",
     dialect = "TfheRustBool",
+    dialect_doc_name = "tfhe_rust_bool",
     kind = "type",
     td_file = "TfheRustBoolTypes.td",
     deps = [
@@ -95,6 +99,7 @@ add_heir_dialect_library(
 add_heir_dialect_library(
     name = "ops_inc_gen",
     dialect = "TfheRustBool",
+    dialect_doc_name = "tfhe_rust_bool",
     kind = "op",
     td_file = "TfheRustBoolOps.td",
     deps = [

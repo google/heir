@@ -62,6 +62,7 @@ td_library(
 add_heir_dialect_library(
     name = "dialect_inc_gen",
     dialect = "MathExt",
+    dialect_doc_name = "math_ext",
     kind = "dialect",
     td_file = "MathExtDialect.td",
     deps = [
@@ -72,6 +73,7 @@ add_heir_dialect_library(
 add_heir_dialect_library(
     name = "ops_inc_gen",
     dialect = "MathExt",
+    dialect_doc_name = "math_ext",
     kind = "op",
     td_file = "MathExtOps.td",
     deps = [

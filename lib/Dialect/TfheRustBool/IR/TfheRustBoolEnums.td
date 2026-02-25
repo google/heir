@@ -5,6 +5,7 @@ include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/BuiltinDialect.td"
 include "mlir/IR/CommonAttrConstraints.td"
 include "mlir/IR/EnumAttr.td"
+include "lib/Dialect/TfheRustBool/IR/TfheRustBoolDialect.td"
 
 include "lib/Dialect/CGGI/IR/BooleanGates.td"
 

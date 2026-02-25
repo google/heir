@@ -2,6 +2,7 @@
 #define LIB_DIALECT_CKKS_IR_CKKSENUMS_TD_
 
 include "mlir/IR/EnumAttr.td"
+include "lib/Dialect/CKKS/IR/CKKSDialect.td"
 
 def CKKS_EncryptionTypeEnum : I32EnumAttr<"CKKSEncryptionType", "An enum attribute representing an encryption method", [
   I32EnumAttrCase<"pk", 0>,

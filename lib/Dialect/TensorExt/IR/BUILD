@@ -112,6 +112,7 @@ td_library(
 add_heir_dialect_library(
     name = "dialect_inc_gen",
     dialect = "TensorExt",
+    dialect_doc_name = "tensor_ext",
     kind = "dialect",
     td_file = "TensorExtDialect.td",
     deps = [
@@ -122,6 +123,7 @@ add_heir_dialect_library(
 add_heir_dialect_library(
     name = "attributes_inc_gen",
     dialect = "TensorExt",
+    dialect_doc_name = "tensor_ext",
     kind = "attribute",
     td_file = "TensorExtAttributes.td",
     deps = [
@@ -132,6 +134,7 @@ add_heir_dialect_library(
 add_heir_dialect_library(
     name = "ops_inc_gen",
     dialect = "TensorExt",
+    dialect_doc_name = "tensor_ext",
     kind = "op",
     td_file = "TensorExtOps.td",
     deps = [

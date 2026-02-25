@@ -68,6 +68,7 @@ td_library(
 add_heir_dialect_library(
     name = "dialect_inc_gen",
     dialect = "TfheRust",
+    dialect_doc_name = "tfhe_rust",
     kind = "dialect",
     td_file = "TfheRustDialect.td",
     deps = [
@@ -78,6 +79,7 @@ add_heir_dialect_library(
 add_heir_dialect_library(
     name = "types_inc_gen",
     dialect = "TfheRust",
+    dialect_doc_name = "tfhe_rust",
     kind = "type",
     td_file = "TfheRustTypes.td",
     deps = [
@@ -88,6 +90,7 @@ add_heir_dialect_library(
 add_heir_dialect_library(
     name = "ops_inc_gen",
     dialect = "TfheRust",
+    dialect_doc_name = "tfhe_rust",
     kind = "op",
     td_file = "TfheRustOps.td",
     deps = [

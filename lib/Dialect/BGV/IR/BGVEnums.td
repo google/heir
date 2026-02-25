@@ -2,6 +2,7 @@
 #define LIB_DIALECT_BGV_IR_BGVENUMS_TD_
 
 include "mlir/IR/EnumAttr.td"
+include "lib/Dialect/BGV/IR/BGVDialect.td"
 
 def BGV_EncryptionTypeEnum : I32EnumAttr<"BGVEncryptionType", "An enum attribute representing an encryption method", [
   I32EnumAttrCase<"pk", 0>,
