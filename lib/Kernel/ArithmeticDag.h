@@ -118,6 +118,12 @@ struct MultiplyNode {
 };
 
 template <typename T>
+struct FloorDivNode {
+  std::shared_ptr<ArithmeticDagNode<T>> left;
+  int divisor;
+};
+
+template <typename T>
 struct PowerNode {
   std::shared_ptr<ArithmeticDagNode<T>> base;
   size_t exponent;
@@ -137,9 +143,11 @@ struct ExtractNode {
 
 template <typename T>
 struct ArithmeticDagNode {
+  using NodePtr = std::shared_ptr<ArithmeticDagNode<T>>;
+
  public:
   std::variant<ConstantScalarNode, ConstantTensorNode, LeafNode<T>, AddNode<T>,
-               SubtractNode<T>, MultiplyNode<T>, PowerNode<T>,
+               SubtractNode<T>, MultiplyNode<T>, FloorDivNode<T>, PowerNode<T>,
                LeftRotateNode<T>, ExtractNode<T>, SplatNode>
       node_variant;
 
@@ -153,19 +161,16 @@ struct ArithmeticDagNode {
 
  public:
   // Static factory methods
-  static std::shared_ptr<ArithmeticDagNode<T>> leaf(const T& value) {
+  static NodePtr leaf(const T& value) {
     // This factory method differs from the others because T may not have a
     // default constructor to use with emplace. In that case, we need to rely
     // on the move or copy constructors, which corresponds to the two
     // ArithmeticDagNode constructors above.
-    return std::shared_ptr<ArithmeticDagNode<T>>(
-        new ArithmeticDagNode<T>(value));
+    return NodePtr(new ArithmeticDagNode<T>(value));
   }
 
-  static std::shared_ptr<ArithmeticDagNode<T>> constantScalar(double constant,
-                                                              DagType type) {
-    auto node =
-        std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
+  static NodePtr constantScalar(double constant, DagType type) {
+    auto node = NodePtr(new ArithmeticDagNode<T>());
     // Note, to satisfy variant we need to use aggregate initialization inside
     // emplace
     node->node_variant.template emplace<ConstantScalarNode>(
@@ -173,10 +178,8 @@ struct ArithmeticDagNode {
     return node;
   }
 
-  static std::shared_ptr<ArithmeticDagNode<T>> constantTensor(
-      std::vector<double> constant, DagType type) {
-    auto node =
-        std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
+  static NodePtr constantTensor(std::vector<double> constant, DagType type) {
+    auto node = NodePtr(new ArithmeticDagNode<T>());
     // Note, to satisfy variant we need to use aggregate initialization inside
     // emplace
     node->node_variant.template emplace<ConstantTensorNode>(
@@ -184,73 +187,64 @@ struct ArithmeticDagNode {
     return node;
   }
 
-  static std::shared_ptr<ArithmeticDagNode<T>> splat(double constant,
-                                                     DagType type) {
-    auto node =
-        std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
+  static NodePtr splat(double constant, DagType type) {
+    auto node = NodePtr(new ArithmeticDagNode<T>());
     node->node_variant.template emplace<SplatNode>(
         SplatNode{constant, std::move(type)});
     return node;
   }
 
-  static std::shared_ptr<ArithmeticDagNode<T>> add(
-      std::shared_ptr<ArithmeticDagNode<T>> lhs,
-      std::shared_ptr<ArithmeticDagNode<T>> rhs) {
+  static NodePtr add(NodePtr lhs, NodePtr rhs) {
     assert(lhs && rhs && "invalid add");
-    auto node =
-        std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
+    auto node = NodePtr(new ArithmeticDagNode<T>());
     node->node_variant.template emplace<AddNode<T>>(
         AddNode<T>{std::move(lhs), std::move(rhs)});
     return node;
   }
 
-  static std::shared_ptr<ArithmeticDagNode<T>> sub(
-      std::shared_ptr<ArithmeticDagNode<T>> lhs,
-      std::shared_ptr<ArithmeticDagNode<T>> rhs) {
+  static NodePtr sub(NodePtr lhs, NodePtr rhs) {
     assert(lhs && rhs && "invalid sub");
-    auto node =
-        std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
+    auto node = NodePtr(new ArithmeticDagNode<T>());
     node->node_variant.template emplace<SubtractNode<T>>(
         SubtractNode<T>{std::move(lhs), std::move(rhs)});
     return node;
   }
 
-  static std::shared_ptr<ArithmeticDagNode<T>> mul(
-      std::shared_ptr<ArithmeticDagNode<T>> lhs,
-      std::shared_ptr<ArithmeticDagNode<T>> rhs) {
+  static NodePtr mul(NodePtr lhs, NodePtr rhs) {
     assert(lhs && rhs && "invalid mul");
-    auto node =
-        std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
+    auto node = NodePtr(new ArithmeticDagNode<T>());
     node->node_variant.template emplace<MultiplyNode<T>>(
         MultiplyNode<T>{std::move(lhs), std::move(rhs)});
     return node;
   }
 
-  static std::shared_ptr<ArithmeticDagNode<T>> power(
-      std::shared_ptr<ArithmeticDagNode<T>> base, size_t exponent) {
+  static NodePtr floorDiv(NodePtr lhs, int rhs) {
+    assert(lhs && "invalid div");
+    auto node = NodePtr(new ArithmeticDagNode<T>());
+    node->node_variant.template emplace<FloorDivNode<T>>(
+        FloorDivNode<T>{std::move(lhs), rhs});
+    return node;
+  }
+
+  static NodePtr power(NodePtr base, size_t exponent) {
     assert(base && "invalid base for power");
-    auto node =
-        std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
+    auto node = NodePtr(new ArithmeticDagNode<T>());
     node->node_variant.template emplace<PowerNode<T>>(
         PowerNode<T>{std::move(base), exponent});
     return node;
   }
 
-  static std::shared_ptr<ArithmeticDagNode<T>> leftRotate(
-      std::shared_ptr<ArithmeticDagNode<T>> tensor, int64_t shift) {
+  static NodePtr leftRotate(NodePtr tensor, int64_t shift) {
     assert(tensor && "invalid tensor for leftRotate");
-    auto node =
-        std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
+    auto node = NodePtr(new ArithmeticDagNode<T>());
     node->node_variant.template emplace<LeftRotateNode<T>>(
         LeftRotateNode<T>{std::move(tensor), shift});
     return node;
   }
 
-  static std::shared_ptr<ArithmeticDagNode<T>> extract(
-      std::shared_ptr<ArithmeticDagNode<T>> tensor, size_t index) {
+  static NodePtr extract(NodePtr tensor, size_t index) {
     assert(tensor && "invalid tensor for extract");
-    auto node =
-        std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
+    auto node = NodePtr(new ArithmeticDagNode<T>());
     node->node_variant.template emplace<ExtractNode<T>>(
         ExtractNode<T>{std::move(tensor), index});
     return node;
@@ -280,11 +274,13 @@ struct ArithmeticDagNode {
 ///   ResultType: The type of the result of the visit.
 template <typename T, typename ResultType>
 class CachingVisitor {
+  using NodePtr = std::shared_ptr<ArithmeticDagNode<T>>;
+
  public:
   virtual ~CachingVisitor() = default;
 
   /// The main entry point that contains the caching logic.
-  ResultType process(const std::shared_ptr<ArithmeticDagNode<T>>& node) {
+  ResultType process(const NodePtr& node) {
     assert(node != nullptr && "invalid null node!");
 
     const auto* nodePtr = node.get();
@@ -298,8 +294,7 @@ class CachingVisitor {
   }
 
   /// An alternate entry point that handles multiple roots.
-  std::vector<ResultType> process(
-      llvm::ArrayRef<std::shared_ptr<ArithmeticDagNode<T>>> nodes) {
+  std::vector<ResultType> process(llvm::ArrayRef<NodePtr> nodes) {
     std::vector<ResultType> results;
     results.reserve(nodes.size());
     for (const auto& node : nodes) {
@@ -345,6 +340,11 @@ class CachingVisitor {
 
   virtual ResultType operator()(const MultiplyNode<T>& node) {
     assert(false && "Visit logic for MultiplyNode is not implemented.");
+    return ResultType();
+  }
+
+  virtual ResultType operator()(const FloorDivNode<T>& node) {
+    assert(false && "Visit logic for FloorDivNode is not implemented.");
     return ResultType();
   }
 

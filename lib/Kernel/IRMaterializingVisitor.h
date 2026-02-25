@@ -60,6 +60,7 @@ class IRMaterializingVisitor
   std::vector<Value> operator()(const AddNode<SSAValue>& node) override;
   std::vector<Value> operator()(const SubtractNode<SSAValue>& node) override;
   std::vector<Value> operator()(const MultiplyNode<SSAValue>& node) override;
+  std::vector<Value> operator()(const FloorDivNode<SSAValue>& node) override;
   std::vector<Value> operator()(const LeftRotateNode<SSAValue>& node) override;
   std::vector<Value> operator()(const ExtractNode<SSAValue>& node) override;
 

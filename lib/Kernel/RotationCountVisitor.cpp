@@ -98,6 +98,15 @@ int64_t RotationCountVisitor::operator()(
   return leftCount + rightCount;
 }
 
+int64_t RotationCountVisitor::operator()(
+    const FloorDivNode<SymbolicValue>& node) {
+  const auto* thisNode = currentNode;  // Save before recursion
+  int64_t leftCount = processInternal(node.left);
+  bool leftIsSecret = nodeSecretStatus[node.left.get()];
+  nodeSecretStatus[thisNode] = leftIsSecret;
+  return leftCount;
+}
+
 int64_t RotationCountVisitor::operator()(const PowerNode<SymbolicValue>& node) {
   const auto* thisNode = currentNode;  // Save before recursion
 

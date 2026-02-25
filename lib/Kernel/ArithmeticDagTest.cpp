@@ -61,6 +61,13 @@ struct FlattenedStringVisitor {
     return ss.str();
   }
 
+  std::string operator()(const FloorDivNode<std::string>& node) const {
+    std::stringstream ss;
+    ss << "(" << node.left->visit(*this) << " / "
+       << std::to_string(node.divisor) << ")";
+    return ss.str();
+  }
+
   std::string operator()(const PowerNode<std::string>& node) const {
     std::stringstream ss;
     ss << "(" << node.base->visit(*this) << " ^ " << node.exponent << ")";
@@ -146,6 +153,18 @@ TEST(ArithmeticDagTest, TestPrint) {
   FlattenedStringVisitor visitor;
   std::string result = root->visit(visitor);
   EXPECT_EQ(result, "(((x + 3.00) * (y ^ 2)) << 7)");
+}
+
+TEST(ArithmeticDagTest, TestDiv) {
+  auto root = StringLeavedDag::leftRotate(
+      StringLeavedDag::mul(
+          StringLeavedDag::floorDiv(StringLeavedDag::leaf("x"), 3),
+          StringLeavedDag::power(StringLeavedDag::leaf("y"), 2)),
+      7);
+
+  FlattenedStringVisitor visitor;
+  std::string result = root->visit(visitor);
+  EXPECT_EQ(result, "(((x / 3) * (y ^ 2)) << 7)");
 }
 
 TEST(ArithmeticDagTest, TestProperDag) {

@@ -98,6 +98,16 @@ std::vector<Value> IRMaterializingVisitor::operator()(
 }
 
 std::vector<Value> IRMaterializingVisitor::operator()(
+    const FloorDivNode<SSAValue>& node) {
+  Value lhs = this->process(node.left)[0];
+  Value rhs =
+      arith::ConstantIntOp::create(builder, lhs.getType(), node.divisor);
+  auto op = arith::DivSIOp::create(builder, lhs, rhs);
+  createdOpCallback(op);
+  return {op->getResult(0)};
+}
+
+std::vector<Value> IRMaterializingVisitor::operator()(
     const LeftRotateNode<SSAValue>& node) {
   Value operand = this->process(node.operand)[0];
   Value shift = arith::ConstantIndexOp::create(builder, node.shift);
