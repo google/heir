@@ -2,10 +2,8 @@
 
 #include <cassert>
 #include <cstddef>
-#include <iostream>
 #include <memory>
 #include <string>
-#include <type_traits>
 #include <variant>
 #include <vector>
 
@@ -17,19 +15,8 @@ namespace mlir {
 namespace heir {
 namespace kernel {
 
-void printVec(const std::vector<int>& vec) {
-  std::cout << "[";
-  for (size_t i = 0; i < vec.size(); ++i) {
-    std::cout << vec[i];
-    if (i != vec.size() - 1) {
-      std::cout << ", ";
-    }
-  }
-  std::cout << "]";
-}
-
 EvalResults EvalVisitor::operator()(const LeafNode<LiteralValue>& node) {
-  const auto& nodeVal = node.value.getTensor();
+  const auto& nodeVal = node.value.get();
   const auto* vecVal = std::get_if<std::vector<int>>(&nodeVal);
   const auto* matVal = std::get_if<std::vector<std::vector<int>>>(&nodeVal);
   if (vecVal) {
@@ -39,13 +26,7 @@ EvalResults EvalVisitor::operator()(const LeafNode<LiteralValue>& node) {
     assert(matVal->size() == node.value.getShape()[0]);
   }
 
-  // std::cout << "Leaf node with shape: ";
-  // for (auto dim : node.value.getShape()) {
-  //   std::cout << dim << " ";
-  // }
-  // std::cout << "\n";
-
-  return {node.value.getTensor()};
+  return {node.value.get()};
 }
 
 EvalResults EvalVisitor::operator()(const AddNode<LiteralValue>& node) {
@@ -53,9 +34,18 @@ EvalResults EvalVisitor::operator()(const AddNode<LiteralValue>& node) {
   // to ensure caching is applied at every step.
   auto left = this->process(node.left)[0];
   auto right = this->process(node.right)[0];
+  const auto& lVal = left.get();
+  const auto& rVal = right.get();
+
+  // Handle scalar addition
+  const auto* lScalar = std::get_if<int>(&lVal);
+  const auto* rScalar = std::get_if<int>(&rVal);
+  if (lScalar && rScalar) {
+    return {LiteralValue(*lScalar + *rScalar)};
+  }
+
+  // Handle vector addition
   auto dim = left.getShape()[0];
-  const auto& lVal = left.getTensor();
-  const auto& rVal = right.getTensor();
   const auto* lVec = std::get_if<std::vector<int>>(&lVal);
   const auto* rVec = std::get_if<std::vector<int>>(&rVal);
   assert(lVec && rVec && "unsupported add operands");
@@ -64,24 +54,24 @@ EvalResults EvalVisitor::operator()(const AddNode<LiteralValue>& node) {
   for (size_t i = 0; i < dim; ++i) {
     result[i] = (*lVec)[i] + (*rVec)[i];
   }
-
-  // std::cout << "Add lhs=";
-  // printVec(*lVec);
-  // std::cout << " rhs=";
-  // printVec(*rVec);
-  // std::cout << " result=";
-  // printVec(result);
-  // std::cout << "\n";
-
   return {result};
 }
 
 EvalResults EvalVisitor::operator()(const SubtractNode<LiteralValue>& node) {
   auto left = this->process(node.left)[0];
   auto right = this->process(node.right)[0];
+  const auto& lVal = left.get();
+  const auto& rVal = right.get();
+
+  // Handle scalar subtraction
+  const auto* lScalar = std::get_if<int>(&lVal);
+  const auto* rScalar = std::get_if<int>(&rVal);
+  if (lScalar && rScalar) {
+    return {LiteralValue(*lScalar - *rScalar)};
+  }
+
+  // Handle vector subtraction
   auto dim = left.getShape()[0];
-  const auto& lVal = left.getTensor();
-  const auto& rVal = right.getTensor();
   const auto* lVec = std::get_if<std::vector<int>>(&lVal);
   const auto* rVec = std::get_if<std::vector<int>>(&rVal);
   assert(lVec && rVec && "unsupported sub operands");
@@ -91,22 +81,24 @@ EvalResults EvalVisitor::operator()(const SubtractNode<LiteralValue>& node) {
     result[i] = (*lVec)[i] - (*rVec)[i];
   }
 
-  // std::cout << "Sub lhs=";
-  // printVec(*lVec);
-  // std::cout << " rhs=";
-  // printVec(*rVec);
-  // std::cout << " result=";
-  // printVec(result);
-  // std::cout << "\n";
   return {result};
 }
 
 EvalResults EvalVisitor::operator()(const MultiplyNode<LiteralValue>& node) {
   auto left = this->process(node.left)[0];
   auto right = this->process(node.right)[0];
+  const auto& lVal = left.get();
+  const auto& rVal = right.get();
+
+  // Handle scalar multiplication
+  const auto* lScalar = std::get_if<int>(&lVal);
+  const auto* rScalar = std::get_if<int>(&rVal);
+  if (lScalar && rScalar) {
+    return {LiteralValue(*lScalar * *rScalar)};
+  }
+
+  // Handle vector multiplication
   auto dim = left.getShape()[0];
-  const auto& lVal = left.getTensor();
-  const auto& rVal = right.getTensor();
   const auto* lVec = std::get_if<std::vector<int>>(&lVal);
   const auto* rVec = std::get_if<std::vector<int>>(&rVal);
   assert(lVec && rVec && "unsupported mul operands");
@@ -115,13 +107,6 @@ EvalResults EvalVisitor::operator()(const MultiplyNode<LiteralValue>& node) {
   for (size_t i = 0; i < dim; ++i) {
     result[i] = (*lVec)[i] * (*rVec)[i];
   }
-  // std::cout << "Mul lhs=";
-  // printVec(*lVec);
-  // std::cout << " rhs=";
-  // printVec(*rVec);
-  // std::cout << " result=";
-  // printVec(result);
-  // std::cout << "\n";
   return {result};
 }
 
@@ -129,41 +114,37 @@ EvalResults EvalVisitor::operator()(const MultiplyNode<LiteralValue>& node) {
 EvalResults EvalVisitor::operator()(const LeftRotateNode<LiteralValue>& node) {
   auto operand = this->process(node.operand)[0];
   auto dim = operand.getShape()[0];
-  int amount = node.shift;
+  auto amount = node.shift;
   // Normalize amount to be in [0, dim)
   amount = ((amount % dim) + dim) % dim;
 
-  const auto& oVal = operand.getTensor();
+  const auto& oVal = operand.get();
   const auto* oVec = std::get_if<std::vector<int>>(&oVal);
   assert(oVec && "unsupported rotate operand");
   std::vector<int> result(dim);
   for (size_t i = 0; i < dim; ++i) {
     result[i] = (*oVec)[(i + amount) % oVec->size()];
   }
-
-  // std::cout << "Rot vec=";
-  // printVec(*oVec);
-  // std::cout << " shift=" << amount;
-  // std::cout << " result=";
-  // printVec(result);
-  // std::cout << "\n";
   return {result};
 }
 
 EvalResults EvalVisitor::operator()(const ExtractNode<LiteralValue>& node) {
   auto tensor = this->process(node.operand)[0];
-  unsigned index = node.index;
-  return {std::visit(
-      [&](auto&& t) -> LiteralValue {
-        // We can only extract from a 2D vector.
+  int index = node.index;
+
+  return std::visit(
+      [&](auto&& t) -> EvalResults {
         if constexpr (std::is_same_v<std::decay_t<decltype(t)>,
                                      std::vector<std::vector<int>>>) {
-          return t[index];
+          return {LiteralValue(t[index])};
+        } else if constexpr (std::is_same_v<std::decay_t<decltype(t)>,
+                                            std::vector<int>>) {
+          return {LiteralValue(t[index])};
         }
         assert(false && "Unsupported type for extraction");
-        return LiteralValue(std::vector<int>({}));
+        return {};
       },
-      tensor.getTensor())};
+      tensor.get());
 }
 
 EvalResults EvalVisitor::operator()(const ConstantTensorNode& node) {
@@ -173,10 +154,44 @@ EvalResults EvalVisitor::operator()(const ConstantTensorNode& node) {
   for (double v : node.value) {
     vec.push_back(static_cast<int>(v));
   }
-  // std::cout << "Const vec=";
-  // printVec(vec);
-  // std::cout << "\n";
   return {LiteralValue(vec)};
+}
+
+EvalResults EvalVisitor::operator()(const ConstantScalarNode& node) {
+  // A bit of a hack, casting the double to an int
+  return {LiteralValue(static_cast<int>(node.value))};
+}
+
+EvalResults EvalVisitor::operator()(const SplatNode& node) {
+  // A bit of a hack, casting the double to an int
+  int splatValue = static_cast<int>(node.value);
+
+  // Check if this is a tensor type
+  if (std::holds_alternative<kernel::IntTensorType>(node.type.type_variant)) {
+    const auto& tensorType =
+        std::get<kernel::IntTensorType>(node.type.type_variant);
+    // Compute total size as product of all dimensions
+    int64_t totalSize = 1;
+    for (int64_t dim : tensorType.shape) {
+      totalSize *= dim;
+    }
+    std::vector<int> result(totalSize, splatValue);
+    return {LiteralValue(result)};
+  } else if (std::holds_alternative<kernel::FloatTensorType>(
+                 node.type.type_variant)) {
+    const auto& tensorType =
+        std::get<kernel::FloatTensorType>(node.type.type_variant);
+    // Compute total size as product of all dimensions
+    int64_t totalSize = 1;
+    for (int64_t dim : tensorType.shape) {
+      totalSize *= dim;
+    }
+    std::vector<int> result(totalSize, splatValue);
+    return {LiteralValue(result)};
+  }
+
+  // Scalar type
+  return {LiteralValue(splatValue)};
 }
 
 EvalResults evalKernel(
@@ -192,7 +207,7 @@ std::vector<EvalResults> multiEvalKernel(
 }
 
 std::string PrintVisitor::operator()(const LeafNode<LiteralValue>& node) {
-  const auto& nodeVal = node.value.getTensor();
+  const auto& nodeVal = node.value.get();
   const auto* vecVal = std::get_if<std::vector<int>>(&nodeVal);
   const auto* matVal = std::get_if<std::vector<std::vector<int>>>(&nodeVal);
   if (vecVal) {
@@ -212,6 +227,14 @@ std::string PrintVisitor::operator()(const LeafNode<LiteralValue>& node) {
   }
 
   return "UnknownLeaf";
+}
+
+std::string PrintVisitor::operator()(const ConstantScalarNode& node) {
+  return std::to_string(node.value);
+}
+
+std::string PrintVisitor::operator()(const SplatNode& node) {
+  return "splat(" + std::to_string(node.value) + ")";
 }
 
 std::string PrintVisitor::operator()(const AddNode<LiteralValue>& node) {
@@ -234,7 +257,8 @@ std::string PrintVisitor::operator()(const MultiplyNode<LiteralValue>& node) {
 
 std::string PrintVisitor::operator()(const LeftRotateNode<LiteralValue>& node) {
   std::string operand = this->process(node.operand);
-  return "Rot(" + operand + ", " + std::to_string(node.shift) + ")";
+  std::string shift = std::to_string(node.shift);
+  return "Rot(" + operand + ", " + shift + ")";
 }
 
 std::string PrintVisitor::operator()(const ExtractNode<LiteralValue>& node) {
@@ -242,7 +266,8 @@ std::string PrintVisitor::operator()(const ExtractNode<LiteralValue>& node) {
   // and the textual form of the entire matrix is too verbose. Could also
   // run a simplification on the generated kernel to inline the extracted
   // tensor instead of printing recursively.
-  return "pt(" + std::to_string(node.index) + ")";
+  std::string indexStr = std::to_string(node.index);
+  return "pt(" + indexStr + ")";
 }
 
 std::string printKernel(
