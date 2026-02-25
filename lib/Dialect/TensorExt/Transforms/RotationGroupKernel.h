@@ -23,6 +23,24 @@ namespace tensor_ext {
 using kernel::AbstractValue;
 using kernel::ArithmeticDagNode;
 
+namespace {
+// Helper to create a tensor DagType from an element type and shape
+inline kernel::DagType makeTensorType(const kernel::DagType& elemType,
+                                      const std::vector<int64_t>& shape) {
+  if (std::holds_alternative<kernel::FloatType>(elemType.type_variant)) {
+    unsigned bitWidth =
+        std::get<kernel::FloatType>(elemType.type_variant).bitWidth;
+    return kernel::DagType::floatTensor(bitWidth, shape);
+  } else if (std::holds_alternative<kernel::IntegerType>(
+                 elemType.type_variant)) {
+    unsigned bitWidth =
+        std::get<kernel::IntegerType>(elemType.type_variant).bitWidth;
+    return kernel::DagType::intTensor(bitWidth, shape);
+  }
+  llvm_unreachable("Expected scalar DagType");
+}
+}  // namespace
+
 //  Apply a virtual rotation to a real list of ciphertexts.
 //
 //  A virtual ciphertext is a flattening of a list of ciphertexts. When this
@@ -53,10 +71,12 @@ std::enable_if_t<
 applyVirtualRotation(ArrayRef<std::shared_ptr<ArithmeticDagNode<T>>> input,
                      int64_t rotation,
                      const std::vector<std::vector<double>>& rotateMasks,
-                     int64_t ciphertextSize) {
+                     int64_t ciphertextSize, kernel::DagType elementType) {
   using NodeTy = ArithmeticDagNode<T>;
   using ValueTy = std::shared_ptr<NodeTy>;
   int64_t numCiphertexts = input.size();
+  auto tensorType =
+      makeTensorType(elementType, {1, static_cast<int64_t>(ciphertextSize)});
 
   // We need to identify the (possibly two) target ciphertexts for each input
   // ciphertext that was rotated.
@@ -71,15 +91,12 @@ applyVirtualRotation(ArrayRef<std::shared_ptr<ArithmeticDagNode<T>>> input,
       // Eagerly skip masking if possible
       auto [allZero, allOne] = allZeroAllOne(mask);
       if (allZero) {
-        std::vector<double> zeros(ciphertextSize, 0.0);
-        masked.push_back(NodeTy::constantTensor(
-            zeros, kernel::DagType::floatTensor(64, {ciphertextSize})));
+        masked.push_back(NodeTy::splat(0.0, tensorType));
       } else if (allOne) {
         masked.push_back(ct);
       } else {
-        masked.push_back(NodeTy::mul(
-            ct, NodeTy::constantTensor(
-                    mask, kernel::DagType::floatTensor(64, {ciphertextSize}))));
+        masked.push_back(
+            NodeTy::mul(ct, NodeTy::constantTensor(mask, tensorType)));
       }
     }
 
@@ -143,16 +160,12 @@ applyVirtualRotation(ArrayRef<std::shared_ptr<ArithmeticDagNode<T>>> input,
       // Eagerly skip masking if possible
       auto [allZero, allOne] = allZeroAllOne(mask);
       if (allZero) {
-        std::vector<double> zeros(ciphertextSize, 0.0);
-        results[target1] = NodeTy::constantTensor(
-            zeros, kernel::DagType::floatTensor(64, {ciphertextSize}));
+        results[target1] = NodeTy::splat(0.0, tensorType);
       } else if (allOne) {
         results[target1] = NodeTy::leftRotate(ct, rotation);
       } else {
         results[target1] = NodeTy::leftRotate(
-            NodeTy::mul(
-                ct, NodeTy::constantTensor(mask, kernel::DagType::floatTensor(
-                                                     64, {ciphertextSize}))),
+            NodeTy::mul(ct, NodeTy::constantTensor(mask, tensorType)),
             rotation);
       }
       continue;
@@ -188,9 +201,8 @@ applyVirtualRotation(ArrayRef<std::shared_ptr<ArithmeticDagNode<T>>> input,
       if (allZero) {
         rotated1 = std::nullopt;
       } else {
-        ValueTy masked1 = NodeTy::mul(
-            ct, NodeTy::constantTensor(
-                    mask1, kernel::DagType::floatTensor(64, {ciphertextSize})));
+        ValueTy masked1 =
+            NodeTy::mul(ct, NodeTy::constantTensor(mask1, tensorType));
         rotated1 = NodeTy::leftRotate(masked1, rotation);
       }
     }
@@ -201,9 +213,8 @@ applyVirtualRotation(ArrayRef<std::shared_ptr<ArithmeticDagNode<T>>> input,
       if (allZero) {
         rotated2 = std::nullopt;
       } else {
-        ValueTy masked2 = NodeTy::mul(
-            ct, NodeTy::constantTensor(
-                    mask2, kernel::DagType::floatTensor(64, {ciphertextSize})));
+        ValueTy masked2 =
+            NodeTy::mul(ct, NodeTy::constantTensor(mask2, tensorType));
         rotated2 = NodeTy::leftRotate(masked2, rotation);
       }
     }
@@ -233,7 +244,8 @@ std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
                  SmallVector<std::shared_ptr<ArithmeticDagNode<T>>>>
 rotateOneGroup(const Mapping& mapping, ArrayRef<T> initialCiphertexts,
                ArrayRef<SourceShift> sourceShifts, ArrayRef<ShiftRound> rounds,
-               const RotationGroup& group, int64_t ciphertextSize) {
+               const RotationGroup& group, int64_t ciphertextSize,
+               kernel::DagType elementType) {
   using NodeTy = ArithmeticDagNode<T>;
   using ValueTy = std::shared_ptr<NodeTy>;
 
@@ -283,6 +295,8 @@ rotateOneGroup(const Mapping& mapping, ArrayRef<T> initialCiphertexts,
     // skip masking if possible
     SmallVector<std::optional<ValueTy>> fixedCurrent;
     fixedCurrent.reserve(numCiphertexts);
+    auto tensorType =
+        makeTensorType(elementType, {1, static_cast<int64_t>(ciphertextSize)});
     for (const auto& [ct, fixedMask] : llvm::zip(current, fixedMasks)) {
       auto [allZero, allOne] = allZeroAllOne(fixedMask);
       if (allZero) {
@@ -290,8 +304,7 @@ rotateOneGroup(const Mapping& mapping, ArrayRef<T> initialCiphertexts,
       } else if (allOne) {
         fixedCurrent.push_back(ct);
       } else {
-        ValueTy mask = NodeTy::constantTensor(
-            fixedMask, kernel::DagType::floatTensor(64, {ciphertextSize}));
+        ValueTy mask = NodeTy::constantTensor(fixedMask, tensorType);
         fixedCurrent.push_back(NodeTy::mul(ct, mask));
       }
     }
@@ -314,7 +327,7 @@ rotateOneGroup(const Mapping& mapping, ArrayRef<T> initialCiphertexts,
       // }
       rotatedCurrent =
           applyVirtualRotation(ArrayRef<ValueTy>(current), round.rotationAmount,
-                               rotateMasks, ciphertextSize);
+                               rotateMasks, ciphertextSize, elementType);
     }
 
     // Combine the rotated and fixed parts to form the new current.
@@ -345,12 +358,11 @@ rotateOneGroup(const Mapping& mapping, ArrayRef<T> initialCiphertexts,
   // Add up the results, zeroing out any ciphertexts that are not the final
   // target of some rotation, as they contain partially-shifted and fixed
   // values from middle rounds of this group.
+  auto tensorType =
+      makeTensorType(elementType, {1, static_cast<int64_t>(ciphertextSize)});
   for (int64_t i = 0; i < numCiphertexts; i++) {
     if (!finalTargetCiphertexts.contains(i)) {
-      std::vector<double> zeroVec(ciphertextSize, 0);
-      current[i] = NodeTy::constantTensor(
-          std::move(zeroVec),
-          kernel::DagType::floatTensor(64, {ciphertextSize}));
+      current[i] = NodeTy::splat(0.0, tensorType);
     }
   }
 
@@ -362,7 +374,8 @@ std::enable_if_t<
     std::is_base_of<AbstractValue, T>::value,
     SmallVector<SmallVector<std::shared_ptr<ArithmeticDagNode<T>>>>>
 implementRotationGroups(SmallVector<T>& ciphertexts, const Mapping& mapping,
-                        const ShiftScheme& scheme, int64_t ciphertextSize) {
+                        const ShiftScheme& scheme, int64_t ciphertextSize,
+                        kernel::DagType elementType) {
   using NodeTy = ArithmeticDagNode<T>;
   using ValueTy = std::shared_ptr<NodeTy>;
 
@@ -387,9 +400,9 @@ implementRotationGroups(SmallVector<T>& ciphertexts, const Mapping& mapping,
     //             << ss.shift << "\n";
     // }
 
-    SmallVector<ValueTy> perGroupResult =
-        rotateOneGroup(mapping, ArrayRef<T>(ciphertexts), sourceShifts,
-                       scheme.strategy.getRounds(), group, ciphertextSize);
+    SmallVector<ValueTy> perGroupResult = rotateOneGroup(
+        mapping, ArrayRef<T>(ciphertexts), sourceShifts,
+        scheme.strategy.getRounds(), group, ciphertextSize, elementType);
     groupResults.push_back(perGroupResult);
   }
 
@@ -400,11 +413,12 @@ template <typename T>
 std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
                  SmallVector<std::shared_ptr<ArithmeticDagNode<T>>>>
 implementShiftNetwork(SmallVector<T>& ciphertexts, const Mapping& mapping,
-                      const ShiftScheme& scheme, int64_t ciphertextSize) {
+                      const ShiftScheme& scheme, int64_t ciphertextSize,
+                      kernel::DagType elementType) {
   using NodeTy = ArithmeticDagNode<T>;
   using ValueTy = std::shared_ptr<NodeTy>;
-  SmallVector<SmallVector<ValueTy>> groupResults =
-      implementRotationGroups(ciphertexts, mapping, scheme, ciphertextSize);
+  SmallVector<SmallVector<ValueTy>> groupResults = implementRotationGroups(
+      ciphertexts, mapping, scheme, ciphertextSize, elementType);
 
   // Add all the per-group results together
   SmallVector<ValueTy> summedResults = groupResults[0];

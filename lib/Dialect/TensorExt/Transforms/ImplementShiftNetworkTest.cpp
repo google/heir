@@ -66,8 +66,9 @@ std::vector<std::vector<int>> manuallyApplyMapping(
   }
 
   auto expected = manuallyApplyMapping(mapping, input, ciphertextSize);
-  auto dag =
-      implementShiftNetwork(inputLeaves, mapping, scheme, ciphertextSize);
+  kernel::DagType defaultType = kernel::DagType::integer(32);
+  auto dag = implementShiftNetwork(inputLeaves, mapping, scheme, ciphertextSize,
+                                   defaultType);
   auto evalResults = multiEvalKernel(dag);
   std::vector<LiteralValue> actual;
   actual.reserve(evalResults.size());

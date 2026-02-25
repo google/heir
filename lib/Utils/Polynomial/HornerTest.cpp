@@ -19,7 +19,8 @@ using kernel::LiteralDouble;
 double evalHornerPolynomial(double x,
                             const std::map<int64_t, double>& coefficients) {
   auto x_node = ArithmeticDagNode<LiteralDouble>::leaf(LiteralDouble(x));
-  auto result_node = hornerMonomialPolynomialEvaluation(x_node, coefficients);
+  auto result_node = hornerMonomialPolynomialEvaluation(
+      x_node, coefficients, kernel::DagType::floatTy(64));
 
   test::EvalVisitor visitor;
   return result_node->visit(visitor)[0];

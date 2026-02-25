@@ -22,8 +22,8 @@ double psEvalChebyshevPolynomial(const std::vector<double>& coefficients,
   if (coefficients.empty()) return 0.0;
 
   kernel::LiteralDouble xNode = x;
-  auto resultNode =
-      patersonStockmeyerChebyshevPolynomialEvaluation(xNode, coefficients);
+  auto resultNode = patersonStockmeyerChebyshevPolynomialEvaluation(
+      xNode, coefficients, kMinCoeffs, kernel::DagType::floatTy(64));
 
   if (!resultNode) return 0.0;
 

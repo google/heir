@@ -55,6 +55,7 @@ class IRMaterializingVisitor
   }
 
   std::vector<Value> operator()(const ConstantScalarNode& node) override;
+  std::vector<Value> operator()(const SplatNode& node) override;
   std::vector<Value> operator()(const ConstantTensorNode& node) override;
   std::vector<Value> operator()(const LeafNode<SSAValue>& node) override;
   std::vector<Value> operator()(const AddNode<SSAValue>& node) override;

@@ -132,7 +132,7 @@ struct PowerNode {
 template <typename T>
 struct LeftRotateNode {
   std::shared_ptr<ArithmeticDagNode<T>> operand;
-  int64_t shift;
+  std::shared_ptr<ArithmeticDagNode<T>> shift;
 };
 
 template <typename T>
@@ -237,8 +237,17 @@ struct ArithmeticDagNode {
   static NodePtr leftRotate(NodePtr tensor, int64_t shift) {
     assert(tensor && "invalid tensor for leftRotate");
     auto node = NodePtr(new ArithmeticDagNode<T>());
+    auto constantShift = constantScalar(shift, DagType::index());
     node->node_variant.template emplace<LeftRotateNode<T>>(
-        LeftRotateNode<T>{std::move(tensor), shift});
+        LeftRotateNode<T>{std::move(tensor), std::move(constantShift)});
+    return node;
+  }
+
+  static NodePtr leftRotate(NodePtr tensor, NodePtr shift) {
+    assert(tensor && "invalid tensor for leftRotate");
+    auto node = NodePtr(new ArithmeticDagNode<T>());
+    node->node_variant.template emplace<LeftRotateNode<T>>(
+        LeftRotateNode<T>{std::move(tensor), std::move(shift)});
     return node;
   }
 
