@@ -30,7 +30,7 @@ TEST(KernelImplementationTest, TestHaleviShoupMatvec) {
   auto dag =
       implementMatvec(KernelName::MatvecDiagonal, matrixInput, vectorInput);
   LiteralValue actual = evalKernel(dag)[0];
-  EXPECT_EQ(std::get<std::vector<int>>(actual.getTensor()), expected);
+  EXPECT_EQ(std::get<std::vector<int>>(actual.get()), expected);
 }
 
 TEST(KernelImplementationTest, HaleviShoup3x5) {
@@ -59,7 +59,7 @@ TEST(KernelImplementationTest, HaleviShoup3x5) {
 
   auto dag = implementHaleviShoup(vectorInput, matrixInput, {3, 5});
   LiteralValue result = evalKernel(dag)[0];
-  auto actual = std::get<std::vector<int>>(result.getTensor());
+  auto actual = std::get<std::vector<int>>(result.get());
 
   // The result is of size 8, but we only care about the first 3 elements.
   EXPECT_EQ(std::vector<int>(actual.begin(), actual.begin() + 3), expected);
@@ -74,7 +74,7 @@ TEST(KernelImplementationTest, TestExtract) {
   auto dag = ArithmeticDagNode<LiteralValue>::extract(
       ArithmeticDagNode<LiteralValue>::leaf(matrixInput), 1);
   LiteralValue actual = evalKernel(dag)[0];
-  EXPECT_EQ(std::get<std::vector<int>>(actual.getTensor()), expected);
+  EXPECT_EQ(std::get<std::vector<int>>(actual.get()), expected);
 }
 
 TEST(KernelImplementationTest, TestHaleviShoupMatvecWithLayout) {
@@ -95,7 +95,7 @@ TEST(KernelImplementationTest, TestHaleviShoupMatvecWithLayout) {
   auto dag =
       implementMatvec(KernelName::MatvecDiagonal, matrixInput, vectorInput);
   LiteralValue actual = evalKernel(dag)[0];
-  EXPECT_EQ(std::get<std::vector<int>>(actual.getTensor()), expected);
+  EXPECT_EQ(std::get<std::vector<int>>(actual.get()), expected);
 }
 
 TEST(KernelImplementationTest, Test2DConvWithLayout) {
@@ -133,8 +133,7 @@ TEST(KernelImplementationTest, Test2DConvWithLayout) {
                                   expandedMatrixType.getShape());
   LiteralValue actual = evalKernel(dag)[0];
   // Result is a 2x2 tensor repeated row-major in a tensor of size 16.
-  std::vector<int> actualVector =
-      std::get<std::vector<int>>(actual.getTensor());
+  std::vector<int> actualVector = std::get<std::vector<int>>(actual.get());
   std::vector<int> extractedResult = {actualVector.begin(),
                                       actualVector.begin() + 4};
   EXPECT_EQ(extractedResult, expected);
@@ -164,7 +163,7 @@ TEST(KernelImplementationTest, BicyclicMatmul) {
 
   auto dag = implementBicyclicMatmul(packedAValue, packedBValue, m, n, p);
   LiteralValue result = evalKernel(dag)[0];
-  auto resultVec = std::get<std::vector<int>>(result.getTensor());
+  auto resultVec = std::get<std::vector<int>>(result.get());
 
   auto resultLayout = getBicyclicLayoutRelation(
       RankedTensorType::get({m, p}, mlir::IndexType::get(&context)), numSlots);
@@ -240,7 +239,7 @@ TEST(KernelImplementationTest, TricyclicBatchMatmul) {
   auto dag =
       implementTricyclicBatchMatmul(packedAValue, packedBValue, h, m, n, p);
   LiteralValue result = evalKernel(dag)[0];
-  auto resultVec = std::get<std::vector<int>>(result.getTensor());
+  auto resultVec = std::get<std::vector<int>>(result.get());
 
   // Compute expected packed φ(Z) via evaluateLayoutOnTensor for the cleartext
   // result. First compute plain CPU batched matmul result (h x m x p).
