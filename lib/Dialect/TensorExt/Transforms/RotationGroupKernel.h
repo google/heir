@@ -72,11 +72,14 @@ applyVirtualRotation(ArrayRef<std::shared_ptr<ArithmeticDagNode<T>>> input,
       auto [allZero, allOne] = allZeroAllOne(mask);
       if (allZero) {
         std::vector<double> zeros(ciphertextSize, 0.0);
-        masked.push_back(NodeTy::constantTensor(zeros));
+        masked.push_back(NodeTy::constantTensor(
+            zeros, kernel::DagType::floatTensor(64, {ciphertextSize})));
       } else if (allOne) {
         masked.push_back(ct);
       } else {
-        masked.push_back(NodeTy::mul(ct, NodeTy::constantTensor(mask)));
+        masked.push_back(NodeTy::mul(
+            ct, NodeTy::constantTensor(
+                    mask, kernel::DagType::floatTensor(64, {ciphertextSize}))));
       }
     }
 
@@ -141,12 +144,16 @@ applyVirtualRotation(ArrayRef<std::shared_ptr<ArithmeticDagNode<T>>> input,
       auto [allZero, allOne] = allZeroAllOne(mask);
       if (allZero) {
         std::vector<double> zeros(ciphertextSize, 0.0);
-        results[target1] = NodeTy::constantTensor(zeros);
+        results[target1] = NodeTy::constantTensor(
+            zeros, kernel::DagType::floatTensor(64, {ciphertextSize}));
       } else if (allOne) {
         results[target1] = NodeTy::leftRotate(ct, rotation);
       } else {
         results[target1] = NodeTy::leftRotate(
-            NodeTy::mul(ct, NodeTy::constantTensor(mask)), rotation);
+            NodeTy::mul(
+                ct, NodeTy::constantTensor(mask, kernel::DagType::floatTensor(
+                                                     64, {ciphertextSize}))),
+            rotation);
       }
       continue;
     }
@@ -181,7 +188,9 @@ applyVirtualRotation(ArrayRef<std::shared_ptr<ArithmeticDagNode<T>>> input,
       if (allZero) {
         rotated1 = std::nullopt;
       } else {
-        ValueTy masked1 = NodeTy::mul(ct, NodeTy::constantTensor(mask1));
+        ValueTy masked1 = NodeTy::mul(
+            ct, NodeTy::constantTensor(
+                    mask1, kernel::DagType::floatTensor(64, {ciphertextSize})));
         rotated1 = NodeTy::leftRotate(masked1, rotation);
       }
     }
@@ -192,7 +201,9 @@ applyVirtualRotation(ArrayRef<std::shared_ptr<ArithmeticDagNode<T>>> input,
       if (allZero) {
         rotated2 = std::nullopt;
       } else {
-        ValueTy masked2 = NodeTy::mul(ct, NodeTy::constantTensor(mask2));
+        ValueTy masked2 = NodeTy::mul(
+            ct, NodeTy::constantTensor(
+                    mask2, kernel::DagType::floatTensor(64, {ciphertextSize})));
         rotated2 = NodeTy::leftRotate(masked2, rotation);
       }
     }
@@ -279,7 +290,8 @@ rotateOneGroup(const Mapping& mapping, ArrayRef<T> initialCiphertexts,
       } else if (allOne) {
         fixedCurrent.push_back(ct);
       } else {
-        ValueTy mask = NodeTy::constantTensor(fixedMask);
+        ValueTy mask = NodeTy::constantTensor(
+            fixedMask, kernel::DagType::floatTensor(64, {ciphertextSize}));
         fixedCurrent.push_back(NodeTy::mul(ct, mask));
       }
     }
@@ -336,7 +348,9 @@ rotateOneGroup(const Mapping& mapping, ArrayRef<T> initialCiphertexts,
   for (int64_t i = 0; i < numCiphertexts; i++) {
     if (!finalTargetCiphertexts.contains(i)) {
       std::vector<double> zeroVec(ciphertextSize, 0);
-      current[i] = NodeTy::constantTensor(std::move(zeroVec));
+      current[i] = NodeTy::constantTensor(
+          std::move(zeroVec),
+          kernel::DagType::floatTensor(64, {ciphertextSize}));
     }
   }
 

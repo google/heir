@@ -141,6 +141,12 @@ int64_t RotationCountVisitor::operator()(
   return operandCount;
 }
 
+int64_t RotationCountVisitor::operator()(const SplatNode& node) {
+  // Splat constants are always plaintext
+  nodeSecretStatus[currentNode] = false;
+  return 0;
+}
+
 }  // namespace kernel
 }  // namespace heir
 }  // namespace mlir

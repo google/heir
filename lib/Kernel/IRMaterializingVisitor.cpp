@@ -35,13 +35,14 @@ std::vector<Value> IRMaterializingVisitor::operator()(
   // DAGs that can be evaluated elementwise for ElementwiseMappable ops like
   // arith ops.
   TypedAttr attr;
-  if (auto floatTy = dyn_cast<FloatType>(getElementTypeOrSelf(evaluatedType))) {
+  if (auto floatTy =
+          dyn_cast<mlir::FloatType>(getElementTypeOrSelf(evaluatedType))) {
     APFloat apVal(node.value);
     APFloat converted =
         convertFloatToSemantics(apVal, floatTy.getFloatSemantics());
     attr = getScalarOrDenseAttr(evaluatedType, converted);
-  } else if (auto intTy =
-                 dyn_cast<IntegerType>(getElementTypeOrSelf(evaluatedType))) {
+  } else if (auto intTy = dyn_cast<mlir::IntegerType>(
+                 getElementTypeOrSelf(evaluatedType))) {
     // Node values are doubles and we may have to properly support integers.
     APInt apVal(intTy.getWidth(), std::floor(node.value));
     attr = getScalarOrDenseAttr(evaluatedType, apVal);
@@ -56,7 +57,7 @@ std::vector<Value> IRMaterializingVisitor::operator()(
     const ConstantTensorNode& node) {
   RankedTensorType tensorTy = cast<RankedTensorType>(evaluatedType);
   TypedAttr attr;
-  if (auto floatTy = dyn_cast<FloatType>(tensorTy.getElementType())) {
+  if (auto floatTy = dyn_cast<mlir::FloatType>(tensorTy.getElementType())) {
     SmallVector<APFloat> values;
     for (double v : node.value) {
       APFloat apVal(v);
@@ -67,7 +68,7 @@ std::vector<Value> IRMaterializingVisitor::operator()(
     attr = DenseElementsAttr::get(tensorTy, values);
   } else {
     // Node values are doubles and we must convert them to integers
-    auto intTy = cast<IntegerType>(tensorTy.getElementType());
+    auto intTy = cast<mlir::IntegerType>(tensorTy.getElementType());
     SmallVector<APInt> values;
     for (double v : node.value) {
       APInt apVal(intTy.getWidth(), std::floor(v));
