@@ -25,7 +25,7 @@ patersonStockmeyerMonomialPolynomialEvaluation(
   using NodeTy = kernel::ArithmeticDagNode<T>;
 
   if (coefficients.empty()) {
-    return NodeTy::constantScalar(0.0);
+    return NodeTy::constantScalar(0.0, kernel::DagType::floatTy(64));
   }
 
   // Filter coefficients
@@ -57,7 +57,8 @@ patersonStockmeyerMonomialPolynomialEvaluation(
     for (int64_t j = lowestDegreeInChunk; j <= highestDegreeInChunk; j++) {
       if (coeffMap.count(j)) {
         int64_t powerIndex = j - lowestDegreeInChunk;
-        auto coeff = NodeTy::constantScalar(coeffMap[j]);
+        auto coeff =
+            NodeTy::constantScalar(coeffMap[j], kernel::DagType::floatTy(64));
 
         std::shared_ptr<NodeTy> term;
         if (powerIndex == 0) {
@@ -75,7 +76,7 @@ patersonStockmeyerMonomialPolynomialEvaluation(
     }
 
     if (!chunkValue) {
-      chunkValue = NodeTy::constantScalar(0.0);
+      chunkValue = NodeTy::constantScalar(0.0, kernel::DagType::floatTy(64));
     }
     chunkValues.push_back(chunkValue);
   }

@@ -21,7 +21,7 @@ hornerMonomialPolynomialEvaluation(
   using NodeTy = kernel::ArithmeticDagNode<T>;
 
   if (coefficients.empty()) {
-    return NodeTy::constantScalar(0.0);
+    return NodeTy::constantScalar(0.0, kernel::DagType::floatTy(64));
   }
 
   // Filter coefficients and find the highest degree
@@ -32,14 +32,16 @@ hornerMonomialPolynomialEvaluation(
 
   // Start with the coefficient of the highest degree term
   int64_t maxDegree = coeffMap.rbegin()->first;
-  auto result = NodeTy::constantScalar(coeffMap[maxDegree]);
+  auto result =
+      NodeTy::constantScalar(coeffMap[maxDegree], kernel::DagType::floatTy(64));
 
   // Apply Horner's method
   for (int64_t i = maxDegree - 1; i >= 0; i--) {
     result = NodeTy::mul(result, x);
 
     if (coeffMap.count(i)) {
-      auto coeffNode = NodeTy::constantScalar(coeffMap.at(i));
+      auto coeffNode =
+          NodeTy::constantScalar(coeffMap.at(i), kernel::DagType::floatTy(64));
       result = NodeTy::add(result, coeffNode);
     }
   }

@@ -78,6 +78,13 @@ struct FlattenedStringVisitor {
     ss << node.operand->visit(*this) << "[" << node.index << "]";
     return ss.str();
   }
+
+  std::string operator()(const SplatNode& node) const {
+    std::stringstream ss;
+    ss << std::fixed << std::setprecision(2);
+    ss << "splat(" << node.value << ")";
+    return ss.str();
+  }
 };
 
 class EvalVisitor : public CachingVisitor<double, std::vector<double>> {
@@ -120,13 +127,19 @@ class EvalVisitor : public CachingVisitor<double, std::vector<double>> {
     callCount += 1;
     return {std::pow(this->process(node.base)[0], node.exponent)};
   }
+
+  std::vector<double> operator()(const SplatNode& node) override {
+    callCount += 1;
+    return {node.value};
+  }
 };
 
 TEST(ArithmeticDagTest, TestPrint) {
   auto root = StringLeavedDag::leftRotate(
       StringLeavedDag::mul(
-          StringLeavedDag::add(StringLeavedDag::leaf("x"),
-                               StringLeavedDag::constantScalar(3.0)),
+          StringLeavedDag::add(
+              StringLeavedDag::leaf("x"),
+              StringLeavedDag::constantScalar(3.0, DagType::floatTy(64))),
           StringLeavedDag::power(StringLeavedDag::leaf("y"), 2)),
       7);
 
@@ -147,8 +160,9 @@ TEST(ArithmeticDagTest, TestProperDag) {
 
 TEST(ArithmeticDagTest, TestEvaluationVisitor) {
   auto shared = DoubleLeavedDag::power(DoubleLeavedDag::leaf(2.0), 2);
-  auto root = DoubleLeavedDag::mul(DoubleLeavedDag::add(shared, shared),
-                                   DoubleLeavedDag::constantScalar(3.0));
+  auto root = DoubleLeavedDag::mul(
+      DoubleLeavedDag::add(shared, shared),
+      DoubleLeavedDag::constantScalar(3.0, DagType::floatTy(64)));
 
   EvalVisitor visitor;
   double result = root->visit(visitor)[0];

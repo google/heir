@@ -102,7 +102,7 @@ std::vector<std::shared_ptr<kernel::ArithmeticDagNode<T>>> computePowers(
   using NodeTy = kernel::ArithmeticDagNode<T>;
   std::vector<std::shared_ptr<NodeTy>> result;
   result.reserve(k + 1);
-  result.push_back(NodeTy::constantScalar(1));
+  result.push_back(NodeTy::constantScalar(1, kernel::DagType::floatTy(64)));
   if (k >= 1) {
     result.push_back(x);
   }
@@ -145,7 +145,7 @@ std::shared_ptr<kernel::ArithmeticDagNode<T>> genChebyshevPowerRecursive(
 
   if (n == 0) {
     // T_0(x) = 1
-    cache[0] = NodeTy::constantScalar(1);
+    cache[0] = NodeTy::constantScalar(1, kernel::DagType::floatTy(64));
     return cache[0];
   }
 
@@ -166,13 +166,14 @@ std::shared_ptr<kernel::ArithmeticDagNode<T>> genChebyshevPowerRecursive(
   // Apply Chebyshev recurrence: T_n = 2*T_a*T_b - T_c
   // where c = |a - b|
   int64_t c = std::abs(a - b);
-  auto two = NodeTy::constantScalar(2);
+  auto two = NodeTy::constantScalar(2, kernel::DagType::floatTy(64));
   tN = NodeTy::mul(two, tN);
 
   // Compute T_n = 2*T_a*T_b - T_c
   if (c == 0) {
     // T_0 = 1, so subtract 1
-    tN = NodeTy::sub(tN, NodeTy::constantScalar(1));
+    tN = NodeTy::sub(tN,
+                     NodeTy::constantScalar(1, kernel::DagType::floatTy(64)));
   } else {
     auto tC = genChebyshevPowerRecursive(x, c, cache);
     tN = NodeTy::sub(tN, tC);
@@ -202,7 +203,8 @@ genChebyshevPowersRecursive(std::shared_ptr<kernel::ArithmeticDagNode<T>> x,
     genChebyshevPowerRecursive(x, i, cache);
   }
 
-  cache[0] = kernel::ArithmeticDagNode<T>::constantScalar(1);
+  cache[0] = kernel::ArithmeticDagNode<T>::constantScalar(
+      1, kernel::DagType::floatTy(64));
   return cache;
 }
 
@@ -216,8 +218,8 @@ computeChebyshevPolynomialValues(const T& x, int64_t k) {
   using NodeTy = kernel::ArithmeticDagNode<T>;
   std::vector<std::shared_ptr<NodeTy>> result;
   result.reserve(k + 1);
-  auto number1 = NodeTy::constantScalar(1);
-  auto number2 = NodeTy::constantScalar(2);
+  auto number1 = NodeTy::constantScalar(1, kernel::DagType::floatTy(64));
+  auto number2 = NodeTy::constantScalar(2, kernel::DagType::floatTy(64));
   auto xNode = NodeTy::leaf(x);
   result.push_back(number1);
   if (k >= 1) {
@@ -266,7 +268,8 @@ patersonStockmeyerChebyshevPolynomialEvaluation(
     if (std::abs(coefficients[0]) < minCoeffThreshold) {
       return nullptr;
     }
-    return NodeTy::constantScalar(coefficients[0]);
+    return NodeTy::constantScalar(coefficients[0],
+                                  kernel::DagType::floatTy(64));
   }
 
   // Choose k optimally using Lattigo's optimal split
@@ -297,8 +300,9 @@ patersonStockmeyerChebyshevPolynomialEvaluation(
         continue;
       }
 
-      auto termNode = NodeTy::mul(NodeTy::constantScalar(coeffs[j]),
-                                  chebPolynomialValuesMap[j]);
+      auto termNode = NodeTy::mul(
+          NodeTy::constantScalar(coeffs[j], kernel::DagType::floatTy(64)),
+          chebPolynomialValuesMap[j]);
 
       if (pol) {
         pol = NodeTy::add(pol, termNode);

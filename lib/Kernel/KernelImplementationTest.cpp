@@ -84,7 +84,7 @@ TEST(KernelImplementationTest, TestHaleviShoupMatvecWithLayout) {
   std::vector<std::vector<int>> matrix = {
       {0, 1, 2, 3}, {4, 5, 6, 7}, {8, 9, 10, 11}, {12, 13, 14, 15}};
   auto diagonalLayout = getDiagonalLayoutRelation(
-      RankedTensorType::get({4, 4}, IndexType::get(&context)), 4);
+      RankedTensorType::get({4, 4}, mlir::IndexType::get(&context)), 4);
   std::vector<std::vector<int>> diagonalMatrix =
       evaluateLayoutOnMatrix(diagonalLayout, matrix);
 
@@ -101,9 +101,9 @@ TEST(KernelImplementationTest, TestHaleviShoupMatvecWithLayout) {
 TEST(KernelImplementationTest, Test2DConvWithLayout) {
   MLIRContext context;
   RankedTensorType dataType =
-      RankedTensorType::get({3, 3}, IndexType::get(&context));
+      RankedTensorType::get({3, 3}, mlir::IndexType::get(&context));
   RankedTensorType filterType =
-      RankedTensorType::get({2, 2}, IndexType::get(&context));
+      RankedTensorType::get({2, 2}, mlir::IndexType::get(&context));
 
   // 3x3 input data, 2x2 filter
   std::vector<std::vector<int>> data = {{1, -1, 0}, {-3, 0, 2}, {8, 9, 1}};
@@ -152,11 +152,11 @@ TEST(KernelImplementationTest, BicyclicMatmul) {
   int numSlots = m * n * p;
 
   auto layoutA = getBicyclicLayoutRelation(
-      RankedTensorType::get({m, n}, IndexType::get(&context)), numSlots);
+      RankedTensorType::get({m, n}, mlir::IndexType::get(&context)), numSlots);
   auto packedA = evaluateLayoutOnMatrix(layoutA, matrixA);
 
   auto layoutB = getBicyclicLayoutRelation(
-      RankedTensorType::get({n, p}, IndexType::get(&context)), numSlots);
+      RankedTensorType::get({n, p}, mlir::IndexType::get(&context)), numSlots);
   auto packedB = evaluateLayoutOnMatrix(layoutB, matrixB);
 
   LiteralValue packedAValue = packedA[0];
@@ -167,7 +167,7 @@ TEST(KernelImplementationTest, BicyclicMatmul) {
   auto resultVec = std::get<std::vector<int>>(result.getTensor());
 
   auto resultLayout = getBicyclicLayoutRelation(
-      RankedTensorType::get({m, p}, IndexType::get(&context)), numSlots);
+      RankedTensorType::get({m, p}, mlir::IndexType::get(&context)), numSlots);
   auto unpackedResult =
       unpackLayoutToMatrix<int>(resultLayout, {resultVec}, {m, p});
 
@@ -222,9 +222,9 @@ TEST(KernelImplementationTest, TricyclicBatchMatmul) {
 
   // Pack using the tricyclic layout relation.
   RankedTensorType typeA =
-      RankedTensorType::get({h, m, n}, IndexType::get(&context));
+      RankedTensorType::get({h, m, n}, mlir::IndexType::get(&context));
   RankedTensorType typeB =
-      RankedTensorType::get({h, n, p}, IndexType::get(&context));
+      RankedTensorType::get({h, n, p}, mlir::IndexType::get(&context));
 
   auto layoutA = getTricyclicLayoutRelation(typeA, numSlots);
   auto packedA = evaluateLayoutOnTensor(layoutA, A);
@@ -259,7 +259,7 @@ TEST(KernelImplementationTest, TricyclicBatchMatmul) {
   }
 
   RankedTensorType resultType =
-      RankedTensorType::get({h, m, p}, IndexType::get(&context));
+      RankedTensorType::get({h, m, p}, mlir::IndexType::get(&context));
   auto resultLayout = getTricyclicLayoutRelation(resultType, numSlots);
   auto expectedPacked = evaluateLayoutOnTensor(resultLayout, expectedTensor);
 

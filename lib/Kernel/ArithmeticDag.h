@@ -16,6 +16,63 @@ namespace mlir {
 namespace heir {
 namespace kernel {
 
+// Type system for ArithmeticDag nodes
+struct IntegerType {
+  unsigned bitWidth;
+};
+
+struct FloatType {
+  unsigned bitWidth;
+};
+
+struct IndexType {};
+
+struct IntTensorType {
+  unsigned bitWidth;
+  std::vector<int64_t> shape;
+};
+
+struct FloatTensorType {
+  unsigned bitWidth;
+  std::vector<int64_t> shape;
+};
+
+struct DagType {
+  std::variant<IntegerType, FloatType, IndexType, IntTensorType,
+               FloatTensorType>
+      type_variant;
+
+  static DagType integer(unsigned bitWidth) {
+    DagType t;
+    t.type_variant = IntegerType{bitWidth};
+    return t;
+  }
+
+  static DagType floatTy(unsigned bitWidth) {
+    DagType t;
+    t.type_variant = FloatType{bitWidth};
+    return t;
+  }
+
+  static DagType index() {
+    DagType t;
+    t.type_variant = IndexType{};
+    return t;
+  }
+
+  static DagType intTensor(unsigned bitWidth, std::vector<int64_t> shape) {
+    DagType t;
+    t.type_variant = IntTensorType{bitWidth, std::move(shape)};
+    return t;
+  }
+
+  static DagType floatTensor(unsigned bitWidth, std::vector<int64_t> shape) {
+    DagType t;
+    t.type_variant = FloatTensorType{bitWidth, std::move(shape)};
+    return t;
+  }
+};
+
 // This file contains a generic DAG structure that can be used for representing
 // arithmetic DAGs with leaf nodes of various types.
 template <typename T>
@@ -29,10 +86,17 @@ struct LeafNode {
 
 struct ConstantScalarNode {
   double value;
+  DagType type;
 };
 
 struct ConstantTensorNode {
   std::vector<double> value;
+  DagType type;
+};
+
+struct SplatNode {
+  double value;
+  DagType type;
 };
 
 template <typename T>
@@ -76,7 +140,7 @@ struct ArithmeticDagNode {
  public:
   std::variant<ConstantScalarNode, ConstantTensorNode, LeafNode<T>, AddNode<T>,
                SubtractNode<T>, MultiplyNode<T>, PowerNode<T>,
-               LeftRotateNode<T>, ExtractNode<T>>
+               LeftRotateNode<T>, ExtractNode<T>, SplatNode>
       node_variant;
 
   explicit ArithmeticDagNode(const T& value)
@@ -98,24 +162,34 @@ struct ArithmeticDagNode {
         new ArithmeticDagNode<T>(value));
   }
 
-  static std::shared_ptr<ArithmeticDagNode<T>> constantScalar(double constant) {
+  static std::shared_ptr<ArithmeticDagNode<T>> constantScalar(double constant,
+                                                              DagType type) {
     auto node =
         std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
     // Note, to satisfy variant we need to use aggregate initialization inside
     // emplace
     node->node_variant.template emplace<ConstantScalarNode>(
-        ConstantScalarNode{constant});
+        ConstantScalarNode{constant, std::move(type)});
     return node;
   }
 
   static std::shared_ptr<ArithmeticDagNode<T>> constantTensor(
-      std::vector<double> constant) {
+      std::vector<double> constant, DagType type) {
     auto node =
         std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
     // Note, to satisfy variant we need to use aggregate initialization inside
     // emplace
     node->node_variant.template emplace<ConstantTensorNode>(
-        ConstantTensorNode{std::move(constant)});
+        ConstantTensorNode{std::move(constant), std::move(type)});
+    return node;
+  }
+
+  static std::shared_ptr<ArithmeticDagNode<T>> splat(double constant,
+                                                     DagType type) {
+    auto node =
+        std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
+    node->node_variant.template emplace<SplatNode>(
+        SplatNode{constant, std::move(type)});
     return node;
   }
 
@@ -286,6 +360,11 @@ class CachingVisitor {
 
   virtual ResultType operator()(const ExtractNode<T>& node) {
     assert(false && "Visit logic for ExtractNode is not implemented.");
+    return ResultType();
+  }
+
+  virtual ResultType operator()(const SplatNode& node) {
+    assert(false && "Visit logic for SplatNode is not implemented.");
     return ResultType();
   }
 

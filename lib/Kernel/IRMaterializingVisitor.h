@@ -41,10 +41,10 @@ class IRMaterializingVisitor
     Value lhs = this->process(node.left)[0];
     Value rhs = this->process(node.right)[0];
     auto op = TypeSwitch<Type, Operation*>(getElementTypeOrSelf(evaluatedType))
-                  .template Case<FloatType>([&](auto ty) {
+                  .template Case<mlir::FloatType>([&](auto ty) {
                     return FloatOp::create(builder, lhs, rhs);
                   })
-                  .template Case<IntegerType>(
+                  .template Case<mlir::IntegerType>(
                       [&](auto ty) { return IntOp::create(builder, lhs, rhs); })
                   .Default([&](Type) {
                     llvm_unreachable("Unsupported type for binary operation");

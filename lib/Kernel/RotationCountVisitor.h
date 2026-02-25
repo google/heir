@@ -36,6 +36,7 @@ class RotationCountVisitor {
   int64_t operator()(const PowerNode<SymbolicValue>& node);
   int64_t operator()(const LeftRotateNode<SymbolicValue>& node);
   int64_t operator()(const ExtractNode<SymbolicValue>& node);
+  int64_t operator()(const SplatNode& node);
 
  private:
   std::unordered_set<const NodeTy*> visitedNodes;
