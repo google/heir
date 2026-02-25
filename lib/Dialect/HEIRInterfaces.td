@@ -440,4 +440,17 @@ def OperandAndResultAttrInterface : OpInterface<"OperandAndResultAttrInterface">
   }];
 }
 
+def RotationOpInterface : OpInterface<"RotationOpInterface"> {
+  let cppNamespace = "::mlir::heir";
+  let description = [{
+    An interface for rotation operations.
+  }];
+
+  let methods = [
+    InterfaceMethod<
+      "Returns the rotation index as an OpFoldResult (Value or Attribute).",
+      "::mlir::OpFoldResult", "getRotationIndex"
+    >,
+  ];
+}
 #endif  // LIB_DIALECT_HEIR_IR_HEIRINTERFACES_TD_

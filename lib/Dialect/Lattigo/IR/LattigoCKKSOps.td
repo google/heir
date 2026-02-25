@@ -238,7 +238,9 @@ def Lattigo_CKKSRescaleNewOp : Lattigo_CKKSUnaryOp<"rescale_new"> {
   }];
 }
 
-def Lattigo_CKKSRotateNewOp : Lattigo_CKKSOp<"rotate_new"> {
+def Lattigo_CKKSRotateNewOp : Lattigo_CKKSOp<"rotate_new", [
+  DeclareOpInterfaceMethods<RotationOpInterface>
+]> {
   let summary = "Rotate slots of a ciphertext in the Lattigo CKKS dialect";
   let description = [{
     This operation rotates slots of a ciphertext value in the Lattigo CKKS dialect.
@@ -259,8 +261,8 @@ def Lattigo_CKKSRotateNewOp : Lattigo_CKKSOp<"rotate_new"> {
   let hasVerifier = 1;
 }
 
-class Lattigo_CKKSUnaryInPlaceOp<string mnemonic> :
-        Lattigo_CKKSOp<mnemonic, [InPlaceOpInterface]> {
+class Lattigo_CKKSUnaryInPlaceOp<string mnemonic, list<Trait> traits = []> :
+        Lattigo_CKKSOp<mnemonic, traits # [InPlaceOpInterface]> {
   let arguments = (ins
     Lattigo_CKKSEvaluator:$evaluator,
     Lattigo_RLWECiphertext:$input,
@@ -292,7 +294,9 @@ def Lattigo_CKKSRescaleOp : Lattigo_CKKSUnaryInPlaceOp<"rescale"> {
   }];
 }
 
-def Lattigo_CKKSRotateOp : Lattigo_CKKSUnaryInPlaceOp<"rotate"> {
+def Lattigo_CKKSRotateOp : Lattigo_CKKSUnaryInPlaceOp<"rotate", [
+  DeclareOpInterfaceMethods<RotationOpInterface>
+]> {
   let summary = "Rotate slots of a ciphertext in the Lattigo CKKS dialect";
   let description = [{
     This operation rotates slots of a ciphertext value in the Lattigo CKKS dialect.

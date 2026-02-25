@@ -205,7 +205,9 @@ def Lattigo_BGVRescaleNewOp : Lattigo_BGVUnaryOp<"rescale_new"> {
   }];
 }
 
-def Lattigo_BGVRotateColumnsNewOp : Lattigo_BGVOp<"rotate_columns_new"> {
+def Lattigo_BGVRotateColumnsNewOp : Lattigo_BGVOp<"rotate_columns_new", [
+  DeclareOpInterfaceMethods<RotationOpInterface>
+]> {
   let summary = "Rotate columns of a ciphertext in the Lattigo BGV dialect";
   let description = [{
     This operation rotates the columns of a ciphertext value in the Lattigo BGV dialect.
@@ -233,8 +235,8 @@ def Lattigo_BGVRotateRowsNewOp : Lattigo_BGVUnaryOp<"rotate_rows_new"> {
   }];
 }
 
-class Lattigo_BGVUnaryInPlaceOp<string mnemonic> :
-        Lattigo_BGVOp<mnemonic, [InPlaceOpInterface]> {
+class Lattigo_BGVUnaryInPlaceOp<string mnemonic, list<Trait> traits = []> :
+        Lattigo_BGVOp<mnemonic, traits # [InPlaceOpInterface]> {
   let arguments = (ins
     Lattigo_BGVEvaluator:$evaluator,
     Lattigo_RLWECiphertext:$input,
@@ -266,7 +268,9 @@ def Lattigo_BGVRescaleOp : Lattigo_BGVUnaryInPlaceOp<"rescale"> {
   }];
 }
 
-def Lattigo_BGVRotateColumnsOp : Lattigo_BGVUnaryInPlaceOp<"rotate_columns"> {
+def Lattigo_BGVRotateColumnsOp : Lattigo_BGVUnaryInPlaceOp<"rotate_columns", [
+  DeclareOpInterfaceMethods<RotationOpInterface>
+]> {
   let summary = "Rotate columns of a ciphertext in the Lattigo BGV dialect";
   let description = [{
     This operation rotates the columns of a ciphertext value in the Lattigo BGV dialect.

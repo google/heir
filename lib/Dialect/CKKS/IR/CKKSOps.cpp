@@ -47,6 +47,11 @@ LogicalResult RescaleOp::verify() {
 
 LogicalResult LevelReduceOp::verify() { return lwe::verifyLevelReduceOp(this); }
 
+::mlir::OpFoldResult RotateOp::getRotationIndex() {
+  if (getStaticShift()) return getStaticShiftAttr();
+  return getDynamicShift();
+}
+
 LogicalResult BootstrapOp::verify() {
   std::optional<int64_t> targetLevel = getTargetLevel();
   if (targetLevel.has_value()) {

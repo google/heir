@@ -93,7 +93,11 @@ def CKKS_MulPlainOp : CKKS_CiphertextPlaintextOp<"mul_plain", [ElementwiseMappab
   let hasCanonicalizer = 1;
 }
 
-def CKKS_RotateOp : CKKS_Op<"rotate", [ElementwiseMappable, AllTypesMatch<["input", "output"]>]> {
+def CKKS_RotateOp : CKKS_Op<"rotate", [
+  ElementwiseMappable,
+  AllTypesMatch<["input", "output"]>,
+  DeclareOpInterfaceMethods<RotationOpInterface>
+]> {
   let summary = "Rotate the coefficients of the ciphertext using a Galois automorphism.";
 
   let arguments = (ins

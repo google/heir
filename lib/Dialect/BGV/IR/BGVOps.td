@@ -2,6 +2,7 @@
 #define LIB_DIALECT_BGV_IR_BGVOPS_TD_
 
 include "BGVDialect.td"
+include "lib/Dialect/HEIRInterfaces.td"
 
 include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
@@ -93,7 +94,11 @@ def BGV_MulPlainOp : BGV_CiphertextPlaintextOp<"mul_plain", [ElementwiseMappable
   let hasCanonicalizer = 1;
 }
 
-def BGV_RotateColumnsOp : BGV_Op<"rotate_cols", [ElementwiseMappable, AllTypesMatch<["input", "output"]>]> {
+def BGV_RotateColumnsOp : BGV_Op<"rotate_cols", [
+  ElementwiseMappable,
+  AllTypesMatch<["input", "output"]>,
+  DeclareOpInterfaceMethods<RotationOpInterface>
+]> {
   let summary = "Rotate the columns of the coefficients of the ciphertext using a Galois automorphism.";
 
   let description = [{
@@ -120,7 +125,10 @@ def BGV_RotateColumnsOp : BGV_Op<"rotate_cols", [ElementwiseMappable, AllTypesMa
   let assemblyFormat = "$input (`,` $dynamic_shift^ `:` type($dynamic_shift))? attr-dict `:` qualified(type($input))" ;
 }
 
-def BGV_RotateRowsOp : BGV_Op<"rotate_rows", [AllTypesMatch<["input", "output"]>]> {
+def BGV_RotateRowsOp : BGV_Op<"rotate_rows", [
+  AllTypesMatch<["input", "output"]>,
+  DeclareOpInterfaceMethods<RotationOpInterface>
+]> {
   let summary = "Rotate the rows of the coefficients of the ciphertext using a Galois automorphism.";
 
   let description = [{

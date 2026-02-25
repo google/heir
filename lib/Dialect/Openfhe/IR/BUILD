@@ -79,5 +79,6 @@ add_heir_dialect_library(
     td_file = "OpenfheOps.td",
     deps = [
         ":td_files",
+        "@heir//lib/Dialect:td_files",
     ],
 )

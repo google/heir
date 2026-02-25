@@ -4,7 +4,6 @@
 #include <optional>
 #include <vector>
 
-#include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
 #include "lib/Utils/Utils.h"
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -168,6 +167,17 @@ FailureOr<Operation*> FastRotationExtOp::buildBatchedOperation(
 LogicalResult RotOp::verify() {
   return containsExactlyOneOrEmitError(getOperation(), getDynamicShift(),
                                        getStaticShift());
+}
+
+::mlir::OpFoldResult RotOp::getRotationIndex() {
+  if (getStaticShift()) return getStaticShiftAttr();
+  return getDynamicShift();
+}
+
+::mlir::OpFoldResult FastRotationOp::getRotationIndex() { return getIndex(); }
+
+::mlir::OpFoldResult FastRotationExtOp::getRotationIndex() {
+  return getIndex();
 }
 
 }  // namespace openfhe

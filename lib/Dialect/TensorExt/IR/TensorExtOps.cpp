@@ -1,13 +1,9 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 
 #include <cstdint>
-#include <string>
 
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
-#include "lib/Utils/AffineMapUtils.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallVectorExtras.h"  // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"    // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineMap.h"              // from @llvm-project
@@ -112,6 +108,8 @@ LogicalResult RotateOp::verify() {
   }
   return success();
 }
+
+::mlir::OpFoldResult RotateOp::getRotationIndex() { return getShift(); }
 
 LogicalResult verifyLayoutMatchesType(const Attribute& layoutAttr, Type type,
                                       Operation* op) {

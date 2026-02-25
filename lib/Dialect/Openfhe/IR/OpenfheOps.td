@@ -385,7 +385,8 @@ def LevelReduceInPlaceOp : Openfhe_UnaryInPlaceOp<"level_reduce_inplace",
 // no in-place variant for EvalRotate
 def RotOp : Openfhe_Op<"rot", [
   Pure,
-  AllTypesMatch<["ciphertext", "output"]>
+  AllTypesMatch<["ciphertext", "output"]>,
+  DeclareOpInterfaceMethods<RotationOpInterface>
 ]> {
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
@@ -470,7 +471,8 @@ def FastRotationOp : Openfhe_Op<"fast_rotation", [Pure,
   DeclareOpInterfaceMethods<ElementwiseByOperandOpInterface>,
   DeclareOpInterfaceMethods<
       BatchVectorizableOpInterface,
-      ["isBatchCompatible", "buildBatchedOperation"]>
+      ["isBatchCompatible", "buildBatchedOperation"]>,
+  DeclareOpInterfaceMethods<RotationOpInterface>
 ]> {
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
@@ -488,7 +490,8 @@ def FastRotationExtOp : Openfhe_Op<"fast_rotation_ext", [Pure,
   DeclareOpInterfaceMethods<ElementwiseByOperandOpInterface>,
   DeclareOpInterfaceMethods<
       BatchVectorizableOpInterface,
-      ["isBatchCompatible", "buildBatchedOperation"]>
+      ["isBatchCompatible", "buildBatchedOperation"]>,
+  DeclareOpInterfaceMethods<RotationOpInterface>
 ]> {
   let summary = "Fast (hoisted) rotation in extended (P*Q) CRT basis.";
   let arguments = (ins

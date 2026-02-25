@@ -18,7 +18,11 @@ class TensorExt_Op<string mnemonic, list<Trait> traits = []> :
   let assemblyFormat = "operands attr-dict `:` functional-type(operands, results)";
 }
 
-def TensorExt_RotateOp : TensorExt_Op<"rotate", [Pure, AllTypesMatch<["tensor", "output"]>]> {
+def TensorExt_RotateOp : TensorExt_Op<"rotate", [
+  Pure,
+  AllTypesMatch<["tensor", "output"]>,
+  DeclareOpInterfaceMethods<RotationOpInterface>
+]> {
   let summary = "Rotate a tensor some number of indices left.";
   let description = [{
     This op represents a left-rotation of a tensor by given number of indices.

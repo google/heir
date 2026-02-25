@@ -161,5 +161,6 @@ add_heir_dialect_library(
     td_file = "LattigoOps.td",
     deps = [
         ":td_files",
+        "@heir//lib/Dialect:td_files",
     ],
 )
