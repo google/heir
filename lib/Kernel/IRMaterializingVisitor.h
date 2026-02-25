@@ -64,6 +64,10 @@ class IRMaterializingVisitor
   std::vector<Value> operator()(const FloorDivNode<SSAValue>& node) override;
   std::vector<Value> operator()(const LeftRotateNode<SSAValue>& node) override;
   std::vector<Value> operator()(const ExtractNode<SSAValue>& node) override;
+  std::vector<Value> operator()(const VariableNode<SSAValue>& node) override;
+  std::vector<Value> operator()(const ForLoopNode<SSAValue>& node) override;
+  std::vector<Value> operator()(const YieldNode<SSAValue>& node) override;
+  std::vector<Value> operator()(const ResultAtNode<SSAValue>& node) override;
 
  private:
   ImplicitLocOpBuilder& builder;

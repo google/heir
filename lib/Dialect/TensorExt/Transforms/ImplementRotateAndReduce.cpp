@@ -1,7 +1,5 @@
 #include "lib/Dialect/TensorExt/Transforms/ImplementRotateAndReduce.h"
 
-#include <cmath>
-#include <cstdint>
 #include <memory>
 #include <optional>
 
@@ -9,6 +7,7 @@
 #include "lib/Kernel/ArithmeticDag.h"
 #include "lib/Kernel/IRMaterializingVisitor.h"
 #include "lib/Kernel/KernelImplementation.h"
+#include "lib/Kernel/Utils.h"
 #include "llvm/include/llvm/Support/Debug.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"        // from @llvm-project
@@ -52,8 +51,9 @@ LogicalResult convertRotateAndReduceOp(RotateAndReduceOp op) {
   if (op.getReduceOp().has_value() && *op.getReduceOp() != nullptr) {
     reduceOp = op.getReduceOp()->getValue().str();
   }
-  implementedKernel = implementRotateAndReduce(vectorLeaf, plaintextsLeaf,
-                                               period, steps, {}, reduceOp);
+  kernel::DagType dagType = kernel::mlirTypeToDagType(input.getType());
+  implementedKernel = implementRotateAndReduce(
+      vectorLeaf, plaintextsLeaf, period, steps, dagType, {}, reduceOp);
   IRRewriter rewriter(op.getContext());
   rewriter.setInsertionPointAfter(op);
   ImplicitLocOpBuilder b(op.getLoc(), rewriter);

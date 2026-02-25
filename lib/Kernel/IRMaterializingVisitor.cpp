@@ -5,10 +5,12 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
+#include "lib/Kernel/Utils.h"
 #include "lib/Utils/MathUtils.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
@@ -23,49 +25,7 @@ namespace mlir {
 namespace heir {
 namespace kernel {
 
-namespace {
-
-// Helper to convert DagType to MLIR Type
-Type dagTypeToMLIRType(const DagType& dagType, OpBuilder& builder) {
-  return std::visit(
-      [&](auto&& arg) -> Type {
-        using T = std::decay_t<decltype(arg)>;
-        if constexpr (std::is_same_v<T, kernel::IntegerType>) {
-          return builder.getIntegerType(arg.bitWidth);
-        } else if constexpr (std::is_same_v<T, kernel::FloatType>) {
-          if (arg.bitWidth == 32) {
-            return builder.getF32Type();
-          } else if (arg.bitWidth == 64) {
-            return builder.getF64Type();
-          } else if (arg.bitWidth == 16) {
-            return builder.getF16Type();
-          } else {
-            llvm_unreachable("Unsupported float bit width");
-          }
-        } else if constexpr (std::is_same_v<T, kernel::IndexType>) {
-          return builder.getIndexType();
-        } else if constexpr (std::is_same_v<T, kernel::IntTensorType>) {
-          auto elementType = builder.getIntegerType(arg.bitWidth);
-          return RankedTensorType::get(arg.shape, elementType);
-        } else if constexpr (std::is_same_v<T, kernel::FloatTensorType>) {
-          mlir::Type elementType;
-          if (arg.bitWidth == 32) {
-            elementType = builder.getF32Type();
-          } else if (arg.bitWidth == 64) {
-            elementType = builder.getF64Type();
-          } else if (arg.bitWidth == 16) {
-            elementType = builder.getF16Type();
-          } else {
-            llvm_unreachable("Unsupported float bit width");
-          }
-          return RankedTensorType::get(arg.shape, elementType);
-        }
-        llvm_unreachable("Unknown DagType variant");
-      },
-      dagType.type_variant);
-}
-
-}  // namespace
+namespace {}  // namespace
 
 std::vector<Value> IRMaterializingVisitor::operator()(
     const LeafNode<SSAValue>& node) {
@@ -194,7 +154,7 @@ std::vector<Value> IRMaterializingVisitor::operator()(
   Value index = this->process(node.index)[0];
   // Ensure index has index type
   if (!index.getType().isIndex()) {
-    index = builder.create<arith::IndexCastOp>(builder.getIndexType(), index);
+    index = arith::IndexCastOp::create(builder, builder.getIndexType(), index);
   }
 
   RankedTensorType tensorType = cast<RankedTensorType>(operand.getType());
@@ -228,6 +188,70 @@ std::vector<Value> IRMaterializingVisitor::operator()(
       tensor::ExtractSliceOp::create(builder, operand, offsets, sizes, strides);
   createdOpCallback(extractOp);
   return {extractOp};
+}
+
+std::vector<Value> IRMaterializingVisitor::operator()(
+    const VariableNode<SSAValue>& node) {
+  assert(node.value.has_value() && "VariableNode value is not set");
+  return {node.value->getValue()};
+}
+
+std::vector<Value> IRMaterializingVisitor::operator()(
+    const ForLoopNode<SSAValue>& node) {
+  std::vector<Value> initValues;
+  initValues.reserve(node.inits.size());
+  for (const auto& init : node.inits) {
+    Value initProcessed = this->process(init)[0];
+    initValues.push_back(initProcessed);
+  }
+
+  Value lower = arith::ConstantIndexOp::create(builder, node.lower);
+  Value upper = arith::ConstantIndexOp::create(builder, node.upper);
+  Value step = arith::ConstantIndexOp::create(builder, node.step);
+  auto loop = scf::ForOp::create(
+      builder, lower, upper, step, initValues,
+      [&](OpBuilder& nestedBuilder, Location nestedLoc, Value iv,
+          ValueRange args) {
+        auto& inductionVarNode =
+            std::get<VariableNode<SSAValue>>(node.inductionVar->node_variant);
+        inductionVarNode.value = iv;
+
+        assert(node.iterArgs.size() == args.size());
+        for (size_t j = 0; j < args.size(); ++j) {
+          auto& iterArgNode =
+              std::get<VariableNode<SSAValue>>(node.iterArgs[j]->node_variant);
+          iterArgNode.value = args[j];
+        }
+
+        assert(node.body != nullptr);
+        assert(std::holds_alternative<YieldNode<SSAValue>>(
+                   node.body->node_variant) &&
+               "ForLoopNode body must be a YieldNode");
+        std::vector<Value> bodyResults = this->process(node.body);
+        scf::YieldOp::create(builder, bodyResults);
+      });
+
+  std::vector<Value> results(loop.getResults().begin(),
+                             loop.getResults().end());
+  return results;
+}
+
+std::vector<Value> IRMaterializingVisitor::operator()(
+    const YieldNode<SSAValue>& node) {
+  std::vector<Value> eltResults;
+  eltResults.reserve(node.elements.size());
+  for (const auto& elt : node.elements) {
+    std::vector<Value> values = this->process(elt);
+    assert(values.size() == 1 && "Yield operands must be single values");
+    eltResults.push_back(values[0]);
+  }
+  return eltResults;
+}
+
+std::vector<Value> IRMaterializingVisitor::operator()(
+    const ResultAtNode<SSAValue>& node) {
+  std::vector<Value> operands = this->process(node.operand);
+  return {operands[node.index]};
 }
 
 }  // namespace kernel

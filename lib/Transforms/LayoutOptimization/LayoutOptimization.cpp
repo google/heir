@@ -22,6 +22,7 @@
 #include "lib/Kernel/KernelImplementation.h"
 #include "lib/Kernel/KernelName.h"
 #include "lib/Kernel/RotationCountVisitor.h"
+#include "lib/Kernel/Utils.h"
 #include "lib/Transforms/LayoutOptimization/Hoisting.h"
 #include "lib/Transforms/LayoutOptimization/LayoutConversionCost.h"
 #include "lib/Transforms/LayoutOptimization/Patterns.h"
@@ -408,13 +409,14 @@ static FailureOr<Cost> computeKernelCostFromDAG(KernelName kernel,
       auto matrixType = dyn_cast<RankedTensorType>(op->getOperand(0).getType());
       if (!matrixType) return failure();
       auto shape = matrixType.getShape();
+      auto dagType = kernel::mlirTypeToDagType(matrixType.getElementType());
 
       SymbolicValue symbolicVector({shape[1]},
                                    /*isSecret=*/true);
       SymbolicValue symbolicMatrix({shape[0], shape[1]},
                                    /*isSecret=*/false);
-      auto kernelDag =
-          kernel::implementHaleviShoup(symbolicVector, symbolicMatrix, shape);
+      auto kernelDag = kernel::implementHaleviShoup(
+          symbolicVector, symbolicMatrix, shape.vec(), dagType);
 
       if (!kernelDag) return failure();
       return costModel.process(kernelDag);
@@ -428,12 +430,13 @@ static FailureOr<Cost> computeKernelCostFromDAG(KernelName kernel,
       auto matrixType = dyn_cast<RankedTensorType>(op->getOperand(1).getType());
       if (!matrixType) return failure();
       auto shape = matrixType.getShape();
+      auto dagType = kernel::mlirTypeToDagType(matrixType.getElementType());
 
       SymbolicValue symbolicVector({shape[0]}, /*isSecret=*/true);
       SymbolicValue symbolicMatrix({shape[0], shape[1]},
                                    /*isSecret=*/false);
-      auto kernelDag =
-          kernel::implementHaleviShoup(symbolicVector, symbolicMatrix, shape);
+      auto kernelDag = kernel::implementHaleviShoup(
+          symbolicVector, symbolicMatrix, shape.vec(), dagType);
 
       if (!kernelDag) return failure();
       return costModel.process(kernelDag);
@@ -447,11 +450,12 @@ static FailureOr<Cost> computeKernelCostFromDAG(KernelName kernel,
       auto rhsType = dyn_cast<RankedTensorType>(op->getOperand(1).getType());
       if (!rhsType) return failure();
       auto rhsShape = rhsType.getShape();
+      auto dagType = kernel::mlirTypeToDagType(lhsType.getElementType());
 
       SymbolicValue lhsLeaf(lhsShape, /*isSecret=*/true);
       SymbolicValue rhsLeaf(rhsShape, /*isSecret=*/true);
       auto implementedKernel = kernel::implementBicyclicMatmul(
-          lhsLeaf, rhsLeaf, lhsShape[0], lhsShape[1], rhsShape[1]);
+          lhsLeaf, rhsLeaf, lhsShape[0], lhsShape[1], rhsShape[1], dagType);
 
       if (!implementedKernel) return failure();
       return costModel.process(implementedKernel);

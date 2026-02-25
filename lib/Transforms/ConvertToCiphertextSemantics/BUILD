@@ -23,6 +23,7 @@ cc_library(
         "@heir//lib/Kernel:ArithmeticDag",
         "@heir//lib/Kernel:IRMaterializingVisitor",
         "@heir//lib/Kernel:KernelImplementation",
+        "@heir//lib/Kernel:Utils",
         "@heir//lib/Transforms/DropUnitDims",
         "@heir//lib/Utils",
         "@heir//lib/Utils:AttributeUtils",

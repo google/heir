@@ -162,6 +162,7 @@ cc_library(
         "@heir//lib/Kernel:ArithmeticDag",
         "@heir//lib/Kernel:IRMaterializingVisitor",
         "@heir//lib/Kernel:KernelImplementation",
+        "@heir//lib/Kernel:Utils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",

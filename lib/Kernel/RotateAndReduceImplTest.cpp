@@ -51,7 +51,7 @@ std::vector<int> runNaive(const std::vector<int>& vec,
 
 std::vector<int> runImpl(const std::vector<int>& vec,
                          const std::vector<std::vector<int>>& plaintexts,
-                         int64_t period, int64_t n) {
+                         int64_t period, int64_t n, bool unroll = true) {
   LiteralValue vectorInput(vec);
 
   std::shared_ptr<ArithmeticDagNode<LiteralValue>> result;
@@ -59,8 +59,10 @@ std::vector<int> runImpl(const std::vector<int>& vec,
   if (!plaintexts.empty()) {
     plaintextsInput = std::optional<LiteralValue>(LiteralValue(plaintexts));
   }
-  result = implementRotateAndReduce(vectorInput, plaintextsInput, period, n);
-  std::cerr << "Rotate and reduce dag: " << printKernel(result) << "\n";
+  result = implementRotateAndReduce(
+      vectorInput, plaintextsInput, period, n,
+      DagType::intTensor(32, {static_cast<int64_t>(vec.size())}), {},
+      "arith.addi", unroll);
   return std::get<std::vector<int>>(evalKernel(result)[0].get());
 }
 
@@ -78,6 +80,23 @@ TEST(RotateAndReduceImplTest, TestUnitPeriodWithPlaintextsSimpleValues) {
 
   std::vector<int> expected = runNaive(vector, plaintexts, period, n);
   std::vector<int> actual = runImpl(vector, plaintexts, period, n);
+  EXPECT_EQ(expected, actual);
+}
+
+TEST(RotateAndReduceImplTest, TestUnitPeriodWithPlaintextsSimpleValuesRolled) {
+  int64_t n = 4;
+  int64_t period = 1;
+
+  std::vector<int> vector = {0, 1, 2, 3};
+  std::vector<std::vector<int>> plaintexts = {
+      {1, 0, 0, 0},
+      {0, 0, 0, 0},
+      {0, 0, 0, 0},
+      {0, 0, 0, 0},
+  };
+
+  std::vector<int> expected = runNaive(vector, plaintexts, period, n);
+  std::vector<int> actual = runImpl(vector, plaintexts, period, n, false);
   EXPECT_EQ(expected, actual);
 }
 
@@ -138,6 +157,15 @@ TEST(RotateAndReduceImplTest, TestPeriod1WithNoPlaintext) {
   std::vector<int> vector = {0, 1, 2, 3, 4, 5, 6, 7};
   std::vector<int> expected(8, 28);
   std::vector<int> actual = runImpl(vector, {}, period, n);
+  EXPECT_EQ(expected, actual);
+}
+
+TEST(RotateAndReduceImplTest, TestPeriod1WithNoPlaintextRolled) {
+  int64_t n = 8;
+  int64_t period = 1;
+  std::vector<int> vector = {0, 1, 2, 3, 4, 5, 6, 7};
+  std::vector<int> expected(8, 28);
+  std::vector<int> actual = runImpl(vector, {}, period, n, false);
   EXPECT_EQ(expected, actual);
 }
 

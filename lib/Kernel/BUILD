@@ -32,12 +32,14 @@ cc_library(
         ":AbstractValue",
         ":ArithmeticDag",
         ":KernelImplementation",
+        ":Utils",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Utils",
         "@heir//lib/Utils:MathUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:SCFDialect",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
     ],
@@ -75,6 +77,17 @@ cc_library(
         ":Kernel",
         "@heir//lib/Utils:APIntUtils",
         "@heir//lib/Utils:MathUtils",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
+    name = "Utils",
+    srcs = ["Utils.cpp"],
+    hdrs = ["Utils.h"],
+    deps = [
+        ":ArithmeticDag",
+        "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
     ],
 )
