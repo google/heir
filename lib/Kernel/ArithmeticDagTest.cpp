@@ -83,7 +83,7 @@ struct FlattenedStringVisitor {
 
   std::string operator()(const ExtractNode<std::string>& node) const {
     std::stringstream ss;
-    ss << node.operand->visit(*this) << "[" << node.index << "]";
+    ss << node.operand->visit(*this) << "[" << node.index->visit(*this) << "]";
     return ss.str();
   }
 

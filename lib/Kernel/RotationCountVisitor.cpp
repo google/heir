@@ -142,12 +142,13 @@ int64_t RotationCountVisitor::operator()(
   const auto* thisNode = currentNode;  // Save before recursion
 
   int64_t operandCount = processInternal(node.operand);
+  int64_t indexCount = processInternal(node.index);
 
   // Secret status is inherited from operand
   bool operandIsSecret = nodeSecretStatus[node.operand.get()];
   nodeSecretStatus[thisNode] = operandIsSecret;
 
-  return operandCount;
+  return operandCount + indexCount;
 }
 
 int64_t RotationCountVisitor::operator()(const SplatNode& node) {
