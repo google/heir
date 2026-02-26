@@ -76,7 +76,8 @@ struct FlattenedStringVisitor {
 
   std::string operator()(const LeftRotateNode<std::string>& node) const {
     std::stringstream ss;
-    ss << "(" << node.operand->visit(*this) << " << " << node.shift << ")";
+    ss << "(" << node.operand->visit(*this) << " << "
+       << node.shift->visit(*this) << ")";
     return ss.str();
   }
 
@@ -152,7 +153,10 @@ TEST(ArithmeticDagTest, TestPrint) {
 
   FlattenedStringVisitor visitor;
   std::string result = root->visit(visitor);
-  EXPECT_EQ(result, "(((x + 3.00) * (y ^ 2)) << 7)");
+  // Use a double print style for the left shift index because, while you could
+  // type switch in FlattenedStringVisitor, there is no point in doing that for
+  // this test.
+  EXPECT_EQ(result, "(((x + 3.00) * (y ^ 2)) << 7.00)");
 }
 
 TEST(ArithmeticDagTest, TestDiv) {
@@ -164,7 +168,7 @@ TEST(ArithmeticDagTest, TestDiv) {
 
   FlattenedStringVisitor visitor;
   std::string result = root->visit(visitor);
-  EXPECT_EQ(result, "(((x / 3) * (y ^ 2)) << 7)");
+  EXPECT_EQ(result, "(((x / 3) * (y ^ 2)) << 7.00)");
 }
 
 TEST(ArithmeticDagTest, TestProperDag) {

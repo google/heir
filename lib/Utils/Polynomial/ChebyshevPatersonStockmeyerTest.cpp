@@ -14,8 +14,8 @@ namespace {
 double evalChebyshevPolynomial(double x,
                                const std::vector<double>& coefficients) {
   kernel::LiteralDouble xNode = x;
-  auto resultNode =
-      patersonStockmeyerChebyshevPolynomialEvaluation(xNode, coefficients);
+  auto resultNode = patersonStockmeyerChebyshevPolynomialEvaluation(
+      xNode, coefficients, kMinCoeffs, kernel::DagType::floatTy(64));
 
   test::EvalVisitor visitor;
   return resultNode->visit(visitor)[0];
@@ -23,8 +23,8 @@ double evalChebyshevPolynomial(double x,
 
 int evalMultiplicativeDepth(double x, const std::vector<double>& coefficients) {
   kernel::LiteralDouble xNode = x;
-  auto resultNode =
-      patersonStockmeyerChebyshevPolynomialEvaluation(xNode, coefficients);
+  auto resultNode = patersonStockmeyerChebyshevPolynomialEvaluation(
+      xNode, coefficients, kMinCoeffs, kernel::DagType::floatTy(64));
 
   test::MultiplicativeDepthVisitor visitor;
   return static_cast<int>(resultNode->visit(visitor));

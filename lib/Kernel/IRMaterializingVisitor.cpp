@@ -23,6 +23,50 @@ namespace mlir {
 namespace heir {
 namespace kernel {
 
+namespace {
+
+// Helper to convert DagType to MLIR Type
+Type dagTypeToMLIRType(const DagType& dagType, OpBuilder& builder) {
+  return std::visit(
+      [&](auto&& arg) -> Type {
+        using T = std::decay_t<decltype(arg)>;
+        if constexpr (std::is_same_v<T, kernel::IntegerType>) {
+          return builder.getIntegerType(arg.bitWidth);
+        } else if constexpr (std::is_same_v<T, kernel::FloatType>) {
+          if (arg.bitWidth == 32) {
+            return builder.getF32Type();
+          } else if (arg.bitWidth == 64) {
+            return builder.getF64Type();
+          } else if (arg.bitWidth == 16) {
+            return builder.getF16Type();
+          } else {
+            llvm_unreachable("Unsupported float bit width");
+          }
+        } else if constexpr (std::is_same_v<T, kernel::IndexType>) {
+          return builder.getIndexType();
+        } else if constexpr (std::is_same_v<T, kernel::IntTensorType>) {
+          auto elementType = builder.getIntegerType(arg.bitWidth);
+          return RankedTensorType::get(arg.shape, elementType);
+        } else if constexpr (std::is_same_v<T, kernel::FloatTensorType>) {
+          mlir::Type elementType;
+          if (arg.bitWidth == 32) {
+            elementType = builder.getF32Type();
+          } else if (arg.bitWidth == 64) {
+            elementType = builder.getF64Type();
+          } else if (arg.bitWidth == 16) {
+            elementType = builder.getF16Type();
+          } else {
+            llvm_unreachable("Unsupported float bit width");
+          }
+          return RankedTensorType::get(arg.shape, elementType);
+        }
+        llvm_unreachable("Unknown DagType variant");
+      },
+      dagType.type_variant);
+}
+
+}  // namespace
+
 std::vector<Value> IRMaterializingVisitor::operator()(
     const LeafNode<SSAValue>& node) {
   return {node.value.getValue()};
@@ -30,32 +74,59 @@ std::vector<Value> IRMaterializingVisitor::operator()(
 
 std::vector<Value> IRMaterializingVisitor::operator()(
     const ConstantScalarNode& node) {
-  // A "ConstantScalarNode" can still have a shaped type, and in that case the
-  // value is treated as a splat. This is preferred in some cases to support
-  // DAGs that can be evaluated elementwise for ElementwiseMappable ops like
-  // arith ops.
+  Type targetType = dagTypeToMLIRType(node.type, builder);
   TypedAttr attr;
-  if (auto floatTy =
-          dyn_cast<mlir::FloatType>(getElementTypeOrSelf(evaluatedType))) {
+  if (auto indexTy = dyn_cast<mlir::IndexType>(targetType)) {
+    // Handle index type specially - convert double to index integer
+    APInt apVal = APInt(64, static_cast<int64_t>(std::floor(node.value)));
+    attr = builder.getIntegerAttr(indexTy, apVal);
+  } else if (auto floatTy = dyn_cast<mlir::FloatType>(targetType)) {
     APFloat apVal(node.value);
     APFloat converted =
         convertFloatToSemantics(apVal, floatTy.getFloatSemantics());
-    attr = getScalarOrDenseAttr(evaluatedType, converted);
-  } else if (auto intTy = dyn_cast<mlir::IntegerType>(
-                 getElementTypeOrSelf(evaluatedType))) {
-    // Node values are doubles and we may have to properly support integers.
-    APInt apVal(intTy.getWidth(), std::floor(node.value));
-    attr = getScalarOrDenseAttr(evaluatedType, apVal);
+    attr = builder.getFloatAttr(floatTy, converted);
+  } else if (auto intTy = dyn_cast<mlir::IntegerType>(targetType)) {
+    int64_t intValue = static_cast<int64_t>(std::floor(node.value));
+    APInt apVal(intTy.getWidth(), intValue, /*isSigned=*/true);
+    attr = builder.getIntegerAttr(intTy, apVal);
   }
 
-  auto constantOp = arith::ConstantOp::create(builder, evaluatedType, attr);
+  auto constantOp = arith::ConstantOp::create(builder, targetType, attr);
+  createdOpCallback(constantOp);
+  return {constantOp};
+}
+
+std::vector<Value> IRMaterializingVisitor::operator()(const SplatNode& node) {
+  Type targetType = dagTypeToMLIRType(node.type, builder);
+
+  // SplatNode should always produce a tensor type
+  RankedTensorType tensorTy = cast<RankedTensorType>(targetType);
+  Type elementType = tensorTy.getElementType();
+
+  TypedAttr attr;
+  if (auto floatTy = dyn_cast<mlir::FloatType>(elementType)) {
+    APFloat apVal(node.value);
+    APFloat converted =
+        convertFloatToSemantics(apVal, floatTy.getFloatSemantics());
+    attr = DenseElementsAttr::get(tensorTy, converted);
+  } else if (auto intTy = dyn_cast<mlir::IntegerType>(elementType)) {
+    int64_t intValue = static_cast<int64_t>(std::floor(node.value));
+    APInt apVal(intTy.getWidth(), intValue, /*isSigned=*/true);
+    attr = DenseElementsAttr::get(tensorTy, apVal);
+  } else {
+    llvm_unreachable("Unsupported element type for SplatNode");
+  }
+
+  auto constantOp = arith::ConstantOp::create(builder, targetType, attr);
   createdOpCallback(constantOp);
   return {constantOp};
 }
 
 std::vector<Value> IRMaterializingVisitor::operator()(
     const ConstantTensorNode& node) {
-  RankedTensorType tensorTy = cast<RankedTensorType>(evaluatedType);
+  Type targetType = dagTypeToMLIRType(node.type, builder);
+  RankedTensorType tensorTy = cast<RankedTensorType>(targetType);
+
   TypedAttr attr;
   if (auto floatTy = dyn_cast<mlir::FloatType>(tensorTy.getElementType())) {
     SmallVector<APFloat> values;
@@ -77,7 +148,7 @@ std::vector<Value> IRMaterializingVisitor::operator()(
     attr = DenseElementsAttr::get(tensorTy, values);
   }
 
-  auto constantOp = arith::ConstantOp::create(builder, evaluatedType, attr);
+  auto constantOp = arith::ConstantOp::create(builder, targetType, attr);
   createdOpCallback(constantOp);
   return {constantOp};
 }
@@ -110,9 +181,9 @@ std::vector<Value> IRMaterializingVisitor::operator()(
 std::vector<Value> IRMaterializingVisitor::operator()(
     const LeftRotateNode<SSAValue>& node) {
   Value operand = this->process(node.operand)[0];
-  Value shift = arith::ConstantIndexOp::create(builder, node.shift);
+  Value shift = this->process(node.shift)[0];
   auto rotateOp =
-      tensor_ext::RotateOp::create(builder, evaluatedType, operand, shift);
+      tensor_ext::RotateOp::create(builder, operand.getType(), operand, shift);
   createdOpCallback(rotateOp);
   return {rotateOp};
 }

@@ -135,7 +135,8 @@ EvalResults EvalVisitor::operator()(const FloorDivNode<LiteralValue>& node) {
 EvalResults EvalVisitor::operator()(const LeftRotateNode<LiteralValue>& node) {
   auto operand = this->process(node.operand)[0];
   auto dim = operand.getShape()[0];
-  auto amount = node.shift;
+  auto evaluatedShift = this->process(node.shift)[0];
+  int amount = std::get<int>(evaluatedShift.get());
   // Normalize amount to be in [0, dim)
   amount = ((amount % dim) + dim) % dim;
 
@@ -283,7 +284,7 @@ std::string PrintVisitor::operator()(const FloorDivNode<LiteralValue>& node) {
 
 std::string PrintVisitor::operator()(const LeftRotateNode<LiteralValue>& node) {
   std::string operand = this->process(node.operand);
-  std::string shift = std::to_string(node.shift);
+  std::string shift = this->process(node.shift);
   return "Rot(" + operand + ", " + shift + ")";
 }
 

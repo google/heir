@@ -107,8 +107,9 @@ Cost computeCostOfLayoutConversion(int64_t numCiphertexts,
   using ValueTy = std::shared_ptr<NodeTy>;
   SmallVector<SymbolicValue> inputLeaves(numCiphertexts,
                                          SymbolicValue({ciphertextSize}));
-  SmallVector<SmallVector<ValueTy>> groupResults =
-      implementRotationGroups(inputLeaves, mapping, scheme, ciphertextSize);
+  kernel::DagType defaultType = kernel::DagType::integer(32);
+  SmallVector<SmallVector<ValueTy>> groupResults = implementRotationGroups(
+      inputLeaves, mapping, scheme, ciphertextSize, defaultType);
 
   // The cost is the maximum number of rotations in any group
   Cost maxRotations = 0;
