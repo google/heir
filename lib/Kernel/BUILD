@@ -142,6 +142,6 @@ cc_test(
         ":KernelImplementation",
         ":TestingUtils",
         "@fuzztest//fuzztest",
-        "@googletest//:gtest_main",
+        "@fuzztest//fuzztest:fuzztest_gtest_main",
     ],
 )
