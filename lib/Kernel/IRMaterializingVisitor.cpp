@@ -191,7 +191,11 @@ std::vector<Value> IRMaterializingVisitor::operator()(
 std::vector<Value> IRMaterializingVisitor::operator()(
     const ExtractNode<SSAValue>& node) {
   Value operand = this->process(node.operand)[0];
-  Value index = arith::ConstantIndexOp::create(builder, node.index);
+  Value index = this->process(node.index)[0];
+  // Ensure index has index type
+  if (!index.getType().isIndex()) {
+    index = builder.create<arith::IndexCastOp>(builder.getIndexType(), index);
+  }
 
   RankedTensorType tensorType = cast<RankedTensorType>(operand.getType());
 
