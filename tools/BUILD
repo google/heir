@@ -129,6 +129,7 @@ cc_binary(
         "@heir//lib/Transforms/FullLoopUnroll",
         "@heir//lib/Transforms/GenerateParam",
         "@heir//lib/Transforms/Halo:Transforms",
+        "@heir//lib/Transforms/ILPBootstrapPlacement",
         "@heir//lib/Transforms/InlineActivations",
         "@heir//lib/Transforms/LayoutOptimization",
         "@heir//lib/Transforms/LayoutOptimization:InterfaceImpl",
