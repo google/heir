@@ -5,6 +5,7 @@
 #include <ios>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 
 #include "gtest/gtest.h"  // from @googletest
 #include "lib/Kernel/ArithmeticDag.h"
@@ -18,6 +19,9 @@ using StringLeavedDag = ArithmeticDagNode<std::string>;
 using DoubleLeavedDag = ArithmeticDagNode<double>;
 
 struct FlattenedStringVisitor {
+  mutable std::unordered_map<const VariableNode<std::string>*, std::string>
+      varNames;
+  mutable int varCounter = 0;
   std::string operator()(const ConstantScalarNode& node) const {
     std::stringstream ss;
     ss << std::fixed << std::setprecision(2) << node.value;
@@ -93,6 +97,58 @@ struct FlattenedStringVisitor {
     ss << "splat(" << node.value << ")";
     return ss.str();
   }
+
+  std::string operator()(const VariableNode<std::string>& node) const {
+    if (varNames.find(&node) == varNames.end()) {
+      varNames[&node] = "i" + std::to_string(varCounter++);
+    }
+    return varNames[&node];
+  }
+
+  std::string operator()(const YieldNode<std::string>& node) const {
+    // For a single element, don't wrap in parentheses
+    if (node.elements.size() == 1) {
+      return node.elements[0]->visit(*this);
+    }
+    std::stringstream ss;
+    ss << "(";
+    for (size_t i = 0; i < node.elements.size(); ++i) {
+      ss << node.elements[i]->visit(*this);
+      if (i != node.elements.size() - 1) {
+        ss << ", ";
+      }
+    }
+    ss << ")";
+    return ss.str();
+  }
+
+  std::string operator()(const ResultAtNode<std::string>& node) const {
+    std::stringstream ss;
+    ss << node.operand->visit(*this) << "#" << node.index;
+    return ss.str();
+  }
+
+  std::string operator()(const ForLoopNode<std::string>& node) const {
+    std::stringstream ss;
+    std::string inductionVarName = node.inductionVar->visit(*this);
+    std::vector<std::string> visitedIterArgs;
+    std::vector<std::string> visitedInits;
+    for (size_t i = 0; i < node.inits.size(); ++i) {
+      visitedIterArgs.push_back(node.iterArgs[i]->visit(*this));
+      visitedInits.push_back(node.inits[i]->visit(*this));
+    }
+    std::string initsString;
+    for (size_t i = 0; i < visitedIterArgs.size(); ++i) {
+      initsString += visitedIterArgs[i] + "=" + visitedInits[i];
+      if (i != visitedIterArgs.size() - 1) {
+        initsString += ", ";
+      }
+    }
+    ss << "for(" << inductionVarName << "=" << node.lower << " to "
+       << node.upper << " step " << node.step << "; " << initsString << ") { "
+       << (node.body ? node.body->visit(*this) : "") << " }";
+    return ss.str();
+  }
 };
 
 class EvalVisitor : public CachingVisitor<double, std::vector<double>> {
@@ -139,6 +195,60 @@ class EvalVisitor : public CachingVisitor<double, std::vector<double>> {
   std::vector<double> operator()(const SplatNode& node) override {
     callCount += 1;
     return {node.value};
+  }
+
+  std::vector<double> operator()(const VariableNode<double>& node) override {
+    callCount += 1;
+    assert(node.value.has_value() &&
+           "VariableNode must have a value during evaluation");
+    return {node.value.value()};
+  }
+
+  std::vector<double> operator()(const YieldNode<double>& node) override {
+    callCount += 1;
+    std::vector<double> results;
+    for (const auto& value : node.elements) {
+      results.push_back(this->process(value)[0]);
+    }
+    return results;
+  }
+
+  std::vector<double> operator()(const ResultAtNode<double>& node) override {
+    callCount += 1;
+    std::vector<double> results = this->process(node.operand);
+    return {results[node.index]};
+  }
+
+  std::vector<double> operator()(const ForLoopNode<double>& node) override {
+    callCount += 1;
+    std::vector<double> results;
+    for (const auto& init : node.inits) {
+      results.push_back(this->process(init)[0]);
+    }
+    for (size_t i = node.lower; i < node.upper; i += node.step) {
+      // Set the induction variable value
+      auto& inductionVarNode =
+          std::get<VariableNode<double>>(node.inductionVar->node_variant);
+      inductionVarNode.value = static_cast<double>(i);
+
+      // Set the iter arg values
+      for (size_t j = 0; j < node.iterArgs.size(); ++j) {
+        auto& iterArgNode =
+            std::get<VariableNode<double>>(node.iterArgs[j]->node_variant);
+        iterArgNode.value = results[j];
+      }
+
+      // Clear the cache for the body and its dependencies before each iteration
+      // since the body depends on variables that change each iteration
+      if (node.body) {
+        this->clearSubtreeCache(node.body);
+        std::vector<double> bodyResults = this->process(node.body);
+        for (size_t j = 0; j < results.size(); ++j) {
+          results[j] = bodyResults[j];
+        }
+      }
+    }
+    return results;
   }
 };
 
@@ -202,6 +312,33 @@ TEST(ArithmeticDagTest, TestEvaluationVisitorSubstract) {
   double result = root->visit(visitor)[0];
   EXPECT_EQ(result, -1);
   EXPECT_EQ(visitor.callCount, 3);
+}
+
+TEST(ArithmeticDagTest, TestLoop) {
+  auto x = DoubleLeavedDag::leaf(1.0);
+  auto loop = DoubleLeavedDag::loop(x, 0, 10, 1);
+  auto& loopNode = std::get<ForLoopNode<double>>(loop->node_variant);
+  loopNode.body =
+      DoubleLeavedDag::yield({DoubleLeavedDag::add(x, loopNode.iterArgs[0])});
+  EvalVisitor visitor;
+  double result = loop->visit(visitor)[0];
+  EXPECT_EQ(result, 11);
+}
+
+TEST(ArithmeticDagTest, TestLoopStringVisitor) {
+  auto x = StringLeavedDag::leaf("x");
+  auto loop = StringLeavedDag::loop(
+      x, 0, 10, 1,
+      [](const std::shared_ptr<StringLeavedDag>& inductionVar,
+         const std::shared_ptr<StringLeavedDag>& iterArg) {
+        return StringLeavedDag::yield({StringLeavedDag::add(
+            StringLeavedDag::mul(inductionVar, StringLeavedDag::leaf("y")),
+            iterArg)});
+      });
+
+  FlattenedStringVisitor visitor;
+  std::string result = loop->visit(visitor);
+  EXPECT_EQ(result, "for(i0=0 to 10 step 1; i1=x) { ((i0 * y) + i1) }");
 }
 
 }  // namespace

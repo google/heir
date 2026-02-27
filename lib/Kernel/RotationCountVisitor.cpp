@@ -151,6 +151,60 @@ int64_t RotationCountVisitor::operator()(
   return operandCount + indexCount;
 }
 
+int64_t RotationCountVisitor::operator()(
+    const VariableNode<SymbolicValue>& node) {
+  // Variables are typically placeholders - treat as plaintext by default
+  nodeSecretStatus[currentNode] = false;
+  return 0;
+}
+
+int64_t RotationCountVisitor::operator()(const YieldNode<SymbolicValue>& node) {
+  const auto* thisNode = currentNode;  // Save before recursion
+  bool isSecret = false;
+  int64_t totalCount = 0;
+  for (const auto& element : node.elements) {
+    totalCount += processInternal(element);
+    isSecret = isSecret || nodeSecretStatus[element.get()];
+  }
+  nodeSecretStatus[thisNode] = isSecret;
+  return totalCount;
+}
+
+int64_t RotationCountVisitor::operator()(
+    const ResultAtNode<SymbolicValue>& node) {
+  const auto* thisNode = currentNode;  // Save before recursion
+  int64_t operandCount = processInternal(node.operand);
+  bool operandIsSecret = nodeSecretStatus[node.operand.get()];
+  nodeSecretStatus[thisNode] = operandIsSecret;
+  return operandCount;
+}
+
+int64_t RotationCountVisitor::operator()(
+    const ForLoopNode<SymbolicValue>& node) {
+  const auto* thisNode = currentNode;  // Save before recursion
+
+  // Process the init value
+  int64_t initCount = 0;
+  bool initIsSecret = false;
+  for (const auto& init : node.inits) {
+    initCount += processInternal(init);
+    initIsSecret = initIsSecret || nodeSecretStatus[init.get()];
+  }
+
+  // Process the body if it exists
+  int64_t bodyCount = 0;
+  if (node.body) {
+    bodyCount = processInternal(node.body);
+  }
+
+  // A loop's secret status is determined by its init and body
+  bool bodyIsSecret = node.body ? nodeSecretStatus[node.body.get()] : false;
+  nodeSecretStatus[thisNode] = initIsSecret || bodyIsSecret;
+
+  // Total rotations = init + body rotations * number of iterations
+  return initCount + bodyCount * ((node.upper - node.lower) / node.step);
+}
+
 int64_t RotationCountVisitor::operator()(const SplatNode& node) {
   // Splat constants are always plaintext
   nodeSecretStatus[currentNode] = false;

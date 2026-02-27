@@ -84,6 +84,15 @@ struct LeafNode {
   T value;
 };
 
+// VariableNode represents a variable that can be bound to a value. Used in
+// ForLoopNode to represent the induction variable and iter_arg. These nodes
+// are not meant to be leaves, but are rather meant to have a value filled in
+// by a visitor at evaluation time.
+template <typename T>
+struct VariableNode {
+  std::optional<T> value;
+};
+
 struct ConstantScalarNode {
   double value;
   DagType type;
@@ -142,13 +151,38 @@ struct ExtractNode {
 };
 
 template <typename T>
+struct YieldNode {
+  std::vector<std::shared_ptr<ArithmeticDagNode<T>>> elements;
+};
+
+template <typename T>
+struct ResultAtNode {
+  std::shared_ptr<ArithmeticDagNode<T>> operand;
+  size_t index;
+};
+
+// A For loop with static bounds
+template <typename T>
+struct ForLoopNode {
+  using NodePtr = std::shared_ptr<ArithmeticDagNode<T>>;
+  NodePtr inductionVar;
+  std::vector<NodePtr> inits;
+  std::vector<NodePtr> iterArgs;
+  NodePtr body;
+  int32_t lower;
+  int32_t upper;
+  int32_t step;
+};
+
+template <typename T>
 struct ArithmeticDagNode {
   using NodePtr = std::shared_ptr<ArithmeticDagNode<T>>;
 
  public:
   std::variant<ConstantScalarNode, ConstantTensorNode, LeafNode<T>, AddNode<T>,
                SubtractNode<T>, MultiplyNode<T>, FloorDivNode<T>, PowerNode<T>,
-               LeftRotateNode<T>, ExtractNode<T>, SplatNode>
+               LeftRotateNode<T>, ExtractNode<T>, VariableNode<T>,
+               ForLoopNode<T>, YieldNode<T>, ResultAtNode<T>, SplatNode>
       node_variant;
 
   explicit ArithmeticDagNode(const T& value)
@@ -264,6 +298,72 @@ struct ArithmeticDagNode {
         tensor, constantScalar(static_cast<double>(index), DagType::index()));
   }
 
+  static NodePtr variable() {
+    auto node = NodePtr(new ArithmeticDagNode<T>());
+    node->node_variant.template emplace<VariableNode<T>>(
+        VariableNode<T>{std::nullopt});
+    return node;
+  }
+
+  using BodyBuilderFunc =
+      std::function<NodePtr(NodePtr inductionVar, const NodePtr& iterArg)>;
+
+  // Construct a loop with a single iter arg. Note that the body builder must
+  // have as its root node a YieldNode.
+  static NodePtr loop(NodePtr init, int32_t lower, int32_t upper, int32_t step,
+                      const BodyBuilderFunc& bodyBuilder = nullptr) {
+    assert(init && "invalid init");
+    auto inductionVar = variable();
+    auto iterArg = variable();
+    auto body = bodyBuilder ? bodyBuilder(inductionVar, iterArg) : nullptr;
+    auto node = NodePtr(new ArithmeticDagNode<T>());
+    node->node_variant.template emplace<ForLoopNode<T>>(
+        ForLoopNode<T>{std::move(inductionVar),
+                       {std::move(init)},
+                       {std::move(iterArg)},
+                       body,
+                       lower,
+                       upper,
+                       step});
+    return node;
+  }
+
+  using BodyBuilderFuncManyIterArgs = std::function<NodePtr(
+      NodePtr inductionVar, const std::vector<NodePtr>& iterArgs)>;
+
+  // Construct a loop with multiple iter args. Note that the body builder must
+  // have as its root node a YieldNode.
+  static NodePtr loop(
+      std::vector<NodePtr> inits, int32_t lower, int32_t upper, int32_t step,
+      const BodyBuilderFuncManyIterArgs& bodyBuilder = nullptr) {
+    auto inductionVar = variable();
+    std::vector<NodePtr> iterArgs(inits.size());
+    for (size_t i = 0; i < inits.size(); ++i) {
+      iterArgs[i] = variable();
+    }
+
+    auto body = bodyBuilder ? bodyBuilder(inductionVar, iterArgs) : nullptr;
+    auto node = NodePtr(new ArithmeticDagNode<T>());
+    node->node_variant.template emplace<ForLoopNode<T>>(
+        ForLoopNode<T>{std::move(inductionVar), std::move(inits),
+                       std::move(iterArgs), body, lower, upper, step});
+    return node;
+  }
+
+  static NodePtr yield(std::vector<NodePtr> values) {
+    auto node = NodePtr(new ArithmeticDagNode<T>());
+    node->node_variant.template emplace<YieldNode<T>>(
+        YieldNode<T>{std::move(values)});
+    return node;
+  }
+
+  static NodePtr resultAt(NodePtr value, size_t index) {
+    auto node = NodePtr(new ArithmeticDagNode<T>());
+    node->node_variant.template emplace<ResultAtNode<T>>(
+        ResultAtNode<T>{std::move(value), index});
+    return node;
+  }
+
   ArithmeticDagNode(const ArithmeticDagNode&) = default;
   ArithmeticDagNode& operator=(const ArithmeticDagNode&) = default;
   ArithmeticDagNode(ArithmeticDagNode&&) noexcept = default;
@@ -377,9 +477,78 @@ class CachingVisitor {
     return ResultType();
   }
 
+  virtual ResultType operator()(const VariableNode<T>& node) {
+    assert(false && "Visit logic for VariableNode is not implemented.");
+    return ResultType();
+  }
+
+  virtual ResultType operator()(const YieldNode<T>& node) {
+    assert(false && "Visit logic for YieldNode is not implemented.");
+    return ResultType();
+  }
+
+  virtual ResultType operator()(const ResultAtNode<T>& node) {
+    assert(false && "Visit logic for ResultAtNode is not implemented.");
+    return ResultType();
+  }
+
+  virtual ResultType operator()(const ForLoopNode<T>& node) {
+    assert(false && "Visit logic for ForLoopNode is not implemented.");
+    return ResultType();
+  }
+
   virtual ResultType operator()(const SplatNode& node) {
     assert(false && "Visit logic for SplatNode is not implemented.");
     return ResultType();
+  }
+
+ protected:
+  void clearCache() { cache.clear(); }
+
+  void clearCacheEntry(const ArithmeticDagNode<T>* node) { cache.erase(node); }
+
+  void clearSubtreeCache(const std::shared_ptr<ArithmeticDagNode<T>>& node) {
+    if (!node) return;
+
+    clearCacheEntry(node.get());
+
+    // Recursively clear cache for child nodes
+    std::visit(
+        [this](auto&& n) {
+          using NodeType = std::decay_t<decltype(n)>;
+          if constexpr (std::is_same_v<NodeType, AddNode<T>> ||
+                        std::is_same_v<NodeType, SubtractNode<T>> ||
+                        std::is_same_v<NodeType, MultiplyNode<T>>) {
+            clearSubtreeCache(n.left);
+            clearSubtreeCache(n.right);
+          } else if constexpr (std::is_same_v<NodeType, FloorDivNode<T>>) {
+            clearSubtreeCache(n.left);
+          } else if constexpr (std::is_same_v<NodeType, PowerNode<T>>) {
+            clearSubtreeCache(n.base);
+          } else if constexpr (std::is_same_v<NodeType, LeftRotateNode<T>>) {
+            clearSubtreeCache(n.operand);
+            clearSubtreeCache(n.shift);
+          } else if constexpr (std::is_same_v<NodeType, ExtractNode<T>>) {
+            clearSubtreeCache(n.operand);
+            clearSubtreeCache(n.index);
+          } else if constexpr (std::is_same_v<NodeType, ResultAtNode<T>>) {
+            clearSubtreeCache(n.operand);
+          } else if constexpr (std::is_same_v<NodeType, ForLoopNode<T>>) {
+            clearSubtreeCache(n.inductionVar);
+            for (const auto& init : n.inits) {
+              clearSubtreeCache(init);
+            }
+            for (const auto& iterArg : n.iterArgs) {
+              clearSubtreeCache(iterArg);
+            }
+            clearSubtreeCache(n.body);
+          } else if constexpr (std::is_same_v<NodeType, YieldNode<T>>) {
+            for (const auto& element : n.elements) {
+              clearSubtreeCache(element);
+            }
+          }
+        },
+        node->node_variant);
   }
 
  private:
