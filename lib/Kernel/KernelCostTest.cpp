@@ -1,5 +1,4 @@
 #include <cstdint>
-#include <memory>
 #include <vector>
 
 #include "gtest/gtest.h"  // from @googletest
@@ -19,7 +18,8 @@ TEST(KernelCostTest, HaleviShoup_4x4_BabyStepGiantStep) {
   SymbolicValue matrix({4, 4}, false);  // Matrix is plaintext
   std::vector<int64_t> originalShape = {4, 4};
 
-  auto dag = implementHaleviShoup(vector, matrix, originalShape);
+  auto dag = implementHaleviShoup(vector, matrix, originalShape,
+                                  DagType::intTensor(32, {4}));
 
   RotationCountVisitor counter;
   int64_t rotations = counter.process(dag);
@@ -35,7 +35,8 @@ TEST(KernelCostTest, HaleviShoup_100x100_BabyStepGiantStep) {
   SymbolicValue matrix({100, 100}, false);  // Matrix is plaintext
   std::vector<int64_t> originalShape = {100, 100};
 
-  auto dag = implementHaleviShoup(vector, matrix, originalShape);
+  auto dag = implementHaleviShoup(vector, matrix, originalShape,
+                                  DagType::intTensor(32, {100}));
 
   RotationCountVisitor counter;
   int64_t rotations = counter.process(dag);
@@ -53,7 +54,8 @@ TEST(KernelCostTest, HaleviShoup_Rectangular_8x4) {
   SymbolicValue matrix({8, 8}, false);  // Matrix is plaintext
   std::vector<int64_t> originalShape = {8, 4};
 
-  auto dag = implementHaleviShoup(vector, matrix, originalShape);
+  auto dag = implementHaleviShoup(vector, matrix, originalShape,
+                                  DagType::intTensor(32, {8}));
 
   RotationCountVisitor counter;
   int64_t rotations = counter.process(dag);
@@ -69,7 +71,8 @@ TEST(KernelCostTest, HaleviShoup_Rectangular_4x8) {
   SymbolicValue matrix({4, 4}, false);  // Matrix is plaintext
   std::vector<int64_t> originalShape = {4, 8};
 
-  auto dag = implementHaleviShoup(vector, matrix, originalShape);
+  auto dag = implementHaleviShoup(vector, matrix, originalShape,
+                                  DagType::intTensor(32, {8}));
 
   RotationCountVisitor counter;
   int64_t rotations = counter.process(dag);
@@ -84,7 +87,8 @@ TEST(KernelCostTest, HaleviShoup_SmallMatrix_2x2) {
   SymbolicValue matrix({2, 2}, false);  // Matrix is plaintext
   std::vector<int64_t> originalShape = {2, 2};
 
-  auto dag = implementHaleviShoup(vector, matrix, originalShape);
+  auto dag = implementHaleviShoup(vector, matrix, originalShape,
+                                  DagType::intTensor(32, {2}));
 
   RotationCountVisitor counter;
   int64_t rotations = counter.process(dag);
@@ -99,7 +103,8 @@ TEST(KernelCostTest, HaleviShoup_LargeMatrix_512x512) {
   SymbolicValue matrix({512, 512}, false);  // Matrix is plaintext
   std::vector<int64_t> originalShape = {512, 512};
 
-  auto dag = implementHaleviShoup(vector, matrix, originalShape);
+  auto dag = implementHaleviShoup(vector, matrix, originalShape,
+                                  DagType::intTensor(32, {512}));
 
   RotationCountVisitor counter;
   int64_t rotations = counter.process(dag);
@@ -136,7 +141,8 @@ TEST(KernelCostTest, HaleviShoup_AsymptoticScaling_VerifiesSqrtN) {
                          false);  // Matrix is plaintext
     std::vector<int64_t> originalShape = {testCase.size, testCase.size};
 
-    auto dag = implementHaleviShoup(vector, matrix, originalShape);
+    auto dag = implementHaleviShoup(vector, matrix, originalShape,
+                                    DagType::intTensor(32, {testCase.size}));
     int64_t rotations = counter.process(dag);
 
     EXPECT_EQ(rotations, testCase.measuredRotations)
@@ -200,7 +206,8 @@ TEST(KernelCostTest, HaleviShoup_BeatsNaiveForLargeMatrices) {
                          false);  // Matrix is plaintext
     std::vector<int64_t> originalShape = {testCase.size, testCase.size};
 
-    auto dag = implementHaleviShoup(vector, matrix, originalShape);
+    auto dag = implementHaleviShoup(vector, matrix, originalShape,
+                                    DagType::intTensor(32, {testCase.size}));
     int64_t rotations = counter.process(dag);
 
     // Verify measured rotations are within bounds

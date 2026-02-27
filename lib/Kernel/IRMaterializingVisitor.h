@@ -2,16 +2,15 @@
 #define LIB_KERNEL_IRMATERIALIZINGVISITOR_H_
 
 #include <functional>
+#include <vector>
 
 #include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
-#include "lib/Kernel/KernelImplementation.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
@@ -64,6 +63,10 @@ class IRMaterializingVisitor
   std::vector<Value> operator()(const FloorDivNode<SSAValue>& node) override;
   std::vector<Value> operator()(const LeftRotateNode<SSAValue>& node) override;
   std::vector<Value> operator()(const ExtractNode<SSAValue>& node) override;
+  std::vector<Value> operator()(const VariableNode<SSAValue>& node) override;
+  std::vector<Value> operator()(const ForLoopNode<SSAValue>& node) override;
+  std::vector<Value> operator()(const YieldNode<SSAValue>& node) override;
+  std::vector<Value> operator()(const ResultAtNode<SSAValue>& node) override;
 
  private:
   ImplicitLocOpBuilder& builder;

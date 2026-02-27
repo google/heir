@@ -1,6 +1,8 @@
 #ifndef LIB_KERNEL_TESTINGUTILS_H_
 #define LIB_KERNEL_TESTINGUTILS_H_
 
+#include <algorithm>
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <vector>
@@ -34,6 +36,10 @@ class EvalVisitor : public CachingVisitor<LiteralValue, EvalResults> {
   EvalResults operator()(const FloorDivNode<LiteralValue>& node) override;
   EvalResults operator()(const LeftRotateNode<LiteralValue>& node) override;
   EvalResults operator()(const ExtractNode<LiteralValue>& node) override;
+  EvalResults operator()(const VariableNode<LiteralValue>& node) override;
+  EvalResults operator()(const ForLoopNode<LiteralValue>& node) override;
+  EvalResults operator()(const YieldNode<LiteralValue>& node) override;
+  EvalResults operator()(const ResultAtNode<LiteralValue>& node) override;
 };
 
 EvalResults evalKernel(
@@ -58,6 +64,10 @@ class PrintVisitor : public CachingVisitor<LiteralValue, std::string> {
   std::string operator()(const ExtractNode<LiteralValue>& node) override;
   std::string operator()(const ConstantScalarNode& node) override;
   std::string operator()(const SplatNode& node) override;
+  std::string operator()(const VariableNode<LiteralValue>& node) override;
+  std::string operator()(const ForLoopNode<LiteralValue>& node) override;
+  std::string operator()(const YieldNode<LiteralValue>& node) override;
+  std::string operator()(const ResultAtNode<LiteralValue>& node) override;
 };
 
 std::string printKernel(
@@ -139,6 +149,32 @@ class MultiplicativeDepthVisitorImpl
 
   double operator()(const ExtractNode<LiteralValue>& node) override {
     // Extraction doesn't increase multiplicative depth
+    return this->process(node.operand);
+  }
+
+  double operator()(const VariableNode<LiteralValue>& node) override {
+    // Variables have depth 0 (they are inputs)
+    return 0.0;
+  }
+
+  double operator()(const ForLoopNode<LiteralValue>& node) override {
+    if (node.body) {
+      return this->process(node.body);
+    }
+    return 0.0;
+  }
+
+  double operator()(const YieldNode<LiteralValue>& node) override {
+    // Return the maximum depth of all yielded elements
+    double maxDepth = -1.0;
+    for (const auto& element : node.elements) {
+      maxDepth = std::max(maxDepth, this->process(element));
+    }
+    return maxDepth;
+  }
+
+  double operator()(const ResultAtNode<LiteralValue>& node) override {
+    // Extracting a result doesn't increase multiplicative depth
     return this->process(node.operand);
   }
 };

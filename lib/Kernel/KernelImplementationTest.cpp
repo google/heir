@@ -1,4 +1,4 @@
-#include <iostream>
+#include <cstdint>
 #include <vector>
 
 #include "gtest/gtest.h"  // from @googletest
@@ -18,7 +18,10 @@ namespace heir {
 namespace kernel {
 namespace {
 
-TEST(KernelImplementationTest, TestHaleviShoupMatvec) {
+// Parametrize over whether the kernel is rolled
+class KernelImplementationTest : public testing::TestWithParam<bool> {};
+
+TEST_P(KernelImplementationTest, TestHaleviShoupMatvec) {
   std::vector<int> vector = {0, 1, 2, 3};
   // Pre-packed diagonally
   std::vector<std::vector<int>> matrix = {
@@ -27,13 +30,14 @@ TEST(KernelImplementationTest, TestHaleviShoupMatvec) {
   LiteralValue matrixInput = matrix;
   LiteralValue vectorInput = vector;
 
-  auto dag =
-      implementMatvec(KernelName::MatvecDiagonal, matrixInput, vectorInput);
+  auto dag = implementHaleviShoup(vectorInput, matrixInput, {4, 4},
+                                  DagType::intTensor(32, {4}),
+                                  /*zeroDiagonals=*/{}, /*unroll=*/GetParam());
   LiteralValue actual = evalKernel(dag)[0];
   EXPECT_EQ(std::get<std::vector<int>>(actual.get()), expected);
 }
 
-TEST(KernelImplementationTest, HaleviShoup3x5) {
+TEST_P(KernelImplementationTest, HaleviShoup3x5) {
   // Original matrix:
   // [ 0,  1,  2,  3,  4]
   // [ 5,  6,  7,  8,  9]
@@ -57,7 +61,9 @@ TEST(KernelImplementationTest, HaleviShoup3x5) {
   LiteralValue matrixInput = matrix;
   LiteralValue vectorInput = vector;
 
-  auto dag = implementHaleviShoup(vectorInput, matrixInput, {3, 5});
+  auto dag = implementHaleviShoup(vectorInput, matrixInput, {3, 5},
+                                  DagType::intTensor(32, {8}),
+                                  /*zeroDiagonals=*/{}, /*unroll=*/GetParam());
   LiteralValue result = evalKernel(dag)[0];
   auto actual = std::get<std::vector<int>>(result.get());
 
@@ -98,18 +104,19 @@ TEST(KernelImplementationTest, TestHaleviShoupMatvecWithLayout) {
   EXPECT_EQ(std::get<std::vector<int>>(actual.get()), expected);
 }
 
-TEST(KernelImplementationTest, Test2DConvWithLayout) {
+TEST_P(KernelImplementationTest, Test2DConvWithLayout) {
   MLIRContext context;
   RankedTensorType dataType =
       RankedTensorType::get({3, 3}, mlir::IndexType::get(&context));
   RankedTensorType filterType =
       RankedTensorType::get({2, 2}, mlir::IndexType::get(&context));
 
+  int numSlots = 16;
   // 3x3 input data, 2x2 filter
   std::vector<std::vector<int>> data = {{1, -1, 0}, {-3, 0, 2}, {8, 9, 1}};
   std::vector<std::vector<int>> matrix = {{1, -1}, {-1, 1}};
 
-  auto dataLayout = getRowMajorLayoutRelation(dataType, 16);
+  auto dataLayout = getRowMajorLayoutRelation(dataType, numSlots);
   std::vector<std::vector<int>> packedData =
       evaluateLayoutOnMatrix(dataLayout, data);
 
@@ -117,9 +124,10 @@ TEST(KernelImplementationTest, Test2DConvWithLayout) {
   std::vector<std::vector<int>> packedFilter =
       evaluateLayoutOnMatrix(filterLayout, matrix);
 
-  auto matrixLayout = get2dConvFilterDiagonalizedRelation(filterType, dataType,
-                                                          /*padding=*/0, 16)
-                          .value();
+  auto matrixLayout =
+      get2dConvFilterDiagonalizedRelation(filterType, dataType,
+                                          /*padding=*/0, numSlots)
+          .value();
   std::vector<std::vector<int>> packedMatrix =
       evaluateLayoutOnMatrix(matrixLayout, matrix);
   RankedTensorType expandedMatrixType =
@@ -130,7 +138,9 @@ TEST(KernelImplementationTest, Test2DConvWithLayout) {
   LiteralValue vectorInput = packedData[0];
 
   auto dag = implementHaleviShoup(vectorInput, matrixInput,
-                                  expandedMatrixType.getShape());
+                                  expandedMatrixType.getShape(),
+                                  DagType::intTensor(32, {numSlots}),
+                                  /*zeroDiagonals=*/{}, /*unroll=*/GetParam());
   LiteralValue actual = evalKernel(dag)[0];
   // Result is a 2x2 tensor repeated row-major in a tensor of size 16.
   std::vector<int> actualVector = std::get<std::vector<int>>(actual.get());
@@ -161,7 +171,8 @@ TEST(KernelImplementationTest, BicyclicMatmul) {
   LiteralValue packedAValue = packedA[0];
   LiteralValue packedBValue = packedB[0];
 
-  auto dag = implementBicyclicMatmul(packedAValue, packedBValue, m, n, p);
+  auto dag = implementBicyclicMatmul(packedAValue, packedBValue, m, n, p,
+                                     DagType::intTensor(32, {numSlots}));
   LiteralValue result = evalKernel(dag)[0];
   auto resultVec = std::get<std::vector<int>>(result.get());
 
@@ -181,10 +192,12 @@ TEST(KernelImplementationTest, BicyclicMatmulRotationCount) {
   int m = 123;
   int n = 124;
   int p = 125;
+  int numSlots = m * n * p;
 
   SymbolicValue packedAValue({m, n}, true);
   SymbolicValue packedBValue({n, p}, true);
-  auto dag = implementBicyclicMatmul(packedAValue, packedBValue, m, n, p);
+  auto dag = implementBicyclicMatmul(packedAValue, packedBValue, m, n, p,
+                                     DagType::intTensor(32, {numSlots}));
 
   RotationCountVisitor rotationCounter;
   int64_t rotationCount = rotationCounter.process(dag);
@@ -237,7 +250,8 @@ TEST(KernelImplementationTest, TricyclicBatchMatmul) {
 
   // Generate kernel DAG and evaluate
   auto dag =
-      implementTricyclicBatchMatmul(packedAValue, packedBValue, h, m, n, p);
+      implementTricyclicBatchMatmul(packedAValue, packedBValue, h, m, n, p,
+                                    DagType::intTensor(32, {numSlots}));
   LiteralValue result = evalKernel(dag)[0];
   auto resultVec = std::get<std::vector<int>>(result.get());
 
@@ -268,6 +282,10 @@ TEST(KernelImplementationTest, TricyclicBatchMatmul) {
   // Final check: compare expected packed φ(Z) vector with kernel output.
   EXPECT_EQ(expVec, resultVec);
 }
+
+INSTANTIATE_TEST_SUITE_P(WithAndWithoutRolledSuite, KernelImplementationTest,
+                         testing::Values(false, true));
+
 }  // namespace
 }  // namespace kernel
 }  // namespace heir

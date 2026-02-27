@@ -2,8 +2,10 @@
 
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <variant>
 #include <vector>
 
@@ -219,6 +221,72 @@ EvalResults EvalVisitor::operator()(const SplatNode& node) {
   return {LiteralValue(splatValue)};
 }
 
+EvalResults EvalVisitor::operator()(const VariableNode<LiteralValue>& node) {
+  assert(node.value.has_value() && "VariableNode value is not set");
+  return {node.value.value()};
+}
+
+EvalResults EvalVisitor::operator()(const ForLoopNode<LiteralValue>& node) {
+  // Process initial values
+  std::vector<LiteralValue> iterValues;
+  iterValues.reserve(node.inits.size());
+  for (const auto& init : node.inits) {
+    EvalResults initResult = this->process(init);
+    assert(initResult.size() == 1 && "Init must produce single value");
+    iterValues.push_back(initResult[0]);
+  }
+
+  // Execute loop iterations
+  for (int32_t i = node.lower; i < node.upper; i += node.step) {
+    // Clear cache for the loop body since variables change each iteration
+    this->clearSubtreeCache(node.body);
+
+    // Set induction variable
+    auto& inductionVarNode =
+        std::get<VariableNode<LiteralValue>>(node.inductionVar->node_variant);
+    inductionVarNode.value = LiteralValue(static_cast<int>(i));
+
+    // Set iter args
+    assert(node.iterArgs.size() == iterValues.size());
+    for (size_t j = 0; j < node.iterArgs.size(); ++j) {
+      auto& iterArgNode =
+          std::get<VariableNode<LiteralValue>>(node.iterArgs[j]->node_variant);
+      iterArgNode.value = iterValues[j];
+    }
+
+    // Execute body (should be a YieldNode)
+    assert(node.body != nullptr);
+    assert(std::holds_alternative<YieldNode<LiteralValue>>(
+               node.body->node_variant) &&
+           "ForLoopNode body must be a YieldNode");
+    EvalResults bodyResults = this->process(node.body);
+
+    // Update iter values for next iteration
+    assert(bodyResults.size() == iterValues.size());
+    iterValues = bodyResults;
+  }
+
+  return iterValues;
+}
+
+EvalResults EvalVisitor::operator()(const YieldNode<LiteralValue>& node) {
+  EvalResults results;
+  results.reserve(node.elements.size());
+  for (const auto& element : node.elements) {
+    EvalResults elementResults = this->process(element);
+    assert(elementResults.size() == 1 &&
+           "Yield operands must be single values");
+    results.push_back(elementResults[0]);
+  }
+  return results;
+}
+
+EvalResults EvalVisitor::operator()(const ResultAtNode<LiteralValue>& node) {
+  EvalResults operandResults = this->process(node.operand);
+  assert(node.index < operandResults.size() && "Index out of bounds");
+  return {operandResults[node.index]};
+}
+
 EvalResults evalKernel(
     const std::shared_ptr<ArithmeticDagNode<LiteralValue>>& dag) {
   EvalVisitor visitor;
@@ -298,6 +366,43 @@ std::string PrintVisitor::operator()(const ExtractNode<LiteralValue>& node) {
   // tensor instead of printing recursively.
   std::string indexStr = this->process(node.index);
   return "pt(" + indexStr + ")";
+}
+
+std::string PrintVisitor::operator()(const VariableNode<LiteralValue>& node) {
+  if (node.value.has_value()) {
+    // If the variable has a value, print it
+    const auto& val = node.value.value().get();
+    if (const auto* intVal = std::get_if<int>(&val)) {
+      return std::to_string(*intVal);
+    }
+    return "var(?)";
+  }
+  return "var";
+}
+
+std::string PrintVisitor::operator()(const ForLoopNode<LiteralValue>& node) {
+  std::string result = "for(";
+  result += std::to_string(node.lower) + ".." + std::to_string(node.upper);
+  result += " step " + std::to_string(node.step) + ")";
+  return result;
+}
+
+std::string PrintVisitor::operator()(const YieldNode<LiteralValue>& node) {
+  if (node.elements.size() == 1) {
+    return this->process(node.elements[0]);
+  }
+  std::string result = "yield(";
+  for (size_t i = 0; i < node.elements.size(); ++i) {
+    if (i > 0) result += ", ";
+    result += this->process(node.elements[i]);
+  }
+  result += ")";
+  return result;
+}
+
+std::string PrintVisitor::operator()(const ResultAtNode<LiteralValue>& node) {
+  std::string operand = this->process(node.operand);
+  return operand + "[" + std::to_string(node.index) + "]";
 }
 
 std::string printKernel(

@@ -25,6 +25,7 @@ cc_library(
         "@heir//lib/Kernel:AbstractValue",
         "@heir//lib/Kernel:KernelImplementation",
         "@heir//lib/Kernel:RotationCountVisitor",
+        "@heir//lib/Kernel:Utils",
         "@heir//lib/Utils:AttributeUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",

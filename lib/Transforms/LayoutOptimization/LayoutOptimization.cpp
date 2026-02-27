@@ -1,7 +1,6 @@
 #include "lib/Transforms/LayoutOptimization/LayoutOptimization.h"
 
 #include <cassert>
-#include <cstdint>
 #include <limits>
 #include <optional>
 #include <string>
@@ -12,7 +11,6 @@
 #include "lib/Analysis/LayoutFoldingAnalysis/LayoutFoldingAnalysis.h"
 #include "lib/Dialect/Secret/IR/SecretAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
-#include "lib/Dialect/Secret/IR/SecretPatterns.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
@@ -22,19 +20,17 @@
 #include "lib/Kernel/KernelImplementation.h"
 #include "lib/Kernel/KernelName.h"
 #include "lib/Kernel/RotationCountVisitor.h"
+#include "lib/Kernel/Utils.h"
 #include "lib/Transforms/LayoutOptimization/Hoisting.h"
 #include "lib/Transforms/LayoutOptimization/LayoutConversionCost.h"
 #include "lib/Transforms/LayoutOptimization/Patterns.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"               // from @llvm-project
-#include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"         // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
-#include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
-#include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/LinalgInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineMap.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
@@ -408,13 +404,14 @@ static FailureOr<Cost> computeKernelCostFromDAG(KernelName kernel,
       auto matrixType = dyn_cast<RankedTensorType>(op->getOperand(0).getType());
       if (!matrixType) return failure();
       auto shape = matrixType.getShape();
+      auto dagType = kernel::mlirTypeToDagType(matrixType.getElementType());
 
       SymbolicValue symbolicVector({shape[1]},
                                    /*isSecret=*/true);
       SymbolicValue symbolicMatrix({shape[0], shape[1]},
                                    /*isSecret=*/false);
-      auto kernelDag =
-          kernel::implementHaleviShoup(symbolicVector, symbolicMatrix, shape);
+      auto kernelDag = kernel::implementHaleviShoup(
+          symbolicVector, symbolicMatrix, shape.vec(), dagType);
 
       if (!kernelDag) return failure();
       return costModel.process(kernelDag);
@@ -428,12 +425,13 @@ static FailureOr<Cost> computeKernelCostFromDAG(KernelName kernel,
       auto matrixType = dyn_cast<RankedTensorType>(op->getOperand(1).getType());
       if (!matrixType) return failure();
       auto shape = matrixType.getShape();
+      auto dagType = kernel::mlirTypeToDagType(matrixType.getElementType());
 
       SymbolicValue symbolicVector({shape[0]}, /*isSecret=*/true);
       SymbolicValue symbolicMatrix({shape[0], shape[1]},
                                    /*isSecret=*/false);
-      auto kernelDag =
-          kernel::implementHaleviShoup(symbolicVector, symbolicMatrix, shape);
+      auto kernelDag = kernel::implementHaleviShoup(
+          symbolicVector, symbolicMatrix, shape.vec(), dagType);
 
       if (!kernelDag) return failure();
       return costModel.process(kernelDag);
@@ -447,11 +445,12 @@ static FailureOr<Cost> computeKernelCostFromDAG(KernelName kernel,
       auto rhsType = dyn_cast<RankedTensorType>(op->getOperand(1).getType());
       if (!rhsType) return failure();
       auto rhsShape = rhsType.getShape();
+      auto dagType = kernel::mlirTypeToDagType(lhsType.getElementType());
 
       SymbolicValue lhsLeaf(lhsShape, /*isSecret=*/true);
       SymbolicValue rhsLeaf(rhsShape, /*isSecret=*/true);
       auto implementedKernel = kernel::implementBicyclicMatmul(
-          lhsLeaf, rhsLeaf, lhsShape[0], lhsShape[1], rhsShape[1]);
+          lhsLeaf, rhsLeaf, lhsShape[0], lhsShape[1], rhsShape[1], dagType);
 
       if (!implementedKernel) return failure();
       return costModel.process(implementedKernel);

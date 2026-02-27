@@ -24,6 +24,7 @@
 #include "lib/Kernel/IRMaterializingVisitor.h"
 #include "lib/Kernel/KernelImplementation.h"
 #include "lib/Kernel/KernelName.h"
+#include "lib/Kernel/Utils.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/AssignLayout.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/TypeConversion.h"
 #include "lib/Transforms/DropUnitDims/DropUnitDims.h"
@@ -52,11 +53,10 @@
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/Transforms/Transforms.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/AffineExpr.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/AffineMap.h"   // from @llvm-project
-#include "mlir/include/mlir/IR/Attributes.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Builders.h"    // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/AffineExpr.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/AffineMap.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
@@ -658,10 +658,13 @@ struct ConvertLinalgMatvecLayout
         cast<TypedValue<RankedTensorType>>(adaptor.getInputs()[0]);
     SSAValue matrixLeaf(matrix);
 
+    auto dagType = kernel::mlirTypeToDagType(input.getType().getElementType());
     std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
-        implementHaleviShoup(
-            vectorLeaf, matrixLeaf,
-            cast<RankedTensorType>(op.getInputs()[0].getType()).getShape());
+        implementHaleviShoup(vectorLeaf, matrixLeaf,
+                             cast<RankedTensorType>(op.getInputs()[0].getType())
+                                 .getShape()
+                                 .vec(),
+                             dagType);
 
     rewriter.setInsertionPointAfter(op);
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
@@ -788,9 +791,11 @@ struct ConvertLinalgConv2D
       zeroDiagonals[point[0]] = true;
     }
 
+    auto dagType = kernel::mlirTypeToDagType(data.getType().getElementType());
     std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
         implementHaleviShoup(vectorLeaf, matrixLeaf,
-                             expandedMatrixType.getShape(), zeroDiagonals);
+                             expandedMatrixType.getShape().vec(), dagType,
+                             zeroDiagonals);
 
     rewriter.setInsertionPointAfter(op);
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
@@ -1955,11 +1960,12 @@ struct ConvertLinalgMatmul
     auto lhsType = cast<RankedTensorType>(op.getInputs()[0].getType());
     auto rhsType = cast<RankedTensorType>(op.getInputs()[1].getType());
 
+    auto dagType = kernel::mlirTypeToDagType(lhsType.getElementType());
     // TODO(#2368): zero-pad inputs to ensure coprime dimensions
     std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
         kernel::implementBicyclicMatmul(lhsLeaf, rhsLeaf, lhsType.getShape()[0],
                                         lhsType.getShape()[1],
-                                        rhsType.getShape()[1]);
+                                        rhsType.getShape()[1], dagType);
 
     rewriter.setInsertionPointAfter(op);
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
