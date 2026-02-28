@@ -907,7 +907,7 @@ might have applications outside the SIMD optimization, while others
 and
 <a href=https://heir.dev/docs/passes/tensorextpasses/#-rotate-and-reduce><code>-rotate-and-reduce</code></a>)
 are very specific to the FHE SIMD optimization. In addition, the passes make use
-of the <code>RotationAnalysis</code> and <code>TargetSlotAnalysis</code> analyses.</p><h3 id=high-level-flow>High-Level Flow</h3><ul><li><p><strong>Loop Unrolling</strong> (<code>-full-loop-unroll</code>): The implementation currently begins
+of the <code>PartialReductionRotateAnalysis</code> and <code>TargetSlotAnalysis</code> analyses.</p><h3 id=high-level-flow>High-Level Flow</h3><ul><li><p><strong>Loop Unrolling</strong> (<code>-full-loop-unroll</code>): The implementation currently begins
 by unrolling all loops in the program to simplify the later passes. See
 <a href=https://github.com/google/heir/issues/589>#589</a> for a discussion on how this
 could be avoided.</p></li><li><p><strong>Canonicalization</strong> (<code>-apply-folders -canonicalize</code>): As the
