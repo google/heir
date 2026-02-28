@@ -1,6 +1,6 @@
 // RUN: heir-opt --rotate-and-reduce --cse --canonicalize %s | FileCheck %s
 
-// Regression for #1039: multidimensional tensors are not supported in RotationAnalysis.
+// Regression for #1039: multidimensional tensors are not supported in PartialReductionRotateAnalysis.
 
 #map = affine_map<(d0, d1) -> (d1)>
 #map1 = affine_map<(d0, d1) -> (d0, d1)>

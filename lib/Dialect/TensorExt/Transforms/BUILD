@@ -87,7 +87,7 @@ cc_library(
     deps = [
         ":ImplementRotateAndReduce",
         ":pass_inc_gen",
-        "@heir//lib/Analysis/RotationAnalysis",
+        "@heir//lib/Analysis/PartialReductionRotateAnalysis",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",

@@ -112,7 +112,7 @@ might have applications outside the SIMD optimization, while others
 and
 [`-rotate-and-reduce`](https://heir.dev/docs/passes/tensorextpasses/#-rotate-and-reduce))
 are very specific to the FHE SIMD optimization. In addition, the passes make use
-of the `RotationAnalysis` and `TargetSlotAnalysis` analyses.
+of the `PartialReductionRotateAnalysis` and `TargetSlotAnalysis` analyses.
 
 ### High-Level Flow
 

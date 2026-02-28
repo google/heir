@@ -1,6 +1,6 @@
 #include "lib/Dialect/TensorExt/Transforms/RotateAndReduce.h"
 
-#include "lib/Analysis/RotationAnalysis/RotationAnalysis.h"
+#include "lib/Analysis/PartialReductionRotateAnalysis/PartialReductionRotateAnalysis.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Dialect/TensorExt/Transforms/ImplementRotateAndReduce.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
@@ -10,6 +10,7 @@
 #include "mlir/include/mlir/Analysis/SliceAnalysis.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"    // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Iterators.h"                // from @llvm-project
@@ -33,9 +34,10 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
   using RotateAndReduceBase::RotateAndReduceBase;
 
   template <typename ArithOp>
-  void tryReplaceRotations(ArithOp op,
-                           const rotation_analysis::PartialReduction& reduction,
-                           bool extraction) {
+  void tryReplaceRotations(
+      ArithOp op,
+      const partial_reduction_rotate_analysis::PartialReduction& reduction,
+      bool extraction) {
     LLVM_DEBUG(llvm::dbgs()
                << "Trying to replace rotations ending in " << *op << "\n");
     auto b = ImplicitLocOpBuilder(op->getLoc(), op);
@@ -83,7 +85,8 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
       return;
     }
 
-    rotation_analysis::RotationAnalysis rotationAnalysis(solver);
+    partial_reduction_rotate_analysis::PartialReductionRotateAnalysis
+        rotationAnalysis(solver);
     rotationAnalysis.run(getOperation());
 
     getOperation()->walk<WalkOrder::PreOrder, ReverseIterator>(
