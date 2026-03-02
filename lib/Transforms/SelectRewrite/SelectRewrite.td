@@ -26,6 +26,8 @@ def matchShapedType : NativeCodeCall<"matchShapedType($_builder, $0, $1)">;
 // Get either an IntegerAttr or DenseIntegerAtr of the same type as the input
 def getMatchingOne : NativeCodeCall<"getMatchingOne($0)">;
 
+def GetNullAttr : NativeCodeCall<"Attribute()">;
+
 // Rewrites arith.select %c, %t, %f to %c * %t + (1 - %c) * %f
 def SelectRewritePatternInt : Pattern<
   (SelectOp $cond, SignlessIntegerLike:$true_value, $false_value),
@@ -33,9 +35,9 @@ def SelectRewritePatternInt : Pattern<
     (matchShapedType:$new_cond $cond, $true_value),
     (Arith_ConstantOp:$one (getMatchingOne $new_cond, $true_value)),
     (Arith_SubIOp:$not_cond $one, $new_cond, DefOverflow),
-    (Arith_ExtUIOp:$ext_cond $new_cond, (returnType $true_value)),
+    (Arith_ExtUIOp:$ext_cond $new_cond, (GetNullAttr), (returnType $true_value)),
     (Arith_MulIOp:$true_mul $ext_cond, $true_value, DefOverflow),
-    (Arith_ExtUIOp:$ext_not_cond $not_cond, (returnType $false_value)),
+    (Arith_ExtUIOp:$ext_not_cond $not_cond, (GetNullAttr), (returnType $false_value)),
     (Arith_MulIOp:$false_mul $ext_not_cond, $false_value, DefOverflow),
     (Arith_AddIOp $true_mul, $false_mul, DefOverflow)
   ]
@@ -47,9 +49,9 @@ def SelectRewritePatternFloat : Pattern<
   [
     (Arith_ConstantOp:$one (getMatchingOne $cond)),
     (Arith_SubIOp:$not_cond $one, $cond, DefOverflow),
-    (Arith_UIToFPOp:$ext_cond $cond, (returnType $true_value)),
+    (Arith_UIToFPOp:$ext_cond $cond, (GetNullAttr), (returnType $true_value)),
     (Arith_MulFOp:$true_mul $ext_cond, $true_value, DefFastMath),
-    (Arith_UIToFPOp:$ext_not_cond $not_cond, (returnType $false_value)),
+    (Arith_UIToFPOp:$ext_not_cond $not_cond, (GetNullAttr), (returnType $false_value)),
     (Arith_MulFOp:$false_mul $ext_not_cond, $false_value, DefFastMath),
     (Arith_AddFOp $true_mul, $false_mul, DefFastMath)
   ]
