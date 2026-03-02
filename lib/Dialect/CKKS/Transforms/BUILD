@@ -10,10 +10,31 @@ cc_library(
     name = "Transforms",
     hdrs = ["Passes.h"],
     deps = [
+        ":CKKSToLWE",
         ":DecomposeKeySwitch",
         ":DecomposeRelinearize",
         ":pass_inc_gen",
+        "@heir//lib/Dialect/CKKS/IR:Dialect",
+        "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
+    name = "CKKSToLWE",
+    srcs = ["CKKSToLWE.cpp"],
+    hdrs = ["CKKSToLWE.h"],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Dialect/CKKS/IR:Dialect",
+        "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@heir//lib/Dialect/LWE/IR:Patterns",
+        "@heir//lib/Utils/RewriteUtils",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:TensorDialect",
+        "@llvm-project//mlir:TransformUtils",
     ],
 )
 
