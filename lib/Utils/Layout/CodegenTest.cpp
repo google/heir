@@ -169,7 +169,9 @@ TEST(CodegenTest, ConvFilterRelationGenerated) {
   RankedTensorType dataType =
       RankedTensorType::get({3, 3}, IndexType::get(&context));
   int64_t padding = 1;
-  auto relation = get2dConvFilterRelation(filterType, dataType, padding);
+  SmallVector<int64_t> strides = {1, 1};
+  auto relation =
+      get2dConvFilterRelation(filterType, dataType, strides, padding);
 
   auto result = generateLoopNestAsCStr(relation);
   ASSERT_TRUE(succeeded(result));
@@ -192,7 +194,9 @@ TEST(CodegenTest, ConvFilterRelationNoPadding) {
   RankedTensorType dataType =
       RankedTensorType::get({3, 3}, IndexType::get(&context));
   int64_t padding = 0;
-  auto relation = get2dConvFilterRelation(filterType, dataType, padding);
+  SmallVector<int64_t> strides = {1, 1};
+  auto relation =
+      get2dConvFilterRelation(filterType, dataType, strides, padding);
 
   auto result = generateLoopNestAsCStr(relation);
   ASSERT_TRUE(succeeded(result));

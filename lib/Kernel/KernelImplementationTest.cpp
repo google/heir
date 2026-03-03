@@ -12,6 +12,7 @@
 #include "lib/Utils/Layout/Utils.h"
 #include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"   // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"     // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -120,7 +121,8 @@ TEST_P(KernelImplementationTest, Test2DConvWithLayout) {
   std::vector<std::vector<int>> packedData =
       evaluateLayoutOnMatrix(dataLayout, data);
 
-  auto filterLayout = get2dConvFilterRelation(filterType, dataType, 0);
+  SmallVector<int64_t> strides = {1, 1};
+  auto filterLayout = get2dConvFilterRelation(filterType, dataType, strides, 0);
   std::vector<std::vector<int>> packedFilter =
       evaluateLayoutOnMatrix(filterLayout, matrix);
 

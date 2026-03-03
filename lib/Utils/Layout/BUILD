@@ -83,6 +83,7 @@ cc_test(
         "@googletest//:gtest_main",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
     ],
 )
 

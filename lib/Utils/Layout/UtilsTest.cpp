@@ -387,9 +387,10 @@ TEST(UtilsTest, ConvFilterRelation) {
       RankedTensorType::get({3, 3}, IndexType::get(&context));
   RankedTensorType dataType =
       RankedTensorType::get({3, 3}, IndexType::get(&context));
+  SmallVector<int64_t> strides = {1, 1};
   int64_t padding = 1;
   IntegerRelation convFilterRelation =
-      get2dConvFilterRelation(filterType, dataType, padding);
+      get2dConvFilterRelation(filterType, dataType, strides, padding);
 
   auto ctBound = convFilterRelation.getConstantBound64(
       BoundType::UB, convFilterRelation.getVarKindOffset(VarKind::Range));
@@ -417,8 +418,9 @@ TEST(UtilsTest, ConvFilterRelationNoPadding) {
   RankedTensorType dataType =
       RankedTensorType::get({3, 3}, IndexType::get(&context));
   int64_t padding = 0;
+  SmallVector<int64_t> strides = {1, 1};
   IntegerRelation convFilterRelation =
-      get2dConvFilterRelation(filterType, dataType, padding);
+      get2dConvFilterRelation(filterType, dataType, strides, padding);
 
   auto ctBound = convFilterRelation.getConstantBound64(
       BoundType::UB, convFilterRelation.getVarKindOffset(VarKind::Range));
@@ -434,8 +436,9 @@ TEST(UtilsTest, ConvFilterRelation4x4Data) {
   RankedTensorType dataType =
       RankedTensorType::get({4, 4}, IndexType::get(&context));
   int64_t padding = 0;
+  SmallVector<int64_t> strides = {1, 1};
   IntegerRelation convFilterRelation =
-      get2dConvFilterRelation(filterType, dataType, padding);
+      get2dConvFilterRelation(filterType, dataType, strides, padding);
 
   auto ctBound = convFilterRelation.getConstantBound64(
       BoundType::UB, convFilterRelation.getVarKindOffset(VarKind::Range));
@@ -451,8 +454,9 @@ TEST(UtilsTest, ConvFilterRelationPadding2) {
   RankedTensorType dataType =
       RankedTensorType::get({4, 4}, IndexType::get(&context));
   int64_t padding = 2;
+  SmallVector<int64_t> strides = {1, 1};
   IntegerRelation convFilterRelation =
-      get2dConvFilterRelation(filterType, dataType, padding);
+      get2dConvFilterRelation(filterType, dataType, strides, padding);
 
   auto ctBound = convFilterRelation.getConstantBound64(
       BoundType::UB, convFilterRelation.getVarKindOffset(VarKind::Range));
@@ -466,9 +470,10 @@ TEST(UtilsTest, ConvFilterRelationEvaluate) {
       RankedTensorType::get({2, 2}, IndexType::get(&context));
   RankedTensorType dataType =
       RankedTensorType::get({3, 3}, IndexType::get(&context));
+  SmallVector<int64_t> strides = {1, 1};
   int64_t padding = 0;
   IntegerRelation convFilterRelation =
-      get2dConvFilterRelation(filterType, dataType, padding);
+      get2dConvFilterRelation(filterType, dataType, strides, padding);
 
   std::vector<std::vector<int>> filter = {{1, -1}, {-1, 1}};
   std::vector<std::vector<int>> packedFilter =
@@ -479,6 +484,62 @@ TEST(UtilsTest, ConvFilterRelationEvaluate) {
       {0, 1, -1, 0, -1, 1, 0, 0, 0},
       {0, 0, 0, 1, -1, 0, -1, 1, 0},
       {0, 0, 0, 0, 1, -1, 0, -1, 1},
+  };
+  EXPECT_EQ(packedFilter, expected);
+}
+
+TEST(UtilsTest, ConvFilterRelationEvaluateStrided) {
+  MLIRContext context;
+  RankedTensorType filterType =
+      RankedTensorType::get({2, 2}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({4, 4}, IndexType::get(&context));
+  SmallVector<int64_t> strides = {2, 2};
+  int64_t padding = 0;
+  IntegerRelation convFilterRelation =
+      get2dConvFilterRelation(filterType, dataType, strides, padding);
+
+  std::vector<std::vector<int>> filter = {{1, 2}, {3, 4}};
+  std::vector<std::vector<int>> packedFilter =
+      evaluateLayoutOnMatrix(convFilterRelation, filter);
+
+  std::vector<std::vector<int>> expected = {
+      {1, 2, 0, 0, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+      {0, 0, 1, 2, 0, 0, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0},
+      {0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 3, 4, 0, 0},
+      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 3, 4},
+  };
+  EXPECT_EQ(packedFilter, expected);
+}
+
+TEST(UtilsTest, ConvFilterRelationEvaluateStridedPadded) {
+  MLIRContext context;
+  // 3x3 data, 2x2 filter, stride 2, padding 1
+  // Padded 5x5:
+  // 0 0 0 0 0
+  // 0 1 2 3 0
+  // 0 4 5 6 0
+  // 0 7 8 9 0
+  // 0 0 0 0 0
+  RankedTensorType filterType =
+      RankedTensorType::get({2, 2}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({3, 3}, IndexType::get(&context));
+  SmallVector<int64_t> strides = {2, 2};
+  int64_t padding = 1;
+  IntegerRelation convFilterRelation =
+      get2dConvFilterRelation(filterType, dataType, strides, padding);
+
+  std::vector<std::vector<int>> filter = {{1, 2}, {3, 4}};
+  std::vector<std::vector<int>> packedFilter =
+      evaluateLayoutOnMatrix(convFilterRelation, filter);
+
+  // Output has 4 rows where the filter can slide over.
+  std::vector<std::vector<int>> expected = {
+      {4, 0, 0, 0, 0, 0, 0, 0, 0},
+      {0, 3, 4, 0, 0, 0, 0, 0, 0},
+      {0, 0, 0, 2, 0, 0, 4, 0, 0},
+      {0, 0, 0, 0, 1, 2, 0, 3, 4},
   };
   EXPECT_EQ(packedFilter, expected);
 }

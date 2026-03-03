@@ -517,17 +517,13 @@ presburger::IntegerRelation getPerRowLayoutRelation(RankedTensorType matrixType,
 
 presburger::IntegerRelation get2dConvFilterRelation(RankedTensorType filterType,
                                                     RankedTensorType dataType,
+                                                    ArrayRef<int64_t> strides,
                                                     int64_t padding) {
   auto domainSize = filterType.getRank();
   assert(domainSize == 2 && "expected 2-D filter matrix");
 
   IntegerRelation result(PresburgerSpace::getRelationSpace(
       domainSize, /*numRange=*/2, /*numSymbol=*/0, /*numLocals=*/2));
-
-  // These are the indices that represent the position of the top left index
-  // of the filter as it slides over the data.
-  auto dataRow = result.getVarKindOffset(VarKind::Local);
-  auto dataCol = result.getVarKindOffset(VarKind::Local) + 1;
 
   // Filter row and column indices
   auto filterRow = result.getVarKindOffset(VarKind::Domain);
@@ -540,81 +536,109 @@ presburger::IntegerRelation get2dConvFilterRelation(RankedTensorType filterType,
   // Constant coefficient
   auto constCoeff = result.getNumCols() - 1;
 
-  // Filter and datasize
+  // Filter, datasize, and strides.
   auto filterRowSize = filterType.getDimSize(0);
   auto filterColSize = filterType.getDimSize(1);
   auto dataRowSize = dataType.getDimSize(0);
   auto dataColSize = dataType.getDimSize(1);
+  auto strideRow = strides[0];
+  auto strideCol = strides[1];
 
-  auto filterSlidingRows = dataRowSize + 2 * padding - filterRowSize + 1;
-  auto filterSlidingCols = dataColSize + 2 * padding - filterColSize + 1;
+  // These are the indices that represent the valid positions that the filter
+  // can move over the data. (0, 0) is the first position of (slidingRow,
+  // slidingCol).
+  auto slidingRow = result.getVarKindOffset(VarKind::Local);
+  auto slidingCol = result.getVarKindOffset(VarKind::Local) + 1;
+
+  // The maximum values for the sliding window indices.
+  auto slidingRowSize =
+      (dataRowSize + 2 * padding - filterRowSize) / strideRow + 1;
+  auto slidingColSize =
+      (dataColSize + 2 * padding - filterColSize) / strideCol + 1;
 
   // Add bounds for the filter matrix dimensions.
   addBounds(result, filterRow, 0, filterRowSize - 1);
   addBounds(result, filterCol, 0, filterColSize - 1);
 
-  // Add bounds for the locals (the filter sliding indices).
-  // These are indexed starting from -padding since they track the top left
-  // corner of the filter matrix.
-  addBounds(result, dataRow, -padding, filterSlidingRows - 1 - padding);
-  addBounds(result, dataCol, -padding, filterSlidingCols - 1 - padding);
+  // Add bounds for the sliding window indices.
+  addBounds(result, slidingRow, 0, slidingRowSize - 1);
+  addBounds(result, slidingCol, 0, slidingColSize - 1);
 
-  // Add constraints for when the resulting filter index is in range.
-  // 0 <= filterRow + dataRow < dataRowSize
-  addConstraint(result, {{filterRow, 1}, {dataRow, 1}}, /*equality=*/false);
+  // Define (dataRow, dataCol) to be the position on the data tensor for a given
+  // filter position (slidingRow, slidingCol) and a given filter index
+  // (filterRow, filterCol). E.g. the top left corner of the filter is at
+  // (filterRow, filterCol) = (0, 0) and the first position of the filter is at
+  // (slidingRow, slidingCol) = (0, 0). This corresponds to (-padding, -padding)
+  // on the data indices (dataRow, dataCol).
+  //   dataRow = (slidingRow * strideRow - padding) + filterRow
+  //   dataCol = (slidingCol * strideCol - padding) + filterCol
+
+  // Add constraints for when the filter sliding window index is at a valid
+  // data position. Require:
+  //    0 <= dataRow < dataRowSize and 0 <= dataCol < dataColSize.
+  //  Substituting the expressions gives:
+  //    0 <= slidingRow * strideRow - padding + filterRow < dataRowSize
+  addConstraint(
+      result, {{slidingRow, strideRow}, {filterRow, 1}, {constCoeff, -padding}},
+      /*equality=*/false);
   addConstraint(result,
-                {{constCoeff, dataRowSize - 1}, {filterRow, -1}, {dataRow, -1}},
+                {{constCoeff, dataRowSize + padding - 1},
+                 {slidingRow, -strideRow},
+                 {filterRow, -1}},
                 /*equality=*/false);
 
-  // 0 <= filterCol + dataCol < dataColSize
-  addConstraint(result, {{filterCol, 1}, {dataCol, 1}}, /*equality=*/false);
+  // 0 <= slidingCol * strideCol - padding + filterCol < dataColSize
+  addConstraint(
+      result, {{slidingCol, strideCol}, {filterCol, 1}, {constCoeff, -padding}},
+      /*equality=*/false);
   addConstraint(result,
-                {{constCoeff, dataColSize - 1}, {filterCol, -1}, {dataCol, -1}},
+                {{constCoeff, dataColSize + padding - 1},
+                 {slidingCol, -strideCol},
+                 {filterCol, -1}},
                 /*equality=*/false);
 
-  // Add equalities for the resulting matrix row and column. The matrix row
-  // corresponds to the flattened data index (since it corresponds to one
-  // iteration of the filter as it slides over the data) normalized by adding
-  // the padding offset back to the indices.
-  // The matrix column corresponds to the index into the filter plus the
-  // offsets from the padding and the filter sliding iteration (the matrix
-  // row).
-  //
-  // fsr, fsc = filter sliding row size, col size
-  // fr, fc = filter row size, col size
-  // idr, idc = index of data row, col
-  // ifr, ifc = index of filter row, col
-  // mr, mc = matrix row, matrix col
-  //
-  // mr = (idr + P)*fsc + (idc + P) = P + P*fsc + idr * fsc + idc
-  // mc = (idr * dc + idc) + (ifc) + dc*(ifr)
+  // Add equalities for the resulting matrix row and column. Each matrix row
+  // corresponds to one sliding window of the filter over the data. So flatten
+  // the filter sliding window indices (slidingRow, slidingCol):
+  // matRow = slidingRow * slidingColSize + slidingCol
   addConstraint(result,
-                {{matRow, -1},
-                 {constCoeff, (filterSlidingCols + 1) * (padding)},
-                 {dataRow, filterSlidingCols},
-                 {dataCol, 1}},
+                {{matRow, -1}, {slidingRow, slidingColSize}, {slidingCol, 1}},
                 /*equality=*/true);
+
+  // The matrix column is the flattened data indices:
+  // matCol = dataRow * dataColSize + dataCol
+  // matCol = (slidingRow * strideRow - padding + filterRow) * dataColSize +
+  //          (slidingCol * strideCol - padding + filterCol)
+  // matCol = slidingRow * strideRow * dataColSize - padding * dataColSize +
+  //          filterRow * dataColSize + slidingCol * strideCol - padding +
+  //          filterCol
   addConstraint(result,
                 {{matCol, -1},
-                 {dataRow, dataColSize},
-                 {dataCol, 1},
+                 {slidingRow, strideRow * dataColSize},
+                 {slidingCol, strideCol},
+                 {filterRow, dataColSize},
                  {filterCol, 1},
-                 {filterRow, dataColSize}},
+                 {constCoeff, -padding * dataColSize - padding}},
                 /*equality=*/true);
   return result;
 }
 
 RankedTensorType get2dConvFilterExpandedType(RankedTensorType filterType,
                                              RankedTensorType dataType,
-                                             int64_t padding) {
+                                             int64_t padding,
+                                             ArrayRef<int64_t> strides) {
   auto filterRowSize = filterType.getDimSize(0);
   auto filterColSize = filterType.getDimSize(1);
   auto dataRowSize = dataType.getDimSize(0);
   auto dataColSize = dataType.getDimSize(1);
+  auto strideRow = strides[0];
+  auto strideCol = strides[1];
 
   // Number of rows will be the filter sliding rows * filter sliding columns.
-  int64_t filterSlidingRows = dataRowSize + 2 * padding - filterRowSize + 1;
-  int64_t filterSlidingCols = dataColSize + 2 * padding - filterColSize + 1;
+  int64_t filterSlidingRows =
+      (dataRowSize + 2 * padding - filterRowSize) / strideRow + 1;
+  int64_t filterSlidingCols =
+      (dataColSize + 2 * padding - filterColSize) / strideCol + 1;
   int64_t rows = filterSlidingRows * filterSlidingCols;
 
   // Number of columns will be the number of data elements.
@@ -626,8 +650,9 @@ RankedTensorType get2dConvFilterExpandedType(RankedTensorType filterType,
 FailureOr<presburger::IntegerRelation> get2dConvFilterDiagonalizedRelation(
     RankedTensorType filterType, RankedTensorType dataType, int64_t padding,
     int64_t ciphertextSize) {
+  SmallVector<int64_t> strides = {1, 1};
   auto expandedFilterRelation =
-      get2dConvFilterRelation(filterType, dataType, padding);
+      get2dConvFilterRelation(filterType, dataType, strides, padding);
   // Get size of the expanded filter matrix.
   auto rowBound = expandedFilterRelation.getConstantBound64(
       BoundType::UB, expandedFilterRelation.getVarKindOffset(VarKind::Range));

@@ -93,14 +93,14 @@ presburger::IntegerRelation getPerRowLayoutRelation(RankedTensorType matrixType,
 // equivalent a matrix product with the flattened input vector. Each row
 // corresponds to one filter multiplication. This does not include diagonalizing
 // the matrix, this simply returns the expanded data matrix.
-// TODO(#2217): Support non-unit strides.
 presburger::IntegerRelation get2dConvFilterRelation(RankedTensorType filterType,
                                                     RankedTensorType dataType,
+                                                    ArrayRef<int64_t> strides,
                                                     int64_t padding);
 
-RankedTensorType get2dConvFilterExpandedType(RankedTensorType filterType,
-                                             RankedTensorType dataType,
-                                             int64_t padding);
+RankedTensorType get2dConvFilterExpandedType(
+    RankedTensorType filterType, RankedTensorType dataType, int64_t padding,
+    ArrayRef<int64_t> strides = {1, 1});
 
 // Returns an IntegerRelation that expands a 2-D filter matrix used in a
 // convolution into a 2-D matrix such that the convolution is

@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -9,6 +10,7 @@
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"   // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"     // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -60,7 +62,9 @@ TEST(EvaluateTest, EvaluateLayoutFor2DConv) {
       RankedTensorType::get({3, 3}, IndexType::get(&context));
   RankedTensorType dataType =
       RankedTensorType::get({3, 3}, IndexType::get(&context));
-  auto relation = get2dConvFilterRelation(filterType, dataType, /*padding=*/1);
+  SmallVector<int64_t> strides = {1, 1};
+  auto relation =
+      get2dConvFilterRelation(filterType, dataType, strides, /*padding=*/1);
 
   std::vector<std::vector<int>> filter = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}};
   // The expanded matrix will have size 9x9,
@@ -81,8 +85,9 @@ TEST(EvaluateTest, EvaluateLayoutFor2DConv3x3Data2x2Filter) {
       RankedTensorType::get({2, 2}, IndexType::get(&context));
   RankedTensorType dataType =
       RankedTensorType::get({3, 3}, IndexType::get(&context));
+  SmallVector<int64_t> strides = {1, 1};
   IntegerRelation relation =
-      get2dConvFilterRelation(filterType, dataType, /*padding=*/1);
+      get2dConvFilterRelation(filterType, dataType, strides, /*padding=*/1);
 
   std::vector<std::vector<int>> filter = {{1, 2}, {3, 4}};
   std::vector<std::vector<int>> expected = {
@@ -106,8 +111,9 @@ TEST(EvaluateTest, EvaluateLayoutFor2DConv3x4Data2x2Filter) {
       RankedTensorType::get({2, 2}, IndexType::get(&context));
   RankedTensorType dataType =
       RankedTensorType::get({3, 4}, IndexType::get(&context));
+  SmallVector<int64_t> strides = {1, 1};
   IntegerRelation relation =
-      get2dConvFilterRelation(filterType, dataType, /*padding=*/1);
+      get2dConvFilterRelation(filterType, dataType, strides, /*padding=*/1);
 
   std::vector<std::vector<int>> filter = {{1, 2}, {3, 4}};
   std::vector<std::vector<int>> expected = {
