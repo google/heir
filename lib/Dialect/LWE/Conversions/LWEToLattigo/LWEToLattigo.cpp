@@ -126,7 +126,7 @@ bool containsBootstrap(Operation* op) {
     return false;
   }
   auto result = walkFuncAndCallees(funcOp, [&](Operation* op) {
-    if (isa<ckks::BootstrapOp>(op)) {
+    if (isa<ckks::BootstrapOp, lattigo::CKKSBootstrapOp>(op)) {
       return WalkResult::interrupt();
     }
     return WalkResult::advance();
@@ -160,6 +160,8 @@ struct AddEvaluatorArg : public OpConversionPattern<func::FuncOp> {
       func::FuncOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     SmallVector<Type, 4> selectedEvaluators;
+    LLVM_DEBUG(llvm::dbgs()
+               << "AddEvaluatorArg for func " << op.getName() << "\n");
 
     for (const auto& evaluator : evaluators) {
       LLVM_DEBUG(llvm::dbgs()
@@ -232,6 +234,10 @@ struct ConvertFuncCallOp : public OpConversionPattern<func::CallOp> {
   LogicalResult matchAndRewrite(
       func::CallOp op, typename func::CallOp::Adaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
+    LLVM_DEBUG(llvm::dbgs()
+               << "ConvertFuncCallOp for func call "
+               << op.getCalleeAttr().getValue() << " with signature "
+               << op.getCalleeType() << "\n");
     auto funcOp = getCalledFunction(op);
     if (failed(funcOp)) {
       return rewriter.notifyMatchFailure(op, "could not find callee function");

@@ -33,14 +33,18 @@ namespace lattigo {
 void registerTranslateOptions();
 
 /// Translates the given operation to Lattigo
-::mlir::LogicalResult translateToLattigo(::mlir::Operation* op,
-                                         llvm::raw_ostream& os,
-                                         const std::string& packageName);
+::mlir::LogicalResult translateToLattigo(
+    ::mlir::Operation* op, llvm::raw_ostream& os,
+    const std::string& packageName,
+    const std::vector<std::string>& extraImports = {},
+    std::function<bool(func::FuncOp)> funcFilter = nullptr);
 
 class LattigoEmitter {
  public:
   LattigoEmitter(raw_ostream& os, SelectVariableNames* variableNames,
-                 const std::string& packageName);
+                 const std::string& packageName,
+                 const std::vector<std::string>& extraImports = {},
+                 std::function<bool(func::FuncOp)> funcFilter = nullptr);
 
   LogicalResult translate(::mlir::Operation& operation);
 
@@ -62,6 +66,8 @@ class LattigoEmitter {
   SelectVariableNames* variableNames;
 
   const std::string& packageName;
+  const std::vector<std::string> extraImports;
+  std::function<bool(func::FuncOp)> funcFilter;
 
   // go treats unused imports as compile-time errors, so any extra imports that
   // are unused for some programs need to be dynamically added at the end.
@@ -71,8 +77,11 @@ class LattigoEmitter {
   // general binary op helper
   LogicalResult printBinaryOp(Operation* op, ::mlir::Value lhs,
                               ::mlir::Value rhs, std::string_view opName);
+  LogicalResult printFunctionalBinop(Operation* op, ::mlir::Value lhs,
+                                     ::mlir::Value rhs,
+                                     std::string_view opName);
   // General typecast helper
-  LogicalResult typecast(Value operand, Value result);
+  LogicalResult typecast(Value operand, Value result, bool isSigned = false);
   // emit an if statement
   void emitIf(const std::string& cond, const std::function<void()>& trueBranch,
               const std::function<void()>& falseBranch);
@@ -82,17 +91,27 @@ class LattigoEmitter {
   LogicalResult printOperation(::mlir::affine::AffineForOp op);
   LogicalResult printOperation(::mlir::affine::AffineYieldOp op);
   LogicalResult printOperation(::mlir::arith::AddIOp op);
+  LogicalResult printOperation(::mlir::arith::AddFOp op);
+  LogicalResult printOperation(::mlir::arith::AndIOp op);
   LogicalResult printOperation(::mlir::arith::CmpIOp op);
+  LogicalResult printOperation(::mlir::arith::CmpFOp op);
   LogicalResult printOperation(::mlir::arith::ConstantOp op);
   LogicalResult printOperation(::mlir::arith::DivSIOp op);
+  LogicalResult printOperation(::mlir::arith::DivFOp op);
   LogicalResult printOperation(::mlir::arith::ExtFOp op);
   LogicalResult printOperation(::mlir::arith::ExtSIOp op);
   LogicalResult printOperation(::mlir::arith::ExtUIOp op);
+  LogicalResult printOperation(::mlir::arith::FloorDivSIOp op);
   LogicalResult printOperation(::mlir::arith::IndexCastOp op);
   LogicalResult printOperation(::mlir::arith::MulIOp op);
+  LogicalResult printOperation(::mlir::arith::MulFOp op);
+  LogicalResult printOperation(::mlir::arith::MaxSIOp op);
+  LogicalResult printOperation(::mlir::arith::MinSIOp op);
+  LogicalResult printOperation(::mlir::arith::NegFOp op);
   LogicalResult printOperation(::mlir::arith::RemSIOp op);
   LogicalResult printOperation(::mlir::arith::SelectOp op);
   LogicalResult printOperation(::mlir::arith::SubIOp op);
+  LogicalResult printOperation(::mlir::arith::SubFOp op);
   LogicalResult printOperation(::mlir::func::CallOp op);
   LogicalResult printOperation(::mlir::func::FuncOp op);
   LogicalResult printOperation(::mlir::func::ReturnOp op);
@@ -260,6 +279,8 @@ class LattigoEmitter {
 };
 
 void registerToLattigoTranslation(void);
+void registerToLattigoPreprocessingTranslation(void);
+void registerToLattigoPreprocessedTranslation(void);
 
 }  // namespace lattigo
 }  // namespace heir

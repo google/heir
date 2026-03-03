@@ -5,8 +5,10 @@
 #include <utility>
 
 #include "lib/Utils/TensorUtils.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallBitVector.h"     // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVectorExtras.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
@@ -36,6 +38,114 @@ namespace heir {
 
 #define GEN_PASS_DEF_LINALGCANONICALIZATIONS
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h.inc"
+
+struct FoldBroadcastExtractSlice
+    : public OpRewritePattern<tensor::ExtractSliceOp> {
+ public:
+  FoldBroadcastExtractSlice(MLIRContext* context)
+      : OpRewritePattern<tensor::ExtractSliceOp>(context) {}
+
+  using OpRewritePattern::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(tensor::ExtractSliceOp extractSliceOp,
+                                PatternRewriter& rewriter) const override {
+    auto broadcastOp =
+        extractSliceOp.getSource().getDefiningOp<linalg::BroadcastOp>();
+    if (!broadcastOp) return failure();
+
+    auto defConstantOp =
+        broadcastOp.getInput().getDefiningOp<arith::ConstantOp>();
+    if (!defConstantOp) return failure();
+
+    ElementsAttr elementsAttr =
+        dyn_cast<ElementsAttr>(defConstantOp.getValueAttr());
+    if (auto denseResourceAttr =
+            dyn_cast<DenseResourceElementsAttr>(defConstantOp.getValueAttr())) {
+      const auto data = denseResourceAttr.getData();
+      elementsAttr = DenseElementsAttr::getFromRawBuffer(
+          denseResourceAttr.getType(), data);
+    }
+
+    if (!elementsAttr) return failure();
+
+    auto isAllConstant = [](ArrayRef<OpFoldResult> mixed) {
+      return llvm::all_of(mixed,
+                          [](OpFoldResult ofr) { return isa<Attribute>(ofr); });
+    };
+    if (!isAllConstant(extractSliceOp.getMixedOffsets()) ||
+        !isAllConstant(extractSliceOp.getMixedSizes()) ||
+        !isAllConstant(extractSliceOp.getMixedStrides()))
+      return failure();
+
+    auto resultType = extractSliceOp.getType();
+    if (!resultType.hasStaticShape()) return failure();
+
+    auto broadcastInType =
+        cast<RankedTensorType>(broadcastOp.getInput().getType());
+    auto broadcastOutType =
+        cast<RankedTensorType>(broadcastOp.getInit().getType());
+    auto broadcastDims = broadcastOp.getDimensions();
+
+    int64_t broadcastOutRank = broadcastOutType.getRank();
+    SmallVector<int64_t> outToInDim(broadcastOutRank, -1);
+    llvm::DenseSet<int64_t> addedDimsSet(broadcastDims.begin(),
+                                         broadcastDims.end());
+    int64_t inDimIdx = 0;
+    for (int64_t i = 0; i < broadcastOutRank; ++i) {
+      if (addedDimsSet.find(i) == addedDimsSet.end()) {
+        outToInDim[i] = inDimIdx++;
+      }
+    }
+
+    auto offsets = extractSliceOp.getStaticOffsets();
+    auto strides = extractSliceOp.getStaticStrides();
+    auto droppedDims = extractSliceOp.getDroppedDims();
+
+    int64_t numElements = resultType.getNumElements();
+    auto resultShape = resultType.getShape();
+
+    auto inputValues = elementsAttr.getValues<Attribute>();
+
+    SmallVector<Attribute> resultValues;
+    resultValues.reserve(numElements);
+
+    for (int64_t i = 0; i < numElements; ++i) {
+      auto resultIndices = getIndicesFromRowMajorShape(
+          i, SmallVector<int64_t>(resultShape.begin(), resultShape.end()));
+
+      SmallVector<int64_t> fullSourceIndices(broadcastOutRank);
+      int64_t rDim = 0;
+      for (int64_t sDim = 0; sDim < broadcastOutRank; ++sDim) {
+        if (droppedDims.test(sDim)) {
+          fullSourceIndices[sDim] = offsets[sDim];
+        } else {
+          fullSourceIndices[sDim] =
+              offsets[sDim] + resultIndices[rDim++] * strides[sDim];
+        }
+      }
+
+      SmallVector<int64_t> inputIndices;
+      for (int64_t sDim = 0; sDim < broadcastOutRank; ++sDim) {
+        if (outToInDim[sDim] != -1) {
+          inputIndices.push_back(fullSourceIndices[sDim]);
+        }
+      }
+
+      auto flatIndex = getFlattenedIndex(
+          broadcastInType,
+          llvm::map_to_vector(inputIndices, [&](int64_t idx) -> OpFoldResult {
+            return rewriter.getIndexAttr(idx);
+          }));
+      if (failed(flatIndex)) return failure();
+
+      resultValues.push_back(inputValues[flatIndex.value()]);
+    }
+
+    auto resultAttr = DenseElementsAttr::get(resultType, resultValues);
+    rewriter.replaceOpWithNewOp<arith::ConstantOp>(extractSliceOp, resultAttr);
+    return success();
+  }
+};
 
 struct FoldConstantLinalgTranspose
     : public OpRewritePattern<mlir::linalg::TransposeOp> {
@@ -225,19 +335,78 @@ struct FoldConstantBroadcast
     if (isa<Value>(value))
       return rewriter.notifyMatchFailure(broadcastOp,
                                          "broadcast input must be a constant");
+
+    auto elementsAttr = dyn_cast<ElementsAttr>(cast<Attribute>(value));
+    if (auto denseResourceAttr =
+            dyn_cast<DenseResourceElementsAttr>(cast<Attribute>(value))) {
+      const auto data = denseResourceAttr.getData();
+      // Limit size to avoid huge constants in IR.
+      if (data.size() > 1024 * 1024)
+        return rewriter.notifyMatchFailure(
+            broadcastOp, "broadcast output too large to fold");
+
+      elementsAttr = DenseElementsAttr::getFromRawBuffer(
+          denseResourceAttr.getType(), data);
+    }
+
+    if (!elementsAttr)
+      return rewriter.notifyMatchFailure(broadcastOp,
+                                         "input must be an elements attribute");
+
     auto outputTy = cast<RankedTensorType>(broadcastOp.getResultTypes()[0]);
 
     // Replace with the new broadcasted constant.
-    // For now, only handle splats.
-    auto splatInput = dyn_cast<SplatElementsAttr>(cast<Attribute>(value));
-    if (!splatInput)
-      return rewriter.notifyMatchFailure(
-          broadcastOp, "broadcast input must be a splat attribute");
+    // If it's a splat, we can stay with splat.
+    if (auto splatInput = dyn_cast<SplatElementsAttr>(elementsAttr)) {
+      auto broadcastedInput = SplatElementsAttr::get(
+          outputTy, splatInput.getSplatValue<Attribute>());
+      rewriter.replaceOpWithNewOp<arith::ConstantOp>(broadcastOp, outputTy,
+                                                     broadcastedInput);
+      return success();
+    }
 
-    auto broadcastedInput =
-        SplatElementsAttr::get(outputTy, splatInput.getSplatValue<Attribute>());
+    auto broadcastInType =
+        cast<RankedTensorType>(broadcastOp.getInput().getType());
+    auto broadcastDims = broadcastOp.getDimensions();
+    int64_t broadcastOutRank = outputTy.getRank();
+
+    SmallVector<int64_t> outToInDim(broadcastOutRank, -1);
+    llvm::DenseSet<int64_t> addedDimsSet(broadcastDims.begin(),
+                                         broadcastDims.end());
+    int64_t inDimIdx = 0;
+    for (int64_t i = 0; i < broadcastOutRank; ++i) {
+      if (addedDimsSet.find(i) == addedDimsSet.end()) {
+        outToInDim[i] = inDimIdx++;
+      }
+    }
+
+    auto inputValues = elementsAttr.getValues<Attribute>();
+    SmallVector<Attribute> resultValues;
+    int64_t numElements = outputTy.getNumElements();
+    resultValues.reserve(numElements);
+
+    auto resultShape = outputTy.getShape();
+    for (int64_t i = 0; i < numElements; ++i) {
+      auto resultIndices = getIndicesFromRowMajorShape(
+          i, SmallVector<int64_t>(resultShape.begin(), resultShape.end()));
+      SmallVector<int64_t> inputIndices;
+      for (int64_t sDim = 0; sDim < broadcastOutRank; ++sDim) {
+        if (outToInDim[sDim] != -1) {
+          inputIndices.push_back(resultIndices[sDim]);
+        }
+      }
+      auto flatIndex = getFlattenedIndex(
+          broadcastInType,
+          llvm::map_to_vector(inputIndices, [&](int64_t idx) -> OpFoldResult {
+            return rewriter.getIndexAttr(idx);
+          }));
+      if (failed(flatIndex)) return failure();
+      resultValues.push_back(inputValues[flatIndex.value()]);
+    }
+
+    auto resultAttr = DenseElementsAttr::get(outputTy, resultValues);
     rewriter.replaceOpWithNewOp<arith::ConstantOp>(broadcastOp, outputTy,
-                                                   broadcastedInput);
+                                                   resultAttr);
     return success();
   }
 };
@@ -693,10 +862,11 @@ struct LinalgCanonicalizations
 
     RewritePatternSet patterns(context);
     patterns.add<FoldConstantLinalgTranspose, FoldConstantFill,
-                 FoldConstantBroadcast, LinalgMapToElementwise,
-                 LinalgGenericToElementwise, BroadcastToExpandShape,
-                 RewriteTransposedVecmat, RewriteTransposedMatvec,
-                 RewriteAvgPoolAsConv2D, LowerConv2DNchwFchw>(context);
+                 FoldConstantBroadcast, FoldBroadcastExtractSlice,
+                 LinalgMapToElementwise, LinalgGenericToElementwise,
+                 BroadcastToExpandShape, RewriteTransposedVecmat,
+                 RewriteTransposedMatvec, RewriteAvgPoolAsConv2D,
+                 LowerConv2DNchwFchw>(context);
 
     // Run pattern matching and conversion
     // TODO (#1221): Investigate whether folding (default: on) can be skipped

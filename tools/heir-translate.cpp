@@ -41,6 +41,8 @@ int main(int argc, char** argv) {
 
   // Lattigo
   mlir::heir::lattigo::registerToLattigoTranslation();
+  mlir::heir::lattigo::registerToLattigoPreprocessingTranslation();
+  mlir::heir::lattigo::registerToLattigoPreprocessedTranslation();
   mlir::heir::lattigo::registerTranslateOptions();
 
   // This comment inserts internal emitters

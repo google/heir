@@ -1,13 +1,16 @@
 #include "lib/Target/Lattigo/LattigoEmitter.h"
 
 #include <cassert>
+#include <cctype>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <ios>
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Dialect/Lattigo/IR/LattigoDialect.h"
@@ -33,7 +36,9 @@
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
+#include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
@@ -55,12 +60,15 @@ namespace heir {
 namespace lattigo {
 
 LogicalResult translateToLattigo(Operation* op, llvm::raw_ostream& os,
-                                 const std::string& packageName) {
+                                 const std::string& packageName,
+                                 const std::vector<std::string>& extraImports,
+                                 std::function<bool(func::FuncOp)> funcFilter) {
   SelectVariableNames variableNames(op);
   std::string bufferedStr;
   llvm::raw_string_ostream strOs(bufferedStr);
   raw_indented_ostream bufferedOs(strOs);
-  LattigoEmitter emitter(bufferedOs, &variableNames, packageName);
+  LattigoEmitter emitter(bufferedOs, &variableNames, packageName, extraImports,
+                         funcFilter);
   LogicalResult result = emitter.translate(*op);
 
   // Now write the materialized prelude and body to the outstream.
@@ -82,9 +90,11 @@ LogicalResult LattigoEmitter::translate(Operation& op) {
               [&](auto op) { return printOperation(op); })
           // Arith ops
           .Case<arith::ConstantOp, arith::ExtSIOp, arith::ExtUIOp,
-                arith::IndexCastOp, arith::ExtFOp, arith::RemSIOp,
-                arith::AddIOp, arith::SubIOp, arith::MulIOp, arith::DivSIOp,
-                arith::CmpIOp, arith::SelectOp>(
+                arith::FloorDivSIOp, arith::IndexCastOp, arith::ExtFOp,
+                arith::RemSIOp, arith::AddIOp, arith::AddFOp, arith::AndIOp,
+                arith::SubIOp, arith::SubFOp, arith::MaxSIOp, arith::MinSIOp,
+                arith::MulIOp, arith::MulFOp, arith::DivSIOp, arith::DivFOp,
+                arith::NegFOp, arith::CmpIOp, arith::CmpFOp, arith::SelectOp>(
               [&](auto op) { return printOperation(op); })
           // SCF ops
           .Case<scf::IfOp, scf::ForOp, scf::YieldOp>(
@@ -147,7 +157,16 @@ LogicalResult LattigoEmitter::printOperation(ModuleOp moduleOp) {
     return moduleOp.emitError("Unknown scheme");
   }
 
+  for (const auto& extraImport : extraImports) {
+    imports.insert("\"" + extraImport + "\"");
+  }
+
   for (Operation& op : moduleOp) {
+    if (auto funcOp = dyn_cast<func::FuncOp>(op)) {
+      if (funcFilter && !funcFilter(funcOp)) {
+        continue;
+      }
+    }
     if (failed(translate(op))) {
       return failure();
     }
@@ -163,7 +182,16 @@ LogicalResult LattigoEmitter::printOperation(func::FuncOp funcOp) {
   }
 
   // name and arg
-  os << "func " << funcOp.getName() << "(";
+  std::string funcName = funcOp.getName().str();
+  if (funcOp->hasAttr(kClientPackFuncAttrName)) {
+    if (!funcName.empty() && funcFilter && funcFilter(funcOp) &&
+        std::islower(funcName[0])) {
+      // Upper case this only if we are emitting it in a filtered file so it
+      // needs exporting.
+      funcName[0] = std::toupper(funcName[0]);
+    }
+  }
+  os << "func " << funcName << "(";
   os << getCommaSeparatedNamesWithTypes(funcOp.getArguments());
   os << ") ";
 
@@ -233,11 +261,24 @@ LogicalResult LattigoEmitter::printOperation(func::CallOp op) {
        << "\"\n";
   }
 
+  auto callee = op.getCallee();
+  auto moduleOp = op->getParentOfType<ModuleOp>();
+  auto calleeOp = moduleOp.lookupSymbol<func::FuncOp>(callee);
+  std::string calleeName = canonicalizeDebugPort(callee).str();
+  if (calleeOp && funcFilter && !funcFilter(calleeOp)) {
+    if (calleeOp->hasAttr(kClientPackFuncAttrName)) {
+      if (!calleeName.empty() && std::islower(calleeName[0])) {
+        calleeName[0] = std::toupper(calleeName[0]);
+      }
+      calleeName = packageName + "_utils." + calleeName;
+    }
+  }
+
   if (op.getNumResults() > 0) {
     os << getCommaSeparatedNames(op.getResults());
     os << " := ";
   }
-  os << canonicalizeDebugPort(op.getCallee()) << "(";
+  os << calleeName << "(";
   os << getCommaSeparatedNames(op.getOperands());
   // pass debug attribute map
   if (isDebugPort(op.getCallee())) {
@@ -327,20 +368,20 @@ FailureOr<std::string> getStringForConstant(T value) {
   return failure();
 }
 
-FailureOr<std::string> getStringForDenseElementAttr(
-    DenseElementsAttr denseAttr) {
+FailureOr<std::string> getStringForElementsAttr(ElementsAttr elementsAttr) {
   // Splat is also handled in getValues
   SmallVector<std::string> values;
-  if (succeeded(denseAttr.tryGetValues<APInt>())) {
-    for (auto value : denseAttr.getValues<APInt>()) {
+  Type elementType = elementsAttr.getElementType();
+  if (mlir::isa<IntegerType, IndexType>(elementType)) {
+    for (auto value : elementsAttr.getValues<APInt>()) {
       auto constantString = getStringForConstant(value);
       if (failed(constantString)) {
         return failure();
       }
       values.push_back(*constantString);
     }
-  } else if (succeeded(denseAttr.tryGetValues<APFloat>())) {
-    for (auto value : denseAttr.getValues<APFloat>()) {
+  } else if (mlir::isa<FloatType>(elementType)) {
+    for (auto value : elementsAttr.getValues<APFloat>()) {
       auto constantString = getStringForConstant(value);
       if (failed(constantString)) {
         return failure();
@@ -364,15 +405,21 @@ LogicalResult LattigoEmitter::printOperation(arith::ConstantOp op) {
   auto valueAttr = op.getValue();
   auto type = valueAttr.getType();
 
+  if (auto resourceAttr =
+          mlir::dyn_cast<DenseResourceElementsAttr>(valueAttr)) {
+    valueAttr = DenseElementsAttr::getFromRawBuffer(resourceAttr.getType(),
+                                                    resourceAttr.getData());
+  }
+
   auto typeString = convertType(type);
   if (failed(typeString)) {
     return failure();
   }
 
-  if (auto denseAttr = mlir::dyn_cast<DenseElementsAttr>(valueAttr)) {
+  if (auto elementsAttr = mlir::dyn_cast<ElementsAttr>(valueAttr)) {
     int64_t numElements = mlir::cast<RankedTensorType>(type).getNumElements();
-    if (denseAttr.isSplat()) {
-      Attribute splatValue = denseAttr.getSplatValue<Attribute>();
+    if (elementsAttr.isSplat()) {
+      Attribute splatValue = elementsAttr.getSplatValue<Attribute>();
       bool isZero = false;
       if (auto intAttr = mlir::dyn_cast<IntegerAttr>(splatValue)) {
         isZero = intAttr.getValue().isZero();
@@ -435,9 +482,9 @@ LogicalResult LattigoEmitter::printOperation(arith::ConstantOp op) {
             valueString += *constantString;
             return success();
           })
-          .Case<DenseElementsAttr>([&](DenseElementsAttr denseAttr) {
+          .Case<ElementsAttr>([&](ElementsAttr elementsAttr) {
             // fill in the values
-            auto constString = getStringForDenseElementAttr(denseAttr);
+            auto constString = getStringForElementsAttr(elementsAttr);
             if (failed(constString)) {
               return failure();
             }
@@ -467,8 +514,13 @@ void LattigoEmitter::emitIf(const std::string& cond,
   os << "}\n";
 }
 
-LogicalResult LattigoEmitter::typecast(Value operand, Value result) {
+LogicalResult LattigoEmitter::typecast(Value operand, Value result,
+                                       bool isSigned) {
   std::string inputVarName = getName(operand);
+  Type inputEltTy = getElementTypeOrSelf(operand.getType());
+  Type resultEltTy = getElementTypeOrSelf(result.getType());
+  bool isBoolInput = inputEltTy.isInteger(1);
+  bool isBoolResult = resultEltTy.isInteger(1);
 
   // If it's a slice, upcast by creating a new slice and looping
   if (auto tensorTy = dyn_cast<RankedTensorType>(result.getType())) {
@@ -489,7 +541,21 @@ LogicalResult LattigoEmitter::typecast(Value operand, Value result) {
     // Now loop and apply the cast
     os << "for i, val := range " << inputVarName << " {\n";
     os.indent();
-    os << resultVarName << "[i] = " << elementType << "(val)\n";
+
+    if (isBoolInput) {
+      emitIf(
+          "val",
+          [&]() {
+            os << resultVarName << "[i] = " << elementType << "("
+               << (isSigned ? "-1" : "1") << ")\n";
+          },
+          [&]() { os << resultVarName << "[i] = " << elementType << "(0)\n"; });
+    } else if (isBoolResult) {
+      os << resultVarName << "[i] = val != 0\n";
+    } else {
+      os << resultVarName << "[i] = " << elementType << "(val)\n";
+    }
+
     os.unindent();
     os << "}\n";
   } else {
@@ -498,87 +564,41 @@ LogicalResult LattigoEmitter::typecast(Value operand, Value result) {
       return failure();
     }
     std::string resultTy = res.value();
-    os << getName(result) << " := " << resultTy << "(" << inputVarName << ")\n";
+    if (isBoolInput) {
+      std::string resultName = getName(result);
+      os << "var " << resultName << " " << resultTy << "\n";
+      emitIf(
+          inputVarName,
+          [&]() {
+            os << resultName << " = " << resultTy << "("
+               << (isSigned ? "-1" : "1") << ")\n";
+          },
+          [&]() { os << resultName << " = " << resultTy << "(0)\n"; });
+    } else if (isBoolResult) {
+      os << getName(result) << " := " << inputVarName << " != 0\n";
+    } else {
+      os << getName(result) << " := " << resultTy << "(" << inputVarName
+         << ")\n";
+    }
   }
 
   return success();
 }
 
 LogicalResult LattigoEmitter::printOperation(arith::ExtSIOp op) {
-  return typecast(op.getOperand(), op.getResult());
+  return typecast(op.getOperand(), op.getResult(), /*isSigned=*/true);
 }
 
 LogicalResult LattigoEmitter::printOperation(arith::ExtUIOp op) {
-  // Unsigned extension should only be used for booleans.
-  assert(
-      getElementTypeOrSelf(op.getOperand().getType()).getIntOrFloatBitWidth() ==
-          1 &&
-      "expected boolean type for extui");
-
-  // golang cannot directly convert booleans to integers, so we need to branch
-  std::string inputVarName = getName(op.getOperand());
-
-  // If it's a slice, upcast by creating a new slice and looping
-  if (auto tensorTy = dyn_cast<RankedTensorType>(op.getResult().getType())) {
-    if (tensorTy.getRank() > 1) {
-      return op.emitOpError()
-             << "Unsupported input type for extui, expected 1D tensor";
-    }
-    auto res = convertType(tensorTy.getElementType());
-    if (failed(res)) {
-      return failure();
-    }
-    std::string elementType = res.value();
-    // Don't use getName because the usage of the variable is guaranteed
-    std::string resultVarName = variableNames->getNameForValue(op.getResult());
-    os << resultVarName << " := make([]" << elementType << ", ";
-    os << tensorTy.getNumElements() << ")\n";
-
-    // Now loop and apply the cast
-    // for i, val := range input {
-    //   if val {
-    //     result[i] = extendedType(1)
-    //   } else {
-    //     result[i] = extendedType(0)
-    //   }
-    // }
-    os << "for i, val := range " << inputVarName << " {\n";
-    os.indent();
-
-    emitIf(
-        "val",
-        [&]() { os << resultVarName << "[i] = " << elementType << "(1)\n"; },
-        [&]() { os << resultVarName << "[i] = " << elementType << "(0)\n"; });
-
-    os.unindent();
-    os << "}\n";
-  } else {
-    // A plain if to upcast a bool
-    // var result extendedType
-    // if operand {
-    //   result = extendedType(1)
-    // } else {
-    //   result = extendedType(0)
-    // }
-    auto res = convertType(op.getResult().getType());
-    if (failed(res)) {
-      return failure();
-    }
-    std::string resultName = getName(op.getResult());
-    std::string resultTy = res.value();
-
-    os << "var " << resultName << " " << resultTy << "\n";
-    emitIf(
-        inputVarName,
-        [&]() { os << resultName << " = " << resultTy << "(1)\n"; },
-        [&]() { os << resultName << " = " << resultTy << "(0)\n"; });
-  }
-
-  return success();
+  return typecast(op.getOperand(), op.getResult(), /*isSigned=*/false);
 }
 
 LogicalResult LattigoEmitter::printOperation(arith::ExtFOp op) {
   return typecast(op.getOperand(), op.getResult());
+}
+
+LogicalResult LattigoEmitter::printOperation(arith::FloorDivSIOp op) {
+  return printBinaryOp(op, op.getLhs(), op.getRhs(), "/");
 }
 
 LogicalResult LattigoEmitter::printOperation(arith::IndexCastOp op) {
@@ -589,8 +609,25 @@ LogicalResult LattigoEmitter::printBinaryOp(Operation* op, ::mlir::Value lhs,
                                             ::mlir::Value rhs,
                                             std::string_view opName) {
   assert(op->getNumResults() == 1 && "Expected single-result op!");
-  os << getName(op->getResult(0)) << " := " << getName(lhs) << " " << opName
-     << " " << getName(rhs) << ";\n";
+  Value result = op->getResult(0);
+  if (auto tensorTy = dyn_cast<RankedTensorType>(result.getType())) {
+    std::string resultName = getName(result);
+    auto res = convertType(tensorTy);
+    if (failed(res)) return failure();
+
+    os << resultName << " := make(" << res.value() << ", "
+       << tensorTy.getNumElements() << ")\n";
+    os << "for i := range " << resultName << " {\n";
+    os.indent();
+    os << resultName << "[i] = " << getName(lhs) << "[i] " << opName << " "
+       << getName(rhs) << "[i]\n";
+    os.unindent();
+    os << "}\n";
+    return success();
+  }
+
+  os << getName(result) << " := " << getName(lhs) << " " << opName << " "
+     << getName(rhs) << ";\n";
   return success();
 }
 
@@ -599,7 +636,52 @@ LogicalResult LattigoEmitter::printOperation(arith::AddIOp op) {
   return printBinaryOp(op, op.getLhs(), op.getRhs(), "+");
 }
 
+LogicalResult LattigoEmitter::printOperation(arith::AddFOp op) {
+  return printBinaryOp(op, op.getLhs(), op.getRhs(), "+");
+}
+
+LogicalResult LattigoEmitter::printOperation(arith::AndIOp op) {
+  return printBinaryOp(op, op.getLhs(), op.getRhs(), "&");
+}
+
+LogicalResult LattigoEmitter::printFunctionalBinop(Operation* op,
+                                                   ::mlir::Value lhs,
+                                                   ::mlir::Value rhs,
+                                                   std::string_view opName) {
+  Value result = op->getResults()[0];
+  if (auto tensorTy = dyn_cast<RankedTensorType>(result.getType())) {
+    std::string resultName = getName(result);
+    auto res = convertType(tensorTy);
+    if (failed(res)) return failure();
+
+    os << resultName << " := make(" << res.value() << ", "
+       << tensorTy.getNumElements() << ")\n";
+    os << "for i := range " << resultName << " {\n";
+    os.indent();
+    os << resultName << "[i] = " << opName << "(" << getName(lhs) << "[i], "
+       << getName(rhs) << "[i])\n";
+    os.unindent();
+    os << "}\n";
+    return success();
+  }
+  os << getName(op->getResult(0)) << " := " << opName << "(" << getName(lhs)
+     << ", " << getName(rhs) << ")\n";
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(arith::MaxSIOp op) {
+  return printFunctionalBinop(op, op.getLhs(), op.getRhs(), "max");
+}
+
+LogicalResult LattigoEmitter::printOperation(arith::MinSIOp op) {
+  return printFunctionalBinop(op, op.getLhs(), op.getRhs(), "min");
+}
+
 LogicalResult LattigoEmitter::printOperation(arith::MulIOp op) {
+  return printBinaryOp(op, op.getLhs(), op.getRhs(), "*");
+}
+
+LogicalResult LattigoEmitter::printOperation(arith::MulFOp op) {
   return printBinaryOp(op, op.getLhs(), op.getRhs(), "*");
 }
 
@@ -607,8 +689,21 @@ LogicalResult LattigoEmitter::printOperation(arith::SubIOp op) {
   return printBinaryOp(op, op.getLhs(), op.getRhs(), "-");
 }
 
+LogicalResult LattigoEmitter::printOperation(arith::SubFOp op) {
+  return printBinaryOp(op, op.getLhs(), op.getRhs(), "-");
+}
+
 LogicalResult LattigoEmitter::printOperation(arith::DivSIOp op) {
   return printBinaryOp(op, op.getLhs(), op.getRhs(), "/");
+}
+
+LogicalResult LattigoEmitter::printOperation(arith::DivFOp op) {
+  return printBinaryOp(op, op.getLhs(), op.getRhs(), "/");
+}
+
+LogicalResult LattigoEmitter::printOperation(arith::NegFOp op) {
+  os << getName(op.getResult()) << " := -" << getName(op.getOperand()) << "\n";
+  return success();
 }
 
 LogicalResult LattigoEmitter::printOperation(arith::RemSIOp op) {
@@ -656,6 +751,37 @@ LogicalResult LattigoEmitter::printOperation(arith::CmpIOp op) {
   }
   llvm_unreachable("unknown cmpi predicate kind");
   return failure();
+}
+
+LogicalResult LattigoEmitter::printOperation(arith::CmpFOp op) {
+  switch (op.getPredicate()) {
+    case arith::CmpFPredicate::AlwaysFalse:
+      os << getName(op.getResult()) << " := false\n";
+      return success();
+    case arith::CmpFPredicate::OEQ:
+    case arith::CmpFPredicate::UEQ:
+      return printBinaryOp(op, op.getLhs(), op.getRhs(), "==");
+    case arith::CmpFPredicate::OGT:
+    case arith::CmpFPredicate::UGT:
+      return printBinaryOp(op, op.getLhs(), op.getRhs(), ">");
+    case arith::CmpFPredicate::OGE:
+    case arith::CmpFPredicate::UGE:
+      return printBinaryOp(op, op.getLhs(), op.getRhs(), ">=");
+    case arith::CmpFPredicate::OLT:
+    case arith::CmpFPredicate::ULT:
+      return printBinaryOp(op, op.getLhs(), op.getRhs(), "<");
+    case arith::CmpFPredicate::OLE:
+    case arith::CmpFPredicate::ULE:
+      return printBinaryOp(op, op.getLhs(), op.getRhs(), "<=");
+    case arith::CmpFPredicate::ONE:
+    case arith::CmpFPredicate::UNE:
+      return printBinaryOp(op, op.getLhs(), op.getRhs(), "!=");
+    case arith::CmpFPredicate::AlwaysTrue:
+      os << getName(op.getResult()) << " := true\n";
+      return success();
+    default:
+      return op.emitOpError("unsupported cmpf predicate");
+  }
 }
 
 LogicalResult LattigoEmitter::printOperation(scf::IfOp op) {
@@ -2037,14 +2163,22 @@ LogicalResult LattigoEmitter::emitType(Type type) {
 
 LattigoEmitter::LattigoEmitter(raw_ostream& os,
                                SelectVariableNames* variableNames,
-                               const std::string& packageName)
-    : os(os), variableNames(variableNames), packageName(packageName) {}
+                               const std::string& packageName,
+                               const std::vector<std::string>& extraImports,
+                               std::function<bool(func::FuncOp)> funcFilter)
+    : os(os),
+      variableNames(variableNames),
+      packageName(packageName),
+      extraImports(extraImports),
+      funcFilter(funcFilter) {}
 
 struct TranslateOptions {
   llvm::cl::opt<std::string> packageName{
       "package-name",
       llvm::cl::desc("The name to use for the package declaration in the "
                      "generated golang file.")};
+  llvm::cl::list<std::string> extraImports{
+      "extra-imports", llvm::cl::desc("Additional import paths")};
 };
 static llvm::ManagedStatic<TranslateOptions> translateOptions;
 
@@ -2058,7 +2192,48 @@ void registerToLattigoTranslation() {
       "emit-lattigo",
       "translate the lattigo dialect to GO code against the Lattigo API",
       [](Operation* op, llvm::raw_ostream& output) {
-        return translateToLattigo(op, output, translateOptions->packageName);
+        return translateToLattigo(op, output, translateOptions->packageName,
+                                  translateOptions->extraImports);
+      },
+      [](DialectRegistry& registry) {
+        registry
+            .insert<affine::AffineDialect, rns::RNSDialect, arith::ArithDialect,
+                    func::FuncDialect, tensor::TensorDialect,
+                    tensor_ext::TensorExtDialect, lattigo::LattigoDialect,
+                    mgmt::MgmtDialect, scf::SCFDialect>();
+      });
+}
+
+void registerToLattigoPreprocessingTranslation() {
+  TranslateFromMLIRRegistration reg(
+      "emit-lattigo-preprocessing",
+      "translate the lattigo dialect to GO code against the Lattigo API",
+      [](Operation* op, llvm::raw_ostream& output) {
+        return translateToLattigo(
+            op, output, translateOptions->packageName,
+            translateOptions->extraImports, [](func::FuncOp funcOp) {
+              return funcOp->hasAttr(kClientPackFuncAttrName);
+            });
+      },
+      [](DialectRegistry& registry) {
+        registry
+            .insert<affine::AffineDialect, rns::RNSDialect, arith::ArithDialect,
+                    func::FuncDialect, tensor::TensorDialect,
+                    tensor_ext::TensorExtDialect, lattigo::LattigoDialect,
+                    mgmt::MgmtDialect, scf::SCFDialect>();
+      });
+}
+
+void registerToLattigoPreprocessedTranslation() {
+  TranslateFromMLIRRegistration reg(
+      "emit-lattigo-preprocessed",
+      "translate the lattigo dialect to GO code against the Lattigo API",
+      [](Operation* op, llvm::raw_ostream& output) {
+        return translateToLattigo(
+            op, output, translateOptions->packageName,
+            translateOptions->extraImports, [](func::FuncOp funcOp) {
+              return !funcOp->hasAttr(kClientPackFuncAttrName);
+            });
       },
       [](DialectRegistry& registry) {
         registry
