@@ -16,6 +16,7 @@
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Matchers.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
@@ -74,10 +75,9 @@ class InsertAfterConstant final : public OpRewritePattern<tensor::InsertOp> {
       return rewriter.notifyMatchFailure(insertOp,
                                          "scalar to insert must be a constant");
 
-    if (auto constantOp = dyn_cast_or_null<arith::ConstantOp>(
-            insertOp.getDest().getDefiningOp())) {
-      if (auto sourceAttr =
-              llvm::dyn_cast<ElementsAttr>(constantOp.getValue())) {
+    TypedAttr attr;
+    if (matchPattern(insertOp.getDest(), m_Constant(&attr))) {
+      if (auto sourceAttr = llvm::dyn_cast<ElementsAttr>(attr)) {
         // Update the attribute at the inserted index.
         auto sourceValues = sourceAttr.getValues<Attribute>();
         auto flattenedIndex = sourceAttr.getFlattenedIndex(indices);
@@ -127,8 +127,8 @@ class InsertIntoFromElements final : public OpRewritePattern<tensor::InsertOp> {
       return rewriter.notifyMatchFailure(insertOp,
                                          "destination must be a ranked tensor");
 
-    auto constantOp = dyn_cast_or_null<arith::ConstantOp>(dest.getDefiningOp());
-    if (!constantOp)
+    TypedAttr attr;
+    if (!matchPattern(dest, m_Constant(&attr)))
       return rewriter.notifyMatchFailure(
           insertOp, "destination of insert must be a constant");
 
@@ -159,7 +159,7 @@ class InsertIntoFromElements final : public OpRewritePattern<tensor::InsertOp> {
     }
 
     SmallVector<Value> values;
-    auto constantValue = cast<DenseElementsAttr>(constantOp.getValue());
+    auto constantValue = cast<DenseElementsAttr>(attr);
     for (auto i = 0; i < destType.getNumElements(); ++i) {
       // Add the inserted value if it exists, or the value from the original
       // constant.
@@ -204,13 +204,12 @@ class CollapseShapeAfterConstant final
 
   LogicalResult matchAndRewrite(tensor::CollapseShapeOp collapseOp,
                                 PatternRewriter& rewriter) const override {
-    auto constantOp = dyn_cast_or_null<arith::ConstantOp>(
-        collapseOp.getSrc().getDefiningOp());
-    if (!constantOp)
+    TypedAttr attr;
+    if (!matchPattern(collapseOp.getSrc(), m_Constant(&attr)))
       return rewriter.notifyMatchFailure(
           collapseOp, "source of collapse must be a constant");
 
-    auto sourceAttr = llvm::dyn_cast<DenseElementsAttr>(constantOp.getValue());
+    auto sourceAttr = llvm::dyn_cast<DenseElementsAttr>(attr);
     if (!sourceAttr)
       return rewriter.notifyMatchFailure(
           collapseOp, "source of collapse must be an elements attribute");

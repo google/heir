@@ -77,7 +77,7 @@ pybind_extension(
 
 py_test(
     name = "lenet_test",
-    timeout = "eternal",
+    size = "enormous",
     srcs = ["lenet_test.py"],
     data = [
         ":lenet.openfhe.mlir",
