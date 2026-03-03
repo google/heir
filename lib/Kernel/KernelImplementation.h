@@ -102,9 +102,10 @@ implementRotateAndReduceAccumulationRolled(const T& vector, int64_t period,
   int64_t numIterations = static_cast<int64_t>(std::log2(steps));
   if (numIterations <= 0) return vectorDag;
 
-  auto initialShift = NodeTy::constantScalar(steps / 2, DagType::integer(32));
+  auto initialShift = NodeTy::constantScalar(steps / 2, DagType::index());
   auto loopNode = NodeTy::loop(
-      {vectorDag, initialShift}, /*lower=*/0, /*upper=*/numIterations,
+      {vectorDag, initialShift}, {baseType, DagType::index()}, /*lower=*/0,
+      /*upper=*/numIterations,
       /*step=*/1, [&](NodePtr i, const std::vector<NodePtr>& iterArgs) {
         auto currentVector = iterArgs[0];
         auto currentShift = iterArgs[1];
@@ -284,7 +285,7 @@ implementBabyStepGiantStepRolled(
 
   // Outer loop over giant steps (j = 0 to numGiantSteps)
   auto outerLoop = NodeTy::loop(
-      {zero}, /*lower=*/0, /*upper=*/numGiantSteps, /*step=*/1,
+      {zero}, {baseType}, /*lower=*/0, /*upper=*/numGiantSteps, /*step=*/1,
       [&](NodePtr j, const std::vector<NodePtr>& outerIterArgs) {
         auto outerSum = outerIterArgs[0];
 
@@ -293,7 +294,8 @@ implementBabyStepGiantStepRolled(
         auto innerZero = NodeTy::splat(0, baseType);
 
         auto innerLoop = NodeTy::loop(
-            {innerZero}, /*lower=*/0, /*upper=*/numBabySteps, /*step=*/1,
+            {innerZero}, {baseType}, /*lower=*/0, /*upper=*/numBabySteps,
+            /*step=*/1,
             [&](NodePtr i, const std::vector<NodePtr>& innerIterArgs) {
               auto innerSum = innerIterArgs[0];
 
@@ -303,23 +305,36 @@ implementBabyStepGiantStepRolled(
               auto jOffset = NodeTy::mul(j, gsSize);
               auto extractIdx = NodeTy::add(i, jOffset);
 
-              auto plaintext = extractFunc(babySteppedDag, extractIdx);
-              auto innerRotAmount = dagRotationFn(giantStepSize, j, i, period);
+              // if (j * giantStepSize + i < steps)
+              auto stepsNode =
+                  NodeTy::constantScalar(steps, DagType::integer(32));
+              auto isBound = NodeTy::comparison(extractIdx, stepsNode,
+                                                ComparisonPredicate::LT);
 
-              auto rotatedPlaintext =
-                  NodeTy::leftRotate(plaintext, innerRotAmount);
+              auto newInnerSum = NodeTy::ifElse(
+                  isBound,
+                  [&]() {
+                    auto plaintext = extractFunc(babySteppedDag, extractIdx);
+                    auto innerRotAmount =
+                        dagRotationFn(giantStepSize, j, i, period);
 
-              // Compute baby-step rotation on-the-fly using loop variable i
-              // babyStepVal = rotate(giantSteppedOperand, i * period)
-              auto babyStepVal = NodeTy::leftRotate(
-                  giantSteppedDag,
-                  NodeTy::mul(
-                      i, NodeTy::constantScalar(period, DagType::integer(32))));
+                    auto rotatedPlaintext =
+                        NodeTy::leftRotate(plaintext, innerRotAmount);
 
-              auto multiplied = NodeTy::mul(rotatedPlaintext, babyStepVal);
-              auto newInnerSum = NodeTy::add(innerSum, multiplied);
+                    // Compute baby-step rotation on-the-fly using loop variable
+                    // i babyStepVal = rotate(giantSteppedOperand, i * period)
+                    auto babyStepVal = NodeTy::leftRotate(
+                        giantSteppedDag,
+                        NodeTy::mul(i, NodeTy::constantScalar(
+                                           period, DagType::integer(32))));
 
-              return NodeTy::yield({newInnerSum});
+                    auto multiplied =
+                        NodeTy::mul(rotatedPlaintext, babyStepVal);
+                    return NodeTy::yield({NodeTy::add(innerSum, multiplied)});
+                  },
+                  [&]() { return NodeTy::yield({innerSum}); });
+
+              return NodeTy::yield({NodeTy::resultAt(newInnerSum, 0)});
             });
 
         // Extract result from inner loop
@@ -500,10 +515,10 @@ implementHaleviShoup(const T& vector, const T& matrix,
     return summedShifts;
   }
 
-  auto shift = NodeTy::constantScalar(matrixNumCols / 2, DagType::integer(32));
+  auto shift = NodeTy::constantScalar(matrixNumCols / 2, DagType::index());
   auto loopNode = NodeTy::loop(
-      {summedShifts, shift}, /*lower=*/0,
-      /*upper=*/numShifts, /*step=*/1,
+      {summedShifts, shift}, {dagType, DagType::index()},
+      /*lower=*/0, /*upper=*/numShifts, /*step=*/1,
       [&](NodePtr iv, const std::vector<NodePtr>& iterArgs) {
         auto currentSum = iterArgs[0];
         auto currentShift = iterArgs[1];

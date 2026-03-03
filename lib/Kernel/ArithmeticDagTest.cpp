@@ -3,9 +3,11 @@
 #include <cstddef>
 #include <iomanip>
 #include <ios>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "gtest/gtest.h"  // from @googletest
 #include "lib/Kernel/ArithmeticDag.h"
@@ -88,6 +90,42 @@ struct FlattenedStringVisitor {
   std::string operator()(const ExtractNode<std::string>& node) const {
     std::stringstream ss;
     ss << node.operand->visit(*this) << "[" << node.index->visit(*this) << "]";
+    return ss.str();
+  }
+
+  std::string operator()(const ComparisonNode<std::string>& node) const {
+    std::stringstream ss;
+    std::string op;
+    switch (node.predicate) {
+      case ComparisonPredicate::LT:
+        op = "<";
+        break;
+      case ComparisonPredicate::LE:
+        op = "<=";
+        break;
+      case ComparisonPredicate::GT:
+        op = ">";
+        break;
+      case ComparisonPredicate::GE:
+        op = ">=";
+        break;
+      case ComparisonPredicate::EQ:
+        op = "==";
+        break;
+      case ComparisonPredicate::NE:
+        op = "!=";
+        break;
+    }
+    ss << "(" << node.left->visit(*this) << " " << op << " "
+       << node.right->visit(*this) << ")";
+    return ss.str();
+  }
+
+  std::string operator()(const IfElseNode<std::string>& node) const {
+    std::stringstream ss;
+    ss << "if (" << node.condition->visit(*this) << ") { "
+       << node.thenBody->visit(*this) << " } else { "
+       << node.elseBody->visit(*this) << " }";
     return ss.str();
   }
 
@@ -185,6 +223,43 @@ class EvalVisitor : public CachingVisitor<double, std::vector<double>> {
   std::vector<double> operator()(const MultiplyNode<double>& node) override {
     callCount += 1;
     return {this->process(node.left)[0] * this->process(node.right)[0]};
+  }
+
+  std::vector<double> operator()(const ComparisonNode<double>& node) override {
+    callCount += 1;
+    double lhs = this->process(node.left)[0];
+    double rhs = this->process(node.right)[0];
+    bool result = false;
+    switch (node.predicate) {
+      case ComparisonPredicate::LT:
+        result = lhs < rhs;
+        break;
+      case ComparisonPredicate::LE:
+        result = lhs <= rhs;
+        break;
+      case ComparisonPredicate::GT:
+        result = lhs > rhs;
+        break;
+      case ComparisonPredicate::GE:
+        result = lhs >= rhs;
+        break;
+      case ComparisonPredicate::EQ:
+        result = lhs == rhs;
+        break;
+      case ComparisonPredicate::NE:
+        result = lhs != rhs;
+        break;
+    }
+    return {result ? 1.0 : 0.0};
+  }
+
+  std::vector<double> operator()(const IfElseNode<double>& node) override {
+    callCount += 1;
+    double condition = this->process(node.condition)[0];
+    if (condition != 0.0) {
+      return this->process(node.thenBody);
+    }
+    return this->process(node.elseBody);
   }
 
   std::vector<double> operator()(const PowerNode<double>& node) override {
@@ -316,7 +391,7 @@ TEST(ArithmeticDagTest, TestEvaluationVisitorSubstract) {
 
 TEST(ArithmeticDagTest, TestLoop) {
   auto x = DoubleLeavedDag::leaf(1.0);
-  auto loop = DoubleLeavedDag::loop(x, 0, 10, 1);
+  auto loop = DoubleLeavedDag::loop(x, {DagType::floatTy(64)}, 0, 10, 1);
   auto& loopNode = std::get<ForLoopNode<double>>(loop->node_variant);
   loopNode.body =
       DoubleLeavedDag::yield({DoubleLeavedDag::add(x, loopNode.iterArgs[0])});
@@ -328,7 +403,7 @@ TEST(ArithmeticDagTest, TestLoop) {
 TEST(ArithmeticDagTest, TestLoopStringVisitor) {
   auto x = StringLeavedDag::leaf("x");
   auto loop = StringLeavedDag::loop(
-      x, 0, 10, 1,
+      x, {DagType::index()}, 0, 10, 1,
       [](const std::shared_ptr<StringLeavedDag>& inductionVar,
          const std::shared_ptr<StringLeavedDag>& iterArg) {
         return StringLeavedDag::yield({StringLeavedDag::add(
@@ -339,6 +414,29 @@ TEST(ArithmeticDagTest, TestLoopStringVisitor) {
   FlattenedStringVisitor visitor;
   std::string result = loop->visit(visitor);
   EXPECT_EQ(result, "for(i0=0 to 10 step 1; i1=x) { ((i0 * y) + i1) }");
+}
+
+TEST(ArithmeticDagTest, TestComparison) {
+  auto x = DoubleLeavedDag::leaf(1.0);
+  auto y = DoubleLeavedDag::leaf(2.0);
+  auto lt = DoubleLeavedDag::comparison(x, y, ComparisonPredicate::LT);
+  auto gt = DoubleLeavedDag::comparison(x, y, ComparisonPredicate::GT);
+
+  EvalVisitor visitor;
+  EXPECT_EQ(visitor.process(lt)[0], 1.0);
+  EXPECT_EQ(visitor.process(gt)[0], 0.0);
+}
+
+TEST(ArithmeticDagTest, TestIfElse) {
+  auto x = DoubleLeavedDag::leaf(1.0);
+  auto y = DoubleLeavedDag::leaf(2.0);
+  auto cond = DoubleLeavedDag::comparison(x, y, ComparisonPredicate::LT);
+  auto ifNode = DoubleLeavedDag::ifElse(
+      cond, [&]() { return DoubleLeavedDag::yield({x}); },
+      [&]() { return DoubleLeavedDag::yield({y}); });
+
+  EvalVisitor visitor;
+  EXPECT_EQ(visitor.process(ifNode)[0], 1.0);
 }
 
 }  // namespace

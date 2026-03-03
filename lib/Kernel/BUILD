@@ -91,13 +91,24 @@ cc_library(
 )
 
 cc_library(
+    name = "EvalVisitor",
+    srcs = ["EvalVisitor.cpp"],
+    hdrs = ["EvalVisitor.h"],
+    deps = [
+        ":AbstractValue",
+        ":ArithmeticDag",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
     name = "TestingUtils",
     srcs = ["TestingUtils.cpp"],
     hdrs = ["TestingUtils.h"],
     deps = [
         ":AbstractValue",
         ":ArithmeticDag",
-        "@llvm-project//mlir:Support",
     ],
 )
 
@@ -120,10 +131,10 @@ cc_test(
     deps = [
         ":AbstractValue",
         ":ArithmeticDag",
+        ":EvalVisitor",
         ":Kernel",
         ":KernelImplementation",
         ":RotationCountVisitor",
-        ":TestingUtils",
         "@googletest//:gtest_main",
         "@heir//lib/Utils/Layout:Evaluate",
         "@heir//lib/Utils/Layout:Utils",
@@ -149,6 +160,7 @@ cc_test(
     deps = [
         ":AbstractValue",
         ":ArithmeticDag",
+        ":EvalVisitor",
         ":KernelImplementation",
         ":TestingUtils",
         "@fuzztest//fuzztest",

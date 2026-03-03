@@ -8,7 +8,8 @@
 #include "lib/Dialect/TensorExt/Transforms/RotationGroupKernel.h"
 #include "lib/Dialect/TensorExt/Transforms/ShiftScheme.h"
 #include "lib/Kernel/AbstractValue.h"
-#include "lib/Kernel/TestingUtils.h"
+#include "lib/Kernel/ArithmeticDag.h"
+#include "lib/Kernel/EvalVisitor.h"
 #include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 
 namespace mlir {

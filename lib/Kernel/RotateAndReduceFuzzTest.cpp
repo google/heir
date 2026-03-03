@@ -9,6 +9,7 @@
 #include "gtest/gtest.h"  // from @googletest
 #include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
+#include "lib/Kernel/EvalVisitor.h"
 #include "lib/Kernel/KernelImplementation.h"
 #include "lib/Kernel/TestingUtils.h"
 

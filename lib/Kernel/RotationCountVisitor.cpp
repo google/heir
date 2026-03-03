@@ -152,6 +152,38 @@ int64_t RotationCountVisitor::operator()(
 }
 
 int64_t RotationCountVisitor::operator()(
+    const ComparisonNode<SymbolicValue>& node) {
+  const auto* thisNode = currentNode;  // Save before recursion
+
+  int64_t leftCount = processInternal(node.left);
+  int64_t rightCount = processInternal(node.right);
+
+  // A value is secret if any operand is secret
+  bool leftIsSecret = nodeSecretStatus[node.left.get()];
+  bool rightIsSecret = nodeSecretStatus[node.right.get()];
+  nodeSecretStatus[thisNode] = leftIsSecret || rightIsSecret;
+
+  return leftCount + rightCount;
+}
+
+int64_t RotationCountVisitor::operator()(
+    const IfElseNode<SymbolicValue>& node) {
+  const auto* thisNode = currentNode;  // Save before recursion
+
+  int64_t condCount = processInternal(node.condition);
+  int64_t thenCount = processInternal(node.thenBody);
+  int64_t elseCount = processInternal(node.elseBody);
+
+  // A value is secret if any part is secret
+  bool condIsSecret = nodeSecretStatus[node.condition.get()];
+  bool thenIsSecret = nodeSecretStatus[node.thenBody.get()];
+  bool elseIsSecret = nodeSecretStatus[node.elseBody.get()];
+  nodeSecretStatus[thisNode] = condIsSecret || thenIsSecret || elseIsSecret;
+
+  return condCount + thenCount + elseCount;
+}
+
+int64_t RotationCountVisitor::operator()(
     const VariableNode<SymbolicValue>& node) {
   // Variables are typically placeholders - treat as plaintext by default
   nodeSecretStatus[currentNode] = false;

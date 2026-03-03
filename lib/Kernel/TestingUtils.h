@@ -5,48 +5,13 @@
 #include <cstddef>
 #include <memory>
 #include <string>
-#include <vector>
 
 #include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
-#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
 namespace kernel {
-
-// A visitor that evaluates an arithmetic DAG of ciphertext semantic tensors.
-// The evaluation is done by replacing the leaves with their literal values and
-// then computing the operations.
-using EvalResults = std::vector<LiteralValue>;
-
-class EvalVisitor : public CachingVisitor<LiteralValue, EvalResults> {
- public:
-  using CachingVisitor<LiteralValue, EvalResults>::operator();
-
-  EvalVisitor() : CachingVisitor<LiteralValue, EvalResults>() {}
-
-  EvalResults operator()(const ConstantTensorNode& node) override;
-  EvalResults operator()(const ConstantScalarNode& node) override;
-  EvalResults operator()(const SplatNode& node) override;
-  EvalResults operator()(const LeafNode<LiteralValue>& node) override;
-  EvalResults operator()(const AddNode<LiteralValue>& node) override;
-  EvalResults operator()(const SubtractNode<LiteralValue>& node) override;
-  EvalResults operator()(const MultiplyNode<LiteralValue>& node) override;
-  EvalResults operator()(const FloorDivNode<LiteralValue>& node) override;
-  EvalResults operator()(const LeftRotateNode<LiteralValue>& node) override;
-  EvalResults operator()(const ExtractNode<LiteralValue>& node) override;
-  EvalResults operator()(const VariableNode<LiteralValue>& node) override;
-  EvalResults operator()(const ForLoopNode<LiteralValue>& node) override;
-  EvalResults operator()(const YieldNode<LiteralValue>& node) override;
-  EvalResults operator()(const ResultAtNode<LiteralValue>& node) override;
-};
-
-EvalResults evalKernel(
-    const std::shared_ptr<ArithmeticDagNode<LiteralValue>>& dag);
-
-std::vector<EvalResults> multiEvalKernel(
-    ArrayRef<std::shared_ptr<ArithmeticDagNode<LiteralValue>>> dags);
 
 // A visitor that prints the dag in textual form
 class PrintVisitor : public CachingVisitor<LiteralValue, std::string> {
@@ -62,6 +27,8 @@ class PrintVisitor : public CachingVisitor<LiteralValue, std::string> {
   std::string operator()(const FloorDivNode<LiteralValue>& node) override;
   std::string operator()(const LeftRotateNode<LiteralValue>& node) override;
   std::string operator()(const ExtractNode<LiteralValue>& node) override;
+  std::string operator()(const ComparisonNode<LiteralValue>& node) override;
+  std::string operator()(const IfElseNode<LiteralValue>& node) override;
   std::string operator()(const ConstantScalarNode& node) override;
   std::string operator()(const SplatNode& node) override;
   std::string operator()(const VariableNode<LiteralValue>& node) override;
@@ -150,6 +117,19 @@ class MultiplicativeDepthVisitorImpl
   double operator()(const ExtractNode<LiteralValue>& node) override {
     // Extraction doesn't increase multiplicative depth
     return this->process(node.operand);
+  }
+
+  double operator()(const ComparisonNode<LiteralValue>& node) override {
+    // Comparison doesn't increase multiplicative depth
+    return std::max(this->process(node.left), this->process(node.right));
+  }
+
+  double operator()(const IfElseNode<LiteralValue>& node) override {
+    // IfElse depth is the max of condition, thenBranch, and elseBranch
+    double maxDepth = this->process(node.condition);
+    maxDepth = std::max(maxDepth, this->process(node.thenBody));
+    maxDepth = std::max(maxDepth, this->process(node.elseBody));
+    return maxDepth;
   }
 
   double operator()(const VariableNode<LiteralValue>& node) override {

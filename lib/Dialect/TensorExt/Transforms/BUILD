@@ -195,7 +195,8 @@ cc_test(
         ":ShiftScheme",
         "@googletest//:gtest_main",
         "@heir//lib/Kernel:AbstractValue",
-        "@heir//lib/Kernel:TestingUtils",
+        "@heir//lib/Kernel:ArithmeticDag",
+        "@heir//lib/Kernel:EvalVisitor",
         "@llvm-project//mlir:Support",
     ],
 )

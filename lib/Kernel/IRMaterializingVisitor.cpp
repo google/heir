@@ -197,6 +197,103 @@ std::vector<Value> IRMaterializingVisitor::operator()(
 }
 
 std::vector<Value> IRMaterializingVisitor::operator()(
+    const ComparisonNode<SSAValue>& node) {
+  Value lhs = this->process(node.left)[0];
+  Value rhs = this->process(node.right)[0];
+
+  auto op = TypeSwitch<Type, Operation*>(getElementTypeOrSelf(evaluatedType))
+                .Case<mlir::FloatType>([&](auto ty) {
+                  arith::CmpFPredicate pred;
+                  switch (node.predicate) {
+                    case ComparisonPredicate::LT:
+                      pred = arith::CmpFPredicate::OLT;
+                      break;
+                    case ComparisonPredicate::LE:
+                      pred = arith::CmpFPredicate::OLE;
+                      break;
+                    case ComparisonPredicate::GT:
+                      pred = arith::CmpFPredicate::OGT;
+                      break;
+                    case ComparisonPredicate::GE:
+                      pred = arith::CmpFPredicate::OGE;
+                      break;
+                    case ComparisonPredicate::EQ:
+                      pred = arith::CmpFPredicate::OEQ;
+                      break;
+                    case ComparisonPredicate::NE:
+                      pred = arith::CmpFPredicate::ONE;
+                      break;
+                  }
+                  return arith::CmpFOp::create(builder, pred, lhs, rhs);
+                })
+                .Case<mlir::IntegerType>([&](auto ty) {
+                  arith::CmpIPredicate pred;
+                  switch (node.predicate) {
+                    case ComparisonPredicate::LT:
+                      pred = arith::CmpIPredicate::slt;
+                      break;
+                    case ComparisonPredicate::LE:
+                      pred = arith::CmpIPredicate::sle;
+                      break;
+                    case ComparisonPredicate::GT:
+                      pred = arith::CmpIPredicate::sgt;
+                      break;
+                    case ComparisonPredicate::GE:
+                      pred = arith::CmpIPredicate::sge;
+                      break;
+                    case ComparisonPredicate::EQ:
+                      pred = arith::CmpIPredicate::eq;
+                      break;
+                    case ComparisonPredicate::NE:
+                      pred = arith::CmpIPredicate::ne;
+                      break;
+                  }
+                  return arith::CmpIOp::create(builder, pred, lhs, rhs);
+                })
+                .Default([&](Type) {
+                  llvm_unreachable("Unsupported type for comparison operation");
+                  return nullptr;
+                });
+  createdOpCallback(op);
+  return {op->getResult(0)};
+}
+
+std::vector<Value> IRMaterializingVisitor::operator()(
+    const IfElseNode<SSAValue>& node) {
+  Value condition = this->process(node.condition)[0];
+
+  auto* thenYield =
+      std::get_if<YieldNode<SSAValue>>(&node.thenBody->node_variant);
+  assert(thenYield && "IfElseNode thenBody must be a YieldNode");
+  auto* elseYield =
+      std::get_if<YieldNode<SSAValue>>(&node.elseBody->node_variant);
+  assert(elseYield && "IfElseNode elseBody must be a YieldNode");
+  if (thenYield->elements.size() != elseYield->elements.size()) {
+    assert(false && "If branches must yield same number of elements");
+    return {};
+  }
+
+  SmallVector<Type> resultTypes;
+  std::vector<Value> thenResults = this->process(node.thenBody);
+  for (Value v : thenResults) {
+    resultTypes.push_back(v.getType());
+  }
+
+  auto ifOp = scf::IfOp::create(
+      builder, condition,
+      [&](OpBuilder& nestedBuilder, Location nestedLoc) {
+        scf::YieldOp::create(builder, thenResults);
+      },
+      [&](OpBuilder& nestedBuilder, Location nestedLoc) {
+        std::vector<Value> thenResults = this->process(node.thenBody);
+        scf::YieldOp::create(builder, thenResults);
+      });
+
+  createdOpCallback(ifOp);
+  return std::vector<Value>(ifOp.getResults().begin(), ifOp.getResults().end());
+}
+
+std::vector<Value> IRMaterializingVisitor::operator()(
     const VariableNode<SSAValue>& node) {
   assert(node.value.has_value() && "VariableNode value is not set");
   return {node.value->getValue()};

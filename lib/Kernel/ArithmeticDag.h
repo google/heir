@@ -4,7 +4,10 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
+#include <optional>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <variant>
@@ -15,6 +18,12 @@
 namespace mlir {
 namespace heir {
 namespace kernel {
+
+// This file contains an in-memory analogue of MLIR that can be used for
+// static analysis of IR, including running IR, computing multiplicative depth,
+// and generating MLIR.
+template <typename T>
+struct ArithmeticDagNode;
 
 // Type system for ArithmeticDag nodes
 struct IntegerType {
@@ -73,11 +82,6 @@ struct DagType {
   }
 };
 
-// This file contains a generic DAG structure that can be used for representing
-// arithmetic DAGs with leaf nodes of various types.
-template <typename T>
-struct ArithmeticDagNode;
-
 // A leaf node for the DAG
 template <typename T>
 struct LeafNode {
@@ -91,6 +95,7 @@ struct LeafNode {
 template <typename T>
 struct VariableNode {
   std::optional<T> value;
+  DagType type;
 };
 
 struct ConstantScalarNode {
@@ -150,6 +155,29 @@ struct ExtractNode {
   std::shared_ptr<ArithmeticDagNode<T>> index;
 };
 
+enum class ComparisonPredicate {
+  LT,
+  LE,
+  GT,
+  GE,
+  EQ,
+  NE,
+};
+
+template <typename T>
+struct ComparisonNode {
+  std::shared_ptr<ArithmeticDagNode<T>> left;
+  std::shared_ptr<ArithmeticDagNode<T>> right;
+  ComparisonPredicate predicate;
+};
+
+template <typename T>
+struct IfElseNode {
+  std::shared_ptr<ArithmeticDagNode<T>> condition;
+  std::shared_ptr<ArithmeticDagNode<T>> thenBody;
+  std::shared_ptr<ArithmeticDagNode<T>> elseBody;
+};
+
 template <typename T>
 struct YieldNode {
   std::vector<std::shared_ptr<ArithmeticDagNode<T>>> elements;
@@ -181,8 +209,9 @@ struct ArithmeticDagNode {
  public:
   std::variant<ConstantScalarNode, ConstantTensorNode, LeafNode<T>, AddNode<T>,
                SubtractNode<T>, MultiplyNode<T>, FloorDivNode<T>, PowerNode<T>,
-               LeftRotateNode<T>, ExtractNode<T>, VariableNode<T>,
-               ForLoopNode<T>, YieldNode<T>, ResultAtNode<T>, SplatNode>
+               LeftRotateNode<T>, ExtractNode<T>, ComparisonNode<T>,
+               IfElseNode<T>, VariableNode<T>, ForLoopNode<T>, YieldNode<T>,
+               ResultAtNode<T>, SplatNode>
       node_variant;
 
   explicit ArithmeticDagNode(const T& value)
@@ -298,10 +327,38 @@ struct ArithmeticDagNode {
         tensor, constantScalar(static_cast<double>(index), DagType::index()));
   }
 
-  static NodePtr variable() {
+  static NodePtr comparison(NodePtr lhs, NodePtr rhs,
+                            ComparisonPredicate predicate) {
+    assert(lhs && rhs && "invalid comparison");
+    auto node = NodePtr(new ArithmeticDagNode<T>());
+    node->node_variant.template emplace<ComparisonNode<T>>(
+        ComparisonNode<T>{std::move(lhs), std::move(rhs), predicate});
+    return node;
+  }
+
+  static NodePtr comparison(NodePtr lhs, double rhs,
+                            ComparisonPredicate predicate) {
+    return comparison(std::move(lhs), constantScalar(rhs, DagType::index()),
+                      predicate);
+  }
+
+  static NodePtr ifElse(NodePtr condition, NodePtr thenBody, NodePtr elseBody) {
+    assert(condition && thenBody && elseBody && "invalid ifElse");
+    auto node = NodePtr(new ArithmeticDagNode<T>());
+    node->node_variant.template emplace<IfElseNode<T>>(IfElseNode<T>{
+        std::move(condition), std::move(thenBody), std::move(elseBody)});
+    return node;
+  }
+
+  static NodePtr ifElse(NodePtr condition, std::function<NodePtr()> thenBuilder,
+                        std::function<NodePtr()> elseBuilder) {
+    return ifElse(std::move(condition), thenBuilder(), elseBuilder());
+  }
+
+  static NodePtr variable(DagType type) {
     auto node = NodePtr(new ArithmeticDagNode<T>());
     node->node_variant.template emplace<VariableNode<T>>(
-        VariableNode<T>{std::nullopt});
+        VariableNode<T>{std::nullopt, std::move(type)});
     return node;
   }
 
@@ -310,11 +367,12 @@ struct ArithmeticDagNode {
 
   // Construct a loop with a single iter arg. Note that the body builder must
   // have as its root node a YieldNode.
-  static NodePtr loop(NodePtr init, int32_t lower, int32_t upper, int32_t step,
+  static NodePtr loop(NodePtr init, DagType initTy, int32_t lower,
+                      int32_t upper, int32_t step,
                       const BodyBuilderFunc& bodyBuilder = nullptr) {
     assert(init && "invalid init");
-    auto inductionVar = variable();
-    auto iterArg = variable();
+    auto inductionVar = variable(DagType::index());
+    auto iterArg = variable(initTy);
     auto body = bodyBuilder ? bodyBuilder(inductionVar, iterArg) : nullptr;
     auto node = NodePtr(new ArithmeticDagNode<T>());
     node->node_variant.template emplace<ForLoopNode<T>>(
@@ -334,12 +392,13 @@ struct ArithmeticDagNode {
   // Construct a loop with multiple iter args. Note that the body builder must
   // have as its root node a YieldNode.
   static NodePtr loop(
-      std::vector<NodePtr> inits, int32_t lower, int32_t upper, int32_t step,
+      llvm::ArrayRef<NodePtr> inits, llvm::ArrayRef<DagType> initTys,
+      int32_t lower, int32_t upper, int32_t step,
       const BodyBuilderFuncManyIterArgs& bodyBuilder = nullptr) {
-    auto inductionVar = variable();
+    auto inductionVar = variable(DagType::index());
     std::vector<NodePtr> iterArgs(inits.size());
     for (size_t i = 0; i < inits.size(); ++i) {
-      iterArgs[i] = variable();
+      iterArgs[i] = variable(initTys[i]);
     }
 
     auto body = bodyBuilder ? bodyBuilder(inductionVar, iterArgs) : nullptr;
@@ -477,6 +536,16 @@ class CachingVisitor {
     return ResultType();
   }
 
+  virtual ResultType operator()(const ComparisonNode<T>& node) {
+    assert(false && "Visit logic for ComparisonNode is not implemented.");
+    return ResultType();
+  }
+
+  virtual ResultType operator()(const IfElseNode<T>& node) {
+    assert(false && "Visit logic for IfElseNode is not implemented.");
+    return ResultType();
+  }
+
   virtual ResultType operator()(const VariableNode<T>& node) {
     assert(false && "Visit logic for VariableNode is not implemented.");
     return ResultType();
@@ -531,6 +600,13 @@ class CachingVisitor {
           } else if constexpr (std::is_same_v<NodeType, ExtractNode<T>>) {
             clearSubtreeCache(n.operand);
             clearSubtreeCache(n.index);
+          } else if constexpr (std::is_same_v<NodeType, ComparisonNode<T>>) {
+            clearSubtreeCache(n.left);
+            clearSubtreeCache(n.right);
+          } else if constexpr (std::is_same_v<NodeType, IfElseNode<T>>) {
+            clearSubtreeCache(n.condition);
+            clearSubtreeCache(n.thenBody);
+            clearSubtreeCache(n.elseBody);
           } else if constexpr (std::is_same_v<NodeType, ResultAtNode<T>>) {
             clearSubtreeCache(n.operand);
           } else if constexpr (std::is_same_v<NodeType, ForLoopNode<T>>) {

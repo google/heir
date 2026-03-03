@@ -4,10 +4,10 @@
 #include "gtest/gtest.h"  // from @googletest
 #include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
+#include "lib/Kernel/EvalVisitor.h"
 #include "lib/Kernel/KernelImplementation.h"
 #include "lib/Kernel/KernelName.h"
 #include "lib/Kernel/RotationCountVisitor.h"
-#include "lib/Kernel/TestingUtils.h"
 #include "lib/Utils/Layout/Evaluate.h"
 #include "lib/Utils/Layout/Utils.h"
 #include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
