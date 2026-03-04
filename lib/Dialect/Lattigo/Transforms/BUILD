@@ -41,6 +41,7 @@ cc_library(
     hdrs = ["ConfigureCryptoContext.h"],
     deps = [
         ":pass_inc_gen",
+        "@heir//lib/Analysis/RotationAnalysis",
         "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Dialect/BGV/IR:Dialect",
         "@heir//lib/Dialect/CKKS/IR:Dialect",
@@ -53,6 +54,7 @@ cc_library(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:Transforms",
     ],
 )
 

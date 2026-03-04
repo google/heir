@@ -48,6 +48,7 @@ cc_library(
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Analysis/MulDepthAnalysis",
+        "@heir//lib/Analysis/RotationAnalysis",
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Dialect/BGV/IR:Dialect",
@@ -64,6 +65,7 @@ cc_library(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:Transforms",
         "@openfhe//:core",
         "@openfhe//:pke",
     ],

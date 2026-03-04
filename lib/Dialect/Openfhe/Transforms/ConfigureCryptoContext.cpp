@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "lib/Analysis/MulDepthAnalysis/MulDepthAnalysis.h"
+#include "lib/Analysis/RotationAnalysis/RotationAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/BGV/IR/BGVAttributes.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
@@ -36,9 +37,11 @@
 #include "mlir/include/mlir/IR/Types.h"                    // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"            // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"       // from @llvm-project
 #include "mlir/include/mlir/Support/WalkResult.h"          // from @llvm-project
+#include "mlir/include/mlir/Transforms/Passes.h"           // from @llvm-project
 #include "src/core/include/lattice/constants-lattice.h"    // from @openfhe
 #include "src/pke/include/scheme/ckksrns/ckksrns-fhe.h"    // from @openfhe
 
@@ -102,30 +105,6 @@ struct ConfigureCryptoContext
       return WalkResult::advance();
     });
     return result;
-  }
-
-  // Helper function to find all the rotation indices in the function
-  SmallVector<int64_t> findAllRotIndices(func::FuncOp op) {
-    std::set<int64_t> distinctRotIndices;
-    walkFuncAndCallees(op, [&](Operation* op) {
-      if (auto rotOp = dyn_cast<openfhe::RotOp>(op)) {
-        if (rotOp.getStaticShift().has_value()) {
-          distinctRotIndices.insert(rotOp.getStaticShift()->getInt());
-        } else if (rotOp.getDynamicShift()) {
-          // Try to extract constant from dynamic_shift SSA value
-          if (auto constOp =
-                  rotOp.getDynamicShift().getDefiningOp<arith::ConstantOp>()) {
-            if (auto intAttr = dyn_cast<IntegerAttr>(constOp.getValue())) {
-              distinctRotIndices.insert(intAttr.getInt());
-            }
-          }
-        }
-      }
-      return WalkResult::advance();
-    });
-    SmallVector<int64_t> rotIndicesResult(distinctRotIndices.begin(),
-                                          distinctRotIndices.end());
-    return rotIndicesResult;
   }
 
   // Helper function to check if the function has BootstrapOp
@@ -339,7 +318,25 @@ struct ConfigureCryptoContext
 
     // relin and rotation
     config.hasRelinOp = hasRelinOp(op);
-    config.rotIndices = findAllRotIndices(op);
+
+    LLVM_DEBUG(llvm::dbgs() << "Starting rotation analysis\n");
+    RotationAnalysis analysis;
+    LogicalResult result = analysis.run(module);
+    if (failed(result)) {
+      return op->emitOpError("failed to compute static rotation indices");
+    }
+
+    auto setIndices = analysis.getRotationIndices();
+    SmallVector<int64_t> indices(setIndices.begin(), setIndices.end());
+    LLVM_DEBUG({
+      llvm::dbgs() << "Finished rotation analysis; found " << indices.size()
+                   << " rotations which were=\n";
+      for (int64_t shift : indices) {
+        llvm::dbgs() << shift << ", ";
+      }
+      llvm::dbgs() << "\n";
+    });
+    config.rotIndices = indices;
 
     // get evalAddCount/KeySwitchCount from func attribute, if present
     config.evalAddCount = 0;
@@ -387,6 +384,13 @@ struct ConfigureCryptoContext
 
  public:
   void runOnOperation() override {
+    // The rotation analysis requires -sccp is run first to propagate constants
+    // as much as possible.
+    OpPassManager pipeline("builtin.module");
+    pipeline.addPass(createSCCPPass());
+    pipeline.addPass(createCanonicalizerPass());
+    (void)runPipeline(pipeline, getOperation());
+
     auto funcOp =
         detectEntryFunction(cast<ModuleOp>(getOperation()), entryFunction);
     if (funcOp && succeeded(getConfig(funcOp)) && failed(convertFunc(funcOp))) {

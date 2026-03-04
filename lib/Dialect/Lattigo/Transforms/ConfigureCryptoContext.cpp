@@ -4,6 +4,7 @@
 #include <set>
 #include <string>
 
+#include "lib/Analysis/RotationAnalysis/RotationAnalysis.h"
 #include "lib/Dialect/BGV/IR/BGVAttributes.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
@@ -15,6 +16,7 @@
 #include "lib/Utils/TransformUtils.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
@@ -27,8 +29,12 @@
 #include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"         // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
 #include "mlir/include/mlir/Support/WalkResult.h"       // from @llvm-project
+#include "mlir/include/mlir/Transforms/Passes.h"        // from @llvm-project
+
+#define DEBUG_TYPE "lattigo-configure-crypto-context"
 
 namespace mlir {
 namespace heir {
@@ -60,51 +66,6 @@ bool hasBootstrapOp(func::FuncOp funcOp) {
     return WalkResult::advance();
   });
   return result.wasInterrupted();
-}
-
-// Helper function to find all the rotation indices in the function
-// TODO(#1186): handle rotate rows
-SmallVector<int64_t> findAllRotIndices(func::FuncOp op) {
-  std::set<int64_t> distinctRotIndices;
-  auto insertRotIndex = [&](auto rotOp) {
-    // Handle both static_shift attribute and dynamic_shift SSA value
-    if (rotOp.getStaticShift().has_value()) {
-      distinctRotIndices.insert(rotOp.getStaticShift()->getInt());
-    } else if (rotOp.getDynamicShift()) {
-      // Try to extract constant from dynamic_shift SSA value
-      if (auto constOp = rotOp.getDynamicShift()
-                             .template getDefiningOp<arith::ConstantOp>()) {
-        if (auto intAttr = dyn_cast<IntegerAttr>(constOp.getValue())) {
-          distinctRotIndices.insert(intAttr.getInt());
-        }
-      }
-    }
-  };
-
-  walkFuncAndCallees(op, [&](Operation* op) {
-    llvm::TypeSwitch<Operation*>(op)
-        .Case<BGVRotateColumnsNewOp>([&](BGVRotateColumnsNewOp rotOp) {
-          insertRotIndex(rotOp);
-          return WalkResult::advance();
-        })
-        .Case<BGVRotateColumnsOp>([&](BGVRotateColumnsOp rotOp) {
-          insertRotIndex(rotOp);
-          return WalkResult::advance();
-        })
-        .Case<CKKSRotateOp>([&](CKKSRotateOp rotOp) {
-          insertRotIndex(rotOp);
-          return WalkResult::advance();
-        })
-        .Case<CKKSRotateNewOp>([&](CKKSRotateNewOp rotOp) {
-          insertRotIndex(rotOp);
-          return WalkResult::advance();
-        })
-        .Default([&](Operation* op) { return WalkResult::advance(); });
-    return WalkResult::advance();
-  });
-  SmallVector<int64_t> rotIndicesResult(distinctRotIndices.begin(),
-                                        distinctRotIndices.end());
-  return rotIndicesResult;
 }
 
 // Helper function to find encryptor type used in the whole module
@@ -344,7 +305,26 @@ LogicalResult convertFuncForScheme(func::FuncOp op) {
   }
 
   // generate Galois Keys on demand
-  auto rotIndices = findAllRotIndices(op);
+  LLVM_DEBUG(llvm::dbgs() << "Starting rotation analysis\n");
+  RotationAnalysis analysis;
+  LogicalResult result = analysis.run(module);
+  if (failed(result)) {
+    return op->emitOpError("failed to compute static rotation indices");
+  }
+
+  auto setIndices = analysis.getRotationIndices();
+  SmallVector<int64_t> rotIndices(setIndices.begin(), setIndices.end());
+  LLVM_DEBUG({
+    llvm::dbgs() << "Finished rotation analysis; found " << rotIndices.size()
+                 << " rotations which were=\n";
+    for (int64_t shift : rotIndices) {
+      llvm::dbgs() << shift << ", ";
+    }
+    llvm::dbgs() << "\n";
+  });
+
+  // Lattigo requires manually computing the galois element from the rotation
+  // shift.
   for (auto rotIndex : rotIndices) {
     auto galoisElement = 1;
     while (rotIndex > 0) {
@@ -408,6 +388,13 @@ struct ConfigureCryptoContext
   using ConfigureCryptoContextBase::ConfigureCryptoContextBase;
 
   void runOnOperation() override {
+    // The rotation analysis requires -sccp is run first to propagate constants
+    // as much as possible.
+    OpPassManager pipeline("builtin.module");
+    pipeline.addPass(createSCCPPass());
+    pipeline.addPass(createCanonicalizerPass());
+    (void)runPipeline(pipeline, getOperation());
+
     auto funcOp =
         detectEntryFunction(cast<ModuleOp>(getOperation()), entryFunction);
     if (funcOp && failed(convertFunc(funcOp))) {

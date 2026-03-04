@@ -52,6 +52,7 @@
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
 #include "lib/Transforms/PopulateScale/PopulateScale.h"
 #include "lib/Transforms/PropagateAnnotation/PropagateAnnotation.h"
+#include "lib/Transforms/RemoveUnusedPureCall/RemoveUnusedPureCall.h"
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/SelectRewrite/SelectRewrite.h"
@@ -475,6 +476,11 @@ BackendPipelineBuilder toOpenFhePipelineBuilder() {
     pm.addPass(createCanonicalizerPass());
     pm.addPass(createCSEPass());
     pm.addPass(openfhe::createAllocToInPlace());
+
+    pm.addPass(createRemoveUnusedPureCall());
+    pm.addPass(createCSEPass());
+    pm.addPass(createCanonicalizerPass());
+    pm.addPass(createSymbolDCEPass());
   };
 }
 
@@ -508,6 +514,11 @@ BackendPipelineBuilder toLattigoPipelineBuilder() {
     configureCryptoContextOptions.entryFunction = options.entryFunction;
     pm.addPass(
         lattigo::createConfigureCryptoContext(configureCryptoContextOptions));
+
+    pm.addPass(createRemoveUnusedPureCall());
+    pm.addPass(createCSEPass());
+    pm.addPass(createCanonicalizerPass());
+    pm.addPass(createSymbolDCEPass());
   };
 }
 
