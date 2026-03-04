@@ -145,6 +145,7 @@ cc_binary(
         "@heir//lib/Transforms/PolynomialApproximation",
         "@heir//lib/Transforms/PopulateScale",
         "@heir//lib/Transforms/PropagateAnnotation",
+        "@heir//lib/Transforms/RemoveUnusedPureCall",
         "@heir//lib/Transforms/RotationAnalysis",
         "@heir//lib/Transforms/SecretInsertMgmt",
         "@heir//lib/Transforms/Secretize",
