@@ -90,10 +90,10 @@ struct CompareToSignRewrite
       // (index types must be converted to i32 before we can cast to f32)
       if (lhs.getType().isIndex())
         lhs = arith::IndexCastOp::create(rewriter, loc, rewriter.getI32Type(),
-                                         lhs);
+                                         lhs, rewriter.getUnitAttr());
       if (rhs.getType().isIndex())
         rhs = arith::IndexCastOp::create(rewriter, loc, rewriter.getI32Type(),
-                                         rhs);
+                                         rhs, rewriter.getUnitAttr());
       //   Convert to f32 for the arithmetic
       lhs = arith::SIToFPOp::create(rewriter, loc, rewriter.getF32Type(), lhs);
       rhs = arith::SIToFPOp::create(rewriter, loc, rewriter.getF32Type(), rhs);

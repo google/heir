@@ -219,12 +219,14 @@ Value buildIslExpr(isl_ast_expr* expr, std::map<std::string, Value> ivToValue,
 
         auto op =
             arith::CmpIOp::create(b, islCmpToMlirAttr[type], args[0], args[1]);
-        auto indexCastOp = arith::IndexCastOp::create(b, b.getIndexType(), op);
+        auto indexCastOp = arith::IndexCastOp::create(b, b.getIndexType(), op,
+                                                      b.getUnitAttr());
         return indexCastOp->getResult(0);
       } else if (type == isl_ast_op_select) {
         // Select op
         SmallVector<Value> args = getArgs(expr);
-        auto condI1 = arith::IndexCastOp::create(b, b.getI1Type(), args[0]);
+        auto condI1 = arith::IndexCastOp::create(b, b.getI1Type(), args[0],
+                                                 b.getUnitAttr());
         auto op = arith::SelectOp::create(b, condI1, args[1], args[2]);
         return op->getResult(0);
       }
@@ -326,8 +328,8 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeIf(
 
   // Build scf if operation with the result types of the iter args
   // Convert condVal to an i1
-  auto condValI1 =
-      arith::IndexCastOp::create(builder_, builder_.getI1Type(), condVal);
+  auto condValI1 = arith::IndexCastOp::create(builder_, builder_.getI1Type(),
+                                              condVal, builder_.getUnitAttr());
   auto ifOp = scf::IfOp::create(builder_, currentLoc_,
                                 TypeRange(currentIterArgs_), condValI1,
                                 /*addThenBlock=*/true, /*addElseBlock=*/true);

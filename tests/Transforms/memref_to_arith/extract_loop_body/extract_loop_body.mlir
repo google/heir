@@ -61,13 +61,13 @@ module {
         // CHECK: affine.for
         affine.for %arg3 = 0 to 8 {
           // CHECK-NEXT: arith.index_cast
-          %2 = arith.index_cast %arg1 : index to i16
+          %2 = arith.index_cast %arg1 exact : index to i16
           // CHECK-NEXT: arith.index_cast
-          %3 = arith.index_cast %arg2 : index to i16
+          %3 = arith.index_cast %arg2 exact : index to i16
           // CHECK-NEXT: arith.muli
           %4 = arith.muli %2, %3 : i16
           // CHECK-NEXT: arith.index_cast
-          %5 = arith.index_cast %4 : i16 to index
+          %5 = arith.index_cast %4 exact : i16 to index
           // CHECK-NEXT: memref.load
           %97 = memref.load %1[%5] : memref<513xi16>
           // CHECK-NEXT: affine.load

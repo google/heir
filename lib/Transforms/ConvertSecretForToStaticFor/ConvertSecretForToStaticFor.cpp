@@ -78,11 +78,11 @@ struct SecretForToStaticForConversion : OpRewritePattern<scf::ForOp> {
 
     if (!isa<IndexType>(lowerBound.getType())) {
       lowerBound = arith::IndexCastOp::create(
-          builder, lowerBound.getLoc(), builder.getIndexType(), lowerBound);
+          builder, builder.getIndexType(), lowerBound, builder.getUnitAttr());
     }
     if (!isa<IndexType>(upperBound.getType())) {
       upperBound = arith::IndexCastOp::create(
-          builder, upperBound.getLoc(), builder.getIndexType(), upperBound);
+          builder, builder.getIndexType(), upperBound, builder.getUnitAttr());
     }
     Value newLowerBound = lowerBound;
     Value newUpperBound = upperBound;

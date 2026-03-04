@@ -29,7 +29,7 @@ module attributes {backend.openfhe, scheme.ckks} {
 
     %ct_4 = openfhe.relin %cc, %ct : (!cc, !ct) -> !ct
     %0 = scf.for %arg2 = %c0_i32 to %c8192_i32 step %c1_i32 iter_args(%arg3 = %cst_2) -> (tensor<1x8192xf32>)  : i32 {
-      %5 = arith.index_cast %arg2 : i32 to index
+      %5 = arith.index_cast %arg2 exact : i32 to index
       %inserted_27 = tensor.insert %cst_1 into %arg3[%c0, %5] : tensor<1x8192xf32>
       scf.yield %inserted_27 : tensor<1x8192xf32>
     }

@@ -4,7 +4,7 @@ func.func @foo(%arg0: f64 {secret.secret}, %arg1: f64 {secret.secret}) -> f64 {
 %c1 = arith.constant 1 : index
 %cst = arith.constant 1.000000e+00 : f64
 %0 = arith.fptosi %arg1 : f64 to i32
-%1 = arith.index_cast %0 : i32 to index
+%1 = arith.index_cast %0 exact : i32 to index
 // CHECK-NOT: scf.for
 // CHECK: affine.for
 // CHECK: affine.for

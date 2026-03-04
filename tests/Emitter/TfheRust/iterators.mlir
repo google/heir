@@ -26,7 +26,7 @@ module {
     affine.for %arg1 = 0 to 2 {
       %0 = memref.load %arg0[%arg1] : memref<2xi16>
       affine.for %arg2 = 0 to 8 {
-        %1 = arith.index_cast %arg2 : index to i16
+        %1 = arith.index_cast %arg2 exact : index to i16
         %2 = arith.andi %1, %0 : i16
         %3 = arith.trunci %2 : i16 to i8
         memref.store %3, %alloc[%arg1, %arg2] :memref<2x8xi8>

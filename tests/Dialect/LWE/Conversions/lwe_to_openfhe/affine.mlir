@@ -84,8 +84,8 @@ module attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_param<logN =
     %inserted_slice_9 = tensor.insert_slice %inserted into %inserted_slice_5[5] [1] [1] : tensor<1x!ct_L45> into tensor<6x!ct_L45>
     %2 = scf.for %arg8 = %c0_i32 to %c6_i32 step %c1_i32 iter_args(%arg9 = %cst_0) -> (tensor<6x1024xf32>)  : i32 {
       %4 = scf.for %arg10 = %c0_i32 to %c784_i32 step %c1_i32 iter_args(%arg11 = %arg9) -> (tensor<6x1024xf32>)  : i32 {
-        %5 = arith.index_cast %arg8 : i32 to index
-        %6 = arith.index_cast %arg10 : i32 to index
+        %5 = arith.index_cast %arg8 exact : i32 to index
+        %6 = arith.index_cast %arg10 exact : i32 to index
         %inserted_23 = tensor.insert %cst_1 into %arg11[%5, %6] : tensor<6x1024xf32>
         scf.yield %inserted_23 : tensor<6x1024xf32>
       }

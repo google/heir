@@ -95,8 +95,9 @@ static FailureOr<Value> implementAssignLayoutNew(
         SmallVector<Value> extractIndices;
         for (Value idx :
              exprs.drop_back(ciphertextTensor.getType().getRank())) {
-          extractIndices.push_back(arith::IndexCastOp::create(
-              builder, loc, builder.getIndexType(), idx));
+          extractIndices.push_back(
+              arith::IndexCastOp::create(builder, loc, builder.getIndexType(),
+                                         idx, builder.getUnitAttr()));
         }
         // Extract from data and insert into ciphertextTensor
         auto extracted =
@@ -104,8 +105,9 @@ static FailureOr<Value> implementAssignLayoutNew(
 
         SmallVector<Value> insertIndices;
         for (Value idx : exprs.drop_front(dataSemanticType.getRank())) {
-          insertIndices.push_back(arith::IndexCastOp::create(
-              builder, loc, builder.getIndexType(), idx));
+          insertIndices.push_back(
+              arith::IndexCastOp::create(builder, loc, builder.getIndexType(),
+                                         idx, builder.getUnitAttr()));
         }
         auto inserted = tensor::InsertOp::create(builder, loc, extracted,
                                                  iterArgs[0], insertIndices);
@@ -171,8 +173,9 @@ static FailureOr<Value> implementUnpackOpNew(
           ValueRange iterArgs) {
         SmallVector<Value> extractIndices;
         for (Value idx : exprs.drop_front(dataSemanticType.getRank())) {
-          extractIndices.push_back(arith::IndexCastOp::create(
-              builder, loc, builder.getIndexType(), idx));
+          extractIndices.push_back(
+              arith::IndexCastOp::create(builder, loc, builder.getIndexType(),
+                                         idx, builder.getUnitAttr()));
         }
         // Extract from ciphertext and insert into dataTensor
         auto extracted = tensor::ExtractOp::create(
@@ -180,8 +183,9 @@ static FailureOr<Value> implementUnpackOpNew(
         SmallVector<Value> insertIndices;
         for (Value idx :
              exprs.drop_back(ciphertextTensor.getType().getRank())) {
-          insertIndices.push_back(arith::IndexCastOp::create(
-              builder, loc, builder.getIndexType(), idx));
+          insertIndices.push_back(
+              arith::IndexCastOp::create(builder, loc, builder.getIndexType(),
+                                         idx, builder.getUnitAttr()));
         }
         auto inserted = tensor::InsertOp::create(builder, loc, extracted,
                                                  iterArgs[0], insertIndices);

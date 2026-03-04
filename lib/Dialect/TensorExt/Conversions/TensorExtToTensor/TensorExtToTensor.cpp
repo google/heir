@@ -75,7 +75,7 @@ struct ConvertRotateOp : public OpRewritePattern<RotateOp> {
       // if needed.
       if (!normalizedIntShift.getType().isIndex()) {
         normalizedIntShift = arith::IndexCastOp::create(
-            b, rewriter.getIndexType(), normalizedIntShift);
+            b, rewriter.getIndexType(), normalizedIntShift, b.getUnitAttr());
       }
       normalizedShift = normalizedIntShift;
     }
@@ -115,7 +115,8 @@ struct ConvertRotateOp : public OpRewritePattern<RotateOp> {
       Value dimSizeCast =
           (dimSize.getType().isIndex()
                ? dimSize
-               : arith::IndexCastOp::create(b, rewriter.getIndexType(), dimSize)
+               : arith::IndexCastOp::create(b, rewriter.getIndexType(), dimSize,
+                                            b.getUnitAttr())
                      .getResult());
       dimMinusShift =
           arith::SubIOp::create(b, dimSizeCast, cast<Value>(normalizedShift))

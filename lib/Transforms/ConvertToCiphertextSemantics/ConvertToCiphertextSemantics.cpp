@@ -902,8 +902,9 @@ static FailureOr<SmallVector<Value>> generateLoopWithDynamicIndexCheck(
              i < relation.getVarKindOffset(VarKind::Range) +
                      relation.getNumRangeVars();
              ++i) {
-          indices.push_back(arith::IndexCastOp::create(
-              builder, loc, builder.getIndexType(), exprs[i]));
+          indices.push_back(
+              arith::IndexCastOp::create(builder, loc, builder.getIndexType(),
+                                         exprs[i], builder.getUnitAttr()));
         }
 
         // If statement to check that the current set of exprs matches
@@ -918,7 +919,7 @@ static FailureOr<SmallVector<Value>> generateLoopWithDynamicIndexCheck(
           auto eqOp = arith::CmpIOp::create(
               b, arith::CmpIPredicate::eq,
               arith::IndexCastOp::create(builder, loc, builder.getIndexType(),
-                                         exprs[i]),
+                                         exprs[i], builder.getUnitAttr()),
               dynamicIndices[i - domainStart]);
           setMaterializedAttr(eqOp);
 
@@ -1438,8 +1439,9 @@ class ConvertTensorInsertLayout
           Value curDestMask = iterArgs[1];
           SmallVector<Value> slotIndicesAsIndex;
           for (Value index : slotIndices) {
-            slotIndicesAsIndex.push_back(arith::IndexCastOp::create(
-                builder, loc, builder.getIndexType(), index));
+            slotIndicesAsIndex.push_back(
+                arith::IndexCastOp::create(builder, loc, builder.getIndexType(),
+                                           index, builder.getUnitAttr()));
           }
           auto insertIntoScalarMask = tensor::InsertOp::create(
               b, scalarMaskValue, curScalarMask, slotIndicesAsIndex);

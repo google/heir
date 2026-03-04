@@ -160,7 +160,8 @@ std::vector<Value> IRMaterializingVisitor::operator()(
   Value index = this->process(node.index)[0];
   // Ensure index has index type
   if (!index.getType().isIndex()) {
-    index = arith::IndexCastOp::create(builder, builder.getIndexType(), index);
+    index = arith::IndexCastOp::create(builder, builder.getIndexType(), index,
+                                       builder.getUnitAttr());
   }
 
   RankedTensorType tensorType = cast<RankedTensorType>(operand.getType());

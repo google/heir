@@ -12,7 +12,7 @@ module attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_param<logN =
     %c1_i32 = arith.constant 1 : i32
     %c8_i32 = arith.constant 8 : i32
     %0 = scf.for %arg1 = %c0_i32 to %c8_i32 step %c1_i32 iter_args(%arg2 = %cst) -> (tensor<1x8xf32>)  : i32 {
-      %1 = arith.index_cast %arg1 : i32 to index
+      %1 = arith.index_cast %arg1 exact : i32 to index
       %extracted = tensor.extract %arg0[%1] : tensor<8xf32>
       %inserted = tensor.insert %extracted into %arg2[%c0, %1] : tensor<1x8xf32>
       scf.yield %inserted : tensor<1x8xf32>

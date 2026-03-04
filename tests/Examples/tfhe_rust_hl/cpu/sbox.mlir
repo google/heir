@@ -169,7 +169,7 @@ func.func @check_value_x(%arg0: tensor<?xi2>, %arg1: i2) -> i1 {
     // Extract the scalar sum from the 0-D result tensor.
     %scalar_sum = tensor.extract %sum_tensor[] : tensor<i2>
 
-    %dim_value = arith.index_castui %dim : index to i2
+    %dim_value = arith.index_castui %dim exact : index to i2
     // Cmpi operation produces an i1 result
     %result = arith.cmpi eq, %scalar_sum, %dim_value : i2
 

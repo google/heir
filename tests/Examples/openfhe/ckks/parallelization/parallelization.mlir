@@ -45,7 +45,7 @@ module attributes {backend.openfhe, scheme.ckks} {
     %c1_i32 = arith.constant 1 : i32
     %c1024_i32 = arith.constant 1024 : i32
     %0 = scf.for %arg1 = %c0_i32 to %c1024_i32 step %c1_i32 iter_args(%arg2 = %cst) -> (tensor<1x1024xi16>)  : i32 {
-      %2 = arith.index_cast %arg1 : i32 to index
+      %2 = arith.index_cast %arg1 exact : i32 to index
       %extracted = tensor.extract %arg0[%2] : tensor<1024xi16>
       %inserted = tensor.insert %extracted into %arg2[%c0, %2] : tensor<1x1024xi16>
       scf.yield %inserted : tensor<1x1024xi16>
@@ -67,7 +67,7 @@ module attributes {backend.openfhe, scheme.ckks} {
     %pt = openfhe.decrypt %cc, %extracted, %sk : (!cc, !ct, !sk) -> !pt
     %0 = openfhe.decode_ckks %pt : !pt -> tensor<1x1024xi16>
     %1 = scf.for %arg1 = %c0_i32 to %c1024_i32 step %c1_i32 iter_args(%arg2 = %cst) -> (tensor<1024xi16>)  : i32 {
-      %2 = arith.index_cast %arg1 : i32 to index
+      %2 = arith.index_cast %arg1 exact : i32 to index
       %extracted_0 = tensor.extract %0[%c0, %2] : tensor<1x1024xi16>
       %inserted = tensor.insert %extracted_0 into %arg2[%2] : tensor<1024xi16>
       scf.yield %inserted : tensor<1024xi16>

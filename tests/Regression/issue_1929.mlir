@@ -7,7 +7,7 @@ func.func @float_secret_loop_index_step(%arg0: f32 {secret.secret}, %arg1: f32 {
     %c1 = arith.constant 1 : index
     %c1_f32 = arith.constant 1.0 : f32
     %0 = arith.fptosi %arg0 : f32 to i32
-    %1 = arith.index_cast %0 : i32 to index
+    %1 = arith.index_cast %0 exact : i32 to index
     // CHECK-NOT: scf.for
     // CHECK-NOT: arith.cmpi
     // CHECK-NOT: math_ext.sign
@@ -41,7 +41,7 @@ func.func @float_secret_loop_signless_integer_step(%arg0: f32 {secret.secret}, %
 // func.func @secret_loop_index_step(%arg0: i32 {secret.secret}, %arg1: i32 {secret.secret}) -> i32 {
 //     %c1 = arith.constant 1 : index
 //     %c1_i32 = arith.constant 1 : i32
-//     %0 = arith.index_cast %arg0 : i32 to index
+//     %0 = arith.index_cast %arg0 exact : i32 to index
 //     %1 = scf.for %arg2 = %c0 to %0 step %c1 iter_args(%arg3 = %c1_i32) -> (i32) {
 //         %2 = arith.muli %arg3, %arg0 : i32
 //         scf.yield %2 : i32
