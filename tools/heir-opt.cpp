@@ -400,13 +400,13 @@ int main(int argc, char** argv) {
                              "Lower basic MLIR to LLVM",
                              ::mlir::heir::basicMLIRToLLVMPipelineBuilder);
 
-  PassPipelineRegistration<SimdVectorizerOptions>(
-      "heir-simd-vectorizer",
-      "Run scheme-agnostic passes to convert FHE programs that operate on "
+  PassPipelineRegistration<LoopOptions>(
+      "heco-simd-vectorizer",
+      "Run HECO-style passes to convert FHE programs that operate on "
       "scalar types to equivalent programs that operate on vectors and use "
       "tensor_ext.rotate",
-      [](OpPassManager& pm, const SimdVectorizerOptions& options) {
-        ::mlir::heir::heirSIMDVectorizerPipelineBuilder(
+      [](OpPassManager& pm, const LoopOptions& options) {
+        ::mlir::heir::hecoSIMDVectorizerPipelineBuilder(
             pm, options.experimentalDisableLoopUnroll);
       });
 

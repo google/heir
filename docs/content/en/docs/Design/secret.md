@@ -68,7 +68,7 @@ optimization passes on types and ops that are not aware of `secret`, and they
 will naturally match on the bodies of `generic` ops.
 
 For example, here is what the above dot product computation looks like after
-applying the `-cse -canonicalize -heir-simd-vectorizer` passes, the
+applying the `-cse -canonicalize -heco-simd-vectorizer` passes, the
 implementations of which do not depend on `secret` or `generic`.
 
 ```mlir

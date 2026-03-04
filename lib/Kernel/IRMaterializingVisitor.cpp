@@ -31,8 +31,6 @@ namespace mlir {
 namespace heir {
 namespace kernel {
 
-namespace {}  // namespace
-
 std::vector<Value> IRMaterializingVisitor::operator()(
     const LeafNode<SSAValue>& node) {
   return {node.value.getValue()};
@@ -137,8 +135,8 @@ std::vector<Value> IRMaterializingVisitor::operator()(
 std::vector<Value> IRMaterializingVisitor::operator()(
     const FloorDivNode<SSAValue>& node) {
   Value lhs = this->process(node.left)[0];
-  Value rhs =
-      arith::ConstantIntOp::create(builder, lhs.getType(), node.divisor);
+  IntegerAttr rhsAttr = builder.getIntegerAttr(lhs.getType(), node.divisor);
+  Value rhs = arith::ConstantOp::create(builder, rhsAttr);
   auto op = arith::DivSIOp::create(builder, lhs, rhs);
   createdOpCallback(op);
   return {op->getResult(0)};
@@ -274,20 +272,21 @@ std::vector<Value> IRMaterializingVisitor::operator()(
     return {};
   }
 
-  SmallVector<Type> resultTypes;
-  std::vector<Value> thenResults = this->process(node.thenBody);
-  for (Value v : thenResults) {
-    resultTypes.push_back(v.getType());
-  }
-
   auto ifOp = scf::IfOp::create(
       builder, condition,
       [&](OpBuilder& nestedBuilder, Location nestedLoc) {
-        scf::YieldOp::create(builder, thenResults);
+        auto oldBuilder = builder;
+        builder = ImplicitLocOpBuilder(nestedLoc, nestedBuilder);
+        auto results = this->process(node.thenBody);
+        builder = oldBuilder;
+        scf::YieldOp::create(nestedBuilder, nestedLoc, results);
       },
       [&](OpBuilder& nestedBuilder, Location nestedLoc) {
-        std::vector<Value> thenResults = this->process(node.thenBody);
-        scf::YieldOp::create(builder, thenResults);
+        auto oldBuilder = builder;
+        builder = ImplicitLocOpBuilder(nestedLoc, nestedBuilder);
+        auto results = this->process(node.elseBody);
+        builder = oldBuilder;
+        scf::YieldOp::create(nestedBuilder, nestedLoc, results);
       });
 
   createdOpCallback(ifOp);
