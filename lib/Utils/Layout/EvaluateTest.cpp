@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -178,6 +179,98 @@ TEST(EvaluateTest, EvaluateLayoutFor2DConvDiagonalized) {
       {0, 4, 4, 0, 4, 4, 0, 4, 4, 0, 0, 0, 0, 0, 0, 0}};
 
   auto result = evaluateLayoutOnMatrix(relation.value(), filter);
+  ASSERT_THAT(result, Eq(expected));
+}
+
+TEST(EvaluateTest, EvaluateLayoutFor2DConvChwFchw) {
+  MLIRContext context;
+  // Orion example in Figure 4 of https://arxiv.org/pdf/2311.03470.
+  RankedTensorType filterType =
+      RankedTensorType::get({2, 2, 3, 3}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({2, 3, 3}, IndexType::get(&context));
+  SmallVector<int64_t> strides = {1, 1};
+  int64_t padding = 1;
+  IntegerRelation rel =
+      get2dConvChwFchwFilterRelation(filterType, dataType, strides, padding);
+
+  std::vector<std::vector<std::vector<std::vector<int>>>> filter = {
+      {{{1, 2, 3}, {4, 5, 6}, {7, 8, 9}}, {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}}},
+      {{{1, 2, 3}, {4, 5, 6}, {7, 8, 9}}, {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}}}};
+
+  std::function<int(const std::vector<int64_t>&)> getValueFn =
+      [&](const std::vector<int64_t>& domainPoint) -> int {
+    return filter[domainPoint[0]][domainPoint[1]][domainPoint[2]]
+                 [domainPoint[3]];
+  };
+
+  auto result = evaluateLayout(rel, getValueFn);
+
+  std::vector<std::vector<int>> expected = {
+      {5, 6, 0, 8, 9, 0, 0, 0, 0, 5, 6, 0, 8, 9, 0, 0, 0, 0},
+      {4, 5, 6, 7, 8, 9, 0, 0, 0, 4, 5, 6, 7, 8, 9, 0, 0, 0},
+      {0, 4, 5, 0, 7, 8, 0, 0, 0, 0, 4, 5, 0, 7, 8, 0, 0, 0},
+      {2, 3, 0, 5, 6, 0, 8, 9, 0, 2, 3, 0, 5, 6, 0, 8, 9, 0},
+      {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+      {0, 1, 2, 0, 4, 5, 0, 7, 8, 0, 1, 2, 0, 4, 5, 0, 7, 8},
+      {0, 0, 0, 2, 3, 0, 5, 6, 0, 0, 0, 0, 2, 3, 0, 5, 6, 0},
+      {0, 0, 0, 1, 2, 3, 4, 5, 6, 0, 0, 0, 1, 2, 3, 4, 5, 6},
+      {0, 0, 0, 0, 1, 2, 0, 4, 5, 0, 0, 0, 0, 1, 2, 0, 4, 5},
+      {5, 6, 0, 8, 9, 0, 0, 0, 0, 5, 6, 0, 8, 9, 0, 0, 0, 0},
+      {4, 5, 6, 7, 8, 9, 0, 0, 0, 4, 5, 6, 7, 8, 9, 0, 0, 0},
+      {0, 4, 5, 0, 7, 8, 0, 0, 0, 0, 4, 5, 0, 7, 8, 0, 0, 0},
+      {2, 3, 0, 5, 6, 0, 8, 9, 0, 2, 3, 0, 5, 6, 0, 8, 9, 0},
+      {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+      {0, 1, 2, 0, 4, 5, 0, 7, 8, 0, 1, 2, 0, 4, 5, 0, 7, 8},
+      {0, 0, 0, 2, 3, 0, 5, 6, 0, 0, 0, 0, 2, 3, 0, 5, 6, 0},
+      {0, 0, 0, 1, 2, 3, 4, 5, 6, 0, 0, 0, 1, 2, 3, 4, 5, 6},
+      {0, 0, 0, 0, 1, 2, 0, 4, 5, 0, 0, 0, 0, 1, 2, 0, 4, 5}};
+
+  ASSERT_THAT(result, Eq(expected));
+}
+
+TEST(EvaluateTest, EvaluateLayoutFor2DConvChwFchwNoPadding) {
+  MLIRContext context;
+  // Filter 2x2 and data is 4x4 so there are 2x2 sliding windows.
+  RankedTensorType filterType =
+      RankedTensorType::get({2, 2, 2, 2}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({2, 4, 4}, IndexType::get(&context));
+  SmallVector<int64_t> strides = {2, 2};
+  int64_t padding = 0;
+  IntegerRelation rel =
+      get2dConvChwFchwFilterRelation(filterType, dataType, strides, padding);
+
+  std::vector<std::vector<std::vector<std::vector<int>>>> filter = {
+      {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}},
+      {{{9, 10}, {11, 12}}, {{13, 14}, {15, 16}}}};
+  std::function<int(const std::vector<int64_t>&)> getValueFn =
+      [&](const std::vector<int64_t>& domainPoint) -> int {
+    return filter[domainPoint[0]][domainPoint[1]][domainPoint[2]]
+                 [domainPoint[3]];
+  };
+
+  auto result = evaluateLayout(rel, getValueFn);
+
+  std::vector<std::vector<int>> expected = {
+      {1, 2, 0, 0, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+       5, 6, 0, 0, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+      {0, 0, 1, 2, 0, 0, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0,
+       0, 0, 5, 6, 0, 0, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0},
+      {0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 3, 4, 0, 0,
+       0, 0, 0, 0, 0, 0, 0, 0, 5, 6, 0, 0, 7, 8, 0, 0},
+      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 3, 4,
+       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 6, 0, 0, 7, 8},
+      {9,  10, 0, 0, 11, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+       13, 14, 0, 0, 15, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+      {0, 0, 9,  10, 0, 0, 11, 12, 0, 0, 0, 0, 0, 0, 0, 0,
+       0, 0, 13, 14, 0, 0, 15, 16, 0, 0, 0, 0, 0, 0, 0, 0},
+      {0, 0, 0, 0, 0, 0, 0, 0, 9,  10, 0, 0, 11, 12, 0, 0,
+       0, 0, 0, 0, 0, 0, 0, 0, 13, 14, 0, 0, 15, 16, 0, 0},
+      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9,  10, 0, 0, 11, 12,
+       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 13, 14, 0, 0, 15, 16},
+  };
+
   ASSERT_THAT(result, Eq(expected));
 }
 

@@ -745,6 +745,86 @@ TEST(UtilsTest, TestGetCtComplementFromConvRelation) {
   }
 }
 
+TEST(UtilsTest, ConvChwFchwFilterRelation) {
+  MLIRContext context;
+  // 3x3 input and filter, with 2 input/output channels, strides = {1, 1},
+  // padding = 0
+  // See Figure 4 of Orion in https://arxiv.org/pdf/2311.03470.
+  RankedTensorType filterType =
+      RankedTensorType::get({2, 2, 3, 3}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({2, 3, 3}, IndexType::get(&context));
+  SmallVector<int64_t> strides = {1, 1};
+  int64_t padding = 1;
+  IntegerRelation rel =
+      get2dConvChwFchwFilterRelation(filterType, dataType, strides, padding);
+
+  // Output matrix has size 18x18
+  auto ctBound = rel.getConstantBound64(BoundType::UB,
+                                        rel.getVarKindOffset(VarKind::Range));
+  ASSERT_TRUE(ctBound.has_value());
+  EXPECT_EQ(ctBound.value(), 17);
+
+  auto slotBound = rel.getConstantBound64(
+      BoundType::UB, rel.getVarKindOffset(VarKind::Range) + 1);
+  ASSERT_TRUE(slotBound.has_value());
+  EXPECT_EQ(slotBound.value(), 17);
+}
+
+TEST(UtilsTest, ConvChwFchwNoPaddingFilterRelation) {
+  MLIRContext context;
+  // Filter is 2x2 and data is 4x4, so the filter can slide 2 position in each
+  // dimension.
+  RankedTensorType filterType =
+      RankedTensorType::get({2, 2, 2, 2}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({2, 4, 4}, IndexType::get(&context));
+  SmallVector<int64_t> strides = {2, 2};
+  int64_t padding = 0;
+  IntegerRelation rel =
+      get2dConvChwFchwFilterRelation(filterType, dataType, strides, padding);
+
+  auto ctBound = rel.getConstantBound64(BoundType::UB,
+                                        rel.getVarKindOffset(VarKind::Range));
+  ASSERT_TRUE(ctBound.has_value());
+  // 4 sliding positions for each channel, 2x2 channels = 8 matrix rows.
+  EXPECT_EQ(ctBound.value(), 7);
+
+  auto slotBound = rel.getConstantBound64(
+      BoundType::UB, rel.getVarKindOffset(VarKind::Range) + 1);
+  ASSERT_TRUE(slotBound.has_value());
+  // (input channels = 2) * (total data size = 16) = 32 ciphertext slots.
+  EXPECT_EQ(slotBound.value(), 31);
+}
+
+TEST(UtilsTest, ConvChwFchwFilterRelationUnequalStrides) {
+  MLIRContext context;
+
+  // Filter is 3x3 and data is 5x5 with strides 2x3 so the filter can slide 2
+  // positions horizontal and 1 positions vertical.
+  RankedTensorType filterType =
+      RankedTensorType::get({2, 2, 3, 3}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({2, 5, 5}, IndexType::get(&context));
+  SmallVector<int64_t> strides = {2, 3};
+  int64_t padding = 0;
+  IntegerRelation rel =
+      get2dConvChwFchwFilterRelation(filterType, dataType, strides, padding);
+
+  // 2 sliding windows, 2 channels = 4 rows
+  auto ctBound = rel.getConstantBound64(BoundType::UB,
+                                        rel.getVarKindOffset(VarKind::Range));
+  ASSERT_TRUE(ctBound.has_value());
+  EXPECT_EQ(ctBound.value(), 3);
+
+  // 2 channels * 5x5 data = 50 slots. But the last two columns are not used
+  // (because of the strides), so the bound is 47.
+  auto slotBound = rel.getConstantBound64(
+      BoundType::UB, rel.getVarKindOffset(VarKind::Range) + 1);
+  ASSERT_TRUE(slotBound.has_value());
+  EXPECT_EQ(slotBound.value(), 47);
+}
+
 }  // namespace
 }  // namespace heir
 }  // namespace mlir

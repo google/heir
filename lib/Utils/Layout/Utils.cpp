@@ -647,6 +647,64 @@ RankedTensorType get2dConvFilterExpandedType(RankedTensorType filterType,
   return RankedTensorType::get({rows, cols}, filterType.getElementType());
 }
 
+presburger::IntegerRelation get2dConvChwFchwFilterRelation(
+    RankedTensorType filterType, RankedTensorType dataType,
+    ArrayRef<int64_t> strides, int64_t padding) {
+  assert(filterType.getRank() == 4 && "expected 4-D filter matrix");
+  assert(dataType.getRank() == 3 && "expected 3-D data matrix");
+
+  // Get the filter relation for a single input and output channel.
+  RankedTensorType singleFilterType = RankedTensorType::get(
+      {filterType.getDimSize(2), filterType.getDimSize(3)},
+      filterType.getElementType());
+  RankedTensorType singleDataType =
+      RankedTensorType::get({dataType.getDimSize(1), dataType.getDimSize(2)},
+                            dataType.getElementType());
+  auto singleFilterRelation = get2dConvFilterRelation(
+      singleFilterType, singleDataType, strides, padding);
+
+  // Map the single filter relation into the multi-channel matrix. Each single
+  // filter is offset into the result by adding (c * totalRowSize, f *
+  // totalColSize) to the range dimensions.
+
+  // First, add (f, c) to the domain vars and set bounds
+  singleFilterRelation.insertVar(VarKind::Domain, 0, 2);
+  auto fDim = singleFilterRelation.getVarKindOffset(VarKind::Domain);
+  auto cDim = singleFilterRelation.getVarKindOffset(VarKind::Domain) + 1;
+
+  auto inputChannels = dataType.getDimSize(0);
+  auto outputChannels = filterType.getDimSize(0);
+  assert(inputChannels == filterType.getDimSize(1) &&
+         "input channels must match filter input channels");
+  addBounds(singleFilterRelation, fDim, 0, outputChannels - 1);
+  addBounds(singleFilterRelation, cDim, 0, inputChannels - 1);
+
+  // Expand the range vars so that we can compose with the embedding relation.
+  singleFilterRelation.insertVar(VarKind::Range, 0, 2);
+  // (embedRow, embedCol) = position in the embedded matrix.
+  // (singleRow, singleCol) = position in the single filter matrix.
+  auto embedRow = singleFilterRelation.getVarKindOffset(VarKind::Range);
+  auto embedCol = singleFilterRelation.getVarKindOffset(VarKind::Range) + 1;
+  auto singleRow = singleFilterRelation.getVarKindOffset(VarKind::Range) + 2;
+  auto singleCol = singleFilterRelation.getVarKindOffset(VarKind::Range) + 3;
+
+  // embedRow = fDim * totalRowSize +  singleRow
+  // embedCol = cDim * totalColSize + singleCol
+  auto singleResultType = get2dConvFilterExpandedType(
+      singleFilterType, singleDataType, padding, strides);
+  auto totalRowSize = singleResultType.getDimSize(0);
+  auto totalColSize = singleResultType.getDimSize(1);
+
+  addConstraint(singleFilterRelation,
+                {{embedRow, 1}, {fDim, -totalRowSize}, {singleRow, -1}}, true);
+  addConstraint(singleFilterRelation,
+                {{embedCol, 1}, {cDim, -totalColSize}, {singleCol, -1}}, true);
+  // Project out the single filter relation range vars.
+  singleFilterRelation.projectOut(singleRow, 2);
+
+  return singleFilterRelation;
+}
+
 FailureOr<presburger::IntegerRelation> get2dConvFilterDiagonalizedRelation(
     RankedTensorType filterType, RankedTensorType dataType, int64_t padding,
     int64_t ciphertextSize) {
