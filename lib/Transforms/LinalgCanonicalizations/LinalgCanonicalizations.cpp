@@ -23,6 +23,7 @@
 #include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/IRMapping.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/Matchers.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"              // from @llvm-project
@@ -160,13 +161,11 @@ struct FoldConstantLinalgTranspose
     ArrayRef<int64_t> outputShape = transposeOp.getInit().getType().getShape();
     ArrayRef<int64_t> permutation = transposeOp.getPermutation();
 
-    auto defConstantOp =
-        transposeOp.getInput().getDefiningOp<arith::ConstantOp>();
-    if (!defConstantOp)
+    TypedAttr attr;
+    if (!matchPattern(transposeOp.getInput(), m_Constant(&attr)))
       return rewriter.notifyMatchFailure(transposeOp,
                                          "transpose input must be a constant");
-    DenseElementsAttr denseAttr =
-        dyn_cast<DenseElementsAttr>(defConstantOp.getValueAttr());
+    DenseElementsAttr denseAttr = dyn_cast<DenseElementsAttr>(attr);
     if (!denseAttr)
       return rewriter.notifyMatchFailure(
           transposeOp, "constant input must be a dense elements attribute");
