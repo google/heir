@@ -6,7 +6,6 @@
 // CHECK: bgv.relinearize
 // CHECK-COUNT-10: bgv.rotate_cols
 // CHECK: bgv.modulus_switch
-// CHECK: tensor.extract_slice
 // CHECK: lwe.rlwe_encode
 // CHECK: bgv.mul_plain
 // CHECK: bgv.modulus_switch

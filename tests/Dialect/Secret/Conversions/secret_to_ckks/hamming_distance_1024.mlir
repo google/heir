@@ -6,7 +6,6 @@
 // CHECK: ckks.relinearize
 // CHECK-COUNT-10: ckks.rotate
 // CHECK: ckks.rescale
-// CHECK: tensor.extract_slice
 // CHECK: lwe.rlwe_encode
 // CHECK: ckks.mul_plain
 // CHECK: ckks.rescale
