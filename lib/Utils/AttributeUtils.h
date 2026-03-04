@@ -42,6 +42,10 @@ void copyReturnOperandAttrsToFuncResultAttrs(Operation* op, StringRef attrName);
 // OperandAndResultAttrInterface op operands to the operand attrs of that op.
 void populateOperandAttrInterface(Operation* op, StringRef attrName);
 
+// Copy all dialect attributes (those containing a dot) associated with one
+// value to another.
+void copyDialectAttributes(Value from, Value to);
+
 // For each attribute name in arrayOfDicts, extract an ArrayAttr of the values
 // for that name and add it to result.
 //

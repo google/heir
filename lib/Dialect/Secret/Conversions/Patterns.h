@@ -39,6 +39,10 @@ struct ConvertClientConceal
       ContextAwareConversionPatternRewriter& rewriter) const override;
 
  private:
+  LogicalResult lowerToTrivialEncryption(
+      secret::ConcealOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const;
+
   bool usePublicKey;
   polynomial::RingAttr ring;
 };

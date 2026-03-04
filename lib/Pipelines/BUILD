@@ -106,6 +106,7 @@ cc_library(
         "@heir//lib/Dialect/LWE/Conversions/LWEToOpenfhe",
         "@heir//lib/Dialect/LWE/Conversions/LWEToPolynomial",
         "@heir//lib/Dialect/LWE/Transforms:AddDebugPort",
+        "@heir//lib/Dialect/LWE/Transforms:ImplementTrivialEncryptionAsAddition",
         "@heir//lib/Dialect/Lattigo/Transforms:AllocToInPlace",
         "@heir//lib/Dialect/Lattigo/Transforms:ConfigureCryptoContext",
         "@heir//lib/Dialect/Openfhe/Transforms:AllocToInPlace",

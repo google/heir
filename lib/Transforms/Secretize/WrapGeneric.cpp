@@ -4,6 +4,7 @@
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Transforms/Secretize/Passes.h"
+#include "lib/Utils/AttributeUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"          // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
@@ -129,6 +130,7 @@ struct ConvertFuncCall : public OpRewritePattern<func::CallOp> {
       if (mlir::isa<secret::SecretType>(funcArgType)) {
         auto newOperand =
             secret::ConcealOp::create(rewriter, op.getLoc(), operand);
+        copyDialectAttributes(operand, newOperand.getResult());
         newOperands.push_back(newOperand.getResult());
       } else {
         newOperands.push_back(operand);

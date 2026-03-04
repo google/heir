@@ -119,7 +119,8 @@ def ElementwiseByOperandOpInterface : OpInterface<"ElementwiseByOperandOpInterfa
     be replicated and not mapped.
 
     This trait is designed to work with the `convert-elementwise-to-affine`
-    pass.
+    pass. This pass assumes that the mapped dimensions for each operand
+    constitute a contiguous prefix of that operand's dimensions.
   }];
 
   let methods = [
@@ -128,6 +129,24 @@ def ElementwiseByOperandOpInterface : OpInterface<"ElementwiseByOperandOpInterfa
       /*retTy=*/"bool",
       /*methodName=*/"operandIsMappable",
       /*args=*/(ins "unsigned":$operandIndex)
+    >,
+
+    InterfaceMethod<
+      /*desc=*/"Return the subset of indices along which this operand is mapped elementise",
+      /*retTy=*/"llvm::SmallVector<int>",
+      /*methodName=*/"mappedDimensionsForOperand",
+      /*args=*/(ins "unsigned":$operandIndex),
+      /*methodBody=*/[{}],
+      /*defaultImplementation=*/[{
+        // By default, map over all dimensions.
+        auto operandType = $_op->getOperand(operandIndex).getType();
+        if (auto tensorTy = llvm::dyn_cast<mlir::ShapedType>(operandType)) {
+          auto r = llvm::seq<int>(0, tensorTy.getRank());
+          llvm::SmallVector<int, 4> v(r.begin(), r.end());
+          return v;
+        }
+        return {};
+      }]
     >,
 
     // It may make sense some day to allow only a subset of op results to be
