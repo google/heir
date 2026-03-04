@@ -1,5 +1,5 @@
 ---
-title: SIMD Optimizations
+title: HECO SIMD Optimizations
 weight: 9
 ---
 
@@ -56,7 +56,7 @@ The `%cN` and `%iN`, which are defined as `%cN = arith.constant N : index` and
 
 ## Intended Usage
 
-The `-heir-simd-vectorizer` pipeline transforms a program consisting of loops
+The `-heco-simd-vectorizer` pipeline transforms a program consisting of loops
 and index-based accesses into tensors (e.g., `tensor.extract` and
 `tensor.insert`) into one consisting of SIMD operations (including rotations) on
 entire tensors. While its implementation does not depend on any FHE-specific
@@ -99,7 +99,7 @@ way it is.
 
 ### Components
 
-The `-heir-simd-vectorizer` pipeline uses a combination of standard MLIR passes
+The `-heco-simd-vectorizer` pipeline uses a combination of standard MLIR passes
 ([`-canonicalize`](https://mlir.llvm.org/docs/Passes/#-canonicalize),
 [`-cse`](https://mlir.llvm.org/docs/Passes/#-cse),
 [`-sccp`](https://mlir.llvm.org/docs/Passes/#-sccp)) and custom HEIR passes.

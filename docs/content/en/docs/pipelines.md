@@ -11,7 +11,7 @@ This page documents the pass pipelines available in HEIR for the `heir-opt` and
 `heir-opt` provides several pipelines to lower MLIR programs from standard
 dialects to FHE dialects.
 
-### `--heir-simd-vectorizer`
+### `--heco-simd-vectorizer`
 
 Convert FHE programs with naive loops that operate on scalar types to equivalent
 programs that operate on vectors. This corresponds to the optimizations of the

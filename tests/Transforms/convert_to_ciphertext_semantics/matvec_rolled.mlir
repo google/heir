@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics="ciphertext-size=1024 experimental-disable-loop-unroll=true" | FileCheck %s
+// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics="ciphertext-size=1024 unroll-kernels=false" | FileCheck %s
 
 #kernel = #secret.kernel<name = "MatvecDiagonal", force = false>
 #layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 16 = 0 and 0 <= i0 <= 15 and 0 <= slot <= 1023 }">

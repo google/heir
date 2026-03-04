@@ -1,5 +1,5 @@
 // RUN: heir-opt --secretize --wrap-generic --canonicalize --cse \
-// RUN:   --heir-simd-vectorizer %s | FileCheck %s
+// RUN:   --heco-simd-vectorizer %s | FileCheck %s
 
 // CHECK: func @dot_product
 // CHECK-COUNT-3: tensor_ext.rotate
