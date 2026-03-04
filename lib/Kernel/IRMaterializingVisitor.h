@@ -39,11 +39,11 @@ class IRMaterializingVisitor
   std::vector<Value> binop(const T& node) {
     Value lhs = this->process(node.left)[0];
     Value rhs = this->process(node.right)[0];
-    auto op = TypeSwitch<Type, Operation*>(getElementTypeOrSelf(evaluatedType))
+    auto op = TypeSwitch<Type, Operation*>(getElementTypeOrSelf(lhs.getType()))
                   .template Case<mlir::FloatType>([&](auto ty) {
                     return FloatOp::create(builder, lhs, rhs);
                   })
-                  .template Case<mlir::IntegerType>(
+                  .template Case<mlir::IntegerType, mlir::IndexType>(
                       [&](auto ty) { return IntOp::create(builder, lhs, rhs); })
                   .Default([&](Type) {
                     llvm_unreachable("Unsupported type for binary operation");

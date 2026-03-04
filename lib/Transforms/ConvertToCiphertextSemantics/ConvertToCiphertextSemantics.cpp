@@ -603,9 +603,10 @@ struct ConvertLinalgMatvecLayout
 
   ConvertLinalgMatvecLayout(
       const ContextAwareTypeConverter& contextAwareTypeConverter,
-      MLIRContext* context)
+      MLIRContext* context, bool experimentalDisableLoopUnroll = false)
       : ContextAwareOpConversionPattern(contextAwareTypeConverter, context,
-                                        /*benefit=*/10) {}
+                                        /*benefit=*/10),
+        experimentalDisableLoopUnroll(experimentalDisableLoopUnroll) {}
 
   LayoutAttr getLayoutAttr(Value value) const {
     auto layoutLookup = getTypeConverter()->getContextualAttr(value);
@@ -658,13 +659,15 @@ struct ConvertLinalgMatvecLayout
         cast<TypedValue<RankedTensorType>>(adaptor.getInputs()[0]);
     SSAValue matrixLeaf(matrix);
 
-    auto dagType = kernel::mlirTypeToDagType(input.getType().getElementType());
+    auto dagType = kernel::mlirTypeToDagType(input.getType());
     std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
         implementHaleviShoup(vectorLeaf, matrixLeaf,
                              cast<RankedTensorType>(op.getInputs()[0].getType())
                                  .getShape()
                                  .vec(),
-                             dagType);
+                             dagType,
+                             /*zeroDiagonals=*/{},
+                             /*unroll=*/!experimentalDisableLoopUnroll);
 
     rewriter.setInsertionPointAfter(op);
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
@@ -708,6 +711,9 @@ struct ConvertLinalgMatvecLayout
     return op.emitError() << "unsupported layout for matrix in matvec: "
                           << matrixLayout;
   }
+
+ private:
+  bool experimentalDisableLoopUnroll;
 };
 
 struct ConvertLinalgConv2D
@@ -718,9 +724,10 @@ struct ConvertLinalgConv2D
 
   ConvertLinalgConv2D(
       const ContextAwareTypeConverter& contextAwareTypeConverter,
-      MLIRContext* context)
+      MLIRContext* context, bool experimentalDisableLoopUnroll = false)
       : ContextAwareOpConversionPattern(contextAwareTypeConverter, context,
-                                        /*benefit=*/10) {}
+                                        /*benefit=*/10),
+        experimentalDisableLoopUnroll(experimentalDisableLoopUnroll) {}
 
   LayoutAttr getLayoutAttr(Value value) const {
     auto layoutLookup = getTypeConverter()->getContextualAttr(value);
@@ -791,11 +798,12 @@ struct ConvertLinalgConv2D
       zeroDiagonals[point[0]] = true;
     }
 
-    auto dagType = kernel::mlirTypeToDagType(data.getType().getElementType());
+    auto dagType = kernel::mlirTypeToDagType(data.getType());
     std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
         implementHaleviShoup(vectorLeaf, matrixLeaf,
                              expandedMatrixType.getShape().vec(), dagType,
-                             zeroDiagonals);
+                             zeroDiagonals,
+                             /*unroll=*/!experimentalDisableLoopUnroll);
 
     rewriter.setInsertionPointAfter(op);
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
@@ -837,6 +845,9 @@ struct ConvertLinalgConv2D
 
     return op.emitError() << "unsupported layout for 2d conv";
   }
+
+ private:
+  bool experimentalDisableLoopUnroll;
 };
 
 Value makeMask(ContextAwareConversionPatternRewriter& rewriter, Location loc,
@@ -1962,7 +1973,7 @@ struct ConvertLinalgMatmul
     auto lhsType = cast<RankedTensorType>(op.getInputs()[0].getType());
     auto rhsType = cast<RankedTensorType>(op.getInputs()[1].getType());
 
-    auto dagType = kernel::mlirTypeToDagType(lhsType.getElementType());
+    auto dagType = kernel::mlirTypeToDagType(lhsType);
     // TODO(#2368): zero-pad inputs to ensure coprime dimensions
     std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
         kernel::implementBicyclicMatmul(lhsLeaf, rhsLeaf, lhsType.getShape()[0],
@@ -2020,12 +2031,13 @@ struct ConvertToCiphertextSemantics
     });
 
     patterns.add<ConvertAnyAddingMaterializedAttr, ConvertConvertLayout,
-                 ConvertFunc, ConvertLinalgConv2D, ConvertLinalgMatmul,
-                 ConvertLinalgMatvecLayout, ConvertLinalgReduce,
+                 ConvertFunc, ConvertLinalgMatmul, ConvertLinalgReduce,
                  ConvertSecretGeneric, ConvertTensorCollapseShape,
                  ConvertTensorExpandShape, ConvertTensorExtractLayout,
                  ConvertTensorExtractSlice, ConvertTensorInsertLayout,
                  ConvertTensorInsertSlice>(typeConverter, context);
+    patterns.add<ConvertLinalgMatvecLayout, ConvertLinalgConv2D>(
+        typeConverter, context, experimentalDisableLoopUnroll);
     patterns.add<ConvertAssignLayout>(typeConverter, context, ciphertextSize);
 
     ConversionConfig config;

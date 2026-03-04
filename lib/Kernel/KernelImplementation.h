@@ -113,7 +113,7 @@ implementRotateAndReduceAccumulationRolled(const T& vector, int64_t period,
         auto rotated = NodeTy::leftRotate(
             currentVector,
             NodeTy::mul(currentShift,
-                        NodeTy::constantScalar(period, DagType::integer(32))));
+                        NodeTy::constantScalar(period, DagType::index())));
         auto reduced = reduceFunc(currentVector, rotated);
 
         auto nextShift = NodeTy::floorDiv(currentShift, 2);
@@ -164,9 +164,9 @@ std::shared_ptr<ArithmeticDagNode<T>> defaultDagDerivedRotationIndexFn(
     std::shared_ptr<ArithmeticDagNode<T>> babyStepIndex, int64_t period) {
   using NodeTy = ArithmeticDagNode<T>;
   // Build: -(giantStepSize * giantStepIndex * period)
-  auto gsSize = NodeTy::constantScalar(giantStepSize, DagType::integer(32));
-  auto periodNode = NodeTy::constantScalar(period, DagType::integer(32));
-  auto negOne = NodeTy::constantScalar(-1, DagType::integer(32));
+  auto gsSize = NodeTy::constantScalar(giantStepSize, DagType::index());
+  auto periodNode = NodeTy::constantScalar(period, DagType::index());
+  auto negOne = NodeTy::constantScalar(-1, DagType::index());
 
   auto temp = NodeTy::mul(giantStepIndex, gsSize);
   temp = NodeTy::mul(temp, periodNode);
@@ -301,13 +301,12 @@ implementBabyStepGiantStepRolled(
 
               // Compute extraction index: i + j * giantStepSize
               auto gsSize =
-                  NodeTy::constantScalar(giantStepSize, DagType::integer(32));
+                  NodeTy::constantScalar(giantStepSize, DagType::index());
               auto jOffset = NodeTy::mul(j, gsSize);
               auto extractIdx = NodeTy::add(i, jOffset);
 
               // if (j * giantStepSize + i < steps)
-              auto stepsNode =
-                  NodeTy::constantScalar(steps, DagType::integer(32));
+              auto stepsNode = NodeTy::constantScalar(steps, DagType::index());
               auto isBound = NodeTy::comparison(extractIdx, stepsNode,
                                                 ComparisonPredicate::LT);
 
@@ -326,7 +325,7 @@ implementBabyStepGiantStepRolled(
                     auto babyStepVal = NodeTy::leftRotate(
                         giantSteppedDag,
                         NodeTy::mul(i, NodeTy::constantScalar(
-                                           period, DagType::integer(32))));
+                                           period, DagType::index())));
 
                     auto multiplied =
                         NodeTy::mul(rotatedPlaintext, babyStepVal);
@@ -341,9 +340,8 @@ implementBabyStepGiantStepRolled(
         auto innerResult = NodeTy::resultAt(innerLoop, 0);
 
         // Rotate by j * giantStepSize * period
-        auto gsSize =
-            NodeTy::constantScalar(giantStepSize, DagType::integer(32));
-        auto periodNode = NodeTy::constantScalar(period, DagType::integer(32));
+        auto gsSize = NodeTy::constantScalar(giantStepSize, DagType::index());
+        auto periodNode = NodeTy::constantScalar(period, DagType::index());
         auto outerRotAmount = NodeTy::mul(j, gsSize);
         outerRotAmount = NodeTy::mul(outerRotAmount, periodNode);
 
@@ -527,7 +525,6 @@ implementHaleviShoup(const T& vector, const T& matrix,
         auto newShift = NodeTy::floorDiv(currentShift, 2);
         return NodeTy::yield({newSum, newShift});
       });
-
   return NodeTy::resultAt(loopNode, 0);
 }
 
