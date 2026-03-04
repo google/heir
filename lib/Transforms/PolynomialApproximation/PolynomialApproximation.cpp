@@ -19,6 +19,7 @@
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/Matchers.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
@@ -236,23 +237,22 @@ struct ConvertUnaryOp : public OpRewritePattern<OpTy> {
 FailureOr<APFloat> getSingleValueOrSplat(Value value) {
   LLVM_DEBUG(llvm::dbgs() << "Checking if value " << value
                           << " is a constant\n");
-  auto constantOp = value.getDefiningOp<arith::ConstantOp>();
-  if (!constantOp) {
+  TypedAttr attr;
+  if (!matchPattern(value, m_Constant(&attr))) {
     return failure();
   }
 
-  auto elementsAttr = dyn_cast<ElementsAttr>(constantOp.getValue());
-  if (elementsAttr && elementsAttr.isSplat()) {
-    return elementsAttr.getSplatValue<APFloat>();
+  if (auto elementsAttr = dyn_cast<ElementsAttr>(attr)) {
+    if (elementsAttr.isSplat()) {
+      return elementsAttr.getSplatValue<APFloat>();
+    }
   }
 
-  auto floatAttr = dyn_cast<FloatAttr>(constantOp.getValue());
-  if (floatAttr) {
+  if (auto floatAttr = dyn_cast<FloatAttr>(attr)) {
     return floatAttr.getValue();
   }
 
-  auto intAttr = dyn_cast<IntegerAttr>(constantOp.getValue());
-  if (intAttr) {
+  if (auto intAttr = dyn_cast<IntegerAttr>(attr)) {
     return APFloat(APFloat::IEEEdouble(), intAttr.getValue());
   }
 
