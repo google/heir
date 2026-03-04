@@ -113,7 +113,7 @@ void heirSIMDVectorizerPipelineBuilder(OpPassManager& manager,
   manager.addPass(createCSEPass());
 }
 
-void lowerAssignLayout(OpPassManager& pm, bool unroll = false) {
+void cleanupAfterLowerAssignLayout(OpPassManager& pm) {
   // Lower linalg.generics produced by ConvertToCiphertextSemantics
   // (assign_layout lowering) to affine loops.
   pm.addPass(createTensorLinalgToAffineLoops());
@@ -122,17 +122,23 @@ void lowerAssignLayout(OpPassManager& pm, bool unroll = false) {
   pm.addNestedPass<func::FuncOp>(affine::createAffineLoopNormalizePass(true));
   pm.addNestedPass<func::FuncOp>(createForwardInsertSliceToExtractSlice());
 
-  // The lowered assign_layout ops involve plaintext operations that are still
-  // inside secret.generic, and are not handled well by downstream noise models
-  // and parameter selection passes. Canonicalize to hoist them out of
-  // secret.generic.
+  // Cleanup for various reasons:
+  //
+  // - The lowered assign_layout ops involve plaintext operations that are still
+  //   inside secret.generic, and are not handled well by downstream noise
+  //   models and parameter selection passes. Canonicalize to hoist them out of
+  //   secret.generic.
+  // - Preprocessing helpers may make copies of dense constants whose original
+  //   instances are still present and not needed, but may be threaded through
+  //   via a function call argument.
+  // - Preprocessing helpers may be sccp-ed significantly.
+  pm.addPass(createApplyFolders());
+  pm.addPass(createFoldConstantTensors());
+  pm.addPass(createSCCPPass());
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
-
-  // TODO(#1181): remove the need to loop unroll
-  if (unroll) {
-    pm.addPass(createFullLoopUnroll());
-  }
+  pm.addPass(createRemoveDeadValuesPass());
+  pm.addPass(createSymbolDCEPass());
 }
 
 // Implement layout conversions as shift networks
@@ -190,19 +196,13 @@ void mlirToSecretArithmeticPipelineBuilder(
   // Balance Operations
   pm.addPass(createOperationBalancer());
 
-  lowerAssignLayout(pm, false);
-
   // Add encrypt/decrypt helper functions for each function argument and return
   // value.
   AddClientInterfaceOptions addClientInterfaceOptions;
   addClientInterfaceOptions.ciphertextSize = options.ciphertextDegree;
   pm.addPass(createAddClientInterface(addClientInterfaceOptions));
 
-  // Clean up after lowering assign_layout and various related packing code
-  pm.addPass(createApplyFolders());
-  pm.addPass(createFoldConstantTensors());
-  pm.addPass(createCanonicalizerPass());
-  pm.addPass(createCSEPass());
+  cleanupAfterLowerAssignLayout(pm);
 }
 
 void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
@@ -226,9 +226,8 @@ void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
   mod_arith::SecretToModArithOptions secretToModArithOptions;
   secretToModArithOptions.plaintextModulus = options.plaintextModulus;
   pm.addPass(createSecretToModArith(secretToModArithOptions));
-  lowerAssignLayout(pm, false);
-  pm.addPass(createCanonicalizerPass());
-  pm.addPass(createCSEPass());
+
+  cleanupAfterLowerAssignLayout(pm);
 
   // Convert to standard dialect
   pm.addPass(tensor_ext::createTensorExtToTensor());
@@ -420,7 +419,7 @@ void mlirToRLWEPipeline(OpPassManager& pm,
   pm.addPass(createElementwiseToAffine(elementwiseOptions));
 
   pm.addPass(tensor_ext::createTensorExtToTensor());
-  lowerAssignLayout(pm, false);
+  cleanupAfterLowerAssignLayout(pm);
 
   // TODO (#1145): This should also generate keygen/param gen functions,
   // which can then be lowered to backend specific stuff later.
@@ -478,6 +477,7 @@ BackendPipelineBuilder toOpenFhePipelineBuilder() {
     pm.addPass(openfhe::createAllocToInPlace());
 
     pm.addPass(createRemoveUnusedPureCall());
+    pm.addPass(createRemoveDeadValuesPass());
     pm.addPass(createCSEPass());
     pm.addPass(createCanonicalizerPass());
     pm.addPass(createSymbolDCEPass());
