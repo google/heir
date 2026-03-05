@@ -1,8 +1,10 @@
 #ifndef LIB_DIALECT_POLYNOMAIL_TRANSFORMS_PASSES_H_
 #define LIB_DIALECT_POLYNOMAIL_TRANSFORMS_PASSES_H_
 
+// IWYU pragma: begin_keep
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
-#include "lib/Dialect/Polynomial/Transforms/NTTRewrites.h"
+#include "lib/Dialect/Polynomial/Transforms/PolyMulToNTT.h"
+// IWYU pragma: end_keep
 
 namespace mlir {
 namespace heir {

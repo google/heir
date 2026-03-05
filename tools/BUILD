@@ -81,7 +81,6 @@ cc_binary(
         "@heir//lib/Dialect/Polynomial/Conversions/PolynomialToModArith",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/Transforms",
-        "@heir//lib/Dialect/Polynomial/Transforms:NTTRewrites",
         "@heir//lib/Dialect/RNS/IR:Dialect",
         "@heir//lib/Dialect/RNS/IR:RNSTypeInterfaces",
         "@heir//lib/Dialect/Random/IR:Dialect",

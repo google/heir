@@ -6,9 +6,11 @@
 #include <cstdint>
 #include <optional>
 
+#include "lib/Dialect/ModArith/IR/ModArithAttributes.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
+#include "lib/Dialect/RNS/IR/RNSAttributes.h"
 #include "lib/Dialect/RNS/IR/RNSOps.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
@@ -20,7 +22,6 @@
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/Dialect.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/OpImplementation.h"       // from @llvm-project
@@ -186,10 +187,47 @@ bool isPrimitiveNthRootOfUnity(const APInt& root, const APInt& n,
 
 /// Verify that the types involved in an NTT or INTT operation are
 /// compatible.
-static LogicalResult verifyNTTOp(Operation* op, PolynomialType input,
-                                 PolynomialType output,
+static LogicalResult verifyNTTOp(Operation* op, Type inputType, Type outputType,
                                  std::optional<PrimitiveRootAttr> root,
                                  Form expectedInputForm) {
+  PolynomialType input;
+  PolynomialType output;
+
+  if (auto inputPoly = dyn_cast<PolynomialType>(inputType)) {
+    auto outputPoly = dyn_cast<PolynomialType>(outputType);
+    if (!outputPoly) {
+      return op->emitOpError()
+             << "expected output to be a polynomial type, but got "
+             << outputType;
+    }
+    input = inputPoly;
+    output = outputPoly;
+  } else {
+    auto inputShaped = dyn_cast<ShapedType>(inputType);
+    auto outputShaped = dyn_cast<ShapedType>(outputType);
+    if (!inputShaped || !outputShaped) {
+      return op->emitOpError() << "expected input/output to be both polynomial "
+                                  "types or both shaped polynomial types, but "
+                               << "got " << inputType << " and " << outputType;
+    }
+    if (inputShaped.getShape() != outputShaped.getShape()) {
+      return op->emitOpError()
+             << "expected input/output shaped types to have the same shape, "
+             << "but got " << inputShaped << " and " << outputShaped;
+    }
+
+    auto inputElemPoly = dyn_cast<PolynomialType>(inputShaped.getElementType());
+    auto outputElemPoly =
+        dyn_cast<PolynomialType>(outputShaped.getElementType());
+    if (!inputElemPoly || !outputElemPoly) {
+      return op->emitOpError()
+             << "expected shaped types with polynomial elements, but got "
+             << inputType << " and " << outputType;
+    }
+    input = inputElemPoly;
+    output = outputElemPoly;
+  }
+
   RingAttr inputRing = input.getRing();
   RingAttr outputRing = output.getRing();
   if (outputRing != inputRing) {
@@ -433,68 +471,98 @@ LogicalResult ConstantOp::inferReturnTypes(
   return success();
 }
 
+static LogicalResult inferNTTReturnType(MLIRContext* ctx, Type inputType,
+                                        SmallVectorImpl<Type>& results) {
+  auto flipForm = [](Form form) {
+    return form == Form::COEFF ? Form::EVAL : Form::COEFF;
+  };
+
+  PolynomialType inputPolyTy = dyn_cast<PolynomialType>(inputType);
+  RankedTensorType tensorTy = dyn_cast<RankedTensorType>(inputType);
+  if (!inputPolyTy) {
+    if (!tensorTy) {
+      return failure();
+    }
+    inputPolyTy = dyn_cast<PolynomialType>(tensorTy.getElementType());
+    if (!inputPolyTy) {
+      return failure();
+    }
+  }
+  PolynomialType outputPolyTy = PolynomialType::get(
+      ctx, inputPolyTy.getRing(), flipForm(inputPolyTy.getForm()));
+  if (dyn_cast<PolynomialType>(inputType)) {
+    results.push_back(outputPolyTy);
+  } else {
+    results.push_back(RankedTensorType::get(tensorTy.getShape(), outputPolyTy,
+                                            tensorTy.getEncoding()));
+  }
+  return success();
+}
+
 LogicalResult NTTOp::inferReturnTypes(MLIRContext* ctx, std::optional<Location>,
                                       ValueRange operands, DictionaryAttr attrs,
                                       mlir::OpaqueProperties properties,
                                       mlir::RegionRange regions,
                                       SmallVectorImpl<Type>& results) {
-  NTTOpAdaptor op(operands, attrs, properties, regions);
-  auto inputTy = dyn_cast<PolynomialType>(op.getInput().getType());
-  if (!inputTy) {
-    return failure();
-  }
-  PolynomialType outputTy =
-      PolynomialType::get(ctx, inputTy.getRing(), Form::EVAL);
-  results.push_back(outputTy);
-  return success();
+  if (operands.empty()) return failure();
+  return inferNTTReturnType(ctx, operands.front().getType(), results);
 }
 
 LogicalResult INTTOp::inferReturnTypes(
     MLIRContext* ctx, std::optional<Location>, ValueRange operands,
     DictionaryAttr attrs, mlir::OpaqueProperties properties,
     mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
-  INTTOpAdaptor op(operands, attrs, properties, regions);
-  auto inputTy = dyn_cast<PolynomialType>(op.getInput().getType());
-  if (!inputTy) {
-    return failure();
-  }
-  PolynomialType outputTy =
-      PolynomialType::get(ctx, inputTy.getRing(), Form::COEFF);
-  results.push_back(outputTy);
-  return success();
+  if (operands.empty()) return failure();
+  return inferNTTReturnType(ctx, operands.front().getType(), results);
 }
 
 LogicalResult ConvertBasisOp::inferReturnTypes(
-    MLIRContext* ctx, std::optional<Location>, ValueRange operands,
+    MLIRContext* ctx, std::optional<Location> /*loc*/, ValueRange operands,
     DictionaryAttr attrs, mlir::OpaqueProperties properties,
     mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
   ConvertBasisOpAdaptor op(operands, attrs, properties, regions);
-  auto inputType = dyn_cast<PolynomialType>(op.getValue().getType());
-  if (!inputType) {
-    return failure();
+  if (operands.empty()) return failure();
+  Type inputType = op.getValue().getType();
+  PolynomialType inputPolyType = dyn_cast<PolynomialType>(inputType);
+  RankedTensorType inputTensorType;
+  if (!inputPolyType) {
+    inputTensorType = dyn_cast<RankedTensorType>(inputType);
+    if (!inputTensorType) return failure();
+    inputPolyType = dyn_cast<PolynomialType>(inputTensorType.getElementType());
+    if (!inputPolyType) return failure();
   }
-  polynomial::RingAttr ringAttr = inputType.getRing();
+  polynomial::RingAttr ringAttr = inputPolyType.getRing();
   rns::RNSType elementType = dyn_cast<rns::RNSType>(op.getTargetBasis());
-  if (!elementType) {
-    return failure();
-  }
+  if (!elementType) return failure();
+
   polynomial::RingAttr outputRingAttr = polynomial::RingAttr::get(
       ctx, elementType, ringAttr.getPolynomialModulus());
   PolynomialType resultType = PolynomialType::get(ctx, outputRingAttr);
-  results.push_back(resultType);
+  if (dyn_cast<PolynomialType>(inputType)) {
+    results.push_back(resultType);
+  } else {
+    results.push_back(RankedTensorType::get(
+        inputTensorType.getShape(), resultType, inputTensorType.getEncoding()));
+  }
   return success();
 }
 
 LogicalResult ExtractSliceOp::inferReturnTypes(
-    MLIRContext* context, std::optional<Location> loc, ValueRange operands,
+    MLIRContext* context, std::optional<Location> /*loc*/, ValueRange operands,
     DictionaryAttr attrs, mlir::OpaqueProperties properties,
     mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
   ExtractSliceOpAdaptor op(operands, attrs, properties, regions);
-  auto polyType = dyn_cast<PolynomialType>(op.getInput().getType());
+  if (operands.empty()) return failure();
+  auto polyType = dyn_cast<PolynomialType>(operands[0].getType());
+  if (!polyType) return failure();
   RingAttr ringAttr = polyType.getRing();
   rns::RNSType elementType =
       dyn_cast<rns::RNSType>(ringAttr.getCoefficientType());
   if (!elementType) return failure();
+
+  APInt start = op.getStart();
+  APInt size = op.getSize();
+
   rns::RNSType outputRNSType =
       inferExtractSliceReturnTypes(context, &op, elementType);
   RingAttr outputRingAttr =
