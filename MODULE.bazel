@@ -41,6 +41,13 @@ bazel_dep(name = "openfhe", version = "1.4.2.bcr.1")
 bazel_dep(name = "abc", version = "0.0.0-20250903-yosyshq.bcr.1")
 bazel_dep(name = "yosys", version = "0.57.bcr.2")
 
+# Yosys pulls in bison@3.8.2 from BCR, but its hand-rolled config breaks with newer macOS SDK versions.
+# Therefore, we pull in this updated BCR version which uses @rules_cc_autoconf instead of the hand-rolled config.
+single_version_override(
+    module_name = "bison",
+    version = "3.8.2.bcr.2",
+)
+
 # LLVM dependency uses module extensions because none of these are in the BCR
 llvm_extensions = use_extension("//bazel:extensions.bzl", "llvm_deps")
 use_repo(
