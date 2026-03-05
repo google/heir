@@ -86,8 +86,8 @@ There are many ways to contribute to HEIR:
 - Ask questions or discuss feature ideas in the `#heir` channel on
   [the FHE.org discord](https://discord.fhe.org/).
 - Work on an issue marked
-  ["good first issue"](https://github.com/google/heir/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)
-  or browse issues [labeled by topic](https://github.com/google/heir/labels).
+  ["good first issue"](https://github.com/google/heir/contribute) or browse
+  issues [labeled by topic](https://github.com/google/heir/labels).
 - Help us understand new FHE research: either
   - Read a paper tagged under
     [research synthesis](https://github.com/google/heir/labels/research%20synthesis)
