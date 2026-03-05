@@ -3,8 +3,6 @@ title: AI Tool Use Policy
 weight: 20
 ---
 
-# AI Tool Use Policy
-
 _Nb., this policy was adapted from the
 [LLVM AI Tool Use Policy](https://github.com/llvm/llvm-project/pull/154441)._
 
@@ -66,7 +64,7 @@ and are intended to be learning opportunities for new contributors to get
 familiar with the codebase. Fully automating the process of fixing this issue
 squanders the learning opportunity and doesn't add much value to the project.
 **New contributors using AI tools to fix issues labelled as "good first issues"
-is forbidden**..
+is forbidden**.
 
 ## Extractive Contributions
 

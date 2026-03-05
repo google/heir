@@ -25,6 +25,14 @@ This project follows
 
 ## Contribution process
 
+### AI Tool Use Policy
+
+Please see our
+[AI Tool Use Policy](https://heir.dev/docs/development/ai_policy/) for our
+guidelines on using AI tools to generate contributions to the project. Please
+note especially that we do not accept AI-based solutions from new contributors
+on ["good first issues"](https://github.com/google/heir/contribute).
+
 ### Code reviews
 
 All submissions, including submissions by project members, require review. We
@@ -33,6 +41,6 @@ use GitHub pull requests for this purpose. Consult
 information on using pull requests.
 
 Before contributing, please read
-[Contributing to HEIR](https://heir.dev/docs/contributing/).
+[Contributing code to HEIR](https://heir.dev/docs/development/#contributing-code-to-heir).
 
 <!-- mdformat global-off -->
