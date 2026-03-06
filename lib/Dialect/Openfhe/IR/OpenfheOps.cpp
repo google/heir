@@ -164,6 +164,13 @@ FailureOr<Operation*> FastRotationExtOp::buildBatchedOperation(
                                        batchedOperations);
 }
 
+// Idempotency fold: key_switch_down(key_switch_down(x)) => key_switch_down(x).
+OpFoldResult KeySwitchDownOp::fold(FoldAdaptor adaptor) {
+  if (auto inner = getCiphertext().getDefiningOp<KeySwitchDownOp>())
+    return inner.getResult();
+  return {};
+}
+
 LogicalResult RotOp::verify() {
   return containsExactlyOneOrEmitError(getOperation(), getDynamicShift(),
                                        getStaticShift());
