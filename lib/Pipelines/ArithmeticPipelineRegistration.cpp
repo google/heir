@@ -67,7 +67,7 @@
 
 namespace mlir::heir {
 
-void heirSIMDVectorizerPipelineBuilder(OpPassManager& manager,
+void hecoSIMDVectorizerPipelineBuilder(OpPassManager& manager,
                                        bool disableLoopUnroll) {
   // For now we unroll loops to enable insert-rotate, but we would like to be
   // smarter about this and do an affine loop analysis.
@@ -170,7 +170,7 @@ void mlirToSecretArithmeticPipelineBuilder(
 
   // Vectorize and optimize rotations
   // TODO(#2320): figure out where this fits in the new pipeline
-  heirSIMDVectorizerPipelineBuilder(pm, options.experimentalDisableLoopUnroll);
+  hecoSIMDVectorizerPipelineBuilder(pm, options.experimentalDisableLoopUnroll);
   mathToPolynomialApproximationBuilder(pm);
 
   // Layout assignment and optimization

@@ -452,7 +452,7 @@ you understand what is going on more easily.
 Still taking the `dot_product_8.mlir` as an example:
 
 ```bash
-bazel run --ui_event_filters=-info,-debug,-warning,-stderr,-stdout --noshow_progress --logging=0 //tools:heir-opt -- --wrap-generic --heir-simd-vectorizer $PWD/tests/Examples/common/dot_product_8.mlir --view-op-graph 2> dot_product_8.dot
+bazel run --ui_event_filters=-info,-debug,-warning,-stderr,-stdout --noshow_progress --logging=0 //tools:heir-opt -- --wrap-generic --heco-simd-vectorizer $PWD/tests/Examples/common/dot_product_8.mlir --view-op-graph 2> dot_product_8.dot
 dot -Tpdf dot_product_8.dot > dot_product_8.pdf
 # open pdf in your favorite pdf viewer
 ```

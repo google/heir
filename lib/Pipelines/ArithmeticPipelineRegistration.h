@@ -15,8 +15,7 @@ namespace mlir::heir {
 // RLWE scheme selector
 enum RLWEScheme { ckksScheme, bgvScheme, bfvScheme };
 
-struct SimdVectorizerOptions
-    : public PassPipelineOptions<SimdVectorizerOptions> {
+struct LoopOptions : public PassPipelineOptions<LoopOptions> {
   PassOptions::Option<bool> experimentalDisableLoopUnroll{
       *this, "experimental-disable-loop-unroll",
       llvm::cl::desc("Experimental: disable loop unroll, may break analyses "
@@ -24,10 +23,10 @@ struct SimdVectorizerOptions
       llvm::cl::init(false)};
 };
 
-void heirSIMDVectorizerPipelineBuilder(OpPassManager& manager,
+void hecoSIMDVectorizerPipelineBuilder(OpPassManager& manager,
                                        bool disableLoopUnroll);
 
-struct MlirToRLWEPipelineOptions : public SimdVectorizerOptions {
+struct MlirToRLWEPipelineOptions : public LoopOptions {
   PassOptions::Option<bool> enableArithmetization{
       *this, "enable-arithmetization",
       llvm::cl::desc(

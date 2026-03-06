@@ -168,7 +168,7 @@ entire data structure while only performing the desired save/update operation
 for the index of interest. For simplicity, we only look at load/store operations
 for tensors as they are well supported structures in high-level MLIR likely
 emitted by most frontends. We drafted the following non-SIMD approach for this
-transformation and defer SIMD optimizations to the `heir-simd-vectorizer` pass:
+transformation and defer SIMD optimizations to the `heco-simd-vectorizer` pass:
 
 ```mlir
 // Before applying Access Transformation

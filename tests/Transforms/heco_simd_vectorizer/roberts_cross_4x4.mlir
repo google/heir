@@ -1,7 +1,7 @@
 // Ported from https://github.com/MarbleHE/HECO/blob/3e13744233ab0c09030a41ef98b4e061b6fa2eac/evaluation/benchmark/heco_input/robertscross_4x4.mlir
 
 // RUN: heir-opt --secretize --wrap-generic --canonicalize --cse \
-// RUN:   --heir-simd-vectorizer %s | FileCheck %s
+// RUN:   --heco-simd-vectorizer %s | FileCheck %s
 
 module{
   // CHECK: @roberts_cross

@@ -1,6 +1,6 @@
 // RUN: heir-opt --secretize \
 // RUN:   --wrap-generic --canonicalize --cse \
-// RUN:   --heir-simd-vectorizer %s | FileCheck %s
+// RUN:   --heco-simd-vectorizer %s | FileCheck %s
 
 // Sum all entries of a tensor into a single scalar
 // CHECK: @simple_sum

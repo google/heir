@@ -21,5 +21,3 @@ func.func @test_ntt_insertion5(%x: !poly_ty_2) -> !poly_ty_2 {
   %b = polynomial.sub %a, %x : !poly_ty_2
   return %b : !poly_ty_2
 }
-
-
