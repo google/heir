@@ -260,6 +260,171 @@ TEST(ContractEdgeTest, ReturnsFalseIfEdgeAbsent) {
   EXPECT_TRUE(graph.hasEdge(0, 1));
 }
 
+// getStronglyConnectedComponents tests
+TEST(SCCTest, DAGEachNodeIsOwnSCC) {
+  // 0 → 1 → 2 → 3  (no cycles)
+  // Every node is its own SCC.
+  Graph<int> g;
+  for (int i = 0; i < 4; i++) g.addVertex(i);
+  g.addEdge(0, 1);
+  g.addEdge(1, 2);
+  g.addEdge(2, 3);
+
+  auto sccs = g.getStronglyConnectedComponents();
+  EXPECT_EQ(sccs.size(), 4);
+  EXPECT_THAT(sccs, UnorderedElementsAre(std::set<int>{0}, std::set<int>{1},
+                                         std::set<int>{2}, std::set<int>{3}));
+}
+
+TEST(SCCTest, SingleCycleIsOneSCC) {
+  // 0 → 1 → 2 → 0  (one big cycle)
+  Graph<int> g;
+  for (int i = 0; i < 3; i++) g.addVertex(i);
+  g.addEdge(0, 1);
+  g.addEdge(1, 2);
+  g.addEdge(2, 0);
+
+  auto sccs = g.getStronglyConnectedComponents();
+  ASSERT_EQ(sccs.size(), 1);
+  EXPECT_EQ(sccs[0], (std::set<int>{0, 1, 2}));
+}
+
+TEST(SCCTest, SingleVertex) {
+  Graph<int> g;
+  g.addVertex(42);
+
+  auto sccs = g.getStronglyConnectedComponents();
+  ASSERT_EQ(sccs.size(), 1);
+  EXPECT_EQ(sccs[0], (std::set<int>{42}));
+}
+
+TEST(SCCTest, TwoCyclesConnectedByBridge) {
+  // Example graph:
+  //
+  // 0 → 1 → 2 → 3 → 4
+  // ↑       ↓     ↖ ↓
+  // └────── 0       5
+  //
+  Graph<int> g;
+  for (int i = 0; i < 6; i++) g.addVertex(i);
+  g.addEdge(0, 1);
+  g.addEdge(1, 2);
+  g.addEdge(2, 0);
+  g.addEdge(2, 3);
+  g.addEdge(3, 4);
+  g.addEdge(4, 5);
+  g.addEdge(5, 3);
+
+  auto sccs = g.getStronglyConnectedComponents();
+  ASSERT_EQ(sccs.size(), 2);
+  EXPECT_THAT(sccs, UnorderedElementsAre(std::set<int>{0, 1, 2},
+                                         std::set<int>{3, 4, 5}));
+}
+
+TEST(SCCTest, MixedSCCSizes) {
+  // Example graph:
+  //
+  // 0 → 1 → 2 → 3 → 4
+  // ↑   │       ↑   │
+  // └───┘       └───┘
+  //
+  Graph<int> g;
+  for (int i = 0; i < 5; i++) g.addVertex(i);
+  g.addEdge(0, 1);
+  g.addEdge(1, 0);
+  g.addEdge(1, 2);
+  g.addEdge(2, 3);
+  g.addEdge(3, 4);
+  g.addEdge(4, 3);
+
+  auto sccs = g.getStronglyConnectedComponents();
+  ASSERT_EQ(sccs.size(), 3);
+  EXPECT_THAT(sccs, UnorderedElementsAre(std::set<int>{0, 1}, std::set<int>{2},
+                                         std::set<int>{3, 4}));
+}
+
+TEST(SCCTest, DisconnectedGraph) {
+  // Three isolated vertices — each its own SCC.
+  Graph<int> g;
+  g.addVertex(10);
+  g.addVertex(20);
+  g.addVertex(30);
+
+  auto sccs = g.getStronglyConnectedComponents();
+  ASSERT_EQ(sccs.size(), 3);
+  EXPECT_THAT(sccs, UnorderedElementsAre(std::set<int>{10}, std::set<int>{20},
+                                         std::set<int>{30}));
+}
+
+// condenseGraph tests
+TEST(CondenseTest, DAGCondenseIsIdentity) {
+  Graph<int> g;
+  for (int i = 0; i < 4; i++) g.addVertex(i);
+  g.addEdge(0, 1);
+  g.addEdge(1, 2);
+  g.addEdge(2, 3);
+
+  g.condenseGraph();
+
+  EXPECT_EQ(g.getVertices().size(), 4);
+  EXPECT_TRUE(g.hasEdge(0, 1));
+  EXPECT_TRUE(g.hasEdge(1, 2));
+  EXPECT_TRUE(g.hasEdge(2, 3));
+  EXPECT_FALSE(g.hasEdge(0, 2));
+}
+
+TEST(CondenseTest, CycleCollapsedToOneNode) {
+  // 3
+  // ↑
+  // 0 → 1 → 2
+  //  ↖ ___ ↙
+
+  Graph<int> g;
+  g.addVertex(0);
+  g.addVertex(1);
+  g.addVertex(2);
+  g.addVertex(10);
+  g.addEdge(0, 1);
+  g.addEdge(1, 2);
+  g.addEdge(2, 0);
+  g.addEdge(0, 10);
+
+  MergeRecorder recorder;
+
+  // Map each SCC to the sum of its members (unique within this graph).
+  g.condenseGraph(std::ref(recorder));
+
+  ASSERT_EQ(recorder.calls.size(), 2);
+  ASSERT_EQ(g.getVertices().size(), 2);
+  EXPECT_TRUE(g.hasEdge(2, 10));
+  EXPECT_FALSE(g.hasEdge(2, 2));
+  EXPECT_THAT(recorder.calls,
+              UnorderedElementsAre(std::make_pair(0, 1), std::make_pair(2, 0)));
+}
+
+TEST(CondenseTest, NoSelfLoopsAfterCondense) {
+  // After condensing, the result must be a DAG (no cycles, no self-loops).
+  Graph<int> g;
+  for (int i = 0; i < 6; i++) g.addVertex(i);
+  g.addEdge(0, 1);
+  g.addEdge(1, 2);
+  g.addEdge(2, 0);
+  g.addEdge(2, 3);
+  g.addEdge(3, 4);
+  g.addEdge(4, 5);
+  g.addEdge(5, 3);
+
+  g.condenseGraph();
+
+  // Result must be acyclic.
+  EXPECT_TRUE(succeeded(g.topologicalSort()));
+
+  ASSERT_EQ(g.getVertices().size(), 2);
+  EXPECT_FALSE(g.hasEdge(2, 2));
+  EXPECT_FALSE(g.hasEdge(5, 5));
+  EXPECT_TRUE(g.hasEdge(2, 5));
+}
+
 TEST(LevelSortTest, SimpleGraphLevelSort) {
   // Example graph:
   //       ↗ 2 ↘

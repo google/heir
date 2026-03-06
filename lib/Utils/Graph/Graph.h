@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
+#include "llvm/include/llvm/ADT/SetVector.h"          // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 
 namespace mlir {
@@ -152,6 +153,100 @@ class Graph {
     inEdges.erase(target);
 
     return true;
+  }
+
+  // Returns all strongly connected components using Tarjan's algorithm.
+  // Each SCC is returned as a std::set<V> (consistent with getVertices()).
+  // Reference implementation:
+  // https://cp-algorithms.com/graph/strongly-connected-components.html#implementation_1
+  //
+  // Returns a vector of set of vertices, where each set represents a strong
+  // connected component. The order of the components and the order of vertices
+  // within each component are not preserved.
+  //
+  // TODO(#2736): This implementation does not apply Nuutila's modification.
+  // Performance can be bad for larger SCCs. Consider implementing Nuutila's
+  // modification if this becomes a bottleneck.
+  // https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.components.strongly_connected_components.html
+  std::vector<std::set<V>> getStronglyConnectedComponents() {
+    std::vector<std::set<V>> result;
+    std::map<V, int> index, lowlink;
+    llvm::SetVector<V> stack;
+    int currentIndex = 0;
+
+    std::function<void(V)> dfs = [&](V v) {
+      index[v] = lowlink[v] = currentIndex++;
+      stack.insert(v);
+
+      for (const V& w : edgesOutOf(v)) {
+        if (!index.contains(w)) {
+          dfs(w);
+          lowlink[v] = std::min(lowlink[v], lowlink[w]);
+        } else if (stack.contains(w)) {
+          lowlink[v] = std::min(lowlink[v], index[w]);
+        }
+      }
+
+      if (lowlink[v] == index[v]) {
+        std::set<V> scc;
+        V w;
+        do {
+          w = stack.back();
+          stack.pop_back();
+          scc.insert(w);
+        } while (w != v);
+        result.push_back(std::move(scc));
+      }
+    };
+
+    for (const V& v : vertices)
+      if (!index.contains(v)) dfs(v);
+
+    return result;
+  }
+
+  // Condense each strongly connected component into a single vertex, thus
+  // making the graph acyclic. The optional mergeFn is a functor that takes the
+  // source and target vertex and is expected to perform custom logic on the
+  // vertices that need to be updated as a result of the condensation,
+  // internally it is consumed by contractEdge when contracting edges between
+  // vertices in the same SCC.
+  //
+  // V = struct { string name; }
+  // mergeFn = [](V& source, const V& target) { source.name += target.name; }
+  //
+  // and we contract edge (v1, v2) where v1.name = "foo" and v2.name = "bar",
+  // then the mergeFn could update v1.name to "foobar" to preserve some
+  // information from both vertices before v2 is removed from the graph.
+  //
+  // TODO(#2736): Evaluate if it is more efficient to construct a new graph
+  // instead of modifying the existing graph in-place by contracting edges. The
+  // current implementation is straightforward but can be inefficient for larger
+  // SCCs.
+  void condenseGraph(std::function<void(V&, const V&)> mergeFn = nullptr) {
+    auto sccs = getStronglyConnectedComponents();
+
+    for (auto& scc : sccs) {
+      if (scc.size() <= 1) continue;
+
+      // needs multiples passes as contractEdge can create new edges between
+      // vertices in the same SCC that need to be contracted.
+      std::set<V> alive(scc.begin(), scc.end());
+      while (alive.size() > 1) {
+        // needs a snapshot as we modify the alive set while iterating through
+        // it.
+        std::vector<V> aliveSnapShot(alive.begin(), alive.end());
+        for (const V& u : aliveSnapShot) {
+          if (!alive.count(u)) continue;
+          for (V v : edgesOutOf(u)) {
+            if (alive.count(v)) {
+              contractEdge(u, v, mergeFn);
+              alive.erase(v);
+            }
+          }
+        }
+      }
+    }
   }
 
   FailureOr<std::vector<V>> getLongestSourceToSinkPath() {
