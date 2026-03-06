@@ -275,8 +275,8 @@ LogicalResult convertRemapOp(RemapOp op,
   auto resultNodes = implementShiftNetwork(ciphertexts, mapping, scheme,
                                            ciphertextSize, dagElemType);
 
-  kernel::IRMaterializingVisitor visitor(b, singleCiphertextType);
-  auto resultVectors = visitor.process(resultNodes);
+  kernel::IRMaterializingVisitor visitor(singleCiphertextType);
+  auto resultVectors = visitor.process(resultNodes, b);
   std::vector<Value> result;
   result.reserve(resultVectors.size());
   for (const auto& vec : resultVectors) {

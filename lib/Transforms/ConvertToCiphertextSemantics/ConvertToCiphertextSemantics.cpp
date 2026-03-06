@@ -603,10 +603,10 @@ struct ConvertLinalgMatvecLayout
 
   ConvertLinalgMatvecLayout(
       const ContextAwareTypeConverter& contextAwareTypeConverter,
-      MLIRContext* context, bool experimentalDisableLoopUnroll = false)
+      MLIRContext* context, bool unrollKernels = true)
       : ContextAwareOpConversionPattern(contextAwareTypeConverter, context,
                                         /*benefit=*/10),
-        experimentalDisableLoopUnroll(experimentalDisableLoopUnroll) {}
+        unrollKernels(unrollKernels) {}
 
   LayoutAttr getLayoutAttr(Value value) const {
     auto layoutLookup = getTypeConverter()->getContextualAttr(value);
@@ -667,14 +667,14 @@ struct ConvertLinalgMatvecLayout
                                  .vec(),
                              dagType,
                              /*zeroDiagonals=*/{},
-                             /*unroll=*/!experimentalDisableLoopUnroll);
+                             /*unroll=*/unrollKernels);
 
     rewriter.setInsertionPointAfter(op);
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    IRMaterializingVisitor visitor(
-        b, input.getType(),
-        [&](Operation* createdOp) { setMaterializedAttr(createdOp); });
-    Value finalOutput = implementedKernel->visit(visitor)[0];
+    IRMaterializingVisitor visitor(input.getType(), [&](Operation* createdOp) {
+      setMaterializedAttr(createdOp);
+    });
+    Value finalOutput = visitor.process(implementedKernel, b)[0];
 
     auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
     auto* finalOutputOp = finalOutput.getDefiningOp();
@@ -713,7 +713,7 @@ struct ConvertLinalgMatvecLayout
   }
 
  private:
-  bool experimentalDisableLoopUnroll;
+  bool unrollKernels;
 };
 
 struct ConvertLinalgConv2D
@@ -724,10 +724,10 @@ struct ConvertLinalgConv2D
 
   ConvertLinalgConv2D(
       const ContextAwareTypeConverter& contextAwareTypeConverter,
-      MLIRContext* context, bool experimentalDisableLoopUnroll = false)
+      MLIRContext* context, bool unrollKernels = true)
       : ContextAwareOpConversionPattern(contextAwareTypeConverter, context,
                                         /*benefit=*/10),
-        experimentalDisableLoopUnroll(experimentalDisableLoopUnroll) {}
+        unrollKernels(unrollKernels) {}
 
   LayoutAttr getLayoutAttr(Value value) const {
     auto layoutLookup = getTypeConverter()->getContextualAttr(value);
@@ -803,14 +803,14 @@ struct ConvertLinalgConv2D
         implementHaleviShoup(vectorLeaf, matrixLeaf,
                              expandedMatrixType.getShape().vec(), dagType,
                              zeroDiagonals,
-                             /*unroll=*/!experimentalDisableLoopUnroll);
+                             /*unroll=*/unrollKernels);
 
     rewriter.setInsertionPointAfter(op);
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    IRMaterializingVisitor visitor(
-        b, data.getType(),
-        [&](Operation* createdOp) { setMaterializedAttr(createdOp); });
-    Value finalOutput = implementedKernel->visit(visitor)[0];
+    IRMaterializingVisitor visitor(data.getType(), [&](Operation* createdOp) {
+      setMaterializedAttr(createdOp);
+    });
+    Value finalOutput = visitor.process(implementedKernel, b)[0];
 
     auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
     auto finalOutputOp = finalOutput.getDefiningOp();
@@ -847,7 +847,7 @@ struct ConvertLinalgConv2D
   }
 
  private:
-  bool experimentalDisableLoopUnroll;
+  bool unrollKernels;
 };
 
 Value makeMask(ContextAwareConversionPatternRewriter& rewriter, Location loc,
@@ -1982,10 +1982,9 @@ struct ConvertLinalgMatmul
 
     rewriter.setInsertionPointAfter(op);
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    IRMaterializingVisitor visitor(b, lhs.getType(), [&](Operation* createdOp) {
-      setMaterializedAttr(op);
-    });
-    Value finalOutput = implementedKernel->visit(visitor)[0];
+    IRMaterializingVisitor visitor(
+        lhs.getType(), [&](Operation* createdOp) { setMaterializedAttr(op); });
+    Value finalOutput = visitor.process(implementedKernel, b)[0];
 
     auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
     auto* finalOutputOp = finalOutput.getDefiningOp();
@@ -2037,7 +2036,7 @@ struct ConvertToCiphertextSemantics
                  ConvertTensorExtractSlice, ConvertTensorInsertLayout,
                  ConvertTensorInsertSlice>(typeConverter, context);
     patterns.add<ConvertLinalgMatvecLayout, ConvertLinalgConv2D>(
-        typeConverter, context, experimentalDisableLoopUnroll);
+        typeConverter, context, unrollKernels);
     patterns.add<ConvertAssignLayout>(typeConverter, context, ciphertextSize);
 
     ConversionConfig config;
