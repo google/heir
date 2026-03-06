@@ -20,17 +20,17 @@ CPSATSolution::CPSATSolution(const NTTSolver& solver,
                              const CpSolverResponse& soln)
     : solver(solver), soln(soln) {}
 
-bool CPSATSolution::needsForm(Value& v, Form form) const {
+bool CPSATSolution::needsForm(const Value& v, Form form) const {
   const BoolVar& bv = solver.vars.at(v).getVarForm(form);
   return SolutionBooleanValue(soln, bv);
 }
 
-bool CPSATSolution::needsConversion(Value& v) const {
+bool CPSATSolution::needsConversion(const Value& v) const {
   const NTTSolver::RepVars& vs = solver.vars.at(v);
   return SolutionBooleanValue(soln, vs.conv);
 }
 
-Form CPSATSolution::getMode(Value& v) const {
+Form CPSATSolution::getMode(const Value& v) const {
   const NTTSolver::RepVars& vs = solver.vars.at(v);
   return SolutionBooleanValue(soln, vs.mode) ? Form::EVAL : Form::COEFF;
 }
@@ -40,7 +40,7 @@ bool CPSATSolution::isValid() const {
          soln.status() == CpSolverStatus::FEASIBLE;
 }
 
-int getConversionCost(Value& v) {
+int getConversionCost(const Value& v) {
   Type t = v.getType();
   if (auto p = dyn_cast<PolynomialType>(t)) {
     return 1;
@@ -51,7 +51,7 @@ int getConversionCost(Value& v) {
   return 0;
 }
 
-NTTSolver::RepVars& NTTSolver::getOrCreateVars(Value& v) {
+NTTSolver::RepVars& NTTSolver::getOrCreateVars(const Value& v) {
   auto it = vars.find(v);
   if (it != vars.end()) {
     return it->second;
@@ -79,34 +79,34 @@ const BoolVar& NTTSolver::RepVars::getVarForm(Form form) const {
   return form == Form::COEFF ? c : e;
 }
 
-void NTTSolver::allowEitherForm(Value& v) {
+void NTTSolver::forceDemandEitherForm(const Value& v) {
   RepVars& vs = getOrCreateVars(v);
   model.AddBoolOr({vs.c, vs.e});
 }
 
-void NTTSolver::fixForm(Value& v, Form form) {
+void NTTSolver::forceDemandFixedForm(const Value& v, Form form) {
   RepVars& vs = getOrCreateVars(v);
   model.AddEquality(vs.getVarForm(form), 1);
 }
 
-void NTTSolver::implyForm(Value& v, Form a, Form b) {
+void NTTSolver::implyForm(const Value& v, Form a, Form b) {
   RepVars& vs = getOrCreateVars(v);
   model.AddImplication(vs.getVarForm(a), vs.getVarForm(b));
 }
 
-void NTTSolver::prohibitBothForms(Value& v) {
+void NTTSolver::prohibitBothForms(const Value& v) {
   RepVars& vs = getOrCreateVars(v);
   model.AddBoolOr(
       {vs.getVarForm(Form::COEFF).Not(), vs.getVarForm(Form::EVAL).Not()});
 }
 
-void NTTSolver::implyUse(Value& out, Value& in, Form form) {
+void NTTSolver::implyUse(const Value& out, const Value& in, Form form) {
   RepVars& outs = getOrCreateVars(out);
   RepVars& ins = getOrCreateVars(in);
   model.AddImplication(outs.getVarForm(form), ins.getVarForm(form));
 }
 
-void NTTSolver::implyMode(Value& out, Value& in) {
+void NTTSolver::implyMode(const Value& out, const Value& in) {
   RepVars& outs = getOrCreateVars(out);
   RepVars& ins = getOrCreateVars(in);
   // if mode = 0 and output in any form is needed, force inputs to coeff
@@ -122,12 +122,12 @@ void NTTSolver::implyMode(Value& out, Value& in) {
   model.AddBoolOr({outs.mode.Not(), outs.e.Not(), ins.e});
 }
 
-void NTTSolver::addConversionCostForForm(Value& v, Form form) {
+void NTTSolver::addConversionCostForForm(const Value& v, Form form) {
   RepVars& vs = getOrCreateVars(v);
   model.AddEquality(vs.conv, form == Form::COEFF ? vs.c : vs.e);
 }
 
-void NTTSolver::addConversionCostIfBothForms(Value& v) {
+void NTTSolver::addConversionCostIfBothForms(const Value& v) {
   RepVars& vs = getOrCreateVars(v);
   // vs.conv <=> vs.c and vs.e (otherwise we just run the op in the mode
   // required)
@@ -140,12 +140,12 @@ void NTTSolver::addConversionCostIfBothForms(Value& v) {
   model.AddBoolOr({vs.c.Not(), vs.e.Not(), vs.conv});
 }
 
-void NTTSolver::setZeroConversionCost(Value& v) {
+void NTTSolver::setZeroConversionCost(const Value& v) {
   RepVars& vs = getOrCreateVars(v);
   model.AddEquality(vs.conv, 0);
 }
 
-void NTTSolver::addOpMode(Value& v) {
+void NTTSolver::addOpMode(const Value& v) {
   RepVars& vs = getOrCreateVars(v);
   vs.mode = model.NewBoolVar();
   // 1 = E-mode, 0 = C-mode

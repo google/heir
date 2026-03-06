@@ -28,22 +28,22 @@ class NTTSolver {
 
     const operations_research::sat::BoolVar& getVarForm(Form form) const;
   };
-  RepVars& getOrCreateVars(Value& v);
+  RepVars& getOrCreateVars(const Value& v);
   operations_research::sat::CpModelBuilder model;
   llvm::DenseMap<Value, RepVars> vars;
   operations_research::sat::LinearExpr objective;
 
  public:
-  void allowEitherForm(Value& v);
-  void fixForm(Value& v, Form form);
-  void implyForm(Value& v, Form a, Form b);
-  void implyUse(Value& out, Value& in, Form form);
-  void implyMode(Value& out, Value& in);
-  void prohibitBothForms(Value& v);
-  void addConversionCostForForm(Value& v, Form form);
-  void addConversionCostIfBothForms(Value& v);
-  void setZeroConversionCost(Value& v);
-  void addOpMode(Value& v);
+  void forceDemandEitherForm(const Value& v);
+  void forceDemandFixedForm(const Value& v, Form form);
+  void implyForm(const Value& v, Form a, Form b);
+  void implyUse(const Value& out, const Value& in, Form form);
+  void implyMode(const Value& out, const Value& in);
+  void prohibitBothForms(const Value& v);
+  void addConversionCostForForm(const Value& v, Form form);
+  void addConversionCostIfBothForms(const Value& v);
+  void setZeroConversionCost(const Value& v);
+  void addOpMode(const Value& v);
   CPSATSolution solve();
   friend class CPSATSolution;
 };
@@ -56,9 +56,9 @@ class CPSATSolution {
       const NTTSolver& solver,
       const operations_research::sat::CpSolverResponse& soln);
 
-  bool needsForm(Value& v, Form form) const;
-  bool needsConversion(Value& v) const;
-  Form getMode(Value& v) const;
+  bool needsForm(const Value& v, Form form) const;
+  bool needsConversion(const Value& v) const;
+  Form getMode(const Value& v) const;
   bool isValid() const;
 
  private:

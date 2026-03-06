@@ -19,6 +19,7 @@
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/WalkResult.h"        // from @llvm-project
+#include "mlir/include/mlir/Transforms/RegionUtils.h"    // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -113,6 +114,9 @@ void PolyMulToNTT::runOnOperation() {
     return;
   }
 
+  IRRewriter rewriter(context);
+  (void)runRegionDCE(rewriter, getOperation()->getRegions());
+
   // Our goal is to insert as few NTTs + iNTTs as possible while satisyfing all
   // op constraints. We optimize at the function level, which means there should
   // be no NTTs/INTTs on inputs (unless both forms are needed) and no NTTs/INTTs
@@ -183,6 +187,12 @@ void PolyMulToNTT::runOnOperation() {
    ********** Step 1: Build CP-SAT instance **********
    **************************************************/
 
+  for (Value arg : func.getArguments()) {
+    if (isPolyValue(arg)) {
+      solver.addConversionCostIfBothForms(arg);
+    }
+  }
+
   for (Operation* op : rewriteOrder) {
     auto polyResults = filterPolynomialOps(op->getResults());
     auto polyOperands = filterPolynomialOps(op->getOperands());
@@ -192,7 +202,7 @@ void PolyMulToNTT::runOnOperation() {
     // and we choose to not constrain their form in the SAT instance.
     if (opClass == OpFormClass::RETURN) {
       for (Value v : polyOperands) {
-        solver.allowEitherForm(v);
+        solver.forceDemandEitherForm(v);
       }
     }
     // These ops have coeff-form outputs/inputs
@@ -202,7 +212,11 @@ void PolyMulToNTT::runOnOperation() {
         // the input to be in coeff form. DCE will remove these ops later
         // if they truly aren't needed
         for (Value v : polyOperands) {
-          solver.fixForm(v, Form::COEFF);
+          // since we run DCE at the beginning of this pass, this value *IS*
+          // needed in the IR. We can't see that demand because the outputs
+          // aren't polynomials, but it is correct/necessary to force the
+          // input to coeff form
+          solver.forceDemandFixedForm(v, Form::COEFF);
         }
       } else if (polyResults.size() == 1) {
         // For ops with one poly output, the input is needed in coeff form
@@ -294,7 +308,6 @@ void PolyMulToNTT::runOnOperation() {
   llvm::DenseMap<Value, Value> coeffFormCache;
   llvm::DenseMap<Value, Value> evalFormCache;
 
-  IRRewriter rewriter(context);
   ImplicitLocOpBuilder b(func.getLoc(), rewriter);
 
   // Given a PolynomialType, output a new Polynomial type with the same ring

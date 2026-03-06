@@ -23,7 +23,7 @@ module {
   // CHECK-NOT: polynomial.ntt
   // CHECK-NOT: polynomial.intt
   // CHECK: return
-  func.func @optimal_ntt_placement(%x: !poly_ty_2, %k: index) -> !poly_ty_1 {
+  func.func @optimal_ntt_placement(%x: !poly_ty_2, %k: index) -> (!poly_ty_1, tensor<1024x!rns.rns<!Zq0, !Zq1>>, tensor<1024x!rns.rns<!Zq0, !Zq1>>) {
     %x_sq = polynomial.mul %x, %x : !poly_ty_2
     %x_cu = polynomial.mul %x_sq, %x : !poly_ty_2
 
@@ -40,6 +40,6 @@ module {
     %prod = polynomial.mul %sum, %sum : !poly_ty_2
     // coeff-only consumer of %prod
     %out = polynomial.convert_basis %prod {targetBasis = !rns.rns<!Zq0>} : !poly_ty_2 -> !poly_ty_1
-    return %out : !poly_ty_1
+    return %out, %x_t, %shift_t : !poly_ty_1, tensor<1024x!rns.rns<!Zq0, !Zq1>>, tensor<1024x!rns.rns<!Zq0, !Zq1>>
   }
 }

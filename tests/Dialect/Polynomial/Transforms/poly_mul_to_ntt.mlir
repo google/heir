@@ -31,7 +31,7 @@
 
 // CHECK-DAG: [[ring_4:#[^ ]+]] = #polynomial.ring<coefficientType = [[ZQ1]], polynomialModulus = <1 + x**8>>
 #ring_4 = #polynomial.ring<coefficientType = !Zq1, polynomialModulus = <1 + x**8>>
-//  [[poly_ty_4:![^ ]+]] = !polynomial.polynomial<ring = [[ring_4]]>
+// 1CHECK-DAG: [[poly_ty_4:![^ ]+]] = !polynomial.polynomial<ring = [[ring_4]]>
 !poly_ty_4 = !polynomial.polynomial<ring=#ring_4, form=coeff>
 // CHECK-DAG: [[ntt_poly_ty_4:![^ ]+]] = !polynomial.polynomial<ring = [[ring_4]], form = eval>
 !ntt_poly_ty_4 = !polynomial.polynomial<ring=#ring_4, form=eval>
@@ -59,10 +59,10 @@ module {
   }
 
   // Covers: flexible Add/Sub mode + forced eval by downstream MulOp in same function.
-  // NTT_PLACEMENT: func.func @test_ntt_insertion3([[x3:%.+]]: [[poly_ty_1]]) -> [[ntt_poly_ty_1]] {
-  // ORDER: func.func @test_ntt_insertion3([[x3:%.+]]: [[poly_ty_1]]) -> [[ntt_poly_ty_1]] {
+  // NTT_PLACEMENT: func.func @test_ntt_insertion3([[x3:%.+]]: [[ntt_poly_ty_1]]) -> [[ntt_poly_ty_1]] {
+  // ORDER: func.func @test_ntt_insertion3([[x3:%.+]]: [[ntt_poly_ty_1]]) -> [[ntt_poly_ty_1]] {
   func.func @test_ntt_insertion3(%x: !poly_ty_1) -> !poly_ty_1 {
-    // NTT_PLACEMENT: [[x3e:%.+]] = polynomial.ntt [[x3]] : [[poly_ty_1]]
+    // NTT_PLACEMENT-NOT: polynomial.ntt
     // ORDER: [[a3:%.+]] = polynomial.add {{.*}} : [[ntt_poly_ty_1]]
     %a = polynomial.add %x, %x : !poly_ty_1
     // ORDER: [[b3:%.+]] = polynomial.sub [[a3]], {{.*}} : [[ntt_poly_ty_1]]
@@ -124,9 +124,9 @@ module {
   }
 
   // Covers: MulScalar + ModSwitch (flexible ops) followed by eval-only MulOp.
-  // CHECK: func.func @test_ntt_insertion9([[x9:%.+]]: [[poly_ty_3]], [[s9:%.+]]: [[ZQ0]]) -> [[ntt_poly_ty_4]] {
-  // CHECK: [[x9e:%.+]] = polynomial.ntt [[x9]] : [[poly_ty_3]]
-  // CHECK: [[scaled9:%.+]] = polynomial.mul_scalar [[x9e]], [[s9]] : [[ntt_poly_ty_3]], [[ZQ0]]
+  // CHECK: func.func @test_ntt_insertion9([[x9:%.+]]: [[ntt_poly_ty_3]], [[s9:%.+]]: [[ZQ0]]) -> [[ntt_poly_ty_4]] {
+  // CHECK-NOT: polynomial.ntt
+  // CHECK: [[scaled9:%.+]] = polynomial.mul_scalar [[x9]], [[s9]] : [[ntt_poly_ty_3]], [[ZQ0]]
   // CHECK: [[sw9:%.+]] = polynomial.mod_switch [[scaled9]] : [[ntt_poly_ty_3]] to [[ntt_poly_ty_4]]
   // CHECK: [[m9:%.+]] = polynomial.mul [[sw9]], [[sw9]] : [[ntt_poly_ty_4]]
   // CHECK: return [[m9]] : [[ntt_poly_ty_4]]
@@ -174,29 +174,41 @@ module {
     return %m1, %c1 : !poly_ty_1, i64
   }
 
-  // Covers: same value required in both coeff/eval forms, with coeff return tie-break.
+  // Covers: dead code
   // CHECK: func.func @test_ntt_insertion12([[x13:%.+]]: [[poly_ty_1]]) -> [[poly_ty_1]] {
   func.func @test_ntt_insertion12(%x: !poly_ty_1) -> !poly_ty_1 {
-    // CHECK: [[x13e:%.+]] = polynomial.ntt [[x13]] : [[poly_ty_1]]
-    // CHECK: %{{.+}} = polynomial.mul [[x13e]], [[x13e]] : [[ntt_poly_ty_1]]
+    // CHECK-NOT: polynomial.ntt
+    // CHECK-NOT: polynomial.intt
+    // CHECK-NOT: polynomial.mul
+    // CHECK-NOT: polynomial.to_tensor
     %m = polynomial.mul %x, %x : !poly_ty_1
-    // CHECK: %{{.+}} = polynomial.to_tensor [[x13]] : [[poly_ty_1]] -> tensor<1024x[[RNS1]]>
     %t = polynomial.to_tensor %x : !poly_ty_1 -> tensor<1024x!rns.rns<!Zq0>>
     // CHECK: return [[x13]] : [[poly_ty_1]]
     return %x : !poly_ty_1
   }
 
+  // Covers: same value required in both coeff/eval forms, with coeff return tie-break.
+  // CHECK: func.func @test_ntt_insertion13([[x13:%.+]]: [[poly_ty_1]]) -> ([[poly_ty_1]], [[ntt_poly_ty_1]], tensor<1024x{{.*}}>) {
+  func.func @test_ntt_insertion13(%x: !poly_ty_1) -> (!poly_ty_1, !poly_ty_1, tensor<1024x!rns.rns<!Zq0>>) {
+    // CHECK: [[x13e:%.+]] = polynomial.ntt [[x13]] : [[poly_ty_1]]
+    // CHECK: %{{.+}} = polynomial.mul [[x13e]], [[x13e]] : [[ntt_poly_ty_1]]
+    %m = polynomial.mul %x, %x : !poly_ty_1
+    %t = polynomial.to_tensor %x : !poly_ty_1 -> tensor<1024x!rns.rns<!Zq0>>
+    // CHECK: return [[x13]], {{.*}}, {{.*}} : [[poly_ty_1]], [[ntt_poly_ty_1]], tensor<1024x{{.*}}>
+    return %x, %m, %t : !poly_ty_1, !poly_ty_1, tensor<1024x!rns.rns<!Zq0>>
+  }
+
   // Covers: one SSA polynomial value consumed by coeff-only and eval-only ops in one function.
-  // CHECK: func.func @test_ntt_insertion14([[x14:%.+]]: [[poly_ty_1]]) -> [[ntt_poly_ty_1]] {
+  // CHECK: func.func @test_ntt_insertion14([[x14:%.+]]: [[poly_ty_1]]) -> ([[ntt_poly_ty_1]], tensor<1024x{{.*}}>) {
   // CHECK: [[v14:%.+]] = polynomial.add [[x14]], [[x14]] : [[poly_ty_1]]
   // CHECK: %{{.+}} = polynomial.to_tensor [[v14]] : [[poly_ty_1]] -> tensor<1024x[[RNS1]]>
   // CHECK: [[m14:%.+]] = polynomial.mul {{.*}} : [[ntt_poly_ty_1]]
-  // CHECK: return [[m14]] : [[ntt_poly_ty_1]]
-  func.func @test_ntt_insertion14(%x: !poly_ty_1) -> !poly_ty_1 {
+  // CHECK: return [[m14]], {{.*}} : [[ntt_poly_ty_1]], tensor<1024x{{.*}}>
+  func.func @test_ntt_insertion14(%x: !poly_ty_1) -> (!poly_ty_1, tensor<1024x!rns.rns<!Zq0>>) {
     %v = polynomial.add %x, %x : !poly_ty_1
     %t = polynomial.to_tensor %v : !poly_ty_1 -> tensor<1024x!rns.rns<!Zq0>>
     %m = polynomial.mul %v, %v : !poly_ty_1
-    return %m : !poly_ty_1
+    return %m, %t : !poly_ty_1, tensor<1024x!rns.rns<!Zq0>>
   }
 
   // Covers: baseline MulOp rewrite on tensor<poly> values with form propagation through function signature.
@@ -221,10 +233,10 @@ module {
   }
 
   // Covers: flexible tensor ops (Add/Sub) followed by eval-only tensor MulOp in the same function.
-  // CHECK: func.func @test_ntt_insertion17_tensor_flexible([[x17:%.+]]: tensor<2x[[poly_ty_1]]>) -> tensor<2x[[ntt_poly_ty_1]]> {
-  // CHECK: [[x17e:%.+]] = polynomial.ntt [[x17]] : tensor<2x[[poly_ty_1]]>
-  // CHECK: [[a17:%.+]] = polynomial.add [[x17e]], [[x17e]] : tensor<2x[[ntt_poly_ty_1]]>
-  // CHECK: [[b17:%.+]] = polynomial.sub [[a17]], [[x17e]] : tensor<2x[[ntt_poly_ty_1]]>
+  // CHECK: func.func @test_ntt_insertion17_tensor_flexible([[x17:%.+]]: tensor<2x[[ntt_poly_ty_1]]>) -> tensor<2x[[ntt_poly_ty_1]]> {
+  // CHECK-NOT: polynomial.ntt
+  // CHECK: [[a17:%.+]] = polynomial.add [[x17]], [[x17]] : tensor<2x[[ntt_poly_ty_1]]>
+  // CHECK: [[b17:%.+]] = polynomial.sub [[a17]], [[x17]] : tensor<2x[[ntt_poly_ty_1]]>
   // CHECK: [[c17:%.+]] = polynomial.mul [[b17]], [[b17]] : tensor<2x[[ntt_poly_ty_1]]>
   // CHECK: return [[c17]] : tensor<2x[[ntt_poly_ty_1]]>
   func.func @test_ntt_insertion17_tensor_flexible(%x: tensor<2x!poly_ty_1>) -> tensor<2x!poly_ty_1> {
@@ -235,10 +247,9 @@ module {
   }
 
   // Covers: tensor.from_elements producer of tensor<poly> values consumed by tensor polynomial MulOp.
-  // CHECK: func.func @test_ntt_insertion18_tensor_from_elements([[p0_18:%.+]]: [[poly_ty_3]], [[p1_18:%.+]]: [[poly_ty_3]]) -> tensor<2x[[ntt_poly_ty_3]]> {
-  // CHECK: [[p0e_18:%.+]] = polynomial.ntt [[p0_18]] : [[poly_ty_3]]
-  // CHECK: [[p1e_18:%.+]] = polynomial.ntt [[p1_18]] : [[poly_ty_3]]
-  // CHECK: [[tp18:%.+]] = tensor.from_elements [[p0e_18]], [[p1e_18]] : tensor<2x[[ntt_poly_ty_3]]>
+  // CHECK: func.func @test_ntt_insertion18_tensor_from_elements([[p0_18:%.+]]: [[ntt_poly_ty_3]], [[p1_18:%.+]]: [[ntt_poly_ty_3]]) -> tensor<2x[[ntt_poly_ty_3]]> {
+  // CHECK-NOT: polynomial.ntt
+  // CHECK: [[tp18:%.+]] = tensor.from_elements [[p0_18]], [[p1_18]] : tensor<2x[[ntt_poly_ty_3]]>
   // CHECK: [[m18:%.+]] = polynomial.mul [[tp18]], [[tp18]] : tensor<2x[[ntt_poly_ty_3]]>
   // CHECK: return [[m18]] : tensor<2x[[ntt_poly_ty_3]]>
   func.func @test_ntt_insertion18_tensor_from_elements(%p0: !poly_ty_3, %p1: !poly_ty_3) -> tensor<2x!poly_ty_3> {
@@ -248,10 +259,10 @@ module {
   }
 
   // Covers: tensor.extract_slice + tensor.extract over tensor<poly> combined with scalar and tensor polynomial ops.
-  // CHECK: func.func @test_ntt_insertion19_tensor_extract_paths([[x19:%.+]]: tensor<4x[[poly_ty_3]]>) -> tensor<2x[[ntt_poly_ty_3]]> {
-  // CHECK: [[x19e:%.+]] = polynomial.ntt [[x19]] : tensor<4x[[poly_ty_3]]>
-  // CHECK: [[slice19:%.+]] = tensor.extract_slice [[x19e]][0] [2] [1] : tensor<4x[[ntt_poly_ty_3]]> to tensor<2x[[ntt_poly_ty_3]]>
-  // CHECK: [[e19:%.+]] = tensor.extract [[x19e]][%{{.+}}] : tensor<4x[[ntt_poly_ty_3]]>
+  // CHECK: func.func @test_ntt_insertion19_tensor_extract_paths([[x19:%.+]]: tensor<4x[[ntt_poly_ty_3]]>) -> tensor<2x[[ntt_poly_ty_3]]> {
+  // CHECK-NOT: polynomial.ntt
+  // CHECK: [[slice19:%.+]] = tensor.extract_slice [[x19]][0] [2] [1] : tensor<4x[[ntt_poly_ty_3]]> to tensor<2x[[ntt_poly_ty_3]]>
+  // CHECK: [[e19:%.+]] = tensor.extract [[x19]][%{{.+}}] : tensor<4x[[ntt_poly_ty_3]]>
   // CHECK: [[sq19:%.+]] = polynomial.mul [[e19]], [[e19]] : [[ntt_poly_ty_3]]
   // CHECK: [[packed19:%.+]] = tensor.from_elements [[sq19]], [[sq19]] : tensor<2x[[ntt_poly_ty_3]]>
   // CHECK: [[sum19:%.+]] = polynomial.add [[slice19]], [[packed19]] : tensor<2x[[ntt_poly_ty_3]]>
