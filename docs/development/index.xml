@@ -1,5 +1,4 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>HEIR – Development</title><link>https://heir.dev/docs/development/</link><description>Recent content in Development on HEIR</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="https://heir.dev/docs/development/index.xml" rel="self" type="application/rss+xml"/><item><title>Docs: AI Tool Use Policy</title><link>https://heir.dev/docs/development/ai_policy/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/development/ai_policy/</guid><description>
-&lt;h1 id="ai-tool-use-policy">AI Tool Use Policy&lt;/h1>
 &lt;p>&lt;em>Nb., this policy was adapted from the
 &lt;a href="https://github.com/llvm/llvm-project/pull/154441">LLVM AI Tool Use Policy&lt;/a>.&lt;/em>&lt;/p>
 &lt;h2 id="policy">Policy&lt;/h2>
@@ -53,7 +52,7 @@ and are intended to be learning opportunities for new contributors to get
 familiar with the codebase. Fully automating the process of fixing this issue
 squanders the learning opportunity and doesn&amp;rsquo;t add much value to the project.
 &lt;strong>New contributors using AI tools to fix issues labelled as &amp;ldquo;good first issues&amp;rdquo;
-is forbidden&lt;/strong>..&lt;/p>
+is forbidden&lt;/strong>.&lt;/p>
 &lt;h2 id="extractive-contributions">Extractive Contributions&lt;/h2>
 &lt;p>The reason for our &amp;ldquo;human-in-the-loop&amp;rdquo; contribution policy is that processing
 patches, PRs, RFCs, and comments is not free &amp;ndash; it takes a lot of maintainer

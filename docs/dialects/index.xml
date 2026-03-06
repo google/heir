@@ -12545,12 +12545,12 @@ the coefficient type.&lt;/p>
 &lt;h3 id="polynomialconvert_basis-heirpolynomialconvertbasisop">&lt;code>polynomial.convert_basis&lt;/code> (heir::polynomial::ConvertBasisOp)&lt;/h3>
 &lt;p>&lt;em>Change a polynomial&amp;rsquo;s RNS basis&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `polynomial.convert_basis` $value attr-dict `:` type($value)
+&lt;pre tabindex="0">&lt;code>operation ::= `polynomial.convert_basis` $value attr-dict `:` type($value) `-&amp;gt;` type($output)
 &lt;/code>&lt;/pre>&lt;p>Given a polynomial with RNS coefficients, output a polynomial where the coefficients
 have the target output basis. The output value of each coefficient is equivalent to
 lifting the coefficient to its centered representative over the integers, and reducing
 by the output modulus.&lt;/p>
-&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-1">Attributes:&lt;/h4>
@@ -12569,7 +12569,7 @@ by the output modulus.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>value&lt;/code>&lt;/td>
-&lt;td>An element of a polynomial ring.&lt;/td>
+&lt;td>polynomial-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -12584,7 +12584,7 @@ by the output modulus.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>An element of a polynomial ring.&lt;/td>
+&lt;td>polynomial-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -12647,7 +12647,7 @@ if the input is compatible with the polynomial coefficient type.&lt;/p>
 &lt;h3 id="polynomialextract_slice-heirpolynomialextractsliceop">&lt;code>polynomial.extract_slice&lt;/code> (heir::polynomial::ExtractSliceOp)&lt;/h3>
 &lt;p>&lt;em>Extract a subset of the polynomial&amp;rsquo;s RNS basis&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `polynomial.extract_slice` $input attr-dict `:` type($input)
+&lt;pre tabindex="0">&lt;code>operation ::= `polynomial.extract_slice` $input attr-dict `:` type($input) `-&amp;gt;` type($output)
 &lt;/code>&lt;/pre>&lt;p>Given a polynomial with RNS coefficients with $k$ basis types (limbs), extract the slice of
 RNS components for each coefficient, starting at &lt;code>start&lt;/code> and having size &lt;code>size&lt;/code>.&lt;/p>
 &lt;p>The result type is a polynomial with RNS type containing the subset of basis types
@@ -12753,7 +12753,7 @@ output polynomial at powers of a primitive &lt;code>n&lt;/code>-th root of unity
 &lt;code>polynomial.ntt&lt;/code>). The ring of the polynomial is taken from the required
 encoding attribute of the tensor.&lt;/p>
 &lt;p>The choice of primitive root may be optionally specified.&lt;/p>
-&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-4">Attributes:&lt;/h4>
@@ -12772,7 +12772,7 @@ encoding attribute of the tensor.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>An element of a polynomial ring.&lt;/td>
+&lt;td>polynomial-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -12787,7 +12787,7 @@ encoding attribute of the tensor.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>An element of a polynomial ring.&lt;/td>
+&lt;td>polynomial-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -13105,7 +13105,7 @@ degree &lt;code>n&lt;/code>, and a primitive &lt;code>n&lt;/code>-th root of uni
 the list of $n$ evaluations&lt;/p>
 &lt;p>&lt;code>f[k] = F(omega[n]^k) ; k = {0, ..., n-1}&lt;/code>&lt;/p>
 &lt;p>The choice of primitive root may be optionally specified.&lt;/p>
-&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-5">Attributes:&lt;/h4>
@@ -13124,7 +13124,7 @@ the list of $n$ evaluations&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>An element of a polynomial ring.&lt;/td>
+&lt;td>polynomial-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -13139,7 +13139,7 @@ the list of $n$ evaluations&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>An element of a polynomial ring.&lt;/td>
+&lt;td>polynomial-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
