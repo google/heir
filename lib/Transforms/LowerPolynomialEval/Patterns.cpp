@@ -92,8 +92,8 @@ LogicalResult LowerViaHorner::matchAndRewrite(EvalOp op,
 
   // Use IRMaterializingVisitor to convert to MLIR
   ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-  kernel::IRMaterializingVisitor visitor(b, op.getValue().getType());
-  Value finalOutput = resultNode->visit(visitor)[0];
+  kernel::IRMaterializingVisitor visitor(op.getValue().getType());
+  Value finalOutput = visitor.process(resultNode, b)[0];
 
   rewriter.replaceOp(op, finalOutput);
   return success();
@@ -133,8 +133,8 @@ LogicalResult LowerViaPatersonStockmeyerMonomial::matchAndRewrite(
 
   // Use IRMaterializingVisitor to convert to MLIR
   ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-  kernel::IRMaterializingVisitor visitor(b, op.getValue().getType());
-  Value finalOutput = resultNode->visit(visitor)[0];
+  kernel::IRMaterializingVisitor visitor(op.getValue().getType());
+  Value finalOutput = visitor.process(resultNode, b)[0];
 
   rewriter.replaceOp(op, finalOutput);
   return success();
@@ -190,8 +190,8 @@ LogicalResult LowerViaPatersonStockmeyerChebyshev::matchAndRewrite(
 
   auto resultNode = polynomial::patersonStockmeyerChebyshevPolynomialEvaluation(
       xNode, chebCoeffs, getMinCoefficientThreshold(), dagType);
-  IRMaterializingVisitor visitor(b, op.getValue().getType());
-  Value finalOutput = resultNode->visit(visitor)[0];
+  IRMaterializingVisitor visitor(op.getValue().getType());
+  Value finalOutput = visitor.process(resultNode, b)[0];
 
   rewriter.replaceOp(op, finalOutput);
   return success();
