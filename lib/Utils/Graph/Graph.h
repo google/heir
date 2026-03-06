@@ -62,6 +62,15 @@ class Graph {
   bool empty() const { return vertices.empty(); }
 
   const std::set<V>& getVertices() { return vertices; }
+  std::set<std::pair<V, V>> getEdges() const {
+    std::set<std::pair<V, V>> result;
+    for (const auto& [source, targets] : outEdges) {
+      for (const auto& target : targets) {
+        result.insert({source, target});
+      }
+    }
+    return result;
+  }
 
   // Returns the edges that point out of the given vertex.
   std::vector<V> edgesOutOf(V vertex) {
@@ -83,6 +92,66 @@ class Graph {
       return result;
     }
     return {};
+  }
+
+  // Contract the edge from source to target, thus merging target into source
+  // and removing target from the graph. Returns false if the edge doesn't
+  // exist. The optional mergeFn is a functor that takes the source and target
+  // vertex and is expected to perform custom logic on the vertices that need to
+  // be updated as a result of the merge, and is called before the graph is
+  // modified. It is called exactly once for the contracted edge if provided.
+  //
+  // V = struct { string name; }
+  // mergeFn = [](V& source, const V& target) { source.name += target.name; }
+  //
+  // and we contract edge (v1, v2) where v1.name = "foo" and v2.name = "bar",
+  // then the mergeFn could update v1.name to "foobar" to preserve some
+  // information from both vertices before v2 is removed from the graph.
+  bool contractEdge(V source, V target,
+                    std::function<void(V&, const V&)> mergeFn = nullptr) {
+    if (!hasEdge(source, target)) return false;
+
+    // Merge target into source
+    if (mergeFn) mergeFn(source, target);
+
+    // Redirect all outgoing edges from target to source
+    for (V succ : edgesOutOf(target)) {
+      // Avoid creating a edge to self
+      if (succ != source) {
+        if (weights.contains({target, succ})) {
+          weights[{source, succ}] = weights.at({target, succ});
+          weights.erase({target, succ});
+        }
+        addEdge(source, succ);
+      }
+    }
+
+    // Redirect all incoming edges to target to source
+    for (V pred : edgesInto(target)) {
+      // Avoid creating a edge to self
+      if (pred != source) {
+        if (weights.contains({pred, target})) {
+          weights[{pred, source}] = weights.at({pred, target});
+          weights.erase({pred, target});
+        }
+        addEdge(pred, source);
+      }
+    }
+    // Remove the original source→target edge
+    outEdges[source].erase(target);
+    weights.erase({source, target});
+
+    // Remove stale target references from successors' inEdges
+    for (V succ : edgesOutOf(target)) inEdges[succ].erase(target);
+
+    // Remove stale target references from predecessors' outEdges
+    for (V pred : edgesInto(target)) outEdges[pred].erase(target);
+
+    vertices.erase(target);
+    outEdges.erase(target);
+    inEdges.erase(target);
+
+    return true;
   }
 
   FailureOr<std::vector<V>> getLongestSourceToSinkPath() {
