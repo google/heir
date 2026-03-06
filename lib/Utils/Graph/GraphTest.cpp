@@ -39,6 +39,11 @@ Graph<int> make_levels_graph() {
   return graph;
 }
 
+TEST(GraphUtilsTest, getEdges) {
+  auto graph = make_levels_graph();
+  ASSERT_EQ(graph.getEdges().size(), 10);
+}
+
 TEST(GraphUtilsTest, SourceAndSink) {
   auto graph = make_levels_graph();
   ASSERT_EQ(graph.getSources().size(), 5);
@@ -96,6 +101,163 @@ TEST(GraphUtilsTest, CriticalPath) {
   ASSERT_EQ((*resultpath)[3], 8);
   ASSERT_EQ((*resultpath)[4], 9);
   ASSERT_EQ((*resultpath)[5], 10);
+}
+
+TEST(ContractEdgeTest, SimpleContraction) {
+  // Before: 0 → 1 → 2
+  // Contract (0, 1) → merge 1 into 0
+  // After:  0 → 2   (0 now has 1's successor)
+  Graph<int> graph;
+  graph.addVertex(0);
+  graph.addVertex(1);
+  graph.addVertex(2);
+  graph.addEdge(0, 1);
+  graph.addEdge(1, 2);
+
+  graph.contractEdge(0, 1);
+
+  EXPECT_FALSE(graph.contains(1));
+  EXPECT_TRUE(graph.contains(0));
+  EXPECT_TRUE(graph.contains(2));
+  EXPECT_TRUE(graph.hasEdge(0, 2));
+  EXPECT_FALSE(graph.hasEdge(0, 1));
+}
+
+TEST(ContractEdgeTest, PreservesOtherEdges) {
+  // Before: 0 → 1 → 3
+  //           ↘   ↗
+  //             2
+  // Contract (1, 3) → merge 3 into 1
+  // After:  0 → 1,  0 → 2 → 1
+  Graph<int> graph;
+  graph.addVertex(0);
+  graph.addVertex(1);
+  graph.addVertex(2);
+  graph.addVertex(3);
+  graph.addEdge(0, 1);
+  graph.addEdge(0, 2);
+  graph.addEdge(1, 3);
+  graph.addEdge(2, 3);
+
+  graph.contractEdge(1, 3);
+
+  EXPECT_FALSE(graph.contains(3));
+  EXPECT_TRUE(graph.hasEdge(0, 1));
+  EXPECT_TRUE(graph.hasEdge(0, 2));
+  EXPECT_TRUE(graph.hasEdge(2, 1));
+  EXPECT_FALSE(graph.hasEdge(1, 3));
+  EXPECT_EQ(graph.getVertices().size(), 3);
+}
+
+TEST(ContractEdgeTest, NoSelfLoop) {
+  // Before: 0 → 1 → 2
+  //          ↘ → → ↗
+  // Contract (0, 1): 1's successor is 2, which 0 already points to.
+  // After:  0 → 2   (no self-loop, no duplicate edge)
+  Graph<int> graph;
+  graph.addVertex(0);
+  graph.addVertex(1);
+  graph.addVertex(2);
+  graph.addEdge(0, 1);
+  graph.addEdge(1, 2);
+  graph.addEdge(0, 2);
+
+  graph.contractEdge(0, 1);
+
+  EXPECT_FALSE(graph.contains(1));
+  EXPECT_TRUE(graph.hasEdge(0, 2));
+  EXPECT_FALSE(graph.hasEdge(0, 0));    // no self-loop
+  EXPECT_EQ(graph.getOutDegree(0), 1);  // only one edge to 2
+}
+
+// Functor that records which pairs were merged and keeps the source vertex.
+struct MergeRecorder {
+  std::vector<std::pair<int, int>> calls;
+  void operator()(int& source, const int& target) {
+    calls.push_back({source, target});
+  }
+};
+
+TEST(ContractEdgeTest, LargerGraphWithFunctor) {
+  // Graph:
+  //
+  //  0 → 1 → 2 → 3 → 7
+  //      ↓       ↑
+  //      4 → 5 → 6
+  //
+  // Contract edge (2, 3):
+  //   - 3's successor  (3→7) redirected  → 2→7
+  //   - 3's predecessor (6→3) redirected → 6→2
+  //   - 3 removed
+  //
+  // After:
+  //  0 → 1 → → → 2 → 7
+  //      ↓       ↑
+  //      4 → 5 → 6
+
+  Graph<int> graph;
+  for (int i = 0; i <= 7; i++) graph.addVertex(i);
+  graph.addEdge(0, 1);
+  graph.addEdge(1, 2);
+  graph.addEdge(1, 4);
+  graph.addEdge(2, 3);
+  graph.addEdge(3, 7);
+  graph.addEdge(4, 5);
+  graph.addEdge(5, 6);
+  graph.addEdge(6, 3);
+
+  MergeRecorder recorder;
+  bool result = graph.contractEdge(2, 3, std::ref(recorder));
+
+  EXPECT_TRUE(result);
+
+  // Functor called exactly once with (source=2, target=3)
+  ASSERT_EQ(recorder.calls.size(), 1);
+  EXPECT_EQ(recorder.calls[0], std::make_pair(2, 3));
+
+  // 3 is gone
+  EXPECT_FALSE(graph.contains(3));
+  EXPECT_EQ(graph.getVertices().size(), 7);
+
+  // 3's outgoing edge (3→7) redirected to 2→7
+  EXPECT_TRUE(graph.hasEdge(2, 7));
+
+  // 3's incoming edge (6→3) redirected to 6→2
+  EXPECT_TRUE(graph.hasEdge(6, 2));
+
+  // Original edges preserved
+  EXPECT_TRUE(graph.hasEdge(0, 1));
+  EXPECT_TRUE(graph.hasEdge(1, 2));
+  EXPECT_TRUE(graph.hasEdge(1, 4));
+  EXPECT_TRUE(graph.hasEdge(4, 5));
+  EXPECT_TRUE(graph.hasEdge(5, 6));
+
+  // Contracted edge and all edges to 3 gone
+  EXPECT_FALSE(graph.hasEdge(2, 3));
+  EXPECT_FALSE(graph.hasEdge(6, 3));
+  EXPECT_FALSE(graph.hasEdge(3, 7));
+
+  // No self-loop on 2
+  EXPECT_FALSE(graph.hasEdge(2, 2));
+}
+
+TEST(ContractEdgeTest, ReturnsFalseIfEdgeAbsent) {
+  Graph<int> graph;
+  graph.addVertex(0);
+  graph.addVertex(1);
+  graph.addVertex(2);
+  graph.addEdge(0, 1);
+
+  MergeRecorder recorder;
+  // Edge (1, 0) doesn't exist (wrong direction)
+  EXPECT_FALSE(graph.contractEdge(1, 0, std::ref(recorder)));
+  // Edge (0, 2) doesn't exist
+  EXPECT_FALSE(graph.contractEdge(0, 2, std::ref(recorder)));
+
+  // Nothing was merged, graph unchanged
+  EXPECT_EQ(recorder.calls.size(), 0);
+  EXPECT_EQ(graph.getVertices().size(), 3);
+  EXPECT_TRUE(graph.hasEdge(0, 1));
 }
 
 TEST(LevelSortTest, SimpleGraphLevelSort) {
