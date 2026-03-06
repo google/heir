@@ -183,8 +183,18 @@ void PolyMulToNTT::runOnOperation() {
    ********** Step 1: Build CP-SAT instance **********
    **************************************************/
 
+  for (Value arg : func.getArguments()) {
+    if (isPolyValue(arg)) {
+      solver.addConversionCostIfBothForms(arg);
+      solver.allowEitherForm(arg);
+    }
+  }
+
   for (Operation* op : rewriteOrder) {
     auto polyResults = filterPolynomialOps(op->getResults());
+    for (Value v : polyResults) {
+      solver.allowEitherForm(v);
+    }
     auto polyOperands = filterPolynomialOps(op->getOperands());
     OpFormClass opClass = opFormClass(op);
 
