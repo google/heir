@@ -31,8 +31,6 @@ namespace mlir {
 namespace heir {
 namespace kernel {
 
-namespace {}  // namespace
-
 std::vector<Value> IRMaterializingVisitor::operator()(
     const LeafNode<SSAValue>& node) {
   return {node.value.getValue()};
@@ -137,8 +135,14 @@ std::vector<Value> IRMaterializingVisitor::operator()(
 std::vector<Value> IRMaterializingVisitor::operator()(
     const FloorDivNode<SSAValue>& node) {
   Value lhs = this->process(node.left)[0];
-  Value rhs =
-      arith::ConstantIntOp::create(builder, lhs.getType(), node.divisor);
+  // The assumption here is that FloorDiv is only used in kernels for scalar
+  // index calculations, so the lhs.getType() should always be an integer or
+  // index type.
+  assert((isa<mlir::IntegerType>(lhs.getType()) ||
+          isa<mlir::IndexType>(lhs.getType())) &&
+         "FloorDiv lhs should be a scalar integer type");
+  IntegerAttr rhsAttr = builder.getIntegerAttr(lhs.getType(), node.divisor);
+  Value rhs = arith::ConstantOp::create(builder, rhsAttr);
   auto op = arith::DivSIOp::create(builder, lhs, rhs);
   createdOpCallback(op);
   return {op->getResult(0)};
@@ -274,20 +278,26 @@ std::vector<Value> IRMaterializingVisitor::operator()(
     return {};
   }
 
-  SmallVector<Type> resultTypes;
-  std::vector<Value> thenResults = this->process(node.thenBody);
-  for (Value v : thenResults) {
-    resultTypes.push_back(v.getType());
-  }
-
   auto ifOp = scf::IfOp::create(
       builder, condition,
       [&](OpBuilder& nestedBuilder, Location nestedLoc) {
-        scf::YieldOp::create(builder, thenResults);
+        // nb. This is a bit of a hacky method to override the class-owned
+        // builder for the duration of the call to `process` on the body. If
+        // this becomes a problem, the alternative would be to change the
+        // process() method to take the builder as input, and thread that
+        // through the whole class.
+        auto oldBuilder = builder;
+        builder = ImplicitLocOpBuilder(nestedLoc, nestedBuilder);
+        auto results = this->process(node.thenBody);
+        builder = oldBuilder;
+        scf::YieldOp::create(nestedBuilder, nestedLoc, results);
       },
       [&](OpBuilder& nestedBuilder, Location nestedLoc) {
-        std::vector<Value> thenResults = this->process(node.thenBody);
-        scf::YieldOp::create(builder, thenResults);
+        auto oldBuilder = builder;
+        builder = ImplicitLocOpBuilder(nestedLoc, nestedBuilder);
+        auto results = this->process(node.elseBody);
+        builder = oldBuilder;
+        scf::YieldOp::create(nestedBuilder, nestedLoc, results);
       });
 
   createdOpCallback(ifOp);
@@ -331,8 +341,12 @@ std::vector<Value> IRMaterializingVisitor::operator()(
         assert(std::holds_alternative<YieldNode<SSAValue>>(
                    node.body->node_variant) &&
                "ForLoopNode body must be a YieldNode");
+
+        auto oldBuilder = builder;
+        builder = ImplicitLocOpBuilder(nestedLoc, nestedBuilder);
         std::vector<Value> bodyResults = this->process(node.body);
         scf::YieldOp::create(builder, bodyResults);
+        builder = oldBuilder;
       });
 
   std::vector<Value> results(loop.getResults().begin(),

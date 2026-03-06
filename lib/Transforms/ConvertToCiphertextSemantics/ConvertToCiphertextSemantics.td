@@ -63,11 +63,11 @@ def ConvertToCiphertextSemantics : Pass<"convert-to-ciphertext-semantics"> {
       "Power of two length of the ciphertexts the data is packed in."
     >,
     Option<
-      "experimentalDisableLoopUnroll",
-      "experimental-disable-loop-unroll",
+      "unrollKernels",
+      "unroll-kernels",
       "bool",
-      /*default=*/"false",
-      "Keep the kernels rolled."
+      /*default=*/"true",
+      "Unroll kernel implementations."
     >,
   ];
 }

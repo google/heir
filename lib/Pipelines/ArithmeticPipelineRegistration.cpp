@@ -184,6 +184,8 @@ void mlirToSecretArithmeticPipelineBuilder(
   // Linalg kernel implementation
   ConvertToCiphertextSemanticsOptions convertToCiphertextSemanticsOptions;
   convertToCiphertextSemanticsOptions.ciphertextSize = options.ciphertextDegree;
+  convertToCiphertextSemanticsOptions.unrollKernels =
+      !options.experimentalDisableLoopUnroll;
   pm.addPass(
       createConvertToCiphertextSemantics(convertToCiphertextSemanticsOptions));
 

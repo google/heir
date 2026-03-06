@@ -603,10 +603,10 @@ struct ConvertLinalgMatvecLayout
 
   ConvertLinalgMatvecLayout(
       const ContextAwareTypeConverter& contextAwareTypeConverter,
-      MLIRContext* context, bool experimentalDisableLoopUnroll = false)
+      MLIRContext* context, bool unrollKernels = true)
       : ContextAwareOpConversionPattern(contextAwareTypeConverter, context,
                                         /*benefit=*/10),
-        experimentalDisableLoopUnroll(experimentalDisableLoopUnroll) {}
+        unrollKernels(unrollKernels) {}
 
   LayoutAttr getLayoutAttr(Value value) const {
     auto layoutLookup = getTypeConverter()->getContextualAttr(value);
@@ -667,7 +667,7 @@ struct ConvertLinalgMatvecLayout
                                  .vec(),
                              dagType,
                              /*zeroDiagonals=*/{},
-                             /*unroll=*/!experimentalDisableLoopUnroll);
+                             /*unroll=*/unrollKernels);
 
     rewriter.setInsertionPointAfter(op);
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
@@ -713,7 +713,7 @@ struct ConvertLinalgMatvecLayout
   }
 
  private:
-  bool experimentalDisableLoopUnroll;
+  bool unrollKernels;
 };
 
 struct ConvertLinalgConv2D
@@ -724,10 +724,10 @@ struct ConvertLinalgConv2D
 
   ConvertLinalgConv2D(
       const ContextAwareTypeConverter& contextAwareTypeConverter,
-      MLIRContext* context, bool experimentalDisableLoopUnroll = false)
+      MLIRContext* context, bool unrollKernels = true)
       : ContextAwareOpConversionPattern(contextAwareTypeConverter, context,
                                         /*benefit=*/10),
-        experimentalDisableLoopUnroll(experimentalDisableLoopUnroll) {}
+        unrollKernels(unrollKernels) {}
 
   LayoutAttr getLayoutAttr(Value value) const {
     auto layoutLookup = getTypeConverter()->getContextualAttr(value);
@@ -803,7 +803,7 @@ struct ConvertLinalgConv2D
         implementHaleviShoup(vectorLeaf, matrixLeaf,
                              expandedMatrixType.getShape().vec(), dagType,
                              zeroDiagonals,
-                             /*unroll=*/!experimentalDisableLoopUnroll);
+                             /*unroll=*/unrollKernels);
 
     rewriter.setInsertionPointAfter(op);
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
@@ -847,7 +847,7 @@ struct ConvertLinalgConv2D
   }
 
  private:
-  bool experimentalDisableLoopUnroll;
+  bool unrollKernels;
 };
 
 Value makeMask(ContextAwareConversionPatternRewriter& rewriter, Location loc,
@@ -2037,7 +2037,7 @@ struct ConvertToCiphertextSemantics
                  ConvertTensorExtractSlice, ConvertTensorInsertLayout,
                  ConvertTensorInsertSlice>(typeConverter, context);
     patterns.add<ConvertLinalgMatvecLayout, ConvertLinalgConv2D>(
-        typeConverter, context, experimentalDisableLoopUnroll);
+        typeConverter, context, unrollKernels);
     patterns.add<ConvertAssignLayout>(typeConverter, context, ciphertextSize);
 
     ConversionConfig config;
