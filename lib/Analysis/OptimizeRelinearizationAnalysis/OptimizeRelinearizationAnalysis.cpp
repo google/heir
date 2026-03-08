@@ -21,6 +21,8 @@
 #include "mlir/include/mlir/IR/Operation.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"             // from @llvm-project
+#include "mlir/include/mlir/Interfaces/LoopLikeInterface.h" // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"            // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"   // from @llvm-project
 
@@ -98,11 +100,40 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
   // of the ciphertext at that point in the computation, as well as the decision
   // variable to track whether to insert a relinearization operation after the
   // operation.
-  opToRunOn->walk([&](Operation* op) {
+  opToRunOn->walk<WalkOrder::PreOrder>([&](Operation* op) -> WalkResult {
+    // Skipping loop bodies because they will be handled by a recursive solver.
+    // But,we still need to create variables for the loop's results
+    // so the outer solver can reason about the loop.
+    if (isa<LoopLikeOpInterface>(op) && op != opToRunOn) {
+      std::string name = uniqueName(op);
+      if (isSecret(op->getResults(), solver)) {
+        auto decisionVar = model.AddBinaryVariable("InsertRelin_" + name);
+        decisionVariables.insert(std::make_pair(op, decisionVar));
+      }
+
+      for (OpResult opResult : op->getOpResults()) {
+        Value result = opResult;
+        if (!isSecret(result, solver)) {
+          continue;
+        }
+        std::string varName =
+            "Degree_" + name + "_" + std::to_string(opResult.getResultNumber());
+        auto keyBasisVar =
+            model.AddContinuousVariable(0, MAX_KEY_BASIS_DEGREE, varName);
+        keyBasisVars.insert(std::make_pair(result, keyBasisVar));
+
+        std::string brVarName = varName + "_br";
+        auto brKeyBasisVar =
+            model.AddContinuousVariable(0, MAX_KEY_BASIS_DEGREE, brVarName);
+        beforeRelinVars.insert(std::make_pair(result, brKeyBasisVar));
+      }
+      return WalkResult::skip();
+    }
+
     std::string name = uniqueName(op);
 
     if (isa<ModuleOp>(op)) {
-      return;
+      return WalkResult::advance();
     }
 
     // skip secret generic op; we decide inside generic op block
@@ -138,7 +169,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
     // linearized, though this could be generalized to read the degree from the
     // type.
     if (op->getNumRegions() == 0) {
-      return;
+      return WalkResult::advance();
     }
 
     LLVM_DEBUG(llvm::dbgs()
@@ -159,6 +190,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
         }
       }
     }
+    return WalkResult::advance();
   });
 
   // Constraints to initialize the key basis degree variables at the start of
@@ -179,15 +211,20 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
   // through from the input unchanged. If we don't require this, the output
   // of the addition must be a max over the input degrees.
   if (!allowMixedDegreeOperands) {
-    opToRunOn->walk([&](Operation* op) {
+    opToRunOn->walk<WalkOrder::PreOrder>([&](Operation* op) -> WalkResult {
+      // Skip loop bodies — they will be handled by a recursive solver
+      if (isa<LoopLikeOpInterface>(op) && op != opToRunOn) {
+        return WalkResult::skip();
+      }
+
       if (op->getNumOperands() <= 1) {
-        return;
+        return WalkResult::advance();
       }
 
       // secret generic op arguments are not constrained
       // instead their block arguments are constrained
       if (isa<secret::GenericOp>(op)) {
-        return;
+        return WalkResult::advance();
       }
 
       std::string name = uniqueName(op);
@@ -196,7 +233,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
       SmallVector<OpOperand*, 4> secretOperands;
       getSecretOperands(op, secretOperands, solver);
       if (secretOperands.size() <= 1) {
-        return;
+        return WalkResult::advance();
       }
 
       auto anchorVar = keyBasisVars.at(secretOperands[0]->get());
@@ -215,13 +252,18 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
            << name;
         model.AddLinearConstraint(operandDegreeVar == anchorVar, ss.str());
       }
+      return WalkResult::advance();
     });
   }
 
   // Some ops require a linear key basis. Yield is a special case
   // where we require returned values from funcs to be linearized.
   // TODO(#1398): determine whether we need linear key basis for modreduce.
-  opToRunOn->walk([&](Operation* op) {
+  opToRunOn->walk<WalkOrder::PreOrder>([&](Operation* op) -> WalkResult {
+
+    if (isa<LoopLikeOpInterface>(op) && op != opToRunOn) {
+      return WalkResult::skip();
+    }
     llvm::TypeSwitch<Operation&>(*op)
         .Case<tensor_ext::RotateOp, secret::YieldOp, mgmt::ModReduceOp>(
             [&](auto op) {
@@ -245,6 +287,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
                 model.AddLinearConstraint(operandDegreeVar == 1, ss.str());
               }
             });
+    return WalkResult::advance();
   });
 
   // When mixed-degree ops are enabled, the default result degree of an op is
@@ -254,7 +297,12 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
   std::unordered_set<const math_opt::Variable*> extraVarsForObjective;
 
   // Add constraints that set the before_relin variables appropriately
-  opToRunOn->walk([&](Operation* op) {
+  opToRunOn->walk<WalkOrder::PreOrder>([&](Operation* op) -> WalkResult {
+    // Skip loop bodies — they will be handled by a recursive solver
+    if (isa<LoopLikeOpInterface>(op) && op != opToRunOn) {
+      return WalkResult::skip();
+    }
+
     llvm::TypeSwitch<Operation&>(*op)
         .Case<arith::MulIOp, arith::MulFOp>([&](auto op) {
           // if plain mul, skip
@@ -360,6 +408,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
             }
           }
         });
+    return WalkResult::advance();
   });
 
   // The objective is to minimize the number of relinearization ops.
@@ -373,7 +422,12 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
   model.Minimize(obj);
 
   // Add constraints that control the effect of relinearization insertion.
-  opToRunOn->walk([&](Operation* op) {
+  opToRunOn->walk<WalkOrder::PreOrder>([&](Operation* op) -> WalkResult {
+    // Skip loop bodies — they will be handled by a recursive solver
+    if (isa<LoopLikeOpInterface>(op) && op != opToRunOn) {
+      return WalkResult::skip();
+    }
+
     // We don't need a type switch here because the only difference
     // between mul and other ops is how the before_relin variable is related to
     // the operand variables.
@@ -386,10 +440,10 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
     // secret generic op arguments are not constrained
     // instead their block arguments are constrained
     if (isa<secret::GenericOp>(op)) {
-      return;
+      return WalkResult::advance();
     }
     if (!isSecret(op->getResults(), solver)) {
-      return;
+      return WalkResult::advance();
     }
 
     for (OpResult opResult : op->getResults()) {
@@ -422,6 +476,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
               resultBeforeRelinVar + IF_THEN_AUX * insertRelinOpDecision,
           cstName);
     }
+    return WalkResult::advance();
   });
 
   // Dump the model
