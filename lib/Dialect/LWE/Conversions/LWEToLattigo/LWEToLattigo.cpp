@@ -88,19 +88,17 @@ FailureOr<Value> getContextualEvaluator(Operation* op, Type type) {
 template <typename Ty>
 FailureOr<TypedValue<Ty>> findUniqueOpResult(Operation* op) {
   TypedValue<Ty> foundValue;
-  bool found = false;
   func::FuncOp funcOp = op->getParentOfType<func::FuncOp>();
-  funcOp->walk([&](Operation* innerOp) {
+  auto result = funcOp->walk([&](Operation* innerOp) {
     for (auto result : innerOp->getResults()) {
       if (mlir::isa<Ty>(result.getType())) {
         foundValue = cast<TypedValue<Ty>>(result);
-        found = true;
         return WalkResult::interrupt();
       }
     }
     return WalkResult::advance();
   });
-  if (found) {
+  if (result.wasInterrupted()) {
     return foundValue;
   }
   return failure();

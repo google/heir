@@ -43,6 +43,8 @@ RUN apt-get update && \
     libstdc++-14-dev \
     ca-certificates \
     gnupg \
+    libomp-dev \
+    yosys \
     lsb-release \
     && CODENAME=$(lsb_release -cs) && \
     wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - && \
