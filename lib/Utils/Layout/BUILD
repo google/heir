@@ -29,6 +29,7 @@ cc_test(
     srcs = ["CodegenTest.cpp"],
     deps = [
         ":Codegen",
+        ":Convolution",
         "@googletest//:gtest_main",
         "@heir//lib/Utils/Layout:IslConversion",
         "@heir//lib/Utils/Layout:Utils",
@@ -59,6 +60,18 @@ cc_library(
 )
 
 cc_library(
+    name = "Convolution",
+    srcs = ["Convolution.cpp"],
+    hdrs = ["Convolution.h"],
+    deps = [
+        ":Utils",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
     name = "Evaluate",
     srcs = ["Evaluate.cpp"],
     hdrs = ["Evaluate.h"],
@@ -77,6 +90,7 @@ cc_test(
     name = "EvaluateTest",
     srcs = ["EvaluateTest.cpp"],
     deps = [
+        ":Convolution",
         ":Evaluate",
         ":IslConversion",
         ":Utils",
@@ -91,6 +105,7 @@ cc_test(
     name = "UtilsTest",
     srcs = ["UtilsTest.cpp"],
     deps = [
+        ":Convolution",
         ":Evaluate",
         ":IslConversion",
         ":Utils",
@@ -99,6 +114,23 @@ cc_test(
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithUtils",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_test(
+    name = "ConvolutionTest",
+    srcs = ["ConvolutionTest.cpp"],
+    deps = [
+        ":Convolution",
+        ":Evaluate",
+        ":IslConversion",
+        ":Utils",
+        "@googletest//:gtest_main",
+        "@heir//lib/Utils:TensorUtils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
     ],

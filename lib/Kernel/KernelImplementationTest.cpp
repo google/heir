@@ -8,6 +8,7 @@
 #include "lib/Kernel/KernelImplementation.h"
 #include "lib/Kernel/KernelName.h"
 #include "lib/Kernel/RotationCountVisitor.h"
+#include "lib/Utils/Layout/Convolution.h"
 #include "lib/Utils/Layout/Evaluate.h"
 #include "lib/Utils/Layout/Utils.h"
 #include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project

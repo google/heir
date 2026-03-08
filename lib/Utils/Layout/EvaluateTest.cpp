@@ -5,6 +5,7 @@
 
 #include "gmock/gmock.h"  // from @googletest
 #include "gtest/gtest.h"  // from @googletest
+#include "lib/Utils/Layout/Convolution.h"
 #include "lib/Utils/Layout/Evaluate.h"
 #include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/Layout/Utils.h"

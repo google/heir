@@ -21,6 +21,7 @@ cc_library(
         "@heir//lib/Dialect/TensorExt/Transforms:Patterns",
         "@heir//lib/Kernel",
         "@heir//lib/Utils:AttributeUtils",
+        "@heir//lib/Utils/Layout:Convolution",
         "@heir//lib/Utils/Layout:Hoisting",
         "@heir//lib/Utils/Layout:Utils",
         "@llvm-project//llvm:Support",

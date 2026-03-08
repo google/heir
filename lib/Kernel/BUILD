@@ -136,6 +136,7 @@ cc_test(
         ":KernelImplementation",
         ":RotationCountVisitor",
         "@googletest//:gtest_main",
+        "@heir//lib/Utils/Layout:Convolution",
         "@heir//lib/Utils/Layout:Evaluate",
         "@heir//lib/Utils/Layout:Utils",
         "@llvm-project//mlir:IR",

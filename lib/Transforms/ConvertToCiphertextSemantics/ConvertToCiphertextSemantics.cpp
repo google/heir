@@ -33,6 +33,7 @@
 #include "lib/Utils/ContextAwareDialectConversion.h"
 #include "lib/Utils/ContextAwareTypeConversion.h"
 #include "lib/Utils/Layout/Codegen.h"
+#include "lib/Utils/Layout/Convolution.h"
 #include "lib/Utils/Layout/Utils.h"
 #include "lib/Utils/MathUtils.h"
 #include "lib/Utils/Utils.h"
