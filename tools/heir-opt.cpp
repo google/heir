@@ -83,6 +83,7 @@
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
 #include "lib/Transforms/GenerateParam/GenerateParam.h"
 #include "lib/Transforms/Halo/Passes.h"
+#include "lib/Transforms/ILPBootstrapPlacement/ILPBootstrapPlacement.h"
 #include "lib/Transforms/InlineActivations/InlineActivations.h"
 #include "lib/Transforms/LayoutOptimization/InterfaceImpl.h"
 #include "lib/Transforms/LayoutOptimization/LayoutOptimization.h"
@@ -310,6 +311,7 @@ int main(int argc, char** argv) {
   registerStraightLineVectorizerPasses();
   registerUnusedMemRefPasses();
   registerValidateNoisePasses();
+  registerILPBootstrapPlacementPasses();
   registerOptimizeRelinearizationPasses();
   registerRemoveUnusedPureCallPasses();
   registerRotationAnalysisPasses();
