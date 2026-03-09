@@ -109,6 +109,29 @@ Converts a `linalg` MLIR program exported from PyTorch to the CKKS FHE scheme.
 It first applies `linalg` preprocessing passes and then uses the
 `--mlir-to-ckks` pipeline.
 
+Models are expected to be converted to MLIR via
+[torch-mlir](https://github.com/llvm/torch-mlir) using the `LINALG_ON_TENSORS`
+backend. Installation instructions are
+[here](https://github.com/llvm/torch-mlir?tab=readme-ov-file#install-torch-mlir-snapshot).
+While nightly snapshots are most likely working, a safe version to use is
+`20260308.7451`.
+
+```
+from torch.export import export
+import torch
+import model
+import torch_mlir
+from torch_mlir.fx import OutputType
+
+model = model.MyModel()
+
+sample_input = torch.randn(1, 1, 28, 28)
+mlir = torch_mlir.fx.export_and_import(
+    model,
+    sample_input,
+    output_type=OutputType.LINALG_ON_TENSORS)
+```
+
 ### `--convert-to-data-oblivious`
 
 Transforms a program to be data-oblivious by converting control flow on secret
