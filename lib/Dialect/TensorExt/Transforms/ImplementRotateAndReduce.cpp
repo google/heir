@@ -59,8 +59,8 @@ LogicalResult convertRotateAndReduceOp(RotateAndReduceOp op) {
   IRRewriter rewriter(op.getContext());
   rewriter.setInsertionPointAfter(op);
   ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-  IRMaterializingVisitor visitor(b, input.getType());
-  Value finalOutput = implementedKernel->visit(visitor)[0];
+  IRMaterializingVisitor visitor(input.getType());
+  Value finalOutput = visitor.process(implementedKernel, b)[0];
   rewriter.replaceOp(op, finalOutput);
   return success();
 }
