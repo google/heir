@@ -3594,7 +3594,7 @@ as SIMD/rotation ops are not well-defined on tensor-semantic tensors.&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#layout&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#tensor_ext.layout&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;{ [i0] -&amp;gt; [ct, slot] : ct = 0 and (-i0 + slot) mod 4 = 0 and 0 &amp;lt;= i0 &amp;lt; 4 and 0 &amp;lt;= slot &amp;lt; 4 }&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#original_type&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#tensor_ext.original_type&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">originalType =&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;,&lt;/span> &lt;span style="color:#f57900">layout =&lt;/span> &lt;span style="color:#000">#layout&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>module &lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> private &lt;span style="color:#000">@_assign_layout_9127326406444930286&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> attributes &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">client.pack_func =&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">func_name =&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;matvec&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">}}&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> private &lt;span style="color:#000">@_assign_layout_11164665965060318151&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> attributes &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">client.pack_func =&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">func_name =&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;matvec&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">}}&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%c0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%cst&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> dense&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">0.000000e+00&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%c0_i32&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
@@ -3609,7 +3609,7 @@ as SIMD/rotation ops are not well-defined on tensor-semantic tensors.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> private &lt;span style="color:#000">@_assign_layout_1928982605339350280&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> attributes &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">client.pack_func =&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">func_name =&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;matvec&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">}}&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> private &lt;span style="color:#000">@_assign_layout_1017243105548409175&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> attributes &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">client.pack_func =&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">func_name =&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;matvec&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">}}&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%cst&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> dense&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">0.000000e+00&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%c0_i32&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%c1_i32&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
@@ -3640,8 +3640,8 @@ as SIMD/rotation ops are not well-defined on tensor-semantic tensors.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%cst_0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> dense&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">2.000000e+00&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>generic&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f57900">^body&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%input0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;):&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>call &lt;span style="color:#000">@_assign_layout_1928982605339350280&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%cst_0&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%2&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>call &lt;span style="color:#000">@_assign_layout_9127326406444930286&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%cst&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>call &lt;span style="color:#000">@_assign_layout_1017243105548409175&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%cst_0&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%2&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>call &lt;span style="color:#000">@_assign_layout_11164665965060318151&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%cst&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%extracted_slice&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>extract_slice &lt;span style="color:#000">%1&lt;/span>&lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#000">%c0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">]&lt;/span> &lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">4&lt;/span>&lt;span style="color:#000;font-weight:bold">]&lt;/span> &lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#000;font-weight:bold">]&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> to &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%3&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ext&lt;span style="color:#000;font-weight:bold">.&lt;/span>rotate &lt;span style="color:#000">%extracted_slice&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%c0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%4&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>mulf &lt;span style="color:#000">%3&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%input0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
@@ -4014,6 +4014,26 @@ factor.&lt;/p>
 -encryption-technique-extended : If true, uses EXTENDED encryption technique for encryption. (See https://ia.cr/2022/915)
 -input-range : The range of the plaintexts for input ciphertexts for the CKKS scheme; default to [-1, 1]. For other ranges like [-D, D], use D.
 -reduced-error : If true, uses the prime selection logic in Reduced Error paper (https://eprint.iacr.org/2020/1118).
+&lt;/code>&lt;/pre>&lt;h3 id="-ilp-bootstrap-placement">&lt;code>-ilp-bootstrap-placement&lt;/code>&lt;/h3>
+&lt;p>&lt;em>Optimize placement of bootstrap ops using ILP&lt;/em>&lt;/p>
+&lt;p>This pass uses an integer linear program to determine the optimal level
+of each term in the MLIR, and thus the placement of bootstrap and
+modreduce operations.&lt;/p>
+&lt;p>The pass runs on &lt;a href="https://heir.dev/docs/design/layout/#data-semantic-and-ciphertext-semantic-tensors">ciphertext-semantic&lt;/a>
+IR (secret.generic with arith ops operating on pre-packed tensors). It&lt;/p>
+&lt;ol>
+&lt;li>Inserts mgmt.modreduce after each level-consuming op (e.g. mul in
+CKKS, where level drops only at multiplications).&lt;/li>
+&lt;li>Inserts mgmt.bootstrap at the positions chosen by the ILP.&lt;/li>
+&lt;li>Inserts mgmt.relinearize after each mul. Resulting order is mul -&amp;gt;
+relinearize -&amp;gt; modreduce, with bootstrap after modreduce or after
+the op where the ILP chose.&lt;/li>
+&lt;/ol>
+&lt;p>Note: The ILP formulation does not account for a freshly encrypted
+ciphertext starting at a higher level than the bootstrap waterline.
+This will be implemented as future work.&lt;/p>
+&lt;h4 id="options-16">Options&lt;/h4>
+&lt;pre tabindex="0">&lt;code>-bootstrap-waterline : Bootstrap waterline (max level). Levels are 0..bootstrap-waterline (inclusive); inputs start at bootstrap-waterline.
 &lt;/code>&lt;/pre>&lt;h3 id="-implement-rotate-and-reduce">&lt;code>-implement-rotate-and-reduce&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Implement tensor_ext.rotate_and_reduce ops with baby-steps / giant-steps&lt;/em>&lt;/p>
 &lt;p>This pass converts &lt;code>tensor_ext.rotate_and_reduce&lt;/code> ops
@@ -4318,7 +4338,7 @@ to be run before lowering to a scheme dialect like &lt;code>bgv&lt;/code>.&lt;/p
 &lt;p>This pass generates helper functions to configure the Lattigo objects for the given function.&lt;/p>
 &lt;p>For example, for an MLIR function &lt;code>@my_func&lt;/code>, the generated helpers have the following signatures&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@my_func__configure&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>lattigo&lt;span style="color:#000;font-weight:bold">.&lt;/span>bgv&lt;span style="color:#000;font-weight:bold">.&lt;/span>evaluator&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>lattigo&lt;span style="color:#000;font-weight:bold">.&lt;/span>bgv&lt;span style="color:#000;font-weight:bold">.&lt;/span>parameter&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>lattigo&lt;span style="color:#000;font-weight:bold">.&lt;/span>bgv&lt;span style="color:#000;font-weight:bold">.&lt;/span>encoder&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>lattigo&lt;span style="color:#000;font-weight:bold">.&lt;/span>rlwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>encryptor&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>lattigo&lt;span style="color:#000;font-weight:bold">.&lt;/span>rlwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>decryptor&lt;span style="color:#000;font-weight:bold">)&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-16">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-17">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-entry-function : Default entry function name of entry function.
 &lt;/code>&lt;/pre>&lt;h3 id="-layout-optimization">&lt;code>-layout-optimization&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Optimize layout conversions in the IR&lt;/em>&lt;/p>
@@ -4380,7 +4400,7 @@ hoisted.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%3&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">512x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-17">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-18">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-ciphertext-size : Power of two length of the ciphertexts the data is packed in.
 -vve-random-seed : Random seed for Vos-Vos-Erkin shift network randomization. Will be hash-combined with additional seeds based on layouts being converted from and to.
 -vve-random-tries : Number of random tries used to find best Vos-Vos-Erkin shift network during layout optimization.
@@ -4481,7 +4501,7 @@ case it annotates an un-annotated IR with layout attributes.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%2&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">10x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-18">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-19">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-ciphertext-size : Power of two length of the ciphertexts the data is packed in.
 &lt;/code>&lt;/pre>&lt;h3 id="-linalg-canonicalizations">&lt;code>-linalg-canonicalizations&lt;/code>&lt;/h3>
 &lt;p>&lt;em>This pass canonicalizes the linalg.transpose operation of a constant into a transposed constant.&lt;/em>&lt;/p>
@@ -4507,7 +4527,7 @@ is listed alongside each method. The chosen method is controlled by the
 &lt;p>// TODO(#1565): Add support for Chebyshev-basis methods
 // - &lt;code>&amp;quot;clenshaw&amp;quot;&lt;/code>: Clenshaw&amp;rsquo;s method (Chebyshev basis)
 // - &lt;code>&amp;quot;bsgs&amp;quot;&lt;/code>: Baby Step Giant Step (Chebyshev basis)&lt;/p>
-&lt;h4 id="options-19">Options&lt;/h4>
+&lt;h4 id="options-20">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-method : The method used to lower polynomial.eval
 -min-coefficient-threshold : Minimum threshold for coefficients to be included in the lowered polynomial. Coefficients with absolute value below this threshold will be dropped.
 &lt;/code>&lt;/pre>&lt;h3 id="-lower-unpack">&lt;code>-lower-unpack&lt;/code>&lt;/h3>
@@ -4533,7 +4553,7 @@ arguments, and the debug port is called after each homomorphic operation:&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> __heir_debug&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%sk&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%ct1&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-20">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-21">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-entry-function : Default entry function name of entry function.
 -message-size : The size of the message in the ciphertext.
 &lt;/code>&lt;/pre>&lt;h3 id="-lwe-to-lattigo">&lt;code>-lwe-to-lattigo&lt;/code>&lt;/h3>
@@ -4598,7 +4618,7 @@ Mac operation and removes the mul operation.&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@my_func__generate_crypto_context&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@my_func__configure_crypto_context&lt;/span>&lt;span style="color:#000;font-weight:bold">(!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>private_key&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-21">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-22">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-entry-function : Default entry function name of entry function.
 -mul-depth : Manually specify the mul depth
 -ring-dim : Manually specify the ring dimension (insecure is implied)
@@ -4701,7 +4721,7 @@ relinearization strategy. It solves an ILP for each &lt;code>func&lt;/code> op i
 &lt;a href="https://heir.dev/docs/design/relinearization_ilp/">docs at the HEIR website&lt;/a>.
 The model is an adaptation of the ILP described in
 &lt;a href="https://www.jeremykun.com/2023/11/15/mlir-a-global-optimization-and-dataflow-analysis">a blog post by Jeremy Kun&lt;/a>.&lt;/p>
-&lt;h4 id="options-22">Options&lt;/h4>
+&lt;h4 id="options-23">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-use-loc-based-variable-names : When true, the ILP uses op source locations in variable names, which can help debug ILP model bugs.
 -allow-mixed-degree-operands : When true, allow ops to have mixed-degree ciphertexts as inputs, e.g., adding two ciphertexts with different key bases; this is supported by many FHE backends, like OpenFHE and Lattigo
 &lt;/code>&lt;/pre>&lt;h3 id="-partial-unroll-for-level-consumption">&lt;code>-partial-unroll-for-level-consumption&lt;/code>&lt;/h3>
@@ -4780,7 +4800,7 @@ unrolling calculation to use a particular value for its max level.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-23">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-24">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-force-max-level : If nonzero, forces the inferred maximum level to the given value.
 &lt;/code>&lt;/pre>&lt;h3 id="-polynomial-approximation">&lt;code>-polynomial-approximation&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Approximate ops by polynomials&lt;/em>&lt;/p>
@@ -4861,7 +4881,7 @@ attribute.&lt;/p>
 &lt;p>&lt;em>Lower &lt;code>polynomial&lt;/code> to standard MLIR dialects.&lt;/em>&lt;/p>
 &lt;p>This pass lowers the &lt;code>polynomial&lt;/code> dialect to standard MLIR plus mod_arith,
 including possibly ops from affine, tensor, linalg, and arith.&lt;/p>
-&lt;h4 id="options-24">Options&lt;/h4>
+&lt;h4 id="options-25">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-build-materializations : Whether to build materializations
 &lt;/code>&lt;/pre>&lt;h3 id="-populate-scale-bgv">&lt;code>-populate-scale-bgv&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Populate the scale for BGV (GHS variant) ciphertext&lt;/em>&lt;/p>
@@ -4944,7 +4964,7 @@ generated by the &lt;code>generate-param-ckks&lt;/code> pass.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-25">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-26">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-before-mul-include-first-mul : Modulus switching before each multiplication, including the first multiplication (default to false)
 &lt;/code>&lt;/pre>&lt;h3 id="-propagate-annotation">&lt;code>-propagate-annotation&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Propagate annotation from operation to subsequent operations&lt;/em>&lt;/p>
@@ -4962,7 +4982,7 @@ if these operations does not have the attribute already.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> mgmt&lt;span style="color:#000;font-weight:bold">.&lt;/span>relinearize &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">test.attr =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">test.attr =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-26">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-27">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-attr-name : The attribute name to propagate with.
 -reverse : Whether to propagate in reverse
 &lt;/code>&lt;/pre>&lt;h3 id="-reconcile-mixed-secretness-iter-args">&lt;code>-reconcile-mixed-secretness-iter-args&lt;/code>&lt;/h3>
@@ -5108,7 +5128,7 @@ program that operates on a secret type annotates the input to a region as
 list of op names (e.g., &lt;code>distribute-thorugh=&amp;quot;affine.for,scf.if&amp;quot;&lt;/code>), which
 limits the distribution to only pass through those ops. If unset, all ops
 are distributed through when possible.&lt;/p>
-&lt;h4 id="options-27">Options&lt;/h4>
+&lt;h4 id="options-28">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-distribute-through : comma-separated list of ops that should be distributed through
 &lt;/code>&lt;/pre>&lt;h3 id="-secret-extract-generic-body">&lt;code>-secret-extract-generic-body&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Extract the bodies of all generic ops into functions&lt;/em>&lt;/p>
@@ -5152,7 +5172,7 @@ back to the IR by using &lt;code>--secret-import-execution-result=file-name=trac
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>muli &lt;span style="color:#000;font-weight:bold">...&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">secret.execution_result =&lt;/span> &lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">2.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">3.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">4.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">5.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">6.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">7.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">8.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">9.0&lt;/span>&lt;span style="color:#000;font-weight:bold">]}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-28">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-29">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-file-name : file name of the execution result
 &lt;/code>&lt;/pre>&lt;h3 id="-secret-insert-mgmt-bfv">&lt;code>-secret-insert-mgmt-bfv&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Place BFV ciphertext management operations&lt;/em>&lt;/p>
@@ -5239,7 +5259,7 @@ lower to corresponding RNS Type.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-29">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-30">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-after-mul : Modulus switching after each multiplication (default to false)
 -before-mul-include-first-mul : Modulus switching before each multiplication, including the first multiplication (default to false)
 -level-budget : An optional maximum level budget for the pipeline to assume
@@ -5256,7 +5276,7 @@ where when all levels are consumed then a bootstrap is inserted.&lt;/p>
 handled by further lowering.
 TODO(#1207): handle it here so parameter selection can depend on it.
 TODO(#1207): with this info we can encrypt at max level (with bootstrap consumed level).&lt;/p>
-&lt;h4 id="options-30">Options&lt;/h4>
+&lt;h4 id="options-31">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-after-mul : Modulus switching after each multiplication (default to false)
 -before-mul-include-first-mul : Modulus switching before each multiplication, including the first multiplication (default to false)
 -slot-number : Default number of slots use for ciphertext space.
@@ -5278,7 +5298,7 @@ non-secret values used are removed from the &lt;code>secret.generic&lt;/code>&am
 arguments.&lt;/p>
 &lt;p>The pass requires that all types are tensors of a uniform shape matching the
 dimension of the ciphertext space specified my &lt;code>poly-mod-degree&lt;/code>.&lt;/p>
-&lt;h4 id="options-31">Options&lt;/h4>
+&lt;h4 id="options-32">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-poly-mod-degree : Default degree of the cyclotomic polynomial modulus to use for ciphertext space.
 &lt;/code>&lt;/pre>&lt;h3 id="-secret-to-cggi">&lt;code>-secret-to-cggi&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Lower &lt;code>secret&lt;/code> to &lt;code>cggi&lt;/code> dialect.&lt;/em>&lt;/p>
@@ -5294,7 +5314,7 @@ non-secret values used are removed from the &lt;code>secret.generic&lt;/code>&am
 arguments.&lt;/p>
 &lt;p>The pass requires that all types are tensors of a uniform shape matching the
 dimension of the ciphertext space specified my &lt;code>poly-mod-degree&lt;/code>.&lt;/p>
-&lt;h4 id="options-32">Options&lt;/h4>
+&lt;h4 id="options-33">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-poly-mod-degree : Default degree of the cyclotomic polynomial modulus to use for ciphertext space.
 &lt;/code>&lt;/pre>&lt;h3 id="-secret-to-mod-arith">&lt;code>-secret-to-mod-arith&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Lower &lt;code>secret&lt;/code> to &lt;code>mod-arith&lt;/code> dialect.&lt;/em>&lt;/p>
@@ -5307,7 +5327,7 @@ through arithmetic operations so that only one ciphertext operation appears
 per generic block. It also requires that &lt;code>canonicalize&lt;/code> was run so that
 non-secret values used are removed from the &lt;code>secret.generic&lt;/code>&amp;rsquo;s block
 arguments.&lt;/p>
-&lt;h4 id="options-33">Options&lt;/h4>
+&lt;h4 id="options-34">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-modulus : Modulus to use for the mod-arith dialect. If not specified, the pass will use the natural modulus for that integer type
 -log-scale : Log base 2 of the scale for encoding floating points as ints.
 &lt;/code>&lt;/pre>&lt;h3 id="-secretize">&lt;code>-secretize&lt;/code>&lt;/h3>
@@ -5315,7 +5335,7 @@ arguments.&lt;/p>
 &lt;p>Helper pass that adds a secret.secret attribute argument to each function argument.
 By default, the pass applies to all functions in the module.
 This may be overridden with the option -function=func_name to apply to a single function only.&lt;/p>
-&lt;h4 id="options-34">Options&lt;/h4>
+&lt;h4 id="options-35">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-function : function to add secret annotations to
 &lt;/code>&lt;/pre>&lt;h3 id="-select-rewrite">&lt;code>-select-rewrite&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Rewrites arith.select to a CMUX style expression&lt;/em>&lt;/p>
@@ -5402,13 +5422,13 @@ limit.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%ct_0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ct_L1
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-35">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-36">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-max-return-values : Use this to restrict the maximum return values of the preprocessing function.
 &lt;/code>&lt;/pre>&lt;h3 id="-straight-line-vectorize">&lt;code>-straight-line-vectorize&lt;/code>&lt;/h3>
 &lt;p>&lt;em>A vectorizer for straight line programs.&lt;/em>&lt;/p>
 &lt;p>This pass ignores control flow and only vectorizes straight-line programs
 within a given region.&lt;/p>
-&lt;h4 id="options-36">Options&lt;/h4>
+&lt;h4 id="options-37">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-dialect : Use this to restrict the dialect whose ops should be vectorized.
 &lt;/code>&lt;/pre>&lt;h3 id="-tensor-ext-to-tensor">&lt;code>-tensor-ext-to-tensor&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Lower &lt;code>tensor_ext&lt;/code> to &lt;code>tensor&lt;/code> dialect.&lt;/em>&lt;/p>
@@ -5493,7 +5513,7 @@ this is done by the &lt;code>generate-param-&amp;lt;scheme&amp;gt;&lt;/code> pas
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic"># with commandline --debug-only=ValidateNoise&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>Noise Bound: 29.27 Budget: 149.73 Total: 179.00 &lt;span style="color:#204a87;font-weight:bold">for&lt;/span> value: &amp;lt;block argument&amp;gt; of &lt;span style="color:#204a87">type&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;tensor&amp;lt;8xi16&amp;gt;&amp;#39;&lt;/span> at index: &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>Noise Bound: 29.27 Budget: 149.73 Total: 179.00 &lt;span style="color:#204a87;font-weight:bold">for&lt;/span> value: &amp;lt;block argument&amp;gt; of &lt;span style="color:#204a87">type&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;tensor&amp;lt;8xi16&amp;gt;&amp;#39;&lt;/span> at index: &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-37">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-38">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-model : Noise model to validate against.
 -annotate-noise-bound : Annotate the noise bound to the IR.
 &lt;/code>&lt;/pre>&lt;h3 id="-wrap-generic">&lt;code>-wrap-generic&lt;/code>&lt;/h3>
@@ -5546,72 +5566,70 @@ arguments in the function body.&lt;/li>
 &lt;/ul>
 &lt;h4 id="statistics-1">Statistics&lt;/h4>
 &lt;pre tabindex="0">&lt;code>total circuit size : The total circuit size for all optimized circuits, after optimization is done.
-&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2026-01-29</title><link>https://heir.dev/blog/2026/01/29/heir-meeting-2026-01-29/</link><pubDate>Thu, 29 Jan 2026 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2026/01/29/heir-meeting-2026-01-29/</guid><description>
+&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2025-10-02</title><link>https://heir.dev/blog/2025/10/02/heir-meeting-2025-10-02/</link><pubDate>Thu, 02 Oct 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/10/02/heir-meeting-2025-10-02/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1zyvgThdgsXrW5Q3Y3SlMHDsoL6-B4PbkalOCezhf-NY/edit?usp=sharing">notes&lt;/a>
-and &lt;a href="https://youtu.be/2YKdhbEVZz0">video recording&lt;/a> from the HEIR meeting on
-2026-01-29.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2025-10-30</title><link>https://heir.dev/blog/2025/10/30/heir-meeting-2025-10-30/</link><pubDate>Thu, 30 Oct 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/10/30/heir-meeting-2025-10-30/</guid><description>
+&lt;a href="https://docs.google.com/document/d/1N0hlnCM8tQ9uwiTKVhbDoGdkZ0191sSIfhu7PWotBZc/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/uinxBjENAEE">video recording&lt;/a> from the HEIR meeting on
+2025-10-02.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2025-07-10</title><link>https://heir.dev/blog/2025/07/10/heir-meeting-2025-07-10/</link><pubDate>Thu, 10 Jul 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/07/10/heir-meeting-2025-07-10/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1nUfA6YtOQCGVEE-StS-oxJst6VvGYSz14lCL-x6D2MA/edit?usp=sharing">notes&lt;/a>
-and &lt;a href="https://www.youtube.com/watch?v=74nh6R5Ex5Q">video recording&lt;/a> from the HEIR
-meeting on 2025-10-30.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR as a Platform for Research (and new YouTube Channel)</title><link>https://heir.dev/blog/2024/12/05/heir-as-a-platform-for-research-and-new-youtube-channel/</link><pubDate>Thu, 05 Dec 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/12/05/heir-as-a-platform-for-research-and-new-youtube-channel/</guid><description>
-&lt;p>On 2024-12-05, the HEIR team presented a talk aimed at giving researchers a
-high-level overview of the HEIR project, brainstorming where new research might
-be needed, and discussing how the HEIR team could help with research projects.&lt;/p>
-&lt;p>The &lt;a href="https://youtu.be/t_XHw7LVy8s">video recording of this talk&lt;/a> is on YouTube,
-and this is the first video posted on the
-&lt;a href="https://www.youtube.com/@HEIRCompiler">new HEIR YouTube channel&lt;/a>.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-10-04</title><link>https://heir.dev/blog/2024/10/04/heir-meeting-2024-10-04/</link><pubDate>Fri, 04 Oct 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/10/04/heir-meeting-2024-10-04/</guid><description>
+&lt;a href="https://docs.google.com/document/d/17HaAzW2KZMlwgQwVttDblWY3Ta7ey5LvJ0XOKvnnLZE/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/dCBWr05kOks">video recording&lt;/a> from the HEIR meeting on
+2025-06-12.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-09-19</title><link>https://heir.dev/blog/2024/09/19/heir-meeting-2024-09-19/</link><pubDate>Thu, 19 Sep 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/09/19/heir-meeting-2024-09-19/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1tlC-g3JKOB9wxfQMEJnKQk0C0eBdtBCzZX8ck7J37fI/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1aGIiZPWpk7UMg5FD8ZYHmNhKVZ6NdhfmGMvyHrrlolM/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1OFfrwWesFpxVHw2DFuNAxSB8seLG_tr1/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-10-04.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-09-05</title><link>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</link><pubDate>Thu, 05 Sep 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1i-HqUi8pb2ywUJ-OT4fWExYCmeRLu2Cn/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-09-19.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-06-13</title><link>https://heir.dev/blog/2024/06/13/heir-meeting-2024-06-13/</link><pubDate>Thu, 13 Jun 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/06/13/heir-meeting-2024-06-13/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1tohVmC2pn_XDn3gjCFeo3K4Wfyf7VWu3oK1vimEsFD4/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1rkPxOdbJY5J6qhsciZ0rfdj5_9PG_Ng-6USBUvLrEeU/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1XGheLF7kvJfwAMJJQ-XbDpa4Ld15kj4t/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-09-05.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-05-30</title><link>https://heir.dev/blog/2024/05/30/heir-meeting-2024-05-30/</link><pubDate>Thu, 30 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/30/heir-meeting-2024-05-30/</guid><description>
+&lt;a href="https://drive.google.com/file/d/19oQOYlvfeHoSwWqOC4hXZTBuaPIf1zQl/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-06-13.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-05-16</title><link>https://heir.dev/blog/2024/05/16/heir-meeting-2024-05-16/</link><pubDate>Thu, 16 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/16/heir-meeting-2024-05-16/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1mvigwMRTeVQvdpm2hwiewfU8jcJT94ArQBNvngvgkTc/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/15MwanXaBap6qNzYj7g1m6zRcqK363O-3iCCcNcGY1Ds/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1CTIyd7HRiNV857VO2EonquWZZlBhysLM/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-05-30.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-04-04</title><link>https://heir.dev/blog/2024/04/04/heir-meeting-2024-04-04/</link><pubDate>Thu, 04 Apr 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/04/04/heir-meeting-2024-04-04/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/121_0mzqYIWYMc7rcW2Et5qS-ux4ut3b-kno1dI9sQq8/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1_Ksjx8s8nD4cLsuZp5_KitYI2mPN72Je/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-04-04.&lt;/p>
+&lt;a href="https://drive.google.com/file/d/1gOf_Tb8k9UNx7i0OvjjikkYUG3HrPjoS/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-05-16.&lt;/p>
 &lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-01-11</title><link>https://heir.dev/blog/2024/01/11/heir-meeting-2024-01-11/</link><pubDate>Thu, 11 Jan 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/01/11/heir-meeting-2024-01-11/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/133yuywcbI1AWnbsJezq8QlCpgXfX5HMk7YjXQBSTwoE/edit?usp=sharing">notes&lt;/a>
 and
 &lt;a href="https://drive.google.com/file/d/1gLwcshtNda6M6YMWSsyGrNDvlQ8QiL0O/view?usp=sharing">video recording&lt;/a>
 from the HEIR meeting on 2024-01-11.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2023-11-07</title><link>https://heir.dev/blog/2023/11/07/heir-meeting-2023-11-07/</link><pubDate>Tue, 07 Nov 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/11/07/heir-meeting-2023-11-07/</guid><description>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2023-12-12</title><link>https://heir.dev/blog/2023/12/12/heir-meeting-2023-12-12/</link><pubDate>Tue, 12 Dec 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/12/12/heir-meeting-2023-12-12/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1nOlAhul4DwZU8UQPpTF1i3OldSY9EmwaWG3EPSZIhHs/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1ekGrOBLoB_F3qjC43r6NzJbWpgT9RILTJyVu5Ax3PCQ/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1I7aIipm54CCcDcLyRYXI_gARfT1z93cN/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2023-11-07.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2023-06-30</title><link>https://heir.dev/blog/2023/06/30/heir-meeting-2023-06-30/</link><pubDate>Fri, 30 Jun 2023 12:42:22 -0700</pubDate><guid>https://heir.dev/blog/2023/06/30/heir-meeting-2023-06-30/</guid><description>
-&lt;p>The second HEIR meeting was 2023-05-30
-(&lt;a href="https://docs.google.com/document/d/1wxaEtpEDdO2yv5YKmFTc8FVlqHxm49gHzEdcnBFBKWs/edit?usp=sharing">notes&lt;/a>,
+&lt;a href="https://drive.google.com/file/d/1DaYj9euovyf8vuCi260RQYfEkItn4SEc/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2023-12-12.&lt;/p>
+&lt;p>This is the last meeting for 2023. Please respond to
+&lt;a href="https://app.rallly.co/invite/fHNdzrbisHVA">this poll&lt;/a> for 2024 scheduling
+preferences.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2023-11-28</title><link>https://heir.dev/blog/2023/11/28/heir-meeting-2023-11-28/</link><pubDate>Tue, 28 Nov 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/11/28/heir-meeting-2023-11-28/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1-kkkG__qlAtsp50YXxHC7Dq__Qvgb4BcLZCopzJOzE4/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1S893iJdeL08BAonLenmkUGNC34PX1qpg/view?usp=sharing">video recording&lt;/a>).&lt;/p>
-&lt;p>There are some initial design discussion threads started on
-&lt;a href="https://github.com/google/heir/discussions">GitHub Discussions&lt;/a> to get the
-design rolling.&lt;/p>
-&lt;ul>
-&lt;li>&lt;a href="https://github.com/google/heir/discussions/53">High-Level FHE Dialect&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://github.com/google/heir/discussions/54">Scheme Dialects&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://github.com/google/heir/discussions/55">Poly/Math Dialects&lt;/a>&lt;/li>
-&lt;/ul>
+&lt;a href="https://drive.google.com/file/d/1ykxaqlfVExqGC6saiSnfM2A7_TpWqKiE/view">video recording&lt;/a>
+from the HEIR meeting on 2023-11-28.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2023-09-26</title><link>https://heir.dev/blog/2023/09/27/heir-meeting-2023-09-26/</link><pubDate>Wed, 27 Sep 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/09/27/heir-meeting-2023-09-26/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1pkG8eaSUddAySJWjQHIFqe0hyYkO0wH9X0JtnR6wlWo/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1xaH-G3SZPVv_gEpUkfhFuvUTUwU2ZKLY/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2023-09-26.&lt;/p>
+&lt;p>Next meeting (Oct 10) is canceled for the MLIR workshop, and I&amp;rsquo;ll post an update
+from that workshop on this blog, hopefully also with a video of the talk that
+Alex Viand and I will be giving at the LLVM developers meeting.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: Hello, World!</title><link>https://heir.dev/blog/2023/06/13/hello-world/</link><pubDate>Tue, 13 Jun 2023 13:15:10 -0700</pubDate><guid>https://heir.dev/blog/2023/06/13/hello-world/</guid><description>
+&lt;p>Hello, world! We&amp;rsquo;re starting a project to unify homomorphic encryption compiler
+IRs.&lt;/p>
+&lt;p>Our initial meeting was 2023-05-30
+(&lt;a href="https://docs.google.com/document/d/1iyiHfseoVkA1qaP3Ig47kqVC-J1_AIidPaj61jvj2KM/edit?usp=sharing">read-only copy of the minutes&lt;/a>).
+Stay tuned for future updates while we work out a meeting schedule.&lt;/p>
 &lt;!-- mdformat global-off --></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h1 id="bgv-dialect">&amp;lsquo;bgv&amp;rsquo; Dialect&lt;/h1>
