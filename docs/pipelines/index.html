@@ -4,10 +4,10 @@ heir-opt heir-opt provides several pipelines to lower MLIR programs from standar
 This pass is intended to process FHE programs that are known to be good for SIMD, but a specific SIMD-style FHE scheme (BGV, BFV, CKKS) has not yet been chosen."><meta property="og:title" content="Pipelines"><meta property="og:description" content="This page documents the pass pipelines available in HEIR for the heir-opt and heir-translate tools.
 heir-opt heir-opt provides several pipelines to lower MLIR programs from standard dialects to FHE dialects.
 --heco-simd-vectorizer Convert FHE programs with naive loops that operate on scalar types to equivalent programs that operate on vectors. This corresponds to the optimizations of the HECO compiler.
-This pass is intended to process FHE programs that are known to be good for SIMD, but a specific SIMD-style FHE scheme (BGV, BFV, CKKS) has not yet been chosen."><meta property="og:type" content="article"><meta property="og:url" content="https://heir.dev/docs/pipelines/"><meta property="article:section" content="docs"><meta property="article:modified_time" content="2026-03-06T09:56:12-08:00"><meta itemprop=name content="Pipelines"><meta itemprop=description content="This page documents the pass pipelines available in HEIR for the heir-opt and heir-translate tools.
+This pass is intended to process FHE programs that are known to be good for SIMD, but a specific SIMD-style FHE scheme (BGV, BFV, CKKS) has not yet been chosen."><meta property="og:type" content="article"><meta property="og:url" content="https://heir.dev/docs/pipelines/"><meta property="article:section" content="docs"><meta property="article:modified_time" content="2026-03-08T21:00:38-07:00"><meta itemprop=name content="Pipelines"><meta itemprop=description content="This page documents the pass pipelines available in HEIR for the heir-opt and heir-translate tools.
 heir-opt heir-opt provides several pipelines to lower MLIR programs from standard dialects to FHE dialects.
 --heco-simd-vectorizer Convert FHE programs with naive loops that operate on scalar types to equivalent programs that operate on vectors. This corresponds to the optimizations of the HECO compiler.
-This pass is intended to process FHE programs that are known to be good for SIMD, but a specific SIMD-style FHE scheme (BGV, BFV, CKKS) has not yet been chosen."><meta itemprop=dateModified content="2026-03-06T09:56:12-08:00"><meta itemprop=wordCount content="790"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="Pipelines"><meta name=twitter:description content="This page documents the pass pipelines available in HEIR for the heir-opt and heir-translate tools.
+This pass is intended to process FHE programs that are known to be good for SIMD, but a specific SIMD-style FHE scheme (BGV, BFV, CKKS) has not yet been chosen."><meta itemprop=dateModified content="2026-03-08T21:00:38-07:00"><meta itemprop=wordCount content="851"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="Pipelines"><meta name=twitter:description content="This page documents the pass pipelines available in HEIR for the heir-opt and heir-translate tools.
 heir-opt heir-opt provides several pipelines to lower MLIR programs from standard dialects to FHE dialects.
 --heco-simd-vectorizer Convert FHE programs with naive loops that operate on scalar types to equivalent programs that operate on vectors. This corresponds to the optimizations of the HECO compiler.
 This pass is intended to process FHE programs that are known to be good for SIMD, but a specific SIMD-style FHE scheme (BGV, BFV, CKKS) has not yet been chosen."><link rel=preload href=/scss/main.min.dffc1689fd83830a5fb090d38ca9680587c322008ad97c675ee0ca22e5fb10d5.css as=style><link href=/scss/main.min.dffc1689fd83830a5fb090d38ca9680587c322008ad97c675ee0ca22e5fb10d5.css rel=stylesheet integrity><script src=https://code.jquery.com/jquery-3.6.3.min.js integrity="sha512-STof4xm1wgkfm7heWqFJVn58Hm3EtS31XFaagaa8VMReCXAkQnJZ+jEy8PCC/iT18dFy95WcExNHFTqLyp72eQ==" crossorigin=anonymous></script>
@@ -51,7 +51,25 @@ This pipeline is used for targeting the FPT and Belfort FPGA mirrors of the
 <code>tfhe-rs</code> API.</p><h3 id=--scheme-to-jaxite><code>--scheme-to-jaxite</code></h3><p>Converts code expressed in the CGGI dialect to the <code>jaxite</code> dialect, from which
 <code>heir-translate</code> can generate Python code using the Jaxite library.</p><h3 id=--torch-linalg-to-ckks><code>--torch-linalg-to-ckks</code></h3><p>Converts a <code>linalg</code> MLIR program exported from PyTorch to the CKKS FHE scheme.
 It first applies <code>linalg</code> preprocessing passes and then uses the
-<code>--mlir-to-ckks</code> pipeline.</p><h3 id=--convert-to-data-oblivious><code>--convert-to-data-oblivious</code></h3><p>Transforms a program to be data-oblivious by converting control flow on secret
+<code>--mlir-to-ckks</code> pipeline.</p><p>Models are expected to be converted to MLIR via
+<a href=https://github.com/llvm/torch-mlir>torch-mlir</a> using the <code>LINALG_ON_TENSORS</code>
+backend. Installation instructions are
+<a href="https://github.com/llvm/torch-mlir?tab=readme-ov-file#install-torch-mlir-snapshot">here</a>.
+While nightly snapshots are most likely working, a safe version to use is
+<code>20260308.7451</code>.</p><pre tabindex=0><code>from torch.export import export
+import torch
+import model
+import torch_mlir
+from torch_mlir.fx import OutputType
+
+model = model.MyModel()
+
+sample_input = torch.randn(1, 1, 28, 28)
+mlir = torch_mlir.fx.export_and_import(
+    model,
+    sample_input,
+    output_type=OutputType.LINALG_ON_TENSORS)
+</code></pre><h3 id=--convert-to-data-oblivious><code>--convert-to-data-oblivious</code></h3><p>Transforms a program to be data-oblivious by converting control flow on secret
 data (e.g., <code>if</code>, <code>for</code>, <code>while</code>) into data-independent operations.</p><h3 id=--math-to-polynomial-approximation><code>--math-to-polynomial-approximation</code></h3><p>Approximates math operations that cannot be expressed in FHE using polynomial
 approximations. This is a sub-pipeline of most other pipelines, exposed for
 testing purposes.</p><h2 id=heir-translate><code>heir-translate</code></h2><p><code>heir-translate</code> is a tool for translating MLIR dialects to various output
