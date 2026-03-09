@@ -41,10 +41,10 @@ module attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_param<logN =
     %0 = scf.for %arg1 = %c0_i32 to %c784_i32 step %c1_i32 iter_args(%arg2 = %cst) -> (tensor<1x1024xf32>)  : i32 {
       %1 = arith.divsi %arg1, %c28_i32 : i32
       %2 = arith.remsi %arg1, %c28_i32 : i32
-      %3 = arith.index_cast %1 exact : i32 to index
-      %4 = arith.index_cast %2 exact : i32 to index
+      %3 = arith.index_cast %1 : i32 to index
+      %4 = arith.index_cast %2 : i32 to index
       %extracted = tensor.extract %arg0[%3, %4] : tensor<28x28xf32>
-      %5 = arith.index_cast %arg1 exact : i32 to index
+      %5 = arith.index_cast %arg1 : i32 to index
       %inserted = tensor.insert %extracted into %arg2[%c0, %5] : tensor<1x1024xf32>
       scf.yield %inserted : tensor<1x1024xf32>
     }

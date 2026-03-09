@@ -128,8 +128,7 @@ Operation* convertWriteOpInterface(
 
         auto one = arith::ConstantOp::create(
             b, valType, rewriter.getIntegerAttr(valType, 1));
-        auto shiftAmount =
-            arith::IndexCastOp::create(b, valType, idx, b.getUnitAttr());
+        auto shiftAmount = arith::IndexCastOp::create(b, valType, idx);
         auto bitMask = arith::ShLIOp::create(b, valType, one, shiftAmount);
         auto andOp = arith::AndIOp::create(b, valueToStore, bitMask);
         auto shifted = arith::ShRSIOp::create(b, andOp, shiftAmount);

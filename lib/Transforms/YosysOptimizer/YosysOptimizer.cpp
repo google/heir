@@ -226,8 +226,7 @@ static LogicalResult convertOpOperands(secret::GenericOp op, func::FuncOp func,
         }
         input = arith::IndexCastOp::create(
             builder, op.getLoc(),
-            builder.getIntegerType(functionTensorTy.getNumElements()), input,
-            builder.getUnitAttr());
+            builder.getIntegerType(functionTensorTy.getNumElements()), input);
       }
       assert(mlir::isa<IntegerType>(input.getType()));
       auto convertedValue =

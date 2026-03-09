@@ -11,7 +11,7 @@ module {
   func.func @main(%arg0: i9) -> i16 {
     %1 = memref.get_global @__constant_513xi16 : memref<513xi16>
     %2 = memref.get_global @__constant_513xi16_0 : memref<513xi16>
-    %3 = arith.index_cast %arg0 exact : i9 to index
+    %3 = arith.index_cast %arg0 : i9 to index
     %4 = affine.load %1[%3] : memref<513xi16>
     %5 = affine.load %2[%3] : memref<513xi16>
     %6 = arith.addi %4, %5 : i16

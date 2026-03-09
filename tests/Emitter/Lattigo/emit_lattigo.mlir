@@ -375,7 +375,7 @@ module attributes {scheme.bgv} {
     // CHECK:  [[v0:[^ ]*]] := int64(5)
     // CHECK:  [[v1:[^ ]*]] := int32([[v0]])
     %c5 = arith.constant 5 : index
-    %v = arith.index_cast %c5 exact : index to i32
+    %v = arith.index_cast %c5 : index to i32
     return
   }
 }

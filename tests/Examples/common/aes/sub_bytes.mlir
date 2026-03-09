@@ -214,7 +214,7 @@ func.func @sub_bytes(%arg0: tensor<16xi8> {secret.secret}) -> tensor<16xi8> {
 //     %0 = tensor.empty() : tensor<16xi8>
 //     %1 = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel"]} ins(%arg0 : tensor<16xi8>) outs(%0 : tensor<16xi8>) {
 //     ^bb0(%in: i8, %out: i8):
-//       %2 = arith.index_cast %in exact : i8 to index
+//       %2 = arith.index_cast %in : i8 to index
 //       %extracted = tensor.extract %cst[%2] : tensor<256xi8>
 //       linalg.yield %extracted : i8
 //     } -> tensor<16xi8>

@@ -20,7 +20,7 @@ module {
     %1 = memref.get_global @__constant_2x2xi8 : memref<2x2xi8>
     // CHECK-NOT: memref.get_global
     %2 = memref.get_global @__constant_3xi8 : memref<3xi8>
-    %3 = arith.index_cast %arg0 exact : i2 to index
+    %3 = arith.index_cast %arg0 : i2 to index
     %c0 = arith.constant 0 : index
     // CHECK: affine.load {{.*}}[[GETMEM2]]
     %4 = affine.load %1[%c0, %3] : memref<2x2xi8>

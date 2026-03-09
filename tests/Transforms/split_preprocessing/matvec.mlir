@@ -30,9 +30,9 @@ module attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_param<logN =
     %c1024_i32 = arith.constant 1024 : i32
     %0 = scf.for %arg1 = %c0_i32 to %c1024_i32 step %c1_i32 iter_args(%arg2 = %cst) -> (tensor<1x1024xf32>)  : i32 {
       %1 = arith.remsi %arg1, %c16_i32 : i32
-      %2 = arith.index_cast %1 exact : i32 to index
+      %2 = arith.index_cast %1 : i32 to index
       %extracted = tensor.extract %arg0[%2] : tensor<16xf32>
-      %3 = arith.index_cast %arg1 exact : i32 to index
+      %3 = arith.index_cast %arg1 : i32 to index
       %inserted = tensor.insert %extracted into %arg2[%c0, %3] : tensor<1x1024xf32>
       scf.yield %inserted : tensor<1x1024xf32>
     }
@@ -49,11 +49,11 @@ module attributes {backend.openfhe, ckks.schemeParam = #ckks.scheme_param<logN =
         %2 = arith.remsi %arg3, %c16_i32 : i32
         %3 = arith.addi %arg1, %arg3 : i32
         %4 = arith.remsi %3, %c16_i32 : i32
-        %5 = arith.index_cast %2 exact : i32 to index
-        %6 = arith.index_cast %4 exact : i32 to index
+        %5 = arith.index_cast %2 : i32 to index
+        %6 = arith.index_cast %4 : i32 to index
         %extracted = tensor.extract %arg0[%5, %6] : tensor<16x16xf32>
-        %7 = arith.index_cast %arg1 exact : i32 to index
-        %8 = arith.index_cast %arg3 exact : i32 to index
+        %7 = arith.index_cast %arg1 : i32 to index
+        %8 = arith.index_cast %arg3 : i32 to index
         %inserted = tensor.insert %extracted into %arg4[%7, %8] : tensor<16x1024xf32>
         scf.yield %inserted : tensor<16x1024xf32>
       }
