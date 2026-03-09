@@ -1,5 +1,6 @@
-// RUN: heir-opt --canonicalize --cggi-to-scifrbool | heir-translate --emit-scifrbool --scifrbool-visualization-dir=/tmp/scifrbool/
+// RUN: heir-opt --canonicalize --cggi-to-scifrbool %s | heir-translate --emit-scifrbool --scifrbool-visualization-dir=/tmp/scifrbool/
 // RUN: heir-opt --canonicalize %s --cggi-tigris-estimator
+// RUN: heir-opt --cggi-to-cornami  %s
 !Z1095233372161_i64_ = !mod_arith.int<1095233372161 : i64>
 !Z65537_i64_ = !mod_arith.int<65537 : i64>
 

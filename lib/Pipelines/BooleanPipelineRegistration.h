@@ -79,6 +79,8 @@ CGGIBackendPipelineBuilder toTfheRsPipelineBuilder();
 
 CGGIBackendPipelineBuilder toFptPipelineBuilder();
 
+CGGIBackendPipelineBuilder toCGGICornamiPipelineBuilder();
+
 JaxiteBackendPipelineBuilder toJaxitePipelineBuilder();
 
 }  // namespace mlir::heir

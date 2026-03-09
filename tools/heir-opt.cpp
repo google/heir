@@ -491,6 +491,14 @@ int main(int argc, char** argv) {
       "Convert code expressed at FHE scheme level to jaxite code.",
       toJaxitePipelineBuilder());
 
+  PassPipelineRegistration<mlir::heir::CGGIBackendOptions>(
+      "cggi-to-cornami",
+      "Convert code expressed at CGGI FHE scheme level to SCIFRBool dialect "
+      "for Cornami MX2 machine.",
+      [](OpPassManager& pm, const mlir::heir::CGGIBackendOptions& options) {
+        toCGGICornamiPipelineBuilder();
+      });
+
   // Register internal pipeline
 
   PassPipelineRegistration<>(
