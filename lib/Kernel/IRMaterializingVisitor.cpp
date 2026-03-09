@@ -32,12 +32,12 @@ namespace heir {
 namespace kernel {
 
 std::vector<Value> IRMaterializingVisitor::operator()(
-    const LeafNode<SSAValue>& node) {
+    const LeafNode<SSAValue>& node, ImplicitLocOpBuilder& builder) {
   return {node.value.getValue()};
 }
 
 std::vector<Value> IRMaterializingVisitor::operator()(
-    const ConstantScalarNode& node) {
+    const ConstantScalarNode& node, ImplicitLocOpBuilder& builder) {
   Type targetType = dagTypeToMLIRType(node.type, builder);
   TypedAttr attr;
   if (auto indexTy = dyn_cast<mlir::IndexType>(targetType)) {
@@ -60,7 +60,8 @@ std::vector<Value> IRMaterializingVisitor::operator()(
   return {constantOp};
 }
 
-std::vector<Value> IRMaterializingVisitor::operator()(const SplatNode& node) {
+std::vector<Value> IRMaterializingVisitor::operator()(
+    const SplatNode& node, ImplicitLocOpBuilder& builder) {
   Type targetType = dagTypeToMLIRType(node.type, builder);
 
   // SplatNode should always produce a tensor type
@@ -87,7 +88,7 @@ std::vector<Value> IRMaterializingVisitor::operator()(const SplatNode& node) {
 }
 
 std::vector<Value> IRMaterializingVisitor::operator()(
-    const ConstantTensorNode& node) {
+    const ConstantTensorNode& node, ImplicitLocOpBuilder& builder) {
   Type targetType = dagTypeToMLIRType(node.type, builder);
   RankedTensorType tensorTy = cast<RankedTensorType>(targetType);
 
@@ -118,23 +119,25 @@ std::vector<Value> IRMaterializingVisitor::operator()(
 }
 
 std::vector<Value> IRMaterializingVisitor::operator()(
-    const AddNode<SSAValue>& node) {
-  return binop<AddNode<SSAValue>, arith::AddFOp, arith::AddIOp>(node);
+    const AddNode<SSAValue>& node, ImplicitLocOpBuilder& builder) {
+  return binop<AddNode<SSAValue>, arith::AddFOp, arith::AddIOp>(node, builder);
 }
 
 std::vector<Value> IRMaterializingVisitor::operator()(
-    const SubtractNode<SSAValue>& node) {
-  return binop<SubtractNode<SSAValue>, arith::SubFOp, arith::SubIOp>(node);
+    const SubtractNode<SSAValue>& node, ImplicitLocOpBuilder& builder) {
+  return binop<SubtractNode<SSAValue>, arith::SubFOp, arith::SubIOp>(node,
+                                                                     builder);
 }
 
 std::vector<Value> IRMaterializingVisitor::operator()(
-    const MultiplyNode<SSAValue>& node) {
-  return binop<MultiplyNode<SSAValue>, arith::MulFOp, arith::MulIOp>(node);
+    const MultiplyNode<SSAValue>& node, ImplicitLocOpBuilder& builder) {
+  return binop<MultiplyNode<SSAValue>, arith::MulFOp, arith::MulIOp>(node,
+                                                                     builder);
 }
 
 std::vector<Value> IRMaterializingVisitor::operator()(
-    const FloorDivNode<SSAValue>& node) {
-  Value lhs = this->process(node.left)[0];
+    const FloorDivNode<SSAValue>& node, ImplicitLocOpBuilder& builder) {
+  Value lhs = this->process(node.left, builder)[0];
   // The assumption here is that FloorDiv is only used in kernels for scalar
   // index calculations, so the lhs.getType() should always be an integer or
   // index type.
@@ -149,9 +152,9 @@ std::vector<Value> IRMaterializingVisitor::operator()(
 }
 
 std::vector<Value> IRMaterializingVisitor::operator()(
-    const LeftRotateNode<SSAValue>& node) {
-  Value operand = this->process(node.operand)[0];
-  Value shift = this->process(node.shift)[0];
+    const LeftRotateNode<SSAValue>& node, ImplicitLocOpBuilder& builder) {
+  Value operand = this->process(node.operand, builder)[0];
+  Value shift = this->process(node.shift, builder)[0];
   auto rotateOp =
       tensor_ext::RotateOp::create(builder, operand.getType(), operand, shift);
   createdOpCallback(rotateOp);
@@ -159,9 +162,9 @@ std::vector<Value> IRMaterializingVisitor::operator()(
 }
 
 std::vector<Value> IRMaterializingVisitor::operator()(
-    const ExtractNode<SSAValue>& node) {
-  Value operand = this->process(node.operand)[0];
-  Value index = this->process(node.index)[0];
+    const ExtractNode<SSAValue>& node, ImplicitLocOpBuilder& builder) {
+  Value operand = this->process(node.operand, builder)[0];
+  Value index = this->process(node.index, builder)[0];
   // Ensure index has index type
   if (!index.getType().isIndex()) {
     index = arith::IndexCastOp::create(builder, builder.getIndexType(), index);
@@ -201,9 +204,9 @@ std::vector<Value> IRMaterializingVisitor::operator()(
 }
 
 std::vector<Value> IRMaterializingVisitor::operator()(
-    const ComparisonNode<SSAValue>& node) {
-  Value lhs = this->process(node.left)[0];
-  Value rhs = this->process(node.right)[0];
+    const ComparisonNode<SSAValue>& node, ImplicitLocOpBuilder& builder) {
+  Value lhs = this->process(node.left, builder)[0];
+  Value rhs = this->process(node.right, builder)[0];
 
   auto op = TypeSwitch<Type, Operation*>(getElementTypeOrSelf(lhs.getType()))
                 .Case<mlir::FloatType>([&](auto ty) {
@@ -263,8 +266,8 @@ std::vector<Value> IRMaterializingVisitor::operator()(
 }
 
 std::vector<Value> IRMaterializingVisitor::operator()(
-    const IfElseNode<SSAValue>& node) {
-  Value condition = this->process(node.condition)[0];
+    const IfElseNode<SSAValue>& node, ImplicitLocOpBuilder& builder) {
+  Value condition = this->process(node.condition, builder)[0];
 
   auto* thenYield =
       std::get_if<YieldNode<SSAValue>>(&node.thenBody->node_variant);
@@ -280,22 +283,13 @@ std::vector<Value> IRMaterializingVisitor::operator()(
   auto ifOp = scf::IfOp::create(
       builder, condition,
       [&](OpBuilder& nestedBuilder, Location nestedLoc) {
-        // nb. This is a bit of a hacky method to override the class-owned
-        // builder for the duration of the call to `process` on the body. If
-        // this becomes a problem, the alternative would be to change the
-        // process() method to take the builder as input, and thread that
-        // through the whole class.
-        auto oldBuilder = builder;
-        builder = ImplicitLocOpBuilder(nestedLoc, nestedBuilder);
-        auto results = this->process(node.thenBody);
-        builder = oldBuilder;
+        ImplicitLocOpBuilder nestedB(nestedLoc, nestedBuilder);
+        auto results = this->process(node.thenBody, nestedB);
         scf::YieldOp::create(nestedBuilder, nestedLoc, results);
       },
       [&](OpBuilder& nestedBuilder, Location nestedLoc) {
-        auto oldBuilder = builder;
-        builder = ImplicitLocOpBuilder(nestedLoc, nestedBuilder);
-        auto results = this->process(node.elseBody);
-        builder = oldBuilder;
+        ImplicitLocOpBuilder nestedB(nestedLoc, nestedBuilder);
+        auto results = this->process(node.elseBody, nestedB);
         scf::YieldOp::create(nestedBuilder, nestedLoc, results);
       });
 
@@ -304,17 +298,17 @@ std::vector<Value> IRMaterializingVisitor::operator()(
 }
 
 std::vector<Value> IRMaterializingVisitor::operator()(
-    const VariableNode<SSAValue>& node) {
+    const VariableNode<SSAValue>& node, ImplicitLocOpBuilder& builder) {
   assert(node.value.has_value() && "VariableNode value is not set");
   return {node.value->getValue()};
 }
 
 std::vector<Value> IRMaterializingVisitor::operator()(
-    const ForLoopNode<SSAValue>& node) {
+    const ForLoopNode<SSAValue>& node, ImplicitLocOpBuilder& builder) {
   std::vector<Value> initValues;
   initValues.reserve(node.inits.size());
   for (const auto& init : node.inits) {
-    Value initProcessed = this->process(init)[0];
+    Value initProcessed = this->process(init, builder)[0];
     initValues.push_back(initProcessed);
   }
 
@@ -341,11 +335,9 @@ std::vector<Value> IRMaterializingVisitor::operator()(
                    node.body->node_variant) &&
                "ForLoopNode body must be a YieldNode");
 
-        auto oldBuilder = builder;
-        builder = ImplicitLocOpBuilder(nestedLoc, nestedBuilder);
-        std::vector<Value> bodyResults = this->process(node.body);
-        scf::YieldOp::create(builder, bodyResults);
-        builder = oldBuilder;
+        ImplicitLocOpBuilder nestedB(nestedLoc, nestedBuilder);
+        std::vector<Value> bodyResults = this->process(node.body, nestedB);
+        scf::YieldOp::create(nestedB, bodyResults);
       });
 
   std::vector<Value> results(loop.getResults().begin(),
@@ -354,11 +346,11 @@ std::vector<Value> IRMaterializingVisitor::operator()(
 }
 
 std::vector<Value> IRMaterializingVisitor::operator()(
-    const YieldNode<SSAValue>& node) {
+    const YieldNode<SSAValue>& node, ImplicitLocOpBuilder& builder) {
   std::vector<Value> eltResults;
   eltResults.reserve(node.elements.size());
   for (const auto& elt : node.elements) {
-    std::vector<Value> values = this->process(elt);
+    std::vector<Value> values = this->process(elt, builder);
     assert(values.size() == 1 && "Yield operands must be single values");
     eltResults.push_back(values[0]);
   }
@@ -366,8 +358,8 @@ std::vector<Value> IRMaterializingVisitor::operator()(
 }
 
 std::vector<Value> IRMaterializingVisitor::operator()(
-    const ResultAtNode<SSAValue>& node) {
-  std::vector<Value> operands = this->process(node.operand);
+    const ResultAtNode<SSAValue>& node, ImplicitLocOpBuilder& builder) {
+  std::vector<Value> operands = this->process(node.operand, builder);
   return {operands[node.index]};
 }
 

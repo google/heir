@@ -672,10 +672,10 @@ struct ConvertLinalgMatvecLayout
 
     rewriter.setInsertionPointAfter(op);
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    IRMaterializingVisitor visitor(
-        b, input.getType(),
-        [&](Operation* createdOp) { setMaterializedAttr(createdOp); });
-    Value finalOutput = implementedKernel->visit(visitor)[0];
+    IRMaterializingVisitor visitor(input.getType(), [&](Operation* createdOp) {
+      setMaterializedAttr(createdOp);
+    });
+    Value finalOutput = visitor.process(implementedKernel, b)[0];
 
     auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
     auto* finalOutputOp = finalOutput.getDefiningOp();
@@ -808,10 +808,10 @@ struct ConvertLinalgConv2D
 
     rewriter.setInsertionPointAfter(op);
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    IRMaterializingVisitor visitor(
-        b, data.getType(),
-        [&](Operation* createdOp) { setMaterializedAttr(createdOp); });
-    Value finalOutput = implementedKernel->visit(visitor)[0];
+    IRMaterializingVisitor visitor(data.getType(), [&](Operation* createdOp) {
+      setMaterializedAttr(createdOp);
+    });
+    Value finalOutput = visitor.process(implementedKernel, b)[0];
 
     auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
     auto finalOutputOp = finalOutput.getDefiningOp();
@@ -1981,10 +1981,9 @@ struct ConvertLinalgMatmul
 
     rewriter.setInsertionPointAfter(op);
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    IRMaterializingVisitor visitor(b, lhs.getType(), [&](Operation* createdOp) {
-      setMaterializedAttr(op);
-    });
-    Value finalOutput = implementedKernel->visit(visitor)[0];
+    IRMaterializingVisitor visitor(
+        lhs.getType(), [&](Operation* createdOp) { setMaterializedAttr(op); });
+    Value finalOutput = visitor.process(implementedKernel, b)[0];
 
     auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
     auto* finalOutputOp = finalOutput.getDefiningOp();

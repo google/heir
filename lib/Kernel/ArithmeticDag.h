@@ -445,7 +445,7 @@ struct ArithmeticDagNode {
 /// Template parameters:
 ///   T: The type of the leaf nodes.
 ///   ResultType: The type of the result of the visit.
-template <typename T, typename ResultType>
+template <typename T, typename ResultType, typename... ExtraArgs>
 class CachingVisitor {
   using NodePtr = std::shared_ptr<ArithmeticDagNode<T>>;
 
@@ -453,7 +453,7 @@ class CachingVisitor {
   virtual ~CachingVisitor() = default;
 
   /// The main entry point that contains the caching logic.
-  ResultType process(const NodePtr& node) {
+  ResultType process(const NodePtr& node, ExtraArgs... args) {
     assert(node != nullptr && "invalid null node!");
 
     const auto* nodePtr = node.get();
@@ -461,17 +461,22 @@ class CachingVisitor {
       return it->second;
     }
 
-    ResultType result = std::visit(*this, node->node_variant);
+    ResultType result = std::visit(
+        [&](const auto& n) {
+          return (*this)(n, std::forward<ExtraArgs>(args)...);
+        },
+        node->node_variant);
     cache[nodePtr] = result;
     return result;
   }
 
   /// An alternate entry point that handles multiple roots.
-  std::vector<ResultType> process(llvm::ArrayRef<NodePtr> nodes) {
+  std::vector<ResultType> process(llvm::ArrayRef<NodePtr> nodes,
+                                  ExtraArgs... args) {
     std::vector<ResultType> results;
     results.reserve(nodes.size());
     for (const auto& node : nodes) {
-      results.push_back(process(node));
+      results.push_back(process(node, args...));
     }
     return results;
   }
@@ -486,87 +491,96 @@ class CachingVisitor {
   // to avoid the name-hiding that occurs when a derived class overrides
   // one of the operator() methods.
 
-  virtual ResultType operator()(const ConstantScalarNode& node) {
+  virtual ResultType operator()(const ConstantScalarNode& node,
+                                ExtraArgs... args) {
     assert(false && "Visit logic for ConstantScalarNode is not implemented.");
     return ResultType();
   }
 
-  virtual ResultType operator()(const ConstantTensorNode& node) {
+  virtual ResultType operator()(const ConstantTensorNode& node,
+                                ExtraArgs... args) {
     assert(false && "Visit logic for ConstantTensorNode is not implemented.");
     return ResultType();
   }
 
-  virtual ResultType operator()(const LeafNode<T>& node) {
+  virtual ResultType operator()(const LeafNode<T>& node, ExtraArgs... args) {
     assert(false && "Visit logic for LeafNode is not implemented.");
     return ResultType();
   }
 
-  virtual ResultType operator()(const AddNode<T>& node) {
+  virtual ResultType operator()(const AddNode<T>& node, ExtraArgs... args) {
     assert(false && "Visit logic for AddNode is not implemented.");
     return ResultType();
   }
 
-  virtual ResultType operator()(const SubtractNode<T>& node) {
+  virtual ResultType operator()(const SubtractNode<T>& node,
+                                ExtraArgs... args) {
     assert(false && "Visit logic for SubtractNode is not implemented.");
     return ResultType();
   }
 
-  virtual ResultType operator()(const MultiplyNode<T>& node) {
+  virtual ResultType operator()(const MultiplyNode<T>& node,
+                                ExtraArgs... args) {
     assert(false && "Visit logic for MultiplyNode is not implemented.");
     return ResultType();
   }
 
-  virtual ResultType operator()(const FloorDivNode<T>& node) {
+  virtual ResultType operator()(const FloorDivNode<T>& node,
+                                ExtraArgs... args) {
     assert(false && "Visit logic for FloorDivNode is not implemented.");
     return ResultType();
   }
 
-  virtual ResultType operator()(const PowerNode<T>& node) {
+  virtual ResultType operator()(const PowerNode<T>& node, ExtraArgs... args) {
     assert(false && "Visit logic for PowerNode is not implemented.");
     return ResultType();
   }
 
-  virtual ResultType operator()(const LeftRotateNode<T>& node) {
+  virtual ResultType operator()(const LeftRotateNode<T>& node,
+                                ExtraArgs... args) {
     assert(false && "Visit logic for LeftRotateNode is not implemented.");
     return ResultType();
   }
 
-  virtual ResultType operator()(const ExtractNode<T>& node) {
+  virtual ResultType operator()(const ExtractNode<T>& node, ExtraArgs... args) {
     assert(false && "Visit logic for ExtractNode is not implemented.");
     return ResultType();
   }
 
-  virtual ResultType operator()(const ComparisonNode<T>& node) {
+  virtual ResultType operator()(const ComparisonNode<T>& node,
+                                ExtraArgs... args) {
     assert(false && "Visit logic for ComparisonNode is not implemented.");
     return ResultType();
   }
 
-  virtual ResultType operator()(const IfElseNode<T>& node) {
+  virtual ResultType operator()(const IfElseNode<T>& node, ExtraArgs... args) {
     assert(false && "Visit logic for IfElseNode is not implemented.");
     return ResultType();
   }
 
-  virtual ResultType operator()(const VariableNode<T>& node) {
+  virtual ResultType operator()(const VariableNode<T>& node,
+                                ExtraArgs... args) {
     assert(false && "Visit logic for VariableNode is not implemented.");
     return ResultType();
   }
 
-  virtual ResultType operator()(const YieldNode<T>& node) {
+  virtual ResultType operator()(const YieldNode<T>& node, ExtraArgs... args) {
     assert(false && "Visit logic for YieldNode is not implemented.");
     return ResultType();
   }
 
-  virtual ResultType operator()(const ResultAtNode<T>& node) {
+  virtual ResultType operator()(const ResultAtNode<T>& node,
+                                ExtraArgs... args) {
     assert(false && "Visit logic for ResultAtNode is not implemented.");
     return ResultType();
   }
 
-  virtual ResultType operator()(const ForLoopNode<T>& node) {
+  virtual ResultType operator()(const ForLoopNode<T>& node, ExtraArgs... args) {
     assert(false && "Visit logic for ForLoopNode is not implemented.");
     return ResultType();
   }
 
-  virtual ResultType operator()(const SplatNode& node) {
+  virtual ResultType operator()(const SplatNode& node, ExtraArgs... args) {
     assert(false && "Visit logic for SplatNode is not implemented.");
     return ResultType();
   }
