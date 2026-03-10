@@ -1,8 +1,8 @@
-# bazel output directories
-bazel-bin/
-bazel-heir/
-bazel-out/
-bazel-testlogs/
+# bazel output symlinks
+bazel-bin
+bazel-heir
+bazel-out
+bazel-testlogs
 
 # default cmake output directory
 build/
