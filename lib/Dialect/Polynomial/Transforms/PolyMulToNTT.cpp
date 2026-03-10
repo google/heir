@@ -333,8 +333,10 @@ void PolyMulToNTT::runOnOperation() {
   auto addConversion = [&](Value& v, Form outputForm) -> Value {
     // TODO(#2684): add real PrimitiveRootAttrs
     if (outputForm == Form::EVAL) {
+      ++numNttsInserted;
       return NTTOp::create(b, v, PrimitiveRootAttr()).getOutput();
     } else {
+      ++numInttsInserted;
       return INTTOp::create(b, v, PrimitiveRootAttr()).getOutput();
     }
   };
