@@ -17,6 +17,8 @@
 #include "llvm/include/llvm/Support/Debug.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                // from @llvm-project
@@ -260,7 +262,6 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
   // where we require returned values from funcs to be linearized.
   // TODO(#1398): determine whether we need linear key basis for modreduce.
   opToRunOn->walk<WalkOrder::PreOrder>([&](Operation* op) -> WalkResult {
-
     if (isa<LoopLikeOpInterface>(op) && op != opToRunOn) {
       return WalkResult::skip();
     }
@@ -286,7 +287,34 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
                    << operand.getOperandNumber();
                 model.AddLinearConstraint(operandDegreeVar == 1, ss.str());
               }
-            });
+            })
+        .Case<affine::AffineYieldOp, scf::YieldOp>([&](auto op) {
+          // For loop yield ops, the degree returned must not exceed the degree
+          // of the corresponding iter_arg block argument at the start of the
+          // loop. This prevents unbounded growth across loop iterations.
+          auto parentLoop = op->getParentOp();
+          auto loopLike = dyn_cast<LoopLikeOpInterface>(parentLoop);
+          if (!loopLike) return;
+
+          auto iterArgs = loopLike.getRegionIterArgs();
+
+          // Number of iter args should match number of yielded operands
+          if (iterArgs.size() != op.getNumOperands()) return;
+
+          for (unsigned i = 0; i < op.getNumOperands(); ++i) {
+            auto yieldOperand = op.getOperand(i);
+            if (!isSecret(yieldOperand, solver)) continue;
+            if (!keyBasisVars.contains(yieldOperand)) continue;
+
+            auto yieldDegreeVar = keyBasisVars.at(yieldOperand);
+            auto iterArgDegreeVar = keyBasisVars.at(iterArgs[i]);
+
+            model.AddLinearConstraint(
+                yieldDegreeVar <= iterArgDegreeVar,
+                "LoopCarriedDependency_" + std::to_string(i) + "_" +
+                    uniqueName(op));
+          }
+        });
     return WalkResult::advance();
   });
 
@@ -307,7 +335,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
         .Case<arith::MulIOp, arith::MulFOp>([&](auto op) {
           // if plain mul, skip
           if (!isSecret(op.getResult(), solver)) {
-            return;
+            return WalkResult::advance();
           }
           // ct-ct mul
           if (isSecret(op.getLhs(), solver) && isSecret(op.getRhs(), solver)) {
@@ -347,6 +375,21 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
           }
         })
         .Default([&](Operation& op) {
+          // Handling of for loop ops, usinf the solved inner degree
+          if (isa<LoopLikeOpInterface>(op)) {
+            for (auto [idx, result] : llvm::enumerate(op.getResults())) {
+              if (!isSecret(result, solver)) continue;
+              auto resultBeforeRelinVar = beforeRelinVars.at(result);
+              // Use the degree that the inner solver computed for this yield
+              int solvedDegree = loopBoundaryDegrees[&op][idx];
+              model.AddLinearConstraint(
+                  resultBeforeRelinVar == solvedDegree,
+                  "LoopOutputDegree_" + uniqueName(&op) + "_" +
+                      std::to_string(idx));
+            }
+            return WalkResult::advance();
+          }
+
           // For any other op, the key basis does not change unless we insert
           // a relin op. The operands may have the same basis degree, if that
           // is required by the backend and allowMixedDegreeOperands is false,
@@ -364,10 +407,10 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
           // secret generic op arguments are not constrained
           // instead their block arguments are constrained
           if (isa<secret::GenericOp>(op)) {
-            return;
+            return WalkResult::advance();
           }
           if (!isSecret(op.getResults(), solver)) {
-            return;
+            return WalkResult::advance();
           }
           SmallVector<OpOperand*, 4> secretOperands;
           getSecretOperands(&op, secretOperands, solver);
