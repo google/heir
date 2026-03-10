@@ -294,8 +294,7 @@ def Polynomial_AnyTypedPolynomialAttr : AnyAttrOf<[
   Polynomial_TypedChebyshevPolynomialAttr
 ]>;
 
-def Polynomial_ConstantOp : Op<Polynomial_Dialect, "constant",
-    [Pure, InferTypeOpAdaptor]> {
+def Polynomial_ConstantOp : Op<Polynomial_Dialect, "constant", [Pure]> {
   let summary = "Define a constant polynomial via an attribute.";
   let description = [{
     Example:

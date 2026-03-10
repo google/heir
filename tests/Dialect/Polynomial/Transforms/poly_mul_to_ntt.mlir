@@ -31,7 +31,6 @@
 
 // CHECK-DAG: [[ring_4:#[^ ]+]] = #polynomial.ring<coefficientType = [[ZQ1]], polynomialModulus = <1 + x**8>>
 #ring_4 = #polynomial.ring<coefficientType = !Zq1, polynomialModulus = <1 + x**8>>
-// 1CHECK-DAG: [[poly_ty_4:![^ ]+]] = !polynomial.polynomial<ring = [[ring_4]]>
 !poly_ty_4 = !polynomial.polynomial<ring=#ring_4, form=coeff>
 // CHECK-DAG: [[ntt_poly_ty_4:![^ ]+]] = !polynomial.polynomial<ring = [[ring_4]], form = eval>
 !ntt_poly_ty_4 = !polynomial.polynomial<ring=#ring_4, form=eval>
@@ -139,12 +138,11 @@ module {
 
   // Covers: constant/monomial polynomial producers combined with flexible + eval-only consumers.
   // CHECK: func.func @test_ntt_insertion10([[k10:%.+]]: index, [[c10:%.+]]: [[ZQ0]]) -> [[ntt_poly_ty_3]] {
-  // CHECK: [[mono10:%.+]] = polynomial.monomial [[c10]], [[k10]] : ([[ZQ0]], index) -> [[poly_ty_3]]
-  // CHECK: [[mono10e:%.+]] = polynomial.ntt [[mono10]] : [[poly_ty_3]]
-  // CHECK: [[one10:%.+]] = polynomial.constant int<1 + x> : [[poly_ty_3]]
-  // CHECK: [[one10e:%.+]] = polynomial.ntt [[one10]] : [[poly_ty_3]]
-  // CHECK: [[sum10:%.+]] = polynomial.add [[mono10e]], [[one10e]] : [[ntt_poly_ty_3]]
-  // CHECK: [[prod10:%.+]] = polynomial.mul [[sum10]], [[one10e]] : [[ntt_poly_ty_3]]
+  // CHECK-NOT: polynomial.ntt
+  // CHECK: [[mono10:%.+]] = polynomial.monomial [[c10]], [[k10]] : ([[ZQ0]], index) -> [[ntt_poly_ty_3]]
+  // CHECK: [[one10:%.+]] = polynomial.constant int<1 + x> : [[ntt_poly_ty_3]]
+  // CHECK: [[sum10:%.+]] = polynomial.add [[mono10]], [[one10]] : [[ntt_poly_ty_3]]
+  // CHECK: [[prod10:%.+]] = polynomial.mul [[sum10]], [[one10]] : [[ntt_poly_ty_3]]
   // CHECK: return [[prod10]] : [[ntt_poly_ty_3]]
   func.func @test_ntt_insertion10(%k: index, %c: !Zq0) -> !poly_ty_3 {
     %mono = polynomial.monomial %c, %k : (!Zq0, index) -> !poly_ty_3
@@ -159,9 +157,8 @@ module {
   // CHECK: [[m0_11:%.+]] = polynomial.mul [[x11]], [[x11]] : [[ntt_poly_ty_1]]
   // CHECK: return [[m0_11]], %{{.+}} : [[ntt_poly_ty_1]], i64
   // CHECK: ^bb1:
-  // CHECK: [[p11:%.+]] = polynomial.constant int<1 + x**2> : [[poly_ty_1]]
-  // CHECK: [[p11e:%.+]] = polynomial.ntt [[p11]] : [[poly_ty_1]]
-  // CHECK: [[m1_11:%.+]] = polynomial.mul [[p11e]], [[p11e]] : [[ntt_poly_ty_1]]
+  // CHECK: [[p11:%.+]] = polynomial.constant int<1 + x**2> : [[ntt_poly_ty_1]]
+  // CHECK: [[m1_11:%.+]] = polynomial.mul [[p11]], [[p11]] : [[ntt_poly_ty_1]]
   // CHECK: return [[m1_11]], %{{.+}} : [[ntt_poly_ty_1]], i64
   func.func @test_ntt_insertion11(%x: !poly_ty_1) -> (!poly_ty_1, i64) {
     %c0 = arith.constant 0 : i64
@@ -275,5 +272,20 @@ module {
     %packed = tensor.from_elements %sq, %sq : tensor<2x!poly_ty_3>
     %sum = polynomial.add %slice, %packed : tensor<2x!poly_ty_3>
     return %sum : tensor<2x!poly_ty_3>
+  }
+
+  // Covers: constant needed in both coeff and eval forms in one function.
+  // CHECK: func.func @test_ntt_insertion20_constant_needed_in_both_forms() -> ([[ntt_poly_ty_3]], tensor<8x[[ZQ0]]>) {
+  // CHECK-NOT: polynomial.ntt
+  // CHECK: [[c20:%.+]] = polynomial.constant int<1 + x> : [[poly_ty_3]]{{$}}
+  // CHECK: [[c20e:%.+]] = polynomial.constant int<1 + x> : [[ntt_poly_ty_3]]{{$}}
+  // CHECK: [[m20:%.+]] = polynomial.mul [[c20e]], [[c20e]] : [[ntt_poly_ty_3]]
+  // CHECK: [[t20:%.+]] = polynomial.to_tensor [[c20]] : [[poly_ty_3]] -> tensor<8x[[ZQ0]]>
+  // CHECK: return [[m20]], [[t20]] : [[ntt_poly_ty_3]], tensor<8x[[ZQ0]]>
+  func.func @test_ntt_insertion20_constant_needed_in_both_forms() -> (!poly_ty_3, tensor<8x!Zq0>) {
+    %c = polynomial.constant int<1 + x> : !poly_ty_3
+    %m = polynomial.mul %c, %c : !poly_ty_3
+    %t = polynomial.to_tensor %c : !poly_ty_3 -> tensor<8x!Zq0>
+    return %m, %t : !poly_ty_3, tensor<8x!Zq0>
   }
 }
