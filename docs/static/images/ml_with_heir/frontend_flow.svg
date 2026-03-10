@@ -27,8 +27,12 @@
   <rect x="52" y="194" width="104" height="34" rx="17" fill="#f7d7d4"/>
   <text x="104" y="216" text-anchor="middle" fill="#ef6a59" class="label">torch-mlir</text>
 
-  <polygon points="270,178 286,188 286,208 270,218 254,208 254,188" fill="#1e3b5f"/>
-  <text x="270" y="205" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700">XLA</text>
+  <g transform="translate(268, 172.91)">
+    <polygon fill="#15273b" points="17.71 47.89 8.59 32.09 17.71 16.29 37.82 16.29 46.94 32.09 37.82 47.89 17.71 47.89"/>
+    <polygon fill="#3775e0" points="31.38 32.09 36.73 22.81 37.94 24.89 33.78 32.09 36.73 37.2 34.33 37.2 31.38 32.09"/>
+    <polygon fill="#5ea8da" points="24.15 32.09 18.8 41.37 17.59 39.29 21.75 32.09 18.8 26.98 21.2 26.98 24.15 32.09"/>
+    <polygon fill="#fff" points="33.12 39.29 28.97 32.09 34.33 22.81 31.92 22.81 30.17 25.84 28.42 22.81 26.02 22.81 28.97 27.92 27.76 30 23.61 22.81 18.8 22.81 17.59 24.89 22.41 24.89 26.56 32.09 21.2 41.37 23.61 41.37 25.36 38.34 27.11 41.37 29.51 41.37 26.56 36.26 27.76 34.17 31.92 41.37 36.73 41.37 37.94 39.29 33.12 39.29"/>
+  </g>
 
   <rect x="324" y="188" width="136" height="34" rx="6" fill="#f7f7f6" stroke="#8f9094" stroke-width="2"/>
   <text x="392" y="210" text-anchor="middle" fill="#8f9094" class="label">StableHLO</text>

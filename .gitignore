@@ -1,3 +1,6 @@
+# macOS
+.DS_Store
+
 # bazel output directories
 bazel-bin/
 bazel-heir/

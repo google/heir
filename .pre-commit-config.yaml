@@ -60,6 +60,7 @@ repos:
   hooks:
   - id: mdformat
     args: ["--wrap=80"]
+    exclude: "docs/content/en/docs/Design/ml_with_heir\\.md$"
     additional_dependencies:
     - mdformat-gfm
     - mdformat-frontmatter
