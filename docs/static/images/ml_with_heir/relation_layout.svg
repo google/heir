@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 300" role="img" aria-labelledby="title desc">
+  <title id="title">Relation-based ciphertext layout mapping</title>
+  <desc id="desc">Mapping of tensor indices i and j to ciphertext and slot with modular and bound constraints.</desc>
+  <style>
+    .serif { font-family: "STIX Two Text", "Times New Roman", Georgia, serif; fill: #1f2023; }
+    .sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #565c66; }
+    .eq { font-size: 41px; }
+    .eqSmall { font-size: 37px; }
+    .brace { font-size: 110px; font-family: "Times New Roman", Georgia, serif; fill: #1f2023; }
+    .caption { font-size: 14px; }
+    .divider { stroke: #44484f; stroke-width: 1.5; }
+  </style>
+
+  <text class="brace" x="18" y="185">{</text>
+  <text class="serif eqSmall" x="68" y="180">(i, j) ↦ (ct, slot)</text>
+  <line class="divider" x1="302" y1="52" x2="302" y2="238" />
+  <text class="serif eq" x="322" y="100">(i − j + ct)    mod 8 = 0</text>
+  <text class="serif eq" x="322" y="142">(i − slot)    mod 1024 = 0</text>
+  <text class="serif eq" x="322" y="184">0 &lt;= i, j, ct &lt; 8</text>
+  <text class="serif eq" x="322" y="226">0 &lt;= slot &lt; 1024</text>
+  <text class="brace" x="690" y="185">}</text>
+  <text class="sans caption" x="380" y="274" text-anchor="middle">Mapping (i, j) of an 8x8 tensor to 8 ciphertexts with 1024 slots</text>
+</svg>

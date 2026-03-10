@@ -9,7 +9,8 @@ author: 'Asra Ali'
 
 Asra Ali presented a poster at the FHE.org 2026 conference in Taipei.
 
-The poster is available below. Scroll horizontally to see details, or tap the
+A web-friendly adaptation of the poster is available at [ML with HEIR](/docs/Design/ml_with_heir/),
+while the original poster is available below. Scroll horizontally to see details, or tap the
 image to view the full-resolution PDF.
 
 <div class="poster-container" style="overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid #ddd; margin: 1rem 0;">

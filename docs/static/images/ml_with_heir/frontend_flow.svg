@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 360" role="img" aria-label="ML frontend flow from PyTorch, TensorFlow, and ONNX into HEIR's linalg entry level">
+  <defs>
+    <marker id="arrow-red" markerWidth="7" markerHeight="7" refX="5.4" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 Z" fill="#ef6a59"/>
+    </marker>
+    <marker id="arrow-gray" markerWidth="7" markerHeight="7" refX="5.4" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 Z" fill="#9ea2a8"/>
+    </marker>
+    <style>
+      .label { font: 500 15px sans-serif; }
+      .label-strong { font: 600 16px sans-serif; }
+    </style>
+  </defs>
+
+  <rect x="34" y="26" width="122" height="34" rx="6" fill="#fffdfc" stroke="#ef6a59" stroke-width="2"/>
+  <text x="95" y="48" text-anchor="middle" fill="#ef6a59" class="label-strong">PyTorch</text>
+
+  <rect x="208" y="26" width="132" height="34" rx="6" fill="#f7f7f6" stroke="#8f9094" stroke-width="2"/>
+  <text x="274" y="48" text-anchor="middle" fill="#8f9094" class="label">TensorFlow</text>
+
+  <rect x="394" y="26" width="120" height="34" rx="6" fill="#f7f7f6" stroke="#8f9094" stroke-width="2"/>
+  <text x="454" y="48" text-anchor="middle" fill="#8f9094" class="label">ONNX</text>
+
+  <rect x="398" y="88" width="110" height="34" rx="17" fill="#d8d7d7"/>
+  <text x="453" y="110" text-anchor="middle" fill="#66676b" class="label">onnx-mlir</text>
+
+  <rect x="52" y="194" width="104" height="34" rx="17" fill="#f7d7d4"/>
+  <text x="104" y="216" text-anchor="middle" fill="#ef6a59" class="label">torch-mlir</text>
+
+  <polygon points="270,178 286,188 286,208 270,218 254,208 254,188" fill="#1e3b5f"/>
+  <text x="270" y="205" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700">XLA</text>
+
+  <rect x="324" y="188" width="136" height="34" rx="6" fill="#f7f7f6" stroke="#8f9094" stroke-width="2"/>
+  <text x="392" y="210" text-anchor="middle" fill="#8f9094" class="label">StableHLO</text>
+
+  <rect x="250" y="302" width="90" height="38" rx="6" fill="#fbfcff" stroke="#5c90f2" stroke-width="2"/>
+  <text x="295" y="326" text-anchor="middle" fill="#5c90f2" class="label-strong">Linalg</text>
+
+  <line x1="95" y1="60" x2="95" y2="194" stroke="#ef6a59" stroke-width="1.7" stroke-dasharray="4 4"/>
+  <line x1="274" y1="60" x2="274" y2="152" stroke="#9ea2a8" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <line x1="453" y1="60" x2="453" y2="88" stroke="#9ea2a8" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <line x1="453" y1="122" x2="453" y2="152" stroke="#9ea2a8" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <line x1="95" y1="152" x2="453" y2="152" stroke="#9ea2a8" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <line x1="453" y1="152" x2="453" y2="188" stroke="#9ea2a8" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#arrow-gray)"/>
+  <line x1="104" y1="228" x2="104" y2="286" stroke="#ef6a59" stroke-width="1.8"/>
+  <line x1="104" y1="286" x2="289" y2="286" stroke="#ef6a59" stroke-width="1.8"/>
+  <line x1="289" y1="286" x2="289" y2="302" stroke="#ef6a59" stroke-width="1.8" marker-end="url(#arrow-red)"/>
+  <line x1="392" y1="222" x2="392" y2="254" stroke="#9ea2a8" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <line x1="392" y1="254" x2="302" y2="254" stroke="#9ea2a8" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <line x1="302" y1="254" x2="302" y2="302" stroke="#9ea2a8" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#arrow-gray)"/>
+</svg>
