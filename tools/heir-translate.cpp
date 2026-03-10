@@ -5,7 +5,6 @@
 #include "lib/Target/Metadata/MetadataEmitter.h"
 #include "lib/Target/OpenFhePke/OpenFheTranslateRegistration.h"
 // This comment includes internal emitters
-#include "lib/Target/SCIFRBool/SCIFRBoolEmitter.h"
 #include "lib/Target/SimFHE/SimFHEEmitter.h"
 #include "lib/Target/TfheRust/TfheRustEmitter.h"
 #include "lib/Target/TfheRustBool/TfheRustBoolEmitter.h"
@@ -45,10 +44,6 @@ int main(int argc, char** argv) {
   mlir::heir::lattigo::registerToLattigoPreprocessingTranslation();
   mlir::heir::lattigo::registerToLattigoPreprocessedTranslation();
   mlir::heir::lattigo::registerTranslateOptions();
-
-  // SCIFRBool
-  mlir::cornami::scifrbool::registerTranslateOptions();
-  mlir::cornami::scifrbool::registerToSCIFRBoolTranslation();
 
   // This comment inserts internal emitters
 

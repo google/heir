@@ -19,6 +19,7 @@ cc_library(
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Dialect/Mgmt/Transforms:AnnotateMgmt",
         "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@heir//lib/Transforms/SecretInsertMgmt",
         "@heir//lib/Transforms/SecretInsertMgmt:Pipeline",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",

@@ -1,28 +1,25 @@
 #include "lib/Analysis/ILPBootstrapPlacementAnalysis/ILPBootstrapPlacementAnalysis.h"
 
-#include <algorithm>
 #include <cassert>
+#include <cmath>
+#include <cstddef>
 #include <sstream>
 #include <string>
-#include <unordered_set>
 #include <utility>
 
 #include "absl/status/statusor.h"  // from @com_google_absl
-#include "absl/time/time.h"        // from @com_google_absl
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
-#include "llvm/include/llvm/ADT/DenseMap.h"            // from @llvm-project
-#include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
-#include "llvm/include/llvm/Support/Casting.h"         // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"           // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"     // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinOps.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                // from @llvm-project
-#include "mlir/include/mlir/IR/ValueRange.h"           // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"            // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"   // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseMap.h"                // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"               // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"         // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"       // from @llvm-project
 #include "ortools/math_opt/cpp/math_opt.h"  // from @com_google_ortools
 
 // The level describes the remaining multiplicative depth of a ciphertext.

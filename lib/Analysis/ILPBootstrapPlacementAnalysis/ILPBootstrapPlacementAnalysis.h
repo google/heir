@@ -1,8 +1,6 @@
 #ifndef LIB_ANALYSIS_ILP_BOOTSTRAP_PLACEMENT_ANALYSIS_H
 #define LIB_ANALYSIS_ILP_BOOTSTRAP_PLACEMENT_ANALYSIS_H
 
-#include <cstddef>
-
 #include "llvm/include/llvm/ADT/DenseMap.h"                // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"             // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
