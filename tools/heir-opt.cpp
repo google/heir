@@ -9,6 +9,7 @@
 #include "lib/Dialect/BGV/Conversions/BGVToLWE/BGVToLWE.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/CGGI/Conversions/CGGIToJaxite/CGGIToJaxite.h"
+#include "lib/Dialect/CGGI/Conversions/CGGIToSCIFRBool/CGGIToSCIFRBool.h"
 #include "lib/Dialect/CGGI/Conversions/CGGIToTfheRust/CGGIToTfheRust.h"
 #include "lib/Dialect/CGGI/Conversions/CGGIToTfheRustBool/CGGIToTfheRustBool.h"
 #include "lib/Dialect/CGGI/IR/CGGIDialect.h"
@@ -43,6 +44,11 @@
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "lib/Dialect/RNS/IR/RNSTypeInterfaces.h"
 #include "lib/Dialect/Random/IR/RandomDialect.h"
+#include "lib/Dialect/SCIFRBool/IR/SCIFRBoolDialect.h"
+#include "lib/Dialect/SCIFRBool/IR/SCIFRBoolOps.h"
+#include "lib/Dialect/SCIFRBool/Transforms/Passes.h"
+#include "lib/Dialect/SCIFRBool/Transforms/ReplaceOpWithSection.h"
+#include "lib/Dialect/SCIFRCkks/Transforms/Passes.h"
 #include "lib/Dialect/Secret/Conversions/SecretToBGV/SecretToBGV.h"
 #include "lib/Dialect/Secret/Conversions/SecretToCGGI/SecretToCGGI.h"
 #include "lib/Dialect/Secret/Conversions/SecretToCKKS/SecretToCKKS.h"
@@ -58,6 +64,7 @@
 #include "lib/Pipelines/ArithmeticPipelineRegistration.h"
 #include "lib/Pipelines/BooleanPipelineRegistration.h"
 #include "lib/Pipelines/PipelineRegistration.h"
+#include "lib/Target/SCIFRBool/SCIFRBoolEmitter.h"
 #include "lib/Transforms/ActivationCanonicalizations/ActivationCanonicalizations.h"
 #include "lib/Transforms/AddClientInterface/AddClientInterface.h"
 #include "lib/Transforms/AnnotateModule/AnnotateModule.h"
@@ -381,6 +388,16 @@ int main(int argc, char** argv) {
   registerSecretToCGGIPasses();
   registerSecretToCKKSPasses();
   tensor_ext::registerTensorExtToTensorPasses();
+
+  registry.insert<mlir::cornami::scifrbool::SCIFRBoolDialect>();
+  // Register the custom pass to estimate CGGI ops for Cornami MX2
+  mlir::cornami::scifrbool::registerTranslateOptions();
+  mlir::cornami::scifrbool::registerCGGIEstimatorPass();
+  mlir::cornami::registerCKKSEstimatorPass();
+  mlir::cornami::registerOpenfheEstimatorPass();
+  mlir::cornami::scifrbool::registerToSCIFRBoolTranslation();
+  mlir::cornami::scifrbool::registerCGGIToSCIFRBoolPass();
+  mlir::cornami::scifrbool::registerReplaceOpWithSectionPass();
 
   // This comement registers internal passes
 
