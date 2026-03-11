@@ -23,9 +23,10 @@ jobs:
         with:
           path: |
             ~/.cache/bazel
-          key: ${{ runner.os }}-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE.bzlmod', 'MODULE.bazel') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
+          key: ${{ runner.os }}-clang19-${{ hashFiles('.bazelversion', '.bazelrc', 'MODULE.bazel') }}-${{ hashFiles('bazel/extensions.bzl') }}
           restore-keys: |
-            ${{ runner.os }}-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE.bzlmod', 'MODULE.bazel') }}-
+            ${{ runner.os }}-clang19-${{ hashFiles('.bazelversion', '.bazelrc', 'MODULE.bazel') }}-${{ hashFiles('bazel/extensions.bzl') }}
+            ${{ runner.os }}-clang19-${{ hashFiles('.bazelversion', '.bazelrc', 'MODULE.bazel') }}-
 
       - name: Install rust
         run: brew install rust

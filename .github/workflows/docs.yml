@@ -30,10 +30,10 @@ jobs:
         with:
           path: |
             ~/.cache/bazel
-          key: ${{ runner.os }}-clang19-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE.bzlmod', 'MODULE.bazel') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
+          key: ${{ runner.os }}-clang19-${{ hashFiles('.bazelversion', '.bazelrc', 'MODULE.bazel') }}-${{ hashFiles('bazel/extensions.bzl') }}
           restore-keys: |
-            ${{ runner.os }}-clang19-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE.bzlmod', 'MODULE.bazel') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
-            ${{ runner.os }}-clang19-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE.bzlmod', 'MODULE.bazel') }}-
+            ${{ runner.os }}-clang19-${{ hashFiles('.bazelversion', '.bazelrc', 'MODULE.bazel') }}-${{ hashFiles('bazel/extensions.bzl') }}
+            ${{ runner.os }}-clang19-${{ hashFiles('.bazelversion', '.bazelrc', 'MODULE.bazel') }}-
 
       # This requires building mlir-tblgen, but may not require a full llvm build
       # as a result. It results in the files being added to their respective
