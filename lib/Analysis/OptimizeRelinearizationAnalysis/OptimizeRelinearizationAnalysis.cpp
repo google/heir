@@ -103,9 +103,9 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
   // variable to track whether to insert a relinearization operation after the
   // operation.
   opToRunOn->walk<WalkOrder::PreOrder>([&](Operation* op) -> WalkResult {
-    // Skipping outer loop bodies because they will be handled by a recursive
-    // solver. But, we still need to create variables for the inner loop's
-    // results so the outer solver knows about the inner loop.
+    // Skipping inner loop bodies because they will be handled by a ILP solver
+    // in bottom-up order. But, we still need to create variables for the inner
+    // loop's results so the outer solver knows about the inner loop.
     if (isa<LoopLikeOpInterface>(op) && op != opToRunOn) {
       std::string name = uniqueName(op);
       if (isSecret(op->getResults(), solver)) {
@@ -179,8 +179,22 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
     for (Region& region : op->getRegions()) {
       for (Block& block : region.getBlocks()) {
         for (BlockArgument arg : block.getArguments()) {
-          if (!isSecret(arg, solver)) {
-            continue;
+          bool argIsSecret = isSecret(arg, solver);
+
+          // handle iter_args that become secret via yield
+          if (!argIsSecret) {
+            if (auto loopOp = dyn_cast<LoopLikeOpInterface>(op)) {
+              auto iterArgs = loopOp.getRegionIterArgs();
+              auto it = llvm::find(iterArgs, arg);
+              if (it != iterArgs.end()) {
+                unsigned idx = std::distance(iterArgs.begin(), it);
+                auto yieldedValues = loopOp.getYieldedValues();
+                if (idx < yieldedValues.size()) {
+                  argIsSecret = isSecret(yieldedValues[idx], solver);
+                }
+              }
+            }
+            if (!argIsSecret) continue;
           }
 
           std::stringstream ss;

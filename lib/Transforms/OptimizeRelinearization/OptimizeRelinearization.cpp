@@ -102,9 +102,11 @@ struct OptimizeRelinearization
     Operation* module = getOperation();
 
 
-    module->walk([&](mgmt::RelinearizeOp op) {
-      op.getResult().replaceAllUsesWith(op.getOperand());
-      op.erase();
+    module->walk([&](secret::GenericOp genericOp) {
+      genericOp->walk([&](mgmt::RelinearizeOp op) {
+        op.getResult().replaceAllUsesWith(op.getOperand());
+        op.erase( );
+      });
     });
 
     DataFlowSolver solver;
