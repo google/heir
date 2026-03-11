@@ -10,6 +10,7 @@ def PolyMulToNTT : Pass <"convert-polynomial-mul-to-ntt", "func::FuncOp"> {
     Theoretic Transform (NTT) domain. It uses a demand-based analysis to
     minimize the number of NTT and INTT operations inserted into the graph,
     rather than a local greedy approach.
+    (* example filepath=tests/Dialect/Polynomial/Transforms/poly_mul_to_ntt_optimal_placement.mlir *)
   }];
   let dependentDialects = ["mlir::heir::polynomial::PolynomialDialect"];
 
