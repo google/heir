@@ -9,7 +9,6 @@
 #include "lib/Dialect/Comb/IR/CombDialect.h"
 #include "lib/Dialect/Comb/IR/CombOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
-#include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Utils/ConversionUtils.h"
@@ -27,13 +26,13 @@
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
+#include "mlir/include/mlir/Support/WalkResult.h"        // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
 namespace mlir::heir::arith {
@@ -129,10 +128,6 @@ static Value materializeTarget(OpBuilder& builder, Type type, ValueRange inputs,
   assert(inputs.size() == 1);
   auto inputType = inputs[0].getType();
 
-  if (!isa<IntegerType>(getElementTypeOrSelf(inputType)))
-    llvm_unreachable(
-        "Non-integer types should never be the input to a materializeTarget.");
-
   if (auto inValue = inputs.front().getDefiningOp<mlir::arith::ConstantOp>()) {
     if (auto intAttr = dyn_cast<IntegerAttr>(inValue.getValueAttr())) {
       return cggi::CreateTrivialOp::create(builder, loc, type, intAttr);
@@ -154,17 +149,9 @@ static Value materializeTarget(OpBuilder& builder, Type type, ValueRange inputs,
   }
 
   // Comes from function/loop argument: Trivial encrypt through LWE
-  lwe::LWECiphertextType ciphertextType;
-
-  if (auto shapedType = dyn_cast<ShapedType>(type)) {
-    auto tensorElementSize =
-        shapedType.getElementType().getIntOrFloatBitWidth();
-    ciphertextType = lwe::getDefaultCGGICiphertextType(builder.getContext(),
-                                                       tensorElementSize);
-  } else {
-    ciphertextType = lwe::getDefaultCGGICiphertextType(
-        builder.getContext(), inputType.getIntOrFloatBitWidth());
-  }
+  auto tensorElementSize = inputType.getIntOrFloatBitWidth();
+  lwe::LWECiphertextType ciphertextType = lwe::getDefaultCGGICiphertextType(
+      builder.getContext(), tensorElementSize);
 
   auto plaintextBits = ciphertextType.getPlaintextSpace()
                            .getRing()
@@ -281,6 +268,9 @@ struct ConvertCmpOp : public OpConversionPattern<mlir::arith::CmpIOp> {
   LogicalResult matchAndRewrite(
       mlir::arith::CmpIOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
+    if (isa<ShapedType>(op.getType())) {
+      return failure();
+    }
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     ArithToCGGITypeConverter typeConverter(op->getContext());
@@ -321,6 +311,9 @@ struct ConvertSubOp : public OpConversionPattern<mlir::arith::SubIOp> {
   LogicalResult matchAndRewrite(
       mlir::arith::SubIOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
+    if (isa<ShapedType>(op.getType())) {
+      return failure();
+    }
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     if (auto rhsDefOp = op.getRhs().getDefiningOp()) {
@@ -348,6 +341,9 @@ struct ConvertSelectOp : public OpConversionPattern<mlir::arith::SelectOp> {
   LogicalResult matchAndRewrite(
       mlir::arith::SelectOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
+    if (isa<ShapedType>(op.getType())) {
+      return failure();
+    }
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     auto cmuxOp = cggi::SelectOp::create(
@@ -392,6 +388,9 @@ struct ConvertShOp : public OpConversionPattern<SourceArithShOp> {
   LogicalResult matchAndRewrite(
       SourceArithShOp op, typename SourceArithShOp::Adaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
+    if (isa<ShapedType>(op.getType())) {
+      return failure();
+    }
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     auto cteShiftSizeOp =
@@ -443,6 +442,9 @@ struct ConvertArithBinOp : public OpConversionPattern<SourceArithOp> {
   LogicalResult matchAndRewrite(
       SourceArithOp op, typename SourceArithOp::Adaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
+    if (isa<ShapedType>(op.getType())) {
+      return failure();
+    }
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     if (auto lhsDefOp = op.getLhs().getDefiningOp()) {
@@ -517,6 +519,31 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
   void runOnOperation() override {
     MLIRContext* context = &getContext();
     auto* module = getOperation();
+
+    auto walkResult = module->walk([&](Operation* op) {
+      if (op->getName().getDialectNamespace() == "tensor_ext") {
+        op->emitError() << "--arith-to-cggi does not support tensor_ext "
+                           "operations. Lower them to scalars first.";
+        return WalkResult::interrupt();
+      }
+      if (isa<mlir::arith::ArithDialect>(op->getDialect())) {
+        if (llvm::any_of(op->getResultTypes(),
+                         [](Type t) { return isa<ShapedType>(t); })) {
+          if (!isa<mlir::arith::ConstantOp>(op)) {
+            op->emitError()
+                << "--arith-to-cggi does not support arith operations on "
+                   "vectors or tensors. Lower them to scalars first.";
+            return WalkResult::interrupt();
+          }
+        }
+      }
+      return WalkResult::advance();
+    });
+
+    if (walkResult.wasInterrupted()) {
+      return signalPassFailure();
+    }
+
     ArithToCGGITypeConverter typeConverter(context);
 
     RewritePatternSet patterns(context);
