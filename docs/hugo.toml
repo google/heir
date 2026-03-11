@@ -104,12 +104,6 @@ privacy_policy = "https://policies.google.com/privacy"
 # github_subdir = "docs"
 # github_branch = "main"
 
-# Puts a link to GitHub on the site's top banner.
-[[menu.main]]
-    name = "GitHub"
-    weight = 100
-    url = "https://github.com/google/heir/"
-
 # Google Custom Search Engine ID.
 gcs_engine_id = "30b03294cf8584a5e"
 
@@ -121,6 +115,12 @@ offlineSearch = false
 
 # Enable syntax highlighting and copy buttons on code blocks with Prism
 prism_syntax_highlighting = false
+
+# Puts a link to GitHub on the site's top banner.
+[[menu.main]]
+    name = "GitHub"
+    weight = 100
+    url = "https://github.com/google/heir/"
 
 # User interface configuration
 [params.ui]
