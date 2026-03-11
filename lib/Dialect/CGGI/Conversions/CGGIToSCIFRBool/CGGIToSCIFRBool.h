@@ -6,8 +6,11 @@
 namespace mlir {
 namespace cornami {
 namespace scifrbool {
-#define GEN_PASS_REGISTRATION
+
 #define GEN_PASS_DECL_CGGITOSCIFRBOOL
+#include "lib/Dialect/CGGI/Conversions/CGGIToSCIFRBool/CGGIToSCIFRBool.h.inc"
+
+#define GEN_PASS_REGISTRATION
 #include "lib/Dialect/CGGI/Conversions/CGGIToSCIFRBool/CGGIToSCIFRBool.h.inc"
 
 }  // namespace scifrbool

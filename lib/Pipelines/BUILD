@@ -52,6 +52,7 @@ cc_library(
         ":PipelineRegistration",
         "@heir//lib/Dialect/Arith/Conversions/ArithToCGGI",
         "@heir//lib/Dialect/CGGI/Conversions/CGGIToJaxite",
+        "@heir//lib/Dialect/CGGI/Conversions/CGGIToSCIFRBool",
         "@heir//lib/Dialect/CGGI/Conversions/CGGIToTfheRust",
         "@heir//lib/Dialect/CGGI/Conversions/CGGIToTfheRustBool",
         "@heir//lib/Dialect/Debug/Transforms",
