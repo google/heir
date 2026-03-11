@@ -19,6 +19,10 @@
 #include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
 #include "mlir/include/mlir/Pass/PassManager.h"            // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
+#include "mlir/include/mlir/Interfaces/LoopLikeInterface.h" // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"           // from @llvm-project
+
 
 namespace mlir {
 namespace heir {
@@ -32,27 +36,55 @@ struct OptimizeRelinearization
     : impl::OptimizeRelinearizationBase<OptimizeRelinearization> {
   using OptimizeRelinearizationBase::OptimizeRelinearizationBase;
 
-  void processSecretGenericOp(secret::GenericOp genericOp,
-                              DataFlowSolver* solver) {
-    // Remove all relin ops. This makes the IR invalid, because the key basis
-    // sizes are incorrect. However, the correctness of the ILP ensures the key
-    // basis sizes are made correct at the end.
-    genericOp->walk([&](mgmt::RelinearizeOp op) {
-      op.getResult().replaceAllUsesWith(op.getOperand());
-      op.erase();
-    });
+  void processBlock(
+      Operation* parentOp, DataFlowSolver* solver,
+      const DenseMap<Operation*, SmallVector<int>>& innerLoopDegrees,
+      DenseMap<Operation*, SmallVector<int>>& outLoopDegrees) {
 
     OptimizeRelinearizationAnalysis analysis(
-        genericOp, solver, useLocBasedVariableNames, allowMixedDegreeOperands);
+        parentOp, solver, useLocBasedVariableNames, allowMixedDegreeOperands);
+    
+    // Pass the previously solved inner loop degrees to the outer solver
+    analysis.loopBoundaryDegrees = innerLoopDegrees;
+
     if (failed(analysis.solve())) {
-      genericOp->emitError("Failed to solve the optimization problem");
+      parentOp->emitError("Failed to solve the optimization problem");
       return signalPassFailure();
     }
 
     OpBuilder b(&getContext());
 
-    genericOp->walk([&](Operation* op) {
-      if (!analysis.shouldInsertRelin(op)) return;
+    parentOp->walk<WalkOrder::PreOrder>([&](Operation* op) {
+      if (isa<LoopLikeOpInterface>(op) && op != parentOp) {
+        return WalkResult::skip();
+      }
+
+      // If this is a yield op for the current loop, record its solved degrees
+      // so this loop's parent can use them.
+      if (isa<affine::AffineYieldOp, scf::YieldOp>(op)) {
+        SmallVector<int> yieldDegrees;
+        for (Value operand : op->getOperands()) {
+          if (!isSecret(operand, solver)) {
+            // Pad the array so the expected index lines up with the loop results
+            yieldDegrees.push_back(0);
+            continue;
+          }
+          // The output degree of the loop is the degree of the yield operand
+          // after any relinearization decisions inside the loop are applied.
+          int degree = analysis.keyBasisDegreeBeforeRelin(operand);
+          if (auto definingOp = operand.getDefiningOp()) {
+            if (analysis.shouldInsertRelin(definingOp)) {
+              degree = 1;
+            }
+          }
+          yieldDegrees.push_back(degree);
+        }
+        if (!yieldDegrees.empty()) {
+          outLoopDegrees[parentOp] = yieldDegrees;
+        }
+      }
+
+      if (!analysis.shouldInsertRelin(op)) return WalkResult::advance();
 
       LLVM_DEBUG(llvm::dbgs()
                  << "Inserting relin after: " << op->getName() << "\n");
@@ -60,13 +92,20 @@ struct OptimizeRelinearization
       b.setInsertionPointAfter(op);
       for (Value result : op->getResults()) {
         auto reduceOp = mgmt::RelinearizeOp::create(b, op->getLoc(), result);
-        result.replaceAllUsesExcept(reduceOp.getResult(), {reduceOp});
+        result.replaceAllUsesExcept(reduceOp.getResult(), {reduceOp.getOperation()});
       }
+      return WalkResult::advance();
     });
   }
 
   void runOnOperation() override {
     Operation* module = getOperation();
+
+
+    module->walk([&](mgmt::RelinearizeOp op) {
+      op.getResult().replaceAllUsesWith(op.getOperand());
+      op.erase();
+    });
 
     DataFlowSolver solver;
     dataflow::loadBaselineAnalyses(solver);
@@ -79,8 +118,23 @@ struct OptimizeRelinearization
       return;
     }
 
-    module->walk(
-        [&](secret::GenericOp op) { processSecretGenericOp(op, &solver); });
+    // Maps a loop operation to its output degrees.
+    DenseMap<Operation*, SmallVector<int>> loopDegrees;
+
+    // Process all loops bottom-up.
+    module->walk<WalkOrder::PostOrder>([&](Operation* op) {
+      if (auto loopOp = dyn_cast<LoopLikeOpInterface>(op)) {
+        // Only process loops inside a secret.generic
+        if (loopOp->getParentOfType<secret::GenericOp>()) {
+          processBlock(loopOp, &solver, loopDegrees, loopDegrees);
+        }
+      }
+    });
+
+    // Finally, process the top-level generic ops
+    module->walk([&](secret::GenericOp op) {
+      processBlock(op, &solver, loopDegrees, loopDegrees);
+    });
 
     // optimize-relinearization will invalidate mgmt attr
     // so re-annotate it

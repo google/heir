@@ -103,9 +103,9 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
   // variable to track whether to insert a relinearization operation after the
   // operation.
   opToRunOn->walk<WalkOrder::PreOrder>([&](Operation* op) -> WalkResult {
-    // Skipping loop bodies because they will be handled by a recursive solver.
-    // But,we still need to create variables for the loop's results
-    // so the outer solver can reason about the loop.
+    // Skipping outer loop bodies because they will be handled by a recursive
+    // solver. But, we still need to create variables for the inner loop's
+    // results so the outer solver knows about the inner loop.
     if (isa<LoopLikeOpInterface>(op) && op != opToRunOn) {
       std::string name = uniqueName(op);
       if (isSecret(op->getResults(), solver)) {
@@ -199,8 +199,15 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
   // the computation.
   for (auto& [value, var] : keyBasisVars) {
     if (llvm::isa<BlockArgument>(value)) {
-      // If the dimension is 3, the key basis is [0, 1, 2] and the degree is 2.
-      auto constrainedDegree = getDimension(value, solver).value_or(2) - 1;
+      auto blockArg = llvm::cast<BlockArgument>(value);
+      int constrainedDegree;
+      // Loop iter_args is always assumed degree 1 since getDimension diverges
+      if (isa<LoopLikeOpInterface>(blockArg.getOwner()->getParentOp())) {
+        constrainedDegree = 1;
+      } else {
+        // If the dimension is 3, the key basis is [0, 1, 2] and the degree is 2.
+        constrainedDegree = getDimension(value, solver).value_or(2) - 1;
+      }
       model.AddLinearConstraint(var == constrainedDegree, "");
     }
   }
@@ -335,7 +342,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
         .Case<arith::MulIOp, arith::MulFOp>([&](auto op) {
           // if plain mul, skip
           if (!isSecret(op.getResult(), solver)) {
-            return WalkResult::advance();
+            return;
           }
           // ct-ct mul
           if (isSecret(op.getLhs(), solver) && isSecret(op.getRhs(), solver)) {
@@ -375,19 +382,25 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
           }
         })
         .Default([&](Operation& op) {
-          // Handling of for loop ops, usinf the solved inner degree
+          // Handling of for loop ops, using the solved inner degree
           if (isa<LoopLikeOpInterface>(op)) {
             for (auto [idx, result] : llvm::enumerate(op.getResults())) {
               if (!isSecret(result, solver)) continue;
               auto resultBeforeRelinVar = beforeRelinVars.at(result);
-              // Use the degree that the inner solver computed for this yield
-              int solvedDegree = loopBoundaryDegrees[&op][idx];
+              // Use the degree that the inner solver computed for this yield.
+              // Default to 1 if the inner solver has not populated the entry
+              // (e.g. the loop contains only plaintext ops and was never solved).
+              int solvedDegree = 1;
+              auto it = loopBoundaryDegrees.find(&op);
+              if (it != loopBoundaryDegrees.end() && idx < it->second.size()) {
+                solvedDegree = it->second[idx];
+              }
               model.AddLinearConstraint(
                   resultBeforeRelinVar == solvedDegree,
                   "LoopOutputDegree_" + uniqueName(&op) + "_" +
                       std::to_string(idx));
             }
-            return WalkResult::advance();
+            return;
           }
 
           // For any other op, the key basis does not change unless we insert
@@ -407,10 +420,10 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
           // secret generic op arguments are not constrained
           // instead their block arguments are constrained
           if (isa<secret::GenericOp>(op)) {
-            return WalkResult::advance();
+            return;
           }
           if (!isSecret(op.getResults(), solver)) {
-            return WalkResult::advance();
+            return;
           }
           SmallVector<OpOperand*, 4> secretOperands;
           getSecretOperands(&op, secretOperands, solver);
@@ -451,8 +464,8 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
             }
           }
         });
-    return WalkResult::advance();
-  });
+      return WalkResult::advance();
+    });
 
   // The objective is to minimize the number of relinearization ops.
   // TODO(#1018): improve the objective function to account for differing costs
