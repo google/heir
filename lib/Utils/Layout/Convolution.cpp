@@ -2,8 +2,11 @@
 
 #include <cassert>
 #include <cstdint>
+#include <string>
 
+#include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/Layout/Utils.h"
+#include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
@@ -170,9 +173,11 @@ presburger::IntegerRelation get2dConvChwFchwFilterRelation(
   // totalColSize) to the range dimensions.
 
   // First, add (f, c) to the domain vars and set bounds
-  singleFilterRelation.insertVar(VarKind::Domain, 0, 2);
-  auto fDim = singleFilterRelation.getVarKindOffset(VarKind::Domain);
-  auto cDim = singleFilterRelation.getVarKindOffset(VarKind::Domain) + 1;
+  singleFilterRelation.insertVar(presburger::VarKind::Domain, 0, 2);
+  auto fDim =
+      singleFilterRelation.getVarKindOffset(presburger::VarKind::Domain);
+  auto cDim =
+      singleFilterRelation.getVarKindOffset(presburger::VarKind::Domain) + 1;
 
   auto inputChannels = dataType.getDimSize(0);
   auto outputChannels = filterType.getDimSize(0);
@@ -182,13 +187,17 @@ presburger::IntegerRelation get2dConvChwFchwFilterRelation(
   addBounds(singleFilterRelation, cDim, 0, inputChannels - 1);
 
   // Expand the range vars so that we can compose with the embedding relation.
-  singleFilterRelation.insertVar(VarKind::Range, 0, 2);
+  singleFilterRelation.insertVar(presburger::VarKind::Range, 0, 2);
   // (embedRow, embedCol) = position in the embedded matrix.
   // (singleRow, singleCol) = position in the single filter matrix.
-  auto embedRow = singleFilterRelation.getVarKindOffset(VarKind::Range);
-  auto embedCol = singleFilterRelation.getVarKindOffset(VarKind::Range) + 1;
-  auto singleRow = singleFilterRelation.getVarKindOffset(VarKind::Range) + 2;
-  auto singleCol = singleFilterRelation.getVarKindOffset(VarKind::Range) + 3;
+  auto embedRow =
+      singleFilterRelation.getVarKindOffset(presburger::VarKind::Range);
+  auto embedCol =
+      singleFilterRelation.getVarKindOffset(presburger::VarKind::Range) + 1;
+  auto singleRow =
+      singleFilterRelation.getVarKindOffset(presburger::VarKind::Range) + 2;
+  auto singleCol =
+      singleFilterRelation.getVarKindOffset(presburger::VarKind::Range) + 3;
 
   // embedRow = fDim * totalRowSize +  singleRow
   // embedCol = cDim * totalColSize + singleCol
@@ -254,6 +263,52 @@ bool isRelation2dConvFilterDiagonalized(
 
   bool slowCheck = relation.isEqual(diagonalizedRelation.value());
   return slowCheck;
+}
+
+presburger::IntegerRelation getRowInterchangeRelation(int64_t c, int64_t h,
+                                                      int64_t w, int64_t g) {
+  // Map flattened indices from a channel-last (H, W, C*g^2) tensor to a
+  // channel-first (C, gH, gW) tensor using a pixel-shuffle
+  // rearrangement. c is the number of semantic channels, h and w are the height
+  // and width of the input, and g is the gap size. To interleave the channels,
+  // note that each (H, W) 2-D input spans across g*g positions (in the notation
+  // below, this means ki is in [0, g^2 - 1]). In the interleaved output, we map
+  // ki to an input channel cin by cin = ki mod c. For example if there are 2
+  // input channels and gap = 2, then the input channels look like:
+  //  * $ki=0$: Channel 0, Sub-pixel $(0,0)$
+  //  * $ki=1$: Channel 1, Sub-pixel $(0,0)$
+  //  * $ki=2$: Channel 0, Sub-pixel $(0,1)$
+  //  * $ki=3$: Channel 1, Sub-pixel $(0,1)$
+  //  * ... then repeat ki for 0, 1, 2, 3.
+  // This mapping computes which output channel each input pixel maps to. To
+  // compute the final coordinates, we have to interleave the pixels within the
+  // channel. Within the g^2 sub-pixels of each channel, map the flattened
+  // input position p = ki // c into a (g, g) sized position (r, s) with
+  // p = r*g + s. Then we map those sub-pixel coordinates (r, s) to the output
+  // coordinates with (h' = r * h + hi, w' = s * w + wi). This "expands" each
+  // original (H, W) output into the pixel interleaved (gH, gW) output.
+  //
+  // 1. Unflatten idx_in (H, W, C*g^2) into (hi, wi, ki).
+  // 2. Interleave the channels: Map gapped channel index ki into output channel
+  // cin and block offsets (r, s), where ki = (r*g + s)*c + cin.
+  // 3. Map to output coordinates by interleaving sub-pixels:
+  //    h' = r*h + hi, w' = s*w + wi.
+  // 4. Flatten into idx_out (C, gH, gW): idx_out = cin*gHgW + h'*gW + w'.
+  int64_t totalChannels = c * g * g;
+  int64_t hOut = h * g;
+  int64_t wOut = w * g;
+
+  // Domain: [idx_in]
+  // Range: [ct, slot] where ct=0 and slot=idx_out
+  std::string islStr = llvm::formatv(
+      "{{ [idx_in] -> [0, idx_out] : exists hi, wi, cin, r, s : "
+      "0 <= hi < {0} and 0 <= wi < {1} and 0 <= cin < {2} and "
+      "0 <= r < {3} and 0 <= s < {3} and "
+      "idx_in = hi * {4} + wi * {5} + (r * {3} + s) * {2} + cin and "
+      "idx_out = cin * {6} + (r * {0} + hi) * {7} + (s * {1} + wi) }",
+      h, w, c, g, w * totalChannels, totalChannels, hOut * wOut, wOut);
+
+  return getIntegerRelationFromIslStr(islStr).value();
 }
 
 }  // namespace heir
