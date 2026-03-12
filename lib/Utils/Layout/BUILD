@@ -64,7 +64,9 @@ cc_library(
     srcs = ["Convolution.cpp"],
     hdrs = ["Convolution.h"],
     deps = [
+        ":IslConversion",
         ":Utils",
+        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",

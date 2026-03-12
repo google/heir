@@ -294,6 +294,56 @@ TEST(ConvolutionTest, ConvChwFchwFilterRelationPadding) {
   // singleColSize = 9, c=2 -> slotBound = 1 * 9 + 8 = 17
   EXPECT_EQ(slotBound.value(), 17);
 }
+TEST(ConvolutionTest, TestRowInterchange) {
+  MLIRContext context;
+  // c=1, h=2, w=2, g=2
+  IntegerRelation rel = getRowInterchangeRelation(1, 2, 2, 2);
+
+  std::vector<int> input = {0, 1, 2,  3,  4,  5,  6,  7,
+                            8, 9, 10, 11, 12, 13, 14, 15};
+  auto result = evaluateLayoutOnVector(rel, input);
+
+  ASSERT_EQ(result.size(), 1);
+  // Expected permutation: [0, 4, 1, 5, 8, 12, 9, 13, 2, 6, 3, 7, 10, 14, 11,
+  // 15]
+  std::vector<int> expectedPermutation = {0, 4, 1, 5, 8,  12, 9,  13,
+                                          2, 6, 3, 7, 10, 14, 11, 15};
+  EXPECT_EQ(result[0], expectedPermutation);
+}
+
+TEST(ConvolutionTest, TestRowInterchangeMultiChannel) {
+  MLIRContext context;
+  // c=3, h=2, w=2, g=2
+  // Input: 2x2x12 = 48 elements. Output: 3x4x4.
+  IntegerRelation rel = getRowInterchangeRelation(3, 2, 2, 2);
+
+  std::vector<int> input(48);
+  for (int i = 0; i < 48; ++i) input[i] = i;
+  auto result = evaluateLayoutOnVector(rel, input);
+
+  ASSERT_EQ(result.size(), 3);
+
+  // Each cin (0, 1, 2) extracts indices ki where ki % 3 == cin.
+  // Then spatial indices are mapped into 2x2 tiles. Channel 0 (cin=0):
+  // * Tile (0,0): indices [0, 3, 6, 9] mapped from [[0,0], [0,1], [1,0],
+  // [1,1]]
+  // * Tile (0,1): indices [12, 15, 18, 21]
+  // * Tile (1,0): indices [24, 27, 30, 33]
+  // * Tile (1,1): indices [36, 39, 42, 45]
+  std::vector<int> expected0 = {0,  3,  12, 15, 6,  9,  18, 21,
+                                24, 27, 36, 39, 30, 33, 42, 45};
+  EXPECT_EQ(result[0], expected0);
+
+  // Channel 1
+  std::vector<int> expected1 = {1,  4,  13, 16, 7,  10, 19, 22,
+                                25, 28, 37, 40, 31, 34, 43, 46};
+  EXPECT_EQ(result[1], expected1);
+
+  // Channel 2
+  std::vector<int> expected2 = {2,  5,  14, 17, 8,  11, 20, 23,
+                                26, 29, 38, 41, 32, 35, 44, 47};
+  EXPECT_EQ(result[2], expected2);
+}
 
 }  // namespace
 }  // namespace heir
