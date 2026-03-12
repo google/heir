@@ -21,3 +21,20 @@ openfhe_end_to_end_test(
     test_src = "dot_product_8f_debug_test.cpp",
     deps = ["@heir//tests/Examples/openfhe/ckks:debug_helper"],
 )
+
+openfhe_end_to_end_test(
+    name = "dot_product_8f_default_debug_test",
+    data = [
+        "@heir//tests/Examples/plaintext/dot_product_f_debug:dot_product_8f_debug.log",
+    ],
+    generate_debug_helper = True,
+    generated_lib_header = "dot_product_8f_default_debug_lib.h",
+    heir_opt_flags = [
+        "--annotate-module=backend=openfhe scheme=ckks",
+        "--mlir-to-ckks=ciphertext-degree=8 \
+          plaintext-execution-result-file-name=$(location @heir//tests/Examples/plaintext/dot_product_f_debug:dot_product_8f_debug.log)",
+        "--scheme-to-openfhe=insert-debug-handler-calls=true",
+    ],
+    mlir_src = "@heir//tests/Examples/common:dot_product_8f.mlir",
+    test_src = "dot_product_8f_default_debug_test.cpp",
+)

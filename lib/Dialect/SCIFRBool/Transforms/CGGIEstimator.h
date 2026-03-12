@@ -28,7 +28,7 @@ struct LWEParameters {
 struct CGGIOpsData : LWEParameters {
   explicit CGGIOpsData(uint64_t polynomial_degree, uint64_t levels,
                        uint64_t glwe_param, uint64_t lwe_dim)
-      : LWEParameters(polynomial_degree, levels, glwe_param, lwe_dim) {}
+      : LWEParameters(polynomial_degree, levels, glwe_param, lwe_dim) {};
 
   enum CGGIOpsEnum {
     AND,
