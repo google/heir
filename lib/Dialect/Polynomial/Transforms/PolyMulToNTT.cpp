@@ -516,11 +516,18 @@ void PolyMulToNTT::runOnOperation() {
         signalPassFailure();
         return;
       }
-      // Keep constants/monomials in coeff form and materialize eval via NTT
-      // when needed. This avoids type-inference mismatches on ConstantOp.
-      coeffFormCache[v] = v;
+
+      const bool needCoeff = soln.needsForm(v, Form::COEFF);
+      // If we need coeff form, use the existing op
+      if (needCoeff) {
+        coeffFormCache[v] = v;
+      }
       if (soln.needsForm(v, Form::EVAL)) {
-        evalFormCache[v] = addConversion(v, Form::EVAL);
+        // Change the output type of the current op (if we don't need it in
+        // coeff form), otherwise clone the existing op
+        Operation* evalOp = needCoeff ? b.clone(*op) : op;
+        evalOp->getResult(0).setType(typeToForm(v.getType(), Form::EVAL));
+        evalFormCache[v] = evalOp->getResult(0);
       }
     } else {
       op->emitOpError(

@@ -143,6 +143,17 @@ void NTTSolver::addConversionCostIfBothForms(const Value& v) {
 void NTTSolver::setZeroConversionCost(const Value& v) {
   RepVars& vs = getOrCreateVars(v);
   model.AddEquality(vs.conv, 0);
+  // Since there is no conversion cost, we add a cost to
+  // materialized forms so that we don't end up materializing
+  // dead code. Brief proof of correctness:
+  // - if some op needs vs.c/vs.e, there is an implication
+  //   that forces the variable to 1, meaning adding a cost
+  //   here can't cause the solver to set it to 0 to minimize
+  //   cost
+  // - if no op needs vs.c/vs.e, then the minimal solution
+  //   sets the variable to 0
+  objective += vs.c;
+  objective += vs.e;
 }
 
 void NTTSolver::addOpMode(const Value& v) {
