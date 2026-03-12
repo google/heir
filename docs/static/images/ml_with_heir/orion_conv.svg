@@ -1,0 +1,275 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 350" role="img" aria-labelledby="oc-title oc-desc">
+  <title id="oc-title">Orion convolution data layout</title>
+  <desc id="oc-desc">Diagram modified from Fig 3 of Orion: A Fully Homomorphic Encryption Framework for Deep Learning, showing input-filter convolution and the resulting layout matrix.</desc>
+  <style>
+    .cell { stroke: #888; stroke-width: 1; }
+    .cell-white { fill: #fff; }
+    .cell-green { fill: #b8e6b8; }
+    .cell-gray  { fill: #d9d9d9; }
+    .txt { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 13px; fill: #333; text-anchor: middle; dominant-baseline: central; }
+    .txt-it { font-style: italic; }
+    .txt-label { font-size: 14px; font-style: italic; fill: #333; }
+    .txt-cap { font-size: 12px; fill: #555; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .op { font-size: 22px; fill: #333; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .brace { font-size: 13px; fill: #333; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  </style>
+
+  <!-- ===== INPUT 3x3 ===== -->
+  <text class="txt-label" x="52" y="14" text-anchor="middle">Input</text>
+  <!-- row 0 -->
+  <rect class="cell cell-white" x="10" y="24" width="28" height="24" />
+  <text class="txt txt-it" x="24" y="36">a</text>
+  <rect class="cell cell-white" x="38" y="24" width="28" height="24" />
+  <text class="txt txt-it" x="52" y="36">b</text>
+  <rect class="cell cell-white" x="66" y="24" width="28" height="24" />
+  <text class="txt txt-it" x="80" y="36">c</text>
+  <!-- row 1 -->
+  <rect class="cell cell-white" x="10" y="48" width="28" height="24" />
+  <text class="txt txt-it" x="24" y="60">d</text>
+  <rect class="cell cell-white" x="38" y="48" width="28" height="24" />
+  <text class="txt txt-it" x="52" y="60">e</text>
+  <rect class="cell cell-white" x="66" y="48" width="28" height="24" />
+  <text class="txt txt-it" x="80" y="60">f</text>
+  <!-- row 2 -->
+  <rect class="cell cell-white" x="10" y="72" width="28" height="24" />
+  <text class="txt txt-it" x="24" y="84">g</text>
+  <rect class="cell cell-white" x="38" y="72" width="28" height="24" />
+  <text class="txt txt-it" x="52" y="84">h</text>
+  <rect class="cell cell-white" x="66" y="72" width="28" height="24" />
+  <text class="txt txt-it" x="80" y="84">i</text>
+
+  <!-- asterisk operator -->
+  <text class="op" x="114" y="62">*</text>
+
+  <!-- ===== FILTER 3x3 ===== -->
+  <text class="txt-label" x="180" y="14" text-anchor="middle">Filter</text>
+  <!-- row 0 -->
+  <rect class="cell cell-green" x="138" y="24" width="28" height="24" />
+  <text class="txt" x="152" y="36">1</text>
+  <rect class="cell cell-green" x="166" y="24" width="28" height="24" />
+  <text class="txt" x="180" y="36">2</text>
+  <rect class="cell cell-green" x="194" y="24" width="28" height="24" />
+  <text class="txt" x="208" y="36">3</text>
+  <!-- row 1 -->
+  <rect class="cell cell-green" x="138" y="48" width="28" height="24" />
+  <text class="txt" x="152" y="60">4</text>
+  <rect class="cell cell-green" x="166" y="48" width="28" height="24" />
+  <text class="txt" x="180" y="60">5</text>
+  <rect class="cell cell-green" x="194" y="48" width="28" height="24" />
+  <text class="txt" x="208" y="60">6</text>
+  <!-- row 2 -->
+  <rect class="cell cell-green" x="138" y="72" width="28" height="24" />
+  <text class="txt" x="152" y="84">7</text>
+  <rect class="cell cell-green" x="166" y="72" width="28" height="24" />
+  <text class="txt" x="180" y="84">8</text>
+  <rect class="cell cell-green" x="194" y="72" width="28" height="24" />
+  <text class="txt" x="208" y="84">9</text>
+
+  <!-- Stride / Padding labels -->
+  <text class="txt-label" x="240" y="50" text-anchor="start">Stride = 1</text>
+  <text class="txt-label" x="240" y="72" text-anchor="start">Padding = 1</text>
+
+  <!-- ===== RESULT MATRIX 9x9 ===== -->
+  <!-- Each cell is 28x24. Origin at (10, 130). -->
+  <!-- Row labels a-i on the right side -->
+
+  <!-- Row 0: 5 6 0 | 8 9 0 | 0 0 0 => a -->
+  <rect class="cell cell-green" x="10" y="130" width="28" height="24" />
+  <text class="txt" x="24" y="142">5</text>
+  <rect class="cell cell-green" x="38" y="130" width="28" height="24" />
+  <text class="txt" x="52" y="142">6</text>
+  <rect class="cell cell-white" x="66" y="130" width="28" height="24" />
+  <text class="txt" x="80" y="142">0</text>
+  <rect class="cell cell-green" x="94" y="130" width="28" height="24" />
+  <text class="txt" x="108" y="142">8</text>
+  <rect class="cell cell-green" x="122" y="130" width="28" height="24" />
+  <text class="txt" x="136" y="142">9</text>
+  <rect class="cell cell-white" x="150" y="130" width="28" height="24" />
+  <text class="txt" x="164" y="142">0</text>
+  <rect class="cell cell-white" x="178" y="130" width="28" height="24" />
+  <text class="txt" x="192" y="142">0</text>
+  <rect class="cell cell-white" x="206" y="130" width="28" height="24" />
+  <text class="txt" x="220" y="142">0</text>
+  <rect class="cell cell-white" x="234" y="130" width="28" height="24" />
+  <text class="txt" x="248" y="142">0</text>
+  <rect class="cell cell-gray" x="280" y="130" width="28" height="24" />
+  <text class="txt txt-it" x="294" y="142">a</text>
+
+  <!-- Row 1: 4 5 6 | 7 8 9 | 0 0 0 => b -->
+  <rect class="cell cell-green" x="10" y="154" width="28" height="24" />
+  <text class="txt" x="24" y="166">4</text>
+  <rect class="cell cell-green" x="38" y="154" width="28" height="24" />
+  <text class="txt" x="52" y="166">5</text>
+  <rect class="cell cell-green" x="66" y="154" width="28" height="24" />
+  <text class="txt" x="80" y="166">6</text>
+  <rect class="cell cell-green" x="94" y="154" width="28" height="24" />
+  <text class="txt" x="108" y="166">7</text>
+  <rect class="cell cell-green" x="122" y="154" width="28" height="24" />
+  <text class="txt" x="136" y="166">8</text>
+  <rect class="cell cell-green" x="150" y="154" width="28" height="24" />
+  <text class="txt" x="164" y="166">9</text>
+  <rect class="cell cell-white" x="178" y="154" width="28" height="24" />
+  <text class="txt" x="192" y="166">0</text>
+  <rect class="cell cell-white" x="206" y="154" width="28" height="24" />
+  <text class="txt" x="220" y="166">0</text>
+  <rect class="cell cell-white" x="234" y="154" width="28" height="24" />
+  <text class="txt" x="248" y="166">0</text>
+  <rect class="cell cell-gray" x="280" y="154" width="28" height="24" />
+  <text class="txt txt-it" x="294" y="166">b</text>
+
+  <!-- Row 2: 0 4 5 | 0 7 8 | 0 0 0 => c -->
+  <rect class="cell cell-white" x="10" y="178" width="28" height="24" />
+  <text class="txt" x="24" y="190">0</text>
+  <rect class="cell cell-green" x="38" y="178" width="28" height="24" />
+  <text class="txt" x="52" y="190">4</text>
+  <rect class="cell cell-green" x="66" y="178" width="28" height="24" />
+  <text class="txt" x="80" y="190">5</text>
+  <rect class="cell cell-white" x="94" y="178" width="28" height="24" />
+  <text class="txt" x="108" y="190">0</text>
+  <rect class="cell cell-green" x="122" y="178" width="28" height="24" />
+  <text class="txt" x="136" y="190">7</text>
+  <rect class="cell cell-green" x="150" y="178" width="28" height="24" />
+  <text class="txt" x="164" y="190">8</text>
+  <rect class="cell cell-white" x="178" y="178" width="28" height="24" />
+  <text class="txt" x="192" y="190">0</text>
+  <rect class="cell cell-white" x="206" y="178" width="28" height="24" />
+  <text class="txt" x="220" y="190">0</text>
+  <rect class="cell cell-white" x="234" y="178" width="28" height="24" />
+  <text class="txt" x="248" y="190">0</text>
+  <rect class="cell cell-gray" x="280" y="178" width="28" height="24" />
+  <text class="txt txt-it" x="294" y="190">c</text>
+
+  <!-- Row 3: 2 3 0 | 5 6 0 | 8 9 0 => d -->
+  <rect class="cell cell-green" x="10" y="202" width="28" height="24" />
+  <text class="txt" x="24" y="214">2</text>
+  <rect class="cell cell-green" x="38" y="202" width="28" height="24" />
+  <text class="txt" x="52" y="214">3</text>
+  <rect class="cell cell-white" x="66" y="202" width="28" height="24" />
+  <text class="txt" x="80" y="214">0</text>
+  <rect class="cell cell-green" x="94" y="202" width="28" height="24" />
+  <text class="txt" x="108" y="214">5</text>
+  <rect class="cell cell-green" x="122" y="202" width="28" height="24" />
+  <text class="txt" x="136" y="214">6</text>
+  <rect class="cell cell-white" x="150" y="202" width="28" height="24" />
+  <text class="txt" x="164" y="214">0</text>
+  <rect class="cell cell-green" x="178" y="202" width="28" height="24" />
+  <text class="txt" x="192" y="214">8</text>
+  <rect class="cell cell-green" x="206" y="202" width="28" height="24" />
+  <text class="txt" x="220" y="214">9</text>
+  <rect class="cell cell-white" x="234" y="202" width="28" height="24" />
+  <text class="txt" x="248" y="214">0</text>
+  <rect class="cell cell-gray" x="280" y="202" width="28" height="24" />
+  <text class="txt txt-it" x="294" y="214">d</text>
+
+  <!-- Row 4 (center): 1 2 3 | 4 5 6 | 7 8 9 => x e -->
+  <rect class="cell cell-green" x="10" y="226" width="28" height="24" />
+  <text class="txt" x="24" y="238">1</text>
+  <rect class="cell cell-green" x="38" y="226" width="28" height="24" />
+  <text class="txt" x="52" y="238">2</text>
+  <rect class="cell cell-green" x="66" y="226" width="28" height="24" />
+  <text class="txt" x="80" y="238">3</text>
+  <rect class="cell cell-green" x="94" y="226" width="28" height="24" />
+  <text class="txt" x="108" y="238">4</text>
+  <rect class="cell cell-green" x="122" y="226" width="28" height="24" />
+  <text class="txt" x="136" y="238">5</text>
+  <rect class="cell cell-green" x="150" y="226" width="28" height="24" />
+  <text class="txt" x="164" y="238">6</text>
+  <rect class="cell cell-green" x="178" y="226" width="28" height="24" />
+  <text class="txt" x="192" y="238">7</text>
+  <rect class="cell cell-green" x="206" y="226" width="28" height="24" />
+  <text class="txt" x="220" y="238">8</text>
+  <rect class="cell cell-green" x="234" y="226" width="28" height="24" />
+  <text class="txt" x="248" y="238">9</text>
+  <text class="txt" x="272" y="238">&#xd7;</text>
+  <rect class="cell cell-gray" x="280" y="226" width="28" height="24" />
+  <text class="txt txt-it" x="294" y="238">e</text>
+
+  <!-- Row 5: 0 1 2 | 0 4 5 | 0 7 8 => f -->
+  <rect class="cell cell-white" x="10" y="250" width="28" height="24" />
+  <text class="txt" x="24" y="262">0</text>
+  <rect class="cell cell-green" x="38" y="250" width="28" height="24" />
+  <text class="txt" x="52" y="262">1</text>
+  <rect class="cell cell-green" x="66" y="250" width="28" height="24" />
+  <text class="txt" x="80" y="262">2</text>
+  <rect class="cell cell-white" x="94" y="250" width="28" height="24" />
+  <text class="txt" x="108" y="262">0</text>
+  <rect class="cell cell-green" x="122" y="250" width="28" height="24" />
+  <text class="txt" x="136" y="262">4</text>
+  <rect class="cell cell-green" x="150" y="250" width="28" height="24" />
+  <text class="txt" x="164" y="262">5</text>
+  <rect class="cell cell-white" x="178" y="250" width="28" height="24" />
+  <text class="txt" x="192" y="262">0</text>
+  <rect class="cell cell-green" x="206" y="250" width="28" height="24" />
+  <text class="txt" x="220" y="262">7</text>
+  <rect class="cell cell-green" x="234" y="250" width="28" height="24" />
+  <text class="txt" x="248" y="262">8</text>
+  <rect class="cell cell-gray" x="280" y="250" width="28" height="24" />
+  <text class="txt txt-it" x="294" y="262">f</text>
+
+  <!-- Row 6: 0 0 0 | 2 3 0 | 5 6 0 => g -->
+  <rect class="cell cell-white" x="10" y="274" width="28" height="24" />
+  <text class="txt" x="24" y="286">0</text>
+  <rect class="cell cell-white" x="38" y="274" width="28" height="24" />
+  <text class="txt" x="52" y="286">0</text>
+  <rect class="cell cell-white" x="66" y="274" width="28" height="24" />
+  <text class="txt" x="80" y="286">0</text>
+  <rect class="cell cell-green" x="94" y="274" width="28" height="24" />
+  <text class="txt" x="108" y="286">2</text>
+  <rect class="cell cell-green" x="122" y="274" width="28" height="24" />
+  <text class="txt" x="136" y="286">3</text>
+  <rect class="cell cell-white" x="150" y="274" width="28" height="24" />
+  <text class="txt" x="164" y="286">0</text>
+  <rect class="cell cell-green" x="178" y="274" width="28" height="24" />
+  <text class="txt" x="192" y="286">5</text>
+  <rect class="cell cell-green" x="206" y="274" width="28" height="24" />
+  <text class="txt" x="220" y="286">6</text>
+  <rect class="cell cell-white" x="234" y="274" width="28" height="24" />
+  <text class="txt" x="248" y="286">0</text>
+  <rect class="cell cell-gray" x="280" y="274" width="28" height="24" />
+  <text class="txt txt-it" x="294" y="286">g</text>
+
+  <!-- Row 7: 0 0 0 | 1 2 3 | 4 5 6 => h -->
+  <rect class="cell cell-white" x="10" y="298" width="28" height="24" />
+  <text class="txt" x="24" y="310">0</text>
+  <rect class="cell cell-white" x="38" y="298" width="28" height="24" />
+  <text class="txt" x="52" y="310">0</text>
+  <rect class="cell cell-white" x="66" y="298" width="28" height="24" />
+  <text class="txt" x="80" y="310">0</text>
+  <rect class="cell cell-green" x="94" y="298" width="28" height="24" />
+  <text class="txt" x="108" y="310">1</text>
+  <rect class="cell cell-green" x="122" y="298" width="28" height="24" />
+  <text class="txt" x="136" y="310">2</text>
+  <rect class="cell cell-green" x="150" y="298" width="28" height="24" />
+  <text class="txt" x="164" y="310">3</text>
+  <rect class="cell cell-green" x="178" y="298" width="28" height="24" />
+  <text class="txt" x="192" y="310">4</text>
+  <rect class="cell cell-green" x="206" y="298" width="28" height="24" />
+  <text class="txt" x="220" y="310">5</text>
+  <rect class="cell cell-green" x="234" y="298" width="28" height="24" />
+  <text class="txt" x="248" y="310">6</text>
+  <rect class="cell cell-gray" x="280" y="298" width="28" height="24" />
+  <text class="txt txt-it" x="294" y="310">h</text>
+
+  <!-- Row 8: 0 0 0 | 0 1 2 | 0 4 5 => i -->
+  <rect class="cell cell-white" x="10" y="322" width="28" height="24" />
+  <text class="txt" x="24" y="334">0</text>
+  <rect class="cell cell-white" x="38" y="322" width="28" height="24" />
+  <text class="txt" x="52" y="334">0</text>
+  <rect class="cell cell-white" x="66" y="322" width="28" height="24" />
+  <text class="txt" x="80" y="334">0</text>
+  <rect class="cell cell-white" x="94" y="322" width="28" height="24" />
+  <text class="txt" x="108" y="334">0</text>
+  <rect class="cell cell-green" x="122" y="322" width="28" height="24" />
+  <text class="txt" x="136" y="334">1</text>
+  <rect class="cell cell-green" x="150" y="322" width="28" height="24" />
+  <text class="txt" x="164" y="334">2</text>
+  <rect class="cell cell-white" x="178" y="322" width="28" height="24" />
+  <text class="txt" x="192" y="334">0</text>
+  <rect class="cell cell-green" x="206" y="322" width="28" height="24" />
+  <text class="txt" x="220" y="334">4</text>
+  <rect class="cell cell-green" x="234" y="322" width="28" height="24" />
+  <text class="txt" x="248" y="334">5</text>
+  <rect class="cell cell-gray" x="280" y="322" width="28" height="24" />
+  <text class="txt txt-it" x="294" y="334">i</text>
+
+</svg>

@@ -1,3 +1,6 @@
+# macOS
+.DS_Store
+
 # bazel output symlinks
 bazel-bin
 bazel-heir
