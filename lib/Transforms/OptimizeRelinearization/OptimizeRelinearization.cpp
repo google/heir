@@ -51,14 +51,11 @@ struct OptimizeRelinearization
       parentOp->emitError("Failed to solve the optimization problem");
       return signalPassFailure();
     }
-
-    OpBuilder b(&getContext());
-
+    
     parentOp->walk<WalkOrder::PreOrder>([&](Operation* op) {
       if (isa<LoopLikeOpInterface>(op) && op != parentOp) {
         return WalkResult::skip();
       }
-
       // If this is a yield op for the current loop, record its solved degrees
       // so this loop's parent can use them.
       if (isa<affine::AffineYieldOp, scf::YieldOp>(op)) {
@@ -83,6 +80,14 @@ struct OptimizeRelinearization
           outLoopDegrees[parentOp] = yieldDegrees;
         }
       }
+      return WalkResult::advance();
+    });
+
+    OpBuilder b(&getContext());
+    parentOp->walk<WalkOrder::PreOrder>([&](Operation* op) {
+      if (isa<LoopLikeOpInterface>(op) && op != parentOp) {
+        return WalkResult::skip();
+      }
 
       if (!analysis.shouldInsertRelin(op)) return WalkResult::advance();
 
@@ -92,7 +97,7 @@ struct OptimizeRelinearization
       b.setInsertionPointAfter(op);
       for (Value result : op->getResults()) {
         auto reduceOp = mgmt::RelinearizeOp::create(b, op->getLoc(), result);
-        result.replaceAllUsesExcept(reduceOp.getResult(), {reduceOp.getOperation()});
+        result.replaceAllUsesExcept(reduceOp.getResult(), {reduceOp});
       }
       return WalkResult::advance();
     });

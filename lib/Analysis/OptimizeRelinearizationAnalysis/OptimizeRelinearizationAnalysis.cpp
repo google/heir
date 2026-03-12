@@ -347,8 +347,23 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
 
   // Add constraints that set the before_relin variables appropriately
   opToRunOn->walk<WalkOrder::PreOrder>([&](Operation* op) -> WalkResult {
-    // Skip loop bodies — they will be handled by a recursive solver
+    // For nested inner loops, apply the LoopOutputDegree constraint using the
+    // degree solved by the inner loop's ILP, then skip the loop body.
     if (isa<LoopLikeOpInterface>(op) && op != opToRunOn) {
+      for (auto [idx, result] : llvm::enumerate(op->getResults())) {
+        if (!isSecret(result, solver)) continue;
+        auto resultBeforeRelinVar = beforeRelinVars.at(result);
+        // Use the degree solved by the inner loop's ILP.
+        // Default to 1 if not yet populated (loop with no secret ops).
+        int solvedDegree = 1;
+        auto it = loopBoundaryDegrees.find(op);
+        if (it != loopBoundaryDegrees.end() && idx < it->second.size()) {
+          solvedDegree = it->second[idx];
+        }
+        model.AddLinearConstraint(
+            resultBeforeRelinVar == solvedDegree,
+            "LoopOutputDegree_" + uniqueName(op) + "_" + std::to_string(idx));
+      }
       return WalkResult::skip();
     }
 
@@ -396,28 +411,8 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
           }
         })
         .Default([&](Operation& op) {
-          // Handling of for loop ops, using the solved inner degree
-          if (isa<LoopLikeOpInterface>(op)) {
-            for (auto [idx, result] : llvm::enumerate(op.getResults())) {
-              if (!isSecret(result, solver)) continue;
-              auto resultBeforeRelinVar = beforeRelinVars.at(result);
-              // Use the degree that the inner solver computed for this yield.
-              // Default to 1 if the inner solver has not populated the entry
-              // (e.g. the loop contains only plaintext ops and was never solved).
-              int solvedDegree = 1;
-              auto it = loopBoundaryDegrees.find(&op);
-              if (it != loopBoundaryDegrees.end() && idx < it->second.size()) {
-                solvedDegree = it->second[idx];
-              }
-              model.AddLinearConstraint(
-                  resultBeforeRelinVar == solvedDegree,
-                  "LoopOutputDegree_" + uniqueName(&op) + "_" +
-                      std::to_string(idx));
-            }
-            return;
-          }
+          if (isa<LoopLikeOpInterface>(op)) return;
 
-          // For any other op, the key basis does not change unless we insert
           // a relin op. The operands may have the same basis degree, if that
           // is required by the backend and allowMixedDegreeOperands is false,
           // in which case we can just forward the degree of the first secret
@@ -493,8 +488,44 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
 
   // Add constraints that control the effect of relinearization insertion.
   opToRunOn->walk<WalkOrder::PreOrder>([&](Operation* op) -> WalkResult {
-    // Skip loop bodies — they will be handled by a recursive solver
+    // Helper to add DecisionDynamics constraints for an op's results.
+    auto addDecisionDynamics = [&](Operation* targetOp) {
+      if (!isSecret(targetOp->getResults(), solver)) return;
+      for (OpResult opResult : targetOp->getResults()) {
+        Value result = opResult;
+        if (!isSecret(result, solver)) continue;
+        
+        auto resultBeforeRelinVar = beforeRelinVars.at(result);
+        auto resultAfterRelinVar = keyBasisVars.at(result);
+        auto insertRelinOpDecision = decisionVariables.at(targetOp);
+        
+        std::string opName = uniqueName(targetOp);
+        std::string ddPrefix = "DecisionDynamics_" + opName + "_" +
+                               std::to_string(opResult.getResultNumber());
+
+        model.AddLinearConstraint(resultAfterRelinVar >= insertRelinOpDecision,
+                                  ddPrefix + "_1");
+
+        model.AddLinearConstraint(
+            resultAfterRelinVar <= 1 + IF_THEN_AUX * (1 - insertRelinOpDecision),
+            ddPrefix + "_2");
+
+        model.AddLinearConstraint(
+            resultAfterRelinVar >=
+                resultBeforeRelinVar - IF_THEN_AUX * insertRelinOpDecision,
+            ddPrefix + "_3");
+
+        model.AddLinearConstraint(
+            resultAfterRelinVar <=
+                resultBeforeRelinVar + IF_THEN_AUX * insertRelinOpDecision,
+            ddPrefix + "_4");
+      }
+    };
+
+    // For nested inner loops, apply the DecisionDynamics constraints to the
+    // loop's results, then skip the loop body.
     if (isa<LoopLikeOpInterface>(op) && op != opToRunOn) {
+      addDecisionDynamics(op);
       return WalkResult::skip();
     }
 
@@ -512,40 +543,8 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
     if (isa<secret::GenericOp>(op)) {
       return WalkResult::advance();
     }
-    if (!isSecret(op->getResults(), solver)) {
-      return WalkResult::advance();
-    }
 
-    for (OpResult opResult : op->getResults()) {
-      Value result = opResult;
-      auto resultBeforeRelinVar = beforeRelinVars.at(result);
-      auto resultAfterRelinVar = keyBasisVars.at(result);
-      auto insertRelinOpDecision = decisionVariables.at(op);
-      std::string opName = uniqueName(op);
-      std::string ddPrefix = "DecisionDynamics_" + opName + "_" +
-                             std::to_string(opResult.getResultNumber());
-
-      cstName = ddPrefix + "_1";
-      model.AddLinearConstraint(resultAfterRelinVar >= insertRelinOpDecision,
-                                cstName);
-
-      cstName = ddPrefix + "_2";
-      model.AddLinearConstraint(
-          resultAfterRelinVar <= 1 + IF_THEN_AUX * (1 - insertRelinOpDecision),
-          cstName);
-
-      cstName = ddPrefix + "_3";
-      model.AddLinearConstraint(
-          resultAfterRelinVar >=
-              resultBeforeRelinVar - IF_THEN_AUX * insertRelinOpDecision,
-          cstName);
-
-      cstName = ddPrefix + "_4";
-      model.AddLinearConstraint(
-          resultAfterRelinVar <=
-              resultBeforeRelinVar + IF_THEN_AUX * insertRelinOpDecision,
-          cstName);
-    }
+    addDecisionDynamics(op);
     return WalkResult::advance();
   });
 
