@@ -4,28 +4,37 @@
 #include <cstdint>
 
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
+#include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/ModuleAttributes.h"
+#include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
+#include "lib/Dialect/Secret/IR/SecretTypes.h"
+#include "lib/Utils/ContextAwareConversionUtils.h"
 #include "lib/Utils/ContextAwareDialectConversion.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
-#include "llvm/include/llvm/Support/FormatVariadic.h"    // from @llvm-project
+#include "lib/Utils/ContextAwareTypeConversion.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"          // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
+#include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
 #define DEBUG_TYPE "secret-conversion-patterns"
 
@@ -455,6 +464,52 @@ LogicalResult ConvertEmpty::matchAndRewrite(
   rewriter.replaceOpWithNewOp<tensor::EmptyOp>(op, ciphertextType.getShape(),
                                                ciphertextType.getElementType());
   return success();
+}
+
+bool hasSecretOperandsOrResults(Operation* op) {
+  return llvm::any_of(op->getOperands(),
+                      [](Value operand) {
+                        return isa<secret::SecretType>(operand.getType());
+                      }) ||
+         llvm::any_of(op->getResults(), [](Value result) {
+           return isa<secret::SecretType>(result.getType());
+         });
+}
+
+void addSecretToSchemeDefaultConversionTargetsAndPatterns(
+    RewritePatternSet& patterns, ConversionTarget& target,
+    ContextAwareTypeConverter& typeConverter) {
+  target.addLegalDialect<lwe::LWEDialect, arith::ArithDialect,
+                         tensor::TensorDialect>();
+  target.addLegalOp<ModuleOp>();
+
+  target.addIllegalDialect<secret::SecretDialect>();
+  target.addIllegalOp<mgmt::ModReduceOp, mgmt::RelinearizeOp,
+                      secret::GenericOp>();
+
+  target.addDynamicallyLegalOp<affine::AffineForOp, affine::AffineYieldOp>(
+      [&](Operation* op) { return typeConverter.isLegal(op); });
+  target.addDynamicallyLegalOp<func::CallOp>(
+      [&](Operation* op) { return typeConverter.isLegal(op); });
+  target.markUnknownOpDynamicallyLegal(
+      [&](Operation* op) { return !hasSecretOperandsOrResults(op); });
+
+  patterns.add<SecretGenericOpIdentityConversion<arith::ExtUIOp>,
+               SecretGenericOpIdentityConversion<arith::ExtSIOp>,
+               SecretGenericOpIdentityConversion<arith::FPToSIOp>,
+               SecretGenericOpIdentityConversion<arith::FPToUIOp>,
+               SecretGenericOpIdentityConversion<arith::SIToFPOp>,
+               SecretGenericOpIdentityConversion<arith::UIToFPOp>,
+               SecretGenericOpConversion<tensor::EmptyOp, tensor::EmptyOp>,
+               SecretGenericFuncCallConversion, ConvertExtractSlice,
+               ConvertInsertSlice, ConvertAnyContextAware<affine::AffineForOp>,
+               ConvertAnyContextAware<affine::AffineYieldOp>,
+               ConvertAnyContextAware<tensor::ExtractOp>,
+               ConvertAnyContextAware<tensor::InsertOp>,
+               ConvertAnyContextAware<func::CallOp>>(typeConverter,
+                                                     patterns.getContext());
+
+  addStructuralConversionPatterns(typeConverter, patterns, target);
 }
 
 }  // namespace heir

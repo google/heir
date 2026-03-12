@@ -10,8 +10,6 @@
 #include "lib/Dialect/BGV/IR/BGVEnums.h"
 #include "lib/Dialect/BGV/IR/BGVOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
-#include "lib/Dialect/LWE/IR/LWEDialect.h"
-#include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
@@ -21,7 +19,6 @@
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Dialect/Secret/Conversions/Patterns.h"
-#include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Utils/AttributeUtils.h"
@@ -34,9 +31,7 @@
 #include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
@@ -283,34 +278,26 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
 
     RewritePatternSet patterns(context);
     ConversionTarget target(*context);
-    target.addLegalDialect<bgv::BGVDialect, lwe::LWEDialect,
-                           arith::ArithDialect, tensor::TensorDialect>();
-    target.addLegalOp<ModuleOp>();
-    target.addIllegalDialect<secret::SecretDialect>();
-    target.addIllegalOp<mgmt::ModReduceOp, mgmt::RelinearizeOp,
-                        secret::GenericOp>();
+    addSecretToSchemeDefaultConversionTargetsAndPatterns(patterns, target,
+                                                         typeConverter);
+    target.addLegalDialect<bgv::BGVDialect>();
 
     patterns.add<
         SecretGenericOpConversion<arith::AddIOp, bgv::AddOp>,
         SecretGenericOpConversion<arith::SubIOp, bgv::SubOp>,
         SecretGenericOpConversion<arith::MulIOp, bgv::MulOp>,
-        SecretGenericOpIdentityConversion<arith::ExtUIOp>,
-        SecretGenericOpIdentityConversion<arith::ExtSIOp>,
         SecretGenericOpRelinearizeConversion<bgv::RelinearizeOp>,
         SecretGenericOpModulusSwitchConversion<bgv::ModulusSwitchOp>,
         SecretGenericOpRotateConversion<bgv::RotateColumnsOp>,
         SecretGenericOpLevelReduceConversion<bgv::LevelReduceOp>,
         SecretGenericOpCipherPlainConversion<arith::AddIOp, bgv::AddPlainOp>,
         SecretGenericOpCipherPlainConversion<arith::SubIOp, bgv::SubPlainOp>,
-        SecretGenericOpCipherPlainConversion<arith::MulIOp, bgv::MulPlainOp>,
-        SecretGenericFuncCallConversion, ConvertExtractSlice,
-        ConvertInsertSlice>(typeConverter, context);
+        SecretGenericOpCipherPlainConversion<arith::MulIOp, bgv::MulPlainOp>>(
+        typeConverter, context);
 
     patterns.add<ConvertClientConceal>(typeConverter, context, usePublicKey,
                                        rlweRing.value());
     patterns.add<ConvertClientReveal>(typeConverter, context, rlweRing.value());
-
-    addStructuralConversionPatterns(typeConverter, patterns, target);
 
     if (failed(applyContextAwarePartialConversion(module, target,
                                                   std::move(patterns)))) {

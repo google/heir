@@ -2,7 +2,6 @@
 
 #include <cassert>
 #include <cstdint>
-#include <iterator>
 #include <string>
 #include <utility>
 #include <vector>
@@ -12,17 +11,14 @@
 #include "lib/Dialect/CKKS/IR/CKKSEnums.h"
 #include "lib/Dialect/CKKS/IR/CKKSOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
-#include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
-#include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Dialect/Secret/Conversions/Patterns.h"
-#include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Utils/AttributeUtils.h"
@@ -30,18 +26,13 @@
 #include "lib/Utils/ContextAwareDialectConversion.h"
 #include "lib/Utils/ContextAwareTypeConversion.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
-#include "lib/Utils/Utils.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallVector.h"      // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
@@ -194,16 +185,6 @@ class SecretToCKKSTypeConverter
   polynomial::RingAttr ring_;
 };
 
-bool hasSecretOperandsOrResults(Operation* op) {
-  return llvm::any_of(op->getOperands(),
-                      [](Value operand) {
-                        return isa<secret::SecretType>(operand.getType());
-                      }) ||
-         llvm::any_of(op->getResults(), [](Value result) {
-           return isa<secret::SecretType>(result.getType());
-         });
-}
-
 class SecretGenericPlaintextDivision
     : public SecretGenericOpConversion<arith::DivFOp, ckks::MulPlainOp> {
  public:
@@ -301,19 +282,10 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
     SecretToCKKSTypeConverter typeConverter(context, rlweRing.value());
     RewritePatternSet patterns(context);
     ConversionTarget target(*context);
-    target.addLegalDialect<ckks::CKKSDialect, lwe::LWEDialect,
-                           arith::ArithDialect, tensor::TensorDialect>();
-    target.addLegalOp<ModuleOp>();
-    target.addIllegalDialect<secret::SecretDialect>();
-    target.addIllegalOp<mgmt::ModReduceOp, mgmt::RelinearizeOp>();
+    addSecretToSchemeDefaultConversionTargetsAndPatterns(patterns, target,
+                                                         typeConverter);
 
-    target.addDynamicallyLegalOp<affine::AffineForOp, affine::AffineYieldOp>(
-        [&](Operation* op) { return typeConverter.isLegal(op); });
-    target.addDynamicallyLegalOp<func::CallOp>(
-        [&](Operation* op) { return typeConverter.isLegal(op); });
-    target.markUnknownOpDynamicallyLegal(
-        [&](Operation* op) { return !hasSecretOperandsOrResults(op); });
-
+    target.addLegalDialect<ckks::CKKSDialect>();
     patterns.add<
         SecretGenericOpCipherPlainConversion<arith::AddFOp, ckks::AddPlainOp>,
         SecretGenericOpCipherPlainConversion<arith::AddIOp, ckks::AddPlainOp>,
@@ -324,36 +296,21 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
         SecretGenericOpConversion<arith::NegFOp, ckks::NegateOp>,
         SecretGenericOpConversion<arith::AddFOp, ckks::AddOp>,
         SecretGenericOpConversion<arith::AddIOp, ckks::AddOp>,
-        SecretGenericOpIdentityConversion<arith::ExtSIOp>,
-        SecretGenericOpIdentityConversion<arith::ExtUIOp>,
-        SecretGenericOpIdentityConversion<arith::FPToSIOp>,
-        SecretGenericOpIdentityConversion<arith::FPToUIOp>,
-        SecretGenericOpIdentityConversion<arith::SIToFPOp>,
-        SecretGenericOpIdentityConversion<arith::UIToFPOp>,
         SecretGenericOpConversion<arith::MulFOp, ckks::MulOp>,
         SecretGenericOpConversion<arith::MulIOp, ckks::MulOp>,
         SecretGenericOpConversion<arith::SubFOp, ckks::SubOp>,
         SecretGenericOpConversion<arith::SubIOp, ckks::SubOp>,
         SecretGenericOpConversion<mgmt::BootstrapOp, ckks::BootstrapOp>,
-        SecretGenericOpConversion<tensor::EmptyOp, tensor::EmptyOp>,
         SecretGenericOpModulusSwitchConversion<ckks::RescaleOp>,
         SecretGenericOpRelinearizeConversion<ckks::RelinearizeOp>,
         SecretGenericOpRotateConversion<ckks::RotateOp>,
         SecretGenericPlaintextDivision,
-        SecretGenericOpLevelReduceConversion<ckks::LevelReduceOp>,
-        ConvertExtractSlice, ConvertInsertSlice,
-        ConvertAnyContextAware<affine::AffineForOp>,
-        ConvertAnyContextAware<affine::AffineYieldOp>,
-        ConvertAnyContextAware<tensor::ExtractOp>,
-        ConvertAnyContextAware<tensor::InsertOp>,
-        SecretGenericFuncCallConversion, ConvertAnyContextAware<func::CallOp>>(
+        SecretGenericOpLevelReduceConversion<ckks::LevelReduceOp>>(
         typeConverter, context);
 
     patterns.add<ConvertClientConceal>(typeConverter, context, usePublicKey,
                                        rlweRing.value());
     patterns.add<ConvertClientReveal>(typeConverter, context, rlweRing.value());
-
-    addStructuralConversionPatterns(typeConverter, patterns, target);
 
     if (failed(applyContextAwarePartialConversion(module, target,
                                                   std::move(patterns)))) {

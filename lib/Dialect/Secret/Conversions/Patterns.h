@@ -10,6 +10,7 @@
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/TypeRange.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
@@ -97,6 +98,12 @@ struct ConvertEmpty : public ContextAwareOpConversionPattern<mgmt::InitOp> {
       mgmt::InitOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter& rewriter) const override;
 };
+
+// Set up the common conversion patterns and target rules for all
+// secret-to-scheme conversions.
+void addSecretToSchemeDefaultConversionTargetsAndPatterns(
+    RewritePatternSet& patterns, ConversionTarget& target,
+    ContextAwareTypeConverter& typeConverter);
 
 }  // namespace heir
 }  // namespace mlir
