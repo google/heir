@@ -132,7 +132,7 @@ class SecretToCKKSTypeConverter
 
     // Note that slot number for CKKS is always half of the ring dimension.
     // so ring_.getPolynomialModulus() is not useful here
-    // TODO(#1191): use packing information to get the correct slot number
+    // TODO(#2764): use packing information to get the correct slot number
     auto plaintextRing = polynomial::RingAttr::get(
         ctx, Float64Type::get(ctx), ring_.getPolynomialModulus());
 
