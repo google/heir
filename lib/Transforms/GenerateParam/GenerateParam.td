@@ -173,6 +173,8 @@ def GenerateParamCKKS : Pass<"generate-param-ckks"> {
     Option<"scalingModBits", "scaling-mod-bits", "int",
            /*default=*/"45", "Default number of bits of the scaling prime "
            "coefficient modulus to use for the ciphertext space.">,
+    Option<"validateFirstModBits", "validate-first-mod-bits", "bool",
+           /*default=*/"false", "Add extra validation on the choice of first-mod-bits">,
     Option<"usePublicKey", "use-public-key", "bool", /*default=*/"true",
            "If true, uses a public key for encryption.">,
     Option<"encryptionTechniqueExtended", "encryption-technique-extended", "bool", /*default=*/"false",

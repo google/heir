@@ -12,6 +12,7 @@
 #include "lib/Parameters/CKKS/Params.h"
 #include "lib/Utils/LogArithmetic.h"
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
+#include "llvm/include/llvm/Support/DebugLog.h"            // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"                 // from @llvm-project
@@ -27,7 +28,7 @@
 #include "mlir/include/mlir/Transforms/Passes.h"        // from @llvm-project
 // IWYU pragma: end_keep
 
-#define DEBUG_TYPE "GenerateParamCKKS"
+#define DEBUG_TYPE "generate-param-ckks"
 
 namespace mlir {
 namespace heir {
@@ -42,7 +43,9 @@ struct GenerateParamCKKS : impl::GenerateParamCKKSBase<GenerateParamCKKS> {
   // scaling modulus, however, the number of extra bits is often
   // empirically chosen. We use RangeAnalysis to find the
   // maximum number of extra bits needed for the L0 modulus.
+  // TODO(#2754): improve this analysis
   std::optional<int> getExtraBitsForLevel0() {
+    LDBG() << "Using range analysis to determine extra bits for level 0";
     DataFlowSolver solver;
     dataflow::loadBaselineAnalyses(solver);
     // RangeAnalysis depends on SecretnessAnalysis
@@ -76,14 +79,16 @@ struct GenerateParamCKKS : impl::GenerateParamCKKSBase<GenerateParamCKKS> {
       return std::nullopt;
     }
     // 2 more bits for cushion
-    return ceil(extraBits.value()) + 2;
+    int level0ModBits = ceil(extraBits.value()) + 2;
+    LDBG() << "Decided on " << level0ModBits << " bits for level 0";
+    return level0ModBits;
   }
 
   void runOnOperation() override {
-    // Deal with first mod bits
-    auto extraBits = getExtraBitsForLevel0();
+    LDBG() << "Starting generate-param-ckks pass";
 
-    if (firstModBits == 0) {
+    if (firstModBits == 0 || validateFirstModBits) {
+      auto extraBits = getExtraBitsForLevel0();
       if (!extraBits.has_value()) {
         emitError(getOperation()->getLoc())
             << "Cannot generate CKKS parameters without first modulus bits "
@@ -91,18 +96,23 @@ struct GenerateParamCKKS : impl::GenerateParamCKKSBase<GenerateParamCKKS> {
         signalPassFailure();
         return;
       }
-      firstModBits = scalingModBits + extraBits.value();
-      LLVM_DEBUG(llvm::dbgs() << "First modulus bits not specified, using "
-                              << firstModBits << " bits.\n");
-    } else if (extraBits.has_value() &&
-               firstModBits - scalingModBits < extraBits.value()) {
-      emitWarning(getOperation()->getLoc())
-          << "Range Analysis indicate that the first modulus must be larger "
-             "than the scaling modulus by at least "
-          << extraBits.value() << " bits.\n";
+
+      if (firstModBits == 0) {
+        firstModBits = scalingModBits + extraBits.value();
+        LDBG() << "First modulus bits not specified, using " << firstModBits
+               << " bits.";
+      } else if (extraBits.has_value() &&
+                 firstModBits - scalingModBits < extraBits.value()) {
+        emitWarning(getOperation()->getLoc())
+            << "Range Analysis indicate that the first modulus must be larger "
+               "than the scaling modulus by at least "
+            << extraBits.value() << " bits.\n";
+      }
     }
+    LDBG() << "First modulus finalized as having " << firstModBits << " bits";
 
     std::optional<int> maxLevel = getMaxLevel(getOperation());
+    LDBG() << "Max level identified as " << maxLevel;
 
     if (auto schemeParamAttr =
             getOperation()->getAttrOfType<ckks::SchemeParamAttr>(
@@ -121,13 +131,14 @@ struct GenerateParamCKKS : impl::GenerateParamCKKSBase<GenerateParamCKKS> {
     // for lattigo, defaults to extended encryption technique
     if (moduleIsLattigo(getOperation())) {
       encryptionTechniqueExtended = true;
+      LDBG() << "For lattigo, fixing extended encryption technique";
     }
 
     auto schemeParam = ckks::SchemeParam::getConcreteSchemeParam(
         firstModBits, scalingModBits, maxLevel.value_or(0), slotNumber,
         usePublicKey, encryptionTechniqueExtended, reducedError);
 
-    LLVM_DEBUG(llvm::dbgs() << "Scheme Param:\n" << schemeParam << "\n");
+    LDBG() << "Scheme Param:\n" << schemeParam;
 
     auto* context = &getContext();
     OpBuilder builder(context);
