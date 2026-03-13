@@ -3,7 +3,6 @@
 
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
-#include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"  // from @llvm-project
@@ -11,7 +10,8 @@
 #include "mlir/include/mlir/IR/Operation.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"            // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"        // from @llvm-project
+#include "mlir/include/mlir/Interfaces/ControlFlowInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -140,6 +140,21 @@ struct PartialUnrollForLevelConsumptionSCFFor
                                 PatternRewriter& rewriter) const override;
 
   int forceMaxLevel;
+  DataFlowSolver* solver;
+};
+
+// Insert level_reduce ops to align level across branches of a region branch op.
+struct RegionBranchOpLevelInvariancePattern
+    : public OpInterfaceRewritePattern<RegionBranchOpInterface> {
+  RegionBranchOpLevelInvariancePattern(MLIRContext* context,
+                                       DataFlowSolver* solver)
+      : OpInterfaceRewritePattern<RegionBranchOpInterface>(context),
+        solver(solver) {}
+
+  LogicalResult matchAndRewrite(RegionBranchOpInterface op,
+                                PatternRewriter& rewriter) const override;
+
+ private:
   DataFlowSolver* solver;
 };
 

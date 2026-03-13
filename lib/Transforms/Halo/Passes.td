@@ -86,4 +86,20 @@ def PartialUnrollForLevelConsumption : Pass<"partial-unroll-for-level-consumptio
   ];
 }
 
+def RegionBranchOpLevelInvariance : Pass<"region-branch-op-level-invariance"> {
+  let summary = "Ensure that all branches of a RegionBranchOp have invariant level";
+  let description = [{
+    This pass ensures that all regions of an operation that implements
+    `RegionBranchOpInterface` (such as `scf.if` or `affine.if`) yield values
+    with the same ciphertext level and scale. If discrepancies are found,
+    `mgmt.level_reduce` operations are inserted to reconcile them.
+  }];
+  let dependentDialects = [
+    "mlir::heir::secret::SecretDialect",
+    "mlir::affine::AffineDialect",
+    "mlir::scf::SCFDialect",
+    "mlir::heir::mgmt::MgmtDialect",
+  ];
+}
+
 #endif  // LIB_TRANSFORMS_HALO_PASSES_TD_
