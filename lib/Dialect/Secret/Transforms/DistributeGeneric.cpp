@@ -21,21 +21,24 @@
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
-#include "mlir/include/mlir/IR/Attributes.h"               // from @llvm-project
-#include "mlir/include/mlir/IR/Block.h"                    // from @llvm-project
-#include "mlir/include/mlir/IR/Builders.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/Dominance.h"                // from @llvm-project
-#include "mlir/include/mlir/IR/IRMapping.h"                // from @llvm-project
-#include "mlir/include/mlir/IR/Location.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"              // from @llvm-project
-#include "mlir/include/mlir/IR/OpDefinition.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
-#include "mlir/include/mlir/IR/OperationSupport.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"                    // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
-#include "mlir/include/mlir/IR/ValueRange.h"               // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Block.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Dominance.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/IRMapping.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/IntegerSet.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Location.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/OperationSupport.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"            // from @llvm-project
 #include "mlir/include/mlir/Interfaces/LoopLikeInterface.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
@@ -156,6 +159,86 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       : OpRewritePattern<GenericOp>(context, /*benefit=*/1),
         opsToDistribute(opsToDistribute) {}
 
+  // Converts a secret.generic containing an if op (scf.if or affine.if) with a
+  // non-secret condition into an if op with a secret.generic in each branch.
+  LogicalResult distributeThroughIfOp(GenericOp genericOp,
+                                      Operation* opToDistribute,
+                                      PatternRewriter& rewriter) const {
+    // If the generic op does not yield the nested if op's results, quit early.
+    // This would be a situation like a loop with an if whose body stores into a
+    // memref, but we're sticking to tensor semantics at this stage.
+    if (genericOp.getYieldOp()->getOperands() != opToDistribute->getResults()) {
+      return failure();
+    }
+    SmallVector<Type> newResultTypes(genericOp->getResultTypes());
+
+    // If the original op does not have an else region, then it can't have any
+    // results because there is no else branch to fill in an SSA value when
+    // the condition is false. In this case exit early.
+    if (opToDistribute->getNumRegions() == 1) {
+      return failure();
+    }
+
+    // Create the op and the number of associated regions.
+    rewriter.setInsertionPoint(genericOp);
+    Operation* newIfOp = nullptr;
+    bool generateElseRegion = true;
+    if (auto ifOp = dyn_cast<scf::IfOp>(opToDistribute)) {
+      newIfOp = scf::IfOp::create(rewriter, ifOp.getLoc(), newResultTypes,
+                                  ifOp.getCondition(), generateElseRegion);
+    } else if (auto affineIfOp = dyn_cast<affine::AffineIfOp>(opToDistribute)) {
+      newIfOp = affine::AffineIfOp::create(
+          rewriter, affineIfOp.getLoc(), newResultTypes,
+          affineIfOp.getIntegerSet(), affineIfOp.getOperands(),
+          generateElseRegion);
+    } else {
+      LLVM_DEBUG(llvm::dbgs() << "Unknown `if` op type "
+                              << opToDistribute->getName() << "\n");
+      return failure();
+    }
+
+    // Clone the regions
+    for (int i = 0; i < 2; ++i) {
+      Region& oldRegion = opToDistribute->getRegion(i);
+      Region& newRegion = newIfOp->getRegion(i);
+      Block* newBlock = &newRegion.front();
+      rewriter.setInsertionPointToStart(newBlock);
+
+      auto newGeneric = GenericOp::create(
+          rewriter, genericOp.getLoc(), genericOp.getOperands(), newResultTypes,
+          [&](OpBuilder& b, Location loc, ValueRange blockArgs) {
+            IRMapping mp;
+            for (auto [oldArg, newArg] :
+                 llvm::zip(genericOp.getBody()->getArguments(), blockArgs)) {
+              mp.map(oldArg, newArg);
+            }
+            Block* oldBlock = &oldRegion.front();
+            for (auto& op : oldBlock->getOperations()) {
+              if (op.hasTrait<OpTrait::IsTerminator>()) {
+                SmallVector<Value> yieldedValues;
+                for (Value v : op.getOperands()) {
+                  yieldedValues.push_back(mp.contains(v) ? mp.lookup(v) : v);
+                }
+                YieldOp::create(b, loc, yieldedValues);
+                continue;
+              }
+              b.clone(op, mp);
+            }
+          });
+
+      if (isa<scf::IfOp>(newIfOp)) {
+        scf::YieldOp::create(rewriter, newIfOp->getLoc(),
+                             newGeneric.getResults());
+      } else {
+        affine::AffineYieldOp::create(rewriter, newIfOp->getLoc(),
+                                      newGeneric.getResults());
+      }
+    }
+
+    rewriter.replaceOp(genericOp, newIfOp);
+    return success();
+  }
+
   LogicalResult distributeThroughRegionHoldingOp(
       GenericOp genericOp, Operation& opToDistribute,
       PatternRewriter& rewriter) const {
@@ -163,6 +246,27 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
            "opToDistribute must have at least one region");
     assert(genericOp.getBody()->getOperations().size() == 2 &&
            "opToDistribute must have one non-yield op");
+
+    if (auto ifOp = dyn_cast<scf::IfOp>(opToDistribute)) {
+      if (genericOp.getOpOperandForBlockArgument(ifOp.getCondition())) {
+        LLVM_DEBUG(genericOp.emitRemark()
+                   << "cannot distribute through scf.if with secret condition");
+        return failure();
+      }
+      return distributeThroughIfOp(genericOp, &opToDistribute, rewriter);
+    }
+
+    if (auto affineIfOp = dyn_cast<affine::AffineIfOp>(opToDistribute)) {
+      for (Value operand : affineIfOp.getOperands()) {
+        if (genericOp.getOpOperandForBlockArgument(operand)) {
+          LLVM_DEBUG(genericOp.emitRemark()
+                     << "cannot distribute through affine.if with secret "
+                        "operand");
+          return failure();
+        }
+      }
+      return distributeThroughIfOp(genericOp, &opToDistribute, rewriter);
+    }
 
     // Supports ops with countable loop iterations, like affine.for and scf.for,
     // but not scf.while which has multiple associated regions.
@@ -433,7 +537,6 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       return success();
     }
 
-    // TODO(#307): handle RegionBranchOpInterface (scf.while, scf.if).
     return failure();
   }
 
@@ -774,7 +877,8 @@ struct DistributeGeneric
     patterns.add<SplitGeneric>(context, opsToDistribute);
     // These patterns are shared with canonicalization
     patterns.add<FoldSecretSeparators, CollapseSecretlessGeneric,
-                 RemoveUnusedGenericArgs, RemoveNonSecretGenericArgs>(context);
+                 ConcealThenGeneric, RemoveUnusedGenericArgs,
+                 RemoveNonSecretGenericArgs>(context);
     // TODO (#1221): Investigate whether folding (default: on) can be skipped
     // here.
     (void)applyPatternsGreedily(getOperation(), std::move(patterns));
