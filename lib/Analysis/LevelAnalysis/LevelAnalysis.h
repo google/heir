@@ -126,6 +126,34 @@ class LevelState {
         lhs.value, rhs.value);
   }
 
+  // Meet is required for backward propagation
+  static LevelState meet(const LevelState& lhs, const LevelState& rhs) {
+    return std::visit(
+        Overloaded{
+            [](Invalid, auto) -> LevelState { return LevelState(Invalid{}); },
+            [](Uninit, auto other) -> LevelState { return LevelState(other); },
+            [](MaxLevel, Invalid) -> LevelState {
+              return LevelState(Invalid{});
+            },
+            [](MaxLevel, Uninit) -> LevelState {
+              return LevelState(MaxLevel{});
+            },
+            [](MaxLevel, MaxLevel) -> LevelState {
+              return LevelState(MaxLevel{});
+            },
+            [](MaxLevel, int rhs) -> LevelState { return LevelState(rhs); },
+            [](int lhsVal, MaxLevel) -> LevelState {
+              return LevelState(lhsVal);
+            },
+            [](int lhsVal, Uninit) -> LevelState { return LevelState(lhsVal); },
+            [](int, Invalid) -> LevelState { return LevelState(Invalid{}); },
+            [](int lhsVal, int rhsVal) -> LevelState {
+              return LevelState(std::min(lhsVal, rhsVal));
+            },
+        },
+        lhs.value, rhs.value);
+  }
+
   void print(llvm::raw_ostream& os) const {
     std::visit(Overloaded{[&](MaxLevel) { os << "Level(Max)"; },
                           [&](Uninit) { os << "Level(Uninitialized)"; },
