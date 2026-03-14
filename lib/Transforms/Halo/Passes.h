@@ -7,6 +7,7 @@
 #include "lib/Transforms/Halo/BootstrapLoopIterArgs.h"
 #include "lib/Transforms/Halo/PartialUnrollForLevelConsumption.h"
 #include "lib/Transforms/Halo/ReconcileMixedSecretnessIterArgs.h"
+#include "lib/Transforms/Halo/RegionBranchOpLevelInvariance.h"
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"  // from @llvm-project
 // IWYU pragma: end_keep
