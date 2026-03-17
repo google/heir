@@ -211,6 +211,17 @@ FailureOr<Operation*> SecretGenericFuncCallConversion::matchAndRewriteInner(
     newInputTypes.push_back(val.getType());
   }
 
+  // Only declarations (no body) are supported;
+  // a function with a body must be inlined before lowering
+  if (!callee.isDeclaration()) {
+    return op->emitError()
+           << "cannot lower call to '" << callee.getSymName()
+           << "' because the callee has a function body that cannot be "
+              "automatically converted to ciphertext operations. Run "
+              "inline-activations or manually inline the function before "
+              "lowering to a scheme dialect.";
+  }
+
   FunctionType newFunctionType =
       cast<FunctionType>(callee.cloneTypeWith(newInputTypes, outputTypes));
   auto newFuncOp = rewriter.cloneWithoutRegions(callee);

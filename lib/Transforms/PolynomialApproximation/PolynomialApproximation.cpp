@@ -199,6 +199,12 @@ struct ConvertUnaryOp : public OpRewritePattern<OpTy> {
     IntegerAttr degreeAttr = op->hasAttr("degree")
                                  ? cast<IntegerAttr>(op->getAttr("degree"))
                                  : rewriter.getI32IntegerAttr(kDefaultDegree);
+    if (op->hasAttr("domain_lower") &&
+        !isa<FloatAttr>(op->getAttr("domain_lower")))
+      return op.emitOpError("domain_lower must be a floating-point attribute");
+    if (op->hasAttr("domain_upper") &&
+        !isa<FloatAttr>(op->getAttr("domain_upper")))
+      return op.emitOpError("domain_upper must be a floating-point attribute");
     FloatAttr domainLowerAttr =
         op->hasAttr("domain_lower")
             ? cast<FloatAttr>(op->getAttr("domain_lower"))
@@ -307,6 +313,12 @@ struct ConvertBinaryConstOp : public OpRewritePattern<OpTy> {
     IntegerAttr degreeAttr = op->hasAttr("degree")
                                  ? cast<IntegerAttr>(op->getAttr("degree"))
                                  : rewriter.getI32IntegerAttr(kDefaultDegree);
+    if (op->hasAttr("domain_lower") &&
+        !isa<FloatAttr>(op->getAttr("domain_lower")))
+      return op.emitOpError("domain_lower must be a floating-point attribute");
+    if (op->hasAttr("domain_upper") &&
+        !isa<FloatAttr>(op->getAttr("domain_upper")))
+      return op.emitOpError("domain_upper must be a floating-point attribute");
     FloatAttr domainLowerAttr =
         op->hasAttr("domain_lower")
             ? cast<FloatAttr>(op->getAttr("domain_lower"))

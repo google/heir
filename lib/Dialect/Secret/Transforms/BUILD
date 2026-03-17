@@ -59,6 +59,7 @@ cc_library(
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Analysis/SecretnessAnalysis",
+        "@heir//lib/Dialect:HEIRInterfaces",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:SecretPatterns",
         "@heir//lib/Utils:AttributeUtils",
