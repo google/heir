@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
@@ -794,42 +795,44 @@ void moveMgmtAttrAnnotationFromInnerToOuter(Operation* top) {
   top->walk([&](secret::GenericOp genericOp) {
     auto* innerOp = &genericOp.getBody()->front();
     auto yieldOp = genericOp.getYieldOp();
-    Attribute attr = innerOp->removeAttr(mgmt::MgmtDialect::kArgMgmtAttrName);
-    if (!attr) {
-      return;
-    }
 
-    if (yieldOp.getNumOperands() == 1) {
-      // If the yield op has only one operand, then it is the only result of
-      // the inner op, so we can just set the mgmt attr on the generic op.
-      genericOp.setResultAttr(0, mgmt::MgmtDialect::kArgMgmtAttrName, attr);
-      return;
-    }
-
+    // Find the mgmt attr on the inner op's results and move them to the
+    // outer secret.generic's results. Some ops (e.g., func.call) store
+    // per-result attributes via OperandAndResultAttrInterface (__resattrs)
+    // rather than as a direct op attribute. Use findAttributeAssociatedWith
+    // on each yielded result to handle both cases.
+    //
+    // The yield operand is produced by the inner op result, but may not
+    // correspond exactly to the quantity and order of results.
+    //
+    // E.g.,
+    //
+    //   %0, %1 = op.foo ... {mgmt.mgmt = [attr1, attr2]} : i16, i16
+    //   secret.yield %1, %0 : i16, i16
+    //
+    // Or
+    //
+    //   %0 = op.foo ... {mgmt.mgmt = attr} : i16
+    //   secret.yield %0, %0 : i16, i16
+    //
     for (OpOperand& yieldOperand : yieldOp->getOpOperands()) {
-      // The yield operand is produced by the inner op result, but may not
-      // correspond exactly to the quantity and order of results.
-      //
-      // E.g.,
-      //
-      //   %0, %1 = op.foo ... {mgmt.mgmt = [attr1, attr2]} : i16, i16
-      //   secret.yield %1, %0 : i16, i16
-      //
-      // Or
-      //
-      //   %0 = op.foo ... {mgmt.mgmt = attr} : i16
-      //   secret.yield %0, %0 : i16, i16
-      //
-      const auto& innerOpResult = cast<OpResult>(yieldOperand.get());
-
-      if (auto mgmtAttr = dyn_cast<mgmt::MgmtAttr>(attr)) {
+      auto innerResult = yieldOperand.get();
+      auto mgmtAttr = findAttributeAssociatedWith(
+          innerResult, mgmt::MgmtDialect::kArgMgmtAttrName);
+      if (succeeded(mgmtAttr)) {
         genericOp.setResultAttr(yieldOperand.getOperandNumber(),
-                                mgmt::MgmtDialect::kArgMgmtAttrName, mgmtAttr);
-      } else if (auto arrayOfMgmtAttrs = dyn_cast<ArrayAttr>(attr)) {
-        genericOp.setResultAttr(
-            yieldOperand.getOperandNumber(),
-            mgmt::MgmtDialect::kArgMgmtAttrName,
-            arrayOfMgmtAttrs[innerOpResult.getResultNumber()]);
+                                mgmt::MgmtDialect::kArgMgmtAttrName,
+                                mgmtAttr.value());
+      }
+    }
+
+    // Clean up the mgmt attr from the inner op so it doesn't persist in
+    // both places. Remove both the direct attr and any per-result attrs.
+    innerOp->removeAttr(mgmt::MgmtDialect::kArgMgmtAttrName);
+    if (auto attrInterface =
+            dyn_cast<heir::OperandAndResultAttrInterface>(innerOp)) {
+      for (unsigned i = 0; i < innerOp->getNumResults(); ++i) {
+        attrInterface.removeResultAttr(i, mgmt::MgmtDialect::kArgMgmtAttrName);
       }
     }
   });
