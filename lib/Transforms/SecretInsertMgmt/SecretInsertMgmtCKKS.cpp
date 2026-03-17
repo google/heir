@@ -4,10 +4,13 @@
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/SecretInsertMgmt/Pipeline.h"
-#include "llvm/include/llvm/Support/Debug.h"      // from @llvm-project
-#include "mlir/include/mlir/Pass/PassManager.h"   // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"       // from @llvm-project
-#include "mlir/include/mlir/Transforms/Passes.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"          // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Transforms/Passes.h"         // from @llvm-project
 
 #define DEBUG_TYPE "secret-insert-mgmt-ckks"
 

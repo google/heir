@@ -99,7 +99,10 @@ def SecretInsertMgmtCKKS : Pass<"secret-insert-mgmt-ckks", "ModuleOp"> {
 
   let dependentDialects = [
     "mlir::heir::secret::SecretDialect",
-    "mlir::heir::mgmt::MgmtDialect"
+    "mlir::heir::mgmt::MgmtDialect",
+    "mlir::affine::AffineDialect",
+    "mlir::scf::SCFDialect",
+    "mlir::tensor::TensorDialect"
   ];
 
   let options = [
