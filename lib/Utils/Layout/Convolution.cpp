@@ -2,8 +2,11 @@
 
 #include <cassert>
 #include <cstdint>
+#include <string>
 
+#include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/Layout/Utils.h"
+#include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
@@ -170,9 +173,11 @@ presburger::IntegerRelation get2dConvChwFchwFilterRelation(
   // totalColSize) to the range dimensions.
 
   // First, add (f, c) to the domain vars and set bounds
-  singleFilterRelation.insertVar(VarKind::Domain, 0, 2);
-  auto fDim = singleFilterRelation.getVarKindOffset(VarKind::Domain);
-  auto cDim = singleFilterRelation.getVarKindOffset(VarKind::Domain) + 1;
+  singleFilterRelation.insertVar(presburger::VarKind::Domain, 0, 2);
+  auto fDim =
+      singleFilterRelation.getVarKindOffset(presburger::VarKind::Domain);
+  auto cDim =
+      singleFilterRelation.getVarKindOffset(presburger::VarKind::Domain) + 1;
 
   auto inputChannels = dataType.getDimSize(0);
   auto outputChannels = filterType.getDimSize(0);
@@ -182,13 +187,17 @@ presburger::IntegerRelation get2dConvChwFchwFilterRelation(
   addBounds(singleFilterRelation, cDim, 0, inputChannels - 1);
 
   // Expand the range vars so that we can compose with the embedding relation.
-  singleFilterRelation.insertVar(VarKind::Range, 0, 2);
+  singleFilterRelation.insertVar(presburger::VarKind::Range, 0, 2);
   // (embedRow, embedCol) = position in the embedded matrix.
   // (singleRow, singleCol) = position in the single filter matrix.
-  auto embedRow = singleFilterRelation.getVarKindOffset(VarKind::Range);
-  auto embedCol = singleFilterRelation.getVarKindOffset(VarKind::Range) + 1;
-  auto singleRow = singleFilterRelation.getVarKindOffset(VarKind::Range) + 2;
-  auto singleCol = singleFilterRelation.getVarKindOffset(VarKind::Range) + 3;
+  auto embedRow =
+      singleFilterRelation.getVarKindOffset(presburger::VarKind::Range);
+  auto embedCol =
+      singleFilterRelation.getVarKindOffset(presburger::VarKind::Range) + 1;
+  auto singleRow =
+      singleFilterRelation.getVarKindOffset(presburger::VarKind::Range) + 2;
+  auto singleCol =
+      singleFilterRelation.getVarKindOffset(presburger::VarKind::Range) + 3;
 
   // embedRow = fDim * totalRowSize +  singleRow
   // embedCol = cDim * totalColSize + singleCol
@@ -254,6 +263,33 @@ bool isRelation2dConvFilterDiagonalized(
 
   bool slowCheck = relation.isEqual(diagonalizedRelation.value());
   return slowCheck;
+}
+
+presburger::IntegerRelation getRowInterchangeRelation(int64_t c, int64_t h,
+                                                      int64_t w, int64_t g) {
+  // 1. Unflatten idx_in (H, W, C*g^2) into (hi, wi, ci).
+  // 2. Map to output coordinates by interleaving sub-pixels:
+  //    h' = hi * g + (ci % g**2) // g
+  //    w' = wi * g + (ci % g)
+  // 3. Flatten (gW, gH, C) into idx_out = (c * g * h) * w' + (c) * h' + c'
+  int64_t hOut = w * g;
+  int64_t wOut = h * g;
+  int64_t cOut = c / (g * g);
+
+  // Domain: [idx_in]
+  // Range: [ct, slot] where ct=0 and slot=idx_out
+  std::string islStr = llvm::formatv(
+      "{{ [idx_in] -> [0, idx_out] : exists hi, wi, ci, ho, wo, co : "
+      "0 <= hi < {0} and 0 <= wi < {1} and 0 <= ci < {2} and "
+      "0 <= ho < {3} and 0 <= wo < {4} and 0 <= co < {5} and co = ci // "
+      "{10}^2 and "
+      "wo = wi * {10} + (ci % {10}) and "
+      "ho = hi * {10} + (ci % {10}^2) // {10} and "
+      "idx_in = wi + hi * {6} + ci * {7} and "
+      "idx_out = wo + ho * {8} + co * {9} }",
+      h, w, c, hOut, wOut, cOut, w, h * w, wOut, hOut * wOut, g);
+
+  return getIntegerRelationFromIslStr(islStr).value();
 }
 
 }  // namespace heir
