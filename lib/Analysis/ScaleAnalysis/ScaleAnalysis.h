@@ -45,6 +45,14 @@ class ScaleState {
     return lhs;
   }
 
+  static ScaleState meet(const ScaleState& lhs, const ScaleState& rhs) {
+    if (!lhs.isInitialized()) return rhs;
+    if (!rhs.isInitialized()) return lhs;
+
+    // if both are initialized, they should be the same
+    return lhs;
+  }
+
   void print(llvm::raw_ostream& os) const {
     if (isInitialized()) {
       os << "ScaleState(" << scale.value() << ")";

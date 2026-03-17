@@ -51,6 +51,14 @@ class DimensionState {
     return DimensionState{std::max(lhs.getDimension(), rhs.getDimension())};
   }
 
+  static DimensionState meet(const DimensionState& lhs,
+                             const DimensionState& rhs) {
+    if (!lhs.isInitialized()) return rhs;
+    if (!rhs.isInitialized()) return lhs;
+
+    return DimensionState{std::min(lhs.getDimension(), rhs.getDimension())};
+  }
+
   void print(llvm::raw_ostream& os) const {
     if (isInitialized()) {
       os << "DimensionState(" << dimension.value() << ")";
