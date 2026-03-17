@@ -43,6 +43,22 @@ FailureOr<presburger::IntegerRelation> get2dConvFilterDiagonalizedRelation(
     RankedTensorType filterType, RankedTensorType dataType, int64_t padding,
     int64_t ciphertextSize);
 
+// Returns an IntegerRelation for a row-interchange map that optimizes the
+// diagonal structure of a convolution's Toeplitz matrix.
+//
+// It maps flattened indices from a channel-last (H, W, C*g^2) tensor to a
+// (gH, gW, C) tensor. This rearrangement interleaves sub-pixels
+// from the channel dimension into g x g spatial blocks, effectively performing
+// a depth-to-space (pixel-shuffle) operation.
+// See Orion's implementation of multiplex:
+// https://github.com/baahl-nyu/orion/blob/0f7df1717be44e21caeab42f8a9da81c997fe7e8/orion/core/packing.py#L159
+// This computes the flattened input to flattened output map, e.g.
+// input = torch.arange(n * c * h * w).reshape(n, c, h, w)
+// result = multiplex(input, gap)
+// flattened_result = result.squeeze(0).flatten()
+presburger::IntegerRelation getRowInterchangeRelation(int64_t c, int64_t h,
+                                                      int64_t w, int64_t g);
+
 bool isRelation2dConvFilterDiagonalized(
     RankedTensorType filterType, RankedTensorType dataType, int64_t padding,
     int64_t ciphertextSize, const presburger::IntegerRelation& relation);
