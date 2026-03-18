@@ -11,11 +11,22 @@
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
+#include "mlir/include/mlir/Interfaces/ControlFlowInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/Interfaces/FunctionInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
+
+// https://discourse.llvm.org/t/regionbranchopinterface-agnostically-connect-a-region-block-argument-to-parent-opoperand/90199
+static RegionBranchInverseSuccessorMapping invertRegionBranchSuccessorMapping(
+    const RegionBranchSuccessorMapping& operandToInputs) {
+  RegionBranchInverseSuccessorMapping inputToOperands;
+  for (const auto& [operand, inputs] : operandToInputs) {
+    for (Value input : inputs) inputToOperands[input].push_back(operand);
+  }
+  return inputToOperands;
+}
 
 int getOperandNumber(Operation* op, Value value) {
   for (OpOperand& operand : op->getOpOperands()) {
@@ -49,6 +60,23 @@ Attribute findAttributeForBlockArgument(BlockArgument blockArg,
         if (operandNumber == -1) return nullptr;
         return argAttrInterface.getOperandAttr(operandNumber, attrName);
       })
+      .Case<RegionBranchOpInterface>(
+          [&](RegionBranchOpInterface op) -> Attribute {
+            auto argAttrInterface =
+                dyn_cast<OperandAndResultAttrInterface>(op.getOperation());
+            if (!argAttrInterface) return nullptr;
+
+            RegionBranchSuccessorMapping mapping;
+            op.getSuccessorOperandInputMapping(mapping,
+                                               RegionBranchPoint::parent());
+            auto inverseMapping = invertRegionBranchSuccessorMapping(mapping);
+            if (inverseMapping.count(blockArg)) {
+              return argAttrInterface.getOperandAttr(
+                  inverseMapping.lookup(blockArg)[0]->getOperandNumber(),
+                  attrName);
+            }
+            return nullptr;
+          })
       .Case<OperandAndResultAttrInterface>([&](auto op) -> Attribute {
         return op.getOperandAttr(blockArg.getArgNumber(), attrName);
       })
@@ -140,6 +168,21 @@ void setAttributeForBlockArgument(BlockArgument blockArg, StringRef attrName,
         int operandNumber = getOperandNumber(op, initArg);
         if (operandNumber == -1) return;
         return argAttrInterface.setOperandAttr(operandNumber, attrName, attr);
+      })
+      .Case<RegionBranchOpInterface>([&](RegionBranchOpInterface op) {
+        auto argAttrInterface =
+            dyn_cast<OperandAndResultAttrInterface>(op.getOperation());
+        if (!argAttrInterface) return;
+
+        RegionBranchSuccessorMapping mapping;
+        op.getSuccessorOperandInputMapping(mapping,
+                                           RegionBranchPoint::parent());
+        auto inverseMapping = invertRegionBranchSuccessorMapping(mapping);
+        if (inverseMapping.count(blockArg)) {
+          return argAttrInterface.setOperandAttr(
+              inverseMapping.lookup(blockArg)[0]->getOperandNumber(), attrName,
+              attr);
+        }
       })
       .Case<OperandAndResultAttrInterface>([&](auto op) {
         return op.setOperandAttr(blockArg.getArgNumber(), attrName, attr);
