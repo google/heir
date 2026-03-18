@@ -8,6 +8,7 @@
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/DialectRegistry.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"           // from @llvm-project
@@ -32,6 +33,9 @@ using arith::SubIOp;
 void registerOperandAndResultAttrInterface(DialectRegistry& registry) {
   registry.addExtension(+[](MLIRContext* ctx, affine::AffineDialect* dialect) {
     affine::AffineForOp::attachInterface<OperandAndResultAttrInterface>(*ctx);
+  });
+  registry.addExtension(+[](MLIRContext* ctx, scf::SCFDialect* dialect) {
+    scf::ForOp::attachInterface<OperandAndResultAttrInterface>(*ctx);
   });
   registry.addExtension(+[](MLIRContext* ctx, func::FuncDialect* dialect) {
     func::CallOp::attachInterface<OperandAndResultAttrInterface>(*ctx);

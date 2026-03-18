@@ -20,6 +20,7 @@
 #include "llvm/include/llvm/ADT/SmallVector.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
+#include "llvm/include/llvm/Support/DebugLog.h"            // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
@@ -40,6 +41,7 @@
 #include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"            // from @llvm-project
+#include "mlir/include/mlir/Interfaces/ControlFlowInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/Interfaces/LoopLikeInterface.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
@@ -789,10 +791,15 @@ void moveDialectAttrsToFuncArgument(Operation* top) {
   });
 }
 
-// should be called when done with all splitting
-// assume only one inner op
-void moveMgmtAttrAnnotationFromInnerToOuter(Operation* top) {
-  top->walk([&](secret::GenericOp genericOp) {
+// Move mgmt attributes from the op inside a generic op to the generic op's
+// result attrs.
+struct HoistMgmtAttrToGeneric : public OpRewritePattern<GenericOp> {
+  HoistMgmtAttrToGeneric(mlir::MLIRContext* context)
+      : OpRewritePattern<GenericOp>(context, /*benefit=*/2) {}
+
+ public:
+  LogicalResult matchAndRewrite(GenericOp genericOp,
+                                PatternRewriter& rewriter) const override {
     auto* innerOp = &genericOp.getBody()->front();
     auto yieldOp = genericOp.getYieldOp();
 
@@ -814,29 +821,137 @@ void moveMgmtAttrAnnotationFromInnerToOuter(Operation* top) {
     //
     //   %0 = op.foo ... {mgmt.mgmt = attr} : i16
     //   secret.yield %0, %0 : i16, i16
-    //
+
+    SmallVector<bool> changed(genericOp.getNumResults(), false);
     for (OpOperand& yieldOperand : yieldOp->getOpOperands()) {
       auto innerResult = yieldOperand.get();
       auto mgmtAttr = findAttributeAssociatedWith(
           innerResult, mgmt::MgmtDialect::kArgMgmtAttrName);
-      if (succeeded(mgmtAttr)) {
-        genericOp.setResultAttr(yieldOperand.getOperandNumber(),
-                                mgmt::MgmtDialect::kArgMgmtAttrName,
-                                mgmtAttr.value());
+      auto existingMgmtAttr = findAttributeAssociatedWith(
+          genericOp.getResult(yieldOperand.getOperandNumber()),
+          mgmt::MgmtDialect::kArgMgmtAttrName);
+      bool missingOuterMgmt = failed(existingMgmtAttr);
+      if ((succeeded(mgmtAttr) &&
+           (missingOuterMgmt ||
+            existingMgmtAttr.value() != mgmtAttr.value()))) {
+        changed[yieldOperand.getOperandNumber()] = true;
+        rewriter.modifyOpInPlace(genericOp, [&]() {
+          genericOp.setResultAttr(yieldOperand.getOperandNumber(),
+                                  mgmt::MgmtDialect::kArgMgmtAttrName,
+                                  mgmtAttr.value());
+        });
       }
     }
 
+    bool anyChanged = llvm::any_of(changed, [](bool x) { return x; });
+
     // Clean up the mgmt attr from the inner op so it doesn't persist in
     // both places. Remove both the direct attr and any per-result attrs.
-    innerOp->removeAttr(mgmt::MgmtDialect::kArgMgmtAttrName);
-    if (auto attrInterface =
-            dyn_cast<heir::OperandAndResultAttrInterface>(innerOp)) {
-      for (unsigned i = 0; i < innerOp->getNumResults(); ++i) {
-        attrInterface.removeResultAttr(i, mgmt::MgmtDialect::kArgMgmtAttrName);
+    if (anyChanged) {
+      rewriter.modifyOpInPlace(innerOp, [&]() {
+        innerOp->removeAttr(mgmt::MgmtDialect::kArgMgmtAttrName);
+        if (auto attrInterface =
+                dyn_cast<heir::OperandAndResultAttrInterface>(innerOp)) {
+          for (unsigned i = 0; i < innerOp->getNumResults(); ++i) {
+            attrInterface.removeResultAttr(i,
+                                           mgmt::MgmtDialect::kArgMgmtAttrName);
+          }
+        }
+      });
+    }
+    return anyChanged ? success() : failure();
+  }
+};
+
+struct HoistMgmtAttrToRegionBranchOpInterface
+    : public OpInterfaceRewritePattern<RegionBranchOpInterface> {
+  HoistMgmtAttrToRegionBranchOpInterface(mlir::MLIRContext* context)
+      : OpInterfaceRewritePattern(context, /*benefit=*/1) {}
+
+ public:
+  LogicalResult matchAndRewrite(RegionBranchOpInterface op,
+                                PatternRewriter& rewriter) const override {
+    if (isa<GenericOp>(op)) return failure();
+
+    auto attrName = mgmt::MgmtDialect::kArgMgmtAttrName;
+    if (op->hasAttr(attrName)) return failure();
+
+    LDBG() << "Found region branch op interface to hoist mgmt attrs to: "
+           << op->getName();
+    LLVM_DEBUG(op->dump());
+
+    // For each op result R, find the corresponding value V_i(R) forwarded from
+    // each region i, and get the mgmt attr for each V_i(R). Ensure all the
+    // mgmt attrs for each V_i(R) agree (otherwise warn and fail), and if so
+    // setAttributeAssociatedWith the op result to be this mgmt attr.
+    SmallVector<mgmt::MgmtAttr> resultAttrs(op->getNumResults(), nullptr);
+    SmallVector<bool> inconsistent(op->getNumResults(), false);
+    SmallVector<bool> missing(op->getNumResults(), false);
+
+    for (Region& region : op->getRegions()) {
+      if (region.empty()) continue;
+      Operation* terminator = region.back().getTerminator();
+      auto branchTerminator =
+          dyn_cast<RegionBranchTerminatorOpInterface>(terminator);
+      if (!branchTerminator) continue;
+
+      SmallVector<RegionSuccessor> successors;
+      branchTerminator.getSuccessorRegions(SmallVector<Attribute>(),
+                                           successors);
+
+      LDBG() << "Processing successors.";
+      for (auto& successor : successors) {
+        if (successor.isParent()) {
+          auto successorOperands =
+              branchTerminator.getSuccessorOperands(successor);
+          // For most ops (like scf.if, scf.for), the successor operands
+          // match the op results.
+          if (successorOperands.size() != op->getNumResults()) {
+            continue;
+          }
+          LDBG() << "Found " << successorOperands.size()
+                 << " successor operands";
+
+          for (auto [i, operand] : llvm::enumerate(successorOperands)) {
+            mgmt::MgmtAttr attr = mgmt::findMgmtAttrAssociatedWith(operand);
+            if (!attr) {
+              missing[i] = true;
+              continue;
+            }
+            LDBG() << "Found mgmt attribute for successor operand " << i << ": "
+                   << attr;
+            if (!resultAttrs[i]) {
+              resultAttrs[i] = attr;
+            } else if (resultAttrs[i] != attr) {
+              inconsistent[i] = true;
+            }
+          }
+        }
       }
     }
-  });
-}
+
+    for (unsigned i = 0; i < op->getNumResults(); ++i) {
+      if (inconsistent[i]) {
+        op->emitWarning() << "Inconsistent mgmt attributes for result " << i;
+        return rewriter.notifyMatchFailure(
+            op->getLoc(), "Inconsistent mgmt attributes within regions");
+      }
+      if (missing[i]) {
+        LDBG() << "op result " << i << " is missing at least one result attr";
+        return rewriter.notifyMatchFailure(
+            op->getLoc(),
+            "Missing mgmt attribute for result in at least one region");
+      }
+      if (resultAttrs[i]) {
+        LDBG() << "Setting op result " << i << " to have attr "
+               << resultAttrs[i];
+        mgmt::setMgmtAttrAssociatedWith(op->getResult(i), resultAttrs[i]);
+      }
+    }
+
+    return success();
+  }
+};
 
 struct DistributeGeneric
     : impl::SecretDistributeGenericBase<DistributeGeneric> {
@@ -887,7 +1002,12 @@ struct DistributeGeneric
     (void)applyPatternsGreedily(getOperation(), std::move(patterns));
 
     // used by secret-to-<scheme> lowering
-    moveMgmtAttrAnnotationFromInnerToOuter(getOperation());
+    mlir::RewritePatternSet patterns2(context);
+    patterns2
+        .add<HoistMgmtAttrToGeneric, HoistMgmtAttrToRegionBranchOpInterface>(
+            context);
+    (void)applyPatternsGreedily(getOperation(), std::move(patterns2));
+
     clearAttrs(getOperation(), secret::SecretDialect::kSecretInitsAttrName);
   }
 };
