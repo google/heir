@@ -131,8 +131,10 @@
 #include "mlir/include/mlir/Conversion/UBToLLVM/UBToLLVM.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/VectorToLLVM/ConvertVectorToLLVM.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/ValueBoundsOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/ValueBoundsOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Transforms/BufferDeallocationOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/IR/Bufferization.h"  // from @llvm-project
@@ -149,11 +151,14 @@
 #include "mlir/include/mlir/Dialect/Linalg/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Math/IR/Math.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/ValueBoundsOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/ValueBoundsOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/Extensions/AllExtensions.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/TensorInferTypeOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/ValueBoundsOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Pass/PassManager.h"            // from @llvm-project
 #include "mlir/include/mlir/Pass/PassRegistry.h"           // from @llvm-project
@@ -272,8 +277,15 @@ int main(int argc, char** argv) {
   mlir::linalg::registerBufferizableOpInterfaceExternalModels(registry);
   scf::registerBufferizableOpInterfaceExternalModels(registry);
   tensor::registerBufferizableOpInterfaceExternalModels(registry);
-  mlir::arith::registerConvertArithToLLVMInterface(registry);
   mlir::LLVM::registerInlinerInterface(registry);
+  mlir::arith::registerConvertArithToLLVMInterface(registry);
+
+  // ValueBoundsOpInterface
+  mlir::affine::registerValueBoundsOpInterfaceExternalModels(registry);
+  mlir::arith::registerValueBoundsOpInterfaceExternalModels(registry);
+  mlir::memref::registerValueBoundsOpInterfaceExternalModels(registry);
+  mlir::scf::registerValueBoundsOpInterfaceExternalModels(registry);
+  mlir::tensor::registerValueBoundsOpInterfaceExternalModels(registry);
 
   // Custom passes in HEIR
   registerEmitCInterfacePass();
