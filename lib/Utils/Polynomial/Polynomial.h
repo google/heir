@@ -130,7 +130,7 @@ template <class Derived, typename Monomial, typename CoefficientType>
 class PolynomialBase {
  public:
   PolynomialBase() = delete;
-  virtual ~PolynomialBase<Derived, Monomial, CoefficientType>() = default;
+  virtual ~PolynomialBase() = default;
 
   explicit PolynomialBase(ArrayRef<Monomial> terms) : terms(terms) {}
 

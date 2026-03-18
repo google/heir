@@ -49,7 +49,7 @@ repos:
 
 # Github workflow actionlint
 -   repo: https://github.com/Mateusz-Grzelinski/actionlint-py
-    rev: "v1.7.6.22"
+    rev: "v1.7.11.24"
     hooks:
       - id: actionlint
         additional_dependencies: [ pyflakes>=3.0.1, shellcheck-py>=0.9.0.5 ]

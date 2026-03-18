@@ -52,6 +52,7 @@ dev = [
   # For ML integration tests
   "torch>=2.8.0",
   "setuptools>=80.9.0",
+  "cibuildwheel>=3.0.0",
 ]
 
 [project.urls]
@@ -77,6 +78,8 @@ test-command = "cp {package}/frontend/example.py . && python example.py"
 
 [tool.cibuildwheel.linux]
 archs = "auto64"
+manylinux-x86_64-image = "manylinux_2_28"
+manylinux-aarch64-image = "manylinux_2_28"
 before-all = "bash .github/install_cibuildwheel_deps.sh"
 # Use the rootless Bazel installation inside the container.
 environment = { PATH = "$PATH:$HOME/bin" }

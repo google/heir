@@ -48,6 +48,13 @@ single_version_override(
     version = "3.8.2.bcr.2",
 )
 
+# Yosys also pulls in libffi@3.4.7.bcr.3, but that version does not work on aarch64 linux.
+# Therefore, we pull in this updated BCR version which specifically adds support for aarch64 linux.
+single_version_override(
+    module_name = "libffi",
+    version = "3.4.7.bcr.4",
+)
+
 # LLVM dependency uses module extensions because none of these are in the BCR
 llvm_extensions = use_extension("//bazel:extensions.bzl", "llvm_deps")
 use_repo(

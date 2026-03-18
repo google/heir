@@ -88,4 +88,41 @@ The `pyink` repo has instructions for setting up `pyink` with VSCode. The
 pre-commit configuration for this repo will automatically run `pyink`, and to
 run a one-time format of the entire project, use `pre-commit run --all-files`.
 
+## Building wheels
+
+The HEIR Python package is built using
+[cibuildwheel](https://cibuildwheel.pypa.io/), which is also what CI uses to
+produce PyPI releases. To test wheel builds locally:
+
+### Prerequisites
+
+- Install docker or podman (required for containerized linux builds). If using
+  podman, set the environment variable `CIBW_CONTAINER_ENGINE=podman`.
+- Install `cibuildwheel` (`pip install cibuildwheel`).
+- **macOS only**: cibuildwheel requires the official
+  [python.org](https://www.python.org/downloads/) framework installers (not
+  Homebrew or uv-managed Pythons). Download and install the `.pkg` for each
+  Python version you want to build (3.12, 3.13, etc.).
+
+### Manually building a wheel
+
+Build a single wheel (recommended for local testing):
+
+```bash
+cibuildwheel --only cp312-macosx_arm64      # macOS Apple Silicon
+cibuildwheel --only cp312-macosx_x86_64     # macOS Intel
+cibuildwheel --only cp312-manylinux_x86_64  # Linux x86_64
+cibuildwheel --only cp312-manylinux_aarch64 # Linux arm64
+```
+
+The built wheel will be in `./wheelhouse/`. Note that building wheels for
+non-native architectures will require emulation and therefore be significantly
+slower.
+
+### CI
+
+The GitHub Actions workflow (`.github/workflows/wheels.yml`) builds wheels for
+both Linux and macOS and uploads them to PyPI on release. It can also be
+triggered manually via `workflow_dispatch`.
+
 <!-- mdformat global-off -->
