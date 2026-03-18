@@ -28,6 +28,8 @@
 
 #define DEBUG_TYPE "level-analysis"
 
+#include "lib/Dialect/Secret/IR/SecretOps.h"
+
 namespace mlir {
 namespace heir {
 
@@ -134,10 +136,10 @@ LogicalResult LevelAnalysis::visitOperation(
   };
 
   LevelState resultLevel = deriveResultLevel(op, operands);
-  SmallVector<OpResult> secretResults;
-  getSecretResults(op, secretResults);
-  for (auto result : secretResults) {
-    propagate(result, resultLevel);
+  for (auto result : op->getOpResults()) {
+    if (isa<mgmt::InitOp>(op) || isSecretInternal(op, result)) {
+      propagate(result, resultLevel);
+    }
   }
 
   return success();
