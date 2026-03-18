@@ -17,9 +17,6 @@ go_test(
     srcs = ["mlp_test.go"],
     embed = [":mlp"],
     deps = [
-        "@com_github_tuneinsight_lattigo_v6//circuits/ckks/lintrans",
-        "@com_github_tuneinsight_lattigo_v6//core/rlwe",
-        "@com_github_tuneinsight_lattigo_v6//ring",
         "@com_github_tuneinsight_lattigo_v6//schemes/ckks",
     ],
 )

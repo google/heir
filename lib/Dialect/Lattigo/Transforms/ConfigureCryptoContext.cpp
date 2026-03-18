@@ -223,6 +223,47 @@ struct LattigoCKKSScheme {
   }
 };
 
+// Returns the best baby-step size N1 for BSGS given diagonal indices, slot
+// count, and log2 of the target baby/giant ratio. Mirrors Lattigo's
+// lintrans.FindBestBSGSRatio.
+static int64_t findBestBSGSRatio(ArrayRef<int32_t> diags, int64_t slots,
+                                 int64_t logMaxRatio) {
+  int64_t maxRatio = 1LL << logMaxRatio;
+  for (int64_t N1 = 1; N1 < slots; N1 <<= 1) {
+    DenseSet<int64_t> rotN1Set, rotN2Set;
+    for (auto rot : diags) {
+      int64_t r = (int64_t)rot & (slots - 1);
+      rotN1Set.insert(((r / N1) * N1) & (slots - 1));
+      rotN2Set.insert(r & (N1 - 1));
+    }
+    int64_t nbN1 = (int64_t)rotN1Set.size() - 1;
+    int64_t nbN2 = (int64_t)rotN2Set.size() - 1;
+    if (nbN1 > 0) {
+      if (nbN2 == maxRatio * nbN1) return N1;
+      if (nbN2 > maxRatio * nbN1) return N1 / 2;
+    }
+  }
+  return 1;
+}
+
+// Returns all non-zero rotation indices needed by lintrans.EvaluateNew for a
+// CKKSLinearTransformOp with the given diagonal indices, slot count, and BSGS
+// ratio. Mirrors Lattigo's lintrans.GaloisElements().
+static DenseSet<int64_t> lintransRotationIndices(ArrayRef<int32_t> diags,
+                                                 int64_t slots,
+                                                 int64_t logBSGS) {
+  DenseSet<int64_t> result;
+  int64_t N1 = (logBSGS < 0) ? slots : findBestBSGSRatio(diags, slots, logBSGS);
+  for (auto rot : diags) {
+    int64_t r = (int64_t)rot & (slots - 1);
+    int64_t giant = ((r / N1) * N1) & (slots - 1);
+    int64_t baby = r & (N1 - 1);
+    if (giant != 0) result.insert(giant);
+    if (baby != 0) result.insert(baby);
+  }
+  return result;
+}
+
 template <typename LattigoScheme>
 LogicalResult convertFuncForScheme(func::FuncOp op) {
   using EvaluatorType = typename LattigoScheme::EvaluatorType;
@@ -314,6 +355,26 @@ LogicalResult convertFuncForScheme(func::FuncOp op) {
 
   auto setIndices = analysis.getRotationIndices();
   SmallVector<int64_t> rotIndices(setIndices.begin(), setIndices.end());
+
+  // Supplement RotationAnalysis with galois indices needed by
+  // CKKSLinearTransformOp (lintrans.EvaluateNew BSGS rotations).
+  // RotationAnalysis only sees explicit ckks.rotate ops.
+  {
+    int64_t slots = 1LL << (logN - 1);  // CKKS: N/2 slots
+    DenseSet<int64_t> seen(rotIndices.begin(), rotIndices.end());
+    walkFuncAndCallees(op, [&](Operation* innerOp) {
+      auto ltOp = dyn_cast<CKKSLinearTransformOp>(innerOp);
+      if (!ltOp) return WalkResult::advance();
+      int64_t logBSGS = ltOp.getLogBabyStepGiantStepRatio().getInt();
+      auto newRots = lintransRotationIndices(
+          ltOp.getDiagonalIndicesAttr().asArrayRef(), slots, logBSGS);
+      for (auto r : newRots) {
+        if (seen.insert(r).second) rotIndices.push_back(r);
+      }
+      return WalkResult::advance();
+    });
+  }
+
   LLVM_DEBUG({
     llvm::dbgs() << "Finished rotation analysis; found " << rotIndices.size()
                  << " rotations which were=\n";
