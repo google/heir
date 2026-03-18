@@ -28,11 +28,19 @@ jobs:
           path: dist/*.tar.gz
 
   build_wheels:
-    name: Build HEIR wheels on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    name: Build HEIR wheels on ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        include:
+          - name: linux-x86_64
+            runner: ubuntu-24.04
+          - name: linux-aarch64
+            runner: ubuntu-24.04-arm
+          - name: macos-x86_64
+            runner: macos-15-intel
+          - name: macos-arm64
+            runner: macos-15
 
     steps:
       - name: Check out HEIR
@@ -44,19 +52,13 @@ jobs:
           python-version: "3.12"
       - run: pip install --upgrade pip uv
 
-      - name: Set up QEMU
-        if: runner.os == 'Linux'
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: all
-
-      - name: Build wheels on ${{ matrix.os }} using cibuildwheel
+      - name: Build wheels on ${{ matrix.name }} using cibuildwheel
         uses: pypa/cibuildwheel@v3.0.0
 
-      - name: Upload HEIR ${{ matrix.os }} wheels
+      - name: Upload HEIR ${{ matrix.name }} wheels
         uses: actions/upload-artifact@v6
         with:
-          name: dist-${{ matrix.os }}
+          name: dist-${{ matrix.name }}
           path: wheelhouse/*.whl
 
   pypi_upload:
