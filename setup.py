@@ -243,6 +243,18 @@ class BuildBazelExtension(build_ext.build_ext):
       # C++17 needs macOS 10.14 at minimum
       bazel_argv.append("--macos_minimum_os=10.15")
 
+      # Cross-compilation support: detect target arch from ARCHFLAGS (set by cibuildwheel).
+      archflags = os.environ.get("ARCHFLAGS", "")
+      if "x86_64" in archflags:
+        target_arch = "x86_64"
+      elif "arm64" in archflags:
+        target_arch = "arm64"
+      else:
+        target_arch = platform.machine()
+      bazel_argv.append(
+          f"--platforms=@build_bazel_apple_support//platforms:darwin_{target_arch}"
+      )
+
     with _maybe_patch_toolchains():
       self.spawn(bazel_argv)
 

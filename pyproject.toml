@@ -90,7 +90,7 @@ archs = "auto64"
 [tool.cibuildwheel.macos]
 # Inherits archs from default (auto64)
 # Unused by Bazel, but needed explicitly by delocate on MacOS.
-environment = { MACOSX_DEPLOYMENT_TARGET = "10.14" }
+environment = { MACOSX_DEPLOYMENT_TARGET = "10.15" }
 
 [tool.pytest.ini_options]
 norecursedirs = [
