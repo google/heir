@@ -17,9 +17,6 @@ go_test(
     srcs = ["linear_transform_test.go"],
     embed = [":lineartransform"],
     deps = [
-        "@com_github_tuneinsight_lattigo_v6//circuits/ckks/lintrans",
-        "@com_github_tuneinsight_lattigo_v6//core/rlwe",
-        "@com_github_tuneinsight_lattigo_v6//ring",
         "@com_github_tuneinsight_lattigo_v6//schemes/ckks",
     ],
 )
