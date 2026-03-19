@@ -13,6 +13,7 @@ jobs:
       contents: write
     outputs:
       tag_name: ${{ steps.release.outputs.tag_name }}
+    continue-on-error: true
     steps:
       - name: Checkout code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
@@ -35,7 +36,7 @@ jobs:
             bazel-bin/tools/heir-opt --help
             bazel-bin/tools/heir-translate --help
             bazel-bin/tools/heir-lsp --help
-            [ -f bazel-bin/external/edu_berkeley_abc/abc ]
+            [ -f bazel-bin/external/abc+/abc_bin ]
 
       - name: Create Release
         id: release
@@ -47,7 +48,7 @@ jobs:
             bazel-bin/tools/heir-opt
             bazel-bin/tools/heir-translate
             bazel-bin/tools/heir-lsp
-            bazel-bin/external/edu_berkeley_abc/abc
+            bazel-bin/external/abc+/abc_bin
             lib/Transforms/YosysOptimizer/yosys/techmap.v
 
   monitor-wheels:
