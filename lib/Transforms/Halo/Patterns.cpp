@@ -201,7 +201,6 @@ FailureOr<SmallVector<Value>> isLoopStructuredForHaloUnroll(
 // Inject an scf::ForOp overload of this function, which exists upstream for
 // affine already.
 FailureOr<int64_t> getConstantTripCount(scf::ForOp forOp) {
-  LLVM_DEBUG(llvm::dbgs() << "Getting constant trip count\n");
   if (auto step = forOp.getConstantStep();
       !step.has_value() || !step->isOne()) {
     if (step.has_value()) {
@@ -287,11 +286,9 @@ LogicalResult doPartialUnroll(ForOp forOp, PatternRewriter& rewriter,
           "Start and end levels were not inferable to be concrete integers");
     }
 
-    LLVM_DEBUG(llvm::dbgs() << "doPartialUnroll: Getting levelEndVal\n");
     int levelEndVal = levelEnd->getValue().getInt();
     LLVM_DEBUG(llvm::dbgs()
                << "doPartialUnroll: levelEndVal=" << levelEndVal << "\n");
-    LLVM_DEBUG(llvm::dbgs() << "doPartialUnroll: Getting levelStartVal\n");
     int levelStartVal = levelStart->getValue().getInt();
     LLVM_DEBUG(llvm::dbgs()
                << "doPartialUnroll: levelStartVal=" << levelStartVal << "\n");

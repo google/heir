@@ -16,6 +16,7 @@
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/Interfaces/ControlFlowInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/Interfaces/SideEffectInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 
@@ -274,11 +275,58 @@ LogicalResult MatchCrossMulDepth<Op>::matchAndRewrite(
     }
   }
 
-  // FIXME: replace with updateResultMulDepthLattice(op, solver);
-  // propagateIfChanged only push workitem to the worklist queue
-  // actually execute the transfer for the new values
   solver->eraseAllStates();
   return solver->initializeAndRun(top);
+}
+
+LogicalResult UseInitForPlaintextBranchTerminators::matchAndRewrite(
+    RegionBranchTerminatorOpInterface op, PatternRewriter& rewriter) const {
+  auto regionBranchOp = dyn_cast<RegionBranchOpInterface>(op->getParentOp());
+  if (!regionBranchOp) {
+    return rewriter.notifyMatchFailure(
+        op, "parent does not implement RegionBranchOpInterface");
+  }
+
+  // If the op's operands are all already secret, return failure
+  if (!op->getOperands().empty() &&
+      llvm::all_of(op->getOperands(),
+                   [&](Value operand) { return isSecret(operand, solver); })) {
+    return rewriter.notifyMatchFailure(op, "all operands are already secret");
+  }
+
+  bool changed = false;
+  SmallVector<RegionSuccessor> successors;
+  SmallVector<Attribute> operands(op->getNumOperands(), nullptr);
+  op.getSuccessorRegions(operands, successors);
+
+  for (const auto& successor : successors) {
+    auto successorOperands = op.getSuccessorOperands(successor);
+    auto successorInputs = regionBranchOp.getSuccessorInputs(successor);
+
+    if (successorOperands.empty()) continue;
+
+    for (unsigned i = 0; i < successorOperands.size(); ++i) {
+      Value operand = successorOperands[i];
+      Value target = successorInputs[i];
+
+      if (isSecret(target, solver) && !isSecret(operand, solver)) {
+        // Check if already initted
+        if (auto definingOp = operand.getDefiningOp()) {
+          if (isa<mgmt::InitOp>(definingOp)) continue;
+        }
+
+        rewriter.setInsertionPoint(op);
+        auto initOp = mgmt::InitOp::create(rewriter, op.getLoc(),
+                                           operand.getType(), operand);
+
+        op->setOperand(successorOperands.getBeginOperandIndex() + i,
+                       initOp.getResult());
+        changed = true;
+      }
+    }
+  }
+
+  return changed ? success() : failure();
 }
 
 template <typename Op>

@@ -223,7 +223,6 @@ void makeLoopsTypeAndLevelInvariant(Operation* top) {
 
   DataFlowSolver solver;
   makeAndRunSecretnessSolver(top, solver);
-
   RewritePatternSet patterns(ctx);
   patterns.add<PeelPlaintextAffineForInit, PeelPlaintextScfForInit>(ctx,
                                                                     &solver);
@@ -231,10 +230,15 @@ void makeLoopsTypeAndLevelInvariant(Operation* top) {
 
   DataFlowSolver solver2;
   makeAndRunSecretnessSolver(top, solver2);
-
   patterns.clear();
   patterns.add<BootstrapIterArgsPattern<affine::AffineForOp>,
                BootstrapIterArgsPattern<scf::ForOp>>(ctx, &solver2);
+  walkAndApplyPatterns(top, std::move(patterns));
+
+  DataFlowSolver solver3;
+  makeAndRunSecretnessSolver(top, solver3);
+  patterns.clear();
+  patterns.add<UseInitForPlaintextBranchTerminators>(ctx, &solver3);
   walkAndApplyPatterns(top, std::move(patterns));
 }
 

@@ -5,7 +5,8 @@
 #include "mlir/include/mlir/IR/MLIRContext.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"             // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
+#include "mlir/include/mlir/Interfaces/ControlFlowInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 
 // This file include patterns that are combined and orchestrated in the
 // functions defined in `Pipeline.h`. Warning: use these patterns with care,
@@ -176,6 +177,23 @@ struct UseInitOpForPlaintextOperand : public OpRewritePattern<Op> {
 
  private:
   Operation* top;
+  DataFlowSolver* solver;
+};
+
+/// Insert mgmt.init op for region branch terminators where the other
+/// branch is secret.
+struct UseInitForPlaintextBranchTerminators
+    : public OpInterfaceRewritePattern<RegionBranchTerminatorOpInterface> {
+  UseInitForPlaintextBranchTerminators(MLIRContext* context,
+                                       DataFlowSolver* solver)
+      : OpInterfaceRewritePattern<RegionBranchTerminatorOpInterface>(
+            context, /*benefit=*/1),
+        solver(solver) {}
+
+  LogicalResult matchAndRewrite(RegionBranchTerminatorOpInterface op,
+                                PatternRewriter& rewriter) const override;
+
+ private:
   DataFlowSolver* solver;
 };
 
