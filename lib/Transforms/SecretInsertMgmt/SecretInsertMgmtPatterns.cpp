@@ -174,8 +174,6 @@ LogicalResult MatchCrossLevel<Op>::matchAndRewrite(
     return rewriter.notifyMatchFailure(op,
                                        "result level state not initialized");
   }
-  auto resultLevel = resultLevelState.getInt();
-
   bool inserted = false;
   SmallVector<OpOperand*, 2> secretOperands;
   getSecretOperands(op, secretOperands, solver);
@@ -187,21 +185,50 @@ LogicalResult MatchCrossLevel<Op>::matchAndRewrite(
                                          "operand level state not initialized");
     }
 
-    auto level = levelState.getInt();
-    if (level < resultLevel) {
+    if (levelState.isExhausted()) {
+      continue;
+    }
+
+    if (levelState.isInvalid()) {
+      continue;
+    }
+
+    if (resultLevelState.isInvalid()) {
+      continue;
+    }
+
+    // Both are either int or one is MaxLevel
+    bool mismatch = false;
+    if (resultLevelState.isInt() && levelState.isInt()) {
+      if (levelState.getInt() < resultLevelState.getInt()) {
+        mismatch = true;
+      }
+    } else if (resultLevelState.isMaxLevel() && levelState.isInt()) {
+      mismatch = true;
+    }
+
+    if (mismatch) {
       inserted = true;
       rewriter.setInsertionPoint(op);
       Value managed = operand->get();
-      if (resultLevel - level > 1) {
-        managed = mgmt::LevelReduceOp::create(rewriter, op.getLoc(), managed,
-                                              resultLevel - level - 1);
+
+      if (resultLevelState.isMaxLevel()) {
+        managed =
+            mgmt::LevelReduceMinOp::create(rewriter, op.getLoc(), managed);
+      } else {
+        auto resultLevel = resultLevelState.getInt();
+        auto level = levelState.getInt();
+        if (resultLevel - level > 1) {
+          managed = mgmt::LevelReduceOp::create(rewriter, op.getLoc(), managed,
+                                                resultLevel - level - 1);
+        }
+        // make a different adjust scale each time
+        // only after parameter selection can we decide the actual scale
+        managed = mgmt::AdjustScaleOp::create(
+            rewriter, op.getLoc(), managed,
+            rewriter.getI64IntegerAttr((*idCounter)++));
+        managed = mgmt::ModReduceOp::create(rewriter, op.getLoc(), managed);
       }
-      // make a different adjust scale each time
-      // only after parameter selection can we decide the actual scale
-      managed = mgmt::AdjustScaleOp::create(
-          rewriter, op.getLoc(), managed,
-          rewriter.getI64IntegerAttr((*idCounter)++));
-      managed = mgmt::ModReduceOp::create(rewriter, op.getLoc(), managed);
       // NOTE that only at most one operand/Value will experience such
       // replacement. For op with two operands with same Value, such replace
       // won't happen.

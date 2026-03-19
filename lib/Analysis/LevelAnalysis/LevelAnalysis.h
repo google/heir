@@ -94,6 +94,7 @@ class LevelState {
   bool isInitialized() const { return !std::holds_alternative<Uninit>(value); }
 
   bool isInt() const { return std::holds_alternative<int>(value); }
+  bool isInvalid() const { return std::holds_alternative<Invalid>(value); }
 
   bool isMaxLevel() const { return std::holds_alternative<MaxLevel>(value); }
   bool isExhausted() const { return isMaxLevel(); }
