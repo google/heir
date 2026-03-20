@@ -22,6 +22,7 @@
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/Layout/Convolution.h"
 #include "lib/Utils/Layout/Hoisting.h"
+#include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/Layout/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"               // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVectorExtras.h"       // from @llvm-project
@@ -45,6 +46,7 @@
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Matchers.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
@@ -59,6 +61,7 @@
 namespace mlir {
 namespace heir {
 
+using linalg::Conv2DNchwFchwOp;
 using linalg::Conv2DOp;
 using linalg::MatmulOp;
 using linalg::MatvecOp;
@@ -138,6 +141,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   LogicalResult visitOperation(GenericOp op);
   LogicalResult visitOperation(ReduceOp op);
   LogicalResult visitOperation(Conv2DOp op);
+  LogicalResult visitOperation(Conv2DNchwFchwOp op);
   LogicalResult visitOperation(VecmatOp op);
   LogicalResult visitOperation(MatvecOp op);
   LogicalResult visitOperation(MatmulOp op);
@@ -158,6 +162,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
 
   // Op-specific compatibility functions
   CompatibilityResult hasCompatibleArgumentLayouts(Conv2DOp op);
+  CompatibilityResult hasCompatibleArgumentLayouts(Conv2DNchwFchwOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(ReduceOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(VecmatOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(MatvecOp op);
@@ -284,7 +289,7 @@ LogicalResult LayoutPropagation::visitOperation(Operation* op) {
       // secret ops
       .Case<GenericOp, YieldOp>([&](auto op) { return visitOperation(op); })
       // linalg ops
-      .Case<MatvecOp, VecmatOp, ReduceOp, MatmulOp, Conv2DOp>(
+      .Case<MatvecOp, VecmatOp, ReduceOp, MatmulOp, Conv2DOp, Conv2DNchwFchwOp>(
           [&](auto op) { return visitOperation(op); })
       // affine ops
       .Case<affine::AffineForOp>([&](auto op) { return visitOperation(op); })
@@ -652,11 +657,122 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DOp op) {
 
   assignedLayouts.insert({result, resultLayout});
   setResultLayoutAttr(op);
-  debugAssignLayout(result, resultLayout);
-
   auto kernelAttr =
       secret::KernelAttr::get(ctx, KernelName::MatvecDiagonal, /*force=*/false);
   op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
+
+  return success();
+}
+
+LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
+  LLVM_DEBUG(llvm::dbgs() << "Specializing visitor on Conv2DNchwFchwOp\n");
+  Value data = op.getInputs().front();
+  Value filter = op.getInputs().back();
+  auto dataType = cast<RankedTensorType>(data.getType());
+  auto filterType = cast<RankedTensorType>(filter.getType());
+  RankedTensorType outputType =
+      cast<RankedTensorType>(op.getResult(0).getType());
+
+  SmallVector<int64_t> strides(op.getStrides().getValues<int64_t>().begin(),
+                               op.getStrides().getValues<int64_t>().end());
+  if (!llvm::all_equal(strides)) {
+    return op->emitOpError() << "Expected equal strides for Conv2DNchwFchwOp";
+  }
+
+  MLIRContext* ctx = &getContext();
+  mlir::IRRewriter builder(ctx);
+
+  // Ensure data is in gapped row-major layout with current inputGap.
+  // We expect 4-D tensor (N, C, H, W) but only support N=1.
+  if (dataType.getRank() != 4 || dataType.getDimSize(0) != 1) {
+    return op->emitOpError() << "Expected 4-D data tensor (N=1, C, H, W)";
+  }
+
+  // Since the stride will be used as the gap factor, the layout requires that
+  // the number of output channels is divisible by gap^2.
+  // TODO(FIXME): handle padding the output channels to be divisible by gap^2.
+  if (outputType.getDimSize(1) % (strides[0] * strides[0]) != 0) {
+    return op->emitOpError()
+           << "Expected number of output channels to be divisible by gap^2";
+  }
+
+  LayoutAttr dataLayout = assignedLayouts.at(data);
+  IntegerRelation targetDataRelation =
+      getRowMajorLayoutRelation(dataType, ciphertextSize);
+
+  if (!dataLayout.getIntegerRelation().isEqual(targetDataRelation)) {
+    LLVM_DEBUG(llvm::dbgs() << "conv_2d data input is not row major, "
+                               "inserting layout conversion.\n");
+    auto [toReplace, newDataLayoutAttr] =
+        convertToLayout(ctx, builder, op, data, dataLayout, targetDataRelation);
+    debugAssignLayout(toReplace, newDataLayoutAttr);
+    assignedLayouts.insert({toReplace, newDataLayoutAttr});
+  }
+
+  // The kernel for this operation requires expanding the conv filter matrix
+  // into a larger matrix and then diagonalizing.
+  LayoutAttr filterLayout = assignedLayouts.at(filter);
+  auto convRelation = get2dConvChwFchwFilterDiagonalizedRelation(
+      filterType, dataType, strides, /*padding=*/0, ciphertextSize);
+  if (failed(convRelation)) {
+    return failure();
+  }
+  if (!isRelationEqual(filterLayout.getIntegerRelation(),
+                       convRelation.value())) {
+    LLVM_DEBUG(llvm::dbgs() << "conv_2d filter input is not diagonalized, "
+                               "inserting layout conversion.\n");
+
+    // Insert a layout conversion op to make the matrix layout expanded and
+    // squat diagonal
+    auto [toReplace, newFilterLayoutAttr] = convertToLayout(
+        ctx, builder, op, filter, filterLayout, convRelation.value());
+    debugAssignLayout(toReplace, newFilterLayoutAttr);
+    assignedLayouts.insert({toReplace, newFilterLayoutAttr});
+  }
+
+  // Always one result. For a gapped output, the result will also have a
+  // pixel-shuffled gap. Convert the result back to a row-major layout for other
+  // users and let future passes handle propagating the gap.
+  auto result = op->getResult(0);
+  presburger::IntegerRelation rowMajorRelation =
+      getRowMajorLayoutRelation(outputType, ciphertextSize);
+  // FIXME: getRowInterchange just takes one to one mapping of the index
+  // remapping, but doesn't distribute them into ct, slot values.
+  presburger::IntegerRelation interchangeRelation = getRowInterchangeRelation(
+      outputType.getDimSize(1), outputType.getDimSize(2),
+      outputType.getDimSize(3), strides[0]);
+  interchangeRelation.insertVar(presburger::VarKind::Domain, 0);
+  interchangeRelation.insertVar(presburger::VarKind::Range, 0);
+  addConstraint(
+      interchangeRelation,
+      {{interchangeRelation.getVarKindOffset(presburger::VarKind::Domain) + 1,
+        -1},
+       {interchangeRelation.getVarKindOffset(presburger::VarKind::Range) + 1,
+        1}},
+      /*equality=*/true);
+  auto gappedRelation = rowMajorRelation.clone();
+  gappedRelation->compose(interchangeRelation);
+  LayoutAttr gappedLayoutAttr =
+      LayoutAttr::getFromIntegerRelation(ctx, *gappedRelation);
+
+  assignedLayouts.insert({result, gappedLayoutAttr});
+  setResultLayoutAttr(op);
+  auto kernelAttr =
+      secret::KernelAttr::get(ctx, KernelName::MatvecDiagonal, /*force=*/false);
+  op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
+
+  // Insert a layout conversion op to make the result row-major again.
+  LayoutAttr rowMajorLayoutAttr =
+      LayoutAttr::getFromIntegerRelation(ctx, rowMajorRelation);
+  builder.setInsertionPointAfter(op);
+  ConvertLayoutOp convertLayoutOp = ConvertLayoutOp::create(
+      builder, op->getLoc(), result, gappedLayoutAttr, rowMajorLayoutAttr);
+  convertLayoutOp->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName,
+                           rowMajorLayoutAttr);
+  Value toReplace = convertLayoutOp.getResult();
+  builder.replaceAllUsesExcept(result, toReplace, convertLayoutOp);
+  debugAssignLayout(toReplace, rowMajorLayoutAttr);
+  assignedLayouts.insert({toReplace, rowMajorLayoutAttr});
 
   return success();
 }
@@ -905,7 +1021,8 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
             affine::AffineYieldOp>(
           [&](auto op) { return CompatibilityResult{true, std::nullopt}; })
       // Ops with special rules
-      .Case<ReduceOp, MatvecOp, VecmatOp, Conv2DOp, tensor::InsertSliceOp>(
+      .Case<ReduceOp, MatvecOp, VecmatOp, Conv2DOp, Conv2DNchwFchwOp,
+            tensor::InsertSliceOp>(
           [&](auto op) { return hasCompatibleArgumentLayouts(op); })
       // By default, assume operands must all have the same layout.
       .Default([&](Operation* op) {
@@ -1012,6 +1129,22 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
   if (isSecret(filter, solver) || !isSecret(data, solver)) {
     return {false, op->emitError("Only secret data and plaintext filters are "
                                  "supported for linalg.conv2d")};
+  }
+
+  if (!assignedLayouts.contains(data)) {
+    return {false, op->emitError("data operand has no assigned layout")};
+  }
+  return {true, std::nullopt};
+}
+
+CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
+    Conv2DNchwFchwOp op) {
+  // Currently only support secret data and plaintext filters.
+  Value data = op.getInputs().front();
+  Value filter = op.getInputs().back();
+  if (isSecret(filter, solver) || !isSecret(data, solver)) {
+    return {false, op->emitError("Only secret data and plaintext filters are "
+                                 "supported for linalg.conv_2d_nchw_fchw")};
   }
 
   if (!assignedLayouts.contains(data)) {

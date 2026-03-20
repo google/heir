@@ -4,8 +4,11 @@
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "lib/Kernel/KernelName.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
+#include "llvm/include/llvm/ADT/StringExtras.h"     // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"       // from @llvm-project
@@ -18,13 +21,15 @@ namespace mlir {
 namespace heir {
 
 namespace {
-static std::unordered_map<KernelName, std::string> correspondingOp = {
-    {KernelName::MatvecNaive, "linalg.matvec"},
-    {KernelName::MatvecDiagonal, "linalg.matvec"},
-    {KernelName::VecmatDiagonal, "linalg.vecmat"},
-    {KernelName::MatmulDiagonal, "linalg.matmul"},
-    {KernelName::MatmulDiagonal, "linalg.conv2d"},
-    {KernelName::MatmulBicyclic, "linalg.matmul"},
+static std::unordered_map<KernelName, std::vector<std::string>>
+    correspondingOp = {
+        {KernelName::MatvecNaive, {"linalg.matvec"}},
+        {KernelName::MatvecDiagonal,
+         {"linalg.matvec", "linalg.conv_2d_nchw_fchw"}},
+        {KernelName::VecmatDiagonal, {"linalg.vecmat"}},
+        {KernelName::MatmulDiagonal, {"linalg.matmul"}},
+        {KernelName::MatmulDiagonal, {"linalg.conv2d"}},
+        {KernelName::MatmulBicyclic, {"linalg.matmul"}},
 };
 
 std::set<std::string> requiredNontrivial = {"linalg"};
@@ -36,7 +41,8 @@ bool isSupportedKernel(Operation* op, KernelName name) {
     return requiredNontrivial.count(dialect) == 0;
   }
 
-  if (correspondingOp.find(name) == correspondingOp.end()) {
+  auto it = correspondingOp.find(name);
+  if (it == correspondingOp.end()) {
     LLVM_DEBUG(llvm::dbgs() << "Kernel name " << kernelNameAsStr(name)
                             << "not found in correspondingOp legality map\n");
     return false;
@@ -46,14 +52,15 @@ bool isSupportedKernel(Operation* op, KernelName name) {
   llvm::raw_string_ostream ss(actual);
   ss << op->getName().getStringRef();
 
-  std::string resolvedOpName = correspondingOp.at(name);
-  if (resolvedOpName == actual) {
+  auto opForKernelIt = llvm::find(it->second, actual);
+  if (opForKernelIt != it->second.end()) {
     return true;
   }
 
   LLVM_DEBUG(llvm::dbgs() << "Kernel " << kernelNameAsStr(name)
-                          << " is not legal for op " << actual << ", requires "
-                          << resolvedOpName << "\n");
+                          << " is not legal for op " << actual
+                          << ", expected one of ops: "
+                          << llvm::join(it->second, ", ") << "\n");
   return false;
 }
 

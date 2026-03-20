@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <functional>
 #include <vector>
 
 #include "gtest/gtest.h"  // from @googletest
@@ -22,6 +23,8 @@ namespace {
 
 // Parametrize over whether the kernel is rolled
 class KernelImplementationTest : public testing::TestWithParam<bool> {};
+
+using tensor4d = std::vector<std::vector<std::vector<std::vector<int>>>>;
 
 TEST_P(KernelImplementationTest, TestHaleviShoupMatvec) {
   std::vector<int> vector = {0, 1, 2, 3};
@@ -122,11 +125,6 @@ TEST_P(KernelImplementationTest, Test2DConvWithLayout) {
   std::vector<std::vector<int>> packedData =
       evaluateLayoutOnMatrix(dataLayout, data);
 
-  SmallVector<int64_t> strides = {1, 1};
-  auto filterLayout = get2dConvFilterRelation(filterType, dataType, strides, 0);
-  std::vector<std::vector<int>> packedFilter =
-      evaluateLayoutOnMatrix(filterLayout, matrix);
-
   auto matrixLayout =
       get2dConvFilterDiagonalizedRelation(filterType, dataType,
                                           /*padding=*/0, numSlots)
@@ -150,6 +148,67 @@ TEST_P(KernelImplementationTest, Test2DConvWithLayout) {
   std::vector<int> extractedResult = {actualVector.begin(),
                                       actualVector.begin() + 4};
   EXPECT_EQ(extractedResult, expected);
+}
+
+TEST_P(KernelImplementationTest, Test2DNchwFchwConvWithLayout) {
+  MLIRContext context;
+  RankedTensorType dataType =
+      RankedTensorType::get({1, 1, 4, 4}, mlir::IndexType::get(&context));
+  RankedTensorType filterType =
+      RankedTensorType::get({4, 1, 2, 2}, mlir::IndexType::get(&context));
+
+  int numSlots = 16;
+  // 1x1x4x4 input data, 4x1x2x2 filter
+  tensor4d data = {
+      {{{0, 1, 2, 3}, {4, 5, 6, 7}, {8, 9, 10, 11}, {12, 13, 14, 15}}}};
+  tensor4d filter = {{{{7, 0}, {5, 4}}},
+                     {{{9, 4}, {0, 3}}},
+                     {{{7, 8}, {8, 6}}},
+                     {{{6, 0}, {5, 4}}}};
+
+  std::function<int(const std::vector<int64_t>&)> getDataValueFn =
+      [&](const std::vector<int64_t>& domainPoint) -> int {
+    return data[domainPoint[0]][domainPoint[1]][domainPoint[2]][domainPoint[3]];
+  };
+  auto dataLayout = getRowMajorLayoutRelation(dataType, numSlots);
+  std::vector<std::vector<int>> packedData =
+      evaluateLayout(dataLayout, getDataValueFn);
+
+  SmallVector<int64_t> strides = {2, 2};
+  auto filterLayout = get2dConvChwFchwFilterDiagonalizedRelation(
+      filterType, dataType, strides, 0, numSlots, true);
+  ASSERT_TRUE(succeeded(filterLayout));
+  std::function<int(const std::vector<int64_t>&)> getFilterValueFn =
+      [&](const std::vector<int64_t>& domainPoint) -> int {
+    return filter[domainPoint[0]][domainPoint[1]][domainPoint[2]]
+                 [domainPoint[3]];
+  };
+  std::vector<std::vector<int>> packedFilter =
+      evaluateLayout(filterLayout.value(), getFilterValueFn);
+  auto expandedFilterShape =
+      get2dConvChwFchwFilterExpandedType(filterType, dataType, 0, strides);
+
+  // The expected row-major layout of the 4 2x2 result tensors is:
+  // [40, 72, 168, 200]
+  // [19, 51, 147, 179]
+  // [70, 128, 302, 360]
+  // [40, 70, 160, 190]
+  // But the result of the halevi-shoup kernel also includes gapping between the
+  // values, so the expected vector is:
+  std::vector<int> expected = {40,  19,  72,  51,  70,  40,  128, 70,
+                               168, 147, 200, 179, 302, 160, 360, 190};
+
+  LiteralValue matrixInput = packedFilter;
+  LiteralValue vectorInput = packedData[0];
+
+  auto dag = implementHaleviShoup(vectorInput, matrixInput,
+                                  expandedFilterShape.getShape(),
+                                  DagType::intTensor(32, {numSlots}),
+                                  /*zeroDiagonals=*/{}, /*unroll=*/GetParam());
+  LiteralValue actual = evalKernel(dag)[0];
+  // Result is 4 2x2 tensors with a row-major layout.
+  std::vector<int> actualVector = std::get<std::vector<int>>(actual.get());
+  EXPECT_EQ(actualVector, expected);
 }
 
 TEST(KernelImplementationTest, BicyclicMatmul) {

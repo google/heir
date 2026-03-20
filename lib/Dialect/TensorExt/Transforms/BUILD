@@ -144,6 +144,7 @@ cc_library(
         ":Patterns",
         ":pass_inc_gen",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Transforms/LayoutOptimization:Patterns",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:TransformUtils",

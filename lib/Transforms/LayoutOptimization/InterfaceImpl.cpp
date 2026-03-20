@@ -33,6 +33,8 @@ namespace heir {
 using tensor_ext::ConvertLayoutOp;
 using tensor_ext::LayoutAttr;
 static auto& kLayoutAttrName = tensor_ext::TensorExtDialect::kLayoutAttrName;
+using ::mlir::linalg::Conv2DNchwFchwOp;
+using ::mlir::linalg::MatmulOp;
 using ::mlir::linalg::MatvecOp;
 
 namespace {
@@ -109,6 +111,34 @@ struct MatmulHoistingImpl
   }
 };
 
+struct Conv2DNchwFchwHoistingImpl
+    : public LayoutConversionHoistableOpInterface::ExternalModel<
+          Conv2DNchwFchwHoistingImpl, Conv2DNchwFchwOp> {
+  std::vector<Hoister> getHoisters(
+      Operation* op, tensor_ext::ConvertLayoutOp convertLayoutOp) const {
+    std::vector<Hoister> hoisters;
+
+    auto kernel = op->getAttrOfType<secret::KernelAttr>(
+        secret::SecretDialect::kKernelAttrName);
+    if (!kernel) {
+      LLVM_DEBUG(llvm::dbgs()
+                 << "Kernel attribute not found on op " << *op << "\n");
+      return hoisters;
+    }
+
+    if (!op->hasAttr(tensor_ext::TensorExtDialect::kLayoutAttrName)) {
+      LLVM_DEBUG(llvm::dbgs()
+                 << "Layout attribute not found on op " << *op << "\n");
+      return hoisters;
+    }
+
+    // FIXME(#2800): add support for Conv2DNchwFchwOp hoisters - right now the
+    // default matvec hoister assumes that there is only one input/output
+    // vector.
+    return hoisters;
+  }
+};
+
 }  // namespace
 
 Hoister createTrivialHoister(Operation* op) {
@@ -166,6 +196,46 @@ Hoister createPrecomposingMatvecHoister(linalg::MatvecOp op) {
   };
 }
 
+Hoister createPrecomposingConvHoister(linalg::Conv2DNchwFchwOp op) {
+  return [op](ConvertLayoutOp convertLayoutOp) -> llvm::FailureOr<HoistResult> {
+    HoistResult result;
+    auto fromLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getFromLayout());
+    auto toLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getToLayout());
+
+    if (!fromLayout || !toLayout) return failure();
+
+    // Operand order for Conv2DNchwFchwOp is:
+    // 0: data
+    // 1: filter
+    // 2: init (output vector)
+    FailureOr<Attribute> oldFilterLayoutRes =
+        findAttributeAssociatedWith(op->getOperand(1), kLayoutAttrName);
+    assert(succeeded(oldFilterLayoutRes) && "failed to find filter layout!");
+    LayoutAttr oldFilterLayout =
+        dyn_cast<LayoutAttr>(oldFilterLayoutRes.value());
+    if (!oldFilterLayout) return failure();
+
+    result.convertLayoutOp = convertLayoutOp;
+    result.newOutputLayout = toLayout;
+
+    // The kernel is unchanged, so copy the existing kernel attr
+    result.newKernel = op->getAttrOfType<secret::KernelAttr>(
+                             secret::SecretDialect::kKernelAttrName)
+                           .getName();
+
+    presburger::IntegerRelation newFilterLayoutRelation =
+        hoistConversionThroughMatvec(oldFilterLayout.getIntegerRelation(),
+                                     fromLayout.getIntegerRelation(),
+                                     toLayout.getIntegerRelation());
+    Attribute newFilterLayout = LayoutAttr::getFromIntegerRelation(
+        op->getContext(), newFilterLayoutRelation);
+    // New operand order: data(0), filter(1), init(2)
+    result.newInputLayouts =
+        SmallVector<Attribute>{toLayout, newFilterLayout, toLayout};
+    return result;
+  };
+}
+
 void registerLayoutConversionHoistableInterface(DialectRegistry& registry) {
   registry.addExtension(+[](MLIRContext* ctx, arith::ArithDialect* dialect) {
     arith::AddFOp::attachInterface<DoNothingHoistingImpl<arith::AddFOp>>(*ctx);
@@ -178,6 +248,7 @@ void registerLayoutConversionHoistableInterface(DialectRegistry& registry) {
   registry.addExtension(+[](MLIRContext* ctx, linalg::LinalgDialect* dialect) {
     linalg::MatvecOp::attachInterface<MatvecHoistingImpl>(*ctx);
     linalg::MatmulOp::attachInterface<MatmulHoistingImpl>(*ctx);
+    linalg::Conv2DNchwFchwOp::attachInterface<Conv2DNchwFchwHoistingImpl>(*ctx);
   });
 }
 

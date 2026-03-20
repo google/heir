@@ -1,11 +1,13 @@
 #include "lib/Utils/Layout/Convolution.h"
 
 #include <cassert>
+#include <cmath>
 #include <cstdint>
 #include <string>
 
 #include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/Layout/Utils.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
@@ -152,18 +154,43 @@ RankedTensorType get2dConvFilterExpandedType(RankedTensorType filterType,
   return RankedTensorType::get({rows, cols}, filterType.getElementType());
 }
 
+RankedTensorType get2dConvChwFchwFilterExpandedType(RankedTensorType filterType,
+                                                    RankedTensorType dataType,
+                                                    int64_t padding,
+                                                    ArrayRef<int64_t> strides) {
+  // Get the filter relation for a single input and output channel and multiply
+  // the dimensions by the number of input and output channels for the row and
+  // column dimensions respectively.
+  RankedTensorType singleFilterType = RankedTensorType::get(
+      {filterType.getDimSize(2), filterType.getDimSize(3)},
+      filterType.getElementType());
+  RankedTensorType singleDataType =
+      RankedTensorType::get({dataType.getDimSize(2), dataType.getDimSize(3)},
+                            dataType.getElementType());
+  auto singleResultType = get2dConvFilterExpandedType(
+      singleFilterType, singleDataType, padding, strides);
+
+  int64_t inputChannels = dataType.getDimSize(1);
+  int64_t outputChannels = filterType.getDimSize(0);
+
+  int64_t rows = outputChannels * singleResultType.getDimSize(0);
+  int64_t cols = inputChannels * singleResultType.getDimSize(1);
+  return RankedTensorType::get({rows, cols}, filterType.getElementType());
+}
+
 presburger::IntegerRelation get2dConvChwFchwFilterRelation(
     RankedTensorType filterType, RankedTensorType dataType,
     ArrayRef<int64_t> strides, int64_t padding) {
   assert(filterType.getRank() == 4 && "expected 4-D filter matrix");
-  assert(dataType.getRank() == 3 && "expected 3-D data matrix");
+  assert(dataType.getRank() == 4 && "expected 4-D data matrix");
+  assert(dataType.getDimSize(0) == 1 && "expected N=1 batch size");
 
   // Get the filter relation for a single input and output channel.
   RankedTensorType singleFilterType = RankedTensorType::get(
       {filterType.getDimSize(2), filterType.getDimSize(3)},
       filterType.getElementType());
   RankedTensorType singleDataType =
-      RankedTensorType::get({dataType.getDimSize(1), dataType.getDimSize(2)},
+      RankedTensorType::get({dataType.getDimSize(2), dataType.getDimSize(3)},
                             dataType.getElementType());
   auto singleFilterRelation = get2dConvFilterRelation(
       singleFilterType, singleDataType, strides, padding);
@@ -179,7 +206,7 @@ presburger::IntegerRelation get2dConvChwFchwFilterRelation(
   auto cDim =
       singleFilterRelation.getVarKindOffset(presburger::VarKind::Domain) + 1;
 
-  auto inputChannels = dataType.getDimSize(0);
+  auto inputChannels = dataType.getDimSize(1);
   auto outputChannels = filterType.getDimSize(0);
   assert(inputChannels == filterType.getDimSize(1) &&
          "input channels must match filter input channels");
@@ -222,28 +249,40 @@ FailureOr<presburger::IntegerRelation> get2dConvFilterDiagonalizedRelation(
   SmallVector<int64_t> strides = {1, 1};
   auto expandedFilterRelation =
       get2dConvFilterRelation(filterType, dataType, strides, padding);
-  // Get size of the expanded filter matrix.
-  auto rowBound = expandedFilterRelation.getConstantBound64(
-      BoundType::UB, expandedFilterRelation.getVarKindOffset(VarKind::Range));
-  if (!rowBound.has_value()) {
-    return failure();
-  }
-  auto colBound = expandedFilterRelation.getConstantBound64(
-      BoundType::UB,
-      expandedFilterRelation.getVarKindOffset(VarKind::Range) + 1);
-  if (!colBound.has_value()) {
-    return failure();
-  }
-  RankedTensorType expandedFilterType =
-      RankedTensorType::get({rowBound.value() + 1, colBound.value() + 1},
-                            filterType.getElementType());
+  return diagonalize2dMatrix(expandedFilterRelation, filterType,
+                             ciphertextSize);
+}
 
-  auto diagonalizedFilterRelation =
-      getDiagonalLayoutRelation(expandedFilterType, ciphertextSize);
-
-  // Compose these relations.
-  expandedFilterRelation.compose(diagonalizedFilterRelation);
-  return expandedFilterRelation;
+FailureOr<presburger::IntegerRelation>
+get2dConvChwFchwFilterDiagonalizedRelation(RankedTensorType filterType,
+                                           RankedTensorType dataType,
+                                           ArrayRef<int64_t> strides,
+                                           int64_t padding,
+                                           int64_t ciphertextSize,
+                                           bool interchangeRows) {
+  auto expandedFilterRelation =
+      get2dConvChwFchwFilterRelation(filterType, dataType, strides, padding);
+  // Permutate the rows of the matrix to minimize the number of non-zero
+  // diagonals.
+  if (interchangeRows) {
+    auto rowInterchangeRelation = getRowInterchangeRelation(
+        filterType.getDimSize(0), filterType.getDimSize(2),
+        filterType.getDimSize(3), strides[0]);
+    rowInterchangeRelation.appendVar(presburger::VarKind::Domain);
+    rowInterchangeRelation.appendVar(presburger::VarKind::Range);
+    addConstraint(
+        rowInterchangeRelation,
+        {{rowInterchangeRelation.getVarKindOffset(presburger::VarKind::Domain) +
+              1,
+          -1},
+         {rowInterchangeRelation.getVarKindOffset(presburger::VarKind::Range) +
+              1,
+          1}},
+        /*equality=*/true);
+    expandedFilterRelation.compose(rowInterchangeRelation);
+  }
+  return diagonalize2dMatrix(expandedFilterRelation, filterType,
+                             ciphertextSize);
 }
 
 bool isRelation2dConvFilterDiagonalized(
@@ -254,15 +293,7 @@ bool isRelation2dConvFilterDiagonalized(
   if (failed(diagonalizedRelation)) {
     return false;
   }
-  bool fastCheck = relation.isObviouslyEqual(diagonalizedRelation.value());
-  if (fastCheck) return true;
-
-  LogicalResult inequalityTest =
-      tryProveUnequal(diagonalizedRelation.value(), relation);
-  if (succeeded(inequalityTest)) return false;
-
-  bool slowCheck = relation.isEqual(diagonalizedRelation.value());
-  return slowCheck;
+  return isRelationEqual(relation, diagonalizedRelation.value());
 }
 
 presburger::IntegerRelation getRowInterchangeRelation(int64_t c, int64_t h,
@@ -275,21 +306,65 @@ presburger::IntegerRelation getRowInterchangeRelation(int64_t c, int64_t h,
   int64_t hOut = w * g;
   int64_t wOut = h * g;
   int64_t cOut = c / (g * g);
+  int64_t numElements = c * h * w;
 
-  // Domain: [idx_in]
-  // Range: [ct, slot] where ct=0 and slot=idx_out
+  // One to one mapping from idx_in to idx_out.
   std::string islStr = llvm::formatv(
-      "{{ [idx_in] -> [0, idx_out] : exists hi, wi, ci, ho, wo, co : "
+      "{{ [idx_in] -> [idx_out] : exists hi, wi, ci, ho, wo, co : "
       "0 <= hi < {0} and 0 <= wi < {1} and 0 <= ci < {2} and "
       "0 <= ho < {3} and 0 <= wo < {4} and 0 <= co < {5} and co = ci // "
       "{10}^2 and "
       "wo = wi * {10} + (ci % {10}) and "
       "ho = hi * {10} + (ci % {10}^2) // {10} and "
       "idx_in = wi + hi * {6} + ci * {7} and "
-      "idx_out = wo + ho * {8} + co * {9} }",
-      h, w, c, hOut, wOut, cOut, w, h * w, wOut, hOut * wOut, g);
+      "idx_out = wo + ho * {8} + co * {9} and 0 <= idx_in < {11} and 0 <= "
+      "idx_out < {11} }",
+      h, w, c, hOut, wOut, cOut, w, h * w, wOut, hOut * wOut, g, numElements);
 
   return getIntegerRelationFromIslStr(islStr).value();
+}
+
+presburger::IntegerRelation get2dConvResultRelation(RankedTensorType outputType,
+                                                    ArrayRef<int64_t> strides,
+                                                    int64_t padding,
+                                                    int64_t ciphertextSize) {
+  assert(llvm::all_equal(strides) && "strides must be equal");
+
+  // First flatten the output tensor into a 1-D tensor of (ct, slot) where ct =
+  // 0 (set the "ciphertextSize" to be the same as the number of elements). This
+  // creates outputType -> [0, slot].
+  auto flattenedOutput =
+      getRowMajorLayoutRelation(outputType, outputType.getNumElements());
+
+  // Create the interchange permutation [idx_in] -> [idx_out] and add a domain
+  // var = 0 to align with the range of the flattenedOutput relation.
+  int64_t c = outputType.getDimSize(1);
+  int64_t h = outputType.getDimSize(2);
+  int64_t w = outputType.getDimSize(3);
+  int64_t g = strides[0];
+  auto rowInterchange = getRowInterchangeRelation(c, h, w, g);
+  rowInterchange.insertVar(presburger::VarKind::Domain, 0);
+  addConstraint(
+      rowInterchange,
+      {{rowInterchange.getVarKindOffset(presburger::VarKind::Domain), 1},
+       {rowInterchange.getNumCols() - 1, 0}},
+      /*equality=*/true);
+  // Compose the row interchange relation with the flattened output relation:
+  // [outputType] -> [0, slot] -> [slot'].
+  flattenedOutput.compose(rowInterchange);
+
+  // Compose with the [slot'] -> [ct, slot] relation across multiple
+  // ciphertexts.
+  int64_t numCiphertexts =
+      std::ceil((float)outputType.getNumElements() / ciphertextSize);
+  std::string mapToCtSlot = llvm::formatv(
+      "{{ [idx_out] -> [ct, slot] : "
+      "0 <= ct < {0} and 0 <= slot < {1} and idx_out = ct * {1} + slot }",
+      numCiphertexts, ciphertextSize);
+  auto toCtSlot = getIntegerRelationFromIslStr(mapToCtSlot).value();
+  flattenedOutput.compose(toCtSlot);
+
+  return flattenedOutput;
 }
 
 }  // namespace heir

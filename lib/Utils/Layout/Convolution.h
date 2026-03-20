@@ -24,6 +24,14 @@ RankedTensorType get2dConvFilterExpandedType(
     RankedTensorType filterType, RankedTensorType dataType, int64_t padding,
     ArrayRef<int64_t> strides = {1, 1});
 
+// Returns an IntegerRelation that expands a 2-D filter matrix used in a
+// convolution into a 2-D matrix such that the convolution is
+// equivalent a matrix product with the flattened input vector. Each row
+// corresponds to one filter multiplication.
+FailureOr<presburger::IntegerRelation> get2dConvFilterDiagonalizedRelation(
+    RankedTensorType filterType, RankedTensorType dataType, int64_t padding,
+    int64_t ciphertextSize);
+
 // Returns an IntegerRelation that expands a multichannel filter used
 // in a 2-D convolution into a 2-D Toeplitz matrix such that the convolution is
 // equivalent a matrix product with the flattened multichannel input vector.
@@ -35,13 +43,23 @@ presburger::IntegerRelation get2dConvChwFchwFilterRelation(
     RankedTensorType filterType, RankedTensorType dataType,
     ArrayRef<int64_t> strides, int64_t padding);
 
-// Returns an IntegerRelation that expands a 2-D filter matrix used in a
-// convolution into a 2-D matrix such that the convolution is
-// equivalent a matrix product with the flattened input vector. Each row
-// corresponds to one filter multiplication.
-FailureOr<presburger::IntegerRelation> get2dConvFilterDiagonalizedRelation(
+// Returns an IntegerRelation that represents a diagonalized 2-D Toeplitz matrix
+// that is used to compute a 2-D multichannel convolution filter such that the
+// convolution is equivalent a matrix product with the flattened multichannel
+// input vector. Each row corresponds to one filter multiplication. The filter
+// type is assumed to be 4-D with dimensions (f, c, h, w) and the data type is
+// assumed to be 3-D with dimensions (c, h, w).
+FailureOr<presburger::IntegerRelation>
+get2dConvChwFchwFilterDiagonalizedRelation(RankedTensorType filterType,
+                                           RankedTensorType dataType,
+                                           ArrayRef<int64_t> strides,
+                                           int64_t padding,
+                                           int64_t ciphertextSize,
+                                           bool interchangeRows = true);
+
+RankedTensorType get2dConvChwFchwFilterExpandedType(
     RankedTensorType filterType, RankedTensorType dataType, int64_t padding,
-    int64_t ciphertextSize);
+    ArrayRef<int64_t> strides = {1, 1});
 
 // Returns an IntegerRelation for a row-interchange map that optimizes the
 // diagonal structure of a convolution's Toeplitz matrix.
@@ -58,6 +76,14 @@ FailureOr<presburger::IntegerRelation> get2dConvFilterDiagonalizedRelation(
 // flattened_result = result.squeeze(0).flatten()
 presburger::IntegerRelation getRowInterchangeRelation(int64_t c, int64_t h,
                                                       int64_t w, int64_t g);
+
+// Returns an IntegerRelation that corresponds to the output layout of a 2-D
+// multi-channel convolution. This includes the row interchange from pixel
+// shuffling. The result is a relation mapping to (ct, slot) of the output.
+presburger::IntegerRelation get2dConvResultRelation(RankedTensorType outputType,
+                                                    ArrayRef<int64_t> strides,
+                                                    int64_t padding,
+                                                    int64_t ciphertextSize);
 
 bool isRelation2dConvFilterDiagonalized(
     RankedTensorType filterType, RankedTensorType dataType, int64_t padding,

@@ -66,6 +66,7 @@ cc_library(
     deps = [
         ":IslConversion",
         ":Utils",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
