@@ -4,6 +4,7 @@
 #include <memory>
 #include <vector>
 
+#include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
@@ -135,6 +136,29 @@ FailureOr<NodePtr> DagBuilder::visit(scf::ForOp op) {
   return dagNode;
 }
 
+FailureOr<NodePtr> DagBuilder::visit(scf::IfOp op) {
+  if (op.getElseRegion().empty()) {
+    op.emitOpError()
+        << "skipped: If/Else without an else branch is not supported\n";
+    return failure();
+  }
+
+  auto condition = findNodeOrMakeNewVariable(op.getCondition());
+  auto thenRes = visitBlockWithSingleTerminator(&op.getThenRegion().front());
+  if (failed(thenRes)) return failure();
+  NodePtr thenBody = thenRes.value();
+
+  auto elseRes = visitBlockWithSingleTerminator(&op.getElseRegion().front());
+  if (failed(elseRes)) return failure();
+  NodePtr elseBody = elseRes.value();
+
+  auto dagNode = Node::ifElse(condition, thenBody, elseBody);
+  for (OpResult opResult : op->getOpResults()) {
+    valueToNode[opResult] = Node::resultAt(dagNode, opResult.getResultNumber());
+  }
+  return dagNode;
+}
+
 FailureOr<NodePtr> DagBuilder::visit(scf::YieldOp op) {
   std::vector<NodePtr> operands;
   operands.reserve(op->getNumOperands());
@@ -144,11 +168,32 @@ FailureOr<NodePtr> DagBuilder::visit(scf::YieldOp op) {
   return Node::yield(operands);
 }
 
-FailureOr<NodePtr> DagBuilder::visit(tensor_ext::RotateOp op) {
-  auto tensor = findNodeOrMakeNewVariable(op.getTensor());
-  auto shift = findNodeOrMakeNewVariable(op.getShift());
-  auto dagNode = Node::leftRotate(tensor, shift);
-  valueToNode[op.getResult()] = dagNode;
+FailureOr<NodePtr> DagBuilder::visit(RotationOpInterface op) {
+  LDBG() << "Processing RotationOpInterface " << op;
+  OpFoldResult ofr = op.getRotationIndex();
+  NodePtr shift;
+  if (auto attr = dyn_cast<Attribute>(ofr)) {
+    auto intAttr = cast<IntegerAttr>(attr);
+    shift = Node::constantScalar(intAttr.getInt(),
+                                 mlirTypeToDagType(intAttr.getType()));
+  } else {
+    shift = findNodeOrMakeNewVariable(cast<Value>(ofr));
+  }
+
+  // Find the rotatable operand.
+  // We assume it's the operand that has the same type as the result.
+  OpOperand* rotatedOperand = op.getRotatedOperand();
+
+  if (!rotatedOperand) {
+    LDBG() << "Could not find a rotated operand for op " << op
+           << ". It may be that the default implementation of "
+              "getRotatedOperand is incorrect for this RotationOpInterface.";
+    return failure();
+  }
+
+  auto tensorNode = findNodeOrMakeNewVariable(rotatedOperand->get());
+  auto dagNode = Node::leftRotate(tensorNode, shift);
+  valueToNode[op->getResult(0)] = dagNode;
   return dagNode;
 }
 
@@ -172,6 +217,41 @@ FailureOr<NodePtr> DagBuilder::visit(arith::SubIOp op) {
   auto lhs = findNodeOrMakeNewVariable(op.getLhs());
   auto rhs = findNodeOrMakeNewVariable(op.getRhs());
   auto dagNode = Node::sub(lhs, rhs);
+  valueToNode[op.getResult()] = dagNode;
+  return dagNode;
+}
+
+FailureOr<NodePtr> DagBuilder::visit(arith::CmpIOp op) {
+  auto lhs = findNodeOrMakeNewVariable(op.getLhs());
+  auto rhs = findNodeOrMakeNewVariable(op.getRhs());
+
+  kernel::ComparisonPredicate pred;
+  switch (op.getPredicate()) {
+    case arith::CmpIPredicate::slt:
+    case arith::CmpIPredicate::ult:
+      pred = kernel::ComparisonPredicate::LT;
+      break;
+    case arith::CmpIPredicate::sle:
+    case arith::CmpIPredicate::ule:
+      pred = kernel::ComparisonPredicate::LE;
+      break;
+    case arith::CmpIPredicate::sgt:
+    case arith::CmpIPredicate::ugt:
+      pred = kernel::ComparisonPredicate::GT;
+      break;
+    case arith::CmpIPredicate::sge:
+    case arith::CmpIPredicate::uge:
+      pred = kernel::ComparisonPredicate::GE;
+      break;
+    case arith::CmpIPredicate::eq:
+      pred = kernel::ComparisonPredicate::EQ;
+      break;
+    case arith::CmpIPredicate::ne:
+      pred = kernel::ComparisonPredicate::NE;
+      break;
+  }
+
+  auto dagNode = Node::comparison(lhs, rhs, pred);
   valueToNode[op.getResult()] = dagNode;
   return dagNode;
 }
@@ -234,16 +314,61 @@ FailureOr<NodePtr> DagBuilder::visit(arith::DivSIOp op) {
   return dagNode;
 }
 
+FailureOr<NodePtr> DagBuilder::visit(arith::AddFOp op) {
+  auto lhs = findNodeOrMakeNewVariable(op.getLhs());
+  auto rhs = findNodeOrMakeNewVariable(op.getRhs());
+  auto dagNode = Node::add(lhs, rhs);
+  valueToNode[op.getResult()] = dagNode;
+  return dagNode;
+}
+
+FailureOr<NodePtr> DagBuilder::visit(arith::MulFOp op) {
+  auto lhs = findNodeOrMakeNewVariable(op.getLhs());
+  auto rhs = findNodeOrMakeNewVariable(op.getRhs());
+  auto dagNode = Node::mul(lhs, rhs);
+  valueToNode[op.getResult()] = dagNode;
+  return dagNode;
+}
+
+FailureOr<NodePtr> DagBuilder::visit(arith::SubFOp op) {
+  auto lhs = findNodeOrMakeNewVariable(op.getLhs());
+  auto rhs = findNodeOrMakeNewVariable(op.getRhs());
+  auto dagNode = Node::sub(lhs, rhs);
+  valueToNode[op.getResult()] = dagNode;
+  return dagNode;
+}
+
+FailureOr<NodePtr> DagBuilder::visit(arith::NegFOp op) {
+  auto lhs = findNodeOrMakeNewVariable(op.getOperand());
+  // ArithmeticDag doesn't have NegNode, so we can use (0 - lhs)
+  auto zero = Node::constantScalar(0.0, mlirTypeToDagType(op.getType()));
+  auto dagNode = Node::sub(zero, lhs);
+  valueToNode[op.getResult()] = dagNode;
+  return dagNode;
+}
+
+FailureOr<NodePtr> DagBuilder::visit(tensor::ExtractSliceOp op) {
+  // For rotation analysis, we can approximate extract_slice as just returning
+  // the source tensor if we don't care about the specific values, or we can
+  // try to be more precise. Since rotation analysis usually only cares about
+  // the fact that *some* tensor is being rotated, returning the source is
+  // enough to keep the DAG connected.
+  auto source = findNodeOrMakeNewVariable(op.getSource());
+  valueToNode[op.getResult()] = source;
+  return source;
+}
+
 FailureOr<NodePtr> DagBuilder::build(Operation* op) {
   LDBG() << "Visiting op " << *op;
   return llvm::TypeSwitch<Operation*, FailureOr<NodePtr>>(op)
-      .Case<arith::AddIOp, arith::ConstantOp, arith::DivSIOp, arith::MulIOp,
-            arith::SubIOp, scf::ForOp, scf::YieldOp, tensor::ExtractOp,
-            tensor::SplatOp, tensor_ext::RotateOp>(
-          [&](auto op) { return visit(op); })
-      .Default([&](auto op) {
-        LDBG() << "Unsupported op type " << op->getName();
-        return failure();
+      .Case<arith::AddFOp, arith::AddIOp, arith::CmpIOp, arith::ConstantOp,
+            arith::DivSIOp, arith::MulFOp, arith::MulIOp, arith::SubFOp,
+            arith::SubIOp, arith::NegFOp, scf::ForOp, scf::IfOp, scf::YieldOp,
+            tensor::ExtractOp, tensor::ExtractSliceOp, tensor::SplatOp,
+            RotationOpInterface>([&](auto op) { return visit(op); })
+      .Default([&](Operation* op) -> FailureOr<NodePtr> {
+        LDBG() << "Unsupported op type " << op->getName() << ", skipping";
+        return NodePtr(nullptr);
       });
 }
 

@@ -27,31 +27,24 @@ using kernel::LiteralValue;
 using kernel::VariableNode;
 
 // This is a copy of EvalVisitor::operator() for LeftRotateNode, but recording
-// the materialized rotation amount.
+// the materialized rotation amount and skipping the actual computation.
 EvalResults RotationEvalVisitor::operator()(
     const LeftRotateNode<LiteralValue>& node) {
   auto operand = this->process(node.operand)[0];
   auto shape = operand.getShape();
   assert(!shape.empty() && "rotate operand must be a tensor");
-  auto dim = shape[0];
+  auto dim = shape.back();  // Use the slot dimension
 
   auto evaluatedShift = this->process(node.shift)[0];
   int amount = std::get<int>(evaluatedShift.get());
+
   // Normalize amount to be in [0, dim)
   amount = ((amount % dim) + dim) % dim;
-
-  // Save the evaluated shift
   evaluatedShifts.insert(amount);
 
-  const auto& oVal = operand.get();
-  const auto* oVec = std::get_if<std::vector<int>>(&oVal);
-  assert(oVec && "unsupported rotate operand type");
-
-  std::vector<int> result(dim);
-  for (size_t i = 0; i < dim; ++i) {
-    result[i] = (*oVec)[(i + amount) % oVec->size()];
-  }
-  return {result};
+  // We don't need to rotate the values for rotation analysis. We just return
+  // the operand as-is to keep the IR connected.
+  return {operand};
 }
 
 EvalResults RotationEvalVisitor::operator()(

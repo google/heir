@@ -30,6 +30,7 @@ cc_library(
     srcs = ["DagBuilder.cpp"],
     hdrs = ["DagBuilder.h"],
     deps = [
+        "@heir//lib/Dialect:HEIRInterfaces",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Kernel:AbstractValue",
         "@heir//lib/Kernel:ArithmeticDag",

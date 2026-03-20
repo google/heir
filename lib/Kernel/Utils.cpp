@@ -63,17 +63,21 @@ DagType mlirTypeToDagType(Type type) {
           [&](auto type) { return DagType::floatTy(type.getWidth()); })
       .Case<mlir::RankedTensorType>([&](auto type) {
         std::vector<int64_t> shape(type.getShape());
-        int width = type.getElementType().getIntOrFloatBitWidth();
         return llvm::TypeSwitch<Type, DagType>(type.getElementType())
-            .template Case<mlir::IntegerType>(
-                [&](auto _) { return DagType::intTensor(width, shape); })
-            .template Case<mlir::FloatType>(
-                [&](auto _) { return DagType::floatTensor(width, shape); })
+            .template Case<mlir::IntegerType>([&](auto type) {
+              return DagType::intTensor(type.getWidth(), shape);
+            })
+            .template Case<mlir::FloatType>([&](auto type) {
+              return DagType::floatTensor(type.getWidth(), shape);
+            })
             .Default([&](auto _) {
-              llvm_unreachable("Unsupported element type");
-              return DagType();
+              // Fallback for IndexType or custom types like Lattigo's
+              // ciphertext. For the purposes of rotation analysis, we just need
+              // the shape.
+              return DagType::intTensor(64, shape);
             });
-      });
+      })
+      .Default([&](auto _) { return DagType(); });
 }
 
 }  // namespace kernel

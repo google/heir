@@ -47,7 +47,7 @@ LogicalResult RotationAnalysis::handleScfFor(scf::ForOp forOp) {
 
   NodePtr dag = res.value();
   auto shifts = evalRotations(dag);
-  rotationIndices = DenseSet<int64_t>(shifts.begin(), shifts.end());
+  rotationIndices.insert(shifts.begin(), shifts.end());
 
   // All the rotation ops within the outermost for loop are analyzed.
   outermostFor->walk([&](RotationOpInterface rotOp) { markVisited(rotOp); });

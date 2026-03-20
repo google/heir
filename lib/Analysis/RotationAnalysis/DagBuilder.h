@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
@@ -35,16 +36,23 @@ class DagBuilder {
   // Visit a block and return the NodePtr corresponding to its terminator
   FailureOr<NodePtr> visitBlockWithSingleTerminator(Block* block);
 
+  FailureOr<NodePtr> visit(arith::AddFOp op);
   FailureOr<NodePtr> visit(arith::AddIOp op);
+  FailureOr<NodePtr> visit(arith::CmpIOp op);
   FailureOr<NodePtr> visit(arith::ConstantOp op);
   FailureOr<NodePtr> visit(arith::DivSIOp op);
+  FailureOr<NodePtr> visit(arith::MulFOp op);
   FailureOr<NodePtr> visit(arith::MulIOp op);
+  FailureOr<NodePtr> visit(arith::SubFOp op);
   FailureOr<NodePtr> visit(arith::SubIOp op);
+  FailureOr<NodePtr> visit(arith::NegFOp op);
   FailureOr<NodePtr> visit(scf::ForOp op);
+  FailureOr<NodePtr> visit(scf::IfOp op);
   FailureOr<NodePtr> visit(scf::YieldOp op);
   FailureOr<NodePtr> visit(tensor::ExtractOp op);
+  FailureOr<NodePtr> visit(tensor::ExtractSliceOp op);
   FailureOr<NodePtr> visit(tensor::SplatOp op);
-  FailureOr<NodePtr> visit(tensor_ext::RotateOp op);
+  FailureOr<NodePtr> visit(RotationOpInterface op);
 
   // A mapping of previously visited Values
   DenseMap<Value, NodePtr> valueToNode;

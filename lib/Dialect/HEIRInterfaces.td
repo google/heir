@@ -451,6 +451,23 @@ def RotationOpInterface : OpInterface<"RotationOpInterface"> {
       "Returns the rotation index as an OpFoldResult (Value or Attribute).",
       "::mlir::OpFoldResult", "getRotationIndex"
     >,
+
+    InterfaceMethod<
+      /*desc=*/"Returns the rotated operand.",
+      /*retTy=*/"::mlir::OpOperand *",
+      /*methodName=*/"getRotatedOperand",
+      /*args=*/(ins ),
+      /*defaultImplementation=*/[{
+        // By default, find the first operand that matches the first result
+        // type.
+        for (::mlir::OpOperand &operand : $_op->getOpOperands()) {
+          if (operand.get().getType() == $_op->getResult(0).getType()) {
+            return &operand;
+          }
+        }
+        return nullptr;
+      }]
+    >,
   ];
 }
 #endif  // LIB_DIALECT_HEIR_IR_HEIRINTERFACES_TD_
