@@ -1,9 +1,11 @@
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 #include "gtest/gtest.h"  // from @googletest
 #include "lib/Utils/Layout/Convolution.h"
 #include "lib/Utils/Layout/Evaluate.h"
+#include "lib/Utils/Layout/Utils.h"
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"      // from @llvm-project
@@ -190,7 +192,7 @@ TEST(ConvolutionTest, ConvChwFchwFilterRelation) {
   RankedTensorType filterType =
       RankedTensorType::get({2, 2, 3, 3}, IndexType::get(&context));
   RankedTensorType dataType =
-      RankedTensorType::get({2, 3, 3}, IndexType::get(&context));
+      RankedTensorType::get({1, 2, 3, 3}, IndexType::get(&context));
   SmallVector<int64_t> strides = {1, 1};
   int64_t padding = 1;
   IntegerRelation rel =
@@ -214,7 +216,7 @@ TEST(ConvolutionTest, ConvChwFchwNoPaddingFilterRelation) {
   RankedTensorType filterType =
       RankedTensorType::get({2, 2, 2, 2}, IndexType::get(&context));
   RankedTensorType dataType =
-      RankedTensorType::get({2, 4, 4}, IndexType::get(&context));
+      RankedTensorType::get({1, 2, 4, 4}, IndexType::get(&context));
   SmallVector<int64_t> strides = {2, 2};
   int64_t padding = 0;
   IntegerRelation rel =
@@ -244,7 +246,7 @@ TEST(ConvolutionTest, ConvChwFchwFilterRelationUnequalStrides) {
   RankedTensorType filterType =
       RankedTensorType::get({2, 2, 3, 3}, IndexType::get(&context));
   RankedTensorType dataType =
-      RankedTensorType::get({2, 5, 5}, IndexType::get(&context));
+      RankedTensorType::get({1, 2, 5, 5}, IndexType::get(&context));
   SmallVector<int64_t> strides = {2, 3};
   int64_t padding = 0;
   IntegerRelation rel =
@@ -275,7 +277,7 @@ TEST(ConvolutionTest, ConvChwFchwFilterRelationPadding) {
   RankedTensorType filterType =
       RankedTensorType::get({2, 2, 3, 3}, IndexType::get(&context));
   RankedTensorType dataType =
-      RankedTensorType::get({2, 3, 3}, IndexType::get(&context));
+      RankedTensorType::get({1, 2, 3, 3}, IndexType::get(&context));
   SmallVector<int64_t> strides = {2, 2};
   int64_t padding = 1;
   IntegerRelation rel =
@@ -301,14 +303,22 @@ TEST(ConvolutionTest, TestRowInterchange) {
 
   std::vector<int> input = {0, 1, 2,  3,  4,  5,  6,  7,
                             8, 9, 10, 11, 12, 13, 14, 15};
-  auto result = evaluateLayoutOnVector(rel, input);
-
-  ASSERT_EQ(result.size(), 1);
-  // Expected permutation: [0, 4, 1, 5, 8, 12, 9, 13, 2, 6, 3, 7, 10, 14, 11,
-  // 15]
   std::vector<int> expectedPermutation = {0, 4, 1, 5, 8,  12, 9,  13,
                                           2, 6, 3, 7, 10, 14, 11, 15};
-  EXPECT_EQ(result[0], expectedPermutation);
+  PointPairCollector collector(1, 1);  // 1 domain dim, 1 range dim
+  enumeratePoints(rel, collector);
+
+  EXPECT_EQ(collector.points.size(), expectedPermutation.size());
+
+  for (const auto& actualPoint : collector.points) {
+    // The permutation in the relation is the expected (i -> j) mappings.
+    auto startVal = actualPoint.first[0];
+    auto permuteIdx = actualPoint.second[0];
+    auto resultingVal = expectedPermutation[permuteIdx];
+    EXPECT_EQ(startVal, resultingVal)
+        << "Point not found: domain=" << actualPoint.first[0]
+        << ", range=" << actualPoint.second[0];
+  }
 }
 
 TEST(ConvolutionTest, TestRowInterchangeMultiChannel) {
@@ -317,26 +327,28 @@ TEST(ConvolutionTest, TestRowInterchangeMultiChannel) {
   // Input: 2x2x18 = 72 elements. Output: 6x6x2
   IntegerRelation rel = getRowInterchangeRelation(18, 2, 2, 3);
 
-  std::vector<int> input(72);
-  for (int i = 0; i < 72; ++i) input[i] = i;
-  auto result = evaluateLayoutOnVector(rel, input);
+  PointPairCollector collector(1, 1);  // 1 domain dim, 1 range dim
+  enumeratePoints(rel, collector);
 
-  ASSERT_EQ(result.size(), 1);
-  ASSERT_EQ(result[0].size(), 72);
+  EXPECT_EQ(collector.points.size(), 72);
 
-  // expected{i} is the flattened output channel i
-  std::vector<int> expected0 = {0,  4,  8,  1,  5,  9,  12, 16, 20, 13, 17, 21,
-                                24, 28, 32, 25, 29, 33, 2,  6,  10, 3,  7,  11,
-                                14, 18, 22, 15, 19, 23, 26, 30, 34, 27, 31, 35};
-  std::vector<int> expected1 = {36, 40, 44, 37, 41, 45, 48, 52, 56, 49, 53, 57,
-                                60, 64, 68, 61, 65, 69, 38, 42, 46, 39, 43, 47,
-                                50, 54, 58, 51, 55, 59, 62, 66, 70, 63, 67, 71};
+  // expected contains all the flattened output channels in order
+  std::vector<int> expected = {
+      0,  4,  8,  1,  5,  9,  12, 16, 20, 13, 17, 21, 24, 28, 32, 25, 29, 33,
+      2,  6,  10, 3,  7,  11, 14, 18, 22, 15, 19, 23, 26, 30, 34, 27, 31, 35,
+      36, 40, 44, 37, 41, 45, 48, 52, 56, 49, 53, 57, 60, 64, 68, 61, 65, 69,
+      38, 42, 46, 39, 43, 47, 50, 54, 58, 51, 55, 59, 62, 66, 70, 63, 67, 71};
 
-  std::vector<int> expectedAll;
-  expectedAll.insert(expectedAll.end(), expected0.begin(), expected0.end());
-  expectedAll.insert(expectedAll.end(), expected1.begin(), expected1.end());
-
-  EXPECT_EQ(result[0], expectedAll);
+  for (const auto& actualPoint : collector.points) {
+    // The permutation in the relation is the expected (i -> j) mappings.
+    auto startVal = actualPoint.first[0];
+    auto permuteIdx = actualPoint.second[0];
+    auto resultingVal = expected[permuteIdx];
+    EXPECT_EQ(startVal, resultingVal)
+        << "Point not found: domain=" << actualPoint.first[0]
+        << ", range=" << actualPoint.second[0];
+    ;
+  }
 }
 
 }  // namespace

@@ -73,6 +73,11 @@ presburger::IntegerRelation getRowMajorLayoutRelation(
 presburger::IntegerRelation getDiagonalLayoutRelation(
     RankedTensorType matrixType, int64_t ciphertextSize);
 
+// Applies a diagonal layout onto a given 2-D matrix layout.
+FailureOr<presburger::IntegerRelation> diagonalize2dMatrix(
+    presburger::IntegerRelation relation, RankedTensorType originalType,
+    int64_t ciphertextSize);
+
 // Returns an IntegerRelation that represents a bicyclic layout for a matrix.
 // See https://eprint.iacr.org/2024/1762 for details.
 presburger::IntegerRelation getBicyclicLayoutRelation(
@@ -225,6 +230,9 @@ FailureOr<presburger::IntegerRelation> getSliceExtractionRelation(
     RankedTensorType sourceType, RankedTensorType resultType,
     SmallVector<int64_t> offsets, SmallVector<int64_t> sizes,
     SmallVector<int64_t> strides);
+
+bool isRelationEqual(const presburger::IntegerRelation& relation1,
+                     const presburger::IntegerRelation& relation2);
 
 }  // namespace heir
 }  // namespace mlir
