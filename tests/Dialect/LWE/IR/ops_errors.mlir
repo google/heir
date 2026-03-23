@@ -18,26 +18,6 @@ func.func @test_invalid_plaintext_bits() {
 // -----
 
 #poly = #polynomial.int_polynomial<x>
-#key = #lwe.key<slot_index = 0>
-#pspace = #lwe.plaintext_space<
-  ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>,
-  encoding = #lwe.constant_coefficient_encoding<scaling_factor = 256>>
-!plaintext = !lwe.lwe_plaintext<plaintext_space = #pspace>
-
-#cspace = #lwe.ciphertext_space<
-  ring = #polynomial.ring<coefficientType = i32, polynomialModulus = #poly>,
-  encryption_type = msb, size = 742>
-!ciphertext = !lwe.lwe_ciphertext<plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
-
-func.func @test_invalid_ciphertext_bits(%1: !plaintext) {
-    // expected-error@below {{ciphertext modulus of the output must match the ciphertext_bits parameter, expected 64 but found 32}}
-    %2 = lwe.trivial_encrypt %1 { ciphertext_bits = 64 : index }: !plaintext to !ciphertext
-  return
-}
-
-// -----
-
-#poly = #polynomial.int_polynomial<x>
 #pspace = #lwe.plaintext_space<
   ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>,
   encoding = #lwe.constant_coefficient_encoding<scaling_factor = 256>>
@@ -55,6 +35,6 @@ func.func @test_invalid_ciphertext_bits(%1: !plaintext) {
 
 func.func @test_invalid_mismatch_encoding(%1: !plaintext) {
     // expected-error@below {{op failed to verify that the first arg's type's encoding matches the given encoding}}
-    %2 = lwe.trivial_encrypt %1 { ciphertext_bits = 32 : index }: !plaintext to !ciphertext
+    %2 = lwe.trivial_encrypt %1 : !plaintext -> !ciphertext
   return
 }

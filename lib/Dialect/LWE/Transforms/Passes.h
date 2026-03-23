@@ -1,8 +1,11 @@
 #ifndef LIB_DIALECT_LWE_TRANSFORMS_PASSES_H_
 #define LIB_DIALECT_LWE_TRANSFORMS_PASSES_H_
 
+// IWYU pragma: begin_keep
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/Transforms/AddDebugPort.h"
+#include "lib/Dialect/LWE/Transforms/ImplementTrivialEncryptionAsAddition.h"
+// IWYU pragma: end_keep
 
 namespace mlir {
 namespace heir {

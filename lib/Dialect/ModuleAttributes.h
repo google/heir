@@ -77,6 +77,10 @@ constexpr const static ::llvm::StringLiteral kClientDecFuncAttrName =
     "client.dec_func";
 constexpr const static ::llvm::StringLiteral kClientPackFuncAttrName =
     "client.pack_func";
+constexpr const static ::llvm::StringLiteral kClientEncZeroFuncAttrName =
+    "client.enc_zero_func";
+constexpr const static ::llvm::StringLiteral kClientEncZeroArgAttrName =
+    "client.enc_zero_arg";
 
 // Corresponds to a named attribute client.preprocessed_func whose value is a
 // dictionary {func_name = "foo"} that references the name of the function that

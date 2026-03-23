@@ -35,9 +35,9 @@ func.func @test_add_one_lut3(%arg0: tensor<8x!ct_ty>) -> tensor<8x!ct_ty> {
 
 
   %encoded_1 = lwe.encode %bool_1 { plaintext_bits = 3 : index } : i1 to !pt_ty
-  %constant_T = lwe.trivial_encrypt %encoded_1 { ciphertext_bits = 32 : index } : !pt_ty to !ct_ty
+  %constant_T = lwe.trivial_encrypt %encoded_1  : !pt_ty -> !ct_ty
   %encoded_0 = lwe.encode %bool_0 { plaintext_bits = 3 : index } : i1 to !pt_ty
-  %constant_F = lwe.trivial_encrypt %encoded_0 { ciphertext_bits = 32 : index } : !pt_ty to !ct_ty
+  %constant_F = lwe.trivial_encrypt %encoded_0  : !pt_ty -> !ct_ty
 
   %t_0 = cggi.lut3 %x_00, %x_01, %x_02 {lookup_table = 128 : ui8} : !ct_ty
   %t_1 = cggi.lut3 %t_0, %x_03, %x_04 {lookup_table = 128 : ui8} : !ct_ty

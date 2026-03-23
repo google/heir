@@ -101,10 +101,6 @@ Operation* convertWriteOpInterface(
         auto ptxtTy = lwe::LWEPlaintextType::get(b.getContext(),
                                                  ctTy.getPlaintextSpace());
 
-        auto ciphertextBits = ctTy.getCiphertextSpace()
-                                  .getRing()
-                                  .getCoefficientType()
-                                  .getIntOrFloatBitWidth();
         auto plaintextBits = ctTy.getPlaintextSpace()
                                  .getRing()
                                  .getCoefficientType()
@@ -114,8 +110,7 @@ Operation* convertWriteOpInterface(
           auto ctValue = lwe::TrivialEncryptOp::create(
               b, ctTy,
               lwe::EncodeOp::create(b, op->getLoc(), ptxtTy, valueToStore,
-                                    b.getIndexAttr(plaintextBits)),
-              b.getIndexAttr(ciphertextBits));
+                                    b.getIndexAttr(plaintextBits)));
 
           return tensor::InsertOp::create(b, ctValue, toTensor, indices);
         }
@@ -136,8 +131,7 @@ Operation* convertWriteOpInterface(
         auto ctValue = lwe::TrivialEncryptOp::create(
             b, ctTy,
             lwe::EncodeOp::create(b, op->getLoc(), ptxtTy, bitValue,
-                                  b.getIndexAttr(plaintextBits)),
-            b.getIndexAttr(ciphertextBits));
+                                  b.getIndexAttr(plaintextBits)));
 
         indices.push_back(idx);
         return tensor::InsertOp::create(b, ctValue, toTensor, indices);
@@ -212,10 +206,6 @@ SmallVector<Value> encodeInputs(
   auto ptxtSpace = ctxtTy.getPlaintextSpace();
   auto plaintextBits = rewriter.getIndexAttr(
       ptxtSpace.getRing().getCoefficientType().getIntOrFloatBitWidth());
-  auto ciphertextBits = rewriter.getIndexAttr(ctxtTy.getCiphertextSpace()
-                                                  .getRing()
-                                                  .getCoefficientType()
-                                                  .getIntOrFloatBitWidth());
   auto ptxtTy = lwe::LWEPlaintextType::get(rewriter.getContext(), ptxtSpace);
   return llvm::to_vector(llvm::map_range(inputs, [&](auto input) -> Value {
     if (!isa<lwe::LWECiphertextType>(input.getType())) {
@@ -225,8 +215,7 @@ SmallVector<Value> encodeInputs(
       return lwe::TrivialEncryptOp::create(
                  rewriter, op->getLoc(), ctxtTy,
                  lwe::EncodeOp::create(rewriter, op->getLoc(), ptxtTy, input,
-                                       plaintextBits),
-                 ciphertextBits)
+                                       plaintextBits))
           .getResult();
     }
     return input;
@@ -593,16 +582,11 @@ struct ConvertSecretConcealOp
                                  .getRing()
                                  .getCoefficientType()
                                  .getIntOrFloatBitWidth();
-        auto ciphertextBits = ctTy.getCiphertextSpace()
-                                  .getRing()
-                                  .getCoefficientType()
-                                  .getIntOrFloatBitWidth();
 
         return {lwe::TrivialEncryptOp::create(
             b, b.getLoc(), ctTy,
             lwe::EncodeOp::create(b, b.getLoc(), ptxtTy, value,
-                                  b.getIndexAttr(plaintextBits)),
-            b.getIndexAttr(ciphertextBits))};
+                                  b.getIndexAttr(plaintextBits)))};
       }
       SmallVector<Value> elementValues;
       for (auto i = 0; i < valueType.getWidth(); ++i) {
@@ -619,16 +603,11 @@ struct ConvertSecretConcealOp
                                  .getRing()
                                  .getCoefficientType()
                                  .getIntOrFloatBitWidth();
-        auto ciphertextBits = ctTy.getCiphertextSpace()
-                                  .getRing()
-                                  .getCoefficientType()
-                                  .getIntOrFloatBitWidth();
 
         auto ctValue = lwe::TrivialEncryptOp::create(
             b, b.getLoc(), ctTy,
             lwe::EncodeOp::create(b, b.getLoc(), ptxtTy, bitValue,
-                                  b.getIndexAttr(plaintextBits)),
-            b.getIndexAttr(ciphertextBits));
+                                  b.getIndexAttr(plaintextBits)));
 
         elementValues.push_back(ctValue);
       }
@@ -710,16 +689,11 @@ struct ConvertFromElementsOp
                                    .getRing()
                                    .getCoefficientType()
                                    .getIntOrFloatBitWidth();
-          auto ciphertextBits = ctTy.getCiphertextSpace()
-                                    .getRing()
-                                    .getCoefficientType()
-                                    .getIntOrFloatBitWidth();
 
           auto ctElement = lwe::TrivialEncryptOp::create(
               b, b.getLoc(), ctTy,
               lwe::EncodeOp::create(b, b.getLoc(), ptTy, element,
-                                    b.getIndexAttr(plaintextBits)),
-              b.getIndexAttr(ciphertextBits));
+                                    b.getIndexAttr(plaintextBits)));
 
           values.push_back(ctElement);
         }

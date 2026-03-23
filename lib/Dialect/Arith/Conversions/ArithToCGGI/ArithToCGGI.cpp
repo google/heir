@@ -170,18 +170,13 @@ static Value materializeTarget(OpBuilder& builder, Type type, ValueRange inputs,
                            .getRing()
                            .getCoefficientType()
                            .getIntOrFloatBitWidth();
-  auto ciphertextBits = ciphertextType.getCiphertextSpace()
-                            .getRing()
-                            .getCoefficientType()
-                            .getIntOrFloatBitWidth();
   auto ptxtTy = lwe::LWEPlaintextType::get(builder.getContext(),
                                            ciphertextType.getPlaintextSpace());
 
   auto trivialEnc = lwe::TrivialEncryptOp::create(
       builder, loc, type,
       lwe::EncodeOp::create(builder, loc, ptxtTy, inputs[0],
-                            builder.getIndexAttr(plaintextBits)),
-      builder.getIndexAttr(ciphertextBits));
+                            builder.getIndexAttr(plaintextBits)));
 
   return trivialEnc;
 }

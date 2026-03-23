@@ -39,4 +39,23 @@ def AddDebugPort : Pass<"lwe-add-debug-port"> {
   ];
 }
 
+def ImplementTrivialEncryptionAsAddition : Pass<"implement-trivial-encryption-as-addition"> {
+  let summary = "Implement `lwe.trivial_encrypt` as ciphertext-plaintext addition";
+  let description = [{
+    This pass implements trivial encryption as a plaintext-ciphertext addition
+    using an extra user input corresponding to an encryption of zero. This pass
+    adds an additional function argument for the encryption of zero, and an
+    additional client helper function to create it; this extra value must be
+    additionally plumbed from the client to the compiled function.
+
+    (* example filepath=tests/Dialect/LWE/Transforms/implement_trivial_encryption_as_addition.mlir *)
+  }];
+  let dependentDialects = [
+    "mlir::heir::lwe::LWEDialect",
+    "mlir::func::FuncDialect",
+  ];
+
+  let options = [];
+}
+
 #endif  // LIB_DIALECT_LWE_TRANSFORMS_PASSES_TD_

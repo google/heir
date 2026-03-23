@@ -82,20 +82,6 @@ LogicalResult TrivialEncryptOp::verify() {
            << outPlaintextSpace;
   }
 
-  auto outCiphertextModulus = this->getOutput()
-                                  .getType()
-                                  .getCiphertextSpace()
-                                  .getRing()
-                                  .getCoefficientType()
-                                  .getIntOrFloatBitWidth();
-  if (outCiphertextModulus != this->getCiphertextBits().getZExtValue()) {
-    return this->emitOpError()
-           << "ciphertext modulus of the output must match the ciphertext_bits "
-              "parameter, expected "
-           << this->getCiphertextBits().getZExtValue() << " but found "
-           << outCiphertextModulus;
-  }
-
   return success();
 }
 

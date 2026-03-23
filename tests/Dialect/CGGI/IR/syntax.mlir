@@ -16,8 +16,8 @@ module {
     %1 = arith.constant 1 : i1
     %2 = lwe.encode %0 { plaintext_bits = 4 : index } : i1 to !plaintext
     %3 = lwe.encode %1 { plaintext_bits = 4 : index } : i1 to !plaintext
-    %4 = lwe.trivial_encrypt %2 { ciphertext_bits = 32 : index }: !plaintext to !ciphertext
-    %5 = lwe.trivial_encrypt %3 { ciphertext_bits = 32 : index }: !plaintext to !ciphertext
+    %4 = lwe.trivial_encrypt %2 : !plaintext -> !ciphertext
+    %5 = lwe.trivial_encrypt %3 : !plaintext -> !ciphertext
     %6 = cggi.lut3 %arg0, %4, %5 {lookup_table = 127 : index} : !ciphertext
     %c3 = arith.constant 3 : i3
     %7 = lwe.mul_scalar %4, %c3 : (!ciphertext, i3) -> !ciphertext

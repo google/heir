@@ -110,21 +110,11 @@ def LWE_EncodeOp : LWE_Op<"encode"> {
 def LWE_TrivialEncryptOp: LWE_Op<"trivial_encrypt", [
     EncodingsMatch<"input", "LWEPlaintextType", "output", "LWECiphertextType">]> {
   let summary = "Create a trivial encryption of a plaintext.";
-
-  let arguments = (ins
-    LWEPlaintext:$input,
-    IndexAttr:$ciphertext_bits
-  );
-
+  let arguments = (ins LWEPlaintext:$input);
   let results = (outs LWECiphertext:$output);
-
   let assemblyFormat = [{
-    $input attr-dict `:`  qualified(type(operands)) `to` qualified(type(results))
+    $input attr-dict `:`  type(operands) `->` type(results)
   }];
-
-  // Verify that the ciphertext modulus matches the output ciphertext type's
-  // ciphertext modulus and the application data of the input and output are
-  // equal..
   let hasVerifier = 1;
 }
 
