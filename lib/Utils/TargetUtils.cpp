@@ -10,6 +10,7 @@
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVectorExtras.h"     // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"    // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
@@ -65,7 +66,7 @@ std::string bracketEnclosedValues(
                          });
 }
 
-std::string flattenIndexExpression(ArrayRef<int64_t> shape,
+std::string flattenIndexExpression(ArrayRef<std::string> shape,
                                    ArrayRef<std::string> indexStrings) {
   std::string accum = llvm::formatv("{0}", indexStrings[0]);
   for (size_t i = 1; i < indexStrings.size(); ++i) {
@@ -73,6 +74,13 @@ std::string flattenIndexExpression(ArrayRef<int64_t> shape,
         llvm::formatv("{0} + {1} * ({2})", indexStrings[i], shape[i], accum);
   }
   return accum;
+}
+
+std::string flattenIndexExpression(ArrayRef<int64_t> shape,
+                                   ArrayRef<std::string> indexStrings) {
+  SmallVector<std::string> shapeStrings =
+      llvm::map_to_vector(shape, [](int64_t s) { return std::to_string(s); });
+  return flattenIndexExpression(shapeStrings, indexStrings);
 }
 
 std::string flattenIndexExpression(
@@ -118,11 +126,11 @@ int64_t flattenedIndex(MemRefType memRefType, ValueRange indices,
 void emitFlattenedExtractSlice(ShapedType resultType, ShapedType sourceType,
                                StringRef resultName, StringRef sourceName,
                                ArrayRef<OpFoldResult> offsets,
-                               ArrayRef<int64_t> sizes,
-                               ArrayRef<int64_t> strides,
+                               ArrayRef<OpFoldResult> sizes,
+                               ArrayRef<OpFoldResult> strides,
                                const OffsetToStringFn& offsetToString,
                                const InductionVarNameFn& getInductionVarName,
-                               const LoopOpenerFn& loopOpener,
+                               const DynamicLoopOpenerFn& loopOpener,
                                raw_indented_ostream& os) {
   // Emit a loop nest to copy the right values.
   // All tensors are flattened, so we need to keep track of the source flattened
@@ -148,22 +156,54 @@ void emitFlattenedExtractSlice(ShapedType resultType, ShapedType sourceType,
   // sizes, not the rank-reduced result type shape, since everything is
   // flattened and we just need to align things to the number of induction
   // variables.
-  os << flattenIndexExpression(sizes, inductionVarNames);
+  SmallVector<std::string> sizeStrings =
+      llvm::map_to_vector(sizes, offsetToString);
+  os << flattenIndexExpression(sizeStrings, inductionVarNames);
   os << "] = " << sourceName << "[";
   // Source index requires incorporating the offsets and strides
   SmallVector<std::string> accessIndices;
   for (const auto& [i, inductionVar] : llvm::enumerate(inductionVarNames)) {
-    accessIndices.push_back(llvm::formatv("{0} + {1} * {2}",
-                                          offsetToString(offsets[i]),
-                                          inductionVar, strides[i]));
+    accessIndices.push_back(
+        llvm::formatv("{0} + {1} * {2}", offsetToString(offsets[i]),
+                      inductionVar, offsetToString(strides[i])));
   }
-  os << flattenIndexExpression(sourceType.getShape(), accessIndices) << "];\n";
+  SmallVector<std::string> sourceShapeStrings = llvm::map_to_vector(
+      sourceType.getShape(), [](int64_t s) { return std::to_string(s); });
+  os << flattenIndexExpression(sourceShapeStrings, accessIndices) << "];\n";
 
   // Close loop nest
   for (int i = 0; i < rank; i++) {
     os.unindent();
     os << "}\n";
   }
+}
+
+void emitFlattenedExtractSlice(ShapedType resultType, ShapedType sourceType,
+                               StringRef resultName, StringRef sourceName,
+                               ArrayRef<OpFoldResult> offsets,
+                               ArrayRef<int64_t> sizes,
+                               ArrayRef<int64_t> strides,
+                               const OffsetToStringFn& offsetToString,
+                               const InductionVarNameFn& getInductionVarName,
+                               const LoopOpenerFn& loopOpener,
+                               raw_indented_ostream& os) {
+  SmallVector<OpFoldResult> sizesOFR =
+      llvm::map_to_vector(sizes, [resultType](int64_t s) -> OpFoldResult {
+        return OpBuilder(resultType.getContext()).getIndexAttr(s);
+      });
+  SmallVector<OpFoldResult> stridesOFR =
+      llvm::map_to_vector(strides, [resultType](int64_t s) -> OpFoldResult {
+        return OpBuilder(resultType.getContext()).getIndexAttr(s);
+      });
+  DynamicLoopOpenerFn dynamicLoopOpener = [&](raw_indented_ostream& os,
+                                              const std::string& iv,
+                                              OpFoldResult size) {
+    loopOpener(os, iv, mlir::cast<IntegerAttr>(size.get<Attribute>()).getInt());
+  };
+
+  emitFlattenedExtractSlice(resultType, sourceType, resultName, sourceName,
+                            offsets, sizesOFR, stridesOFR, offsetToString,
+                            getInductionVarName, dynamicLoopOpener, os);
 }
 
 }  // namespace heir

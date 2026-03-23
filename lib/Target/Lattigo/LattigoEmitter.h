@@ -10,7 +10,8 @@
 #include "lib/Dialect/Lattigo/IR/LattigoOps.h"
 #include "lib/Utils/Tablegen/InPlaceOpInterface.h"
 #include "lib/Utils/TargetUtils.h"
-#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
@@ -243,10 +244,14 @@ class LattigoEmitter {
     return variableNames->getNameForValue(getStorageValue(value));
   }
 
-  std::string getErrName() {
-    static int errCount = 0;
-    return "err" + std::to_string(errCount++);
-  }
+  std::string getErrName() { return "err" + std::to_string(errCount++); }
+  void resetErrCount() { errCount = 0; }
+
+  int errCount = 0;
+
+  // Declare a variable (if it has not already been declared) and return its
+  // name
+  std::string declareVariable(Value value, Location loc);
 
   std::string getDebugAttrMapName() {
     static int debugAttrMapCount = 0;

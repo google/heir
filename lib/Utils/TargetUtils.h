@@ -50,6 +50,10 @@ std::string bracketEnclosedValues(
     ValueRange values, std::function<std::string(Value)> valueToString);
 
 // Returns a string expression for the flattened index of a ShapedType.
+std::string flattenIndexExpression(ArrayRef<std::string> shape,
+                                   ArrayRef<std::string> indexStrings);
+
+// Returns a string expression for the flattened index of a ShapedType.
 std::string flattenIndexExpression(ArrayRef<int64_t> shape,
                                    ArrayRef<std::string> indexStrings);
 
@@ -71,8 +75,22 @@ int64_t flattenedIndex(MemRefType memRefType, ValueRange indices,
 
 using LoopOpenerFn =
     std::function<void(raw_indented_ostream&, std::string, int64_t)>;
+using DynamicLoopOpenerFn =
+    std::function<void(raw_indented_ostream&, std::string, OpFoldResult)>;
 using InductionVarNameFn = std::function<std::string(int)>;
 using OffsetToStringFn = std::function<std::string(OpFoldResult)>;
+
+// An emitter for extract_slice that generalizes over C-style loops
+// with flattened source and access indices.
+void emitFlattenedExtractSlice(ShapedType resultType, ShapedType sourceType,
+                               StringRef resultName, StringRef sourceName,
+                               ArrayRef<OpFoldResult> offsets,
+                               ArrayRef<OpFoldResult> sizes,
+                               ArrayRef<OpFoldResult> strides,
+                               const OffsetToStringFn& offsetToString,
+                               const InductionVarNameFn& getInductionVarName,
+                               const DynamicLoopOpenerFn& loopOpener,
+                               raw_indented_ostream& os);
 
 // An emitter for extract_slice that generalizes over C-style loops
 // with flattened source and access indices.

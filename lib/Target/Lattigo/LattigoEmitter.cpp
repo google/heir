@@ -294,25 +294,22 @@ LogicalResult LattigoEmitter::printOperation(affine::AffineForOp op) {
   }
 
   for (auto i = 0; i < op.getNumRegionIterArgs(); ++i) {
-    // Assign the loop's results to use as initial iter args.
     Value result = op.getResults()[i];
-    Value operand = op.getOperands()[i];
+    Value init = op.getOperands()[i];
     Value iterArg = op.getRegionIterArgs()[i];
 
-    if (variableNames->contains(result) && variableNames->contains(operand) &&
+    if (variableNames->contains(result) && variableNames->contains(init) &&
         variableNames->getNameForValue(result) ==
-            variableNames->getNameForValue(operand)) {
+            variableNames->getNameForValue(init)) {
       // This occurs in cases where the loop is inserting into a tensor and
       // passing it along as an inter arg.
       continue;
     }
 
-    os << getName(iterArg) << " := " << getName(operand) << "\n";
+    os << getName(iterArg) << " := " << getName(init) << "\n";
   }
 
-  os << llvm::formatv("for {0} := int64({1}); {0} < {2}; {0} += {3} {{\n",
-                      // Don't use getName here because it is guaranteed to be
-                      // used by the loop update calls
+  os << llvm::formatv("for {0} := {1}; {0} < {2}; {0} += {3} {{\n",
                       variableNames->getNameForValue(op.getInductionVar()),
                       op.getConstantLowerBound(), op.getConstantUpperBound(),
                       op.getStepAsInt());
@@ -323,29 +320,36 @@ LogicalResult LattigoEmitter::printOperation(affine::AffineForOp op) {
     }
   }
 
-  // Now assign the final yielded results to the iter arg variable
-  for (auto i = 0; i < op.getNumRegionIterArgs(); ++i) {
-    // Assign the loop's results to use as initial iter args.
-    Value iterArg = op.getRegionIterArgs()[i];
-    Value yieldedResult = op.getYieldedValues()[i];
-
-    os << getName(iterArg) << " = " << getName(yieldedResult) << "\n";
-  }
-
   os.unindent();
   os << "}\n";
 
-  // Now assign the final iterArgs to the loop results
+  // Finally, forward the iter_arg to the op results.
   for (auto i = 0; i < op.getNumRegionIterArgs(); ++i) {
-    Value result = op.getResults()[i];
+    Value opResult = op.getResult(i);
     Value iterArg = op.getRegionIterArgs()[i];
-    os << getName(result) << " := " << getName(iterArg) << "\n";
+    os << getName(opResult) << " := " << getName(iterArg) << "\n";
   }
   return success();
 }
 
 LogicalResult LattigoEmitter::printOperation(affine::AffineYieldOp op) {
-  // Assume all yielded loop values have already been assigned.
+  FailureOr<ValueRange> destValues =
+      llvm::TypeSwitch<Operation*, FailureOr<ValueRange>>(op->getParentOp())
+          .Case<affine::AffineForOp>(
+              [&](auto forOp) { return forOp.getRegionIterArgs(); })
+          // TODO: support AffineIfOp
+          .Default([&](auto op) { return failure(); });
+
+  if (failed(destValues)) {
+    return failure();
+  }
+
+  for (int i = 0; i < op.getNumOperands(); ++i) {
+    Value dest = destValues.value()[i];
+    Value yieldedValue = op.getOperand(i);
+    os << getName(dest) << " = " << getName(yieldedValue) << "\n";
+  }
+
   return success();
 }
 
@@ -496,6 +500,7 @@ LogicalResult LattigoEmitter::printOperation(arith::ConstantOp op) {
     return res;
   }
   valueString += right;
+
   os << getName(op.getResult()) << " := " << valueString << "\n";
   return success();
 }
@@ -565,8 +570,8 @@ LogicalResult LattigoEmitter::typecast(Value operand, Value result,
     }
     std::string resultTy = res.value();
     if (isBoolInput) {
-      std::string resultName = getName(result);
-      os << "var " << resultName << " " << resultTy << "\n";
+      std::string resultName =
+          declareVariable(result, result.getDefiningOp()->getLoc());
       emitIf(
           inputVarName,
           [&]() {
@@ -627,7 +632,7 @@ LogicalResult LattigoEmitter::printBinaryOp(Operation* op, ::mlir::Value lhs,
   }
 
   os << getName(result) << " := " << getName(lhs) << " " << opName << " "
-     << getName(rhs) << ";\n";
+     << getName(rhs) << "\n";
   return success();
 }
 
@@ -649,8 +654,8 @@ LogicalResult LattigoEmitter::printFunctionalBinop(Operation* op,
                                                    ::mlir::Value rhs,
                                                    std::string_view opName) {
   Value result = op->getResults()[0];
+  std::string resultName = getName(result);
   if (auto tensorTy = dyn_cast<RankedTensorType>(result.getType())) {
-    std::string resultName = getName(result);
     auto res = convertType(tensorTy);
     if (failed(res)) return failure();
 
@@ -664,8 +669,9 @@ LogicalResult LattigoEmitter::printFunctionalBinop(Operation* op,
     os << "}\n";
     return success();
   }
-  os << getName(op->getResult(0)) << " := " << opName << "(" << getName(lhs)
-     << ", " << getName(rhs) << ")\n";
+
+  os << resultName << " := " << opName << "(" << getName(lhs) << ", "
+     << getName(rhs) << ")\n";
   return success();
 }
 
@@ -711,13 +717,7 @@ LogicalResult LattigoEmitter::printOperation(arith::RemSIOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(arith::SelectOp op) {
-  std::string resultName = getName(op.getResult());
-  auto res = convertType(op.getResult().getType());
-  if (failed(res)) return failure();
-
-  // Declare variable without assignment first, since go does not have a
-  // ternary if.
-  os << "var " << resultName << " " << res.value() << "\n";
+  std::string resultName = declareVariable(op.getResult(), op.getLoc());
   emitIf(
       getName(op.getCondition()),
       [&]() {
@@ -726,7 +726,6 @@ LogicalResult LattigoEmitter::printOperation(arith::SelectOp op) {
       [&]() {
         os << resultName << " = " << getName(op.getFalseValue()) << "\n";
       });
-
   return success();
 }
 
@@ -754,9 +753,10 @@ LogicalResult LattigoEmitter::printOperation(arith::CmpIOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(arith::CmpFOp op) {
+  std::string resultName = getName(op.getResult());
   switch (op.getPredicate()) {
     case arith::CmpFPredicate::AlwaysFalse:
-      os << getName(op.getResult()) << " := false\n";
+      os << resultName << " = false\n";
       return success();
     case arith::CmpFPredicate::OEQ:
     case arith::CmpFPredicate::UEQ:
@@ -777,7 +777,7 @@ LogicalResult LattigoEmitter::printOperation(arith::CmpFOp op) {
     case arith::CmpFPredicate::UNE:
       return printBinaryOp(op, op.getLhs(), op.getRhs(), "!=");
     case arith::CmpFPredicate::AlwaysTrue:
-      os << getName(op.getResult()) << " := true\n";
+      os << resultName << " true\n";
       return success();
     default:
       return op.emitOpError("unsupported cmpf predicate");
@@ -787,29 +787,13 @@ LogicalResult LattigoEmitter::printOperation(arith::CmpFOp op) {
 LogicalResult LattigoEmitter::printOperation(scf::IfOp op) {
   // var result <type>
   // if cond {
-  //   result = blah  (handled by printOperation(scf::YieldOp))
+  //   result = blah
   // } else {
   //   result = blah
   // }
   for (auto i = 0; i < op.getNumResults(); ++i) {
     Value result = op.getResults()[i];
-    Value thenYieldedValue = op.thenYield().getResults()[i];
-    Value elseYieldedValue = op.elseYield().getResults()[i];
-
-    // Map the yielded value names to the result names if the yielded value is a
-    // tensor.
-    if (isa<ShapedType>(result.getType())) {
-      variableNames->mapValueNameToValue(thenYieldedValue, result);
-      variableNames->mapValueNameToValue(elseYieldedValue, result);
-    } else {
-      // var result <type>
-      os << "var " << variableNames->getNameForValue(result) << " ";
-      if (failed(emitType(result.getType()))) {
-        return emitError(op.getLoc(),
-                         llvm::formatv("Failed to emit type for {}", result));
-      }
-      os << "\n";
-    }
+    declareVariable(result, op.getLoc());
   }
 
   os << llvm::formatv("if {0} {{\n",
@@ -839,26 +823,19 @@ LogicalResult LattigoEmitter::printOperation(scf::IfOp op) {
 
 LogicalResult LattigoEmitter::printOperation(scf::ForOp op) {
   for (auto i = 0; i < op.getNumRegionIterArgs(); ++i) {
-    // Assign the loop's results to use as initial iter args, which the loop
-    // modifies during its execution.
     Value result = op.getResults()[i];
-    Value operand = op.getInitArgs()[i];
+    Value init = op.getInitArgs()[i];
     Value iterArg = op.getRegionIterArgs()[i];
-    Value yieldedValue = op.getYieldedValues()[i];
 
-    // Map the region's iter args to the result names.
-    // Map the yielded value names to the result names.
-    variableNames->mapValueNameToValue(iterArg, result);
-    variableNames->mapValueNameToValue(yieldedValue, result);
-
-    if (variableNames->contains(result) && variableNames->contains(operand) &&
-        getName(result) == getName(operand)) {
+    if (variableNames->contains(result) && variableNames->contains(init) &&
+        getName(result) == getName(init)) {
       // This occurs in cases where the loop is inserting into a tensor and
       // passing it along as an inter arg.
       continue;
     }
 
-    os << getName(result) << " := " << getName(operand) << "\n";
+    // Initialize each iter_arg to its corresponding init
+    os << getName(iterArg) << " := " << getName(init) << "\n";
   }
 
   auto getConstantOrValue = [&](Value value) -> std::string {
@@ -879,22 +856,39 @@ LogicalResult LattigoEmitter::printOperation(scf::ForOp op) {
 
   os.unindent();
   os << "}\n";
+
+  // Finally, forward the iter_arg to the op results.
+  for (int i = 0; i < op.getNumResults(); ++i) {
+    Value opResult = op.getResult(i);
+    Value iterArg = op.getRegionIterArg(i);
+    os << getName(opResult) << " := " << getName(iterArg) << "\n";
+  }
   return success();
 }
 
 LogicalResult LattigoEmitter::printOperation(scf::YieldOp op) {
-  // Assume all yielded values have already been declared and the yielded
-  // results forwarded in SelectVariableNames.
-  if (auto ifOp = dyn_cast<scf::IfOp>(op->getParentOp())) {
-    for (auto i = 0; i < op.getNumOperands(); ++i) {
-      Value operand = op.getOperands()[i];
-      Value result = ifOp.getResults()[i];
-      if (!isa<ShapedType>(result.getType())) {
-        os << variableNames->getNameForValue(result) << " = "
-           << variableNames->getNameForValue(operand) << "\n";
-      }
-    }
+  // Yield is used in both if statements (which always have a single successor
+  // region (the parent op), and loops (which have multiple successor regions).
+  // In the case of an if statement, we want to assign to the parent successor
+  // values, and in the case of a for loop, we want to assign to the iter_args
+  // and let the parent op handle the forwarding of iter_args to the final op
+  // results.
+  //
+  // I don't see an elegant way to do that without just type-casing on each
+  // parent op type.
+  ValueRange destValues(
+      llvm::TypeSwitch<Operation*, ValueRange>(op->getParentOp())
+          .Case<scf::ForOp>(
+              [&](auto forOp) { return forOp.getRegionIterArgs(); })
+          .Case<scf::IfOp>([&](auto ifOp) { return ifOp.getResults(); })
+          .Default([&](auto op) { return ValueRange{}; }));
+
+  for (int i = 0; i < op.getNumOperands(); ++i) {
+    Value dest = destValues[i];
+    Value yieldedValue = op.getOperand(i);
+    os << getName(dest) << " = " << getName(yieldedValue) << "\n";
   }
+
   return success();
 }
 
@@ -915,12 +909,14 @@ LogicalResult LattigoEmitter::printOperation(tensor::EmptyOp op) {
   // Tensors are flattened into 1D slices.
   ShapedType resultType = op.getResult().getType();
   auto typeStr = convertType(resultType.getElementType());
+  std::string resultName = getName(op.getResult());
   os << getName(op.getResult()) << " := make([]" << typeStr.value() << ", "
      << resultType.getNumElements() << ")\n";
   return success();
 }
 
 LogicalResult LattigoEmitter::printOperation(tensor::ExtractOp op) {
+  std::string resultName = getName(op.getResult());
   os << getName(op.getResult()) << " := " << getName(op.getTensor()) << "[";
   os << flattenIndexExpression(
       op.getTensor().getType(), op.getIndices(),
@@ -967,42 +963,67 @@ LogicalResult LattigoEmitter::printOperation(tensor::ExtractSliceOp op) {
       }
       std::string startStr =
           flattenIndexExpression(sourceType.getShape(), offsetStrings);
-      int64_t numElements = resultType.getNumElements();
+
+      std::string lengthStr;
+      if (resultType.hasStaticShape()) {
+        lengthStr = std::to_string(resultType.getNumElements());
+      } else {
+        SmallVector<std::string> sizeStrings;
+        for (auto s : op.getMixedSizes()) {
+          sizeStrings.push_back(getOffsetAsString(s));
+        }
+        lengthStr = sizeStrings[0];
+        for (size_t i = 1; i < sizeStrings.size(); ++i) {
+          lengthStr += " * " + sizeStrings[i];
+        }
+      }
+
       os << resultName << " := " << sourceName << "[" << startStr << " : "
-         << startStr << " + " << std::to_string(numElements) << "]\n";
+         << startStr << " + " << lengthStr << "]\n";
       return success();
     }
   }
 
   // make an array to store the output
   //
-  //   v := [num_elements]int32{}
+  //   v := make([]int32, num_elements)
   //
-  std::string tmpName = resultName + "_array";
   auto eltTypeStr = convertType(resultType.getElementType());
-  os << tmpName << " := [" << resultType.getNumElements() << "]"
-     << eltTypeStr.value() << "{}\n";
+  if (resultType.hasStaticShape()) {
+    os << resultName << " := make([]" << eltTypeStr.value() << ", "
+       << resultType.getNumElements() << ")\n";
+  } else {
+    SmallVector<std::string> sizeStrings;
+    for (auto s : op.getMixedSizes()) {
+      sizeStrings.push_back(getOffsetAsString(s));
+    }
+    std::string lengthStr = sizeStrings[0];
+    for (size_t i = 1; i < sizeStrings.size(); ++i) {
+      lengthStr += " * " + sizeStrings[i];
+    }
+    os << resultName << " := make([]" << eltTypeStr.value() << ", " << lengthStr
+       << ")\n";
+  }
 
   SmallVector<OpFoldResult> offsets = op.getMixedOffsets();
-  ArrayRef<int64_t> sizes = op.getStaticSizes();
-  ArrayRef<int64_t> strides = op.getStaticStrides();
+  SmallVector<OpFoldResult> sizes = op.getMixedSizes();
+  SmallVector<OpFoldResult> strides = op.getMixedStrides();
 
   InductionVarNameFn nameFn = [&](int i) {
     return getName(op.getResult()) + "_i" + std::to_string(i);
   };
 
-  LoopOpenerFn opener = [&](raw_indented_ostream& os,
-                            const std::string& inductionVar, int64_t size) {
-    os << "for " << inductionVar << " := 0; " << inductionVar << " < " << size
-       << "; " << inductionVar << " += 1 {\n";
+  DynamicLoopOpenerFn opener = [&](raw_indented_ostream& os,
+                                   const std::string& inductionVar,
+                                   OpFoldResult size) {
+    os << "for " << inductionVar << " := 0; " << inductionVar << " < "
+       << getOffsetAsString(size) << "; " << inductionVar << " += 1 {\n";
   };
 
-  emitFlattenedExtractSlice(resultType, sourceType, tmpName, sourceName,
+  emitFlattenedExtractSlice(resultType, sourceType, resultName, sourceName,
                             offsets, sizes, strides, getOffsetAsString, nameFn,
                             opener, os);
 
-  // Convert to slice
-  os << resultName << " := " << tmpName << "[:]\n";
   return success();
 }
 
@@ -1081,13 +1102,6 @@ LogicalResult LattigoEmitter::printOperation(tensor::InsertSliceOp op) {
         "result rank equal to source rank");
   }
 
-  // We could relax this by using previously declared SSA values for dynamic
-  // offsets, sizes, and strides. But we have no use for it yet.
-  if (op.getStaticOffsets().empty() || op.getStaticSizes().empty() ||
-      op.getStaticStrides().empty()) {
-    return op.emitError() << "expected static offsets, sizes, and strides";
-  }
-
   // Check if the result was already declared (e.g., as an iter_arg in scf.for)
   bool shouldDeclare = !(variableNames->contains(op.getResult()) &&
                          variableNames->contains(op.getDest()) &&
@@ -1132,15 +1146,30 @@ LogicalResult LattigoEmitter::printOperation(tensor::InsertSliceOp op) {
       }
       std::string startStr =
           flattenIndexExpression(resultType.getShape(), offsetStrings);
-      os << "copy(" << destName << "[" << startStr << ":], " << sourceName
-         << ")\n";
+
+      std::string lengthStr;
+      if (op.getSourceType().hasStaticShape()) {
+        lengthStr = std::to_string(op.getSourceType().getNumElements());
+      } else {
+        SmallVector<std::string> sizeStrings;
+        for (auto s : op.getMixedSizes()) {
+          sizeStrings.push_back(getOffsetAsString(s));
+        }
+        lengthStr = sizeStrings[0];
+        for (size_t i = 1; i < sizeStrings.size(); ++i) {
+          lengthStr += " * " + sizeStrings[i];
+        }
+      }
+
+      os << "copy(" << destName << "[" << startStr << " : " << startStr << " + "
+         << lengthStr << "], " << sourceName << ")\n";
       return success();
     }
   }
 
-  SmallVector<int64_t> offsets = SmallVector<int64_t>(op.getStaticOffsets());
-  SmallVector<int64_t> sizes = SmallVector<int64_t>(op.getStaticSizes());
-  SmallVector<int64_t> strides = SmallVector<int64_t>(op.getStaticStrides());
+  SmallVector<OpFoldResult> offsets = op.getMixedOffsets();
+  SmallVector<OpFoldResult> sizes = op.getMixedSizes();
+  SmallVector<OpFoldResult> strides = op.getMixedStrides();
 
   // Otherwise we need a loop
   SmallVector<std::string> sourceIndexNames;
@@ -1153,10 +1182,12 @@ LogicalResult LattigoEmitter::printOperation(tensor::InsertSliceOp op) {
     // Initialize the source index to zero, since it is simple, note this must
     // happen outside the loop
     os << sourceIndexName << " := 0;\n";
-    os << "for " << destIndexName << " := " << offsets[nestLevel] << "; "
-       << destIndexName << " < "
-       << offsets[nestLevel] + sizes[nestLevel] * strides[nestLevel] << "; "
-       << destIndexName << " += " << strides[nestLevel] << " {\n";
+    os << "for " << destIndexName
+       << " := " << getOffsetAsString(offsets[nestLevel]) << "; "
+       << destIndexName << " < " << getOffsetAsString(offsets[nestLevel])
+       << " + " << getOffsetAsString(sizes[nestLevel]) << " * "
+       << getOffsetAsString(strides[nestLevel]) << "; " << destIndexName
+       << " += " << getOffsetAsString(strides[nestLevel]) << " {\n";
     os.indent();
   }
 
@@ -1179,7 +1210,8 @@ LogicalResult LattigoEmitter::printOperation(tensor::InsertSliceOp op) {
 }
 LogicalResult LattigoEmitter::printOperation(tensor::FromElementsOp op) {
   auto typeStr = convertType(getElementTypeOrSelf(op.getResult().getType()));
-  os << getName(op.getResult()) << " := []" << typeStr.value() << "{";
+  std::string resultName = getName(op.getResult());
+  os << resultName << " := []" << typeStr.value() << "{";
   os << getCommaSeparatedNames(op.getOperands());
   os << "}\n";
   return success();
@@ -1188,7 +1220,8 @@ LogicalResult LattigoEmitter::printOperation(tensor::FromElementsOp op) {
 LogicalResult LattigoEmitter::printOperation(tensor::SplatOp op) {
   imports.insert(std::string(kSlicesImport));
   // don't use getName because the tmpvar is guaranteed to be used
-  std::string tmpVar = variableNames->getNameForValue(op.getResult()) + "_0";
+  std::string resultName = getName(op.getResult());
+  std::string tmpVar = resultName + "_0";
   auto scalarTypeString = convertType(op.getInput().getType());
   RankedTensorType resultType = op.getResult().getType();
 
@@ -1201,8 +1234,8 @@ LogicalResult LattigoEmitter::printOperation(tensor::SplatOp op) {
   int tensorSize = resultType.getNumElements();
   os << tmpVar << " := []" << scalarTypeString.value() << "{"
      << getName(op.getInput()) << "}\n";
-  os << getName(op.getResult()) << " := slices.Repeat(" << tmpVar << ", "
-     << tensorSize << ")\n";
+  os << resultName << " := slices.Repeat(" << tmpVar << ", " << tensorSize
+     << ")\n";
   return success();
 }
 
@@ -1279,17 +1312,17 @@ LogicalResult LattigoEmitter::printOperation(RLWEDecryptOp op) {
 LogicalResult LattigoEmitter::printOperation(RLWEDropLevelNewOp op) {
   // there is no DropLevelNew method in Lattigo BGV Evaluator, manually create
   // new ciphertext
-  os << getName(op.getOutput()) << " := " << getName(op.getInput())
-     << ".CopyNew()\n";
-  os << getName(op.getEvaluator()) << ".DropLevel(" << getName(op.getOutput())
-     << ", " << op.getLevelToDrop() << ")\n";
+  std::string resultName = getName(op.getOutput());
+  os << resultName << " := " << getName(op.getInput()) << ".CopyNew()\n";
+  os << getName(op.getEvaluator()) << ".DropLevel(" << resultName << ", "
+     << op.getLevelToDrop() << ")\n";
   return success();
 }
 
 LogicalResult LattigoEmitter::printOperation(RLWEDropLevelOp op) {
   if (getName(op.getOutput()) != getName(op.getInput())) {
-    os << getName(op.getOutput()) << ".Copy(" << getName(op.getInput())
-       << ")\n";
+    std::string resultName = getName(op.getOutput());
+    os << resultName << " := " << getName(op.getInput()) << ".CopyNew()\n";
   }
   os << getName(op.getEvaluator()) << ".DropLevel(" << getName(op.getOutput())
      << ", " << op.getLevelToDrop() << ")\n";
@@ -1307,8 +1340,8 @@ const auto* negateTemplate = R"GO(
 LogicalResult LattigoEmitter::printOperation(RLWENegateNewOp op) {
   // there is no NegateNew method in Lattigo, manually create new
   // ciphertext
-  os << getName(op.getOutput()) << " := " << getName(op.getInput())
-     << ".CopyNew()\n";
+  std::string resultName = getName(op.getOutput());
+  os << resultName << " := " << getName(op.getInput()) << ".CopyNew()\n";
   auto indexName = getName(op.getOutput()) + "_index";
   auto res = llvm::formatv(negateTemplate, indexName, getName(op.getOutput()),
                            getName(op.getEvaluator()));
@@ -1344,7 +1377,8 @@ LogicalResult LattigoEmitter::printOperation(BGVNewEvaluatorOp op) {
     // no evaluation key set, use empty Value for 'nil'
     operands.push_back(Value());
   }
-  os << getName(op.getResult());
+  std::string resultName = getName(op.getResult());
+  os << resultName;
   os << " := bgv.NewEvaluator(";
   os << getCommaSeparatedNames(operands);
   os << ", ";
@@ -1354,7 +1388,8 @@ LogicalResult LattigoEmitter::printOperation(BGVNewEvaluatorOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(BGVNewPlaintextOp op) {
-  os << getName(op.getResult()) << " := " << "bgv.NewPlaintext(";
+  std::string resultName = getName(op.getResult());
+  os << resultName << " := bgv.NewPlaintext(";
   os << getName(op.getParams()) << ", ";
   os << getName(op.getParams()) << ".MaxLevel()";
   os << ")\n";
@@ -1439,7 +1474,8 @@ LogicalResult LattigoEmitter::printOperation(BGVDecodeOp op) {
      << valueInt64Name << "[i])\n";
   os.unindent();
   os << "}\n";
-  os << getName(op.getDecoded()) << " := " << convertedName << "\n";
+  std::string resultName = getName(op.getDecoded());
+  os << resultName << " := " << convertedName << "\n";
   return success();
 }
 
@@ -1483,16 +1519,17 @@ LogicalResult LattigoEmitter::printOperation(BGVRelinearizeNewOp op) {
 
 LogicalResult LattigoEmitter::printOperation(BGVRescaleNewOp op) {
   // there is no RescaleNew method in Lattigo, manually create new ciphertext
-  os << getName(op.getOutput()) << " := " << getName(op.getInput())
-     << ".CopyNew()\n";
+  std::string resultName = getName(op.getOutput());
+  os << resultName << " := " << getName(op.getInput()) << ".CopyNew()\n";
   return printEvalInPlaceMethod(
       op.getEvaluator(), {op.getInput(), op.getOutput()}, "Rescale", true);
 }
 
 LogicalResult LattigoEmitter::printOperation(BGVRotateColumnsNewOp op) {
   auto errName = getErrName();
-  os << getName(op.getOutput()) << ", " << errName
-     << " := " << getName(op.getEvaluator()) << ".RotateColumnsNew(";
+  std::string resultName = getName(op.getOutput());
+  os << resultName << ", " << errName << " := " << getName(op.getEvaluator())
+     << ".RotateColumnsNew(";
   os << getName(op.getInput()) << ", ";
 
   // Handle both static_shift attribute and dynamic_shift SSA value
@@ -1574,8 +1611,9 @@ std::string printDenseU64ArrayAttr(DenseI64ArrayAttr attr) {
 
 LogicalResult LattigoEmitter::printOperation(BGVNewParametersFromLiteralOp op) {
   auto errName = getErrName();
-  os << getName(op.getResult()) << ", " << errName
-     << " := bgv.NewParametersFromLiteral(";
+  std::string resultName = getName(op.getResult());
+  os << resultName << ", " << errName << " := bgv.NewParametersFromLiteral(";
+
   os << "bgv.ParametersLiteral{\n";
   os.indent();
   os << "LogN: " << op.getParamsLiteral().getLogN() << ",\n";
@@ -1621,9 +1659,9 @@ LogicalResult LattigoEmitter::printOperation(CKKSNewEvaluatorOp op) {
 LogicalResult LattigoEmitter::printOperation(
     CKKSGenEvaluationKeysBootstrappingOp op) {
   auto errName = getErrName();
-  os << getName(op.getResult()) << ", _, " << errName
-     << " := " << getName(op.getParams()) << ".GenEvaluationKeys("
-     << getName(op.getSk()) << ")\n";
+  std::string resultName = getName(op.getResult());
+  os << resultName << ", _, " << errName << " := " << getName(op.getParams())
+     << ".GenEvaluationKeys(" << getName(op.getSk()) << ")\n";
   printErrPanic(errName);
   return success();
 }
@@ -1635,7 +1673,8 @@ LogicalResult LattigoEmitter::printOperation(
 }
 
 LogicalResult LattigoEmitter::printOperation(CKKSNewPlaintextOp op) {
-  os << getName(op.getResult()) << " := " << "ckks.NewPlaintext(";
+  std::string resultName = getName(op.getResult());
+  os << resultName << " := ckks.NewPlaintext(";
   os << getName(op.getParams()) << ", ";
   os << getName(op.getParams()) << ".MaxLevel()";
   os << ")\n";
@@ -1732,7 +1771,8 @@ LogicalResult LattigoEmitter::printOperation(CKKSDecodeOp op) {
      << valueFloat64Name << "[i])\n";
   os.unindent();
   os << "}\n";
-  os << getName(op.getDecoded()) << " := " << convertedName << "\n";
+  std::string resultName = getName(op.getDecoded());
+  os << resultName << " := " << convertedName << "\n";
   return success();
 }
 
@@ -1776,16 +1816,17 @@ LogicalResult LattigoEmitter::printOperation(CKKSRelinearizeNewOp op) {
 
 LogicalResult LattigoEmitter::printOperation(CKKSRescaleNewOp op) {
   // there is no RescaleNew method in Lattigo, manually create new ciphertext
-  os << getName(op.getOutput()) << " := " << getName(op.getInput())
-     << ".CopyNew()\n";
+  std::string resultName = getName(op.getOutput());
+  os << resultName << " := " << getName(op.getInput()) << ".CopyNew()\n";
   return printEvalInPlaceMethod(
       op.getEvaluator(), {op.getInput(), op.getOutput()}, "Rescale", true);
 }
 
 LogicalResult LattigoEmitter::printOperation(CKKSRotateNewOp op) {
   auto errName = getErrName();
-  os << getName(op.getOutput()) << ", " << errName
-     << " := " << getName(op.getEvaluator()) << ".RotateNew(";
+  std::string resultName = getName(op.getOutput());
+  os << resultName << ", " << errName << " := " << getName(op.getEvaluator())
+     << ".RotateNew(";
   os << getName(op.getInput()) << ", ";
 
   // Handle both static_shift attribute and dynamic_shift SSA value
@@ -1844,8 +1885,9 @@ LogicalResult LattigoEmitter::printOperation(CKKSBootstrapOp op) {
   imports.insert(std::string(kBootstrappingImport));
 
   auto errName = getErrName();
-  os << getName(op.getResult()) << ", " << errName
-     << " := " << getName(op.getEvaluator()) << ".Bootstrap(";
+  std::string resultName = getName(op.getResult());
+  os << resultName << ", " << errName << " := " << getName(op.getEvaluator())
+     << ".Bootstrap(";
   os << getName(op.getInput()) << ")\n";
   printErrPanic(errName);
   return success();
@@ -1920,8 +1962,8 @@ LogicalResult LattigoEmitter::printOperation(CKKSLinearTransformOp op) {
 LogicalResult LattigoEmitter::printOperation(
     CKKSNewParametersFromLiteralOp op) {
   auto errName = getErrName();
-  os << getName(op.getResult()) << ", " << errName
-     << " := ckks.NewParametersFromLiteral(";
+  std::string resultName = getName(op.getResult());
+  os << resultName << ", " << errName << " := ckks.NewParametersFromLiteral(";
   os << "ckks.ParametersLiteral{\n";
   os.indent();
   os << "LogN: " << op.getParamsLiteral().getLogN() << ",\n";
@@ -1953,7 +1995,8 @@ LogicalResult LattigoEmitter::printOperation(
   auto errName = getErrName();
   auto numSlotsAttr = dyn_cast_or_null<IntegerAttr>(
       op->getParentOfType<ModuleOp>()->getAttr(kRequestedSlotCountAttrName));
-  os << getName(op.getResult()) << ", " << errName
+  std::string resultName = getName(op.getResult());
+  os << resultName << ", " << errName
      << " := bootstrapping.NewParametersFromLiteral(";
   os << paramName << ", ";
   os << "bootstrapping.ParametersLiteral{\n";
@@ -1962,7 +2005,7 @@ LogicalResult LattigoEmitter::printOperation(
   if (numSlotsAttr) {
     int numSlots = numSlotsAttr.getInt();
     int logNumSlots = (int)log2(numSlots);
-    os << "LogSlots: " << logNumSlots << "),\n";
+    os << "LogSlots: utils.Pointy(" << logNumSlots << "),\n";
   }
   os.unindent();
   os << "})\n";
@@ -1974,7 +2017,8 @@ LogicalResult LattigoEmitter::printOperation(CKKSNewPolynomialEvaluatorOp op) {
   imports.insert(std::string(kCkksCircuitPolynomialImport));
 
   // Create polynomial evaluator using polynomial.NewEvaluator
-  os << getName(op.getResult()) << " := polynomial.NewEvaluator(";
+  std::string resultName = getName(op.getResult());
+  os << resultName << " := polynomial.NewEvaluator(";
   os << getName(op.getParams()) << ", ";
   os << getName(op.getEvaluator()) << ")\n";
 
@@ -1988,7 +2032,8 @@ LogicalResult LattigoEmitter::printOperation(CKKSChebyshevOp op) {
   std::string errName = getErrName();
   auto coeffsAttr = op.getCoefficients();
 
-  os << "polyCoeffs := []*big.Float{\n";
+  std::string polyCoeffs = getName(op.getOutput()) + "_polyCoeffs";
+  os << polyCoeffs << " := []*big.Float{\n";
   os.indent();
   for (auto coeff : coeffsAttr) {
     if (auto floatAttr = mlir::dyn_cast<FloatAttr>(coeff)) {
@@ -2001,12 +2046,16 @@ LogicalResult LattigoEmitter::printOperation(CKKSChebyshevOp op) {
   }
   os.unindent();
   os << "}\n";
-  os << "bignumPoly := bignum.NewPolynomial(bignum.Chebyshev, polyCoeffs, "
+  std::string bignumPoly = getName(op.getOutput()) + "_bignumPoly";
+  os << bignumPoly << " := bignum.NewPolynomial(bignum.Chebyshev, "
+     << polyCoeffs
+     << ", "
         "nil)\n";
-  os << getName(op.getOutput()) << ", " << errName << " := ";
+  std::string resultName = getName(op.getOutput());
+  os << resultName << ", " << errName << " := ";
   os << getName(op.getEvaluator()) << ".Evaluate(";
   os << getName(op.getCiphertext()) << ", ";
-  os << "bignumPoly, ";
+  os << bignumPoly << ", ";
   os << "rlwe.NewScale(" << op.getTargetScale().getInt() << "))\n";
   printErrPanic(errName);
   return success();
@@ -2024,7 +2073,8 @@ LogicalResult LattigoEmitter::printNewMethod(::mlir::Value result,
                                              ::mlir::ValueRange operands,
                                              std::string_view op, bool err) {
   std::string errName = getErrName();
-  os << getName(result);
+  std::string resultName = getName(result);
+  os << resultName;
   if (err) {
     os << ", " << errName;
   }
@@ -2036,7 +2086,6 @@ LogicalResult LattigoEmitter::printNewMethod(::mlir::Value result,
   }
   return success();
 }
-
 LogicalResult LattigoEmitter::printEvalInPlaceMethod(
     ::mlir::Value evaluator, ::mlir::ValueRange operands, std::string_view op,
     bool err) {
@@ -2045,7 +2094,8 @@ LogicalResult LattigoEmitter::printEvalInPlaceMethod(
     os << errName << " := ";
   }
   os << getName(evaluator) << "." << op << "("
-     << getCommaSeparatedNames(operands) << ");\n";
+     << getCommaSeparatedNames(operands) << ")\n";
+
   if (err) {
     printErrPanic(errName);
   }
@@ -2159,6 +2209,18 @@ LogicalResult LattigoEmitter::emitType(Type type) {
   }
   os << result;
   return success();
+}
+
+std::string LattigoEmitter::declareVariable(Value value, Location loc) {
+  std::string valueName = getName(value);
+  if (!value.use_empty()) {
+    os << "var " << getName(value) << " ";
+    if (failed(emitType(value.getType()))) {
+      emitError(loc, llvm::formatv("Failed to emit type for {}", value));
+    }
+    os << "\n";
+  }
+  return valueName;
 }
 
 LattigoEmitter::LattigoEmitter(raw_ostream& os,

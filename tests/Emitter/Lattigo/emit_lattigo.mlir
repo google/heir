@@ -253,11 +253,10 @@ module attributes {scheme.bgv} {
   // CHECK: func extract_slice
   func.func @extract_slice(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) {
   // CHECK:  [[v0:[^ ]*]] := slices.Repeat([]int32{5}, 20)
-  // CHECK:  [[v1:[^ ]*]] := [3]int32{}
+  // CHECK:  [[v1:[^ ]*]] := make([]int32, 3)
   // CHECK:  for [[dest:[^ ]*]] := 0; [[dest]] < 3; [[dest]] += 1 {
   // CHECK:    [[v1]]{{\[}}[[dest]]] = [[v0]]{{\[}}1 + [[dest]] * 2]
   // CHECK:  }
-  // CHECK:  [[v1_final:.*]] := [[v1]]{{\[}}:]
     %c5 = arith.constant dense<5> : tensor<20xi32>
     %v = tensor.extract_slice %c5[1] [3] [2] : tensor<20xi32> to tensor<3xi32>
     return
@@ -311,7 +310,7 @@ module attributes {scheme.bgv} {
 
 module attributes {scheme.bgv} {
   // CHECK: func select
-  func.func @select(%evaluator: !lattigo.bgv.evaluator) {
+  func.func @select(%evaluator: !lattigo.bgv.evaluator) -> i32 {
     // CHECK:  [[true_val:[^ ]*]] := int32(5)
     // CHECK:  [[false_val:[^ ]*]] := int32(6)
     // CHECK:  [[cond:[^ ]*]] := bool(true)
@@ -325,7 +324,7 @@ module attributes {scheme.bgv} {
     %c6 = arith.constant 6 : i32
     %cond = arith.constant 1 : i1
     %v = arith.select %cond, %c5, %c6 : i32
-    return
+    return %v : i32
   }
 }
 
@@ -333,7 +332,7 @@ module attributes {scheme.bgv} {
 
 module attributes {scheme.bgv} {
   // CHECK: func extui_scalar
-  func.func @extui_scalar(%evaluator: !lattigo.bgv.evaluator) {
+  func.func @extui_scalar(%evaluator: !lattigo.bgv.evaluator) -> i32 {
     // CHECK:  [[v0:[^ ]*]] := bool(true)
     // CHECK:  var [[v1:[^ ]*]] int32
     // CHECK:  if [[v0]] {
@@ -343,7 +342,7 @@ module attributes {scheme.bgv} {
     // CHECK:  }
     %ctrue = arith.constant 1 : i1
     %v = arith.extui %ctrue : i1 to i32
-    return
+    return %v : i32
   }
 }
 

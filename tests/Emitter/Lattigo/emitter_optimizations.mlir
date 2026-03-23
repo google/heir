@@ -52,7 +52,7 @@ module attributes {scheme.bgv} {
   // CHECK: func test_contiguous_insert_1d
   func.func @test_contiguous_insert_1d(%arg0: tensor<100xi32>, %arg1: tensor<10xi32>) -> tensor<100xi32> {
     // CHECK: [[v_insert:[^ ]*]] := append(make([]int32, 0, len([[arg0:[^ ]*]])), [[arg0]]...)
-    // CHECK: copy([[v_insert]][20:], [[arg1:[^ ]*]])
+    // CHECK: copy([[v_insert]][20 : 20 + 10], [[arg1:[^ ]*]])
     // CHECK: return [[v_insert]]
     %v = tensor.insert_slice %arg1 into %arg0[20] [10] [1] : tensor<10xi32> into tensor<100xi32>
     return %v : tensor<100xi32>
@@ -65,7 +65,7 @@ module attributes {scheme.bgv} {
   // CHECK: func test_contiguous_insert_2d
   func.func @test_contiguous_insert_2d(%arg0: tensor<16x16xi32>, %arg1: tensor<1x16xi32>) -> tensor<16x16xi32> {
     // CHECK: [[v_insert:[^ ]*]] := append(make([]int32, 0, len([[arg0:[^ ]*]])), [[arg0]]...)
-    // CHECK: copy([[v_insert]][0 + 16 * (8):], [[arg1:[^ ]*]])
+    // CHECK: copy([[v_insert]][0 + 16 * (8) : 0 + 16 * (8) + 16], [[arg1:[^ ]*]])
     // CHECK: return [[v_insert]]
     %v = tensor.insert_slice %arg1 into %arg0[8, 0] [1, 16] [1, 1] : tensor<1x16xi32> into tensor<16x16xi32>
     return %v : tensor<16x16xi32>
