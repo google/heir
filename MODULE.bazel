@@ -4,7 +4,7 @@ bazel_dep(name = "bazel_skylib", version = "1.9.0")
 bazel_dep(name = "rules_cc", version = "0.2.18")
 
 # hermetic LLVM toolchain (for C++ compiler and linker)
-bazel_dep(name = "llvm", version = "0.7.8")
+bazel_dep(name = "llvm", version = "0.8.5")
 
 register_toolchains("@llvm//:all")
 
@@ -16,8 +16,8 @@ register_toolchains("@llvm//:all")
 # $ /usr/bin/xcodebuild -version
 #   Xcode 16.2
 #   Build version 16C5032a
-bazel_dep(name = "apple_support", version = "1.24.1", repo_name = "build_bazel_apple_support")
-bazel_dep(name = "rules_apple", version = "3.20.1")
+bazel_dep(name = "apple_support", version = "2.3.0", repo_name = "build_bazel_apple_support")
+bazel_dep(name = "rules_apple", version = "4.5.1")
 
 # Gazelle puglin for BUILD file autogeneration
 bazel_dep(name = "gazelle", version = "0.47.0")
@@ -32,8 +32,8 @@ bazel_dep(name = "rules_go", version = "0.53.0")
 bazel_dep(name = "rules_python", version = "1.7.0")
 bazel_dep(name = "googletest", version = "1.17.0")
 bazel_dep(name = "fuzztest", version = "20250805.0")
-bazel_dep(name = "google_benchmark", version = "1.9.1")
-bazel_dep(name = "abseil-cpp", version = "20250512.1", repo_name = "com_google_absl")
+bazel_dep(name = "google_benchmark", version = "1.9.5")
+bazel_dep(name = "abseil-cpp", version = "20260107.1", repo_name = "com_google_absl")
 bazel_dep(name = "abseil-py", version = "2.1.0")
 bazel_dep(name = "pybind11_bazel", version = "2.13.6")
 bazel_dep(name = "rules_shell", version = "0.6.1")
