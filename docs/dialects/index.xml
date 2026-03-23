@@ -9001,15 +9001,10 @@ applied.&lt;/p>
 &lt;h3 id="lwetrivial_encrypt-heirlwetrivialencryptop">&lt;code>lwe.trivial_encrypt&lt;/code> (heir::lwe::TrivialEncryptOp)&lt;/h3>
 &lt;p>&lt;em>Create a trivial encryption of a plaintext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lwe.trivial_encrypt` $input attr-dict `:` qualified(type(operands)) `to` qualified(type(results))
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.trivial_encrypt` $input attr-dict `:` type(operands) `-&amp;gt;` type(results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-6">Attributes:&lt;/h4>
-&lt;table>
-&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>ciphertext_bits&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>index attribute&lt;/td>&lt;/tr>
-&lt;/table>
 &lt;h4 id="operands-19">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
