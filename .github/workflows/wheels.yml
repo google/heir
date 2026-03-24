@@ -5,10 +5,13 @@ on:
   release:
     types:
       - published
+  pull_request:
+    types: [labeled]
 
 jobs:
   build_sdist:
     name: Build source distribution
+    if: github.ref == 'refs/heads/main' || github.event.label.name == 'ci:wheels'
     runs-on: ubuntu-latest
     steps:
       - name: Check out repo
@@ -29,6 +32,8 @@ jobs:
 
   build_wheels:
     name: Build HEIR wheels on ${{ matrix.name }}
+    # On PRs, only run when the ci:wheels label is added.
+    if: github.ref == 'refs/heads/main' || github.event.label.name == 'ci:wheels'
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
@@ -57,6 +62,7 @@ jobs:
         uses: pypa/cibuildwheel@v3.0.0
 
       - name: Upload HEIR ${{ matrix.name }} wheels
+        if: always()
         uses: actions/upload-artifact@v6
         with:
           name: dist-${{ matrix.name }}
@@ -65,6 +71,8 @@ jobs:
   pypi_upload:
     name: Publish heir wheels to PyPI
     needs: [build_sdist, build_wheels]
+    # Only publish from main, not PRs
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     # Cf. trusted publishers on PyPI
     environment: pypi
