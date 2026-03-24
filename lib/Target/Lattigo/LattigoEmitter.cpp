@@ -37,6 +37,7 @@
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/AffineExpr.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
@@ -45,6 +46,7 @@
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/DialectRegistry.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/IntegerSet.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
@@ -86,7 +88,7 @@ LogicalResult LattigoEmitter::translate(Operation& op) {
           .Case<func::FuncOp, func::ReturnOp, func::CallOp>(
               [&](auto op) { return printOperation(op); })
           // Affine ops
-          .Case<affine::AffineForOp, affine::AffineYieldOp>(
+          .Case<affine::AffineForOp, affine::AffineIfOp, affine::AffineYieldOp>(
               [&](auto op) { return printOperation(op); })
           // Arith ops
           .Case<arith::ConstantOp, arith::ExtSIOp, arith::ExtUIOp,
@@ -332,12 +334,94 @@ LogicalResult LattigoEmitter::printOperation(affine::AffineForOp op) {
   return success();
 }
 
+LogicalResult LattigoEmitter::printOperation(affine::AffineIfOp op) {
+  for (auto i = 0; i < op.getNumResults(); ++i) {
+    Value result = op.getResults()[i];
+    declareVariable(result, op.getLoc());
+  }
+
+  IntegerSet set = op.getIntegerSet();
+  ValueRange operands = op.getOperands();
+  auto dims = operands.take_front(set.getNumDims());
+  auto symbols = operands.drop_front(set.getNumDims());
+
+  std::function<FailureOr<std::string>(AffineExpr)> emitExpr =
+      [&](AffineExpr expr) -> FailureOr<std::string> {
+    if (auto dimExpr = mlir::dyn_cast<AffineDimExpr>(expr)) {
+      return getName(dims[dimExpr.getPosition()]);
+    }
+    if (auto symExpr = mlir::dyn_cast<AffineSymbolExpr>(expr)) {
+      return getName(symbols[symExpr.getPosition()]);
+    }
+    if (auto constExpr = mlir::dyn_cast<AffineConstantExpr>(expr)) {
+      return std::to_string(constExpr.getValue());
+    }
+    if (auto binaryExpr = mlir::dyn_cast<AffineBinaryOpExpr>(expr)) {
+      auto lhs = emitExpr(binaryExpr.getLHS());
+      auto rhs = emitExpr(binaryExpr.getRHS());
+      if (failed(lhs) || failed(rhs)) return failure();
+      std::string opStr;
+      switch (expr.getKind()) {
+        case AffineExprKind::Add:
+          opStr = " + ";
+          break;
+        case AffineExprKind::Mul:
+          opStr = " * ";
+          break;
+        case AffineExprKind::Mod:
+          opStr = " % ";
+          break;
+        case AffineExprKind::FloorDiv:
+          opStr = " / ";
+          break;
+        case AffineExprKind::CeilDiv:
+          return "(" + *lhs + " + " + *rhs + " - 1) / " + *rhs;
+        default:
+          return failure();
+      }
+      return "(" + *lhs + opStr + *rhs + ")";
+    }
+    return failure();
+  };
+
+  SmallVector<std::string> constraints;
+  for (unsigned i = 0; i < set.getNumConstraints(); ++i) {
+    auto expr = emitExpr(set.getConstraint(i));
+    if (failed(expr)) {
+      return op.emitOpError("failed to emit affine expression");
+    }
+    constraints.push_back(*expr + (set.isEq(i) ? " == 0" : " >= 0"));
+  }
+
+  std::string cond =
+      constraints.empty() ? "true" : llvm::join(constraints, " && ");
+
+  os << "if " << cond << " {\n";
+  os.indent();
+  for (Operation& subOp : *op.getThenBlock()) {
+    if (failed(translate(subOp))) return failure();
+  }
+  os.unindent();
+  if (op.hasElse()) {
+    os << "} else {\n";
+    os.indent();
+    for (Operation& subOp : *op.getElseBlock()) {
+      if (failed(translate(subOp))) return failure();
+    }
+    os.unindent();
+  }
+  os << "}\n";
+
+  return success();
+}
+
 LogicalResult LattigoEmitter::printOperation(affine::AffineYieldOp op) {
   FailureOr<ValueRange> destValues =
       llvm::TypeSwitch<Operation*, FailureOr<ValueRange>>(op->getParentOp())
           .Case<affine::AffineForOp>(
               [&](auto forOp) { return forOp.getRegionIterArgs(); })
-          // TODO: support AffineIfOp
+          .Case<affine::AffineIfOp>(
+              [&](auto ifOp) { return ifOp.getResults(); })
           .Default([&](auto op) { return failure(); });
 
   if (failed(destValues)) {

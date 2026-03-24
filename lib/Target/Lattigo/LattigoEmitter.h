@@ -90,6 +90,7 @@ class LattigoEmitter {
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);
   LogicalResult printOperation(::mlir::affine::AffineForOp op);
+  LogicalResult printOperation(::mlir::affine::AffineIfOp op);
   LogicalResult printOperation(::mlir::affine::AffineYieldOp op);
   LogicalResult printOperation(::mlir::arith::AddIOp op);
   LogicalResult printOperation(::mlir::arith::AddFOp op);
