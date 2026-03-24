@@ -653,8 +653,9 @@ struct RewriteAvgPoolAsConv2D
     auto filterTy = cast<RankedTensorType>(poolOp.getInputs()[1].getType());
     auto outputTy = cast<RankedTensorType>(poolOp.getResultTypes()[0]);
 
-    auto kernelShape =
-        SmallVector<int64_t>{filterTy.getDimSize(0), filterTy.getDimSize(1)};
+    auto c = inputTy.getDimSize(1);
+    auto kernelShape = SmallVector<int64_t>{c, c, filterTy.getDimSize(0),
+                                            filterTy.getDimSize(1)};
     auto kernelTy =
         RankedTensorType::get(kernelShape, filterTy.getElementType());
     TypedAttr kernelVals = rewriter.getOneAttr(kernelTy);
@@ -681,55 +682,17 @@ struct RewriteAvgPoolAsConv2D
     }
     auto kernel =
         arith::ConstantOp::create(rewriter, poolOp.getLoc(), kernelVals);
-
-    // Rewrite the 2D avg pool output shape is N x C x H' x W'. Apply the kernel
-    // to each channel separately, and insert into the output.
-    auto outputVal = poolOp.getOutputs()[0];
-    //  The filter must ensure each output channel i is only the sum of values
-    //  from input channel i. So the filter uses an identity matrix when f ==
-    //  c and 0 otherwise.
-    RankedTensorType twoDOutputType =
-        RankedTensorType::get({outputTy.getDimSize(2), outputTy.getDimSize(3)},
-                              outputTy.getElementType());
-    RankedTensorType twoDInputType =
-        RankedTensorType::get({inputTy.getDimSize(2), inputTy.getDimSize(3)},
-                              inputTy.getElementType());
-    Value convOutput = tensor::EmptyOp::create(rewriter, poolOp.getLoc(),
-                                               twoDOutputType.getShape(),
-                                               twoDOutputType.getElementType());
-    for (int n = 0; n < inputTy.getDimSize(0); ++n) {
-      for (int c = 0; c < inputTy.getDimSize(1); ++c) {
-        // Compute the 2-D constant convolution.
-        SmallVector<OpFoldResult> offsets = {
-            rewriter.getIndexAttr(n), rewriter.getIndexAttr(c),
-            rewriter.getIndexAttr(0), rewriter.getIndexAttr(0)};
-        SmallVector<OpFoldResult> inputSizes = {
-            rewriter.getIndexAttr(1), rewriter.getIndexAttr(1),
-            rewriter.getIndexAttr(inputTy.getDimSize(2)),
-            rewriter.getIndexAttr(inputTy.getDimSize(3))};
-        SmallVector<OpFoldResult> strides(4, rewriter.getIndexAttr(1));
-        auto extractInputOp = tensor::ExtractSliceOp::create(
-            rewriter, poolOp.getLoc(), twoDInputType, poolOp.getInputs()[0],
-            offsets, inputSizes, strides);
-
-        auto convOp = linalg::Conv2DOp::create(
-            rewriter, poolOp.getLoc(), twoDOutputType,
-            ValueRange{extractInputOp, kernel}, ValueRange{convOutput});
-        // Insert into the outputVal.
-        SmallVector<OpFoldResult> outputSizes = {
-            rewriter.getIndexAttr(1), rewriter.getIndexAttr(1),
-            rewriter.getIndexAttr(outputTy.getDimSize(2)),
-            rewriter.getIndexAttr(outputTy.getDimSize(3))};
-        outputVal = tensor::InsertSliceOp::create(
-            rewriter, poolOp.getLoc(), convOp.getResult(0), outputVal, offsets,
-            outputSizes, strides);
-      }
-    }
+    Value conv = linalg::Conv2DNchwFchwOp::create(
+                     rewriter, poolOp.getLoc(), outputTy,
+                     ValueRange{poolOp.getInputs()[0], kernel},
+                     ValueRange{poolOp.getOutputs()[0]}, poolOp.getStrides(),
+                     poolOp.getDilations())
+                     .getResult(0);
 
     if (avgPoolOutput) {
-      rewriter.replaceAllUsesWith(avgPoolOutput, outputVal);
+      rewriter.replaceAllUsesWith(avgPoolOutput, conv);
     } else {
-      rewriter.replaceOp(poolOp, outputVal);
+      rewriter.replaceOp(poolOp, conv);
     }
     return success();
   }
@@ -746,6 +709,14 @@ struct LowerConv2DNchwFchw
 
   LogicalResult matchAndRewrite(mlir::linalg::Conv2DNchwFchwOp convOp,
                                 PatternRewriter& rewriter) const override {
+    // Fails is strides > 1.
+    if (!llvm::all_of(convOp.getStrides(), [](const APInt& element) {
+          return element.getSExtValue() == 1;
+        })) {
+      return rewriter.notifyMatchFailure(convOp,
+                                         "expected all ones for strides");
+    }
+
     Location loc = convOp.getLoc();
     Value image = convOp.getInputs()[0];
     Value filter = convOp.getInputs()[1];

@@ -1,5 +1,6 @@
-load("@heir//tools:heir-opt.bzl", "heir_opt")
 load("@pybind11_bazel//:build_defs.bzl", "pybind_extension")
+# load("@heir//tools:heir-opt.bzl", "heir_opt")
+
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_python//python:py_test.bzl", "py_test")
@@ -39,20 +40,21 @@ cc_binary(
     ],
 )
 
-heir_opt(
-    name = "lenet_mlir_opt",
-    src = "lenet.mlir",
-    generated_filename = "lenet.openfhe.mlir",
-    pass_flags = [
-        "--annotate-module=backend=openfhe scheme=ckks",
-        "--torch-linalg-to-ckks=ciphertext-degree=1024",
-        "--scheme-to-openfhe",
-    ],
-    tags = [
-        "nofastbuild",
-        "requires-mem:28g",
-    ],
-)
+# TODO(#2702): Re-enable once pooling is fully supported.
+# heir_opt(
+#     name = "lenet_mlir_opt",
+#     src = "lenet.mlir",
+#     generated_filename = "lenet.openfhe.mlir",
+#     pass_flags = [
+#         "--annotate-module=backend=openfhe scheme=ckks",
+#         "--torch-linalg-to-ckks=ciphertext-degree=1024",
+#         "--scheme-to-openfhe",
+#     ],
+#     tags = [
+#         "nofastbuild",
+#         "requires-mem:28g",
+#     ],
+# )
 
 cc_library(
     name = "interpreter_shim",

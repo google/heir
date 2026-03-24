@@ -6,11 +6,11 @@
 module {
   // CHECK: func.func @main
   // CHECK-SAME: (%[[arg0:.*]]: tensor<1x6x28x28xf32>)
+  // CHECK-DAG: %[[out:.*]] = arith.constant dense<2.0
   // CHECK-DAG: %[[divided_cst:.*]] = arith.constant dense<2.500000e-01>
-  // CHECK-DAG: %[[out:.*]] = tensor.empty() : tensor<14x14xf32>
-  // CHECK-DAG: %[[extracted:.*]] = tensor.extract_slice %[[arg0]]
-  // CHECK: linalg.conv_2d ins(%[[extracted]], %[[divided_cst]] : tensor<28x28xf32>, tensor<2x2xf32>) outs(%[[out]] : tensor<14x14xf32>)
-  // CHECK-COUNT-5: linalg.conv_2d
+  // CHECK: linalg.conv_2d_nchw_fchw
+  // CHECK-SAME: strides = dense<2> : vector<2xi64>
+  // CHECK-SAME: ins(%[[arg0]], %[[divided_cst]] : tensor<1x6x28x28xf32>, tensor<6x6x2x2xf32>) outs(%[[out]] : tensor<1x6x14x14xf32>)
   // CHECK: return
   func.func @main(%arg0: tensor<1x6x28x28xf32>) -> tensor<1x6x14x14xf32> {
     %cst_0 = arith.constant 2.000000e+00 : f32
