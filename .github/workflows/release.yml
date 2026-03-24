@@ -40,7 +40,7 @@ jobs:
 
       - name: Create Release
         id: release
-        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b  # v2
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b  # v2.5.0
         with:
           tag_name: v${{ steps.date.outputs.date }}
           generate_release_notes: true
@@ -71,7 +71,7 @@ jobs:
 
       - name: Create issue on failure
         if: steps.wait_for_wheels.outcome == 'failure'
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd  # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd  # v8.0.0
         with:
           script: |
             github.rest.issues.create({
