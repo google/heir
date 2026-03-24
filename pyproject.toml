@@ -83,6 +83,11 @@ manylinux-aarch64-image = "manylinux_2_28"
 before-all = "bash .github/install_cibuildwheel_deps.sh"
 # Use the rootless Bazel installation inside the container.
 environment = { PATH = "$PATH:$HOME/bin" }
+# Force the repaired wheel to use the manylinux_2_28 platform tag.
+# By default, auditwheel may analyze the wheel's actual symbol requirements
+# and choose or add a lower compatible manylinux_x_y tag such as 2_27
+# which PyPi might reject (they only accept a few specific tags).
+repair-wheel-command = "auditwheel repair --plat manylinux_2_28_$(uname -m) --only-plat -w {dest_dir} {wheel}"
 
 [tool.cibuildwheel.windows]
 archs = "auto64"
