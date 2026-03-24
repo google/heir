@@ -5,6 +5,7 @@ package(default_applicable_licenses = ["@heir//:license"])
 
 openfhe_lib(
     name = "mnist_openfhe",
+    copts = ["-O3"],
     # ensure CppCompile has enough memory to compile this large, unrolled program
     exec_properties = {"mem": "28g"},
     generated_lib_header = "mnist_openfhe_lib.inc.h",

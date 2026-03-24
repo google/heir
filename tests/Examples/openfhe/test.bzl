@@ -5,7 +5,20 @@ load("@heir//tools:heir-openfhe.bzl", "openfhe_lib")
 load("@heir//tools:heir-opt.bzl", "heir_opt")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
-def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, heir_opt_flags = [], heir_translate_flags = [], data = [], size = "small", tags = [], deps = [], generate_debug_helper = False, **kwargs):
+def openfhe_end_to_end_test(
+        name,
+        mlir_src,
+        test_src,
+        generated_lib_header,
+        heir_opt_flags = [],
+        heir_translate_flags = [],
+        data = [],
+        size = "small",
+        tags = [],
+        deps = [],
+        copts = ["-O0"],
+        generate_debug_helper = False,
+        **kwargs):
     """A rule for running generating OpenFHE and running a test on it.
 
     Args:
@@ -20,11 +33,28 @@ def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, heir
       size: Size to pass to cc_test
       tags: Tags to pass to cc_test
       deps: Deps to pass to cc_test and cc_library
+      copts: Additional copts to pass to cc_library
       generate_debug_helper: Flag for generating default debug helper code,
       **kwargs: Keyword arguments to pass to cc_library and cc_test.
     """
     cc_lib_target_name = "%s_cc_lib" % name
-    openfhe_lib(name = name, mlir_src = mlir_src, generated_lib_header = generated_lib_header, cc_lib_target_name = cc_lib_target_name, heir_opt_flags = heir_opt_flags, heir_translate_flags = heir_translate_flags, data = data, tags = tags, deps = deps, generate_debug_helper = generate_debug_helper, **kwargs)
+    openfhe_lib(
+        name = name,
+        mlir_src = mlir_src,
+        generated_lib_header =
+            generated_lib_header,
+        cc_lib_target_name = cc_lib_target_name,
+        heir_opt_flags = heir_opt_flags,
+        heir_translate_flags =
+            heir_translate_flags,
+        data = data,
+        tags = tags,
+        deps = deps,
+        copts = copts,
+        generate_debug_helper = generate_debug_helper,
+        **kwargs
+    )
+
     cc_test(
         name = name,
         srcs = [test_src],
@@ -42,7 +72,19 @@ def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, heir
         **kwargs
     )
 
-def openfhe_interpreter_test(name, mlir_src, test_src, generated_heir_opt_filename = "", heir_opt_flags = [], data = [], tags = [], deps = [], copts = [], timeout = "moderate", **kwargs):
+def openfhe_interpreter_test(
+        name,
+        mlir_src,
+        test_src,
+        generated_heir_opt_filename = "",
+        heir_opt_flags =
+            [],
+        data = [],
+        tags = [],
+        deps = [],
+        copts = [],
+        timeout = "moderate",
+        **kwargs):
     """A rule for running generating OpenFHE dialect and exposing it to an interpreter.
 
     Args:

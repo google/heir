@@ -17,6 +17,7 @@ def openfhe_lib(
         data = [],
         tags = [],
         deps = [],
+        copts = ["-O0"],
         generate_debug_helper = False,
         **kwargs):
     """A rule for running generating OpenFHE C++ code and running a test on it.
@@ -33,6 +34,7 @@ def openfhe_lib(
       data: Data dependencies to be passed to heir_opt
       tags: Tags to pass to cc_test and cc_library
       deps: Deps to pass to cc_test and cc_library
+      copts: Additional copts to pass to cc_library
       generate_debug_helper: Flag for generating default debug helper code,
       **kwargs: Keyword arguments to pass to cc_library and cc_test.
     """
@@ -133,7 +135,7 @@ def openfhe_lib(
         deps = deps + ["@openfhe//:pke"],
         tags = tags,
         data = data,
-        copts = OPENMP_COPTS,
+        copts = OPENMP_COPTS + copts,
         linkopts = OPENMP_LINKOPTS,
         **kwargs
     )
