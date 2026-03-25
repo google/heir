@@ -9,29 +9,57 @@ on:
     types: [labeled]
 
 jobs:
+  setup-version:
+    name: Setup version and publication status
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+      should_publish: ${{ steps.get-version.outputs.should_publish }}
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install dependencies
+        run: pip install requests
+      - name: Get version
+        id: get-version
+        shell: bash
+        run: |
+          python scripts/get_version.py \
+            --event "${{ github.event_name }}" \
+            --ref "${{ github.ref }}" \
+            --tag "${{ github.event.release.tag_name }}" \
+            --package "heir_py" \
+            --gha
+
   build_sdist:
     name: Build source distribution
+    needs: [setup-version]
     if: github.ref == 'refs/heads/main' || github.event.label.name == 'ci:wheels'
     runs-on: ubuntu-latest
     steps:
       - name: Check out repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
       - name: Install Python 3.12
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: "3.12"
       - run: python -m pip install build
       - name: Build sdist
-        run: python -m build --sdist
-      - uses: actions/upload-artifact@v6
+        run: |
+          if [[ -n "${{ needs.setup-version.outputs.version }}" ]]; then
+            export SETUPTOOLS_SCM_PRETEND_VERSION="${{ needs.setup-version.outputs.version }}"
+          fi
+          python -m build --sdist
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: dist-sdist
           path: dist/*.tar.gz
 
   build_wheels:
     name: Build HEIR wheels on ${{ matrix.name }}
+    needs: [setup-version]
     # On PRs, only run when the ci:wheels label is added.
     if: github.ref == 'refs/heads/main' || github.event.label.name == 'ci:wheels'
     runs-on: ${{ matrix.runner }}
@@ -50,36 +78,40 @@ jobs:
 
     steps:
       - name: Check out HEIR
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         name: Install Python 3.12
         with:
           python-version: "3.12"
       - run: pip install --upgrade pip uv
 
       - name: Build wheels on ${{ matrix.name }} using cibuildwheel
-        uses: pypa/cibuildwheel@v3.0.0
+        uses: pypa/cibuildwheel@5f22145df44122af0f5a201f93cf0207171beca7 # v3.0.0
+        env:
+          SETUPTOOLS_SCM_PRETEND_VERSION: ${{ needs.setup-version.outputs.version }}
 
       - name: Upload HEIR ${{ matrix.name }} wheels
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: dist-${{ matrix.name }}
           path: wheelhouse/*.whl
 
   pypi_upload:
     name: Publish heir wheels to PyPI
-    needs: [build_sdist, build_wheels]
-    # Only publish from main, not PRs
-    if: github.ref == 'refs/heads/main'
+    needs: [setup-version, build_sdist, build_wheels]
+    # Only publish from main or releases based on setup-version logic
+    if: needs.setup-version.outputs.should_publish == 'true'
     runs-on: ubuntu-latest
     # Cf. trusted publishers on PyPI
     environment: pypi
     permissions:
       id-token: write
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           path: dist
           pattern: dist-*

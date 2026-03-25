@@ -419,21 +419,20 @@ ParseResult ConstantOp::parse(OpAsmParser& parser, OperationState& result) {
   }
 
   // In the worst case, still accept the verbose versions.
-  TypedIntPolynomialAttr typedIntPolyAttr;
+  Attribute attr;
   OptionalParseResult res =
-      parser.parseOptionalAttribute<TypedIntPolynomialAttr>(
-          typedIntPolyAttr, "value", result.attributes);
-  if (res.has_value() && succeeded(res.value())) {
-    result.addTypes(typedIntPolyAttr.getType());
-    return success();
-  }
-
-  TypedFloatPolynomialAttr typedFloatPolyAttr;
-  res = parser.parseAttribute<TypedFloatPolynomialAttr>(
-      typedFloatPolyAttr, "value", result.attributes);
-  if (res.has_value() && succeeded(res.value())) {
-    result.addTypes(typedFloatPolyAttr.getType());
-    return success();
+      parser.parseOptionalAttribute(attr, "value", result.attributes);
+  if (res.has_value()) {
+    if (failed(res.value())) return failure();
+    if (auto intAttr = dyn_cast<TypedIntPolynomialAttr>(attr)) {
+      result.addTypes(intAttr.getType());
+      return success();
+    }
+    if (auto floatAttr = dyn_cast<TypedFloatPolynomialAttr>(attr)) {
+      result.addTypes(floatAttr.getType());
+      return success();
+    }
+    return parser.emitError(loc, "expected a typed polynomial attribute");
   }
 
   return parser.emitError(

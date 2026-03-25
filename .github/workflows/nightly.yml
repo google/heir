@@ -43,7 +43,7 @@ jobs:
             gh release view "nightly" && gh release delete "nightly" -y --cleanup-tag
 
       - name: GH Release
-        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b  # v2
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b  # v2.5.0
         with:
           prerelease: true
           tag_name: nightly
@@ -64,7 +64,7 @@ jobs:
       issues: write
     steps:
       - name: Create issue on failure
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd  # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd  # v8.0.0
         with:
           script: |
             github.rest.issues.create({

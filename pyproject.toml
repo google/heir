@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "heir_py"
-version = "0.0.3"
+dynamic = ["version"]
 authors = [
   { name = "Jeremy Kun", email = "jkun@google.com" },
   { name = "Asra Ali", email = "asraa@google.com" },
@@ -126,3 +126,6 @@ ignore-words-list = "crate,fpt,LogArithmetic,olt,allOne"
 write-changes = false
 # files to exclude
 skip = "*.lock"
+
+[tool.setuptools_scm]
+# Can be empty, setuptools-scm handles the rest by default.
