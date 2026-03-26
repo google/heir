@@ -11,6 +11,10 @@ on:
 jobs:
   setup-version:
     name: Setup version and publication status
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'release' ||
+      github.event.label.name == 'ci:wheels'
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.get-version.outputs.version }}
@@ -34,7 +38,10 @@ jobs:
   build_sdist:
     name: Build source distribution
     needs: [setup-version]
-    if: github.ref == 'refs/heads/main' || github.event.label.name == 'ci:wheels'
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'release' ||
+      github.event.label.name == 'ci:wheels'
     runs-on: ubuntu-latest
     steps:
       - name: Check out repo
@@ -61,7 +68,10 @@ jobs:
     name: Build HEIR wheels on ${{ matrix.name }}
     needs: [setup-version]
     # On PRs, only run when the ci:wheels label is added.
-    if: github.ref == 'refs/heads/main' || github.event.label.name == 'ci:wheels'
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'release' ||
+      github.event.label.name == 'ci:wheels'
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
@@ -91,10 +101,10 @@ jobs:
       - name: Build wheels on ${{ matrix.name }} using cibuildwheel
         uses: pypa/cibuildwheel@5f22145df44122af0f5a201f93cf0207171beca7 # v3.0.0
         env:
-          # For cibuildwheel that runs on the host
           SETUPTOOLS_SCM_PRETEND_VERSION: ${{ needs.setup-version.outputs.version }}
-          # For cibuildwheel that runs in a docker container
-          CIBW_ENVIRONMENT: SETUPTOOLS_SCM_PRETEND_VERSION="${{ needs.setup-version.outputs.version }}"
+          # Pass the version env var into Linux Docker containers without
+          # overriding the environment config in pyproject.toml (which sets PATH).
+          CIBW_ENVIRONMENT_PASS: SETUPTOOLS_SCM_PRETEND_VERSION
 
       - name: Upload HEIR ${{ matrix.name }} wheels
         if: always()
