@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <functional>
 #include <map>
 #include <string>
 
@@ -40,7 +41,16 @@ class MLIRLoopNestGenerator {
   MLIRLoopNestGenerator(ImplicitLocOpBuilder& builder)
       : builder_(builder),
         ctx_(isl_ctx_alloc()),
-        currentLoc_(builder.getUnknownLoc()) {}
+        currentLoc_(builder.getUnknownLoc()),
+        createdOpCallback_([](Operation*) { return; }) {}
+
+  MLIRLoopNestGenerator(
+      ImplicitLocOpBuilder& builder,
+      const std::function<void(Operation*)>& createdOpCallback)
+      : builder_(builder),
+        ctx_(isl_ctx_alloc()),
+        currentLoc_(builder.getUnknownLoc()),
+        createdOpCallback_(createdOpCallback) {}
 
   ~MLIRLoopNestGenerator() { isl_ctx_free(ctx_); }
 
@@ -68,6 +78,8 @@ class MLIRLoopNestGenerator {
   Location currentLoc_;
   std::map<std::string, Value> ivToValue_;
   SmallVector<scf::ForOp> loops_;
+
+  const std::function<void(Operation*)> createdOpCallback_;
 };
 
 }  // namespace heir

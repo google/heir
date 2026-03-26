@@ -79,7 +79,7 @@ static FailureOr<Value> implementAssignLayoutNew(
                                     builder.getZeroAttr(ciphertextSemanticType))
               .getResult());
 
-  MLIRLoopNestGenerator generator(builder);
+  MLIRLoopNestGenerator generator(builder, createdOpCallback);
   auto loopNestCstr = generateLoopNestAsCStr(rel);
   if (failed(loopNestCstr)) {
     return builder.emitError() << "Failed to generate loop nest for relation "

@@ -1,12 +1,17 @@
 #include "lib/Utils/Utils.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <iomanip>
 #include <ios>
+#include <map>
+#include <optional>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "lib/Utils/MathUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
@@ -241,7 +246,9 @@ bool allTypesMatch(ArrayRef<Value> values) {
 
 /// Extends all (integer-typed) values to the largest bitwidth among them and
 /// returns the new list of values.
-SmallVector<Value> extendToCommonWidth(OpBuilder& b, ArrayRef<Value> values) {
+SmallVector<Value> extendToCommonWidth(
+    OpBuilder& b, ArrayRef<Value> values,
+    const std::function<void(Operation*)>& createdOpCallback) {
   int64_t maxWidth = 0;
   for (Value value : values) {
     auto intType = cast<IntegerType>(value.getType());
@@ -254,8 +261,11 @@ SmallVector<Value> extendToCommonWidth(OpBuilder& b, ArrayRef<Value> values) {
   for (Value value : values) {
     auto intType = cast<IntegerType>(value.getType());
     if (intType.getWidth() < maxWidth) {
-      extendedValues.push_back(
-          arith::ExtSIOp::create(b, value.getLoc(), upcastType, value));
+      auto extOp = arith::ExtSIOp::create(b, value.getLoc(), upcastType, value);
+      if (createdOpCallback) {
+        createdOpCallback(extOp);
+      }
+      extendedValues.push_back(extOp->getResult(0));
     } else {
       extendedValues.push_back(value);
     }

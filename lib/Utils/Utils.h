@@ -212,7 +212,9 @@ bool allTypesMatch(ArrayRef<Value> values);
 
 /// Extends all (integer-typed) values to the largest bitwidth among them and
 /// returns the new list of values.
-SmallVector<Value> extendToCommonWidth(OpBuilder& b, ArrayRef<Value> values);
+SmallVector<Value> extendToCommonWidth(
+    OpBuilder& b, ArrayRef<Value> values,
+    const std::function<void(Operation*)>& createdOpCallback = nullptr);
 
 /// Ensures only one of a Value or Attribute are present
 LogicalResult containsExactlyOneOrEmitError(Operation* op, Value dynamicValue,

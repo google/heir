@@ -2,7 +2,10 @@
 
 #include <cassert>
 #include <cstdlib>
+#include <functional>
+#include <map>
 #include <string>
+#include <utility>
 
 #include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/Utils.h"
@@ -156,7 +159,8 @@ FailureOr<std::string> generateLoopNestAsCStr(
 }
 
 Value buildIslExpr(isl_ast_expr* expr, std::map<std::string, Value> ivToValue,
-                   ImplicitLocOpBuilder& b) {
+                   ImplicitLocOpBuilder& b,
+                   const std::function<void(Operation*)>& createdOpCallback) {
   // The four types of isl expressions are:
   // - id: an identifier, e.g., "c0" (i.e. a loop index variable)
   // - int: a constant value, e.g., 42
@@ -173,7 +177,9 @@ Value buildIslExpr(isl_ast_expr* expr, std::map<std::string, Value> ivToValue,
       isl_val* val = isl_ast_expr_get_val(expr);
       auto intValue = isl_val_get_num_si(val);
       isl_val_free(val);
-      return arith::ConstantIntOp::create(b, intValue, 32);
+      auto op = arith::ConstantIntOp::create(b, intValue, 32);
+      createdOpCallback(op);
+      return op->getResult(0);
     }
     case isl_ast_expr_op: {
       // ISL operations types are defined in
@@ -183,7 +189,7 @@ Value buildIslExpr(isl_ast_expr* expr, std::map<std::string, Value> ivToValue,
         SmallVector<Value> args;
         for (int i = 0; i < isl_ast_expr_get_op_n_arg(expr); ++i) {
           auto* arg = isl_ast_expr_get_op_arg(expr, i);
-          auto argValue = buildIslExpr(arg, ivToValue, b);
+          auto argValue = buildIslExpr(arg, ivToValue, b, createdOpCallback);
           args.push_back(argValue);
           isl_ast_expr_free(arg);
         }
@@ -195,6 +201,7 @@ Value buildIslExpr(isl_ast_expr* expr, std::map<std::string, Value> ivToValue,
         SmallVector<Value> args = getArgs(expr);
         auto* op = b.create(
             OperationState(b.getLoc(), mlirOp, args, {args[0].getType()}));
+        createdOpCallback(op);
         return op->getResult(0);
       }
 
@@ -203,6 +210,7 @@ Value buildIslExpr(isl_ast_expr* expr, std::map<std::string, Value> ivToValue,
         SmallVector<Value> args = getArgs(expr);
         auto op = arith::SubIOp::create(
             b, b.getLoc(), arith::ConstantIntOp::create(b, 0, 32), args[0]);
+        createdOpCallback(op);
         return op->getResult(0);
       }
 
@@ -214,18 +222,22 @@ Value buildIslExpr(isl_ast_expr* expr, std::map<std::string, Value> ivToValue,
         // 1, so we have to be careful to ensure the argument types are the
         // correct widths and extend if not.
         if (!allTypesMatch(args)) {
-          args = extendToCommonWidth(b, args);
+          args = extendToCommonWidth(b, args, createdOpCallback);
         }
 
         auto op =
             arith::CmpIOp::create(b, islCmpToMlirAttr[type], args[0], args[1]);
+        createdOpCallback(op);
         auto indexCastOp = arith::IndexCastOp::create(b, b.getIndexType(), op);
+        createdOpCallback(indexCastOp);
         return indexCastOp->getResult(0);
       } else if (type == isl_ast_op_select) {
         // Select op
         SmallVector<Value> args = getArgs(expr);
         auto condI1 = arith::IndexCastOp::create(b, b.getI1Type(), args[0]);
         auto op = arith::SelectOp::create(b, condI1, args[1], args[2]);
+        createdOpCallback(op);
+        createdOpCallback(condI1);
         return op->getResult(0);
       }
 
@@ -236,6 +248,8 @@ Value buildIslExpr(isl_ast_expr* expr, std::map<std::string, Value> ivToValue,
         auto eqOp =
             arith::CmpIOp::create(b, arith::CmpIPredicate::eq, op,
                                   arith::ConstantIntOp::create(b, 0, 32));
+        createdOpCallback(op);
+        createdOpCallback(eqOp);
         return eqOp->getResult(0);
       }
       isl_ast_expr_op_type opType = isl_ast_expr_get_op_type(expr);
@@ -263,7 +277,7 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeFor(
   isl_ast_expr_free(iter);
 
   isl_ast_expr* init = isl_ast_node_for_get_init(node);
-  Value lbInt = buildIslExpr(init, ivToValue_, builder_);
+  Value lbInt = buildIslExpr(init, ivToValue_, builder_, createdOpCallback_);
   isl_ast_expr_free(init);
 
   // The upper bound is always a less than equal operation in the AST codegen.
@@ -273,13 +287,15 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeFor(
          "expected upper bound to be a less than equal operation");
   isl_ast_expr* condUpper = isl_ast_expr_get_op_arg(cond, 1);
   Value ubVal = arith::AddIOp::create(
-      builder_, currentLoc_, buildIslExpr(condUpper, ivToValue_, builder_),
+      builder_, currentLoc_,
+      buildIslExpr(condUpper, ivToValue_, builder_, createdOpCallback_),
       arith::ConstantIntOp::create(builder_, currentLoc_, 1, 32));
+  createdOpCallback_(ubVal.getDefiningOp());
   isl_ast_expr_free(condUpper);
   isl_ast_expr_free(cond);
 
   isl_ast_expr* step = isl_ast_node_for_get_inc(node);
-  Value stepInt = buildIslExpr(step, ivToValue_, builder_);
+  Value stepInt = buildIslExpr(step, ivToValue_, builder_, createdOpCallback_);
   isl_ast_expr_free(step);
 
   // Create the scf for loop
@@ -293,6 +309,7 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeFor(
         currentIterArgs_ = args;
         currentLoc_ = nestedLoc;
       });
+  createdOpCallback_(loop);
 
   // Set the builder to point to the body of the newly created loop. We don't
   // do this in the callback because the builder is reset when the callback
@@ -311,7 +328,9 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeFor(
   // Yield the results of the body.
   if (!visitBody.value().empty()) {
     builder_.setInsertionPointToEnd(loop.getBody());
-    scf::YieldOp::create(builder_, currentLoc_, visitBody.value());
+    auto yieldOp =
+        scf::YieldOp::create(builder_, currentLoc_, visitBody.value());
+    createdOpCallback_(yieldOp);
   }
 
   // Return the results of the body.
@@ -321,7 +340,7 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeFor(
 FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeIf(
     isl_ast_node* node, BodyBuilderFn bodyBuilder) {
   isl_ast_expr* cond = isl_ast_node_if_get_cond(node);
-  Value condVal = buildIslExpr(cond, ivToValue_, builder_);
+  Value condVal = buildIslExpr(cond, ivToValue_, builder_, createdOpCallback_);
   isl_ast_expr_free(cond);
 
   // Build scf if operation with the result types of the iter args
@@ -331,6 +350,8 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeIf(
   auto ifOp = scf::IfOp::create(builder_, currentLoc_,
                                 TypeRange(currentIterArgs_), condValI1,
                                 /*addThenBlock=*/true, /*addElseBlock=*/true);
+  createdOpCallback_(ifOp);
+  createdOpCallback_(condValI1);
 
   // TODO:(#2120): Handle ISL else conditions.
   isl_ast_node* elseNode = isl_ast_node_if_get_else_node(node);
@@ -349,9 +370,12 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeIf(
   // ifs
   if (!visitBody.value().empty()) {
     builder_.setInsertionPointToEnd(&ifOp.getThenRegion().front());
-    scf::YieldOp::create(builder_, currentLoc_, visitBody.value());
+    auto yieldOp =
+        scf::YieldOp::create(builder_, currentLoc_, visitBody.value());
+    createdOpCallback_(yieldOp);
     builder_.setInsertionPointToEnd(&ifOp.getElseRegion().front());
-    scf::YieldOp::create(builder_, currentLoc_, currentIterArgs_);
+    yieldOp = scf::YieldOp::create(builder_, currentLoc_, currentIterArgs_);
+    createdOpCallback_(yieldOp);
   }
 
   // Return the results of the body.
@@ -367,7 +391,7 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeUser(
   // expr 0 is the statement S
   for (int i = 1; i < isl_ast_expr_get_op_n_arg(expr); i++) {
     isl_ast_expr* arg = isl_ast_expr_get_op_arg(expr, i);
-    Value value = buildIslExpr(arg, ivToValue_, builder_);
+    Value value = buildIslExpr(arg, ivToValue_, builder_, createdOpCallback_);
     exprs.push_back(value);
     isl_ast_expr_free(arg);
   }

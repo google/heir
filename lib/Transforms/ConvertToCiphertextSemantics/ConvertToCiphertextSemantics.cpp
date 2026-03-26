@@ -347,14 +347,12 @@ class ConvertAssignLayout
     if (hasSimpleAssignLayout) {
       ImplicitLocOpBuilder b(op.getLoc(), rewriter);
       auto res = implementAssignLayout(
-          input, op.getLayout(), ciphertextSize, b, [&](Operation* createdOp) {
-            setMaterializedAttr(createdOp);
-            createdOp->setAttr(kLayoutAttrName, op.getLayout());
-          });
+          input, op.getLayout(), ciphertextSize, b,
+          [&](Operation* createdOp) { setMaterializedAttr(createdOp); });
       if (failed(res)) return failure();
+      setAttributeAssociatedWith(res.value(), kLayoutAttrName, op.getLayout());
+      setMaterializedAttr(res.value().getDefiningOp());
       if (res.value() == op.getValue()) {
-        setAttributeAssociatedWith(res.value(), kLayoutAttrName,
-                                   op.getLayout());
         LLVM_DEBUG(llvm::dbgs()
                    << "No materialization needed, passing input through\n");
       }
@@ -420,13 +418,12 @@ class ConvertAssignLayout
     ImplicitLocOpBuilder b(loc, rewriter);
     Value blockInput = block->getArgument(0);
 
-    auto res = implementAssignLayout(blockInput, op.getLayout(), ciphertextSize,
-                                     b, [&](Operation* createdOp) {
-                                       setMaterializedAttr(createdOp);
-                                       createdOp->setAttr(kLayoutAttrName,
-                                                          op.getLayout());
-                                     });
+    auto res = implementAssignLayout(
+        blockInput, op.getLayout(), ciphertextSize, b,
+        [&](Operation* createdOp) { setMaterializedAttr(createdOp); });
     if (failed(res)) return failure();
+    setAttributeAssociatedWith(res.value(), kLayoutAttrName, op.getLayout());
+    setMaterializedAttr(res.value().getDefiningOp());
     func::ReturnOp::create(rewriter, loc, res.value());
     return func;
   };
