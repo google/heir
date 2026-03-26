@@ -73,7 +73,7 @@ class LWE_BinOp<string mnemonic, list<Trait> traits = []> :
 }
 
 class LWE_CiphertextPlaintextOp<string mnemonic, list<Trait> traits = []> :
-        LWE_Op<mnemonic, traits #  [IsCiphertextPlaintextOp, InferTypeOpAdaptor]> {
+        LWE_Op<mnemonic, traits #  [IsCiphertextPlaintextOp, InferTypeOpAdaptor, ElementwiseMappable]> {
   let arguments = (ins LWEPlaintextOrCiphertextLike:$lhs, LWEPlaintextOrCiphertextLike:$rhs);
   let results = (outs LWECiphertextLike:$output);
 }
