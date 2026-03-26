@@ -146,20 +146,19 @@ func::FuncOp getOrCreateEncryptionOfZerosFunc(func::FuncOp parentFunc,
 
   Type coeffType =
       plaintextType.getPlaintextSpace().getRing().getCoefficientType();
-  Type cleartextElementType = builder.getIntegerType(
-      llvm::TypeSwitch<Type, int>(coeffType)
-          .Case<IntegerType, FloatType>(
-              [&](auto ty) { return ty.getIntOrFloatBitWidth(); })
-          .Case<mod_arith::ModArithType>([&](auto ty) {
-            return ty.getModulus().getType().getIntOrFloatBitWidth();
-          })
+  Type cleartextElementType =
+      llvm::TypeSwitch<Type, Type>(coeffType)
+          .Case<IntegerType, FloatType>([&](auto ty) { return ty; })
+          .Case<mod_arith::ModArithType>(
+              [&](auto ty) { return ty.getModulus().getType(); })
           .Default([&](auto ty) {
             originalOp->emitOpError()
                 << "has unsupported plaintext coefficient type; can't "
                    "determine what constant type to use for encryption of "
                    "zero.";
-            return 0;
-          }));
+            return Type();
+          });
+  if (!cleartextElementType) return nullptr;
 
   RankedTensorType zeroType =
       RankedTensorType::get({numSlots}, cleartextElementType);
