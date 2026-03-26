@@ -293,12 +293,13 @@ FailureOr<NodePtr> DagBuilder::visit(tensor::SplatOp op) {
   IntegerAttr attr;
   if (matchPattern(op.getInput(), m_Constant(&attr))) {
     LDBG() << "Matched splatted value to constant scalar " << attr;
+    auto dagNode =
+        Node::splat(attr.getInt(), mlirTypeToDagType(op.getResult().getType()));
+    valueToNode[op.getResult()] = dagNode;
+    return dagNode;
   }
 
-  auto dagNode =
-      Node::splat(attr.getInt(), mlirTypeToDagType(op.getResult().getType()));
-  valueToNode[op.getResult()] = dagNode;
-  return dagNode;
+  return findNodeOrMakeNewVariable(op.getResult());
 }
 
 FailureOr<NodePtr> DagBuilder::visit(arith::DivSIOp op) {
