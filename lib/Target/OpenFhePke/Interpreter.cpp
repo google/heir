@@ -1,9 +1,11 @@
 #include "lib/Target/OpenFhePke/Interpreter.h"
 
 #include <algorithm>
+#include <complex>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -111,6 +113,60 @@ using PrivateKeyT = PrivateKey<DCRTPoly>;
 using PublicKeyT = PublicKey<DCRTPoly>;
 using FastRotPrecompT = std::shared_ptr<std::vector<DCRTPoly>>;
 
+static int64_t wrapRotation(int64_t rot, int64_t slots) {
+  int64_t wrapped = rot % slots;
+  return wrapped < 0 ? wrapped + slots : wrapped;
+}
+
+static int64_t findBestBSGSRatio(ArrayRef<int32_t> diags, int64_t slots,
+                                 int64_t logMaxRatio) {
+  int64_t maxRatio = 1LL << logMaxRatio;
+  for (int64_t n1 = 1; n1 < slots; n1 <<= 1) {
+    std::map<int64_t, bool> rotN1Set, rotN2Set;
+    for (auto rot : diags) {
+      int64_t r = wrapRotation(rot, slots);
+      rotN1Set[((r / n1) * n1) & (slots - 1)] = true;
+      rotN2Set[r & (n1 - 1)] = true;
+    }
+    int64_t nbN1 = static_cast<int64_t>(rotN1Set.size()) - 1;
+    int64_t nbN2 = static_cast<int64_t>(rotN2Set.size()) - 1;
+    if (nbN1 > 0) {
+      if (nbN2 == maxRatio * nbN1) return n1;
+      if (nbN2 > maxRatio * nbN1) return n1 / 2;
+    }
+  }
+  return 1;
+}
+
+template <typename FloatT>
+static std::vector<std::vector<std::complex<double>>> makeSparseDiagonals(
+    const std::vector<FloatT>& flatDiagonals, int64_t diagonalCount,
+    int64_t slotCount) {
+  std::vector<std::vector<std::complex<double>>> diagonals(
+      diagonalCount, std::vector<std::complex<double>>(slotCount));
+  for (int64_t diagonal = 0; diagonal < diagonalCount; ++diagonal) {
+    for (int64_t slot = 0; slot < slotCount; ++slot) {
+      diagonals[diagonal][slot] =
+          std::complex<double>(flatDiagonals[diagonal * slotCount + slot], 0.0);
+    }
+  }
+  return diagonals;
+}
+
+template <typename T>
+static std::vector<T> rotateVector(const std::vector<T>& values,
+                                   int64_t rotation) {
+  std::vector<T> rotated(values.size());
+  int64_t slots = static_cast<int64_t>(values.size());
+  if (slots == 0) {
+    return rotated;
+  }
+  for (int64_t slot = 0; slot < slots; ++slot) {
+    rotated[slot] = values[wrapRotation(slot + rotation, slots)];
+  }
+  return rotated;
+}
+
 // Helper function for floor division on integers
 static inline int floorDivInt(int lhs, int rhs) {
   return static_cast<int>(std::floor(static_cast<float>(lhs) / rhs));
@@ -156,6 +212,7 @@ void Interpreter::initializeDispatchTable() {
   REGISTER_OP(AddPlainOp);
   REGISTER_OP(AutomorphOp);
   REGISTER_OP(BootstrapOp);
+  REGISTER_OP(ChebyshevOp);
   REGISTER_OP(DecodeCKKSOp);
   REGISTER_OP(DecodeOp);
   REGISTER_OP(DecryptOp);
@@ -173,6 +230,7 @@ void Interpreter::initializeDispatchTable() {
   REGISTER_OP(KeySwitchDownOp);
   REGISTER_OP(LevelReduceInPlaceOp);
   REGISTER_OP(LevelReduceOp);
+  REGISTER_OP(LinearTransformOp);
   REGISTER_OP(MakeCKKSPackedPlaintextOp);
   REGISTER_OP(MakePackedPlaintextOp);
   REGISTER_OP(ModReduceInPlaceOp);
@@ -1804,6 +1862,131 @@ void Interpreter::visit(BootstrapOp op) {
   auto cc = cryptoContexts.at(op.getCryptoContext());
   auto ct = ciphertexts.at(op.getCiphertext());
   TIME_OPERATION("Bootstrap", op.getOutput(), cc->EvalBootstrap(ct));
+}
+
+void Interpreter::visit(LinearTransformOp op) {
+  auto cc = cryptoContexts.at(op.getCryptoContext());
+  auto ct = ciphertexts.at(op.getCiphertext());
+  auto diagonalsType = dyn_cast<RankedTensorType>(op.getDiagonals().getType());
+  if (!diagonalsType || diagonalsType.getRank() != 2 ||
+      !diagonalsType.hasStaticShape()) {
+    op.emitError("expected a statically shaped rank-2 diagonals tensor");
+    return;
+  }
+
+  int64_t diagonalCount = diagonalsType.getShape()[0];
+  int64_t slotCount = diagonalsType.getShape()[1];
+  std::vector<int32_t> diagonalIndices(op.getDiagonalIndices().begin(),
+                                       op.getDiagonalIndices().end());
+  uint32_t babyStep = (op.getLogBabyStepGiantStepRatio() < 0)
+                          ? static_cast<uint32_t>(slotCount)
+                          : static_cast<uint32_t>(findBestBSGSRatio(
+                                op.getDiagonalIndices(), slotCount,
+                                op.getLogBabyStepGiantStepRatio()));
+
+  std::vector<std::vector<std::complex<double>>> sparseDiagonals;
+  if (auto it = doubleVectors.find(op.getDiagonals());
+      it != doubleVectors.end()) {
+    sparseDiagonals =
+        makeSparseDiagonals(*it->second, diagonalCount, slotCount);
+  } else if (auto it = floatVectors.find(op.getDiagonals());
+             it != floatVectors.end()) {
+    sparseDiagonals =
+        makeSparseDiagonals(*it->second, diagonalCount, slotCount);
+  } else {
+    op.emitError(
+        "expected floating-point diagonal storage for linear transform");
+    return;
+  }
+
+  std::vector<PlaintextT> plaintexts;
+  plaintexts.reserve(diagonalIndices.size());
+  std::vector<uint32_t> babyIndices;
+  babyIndices.reserve(diagonalIndices.size());
+  std::map<uint32_t, std::vector<size_t>> giantToPositions;
+  std::map<uint32_t, bool> babyRotationMap;
+  for (size_t position = 0; position < diagonalIndices.size(); ++position) {
+    uint32_t rot = static_cast<uint32_t>(
+        wrapRotation(diagonalIndices[position], slotCount));
+    uint32_t giant = ((rot / babyStep) * babyStep) & (slotCount - 1);
+    uint32_t baby = rot & (babyStep - 1);
+    babyIndices.push_back(baby);
+    if (baby != 0) {
+      babyRotationMap[baby] = true;
+    }
+    giantToPositions[giant].push_back(position);
+
+    auto shifted =
+        rotateVector(sparseDiagonals[position], -static_cast<int64_t>(giant));
+    plaintexts.push_back(cc->MakeCKKSPackedPlaintext(
+        shifted, /*noiseScaleDeg=*/1, /*level=*/ct->GetLevel(),
+        /*params=*/nullptr, /*slots=*/static_cast<uint32_t>(slotCount)));
+  }
+
+  auto evalLinearTransform = [&]() -> CiphertextT {
+    std::map<uint32_t, CiphertextT> rotatedCiphertexts;
+    rotatedCiphertexts.emplace(0, ct);
+    for (const auto& [baby, _] : babyRotationMap) {
+      rotatedCiphertexts.emplace(
+          baby, cc->EvalRotate(ct, static_cast<int32_t>(baby)));
+    }
+
+    CiphertextT result;
+    bool resultInitialized = false;
+    for (const auto& [giant, positions] : giantToPositions) {
+      CiphertextT inner;
+      bool innerInitialized = false;
+      for (size_t position : positions) {
+        auto product = cc->EvalMult(
+            rotatedCiphertexts.at(babyIndices[position]), plaintexts[position]);
+        if (!innerInitialized) {
+          inner = std::move(product);
+          innerInitialized = true;
+        } else {
+          cc->EvalAddInPlace(inner, product);
+        }
+      }
+
+      if (giant != 0) {
+        inner = cc->EvalRotate(inner, static_cast<int32_t>(giant));
+      }
+
+      if (!resultInitialized) {
+        result = std::move(inner);
+        resultInitialized = true;
+      } else {
+        cc->EvalAddInPlace(result, inner);
+      }
+    }
+    return result;
+  };
+  TIME_OPERATION("LinearTransform", op.getOutput(), evalLinearTransform());
+}
+
+void Interpreter::visit(ChebyshevOp op) {
+  auto cc = cryptoContexts.at(op.getCryptoContext());
+  auto ct = ciphertexts.at(op.getCiphertext());
+
+  std::vector<double> coefficients;
+  coefficients.reserve(op.getCoefficients().size());
+  for (Attribute attr : op.getCoefficients()) {
+    if (auto floatAttr = dyn_cast<FloatAttr>(attr)) {
+      coefficients.push_back(floatAttr.getValueAsDouble());
+      continue;
+    }
+    if (auto integerAttr = dyn_cast<IntegerAttr>(attr)) {
+      coefficients.push_back(integerAttr.getValue().getSExtValue());
+      continue;
+    }
+    op.emitError("expected float or integer Chebyshev coefficients");
+    return;
+  }
+
+  double domainStart = op.getDomainStartAttr().getValueAsDouble();
+  double domainEnd = op.getDomainEndAttr().getValueAsDouble();
+  TIME_OPERATION(
+      "Chebyshev", op.getOutput(),
+      cc->EvalChebyshevSeries(ct, coefficients, domainStart, domainEnd));
 }
 
 // OpenFHE encryption/decryption operations

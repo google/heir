@@ -13,6 +13,8 @@
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
+#include "lib/Dialect/Orion/IR/OrionDialect.h"
+#include "lib/Dialect/Orion/IR/OrionOps.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
@@ -369,6 +371,64 @@ struct ConvertBootstrapOp : public OpConversionPattern<ckks::BootstrapOp> {
   }
 };
 
+struct ConvertOrionLinearTransformOp
+    : public OpConversionPattern<orion::LinearTransformOp> {
+  using OpConversionPattern<orion::LinearTransformOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      orion::LinearTransformOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
+    if (failed(result)) return result;
+    Value cryptoContext = result.value();
+
+    auto diagonalsType =
+        dyn_cast<RankedTensorType>(adaptor.getDiagonals().getType());
+    if (!diagonalsType || diagonalsType.getRank() != 2 ||
+        !diagonalsType.hasStaticShape()) {
+      return rewriter.notifyMatchFailure(
+          op, "expected diagonals to be a statically shaped rank-2 tensor");
+    }
+
+    auto diagonalIndices = op.getDiagonalIndicesAttr().asArrayRef();
+    if (diagonalsType.getShape()[0] !=
+        static_cast<int64_t>(diagonalIndices.size())) {
+      return rewriter.notifyMatchFailure(
+          op, "diagonal count attribute does not match diagonal tensor shape");
+    }
+
+    auto bsgsRatio = op.getBsgsRatioAttr();
+    int64_t logBsgsRatio =
+        static_cast<int64_t>(cast<FloatAttr>(bsgsRatio).getValueAsDouble());
+    auto logBsgsRatioAttr = rewriter.getI64IntegerAttr(logBsgsRatio);
+
+    rewriter.replaceOpWithNewOp<openfhe::LinearTransformOp>(
+        op, openfhe::CiphertextType::get(op.getContext()), cryptoContext,
+        adaptor.getInput(), adaptor.getDiagonals(), op.getDiagonalIndicesAttr(),
+        logBsgsRatioAttr);
+    return success();
+  }
+};
+
+struct ConvertOrionChebyshevOp
+    : public OpConversionPattern<orion::ChebyshevOp> {
+  using OpConversionPattern<orion::ChebyshevOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      orion::ChebyshevOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
+    if (failed(result)) return result;
+    Value cryptoContext = result.value();
+
+    rewriter.replaceOpWithNewOp<openfhe::ChebyshevOp>(
+        op, openfhe::CiphertextType::get(op.getContext()), cryptoContext,
+        adaptor.getInput(), op.getCoefficientsAttr(), op.getDomainStartAttr(),
+        op.getDomainEndAttr());
+    return success();
+  }
+};
+
 }  // namespace
 
 struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
@@ -416,6 +476,7 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
     target.addIllegalDialect<bgv::BGVDialect>();
     target.addIllegalDialect<ckks::CKKSDialect>();
     target.addIllegalDialect<lwe::LWEDialect>();
+    target.addIllegalDialect<orion::OrionDialect>();
 
     RewritePatternSet patterns(context);
     addStructuralConversionPatterns(typeConverter, patterns, target);
@@ -506,7 +567,10 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
         lwe::ConvertLevelReduceOp<bgv::LevelReduceOp>,
         lwe::ConvertLevelReduceOp<ckks::LevelReduceOp>,
         // Bootstrap (CKKS only)
-        ConvertBootstrapOp>(typeConverter, context);
+        ConvertBootstrapOp,
+        // Orion
+        ConvertOrionLinearTransformOp, ConvertOrionChebyshevOp>(typeConverter,
+                                                                context);
 
     ConversionConfig config;
     // We need allowPatternRollback here because failure to legalize an op

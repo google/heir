@@ -143,6 +143,7 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(AddPlainOp op);
   LogicalResult printOperation(AutomorphOp op);
   LogicalResult printOperation(BootstrapOp op);
+  LogicalResult printOperation(ChebyshevOp op);
   LogicalResult printOperation(DecodeCKKSOp op);
   LogicalResult printOperation(DecodeOp op);
   LogicalResult printOperation(DecryptOp op);
@@ -160,6 +161,7 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(KeySwitchDownOp op);
   LogicalResult printOperation(LevelReduceInPlaceOp op);
   LogicalResult printOperation(LevelReduceOp op);
+  LogicalResult printOperation(LinearTransformOp op);
   LogicalResult printOperation(MakeCKKSPackedPlaintextOp op);
   LogicalResult printOperation(MakePackedPlaintextOp op);
   LogicalResult printOperation(ModReduceInPlaceOp op);
@@ -202,6 +204,11 @@ class OpenFhePkeEmitter {
   // Emit an OpenFHE type, using a const specifier if constant is true
   LogicalResult emitType(::mlir::Type type, ::mlir::Location loc,
                          bool constant = false);
+  LogicalResult emitPrecomputeFunction(::mlir::func::FuncOp funcOp);
+  LogicalResult emitPrecomputeSignature(::mlir::func::FuncOp funcOp);
+  bool hasPrecomputeableOps(::mlir::func::FuncOp funcOp);
+  SmallVector<::mlir::Value> getPrecomputeArguments(
+      ::mlir::func::FuncOp funcOp);
 
   std::string getDebugAttrMapName() {
     static int debugAttrMapCount = 0;

@@ -39,7 +39,7 @@ std::string getModulePrelude(OpenfheScheme scheme,
                     scheme == OpenfheScheme::CKKS
                         ? "CKKS"
                         : (scheme == OpenfheScheme::BGV ? "BGV" : "BFV")));
-  return std::string(import) + prelude;
+  return std::string(import) + prelude + std::string(kModuleHelperPrelude);
 }
 
 std::string getWeightsPrelude() { return std::string(kWeightsPreludeTemplate); }

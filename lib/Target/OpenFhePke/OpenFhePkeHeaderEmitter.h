@@ -51,6 +51,8 @@ class OpenFhePkeHeaderEmitter {
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);
   LogicalResult printOperation(::mlir::func::FuncOp op);
+  LogicalResult emitPrecomputeDeclaration(::mlir::func::FuncOp op);
+  bool hasPrecomputeableOps(::mlir::func::FuncOp op);
 
   // Emit an OpenFhe type
   LogicalResult emitType(::mlir::Type type, ::mlir::Location loc);

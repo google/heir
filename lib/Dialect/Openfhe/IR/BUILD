@@ -24,6 +24,7 @@ cc_library(
         ":types_inc_gen",
         "@heir//lib/Dialect:HEIRInterfaces",
         "@heir//lib/Utils",
+        "@heir//lib/Utils:RotationUtils",
         "@heir//lib/Utils/Tablegen:InPlaceOpInterface",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",

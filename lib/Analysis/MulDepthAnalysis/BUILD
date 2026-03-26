@@ -13,6 +13,7 @@ cc_library(
         "@heir//lib/Analysis:Utils",
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect:HEIRInterfaces",
+        "@heir//lib/Dialect/Openfhe/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",

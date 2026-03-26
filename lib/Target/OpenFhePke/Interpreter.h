@@ -167,6 +167,7 @@ class Interpreter {
   void visit(AddPlainOp op);
   void visit(AutomorphOp op);
   void visit(BootstrapOp op);
+  void visit(ChebyshevOp op);
   void visit(DecodeCKKSOp op);
   void visit(DecodeOp op);
   void visit(DecryptOp op);
@@ -184,6 +185,7 @@ class Interpreter {
   void visit(KeySwitchDownOp op);
   void visit(LevelReduceInPlaceOp op);
   void visit(LevelReduceOp op);
+  void visit(LinearTransformOp op);
   void visit(MakeCKKSPackedPlaintextOp op);
   void visit(MakePackedPlaintextOp op);
   void visit(ModReduceInPlaceOp op);

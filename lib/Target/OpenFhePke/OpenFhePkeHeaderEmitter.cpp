@@ -5,6 +5,7 @@
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Target/OpenFhePke/OpenFheUtils.h"
+#include "lib/Utils/TargetUtils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"   // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
@@ -83,7 +84,62 @@ LogicalResult OpenFhePkeHeaderEmitter::printOperation(func::FuncOp funcOp) {
     return res;
   }
   os << ";\n";
+  if (hasPrecomputeableOps(funcOp)) {
+    if (failed(emitPrecomputeDeclaration(funcOp))) {
+      return failure();
+    }
+  }
   os.unindent();
+  return success();
+}
+
+bool OpenFhePkeHeaderEmitter::hasPrecomputeableOps(func::FuncOp funcOp) {
+  bool found = false;
+  funcOp.walk([&](Operation* op) {
+    auto name = op->getName().getStringRef();
+    if (name == "openfhe.linear_transform") {
+      found = true;
+      return WalkResult::interrupt();
+    }
+    if (name == "openfhe.make_ckks_packed_plaintext") {
+      if (isa<BlockArgument>(op->getOperand(1))) {
+        found = true;
+        return WalkResult::interrupt();
+      }
+    }
+    return WalkResult::advance();
+  });
+  return found;
+}
+
+LogicalResult OpenFhePkeHeaderEmitter::emitPrecomputeDeclaration(
+    func::FuncOp funcOp) {
+  os << "void " << canonicalizeDebugPort(funcOp.getName()) << "__precompute(";
+  bool first = true;
+  auto emitArg = [&](llvm::StringRef arg) {
+    if (!first) {
+      os << ", ";
+    }
+    first = false;
+    os << arg;
+  };
+  emitArg("CryptoContextT cc");
+  for (Value arg : funcOp.getArguments()) {
+    if (!isa<ShapedType>(arg.getType())) {
+      continue;
+    }
+    auto type = convertType(arg.getType(), funcOp.getLoc(), /*constant=*/false);
+    if (failed(type)) {
+      return emitError(funcOp.getLoc(),
+                       llvm::formatv("Failed to emit type {0}", arg.getType()));
+    }
+    if (isa<ShapedType>(arg.getType())) {
+      emitArg("const " + type.value() + "&");
+    } else {
+      emitArg(type.value());
+    }
+  }
+  os << ");\n";
   return success();
 }
 

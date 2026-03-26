@@ -263,6 +263,42 @@ module attributes {scheme.bgv} {
 
 // -----
 
+!cc = !openfhe.crypto_context
+!ct = !openfhe.ciphertext
+
+// CHECK: CiphertextT test_linear_transform(
+// CHECK: auto& [[LT:.*]] = heir_linear_transform_cache()[heir_cache_key("test_linear_transform::[[RESNAME:.*]]", [[CC:.*]], [[DIAGS:.*]], [[ARG:.*]]->GetLevel())];
+// CHECK: if (![[LT]].initialized) {
+// CHECK: std::vector<int32_t> [[DIAGIDX:.*]] = {0, 1, 2};
+// CHECK: [[LT]] = heir_precompute_linear_transform([[CC]], [[DIAGS]], [[DIAGIDX]], 0, [[ARG]]->GetLevel());
+// CHECK: auto [[RES:.*]] = heir_eval_linear_transform([[CC]], [[ARG]], [[LT]]);
+// CHECK: return [[RES]];
+module attributes {scheme.ckks} {
+  func.func @test_linear_transform(%cc: !cc, %arg0: !ct) -> !ct {
+    %diags = arith.constant dense<[[1.0, 2.0, 3.0, 4.0], [0.5, 0.0, 0.0, 0.0], [0.25, 0.0, 0.0, 0.0]]> : tensor<3x4xf64>
+    %0 = openfhe.linear_transform %cc, %arg0, %diags {diagonal_indices = array<i32: 0, 1, 2>, logBabyStepGiantStepRatio = 0 : i64} : (!cc, !ct, tensor<3x4xf64>) -> !ct
+    return %0 : !ct
+  }
+}
+
+// -----
+
+!cc = !openfhe.crypto_context
+!ct = !openfhe.ciphertext
+
+// CHECK: CiphertextT test_chebyshev(
+// CHECK: std::vector<double> [[COEFFS:.*]] = {0, 0.75, 0, 0.25};
+// CHECK: auto [[RES:.*]] = [[CC:.*]]->EvalChebyshevSeries([[ARG:.*]], [[COEFFS]], -1, 1);
+// CHECK: return [[RES]];
+module attributes {scheme.ckks} {
+  func.func @test_chebyshev(%cc: !cc, %arg0: !ct) -> !ct {
+    %0 = openfhe.chebyshev %cc, %arg0 {coefficients = [0.0 : f64, 0.75 : f64, 0.0 : f64, 0.25 : f64], domain_start = -1.0 : f64, domain_end = 1.0 : f64} : (!cc, !ct) -> !ct
+    return %0 : !ct
+  }
+}
+
+// -----
+
 module attributes {scheme.bgv} {
   // CHECK: test_concat
   func.func @test_concat() -> tensor<64xi16> {

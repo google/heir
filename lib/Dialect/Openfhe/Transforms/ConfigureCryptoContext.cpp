@@ -1,6 +1,7 @@
 #include "lib/Dialect/Openfhe/Transforms/ConfigureCryptoContext.h"
 
 #include <cstdint>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -55,6 +56,7 @@ struct Config {
   // computed from IR
   bool hasRelinOp;
   bool hasBootstrapOp;
+  bool hasChebyshevOp;
   SmallVector<int64_t> rotIndices;
   // inherited from IR mgmt.openfhe_params
   int64_t evalAddCount;
@@ -120,6 +122,43 @@ struct ConfigureCryptoContext
     return result;
   }
 
+  bool hasChebyshevOp(func::FuncOp op) {
+    bool result = false;
+    walkFuncAndCallees(op, [&](Operation* innerOp) {
+      if (isa<openfhe::ChebyshevOp>(innerOp)) {
+        result = true;
+        return WalkResult::interrupt();
+      }
+      return WalkResult::advance();
+    });
+    return result;
+  }
+
+  static int64_t bitWidth(int64_t value) {
+    uint64_t v = static_cast<uint64_t>(value);
+    int64_t bits = 0;
+    while (v != 0) {
+      ++bits;
+      v >>= 1;
+    }
+    return bits;
+  }
+
+  static int64_t dominantBitWidth(ArrayRef<int64_t> values) {
+    llvm::DenseMap<int64_t, int64_t> counts;
+    int64_t bestWidth = 0;
+    int64_t bestCount = -1;
+    for (int64_t value : values) {
+      int64_t width = bitWidth(value);
+      int64_t count = ++counts[width];
+      if (count > bestCount || (count == bestCount && width < bestWidth)) {
+        bestWidth = width;
+        bestCount = count;
+      }
+    }
+    return bestWidth;
+  }
+
   // function that generates the crypto context with proper parameters
   LogicalResult generateGenFunc(func::FuncOp op, const std::string& genFuncName,
                                 ImplicitLocOpBuilder& builder) {
@@ -156,7 +195,8 @@ struct ConfigureCryptoContext
         /*scalingTechniqueFixedManual*/ config.scalingTechniqueFixedManual);
     Value cryptoContext = openfhe::GenContextOp::create(
         builder, openfheContextType, ccParams,
-        BoolAttr::get(builder.getContext(), config.hasBootstrapOp));
+        BoolAttr::get(builder.getContext(),
+                      config.hasBootstrapOp || config.hasChebyshevOp));
 
     func::ReturnOp::create(builder, cryptoContext);
     return success();
@@ -186,7 +226,7 @@ struct ConfigureCryptoContext
     Value cryptoContext = configFuncOp.getArgument(0);
     Value privateKey = configFuncOp.getArgument(1);
 
-    if (config.hasRelinOp || config.hasBootstrapOp) {
+    if (config.hasRelinOp || config.hasBootstrapOp || config.hasChebyshevOp) {
       openfhe::GenMulKeyOp::create(builder, cryptoContext, privateKey);
     }
     if (!config.rotIndices.empty()) {
@@ -234,6 +274,22 @@ struct ConfigureCryptoContext
 
   LogicalResult getConfig(func::FuncOp op) {
     auto module = op->getParentOfType<ModuleOp>();
+    std::optional<int64_t> ckksSchemeMulDepth;
+
+    // Start from explicit pass options. Scheme parameters below only fill in
+    // values the user did not already override.
+    config.ringDim = ringDim;
+    config.batchSize = batchSize;
+    config.firstModSize = firstModSize;
+    config.scalingModSize = scalingModSize;
+    config.digitSize = digitSize;
+    config.numLargeDigits = numLargeDigits;
+    config.maxRelinSkDeg = maxRelinSkDeg;
+    config.insecure = insecure;
+    config.keySwitchingTechniqueBV = keySwitchingTechniqueBV;
+    config.scalingTechniqueFixedManual = scalingTechniqueFixedManual;
+    config.levelBudgetDecode = levelBudgetDecode;
+    config.levelBudgetEncode = levelBudgetEncode;
 
     // remove bgv.schemeParam attribute if present
     // fill encryptionTechniqueExtended and plaintextModulus
@@ -267,7 +323,40 @@ struct ConfigureCryptoContext
             "Extended encryption technique is not supported in OpenFHE CKKS");
         return failure();
       }
+      auto Q = schemeParamAttr.getQ().asArrayRef();
+      ckksSchemeMulDepth = static_cast<int64_t>(Q.size()) - 1;
+      if (config.ringDim == 0) {
+        config.ringDim = 1LL << schemeParamAttr.getLogN();
+      }
+      if (config.batchSize == 0 && schemeParamAttr.getLogN() > 0) {
+        config.batchSize = 1LL << (schemeParamAttr.getLogN() - 1);
+      }
+      if (config.firstModSize == 0 && !Q.empty()) {
+        config.firstModSize = bitWidth(Q.front());
+      }
+      if (config.scalingModSize == 0) {
+        if (Q.size() > 1) {
+          config.scalingModSize = dominantBitWidth(Q.drop_front());
+        } else {
+          config.scalingModSize = schemeParamAttr.getLogDefaultScale();
+        }
+      }
+      // CKKS scheme parameters from Orion describe an exact modulus chain.
+      // OpenFHE's default FLEXIBLEAUTOEXT mode adds extra Q towers, which
+      // breaks that exact match. Unless the user explicitly requested
+      // otherwise, switch to FIXEDMANUAL when inheriting the chain from the IR.
+      if (!scalingTechniqueFixedManual) {
+        config.scalingTechniqueFixedManual = true;
+      }
       module->removeAttr(ckks::CKKSDialect::kSchemeParamAttrName);
+    }
+
+    // OpenFHE rejects explicit ring dimensions that do not meet its built-in
+    // HE-standard tables. This pass already documents that manually setting
+    // ringDim implies insecure mode; apply that rule uniformly, including when
+    // ringDim is inherited from an exact CKKS schemeParam.
+    if (config.ringDim != 0) {
+      config.insecure = true;
     }
 
     LLVM_DEBUG(llvm::dbgs() << "Recomputing mul depth\n");
@@ -299,6 +388,7 @@ struct ConfigureCryptoContext
     });
 
     config.hasBootstrapOp = hasBootstrapOp(op);
+    config.hasChebyshevOp = hasChebyshevOp(op);
     // TODO(#1207): determine mulDepth earlier in mgmt level. This solely
     // depends on the level budgets and secretKeyDist here we use the value for
     // UNIFORM_TERNARY
@@ -314,6 +404,13 @@ struct ConfigureCryptoContext
     // pass option could override mulDepth
     if (mulDepth != 0) {
       config.mulDepth = mulDepth;
+    }
+
+    // When CKKS scheme parameters are present in the IR, they already encode
+    // the intended modulus chain exactly. Prefer that exact chain over
+    // re-derived OpenFHE depth heuristics.
+    if (ckksSchemeMulDepth.has_value()) {
+      config.mulDepth = static_cast<int>(*ckksSchemeMulDepth);
     }
 
     // relin and rotation
@@ -348,20 +445,6 @@ struct ConfigureCryptoContext
       // remove the attribute after reading
       op->removeAttr(mgmt::MgmtDialect::kArgOpenfheParamsAttrName);
     }
-
-    // fill config with pass options
-    config.ringDim = ringDim;
-    config.batchSize = batchSize;
-    config.firstModSize = firstModSize;
-    config.scalingModSize = scalingModSize;
-    config.digitSize = digitSize;
-    config.numLargeDigits = numLargeDigits;
-    config.maxRelinSkDeg = maxRelinSkDeg;
-    config.insecure = insecure;
-    config.keySwitchingTechniqueBV = keySwitchingTechniqueBV;
-    config.scalingTechniqueFixedManual = scalingTechniqueFixedManual;
-    config.levelBudgetDecode = levelBudgetDecode;
-    config.levelBudgetEncode = levelBudgetEncode;
 
     // for BFV, keep only one of MulDepth/EvalAddCount/KeySwitchCount
     // If MulDepth != 0, clean EvalAddCount/KeySwitchCount

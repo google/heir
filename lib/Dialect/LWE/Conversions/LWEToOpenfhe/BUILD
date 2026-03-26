@@ -18,6 +18,7 @@ cc_library(
         "@heir//lib/Dialect/CKKS/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
+        "@heir//lib/Dialect/Orion/IR:Dialect",
         "@heir//lib/Utils",
         "@heir//lib/Utils:ConversionUtils",
         "@llvm-project//llvm:Support",

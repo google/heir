@@ -10,6 +10,18 @@
 
 // CHECK: using namespace lbcrypto;
 // CHECK: namespace py = pybind11;
+// CHECK: CiphertextT encrypt_ckks(CryptoContextT cc, const std::vector<double>& values,
+// CHECK:                          PublicKeyT pk) {
+// CHECK:     auto pt = cc->MakeCKKSPackedPlaintext(values);
+// CHECK:     return cc->Encrypt(pk, pt);
+// CHECK: }
+// CHECK: std::vector<double> decrypt_ckks(CryptoContextT cc, CiphertextT ct,
+// CHECK:                                  PrivateKeyT sk, size_t length) {
+// CHECK:     PlaintextT pt;
+// CHECK:     cc->Decrypt(sk, ct, &pt);
+// CHECK:     pt->SetLength(length);
+// CHECK:     return pt->GetRealPackedValue();
+// CHECK: }
 // CHECK: void bind_common(py::module &m)
 // CHECK: {
 // CHECK:    py::class_<PublicKeyImpl<DCRTPoly>, std::shared_ptr<PublicKeyImpl<DCRTPoly>>>(m, "PublicKey", py::module_local())
@@ -28,6 +40,10 @@
 
 // CHECK: PYBIND11_MODULE(_heir_foo, m) {
 // CHECK:   bind_common(m);
+// CHECK:   m.def("encrypt_ckks", &encrypt_ckks,
+// CHECK-NEXT:         py::call_guard<py::gil_scoped_release>());
+// CHECK:   m.def("decrypt_ckks", &decrypt_ckks,
+// CHECK-NEXT:         py::call_guard<py::gil_scoped_release>());
 // CHECK:   m.def("simple_sum", &simple_sum, py::call_guard<py::gil_scoped_release>());
 // CHECK:   m.def("simple_sum__encrypt", &simple_sum__encrypt, py::call_guard<py::gil_scoped_release>());
 // CHECK:   m.def("simple_sum__decrypt", &simple_sum__decrypt, py::call_guard<py::gil_scoped_release>());

@@ -6,9 +6,11 @@
 
 #include "lib/Analysis/Utils.h"
 #include "lib/Dialect/HEIRInterfaces.h"
+#include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
+#include "llvm/include/llvm/Support/MathExtras.h"          // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
@@ -36,8 +38,42 @@ static void debugLog(StringRef opName,
   });
 };
 
+static int64_t estimateChebyshevDepth(openfhe::ChebyshevOp op) {
+  int64_t degree = std::max<int64_t>(0, op.getCoefficients().size() - 1);
+  if (degree == 0) {
+    return 0;
+  }
+
+  bool isNormalizedDomain = false;
+  if (auto start = dyn_cast<FloatAttr>(op.getDomainStartAttr())) {
+    if (auto end = dyn_cast<FloatAttr>(op.getDomainEndAttr())) {
+      isNormalizedDomain =
+          start.getValueAsDouble() == -1.0 && end.getValueAsDouble() == 1.0;
+    }
+  }
+
+  int64_t transformDepth = isNormalizedDomain ? 0 : 1;
+  if (degree == 1) {
+    return transformDepth;
+  }
+
+  return transformDepth + llvm::Log2_64_Ceil(static_cast<uint64_t>(degree));
+}
+
 FailureOr<int64_t> deriveResultMulDepth(
     Operation* op, ArrayRef<const MulDepthLattice*> operands) {
+  if (auto chebyshevOp = dyn_cast<openfhe::ChebyshevOp>(op)) {
+    int64_t operandsMulDepth = 0;
+    for (auto* operand : operands) {
+      if (!operand || !operand->getValue().isInitialized()) {
+        continue;
+      }
+      operandsMulDepth =
+          std::max(operandsMulDepth, operand->getValue().getMulDepth());
+    }
+    return operandsMulDepth + estimateChebyshevDepth(chebyshevOp);
+  }
+
   if (isa<ResetsMulDepthOpInterface>(op)) return 0;
 
   int64_t operandsMulDepth = 0;

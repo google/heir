@@ -455,6 +455,38 @@ def BootstrapOp : Openfhe_UnaryOp<"bootstrap", [Pure, ResetsMulDepthOpInterface]
   let summary = "OpenFHE bootstrap operation of a ciphertext. (For CKKS)";
 }
 
+def LinearTransformOp : Openfhe_Op<"linear_transform", [
+  Pure,
+  AllTypesMatch<["ciphertext", "output"]>,
+  IncreasesMulDepthOpInterface,
+  DeclareOpInterfaceMethods<RotationOpInterface>
+]> {
+  let summary = "Apply an OpenFHE CKKS linear transform to a ciphertext.";
+  let arguments = (ins
+    Openfhe_CryptoContext:$cryptoContext,
+    Openfhe_Ciphertext:$ciphertext,
+    2DTensorOf<[AnyFloat]>:$diagonals,
+    DenseI32ArrayAttr:$diagonal_indices,
+    I64Attr:$logBabyStepGiantStepRatio
+  );
+  let results = (outs Openfhe_Ciphertext:$output);
+}
+
+def ChebyshevOp : Openfhe_Op<"chebyshev", [
+  Pure,
+  AllTypesMatch<["ciphertext", "output"]>
+]> {
+  let summary = "Evaluate a Chebyshev series with the OpenFHE CKKS API.";
+  let arguments = (ins
+    Openfhe_CryptoContext:$cryptoContext,
+    Openfhe_Ciphertext:$ciphertext,
+    ArrayAttr:$coefficients,
+    Builtin_FloatAttr:$domain_start,
+    Builtin_FloatAttr:$domain_end
+  );
+  let results = (outs Openfhe_Ciphertext:$output);
+}
+
 // No in-place fast rotation variants
 def FastRotationPrecomputeOp : Openfhe_Op<"fast_rotation_precompute", [Pure]> {
   let arguments = (ins

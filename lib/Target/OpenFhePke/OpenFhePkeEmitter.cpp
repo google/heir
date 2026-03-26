@@ -8,6 +8,7 @@
 #include <functional>
 #include <ios>
 #include <iterator>
+#include <map>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -22,6 +23,7 @@
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
 #include "lib/Target/OpenFhePke/OpenFheUtils.h"
 #include "lib/Utils/TargetUtils.h"
+#include "llvm/include/llvm/ADT/DenseSet.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/StringExtras.h"        // from @llvm-project
@@ -149,6 +151,36 @@ FailureOr<std::string> printOneDimDenseElementsAttr(DenseElementsAttr attr) {
   return ss.str();
 }
 
+FailureOr<std::string> printDoubleArrayAttr(ArrayAttr attr) {
+  std::string valueStr;
+  llvm::raw_string_ostream ss(valueStr);
+  ss << "{";
+  for (const auto& [index, element] : llvm::enumerate(attr)) {
+    if (index != 0) ss << ", ";
+    if (auto floatAttr = dyn_cast<FloatAttr>(element)) {
+      auto value = printFloatAttr(floatAttr);
+      if (failed(value)) return failure();
+      ss << value.value();
+      continue;
+    }
+    if (auto intAttr = dyn_cast<IntegerAttr>(element)) {
+      ss << intAttr.getValue().getSExtValue();
+      continue;
+    }
+    return failure();
+  }
+  ss << "}";
+  return ss.str();
+}
+
+std::string printI32Vector(ArrayRef<int32_t> values) {
+  std::vector<std::string> valueStrings;
+  valueStrings.reserve(values.size());
+  llvm::transform(values, std::back_inserter(valueStrings),
+                  [](int32_t value) { return std::to_string(value); });
+  return "{" + llvm::join(valueStrings, ", ") + "}";
+}
+
 // Adds the given DenseElementsAttr to the weights map.
 LogicalResult addWeightTo(DenseElementsAttr attr, std::string& name,
                           Weights* weights) {
@@ -209,6 +241,29 @@ FailureOr<std::string> getWeightType(Type type) {
   return result;
 }
 
+FailureOr<int64_t> getOrionLevel(Value value) {
+  auto blockArg = dyn_cast<BlockArgument>(value);
+  if (!blockArg) {
+    return failure();
+  }
+
+  auto funcOp = dyn_cast<func::FuncOp>(blockArg.getOwner()->getParentOp());
+  if (!funcOp) {
+    return failure();
+  }
+
+  DictionaryAttr attrs = funcOp.getArgAttrDict(blockArg.getArgNumber());
+  if (!attrs) {
+    return failure();
+  }
+
+  auto levelAttr = dyn_cast_or_null<IntegerAttr>(attrs.get("orion.level"));
+  if (!levelAttr) {
+    return failure();
+  }
+  return levelAttr.getInt();
+}
+
 }  // namespace
 
 std::string OpenFhePkeEmitter::getConstantOrValue(Value value) {
@@ -261,16 +316,17 @@ LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
               [&](auto op) { return printOperation(op); })
           // OpenFHE ops
           .Case<AddInPlaceOp, AddOp, AddPlainInPlaceOp, AddPlainOp, AutomorphOp,
-                BootstrapOp, DecryptOp, EncryptOp, FastRotationOp,
+                BootstrapOp, ChebyshevOp, DecryptOp, EncryptOp, FastRotationOp,
                 FastRotationExtOp, FastRotationPrecomputeOp, GenBootstrapKeyOp,
                 GenContextOp, GenMulKeyOp, GenParamsOp, GenRotKeyOp,
                 KeySwitchDownOp, KeySwitchInPlaceOp, KeySwitchOp,
-                LevelReduceInPlaceOp, LevelReduceOp, MakeCKKSPackedPlaintextOp,
-                MakePackedPlaintextOp, ModReduceInPlaceOp, ModReduceOp,
-                MulConstInPlaceOp, MulConstOp, MulNoRelinOp, MulOp, MulPlainOp,
-                NegateInPlaceOp, NegateOp, RelinInPlaceOp, RelinOp, RotOp,
-                SetupBootstrapOp, SquareInPlaceOp, SquareOp, SubInPlaceOp,
-                SubOp, SubPlainInPlaceOp, SubPlainOp>(
+                LevelReduceInPlaceOp, LevelReduceOp, LinearTransformOp,
+                MakeCKKSPackedPlaintextOp, MakePackedPlaintextOp,
+                ModReduceInPlaceOp, ModReduceOp, MulConstInPlaceOp, MulConstOp,
+                MulNoRelinOp, MulOp, MulPlainOp, NegateInPlaceOp, NegateOp,
+                RelinInPlaceOp, RelinOp, RotOp, SetupBootstrapOp,
+                SquareInPlaceOp, SquareOp, SubInPlaceOp, SubOp,
+                SubPlainInPlaceOp, SubPlainOp>(
               [&](auto op) { return printOperation(op); })
           .Default([&](Operation&) {
             return emitError(op.getLoc(), "unable to find printer for op");
@@ -352,6 +408,160 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::FuncOp funcOp) {
       }
     }
   }
+
+  os.unindent();
+  os << "}\n";
+  if (hasPrecomputeableOps(funcOp)) {
+    os << "\n";
+    if (failed(emitPrecomputeFunction(funcOp))) {
+      return failure();
+    }
+  }
+  return success();
+}
+
+bool OpenFhePkeEmitter::hasPrecomputeableOps(func::FuncOp funcOp) {
+  bool found = false;
+  funcOp.walk([&](Operation* op) {
+    if (isa<LinearTransformOp>(op)) {
+      found = true;
+      return WalkResult::interrupt();
+    }
+    if (auto makePlain = dyn_cast<MakeCKKSPackedPlaintextOp>(op)) {
+      if (isa<BlockArgument>(makePlain.getValue())) {
+        found = true;
+        return WalkResult::interrupt();
+      }
+    }
+    return WalkResult::advance();
+  });
+  return found;
+}
+
+SmallVector<Value> OpenFhePkeEmitter::getPrecomputeArguments(
+    func::FuncOp funcOp) {
+  SmallVector<Value> args;
+  for (Value arg : funcOp.getArguments()) {
+    if (isa<CryptoContextType>(arg.getType()) ||
+        isa<CiphertextType>(arg.getType()) ||
+        isa<PlaintextType>(arg.getType()) ||
+        isa<PrivateKeyType>(arg.getType()) ||
+        isa<PublicKeyType>(arg.getType()) || isa<EvalKeyType>(arg.getType())) {
+      continue;
+    }
+    args.push_back(arg);
+  }
+  return args;
+}
+
+LogicalResult OpenFhePkeEmitter::emitPrecomputeSignature(func::FuncOp funcOp) {
+  os << "void " << canonicalizeDebugPort(funcOp.getName()) << "__precompute(";
+  auto precomputeArgs = getPrecomputeArguments(funcOp);
+  SmallVector<std::string> argStrings;
+  argStrings.reserve(precomputeArgs.size() + 1);
+  argStrings.push_back("CryptoContextT cc");
+  for (Value arg : precomputeArgs) {
+    auto type = convertType(arg.getType(), funcOp.getLoc(), /*constant=*/false);
+    if (failed(type)) {
+      return emitError(funcOp.getLoc(),
+                       llvm::formatv("Failed to emit type {0}", arg.getType()));
+    }
+    std::string typeName = type.value();
+    if (isa<ShapedType>(arg.getType())) {
+      argStrings.push_back("const " + typeName + "& " +
+                           variableNames->getNameForValue(arg));
+    } else {
+      argStrings.push_back(typeName + " " +
+                           variableNames->getNameForValue(arg));
+    }
+  }
+  os << llvm::join(argStrings, ", ");
+  os << ")";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::emitPrecomputeFunction(func::FuncOp funcOp) {
+  if (failed(emitPrecomputeSignature(funcOp))) {
+    return failure();
+  }
+  os << " {\n";
+  os.indent();
+
+  std::string contextName = "cc";
+  funcOp.walk([&](Operation* op) {
+    if (auto linearTransform = dyn_cast<LinearTransformOp>(op)) {
+      auto diagonalsType =
+          dyn_cast<RankedTensorType>(linearTransform.getDiagonals().getType());
+      auto level = getOrionLevel(linearTransform.getDiagonals());
+      if (!diagonalsType || diagonalsType.getRank() != 2 ||
+          !diagonalsType.hasStaticShape() || failed(level)) {
+        return WalkResult::advance();
+      }
+
+      std::string diagonalsName =
+          variableNames->getNameForValue(linearTransform.getDiagonals());
+      std::string cacheVar =
+          variableNames->getNameForValue(linearTransform.getResult()) + "_lt";
+      std::string diagonalIndicesName = cacheVar + "_diagonal_indices";
+      std::string cacheKey(canonicalizeDebugPort(funcOp.getName()));
+      cacheKey += "::";
+      cacheKey += variableNames->getNameForValue(linearTransform.getResult());
+
+      os << "auto& " << cacheVar << " = heir_linear_transform_cache()["
+         << "heir_cache_key(\"" << cacheKey << "\", " << contextName << ", "
+         << diagonalsName << ", " << "heir_openfhe_level_from_orion("
+         << contextName << ", " << level.value() << "))];\n";
+      os << "std::vector<int32_t> " << diagonalIndicesName << " = "
+         << printI32Vector(linearTransform.getDiagonalIndices()) << ";\n";
+      os << cacheVar << " = heir_precompute_linear_transform(" << contextName
+         << ", " << diagonalsName << ", " << diagonalIndicesName << ", "
+         << linearTransform.getLogBabyStepGiantStepRatio() << ", "
+         << "heir_openfhe_level_from_orion(" << contextName << ", "
+         << level.value() << "));\n";
+    } else if (auto makePlain = dyn_cast<MakeCKKSPackedPlaintextOp>(op)) {
+      auto inputType =
+          dyn_cast<RankedTensorType>(makePlain.getValue().getType());
+      if (!inputType || !isa<BlockArgument>(makePlain.getValue())) {
+        return WalkResult::advance();
+      }
+      std::string inputVarName =
+          variableNames->getNameForValue(makePlain.getValue());
+      std::string inputExpr = inputVarName;
+      if (getElementTypeOrSelf(makePlain.getValue().getType()).isInteger()) {
+        os << "std::vector<double> " << inputVarName << "_d;\n";
+        os << inputVarName << "_d.reserve(" << inputVarName << ".size());\n";
+        os << "for (auto i = 0; i < " << inputVarName << ".size(); ++i) {\n";
+        os << "  " << inputVarName << "_d.push_back(" << inputVarName
+           << "[i]);\n";
+        os << "}\n";
+        inputExpr = inputVarName + "_d";
+      }
+
+      std::string filledName =
+          variableNames->getNameForValue(makePlain.getResult()) + "_filled";
+      std::string filledLengthName = filledName + "_n";
+      std::string cacheKey(canonicalizeDebugPort(funcOp.getName()));
+      cacheKey += "::";
+      cacheKey += variableNames->getNameForValue(makePlain.getResult());
+      std::string cacheInputName =
+          variableNames->getNameForValue(makePlain.getValue());
+      os << "auto " << filledLengthName << " = " << contextName
+         << "->GetCryptoParameters()->GetElementParams()->GetRingDimension() / "
+            "2;\n";
+      os << "auto " << filledName << " = " << inputExpr << ";\n";
+      os << filledName << ".clear();\n";
+      os << filledName << ".reserve(" << filledLengthName << ");\n";
+      os << "for (auto i = 0; i < " << filledLengthName << "; ++i) {\n";
+      os << "  " << filledName << ".push_back(" << inputExpr << "[i % "
+         << inputExpr << ".size()]);\n";
+      os << "}\n";
+      os << "heir_ckks_plaintext_cache()[heir_cache_key(\"" << cacheKey
+         << "\", " << contextName << ", " << cacheInputName
+         << ")] = " << contextName << "->MakeCKKSPackedPlaintext(" << filledName
+         << ");\n";
+    }
+    return WalkResult::advance();
+  });
 
   os.unindent();
   os << "}\n";
@@ -918,6 +1128,86 @@ LogicalResult OpenFhePkeEmitter::printOperation(KeySwitchOp op) {
 LogicalResult OpenFhePkeEmitter::printOperation(BootstrapOp op) {
   return printEvalMethod(op.getResult(), op.getCryptoContext(),
                          {op.getCiphertext()}, "EvalBootstrap");
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(LinearTransformOp op) {
+  auto diagonalsType = dyn_cast<RankedTensorType>(op.getDiagonals().getType());
+  if (!diagonalsType || diagonalsType.getRank() != 2 ||
+      !diagonalsType.hasStaticShape()) {
+    return op.emitError("expected a statically shaped rank-2 tensor");
+  }
+
+  auto parentFunc = op->getParentOfType<func::FuncOp>();
+  auto level = getOrionLevel(op.getDiagonals());
+
+  std::string contextName =
+      variableNames->getNameForValue(op.getCryptoContext());
+  std::string ciphertextName =
+      variableNames->getNameForValue(op.getCiphertext());
+  std::string diagonalsName = variableNames->getNameForValue(op.getDiagonals());
+  std::string resultName = variableNames->getNameForValue(op.getResult());
+  std::string cacheName = resultName + "_lt";
+  std::string diagonalIndicesName = cacheName + "_diagonal_indices";
+  std::string levelExpr =
+      succeeded(level) ? ("heir_openfhe_level_from_orion(" + contextName +
+                          ", " + std::to_string(level.value()) + ")")
+                       : (ciphertextName + "->GetLevel()");
+  if (parentFunc) {
+    std::string cacheKey(canonicalizeDebugPort(parentFunc.getName()));
+    cacheKey += "::";
+    cacheKey += resultName;
+    os << "auto& " << cacheName << " = heir_linear_transform_cache()["
+       << "heir_cache_key(\"" << cacheKey << "\", " << contextName << ", "
+       << diagonalsName << ", " << levelExpr << ")];\n";
+    os << "if (!" << cacheName << ".initialized) {\n";
+    os << "  std::vector<int32_t> " << diagonalIndicesName << " = "
+       << printI32Vector(op.getDiagonalIndices()) << ";\n";
+    os << "  " << cacheName << " = heir_precompute_linear_transform("
+       << contextName << ", " << diagonalsName << ", " << diagonalIndicesName
+       << ", " << op.getLogBabyStepGiantStepRatio() << ", " << levelExpr
+       << ");\n";
+    os << "}\n";
+    os << "auto " << resultName << " = heir_eval_linear_transform("
+       << contextName << ", " << ciphertextName << ", " << cacheName << ");\n";
+    return success();
+  }
+  os << "std::vector<int32_t> " << diagonalIndicesName << " = "
+     << printI32Vector(op.getDiagonalIndices()) << ";\n";
+  os << "auto " << cacheName << " = heir_precompute_linear_transform("
+     << contextName << ", " << diagonalsName << ", " << diagonalIndicesName
+     << ", " << op.getLogBabyStepGiantStepRatio() << ", " << levelExpr
+     << ");\n";
+  os << "auto " << resultName << " = heir_eval_linear_transform(" << contextName
+     << ", " << ciphertextName << ", " << cacheName << ");\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(ChebyshevOp op) {
+  auto coefficients = printDoubleArrayAttr(op.getCoefficients());
+  if (failed(coefficients)) {
+    return op.emitError("failed to print Chebyshev coefficients");
+  }
+
+  auto domainStart = printFloatAttr(op.getDomainStartAttr());
+  if (failed(domainStart)) {
+    return op.emitError("failed to print Chebyshev domain start");
+  }
+  auto domainEnd = printFloatAttr(op.getDomainEndAttr());
+  if (failed(domainEnd)) {
+    return op.emitError("failed to print Chebyshev domain end");
+  }
+
+  std::string coefficientsName =
+      variableNames->getNameForValue(op.getResult()) + "_coefficients";
+  os << "std::vector<double> " << coefficientsName << " = "
+     << coefficients.value() << ";\n";
+  os << "auto " << variableNames->getNameForValue(op.getResult()) << " = "
+     << variableNames->getNameForValue(op.getCryptoContext())
+     << "->EvalChebyshevSeries("
+     << variableNames->getNameForValue(op.getCiphertext()) << ", "
+     << coefficientsName << ", " << domainStart.value() << ", "
+     << domainEnd.value() << ");\n";
+  return success();
 }
 
 // InPlace methods
@@ -1675,9 +1965,28 @@ LogicalResult OpenFhePkeEmitter::printOperation(
 LogicalResult OpenFhePkeEmitter::printOperation(
     openfhe::MakeCKKSPackedPlaintextOp op) {
   std::string inputVarName = variableNames->getNameForValue(op.getValue());
+  std::string resultName = variableNames->getNameForValue(op.getResult());
   FailureOr<Value> resultCC = getContextualCryptoContext(op.getOperation());
   if (failed(resultCC)) return resultCC;
   std::string cc = variableNames->getNameForValue(resultCC.value());
+  auto parentFunc = op->getParentOfType<func::FuncOp>();
+  bool cacheable =
+      isa<BlockArgument>(op.getValue()) && static_cast<bool>(parentFunc);
+  std::string cacheKey;
+  if (cacheable) {
+    cacheKey = canonicalizeDebugPort(parentFunc.getName());
+    cacheKey += "::";
+    cacheKey += resultName;
+    std::string cacheVar = resultName + "_cache";
+    os << "PlaintextT " << resultName << ";\n";
+    os << "auto " << cacheVar
+       << " = heir_ckks_plaintext_cache()[heir_cache_key(\"" << cacheKey
+       << "\", " << cc << ", " << inputVarName << ")];\n";
+    os << "if (" << cacheVar << ") {\n";
+    os << "  " << resultName << " = " << cacheVar << ";\n";
+    os << "} else {\n";
+    os.indent();
+  }
 
   // In certain conditions, we might end up with the input being
   // tensor<..xi64> which isn't a valid input type for
@@ -1696,9 +2005,17 @@ LogicalResult OpenFhePkeEmitter::printOperation(
   if (skipVectorResizing_) {
     // Cannot use const auto& here:
     // https://github.com/openfheorg/openfhe-development/issues/1046
-    os << "auto " << variableNames->getNameForValue(op.getResult()) << " = ";
+    if (!cacheable) {
+      os << "auto " << resultName << " = ";
+    } else {
+      os << resultName << " = ";
+    }
     os << variableNames->getNameForValue(resultCC.value())
        << "->MakeCKKSPackedPlaintext(" << inputVarName << ");\n";
+    if (cacheable) {
+      os.unindent();
+      os << "}\n";
+    }
     return success();
   }
   // cyclic repetition to mitigate openfhe zero-padding (#645)
@@ -1719,9 +2036,18 @@ LogicalResult OpenFhePkeEmitter::printOperation(
 
   // Cannot use const auto& here:
   // https://github.com/openfheorg/openfhe-development/issues/1046
-  os << "auto " << variableNames->getNameForValue(op.getResult()) << " = ";
+  if (!cacheable) {
+    os << "auto " << resultName << " = ";
+  } else {
+    os << resultName << " = ";
+  }
   os << variableNames->getNameForValue(resultCC.value())
      << "->MakeCKKSPackedPlaintext(" << inputVarFilledName << ");\n";
+
+  if (cacheable) {
+    os.unindent();
+    os << "}\n";
+  }
 
   return success();
 }

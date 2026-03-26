@@ -4,6 +4,7 @@
 #include <optional>
 #include <vector>
 
+#include "lib/Utils/RotationUtils.h"
 #include "lib/Utils/Utils.h"
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -188,6 +189,21 @@ LogicalResult RotOp::verify() {
 ::llvm::SmallVector<::mlir::OpFoldResult>
 FastRotationExtOp::getRotationIndices() {
   return {getIndex()};
+}
+
+::llvm::SmallVector<::mlir::OpFoldResult>
+LinearTransformOp::getRotationIndices() {
+  auto diagonalsType = cast<RankedTensorType>(getDiagonals().getType());
+  int64_t slots = diagonalsType.getShape()[1];
+  int64_t logBSGS = getLogBabyStepGiantStepRatio();
+  auto rotations = lintransRotationIndices(
+      getDiagonalIndicesAttr().asArrayRef(), slots, logBSGS);
+  SmallVector<OpFoldResult> result;
+  auto* ctx = getContext();
+  for (int64_t rot : rotations) {
+    result.push_back(IntegerAttr::get(IndexType::get(ctx), rot));
+  }
+  return result;
 }
 
 }  // namespace openfhe
