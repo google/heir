@@ -170,18 +170,17 @@ FailureOr<NodePtr> DagBuilder::visit(scf::YieldOp op) {
 
 FailureOr<NodePtr> DagBuilder::visit(RotationOpInterface op) {
   LDBG() << "Processing RotationOpInterface " << op;
-  OpFoldResult ofr = op.getRotationIndex();
-  NodePtr shift;
-  if (auto attr = dyn_cast<Attribute>(ofr)) {
-    auto intAttr = cast<IntegerAttr>(attr);
-    shift = Node::constantScalar(intAttr.getInt(),
-                                 mlirTypeToDagType(intAttr.getType()));
-  } else {
-    shift = findNodeOrMakeNewVariable(cast<Value>(ofr));
-  }
+  auto indices = op.getRotationIndices();
+  auto toShiftNode = [&](OpFoldResult ofr) -> NodePtr {
+    if (auto attr = dyn_cast<Attribute>(ofr)) {
+      auto intAttr = cast<IntegerAttr>(attr);
+      return Node::constantScalar(intAttr.getInt(),
+                                  mlirTypeToDagType(intAttr.getType()));
+    }
+    return findNodeOrMakeNewVariable(cast<Value>(ofr));
+  };
 
   // Find the rotatable operand.
-  // We assume it's the operand that has the same type as the result.
   OpOperand* rotatedOperand = op.getRotatedOperand();
 
   if (!rotatedOperand) {
@@ -192,7 +191,18 @@ FailureOr<NodePtr> DagBuilder::visit(RotationOpInterface op) {
   }
 
   auto tensorNode = findNodeOrMakeNewVariable(rotatedOperand->get());
-  auto dagNode = Node::leftRotate(tensorNode, shift);
+
+  NodePtr dagNode;
+  if (indices.size() == 1) {
+    dagNode = Node::leftRotate(tensorNode, toShiftNode(indices[0]));
+  } else {
+    std::vector<NodePtr> shifts;
+    shifts.reserve(indices.size());
+    for (auto& ofr : indices) {
+      shifts.push_back(toShiftNode(ofr));
+    }
+    dagNode = Node::leftRotateBulk(tensorNode, std::move(shifts));
+  }
   valueToNode[op->getResult(0)] = dagNode;
   return dagNode;
 }

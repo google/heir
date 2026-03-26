@@ -9,6 +9,7 @@
 #include "mlir/include/mlir/IR/AffineMap.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Matchers.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
@@ -109,7 +110,21 @@ LogicalResult RotateOp::verify() {
   return success();
 }
 
-::mlir::OpFoldResult RotateOp::getRotationIndex() { return getShift(); }
+::llvm::SmallVector<::mlir::OpFoldResult> RotateOp::getRotationIndices() {
+  return {getShift()};
+}
+
+::llvm::SmallVector<::mlir::OpFoldResult>
+RotateAndReduceOp::getRotationIndices() {
+  int64_t period = getPeriod().getZExtValue();
+  int64_t steps = getSteps().getZExtValue();
+  SmallVector<OpFoldResult> result;
+  auto* ctx = getContext();
+  for (int64_t i = 1; i < steps; ++i) {
+    result.push_back(IntegerAttr::get(IndexType::get(ctx), i * period));
+  }
+  return result;
+}
 
 LogicalResult verifyLayoutMatchesType(const Attribute& layoutAttr, Type type,
                                       Operation* op) {

@@ -155,6 +155,14 @@ cc_library(
 )
 
 cc_library(
+    name = "RotationUtils",
+    hdrs = ["RotationUtils.h"],
+    deps = [
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+cc_library(
     name = "LogArithmetic",
     srcs = ["LogArithmetic.cpp"],
     hdrs = ["LogArithmetic.h"],

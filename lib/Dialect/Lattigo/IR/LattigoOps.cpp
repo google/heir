@@ -1,10 +1,13 @@
 #include "lib/Dialect/Lattigo/IR/LattigoOps.h"
 
 #include "lib/Dialect/Lattigo/IR/LattigoTypes.h"
+#include "lib/Utils/RotationUtils.h"
 #include "lib/Utils/Utils.h"
-#include "mlir/include/mlir/IR/OpDefinition.h"   // from @llvm-project
-#include "mlir/include/mlir/IR/TypeUtilities.h"  // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"      // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -61,24 +64,43 @@ LogicalResult CKKSRotateOp::verify() {
                                        getStaticShift());
 }
 
-::mlir::OpFoldResult BGVRotateColumnsNewOp::getRotationIndex() {
-  if (getStaticShift()) return getStaticShiftAttr();
-  return getDynamicShift();
+::llvm::SmallVector<::mlir::OpFoldResult>
+BGVRotateColumnsNewOp::getRotationIndices() {
+  if (getStaticShift()) return {getStaticShiftAttr()};
+  return {getDynamicShift()};
 }
 
-::mlir::OpFoldResult BGVRotateColumnsOp::getRotationIndex() {
-  if (getStaticShift()) return getStaticShiftAttr();
-  return getDynamicShift();
+::llvm::SmallVector<::mlir::OpFoldResult>
+BGVRotateColumnsOp::getRotationIndices() {
+  if (getStaticShift()) return {getStaticShiftAttr()};
+  return {getDynamicShift()};
 }
 
-::mlir::OpFoldResult CKKSRotateNewOp::getRotationIndex() {
-  if (getStaticShift()) return getStaticShiftAttr();
-  return getDynamicShift();
+::llvm::SmallVector<::mlir::OpFoldResult>
+CKKSRotateNewOp::getRotationIndices() {
+  if (getStaticShift()) return {getStaticShiftAttr()};
+  return {getDynamicShift()};
 }
 
-::mlir::OpFoldResult CKKSRotateOp::getRotationIndex() {
-  if (getStaticShift()) return getStaticShiftAttr();
-  return getDynamicShift();
+::llvm::SmallVector<::mlir::OpFoldResult> CKKSRotateOp::getRotationIndices() {
+  if (getStaticShift()) return {getStaticShiftAttr()};
+  return {getDynamicShift()};
+}
+
+::llvm::SmallVector<::mlir::OpFoldResult>
+CKKSLinearTransformOp::getRotationIndices() {
+  auto diagonalsType = cast<RankedTensorType>(getDiagonals().getType());
+  int64_t slots = diagonalsType.getShape()[1];
+  int64_t logBSGS = getLogBabyStepGiantStepRatio().getInt();
+  auto rotations = lintransRotationIndices(
+      getDiagonalIndicesAttr().asArrayRef(), slots, logBSGS);
+  SmallVector<OpFoldResult> result;
+  result.reserve(rotations.size());
+  auto* ctx = getContext();
+  for (int64_t rot : rotations) {
+    result.push_back(IntegerAttr::get(IndexType::get(ctx), rot));
+  }
+  return result;
 }
 
 }  // namespace lattigo

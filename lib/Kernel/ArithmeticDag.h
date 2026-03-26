@@ -149,6 +149,14 @@ struct LeftRotateNode {
   std::shared_ptr<ArithmeticDagNode<T>> shift;
 };
 
+// A bulk rotation node that represents an operation
+// implying multiple rotations of the same operand
+template <typename T>
+struct LeftRotateBulkNode {
+  std::shared_ptr<ArithmeticDagNode<T>> operand;
+  std::vector<std::shared_ptr<ArithmeticDagNode<T>>> shifts;
+};
+
 template <typename T>
 struct ExtractNode {
   std::shared_ptr<ArithmeticDagNode<T>> operand;
@@ -209,9 +217,9 @@ struct ArithmeticDagNode {
  public:
   std::variant<ConstantScalarNode, ConstantTensorNode, LeafNode<T>, AddNode<T>,
                SubtractNode<T>, MultiplyNode<T>, FloorDivNode<T>, PowerNode<T>,
-               LeftRotateNode<T>, ExtractNode<T>, ComparisonNode<T>,
-               IfElseNode<T>, VariableNode<T>, ForLoopNode<T>, YieldNode<T>,
-               ResultAtNode<T>, SplatNode>
+               LeftRotateNode<T>, LeftRotateBulkNode<T>, ExtractNode<T>,
+               ComparisonNode<T>, IfElseNode<T>, VariableNode<T>,
+               ForLoopNode<T>, YieldNode<T>, ResultAtNode<T>, SplatNode>
       node_variant;
 
   explicit ArithmeticDagNode(const T& value)
@@ -311,6 +319,14 @@ struct ArithmeticDagNode {
     auto node = NodePtr(new ArithmeticDagNode<T>());
     node->node_variant.template emplace<LeftRotateNode<T>>(
         LeftRotateNode<T>{std::move(tensor), std::move(shift)});
+    return node;
+  }
+
+  static NodePtr leftRotateBulk(NodePtr tensor, std::vector<NodePtr> shifts) {
+    assert(tensor && "invalid tensor for leftRotateBulk");
+    auto node = NodePtr(new ArithmeticDagNode<T>());
+    node->node_variant.template emplace<LeftRotateBulkNode<T>>(
+        LeftRotateBulkNode<T>{std::move(tensor), std::move(shifts)});
     return node;
   }
 
@@ -542,6 +558,12 @@ class CachingVisitor {
     return ResultType();
   }
 
+  virtual ResultType operator()(const LeftRotateBulkNode<T>& node,
+                                ExtraArgs... args) {
+    assert(false && "Visit logic for LeftRotateBulkNode is not implemented.");
+    return ResultType();
+  }
+
   virtual ResultType operator()(const ExtractNode<T>& node, ExtraArgs... args) {
     assert(false && "Visit logic for ExtractNode is not implemented.");
     return ResultType();
@@ -611,6 +633,12 @@ class CachingVisitor {
           } else if constexpr (std::is_same_v<NodeType, LeftRotateNode<T>>) {
             clearSubtreeCache(n.operand);
             clearSubtreeCache(n.shift);
+          } else if constexpr (std::is_same_v<NodeType,
+                                              LeftRotateBulkNode<T>>) {
+            clearSubtreeCache(n.operand);
+            for (const auto& shift : n.shifts) {
+              clearSubtreeCache(shift);
+            }
           } else if constexpr (std::is_same_v<NodeType, ExtractNode<T>>) {
             clearSubtreeCache(n.operand);
             clearSubtreeCache(n.index);

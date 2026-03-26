@@ -176,15 +176,18 @@ LogicalResult RotOp::verify() {
                                        getStaticShift());
 }
 
-::mlir::OpFoldResult RotOp::getRotationIndex() {
-  if (getStaticShift()) return getStaticShiftAttr();
-  return getDynamicShift();
+::llvm::SmallVector<::mlir::OpFoldResult> RotOp::getRotationIndices() {
+  if (getStaticShift()) return {getStaticShiftAttr()};
+  return {getDynamicShift()};
 }
 
-::mlir::OpFoldResult FastRotationOp::getRotationIndex() { return getIndex(); }
+::llvm::SmallVector<::mlir::OpFoldResult> FastRotationOp::getRotationIndices() {
+  return {getIndex()};
+}
 
-::mlir::OpFoldResult FastRotationExtOp::getRotationIndex() {
-  return getIndex();
+::llvm::SmallVector<::mlir::OpFoldResult>
+FastRotationExtOp::getRotationIndices() {
+  return {getIndex()};
 }
 
 }  // namespace openfhe

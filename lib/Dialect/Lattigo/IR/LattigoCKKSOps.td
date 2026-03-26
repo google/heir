@@ -341,7 +341,9 @@ def Lattigo_CKKSBootstrapOp : Lattigo_CKKSUnaryOp<"bootstrap"> {
   let results = (outs Lattigo_RLWECiphertext:$output);
 }
 
-def Lattigo_CKKSLinearTransformOp : Lattigo_CKKSOp<"linear_transform"> {
+def Lattigo_CKKSLinearTransformOp : Lattigo_CKKSOp<"linear_transform", [
+  DeclareOpInterfaceMethods<RotationOpInterface>
+]> {
   let summary = "Apply a linear transform on a lattigo CKKS ciphertext";
   let description = [{
     This operation applies a linear transform on a CKKS ciphertext using

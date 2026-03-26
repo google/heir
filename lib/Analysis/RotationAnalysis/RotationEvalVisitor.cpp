@@ -12,6 +12,7 @@
 #include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
 #include "lib/Kernel/EvalVisitor.h"
+#include "lib/Utils/RotationUtils.h"
 #include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project
 
 #define DEBUG_TYPE "rotation-analysis"
@@ -22,6 +23,7 @@ namespace heir {
 using kernel::ArithmeticDagNode;
 using kernel::DagType;
 using kernel::EvalResults;
+using kernel::LeftRotateBulkNode;
 using kernel::LeftRotateNode;
 using kernel::LiteralValue;
 using kernel::VariableNode;
@@ -38,9 +40,27 @@ EvalResults RotationEvalVisitor::operator()(
   auto evaluatedShift = this->process(node.shift)[0];
   int amount = std::get<int>(evaluatedShift.get());
 
-  // Normalize amount to be in [0, dim)
-  amount = ((amount % dim) + dim) % dim;
+  amount = normalizeRotation(amount, dim);
   evaluatedShifts.insert(amount);
+
+  // We don't need to rotate the values for rotation analysis. We just return
+  // the operand as-is to keep the IR connected.
+  return {operand};
+}
+
+EvalResults RotationEvalVisitor::operator()(
+    const LeftRotateBulkNode<LiteralValue>& node) {
+  auto operand = this->process(node.operand)[0];
+  auto shape = operand.getShape();
+  assert(!shape.empty() && "rotate operand must be a tensor");
+  auto dim = shape.back();
+
+  for (const auto& shiftNode : node.shifts) {
+    auto evaluatedShift = this->process(shiftNode)[0];
+    int amount = std::get<int>(evaluatedShift.get());
+    amount = normalizeRotation(amount, dim);
+    evaluatedShifts.insert(amount);
+  }
 
   // We don't need to rotate the values for rotation analysis. We just return
   // the operand as-is to keep the IR connected.

@@ -153,7 +153,8 @@ def TensorExt_UnpackOp : TensorExt_Op<"unpack", [Pure]> {
 def TensorExt_RotateAndReduceOp : TensorExt_Op<"rotate_and_reduce", [
   Pure,
   AllTypesMatch<["tensor", "output"]>,
-  DeclareOpInterfaceMethods<PlaintextOperandInterface>
+  DeclareOpInterfaceMethods<PlaintextOperandInterface>,
+  DeclareOpInterfaceMethods<RotationOpInterface>
 ]> {
   let summary = "Performs a reduction of a periodically rotated tensor.";
   let description = [{

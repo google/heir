@@ -443,13 +443,13 @@ def OperandAndResultAttrInterface : OpInterface<"OperandAndResultAttrInterface">
 def RotationOpInterface : OpInterface<"RotationOpInterface"> {
   let cppNamespace = "::mlir::heir";
   let description = [{
-    An interface for rotation operations.
+    An interface for operations that model (or imply) ciphertext rotations.
   }];
 
   let methods = [
     InterfaceMethod<
-      "Returns the rotation index as an OpFoldResult (Value or Attribute).",
-      "::mlir::OpFoldResult", "getRotationIndex"
+      "Returns the rotation indices as OpFoldResults (Values or Attributes).",
+      "::llvm::SmallVector<::mlir::OpFoldResult>", "getRotationIndices"
     >,
 
     InterfaceMethod<
