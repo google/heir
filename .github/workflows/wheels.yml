@@ -91,7 +91,10 @@ jobs:
       - name: Build wheels on ${{ matrix.name }} using cibuildwheel
         uses: pypa/cibuildwheel@5f22145df44122af0f5a201f93cf0207171beca7 # v3.0.0
         env:
+          # For cibuildwheel that runs on the host
           SETUPTOOLS_SCM_PRETEND_VERSION: ${{ needs.setup-version.outputs.version }}
+          # For cibuildwheel that runs in a docker container
+          CIBW_ENVIRONMENT: SETUPTOOLS_SCM_PRETEND_VERSION="${{ needs.setup-version.outputs.version }}"
 
       - name: Upload HEIR ${{ matrix.name }} wheels
         if: always()
@@ -117,3 +120,5 @@ jobs:
           pattern: dist-*
           merge-multiple: true
       - uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e  # release/v1.13
+        with:
+          verbose: true
