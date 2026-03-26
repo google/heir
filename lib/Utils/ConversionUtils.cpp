@@ -288,15 +288,17 @@ void addStructuralConversionPatterns(TypeConverter& typeConverter,
 void addTensorConversionPatterns(TypeConverter& typeConverter,
                                  RewritePatternSet& patterns,
                                  ConversionTarget& target) {
-  patterns.add<
-      ConvertAny<tensor::EmptyOp>, ConvertAny<tensor::InsertOp>,
-      ConvertAny<tensor::InsertSliceOp>, ConvertAny<tensor::ExtractSliceOp>,
-      ConvertAny<tensor::FromElementsOp>, ConvertAny<tensor::ExtractOp>>(
+  patterns.add<ConvertAny<tensor::EmptyOp>, ConvertAny<tensor::InsertOp>,
+               ConvertAny<tensor::InsertSliceOp>,
+               ConvertAny<tensor::ExtractSliceOp>,
+               ConvertAny<tensor::FromElementsOp>,
+               ConvertAny<tensor::ExtractOp>, ConvertAny<tensor::SplatOp>>(
       typeConverter, patterns.getContext());
 
   target.addDynamicallyLegalOp<tensor::EmptyOp, tensor::InsertOp,
                                tensor::InsertSliceOp, tensor::ExtractOp,
-                               tensor::ExtractSliceOp, tensor::FromElementsOp>(
+                               tensor::ExtractSliceOp, tensor::FromElementsOp,
+                               tensor::SplatOp>(
       [&](Operation* op) { return typeConverter.isLegal(op); });
 }
 
