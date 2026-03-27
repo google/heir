@@ -3,12 +3,14 @@
 #include <cstdint>
 
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
+#include "lib/Utils/RotationUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineMap.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Matchers.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
@@ -109,7 +111,23 @@ LogicalResult RotateOp::verify() {
   return success();
 }
 
-::mlir::OpFoldResult RotateOp::getRotationIndex() { return getShift(); }
+::llvm::SmallVector<::mlir::OpFoldResult> RotateOp::getRotationIndices() {
+  return {getShift()};
+}
+
+::llvm::SmallVector<::mlir::OpFoldResult>
+RotateAndReduceOp::getRotationIndices() {
+  int64_t period = getPeriod().getZExtValue();
+  int64_t steps = getSteps().getZExtValue();
+  bool hasPlaintexts = static_cast<bool>(getPlaintexts());
+  auto indices = rotateAndReduceRotationIndices(period, steps, hasPlaintexts);
+  SmallVector<OpFoldResult> result;
+  auto* ctx = getContext();
+  for (int64_t idx : indices) {
+    result.push_back(IntegerAttr::get(IndexType::get(ctx), idx));
+  }
+  return result;
+}
 
 LogicalResult verifyLayoutMatchesType(const Attribute& layoutAttr, Type type,
                                       Operation* op) {

@@ -11,6 +11,7 @@
 
 #include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
+#include "lib/Utils/RotationUtils.h"
 #include "llvm/include/llvm/Support/Debug.h"     // from @llvm-project
 #include "llvm/include/llvm/Support/DebugLog.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"      // from @llvm-project
@@ -158,8 +159,7 @@ EvalResults EvalVisitor::operator()(const LeftRotateNode<LiteralValue>& node) {
   auto dim = operand.getShape().back();
   auto evaluatedShift = this->process(node.shift)[0];
   int amount = std::get<int>(evaluatedShift.get());
-  // Normalize amount to be in [0, dim)
-  amount = ((amount % dim) + dim) % dim;
+  amount = normalizeRotation(amount, dim);
 
   const auto& oVal = operand.get();
   if (const auto* oVec = std::get_if<std::vector<int>>(&oVal)) {

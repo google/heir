@@ -52,6 +52,7 @@ cc_library(
         "@heir//lib/Kernel:AbstractValue",
         "@heir//lib/Kernel:ArithmeticDag",
         "@heir//lib/Kernel:EvalVisitor",
+        "@heir//lib/Utils:RotationUtils",
         "@llvm-project//llvm:Support",
     ],
 )

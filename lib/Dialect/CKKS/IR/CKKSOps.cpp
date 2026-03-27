@@ -47,9 +47,9 @@ LogicalResult RescaleOp::verify() {
 
 LogicalResult LevelReduceOp::verify() { return lwe::verifyLevelReduceOp(this); }
 
-::mlir::OpFoldResult RotateOp::getRotationIndex() {
-  if (getStaticShift()) return getStaticShiftAttr();
-  return getDynamicShift();
+::llvm::SmallVector<::mlir::OpFoldResult> RotateOp::getRotationIndices() {
+  if (getStaticShift()) return {getStaticShiftAttr()};
+  return {getDynamicShift()};
 }
 
 LogicalResult BootstrapOp::verify() {

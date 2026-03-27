@@ -375,6 +375,9 @@ implementBabyStepGiantStepRolled(
 // "plaintext rotation" to apply to the cleartext. HEIR has places in the
 // pipeline that support this by converting a rotate(encode(cleartext)) to
 // encode(rotate(cleartext)).
+//
+// Note: If this implementation is updated, it's likely that
+// rotateAndReduceRotationIndices in RotationUtils.h needs updating, too
 template <typename T>
 std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
                  std::shared_ptr<ArithmeticDagNode<T>>>

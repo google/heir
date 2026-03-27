@@ -36,14 +36,15 @@ LogicalResult ModulusSwitchOp::verify() {
 
 LogicalResult LevelReduceOp::verify() { return lwe::verifyLevelReduceOp(this); }
 
-::mlir::OpFoldResult RotateColumnsOp::getRotationIndex() {
-  if (getStaticShift()) return getStaticShiftAttr();
-  return getDynamicShift();
+::llvm::SmallVector<::mlir::OpFoldResult>
+RotateColumnsOp::getRotationIndices() {
+  if (getStaticShift()) return {getStaticShiftAttr()};
+  return {getDynamicShift()};
 }
 
-::mlir::OpFoldResult RotateRowsOp::getRotationIndex() {
-  if (getStaticShift()) return getStaticShiftAttr();
-  return getDynamicShift();
+::llvm::SmallVector<::mlir::OpFoldResult> RotateRowsOp::getRotationIndices() {
+  if (getStaticShift()) return {getStaticShiftAttr()};
+  return {getDynamicShift()};
 }
 
 //===----------------------------------------------------------------------===//
