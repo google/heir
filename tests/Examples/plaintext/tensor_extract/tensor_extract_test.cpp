@@ -3,6 +3,11 @@
 
 #include "gtest/gtest.h"  // from @googletest
 #include "tests/llvm_runner/memref_types.h"
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer)
+#include <sanitizer/msan_interface.h>
+#endif
+#endif
 
 extern "C" {
 // This is the function we want to call from LLVM
@@ -24,11 +29,26 @@ TEST(AddTest, Test1) {
   StridedMemRefType<int64_t, 2> encArg0;
   StridedMemRefType<int16_t> input{arg, arg, 0, 1024, 1};
   _mlir_ciface_tensor_extract__encrypt__arg0(&encArg0, &input);
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer)
+  __msan_unpoison(&encArg0, sizeof(encArg0));
+#endif
+#endif
 
   StridedMemRefType<int64_t, 2> res;
   _mlir_ciface_tensor_extract(&res, &encArg0);
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer)
+  __msan_unpoison(&res, sizeof(res));
+#endif
+#endif
 
   int16_t result = _mlir_ciface_tensor_extract__decrypt__result0(&res);
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer)
+  __msan_unpoison(&result, sizeof(result));
+#endif
+#endif
   EXPECT_EQ(result, expected);
   free(res.basePtr);
   free(encArg0.basePtr);

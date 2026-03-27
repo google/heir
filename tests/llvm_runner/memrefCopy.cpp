@@ -4,6 +4,11 @@
 #include <cstring>
 
 #include "tests/llvm_runner/memref_types.h"
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer)
+#include <sanitizer/msan_interface.h>
+#endif
+#endif
 
 // A reference to one of the StridedMemRef types.
 template <typename T>
@@ -19,6 +24,11 @@ class DynamicMemRefType {
   explicit DynamicMemRefType(const ::UnrankedMemRefType<T>& memRef)
       : rank(memRef.rank) {
     auto* desc = static_cast<StridedMemRefType<T, 1>*>(memRef.descriptor);
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer)
+    __msan_unpoison(desc, sizeof(void*) * 2 + sizeof(int64_t) * (1 + 2 * rank));
+#endif
+#endif
     basePtr = desc->basePtr;
     data = desc->data;
     offset = desc->offset;
@@ -29,6 +39,12 @@ class DynamicMemRefType {
 
 extern "C" void memrefCopy(int64_t elemSize, UnrankedMemRefType<char>* srcArg,
                            UnrankedMemRefType<char>* dstArg) {
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer)
+  __msan_unpoison(srcArg, sizeof(*srcArg));
+  __msan_unpoison(dstArg, sizeof(*dstArg));
+#endif
+#endif
   DynamicMemRefType<char> src(*srcArg);
   DynamicMemRefType<char> dst(*dstArg);
 
