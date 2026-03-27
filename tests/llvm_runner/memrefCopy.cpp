@@ -3,6 +3,17 @@
 #include <cstdint>
 #include <cstring>
 
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer)
+#include <sanitizer/msan_interface.h>
+#define HEIR_MSAN_UNPOISON(p, s) __msan_unpoison((p), (s))
+#else
+#define HEIR_MSAN_UNPOISON(p, s)
+#endif
+#else
+#define HEIR_MSAN_UNPOISON(p, s)
+#endif
+
 #include "tests/llvm_runner/memref_types.h"
 
 // A reference to one of the StridedMemRef types.
@@ -19,6 +30,8 @@ class DynamicMemRefType {
   explicit DynamicMemRefType(const ::UnrankedMemRefType<T>& memRef)
       : rank(memRef.rank) {
     auto* desc = static_cast<StridedMemRefType<T, 1>*>(memRef.descriptor);
+    HEIR_MSAN_UNPOISON(
+        desc, sizeof(T*) * 2 + sizeof(int64_t) + rank * 2 * sizeof(int64_t));
     basePtr = desc->basePtr;
     data = desc->data;
     offset = desc->offset;
@@ -29,6 +42,8 @@ class DynamicMemRefType {
 
 extern "C" void memrefCopy(int64_t elemSize, UnrankedMemRefType<char>* srcArg,
                            UnrankedMemRefType<char>* dstArg) {
+  HEIR_MSAN_UNPOISON(srcArg, sizeof(UnrankedMemRefType<char>));
+  HEIR_MSAN_UNPOISON(dstArg, sizeof(UnrankedMemRefType<char>));
   DynamicMemRefType<char> src(*srcArg);
   DynamicMemRefType<char> dst(*dstArg);
 
