@@ -450,7 +450,7 @@ class Graph {
     q.push(start);
 
     while (!q.empty()) {
-      const V& curr = q.front();
+      V curr = q.front();
       q.pop();
 
       if (curr == end) {
