@@ -238,6 +238,68 @@ void setAttributeAssociatedWith(Value value, StringRef attrName,
   }
 }
 
+static void removeAttributeForBlockArgument(BlockArgument blockArg,
+                                            StringRef attrName) {
+  auto* parentOp = blockArg.getOwner()->getParentOp();
+  assert(parentOp != nullptr &&
+         "Missing parent op! Was this value not properly remapped?");
+
+  llvm::TypeSwitch<Operation*>(parentOp)
+      .Case<FunctionOpInterface>(
+          [&](auto op) { op.removeArgAttr(blockArg.getArgNumber(), attrName); })
+      .Case<affine::AffineForOp>([&](affine::AffineForOp op) {
+        if (blockArg.getArgNumber() == 0) return;
+
+        auto argAttrInterface = cast<OperandAndResultAttrInterface>(*op);
+        auto initArg = op.getInits()[blockArg.getArgNumber() - 1];
+        int operandNumber = getOperandNumber(op, initArg);
+        if (operandNumber == -1) return;
+        argAttrInterface.removeOperandAttr(operandNumber, attrName);
+      })
+      .Case<RegionBranchOpInterface>([&](RegionBranchOpInterface op) {
+        auto argAttrInterface =
+            dyn_cast<OperandAndResultAttrInterface>(op.getOperation());
+        if (!argAttrInterface) return;
+
+        RegionBranchSuccessorMapping mapping;
+        op.getSuccessorOperandInputMapping(mapping,
+                                           RegionBranchPoint::parent());
+        auto inverseMapping = invertRegionBranchSuccessorMapping(mapping);
+        if (inverseMapping.count(blockArg)) {
+          argAttrInterface.removeOperandAttr(
+              inverseMapping.lookup(blockArg)[0]->getOperandNumber(), attrName);
+        }
+      })
+      .Case<OperandAndResultAttrInterface>([&](auto op) {
+        op.removeOperandAttr(blockArg.getArgNumber(), attrName);
+      });
+}
+
+static void removeAttributeForResult(Value result, StringRef attrName) {
+  auto* parentOp = result.getDefiningOp();
+  assert(parentOp &&
+         "Missing defining op, but the input value is not a BlockArgument. "
+         "This is madness.");
+  int resultNumber = cast<OpResult>(result).getResultNumber();
+
+  llvm::TypeSwitch<Operation*>(parentOp)
+      .Case<OperandAndResultAttrInterface>(
+          [&](auto op) { op.removeResultAttr(resultNumber, attrName); })
+      .Default([&](Operation* op) {
+        if (op->getNumResults() == 1) {
+          op->removeAttr(attrName);
+        }
+      });
+}
+
+void removeAttributeAssociatedWith(Value value, StringRef attrName) {
+  if (auto blockArg = dyn_cast<BlockArgument>(value)) {
+    removeAttributeForBlockArgument(blockArg, attrName);
+  } else {
+    removeAttributeForResult(value, attrName);
+  }
+}
+
 void clearAttrs(Operation* op, StringRef attrName) {
   op->walk([&](Operation* op) {
     llvm::TypeSwitch<Operation*>(op)
