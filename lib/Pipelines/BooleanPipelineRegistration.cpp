@@ -13,6 +13,7 @@
 #include "lib/Dialect/Debug/Transforms/ValidateNames.h"
 #include "lib/Dialect/Secret/Conversions/SecretToCGGI/SecretToCGGI.h"
 #include "lib/Dialect/Secret/Transforms/DistributeGeneric.h"
+#include "lib/Pipelines/PipelineRegistration.h"
 #include "lib/Transforms/BooleanVectorizer/BooleanVectorizer.h"
 #include "lib/Transforms/FoldConstantTensors/FoldConstantTensors.h"
 #include "lib/Transforms/ForwardInsertToExtract/ForwardInsertToExtract.h"
@@ -22,6 +23,7 @@
 #include "lib/Transforms/MemrefToArith/MemrefToArith.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/TensorLinalgToAffineLoops/TensorLinalgToAffineLoops.h"
+#include "lib/Transforms/UnusedMemRef/UnusedMemRef.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/TensorToLinalg/TensorToLinalgPass.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Transforms/Passes.h"  // from @llvm-project

@@ -59,6 +59,10 @@ dev = [
 Homepage = "https://heir.dev"
 Issues = "https://github.com/google/heir/issues"
 
+[project.scripts]
+heir-opt = "heir.entrypoints:run_heir_opt"
+heir-translate = "heir.entrypoints:run_heir_translate"
+
 [tool.setuptools]
 package-dir = { "" = "frontend" }
 zip-safe = false

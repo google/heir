@@ -101,6 +101,7 @@ class BazelExtension(setuptools.Extension):
       target_file: str,
       is_binary: bool = False,
       copy_include_files: bool = False,
+      aggressive_strip: bool = False,
       **kwargs: Any,
   ):
     super().__init__(name=name, sources=[], **kwargs)
@@ -114,6 +115,11 @@ class BazelExtension(setuptools.Extension):
     self.relpath, self.target_name = stripped_target.split(":")
     self.is_binary = is_binary
     self.copy_include_files = copy_include_files
+
+    # Determines whether to `strip-all` when building a target for PyPI.
+    # Critically, this should only be used for cc_binary targets that are run as
+    # a subprocess, not cc_library targets that are loaded into Python.
+    self.aggressive_strip = aggressive_strip
 
 
 class BuildBazelExtension(build_ext.build_ext):
@@ -226,9 +232,16 @@ class BuildBazelExtension(build_ext.build_ext):
         "--ui_event_filters=ERROR",
         f"--symlink_prefix={temp_path / 'bazel-'}",
         "--compilation_mode=opt",
+        "--strip=always",
         f"--cxxopt={'/std:c++20' if IS_WINDOWS else '-std=c++20'}",
         f"--@rules_python//python/config_settings:python_version={python_version}",
     ]
+
+    if ext.aggressive_strip:
+      if IS_LINUX:
+        bazel_argv.append("--stripopt=--strip-all")
+      elif IS_MAC:
+        bazel_argv.append("--stripopt=-S")
 
     if is_cibuildwheel() and IS_LINUX:
       # TODO(#2249): OpenMP is disabled for manylinux, as libomp is not on the allowed libraries list,
@@ -288,9 +301,10 @@ class BuildBazelExtension(build_ext.build_ext):
           | stat.S_IXOTH,
       )
 
-      # Also copy binaries to project root so they can be included in data_files
+      # Also copy binaries to project root so they are visible when running from
+      # Python as a subprocess.
       root_path = Path(ext.target_file)
-      print(f"Copying {srcdir_path} to {root_path} for data_files")
+      print(f"Copying {srcdir_path} to {root_path}")
       shutil.copyfile(srcdir_path, root_path)
       os.chmod(
           root_path,
@@ -313,27 +327,30 @@ setuptools.setup(
     ext_modules=[
         BazelExtension(
             name="heir_py._heir_opt",
-            bazel_target="//tools:heir-opt",
-            generated_so_file=Path("tools") / "heir-opt",
+            bazel_target="//tools:heir-opt.stripped",
+            generated_so_file=Path("tools") / "heir-opt.stripped",
             target_file="heir-opt",
             py_limited_api=py_limited_api,
             is_binary=True,
+            aggressive_strip=is_cibuildwheel(),
         ),
         BazelExtension(
             name="heir_py._heir_translate",
-            bazel_target="//tools:heir-translate",
-            generated_so_file=Path("tools") / "heir-translate",
+            bazel_target="//tools:heir-translate.stripped",
+            generated_so_file=Path("tools") / "heir-translate.stripped",
             target_file="heir-translate",
             py_limited_api=py_limited_api,
             is_binary=True,
+            aggressive_strip=is_cibuildwheel(),
         ),
         BazelExtension(
             name="heir_py._abc",
-            bazel_target="@abc//:abc_bin",
-            generated_so_file=Path("external") / "abc+" / "abc_bin",
+            bazel_target="@abc//:abc_bin.stripped",
+            generated_so_file=Path("external") / "abc+" / "abc_bin.stripped",
             target_file="abc_bin",
             py_limited_api=py_limited_api,
             is_binary=True,
+            aggressive_strip=is_cibuildwheel(),
         ),
         BazelExtension(
             name="heir_py._libopenfhe",
@@ -342,8 +359,8 @@ setuptools.setup(
             target_file="libopenfhe.so",
             py_limited_api=py_limited_api,
             copy_include_files=True,
+            aggressive_strip=False,
         ),
     ],
-    data_files=[("bin", ["heir-opt", "heir-translate"])],
     options=options,
 )
