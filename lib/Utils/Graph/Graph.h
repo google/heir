@@ -45,6 +45,8 @@ class Graph {
     if (vertices.count(source) == 0 || vertices.count(target) == 0) {
       return false;
     }
+
+    invalidateCachedEdges();
     outEdges[source].insert(target);
     inEdges[target].insert(source);
     return true;
@@ -62,15 +64,18 @@ class Graph {
 
   bool empty() const { return vertices.empty(); }
 
-  const std::set<V>& getVertices() { return vertices; }
-  std::set<std::pair<V, V>> getEdges() const {
-    std::set<std::pair<V, V>> result;
+  const std::set<V>& getVertices() const { return vertices; }
+  const std::set<std::pair<V, V>>& getEdges() const {
+    if (!edgesDirty) return cachedEdges;
+
+    cachedEdges.clear();
+    edgesDirty = false;
     for (const auto& [source, targets] : outEdges) {
       for (const auto& target : targets) {
-        result.insert({source, target});
+        cachedEdges.insert({source, target});
       }
     }
-    return result;
+    return cachedEdges;
   }
 
   // Returns the edges that point out of the given vertex.
@@ -112,6 +117,7 @@ class Graph {
                     std::function<void(V&, const V&)> mergeFn = nullptr) {
     if (!hasEdge(source, target)) return false;
 
+    invalidateCachedEdges();
     // Merge target into source
     if (mergeFn) mergeFn(source, target);
 
@@ -488,10 +494,13 @@ class Graph {
   }
 
  private:
+  void invalidateCachedEdges() { edgesDirty = true; }
   std::set<V> vertices;
   std::map<V, std::set<V>> outEdges;
   std::map<V, std::set<V>> inEdges;
   std::map<std::pair<V, V>, int> weights;
+  mutable std::set<std::pair<V, V>> cachedEdges;
+  mutable bool edgesDirty = true;
 };
 
 template <typename V>
