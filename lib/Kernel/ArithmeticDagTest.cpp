@@ -87,6 +87,17 @@ struct FlattenedStringVisitor {
     return ss.str();
   }
 
+  std::string operator()(const LeftRotateBulkNode<std::string>& node) const {
+    std::stringstream ss;
+    ss << "(" << node.operand->visit(*this) << " <<bulk [";
+    for (size_t i = 0; i < node.shifts.size(); ++i) {
+      if (i > 0) ss << ", ";
+      ss << node.shifts[i]->visit(*this);
+    }
+    ss << "])";
+    return ss.str();
+  }
+
   std::string operator()(const ExtractNode<std::string>& node) const {
     std::stringstream ss;
     ss << node.operand->visit(*this) << "[" << node.index->visit(*this) << "]";

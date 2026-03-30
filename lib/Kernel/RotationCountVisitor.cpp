@@ -138,6 +138,22 @@ int64_t RotationCountVisitor::operator()(
 }
 
 int64_t RotationCountVisitor::operator()(
+    const LeftRotateBulkNode<SymbolicValue>& node) {
+  const auto* thisNode = currentNode;  // Save before recursion
+
+  int64_t operandCount = processInternal(node.operand);
+
+  bool operandIsSecret = nodeSecretStatus[node.operand.get()];
+  nodeSecretStatus[thisNode] = operandIsSecret;
+
+  // Each shift in the bulk rotation counts as one rotation
+  // if the operand is secret.
+  int64_t numRotations =
+      operandIsSecret ? static_cast<int64_t>(node.shifts.size()) : 0;
+  return operandCount + numRotations;
+}
+
+int64_t RotationCountVisitor::operator()(
     const ExtractNode<SymbolicValue>& node) {
   const auto* thisNode = currentNode;  // Save before recursion
 

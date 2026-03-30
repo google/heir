@@ -20,6 +20,10 @@ class RotationEvalVisitor : public kernel::EvalVisitor {
   kernel::EvalResults operator()(
       const kernel::LeftRotateNode<kernel::LiteralValue>& node) override;
 
+  // Override the bulk rotation op to record all materialized rotation shifts.
+  kernel::EvalResults operator()(
+      const kernel::LeftRotateBulkNode<kernel::LiteralValue>& node) override;
+
   // Override the variable node to allow uninitialized values to be populated
   // with anything.
   kernel::EvalResults operator()(

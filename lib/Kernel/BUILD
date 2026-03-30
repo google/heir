@@ -97,6 +97,7 @@ cc_library(
     deps = [
         ":AbstractValue",
         ":ArithmeticDag",
+        "@heir//lib/Utils:RotationUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Support",
     ],

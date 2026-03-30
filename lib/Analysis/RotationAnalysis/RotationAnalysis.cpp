@@ -65,19 +65,28 @@ LogicalResult RotationAnalysis::analyzeRotationOp(
 
   // Handle cases where the rotation shift can be statically folded via constant
   // propagation.
-  OpFoldResult ofr = rotationOp.getRotationIndex();
-  if (auto attr = dyn_cast_if_present<Attribute>(ofr)) {
-    if (auto intAttr = dyn_cast<IntegerAttr>(attr)) {
-      rotationIndices.insert(intAttr.getInt());
-      markVisited(rotationOp);
-      return success();
+  auto indices = rotationOp.getRotationIndices();
+  SmallVector<int64_t> constantIndices;
+  bool allConstant = true;
+  for (auto& ofr : indices) {
+    if (auto attr = dyn_cast_if_present<Attribute>(ofr)) {
+      if (auto intAttr = dyn_cast<IntegerAttr>(attr)) {
+        constantIndices.push_back(intAttr.getInt());
+        continue;
+      }
     }
+    if (auto value = dyn_cast<Value>(ofr)) {
+      IntegerAttr attr;
+      if (matchPattern(value, m_Constant(&attr))) {
+        constantIndices.push_back(attr.getInt());
+        continue;
+      }
+    }
+    allConstant = false;
+    break;
   }
-
-  Value value = dyn_cast<Value>(ofr);
-  IntegerAttr attr;
-  if (matchPattern(value, m_Constant(&attr))) {
-    rotationIndices.insert(attr.getInt());
+  if (allConstant) {
+    rotationIndices.insert(constantIndices.begin(), constantIndices.end());
     markVisited(rotationOp);
     return success();
   }
