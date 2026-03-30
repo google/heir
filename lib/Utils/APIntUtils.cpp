@@ -69,9 +69,9 @@ APInt modularExponentiation(const APInt& base, const APInt& exponent,
 
   while (e.ugt(0)) {
     if (e[0]) {
-      res = (res * b).urem(modulus);
+      res = modularMultiplication(res, b, modulus);
     }
-    b = (b * b).urem(modulus);
+    b = modularMultiplication(b, b, modulus);
     e = e.lshr(1);
   }
   return res;
@@ -100,7 +100,7 @@ bool isPrime(const APInt& n) {
     if (x.isOne() || x == n - 1) continue;
     bool composite = true;
     for (unsigned r = 1; r < s; ++r) {
-      x = (x * x).urem(n);
+      x = modularMultiplication(x, x, n);
       if (x == n - 1) {
         composite = false;
         break;
@@ -115,8 +115,12 @@ std::vector<APInt> factorize(APInt n) {
   std::vector<APInt> factors;
   if (n.ult(2)) return factors;
 
-  APInt d(n.getBitWidth(), 2);
-  while ((d * d).ule(n)) {
+  unsigned width = n.getBitWidth();
+  APInt d(width, 2);
+  while (true) {
+    APInt wide_d = d.zext(width * 2);
+    if ((wide_d * wide_d).ugt(n.zext(width * 2))) break;
+
     if (n.urem(d).isZero()) {
       factors.push_back(d);
       while (n.urem(d).isZero()) {

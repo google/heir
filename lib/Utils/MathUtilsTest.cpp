@@ -57,6 +57,22 @@ TEST(MathUtilsTest, FindPrimitive2nthRoot) {
   }
 }
 
+// A regression test for a bug
+TEST(MathUtilsTest, FindPrimitive2nthRootZeroRegression) {
+  // q = 1095233372161, n = 1024
+  auto root = findPrimitive2nthRoot(APInt(64, 1095233372161), 1024);
+  ASSERT_TRUE(root.has_value());
+  APInt q(64, 1095233372161);
+  APInt two_n_ap(64, 2048);
+  EXPECT_EQ(modularExponentiation(*root, two_n_ap, q), 1);
+
+  // Check it's PRIMITIVE 2n-th root
+  auto factors = factorize(two_n_ap);
+  for (const auto& p : factors) {
+    EXPECT_NE(modularExponentiation(*root, two_n_ap.udiv(p), q), 1);
+  }
+}
+
 void Primitive2nthRootProperty(uint64_t q_val, uint64_t n) {
   APInt q(64, q_val);
   if (!isPrime(q)) return;
@@ -78,11 +94,11 @@ void Primitive2nthRootProperty(uint64_t q_val, uint64_t n) {
 
 // Fuzz test with a set of known NTT-friendly primes and various degrees
 std::vector<uint64_t> ntt_primes = {
-    65537,      114689,     147457,     163841,     557057,
-    638977,     737281,     786433,     1032193,    1179649,
-    1769473,    1785857,    2277377,    2424833,    2572289,
-    2654209,    2752513,    2768897,    8380417,    2147565569,
-    2148155393, 2148384769, 3221225473, 3221241857, 3758161921};
+    65537,      114689,       147457,     163841,     557057,     638977,
+    737281,     786433,       1032193,    1179649,    1769473,    1785857,
+    2277377,    2424833,      2572289,    2654209,    2752513,    2768897,
+    8380417,    2147565569,   2148155393, 2148384769, 3221225473, 3221241857,
+    3758161921, 1095233372161};
 
 FUZZ_TEST(MathUtilsTest, Primitive2nthRootProperty)
     .WithDomains(fuzztest::ElementOf(ntt_primes),
