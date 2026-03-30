@@ -2,9 +2,41 @@ module(name = "heir")
 
 bazel_dep(name = "bazel_skylib", version = "1.9.0")
 bazel_dep(name = "rules_cc", version = "0.2.13")
-bazel_dep(name = "toolchains_llvm_bootstrapped", version = "0.5.7")
+bazel_dep(name = "llvm", version = "0.0.0")
 
-register_toolchains("@toolchains_llvm_bootstrapped//toolchain:all")
+# Point to your local checkout of the toolchain repo
+local_path_override(
+    module_name = "llvm",
+    path = "/usr/local/google/home/jkun/fhe/toolchains_llvm_bootstrapped",
+)
+
+# Configure LLVM 20.1.0
+llvm = use_extension("@llvm//extensions:llvm.bzl", "llvm")
+llvm.configure(
+    targets = [
+        "X86",
+        "AArch64",
+    ],
+    version = "20.1.0",
+)
+use_repo(
+    llvm,
+    "llvm-toolchain-minimal-linux-amd64",
+)
+
+# Configure and register toolchains
+llvm_toolchain = use_extension("@llvm//extensions:toolchain.bzl", "toolchain")
+llvm_toolchain.exec(
+    arch = "x86_64",
+    os = "linux",
+)
+llvm_toolchain.target(
+    arch = "x86_64",
+    os = "linux",
+)
+use_repo(llvm_toolchain, "llvm_toolchains")
+
+register_toolchains("@llvm_toolchains//:all")
 
 # Gazelle puglin for BUILD file autogeneration
 bazel_dep(name = "gazelle", version = "0.47.0")
