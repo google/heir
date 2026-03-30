@@ -54,6 +54,12 @@ repos:
       - id: actionlint
         additional_dependencies: [ pyflakes>=3.0.1, shellcheck-py>=0.9.0.5 ]
 
+# Ensure github actions are pinned
+- repo: https://github.com/lalten/check-gha-pinning
+  rev: "v1.3.1"
+  hooks:
+    - id: check-gha-pinning
+
 # mdformat
 - repo: https://github.com/executablebooks/mdformat
   rev: 0.7.17
