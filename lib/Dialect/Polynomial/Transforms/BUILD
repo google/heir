@@ -16,6 +16,7 @@ cc_library(
     deps = [
         ":AttachNTTRoots",
         ":PolyMulToNTT",
+        ":SplitRNSNTT",
         ":pass_inc_gen",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
     ],
@@ -33,6 +34,27 @@ cc_library(
         ":pass_inc_gen",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Utils:MathUtils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
+        "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
+cc_library(
+    name = "SplitRNSNTT",
+    srcs = [
+        "SplitRNSNTT.cpp",
+    ],
+    hdrs = [
+        "SplitRNSNTT.h",
+    ],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",

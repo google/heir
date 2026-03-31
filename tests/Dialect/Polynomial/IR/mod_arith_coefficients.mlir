@@ -28,6 +28,16 @@
 #ntt_ring_2_root = #polynomial.primitive_root<value=#ntt_ring_2_root_val, degree=131072:i32>
 !poly_ty_2 = !polynomial.polynomial<ring=#ntt_ring_2>
 
+!pack_coeff_ty1 = !mod_arith.int<17:i32>
+!pack_coeff_ty2 = !mod_arith.int<257:i32>
+#pack_ring_1 = #polynomial.ring<coefficientType=!pack_coeff_ty1, polynomialModulus=#ntt_poly>
+#pack_ring_2 = #polynomial.ring<coefficientType=!pack_coeff_ty2, polynomialModulus=#ntt_poly>
+!pack_poly_ty_1 = !polynomial.polynomial<ring=#pack_ring_1, form=eval>
+!pack_poly_ty_2 = !polynomial.polynomial<ring=#pack_ring_2, form=eval>
+!pack_rns_coeff_ty = !rns.rns<!pack_coeff_ty1, !pack_coeff_ty2>
+#pack_rns_ring = #polynomial.ring<coefficientType=!pack_rns_coeff_ty, polynomialModulus=#ntt_poly>
+!pack_rns_poly_ty = !polynomial.polynomial<ring=#pack_rns_ring, form=eval>
+
 module {
   func.func @test_multiply() -> !polynomial.polynomial<ring=#ring1> {
     %c0 = arith.constant 0 : index
@@ -115,5 +125,17 @@ module {
   func.func @test_intt(%0 : !ntt_poly_ty) {
     %1 = polynomial.intt %0 {root=#ntt_ring_1_root} : !ntt_poly_ty
     return
+  }
+
+  func.func @test_pack(%lhs : !pack_poly_ty_1, %rhs : !pack_poly_ty_2) -> !pack_rns_poly_ty {
+    %0 = polynomial.pack %lhs, %rhs : !pack_poly_ty_1, !pack_poly_ty_2
+    return %0 : !pack_rns_poly_ty
+  }
+
+  func.func @test_extract_single_slice(%rns : !pack_rns_poly_ty, %mod : !pack_poly_ty_1) -> (!pack_poly_ty_1, !pack_poly_ty_2, !pack_poly_ty_1) {
+    %0 = polynomial.extract_single_slice %rns {index = 0 : index} : !pack_rns_poly_ty -> !pack_poly_ty_1
+    %1 = polynomial.extract_single_slice %rns {index = 1 : index} : !pack_rns_poly_ty -> !pack_poly_ty_2
+    %2 = polynomial.extract_single_slice %mod {index = 0 : index} : !pack_poly_ty_1 -> !pack_poly_ty_1
+    return %0, %1, %2 : !pack_poly_ty_1, !pack_poly_ty_2, !pack_poly_ty_1
   }
 }

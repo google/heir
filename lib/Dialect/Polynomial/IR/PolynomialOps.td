@@ -412,6 +412,22 @@ def Polynomial_ExtractSliceOp : Polynomial_Op<"extract_slice", [Pure, DeclareOpI
   let hasVerifier = 1;
 }
 
+def Polynomial_ExtractSingleSliceOp : Polynomial_Op<"extract_single_slice", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
+  let summary = "Extract one RNS limb as a polynomial over ModArith";
+  let description = [{
+    Given a polynomial with RNS coefficients, extract a single RNS basis limb
+    as a polynomial whose coefficients are the corresponding `mod_arith`
+    type.
+
+    If the input polynomial is already over `mod_arith`, `index = 0` returns
+    the original polynomial type.
+  }];
+  let arguments = (ins Polynomial_PolynomialType:$input, IndexAttr:$index);
+  let results = (outs Polynomial_PolynomialType:$output);
+  let assemblyFormat = "$input attr-dict `:` type($input) `->` type($output)";
+  let hasVerifier = 1;
+}
+
 def Polynomial_ConvertBasisOp : Polynomial_Op<"convert_basis", [Pure, ElementwiseMappable, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
   let summary = "Change a polynomial's RNS basis";
   let description = [{
@@ -428,6 +444,40 @@ def Polynomial_ConvertBasisOp : Polynomial_Op<"convert_basis", [Pure, Elementwis
     PolynomialLike:$output
   );
   let assemblyFormat = "$value attr-dict `:` type($value) `->` type($output)";
+}
+
+def Polynomial_PackOp : Polynomial_Op<"pack", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
+  let summary = "Pack multiple polynomials over ModArith into one polynomial over RNS";
+
+  let description = [{
+    `polynomial.pack` converts a list of polynomials with ModArith
+    coefficients into one polynomial with RNS coefficients.
+
+    The input polynomials must have the same polynomial modulus and form. The
+    output polynomial preserves that shared ring structure and form, while its
+    RNS basis is formed by the input coefficient types in operand order.
+
+    Examples:
+    ```
+    #poly_mod = #polynomial.int_polynomial<-1 + x**8>
+    !zp17 = !mod_arith.int<17 : i32>
+    !zp257 = !mod_arith.int<257 : i32>
+    #ring17 = #polynomial.ring<coefficientType=!zp17, polynomialModulus=#poly_mod>
+    #ring257 = #polynomial.ring<coefficientType=!zp257, polynomialModulus=#poly_mod>
+    !poly17 = !polynomial.polynomial<ring=#ring17, form=eval>
+    !poly257 = !polynomial.polynomial<ring=#ring257, form=eval>
+    !rns = !rns.rns<!zp17, !zp257>
+    #rns_ring = #polynomial.ring<coefficientType=!rns, polynomialModulus=#poly_mod>
+    !rns_poly = !polynomial.polynomial<ring=#rns_ring, form=eval>
+
+    %packed = polynomial.pack %p0, %p1 : !poly17, !poly257
+    return %packed : !rns_poly
+    ```
+  }];
+
+  let arguments = (ins Variadic<Polynomial_PolynomialType>:$input);
+  let results = (outs Polynomial_PolynomialType:$output);
+  let assemblyFormat = "operands attr-dict `:` type($input)";
 }
 
 #endif  // LIB_DIALECT_POLYNOMIAL_IR_POLYNOMIALOPS_TD_

@@ -388,6 +388,66 @@ LogicalResult ExtractSliceOp::verify() {
   return verifyExtractSliceOp(this, rnsType, start, size);
 }
 
+static LogicalResult verifyExtractSingleSliceInput(std::optional<Location> loc,
+                                                   Type inputType,
+                                                   APInt index) {
+  auto polyType = dyn_cast<PolynomialType>(inputType);
+  if (!polyType) {
+    return emitOptionalError(loc,
+                             "'polynomial.extract_single_slice' expects a "
+                             "polynomial input, but found ",
+                             inputType);
+  }
+
+  RingAttr ringAttr = polyType.getRing();
+  Type coeffType = ringAttr.getCoefficientType();
+  int64_t sliceIndex = index.getSExtValue();
+
+  if (dyn_cast<mod_arith::ModArithType>(coeffType)) {
+    if (sliceIndex != 0) {
+      return emitOptionalError(
+          loc,
+          "'polynomial.extract_single_slice' requires index 0 "
+          "for ModArith polynomials, but found ",
+          sliceIndex);
+    }
+    return success();
+  }
+
+  auto rnsCoeffType = dyn_cast<rns::RNSType>(coeffType);
+  if (!rnsCoeffType) {
+    return emitOptionalError(
+        loc,
+        "'polynomial.extract_single_slice' requires RNS or "
+        "ModArith coefficients, but found ",
+        coeffType);
+  }
+
+  int64_t numLimbs = rnsCoeffType.getBasisTypes().size();
+  if (sliceIndex < 0 || sliceIndex >= numLimbs) {
+    return emitOptionalError(
+        loc, "'polynomial.extract_single_slice' index ", sliceIndex,
+        " is out of bounds for an RNS type with ", numLimbs, " limbs");
+  }
+
+  auto limbCoeffType = dyn_cast<mod_arith::ModArithType>(
+      rnsCoeffType.getBasisTypes()[sliceIndex]);
+  if (!limbCoeffType) {
+    return emitOptionalError(
+        loc,
+        "'polynomial.extract_single_slice' requires the selected "
+        "RNS limb to have ModArith type, but found ",
+        rnsCoeffType.getBasisTypes()[sliceIndex]);
+  }
+
+  return success();
+}
+
+LogicalResult ExtractSingleSliceOp::verify() {
+  return verifyExtractSingleSliceInput(getLoc(), getInput().getType(),
+                                       getIndex());
+}
+
 ParseResult ConstantOp::parse(OpAsmParser& parser, OperationState& result) {
   auto loc = parser.getCurrentLocation();
 
@@ -535,8 +595,7 @@ LogicalResult ExtractSliceOp::inferReturnTypes(
     DictionaryAttr attrs, mlir::OpaqueProperties properties,
     mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
   ExtractSliceOpAdaptor op(operands, attrs, properties, regions);
-  if (operands.empty()) return failure();
-  auto polyType = dyn_cast<PolynomialType>(operands[0].getType());
+  auto polyType = dyn_cast<PolynomialType>(op.getInput().getType());
   if (!polyType) return failure();
   RingAttr ringAttr = polyType.getRing();
   rns::RNSType elementType =
@@ -550,7 +609,106 @@ LogicalResult ExtractSliceOp::inferReturnTypes(
       inferExtractSliceReturnTypes(context, &op, elementType);
   RingAttr outputRingAttr =
       RingAttr::get(outputRNSType, ringAttr.getPolynomialModulus());
-  results.push_back(PolynomialType::get(context, outputRingAttr));
+  results.push_back(
+      PolynomialType::get(context, outputRingAttr, polyType.getForm()));
+  return success();
+}
+
+LogicalResult ExtractSingleSliceOp::inferReturnTypes(
+    MLIRContext* context, std::optional<Location> loc, ValueRange operands,
+    DictionaryAttr attrs, mlir::OpaqueProperties properties,
+    mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
+  ExtractSingleSliceOpAdaptor op(operands, attrs, properties, regions);
+  if (failed(verifyExtractSingleSliceInput(loc, op.getInput().getType(),
+                                           op.getIndex()))) {
+    return failure();
+  }
+
+  auto polyType = cast<PolynomialType>(op.getInput().getType());
+  RingAttr ringAttr = polyType.getRing();
+  Type coeffType = ringAttr.getCoefficientType();
+
+  if (dyn_cast<mod_arith::ModArithType>(coeffType)) {
+    results.push_back(
+        PolynomialType::get(context, ringAttr, polyType.getForm()));
+    return success();
+  }
+
+  auto rnsCoeffType = cast<rns::RNSType>(coeffType);
+  int64_t sliceIndex = op.getIndex().getSExtValue();
+  auto limbCoeffType =
+      cast<mod_arith::ModArithType>(rnsCoeffType.getBasisTypes()[sliceIndex]);
+  RingAttr outputRingAttr =
+      RingAttr::get(context, limbCoeffType, ringAttr.getPolynomialModulus());
+  results.push_back(
+      PolynomialType::get(context, outputRingAttr, polyType.getForm()));
+  return success();
+}
+
+LogicalResult PackOp::inferReturnTypes(
+    MLIRContext* context, std::optional<Location> loc, ValueRange operands,
+    DictionaryAttr attrs, mlir::OpaqueProperties properties,
+    mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
+  PackOpAdaptor op(operands, attrs, properties, regions);
+  ValueRange input = op.getInput();
+  // There must be at least one item in the list to form an RNS component
+  if (input.empty()) {
+    return emitOptionalError(
+        loc, "'polynomial.pack' requires at least one input polynomial");
+  }
+
+  PolynomialType firstPolyType =
+      dyn_cast<PolynomialType>(input.front().getType());
+  if (!firstPolyType) {
+    return emitOptionalError(loc,
+                             "'polynomial.pack' expects polynomial operands, "
+                             "but first operand has type ",
+                             input.front().getType());
+  }
+
+  RingAttr firstRingAttr = firstPolyType.getRing();
+  IntPolynomialAttr polynomialModulus = firstRingAttr.getPolynomialModulus();
+  Form form = firstPolyType.getForm();
+
+  SmallVector<Type> basisTypes;
+  basisTypes.reserve(input.size());
+  for (Value operand : input) {
+    PolynomialType polyType = dyn_cast<PolynomialType>(operand.getType());
+    if (!polyType) {
+      return emitOptionalError(
+          loc, "'polynomial.pack' expects polynomial operands, but found ",
+          operand.getType());
+    }
+    if (polyType.getRing().getPolynomialModulus() != polynomialModulus) {
+      return emitOptionalError(loc,
+                               "'polynomial.pack' requires all inputs to have "
+                               "the same polynomial modulus, but found ",
+                               polyType.getRing().getPolynomialModulus(),
+                               " and ", polynomialModulus);
+    }
+    if (polyType.getForm() != form) {
+      return emitOptionalError(loc,
+                               "'polynomial.pack' requires all inputs to have "
+                               "the same form, but found ",
+                               polyType.getForm(), " and ", form);
+    }
+
+    Type coeffType = polyType.getRing().getCoefficientType();
+    auto modArithCoeffType = dyn_cast<mod_arith::ModArithType>(coeffType);
+    if (!modArithCoeffType) {
+      return emitOptionalError(loc,
+                               "'polynomial.pack' only supports polynomials "
+                               "with ModArith coefficients, but found ",
+                               coeffType);
+    }
+    basisTypes.push_back(modArithCoeffType);
+  }
+
+  rns::RNSType rnsCoeffType = rns::RNSType::get(context, basisTypes);
+  RingAttr outputRingAttr =
+      RingAttr::get(context, rnsCoeffType, polynomialModulus);
+  results.push_back(PolynomialType::get(context, outputRingAttr, form));
+
   return success();
 }
 

@@ -65,8 +65,8 @@ OpFormClass opFormClass(Operation* op) {
   } else if (isa<MulOp>(op)) {
     return OpFormClass::EVAL;
   } else if (isa<AddOp, SubOp, MulScalarOp, ModSwitchOp, ExtractSliceOp,
-                 tensor::ExtractSliceOp, tensor::ExtractOp,
-                 tensor::FromElementsOp>(op)) {
+                 ExtractSingleSliceOp, PackOp, tensor::ExtractSliceOp,
+                 tensor::ExtractOp, tensor::FromElementsOp>(op)) {
     return OpFormClass::EITHER;
   } else if (isa<MonomialOp, ConstantOp>(op)) {
     return OpFormClass::CONST;

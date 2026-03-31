@@ -30,4 +30,15 @@ def AttachNTTRoots : Pass <"attach-ntt-roots"> {
   let dependentDialects = ["mlir::heir::polynomial::PolynomialDialect"];
 }
 
+def SplitRNSNTT : Pass <"split-rns-ntt"> {
+  let summary = "Split RNS NTTs/INTTs into single-modulus NTTs/INTTs";
+  let description = [{
+    This pass splits NTTs and INTTs on RNS polynomials into NTTs and INTTS
+    on single-modulus polynomials.
+    This pass is required before lowering to ModArith.
+    (* example filepath=tests/Dialect/Polynomial/Transforms/split_rns_ntt.mlir *)
+  }];
+  let dependentDialects = ["mlir::heir::polynomial::PolynomialDialect"];
+}
+
 #endif  // LIB_DIALECT_POLYNOMIAL_TRANSFORMS_PASSES_TD_

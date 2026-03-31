@@ -41,3 +41,18 @@ func.func @test_monomial() {
   %0 = polynomial.monomial %five, %deg : (i32, index) -> !polynomial.polynomial<ring=#ring>
   return
 }
+
+// -----
+
+#poly = #polynomial.int_polynomial<1 + x**8>
+!coeff_ty0 = !mod_arith.int<17:i32>
+!coeff_ty1 = !mod_arith.int<257:i32>
+!rns_coeff_ty = !rns.rns<!coeff_ty0, !coeff_ty1>
+#ring0 = #polynomial.ring<coefficientType=!coeff_ty0, polynomialModulus=#poly>
+#ring = #polynomial.ring<coefficientType=!rns_coeff_ty, polynomialModulus=#poly>
+
+func.func @test_extract_single_slice_negative_index(%input : !polynomial.polynomial<ring=#ring>) {
+  // expected-error@below {{'polynomial.extract_single_slice' index -1 is out of bounds for an RNS type with 2 limbs}}
+  %0 = polynomial.extract_single_slice %input {index = -1 : index} : !polynomial.polynomial<ring=#ring> -> !polynomial.polynomial<ring=#ring0>
+  return
+}

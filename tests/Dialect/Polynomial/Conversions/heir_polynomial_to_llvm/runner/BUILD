@@ -70,6 +70,7 @@ llvm_runner_test(
     name = "lower_mul_ntt_roundtrip",
     heir_opt_flags = [
         "--attach-ntt-roots",
+        "--split-rns-ntt",
         "--emit-c-interface",
         "--heir-polynomial-to-llvm",
     ],
