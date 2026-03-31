@@ -234,6 +234,13 @@ FailureOr<presburger::IntegerRelation> getSliceExtractionRelation(
 bool isRelationEqual(const presburger::IntegerRelation& relation1,
                      const presburger::IntegerRelation& relation2);
 
+// Returns true if the given relation is surjective onto the given tensor type.
+// This tests that the range set of the relation covers all points of the given
+// tensor type. This is used to test if a layout is dense, so that the layout
+// materialization can be simplified into a constant splat.
+bool isDenseLayout(const presburger::IntegerRelation& relation,
+                   RankedTensorType type);
+
 }  // namespace heir
 }  // namespace mlir
 

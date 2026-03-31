@@ -7,7 +7,7 @@
 module {
   // CHECK: func.func @conv2d
   func.func @conv2d(%arg0: !secret.secret<tensor<32x32xf32>> {tensor_ext.layout = #layout2}) -> (!secret.secret<tensor<28x28xf32>> {tensor_ext.layout = #layout4}) {
-    %cst = arith.constant dense<0.000000e+00> : tensor<28x28xf32>
+    %cst = arith.constant dense<1.000000e+00> : tensor<28x28xf32>
     %cst_0 = arith.constant dense<2.000000e+00> : tensor<5x5xf32>
     %0 = secret.generic(%arg0: !secret.secret<tensor<32x32xf32>> {tensor_ext.layout = #layout2}) {
     ^body(%input0: tensor<32x32xf32>):

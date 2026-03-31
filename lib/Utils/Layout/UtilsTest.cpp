@@ -582,6 +582,54 @@ TEST(UtilsTest, TestGetCtComplementFromConvRelation) {
   }
 }
 
+TEST(UtilsTest, TestIsDenseLayout_Dense) {
+  MLIRContext context;
+  RankedTensorType type =
+      RankedTensorType::get({2, 3}, IndexType::get(&context));
+  // Trivial relation that maps from 2x3 domain to 2x3 range.
+  auto rel = getIntegerRelationFromIslStr(
+                 "{ [i0, i1] -> [ct, slot] : 0 <= i0 <= 1 and 0 <= i1 <= 2 and "
+                 "ct = i0 and slot = i1 }")
+                 .value();
+  EXPECT_TRUE(isDenseLayout(rel, type));
+}
+
+TEST(UtilsTest, TestIsDenseLayout_NotDense) {
+  MLIRContext context;
+  RankedTensorType type =
+      RankedTensorType::get({2, 3}, IndexType::get(&context));
+  // Relation only maps to a single row i0 = 0.
+  auto rel = getIntegerRelationFromIslStr(
+                 "{ [i0, i1] -> [ct, slot] : i0 = 0 and 0 <= i1 <= 2 and ct = "
+                 "i0 and slot = i1 }")
+                 .value();
+  EXPECT_FALSE(isDenseLayout(rel, type));
+}
+
+TEST(UtilsTest, TestIsDenseLayout_TooLarge) {
+  MLIRContext context;
+  RankedTensorType type =
+      RankedTensorType::get({2, 3}, IndexType::get(&context));
+  // Domain is 2x4 and maps to 2x4 range.
+  auto rel = getIntegerRelationFromIslStr(
+                 "{ [i0, i1] -> [ct, slot] : 0 <= i0 <= 1 and 0 <= i1 <= 3 and "
+                 "ct = i0 and slot = i1 }")
+                 .value();
+  EXPECT_FALSE(isDenseLayout(rel, type));
+}
+
+TEST(UtilsTest, TestIsDenseLayout_Matvec) {
+  MLIRContext context;
+  RankedTensorType matrixType =
+      RankedTensorType::get({16, 16}, IndexType::get(&context));
+  IntegerRelation matvecRelation = getDiagonalLayoutRelation(matrixType, 16);
+
+  RankedTensorType expectedType =
+      RankedTensorType::get({16, 16}, IndexType::get(&context));
+
+  EXPECT_TRUE(isDenseLayout(matvecRelation, expectedType));
+}
+
 }  // namespace
 }  // namespace heir
 }  // namespace mlir

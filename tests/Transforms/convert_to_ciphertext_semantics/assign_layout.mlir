@@ -12,13 +12,32 @@
 // CHECK: scf.for %[[arg1:.*]] = %[[c0]] to %[[c32]] step %[[c1]]
 // CHECK: tensor.insert
 
+// CHECK: func.func @repeat_vector_nonconst
+#layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 16 = 0 and 0 <= i0 <= 15 and 0 <= slot <= 31 }">
+module {
+  func.func @repeat_vector_nonconst() {
+    %cst = arith.constant dense<[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]> : tensor<16xi16>
+    // CHECK: %[[cst:.*]] = arith.constant dense<[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]> : tensor<16xi16>
+    // CHECK: func.call @_assign_layout_{{[0-9]+}}(%[[cst]])
+    %0 = secret.generic() {
+      %1 = tensor_ext.assign_layout %cst {layout = #layout, tensor_ext.layout = #layout} : tensor<16xi16>
+      secret.yield %1 : tensor<16xi16>
+    } -> (!secret.secret<tensor<16xi16>> {tensor_ext.layout = #layout})
+    return
+  }
+}
+
+// -----
+
+// Checks that a dense constant vector of size 16xi16 is replaced with a dense
+// constant of size 1x32xi16.
 // CHECK: @repeat_vector
 #layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 16 = 0 and 0 <= i0 <= 15 and 0 <= slot <= 31 }">
 module {
   func.func @repeat_vector() {
     %cst = arith.constant dense<1> : tensor<16xi16>
-    // CHECK: %[[cst:.*]] = arith.constant dense<1> : tensor<16xi16>
-    // CHECK: func.call @_assign_layout_{{[0-9]+}}(%[[cst]])
+    // CHECK: %[[cst:.*]] = arith.constant dense<1> : tensor<1x32xi16>
+    // CHECK: secret.yield %[[cst]] : tensor<1x32xi16>
     %0 = secret.generic() {
       %1 = tensor_ext.assign_layout %cst {layout = #layout, tensor_ext.layout = #layout} : tensor<16xi16>
       secret.yield %1 : tensor<16xi16>

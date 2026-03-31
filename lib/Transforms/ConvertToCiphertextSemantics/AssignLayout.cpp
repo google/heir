@@ -18,9 +18,11 @@
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StructuredOpsUtils.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Matchers.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"      // from @llvm-project
@@ -54,13 +56,15 @@ static FailureOr<Value> implementAssignLayoutNew(
   RankedTensorType ciphertextSemanticType =
       cast<RankedTensorType>(materializeLayout(
           getElementTypeOrSelf(input.getType()), layout, ciphertextSize));
-  if (!dataSemanticType) {
-    // The input is a scalar, so we can just splat into the ciphertext tensor.
-    // TODO(#2571): Validate layout is actually a fully dense layout.
-    auto splatOp =
-        tensor::SplatOp::create(builder, ciphertextSemanticType, input);
-    createdOpCallback(splatOp);
-    return splatOp.getResult();
+
+  // If the input is a constant zero, then the output will be a constant zero
+  // since we zero-fill slots.
+  if (matchPattern(input, m_AnyZeroFloat()) || matchPattern(input, m_Zero())) {
+    auto zeroOp =
+        arith::ConstantOp::create(builder, ciphertextSemanticType,
+                                  builder.getZeroAttr(ciphertextSemanticType));
+    createdOpCallback(zeroOp);
+    return zeroOp.getResult();
   }
 
   // The input came from an empty tensor, so we can just create an empty
@@ -73,12 +77,34 @@ static FailureOr<Value> implementAssignLayoutNew(
     return emptyCiphertextOp.getResult();
   }
 
-  TypedValue<RankedTensorType> ciphertextTensor =
-      cast<TypedValue<RankedTensorType>>(
-          arith::ConstantOp::create(builder, ciphertextSemanticType,
-                                    builder.getZeroAttr(ciphertextSemanticType))
-              .getResult());
+  // The result can be simplified if the layout is dense in the ciphertext type,
+  // and if the input is a scalar or a constant splat.
+  if (isDenseLayout(rel, ciphertextSemanticType)) {
+    // Regardless of being constant or not, a scalar can be splat into the
+    // ciphertext tensor.
+    if (!dataSemanticType) {
+      auto splatOp =
+          tensor::SplatOp::create(builder, ciphertextSemanticType, input);
+      createdOpCallback(splatOp);
+      return splatOp.getResult();
+    }
+    SplatElementsAttr splatAttr;
+    if (matchPattern(input, m_Constant(&splatAttr))) {
+      auto constantOp = arith::ConstantOp::create(
+          builder, ciphertextSemanticType,
+          SplatElementsAttr::get(ciphertextSemanticType,
+                                 splatAttr.getSplatValue<TypedAttr>()));
+      createdOpCallback(constantOp);
+      return constantOp.getResult();
+    }
+  }
 
+  auto zeroOp =
+      arith::ConstantOp::create(builder, ciphertextSemanticType,
+                                builder.getZeroAttr(ciphertextSemanticType));
+  createdOpCallback(zeroOp);
+  TypedValue<RankedTensorType> ciphertextTensor =
+      cast<TypedValue<RankedTensorType>>(zeroOp.getResult());
   MLIRLoopNestGenerator generator(builder, createdOpCallback);
   auto loopNestCstr = generateLoopNestAsCStr(rel);
   if (failed(loopNestCstr)) {
@@ -92,18 +118,23 @@ static FailureOr<Value> implementAssignLayoutNew(
       rel, {ciphertextTensor},
       [&](mlir::OpBuilder& builder, Location loc, ValueRange exprs,
           ValueRange iterArgs) {
-        SmallVector<Value> extractIndices;
-        for (Value idx :
-             exprs.drop_back(ciphertextTensor.getType().getRank())) {
-          extractIndices.push_back(arith::IndexCastOp::create(
-              builder, loc, builder.getIndexType(), idx));
+        // Extract from data and insert into ciphertextTensor. Must handle the
+        // case where the input is a scalar or a tensor.
+        Value extracted = input;
+        if (dataSemanticType) {
+          SmallVector<Value> extractIndices;
+          for (Value idx :
+               exprs.drop_back(ciphertextTensor.getType().getRank())) {
+            extractIndices.push_back(arith::IndexCastOp::create(
+                builder, loc, builder.getIndexType(), idx));
+          }
+          extracted =
+              tensor::ExtractOp::create(builder, loc, input, extractIndices);
         }
-        // Extract from data and insert into ciphertextTensor
-        auto extracted =
-            tensor::ExtractOp::create(builder, loc, input, extractIndices);
 
         SmallVector<Value> insertIndices;
-        for (Value idx : exprs.drop_front(dataSemanticType.getRank())) {
+        int64_t dataRank = dataSemanticType ? dataSemanticType.getRank() : 0;
+        for (Value idx : exprs.drop_front(dataRank)) {
           insertIndices.push_back(arith::IndexCastOp::create(
               builder, loc, builder.getIndexType(), idx));
         }

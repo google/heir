@@ -7,13 +7,18 @@
 module {
   // CHECK: func.func @conv2d
   func.func @conv2d(%arg0: !secret.secret<tensor<5x5xf32>> {tensor_ext.layout = #layout1}) -> (!secret.secret<tensor<3x3xf32>> {tensor_ext.layout = #layout}) {
+    // The zero constant can be splat into the ciphertext semantic shape since
+    // ciphertext's data are zero initialized.
+    // CHECK-DAG: %[[cst:.*]] = arith.constant dense<0{{.*}}> : tensor<1x32xf32>
+    // Even though this is a splat constant, it is not zero so it cannot be splat into the ciphertext
+    // since the layout includes "holes".
+    // CHECK-DAG: %[[cst_0:.*]] = arith.constant dense<2{{.*}}> : tensor<3x3xf32>
     %cst = arith.constant dense<0.000000e+00> : tensor<3x3xf32>
     %cst_0 = arith.constant dense<2.000000e+00> : tensor<3x3xf32>
     %0 = secret.generic(%arg0: !secret.secret<tensor<5x5xf32>> {tensor_ext.layout = #layout1}) {
     ^body(%input0: tensor<5x5xf32>):
     // CHECK: secret.generic
-    // CHECK: func.call @_assign_layout_{{[0-9]+}}
-    // CHECK: func.call @_assign_layout_{{[0-9]+}}
+    // CHECK: func.call @_assign_layout_{{[0-9]+}}(%[[cst_0]])
     // CHECK-COUNT-13: tensor_ext.rotate
       %1 = tensor_ext.assign_layout %cst_0 {layout = #layout2, tensor_ext.layout = #layout2} : tensor<3x3xf32>
       %2 = tensor_ext.assign_layout %cst {layout = #layout, tensor_ext.layout = #layout} : tensor<3x3xf32>

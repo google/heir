@@ -336,53 +336,84 @@ class ConvertAssignLayout
       tensor_ext::AssignLayoutOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter& rewriter) const final {
     Value input = adaptor.getValue();
-
-    // Handle special cases where layout assignment is trivial and doesn't
-    // require iterating over the entire ciphertext space (e.g. a scalar input
-    // or an empty tensor). Don't put these into dedicated functions.
-    // TODO(#2571): Update this if scalar inputs have more complex layouts.
-    bool hasSimpleAssignLayout =
-        !isa<RankedTensorType>(input.getType()) ||
-        isa_and_nonnull<tensor::EmptyOp>(input.getDefiningOp());
-    if (hasSimpleAssignLayout) {
-      ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-      auto res = implementAssignLayout(
-          input, op.getLayout(), ciphertextSize, b,
-          [&](Operation* createdOp) { setMaterializedAttr(createdOp); });
-      if (failed(res)) return failure();
-      setAttributeAssociatedWith(res.value(), kLayoutAttrName, op.getLayout());
-      setMaterializedAttr(res.value().getDefiningOp());
-      if (res.value() == op.getValue()) {
-        LLVM_DEBUG(llvm::dbgs()
-                   << "No materialization needed, passing input through\n");
-      }
-      rewriter.replaceOp(op, res.value());
-      return success();
-    }
-
-    // Check cache for existing assign layout function.
     Attribute layout = op.getLayout();
     if (!isa<LayoutAttr>(layout) && !isa<DenseIntElementsAttr>(layout)) {
       return failure();
     }
+
     Type inputType = input.getType();
     Type resultType = getTypeConverter()->convertType(op.getType(), layout);
     FunctionKey key(layout, inputType, resultType);
 
+    // Check cache for existing complex layout assignment function.
     func::FuncOp func;
     auto it = functionCache.find(key);
     if (it != functionCache.end()) {
       func = it->second;
-    } else {
-      auto maybeFunc =
-          createAssignLayoutFunction(op, adaptor, resultType, rewriter);
-      if (failed(maybeFunc)) return failure();
-      func = maybeFunc.value();
-      functionCache[key] = func;
+      func::CallOp call = rewriter.replaceOpWithNewOp<func::CallOp>(
+          op, func, ValueRange{adaptor.getValue()});
+      setMaterializedAttr(call);
+      call->setAttr(kLayoutAttrName, op.getLayout());
+      return success();
     }
 
+    // Try implementing the layout assignment for this specific input value
+    // in-place. If the implementation is simple, the block can be merged
+    // directly inline. Otherwise, the block is moved to a function and we call
+    // the layout assignment.
+    Block* currentBlock = op->getBlock();
+    Block* scratchBlock =
+        rewriter.splitBlock(currentBlock, Block::iterator(op));
+    Block* nextBlock = rewriter.splitBlock(scratchBlock, scratchBlock->begin());
+    rewriter.setInsertionPointToEnd(scratchBlock);
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    SmallVector<Operation*> createdOps;
+    auto createdOpCallback = [&](Operation* createdOp) {
+      setMaterializedAttr(createdOp);
+      createdOps.push_back(createdOp);
+    };
+
+    auto res = implementAssignLayout(input, layout, ciphertextSize, b,
+                                     createdOpCallback);
+    if (failed(res)) {
+      // Clean up split blocks if implementation failed
+      rewriter.mergeBlocks(nextBlock, scratchBlock);
+      rewriter.mergeBlocks(scratchBlock, currentBlock);
+      return failure();
+    }
+
+    // Simple if it's only a few ops and no loops.
+    bool isSimple = createdOps.size() <= 3;
+    for (auto* createdOp : createdOps) {
+      if (isa<scf::ForOp, scf::WhileOp>(createdOp)) {
+        isSimple = false;
+        break;
+      }
+    }
+
+    if (isSimple) {
+      // Keep implementation and merge blocks back.
+      rewriter.mergeBlocks(nextBlock, scratchBlock);
+      rewriter.mergeBlocks(scratchBlock, currentBlock);
+      setAttributeAssociatedWith(res.value(), kLayoutAttrName, layout);
+      rewriter.replaceOp(op, res.value());
+      return success();
+    }
+
+    // Create a new function for the layout assignment and move the block.
+    func = outlineAssignLayoutFunction(op, input, res.value(), scratchBlock,
+                                       resultType, rewriter);
+    functionCache[key] = func;
+
+    // scratchBlock is moved inside outlineAssignLayoutFunction, but we still
+    // need to merge with currentBlock.
+    rewriter.mergeBlocks(nextBlock, currentBlock);
+
+    rewriter.setInsertionPointAfter(op);
     func::CallOp call = rewriter.replaceOpWithNewOp<func::CallOp>(
         op, func, ValueRange{adaptor.getValue()});
+
     setMaterializedAttr(call);
     call->setAttr(kLayoutAttrName, op.getLayout());
     return success();
@@ -391,19 +422,21 @@ class ConvertAssignLayout
  private:
   int64_t ciphertextSize;
 
-  FailureOr<func::FuncOp> createAssignLayoutFunction(
-      tensor_ext::AssignLayoutOp op, OpAdaptor adaptor, Type resultType,
+  func::FuncOp outlineAssignLayoutFunction(
+      tensor_ext::AssignLayoutOp op, Value originalInput, Value originalResult,
+      Block* scratchBlock, Type resultType,
       ContextAwareConversionPatternRewriter& rewriter) const {
     func::FuncOp originalFunc = op->getParentOfType<func::FuncOp>();
     ModuleOp module = op->getParentOfType<ModuleOp>();
     auto loc = op.getLoc();
 
-    Type inputType = op.getValue().getType();
+    Type inputType = originalInput.getType();
     std::string funcName = llvm::formatv(
         "_assign_layout_{0}",
         llvm::hash_combine(op.getLayout(), inputType, resultType));
     FunctionType funcType =
         FunctionType::get(rewriter.getContext(), {inputType}, {resultType});
+
     OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPointToStart(module.getBody());
     auto func = func::FuncOp::create(rewriter, loc, funcName, funcType);
@@ -413,20 +446,22 @@ class ConvertAssignLayout
                       rewriter.getStringAttr(originalFunc.getSymName()))}));
     func.setPrivate();
 
-    Block* block = func.addEntryBlock();
-    rewriter.setInsertionPointToStart(block);
-    ImplicitLocOpBuilder b(loc, rewriter);
-    Value blockInput = block->getArgument(0);
+    Block* funcBlock = func.addEntryBlock();
 
-    auto res = implementAssignLayout(
-        blockInput, op.getLayout(), ciphertextSize, b,
-        [&](Operation* createdOp) { setMaterializedAttr(createdOp); });
-    if (failed(res)) return failure();
-    setAttributeAssociatedWith(res.value(), kLayoutAttrName, op.getLayout());
-    setMaterializedAttr(res.value().getDefiningOp());
-    func::ReturnOp::create(rewriter, loc, res.value());
+    // Move ops from scratchBlock to funcBlock and remap original input to the
+    // funcBlock->getArgument(0).
+    rewriter.replaceUsesWithIf(
+        originalInput, funcBlock->getArgument(0),
+        [scratchBlock](OpOperand& use) {
+          return scratchBlock->getParentOp()->isProperAncestor(use.getOwner());
+        });
+    rewriter.mergeBlocks(scratchBlock, funcBlock);
+
+    rewriter.setInsertionPointToEnd(funcBlock);
+    func::ReturnOp::create(rewriter, loc, originalResult);
+
     return func;
-  };
+  }
 
   // Cache to store functions generated for a specific layout key is
   // (LayoutAttribute, InputType, ResultType). Layout is uniqued by the layout

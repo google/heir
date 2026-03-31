@@ -925,5 +925,48 @@ bool isRelationEqual(const presburger::IntegerRelation& relation1,
   return slowCheck;
 }
 
+bool isDenseLayout(const presburger::IntegerRelation& relation,
+                   RankedTensorType type) {
+  isl_ctx* ctx = isl_ctx_alloc();
+  isl_basic_map* bmap = convertRelationToBasicMap(relation, ctx);
+
+  if (!bmap) {
+    isl_ctx_free(ctx);
+    return false;
+  }
+
+  // Get the range set from the basic_map of the relation
+  isl_basic_set* rangeBset = isl_basic_map_range(bmap);
+  isl_set* imageSet = isl_set_from_basic_set(rangeBset);
+
+  // The number of type dimensions should match the range variables
+  unsigned numDims = type.getRank();
+  if (isl_set_dim(imageSet, isl_dim_set) != numDims) {
+    isl_set_free(imageSet);
+    isl_ctx_free(ctx);
+    return false;
+  }
+
+  // Construct a full dense set for the given shape
+  isl_space* space = isl_set_get_space(imageSet);
+  isl_set* denseSet = isl_set_universe(space);
+  for (unsigned i = 0; i < numDims; ++i) {
+    // 0 <= d_i < dim[i]
+    denseSet = isl_set_lower_bound_val(denseSet, isl_dim_set, i,
+                                       isl_val_int_from_si(ctx, 0));
+    denseSet = isl_set_upper_bound_val(
+        denseSet, isl_dim_set, i,
+        isl_val_int_from_si(ctx, type.getDimSize(i) - 1));
+  }
+
+  bool result = isl_set_is_equal(imageSet, denseSet) == isl_bool_true;
+
+  isl_set_free(imageSet);
+  isl_set_free(denseSet);
+  isl_ctx_free(ctx);
+
+  return result;
+}
+
 }  // namespace heir
 }  // namespace mlir
