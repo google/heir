@@ -140,7 +140,13 @@ struct AttachNTTRoots : impl::AttachNTTRootsBase<AttachNTTRoots> {
 
     patterns.add<AttachNTTRootsPattern, AttachINTTRootsPattern>(context);
 
+<<<<<<< HEAD
     (void)walkAndApplyPatterns(getOperation(), std::move(patterns));
+=======
+    // TODO (#1221): Investigate whether folding (default: on) can be skipped
+    // here.
+    (void)applyPatternsGreedily(getOperation(), std::move(patterns));
+>>>>>>> d9d48b982 (Fix #2684)
   }
 };
 
