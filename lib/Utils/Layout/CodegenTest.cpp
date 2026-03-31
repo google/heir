@@ -209,6 +209,35 @@ for (int c1 = 0; c1 <= 8; c1 += 1)
   ASSERT_THAT(actual, Eq(expected));
 }
 
+TEST(CodegenTest, ConvFilterMIMOPermuted) {
+  MLIRContext context;
+
+  // Filter size: 4x4x2x2 (f, c, h, w)
+  // Input size: 1x4x10x10 (batch, c, h, w)
+  RankedTensorType filterType =
+      RankedTensorType::get({4, 4, 2, 2}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({1, 4, 10, 10}, IndexType::get(&context));
+  SmallVector<int64_t> strides = {1, 1};
+  int64_t padding = 0;
+  int64_t ciphertextSize = 1024;
+
+  auto relation = get2dConvChwFchwFilterDiagonalizedRelation(
+      filterType, dataType, strides, padding, ciphertextSize, true);
+  ASSERT_TRUE(succeeded(relation));
+
+  auto result = generateLoopNestAsCStr(relation.value());
+  ASSERT_TRUE(succeeded(result));
+  std::string actual = result.value();
+  std::string expected = R"(
+for (int c0 = 0; c0 <= 15; c0 += 1)
+  for (int c1 = 0; c1 <= 1023; c1 += 1)
+    if ((10 * c0 + 102 >= (c0 + c1 + 184) % 512 && (c0 + c1 + 184) % 512 >= c0 + 184 && c0 + 199 >= (c0 + c1 + 184) % 512 && (c0 + c1 + 184) % 512 >= 10 * c0 + 85) || (9 * c0 + 8 >= c1 % 16 && (c1 % 16) + 9 >= 9 * c0 && (c0 + c1 + 184) % 512 >= c0 + 184 && c0 + 199 >= (c0 + c1 + 184) % 512) || (9 * ((c0 + c1 + 184) % 512) >= 10 * (c1 % 16) + 1756 && 9 * c0 + 90 * floord(-9 * c0 + c1 + 20 * (c1 / 16) + 18 * ((c0 + c1 + 184) / 512) + 9, 90) + 8 >= c1 + 20 * (c1 / 16) + 18 * ((c0 + c1 + 184) / 512) && ((-(10 * (c1 % 16)) + 9 * c0 + 9 * c1 - 108 * ((c0 + c1 + 184) / 512) + 800) % 900) + 10 * c1 >= 10 * (c1 % 16) + 160 * (c1 / 16) + 809) || (c1 + 8 >= 9 * c0 + 10 * (c1 / 16) + 192 * ((c0 + c1 + 184) / 512) && 9 * c0 + 10 * (c1 / 16) + 192 * ((c0 + c1 + 184) / 512) + 8 >= c1 && 9 * ((c0 + c1 + 184) % 512) >= 10 * (c1 % 16) + 1756 && c1 / 16 - 6 * ((-(10 * (c1 % 16)) + 9 * c0 + 9 * c1 - 108 * ((c0 + c1 + 184) / 512) + 800) / 900) == 2 * ((c0 + c1 + 184) / 512)))
+      S(0, c0 + c1 / 16 - 5 * ((c0 + c1 + 184) / 512) - (891 * c0 + c1 + 740 * (c1 / 16) + 108 * ((c0 + c1 + 184) / 512) + 99) / 900, -9 * c0 - 8 * (c1 / 16) - (c0 + c1 + 184) / 512 - (81 * c0 + c1 + 20 * (c1 / 16) + 18 * ((c0 + c1 + 184) / 512) + 9) / 90 + 10 * ((891 * c0 + c1 + 740 * (c1 / 16) + 108 * ((c0 + c1 + 184) / 512) + 99) / 900), -9 * c0 - 2 * (c1 / 16) - 2 * ((c0 + c1 + 184) / 512) - (c1 + 2 * (c1 / 16)) / 9 + 10 * ((81 * c0 + c1 + 20 * (c1 / 16) + 18 * ((c0 + c1 + 184) / 512) + 9) / 90), c0, c1);
+)";
+  ASSERT_THAT(actual, Eq(expected));
+}
+
 }  // namespace
 }  // namespace heir
 }  // namespace mlir

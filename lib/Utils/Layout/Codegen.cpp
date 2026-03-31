@@ -114,8 +114,20 @@ static __isl_give isl_union_map* createSchedule(__isl_keep isl_basic_map* bmap,
 __isl_give isl_ast_node* constructAst(const presburger::IntegerRelation& rel,
                                       isl_ctx* ctx) {
   isl_basic_map* bmap = convertRelationToBasicMap(rel, ctx);
-  isl_union_map* schedule = createSchedule(bmap, ctx);
-  isl_basic_map_free(bmap);
+  isl_map* map = isl_map_from_basic_map(bmap);
+  map = isl_map_compute_divs(map);
+  map = isl_map_detect_equalities(map);
+  map = isl_map_coalesce(map);
+
+  isl_union_map* schedule = isl_union_map_empty(isl_map_get_space(map));
+  isl_basic_map_list* bmaps = isl_map_get_basic_map_list(map);
+  for (int i = 0; i < isl_basic_map_list_n_basic_map(bmaps); ++i) {
+    isl_basic_map* b = isl_basic_map_list_get_basic_map(bmaps, i);
+    schedule = isl_union_map_union(schedule, createSchedule(b, ctx));
+    isl_basic_map_free(b);
+  }
+  isl_basic_map_list_free(bmaps);
+  isl_map_free(map);
 
   // Context and options are intentionally empty. We don't need any of these
   // features, though I admit I have not looked into what they can provide.
@@ -123,6 +135,12 @@ __isl_give isl_ast_node* constructAst(const presburger::IntegerRelation& rel,
   isl_union_map* options = isl_union_map_empty(isl_space_params_alloc(ctx, 0));
 
   // Build the AST
+  isl_options_set_ast_build_atomic_upper_bound(ctx, 1);
+  isl_options_set_ast_build_detect_min_max(ctx, 1);
+  isl_options_set_ast_build_prefer_pdiv(ctx, 1);
+  isl_options_set_ast_build_separation_bounds(
+      ctx, ISL_AST_BUILD_SEPARATION_BOUNDS_IMPLICIT);
+
   isl_ast_build* build = isl_ast_build_from_context(context);
   build = isl_ast_build_set_options(build, options);
   isl_ast_node* tree = isl_ast_build_node_from_schedule_map(build, schedule);
