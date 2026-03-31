@@ -1035,9 +1035,6 @@ static Value fastNTT(ImplicitLocOpBuilder& b, RingAttr ring,
   auto modArithType = cast<ModArithType>(ring.getCoefficientType());
   APInt cmod = modArithType.getModulus().getValue();
   APInt root = rootAttr.getValue().getValue();
-  root = !inverse ? root
-                  : multiplicativeInverse(root.zext(cmod.getBitWidth()), cmod)
-                        .trunc(root.getBitWidth());
   // Initialize the mod_arith roots constant
   auto rootsType = tensorType.clone({degree});
   Value roots = arith::ConstantOp::create(

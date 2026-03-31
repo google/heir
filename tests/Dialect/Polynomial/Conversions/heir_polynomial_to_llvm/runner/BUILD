@@ -67,6 +67,17 @@ llvm_runner_test(
 )
 
 llvm_runner_test(
+    name = "lower_mul_ntt_roundtrip",
+    heir_opt_flags = [
+        "--attach-ntt-roots",
+        "--emit-c-interface",
+        "--heir-polynomial-to-llvm",
+    ],
+    main_c_src = "lower_mul_ntt_roundtrip_test.cc",
+    mlir_src = "lower_mul_ntt_roundtrip.mlir",
+)
+
+llvm_runner_test(
     name = "lower_ntt",
     heir_opt_flags = [
         "--emit-c-interface",

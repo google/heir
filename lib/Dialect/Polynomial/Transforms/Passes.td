@@ -20,4 +20,14 @@ def PolyMulToNTT : Pass <"convert-polynomial-mul-to-ntt", "func::FuncOp"> {
   ];
 }
 
+def AttachNTTRoots : Pass <"attach-ntt-roots"> {
+  let summary = "Attach appropriate roots of unity to NTTs and INTTs";
+  let description = [{
+    This pass attaches roots of unity to NTTs and INTTs. It should be run after -convert-polynomial-mul-to-ntt.
+    It can be run before or after split-rns-ntt, but it is required before lowering to ModArith.
+    (* example filepath=tests/Dialect/Polynomial/Transforms/attach_ntt_roots.mlir *)
+  }];
+  let dependentDialects = ["mlir::heir::polynomial::PolynomialDialect"];
+}
+
 #endif  // LIB_DIALECT_POLYNOMIAL_TRANSFORMS_PASSES_TD_

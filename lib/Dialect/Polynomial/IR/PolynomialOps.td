@@ -322,10 +322,10 @@ def Polynomial_NTTOp : Polynomial_Op<"ntt", [Pure, ElementwiseMappable, DeclareO
     is embedded as the encoding attribute of the output tensor.
 
     Given an input polynomial `F(x)` over a ring whose `polynomialModulus` has
-    degree `n`, and a primitive `n`-th root of unity `omega_n`, the output is
+    degree `n`, and a primitive `2n`-th root of unity `omega_{2n}`, the output is
     the list of $n$ evaluations
 
-      `f[k] = F(omega[n]^k) ; k = {0, ..., n-1}`
+      `f[k] = F(omega_{2n}^k) ; k = {0, ..., n-1}`
 
     The choice of primitive root may be optionally specified.
   }];
@@ -351,7 +351,8 @@ def Polynomial_INTTOp : Polynomial_Op<"intt", [Pure, ElementwiseMappable, Declar
     `polynomial.ntt`). The ring of the polynomial is taken from the required
     encoding attribute of the tensor.
 
-    The choice of primitive root may be optionally specified.
+    The choice of primitive root may be optionally specified. If specified,
+    it should be the multiplicative inverse of the primitive root provided to NTT.
   }];
   let arguments = (
     ins PolynomialLike:$input,
