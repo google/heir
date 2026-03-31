@@ -1,5 +1,6 @@
 #include "lib/Transforms/ElementwiseToAffine/ElementwiseToAffine.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <utility>
 
@@ -33,17 +34,38 @@ namespace heir {
 // are mapped over), or if it has the ElementwiseByOperandOpInterface, which
 // means only some operands are mapped over.
 static bool isSupported(Operation* op) {
-  if (OpTrait::hasElementwiseMappableTraits(op)) {
-    return llvm::any_of(op->getOperandTypes(),
+  auto hasRankedTensorResult = [](Operation* op) {
+    return llvm::any_of(op->getResultTypes(),
                         [](Type type) { return isa<RankedTensorType>(type); });
+  };
+
+  if (OpTrait::hasElementwiseMappableTraits(op)) {
+    return llvm::any_of(
+               op->getOperandTypes(),
+               [](Type type) { return isa<RankedTensorType>(type); }) &&
+           hasRankedTensorResult(op);
   }
 
   if (auto interface = dyn_cast<ElementwiseByOperandOpInterface>(op)) {
-    return llvm::all_of(
-        llvm::enumerate(op->getOperands()), [&](auto indexedOperand) {
-          return !interface.operandIsMappable(indexedOperand.index()) ||
-                 isa<RankedTensorType>(indexedOperand.value().getType());
-        });
+    if (!hasRankedTensorResult(op)) return false;
+
+    // Ensure all mappable operands are tensors
+    if (!llvm::all_of(
+            llvm::enumerate(op->getOperands()), [&](auto indexedOperand) {
+              return !interface.operandIsMappable(indexedOperand.index()) ||
+                     isa<RankedTensorType>(indexedOperand.value().getType());
+            }))
+      return false;
+
+    // An op with the interface is supported (needs processing) if at least one
+    // mappable operand has dimensions to map over.
+    return llvm::any_of(llvm::enumerate(op->getOperands()),
+                        [&](auto indexedOperand) {
+                          return interface.operandIsMappable(indexedOperand.index()) &&
+                 !interface
+                      .mappedDimensionsForOperand(indexedOperand.index())
+                      .empty();
+                        });
   }
 
   return false;
@@ -62,11 +84,27 @@ struct ConvertAnyElementwiseMappableOpOnRankedTensors : public RewritePattern {
           "unsupported op: not elementwise mappable, or doesn't have "
           "ElementwiseByOperandOpInterface, or doesn't have tensor operands");
 
-    if (op->getNumResults() != 1)
-      return rewriter.notifyMatchFailure(
-          op, "unsupported op: more than one result");
+    // Find the tensor result to determine loop nest.
+    // We assume there's exactly one tensor result for now, but other results
+    // can be non-tensors.
+    RankedTensorType resultType;
+    int tensorResultIndex = -1;
+    for (auto [i, type] : llvm::enumerate(op->getResultTypes())) {
+      if (auto rankedTensorTy = dyn_cast<RankedTensorType>(type)) {
+        if (tensorResultIndex != -1) {
+          return rewriter.notifyMatchFailure(
+              op, "unsupported op: more than one tensor result");
+        }
+        resultType = rankedTensorTy;
+        tensorResultIndex = i;
+      }
+    }
 
-    auto resultType = cast<RankedTensorType>(op->getResult(0).getType());
+    if (tensorResultIndex == -1) {
+      return rewriter.notifyMatchFailure(op,
+                                         "unsupported op: no tensor result");
+    }
+
     Type elementType = resultType.getElementType();
     ArrayRef<int64_t> shape = resultType.getShape();
     int64_t rank = resultType.getRank();
@@ -101,14 +139,19 @@ struct ConvertAnyElementwiseMappableOpOnRankedTensors : public RewritePattern {
     // Create the innermost body
     auto resultTypes =
         llvm::to_vector<6>(llvm::map_range(op->getResultTypes(), [](Type type) {
-          return cast<TensorType>(type).getElementType();
+          if (auto tensorTy = dyn_cast<RankedTensorType>(type)) {
+            return tensorTy.getElementType();
+          }
+          return type;
         }));
 
-    // Generate a `tensor.extract` for each tensor operand
+    // Generate a `tensor.extract` or `tensor.extract_slice` for each tensor
+    // operand
     SmallVector<Value, 4> newOperands;
     for (OpOperand& opOperand : op->getOpOperands()) {
       Value operand = opOperand.get();
-      if (mlir::isa<TensorType>(operand.getType())) {
+      auto rankedTensorTy = dyn_cast<RankedTensorType>(operand.getType());
+      if (rankedTensorTy) {
         if (OpTrait::hasElementwiseMappableTraits(op)) {
           // We don't need to check the shape, as ElementwiseMappable
           // requires all tensor operands to have compatible shapes
@@ -121,12 +164,44 @@ struct ConvertAnyElementwiseMappableOpOnRankedTensors : public RewritePattern {
         auto interface = cast<ElementwiseByOperandOpInterface>(op);
         int operandIndex = opOperand.getOperandNumber();
         if (interface.operandIsMappable(operandIndex)) {
-          // We don't need to check the shape, as
-          // ElementwiseByOperandOpInterface requires all mappable tensor
-          // operands to have compatible shapes
-          auto extractOp = tensor::ExtractOp::create(rewriter, operand.getLoc(),
-                                                     operand, indices);
-          newOperands.push_back(extractOp);
+          auto mappedDims = interface.mappedDimensionsForOperand(operandIndex);
+          if (mappedDims.size() == (size_t)rankedTensorTy.getRank()) {
+            auto extractOp = tensor::ExtractOp::create(
+                rewriter, operand.getLoc(), operand, indices);
+            newOperands.push_back(extractOp);
+            continue;
+          }
+
+          // Partial mapping: use extract_slice with rank reduction.
+          // We assume mapped dimensions are a contiguous prefix.
+          int64_t operandRank = rankedTensorTy.getRank();
+          SmallVector<OpFoldResult> offsets, sizes, strides;
+          for (int64_t d = 0; d < operandRank; ++d) {
+            if (llvm::is_contained(mappedDims, d)) {
+              offsets.push_back(indices[d]);
+              sizes.push_back(rewriter.getIndexAttr(1));
+            } else {
+              offsets.push_back(rewriter.getIndexAttr(0));
+              sizes.push_back(
+                  rewriter.getIndexAttr(rankedTensorTy.getDimSize(d)));
+            }
+            strides.push_back(rewriter.getIndexAttr(1));
+          }
+
+          // The result type of the rank-reduced extract_slice
+          SmallVector<int64_t> reducedShape;
+          for (int64_t d = 0; d < operandRank; ++d) {
+            if (!llvm::is_contained(mappedDims, d)) {
+              reducedShape.push_back(rankedTensorTy.getDimSize(d));
+            }
+          }
+          auto reducedType = RankedTensorType::get(
+              reducedShape, rankedTensorTy.getElementType(),
+              rankedTensorTy.getEncoding());
+
+          auto extractSliceOp = rewriter.create<tensor::ExtractSliceOp>(
+              operand.getLoc(), reducedType, operand, offsets, sizes, strides);
+          newOperands.push_back(extractSliceOp);
           continue;
         }
       }
@@ -145,7 +220,8 @@ struct ConvertAnyElementwiseMappableOpOnRankedTensors : public RewritePattern {
 
     // insert scalarOp into the tensor at right index
     Value inserted = tensor::InsertOp::create(
-        rewriter, op->getLoc(), scalarOp->getResult(0), target, indices);
+        rewriter, op->getLoc(), scalarOp->getResult(tensorResultIndex), target,
+        indices);
 
     // replace lingalg.yield scalarOp with affine.yield insertedOp
     affine::AffineYieldOp::create(rewriter, op->getLoc(), inserted);
@@ -161,6 +237,8 @@ struct ElementwiseToAffine
   void runOnOperation() override {
     MLIRContext* context = &getContext();
 
+    // Walk to check for dynamic tensor shapes among ops that will be converted,
+    // and fail if you find any.
     auto walkResult = getOperation()->walk([&](Operation* op) {
       bool convertAll = convertDialects.empty() && convertOps.empty();
       bool convertDialect = llvm::is_contained(

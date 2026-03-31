@@ -4,7 +4,8 @@
 #include <optional>
 #include <string>
 
-#include "llvm/include/llvm/ADT/STLExtras.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"     // from @llvm-project
+#include "llvm/include/llvm/ADT/StringExtras.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
@@ -75,67 +76,68 @@ LogicalResult verifyElementwiseByOperandImpl(
     ElementwiseByOperandOpInterface opInterface) {
   Operation* op = opInterface.getOperation();
 
-  auto typeToShapeStr = [](Type type) {
-    if (auto rankedTensorType = dyn_cast<RankedTensorType>(type)) {
-      std::string shapeStr = "(";
-      for (auto dim : rankedTensorType.getShape()) {
-        shapeStr += std::to_string(dim) + ",";
-      }
-      shapeStr += ")";
-      return shapeStr;
-    }
-    return std::string("(not statically ranked)");
+  auto typeToShapeStr = [](ArrayRef<int64_t> shape) {
+    return "(" +
+           llvm::join(
+               llvm::map_range(shape,
+                               [](int64_t dim) { return std::to_string(dim); }),
+               ", ") +
+           ")";
   };
 
-  std::optional<TensorType> tensorType;
-  int64_t operandIndex = 0;
+  std::optional<SmallVector<int64_t>> mappedShape;
+  int64_t firstMappableOperandIndex = -1;
+
   for (auto [i, operand] : llvm::enumerate(op->getOperands())) {
     auto thisTensorType = dyn_cast<TensorType>(operand.getType());
-    if (!thisTensorType)
-      // Non-tensor types are acceptable, and need not be specified as mappable
-      // or not mappable by the interface.
-      continue;
+    if (!thisTensorType) continue;
 
     if (opInterface.operandIsMappable(i)) {
-      if (!tensorType) {
-        tensorType = thisTensorType;
-        operandIndex = i;
+      SmallVector<int64_t> thisMappedShape;
+      for (int dim : opInterface.mappedDimensionsForOperand(i)) {
+        thisMappedShape.push_back(thisTensorType.getDimSize(dim));
+      }
+
+      if (!mappedShape) {
+        mappedShape = thisMappedShape;
+        firstMappableOperandIndex = i;
         continue;
       }
 
-      if (thisTensorType.getShape() != tensorType->getShape()) {
+      if (thisMappedShape != *mappedShape) {
         return op->emitOpError()
-               << "expected all mappable operands to have the same shape, "
-               << "but found shape " << typeToShapeStr(*tensorType)
-               << " at operand " << operandIndex << " and "
-               << typeToShapeStr(thisTensorType) << " at operand " << i;
+               << "expected all mappable operands to have the same mapped "
+                  "shape, but found mapped shape "
+               << typeToShapeStr(*mappedShape) << " at operand "
+               << firstMappableOperandIndex << " and "
+               << typeToShapeStr(thisMappedShape) << " at operand " << i;
       }
     }
   }
 
   for (auto [i, result] : llvm::enumerate(op->getResults())) {
     auto thisTensorType = dyn_cast<TensorType>(result.getType());
-    if (tensorType && !thisTensorType)
+    if (mappedShape && !mappedShape->empty() && !thisTensorType)
       return op->emitOpError()
-             << "expected all results operands to have the same tensor shape, "
-             << "as the mappable input operands, but found shape "
-             << typeToShapeStr(*tensorType) << " at operand " << operandIndex
-             << " and result " << i << " of non-tensor type "
-             << result.getType();
+             << "expected all results to be tensors with shape "
+             << typeToShapeStr(*mappedShape)
+             << " due to mappable operands, but result " << i
+             << " is of non-tensor type " << result.getType();
 
-    if (!tensorType && thisTensorType)
+    if (!mappedShape && thisTensorType)
       return op->emitOpError()
-             << "No operands were tensor typed, but result at index " << i
-             << " is a tensor of shape " << typeToShapeStr(thisTensorType);
+             << "No operands were mappable, but result at index " << i
+             << " is a tensor of shape "
+             << typeToShapeStr(thisTensorType.getShape());
 
-    if (tensorType && thisTensorType &&
-        thisTensorType.getShape() != tensorType->getShape()) {
+    if (mappedShape && thisTensorType &&
+        thisTensorType.getShape() != ArrayRef<int64_t>(*mappedShape)) {
       return op->emitOpError()
              << "expected all tensor results to have the same shape as "
                 "mappable operands, but found shape "
-             << typeToShapeStr(*tensorType) << " at operand " << operandIndex
-             << " and shape " << typeToShapeStr(thisTensorType) << " at result "
-             << i;
+             << typeToShapeStr(*mappedShape) << " at operand "
+             << firstMappableOperandIndex << " and shape "
+             << typeToShapeStr(thisTensorType.getShape()) << " at result " << i;
     }
   }
 

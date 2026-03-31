@@ -181,12 +181,21 @@ def LWE_MulScalarOp : LWE_Op<"mul_scalar", [ElementwiseMappable,
   let hasFolder = 1;
 }
 
-def LWE_RLWEEncodeOp : LWE_Op<"rlwe_encode", [HasEncoding<"output", "encoding", "LWEPlaintextType">]> {
+def LWE_RLWEEncodeOp : LWE_Op<"rlwe_encode", [
+    HasEncoding<"output", "encoding", "LWEPlaintextType">,
+    DeclareOpInterfaceMethods<ElementwiseByOperandOpInterface, [
+      "operandIsMappable",
+      // When encoding a tensor<3x1024xi16>, for example, the leading dimension
+      // is mapped over and the trailing dimension is encoded into slots, so the
+      // result type is tensor<3x!pt>.
+      "mappedDimensionsForOperand",
+    ]>,
+]> {
   let summary = "Encode an integer to yield an RLWE plaintext";
   let description = [{
-    Encode an integer to yield an RLWE plaintext.
+    Encode a packed cleartext tensor to yield an RLWE plaintext.
 
-    This op uses a an encoding attribute to encode the bits of the integer into
+    This op uses a an encoding attribute to encode the bits of the input into
     an RLWE plaintext value that can then be encrypted. CKKS cleartext inputs may
     be floating points, and a scaling factor described by the encoding will be
     applied.

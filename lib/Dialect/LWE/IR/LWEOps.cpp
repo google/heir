@@ -10,6 +10,7 @@
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/RNS/IR/RNSOps.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
+#include "llvm/include/llvm/ADT/Sequence.h"              // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
@@ -323,6 +324,23 @@ void RAddPlainOp::getCanonicalizationPatterns(RewritePatternSet& results,
 void RMulPlainOp::getCanonicalizationPatterns(RewritePatternSet& results,
                                               MLIRContext* context) {
   results.add<lwe::PutCiphertextInFirstOperand<RMulPlainOp>>(context);
+}
+
+bool RLWEEncodeOp::operandIsMappable(unsigned operandIndex) {
+  // only `input`
+  return operandIndex == 0;
+}
+
+SmallVector<int> RLWEEncodeOp::mappedDimensionsForOperand(
+    unsigned operandIndex) {
+  auto operandType = getOperation()->getOperand(operandIndex).getType();
+  if (auto tensorTy = dyn_cast<mlir::ShapedType>(operandType)) {
+    // rank - 1 because the trailing dimension is the slot dimension.
+    auto r = llvm::seq<int>(0, tensorTy.getRank() - 1);
+    llvm::SmallVector<int, 4> v(r.begin(), r.end());
+    return v;
+  }
+  return {};
 }
 
 }  // namespace lwe
