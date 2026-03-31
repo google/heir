@@ -8715,7 +8715,7 @@ an RLWE plaintext value that can then be encrypted. CKKS cleartext inputs may
 be floating points, and a scaling factor described by the encoding will be
 applied.&lt;/p>
 &lt;p>Examples:&lt;/p>
-&lt;pre tabindex="0">&lt;code>%Y = lwe.rlwe_encode %value {encoding = #enc, ring = #ring}: i1 to !lwe.rlwe_plaintext&amp;lt;encoding = #enc, ring = #ring&amp;gt;
+&lt;pre tabindex="0">&lt;code>%Y = lwe.rlwe_encode %value {encoding = #enc, ring = #ring}: i16 to !lwe.rlwe_plaintext&amp;lt;encoding = #enc, ring = #ring&amp;gt;
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -8751,7 +8751,7 @@ applied.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A plaintext type&lt;/td>
+&lt;td>lwe-plaintext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9016,7 +9016,7 @@ applied.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>A plaintext type&lt;/td>
+&lt;td>lwe-plaintext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9031,7 +9031,7 @@ applied.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
+&lt;td>lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
