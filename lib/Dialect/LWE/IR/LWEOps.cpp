@@ -72,8 +72,12 @@ LogicalResult RMulRingEltOp::verify() {
 }
 
 LogicalResult TrivialEncryptOp::verify() {
-  auto plaintextSpace = this->getInput().getType().getPlaintextSpace();
-  auto outPlaintextSpace = this->getOutput().getType().getPlaintextSpace();
+  auto plaintextSpace =
+      cast<LWEPlaintextType>(getElementTypeOrSelf(this->getInput().getType()))
+          .getPlaintextSpace();
+  auto outPlaintextSpace =
+      cast<LWECiphertextType>(getElementTypeOrSelf(this->getOutput().getType()))
+          .getPlaintextSpace();
 
   if (plaintextSpace != outPlaintextSpace) {
     return this->emitOpError()
@@ -174,12 +178,8 @@ LogicalResult EncodeOp::verify() {
 }
 
 LogicalResult RLWEEncodeOp::verify() {
-  if (auto tensorTy = dyn_cast<ShapedType>(getInput().getType())) {
-    if (tensorTy.getRank() > 1) {
-      return emitOpError() << "RLWEEncodeOp only supports 1D tensors";
-    }
-  }
-  return verifyEncodingAndTypeMatch(getInput().getType(), getEncoding());
+  return verifyEncodingAndTypeMatch(getElementTypeOrSelf(getInput().getType()),
+                                    getEncoding());
 }
 
 LogicalResult RLWEDecodeOp::verify() {

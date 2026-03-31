@@ -23,7 +23,7 @@ class HasEncoding<
     "the first arg's type's encoding matches the given encoding",
     CPred<
       comparator # "(" #
-      "::llvm::cast<lwe::" # ty # ">($" # encodingHolder # ".getType()).getPlaintextSpace().getEncoding(), " #
+      "::llvm::cast<lwe::" # ty # ">(getElementTypeOrSelf($" # encodingHolder # ".getType())).getPlaintextSpace().getEncoding(), " #
       "$" # encoding # ")"
     >
   >;
@@ -38,8 +38,8 @@ class EncodingsMatch<
     "the first arg's type's encoding matches the given encoding",
     CPred<
       comparator # "(" #
-      "::llvm::cast<lwe::" # ty1 # ">($" # encodingHolder1 # ".getType()).getPlaintextSpace().getEncoding(), " #
-      "::llvm::cast<lwe::" # ty2 # ">($" # encodingHolder2 # ".getType()).getPlaintextSpace().getEncoding())"
+      "::llvm::cast<lwe::" # ty1 # ">(getElementTypeOrSelf($" # encodingHolder1 # ".getType())).getPlaintextSpace().getEncoding(), " #
+      "::llvm::cast<lwe::" # ty2 # ">(getElementTypeOrSelf($" # encodingHolder2 # ".getType())).getPlaintextSpace().getEncoding())"
     >
   >;
 
@@ -102,16 +102,14 @@ def LWE_EncodeOp : LWE_Op<"encode"> {
 
   let results = (outs LWEPlaintext:$output);
   let assemblyFormat = "$input attr-dict `:` qualified(type($input)) `to` qualified(type($output))";
-
-  // Verify that the input type and the application data are compatible.
   let hasVerifier = 1;
 }
 
 def LWE_TrivialEncryptOp: LWE_Op<"trivial_encrypt", [
     EncodingsMatch<"input", "LWEPlaintextType", "output", "LWECiphertextType">]> {
   let summary = "Create a trivial encryption of a plaintext.";
-  let arguments = (ins LWEPlaintext:$input);
-  let results = (outs LWECiphertext:$output);
+  let arguments = (ins LWEPlaintextLike:$input);
+  let results = (outs LWECiphertextLike:$output);
   let assemblyFormat = [{
     $input attr-dict `:`  type(operands) `->` type(results)
   }];
@@ -196,7 +194,7 @@ def LWE_RLWEEncodeOp : LWE_Op<"rlwe_encode", [HasEncoding<"output", "encoding", 
     Examples:
 
     ```
-    %Y = lwe.rlwe_encode %value {encoding = #enc, ring = #ring}: i1 to !lwe.rlwe_plaintext<encoding = #enc, ring = #ring>
+    %Y = lwe.rlwe_encode %value {encoding = #enc, ring = #ring}: i16 to !lwe.rlwe_plaintext<encoding = #enc, ring = #ring>
     ```
   }];
 
@@ -206,10 +204,8 @@ def LWE_RLWEEncodeOp : LWE_Op<"rlwe_encode", [HasEncoding<"output", "encoding", 
     Polynomial_RingAttr:$ring
   );
 
-  let results = (outs LWEPlaintext:$output);
+  let results = (outs LWEPlaintextLike:$output);
   let assemblyFormat = "$input attr-dict `:` qualified(type($input)) `->` qualified(type($output))";
-
-  // Verify that the input type and the encoding are compatible.
   let hasVerifier = true;
 }
 

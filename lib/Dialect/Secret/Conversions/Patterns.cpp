@@ -17,6 +17,7 @@
 #include "lib/Utils/ContextAwareTypeConversion.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/DebugLog.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
@@ -62,13 +63,47 @@ Value insertKeyArgument(func::FuncOp parentFunc, Type encryptionKeyType,
   return keyBlockArg;
 }
 
+LogicalResult ConvertClientConceal::lowerToTrivialEncryption(
+    secret::ConcealOp op, OpAdaptor adaptor,
+    ContextAwareConversionPatternRewriter& rewriter) const {
+  LDBG() << "Lowering conceal op as a trivial encryption";
+  auto mgmtAttrResult = getTypeConverter()->getContextualAttr(op.getResult());
+  if (failed(mgmtAttrResult)) {
+    return rewriter.notifyMatchFailure(op, "found no mgmt attr");
+  }
+  Type resultTy = getTypeConverter()->convertType(op.getResult().getType(),
+                                                  mgmtAttrResult.value());
+  auto ctTy = cast<lwe::LWECiphertextType>(getElementTypeOrSelf(resultTy));
+  auto plaintextTy =
+      lwe::LWEPlaintextType::get(op.getContext(), ctTy.getPlaintextSpace());
+
+  Type encodeOpResultTy = plaintextTy;
+  if (auto resultTensorTy = cast<RankedTensorType>(resultTy)) {
+    encodeOpResultTy =
+        RankedTensorType::get(resultTensorTy.getShape(), plaintextTy);
+  }
+
+  // Intentionally use op.getCleartext() because we don't want to type-convert
+  // the input to a ciphertext.
+  auto encoded = lwe::RLWEEncodeOp::create(
+      rewriter, op.getLoc(), encodeOpResultTy, op.getCleartext(),
+      ctTy.getPlaintextSpace().getEncoding(),
+      ctTy.getPlaintextSpace().getRing());
+  auto newOp =
+      lwe::TrivialEncryptOp::create(rewriter, op.getLoc(), resultTy, encoded);
+  newOp->setAttrs(op->getAttrs());
+  rewriter.replaceOp(op, newOp);
+  return success();
+}
+
 LogicalResult ConvertClientConceal::matchAndRewrite(
     secret::ConcealOp op, OpAdaptor adaptor,
     ContextAwareConversionPatternRewriter& rewriter) const {
   func::FuncOp parentFunc = op->getParentOfType<func::FuncOp>();
-  if (!parentFunc || !parentFunc->hasAttr(kClientEncFuncAttrName)) {
-    return op->emitError() << "expected to be inside a function with attribute "
-                           << kClientEncFuncAttrName;
+  if (!parentFunc) return failure();
+
+  if (!isClientHelper(parentFunc)) {
+    return lowerToTrivialEncryption(op, adaptor, rewriter);
   }
 
   // The encryption func encrypts a single value, so it must have a single
