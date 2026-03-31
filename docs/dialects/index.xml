@@ -8709,15 +8709,15 @@ the abstract secret key. For example, a ciphertext with two components
 &lt;p>&lt;em>Encode an integer to yield an RLWE plaintext&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lwe.rlwe_encode` $input attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Encode an integer to yield an RLWE plaintext.&lt;/p>
-&lt;p>This op uses a an encoding attribute to encode the bits of the integer into
+&lt;/code>&lt;/pre>&lt;p>Encode a packed cleartext tensor to yield an RLWE plaintext.&lt;/p>
+&lt;p>This op uses a an encoding attribute to encode the bits of the input into
 an RLWE plaintext value that can then be encrypted. CKKS cleartext inputs may
 be floating points, and a scaling factor described by the encoding will be
 applied.&lt;/p>
 &lt;p>Examples:&lt;/p>
 &lt;pre tabindex="0">&lt;code>%Y = lwe.rlwe_encode %value {encoding = #enc, ring = #ring}: i16 to !lwe.rlwe_plaintext&amp;lt;encoding = #enc, ring = #ring&amp;gt;
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>ElementwiseByOperandOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-5">Attributes:&lt;/h4>
 &lt;table>
