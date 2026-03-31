@@ -3,6 +3,7 @@
 
 // IWYU pragma: begin_keep
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
+#include "lib/Dialect/Polynomial/Transforms/AttachNTTRoots.h"
 #include "lib/Dialect/Polynomial/Transforms/PolyMulToNTT.h"
 // IWYU pragma: end_keep
 
