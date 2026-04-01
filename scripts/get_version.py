@@ -61,20 +61,26 @@ def main():
 
   args = parser.parse_args()
 
-  version = ""
-  should_publish = "false"
+  match args.event:
+    case "release":
+      if args.tag:
+        version = args.tag.lstrip("v")
+        should_publish = "true"
 
-  if args.event == "release":
-    if args.tag:
-      version = args.tag.lstrip("v")
-      should_publish = "true"
-  elif args.event == "workflow_dispatch" and args.ref == "refs/heads/main":
-    version = get_next_dev_version(args.package)
-    should_publish = "true"
-  else:
-    # For PRs or other events, we let setuptools-scm handle it automatically
-    # or we don't publish.
-    should_publish = "false"
+    case "workflow_dispatch":
+      if args.tag:
+        # Manual release of existing tag; use for example when release
+        # workflow fails to trigger wheel upload.
+        version = args.tag.lstrip("v")
+        should_publish = "true"
+      elif args.ref == "refs/heads/main":
+        # For dev releases
+        version = get_next_dev_version(args.package)
+        should_publish = "true"
+
+    case _:
+      # PRs should not publish
+      should_publish = "false"
 
   if args.gha:
     # Writing to GITHUB_OUTPUT if available
