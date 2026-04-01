@@ -39,6 +39,30 @@ def get_next_dev_version(package_name):
   return f"{today}.dev{next_dev}"
 
 
+def calculate_version(event, ref, tag, package):
+  version = "0.0.0"
+  should_publish = "false"
+
+  match event:
+    case "release":
+      if tag:
+        version = tag.lstrip("v")
+        should_publish = "true"
+
+    case "workflow_dispatch":
+      if tag:
+        # Manual release of existing tag; use for example when release
+        # workflow fails to trigger wheel upload.
+        version = tag.lstrip("v")
+        should_publish = "true"
+      elif ref == "refs/heads/main":
+        # For dev releases
+        version = get_next_dev_version(package)
+        should_publish = "true"
+
+  return version, should_publish
+
+
 def main():
   parser = argparse.ArgumentParser(
       description="Calculate HEIR package version."
@@ -61,26 +85,9 @@ def main():
 
   args = parser.parse_args()
 
-  match args.event:
-    case "release":
-      if args.tag:
-        version = args.tag.lstrip("v")
-        should_publish = "true"
-
-    case "workflow_dispatch":
-      if args.tag:
-        # Manual release of existing tag; use for example when release
-        # workflow fails to trigger wheel upload.
-        version = args.tag.lstrip("v")
-        should_publish = "true"
-      elif args.ref == "refs/heads/main":
-        # For dev releases
-        version = get_next_dev_version(args.package)
-        should_publish = "true"
-
-    case _:
-      # PRs should not publish
-      should_publish = "false"
+  version, should_publish = calculate_version(
+      args.event, args.ref, args.tag, args.package
+  )
 
   if args.gha:
     # Writing to GITHUB_OUTPUT if available
