@@ -2,9 +2,11 @@ name: Build and upload Python wheels
 
 on:
   workflow_dispatch:
-  release:
-    types:
-      - published
+    inputs:
+      tag_name:
+        description: 'Tag to build (e.g. v2026.04.01). Leave empty for dev build.'
+        required: false
+        default: ''
   pull_request:
     types: [labeled]
 
@@ -31,7 +33,7 @@ jobs:
           python scripts/get_version.py \
             --event "${{ github.event_name }}" \
             --ref "${{ github.ref }}" \
-            --tag "${{ github.event.release.tag_name }}" \
+            --tag "${{ github.event.release.tag_name || inputs.tag_name }}" \
             --package "heir_py" \
             --gha
 
