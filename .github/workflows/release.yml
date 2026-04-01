@@ -60,7 +60,7 @@ jobs:
     steps:
       - name: Wait for wheels workflow to complete
         id: wait_for_wheels
-        uses: lewagon/wait-on-check-action@0dceb95e7c4cad8cc7422aee3885998f5cab9c79  # pin@v1.4.0
+        uses: lewagon/wait-on-check-action@a08fbe2b86f9336198f33be6ad9c16b96f92799c  # pin@v1.6.0
         with:
           ref: ${{ needs.create-release.outputs.tag_name }}
           check-name: 'pypi_upload'
