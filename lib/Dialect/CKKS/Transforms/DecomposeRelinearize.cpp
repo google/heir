@@ -13,7 +13,7 @@
 #include "mlir/include/mlir/IR/Value.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
-#include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
+#include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -67,10 +67,7 @@ struct DecomposeRelinearize
     RewritePatternSet patterns(context);
 
     patterns.add<DecomposeRelinearizePattern>(context);
-
-    // TODO (#1221): Investigate whether folding (default: on) can be skipped
-    // here.
-    (void)applyPatternsGreedily(getOperation(), std::move(patterns));
+    (void)walkAndApplyPatterns(getOperation(), std::move(patterns));
   }
 };
 
