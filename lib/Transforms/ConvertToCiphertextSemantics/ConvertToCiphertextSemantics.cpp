@@ -450,11 +450,11 @@ class ConvertAssignLayout
 
     // Move ops from scratchBlock to funcBlock and remap original input to the
     // funcBlock->getArgument(0).
-    rewriter.replaceUsesWithIf(
-        originalInput, funcBlock->getArgument(0),
-        [scratchBlock](OpOperand& use) {
-          return scratchBlock->getParentOp()->isProperAncestor(use.getOwner());
-        });
+    rewriter.replaceUsesWithIf(originalInput, funcBlock->getArgument(0),
+                               [scratchBlock](OpOperand& use) {
+                                 return scratchBlock->findAncestorOpInBlock(
+                                            *use.getOwner()) != nullptr;
+                               });
     rewriter.mergeBlocks(scratchBlock, funcBlock);
 
     rewriter.setInsertionPointToEnd(funcBlock);
