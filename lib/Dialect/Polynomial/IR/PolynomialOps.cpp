@@ -550,7 +550,8 @@ LogicalResult ExtractSliceOp::inferReturnTypes(
       inferExtractSliceReturnTypes(context, &op, elementType);
   RingAttr outputRingAttr =
       RingAttr::get(outputRNSType, ringAttr.getPolynomialModulus());
-  results.push_back(PolynomialType::get(context, outputRingAttr));
+  results.push_back(
+      PolynomialType::get(context, outputRingAttr, polyType.getForm()));
   return success();
 }
 
