@@ -29,7 +29,6 @@ heir_benchmark_test(
 llvm_runner_test(
     name = "lower_add",
     heir_opt_flags = [
-        "--emit-c-interface",
         "--heir-polynomial-to-llvm",
     ],
     main_c_src = "lower_add_test.cc",
@@ -39,7 +38,6 @@ llvm_runner_test(
 llvm_runner_test(
     name = "lower_intt",
     heir_opt_flags = [
-        "--emit-c-interface",
         "--heir-polynomial-to-llvm",
     ],
     main_c_src = "lower_intt_test.cc",
@@ -49,7 +47,6 @@ llvm_runner_test(
 llvm_runner_test(
     name = "lower_leading_term",
     heir_opt_flags = [
-        "--emit-c-interface",
         "--heir-polynomial-to-llvm",
     ],
     main_c_src = "lower_leading_term_test.cc",
@@ -59,7 +56,6 @@ llvm_runner_test(
 llvm_runner_test(
     name = "lower_mul",
     heir_opt_flags = [
-        "--emit-c-interface",
         "--heir-polynomial-to-llvm",
     ],
     main_c_src = "lower_mul_test.cc",
@@ -70,7 +66,6 @@ llvm_runner_test(
     name = "lower_mul_ntt_roundtrip",
     heir_opt_flags = [
         "--attach-ntt-roots",
-        "--emit-c-interface",
         "--heir-polynomial-to-llvm",
     ],
     main_c_src = "lower_mul_ntt_roundtrip_test.cc",
@@ -80,7 +75,6 @@ llvm_runner_test(
 llvm_runner_test(
     name = "lower_ntt",
     heir_opt_flags = [
-        "--emit-c-interface",
         "--heir-polynomial-to-llvm",
     ],
     main_c_src = "lower_ntt_test.cc",
@@ -90,7 +84,6 @@ llvm_runner_test(
 llvm_runner_test(
     name = "lower_ntt_rns",
     heir_opt_flags = [
-        "--emit-c-interface",
         "--heir-polynomial-to-llvm",
     ],
     main_c_src = "lower_ntt_rns_test.cc",
@@ -100,7 +93,6 @@ llvm_runner_test(
 llvm_runner_test(
     name = "lower_intt_rns",
     heir_opt_flags = [
-        "--emit-c-interface",
         "--heir-polynomial-to-llvm",
     ],
     main_c_src = "lower_intt_rns_test.cc",
@@ -112,7 +104,6 @@ llvm_runner_test(
 llvm_runner_test(
     name = "lower_mul_0",
     heir_opt_flags = [
-        "--emit-c-interface",
         "--heir-polynomial-to-llvm",
     ],
     main_c_src = "lower_mul_0_test.cc",
@@ -122,7 +113,6 @@ llvm_runner_test(
 llvm_runner_test(
     name = "lower_mul_1",
     heir_opt_flags = [
-        "--emit-c-interface",
         "--heir-polynomial-to-llvm",
     ],
     main_c_src = "lower_mul_1_test.cc",
@@ -132,7 +122,6 @@ llvm_runner_test(
 llvm_runner_test(
     name = "lower_mul_2",
     heir_opt_flags = [
-        "--emit-c-interface",
         "--heir-polynomial-to-llvm",
     ],
     main_c_src = "lower_mul_2_test.cc",
@@ -142,7 +131,6 @@ llvm_runner_test(
 llvm_runner_test(
     name = "lower_mul_3",
     heir_opt_flags = [
-        "--emit-c-interface",
         "--heir-polynomial-to-llvm",
     ],
     main_c_src = "lower_mul_3_test.cc",
@@ -152,7 +140,6 @@ llvm_runner_test(
 llvm_runner_test(
     name = "lower_mul_4",
     heir_opt_flags = [
-        "--emit-c-interface",
         "--heir-polynomial-to-llvm",
     ],
     main_c_src = "lower_mul_4_test.cc",
@@ -162,7 +149,6 @@ llvm_runner_test(
 llvm_runner_test(
     name = "lower_mul_5",
     heir_opt_flags = [
-        "--emit-c-interface",
         "--heir-polynomial-to-llvm",
     ],
     main_c_src = "lower_mul_5_test.cc",
@@ -172,7 +158,6 @@ llvm_runner_test(
 llvm_runner_test(
     name = "lower_mul_6",
     heir_opt_flags = [
-        "--emit-c-interface",
         "--heir-polynomial-to-llvm",
     ],
     main_c_src = "lower_mul_6_test.cc",
@@ -182,7 +167,6 @@ llvm_runner_test(
 llvm_runner_test(
     name = "lower_mul_7",
     heir_opt_flags = [
-        "--emit-c-interface",
         "--heir-polynomial-to-llvm",
     ],
     main_c_src = "lower_mul_7_test.cc",
@@ -192,7 +176,6 @@ llvm_runner_test(
 llvm_runner_test(
     name = "lower_mul_8",
     heir_opt_flags = [
-        "--emit-c-interface",
         "--heir-polynomial-to-llvm",
     ],
     main_c_src = "lower_mul_8_test.cc",
@@ -202,7 +185,6 @@ llvm_runner_test(
 llvm_runner_test(
     name = "lower_mul_9",
     heir_opt_flags = [
-        "--emit-c-interface",
         "--heir-polynomial-to-llvm",
     ],
     main_c_src = "lower_mul_9_test.cc",
@@ -212,7 +194,6 @@ llvm_runner_test(
 llvm_runner_test(
     name = "lower_poly_eval",
     heir_opt_flags = [
-        "--emit-c-interface",
         "--heir-polynomial-to-llvm",
     ],
     main_c_src = "lower_poly_eval_test.cc",

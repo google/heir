@@ -14,6 +14,7 @@ cc_library(
         "@heir//lib/Dialect/LWE/Conversions/LWEToPolynomial",
         "@heir//lib/Dialect/ModArith/Conversions/ModArithToArith",
         "@heir//lib/Dialect/Polynomial/Conversions/PolynomialToModArith",
+        "@heir//lib/Dialect/RNS/Transforms",
         "@heir//lib/Dialect/Secret/Conversions/SecretToCGGI",
         "@heir//lib/Transforms/ConvertIfToSelect",
         "@heir//lib/Transforms/ConvertSecretExtractToStaticExtract",

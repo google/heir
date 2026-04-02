@@ -32,4 +32,6 @@ def RNSBasisTypeInterface : TypeInterface<"RNSBasisTypeInterface"> {
   ];
 }
 
+def RNSBasisTypeInterfaceLike: TypeOrValueSemanticsContainer<RNSBasisTypeInterface, "rns-basis-type-interface-like">;
+
 #endif  // LIB_DIALECT_RNS_IR_RNSTYPEINTERFACES_TD_

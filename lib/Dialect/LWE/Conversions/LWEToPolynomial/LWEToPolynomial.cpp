@@ -12,12 +12,14 @@
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
+#include "lib/Dialect/RNS/IR/RNSOps.h"
 #include "lib/Dialect/Random/IR/RandomEnums.h"
 #include "lib/Dialect/Random/IR/RandomOps.h"
 #include "lib/Dialect/Random/IR/RandomTypes.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "llvm/include/llvm/ADT/ArrayRef.h"              // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseMap.h"              // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
@@ -610,9 +612,26 @@ struct ConvertConvertBasis : public OpConversionPattern<ConvertBasisOp> {
       ConvertBasisOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op->getLoc(), rewriter);
-    rewriter.replaceOp(
-        op, polynomial::ConvertBasisOp::create(b, adaptor.getValue(),
-                                               adaptor.getTargetBasis()));
+    MLIRContext* context = op.getContext();
+
+    polynomial::PolynomialType inputPolyTy =
+        cast<polynomial::PolynomialType>(adaptor.getValue().getType());
+    polynomial::RingAttr ringAttr = inputPolyTy.getRing();
+    rns::RNSType targetBasisTy = dyn_cast<rns::RNSType>(op.getTargetBasis());
+    if (!targetBasisTy) return failure();
+    polynomial::RingAttr outputRingAttr = polynomial::RingAttr::get(
+        context, targetBasisTy, ringAttr.getPolynomialModulus());
+    polynomial::PolynomialType outputPolyTy =
+        polynomial::PolynomialType::get(context, outputRingAttr);
+
+    Value coeffLoop = polynomial::ApplyCoefficientwiseOp::create(
+        b, adaptor.getValue(), outputPolyTy,
+        [&](ImplicitLocOpBuilder& nestedBuilder, Value coeff,
+            Value _) -> Value {
+          return rns::ConvertBasisOp::create(nestedBuilder, coeff,
+                                             targetBasisTy);
+        });
+    rewriter.replaceOp(op, coeffLoop);
     return success();
   }
 };

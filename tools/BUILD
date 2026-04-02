@@ -89,6 +89,7 @@ cc_binary(
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/Transforms",
         "@heir//lib/Dialect/RNS/IR:Dialect",
+        "@heir//lib/Dialect/RNS/Transforms",
         "@heir//lib/Dialect/Random/IR:Dialect",
         "@heir//lib/Dialect/Rotom/IR:Dialect",
         "@heir//lib/Dialect/Rotom/Transforms",
