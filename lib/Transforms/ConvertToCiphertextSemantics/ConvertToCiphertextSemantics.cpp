@@ -84,6 +84,7 @@ using kernel::IRMaterializingVisitor;
 using kernel::SSAValue;
 using ::mlir::heir::kernel::ArithmeticDagNode;
 using ::mlir::heir::kernel::implementHaleviShoup;
+using ::mlir::heir::kernel::implementRotateAndReduce;
 using ::mlir::heir::kernel::IRMaterializingVisitor;
 using ::mlir::heir::kernel::SSAValue;
 using presburger::IntegerRelation;
@@ -590,6 +591,59 @@ class ConvertLinalgReduce
   using ContextAwareOpConversionPattern<
       linalg::ReduceOp>::ContextAwareOpConversionPattern;
 
+  void rotateAndReduceKernel(linalg::ReduceOp op, OpAdaptor adaptor,
+                             ContextAwareConversionPatternRewriter& rewriter,
+                             Operation* innerOp) const {
+    auto input = op.getInputs()[0];
+
+    auto originalShape =
+        llvm::cast<RankedTensorType>(input.getType()).getShape();
+    // Pre-conditions enforce that the reduction operation occurs along the
+    // inputs single axis
+    unsigned steps = originalShape[op.getDimensions()[0]];
+    unsigned period = 1;
+
+    std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel;
+    SSAValue vectorLeaf(adaptor.getInputs()[0]);
+
+    kernel::DagType dagType = kernel::mlirTypeToDagType(input.getType());
+
+    // This requires 1 operation and 1 dimension to reduce
+    implementedKernel =
+        implementRotateAndReduce(vectorLeaf, {}, period, steps, dagType, {},
+                                 innerOp->getName().getStringRef().str());
+    rewriter.setInsertionPointAfter(op);
+
+    auto convertedType = getTypeConverter()->convertType(
+        input.getType(), cast<LayoutAttr>(op->getAttr(kLayoutAttrName)));
+
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    IRMaterializingVisitor visitor(
+        convertedType, [&](Operation* createdOp) { setMaterializedAttr(op); });
+    Value finalOutput = visitor.process(implementedKernel, b)[0];
+
+    auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
+    auto* finalOutputOp = finalOutput.getDefiningOp();
+    finalOutputOp->setAttr(kLayoutAttrName, layoutAttr);
+    setMaterializedAttr(finalOutputOp);
+
+    // Add the initial  value.
+    Value result = adaptor.getInits()[0];
+    Operation* addBias =
+        makeAppropriatelyTypedAddOp(b, op->getLoc(), finalOutput, result);
+    addBias->setAttr(kLayoutAttrName, layoutAttr);
+    setMaterializedAttr(addBias);
+    rewriter.replaceOp(op, addBias);
+  }
+
+  LayoutAttr getLayoutAttr(Value value) const {
+    auto layoutLookup = getTypeConverter()->getContextualAttr(value);
+    if (failed(layoutLookup)) {
+      return nullptr;
+    }
+    return dyn_cast<LayoutAttr>(layoutLookup.value());
+  }
+
   LogicalResult matchAndRewrite(
       linalg::ReduceOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter& rewriter) const final {
@@ -621,10 +675,16 @@ class ConvertLinalgReduce
              << innerOp->getName();
     }
 
-    // TODO(#2254): Implement a proper kernel
-    // rewriter.replaceOp(op, result);
-    // return success();
-    return failure();
+    Value input = adaptor.getInputs()[0];
+
+    LayoutAttr inputLayout = getLayoutAttr(input);
+    if (!inputLayout)
+      return rewriter.notifyMatchFailure(
+          op, "missing new layout attribute for input");
+
+    // Based on ImplementRotateAndReduce
+    rotateAndReduceKernel(op, adaptor, rewriter, innerOp);
+    return success();
   }
 };
 
