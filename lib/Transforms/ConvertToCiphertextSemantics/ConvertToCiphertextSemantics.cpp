@@ -2064,7 +2064,7 @@ struct ConvertLinalgMatmul
     auto rhsType = cast<RankedTensorType>(op.getInputs()[1].getType());
 
     auto dagType = kernel::mlirTypeToDagType(lhsType);
-    // TODO(#2368): zero-pad inputs to ensure coprime dimensions
+    // TODO(#2386): zero-pad inputs to ensure coprime dimensions
     std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
         kernel::implementBicyclicMatmul(lhsLeaf, rhsLeaf, lhsType.getShape()[0],
                                         lhsType.getShape()[1],
