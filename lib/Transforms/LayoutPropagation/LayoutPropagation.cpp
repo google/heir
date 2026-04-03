@@ -765,10 +765,30 @@ LogicalResult LayoutPropagation::visitOperation(MatmulOp op) {
 }
 
 LogicalResult LayoutPropagation::visitOperation(ReduceOp op) {
+  MLIRContext* ctx = &getContext();
+  mlir::IRRewriter builder(ctx);
+  builder.setInsertionPoint(op);
+
   for (const auto& [tensor, result] :
        llvm::zip(op.getInputs(), op.getResults())) {
+    LayoutAttr thisLayout = assignedLayouts.at(tensor);
+
+    // enforce row-major layout
+    RankedTensorType thisType = cast<RankedTensorType>(tensor.getType());
+    if (!isRelationRowMajor(thisType, ciphertextSize,
+                            thisLayout.getIntegerRelation())) {
+      LLVM_DEBUG(llvm::dbgs() << "ReduceOp tensor is not row major");
+      auto [toReplace, newLayoutAttr] =
+          convertToLayout(ctx, builder, op, tensor, thisLayout,
+                          getRowMajorLayoutRelation(thisType, ciphertextSize));
+      debugAssignLayout(toReplace, newLayoutAttr);
+      assignedLayouts.insert({toReplace, newLayoutAttr});
+      thisLayout = newLayoutAttr;
+    }
+
+    // drop dimension on output
     LayoutAttr resultLayout =
-        convertLayoutForReduce(assignedLayouts.at(tensor), op.getDimensions());
+        convertLayoutForReduce(thisLayout, op.getDimensions());
     assignedLayouts.insert({result, resultLayout});
     debugAssignLayout(result, resultLayout);
   }

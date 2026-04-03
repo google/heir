@@ -52,6 +52,7 @@
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
 #include "lib/Transforms/PopulateScale/PopulateScale.h"
 #include "lib/Transforms/PropagateAnnotation/PropagateAnnotation.h"
+#include "lib/Transforms/ReductionCanonicalizations/ReductionCanonicalizations.h"
 #include "lib/Transforms/RemoveUnusedPureCall/RemoveUnusedPureCall.h"
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/Secretize/Passes.h"
@@ -535,6 +536,7 @@ void linalgPreprocessingBuilder(OpPassManager& manager) {
   manager.addPass(createSCCPPass());
   manager.addPass(createCSEPass());
   manager.addPass(createLinalgCanonicalizations());
+  manager.addPass(createReductionCanonicalizations());
 }
 
 void torchLinalgToCkksBuilder(OpPassManager& manager,

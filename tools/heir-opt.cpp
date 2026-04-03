@@ -104,6 +104,7 @@
 #include "lib/Transforms/PolynomialApproximation/PolynomialApproximation.h"
 #include "lib/Transforms/PopulateScale/PopulateScale.h"
 #include "lib/Transforms/PropagateAnnotation/PropagateAnnotation.h"
+#include "lib/Transforms/ReductionCanonicalizations/ReductionCanonicalizations.h"
 #include "lib/Transforms/RemoveUnusedPureCall/RemoveUnusedPureCall.h"
 #include "lib/Transforms/RotationAnalysis/Passes.h"
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
@@ -339,6 +340,7 @@ int main(int argc, char** argv) {
   registerLayoutPropagationPasses();
   registerLayoutOptimizationPasses();
   registerLinalgCanonicalizationsPasses();
+  registerReductionCanonicalizationsPasses();
   registerFoldConstantTensorsPasses();
   registerLowerPolynomialEvalPasses();
   registerLowerUnpackPasses();
