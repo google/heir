@@ -10,17 +10,13 @@
 #include <utility>
 #include <vector>
 
-#include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
-#include "lib/Dialect/CKKS/IR/CKKSDialect.h"
+#include "lib/Dialect/ModArith/IR/ModArithAttributes.h"
 #include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
-#include "lib/Dialect/RNS/IR/RNSOps.h"
-#include "lib/Dialect/RNS/IR/RNSTypes.h"
-#include "lib/Parameters/CKKS/Params.h"
 #include "lib/Utils/APIntUtils.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
@@ -28,6 +24,7 @@
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"    // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/LLVMIR/LLVMAttrs.h"  // from @llvm-project
@@ -42,7 +39,6 @@
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
@@ -1035,9 +1031,6 @@ static Value fastNTT(ImplicitLocOpBuilder& b, RingAttr ring,
   auto modArithType = cast<ModArithType>(ring.getCoefficientType());
   APInt cmod = modArithType.getModulus().getValue();
   APInt root = rootAttr.getValue().getValue();
-  root = !inverse ? root
-                  : multiplicativeInverse(root.zext(cmod.getBitWidth()), cmod)
-                        .trunc(root.getBitWidth());
   // Initialize the mod_arith roots constant
   auto rootsType = tensorType.clone({degree});
   Value roots = arith::ConstantOp::create(

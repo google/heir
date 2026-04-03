@@ -237,7 +237,8 @@ def Polynomial_PrimitiveRootAttr: Polynomial_Attr<"PrimitiveRoot", "primitive_ro
   let summary = "an attribute containing a typed root value and its degree as a root of unity";
   let description = [{
     A primitive root attribute stores a typed root `value` and an integer
-    `degree`, corresponding to a primitive root of unity of the given degree.
+    `degree`, corresponding to a primitive root of unity of the given degree, i.e.,
+    `degree` is the smallest positive integer such that `value^degree = 1`
 
     The root value is represented as either:
     - `#mod_arith.value<...>` for a single modular coefficient ring, or
@@ -250,7 +251,7 @@ def Polynomial_PrimitiveRootAttr: Polynomial_Attr<"PrimitiveRoot", "primitive_ro
 
     ```mlir
     #v = #mod_arith.value<type=!mod_arith.int<17 : i32>, value=3 : i32>
-    #poly = #polynomial.primitive_root<value=#v, degree=8 : i32>
+    #poly = #polynomial.primitive_root<value=#v, degree=16 : i32>
     ```
   }];
   let parameters = (ins

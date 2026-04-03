@@ -14,9 +14,34 @@ cc_library(
         "Passes.h",
     ],
     deps = [
+        ":AttachNTTRoots",
         ":PolyMulToNTT",
         ":pass_inc_gen",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
+    ],
+)
+
+cc_library(
+    name = "AttachNTTRoots",
+    srcs = [
+        "AttachNTTRoots.cpp",
+    ],
+    hdrs = [
+        "AttachNTTRoots.h",
+    ],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Dialect/ModArith/IR:Dialect",
+        "@heir//lib/Dialect/Polynomial/IR:Dialect",
+        "@heir//lib/Dialect/RNS/IR:Dialect",
+        "@heir//lib/Dialect/RNS/IR:RNSTypes",
+        "@heir//lib/Utils:APIntUtils",
+        "@heir//lib/Utils:MathUtils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TransformUtils",
     ],
 )
 

@@ -331,7 +331,7 @@ void PolyMulToNTT::runOnOperation() {
   // Convert the value v to the given form by adding an NTTOp or INTTOp to the
   // AST.
   auto addConversion = [&](Value& v, Form outputForm) -> Value {
-    // TODO(#2684): add real PrimitiveRootAttrs
+    // Real roots are inserted with the --attach-ntt-roots pass
     if (outputForm == Form::EVAL) {
       ++numNttsInserted;
       return NTTOp::create(b, v, PrimitiveRootAttr()).getOutput();

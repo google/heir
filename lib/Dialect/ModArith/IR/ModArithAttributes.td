@@ -5,6 +5,7 @@ include "lib/Dialect/ModArith/IR/ModArithDialect.td"
 include "lib/Dialect/ModArith/IR/ModArithTypes.td"
 
 include "mlir/IR/AttrTypeBase.td"
+include "mlir/IR/BuiltinAttributeInterfaces.td"
 include "mlir/IR/DialectBase.td"
 include "mlir/IR/OpBase.td"
 
@@ -13,7 +14,8 @@ class ModArith_Attr<string name, string attrMnemonic, list<Trait> traits = []>
   let mnemonic = attrMnemonic;
 }
 
-def ModArith_ModArithAttr : ModArith_Attr<"ModArith", "value"> {
+def ModArith_ModArithAttr : ModArith_Attr<"ModArith", "value",
+                                          [TypedAttrInterface]> {
   let summary = "a typed modular arithmetic value";
   let description = [{
     A typed modular arithmetic value.
