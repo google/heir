@@ -12233,7 +12233,8 @@ must occur at most once.&lt;/p>
 IntegerAttr # degree
 &amp;gt;
 &lt;/code>&lt;/pre>&lt;p>A primitive root attribute stores a typed root &lt;code>value&lt;/code> and an integer
-&lt;code>degree&lt;/code>, corresponding to a primitive root of unity of the given degree.&lt;/p>
+&lt;code>degree&lt;/code>, corresponding to a primitive root of unity of the given degree, i.e.,
+&lt;code>degree&lt;/code> is the smallest positive integer such that &lt;code>value^degree = 1&lt;/code>&lt;/p>
 &lt;p>The root value is represented as either:&lt;/p>
 &lt;ul>
 &lt;li>&lt;code>#mod_arith.value&amp;lt;...&amp;gt;&lt;/code> for a single modular coefficient ring, or&lt;/li>
@@ -12243,7 +12244,7 @@ IntegerAttr # degree
 to specify the root of unity used in lowering the transform.&lt;/p>
 &lt;p>Example:&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#v&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#mod_arith.value&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">type=&lt;/span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>mod_arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>int&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">17&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;,&lt;/span> &lt;span style="color:#f57900">value=&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">3&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#poly&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#polynomial.primitive_root&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">value=&lt;/span>&lt;span style="color:#000">#v&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">degree=&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#poly&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#polynomial.primitive_root&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">value=&lt;/span>&lt;span style="color:#000">#v&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">degree=&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters-3">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -12747,7 +12748,8 @@ all higher-degree terms have coefficient zero.&lt;/p>
 output polynomial at powers of a primitive &lt;code>n&lt;/code>-th root of unity (see
 &lt;code>polynomial.ntt&lt;/code>). The ring of the polynomial is taken from the required
 encoding attribute of the tensor.&lt;/p>
-&lt;p>The choice of primitive root may be optionally specified.&lt;/p>
+&lt;p>The choice of primitive root may be optionally specified. If specified,
+it should be the multiplicative inverse of the primitive root provided to NTT.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -13096,9 +13098,9 @@ representation of the input polynomial. The output tensor has shape equal
 to the degree of the ring&amp;rsquo;s &lt;code>polynomialModulus&lt;/code>. The polynomial&amp;rsquo;s RingAttr
 is embedded as the encoding attribute of the output tensor.&lt;/p>
 &lt;p>Given an input polynomial &lt;code>F(x)&lt;/code> over a ring whose &lt;code>polynomialModulus&lt;/code> has
-degree &lt;code>n&lt;/code>, and a primitive &lt;code>n&lt;/code>-th root of unity &lt;code>omega_n&lt;/code>, the output is
+degree &lt;code>n&lt;/code>, and a primitive &lt;code>2n&lt;/code>-th root of unity &lt;code>omega_{2n}&lt;/code>, the output is
 the list of $n$ evaluations&lt;/p>
-&lt;p>&lt;code>f[k] = F(omega[n]^k) ; k = {0, ..., n-1}&lt;/code>&lt;/p>
+&lt;p>&lt;code>f[k] = F(omega_{2n}^k) ; k = {0, ..., n-1}&lt;/code>&lt;/p>
 &lt;p>The choice of primitive root may be optionally specified.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
