@@ -573,6 +573,44 @@ void INTTOp::getCanonicalizationPatterns(RewritePatternSet& results,
   results.add<INTTAfterNTT>(context);
 }
 
+LogicalResult ApplyCoefficientwiseOp::verify() {
+  auto& body = getBody();
+  if (body.empty()) {
+    return emitOpError() << "requires a non-empty body";
+  }
+
+  auto& block = body.front();
+  if (block.getNumArguments() != 2) {
+    return emitOpError() << "requires a body with 2 arguments: the coefficient "
+                            "and the degree";
+  }
+
+  auto inputPolyTy = getInput().getType();
+  auto inputCoeffTy = inputPolyTy.getRing().getCoefficientType();
+  if (block.getArgument(0).getType() != inputCoeffTy) {
+    return emitOpError() << "expected first argument of the body to be of type "
+                         << inputCoeffTy << ", but found "
+                         << block.getArgument(0).getType();
+  }
+
+  if (!block.getArgument(1).getType().isIndex()) {
+    return emitOpError() << "expected second argument of the body to be of "
+                            "type index, but found "
+                         << block.getArgument(1).getType();
+  }
+
+  auto yieldOp = cast<YieldOp>(block.getTerminator());
+  auto outputPolyTy = getOutput().getType();
+  auto outputCoeffTy = outputPolyTy.getRing().getCoefficientType();
+  if (yieldOp.getOperand().getType() != outputCoeffTy) {
+    return emitOpError() << "expected yield operand to be of type "
+                         << outputCoeffTy << ", but found "
+                         << yieldOp.getOperand().getType();
+  }
+
+  return success();
+}
+
 }  // namespace polynomial
 }  // namespace heir
 }  // namespace mlir

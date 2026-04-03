@@ -430,4 +430,45 @@ def Polynomial_ConvertBasisOp : Polynomial_Op<"convert_basis", [Pure, Elementwis
   let assemblyFormat = "$value attr-dict `:` type($value) `->` type($output)";
 }
 
+def Polynomial_YieldOp : Polynomial_Op<"yield", [Terminator, HasParent<"ApplyCoefficientwiseOp">]> {
+  let summary = "Yield a value from a polynomial.apply_coefficientwise region.";
+  let arguments = (ins AnyType:$operand);
+  let assemblyFormat = "$operand attr-dict `:` type($operand)";
+}
+
+def Polynomial_ApplyCoefficientwiseOp : Polynomial_Op<"apply_coefficientwise", [
+    Pure, SingleBlock]> {
+  let summary = "Apply a region to each coefficient of a polynomial.";
+  let description = [{
+    `polynomial.apply_coefficientwise` takes a polynomial and applies a series
+    of operations to each of its coefficients defined by a region. The region
+    takes two arguments: the coefficient value and the degree of the term. The
+    region must yield a single value which will be the coefficient of the
+    corresponding term in the output polynomial. This op may change the
+    coefficient type of the polynomial as a consequence of the operations.
+
+    Example:
+
+    ```mlir
+    #ring1 = #polynomial.ring<coefficientType=i32>
+    #ring2 = #polynomial.ring<coefficientType=f32>
+    !poly_ty_1 = !polynomial.polynomial<ring=#ring1>
+    !poly_ty_2 = !polynomial.polynomial<ring=#ring2>
+
+    %divisor = arith.constant 3.4 : f32
+    %1 = polynomial.apply_coefficientwise(%0 : !poly_ty_1) {
+    ^body(%coeff: i32, %degree: index):
+      %2 = arith.sitofp %coeff : i32 to f32
+      %3 = arith.divf %2, %divisor : f32
+      polynomial.yield %3 : f32
+    } -> !poly_ty_2
+    ```
+  }];
+  let arguments = (ins Polynomial_PolynomialType:$input);
+  let results = (outs Polynomial_PolynomialType:$output);
+  let regions = (region SizedRegion<1>:$body);
+  let assemblyFormat = "`(` $input `:` type($input) `)` attr-dict-with-keyword $body `->` type($output)";
+  let hasVerifier = 1;
+}
+
 #endif  // LIB_DIALECT_POLYNOMIAL_IR_POLYNOMIALOPS_TD_

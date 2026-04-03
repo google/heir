@@ -39,6 +39,8 @@
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/IRMapping.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
@@ -554,6 +556,74 @@ struct ConvertLeadingTerm : public OpConversionPattern<LeadingTermOp> {
     auto leadingCoefficient =
         tensor::ExtractOp::create(b, coeffs, ValueRange{degree});
     rewriter.replaceOp(op, ValueRange{degree, leadingCoefficient.getResult()});
+    return success();
+  }
+};
+
+struct ConvertApplyCoefficientwise
+    : public OpConversionPattern<ApplyCoefficientwiseOp> {
+  ConvertApplyCoefficientwise(mlir::MLIRContext* context)
+      : OpConversionPattern<ApplyCoefficientwiseOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      ApplyCoefficientwiseOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    auto res = getCommonConversionInfo(op, typeConverter);
+    if (failed(res))
+      return rewriter.notifyMatchFailure(
+          op, "failed to construct common conversion info");
+    auto typeInfo = res.value();
+
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    Value inputTensor = adaptor.getInput();
+    // Implicitly we're relying on the fact that the operand has already been
+    // converted to a tensor where the leading axis indexes coefficients.
+    auto resultTensorType = cast<RankedTensorType>(
+        typeConverter->convertType(op.getOutput().getType()));
+
+    Value resultTensor = rewriter.create<tensor::EmptyOp>(
+        op.getLoc(), resultTensorType.getShape(),
+        resultTensorType.getElementType());
+
+    // Lowers the op to a loop over the coefficients.
+    auto lowerBound = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), 0);
+    auto upperBound = rewriter.create<arith::ConstantIndexOp>(
+        op.getLoc(), typeInfo.tensorType.getShape()[0]);
+    auto step = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), 1);
+
+    auto forOp = rewriter.create<scf::ForOp>(
+        op.getLoc(), lowerBound, upperBound, step, ValueRange{resultTensor});
+
+    OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPointToStart(forOp.getBody());
+
+    Value iv = forOp.getInductionVar();
+    Value currentResultTensor = forOp.getRegionIterArgs()[0];
+
+    // Extract one coefficient to use as the block argument
+    Value coeff =
+        rewriter.create<tensor::ExtractOp>(op.getLoc(), inputTensor, iv);
+
+    // Map the apply_coefficientwise block arguments to the extracted
+    // coefficient and induction variable.
+    IRMapping mapping;
+    mapping.map(op.getBody().getArgument(0), coeff);
+    mapping.map(op.getBody().getArgument(1), iv);
+
+    // Inline the region
+    for (auto& nestedOp : op.getBody().front().without_terminator()) {
+      rewriter.clone(nestedOp, mapping);
+    }
+
+    auto yieldOp = cast<YieldOp>(op.getBody().front().getTerminator());
+    Value yieldedValue = mapping.lookupOrDefault(yieldOp.getOperand());
+    Value updatedResultTensor = rewriter.create<tensor::InsertOp>(
+        op.getLoc(), yieldedValue, currentResultTensor, iv);
+
+    rewriter.create<scf::YieldOp>(op.getLoc(), updatedResultTensor);
+    rewriter.replaceOp(op, forOp.getResult(0));
     return success();
   }
 };
@@ -1336,8 +1406,8 @@ void PolynomialToModArith::runOnOperation() {
                ConvertPolyBinop<AddOp, arith::AddIOp, mod_arith::AddOp>,
                ConvertPolyBinop<SubOp, arith::SubIOp, mod_arith::SubOp>,
                ConvertLeadingTerm, ConvertMonomial, ConvertMonicMonomialMul,
-               ConvertConstant, ConvertMulScalar, ConvertNTT, ConvertINTT>(
-      typeConverter, context);
+               ConvertConstant, ConvertMulScalar, ConvertNTT, ConvertINTT,
+               ConvertApplyCoefficientwise>(typeConverter, context);
   patterns.add<ConvertMul>(typeConverter, patterns.getContext(), getDivmodOp);
   addStructuralConversionPatterns(typeConverter, patterns, target);
   addTensorOfTensorConversionPatterns(typeConverter, patterns, target);
