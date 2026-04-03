@@ -438,7 +438,7 @@ static FailureOr<Cost> computeKernelCostFromDAG(KernelName kernel,
     }
 
     case KernelName::MatmulBicyclic: {
-      // TODO(#2368): ensure this reflects required zero-padding of inputs
+      // TODO(#2386): ensure this reflects required zero-padding of inputs
       auto lhsType = dyn_cast<RankedTensorType>(op->getOperand(0).getType());
       if (!lhsType) return failure();
       auto lhsShape = lhsType.getShape();
