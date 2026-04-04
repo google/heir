@@ -370,6 +370,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
           rewriter.setInsertionPoint(clonedLoop);
           auto newInit = secret::ConcealOp::create(rewriter, genericOp.getLoc(),
                                                    operand.get());
+          copyDialectAttributes(operand.get(), newInit);
           clonedLoop->setOperand(operand.getOperandNumber(), newInit);
           blockArg.setType(operand.get().getType());
           newInitsToOperands.insert({blockArg, operand.get()});

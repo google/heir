@@ -33,6 +33,8 @@ void insertModReduceBeforeOrAfterMult(Operation* top, bool afterMul,
 
 void insertRelinearizeAfterMult(Operation* top, bool includeFloats);
 
+void adjustLevelsForRegionBranchOps(Operation* top);
+
 void handleCrossLevelOps(Operation* top, int* idCounter, bool includeFloats);
 
 void handleCrossMulDepthOps(Operation* top, int* idCounter, bool includeFloats);

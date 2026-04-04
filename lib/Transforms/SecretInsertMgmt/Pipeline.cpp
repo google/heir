@@ -13,11 +13,14 @@
 #include "llvm/include/llvm/Support/DebugLog.h"            // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"      // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"    // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"             // from @llvm-project
-#include "mlir/include/mlir/Pass/PassManager.h"            // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/SymbolTable.h"            // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"          // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
 
 #define DEBUG_TYPE "secret-insert-mgmt"
@@ -96,12 +99,20 @@ LogicalResult runInsertMgmtPipeline(Operation* top,
     insertBootstrapWaterLine(top, options.bootstrapWaterline.value());
   }
 
+  // An if statement must have each branch producing the same level as a result,
+  // so the branch with the higher level must insert a level_reduce op.
+  adjustLevelsForRegionBranchOps(top);
+
   int idCounter = 0;  // for making adjust_scale op different to avoid cse
   LDBG() << "Handling cross level ops";
   handleCrossLevelOps(top, &idCounter, options.includeFloats);
 
   LDBG() << "Handling cross mul depth ops";
   handleCrossMulDepthOps(top, &idCounter, options.includeFloats);
+
+  // An if statement must have each branch producing the same level as a result,
+  // so the branch with the higher level must insert a level_reduce op.
+  adjustLevelsForRegionBranchOps(top);
   return success();
 }
 
@@ -238,7 +249,19 @@ void makeLoopsTypeAndLevelInvariant(Operation* top) {
   DataFlowSolver solver3;
   makeAndRunSecretnessSolver(top, solver3);
   patterns.clear();
-  patterns.add<UseInitForPlaintextBranchTerminators>(ctx, &solver3);
+  patterns.add<UseInitForPlaintextBranchTerminators,
+               RegionBranchOpLevelInvariancePattern>(ctx, &solver3);
+  walkAndApplyPatterns(top, std::move(patterns));
+}
+
+void adjustLevelsForRegionBranchOps(Operation* top) {
+  LDBG() << "Adjusting levels for region branching ops";
+  MLIRContext* ctx = top->getContext();
+  DataFlowSolver solver;
+  makeAndRunSecretnessAndLevelSolver(top, solver);
+
+  RewritePatternSet patterns(ctx);
+  patterns.add<RegionBranchOpLevelInvariancePattern>(ctx, &solver);
   walkAndApplyPatterns(top, std::move(patterns));
 }
 
@@ -252,6 +275,7 @@ void unrollLoopsForLevelUtilization(Operation* top, int levelBudget) {
                                                        &solver);
   walkAndApplyPatterns(top, std::move(patterns));
 
+  LDBG() << "Deleting annotated ops";
   RewritePatternSet cleanupPatterns(ctx);
   cleanupPatterns.add<DeleteAnnotatedOps>(ctx);
   walkAndApplyPatterns(top, std::move(cleanupPatterns));

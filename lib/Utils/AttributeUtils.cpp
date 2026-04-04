@@ -292,6 +292,45 @@ void populateOperandAttrInterface(Operation* op, StringRef attrName) {
   });
 }
 
+void copyDialectAttributes(Value from, Value to) {
+  auto copyFromDict = [&](DictionaryAttr dict) {
+    if (!dict) return;
+    for (auto attr : dict) {
+      if (attr.getName().getValue().contains('.')) {
+        setAttributeAssociatedWith(to, attr.getName().getValue(),
+                                   attr.getValue());
+      }
+    }
+  };
+
+  if (auto blockArg = dyn_cast<BlockArgument>(from)) {
+    auto* parentOp = blockArg.getOwner()->getParentOp();
+    if (auto funcOp = dyn_cast<FunctionOpInterface>(parentOp)) {
+      copyFromDict(funcOp.getArgAttrDict(blockArg.getArgNumber()));
+    } else if (auto attrOp =
+                   dyn_cast<OperandAndResultAttrInterface>(parentOp)) {
+      copyFromDict(attrOp.getOperandAttrDict(blockArg.getArgNumber()));
+    }
+  } else {
+    auto opResult = cast<OpResult>(from);
+    auto* op = opResult.getOwner();
+    if (auto attrOp = dyn_cast<OperandAndResultAttrInterface>(op)) {
+      copyFromDict(attrOp.getResultAttrDict(opResult.getResultNumber()));
+    }
+    // Fallback for ops that don't implement the interface but might have
+    // the attribute directly (like mgmt.init).
+    // For single-result ops, attributes are often just on the op.
+    if (op->getNumResults() == 1) {
+      for (auto attr : op->getAttrs()) {
+        if (attr.getName().getValue().contains('.')) {
+          setAttributeAssociatedWith(to, attr.getName().getValue(),
+                                     attr.getValue());
+        }
+      }
+    }
+  }
+}
+
 void convertArrayOfDicts(ArrayAttr arrayOfDicts,
                          SmallVector<NamedAttribute>& result) {
   if (!arrayOfDicts) return;

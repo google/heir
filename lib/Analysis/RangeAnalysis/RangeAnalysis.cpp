@@ -11,6 +11,7 @@
 #include "lib/Utils/LogArithmetic.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
+#include "llvm/include/llvm/Support/DebugLog.h"            // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"    // from @llvm-project
@@ -24,7 +25,7 @@
 #include "mlir/include/mlir/Interfaces/CallInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"               // from @llvm-project
 
-#define DEBUG_TYPE "RangeAnalysis"
+#define DEBUG_TYPE "range-analysis"
 
 namespace mlir {
 namespace heir {
@@ -38,8 +39,7 @@ LogicalResult RangeAnalysis::visitOperation(
     ArrayRef<RangeLattice*> results) {
   auto propagate = [&](Value value, const RangeState& state) {
     auto* lattice = getLatticeElement(value);
-    LLVM_DEBUG(llvm::dbgs()
-               << "Propagate RangeState to " << value << ": " << state << "\n");
+    LDBG() << "Propagate RangeState to " << value << ": " << state;
     ChangeResult changed = lattice->join(state);
     propagateIfChanged(lattice, changed);
   };
