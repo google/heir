@@ -3,6 +3,8 @@
 
 #include <string_view>
 
+#include "llvm/include/llvm/ADT/StringRef.h"  // from @llvm-project
+
 namespace mlir {
 namespace heir {
 namespace lattigo {
@@ -32,6 +34,13 @@ constexpr std::string_view kLattigoUtilsImport =
 constexpr std::string_view kMathImport = "\"math\"";
 constexpr std::string_view kSlicesImport = "\"slices\"";
 constexpr std::string_view kMathBigImport = "\"math/big\"";
+
+inline constexpr llvm::StringLiteral kEvalVar = "evaluator";
+inline constexpr llvm::StringLiteral kEncodeVar = "encoder";
+inline constexpr llvm::StringLiteral kDecryptVar = "decryptor";
+inline constexpr llvm::StringLiteral kCiphertxtVar = "ct";
+inline constexpr llvm::StringLiteral kParamVar = "param";
+inline constexpr llvm::StringLiteral kDebugAttrMapParam = "debugAttrMap";
 
 }  // namespace lattigo
 }  // namespace heir

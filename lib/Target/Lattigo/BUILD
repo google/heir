@@ -36,3 +36,51 @@ cc_library(
         "@llvm-project//mlir:TranslateLib",
     ],
 )
+
+cc_library(
+    name = "LattigoDebugEmitter",
+    srcs = ["LattigoDebugEmitter.cpp"],
+    hdrs = [
+        "LattigoDebugEmitter.h",
+        "LattigoTemplates.h",
+    ],
+    deps = [
+        "@heir//lib/Dialect:ModuleAttributes",
+        "@heir//lib/Dialect/Lattigo/IR:Dialect",
+        "@heir//lib/Utils:TargetUtils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:DialectUtils",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TranslateLib",
+    ],
+)
+
+cc_library(
+    name = "LattigoRegistration",
+    srcs = [
+        "LattigoTranslateRegistration.cpp",
+    ],
+    hdrs = [
+        "LattigoTranslateRegistration.h",
+    ],
+    deps = [
+        ":LattigoDebugEmitter",
+        ":LattigoEmitter",
+        "@heir//lib/Dialect:ModuleAttributes",
+        "@heir//lib/Dialect/Lattigo/IR:Dialect",
+        "@heir//lib/Dialect/Mgmt/IR:Dialect",
+        "@heir//lib/Dialect/RNS/IR:Dialect",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AffineDialect",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:DialectUtils",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:SCFDialect",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
+        "@llvm-project//mlir:TranslateLib",
+    ],
+)
