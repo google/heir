@@ -1741,7 +1741,7 @@ attribute.</p><h4 id=example-31>Example</h4><p>Command: <code>heir-opt --polynom
 </span></span><span style=display:flex><span>    <span style=color:#204a87;font-weight:700>return</span> <span style=color:#000>%0</span> <span style=color:#000;font-weight:700>:</span> <span style=color:#204a87;font-weight:700>f32</span>
 </span></span><span style=display:flex><span>  <span style=color:#000;font-weight:700>}</span>
 </span></span><span style=display:flex><span><span style=color:#000;font-weight:700>}</span>
-</span></span></code></pre></div><h3 id=-polynomial-to-mod-arith><code>-polynomial-to-mod-arith</code></h3><p><em>Lower <code>polynomial</code> to standard MLIR dialects.</em></p><p>This pass lowers the <code>polynomial</code> dialect to standard MLIR plus mod_arith,
+</span></span></code></pre></div><h3 id=-polynomial-to-mod-arith><code>-polynomial-to-mod-arith</code></h3><p><em>Lower <code>polynomial</code> to standard MLIR dialects.</em></p><p>This pass lowers the <code>polynomial</code> dialect to standard MLIR plus <code>mod_arith</code>,
 including possibly ops from affine, tensor, linalg, and arith.</p><h4 id=options-25>Options</h4><pre tabindex=0><code>-build-materializations : Whether to build materializations
 </code></pre><h3 id=-populate-scale-bgv><code>-populate-scale-bgv</code></h3><p><em>Populate the scale for BGV (GHS variant) ciphertext</em></p><p>In the original BGV scheme, it is required that each modulus in
 the modulus chain is a prime number q such that $q \equiv 1 \pmod{t}$,
