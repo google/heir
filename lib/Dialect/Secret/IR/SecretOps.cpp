@@ -9,6 +9,7 @@
 
 #include "lib/Dialect/Secret/IR/SecretPatterns.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
+#include "lib/Utils/AttributeUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
 #include "llvm/include/llvm/ADT/Sequence.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
@@ -401,6 +402,7 @@ GenericOp GenericOp::removeYieldedValues(ValueRange yieldedValuesToRemove,
            "Cannot remove a value that is not yielded");
   }
 
+  SmallVector<Attribute> newResultAttrs;
   SmallVector<int, 4> indicesToErase;
   for (unsigned int i = 0; i < getYieldOp()->getNumOperands(); ++i) {
     if (std::find(yieldedValuesToRemove.begin(), yieldedValuesToRemove.end(),
@@ -408,6 +410,7 @@ GenericOp GenericOp::removeYieldedValues(ValueRange yieldedValuesToRemove,
       indicesToErase.push_back(i);
     } else {
       remainingResults.push_back(getResult(i));
+      newResultAttrs.push_back(getResultAttrDict(i));
     }
   }
 
@@ -415,6 +418,11 @@ GenericOp GenericOp::removeYieldedValues(ValueRange yieldedValuesToRemove,
   // indices to delete.
   for (int i : llvm::reverse(indicesToErase)) {
     getYieldOp().getValuesMutable().erase(i);
+  }
+  // Update the result attr dictionary to remove the deleted results
+  if (this->getAllResultAttrsAttr()) {
+    this->setResultAttrsAttr(
+        ArrayAttr::get(this->getContext(), newResultAttrs));
   }
 
   auto newResultTypes = llvm::to_vector<4>(
@@ -435,10 +443,13 @@ GenericOp GenericOp::removeYieldedValues(ArrayRef<int> yieldedIndicesToRemove,
            "Cannot remove an index that is out of range");
   }
 
+  SmallVector<Attribute> newResultAttrs;
+  newResultAttrs.reserve(getNumResults() - yieldedIndicesToRemove.size());
   for (size_t i = 0; i < getYieldOp()->getNumOperands(); ++i) {
     if (std::find(yieldedIndicesToRemove.begin(), yieldedIndicesToRemove.end(),
                   i) == yieldedIndicesToRemove.end()) {
       remainingResults.push_back(getResult(i));
+      newResultAttrs.push_back(getResultAttrDict(i));
     }
   }
 
@@ -446,6 +457,11 @@ GenericOp GenericOp::removeYieldedValues(ArrayRef<int> yieldedIndicesToRemove,
   // indices to delete.
   for (int i : llvm::reverse(yieldedIndicesToRemove)) {
     getYieldOp().getValuesMutable().erase(i);
+  }
+  // Update the result attr dictionary to remove the deleted results
+  if (this->getAllResultAttrsAttr()) {
+    this->setResultAttrsAttr(
+        ArrayAttr::get(this->getContext(), newResultAttrs));
   }
 
   auto newResultTypes = llvm::to_vector<4>(
@@ -526,15 +542,33 @@ GenericOp GenericOp::extractOpBeforeGeneric(Operation* opToExtract,
         auto* newOp = b.clone(*opToExtract, mp);
         YieldOp::create(b, loc, newOp->getResults());
       });
-  LLVM_DEBUG({
-    llvm::dbgs() << "After adding new single-op generic:\n";
-    newGeneric->getParentOp()->dump();
-  });
-
+  // Set the result attrs of the new generic to be the attrs of the opToExtract.
+  for (auto attr : opToExtract->getAttrs()) {
+    auto attrName = attr.getName();
+    if (!attrName.getValue().contains(".") || !attr.getValue()) continue;
+    for (OpResult oldResult : opToExtract->getOpResults()) {
+      Attribute sourceAttr =
+          findAttributeAssociatedWith(oldResult, attrName).value();
+      setAttributeAssociatedWith(
+          newGeneric.getResult(oldResult.getResultNumber()), attrName,
+          sourceAttr);
+    }
+  }
   // Once the op is split off into a new generic op, we need to add new
   // operands to the old generic op, add new corresponding block arguments, and
   // replace all uses of the opToExtract's results with the created block
+  // arguments. We also need to copy arg attrs corresponding to the new block
   // arguments.
+  auto oldGenericArgAttrs = this->getAllOperandAttrsAttr();
+  auto emptyDictAttr = ::mlir::DictionaryAttr::get(this->getContext(), {});
+  SmallVector<Attribute> newGenericArgAttrs =
+      oldGenericArgAttrs
+          ? llvm::to_vector(oldGenericArgAttrs)
+          : SmallVector<Attribute>(this->getNumOperands(), emptyDictAttr);
+  for (OpResult newOperand : newGeneric.getResults()) {
+    auto attrDict = newGeneric.getResultAttrDict(newOperand.getResultNumber());
+    newGenericArgAttrs.push_back(attrDict ? attrDict : emptyDictAttr);
+  }
   SmallVector<Value> oldGenericNewBlockArgs;
   rewriter.modifyOpInPlace(*this, [&]() {
     getInputsMutable().append(newGeneric.getResults());
@@ -542,9 +576,22 @@ GenericOp GenericOp::extractOpBeforeGeneric(Operation* opToExtract,
       BlockArgument arg = getBody()->addArgument(ty, opToExtract->getLoc());
       oldGenericNewBlockArgs.push_back(arg);
     }
+    // Only set the operand attrs if there are any to set.
+    if (!llvm::all_of(newGenericArgAttrs, [](Attribute attr) {
+          if (attr == nullptr) return true;
+          auto dictAttr = dyn_cast<DictionaryAttr>(attr);
+          return !dictAttr || dictAttr.empty();
+        })) {
+      this->setOperandAttrsAttr(
+          ArrayAttr::get(this->getContext(), newGenericArgAttrs));
+    }
   });
   rewriter.replaceOp(opToExtract, oldGenericNewBlockArgs);
 
+  LLVM_DEBUG({
+    llvm::dbgs() << "After adding new single-op generic:\n";
+    newGeneric->getParentOp()->dump();
+  });
   return newGeneric;
 }
 

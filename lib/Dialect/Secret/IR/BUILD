@@ -102,6 +102,7 @@ cc_library(
         ":types_inc_gen",
         "@heir//lib/Dialect:HEIRInterfaces",
         "@heir//lib/Kernel",
+        "@heir//lib/Utils:AttributeUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ControlFlowInterfaces",
         "@llvm-project//mlir:IR",

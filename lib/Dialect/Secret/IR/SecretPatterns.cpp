@@ -178,6 +178,17 @@ LogicalResult RemoveUnusedGenericArgs::matchAndRewrite(
         body->eraseArgument(i);
         op.getOperation()->eraseOperand(i);
       });
+      auto attrs = op.getAllOperandAttrsAttr();
+      if (attrs) {
+        SmallVector<Attribute> attrList;
+        for (auto [j, attr] : llvm::enumerate(attrs)) {
+          if (j != i) {
+            attrList.push_back(attr);
+          }
+        }
+        op.setOperandAttrsAttr(ArrayAttr::get(op.getContext(), attrList));
+      }
+
       // Ensure the next iteration uses the right arg number
       --i;
     } else if (llvm::any_of(arg.getUsers(), [&](Operation* user) {
@@ -254,6 +265,16 @@ LogicalResult RemoveNonSecretGenericArgs::matchAndRewrite(
         body->eraseArgument(i);
         op.getOperation()->eraseOperand(i);
       });
+      auto attrs = op.getAllOperandAttrsAttr();
+      if (attrs) {
+        SmallVector<Attribute> attrList;
+        for (auto [j, attr] : llvm::enumerate(attrs)) {
+          if (j != i) {
+            attrList.push_back(attr);
+          }
+        }
+        op.setOperandAttrsAttr(ArrayAttr::get(op.getContext(), attrList));
+      }
       i--;
     }
   }
