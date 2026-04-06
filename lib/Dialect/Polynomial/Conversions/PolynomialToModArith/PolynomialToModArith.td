@@ -7,15 +7,16 @@ def PolynomialToModArith : Pass<"polynomial-to-mod-arith", "ModuleOp"> {
   let summary = "Lower `polynomial` to standard MLIR dialects.";
 
   let description = [{
-    This pass lowers the `polynomial` dialect to standard MLIR plus mod_arith,
+    This pass lowers the `polynomial` dialect to standard MLIR plus `mod_arith`,
     including possibly ops from affine, tensor, linalg, and arith.
   }];
   let dependentDialects = [
     "mlir::LLVM::LLVMDialect",
     "mlir::arith::ArithDialect",
     "mlir::func::FuncDialect",
-    "mlir::heir::polynomial::PolynomialDialect",
     "mlir::heir::mod_arith::ModArithDialect",
+    "mlir::heir::polynomial::PolynomialDialect",
+    "mlir::heir::rns::RNSDialect",
     "mlir::linalg::LinalgDialect",
     "mlir::scf::SCFDialect",
     "mlir::tensor::TensorDialect",

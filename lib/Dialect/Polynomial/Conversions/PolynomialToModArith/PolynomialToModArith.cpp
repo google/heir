@@ -17,9 +17,11 @@
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
+#include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Utils/APIntUtils.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
+#include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
@@ -52,6 +54,7 @@
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
 // IWYU pragma: begin_keep
+#include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "mlir/include/mlir/Dialect/LLVMIR/LLVMDialect.h"  // from @llvm-project
 // IWYU pragma: end_keep
 
@@ -406,7 +409,11 @@ bool hasCyclicModulus(MonicMonomialMulOp op) {
          (idealTerms[1].getCoefficient().isOne());
 }
 
-// Implement rotation via tensor.insert_slice
+// Implement monomial multiplication as rotation via tensor.insert_slice.
+//
+// This pattern hard codes an optimization for a polynomial modulus of x**n - 1
+// and is only used as an implementation detail of the polynomial long division
+// algorithm for lowering coefficient-form polynomial mul ops.
 struct ConvertMonicMonomialMul
     : public OpConversionPattern<MonicMonomialMulOp> {
   ConvertMonicMonomialMul(mlir::MLIRContext* context)
@@ -652,7 +659,7 @@ struct ConvertPolyBinop : public OpConversionPattern<SourceOp> {
           rewriter.replaceOp(op, result);
           return success();
         })
-        .template Case<ModArithType>([&](ModArithType intTy) {
+        .template Case<ModArithType, rns::RNSType>([&](auto ty) {
           auto result =
               TargetModArithOp::create(b, adaptor.getLhs(), adaptor.getRhs());
           rewriter.replaceOp(op, result);
@@ -675,9 +682,9 @@ RankedTensorType polymulOutputTensorType(PolynomialType type) {
 
 // Lower polynomial multiplication to a 1D convolution, followed by with a
 // modulus reduction in the ring.
-struct ConvertMul : public OpConversionPattern<MulOp> {
-  ConvertMul(const TypeConverter& typeConverter, mlir::MLIRContext* context,
-             GetFuncCallbackTy cb)
+struct ConvertMulCoeffForm : public OpConversionPattern<MulOp> {
+  ConvertMulCoeffForm(const TypeConverter& typeConverter,
+                      mlir::MLIRContext* context, GetFuncCallbackTy cb)
       : OpConversionPattern<MulOp>(typeConverter, context),
         getFuncOpCallback(cb) {}
 
@@ -691,6 +698,12 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
       return rewriter.notifyMatchFailure(
           op, "failed to construct common conversion info");
     auto typeInfo = res.value();
+
+    if (typeInfo.polynomialType.getForm() != Form::COEFF) {
+      return rewriter.notifyMatchFailure(
+          op, "CoeffForm lowering skipped due to non-coeff-form poly type");
+    }
+
     auto coeffType = dyn_cast<ModArithType>(typeInfo.coefficientType);
     if (!coeffType) {
       return rewriter.notifyMatchFailure(
@@ -781,8 +794,8 @@ struct PolynomialToModArith
 
   // A map containing modular reduction function implementations, generated once
   // at the beginning of this pass based on the ops to be converted, intended to
-  // be retrieved by ConvertMul to construct CallOps so that later optimization
-  // passes can determine when to inline the implementation.
+  // be retrieved by ConvertMulCoeffForm to construct CallOps so that later
+  // optimization passes can determine when to inline the implementation.
   DenseMap<std::pair<Type, RingAttr>, func::FuncOp> modImpls;
 };
 
@@ -1359,26 +1372,24 @@ struct ConvertINTT : public OpConversionPattern<INTTOp> {
   }
 };
 
+LogicalResult typeHasPolynomialModulus(Value v) {
+  if (auto polyTy = dyn_cast<PolynomialType>(v.getType())) {
+    if (!polyTy.getRing().getPolynomialModulus()) {
+      return failure();
+    }
+  }
+  return success();
+}
+
 void PolynomialToModArith::runOnOperation() {
   MLIRContext* context = &getContext();
 
-  WalkResult result =
-      getOperation()->walk([&](Operation* op) {
-        for (Type ty :
-             llvm::concat<Type>(op->getOperandTypes(), op->getResultTypes())) {
-          if (auto polyTy = dyn_cast<PolynomialType>(ty)) {
-            if (!polyTy.getRing().getPolynomialModulus()) {
-              op->emitError()
-                  << "polynomial-to-mod-arith requires all polynomial "
-                     "types have a polynomialModulus attribute, but found "
-                  << polyTy;
-              return WalkResult::interrupt();
-            }
-          }
-        }
-        return WalkResult::advance();
-      });
-  if (result.wasInterrupted()) {
+  LogicalResult validationResult = walkAndValidateValues(
+      getOperation(), typeHasPolynomialModulus,
+      "polynomial-to-mod-arith requires all polynomial types have a "
+      "polynomialModulus attribute");
+
+  if (failed(validationResult)) {
     signalPassFailure();
     return;
   }
@@ -1408,7 +1419,8 @@ void PolynomialToModArith::runOnOperation() {
                ConvertLeadingTerm, ConvertMonomial, ConvertMonicMonomialMul,
                ConvertConstant, ConvertMulScalar, ConvertNTT, ConvertINTT,
                ConvertApplyCoefficientwise>(typeConverter, context);
-  patterns.add<ConvertMul>(typeConverter, patterns.getContext(), getDivmodOp);
+  patterns.add<ConvertMulCoeffForm>(typeConverter, patterns.getContext(),
+                                    getDivmodOp);
   addStructuralConversionPatterns(typeConverter, patterns, target);
   addTensorOfTensorConversionPatterns(typeConverter, patterns, target);
 
