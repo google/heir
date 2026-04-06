@@ -60,7 +60,8 @@ OpFormClass opFormClass(Operation* op) {
   if (isa<func::ReturnOp>(op)) {
     return OpFormClass::RETURN;
   } else if (isa<ToTensorOp, LeadingTermOp, EvalOp, ConvertBasisOp,
-                 MonicMonomialMulOp, FromTensorOp>(op)) {
+                 MonicMonomialMulOp, FromTensorOp, ApplyCoefficientwiseOp>(
+                 op)) {
     return OpFormClass::COEFF;
   } else if (isa<MulOp>(op)) {
     return OpFormClass::EVAL;
