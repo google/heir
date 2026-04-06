@@ -124,6 +124,7 @@ FailureOr<CommonConversionInfo> getCommonConversionInfo(
   FailureOr<Type> res =
       llvm::TypeSwitch<Type, FailureOr<Type>>(info.coefficientType)
           .Case<IntegerType>([&](auto intTy) { return intTy; })
+          .Case<FloatType>([&](auto floatTy) { return floatTy; })
           .Case<ModArithType>(
               [&](ModArithType intTy) { return intTy.getModulus().getType(); })
           .Default([&](Type ty) { return failure(); });
@@ -780,6 +781,46 @@ struct ConvertMulCoeffForm : public OpConversionPattern<MulOp> {
   GetFuncCallbackTy getFuncOpCallback;
 };
 
+// Lower a polynomial mul in eval form to an elementwise mul.
+struct ConvertMulEvalForm : public OpConversionPattern<MulOp> {
+  using OpConversionPattern<MulOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      MulOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    auto res = getCommonConversionInfo(op, this->typeConverter);
+    if (failed(res))
+      return rewriter.notifyMatchFailure(
+          op, "failed to construct common conversion info");
+    auto typeInfo = res.value();
+
+    if (typeInfo.polynomialType.getForm() != Form::EVAL) {
+      return rewriter.notifyMatchFailure(
+          op, "EvalForm lowering skipped due to non-eval-form poly type");
+    }
+
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    Type coeffTy = typeInfo.coefficientType;
+    if (isa<ModArithType, rns::RNSType>(coeffTy)) {
+      auto newOp =
+          mod_arith::MulOp::create(b, adaptor.getLhs(), adaptor.getRhs());
+      rewriter.replaceOp(op, newOp);
+      return success();
+    } else if (isa<IntegerType>(coeffTy)) {
+      auto newOp = arith::MulIOp::create(b, adaptor.getLhs(), adaptor.getRhs());
+      rewriter.replaceOp(op, newOp);
+      return success();
+    } else if (isa<FloatType>(coeffTy)) {
+      auto newOp = arith::MulFOp::create(b, adaptor.getLhs(), adaptor.getRhs());
+      rewriter.replaceOp(op, newOp);
+      return success();
+    }
+
+    return failure();
+  }
+};
+
 struct PolynomialToModArith
     : impl::PolynomialToModArithBase<PolynomialToModArith> {
   using PolynomialToModArithBase::PolynomialToModArithBase;
@@ -809,6 +850,13 @@ void PolynomialToModArith::generateOpImplementations() {
              "convert-elementwise-to-affine pass before lowering polynomial.";
       return WalkResult::interrupt();
     }
+
+    // This function generates polynomial long division functions, and EVAL ops
+    // don't need this because they lower to an elementwise mul, so we can skip.
+    if (polyTy.getForm() == Form::EVAL) {
+      return WalkResult::advance();
+    }
+
     auto convType = polymulOutputTensorType(polyTy);
     auto postReductionType = convertPolynomialType(polyTy);
     FunctionType funcType =
@@ -1418,7 +1466,8 @@ void PolynomialToModArith::runOnOperation() {
                ConvertPolyBinop<SubOp, arith::SubIOp, mod_arith::SubOp>,
                ConvertLeadingTerm, ConvertMonomial, ConvertMonicMonomialMul,
                ConvertConstant, ConvertMulScalar, ConvertNTT, ConvertINTT,
-               ConvertApplyCoefficientwise>(typeConverter, context);
+               ConvertApplyCoefficientwise, ConvertMulEvalForm>(typeConverter,
+                                                                context);
   patterns.add<ConvertMulCoeffForm>(typeConverter, patterns.getContext(),
                                     getDivmodOp);
   addStructuralConversionPatterns(typeConverter, patterns, target);
