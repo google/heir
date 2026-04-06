@@ -39,6 +39,7 @@ td_library(
         "PolynomialDialect.td",
         "PolynomialEnums.td",
         "PolynomialOps.td",
+        "PolynomialTraits.td",
         "PolynomialTypes.td",
     ],
     # include from the heir-root to enable fully-qualified include-paths

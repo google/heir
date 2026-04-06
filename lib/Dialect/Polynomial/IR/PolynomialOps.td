@@ -4,6 +4,7 @@
 include "lib/Dialect/ModArith/IR/ModArithTypes.td"
 include "lib/Dialect/Polynomial/IR/PolynomialAttributes.td"
 include "lib/Dialect/Polynomial/IR/PolynomialDialect.td"
+include "lib/Dialect/Polynomial/IR/PolynomialTraits.td"
 include "lib/Dialect/Polynomial/IR/PolynomialTypes.td"
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/OpBase.td"
@@ -28,7 +29,7 @@ class Polynomial_BinaryOp<string mnemonic, list<Trait> traits = []> :
   let assemblyFormat = "operands attr-dict `:` type($result)";
 }
 
-def Polynomial_AddOp : Polynomial_BinaryOp<"add", [Commutative]> {
+def Polynomial_AddOp : Polynomial_BinaryOp<"add", [Commutative, SameOperandsAndResultForm]> {
   let summary = "Addition operation between polynomials.";
   let description = [{
     Performs polynomial addition on the operands. The operands may be single
@@ -53,7 +54,7 @@ def Polynomial_AddOp : Polynomial_BinaryOp<"add", [Commutative]> {
   }];
 }
 
-def Polynomial_SubOp : Polynomial_BinaryOp<"sub"> {
+def Polynomial_SubOp : Polynomial_BinaryOp<"sub", [SameOperandsAndResultForm]> {
   let summary = "Subtraction operation between polynomials.";
   let description = [{
     Performs polynomial subtraction on the operands. The operands may be single
@@ -78,7 +79,7 @@ def Polynomial_SubOp : Polynomial_BinaryOp<"sub"> {
   }];
 }
 
-def Polynomial_MulOp : Polynomial_BinaryOp<"mul", [Commutative]> {
+def Polynomial_MulOp : Polynomial_BinaryOp<"mul", [Commutative, SameOperandsAndResultForm]> {
   let summary = "Multiplication operation between polynomials.";
   let description = [{
     Performs polynomial multiplication on the operands. The operands may be single
@@ -104,7 +105,7 @@ def Polynomial_MulOp : Polynomial_BinaryOp<"mul", [Commutative]> {
 }
 
 def Polynomial_MulScalarOp : Polynomial_Op<"mul_scalar", [
-      ElementwiseMappable, AllTypesMatch<["polynomial", "output"]>]> {
+      ElementwiseMappable, AllTypesMatch<["polynomial", "output"]>, SameOperandsAndResultForm]> {
   let summary = "Multiplication by a scalar of the field.";
   let description = [{
     Multiplies the polynomial operand's coefficients by a given scalar value.
@@ -134,7 +135,7 @@ def Polynomial_MulScalarOp : Polynomial_Op<"mul_scalar", [
   let hasVerifier = 1;
 }
 
-def Polynomial_LeadingTermOp: Polynomial_Op<"leading_term"> {
+def Polynomial_LeadingTermOp: Polynomial_Op<"leading_term", [FixedFormCoeff]> {
   let summary = "Compute the leading term of the polynomial.";
   let description = [{
     The degree of a polynomial is the largest $k$ for which the coefficient
@@ -182,7 +183,7 @@ def Polynomial_MonomialOp: Polynomial_Op<"monomial"> {
   let hasVerifier = 1;
 }
 
-def Polynomial_MonicMonomialMulOp: Polynomial_Op<"monic_monomial_mul", [AllTypesMatch<["input", "output"]>]> {
+def Polynomial_MonicMonomialMulOp: Polynomial_Op<"monic_monomial_mul", [AllTypesMatch<["input", "output"]>, FixedFormCoeff]> {
   let summary = "Multiply a polynomial by a monic monomial.";
   let description = [{
     Multiply a polynomial by a monic monomial, meaning a polynomial of the form
@@ -199,14 +200,17 @@ def Polynomial_MonicMonomialMulOp: Polynomial_Op<"monic_monomial_mul", [AllTypes
 }
 
 def Polynomial_FromTensorOp : Polynomial_Op<"from_tensor", [Pure]> {
-  let summary = "Creates a polynomial from integer coefficients stored in a tensor.";
+  let summary = "Creates a polynomial from integer coefficients or evaluations stored in a tensor.";
   let description = [{
-    `polynomial.from_tensor` creates a polynomial value from a tensor of coefficients.
-    The input tensor must list the coefficients in degree-increasing order.
+    `polynomial.from_tensor` creates a polynomial value from a tensor of
+    coefficients or evaluations.
+
+    In coefficient form, the input tensor must list the coefficients in
+    degree-increasing order.
 
     The input one-dimensional tensor may have size at most the degree of the
-    ring's polynomialModulus generator polynomial, with smaller dimension implying that
-    all higher-degree terms have coefficient zero.
+    ring's polynomialModulus generator polynomial, with smaller dimension
+    implying that trailing terms are padded with zero.
 
     Example:
 
@@ -233,16 +237,16 @@ def Polynomial_FromTensorOp : Polynomial_Op<"from_tensor", [Pure]> {
 }
 
 def Polynomial_ToTensorOp : Polynomial_Op<"to_tensor", [Pure]> {
-  let summary = "Creates a tensor containing the coefficients of a polynomial.";
+  let summary = "Creates a tensor containing the coefficients or evaluations of a polynomial.";
   let description = [{
     `polynomial.to_tensor` creates a dense tensor value containing the
-    coefficients of the input polynomial. The output tensor contains the
-    coefficients in degree-increasing order.
+    coefficients or evaluations of the input polynomial. In coefficient form,
+    the output tensor contains the coefficients in degree-increasing order.
 
-    Operations that act on the coefficients of a polynomial, such as extracting
-    a specific coefficient or extracting a range of coefficients, should be
-    implemented by composing `to_tensor` with the relevant `tensor` dialect
-    ops.
+    Operations that act on the coefficients (or evaluations) of a polynomial,
+    such as extracting a specific coefficient or extracting a range of
+    coefficients, can be implemented by composing `to_tensor` with the relevant
+    `tensor` dialect ops.
 
     The output tensor has shape equal to the degree of the polynomial ring
     attribute's polynomialModulus, including zeroes.
@@ -265,7 +269,7 @@ def Polynomial_ToTensorOp : Polynomial_Op<"to_tensor", [Pure]> {
   let hasVerifier = 1;
 }
 
-def Polynomial_ModSwitchOp : Polynomial_Op<"mod_switch", [Pure]> {
+def Polynomial_ModSwitchOp : Polynomial_Op<"mod_switch", [Pure, SameOperandsAndResultForm]> {
   let summary = "Change the coefficient type of a polynomial.";
   let description = [{
     `polynomial.mod_switch` changes the coefficient type of a polynomial.
@@ -364,7 +368,7 @@ def Polynomial_INTTOp : Polynomial_Op<"intt", [Pure, ElementwiseMappable, Declar
   let hasVerifier = 1;
 }
 
-def Polynomial_EvalOp : Polynomial_Op<"eval", [AllTypesMatch<["value", "output"]>, ElementwiseMappable]> {
+def Polynomial_EvalOp : Polynomial_Op<"eval", [AllTypesMatch<["value", "output"]>, ElementwiseMappable, FixedFormCoeff]> {
   let summary = "Evaluate a static polynomial attribute at a given SSA value.";
   let description = [{
       Evaluates the result of a polynomial specified as a static attribute at
@@ -396,7 +400,7 @@ def Polynomial_EvalOp : Polynomial_Op<"eval", [AllTypesMatch<["value", "output"]
   let hasVerifier = 1;
 }
 
-def Polynomial_ExtractSliceOp : Polynomial_Op<"extract_slice", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
+def Polynomial_ExtractSliceOp : Polynomial_Op<"extract_slice", [Pure, SameOperandsAndResultForm, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
   let summary = "Extract a subset of the polynomial's RNS basis";
   let description = [{
     Given a polynomial with RNS coefficients with $k$ basis types (limbs), extract the slice of
@@ -412,7 +416,7 @@ def Polynomial_ExtractSliceOp : Polynomial_Op<"extract_slice", [Pure, DeclareOpI
   let hasVerifier = 1;
 }
 
-def Polynomial_ConvertBasisOp : Polynomial_Op<"convert_basis", [Pure, ElementwiseMappable, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
+def Polynomial_ConvertBasisOp : Polynomial_Op<"convert_basis", [Pure, ElementwiseMappable, FixedFormCoeff, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
   let summary = "Change a polynomial's RNS basis";
   let description = [{
     Given a polynomial with RNS coefficients, output a polynomial where the coefficients

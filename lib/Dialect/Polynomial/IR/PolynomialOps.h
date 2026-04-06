@@ -2,6 +2,7 @@
 #define LIB_DIALECT_POLYNOMIAL_IR_POLYNOMIALOPS_H_
 
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
+#include "lib/Dialect/Polynomial/IR/PolynomialTraits.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "mlir/include/mlir/IR/BuiltinOps.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
