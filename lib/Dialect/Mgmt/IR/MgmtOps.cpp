@@ -45,7 +45,8 @@ void LevelReduceMinOp::getCanonicalizationPatterns(RewritePatternSet& results,
 
 void cleanupInitOp(Operation* top) {
   top->walk([&](mgmt::InitOp initOp) {
-    if (initOp->use_empty()) initOp.erase();
+    initOp.getOutput().replaceAllUsesWith(initOp.getInput());
+    initOp.erase();
   });
 }
 
