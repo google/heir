@@ -156,6 +156,7 @@ LogicalResult CollapseSecretlessGeneric::matchAndRewrite(
     auto resultAttr = op.getResultAttrDict(opIndex);
     auto concealOp =
         secret::ConcealOp::create(rewriter, op.getLoc(), opOperand.get());
+    copyDialectAttributes(opOperand.get(), concealOp.getResult());
     setAttrs(opOperand.get(), resultAttr);
     setAttrs(concealOp.getResult(), resultAttr);
     rewriter.replaceAllUsesWith(op.getResult(opIndex), concealOp.getResult());
@@ -749,6 +750,7 @@ LogicalResult ConcealPlaintextInsert::matchAndRewrite(
       rewriter.setInsertionPointAfterValue(dest);
       auto concealedTensor =
           secret::ConcealOp::create(rewriter, op.getLoc(), dest);
+      copyDialectAttributes(dest, concealedTensor.getResult());
       // Add the concealed tensor to the generic arguments.
       rewriter.modifyOpInPlace(op, [&]() {
         BlockArgument newArg = op.getBody()->addArgument(
