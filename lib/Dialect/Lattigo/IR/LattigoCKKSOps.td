@@ -215,8 +215,8 @@ def Lattigo_CKKSMulOp : Lattigo_CKKSBinaryInPlaceOp<"mul", [IncreasesMulDepthOpI
   }];
 }
 
-class Lattigo_CKKSUnaryOp<string mnemonic> :
-        Lattigo_CKKSOp<mnemonic> {
+class Lattigo_CKKSUnaryOp<string mnemonic, list<Trait> traits = []> :
+        Lattigo_CKKSOp<mnemonic, traits> {
   let arguments = (ins
     Lattigo_CKKSEvaluator:$evaluator,
     Lattigo_RLWECiphertext:$input
@@ -322,7 +322,7 @@ def Lattigo_CKKSRotateOp : Lattigo_CKKSUnaryInPlaceOp<"rotate", [
   let hasVerifier = 1;
 }
 
-def Lattigo_CKKSBootstrapOp : Lattigo_CKKSUnaryOp<"bootstrap"> {
+def Lattigo_CKKSBootstrapOp : Lattigo_CKKSUnaryOp<"bootstrap", [ResetsMulDepthOpInterface]> {
   let summary = "Bootstrap a ciphertext in the Lattigo CKKS dialect";
   let description = [{
     Bootstraps a ciphertext value in the Lattigo CKKS dialect.

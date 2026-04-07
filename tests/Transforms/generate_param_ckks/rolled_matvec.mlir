@@ -6,7 +6,10 @@
 
 // CHECK: module
 // CHECK-SAME: #ckks.scheme_param
-// CHECK-SAME: logN = 13
+
+// because the pass has bootstrapping, lattigo bumps the parameters to 2**14 at a minimum
+// CHECK-SAME: logN = 14
+
 // CHECK-SAME: Q = [{{[0-9]*}}, {{[0-9]*}}]
 // CHECK-SAME: P = [{{[0-9]*}}]
 // CHECK-SAME: logDefaultScale = 45

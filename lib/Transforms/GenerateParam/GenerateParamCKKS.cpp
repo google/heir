@@ -7,6 +7,7 @@
 #include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/CKKS/IR/CKKSEnums.h"
+#include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Parameters/CKKS/Params.h"
@@ -17,10 +18,12 @@
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
+#include "mlir/include/mlir/Support/WalkResult.h"          // from @llvm-project
 
 // IWYU pragma: begin_keep
 #include "lib/Transforms/GenerateParam/GenerateParam.h"
@@ -35,6 +38,18 @@ namespace heir {
 
 #define GEN_PASS_DEF_GENERATEPARAMCKKS
 #include "lib/Transforms/GenerateParam/GenerateParam.h.inc"
+
+namespace {
+bool containsBootstrap(Operation* op) {
+  auto result = op->walk([&](Operation* walkOp) {
+    if (isa<ResetsMulDepthOpInterface>(walkOp)) {
+      return WalkResult::interrupt();
+    }
+    return WalkResult::advance();
+  });
+  return result.wasInterrupted();
+}
+}  // namespace
 
 struct GenerateParamCKKS : impl::GenerateParamCKKSBase<GenerateParamCKKS> {
   using GenerateParamCKKSBase::GenerateParamCKKSBase;
@@ -132,6 +147,17 @@ struct GenerateParamCKKS : impl::GenerateParamCKKSBase<GenerateParamCKKS> {
     if (moduleIsLattigo(getOperation())) {
       encryptionTechniqueExtended = true;
       LDBG() << "For lattigo, fixing extended encryption technique";
+
+      // Lattigo bootstrapping requires LogN >= 14, i.e., ringDim >= 16384.
+      // Since ringDim is computed from slotNumber (minRingDim = 2 *
+      // slotNumber), we bump slotNumber to 8192 if bootstrapping is present.
+      if (containsBootstrap(getOperation())) {
+        if (slotNumber < 8192) {
+          LDBG() << "Lattigo bootstrapping detected, bumping slotNumber from "
+                 << slotNumber << " to 8192";
+          slotNumber = 8192;
+        }
+      }
     }
 
     auto schemeParam = ckks::SchemeParam::getConcreteSchemeParam(
