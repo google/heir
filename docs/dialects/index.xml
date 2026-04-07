@@ -6093,7 +6093,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;p>It takes a ciphertext at level 0 (if not at level 0, then it will reduce it
 to level 0) and returns a ciphertext with the max level of
 &lt;code>evaluator.ResidualParameters.MaxLevel&lt;/code>.&lt;/p>
-&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>ResetsMulDepthOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-21">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
