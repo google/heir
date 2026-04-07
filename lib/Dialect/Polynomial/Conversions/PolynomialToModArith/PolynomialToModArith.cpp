@@ -583,18 +583,18 @@ struct ConvertApplyCoefficientwise
     auto resultTensorType = cast<RankedTensorType>(
         typeConverter->convertType(op.getOutput().getType()));
 
-    Value resultTensor = rewriter.create<tensor::EmptyOp>(
-        op.getLoc(), resultTensorType.getShape(),
+    Value resultTensor = tensor::EmptyOp::create(
+        rewriter, op.getLoc(), resultTensorType.getShape(),
         resultTensorType.getElementType());
 
     // Lowers the op to a loop over the coefficients.
-    auto lowerBound = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), 0);
-    auto upperBound = rewriter.create<arith::ConstantIndexOp>(
-        op.getLoc(), typeInfo.tensorType.getShape()[0]);
-    auto step = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), 1);
+    auto lowerBound = arith::ConstantIndexOp::create(rewriter, op.getLoc(), 0);
+    auto upperBound = arith::ConstantIndexOp::create(
+        rewriter, op.getLoc(), typeInfo.tensorType.getShape()[0]);
+    auto step = arith::ConstantIndexOp::create(rewriter, op.getLoc(), 1);
 
-    auto forOp = rewriter.create<scf::ForOp>(
-        op.getLoc(), lowerBound, upperBound, step, ValueRange{resultTensor});
+    auto forOp = scf::ForOp::create(rewriter, op.getLoc(), lowerBound,
+                                    upperBound, step, ValueRange{resultTensor});
 
     OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPointToStart(forOp.getBody());
@@ -604,7 +604,7 @@ struct ConvertApplyCoefficientwise
 
     // Extract one coefficient to use as the block argument
     Value coeff =
-        rewriter.create<tensor::ExtractOp>(op.getLoc(), inputTensor, iv);
+        tensor::ExtractOp::create(rewriter, op.getLoc(), inputTensor, iv);
 
     // Map the apply_coefficientwise block arguments to the extracted
     // coefficient and induction variable.
@@ -619,10 +619,10 @@ struct ConvertApplyCoefficientwise
 
     auto yieldOp = cast<YieldOp>(op.getBody().front().getTerminator());
     Value yieldedValue = mapping.lookupOrDefault(yieldOp.getOperand());
-    Value updatedResultTensor = rewriter.create<tensor::InsertOp>(
-        op.getLoc(), yieldedValue, currentResultTensor, iv);
+    Value updatedResultTensor = tensor::InsertOp::create(
+        rewriter, op.getLoc(), yieldedValue, currentResultTensor, iv);
 
-    rewriter.create<scf::YieldOp>(op.getLoc(), updatedResultTensor);
+    scf::YieldOp::create(rewriter, op.getLoc(), updatedResultTensor);
     rewriter.replaceOp(op, forOp.getResult(0));
     return success();
   }
