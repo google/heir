@@ -10,7 +10,6 @@
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
-#include "lib/Dialect/RNS/IR/RNSTypeInterfaces.h"
 #include "lib/Target/SimFHE/SimFHETemplates.h"
 #include "lib/Utils/TargetUtils.h"
 #include "llvm/include/llvm/ADT/StringRef.h"            // from @llvm-project
@@ -39,7 +38,6 @@ void registerToSimFHETranslation() {
         registry.insert<func::FuncDialect, ckks::CKKSDialect, lwe::LWEDialect,
                         polynomial::PolynomialDialect,
                         mod_arith::ModArithDialect, rns::RNSDialect>();
-        rns::registerExternalRNSTypeInterfaces(registry);
       });
 }
 

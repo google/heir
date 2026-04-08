@@ -50,6 +50,20 @@ LogicalResult RNSType::verify(
   return success();
 }
 
+Type RNSType::getLoweringType() const {
+  auto firstLimb =
+      mlir::dyn_cast<mod_arith::ModQTypeInterface>(getBasisTypes()[0]);
+  if (!firstLimb) {
+    return Type();
+  }
+  return RankedTensorType::get({static_cast<int64_t>(getBasisTypes().size())},
+                               firstLimb.getLoweringType());
+}
+
+Type RNSType::getResidueType(unsigned index) const {
+  return getBasisTypes()[index];
+}
+
 }  // namespace rns
 }  // namespace heir
 }  // namespace mlir

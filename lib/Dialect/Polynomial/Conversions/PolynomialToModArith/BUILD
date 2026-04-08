@@ -17,7 +17,6 @@ cc_library(
         "@heir//lib/Dialect/ModArith/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Dialect/RNS/IR:Dialect",
-        "@heir//lib/Dialect/RNS/IR:RNSTypes",
         "@heir//lib/Utils",
         "@heir//lib/Utils:APIntUtils",
         "@heir//lib/Utils:ConversionUtils",

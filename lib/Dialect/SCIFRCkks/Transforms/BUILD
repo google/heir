@@ -16,7 +16,7 @@ cc_library(
         ":OpenfheEstimator",
         ":pass_inc_gen",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
-        "@heir//lib/Dialect/RNS/IR:RNSTypes",
+        "@heir//lib/Dialect/RNS/IR:Dialect",
     ],
 )
 
@@ -33,7 +33,7 @@ cc_library(
         "@heir//lib/Dialect/CKKS/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
-        "@heir//lib/Dialect/RNS/IR:RNSTypes",
+        "@heir//lib/Dialect/RNS/IR:Dialect",
         "@heir//lib/Dialect/SCIFRBool/Transforms:DialectResourceMap",
         "@heir//lib/Dialect/SCIFRBool/Transforms:PerfCounter",
         "@heir//lib/Utils/Graph",
@@ -62,7 +62,7 @@ cc_library(
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
-        "@heir//lib/Dialect/RNS/IR:RNSTypes",
+        "@heir//lib/Dialect/RNS/IR:Dialect",
         "@heir//lib/Dialect/SCIFRBool/Transforms:DialectResourceMap",
         "@heir//lib/Utils/Graph",
         "@llvm-project//llvm:Support",

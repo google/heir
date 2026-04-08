@@ -63,7 +63,7 @@ cc_library(
         "@heir//lib/Dialect/CKKS/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
-        "@heir//lib/Dialect/RNS/IR:RNSTypes",
+        "@heir//lib/Dialect/RNS/IR:Dialect",
         "@heir//lib/Parameters/CKKS:Params",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",

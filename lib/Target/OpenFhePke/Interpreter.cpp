@@ -16,7 +16,6 @@
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
-#include "lib/Dialect/RNS/IR/RNSTypeInterfaces.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"       // from @llvm-project
@@ -2159,7 +2158,6 @@ void initContext(MLIRContext& context) {
   registry.insert<tensor_ext::TensorExtDialect>();
   registry.insert<linalg::LinalgDialect>();
   registry.insert<affine::AffineDialect>();
-  rns::registerExternalRNSTypeInterfaces(registry);
   context.appendDialectRegistry(registry);
   context.loadAllAvailableDialects();
 }

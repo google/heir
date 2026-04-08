@@ -17,7 +17,6 @@ def ModArith_Dialect : Dialect {
 
   let dependentDialects = [
     "arith::ArithDialect",
-    "mlir::heir::rns::RNSDialect"
   ];
 }
 

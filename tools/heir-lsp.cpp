@@ -13,7 +13,6 @@
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
-#include "lib/Dialect/RNS/IR/RNSTypeInterfaces.h"
 #include "lib/Dialect/Random/IR/RandomDialect.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
@@ -58,8 +57,6 @@ int main(int argc, char** argv) {
   registry.insert<tfhe_rust::TfheRustDialect>();
   registry.insert<tfhe_rust_bool::TfheRustBoolDialect>();
   registry.insert<math_ext::MathExtDialect>();
-
-  rns::registerExternalRNSTypeInterfaces(registry);
 
   // Add expected MLIR dialects to the registry.
   registry.insert<LLVM::LLVMDialect>();

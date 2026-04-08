@@ -7,7 +7,6 @@
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
-#include "lib/Dialect/RNS/IR/RNSTypeInterfaces.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeDebugEmitter.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeDebugHeaderEmitter.h"
@@ -91,7 +90,6 @@ static void registerRelevantDialects(DialectRegistry& registry) {
                   tensor_ext::TensorExtDialect, polynomial::PolynomialDialect,
                   tensor::TensorDialect, mod_arith::ModArithDialect,
                   rns::RNSDialect, affine::AffineDialect, scf::SCFDialect>();
-  rns::registerExternalRNSTypeInterfaces(registry);
 }
 
 void registerToOpenFhePkeTranslation() {
