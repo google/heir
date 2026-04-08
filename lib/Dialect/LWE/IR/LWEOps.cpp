@@ -268,7 +268,7 @@ LogicalResult RMulPlainOp::inferReturnTypes(
 
 LogicalResult ExtractCoeffOp::inferReturnTypes(
     MLIRContext* ctx, std::optional<Location>, ValueRange operands,
-    DictionaryAttr attrs, mlir::OpaqueProperties properties,
+    DictionaryAttr attrs, mlir::PropertyRef properties,
     mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
   ExtractCoeffOpAdaptor op(operands, attrs, properties, regions);
 
@@ -282,7 +282,7 @@ LogicalResult ExtractCoeffOp::inferReturnTypes(
 
 LogicalResult ExtractSliceOp::inferReturnTypes(
     MLIRContext* ctx, std::optional<Location>, ValueRange operands,
-    DictionaryAttr attrs, mlir::OpaqueProperties properties,
+    DictionaryAttr attrs, mlir::PropertyRef properties,
     mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
   ExtractSliceOpAdaptor op(operands, attrs, properties, regions);
   auto inputType = dyn_cast<lwe::LWERingEltType>(op.getInput().getType());
@@ -300,7 +300,7 @@ LogicalResult ExtractSliceOp::inferReturnTypes(
 
 LogicalResult ConvertBasisOp::inferReturnTypes(
     MLIRContext* ctx, std::optional<Location>, ValueRange operands,
-    DictionaryAttr attrs, mlir::OpaqueProperties properties,
+    DictionaryAttr attrs, mlir::PropertyRef properties,
     mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
   ConvertBasisOpAdaptor op(operands, attrs, properties, regions);
   auto inputType = dyn_cast<lwe::LWERingEltType>(op.getValue().getType());

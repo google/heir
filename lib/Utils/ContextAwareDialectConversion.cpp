@@ -682,10 +682,11 @@ class ModifyOperationRewrite : public OperationRewrite {
         attrs(op->getAttrDictionary()),
         operands(op->operand_begin(), op->operand_end()),
         successors(op->successor_begin(), op->successor_end()) {
-    if (OpaqueProperties prop = op->getPropertiesStorage()) {
+    if (mlir::PropertyRef prop = op->getPropertiesStorage()) {
+      propertiesTypeID = prop.getTypeID();
       // Make a copy of the properties.
       propertiesStorage = operator new(op->getPropertiesStorageSize());
-      OpaqueProperties propCopy(propertiesStorage);
+      mlir::PropertyRef propCopy(propertiesTypeID, propertiesStorage);
       name.initOpProperties(propCopy, /*init=*/prop);
     }
   }
@@ -708,7 +709,7 @@ class ModifyOperationRewrite : public OperationRewrite {
       listener->notifyOperationModified(op);
 
     if (propertiesStorage) {
-      OpaqueProperties propCopy(propertiesStorage);
+      mlir::PropertyRef propCopy(propertiesTypeID, propertiesStorage);
       // Note: The operation may have been erased in the mean time, so
       // OperationName must be stored in this object.
       name.destroyOpProperties(propCopy);
@@ -724,7 +725,7 @@ class ModifyOperationRewrite : public OperationRewrite {
     for (const auto& it : llvm::enumerate(successors))
       op->setSuccessor(it.value(), it.index());
     if (propertiesStorage) {
-      OpaqueProperties propCopy(propertiesStorage);
+      mlir::PropertyRef propCopy(propertiesTypeID, propertiesStorage);
       op->copyProperties(propCopy);
       name.destroyOpProperties(propCopy);
       operator delete(propertiesStorage);
@@ -739,6 +740,7 @@ class ModifyOperationRewrite : public OperationRewrite {
   SmallVector<Value, 8> operands;
   SmallVector<Block*, 2> successors;
   void* propertiesStorage = nullptr;
+  TypeID propertiesTypeID;
 };
 
 /// Replacing an operation. Erasing an operation is treated as a special case

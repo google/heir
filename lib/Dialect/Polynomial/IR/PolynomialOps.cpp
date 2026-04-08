@@ -484,7 +484,7 @@ static LogicalResult inferNTTReturnType(MLIRContext* ctx, Type inputType,
 
 LogicalResult NTTOp::inferReturnTypes(MLIRContext* ctx, std::optional<Location>,
                                       ValueRange operands, DictionaryAttr attrs,
-                                      mlir::OpaqueProperties properties,
+                                      mlir::PropertyRef properties,
                                       mlir::RegionRange regions,
                                       SmallVectorImpl<Type>& results) {
   if (operands.empty()) return failure();
@@ -493,7 +493,7 @@ LogicalResult NTTOp::inferReturnTypes(MLIRContext* ctx, std::optional<Location>,
 
 LogicalResult INTTOp::inferReturnTypes(
     MLIRContext* ctx, std::optional<Location>, ValueRange operands,
-    DictionaryAttr attrs, mlir::OpaqueProperties properties,
+    DictionaryAttr attrs, mlir::PropertyRef properties,
     mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
   if (operands.empty()) return failure();
   return inferNTTReturnType(ctx, operands.front().getType(), results);
@@ -501,7 +501,7 @@ LogicalResult INTTOp::inferReturnTypes(
 
 LogicalResult ConvertBasisOp::inferReturnTypes(
     MLIRContext* ctx, std::optional<Location> /*loc*/, ValueRange operands,
-    DictionaryAttr attrs, mlir::OpaqueProperties properties,
+    DictionaryAttr attrs, mlir::PropertyRef properties,
     mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
   ConvertBasisOpAdaptor op(operands, attrs, properties, regions);
   if (operands.empty()) return failure();
@@ -532,7 +532,7 @@ LogicalResult ConvertBasisOp::inferReturnTypes(
 
 LogicalResult ExtractSliceOp::inferReturnTypes(
     MLIRContext* context, std::optional<Location> /*loc*/, ValueRange operands,
-    DictionaryAttr attrs, mlir::OpaqueProperties properties,
+    DictionaryAttr attrs, mlir::PropertyRef properties,
     mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
   ExtractSliceOpAdaptor op(operands, attrs, properties, regions);
   if (operands.empty()) return failure();

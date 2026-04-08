@@ -121,7 +121,7 @@ LogicalResult LevelReduceOp::inferReturnTypes(
 
 LogicalResult KeySwitchInnerOp::inferReturnTypes(
     MLIRContext* ctx, std::optional<Location>, ValueRange operands,
-    DictionaryAttr attrs, mlir::OpaqueProperties properties,
+    DictionaryAttr attrs, mlir::PropertyRef properties,
     mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
   KeySwitchInnerOpAdaptor op(operands, attrs, properties, regions);
   auto ringEltType = cast<lwe::LWERingEltType>(op.getValue().getType());
