@@ -1,11 +1,13 @@
 #include "lib/Utils/Layout/Convolution.h"
 
 #include <cassert>
+#include <cmath>
 #include <cstdint>
 #include <string>
 
 #include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/Layout/Utils.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
@@ -149,6 +151,30 @@ RankedTensorType get2dConvFilterExpandedType(RankedTensorType filterType,
   // Number of columns will be the number of data elements.
   int64_t cols = dataType.getNumElements();
 
+  return RankedTensorType::get({rows, cols}, filterType.getElementType());
+}
+
+RankedTensorType get2dConvChwFchwFilterExpandedType(RankedTensorType filterType,
+                                                    RankedTensorType dataType,
+                                                    int64_t padding,
+                                                    ArrayRef<int64_t> strides) {
+  // Get the filter relation for a single input and output channel and multiply
+  // the dimensions by the number of input and output channels for the row and
+  // column dimensions respectively.
+  RankedTensorType singleFilterType = RankedTensorType::get(
+      {filterType.getDimSize(2), filterType.getDimSize(3)},
+      filterType.getElementType());
+  RankedTensorType singleDataType =
+      RankedTensorType::get({dataType.getDimSize(2), dataType.getDimSize(3)},
+                            dataType.getElementType());
+  auto singleResultType = get2dConvFilterExpandedType(
+      singleFilterType, singleDataType, padding, strides);
+
+  int64_t inputChannels = dataType.getDimSize(1);
+  int64_t outputChannels = filterType.getDimSize(0);
+
+  int64_t rows = outputChannels * singleResultType.getDimSize(0);
+  int64_t cols = inputChannels * singleResultType.getDimSize(1);
   return RankedTensorType::get({rows, cols}, filterType.getElementType());
 }
 
@@ -297,6 +323,52 @@ presburger::IntegerRelation getRowInterchangeRelation(int64_t c, int64_t h,
       h, w, c, hOut, wOut, cOut, w, h * w, wOut, hOut * wOut, g, numElements);
 
   return getIntegerRelationFromIslStr(islStr).value();
+}
+
+presburger::IntegerRelation get2dConvResultRelation(RankedTensorType outputType,
+                                                    ArrayRef<int64_t> strides,
+                                                    int64_t padding,
+                                                    int64_t ciphertextSize,
+                                                    bool interchangeRows) {
+  assert(llvm::all_equal(strides) && "strides must be equal");
+
+  // First flatten the output tensor into a 1-D tensor of (ct, slot) where ct =
+  // 0 (set the "ciphertextSize" to be the same as the number of elements). This
+  // creates outputType -> [0, slot].
+  auto flattenedOutput =
+      getRowMajorLayoutRelation(outputType, outputType.getNumElements());
+
+  // Create the interchange permutation [idx_in] -> [idx_out] and add a domain
+  // var = 0 to align with the range of the flattenedOutput relation.
+  if (interchangeRows) {
+    int64_t c = outputType.getDimSize(1);
+    int64_t h = outputType.getDimSize(2);
+    int64_t w = outputType.getDimSize(3);
+    int64_t g = strides[0];
+    auto rowInterchange = getRowInterchangeRelation(c, h, w, g);
+    rowInterchange.insertVar(presburger::VarKind::Domain, 0);
+    addConstraint(
+        rowInterchange,
+        {{rowInterchange.getVarKindOffset(presburger::VarKind::Domain), 1},
+         {rowInterchange.getNumCols() - 1, 0}},
+        /*equality=*/true);
+    // Compose the row interchange relation with the flattened output relation:
+    // [outputType] -> [0, slot] -> [slot'].
+    flattenedOutput.compose(rowInterchange);
+
+    // Compose with the [slot'] -> [ct, slot] relation across multiple
+    // ciphertexts.
+    int64_t numCiphertexts =
+        std::ceil((float)outputType.getNumElements() / ciphertextSize);
+    std::string mapToCtSlot = llvm::formatv(
+        "{{ [idx_out] -> [ct, slot] : "
+        "0 <= ct < {0} and 0 <= slot < {1} and idx_out = ct * {1} + slot }",
+        numCiphertexts, ciphertextSize);
+    auto toCtSlot = getIntegerRelationFromIslStr(mapToCtSlot).value();
+    flattenedOutput.compose(toCtSlot);
+  }
+
+  return flattenedOutput;
 }
 
 }  // namespace heir

@@ -351,6 +351,128 @@ TEST(ConvolutionTest, TestRowInterchangeMultiChannel) {
   }
 }
 
+TEST(ConvolutionTest, TestStrideTwoConvolution) {
+  MLIRContext context;
+
+  RankedTensorType filterType =
+      RankedTensorType::get({2, 2}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({28, 28}, IndexType::get(&context));
+  SmallVector<int64_t> strides = {2, 2};
+  int64_t padding = 0;
+  IntegerRelation rel =
+      get2dConvFilterRelation(filterType, dataType, strides, padding);
+
+  PointPairCollector collector(
+      2, 2);  // 2 domain dims (fh, fw), 2 range dims (ct, slot)
+  enumeratePoints(rel, collector);
+
+  // Check a few specific expected points: (f, c, fh, fw) -> (ct, slot)
+  auto containsPoint = [&](std::vector<int64_t> domain,
+                           std::vector<int64_t> range) {
+    for (const auto& p : collector.points) {
+      if (p.first == domain && p.second == range) return true;
+    }
+    return false;
+  };
+
+  // The expected output size is 196x784
+  EXPECT_TRUE(containsPoint({0, 0}, {0, 0}));
+  EXPECT_TRUE(containsPoint({0, 1}, {0, 1}));
+  EXPECT_TRUE(containsPoint({1, 0}, {0, 28}));
+  EXPECT_TRUE(containsPoint({1, 1}, {0, 29}));
+
+  // Second row of application
+  EXPECT_TRUE(containsPoint({0, 0}, {1, 2}));
+  EXPECT_TRUE(containsPoint({0, 1}, {1, 3}));
+  EXPECT_TRUE(containsPoint({1, 0}, {1, 30}));
+  EXPECT_TRUE(containsPoint({1, 1}, {1, 31}));
+}
+
+TEST(ConvolutionTest, TestMultiChannelMultiRow) {
+  // Pools a 1x4x28x28 into a 1x4x14x14
+  // The filter is 4x4x2x2
+  MLIRContext context;
+
+  RankedTensorType filterType =
+      RankedTensorType::get({4, 4, 2, 2}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({1, 4, 28, 28}, IndexType::get(&context));
+  SmallVector<int64_t> strides = {2, 2};
+  int64_t padding = 0;
+
+  auto rel =
+      get2dConvChwFchwFilterRelation(filterType, dataType, strides, padding);
+
+  // Number of ciphertexts is number of elements of a single result (14*14) *
+  // num channels = 196 * 4 = 784.
+  auto ctOffset = rel.getVarKindOffset(VarKind::Range);
+  auto ctBound = rel.getConstantBound64(BoundType::UB, ctOffset);
+  ASSERT_TRUE(ctBound.has_value());
+  EXPECT_EQ(ctBound.value(), 783);
+
+  PointPairCollector collector(
+      4, 2);  // 4 domain dims (f, c, fh, fw), 2 range dims (ct, slot)
+  enumeratePoints(rel, collector);
+
+  // Check a few specific expected points: (f, c, fh, fw) -> (ct, slot)
+  auto containsPoint = [&](std::vector<int64_t> domain,
+                           std::vector<int64_t> range) {
+    for (const auto& p : collector.points) {
+      if (p.first == domain && p.second == range) return true;
+    }
+    return false;
+  };
+
+  EXPECT_TRUE(containsPoint({0, 0, 0, 0}, {0, 0}));
+  EXPECT_TRUE(containsPoint({0, 0, 0, 1}, {0, 1}));
+  EXPECT_TRUE(containsPoint({0, 1, 0, 0}, {0, 784}));
+}
+
+TEST(ConvolutionTest, TestMultiChannelMultiRowDiagonalized) {
+  // Pools a 1x4x28x28 into a 1x4x14x14
+  // The filter is 4x4x2x2
+  MLIRContext context;
+
+  RankedTensorType filterType =
+      RankedTensorType::get({4, 4, 2, 2}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({1, 4, 28, 28}, IndexType::get(&context));
+  SmallVector<int64_t> strides = {2, 2};
+  int64_t padding = 0;
+  int64_t ciphertextSize = 4096;
+
+  auto maybeRel = get2dConvChwFchwFilterDiagonalizedRelation(
+      filterType, dataType, strides, padding, ciphertextSize, false);
+  ASSERT_TRUE(succeeded(maybeRel));
+  IntegerRelation rel = maybeRel.value();
+
+  // Number of ciphertexts is number of elements of a single result (14*14) *
+  // num channels = 196 * 4 = 784. The matrix is diagonalized, so the bound is
+  // the next power of two.
+  auto ctOffset = rel.getVarKindOffset(VarKind::Range);
+  auto ctBound = rel.getConstantBound64(BoundType::UB, ctOffset);
+  ASSERT_TRUE(ctBound.has_value());
+  EXPECT_EQ(ctBound.value(), 1023);
+
+  PointPairCollector collector(
+      4, 2);  // 4 domain dims (f, c, fh, fw), 2 range dims (ct, slot)
+  enumeratePoints(rel, collector);
+
+  // Check a few specific expected points: (f, c, fh, fw) -> (ct, slot)
+  auto containsPoint = [&](std::vector<int64_t> domain,
+                           std::vector<int64_t> range) {
+    for (const auto& p : collector.points) {
+      if (p.first == domain && p.second == range) return true;
+    }
+    return false;
+  };
+
+  EXPECT_TRUE(containsPoint({0, 0, 0, 0}, {0, 0}));
+  EXPECT_TRUE(containsPoint({0, 0, 0, 1}, {1, 0}));
+  EXPECT_TRUE(containsPoint({0, 1, 0, 0}, {784, 0}));
+}
+
 }  // namespace
 }  // namespace heir
 }  // namespace mlir

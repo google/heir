@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <functional>
 #include <vector>
 
 #include "gtest/gtest.h"  // from @googletest
@@ -19,6 +20,14 @@ namespace mlir {
 namespace heir {
 namespace kernel {
 namespace {
+
+using tensor4d = std::vector<std::vector<std::vector<std::vector<int>>>>;
+
+std::function<int(const std::vector<int64_t>&)> getDataValueFn(tensor4d data) {
+  return [&](const std::vector<int64_t>& domainPoint) -> int {
+    return data[domainPoint[0]][domainPoint[1]][domainPoint[2]][domainPoint[3]];
+  };
+}
 
 // Parametrize over whether the kernel is rolled
 class KernelImplementationTest : public testing::TestWithParam<bool> {};
@@ -284,6 +293,68 @@ TEST(KernelImplementationTest, TricyclicBatchMatmul) {
 
   // Final check: compare expected packed φ(Z) vector with kernel output.
   EXPECT_EQ(expVec, resultVec);
+}
+
+TEST_P(KernelImplementationTest, Test2DNchwFchwConvStride2WithLayout) {
+  MLIRContext context;
+  RankedTensorType dataType =
+      RankedTensorType::get({1, 1, 4, 4}, mlir::IndexType::get(&context));
+  RankedTensorType filterType =
+      RankedTensorType::get({4, 1, 2, 2}, mlir::IndexType::get(&context));
+
+  int numSlots = 16;
+  // 1x1x4x4 input data, 4x1x2x2 filter
+  tensor4d data = {
+      {{{0, 1, 2, 3}, {4, 5, 6, 7}, {8, 9, 10, 11}, {12, 13, 14, 15}}}};
+  tensor4d filter = {{{{7, 0}, {5, 4}}},
+                     {{{9, 4}, {0, 3}}},
+                     {{{7, 8}, {8, 6}}},
+                     {{{6, 0}, {5, 4}}}};
+
+  auto dataLayout = getRowMajorLayoutRelation(dataType, numSlots);
+  std::vector<std::vector<int>> packedData =
+      evaluateLayout(dataLayout, getDataValueFn(data));
+
+  SmallVector<int64_t> strides = {2, 2};
+  auto filterLayout = get2dConvChwFchwFilterDiagonalizedRelation(
+      filterType, dataType, strides, 0, numSlots, /*interchangeRows=*/true);
+  ASSERT_TRUE(succeeded(filterLayout));
+  std::function<int(const std::vector<int64_t>&)> getFilterValueFn =
+      [&](const std::vector<int64_t>& domainPoint) -> int {
+    return filter[domainPoint[0]][domainPoint[1]][domainPoint[2]]
+                 [domainPoint[3]];
+  };
+  std::vector<std::vector<int>> packedFilter =
+      evaluateLayout(filterLayout.value(), getFilterValueFn);
+  auto expandedFilterShape =
+      get2dConvChwFchwFilterExpandedType(filterType, dataType, 0, strides);
+
+  // The expected result is a 1x4x2x2:
+  tensor4d expected = {{{{40, 72}, {168, 200}},
+                        {{19, 51}, {147, 179}},
+                        {{70, 128}, {302, 360}},
+                        {{40, 70}, {160, 190}}}};
+
+  LiteralValue matrixInput = packedFilter;
+  LiteralValue vectorInput = packedData[0];
+
+  auto dag = implementHaleviShoup(vectorInput, matrixInput,
+                                  expandedFilterShape.getShape(),
+                                  DagType::intTensor(32, {numSlots}),
+                                  /*zeroDiagonals=*/{}, /*unroll=*/GetParam());
+  LiteralValue actual = evalKernel(dag)[0];
+  auto actual4d = std::get<std::vector<int>>(actual.get());
+
+  RankedTensorType outputType =
+      RankedTensorType::get({1, 4, 2, 2}, mlir::IndexType::get(&context));
+  auto resultLayout = get2dConvResultRelation(outputType, strides, 0, numSlots,
+                                              /*interchangeRows=*/true);
+
+  auto actualUnpacked =
+      unpackLayoutTo4DTensor<int>(resultLayout, {actual4d}, {1, 4, 2, 2});
+
+  // Result is 4 2x2 tensors with a row-major layout.
+  EXPECT_EQ(actualUnpacked, expected);
 }
 
 INSTANTIATE_TEST_SUITE_P(WithAndWithoutRolledSuite, KernelImplementationTest,
