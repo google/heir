@@ -105,7 +105,7 @@ struct ConvertBoolNotOp : public OpConversionPattern<cggi::NotOp> {
       ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op->getLoc(), rewriter);
 
-    rewriter.replaceOp(op, b.create<scifrbool::NotOp>(adaptor.getInput()));
+    rewriter.replaceOp(op, scifrbool::NotOp::create(b, adaptor.getInput()));
     return success();
   }
 };

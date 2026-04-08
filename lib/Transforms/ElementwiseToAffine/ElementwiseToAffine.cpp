@@ -199,8 +199,9 @@ struct ConvertAnyElementwiseMappableOpOnRankedTensors : public RewritePattern {
               reducedShape, rankedTensorTy.getElementType(),
               rankedTensorTy.getEncoding());
 
-          auto extractSliceOp = rewriter.create<tensor::ExtractSliceOp>(
-              operand.getLoc(), reducedType, operand, offsets, sizes, strides);
+          auto extractSliceOp = tensor::ExtractSliceOp::create(
+              rewriter, operand.getLoc(), reducedType, operand, offsets, sizes,
+              strides);
           newOperands.push_back(extractSliceOp);
           continue;
         }

@@ -552,7 +552,7 @@ struct ConvertExtractCoeff : public OpConversionPattern<ExtractCoeffOp> {
       ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op->getLoc(), rewriter);
     int64_t indexInt = op.getIndex().getZExtValue();
-    Value indexValue = b.create<arith::ConstantIndexOp>(indexInt);
+    Value indexValue = arith::ConstantIndexOp::create(b, indexInt);
     Value polyOut =
         tensor::ExtractOp::create(b, adaptor.getValue(), indexValue);
     rewriter.replaceOp(op, polyOut);
@@ -577,7 +577,7 @@ struct ConvertFromCoeffs : public OpConversionPattern<FromCoeffsOp> {
                                          "Result type could not be converted");
     }
     Value outputTensor =
-        b.create<tensor::FromElementsOp>(resultType, convertedCoeffs);
+        tensor::FromElementsOp::create(b, resultType, convertedCoeffs);
     rewriter.replaceOp(op, outputTensor);
     return success();
   }
