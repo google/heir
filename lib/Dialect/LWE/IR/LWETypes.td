@@ -1,6 +1,7 @@
 #ifndef LIB_DIALECT_LWE_IR_LWETYPES_TD_
 #define LIB_DIALECT_LWE_IR_LWETYPES_TD_
 
+include "lib/Dialect/HEIRInterfaces.td"
 include "lib/Dialect/LWE/IR/LWEDialect.td"
 include "lib/Dialect/LWE/IR/LWEAttributes.td"
 
@@ -60,7 +61,7 @@ def LWEPublicKey : LWE_Type<"LWEPublicKey", "lwe_public_key"> {
 
 def LWESecretOrPublicKey : AnyTypeOf<[LWESecretKey, LWEPublicKey]>;
 
-def LWEPlaintext : LWE_Type<"LWEPlaintext", "lwe_plaintext", [MemRefElementTypeInterface]> {
+def LWEPlaintext : LWE_Type<"LWEPlaintext", "lwe_plaintext", [MemRefElementTypeInterface, PlaintextTypeInterface]> {
   let summary = "A plaintext type";
   let parameters = (ins
     "PlaintextSpaceAttr":$plaintext_space
@@ -69,7 +70,7 @@ def LWEPlaintext : LWE_Type<"LWEPlaintext", "lwe_plaintext", [MemRefElementTypeI
   let aliasName = "pt";
 }
 
-def LWECiphertext : LWE_Type<"LWECiphertext", "lwe_ciphertext", [MemRefElementTypeInterface]> {
+def LWECiphertext : LWE_Type<"LWECiphertext", "lwe_ciphertext", [MemRefElementTypeInterface, SecretTypeInterface]> {
   let summary = "A ciphertext type";
 
   let description = [{

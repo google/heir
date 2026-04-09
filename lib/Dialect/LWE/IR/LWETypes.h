@@ -1,10 +1,17 @@
 #ifndef LIB_DIALECT_LWE_IR_LWETYPES_H_
 #define LIB_DIALECT_LWE_IR_LWETYPES_H_
 
+#include <cstdint>
+
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
+#include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
+
+// IWYU pragma: begin_keep
+#include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
-#include "mlir/include/mlir/IR/MLIRContext.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/OpImplementation.h"  // from @llvm-project
+// IWYU pragma: end_keep
 
 #define GET_TYPEDEF_CLASSES
 #include "lib/Dialect/LWE/IR/LWETypes.h.inc"

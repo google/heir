@@ -13,6 +13,16 @@ def SecretTypeInterface : TypeInterface<"SecretTypeInterface"> {
   }];
 }
 
+def PlaintextTypeInterface : TypeInterface<"PlaintextTypeInterface"> {
+  let cppNamespace = "::mlir::heir";
+  let description = [{
+    This interface marks that a type represents a plaintext value across
+    various dialects. This is useful for analyses that want to know about
+    plaintext-typed values without depending on all the various dialects
+    that can have them.
+  }];
+}
+
 def IncreasesMulDepthOpInterface : OpInterface<"IncreasesMulDepthOpInterface"> {
   let cppNamespace = "::mlir::heir";
   let description = [{

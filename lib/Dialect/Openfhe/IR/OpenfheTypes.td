@@ -34,7 +34,7 @@ def Openfhe_Ciphertext : Openfhe_Type<"Ciphertext", "ciphertext", [SecretTypeInt
   let asmName = "ct";
 }
 
-def Openfhe_Plaintext : Openfhe_Type<"Plaintext", "plaintext"> {
+def Openfhe_Plaintext : Openfhe_Type<"Plaintext", "plaintext", [PlaintextTypeInterface]> {
   let summary = "An opaque OpenFHE plaintext type";
   let asmName = "pt";
 }

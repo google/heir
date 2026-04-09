@@ -85,7 +85,7 @@ def Lattigo_RLWEDecryptor : Lattigo_RLWEType<"Decryptor", "decryptor"> {
   let asmName = "decryptor";
 }
 
-def Lattigo_RLWEPlaintext : Lattigo_RLWEType<"Plaintext", "plaintext"> {
+def Lattigo_RLWEPlaintext : Lattigo_RLWEType<"Plaintext", "plaintext", [PlaintextTypeInterface]> {
   let description = [{
     This type represents the plaintext for the RLWE encryption scheme.
   }];

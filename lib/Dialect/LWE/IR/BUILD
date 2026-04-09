@@ -71,6 +71,7 @@ td_library(
     # include from the heir-root to enable fully-qualified include-paths
     includes = ["../../../.."],
     deps = [
+        "@heir//lib/Dialect:HEIRInterfaces",
         "@heir//lib/Dialect:td_files",
         "@llvm-project//mlir:BuiltinDialectTdFiles",
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
