@@ -551,6 +551,8 @@ void torchLinalgToCkksBuilder(OpPassManager& manager,
   suboptions.scalingModBits = options.scalingModBits;
   suboptions.firstModBits = options.firstModBits;
   suboptions.splitPreprocessing = options.splitPreprocessing;
+  suboptions.experimentalDisableLoopUnroll =
+      options.experimentalDisableLoopUnroll;
 
   mlirToRLWEPipelineBuilder(mlir::heir::RLWEScheme::ckksScheme)(manager,
                                                                 suboptions);

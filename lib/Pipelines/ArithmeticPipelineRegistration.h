@@ -162,8 +162,7 @@ BackendPipelineBuilder toLattigoPipelineBuilder();
 // FHE.
 void linalgPreprocessingBuilder(OpPassManager& manager);
 
-struct TorchLinalgToCkksPipelineOptions
-    : public PassPipelineOptions<TorchLinalgToCkksPipelineOptions> {
+struct TorchLinalgToCkksPipelineOptions : public LoopOptions {
   PassOptions::Option<int> ciphertextDegree{
       *this, "ciphertext-degree",
       llvm::cl::desc("The degree of the polynomials to use for ciphertexts; "
