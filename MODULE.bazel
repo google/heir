@@ -1,20 +1,42 @@
 module(name = "heir")
 
 bazel_dep(name = "bazel_skylib", version = "1.9.0")
-
-# This must come before apple_support cf. https://github.com/bazelbuild/bazel/issues/25728
 bazel_dep(name = "rules_cc", version = "0.2.13")
+bazel_dep(name = "llvm", version = "0.0.0")
 
-# Apple compilation support.
-# Note this requires full xcode, not just commandline tools
-#
-# Tested with:
-#
-# $ /usr/bin/xcodebuild -version
-#   Xcode 16.2
-#   Build version 16C5032a
-bazel_dep(name = "apple_support", version = "1.24.1", repo_name = "build_bazel_apple_support")
-bazel_dep(name = "rules_apple", version = "3.20.1")
+# Point to your local checkout of the toolchain repo
+local_path_override(
+    module_name = "llvm",
+    path = "/usr/local/google/home/jkun/fhe/toolchains_llvm_bootstrapped",
+)
+
+# Configure LLVM 20.1.0
+llvm = use_extension("@llvm//extensions:llvm.bzl", "llvm")
+llvm.configure(
+    targets = [
+        "X86",
+        "AArch64",
+    ],
+    version = "20.1.0",
+)
+use_repo(
+    llvm,
+    "llvm-toolchain-minimal-linux-amd64",
+)
+
+# Configure and register toolchains
+llvm_toolchain = use_extension("@llvm//extensions:toolchain.bzl", "toolchain")
+llvm_toolchain.exec(
+    arch = "x86_64",
+    os = "linux",
+)
+llvm_toolchain.target(
+    arch = "x86_64",
+    os = "linux",
+)
+use_repo(llvm_toolchain, "llvm_toolchains")
+
+register_toolchains("@llvm_toolchains//:all")
 
 # Gazelle puglin for BUILD file autogeneration
 bazel_dep(name = "gazelle", version = "0.47.0")
