@@ -13,6 +13,17 @@ def ModQTypeInterface : TypeInterface<"ModQTypeInterface"> {
         "Returns the lowered storage type for this modular type. Plain ModArith types lower to an integer type; RNS types lower to a rank-1 tensor whose extent is the residue count and whose element type is the residue storage type.",
         "::mlir::Type", "getLoweringType", (ins)>,
     InterfaceMethod<
+        "Returns the number of residue limbs represented by this modular type. Types need not implement this function as a default is provided.",
+        "unsigned", "getNumResidues", (ins),
+        [{}],
+        [{
+          if (auto shapedType = ::mlir::dyn_cast<::mlir::ShapedType>(
+                  $_type.getLoweringType())) {
+            return shapedType.getShape()[0];
+          }
+          return 1;
+        }]>,
+    InterfaceMethod<
         "Returns the residue type at the given index.",
         "::mlir::Type", "getResidueType", (ins "unsigned":$index)>
   ];

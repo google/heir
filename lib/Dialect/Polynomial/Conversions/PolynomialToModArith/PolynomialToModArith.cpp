@@ -98,17 +98,9 @@ struct CommonConversionInfo {
   RankedTensorType tensorType;
 };
 
-unsigned getNumResidues(ModQTypeInterface type) {
-  Type loweringType = type.getLoweringType();
-  if (auto shapedType = dyn_cast<ShapedType>(loweringType)) {
-    return shapedType.getShape()[0];
-  }
-  return 1;
-}
-
 std::optional<ModArithType> getSingleResidueModArithType(Type type) {
   auto modType = dyn_cast<ModQTypeInterface>(type);
-  if (!modType || getNumResidues(modType) != 1) {
+  if (!modType || modType.getNumResidues() != 1) {
     return std::nullopt;
   }
   if (auto residueType = dyn_cast<ModArithType>(modType.getResidueType(0))) {
