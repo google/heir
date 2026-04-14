@@ -1,5 +1,6 @@
 #include "lib/Dialect/Polynomial/Transforms/NTTSolver.h"
 
+#include "lib/Dialect/ModArith/IR/ModArithTypeInterfaces.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
@@ -42,13 +43,22 @@ bool CPSATSolution::isValid() const {
 
 int getConversionCost(const Value& v) {
   Type t = v.getType();
-  if (auto p = dyn_cast<PolynomialType>(t)) {
-    return 1;
+  int multiplicity = 1;
+
+  if (auto shaped = dyn_cast<ShapedType>(t)) {
+    multiplicity = shaped.getNumElements();
+    t = shaped.getElementType();
   }
-  if (auto rt = dyn_cast<RankedTensorType>(t)) {
-    return rt.getNumElements();
-  }
-  return 0;
+
+  auto polyTy = dyn_cast<PolynomialType>(t);
+  if (!polyTy) return 0;
+
+  auto coeffTy = dyn_cast<mod_arith::ModQTypeInterface>(
+      polyTy.getRing().getCoefficientType());
+  assert(coeffTy &&
+         "polynomial coefficient type must implement ModQTypeInterface");
+
+  return coeffTy.getNumResidues() * multiplicity;
 }
 
 NTTSolver::RepVars& NTTSolver::getOrCreateVars(const Value& v) {
