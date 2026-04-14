@@ -14,6 +14,7 @@ cc_library(
         ":DagBuilder",
         ":RotationEvalVisitor",
         "@heir//lib/Dialect:HEIRInterfaces",
+        "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Kernel:AbstractValue",
         "@heir//lib/Kernel:ArithmeticDag",
         "@llvm-project//llvm:Support",
@@ -31,7 +32,6 @@ cc_library(
     hdrs = ["DagBuilder.h"],
     deps = [
         "@heir//lib/Dialect:HEIRInterfaces",
-        "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Kernel:AbstractValue",
         "@heir//lib/Kernel:ArithmeticDag",
         "@heir//lib/Kernel:Utils",

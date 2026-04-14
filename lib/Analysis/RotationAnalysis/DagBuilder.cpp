@@ -5,7 +5,6 @@
 #include <vector>
 
 #include "lib/Dialect/HEIRInterfaces.h"
-#include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
 #include "lib/Kernel/Utils.h"
@@ -20,12 +19,13 @@
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/Matchers.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 
-#define DEBUG_TYPE "rotation-analysis"
+#define DEBUG_TYPE "dag-builder"
 
 namespace mlir {
 namespace heir {
@@ -45,7 +45,7 @@ NodePtr DagBuilder::findNodeOrMakeNewVariable(Value value) {
     return valueToNode[value];
   }
 
-  DagType dagType = mlirTypeToDagType(value.getType());
+  DagType dagType = mlirTypeToDagType(value.getType(), numSlots);
   IntegerAttr attr;
   if (matchPattern(value, m_Constant(&attr))) {
     LDBG() << "Matched to constant scalar " << attr;
@@ -371,6 +371,7 @@ FailureOr<NodePtr> DagBuilder::visit(tensor::ExtractSliceOp op) {
 
 FailureOr<NodePtr> DagBuilder::build(Operation* op) {
   LDBG() << "Visiting op " << *op;
+
   return llvm::TypeSwitch<Operation*, FailureOr<NodePtr>>(op)
       .Case<arith::AddFOp, arith::AddIOp, arith::CmpIOp, arith::ConstantOp,
             arith::DivSIOp, arith::MulFOp, arith::MulIOp, arith::SubFOp,
@@ -378,8 +379,47 @@ FailureOr<NodePtr> DagBuilder::build(Operation* op) {
             tensor::ExtractOp, tensor::ExtractSliceOp, tensor::SplatOp,
             RotationOpInterface>([&](auto op) { return visit(op); })
       .Default([&](Operation* op) -> FailureOr<NodePtr> {
-        LDBG() << "Unsupported op type " << op->getName() << ", skipping";
-        return NodePtr(nullptr);
+        LDBG() << "Unsupported op type " << op->getName()
+               << ", skipping but connecting operands";
+        if (op->getNumResults() == 0) return NodePtr(nullptr);
+
+        std::vector<NodePtr> interestingOperandNodes;
+        auto addInteresting = [&](Value operand) {
+          Type eltTy = getElementTypeOrSelf(operand.getType());
+          if (!isa<SecretTypeInterface, PlaintextTypeInterface>(eltTy)) {
+            return;
+          }
+
+          LDBG() << "Found interesting operand of type " << operand.getType()
+                 << " for op " << *op;
+          interestingOperandNodes.push_back(findNodeOrMakeNewVariable(operand));
+        };
+
+        // Prioritize tensors so that if this is a tensor.insert, the
+        // destination tensor is the primary result, allowing downstream
+        // tensor.extract to work.
+        for (Value operand : op->getOperands()) {
+          if (isa<RankedTensorType>(operand.getType())) {
+            addInteresting(operand);
+          }
+        }
+        for (Value operand : op->getOperands()) {
+          if (!isa<RankedTensorType>(operand.getType())) {
+            addInteresting(operand);
+          }
+        }
+
+        if (interestingOperandNodes.empty()) {
+          return NodePtr(nullptr);
+        }
+
+        NodePtr combinedNode;
+        combinedNode = Node::resultAt(Node::yield(interestingOperandNodes), 0);
+
+        for (OpResult result : op->getResults()) {
+          valueToNode[result] = combinedNode;
+        }
+        return combinedNode;
       });
 }
 

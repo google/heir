@@ -3,12 +3,16 @@
 #include <cassert>
 #include <cstdint>
 #include <memory>
+#include <string>
 
 #include "lib/Analysis/RotationAnalysis/DagBuilder.h"
 #include "lib/Analysis/RotationAnalysis/RotationEvalVisitor.h"
 #include "lib/Dialect/HEIRInterfaces.h"
+#include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
+#include "llvm/include/llvm/ADT/StringExtras.h"     // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/DebugLog.h"     // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
@@ -17,6 +21,7 @@
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Matchers.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
@@ -39,14 +44,29 @@ LogicalResult RotationAnalysis::handleScfFor(scf::ForOp forOp) {
   while (auto parent = outermostFor->getParentOfType<scf::ForOp>()) {
     outermostFor = parent;
   }
+  LDBG() << "Analyzing rotations in scf.for op: " << forOp;
 
-  DagBuilder dagBuilder;
+  auto numSlotsAttr = dyn_cast_or_null<IntegerAttr>(
+      forOp->getParentOfType<ModuleOp>()->getAttr(kActualSlotCountAttrName));
+  if (!numSlotsAttr) {
+    LDBG() << "Unable to determine the total number of slots when translating "
+              "scf.for op: "
+           << forOp;
+    return failure();
+  }
+
+  DagBuilder dagBuilder(numSlotsAttr.getInt());
   FailureOr<NodePtr> res = dagBuilder.build(outermostFor.getOperation());
 
   if (failed(res)) return failure();
 
   NodePtr dag = res.value();
   auto shifts = evalRotations(dag);
+  LDBG() << "Found new shifts: "
+         << llvm::join(
+                llvm::map_range(
+                    shifts, [](int64_t dim) { return std::to_string(dim); }),
+                ",");
   rotationIndices.insert(shifts.begin(), shifts.end());
 
   // All the rotation ops within the outermost for loop are analyzed.
@@ -59,9 +79,10 @@ LogicalResult RotationAnalysis::analyzeRotationOp(
     RotationOpInterface rotationOp) {
   if (wasVisited(rotationOp)) {
     LDBG() << "Skipping already-visited rotation op "
-           << rotationOp.getOperation();
+           << *rotationOp.getOperation();
     return success();
   }
+  LDBG() << "Analyzing rotation op " << *rotationOp.getOperation();
 
   // Handle cases where the rotation shift can be statically folded via constant
   // propagation.
@@ -86,6 +107,8 @@ LogicalResult RotationAnalysis::analyzeRotationOp(
     break;
   }
   if (allConstant) {
+    LDBG() << "Rotation op has constant indices: "
+           << *rotationOp.getOperation();
     rotationIndices.insert(constantIndices.begin(), constantIndices.end());
     markVisited(rotationOp);
     return success();
@@ -96,6 +119,7 @@ LogicalResult RotationAnalysis::analyzeRotationOp(
   // involving scalars).
   Operation* rotOp = rotationOp.getOperation();
   if (auto scfFor = rotOp->getParentOfType<scf::ForOp>()) {
+    LDBG() << "Rotation op is in an scf.for op";
     return handleScfFor(scfFor);
   }
 

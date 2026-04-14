@@ -3,7 +3,7 @@
 // CHECK: module attributes
 // here 14 == -2 mod 16
 // CHECK-SAME: rotation_analysis.indices = array<i64: 0, 2, 4, 6, 8, 14>
-module {
+module attributes {scheme.actual_slot_count = 16} {
   func.func @test_loop(%arg0: tensor<16xi32>) -> tensor<16xi32> {
     %c1 = arith.constant 1 : index
     %c2 = arith.constant 2 : index
@@ -22,7 +22,7 @@ module {
 
 // CHECK: module attributes
 // CHECK-SAME: rotation_analysis.indices = array<i64: 0, 2, 4, 6, 8, 10, 12>
-module {
+module attributes {scheme.actual_slot_count = 16} {
   func.func @test_nested_loop(%arg0: tensor<16xi32>) -> tensor<16xi32> {
     %c2 = arith.constant 2 : index
     %c0 = arith.constant 0 : index

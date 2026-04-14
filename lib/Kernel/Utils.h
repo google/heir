@@ -10,7 +10,11 @@ namespace kernel {
 
 Type dagTypeToMLIRType(const DagType& dagType, OpBuilder& builder);
 
-DagType mlirTypeToDagType(Type type);
+/// Convert an mlir type to an appropriate DagType. For some input types, like a
+/// Lattigo CKKS ciphertext type, the number of slots is not encoded on the type
+/// alone, and extra data should be passed in to say how many slots should be
+/// used.
+DagType mlirTypeToDagType(Type type, int numSlots = 8192);
 
 }  // namespace kernel
 }  // namespace heir

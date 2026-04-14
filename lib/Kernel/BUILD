@@ -85,6 +85,7 @@ cc_library(
     hdrs = ["Utils.h"],
     deps = [
         ":ArithmeticDag",
+        "@heir//lib/Dialect:HEIRInterfaces",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
     ],

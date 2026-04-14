@@ -2,7 +2,7 @@
 
 // CHECK: module attributes
 // CHECK-SAME: rotation_analysis.indices = array<i64: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 46, 69, 92, 115, 138, 161, 184, 207, 230, 253, 276, 299, 322, 345, 368, 391, 414, 437, 460, 483, 506, 512, 518, 541, 564, 587, 610, 633, 656, 679, 702, 725, 748, 771, 794, 817, 840, 863, 886, 909, 932, 955, 978, 1001>
-module {
+module attributes {scheme.actual_slot_count = 1024} {
   func.func @matvec(
       %arg0: !secret.secret<tensor<1x1024xf32>>) -> (!secret.secret<tensor<1x1024xf32>>) {
     %cst = arith.constant dense<0.000000e+00> : tensor<1x1024xf32>

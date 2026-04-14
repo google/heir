@@ -4,7 +4,6 @@
 #include <memory>
 
 #include "lib/Dialect/HEIRInterfaces.h"
-#include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Kernel/AbstractValue.h"
 #include "lib/Kernel/ArithmeticDag.h"
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
@@ -26,7 +25,7 @@ class DagBuilder {
   using NodePtr = std::shared_ptr<Node>;
 
  public:
-  DagBuilder() {}
+  DagBuilder(int numSlots) : numSlots(numSlots) {}
 
   FailureOr<NodePtr> build(Operation* op);
 
@@ -56,6 +55,8 @@ class DagBuilder {
 
   // A mapping of previously visited Values
   DenseMap<Value, NodePtr> valueToNode;
+
+  int numSlots;
 };
 
 }  // namespace heir

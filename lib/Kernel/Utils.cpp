@@ -5,6 +5,7 @@
 #include <variant>
 #include <vector>
 
+#include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Kernel/ArithmeticDag.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"         // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project
@@ -54,7 +55,7 @@ Type dagTypeToMLIRType(const DagType& dagType, OpBuilder& builder) {
       dagType.type_variant);
 }
 
-DagType mlirTypeToDagType(Type type) {
+DagType mlirTypeToDagType(Type type, int numSlots) {
   return llvm::TypeSwitch<Type, DagType>(type)
       .Case<mlir::IntegerType>(
           [&](auto type) { return DagType::integer(type.getWidth()); })
@@ -71,12 +72,13 @@ DagType mlirTypeToDagType(Type type) {
               return DagType::floatTensor(type.getWidth(), shape);
             })
             .Default([&](auto _) {
-              // Fallback for IndexType or custom types like Lattigo's
-              // ciphertext. For the purposes of rotation analysis, we just need
-              // the shape.
-              return DagType::intTensor(64, shape);
+              std::vector<int64_t> newShape(shape);
+              newShape.push_back(numSlots);
+              return DagType::intTensor(64, newShape);
             });
       })
+      .Case<SecretTypeInterface, PlaintextTypeInterface>(
+          [&](auto type) { return DagType::intTensor(64, {numSlots}); })
       .Default([&](auto _) { return DagType(); });
 }
 
