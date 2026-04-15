@@ -88,7 +88,6 @@ cc_binary(
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/Transforms",
         "@heir//lib/Dialect/RNS/IR:Dialect",
-        "@heir//lib/Dialect/RNS/IR:RNSTypeInterfaces",
         "@heir//lib/Dialect/Random/IR:Dialect",
         "@heir//lib/Dialect/SCIFRBool/IR:Dialect",
         "@heir//lib/Dialect/SCIFRBool/Transforms:CGGIEstimator",
@@ -264,7 +263,6 @@ cc_binary(
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Dialect/RNS/IR:Dialect",
-        "@heir//lib/Dialect/RNS/IR:RNSTypeInterfaces",  # build_cleaner: keep
         "@heir//lib/Dialect/Random/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",

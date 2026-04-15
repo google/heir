@@ -1,11 +1,14 @@
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
 
 #include <cstddef>
+#include <cstdint>
 
+#include "lib/Dialect/ModArith/IR/ModArithTypeInterfaces.h"
 #include "lib/Dialect/RNS/IR/RNSTypeInterfaces.h"
 #include "llvm/include/llvm/ADT/APInt.h"                // from @llvm-project
 #include "llvm/include/llvm/ADT/ArrayRef.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/STLFunctionalExtras.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
@@ -48,6 +51,20 @@ LogicalResult RNSType::verify(
     return emitError() << "RNS type has incompatible basis types";
   }
   return success();
+}
+
+Type RNSType::getLoweringType() const {
+  auto firstLimb =
+      mlir::dyn_cast<mod_arith::ModQTypeInterface>(getBasisTypes()[0]);
+  if (!firstLimb) {
+    return Type();
+  }
+  return RankedTensorType::get({static_cast<int64_t>(getBasisTypes().size())},
+                               firstLimb.getLoweringType());
+}
+
+Type RNSType::getResidueType(unsigned index) const {
+  return getBasisTypes()[index];
 }
 
 }  // namespace rns

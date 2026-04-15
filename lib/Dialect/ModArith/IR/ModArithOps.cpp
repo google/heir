@@ -3,9 +3,10 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
+#include <optional>
 #include <vector>
 
-#include "lib/Dialect/RNS/IR/RNSTypes.h"
+#include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
@@ -35,9 +36,17 @@ namespace heir {
 namespace mod_arith {
 
 template <typename OpType>
-LogicalResult verifySameWidth(OpType op, ModArithType modArithType,
+LogicalResult verifySameWidth(OpType op, ModQTypeInterface modularType,
                               IntegerType integerType) {
-  unsigned bitWidth = modArithType.getModulus().getValue().getBitWidth();
+  auto loweringType = modularType.getLoweringType();
+  auto storageType = dyn_cast<IntegerType>(getElementTypeOrSelf(loweringType));
+  if (!storageType) {
+    return op.emitOpError()
+           << "expected modular type lowering type to have integer element "
+              "type";
+  }
+
+  unsigned bitWidth = storageType.getWidth();
   unsigned intWidth = integerType.getWidth();
   if (intWidth != bitWidth)
     return op.emitOpError()
@@ -63,24 +72,51 @@ bool isShapeCorrect(OpType op, int64_t rnsLength,
   return tmp == integerShape;
 }
 
+std::optional<ModQTypeInterface> getModQTypeInterface(Type type) {
+  if (auto iface = dyn_cast<ModQTypeInterface>(getElementTypeOrSelf(type))) {
+    return iface;
+  }
+  return std::nullopt;
+}
+
+unsigned getNumResidues(ModQTypeInterface type) {
+  Type loweringType = type.getLoweringType();
+  if (auto shapedType = dyn_cast<ShapedType>(loweringType)) {
+    return shapedType.getShape()[0];
+  }
+  return 1;
+}
+
+std::optional<ModArithType> getResidueModArithType(ModQTypeInterface type,
+                                                   unsigned index) {
+  if (index >= getNumResidues(type)) {
+    return std::nullopt;
+  }
+  if (auto residueType = dyn_cast<ModArithType>(type.getResidueType(index))) {
+    return residueType;
+  }
+  return std::nullopt;
+}
+
 template <typename OpType>
 LogicalResult verifyTypeLowering(OpType op, Type modularType,
                                  Type integerType) {
-  int64_t rnsLength = 0;
-  auto innerModularType = getElementTypeOrSelf(modularType);
-  auto innerModArithType = dyn_cast<ModArithType>(innerModularType);
-  if (!innerModArithType) {
-    auto rnsType = dyn_cast<rns::RNSType>(innerModularType);
-    innerModArithType = cast<ModArithType>(rnsType.getBasisTypes()[0]);
-    rnsLength = rnsType.getBasisTypes().size();
+  auto modQType = getModQTypeInterface(modularType);
+  if (!modQType) {
+    return op.emitOpError()
+           << "expected modular type to implement " << "ModQTypeInterface";
   }
+
+  int64_t rnsLength = isa<ShapedType>(modQType->getLoweringType())
+                          ? getNumResidues(*modQType)
+                          : 0;
   auto innerIntegerType = cast<IntegerType>(getElementTypeOrSelf(integerType));
   auto modularShape = getShapeOrEmpty(modularType);
   auto integerShape = getShapeOrEmpty(integerType);
   if (!isShapeCorrect(op, rnsLength, modularShape, integerShape)) {
     return op.emitOpError() << "The shape of input/output type is not correct.";
   }
-  return verifySameWidth(op, innerModArithType, innerIntegerType);
+  return verifySameWidth(op, *modQType, innerIntegerType);
 }
 
 LogicalResult EncapsulateOp::verify() {
@@ -92,23 +128,44 @@ LogicalResult ExtractOp::verify() {
 }
 
 template <typename OpType>
-LogicalResult verifyRNS(OpType op, ModArithType modArithType,
-                        rns::RNSType rnsType, bool allowInjection = false) {
-  auto bigModulus = modArithType.getModulus().getValue();
+LogicalResult verifySingleToMultiModSwitch(OpType op,
+                                           ModQTypeInterface singleTy,
+                                           ModQTypeInterface multiTy,
+                                           bool allowInjection = false) {
+  auto singleModArithType = getResidueModArithType(singleTy, 0);
+  if (!singleModArithType) {
+    return op.emitOpError()
+           << "expected single-residue modular type to have a ModArith residue";
+  }
+
+  if (getNumResidues(multiTy) < 2) {
+    return op.emitOpError() << "expected multi-residue modular type";
+  }
+
+  auto bigModulus = (*singleModArithType).getModulus().getValue();
   auto width = bigModulus.getBitWidth();
-  auto rnsWidth = cast<ModArithType>(rnsType.getBasisTypes()[0])
-                      .getModulus()
-                      .getValue()
-                      .getBitWidth();
+  auto firstResidueType = getResidueModArithType(multiTy, 0);
+  if (!firstResidueType) {
+    return op.emitOpError()
+           << "expected multi-residue modular type to have ModArith residues";
+  }
+
+  auto rnsWidth = (*firstResidueType).getModulus().getValue().getBitWidth();
   if (width < rnsWidth) {
     return op.emitOpError() << "The input and output type can't both be RNS";
   }
+
   APInt product(width, 1);
-  for (auto basisType : rnsType.getBasisTypes()) {
-    auto modArithType = cast<ModArithType>(basisType);
-    auto modulus = modArithType.getModulus().getValue();
+  for (unsigned i = 0; i < getNumResidues(multiTy); ++i) {
+    auto residueType = getResidueModArithType(multiTy, i);
+    if (!residueType) {
+      return op.emitOpError()
+             << "expected multi-residue modular type to have ModArith residues";
+    }
+    auto modulus = (*residueType).getModulus().getValue();
     product *= modulus.zext(width);
   }
+
   if (product != bigModulus) {
     if (allowInjection && bigModulus.slt(product)) {
       return success();
@@ -120,25 +177,29 @@ LogicalResult verifyRNS(OpType op, ModArithType modArithType,
 }
 
 LogicalResult ModSwitchOp::verify() {
-  auto inputType = getInput().getType();
-  auto outputType = getOutput().getType();
-  if (auto inputModArith = dyn_cast<ModArithType>(inputType)) {
-    if (auto outputModArith = dyn_cast<ModArithType>(outputType)) {
-      return success();
-    }
-    if (auto outputRNS = dyn_cast<rns::RNSType>(outputType)) {
-      return verifyRNS(*this, inputModArith, outputRNS,
-                       /*allowInjection=*/true);
-    }
+  auto inputType = getModQTypeInterface(getInput().getType());
+  auto outputType = getModQTypeInterface(getOutput().getType());
+
+  if (!inputType || !outputType) {
+    llvm_unreachable("Verifier should make sure this doesn't happen.");
   }
-  if (auto inputRNS = dyn_cast<rns::RNSType>(inputType)) {
-    if (auto outputModArith = dyn_cast<ModArithType>(outputType)) {
-      return verifyRNS(*this, outputModArith, inputRNS);
-    }
-    if (auto outputRNS = dyn_cast<rns::RNSType>(outputType)) {
-      return emitOpError() << "The input and output type can't both be RNS";
-    }
+
+  unsigned inputResidues = getNumResidues(*inputType);
+  unsigned outputResidues = getNumResidues(*outputType);
+  if (inputResidues == 1 && outputResidues == 1) {
+    return success();
   }
+  if (inputResidues == 1 && outputResidues > 1) {
+    return verifySingleToMultiModSwitch(*this, *inputType, *outputType,
+                                        /*allowInjection=*/true);
+  }
+  if (inputResidues > 1 && outputResidues == 1) {
+    return verifySingleToMultiModSwitch(*this, *outputType, *inputType);
+  }
+  if (inputResidues > 1 && outputResidues > 1) {
+    return emitOpError() << "The input and output type can't both be RNS";
+  }
+
   llvm_unreachable("Verifier should make sure this doesn't happen.");
 }
 

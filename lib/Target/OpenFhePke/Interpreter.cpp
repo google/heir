@@ -1,11 +1,14 @@
 #include "lib/Target/OpenFhePke/Interpreter.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -16,12 +19,12 @@
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
-#include "lib/Dialect/RNS/IR/RNSTypeInterfaces.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"       // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"      // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/Liveness.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
@@ -53,7 +56,8 @@
 #include "src/pke/include/key/evalkey-fwd.h"             // from @openfhe
 #include "src/pke/include/key/privatekey-fwd.h"          // from @openfhe
 #include "src/pke/include/key/publickey-fwd.h"           // from @openfhe
-#include "src/pke/include/openfhe.h"                     // from @openfhe
+#include "src/pke/include/scheme/ckksrns/gen-cryptocontext-ckksrns-params.h"  // from @openfhe
+#include "src/pke/include/scheme/ckksrns/gen-cryptocontext-ckksrns.h"  // from @openfhe
 
 #ifdef OPENFHE_ENABLE_TIMING
 #define TIME_OPERATION_VOID(op_name, code)                  \
@@ -2159,7 +2163,6 @@ void initContext(MLIRContext& context) {
   registry.insert<tensor_ext::TensorExtDialect>();
   registry.insert<linalg::LinalgDialect>();
   registry.insert<affine::AffineDialect>();
-  rns::registerExternalRNSTypeInterfaces(registry);
   context.appendDialectRegistry(registry);
   context.loadAllAvailableDialects();
 }

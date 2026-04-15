@@ -134,10 +134,10 @@ cc_library(
         "@heir//lib/Dialect/ModArith/IR:Dialect",
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
         "@heir//lib/Dialect/RNS/IR:Dialect",
-        "@heir//lib/Dialect/RNS/IR:RNSTypeInterfaces",  # buildcleaner: keep
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
+        "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",

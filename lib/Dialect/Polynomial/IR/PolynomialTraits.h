@@ -15,7 +15,7 @@ namespace mlir::heir::polynomial {
 
 // Helper to verify that all polynomial operands and results have a specific
 // form.
-static LogicalResult verifyFixedForm(Operation* op, Form fixedForm) {
+static inline LogicalResult verifyFixedForm(Operation* op, Form fixedForm) {
   auto checkForm =
       [&](Form f) {
         if (f != fixedForm) {

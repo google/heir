@@ -42,10 +42,8 @@
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Dialect/Polynomial/Transforms/Passes.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
-#include "lib/Dialect/RNS/IR/RNSTypeInterfaces.h"
 #include "lib/Dialect/Random/IR/RandomDialect.h"
 #include "lib/Dialect/SCIFRBool/IR/SCIFRBoolDialect.h"
-#include "lib/Dialect/SCIFRBool/IR/SCIFRBoolOps.h"
 #include "lib/Dialect/SCIFRBool/Transforms/Passes.h"
 #include "lib/Dialect/SCIFRBool/Transforms/ReplaceOpWithSection.h"
 #include "lib/Dialect/SCIFRCkks/Transforms/Passes.h"
@@ -417,7 +415,6 @@ int main(int argc, char** argv) {
 
   // Interfaces in HEIR
   secret::registerBufferizableOpInterfaceExternalModels(registry);
-  rns::registerExternalRNSTypeInterfaces(registry);
   registerIncreasesMulDepthOpInterface(registry);
   registerLayoutConversionHoistableInterface(registry);
   registerOperandAndResultAttrInterface(registry);

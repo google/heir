@@ -15,9 +15,7 @@ cc_library(
         ":DecomposeRelinearize",
         ":pass_inc_gen",
         "@heir//lib/Dialect/CKKS/IR:Dialect",
-        "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
-        "@llvm-project//mlir:Support",
     ],
 )
 
@@ -63,7 +61,7 @@ cc_library(
         "@heir//lib/Dialect/CKKS/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
-        "@heir//lib/Dialect/RNS/IR:RNSTypes",
+        "@heir//lib/Dialect/RNS/IR:Dialect",
         "@heir//lib/Parameters/CKKS:Params",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",

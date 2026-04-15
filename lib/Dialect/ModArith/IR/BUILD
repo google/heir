@@ -24,18 +24,30 @@ cc_library(
         "ModArithTypes.h",
     ],
     deps = [
+        ":ModArithTypeInterfaces",
         ":attributes_inc_gen",
         ":canonicalization_inc_gen",
         ":dialect_inc_gen",
         ":ops_inc_gen",
+        ":type_interfaces_inc_gen",
         ":types_inc_gen",
-        "@heir//lib/Dialect/RNS/IR:Dialect",
+        "@heir//lib/Dialect/RNS/IR:RNSTypeInterfaces",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
-        "@llvm-project//mlir:CommonFolders",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
         "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
+    name = "ModArithTypeInterfaces",
+    hdrs = [
+        "ModArithTypeInterfaces.h",
+    ],
+    deps = [
+        ":type_interfaces_inc_gen",
+        "@llvm-project//mlir:IR",
     ],
 )
 
@@ -51,13 +63,25 @@ td_library(
     # include from the heir-root to enable fully-qualified include-paths
     includes = ["../../../.."],
     deps = [
-        "@heir//lib/Dialect/RNS/IR:td_files",
+        ":type_interfaces_td",
+        "@heir//lib/Dialect/RNS/IR:type_interfaces_td",
         "@heir//lib/Utils/DRR",
         "@llvm-project//mlir:ArithOpsTdFiles",
         "@llvm-project//mlir:BuiltinDialectTdFiles",
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",
         "@llvm-project//mlir:SideEffectInterfacesTdFiles",
+    ],
+)
+
+td_library(
+    name = "type_interfaces_td",
+    srcs = [
+        "ModArithTypeInterfaces.td",
+    ],
+    includes = ["../../../.."],
+    deps = [
+        "@llvm-project//mlir:OpBaseTdFiles",
     ],
 )
 
@@ -80,6 +104,17 @@ add_heir_dialect_library(
     td_file = "ModArithAttributes.td",
     deps = [
         ":td_files",
+    ],
+)
+
+add_heir_dialect_library(
+    name = "type_interfaces_inc_gen",
+    dialect = "ModArith",
+    dialect_doc_name = "mod_arith",
+    kind = "type_interface",
+    td_file = "ModArithTypeInterfaces.td",
+    deps = [
+        "@llvm-project//mlir:BuiltinDialectTdFiles",
     ],
 )
 

@@ -14,6 +14,8 @@ cc_library(
     srcs = [
         "RNSAttributes.cpp",
         "RNSDialect.cpp",
+        "RNSOps.cpp",
+        "RNSTypes.cpp",
     ],
     hdrs = [
         "RNSAttributes.h",
@@ -23,13 +25,12 @@ cc_library(
         "RNSTypes.h",
     ],
     deps = [
-        ":RNSOps",
-        ":RNSTypes",
         ":attributes_inc_gen",
         ":dialect_inc_gen",
         ":ops_inc_gen",
         ":type_interfaces_inc_gen",
         ":types_inc_gen",
+        "@heir//lib/Dialect/ModArith/IR:ModArithTypeInterfaces",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
@@ -37,32 +38,8 @@ cc_library(
     ],
 )
 
-cc_library(
-    name = "RNSTypes",
-    srcs = [
-        "RNSTypes.cpp",
-    ],
-    hdrs = [
-        "RNSDialect.h",
-        "RNSTypeInterfaces.h",
-        "RNSTypes.h",
-    ],
-    deps = [
-        ":dialect_inc_gen",
-        ":type_interfaces_inc_gen",
-        ":types_inc_gen",
-        "@llvm-project//llvm:Support",
-        "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:Support",
-    ],
-)
-
-# to avoid cyclic dependency among mod_arith and rns
 cc_library(
     name = "RNSTypeInterfaces",
-    srcs = [
-        "RNSTypeInterfaces.cpp",
-    ],
     hdrs = [
         "RNSDialect.h",
         "RNSTypeInterfaces.h",
@@ -70,34 +47,7 @@ cc_library(
     deps = [
         ":dialect_inc_gen",
         ":type_interfaces_inc_gen",
-        ":types_inc_gen",
-        "@heir//lib/Dialect/ModArith/IR:Dialect",
-        "@heir//lib/Dialect/Polynomial/IR:Dialect",
-        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:Support",
-    ],
-)
-
-cc_library(
-    name = "RNSOps",
-    srcs = [
-        "RNSOps.cpp",
-    ],
-    hdrs = [
-        "RNSDialect.h",
-        "RNSOps.h",
-        "RNSTypes.h",
-    ],
-    deps = [
-        ":RNSTypes",
-        ":dialect_inc_gen",
-        ":ops_inc_gen",
-        ":types_inc_gen",
-        "@llvm-project//llvm:Support",
-        "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:InferTypeOpInterface",
-        "@llvm-project//mlir:Support",
     ],
 )
 
@@ -107,14 +57,26 @@ td_library(
         "RNSAttributes.td",
         "RNSDialect.td",
         "RNSOps.td",
-        "RNSTypeInterfaces.td",
         "RNSTypes.td",
     ],
     # include from the heir-root to enable fully-qualified include-paths
     includes = ["../../../.."],
     deps = [
+        ":type_interfaces_td",
+        "@heir//lib/Dialect/ModArith/IR:type_interfaces_td",
         "@llvm-project//mlir:BuiltinDialectTdFiles",
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
+        "@llvm-project//mlir:OpBaseTdFiles",
+    ],
+)
+
+td_library(
+    name = "type_interfaces_td",
+    srcs = [
+        "RNSTypeInterfaces.td",
+    ],
+    includes = ["../../../.."],
+    deps = [
         "@llvm-project//mlir:OpBaseTdFiles",
     ],
 )

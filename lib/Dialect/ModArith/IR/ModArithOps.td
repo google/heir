@@ -1,7 +1,6 @@
 #ifndef LIB_DIALECT_MODARITH_IR_MODARITHOPS_TD_
 #define LIB_DIALECT_MODARITH_IR_MODARITHOPS_TD_
 
-include "lib/Dialect/RNS/IR/RNSTypes.td"
 include "lib/Dialect/ModArith/IR/ModArithDialect.td"
 include "lib/Dialect/ModArith/IR/ModArithTypes.td"
 include "mlir/IR/BuiltinAttributes.td"
@@ -10,8 +9,7 @@ include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
-def ModArithOrRNS : AnyTypeOf<[ModArith_ModArithType, RNS]>;
-def ModArithOrRNSLike : TypeOrValueSemanticsContainer<ModArithOrRNS, "mod_arith_or_rns-like">;
+def ModQLike : TypeOrValueSemanticsContainer<ModQTypeInterface, "mod_q-like">;
 
 class ModArith_Op<string mnemonic, list<Trait> traits = [Pure]> :
         Op<ModArith_Dialect, mnemonic, traits> {
@@ -21,23 +19,22 @@ class ModArith_Op<string mnemonic, list<Trait> traits = [Pure]> :
 
 // type conversion operations
 def ModArith_EncapsulateOp : ModArith_Op<"encapsulate", [Pure]> {
-  let summary = "encapsulate an integer into a mod_arith type";
+  let summary = "encapsulate an integer into a modular type";
 
   let description = [{
-    `mod_arith.encapsulate` converts the integer to be of mod_arith or RNS type.
+    `mod_arith.encapsulate` converts an integer to a modular type.
 
     Examples:
     ```
     mod_arith.encapsulate %c0 : i32 -> mod_arith.int<65537 : i32>
     mod_arith.encapsulate %c1 : i64 -> mod_arith.int<65537 : i64>
-    mod_arith.encapsulate %c2 : tensor<4x2xi32> -> tensor<4xrns.rns<mod_arith.int<5 : i32>, mod_arith.int<17 : i32>>>
     ```
   }];
 
   let arguments = (ins
     SignlessIntegerLike:$input
   );
-  let results = (outs ModArithOrRNSLike:$output);
+  let results = (outs ModQLike:$output);
   let hasVerifier = 1;
   let assemblyFormat = "operands attr-dict `:` type($input) `->` type($output)";
 }
@@ -46,24 +43,24 @@ def ModArith_ExtractOp : ModArith_Op<"extract", [Pure]> {
   let summary = "extract the integer stored inside mod_arith type";
 
   let description = [{
-    `mod_arith.extract` extracts the integer inside the mod_arith or RNS type.
+    `mod_arith.extract` extracts the integer inside the modular type.
 
     It is required that the bitwidth of the output (tensor of) integer type is
-    the same as that of the storage type of the input mod_arith (or RNS) type.
+    the same as that of the storage type of the input modular type.
+
+    For RNS structure traversal, prefer `rns.extract_slice`.
 
     Examples:
     ```
     %m0 = mod_arith.encapsulate %c0 : i32 -> mod_arith.int<65537 : i32>
     %m1 = mod_arith.encapsulate %c1 : i64 -> mod_arith.int<65537 : i64>
-    %m2 = mod_arith.encapsulate %c2 : tensor<4x2xi32> -> tensor<4xrns.rns<mod_arith.int<5 : i32>, mod_arith.int<17 : i32>>>
     %c3 = mod_arith.extract %m0 : mod_arith.int<65537 : i32> -> i32
     %c4 = mod_arith.extract %m1 : mod_arith.int<65537 : i64> -> i64
-    %c5 = mod_arith.extract %m2 : tensor<4xrns.rns<mod_arith.int<5 : i32>, mod_arith.int<17 : i32>>> -> tensor<4x2xi32>
     ```
   }];
 
   let arguments = (ins
-    ModArithOrRNSLike:$input
+    ModQLike:$input
   );
   let results = (outs SignlessIntegerLike:$output);
   let hasVerifier = 1;
@@ -93,8 +90,8 @@ def ModArith_ModSwitchOp : ModArith_Op<"mod_switch", [Pure]> {
     ```
   }];
 
-  let arguments = (ins ModArithOrRNSLike:$input);
-  let results = (outs ModArithOrRNSLike:$output);
+  let arguments = (ins ModQLike:$input);
+  let results = (outs ModQLike:$output);
   let hasVerifier = 1;
   let assemblyFormat = "$input attr-dict `:` type($input) `to` type($output)";
 }
@@ -143,8 +140,8 @@ def ModArith_ReduceOp : ModArith_Op<"reduce", [Pure, ElementwiseMappable, SameOp
 
 class ModArith_BinaryOp<string mnemonic, list<Trait> traits = []> :
     ModArith_Op<mnemonic, traits # [SameOperandsAndResultType, Pure, ElementwiseMappable]>,
-    Arguments<(ins ModArithOrRNSLike:$lhs, ModArithOrRNSLike:$rhs)>,
-    Results<(outs ModArithOrRNSLike:$output)> {
+    Arguments<(ins ModQLike:$lhs, ModQLike:$rhs)>,
+    Results<(outs ModQLike:$output)> {
   let assemblyFormat ="operands attr-dict `:` type($output)";
 }
 

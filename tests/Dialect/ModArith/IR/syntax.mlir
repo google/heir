@@ -6,8 +6,10 @@
 !Zp_vec = tensor<4x!Zp>
 
 !rns = !rns.rns<!Zp, !Zp2, !Zp3>
+!rns1 = !rns.rns<!Zp>
 !rns_vec = tensor<5x6x!rns>
 !int_vec = tensor<5x6x3xi10>
+!rns1_vec = tensor<5x!rns1>
 !Zp_large = !mod_arith.int<2223821 : i32>
 
 // CHECK: @test_arith_syntax
@@ -118,5 +120,14 @@ func.func @test_rns_vec_syntax(%arg0: !rns_vec, %arg1: !rns_vec) {
   %extract = mod_arith.extract %add : !rns_vec -> !int_vec
   %encapsulate = mod_arith.encapsulate %extract : !int_vec -> !rns_vec
 
+  return
+}
+
+// CHECK: @test_rns_single_limb_shape
+func.func @test_rns_single_limb_shape(%arg0: tensor<5x1xi10>, %arg1: !rns1_vec) {
+  // CHECK: mod_arith.encapsulate
+  // CHECK: mod_arith.extract
+  %enc = mod_arith.encapsulate %arg0 : tensor<5x1xi10> -> !rns1_vec
+  %ext = mod_arith.extract %arg1 : !rns1_vec -> tensor<5x1xi10>
   return
 }

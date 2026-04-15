@@ -31,7 +31,7 @@ cc_library(
         "@heir//lib/Dialect/LWE/IR:Patterns",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
-        "@heir//lib/Dialect/RNS/IR:RNSTypes",
+        "@heir//lib/Dialect/RNS/IR:Dialect",
         "@heir//lib/Parameters:RLWEParams",
         "@heir//lib/Parameters/CKKS:Params",
         "@llvm-project//llvm:Support",

@@ -1,6 +1,7 @@
 #ifndef LIB_DIALECT_RNS_IR_RNSTYPES_TD_
 #define LIB_DIALECT_RNS_IR_RNSTYPES_TD_
 
+include "lib/Dialect/ModArith/IR/ModArithTypeInterfaces.td"
 include "lib/Dialect/RNS/IR/RNSDialect.td"
 include "lib/Dialect/RNS/IR/RNSTypeInterfaces.td"
 include "mlir/IR/DialectBase.td"
@@ -13,7 +14,10 @@ class RNS_Type<string name, string typeMnemonic, list<Trait> traits = []>
   let mnemonic = typeMnemonic;
 }
 
-def RNS : RNS_Type<"RNS", "rns", [OpAsmTypeInterface]> {
+def RNS : RNS_Type<"RNS", "rns", [
+    OpAsmTypeInterface,
+    DeclareTypeInterfaceMethods<ModQTypeInterface>
+  ]> {
   let summary = "A residue number system representation";
   let description = [{
   }];

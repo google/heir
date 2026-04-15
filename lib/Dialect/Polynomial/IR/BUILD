@@ -20,8 +20,6 @@ cc_library(
         ":types_inc_gen",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
         "@heir//lib/Dialect/RNS/IR:Dialect",
-        "@heir//lib/Dialect/RNS/IR:RNSOps",
-        "@heir//lib/Dialect/RNS/IR:RNSTypes",
         "@heir//lib/Utils/Polynomial",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
