@@ -33,6 +33,7 @@ class EvalVisitor : public CachingVisitor<LiteralValue, EvalResults> {
   EvalResults operator()(const FloorDivNode<LiteralValue>& node) override;
   EvalResults operator()(const LeftRotateNode<LiteralValue>& node) override;
   EvalResults operator()(const ExtractNode<LiteralValue>& node) override;
+  EvalResults operator()(const InsertNode<LiteralValue>& node) override;
   EvalResults operator()(const ComparisonNode<LiteralValue>& node) override;
   EvalResults operator()(const IfElseNode<LiteralValue>& node) override;
   EvalResults operator()(const VariableNode<LiteralValue>& node) override;

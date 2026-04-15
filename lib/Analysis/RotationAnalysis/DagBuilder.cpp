@@ -369,6 +369,27 @@ FailureOr<NodePtr> DagBuilder::visit(tensor::ExtractSliceOp op) {
   return source;
 }
 
+FailureOr<NodePtr> DagBuilder::visit(tensor::InsertOp op) {
+  auto scalar = findNodeOrMakeNewVariable(op.getScalar());
+  auto dest = findNodeOrMakeNewVariable(op.getDest());
+  auto index = findNodeOrMakeNewVariable(op.getIndices()[0]);
+  auto dagNode = Node::insert(scalar, dest, index);
+  valueToNode[op.getResult()] = dagNode;
+  return dagNode;
+}
+
+FailureOr<NodePtr> DagBuilder::visit(tensor::InsertSliceOp op) {
+  auto source = findNodeOrMakeNewVariable(op.getSource());
+  auto dest = findNodeOrMakeNewVariable(op.getDest());
+  // For reachability, we want to keep both. We use a dummy index for now
+  // since insert_slice has complex indexing.
+  // TODO(#2877): in case rotation inputs use insert_slice, will need better
+  // support there.
+  auto dagNode = Node::insert(source, dest, 0);
+  valueToNode[op.getResult()] = dagNode;
+  return dagNode;
+}
+
 FailureOr<NodePtr> DagBuilder::build(Operation* op) {
   LDBG() << "Visiting op " << *op;
 
@@ -376,37 +397,29 @@ FailureOr<NodePtr> DagBuilder::build(Operation* op) {
       .Case<arith::AddFOp, arith::AddIOp, arith::CmpIOp, arith::ConstantOp,
             arith::DivSIOp, arith::MulFOp, arith::MulIOp, arith::SubFOp,
             arith::SubIOp, arith::NegFOp, scf::ForOp, scf::IfOp, scf::YieldOp,
-            tensor::ExtractOp, tensor::ExtractSliceOp, tensor::SplatOp,
-            RotationOpInterface>([&](auto op) { return visit(op); })
+            tensor::ExtractOp, tensor::ExtractSliceOp, tensor::InsertOp,
+            tensor::InsertSliceOp, tensor::SplatOp, RotationOpInterface>(
+          [&](auto op) { return visit(op); })
       .Default([&](Operation* op) -> FailureOr<NodePtr> {
         LDBG() << "Unsupported op type " << op->getName()
                << ", skipping but connecting operands";
         if (op->getNumResults() == 0) return NodePtr(nullptr);
 
         std::vector<NodePtr> interestingOperandNodes;
-        auto addInteresting = [&](Value operand) {
+        for (Value operand : op->getOperands()) {
+          // Only follow the dataflow of things that are secret or plaintext
+          // typed. This could additionally use a secretness analysis, but this
+          // analysis is only run at the later stages in the pipeline when all
+          // secret types are materialized to explicit ciphertext types, so
+          // justifying by YAGNI.
           Type eltTy = getElementTypeOrSelf(operand.getType());
           if (!isa<SecretTypeInterface, PlaintextTypeInterface>(eltTy)) {
-            return;
+            continue;
           }
 
           LDBG() << "Found interesting operand of type " << operand.getType()
                  << " for op " << *op;
           interestingOperandNodes.push_back(findNodeOrMakeNewVariable(operand));
-        };
-
-        // Prioritize tensors so that if this is a tensor.insert, the
-        // destination tensor is the primary result, allowing downstream
-        // tensor.extract to work.
-        for (Value operand : op->getOperands()) {
-          if (isa<RankedTensorType>(operand.getType())) {
-            addInteresting(operand);
-          }
-        }
-        for (Value operand : op->getOperands()) {
-          if (!isa<RankedTensorType>(operand.getType())) {
-            addInteresting(operand);
-          }
         }
 
         if (interestingOperandNodes.empty()) {

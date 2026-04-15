@@ -204,6 +204,20 @@ std::vector<Value> IRMaterializingVisitor::operator()(
 }
 
 std::vector<Value> IRMaterializingVisitor::operator()(
+    const InsertNode<SSAValue>& node, ImplicitLocOpBuilder& builder) {
+  Value scalar = this->process(node.scalar, builder)[0];
+  Value dest = this->process(node.dest, builder)[0];
+  Value index = this->process(node.index, builder)[0];
+  // Ensure index has index type
+  if (!index.getType().isIndex()) {
+    index = arith::IndexCastOp::create(builder, builder.getIndexType(), index);
+  }
+  auto op = tensor::InsertOp::create(builder, scalar, dest, ValueRange{index});
+  createdOpCallback(op);
+  return {op.getResult()};
+}
+
+std::vector<Value> IRMaterializingVisitor::operator()(
     const ComparisonNode<SSAValue>& node, ImplicitLocOpBuilder& builder) {
   Value lhs = this->process(node.left, builder)[0];
   Value rhs = this->process(node.right, builder)[0];

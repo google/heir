@@ -38,6 +38,7 @@ class RotationCountVisitor {
   int64_t operator()(const LeftRotateNode<SymbolicValue>& node);
   int64_t operator()(const LeftRotateBulkNode<SymbolicValue>& node);
   int64_t operator()(const ExtractNode<SymbolicValue>& node);
+  int64_t operator()(const InsertNode<SymbolicValue>& node);
   int64_t operator()(const ComparisonNode<SymbolicValue>& node);
   int64_t operator()(const IfElseNode<SymbolicValue>& node);
   int64_t operator()(const VariableNode<SymbolicValue>& node);

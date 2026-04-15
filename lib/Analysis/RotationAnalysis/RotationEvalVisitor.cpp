@@ -68,6 +68,14 @@ EvalResults RotationEvalVisitor::operator()(
 }
 
 EvalResults RotationEvalVisitor::operator()(
+    const kernel::InsertNode<LiteralValue>& node) {
+  this->process(node.scalar);
+  auto dest = this->process(node.dest);
+  this->process(node.index);
+  return dest;
+}
+
+EvalResults RotationEvalVisitor::operator()(
     const VariableNode<LiteralValue>& node) {
   if (node.value.has_value()) {
     return {node.value.value()};

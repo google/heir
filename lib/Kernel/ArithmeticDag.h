@@ -163,6 +163,13 @@ struct ExtractNode {
   std::shared_ptr<ArithmeticDagNode<T>> index;
 };
 
+template <typename T>
+struct InsertNode {
+  std::shared_ptr<ArithmeticDagNode<T>> scalar;
+  std::shared_ptr<ArithmeticDagNode<T>> dest;
+  std::shared_ptr<ArithmeticDagNode<T>> index;
+};
+
 enum class ComparisonPredicate {
   LT,
   LE,
@@ -218,7 +225,7 @@ struct ArithmeticDagNode {
   std::variant<ConstantScalarNode, ConstantTensorNode, LeafNode<T>, AddNode<T>,
                SubtractNode<T>, MultiplyNode<T>, FloorDivNode<T>, PowerNode<T>,
                LeftRotateNode<T>, LeftRotateBulkNode<T>, ExtractNode<T>,
-               ComparisonNode<T>, IfElseNode<T>, VariableNode<T>,
+               InsertNode<T>, ComparisonNode<T>, IfElseNode<T>, VariableNode<T>,
                ForLoopNode<T>, YieldNode<T>, ResultAtNode<T>, SplatNode>
       node_variant;
 
@@ -341,6 +348,19 @@ struct ArithmeticDagNode {
   static NodePtr extract(NodePtr tensor, size_t index) {
     return extract(
         tensor, constantScalar(static_cast<double>(index), DagType::index()));
+  }
+
+  static NodePtr insert(NodePtr scalar, NodePtr dest, NodePtr index) {
+    assert(scalar && dest && index && "invalid insert");
+    auto node = NodePtr(new ArithmeticDagNode<T>());
+    node->node_variant.template emplace<InsertNode<T>>(
+        InsertNode<T>{std::move(scalar), std::move(dest), std::move(index)});
+    return node;
+  }
+
+  static NodePtr insert(NodePtr scalar, NodePtr dest, size_t index) {
+    return insert(std::move(scalar), std::move(dest),
+                  constantScalar(static_cast<double>(index), DagType::index()));
   }
 
   static NodePtr comparison(NodePtr lhs, NodePtr rhs,
@@ -569,6 +589,11 @@ class CachingVisitor {
     return ResultType();
   }
 
+  virtual ResultType operator()(const InsertNode<T>& node, ExtraArgs... args) {
+    assert(false && "Visit logic for InsertNode is not implemented.");
+    return ResultType();
+  }
+
   virtual ResultType operator()(const ComparisonNode<T>& node,
                                 ExtraArgs... args) {
     assert(false && "Visit logic for ComparisonNode is not implemented.");
@@ -641,6 +666,10 @@ class CachingVisitor {
             }
           } else if constexpr (std::is_same_v<NodeType, ExtractNode<T>>) {
             clearSubtreeCache(n.operand);
+            clearSubtreeCache(n.index);
+          } else if constexpr (std::is_same_v<NodeType, InsertNode<T>>) {
+            clearSubtreeCache(n.scalar);
+            clearSubtreeCache(n.dest);
             clearSubtreeCache(n.index);
           } else if constexpr (std::is_same_v<NodeType, ComparisonNode<T>>) {
             clearSubtreeCache(n.left);

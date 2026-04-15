@@ -168,6 +168,22 @@ int64_t RotationCountVisitor::operator()(
 }
 
 int64_t RotationCountVisitor::operator()(
+    const InsertNode<SymbolicValue>& node) {
+  const auto* thisNode = currentNode;  // Save before recursion
+
+  int64_t scalarCount = processInternal(node.scalar);
+  int64_t destCount = processInternal(node.dest);
+  int64_t indexCount = processInternal(node.index);
+
+  // Secret status is inherited from scalar or dest
+  bool scalarIsSecret = nodeSecretStatus[node.scalar.get()];
+  bool destIsSecret = nodeSecretStatus[node.dest.get()];
+  nodeSecretStatus[thisNode] = scalarIsSecret || destIsSecret;
+
+  return scalarCount + destCount + indexCount;
+}
+
+int64_t RotationCountVisitor::operator()(
     const ComparisonNode<SymbolicValue>& node) {
   const auto* thisNode = currentNode;  // Save before recursion
 

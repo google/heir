@@ -197,6 +197,31 @@ EvalResults EvalVisitor::operator()(const ExtractNode<LiteralValue>& node) {
       tensor.get());
 }
 
+EvalResults EvalVisitor::operator()(const InsertNode<LiteralValue>& node) {
+  LDBG() << "Visiting InsertNode";
+  auto scalar = this->process(node.scalar)[0];
+  auto dest = this->process(node.dest)[0];
+  auto evaluatedIndex = this->process(node.index)[0];
+  int index = std::get<int>(evaluatedIndex.get());
+
+  return std::visit(
+      [&](auto&& t) -> EvalResults {
+        using T = std::decay_t<decltype(t)>;
+        if constexpr (std::is_same_v<T, std::vector<std::vector<int>>>) {
+          auto result = t;
+          result[index] = std::get<std::vector<int>>(scalar.get());
+          return {LiteralValue(result)};
+        } else if constexpr (std::is_same_v<T, std::vector<int>>) {
+          auto result = t;
+          result[index] = std::get<int>(scalar.get());
+          return {LiteralValue(result)};
+        }
+        assert(false && "Unsupported type for insertion");
+        return {};
+      },
+      dest.get());
+}
+
 EvalResults EvalVisitor::operator()(const ComparisonNode<LiteralValue>& node) {
   LDBG() << "Visiting ComparisonNode";
   auto left = this->process(node.left)[0];

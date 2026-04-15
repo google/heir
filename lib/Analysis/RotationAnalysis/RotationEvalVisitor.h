@@ -24,6 +24,11 @@ class RotationEvalVisitor : public kernel::EvalVisitor {
   kernel::EvalResults operator()(
       const kernel::LeftRotateBulkNode<kernel::LiteralValue>& node) override;
 
+  // Override the insert node to keep the IR connected without actual
+  // computation.
+  kernel::EvalResults operator()(
+      const kernel::InsertNode<kernel::LiteralValue>& node) override;
+
   // Override the variable node to allow uninitialized values to be populated
   // with anything.
   kernel::EvalResults operator()(

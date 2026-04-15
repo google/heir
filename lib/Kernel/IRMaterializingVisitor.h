@@ -74,6 +74,8 @@ class IRMaterializingVisitor
                                 ImplicitLocOpBuilder& builder) override;
   std::vector<Value> operator()(const ExtractNode<SSAValue>& node,
                                 ImplicitLocOpBuilder& builder) override;
+  std::vector<Value> operator()(const InsertNode<SSAValue>& node,
+                                ImplicitLocOpBuilder& builder) override;
   std::vector<Value> operator()(const ComparisonNode<SSAValue>& node,
                                 ImplicitLocOpBuilder& builder) override;
   std::vector<Value> operator()(const IfElseNode<SSAValue>& node,

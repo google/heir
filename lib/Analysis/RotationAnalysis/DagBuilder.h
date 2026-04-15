@@ -50,6 +50,8 @@ class DagBuilder {
   FailureOr<NodePtr> visit(scf::YieldOp op);
   FailureOr<NodePtr> visit(tensor::ExtractOp op);
   FailureOr<NodePtr> visit(tensor::ExtractSliceOp op);
+  FailureOr<NodePtr> visit(tensor::InsertOp op);
+  FailureOr<NodePtr> visit(tensor::InsertSliceOp op);
   FailureOr<NodePtr> visit(tensor::SplatOp op);
   FailureOr<NodePtr> visit(RotationOpInterface op);
 

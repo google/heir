@@ -104,6 +104,13 @@ struct FlattenedStringVisitor {
     return ss.str();
   }
 
+  std::string operator()(const InsertNode<std::string>& node) const {
+    std::stringstream ss;
+    ss << node.dest->visit(*this) << "[" << node.index->visit(*this)
+       << "] = " << node.scalar->visit(*this);
+    return ss.str();
+  }
+
   std::string operator()(const ComparisonNode<std::string>& node) const {
     std::stringstream ss;
     std::string op;
@@ -375,6 +382,16 @@ TEST(ArithmeticDagTest, TestProperDag) {
   FlattenedStringVisitor visitor;
   std::string result = root->visit(visitor);
   EXPECT_EQ(result, "(((y ^ 2) + (y ^ 2)) * (y ^ 2))");
+}
+
+TEST(ArithmeticDagTest, TestInsert) {
+  auto dest = StringLeavedDag::leaf("A");
+  auto scalar = StringLeavedDag::leaf("x");
+  auto root = StringLeavedDag::insert(scalar, dest, 5);
+
+  FlattenedStringVisitor visitor;
+  std::string result = root->visit(visitor);
+  EXPECT_EQ(result, "A[5.00] = x");
 }
 
 TEST(ArithmeticDagTest, TestEvaluationVisitor) {
