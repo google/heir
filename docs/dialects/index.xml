@@ -9691,11 +9691,11 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>mod_arith_or_rns-like&lt;/td>
+&lt;td>mod_q-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>mod_arith_or_rns-like&lt;/td>
+&lt;td>mod_q-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9710,7 +9710,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>mod_arith_or_rns-like&lt;/td>
+&lt;td>mod_q-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9787,14 +9787,13 @@ operation computes &lt;code>barret_reduce x = x - floor(x * floor(b / q) / b) * 
 &lt;/tbody>
 &lt;/table>
 &lt;h3 id="mod_arithencapsulate-heirmod_arithencapsulateop">&lt;code>mod_arith.encapsulate&lt;/code> (heir::mod_arith::EncapsulateOp)&lt;/h3>
-&lt;p>&lt;em>Encapsulate an integer into a mod_arith type&lt;/em>&lt;/p>
+&lt;p>&lt;em>Encapsulate an integer into a modular type&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `mod_arith.encapsulate` operands attr-dict `:` type($input) `-&amp;gt;` type($output)
-&lt;/code>&lt;/pre>&lt;p>&lt;code>mod_arith.encapsulate&lt;/code> converts the integer to be of mod_arith or RNS type.&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>&lt;code>mod_arith.encapsulate&lt;/code> converts an integer to a modular type.&lt;/p>
 &lt;p>Examples:&lt;/p>
 &lt;pre tabindex="0">&lt;code>mod_arith.encapsulate %c0 : i32 -&amp;gt; mod_arith.int&amp;lt;65537 : i32&amp;gt;
 mod_arith.encapsulate %c1 : i64 -&amp;gt; mod_arith.int&amp;lt;65537 : i64&amp;gt;
-mod_arith.encapsulate %c2 : tensor&amp;lt;4x2xi32&amp;gt; -&amp;gt; tensor&amp;lt;4xrns.rns&amp;lt;mod_arith.int&amp;lt;5 : i32&amp;gt;, mod_arith.int&amp;lt;17 : i32&amp;gt;&amp;gt;&amp;gt;
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -9824,7 +9823,7 @@ mod_arith.encapsulate %c2 : tensor&amp;lt;4x2xi32&amp;gt; -&amp;gt; tensor&amp;l
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>mod_arith_or_rns-like&lt;/td>
+&lt;td>mod_q-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9832,16 +9831,15 @@ mod_arith.encapsulate %c2 : tensor&amp;lt;4x2xi32&amp;gt; -&amp;gt; tensor&amp;l
 &lt;p>&lt;em>Extract the integer stored inside mod_arith type&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `mod_arith.extract` operands attr-dict `:` type($input) `-&amp;gt;` type($output)
-&lt;/code>&lt;/pre>&lt;p>&lt;code>mod_arith.extract&lt;/code> extracts the integer inside the mod_arith or RNS type.&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>&lt;code>mod_arith.extract&lt;/code> extracts the integer inside the modular type.&lt;/p>
 &lt;p>It is required that the bitwidth of the output (tensor of) integer type is
-the same as that of the storage type of the input mod_arith (or RNS) type.&lt;/p>
+the same as that of the storage type of the input modular type.&lt;/p>
+&lt;p>For RNS structure traversal, prefer &lt;code>rns.extract_slice&lt;/code>.&lt;/p>
 &lt;p>Examples:&lt;/p>
 &lt;pre tabindex="0">&lt;code>%m0 = mod_arith.encapsulate %c0 : i32 -&amp;gt; mod_arith.int&amp;lt;65537 : i32&amp;gt;
 %m1 = mod_arith.encapsulate %c1 : i64 -&amp;gt; mod_arith.int&amp;lt;65537 : i64&amp;gt;
-%m2 = mod_arith.encapsulate %c2 : tensor&amp;lt;4x2xi32&amp;gt; -&amp;gt; tensor&amp;lt;4xrns.rns&amp;lt;mod_arith.int&amp;lt;5 : i32&amp;gt;, mod_arith.int&amp;lt;17 : i32&amp;gt;&amp;gt;&amp;gt;
 %c3 = mod_arith.extract %m0 : mod_arith.int&amp;lt;65537 : i32&amp;gt; -&amp;gt; i32
 %c4 = mod_arith.extract %m1 : mod_arith.int&amp;lt;65537 : i64&amp;gt; -&amp;gt; i64
-%c5 = mod_arith.extract %m2 : tensor&amp;lt;4xrns.rns&amp;lt;mod_arith.int&amp;lt;5 : i32&amp;gt;, mod_arith.int&amp;lt;17 : i32&amp;gt;&amp;gt;&amp;gt; -&amp;gt; tensor&amp;lt;4x2xi32&amp;gt;
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -9856,7 +9854,7 @@ the same as that of the storage type of the input mod_arith (or RNS) type.&lt;/p
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>mod_arith_or_rns-like&lt;/td>
+&lt;td>mod_q-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9954,7 +9952,7 @@ mod_arith.mod_switch %c0 : rns.rns&amp;lt;mod_arith.int&amp;lt;5 : i32&amp;gt;, 
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>mod_arith_or_rns-like&lt;/td>
+&lt;td>mod_q-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9969,7 +9967,7 @@ mod_arith.mod_switch %c0 : rns.rns&amp;lt;mod_arith.int&amp;lt;5 : i32&amp;gt;, 
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>mod_arith_or_rns-like&lt;/td>
+&lt;td>mod_q-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9994,11 +9992,11 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>mod_arith_or_rns-like&lt;/td>
+&lt;td>mod_q-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>mod_arith_or_rns-like&lt;/td>
+&lt;td>mod_q-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -10013,7 +10011,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>mod_arith_or_rns-like&lt;/td>
+&lt;td>mod_q-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -10083,11 +10081,11 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>mod_arith_or_rns-like&lt;/td>
+&lt;td>mod_q-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>mod_arith_or_rns-like&lt;/td>
+&lt;td>mod_q-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -10102,7 +10100,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>mod_arith_or_rns-like&lt;/td>
+&lt;td>mod_q-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -10145,7 +10143,21 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;td>signless-integer&lt;/td>
 &lt;/tr>
 &lt;/tbody>
-&lt;/table></description></item><item><title>Docs: Openfhe</title><link>https://heir.dev/docs/dialects/openfhe/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/openfhe/</guid><description>
+&lt;/table>
+&lt;h2 id="modarith-additional-definitions">ModArith additional definitions&lt;/h2>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h1 id="typeinterface-definitions">TypeInterface definitions&lt;/h1>
+&lt;h2 id="modqtypeinterface-modqtypeinterface">ModQTypeInterface (&lt;code>ModQTypeInterface&lt;/code>)&lt;/h2>
+&lt;p>Interface for types that support modular arithmetic semantics.&lt;/p>
+&lt;h3 id="methods">Methods:&lt;/h3>
+&lt;h4 id="getloweringtype">&lt;code>getLoweringType&lt;/code>&lt;/h4>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-c++" data-lang="c++">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">mlir&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">Type&lt;/span> &lt;span style="color:#000">getLoweringType&lt;/span>&lt;span style="color:#000;font-weight:bold">();&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Returns the lowered storage type for this modular type. Plain ModArith types lower to an integer type; RNS types lower to a rank-1 tensor whose extent is the residue count and whose element type is the residue storage type.&lt;/p>
+&lt;p>NOTE: This method &lt;em>must&lt;/em> be implemented by the user.&lt;/p>
+&lt;h4 id="getresiduetype">&lt;code>getResidueType&lt;/code>&lt;/h4>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-c++" data-lang="c++">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">mlir&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">Type&lt;/span> &lt;span style="color:#000">getResidueType&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#204a87;font-weight:bold">unsigned&lt;/span> &lt;span style="color:#000">index&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Returns the residue type at the given index.&lt;/p>
+&lt;p>NOTE: This method &lt;em>must&lt;/em> be implemented by the user.&lt;/p></description></item><item><title>Docs: Openfhe</title><link>https://heir.dev/docs/dialects/openfhe/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/openfhe/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h1 id="openfhe-dialect">&amp;lsquo;openfhe&amp;rsquo; Dialect&lt;/h1>
 &lt;p>The &lt;code>openfhe&lt;/code> dialect is an exit dialect for generating c++ code against the OpenFHE library API.&lt;/p>
