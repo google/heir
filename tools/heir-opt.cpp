@@ -43,6 +43,8 @@
 #include "lib/Dialect/Polynomial/Transforms/Passes.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "lib/Dialect/Random/IR/RandomDialect.h"
+#include "lib/Dialect/Rotom/IR/RotomDialect.h"
+#include "lib/Dialect/Rotom/Transforms/Passes.h"
 #include "lib/Dialect/SCIFRBool/IR/SCIFRBoolDialect.h"
 #include "lib/Dialect/SCIFRBool/Transforms/Passes.h"
 #include "lib/Dialect/SCIFRBool/Transforms/ReplaceOpWithSection.h"
@@ -196,6 +198,7 @@ int main(int argc, char** argv) {
   registry.insert<orion::OrionDialect>();
   registry.insert<openfhe::OpenfheDialect>();
   registry.insert<rns::RNSDialect>();
+  registry.insert<rotom::RotomDialect>();
   registry.insert<secret::SecretDialect>();
   registry.insert<tensor_ext::TensorExtDialect>();
   registry.insert<tfhe_rust::TfheRustDialect>();
@@ -296,6 +299,7 @@ int main(int argc, char** argv) {
   mgmt::registerMgmtPasses();
   openfhe::registerOpenfhePasses();
   polynomial::registerPolynomialPasses();
+  rotom::registerRotomPasses();
   secret::registerSecretPasses();
   tensor_ext::registerTensorExtPasses();
   registerAddClientInterfacePass();

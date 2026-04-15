@@ -1,11 +1,10 @@
 #ifndef LIB_UTILS_ATTRIBUTEUTILS_H_
 #define LIB_UTILS_ATTRIBUTEUTILS_H_
 
-#include "llvm/include/llvm/Support/LogicalResult.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Attributes.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"               // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -28,6 +27,10 @@ FailureOr<Attribute> findAttributeAssociatedWith(Value value,
 
 void setAttributeAssociatedWith(Value value, StringRef attrName,
                                 Attribute attr);
+
+/// Remove an attribute associated with `value`, mirroring the storage rules
+/// used by `setAttributeAssociatedWith`.
+void removeAttributeAssociatedWith(Value value, StringRef attrName);
 
 // Remove attributes with a given name from a given op, taking into account
 // FunctionOpInterface's arg/result attrs as well as
