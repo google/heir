@@ -78,11 +78,15 @@ struct ConvertExtract : public OpConversionPattern<tensor::ExtractOp> {
   LogicalResult matchAndRewrite(
       tensor::ExtractOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
+    auto convertedType =
+        getTypeConverter()->convertType(op.getResult().getType());
+    auto resultType = mlir::dyn_cast<RankedTensorType>(convertedType);
+    if (!resultType) {
+      return failure();
+    }
     // replace tensor.extract %t[%i] from tensor<shape x SourceType>
     // with an equivalent tensor.slice from tensor<shape x resultshape>
     auto shape = op.getTensor().getType().getShape();
-    auto resultType = mlir::cast<RankedTensorType>(
-        getTypeConverter()->convertType(op.getResult().getType()));
     auto resultShape = resultType.getShape();
 
     // expand op's list of indices by appending as many zeros as there are
@@ -130,11 +134,15 @@ struct ConvertInsert : public OpConversionPattern<tensor::InsertOp> {
   LogicalResult matchAndRewrite(
       tensor::InsertOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
+    auto convertedType =
+        getTypeConverter()->convertType(op.getScalar().getType());
+    auto resultType = mlir::dyn_cast<RankedTensorType>(convertedType);
+    if (!resultType) {
+      return failure();
+    }
     // replace tensor.insert %s into %t[%i] with tensor<shape x SourceType>
     // with an equivalent tensor.insert_slice with tensor<shape x resultshape>
     auto shape = op.getDest().getType().getShape();
-    auto resultType = mlir::cast<RankedTensorType>(
-        getTypeConverter()->convertType(op.getScalar().getType()));
     auto resultShape = resultType.getShape();
 
     // expand op's list of indices by appending as many zeros as there are
@@ -219,7 +227,7 @@ void addTensorOfTensorConversionPatterns(TypeConverter& typeConverter,
   target.addDynamicallyLegalDialect<tensor::TensorDialect>(
       [&](Operation* op) { return typeConverter.isLegal(op); });
 
-  typeConverter.addConversion([&](TensorType type) -> Type {
+  typeConverter.addConversion([&](TensorType type) -> std::optional<Type> {
     if (!typeConverter.isLegal(type.getElementType())) {
       if (auto convertedType =
               typeConverter.convertType(type.getElementType())) {
@@ -237,7 +245,7 @@ void addTensorOfTensorConversionPatterns(TypeConverter& typeConverter,
         }
       }
     }
-    return type;
+    return std::nullopt;
   });
 
   target.addDynamicallyLegalDialect<affine::AffineDialect>(

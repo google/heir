@@ -75,22 +75,59 @@ Type convertModArithOrRNSLikeType(ShapedType type) {
 template <typename Op>
 TypedAttr modulusAttr(Op op, bool mul = false) {
   auto type = op.getResult().getType();
-  auto modArithType = getResultModArithType(op);
-  APInt modulus = modArithType.getModulus().getValue();
+  auto elementType = getElementTypeOrSelf(type);
 
-  auto width = modulus.getBitWidth();
-  if (mul) {
-    width *= 2;
+  auto getModWidth = [&](ModArithType t) {
+    return mul ? t.getModulus().getValue().getBitWidth() * 2
+               : t.getModulus().getValue().getBitWidth();
+  };
+
+  if (auto modArithType = dyn_cast<ModArithType>(elementType)) {
+    APInt modulus = modArithType.getModulus().getValue();
+    auto width = getModWidth(modArithType);
+    auto intType = IntegerType::get(op.getContext(), width);
+    auto truncmod = modulus.zextOrTrunc(width);
+
+    if (auto st = mlir::dyn_cast<ShapedType>(type)) {
+      auto containerType = st.cloneWith(st.getShape(), intType);
+      return DenseElementsAttr::get(containerType, truncmod);
+    }
+    return IntegerAttr::get(intType, truncmod);
   }
 
-  auto intType = IntegerType::get(op.getContext(), width);
-  auto truncmod = modulus.zextOrTrunc(width);
+  if (auto rnsType = dyn_cast<rns::RNSType>(elementType)) {
+    auto basisTypes = rnsType.getBasisTypes();
+    // The RNSTypeInterface ensures that all basis storage types are the same.
+    auto firstMod = cast<ModArithType>(basisTypes[0]);
+    auto width = getModWidth(firstMod);
+    auto intType = IntegerType::get(op.getContext(), width);
 
-  if (auto st = mlir::dyn_cast<ShapedType>(type)) {
-    auto containerType = st.cloneWith(st.getShape(), intType);
-    return DenseElementsAttr::get(containerType, truncmod);
+    SmallVector<APInt> moduli;
+    for (auto b : basisTypes) {
+      moduli.push_back(
+          cast<ModArithType>(b).getModulus().getValue().zextOrTrunc(width));
+    }
+
+    SmallVector<int64_t> shape;
+    if (auto st = dyn_cast<ShapedType>(type)) {
+      shape.append(st.getShape().begin(), st.getShape().end());
+    }
+    shape.push_back(basisTypes.size());
+    auto containerType = RankedTensorType::get(shape, intType);
+
+    int64_t numElements = containerType.getNumElements();
+    SmallVector<APInt> splattedModuli;
+    splattedModuli.reserve(numElements);
+    int64_t numPoints = numElements / basisTypes.size();
+    for (int64_t i = 0; i < numPoints; ++i) {
+      for (auto& m : moduli) {
+        splattedModuli.push_back(m);
+      }
+    }
+    return DenseElementsAttr::get(containerType, splattedModuli);
   }
-  return IntegerAttr::get(intType, truncmod);
+
+  llvm_unreachable("unsupported type");
 }
 
 // used for extui/trunci
@@ -488,6 +525,7 @@ void ModArithToArith::runOnOperation() {
       typeConverter, context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
+  addTensorOfTensorConversionPatterns(typeConverter, patterns, target);
 
   target.addDynamicallyLegalOp<
       tensor::EmptyOp, tensor::ExtractOp, tensor::InsertOp, tensor::CastOp,

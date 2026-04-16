@@ -132,9 +132,9 @@ def ModArith_ReduceOp : ModArith_Op<"reduce", [Pure, ElementwiseMappable, SameOp
   }];
 
   let arguments = (ins
-    ModArithLike:$input
+    ModQLike:$input
   );
-  let results = (outs ModArithLike:$output);
+  let results = (outs ModQLike:$output);
   let assemblyFormat = "operands attr-dict `:` type($output)";
 }
 

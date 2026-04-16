@@ -11,34 +11,32 @@
 !poly_ty = !polynomial.polynomial<ring=#ring>
 !ntt_poly_ty = !polynomial.polynomial<ring=#ring, form=eval>
 
-// CHECK-DAG: #[[ID_MAP:.*]] = affine_map<(d0) -> (d0)>
-
 // CHECK:     func.func @lower_ntt() -> [[OUTPUT_TYPE:.*]] {
 // CHECK:      %[[COEFFS:.*]] = arith.constant dense<[1, 2, 3, 4]> : [[INT_TYPE:.*]]
 // CHECK:      %[[COEFFS_ENC:.*]] = mod_arith.encapsulate %[[COEFFS]] : [[INT_TYPE]] -> [[MOD_TYPE:.*]]
 // CHECK:      %[[REVERSE_BIT_ORDER_COEFFS:.*]] = arith.constant dense<[0, 2, 1, 3]> : tensor<4xindex>
-// CHECK:      %[[OUTPUT_VEC:.*]] = arith.constant dense<0> : [[INT_TYPE]]
-// CHECK:      %[[OUTPUT_ENC:.*]] = mod_arith.encapsulate %[[OUTPUT_VEC]] : [[INT_TYPE]] -> [[MOD_TYPE]]
-// CHECK:      %[[ORDERED_INPUT:.*]] = linalg.generic {indexing_maps = [#[[ID_MAP]], #[[ID_MAP]]], iterator_types = ["parallel"]}
-// CHECK-SAME:   ins(%[[REVERSE_BIT_ORDER_COEFFS]] : tensor<4xindex>) outs(%[[OUTPUT_ENC]] : [[MOD_TYPE]]) {
-// CHECK:       ^bb0(%[[REV_INDEX:.*]]: index, %[[OUT:.*]]: [[COEFF_TYPE:!Z7681_i32]]):
-// CHECK:         %[[EXTRACTED:.*]] = tensor.extract %[[COEFFS_ENC]][%[[REV_INDEX]]] : [[MOD_TYPE]]
-// CHECK:         linalg.yield %[[EXTRACTED]] : [[COEFF_TYPE]]
-// CHECK:       } -> [[MOD_TYPE]]
+// CHECK:      %[[OUTPUT_VEC:.*]] = tensor.empty() : [[INT_TYPE:.*]]
+// CHECK:      %[[OUTPUT_ENC:.*]] = mod_arith.encapsulate %[[OUTPUT_VEC]] : [[INT_TYPE]] -> [[MOD_TYPE:.*]]
+// CHECK-DAG:  %[[ZERO:.*]] = arith.constant 0 : index
+// CHECK-DAG:  %[[ONE:.*]] = arith.constant 1 : index
+// CHECK-DAG:  %[[N:.*]] = arith.constant 4 : index
+// CHECK:      %[[ORDERED_INPUT:.*]] = scf.for %[[IV:.*]] = %[[ZERO]] to %[[N]] step %[[ONE]] iter_args(%[[ITER:.*]] = %[[OUTPUT_ENC]]) -> ([[MOD_TYPE]]) {
+// CHECK:        %[[REV_INDEX:.*]] = tensor.extract %[[REVERSE_BIT_ORDER_COEFFS]][%[[IV]]] : tensor<4xindex>
+// CHECK:        %[[VAL:.*]] = tensor.extract %[[COEFFS_ENC]][%[[REV_INDEX]]] : [[MOD_TYPE]]
+// CHECK:        %[[INSERTED:.*]] = tensor.insert %[[VAL]] into %[[ITER]][%[[IV]]] : [[MOD_TYPE]]
+// CHECK:        scf.yield %[[INSERTED]] : [[MOD_TYPE]]
+// CHECK:      }
 
 // CHECK-DAG:  %[[INITIAL_VALUE:.*]] = mod_arith.reduce %[[ORDERED_INPUT]] : [[MOD_TYPE]]
 // CHECK-DAG:  %[[ROOTS:.*]] = arith.constant dense<[1, 1925, 3383, 6468]> : [[INT_TYPE]]
 // CHECK-DAG:  %[[ROOTS_ENC:.*]] = mod_arith.encapsulate %[[ROOTS]] : [[INT_TYPE]] -> [[MOD_TYPE]]
 
-// CHECK-DAG:    %[[ZERO:.*]] = arith.constant 0 : index
-// CHECK-DAG:    %[[ONE:.*]] = arith.constant 1 : index
 // CHECK-DAG:    %[[TWO:.*]] = arith.constant 2 : index
-// CHECK-DAG:    %[[N:.*]] = arith.constant 4 : index
 
 // CHECK:        %[[RES:.]]:3 = scf.for %[[_:.*]] = %[[ZERO]] to %[[TWO]] step %[[ONE]]
 // CHECK-SAME:     iter_args(%[[TARGET:.*]] = %[[INITIAL_VALUE]], %[[BATCH_SIZE:.*]] = %[[TWO]], %[[ROOT_EXP:.*]] = %[[TWO]]) -> ([[MOD_TYPE]], index, index) {
 // CHECK-NEXT:     %[[INNER_UB:[^ ]*]] = arith.floordivsi %[[N]], %[[BATCH_SIZE]]
-// CHECK:          %[[INNER_RES:.]] = scf.for %[[INDEX:.*]] = %[[ZERO]] to %[[INNER_UB]] step %[[ONE]]
+// CHECK:          %[[INNER_RES:.*]] = scf.for %[[INDEX:.*]] = %[[ZERO]] to %[[INNER_UB]] step %[[ONE]]
 // CHECK-SAME:       iter_args(%[[INNER_TARGET:.*]] = %[[TARGET]]) -> ([[MOD_TYPE]]) {
 // CHECK:            %[[INDEX_K:.*]] = arith.muli %[[BATCH_SIZE]], %[[INDEX]]
 // CHECK:            %[[ARITH_UB:.*]] = arith.floordivsi %[[BATCH_SIZE]], %[[TWO]]
@@ -55,7 +53,7 @@
 // CHECK:              %[[ROOT_INDEX:.*]] = arith.muli %[[IJ2_1]], %[[ROOT_EXP]]
 // CHECK:              %[[ROOT:.*]] = tensor.extract %[[ROOTS_ENC]][%[[ROOT_INDEX]]] : [[MOD_TYPE]]
 
-// CHECK:              %[[ROOTSB:.*]] = mod_arith.mul %[[B]], %[[ROOT]] : [[COEFF_TYPE]]
+// CHECK:              %[[ROOTSB:.*]] = mod_arith.mul %[[B]], %[[ROOT]] : [[COEFF_TYPE:!Z7681_i32]]
 // CHECK:              %[[CTPLUS:.*]] = mod_arith.add %[[A]], %[[ROOTSB]] : [[COEFF_TYPE]]
 // CHECK:              %[[CTMINUS:.*]] = mod_arith.sub %[[A]], %[[ROOTSB]] : [[COEFF_TYPE]]
 
