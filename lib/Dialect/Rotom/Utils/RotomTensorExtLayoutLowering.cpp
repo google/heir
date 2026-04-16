@@ -28,10 +28,19 @@ static LogicalResult emitSegmentAddress(
   for (size_t p = segEnd; p > segStart;) {
     --p;
     suffixCoeff[p] = suffix;
-    const DimAttr d =
-        pieces[p] == LayoutPieceKind::Traversal ? traversalDims[pieceIndex[p]]
-        : pieces[p] == LayoutPieceKind::Gap ? gapDims[pieceIndex[p]]
-                                            : replicationDims[pieceIndex[p]];
+    DimAttr d;
+    switch (pieces[p]) {
+      case LayoutPieceKind::Traversal:
+        d = traversalDims[pieceIndex[p]];
+        break;
+      case LayoutPieceKind::Gap:
+        d = gapDims[pieceIndex[p]];
+        break;
+      case LayoutPieceKind::Replication:
+        d = replicationDims[pieceIndex[p]];
+        break;
+    }
+
     suffix *= d.getSize();
   }
 
