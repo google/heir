@@ -7,6 +7,7 @@
 
 #include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/Layout/Utils.h"
+#include "lib/Utils/MathUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
@@ -338,6 +339,12 @@ presburger::IntegerRelation get2dConvResultRelation(RankedTensorType outputType,
   auto flattenedOutput =
       getRowMajorLayoutRelation(outputType, outputType.getNumElements());
 
+  int64_t numCiphertexts =
+      std::ceil((float)outputType.getNumElements() / ciphertextSize);
+  int64_t paddedSize = isPowerOfTwo(outputType.getNumElements())
+                           ? outputType.getNumElements()
+                           : nextPowerOfTwo(outputType.getNumElements());
+
   // Create the interchange permutation [idx_in] -> [idx_out] and add a domain
   // var = 0 to align with the range of the flattenedOutput relation.
   if (interchangeRows) {
@@ -358,15 +365,24 @@ presburger::IntegerRelation get2dConvResultRelation(RankedTensorType outputType,
 
     // Compose with the [slot'] -> [ct, slot] relation across multiple
     // ciphertexts.
-    int64_t numCiphertexts =
-        std::ceil((float)outputType.getNumElements() / ciphertextSize);
     std::string mapToCtSlot = llvm::formatv(
         "{{ [idx_out] -> [ct, slot] : "
-        "0 <= ct < {0} and 0 <= slot < {1} and idx_out = ct * {1} + slot }",
-        numCiphertexts, ciphertextSize);
+        "0 <= ct < {0} and 0 <= slot < {2} and slot % {1} = idx_out % {2} and "
+        "ct = idx_out // {2} }",
+        numCiphertexts, paddedSize, ciphertextSize);
     auto toCtSlot = getIntegerRelationFromIslStr(mapToCtSlot).value();
     flattenedOutput.compose(toCtSlot);
+    return flattenedOutput;
   }
+
+  std::string mapToCtSlot = llvm::formatv(
+      "{{ [in_ct, idx_out] -> [ct, slot] : in_ct = 0 and "
+      "0 <= ct < {0} and 0 <= slot < {2} and slot % {1} = idx_out % {2} and "
+      "ct = idx_out // {2} }",
+      numCiphertexts, paddedSize, ciphertextSize);
+  auto toCtSlot = getIntegerRelationFromIslStr(mapToCtSlot).value();
+  flattenedOutput.compose(toCtSlot);
+  return flattenedOutput;
 
   return flattenedOutput;
 }

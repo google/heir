@@ -347,6 +347,63 @@ TEST(EvaluateTest, EvaluateLayoutFor2DConvChwFchwNoPaddingDiagonalized) {
   EXPECT_THAT(resultOptimized, Eq(expectedOptimized));
 }
 
+TEST(EvaluateTest, Conv2dResultRelation) {
+  MLIRContext context;
+  RankedTensorType outputType =
+      RankedTensorType::get({1, 4, 2, 2}, IndexType::get(&context));
+  SmallVector<int64_t> strides = {2, 2};
+  int64_t padding = 0;
+
+  // Fits in one ciphertext
+  int64_t ciphertextSize = 16;
+  IntegerRelation rel =
+      get2dConvResultRelation(outputType, strides, padding, ciphertextSize);
+  EXPECT_EQ(rel.getNumDomainVars(), outputType.getRank());
+  EXPECT_EQ(rel.getNumRangeVars(), 2);
+
+  std::vector<std::vector<std::vector<std::vector<int>>>> output = {
+      {{{1, 2}, {3, 4}},
+       {{5, 6}, {7, 8}},
+       {{9, 10}, {11, 12}},
+       {{13, 14}, {15, 16}}}};
+  std::function<int(const std::vector<int64_t>&)> getValueFn =
+      [&](const std::vector<int64_t>& domainPoint) -> int {
+    return output[domainPoint[0]][domainPoint[1]][domainPoint[2]]
+                 [domainPoint[3]];
+  };
+  auto result = evaluateLayout(rel, getValueFn);
+  std::vector<std::vector<int>> expected = {
+      {1, 5, 2, 6, 9, 13, 10, 14, 3, 7, 4, 8, 11, 15, 12, 16}};
+  EXPECT_THAT(result, Eq(expected));
+}
+
+TEST(EvaluateTest, Conv2dResultRelationTwoCiphertexts) {
+  MLIRContext context;
+  RankedTensorType outputType =
+      RankedTensorType::get({1, 4, 2, 2}, IndexType::get(&context));
+  SmallVector<int64_t> strides = {2, 2};
+  int64_t padding = 0;
+
+  int64_t ciphertextSize = 8;
+  IntegerRelation rel =
+      get2dConvResultRelation(outputType, strides, padding, ciphertextSize);
+
+  std::vector<std::vector<std::vector<std::vector<int>>>> output = {
+      {{{1, 2}, {3, 4}},
+       {{5, 6}, {7, 8}},
+       {{9, 10}, {11, 12}},
+       {{13, 14}, {15, 16}}}};
+  std::function<int(const std::vector<int64_t>&)> getValueFn =
+      [&](const std::vector<int64_t>& domainPoint) -> int {
+    return output[domainPoint[0]][domainPoint[1]][domainPoint[2]]
+                 [domainPoint[3]];
+  };
+  auto result = evaluateLayout(rel, getValueFn);
+  std::vector<std::vector<int>> expected = {{1, 5, 2, 6, 9, 13, 10, 14},
+                                            {3, 7, 4, 8, 11, 15, 12, 16}};
+  EXPECT_THAT(result, Eq(expected));
+}
+
 }  // namespace
 }  // namespace heir
 }  // namespace mlir
