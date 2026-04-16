@@ -79,17 +79,9 @@ std::optional<ModQTypeInterface> getModQTypeInterface(Type type) {
   return std::nullopt;
 }
 
-unsigned getNumResidues(ModQTypeInterface type) {
-  Type loweringType = type.getLoweringType();
-  if (auto shapedType = dyn_cast<ShapedType>(loweringType)) {
-    return shapedType.getShape()[0];
-  }
-  return 1;
-}
-
 std::optional<ModArithType> getResidueModArithType(ModQTypeInterface type,
                                                    unsigned index) {
-  if (index >= getNumResidues(type)) {
+  if (index >= type.getNumResidues()) {
     return std::nullopt;
   }
   if (auto residueType = dyn_cast<ModArithType>(type.getResidueType(index))) {
@@ -108,7 +100,7 @@ LogicalResult verifyTypeLowering(OpType op, Type modularType,
   }
 
   int64_t rnsLength = isa<ShapedType>(modQType->getLoweringType())
-                          ? getNumResidues(*modQType)
+                          ? modQType->getNumResidues()
                           : 0;
   auto innerIntegerType = cast<IntegerType>(getElementTypeOrSelf(integerType));
   auto modularShape = getShapeOrEmpty(modularType);
@@ -138,7 +130,7 @@ LogicalResult verifySingleToMultiModSwitch(OpType op,
            << "expected single-residue modular type to have a ModArith residue";
   }
 
-  if (getNumResidues(multiTy) < 2) {
+  if (multiTy.getNumResidues() < 2) {
     return op.emitOpError() << "expected multi-residue modular type";
   }
 
@@ -156,7 +148,7 @@ LogicalResult verifySingleToMultiModSwitch(OpType op,
   }
 
   APInt product(width, 1);
-  for (unsigned i = 0; i < getNumResidues(multiTy); ++i) {
+  for (unsigned i = 0; i < multiTy.getNumResidues(); ++i) {
     auto residueType = getResidueModArithType(multiTy, i);
     if (!residueType) {
       return op.emitOpError()
@@ -184,8 +176,8 @@ LogicalResult ModSwitchOp::verify() {
     llvm_unreachable("Verifier should make sure this doesn't happen.");
   }
 
-  unsigned inputResidues = getNumResidues(*inputType);
-  unsigned outputResidues = getNumResidues(*outputType);
+  unsigned inputResidues = inputType->getNumResidues();
+  unsigned outputResidues = outputType->getNumResidues();
   if (inputResidues == 1 && outputResidues == 1) {
     return success();
   }
