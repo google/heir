@@ -10041,7 +10041,7 @@ such that $x \equiv y \mod q$.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>mod_arith-like&lt;/td>
+&lt;td>mod_q-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -10056,7 +10056,7 @@ such that $x \equiv y \mod q$.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>mod_arith-like&lt;/td>
+&lt;td>mod_q-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
