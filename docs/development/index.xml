@@ -119,6 +119,105 @@ ecosystem&lt;/li>
 &lt;li>&lt;a href="https://simonwillison.net/2024/May/8/slop/">Slop is the new name for unwanted AI-generated content&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;!-- mdformat global-off --></description></item><item><title>Docs: Bazel tips</title><link>https://heir.dev/docs/development/bazel/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/development/bazel/</guid><description>
+&lt;h2 id="bazel-cheat-sheet">Bazel cheat sheet&lt;/h2>
+&lt;h3 id="commands">Commands&lt;/h3>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">Task&lt;/th>
+&lt;th style="text-align:left">Command&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">Build everything (slow)&lt;/td>
+&lt;td style="text-align:left">&lt;code>bazel build //...:all&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Build tests not marked as manual&lt;/td>
+&lt;td style="text-align:left">&lt;code>bazel build --build_tag_filters=-manual //...:all&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Build a specific library target&lt;/td>
+&lt;td style="text-align:left">&lt;code>bazel build //lib/Dialect/Polynomial/IR\:Dialect&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Build heir-opt&lt;/td>
+&lt;td style="text-align:left">&lt;code>bazel build //tools:heir-opt&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">List targets in a directory&lt;/td>
+&lt;td style="text-align:left">&lt;code>bazel query //lib/Dialect/Polynomial/IR\:all&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Run all tests&lt;/td>
+&lt;td style="text-align:left">&lt;code>bazel test //...:all&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Run a subset of tests by path&lt;/td>
+&lt;td style="text-align:left">&lt;code>bazel test //tests/Dialect/...&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Run unit tests&lt;/td>
+&lt;td style="text-align:left">&lt;code>bazel test //lib/...:all&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Run lit and end-to-end tests&lt;/td>
+&lt;td style="text-align:left">&lt;code>bazel test //tests/...:all&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Run only lit tests (fast)&lt;/td>
+&lt;td style="text-align:left">&lt;code>bazel test $(bazel query 'filter(&amp;quot;\.mlir\.test$&amp;quot;, //...)')&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Run end-to-end tests (slow)&lt;/td>
+&lt;td style="text-align:left">&lt;code>bazel test //tests/Examples/...:all&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Clear build cache&lt;/td>
+&lt;td style="text-align:left">&lt;code>bazel clean&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Clear build cache and system analysis (where is clang, etc.)&lt;/td>
+&lt;td style="text-align:left">&lt;code>bazel clean --expunge&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="bazel-flags">Bazel flags&lt;/h3>
+&lt;p>These flags are for &lt;code>bazel&lt;/code>, and so they go before the target, and before any
+&lt;code>--&lt;/code> that separates flags for &lt;code>bazel&lt;/code> from flags for the binary target being
+run, i.e., &lt;code>heir-opt&lt;/code> or &lt;code>heir-translate&lt;/code>. These can also be persistently
+configured in a &lt;code>.bazelrc&lt;/code> file.&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">Flag&lt;/th>
+&lt;th style="text-align:left">Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">&lt;code>-c opt&lt;/code>&lt;/td>
+&lt;td style="text-align:left">Build with optimizations enabled (&lt;code>-O3&lt;/code>).&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">&lt;code>-c dbg&lt;/code>&lt;/td>
+&lt;td style="text-align:left">Build with debug symbols (better stack traces)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">&lt;code>-c fastbuild&lt;/code>&lt;/td>
+&lt;td style="text-align:left">Sets compiler flags to optimize for fast build time&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">&lt;code>--subcommands&lt;/code>&lt;/td>
+&lt;td style="text-align:left">Shows subcommands that bazel invokes while building (e.g., raw &lt;code>clang&lt;/code> or &lt;code>heir-opt&lt;/code> commands run.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">&lt;code>--test_tag_filters&lt;/code> and &lt;code>--build_tag_filters &lt;/code>&lt;/td>
+&lt;td style="text-align:left">Filter targets by the &lt;code>tag&lt;/code> set on the build target. E.g., &lt;code>--build_tag_filters=-manual&lt;/code> will exclude any targets with the &lt;code>manual&lt;/code> tag.&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h2 id="build-file-formatting">BUILD file formatting&lt;/h2>
 &lt;p>The &lt;code>buildifier&lt;/code> tool can be used to format BUILD files. You can download the
 latest Buildifier release from the
@@ -132,6 +231,10 @@ minutes or more. We try to avoid this as much as possible by setting default
 options in the project root&amp;rsquo;s &lt;code>.bazelrc&lt;/code>.&lt;/p>
 &lt;p>The main things that cause a rebuild are:&lt;/p>
 &lt;ul>
+&lt;li>Pulling an update from the remote &lt;code>main&lt;/code> branch. The pinned LLVM commit is
+updated roughly once a day via automation
+(&lt;a href="https://github.com/google/heir/commit/c6d4eeee3b91935108769cde0f9ef4e477bb869e">example commit&lt;/a>)
+and changing that commit triggers a full rebuild of LLVM.&lt;/li>
 &lt;li>A change to the &lt;code>.bazelrc&lt;/code> that implicitly causes a flag change. Note HEIR has
 its own project-specific &lt;code>.bazelrc&lt;/code> in the root directory.&lt;/li>
 &lt;li>A change to the command-line flags passed to bazel, e.g., &lt;code>-c opt&lt;/code> vs &lt;code>-c dbg&lt;/code>
@@ -181,7 +284,7 @@ required if, for example, a new dialect or pass is added in MLIR upstream.&lt;/l
 &lt;/ul>
 &lt;p>Send any upstream changes to HEIR-relevant MLIR files to @j2kun (Jeremy Kun) who
 has LLVM commit access and can also suggest additional MLIR reviewers.&lt;/p>
-&lt;h2 id="finding-the-right-dependency-targets">Finding the right dependency targets&lt;/h2>
+&lt;h2 id="finding-upstream-dependency-targets">Finding upstream dependency targets&lt;/h2>
 &lt;p>Whenever a new dependency is added in C++ or Tablegen, a new bazel BUILD
 dependency is required, which requires finding the path to the relevant target
 that provides the file you want. In HEIR the BUILD target should be defined in
