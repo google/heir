@@ -3,6 +3,41 @@ title: Bazel tips
 weight: 30
 ---
 
+## Bazel cheat sheet
+
+### Commands
+
+| Task                                                         | Command                                                      |
+| :----------------------------------------------------------- | :----------------------------------------------------------- |
+| Build everything (slow)                                      | `bazel build //...:all`                                      |
+| Build tests not marked as manual                             | `bazel build --build_tag_filters=-manual //...:all`          |
+| Build a specific library target                              | `bazel build //lib/Dialect/Polynomial/IR\:Dialect`           |
+| Build heir-opt                                               | `bazel build //tools:heir-opt`                               |
+| List targets in a directory                                  | `bazel query //lib/Dialect/Polynomial/IR\:all`               |
+| Run all tests                                                | `bazel test //...:all`                                       |
+| Run a subset of tests by path                                | `bazel test //tests/Dialect/...`                             |
+| Run unit tests                                               | `bazel test //lib/...:all`                                   |
+| Run lit and end-to-end tests                                 | `bazel test //tests/...:all`                                 |
+| Run only lit tests (fast)                                    | `bazel test $(bazel query 'filter("\.mlir\.test$", //...)')` |
+| Run end-to-end tests (slow)                                  | `bazel test //tests/Examples/...:all`                        |
+| Clear build cache                                            | `bazel clean`                                                |
+| Clear build cache and system analysis (where is clang, etc.) | `bazel clean --expunge`                                      |
+
+### Bazel flags
+
+These flags are for `bazel`, and so they go before the target, and before any
+`--` that separates flags for `bazel` from flags for the binary target being
+run, i.e., `heir-opt` or `heir-translate`. These can also be persistently
+configured in a `.bazelrc` file.
+
+| Flag                                            | Description                                                                                                                              |
+| :---------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------- |
+| `-c opt`                                        | Build with optimizations enabled (`-O3`).                                                                                                |
+| `-c dbg`                                        | Build with debug symbols (better stack traces)                                                                                           |
+| `-c fastbuild`                                  | Sets compiler flags to optimize for fast build time                                                                                      |
+| `--subcommands`                                 | Shows subcommands that bazel invokes while building (e.g., raw `clang` or `heir-opt` commands run.                                       |
+| `--test_tag_filters` and `--build_tag_filters ` | Filter targets by the `tag` set on the build target. E.g., `--build_tag_filters=-manual` will exclude any targets with the `manual` tag. |
+
 ## BUILD file formatting
 
 The `buildifier` tool can be used to format BUILD files. You can download the
@@ -20,6 +55,10 @@ options in the project root's `.bazelrc`.
 
 The main things that cause a rebuild are:
 
+- Pulling an update from the remote `main` branch. The pinned LLVM commit is
+  updated roughly once a day via automation
+  ([example commit](https://github.com/google/heir/commit/c6d4eeee3b91935108769cde0f9ef4e477bb869e))
+  and changing that commit triggers a full rebuild of LLVM.
 - A change to the `.bazelrc` that implicitly causes a flag change. Note HEIR has
   its own project-specific `.bazelrc` in the root directory.
 - A change to the command-line flags passed to bazel, e.g., `-c opt` vs `-c dbg`
@@ -77,7 +116,7 @@ Based on what you're trying to do, this may require some extra steps.
 Send any upstream changes to HEIR-relevant MLIR files to @j2kun (Jeremy Kun) who
 has LLVM commit access and can also suggest additional MLIR reviewers.
 
-## Finding the right dependency targets
+## Finding upstream dependency targets
 
 Whenever a new dependency is added in C++ or Tablegen, a new bazel BUILD
 dependency is required, which requires finding the path to the relevant target

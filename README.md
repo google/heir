@@ -53,14 +53,33 @@ Then calling the function will encrypt the inputs, run the function, and return
 the decrypted result. The function call `foo(7, 8)` runs the entire
 encrypt-run-decrypt flow for ease of testing.
 
-## Quickstart (heir-opt, heir-translate)
+## Building from source
 
-The python package `heir_py` ships with the `heir-opt` and `heir-translate`. If
-you install via `virtualenv`, the binaries will be in your `venv/bin`.
+HEIR requires a recent C compiler (see
+[clang_matrix](https://github.com/google/heir/actions/workflows/clang_matrix.yml)
+for version-specific support, recent GCCs also tend to work), and some backends
+like OpenFHE require `libomp-dev`.
+
+HEIR depends on LLVM (from source) so a clean build may take 15-30 minutes
+depending on your machine.
+
+This project uses `bazel` for its build system. Install
+[bazelisk](https://github.com/bazelbuild/bazelisk) to manage the bazel version
+automatically. Then, with `bazel` on your path (pointing to `bazelisk`), run the
+following to build the main pass-running tool.
 
 ```bash
-venv/bin/heir-opt --help
+bazel build //tools:heir-opt
 ```
+
+Or run an end-to-end test like
+
+```bash
+bazel test //tests/Examples/openfhe/ckks/halevi_shoup_matvec:all
+```
+
+See the [bazel tips](https://heir.dev/docs/development/bazel/) page for more
+example commands and tips on using bazel.
 
 ## Supported backends and schemes
 
