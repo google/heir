@@ -15,6 +15,9 @@ def PolyMulToNTT : Pass <"convert-polynomial-mul-to-ntt", "func::FuncOp"> {
   let dependentDialects = ["mlir::heir::polynomial::PolynomialDialect"];
 
   let statistics = [
+    // Note that these statistics count the number of ops inserted, *not* the number
+    // of Zq NTTs/INTTs. These may be different, e.g., if an NTT op takes an RNS
+    // polynomial.
     Statistic<"numNttsInserted", "num-ntts-inserted", "Number of NTT ops inserted">,
     Statistic<"numInttsInserted", "num-intts-inserted", "Number of INTT ops inserted">
   ];

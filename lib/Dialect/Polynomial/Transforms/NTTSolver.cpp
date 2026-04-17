@@ -1,13 +1,16 @@
 #include "lib/Dialect/Polynomial/Transforms/NTTSolver.h"
 
+#include <cassert>
+
+#include "lib/Dialect/ModArith/IR/ModArithTypeInterfaces.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
-#include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"         // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"     // from @llvm-project
-#include "ortools/sat/cp_model.h"               // from @com_google_ortools
-#include "ortools/sat/cp_model_solver.h"        // from @com_google_ortools
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "ortools/sat/cp_model.h"         // from @com_google_ortools
+#include "ortools/sat/cp_model_solver.h"  // from @com_google_ortools
 
 namespace mlir {
 namespace heir {
@@ -42,13 +45,22 @@ bool CPSATSolution::isValid() const {
 
 int getConversionCost(const Value& v) {
   Type t = v.getType();
-  if (auto p = dyn_cast<PolynomialType>(t)) {
-    return 1;
+  int multiplicity = 1;
+
+  if (auto shaped = dyn_cast<ShapedType>(t)) {
+    multiplicity = shaped.getNumElements();
+    t = shaped.getElementType();
   }
-  if (auto rt = dyn_cast<RankedTensorType>(t)) {
-    return rt.getNumElements();
-  }
-  return 0;
+
+  auto polyTy = dyn_cast<PolynomialType>(t);
+  if (!polyTy) return 0;
+
+  auto coeffTy = dyn_cast<mod_arith::ModQTypeInterface>(
+      polyTy.getRing().getCoefficientType());
+  assert(coeffTy &&
+         "polynomial coefficient type must implement ModQTypeInterface");
+
+  return coeffTy.getNumResidues() * multiplicity;
 }
 
 NTTSolver::RepVars& NTTSolver::getOrCreateVars(const Value& v) {
