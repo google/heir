@@ -1,5 +1,6 @@
 #include "lib/Transforms/LowerPolynomialEval/Patterns.h"
 
+#include <cmath>
 #include <cstdint>
 #include <map>
 
@@ -43,6 +44,20 @@ using polynomial::TypedFloatPolynomialAttr;
 
 namespace {
 
+// Helper to check if coefficients are all finite
+template <typename CoeffRange>
+LogicalResult checkCoefficientsFinite(polynomial::EvalOp op,
+                                      CoeffRange&& coeffs) {
+  for (auto c : coeffs) {
+    if (!std::isfinite(c)) {
+      return op.emitError()
+             << "Cannot evaluate a polynomial with non-finite (NaN or "
+                "infinity) coefficient(s).";
+    }
+  }
+  return success();
+}
+
 // Helper to convert mlir::Type to kernel::DagType
 DagType floatTypeToDagType(Type type) {
   return llvm::TypeSwitch<Type, DagType>(type)
@@ -82,6 +97,11 @@ LogicalResult LowerViaHorner::matchAndRewrite(EvalOp op,
   for (auto& [key, monomial] : monomialMap) {
     double coeffValue = monomial.getCoefficient().convertToDouble();
     coefficients[key] = coeffValue;
+  }
+
+  if (failed(
+          checkCoefficientsFinite(op, llvm::make_second_range(coefficients)))) {
+    return failure();
   }
 
   // Create ArithmeticDag nodes
@@ -125,6 +145,11 @@ LogicalResult LowerViaPatersonStockmeyerMonomial::matchAndRewrite(
     coefficients[key] = coeffValue;
   }
 
+  if (failed(
+          checkCoefficientsFinite(op, llvm::make_second_range(coefficients)))) {
+    return failure();
+  }
+
   // Create ArithmeticDag nodes
   auto xNode =
       kernel::ArithmeticDagNode<kernel::SSAValue>::leaf(op.getOperand());
@@ -150,6 +175,10 @@ LogicalResult LowerViaPatersonStockmeyerChebyshev::matchAndRewrite(
       llvm::map_to_vector(chebCoeffsAttr, [](Attribute attr) {
         return llvm::cast<FloatAttr>(attr).getValue().convertToDouble();
       });
+
+  if (failed(checkCoefficientsFinite(op, chebCoeffs))) {
+    return failure();
+  }
 
   // Expect domain attributes to be set.
   auto lowerAttr = op->getAttr("domain_lower");
