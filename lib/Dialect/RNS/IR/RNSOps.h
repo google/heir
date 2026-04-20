@@ -53,6 +53,23 @@ RNSType inferExtractSliceReturnTypes(MLIRContext* ctx, Op* op,
       ctx, elementType.getBasisTypes().drop_front(start).take_front(size));
 }
 
+// Given an RNS value x with limbs x_i = x mod q_i for pairwise-coprime moduli
+// q_0, ..., q_{k-1}, compute its mixed-radix digits c_0, ..., c_{k-1} such
+// that
+//
+//   x = c_0 + c_1 * q_0 + c_2 * (q_0 * q_1) + ... + c_{k-1} * (q_0 * ... *
+//   q_{k-2}).
+//
+// Equivalently, if Q_i = \prod_{j=0}^i q_j, then each coefficient satisfies
+//
+//   c_i = (x_i - \sum_{j=0}^{i-1} c_j * Q_{j-1}) * Q_{i-1}^{-1} mod q_i,
+//
+// where qInvProds[i - 1] stores Q_{i-1}^{-1} in Z / (q_i Z). The returned SSA
+// values are the c_i lifted from their limb-wise mod_arith types into the
+// corresponding integer lowering types.
+FailureOr<SmallVector<Value>> computeMixedRadixCoeffs(
+    ImplicitLocOpBuilder& b, Value input, const ArrayAttr& qInvProds);
+
 }  // namespace rns
 }  // namespace heir
 }  // namespace mlir
