@@ -24,14 +24,14 @@ cc_library(
         "ModArithTypes.h",
     ],
     deps = [
-        ":ModArithTypeInterfaces",
+        ":TypeInterfaces",
         ":attributes_inc_gen",
         ":canonicalization_inc_gen",
         ":dialect_inc_gen",
         ":ops_inc_gen",
         ":type_interfaces_inc_gen",
         ":types_inc_gen",
-        "@heir//lib/Dialect/RNS/IR:RNSTypeInterfaces",
+        "@heir//lib/Dialect/RNS/IR:TypeInterfaces",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
@@ -41,7 +41,7 @@ cc_library(
 )
 
 cc_library(
-    name = "ModArithTypeInterfaces",
+    name = "TypeInterfaces",
     hdrs = [
         "ModArithTypeInterfaces.h",
     ],

@@ -58,7 +58,7 @@ cc_library(
         ":pass_inc_gen",
         "@com_google_ortools//ortools/sat:cp_model",
         "@com_google_ortools//ortools/sat:cp_model_solver",
-        "@heir//lib/Dialect/ModArith/IR:ModArithTypeInterfaces",
+        "@heir//lib/Dialect/ModArith/IR:TypeInterfaces",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:FuncDialect",

@@ -30,7 +30,8 @@ cc_library(
         ":ops_inc_gen",
         ":type_interfaces_inc_gen",
         ":types_inc_gen",
-        "@heir//lib/Dialect/ModArith/IR:ModArithTypeInterfaces",
+        "@heir//lib/Dialect/ModArith/IR:Dialect",
+        "@heir//lib/Dialect/ModArith/IR:TypeInterfaces",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
@@ -39,7 +40,7 @@ cc_library(
 )
 
 cc_library(
-    name = "RNSTypeInterfaces",
+    name = "TypeInterfaces",
     hdrs = [
         "RNSDialect.h",
         "RNSTypeInterfaces.h",
