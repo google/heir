@@ -12,12 +12,14 @@
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
+#include "lib/Dialect/RNS/IR/RNSOps.h"
 #include "lib/Dialect/Random/IR/RandomEnums.h"
 #include "lib/Dialect/Random/IR/RandomOps.h"
 #include "lib/Dialect/Random/IR/RandomTypes.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "llvm/include/llvm/ADT/ArrayRef.h"              // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseMap.h"              // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
@@ -610,9 +612,47 @@ struct ConvertConvertBasis : public OpConversionPattern<ConvertBasisOp> {
       ConvertBasisOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op->getLoc(), rewriter);
-    rewriter.replaceOp(
-        op, polynomial::ConvertBasisOp::create(b, adaptor.getValue(),
-                                               adaptor.getTargetBasis()));
+    MLIRContext* context = op.getContext();
+
+    polynomial::PolynomialType inputPolyTy =
+        cast<polynomial::PolynomialType>(adaptor.getValue().getType());
+    polynomial::RingAttr ringAttr = inputPolyTy.getRing();
+    rns::RNSType targetBasisTy = dyn_cast<rns::RNSType>(op.getTargetBasis());
+    if (!targetBasisTy) return failure();
+    polynomial::RingAttr outputRingAttr = polynomial::RingAttr::get(
+        context, targetBasisTy, ringAttr.getPolynomialModulus());
+    polynomial::PolynomialType outputPolyTy =
+        polynomial::PolynomialType::get(context, outputRingAttr);
+    auto inputCoeffTy = cast<rns::RNSType>(ringAttr.getCoefficientType());
+
+    // Precompute some values to reduce duplication across each coefficient of
+    // the polynomial Each coefficient uses the same qInvProds
+    ArrayAttr qInvProds = *rns::buildQInvProds(context, inputCoeffTy);
+    // We need a map from modulus to index (on the input basis) for
+    // short-circuiting
+    llvm::DenseMap<APInt, size_t> inputBasisIndexByModulus;
+    ArrayRef<Type> inputBasisTypes = inputCoeffTy.getBasisTypes();
+    for (size_t i = 0; i < inputBasisTypes.size(); ++i) {
+      mod_arith::ModArithType inputLimbTy =
+          dyn_cast<mod_arith::ModArithType>(inputBasisTypes[i]);
+      if (!inputLimbTy) {
+        return rewriter.notifyMatchFailure(
+            op, "expected input basis limb to be ModArithType");
+      }
+      inputBasisIndexByModulus[inputLimbTy.getModulus().getValue()] = i;
+    }
+    FailureOr<Value> coeffLoop = polynomial::buildApplyCoefficientwise(
+        b, adaptor.getValue(), outputPolyTy,
+        [&](ImplicitLocOpBuilder& nestedBuilder, Value coeff,
+            Value degree) -> FailureOr<Value> {
+          (void)degree;
+          return rns::convertBasis(nestedBuilder, qInvProds, coeff,
+                                   targetBasisTy, inputBasisIndexByModulus);
+        });
+    if (failed(coeffLoop)) {
+      return failure();
+    }
+    rewriter.replaceOp(op, *coeffLoop);
     return success();
   }
 };

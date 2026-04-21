@@ -32,6 +32,7 @@ cc_library(
         ":types_inc_gen",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
         "@heir//lib/Dialect/ModArith/IR:TypeInterfaces",
+        "@heir//lib/Utils:APIntUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",

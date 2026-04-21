@@ -70,6 +70,35 @@ LogicalResult coefficientTypeMatchesScalarType(Type polynomialLikeType,
   return success();
 }
 
+FailureOr<Value> buildApplyCoefficientwise(
+    ImplicitLocOpBuilder& b, Value input, PolynomialType outputPolyTy,
+    llvm::function_ref<FailureOr<Value>(ImplicitLocOpBuilder&, Value, Value)>
+        transformCoeff) {
+  PolynomialType inputPolyTy = dyn_cast<PolynomialType>(input.getType());
+  if (!inputPolyTy) {
+    emitError(b.getLoc()) << "expected polynomial input, got "
+                          << input.getType();
+    return failure();
+  }
+
+  auto coeffLoop = ApplyCoefficientwiseOp::create(b, outputPolyTy, input);
+  OpBuilder::InsertionGuard guard(b);
+  Region& body = coeffLoop.getBody();
+  Block* block = b.createBlock(&body);
+  block->addArgument(inputPolyTy.getRing().getCoefficientType(), b.getLoc());
+  block->addArgument(b.getIndexType(), b.getLoc());
+  b.setInsertionPointToStart(block);
+
+  Value coeff = block->getArgument(0);
+  Value degree = block->getArgument(1);
+  FailureOr<Value> transformedCoeff = transformCoeff(b, coeff, degree);
+  if (failed(transformedCoeff)) {
+    return failure();
+  }
+  YieldOp::create(b, *transformedCoeff);
+  return coeffLoop.getResult();
+}
+
 void FromTensorOp::build(OpBuilder& builder, OperationState& result,
                          Value input, RingAttr ring) {
   TensorType tensorType = dyn_cast<TensorType>(input.getType());
@@ -497,37 +526,6 @@ LogicalResult INTTOp::inferReturnTypes(
     mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
   if (operands.empty()) return failure();
   return inferNTTReturnType(ctx, operands.front().getType(), results);
-}
-
-LogicalResult ConvertBasisOp::inferReturnTypes(
-    MLIRContext* ctx, std::optional<Location> /*loc*/, ValueRange operands,
-    DictionaryAttr attrs, mlir::PropertyRef properties,
-    mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
-  ConvertBasisOpAdaptor op(operands, attrs, properties, regions);
-  if (operands.empty()) return failure();
-  Type inputType = op.getValue().getType();
-  PolynomialType inputPolyType = dyn_cast<PolynomialType>(inputType);
-  RankedTensorType inputTensorType;
-  if (!inputPolyType) {
-    inputTensorType = dyn_cast<RankedTensorType>(inputType);
-    if (!inputTensorType) return failure();
-    inputPolyType = dyn_cast<PolynomialType>(inputTensorType.getElementType());
-    if (!inputPolyType) return failure();
-  }
-  polynomial::RingAttr ringAttr = inputPolyType.getRing();
-  rns::RNSType elementType = dyn_cast<rns::RNSType>(op.getTargetBasis());
-  if (!elementType) return failure();
-
-  polynomial::RingAttr outputRingAttr = polynomial::RingAttr::get(
-      ctx, elementType, ringAttr.getPolynomialModulus());
-  PolynomialType resultType = PolynomialType::get(ctx, outputRingAttr);
-  if (dyn_cast<PolynomialType>(inputType)) {
-    results.push_back(resultType);
-  } else {
-    results.push_back(RankedTensorType::get(
-        inputTensorType.getShape(), resultType, inputTensorType.getEncoding()));
-  }
-  return success();
 }
 
 LogicalResult ExtractSliceOp::inferReturnTypes(

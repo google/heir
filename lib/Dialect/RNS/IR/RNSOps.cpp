@@ -8,6 +8,9 @@
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/RNS/IR/RNSOps.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
+#include "lib/Utils/APIntUtils.h"
+#include "llvm/include/llvm/ADT/DenseMap.h"              // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallString.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
@@ -98,6 +101,168 @@ FailureOr<SmallVector<Value>> computeMixedRadixCoeffs(
     mrcs.push_back(liftedCi);
   }
   return mrcs;
+}
+
+FailureOr<ArrayAttr> buildQInvProds(mlir::MLIRContext* ctx,
+                                    rns::RNSType basisTy) {
+  SmallVector<Attribute> qInvProdAttrs;
+  ArrayRef<Type> basisTypes = basisTy.getBasisTypes();
+  if (basisTypes.empty()) {
+    return ArrayAttr::get(ctx, qInvProdAttrs);
+  }
+  qInvProdAttrs.reserve(basisTypes.size() - 1);
+
+  SmallVector<mod_arith::ModArithType> maBases;
+  for (size_t i = 0; i < basisTypes.size(); ++i) {
+    auto qiTy = dyn_cast<mod_arith::ModArithType>(basisTypes[i]);
+    if (!qiTy) {
+      return failure();
+    }
+    maBases.push_back(qiTy);
+  }
+
+  // If there are k basis elements, we compute
+  // (prod_{j=0..i} q_i)^{-1} mod q_{i+1} for i from 0 to k-2
+  APInt partialProduct(/*numBits=*/1, /*val=*/1);
+  for (size_t i = 0; i < basisTypes.size() - 1; ++i) {
+    mod_arith::ModArithType qiTy = maBases[i];
+    APInt qi = qiTy.getModulus().getValue();
+    unsigned productWidth = partialProduct.getBitWidth() + qi.getBitWidth();
+    partialProduct = partialProduct.zext(productWidth) * qi.zext(productWidth);
+
+    auto modTy = maBases[i + 1];
+    APInt modValue = modTy.getModulus().getValue();
+
+    // Reduce the partial product mod modValue before computing the inverse
+    // to reduce bitwidth
+    APInt reducedPartial =
+        partialProduct.urem(modValue.zext(partialProduct.getBitWidth()))
+            .trunc(modValue.getBitWidth());
+    APInt qInv = multiplicativeInverse(reducedPartial, modValue);
+    if (qInv.isZero()) {
+      return failure();
+    }
+
+    IntegerAttr qInvValue = IntegerAttr::get(
+        modTy.getModulus().getType(),
+        qInv.zextOrTrunc(modTy.getModulus().getValue().getBitWidth()));
+    qInvProdAttrs.push_back(
+        mod_arith::ModArithAttr::get(ctx, modTy, qInvValue));
+  }
+
+  return ArrayAttr::get(ctx, qInvProdAttrs);
+}
+
+// https://userpages.cs.umbc.edu/lomonaco/s08/441/handouts/GarnerAlg.pdf
+//
+// NOTE: When lifting using standard representatives, Garner's algorithm (not
+// mod p) outputs the standard representative of the CRT reconstruction without
+// any explicit mods by the product of the input basis. When lifting using
+// canonical representatives, it outputs the canonical representative of the CRT
+// reconstruction *WHEN THE INPUT BASIS IS ODD*. The key here is that when the
+// cs are (perfectly) centered, the reconstruction will be as well. If some
+// modulus is even, however, the canonical representative for that component is
+// *not* perfectly centered. As a result, the reconstructed output is also not
+// perfectly centered, i.e., it is not the canonical representative! This breaks
+// everything because we rely on the fact that Garner's outputs lift(crt(xs,
+// qs)) so that when we compute it mod p, we actually are doing basis extension.
+// If Garner outputs y != lift(crt(xs, qs)), then we compute y mod p, which is
+// meaningless.
+FailureOr<Value> convertBasis(
+    ImplicitLocOpBuilder b, ArrayAttr qInvProds, Value x,
+    rns::RNSType targetBasisTy,
+    const llvm::DenseMap<APInt, size_t>& inputBasisIndexByModulus) {
+  rns::RNSType inputBasisTy = dyn_cast<rns::RNSType>(x.getType());
+  if (!inputBasisTy) {
+    emitError(b.getLoc()) << "expected RNS coefficient, got " << x.getType();
+    return failure();
+  }
+
+  ArrayRef<Type> inputBasisTypes = inputBasisTy.getBasisTypes();
+  ArrayRef<Type> targetBasisTypes = targetBasisTy.getBasisTypes();
+  FailureOr<SmallVector<Value>> maybeMrcs =
+      rns::computeMixedRadixCoeffs(b, x, qInvProds);
+  if (failed(maybeMrcs)) {
+    return failure();
+  }
+  if (maybeMrcs->empty()) {
+    emitError(b.getLoc()) << "expected non-empty mixed-radix coefficients";
+    return failure();
+  }
+  SmallVector<Value>& mrcs = *maybeMrcs;
+
+  SmallVector<mod_arith::ModArithType> maInputBasisTys;
+  for (int i = 0; i < inputBasisTypes.size(); i++) {
+    mod_arith::ModArithType qi =
+        dyn_cast<mod_arith::ModArithType>(inputBasisTypes[i]);
+    if (!qi) {
+      emitError(b.getLoc()) << "expected source basis limb to be ModArithType";
+      return failure();
+    }
+    APInt modulusValue = qi.getModulus().getValue();
+    if (!modulusValue[0]) {
+      SmallString<16> modulusStr;
+      modulusValue.toStringUnsigned(modulusStr);
+      emitError(b.getLoc())
+          << "basis conversion requires odd moduli, but input basis contains "
+             "even modulus "
+          << modulusStr;
+      return failure();
+    }
+    maInputBasisTys.push_back(qi);
+  }
+  IntegerType storageTy =
+      cast<IntegerType>(cast<mod_arith::ModArithType>(targetBasisTypes[0])
+                            .getModulus()
+                            .getType());
+
+  SmallVector<Value> outputLimbs;
+  outputLimbs.reserve(targetBasisTypes.size());
+  for (int i = 0; i < targetBasisTypes.size(); i++) {
+    mod_arith::ModArithType targetLimbTy =
+        dyn_cast<mod_arith::ModArithType>(targetBasisTypes[i]);
+    if (!targetLimbTy) {
+      emitError(b.getLoc()) << "expected target basis limb to be ModArithType";
+      return failure();
+    }
+    APInt targetModulusValue = targetLimbTy.getModulus().getValue();
+    if (!targetModulusValue[0]) {
+      SmallString<16> modulusStr;
+      targetModulusValue.toStringUnsigned(modulusStr);
+      emitError(b.getLoc())
+          << "basis conversion requires odd moduli, but target basis contains "
+             "even modulus "
+          << modulusStr;
+      return failure();
+    }
+
+    llvm::DenseMap<APInt, size_t>::const_iterator inputIndexIt =
+        inputBasisIndexByModulus.find(targetModulusValue);
+    if (inputIndexIt != inputBasisIndexByModulus.end()) {
+      outputLimbs.push_back(rns::ExtractSingleSliceOp::create(
+          b, x, b.getIndexAttr(inputIndexIt->second)));
+      continue;
+    }
+
+    // If the output modulus isn't in the input basis, compute its
+    // representative Again, this uses Horner's method with `temp` as the
+    // accumulator
+    Value temp = mod_arith::EncapsulateOp::create(b, targetLimbTy, mrcs.back());
+    for (int j = static_cast<int>(mrcs.size()) - 2; j >= 0; j--) {
+      // get q_j, extend it to q_i's width, and reduce it mod q_i.
+      mod_arith::ModArithType sourceLimbTy = maInputBasisTys[j];
+      IntegerAttr qjAttr = IntegerAttr::get(
+          storageTy, sourceLimbTy.getModulus().getValue().zextOrTrunc(
+                         storageTy.getWidth()));
+      Value qjConst = mod_arith::ConstantOp::create(b, targetLimbTy, qjAttr);
+      Value reducedCj =
+          mod_arith::EncapsulateOp::create(b, targetLimbTy, mrcs[j]);
+      temp = mod_arith::MacOp::create(b, temp, qjConst, reducedCj);
+    }
+    outputLimbs.push_back(temp);
+  }
+
+  return rns::PackOp::create(b, targetBasisTy, outputLimbs).getResult();
 }
 
 LogicalResult ExtractSliceOp::inferReturnTypes(

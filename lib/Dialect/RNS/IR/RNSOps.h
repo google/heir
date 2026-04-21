@@ -4,6 +4,8 @@
 #include <cstdint>
 
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
+#include "llvm/include/llvm/ADT/APInt.h"       // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseMap.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"    // from @llvm-project
 
@@ -69,6 +71,29 @@ RNSType inferExtractSliceReturnTypes(MLIRContext* ctx, Op* op,
 // corresponding integer lowering types.
 FailureOr<SmallVector<Value>> computeMixedRadixCoeffs(
     ImplicitLocOpBuilder& b, Value input, const ArrayAttr& qInvProds);
+
+// For an input basis q_0, ..., q_{k-1}, build the precomputed inverses used by
+// computeMixedRadixCoeffs and convertBasis. The returned array has length k - 1
+// and stores
+//
+//   qInvProds[i] = (q_0 * ... * q_i)^{-1} mod q_{i+1}.
+//
+// Each entry is encoded as a mod_arith attribute in the corresponding
+// q_{i+1}-limb type.
+FailureOr<ArrayAttr> buildQInvProds(mlir::MLIRContext* ctx, RNSType basisTy);
+
+// Given x \in Z_Q represented as {x_i mod q_i} where Q=\prod q_i,
+// convertBasis returns the target-basis representation obtained by:
+//  1. Compute x's centered integer representative in [-Q/2, Q/2]
+//  2. Reduce the integer representation mod p_i for each p_i in the target
+//  basis.
+//
+// This performs the conversion directly from the RNS representation of x,
+// without first reconstructing x over the integers. Note that both bases must
+// be odd.
+FailureOr<Value> convertBasis(
+    ImplicitLocOpBuilder b, ArrayAttr qInvProds, Value x, RNSType targetBasisTy,
+    const llvm::DenseMap<APInt, size_t>& inputBasisIndexByModulus);
 
 }  // namespace rns
 }  // namespace heir
