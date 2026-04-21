@@ -31,6 +31,7 @@ cc_test(
         ":Codegen",
         ":Convolution",
         "@googletest//:gtest_main",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Utils/Layout:IslConversion",
         "@heir//lib/Utils/Layout:Utils",
         "@llvm-project//mlir:Analysis",
@@ -206,4 +207,9 @@ cc_binary(
 cc_binary(
     name = "debug_packing_2d",
     srcs = ["debug_packing_2d.cpp"],
+)
+
+cc_binary(
+    name = "debug_packing_4d",
+    srcs = ["debug_packing_4d.cpp"],
 )

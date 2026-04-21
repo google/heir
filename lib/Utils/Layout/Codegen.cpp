@@ -85,37 +85,75 @@ static std::map<isl_ast_expr_op_type, arith::CmpIPredicate> islCmpToMlirAttr = {
 //
 //   S[row,col,ct,slot] -> [ct,slot]
 //
-static __isl_give isl_union_map* createSchedule(__isl_keep isl_basic_map* bmap,
-                                                isl_ctx* ctx) {
-  isl_basic_map* scheduleBmap = isl_basic_map_copy(bmap);
-  unsigned numIn = isl_basic_map_dim(scheduleBmap, isl_dim_in);
-  unsigned numOut = isl_basic_map_dim(scheduleBmap, isl_dim_out);
+// If domainIndicesToSchedule is provided, those domain indices will be added to
+// the range of the schedule map, resulting in outer loops for those indices.
+static __isl_give isl_union_map* createSchedule(
+    __isl_keep isl_map* map, isl_ctx* ctx,
+    ArrayRef<int> domainIndicesToSchedule) {
+  unsigned int numIn = isl_map_dim(map, isl_dim_in);
+  unsigned int numOut = isl_map_dim(map, isl_dim_out);
 
-  // Insert two new dimensions for the original range variables into the domain.
-  scheduleBmap =
-      isl_basic_map_insert_dims(scheduleBmap, isl_dim_in, numIn, numOut);
+  // The schedule is a map from the original domain + original range to the
+  // schedule space (which includes the original range and any requested domain
+  // indices).
+  isl_map* scheduleMap = isl_map_copy(map);
+
+  // Add the range variables as additional domain variables to the end of
+  // the domain.
+  scheduleMap = isl_map_insert_dims(scheduleMap, isl_dim_in, numIn, numOut);
 
   // Add constraints to equate the new domain dimensions with the original range
   // dimensions.
   for (unsigned i = 0; i < numOut; ++i) {
     isl_constraint* c = isl_constraint_alloc_equality(
-        isl_basic_map_get_local_space(scheduleBmap));
-    c = isl_constraint_set_coefficient_si(c, isl_dim_in, numIn + i, 1);
-    c = isl_constraint_set_coefficient_si(c, isl_dim_out, i, -1);
-    scheduleBmap = isl_basic_map_add_constraint(scheduleBmap, c);
+        isl_local_space_from_space(isl_map_get_space(scheduleMap)));
+    // range dimension i
+    c = isl_constraint_set_coefficient_si(c, isl_dim_out, i, 1);
+    // new domain dimension numIn + i
+    c = isl_constraint_set_coefficient_si(c, isl_dim_in, numIn + i, -1);
+    scheduleMap = isl_map_add_constraint(scheduleMap, c);
+  }
+
+  // Now adjust the range of the scheduleMap to include domainIndicesToSchedule.
+  // The original range dims are at the end. We insert the new ones at the
+  // front.
+  scheduleMap = isl_map_insert_dims(scheduleMap, isl_dim_out, 0,
+                                    domainIndicesToSchedule.size());
+
+  for (unsigned i = 0; i < domainIndicesToSchedule.size(); ++i) {
+    int domainIdx = domainIndicesToSchedule[i];
+    isl_constraint* c = isl_constraint_alloc_equality(
+        isl_local_space_from_space(isl_map_get_space(scheduleMap)));
+    // new range dimension i
+    c = isl_constraint_set_coefficient_si(c, isl_dim_out, i, 1);
+    // original domain dimension domainIdx
+    c = isl_constraint_set_coefficient_si(c, isl_dim_in, domainIdx, -1);
+    scheduleMap = isl_map_add_constraint(scheduleMap, c);
   }
 
   // Set the domain tuple name to "S". This will be used in codegen for the
   // statement to be executed, e.g., S(a, b, c, d)
-  scheduleBmap = isl_basic_map_set_tuple_name(scheduleBmap, isl_dim_in, "S");
-  return isl_union_map_from_basic_map(scheduleBmap);
+  scheduleMap = isl_map_set_tuple_name(scheduleMap, isl_dim_in, "S");
+  return isl_union_map_from_map(scheduleMap);
 }
 
 __isl_give isl_ast_node* constructAst(const presburger::IntegerRelation& rel,
-                                      isl_ctx* ctx) {
+                                      isl_ctx* ctx,
+                                      ArrayRef<int> domainIndicesToSchedule) {
   isl_basic_map* bmap = convertRelationToBasicMap(rel, ctx);
-  isl_union_map* schedule = createSchedule(bmap, ctx);
-  isl_basic_map_free(bmap);
+
+  // Simplify the underlying map to speed up AST generation.
+  isl_map* map = isl_map_from_basic_map(bmap);
+  map = isl_map_compute_divs(map);
+  map = isl_map_detect_equalities(map);
+  map = isl_map_remove_redundancies(map);
+  map = isl_map_coalesce(map);
+
+  isl_union_map* schedule = createSchedule(map, ctx, domainIndicesToSchedule);
+  isl_map_free(map);
+
+  schedule = isl_union_map_detect_equalities(schedule);
+  schedule = isl_union_map_coalesce(schedule);
 
   // Context and options are intentionally empty. We don't need any of these
   // features, though I admit I have not looked into what they can provide.
@@ -132,8 +170,9 @@ __isl_give isl_ast_node* constructAst(const presburger::IntegerRelation& rel,
 }
 
 FailureOr<isl_ast_node*> generateLoopNest(
-    const presburger::IntegerRelation& rel, __isl_keep isl_ctx* ctx) {
-  isl_ast_node* tree = constructAst(rel, ctx);
+    const presburger::IntegerRelation& rel, __isl_keep isl_ctx* ctx,
+    ArrayRef<int> domainIndicesToSchedule) {
+  isl_ast_node* tree = constructAst(rel, ctx, domainIndicesToSchedule);
   if (!tree) {
     return failure();
   }
@@ -141,9 +180,10 @@ FailureOr<isl_ast_node*> generateLoopNest(
 }
 
 FailureOr<std::string> generateLoopNestAsCStr(
-    const presburger::IntegerRelation& rel) {
+    const presburger::IntegerRelation& rel,
+    ArrayRef<int> domainIndicesToSchedule) {
   isl_ctx* ctx = isl_ctx_alloc();
-  auto result = generateLoopNest(rel, ctx);
+  auto result = generateLoopNest(rel, ctx, domainIndicesToSchedule);
   if (failed(result)) {
     isl_ctx_free(ctx);
     return failure();
@@ -427,9 +467,9 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNode(
 
 FailureOr<scf::ForOp> MLIRLoopNestGenerator::generateForLoop(
     const presburger::IntegerRelation& rel, ValueRange initArgs,
-    BodyBuilderFn bodyBuilder) {
+    BodyBuilderFn bodyBuilder, ArrayRef<int> domainIndicesToSchedule) {
   OpBuilder::InsertionGuard guard(builder_);
-  isl_ast_node* tree = constructAst(rel, ctx_);
+  isl_ast_node* tree = constructAst(rel, ctx_, domainIndicesToSchedule);
   if (!tree) {
     return failure();
   }

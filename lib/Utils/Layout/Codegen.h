@@ -28,12 +28,19 @@ using BodyBuilderFn = function_ref<scf::ValueVector(OpBuilder&, Location,
 // single polyhedron representing a ciphertext layout, and the code generated
 // for the packing can be expressed as a single perfect loop nest with a single
 // assignment operator in the innermost loop body.
+//
+// domainIndicesToSchedule allows the caller to specify which domain dimensions
+// should be part of the loop nest schedule. By default, only the range
+// dimensions are scheduled. This determines which variables are used as loop
+// indices.
 FailureOr<isl_ast_node*> generateLoopNest(
-    const presburger::IntegerRelation& rel, isl_ctx* ctx);
+    const presburger::IntegerRelation& rel, isl_ctx* ctx,
+    ArrayRef<int> domainIndicesToSchedule = {});
 
 // A debugging helper to generate a C string representation of the loop nest.
 FailureOr<std::string> generateLoopNestAsCStr(
-    const presburger::IntegerRelation& rel);
+    const presburger::IntegerRelation& rel,
+    ArrayRef<int> domainIndicesToSchedule = {});
 
 // Generate an MLIR loop nest from an ISL AST.
 class MLIRLoopNestGenerator {
@@ -55,9 +62,9 @@ class MLIRLoopNestGenerator {
   ~MLIRLoopNestGenerator() { isl_ctx_free(ctx_); }
 
   // Assumes that the tree is a perfect loop nest.
-  FailureOr<scf::ForOp> generateForLoop(const presburger::IntegerRelation& rel,
-                                        ValueRange initArgs,
-                                        BodyBuilderFn bodyBuilder);
+  FailureOr<scf::ForOp> generateForLoop(
+      const presburger::IntegerRelation& rel, ValueRange initArgs,
+      BodyBuilderFn bodyBuilder, ArrayRef<int> domainIndicesToSchedule = {});
 
  private:
   FailureOr<scf::ValueVector> visitAstNode(isl_ast_node* node,
