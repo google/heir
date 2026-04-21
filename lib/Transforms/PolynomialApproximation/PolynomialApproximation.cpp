@@ -47,6 +47,23 @@ using polynomial::PolynomialType;
 using polynomial::RingAttr;
 using polynomial::TypedChebyshevPolynomialAttr;
 
+// Emit an error on `op` and return failure
+// if any coefficient in `poly` is non-finite (NaN or infinity).
+LogicalResult checkApproximationFinite(Operation* op,
+                                       const ChebyshevPolynomial& poly) {
+  for (const APFloat& c : poly.getTerms()) {
+    if (!c.isFinite()) {
+      return op->emitError()
+             << "polynomial approximation produced a non-finite coefficient "
+                "(NaN or infinity); this might mean the function is not "
+                "defined on the requested domain. Set `domain_lower`/"
+                "`domain_upper` on the op to a domain where the function is "
+                "defined.";
+    }
+  }
+  return success();
+}
+
 inline APFloat absf(const APFloat& x) {
   return APFloat(std::abs(x.convertToDouble()));
 }
@@ -218,6 +235,7 @@ struct ConvertUnaryOp : public OpRewritePattern<OpTy> {
             cppFunc, degreeAttr.getInt(),
             domainLowerAttr.getValue().convertToDouble(),
             domainUpperAttr.getValue().convertToDouble());
+    if (failed(checkApproximationFinite(op, poly))) return failure();
     PolynomialType polyType =
         PolynomialType::get(ctx, RingAttr::get(Float64Type::get(ctx)));
     TypedChebyshevPolynomialAttr polyAttr =
@@ -331,6 +349,7 @@ struct ConvertBinaryConstOp : public OpRewritePattern<OpTy> {
         unaryFunc, degreeAttr.getInt(),
         domainLowerAttr.getValue().convertToDouble(),
         domainUpperAttr.getValue().convertToDouble());
+    if (failed(checkApproximationFinite(op, poly))) return failure();
     PolynomialType polyType =
         PolynomialType::get(ctx, RingAttr::get(Float64Type::get(ctx)));
     TypedChebyshevPolynomialAttr polyAttr =
