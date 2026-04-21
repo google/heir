@@ -317,7 +317,7 @@ def LWE_ExtractSliceOp : LWE_Op<"extract_slice", [Pure, DeclareOpInterfaceMethod
   let results = (outs
     LWERingElt:$output
   );
-  let assemblyFormat = "$input attr-dict `:` type($input)";
+  let assemblyFormat = "$input attr-dict `:` type($input) `->` type($output)";
   let hasVerifier = 1;
 }
 
@@ -335,7 +335,7 @@ def LWE_ConvertBasisOp : LWE_Op<"convert_basis", [Pure, DeclareOpInterfaceMethod
   let results = (outs
     LWERingElt:$output
   );
-  let assemblyFormat = "$value attr-dict `:` type($value)";
+  let assemblyFormat = "$value attr-dict `:` type($value) `->` type($output)";
 }
 
 #endif  // LIB_DIALECT_LWE_IR_LWEOPS_TD_
