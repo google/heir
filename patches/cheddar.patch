@@ -1,0 +1,70 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 323e218..cb095e9 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -6,7 +6,10 @@ set (CMAKE_CXX_STANDARD 17)
+ set (CMAKE_CUDA_STANDARD 17)
+ set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+-set (CMAKE_CUDA_ARCHITECTURES 60 61 70 75 80 86 89 90)
++# Respect caller-provided CMAKE_CUDA_ARCHITECTURES (e.g. `native` from bazel).
++if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
++  set(CMAKE_CUDA_ARCHITECTURES 60 61 70 75 80 86 89 90)
++endif()
+
+ # Automatically detect the CUDA architecture
+ #if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+@@ -24,6 +27,7 @@ FetchContent_Declare(
+   GIT_REPOSITORY https://github.com/rapidsai/rmm
+   GIT_TAG        branch-22.12
+   GIT_SHALLOW
++  EXCLUDE_FROM_ALL
+ )
+ FetchContent_MakeAvailable(rmm)
+ message(STATUS "RMM source dir: ${rmm_SOURCE_DIR}")
+@@ -93,7 +97,7 @@ target_link_libraries(cheddar
+ )
+
+ target_include_directories(cheddar
+-  PUBLIC include
++  PUBLIC include ${CUDAToolkit_INCLUDE_DIRS} ${rmm_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/compat
+ )
+
+ target_compile_options(cheddar PRIVATE
+@@ -112,3 +116,16 @@ if (BUILD_UNITTEST)
+   message(STATUS "Building unit tests")
+   add_subdirectory(unittest)
+ endif()
++
++# Install targets for bazel compatibility.
++# CHEDDAR's public headers leak transitive deps (RMM, spdlog), so we
++# install all FetchContent-provided headers alongside CHEDDAR's own.
++install(TARGETS cheddar LIBRARY DESTINATION lib)
++install(DIRECTORY include/ DESTINATION include)
++install(DIRECTORY compat/ DESTINATION include)
++file(GLOB _fetchcontent_dirs "${CMAKE_BINARY_DIR}/_deps/*-src/include")
++foreach(_dir ${_fetchcontent_dirs})
++  if(IS_DIRECTORY ${_dir})
++    install(DIRECTORY ${_dir}/ DESTINATION include)
++  endif()
++endforeach()
+diff --git a/compat/thrust/optional.h b/compat/thrust/optional.h
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/compat/thrust/optional.h
+@@ -0,0 +1,14 @@
++// Compatibility shim: thrust::optional was removed in CCCL 3.x (CUDA 13).
++// RMM branch-22.12 (pinned by cheddar's CMakeLists) still references
++// <thrust/optional.h>. This shim redirects to cuda::std::optional.
++//
++// Delete this file once RMM is bumped to a version that no longer uses
++// thrust::optional (released alongside CCCL 3.x).
++#pragma once
++
++#include <cuda/std/optional>
++
++namespace thrust {
++using ::cuda::std::nullopt;
++using ::cuda::std::optional;
++}  // namespace thrust

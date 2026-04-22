@@ -101,9 +101,15 @@ bool moduleIsLattigo(Operation* moduleOp) {
          nullptr;
 }
 
+bool moduleIsCheddar(Operation* moduleOp) {
+  return moduleOp->getAttrOfType<mlir::UnitAttr>(kCheddarBackendAttrName) !=
+         nullptr;
+}
+
 void moduleClearBackend(Operation* moduleOp) {
   moduleOp->removeAttr(kOpenfheBackendAttrName);
   moduleOp->removeAttr(kLattigoBackendAttrName);
+  moduleOp->removeAttr(kCheddarBackendAttrName);
 }
 
 void moduleSetOpenfhe(Operation* moduleOp) {
@@ -115,6 +121,12 @@ void moduleSetOpenfhe(Operation* moduleOp) {
 void moduleSetLattigo(Operation* moduleOp) {
   moduleClearBackend(moduleOp);
   moduleOp->setAttr(kLattigoBackendAttrName,
+                    mlir::UnitAttr::get(moduleOp->getContext()));
+}
+
+void moduleSetCheddar(Operation* moduleOp) {
+  moduleClearBackend(moduleOp);
+  moduleOp->setAttr(kCheddarBackendAttrName,
                     mlir::UnitAttr::get(moduleOp->getContext()));
 }
 

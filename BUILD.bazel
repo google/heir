@@ -70,6 +70,21 @@ config_setting(
     },
 )
 
+# CHEDDAR GPU FHE backend (opt-in, requires CUDA)
+# use by passing `--//:enable_cheddar=1` to `bazel build`
+string_flag(
+    name = "enable_cheddar",
+    build_setting_default = "0",
+)
+
+config_setting(
+    name = "config_enable_cheddar",
+    flag_values = {
+        ":enable_cheddar": "1",
+    },
+    visibility = ["//visibility:public"],
+)
+
 # OpenFHE interpreter
 string_flag(
     name = "openfhe_enable_timing",

@@ -25,6 +25,8 @@ bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.8.2", dev_dependenc
 # implicitly depends upon the target '//:license'. How bizarre.
 bazel_dep(name = "rules_license", version = "1.0.0")
 bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "rules_cuda", version = "0.3.0")
+bazel_dep(name = "rules_foreign_cc", version = "0.15.1")
 bazel_dep(name = "rules_go", version = "0.53.0")
 bazel_dep(name = "rules_python", version = "1.5.1")
 bazel_dep(name = "googletest", version = "1.17.0")
@@ -63,6 +65,18 @@ use_repo(
     "llvm_zlib",
     "llvm_zstd",
 )
+
+# CHEDDAR GPU FHE library (opt-in, requires CUDA)
+cheddar_extensions = use_extension("//bazel:extensions.bzl", "cheddar_deps")
+use_repo(cheddar_extensions, "cheddar")
+
+# CUDA toolkit (for CHEDDAR and other GPU backends)
+cuda = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain")
+cuda.toolkit(
+    name = "cuda",
+    toolkit_path = "",
+)
+use_repo(cuda, "cuda")
 
 # The subset of LLVM backend targets that should be compiled
 _LLVM_TARGETS = [

@@ -30,6 +30,8 @@ struct AnnotateModule : impl::AnnotateModuleBase<AnnotateModule> {
       moduleSetOpenfhe(module);
     } else if (backend == "lattigo") {
       moduleSetLattigo(module);
+    } else if (backend == "cheddar") {
+      moduleSetCheddar(module);
     }
   }
 };
