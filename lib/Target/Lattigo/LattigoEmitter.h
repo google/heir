@@ -31,8 +31,6 @@ namespace mlir {
 namespace heir {
 namespace lattigo {
 
-void registerTranslateOptions();
-
 /// Translates the given operation to Lattigo
 ::mlir::LogicalResult translateToLattigo(
     ::mlir::Operation* op, llvm::raw_ostream& os,
@@ -283,10 +281,6 @@ class LattigoEmitter {
   std::string emitCopySlice(Value source, Value result,
                             bool shouldDeclare = true);
 };
-
-void registerToLattigoTranslation(void);
-void registerToLattigoPreprocessingTranslation(void);
-void registerToLattigoPreprocessedTranslation(void);
 
 }  // namespace lattigo
 }  // namespace heir
