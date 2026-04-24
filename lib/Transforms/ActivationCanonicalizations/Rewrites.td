@@ -44,7 +44,7 @@ def Sigmoid : Pat<
     (Arith_ConstantOp $c1_1),
     (Arith_AddFOp
       (Math_ExpOp (Arith_NegFOp $x, $_), $_),
-      (Arith_ConstantOp $c1_2), $_), $_),
+      (Arith_ConstantOp $c1_2), $_, $_), $_, $_),
   (MathExt_SigmoidOp $x),
   [(IsOne $c1_1), (IsOne $c1_2)]>;
 

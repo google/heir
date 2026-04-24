@@ -13,13 +13,13 @@ def AnyZero : AttrConstraint<
 // a + 0.0 = a
 def AddFloatingPointZero : Pat<
   (Arith_AddFOp $a,
-    (ConstantLikeMatcher AnyZero:$value), $anyAttr),
+    (ConstantLikeMatcher AnyZero:$value), $fm, $rm),
   (replaceWithValue $a)>;
 
 // add(empty, a) = a
 def AddEmptyTensor : Pat<
   (Arith_AddFOp $a,
-    (Tensor_EmptyOp $b), $anyAttr),
+    (Tensor_EmptyOp $b), $fm, $rm),
   (replaceWithValue $a)>;
 
 #endif // LIB_TRANSFORMS_APPLYFOLDERS_PATTERNS_TD_

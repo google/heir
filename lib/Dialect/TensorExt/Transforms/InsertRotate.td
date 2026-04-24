@@ -26,7 +26,7 @@ def CreateSplatOp : NativeCodeCall<
 
 // Match an arith op that extracts scalar values from one or more tensors, and
 // replace it with rotations to align slots and apply the same op in SIMD.
-foreach ArithOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp, Arith_AddFOp, Arith_SubFOp, Arith_MulFOp] in {
+foreach ArithOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp] in {
   def InsertRotations_TwoTensorArgs_#ArithOp : Pattern<
     (ArithOp:$arithOp
       (Tensor_ExtractOp $t1, (variadic $i1)),
@@ -81,6 +81,58 @@ foreach ArithOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp, Arith_AddFOp, Arith
   >;
 }
 
+foreach ArithOp = [Arith_AddFOp, Arith_SubFOp, Arith_MulFOp] in {
+  def InsertRotations_TwoTensorArgs_#ArithOp : Pattern<
+    (ArithOp:$arithOp
+      (Tensor_ExtractOp $t1, (variadic $i1)),
+      (Tensor_ExtractOp $t2, (variadic $i2)),
+      $fastmath, $roundingmode),
+    [
+      (TensorExt_RotateOp:$r1 $t1,
+          (Arith_SubIOp $i1, (Arith_ConstantOp (GetTargetSlotAttr $arithOp)), DefOverflow)),
+      (TensorExt_RotateOp:$r2 $t2,
+          (Arith_SubIOp $i2, (Arith_ConstantOp (GetTargetSlotAttr $arithOp)), DefOverflow)),
+      (ArithOp:$opResult $r1, $r2, $fastmath, $roundingmode),
+      (Tensor_ExtractOp
+        $opResult,
+        (MakeSingleResultVariadic
+          (Arith_ConstantOp (GetTargetSlotAttr $arithOp)))),
+    ]
+  >;
+
+  def InsertRotations_SplatRHSToTensor_#ArithOp : Pattern<
+    (ArithOp:$arithOp
+      (Tensor_ExtractOp $t1, (variadic $i1)),
+      (Arith_ConstantOp:$nonExtractedArg $value),
+      $fastmath, $roundingmode),
+    [
+      (TensorExt_RotateOp:$r1 $t1,
+          (Arith_SubIOp $i1, (Arith_ConstantOp (GetTargetSlotAttr $arithOp)), DefOverflow)),
+      (ArithOp:$opResult $r1, (CreateSplatOp $nonExtractedArg, $t1, $arithOp), $fastmath, $roundingmode),
+      (Tensor_ExtractOp
+        $opResult,
+        (MakeSingleResultVariadic
+          (Arith_ConstantOp (GetTargetSlotAttr $arithOp)))),
+    ]
+  >;
+
+  def InsertRotations_SplatLHSToTensor_#ArithOp : Pattern<
+    (ArithOp:$arithOp
+      (Arith_ConstantOp:$nonExtractedArg $value),
+      (Tensor_ExtractOp $t1, (variadic $i1)),
+      $fastmath, $roundingmode),
+    [
+      (TensorExt_RotateOp:$r1 $t1,
+          (Arith_SubIOp $i1, (Arith_ConstantOp (GetTargetSlotAttr $arithOp)), DefOverflow)),
+      (ArithOp:$opResult (CreateSplatOp $nonExtractedArg, $t1, $arithOp), $r1, $fastmath, $roundingmode),
+      (Tensor_ExtractOp
+        $opResult,
+        (MakeSingleResultVariadic
+          (Arith_ConstantOp (GetTargetSlotAttr $arithOp)))),
+    ]
+  >;
+}
+
 
 // Pre-align the first op's operands to the index that the result is
 // used for in a subsequent op. This is used to simplify the IR
@@ -91,8 +143,8 @@ foreach ArithOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp, Arith_AddFOp, Arith
 // TODO(#514): handle OuterOp with two different InnerOps on the LHS and RHS
 // TODO(#579): determine if these patterns are still necessary after the
 // target slot analysis was improved.
-foreach InnerOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp, Arith_AddFOp, Arith_SubFOp, Arith_MulFOp] in {
-  foreach OuterOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp, Arith_AddFOp, Arith_SubFOp, Arith_MulFOp] in {
+foreach InnerOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp] in {
+  foreach OuterOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp] in {
     // Left associated grouping handles (add (add (rotate t1 i1) (rotate t2 i2)) (rotate t3 i3))
     def AlignRotations_LeftAssociated_Inner_#InnerOp#_Outer_#OuterOp : Pattern<
       (OuterOp
@@ -123,6 +175,98 @@ foreach InnerOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp, Arith_AddFOp, Arith
         (OuterOp:$output $t3, $addResult, $ovf2),
         // Downstream ops are not updated by this pass, so we need to preserve the original
         // rotation and then clean it up in a separate canonicalization pattern.
+        (TensorExt_RotateOp $output, $i3),
+      ]
+    >;
+  }
+
+  foreach OuterOp = [Arith_AddFOp, Arith_SubFOp, Arith_MulFOp] in {
+    def AlignRotations_LeftAssociated_Inner_#InnerOp#_Outer_#OuterOp : Pattern<
+      (OuterOp
+        (InnerOp (TensorExt_RotateOp $t1, $i1), (TensorExt_RotateOp $t2, $i2), $ovf1),
+        (TensorExt_RotateOp $t3, $i3),
+        $fm2, $rm2),
+      [
+        (TensorExt_RotateOp:$r1 $t1, (Arith_SubIOp $i1, $i3, DefOverflow)),
+        (TensorExt_RotateOp:$r2 $t2, (Arith_SubIOp $i2, $i3, DefOverflow)),
+        (InnerOp:$addResult $r1, $r2, $ovf1),
+        (OuterOp:$output $addResult, $t3, $fm2, $rm2),
+        (TensorExt_RotateOp $output, $i3),
+      ]
+    >;
+
+    def AlignRotations_RightAssociated_Inner_#InnerOp#_Outer_#OuterOp : Pattern<
+      (OuterOp
+        (TensorExt_RotateOp $t3, $i3),
+        (InnerOp (TensorExt_RotateOp $t1, $i1), (TensorExt_RotateOp $t2, $i2), $ovf1),
+        $fm2, $rm2),
+      [
+        (TensorExt_RotateOp:$r1 $t1, (Arith_SubIOp $i1, $i3, DefOverflow)),
+        (TensorExt_RotateOp:$r2 $t2, (Arith_SubIOp $i2, $i3, DefOverflow)),
+        (InnerOp:$addResult $r1, $r2, $ovf1),
+        (OuterOp:$output $t3, $addResult, $fm2, $rm2),
+        (TensorExt_RotateOp $output, $i3),
+      ]
+    >;
+  }
+}
+
+foreach InnerOp = [Arith_AddFOp, Arith_SubFOp, Arith_MulFOp] in {
+  foreach OuterOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp] in {
+    def AlignRotations_LeftAssociated_Inner_#InnerOp#_Outer_#OuterOp : Pattern<
+      (OuterOp
+        (InnerOp (TensorExt_RotateOp $t1, $i1), (TensorExt_RotateOp $t2, $i2), $fm1, $rm1),
+        (TensorExt_RotateOp $t3, $i3),
+        $ovf2),
+      [
+        (TensorExt_RotateOp:$r1 $t1, (Arith_SubIOp $i1, $i3, DefOverflow)),
+        (TensorExt_RotateOp:$r2 $t2, (Arith_SubIOp $i2, $i3, DefOverflow)),
+        (InnerOp:$addResult $r1, $r2, $fm1, $rm1),
+        (OuterOp:$output $addResult, $t3, $ovf2),
+        (TensorExt_RotateOp $output, $i3),
+      ]
+    >;
+
+    def AlignRotations_RightAssociated_Inner_#InnerOp#_Outer_#OuterOp : Pattern<
+      (OuterOp
+        (TensorExt_RotateOp $t3, $i3),
+        (InnerOp (TensorExt_RotateOp $t1, $i1), (TensorExt_RotateOp $t2, $i2), $fm1, $rm1),
+        $ovf2),
+      [
+        (TensorExt_RotateOp:$r1 $t1, (Arith_SubIOp $i1, $i3, DefOverflow)),
+        (TensorExt_RotateOp:$r2 $t2, (Arith_SubIOp $i2, $i3, DefOverflow)),
+        (InnerOp:$addResult $r1, $r2, $fm1, $rm1),
+        (OuterOp:$output $t3, $addResult, $ovf2),
+        (TensorExt_RotateOp $output, $i3),
+      ]
+    >;
+  }
+
+  foreach OuterOp = [Arith_AddFOp, Arith_SubFOp, Arith_MulFOp] in {
+    def AlignRotations_LeftAssociated_Inner_#InnerOp#_Outer_#OuterOp : Pattern<
+      (OuterOp
+        (InnerOp (TensorExt_RotateOp $t1, $i1), (TensorExt_RotateOp $t2, $i2), $fm1, $rm1),
+        (TensorExt_RotateOp $t3, $i3),
+        $fm2, $rm2),
+      [
+        (TensorExt_RotateOp:$r1 $t1, (Arith_SubIOp $i1, $i3, DefOverflow)),
+        (TensorExt_RotateOp:$r2 $t2, (Arith_SubIOp $i2, $i3, DefOverflow)),
+        (InnerOp:$addResult $r1, $r2, $fm1, $rm1),
+        (OuterOp:$output $addResult, $t3, $fm2, $rm2),
+        (TensorExt_RotateOp $output, $i3),
+      ]
+    >;
+
+    def AlignRotations_RightAssociated_Inner_#InnerOp#_Outer_#OuterOp : Pattern<
+      (OuterOp
+        (TensorExt_RotateOp $t3, $i3),
+        (InnerOp (TensorExt_RotateOp $t1, $i1), (TensorExt_RotateOp $t2, $i2), $fm1, $rm1),
+        $fm2, $rm2),
+      [
+        (TensorExt_RotateOp:$r1 $t1, (Arith_SubIOp $i1, $i3, DefOverflow)),
+        (TensorExt_RotateOp:$r2 $t2, (Arith_SubIOp $i2, $i3, DefOverflow)),
+        (InnerOp:$addResult $r1, $r2, $fm1, $rm1),
+        (OuterOp:$output $t3, $addResult, $fm2, $rm2),
         (TensorExt_RotateOp $output, $i3),
       ]
     >;

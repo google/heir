@@ -84,7 +84,7 @@ def RotatePlusExtractToIndexedExtract : Pat<
     (MakeSingleResultVariadic (Arith_AddIOp $shift, $index, DefOverflow)))
 >;
 
-foreach ArithOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp, Arith_AddFOp, Arith_SubFOp, Arith_MulFOp] in {
+foreach ArithOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp] in {
   // Rotating two tensors by the same amount can be converted to a single
   // post-rotation. This can result in eliminating either the rotation (because
   // it can be combined with a later rotation) or the arith op itself, if it is
@@ -175,6 +175,59 @@ foreach ArithOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp, Arith_AddFOp, Arith
       (TensorExt_RotateOp $t2, $s2),
       (TensorExt_RotateOp $t1, (Arith_AddIOp $s2, $s1, DefOverflow)),
       $ovf),
+    [(HasOneUse:$arithOp)]
+  >;
+}
+
+foreach ArithOp = [Arith_AddFOp, Arith_SubFOp, Arith_MulFOp] in {
+  def FactorParallelRotationsThroughOp_#ArithOp : Pat<
+    (ArithOp
+      (TensorExt_RotateOp $t1, $i),
+      (TensorExt_RotateOp $t2, $i),
+      $fm, $rm),
+    (TensorExt_RotateOp (ArithOp $t1, $t2, $fm, $rm), $i),
+    [], [], (addBenefit 3)
+  >;
+
+  def MergeRotationsSandwichingOp_#ArithOp : Pat<
+    (TensorExt_RotateOp
+      (ArithOp
+        (TensorExt_RotateOp $t1, $s1),
+        (TensorExt_RotateOp $t2, $s2),
+        $fm, $rm),
+      $s3),
+    (ArithOp
+      (TensorExt_RotateOp $t1, (Arith_AddIOp $s3, $s1, DefOverflow)),
+      (TensorExt_RotateOp $t2, (Arith_AddIOp $s3, $s2, DefOverflow)),
+      $fm, $rm),
+    [], [], (addBenefit 2)
+  >;
+
+  def MergeEquivalentRotationsEarlierLHS_#ArithOp : Pat<
+    (TensorExt_RotateOp
+      (ArithOp:$arithOp
+        (TensorExt_RotateOp $t1, $s1),
+        $t2,
+        $fm, $rm),
+      $s2),
+    (ArithOp
+      (TensorExt_RotateOp $t1, (Arith_AddIOp $s2, $s1, DefOverflow)),
+      (TensorExt_RotateOp $t2, $s2),
+      $fm, $rm),
+    [(HasOneUse:$arithOp)]
+  >;
+
+  def MergeEquivalentRotationsEarlierRHS_#ArithOp : Pat<
+    (TensorExt_RotateOp
+      (ArithOp:$arithOp
+        $t1,
+        (TensorExt_RotateOp $t2, $s1),
+        $fm, $rm),
+      $s2),
+    (ArithOp
+      (TensorExt_RotateOp $t1, $s2),
+      (TensorExt_RotateOp $t2, (Arith_AddIOp $s2, $s1, DefOverflow)),
+      $fm, $rm),
     [(HasOneUse:$arithOp)]
   >;
 }
