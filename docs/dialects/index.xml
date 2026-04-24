@@ -8231,7 +8231,7 @@ KeyAttr, # key
 &lt;h3 id="lweconvert_basis-heirlweconvertbasisop">&lt;code>lwe.convert_basis&lt;/code> (heir::lwe::ConvertBasisOp)&lt;/h3>
 &lt;p>&lt;em>Change a ring element&amp;rsquo;s RNS basis&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lwe.convert_basis` $value attr-dict `:` type($value)
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.convert_basis` $value attr-dict `:` type($value) `-&amp;gt;` type($output)
 &lt;/code>&lt;/pre>&lt;p>Given a ring element with an RNS basis, output a ring element with the target
 output basis. The output value is equivalent to lifting the ring element to its
 centered representative over the integers, and reducing by the output modulus.&lt;/p>
@@ -8370,7 +8370,7 @@ the abstract secret key. For example, a ciphertext with two components
 &lt;h3 id="lweextract_slice-heirlweextractsliceop">&lt;code>lwe.extract_slice&lt;/code> (heir::lwe::ExtractSliceOp)&lt;/h3>
 &lt;p>&lt;em>Extract a subset of the ring element&amp;rsquo;s RNS basis&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lwe.extract_slice` $input attr-dict `:` type($input)
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.extract_slice` $input attr-dict `:` type($input) `-&amp;gt;` type($output)
 &lt;/code>&lt;/pre>&lt;p>Given a ring element an RNS basis with $k$ limbs, extract the slice of
 RNS components, starting at &lt;code>start&lt;/code> and having size &lt;code>size&lt;/code>.&lt;/p>
 &lt;p>The result type is a ring element with RNS type containing the subset of basis types
