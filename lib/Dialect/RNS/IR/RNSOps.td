@@ -29,8 +29,8 @@ def RNS_ExtractSliceOp : RNS_Op<"extract_slice", [Pure, ElementwiseMappable, Dec
   let hasVerifier = 1;
 }
 
-def RNS_ExtractSingleSliceOp : RNS_Op<"extract_single_slice", [Pure, ElementwiseMappable, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
-  let summary = "Extract one RNS limb as the type of the limb";
+def RNS_ExtractResidueOp : RNS_Op<"extract_residue", [Pure, ElementwiseMappable, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
+  let summary = "Extract one RNS residue as the type of the limb";
   let description = [{
     Given an RNS-typed value, extract the basis limb at `index` and return it
     as the corresponding type.
@@ -40,13 +40,13 @@ def RNS_ExtractSingleSliceOp : RNS_Op<"extract_single_slice", [Pure, Elementwise
     limb.
   }];
   let arguments = (ins RNSLike:$input, IndexAttr:$index);
-  let results = (outs AnyType:$output);
+  let results = (outs RNSBasisTypeInterfaceLike:$output);
   let assemblyFormat = "$input attr-dict `:` type($input) `->` type($output)";
   let hasVerifier = 1;
 }
 
 def RNS_PackOp : RNS_Op<"pack", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
-  let summary = "Pack multiple limb values into one RNS value";
+  let summary = "Pack multiple residues into one RNS value";
   let description = [{
     `rns.pack` converts a list of `mod_arith` values into a single value with
     RNS type.
@@ -64,7 +64,7 @@ def RNS_PackOp : RNS_Op<"pack", [Pure, DeclareOpInterfaceMethods<InferTypeOpInte
     return %packed : !rns
     ```
   }];
-  let arguments = (ins Variadic<AnyType>:$input);
+  let arguments = (ins Variadic<RNSBasisTypeInterface>:$input);
   let results = (outs RNS:$output);
   let assemblyFormat = "operands attr-dict `:` type($input)";
 }

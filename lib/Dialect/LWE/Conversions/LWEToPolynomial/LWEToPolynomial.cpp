@@ -627,32 +627,32 @@ struct ConvertConvertBasis : public OpConversionPattern<ConvertBasisOp> {
 
     // Precompute some values to reduce duplication across each coefficient of
     // the polynomial Each coefficient uses the same qInvProds
-    ArrayAttr qInvProds = *rns::buildQInvProds(context, inputCoeffTy);
+    FailureOr<SmallVector<mod_arith::ModArithAttr>> qInvProdsFailable =
+        rns::buildQInvProds(context, inputCoeffTy);
+    if (failed(qInvProdsFailable)) {
+      return rewriter.notifyMatchFailure(op, "failed to build qInvProds");
+    }
+    ArrayRef<mod_arith::ModArithAttr> qInvProds = *qInvProdsFailable;
+
     // We need a map from modulus to index (on the input basis) for
     // short-circuiting
     llvm::DenseMap<APInt, size_t> inputBasisIndexByModulus;
-    ArrayRef<Type> inputBasisTypes = inputCoeffTy.getBasisTypes();
-    for (size_t i = 0; i < inputBasisTypes.size(); ++i) {
-      mod_arith::ModArithType inputLimbTy =
-          dyn_cast<mod_arith::ModArithType>(inputBasisTypes[i]);
+    for (auto [i, basisTy] : llvm::enumerate(inputCoeffTy.getBasisTypes())) {
+      auto inputLimbTy = dyn_cast<mod_arith::ModArithType>(basisTy);
       if (!inputLimbTy) {
         return rewriter.notifyMatchFailure(
             op, "expected input basis limb to be ModArithType");
       }
       inputBasisIndexByModulus[inputLimbTy.getModulus().getValue()] = i;
     }
-    FailureOr<Value> coeffLoop = polynomial::buildApplyCoefficientwise(
+    Value coeffLoop = polynomial::ApplyCoefficientwiseOp::create(
         b, adaptor.getValue(), outputPolyTy,
         [&](ImplicitLocOpBuilder& nestedBuilder, Value coeff,
-            Value degree) -> FailureOr<Value> {
-          (void)degree;
+            Value _) -> FailureOr<Value> {
           return rns::convertBasis(nestedBuilder, qInvProds, coeff,
                                    targetBasisTy, inputBasisIndexByModulus);
         });
-    if (failed(coeffLoop)) {
-      return failure();
-    }
-    rewriter.replaceOp(op, *coeffLoop);
+    rewriter.replaceOp(op, coeffLoop);
     return success();
   }
 };

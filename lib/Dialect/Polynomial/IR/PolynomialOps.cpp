@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <optional>
 
 #include "lib/Dialect/ModArith/IR/ModArithAttributes.h"
@@ -70,21 +71,21 @@ LogicalResult coefficientTypeMatchesScalarType(Type polynomialLikeType,
   return success();
 }
 
-FailureOr<Value> buildApplyCoefficientwise(
-    ImplicitLocOpBuilder& b, Value input, PolynomialType outputPolyTy,
-    llvm::function_ref<FailureOr<Value>(ImplicitLocOpBuilder&, Value, Value)>
-        transformCoeff) {
+void ApplyCoefficientwiseOp::build(
+    OpBuilder& builder, OperationState& state, Value input,
+    PolynomialType outputPolyTy, ApplyCoefficientwiseBuilderFn transformCoeff) {
+  state.addOperands(input);
+  Region* body = state.addRegion();
+  state.addTypes(outputPolyTy);
+
   PolynomialType inputPolyTy = dyn_cast<PolynomialType>(input.getType());
   if (!inputPolyTy) {
-    emitError(b.getLoc()) << "expected polynomial input, got "
-                          << input.getType();
-    return failure();
+    return;
   }
 
-  auto coeffLoop = ApplyCoefficientwiseOp::create(b, outputPolyTy, input);
+  ImplicitLocOpBuilder b(state.location, builder);
   OpBuilder::InsertionGuard guard(b);
-  Region& body = coeffLoop.getBody();
-  Block* block = b.createBlock(&body);
+  Block* block = b.createBlock(body);
   block->addArgument(inputPolyTy.getRing().getCoefficientType(), b.getLoc());
   block->addArgument(b.getIndexType(), b.getLoc());
   b.setInsertionPointToStart(block);
@@ -93,10 +94,9 @@ FailureOr<Value> buildApplyCoefficientwise(
   Value degree = block->getArgument(1);
   FailureOr<Value> transformedCoeff = transformCoeff(b, coeff, degree);
   if (failed(transformedCoeff)) {
-    return failure();
+    return;
   }
   YieldOp::create(b, *transformedCoeff);
-  return coeffLoop.getResult();
 }
 
 void FromTensorOp::build(OpBuilder& builder, OperationState& result,
@@ -597,6 +597,11 @@ LogicalResult ApplyCoefficientwiseOp::verify() {
                          << block.getArgument(1).getType();
   }
 
+  if (!block.mightHaveTerminator()) {
+    // Do not emit an error here. This situation occurs when the op creation
+    // failed; that emits its own (meaningful) error.
+    return failure();
+  }
   auto yieldOp = cast<YieldOp>(block.getTerminator());
   auto outputPolyTy = getOutput().getType();
   auto outputCoeffTy = outputPolyTy.getRing().getCoefficientType();

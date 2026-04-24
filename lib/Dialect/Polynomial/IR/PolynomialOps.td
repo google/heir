@@ -453,8 +453,24 @@ def Polynomial_ApplyCoefficientwiseOp : Polynomial_Op<"apply_coefficientwise", [
   let arguments = (ins Polynomial_PolynomialType:$input);
   let results = (outs Polynomial_PolynomialType:$output);
   let regions = (region SizedRegion<1>:$body);
+  let builders = [
+    OpBuilder<(ins
+      CArg<"Value">:$input,
+      CArg<"PolynomialType">:$outputPolyTy,
+      CArg<"function_ref<FailureOr<Value>(ImplicitLocOpBuilder&, Value, Value)>">:$transformCoeff
+    )>
+  ];
   let assemblyFormat = "`(` $input `:` type($input) `)` attr-dict-with-keyword $body `->` type($output)";
   let hasVerifier = 1;
+  let extraClassDeclaration = [{
+    /// Callback used by the custom builder to populate the body of
+    /// `polynomial.apply_coefficientwise`.
+    ///
+    /// The callback receives a builder positioned at the start of the body block,
+    /// the current coefficient, and the coefficient degree. It returns the value
+    /// to yield as the transformed output coefficient.
+    using ApplyCoefficientwiseBuilderFn = function_ref<FailureOr<Value>(ImplicitLocOpBuilder&, Value, Value)>;
+  }];
 }
 
 #endif  // LIB_DIALECT_POLYNOMIAL_IR_POLYNOMIALOPS_TD_

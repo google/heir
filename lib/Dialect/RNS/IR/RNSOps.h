@@ -3,6 +3,7 @@
 
 #include <cstdint>
 
+#include "lib/Dialect/ModArith/IR/ModArithAttributes.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "llvm/include/llvm/ADT/APInt.h"       // from @llvm-project
 #include "llvm/include/llvm/ADT/DenseMap.h"    // from @llvm-project
@@ -70,7 +71,8 @@ RNSType inferExtractSliceReturnTypes(MLIRContext* ctx, Op* op,
 // values are the c_i lifted from their limb-wise mod_arith types into the
 // corresponding integer lowering types.
 FailureOr<SmallVector<Value>> computeMixedRadixCoeffs(
-    ImplicitLocOpBuilder& b, Value input, const ArrayAttr& qInvProds);
+    ImplicitLocOpBuilder& b, Value input,
+    const ArrayRef<mod_arith::ModArithAttr>& qInvProds);
 
 // For an input basis q_0, ..., q_{k-1}, build the precomputed inverses used by
 // computeMixedRadixCoeffs and convertBasis. The returned array has length k - 1
@@ -80,7 +82,8 @@ FailureOr<SmallVector<Value>> computeMixedRadixCoeffs(
 //
 // Each entry is encoded as a mod_arith attribute in the corresponding
 // q_{i+1}-limb type.
-FailureOr<ArrayAttr> buildQInvProds(mlir::MLIRContext* ctx, RNSType basisTy);
+FailureOr<SmallVector<mod_arith::ModArithAttr>> buildQInvProds(
+    mlir::MLIRContext* ctx, RNSType basisTy);
 
 // Given x \in Z_Q represented as {x_i mod q_i} where Q=\prod q_i,
 // convertBasis returns the target-basis representation obtained by:
@@ -90,9 +93,11 @@ FailureOr<ArrayAttr> buildQInvProds(mlir::MLIRContext* ctx, RNSType basisTy);
 //
 // This performs the conversion directly from the RNS representation of x,
 // without first reconstructing x over the integers. Note that both bases must
-// be odd.
+// be composed entirely of odd moduli; this algorithm does not work for bases
+// with even moduli.
 FailureOr<Value> convertBasis(
-    ImplicitLocOpBuilder b, ArrayAttr qInvProds, Value x, RNSType targetBasisTy,
+    ImplicitLocOpBuilder b, ArrayRef<mod_arith::ModArithAttr> qInvProds,
+    Value x, RNSType targetBasisTy,
     const llvm::DenseMap<APInt, size_t>& inputBasisIndexByModulus);
 
 }  // namespace rns

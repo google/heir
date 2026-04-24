@@ -29,7 +29,8 @@ namespace heir {
 namespace rns {
 
 FailureOr<SmallVector<Value>> computeMixedRadixCoeffs(
-    ImplicitLocOpBuilder& b, Value input, const ArrayAttr& qInvProds) {
+    ImplicitLocOpBuilder& b, Value input,
+    const ArrayRef<mod_arith::ModArithAttr>& qInvProds) {
   auto rnsTy = dyn_cast<RNSType>(input.getType());
   if (!rnsTy) {
     emitError(b.getLoc()) << "expected an RNS value, got " << input.getType();
@@ -39,18 +40,17 @@ FailureOr<SmallVector<Value>> computeMixedRadixCoeffs(
   // qInvProds is the partial products of all moduli: q0, q0*q1, q0*q1*q2, ...,
   // excluding the product of all the moduli, hence numLimbs-1.
   if (qInvProds.size() != numLimbs - 1) {
-    emitError(b.getLoc()) << "expected " << (numLimbs - 1)
+    emitError(b.getLoc()) << "expected " << numLimbs - 1
                           << " qInvProds for an RNS basis with " << numLimbs
                           << " limbs, got " << qInvProds.size();
     return failure();
   }
 
-  ArrayRef<Attribute> qInvAttrs = qInvProds.getValue();
   SmallVector<Value> mrcs;
 
   // The first mixed-radix coefficient just the lift of the first limb to the
   // integers
-  auto c0Reduced = ExtractSingleSliceOp::create(b, input, b.getIndexAttr(0));
+  auto c0Reduced = ExtractResidueOp::create(b, input, b.getIndexAttr(0));
   Type intType =
       cast<mod_arith::ModArithType>(c0Reduced.getType()).getLoweringType();
   Value c0Lifted = mod_arith::ExtractOp::create(b, intType, c0Reduced);
@@ -62,7 +62,7 @@ FailureOr<SmallVector<Value>> computeMixedRadixCoeffs(
   // products of the limb moduli. Rather than use these values directly, we
   // evaluate the sum using Horner's method.
   for (int i = 1; i < numLimbs; i++) {
-    Value xi = ExtractSingleSliceOp::create(b, input, b.getIndexAttr(i));
+    Value xi = ExtractResidueOp::create(b, input, b.getIndexAttr(i));
     auto limbTy = dyn_cast<mod_arith::ModArithType>(xi.getType());
     if (!limbTy) {
       emitError(b.getLoc())
@@ -82,12 +82,7 @@ FailureOr<SmallVector<Value>> computeMixedRadixCoeffs(
       temp = mod_arith::MacOp::create(b, temp, qjConst, reducedCj);
     }
     Value ci = mod_arith::SubOp::create(b, xi, temp);
-    auto maAttr = dyn_cast<mod_arith::ModArithAttr>(qInvAttrs[i - 1]);
-    if (!maAttr) {
-      emitError(b.getLoc())
-          << "expected mod_arith attribute, got " << qInvAttrs[i - 1];
-      return failure();
-    }
+    mod_arith::ModArithAttr maAttr = qInvProds[i - 1];
     if (maAttr.getType() != limbTy) {
       emitError(b.getLoc())
           << "expected qInv attribute type to match limb type " << limbTy
@@ -103,12 +98,12 @@ FailureOr<SmallVector<Value>> computeMixedRadixCoeffs(
   return mrcs;
 }
 
-FailureOr<ArrayAttr> buildQInvProds(mlir::MLIRContext* ctx,
-                                    rns::RNSType basisTy) {
-  SmallVector<Attribute> qInvProdAttrs;
+FailureOr<SmallVector<mod_arith::ModArithAttr>> buildQInvProds(
+    mlir::MLIRContext* ctx, rns::RNSType basisTy) {
+  SmallVector<mod_arith::ModArithAttr> qInvProdAttrs;
   ArrayRef<Type> basisTypes = basisTy.getBasisTypes();
   if (basisTypes.empty()) {
-    return ArrayAttr::get(ctx, qInvProdAttrs);
+    return qInvProdAttrs;
   }
   qInvProdAttrs.reserve(basisTypes.size() - 1);
 
@@ -150,7 +145,7 @@ FailureOr<ArrayAttr> buildQInvProds(mlir::MLIRContext* ctx,
         mod_arith::ModArithAttr::get(ctx, modTy, qInvValue));
   }
 
-  return ArrayAttr::get(ctx, qInvProdAttrs);
+  return qInvProdAttrs;
 }
 
 // https://userpages.cs.umbc.edu/lomonaco/s08/441/handouts/GarnerAlg.pdf
@@ -169,8 +164,8 @@ FailureOr<ArrayAttr> buildQInvProds(mlir::MLIRContext* ctx,
 // If Garner outputs y != lift(crt(xs, qs)), then we compute y mod p, which is
 // meaningless.
 FailureOr<Value> convertBasis(
-    ImplicitLocOpBuilder b, ArrayAttr qInvProds, Value x,
-    rns::RNSType targetBasisTy,
+    ImplicitLocOpBuilder b, ArrayRef<mod_arith::ModArithAttr> qInvProds,
+    Value x, rns::RNSType targetBasisTy,
     const llvm::DenseMap<APInt, size_t>& inputBasisIndexByModulus) {
   rns::RNSType inputBasisTy = dyn_cast<rns::RNSType>(x.getType());
   if (!inputBasisTy) {
@@ -178,7 +173,6 @@ FailureOr<Value> convertBasis(
     return failure();
   }
 
-  ArrayRef<Type> inputBasisTypes = inputBasisTy.getBasisTypes();
   ArrayRef<Type> targetBasisTypes = targetBasisTy.getBasisTypes();
   FailureOr<SmallVector<Value>> maybeMrcs =
       rns::computeMixedRadixCoeffs(b, x, qInvProds);
@@ -192,9 +186,9 @@ FailureOr<Value> convertBasis(
   SmallVector<Value>& mrcs = *maybeMrcs;
 
   SmallVector<mod_arith::ModArithType> maInputBasisTys;
-  for (int i = 0; i < inputBasisTypes.size(); i++) {
-    mod_arith::ModArithType qi =
-        dyn_cast<mod_arith::ModArithType>(inputBasisTypes[i]);
+
+  for (auto [i, basisTy] : llvm::enumerate(inputBasisTy.getBasisTypes())) {
+    auto qi = dyn_cast<mod_arith::ModArithType>(basisTy);
     if (!qi) {
       emitError(b.getLoc()) << "expected source basis limb to be ModArithType";
       return failure();
@@ -239,7 +233,7 @@ FailureOr<Value> convertBasis(
     llvm::DenseMap<APInt, size_t>::const_iterator inputIndexIt =
         inputBasisIndexByModulus.find(targetModulusValue);
     if (inputIndexIt != inputBasisIndexByModulus.end()) {
-      outputLimbs.push_back(rns::ExtractSingleSliceOp::create(
+      outputLimbs.push_back(rns::ExtractResidueOp::create(
           b, x, b.getIndexAttr(inputIndexIt->second)));
       continue;
     }
@@ -294,26 +288,25 @@ LogicalResult ExtractSliceOp::verify() {
   return verifyExtractSliceOp(this, rnsType, start, size);
 }
 
-// verification for ExtractSingleSlice used in both verify and inferReturnType
-static LogicalResult verifyExtractSingleSliceInput(std::optional<Location> loc,
-                                                   Type coeffType,
-                                                   APInt index) {
+// verification for ExtractResidue used in both verify and inferReturnType
+static LogicalResult verifyExtractResidueInput(std::optional<Location> loc,
+                                               Type coeffType, APInt index) {
   RNSType rnsCoeffType = dyn_cast<RNSType>(getElementTypeOrSelf(coeffType));
   if (!rnsCoeffType) return failure();
   int64_t sliceIndex = index.getSExtValue();
 
   int64_t numLimbs = rnsCoeffType.getBasisTypes().size();
   if (sliceIndex < 0 || sliceIndex >= numLimbs) {
-    return emitOptionalError(
-        loc, "'rns.extract_single_slice' index ", sliceIndex,
-        " is out of bounds for an RNS type with ", numLimbs, " limbs");
+    return emitOptionalError(loc, "'rns.extract_residue' index ", sliceIndex,
+                             " is out of bounds for an RNS type with ",
+                             numLimbs, " limbs");
   }
 
   auto limbCoeffType = dyn_cast<mod_arith::ModArithType>(
       rnsCoeffType.getBasisTypes()[sliceIndex]);
   if (!limbCoeffType) {
     return emitOptionalError(loc,
-                             "'rns.extract_single_slice' requires the selected "
+                             "'rns.extract_residue' requires the selected "
                              "RNS limb to have ModArith type, but found ",
                              rnsCoeffType.getBasisTypes()[sliceIndex]);
   }
@@ -321,19 +314,18 @@ static LogicalResult verifyExtractSingleSliceInput(std::optional<Location> loc,
   return success();
 }
 
-LogicalResult ExtractSingleSliceOp::verify() {
-  return verifyExtractSingleSliceInput(getLoc(), getInput().getType(),
-                                       getIndex());
+LogicalResult ExtractResidueOp::verify() {
+  return verifyExtractResidueInput(getLoc(), getInput().getType(), getIndex());
 }
 
-LogicalResult ExtractSingleSliceOp::inferReturnTypes(
+LogicalResult ExtractResidueOp::inferReturnTypes(
     MLIRContext* context, std::optional<Location> loc, ValueRange operands,
     DictionaryAttr attrs, mlir::PropertyRef properties,
     mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
-  ExtractSingleSliceOpAdaptor op(operands, attrs, properties, regions);
+  ExtractResidueOpAdaptor op(operands, attrs, properties, regions);
   Type ty = op.getInput().getType();
   APInt index = op.getIndex();
-  if (failed(verifyExtractSingleSliceInput(loc, ty, index))) {
+  if (failed(verifyExtractResidueInput(loc, ty, index))) {
     return failure();
   }
   int64_t sliceIndex = index.getSExtValue();

@@ -17,13 +17,13 @@ func.func @elementwise_extract_slice(%arg0: tensor<10x!ty_modarith>) -> tensor<1
   return %0 : tensor<10x!ty_truncated>
 }
 
-func.func @test_extract_single_slice(%arg0: !ty_modarith) -> !Zp2 {
-  %0 = rns.extract_single_slice %arg0 {index = 1 : index} : !ty_modarith -> !Zp2
+func.func @test_extract_residue(%arg0: !ty_modarith) -> !Zp2 {
+  %0 = rns.extract_residue %arg0 {index = 1 : index} : !ty_modarith -> !Zp2
   return %0 : !Zp2
 }
 
-func.func @elementwise_extract_single_slice(%arg0: tensor<10x!ty_modarith>) -> tensor<10x!Zp2> {
-  %0 = rns.extract_single_slice %arg0 {index = 1 : index} : tensor<10x!ty_modarith> -> tensor<10x!Zp2>
+func.func @elementwise_extract_residue(%arg0: tensor<10x!ty_modarith>) -> tensor<10x!Zp2> {
+  %0 = rns.extract_residue %arg0 {index = 1 : index} : tensor<10x!ty_modarith> -> tensor<10x!Zp2>
   return %0 : tensor<10x!Zp2>
 }
 
@@ -132,8 +132,8 @@ func.func @test_extract_slice_verifier_oob_start(%arg0: !ty_modarith_verify) {
 !Zp3_verify = !mod_arith.int<3180146689 : i64>
 !ty_modarith_verify = !rns.rns<!Zp1_verify, !Zp2_verify, !Zp3_verify>
 
-func.func @test_extract_single_slice_verifier_oob_index(%arg0: !ty_modarith_verify) {
-  // expected-error@+1 {{'rns.extract_single_slice' index 3 is out of bounds for an RNS type with 3 limbs}}
-  %0 = rns.extract_single_slice %arg0 {index = 3 : index} : !ty_modarith_verify -> !Zp1_verify
+func.func @test_extract_residue_verifier_oob_index(%arg0: !ty_modarith_verify) {
+  // expected-error@+1 {{'rns.extract_residue' index 3 is out of bounds for an RNS type with 3 limbs}}
+  %0 = rns.extract_residue %arg0 {index = 3 : index} : !ty_modarith_verify -> !Zp1_verify
   return
 }
