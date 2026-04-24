@@ -1,4 +1,4 @@
-// RUN: heir-opt --ckks-decompose-keyswitch %s | FileCheck %s
+// RUN: heir-opt --ckks-to-lwe %s | FileCheck %s
 
 !Zq0 = !mod_arith.int<1095233372161 : i64>
 !Zq1 = !mod_arith.int<1032955396097 : i64>
