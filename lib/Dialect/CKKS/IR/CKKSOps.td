@@ -47,7 +47,7 @@ def CKKS_AddOp : CKKS_Op<"add", [ElementwiseMappable, Commutative, SameOperandsA
 }
 
 def CKKS_AddPlainOp : CKKS_CiphertextPlaintextOp<"add_plain", [ElementwiseMappable, AllCiphertextTypesMatch,
-      SameOperandsAndResultPlaintextTypes, Commutative, InferTypeOpAdaptor]> {
+      SameOperandsAndResultPlaintextTypes, Commutative]> {
   let summary = "Addition operation between ciphertext-plaintext.";
   let hasCanonicalizer = 1;
 }
@@ -67,7 +67,7 @@ def CKKS_SubOp : CKKS_Op<"sub", [ElementwiseMappable, SameOperandsAndResultRings
 }
 
 def CKKS_SubPlainOp : CKKS_CiphertextPlaintextOp<"sub_plain", [ElementwiseMappable, AllCiphertextTypesMatch,
-      SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
+      SameOperandsAndResultPlaintextTypes]> {
   let summary = "Subtraction operation between ciphertext-plaintext.";
 }
 
@@ -87,7 +87,7 @@ def CKKS_MulOp : CKKS_Op<"mul", [ElementwiseMappable, Commutative, SameOperandsA
 }
 
 // MulPlain op result ciphertext type could be different from the input
-def CKKS_MulPlainOp : CKKS_CiphertextPlaintextOp<"mul_plain", [ElementwiseMappable, InferTypeOpAdaptor, Commutative]> {
+def CKKS_MulPlainOp : CKKS_CiphertextPlaintextOp<"mul_plain", [ElementwiseMappable, Commutative]> {
   let summary = "Multiplication operation between ciphertext-plaintext.";
   let hasVerifier = 1;
   let hasCanonicalizer = 1;
@@ -226,7 +226,7 @@ def CKKS_BootstrapOp : CKKS_Op<"bootstrap", [ElementwiseMappable, ResetsMulDepth
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
-def CKKS_KeySwitchInnerOp : CKKS_Op<"key_switch_inner", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
+def CKKS_KeySwitchInnerOp : CKKS_Op<"key_switch_inner", [DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
   let summary = "Fundamental key-switching kernel.";
   let description = [{
     The key-switching key is the encryption of a key `s_{in}` under the key `s_{out}`.

@@ -14,6 +14,7 @@
 #include "lib/Dialect/CGGI/Conversions/CGGIToTfheRustBool/CGGIToTfheRustBool.h"
 #include "lib/Dialect/CGGI/IR/CGGIDialect.h"
 #include "lib/Dialect/CGGI/Transforms/Passes.h"
+#include "lib/Dialect/CKKS/Conversions/CKKSToLWE/CKKSToLWE.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/CKKS/Transforms/Passes.h"
 #include "lib/Dialect/Cheddar/IR/CheddarDialect.h"
@@ -400,6 +401,7 @@ int main(int argc, char** argv) {
   // Dialect conversion passes in HEIR
   bgv::registerBGVToLWEPasses();
   lwe::registerLWEToJaxiteWordPasses();
+  ckks::registerCKKSToLWEPasses();
   lwe::registerLWEToLattigoPasses();
   lwe::registerLWEToOpenfhePasses();
   lwe::registerLWEToPolynomialPasses();

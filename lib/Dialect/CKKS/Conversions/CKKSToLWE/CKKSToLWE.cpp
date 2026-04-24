@@ -1,10 +1,9 @@
-#include "lib/Dialect/CKKS/Transforms/CKKSToLWE.h"
+#include "lib/Dialect/CKKS/Conversions/CKKSToLWE/CKKSToLWE.h"
 
 #include <utility>
 
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/CKKS/IR/CKKSOps.h"
-#include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWEPatterns.h"
 #include "lib/Utils/RewriteUtils/RewriteUtils.h"
@@ -13,12 +12,10 @@
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
 
-namespace mlir {
-namespace heir {
-namespace ckks {
+namespace mlir::heir::ckks {
 
 #define GEN_PASS_DEF_CKKSTOLWE
-#include "lib/Dialect/CKKS/Transforms/Passes.h.inc"
+#include "lib/Dialect/CKKS/Conversions/CKKSToLWE/CKKSToLWE.h.inc"
 
 struct CKKSToLWE : public impl::CKKSToLWEBase<CKKSToLWE> {
   void runOnOperation() override {
@@ -35,6 +32,4 @@ struct CKKSToLWE : public impl::CKKSToLWEBase<CKKSToLWE> {
   }
 };
 
-}  // namespace ckks
-}  // namespace heir
-}  // namespace mlir
+}  // namespace mlir::heir::ckks
