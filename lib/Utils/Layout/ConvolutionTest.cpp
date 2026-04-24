@@ -128,6 +128,157 @@ TEST(ConvolutionTest, ConvFilterRelationEvaluate) {
   EXPECT_EQ(packedFilter, expected);
 }
 
+TEST(ConvolutionTest, Conv1dFilterRelationEvaluate) {
+  MLIRContext context;
+  RankedTensorType filterType =
+      RankedTensorType::get({3}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({5}, IndexType::get(&context));
+  int64_t stride = 1;
+  int64_t padding = 1;
+  IntegerRelation convFilterRelation =
+      get1dConvFilterRelation(filterType, dataType, stride, padding);
+
+  std::vector<int> filter = {1, 2, 3};
+  std::vector<std::vector<int>> packedFilter =
+      evaluateLayoutOnVector(convFilterRelation, filter);
+
+  std::vector<std::vector<int>> expected = {
+      {2, 3, 0, 0, 0}, {1, 2, 3, 0, 0}, {0, 1, 2, 3, 0},
+      {0, 0, 1, 2, 3}, {0, 0, 0, 1, 2},
+  };
+  EXPECT_EQ(packedFilter, expected);
+}
+
+TEST(ConvolutionTest, Conv1dFilterRelationEvaluateWithPadding) {
+  MLIRContext context;
+  RankedTensorType filterType =
+      RankedTensorType::get({3}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({3}, IndexType::get(&context));
+  int64_t stride = 1;
+  int64_t padding = 2;
+  IntegerRelation convFilterRelation =
+      get1dConvFilterRelation(filterType, dataType, stride, padding);
+
+  std::vector<int> filter = {1, 2, 3};
+  std::vector<std::vector<int>> packedFilter =
+      evaluateLayoutOnVector(convFilterRelation, filter);
+
+  std::vector<std::vector<int>> expected = {
+      {3, 0, 0}, {2, 3, 0}, {1, 2, 3}, {0, 1, 2}, {0, 0, 1},
+  };
+  EXPECT_EQ(packedFilter, expected);
+}
+
+TEST(ConvolutionTest, Conv1dFilterRelationEvaluateEvenSizedKernel) {
+  MLIRContext context;
+  RankedTensorType filterType =
+      RankedTensorType::get({4}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({5}, IndexType::get(&context));
+  int64_t stride = 1;
+  int64_t padding = 1;
+  IntegerRelation convFilterRelation =
+      get1dConvFilterRelation(filterType, dataType, stride, padding);
+
+  std::vector<int> filter = {1, 2, 3, 4};
+  std::vector<std::vector<int>> packedFilter =
+      evaluateLayoutOnVector(convFilterRelation, filter);
+
+  std::vector<std::vector<int>> expected = {
+      {2, 3, 4, 0, 0},
+      {1, 2, 3, 4, 0},
+      {0, 1, 2, 3, 4},
+      {0, 0, 1, 2, 3},
+  };
+  EXPECT_EQ(packedFilter, expected);
+}
+
+TEST(ConvolutionTest, Conv1dFilterRelationEvaluateStridedEvenSizedKernel) {
+  MLIRContext context;
+  RankedTensorType filterType =
+      RankedTensorType::get({2}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({6}, IndexType::get(&context));
+  int64_t stride = 3;
+  int64_t padding = 0;
+  IntegerRelation convFilterRelation =
+      get1dConvFilterRelation(filterType, dataType, stride, padding);
+
+  std::vector<int> filter = {1, 2};
+  std::vector<std::vector<int>> packedFilter =
+      evaluateLayoutOnVector(convFilterRelation, filter);
+
+  std::vector<std::vector<int>> expected = {
+      {1, 2, 0, 0, 0, 0},
+      {0, 0, 0, 1, 2, 0},
+  };
+  EXPECT_EQ(packedFilter, expected);
+}
+
+TEST(ConvolutionTest, Conv1dFilterRelationEvaluateWithStride) {
+  MLIRContext context;
+  RankedTensorType filterType =
+      RankedTensorType::get({3}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({6}, IndexType::get(&context));
+  int64_t stride = 2;
+  int64_t padding = 1;
+  IntegerRelation convFilterRelation =
+      get1dConvFilterRelation(filterType, dataType, stride, padding);
+
+  std::vector<int> filter = {1, 2, 3};
+  std::vector<std::vector<int>> packedFilter =
+      evaluateLayoutOnVector(convFilterRelation, filter);
+
+  std::vector<std::vector<int>> expected = {
+      {2, 3, 0, 0, 0, 0},
+      {0, 1, 2, 3, 0, 0},
+      {0, 0, 0, 1, 2, 3},
+  };
+  EXPECT_EQ(packedFilter, expected);
+}
+
+TEST(ConvolutionTest, Conv1dFilterRelationEvaluateExpanded) {
+  MLIRContext context;
+  RankedTensorType filterType =
+      RankedTensorType::get({3}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({6}, IndexType::get(&context));
+  int64_t stride = 1;
+  int64_t padding = 1;
+  IntegerRelation convFilterRelation =
+      get1dConvFilterRelation(filterType, dataType, stride, padding);
+
+  std::vector<int> filter = {1, 2, 3};
+  std::vector<std::vector<int>> packedFilter =
+      evaluateLayoutOnVector(convFilterRelation, filter);
+
+  std::vector<std::vector<int>> expected = {
+      {2, 3, 0, 0, 0, 0},
+      {1, 2, 3, 0, 0, 0},
+      {0, 1, 2, 3, 0, 0},
+      {0, 0, 1, 2, 3, 0},
+      {0, 0, 0, 1, 2, 3},
+      {
+          0,
+          0,
+          0,
+          0,
+          1,
+          2,
+      },
+  };
+
+  RankedTensorType expanded =
+      get1dConvFilterExpandedType(filterType, dataType, stride, padding);
+
+  EXPECT_EQ(packedFilter, expected);
+  EXPECT_EQ(expanded.getDimSize(0), expected.size());
+  EXPECT_EQ(expanded.getDimSize(1), expected[0].size());
+}
+
 TEST(ConvolutionTest, ConvFilterRelationEvaluateStrided) {
   MLIRContext context;
   RankedTensorType filterType =

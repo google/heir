@@ -136,10 +136,9 @@ TEST_P(KernelImplementationTest, Test2DConvWithLayout) {
   std::vector<std::vector<int>> packedFilter =
       evaluateLayoutOnMatrix(filterLayout, matrix);
 
-  auto matrixLayout =
-      get2dConvFilterDiagonalizedRelation(filterType, dataType,
-                                          /*padding=*/0, numSlots)
-          .value();
+  auto matrixLayout = getConvFilterDiagonalizedRelation(filterType, dataType,
+                                                        /*padding=*/0, numSlots)
+                          .value();
   std::vector<std::vector<int>> packedMatrix =
       evaluateLayoutOnMatrix(matrixLayout, matrix);
   RankedTensorType expandedMatrixType =

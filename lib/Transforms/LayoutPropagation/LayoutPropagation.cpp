@@ -625,14 +625,14 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DOp op) {
   // The kernel for this operation requires expanding the conv filter matrix
   // into a larger matrix and then diagonalizing.
   LayoutAttr filterLayout = assignedLayouts.at(filter);
-  if (!isRelation2dConvFilterDiagonalized(filterType, dataType, /*padding=*/0,
-                                          ciphertextSize,
-                                          filterLayout.getIntegerRelation())) {
+  if (!isRelationConvFilterDiagonalized(filterType, dataType, /*padding=*/0,
+                                        ciphertextSize,
+                                        filterLayout.getIntegerRelation())) {
     LLVM_DEBUG(llvm::dbgs() << "conv_2d filter input is not diagonalized, "
                                "inserting layout conversion.\n");
     // Insert a layout conversion op to make the matrix layout expanded and
     // squat diagonal
-    auto convRelation = get2dConvFilterDiagonalizedRelation(
+    auto convRelation = getConvFilterDiagonalizedRelation(
         filterType, dataType, /*padding=*/0, ciphertextSize);
     if (failed(convRelation)) {
       return failure();

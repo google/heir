@@ -131,6 +131,107 @@ presburger::IntegerRelation get2dConvFilterRelation(RankedTensorType filterType,
   return result;
 }
 
+presburger::IntegerRelation matrixRowStridingRelation(int64_t rowSize,
+                                                      int64_t colSize,
+                                                      int64_t stride) {
+  IntegerRelation result(PresburgerSpace::getRelationSpace(
+      2, /*numRange=*/2, /*numSymbol=*/0, /*numLocals=*/1));
+
+  // Initial row and column indices
+  auto matRow = result.getVarKindOffset(VarKind::Domain);
+  auto matCol = result.getVarKindOffset(VarKind::Domain) + 1;
+
+  auto resultRow = result.getVarKindOffset(VarKind::Range);
+  auto resultCol = result.getVarKindOffset(VarKind::Range) + 1;
+
+  addBounds(result, matRow, 0, rowSize);
+  addBounds(result, matCol, 0, colSize);
+
+  // Only pick rows whose index is divisible by stride:
+  // matRow = stride *resultRow
+  addConstraint(result, {{matRow, 1}, {resultRow, -stride}}, true);
+  // Keep all the columns
+  addConstraint(result, {{matCol, 1}, {resultCol, -1}}, true);
+  return result;
+}
+
+// We iterate over i the position of the start of the filter over the data
+// (starting from -padding and with 0 indexing over the data)
+//
+// -padding <= i <= dataSize - filterSize + padding
+//
+// matRow = padding + i (hence matRow <=  dataSize - kernelSize + 2*padding)
+//
+// matCol = i + filterIndex
+presburger::IntegerRelation get1dConvFilterRelation(RankedTensorType filterType,
+                                                    RankedTensorType dataType,
+                                                    int64_t stride,
+                                                    int64_t padding) {
+  auto domainSize = filterType.getRank();
+  assert(domainSize == 1 && "expected 1-D filter matrix");
+
+  IntegerRelation result(PresburgerSpace::getRelationSpace(
+      domainSize, /*numRange=*/2, /*numSymbol=*/0, /*numLocals=*/1));
+
+  auto filterIndex = result.getVarKindOffset(VarKind::Domain);
+
+  // Matrix row and column indices
+  auto matRow = result.getVarKindOffset(VarKind::Range);
+  auto matCol = result.getVarKindOffset(VarKind::Range) + 1;
+
+  auto i = result.getVarKindOffset(VarKind::Local);
+
+  // Constant coefficient
+  auto constCoeff = result.getNumCols() - 1;
+
+  // Filter, datasize
+  auto filterSize = filterType.getDimSize(0);
+  auto dataSize = dataType.getDimSize(0);
+
+  // The maximum values for the sliding window indices.
+  auto slidingSize = dataSize + padding - filterSize;
+
+  // Add bounds for the filter matrix dimensions.
+  addBounds(result, filterIndex, 0, filterSize - 1);
+
+  // Add bounds for the sliding window indices.
+  addBounds(result, i, -padding, slidingSize);
+
+  // Add bound for the column index
+  addBounds(result, matCol, 0, dataSize - 1);
+
+  addBounds(result, matRow, 0, slidingSize + padding);
+
+  // Note that i starts at -padding
+  // matRow = i + padding
+  addConstraint(result, {{matRow, 1}, {i, -1}, {constCoeff, -padding}}, true);
+  // matCol = i + filterIndex
+  addConstraint(
+      result, {{matCol, 1}, {i, -1}, {filterIndex, -1}, {constCoeff, 0}}, true);
+
+  if (stride > 1) {
+    auto rowSelector =
+        matrixRowStridingRelation(slidingSize + padding, dataSize - 1, stride);
+    result.applyRange(rowSelector);
+  }
+
+  return result;
+}
+
+RankedTensorType get1dConvFilterExpandedType(RankedTensorType filterType,
+                                             RankedTensorType dataType,
+                                             int64_t stride, int64_t padding) {
+  auto filterSize = filterType.getDimSize(0);
+  auto dataSize = dataType.getDimSize(0);
+
+  int64_t rows = (dataSize + 2 * padding - filterSize) / stride + 1;
+
+  // Number of columns will be the number of data elements.
+  int64_t cols = dataSize;
+
+  return RankedTensorType::get({rows, cols}, filterType.getElementType());
+}
+
 RankedTensorType get2dConvFilterExpandedType(RankedTensorType filterType,
                                              RankedTensorType dataType,
                                              int64_t padding,
@@ -244,14 +345,20 @@ presburger::IntegerRelation get2dConvChwFchwFilterRelation(
   return singleFilterRelation;
 }
 
-FailureOr<presburger::IntegerRelation> get2dConvFilterDiagonalizedRelation(
+FailureOr<presburger::IntegerRelation> getConvFilterDiagonalizedRelation(
     RankedTensorType filterType, RankedTensorType dataType, int64_t padding,
     int64_t ciphertextSize) {
+  if (filterType.getRank() == 1) {
+    int64_t stride = 1;
+    auto filterRelation =
+        get1dConvFilterRelation(filterType, dataType, stride, padding);
+    return diagonalize2dMatrix(filterRelation, filterType, ciphertextSize);
+  }
+  if (filterType.getRank() != 2) return failure();
   SmallVector<int64_t> strides = {1, 1};
-  auto expandedFilterRelation =
+  auto filterRelation =
       get2dConvFilterRelation(filterType, dataType, strides, padding);
-  return diagonalize2dMatrix(expandedFilterRelation, filterType,
-                             ciphertextSize);
+  return diagonalize2dMatrix(filterRelation, filterType, ciphertextSize);
 }
 
 FailureOr<presburger::IntegerRelation>
@@ -286,10 +393,10 @@ get2dConvChwFchwFilterDiagonalizedRelation(RankedTensorType filterType,
                              ciphertextSize);
 }
 
-bool isRelation2dConvFilterDiagonalized(
+bool isRelationConvFilterDiagonalized(
     RankedTensorType filterType, RankedTensorType dataType, int64_t padding,
     int64_t ciphertextSize, const presburger::IntegerRelation& relation) {
-  auto diagonalizedRelation = get2dConvFilterDiagonalizedRelation(
+  auto diagonalizedRelation = getConvFilterDiagonalizedRelation(
       filterType, dataType, padding, ciphertextSize);
   if (failed(diagonalizedRelation)) {
     return false;
