@@ -12,7 +12,6 @@
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Parameters/CKKS/Params.h"
-#include "lib/Utils/RewriteUtils/RewriteUtils.h"
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
@@ -20,18 +19,36 @@
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
-#include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
+#include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
 namespace mlir::heir::ckks {
 
 #define GEN_PASS_DEF_CKKSTOLWE
 #include "lib/Dialect/CKKS/Conversions/CKKSToLWE/CKKSToLWE.h.inc"
 
-struct ConvertKeySwitchInner : public OpRewritePattern<KeySwitchInnerOp> {
-  using OpRewritePattern<KeySwitchInnerOp>::OpRewritePattern;
+template <typename OriginalOp, typename NewOp>
+struct ConvertOp : public OpConversionPattern<OriginalOp> {
+  using OpConversionPattern<OriginalOp>::OpConversionPattern;
 
-  LogicalResult matchAndRewrite(KeySwitchInnerOp op,
-                                PatternRewriter& rewriter) const override {
+  LogicalResult matchAndRewrite(
+      OriginalOp op, typename OriginalOp::Adaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    OperationState state(op.getLoc(), NewOp::getOperationName());
+    state.addOperands(adaptor.getOperands());
+    state.addAttributes(op->getAttrs());
+    state.addTypes(op->getResultTypes());
+    Operation* newOp = rewriter.create(state);
+    rewriter.replaceOp(op, newOp->getResults());
+    return success();
+  }
+};
+
+struct ConvertKeySwitchInner : public OpConversionPattern<KeySwitchInnerOp> {
+  using OpConversionPattern<KeySwitchInnerOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      KeySwitchInnerOp op, KeySwitchInnerOp::Adaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     SchemeParamAttr schemeParamAttr =
@@ -64,12 +81,12 @@ struct ConvertKeySwitchInner : public OpRewritePattern<KeySwitchInnerOp> {
     SmallVector<Value> partitions;
     for (int i = 0; i < numFullPartitions; ++i) {
       partitions.push_back(lwe::ExtractSliceOp::create(
-          b, op.getValue(), b.getIndexAttr(i * partSize),
+          b, adaptor.getValue(), b.getIndexAttr(i * partSize),
           b.getIndexAttr(partSize)));
     }
     if (extraPartSize > 0) {
       partitions.push_back(lwe::ExtractSliceOp::create(
-          b, op.getValue(), b.getIndexAttr(extraPartStart),
+          b, adaptor.getValue(), b.getIndexAttr(extraPartStart),
           b.getIndexAttr(extraPartSize)));
     }
 
@@ -93,7 +110,8 @@ struct ConvertKeySwitchInner : public OpRewritePattern<KeySwitchInnerOp> {
     Value sum;
     for (int i = 0; i < k; i++) {
       Value idx = arith::ConstantIndexOp::create(b, i).getResult();
-      Value ksk = tensor::ExtractOp::create(b, op.getKeySwitchingKey(), idx);
+      Value ksk =
+          tensor::ExtractOp::create(b, adaptor.getKeySwitchingKey(), idx);
       Value prod = lwe::RMulRingEltOp::create(b, extendedPartitions[i], ksk);
       if (i == 0) {
         sum = prod;
@@ -119,14 +137,28 @@ struct CKKSToLWE : public impl::CKKSToLWEBase<CKKSToLWE> {
     MLIRContext* context = &getContext();
     auto* module = getOperation();
 
+    ConversionTarget target(*context);
+    target.addLegalDialect<arith::ArithDialect, ckks::CKKSDialect,
+                           lwe::LWEDialect, tensor::TensorDialect>();
+    target.addLegalOp<ModuleOp>();
+    target.markUnknownOpDynamicallyLegal([](Operation*) { return true; });
+    target.addIllegalOp<AddOp, AddPlainOp, SubOp, SubPlainOp, NegateOp, MulOp,
+                        MulPlainOp, KeySwitchInnerOp>();
+
     RewritePatternSet patterns(context);
-    patterns
-        .add<ConvertKeySwitchInner, Convert<AddOp, lwe::RAddOp>,
-             Convert<AddPlainOp, lwe::RAddPlainOp>, Convert<SubOp, lwe::RSubOp>,
-             Convert<SubPlainOp, lwe::RSubPlainOp>,
-             Convert<NegateOp, lwe::RNegateOp>, Convert<MulOp, lwe::RMulOp>,
-             Convert<MulPlainOp, lwe::RMulPlainOp>>(context);
-    walkAndApplyPatterns(module, std::move(patterns));
+    patterns.add<
+        ConvertKeySwitchInner, ConvertOp<AddOp, lwe::RAddOp>,
+        ConvertOp<AddPlainOp, lwe::RAddPlainOp>, ConvertOp<SubOp, lwe::RSubOp>,
+        ConvertOp<SubPlainOp, lwe::RSubPlainOp>,
+        ConvertOp<NegateOp, lwe::RNegateOp>, ConvertOp<MulOp, lwe::RMulOp>,
+        ConvertOp<MulPlainOp, lwe::RMulPlainOp>>(context);
+
+    ConversionConfig config;
+    config.allowPatternRollback = false;
+    if (failed(
+            applyFullConversion(module, target, std::move(patterns), config))) {
+      return signalPassFailure();
+    }
   }
 };
 
