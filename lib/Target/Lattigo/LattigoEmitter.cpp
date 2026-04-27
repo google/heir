@@ -96,7 +96,8 @@ LogicalResult LattigoEmitter::translate(Operation& op) {
                 arith::RemSIOp, arith::AddIOp, arith::AddFOp, arith::AndIOp,
                 arith::SubIOp, arith::SubFOp, arith::MaxSIOp, arith::MinSIOp,
                 arith::MulIOp, arith::MulFOp, arith::DivSIOp, arith::DivFOp,
-                arith::NegFOp, arith::CmpIOp, arith::CmpFOp, arith::SelectOp>(
+                arith::NegFOp, arith::OrIOp, arith::XOrIOp, arith::CmpIOp,
+                arith::CmpFOp, arith::SelectOp>(
               [&](auto op) { return printOperation(op); })
           // SCF ops
           .Case<scf::IfOp, scf::ForOp, scf::YieldOp>(
@@ -687,7 +688,21 @@ LogicalResult LattigoEmitter::printOperation(arith::ExtFOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(arith::FloorDivSIOp op) {
-  return printBinaryOp(op, op.getLhs(), op.getRhs(), "/");
+  imports.insert(std::string(kMathImport));
+
+  Value lhs = op.getLhs();
+  Value rhs = op.getRhs();
+  Value result = op.getResult();
+
+  auto eltTy = getElementTypeOrSelf(result.getType());
+  auto eltTyStr = convertType(eltTy);
+  if (failed(eltTyStr)) return failure();
+
+  return printTensorOrScalarBinOp(
+      op, lhs, rhs, [&](std::string_view l, std::string_view r) {
+        return eltTyStr.value() + "(math.Floor(float64(" + std::string(l) +
+               ") / float64(" + std::string(r) + ")))";
+      });
 }
 
 LogicalResult LattigoEmitter::printOperation(arith::IndexCastOp op) {
@@ -697,27 +712,11 @@ LogicalResult LattigoEmitter::printOperation(arith::IndexCastOp op) {
 LogicalResult LattigoEmitter::printBinaryOp(Operation* op, ::mlir::Value lhs,
                                             ::mlir::Value rhs,
                                             std::string_view opName) {
-  assert(op->getNumResults() == 1 && "Expected single-result op!");
-  Value result = op->getResult(0);
-  if (auto tensorTy = dyn_cast<RankedTensorType>(result.getType())) {
-    std::string resultName = getName(result);
-    auto res = convertType(tensorTy);
-    if (failed(res)) return failure();
-
-    os << resultName << " := make(" << res.value() << ", "
-       << tensorTy.getNumElements() << ")\n";
-    os << "for i := range " << resultName << " {\n";
-    os.indent();
-    os << resultName << "[i] = " << getName(lhs) << "[i] " << opName << " "
-       << getName(rhs) << "[i]\n";
-    os.unindent();
-    os << "}\n";
-    return success();
-  }
-
-  os << getName(result) << " := " << getName(lhs) << " " << opName << " "
-     << getName(rhs) << "\n";
-  return success();
+  return printTensorOrScalarBinOp(
+      op, lhs, rhs, [&](std::string_view l, std::string_view r) {
+        return std::string(l) + " " + std::string(opName) + " " +
+               std::string(r);
+      });
 }
 
 // Lowerings of ops like affine.apply involve scalar cleartext types
@@ -737,8 +736,22 @@ LogicalResult LattigoEmitter::printFunctionalBinop(Operation* op,
                                                    ::mlir::Value lhs,
                                                    ::mlir::Value rhs,
                                                    std::string_view opName) {
-  Value result = op->getResults()[0];
+  return printTensorOrScalarBinOp(
+      op, lhs, rhs, [&](std::string_view l, std::string_view r) {
+        return std::string(opName) + "(" + std::string(l) + ", " +
+               std::string(r) + ")";
+      });
+}
+
+LogicalResult LattigoEmitter::printTensorOrScalarBinOp(
+    Operation* op, ::mlir::Value lhs, ::mlir::Value rhs,
+    std::function<std::string(std::string_view, std::string_view)> emitExpr) {
+  assert(op->getNumResults() == 1 && "Expected single-result op!");
+  ::mlir::Value result = op->getResult(0);
   std::string resultName = getName(result);
+  std::string lhsName = getName(lhs);
+  std::string rhsName = getName(rhs);
+
   if (auto tensorTy = dyn_cast<RankedTensorType>(result.getType())) {
     auto res = convertType(tensorTy);
     if (failed(res)) return failure();
@@ -747,15 +760,17 @@ LogicalResult LattigoEmitter::printFunctionalBinop(Operation* op,
        << tensorTy.getNumElements() << ")\n";
     os << "for i := range " << resultName << " {\n";
     os.indent();
-    os << resultName << "[i] = " << opName << "(" << getName(lhs) << "[i], "
-       << getName(rhs) << "[i])\n";
+
+    std::string lhsIndexed = lhsName + "[i]";
+    std::string rhsIndexed = rhsName + "[i]";
+    os << resultName << "[i] = " << emitExpr(lhsIndexed, rhsIndexed) << "\n";
+
     os.unindent();
     os << "}\n";
     return success();
   }
 
-  os << resultName << " := " << opName << "(" << getName(lhs) << ", "
-     << getName(rhs) << ")\n";
+  os << resultName << " := " << emitExpr(lhsName, rhsName) << "\n";
   return success();
 }
 
@@ -794,6 +809,14 @@ LogicalResult LattigoEmitter::printOperation(arith::DivFOp op) {
 LogicalResult LattigoEmitter::printOperation(arith::NegFOp op) {
   os << getName(op.getResult()) << " := -" << getName(op.getOperand()) << "\n";
   return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(arith::OrIOp op) {
+  return printBinaryOp(op, op.getLhs(), op.getRhs(), "|");
+}
+
+LogicalResult LattigoEmitter::printOperation(arith::XOrIOp op) {
+  return printBinaryOp(op, op.getLhs(), op.getRhs(), "^");
 }
 
 LogicalResult LattigoEmitter::printOperation(arith::RemSIOp op) {

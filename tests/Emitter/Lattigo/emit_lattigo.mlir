@@ -422,3 +422,27 @@ module attributes {scheme.bgv} {
     return %0 : tensor<8xi32>
   }
 }
+
+// -----
+
+module attributes {scheme.bgv} {
+  // CHECK: func floor_div
+  func.func @floor_div(%arg0: i32, %arg1: i32) -> i32 {
+    // CHECK: math.Floor(float64({{.*}}) / float64({{.*}}))
+    %0 = arith.floordivsi %arg0, %arg1 : i32
+    return %0 : i32
+  }
+}
+
+// -----
+
+module attributes {scheme.bgv} {
+  // CHECK: func floor_div_tensor
+  func.func @floor_div_tensor(%arg0: tensor<4xi32>, %arg1: tensor<4xi32>) -> tensor<4xi32> {
+    // CHECK: for {{.*}} := range {{.*}} {
+    // CHECK:   math.Floor(float64({{.*}}) / float64({{.*}}))
+    // CHECK: }
+    %0 = arith.floordivsi %arg0, %arg1 : tensor<4xi32>
+    return %0 : tensor<4xi32>
+  }
+}

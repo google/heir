@@ -81,6 +81,9 @@ class LattigoEmitter {
   LogicalResult printFunctionalBinop(Operation* op, ::mlir::Value lhs,
                                      ::mlir::Value rhs,
                                      std::string_view opName);
+  LogicalResult printTensorOrScalarBinOp(
+      Operation* op, Value lhs, Value rhs,
+      std::function<std::string(std::string_view, std::string_view)> emitExpr);
   // General typecast helper
   LogicalResult typecast(Value operand, Value result, bool isSigned = false);
   // emit an if statement
@@ -110,10 +113,12 @@ class LattigoEmitter {
   LogicalResult printOperation(::mlir::arith::MaxSIOp op);
   LogicalResult printOperation(::mlir::arith::MinSIOp op);
   LogicalResult printOperation(::mlir::arith::NegFOp op);
+  LogicalResult printOperation(::mlir::arith::OrIOp op);
   LogicalResult printOperation(::mlir::arith::RemSIOp op);
   LogicalResult printOperation(::mlir::arith::SelectOp op);
   LogicalResult printOperation(::mlir::arith::SubIOp op);
   LogicalResult printOperation(::mlir::arith::SubFOp op);
+  LogicalResult printOperation(::mlir::arith::XOrIOp op);
   LogicalResult printOperation(::mlir::func::CallOp op);
   LogicalResult printOperation(::mlir::func::FuncOp op);
   LogicalResult printOperation(::mlir::func::ReturnOp op);
