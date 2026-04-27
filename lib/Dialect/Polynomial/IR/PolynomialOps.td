@@ -199,7 +199,7 @@ def Polynomial_MonicMonomialMulOp: Polynomial_Op<"monic_monomial_mul", [AllTypes
   let results = (outs PolynomialLike:$output);
 }
 
-def Polynomial_FromTensorOp : Polynomial_Op<"from_tensor", [Pure]> {
+def Polynomial_FromTensorOp : Polynomial_Op<"from_tensor", [Pure, SameOperandsAndResultForm]> {
   let summary = "Creates a polynomial from integer coefficients or evaluations stored in a tensor.";
   let description = [{
     `polynomial.from_tensor` creates a polynomial value from a tensor of
@@ -236,7 +236,7 @@ def Polynomial_FromTensorOp : Polynomial_Op<"from_tensor", [Pure]> {
   let hasVerifier = 1;
 }
 
-def Polynomial_ToTensorOp : Polynomial_Op<"to_tensor", [Pure]> {
+def Polynomial_ToTensorOp : Polynomial_Op<"to_tensor", [Pure, SameOperandsAndResultForm]> {
   let summary = "Creates a tensor containing the coefficients or evaluations of a polynomial.";
   let description = [{
     `polynomial.to_tensor` creates a dense tensor value containing the
@@ -290,7 +290,6 @@ def Polynomial_ModSwitchOp : Polynomial_Op<"mod_switch", [Pure, SameOperandsAndR
   let assemblyFormat = "$input attr-dict `:` type($input) `to` type($output)";
   let hasVerifier = 1;
 }
-
 
 def Polynomial_AnyTypedPolynomialAttr : AnyAttrOf<[
   Polynomial_TypedFloatPolynomialAttr,
@@ -441,7 +440,7 @@ def Polynomial_YieldOp : Polynomial_Op<"yield", [Terminator, HasParent<"ApplyCoe
 }
 
 def Polynomial_ApplyCoefficientwiseOp : Polynomial_Op<"apply_coefficientwise", [
-    Pure, SingleBlock]> {
+    Pure, SingleBlock, FixedFormCoeff]> {
   let summary = "Apply a region to each coefficient of a polynomial.";
   let description = [{
     `polynomial.apply_coefficientwise` takes a polynomial and applies a series
