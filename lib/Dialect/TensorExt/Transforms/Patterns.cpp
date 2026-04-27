@@ -5,9 +5,10 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Utils/AttributeUtils.h"
-#include "mlir/include/mlir/IR/PatternMatch.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"         // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -33,8 +34,15 @@ LogicalResult FoldConvertLayoutIntoAssignLayoutPattern::matchAndRewrite(
         continue;
       }
 
-      auto newOp = rewriter.replaceOpWithNewOp<AssignLayoutOp>(
-          convertLayoutOp, op.getValue(), convertLayoutOp.getToLayout());
+      DenseI64ArrayAttr domainSchedule =
+          !convertLayoutOp.getDomainSchedule().empty()
+              ? convertLayoutOp.getDomainScheduleAttr()
+              : op.getDomainScheduleAttr();
+
+      auto newOp = AssignLayoutOp::create(
+          rewriter, convertLayoutOp.getLoc(), op.getValue(),
+          convertLayoutOp.getToLayout(), domainSchedule);
+      rewriter.replaceOp(convertLayoutOp, newOp.getResult());
       // Ensure the newOp has its layout attribute properly set
       setAttributeAssociatedWith(newOp.getResult(),
                                  TensorExtDialect::kLayoutAttrName,

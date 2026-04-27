@@ -110,10 +110,20 @@ def TensorExt_ConvertLayoutOp : TensorExt_Op<"convert_layout", [Pure, AllTypesMa
     plaintext masks (ciphertext-plaintext multiplications), and additions.
 
     This op is inserted by layout selection passes.
+
+    The optional `domainSchedule` attribute specifies which extra domain
+    dimensions should be part of the loop nest schedule when lowering. Generated
+    loops nests are only used when the layout conversion is used for a plaintext
+    layout assignment. See `tensor_ext.assign_layout` for more details.
   }];
 
   let assemblyFormat = "operands attr-dict `:` type($output)";
-  let arguments = (ins AnyType:$value, LayoutLike:$from_layout, LayoutLike:$to_layout);
+  let arguments = (ins
+      AnyType:$value,
+      LayoutLike:$from_layout,
+      LayoutLike:$to_layout,
+      DefaultValuedAttr<DenseI64ArrayAttr, "{}">:$domainSchedule
+  );
   let results = (outs AnyType:$output);
   let hasVerifier = 1;
   let hasFolder = 1;
@@ -130,10 +140,20 @@ def TensorExt_AssignLayoutOp : TensorExt_Op<"assign_layout", [Pure, AllTypesMatc
     lowered as ciphertext-plaintext ops.
 
     This op is inserted by layout selection passes.
+
+    The optional `domainSchedule` attribute specifies which domain dimensions
+    should be part of the loop nest schedule when lowering. The range dimensions
+    are always included. Adding extra domain indices to the loop schedule will
+    help ISL generate a loop nest more efficiently, but comes at the tradeoff of
+    a slower generated loop nest.
   }];
 
   let assemblyFormat = "operands attr-dict `:` type($output)";
-  let arguments = (ins AnyType:$value, LayoutLike:$layout);
+  let arguments = (ins
+      AnyType:$value,
+      LayoutLike:$layout,
+      DefaultValuedAttr<DenseI64ArrayAttr, "{}">:$domainSchedule
+  );
   let results = (outs AnyType:$output);
   let hasVerifier = 1;
 }

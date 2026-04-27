@@ -111,11 +111,13 @@ void debugAssignLayout(Value value, LayoutAttr layout) {
 
 std::pair<Value, LayoutAttr> convertToLayout(
     MLIRContext* ctx, mlir::IRRewriter& builder, Operation* op, Value value,
-    LayoutAttr oldLayout, const IntegerRelation& newRelation) {
+    LayoutAttr oldLayout, const IntegerRelation& newRelation,
+    ArrayRef<int64_t> domainSchedule = {}) {
   builder.setInsertionPoint(op);
   LayoutAttr layoutAttr = LayoutAttr::getFromIntegerRelation(ctx, newRelation);
   ConvertLayoutOp convertLayoutOp = ConvertLayoutOp::create(
-      builder, op->getLoc(), value, oldLayout, layoutAttr);
+      builder, op->getLoc(), value, oldLayout, layoutAttr,
+      builder.getDenseI64ArrayAttr(domainSchedule));
   convertLayoutOp->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName,
                            layoutAttr);
   Value toReplace = convertLayoutOp.getResult();
@@ -722,9 +724,13 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
                                "inserting layout conversion.\n");
 
     // Insert a layout conversion op to make the matrix layout expanded and
-    // squat diagonal
+    // squat diagonal. The added domain schedule ensures ISL can efficiently
+    // generate a loop nest implementing the layout. However, the choice of
+    // which domain indices to include is arbitrary (so long as ISL remains
+    // fast).
     auto [toReplace, newFilterLayoutAttr] = convertToLayout(
-        ctx, builder, op, filter, filterLayout, convRelation.value());
+        ctx, builder, op, filter, filterLayout, convRelation.value(),
+        /*domainSchedule=*/{0, 1});
     debugAssignLayout(toReplace, newFilterLayoutAttr);
     assignedLayouts.insert({toReplace, newFilterLayoutAttr});
   }

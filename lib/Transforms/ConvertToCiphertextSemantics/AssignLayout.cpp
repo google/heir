@@ -10,6 +10,7 @@
 #include "lib/Utils/Layout/Utils.h"
 #include "llvm/include/llvm/ADT/DynamicAPInt.h"     // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"      // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/FlatLinearValueConstraints.h"  // from @llvm-project
@@ -48,7 +49,8 @@ static std::string printRelation(const IntegerRelation& rel) {
 static FailureOr<Value> implementAssignLayoutNew(
     Value input, LayoutAttr layout, int64_t ciphertextSize,
     ImplicitLocOpBuilder& builder,
-    const std::function<void(Operation*)>& createdOpCallback) {
+    const std::function<void(Operation*)>& createdOpCallback,
+    ArrayRef<int64_t> domainSchedule = {}) {
   IntegerRelation rel = layout.getIntegerRelation();
 
   RankedTensorType dataSemanticType =
@@ -106,7 +108,10 @@ static FailureOr<Value> implementAssignLayoutNew(
   TypedValue<RankedTensorType> ciphertextTensor =
       cast<TypedValue<RankedTensorType>>(zeroOp.getResult());
   MLIRLoopNestGenerator generator(builder, createdOpCallback);
-  auto loopNestCstr = generateLoopNestAsCStr(rel);
+
+  SmallVector<int> domainIndices = llvm::to_vector(llvm::map_range(
+      domainSchedule, [](int64_t idx) { return static_cast<int>(idx); }));
+  auto loopNestCstr = generateLoopNestAsCStr(rel, domainIndices);
   if (failed(loopNestCstr)) {
     return builder.emitError() << "Failed to generate loop nest for relation "
                                << printRelation(rel);
@@ -141,7 +146,8 @@ static FailureOr<Value> implementAssignLayoutNew(
         auto inserted = tensor::InsertOp::create(builder, loc, extracted,
                                                  iterArgs[0], insertIndices);
         return scf::ValueVector({inserted});
-      });
+      },
+      domainIndices);
   if (failed(loop)) {
     return builder.emitError() << "Failed to generate loop nest for relation "
                                << printRelation(rel);
@@ -293,11 +299,12 @@ static FailureOr<Value> implementAssignLayoutPermutation(
 FailureOr<Value> implementAssignLayout(
     Value input, Attribute layout, int64_t ciphertextSize,
     ImplicitLocOpBuilder& builder,
-    const std::function<void(Operation*)>& createdOpCallback) {
+    const std::function<void(Operation*)>& createdOpCallback,
+    ArrayRef<int64_t> domainSchedule) {
   OpBuilder::InsertionGuard guard(builder);
   if (LayoutAttr layoutAttr = dyn_cast<LayoutAttr>(layout)) {
     return implementAssignLayoutNew(input, layoutAttr, ciphertextSize, builder,
-                                    createdOpCallback);
+                                    createdOpCallback, domainSchedule);
   } else if (DenseIntElementsAttr elementAttr =
                  dyn_cast<DenseIntElementsAttr>(layout)) {
     return implementAssignLayoutPermutation(input, elementAttr, ciphertextSize,

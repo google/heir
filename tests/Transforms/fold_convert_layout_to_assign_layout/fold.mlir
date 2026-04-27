@@ -24,3 +24,27 @@ func.func @fold_multiple(%arg0 : tensor<16x16xi16>) -> (tensor<16x16xi16>, tenso
   %2 = tensor_ext.convert_layout %0 {from_layout = #row_major_matrix, to_layout = #col_major_matrix2} : tensor<16x16xi16>
   return %1, %2 : tensor<16x16xi16>, tensor<16x16xi16>
 }
+
+// CHECK: @assign_layout_with_schedule
+func.func @assign_layout_with_schedule(%arg0 : tensor<16x16xi16>) -> tensor<16x16xi16> {
+  // CHECK: tensor_ext.assign_layout {{.*}}domainSchedule = array<i64: 1, 0>
+  %0 = tensor_ext.assign_layout %arg0 {layout = #row_major_matrix, domainSchedule = array<i64: 1, 0>} : tensor<16x16xi16>
+  %1 = tensor_ext.convert_layout %0 {from_layout = #row_major_matrix, to_layout = #col_major_matrix} : tensor<16x16xi16>
+  return %1 : tensor<16x16xi16>
+}
+
+// CHECK: @convert_layout_with_schedule
+func.func @convert_layout_with_schedule(%arg0 : tensor<16x16xi16>) -> tensor<16x16xi16> {
+  // CHECK: tensor_ext.assign_layout {{.*}}domainSchedule = array<i64: 0, 1>
+  %0 = tensor_ext.assign_layout %arg0 {layout = #row_major_matrix} : tensor<16x16xi16>
+  %1 = tensor_ext.convert_layout %0 {from_layout = #row_major_matrix, to_layout = #col_major_matrix, domainSchedule = array<i64: 0, 1>} : tensor<16x16xi16>
+  return %1 : tensor<16x16xi16>
+}
+
+// CHECK: @both_with_schedule
+func.func @both_with_schedule(%arg0 : tensor<16x16xi16>) -> tensor<16x16xi16> {
+  // CHECK: tensor_ext.assign_layout {{.*}}domainSchedule = array<i64: 0, 1>
+  %0 = tensor_ext.assign_layout %arg0 {layout = #row_major_matrix, domainSchedule = array<i64: 1, 0>} : tensor<16x16xi16>
+  %1 = tensor_ext.convert_layout %0 {from_layout = #row_major_matrix, to_layout = #col_major_matrix, domainSchedule = array<i64: 0, 1>} : tensor<16x16xi16>
+  return %1 : tensor<16x16xi16>
+}

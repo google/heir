@@ -32,3 +32,13 @@ func.func @test_halevi_shoup_reduction(%0: tensor<16xi32>, %1: tensor<16x16xi32>
   %2 = tensor_ext.rotate_and_reduce %0, %1 {period = 1 : index, steps = 16 : index} : (tensor<16xi32>, tensor<16x16xi32>) -> tensor<16xi32>
   return %2 : tensor<16xi32>
 }
+
+func.func @test_convert_layout_with_schedule(%0: tensor<16x16xi32>) -> tensor<16x16xi32> {
+  %1 = tensor_ext.convert_layout %0 {from_layout = #layout1, to_layout = #layout2, domainSchedule = array<i64: 0, 1>} : tensor<16x16xi32>
+  return %1 : tensor<16x16xi32>
+}
+
+func.func @test_assign_layout_with_schedule(%0: tensor<16x16xi32>) -> tensor<16x16xi32> {
+  %1 = tensor_ext.assign_layout %0 {layout = #layout1, domainSchedule = array<i64: 1, 0>} : tensor<16x16xi32>
+  return %1 : tensor<16x16xi32>
+}

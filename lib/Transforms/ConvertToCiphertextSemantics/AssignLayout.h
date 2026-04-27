@@ -23,7 +23,8 @@ namespace heir {
 FailureOr<Value> implementAssignLayout(
     Value input, Attribute layout, int64_t ciphertextSize,
     ImplicitLocOpBuilder& builder,
-    const std::function<void(Operation*)>& createdOpCallback);
+    const std::function<void(Operation*)>& createdOpCallback,
+    ArrayRef<int64_t> domainSchedule = {});
 
 // Lower tensor_ext.unpack. Returns the final value produced by the unpacking
 // implementation. Applies createdOpCallback to each created operation.

@@ -31,7 +31,8 @@ LogicalResult tryFoldLayoutConversionIntoPrevious(
     auto newFrom = priorConversion.getFromLayoutAttr();
     auto newTo = op.getToLayoutAttr();
     auto newConversion = ConvertLayoutOp::create(
-        rewriter, op.getLoc(), priorConversion.getValue(), newFrom, newTo);
+        rewriter, op.getLoc(), priorConversion.getValue(), newFrom, newTo,
+        op.getDomainScheduleAttr());
     newConversion->setAttr(kLayoutAttrName, newTo);
 
     rewriter.replaceAllUsesWith(op, newConversion);
@@ -45,8 +46,12 @@ LogicalResult tryFoldLayoutConversionIntoPrevious(
   if (auto priorAssignment = op.getValue().getDefiningOp<AssignLayoutOp>()) {
     // merge the conversion into the assignment return success();
     auto newLayout = op.getToLayoutAttr();
-    auto newAssign = AssignLayoutOp::create(
-        rewriter, op.getLoc(), priorAssignment.getValue(), newLayout);
+    auto domainSchedule = !op.getDomainSchedule().empty()
+                              ? op.getDomainScheduleAttr()
+                              : priorAssignment.getDomainScheduleAttr();
+    auto newAssign = AssignLayoutOp::create(rewriter, op.getLoc(),
+                                            priorAssignment.getValue(),
+                                            newLayout, domainSchedule);
     newAssign->setAttr(kLayoutAttrName, newLayout);
 
     rewriter.replaceAllUsesWith(op, newAssign);

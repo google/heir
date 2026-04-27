@@ -198,7 +198,29 @@ LogicalResult ConvertLayoutOp::verify() {
 }
 
 LogicalResult AssignLayoutOp::verify() {
-  return verifyLayoutMatchesType(getLayout(), getValue().getType(), *this);
+  LogicalResult layoutVerification =
+      verifyLayoutMatchesType(getLayout(), getValue().getType(), *this);
+  if (failed(layoutVerification)) {
+    return layoutVerification;
+  }
+
+  if (!getDomainSchedule().empty()) {
+    auto layout = dyn_cast<LayoutAttr>(getLayout());
+    if (!layout) {
+      return emitOpError()
+             << "requires LayoutAttr when domainSchedule is provided";
+    }
+    presburger::IntegerRelation rel = layout.getIntegerRelation();
+    for (int64_t idx : getDomainSchedule()) {
+      if (idx < 0 || idx >= rel.getNumDomainVars()) {
+        return emitOpError()
+               << "domainSchedule index " << idx << " is out of bounds [0, "
+               << rel.getNumDomainVars() << ")";
+      }
+    }
+  }
+
+  return success();
 }
 
 LogicalResult UnpackOp::verify() {
