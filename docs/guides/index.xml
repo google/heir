@@ -1,0 +1,344 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>HEIR – Guides</title><link>https://heir.dev/docs/guides/</link><description>Recent content in Guides on HEIR</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="https://heir.dev/docs/guides/index.xml" rel="self" type="application/rss+xml"/><item><title>Docs: Adding a new backend</title><link>https://heir.dev/docs/guides/new_backend/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/guides/new_backend/</guid><description>
+&lt;p>This document describes the steps and considerations for adding a new backend to
+HEIR.&lt;/p>
+&lt;h2 id="overview">Overview&lt;/h2>
+&lt;img style="display:block; margin-left:75px; width:500px;" src="https://heir.dev/images/dialect-diagram.png" />
+&lt;p>HEIR&amp;rsquo;s design involves multiple layers of abstraction called &lt;em>dialects&lt;/em>.
+Dialects are roughly grouped into layers, and HEIR support importing or
+exporting a program at any layer.&lt;/p>
+&lt;p>To add a new backend to HEIR, you must first decide what layer of abstraction in
+the HEIR compilation stack corresponds most closely to the entry point of your
+backend&amp;rsquo;s toolchain. The most common examples are:&lt;/p>
+&lt;ol>
+&lt;li>A software library whose API corresponds to FHE scheme operations such as
+ciphertext-ciphertext multiplication, slot rotation, and bootstrapping.
+OpenFHE, Lattigo, and &lt;code>tfhe-rs&lt;/code> are examples of this kind of backend.&lt;/li>
+&lt;li>A software library whose API has additional high-level operations like
+ciphertext-ciphertext matrix multiplication that must be preserved in order
+to utilize dedicated kernels implemented in the library. This may occur in,
+say, a GPU backend implemented in CUDA, but it also applies to software
+libraries like OpenFHE, which have optimized APIs for operations like
+&lt;code>LinearTranform&lt;/code>.&lt;/li>
+&lt;li>A hardware backend that has an input IR and an additional toolchain that
+compiles the input IR down to the hardware&amp;rsquo;s assembly language. This is
+common in many accelerator efforts, and integration layers like the
+&lt;a href="https://fhetch.org/">FHETCH&lt;/a> IR.&lt;/li>
+&lt;/ol>
+&lt;p>We will cover the details of each option above in sections below. However, note
+that option (1) will have many details about dialect design and code generation
+process that are relevant to (2) and (3).&lt;/p>
+&lt;p>All code references in this document are pinned to the commit
+&lt;a href="https://github.com/google/heir/tree/980e96619bbcd312a107867ea9a19be653ec3af2">980e96619bbcd312a107867ea9a19be653ec3af2&lt;/a>,
+dated 2026-04-17.&lt;/p>
+&lt;h2 id="software-library-with-a-common-scheme-api">Software library with a common scheme API&lt;/h2>
+&lt;p>In this scenario, the backend corresponds to a software implementation of one or
+more FHE schemes, OpenFHE or Lattigo. In the dialect diagram, this would roughly
+correspond to the following path through HEIR. We will use the
+&lt;a href="https://github.com/tuneinsight/lattigo">Lattigo&lt;/a> software library as an example
+throughout this section.&lt;/p>
+&lt;img style="display:block; margin-left:75px; width:500px;" src="https://heir.dev/images/dialect-diagram-lattigo.png" />
+&lt;p>Supporting a new backend has the following components.&lt;/p>
+&lt;ol>
+&lt;li>Define a new &lt;em>exit&lt;/em> dialect for the backend library, which should be as close
+to an API mirror of the backend API as possible. For Lattigo it&amp;rsquo;s the
+&lt;a href="https://heir.dev/docs/dialects/lattigo/">&lt;code>lattigo&lt;/code>&lt;/a> dialect.&lt;/li>
+&lt;li>Add code-generation to the
+&lt;a href="https://heir.dev/docs/pipelines/#heir-translate">&lt;code>heir-translate&lt;/code> tool&lt;/a> which generates
+source code for the backend API calls and wraps it into a module
+appropriately to the target language. For Lattigo this code is defined in
+&lt;a href="https://github.com/google/heir/tree/980e96619bbcd312a107867ea9a19be653ec3af2/lib/Target/Lattigo">&lt;code>lib/Target/Lattigo&lt;/code>&lt;/a>.&lt;/li>
+&lt;li>Add a lowering from the appropriate scheme dialect (e.g., &lt;code>ckks&lt;/code>) to the exit
+dialect defined in (1). For Lattigo this pass is
+&lt;a href="https://github.com/google/heir/tree/980e96619bbcd312a107867ea9a19be653ec3af2/lib/Dialect/LWE/Conversions/LWEToLattigo">&lt;code>lwe-to-lattigo&lt;/code>&lt;/a>.
+(it supports BGV/BFV and CKKS in the same pass).&lt;/li>
+&lt;li>Add any backend-specific optimizations to occur in the exit dialect. For
+example, the Lattigo exit dialect has
+&lt;a href="https://github.com/google/heir/tree/980e96619bbcd312a107867ea9a19be653ec3af2/lib/Dialect/Lattigo/Transforms">transforms&lt;/a>
+that handle configuring the backend and converting value-semantic operations
+to use Lattigo&amp;rsquo;s in-place API for improved efficiency.&lt;/li>
+&lt;li>Add a new pipeline that combines the lowering and exit-dialect passes. For
+example, Lattigo&amp;rsquo;s corresponding pipeline is defined
+&lt;a href="https://github.com/google/heir/blob/980e96619bbcd312a107867ea9a19be653ec3af2/lib/Pipelines/ArithmeticPipelineRegistration.cpp#L490">here&lt;/a>.
+Register the new pipeline with &lt;code>heir-opt&lt;/code>.&lt;/li>
+&lt;li>Add end-to-end tests of the new backend. For example, Lattigo&amp;rsquo;s end-to-end
+tests are
+&lt;a href="https://github.com/google/heir/tree/980e96619bbcd312a107867ea9a19be653ec3af2/tests/Examples/lattigo">here&lt;/a>.&lt;/li>
+&lt;/ol>
+&lt;p>Each of the above parts is covered in more detail in subsections below.&lt;/p>
+&lt;h3 id="new-exit-dialect">New exit dialect&lt;/h3>
+&lt;p>An &amp;ldquo;exit&amp;rdquo; dialect in MLIR represents the exit point from the MLIR ecosystem.
+Exit dialects, while still MLIR, are dictated by an external specifications like
+instruction set architectures or, software APIs beyond the scope of HEIR.&lt;/p>
+&lt;p>When defining an exit dialect for a HEIR software backend, the goal is to be as
+close to the external software API as possible, so that there is no complicated
+logic in the code generation process. All such logic should be moved to
+optimization passes and lowerings. There are some violations of this rule in the
+current HEIR codebase, for example in the handling of multi-dimensional tensors
+and memrefs, so ask the maintainers if you are unsure of some detail.&lt;/p>
+&lt;p>When defining a dialect one should introduce new types corresponding to the
+ciphertexts and plaintext types of the backend, as well as new types for any
+helper classes used by the backend when those types materialize as operands to
+various operations. For example, OpenFHE has a CryptoContext object and
+homomorphic operations are methods on that object; the IR must include it as a
+typed SSA value.&lt;/p>
+&lt;p>Compile time constants generally become MLIR attributes, and this can include
+static values passed to configuration routines, such as the set of rotation
+offsets required by the program (see &lt;code>RotationAnalysis&lt;/code>).&lt;/p>
+&lt;p>A new dialect&amp;rsquo;s syntax should be tested using &lt;code>lit&lt;/code> and &lt;code>FileCheck&lt;/code>, with an
+example
+&lt;a href="https://github.com/google/heir/blob/980e96619bbcd312a107867ea9a19be653ec3af2/tests/Dialect/Lattigo/IR/ckks_ops.mlir">here&lt;/a>
+for Lattigo. Note that these tests are primarily designed to help you ensure you
+got the Tablegen syntax correct and that the dialect is properly registered in
+&lt;code>heir-opt&lt;/code>.&lt;/p>
+&lt;p>To create the boilerplate for a new &amp;ldquo;dialect&amp;rdquo;, see
+&lt;a href="https://heir.dev/docs/development/boilerplate/#creating-a-new-dialect">templates.py&lt;/a>.&lt;/p>
+&lt;p>For tips on defining an MLIR dialect, see Articles 3 and 4 of
+&lt;a href="https://github.com/j2kun/mlir-tutorial">Jeremy Kun&amp;rsquo;s MLIR tutorial&lt;/a>.&lt;/p>
+&lt;h3 id="codegen">Codegen&lt;/h3>
+&lt;p>The &lt;a href="docs/pipelines/#heir-translate">&lt;code>heir-translate&lt;/code>&lt;/a> binary encapsulates all
+backend code generation routines in one binary for use in testing. These
+routines generate source code in the target language with API calls against a
+particular software library. For example &lt;code>heir-translate --emit-lattigo&lt;/code> emits
+Golang code against the Lattigo API, and this is defined in
+&lt;a href="https://github.com/google/heir/tree/980e96619bbcd312a107867ea9a19be653ec3af2/lib/Target/Lattigo">&lt;code>lib/Target/Lattigo&lt;/code>&lt;/a>.&lt;/p>
+&lt;p>In most cases, code generation involves printing strings to an output stream. In
+some cases, like C/C++ codegen, you can use the
+&lt;a href="https://mlir.llvm.org/docs/Dialects/EmitC/">&lt;code>emitc&lt;/code>&lt;/a> dialect from MLIR, which
+itself is an exit dialect and code-generator for general-purpose C/C++ programs.
+Then the particular &lt;code>emitc&lt;/code> code generated can use the &lt;code>emitc.opaque&lt;/code> type to
+represent externally defined types and &lt;code>emitc.call_opaque&lt;/code> to represent function
+calls.&lt;/p>
+&lt;p>There is currently no &lt;code>emitpython&lt;/code>, &lt;code>emitrust&lt;/code> or &lt;code>emitgo&lt;/code> dialect, but if we
+have enough repetitive codegen, it might be worth it for us to make such a
+dialect.&lt;/p>
+&lt;p>The process of generating source code is admittedly laborious. One might wonder
+why we don&amp;rsquo;t interpret HEIR&amp;rsquo;s exit dialect directly. In fact, we can (see, for
+example, the
+&lt;a href="https://github.com/google/heir/blob/980e96619bbcd312a107867ea9a19be653ec3af2/lib/Target/OpenFhePke/Interpreter.cpp">OpenFHE interpreter&lt;/a>).
+However, this has a negative impact on performance, and requires added
+maintenance of the interpreter code. And finally, to use the interpreter you
+must have a dependency on HEIR itself, at least for the MLIR parser. By
+contrast, generated source code can be completely removed from HEIR and
+recompiled in isolation, enabling further customization and easier integration.&lt;/p>
+&lt;p>The codegen should be tested using &lt;code>lit&lt;/code> and &lt;code>FileCheck&lt;/code>, with an example
+&lt;a href="https://github.com/google/heir/blob/980e96619bbcd312a107867ea9a19be653ec3af2/tests/Emitter/Lattigo/emit_lattigo.mlir">here&lt;/a>
+for Lattigo.&lt;/p>
+&lt;h3 id="lowering-from-scheme-to-backend">Lowering from scheme to backend&lt;/h3>
+&lt;p>Define a &lt;em>dialect conversion&lt;/em> pass that starts from your desired scheme dialect
+(such as &lt;code>ckks&lt;/code> or &lt;code>cggi&lt;/code>) and converts the types and ops to the exit dialect.&lt;/p>
+&lt;p>One potentially difficult aspect of this is in parameter selection. In the HEIR
+scheme dialects, parameters have been selected by earlier passes. Sometimes
+these passes must depend on the details of the target backend. Cf.
+&lt;a href="https://github.com/google/heir/issues/2554">#2554&lt;/a> for more on that. And
+sometimes a backend is not possible to configure with the same level of
+granularity that a compiler can offer. For example, OpenFHE does not support
+setting the exact primes used for RNS limb moduli, and &lt;code>tfhe-rs&lt;/code> offers only a
+pre-determined set of parameters.&lt;/p>
+&lt;p>In some cases, this means that HEIR&amp;rsquo;s parameter selection is simply ignored, and
+the backend is left to make up the difference (e.g., with automatic scale
+management vs scale management pre-scheduled by HEIR). In these cases, the
+scheme-to-backend lowering may lose information as &lt;code>lwe&lt;/code> types with rich
+structure are replaced by opaque types.&lt;/p>
+&lt;p>The other main complexity is that scheme ops are split between the &lt;code>lwe&lt;/code>
+dialect, which covers ops common to more than one FHE scheme, and
+scheme-specific dialects (like &lt;code>ckks&lt;/code>, &lt;code>bgv&lt;/code>, and &lt;code>cggi&lt;/code>) where the semantics of
+the op differs from scheme to scheme.&lt;/p>
+&lt;p>An example lowering is
+&lt;a href="https://github.com/google/heir/tree/980e96619bbcd312a107867ea9a19be653ec3af2/lib/Dialect/LWE/Conversions/LWEToLattigo">&lt;code>lwe-to-lattigo&lt;/code>&lt;/a>.&lt;/p>
+&lt;p>For tips on dialect conversion, see Article 10 of
+&lt;a href="https://github.com/j2kun/mlir-tutorial">Jeremy Kun&amp;rsquo;s MLIR tutorial&lt;/a>.&lt;/p>
+&lt;h3 id="backend-specific-passes">Backend-specific passes&lt;/h3>
+&lt;p>Depending on the backend, you may need to define a set of backend-specific
+passes that can only run on the exit dialect because the concepts do not exist
+at higher-level layers of abstraction.&lt;/p>
+&lt;p>For example, the &lt;code>lattigo&lt;/code> dialect has a concept of in-place CKKS operations
+vesus ops that allocate a new ciphertext as the return value. These APIs ask you
+provide (as a separate operand) the ciphertext you would like to use for
+storage. As such, the
+&lt;a href="https://heir.dev/docs/passes/#-lattigo-alloc-to-inplace">&lt;code>lattigo-alloc-to-inplace&lt;/code>&lt;/a> pass must
+operate on &lt;code>lattigo&lt;/code> dialect IR.&lt;/p>
+&lt;p>More generally, each backend typically has a configuration pass that analyzes
+the IR as needed and inserts new functions that call the backend API to do
+things like generate key material, enable/disable bootstrapping, and set
+security parameters.&lt;/p>
+&lt;p>To create the boilerplate for a new &amp;ldquo;dialect transform&amp;rdquo;, see
+&lt;a href="https://heir.dev/docs/development/boilerplate/#dialect-transforms">templates.py&lt;/a>.&lt;/p>
+&lt;p>For tips on writing an MLIR pass, see Articles 3 and 4 of
+&lt;a href="https://github.com/j2kun/mlir-tutorial">Jeremy Kun&amp;rsquo;s MLIR tutorial&lt;/a>.&lt;/p>
+&lt;h3 id="new-pipeline">New pipeline&lt;/h3>
+&lt;p>Pipelines are defined in
+&lt;a href="https://github.com/google/heir/blob/980e96619bbcd312a107867ea9a19be653ec3af2/lib/Pipelines/">lib/Pipelines&lt;/a>
+and can be defined to have a configuration options (&lt;code>PassOptions::Option&lt;/code>) that
+materialize as command-line flags when
+&lt;a href="https://github.com/google/heir/blob/980e96619bbcd312a107867ea9a19be653ec3af2/tools/heir-opt.cpp#L488-L491">registered&lt;/a>
+on &lt;code>heir-opt&lt;/code>.&lt;/p>
+&lt;p>The pipeline can consist of an arbitrary set of passes, but usually there is a
+phase of lowering from scheme to backend, a phase of optimizing or configuring
+in the backend dialect itself, and then general-purpose passes like dead code
+elimination or common subexpression elimination.&lt;/p>
+&lt;p>And example Lattigo pipeline is
+&lt;a href="https://github.com/google/heir/blob/980e96619bbcd312a107867ea9a19be653ec3af2/lib/Pipelines/ArithmeticPipelineRegistration.cpp#L490-L526">here&lt;/a>&lt;/p>
+&lt;h3 id="end-to-end-e2e-testing">End-to-end (e2e) testing&lt;/h3>
+&lt;p>Each of the above steps should be tested with &lt;code>lit&lt;/code> and &lt;code>FileCheck&lt;/code> testing.
+However, those testing methods assert the output IR from the compiler matches
+expectations; it does not run the generated code and check that for correctness
+or performance.&lt;/p>
+&lt;p>So we ask each backend have an added layer of testing that runs the full
+&lt;code>heir-opt&lt;/code> + &lt;code>heir-translate&lt;/code> pipeline, compiles the resulting generated code
+against the backend, and then runs it on a given input and asserts something
+about the output.&lt;/p>
+&lt;p>We will use the Lattigo + CKKS example
+&lt;a href="https://github.com/google/heir/tree/980e96619bbcd312a107867ea9a19be653ec3af2/tests/Examples/lattigo/ckks/dot_product_8f">&lt;code>dot_product_8f&lt;/code>&lt;/a>
+as a simple e2e test to outline the components.&lt;/p>
+&lt;pre tabindex="0">&lt;code class="language-starlark" data-lang="starlark">load(&amp;#34;@heir//tests/Examples/lattigo:test.bzl&amp;#34;, &amp;#34;heir_lattigo_lib&amp;#34;)
+load(&amp;#34;@rules_go//go:def.bzl&amp;#34;, &amp;#34;go_test&amp;#34;)
+package(default_applicable_licenses = [&amp;#34;@heir//:license&amp;#34;])
+heir_lattigo_lib(
+name = &amp;#34;dot_product_8f&amp;#34;,
+go_library_name = &amp;#34;dotproduct8f&amp;#34;,
+heir_opt_flags = [
+&amp;#34;--annotate-module=backend=lattigo scheme=ckks&amp;#34;,
+&amp;#34;--mlir-to-ckks=ciphertext-degree=2048 first-mod-bits=0&amp;#34;,
+&amp;#34;--scheme-to-lattigo&amp;#34;,
+],
+mlir_src = &amp;#34;@heir//tests/Examples/common:dot_product_8f.mlir&amp;#34;,
+)
+go_test(
+name = &amp;#34;dotproduct8f_test&amp;#34;,
+srcs = [&amp;#34;dot_product_8f_test.go&amp;#34;],
+embed = [&amp;#34;:dotproduct8f&amp;#34;],
+)
+&lt;/code>&lt;/pre>&lt;p>First, the build file imports a &lt;code>bazel&lt;/code> macro &lt;code>heir_lattigo_lib&lt;/code>, which is a
+shared helper for all Lattigo e2e tests. It handles composing &lt;code>heir-opt&lt;/code> and
+&lt;code>heir-translate&lt;/code> to produce a packaged &lt;code>go_library&lt;/code> target with all the
+appropriate Lattigo dependencies included, and this target can be depended on by
+a main harness that runs the compiled functions.&lt;/p>
+&lt;p>To view code generated by the bazel macro, build&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>bazel build //tests/Examples/lattigo/ckks/dot_product_8f:all
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Then you can view the generated code in this path (relative to the root of the
+git repo).&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>bazel-bin/tests/Examples/lattigo/ckks/dot_product_8f/dotproduct8f_lib.go
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>For example, you can see the exact function signatures to help write a test
+harness.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>$ rg func bazel-bin/tests/Examples/lattigo/ckks/dot_product_8f/dotproduct8f_lib.go
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>9:func dot_product&lt;span style="color:#ce5c00;font-weight:bold">(&lt;/span>evaluator *ckks.Evaluator, param ckks.Parameters, encoder *ckks.Encoder, v0 &lt;span style="color:#ce5c00;font-weight:bold">[]&lt;/span>*rlwe.Ciphertext, v1 &lt;span style="color:#ce5c00;font-weight:bold">[]&lt;/span>*rlwe.Ciphertext&lt;span style="color:#ce5c00;font-weight:bold">)&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">([]&lt;/span>*rlwe.Ciphertext&lt;span style="color:#ce5c00;font-weight:bold">)&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>152:func dot_product__encrypt__arg0&lt;span style="color:#ce5c00;font-weight:bold">(&lt;/span>_ *ckks.Evaluator, param ckks.Parameters, encoder *ckks.Encoder, encryptor *rlwe.Encryptor, v0 &lt;span style="color:#ce5c00;font-weight:bold">[]&lt;/span>float32&lt;span style="color:#ce5c00;font-weight:bold">)&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">([]&lt;/span>*rlwe.Ciphertext&lt;span style="color:#ce5c00;font-weight:bold">)&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>186:func dot_product__encrypt__arg1&lt;span style="color:#ce5c00;font-weight:bold">(&lt;/span>_ *ckks.Evaluator, param ckks.Parameters, encoder *ckks.Encoder, encryptor *rlwe.Encryptor, v0 &lt;span style="color:#ce5c00;font-weight:bold">[]&lt;/span>float32&lt;span style="color:#ce5c00;font-weight:bold">)&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">([]&lt;/span>*rlwe.Ciphertext&lt;span style="color:#ce5c00;font-weight:bold">)&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>220:func dot_product__decrypt__result0&lt;span style="color:#ce5c00;font-weight:bold">(&lt;/span>_ *ckks.Evaluator, _ ckks.Parameters, encoder *ckks.Encoder, decryptor *rlwe.Decryptor, v0 &lt;span style="color:#ce5c00;font-weight:bold">[]&lt;/span>*rlwe.Ciphertext&lt;span style="color:#ce5c00;font-weight:bold">)&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">(&lt;/span>float32&lt;span style="color:#ce5c00;font-weight:bold">)&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>235:func dot_product__configure&lt;span style="color:#ce5c00;font-weight:bold">()&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">(&lt;/span>*ckks.Evaluator, ckks.Parameters, *ckks.Encoder, *rlwe.Encryptor, *rlwe.Decryptor&lt;span style="color:#ce5c00;font-weight:bold">)&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>This test harness in this case is&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-go" data-lang="go">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">package&lt;/span> &lt;span style="color:#000">dotproduct8f&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">import&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#4e9a06">&amp;#34;math&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#4e9a06">&amp;#34;testing&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">TestBinops&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">t&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">*&lt;/span>&lt;span style="color:#000">testing&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">T&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">evaluator&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">params&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">ecd&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">enc&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">dec&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">:=&lt;/span> &lt;span style="color:#000">dot_product__configure&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">arg0&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">:=&lt;/span> &lt;span style="color:#000;font-weight:bold">[]&lt;/span>&lt;span style="color:#204a87;font-weight:bold">float32&lt;/span>&lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">0.1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0.2&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0.3&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0.4&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0.5&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0.6&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0.7&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0.8&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">arg1&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">:=&lt;/span> &lt;span style="color:#000;font-weight:bold">[]&lt;/span>&lt;span style="color:#204a87;font-weight:bold">float32&lt;/span>&lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">0.2&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0.3&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0.4&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0.5&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0.6&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0.7&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0.8&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0.9&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">expected&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">:=&lt;/span> &lt;span style="color:#204a87">float32&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">2.50&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">ct0&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">:=&lt;/span> &lt;span style="color:#000">dot_product__encrypt__arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">evaluator&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">params&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">ecd&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">enc&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">ct1&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">:=&lt;/span> &lt;span style="color:#000">dot_product__encrypt__arg1&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">evaluator&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">params&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">ecd&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">enc&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">arg1&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">resultCt&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">:=&lt;/span> &lt;span style="color:#000">dot_product&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">evaluator&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">params&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">ecd&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">ct0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">ct1&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">result&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">:=&lt;/span> &lt;span style="color:#000">dot_product__decrypt__result0&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">evaluator&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">params&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">ecd&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">dec&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">resultCt&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">errorThreshold&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">:=&lt;/span> &lt;span style="color:#204a87">float64&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">0.0001&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">if&lt;/span> &lt;span style="color:#000">math&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Abs&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#204a87">float64&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">result&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">-&lt;/span>&lt;span style="color:#000">expected&lt;/span>&lt;span style="color:#000;font-weight:bold">))&lt;/span> &lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000">errorThreshold&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">t&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Errorf&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;Decryption error %.2f != %.2f&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">result&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">expected&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Then test it with &lt;code>bazel test //tests/Examples/lattigo/ckks/dot_product_8f:all&lt;/code>.
+For testing performance, you will want to run this with &lt;code>-c opt&lt;/code> to ensure
+Lattigo itself is compiled with optimizations, but noting from the
+&lt;a href="https://heir.dev/docs/development/bazel/">bazel tips&lt;/a> page, switching between &lt;code>-c opt&lt;/code> and
+&lt;code>-c dbg&lt;/code> can incur rebuilds of LLVM, so use it with care.&lt;/p>
+&lt;h4 id="adding-the-new-backend-library-as-a-project-dependency">Adding the new backend library as a project dependency&lt;/h4>
+&lt;p>In order to support e2e tests of a new backend, that backend needs to be
+compiled from source and added as a HEIR dependency in &lt;code>MODULE.bazel&lt;/code>. The
+method for doing this depends on the language.&lt;/p>
+&lt;ul>
+&lt;li>C++: The source must be packaged up and released on the
+&lt;a href="https://registry.bazel.build/">Bazel Central Registry&lt;/a>, and a bazel overlay
+must be added to support bazel integration if the project does not have its
+own bazel integration. See for example
+&lt;a href="https://github.com/bazelbuild/bazel-central-registry/tree/main/modules/openfhe">OpenFHE&lt;/a>.
+Ask &lt;a href="https://github.com/j2kun/">j2kun&lt;/a> for help with this if you need it.&lt;/li>
+&lt;li>Python: The package must be available on PyPI and added to the
+&lt;code>project.optional-dependencies&lt;/code> section of &lt;code>pyproject.toml&lt;/code>. Jaxite is
+integrated this way.&lt;/li>
+&lt;li>Go: The package must be available on golang&amp;rsquo;s standard package manager, and
+added to &lt;code>go.mod&lt;/code>. Lattigo is integrated this way.&lt;/li>
+&lt;li>Rust: The package must be available on &lt;a href="https://crates.io/">crates.io&lt;/a> and a
+&lt;code>crate.spec&lt;/code> call added to &lt;code>Module.bazel&lt;/code>. &lt;code>tfhe-rs&lt;/code> is integrated this way.&lt;/li>
+&lt;/ul>
+&lt;p>Additionally, any libraries required for defining a harness or using the
+compiled code need to be added in the same way. For example, HEIR&amp;rsquo;s generated
+code for &lt;code>tfhe-rs&lt;/code> uses the &lt;code>rayon&lt;/code> crate, so &lt;code>rayon&lt;/code> must be added as a direct
+dependency of HEIR.&lt;/p>
+&lt;p>If the library&amp;rsquo;s language is not among those above, reach out to the HEIR
+maintainers for advice.&lt;/p>
+&lt;h2 id="software-library-with-special-features">Software library with special features&lt;/h2>
+&lt;p>When adding support for a backend with a non-standard API, one must add or
+modify additional passes at earlier stages of the pipeline to support the
+special features of the backend.&lt;/p>
+&lt;p>For example, the software library may have special support for a
+linear-algebraic operation like matrix multiplication. In this case, the earlier
+stages of HEIR&amp;rsquo;s pipeline that lower &lt;code>linalg.matmul&lt;/code> must be modified
+appropriately, or replaced in the new pipeline with alternative passes.&lt;/p>
+&lt;p>The details of what needs to be done depend greatly on the feature itself. There
+are a few possible things that need to be considered:&lt;/p>
+&lt;ul>
+&lt;li>High-level ops that are preserved must be supported in lower levels as well.
+For example, the default ciphertext management passes may not handle a
+&lt;code>linalg&lt;/code> op, and the right way to handle it necessarily depends on details
+about the backend.&lt;/li>
+&lt;li>Backends introducing new concepts (for example, a new CKKS scaling method)
+must have corresponding passes that analyze the IR as needed to support them.
+For example, as of 2026-04, high-precision scale management is not supported
+in HEIR, so one would need to add support for it if the backend required the
+user to specify specific, high-precision scaling factors.&lt;/li>
+&lt;li>Backends whose internal implementation details differ significantly may
+require backend-specific configuration to be integrated into earlier passes.
+For example, the ciphertext management passes require knowledge of how many
+levels are consumed by the bootstrapping subroutine. That should be
+configurable in these passes by manual flags.&lt;/li>
+&lt;/ul>
+&lt;p>The ideal method to inform passes about backend-specific metadata is by having a
+separate interface layer that allows the pass to expose a minimal amount of
+information about the backend. As of 2026-04, this is still under active design
+and development. Cf. &lt;a href="https://github.com/google/heir/issues/2554">#2554&lt;/a> for
+more details.&lt;/p>
+&lt;h2 id="hardware-backend-with-additional-compiler-toolchain">Hardware backend with additional compiler toolchain&lt;/h2>
+&lt;p>Hardware backends tend to be split into two camps for entrypoints to their
+compilation stack: having a published high level IR HEIR can target, and
+mirroring an existing software library API. For an existing library API, the
+case is identical to the software library code generation above.&lt;/p>
+&lt;p>Otherwise, the &amp;ldquo;high level IR&amp;rdquo; for a hardware target tends to be lower level
+than FHE scheme APIs. In particular, they may be closest to HEIR&amp;rsquo;s &lt;code>polynomial&lt;/code>,
+&lt;code>mod_arith&lt;/code>, and &lt;code>rns&lt;/code> dialects.&lt;/p>
+&lt;p>In this case, the exit dialect likely would have its lowering start from the
+&lt;code>polynomial&lt;/code> dialect, with &lt;code>rns&lt;/code>-of-&lt;code>mod_arith&lt;/code>-typed coefficients. To support
+that, the relevant FHE cryptosystem must be implemented as lowering passes in
+HEIR. As of 2026, this is in various states of progress (Cf.
+&lt;a href="https://github.com/google/heir/issues/2886">#2866&lt;/a> for CKKS).&lt;/p>
+&lt;p>After that, however, the process is similar to software library codegen: create
+an exit dialect mirroring the external IR, lower to it, run any special
+optimizations, and then generate code.&lt;/p>
+&lt;h2 id="backends-for-unsupported-schemes">Backends for unsupported schemes&lt;/h2>
+&lt;p>Some backend libraries may involve new FHE schemes not supported in HEIR.
+Generally speaking, this implies adding a new scheme dialect alongside &lt;code>ckks&lt;/code>,
+&lt;code>bgv&lt;/code>, and &lt;code>cggi&lt;/code>. Depending on how much the new scheme deviates from HEIR&amp;rsquo;s
+existing assumptions, this may require further changes to other dialects.&lt;/p>
+&lt;p>For example, HEIR&amp;rsquo;s polynomial dialect hard-codes univariate polynomial moduli,
+so if the scheme uses a bivariate ring structure in a way the compiler needs to
+know about, this will require nontrivial changes to &lt;code>polynomial&lt;/code>. Another
+example is RNS form. While HEIR&amp;rsquo;s current design supports not using &lt;code>rns&lt;/code>, there
+are likely some parts of the codebase that inadvertently assume &lt;code>rns&lt;/code> form and
+will require appropriate generalization.&lt;/p>
+&lt;p>In this case, please consult the HEIR maintainers for advice, and sketch out a
+design proposal.&lt;/p>
+&lt;!-- mdformat global-off --></description></item></channel></rss>
