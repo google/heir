@@ -6,8 +6,8 @@
 module {
   // CHECK: func.func @main
   // CHECK-SAME: (%[[arg0:.*]]: tensor<1x6x28x28xf32>)
-  // CHECK-DAG: %[[out:.*]] = arith.constant dense<2.0
-  // CHECK-DAG: %[[divided_cst:.*]] = arith.constant dense<2.500000e-01>
+  // CHECK: %[[out:.*]] = arith.constant dense<2.0
+  // CHECK: %[[divided_cst:.*]] = arith.constant dense<"0x0000803E0000803E0000803E0000803
   // CHECK: linalg.conv_2d_nchw_fchw
   // CHECK-SAME: strides = dense<2> : vector<2xi64>
   // CHECK-SAME: ins(%[[arg0]], %[[divided_cst]] : tensor<1x6x28x28xf32>, tensor<6x6x2x2xf32>) outs(%[[out]] : tensor<1x6x14x14xf32>)

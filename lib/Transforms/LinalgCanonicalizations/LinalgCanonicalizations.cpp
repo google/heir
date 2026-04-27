@@ -654,15 +654,19 @@ struct RewriteAvgPoolAsConv2D
     auto outputTy = cast<RankedTensorType>(poolOp.getResultTypes()[0]);
 
     auto c = inputTy.getDimSize(1);
+    auto eltTy = filterTy.getElementType();
     auto kernelShape = SmallVector<int64_t>{c, c, filterTy.getDimSize(0),
                                             filterTy.getDimSize(1)};
-    auto kernelTy =
-        RankedTensorType::get(kernelShape, filterTy.getElementType());
-    TypedAttr kernelVals = rewriter.getOneAttr(kernelTy);
+    auto kernelTy = RankedTensorType::get(kernelShape, eltTy);
+
+    // Create kernel value attributes of ones and zeros for the filter.
+    Attribute zeroAttr = rewriter.getZeroAttr(eltTy);
+    Attribute oneAttr = rewriter.getOneAttr(eltTy);
 
     // If there is a constant division following the sum pool, update the
     // kernel of ones to be 1 / divValue. This is a common enough pattern since
     // it represents an average pool.
+    Attribute avgAttr = oneAttr;
     Value avgPoolOutput;
     if (poolOp->hasOneUse()) {
       auto divOp = dyn_cast<arith::DivFOp>(*poolOp->getUsers().begin());
@@ -674,12 +678,39 @@ struct RewriteAvgPoolAsConv2D
                   cast<DenseElementsAttr>(constantAttr))) {
             auto divValue = splatAttr.getSplatValue<APFloat>();
             APFloat one = APFloat::getOne(divValue.getSemantics());
-            kernelVals = SplatElementsAttr::get(kernelTy, one / divValue);
+            avgAttr = rewriter.getFloatAttr(eltTy, one / divValue);
             avgPoolOutput = divOp.getResult();
           }
         }
       }
     }
+
+    // Build average pooling kernel as a special type of convolution. The kernel
+    // computes an average of pixels in a zone, so it constants a fixed constant
+    // (one or 1 / divValue) where f == c and zeros where f != c (so each
+    // channel is averaged independently) and strides equal to the pooling
+    // sizes. See
+    // https://machinelearningmastery.com/pooling-layers-for-convolutional-neural-networks/
+    int64_t kh = filterTy.getDimSize(0);
+    int64_t kw = filterTy.getDimSize(1);
+    int64_t numElements = c * c * kh * kw;
+    SmallVector<Attribute> values(numElements, zeroAttr);
+
+    for (int64_t f_idx = 0; f_idx < c; ++f_idx) {
+      for (int64_t c_idx = 0; c_idx < c; ++c_idx) {
+        if (f_idx == c_idx) {
+          for (int64_t h_idx = 0; h_idx < kh; ++h_idx) {
+            for (int64_t w_idx = 0; w_idx < kw; ++w_idx) {
+              int64_t idx = f_idx * (c * kh * kw) + c_idx * (kh * kw) +
+                            h_idx * kw + w_idx;
+              values[idx] = avgAttr;
+            }
+          }
+        }
+      }
+    }
+
+    TypedAttr kernelVals = DenseElementsAttr::get(kernelTy, values);
     auto kernel =
         arith::ConstantOp::create(rewriter, poolOp.getLoc(), kernelVals);
     Value conv = linalg::Conv2DNchwFchwOp::create(
