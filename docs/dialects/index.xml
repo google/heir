@@ -14848,6 +14848,11 @@ initial values. These will generally be created by an &lt;code>arith.constant&lt
 convert this to a packed plaintext, so that the subsequent ops can be
 lowered as ciphertext-plaintext ops.&lt;/p>
 &lt;p>This op is inserted by layout selection passes.&lt;/p>
+&lt;p>The optional &lt;code>domainSchedule&lt;/code> attribute specifies which domain dimensions
+should be part of the loop nest schedule when lowering. The range dimensions
+are always included. Adding extra domain indices to the loop schedule will
+help ISL generate a loop nest more efficiently, but comes at the tradeoff of
+a slower generated loop nest.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -14855,6 +14860,7 @@ lowered as ciphertext-plaintext ops.&lt;/p>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>layout&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>64-bit integer elements attribute or The description of the layout of a data-semantic tensor.&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>domainSchedule&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands">Operands:&lt;/h4>
 &lt;table>
@@ -14894,6 +14900,10 @@ lowered as ciphertext-plaintext ops.&lt;/p>
 another. This is implemented via a &amp;ldquo;shift network&amp;rdquo; of ciphertext rotations,
 plaintext masks (ciphertext-plaintext multiplications), and additions.&lt;/p>
 &lt;p>This op is inserted by layout selection passes.&lt;/p>
+&lt;p>The optional &lt;code>domainSchedule&lt;/code> attribute specifies which extra domain
+dimensions should be part of the loop nest schedule when lowering. Generated
+loops nests are only used when the layout conversion is used for a plaintext
+layout assignment. See &lt;code>tensor_ext.assign_layout&lt;/code> for more details.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -14902,6 +14912,7 @@ plaintext masks (ciphertext-plaintext multiplications), and additions.&lt;/p>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>from_layout&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>64-bit integer elements attribute or The description of the layout of a data-semantic tensor.&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>to_layout&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>64-bit integer elements attribute or The description of the layout of a data-semantic tensor.&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>domainSchedule&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-1">Operands:&lt;/h4>
 &lt;table>
