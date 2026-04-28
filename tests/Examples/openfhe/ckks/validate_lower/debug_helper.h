@@ -1,13 +1,14 @@
-#ifndef TESTS_EXAMPLES_OPENFHE_CKKS_DEBUG_HELPER_H_
-#define TESTS_EXAMPLES_OPENFHE_CKKS_DEBUG_HELPER_H_
+#ifndef TESTS_EXAMPLES_OPENFHE_CKKS_VALIDATE_LOWER_DEBUG_HELPER_H_
+#define TESTS_EXAMPLES_OPENFHE_CKKS_VALIDATE_LOWER_DEBUG_HELPER_H_
 
 #include <map>
 #include <string>
 #include <vector>
 
-// IWYU pragma: begin_keep
-#include "src/pke/include/openfhe.h"  // from @openfhe
-// IWYU pragma: end_keep
+#include "src/core/include/lattice/hal/lat-backend.h"  // from @openfhe
+#include "src/pke/include/ciphertext-fwd.h"            // from @openfhe
+#include "src/pke/include/cryptocontext-fwd.h"         // from @openfhe
+#include "src/pke/include/key/privatekey-fwd.h"        // from @openfhe
 
 using CiphertextT = lbcrypto::Ciphertext<lbcrypto::DCRTPoly>;
 using CryptoContextT = lbcrypto::CryptoContext<lbcrypto::DCRTPoly>;
@@ -20,4 +21,4 @@ void __heir_debug(CryptoContextT cc, PrivateKeyT sk,
                   std::vector<CiphertextT> ct,
                   const std::map<std::string, std::string>& debugAttrMap);
 
-#endif  // TESTS_EXAMPLES_OPENFHE_CKKS_DEBUG_HELPER_H_
+#endif  // TESTS_EXAMPLES_OPENFHE_CKKS_VALIDATE_LOWER_DEBUG_HELPER_H_

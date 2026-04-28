@@ -20,6 +20,10 @@ enum DataType { Bool, Integer };
 #ifndef HEIR_NO_YOSYS
 // If Yosys is enabled, also add all yosys optimizer pipeline options.
 struct MLIRToCGGIPipelineOptions : public YosysOptimizerPipelineOptions {
+  PassOptions::Option<bool> debug{
+      *this, "debug",
+      llvm::cl::desc("Insert debug ports after every secret operation."),
+      llvm::cl::init(false)};
   PassOptions::Option<enum DataType> dataType{
       *this, "data-type",
       llvm::cl::desc("Data type to use for arithmetization, yosys must be "
@@ -44,6 +48,10 @@ void mlirToCGGIPipeline(OpPassManager& pm,
 #else
 struct MLIRToCGGIPipelineOptions
     : public PassPipelineOptions<MLIRToCGGIPipelineOptions> {
+  PassOptions::Option<bool> debug{
+      *this, "debug",
+      llvm::cl::desc("Insert debug ports after every secret operation."),
+      llvm::cl::init(false)};
   PassOptions::Option<enum DataType> dataType{
       *this, "data-type",
       llvm::cl::desc("Data type to use for arithmetization."),
