@@ -1,9 +1,9 @@
-import subprocess
 import os
+import subprocess
 
 import fire
 
-from scripts.lit_to_bazel import (
+from scripts.lit_to_bazel_lib import (
     get_command_without_bazel_prefix,
     normalize_lit_test_file_arg,
 )

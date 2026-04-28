@@ -1,8 +1,9 @@
-import os
 import glob
-import re
-import yaml
+import os
 from pathlib import Path
+import re
+
+import yaml
 
 from scripts.docs.lit_to_doc import lit_to_doc
 
