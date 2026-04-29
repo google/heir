@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <optional>
 
 #include "lib/Dialect/ModArith/IR/ModArithAttributes.h"
@@ -68,6 +69,34 @@ LogicalResult coefficientTypeMatchesScalarType(Type polynomialLikeType,
     return failure();
   }
   return success();
+}
+
+void ApplyCoefficientwiseOp::build(
+    OpBuilder& builder, OperationState& state, Value input,
+    PolynomialType outputPolyTy, ApplyCoefficientwiseBuilderFn transformCoeff) {
+  state.addOperands(input);
+  Region* body = state.addRegion();
+  state.addTypes(outputPolyTy);
+
+  PolynomialType inputPolyTy = dyn_cast<PolynomialType>(input.getType());
+  if (!inputPolyTy) {
+    return;
+  }
+
+  ImplicitLocOpBuilder b(state.location, builder);
+  OpBuilder::InsertionGuard guard(b);
+  Block* block = b.createBlock(body);
+  block->addArgument(inputPolyTy.getRing().getCoefficientType(), b.getLoc());
+  block->addArgument(b.getIndexType(), b.getLoc());
+  b.setInsertionPointToStart(block);
+
+  Value coeff = block->getArgument(0);
+  Value degree = block->getArgument(1);
+  FailureOr<Value> transformedCoeff = transformCoeff(b, coeff, degree);
+  if (failed(transformedCoeff)) {
+    return;
+  }
+  YieldOp::create(b, *transformedCoeff);
 }
 
 void FromTensorOp::build(OpBuilder& builder, OperationState& result,
@@ -499,37 +528,6 @@ LogicalResult INTTOp::inferReturnTypes(
   return inferNTTReturnType(ctx, operands.front().getType(), results);
 }
 
-LogicalResult ConvertBasisOp::inferReturnTypes(
-    MLIRContext* ctx, std::optional<Location> /*loc*/, ValueRange operands,
-    DictionaryAttr attrs, mlir::PropertyRef properties,
-    mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
-  ConvertBasisOpAdaptor op(operands, attrs, properties, regions);
-  if (operands.empty()) return failure();
-  Type inputType = op.getValue().getType();
-  PolynomialType inputPolyType = dyn_cast<PolynomialType>(inputType);
-  RankedTensorType inputTensorType;
-  if (!inputPolyType) {
-    inputTensorType = dyn_cast<RankedTensorType>(inputType);
-    if (!inputTensorType) return failure();
-    inputPolyType = dyn_cast<PolynomialType>(inputTensorType.getElementType());
-    if (!inputPolyType) return failure();
-  }
-  polynomial::RingAttr ringAttr = inputPolyType.getRing();
-  rns::RNSType elementType = dyn_cast<rns::RNSType>(op.getTargetBasis());
-  if (!elementType) return failure();
-
-  polynomial::RingAttr outputRingAttr = polynomial::RingAttr::get(
-      ctx, elementType, ringAttr.getPolynomialModulus());
-  PolynomialType resultType = PolynomialType::get(ctx, outputRingAttr);
-  if (dyn_cast<PolynomialType>(inputType)) {
-    results.push_back(resultType);
-  } else {
-    results.push_back(RankedTensorType::get(
-        inputTensorType.getShape(), resultType, inputTensorType.getEncoding()));
-  }
-  return success();
-}
-
 LogicalResult ExtractSliceOp::inferReturnTypes(
     MLIRContext* context, std::optional<Location> /*loc*/, ValueRange operands,
     DictionaryAttr attrs, mlir::PropertyRef properties,
@@ -599,6 +597,11 @@ LogicalResult ApplyCoefficientwiseOp::verify() {
                          << block.getArgument(1).getType();
   }
 
+  if (!block.mightHaveTerminator()) {
+    // Do not emit an error here. This situation occurs when the op creation
+    // failed; that emits its own (meaningful) error.
+    return failure();
+  }
   auto yieldOp = cast<YieldOp>(block.getTerminator());
   auto outputPolyTy = getOutput().getType();
   auto outputCoeffTy = outputPolyTy.getRing().getCoefficientType();

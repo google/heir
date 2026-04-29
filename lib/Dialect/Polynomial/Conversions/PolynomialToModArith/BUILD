@@ -15,7 +15,7 @@ cc_library(
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
-        "@heir//lib/Dialect/ModArith/IR:ModArithTypeInterfaces",
+        "@heir//lib/Dialect/ModArith/IR:TypeInterfaces",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Dialect/RNS/IR:Dialect",
         "@heir//lib/Utils",

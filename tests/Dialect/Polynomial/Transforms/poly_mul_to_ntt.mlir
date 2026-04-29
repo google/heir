@@ -45,14 +45,18 @@ module {
     return %xsq: !poly_ty_1
   }
 
-  // Covers: eval->coeff path with INTT + ConvertBasis to satisfy narrower output basis.
+  // Covers: eval->coeff path with INTT + apply_coefficientwise to satisfy narrower output basis.
   // CHECK: func.func @test_ntt_insertion2([[x2:%.+]]: [[ntt_poly_ty_2]]) -> [[poly_ty_1]] {
   func.func @test_ntt_insertion2(%x: !poly_ty_2) -> !poly_ty_1 {
     // CHECK: [[xsq2:%.+]] = polynomial.mul [[x2]], [[x2]] : [[ntt_poly_ty_2]]
     %xsq = polynomial.mul %x, %x : !poly_ty_2
     // CHECK: [[coeff2:%.+]] = polynomial.intt [[xsq2]] : [[ntt_poly_ty_2]]
-    // CHECK: [[out2:%.+]] = polynomial.convert_basis [[coeff2]] {targetBasis = {{.*}}} : [[poly_ty_2]] -> [[poly_ty_1]]
-    %y = polynomial.convert_basis %xsq {targetBasis = !rns.rns<!Zq0>} : !poly_ty_2 -> !poly_ty_1
+    // CHECK: [[out2:%.+]] = polynomial.apply_coefficientwise{{ *}}([[coeff2]] : [[poly_ty_2]])
+    %y = polynomial.apply_coefficientwise (%xsq : !poly_ty_2) {
+    ^body(%coeff: !rns.rns<!Zq0, !Zq1>, %degree: index):
+      %reduced = rns.extract_slice %coeff {start = 0 : index, size = 1 : index} : !rns.rns<!Zq0, !Zq1> -> !rns.rns<!Zq0>
+      polynomial.yield %reduced : !rns.rns<!Zq0>
+    } -> !poly_ty_1
     // CHECK: return [[out2]] : [[poly_ty_1]]
     return %y: !poly_ty_1
   }
@@ -72,18 +76,6 @@ module {
     // NTT_PLACEMENT: return [[c3]] : [[ntt_poly_ty_1]]
     // ORDER: return [[c3]] : [[ntt_poly_ty_1]]
     return %c : !poly_ty_1
-  }
-
-  // Covers: another basis-conversion path to exercise solver consistency across functions.
-  // CHECK: func.func @test_ntt_insertion4([[x4:%.+]]: [[ntt_poly_ty_2]]) -> [[poly_ty_1]] {
-  func.func @test_ntt_insertion4(%x: !poly_ty_2) -> !poly_ty_1 {
-    // CHECK: [[xsq4:%.+]] = polynomial.mul [[x4]], [[x4]] : [[ntt_poly_ty_2]]
-    %xsq = polynomial.mul %x, %x : !poly_ty_2
-    // CHECK: [[coeff4:%.+]] = polynomial.intt [[xsq4]] : [[ntt_poly_ty_2]]
-    // CHECK: [[out4:%.+]] = polynomial.convert_basis [[coeff4]] {targetBasis = {{.*}}} : [[poly_ty_2]] -> [[poly_ty_1]]
-    %out = polynomial.convert_basis %xsq {targetBasis = !rns.rns<!Zq0>} : !poly_ty_2 -> !poly_ty_1
-    // CHECK: return [[out4]] : [[poly_ty_1]]
-    return %out : !poly_ty_1
   }
 
   // Covers: coeff-output op (monic_monomial_mul) feeding eval-only MulOp.
@@ -217,15 +209,33 @@ module {
     return %m : tensor<2x!poly_ty_1>
   }
 
-  // Covers: eval->coeff path for tensor<poly> via MulOp feeding ConvertBasis, which may require tensor INTT.
+  // Covers: eval->coeff path for tensor<poly> via MulOp feeding apply_coefficientwise, which may require tensor INTT.
   // CHECK: func.func @test_ntt_insertion16_tensor_convert_basis([[x16:%.+]]: tensor<2x[[ntt_poly_ty_2]]>) -> tensor<2x[[poly_ty_1]]> {
   // CHECK: [[xsq16:%.+]] = polynomial.mul [[x16]], [[x16]] : tensor<2x[[ntt_poly_ty_2]]>
   // CHECK: [[coeff16:%.+]] = polynomial.intt [[xsq16]] : tensor<2x[[ntt_poly_ty_2]]>
-  // CHECK: [[y16:%.+]] = polynomial.convert_basis [[coeff16]] {targetBasis = {{.*}}} : tensor<2x[[poly_ty_2]]> -> tensor<2x[[poly_ty_1]]>
+  // CHECK: [[coeff16_0:%.+]] = tensor.extract [[coeff16]][%{{.+}}] : tensor<2x[[poly_ty_2]]>
+  // CHECK: [[coeff16_1:%.+]] = tensor.extract [[coeff16]][%{{.+}}] : tensor<2x[[poly_ty_2]]>
+  // CHECK: [[y16_0:%.+]] = polynomial.apply_coefficientwise{{ *}}([[coeff16_0]] : [[poly_ty_2]])
+  // CHECK: [[y16_1:%.+]] = polynomial.apply_coefficientwise{{ *}}([[coeff16_1]] : [[poly_ty_2]])
+  // CHECK: [[y16:%.+]] = tensor.from_elements [[y16_0]], [[y16_1]] : tensor<2x[[poly_ty_1]]>
   // CHECK: return [[y16]] : tensor<2x[[poly_ty_1]]>
   func.func @test_ntt_insertion16_tensor_convert_basis(%x: tensor<2x!poly_ty_2>) -> tensor<2x!poly_ty_1> {
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
     %xsq = polynomial.mul %x, %x : tensor<2x!poly_ty_2>
-    %y = polynomial.convert_basis %xsq {targetBasis = !rns.rns<!Zq0>} : tensor<2x!poly_ty_2> -> tensor<2x!poly_ty_1>
+    %xsq0 = tensor.extract %xsq[%c0] : tensor<2x!poly_ty_2>
+    %xsq1 = tensor.extract %xsq[%c1] : tensor<2x!poly_ty_2>
+    %y0 = polynomial.apply_coefficientwise (%xsq0 : !poly_ty_2) {
+    ^body(%coeff: !rns.rns<!Zq0, !Zq1>, %degree: index):
+      %reduced = rns.extract_slice %coeff {start = 0 : index, size = 1 : index} : !rns.rns<!Zq0, !Zq1> -> !rns.rns<!Zq0>
+      polynomial.yield %reduced : !rns.rns<!Zq0>
+    } -> !poly_ty_1
+    %y1 = polynomial.apply_coefficientwise (%xsq1 : !poly_ty_2) {
+    ^body(%coeff: !rns.rns<!Zq0, !Zq1>, %degree: index):
+      %reduced = rns.extract_slice %coeff {start = 0 : index, size = 1 : index} : !rns.rns<!Zq0, !Zq1> -> !rns.rns<!Zq0>
+      polynomial.yield %reduced : !rns.rns<!Zq0>
+    } -> !poly_ty_1
+    %y = tensor.from_elements %y0, %y1 : tensor<2x!poly_ty_1>
     return %y : tensor<2x!poly_ty_1>
   }
 

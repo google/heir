@@ -3,7 +3,10 @@
 
 #include <cstdint>
 
+#include "lib/Dialect/ModArith/IR/ModArithAttributes.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
+#include "llvm/include/llvm/ADT/APInt.h"       // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseMap.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"    // from @llvm-project
 
@@ -52,6 +55,50 @@ RNSType inferExtractSliceReturnTypes(MLIRContext* ctx, Op* op,
   return RNSType::get(
       ctx, elementType.getBasisTypes().drop_front(start).take_front(size));
 }
+
+// Given an RNS value x with limbs x_i = x mod q_i for pairwise-coprime moduli
+// q_0, ..., q_{k-1}, compute its mixed-radix digits c_0, ..., c_{k-1} such
+// that
+//
+//   x = c_0 + c_1 * q_0 + c_2 * (q_0 * q_1) + ... + c_{k-1} * (q_0 * ... *
+//   q_{k-2}).
+//
+// Equivalently, if Q_i = \prod_{j=0}^i q_j, then each coefficient satisfies
+//
+//   c_i = (x_i - \sum_{j=0}^{i-1} c_j * Q_{j-1}) * Q_{i-1}^{-1} mod q_i,
+//
+// where qInvProds[i - 1] stores Q_{i-1}^{-1} in Z / (q_i Z). The returned SSA
+// values are the c_i lifted from their limb-wise mod_arith types into the
+// corresponding integer lowering types.
+FailureOr<SmallVector<Value>> computeMixedRadixCoeffs(
+    ImplicitLocOpBuilder& b, Value input,
+    const ArrayRef<mod_arith::ModArithAttr>& qInvProds);
+
+// For an input basis q_0, ..., q_{k-1}, build the precomputed inverses used by
+// computeMixedRadixCoeffs and convertBasis. The returned array has length k - 1
+// and stores
+//
+//   qInvProds[i] = (q_0 * ... * q_i)^{-1} mod q_{i+1}.
+//
+// Each entry is encoded as a mod_arith attribute in the corresponding
+// q_{i+1}-limb type.
+FailureOr<SmallVector<mod_arith::ModArithAttr>> buildQInvProds(
+    mlir::MLIRContext* ctx, RNSType basisTy);
+
+// Given x \in Z_Q represented as {x_i mod q_i} where Q=\prod q_i,
+// convertBasis returns the target-basis representation obtained by:
+//  1. Compute x's centered integer representative in [-Q/2, Q/2]
+//  2. Reduce the integer representation mod p_i for each p_i in the target
+//  basis.
+//
+// This performs the conversion directly from the RNS representation of x,
+// without first reconstructing x over the integers. Note that both bases must
+// be composed entirely of odd moduli; this algorithm does not work for bases
+// with even moduli.
+FailureOr<Value> convertBasis(
+    ImplicitLocOpBuilder b, ArrayRef<mod_arith::ModArithAttr> qInvProds,
+    Value x, RNSType targetBasisTy,
+    const llvm::DenseMap<APInt, size_t>& inputBasisIndexByModulus);
 
 }  // namespace rns
 }  // namespace heir
