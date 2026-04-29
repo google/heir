@@ -296,6 +296,7 @@ TEST(ConvolutionTest, ConvChwFchwFilterRelationPadding) {
   // singleColSize = 9, c=2 -> slotBound = 1 * 9 + 8 = 17
   EXPECT_EQ(slotBound.value(), 17);
 }
+
 TEST(ConvolutionTest, TestRowInterchange) {
   MLIRContext context;
   // c=4, h=2, w=2, g=2

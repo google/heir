@@ -160,7 +160,16 @@ __isl_give isl_ast_node* constructAst(const presburger::IntegerRelation& rel,
   isl_set* context = isl_set_universe(isl_space_params_alloc(ctx, 0));
   isl_union_map* options = isl_union_map_empty(isl_space_params_alloc(ctx, 0));
 
-  // Build the AST
+  // Build the AST with options tuned for performance.
+  isl_options_set_ast_build_atomic_upper_bound(ctx, 1);
+  isl_options_set_ast_build_detect_min_max(ctx, 0);
+  isl_options_set_ast_build_prefer_pdiv(ctx, 1);
+  isl_options_set_ast_build_separation_bounds(
+      ctx, ISL_AST_BUILD_SEPARATION_BOUNDS_IMPLICIT);
+  isl_options_set_ast_build_group_coscheduled(ctx, 0);
+  isl_options_set_ast_build_scale_strides(ctx, 1);
+  isl_options_set_ast_build_exploit_nested_bounds(ctx, 1);
+
   isl_ast_build* build = isl_ast_build_from_context(context);
   build = isl_ast_build_set_options(build, options);
   isl_ast_node* tree = isl_ast_build_node_from_schedule_map(build, schedule);
@@ -239,6 +248,18 @@ Value buildIslExpr(isl_ast_expr* expr, std::map<std::string, Value> ivToValue,
         // Binary ops with 1-1 correspondence
         auto mlirOp = islBinaryOpToMlir[isl_ast_expr_get_op_type(expr)];
         SmallVector<Value> args = getArgs(expr);
+        if (args.size() > 2) {
+          // Reduce variadic ops to binary ops
+          Value accum = args[0];
+          for (size_t i = 1; i < args.size(); ++i) {
+            auto* op = b.create(OperationState(
+                b.getLoc(), mlirOp, {accum, args[i]}, {accum.getType()}));
+            createdOpCallback(op);
+            accum = op->getResult(0);
+          }
+          return accum;
+        }
+
         auto* op = b.create(
             OperationState(b.getLoc(), mlirOp, args, {args[0].getType()}));
         createdOpCallback(op);

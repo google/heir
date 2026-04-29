@@ -816,6 +816,10 @@ LogicalResult LattigoEmitter::printOperation(arith::OrIOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(arith::XOrIOp op) {
+  Type type = op.getLhs().getType();
+  if (type.isInteger(1)) {
+    return printBinaryOp(op, op.getLhs(), op.getRhs(), "!=");
+  }
   return printBinaryOp(op, op.getLhs(), op.getRhs(), "^");
 }
 
