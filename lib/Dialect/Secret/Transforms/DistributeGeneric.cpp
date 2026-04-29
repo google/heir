@@ -200,6 +200,8 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       return failure();
     }
 
+    newIfOp->setAttrs(opToDistribute->getAttrs());
+
     // Clone the regions
     for (int i = 0; i < 2; ++i) {
       Region& oldRegion = opToDistribute->getRegion(i);
