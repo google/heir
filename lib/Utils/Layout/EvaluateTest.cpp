@@ -155,7 +155,7 @@ TEST(EvaluateTest, EvaluateLayoutFor2DConvDiagonalized) {
       RankedTensorType::get({3, 3}, IndexType::get(&context));
   RankedTensorType dataType =
       RankedTensorType::get({3, 3}, IndexType::get(&context));
-  auto relation = get2dConvFilterDiagonalizedRelation(
+  auto relation = getConvFilterDiagonalizedRelation(
       filterType, dataType, /*padding=*/1, /*ciphertextSize=*/16);
 
   std::vector<std::vector<int>> filter = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}};

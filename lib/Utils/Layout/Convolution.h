@@ -14,21 +14,35 @@ namespace heir {
 // convolution into a 2-D matrix such that the convolution is
 // equivalent a matrix product with the flattened input vector. Each row
 // corresponds to one filter multiplication. This does not include diagonalizing
-// the matrix, this simply returns the expanded data matrix.
+// the matrix, the returned relation only expands the filter to the data matrix.
 presburger::IntegerRelation get2dConvFilterRelation(RankedTensorType filterType,
                                                     RankedTensorType dataType,
                                                     ArrayRef<int64_t> strides,
+                                                    int64_t padding);
+
+// Returns an IntegerRelation that expands a 1-D filter used in a
+// convolution into a 2-D matrix such that the convolution is
+// equivalent a matrix product with the input vector. Each row
+// corresponds to one filter multiplication. This does not include diagonalizing
+// the matrix, the returned relation only expands the filter to the data matrix.
+presburger::IntegerRelation get1dConvFilterRelation(RankedTensorType filterType,
+                                                    RankedTensorType dataType,
+                                                    int64_t stride,
                                                     int64_t padding);
 
 RankedTensorType get2dConvFilterExpandedType(
     RankedTensorType filterType, RankedTensorType dataType, int64_t padding,
     ArrayRef<int64_t> strides = {1, 1});
 
-// Returns an IntegerRelation that expands a 2-D filter matrix used in a
+RankedTensorType get1dConvFilterExpandedType(RankedTensorType filterType,
+                                             RankedTensorType dataType,
+                                             int64_t stride, int64_t padding);
+
+// Returns an IntegerRelation that expands a filter matrix used in a
 // convolution into a 2-D matrix such that the convolution is
 // equivalent a matrix product with the flattened input vector. Each row
 // corresponds to one filter multiplication.
-FailureOr<presburger::IntegerRelation> get2dConvFilterDiagonalizedRelation(
+FailureOr<presburger::IntegerRelation> getConvFilterDiagonalizedRelation(
     RankedTensorType filterType, RankedTensorType dataType, int64_t padding,
     int64_t ciphertextSize);
 
@@ -77,7 +91,7 @@ get2dConvChwFchwFilterDiagonalizedRelation(RankedTensorType filterType,
 presburger::IntegerRelation getRowInterchangeRelation(int64_t c, int64_t h,
                                                       int64_t w, int64_t g);
 
-bool isRelation2dConvFilterDiagonalized(
+bool isRelationConvFilterDiagonalized(
     RankedTensorType filterType, RankedTensorType dataType, int64_t padding,
     int64_t ciphertextSize, const presburger::IntegerRelation& relation);
 
