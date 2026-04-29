@@ -7657,33 +7657,52 @@ arguments in the function body.&lt;/li>
 &lt;/ul>
 &lt;h4 id="statistics-1">Statistics&lt;/h4>
 &lt;pre tabindex="0">&lt;code>total circuit size : The total circuit size for all optimized circuits, after optimization is done.
-&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2024-09-05</title><link>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</link><pubDate>Thu, 05 Sep 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</guid><description>
+&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2025-10-30</title><link>https://heir.dev/blog/2025/10/30/heir-meeting-2025-10-30/</link><pubDate>Thu, 30 Oct 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/10/30/heir-meeting-2025-10-30/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1tohVmC2pn_XDn3gjCFeo3K4Wfyf7VWu3oK1vimEsFD4/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1XGheLF7kvJfwAMJJQ-XbDpa4Ld15kj4t/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-09-05.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-08-22</title><link>https://heir.dev/blog/2024/08/22/heir-meeting-2024-08-22/</link><pubDate>Thu, 22 Aug 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/08/22/heir-meeting-2024-08-22/</guid><description>
+&lt;a href="https://docs.google.com/document/d/1nUfA6YtOQCGVEE-StS-oxJst6VvGYSz14lCL-x6D2MA/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://www.youtube.com/watch?v=74nh6R5Ex5Q">video recording&lt;/a> from the HEIR
+meeting on 2025-10-30.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2025-10-02</title><link>https://heir.dev/blog/2025/10/02/heir-meeting-2025-10-02/</link><pubDate>Thu, 02 Oct 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/10/02/heir-meeting-2025-10-02/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1iEkzpO6lCVbShMcRenO3j3DptOEP-0bLu_9V4K7c39M/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1wFrGF7lMiYZmqbr5WQO17HomfoFoOeaj/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-08-22.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-02-08</title><link>https://heir.dev/blog/2024/02/08/heir-meeting-2024-02-08/</link><pubDate>Thu, 08 Feb 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/02/08/heir-meeting-2024-02-08/</guid><description>
+&lt;a href="https://docs.google.com/document/d/1N0hlnCM8tQ9uwiTKVhbDoGdkZ0191sSIfhu7PWotBZc/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/uinxBjENAEE">video recording&lt;/a> from the HEIR meeting on
+2025-10-02.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2025-04-17</title><link>https://heir.dev/blog/2025/04/17/heir-meeting-2025-04-17/</link><pubDate>Thu, 17 Apr 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/04/17/heir-meeting-2025-04-17/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1w0Cc3YfbSNO4PYVdGjb8KpE5rql8zgoDG2X0Yseon_4/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1be2IqEcj14CF-MA17SjZaS_soRDf-xTrMP-yAKh1BWE/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/HHU6rCMxZRc">video recording&lt;/a> from the HEIR meeting on
+2025-04-17.&lt;/p>
+&lt;p>Hongren Zheng gave an overview of the &lt;code>mgmt&lt;/code> dialect which handles ciphertext
+management in the compiler. This talk
+&lt;a href="https://youtu.be/HHU6rCMxZRc?si=U_ePY5emqs6e4NoV&amp;amp;t=1631">starts at 27:11&lt;/a>.
+&lt;a href="https://heir.dev/slides/mgmt-2025-04-17.pdf">The slides can be found here&lt;/a>.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2025-01-23</title><link>https://heir.dev/blog/2025/01/23/heir-meeting-2025-01-23/</link><pubDate>Thu, 23 Jan 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/01/23/heir-meeting-2025-01-23/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1x8tFUC4vGeO0t-CvFQe4o-H8xgl4zEvBZaye_JlIEVo/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/HMgHNpJeINs">video recording&lt;/a> from the HEIR meeting on
+2025-01-23.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-01-25</title><link>https://heir.dev/blog/2024/01/25/heir-meeting-2024-01-25/</link><pubDate>Thu, 25 Jan 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/01/25/heir-meeting-2024-01-25/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1yrkAVR_348vT3SD7apb9QDoFIgz0bjHn-SzT2GOacfs/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1rTsc-sWdRCqJWONrgGo5FV7CQd1S_OV-/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-02-08.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2023-08-01</title><link>https://heir.dev/blog/2023/08/02/heir-meeting-2023-08-01/</link><pubDate>Wed, 02 Aug 2023 15:46:42 -0700</pubDate><guid>https://heir.dev/blog/2023/08/02/heir-meeting-2023-08-01/</guid><description>
-&lt;p>The fourth HEIR meeting was 2023-08-01
-(&lt;a href="https://docs.google.com/document/d/1gid-MARMUStb3dB9jsXEV_CnPDpf_9cyPXy9uXtZk08/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://drive.google.com/file/d/11JTfRy_3LvHjJQe0nJuqe8WGa8F9oHu1/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-01-25.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2023-11-28</title><link>https://heir.dev/blog/2023/11/28/heir-meeting-2023-11-28/</link><pubDate>Tue, 28 Nov 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/11/28/heir-meeting-2023-11-28/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1-kkkG__qlAtsp50YXxHC7Dq__Qvgb4BcLZCopzJOzE4/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1U6HDdKJo3-UHibFPgNrDakU8EpCt5xHZ/view?usp=sharing">video recording&lt;/a>).&lt;/p>
-&lt;p>We&amp;rsquo;re also starting on the Poly and Secret dialects in
-&lt;a href="https://github.com/google/heir/pull/74">#74 (poly)&lt;/a> and
-&lt;a href="https://github.com/google/heir/pull/78">#78 (secret)&lt;/a>, so please join in the
-fun!&lt;/p>
+&lt;a href="https://drive.google.com/file/d/1ykxaqlfVExqGC6saiSnfM2A7_TpWqKiE/view">video recording&lt;/a>
+from the HEIR meeting on 2023-11-28.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2023-10-24</title><link>https://heir.dev/blog/2023/10/25/heir-meeting-2023-10-24/</link><pubDate>Wed, 25 Oct 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/10/25/heir-meeting-2023-10-24/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1MYjjkytck0fxySbrh49hxBJgNM78NXSD0ZwzAgEPOUw/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1zrSCQJXta40KbBiCjcIWOP3gd1tuc3MU/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2023-10-24.&lt;/p>
+&lt;p>Also of note: our talk at FHE.org was last Thursday
+(&lt;a href="https://www.youtube.com/watch?v=kqDFdKUTNA4">recording&lt;/a>), and the similar talk
+at the LLVM developers meeting talk was the previous Wednesday, though the video
+has not yet been posted for that.&lt;/p>
 &lt;!-- mdformat global-off --></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h1 id="bgv-dialect">&amp;lsquo;bgv&amp;rsquo; Dialect&lt;/h1>
@@ -12511,6 +12530,297 @@ int # degrees
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>ciphertext&lt;/code>&lt;/td>
 &lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table></description></item><item><title>Docs: KeyMgmt</title><link>https://heir.dev/docs/dialects/keymgmt/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/keymgmt/</guid><description>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h1 id="key_mgmt-dialect">&amp;lsquo;key_mgmt&amp;rsquo; Dialect&lt;/h1>
+&lt;p>&lt;em>A dialect for managing the lifetime of FHE key material&lt;/em>&lt;/p>
+&lt;p>KeyMgmt is the control dialect for an abstracted key management runtime.
+It individually manages key lifetimes to lower memory utilization in
+FHE programs that utilize a large amount of evaluation keys. It treats
+key material as dataflow elements and provides automatic, fine-grained key
+management.&lt;/p>
+&lt;p>The &lt;code>key_mgmt&lt;/code> dialect provides:&lt;/p>
+&lt;ul>
+&lt;li>New types for keys (e.g., &lt;code>!key_mgmt.rot_key&lt;/code>).&lt;/li>
+&lt;li>Operations for loading and clearing keys (&lt;code>key_mgmt.load_key&lt;/code>, &lt;code>key_mgmt.clear_key&lt;/code>).&lt;/li>
+&lt;li>Prefetching hints to overlap computation with key movement (&lt;code>key_mgmt.prefetch_key&lt;/code>).&lt;/li>
+&lt;/ul>
+&lt;p>For more details, see the paper
+&lt;a href="https://arxiv.org/abs/2601.18445v1">KeyMemRT Compiler and Runtime: Unlocking Memory-Scalable FHE&lt;/a>&lt;/p>
+&lt;h2 id="keymgmt-types">KeyMgmt types&lt;/h2>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h3 id="rotkeytype">RotKeyType&lt;/h3>
+&lt;p>&lt;em>A rotation key type with optional static index parameter&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>!key_mgmt.rot_key&amp;lt;
+std::optional&amp;lt;int64_t&amp;gt; # rotation_index
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>The RotKeyType represents rotation keys used in the KeyMgmt system.&lt;/p>
+&lt;ul>
+&lt;li>If rotation_index is present: Static constant rotation key&lt;/li>
+&lt;li>If rotation_index is absent: Dynamic rotation key (determined at runtime,
+e.g., from affine loop induction variables)&lt;/li>
+&lt;/ul>
+&lt;p>For dynamic rotation keys, analysis passes examine the LoadKeyOp&amp;rsquo;s index
+operand to determine the range of possible rotation values by tracing through
+SSA def-use chains and analyzing affine contexts.&lt;/p>
+&lt;p>Examples:
+!key_mgmt.rot_key&amp;lt;rotation_index = 5&amp;gt; // Static rotation key for index 5
+!key_mgmt.rot_key // Dynamic rotation key&lt;/p>
+&lt;h4 id="parameters">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">rotation_index&lt;/td>
+&lt;td style="text-align:center">&lt;code>std::optional&amp;lt;int64_t&amp;gt;&lt;/code>&lt;/td>
+&lt;td>std::nullopt&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="keymgmt-ops">KeyMgmt ops&lt;/h2>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h3 id="key_mgmtassume_loaded-heirkey_mgmtassumeloadedop">&lt;code>key_mgmt.assume_loaded&lt;/code> (heir::key_mgmt::AssumeLoadedOp)&lt;/h3>
+&lt;p>&lt;em>Assume a rotation key is already loaded in memory&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `key_mgmt.assume_loaded` $index attr-dict `:` type($index) `-&amp;gt;` type($rot_key)
+&lt;/code>&lt;/pre>&lt;p>The assume_loaded operation creates a reference to a rotation key that is
+assumed to already be in memory. This is used for post-loop optimization where
+a key loaded inside a loop has its clear operation skipped, leaving it in memory
+for use after the loop.&lt;/p>
+&lt;p>Unlike load_key, this operation does NOT perform any I/O or deserialization - it
+simply creates an SSA value representing the key that is already in memory.
+The compiler/optimizer is responsible for ensuring the key is actually loaded.&lt;/p>
+&lt;p>This operation is typically emitted as a no-op or debug assertion at runtime.&lt;/p>
+&lt;p>Example:
+affine.for %iv = 1 to 16 {
+%rk = key_mgmt.load_key %iv : i64 -&amp;gt; !key_mgmt.rot_key&amp;lt;&amp;gt;
+// use %rk&amp;hellip;
+affine.if (%iv != 5) {
+key_mgmt.clear_key %rk : &amp;lt;&amp;gt; // Skip clearing when iv == 5
+}
+}
+// Key 5 is still in memory (wasn&amp;rsquo;t cleared)
+%c5 = arith.constant 5 : i64
+%rk5 = key_mgmt.assume_loaded %c5 : i64 -&amp;gt; !key_mgmt.rot_key&amp;lt;rotation_index = 5&amp;gt;
+// use %rk5&amp;hellip;
+key_mgmt.clear_key %rk5 : &amp;lt;&amp;gt;&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>index&lt;/code>&lt;/td>
+&lt;td>index or 64-bit signless integer&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rot_key&lt;/code>&lt;/td>
+&lt;td>A rotation key type with optional static index parameter&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="key_mgmtclear_key-heirkey_mgmtclearkeyop">&lt;code>key_mgmt.clear_key&lt;/code> (heir::key_mgmt::ClearKeyOp)&lt;/h3>
+&lt;p>&lt;em>Clear a rotation key from memory&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `key_mgmt.clear_key` $rot_key attr-dict `:` type($rot_key)
+&lt;/code>&lt;/pre>&lt;p>The clear_key operation removes a rotation key from memory or cache.
+This operation consumes the rotation key and has side effects.&lt;/p>
+&lt;p>This operation should typically be preceded by a load_key operation
+that produced the rotation key being cleared.&lt;/p>
+&lt;p>Interfaces: &lt;code>MemoryEffectOpInterface (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{MemoryEffects::Write on ::mlir::SideEffects::DefaultResource}&lt;/code>&lt;/p>
+&lt;h4 id="operands-1">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rot_key&lt;/code>&lt;/td>
+&lt;td>A rotation key type with optional static index parameter&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="key_mgmtload_key-heirkey_mgmtloadkeyop">&lt;code>key_mgmt.load_key&lt;/code> (heir::key_mgmt::LoadKeyOp)&lt;/h3>
+&lt;p>&lt;em>Load a rotation key by index&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `key_mgmt.load_key` $index attr-dict `:` type($index) `-&amp;gt;` type($rot_key)
+&lt;/code>&lt;/pre>&lt;p>The load_key operation loads a rotation key identified by the given index
+and returns it as a rot_key type.&lt;/p>
+&lt;p>The index operand can be:&lt;/p>
+&lt;ul>
+&lt;li>A constant value (e.g., from arith.constant) → produces static rot_key type&lt;/li>
+&lt;li>An affine induction variable or computed index → produces dynamic rot_key type&lt;/li>
+&lt;/ul>
+&lt;p>The result type indicates whether this is a static or dynamic rotation:&lt;/p>
+&lt;ul>
+&lt;li>!key_mgmt.rot_key&amp;lt;rotation_index = N&amp;gt; for static constant N&lt;/li>
+&lt;li>!key_mgmt.rot_key for dynamic (runtime-determined) indices&lt;/li>
+&lt;/ul>
+&lt;p>For dynamic rotation keys, analysis passes examine the index operand&amp;rsquo;s
+def-use chain to determine possible values (e.g., from affine loop bounds).&lt;/p>
+&lt;p>This operation should typically be preceded by a prefetch_key operation
+with the same index, and followed by a clear_key operation on the result.&lt;/p>
+&lt;p>Examples:
+// Static constant index
+%c5 = arith.constant 5 : i64
+%rk = key_mgmt.load_key %c5 : !key_mgmt.rot_key&amp;lt;rotation_index = 5&amp;gt;&lt;/p>
+&lt;p>// Dynamic index from affine loop
+affine.for %iv = 1 to 16 {
+%iv_i64 = arith.index_cast %iv : index to i64
+%rk = key_mgmt.load_key %iv_i64 : !key_mgmt.rot_key
+}&lt;/p>
+&lt;p>// Can also accept index type directly
+affine.for %iv = 1 to 16 {
+%rk = key_mgmt.load_key %iv : !key_mgmt.rot_key
+}&lt;/p>
+&lt;p>Interfaces: &lt;code>MemoryEffectOpInterface (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{MemoryEffects::Read on ::mlir::SideEffects::DefaultResource}&lt;/code>&lt;/p>
+&lt;h4 id="operands-2">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>index&lt;/code>&lt;/td>
+&lt;td>index or 64-bit signless integer&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-1">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rot_key&lt;/code>&lt;/td>
+&lt;td>A rotation key type with optional static index parameter&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="key_mgmtprefetch_key-heirkey_mgmtprefetchkeyop">&lt;code>key_mgmt.prefetch_key&lt;/code> (heir::key_mgmt::PrefetchKeyOp)&lt;/h3>
+&lt;p>&lt;em>Prefetch a rotation key by index&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `key_mgmt.prefetch_key` $index attr-dict
+&lt;/code>&lt;/pre>&lt;p>The prefetch_key operation initiates prefetching of a rotation key
+identified by the given index. This operation has side effects as it
+may trigger memory operations or cache warming.&lt;/p>
+&lt;p>This operation should typically be followed by a load_key operation
+with the same index.&lt;/p>
+&lt;p>Interfaces: &lt;code>MemoryEffectOpInterface (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{MemoryEffects::Write on ::mlir::SideEffects::DefaultResource}&lt;/code>&lt;/p>
+&lt;h4 id="operands-3">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>index&lt;/code>&lt;/td>
+&lt;td>64-bit signless integer&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="key_mgmtuse_key-heirkey_mgmtusekeyop">&lt;code>key_mgmt.use_key&lt;/code> (heir::key_mgmt::UseKeyOp)&lt;/h3>
+&lt;p>&lt;em>Reference an already-loaded rotation key&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `key_mgmt.use_key` $input_key attr-dict `:` type($input_key) `-&amp;gt;` type($rot_key)
+&lt;/code>&lt;/pre>&lt;p>The use_key operation converts a static rotation key to a dynamic rotation key
+for use in contexts where the type system requires dynamic keys (e.g., inside loops
+with dynamic indices). This is used for key reuse optimization where a key loaded
+outside a loop can be referenced inside the loop.&lt;/p>
+&lt;p>Unlike load_key, this operation does NOT perform any memory operations - it
+simply provides a type conversion from static to dynamic rot_key. The key must
+already be loaded and live.&lt;/p>
+&lt;p>The input is typically a static rotation key (!key_mgmt.rot_key&amp;lt;rotation_index = N&amp;gt;)
+and the output is always a dynamic rotation key (!key_mgmt.rot_key&amp;lt;&amp;gt;).&lt;/p>
+&lt;p>Example:
+// Load key outside loop
+%c4 = arith.constant 4 : i64
+%rk_static = key_mgmt.load_key %c4 : i64 -&amp;gt; !key_mgmt.rot_key&amp;lt;rotation_index = 4&amp;gt;&lt;/p>
+&lt;p>affine.for %iv = 1 to 16 {
+%iv_i64 = arith.index_cast %iv : index to i64
+// When iv == 4, reuse the pre-loaded key instead of loading again
+%rk = scf.if (%iv == 4) {
+%reused = key_mgmt.use_key %rk_static : !key_mgmt.rot_key&amp;lt;rotation_index = 4&amp;gt; -&amp;gt; !key_mgmt.rot_key
+scf.yield %reused
+} else {
+%loaded = key_mgmt.load_key %iv_i64 : i64 -&amp;gt; !key_mgmt.rot_key
+scf.yield %loaded
+}
+&amp;hellip;
+}&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-4">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input_key&lt;/code>&lt;/td>
+&lt;td>A rotation key type with optional static index parameter&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-2">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rot_key&lt;/code>&lt;/td>
+&lt;td>A rotation key type with optional static index parameter&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table></description></item><item><title>Docs: Lattigo</title><link>https://heir.dev/docs/dialects/lattigo/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/lattigo/</guid><description>
