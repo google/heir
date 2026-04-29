@@ -134,6 +134,11 @@ struct BackendOptions : public PassPipelineOptions<BackendOptions> {
       llvm::cl::desc("Insert function calls to an externally-defined debug "
                      "function (cf. --lwe-add-debug-port)"),
       llvm::cl::init(false)};
+  PassOptions::Option<bool> fuseOps{
+      *this, "fuse-ops",
+      llvm::cl::desc("Fuse sequences of ops into compound GPU kernels "
+                     "(CHEDDAR backend only)"),
+      llvm::cl::init(false)};
 };
 
 using RLWEPipelineBuilder =
@@ -157,6 +162,8 @@ RLWEPipelineBuilder mlirToRLWEPipelineBuilder(RLWEScheme scheme);
 BackendPipelineBuilder toOpenFhePipelineBuilder();
 
 BackendPipelineBuilder toLattigoPipelineBuilder();
+
+BackendPipelineBuilder toCheddarPipelineBuilder();
 
 // A subpipeline that preprocesses linalg ops to make them more suitable for
 // FHE.

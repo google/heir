@@ -1,3 +1,4 @@
+#include "lib/Target/Cheddar/CheddarEmitter.h"
 #include "lib/Target/FunctionInfo/FunctionInfoEmitter.h"
 #include "lib/Target/Jaxite/JaxiteEmitter.h"
 #include "lib/Target/JaxiteWord/JaxiteWordEmitter.h"
@@ -39,6 +40,11 @@ int main(int argc, char** argv) {
   mlir::heir::openfhe::registerToOpenFhePkePybindTranslation();
   mlir::heir::openfhe::registerToOpenFhePkeDebugHeaderTranslation();
   mlir::heir::openfhe::registerToOpenFhePkeDebugTranslation();
+
+  // CHEDDAR
+  mlir::heir::cheddar::registerCheddarTranslateOptions();
+  mlir::heir::cheddar::registerToCheddarTranslation();
+  mlir::heir::cheddar::registerToCheddarHeaderTranslation();
 
   // Lattigo
   mlir::heir::lattigo::registerToLattigoTranslation();

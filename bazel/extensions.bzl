@@ -53,3 +53,19 @@ def _llvm_deps_impl(_):
 llvm_deps = module_extension(
     implementation = _llvm_deps_impl,
 )
+
+# CHEDDAR GPU FHE library
+CHEDDAR_COMMIT = "307b49cbe03e7f8f14bf31485f716c1090c9ec9d"
+
+def _cheddar_deps_impl(_):
+    maybe(
+        new_git_repository,
+        name = "cheddar",
+        build_file = "@heir//bazel/cheddar:cheddar.BUILD",
+        commit = CHEDDAR_COMMIT,
+        remote = "https://github.com/scale-snu/cheddar-fhe.git",
+        patches = ["@heir//patches:cheddar.patch"],
+        patch_args = ["-p1"],
+    )
+
+cheddar_deps = module_extension(implementation = _cheddar_deps_impl)
