@@ -99,3 +99,25 @@ func.func @test_user_example(%arg0: !secret.secret<tensor<1x1024xf32>>, %arg1: !
   } -> (!secret.secret<tensor<1x1024xf32>>)
   return %0 : !secret.secret<tensor<1x1024xf32>>
 }
+
+// -----
+
+// CHECK: @test_distribute_scf_if_with_attr
+// CHECK-SAME: %[[arg0:.*]]: !secret.secret<i32>, %[[cond:.*]]: i1
+func.func @test_distribute_scf_if_with_attr(%arg0: !secret.secret<i32>, %cond: i1) -> !secret.secret<i32> {
+  // CHECK: scf.if %[[cond]] -> (!secret.secret<i32>) {
+  // CHECK: } else {
+  // CHECK: } {test.attr = "test"}
+  %0 = secret.generic (%arg0 : !secret.secret<i32>) {
+  ^bb0(%clear_arg0: i32):
+    %1 = scf.if %cond -> i32 {
+      %2 = arith.addi %clear_arg0, %clear_arg0 : i32
+      scf.yield %2 : i32
+    } else {
+      %3 = arith.muli %clear_arg0, %clear_arg0 : i32
+      scf.yield %3 : i32
+    } {test.attr = "test"}
+    secret.yield %1 : i32
+  } -> (!secret.secret<i32>)
+  return %0 : !secret.secret<i32>
+}
