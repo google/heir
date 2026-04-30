@@ -253,6 +253,20 @@ LogicalResult LayoutAttr::verify(function_ref<InFlightDiagnostic()> emitError,
   return success();
 }
 
+LogicalResult SeedAttr::verify(function_ref<InFlightDiagnostic()> emitError,
+                               ArrayAttr layouts) {
+  for (Attribute layout : layouts) {
+    auto layoutAttr = dyn_cast<LayoutAttr>(layout);
+    if (!layoutAttr) {
+      return emitError() << "seed layouts must be `rotom.layout` attributes";
+    }
+    if (failed(LayoutAttr::verify(emitError, layoutAttr.getDims(),
+                                  layoutAttr.getN())))
+      return failure();
+  }
+  return success();
+}
+
 }  // namespace rotom
 }  // namespace heir
 }  // namespace mlir
