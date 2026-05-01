@@ -10,7 +10,6 @@ include "mlir/IR/OpAsmInterface.td"
 class Rotom_Attr<string name, string attrMnemonic, list<Trait> traits = []>
     : AttrDef<Rotom_Dialect, name, traits> {
   let mnemonic = attrMnemonic;
-  let assemblyFormat = "`<` struct(params) `>`";
   let genMnemonicAlias = 1;
 }
 
@@ -39,6 +38,7 @@ def Rotom_DimAttr : Rotom_Attr<"Dim", "dim"> {
   }];
 
   let genVerifyDecl = 1;
+  let hasCustomAssemblyFormat = 1;
 }
 
 def Rotom_LayoutAttr : Rotom_Attr<"Layout", "layout"> {
@@ -54,14 +54,27 @@ def Rotom_LayoutAttr : Rotom_Attr<"Layout", "layout"> {
     For tensor_ext materialization, the **first** entry in `dims` is the
     ciphertext side of Rotom's `;` split (one piece); remaining entries are
     in-slot. See [Section 4.2 of the Rotom paper](https://eprint.iacr.org/2025/1319.pdf).
+
+    Optional **rolls** encode a `roll(i,j)` metadata object: each pair `(i, j)`
+    indexes into the `dims` array (the flattened `ct_dims + slot_dims` list) and
+    uses modular addition to modify the indices of  `dims[i]` by the indices of
+    `dims[j]`.
   }];
 
   let parameters = (ins
     "::mlir::ArrayAttr":$dims,
-    "int64_t":$n
+    "int64_t":$n,
+    OptionalParameter<"::mlir::DenseI64ArrayAttr">:$rolls
   );
 
   let genVerifyDecl = 1;
+  let hasCustomAssemblyFormat = 1;
+
+  let extraClassDeclaration = [{
+    /// Layout with no `roll(i,j)` metadata (empty rolls storage).
+    static ::mlir::heir::rotom::LayoutAttr get(::mlir::MLIRContext *context,
+                                               ::mlir::ArrayAttr dims, int64_t n);
+  }];
 }
 
 def Rotom_SeedAttr : Rotom_Attr<"Seed", "seed"> {
@@ -75,6 +88,7 @@ def Rotom_SeedAttr : Rotom_Attr<"Seed", "seed"> {
   );
 
   let genVerifyDecl = 1;
+  let assemblyFormat = "`<` struct(params) `>`";
 }
 
 #endif  // LIB_DIALECT_ROTOM_IR_ROTOMATTRIBUTES_TD_
