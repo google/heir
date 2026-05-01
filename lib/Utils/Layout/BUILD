@@ -30,16 +30,15 @@ cc_test(
     deps = [
         ":Codegen",
         ":Convolution",
+        ":IslConversion",
         "@googletest//:gtest_main",
-        "@heir//lib/Dialect/TensorExt/IR:Dialect",
-        "@heir//lib/Utils/Layout:IslConversion",
-        "@heir//lib/Utils/Layout:Utils",
+        "@heir//lib/Dialect/TensorExt/IR:TensorExtAttributes",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:SCFDialect",
         "@llvm-project//mlir:Support",
-        "@llvm-project//mlir:TensorDialect",
     ],
 )
 
@@ -67,6 +66,7 @@ cc_library(
     deps = [
         ":IslConversion",
         ":Utils",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Utils:MathUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
@@ -212,4 +212,9 @@ cc_binary(
 cc_binary(
     name = "debug_packing_4d",
     srcs = ["debug_packing_4d.cpp"],
+)
+
+cc_binary(
+    name = "debug_packing_4d_pooling",
+    srcs = ["debug_packing_4d_pooling.cpp"],
 )

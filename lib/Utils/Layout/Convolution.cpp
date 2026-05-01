@@ -339,6 +339,13 @@ presburger::IntegerRelation get2dConvChwFchwFilterRelation(
                 {{embedRow, 1}, {fDim, -totalRowSize}, {singleRow, -1}}, true);
   addConstraint(singleFilterRelation,
                 {{embedCol, 1}, {cDim, -totalColSize}, {singleCol, -1}}, true);
+
+  // Add bounds for the matrix dimensions.
+  addBounds(singleFilterRelation, embedRow, 0,
+            outputChannels * totalRowSize - 1);
+  addBounds(singleFilterRelation, embedCol, 0,
+            inputChannels * totalColSize - 1);
+
   // Project out the single filter relation range vars.
   singleFilterRelation.projectOut(singleRow, 2);
 
@@ -373,9 +380,19 @@ get2dConvChwFchwFilterDiagonalizedRelation(RankedTensorType filterType,
   // Permutate the rows of the matrix to minimize the number of non-zero
   // diagonals.
   if (interchangeRows) {
+    int64_t dataRowSize = dataType.getDimSize(2);
+    int64_t dataColSize = dataType.getDimSize(3);
+    int64_t filterRowSize = filterType.getDimSize(2);
+    int64_t filterColSize = filterType.getDimSize(3);
+    int64_t strideRow = strides[0];
+    int64_t strideCol = strides[1];
+    int64_t outputH =
+        (dataRowSize + 2 * padding - filterRowSize) / strideRow + 1;
+    int64_t outputW =
+        (dataColSize + 2 * padding - filterColSize) / strideCol + 1;
+
     auto rowInterchangeRelation = getRowInterchangeRelation(
-        filterType.getDimSize(0), filterType.getDimSize(2),
-        filterType.getDimSize(3), strides[0]);
+        filterType.getDimSize(0), outputH, outputW, strides[0]);
     rowInterchangeRelation.appendVar(presburger::VarKind::Domain);
     rowInterchangeRelation.appendVar(presburger::VarKind::Range);
     addConstraint(
@@ -416,8 +433,7 @@ presburger::IntegerRelation getRowInterchangeRelation(int64_t c, int64_t h,
   int64_t cOut = c / (g * g);
   int64_t numElements = c * h * w;
 
-  // Domain: [idx_in]
-  // Range: [ct, slot] where ct=0 and slot=idx_out
+  // One to one mapping from idx_in to idx_out.
   std::string islStr = llvm::formatv(
       "{{ [idx_in] -> [idx_out] : exists hi, wi, ci, ho, wo, co : "
       "0 <= hi < {0} and 0 <= wi < {1} and 0 <= ci < {2} and "

@@ -8,11 +8,17 @@
 #include "lib/Utils/Layout/Codegen.h"
 #include "lib/Utils/Layout/Convolution.h"
 #include "lib/Utils/Layout/IslConversion.h"
-#include "lib/Utils/Layout/Utils.h"
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"   // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"     // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"            // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
 
 // ISL
 
@@ -329,14 +335,16 @@ TEST(CodegenTest, ConvFilterMIMOPermuted) {
       filterType, dataType, strides, padding, ciphertextSize, true);
   ASSERT_TRUE(succeeded(relation));
 
-  auto result = generateLoopNestAsCStr(relation.value());
+  auto result = generateLoopNestAsCStr(relation.value(), {0, 1});
   ASSERT_TRUE(succeeded(result));
   std::string actual = result.value();
   std::string expected = R"(
-for (int c0 = 0; c0 <= 15; c0 += 1)
-  for (int c1 = 0; c1 <= 1023; c1 += 1)
-    if ((10 * c0 + 102 >= (c0 + c1 + 184) % 512 && (c0 + c1 + 184) % 512 >= c0 + 184 && c0 + 199 >= (c0 + c1 + 184) % 512 && (c0 + c1 + 184) % 512 >= 10 * c0 + 85) || (9 * c0 + 8 >= c1 % 16 && (c1 % 16) + 9 >= 9 * c0 && (c0 + c1 + 184) % 512 >= c0 + 184 && c0 + 199 >= (c0 + c1 + 184) % 512) || (9 * ((c0 + c1 + 184) % 512) >= 10 * (c1 % 16) + 1756 && 9 * c0 + 90 * floord(-9 * c0 + c1 + 20 * (c1 / 16) + 18 * ((c0 + c1 + 184) / 512) + 9, 90) + 8 >= c1 + 20 * (c1 / 16) + 18 * ((c0 + c1 + 184) / 512) && ((-(10 * (c1 % 16)) + 9 * c0 + 9 * c1 - 108 * ((c0 + c1 + 184) / 512) + 800) % 900) + 10 * c1 >= 10 * (c1 % 16) + 160 * (c1 / 16) + 809) || (c1 + 8 >= 9 * c0 + 10 * (c1 / 16) + 192 * ((c0 + c1 + 184) / 512) && 9 * c0 + 10 * (c1 / 16) + 192 * ((c0 + c1 + 184) / 512) + 8 >= c1 && 9 * ((c0 + c1 + 184) % 512) >= 10 * (c1 % 16) + 1756 && c1 / 16 - 6 * ((-(10 * (c1 % 16)) + 9 * c0 + 9 * c1 - 108 * ((c0 + c1 + 184) / 512) + 800) / 900) == 2 * ((c0 + c1 + 184) / 512)))
-      S(0, c0 + c1 / 16 - 5 * ((c0 + c1 + 184) / 512) - (891 * c0 + c1 + 740 * (c1 / 16) + 108 * ((c0 + c1 + 184) / 512) + 99) / 900, -9 * c0 - 8 * (c1 / 16) - (c0 + c1 + 184) / 512 - (81 * c0 + c1 + 20 * (c1 / 16) + 18 * ((c0 + c1 + 184) / 512) + 9) / 90 + 10 * ((891 * c0 + c1 + 740 * (c1 / 16) + 108 * ((c0 + c1 + 184) / 512) + 99) / 900), -9 * c0 - 2 * (c1 / 16) - 2 * ((c0 + c1 + 184) / 512) - (c1 + 2 * (c1 / 16)) / 9 + 10 * ((81 * c0 + c1 + 20 * (c1 / 16) + 18 * ((c0 + c1 + 184) / 512) + 9) / 90), c0, c1);
+for (int c0 = 0; c0 <= 3; c0 += 1)
+  for (int c1 = 0; c1 <= 3; c1 += 1)
+    for (int c2 = 0; c2 <= 511; c2 += 1)
+      for (int c3 = 81 * c0; c3 <= 1023; c3 += 1)
+        if (((-c3 + 1347) % 512) + 81 * c0 <= 323 && ((-c3 + 1347) % 512) + 81 * c0 >= 243 && 10 * ((-c3 + 1347) % 512) + 9 * ((c2 + c3 + 112) % 512) + 810 * c0 >= 900 * c1 + 4158 && 900 * c1 + 4337 >= 10 * ((-c3 + 1347) % 512) + 9 * ((c2 + c3 + 112) % 512) + 810 * c0 && 9 * c2 >= c3 + 10 * ((c3 + 188) / 512) + 18 * ((c2 + c3 + 112) / 512) + 90 * floord(9 * c2 - c3 - 10 * ((c3 + 188) / 512) - 18 * ((c2 + c3 + 112) / 512) - 10, 90) + 82)
+          S(c0, c1, 900 * c1 + 4247 >= 9 * ((c2 + c3 + 112) % 512) + 10 * ((-c3 + 1347) % 512) + 810 * c0 ? 0 : 1, 900 * c1 + 4238 >= 9 * ((c2 + c3 + 112) % 512) + 10 * ((-c3 + 1347) % 512) + 810 * c0 ? 0 : 9 * ((c2 + c3 + 112) % 512) + 10 * ((-c3 + 1347) % 512) + 810 * c0 >= 900 * c1 + 4239 && 900 * c1 + 4247 >= 9 * ((c2 + c3 + 112) % 512) + 10 * ((-c3 + 1347) % 512) + 810 * c0 ? 1 : ((c2 + c3 + 112) % 512) + 90 * c0 - 100 * c1 - c3 - (57 * c3 + 20) / 512 + 569 * ((c3 + 188) / 512) - 122, c2, c3);
 )";
   ASSERT_THAT(actual, Eq(expected));
 }
@@ -415,6 +423,41 @@ for (int c0 = 0; c0 <= 3; c0 += 1)
               S(c0, c1, c2, c3, c4, c5);
 )";
   ASSERT_THAT(result.value(), Eq(expected));
+}
+
+TEST(CodegenTest, VariadicOpTest) {
+  // This exercises variadic operations in the generated ISL.
+  MLIRContext context;
+  context
+      .loadDialect<scf::SCFDialect, arith::ArithDialect, func::FuncDialect>();
+
+  auto relation = getIntegerRelationFromIslStr(
+      "{ [i0, i1, i2, i3] -> [o0, o1, o2, o3, o4] : o0 = i0 and o1 = i1 and o4 "
+      "= 28i2 + i3 + 56o2 + 2o3 and 0 <= i0 <= 3 and 0 <= i1 <= 3 and 0 <= i2 "
+      "<= 1 and 0 <= i3 <= 1 and 0 <= o2 <= 13 and 0 <= o3 <= 13 }");
+  ASSERT_TRUE(succeeded(relation));
+  auto rel = relation.value();
+
+  OpBuilder builder(&context);
+  auto moduleOp = ModuleOp::create(builder.getUnknownLoc());
+  builder.setInsertionPointToEnd(moduleOp.getBody());
+
+  auto funcType = builder.getFunctionType({}, {});
+  auto funcOp = func::FuncOp::create(builder, builder.getUnknownLoc(),
+                                     "test_func", funcType);
+  auto* block = funcOp.addEntryBlock();
+  builder.setInsertionPointToStart(block);
+
+  ImplicitLocOpBuilder locBuilder(builder.getUnknownLoc(), builder);
+  MLIRLoopNestGenerator generator(locBuilder);
+
+  auto bodyBuilder = [](OpBuilder& b, Location loc, ValueRange ivs,
+                        ValueRange iterArgs) { return scf::ValueVector{}; };
+
+  auto result = generator.generateForLoop(rel, {}, bodyBuilder);
+  ASSERT_TRUE(succeeded(result));
+
+  moduleOp.erase();
 }
 
 }  // namespace
