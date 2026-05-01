@@ -75,8 +75,11 @@ TEST(RotomTensorExtLayoutLoweringTest, ColumnMajor4x4Evaluate) {
       {9, 10, 11, 12},
       {13, 14, 15, 16},
   };
-  std::vector<std::vector<int>> packed =
-      evaluateLayoutOnMatrix(relation.value(), matrix);
+  std::vector<std::vector<int>> packed = evaluateLayout<int>(
+      relation.value(), [&](const std::vector<int64_t>& domainPoint) -> int {
+        // Traversal dims are {dim1, dim0}, so relation vars are [col, row].
+        return matrix[domainPoint[1]][domainPoint[0]];
+      });
 
   std::vector<std::vector<int>> expected = {
       {1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15, 4, 8, 12, 16},
@@ -177,8 +180,11 @@ TEST(RotomTensorExtLayoutLoweringTest, SplitColumnMajor4x4Evaluate) {
       {9, 10, 11, 12},
       {13, 14, 15, 16},
   };
-  std::vector<std::vector<int>> packed =
-      evaluateLayoutOnMatrix(relation.value(), matrix);
+  std::vector<std::vector<int>> packed = evaluateLayout<int>(
+      relation.value(), [&](const std::vector<int64_t>& domainPoint) -> int {
+        // Traversal dims are {dim1, dim0}, so relation vars are [col, row].
+        return matrix[domainPoint[1]][domainPoint[0]];
+      });
 
   // Column-major packing, split into 4 ciphertexts of 4 slots: one column per
   // ciphertext.
@@ -210,7 +216,7 @@ TEST(RotomTensorExtLayoutLoweringTest, PreprocessAddsImplicitGap) {
   EXPECT_EQ(data->pieces[1], LayoutPieceKind::Traversal);
 }
 
-TEST(RotomTensorExtLayoutLoweringTest, PreprocessReordersUniqueTraversalDims) {
+TEST(RotomTensorExtLayoutLoweringTest, PreprocessPreservesTraversalDimsOrder) {
   MLIRContext context;
   context.loadDialect<RotomDialect>();
   DimAttr d0 = DimAttr::get(&context, /*dim=*/0, /*size=*/4, /*stride=*/1);
@@ -221,8 +227,101 @@ TEST(RotomTensorExtLayoutLoweringTest, PreprocessReordersUniqueTraversalDims) {
   FailureOr<LayoutData> data = preprocessLayoutAttr(layout);
   ASSERT_TRUE(succeeded(data));
   ASSERT_EQ(data->traversalDims.size(), 2);
-  EXPECT_EQ(data->traversalDims[0].getDim(), 0);
-  EXPECT_EQ(data->traversalDims[1].getDim(), 1);
+  EXPECT_EQ(data->traversalDims[0].getDim(), 1);
+  EXPECT_EQ(data->traversalDims[1].getDim(), 0);
+}
+
+TEST(RotomTensorExtLayoutLoweringTest, RolledRowMajor2x2Evaluate) {
+  MLIRContext context;
+  context.loadDialect<RotomDialect>();
+  DimAttr d0 = DimAttr::get(&context, /*dim=*/0, /*size=*/2, /*stride=*/1);
+  DimAttr d1 = DimAttr::get(&context, /*dim=*/1, /*size=*/2, /*stride=*/1);
+  ArrayAttr dims = ArrayAttr::get(&context, {d0, d1});
+  LayoutAttr layout = LayoutAttr::get(
+      &context, dims, /*n=*/4,
+      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{0, 1}));
+
+  FailureOr<std::string> isl =
+      RotomTensorExtLayoutLowering::lowerToTensorExtIsl(layout);
+  ASSERT_TRUE(succeeded(isl));
+  auto relation = getIntegerRelationFromIslStr(*isl);
+  ASSERT_TRUE(succeeded(relation));
+
+  std::vector<std::vector<int>> matrix = {
+      {1, 2},
+      {3, 4},
+  };
+  std::vector<std::vector<int>> packed =
+      evaluateLayoutOnMatrix(relation.value(), matrix);
+  std::vector<std::vector<int>> expected = {{1, 4, 3, 2}};
+  EXPECT_EQ(packed, expected);
+  EXPECT_EQ(unpackLayoutToMatrix(relation.value(), packed, {2, 2}), matrix);
+}
+
+TEST(RotomTensorExtLayoutLoweringTest, RolledRowMajor4x4Evaluate) {
+  MLIRContext context;
+  context.loadDialect<RotomDialect>();
+  DimAttr d0 = DimAttr::get(&context, /*dim=*/0, /*size=*/4, /*stride=*/1);
+  DimAttr d1 = DimAttr::get(&context, /*dim=*/1, /*size=*/4, /*stride=*/1);
+  ArrayAttr dims = ArrayAttr::get(&context, {d0, d1});
+  LayoutAttr layout = LayoutAttr::get(
+      &context, dims, /*n=*/16,
+      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{0, 1}));
+
+  FailureOr<std::string> isl =
+      RotomTensorExtLayoutLowering::lowerToTensorExtIsl(layout);
+  ASSERT_TRUE(succeeded(isl));
+  auto relation = getIntegerRelationFromIslStr(*isl);
+  ASSERT_TRUE(succeeded(relation));
+
+  std::vector<std::vector<int>> matrix = {
+      {1, 2, 3, 4},
+      {5, 6, 7, 8},
+      {9, 10, 11, 12},
+      {13, 14, 15, 16},
+  };
+  std::vector<std::vector<int>> packed =
+      evaluateLayoutOnMatrix(relation.value(), matrix);
+
+  // ``roll(0,1)``: diagonal ``(i0 - i1) mod 4`` classes, listed in Rotom order.
+  std::vector<std::vector<int>> expected = {
+      {1, 6, 11, 16, 5, 10, 15, 4, 9, 14, 3, 8, 13, 2, 7, 12},
+  };
+  EXPECT_EQ(packed, expected);
+  EXPECT_EQ(unpackLayoutToMatrix(relation.value(), packed, {4, 4}), matrix);
+}
+
+TEST(RotomTensorExtLayoutLoweringTest, RolledInternalRowMajor4x4Evaluate) {
+  MLIRContext context;
+  context.loadDialect<RotomDialect>();
+  DimAttr d0 = DimAttr::get(&context, /*dim=*/0, /*size=*/4, /*stride=*/1);
+  DimAttr d1 = DimAttr::get(&context, /*dim=*/1, /*size=*/4, /*stride=*/1);
+  ArrayAttr dims = ArrayAttr::get(&context, {d0, d1});
+  LayoutAttr layout = LayoutAttr::get(
+      &context, dims, /*n=*/16,
+      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{1, 0}));
+
+  FailureOr<std::string> isl =
+      RotomTensorExtLayoutLowering::lowerToTensorExtIsl(layout);
+  ASSERT_TRUE(succeeded(isl));
+  auto relation = getIntegerRelationFromIslStr(*isl);
+  ASSERT_TRUE(succeeded(relation));
+
+  std::vector<std::vector<int>> matrix = {
+      {1, 2, 3, 4},
+      {5, 6, 7, 8},
+      {9, 10, 11, 12},
+      {13, 14, 15, 16},
+  };
+  std::vector<std::vector<int>> packed =
+      evaluateLayoutOnMatrix(relation.value(), matrix);
+
+  // ``roll(1,0)``: cyclic column order within each row (dims index high first).
+  std::vector<std::vector<int>> expected = {
+      {1, 2, 3, 4, 6, 7, 8, 5, 11, 12, 9, 10, 16, 13, 14, 15},
+  };
+  EXPECT_EQ(packed, expected);
+  EXPECT_EQ(unpackLayoutToMatrix(relation.value(), packed, {4, 4}), matrix);
 }
 
 }  // namespace
