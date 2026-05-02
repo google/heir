@@ -71,4 +71,17 @@ def Rotom_LayoutAttr : Rotom_Attr<"Layout", "layout"> {
   let genVerifyDecl = 1;
 }
 
+def Rotom_SeedAttr : Rotom_Attr<"Seed", "seed"> {
+  let summary = "A list of Rotom layouts for seeding.";
+  let description = [{
+    Contains a list of `rotom.layout` attributes representing the initial
+    seeding layouts explored by Rotom.
+  }];
+  let parameters = (ins
+    "::mlir::ArrayAttr":$layouts
+  );
+
+  let genVerifyDecl = 1;
+}
+
 #endif  // LIB_DIALECT_ROTOM_IR_ROTOMATTRIBUTES_TD_
