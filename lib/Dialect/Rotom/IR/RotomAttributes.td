@@ -61,14 +61,26 @@ def Rotom_LayoutAttr : Rotom_Attr<"Layout", "layout"> {
     For tensor_ext materialization, the **first** entry in `dims` is the
     ciphertext side of Rotom's `;` split (one piece); remaining entries are
     in-slot. See [Section 4.2 of the Rotom paper](https://eprint.iacr.org/2025/1319.pdf).
+
+    Optional **rolls** encode a `roll(i,j)` metadata object: each pair `(i, j)`
+    indexes into the `dims` array (the flattened `ct_dims + slot_dims` list) and
+    uses modular addition to modify the indices of  `dims[i]` by the indices of
+    `dims[j]`.
   }];
 
   let parameters = (ins
     "::mlir::ArrayAttr":$dims,
-    "int64_t":$n
+    "int64_t":$n,
+    OptionalParameter<"::mlir::DenseI64ArrayAttr">:$rolls
   );
 
   let genVerifyDecl = 1;
+
+  let extraClassDeclaration = [{
+    /// Layout with no `roll(i,j)` metadata (empty rolls storage).
+    static ::mlir::heir::rotom::LayoutAttr get(::mlir::MLIRContext *context,
+                                               ::mlir::ArrayAttr dims, int64_t n);
+  }];
 }
 
 #endif  // LIB_DIALECT_ROTOM_IR_ROTOMATTRIBUTES_TD_
