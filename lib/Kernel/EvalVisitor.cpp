@@ -120,6 +120,8 @@ EvalResults EvalVisitor::operator()(const MultiplyNode<LiteralValue>& node) {
   const auto* lVec = std::get_if<std::vector<int>>(&lVal);
   const auto* rVec = std::get_if<std::vector<int>>(&rVal);
   if (lVec && rVec) {
+    LDBG() << "lVec shape: " << lVec->size();
+    LDBG() << "rVec shape: " << rVec->size();
     assert(left.getShape() == right.getShape() && "disagreeing shapes");
     std::vector<int> result(dim);
     for (size_t i = 0; i < dim; ++i) {
