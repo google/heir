@@ -674,6 +674,8 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
   RankedTensorType outputType =
       cast<RankedTensorType>(op.getResult(0).getType());
 
+  bool interchangeRows = false;
+
   SmallVector<int64_t> strides(op.getStrides().getValues<int64_t>().begin(),
                                op.getStrides().getValues<int64_t>().end());
   if (!llvm::all_equal(strides)) {
@@ -714,7 +716,8 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
   // into a larger matrix and then diagonalizing.
   LayoutAttr filterLayout = assignedLayouts.at(filter);
   auto convRelation = get2dConvChwFchwFilterDiagonalizedRelation(
-      filterType, dataType, strides, /*padding=*/0, ciphertextSize, false);
+      filterType, dataType, strides, /*padding=*/0, ciphertextSize,
+      /*interchangeRows=*/interchangeRows);
   if (failed(convRelation)) {
     return failure();
   }
@@ -739,7 +742,8 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
   // pixel-shuffled gap. Future users may need to insert a layout conversion.
   auto result = op->getResult(0);
   presburger::IntegerRelation resultRelation = get2dConvResultRelation(
-      outputType, strides, /*padding=*/0, ciphertextSize, false);
+      outputType, strides, /*padding=*/0, ciphertextSize,
+      /*interchangeRows=*/interchangeRows);
   LayoutAttr resultLayoutAttr =
       LayoutAttr::getFromIntegerRelation(ctx, resultRelation);
 

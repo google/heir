@@ -55,6 +55,11 @@ class LattigoEmitter {
     for (const auto& import : imports) {
       os << "    " << import << "\n";
     }
+    for (const auto& extraImport : extraImports) {
+      if (extraImportsUsed) {
+        os << "    \"" << extraImport << "\"\n";
+      }
+    }
     os << ")\n";
   }
 
@@ -69,6 +74,7 @@ class LattigoEmitter {
   const std::string& packageName;
   const std::vector<std::string> extraImports;
   std::function<bool(func::FuncOp)> funcFilter;
+  bool extraImportsUsed = false;
 
   // go treats unused imports as compile-time errors, so any extra imports that
   // are unused for some programs need to be dynamically added at the end.

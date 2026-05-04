@@ -1,4 +1,4 @@
-// RUN: heir-opt --annotate-module="backend=lattigo" --mlir-to-bgv %s | FileCheck %s
+// RUN: heir-opt --annotate-module="backend=lattigo" --mlir-to-bgv=split-preprocessing=0 %s | FileCheck %s
 
 // CHECK: @hamming
 // CHECK: bgv.sub

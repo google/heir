@@ -529,7 +529,7 @@ int main(int argc, char** argv) {
       "polynomial approximations.",
       mathToPolynomialApproximationBuilder);
 
-  PassPipelineRegistration<TorchLinalgToCkksPipelineOptions>(
+  PassPipelineRegistration<MlirToRLWEPipelineOptions>(
       "torch-linalg-to-ckks", "Convert linalg MLIR exported from torch to CKKS",
       torchLinalgToCkksBuilder);
 

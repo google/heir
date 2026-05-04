@@ -26,7 +26,8 @@ openfhe_interpreter_test(
     generated_heir_opt_filename = "module.openfhe.mlir",
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=ckks",
-        "--torch-linalg-to-ckks=ciphertext-degree=8192",
+        # Split preprocessing is not supported with the openfhe interpreter backend
+        "--torch-linalg-to-ckks=ciphertext-degree=8192 split-preprocessing=0",
         "--scheme-to-openfhe",
         "--inline",
     ],

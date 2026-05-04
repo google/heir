@@ -20,7 +20,7 @@ def _make_split_preprocessing_libs(utils_name, generated_heir_opt_name, heir_tra
         data = data,
     )
 
-def heir_lattigo_lib(name, mlir_src, go_library_name = None, heir_opt_flags = [], heir_translate_flags = [], extra_srcs = [], data = [], tags = [], deps = [], split_preprocessing = False, **kwargs):
+def heir_lattigo_lib(name, mlir_src, go_library_name = None, heir_opt_flags = [], heir_translate_flags = [], extra_srcs = [], data = [], tags = [], deps = [], split_preprocessing = True, **kwargs):
     """A rule for generating Lattigo code from an MLIR file.
 
     Args:
