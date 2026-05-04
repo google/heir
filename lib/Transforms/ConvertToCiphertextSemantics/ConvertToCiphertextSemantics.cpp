@@ -851,7 +851,7 @@ struct ConvertLinalgConv1D
         kernelAttr && kernelAttr.getName() == KernelName::MatvecDiagonal;
 
     LLVM_DEBUG(llvm::dbgs()
-               << "supports expanded conv2d as matvec with halevi-shoup: "
+               << "supports expanded conv1d as matvec with halevi-shoup: "
                << "isPowerOfTwoDims=" << isPowerOfTwoDims
                << " isMatrixCompatible=" << isMatrixCompatible
                << " isConv2dAsMatvec=" << isConv1dAsMatvec << "\n");
@@ -863,7 +863,7 @@ struct ConvertLinalgConv1D
       linalg::Conv1DOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter& rewriter) const {
     LLVM_DEBUG(llvm::dbgs()
-               << "Converting linalg.conv2d op with halevi shoup kernel: " << op
+               << "Converting linalg.conv1d op with halevi shoup kernel: " << op
                << "\n");
 
     TypedValue<RankedTensorType> data =
@@ -2399,9 +2399,9 @@ struct ConvertToCiphertextSemantics
                  ConvertTensorExpandShape, ConvertTensorExtractLayout,
                  ConvertTensorExtractSlice, ConvertTensorInsertLayout,
                  ConvertTensorInsertSlice>(typeConverter, context);
-    patterns.add<ConvertLinalgMatvecLayout, ConvertLinalgConv2D,
-                 ConvertLinalgConv2DNchwFchw>(typeConverter, context,
-                                              unrollKernels);
+    patterns.add<ConvertLinalgMatvecLayout, ConvertLinalgConv1D,
+                 ConvertLinalgConv2D, ConvertLinalgConv2DNchwFchw>(
+        typeConverter, context, unrollKernels);
     patterns.add<ConvertAssignLayout>(typeConverter, context, ciphertextSize);
 
     ConversionConfig config;

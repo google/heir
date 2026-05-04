@@ -8,8 +8,6 @@ module {
   // CHECK: func.func @conv1d
   func.func @conv1d(%arg0: !secret.secret<tensor<5xf32>> {tensor_ext.layout = #layout1}) -> (!secret.secret<tensor<3xf32>> {tensor_ext.layout = #layout}) {
     // CHECK-DAG: %[[cst:.*]] = arith.constant dense<0{{.*}}> : tensor<1x32xf32>
-    // Even though this is a splat constant, it is not zero so it cannot be splat into the ciphertext
-    // since the layout includes "holes".
     // CHECK-DAG: %[[cst_0:.*]] = arith.constant dense<2{{.*}}> : tensor<3xf32>
     %cst = arith.constant dense<0.000000e+00> : tensor<3xf32>
     %cst_0 = arith.constant dense<2.000000e+00> : tensor<3xf32>
@@ -17,7 +15,7 @@ module {
     ^body(%input0: tensor<5xf32>):
     // CHECK: secret.generic
     // CHECK: func.call @_assign_layout_{{[0-9]+}}(%[[cst_0]])
-    // CHECK-COUNT-13: tensor_ext.rotate
+    // CHECK-COUNT-7: tensor_ext.rotate
       %1 = tensor_ext.assign_layout %cst_0 {layout = #layout2, tensor_ext.layout = #layout2} : tensor<3xf32>
       %2 = tensor_ext.assign_layout %cst {layout = #layout1, tensor_ext.layout = #layout1} : tensor<3xf32>
       %3 = linalg.conv_1d {secret.kernel = #kernel, tensor_ext.layout = #layout} ins(%input0, %1 : tensor<5xf32>, tensor<3xf32>) outs(%2 : tensor<3xf32>) -> tensor<3xf32>
