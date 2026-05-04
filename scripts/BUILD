@@ -22,6 +22,15 @@ py_test(
     ],
 )
 
+py_test(
+    name = "test_e2e_to_bazel",
+    srcs = ["test_e2e_to_bazel.py"],
+    deps = [
+        ":e2e_to_bazel_lib",
+        "@abseil-py//absl/testing:absltest",
+    ],
+)
+
 py_library(
     name = "lit_to_bazel_lib",
     srcs = ["lit_to_bazel_lib.py"],
@@ -35,6 +44,23 @@ py_binary(
     srcs = ["lit_to_bazel.py"],
     deps = [
         ":lit_to_bazel_lib",
+        "@heir_pip_deps//fire",
+    ],
+)
+
+py_library(
+    name = "e2e_to_bazel_lib",
+    srcs = ["e2e_to_bazel_lib.py"],
+    deps = [
+        "@heir_pip_deps//fire",
+    ],
+)
+
+py_binary(
+    name = "e2e_to_bazel",
+    srcs = ["e2e_to_bazel.py"],
+    deps = [
+        ":e2e_to_bazel_lib",
         "@heir_pip_deps//fire",
     ],
 )
