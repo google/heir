@@ -60,6 +60,7 @@
 namespace mlir {
 namespace heir {
 
+using linalg::Conv1DOp;
 using linalg::Conv2DNchwFchwOp;
 using linalg::Conv2DOp;
 using linalg::MatmulOp;
@@ -141,6 +142,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   LogicalResult visitOperation(ExpandShapeOp op);
   LogicalResult visitOperation(GenericOp op);
   LogicalResult visitOperation(ReduceOp op);
+  LogicalResult visitOperation(Conv1DOp op);
   LogicalResult visitOperation(Conv2DOp op);
   LogicalResult visitOperation(Conv2DNchwFchwOp op);
   LogicalResult visitOperation(VecmatOp op);
@@ -162,6 +164,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   CompatibilityResult hasCompatibleArgumentLayouts(Operation* op);
 
   // Op-specific compatibility functions
+  CompatibilityResult hasCompatibleArgumentLayouts(Conv1DOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(Conv2DOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(Conv2DNchwFchwOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(ReduceOp op);
@@ -290,8 +293,8 @@ LogicalResult LayoutPropagation::visitOperation(Operation* op) {
       // secret ops
       .Case<GenericOp, YieldOp>([&](auto op) { return visitOperation(op); })
       // linalg ops
-      .Case<MatvecOp, VecmatOp, ReduceOp, MatmulOp, Conv2DOp, Conv2DNchwFchwOp>(
-          [&](auto op) { return visitOperation(op); })
+      .Case<MatvecOp, VecmatOp, ReduceOp, MatmulOp, Conv1DOp, Conv2DOp,
+            Conv2DNchwFchwOp>([&](auto op) { return visitOperation(op); })
       // affine ops
       .Case<affine::AffineForOp>([&](auto op) { return visitOperation(op); })
       // tensor ops
@@ -585,6 +588,81 @@ LogicalResult LayoutPropagation::visitOperation(MatvecOp op) {
 
   // Add secret.kernel attribute for MatvecDiagonal
   MLIRContext* ctx = &getContext();
+  auto kernelAttr =
+      secret::KernelAttr::get(ctx, KernelName::MatvecDiagonal, /*force=*/false);
+  op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
+
+  return success();
+}
+
+LogicalResult LayoutPropagation::visitOperation(Conv1DOp op) {
+  LLVM_DEBUG(llvm::dbgs() << "Specializing visitor on Conv1DOp\n");
+  Value data = op.getInputs().front();
+  Value filter = op.getInputs().back();
+  auto dataType = cast<RankedTensorType>(data.getType());
+  auto filterType = cast<RankedTensorType>(filter.getType());
+
+  // Flattened data must fit into the ciphertext size.
+  if (dataType.getNumElements() > ciphertextSize) {
+    return op->emitOpError()
+           << "Flattened data must fit into a single ciphertext, but got "
+           << dataType.getNumElements() << " elements and ciphertext size is "
+           << ciphertextSize;
+  }
+
+  MLIRContext* ctx = &getContext();
+  mlir::IRRewriter builder(ctx);
+
+  // TODO(#1597): a layout optimizer should really be selecting the
+  // layout instead of this pass.
+  LayoutAttr dataLayout = assignedLayouts.at(data);
+  // I should remove this since vector layout is always row major!
+  // FIXME
+  if (!isRelationRowMajor(dataType, ciphertextSize,
+                          dataLayout.getIntegerRelation())) {
+    LLVM_DEBUG(llvm::dbgs() << "conv_1d data input is not row major, inserting "
+                               "layout conversion.\n");
+    auto [toReplace, newDataLayoutAttr] =
+        convertToLayout(ctx, builder, op, data, dataLayout,
+                        getRowMajorLayoutRelation(dataType, ciphertextSize));
+    debugAssignLayout(toReplace, newDataLayoutAttr);
+    assignedLayouts.insert({toReplace, newDataLayoutAttr});
+  }
+
+  // The kernel for this operation requires expanding the conv filter matrix
+  // into a larger matrix and then diagonalizing.
+  LayoutAttr filterLayout = assignedLayouts.at(filter);
+  if (!isRelationConvFilterDiagonalized(filterType, dataType, /*padding=*/0,
+                                        ciphertextSize,
+                                        filterLayout.getIntegerRelation())) {
+    LLVM_DEBUG(llvm::dbgs() << "conv_1d filter input is not diagonalized, "
+                               "inserting layout conversion.\n");
+    // Insert a layout conversion op to make the matrix layout expanded and
+    // squat diagonal
+    auto convRelation = getConvFilterDiagonalizedRelation(
+        filterType, dataType, /*padding=*/0, ciphertextSize);
+    if (failed(convRelation)) {
+      return failure();
+    }
+    auto [toReplace, newFilterLayoutAttr] = convertToLayout(
+        ctx, builder, op, filter, filterLayout, convRelation.value());
+    debugAssignLayout(toReplace, newFilterLayoutAttr);
+    assignedLayouts.insert({toReplace, newFilterLayoutAttr});
+  }
+  // Always one result, and for the kernels we have right now it's always a
+  // row-major replicated vector. Since the
+  // output matrix will have different shape than the input, assign the new
+  // layout.
+  auto result = op->getResult(0);
+  RankedTensorType outputType = cast<RankedTensorType>(result.getType());
+  FailureOr<LayoutAttr> outputLayoutResult = defaultLayoutForType(outputType);
+  if (failed(outputLayoutResult)) {
+    return failure();
+  }
+  LayoutAttr resultLayout = outputLayoutResult.value();
+
+  assignedLayouts.insert({result, resultLayout});
+  setResultLayoutAttr(op);
   auto kernelAttr =
       secret::KernelAttr::get(ctx, KernelName::MatvecDiagonal, /*force=*/false);
   op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
