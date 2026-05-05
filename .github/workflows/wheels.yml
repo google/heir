@@ -9,6 +9,9 @@ on:
         default: ''
   pull_request:
     types: [labeled]
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   setup-version:
@@ -16,6 +19,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'release' ||
+      github.event_name == 'push' ||
       github.event.label.name == 'ci:wheels'
     runs-on: ubuntu-latest
     outputs:
@@ -24,6 +28,8 @@ jobs:
     steps:
       - name: Check out repo
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ inputs.tag_name || github.ref }}
       - name: Install dependencies
         run: pip install requests
       - name: Get version
@@ -31,9 +37,9 @@ jobs:
         shell: bash
         run: |
           python scripts/get_version.py \
-            --event "${{ github.event_name }}" \
+            --event "${{ github.event_name == 'push' && 'release' || github.event_name }}" \
             --ref "${{ github.ref }}" \
-            --tag "${{ github.event.release.tag_name || inputs.tag_name }}" \
+            --tag "${{ github.event.release.tag_name || inputs.tag_name || (github.event_name == 'push' && github.ref_name || '') }}" \
             --package "heir_py" \
             --gha
 
@@ -43,12 +49,14 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'release' ||
+      github.event_name == 'push' ||
       github.event.label.name == 'ci:wheels'
     runs-on: ubuntu-latest
     steps:
       - name: Check out repo
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          ref: ${{ inputs.tag_name || github.ref }}
           fetch-depth: 0
       - name: Install Python 3.12
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -73,6 +81,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'release' ||
+      github.event_name == 'push' ||
       github.event.label.name == 'ci:wheels'
     runs-on: ${{ matrix.runner }}
     strategy:
@@ -92,6 +101,7 @@ jobs:
       - name: Check out HEIR
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          ref: ${{ inputs.tag_name || github.ref }}
           fetch-depth: 0
 
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
