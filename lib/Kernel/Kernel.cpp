@@ -28,7 +28,9 @@ static std::unordered_map<KernelName, std::vector<std::string>>
          {"linalg.matvec", "linalg.conv_2d_nchw_fchw"}},
         {KernelName::VecmatDiagonal, {"linalg.vecmat"}},
         {KernelName::MatmulDiagonal, {"linalg.matmul"}},
+        // FIXME is there a _ missing in linalg.conv_2d
         {KernelName::MatmulDiagonal, {"linalg.conv2d"}},
+        {KernelName::MatmulDiagonal, {"linalg.conv1d"}},
         {KernelName::MatmulBicyclic, {"linalg.matmul"}},
 };
 

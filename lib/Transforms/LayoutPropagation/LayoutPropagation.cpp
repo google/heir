@@ -1094,7 +1094,7 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
             affine::AffineYieldOp>(
           [&](auto op) { return CompatibilityResult{true, std::nullopt}; })
       // Ops with special rules
-      .Case<ReduceOp, MatvecOp, VecmatOp, Conv2DOp, Conv2DNchwFchwOp,
+      .Case<ReduceOp, MatvecOp, VecmatOp, Conv1DOp, Conv2DOp, Conv2DNchwFchwOp,
             tensor::InsertSliceOp>(
           [&](auto op) { return hasCompatibleArgumentLayouts(op); })
       // By default, assume operands must all have the same layout.
@@ -1190,6 +1190,22 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
 
   if (!assignedLayouts.contains(vec)) {
     return {false, op->emitError("vector operand has no assigned layout")};
+  }
+  return {true, std::nullopt};
+}
+
+CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
+    Conv1DOp op) {
+  // Currently only support secret data and plaintext filters.
+  Value data = op.getInputs().front();
+  Value filter = op.getInputs().back();
+  if (isSecret(filter, solver) || !isSecret(data, solver)) {
+    return {false, op->emitError("Only secret data and plaintext filters are "
+                                 "supported for linalg.conv1d")};
+  }
+
+  if (!assignedLayouts.contains(data)) {
+    return {false, op->emitError("data operand has no assigned layout")};
   }
   return {true, std::nullopt};
 }
