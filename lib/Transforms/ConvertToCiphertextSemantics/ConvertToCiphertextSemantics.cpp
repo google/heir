@@ -854,7 +854,7 @@ struct ConvertLinalgConv1D
                << "supports expanded conv1d as matvec with halevi-shoup: "
                << "isPowerOfTwoDims=" << isPowerOfTwoDims
                << " isMatrixCompatible=" << isMatrixCompatible
-               << " isConv2dAsMatvec=" << isConv1dAsMatvec << "\n");
+               << " isConv1dAsMatvec=" << isConv1dAsMatvec << "\n");
 
     return isPowerOfTwoDims && isMatrixCompatible && isConv1dAsMatvec;
   }
