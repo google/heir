@@ -38,8 +38,8 @@ namespace heir {
 using tensor_ext::ConvertLayoutOp;
 using tensor_ext::LayoutAttr;
 static auto& kLayoutAttrName = tensor_ext::TensorExtDialect::kLayoutAttrName;
-using ::mlir::linalg::MatvecOp;
 using ::mlir::linalg::Conv1DOp;
+using ::mlir::linalg::MatvecOp;
 using presburger::IntegerRelation;
 using presburger::PresburgerSpace;
 using presburger::VarKind;
