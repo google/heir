@@ -21,7 +21,7 @@ To convert a lit test file to a `bazel run` command, use the following command
 recipes:
 
 ```bash
-bazel run //scripts:lit_to_bazel -- {test_file_path}
+bazel run //third_party/heir/scripts:lit_to_bazel -- {test_file_path}
 ```
 
 Replace `{test_file_path}` with the absolute path to the test file. The absolute
