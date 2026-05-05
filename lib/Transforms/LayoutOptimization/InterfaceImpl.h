@@ -17,6 +17,10 @@ Hoister createTrivialHoister(Operation* op);
 /// to vecToLayout, while keeping the kernel the same.
 Hoister createPrecomposingMatvecHoister(linalg::MatvecOp op);
 
+/// Construct a hoister that hoists a layout conversion through a trivial
+/// rank-reducing collapse_shape operation.
+Hoister createCollapseShapeHoister(tensor::CollapseShapeOp op);
+
 void registerLayoutConversionHoistableInterface(DialectRegistry& registry);
 
 }  // namespace heir
