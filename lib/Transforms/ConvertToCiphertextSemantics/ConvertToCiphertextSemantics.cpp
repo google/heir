@@ -869,9 +869,9 @@ struct ConvertLinalgConv1D
     TypedValue<RankedTensorType> data =
         cast<TypedValue<RankedTensorType>>(adaptor.getInputs()[0]);
     SSAValue vectorLeaf(data);
-    TypedValue<RankedTensorType> matrix =
+    TypedValue<RankedTensorType> filter =
         cast<TypedValue<RankedTensorType>>(adaptor.getInputs()[1]);
-    SSAValue matrixLeaf(matrix);
+    SSAValue matrixLeaf(filter);
 
     // The original matrix shape is the shape of the expanded filter before
     // diagonalization.
@@ -887,7 +887,7 @@ struct ConvertLinalgConv1D
 
     PointCollector collector;
     std::map<int, bool> zeroDiagonals;
-    getCtComplementPoints(filterRelation, collector, matrix.getType());
+    getCtComplementPoints(filterRelation, collector, filter.getType());
     for (const auto& point : collector.points) {
       zeroDiagonals[point[0]] = true;
     }

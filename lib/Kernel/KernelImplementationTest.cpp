@@ -165,8 +165,6 @@ TEST_P(KernelImplementationTest, Test1DConvWithLayout) {
   RankedTensorType filterType =
       RankedTensorType::get({2}, mlir::IndexType::get(&context));
 
-  llvm::DebugFlag = true;
-  llvm::setCurrentDebugType("eval-visitor");
   int numSlots = 8;
   // length 3 input data, length 2 filter
   std::vector<int> data = {1, -1, 0};
