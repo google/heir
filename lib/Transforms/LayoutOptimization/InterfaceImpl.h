@@ -17,6 +17,8 @@ Hoister createTrivialHoister(Operation* op);
 /// to vecToLayout, while keeping the kernel the same.
 Hoister createPrecomposingMatvecHoister(linalg::MatvecOp op);
 
+Hoister createPrecomposingConv1dHoister(linalg::Conv1DOp op);
+
 void registerLayoutConversionHoistableInterface(DialectRegistry& registry);
 
 }  // namespace heir
