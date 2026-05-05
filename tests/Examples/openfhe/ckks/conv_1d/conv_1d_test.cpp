@@ -16,8 +16,8 @@ TEST(Conv1DTest, RunTest) {
   auto secretKey = keyPair.secretKey;
   cryptoContext = conv_1d__configure_crypto_context(cryptoContext, secretKey);
 
-  // ct is a length 9 input vector 
-  std::vector<float> m(9, 0.1f);
+  // ct is a length 8 input vector 
+  std::vector<float> m(8, 0.1f);
 
   // pt is a length 4 input filter 
   std::vector<float> filter(4, 0.1f);

@@ -881,7 +881,6 @@ struct ConvertLinalgConv1D
         /*padding=*/0);
 
     // Collect any zero diagonals of the filter matrix.
-    // FIXME ???
     LayoutAttr filterLayout = getLayoutAttr(adaptor.getInputs()[1]);
     auto filterRelation = filterLayout.getIntegerRelation();
 
