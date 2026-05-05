@@ -4,6 +4,8 @@ import (
 	"math"
 	"testing"
 	"time"
+
+	"tests/Examples/lattigo/ckks/pooling/pooling_utils"
 )
 
 func TestPooling(t *testing.T) {
@@ -57,11 +59,14 @@ func TestPooling(t *testing.T) {
 	}
 
 	ct0 := pooling__encrypt__arg0(evaluator, params, ecd, enc, arg0)
-	// arg1 is plaintext
+
+	startPre := time.Now()
+	filterPlains := pooling_utils.Pooling__preprocessing(params, ecd)
+	t.Logf("Preprocessing took %s", time.Since(startPre))
 
 	start := time.Now()
-	resultCt := pooling(evaluator, params, ecd, ct0)
-	t.Logf("Pooling took %s", time.Since(start))
+	resultCt := pooling__preprocessed(evaluator, params, ecd, ct0, filterPlains)
+	t.Logf("Pooling (preprocessed) took %s", time.Since(start))
 
 	result := pooling__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 

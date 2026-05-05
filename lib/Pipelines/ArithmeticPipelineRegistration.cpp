@@ -540,7 +540,7 @@ void linalgPreprocessingBuilder(OpPassManager& manager) {
 }
 
 void torchLinalgToCkksBuilder(OpPassManager& manager,
-                              const TorchLinalgToCkksPipelineOptions& options) {
+                              const MlirToRLWEPipelineOptions& options) {
   manager.addPass(debug::createDebugValidateNames());
   linalgPreprocessingBuilder(manager);
   MlirToRLWEPipelineOptions suboptions;

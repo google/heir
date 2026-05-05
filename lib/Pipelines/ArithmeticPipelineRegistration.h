@@ -103,7 +103,7 @@ struct MlirToRLWEPipelineOptions : public LoopOptions {
       *this, "split-preprocessing",
       llvm::cl::desc("Split preprocessing into separate function with N return "
                      "values (default to no split)"),
-      llvm::cl::init(0)};
+      llvm::cl::init(16)};
 };
 
 struct PlaintextBackendOptions
@@ -162,34 +162,8 @@ BackendPipelineBuilder toLattigoPipelineBuilder();
 // FHE.
 void linalgPreprocessingBuilder(OpPassManager& manager);
 
-struct TorchLinalgToCkksPipelineOptions : public LoopOptions {
-  PassOptions::Option<int> ciphertextDegree{
-      *this, "ciphertext-degree",
-      llvm::cl::desc("The degree of the polynomials to use for ciphertexts; "
-                     "equivalently, the number of messages that can be packed "
-                     "into a single ciphertext."),
-      llvm::cl::init(1024)};
-  PassOptions::Option<int> firstModBits{
-      *this, "first-mod-bits",
-      llvm::cl::desc("The number of bits in the first modulus for CKKS"),
-      llvm::cl::init(55)};
-  PassOptions::Option<int> scalingModBits{
-      *this, "scaling-mod-bits",
-      llvm::cl::desc("The number of bits in the scaling modulus for CKKS"),
-      llvm::cl::init(45)};
-  PassOptions::Option<int> ckksBootstrapWaterline{
-      *this, "ckks-bootstrap-waterline",
-      llvm::cl::desc("The number of levels to keep until bootstrapping in CKKS "
-                     "(c.f. --secret-insert-mgmt-ckks)"),
-      llvm::cl::init(10)};
-  PassOptions::Option<int> splitPreprocessing{
-      *this, "split-preprocessing",
-      llvm::cl::desc("Split preprocessing into separate function with N return "
-                     "values (default to no split)"),
-      llvm::cl::init(0)};
-};
 void torchLinalgToCkksBuilder(OpPassManager& manager,
-                              const TorchLinalgToCkksPipelineOptions& options);
+                              const MlirToRLWEPipelineOptions& options);
 
 }  // namespace mlir::heir
 

@@ -1,4 +1,4 @@
-// RUN: heir-opt --annotate-module="backend=lattigo" --mlir-to-ckks %s | FileCheck %s
+// RUN: heir-opt --annotate-module="backend=lattigo" --mlir-to-ckks=split-preprocessing=0 %s | FileCheck %s
 
 // CHECK: @hamming
 // CHECK: ckks.sub

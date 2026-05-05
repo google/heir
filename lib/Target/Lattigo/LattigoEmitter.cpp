@@ -149,26 +149,23 @@ LogicalResult LattigoEmitter::translate(Operation& op) {
 LogicalResult LattigoEmitter::printOperation(ModuleOp moduleOp) {
   prelude = "package " + packageName + "\n";
 
-  // Defer prelude and imports until the end, since some ops may need extra
-  // imports injected to the `imports` list dynamically as they are emitted.
-  imports.insert(std::string(kRlweImport));
-  if (moduleIsBGVOrBFV(moduleOp)) {
-    imports.insert(std::string(kBgvImport));
-  } else if (moduleIsCKKS(moduleOp)) {
-    imports.insert(std::string(kCkksImport));
-  } else {
-    return moduleOp.emitError("Unknown scheme");
-  }
-
-  for (const auto& extraImport : extraImports) {
-    imports.insert("\"" + extraImport + "\"");
-  }
-
   for (Operation& op : moduleOp) {
     if (auto funcOp = dyn_cast<func::FuncOp>(op)) {
       if (funcFilter && !funcFilter(funcOp)) {
         continue;
       }
+    }
+    // Defer prelude and imports until the end, since some ops may need extra
+    // imports injected to the `imports` list dynamically as they are emitted.
+    // Insert here to ensure that imports are only added when functions are
+    // emitted (and not all filtered out).
+    imports.insert(std::string(kRlweImport));
+    if (moduleIsBGVOrBFV(moduleOp)) {
+      imports.insert(std::string(kBgvImport));
+    } else if (moduleIsCKKS(moduleOp)) {
+      imports.insert(std::string(kCkksImport));
+    } else {
+      return moduleOp.emitError("Unknown scheme");
     }
     if (failed(translate(op))) {
       return failure();
@@ -274,6 +271,7 @@ LogicalResult LattigoEmitter::printOperation(func::CallOp op) {
         calleeName[0] = std::toupper(calleeName[0]);
       }
       calleeName = packageName + "_utils." + calleeName;
+      extraImportsUsed = true;
     }
   }
 
