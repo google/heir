@@ -10,11 +10,11 @@
 // CHECK:     ^body(%[[CONVERTED_ARG:.*]]: tensor<1x16xf32>):
 // CHECK:       %[[COEFF_MUL_DEGREE_1:.*]] = arith.mulf %[[CONVERTED_ARG]], %[[COEFF_1]]
 
+// CHECK:       %[[COEFF_3_MUL_ARG:.*]] = arith.mulf %[[COEFF_3]], %[[CONVERTED_ARG]]
 // CHECK:       %[[DEGREE_2:.*]] = arith.mulf %[[CONVERTED_ARG]], %[[CONVERTED_ARG]]
-// CHECK:       %[[COEFF_3_MUL_ARG:.*]] = arith.mulf %[[CONVERTED_ARG]], %[[COEFF_3]]
-// CHECK:       %[[COEFF_MUL_DEGREE_3:.*]] = arith.mulf %[[DEGREE_2]], %[[COEFF_3_MUL_ARG]]
+// CHECK:       %[[COEFF_MUL_DEGREE_3:.*]] = arith.mulf %[[COEFF_3_MUL_ARG]], %[[DEGREE_2]]
 
-// CHECK:       %[[SUM_1:.*]] = arith.addf %[[COEFF_MUL_DEGREE_1]], %[[COEFF_0]]
+// CHECK:       %[[SUM_1:.*]] = arith.addf %[[COEFF_0]], %[[COEFF_MUL_DEGREE_1]]
 // CHECK:       %[[TOTAL_SUM:.*]] = arith.addf %[[SUM_1]], %[[COEFF_MUL_DEGREE_3]]
 // CHECK:       secret.yield %[[TOTAL_SUM]] : tensor<1x16xf32>
 // CHECK:     return %[[RET]]
