@@ -1,5 +1,6 @@
 #include "lib/Utils/Layout/Utils.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstdint>
@@ -290,9 +291,9 @@ presburger::IntegerRelation getDiagonalLayoutRelation(
   unsigned int cols = matrixType.getDimSize(1);
 
   // The diagonals of the result must be able to fit an entire diagonal of the
-  // matrix, so ensure that the number of columns (diagonal size) is less than
+  // matrix, so ensure that the diagonal size is less than
   // the result's columns.
-  assert(cols <= ciphertextSize);
+  assert(std::max(rows, cols) <= ciphertextSize);
 
   // The number of rows must divide the number of columns.
   int64_t paddedCols = isPowerOfTwo(cols) ? cols : nextPowerOfTwo(cols);
@@ -310,7 +311,8 @@ presburger::IntegerRelation getDiagonalLayoutRelation(
   for (int i = 0; i < 2; ++i) {
     result.addBound(BoundType::LB, rangeOffset + i, 0);
   }
-  result.addBound(BoundType::UB, rangeOffset, paddedRows - 1);
+  int64_t numDiagonals = std::min(paddedRows, paddedCols);
+  result.addBound(BoundType::UB, rangeOffset, numDiagonals - 1);
   result.addBound(BoundType::UB, rangeOffset + 1, ciphertextSize - 1);
 
   // Add diagonal layout constraints:

@@ -85,6 +85,103 @@ TEST_P(KernelImplementationTest, HaleviShoup3x5) {
   EXPECT_EQ(std::vector<int>(actual.begin(), actual.begin() + 3), expected);
 }
 
+TEST_P(KernelImplementationTest, HaleviShoup4x2) {
+  // Original matrix (4x2):
+  // [0, 1]
+  // [2, 3]
+  // [4, 5]
+  // [6, 7]
+  //
+  // Pre-packed diagonally:
+  // diag_0 = (0, 3, 4, 7)
+  // diag_1 = (1, 2, 5, 6)
+  std::vector<std::vector<int>> matrix = {{0, 3, 4, 7}, {1, 2, 5, 6}};
+  // Replicated vector {3, 4, 3, 4}
+  std::vector<int> vector = {3, 4, 3, 4};
+  std::vector<int> expected = {4, 18, 32, 46};
+
+  LiteralValue matrixInput = matrix;
+  LiteralValue vectorInput = vector;
+
+  auto dag = implementHaleviShoup(
+      vectorInput, matrixInput, {4, 2}, DagType::intTensor(32, {4}),
+      /*zeroDiagonals=*/{}, /*unroll=*/std::get<0>(GetParam()));
+  LiteralValue result = evalKernel(dag)[0];
+  auto actual = std::get<std::vector<int>>(result.get());
+
+  EXPECT_EQ(actual, expected);
+}
+
+TEST_P(KernelImplementationTest, HaleviShoup8x4) {
+  // Original matrix (8x4):
+  // [ 0,  1,  2,  3]
+  // [ 4,  5,  6,  7]
+  // [ 8,  9, 10, 11]
+  // [12, 13, 14, 15]
+  // [16, 17, 18, 19]
+  // [20, 21, 22, 23]
+  // [24, 25, 26, 27]
+  // [28, 29, 30, 31]
+  //
+  // Pre-packed diagonally:
+  // diag_0 = (0, 5, 10, 15, 16, 21, 26, 31)
+  // diag_1 = (1, 6, 11, 12, 17, 22, 27, 28)
+  // diag_2 = (2, 7, 8, 13, 18, 23, 24, 29)
+  // diag_3 = (3, 4, 9, 14, 19, 20, 25, 30)
+  std::vector<std::vector<int>> matrix = {{0, 5, 10, 15, 16, 21, 26, 31},
+                                          {1, 6, 11, 12, 17, 22, 27, 28},
+                                          {2, 7, 8, 13, 18, 23, 24, 29},
+                                          {3, 4, 9, 14, 19, 20, 25, 30}};
+  // Replicated vector {3, 4, 5, 6, 3, 4, 5, 6}
+  std::vector<int> vector = {3, 4, 5, 6, 3, 4, 5, 6};
+  std::vector<int> expected = {32, 104, 176, 248, 320, 392, 464, 536};
+
+  LiteralValue matrixInput = matrix;
+  LiteralValue vectorInput = vector;
+
+  auto dag = implementHaleviShoup(
+      vectorInput, matrixInput, {8, 4}, DagType::intTensor(32, {8}),
+      /*zeroDiagonals=*/{}, /*unroll=*/std::get<0>(GetParam()));
+  LiteralValue result = evalKernel(dag)[0];
+  auto actual = std::get<std::vector<int>>(result.get());
+
+  EXPECT_EQ(actual, expected);
+}
+
+TEST_P(KernelImplementationTest, HaleviShoup5x3) {
+  // Original matrix (5x3):
+  // [ 0,  1,  2]
+  // [ 3,  4,  5]
+  // [ 6,  7,  8]
+  // [ 9, 10, 11]
+  // [12, 13, 14]
+  //
+  // Padded to 8x4 and packed diagonally:
+  // diag_0 = (0, 4, 8, 0, 12, 0, 0, 0)
+  // diag_1 = (1, 5, 0, 9, 13, 0, 0, 0)
+  // diag_2 = (2, 0, 6, 10, 14, 0, 0, 0)
+  // diag_3 = (0, 3, 7, 11, 0, 0, 0, 0)
+  std::vector<std::vector<int>> matrix = {{0, 4, 8, 0, 12, 0, 0, 0},
+                                          {1, 5, 0, 9, 13, 0, 0, 0},
+                                          {2, 0, 6, 10, 14, 0, 0, 0},
+                                          {0, 3, 7, 11, 0, 0, 0, 0}};
+  // Padded and replicated vector {1, 2, 3, 0, 1, 2, 3, 0}
+  std::vector<int> vector = {1, 2, 3, 0, 1, 2, 3, 0};
+  std::vector<int> expected = {8, 26, 44, 62, 80};
+
+  LiteralValue matrixInput = matrix;
+  LiteralValue vectorInput = vector;
+
+  auto dag = implementHaleviShoup(
+      vectorInput, matrixInput, {5, 3}, DagType::intTensor(32, {8}),
+      /*zeroDiagonals=*/{}, /*unroll=*/std::get<0>(GetParam()));
+  LiteralValue result = evalKernel(dag)[0];
+  auto actual = std::get<std::vector<int>>(result.get());
+
+  // The result is of size 8, but we only care about the first 5 elements.
+  EXPECT_EQ(std::vector<int>(actual.begin(), actual.begin() + 5), expected);
+}
+
 TEST(KernelImplementationTest, TestExtract) {
   std::vector<std::vector<int>> matrix = {
       {0, 5, 10, 15}, {1, 6, 11, 12}, {2, 7, 8, 13}, {3, 4, 9, 14}};
