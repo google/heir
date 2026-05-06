@@ -456,6 +456,26 @@ static FailureOr<Cost> computeKernelCostFromDAG(KernelName kernel,
       return costModel.process(implementedKernel);
     }
 
+    case KernelName::Dot: {
+      auto lhsType = dyn_cast<RankedTensorType>(op->getOperand(0).getType());
+      if (!lhsType) return failure();
+      auto shape = lhsType.getShape();
+      auto dagType = kernel::mlirTypeToDagType(lhsType);
+
+      SymbolicValue symbolicVector({shape[0]}, /*isSecret=*/true);
+
+      int64_t steps = shape[0];
+      int64_t period = 1;
+
+      auto kernelDag = kernel::implementRotateAndReduce(
+          symbolicVector, std::optional<SymbolicValue>(), period, steps,
+          dagType,
+          /*zeroDiagonals=*/{}, /*reduceOp=*/"arith.addf", /*unroll=*/true);
+
+      if (!kernelDag) return failure();
+      return costModel.process(kernelDag);
+    }
+
     default:
       return failure();
   }
