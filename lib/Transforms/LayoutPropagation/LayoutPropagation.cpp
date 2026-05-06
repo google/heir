@@ -62,6 +62,7 @@ namespace heir {
 
 using linalg::Conv2DNchwFchwOp;
 using linalg::Conv2DOp;
+using linalg::DotOp;
 using linalg::MatmulOp;
 using linalg::MatvecOp;
 using linalg::ReduceOp;
@@ -146,6 +147,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   LogicalResult visitOperation(VecmatOp op);
   LogicalResult visitOperation(MatvecOp op);
   LogicalResult visitOperation(MatmulOp op);
+  LogicalResult visitOperation(DotOp op);
   LogicalResult visitOperation(YieldOp op);
   LogicalResult visitOperation(affine::AffineForOp op);
   LogicalResult visitOperation(func::FuncOp op);
@@ -162,6 +164,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   CompatibilityResult hasCompatibleArgumentLayouts(Operation* op);
 
   // Op-specific compatibility functions
+  CompatibilityResult hasCompatibleArgumentLayouts(DotOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(Conv2DOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(Conv2DNchwFchwOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(ReduceOp op);
@@ -174,6 +177,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   void rectifyIncompatibleOperandLayouts(Operation* op);
 
   // Op-specific overrides
+  void rectifyIncompatibleOperandLayouts(DotOp op);
   void rectifyIncompatibleOperandLayouts(ReduceOp op);
   void rectifyIncompatibleOperandLayouts(tensor::InsertOp op);
   void rectifyIncompatibleOperandLayouts(tensor::InsertSliceOp op);
@@ -290,8 +294,8 @@ LogicalResult LayoutPropagation::visitOperation(Operation* op) {
       // secret ops
       .Case<GenericOp, YieldOp>([&](auto op) { return visitOperation(op); })
       // linalg ops
-      .Case<MatvecOp, VecmatOp, ReduceOp, MatmulOp, Conv2DOp, Conv2DNchwFchwOp>(
-          [&](auto op) { return visitOperation(op); })
+      .Case<DotOp, MatvecOp, VecmatOp, ReduceOp, MatmulOp, Conv2DOp,
+            Conv2DNchwFchwOp>([&](auto op) { return visitOperation(op); })
       // affine ops
       .Case<affine::AffineForOp>([&](auto op) { return visitOperation(op); })
       // tensor ops
@@ -587,6 +591,26 @@ LogicalResult LayoutPropagation::visitOperation(MatvecOp op) {
   MLIRContext* ctx = &getContext();
   auto kernelAttr =
       secret::KernelAttr::get(ctx, KernelName::MatvecDiagonal, /*force=*/false);
+  op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
+
+  return success();
+}
+
+LogicalResult LayoutPropagation::visitOperation(DotOp op) {
+  LLVM_DEBUG(llvm::dbgs() << "visitOperation(DotOp): " << op << "\n");
+  Value result = op.getResult(0);
+  FailureOr<LayoutAttr> layout = defaultLayoutForType(result.getType());
+  if (failed(layout)) {
+    return failure();
+  }
+  assignedLayouts.insert({result, layout.value()});
+  setResultLayoutAttr(op);
+  debugAssignLayout(result, layout.value());
+
+  // Add secret.kernel attribute for Dot
+  MLIRContext* ctx = &getContext();
+  auto kernelAttr =
+      secret::KernelAttr::get(ctx, KernelName::Dot, /*force=*/false);
   op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
 
   return success();
@@ -1016,7 +1040,7 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
             affine::AffineYieldOp>(
           [&](auto op) { return CompatibilityResult{true, std::nullopt}; })
       // Ops with special rules
-      .Case<ReduceOp, MatvecOp, VecmatOp, Conv2DOp, Conv2DNchwFchwOp,
+      .Case<DotOp, ReduceOp, MatvecOp, VecmatOp, Conv2DOp, Conv2DNchwFchwOp,
             tensor::InsertSliceOp>(
           [&](auto op) { return hasCompatibleArgumentLayouts(op); })
       // By default, assume operands must all have the same layout.
@@ -1050,6 +1074,23 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
 
         return CompatibilityResult{true, std::nullopt};
       });
+}
+
+CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(DotOp op) {
+  LayoutAttr lhsLayout = assignedLayouts.at(op.getOperand(0));
+  LayoutAttr rhsLayout = assignedLayouts.at(op.getOperand(1));
+
+  if (lhsLayout != rhsLayout) {
+    return {false, std::nullopt};
+  }
+
+  // Outs operand (operand 2) should be 0D.
+  LayoutAttr outsLayout = assignedLayouts.at(op.getOperand(2));
+  if (outsLayout.getIntegerRelation().getNumDomainVars() != 0) {
+    return {false, std::nullopt};
+  }
+
+  return {true, std::nullopt};
 }
 
 CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
@@ -1196,7 +1237,7 @@ void LayoutPropagation::rectifyIncompatibleOperandLayouts(Operation* op) {
 
   TypeSwitch<Operation*>(op)
       // Ops with special rules
-      .Case<ReduceOp, tensor::InsertOp, tensor::InsertSliceOp>(
+      .Case<DotOp, ReduceOp, tensor::InsertOp, tensor::InsertSliceOp>(
           [&](auto op) { return rectifyIncompatibleOperandLayouts(op); })
       .Default([&](Operation* op) {
         // Default target layout is chosen arbitrarily as the first operand's
@@ -1233,6 +1274,48 @@ void LayoutPropagation::rectifyIncompatibleOperandLayouts(Operation* op) {
           }
         }
       });
+}
+
+void LayoutPropagation::rectifyIncompatibleOperandLayouts(DotOp op) {
+  mlir::IRRewriter builder(&getContext());
+  builder.setInsertionPoint(op);
+
+  LayoutAttr lhsLayout = assignedLayouts.at(op.getOperand(0));
+  LayoutAttr rhsLayout = assignedLayouts.at(op.getOperand(1));
+
+  if (lhsLayout != rhsLayout) {
+    // Convert RHS to match LHS layout
+    ConvertLayoutOp convertOp = ConvertLayoutOp::create(
+        builder, op->getLoc(), op.getOperand(1), rhsLayout, lhsLayout);
+    auto* lattice =
+        solver->getOrCreateState<SecretnessLattice>(convertOp.getResult());
+    lattice->getValue().setSecretness(isSecret(op.getOperand(1), solver));
+
+    builder.replaceUsesWithIf(
+        op.getOperand(1), convertOp.getResult(),
+        [&](OpOperand& operand) { return operand.getOwner() == op; });
+    assignedLayouts.insert({convertOp.getResult(), lhsLayout});
+  }
+
+  // Ensure Outs is 0D.
+  LayoutAttr outsLayout = assignedLayouts.at(op.getOperand(2));
+  if (outsLayout.getIntegerRelation().getNumDomainVars() != 0) {
+    FailureOr<LayoutAttr> default0D =
+        defaultLayoutForType(op.getOperand(2).getType());
+    if (succeeded(default0D)) {
+      ConvertLayoutOp convertOp =
+          ConvertLayoutOp::create(builder, op->getLoc(), op.getOperand(2),
+                                  outsLayout, default0D.value());
+      auto* lattice =
+          solver->getOrCreateState<SecretnessLattice>(convertOp.getResult());
+      lattice->getValue().setSecretness(isSecret(op.getOperand(2), solver));
+
+      builder.replaceUsesWithIf(
+          op.getOperand(2), convertOp.getResult(),
+          [&](OpOperand& operand) { return operand.getOwner() == op; });
+      assignedLayouts.insert({convertOp.getResult(), default0D.value()});
+    }
+  }
 }
 
 void LayoutPropagation::rectifyIncompatibleOperandLayouts(ReduceOp op) {
@@ -1357,7 +1440,17 @@ FailureOr<LayoutAttr> LayoutPropagation::defaultLayoutForType(Type type) {
 
   RankedTensorType tensorType = dyn_cast<RankedTensorType>(ty);
   if (!tensorType) {
+    LLVM_DEBUG(llvm::dbgs() << "defaultLayoutForType: not a tensor, calling "
+                               "defaultLayoutForScalarType\n");
     return defaultLayoutForScalarType(ty);
+  }
+
+  LLVM_DEBUG(llvm::dbgs() << "defaultLayoutForType: tensor rank="
+                          << tensorType.getRank() << "\n");
+  if (tensorType.getRank() == 0) {
+    LLVM_DEBUG(llvm::dbgs() << "defaultLayoutForType: rank 0 tensor, calling "
+                               "defaultLayoutForScalarType\n");
+    return defaultLayoutForScalarType(tensorType.getElementType());
   }
 
   // By default, each tensor is laid out in row-major order. The slots will be
