@@ -687,6 +687,81 @@ class ConvertLinalgReduce
   }
 };
 
+struct ConvertLinalgDot
+    : public ContextAwareOpConversionPattern<linalg::DotOp> {
+ public:
+  using ContextAwareOpConversionPattern<
+      linalg::DotOp>::ContextAwareOpConversionPattern;
+
+  LayoutAttr getLayoutAttr(Value value) const {
+    auto layoutLookup = getTypeConverter()->getContextualAttr(value);
+    if (failed(layoutLookup)) {
+      return nullptr;
+    }
+    return dyn_cast<LayoutAttr>(layoutLookup.value());
+  }
+
+  LogicalResult matchAndRewrite(
+      linalg::DotOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    Value lhs = adaptor.getInputs()[0];
+    Value rhs = adaptor.getInputs()[1];
+    Value acc = adaptor.getOutputs()[0];
+
+    LayoutAttr lhsLayout = getLayoutAttr(lhs);
+    LayoutAttr rhsLayout = getLayoutAttr(rhs);
+    if (!lhsLayout || !rhsLayout) {
+      return rewriter.notifyMatchFailure(
+          op, "missing new layout attribute for inputs");
+    }
+
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    Type elementType = cast<RankedTensorType>(lhs.getType()).getElementType();
+    std::string reduceOpName;
+    if (isa<FloatType>(elementType)) {
+      reduceOpName = "arith.addf";
+    } else if (isa<IntegerType>(elementType)) {
+      reduceOpName = "arith.addi";
+    } else {
+      return op.emitError("unsupported element type for linalg.dot");
+    }
+
+    auto originalShape =
+        cast<RankedTensorType>(op.getInputs()[0].getType()).getShape();
+    unsigned steps = originalShape[0];
+
+    std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel;
+    kernel::DagType dagType = kernel::mlirTypeToDagType(lhs.getType());
+
+    implementedKernel =
+        implementDot(SSAValue(lhs), SSAValue(rhs), steps, dagType);
+
+    rewriter.setInsertionPointAfter(op);
+
+    auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
+
+    auto convertedType =
+        getTypeConverter()->convertType(lhs.getType(), layoutAttr);
+
+    IRMaterializingVisitor visitor(convertedType, [&](Operation* createdOp) {
+      setMaterializedAttr(createdOp);
+    });
+    Value finalOutput = visitor.process(implementedKernel, b)[0];
+
+    auto* finalOutputOp = finalOutput.getDefiningOp();
+    finalOutputOp->setAttr(kLayoutAttrName, layoutAttr);
+    setMaterializedAttr(finalOutputOp);
+
+    Operation* addBias =
+        makeAppropriatelyTypedAddOp(b, op->getLoc(), finalOutput, acc);
+    addBias->setAttr(kLayoutAttrName, layoutAttr);
+    setMaterializedAttr(addBias);
+    rewriter.replaceOp(op, addBias);
+
+    return success();
+  }
+};
+
 struct ConvertLinalgMatvecLayout
     : public ContextAwareOpConversionPattern<linalg::MatvecOp> {
  public:
@@ -2244,10 +2319,11 @@ struct ConvertToCiphertextSemantics
 
     patterns.add<ConvertAnyAddingMaterializedAttr, ConvertConvertLayout,
                  ConvertFunc, ConvertLinalgMatmul, ConvertLinalgReduce,
-                 ConvertSecretGeneric, ConvertTensorCollapseShape,
-                 ConvertTensorExpandShape, ConvertTensorExtractLayout,
-                 ConvertTensorExtractSlice, ConvertTensorInsertLayout,
-                 ConvertTensorInsertSlice>(typeConverter, context);
+                 ConvertLinalgDot, ConvertSecretGeneric,
+                 ConvertTensorCollapseShape, ConvertTensorExpandShape,
+                 ConvertTensorExtractLayout, ConvertTensorExtractSlice,
+                 ConvertTensorInsertLayout, ConvertTensorInsertSlice>(
+        typeConverter, context);
     patterns.add<ConvertLinalgMatvecLayout, ConvertLinalgConv2D,
                  ConvertLinalgConv2DNchwFchw>(typeConverter, context,
                                               unrollKernels);

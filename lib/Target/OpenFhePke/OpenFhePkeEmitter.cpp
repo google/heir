@@ -1372,11 +1372,15 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::ExtractOp op) {
   }
   os << variableNames->getNameForValue(op.getTensor());
   os << "[";
-  os << flattenIndexExpression(
-      op.getTensor().getType(), op.getIndices(), [&](Value value) {
-        auto constantStr = getStringForConstant(value);
-        return constantStr.value_or(variableNames->getNameForValue(value));
-      });
+  if (op.getIndices().empty()) {
+    os << "0";
+  } else {
+    os << flattenIndexExpression(
+        op.getTensor().getType(), op.getIndices(), [&](Value value) {
+          auto constantStr = getStringForConstant(value);
+          return constantStr.value_or(variableNames->getNameForValue(value));
+        });
+  }
   os << "];\n";
   return success();
 }
@@ -1591,11 +1595,15 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::InsertOp op) {
   // dest[idx] = scalar;
   os << variableNames->getNameForValue(op.getDest());
   os << "[";
-  os << flattenIndexExpression(
-      op.getResult().getType(), op.getIndices(), [&](Value value) {
-        auto constantStr = getStringForConstant(value);
-        return constantStr.value_or(variableNames->getNameForValue(value));
-      });
+  if (op.getIndices().empty()) {
+    os << "0";
+  } else {
+    os << flattenIndexExpression(
+        op.getResult().getType(), op.getIndices(), [&](Value value) {
+          auto constantStr = getStringForConstant(value);
+          return constantStr.value_or(variableNames->getNameForValue(value));
+        });
+  }
   os << "]";
   os << " = " << variableNames->getNameForValue(op.getScalar()) << ";\n";
 

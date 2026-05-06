@@ -474,6 +474,24 @@ static FailureOr<Cost> computeKernelCostFromDAG(KernelName kernel,
       return costModel.process(implementedKernel);
     }
 
+    case KernelName::Dot: {
+      auto lhsType = dyn_cast<RankedTensorType>(op->getOperand(0).getType());
+      if (!lhsType) return failure();
+      auto rhsType = dyn_cast<RankedTensorType>(op->getOperand(1).getType());
+      if (!rhsType) return failure();
+      auto shape = lhsType.getShape();
+      auto dagType = kernel::mlirTypeToDagType(lhsType);
+
+      SymbolicValue lhsVector({shape[0]}, /*isSecret=*/true);
+      SymbolicValue rhsVector({shape[0]}, /*isSecret=*/true);
+
+      auto kernelDag =
+          kernel::implementDot(lhsVector, rhsVector, shape[0], dagType);
+
+      if (!kernelDag) return failure();
+      return costModel.process(kernelDag);
+    }
+
     default:
       return failure();
   }

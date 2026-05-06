@@ -74,17 +74,26 @@ implementMatvec(KernelName kernelName, const T& matrix, const T& vector) {
 template <typename T>
 std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
                  std::shared_ptr<ArithmeticDagNode<T>>>
-implementRotateAndReduceAccumulation(const T& vector, int64_t period,
-                                     int64_t steps, DagReducer<T> reduceFunc) {
+implementRotateAndReduceAccumulation(
+    std::shared_ptr<ArithmeticDagNode<T>> vectorDag, int64_t period,
+    int64_t steps, DagReducer<T> reduceFunc) {
   using NodeTy = ArithmeticDagNode<T>;
-  auto vectorDag = NodeTy::leaf(vector);
-
   for (int64_t shiftSize = steps / 2; shiftSize > 0; shiftSize /= 2) {
     auto rotated = NodeTy::leftRotate(vectorDag, shiftSize * period);
     auto reduced = reduceFunc(vectorDag, rotated);
     vectorDag = reduced;
   }
   return vectorDag;
+}
+
+template <typename T>
+std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
+                 std::shared_ptr<ArithmeticDagNode<T>>>
+implementRotateAndReduceAccumulation(const T& vector, int64_t period,
+                                     int64_t steps, DagReducer<T> reduceFunc) {
+  using NodeTy = ArithmeticDagNode<T>;
+  return implementRotateAndReduceAccumulation<T>(NodeTy::leaf(vector), period,
+                                                 steps, reduceFunc);
 }
 
 // Rolled version of implementRotateAndReduceAccumulation.
@@ -436,6 +445,18 @@ implementRotateAndReduce(const T& vector, std::optional<T> plaintexts,
   return implementBabyStepGiantStepRolled<T>(
       vector, plaintexts.value(), period, steps, dagType, dynamicExtractFunc,
       defaultDagDerivedRotationIndexFn<T>);
+}
+
+// Returns an arithmetic DAG that implements a dot product kernel.
+template <typename T>
+std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
+                 std::shared_ptr<ArithmeticDagNode<T>>>
+implementDot(const T& lhs, const T& rhs, int64_t steps,
+             const DagType& dagType) {
+  using NodeTy = ArithmeticDagNode<T>;
+  auto mulDag = NodeTy::mul(NodeTy::leaf(lhs), NodeTy::leaf(rhs));
+  return implementRotateAndReduceAccumulation<T>(mulDag, /*period=*/1, steps,
+                                                 NodeTy::add);
 }
 
 // Returns an arithmetic DAG that implements a baby-step-giant-step between

@@ -737,6 +737,32 @@ INSTANTIATE_TEST_SUITE_P(WithAndWithoutRolledSuite, KernelImplementationTest,
                          testing::Combine(testing::Values(false, true),
                                           testing::Values(false, true)));
 
+TEST(KernelImplementationTest, TestDot) {
+  std::vector<int> lhs = {1, 2, 3, 4};
+  std::vector<int> rhs = {5, 6, 7, 8};
+  std::vector<int> expected = {70, 70, 70, 70};
+
+  LiteralValue lhsInput = lhs;
+  LiteralValue rhsInput = rhs;
+
+  auto dag = implementDot(lhsInput, rhsInput, 4, DagType::intTensor(32, {4}));
+  LiteralValue result = evalKernel(dag)[0];
+  auto actual = std::get<std::vector<int>>(result.get());
+
+  EXPECT_EQ(actual, expected);
+}
+
+TEST(KernelImplementationTest, TestDotRotationCount) {
+  SymbolicValue lhsVector({4}, true);
+  SymbolicValue rhsVector({4}, true);
+  auto dag = implementDot(lhsVector, rhsVector, 4, DagType::intTensor(32, {4}));
+
+  RotationCountVisitor rotationCounter;
+  int64_t rotationCount = rotationCounter.process(dag);
+
+  EXPECT_EQ(rotationCount, 2);
+}
+
 }  // namespace
 }  // namespace kernel
 }  // namespace heir
