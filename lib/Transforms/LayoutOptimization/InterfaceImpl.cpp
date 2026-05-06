@@ -325,8 +325,10 @@ Hoister createPrecomposingConv1dHoister(linalg::Conv1DOp op) {
     auto filterType = cast<RankedTensorType>(op->getOperand(1).getType());
     auto dataType = cast<RankedTensorType>(op->getOperand(0).getType());
 
-    auto maybeFilterRelation = getConvFilterDiagonalizedRelation(filterType, dataType, 1, 0);
-    assert(succeeded(maybeFilterRelation) && "Could not get diagonalized filter relation");
+    auto maybeFilterRelation =
+        getConvFilterDiagonalizedRelation(filterType, dataType, 1, 0);
+    assert(succeeded(maybeFilterRelation) &&
+           "Could not get diagonalized filter relation");
     auto filterRelation = maybeFilterRelation.value();
 
     // Replace the kernel by a Matrix vector product, coming from filterRelation

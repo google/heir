@@ -726,8 +726,8 @@ struct ConvertLinalgMatvecLayout
 
     LLVM_DEBUG(llvm::dbgs()
                << "supports matvec with halevi-shoup: isPowerOfTwoDims="
-               << isPowerOfTwoDims
-               << " isMatvecDiagonal=" << isMatvecDiagonal << "\n");
+               << isPowerOfTwoDims << " isMatvecDiagonal=" << isMatvecDiagonal
+               << "\n");
 
     return isPowerOfTwoDims && isMatvecDiagonal;
   }
