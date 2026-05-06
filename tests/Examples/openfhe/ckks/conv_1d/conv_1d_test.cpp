@@ -17,13 +17,13 @@ TEST(Conv1DTest, RunTest) {
   cryptoContext = conv_1d__configure_crypto_context(cryptoContext, secretKey);
 
   // ct is a length 8 input vector
-  std::vector<float> m(8, 0.1f);
+  std::vector<float> m = {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f};
 
   // pt is a length 4 input filter
-  std::vector<float> filter(4, 0.1f);
+  std::vector<float> filter = {1.0f, -1.0f, 0.0f, 1.0f};
 
   // expected is the result of the conv 1d row major, which should be a 5
-  std::vector<float> expected = {0.04f, 0.04f, 0.04f, 0.04f, 0.04f};
+  std::vector<float> expected = {0.2f, 0.3f, 0.4f, 0.5f, 0.6f};
 
   auto ctEncrypted =
       conv_1d__encrypt__arg0(cryptoContext, m, keyPair.publicKey);

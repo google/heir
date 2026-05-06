@@ -9,7 +9,7 @@ func.func @conv1d(%arg0: !secret.secret<tensor<5xf32>>) -> !secret.secret<tensor
   // CHECK: %[[filter:.*]] = arith.constant
   // CHECK-SAME: tensor<3xf32>
 
-  // Assign a layout to the matrix and bias
+  // Assign a layout to the filter and input
   // CHECK-DAG: tensor_ext.assign_layout %[[filter]]
   // CHECK-DAG: tensor_ext.assign_layout %[[out]]
   %cst_0 = arith.constant dense<2.0> : tensor<3xf32>

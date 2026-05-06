@@ -616,8 +616,6 @@ LogicalResult LayoutPropagation::visitOperation(Conv1DOp op) {
   // TODO(#1597): a layout optimizer should really be selecting the
   // layout instead of this pass.
   LayoutAttr dataLayout = assignedLayouts.at(data);
-  // I should remove this since vector layout is always row major!
-  // FIXME
   if (!isRelationRowMajor(dataType, ciphertextSize,
                           dataLayout.getIntegerRelation())) {
     LLVM_DEBUG(llvm::dbgs() << "conv_1d data input is not row major, inserting "
