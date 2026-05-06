@@ -530,11 +530,6 @@ LogicalResult LayoutPropagation::visitOperation(MatvecOp op) {
   auto matrix = matvecOp.lhs();
   auto matrixType = cast<RankedTensorType>(matrix.getType());
 
-  // Number of rows must be less than or equal to the number of columns.
-  if (matrixType.getDimSize(0) > matrixType.getDimSize(1)) {
-    return op->emitError() << "Matrix rows must be less than columns";
-  }
-
   // TODO(#1597): a layout optimizer should really be selecting the diagonal
   // layout instead of this pass.
 
