@@ -10,7 +10,6 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Interface/HoistingInterfaces.h"
-#include "lib/Kernel/Kernel.h"
 #include "lib/Kernel/KernelName.h"
 #include "lib/Transforms/LayoutOptimization/Hoisting.h"
 #include "lib/Utils/AttributeUtils.h"
@@ -323,13 +322,15 @@ Hoister createPrecomposingConv1dHoister(linalg::Conv1DOp op) {
     // vector before and after the op.
     result.newOutputLayout = toLayout;
 
-    auto filterType = cast<RankedTensorType>(op->getOperand(1));
-    auto dataType = cast<RankedTensorType>(op->getOperand(0));
+    auto filterType = cast<RankedTensorType>(op->getOperand(1).getType());
+    auto dataType = cast<RankedTensorType>(op->getOperand(0).getType());
 
-    auto filterRelation = get1dConvFilterRelation(filterType, dataType, 1, 0);
+    auto maybeFilterRelation = getConvFilterDiagonalizedRelation(filterType, dataType, 1, 0);
+    assert(succeeded(maybeFilterRelation) && "Could not get diagonalized filter relation");
+    auto filterRelation = maybeFilterRelation.value();
 
     // Replace the kernel by a Matrix vector product, coming from filterRelation
-    result.newKernel = KernelName::MatvecNaive;
+    result.newKernel = KernelName::MatvecDiagonal;
 
     presburger::IntegerRelation newMatrixLayoutRelation =
         hoistConversionThroughMatvec(filterRelation,
