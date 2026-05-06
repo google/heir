@@ -1029,9 +1029,13 @@ LogicalResult LattigoEmitter::printOperation(tensor::EmptyOp op) {
 LogicalResult LattigoEmitter::printOperation(tensor::ExtractOp op) {
   std::string resultName = getName(op.getResult());
   os << getName(op.getResult()) << " := " << getName(op.getTensor()) << "[";
-  os << flattenIndexExpression(
-      op.getTensor().getType(), op.getIndices(),
-      [&](Value value) { return variableNames->getNameForValue(value); });
+  if (op.getIndices().empty()) {
+    os << "0";
+  } else {
+    os << flattenIndexExpression(
+        op.getTensor().getType(), op.getIndices(),
+        [&](Value value) { return variableNames->getNameForValue(value); });
+  }
   os << "]\n";
   return success();
 }
@@ -1199,8 +1203,12 @@ LogicalResult LattigoEmitter::printOperation(tensor::InsertOp op) {
   }
   // result[index] = value
   os << resultName << "[";
-  os << flattenIndexExpression(op.getResult().getType(), op.getIndices(),
-                               [&](Value value) { return getName(value); });
+  if (op.getIndices().empty()) {
+    os << "0";
+  } else {
+    os << flattenIndexExpression(op.getResult().getType(), op.getIndices(),
+                                 [&](Value value) { return getName(value); });
+  }
   os << "] = " << getName(op.getScalar()) << "\n";
   return success();
 }
