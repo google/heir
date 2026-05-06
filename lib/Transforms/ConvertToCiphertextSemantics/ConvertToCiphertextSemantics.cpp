@@ -719,10 +719,6 @@ struct ConvertLinalgMatvecLayout
     int64_t numCols = dimensions[1];
     bool isPowerOfTwoDims = isPowerOfTwo(numRows) && isPowerOfTwo(numCols);
 
-    // TODO(#1578): If the matrix has more rows than columns, what kernel
-    // should be used?
-    bool dimensionsCompatible = numRows <= numCols;
-
     auto kernelAttr = op->getAttrOfType<secret::KernelAttr>(
         secret::SecretDialect::kKernelAttrName);
     bool isMatvecDiagonal =
@@ -731,10 +727,9 @@ struct ConvertLinalgMatvecLayout
     LLVM_DEBUG(llvm::dbgs()
                << "supports matvec with halevi-shoup: isPowerOfTwoDims="
                << isPowerOfTwoDims
-               << " isDimensionsCompatible=" << dimensionsCompatible
                << " isMatvecDiagonal=" << isMatvecDiagonal << "\n");
 
-    return isPowerOfTwoDims && dimensionsCompatible && isMatvecDiagonal;
+    return isPowerOfTwoDims && isMatvecDiagonal;
   }
 
   void haleviShoupKernel(
@@ -841,10 +836,6 @@ struct ConvertLinalgConv1D
     int64_t numCols = dimensions[1];
     bool isPowerOfTwoDims = isPowerOfTwo(numRows) && isPowerOfTwo(numCols);
 
-    // TODO(#1578): If the matrix has more rows than columns, what kernel
-    // should be used?
-    bool isMatrixCompatible = numRows <= numCols;
-
     auto kernelAttr = op->getAttrOfType<secret::KernelAttr>(
         secret::SecretDialect::kKernelAttrName);
     bool isConv1dAsMatvec =
@@ -853,10 +844,9 @@ struct ConvertLinalgConv1D
     LLVM_DEBUG(llvm::dbgs()
                << "supports expanded conv1d as matvec with halevi-shoup: "
                << "isPowerOfTwoDims=" << isPowerOfTwoDims
-               << " isMatrixCompatible=" << isMatrixCompatible
                << " isConv1dAsMatvec=" << isConv1dAsMatvec << "\n");
 
-    return isPowerOfTwoDims && isMatrixCompatible && isConv1dAsMatvec;
+    return isPowerOfTwoDims && isConv1dAsMatvec;
   }
 
   void haleviShoupKernel(
@@ -976,10 +966,6 @@ struct ConvertLinalgConv2D
     int64_t numCols = dimensions[1];
     bool isPowerOfTwoDims = isPowerOfTwo(numRows) && isPowerOfTwo(numCols);
 
-    // TODO(#1578): If the matrix has more rows than columns, what kernel
-    // should be used?
-    bool isMatrixCompatible = numRows <= numCols;
-
     auto kernelAttr = op->getAttrOfType<secret::KernelAttr>(
         secret::SecretDialect::kKernelAttrName);
     bool isConv2dAsMatvec =
@@ -988,10 +974,9 @@ struct ConvertLinalgConv2D
     LLVM_DEBUG(llvm::dbgs()
                << "supports expanded conv2d as matvec with halevi-shoup: "
                << "isPowerOfTwoDims=" << isPowerOfTwoDims
-               << " isMatrixCompatible=" << isMatrixCompatible
                << " isConv2dAsMatvec=" << isConv2dAsMatvec << "\n");
 
-    return isPowerOfTwoDims && isMatrixCompatible && isConv2dAsMatvec;
+    return isPowerOfTwoDims && isConv2dAsMatvec;
   }
 
   void haleviShoupKernel(
@@ -1110,10 +1095,6 @@ struct ConvertLinalgConv2DNchwFchw
     int64_t numCols = dimensions[1];
     bool isPowerOfTwoDims = isPowerOfTwo(numRows) && isPowerOfTwo(numCols);
 
-    // TODO(#1578): If the matrix has more rows than columns, what kernel
-    // should be used?
-    bool isMatrixCompatible = numRows <= numCols;
-
     auto kernelAttr = op->getAttrOfType<secret::KernelAttr>(
         secret::SecretDialect::kKernelAttrName);
     bool isConv2dAsMatvec =
@@ -1122,10 +1103,9 @@ struct ConvertLinalgConv2DNchwFchw
     LLVM_DEBUG(llvm::dbgs()
                << "supports expanded conv2d as matvec with halevi-shoup: "
                << "isPowerOfTwoDims=" << isPowerOfTwoDims
-               << " isMatrixCompatible=" << isMatrixCompatible
                << " isConv2dAsMatvec=" << isConv2dAsMatvec << "\n");
 
-    return isPowerOfTwoDims && isMatrixCompatible && isConv2dAsMatvec;
+    return isPowerOfTwoDims && isConv2dAsMatvec;
   }
 
   void haleviShoupKernel(
