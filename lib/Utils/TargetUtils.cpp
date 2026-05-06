@@ -198,7 +198,8 @@ void emitFlattenedExtractSlice(ShapedType resultType, ShapedType sourceType,
   DynamicLoopOpenerFn dynamicLoopOpener = [&](raw_indented_ostream& os,
                                               const std::string& iv,
                                               OpFoldResult size) {
-    loopOpener(os, iv, mlir::cast<IntegerAttr>(size.get<Attribute>()).getInt());
+    loopOpener(os, iv,
+               mlir::cast<IntegerAttr>(mlir::cast<Attribute>(size)).getInt());
   };
 
   emitFlattenedExtractSlice(resultType, sourceType, resultName, sourceName,

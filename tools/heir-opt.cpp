@@ -43,6 +43,7 @@
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Dialect/Polynomial/Transforms/Passes.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
+#include "lib/Dialect/RNS/Transforms/Passes.h"
 #include "lib/Dialect/Random/IR/RandomDialect.h"
 #include "lib/Dialect/Rotom/IR/RotomDialect.h"
 #include "lib/Dialect/Rotom/Transforms/Passes.h"
@@ -301,6 +302,7 @@ int main(int argc, char** argv) {
   mgmt::registerMgmtPasses();
   openfhe::registerOpenfhePasses();
   polynomial::registerPolynomialPasses();
+  rns::registerRNSPasses();
   rotom::registerRotomPasses();
   secret::registerSecretPasses();
   tensor_ext::registerTensorExtPasses();

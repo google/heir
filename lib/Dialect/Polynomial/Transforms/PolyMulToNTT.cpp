@@ -19,7 +19,11 @@
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/WalkResult.h"        // from @llvm-project
-#include "mlir/include/mlir/Transforms/RegionUtils.h"    // from @llvm-project
+
+// IWYU pragma: begin_keep
+#include "mlir/include/mlir/Pass/Pass.h"  // from @llvm-project
+// IWYU pragma: end_keep
+#include "mlir/include/mlir/Transforms/RegionUtils.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -59,9 +63,8 @@ enum class OpFormClass {
 OpFormClass opFormClass(Operation* op) {
   if (isa<func::ReturnOp>(op)) {
     return OpFormClass::RETURN;
-  } else if (isa<ToTensorOp, LeadingTermOp, EvalOp, ConvertBasisOp,
-                 MonicMonomialMulOp, FromTensorOp, ApplyCoefficientwiseOp>(
-                 op)) {
+  } else if (isa<ToTensorOp, LeadingTermOp, EvalOp, MonicMonomialMulOp,
+                 FromTensorOp, ApplyCoefficientwiseOp>(op)) {
     return OpFormClass::COEFF;
   } else if (isa<MulOp>(op)) {
     return OpFormClass::EVAL;

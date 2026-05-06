@@ -416,24 +416,6 @@ def Polynomial_ExtractSliceOp : Polynomial_Op<"extract_slice", [Pure, SameOperan
   let hasVerifier = 1;
 }
 
-def Polynomial_ConvertBasisOp : Polynomial_Op<"convert_basis", [Pure, ElementwiseMappable, FixedFormCoeff, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
-  let summary = "Change a polynomial's RNS basis";
-  let description = [{
-    Given a polynomial with RNS coefficients, output a polynomial where the coefficients
-    have the target output basis. The output value of each coefficient is equivalent to
-    lifting the coefficient to its centered representative over the integers, and reducing
-    by the output modulus.
-  }];
-  let arguments = (ins
-      PolynomialLike:$value,
-      TypeAttr:$targetBasis
-  );
-  let results = (outs
-    PolynomialLike:$output
-  );
-  let assemblyFormat = "$value attr-dict `:` type($value) `->` type($output)";
-}
-
 def Polynomial_YieldOp : Polynomial_Op<"yield", [Terminator, HasParent<"ApplyCoefficientwiseOp">]> {
   let summary = "Yield a value from a polynomial.apply_coefficientwise region.";
   let arguments = (ins AnyType:$operand);
@@ -471,8 +453,24 @@ def Polynomial_ApplyCoefficientwiseOp : Polynomial_Op<"apply_coefficientwise", [
   let arguments = (ins Polynomial_PolynomialType:$input);
   let results = (outs Polynomial_PolynomialType:$output);
   let regions = (region SizedRegion<1>:$body);
+  let builders = [
+    OpBuilder<(ins
+      CArg<"Value">:$input,
+      CArg<"PolynomialType">:$outputPolyTy,
+      CArg<"function_ref<Value(ImplicitLocOpBuilder&, Value, Value)>">:$transformCoeff
+    )>
+  ];
   let assemblyFormat = "`(` $input `:` type($input) `)` attr-dict-with-keyword $body `->` type($output)";
   let hasVerifier = 1;
+  let extraClassDeclaration = [{
+    /// Callback used by the custom builder to populate the body of
+    /// `polynomial.apply_coefficientwise`.
+    ///
+    /// The callback receives a builder positioned at the start of the body block,
+    /// the current coefficient, and the coefficient degree. It returns the value
+    /// to yield as the transformed output coefficient.
+    using ApplyCoefficientwiseBuilderFn = function_ref<Value(ImplicitLocOpBuilder&, Value, Value)>;
+  }];
 }
 
 #endif  // LIB_DIALECT_POLYNOMIAL_IR_POLYNOMIALOPS_TD_

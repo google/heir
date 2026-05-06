@@ -2,6 +2,7 @@
 
 #include "lib/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.h"
 #include "lib/Dialect/Polynomial/Conversions/PolynomialToModArith/PolynomialToModArith.h"
+#include "lib/Dialect/RNS/Transforms/LowerConvertBasis.h"
 #include "lib/Transforms/ConvertIfToSelect/ConvertIfToSelect.h"
 #include "lib/Transforms/ConvertSecretExtractToStaticExtract/ConvertSecretExtractToStaticExtract.h"
 #include "lib/Transforms/ConvertSecretForToStaticFor/ConvertSecretForToStaticFor.h"
@@ -67,6 +68,7 @@ void polynomialToLLVMPipelineBuilder(OpPassManager& manager) {
   elementwiseOptions.convertDialects = {"polynomial"};
   manager.addPass(createElementwiseToAffine(elementwiseOptions));
   manager.addPass(polynomial::createPolynomialToModArith());
+  manager.addPass(rns::createLowerConvertBasis());
   manager.addPass(::mlir::heir::mod_arith::createModArithToArith());
   manager.addPass(createCanonicalizerPass());
 

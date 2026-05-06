@@ -8,6 +8,7 @@
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
+#include "lib/Dialect/RNS/IR/RNSOps.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Utils/APIntUtils.h"
 #include "lib/Utils/ConversionUtils.h"
@@ -24,7 +25,6 @@
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
@@ -176,6 +176,55 @@ struct ConvertExtract : public OpConversionPattern<ExtractOp> {
       ExtractOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     rewriter.replaceOp(op, adaptor.getOperands()[0]);
+    return success();
+  }
+};
+
+struct ConvertRNSExtractResidue
+    : public OpConversionPattern<rns::ExtractResidueOp> {
+  ConvertRNSExtractResidue(mlir::MLIRContext* context)
+      : OpConversionPattern<rns::ExtractResidueOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      rns::ExtractResidueOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    auto inputType = dyn_cast<RankedTensorType>(adaptor.getInput().getType());
+    if (!inputType || inputType.getRank() != 1) {
+      return rewriter.notifyMatchFailure(
+          op, "expected scalar RNS value lowered to a rank-1 tensor");
+    }
+
+    Value index =
+        arith::ConstantIndexOp::create(b, op.getIndex().getSExtValue());
+    Value residue =
+        tensor::ExtractOp::create(b, adaptor.getInput(), ValueRange{index});
+    rewriter.replaceOp(op, residue);
+    return success();
+  }
+};
+
+struct ConvertRNSPack : public OpConversionPattern<rns::PackOp> {
+  ConvertRNSPack(mlir::MLIRContext* context)
+      : OpConversionPattern<rns::PackOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      rns::PackOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    Type resultType = getTypeConverter()->convertType(op.getOutput().getType());
+    auto rankedTensorType = dyn_cast<RankedTensorType>(resultType);
+    if (!rankedTensorType || rankedTensorType.getRank() != 1) {
+      return rewriter.notifyMatchFailure(
+          op, "expected scalar RNS value lowered to a rank-1 tensor");
+    }
+
+    Value result = tensor::FromElementsOp::create(
+        rewriter, op.getLoc(), rankedTensorType, adaptor.getOperands());
+    rewriter.replaceOp(op, result);
     return success();
   }
 };
@@ -513,16 +562,18 @@ void ModArithToArith::runOnOperation() {
 
   ConversionTarget target(*context);
   target.addIllegalDialect<ModArithDialect>();
+  target.addIllegalOp<rns::ExtractResidueOp, rns::PackOp>();
   target.addLegalDialect<arith::ArithDialect>();
 
   RewritePatternSet patterns(context);
   rewrites::populateWithGenerated(patterns);
-  patterns.add<
-      ConvertEncapsulate, ConvertExtract, ConvertReduce, ConvertAdd, ConvertSub,
-      ConvertMul, ConvertMac, ConvertModSwitch, ConvertBarrettReduce,
-      ConvertConstant, ConvertAny<>, ConvertAny<affine::AffineForOp>,
-      ConvertAny<affine::AffineYieldOp>, ConvertAny<linalg::GenericOp> >(
-      typeConverter, context);
+  patterns
+      .add<ConvertEncapsulate, ConvertExtract, ConvertReduce, ConvertAdd,
+           ConvertSub, ConvertMul, ConvertMac, ConvertModSwitch,
+           ConvertBarrettReduce, ConvertConstant, ConvertRNSExtractResidue,
+           ConvertRNSPack, ConvertAny<>, ConvertAny<affine::AffineForOp>,
+           ConvertAny<affine::AffineYieldOp>, ConvertAny<linalg::GenericOp> >(
+          typeConverter, context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
   addTensorOfTensorConversionPatterns(typeConverter, patterns, target);

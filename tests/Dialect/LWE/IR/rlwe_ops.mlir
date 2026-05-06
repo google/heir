@@ -88,3 +88,20 @@ func.func @test_rmul_plain(%0: !ct, %1: !pt) -> !ct {
   %3 = lwe.rmul_plain %1, %0 : (!pt, !ct) -> !ct
   return %2 : !ct
 }
+
+!Z4 = !mod_arith.int<4 : i32>
+!Z3 = !mod_arith.int<3 : i32>
+!Z5 = !mod_arith.int<5 : i32>
+!rns_src_even = !rns.rns<!Z4, !Z3>
+!rns_tgt_odd = !rns.rns<!Z5>
+#ring_src_even = #polynomial.ring<coefficientType = !rns_src_even, polynomialModulus = <1 + x**8>>
+#ring_tgt_odd = #polynomial.ring<coefficientType = !rns_tgt_odd, polynomialModulus = <1 + x**8>>
+!ringelt_src_even = !lwe.lwe_ring_elt<ring = #ring_src_even>
+!ringelt_tgt_odd = !lwe.lwe_ring_elt<ring = #ring_tgt_odd>
+
+// CHECK: test_convert_basis
+func.func @test_convert_basis(%arg0: !ringelt_src_even) -> !ringelt_tgt_odd {
+  // CHECK: lwe.convert_basis
+  %0 = "lwe.convert_basis"(%arg0) {targetBasis = !rns_tgt_odd} : (!ringelt_src_even) -> !ringelt_tgt_odd
+  return %0 : !ringelt_tgt_odd
+}

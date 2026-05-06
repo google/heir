@@ -1,4 +1,4 @@
-load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
+load("@heir//lib/Transforms:transforms.bzl", "add_heir_transforms")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 package(
@@ -72,19 +72,8 @@ cc_library(
     ],
 )
 
-gentbl_cc_library(
-    name = "pass_inc_gen",
-    tbl_outs = {
-        "Passes.h.inc": [
-            "-gen-pass-decls",
-            "-name=CKKS",
-        ],
-        "CKKSPasses.md": ["-gen-pass-doc"],
-    },
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+add_heir_transforms(
+    header_filename = "Passes.h.inc",
+    pass_name = "CKKS",
     td_file = "Passes.td",
-    deps = [
-        "@llvm-project//mlir:OpBaseTdFiles",
-        "@llvm-project//mlir:PassBaseTdFiles",
-    ],
 )
