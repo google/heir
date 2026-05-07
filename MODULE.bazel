@@ -8,6 +8,17 @@ bazel_dep(name = "llvm", version = "0.7.8")
 
 register_toolchains("@llvm//:all")
 
+# Apple compilation support.
+# Note this requires full xcode, not just commandline tools
+#
+# Tested with:
+#
+# $ /usr/bin/xcodebuild -version
+#   Xcode 16.2
+#   Build version 16C5032a
+bazel_dep(name = "apple_support", version = "1.24.1", repo_name = "build_bazel_apple_support")
+bazel_dep(name = "rules_apple", version = "3.20.1")
+
 # Gazelle puglin for BUILD file autogeneration
 bazel_dep(name = "gazelle", version = "0.47.0")
 
