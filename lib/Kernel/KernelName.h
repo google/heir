@@ -30,6 +30,9 @@ enum KernelName : int {
 
   // Ciphertext-ciphertext matmul using the bicyclic packing method.
   MatmulBicyclic,
+
+  // Product and sum of two vectors, using a log2 rotate-and-reduce approach.
+  Dot,
 };
 
 std::ostream& operator<<(std::ostream& os, const KernelName& k);

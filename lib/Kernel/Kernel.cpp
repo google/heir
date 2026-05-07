@@ -30,6 +30,7 @@ static std::unordered_map<KernelName, std::vector<std::string>>
         {KernelName::MatmulDiagonal, {"linalg.matmul"}},
         {KernelName::MatmulDiagonal, {"linalg.conv2d"}},
         {KernelName::MatmulBicyclic, {"linalg.matmul"}},
+        {KernelName::Dot, {"linalg.dot"}},
 };
 
 std::set<std::string> requiredNontrivial = {"linalg"};
@@ -78,6 +79,8 @@ std::string kernelNameAsStr(const KernelName& kernelName) {
       return "VecmatDiagonal";
     case KernelName::MatmulBicyclic:
       return "MatmulBicyclic";
+    case KernelName::Dot:
+      return "Dot";
     default:
       return "Unknown";
   }
