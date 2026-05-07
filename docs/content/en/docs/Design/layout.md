@@ -466,7 +466,7 @@ variables track the top-left index of the filter as it slides over the convolved
 image in the data-semantic domain. For an image of height $H_d$ and width $W_d$,
 and a filter of height $H_f$ and width $W_f$, we have
 
-$$ -P \\leq i\_{dr} \\leq H_d + P - W_f $$
+$$ -P \\leq i\_{dr} \\leq H_d + P - H_f $$
 
 and similarly for $i\_{dc}$.
 
