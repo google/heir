@@ -32,15 +32,6 @@ jobs:
             --tag heir:dev-ci \
             .
 
-      - name: Smoke test clang availability
-        run: |
-          docker run \
-            --rm \
-            --platform linux/amd64 \
-            --user heiruser \
-            heir:dev-ci \
-            bash -lc 'clang --version'
-
       - name: Build and test with Bazel inside container
         run: |
           docker run \

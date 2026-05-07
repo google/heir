@@ -29,10 +29,6 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
 
-      - name: Install dependencies
-        run: |
-          ./.github/install_clang_version.sh 19
-
       - name: "Run `bazel build`"
         run: |
           bazel build --incompatible_strict_action_env -c ${{ matrix.compilation_mode }} \

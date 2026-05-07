@@ -18,26 +18,20 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
 
-      - name: Install dependencies
-        run: |
-          ./.github/install_clang_version.sh 19
-
       - name: Cache bazel build artifacts
         uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7  # v5.0.2
         with:
           path: |
             ~/.cache/bazel
-          key: ${{ runner.os }}-clang19-${{ hashFiles('.bazelversion', '.bazelrc', 'MODULE.bazel') }}-${{ hashFiles('bazel/extensions.bzl') }}
+          key: ${{ runner.os }}-${{ hashFiles('.bazelversion', '.bazelrc', 'MODULE.bazel') }}-${{ hashFiles('bazel/extensions.bzl') }}
           restore-keys: |
-            ${{ runner.os }}-clang19-${{ hashFiles('.bazelversion', '.bazelrc', 'MODULE.bazel') }}-${{ hashFiles('bazel/extensions.bzl') }}
-            ${{ runner.os }}-clang19-${{ hashFiles('.bazelversion', '.bazelrc', 'MODULE.bazel') }}-
+            ${{ runner.os }}-${{ hashFiles('.bazelversion', '.bazelrc', 'MODULE.bazel') }}-${{ hashFiles('bazel/extensions.bzl') }}
+            ${{ runner.os }}-${{ hashFiles('.bazelversion', '.bazelrc', 'MODULE.bazel') }}-
 
       - name: Confirm bazel is using the right C compiler
         run: |
-          # Pure debugging bazel stuff: ensure the compiler installed is the
-          # one used by bazel. Note that the path to the C compiler is part of
-          # the cache, so if the compiler changes but the cache does not, it
-          # will try to use the old compiler path.
+          # Pure debugging bazel stuff: the compiler used should come from the
+          # hermetic clang toolchain managed by bazel.
           which -a clang | xargs ls -al
           ls -al /etc/alternatives/clang
           bazel cquery --output=starlark --starlark:expr="str(providers(target))" @bazel_tools//tools/cpp:current_cc_toolchain | sed 's/,/\n/g' | grep -C 5 clang

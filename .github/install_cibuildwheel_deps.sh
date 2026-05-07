@@ -1,11 +1,5 @@
 #!/usr/bin/env bash
 
-# Install clang and lld (container only has gcc by default)
-# Pin to clang 20 — some HEIR deps don't yet support clang 21+
-# (cf. https://github.com/google/heir/issues/2675).
-CLANG_VERSION=20
-yum install -y "clang-${CLANG_VERSION}*" "lld-${CLANG_VERSION}*"
-
 # Install bazel
 if ! bazel version; then
   arch=$(uname -m)

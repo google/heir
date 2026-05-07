@@ -22,10 +22,6 @@ jobs:
         id: date
         run: echo "date=$(date +'%Y.%m.%d')" >> "$GITHUB_OUTPUT"
 
-      - name: Install dependencies
-        run: |
-          ./.github/install_clang_version.sh 19
-
       - name: "Run `bazel build`"
         run: |
           bazel build -c opt //tools:all
