@@ -1,4 +1,5 @@
-#pragma once
+#ifndef LIB_DIALECT_SCIFRBOOL_TRANSFORMS_DIALECTRESOURCEMAP_H_
+#define LIB_DIALECT_SCIFRBOOL_TRANSFORMS_DIALECTRESOURCEMAP_H_
 
 #include <cstdint>
 #include <map>
@@ -19,3 +20,5 @@ using DialectStringBootstrapAndKeySwitchMap =
 void dump(heir::graph::Graph<Operation*>& graph);
 }  // namespace cornami
 }  // namespace mlir
+
+#endif  // LIB_DIALECT_SCIFRBOOL_TRANSFORMS_DIALECTRESOURCEMAP_H_

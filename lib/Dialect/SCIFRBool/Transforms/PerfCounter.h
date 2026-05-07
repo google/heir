@@ -1,4 +1,6 @@
-#pragma once
+#ifndef LIB_DIALECT_SCIFRBOOL_TRANSFORMS_PERFCOUNTER_H_
+#define LIB_DIALECT_SCIFRBOOL_TRANSFORMS_PERFCOUNTER_H_
+
 #include <utility>
 #include <vector>
 
@@ -112,3 +114,5 @@ struct PerfCounter {
 
 }  // namespace cornami
 }  // namespace mlir
+
+#endif  // LIB_DIALECT_SCIFRBOOL_TRANSFORMS_PERFCOUNTER_H_
