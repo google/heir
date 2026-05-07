@@ -1,19 +1,23 @@
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <set>
 #include <stack>
 #include <vector>
 
+#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"           // from @llvm-project
-#include "mlir/include/mlir/Analysis/SliceAnalysis.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Dialect.h"              // from @llvm-project
-#include "mlir/include/mlir/IR/Location.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"             // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"            // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"               // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/SliceAnalysis.h"      // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/Dialect.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Location.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 
 #define DEBUG_TYPE "operation-balancer"
 
@@ -70,8 +74,19 @@ OpType recursiveProduceBalancedTree(OpBuilder& builder, Location& loc,
   }
 }
 
+namespace {
+// If a lattice is unknown treat it as secret
+bool isKnownPublic(Value value, DataFlowSolver* solver) {
+  auto* lattice = solver->lookupState<SecretnessLattice>(value);
+  if (lattice == nullptr) return false;
+  if (!lattice->getValue().isInitialized()) return false;
+  return !lattice->getValue().getSecretness();
+}
+
+}  // namespace
+
 template <typename OpType>
-void tryBalanceBlock(Block* block) {
+void tryBalanceBlock(Block* block, DataFlowSolver& secretnessSolver) {
   // visited set checks whether we've already handled an operation
   std::set<Operation*> visited;
 
@@ -170,6 +185,11 @@ void tryBalanceBlock(Block* block) {
       continue;
     }
 
+    // Group known public values
+    std::stable_partition(operands.begin(), operands.end(), [&](Value v) {
+      return isKnownPublic(v, &secretnessSolver);
+    });
+
     // Now that we have the flattened operands, we can create the balanced tree
     // of operations.
     Location loc = root->getLoc();
@@ -189,16 +209,24 @@ struct OperationBalancer : impl::OperationBalancerBase<OperationBalancer> {
   using OperationBalancerBase::OperationBalancerBase;
 
   void runOnOperation() override {
+    // Call the SecretnessAnalysis to identify operand Secretness values
+    DataFlowSolver solver;
+    dataflow::loadBaselineAnalyses(solver);
+    solver.load<SecretnessAnalysis>();
+
+    auto result = solver.initializeAndRun(getOperation());
+
+    if (failed(result)) {
+      getOperation()->emitOpError() << "Failed to run SecretnessAnalysis.\n";
+      signalPassFailure();
+      return;
+    }
+
     getOperation()->walk<WalkOrder::PreOrder>([&](secret::GenericOp genericOp) {
-      // TODO (#836): analyze the block to see which operations should be done
-      // secretly (i.e. under homomorphic encryption) to determine which
-      // operations are done plaintext and others over ciphertext. This is
-      // useful because we can then sort the operations in a way that minimizes
-      // the number of encodings.
-      tryBalanceBlock<arith::AddIOp>(genericOp.getBody());
-      tryBalanceBlock<arith::MulIOp>(genericOp.getBody());
-      tryBalanceBlock<arith::AddFOp>(genericOp.getBody());
-      tryBalanceBlock<arith::MulFOp>(genericOp.getBody());
+      tryBalanceBlock<arith::AddIOp>(genericOp.getBody(), solver);
+      tryBalanceBlock<arith::MulIOp>(genericOp.getBody(), solver);
+      tryBalanceBlock<arith::AddFOp>(genericOp.getBody(), solver);
+      tryBalanceBlock<arith::MulFOp>(genericOp.getBody(), solver);
     });
   }
 };
