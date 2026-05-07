@@ -32,9 +32,7 @@ jobs:
         run: |
           # Pure debugging bazel stuff: the compiler used should come from the
           # hermetic clang toolchain managed by bazel.
-          which -a clang | xargs ls -al
-          ls -al /etc/alternatives/clang
-          bazel cquery --output=starlark --starlark:expr="str(providers(target))" @bazel_tools//tools/cpp:current_cc_toolchain | sed 's/,/\n/g' | grep -C 5 clang
+          bazel cquery --output=starlark --starlark:expr="str(providers(target))" @rules_cc//cc:current_cc_toolchain | sed 's/,/\n/g' | grep -C 5 clang
 
       - name: "Run `bazel build`"
         run: |
