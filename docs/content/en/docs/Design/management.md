@@ -81,7 +81,7 @@ current noise (see HElib) or lazy modulus switching. Those are not implemented.
 
 ### BGV: Scale management
 
-For the original BGV scheme, it is required to have $qi \\equiv 1 \\pmod{t}$
+For the original BGV scheme, it is required to have $q_{i} \\equiv 1 \\pmod{t}$
 where $t$ is the plaintext modulus. However in practice such requirement will
 make the choice of $q_i$ too constrained. In the GHS variant, this condition is
 removed, with the price of scale management needed.
@@ -92,7 +92,7 @@ inside by $q_i$. The message $m$ can often be written as $\[m\]\_t$, the coset
 representative of `m` $\\mathbb{Z}/t\\mathbb{Z}$. Then by dividing of $q_i$
 produces a result message $\[m \\cdot q_i^{-1}\]\_t$.
 
-Note that when $qi \\equiv 1 \\pmod{t}$, the result message is the same as the
+Note that when $q_i \\equiv 1 \\pmod{t}$, the result message is the same as the
 original message. However, in the GHS variant this does not always hold, so we
 call the introduced factor of $\[q^{-1}\]\_t$ the *scale* of the message. HEIR
 needs to record and manage it during compilation. When decrypting the scale must
@@ -110,18 +110,18 @@ As one may expect, different modulus switching insertion strategies affect
 message scale differently. For $m_0$ with scale $a$ and $m_1$ with scale $b$,
 the result scale would be
 
-1. After multiplication: $\[ab / qi\]\_t$.
+1. After multiplication: $\[ab / q_{i}\]\_t$.
 
-1. Before multiplication: $\[a / qi \\cdot b / qi\]\_t = \[ab / (qi^2)\]\_t$.
+1. Before multiplication: $\[a / q_{i} \\cdot b / q_{i}\]\_t = \[ab / (q_{i}^2)\]\_t$.
 
 This is messy enough. To ease the burden, we can impose additional requirement:
 mandate a constant scale $\\Delta_i$ for all ciphertext at level $i$. This is
 called the *level-specific scaling factor*. With this in mind, addition within
 one level can happen without caring about the scale.
 
-1. After multiplication: $\\Delta\_{i-1} = \[\\Delta_i^2 / qi\]\_t$
+1. After multiplication: $\\Delta\_{i-1} = \[\\Delta_i^2 / q_{i}\]\_t$
 
-1. Before multiplication: $\\Delta\_{i-1} = \[\\Delta_i^2 / (qi^2)\]\_t$
+1. Before multiplication: $\\Delta\_{i-1} = \[\\Delta_i^2 / (q_{i}^2)\]\_t$
 
 ### BGV: Cross Level Operation
 
@@ -140,7 +140,7 @@ incur additional noise, the procedure becomes the following:
    \+ 1$, if those extra limbs exist.
 
 1. Adjust scale from $s_1$ to $s_2 \\cdot q\_{l_2 + 1}$ by multiplying $\[s_2
-   \\cdot q\_{l_2 + 1} / s1\]\_t$ for the first ciphertext.
+   \\cdot q\_{l_2 + 1} / s_{1}\]\_t$ for the first ciphertext.
 
 1. Modulus switch from $l_2 + 1$ to $l_2$, producing scale $s_2$ for the first
    ciphertext and its noise is controlled.
@@ -171,7 +171,7 @@ multiplication operation.
 CKKS is a leveled scheme where each level has a modulus $q_i$. The level is
 numbered from $0$ to $L$ where $L$ is the input level and $0$ is the output
 level. CKKS ciphertext contains a scaled message $\\Delta m$ where $\\Delta$
-takes some value like $2^40$ or $2^80$. After multiplication of two messages,
+takes some value like $2^{40}$ or $2^{80}$. After multiplication of two messages,
 the scaling factor $\\Delta'$ will become larger, hence some kind of management
 policy is needed in case it blows up. Contrary to BGV where modulus switching is
 used for noise management, in CKKS modulus switching from level $i$ to level
