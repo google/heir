@@ -16,7 +16,7 @@ struct HoistResult {
   // A new result layout
   ::mlir::Attribute newOutputLayout;
 
-  // A new result layout
+  // A new result kernel
   ::mlir::heir::KernelName newKernel;
 
   // The convert_layout op hoisted.
