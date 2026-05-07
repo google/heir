@@ -219,6 +219,11 @@ struct ConvertFromTensor : public OpConversionPattern<FromTensorOp> {
     }
     auto typeInfo = res.value();
 
+    if (typeInfo.polynomialType.getForm() != Form::COEFF) {
+      return rewriter.notifyMatchFailure(
+          op, "FromTensor lowering requires COEFF form");
+    }
+
     auto resultShape = typeInfo.tensorType.getShape()[0];
     auto resultEltTy = typeInfo.tensorType.getElementType();
     auto inputTensorTy = op.getInput().getType();
@@ -275,6 +280,11 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
           op, "failed to construct common conversion info");
 
     auto typeInfo = res.value();
+
+    if (typeInfo.polynomialType.getForm() != Form::COEFF) {
+      return rewriter.notifyMatchFailure(
+          op, "Constant lowering requires COEFF form");
+    }
 
     auto attr = dyn_cast<TypedIntPolynomialAttr>(op.getValue());
     if (!attr)
@@ -361,6 +371,11 @@ struct ConvertMonomial : public OpConversionPattern<MonomialOp> {
       return rewriter.notifyMatchFailure(
           op, "failed to construct common conversion info");
     auto typeInfo = res.value();
+
+    if (typeInfo.polynomialType.getForm() != Form::COEFF) {
+      return rewriter.notifyMatchFailure(
+          op, "Monomial lowering requires COEFF form");
+    }
 
     SmallVector<int64_t> storageShape(typeInfo.tensorType.getShape().begin(),
                                       typeInfo.tensorType.getShape().end());
@@ -514,6 +529,11 @@ struct ConvertMonicMonomialMul
           op, "failed to construct common conversion info");
     auto typeInfo = res.value();
 
+    if (typeInfo.polynomialType.getForm() != Form::COEFF) {
+      return rewriter.notifyMatchFailure(
+          op, "MonicMonomialMul lowering requires COEFF form");
+    }
+
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     // In general, a rotation would correspond to multiplication by x^n,
     // which requires a modular reduction step. But because the verifier
@@ -600,6 +620,11 @@ struct ConvertLeadingTerm : public OpConversionPattern<LeadingTermOp> {
           op, "failed to construct common conversion info");
     auto typeInfo = res.value();
 
+    if (typeInfo.polynomialType.getForm() != Form::COEFF) {
+      return rewriter.notifyMatchFailure(
+          op, "LeadingTerm lowering requires COEFF form");
+    }
+
     auto c0 = arith::ConstantOp::create(
         b, b.getIntegerAttr(typeInfo.coefficientStorageType, 0));
     auto c1 = arith::ConstantOp::create(b, b.getIndexAttr(1));
@@ -654,6 +679,11 @@ struct ConvertApplyCoefficientwise
       return rewriter.notifyMatchFailure(
           op, "failed to construct common conversion info");
     auto typeInfo = res.value();
+
+    if (typeInfo.polynomialType.getForm() != Form::COEFF) {
+      return rewriter.notifyMatchFailure(
+          op, "ApplyCoefficientwise lowering requires COEFF form");
+    }
 
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     Value inputTensor = adaptor.getInput();
@@ -1466,6 +1496,11 @@ struct ConvertNTT : public OpConversionPattern<NTTOp> {
           op, "missing convert-elementwise-to-affine");
     }
 
+    if (polyTy.getForm() != Form::COEFF) {
+      return rewriter.notifyMatchFailure(op,
+                                         "NTT lowering requires COEFF form");
+    }
+
     if (!op.getRoot()) {
       return rewriter.notifyMatchFailure(op, "missing root attribute");
     }
@@ -1516,6 +1551,11 @@ struct ConvertINTT : public OpConversionPattern<INTTOp> {
       return rewriter.notifyMatchFailure(
           op, "failed to construct common conversion info");
     auto typeInfo = res.value();
+
+    if (typeInfo.polynomialType.getForm() != Form::EVAL) {
+      return rewriter.notifyMatchFailure(op,
+                                         "INTT lowering requires EVAL form");
+    }
 
     if (!op.getRoot()) {
       op.emitError("missing root attribute");
