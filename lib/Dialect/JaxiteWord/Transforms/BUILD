@@ -23,7 +23,9 @@ cc_library(
     hdrs = ["JaxiteCkksParameterSelection.h"],
     deps = [
         ":pass_inc_gen",
+        "@heir//lib/Dialect/CKKS/IR:Dialect",
         "@heir//lib/Dialect/JaxiteWord/IR:Dialect",
+        "@heir//lib/Parameters:RLWEParams",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Transforms",

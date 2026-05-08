@@ -10,7 +10,7 @@ def JaxiteCkksParameterSelection : Pass<"jaxite-ckks-parameter-selection", "mlir
 
     (* example filepath=tests/Dialect/JaxiteWord/Transforms/doctest.mlir *)
   }];
-  let dependentDialects = ["mlir::heir::jaxiteword::JaxiteWordDialect"];
+  let dependentDialects = ["mlir::heir::jaxiteword::JaxiteWordDialect", "mlir::heir::ckks::CKKSDialect"];
 }
 
 #endif  // LIB_DIALECT_JAXITEWORD_TRANSFORMS_PASSES_TD_
