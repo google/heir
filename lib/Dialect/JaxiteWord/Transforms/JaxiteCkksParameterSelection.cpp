@@ -1,11 +1,12 @@
 #include "lib/Dialect/JaxiteWord/Transforms/JaxiteCkksParameterSelection.h"
 
+#include "lib/Dialect/JaxiteWord/IR/JaxiteWordAttributes.h"
 #include "lib/Dialect/JaxiteWord/IR/JaxiteWordOps.h"
-#include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
-namespace jaxite_word {
+namespace jaxiteword {
 
 #define GEN_PASS_DEF_JAXITECKKSPARAMETERSELECTION
 #include "lib/Dialect/JaxiteWord/Transforms/Passes.h.inc"
@@ -16,17 +17,21 @@ struct JaxiteCkksParameterSelection
 
   void runOnOperation() override {
     MLIRContext *context = &getContext();
-    RewritePatternSet patterns(context);
+    ModuleOp module = getOperation();
 
-    // FIXME: implement pass
-    patterns.add<>(context);
+    SmallVector<int64_t, 2> qTowers = {1, 2};
+    SmallVector<int64_t, 1> pTowers = {3};
 
-    // TODO (#1221): Investigate whether folding (default: on) can be skipped
-    // here.
-    (void)applyPatternsGreedily(getOperation(), std::move(patterns));
+    auto qTowersAttr = DenseI64ArrayAttr::get(context, qTowers);
+    auto pTowersAttr = DenseI64ArrayAttr::get(context, pTowers);
+
+    auto ckksParamsAttr = CkksParametersAttr::get(context, qTowersAttr,
+                                                  pTowersAttr, 4, 5, 6, 7, 8);
+
+    module->setAttr("jaxiteword.ckks_params", ckksParamsAttr);
   }
 };
 
-}  // namespace jaxite_word
+}  // namespace jaxiteword
 }  // namespace heir
 }  // namespace mlir

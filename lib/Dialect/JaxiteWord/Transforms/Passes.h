@@ -6,12 +6,12 @@
 
 namespace mlir {
 namespace heir {
-namespace jaxite_word {
+namespace jaxiteword {
 
 #define GEN_PASS_REGISTRATION
 #include "lib/Dialect/JaxiteWord/Transforms/Passes.h.inc"
 
-}  // namespace jaxite_word
+}  // namespace jaxiteword
 }  // namespace heir
 }  // namespace mlir
 

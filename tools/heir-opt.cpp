@@ -22,6 +22,7 @@
 #include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Jaxite/IR/JaxiteDialect.h"
 #include "lib/Dialect/JaxiteWord/IR/JaxiteWordDialect.h"
+#include "lib/Dialect/JaxiteWord/Transforms/Passes.h"
 #include "lib/Dialect/KeyMgmt/IR/KeyMgmtDialect.h"
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h"
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
@@ -297,6 +298,7 @@ int main(int argc, char** argv) {
   cggi::registerCGGIPasses();
   debug::registerDebugPasses();
   ckks::registerCKKSPasses();
+  jaxiteword::registerJaxiteWordPasses();
   lattigo::registerLattigoPasses();
   lwe::registerLWEPasses();
   mgmt::registerMgmtPasses();
