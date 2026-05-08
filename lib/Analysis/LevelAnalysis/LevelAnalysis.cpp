@@ -136,6 +136,9 @@ LogicalResult LevelAnalysis::visitOperation(
   };
 
   LevelState resultLevel = deriveResultLevel(op, operands);
+  if (resultLevel.isInt() && resultLevel.getInt() > levelBudget) {
+    resultLevel = LevelState(Invalid{});
+  }
   for (auto result : op->getOpResults()) {
     if (isa<mgmt::InitOp>(op) || isSecretInternal(op, result)) {
       propagate(result, resultLevel);

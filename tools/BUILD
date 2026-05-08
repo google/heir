@@ -123,6 +123,7 @@ cc_binary(
         "@heir//lib/Target/SCIFRBool:SCIFRBoolEmitter",
         "@heir//lib/Transforms/ActivationCanonicalizations",
         "@heir//lib/Transforms/AddClientInterface",
+        "@heir//lib/Transforms/AnnotateLevel",
         "@heir//lib/Transforms/AnnotateModule",
         "@heir//lib/Transforms/AnnotateMulDepth",
         "@heir//lib/Transforms/AnnotateSecretness",
