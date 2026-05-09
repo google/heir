@@ -38,6 +38,10 @@ class OptimizeRelinearizationAnalysis {
     return solutionKeyBasisDegreeBeforeRelin.lookup(value);
   }
 
+  /// Maps a loop operation to its output degrees (one int per loop result).
+  /// Populated by the inner solver and read by the outer solver.
+  llvm::DenseMap<Operation*, SmallVector<int>> loopBoundaryDegrees;
+
  private:
   Operation* opToRunOn;
   DataFlowSolver* solver;
