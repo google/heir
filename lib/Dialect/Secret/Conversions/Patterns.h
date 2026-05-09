@@ -1,6 +1,7 @@
 #ifndef LIB_DIALECT_SECRET_CONVERSIONS_PATTERNS_H_
 #define LIB_DIALECT_SECRET_CONVERSIONS_PATTERNS_H_
 
+#include "lib/Dialect/Debug/IR/DebugOps.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
@@ -83,6 +84,17 @@ struct ConvertInsertSlice
                                        tensor::InsertOp> {
   using SecretGenericOpConversion<tensor::InsertSliceOp,
                                   tensor::InsertOp>::SecretGenericOpConversion;
+
+  FailureOr<Operation*> matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ContextAwareConversionPatternRewriter& rewriter) const override;
+};
+
+struct ConvertDebugValidate
+    : public SecretGenericOpConversion<debug::ValidateOp, debug::ValidateOp> {
+  using SecretGenericOpConversion<debug::ValidateOp,
+                                  debug::ValidateOp>::SecretGenericOpConversion;
 
   FailureOr<Operation*> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,

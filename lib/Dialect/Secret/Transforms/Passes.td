@@ -103,13 +103,23 @@ def SecretExtractGenericBody : Pass<"secret-extract-generic-body"> {
 def SecretAddDebugPort : Pass<"secret-add-debug-port"> {
   let summary = "Add debug port to secret-arithmetic ops";
   let description = [{
-  This pass adds debug ports to secret-arithmetic ops in the IR, namely operations
-  wrapped by secret.generic. The debug ports are prefixed with "__heir_debug" and
-  are invoked after each operation in the generic body. The debug ports are
-  declarations and user should provide functions with the same name in their code.
+  This pass adds debug ports to secret-arithmetic ops in the IR, namely
+  operations wrapped by `secret.generic`. The debug ports are prefixed with
+  `"__heir_debug"` and are invoked after each operation in the generic body.
+  The debug ports are declarations and the user must define functions with the
+  same name in their application code.
+
+  If the option `insert-debug-after-every-op` is set to true, it will insert a
+  call after every operation in the generic body.
+
+  Regardless of the `insert-debug-after-every-op` option, this pass lowers all
+  `debug.validate` ops it encounters in the generic body to function calls.
+  In this way, the user can provide specific checkpoints in a program to invoke
+  debug code.
 
   For example, if the function is called "foo", the debug port is called after
   each homomorphic operation:
+
   ```mlir
   // declaration of external debug function
   func.func private @__heir_debug_tensor_8xi16_(tensor<8xi16>)
@@ -124,7 +134,18 @@ def SecretAddDebugPort : Pass<"secret-add-debug-port"> {
     }
   }
   ```
+
+  Because this pass is agnostic of the cryptosystem backend, it does not insert
+  secret key material into the debug handler call. See `lwe-add-debug-port` for
+  cryptosystem-aware analogues of this pass. This pass must remain, in
+  particular, to support the plaintext pipeline.
   }];
+
+  let options = [
+    Option<"insertDebugAfterEveryOp", "insert-debug-after-every-op", "bool",
+           /*default=*/"false", "Whether to add debug calls after every op">,
+  ];
+  let dependentDialects = ["mlir::heir::debug::DebugDialect"];
 }
 
 def SecretImportExecutionResult : Pass<"secret-import-execution-result"> {

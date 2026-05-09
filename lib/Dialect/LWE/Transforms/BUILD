@@ -27,12 +27,10 @@ cc_library(
     ],
     deps = [
         ":pass_inc_gen",
+        "@heir//lib/Dialect/Debug/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
-        "@heir//lib/Dialect/TensorExt/IR:Dialect",
-        "@heir//lib/Utils:TransformUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:FuncDialect",
-        "@llvm-project//mlir:FunctionInterfaces",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",

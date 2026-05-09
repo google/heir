@@ -3,6 +3,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "lib/Dialect/Debug/IR/DebugDialect.h"
+#include "lib/Dialect/Debug/IR/DebugOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
@@ -501,6 +503,20 @@ LogicalResult ConvertEmpty::matchAndRewrite(
   return success();
 }
 
+// This only needs a special pattern because it has attributes that aren't
+// copied over by the base SecretGenericOpConversion.
+FailureOr<Operation*> ConvertDebugValidate::matchAndRewriteInner(
+    secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+    ArrayRef<NamedAttribute> attributes,
+    ContextAwareConversionPatternRewriter& rewriter) const {
+  debug::ValidateOp innerOp =
+      cast<debug::ValidateOp>(op.getBody()->getOperations().front());
+  debug::ValidateOp newOp = debug::ValidateOp::create(
+      rewriter, op.getLoc(), outputTypes, inputs, innerOp->getAttrs());
+  rewriter.replaceOp(op, newOp);
+  return newOp.getOperation();
+}
+
 bool hasSecretOperandsOrResults(Operation* op) {
   return llvm::any_of(op->getOperands(),
                       [](Value operand) {
@@ -536,8 +552,9 @@ void addSecretToSchemeDefaultConversionTargetsAndPatterns(
                SecretGenericOpIdentityConversion<arith::SIToFPOp>,
                SecretGenericOpIdentityConversion<arith::UIToFPOp>,
                SecretGenericOpConversion<tensor::EmptyOp, tensor::EmptyOp>,
-               SecretGenericFuncCallConversion, ConvertExtractSlice,
-               ConvertInsertSlice, ConvertAnyContextAware<affine::AffineForOp>,
+               ConvertDebugValidate, SecretGenericFuncCallConversion,
+               ConvertExtractSlice, ConvertInsertSlice,
+               ConvertAnyContextAware<affine::AffineForOp>,
                ConvertAnyContextAware<affine::AffineYieldOp>,
                ConvertAnyContextAware<tensor::ExtractOp>,
                ConvertAnyContextAware<tensor::InsertOp>,
