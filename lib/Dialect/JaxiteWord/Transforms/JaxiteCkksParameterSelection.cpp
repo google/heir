@@ -72,9 +72,9 @@ struct JaxiteCkksParameterSelection
 
     int dnum = computeDnum(Q.size() - 1);
 
-    // FIXME: Replace dummy values for r, c, composite_degree, and batch.
+    // FIXME: Replace dummy value for composite_degree.
     auto ckksParamsAttr = CkksParametersAttr::get(
-        context, qTowersAttr, pTowersAttr, 4, 5, dnum, 7, 8);
+        context, qTowersAttr, pTowersAttr, 4, 4, dnum, 7, 1);
 
     module->setAttr("jaxiteword.ckks_params", ckksParamsAttr);
   }
