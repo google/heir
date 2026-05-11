@@ -3,7 +3,7 @@
 !ct = !jaxiteword.ciphertext<2, 3, 4>
 !ml = !jaxiteword.modulus_list<65536, 1152921504606844513, 1152921504606844417>
 
-// CHECK: module attributes {jaxiteword.ckks_params = #jaxiteword.ckks_parameters<{{.*}}>}
+// CHECK: jaxiteword.ckks_params = #jaxiteword.ckks_parameters<{{.*}}>
 module attributes {
   ckks.schemeParam = #ckks.scheme_param<
     logN = 13,

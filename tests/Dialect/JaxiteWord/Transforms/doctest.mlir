@@ -1,6 +1,6 @@
 // RUN: heir-opt --jaxite-ckks-parameter-selection %s | FileCheck %s
 
-// CHECK: module attributes {jaxiteword.ckks_params = #jaxiteword.ckks_parameters<{{.*}}>}
+// CHECK: jaxiteword.ckks_params = #jaxiteword.ckks_parameters<{{.*}}>
 !ct = !jaxiteword.ciphertext<2, 3, 4>
 !ml = !jaxiteword.modulus_list<65536, 1152921504606844513, 1152921504606844417>
 
