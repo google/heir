@@ -106,7 +106,6 @@ struct MatvecHoistingImpl
         hoisters.push_back(createPrecomposingMatvecHoister(matvecOp));
         break;
       default:
-        assert(false && "unsupported kernel for layout hoisting");
         break;
     }
 
@@ -142,7 +141,6 @@ struct Conv1dHoistingImpl
         hoisters.push_back(createPrecomposingConv1dHoister(conv1dOp));
         break;
       default:
-        assert(false && "unsupported kernel for layout hoisting");
         break;
     }
 

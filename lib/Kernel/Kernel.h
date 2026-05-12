@@ -13,8 +13,6 @@
 namespace mlir {
 namespace heir {
 
-bool isSupportedKernel(Operation* op, KernelName name);
-
 std::string kernelNameAsStr(const heir::KernelName& kernelName);
 
 }  // namespace heir
