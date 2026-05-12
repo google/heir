@@ -53,6 +53,19 @@ familiar with the codebase. Fully automating the process of fixing this issue
 squanders the learning opportunity and doesn&amp;rsquo;t add much value to the project.
 &lt;strong>New contributors using AI tools to fix issues labelled as &amp;ldquo;good first issues&amp;rdquo;
 is forbidden&lt;/strong>.&lt;/p>
+&lt;p>Finally, new contributors not recognized by the maintainers should first meet a
+project maintainer in a non-textual format before their first contribution will
+be accepted. This includes:&lt;/p>
+&lt;ul>
+&lt;li>Meeting a maintainer in person.&lt;/li>
+&lt;li>Attending office hours or a working group meeting (cf. our
+&lt;a href="https://heir.dev/community/">community calendar&lt;/a>).&lt;/li>
+&lt;li>Scheduling a video call with a maintainer (reach out via
+&lt;a href="https://heir.dev/community/">Discord&lt;/a> or email).&lt;/li>
+&lt;/ul>
+&lt;p>New PRs from unrecognized contributors that appear to be AI-generated will be
+closed with a reference to this policy. New issues or issue comments from
+unrecognized contributors will be directed to this policy.&lt;/p>
 &lt;h2 id="extractive-contributions">Extractive Contributions&lt;/h2>
 &lt;p>The reason for our &amp;ldquo;human-in-the-loop&amp;rdquo; contribution policy is that processing
 patches, PRs, RFCs, and comments is not free &amp;ndash; it takes a lot of maintainer
