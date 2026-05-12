@@ -25,10 +25,10 @@ static std::unordered_map<KernelName, std::vector<std::string>>
     correspondingOp = {
         {KernelName::MatvecNaive, {"linalg.matvec"}},
         {KernelName::MatvecDiagonal,
-         {"linalg.matvec", "linalg.conv_2d_nchw_fchw"}},
+         {"linalg.matvec", "linalg.conv_2d_nchw_fchw", "linalg.conv_1d"}},
         {KernelName::VecmatDiagonal, {"linalg.vecmat"}},
         {KernelName::MatmulDiagonal, {"linalg.matmul"}},
-        {KernelName::MatmulDiagonal, {"linalg.conv2d"}},
+        {KernelName::MatmulDiagonal, {"linalg.conv_2d"}},
         {KernelName::MatmulBicyclic, {"linalg.matmul"}},
         {KernelName::Dot, {"linalg.dot"}},
 };

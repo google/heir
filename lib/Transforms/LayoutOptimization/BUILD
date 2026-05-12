@@ -68,6 +68,7 @@ cc_library(
         "@heir//lib/Interface:HoistingInterfaces",
         "@heir//lib/Kernel",
         "@heir//lib/Utils:AttributeUtils",
+        "@heir//lib/Utils/Layout:Convolution",
         "@heir//lib/Utils/Layout:Hoisting",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
