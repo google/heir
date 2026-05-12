@@ -25,6 +25,24 @@ This project follows
 
 ## Contribution process
 
+### Meet the maintainers
+
+New contributors not recognized by the maintainers should meet a project
+maintainer in a non-textual format before their first contribution will be
+accepted. This includes:
+
+- Meeting a maintainer in person.
+- Attending office hours or a working group meeting (cf. our
+  [community calendar](/community/)).
+- Scheduling a video call with a maintainer (reach out via
+  [Discord](/community/) or email).
+
+New PRs, issues, and issue comments from unrecognized contributors that appear
+to be AI-generated will be forwarded to this policy. The maintainers may make
+exceptions for new contributors with a strong prior connection to the community,
+such as known authors of relevant academic publications or related open source
+projects.
+
 ### AI Tool Use Policy
 
 Please see our
