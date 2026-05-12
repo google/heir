@@ -1,4 +1,4 @@
-// RUN: not heir-opt --lwe-to-cheddar %s 2>&1 | FileCheck %s
+// RUN: not heir-opt --lwe-to-cheddar --verify-diagnostics %s
 
 // CHECK: error: 'lwe.rlwe_encode' op requires inverse-canonical CKKS plaintext encoding for CHEDDAR lowering
 

@@ -8,10 +8,6 @@ include "mlir/IR/DialectBase.td"
 
 class Cheddar_Attribute<string attrName, string attrMnemonic>
     : AttrDef<Cheddar_Dialect, attrName> {
-    let summary = "Attribute for CHEDDAR";
-    let description = [{
-        This attribute represents configuration values for CHEDDAR.
-    }];
     let mnemonic = attrMnemonic;
     let assemblyFormat = "`<` struct(params) `>`";
 }

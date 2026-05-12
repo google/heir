@@ -13,7 +13,7 @@ def Cheddar_Dialect : Dialect {
     CHEDDAR is a CKKS-only GPU-accelerated FHE library. It supports both 32-bit
     and 64-bit word types, with 32-bit being the primary fast path on GPUs.
 
-    See https://github.com/scale-snu/cheddar-fhe
+    See [the Cheddar GitHub repository](https://github.com/scale-snu/cheddar-fhe)
   }];
 
   let cppNamespace = "::mlir::heir::cheddar";
