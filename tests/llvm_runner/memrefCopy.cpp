@@ -27,8 +27,28 @@ class DynamicMemRefType {
   }
 };
 
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer)
+#include <sanitizer/msan_interface.h>
+#define MLIR_MSAN_MEMORY_IS_INITIALIZED(p, s) __msan_unpoison(p, s)
+#else
+#define MLIR_MSAN_MEMORY_IS_INITIALIZED(p, s)
+#endif
+#else
+#define MLIR_MSAN_MEMORY_IS_INITIALIZED(p, s)
+#endif
+
 extern "C" void memrefCopy(int64_t elemSize, UnrankedMemRefType<char>* srcArg,
                            UnrankedMemRefType<char>* dstArg) {
+  MLIR_MSAN_MEMORY_IS_INITIALIZED(srcArg, sizeof(UnrankedMemRefType<char>));
+  MLIR_MSAN_MEMORY_IS_INITIALIZED(dstArg, sizeof(UnrankedMemRefType<char>));
+  MLIR_MSAN_MEMORY_IS_INITIALIZED(
+      srcArg->descriptor,
+      sizeof(void*) * 2 + sizeof(int64_t) + sizeof(int64_t) * 2 * srcArg->rank);
+  MLIR_MSAN_MEMORY_IS_INITIALIZED(
+      dstArg->descriptor,
+      sizeof(void*) * 2 + sizeof(int64_t) + sizeof(int64_t) * 2 * dstArg->rank);
+
   DynamicMemRefType<char> src(*srcArg);
   DynamicMemRefType<char> dst(*dstArg);
 
