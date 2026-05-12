@@ -10,11 +10,11 @@
 // StridedMemRef descriptor type with static rank.
 template <typename T, std::size_t N = 1>
 struct StridedMemRefType {
-  T* basePtr;
-  T* data;
-  int64_t offset;
-  int64_t sizes[N];
-  int64_t strides[N];
+  T* basePtr = nullptr;
+  T* data = nullptr;
+  int64_t offset = 0;
+  int64_t sizes[N] = {};
+  int64_t strides[N] = {};
 
   StridedMemRefType() = default;
 
@@ -38,8 +38,8 @@ struct StridedMemRefType {
 // Unranked MemRef
 template <typename T>
 struct UnrankedMemRefType {
-  int64_t rank;
-  void* descriptor;
+  int64_t rank = 0;
+  void* descriptor = nullptr;
 };
 
 #endif  // TESTS_LLVM_RUNNER_MEMREF_TYPES_H_
