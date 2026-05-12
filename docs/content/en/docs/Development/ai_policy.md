@@ -66,6 +66,20 @@ squanders the learning opportunity and doesn't add much value to the project.
 **New contributors using AI tools to fix issues labelled as "good first issues"
 is forbidden**.
 
+Finally, new contributors not recognized by the maintainers should first meet a
+project maintainer in a non-textual format before their first contribution will
+be accepted. This includes:
+
+- Meeting a maintainer in person.
+- Attending office hours or a working group meeting (cf. our
+  [community calendar](/community/)).
+- Scheduling a video call with a maintainer (reach out via
+  [Discord](/community/) or email).
+
+New PRs from unrecognized contributors that appear to be AI-generated will be
+closed with a reference to this policy. New issues or issue comments from
+unrecognized contributors will be directed to this policy.
+
 ## Extractive Contributions
 
 The reason for our "human-in-the-loop" contribution policy is that processing
