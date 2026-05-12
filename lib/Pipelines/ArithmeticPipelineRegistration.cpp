@@ -10,6 +10,7 @@
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h"
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
 #include "lib/Dialect/LWE/Transforms/AddDebugPort.h"
+#include "lib/Dialect/LWE/Transforms/ImplementTrivialEncryptionAsAddition.h"
 #include "lib/Dialect/Lattigo/Transforms/AllocToInPlace.h"
 #include "lib/Dialect/Lattigo/Transforms/ConfigureCryptoContext.h"
 #include "lib/Dialect/Openfhe/Transforms/AllocToInPlace.h"
@@ -411,6 +412,9 @@ void mlirToRLWEPipeline(OpPassManager& pm,
   pm.addPass(createForwardInsertToExtract());
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
+
+  // TODO(#2554): skip this pass if the backend supports trivial encryption
+  pm.addPass(lwe::createImplementTrivialEncryptionAsAddition());
 
   // Add a __preprocessed helper for offline pre-packing of plaintexts
   auto splitPreprocessingOptions = SplitPreprocessingOptions{};

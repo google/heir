@@ -181,8 +181,15 @@ class SecretGenericOpConversion
     // OperandAndResultAttrInterface, and this gives special names to the
     // attributes, so it doesn't make sense to copy those names to the
     // converted op.
-    convertArrayOfDicts(op.getAllOperandAttrsAttr(), attrsToPreserve);
+    //
+    // Note that these attributes are deduped, so for example, if there is a
+    // mgmt.mgmt attribute on the operands and results of a generic, only the
+    // result mgmt.mgmt attribute will be copied to be the mgmt.mgmt attribute
+    // associated with the new op result. This is what we want, but if the order
+    // of these calls were swapped, the _operand_ mgmt attrs would become
+    // associated with the new _result_ SSA value, which is incorrect.
     convertArrayOfDicts(op.getAllResultAttrsAttr(), attrsToPreserve);
+    convertArrayOfDicts(op.getAllOperandAttrsAttr(), attrsToPreserve);
     DenseSet<StringRef> seenNames;
     SmallVector<NamedAttribute> dedupedAttrsToPreserve;
     for (NamedAttribute preservedAttr : attrsToPreserve) {
