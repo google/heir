@@ -10,10 +10,10 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Interface/HoistingInterfaces.h"
-#include "lib/Kernel/Kernel.h"
 #include "lib/Kernel/KernelName.h"
 #include "lib/Transforms/LayoutOptimization/Hoisting.h"
 #include "lib/Utils/AttributeUtils.h"
+#include "lib/Utils/Layout/Convolution.h"
 #include "lib/Utils/Layout/Hoisting.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"          // from @llvm-project
@@ -37,6 +37,7 @@ namespace heir {
 using tensor_ext::ConvertLayoutOp;
 using tensor_ext::LayoutAttr;
 static auto& kLayoutAttrName = tensor_ext::TensorExtDialect::kLayoutAttrName;
+using ::mlir::linalg::Conv1DOp;
 using ::mlir::linalg::MatvecOp;
 using presburger::IntegerRelation;
 using presburger::PresburgerSpace;
@@ -103,6 +104,42 @@ struct MatvecHoistingImpl
       case heir::KernelName::MatvecNaive:
       case heir::KernelName::MatvecDiagonal:
         hoisters.push_back(createPrecomposingMatvecHoister(matvecOp));
+        break;
+      default:
+        assert(false && "unsupported kernel for layout hoisting");
+        break;
+    }
+
+    return hoisters;
+  }
+};
+
+struct Conv1dHoistingImpl
+    : public LayoutConversionHoistableOpInterface::ExternalModel<
+          Conv1dHoistingImpl, Conv1DOp> {
+  std::vector<Hoister> getHoisters(
+      Operation* op, tensor_ext::ConvertLayoutOp convertLayoutOp) const {
+    std::vector<Hoister> hoisters;
+    linalg::Conv1DOp conv1dOp = cast<linalg::Conv1DOp>(op);
+
+    auto kernel = op->getAttrOfType<secret::KernelAttr>(
+        secret::SecretDialect::kKernelAttrName);
+    if (!kernel) {
+      LLVM_DEBUG(llvm::dbgs()
+                 << "Kernel attribute not found on op " << *op << "\n");
+      return hoisters;
+    }
+
+    if (!op->hasAttr(tensor_ext::TensorExtDialect::kLayoutAttrName)) {
+      LLVM_DEBUG(llvm::dbgs()
+                 << "Layout attribute not found on op " << *op << "\n");
+      return hoisters;
+    }
+
+    switch (kernel.getName()) {
+      case heir::KernelName::MatvecNaive:
+      case heir::KernelName::MatvecDiagonal:
+        hoisters.push_back(createPrecomposingConv1dHoister(conv1dOp));
         break;
       default:
         assert(false && "unsupported kernel for layout hoisting");
@@ -267,6 +304,48 @@ Hoister createPrecomposingMatvecHoister(linalg::MatvecOp op) {
   };
 }
 
+Hoister createPrecomposingConv1dHoister(linalg::Conv1DOp op) {
+  return [op](ConvertLayoutOp convertLayoutOp) -> llvm::FailureOr<HoistResult> {
+    HoistResult result;
+    auto fromLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getFromLayout());
+    auto toLayout = dyn_cast<LayoutAttr>(convertLayoutOp.getToLayout());
+
+    if (!fromLayout || !toLayout) return failure();
+
+    // Operand order for Conv_1d op is:
+    //
+    // 0: data vector
+    // 1: filter vector
+    // 2: output vector
+    result.convertLayoutOp = convertLayoutOp;
+    // All the matvec kernels we have today should maintain the layout of the
+    // vector before and after the op.
+    result.newOutputLayout = toLayout;
+
+    auto filterType = cast<RankedTensorType>(op->getOperand(1).getType());
+    auto dataType = cast<RankedTensorType>(op->getOperand(0).getType());
+
+    auto maybeFilterRelation =
+        getConvFilterDiagonalizedRelation(filterType, dataType, 1, 0);
+    assert(succeeded(maybeFilterRelation) &&
+           "Could not get diagonalized filter relation");
+    auto filterRelation = maybeFilterRelation.value();
+
+    // Replace the kernel by a Matrix vector product, coming from filterRelation
+    result.newKernel = KernelName::MatvecDiagonal;
+
+    presburger::IntegerRelation newMatrixLayoutRelation =
+        hoistConversionThroughMatvec(filterRelation,
+                                     fromLayout.getIntegerRelation(),
+                                     toLayout.getIntegerRelation());
+    Attribute newMatrixLayout = LayoutAttr::getFromIntegerRelation(
+        op->getContext(), newMatrixLayoutRelation);
+    result.newInputLayouts =
+        SmallVector<Attribute>{newMatrixLayout, toLayout, toLayout};
+    return result;
+  };
+}
+
 void registerLayoutConversionHoistableInterface(DialectRegistry& registry) {
   registry.addExtension(+[](MLIRContext* ctx, arith::ArithDialect* dialect) {
     arith::AddFOp::attachInterface<DoNothingHoistingImpl<arith::AddFOp>>(*ctx);
@@ -282,6 +361,7 @@ void registerLayoutConversionHoistableInterface(DialectRegistry& registry) {
   registry.addExtension(+[](MLIRContext* ctx, linalg::LinalgDialect* dialect) {
     linalg::MatvecOp::attachInterface<MatvecHoistingImpl>(*ctx);
     linalg::MatmulOp::attachInterface<MatmulHoistingImpl>(*ctx);
+    linalg::Conv1DOp::attachInterface<Conv1dHoistingImpl>(*ctx);
   });
 }
 

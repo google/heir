@@ -255,6 +255,46 @@ TEST_P(KernelImplementationTest, Test2DConvWithLayout) {
   EXPECT_EQ(extractedResult, expected);
 }
 
+TEST_P(KernelImplementationTest, Test1DConvWithLayout) {
+  MLIRContext context;
+  RankedTensorType dataType =
+      RankedTensorType::get({3}, mlir::IndexType::get(&context));
+  RankedTensorType filterType =
+      RankedTensorType::get({2}, mlir::IndexType::get(&context));
+
+  int numSlots = 8;
+  // length 3 input data, length 2 filter
+  std::vector<int> data = {1, -1, 0};
+  std::vector<int> filter = {1, -1};
+
+  auto dataLayout = getRowMajorLayoutRelation(dataType, numSlots);
+  std::vector<std::vector<int>> packedData =
+      evaluateLayoutOnVector(dataLayout, data);
+
+  auto filterLayout = getConvFilterDiagonalizedRelation(filterType, dataType,
+                                                        /*padding=*/0, numSlots)
+                          .value();
+  std::vector<std::vector<int>> packedFilter =
+      evaluateLayoutOnVector(filterLayout, filter);
+  RankedTensorType expandedFilterType = get1dConvFilterExpandedType(
+      filterType, dataType, /*stride=*/1, /*padding=*/0);
+
+  std::vector<int> expected = {2, -1};
+  LiteralValue filterInput = packedFilter;
+  LiteralValue vectorInput = packedData[0];
+
+  auto dag = implementHaleviShoup(
+      vectorInput, filterInput, expandedFilterType.getShape(),
+      DagType::intTensor(32, {numSlots}),
+      /*zeroDiagonals=*/{}, /*unroll=*/std::get<0>(GetParam()));
+  LiteralValue actual = evalKernel(dag)[0];
+  // Result is a length 2 vector repeated in a tensor of size 8.
+  std::vector<int> actualVector = std::get<std::vector<int>>(actual.get());
+  std::vector<int> extractedResult = {actualVector.begin(),
+                                      actualVector.begin() + 2};
+  EXPECT_EQ(extractedResult, expected);
+}
+
 TEST(KernelImplementationTest, BicyclicMatmul) {
   MLIRContext context;
   std::vector<std::vector<int>> matrixA = {
