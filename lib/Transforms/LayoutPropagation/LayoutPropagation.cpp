@@ -60,6 +60,7 @@
 namespace mlir {
 namespace heir {
 
+using linalg::Conv1DNcwFcwOp;
 using linalg::Conv1DOp;
 using linalg::Conv2DNchwFchwOp;
 using linalg::Conv2DOp;
@@ -144,6 +145,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   LogicalResult visitOperation(GenericOp op);
   LogicalResult visitOperation(ReduceOp op);
   LogicalResult visitOperation(Conv1DOp op);
+  LogicalResult visitOperation(Conv1DNcwFcwOp op);
   LogicalResult visitOperation(Conv2DOp op);
   LogicalResult visitOperation(Conv2DNchwFchwOp op);
   LogicalResult visitOperation(VecmatOp op);
@@ -168,6 +170,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   // Op-specific compatibility functions
   CompatibilityResult hasCompatibleArgumentLayouts(DotOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(Conv1DOp op);
+  CompatibilityResult hasCompatibleArgumentLayouts(Conv1DNcwFcwOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(Conv2DOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(Conv2DNchwFchwOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(ReduceOp op);
@@ -297,8 +300,9 @@ LogicalResult LayoutPropagation::visitOperation(Operation* op) {
       // secret ops
       .Case<GenericOp, YieldOp>([&](auto op) { return visitOperation(op); })
       // linalg ops
-      .Case<DotOp, MatvecOp, VecmatOp, ReduceOp, MatmulOp, Conv1DOp, Conv2DOp,
-            Conv2DNchwFchwOp>([&](auto op) { return visitOperation(op); })
+      .Case<DotOp, MatvecOp, VecmatOp, ReduceOp, MatmulOp, Conv1DOp,
+            Conv1DNcwFcwOp, Conv2DOp, Conv2DNchwFchwOp>(
+          [&](auto op) { return visitOperation(op); })
       // affine ops
       .Case<affine::AffineForOp>([&](auto op) { return visitOperation(op); })
       // tensor ops
@@ -760,6 +764,93 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DOp op) {
   return success();
 }
 
+LogicalResult LayoutPropagation::visitOperation(Conv1DNcwFcwOp op) {
+  LLVM_DEBUG(llvm::dbgs() << "Specializing visitor on Conv1DNcwFcwOp\n");
+  Value data = op.getInputs().front();
+  Value filter = op.getInputs().back();
+  auto dataType = cast<RankedTensorType>(data.getType());
+  auto filterType = cast<RankedTensorType>(filter.getType());
+  RankedTensorType outputType =
+      cast<RankedTensorType>(op.getResult(0).getType());
+
+  bool interchangeRows = false;
+
+  int64_t stride = op.getStrides().getValues<int64_t>().begin()[0];
+
+  MLIRContext* ctx = &getContext();
+  mlir::IRRewriter builder(ctx);
+
+  // Ensure data is in gapped row-major layout with current inputGap.
+  // We expect 4-D tensor (N, C, W) but only support N=1.
+  if (dataType.getRank() != 3 || dataType.getDimSize(0) != 1) {
+    return op->emitOpError() << "Expected 3-D data tensor (N=1, C, W)";
+  }
+
+  // Since the stride will be used as the gap factor, the layout requires that
+  // the number of output channels is divisible by gap.
+  // TODO(#2883): handle padding the output channels to be divisible by gap.
+  if (outputType.getDimSize(1) % stride != 0) {
+    return op->emitOpError()
+           << "Expected number of output channels to be divisible by gap";
+  }
+
+  LayoutAttr dataLayout = assignedLayouts.at(data);
+  IntegerRelation targetDataRelation =
+      getRowMajorLayoutRelation(dataType, ciphertextSize);
+
+  if (!dataLayout.getIntegerRelation().isEqual(targetDataRelation)) {
+    LLVM_DEBUG(llvm::dbgs() << "conv_1d data input is not row major, "
+                               "inserting layout conversion.\n");
+    auto [toReplace, newDataLayoutAttr] =
+        convertToLayout(ctx, builder, op, data, dataLayout, targetDataRelation);
+    debugAssignLayout(toReplace, newDataLayoutAttr);
+    assignedLayouts.insert({toReplace, newDataLayoutAttr});
+  }
+
+  // The kernel for this operation requires expanding the conv filter matrix
+  // into a larger matrix and then diagonalizing.
+  LayoutAttr filterLayout = assignedLayouts.at(filter);
+  auto convRelation = get1dConvCwFcwFilterDiagonalizedRelation(
+      filterType, dataType, stride, /*padding=*/0, ciphertextSize,
+      /*interchangeRows=*/interchangeRows);
+  if (failed(convRelation)) {
+    return failure();
+  }
+  if (!isRelationEqual(filterLayout.getIntegerRelation(),
+                       convRelation.value())) {
+    LLVM_DEBUG(llvm::dbgs() << "conv_1d filter input is not diagonalized, "
+                               "inserting layout conversion.\n");
+
+    // Insert a layout conversion op to make the matrix layout expanded and
+    // squat diagonal. The added domain schedule ensures ISL can efficiently
+    // generate a loop nest implementing the layout. However, the choice of
+    // which domain indices to include is arbitrary (so long as ISL remains
+    // fast).
+    auto [toReplace, newFilterLayoutAttr] = convertToLayout(
+        ctx, builder, op, filter, filterLayout, convRelation.value(),
+        /*domainSchedule=*/{0, 1});
+    debugAssignLayout(toReplace, newFilterLayoutAttr);
+    assignedLayouts.insert({toReplace, newFilterLayoutAttr});
+  }
+
+  // Always one result. For a gapped output, the result will also have a
+  // pixel-shuffled gap. Future users may need to insert a layout conversion.
+  auto result = op->getResult(0);
+  presburger::IntegerRelation resultRelation =
+      get1dConvResultRelation(outputType, stride, /*padding=*/0, ciphertextSize,
+                              /*interchangeRows=*/interchangeRows);
+  LayoutAttr resultLayoutAttr =
+      LayoutAttr::getFromIntegerRelation(ctx, resultRelation);
+
+  assignedLayouts.insert({result, resultLayoutAttr});
+  setResultLayoutAttr(op);
+  auto kernelAttr =
+      secret::KernelAttr::get(ctx, KernelName::MatvecDiagonal, /*force=*/false);
+  op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
+
+  return success();
+}
+
 LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
   LLVM_DEBUG(llvm::dbgs() << "Specializing visitor on Conv2DNchwFchwOp\n");
   Value data = op.getInputs().front();
@@ -1115,8 +1206,8 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
             affine::AffineYieldOp>(
           [&](auto op) { return CompatibilityResult{true, std::nullopt}; })
       // Ops with special rules
-      .Case<DotOp, ReduceOp, MatvecOp, VecmatOp, Conv1DOp, Conv2DOp,
-            Conv2DNchwFchwOp, tensor::InsertSliceOp>(
+      .Case<DotOp, ReduceOp, MatvecOp, VecmatOp, Conv1DOp, Conv1DNcwFcwOp,
+            Conv2DOp, Conv2DNchwFchwOp, tensor::InsertSliceOp>(
           [&](auto op) { return hasCompatibleArgumentLayouts(op); })
       // By default, assume operands must all have the same layout.
       .Default([&](Operation* op) {
@@ -1256,6 +1347,22 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
   if (isSecret(filter, solver) || !isSecret(data, solver)) {
     return {false, op->emitError("Only secret data and plaintext filters are "
                                  "supported for linalg.conv2d")};
+  }
+
+  if (!assignedLayouts.contains(data)) {
+    return {false, op->emitError("data operand has no assigned layout")};
+  }
+  return {true, std::nullopt};
+}
+
+CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
+    Conv1DNcwFcwOp op) {
+  // Currently only support secret data and plaintext filters.
+  Value data = op.getInputs().front();
+  Value filter = op.getInputs().back();
+  if (isSecret(filter, solver) || !isSecret(data, solver)) {
+    return {false, op->emitError("Only secret data and plaintext filters are "
+                                 "supported for linalg.conv_1d_ncw_fcw")};
   }
 
   if (!assignedLayouts.contains(data)) {

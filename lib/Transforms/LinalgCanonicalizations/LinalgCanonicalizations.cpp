@@ -729,6 +729,134 @@ struct RewriteAvgPoolAsConv2D
   }
 };
 
+// Lower linalg.conv_1d_ncw_fcw to a loop of linalg.conv_1d operations.
+struct LowerConv1DNcwFcw
+    : public OpRewritePattern<mlir::linalg::Conv1DNcwFcwOp> {
+ public:
+  LowerConv1DNcwFcw(MLIRContext* context)
+      : OpRewritePattern<mlir::linalg::Conv1DNcwFcwOp>(context) {}
+
+  using OpRewritePattern::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(mlir::linalg::Conv1DNcwFcwOp convOp,
+                                PatternRewriter& rewriter) const override {
+    // Fails is stride > 1.
+    if (!llvm::all_of(convOp.getStrides(), [](const APInt& element) {
+          return element.getSExtValue() == 1;
+        })) {
+      return rewriter.notifyMatchFailure(convOp, "expected stride to be 1");
+    }
+
+    Location loc = convOp.getLoc();
+    Value data = convOp.getInputs()[0];
+    Value filter = convOp.getInputs()[1];
+    // The output tensor is the initial value for the result.
+    Value output = convOp.getOutputs()[0];
+
+    auto dataType = cast<RankedTensorType>(data.getType());
+    auto filterType = cast<RankedTensorType>(filter.getType());
+    auto outputType = cast<RankedTensorType>(output.getType());
+
+    auto dataShape = dataType.getShape();
+    auto filterShape = filterType.getShape();
+    auto outputShape = outputType.getShape();
+
+    int64_t n = dataShape[0];
+    int64_t c = dataShape[1];
+    int64_t f = filterShape[0];
+
+    RankedTensorType oneDType =
+        RankedTensorType::get({dataShape[2]}, dataType.getElementType());
+    RankedTensorType outputOneDType =
+        RankedTensorType::get({outputShape[2]}, outputType.getElementType());
+    RankedTensorType filterOneDType =
+        RankedTensorType::get({filterShape[2]}, filterType.getElementType());
+
+    // Create loops over the batch and filter dimensions.
+    // The loops carry the output tensor being updated.
+    auto nLoop = affine::AffineForOp::create(
+        rewriter, loc, 0, n, 1, ValueRange{output},
+        [&](OpBuilder& b, Location loc, Value nIv, ValueRange iterArgs) {
+          Value iterOutput = iterArgs[0];
+          auto fLoop = affine::AffineForOp::create(
+              b, loc, 0, f, 1, ValueRange{iterOutput},
+              [&](OpBuilder& b, Location loc, Value fIv, ValueRange iterArgs) {
+                // Slice the output to get an init tensor for the convolution
+                // results on each input channel.
+                Value innerIterOutput = iterArgs[0];
+                SmallVector<OpFoldResult> outputOffsets = {nIv, fIv,
+                                                           b.getIndexAttr(0)};
+                SmallVector<OpFoldResult> outputSizes = {
+                    b.getIndexAttr(1),
+                    b.getIndexAttr(1),
+                    b.getIndexAttr(outputShape[2]),
+                };
+                SmallVector<OpFoldResult> outputStrides(3, b.getIndexAttr(1));
+                Value outputSlice = tensor::ExtractSliceOp::create(
+                    b, loc, outputOneDType, innerIterOutput, outputOffsets,
+                    outputSizes, outputStrides);
+
+                // Accumulate over each of the input channels.
+                auto cLoop = affine::AffineForOp::create(
+                    b, loc, 0, c, 1, ValueRange{outputSlice},
+                    [&](OpBuilder& b, Location loc, Value cIv,
+                        ValueRange iterArgs) {
+                      // Slice the image for the current batch.
+                      SmallVector<OpFoldResult> imageOffsets = {
+                          nIv, cIv, b.getIndexAttr(0)};
+                      SmallVector<OpFoldResult> imageSizes = {
+                          b.getIndexAttr(1), b.getIndexAttr(1),
+                          b.getIndexAttr(dataShape[2]),
+                          // b.getIndexAttr(dataShape[3])
+                      };
+                      SmallVector<OpFoldResult> imageStrides(3,
+                                                             b.getIndexAttr(1));
+                      Value imageSlice = tensor::ExtractSliceOp::create(
+                          b, loc, oneDType, data, imageOffsets, imageSizes,
+                          imageStrides);
+
+                      // Slice the filter for the current filter.
+                      SmallVector<OpFoldResult> filterOffsets = {
+                          fIv, cIv, b.getIndexAttr(0)};
+                      SmallVector<OpFoldResult> filterSizes = {
+                          b.getIndexAttr(1),
+                          b.getIndexAttr(1),
+                          b.getIndexAttr(filterShape[2]),
+                      };
+                      SmallVector<OpFoldResult> filterStrides(
+                          3, b.getIndexAttr(1));
+                      Value filterSlice = tensor::ExtractSliceOp::create(
+                          b, loc, filterOneDType, filter, filterOffsets,
+                          filterSizes, filterStrides);
+
+                      // Create a conv op for the slices.
+                      Value convOutput = tensor::EmptyOp::create(
+                          b, loc, outputOneDType.getShape(),
+                          oneDType.getElementType());
+                      auto conv = linalg::Conv1DOp::create(
+                          b, loc, outputOneDType,
+                          ValueRange{imageSlice, filterSlice},
+                          ValueRange{convOutput});
+
+                      Value accumulatedOutput = arith::AddFOp::create(
+                          b, loc, conv.getResult(0), iterArgs[0]);
+                      affine::AffineYieldOp::create(b, loc, accumulatedOutput);
+                    });
+
+                // Insert the result of the conv back into the output tensor.
+                Value newOutput = tensor::InsertSliceOp::create(
+                    b, loc, cLoop.getResult(0), innerIterOutput, outputOffsets,
+                    outputSizes, outputStrides);
+                affine::AffineYieldOp::create(b, loc, newOutput);
+              });
+          affine::AffineYieldOp::create(b, loc, fLoop.getResults());
+        });
+
+    rewriter.replaceOp(convOp, nLoop.getResults());
+    return success();
+  }
+};
+
 // Lower linalg.conv_2d_nchw_fchw to a loop of linalg.conv_2d operations.
 struct LowerConv2DNchwFchw
     : public OpRewritePattern<mlir::linalg::Conv2DNchwFchwOp> {
@@ -867,7 +995,7 @@ struct LinalgCanonicalizations
                  LinalgMapToElementwise, LinalgGenericToElementwise,
                  BroadcastToExpandShape, RewriteTransposedVecmat,
                  RewriteTransposedMatvec, RewriteAvgPoolAsConv2D,
-                 LowerConv2DNchwFchw>(context);
+                 LowerConv1DNcwFcw, LowerConv2DNchwFchw>(context);
 
     // Run pattern matching and conversion
     // TODO (#1221): Investigate whether folding (default: on) can be skipped
