@@ -13,11 +13,13 @@ cc_library(
     name = "Dialect",
     srcs = ["JaxiteWordDialect.cpp"],
     hdrs = [
+        "JaxiteWordAttributes.h",
         "JaxiteWordDialect.h",
         "JaxiteWordOps.h",
         "JaxiteWordTypes.h",
     ],
     deps = [
+        ":attributes_inc_gen",
         ":dialect_inc_gen",
         ":ops_inc_gen",
         ":types_inc_gen",
@@ -32,6 +34,7 @@ cc_library(
 td_library(
     name = "td_files",
     srcs = [
+        "JaxiteWordAttributes.td",
         "JaxiteWordDialect.td",
         "JaxiteWordOps.td",
         "JaxiteWordTypes.td",
@@ -58,6 +61,16 @@ add_heir_dialect_library(
     dialect = "JaxiteWord",
     kind = "type",
     td_file = "JaxiteWordTypes.td",
+    deps = [
+        ":td_files",
+    ],
+)
+
+add_heir_dialect_library(
+    name = "attributes_inc_gen",
+    dialect = "JaxiteWord",
+    kind = "attribute",
+    td_file = "JaxiteWordAttributes.td",
     deps = [
         ":td_files",
     ],
