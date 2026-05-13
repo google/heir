@@ -553,7 +553,6 @@ presburger::IntegerRelation get2dConvRowInterchangeRelation(int64_t c,
   //    h' = hi * g + (ci % g**2) // g
   //    w' = wi * g + (ci % g)
   // 3. Flatten (gW, gH, C) into idx_out = (c * g * h) * w' + (c) * h' + c'
-  // FIXME why are these interchanged???
   int64_t hOut = h * g;
   int64_t wOut = w * g;
   int64_t cOut = c / (g * g);
