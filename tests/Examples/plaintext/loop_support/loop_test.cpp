@@ -18,10 +18,22 @@ void _mlir_ciface_loop__encrypt__arg0(StridedMemRefType<float, 2>* result,
 void _mlir_ciface_loop__decrypt__result0(StridedMemRefType<float, 2>* result,
                                          StridedMemRefType<float, 2>* arg);
 
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer)
+#include <sanitizer/msan_interface.h>
+#define HEIR_MSAN_UNPOISON(p, s) __msan_unpoison((p), (s))
+#else
+#define HEIR_MSAN_UNPOISON(p, s)
+#endif
+#else
+#define HEIR_MSAN_UNPOISON(p, s)
+#endif
+
 void __heir_debug_tensor_8xf32_(
     /* arg 0*/
     float* allocated, float* aligned, int64_t offset, int64_t size,
     int64_t stride) {
+  HEIR_MSAN_UNPOISON(aligned, size * stride * sizeof(float));
   for (int i = 0; i < size; i++) {
     std::fprintf(output, "%.10f ", *(aligned + i * stride));
   }
@@ -67,13 +79,18 @@ int main(int argc, char** argv) {
   StridedMemRefType<float, 2> encArg0;
   StridedMemRefType<float> input0{arg0, arg0, 0, 8, 1};
   _mlir_ciface_loop__encrypt__arg0(&encArg0, &input0);
+  HEIR_MSAN_UNPOISON(&encArg0, sizeof(StridedMemRefType<float, 2>));
 
   StridedMemRefType<float, 2> packedRes;
   _mlir_ciface_loop(&packedRes, &encArg0);
+  HEIR_MSAN_UNPOISON(&packedRes, sizeof(StridedMemRefType<float, 2>));
 
   StridedMemRefType<float, 2> decRes;
   _mlir_ciface_loop__decrypt__result0(&decRes, &packedRes);
+  HEIR_MSAN_UNPOISON(&decRes, sizeof(StridedMemRefType<float, 2>));
   float* res = decRes.data;
+
+  HEIR_MSAN_UNPOISON(res, 8 * sizeof(float));
 
   for (int i = 0; i < 8; ++i) {
     std::cout << "res[" << i << "] = " << res[i] << ", expected[" << i
