@@ -274,7 +274,6 @@ LogicalResult convertFuncForScheme(func::FuncOp op) {
   int logN = LattigoScheme::getLogN(moduleOp);
   auto paramAttr =
       LattigoScheme::getParametersLiteralAttr(builder.getContext(), moduleOp);
-  LattigoScheme::cleanSchemeParamAttr(moduleOp);
 
   auto paramType = ParameterType::get(builder.getContext());
   auto params =
@@ -367,6 +366,9 @@ LogicalResult convertFuncForScheme(func::FuncOp op) {
 
   results.append({evaluator, params, encoder, encryptor, decryptor});
   func::ReturnOp::create(builder, results);
+
+  LattigoScheme::cleanSchemeParamAttr(moduleOp);
+
   return success();
 }
 

@@ -19,6 +19,6 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 17, Q = [1106058
 // CHECK: @bootstrap__configure
 // CHECK-SAME: -> (![[btEvalType]], ![[evalType]],
 // CHECK: %[[param:.*]] = lattigo.ckks.new_parameters_from_literal
-// CHECK: %[[btParams:.*]] = lattigo.ckks.new_bootstrapping_parameters_from_literal %[[param]] {btParamsLiteral = #lattigo.ckks.bootstrapping_parameters_literal<logN = 14>}
+// CHECK: %[[btParams:.*]] = lattigo.ckks.new_bootstrapping_parameters_from_literal %[[param]] {btParamsLiteral = #lattigo.ckks.bootstrapping_parameters_literal<logN = 17>}
 // CHECK: %[[btEvalKeys:.*]] = lattigo.ckks.gen_evaluation_keys_bootstrapping %[[btParams]]
 // CHECK: %[[btEval:.*]] = lattigo.ckks.new_bootstrapping_evaluator %[[btParams]], %[[btEvalKeys]]
