@@ -801,14 +801,12 @@ struct LowerConv1DNcwFcw
                     b, loc, 0, c, 1, ValueRange{outputSlice},
                     [&](OpBuilder& b, Location loc, Value cIv,
                         ValueRange iterArgs) {
-                      // Slice the image for the current batch.
+                      // Slice the data for the current batch.
                       SmallVector<OpFoldResult> imageOffsets = {
                           nIv, cIv, b.getIndexAttr(0)};
                       SmallVector<OpFoldResult> imageSizes = {
                           b.getIndexAttr(1), b.getIndexAttr(1),
-                          b.getIndexAttr(dataShape[2]),
-                          // b.getIndexAttr(dataShape[3])
-                      };
+                          b.getIndexAttr(dataShape[2])};
                       SmallVector<OpFoldResult> imageStrides(3,
                                                              b.getIndexAttr(1));
                       Value imageSlice = tensor::ExtractSliceOp::create(

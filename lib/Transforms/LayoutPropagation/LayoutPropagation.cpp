@@ -781,7 +781,7 @@ LogicalResult LayoutPropagation::visitOperation(Conv1DNcwFcwOp op) {
   mlir::IRRewriter builder(ctx);
 
   // Ensure data is in gapped row-major layout with current inputGap.
-  // We expect 4-D tensor (N, C, W) but only support N=1.
+  // We expect 3-D tensor (N, C, W) but only support N=1.
   if (dataType.getRank() != 3 || dataType.getDimSize(0) != 1) {
     return op->emitOpError() << "Expected 3-D data tensor (N=1, C, W)";
   }
@@ -834,7 +834,7 @@ LogicalResult LayoutPropagation::visitOperation(Conv1DNcwFcwOp op) {
   }
 
   // Always one result. For a gapped output, the result will also have a
-  // pixel-shuffled gap. Future users may need to insert a layout conversion.
+  // row-shuffled gap. Future users may need to insert a layout conversion.
   auto result = op->getResult(0);
   presburger::IntegerRelation resultRelation =
       get1dConvResultRelation(outputType, stride, /*padding=*/0, ciphertextSize,

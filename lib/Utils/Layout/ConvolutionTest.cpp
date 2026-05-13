@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <set>
 #include <utility>
 #include <vector>
 
@@ -727,6 +728,37 @@ TEST(ConvolutionTest, TestMultiChannelMultiRowDiagonalized) {
   EXPECT_TRUE(containsPoint({0, 0, 0, 0}, {0, 0}));
   EXPECT_TRUE(containsPoint({0, 0, 0, 1}, {1, 0}));
   EXPECT_TRUE(containsPoint({0, 1, 0, 0}, {784, 0}));
+}
+
+TEST(ConvolutionTest, TestConv1dCwFcwDiagonalizedRowInterchange) {
+  // Without the interchange, we first iterate over the kernel positions and hit
+  // all diagonals With the interchange, we first iterate over the filters, and
+  // hit only 3 diagonals
+  MLIRContext context;
+  RankedTensorType filterType =
+      RankedTensorType::get({2, 1, 2}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({1, 1, 8}, IndexType::get(&context));
+  int64_t stride = 2;
+  int64_t padding = 0;
+  int64_t ciphertextSize = 8;
+
+  auto distinctDiagonals = [&](bool interchangeRows) {
+    auto maybeRel = get1dConvCwFcwFilterDiagonalizedRelation(
+        filterType, dataType, stride, padding, ciphertextSize, interchangeRows);
+    EXPECT_TRUE(succeeded(maybeRel));
+    PointPairCollector collector(/*domainDims=*/3, /*rangeDims=*/2);
+    enumeratePoints(maybeRel.value(), collector);
+    std::set<int64_t> cts;
+    for (const auto& p : collector.points) cts.insert(p.second[0]);
+    return cts;
+  };
+
+  auto withoutInterchange = distinctDiagonals(/*interchangeRows=*/false);
+  EXPECT_EQ(withoutInterchange.size(), 8);
+
+  auto withInterchange = distinctDiagonals(/*interchangeRows=*/true);
+  EXPECT_EQ(withInterchange.size(), 3);
 }
 
 }  // namespace
