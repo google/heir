@@ -144,12 +144,6 @@ void LayoutOptimization::runOnOperation() {
                            << "Op " << op->getName()
                            << " has no kernel attribute; using trivial\n");
               }
-
-              if (!::mlir::heir::isSupportedKernel(op, kernelName)) {
-                op->emitOpError()
-                    << "has unsupported kernel: " << kernelName << "\n";
-                return WalkResult::interrupt();
-              }
             }
 
             // Attempt to hoist layout conversions before this operation.
