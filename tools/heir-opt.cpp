@@ -304,7 +304,8 @@ int main(int argc, char** argv) {
   openfhe::registerOpenfhePasses();
   polynomial::registerPolynomialPasses();
   rns::registerRNSPasses();
-  rotom::registerRotomPasses();
+  rotom::registerRotomMaterializePasses();
+  rotom::registerRotomSeedPasses();
   secret::registerSecretPasses();
   tensor_ext::registerTensorExtPasses();
   registerAddClientInterfacePass();
