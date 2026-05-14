@@ -95,6 +95,8 @@ static SmallVector<Value> buildExtractOps(OpBuilder& builder,
   return values;
 }
 
+namespace {
+
 class ConvertFromElementsOp
     : public OpConversionPattern<tensor::FromElementsOp> {
  public:
@@ -235,6 +237,8 @@ class ConvertConstantOp : public OpConversionPattern<arith::ConstantOp> {
     return success();
   }
 };
+
+}  // namespace
 
 struct TensorToScalars : impl::TensorToScalarsBase<TensorToScalars> {
   using TensorToScalarsBase::TensorToScalarsBase;
