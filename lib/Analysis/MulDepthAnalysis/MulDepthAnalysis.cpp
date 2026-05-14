@@ -36,22 +36,24 @@ static void debugLog(StringRef opName,
   });
 };
 
-FailureOr<int64_t> deriveResultMulDepth(
-    Operation* op, ArrayRef<const MulDepthLattice*> operands) {
-  if (isa<ResetsMulDepthOpInterface>(op)) return 0;
+MulDepthState deriveResultMulDepth(Operation* op,
+                                   ArrayRef<const MulDepthLattice*> operands) {
+  if (isa<ResetsMulDepthOpInterface>(op)) return MulDepthState(0);
 
-  int64_t operandsMulDepth = 0;
+  MulDepthState resultState(0);
   for (auto* operand : operands) {
     if (!operand || !operand->getValue().isInitialized()) {
       continue;
     }
-    operandsMulDepth =
-        std::max(operandsMulDepth, operand->getValue().getMulDepth());
+    resultState = MulDepthState::join(resultState, operand->getValue());
   }
 
+  if (resultState.isInvalid()) return resultState;
+
+  int64_t operandsMulDepth = resultState.getMulDepth();
   int64_t increase = 0;
   if (dyn_cast<IncreasesMulDepthOpInterface>(op)) increase = 1;
-  return operandsMulDepth + increase;
+  return MulDepthState(operandsMulDepth + increase);
 }
 
 LogicalResult MulDepthAnalysis::visitOperation(
@@ -85,13 +87,11 @@ LogicalResult MulDepthAnalysis::visitOperation(
         for (auto* operand : secretOperands) {
           secretOperandLattices.push_back(getLatticeElement(operand->get()));
         }
-        FailureOr<int64_t> resultsMulDepth =
+        MulDepthState resultState =
             deriveResultMulDepth(&op, secretOperandLattices);
-        if (failed(resultsMulDepth)) {
-          return;
+        if (resultState.isInt() && resultState.getMulDepth() > mulDepthBudget) {
+          resultState = MulDepthState(MulDepthState::Invalid{});
         }
-
-        MulDepthState resultState(resultsMulDepth.value());
         debugLog(op.getName().getStringRef(), operands, resultState);
         for (auto result : secretResults) {
           propagate(result, resultState);

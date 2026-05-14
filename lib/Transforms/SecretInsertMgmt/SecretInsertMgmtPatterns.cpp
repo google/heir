@@ -57,10 +57,9 @@ LogicalResult updateResultMulDepthLattice(Operation* op,
 
   if (!op->getResults().empty()) {
     for (auto result : op->getResults()) {
-      FailureOr<int64_t> resultLevel =
-          deriveResultMulDepth(op, operandLattices);
+      MulDepthState resultState = deriveResultMulDepth(op, operandLattices);
       auto* resultLattice = solver->getOrCreateState<MulDepthLattice>(result);
-      resultLattice->getValue().setMulDepth(resultLevel.value());
+      resultLattice->getValue() = resultState;
     }
   }
 
@@ -129,12 +128,12 @@ LogicalResult ModReduceBefore<Op>::matchAndRewrite(
   for (auto* operand : secretOperands) {
     auto mulDepthState =
         solver->lookupState<MulDepthLattice>(operand->get())->getValue();
-    if (!mulDepthState.isInitialized()) {
+    if (!mulDepthState.isInt()) {
       LLVM_DEBUG(
           llvm::dbgs()
-          << "ModReduceBefore: mul depth state not initialized for operand "
+          << "ModReduceBefore: mul depth state is not integer for operand "
           << operand->get() << "\n");
-      return rewriter.notifyMatchFailure(op, "mul depth state not initialized");
+      return rewriter.notifyMatchFailure(op, "mul depth state is not integer");
     }
 
     mulDepth = std::max(mulDepth, mulDepthState.getMulDepth());
@@ -265,9 +264,9 @@ LogicalResult MatchCrossMulDepth<Op>::matchAndRewrite(
   for (auto* operand : secretOperands) {
     auto mulDepthState =
         solver->lookupState<MulDepthLattice>(operand->get())->getValue();
-    if (!mulDepthState.isInitialized()) {
+    if (!mulDepthState.isInt()) {
       return rewriter.notifyMatchFailure(
-          op, "operand mul depth state not initialized");
+          op, "operand mul depth state is not an integer (e.g. invalid)");
     }
     auto mulDepth = mulDepthState.getMulDepth();
     mulDepths.push_back(mulDepth);

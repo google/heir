@@ -28,7 +28,7 @@ struct AnnotateMulDepth : impl::AnnotateMulDepthBase<AnnotateMulDepth> {
     DataFlowSolver solver;
     dataflow::loadBaselineAnalyses(solver);
     solver.load<SecretnessAnalysis>();
-    solver.load<MulDepthAnalysis>();
+    solver.load<MulDepthAnalysis>(mulDepthBudget);
 
     auto result = solver.initializeAndRun(getOperation());
 
@@ -51,8 +51,13 @@ struct AnnotateMulDepth : impl::AnnotateMulDepthBase<AnnotateMulDepth> {
         return;
       }
       OpBuilder b(value.getContext());
-      setAttributeAssociatedWith(value, "secret.mul_depth",
-                                 b.getIndexAttr(state.getMulDepth()));
+      if (state.isInvalid()) {
+        setAttributeAssociatedWith(value, "secret.mul_depth",
+                                   b.getStringAttr("invalid"));
+      } else {
+        setAttributeAssociatedWith(value, "secret.mul_depth",
+                                   b.getIndexAttr(state.getMulDepth()));
+      }
     });
   }
 };

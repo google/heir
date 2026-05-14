@@ -11,6 +11,10 @@ def AnnotateMulDepth : Pass<"annotate-muldepth"> {
 
     (* example filepath=tests/Transforms/annotate_muldepth/doctest.mlir *)
   }];
+  let options = [
+    Option<"mulDepthBudget", "mul-depth-budget", "int", /*default=*/"40",
+           "The maximum multiplicative depth before widening to invalid">
+  ];
 }
 
 #endif  // LIB_TRANSFORMS_ANNOTATEMULDEPTH_ANNOTATEMULDEPTH_TD_

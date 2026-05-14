@@ -24,6 +24,14 @@
 namespace mlir {
 namespace heir {
 
+// Helper for the "overloaded" pattern
+template <class... Ts>
+struct Overloaded : Ts... {
+  using Ts::operator()...;
+};
+template <class... Ts>
+Overloaded(Ts...) -> Overloaded<Ts...>;
+
 using OpPredicate = std::function<bool(Operation*)>;
 using IsValidTypeFn = std::function<LogicalResult(const Type&)>;
 using IsValidValueFn = std::function<LogicalResult(const Value&)>;
