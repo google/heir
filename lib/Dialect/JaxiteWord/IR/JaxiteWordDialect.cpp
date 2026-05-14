@@ -22,19 +22,11 @@ void JaxiteWordDialect::initialize() {
 #define GET_TYPEDEF_LIST
 #include "lib/Dialect/JaxiteWord/IR/JaxiteWordTypes.cpp.inc"
       >();
+
   addOperations<
 #define GET_OP_LIST
 #include "lib/Dialect/JaxiteWord/IR/JaxiteWordOps.cpp.inc"
       >();
-}
-
-LogicalResult AddOp::verify() {
-  if (getModulusList().getType().getModulusList().size() !=
-      getValueA().getType().getTowers()) {
-    return emitOpError() << "Number of Towers of moudlus should match the "
-                            "number of towers/limbs";
-  }
-  return success();
 }
 
 }  // namespace jaxiteword
