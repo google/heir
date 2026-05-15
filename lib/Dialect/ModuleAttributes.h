@@ -94,7 +94,8 @@ inline bool isClientHelper(Operation* op) {
   return op->hasAttr(kClientEncFuncAttrName) ||
          op->hasAttr(kClientDecFuncAttrName) ||
          op->hasAttr(kClientPackFuncAttrName) ||
-         op->hasAttr(kClientPreprocessedFuncAttrName);
+         op->hasAttr(kClientPreprocessedFuncAttrName) ||
+         op->hasAttr(kClientEncZeroFuncAttrName);
 }
 
 // The name of the function this client helper is made for.
