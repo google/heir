@@ -5,6 +5,7 @@
 #include "mlir/include/mlir/Support/LLVM.h"      // from @llvm-project
 
 namespace mlir {
+class DataFlowSolver;
 namespace heir {
 
 struct InsertMgmtPipelineOptions {
@@ -41,9 +42,30 @@ void handleCrossMulDepthOps(Operation* top, int* idCounter, bool includeFloats);
 
 void insertBootstrapWaterLine(Operation* top, int bootstrapWaterline);
 
-void makeLoopsTypeAndLevelInvariant(Operation* top);
+/// Peels the first iteration of loops if they have plaintext initial values
+/// and secret yielded values. This is needed to ensure level analysis can
+/// see the level growth correctly.
+void peelPlaintextIterations(Operation* top);
 
-void unrollLoopsForLevelUtilization(Operation* top, int levelBudget);
+/// Inserts bootstraps for loop iter args that are secret to ensure level
+/// invariance across iterations. Applies to the given loop operation.
+void bootstrapLoopIterArgs(Operation* loopOp, DataFlowSolver* solver);
+
+/// Inserts mgmt.init for plaintext branch terminators and level reduce ops
+/// to ensure level invariance across region branches.
+void makeRegionBranchOpsLevelInvariant(Operation* top);
+
+/// Returns a list of loops that are not level invariant, and hence require
+/// bootstrap insertion and may benefit from level unrolling. The returned
+/// vector is ordered to ensure that nested loops appear before their parent
+/// loops. This implies that the unrollLoopForLevelUtilization may attempt to
+/// unroll the loops returned by this function in a forward-iteration order.
+SmallVector<Operation*> getNonInvariantLoops(Operation* top,
+                                             DataFlowSolver* solver);
+
+/// Unrolls the given loop operation for level utilization.
+void unrollLoopForLevelUtilization(Operation* loopOp, DataFlowSolver* solver,
+                                   int levelBudget);
 
 }  // namespace heir
 }  // namespace mlir

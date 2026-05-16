@@ -1,0 +1,24 @@
+load("@heir//tests/Examples/lattigo:test.bzl", "heir_lattigo_lib")
+load("@rules_go//go:def.bzl", "go_test")
+
+package(default_applicable_licenses = ["@heir//:license"])
+
+heir_lattigo_lib(
+    name = "matvec_512x512",
+    go_library_name = "matvec512x512",
+    heir_opt_flags = [
+        "--annotate-module=backend=lattigo scheme=ckks",
+        "--mlir-to-ckks=ciphertext-degree=1024 modulus-switch-after-mul=true experimental-disable-loop-unroll=true level-budget=40 first-mod-bits=55",
+        "--scheme-to-lattigo",
+    ],
+    mlir_src = "@heir//tests/Examples/common:matvec_512x512.mlir",
+)
+
+go_test(
+    name = "matvec512x512_test",
+    size = "enormous",
+    timeout = "eternal",
+    srcs = ["matvec_512x512_test.go"],
+    embed = [":matvec512x512"],
+    exec_properties = {"mem": "28g"},
+)

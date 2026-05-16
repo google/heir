@@ -9,6 +9,7 @@
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Transforms/Halo/Patterns.h"
 #include "lib/Transforms/SecretInsertMgmt/SecretInsertMgmtPatterns.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"               // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "llvm/include/llvm/Support/DebugLog.h"            // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
@@ -19,8 +20,12 @@
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/SymbolTable.h"            // from @llvm-project
-#include "mlir/include/mlir/Pass/PassManager.h"          // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
+#include "mlir/include/mlir/Interfaces/LoopLikeInterface.h"  // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"           // from @llvm-project
+#include "mlir/include/mlir/Rewrite/PatternApplicator.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"               // from @llvm-project
 #include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
 
 #define DEBUG_TYPE "secret-insert-mgmt"
@@ -66,36 +71,45 @@ void makeAndRunSecretnessAndLevelSolver(Operation* top,
 
 LogicalResult runInsertMgmtPipeline(Operation* top,
                                     const InsertMgmtPipelineOptions& options) {
-  LDBG() << "Starting insert-mgmt pipeline";
-  makeLoopsTypeAndLevelInvariant(top);
+  LDBG(2) << "Starting insert-mgmt pipeline";
+  peelPlaintextIterations(top);
   LLVM_DEBUG(top->dump());
 
   insertMgmtInitForPlaintexts(top, options.includeFloats);
   LLVM_DEBUG(top->dump());
 
-  LDBG() << "Inserting mod reduce";
+  LDBG(2) << "Inserting mod reduce";
   insertModReduceBeforeOrAfterMult(top, options.modReduceAfterMul,
                                    options.modReduceBeforeMulIncludeFirstMul,
                                    options.includeFloats);
   LLVM_DEBUG(top->dump());
 
   // this must be run after ModReduceAfterMult
-  LDBG() << "Inserting relinearize";
+  LDBG(2) << "Inserting relinearize";
   insertRelinearizeAfterMult(top, options.includeFloats);
 
-  LDBG() << "Unrolling loops for level consumption";
-  unrollLoopsForLevelUtilization(top, options.levelBudget);
-  LLVM_DEBUG(top->dump());
+  // Run Level Analysis to check for convergence
+  DataFlowSolver levelSolver;
+  makeAndRunSolver(top, levelSolver);
 
-  // insert BootstrapOp after mgmt::ModReduceOp
-  // This must be run before level mismatch
-  // NOTE: actually bootstrap before mod reduce is better
-  // as after modreduce to level `0` there still might be add/sub
-  // and these op done there could be minimal cost.
-  // However, this greedy strategy is temporary so not too much
-  // optimization now
+  auto nonInvariantLoops = getNonInvariantLoops(top, &levelSolver);
+
+  LDBG(2) << "Found " << nonInvariantLoops.size() << " non-invariant loops";
+  for (auto* loop : nonInvariantLoops) {
+    LDBG(2) << "Processing non-invariant loop " << *loop;
+    DataFlowSolver secretnessSolver;
+    makeAndRunSecretnessSolver(top, secretnessSolver);
+    bootstrapLoopIterArgs(loop, &secretnessSolver);
+
+    DataFlowSolver freshLevelSolver;
+    makeAndRunSolver(top, freshLevelSolver);
+    unrollLoopForLevelUtilization(loop, &freshLevelSolver, options.levelBudget);
+  }
+
+  makeRegionBranchOpsLevelInvariant(top);
+
   if (options.bootstrapWaterline.has_value()) {
-    LDBG() << "Bootstrap waterline";
+    LDBG(2) << "Bootstrap waterline";
     insertBootstrapWaterLine(top, options.bootstrapWaterline.value());
   }
 
@@ -104,10 +118,10 @@ LogicalResult runInsertMgmtPipeline(Operation* top,
   adjustLevelsForRegionBranchOps(top);
 
   int idCounter = 0;  // for making adjust_scale op different to avoid cse
-  LDBG() << "Handling cross level ops";
+  LDBG(2) << "Handling cross level ops";
   handleCrossLevelOps(top, &idCounter, options.includeFloats);
 
-  LDBG() << "Handling cross mul depth ops";
+  LDBG(2) << "Handling cross mul depth ops";
   handleCrossMulDepthOps(top, &idCounter, options.includeFloats);
 
   // An if statement must have each branch producing the same level as a result,
@@ -117,7 +131,7 @@ LogicalResult runInsertMgmtPipeline(Operation* top,
 }
 
 void insertMgmtInitForPlaintexts(Operation* top, bool includeFloats) {
-  LDBG() << "Inserting mgmt.init";
+  LDBG(2) << "Inserting mgmt.init";
   DataFlowSolver solver;
   makeAndRunSecretnessSolver(top, solver);
 
@@ -228,34 +242,84 @@ void insertBootstrapWaterLine(Operation* top, int bootstrapWaterline) {
   (void)walkAndApplyPatterns(top, std::move(patterns));
 }
 
-void makeLoopsTypeAndLevelInvariant(Operation* top) {
-  LDBG() << "Making loops type and level invariant";
+void peelPlaintextIterations(Operation* top) {
+  LDBG(2) << "Peeling plaintext iterations";
   MLIRContext* ctx = top->getContext();
-
   DataFlowSolver solver;
   makeAndRunSecretnessSolver(top, solver);
   RewritePatternSet patterns(ctx);
   patterns.add<PeelPlaintextAffineForInit, PeelPlaintextScfForInit>(ctx,
                                                                     &solver);
   walkAndApplyPatterns(top, std::move(patterns));
+}
 
-  DataFlowSolver solver2;
-  makeAndRunSecretnessSolver(top, solver2);
-  patterns.clear();
+void bootstrapLoopIterArgs(Operation* loopOp, DataFlowSolver* solver) {
+  LDBG(2) << "Bootstrapping loop iter args";
+  MLIRContext* ctx = loopOp->getContext();
+  RewritePatternSet patterns(ctx);
   patterns.add<BootstrapIterArgsPattern<affine::AffineForOp>,
-               BootstrapIterArgsPattern<scf::ForOp>>(ctx, &solver2);
-  walkAndApplyPatterns(top, std::move(patterns));
+               BootstrapIterArgsPattern<scf::ForOp>>(ctx, solver);
+  FrozenRewritePatternSet frozenPatterns(std::move(patterns));
+  PatternApplicator applicator(frozenPatterns);
+  applicator.applyDefaultCostModel();
 
-  DataFlowSolver solver3;
-  makeAndRunSecretnessSolver(top, solver3);
-  patterns.clear();
+  PatternRewriter rewriter(ctx);
+  (void)applicator.matchAndRewrite(loopOp, rewriter);
+}
+
+void makeRegionBranchOpsLevelInvariant(Operation* top) {
+  LDBG(2) << "Making region branch ops level invariant";
+  MLIRContext* ctx = top->getContext();
+  DataFlowSolver solver;
+  makeAndRunSecretnessSolver(top, solver);
+  RewritePatternSet patterns(ctx);
   patterns.add<UseInitForPlaintextBranchTerminators,
-               RegionBranchOpLevelInvariancePattern>(ctx, &solver3);
+               RegionBranchOpLevelInvariancePattern>(ctx, &solver);
   walkAndApplyPatterns(top, std::move(patterns));
 }
 
+SmallVector<Operation*> getNonInvariantLoops(Operation* top,
+                                             DataFlowSolver* solver) {
+  LDBG(2) << "Getting non-invariant loops";
+  SmallVector<Operation*> nonInvariantLoops;
+
+  auto isInvariant = [&](LoopLikeOpInterface forOp) {
+    for (auto [i, iterArg] : llvm::enumerate(forOp.getRegionIterArgs())) {
+      if (!isSecret(iterArg, solver)) continue;
+
+      auto* initLattice =
+          solver->lookupState<LevelLattice>(forOp.getInits()[i]);
+      auto yieldedValue =
+          forOp.getTiedLoopYieldedValue(cast<BlockArgument>(iterArg))->get();
+      auto* yieldLattice = solver->lookupState<LevelLattice>(yieldedValue);
+
+      if (!initLattice || !yieldLattice || !initLattice->getValue().isInt() ||
+          !yieldLattice->getValue().isInt()) {
+        return false;
+      }
+
+      if (initLattice->getValue().getInt() !=
+          yieldLattice->getValue().getInt()) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  // Post-order walk means we process nested loops from the inside out.
+  top->walk<WalkOrder::PostOrder>([&](Operation* op) {
+    if (isa<affine::AffineForOp, scf::ForOp>(op)) {
+      if (!isInvariant(cast<LoopLikeOpInterface>(op))) {
+        nonInvariantLoops.push_back(op);
+      }
+    }
+  });
+
+  return nonInvariantLoops;
+}
+
 void adjustLevelsForRegionBranchOps(Operation* top) {
-  LDBG() << "Adjusting levels for region branching ops";
+  LDBG(2) << "Adjusting levels for region branching ops";
   MLIRContext* ctx = top->getContext();
   DataFlowSolver solver;
   makeAndRunSecretnessAndLevelSolver(top, solver);
@@ -265,20 +329,26 @@ void adjustLevelsForRegionBranchOps(Operation* top) {
   walkAndApplyPatterns(top, std::move(patterns));
 }
 
-void unrollLoopsForLevelUtilization(Operation* top, int levelBudget) {
-  DataFlowSolver solver;
-  makeAndRunSolver(top, solver);
-  MLIRContext* ctx = top->getContext();
-  RewritePatternSet patterns(ctx);
-  patterns.add<PartialUnrollForLevelConsumptionAffineFor,
-               PartialUnrollForLevelConsumptionSCFFor>(ctx, levelBudget,
-                                                       &solver);
-  walkAndApplyPatterns(top, std::move(patterns));
+void unrollLoopForLevelUtilization(Operation* loopOp, DataFlowSolver* solver,
+                                   int levelBudget) {
+  MLIRContext* ctx = loopOp->getContext();
+  PatternRewriter rewriter(ctx);
 
-  LDBG() << "Deleting annotated ops";
+  // A pattern driver is not appropriate here because we need to unroll
+  // the loops from inner-most to outer-most. The order in which nested
+  // loops are returned from getNonInvariantLoops ensures this.
+  TypeSwitch<Operation*>(loopOp)
+      .Case<affine::AffineForOp, scf::ForOp>([&](auto op) {
+        (void)doPartialUnroll(op, rewriter, levelBudget, solver);
+      })
+      .Default([&](auto op) {
+        LDBG(2) << "Unknown loop type " << loopOp->getName();
+      });
+
+  LDBG(2) << "Deleting annotated ops";
   RewritePatternSet cleanupPatterns(ctx);
   cleanupPatterns.add<DeleteAnnotatedOps>(ctx);
-  walkAndApplyPatterns(top, std::move(cleanupPatterns));
+  walkAndApplyPatterns(loopOp, std::move(cleanupPatterns));
 }
 
 }  // namespace heir

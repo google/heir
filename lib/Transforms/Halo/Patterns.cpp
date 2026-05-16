@@ -163,35 +163,35 @@ FailureOr<SmallVector<Value>> isLoopStructuredForHaloUnroll(
   for (Value iterArg : forOp.getRegionIterArgs()) {
     if (isSecret(iterArg, solver)) {
       if (!iterArg.hasOneUse()) {
-        LDBG() << "Iter arg " << iterArg << " has " << iterArg.getNumUses()
-               << " uses, expected 1";
+        LDBG(2) << "Iter arg " << iterArg << " has " << iterArg.getNumUses()
+                << " uses, expected 1";
         return failure();
       }
       auto* user = *iterArg.getUsers().begin();
       if (!isa<mgmt::BootstrapOp>(user)) {
-        LDBG() << "Iter arg " << iterArg
-               << " single use is not a bootstrap op, instead "
-               << user->getName();
+        LDBG(2) << "Iter arg " << iterArg
+                << " single use is not a bootstrap op, instead "
+                << user->getName();
         return failure();
       }
 
       Value yieldedValue =
           forOp.getTiedLoopYieldedValue(cast<BlockArgument>(iterArg))->get();
       if (!isa<mgmt::LevelReduceMinOp>(yieldedValue.getDefiningOp())) {
-        LDBG() << "Yielded value " << yieldedValue
-               << " is not the result of a level_reduce_min op, instead "
-               << yieldedValue.getDefiningOp()->getName();
+        LDBG(2) << "Yielded value " << yieldedValue
+                << " is not the result of a level_reduce_min op, instead "
+                << yieldedValue.getDefiningOp()->getName();
         return failure();
       }
 
       secretIterArgs.push_back(iterArg);
     } else {
-      LDBG() << "Iter arg " << iterArg << " is not secret";
+      LDBG(2) << "Iter arg " << iterArg << " is not secret";
     }
   }
 
   if (secretIterArgs.empty()) {
-    LDBG() << "No secret iter args found";
+    LDBG(2) << "No secret iter args found";
     return failure();
   }
 
@@ -226,17 +226,23 @@ FailureOr<int64_t> getConstantTripCount(scf::ForOp forOp) {
 template <typename ForOp>
 LogicalResult doPartialUnroll(ForOp forOp, PatternRewriter& rewriter,
                               int forceMaxLevel, DataFlowSolver* solver) {
+  LDBG(2) << "In doPartialUnroll";
   FailureOr<SmallVector<Value>> secretIterArgsResult =
       isLoopStructuredForHaloUnroll(forOp, solver);
   if (failed(secretIterArgsResult)) {
-    LLVM_DEBUG(llvm::dbgs() << "Loop preconditions not met\n");
+    LDBG(2) << "Loop preconditions not met";
     return rewriter.notifyMatchFailure(forOp, "Loop preconditions not met");
   }
+  LDBG(2) << "Loop is structured for Halo-style unroll";
   SmallVector<Value> secretIterArgs = secretIterArgsResult.value();
 
   std::optional<uint64_t> maybeTripCount = getConstantTripCount(forOp);
-  if (!maybeTripCount.has_value()) return failure();
+  if (!maybeTripCount.has_value()) {
+    LDBG(2) << "Could not infer trip count";
+    return failure();
+  }
   int64_t tripCount = maybeTripCount.value();
+  LDBG(2) << "Inferred trip count=" << tripCount;
 
   // Now we need to compute how many loop iterations we can unroll.
   //
@@ -281,26 +287,24 @@ LogicalResult doPartialUnroll(ForOp forOp, PatternRewriter& rewriter,
 
     if (!levelStart || !levelEnd || !levelStart->getValue().isInt() ||
         !levelEnd->getValue().isInt()) {
+      LDBG(2)
+          << "Start and end levels were not inferable to be concrete integers";
       return rewriter.notifyMatchFailure(
           forOp,
           "Start and end levels were not inferable to be concrete integers");
     }
 
     int levelEndVal = levelEnd->getValue().getInt();
-    LLVM_DEBUG(llvm::dbgs()
-               << "doPartialUnroll: levelEndVal=" << levelEndVal << "\n");
     int levelStartVal = levelStart->getValue().getInt();
-    LLVM_DEBUG(llvm::dbgs()
-               << "doPartialUnroll: levelStartVal=" << levelStartVal << "\n");
+    LDBG(2) << "levelEndVal=" << levelEndVal
+            << ", levelStartVal=" << levelStartVal;
 
-    LLVM_DEBUG(llvm::dbgs()
-               << "doPartialUnroll: Getting levelAfterBootstrap\n");
+    LDBG(2) << "Getting levelAfterBootstrap";
     int levelAfterBootstrap = 0;
 
     if (forceMaxLevel > 0) {
       levelAfterBootstrap = forceMaxLevel;
-      LLVM_DEBUG(llvm::dbgs()
-                 << "Using forced max level of " << forceMaxLevel << "\n");
+      LDBG(2) << "Using forced max level of " << forceMaxLevel;
     } else {
       // TODO(#2557): consider effective bootstrap level
       levelAfterBootstrap =
@@ -308,33 +312,32 @@ LogicalResult doPartialUnroll(ForOp forOp, PatternRewriter& rewriter,
     }
     int levelsUsedInLoop = levelEndVal - levelStartVal;
 
-    LLVM_DEBUG(llvm::dbgs()
-               << "doPartialUnroll: levelsUsedInLoop=" << levelsUsedInLoop
-               << "\n"
-               << "doPartialUnroll: levelAfterBootstrap=" << levelAfterBootstrap
-               << "\n");
+    LDBG(2) << "levelsUsedInLoop=" << levelsUsedInLoop << ", "
+            << "levelAfterBootstrap=" << levelAfterBootstrap;
 
     if (levelsUsedInLoop == 0) {
-      LLVM_DEBUG(llvm::dbgs() << "Loop uses zero levels. iter_arg=" << iterArg
-                              << "; levelStartVal=" << levelStartVal
-                              << "; levelEndVal=" << levelEndVal
-                              << "; levelAfterBootstrap=" << levelAfterBootstrap
-                              << "; op was: " << forOp << "\n");
+      LDBG(2) << "Loop uses zero levels. iter_arg=" << iterArg
+              << "; levelStartVal=" << levelStartVal
+              << "; levelEndVal=" << levelEndVal
+              << "; levelAfterBootstrap=" << levelAfterBootstrap
+              << "; op was: " << forOp;
       return failure();
     }
+    LDBG(2) << "Levels used in loop = " << levelsUsedInLoop;
 
     int unrollFactor = levelAfterBootstrap / levelsUsedInLoop;
-    LLVM_DEBUG(llvm::dbgs()
-               << "Found unroll factor " << unrollFactor << " for iter_arg="
-               << iterArg << "; levelStartVal=" << levelStartVal
-               << "; levelEndVal=" << levelEndVal
-               << "; levelAfterBootstrap=" << levelAfterBootstrap << "\n");
+    LDBG(2) << "Found unroll factor " << unrollFactor
+            << " for iter_arg=" << iterArg
+            << "; levelStartVal=" << levelStartVal
+            << "; levelEndVal=" << levelEndVal
+            << "; levelAfterBootstrap=" << levelAfterBootstrap;
     if (unrollFactor > 1) {
       unrollFactors.push_back(unrollFactor);
     }
   }
 
   if (unrollFactors.empty()) {
+    LDBG(2) << "No unroll factors found";
     return rewriter.notifyMatchFailure(forOp,
                                        "No unroll factors could be found.");
   }
@@ -346,8 +349,8 @@ LogicalResult doPartialUnroll(ForOp forOp, PatternRewriter& rewriter,
     // The function_ref<void(unsigned, Operation *, OpBuilder)> annotateFn that
     // we pass to the loop unroll step ensures that we can tell which bootstrap
     // ops and level_reduce_min ops are safe to remove post-unroll.
-    LLVM_DEBUG(llvm::dbgs() << "Applying Halo-style unroll by a factor of "
-                            << chosenUnrollFactor << "\n");
+    LDBG(2) << "Applying Halo-style unroll by a factor of "
+            << chosenUnrollFactor;
 
     // First mark the special loop invariance ops with an attribute, so that any
     // other operations of the same type in the loop body are not accidentally
@@ -357,10 +360,8 @@ LogicalResult doPartialUnroll(ForOp forOp, PatternRewriter& rewriter,
     for (Value iterArg : forOp.getRegionIterArgs()) {
       if (isSecret(iterArg, solver)) {
         auto bootstrapOp = cast<mgmt::BootstrapOp>(*iterArg.getUsers().begin());
-        LLVM_DEBUG(
-            llvm::dbgs()
-            << "Marking op " << bootstrapOp
-            << " with halo.invariance so it can be analyzed for removal\n");
+        LDBG(2) << "Marking op " << bootstrapOp
+                << " with halo.invariance so it can be analyzed for removal";
         rewriter.modifyOpInPlace(bootstrapOp, [&]() {
           bootstrapOp->setAttr(specialOpKey, rewriter.getUnitAttr());
         });
@@ -369,17 +370,15 @@ LogicalResult doPartialUnroll(ForOp forOp, PatternRewriter& rewriter,
             forOp.getTiedLoopYieldedValue(cast<BlockArgument>(iterArg))->get();
         auto levelReduceOp =
             cast<mgmt::LevelReduceMinOp>(yieldedValue.getDefiningOp());
-        LLVM_DEBUG(
-            llvm::dbgs()
-            << "Marking op " << levelReduceOp
-            << " with halo.invariance so it can be analyzed for removal\n");
+        LDBG(2) << "Marking op " << levelReduceOp
+                << " with halo.invariance so it can be analyzed for removal";
         rewriter.modifyOpInPlace(levelReduceOp, [&]() {
           levelReduceOp->setAttr(specialOpKey, rewriter.getUnitAttr());
         });
       }
     }
 
-    LLVM_DEBUG(llvm::dbgs() << "Starting loop unroll\n");
+    LDBG(2) << "Starting loop unroll";
     if (failed(loopUnrollByFactor(
             forOp, chosenUnrollFactor,
             [&](unsigned index, Operation* clonedOp, OpBuilder builder) {
@@ -393,9 +392,8 @@ LogicalResult doPartialUnroll(ForOp forOp, PatternRewriter& rewriter,
               // inserted after it. However, this is an implementation detail
               // that we try not to rely on.
               if (index > 0 && isa<mgmt::BootstrapOp>(clonedOp)) {
-                LLVM_DEBUG(llvm::dbgs()
-                           << "Marking op " << *clonedOp
-                           << " with halo.remove so it can be removed\n");
+                LDBG(2) << "Marking op " << *clonedOp
+                        << " with halo.remove so it can be removed";
                 // We cannot remove the op in the middle of the loop unrolling
                 // process, so instead mark it for later removal.
                 rewriter.modifyOpInPlace(clonedOp, [&]() {
@@ -403,9 +401,8 @@ LogicalResult doPartialUnroll(ForOp forOp, PatternRewriter& rewriter,
                 });
               } else if (index < chosenUnrollFactor - 1 &&
                          isa<mgmt::LevelReduceMinOp>(clonedOp)) {
-                LLVM_DEBUG(llvm::dbgs()
-                           << "Marking op " << *clonedOp
-                           << " with halo.remove so it can be removed\n");
+                LDBG(2) << "Marking op " << *clonedOp
+                        << " with halo.remove so it can be removed";
                 rewriter.modifyOpInPlace(clonedOp, [&]() {
                   clonedOp->setAttr("halo.remove", builder.getUnitAttr());
                 });
@@ -508,6 +505,18 @@ LogicalResult RegionBranchOpLevelInvariancePattern::matchAndRewrite(
   }
 
   return changed ? success() : failure();
+}
+
+LogicalResult doPartialUnroll(affine::AffineForOp forOp,
+                              PatternRewriter& rewriter, int forceMaxLevel,
+                              DataFlowSolver* solver) {
+  return doPartialUnroll<affine::AffineForOp>(forOp, rewriter, forceMaxLevel,
+                                              solver);
+}
+
+LogicalResult doPartialUnroll(scf::ForOp forOp, PatternRewriter& rewriter,
+                              int forceMaxLevel, DataFlowSolver* solver) {
+  return doPartialUnroll<scf::ForOp>(forOp, rewriter, forceMaxLevel, solver);
 }
 
 }  // namespace heir

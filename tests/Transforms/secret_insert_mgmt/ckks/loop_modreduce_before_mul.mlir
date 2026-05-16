@@ -1,12 +1,10 @@
 // RUN: heir-opt --secret-insert-mgmt-ckks="slot-number=8 level-budget=4 after-mul=false" %s | FileCheck %s
 
-// TODO(#2564): consider redesigning "before-mul (skip first mul)" to
-// "before-mul (include first mul)" plus a later optimization pass.
-
 module attributes {backend.lattigo, scheme.ckks} {
   // CHECK: func.func @loop_mul
-  // CHECK-SAME: #mgmt.mgmt<level = 0>
-  // CHECK: affine.for {{[^ ]*}} = 1 to 10
+  // CHECK-SAME: #mgmt.mgmt<level = 4>
+  // CHECK: affine.for %{{.*}} = 1 to 9 step 4
+  // CHECK: mgmt.bootstrap
   func.func @loop_mul(%arg0: !secret.secret<tensor<8xf32>>) -> !secret.secret<tensor<8xf32>> {
   %c2 = arith.constant dense<2.0> : tensor<8xf32>
   %0 = secret.generic(%arg0: !secret.secret<tensor<8xf32>>) {

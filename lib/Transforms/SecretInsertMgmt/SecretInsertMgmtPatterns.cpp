@@ -128,15 +128,18 @@ LogicalResult ModReduceBefore<Op>::matchAndRewrite(
   for (auto* operand : secretOperands) {
     auto mulDepthState =
         solver->lookupState<MulDepthLattice>(operand->get())->getValue();
-    if (!mulDepthState.isInt()) {
+    if (!mulDepthState.isInitialized()) {
       LLVM_DEBUG(
           llvm::dbgs()
-          << "ModReduceBefore: mul depth state is not integer for operand "
+          << "ModReduceBefore: mul depth state not initialized for operand "
           << operand->get() << "\n");
-      return rewriter.notifyMatchFailure(op, "mul depth state is not integer");
+      return rewriter.notifyMatchFailure(op, "mul depth state not initialized");
     }
-
-    mulDepth = std::max(mulDepth, mulDepthState.getMulDepth());
+    if (mulDepthState.isInvalid()) {
+      mulDepth = std::max(mulDepth, (int64_t)1);
+    } else {
+      mulDepth = std::max(mulDepth, mulDepthState.getMulDepth());
+    }
   }
   LLVM_DEBUG(llvm::dbgs() << "ModReduceBefore: effective mul depth: "
                           << mulDepth << "\n");

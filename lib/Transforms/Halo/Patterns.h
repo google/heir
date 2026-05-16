@@ -59,7 +59,10 @@ struct BootstrapIterArgsPattern : public OpRewritePattern<T> {
     secretInitIndices.reserve(forOp.getInits().size());
 
     for (auto [i, init] : llvm::enumerate(forOp.getInits())) {
-      if (isSecret(init, solver)) {
+      bool secret = isSecret(init, solver);
+      llvm::errs() << "BootstrapIterArgsPattern: init " << i
+                   << " secret=" << secret << "\n";
+      if (secret) {
         secretInitIndices.push_back(i);
       }
     }
@@ -83,6 +86,8 @@ struct BootstrapIterArgsPattern : public OpRewritePattern<T> {
     rewriter.setInsertionPointToStart(forOp.getBody());
     for (auto i : secretInitIndices) {
       Value iterArg = forOp.getRegionIterArgs()[i];
+      llvm::errs() << "BootstrapIterArgsPattern: inserting bootstrap for arg "
+                   << i << "\n";
       auto bootstrapOp =
           mgmt::BootstrapOp::create(rewriter, forOp.getLoc(), iterArg);
       rewriter.replaceAllUsesExcept(iterArg, bootstrapOp.getResult(),
@@ -168,6 +173,12 @@ struct DeleteAnnotatedOps : public RewritePattern {
   LogicalResult matchAndRewrite(Operation* op,
                                 PatternRewriter& rewriter) const override;
 };
+
+LogicalResult doPartialUnroll(affine::AffineForOp forOp,
+                              PatternRewriter& rewriter, int forceMaxLevel,
+                              DataFlowSolver* solver);
+LogicalResult doPartialUnroll(scf::ForOp forOp, PatternRewriter& rewriter,
+                              int forceMaxLevel, DataFlowSolver* solver);
 
 }  // namespace heir
 }  // namespace mlir
