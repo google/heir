@@ -41,6 +41,42 @@ constexpr int64_t kDefaultDegree = 5;
 constexpr double kDefaultDomainLower = -1.0;
 constexpr double kDefaultDomainUpper = 1.0;
 
+template <typename OpTy>
+struct OpDefaultDomain {
+  static constexpr double lower = kDefaultDomainLower;
+  static constexpr double upper = kDefaultDomainUpper;
+};
+
+template <>
+struct OpDefaultDomain<math::LogOp> {
+  static constexpr double lower = 0.1;
+  static constexpr double upper = 2.0;
+};
+
+template <>
+struct OpDefaultDomain<math::Log2Op> {
+  static constexpr double lower = 0.1;
+  static constexpr double upper = 2.0;
+};
+
+template <>
+struct OpDefaultDomain<math::Log10Op> {
+  static constexpr double lower = 0.1;
+  static constexpr double upper = 2.0;
+};
+
+template <>
+struct OpDefaultDomain<math::SqrtOp> {
+  static constexpr double lower = 0.0;
+  static constexpr double upper = 2.0;
+};
+
+template <>
+struct OpDefaultDomain<math::RsqrtOp> {
+  static constexpr double lower = 0.1;
+  static constexpr double upper = 2.0;
+};
+
 using polynomial::ChebyshevPolynomial;
 using polynomial::EvalOp;
 using polynomial::PolynomialType;
@@ -225,11 +261,11 @@ struct ConvertUnaryOp : public OpRewritePattern<OpTy> {
     FloatAttr domainLowerAttr =
         op->hasAttr("domain_lower")
             ? cast<FloatAttr>(op->getAttr("domain_lower"))
-            : rewriter.getF64FloatAttr(kDefaultDomainLower);
+            : rewriter.getF64FloatAttr(OpDefaultDomain<OpTy>::lower);
     FloatAttr domainUpperAttr =
         op->hasAttr("domain_upper")
             ? cast<FloatAttr>(op->getAttr("domain_upper"))
-            : rewriter.getF64FloatAttr(kDefaultDomainUpper);
+            : rewriter.getF64FloatAttr(OpDefaultDomain<OpTy>::upper);
     polynomial::ChebyshevPolynomial poly =
         approximation::caratheodoryFejerApproximation(
             cppFunc, degreeAttr.getInt(),
@@ -340,11 +376,11 @@ struct ConvertBinaryConstOp : public OpRewritePattern<OpTy> {
     FloatAttr domainLowerAttr =
         op->hasAttr("domain_lower")
             ? cast<FloatAttr>(op->getAttr("domain_lower"))
-            : rewriter.getF64FloatAttr(kDefaultDomainLower);
+            : rewriter.getF64FloatAttr(OpDefaultDomain<OpTy>::lower);
     FloatAttr domainUpperAttr =
         op->hasAttr("domain_upper")
             ? cast<FloatAttr>(op->getAttr("domain_upper"))
-            : rewriter.getF64FloatAttr(kDefaultDomainUpper);
+            : rewriter.getF64FloatAttr(OpDefaultDomain<OpTy>::upper);
     ChebyshevPolynomial poly = approximation::caratheodoryFejerApproximation(
         unaryFunc, degreeAttr.getInt(),
         domainLowerAttr.getValue().convertToDouble(),
