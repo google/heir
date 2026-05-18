@@ -2,51 +2,243 @@ name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag to build (e.g. v2026.04.01). If it does not exist, it will be created at the end. Leave empty for dev build.'
+        # Note: We do NOT pass this tag to actions/checkout. We checkout the
+        # branch selected in the UI (usually main), and this tag is created at
+        # the end of the workflow by the release step if it didn't exist.
+        required: false
+        default: ''
+  pull_request:
+    # This is meant to allow one to dry-run the release workflow from a PR
+    # tagged with the label "ci:wheels"
+    types: [labeled]
+
   schedule:
     - cron: '0 0 1 * *'
 
 jobs:
-  create-release:
-    runs-on:
-      labels: ubuntu-24.04-16core
-    permissions:
-      contents: write
+  setup-version:
+    name: Setup version and publication status
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
+      github.event.label.name == 'ci:wheels'
+    runs-on: ubuntu-latest
     outputs:
-      tag_name: ${{ steps.release.outputs.tag_name }}
-    continue-on-error: true
+      version: ${{ steps.get-version.outputs.version }}
+      should_publish: ${{ steps.get-version.outputs.should_publish }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+      - name: Check out repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Get current date
-        id: date
-        run: echo "date=$(date +'%Y.%m.%d')" >> "$GITHUB_OUTPUT"
+      - name: Install Python 3.12
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
 
       - name: Install dependencies
-        run: |
-          ./.github/install_clang_version.sh 19
-
-      - name: "Run `bazel build`"
-        run: |
-          bazel build -c opt //tools:all
-
-      - name: Ensure binaries can run
+        run: pip install requests
+      - name: Get version
+        id: get-version
         shell: bash
         run: |
-            bazel-bin/tools/heir-opt --help
-            bazel-bin/tools/heir-translate --help
-            bazel-bin/tools/heir-lsp --help
-            [ -f bazel-bin/external/abc+/abc_bin ]
+          python scripts/get_version.py \
+            --event "${{ github.event_name }}" \
+            --ref "${{ github.ref }}" \
+            --tag "${{ github.event.release.tag_name || inputs.tag_name || '' }}" \
+            --package "heir_py" \
+            --gha
+
+  build_sdist:
+    name: Build source distribution
+    needs: [setup-version]
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
+      github.event.label.name == 'ci:wheels'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+      - name: Install Python 3.12
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+      - run: python -m pip install build
+      - name: Build sdist
+        run: |
+          if [[ -n "${{ needs.setup-version.outputs.version }}" ]]; then
+            export SETUPTOOLS_SCM_PRETEND_VERSION="${{ needs.setup-version.outputs.version }}"
+          fi
+          python -m build --sdist
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dist-sdist
+          path: dist/*.tar.gz
+
+  build_wheels:
+    name: Build HEIR wheels on ${{ matrix.name }}
+    needs: [setup-version]
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
+      github.event.label.name == 'ci:wheels'
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - name: linux-x86_64
+            runner: ubuntu-24.04
+          - name: linux-aarch64
+            runner: ubuntu-24.04-arm
+          - name: macos-arm64
+            runner: macos-15
+
+    steps:
+      - name: Check out HEIR
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        name: Install Python 3.12
+        with:
+          python-version: "3.12"
+      - run: pip install --upgrade pip uv
+
+      - name: Build wheels on ${{ matrix.name }} using cibuildwheel
+        uses: pypa/cibuildwheel@5f22145df44122af0f5a201f93cf0207171beca7 # v3.0.0
+        env:
+          SETUPTOOLS_SCM_PRETEND_VERSION: ${{ needs.setup-version.outputs.version }}
+          CIBW_ENVIRONMENT_PASS: SETUPTOOLS_SCM_PRETEND_VERSION
+
+      - name: Upload HEIR ${{ matrix.name }} wheels
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dist-${{ matrix.name }}
+          path: wheelhouse/*.whl
+
+  create_archive:
+    name: Create source archive
+    needs: [setup-version]
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create Archive
+        id: archive
+        run: |
+          TAG_NAME="${{ needs.setup-version.outputs.version }}"
+          if [[ ! "$TAG_NAME" =~ ^v ]]; then
+            TAG_NAME="v$TAG_NAME"
+          fi
+          git archive --format=tar.gz --prefix=heir-$TAG_NAME/ -o heir-$TAG_NAME.tar.gz HEAD
+          sha256sum heir-$TAG_NAME.tar.gz > heir-$TAG_NAME.tar.gz.sha256
+          echo "archive_file=heir-$TAG_NAME.tar.gz" >> "$GITHUB_OUTPUT"
+          echo "checksum_file=heir-$TAG_NAME.tar.gz.sha256" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: source-archive
+          path: heir-*.tar.gz*
+
+  perform_release:
+    name: Create GitHub Release and Upload Assets
+    needs: [setup-version, build_wheels, create_archive]
+    if: needs.setup-version.outputs.should_publish == 'true' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          path: dist
+          pattern: dist-*
+          merge-multiple: true
+
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          path: archive
+          name: source-archive
+
+      - name: Extract and rename binaries
+        shell: bash
+        run: |
+          mkdir -p extracted
+          for whl in dist/*.whl; do
+            filename=$(basename "$whl")
+
+            # Extract the platform tag from the wheel filename. Wheels are
+            # named: distribution-version-python_tag-abi_tag-platform_tag.whl We
+            # reverse the string, take the first part separated by '-', reverse
+            # it back, and strip the '.whl' extension. This gives us the platform
+            # tag robustly.
+            platform=$(echo "$filename" | rev | cut -d- -f1 | rev | cut -d. -f1)
+
+            echo "Processing wheel $whl for platform $platform"
+
+            # Extract specific binaries from the wheel. We use -j (junk paths)
+            # to extract them directly into tmp_extract without recreating the
+            # directory structure.
+            unzip -j "$whl" "heir/heir-opt" -d tmp_extract || true
+            unzip -j "$whl" "heir/heir-translate" -d tmp_extract || true
+
+            # Rename the extracted binaries to include the platform tag. This
+            # prevents them from overwriting each other when uploaded to the same
+            # release.
+            if [ -f tmp_extract/heir-opt ]; then
+              mv tmp_extract/heir-opt "extracted/heir-opt-$platform"
+            fi
+            if [ -f tmp_extract/heir-translate ]; then
+              mv tmp_extract/heir-translate "extracted/heir-translate-$platform"
+            fi
+            rm -rf tmp_extract
+          done
+          echo "Extracted files:"
+          ls -alh extracted/
+
+      - name: Determine Tag Name
+        id: tag
+        shell: bash
+        run: |
+          TAG_NAME="${{ needs.setup-version.outputs.version }}"
+          if [[ ! "$TAG_NAME" =~ ^v ]]; then
+            TAG_NAME="v$TAG_NAME"
+          fi
+          echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Create Release
         id: release
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b  # v2.5.0
         with:
-          tag_name: v${{ steps.date.outputs.date }}
+          tag_name: ${{ steps.tag.outputs.tag_name }}
           generate_release_notes: true
           files: |
-            bazel-bin/tools/heir-opt
-            bazel-bin/tools/heir-translate
-            bazel-bin/tools/heir-lsp
-            bazel-bin/external/abc+/abc_bin
-            lib/Transforms/YosysOptimizer/yosys/techmap.v
+            archive/*
+            extracted/*
+
+  pypi_upload:
+    name: Publish heir wheels to PyPI
+    needs: [setup-version, build_sdist, build_wheels]
+    if: needs.setup-version.outputs.should_publish == 'true'
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          path: dist
+          pattern: dist-*
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e  # release/v1.13
+        with:
+          verbose: true
