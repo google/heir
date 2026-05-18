@@ -44,11 +44,6 @@ def calculate_version(event, ref, tag, package):
   should_publish = "false"
 
   match event:
-    case "release":
-      if tag:
-        version = tag.lstrip("v")
-        should_publish = "true"
-
     case "workflow_dispatch":
       if tag:
         # Manual release of existing tag; use for example when release
@@ -60,6 +55,19 @@ def calculate_version(event, ref, tag, package):
         version = get_next_dev_version(package)
         should_publish = "true"
 
+    case "schedule":
+      if tag:
+        version = tag.lstrip("v")
+      else:
+        version = datetime.datetime.now(datetime.timezone.utc).strftime(
+            "%Y.%m.%d"
+        )
+      should_publish = "true"
+
+    case "pull_request":
+      version = "0.0.0"
+      should_publish = "false"
+
   return version, should_publish
 
 
@@ -70,7 +78,7 @@ def main():
   parser.add_argument(
       "--event",
       default="workflow_dispatch",
-      help="GitHub event name (e.g., release, workflow_dispatch)",
+      help="GitHub event name (e.g., schedule, workflow_dispatch)",
   )
   parser.add_argument(
       "--ref",

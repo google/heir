@@ -68,13 +68,6 @@ class GetVersionTest(absltest.TestCase):
     next_version = get_next_dev_version("heir_py")
     self.assertEqual(next_version, "2026.04.01.dev1")
 
-  def test_calculate_version_release(self):
-    version, should_publish = calculate_version(
-        "release", "refs/tags/v0.1.0", "v0.1.0", "heir_py"
-    )
-    self.assertEqual(version, "0.1.0")
-    self.assertEqual(should_publish, "true")
-
   def test_calculate_version_workflow_dispatch_tag(self):
     version, should_publish = calculate_version(
         "workflow_dispatch", "refs/heads/main", "v0.1.0", "heir_py"
@@ -89,6 +82,15 @@ class GetVersionTest(absltest.TestCase):
         "workflow_dispatch", "refs/heads/main", None, "heir_py"
     )
     self.assertEqual(version, "2026.04.01.dev0")
+    self.assertEqual(should_publish, "true")
+
+  @patch("datetime.datetime")
+  def test_calculate_version_schedule(self, mock_datetime):
+    mock_datetime.now.return_value.strftime.return_value = "2026.04.01"
+    version, should_publish = calculate_version(
+        "schedule", "refs/heads/main", None, "heir_py"
+    )
+    self.assertEqual(version, "2026.04.01")
     self.assertEqual(should_publish, "true")
 
   def test_calculate_version_pr(self):
