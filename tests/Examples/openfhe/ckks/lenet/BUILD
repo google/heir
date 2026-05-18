@@ -83,8 +83,8 @@ py_test(
     srcs = ["lenet_test.py"],
     data = [
         ":lenet.openfhe.mlir",
-        "@heir//tests/Examples/openfhe/ckks/mnist/data:t10k-images-idx3-ubyte",
-        "@heir//tests/Examples/openfhe/ckks/mnist/data:t10k-labels-idx1-ubyte",
+        "@heir//tests/Examples/common/mnist/data:t10k-images-idx3-ubyte",
+        "@heir//tests/Examples/common/mnist/data:t10k-labels-idx1-ubyte",
     ],
     main = "lenet_test.py",
     tags = [
