@@ -784,27 +784,9 @@ struct ConvertLinalgMatvecLayout
   }
 
   bool supportsHaleviShoup(linalg::MatvecOp op, OpAdaptor adaptor) const {
-    Value matrix = adaptor.getInputs()[0];
-    auto matrixType = cast<RankedTensorType>(matrix.getType());
-
-    // If one of these dimensions is not a power of two, then we can't do
-    // the Halevi-Shoup or Squat Packing Matrix Multiplication conversion.
-    auto dimensions = matrixType.getShape();
-    int64_t numRows = dimensions[0];
-    int64_t numCols = dimensions[1];
-    bool isPowerOfTwoDims = isPowerOfTwo(numRows) && isPowerOfTwo(numCols);
-
     auto kernelAttr = op->getAttrOfType<secret::KernelAttr>(
         secret::SecretDialect::kKernelAttrName);
-    bool isMatvecDiagonal =
-        kernelAttr && kernelAttr.getName() == KernelName::MatvecDiagonal;
-
-    LLVM_DEBUG(llvm::dbgs()
-               << "supports matvec with halevi-shoup: isPowerOfTwoDims="
-               << isPowerOfTwoDims << " isMatvecDiagonal=" << isMatvecDiagonal
-               << "\n");
-
-    return isPowerOfTwoDims && isMatvecDiagonal;
+    return kernelAttr && kernelAttr.getName() == KernelName::MatvecDiagonal;
   }
 
   void haleviShoupKernel(

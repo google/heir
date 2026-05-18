@@ -215,6 +215,36 @@ TEST(KernelImplementationTest, TestHaleviShoupMatvecWithLayout) {
   EXPECT_EQ(std::get<std::vector<int>>(actual.get()), expected);
 }
 
+TEST(KernelImplementationTest, HaleviShoup512x784WithLayout) {
+  MLIRContext context;
+  int rows = 512;
+  int cols = 784;
+  int numSlots = 1024;
+
+  std::vector<int> vector(numSlots, 0);
+  for (int i = 0; i < cols; ++i) {
+    vector[i] = 1;
+  }
+  std::vector<std::vector<int>> matrix(rows, std::vector<int>(cols, 1));
+
+  auto diagonalLayout = getDiagonalLayoutRelation(
+      RankedTensorType::get({rows, cols}, mlir::IndexType::get(&context)),
+      numSlots);
+  std::vector<std::vector<int>> diagonalMatrix =
+      evaluateLayoutOnMatrix(diagonalLayout, matrix);
+
+  std::vector<int> expected(numSlots, 784);
+
+  LiteralValue matrixInput = diagonalMatrix;
+  LiteralValue vectorInput = vector;
+
+  auto dag = implementHaleviShoup(vectorInput, matrixInput, {rows, cols},
+                                  DagType::intTensor(32, {numSlots}),
+                                  /*zeroDiagonals=*/{}, /*unroll=*/true);
+  LiteralValue actual = evalKernel(dag)[0];
+  EXPECT_EQ(std::get<std::vector<int>>(actual.get()), expected);
+}
+
 TEST_P(KernelImplementationTest, Test2DConvWithLayout) {
   MLIRContext context;
   RankedTensorType dataType =
