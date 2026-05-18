@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <set>
 #include <utility>
 #include <vector>
 
@@ -256,19 +257,8 @@ TEST(ConvolutionTest, Conv1dFilterRelationEvaluateExpanded) {
       evaluateLayoutOnVector(convFilterRelation, filter);
 
   std::vector<std::vector<int>> expected = {
-      {2, 3, 0, 0, 0, 0},
-      {1, 2, 3, 0, 0, 0},
-      {0, 1, 2, 3, 0, 0},
-      {0, 0, 1, 2, 3, 0},
-      {0, 0, 0, 1, 2, 3},
-      {
-          0,
-          0,
-          0,
-          0,
-          1,
-          2,
-      },
+      {2, 3, 0, 0, 0, 0}, {1, 2, 3, 0, 0, 0}, {0, 1, 2, 3, 0, 0},
+      {0, 0, 1, 2, 3, 0}, {0, 0, 0, 1, 2, 3}, {0, 0, 0, 0, 1, 2},
   };
 
   RankedTensorType expanded =
@@ -360,7 +350,58 @@ TEST(ConvolutionTest, ConvChwFchwFilterRelation) {
   EXPECT_EQ(slotBound.value(), 17);
 }
 
-TEST(ConvolutionTest, ConvChwFchwNoPaddingFilterRelation) {
+TEST(ConvolutionTest, Conv1DCwFcwFilterRelation) {
+  MLIRContext context;
+  // length 5 input, length 3 kernel and filter, with 2 input/output channels,
+  // stride = 1, padding = 1
+  RankedTensorType filterType =
+      RankedTensorType::get({2, 2, 3}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({1, 2, 5}, IndexType::get(&context));
+  int64_t stride = 1;
+  int64_t padding = 1;
+  IntegerRelation rel =
+      get1dConvCwFcwFilterRelation(filterType, dataType, stride, padding);
+
+  // One filter contributes Datasize-Kernelsize+1 +2 *padding = 5-3+1 +2 = 5
+  // rows. Two filters means the upper bound is 2*3-1 = 5
+  auto ctBound = rel.getConstantBound64(BoundType::UB,
+                                        rel.getVarKindOffset(VarKind::Range));
+  ASSERT_TRUE(ctBound.has_value());
+  EXPECT_EQ(ctBound.value(), 9);
+
+  // datasize is 5. 2 input channels means the bound is 2*5-1 = 9
+  auto slotBound = rel.getConstantBound64(
+      BoundType::UB, rel.getVarKindOffset(VarKind::Range) + 1);
+  ASSERT_TRUE(slotBound.has_value());
+  EXPECT_EQ(slotBound.value(), 9);
+}
+
+TEST(ConvolutionTest, Conv1DCwFcwNoPaddingFilterRelation) {
+  MLIRContext context;
+  // data length = 5, kernel length=2, stride =2 => output of dimension 2
+  RankedTensorType filterType =
+      RankedTensorType::get({2, 2, 2}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({1, 2, 4}, IndexType::get(&context));
+  int64_t stride = 2;
+  int64_t padding = 0;
+  IntegerRelation rel =
+      get1dConvCwFcwFilterRelation(filterType, dataType, stride, padding);
+
+  auto ctBound = rel.getConstantBound64(BoundType::UB,
+                                        rel.getVarKindOffset(VarKind::Range));
+  ASSERT_TRUE(ctBound.has_value());
+  // RowSize =2, f=2 => ctBound = 2 + 1 = 3
+  EXPECT_EQ(ctBound.value(), 3);
+
+  auto slotBound = rel.getConstantBound64(
+      BoundType::UB, rel.getVarKindOffset(VarKind::Range) + 1);
+  ASSERT_TRUE(slotBound.has_value());
+  EXPECT_EQ(slotBound.value(), 7);
+}
+
+TEST(ConvolutionTest, Conv2DChwFchwNoPaddingFilterRelation) {
   MLIRContext context;
   // f = 2, c = 2, h = 2, w = 2, strides = {2, 2}, padding = 0
   // data = (c, 4, 4)
@@ -390,7 +431,7 @@ TEST(ConvolutionTest, ConvChwFchwNoPaddingFilterRelation) {
   EXPECT_EQ(slotBound.value(), 31);
 }
 
-TEST(ConvolutionTest, ConvChwFchwFilterRelationUnequalStrides) {
+TEST(ConvolutionTest, Conv2DChwFchwFilterRelationUnequalStrides) {
   MLIRContext context;
   // f = 2, c = 2, h = 3, w = 3, strides = {2, 3}, padding = 0
   // data = (c, 5, 5)
@@ -421,7 +462,7 @@ TEST(ConvolutionTest, ConvChwFchwFilterRelationUnequalStrides) {
   EXPECT_EQ(slotBound.value(), 47);
 }
 
-TEST(ConvolutionTest, ConvChwFchwFilterRelationPadding) {
+TEST(ConvolutionTest, Conv2DChwFchwFilterRelationPadding) {
   MLIRContext context;
   // f = 2, c = 2, h = 3, w = 3, strides = {2, 2}, padding = 1
   // data = (c, 3, 3)
@@ -451,7 +492,7 @@ TEST(ConvolutionTest, ConvChwFchwFilterRelationPadding) {
 TEST(ConvolutionTest, TestRowInterchange) {
   MLIRContext context;
   // c=4, h=2, w=2, g=2
-  IntegerRelation rel = getRowInterchangeRelation(4, 2, 2, 2);
+  IntegerRelation rel = get2dConvRowInterchangeRelation(4, 2, 2, 2);
 
   std::vector<int> input = {0, 1, 2,  3,  4,  5,  6,  7,
                             8, 9, 10, 11, 12, 13, 14, 15};
@@ -473,11 +514,35 @@ TEST(ConvolutionTest, TestRowInterchange) {
   }
 }
 
+TEST(ConvolutionTest, Test1dConvRowInterchange) {
+  MLIRContext context;
+  // c=4, h=2, w=2, g=2
+  IntegerRelation rel = get1dConvRowInterchangeRelation(4, 4, 2);
+
+  std::vector<int> input = {0, 1, 2,  3,  4,  5,  6,  7,
+                            8, 9, 10, 11, 12, 13, 14, 15};
+  std::vector<int> expectedPermutation = {0, 4,  1, 5,  2,  6,  3,  7,
+                                          8, 12, 9, 13, 10, 14, 11, 15};
+  PointPairCollector collector(1, 1);  // 1 domain dim, 1 range dim
+  enumeratePoints(rel, collector);
+
+  EXPECT_EQ(collector.points.size(), expectedPermutation.size());
+
+  for (const auto& actualPoint : collector.points) {
+    // The permutation in the relation is the expected (i -> j) mappings.
+    auto startVal = actualPoint.first[0];
+    auto permuteIdx = actualPoint.second[0];
+    auto resultingVal = expectedPermutation[permuteIdx];
+    EXPECT_EQ(startVal, resultingVal)
+        << "Point not found: domain=" << actualPoint.first[0]
+        << ", range=" << actualPoint.second[0];
+  }
+}
 TEST(ConvolutionTest, TestRowInterchangeMultiChannel) {
   MLIRContext context;
   // c=18, h=2, w=2, g=3
   // Input: 2x2x18 = 72 elements. Output: 6x6x2
-  IntegerRelation rel = getRowInterchangeRelation(18, 2, 2, 3);
+  IntegerRelation rel = get2dConvRowInterchangeRelation(18, 2, 2, 3);
 
   PointPairCollector collector(1, 1);  // 1 domain dim, 1 range dim
   enumeratePoints(rel, collector);
@@ -581,6 +646,46 @@ TEST(ConvolutionTest, TestMultiChannelMultiRow) {
   EXPECT_TRUE(containsPoint({0, 1, 0, 0}, {0, 784}));
 }
 
+TEST(ConvolutionTest, TestConv1dMultiChannelMultiRow) {
+  // Pools a 1x4x28 into a 1x4x14
+  // The filter is 4x4x2
+  MLIRContext context;
+
+  RankedTensorType filterType =
+      RankedTensorType::get({4, 4, 2}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({1, 4, 28}, IndexType::get(&context));
+  int64_t stride = 2;
+  int64_t padding = 0;
+
+  auto rel =
+      get1dConvCwFcwFilterRelation(filterType, dataType, stride, padding);
+
+  // Number of ciphertexts is number of elements of a single result (14) *
+  // num channels = 14 * 4 = 56.
+  auto ctOffset = rel.getVarKindOffset(VarKind::Range);
+  auto ctBound = rel.getConstantBound64(BoundType::UB, ctOffset);
+  ASSERT_TRUE(ctBound.has_value());
+  EXPECT_EQ(ctBound.value(), 55);
+
+  PointPairCollector collector(
+      3, 2);  // 3 domain dims (f, c,  fw), 2 range dims (ct, slot)
+  enumeratePoints(rel, collector);
+
+  // Check a few specific expected points: (f, c, fw) -> (ct, slot)
+  auto containsPoint = [&](std::vector<int64_t> domain,
+                           std::vector<int64_t> range) {
+    for (const auto& p : collector.points) {
+      if (p.first == domain && p.second == range) return true;
+    }
+    return false;
+  };
+
+  EXPECT_TRUE(containsPoint({0, 0, 0}, {0, 0}));
+  EXPECT_TRUE(containsPoint({0, 0, 1}, {0, 1}));
+  EXPECT_TRUE(containsPoint({0, 1, 0}, {0, 28}));
+}
+
 TEST(ConvolutionTest, TestMultiChannelMultiRowDiagonalized) {
   // Pools a 1x4x28x28 into a 1x4x14x14
   // The filter is 4x4x2x2
@@ -623,6 +728,37 @@ TEST(ConvolutionTest, TestMultiChannelMultiRowDiagonalized) {
   EXPECT_TRUE(containsPoint({0, 0, 0, 0}, {0, 0}));
   EXPECT_TRUE(containsPoint({0, 0, 0, 1}, {1, 0}));
   EXPECT_TRUE(containsPoint({0, 1, 0, 0}, {784, 0}));
+}
+
+TEST(ConvolutionTest, TestConv1dCwFcwDiagonalizedRowInterchange) {
+  // Without the interchange, we first iterate over the kernel positions and hit
+  // all diagonals With the interchange, we first iterate over the filters, and
+  // hit only 3 diagonals
+  MLIRContext context;
+  RankedTensorType filterType =
+      RankedTensorType::get({2, 1, 2}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({1, 1, 8}, IndexType::get(&context));
+  int64_t stride = 2;
+  int64_t padding = 0;
+  int64_t ciphertextSize = 8;
+
+  auto distinctDiagonals = [&](bool interchangeRows) {
+    auto maybeRel = get1dConvCwFcwFilterDiagonalizedRelation(
+        filterType, dataType, stride, padding, ciphertextSize, interchangeRows);
+    EXPECT_TRUE(succeeded(maybeRel));
+    PointPairCollector collector(/*domainDims=*/3, /*rangeDims=*/2);
+    enumeratePoints(maybeRel.value(), collector);
+    std::set<int64_t> cts;
+    for (const auto& p : collector.points) cts.insert(p.second[0]);
+    return cts;
+  };
+
+  auto withoutInterchange = distinctDiagonals(/*interchangeRows=*/false);
+  EXPECT_EQ(withoutInterchange.size(), 8);
+
+  auto withInterchange = distinctDiagonals(/*interchangeRows=*/true);
+  EXPECT_EQ(withInterchange.size(), 3);
 }
 
 }  // namespace

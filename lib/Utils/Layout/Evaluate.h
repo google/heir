@@ -154,6 +154,26 @@ std::vector<std::vector<T>> unpackLayoutToMatrix(
   return result;
 }
 
+// Unpack a packed (ct x slots) representation back to a 3-D tensor with the
+// given originalShape {c, m, n}.
+template <typename T>
+std::vector<std::vector<std::vector<T>>> unpackLayoutTo3DTensor(
+    const presburger::IntegerRelation& relation,
+    const std::vector<std::vector<T>>& packed,
+    ArrayRef<int64_t> originalShape) {
+  assert(originalShape.size() == 3 && "originalShape must be 3-D");
+  std::vector<std::vector<std::vector<T>>> result(
+      originalShape[0],
+      std::vector<std::vector<T>>(originalShape[1],
+                                  std::vector<T>(originalShape[2], 0)));
+
+  unpackLayout<T>(
+      relation, packed, [&](const std::vector<int64_t>& domainPoint, T value) {
+        result[domainPoint[0]][domainPoint[1]][domainPoint[2]] = value;
+      });
+  return result;
+}
+
 // Unpack a packed (ct x slots) representation back to a 4-D tensor with the
 // given originalShape {c, h, m, n}.
 template <typename T>
