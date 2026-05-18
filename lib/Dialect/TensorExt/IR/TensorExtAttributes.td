@@ -10,20 +10,10 @@ include "mlir/IR/OpAsmInterface.td"
 include "mlir/IR/TensorEncoding.td"
 
 class TensorExt_Attr<string name, string attrMnemonic, list<Trait> traits = []>
-    : AttrDef<TensorExt_Dialect, name, traits # [OpAsmAttrInterface]> {
+    : AttrDef<TensorExt_Dialect, name, traits> {
   let mnemonic = attrMnemonic;
   let assemblyFormat = "`<` struct(params) `>`";
-
-  string commonClassDeclaration = [{
-   // OpAsmAttrInterface methods.
-    ::mlir::OpAsmDialectInterface::AliasResult getAlias(::llvm::raw_ostream &os) const {
-      os << "}] # attrMnemonic # [{";
-      return ::mlir::OpAsmDialectInterface::AliasResult::FinalAlias;
-    }
-  }];
-
-
-  let extraClassDeclaration = commonClassDeclaration;
+  let genMnemonicAlias = 1;
 }
 
 def TensorExt_LayoutAttr : TensorExt_Attr<"Layout", "layout"> {
@@ -64,7 +54,7 @@ def TensorExt_LayoutAttr : TensorExt_Attr<"Layout", "layout"> {
     }]>,
   ];
 
-  let extraClassDeclaration = commonClassDeclaration # [{
+  let extraClassDeclaration = [{
     presburger::IntegerRelation getIntegerRelation() const;
 
     std::string getLayoutStr() const {

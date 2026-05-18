@@ -8,17 +8,10 @@ include "mlir/IR/CommonAttrConstraints.td"
 include "mlir/IR/OpAsmInterface.td"
 
 class Rotom_Attr<string name, string attrMnemonic, list<Trait> traits = []>
-    : AttrDef<Rotom_Dialect, name, traits # [OpAsmAttrInterface]> {
+    : AttrDef<Rotom_Dialect, name, traits> {
   let mnemonic = attrMnemonic;
   let assemblyFormat = "`<` struct(params) `>`";
-
-  let extraClassDeclaration = [{
-    // OpAsmAttrInterface methods.
-    ::mlir::OpAsmDialectInterface::AliasResult getAlias(::llvm::raw_ostream &os) const {
-      os << "}] # attrMnemonic # [{";
-      return ::mlir::OpAsmDialectInterface::AliasResult::FinalAlias;
-    }
-  }];
+  let genMnemonicAlias = 1;
 }
 
 def Rotom_DimAttr : Rotom_Attr<"Dim", "dim"> {

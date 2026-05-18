@@ -8,17 +8,10 @@ include "mlir/IR/CommonAttrConstraints.td"
 include "mlir/IR/OpAsmInterface.td"
 
 class Secret_Attr<string name, string attrMnemonic, list<Trait> traits = []>
-    : AttrDef<Secret_Dialect, name, traits # [OpAsmAttrInterface]> {
+    : AttrDef<Secret_Dialect, name, traits> {
   let mnemonic = attrMnemonic;
   let assemblyFormat = "`<` struct(params) `>`";
-
-  let extraClassDeclaration = [{
-    // OpAsmAttrInterface methods.
-    ::mlir::OpAsmDialectInterface::AliasResult getAlias(::llvm::raw_ostream &os) const {
-      os << "}] # attrMnemonic # [{";
-      return ::mlir::OpAsmDialectInterface::AliasResult::FinalAlias;
-    }
-  }];
+  let genMnemonicAlias = 1;
 }
 
 def Secret_KernelAttr : Secret_Attr<"Kernel", "kernel"> {

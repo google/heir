@@ -43,17 +43,10 @@ def AnyOverflowAttr : AnyAttrOf<[LWE_NoOverflowAttr, LWE_PreserveOverflowAttr]> 
 }
 
 class LWE_EncodingAttrForLWE<string attrName, string attrMnemonic, list<Trait> traits = []>
-    : AttrDef<LWE_Dialect, attrName, traits # [OpAsmAttrInterface]> {
+    : AttrDef<LWE_Dialect, attrName, traits> {
   let mnemonic = attrMnemonic;
   let assemblyFormat = "`<` struct(params) `>`";
-
-  let extraClassDeclaration = [{
-    // OpAsmAttrInterface methods.
-    ::mlir::OpAsmDialectInterface::AliasResult getAlias(::llvm::raw_ostream &os) const {
-      os << "}] # attrMnemonic # [{";
-      return ::mlir::OpAsmDialectInterface::AliasResult::FinalAlias;
-    }
-  }];
+  let genMnemonicAlias = 1;
 }
 
 class LWE_EncodingAttrWithScalingParam<string attrName, string attrMnemonic, list<Trait> traits = []>
@@ -237,7 +230,7 @@ def LWE_PlaintextSpaceAttr : AttrDef<LWE_Dialect, "PlaintextSpace"> {
   let genVerifyDecl = 1;
 }
 
-def LWE_KeyAttr : AttrDef<LWE_Dialect, "Key", [OpAsmAttrInterface]> {
+def LWE_KeyAttr : AttrDef<LWE_Dialect, "Key"> {
   let mnemonic = "key";
   let description = [{
     An attribute describing the key with which the message is currently
@@ -260,14 +253,7 @@ def LWE_KeyAttr : AttrDef<LWE_Dialect, "Key", [OpAsmAttrInterface]> {
   );
 
   let assemblyFormat = "`<` struct(params) `>`";
-
-  let extraClassDeclaration = [{
-    // OpAsmAttrInterface methods.
-    ::mlir::OpAsmDialectInterface::AliasResult getAlias(::llvm::raw_ostream &os) const {
-      os << "}] # mnemonic # [{";
-      return ::mlir::OpAsmDialectInterface::AliasResult::FinalAlias;
-    }
-  }];
+  let genMnemonicAlias = 1;
 }
 
 def LWE_EncryptionTypeEnum : I32EnumAttr<"LweEncryptionType", "An enum attribute representing an encryption method", [
