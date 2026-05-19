@@ -16,6 +16,7 @@
 #include "lib/Dialect/CGGI/Transforms/Passes.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/CKKS/Transforms/Passes.h"
+#include "lib/Dialect/Cheddar/IR/CheddarDialect.h"
 #include "lib/Dialect/Comb/IR/CombDialect.h"
 #include "lib/Dialect/Debug/IR/DebugDialect.h"
 #include "lib/Dialect/Debug/Transforms/Passes.h"
@@ -191,6 +192,7 @@ int main(int argc, char** argv) {
   registry.insert<bgv::BGVDialect>();
   registry.insert<ckks::CKKSDialect>();
   registry.insert<cggi::CGGIDialect>();
+  registry.insert<cheddar::CheddarDialect>();
   registry.insert<comb::CombDialect>();
   registry.insert<debug::DebugDialect>();
   registry.insert<jaxite::JaxiteDialect>();
