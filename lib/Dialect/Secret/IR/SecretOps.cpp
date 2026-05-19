@@ -236,6 +236,11 @@ LogicalResult GenericOp::verify() {
 
   // Verify that the operands of the body's basic block are the non-secret
   // analogues of the generic's operands.
+  if (getOperands().size() != body->getNumArguments()) {
+    return emitOpError()
+           << "Number of operands to generic op does not match number of "
+              "block arguments in the body";
+  }
   for (BlockArgument arg : body->getArguments()) {
     auto operand = getOperands()[arg.getArgNumber()];
     auto operandType = dyn_cast<SecretType>(operand.getType());
