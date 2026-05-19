@@ -2,6 +2,7 @@
 
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("@rules_license//rules:license.bzl", "license")
+# copybara: gwsq_test_load
 # copybara: fuzztest_ci
 
 package(
@@ -83,3 +84,5 @@ config_setting(
     },
     visibility = ["//visibility:public"],
 )
+
+# copybara: gwsq_test_target
