@@ -63,3 +63,15 @@ add_heir_transforms(
     pass_name = "Lattigo",
     td_file = "Passes.td",
 )
+
+cc_library(
+    name = "BufferizableOpInterfaceImpl",
+    srcs = ["BufferizableOpInterfaceImpl.cpp"],
+    hdrs = ["BufferizableOpInterfaceImpl.h"],
+    deps = [
+        "@heir//lib/Dialect/Lattigo/IR:Dialect",
+        "@llvm-project//mlir:BufferizationInterfaces",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
