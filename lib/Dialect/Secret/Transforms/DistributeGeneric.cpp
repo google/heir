@@ -15,6 +15,7 @@
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretPatterns.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
+#include "lib/Dialect/Utils.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"               // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"             // from @llvm-project
@@ -351,6 +352,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       // Update the cloned loop's iter_args to be secret types if corresponded
       // to secret types in the original generic.
       DenseMap<Value, Value> newInitsToOperands;
+
       for (const auto& [operand, blockArg] : llvm::zip(
                clonedLoop.getInitsMutable(), clonedLoop.getRegionIterArgs())) {
         BlockArgument iterArg = clonedLoop.getTiedLoopRegionIterArg(&operand);
@@ -394,9 +396,16 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       // loop body modified. In this case, we need to trace that back to a
       // generic operand and replace future uses of it with the corresponding
       // input value.
-      SmallVector<Type> loopResultTypes = llvm::to_vector<4>(
-          llvm::map_range(clonedLoop->getResults().getTypes(),
-                          [](Type t) -> Type { return SecretType::get(t); }));
+      SmallVector<Type> loopResultTypes;
+      for (auto [i, resultType] :
+           llvm::enumerate(clonedLoop->getResults().getTypes())) {
+        BlockArgument iterArg = clonedLoop.getRegionIterArgs()[i];
+        if (isa<SecretType>(iterArg.getType())) {
+          loopResultTypes.push_back(SecretType::get(resultType));
+        } else {
+          loopResultTypes.push_back(resultType);
+        }
+      }
 
       // If a generic operand is used as a loop iter arg initializer, then the
       // new generic needs to have the (now secret) iter arg as its operand.
@@ -956,6 +965,157 @@ struct HoistMgmtAttrToRegionBranchOpInterface
   }
 };
 
+struct MakeNonSecretIterArgsPublic
+    : public OpInterfaceRewritePattern<LoopLikeOpInterface> {
+  using OpInterfaceRewritePattern<
+      LoopLikeOpInterface>::OpInterfaceRewritePattern;
+
+  LogicalResult matchAndRewrite(LoopLikeOpInterface op,
+                                PatternRewriter& rewriter) const override {
+    // Distributing generic through a loop results in default-concealing all
+    // iter_args, and this pattern waits until after other distribute-generic
+    // patterns are done to clean up iter_args that are secret.concealed just
+    // before being yielded and can be made public.
+
+    bool changed = false;
+    SmallVector<Value> newInits;
+    SmallVector<bool> wasChanged(op.getInitsMutable().size(), false);
+
+    auto regionIterArgs = op.getRegionIterArgs();
+    auto yieldedValuesOpt = op.getYieldedValuesMutable();
+    if (!yieldedValuesOpt.has_value()) return failure();
+    auto yieldedValues = yieldedValuesOpt.value();
+
+    // First we iterate over the initializers and gather new inits which are
+    // either the original inits or the cleartexts of trivially concealed
+    // values.
+    for (auto [i, operand] : llvm::enumerate(op.getInitsMutable())) {
+      Value init = operand.get();
+      Value yieldOpnd = yieldedValues[i].get();
+      BlockArgument iterArg = regionIterArgs[i];
+
+      if (isa<SecretType>(iterArg.getType())) {
+        auto yieldConceal =
+            dyn_cast_or_null<ConcealOp>(yieldOpnd.getDefiningOp());
+        // The only case that needs checking is if the iter_arg is secret typed,
+        // and the yield operand is the direct result of a conceal op.
+        if (yieldConceal) {
+          auto initConceal = dyn_cast_or_null<ConcealOp>(init.getDefiningOp());
+          newInits.push_back(initConceal ? initConceal.getCleartext() : init);
+          wasChanged[i] = true;
+          changed = true;
+          continue;
+        }
+      }
+      newInits.push_back(init);
+    }
+
+    if (!changed) return failure();
+
+    // Then we populate an IR mapper that clones the loop op with the new inits
+    // and new result types matching those inits. We need to clone the op in
+    // order to change its result types due to the way results are laid out in
+    // memory in MLIR.
+    SmallVector<Type> newResultTypes(op->getResultTypes());
+    for (auto [i, operand] : llvm::enumerate(op.getInitsMutable())) {
+      if (wasChanged[i]) {
+        newResultTypes.push_back(newInits[i].getType());
+      }
+    }
+
+    IRMapping mp;
+    for (auto [i, operand] : llvm::enumerate(op.getInitsMutable())) {
+      if (wasChanged[i]) {
+        mp.map(operand.get(), newInits[i]);
+      }
+    }
+
+    auto* newOp =
+        cloneWithNewResultTypes(op.getOperation(), newResultTypes, mp);
+    auto newLoop = cast<LoopLikeOpInterface>(newOp);
+
+    // Next we update the iter_args. In the cloned loop the iter_args may still
+    // be secret when the inits were changed to be non-secret, but we can modify
+    // the op in place to update block arg types.
+    for (auto [i, operand] : llvm::enumerate(op.getInitsMutable())) {
+      if (wasChanged[i]) {
+        BlockArgument newIterArg = newLoop.getRegionIterArgs()[i];
+        newIterArg.setType(newInits[i].getType());
+        BlockArgument oldIterArg = op.getRegionIterArgs()[i];
+        rewriter.replaceAllUsesWith(oldIterArg, newIterArg);
+      }
+    }
+
+    auto& newRegion = newOp->getRegion(0);
+    auto* terminator = newRegion.front().getTerminator();
+
+    // The iter_args that had changed their type correspond to yielded values
+    // that were trivially concealed, and hence that conceal op can be replaced
+    // by its operand.
+    rewriter.modifyOpInPlace(terminator, [&]() {
+      for (auto [i, operand] : llvm::enumerate(op.getInitsMutable())) {
+        if (wasChanged[i]) {
+          auto yieldOpnd = yieldedValues[i].get();
+          auto concealOp = cast<ConcealOp>(yieldOpnd.getDefiningOp());
+          terminator->setOperand(i,
+                                 mp.lookupOrDefault(concealOp.getCleartext()));
+        }
+      }
+    });
+
+    // At this point, the original results of the for loop, which were all
+    // secret, will still expect secret types downstream, so we conceal after
+    // the loop ends to maintain type correctness. Later patterns will further
+    // simplify these trivial conceals (in particular, a nested loop that yields
+    // the result of the inner loop).
+    SmallVector<Value> newResults;
+    for (auto [i, result] : llvm::enumerate(op->getResults())) {
+      if (wasChanged[i]) {
+        rewriter.setInsertionPointAfter(newOp);
+        auto concealOp =
+            ConcealOp::create(rewriter, op.getLoc(), newOp->getResult(i));
+        newResults.push_back(concealOp.getResult());
+      } else {
+        newResults.push_back(newOp->getResult(i));
+      }
+    }
+    rewriter.replaceOp(op.getOperation(), newResults);
+
+    return success();
+  }
+};
+
+struct CleanUpConcealedLoopYields
+    : public OpInterfaceRewritePattern<LoopLikeOpInterface> {
+  using OpInterfaceRewritePattern<
+      LoopLikeOpInterface>::OpInterfaceRewritePattern;
+
+  LogicalResult matchAndRewrite(LoopLikeOpInterface op,
+                                PatternRewriter& rewriter) const override {
+    auto yieldedValuesOpt = op.getYieldedValuesMutable();
+    if (!yieldedValuesOpt.has_value()) return failure();
+    auto yieldedValues = yieldedValuesOpt.value();
+
+    bool changed = false;
+    for (auto [i, operand] : llvm::enumerate(op.getInitsMutable())) {
+      BlockArgument iterArg = op.getRegionIterArgs()[i];
+      Value yieldOpnd = yieldedValues[i].get();
+
+      if (!isa<SecretType>(iterArg.getType())) {
+        if (auto concealOp =
+                dyn_cast_or_null<ConcealOp>(yieldOpnd.getDefiningOp())) {
+          rewriter.modifyOpInPlace(yieldedValues[i].getOwner(), [&]() {
+            yieldedValues[i].set(concealOp.getCleartext());
+          });
+          changed = true;
+        }
+      }
+    }
+
+    return changed ? success() : failure();
+  }
+};
+
 struct DistributeGeneric
     : impl::SecretDistributeGenericBase<DistributeGeneric> {
   using SecretDistributeGenericBase::SecretDistributeGenericBase;
@@ -999,7 +1159,8 @@ struct DistributeGeneric
     // These patterns are shared with canonicalization
     patterns.add<FoldSecretSeparators, CollapseSecretlessGeneric,
                  ConcealThenGeneric, RemoveUnusedGenericArgs,
-                 RemoveNonSecretGenericArgs>(context);
+                 RemoveNonSecretGenericArgs, MakeNonSecretIterArgsPublic,
+                 HoistPlaintextOps, CleanUpConcealedLoopYields>(context);
     // TODO (#1221): Investigate whether folding (default: on) can be skipped
     // here.
     (void)applyPatternsGreedily(getOperation(), std::move(patterns));

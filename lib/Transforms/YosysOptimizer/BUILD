@@ -119,6 +119,7 @@ cc_library(
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TransformUtils",
+        "@llvm-project//mlir:SideEffectInterfaces",
         "@llvm-project//mlir:Transforms",
         # yosys:yosys_core  # buildcleaner: keep
         # yosys:yosys_lib  # buildcleaner: keep

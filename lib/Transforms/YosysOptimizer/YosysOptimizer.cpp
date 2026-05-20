@@ -46,10 +46,11 @@
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
-#include "mlir/include/mlir/Pass/PassManager.h"          // from @llvm-project
-#include "mlir/include/mlir/Pass/PassRegistry.h"         // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
+#include "mlir/include/mlir/Interfaces/SideEffectInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"       // from @llvm-project
+#include "mlir/include/mlir/Pass/PassRegistry.h"      // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/Passes.h"  // from @llvm-project
 
@@ -334,6 +335,36 @@ class FrontloadAffineApply : public OpRewritePattern<affine::AffineApplyOp> {
   affine::AffineForOp parentOp;
 };
 
+class FrontloadSpeculatableOps : public RewritePattern {
+ public:
+  FrontloadSpeculatableOps(MLIRContext* context, affine::AffineForOp parentOp)
+      : RewritePattern(MatchAnyOpTypeTag(), /*benefit=*/2, context),
+        parentOp(parentOp) {}
+
+  LogicalResult matchAndRewrite(Operation* op,
+                                PatternRewriter& rewriter) const override {
+    if (!isa<arith::SubIOp>(op)) return failure();
+
+    auto forOp = op->getParentOfType<affine::AffineForOp>();
+    if (!forOp || forOp != parentOp) return failure();
+
+    for (auto& earlierOp : forOp.getBody()->getOperations()) {
+      if (&earlierOp == op) break;
+
+      if (isa<secret::GenericOp>(earlierOp)) {
+        rewriter.setInsertionPoint(&earlierOp);
+        auto* newOp = rewriter.clone(*op);
+        rewriter.replaceOp(op, newOp->getResults());
+        return success();
+      }
+    }
+    return failure();
+  }
+
+ private:
+  affine::AffineForOp parentOp;
+};
+
 static LogicalResult unrollAndMergeGenerics(Operation* op, int unrollFactor,
                                             DominanceInfo& domInfo,
                                             PostDominanceInfo& postDomInfo) {
@@ -353,14 +384,14 @@ static LogicalResult unrollAndMergeGenerics(Operation* op, int unrollFactor,
         // time.
         affine::AffineForOp innerMostLoop = nestedLoops.back();
         // two ops because the last one must be affine.yield
-        bool containsSingleOp =
-            innerMostLoop.getBody()->getOperations().size() == 2;
-        bool firstOpIsGeneric = isa<secret::GenericOp>(
-            innerMostLoop.getBody()->getOperations().front());
-        if (!containsSingleOp || !firstOpIsGeneric) {
+        int genericOpCount = 0;
+        for (auto& op : innerMostLoop.getBody()->getOperations()) {
+          if (isa<secret::GenericOp>(op)) genericOpCount++;
+        }
+        if (genericOpCount != 1) {
           LLVM_DEBUG(innerMostLoop.emitRemark()
-                     << "Skipping loop nest because either it contains more "
-                     << "than one op or its sole op is not a generic op.\n");
+                     << "Skipping loop nest because it does not contain "
+                        "exactly one generic op.\n");
           return WalkResult::skip();
         }
 
@@ -370,8 +401,9 @@ static LogicalResult unrollAndMergeGenerics(Operation* op, int unrollFactor,
         LLVM_DEBUG(op->emitRemark() << "Post loop unroll");
 
         mlir::RewritePatternSet patterns(op->getContext());
-        patterns.add<FrontloadAffineApply, secret::MergeAdjacentGenerics>(
-            op->getContext(), innerMostLoop);
+        patterns.add<FrontloadAffineApply, FrontloadSpeculatableOps,
+                     secret::MergeAdjacentGenerics>(op->getContext(),
+                                                    innerMostLoop);
         // TODO (#1221): Investigate whether folding (default: on) can be
         // skipped here.
         if (failed(applyPatternsGreedily(op, std::move(patterns)))) {
