@@ -328,7 +328,12 @@ LogicalResult LattigoEmitter::printOperation(affine::AffineForOp op) {
   for (auto i = 0; i < op.getNumRegionIterArgs(); ++i) {
     Value opResult = op.getResult(i);
     Value iterArg = op.getRegionIterArgs()[i];
-    os << getName(opResult) << " := " << getName(iterArg) << "\n";
+    std::string resultName = getName(opResult);
+    if (resultName == "_") {
+      os << resultName << " = " << getName(iterArg) << "\n";
+    } else {
+      os << resultName << " := " << getName(iterArg) << "\n";
+    }
   }
   return success();
 }
@@ -970,7 +975,12 @@ LogicalResult LattigoEmitter::printOperation(scf::ForOp op) {
   for (int i = 0; i < op.getNumResults(); ++i) {
     Value opResult = op.getResult(i);
     Value iterArg = op.getRegionIterArg(i);
-    os << getName(opResult) << " := " << getName(iterArg) << "\n";
+    std::string resultName = getName(opResult);
+    if (resultName == "_") {
+      os << resultName << " = " << getName(iterArg) << "\n";
+    } else {
+      os << resultName << " := " << getName(iterArg) << "\n";
+    }
   }
   return success();
 }
