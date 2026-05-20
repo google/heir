@@ -162,6 +162,7 @@ cc_library(
         "@heir//lib/Transforms/ValidateNoise",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineTransforms",
+        "@llvm-project//mlir:LinalgTransforms",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Transforms",
     ],

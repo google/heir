@@ -7,7 +7,7 @@
 
 namespace mlir::heir {
 
-void oneShotBufferize(OpPassManager& manager);
+void oneShotBufferize(OpPassManager& manager, bool includeDeallocation = true);
 
 void mathToPolynomialApproximationBuilder(OpPassManager& pm);
 

@@ -812,13 +812,19 @@ FailureOr<presburger::IntegerRelation> getSliceInsertionRelation(
   // Add bounds for the source dimensions.
   auto domainOffset = result.getVarKindOffset(VarKind::Domain);
   for (int i = 0; i < sliceType.getRank(); ++i) {
-    addBounds(result, domainOffset + i, 0, sliceType.getDimSize(i) - 1);
+    auto dimSize = sliceType.getDimSize(i);
+    if (!ShapedType::isDynamic(dimSize)) {
+      addBounds(result, domainOffset + i, 0, dimSize - 1);
+    }
   }
 
   // Add bounds for the result dimensions.
   auto rangeOffset = result.getVarKindOffset(VarKind::Range);
   for (int i = 0; i < resultType.getRank(); ++i) {
-    addBounds(result, rangeOffset + i, 0, resultType.getDimSize(i) - 1);
+    auto dimSize = resultType.getDimSize(i);
+    if (!ShapedType::isDynamic(dimSize)) {
+      addBounds(result, rangeOffset + i, 0, dimSize - 1);
+    }
   }
 
   // Source tensor's dimensions (d0, d1, ...) are mapped sequentially to the

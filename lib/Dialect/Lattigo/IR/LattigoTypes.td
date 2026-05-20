@@ -8,10 +8,11 @@ include "mlir/IR/DialectBase.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/OpAsmInterface.td"
+include "mlir/IR/BuiltinTypeInterfaces.td"
 
 // A base class for all types in this dialect
 class Lattigo_Type<string name, string typeMnemonic, list<Trait> traits = []>
-    : TypeDef<Lattigo_Dialect, name, traits # [OpAsmTypeInterface]> {
+    : TypeDef<Lattigo_Dialect, name, traits # [OpAsmTypeInterface, MemRefElementTypeInterface]> {
   let mnemonic = typeMnemonic;
 
   string asmName = ?;

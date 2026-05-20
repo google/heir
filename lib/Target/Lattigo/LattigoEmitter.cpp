@@ -74,9 +74,22 @@ LogicalResult translateToLattigo(Operation* op, llvm::raw_ostream& os,
   LogicalResult result = emitter.translate(*op);
 
   // Now write the materialized prelude and body to the outstream.
+  emitter.filterImports(strOs.str());
   emitter.emitPrelude(os);
   os << strOs.str();
   return result;
+}
+
+void LattigoEmitter::filterImports(const std::string& body) {
+  if (body.find("rlwe.") == std::string::npos) {
+    imports.erase(std::string(kRlweImport));
+  }
+  if (body.find("bgv.") == std::string::npos) {
+    imports.erase(std::string(kBgvImport));
+  }
+  if (body.find("ckks.") == std::string::npos) {
+    imports.erase(std::string(kCkksImport));
+  }
 }
 
 LogicalResult LattigoEmitter::translate(Operation& op) {
@@ -108,6 +121,13 @@ LogicalResult LattigoEmitter::translate(Operation& op) {
                 tensor::FromElementsOp, tensor::SplatOp, tensor::ExpandShapeOp,
                 tensor::CollapseShapeOp>(
               [&](auto op) { return printOperation(op); })
+          // MemRef ops
+          .Case<memref::AllocOp, memref::LoadOp, memref::StoreOp,
+                memref::CopyOp, memref::GlobalOp, memref::GetGlobalOp,
+                memref::ExpandShapeOp, memref::CollapseShapeOp, memref::CastOp,
+                memref::SubViewOp, memref::ExtractStridedMetadataOp,
+                memref::DimOp>([&](auto op) { return printOperation(op); })
+
           // Lattigo ops
           .Case<
               // RLWE
@@ -207,6 +227,11 @@ LogicalResult LattigoEmitter::printOperation(func::FuncOp funcOp) {
   }
   os << "{\n";
   os.indent();
+
+  declaredVars.clear();
+  for (Value arg : funcOp.getArguments()) {
+    declaredVars.insert(getName(arg));
+  }
 
   // body
   for (Block& block : funcOp.getBlocks()) {
@@ -712,6 +737,18 @@ LogicalResult LattigoEmitter::printOperation(arith::IndexCastOp op) {
   return typecast(op.getOperand(), op.getOut());
 }
 
+void LattigoEmitter::emitAssignment(std::string_view name,
+                                    std::string_view valueExpr) {
+  if (name == "_") {
+    os << "_ = " << valueExpr << "\n";
+  } else if (declaredVars.count(std::string(name))) {
+    os << name << " = " << valueExpr << "\n";
+  } else {
+    os << name << " := " << valueExpr << "\n";
+    declaredVars.insert(std::string(name));
+  }
+}
+
 LogicalResult LattigoEmitter::printBinaryOp(Operation* op, ::mlir::Value lhs,
                                             ::mlir::Value rhs,
                                             std::string_view opName) {
@@ -732,6 +769,9 @@ LogicalResult LattigoEmitter::printOperation(arith::AddFOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(arith::AndIOp op) {
+  if (op.getType().isInteger(1)) {
+    return printBinaryOp(op, op.getLhs(), op.getRhs(), "&&");
+  }
   return printBinaryOp(op, op.getLhs(), op.getRhs(), "&");
 }
 
@@ -815,6 +855,9 @@ LogicalResult LattigoEmitter::printOperation(arith::NegFOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(arith::OrIOp op) {
+  if (op.getType().isInteger(1)) {
+    return printBinaryOp(op, op.getLhs(), op.getRhs(), "||");
+  }
   return printBinaryOp(op, op.getLhs(), op.getRhs(), "|");
 }
 
@@ -921,15 +964,17 @@ LogicalResult LattigoEmitter::printOperation(scf::IfOp op) {
   os.unindent();
   os << "}";
 
-  os << llvm::formatv(" else {{\n");
-  os.indent();
-  for (Operation& op : *op.elseBlock()) {
-    if (failed(translate(op))) {
-      return op.emitOpError() << "Failed to translate for if else block";
+  if (!op.getElseRegion().empty()) {
+    os << " else {\n";
+    os.indent();
+    for (Operation& op : op.getElseRegion().front()) {
+      if (failed(translate(op))) {
+        return op.emitOpError() << "Failed to translate for if else block";
+      }
     }
+    os.unindent();
+    os << "}";
   }
-  os.unindent();
-  os << "}";
 
   os << "\n";
   return success();
@@ -1363,6 +1408,256 @@ LogicalResult LattigoEmitter::printOperation(tensor::SplatOp op) {
      << getName(op.getInput()) << "}\n";
   os << resultName << " := slices.Repeat(" << tmpVar << ", " << tensorSize
      << ")\n";
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(memref::AllocOp op) {
+  MemRefType type = op.getType();
+  auto eltTypeStr = convertType(type.getElementType());
+  if (failed(eltTypeStr)) return failure();
+
+  int64_t size = 1;
+  for (int64_t dim : type.getShape()) {
+    size *= dim;
+  }
+
+  emitAssignment(
+      getName(op.getResult()),
+      "make([]" + eltTypeStr.value() + ", " + std::to_string(size) + ")");
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(memref::LoadOp op) {
+  std::string name = getName(op.getResult());
+  std::string rhsExpr = getName(op.getMemref()) + "[";
+  if (op.getIndices().empty()) {
+    rhsExpr += "0";
+  } else {
+    rhsExpr +=
+        flattenIndexExpression(op.getMemref().getType(), op.getIndices(),
+                               [&](Value value) { return getName(value); });
+  }
+  rhsExpr += "]";
+
+  emitAssignment(name, rhsExpr);
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(memref::StoreOp op) {
+  os << getName(op.getMemref()) << "[";
+  if (op.getIndices().empty()) {
+    os << "0";
+  } else {
+    os << flattenIndexExpression(op.getMemref().getType(), op.getIndices(),
+                                 [&](Value value) { return getName(value); });
+  }
+  os << "] = " << getName(op.getValueToStore()) << "\n";
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(memref::CopyOp op) {
+  os << "copy(" << getName(op.getTarget()) << ", " << getName(op.getSource())
+     << ")\n";
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(memref::GlobalOp op) {
+  auto type = cast<MemRefType>(op.getType());
+  auto eltTypeStr = convertType(type.getElementType());
+  if (failed(eltTypeStr)) return failure();
+
+  os << "var " << op.getSymName() << " = ";
+
+  auto initAttr = op.getInitialValueAttr();
+  if (!initAttr) {
+    return op.emitError("memref.global must have an initial value");
+  }
+
+  if (auto denseAttr = dyn_cast<DenseElementsAttr>(initAttr)) {
+    if (denseAttr.isSplat()) {
+      imports.insert(std::string(kSlicesImport));
+      auto eltType = type.getElementType();
+      std::string valStr;
+      if (eltType.isF32() || eltType.isF64()) {
+        FloatAttr splatAttr = denseAttr.getSplatValue<FloatAttr>();
+        valStr = std::to_string(splatAttr.getValueAsDouble());
+      } else if (eltType.isInteger(1)) {
+        valStr = denseAttr.getSplatValue<IntegerAttr>().getInt() != 0 ? "true"
+                                                                      : "false";
+      } else if (llvm::isa<IntegerType>(eltType)) {
+        valStr =
+            std::to_string(denseAttr.getSplatValue<IntegerAttr>().getInt());
+      } else {
+        return op.emitError("Unsupported splat element type");
+      }
+
+      int64_t size = 1;
+      for (int64_t dim : type.getShape()) {
+        size *= dim;
+      }
+
+      os << "slices.Repeat([]" << eltTypeStr.value() << "{" << valStr << "}, "
+         << size << ")\n";
+    } else {
+      // Non-splat, print as list
+      os << "[]" << eltTypeStr.value() << "{";
+      bool first = true;
+      auto eltType = type.getElementType();
+      if (eltType.isF32() || eltType.isF64()) {
+        for (FloatAttr val : denseAttr.getValues<FloatAttr>()) {
+          if (!first) os << ", ";
+          os << val.getValueAsDouble();
+          first = false;
+        }
+      } else if (eltType.isInteger(1)) {
+        for (auto attr : denseAttr.getValues<Attribute>()) {
+          if (!first) os << ", ";
+          os << (cast<IntegerAttr>(attr).getInt() != 0 ? "true" : "false");
+          first = false;
+        }
+      } else if (llvm::isa<IntegerType>(eltType)) {
+        for (auto attr : denseAttr.getValues<Attribute>()) {
+          if (!first) os << ", ";
+          os << cast<IntegerAttr>(attr).getInt();
+          first = false;
+        }
+      } else {
+        return op.emitError("Unsupported element type for dense attribute");
+      }
+      os << "}\n";
+    }
+  } else {
+    return op.emitError(
+        "Only DenseElementsAttr is supported for memref.global");
+  }
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(memref::GetGlobalOp op) {
+  os << getName(op.getResult()) << " := " << op.getName() << "\n";
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(memref::ExpandShapeOp op) {
+  emitAssignment(getName(op.getResult()), getName(op.getSrc()));
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(memref::CollapseShapeOp op) {
+  emitAssignment(getName(op.getResult()), getName(op.getSrc()));
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(memref::CastOp op) {
+  std::string name = getName(op.getResult());
+  emitAssignment(name, getName(op.getSource()));
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(memref::SubViewOp op) {
+  MemRefType srcType = op.getSourceType();
+  auto shape = srcType.getShape();
+
+  auto offsets = op.getMixedOffsets();
+  auto sizes = op.getMixedSizes();
+
+  SmallVector<std::string> offsetStrings;
+  for (auto o : offsets) {
+    if (auto attr = llvm::dyn_cast_if_present<Attribute>(o)) {
+      offsetStrings.push_back(std::to_string(cast<IntegerAttr>(attr).getInt()));
+    } else {
+      offsetStrings.push_back(getName(cast<Value>(o)));
+    }
+  }
+
+  SmallVector<std::string> sizeStrings;
+  for (auto s : sizes) {
+    if (auto attr = llvm::dyn_cast_if_present<Attribute>(s)) {
+      sizeStrings.push_back(std::to_string(cast<IntegerAttr>(attr).getInt()));
+    } else {
+      sizeStrings.push_back(getName(cast<Value>(s)));
+    }
+  }
+
+  std::string flatOffsetStr = flattenIndexExpression(shape, offsetStrings);
+
+  std::string flatSizeStr = "";
+  bool first = true;
+  for (const auto& s : sizeStrings) {
+    if (!first) flatSizeStr += " * ";
+    flatSizeStr += s;
+    first = false;
+  }
+
+  os << getName(op.getResult()) << " := " << getName(op.getSource()) << "["
+     << flatOffsetStr << " : (" << flatOffsetStr << " + " << flatSizeStr
+     << ")]\n";
+
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(
+    memref::ExtractStridedMetadataOp op) {
+  std::string baseBufferName = getName(op.getBaseBuffer());
+  if (baseBufferName != "_") {
+    if (declaredVars.count(baseBufferName)) {
+      os << baseBufferName << " = " << getName(op.getSource()) << "\n";
+    } else {
+      os << baseBufferName << " := " << getName(op.getSource()) << "\n";
+      declaredVars.insert(baseBufferName);
+    }
+    os << "_ = " << baseBufferName << "\n";
+  }
+
+  std::string offsetName = getName(op.getOffset());
+  if (offsetName != "_") {
+    if (declaredVars.count(offsetName)) {
+      os << offsetName << " = int64(0)\n";
+    } else {
+      os << offsetName << " := int64(0)\n";
+      declaredVars.insert(offsetName);
+    }
+    os << "_ = " << offsetName << "\n";
+  }
+
+  int rank = cast<MemRefType>(op.getSource().getType()).getRank();
+
+  for (int i = 0; i < rank; ++i) {
+    std::string sizeName = getName(op.getSizes()[i]);
+    if (sizeName != "_") {
+      if (declaredVars.count(sizeName)) {
+        os << sizeName << " = int64(1) // dummy size\n";
+      } else {
+        os << sizeName << " := int64(1) // dummy size\n";
+        declaredVars.insert(sizeName);
+      }
+      os << "_ = " << sizeName << "\n";
+    }
+  }
+  for (int i = 0; i < rank; ++i) {
+    std::string strideName = getName(op.getStrides()[i]);
+    if (strideName != "_") {
+      if (declaredVars.count(strideName)) {
+        os << strideName << " = int64(1) // dummy stride\n";
+      } else {
+        os << strideName << " := int64(1) // dummy stride\n";
+        declaredVars.insert(strideName);
+      }
+      os << "_ = " << strideName << "\n";
+    }
+  }
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(memref::DimOp op) {
+  auto constantOp = op.getConstantIndex();
+  if (constantOp && *constantOp == 0) {
+    std::string name = getName(op.getResult());
+    emitAssignment(name, "int64(len(" + getName(op.getSource()) + "))");
+  } else {
+    return op.emitError(
+        "Only dimension 0 is supported for memref.dim on flattened memrefs");
+  }
   return success();
 }
 
@@ -2030,13 +2325,13 @@ LogicalResult LattigoEmitter::printOperation(CKKSLinearTransformOp op) {
   auto outputName = getName(op.getOutput());
   auto diagonalsName = getName(op.getDiagonals());
 
-  // Get the diagonals tensor type to determine dimensions
-  auto diagonalsTensor = cast<RankedTensorType>(op.getDiagonals().getType());
-  if (diagonalsTensor.getRank() != 2) {
+  // Get the diagonals type to determine dimensions
+  auto diagonalsType = cast<ShapedType>(op.getDiagonals().getType());
+  if (diagonalsType.getRank() != 2) {
     return op.emitOpError("Expected 2D tensor for diagonals");
   }
 
-  int64_t slotsPerDiagonal = diagonalsTensor.getShape()[1];
+  int64_t slotsPerDiagonal = diagonalsType.getShape()[1];
 
   // Generate unique variable names
   std::string diagonalsMapName = outputName + "_diags";
@@ -2326,6 +2621,14 @@ FailureOr<std::string> LattigoEmitter::convertType(Type type) {
         auto result = eltTyResult.value();
         return std::string("[]") + result;
       })
+      .Case<MemRefType>([&](auto ty) -> FailureOr<std::string> {
+        auto eltTyResult = convertType(ty.getElementType());
+        if (failed(eltTyResult)) {
+          return failure();
+        }
+        auto result = eltTyResult.value();
+        return std::string("[]") + result;
+      })
       .Default([&](Type) -> FailureOr<std::string> { return failure(); });
 }
 
@@ -2385,11 +2688,11 @@ void registerToLattigoTranslation() {
                                   translateOptions->extraImports);
       },
       [](DialectRegistry& registry) {
-        registry
-            .insert<affine::AffineDialect, rns::RNSDialect, arith::ArithDialect,
-                    func::FuncDialect, tensor::TensorDialect,
-                    tensor_ext::TensorExtDialect, lattigo::LattigoDialect,
-                    mgmt::MgmtDialect, scf::SCFDialect>();
+        registry.insert<affine::AffineDialect, rns::RNSDialect,
+                        arith::ArithDialect, func::FuncDialect,
+                        tensor::TensorDialect, tensor_ext::TensorExtDialect,
+                        lattigo::LattigoDialect, memref::MemRefDialect,
+                        mgmt::MgmtDialect, scf::SCFDialect>();
       });
 }
 
@@ -2405,11 +2708,11 @@ void registerToLattigoPreprocessingTranslation() {
             });
       },
       [](DialectRegistry& registry) {
-        registry
-            .insert<affine::AffineDialect, rns::RNSDialect, arith::ArithDialect,
-                    func::FuncDialect, tensor::TensorDialect,
-                    tensor_ext::TensorExtDialect, lattigo::LattigoDialect,
-                    mgmt::MgmtDialect, scf::SCFDialect>();
+        registry.insert<affine::AffineDialect, rns::RNSDialect,
+                        arith::ArithDialect, func::FuncDialect,
+                        tensor::TensorDialect, tensor_ext::TensorExtDialect,
+                        lattigo::LattigoDialect, memref::MemRefDialect,
+                        mgmt::MgmtDialect, scf::SCFDialect>();
       });
 }
 
@@ -2425,11 +2728,11 @@ void registerToLattigoPreprocessedTranslation() {
             });
       },
       [](DialectRegistry& registry) {
-        registry
-            .insert<affine::AffineDialect, rns::RNSDialect, arith::ArithDialect,
-                    func::FuncDialect, tensor::TensorDialect,
-                    tensor_ext::TensorExtDialect, lattigo::LattigoDialect,
-                    mgmt::MgmtDialect, scf::SCFDialect>();
+        registry.insert<affine::AffineDialect, rns::RNSDialect,
+                        arith::ArithDialect, func::FuncDialect,
+                        tensor::TensorDialect, tensor_ext::TensorExtDialect,
+                        lattigo::LattigoDialect, memref::MemRefDialect,
+                        mgmt::MgmtDialect, scf::SCFDialect>();
       });
 }
 
