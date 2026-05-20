@@ -47,6 +47,10 @@ LogicalResult RLWENewEncryptorOp::verify() {
   return success();
 }
 
+int RLWEDropLevelNewOp::getLevelsToDrop() { return getLevelToDrop(); }
+
+int RLWEDropLevelOp::getLevelsToDrop() { return getLevelToDrop(); }
+
 LogicalResult BGVRotateColumnsNewOp::verify() {
   return containsExactlyOneOrEmitError(getOperation(), getDynamicShift(),
                                        getStaticShift());

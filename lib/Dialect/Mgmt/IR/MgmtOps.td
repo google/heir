@@ -15,7 +15,7 @@ class Mgmt_Op<string mnemonic, list<Trait> traits = []> :
   let cppNamespace = "::mlir::heir::mgmt";
 }
 
-def Mgmt_ModReduceOp : Mgmt_Op<"modreduce"> {
+def Mgmt_ModReduceOp : Mgmt_Op<"modreduce", [ReducesLevelOpInterface]> {
   let summary = "Modulus switch the input ciphertext down by one limb (RNS assumed)";
 
   let description = [{
@@ -35,7 +35,8 @@ def Mgmt_ModReduceOp : Mgmt_Op<"modreduce"> {
   let hasCanonicalizer = 1;
 }
 
-def Mgmt_LevelReduceOp : Mgmt_Op<"level_reduce"> {
+def Mgmt_LevelReduceOp : Mgmt_Op<"level_reduce",
+  [DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop"]>]> {
   let summary = "Reduce the level of input ciphertext by dropping the last k RNS limbs";
 
   let description = [{
@@ -60,7 +61,7 @@ def Mgmt_LevelReduceOp : Mgmt_Op<"level_reduce"> {
   let hasCanonicalizer = 1;
 }
 
-def Mgmt_LevelReduceMinOp : Mgmt_Op<"level_reduce_min"> {
+def Mgmt_LevelReduceMinOp : Mgmt_Op<"level_reduce_min", [ReducesAllLevelsOpInterface]> {
   let summary = "Reduce the level of input ciphertext to the minimum level";
   let description = [{
     This scheme-agonistic operation reduces the ciphertext level
@@ -99,7 +100,7 @@ def Mgmt_RelinearizeOp : Mgmt_Op<"relinearize"> {
   let assemblyFormat = "operands attr-dict `:` type($output)";
 }
 
-def Mgmt_BootstrapOp : Mgmt_Op<"bootstrap", [ResetsMulDepthOpInterface]> {
+def Mgmt_BootstrapOp : Mgmt_Op<"bootstrap", [ResetsMulDepthOpInterface, ResetsLevelOpInterface]> {
   let summary = "Bootstrap the input ciphertext to refresh its noise budget";
 
   let description = [{
