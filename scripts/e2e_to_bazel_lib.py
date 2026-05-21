@@ -29,22 +29,57 @@ def run_blaze_query(query_str, options=None):
     return ""
 
 
-def path_to_label(path):
+def path_to_label(path, base_path="third_party/heir"):
   """Attempts to convert a file path to a bazel label."""
   if path.startswith("//"):
     return path
-  if os.path.isfile(path):
-    dir_path = os.path.dirname(path)
-    file_name = os.path.basename(path)
-    if os.path.exists(os.path.join(dir_path, "BUILD")):
+
+  workspace_dir = os.environ.get("BUILD_WORKSPACE_DIRECTORY")
+
+  def check_exists(p):
+    if workspace_dir:
+      return os.path.exists(os.path.join(workspace_dir, p))
+    return os.path.exists(p)
+
+  def check_isfile(p):
+    if workspace_dir:
+      return os.path.isfile(os.path.join(workspace_dir, p))
+    return os.path.isfile(p)
+
+  resolved_path = path
+  if not check_isfile(resolved_path):
+    # Try relative to base_path
+    alt_path = os.path.join(base_path, path)
+    if check_isfile(alt_path):
+      resolved_path = alt_path
+    else:
+      # Try removing base_path/ prefix
+      prefix = base_path + "/"
+      if path.startswith(prefix):
+        alt_path = path[len(prefix) :]
+        if check_isfile(alt_path):
+          resolved_path = alt_path
+
+  if check_isfile(resolved_path):
+    dir_path = os.path.dirname(resolved_path)
+    file_name = os.path.basename(resolved_path)
+    if check_exists(os.path.join(dir_path, "BUILD")):
       return f"//{dir_path}:{file_name}"
+
   return path
 
 
-def get_heir_opt_target(target_or_path):
+def get_heir_opt_target(target_or_path, base_path="third_party/heir"):
   """Finds the heir_opt target associated with the given target or path."""
   # Normalize path to label if it looks like a file
-  label = path_to_label(target_or_path)
+  label = path_to_label(target_or_path, base_path=base_path)
+
+  workspace_dir = os.environ.get("BUILD_WORKSPACE_DIRECTORY")
+
+  def check_isdir(p):
+    if workspace_dir:
+      return os.path.isdir(os.path.join(workspace_dir, p))
+    return os.path.isdir(p)
 
   if label.endswith(".mlir"):
     query = f"kind(heir_opt, rdeps(//tests/Examples/..., {label}))"  # fmt: skip
@@ -55,8 +90,15 @@ def get_heir_opt_target(target_or_path):
       return targets[0]
     return None
 
-  if os.path.isdir(target_or_path):
-    label = target_or_path
+  resolved_path = target_or_path
+  if not check_isdir(resolved_path):
+    # Try relative to base_path
+    alt_path = os.path.join(base_path, target_or_path)
+    if check_isdir(alt_path):
+      resolved_path = alt_path
+
+  if check_isdir(resolved_path):
+    label = resolved_path
     if not label.startswith("//"):
       label = "//" + label
     query = f"kind(heir_opt, {label}:*)"

@@ -89,18 +89,32 @@ def normalize_lit_test_file_arg(
   if len(components) > 1:
     lit_test_file = components[0] + "/" + components[1]
 
-  if not os.path.exists(lit_test_file):
-    # Try relative to base_path if we are at workspace root
+  workspace_dir = os.environ.get("BUILD_WORKSPACE_DIRECTORY")
+
+  def check_exists(path):
+    if workspace_dir:
+      return os.path.exists(os.path.join(workspace_dir, path))
+    return os.path.exists(path)
+
+  def get_path(path):
+    if workspace_dir:
+      return os.path.join(workspace_dir, path)
+    return path
+
+  if not check_exists(lit_test_file):
+    # Try relative to base_path
     alt_path = os.path.join(base_path, lit_test_file)
-    if os.path.exists(alt_path):
-      lit_test_file = alt_path
+    if check_exists(alt_path):
+      lit_test_file = get_path(alt_path)
     else:
-      # Try removing base_path/ prefix if we are in that dir
+      # Try removing base_path/ prefix
       prefix = base_path + "/"
       if lit_test_file.startswith(prefix):
         alt_path = lit_test_file[len(prefix) :]
-        if os.path.exists(alt_path):
-          lit_test_file = alt_path
+        if check_exists(alt_path):
+          lit_test_file = get_path(alt_path)
+  else:
+    lit_test_file = get_path(lit_test_file)
 
   return lit_test_file
 

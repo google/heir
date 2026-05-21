@@ -148,6 +148,44 @@ class LitToBazelTest(absltest.TestCase):
           "third_party/heir/tests/foo.mlir",
       )
 
+  def test_normalize_lit_test_file_arg_with_workspace_dir(self):
+    """Tests for normalize_lit_test_file_arg with BUILD_WORKSPACE_DIRECTORY."""
+
+    def side_effect(path):
+      if path == "tests/foo.mlir":
+        return False
+      if path == "/workspace/tests/foo.mlir":
+        return True
+      return False
+
+    with patch("os.path.exists", side_effect=side_effect):
+      with patch.dict(
+          "os.environ", {"BUILD_WORKSPACE_DIRECTORY": "/workspace"}
+      ):
+        self.assertEqual(
+            normalize_lit_test_file_arg("tests/foo.mlir"),
+            "/workspace/tests/foo.mlir",
+        )
+
+  def test_normalize_lit_test_file_arg_with_workspace_dir_and_prefix(self):
+    """Tests for normalize_lit_test_file_arg with BUILD_WORKSPACE_DIRECTORY and prefix removal."""
+
+    def side_effect(path):
+      if path == "third_party/heir/tests/foo.mlir":
+        return False
+      if path == "/workspace/tests/foo.mlir":
+        return True
+      return False
+
+    with patch("os.path.exists", side_effect=side_effect):
+      with patch.dict(
+          "os.environ", {"BUILD_WORKSPACE_DIRECTORY": "/workspace"}
+      ):
+        self.assertEqual(
+            normalize_lit_test_file_arg("third_party/heir/tests/foo.mlir"),
+            "/workspace/tests/foo.mlir",
+        )
+
 
 if __name__ == "__main__":
   absltest.main()
