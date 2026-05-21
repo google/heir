@@ -1,9 +1,10 @@
 """Unit tests for entrypoint.py."""
 
-import unittest
-from unittest.mock import Mock
+import io
 import pathlib
 import shutil
+import unittest
+from unittest.mock import Mock, patch
 
 from scripts.torch_ci.entrypoint import CoverageRunner, CommandExecutor
 
@@ -60,6 +61,12 @@ class TestCoverageRunner(unittest.TestCase):
     table = self.runner.format_results_table(results)
     self.assertIn("op1", table)
     self.assertIn("PASS", table)
+
+  @patch("sys.stdout", new_callable=io.StringIO)
+  def test_run_all_no_spam_stdout(self, mock_stdout):
+    self.mock_executor.run.return_value = Mock(returncode=0, stderr="")
+    self.runner.run_all()
+    self.assertNotIn("Running coverage for", mock_stdout.getvalue())
 
 
 if __name__ == "__main__":
