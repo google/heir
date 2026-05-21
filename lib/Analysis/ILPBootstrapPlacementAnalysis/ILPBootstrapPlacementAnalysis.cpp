@@ -1,8 +1,10 @@
 #include "lib/Analysis/ILPBootstrapPlacementAnalysis/ILPBootstrapPlacementAnalysis.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <map>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -31,14 +33,18 @@
 // while ensuring level constraints are satisfied.
 //
 // ILP Formulation:
-// - Variables: level[value] for each SSA value, input_level[op] for each op,
-//   bootstrap[op] for each operation
+// - Variables: level[value] and scale[value] for each SSA value,
+//   input_level[op] and input_scale[op] for each op, bootstrap[op] for each
+//   operation
 // - Constraints:
 //   * Level bounds: 0 <= level[value] <= bootstrapWaterline (levels
 //   0..bootstrapWaterline)
 //   * Operand matching: for each op, operand_i_level == input_level[op]
 //   * Multiplication: output_level = input_level - 1
 //   * Non-mult: output_level = input_level
+//   * Scale constraints: mul input scale is the sum of operand scales,
+//     rescale decisions lower scale by scaleFactorBits, and bootstrap
+//     decisions require feasible level/scale input pairs.
 //   * Bootstrap (big-M): if bootstrap[op] = 1, level_after = bootstrapWaterline
 //                        else level_after = level_before
 // - Objective: minimize sum of bootstrap decisions
@@ -89,14 +95,26 @@ LogicalResult ILPBootstrapPlacementAnalysis::solve() {
   llvm::DenseMap<Value, math_opt::Variable> levelVars;
   // Map SSA values to level variables before bootstrap
   llvm::DenseMap<Value, math_opt::Variable> beforeBootstrapVars;
+  // Map SSA values to scale variables (after bootstrap decision)
+  llvm::DenseMap<Value, math_opt::Variable> scaleVars;
+  // Map SSA values to scale variables before bootstrap/output reduction
+  llvm::DenseMap<Value, math_opt::Variable> beforeBootstrapScaleVars;
   // Input level: level at which operands are consumed
   llvm::DenseMap<Operation*, math_opt::Variable> inputLevelVars;
+  // Input scale: scale at which operands are consumed.
+  llvm::DenseMap<Operation*, math_opt::Variable> inputScaleVars;
+  llvm::DenseMap<OpOperand*, math_opt::Variable> operandDropVars;
+  llvm::DenseMap<Value, math_opt::Variable> outputDropVars;
+  SmallVector<Operation*> trackedOps;
 
   // Big-M constant for big-M method
-  // NOTE: This BIG_M does not account for "freshly encrypted" ciphertexts
+  // NOTE: This bigM does not account for "freshly encrypted" ciphertexts
   // starting at a higher level than the bootstrap waterline. This should
   // be addressed in future work.
-  const int BIG_M = bootstrapWaterline;
+  const int bigM = bootstrapWaterline;
+  const int scaleMax = scaleFactorBits + 2 * scaleWaterline;
+  const int inputScaleMax = 2 * scaleMax;
+  const int scaleBigM = scaleMax + scaleFactorBits * bootstrapWaterline;
 
   // Create variables for all SSA values in the body
   // First, handle block arguments (inputs)
@@ -105,9 +123,13 @@ LogicalResult ILPBootstrapPlacementAnalysis::solve() {
 
     std::stringstream ss;
     ss << "levelArg" << arg.getArgNumber();
-    auto levelVar =
-        model.AddContinuousVariable(0, bootstrapWaterline, ss.str());
+    auto levelVar = model.AddIntegerVariable(0, bootstrapWaterline, ss.str());
     levelVars.insert(std::make_pair(arg, levelVar));
+    std::stringstream ssScale;
+    ssScale << "scaleArg" << arg.getArgNumber();
+    auto scaleVar =
+        model.AddContinuousVariable(scaleWaterline, scaleMax, ssScale.str());
+    scaleVars.insert(std::make_pair(arg, scaleVar));
     // Inputs start at maximum level (bootstrapWaterline)
     model.AddLinearConstraint(
         levelVar == bootstrapWaterline,
@@ -124,6 +146,7 @@ LogicalResult ILPBootstrapPlacementAnalysis::solve() {
     }
     if (isa<secret::YieldOp>(op)) continue;
 
+    trackedOps.push_back(&op);
     std::string opName = uniqueName(&op);
 
     // Create bootstrap decision variable for this operation
@@ -131,9 +154,12 @@ LogicalResult ILPBootstrapPlacementAnalysis::solve() {
     decisionVariables.insert(std::make_pair(&op, bootstrapVar));
 
     // Create input level variable: level at which operands are consumed
-    auto inputLevelVar = model.AddContinuousVariable(0, bootstrapWaterline,
-                                                     "inputLevel" + opName);
+    auto inputLevelVar =
+        model.AddIntegerVariable(0, bootstrapWaterline, "inputLevel" + opName);
     inputLevelVars.insert(std::make_pair(&op, inputLevelVar));
+    auto inputScaleVar = model.AddContinuousVariable(
+        scaleWaterline, inputScaleMax, "inputScale" + opName);
+    inputScaleVars.insert(std::make_pair(&op, inputScaleVar));
 
     // Create level variables for results
     for (OpResult result : op.getResults()) {
@@ -141,15 +167,32 @@ LogicalResult ILPBootstrapPlacementAnalysis::solve() {
 
       std::stringstream ss;
       ss << "level" << opName << result.getResultNumber();
-      auto levelVar =
-          model.AddContinuousVariable(0, bootstrapWaterline, ss.str());
+      auto levelVar = model.AddIntegerVariable(0, bootstrapWaterline, ss.str());
       levelVars.insert(std::make_pair(result, levelVar));
 
       std::stringstream ss2;
       ss2 << "levelBefore" << opName << result.getResultNumber();
       auto beforeVar =
-          model.AddContinuousVariable(0, bootstrapWaterline, ss2.str());
+          model.AddIntegerVariable(0, bootstrapWaterline, ss2.str());
       beforeBootstrapVars.insert(std::make_pair(result, beforeVar));
+
+      std::stringstream ssScale;
+      ssScale << "scale" << opName << result.getResultNumber();
+      auto scaleVar =
+          model.AddContinuousVariable(scaleWaterline, scaleMax, ssScale.str());
+      scaleVars.insert(std::make_pair(result, scaleVar));
+
+      std::stringstream ssBeforeScale;
+      ssBeforeScale << "scaleBefore" << opName << result.getResultNumber();
+      auto beforeScaleVar = model.AddContinuousVariable(
+          scaleWaterline, scaleMax, ssBeforeScale.str());
+      beforeBootstrapScaleVars.insert(std::make_pair(result, beforeScaleVar));
+
+      std::stringstream ss3;
+      ss3 << "outputDrop" << opName << result.getResultNumber();
+      auto outputDropVar =
+          model.AddIntegerVariable(0, bootstrapWaterline, ss3.str());
+      outputDropVars.insert(std::make_pair(result, outputDropVar));
     }
   }
 
@@ -157,21 +200,64 @@ LogicalResult ILPBootstrapPlacementAnalysis::solve() {
   for (auto& [op, _] : opaqueIds) {
     std::string opName = uniqueName(op);
 
-    // Get secret operands
-    SmallVector<Value> secretOperands;
-    getSecretOperands(op, solver, secretOperands);
-
-    // Operand matching: all operands must be at the same level when consumed.
-    // inputLevel = level at which operands are consumed.
+    // Operand matching: all operands must be consumed at the same level.
+    // Unlike the original model, a producer may stay at a higher level and a
+    // specific edge/use can level-reduce into this operation.
     auto inputLevelVar = inputLevelVars.at(op);
-    for (size_t i = 0; i < secretOperands.size(); ++i) {
-      Value operand = secretOperands[i];
+    auto inputScaleVar = inputScaleVars.at(op);
+    SmallVector<math_opt::Variable> secretOperandScaleVars;
+    for (OpOperand& operandUse : op->getOpOperands()) {
+      Value operand = operandUse.get();
+      if (!isSecret(operand, solver)) continue;
       if (!levelVars.contains(operand)) continue;
 
       std::stringstream ss;
-      ss << "operandMatch" << opName << "Op" << i;
-      model.AddLinearConstraint(levelVars.at(operand) == inputLevelVar,
-                                ss.str());
+      ss << "operandLevel" << opName << "Op" << operandUse.getOperandNumber();
+      auto operandLevelVar =
+          model.AddIntegerVariable(0, bootstrapWaterline, ss.str());
+      std::stringstream ssDrop;
+      ssDrop << "operandDrop" << opName << "Op"
+             << operandUse.getOperandNumber();
+      auto dropVar =
+          model.AddIntegerVariable(0, bootstrapWaterline, ssDrop.str());
+      operandDropVars.insert(std::make_pair(&operandUse, dropVar));
+
+      std::stringstream ssScale;
+      ssScale << "operandScale" << opName << "Op"
+              << operandUse.getOperandNumber();
+      auto operandScaleVar =
+          model.AddContinuousVariable(scaleWaterline, scaleMax, ssScale.str());
+      secretOperandScaleVars.push_back(operandScaleVar);
+
+      model.AddLinearConstraint(operandLevelVar == inputLevelVar,
+                                ss.str() + "MatchInput");
+      model.AddLinearConstraint(
+          levelVars.at(operand) == operandLevelVar + dropVar,
+          ssDrop.str() + "FromSource");
+      model.AddLinearConstraint(
+          operandScaleVar >= scaleVars.at(operand) - scaleFactorBits * dropVar,
+          ssScale.str() + "FromSource");
+      model.AddLinearConstraint(
+          operandScaleVar <= scaleVars.at(operand) - scaleFactorBits * dropVar,
+          ssScale.str() + "FromSourceUpper");
+    }
+
+    if (isa<arith::MulFOp>(op) || isa<arith::MulIOp>(op)) {
+      math_opt::LinearExpression mulInputScale;
+      for (auto operandScaleVar : secretOperandScaleVars) {
+        mulInputScale += operandScaleVar;
+      }
+      if (!secretOperandScaleVars.empty()) {
+        model.AddLinearConstraint(inputScaleVar == mulInputScale,
+                                  "mulInputScale" + opName);
+      }
+    } else {
+      for (auto [i, operandScaleVar] :
+           llvm::enumerate(secretOperandScaleVars)) {
+        model.AddLinearConstraint(
+            operandScaleVar == inputScaleVar,
+            "flowInputScale" + opName + std::to_string(i));
+      }
     }
 
     // Output level: for multiplication, output = input - 1; else output = input
@@ -189,6 +275,14 @@ LogicalResult ILPBootstrapPlacementAnalysis::solve() {
         std::stringstream ssMin;
         ssMin << "mulLevelMin" << opName << result.getResultNumber();
         model.AddLinearConstraint(resultBeforeVar >= 0, ssMin.str());
+
+        auto beforeScaleVar = beforeBootstrapScaleVars.at(result);
+        std::stringstream ssScale;
+        ssScale << "mulScaleOutput" << opName << result.getResultNumber();
+        // The pass always materializes mgmt.modreduce after multiplication;
+        // in CKKS this is the ordinary post-mul rescale by scaleFactorBits.
+        model.AddLinearConstraint(
+            beforeScaleVar == inputScaleVar - scaleFactorBits, ssScale.str());
       }
     } else {
       for (OpResult result : op->getResults()) {
@@ -200,6 +294,12 @@ LogicalResult ILPBootstrapPlacementAnalysis::solve() {
         std::stringstream ss;
         ss << "flowOutput" << opName << result.getResultNumber();
         model.AddLinearConstraint(resultBeforeVar == inputLevelVar, ss.str());
+
+        auto beforeScaleVar = beforeBootstrapScaleVars.at(result);
+        std::stringstream ssScale;
+        ssScale << "flowScaleOutput" << opName << result.getResultNumber();
+        model.AddLinearConstraint(beforeScaleVar == inputScaleVar,
+                                  ssScale.str());
       }
     }
 
@@ -211,43 +311,208 @@ LogicalResult ILPBootstrapPlacementAnalysis::solve() {
 
       auto resultLevelVar = levelVars.at(result);
       auto resultBeforeVar = beforeBootstrapVars.at(result);
+      auto resultScaleVar = scaleVars.at(result);
+      auto resultBeforeScaleVar = beforeBootstrapScaleVars.at(result);
+      auto outputDropVar = outputDropVars.at(result);
       auto bootstrapVar = decisionVariables.at(op);
 
       std::stringstream ss;
       ss << "bootstrapOutput" << opName << result.getResultNumber();
 
       // If bootstrap = 1: level_after = bootstrapWaterline
-      // If bootstrap = 0: levelAfter = levelBefore
+      // If bootstrap = 0: levelAfter = levelBefore - outputDrop
       // Using big-M:
-      // levelAfter <= bootstrapWaterline + BIG_M * (1 - bootstrap)
-      // levelAfter >= bootstrapWaterline - BIG_M * (1 - bootstrap)
-      // levelAfter <= levelBefore + BIG_M * bootstrap
-      // levelAfter >= levelBefore - BIG_M * bootstrap
+      // levelAfter <= bootstrapWaterline + bigM * (1 - bootstrap)
+      // levelAfter >= bootstrapWaterline - bigM * (1 - bootstrap)
+      // levelAfter <= levelBefore - outputDrop + bigM * bootstrap
+      // levelAfter >= levelBefore - outputDrop - bigM * bootstrap
 
       std::string cstName1 = ss.str() + "_1";
       model.AddLinearConstraint(
-          resultLevelVar <= bootstrapWaterline + BIG_M * (1 - bootstrapVar),
+          resultLevelVar <= bootstrapWaterline + bigM * (1 - bootstrapVar),
           cstName1);
 
       std::string cstName2 = ss.str() + "_2";
       model.AddLinearConstraint(
-          resultLevelVar >= bootstrapWaterline - BIG_M * (1 - bootstrapVar),
+          resultLevelVar >= bootstrapWaterline - bigM * (1 - bootstrapVar),
           cstName2);
 
       std::string cstName3 = ss.str() + "_3";
-      model.AddLinearConstraint(
-          resultLevelVar <= resultBeforeVar + BIG_M * bootstrapVar, cstName3);
+      model.AddLinearConstraint(resultLevelVar <= resultBeforeVar -
+                                                      outputDropVar +
+                                                      bigM * bootstrapVar,
+                                cstName3);
 
       std::string cstName4 = ss.str() + "_4";
+      model.AddLinearConstraint(resultLevelVar >= resultBeforeVar -
+                                                      outputDropVar -
+                                                      bigM * bootstrapVar,
+                                cstName4);
+
+      // Scale-aware bootstrap feasibility: bootstrapping is only
+      // valid when the input scale fits the input level, and a bootstrap
+      // produces a ciphertext with at least the base scale. Without
+      // bootstrapping, output rescale decisions lower scale by scaleFactorBits
+      // per dropped level.
+      std::string scaleCstName1 = ss.str() + "_scale_bts_input";
       model.AddLinearConstraint(
-          resultLevelVar >= resultBeforeVar - BIG_M * bootstrapVar, cstName4);
+          resultBeforeScaleVar <=
+              scaleFactorBits *
+                      (resultBeforeVar - bootstrapLevelLowerBound + 1) +
+                  scaleBigM * (1 - bootstrapVar),
+          scaleCstName1);
+
+      std::string scaleCstName2 = ss.str() + "_scale_bts_output";
+      model.AddLinearConstraint(
+          resultScaleVar >= scaleFactorBits - scaleBigM * (1 - bootstrapVar),
+          scaleCstName2);
+
+      std::string scaleCstName3 = ss.str() + "_scale_nobts_output";
+      model.AddLinearConstraint(
+          resultScaleVar >= resultBeforeScaleVar -
+                                scaleFactorBits * outputDropVar -
+                                scaleBigM * bootstrapVar,
+          scaleCstName3);
+
+      std::string scaleCstName4 = ss.str() + "_scale_nobts_output_upper";
+      model.AddLinearConstraint(
+          resultScaleVar <= resultBeforeScaleVar -
+                                scaleFactorBits * outputDropVar +
+                                scaleBigM * bootstrapVar,
+          scaleCstName4);
     }
   }
 
-  // Objective: minimize number of bootstraps
+  if (useOrbitCompression) {
+    llvm::DenseMap<Operation*, std::string> opColors;
+    llvm::DenseMap<Value, std::string> valueColors;
+
+    for (BlockArgument arg : body->getArguments()) {
+      if (isSecret(arg, solver)) {
+        valueColors.insert(
+            std::make_pair(arg, ("arg" + std::to_string(arg.getArgNumber()))));
+      }
+    }
+    for (Operation* op : trackedOps) {
+      opColors.insert(std::make_pair(op, op->getName().getStringRef().str()));
+      for (OpResult result : op->getResults()) {
+        if (isSecret(result, solver)) valueColors[result] = opColors.lookup(op);
+      }
+    }
+
+    auto join = [](SmallVector<std::string>& parts) {
+      std::sort(parts.begin(), parts.end());
+      std::string out;
+      llvm::raw_string_ostream os(out);
+      for (const auto& part : parts) os << part << ";";
+      return os.str();
+    };
+
+    int previousGroupCount = -1;
+    for (int iter = 0; iter < 32; ++iter) {
+      std::map<std::string, int> descriptorToGroup;
+      llvm::DenseMap<Operation*, std::string> nextOpColors;
+      llvm::DenseMap<Value, std::string> nextValueColors = valueColors;
+
+      for (Operation* op : trackedOps) {
+        SmallVector<Value> secretOperands;
+        getSecretOperands(op, solver, secretOperands);
+        SmallVector<std::string> operandColors;
+        for (Value operand : secretOperands) {
+          auto it = valueColors.find(operand);
+          operandColors.push_back(it == valueColors.end() ? "external"
+                                                          : it->second);
+        }
+
+        SmallVector<std::string> userColors;
+        for (OpResult result : op->getResults()) {
+          if (!isSecret(result, solver)) continue;
+          for (Operation* user : result.getUsers()) {
+            auto it = opColors.find(user);
+            userColors.push_back(it == opColors.end() ? "external"
+                                                      : it->second);
+          }
+        }
+
+        std::string descriptor;
+        llvm::raw_string_ostream os(descriptor);
+        os << op->getName().getStringRef() << "|in=" << join(operandColors)
+           << "|out=" << join(userColors) << "|results=";
+        for (OpResult result : op->getResults()) {
+          if (isSecret(result, solver)) os << result.getResultNumber() << ":";
+        }
+
+        auto [it, inserted] = descriptorToGroup.insert(
+            std::make_pair(os.str(), descriptorToGroup.size()));
+        std::string color = "orbit_group_" + std::to_string(it->second);
+        nextOpColors[op] = color;
+        for (OpResult result : op->getResults()) {
+          if (isSecret(result, solver)) nextValueColors[result] = color;
+        }
+      }
+
+      opColors = std::move(nextOpColors);
+      valueColors = std::move(nextValueColors);
+      int groupCount = descriptorToGroup.size();
+      if (groupCount == previousGroupCount) break;
+      previousGroupCount = groupCount;
+    }
+
+    std::map<std::string, SmallVector<Operation*>> groups;
+    for (Operation* op : trackedOps) groups[opColors.lookup(op)].push_back(op);
+
+    for (auto& [_, group] : groups) {
+      if (group.size() <= 1) continue;
+      Operation* anchor = group.front();
+      for (Operation* op : llvm::drop_begin(group)) {
+        model.AddLinearConstraint(
+            decisionVariables.at(op) == decisionVariables.at(anchor),
+            "orbitBootstrapDecision" + uniqueName(op));
+        model.AddLinearConstraint(
+            inputLevelVars.at(op) == inputLevelVars.at(anchor),
+            "orbitInputLevel" + uniqueName(op));
+        model.AddLinearConstraint(
+            inputScaleVars.at(op) == inputScaleVars.at(anchor),
+            "orbitInputScale" + uniqueName(op));
+
+        for (auto [anchorResult, result] :
+             llvm::zip_equal(anchor->getResults(), op->getResults())) {
+          if (!isSecret(anchorResult, solver) || !isSecret(result, solver)) {
+            continue;
+          }
+          model.AddLinearConstraint(
+              levelVars.at(result) == levelVars.at(anchorResult),
+              "orbitLevel" + uniqueName(op) +
+                  std::to_string(result.getResultNumber()));
+          model.AddLinearConstraint(
+              beforeBootstrapVars.at(result) ==
+                  beforeBootstrapVars.at(anchorResult),
+              "orbitBeforeLevel" + uniqueName(op) +
+                  std::to_string(result.getResultNumber()));
+          model.AddLinearConstraint(
+              scaleVars.at(result) == scaleVars.at(anchorResult),
+              "orbitScale" + uniqueName(op) +
+                  std::to_string(result.getResultNumber()));
+          model.AddLinearConstraint(
+              beforeBootstrapScaleVars.at(result) ==
+                  beforeBootstrapScaleVars.at(anchorResult),
+              "orbitBeforeScale" + uniqueName(op) +
+                  std::to_string(result.getResultNumber()));
+        }
+      }
+    }
+  }
+
+  // Objective: minimize a weighted placement cost.
   math_opt::LinearExpression obj;
   for (auto& [op, decisionVar] : decisionVariables) {
-    obj += decisionVar;
+    obj += bootstrapCost * decisionVar;
+  }
+  for (auto& [value, dropVar] : outputDropVars) {
+    obj += rescaleCost * dropVar;
+  }
+  for (auto& [operand, dropVar] : operandDropVars) {
+    obj += rescaleCost * dropVar;
   }
   model.Minimize(obj);
 
@@ -294,6 +559,17 @@ LogicalResult ILPBootstrapPlacementAnalysis::solve() {
   for (auto& [value, levelVar] : levelVars) {
     solutionLevelAfterBootstrap.insert(
         std::make_pair(value, (int)std::round(varMap[levelVar])));
+  }
+  for (auto& [operand, dropVar] : operandDropVars) {
+    int levelToDrop = (int)std::round(varMap[dropVar]);
+    if (levelToDrop <= 0) continue;
+    operandLevelReductions.push_back(
+        {operand->getOwner(), operand->getOperandNumber(), levelToDrop});
+  }
+  for (auto& [value, dropVar] : outputDropVars) {
+    int levelToDrop = (int)std::round(varMap[dropVar]);
+    if (levelToDrop <= 0) continue;
+    outputLevelReductions.push_back({value, levelToDrop});
   }
 
   return success();
