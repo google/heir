@@ -94,6 +94,50 @@ class E2EToBazelTest(absltest.TestCase):
     )
     self.assertIn(expected_command, output)
 
+  def test_path_to_label_with_workspace_dir(self):
+    """Tests for path_to_label with BUILD_WORKSPACE_DIRECTORY."""
+
+    def side_effect(path):
+      if path == "tests/foo.mlir":
+        return False
+      if path == "/workspace/tests/foo.mlir":
+        return True
+      if path == "/workspace/tests/BUILD":
+        return True
+      return False
+
+    with patch("os.path.isfile", side_effect=side_effect):
+      with patch("os.path.exists", side_effect=side_effect):
+        with patch.dict(
+            "os.environ", {"BUILD_WORKSPACE_DIRECTORY": "/workspace"}
+        ):
+          self.assertEqual(
+              e2e_to_bazel_lib.path_to_label("tests/foo.mlir"),
+              "//tests:foo.mlir",
+          )
+
+  def test_path_to_label_with_workspace_dir_and_prefix(self):
+    """Tests for path_to_label with BUILD_WORKSPACE_DIRECTORY and prefix removal."""
+
+    def side_effect(path):
+      if path == "third_party/heir/tests/foo.mlir":
+        return False
+      if path == "/workspace/tests/foo.mlir":
+        return True
+      if path == "/workspace/tests/BUILD":
+        return True
+      return False
+
+    with patch("os.path.isfile", side_effect=side_effect):
+      with patch("os.path.exists", side_effect=side_effect):
+        with patch.dict(
+            "os.environ", {"BUILD_WORKSPACE_DIRECTORY": "/workspace"}
+        ):
+          self.assertEqual(
+              e2e_to_bazel_lib.path_to_label("third_party/heir/tests/foo.mlir"),
+              "//tests:foo.mlir",
+          )
+
 
 if __name__ == "__main__":
   absltest.main()
