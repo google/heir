@@ -9,6 +9,30 @@ package(
 )
 
 cc_library(
+    name = "LayoutAlignment",
+    srcs = ["LayoutAlignment.cpp"],
+    hdrs = ["LayoutAlignment.h"],
+    deps = [
+        ":RotomTensorExtLayoutLowering",
+        "@heir//lib/Dialect/Rotom/IR:Dialect",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_test(
+    name = "LayoutAlignmentTest",
+    srcs = ["LayoutAlignmentTest.cpp"],
+    deps = [
+        ":LayoutAlignment",
+        "@googletest//:gtest_main",
+        "@heir//lib/Dialect/Rotom/IR:Dialect",
+        "@llvm-project//mlir:IR",
+    ],
+)
+
+cc_library(
     name = "RotomTensorExtLayoutLowering",
     srcs = ["RotomTensorExtLayoutLowering.cpp"],
     hdrs = ["RotomTensorExtLayoutLowering.h"],

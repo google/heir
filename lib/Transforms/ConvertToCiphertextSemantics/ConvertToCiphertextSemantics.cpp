@@ -8,6 +8,7 @@
 #include <set>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -26,6 +27,7 @@
 #include "lib/Kernel/KernelName.h"
 #include "lib/Kernel/Utils.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/AssignLayout.h"
+#include "lib/Transforms/ConvertToCiphertextSemantics/RotomTensorOpLowering.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/TypeConversion.h"
 #include "lib/Transforms/DropUnitDims/DropUnitDims.h"
 #include "lib/Utils/AttributeUtils.h"
@@ -2331,6 +2333,42 @@ struct DropRotateAndReduceUnitDims
   }
 };
 
+template <typename OpTy>
+struct ConvertRotomElementwiseBinary
+    : public ContextAwareOpConversionPattern<OpTy> {
+ public:
+  using ContextAwareOpConversionPattern<OpTy>::ContextAwareOpConversionPattern;
+
+  ConvertRotomElementwiseBinary(
+      const ContextAwareTypeConverter& contextAwareTypeConverter,
+      MLIRContext* context)
+      : ContextAwareOpConversionPattern<OpTy>(contextAwareTypeConverter,
+                                              context, /*benefit=*/10) {}
+
+  KernelName expectedKernel() const {
+    if constexpr (std::is_same_v<OpTy, arith::AddFOp> ||
+                  std::is_same_v<OpTy, arith::AddIOp>) {
+      return KernelName::RotomAdd;
+    }
+    return KernelName::RotomMul;
+  }
+
+  bool supportsRotomElementwise(OpTy op) const {
+    auto kernelAttr = op->template getAttrOfType<secret::KernelAttr>(
+        secret::SecretDialect::kKernelAttrName);
+    return kernelAttr && kernelAttr.getName() == expectedKernel();
+  }
+
+  LogicalResult matchAndRewrite(
+      OpTy op, typename OpTy::Adaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    if (!supportsRotomElementwise(op)) return failure();
+    return RotomTensorOpLowering(this->getTypeConverter())
+        .lowerElementwiseBinary(op.getOperation(), op.getResult(),
+                                adaptor.getOperands(), rewriter);
+  }
+};
+
 struct ConvertLinalgMatmul
     : public ContextAwareOpConversionPattern<linalg::MatmulOp> {
  public:
@@ -2355,6 +2393,12 @@ struct ConvertLinalgMatmul
     auto kernelAttr = op->getAttrOfType<secret::KernelAttr>(
         secret::SecretDialect::kKernelAttrName);
     return kernelAttr && kernelAttr.getName() == KernelName::MatmulBicyclic;
+  }
+
+  bool supportsRotomMatmul(linalg::MatmulOp op, OpAdaptor adaptor) const {
+    auto kernelAttr = op->getAttrOfType<secret::KernelAttr>(
+        secret::SecretDialect::kKernelAttrName);
+    return kernelAttr && kernelAttr.getName() == KernelName::RotomMatmul;
   }
 
   void bicyclicKernel(linalg::MatmulOp op, OpAdaptor adaptor,
@@ -2407,6 +2451,10 @@ struct ConvertLinalgMatmul
       bicyclicKernel(op, adaptor, rewriter);
       return success();
     }
+    if (supportsRotomMatmul(op, adaptor)) {
+      return RotomTensorOpLowering(getTypeConverter())
+          .lowerMatmul(op, adaptor, rewriter);
+    }
     return failure();
   }
 };
@@ -2429,13 +2477,17 @@ struct ConvertToCiphertextSemantics
       return isa<ModuleOp>(op) || hasMaterializedAttr(op);
     });
 
-    patterns.add<ConvertAnyAddingMaterializedAttr, ConvertConvertLayout,
-                 ConvertFunc, ConvertLinalgMatmul, ConvertLinalgReduce,
-                 ConvertLinalgDot, ConvertSecretGeneric,
-                 ConvertTensorCollapseShape, ConvertTensorExpandShape,
-                 ConvertTensorExtractLayout, ConvertTensorExtractSlice,
-                 ConvertTensorInsertLayout, ConvertTensorInsertSlice>(
-        typeConverter, context);
+    patterns
+        .add<ConvertAnyAddingMaterializedAttr, ConvertConvertLayout,
+             ConvertFunc, ConvertLinalgMatmul, ConvertLinalgReduce,
+             ConvertLinalgDot, ConvertRotomElementwiseBinary<arith::AddFOp>,
+             ConvertRotomElementwiseBinary<arith::AddIOp>,
+             ConvertRotomElementwiseBinary<arith::MulFOp>,
+             ConvertRotomElementwiseBinary<arith::MulIOp>, ConvertSecretGeneric,
+             ConvertTensorCollapseShape, ConvertTensorExpandShape,
+             ConvertTensorExtractLayout, ConvertTensorExtractSlice,
+             ConvertTensorInsertLayout, ConvertTensorInsertSlice>(typeConverter,
+                                                                  context);
     patterns.add<ConvertLinalgMatvecLayout, ConvertLinalgConv1D,
                  ConvertLinalgConv2D, ConvertLinalgConv2DNchwFchw>(
         typeConverter, context, unrollKernels);

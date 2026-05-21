@@ -9,6 +9,7 @@
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/StringRef.h"          // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"         // from @llvm-project
@@ -32,6 +33,17 @@ struct MaterializeTensorExtLayout
     ModuleOp module = getOperation();
     LogicalResult result = success();
 
+    auto lowerLayout = [&](Location loc,
+                           LayoutAttr layout) -> FailureOr<Attribute> {
+      FailureOr<std::string> isl =
+          RotomTensorExtLayoutLowering::lowerToTensorExtIsl(layout);
+      if (failed(isl)) {
+        emitError(loc, "unsupported rotom.layout for materialization");
+        return failure();
+      }
+      return tensor_ext::LayoutAttr::get(module.getContext(), *isl);
+    };
+
     walkValues(module, [&](Value value) {
       FailureOr<Attribute> rotomAttr =
           findAttributeAssociatedWith(value, kRotomLayoutAttrName);
@@ -40,21 +52,37 @@ struct MaterializeTensorExtLayout
       auto layout = dyn_cast<LayoutAttr>(*rotomAttr);
       if (!layout) return;
 
-      FailureOr<std::string> isl =
-          RotomTensorExtLayoutLowering::lowerToTensorExtIsl(layout);
-      if (failed(isl)) {
-        emitError(value.getLoc(),
-                  "unsupported rotom.layout for materialization");
+      FailureOr<Attribute> tensorExtLayout =
+          lowerLayout(value.getLoc(), layout);
+      if (failed(tensorExtLayout)) {
         result = failure();
         return;
       }
 
-      auto tensorExtLayout =
-          tensor_ext::LayoutAttr::get(module.getContext(), *isl);
       setAttributeAssociatedWith(value,
                                  tensor_ext::TensorExtDialect::kLayoutAttrName,
-                                 tensorExtLayout);
+                                 *tensorExtLayout);
       removeAttributeAssociatedWith(value, kRotomLayoutAttrName);
+    });
+
+    module.walk([&](func::FuncOp func) {
+      for (int64_t i = 0; i < func.getNumResults(); ++i) {
+        auto layout =
+            dyn_cast_or_null<LayoutAttr>(
+                func.getResultAttr(i, kRotomLayoutAttrName));
+        if (!layout) continue;
+
+        FailureOr<Attribute> tensorExtLayout =
+            lowerLayout(func.getLoc(), layout);
+        if (failed(tensorExtLayout)) {
+          result = failure();
+          return;
+        }
+
+        func.setResultAttr(i, tensor_ext::TensorExtDialect::kLayoutAttrName,
+                           *tensorExtLayout);
+        func.removeResultAttr(i, kRotomLayoutAttrName);
+      }
     });
 
     if (failed(result)) signalPassFailure();

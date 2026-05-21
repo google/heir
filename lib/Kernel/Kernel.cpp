@@ -34,6 +34,12 @@ std::string kernelNameAsStr(const KernelName& kernelName) {
       return "VecmatDiagonal";
     case KernelName::MatmulBicyclic:
       return "MatmulBicyclic";
+    case KernelName::RotomAdd:
+      return "RotomAdd";
+    case KernelName::RotomMul:
+      return "RotomMul";
+    case KernelName::RotomMatmul:
+      return "RotomMatmul";
     case KernelName::Dot:
       return "Dot";
     default:

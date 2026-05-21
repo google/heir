@@ -8,8 +8,14 @@ package(
 
 cc_library(
     name = "ConvertToCiphertextSemantics",
-    srcs = ["ConvertToCiphertextSemantics.cpp"],
-    hdrs = ["ConvertToCiphertextSemantics.h"],
+    srcs = [
+        "ConvertToCiphertextSemantics.cpp",
+        "RotomTensorOpLowering.cpp",
+    ],
+    hdrs = [
+        "ConvertToCiphertextSemantics.h",
+        "RotomTensorOpLowering.h",
+    ],
     deps = [
         ":AssignLayout",
         ":TypeConversion",
