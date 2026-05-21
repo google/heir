@@ -23,6 +23,7 @@ cc_library(
     deps = [
         ":layout_assignment_pass_inc_gen",
         "@heir//lib/Dialect/Rotom/IR:Dialect",
+        "@heir//lib/Dialect/Rotom/Utils:LayoutAlignment",
         "@heir//lib/Dialect/Rotom/Utils:RotomTensorExtLayoutLowering",
         "@heir//lib/Dialect/Secret/IR:SecretPatterns",
         "@heir//lib/Kernel",

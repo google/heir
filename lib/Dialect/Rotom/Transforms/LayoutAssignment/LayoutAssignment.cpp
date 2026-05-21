@@ -8,6 +8,7 @@
 #include <string>
 
 #include "lib/Dialect/Rotom/IR/RotomAttributes.h"
+#include "lib/Dialect/Rotom/Utils/LayoutAlignment.h"
 #include "lib/Dialect/Rotom/Utils/RotomTensorExtLayoutLowering.h"
 #include "lib/Dialect/Secret/IR/SecretAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
@@ -115,12 +116,6 @@ struct Candidate {
   std::optional<KernelName> kernel;
 };
 
-struct DimComponent {
-  int64_t size;
-  int64_t stride;
-  bool ciphertextSide;
-};
-
 std::string layoutKey(LayoutAttr layout) {
   std::string storage;
   llvm::raw_string_ostream os(storage);
@@ -173,40 +168,6 @@ bool hasOnlyUnitStrides(ArrayRef<int64_t> strides) {
 }
 
 bool isDynamic(int64_t value) { return value == ShapedType::kDynamic; }
-
-size_t inferCtPrefixLen(LayoutAttr layout) {
-  ArrayAttr dims = layout.getDims();
-  int64_t nRem = layout.getN();
-  size_t prefix = dims.size();
-  while (prefix > 0) {
-    if (nRem <= 1) break;
-    auto dim = cast<DimAttr>(dims[prefix - 1]);
-    int64_t size = dim.getSize();
-    if (size <= 0) break;
-    if (size <= nRem && nRem % size == 0) {
-      nRem /= size;
-      --prefix;
-      continue;
-    }
-    break;
-  }
-  while (prefix > 0 && cast<DimAttr>(dims[prefix - 1]).getSize() == 1) {
-    --prefix;
-  }
-  return prefix;
-}
-
-int64_t layoutNumCiphertexts(LayoutAttr layout) {
-  int64_t numCt = 1;
-  size_t ctPrefixLen = inferCtPrefixLen(layout);
-  ArrayAttr dims = layout.getDims();
-  for (size_t i = 0; i < ctPrefixLen; ++i) {
-    auto dim = cast<DimAttr>(dims[i]);
-    if (dim.isGap()) continue;
-    numCt *= dim.getSize();
-  }
-  return std::max<int64_t>(numCt, 1);
-}
 
 int64_t layoutConversionCost(LayoutAttr from, LayoutAttr to) {
   if (from == to) return 0;
@@ -293,62 +254,6 @@ std::optional<LayoutAttr> remapLayoutDims(LayoutAttr layout,
   return LayoutAttr::get(ctx, ArrayAttr::get(ctx, dims), layout.getN());
 }
 
-SmallVector<DimComponent> getDimComponents(LayoutAttr layout,
-                                           int64_t logicalDim) {
-  SmallVector<DimComponent> components;
-  size_t ctPrefixLen = inferCtPrefixLen(layout);
-  for (auto [index, attr] : llvm::enumerate(layout.getDims())) {
-    auto dim = cast<DimAttr>(attr);
-    if (dim.isGap() || dim.isReplicate()) continue;
-    if (dim.getDim() != logicalDim) continue;
-    components.push_back({dim.getSize(), dim.getStride(),
-                          static_cast<size_t>(index) < ctPrefixLen});
-  }
-  return components;
-}
-
-bool componentsEqual(ArrayRef<DimComponent> lhs, ArrayRef<DimComponent> rhs) {
-  if (lhs.size() != rhs.size()) return false;
-  for (auto [lhsComponent, rhsComponent] : llvm::zip(lhs, rhs)) {
-    if (lhsComponent.size != rhsComponent.size) return false;
-    if (lhsComponent.stride != rhsComponent.stride) return false;
-    if (lhsComponent.ciphertextSide != rhsComponent.ciphertextSide) {
-      return false;
-    }
-  }
-  return true;
-}
-
-bool dimensionsAligned(LayoutAttr lhsLayout, int64_t lhsDim,
-                       LayoutAttr rhsLayout, int64_t rhsDim) {
-  return componentsEqual(getDimComponents(lhsLayout, lhsDim),
-                         getDimComponents(rhsLayout, rhsDim));
-}
-
-bool layoutsAlignedByDimMap(LayoutAttr lhsLayout, LayoutAttr rhsLayout,
-                            ArrayRef<std::pair<int64_t, int64_t>> dimMap) {
-  if (lhsLayout.getN() != rhsLayout.getN()) return false;
-  for (auto [lhsDim, rhsDim] : dimMap) {
-    if (!dimensionsAligned(lhsLayout, lhsDim, rhsLayout, rhsDim)) {
-      return false;
-    }
-  }
-  return true;
-}
-
-bool isNonRolledLayout(LayoutAttr layout) {
-  SmallVector<int64_t> seenDims;
-  for (Attribute attr : layout.getDims()) {
-    auto dim = cast<DimAttr>(attr);
-    if (dim.isGap()) continue;
-    if (dim.isReplicate()) return false;
-    if (dim.getStride() != 1) return false;
-    if (llvm::is_contained(seenDims, dim.getDim())) return false;
-    seenDims.push_back(dim.getDim());
-  }
-  return true;
-}
-
 std::optional<LayoutAttr> combineMatmulOutputLayout(LayoutAttr lhsLayout,
                                                     LayoutAttr rhsLayout) {
   if (lhsLayout.getN() != rhsLayout.getN()) return std::nullopt;
@@ -410,45 +315,6 @@ bool isBicyclicLayoutFor(LayoutAttr layout, RankedTensorType type) {
   return isRelationBicyclic(type, layout.getN(), *relation);
 }
 
-bool supportsRotomMatmulLowering(LayoutAttr lhsLayout, LayoutAttr rhsLayout,
-                                 LayoutAttr resultLayout) {
-  if (lhsLayout.getN() != rhsLayout.getN() ||
-      lhsLayout.getN() != resultLayout.getN()) {
-    return false;
-  }
-  if (!isNonRolledLayout(lhsLayout) || !isNonRolledLayout(rhsLayout) ||
-      !isNonRolledLayout(resultLayout)) {
-    return false;
-  }
-
-  // The initial Rotom matmul lowering remaps masked scalar contributions
-  // between ciphertext-semantic tensors. tensor_ext.remap currently requires
-  // the input and output ciphertext tensor types to match, so only select this
-  // kernel when all three layouts materialize to the same (ct, slot) shape.
-  return layoutNumCiphertexts(lhsLayout) == layoutNumCiphertexts(rhsLayout) &&
-         layoutNumCiphertexts(lhsLayout) == layoutNumCiphertexts(resultLayout);
-}
-
-bool supportsRotomElementwiseLowering(LayoutAttr lhsLayout,
-                                      LayoutAttr rhsLayout,
-                                      LayoutAttr resultLayout) {
-  if (lhsLayout.getN() != rhsLayout.getN() ||
-      lhsLayout.getN() != resultLayout.getN()) {
-    return false;
-  }
-  if (!isNonRolledLayout(lhsLayout) || !isNonRolledLayout(rhsLayout) ||
-      !isNonRolledLayout(resultLayout)) {
-    return false;
-  }
-
-  // The Rotom elementwise lowering aligns single logical elements with
-  // tensor_ext.remap. That op remaps within one ciphertext-semantic tensor
-  // shape, so all participating layouts must materialize to the same number of
-  // ciphertexts.
-  return layoutNumCiphertexts(lhsLayout) == layoutNumCiphertexts(rhsLayout) &&
-         layoutNumCiphertexts(lhsLayout) == layoutNumCiphertexts(resultLayout);
-}
-
 std::optional<KernelName> selectMatmulKernel(RankedTensorType lhsType,
                                              RankedTensorType rhsType,
                                              RankedTensorType resultType,
@@ -483,7 +349,7 @@ std::optional<KernelName> selectMatmulKernel(RankedTensorType lhsType,
     return KernelName::MatmulBicyclic;
   }
 
-  if (supportsRotomMatmulLowering(lhsLayout, rhsLayout, resultLayout)) {
+  if (supportsRotomAlignmentLowering(lhsLayout, rhsLayout, resultLayout)) {
     return KernelName::RotomMatmul;
   }
 
@@ -968,7 +834,7 @@ SmallVector<Candidate> LayoutAssignment::chooseAlignedElementwiseCandidates(
       }
       std::optional<KernelName> lhsKernel;
       if (rotomKernel &&
-          supportsRotomElementwiseLowering(
+          supportsRotomAlignmentLowering(
               lhsCandidate.layout, rhsCandidate.layout, lhsCandidate.layout)) {
         lhsKernel = rotomKernel;
       }
@@ -988,7 +854,7 @@ SmallVector<Candidate> LayoutAssignment::chooseAlignedElementwiseCandidates(
       }
       std::optional<KernelName> rhsKernel;
       if (rotomKernel &&
-          supportsRotomElementwiseLowering(
+          supportsRotomAlignmentLowering(
               lhsCandidate.layout, rhsCandidate.layout, rhsCandidate.layout)) {
         rhsKernel = rotomKernel;
       }
