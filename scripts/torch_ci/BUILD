@@ -18,16 +18,3 @@ py_test(
         ":entrypoint_lib",
     ],
 )
-
-py_library(
-    name = "update_issue_comment_lib",
-    srcs = ["update_issue_comment.py"],
-)
-
-py_test(
-    name = "test_update_issue_comment",
-    srcs = ["test_update_issue_comment.py"],
-    deps = [
-        ":update_issue_comment_lib",
-    ],
-)

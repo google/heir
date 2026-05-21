@@ -44,8 +44,17 @@ jobs:
           name: failure-logs
           path: scripts/torch_ci/failure_logs/
 
-      - name: Update Issue Comment
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          python scripts/torch_ci/update_issue_comment.py coverage_table.md
+      - name: Find Coverage Comment
+        id: fc
+        uses: peter-evans/find-comment@b30e6a3c0ed37e7c023ccd3f1db5c6c0b0c23aad
+        with:
+          issue-number: 2923
+          body-includes: '<!-- TORCH_COVERAGE_TABLE -->'
+
+      - name: Create or Update Coverage Comment
+        uses: peter-evans/create-or-update-comment@e8674b075228eee787fea43ef493e45ece1004c9
+        with:
+          comment-id: ${{ steps.fc.outputs.comment-id }}
+          issue-number: 2923
+          body-path: coverage_table.md
+          edit-mode: replace

@@ -68,7 +68,7 @@ class CoverageRunner:
     models = self.find_models()
     results = {}
     for model in sorted(models):
-      print(f"Running coverage for {model}...")
+      print(f"Running coverage for {model}...", file=sys.stderr)
       export_result = self.run_export(model)
       if export_result.returncode != 0:
         results[model] = ("FAIL (Export)", export_result.stderr)
@@ -77,7 +77,13 @@ class CoverageRunner:
 
       heir_opt_result = self.run_heir_opt(model)
       if heir_opt_result is None:
-        results[model] = ("FAIL (No MLIR)", "model.mlir not found")
+        results[model] = (
+            "FAIL (No MLIR)",
+            "torch-mlir failed to produce model.mlir",
+        )
+        self.save_failure_log(
+            model, "heir-opt", "torch-mlir failed to produce model.mlir"
+        )
         continue
 
       if heir_opt_result.returncode != 0:
@@ -96,7 +102,8 @@ class CoverageRunner:
       f.write(content)
 
   def format_results_table(self, results):
-    table = "| Operator | Status | Details |\n"
+    table = "<!-- TORCH_COVERAGE_TABLE -->\n\n"
+    table += "| Operator | Status | Details |\n"
     table += "| --- | --- | --- |\n"
     for model, (status, details) in results.items():
       details_str = details.replace("\n", " ")[:100] if details else ""
