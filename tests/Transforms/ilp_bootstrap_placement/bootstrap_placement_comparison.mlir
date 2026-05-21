@@ -1,4 +1,5 @@
 // RUN: heir-opt --ilp-bootstrap-placement=bootstrap-waterline=3 %s | FileCheck %s --check-prefix=CHECK-ILP
+// RUN: heir-opt --ilp-bootstrap-placement="bootstrap-waterline=3 orbit-cost-model=%S/orbit_cost_model.json" %s | FileCheck %s --check-prefix=CHECK-COST-MODEL
 // RUN: heir-opt --secret-insert-mgmt-ckks=bootstrap-waterline=3 %s | FileCheck %s --check-prefix=CHECK-GREEDY
 
 // Compare the greedy bootstrap placement against the ILP bootstrap placement
@@ -21,6 +22,8 @@
 // CHECK-ILP-COUNT-2: mgmt.bootstrap
 // CHECK-ILP-NOT: mgmt.bootstrap
 // CHECK-GREEDY-COUNT-3: mgmt.bootstrap
+// CHECK-COST-MODEL-COUNT-2: mgmt.bootstrap
+// CHECK-COST-MODEL-NOT: mgmt.bootstrap
 
 func.func @bootstrap_placement_test(
     %arg0: !secret.secret<tensor<8xf32>>,

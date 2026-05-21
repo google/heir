@@ -16,9 +16,31 @@ namespace mlir {
 namespace heir {
 class ILPBootstrapPlacementAnalysis {
  public:
+  struct OperandLevelReduction {
+    Operation* op;
+    unsigned operandNumber;
+    int levelToDrop;
+  };
+
+  struct OutputLevelReduction {
+    Value value;
+    int levelToDrop;
+  };
+
   ILPBootstrapPlacementAnalysis(Operation* op, DataFlowSolver* solver,
-                                int bootstrapWaterline)
-      : opToRunOn(op), solver(solver), bootstrapWaterline(bootstrapWaterline) {}
+                                int bootstrapWaterline, int scaleWaterline,
+                                int scaleFactorBits,
+                                int bootstrapLevelLowerBound, int bootstrapCost,
+                                int rescaleCost, bool useOrbitCompression)
+      : opToRunOn(op),
+        solver(solver),
+        bootstrapWaterline(bootstrapWaterline),
+        scaleWaterline(scaleWaterline),
+        scaleFactorBits(scaleFactorBits),
+        bootstrapLevelLowerBound(bootstrapLevelLowerBound),
+        bootstrapCost(bootstrapCost),
+        rescaleCost(rescaleCost),
+        useOrbitCompression(useOrbitCompression) {}
   ~ILPBootstrapPlacementAnalysis() = default;
 
   LogicalResult solve();
@@ -28,6 +50,17 @@ class ILPBootstrapPlacementAnalysis {
   // without iterating by op index; Values remain valid across modreduce/
   // relinearize insertion.
   llvm::SmallVector<Value, 32> getValuesToBootstrap() const;
+
+  // Return per-use level reductions chosen by the ILP.
+  llvm::SmallVector<OperandLevelReduction, 32> getOperandLevelReductions()
+      const {
+    return operandLevelReductions;
+  }
+
+  // Return per-result level reductions chosen by the ILP.
+  llvm::SmallVector<OutputLevelReduction, 32> getOutputLevelReductions() const {
+    return outputLevelReductions;
+  }
 
   // Return the level at the given SSA value, as determined by the
   // solution to the optimization problem. When the input value is the result
@@ -47,9 +80,17 @@ class ILPBootstrapPlacementAnalysis {
   Operation* opToRunOn;
   DataFlowSolver* solver;
   int bootstrapWaterline;
+  int scaleWaterline;
+  int scaleFactorBits;
+  int bootstrapLevelLowerBound;
+  int bootstrapCost;
+  int rescaleCost;
+  bool useOrbitCompression;
   llvm::DenseMap<Operation*, bool> solution;
   llvm::DenseMap<Value, int> solutionLevelBeforeBootstrap;
   llvm::DenseMap<Value, int> solutionLevelAfterBootstrap;
+  llvm::SmallVector<OperandLevelReduction, 32> operandLevelReductions;
+  llvm::SmallVector<OutputLevelReduction, 32> outputLevelReductions;
 };
 }  // namespace heir
 }  // namespace mlir
