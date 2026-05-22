@@ -63,9 +63,10 @@
 #include "lib/Transforms/ValidateNoise/ValidateNoise.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Transforms/Passes.h"  // from @llvm-project
-#include "mlir/include/mlir/Pass/PassManager.h"   // from @llvm-project
-#include "mlir/include/mlir/Pass/PassOptions.h"   // from @llvm-project
-#include "mlir/include/mlir/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"       // from @llvm-project
+#include "mlir/include/mlir/Pass/PassOptions.h"       // from @llvm-project
+#include "mlir/include/mlir/Transforms/Passes.h"      // from @llvm-project
 
 namespace mlir::heir {
 
@@ -526,6 +527,13 @@ BackendPipelineBuilder toLattigoPipelineBuilder() {
     pm.addPass(createCSEPass());
     pm.addPass(createCanonicalizerPass());
     pm.addPass(createSymbolDCEPass());
+
+    // Run one-shot-bufferize without deallocation because golang has garbage
+    // collection.
+    oneShotBufferize(pm, /*includeDeallocation=*/false);
+
+    // Lower Linalg to loops
+    pm.addNestedPass<func::FuncOp>(createConvertLinalgToLoopsPass());
   };
 }
 
@@ -557,6 +565,17 @@ void torchLinalgToCkksBuilder(OpPassManager& manager,
   suboptions.splitPreprocessing = options.splitPreprocessing;
   suboptions.experimentalDisableLoopUnroll =
       options.experimentalDisableLoopUnroll;
+  suboptions.usePublicKey = options.usePublicKey;
+  suboptions.encryptionTechniqueExtended = options.encryptionTechniqueExtended;
+  suboptions.modulusSwitchAfterMul = options.modulusSwitchAfterMul;
+  suboptions.modulusSwitchBeforeFirstMul = options.modulusSwitchBeforeFirstMul;
+  suboptions.plaintextModulus = options.plaintextModulus;
+  suboptions.noiseModel = options.noiseModel;
+  suboptions.annotateNoiseBound = options.annotateNoiseBound;
+  suboptions.bfvModBits = options.bfvModBits;
+  suboptions.levelBudget = options.levelBudget;
+  suboptions.plaintextExecutionResultFileName =
+      options.plaintextExecutionResultFileName;
 
   mlirToRLWEPipelineBuilder(mlir::heir::RLWEScheme::ckksScheme)(manager,
                                                                 suboptions);

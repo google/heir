@@ -75,6 +75,7 @@ cc_binary(
         "@heir//lib/Dialect/Lattigo/IR:Dialect",
         "@heir//lib/Dialect/Lattigo/Transforms",
         "@heir//lib/Dialect/Lattigo/Transforms:AllocToInPlace",
+        "@heir//lib/Dialect/Lattigo/Transforms:BufferizableOpInterfaceImpl",
         "@heir//lib/Dialect/Lattigo/Transforms:ConfigureCryptoContext",
         "@heir//lib/Dialect/MathExt/IR:Dialect",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
