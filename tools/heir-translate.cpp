@@ -1,7 +1,7 @@
 #include "lib/Target/FunctionInfo/FunctionInfoEmitter.h"
 #include "lib/Target/Jaxite/JaxiteEmitter.h"
 #include "lib/Target/JaxiteWord/JaxiteWordEmitter.h"
-#include "lib/Target/Lattigo/LattigoEmitter.h"
+#include "lib/Target/Lattigo/LattigoTranslateRegistration.h"
 #include "lib/Target/Metadata/MetadataEmitter.h"
 #include "lib/Target/OpenFhePke/OpenFheTranslateRegistration.h"
 // This comment includes internal emitters
@@ -41,10 +41,11 @@ int main(int argc, char** argv) {
   mlir::heir::openfhe::registerToOpenFhePkeDebugTranslation();
 
   // Lattigo
+  mlir::heir::lattigo::registerTranslateOptions();
   mlir::heir::lattigo::registerToLattigoTranslation();
   mlir::heir::lattigo::registerToLattigoPreprocessingTranslation();
   mlir::heir::lattigo::registerToLattigoPreprocessedTranslation();
-  mlir::heir::lattigo::registerTranslateOptions();
+  mlir::heir::lattigo::registerToLattigoDebugTranslation();
 
   // SCIFRBool
   mlir::cornami::scifrbool::registerTranslateOptions();
