@@ -428,8 +428,8 @@ presburger::IntegerRelation getRowInterchangeRelation(int64_t c, int64_t h,
   //    h' = hi * g + (ci % g**2) // g
   //    w' = wi * g + (ci % g)
   // 3. Flatten (gW, gH, C) into idx_out = (c * g * h) * w' + (c) * h' + c'
-  int64_t hOut = w * g;
-  int64_t wOut = h * g;
+  int64_t hOut = h * g;
+  int64_t wOut = w * g;
   int64_t cOut = c / (g * g);
   int64_t numElements = c * h * w;
 
