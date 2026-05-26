@@ -275,6 +275,37 @@ TEST(EvaluateTest, EvaluateLayoutFor2DConvChwFchwNoPadding) {
   ASSERT_THAT(result, Eq(expected));
 }
 
+TEST(EvaluateTest, EvaluateLayoutFor1DConvCwFcwNoPadding) {
+  MLIRContext context;
+  // Filter W=2 and data W=4
+  RankedTensorType filterType =
+      RankedTensorType::get({2, 2, 2}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({1, 2, 4}, IndexType::get(&context));
+  int64_t stride = 2;
+  int64_t padding = 0;
+  IntegerRelation rel =
+      get1dConvCwFcwFilterRelation(filterType, dataType, stride, padding);
+
+  std::vector<std::vector<std::vector<int>>> filter = {{{1, 2}, {3, 4}},
+                                                       {{5, 6}, {7, 8}}};
+  std::function<int(const std::vector<int64_t>&)> getValueFn =
+      [&](const std::vector<int64_t>& domainPoint) -> int {
+    return filter[domainPoint[0]][domainPoint[1]][domainPoint[2]];
+  };
+
+  auto result = evaluateLayout(rel, getValueFn);
+
+  std::vector<std::vector<int>> expected = {
+      {1, 2, 0, 0, 3, 4, 0, 0},
+      {0, 0, 1, 2, 0, 0, 3, 4},
+      {5, 6, 0, 0, 7, 8, 0, 0},
+      {0, 0, 5, 6, 0, 0, 7, 8},
+  };
+
+  ASSERT_THAT(result, Eq(expected));
+}
+
 TEST(EvaluateTest, EvaluateLayoutFor2DConvChwFchwNoPaddingDiagonalized) {
   MLIRContext context;
   // Filter 2x2 and data is 4x4 so there are 2x2 sliding windows.
@@ -345,6 +376,37 @@ TEST(EvaluateTest, EvaluateLayoutFor2DConvChwFchwNoPaddingDiagonalized) {
       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
       {0, 1, 0, 1, 0, 3, 0, 3, 0, 1, 0, 1, 0, 3, 0, 3}};
   EXPECT_THAT(resultOptimized, Eq(expectedOptimized));
+}
+
+TEST(EvaluateTest, EvaluateLayoutFor1DConvCwFcwNoPaddingDiagonalized) {
+  MLIRContext context;
+  RankedTensorType filterType =
+      RankedTensorType::get({4, 1, 2}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({1, 1, 4}, IndexType::get(&context));
+  int64_t stride = 1;
+  int64_t padding = 0;
+  auto rel = get1dConvCwFcwFilterDiagonalizedRelation(
+      filterType, dataType, stride, padding, 16, false);
+  ASSERT_TRUE(succeeded(rel));
+
+  std::vector<std::vector<std::vector<int>>> filter = {{{1, 2}},   // f=0
+                                                       {{3, 4}},   // f=1
+                                                       {{5, 6}},   // f=2
+                                                       {{7, 8}}};  // f=3
+  std::function<int(const std::vector<int64_t>&)> getValueFn =
+      [&](const std::vector<int64_t>& domainPoint) -> int {
+    return filter[domainPoint[0]][domainPoint[1]][domainPoint[2]];
+  };
+
+  auto result = evaluateLayout(rel.value(), getValueFn);
+
+  std::vector<std::vector<int>> expected = {
+      {1, 1, 1, 0, 0, 0, 0, 0, 0, 8, 8, 8, 0, 0, 0, 0},
+      {2, 2, 2, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+      {0, 0, 0, 4, 4, 4, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0},
+      {0, 0, 0, 0, 0, 0, 6, 6, 6, 7, 7, 7, 0, 0, 0, 0}};
+  EXPECT_THAT(result, Eq(expected));
 }
 
 TEST(EvaluateTest, Conv2dResultRelation) {

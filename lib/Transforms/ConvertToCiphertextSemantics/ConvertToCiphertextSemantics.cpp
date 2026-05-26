@@ -1055,6 +1055,122 @@ struct ConvertLinalgConv2D : public ConversionBase<linalg::Conv2DOp> {
   bool unrollKernels;
 };
 
+struct ConvertLinalgConv1DNcwFcw
+    : public ConversionBase<linalg::Conv1DNcwFcwOp> {
+ public:
+  using ConversionBase<linalg::Conv1DNcwFcwOp>::ConversionBase;
+
+  ConvertLinalgConv1DNcwFcw(
+      const ContextAwareTypeConverter& contextAwareTypeConverter,
+      MLIRContext* context, bool unrollKernels = true)
+      : ConversionBase(contextAwareTypeConverter, context,
+                       /*benefit=*/10),
+        unrollKernels(unrollKernels) {}
+
+  bool supportsExpandedHaleviShoup(linalg::Conv1DNcwFcwOp op,
+                                   OpAdaptor adaptor) const {
+    Value filter = adaptor.getInputs().back();
+    auto materializedFilterType = cast<RankedTensorType>(filter.getType());
+
+    // If one of these dimensions is not a power of two, then we can't do
+    // the Halevi-Shoup or Squat Packing Matrix Multiplication conversion.
+    auto dimensions = materializedFilterType.getShape();
+    int64_t numRows = dimensions[0];
+    int64_t numCols = dimensions[1];
+    bool isPowerOfTwoDims = isPowerOfTwo(numRows) && isPowerOfTwo(numCols);
+
+    auto kernelAttr = op->getAttrOfType<secret::KernelAttr>(
+        secret::SecretDialect::kKernelAttrName);
+    bool isConv1dAsMatvec =
+        kernelAttr && kernelAttr.getName() == KernelName::MatvecDiagonal;
+
+    LLVM_DEBUG(llvm::dbgs()
+               << "supports expanded conv1d as matvec with halevi-shoup: "
+               << "isPowerOfTwoDims=" << isPowerOfTwoDims
+               << " isConv1dAsMatvec=" << isConv1dAsMatvec << "\n");
+
+    return isPowerOfTwoDims && isConv1dAsMatvec;
+  }
+
+  void haleviShoupKernel(
+      linalg::Conv1DNcwFcwOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const {
+    LLVM_DEBUG(
+        llvm::dbgs()
+        << "Converting linalg.conv_1d_ncw_fcw op with halevi shoup kernel: "
+        << op << "\n");
+
+    TypedValue<RankedTensorType> data =
+        cast<TypedValue<RankedTensorType>>(adaptor.getInputs()[0]);
+    SSAValue vectorLeaf(data);
+    TypedValue<RankedTensorType> matrix =
+        cast<TypedValue<RankedTensorType>>(adaptor.getInputs()[1]);
+    SSAValue matrixLeaf(matrix);
+
+    // The original matrix shape is the shape of the expanded filter before
+    // diagonalization.
+    RankedTensorType expandedMatrixType = get1dConvCwFcwFilterExpandedType(
+        cast<RankedTensorType>(op.getInputs()[1].getType()),
+        cast<RankedTensorType>(op.getInputs()[0].getType()),
+        llvm::to_vector(op.getStrides().getValues<int64_t>()).front(),
+        /*padding=*/0);
+    // Collect any zero diagonals of the filter matrix.
+    LayoutAttr filterLayout = getLayoutAttr(adaptor.getInputs()[1]);
+    auto filterRelation = filterLayout.getIntegerRelation();
+
+    PointCollector collector;
+    std::map<int, bool> zeroDiagonals;
+    // TODO(#2897): Enable this one row interchange is supported.
+    //   getCtComplementPoints(filterRelation, collector, matrix.getType());
+    //   for (const auto& point : collector.points) {
+    //     zeroDiagonals[point[0]] = true;
+    //   }
+
+    auto dagType = kernel::mlirTypeToDagType(data.getType(),
+                                             data.getType().getShape().back());
+    std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
+        implementHaleviShoup(vectorLeaf, matrixLeaf,
+                             expandedMatrixType.getShape(), dagType,
+                             zeroDiagonals,
+                             /*unroll=*/unrollKernels);
+
+    rewriter.setInsertionPointAfter(op);
+
+    auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
+
+    Value finalOutput = materializeKernel(
+        rewriter, op.getLoc(), implementedKernel, data.getType(), layoutAttr);
+
+    // Add the initial accumulator value.
+    Value result = adaptor.getOutputs()[0];
+    addBiasAndReplace(rewriter, op, finalOutput, result, layoutAttr);
+  }
+
+  LogicalResult matchAndRewrite(
+      linalg::Conv1DNcwFcwOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    Value data = adaptor.getInputs().front();
+    Value filter = adaptor.getInputs().back();
+    LayoutAttr dataLayout = getLayoutAttr(data);
+    LayoutAttr filterLayout = getLayoutAttr(filter);
+
+    if (!dataLayout || !filterLayout) {
+      return rewriter.notifyMatchFailure(
+          op, "missing new layout attribute for data and filter");
+    }
+
+    if (supportsExpandedHaleviShoup(op, adaptor)) {
+      haleviShoupKernel(op, adaptor, rewriter);
+      return success();
+    }
+
+    return op.emitError() << "unsupported layout for 1d conv";
+  }
+
+ private:
+  bool unrollKernels;
+};
+
 struct ConvertLinalgConv2DNchwFchw
     : public ConversionBase<linalg::Conv2DNchwFchwOp> {
  public:
@@ -2355,8 +2471,9 @@ struct ConvertToCiphertextSemantics
                  ConvertTensorInsertLayout, ConvertTensorInsertSlice>(
         typeConverter, context);
     patterns.add<ConvertLinalgMatvecLayout, ConvertLinalgConv1D,
-                 ConvertLinalgConv2D, ConvertLinalgConv2DNchwFchw>(
-        typeConverter, context, unrollKernels);
+                 ConvertLinalgConv2D, ConvertLinalgConv2DNchwFchw,
+                 ConvertLinalgConv1DNcwFcw>(typeConverter, context,
+                                            unrollKernels);
     patterns.add<ConvertAssignLayout>(typeConverter, context, ciphertextSize);
 
     ConversionConfig config;
