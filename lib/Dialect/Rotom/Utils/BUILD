@@ -15,6 +15,7 @@ cc_library(
     deps = [
         "@heir//lib/Dialect/Rotom/IR:Dialect",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
     ],
 )
