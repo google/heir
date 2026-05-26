@@ -503,6 +503,30 @@ TEST(ConvolutionTest, TestRowInterchangeMultiChannel) {
   }
 }
 
+TEST(ConvolutionTest, TestRowInterchangeNonSquareFilter) {
+  MLIRContext context;
+  // Models filter 4x1x2x3=NCHW (non-square) on input 1x1x4x7=FCHW with stride
+  // 2:
+  //   outputH = (4-2)/2 + 1 = 2
+  //   outputW = (7-3)/2 + 1 = 3
+  // f=4 (output channels), h=2, w=3, g=2 (stride).
+  // Input flat size = f*h*w = 24.
+  IntegerRelation rel = getRowInterchangeRelation(4, 2, 3, 2);
+
+  PointPairCollector collector(1, 1);  // 1 domain dim, 1 range dim
+  enumeratePoints(rel, collector);
+
+  // The relation should be a 1-to-1 permutation covering all 24 input indices.
+  EXPECT_EQ(collector.points.size(), 24);
+
+  // As a sanity check, take c=0, hi=1, wi=2.
+  // This maps to idx_in = 5
+  // [(wi + hi * outputW + outputH*OutputW*c) = 2 + 1*3 + 0]
+  // The idx_out is then, with co = 0, h0 = 2, w0 = 4
+  // idx_out = 4 + 2 * wOut + 0 * wOut * hOut = 16
+  EXPECT_TRUE(rel.containsPointNoLocal({5, 16}));
+}
+
 TEST(ConvolutionTest, TestStrideTwoConvolution) {
   MLIRContext context;
 
