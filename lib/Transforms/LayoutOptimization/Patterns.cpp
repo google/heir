@@ -109,9 +109,9 @@ LogicalResult HoistArgLayouts::matchAndRewrite(
     auto maybeLayoutOps =
         llvm::map_range(blockArg.getUses(), getFirstLayoutConversionOp);
     if (maybeLayoutOps.empty()) continue;
+    auto layoutOpsVec = llvm::to_vector(maybeLayoutOps);
     auto maybeLayouts = llvm::map_range(
-        llvm::to_vector(maybeLayoutOps),
-        [](auto& maybeLayoutOp) -> std::optional<Attribute> {
+        layoutOpsVec, [](auto& maybeLayoutOp) -> std::optional<Attribute> {
           if (!maybeLayoutOp.has_value()) return std::nullopt;
           auto toLayout = maybeLayoutOp.value().getToLayoutAttr();
           if (!toLayout) return std::nullopt;
