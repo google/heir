@@ -72,3 +72,25 @@ func.func @test_maximumf_ignore_arg(%x: tensor<10xf32>, %y: tensor<10xf32>) -> t
   %0 = arith.maximumf %x, %y : tensor<10xf32>
   return %0 : tensor<10xf32>
 }
+
+// -----
+
+// CHECK: @test_log_default_params
+func.func @test_log_default_params(%x: f32) -> f32 {
+  // CHECK: polynomial.eval
+  // CHECK-SAME: domain_lower = 1.000000e-01
+  // CHECK-SAME: domain_upper = 2.000000e+00
+  %0 = math.log %x : f32
+  return %0 : f32
+}
+
+// -----
+
+// CHECK: @test_sqrt_default_params
+func.func @test_sqrt_default_params(%x: f32) -> f32 {
+  // CHECK: polynomial.eval
+  // CHECK-SAME: domain_lower = 0.000000e+00
+  // CHECK-SAME: domain_upper = 2.000000e+00
+  %0 = math.sqrt %x : f32
+  return %0 : f32
+}

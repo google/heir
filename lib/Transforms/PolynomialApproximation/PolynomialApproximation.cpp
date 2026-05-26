@@ -41,6 +41,12 @@ constexpr int64_t kDefaultDegree = 5;
 constexpr double kDefaultDomainLower = -1.0;
 constexpr double kDefaultDomainUpper = 1.0;
 
+constexpr double kDefaultPositiveRangeLower = 0.1;
+constexpr double kDefaultPositiveRangeUpper = 2.0;
+
+constexpr double kDefaultNonNegativeRangeLower = 0.0;
+constexpr double kDefaultNonNegativeRangeUpper = 2.0;
+
 using polynomial::ChebyshevPolynomial;
 using polynomial::EvalOp;
 using polynomial::PolynomialType;
@@ -206,8 +212,13 @@ inline APFloat minnumf(const APFloat& lhs, const APFloat& rhs) {
 template <typename OpTy>
 struct ConvertUnaryOp : public OpRewritePattern<OpTy> {
   ConvertUnaryOp(mlir::MLIRContext* context,
-                 const std::function<APFloat(APFloat)>& cppFunc)
-      : OpRewritePattern<OpTy>(context, /*benefit=*/1), cppFunc(cppFunc) {}
+                 const std::function<APFloat(APFloat)>& cppFunc,
+                 double lower = kDefaultDomainLower,
+                 double upper = kDefaultDomainUpper)
+      : OpRewritePattern<OpTy>(context, /*benefit=*/1),
+        cppFunc(cppFunc),
+        lower(lower),
+        upper(upper) {}
 
  public:
   LogicalResult matchAndRewrite(OpTy op,
@@ -225,11 +236,11 @@ struct ConvertUnaryOp : public OpRewritePattern<OpTy> {
     FloatAttr domainLowerAttr =
         op->hasAttr("domain_lower")
             ? cast<FloatAttr>(op->getAttr("domain_lower"))
-            : rewriter.getF64FloatAttr(kDefaultDomainLower);
+            : rewriter.getF64FloatAttr(lower);
     FloatAttr domainUpperAttr =
         op->hasAttr("domain_upper")
             ? cast<FloatAttr>(op->getAttr("domain_upper"))
-            : rewriter.getF64FloatAttr(kDefaultDomainUpper);
+            : rewriter.getF64FloatAttr(upper);
     polynomial::ChebyshevPolynomial poly =
         approximation::caratheodoryFejerApproximation(
             cppFunc, degreeAttr.getInt(),
@@ -253,6 +264,8 @@ struct ConvertUnaryOp : public OpRewritePattern<OpTy> {
 
  private:
   std::function<APFloat(APFloat)> cppFunc;
+  double lower;
+  double upper;
 };
 
 // Return a single value defining a constant (either a splatted tensor or a
@@ -286,8 +299,13 @@ FailureOr<APFloat> getSingleValueOrSplat(Value value) {
 template <typename OpTy>
 struct ConvertBinaryConstOp : public OpRewritePattern<OpTy> {
   ConvertBinaryConstOp(mlir::MLIRContext* context,
-                       const std::function<APFloat(APFloat, APFloat)>& cppFunc)
-      : OpRewritePattern<OpTy>(context, /*benefit=*/1), cppFunc(cppFunc) {}
+                       const std::function<APFloat(APFloat, APFloat)>& cppFunc,
+                       double lower = kDefaultDomainLower,
+                       double upper = kDefaultDomainUpper)
+      : OpRewritePattern<OpTy>(context, /*benefit=*/1),
+        cppFunc(cppFunc),
+        lower(lower),
+        upper(upper) {}
 
  public:
   LogicalResult matchAndRewrite(OpTy op,
@@ -340,11 +358,11 @@ struct ConvertBinaryConstOp : public OpRewritePattern<OpTy> {
     FloatAttr domainLowerAttr =
         op->hasAttr("domain_lower")
             ? cast<FloatAttr>(op->getAttr("domain_lower"))
-            : rewriter.getF64FloatAttr(kDefaultDomainLower);
+            : rewriter.getF64FloatAttr(lower);
     FloatAttr domainUpperAttr =
         op->hasAttr("domain_upper")
             ? cast<FloatAttr>(op->getAttr("domain_upper"))
-            : rewriter.getF64FloatAttr(kDefaultDomainUpper);
+            : rewriter.getF64FloatAttr(upper);
     ChebyshevPolynomial poly = approximation::caratheodoryFejerApproximation(
         unaryFunc, degreeAttr.getInt(),
         domainLowerAttr.getValue().convertToDouble(),
@@ -367,6 +385,8 @@ struct ConvertBinaryConstOp : public OpRewritePattern<OpTy> {
 
  private:
   std::function<APFloat(APFloat, APFloat)> cppFunc;
+  double lower;
+  double upper;
 };
 
 struct PolynomialApproximation
@@ -395,15 +415,21 @@ struct PolynomialApproximation
     patterns.add<ConvertUnaryOp<math::Exp2Op>>(context, exp2);
     patterns.add<ConvertUnaryOp<math::ExpM1Op>>(context, expm1);
     patterns.add<ConvertUnaryOp<math::FloorOp>>(context, floor);
-    patterns.add<ConvertUnaryOp<math::LogOp>>(context, log);
-    patterns.add<ConvertUnaryOp<math::Log10Op>>(context, log10);
+    patterns.add<ConvertUnaryOp<math::LogOp>>(
+        context, log, kDefaultPositiveRangeLower, kDefaultPositiveRangeUpper);
+    patterns.add<ConvertUnaryOp<math::Log10Op>>(
+        context, log10, kDefaultPositiveRangeLower, kDefaultPositiveRangeUpper);
     patterns.add<ConvertUnaryOp<math::Log1pOp>>(context, log1p);
-    patterns.add<ConvertUnaryOp<math::Log2Op>>(context, log2);
+    patterns.add<ConvertUnaryOp<math::Log2Op>>(
+        context, log2, kDefaultPositiveRangeLower, kDefaultPositiveRangeUpper);
     patterns.add<ConvertUnaryOp<math::RoundOp>>(context, round);
-    patterns.add<ConvertUnaryOp<math::RsqrtOp>>(context, rsqrt);
+    patterns.add<ConvertUnaryOp<math::RsqrtOp>>(
+        context, rsqrt, kDefaultPositiveRangeLower, kDefaultPositiveRangeUpper);
     patterns.add<ConvertUnaryOp<math::SinOp>>(context, sin);
     patterns.add<ConvertUnaryOp<math::SinhOp>>(context, sinh);
-    patterns.add<ConvertUnaryOp<math::SqrtOp>>(context, sqrt);
+    patterns.add<ConvertUnaryOp<math::SqrtOp>>(context, sqrt,
+                                               kDefaultNonNegativeRangeLower,
+                                               kDefaultNonNegativeRangeUpper);
     patterns.add<ConvertUnaryOp<math::TanOp>>(context, tan);
     patterns.add<ConvertUnaryOp<math::TanhOp>>(context, tanh);
     patterns.add<ConvertUnaryOp<math::TruncOp>>(context, trunc);
