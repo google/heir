@@ -15,6 +15,7 @@
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
@@ -63,6 +64,8 @@ class LattigoEmitter {
     os << ")\n";
   }
 
+  void filterImports(const std::string& body);
+
  private:
   /// Output stream to emit to.
   raw_indented_ostream os;
@@ -80,6 +83,9 @@ class LattigoEmitter {
   // are unused for some programs need to be dynamically added at the end.
   std::string prelude;
   std::set<std::string> imports;
+  std::set<std::string> declaredVars;
+
+  void emitAssignment(std::string_view name, std::string_view valueExpr);
 
   // general binary op helper
   LogicalResult printBinaryOp(Operation* op, ::mlir::Value lhs,
@@ -131,16 +137,20 @@ class LattigoEmitter {
   LogicalResult printOperation(::mlir::scf::ForOp op);
   LogicalResult printOperation(::mlir::scf::IfOp op);
   LogicalResult printOperation(::mlir::scf::YieldOp op);
-  LogicalResult printOperation(::mlir::tensor::CollapseShapeOp op);
-  LogicalResult printOperation(::mlir::tensor::ConcatOp op);
-  LogicalResult printOperation(::mlir::tensor::EmptyOp op);
-  LogicalResult printOperation(::mlir::tensor::ExpandShapeOp op);
-  LogicalResult printOperation(::mlir::tensor::ExtractOp op);
-  LogicalResult printOperation(::mlir::tensor::ExtractSliceOp op);
-  LogicalResult printOperation(::mlir::tensor::FromElementsOp op);
-  LogicalResult printOperation(::mlir::tensor::InsertOp op);
-  LogicalResult printOperation(::mlir::tensor::InsertSliceOp op);
-  LogicalResult printOperation(::mlir::tensor::SplatOp op);
+
+  // MemRef ops
+  LogicalResult printOperation(::mlir::memref::AllocOp op);
+  LogicalResult printOperation(::mlir::memref::LoadOp op);
+  LogicalResult printOperation(::mlir::memref::StoreOp op);
+  LogicalResult printOperation(::mlir::memref::CopyOp op);
+  LogicalResult printOperation(::mlir::memref::GlobalOp op);
+  LogicalResult printOperation(::mlir::memref::GetGlobalOp op);
+  LogicalResult printOperation(::mlir::memref::ExpandShapeOp op);
+  LogicalResult printOperation(::mlir::memref::CollapseShapeOp op);
+  LogicalResult printOperation(::mlir::memref::CastOp op);
+  LogicalResult printOperation(::mlir::memref::SubViewOp op);
+  LogicalResult printOperation(::mlir::memref::ExtractStridedMetadataOp op);
+  LogicalResult printOperation(::mlir::memref::DimOp op);
 
   // Lattigo ops
   // RLWE

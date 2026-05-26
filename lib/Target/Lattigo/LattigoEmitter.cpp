@@ -74,9 +74,22 @@ LogicalResult translateToLattigo(Operation* op, llvm::raw_ostream& os,
   LogicalResult result = emitter.translate(*op);
 
   // Now write the materialized prelude and body to the outstream.
+  emitter.filterImports(strOs.str());
   emitter.emitPrelude(os);
   os << strOs.str();
   return result;
+}
+
+void LattigoEmitter::filterImports(const std::string& body) {
+  if (body.find("rlwe.") == std::string::npos) {
+    imports.erase(std::string(kRlweImport));
+  }
+  if (body.find("bgv.") == std::string::npos) {
+    imports.erase(std::string(kBgvImport));
+  }
+  if (body.find("ckks.") == std::string::npos) {
+    imports.erase(std::string(kCkksImport));
+  }
 }
 
 LogicalResult LattigoEmitter::translate(Operation& op) {
@@ -102,12 +115,13 @@ LogicalResult LattigoEmitter::translate(Operation& op) {
           // SCF ops
           .Case<scf::IfOp, scf::ForOp, scf::YieldOp>(
               [&](auto op) { return printOperation(op); })
-          // Tensor ops
-          .Case<tensor::ConcatOp, tensor::EmptyOp, tensor::ExtractOp,
-                tensor::ExtractSliceOp, tensor::InsertOp, tensor::InsertSliceOp,
-                tensor::FromElementsOp, tensor::SplatOp, tensor::ExpandShapeOp,
-                tensor::CollapseShapeOp>(
-              [&](auto op) { return printOperation(op); })
+          // MemRef ops
+          .Case<memref::AllocOp, memref::LoadOp, memref::StoreOp,
+                memref::CopyOp, memref::GlobalOp, memref::GetGlobalOp,
+                memref::ExpandShapeOp, memref::CollapseShapeOp, memref::CastOp,
+                memref::SubViewOp, memref::ExtractStridedMetadataOp,
+                memref::DimOp>([&](auto op) { return printOperation(op); })
+
           // Lattigo ops
           .Case<
               // RLWE
@@ -207,6 +221,11 @@ LogicalResult LattigoEmitter::printOperation(func::FuncOp funcOp) {
   }
   os << "{\n";
   os.indent();
+
+  declaredVars.clear();
+  for (Value arg : funcOp.getArguments()) {
+    declaredVars.insert(getName(arg));
+  }
 
   // body
   for (Block& block : funcOp.getBlocks()) {
@@ -712,6 +731,18 @@ LogicalResult LattigoEmitter::printOperation(arith::IndexCastOp op) {
   return typecast(op.getOperand(), op.getOut());
 }
 
+void LattigoEmitter::emitAssignment(std::string_view name,
+                                    std::string_view valueExpr) {
+  if (name == "_") {
+    os << "_ = " << valueExpr << "\n";
+  } else if (declaredVars.count(std::string(name))) {
+    os << name << " = " << valueExpr << "\n";
+  } else {
+    os << name << " := " << valueExpr << "\n";
+    declaredVars.insert(std::string(name));
+  }
+}
+
 LogicalResult LattigoEmitter::printBinaryOp(Operation* op, ::mlir::Value lhs,
                                             ::mlir::Value rhs,
                                             std::string_view opName) {
@@ -732,6 +763,9 @@ LogicalResult LattigoEmitter::printOperation(arith::AddFOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(arith::AndIOp op) {
+  if (op.getType().isInteger(1)) {
+    return printBinaryOp(op, op.getLhs(), op.getRhs(), "&&");
+  }
   return printBinaryOp(op, op.getLhs(), op.getRhs(), "&");
 }
 
@@ -815,6 +849,9 @@ LogicalResult LattigoEmitter::printOperation(arith::NegFOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(arith::OrIOp op) {
+  if (op.getType().isInteger(1)) {
+    return printBinaryOp(op, op.getLhs(), op.getRhs(), "||");
+  }
   return printBinaryOp(op, op.getLhs(), op.getRhs(), "|");
 }
 
@@ -921,15 +958,17 @@ LogicalResult LattigoEmitter::printOperation(scf::IfOp op) {
   os.unindent();
   os << "}";
 
-  os << llvm::formatv(" else {{\n");
-  os.indent();
-  for (Operation& op : *op.elseBlock()) {
-    if (failed(translate(op))) {
-      return op.emitOpError() << "Failed to translate for if else block";
+  if (!op.getElseRegion().empty()) {
+    os << " else {\n";
+    os.indent();
+    for (Operation& op : op.getElseRegion().front()) {
+      if (failed(translate(op))) {
+        return op.emitOpError() << "Failed to translate for if else block";
+      }
     }
+    os.unindent();
+    os << "}";
   }
-  os.unindent();
-  os << "}";
 
   os << "\n";
   return success();
@@ -1011,46 +1050,156 @@ LogicalResult LattigoEmitter::printOperation(scf::YieldOp op) {
   return success();
 }
 
-LogicalResult LattigoEmitter::printOperation(tensor::ConcatOp op) {
-  // Use slices.Concat which has the same semantics as 1D tensor.concat
-  if (op.getResultType().getRank() != 1) {
-    return op.emitError("Lattigo emitter for ConcatOp only supports rank 1");
+LogicalResult LattigoEmitter::printOperation(memref::AllocOp op) {
+  MemRefType type = op.getType();
+  auto eltTypeStr = convertType(type.getElementType());
+  if (failed(eltTypeStr)) return failure();
+
+  int64_t size = 1;
+  for (int64_t dim : type.getShape()) {
+    size *= dim;
   }
-  imports.insert(std::string(kSlicesImport));
-  SmallVector<std::string> operandNames = llvm::to_vector<4>(llvm::map_range(
-      op.getInputs(), [&](Value value) { return getName(value); }));
-  os << getName(op.getResult()) << " := slices.Concat("
-     << llvm::join(operandNames, ", ") << ")\n";
+
+  emitAssignment(
+      getName(op.getResult()),
+      "make([]" + eltTypeStr.value() + ", " + std::to_string(size) + ")");
   return success();
 }
 
-LogicalResult LattigoEmitter::printOperation(tensor::EmptyOp op) {
-  // Tensors are flattened into 1D slices.
-  ShapedType resultType = op.getResult().getType();
-  auto typeStr = convertType(resultType.getElementType());
-  std::string resultName = getName(op.getResult());
-  os << getName(op.getResult()) << " := make([]" << typeStr.value() << ", "
-     << resultType.getNumElements() << ")\n";
+LogicalResult LattigoEmitter::printOperation(memref::LoadOp op) {
+  std::string name = getName(op.getResult());
+  std::string rhsExpr = getName(op.getMemref()) + "[";
+  if (op.getIndices().empty()) {
+    rhsExpr += "0";
+  } else {
+    rhsExpr +=
+        flattenIndexExpression(op.getMemref().getType(), op.getIndices(),
+                               [&](Value value) { return getName(value); });
+  }
+  rhsExpr += "]";
+
+  emitAssignment(name, rhsExpr);
   return success();
 }
 
-LogicalResult LattigoEmitter::printOperation(tensor::ExtractOp op) {
-  std::string resultName = getName(op.getResult());
-  os << getName(op.getResult()) << " := " << getName(op.getTensor()) << "[";
+LogicalResult LattigoEmitter::printOperation(memref::StoreOp op) {
+  os << getName(op.getMemref()) << "[";
   if (op.getIndices().empty()) {
     os << "0";
   } else {
-    os << flattenIndexExpression(
-        op.getTensor().getType(), op.getIndices(),
-        [&](Value value) { return variableNames->getNameForValue(value); });
+    os << flattenIndexExpression(op.getMemref().getType(), op.getIndices(),
+                                 [&](Value value) { return getName(value); });
   }
-  os << "]\n";
+  os << "] = " << getName(op.getValueToStore()) << "\n";
   return success();
 }
 
-LogicalResult LattigoEmitter::printOperation(tensor::ExtractSliceOp op) {
-  RankedTensorType resultType = op.getResult().getType();
-  RankedTensorType sourceType = op.getSource().getType();
+LogicalResult LattigoEmitter::printOperation(memref::CopyOp op) {
+  os << "copy(" << getName(op.getTarget()) << ", " << getName(op.getSource())
+     << ")\n";
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(memref::GlobalOp op) {
+  auto type = cast<MemRefType>(op.getType());
+  auto eltTypeStr = convertType(type.getElementType());
+  if (failed(eltTypeStr)) return failure();
+
+  os << "var " << op.getSymName() << " = ";
+
+  auto initAttr = op.getInitialValueAttr();
+  if (!initAttr) {
+    return op.emitError("memref.global must have an initial value");
+  }
+
+  if (auto denseAttr = dyn_cast<DenseElementsAttr>(initAttr)) {
+    if (denseAttr.isSplat()) {
+      imports.insert(std::string(kSlicesImport));
+      auto eltType = type.getElementType();
+      std::string valStr;
+      if (eltType.isF32() || eltType.isF64()) {
+        FloatAttr splatAttr = denseAttr.getSplatValue<FloatAttr>();
+        valStr = std::to_string(splatAttr.getValueAsDouble());
+      } else if (eltType.isInteger(1)) {
+        valStr = denseAttr.getSplatValue<IntegerAttr>().getInt() != 0 ? "true"
+                                                                      : "false";
+      } else if (llvm::isa<IntegerType>(eltType)) {
+        valStr =
+            std::to_string(denseAttr.getSplatValue<IntegerAttr>().getInt());
+      } else {
+        return op.emitError("Unsupported splat element type");
+      }
+
+      int64_t size = 1;
+      for (int64_t dim : type.getShape()) {
+        size *= dim;
+      }
+
+      os << "slices.Repeat([]" << eltTypeStr.value() << "{" << valStr << "}, "
+         << size << ")\n";
+    } else {
+      // Non-splat, print as list
+      os << "[]" << eltTypeStr.value() << "{";
+      bool first = true;
+      auto eltType = type.getElementType();
+      if (eltType.isF32() || eltType.isF64()) {
+        for (FloatAttr val : denseAttr.getValues<FloatAttr>()) {
+          if (!first) os << ", ";
+          os << val.getValueAsDouble();
+          first = false;
+        }
+      } else if (eltType.isInteger(1)) {
+        for (auto attr : denseAttr.getValues<Attribute>()) {
+          if (!first) os << ", ";
+          os << (cast<IntegerAttr>(attr).getInt() != 0 ? "true" : "false");
+          first = false;
+        }
+      } else if (llvm::isa<IntegerType>(eltType)) {
+        for (auto attr : denseAttr.getValues<Attribute>()) {
+          if (!first) os << ", ";
+          os << cast<IntegerAttr>(attr).getInt();
+          first = false;
+        }
+      } else {
+        return op.emitError("Unsupported element type for dense attribute");
+      }
+      os << "}\n";
+    }
+  } else {
+    return op.emitError(
+        "Only DenseElementsAttr is supported for memref.global");
+  }
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(memref::GetGlobalOp op) {
+  os << getName(op.getResult()) << " := " << op.getName() << "\n";
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(memref::ExpandShapeOp op) {
+  emitAssignment(getName(op.getResult()), getName(op.getSrc()));
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(memref::CollapseShapeOp op) {
+  emitAssignment(getName(op.getResult()), getName(op.getSrc()));
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(memref::CastOp op) {
+  std::string name = getName(op.getResult());
+  emitAssignment(name, getName(op.getSource()));
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(memref::SubViewOp op) {
+  MemRefType srcType = op.getSourceType();
+  MemRefType resultType = op.getType();
+
+  auto offsets = op.getMixedOffsets();
+  auto sizes = op.getMixedSizes();
+  auto strides = op.getMixedStrides();
 
   std::string resultName = getName(op.getResult(), /*force=*/true);
   std::string sourceName = getName(op.getSource());
@@ -1063,16 +1212,16 @@ LogicalResult LattigoEmitter::printOperation(tensor::ExtractSliceOp op) {
     return getName(mlir::cast<Value>(offset));
   };
 
-  if (llvm::all_of(op.getMixedStrides(), isConstantOne)) {
+  if (llvm::all_of(strides, isConstantOne)) {
     bool contiguous = false;
-    if (llvm::all_of(ArrayRef<OpFoldResult>(op.getMixedSizes()).drop_back(),
+    if (llvm::all_of(ArrayRef<OpFoldResult>(sizes).drop_back(),
                      isConstantOne)) {
       contiguous = true;
     } else {
       contiguous = true;
-      for (size_t i = 1; i < sourceType.getRank(); ++i) {
-        auto size = getConstantIntValue(op.getMixedSizes()[i]);
-        if (!size || *size != sourceType.getShape()[i]) {
+      for (size_t i = 1; i < srcType.getRank(); ++i) {
+        auto size = getConstantIntValue(sizes[i]);
+        if (!size || *size != srcType.getShape()[i]) {
           contiguous = false;
           break;
         }
@@ -1081,18 +1230,18 @@ LogicalResult LattigoEmitter::printOperation(tensor::ExtractSliceOp op) {
 
     if (contiguous) {
       SmallVector<std::string> offsetStrings;
-      for (auto o : op.getMixedOffsets()) {
+      for (auto o : offsets) {
         offsetStrings.push_back(getOffsetAsString(o));
       }
       std::string startStr =
-          flattenIndexExpression(sourceType.getShape(), offsetStrings);
+          flattenIndexExpression(srcType.getShape(), offsetStrings);
 
       std::string lengthStr;
       if (resultType.hasStaticShape()) {
         lengthStr = std::to_string(resultType.getNumElements());
       } else {
         SmallVector<std::string> sizeStrings;
-        for (auto s : op.getMixedSizes()) {
+        for (auto s : sizes) {
           sizeStrings.push_back(getOffsetAsString(s));
         }
         lengthStr = sizeStrings[0];
@@ -1101,268 +1250,58 @@ LogicalResult LattigoEmitter::printOperation(tensor::ExtractSliceOp op) {
         }
       }
 
-      os << resultName << " := " << sourceName << "[" << startStr << " : "
-         << startStr << " + " << lengthStr << "]\n";
+      os << resultName << " := " << sourceName << "[" << startStr << " : ("
+         << startStr << " + " << lengthStr << ")]\n";
       return success();
     }
   }
 
-  // make an array to store the output
-  //
-  //   v := make([]int32, num_elements)
-  //
-  auto eltTypeStr = convertType(resultType.getElementType());
-  if (resultType.hasStaticShape()) {
-    os << resultName << " := make([]" << eltTypeStr.value() << ", "
-       << resultType.getNumElements() << ")\n";
-  } else {
-    SmallVector<std::string> sizeStrings;
-    for (auto s : op.getMixedSizes()) {
-      sizeStrings.push_back(getOffsetAsString(s));
-    }
-    std::string lengthStr = sizeStrings[0];
-    for (size_t i = 1; i < sizeStrings.size(); ++i) {
-      lengthStr += " * " + sizeStrings[i];
-    }
-    os << resultName << " := make([]" << eltTypeStr.value() << ", " << lengthStr
-       << ")\n";
-  }
-
-  SmallVector<OpFoldResult> offsets = op.getMixedOffsets();
-  SmallVector<OpFoldResult> sizes = op.getMixedSizes();
-  SmallVector<OpFoldResult> strides = op.getMixedStrides();
-
-  InductionVarNameFn nameFn = [&](int i) {
-    return getName(op.getResult()) + "_i" + std::to_string(i);
-  };
-
-  DynamicLoopOpenerFn opener = [&](raw_indented_ostream& os,
-                                   const std::string& inductionVar,
-                                   OpFoldResult size) {
-    os << "for " << inductionVar << " := 0; " << inductionVar << " < "
-       << getOffsetAsString(size) << "; " << inductionVar << " += 1 {\n";
-  };
-
-  emitFlattenedExtractSlice(resultType, sourceType, resultName, sourceName,
-                            offsets, sizes, strides, getOffsetAsString, nameFn,
-                            opener, os);
-
-  return success();
+  return op.emitOpError()
+         << "assumes contiguousness, but the slice is not contiguous. "
+            "Non-contiguous subviews are not supported yet.";
 }
 
-LogicalResult LattigoEmitter::printOperation(tensor::CollapseShapeOp op) {
-  // A rank-reduced type will have the same number of elements so collapsing
-  // is a no-op on a flattened tensor.
-  SliceVerificationResult res =
-      isRankReducedType(op.getSrcType(), op.getResultType());
-  if (res != SliceVerificationResult::Success) {
-    return op.emitError()
-           << "Only rank-reduced types are supported for CollapseShapeOp";
-  }
-  variableNames->mapValueNameToValue(op.getResult(), op.getSrc());
-  return success();
-}
-
-LogicalResult LattigoEmitter::printOperation(tensor::ExpandShapeOp op) {
-  // A rank-reduced type will have the same number of elements so expanding is
-  // a no-op on a flattened tensor.
-  SliceVerificationResult res =
-      isRankReducedType(op.getResultType(), op.getSrcType());
-  if (res != SliceVerificationResult::Success) {
-    return op.emitError()
-           << "Only rank-reduced types are supported for ExpandShapeOp";
-  }
-  variableNames->mapValueNameToValue(op.getResult(), op.getSrc());
-  return success();
-}
-
-// Emits a slice copy operation and returns the string containing the emitted
-// variable name of the result
-std::string LattigoEmitter::emitCopySlice(Value source, Value result,
-                                          bool shouldDeclare) {
-  // Tensor semantics create new SSA values for each result. If this causes
-  // inefficiencies, cf. https://github.com/google/heir/issues/1871 for ideas.
-  //
-  // Copy the slice:
-  //
-  //   result := append(make([]int, 0, len(dest)), dest...)
-  //
-  // Cf. https://stackoverflow.com/a/35748636
-  const std::string sourceName = getName(source);
-  std::string resultName = getName(result, /*force=*/true);
-  std::string assign = shouldDeclare ? ":=" : "=";
-  auto typeStr = convertType(result.getType());
-  os << resultName << " " << assign << " append(make(" << typeStr.value()
-     << ", 0, len(" << sourceName << ")), " << sourceName << "...)\n";
-  return resultName;
-}
-
-LogicalResult LattigoEmitter::printOperation(tensor::InsertOp op) {
-  // Check if the result was already declared (e.g., as an iter_arg in scf.for)
-  bool shouldDeclare = !(variableNames->contains(op.getResult()) &&
-                         variableNames->contains(op.getDest()) &&
-                         getName(op.getResult()) == getName(op.getDest()));
-
-  std::string resultName;
-  if (!shouldDeclare) {
-    resultName = getName(op.getResult(), /*force=*/true);
-  } else {
-    resultName = emitCopySlice(op.getDest(), op.getResult(), shouldDeclare);
-  }
-  // result[index] = value
-  os << resultName << "[";
-  if (op.getIndices().empty()) {
-    os << "0";
-  } else {
-    os << flattenIndexExpression(op.getResult().getType(), op.getIndices(),
-                                 [&](Value value) { return getName(value); });
-  }
-  os << "] = " << getName(op.getScalar()) << "\n";
-  return success();
-}
-
-LogicalResult LattigoEmitter::printOperation(tensor::InsertSliceOp op) {
-  RankedTensorType resultType = op.getResult().getType();
-  if (resultType.getRank() != op.getSourceType().getRank()) {
-    return op.emitError(
-        "Lattigo emitter for InsertSliceOp only supports "
-        "result rank equal to source rank");
-  }
-
-  // Check if the result was already declared (e.g., as an iter_arg in scf.for)
-  bool shouldDeclare = !(variableNames->contains(op.getResult()) &&
-                         variableNames->contains(op.getDest()) &&
-                         getName(op.getResult()) == getName(op.getDest()));
-
-  std::string destName;
-  if (!shouldDeclare) {
-    destName = getName(op.getResult(), /*force=*/true);
-  } else {
-    destName = emitCopySlice(op.getDest(), op.getResult(), shouldDeclare);
-  }
-  const std::string sourceName = getName(op.getSource());
-
-  auto getOffsetAsString = [&](OpFoldResult offset) -> std::string {
-    if (auto attr = mlir::dyn_cast_or_null<Attribute>(offset)) {
-      return std::to_string(
-          mlir::cast<IntegerAttr>(attr).getValue().getSExtValue());
-    }
-    return getName(mlir::cast<Value>(offset));
-  };
-
-  if (llvm::all_of(op.getMixedStrides(), isConstantOne)) {
-    bool contiguous = false;
-    if (llvm::all_of(ArrayRef<OpFoldResult>(op.getMixedSizes()).drop_back(),
-                     isConstantOne)) {
-      contiguous = true;
+LogicalResult LattigoEmitter::printOperation(
+    memref::ExtractStridedMetadataOp op) {
+  std::string baseBufferName = getName(op.getBaseBuffer());
+  if (baseBufferName != "_") {
+    if (declaredVars.count(baseBufferName)) {
+      os << baseBufferName << " = " << getName(op.getSource()) << "\n";
     } else {
-      contiguous = true;
-      for (size_t i = 1; i < op.getSourceType().getRank(); ++i) {
-        auto size = getConstantIntValue(op.getMixedSizes()[i]);
-        if (!size || *size != op.getSourceType().getShape()[i]) {
-          contiguous = false;
-          break;
-        }
-      }
+      os << baseBufferName << " := " << getName(op.getSource()) << "\n";
+      declaredVars.insert(baseBufferName);
     }
+    os << "_ = " << baseBufferName << "\n";
+  }
 
-    if (contiguous) {
-      SmallVector<std::string> offsetStrings;
-      for (auto o : op.getMixedOffsets()) {
-        offsetStrings.push_back(getOffsetAsString(o));
-      }
-      std::string startStr =
-          flattenIndexExpression(resultType.getShape(), offsetStrings);
+  if (!op.getOffset().use_empty()) {
+    return op.emitOpError() << "offset use is not supported";
+  }
 
-      std::string lengthStr;
-      if (op.getSourceType().hasStaticShape()) {
-        lengthStr = std::to_string(op.getSourceType().getNumElements());
-      } else {
-        SmallVector<std::string> sizeStrings;
-        for (auto s : op.getMixedSizes()) {
-          sizeStrings.push_back(getOffsetAsString(s));
-        }
-        lengthStr = sizeStrings[0];
-        for (size_t i = 1; i < sizeStrings.size(); ++i) {
-          lengthStr += " * " + sizeStrings[i];
-        }
-      }
-
-      os << "copy(" << destName << "[" << startStr << " : " << startStr << " + "
-         << lengthStr << "], " << sourceName << ")\n";
-      return success();
+  for (auto size : op.getSizes()) {
+    if (!size.use_empty()) {
+      return op.emitOpError() << "size use is not supported";
     }
   }
 
-  SmallVector<OpFoldResult> offsets = op.getMixedOffsets();
-  SmallVector<OpFoldResult> sizes = op.getMixedSizes();
-  SmallVector<OpFoldResult> strides = op.getMixedStrides();
-
-  // Otherwise we need a loop
-  SmallVector<std::string> sourceIndexNames;
-  SmallVector<std::string> destIndexNames;
-  for (int nestLevel = 0; nestLevel < offsets.size(); nestLevel++) {
-    std::string sourceIndexName = sourceName + "_" + std::to_string(nestLevel);
-    std::string destIndexName = destName + "_" + std::to_string(nestLevel);
-    sourceIndexNames.push_back(sourceIndexName);
-    destIndexNames.push_back(destIndexName);
-    // Initialize the source index to zero, since it is simple, note this must
-    // happen outside the loop
-    os << sourceIndexName << " := 0;\n";
-    os << "for " << destIndexName
-       << " := " << getOffsetAsString(offsets[nestLevel]) << "; "
-       << destIndexName << " < " << getOffsetAsString(offsets[nestLevel])
-       << " + " << getOffsetAsString(sizes[nestLevel]) << " * "
-       << getOffsetAsString(strides[nestLevel]) << "; " << destIndexName
-       << " += " << getOffsetAsString(strides[nestLevel]) << " {\n";
-    os.indent();
-  }
-
-  // Now we're in the innermost loop nest, do the assignment
-  os << destName << "["
-     << flattenIndexExpression(resultType.getShape(), destIndexNames)
-     << "] = " << sourceName << "["
-     << flattenIndexExpression(op.getSourceType().getShape(), sourceIndexNames)
-     << "]\n";
-
-  // Now unindent and close the loop nest
-  for (int nestLevel = offsets.size() - 1; nestLevel >= 0; nestLevel--) {
-    // Also increment the source indices
-    os << sourceIndexNames[nestLevel] << " += 1\n";
-    os.unindent();
-    os << "}\n";
+  for (auto stride : op.getStrides()) {
+    if (!stride.use_empty()) {
+      return op.emitOpError() << "stride use is not supported";
+    }
   }
 
   return success();
 }
-LogicalResult LattigoEmitter::printOperation(tensor::FromElementsOp op) {
-  auto typeStr = convertType(getElementTypeOrSelf(op.getResult().getType()));
-  std::string resultName = getName(op.getResult());
-  os << resultName << " := []" << typeStr.value() << "{";
-  os << getCommaSeparatedNames(op.getOperands());
-  os << "}\n";
-  return success();
-}
 
-LogicalResult LattigoEmitter::printOperation(tensor::SplatOp op) {
-  imports.insert(std::string(kSlicesImport));
-  // don't use getName because the tmpvar is guaranteed to be used
-  std::string resultName = getName(op.getResult());
-  std::string tmpVar = resultName + "_0";
-  auto scalarTypeString = convertType(op.getInput().getType());
-  RankedTensorType resultType = op.getResult().getType();
-
-  // golang requires a slice input to slices.Repeat
-  // Note that all tensor values are flattened in this emitter.
-  //
-  //   numbers := []int{v}
-  //   repeat := slices.Repeat(numbers, 50)
-  //
-  int tensorSize = resultType.getNumElements();
-  os << tmpVar << " := []" << scalarTypeString.value() << "{"
-     << getName(op.getInput()) << "}\n";
-  os << resultName << " := slices.Repeat(" << tmpVar << ", " << tensorSize
-     << ")\n";
+LogicalResult LattigoEmitter::printOperation(memref::DimOp op) {
+  auto constantOp = op.getConstantIndex();
+  if (constantOp && *constantOp == 0) {
+    std::string name = getName(op.getResult());
+    emitAssignment(name, "int64(len(" + getName(op.getSource()) + "))");
+  } else {
+    return op.emitError(
+        "Only dimension 0 is supported for memref.dim on flattened memrefs");
+  }
   return success();
 }
 
@@ -2030,13 +1969,13 @@ LogicalResult LattigoEmitter::printOperation(CKKSLinearTransformOp op) {
   auto outputName = getName(op.getOutput());
   auto diagonalsName = getName(op.getDiagonals());
 
-  // Get the diagonals tensor type to determine dimensions
-  auto diagonalsTensor = cast<RankedTensorType>(op.getDiagonals().getType());
-  if (diagonalsTensor.getRank() != 2) {
+  // Get the diagonals type to determine dimensions
+  auto diagonalsType = cast<ShapedType>(op.getDiagonals().getType());
+  if (diagonalsType.getRank() != 2) {
     return op.emitOpError("Expected 2D tensor for diagonals");
   }
 
-  int64_t slotsPerDiagonal = diagonalsTensor.getShape()[1];
+  int64_t slotsPerDiagonal = diagonalsType.getShape()[1];
 
   // Generate unique variable names
   std::string diagonalsMapName = outputName + "_diags";
@@ -2326,6 +2265,14 @@ FailureOr<std::string> LattigoEmitter::convertType(Type type) {
         auto result = eltTyResult.value();
         return std::string("[]") + result;
       })
+      .Case<MemRefType>([&](auto ty) -> FailureOr<std::string> {
+        auto eltTyResult = convertType(ty.getElementType());
+        if (failed(eltTyResult)) {
+          return failure();
+        }
+        auto result = eltTyResult.value();
+        return std::string("[]") + result;
+      })
       .Default([&](Type) -> FailureOr<std::string> { return failure(); });
 }
 
@@ -2385,11 +2332,11 @@ void registerToLattigoTranslation() {
                                   translateOptions->extraImports);
       },
       [](DialectRegistry& registry) {
-        registry
-            .insert<affine::AffineDialect, rns::RNSDialect, arith::ArithDialect,
-                    func::FuncDialect, tensor::TensorDialect,
-                    tensor_ext::TensorExtDialect, lattigo::LattigoDialect,
-                    mgmt::MgmtDialect, scf::SCFDialect>();
+        registry.insert<affine::AffineDialect, rns::RNSDialect,
+                        arith::ArithDialect, func::FuncDialect,
+                        tensor::TensorDialect, tensor_ext::TensorExtDialect,
+                        lattigo::LattigoDialect, memref::MemRefDialect,
+                        mgmt::MgmtDialect, scf::SCFDialect>();
       });
 }
 
@@ -2405,11 +2352,11 @@ void registerToLattigoPreprocessingTranslation() {
             });
       },
       [](DialectRegistry& registry) {
-        registry
-            .insert<affine::AffineDialect, rns::RNSDialect, arith::ArithDialect,
-                    func::FuncDialect, tensor::TensorDialect,
-                    tensor_ext::TensorExtDialect, lattigo::LattigoDialect,
-                    mgmt::MgmtDialect, scf::SCFDialect>();
+        registry.insert<affine::AffineDialect, rns::RNSDialect,
+                        arith::ArithDialect, func::FuncDialect,
+                        tensor::TensorDialect, tensor_ext::TensorExtDialect,
+                        lattigo::LattigoDialect, memref::MemRefDialect,
+                        mgmt::MgmtDialect, scf::SCFDialect>();
       });
 }
 
@@ -2425,11 +2372,11 @@ void registerToLattigoPreprocessedTranslation() {
             });
       },
       [](DialectRegistry& registry) {
-        registry
-            .insert<affine::AffineDialect, rns::RNSDialect, arith::ArithDialect,
-                    func::FuncDialect, tensor::TensorDialect,
-                    tensor_ext::TensorExtDialect, lattigo::LattigoDialect,
-                    mgmt::MgmtDialect, scf::SCFDialect>();
+        registry.insert<affine::AffineDialect, rns::RNSDialect,
+                        arith::ArithDialect, func::FuncDialect,
+                        tensor::TensorDialect, tensor_ext::TensorExtDialect,
+                        lattigo::LattigoDialect, memref::MemRefDialect,
+                        mgmt::MgmtDialect, scf::SCFDialect>();
       });
 }
 

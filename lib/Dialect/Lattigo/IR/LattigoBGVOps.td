@@ -10,7 +10,10 @@ class Lattigo_BGVOp<string mnemonic, list<Trait> traits = []> :
         Lattigo_Op<"bgv." # mnemonic, traits> {
 }
 
-def Lattigo_BGVNewPlaintextOp : Lattigo_BGVOp<"new_plaintext"> {
+// This operation cannot be marked as Pure because it represents a buffer allocation.
+// If marked as Pure, CSE will deduplicate them, causing multiple in-place operations
+// (like encode) to share the same buffer and overwrite each other.
+def Lattigo_BGVNewPlaintextOp : Lattigo_BGVOp<"new_plaintext", []> {
   let summary = "Create a new plaintext in the Lattigo BGV dialect";
   let description = [{
     This operation creates a new plaintext value in the Lattigo BGV dialect.
@@ -21,7 +24,7 @@ def Lattigo_BGVNewPlaintextOp : Lattigo_BGVOp<"new_plaintext"> {
   let results = (outs Lattigo_RLWEPlaintext:$plaintext);
 }
 
-def Lattigo_BGVNewParametersFromLiteralOp : Lattigo_BGVOp<"new_parameters_from_literal"> {
+def Lattigo_BGVNewParametersFromLiteralOp : Lattigo_BGVOp<"new_parameters_from_literal", [Pure]> {
   let summary = "Create new BGV parameters from a literal in the Lattigo BGV dialect";
   let description = [{
     This operation creates new BGV parameters from a given literal value in the Lattigo BGV dialect.
@@ -32,7 +35,7 @@ def Lattigo_BGVNewParametersFromLiteralOp : Lattigo_BGVOp<"new_parameters_from_l
   let results = (outs Lattigo_BGVParameter:$params);
 }
 
-def Lattigo_BGVNewEncoderOp : Lattigo_BGVOp<"new_encoder"> {
+def Lattigo_BGVNewEncoderOp : Lattigo_BGVOp<"new_encoder", [Pure]> {
   let summary = "Create a new encoder in the Lattigo BGV dialect";
   let description = [{
     This operation creates a new encoder for encoding plaintext values in the Lattigo BGV dialect.
@@ -54,7 +57,7 @@ def Lattigo_BGVEncodeOp : Lattigo_BGVOp<"encode", [InPlaceOpInterface]> {
   }];
   let arguments = (ins
     Lattigo_BGVEncoder:$encoder,
-    RankedTensorOf<[AnyInteger]>:$value,
+    TensorOrMemRef<[AnyInteger]>:$value,
     Lattigo_RLWEPlaintext:$plaintext,
     DefaultValuedAttr<I64Attr, "1">:$scale
   );
@@ -73,16 +76,16 @@ def Lattigo_BGVDecodeOp : Lattigo_BGVOp<"decode", [AllTypesMatch<["value", "deco
   let arguments = (ins
     Lattigo_BGVEncoder:$encoder,
     Lattigo_RLWEPlaintext:$plaintext,
-    RankedTensorOf<[AnyInteger]>:$value
+    TensorOrMemRef<[AnyInteger]>:$value
     // Rely on Lattigo internal tracking of scale for decoding.
     // DefaultValuedAttr<I64Attr, "1">:$scale
   );
   // although bgv.Decode is also an inplace operation as bgv.Encode, as there are post-processing
   // steps in emitter, we mark it as a normal operation.
-  let results = (outs RankedTensorOf<[AnyInteger]>:$decoded);
+  let results = (outs TensorOrMemRef<[AnyInteger]>:$decoded);
 }
 
-def Lattigo_BGVNewEvaluatorOp : Lattigo_BGVOp<"new_evaluator"> {
+def Lattigo_BGVNewEvaluatorOp : Lattigo_BGVOp<"new_evaluator", [Pure]> {
   let summary = "Create a new evaluator in the Lattigo BGV dialect";
   let description = [{
     This operation creates a new evaluator for performing operations on ciphertexts in the Lattigo BGV dialect.
@@ -107,7 +110,7 @@ def Lattigo_BGVNewEvaluatorOp : Lattigo_BGVOp<"new_evaluator"> {
 // ciphertext arithmetic op
 
 class Lattigo_BGVBinaryOp<string mnemonic, list<Trait> traits = []> :
-        Lattigo_BGVOp<mnemonic, traits> {
+        Lattigo_BGVOp<mnemonic, traits # [Pure]> {
   let arguments = (ins
     Lattigo_BGVEvaluator:$evaluator,
     Lattigo_RLWECiphertext:$lhs,
@@ -183,7 +186,7 @@ def Lattigo_BGVMulOp : Lattigo_BGVBinaryInPlaceOp<"mul", [IncreasesMulDepthOpInt
 }
 
 class Lattigo_BGVUnaryOp<string mnemonic> :
-        Lattigo_BGVOp<mnemonic> {
+        Lattigo_BGVOp<mnemonic, [Pure]> {
   let arguments = (ins
     Lattigo_BGVEvaluator:$evaluator,
     Lattigo_RLWECiphertext:$input

@@ -34,18 +34,23 @@ using mlir::func::FuncOp;
 
 namespace mlir::heir {
 
-void oneShotBufferize(OpPassManager& manager) {
+void oneShotBufferize(OpPassManager& manager, bool includeDeallocation) {
   // One-shot bufferize, from
   // https://mlir.llvm.org/docs/Bufferization/#ownership-based-buffer-deallocation
   bufferization::OneShotBufferizePassOptions bufferizationOptions;
   bufferizationOptions.bufferizeFunctionBoundaries = true;
+  bufferizationOptions.allowReturnAllocsFromLoops = true;
   manager.addPass(
       bufferization::createOneShotBufferizePass(bufferizationOptions));
   manager.addPass(memref::createExpandReallocPass());
-  manager.addPass(bufferization::createOwnershipBasedBufferDeallocationPass());
-  manager.addPass(createCanonicalizerPass());
-  manager.addPass(bufferization::createBufferDeallocationSimplificationPass());
-  manager.addPass(bufferization::createLowerDeallocationsPass());
+  if (includeDeallocation) {
+    manager.addPass(
+        bufferization::createOwnershipBasedBufferDeallocationPass());
+    manager.addPass(createCanonicalizerPass());
+    manager.addPass(
+        bufferization::createBufferDeallocationSimplificationPass());
+    manager.addPass(bufferization::createLowerDeallocationsPass());
+  }
   manager.addPass(createCSEPass());
   manager.addPass(mlir::createConvertBufferizationToMemRefPass());
   manager.addPass(createCanonicalizerPass());
