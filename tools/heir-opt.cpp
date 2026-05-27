@@ -32,6 +32,7 @@
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/Transforms/Passes.h"
 #include "lib/Dialect/Lattigo/IR/LattigoDialect.h"
+#include "lib/Dialect/Lattigo/Transforms/BufferizableOpInterfaceImpl.h"
 #include "lib/Dialect/Lattigo/Transforms/Passes.h"
 #include "lib/Dialect/MathExt/IR/MathExtDialect.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
@@ -432,6 +433,7 @@ int main(int argc, char** argv) {
 
   // Interfaces in HEIR
   secret::registerBufferizableOpInterfaceExternalModels(registry);
+  lattigo::registerBufferizableOpInterfaceExternalModels(registry);
   registerIncreasesMulDepthOpInterface(registry);
   registerLayoutConversionHoistableInterface(registry);
   registerOperandAndResultAttrInterface(registry);

@@ -20,8 +20,6 @@
 #include "mlir/include/mlir/IR/ValueRange.h"            // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
 
-// ISL
-
 namespace mlir {
 namespace heir {
 namespace {

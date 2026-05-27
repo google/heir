@@ -261,7 +261,13 @@ SmallVector<Value> extendToCommonWidth(
   for (Value value : values) {
     auto intType = cast<IntegerType>(value.getType());
     if (intType.getWidth() < maxWidth) {
-      auto extOp = arith::ExtSIOp::create(b, value.getLoc(), upcastType, value);
+      Operation* extOp;
+      if (intType.getWidth() == 1) {
+        // To preserve the sign of a boolean true value, use unsigned extension.
+        extOp = arith::ExtUIOp::create(b, value.getLoc(), upcastType, value);
+      } else {
+        extOp = arith::ExtSIOp::create(b, value.getLoc(), upcastType, value);
+      }
       if (createdOpCallback) {
         createdOpCallback(extOp);
       }

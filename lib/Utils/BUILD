@@ -240,3 +240,16 @@ cc_library(
         "@llvm-project//mlir:Support",
     ],
 )
+
+cc_test(
+    name = "UtilsTest",
+    srcs = ["UtilsTest.cpp"],
+    deps = [
+        ":Utils",
+        "@googletest//:gtest_main",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)

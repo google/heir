@@ -107,6 +107,13 @@ class HeirOptBackend(CLIBackend):
     """
     super().__init__(binary_path)
 
+  @classmethod
+  def from_pip(cls):
+    """Creates a HeirOptBackend using the binary from pip installation."""
+    from heir.heir_cli import heir_cli_config
+
+    return cls(heir_cli_config.from_pip_installation().heir_opt_path)
+
 
 class HeirTranslateBackend(CLIBackend):
 
@@ -116,3 +123,10 @@ class HeirTranslateBackend(CLIBackend):
     If not specified, will assume heir-translate is on the path.
     """
     super().__init__(binary_path)
+
+  @classmethod
+  def from_pip(cls):
+    """Creates a HeirTranslateBackend using the binary from pip installation."""
+    from heir.heir_cli import heir_cli_config
+
+    return cls(heir_cli_config.from_pip_installation().heir_translate_path)
