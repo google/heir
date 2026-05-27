@@ -6,20 +6,16 @@
 module {
 // first assign_layout is inline
 // second assign_layout
-// CHECK: func.func private @_assign_layout_{{[0-9]+}}
-// CHECK-SAME: %[[ARG0:.*]]: tensor<16x16xf32>) -> tensor<16x1024xf32>
-// CHECK-SAME: {func_name = "square"}
-// CHECK-COUNT-2: scf.for {{.*}}
+
 
 // CHECK: func.func @square
 // CHECK-SAME: (%[[ARG0:.*]]: !secret.secret<tensor<1x1024xf32>> {tensor_ext.original_type = #original_type}) -> (!secret.secret<tensor<1x1024xf32>> {tensor_ext.original_type = #original_type})
-// CHECK-DAG: %[[C16:.*]] = arith.constant 16 : index
 // CHECK-DAG: %[[C4:.*]] = arith.constant 4 : index
 // CHECK-DAG: %[[C0:.*]] = arith.constant 0 : index
 // CHECK-DAG: %[[C1:.*]] = arith.constant 1 : index
 // CHECK-DAG: %[[V:.*]] = arith.constant dense<1{{.*}}> : tensor<1x1024
+// CHECK-DAG: %[[M:.*]] = arith.constant dense<{{.*}}> : tensor<16x1024xf32>
 // CHECK: secret.generic
-// CHECK: %[[M:.*]] = func.call @_assign_layout
 // CHECK: %[[LOOP1:.*]] = scf.for %[[I:.*]] = %[[C0]] to %[[C4]] step %[[C1]]
 // CHECK:   %[[LOOP2:.*]] = scf.for %[[J:.*]] = %[[C0]] to %[[C4]] step %[[C1]]
 // CHECK:     tensor_ext.rotate
@@ -49,36 +45,14 @@ module {
 
 // -----
 
-// first assign_layout with conditionals
-// CHECK: func.func private @_assign_layout_{{[0-9]+}}
-// CHECK-SAME: %[[ARG0:.*]]: tensor<10xf32>) -> tensor<1x1024xf32>
-// CHECK-SAME: {func_name = "squat"}
-// CHECK: scf.for {{.*}}
-// CHECK: arith.addi
-// CHECK: arith.remsi
-// CHECK: arith.cmpi sge
-// CHECK: scf.if
-// CHECK: return
-// second assign_layout with conditionals
-// CHECK: func.func private @_assign_layout_{{[0-9]+}}
-// CHECK-SAME: %[[ARG0:.*]]: tensor<10x16xf32>) -> tensor<16x1024xf32>
-// CHECK-SAME: {func_name = "squat"}
-// CHECK-COUNT-2: scf.for {{.*}}
-// CHECK: arith.addi
-// CHECK: arith.remsi
-// CHECK: arith.cmpi sge
-// CHECK: scf.if
-// CHECK: return
-
 // CHECK: func.func @squat
 // CHECK-SAME: (%[[ARG0:.*]]: !secret.secret<tensor<1x1024xf32>> {{.*}}) -> (!secret.secret<tensor<1x1024xf32>> {tensor_ext.original_type = #original_type})
-// CHECK-DAG: %[[C16:.*]] = arith.constant 16 : index
 // CHECK-DAG: %[[C4:.*]] = arith.constant 4 : index
 // CHECK-DAG: %[[C0:.*]] = arith.constant 0 : index
 // CHECK-DAG: %[[C1:.*]] = arith.constant 1 : index
+// CHECK: %[[M:.*]] = arith.constant dense<
+// CHECK: %[[V:.*]] = arith.constant dense<{{.*}} : tensor<16x1024xf32>
 // CHECK: secret.generic
-// CHECK: %[[M:.*]] = func.call @_assign_layout
-// CHECK: %[[V:.*]] = func.call @_assign_layout
 // CHECK: %[[LOOP1:.*]] = scf.for %[[I:.*]] = %[[C0]] to %[[C4]] step %[[C1]]
 // CHECK:   %[[LOOP2:.*]] = scf.for %[[J:.*]] = %[[C0]] to %[[C4]] step %[[C1]]
 // CHECK:     tensor_ext.rotate

@@ -11,12 +11,10 @@ module {
     %cst_0 = arith.constant dense<2.000000e+00> : tensor<5x5xf32>
     %0 = secret.generic(%arg0: !secret.secret<tensor<32x32xf32>> {tensor_ext.layout = #layout2}) {
     ^body(%input0: tensor<32x32xf32>):
-    // CHECK: secret.generic
     // The plaintext matrix has size 1024x1024 but only 241 rows are non-zero.
-    // CHECK: func.call @_assign_layout_{{[0-9]+}}
-    // CHECK-SAME: tensor<1024x1024xf32>
-    // CHECK: func.call @_assign_layout_{{[0-9]+}}
-    // CHECK-SAME: tensor<1x1024xf32>
+    // CHECK-DAG: arith.constant dense<{{.*}}> : tensor<1024x1024xf32>
+    // CHECK-DAG: arith.constant dense<{{.*}}> : tensor<1x1024xf32>
+    // CHECK: secret.generic
     // CHECK-COUNT-241: arith.mulf
     // CHECK-NOT: arith.mulf
     // CHECK: secret.yield
