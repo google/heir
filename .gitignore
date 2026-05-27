@@ -55,3 +55,6 @@ __pycache__/
 
 # lockfile is updated by automation
 MODULE.bazel.lock
+
+scripts/torch_ci/failure_logs
+scripts/torch_ci/models/*.mlir

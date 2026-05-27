@@ -8,6 +8,7 @@ and saves failure logs.
 
 import os
 import pathlib
+import re
 import subprocess
 import sys
 
@@ -50,7 +51,7 @@ class CoverageRunner:
 
   def run_export(self, model_name):
     model_file = self.models_dir / f"{model_name}.py"
-    repo_base = self.models_dir.parent.parent.resolve()
+    repo_base = self.models_dir.parent.parent.parent.resolve()
     cmd = f"PYTHONPATH={repo_base} {sys.executable} {model_file}"
     result = self.executor.run(cmd, cwd=str(self.models_dir))
     return result
@@ -60,7 +61,11 @@ class CoverageRunner:
     if not input_path.exists():
       return None
 
-    cmd = f"{self.heir_opt_path} {input_path}"
+    passes = (
+        '--secretize "--annotate-module=backend=lattigo scheme=ckks"'
+        ' "--torch-linalg-to-ckks=ciphertext-degree=1024" --scheme-to-lattigo'
+    )
+    cmd = f"{self.heir_opt_path} {passes} {input_path}"
     result = self.executor.run(cmd)
     return result
 
@@ -72,7 +77,9 @@ class CoverageRunner:
       export_result = self.run_export(model)
       if export_result.returncode != 0:
         results[model] = ("FAIL (Export)", export_result.stderr)
-        self.save_failure_log(model, "export", export_result.stderr)
+        self.save_failure_log(
+            model, "export", export_result.stderr, export_result.stdout
+        )
         continue
 
       heir_opt_result = self.run_heir_opt(model)
@@ -88,17 +95,23 @@ class CoverageRunner:
 
       if heir_opt_result.returncode != 0:
         results[model] = ("FAIL (heir-opt)", heir_opt_result.stderr)
-        self.save_failure_log(model, "heir-opt", heir_opt_result.stderr)
+        self.save_failure_log(
+            model, "heir-opt", heir_opt_result.stderr, heir_opt_result.stdout
+        )
       else:
         results[model] = ("PASS", "")
 
     return results
 
-  def save_failure_log(self, model_name, stage, content):
+  def save_failure_log(self, model_name, stage, content, stdout=None):
     logs_dir = self.models_dir.parent / "failure_logs"
     logs_dir.mkdir(exist_ok=True)
     log_file = logs_dir / f"{model_name}_{stage}.log"
     with open(log_file, "w") as f:
+      if stdout:
+        f.write("=== STDOUT ===\n")
+        f.write(stdout)
+        f.write("\n=== STDERR ===\n")
       f.write(content)
 
   def format_results_table(self, results):
@@ -106,7 +119,19 @@ class CoverageRunner:
     table += "| Operator | Status | Details |\n"
     table += "| --- | --- | --- |\n"
     for model, (status, details) in results.items():
-      details_str = details.replace("\n", " ")[:100] if details else ""
+      if details:
+        if "PLEASE submit a bug report to" in details:
+          details_str = "(stack trace)"
+        else:
+          details_str = details.replace("\n", " ")
+          details_str = re.sub(
+              r"^.*?\.mlir:\d+:\d+: error:", "error:", details_str
+          )
+          details_str = re.sub(r"^<unknown>:\d+: error:", "error:", details_str)
+          details_str = re.sub(r"^.*?\.mlir: error:", "error:", details_str)
+          details_str = details_str[:100]
+      else:
+        details_str = ""
       table += f"| {model} | {status} | {details_str} |\n"
     return table
 
