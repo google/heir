@@ -1338,10 +1338,13 @@ LogicalResult LattigoEmitter::printOperation(RLWEGenRelinearizationKeyOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(RLWEGenGaloisKeyOp op) {
-  os << getName(op.getResult()) << " := " << getName(op.getKeyGenerator())
-     << ".GenGaloisKeyNew(";
-  os << op.getGaloisElement().getInt() << ", ";
-  os << getName(op.getSecretKey()) << ")\n";
+  std::string resultName = getName(op.getResult());
+  std::string valueExpr =
+      llvm::formatv("{0}.GenGaloisKeyNew({1}, {2})",
+                    getName(op.getKeyGenerator()),
+                    op.getGaloisElement().getInt(), getName(op.getSecretKey()))
+          .str();
+  emitAssignment(resultName, valueExpr);
   return success();
 }
 
@@ -1383,7 +1386,7 @@ LogicalResult LattigoEmitter::printOperation(RLWEDropLevelNewOp op) {
   // there is no DropLevelNew method in Lattigo BGV Evaluator, manually create
   // new ciphertext
   std::string resultName = getName(op.getOutput());
-  os << resultName << " := " << getName(op.getInput()) << ".CopyNew()\n";
+  emitAssignment(resultName, getName(op.getInput()) + ".CopyNew()");
   os << getName(op.getEvaluator()) << ".DropLevel(" << resultName << ", "
      << op.getLevelToDrop() << ")\n";
   return success();
@@ -1392,7 +1395,7 @@ LogicalResult LattigoEmitter::printOperation(RLWEDropLevelNewOp op) {
 LogicalResult LattigoEmitter::printOperation(RLWEDropLevelOp op) {
   if (getName(op.getOutput()) != getName(op.getInput())) {
     std::string resultName = getName(op.getOutput());
-    os << resultName << " := " << getName(op.getInput()) << ".CopyNew()\n";
+    emitAssignment(resultName, getName(op.getInput()) + ".CopyNew()");
   }
   os << getName(op.getEvaluator()) << ".DropLevel(" << getName(op.getOutput())
      << ", " << op.getLevelToDrop() << ")\n";
@@ -1411,7 +1414,7 @@ LogicalResult LattigoEmitter::printOperation(RLWENegateNewOp op) {
   // there is no NegateNew method in Lattigo, manually create new
   // ciphertext
   std::string resultName = getName(op.getOutput());
-  os << resultName << " := " << getName(op.getInput()) << ".CopyNew()\n";
+  emitAssignment(resultName, getName(op.getInput()) + ".CopyNew()");
   auto indexName = getName(op.getOutput()) + "_index";
   auto res = llvm::formatv(negateTemplate, indexName, getName(op.getOutput()),
                            getName(op.getEvaluator()));
@@ -1590,7 +1593,7 @@ LogicalResult LattigoEmitter::printOperation(BGVRelinearizeNewOp op) {
 LogicalResult LattigoEmitter::printOperation(BGVRescaleNewOp op) {
   // there is no RescaleNew method in Lattigo, manually create new ciphertext
   std::string resultName = getName(op.getOutput());
-  os << resultName << " := " << getName(op.getInput()) << ".CopyNew()\n";
+  emitAssignment(resultName, getName(op.getInput()) + ".CopyNew()");
   return printEvalInPlaceMethod(
       op.getEvaluator(), {op.getInput(), op.getOutput()}, "Rescale", true);
 }
@@ -1617,6 +1620,9 @@ LogicalResult LattigoEmitter::printOperation(BGVRotateColumnsNewOp op) {
 
   os << ")\n";
   printErrPanic(errName);
+  if (resultName != "_") {
+    declaredVars.insert(resultName);
+  }
   return success();
 }
 
@@ -1887,7 +1893,7 @@ LogicalResult LattigoEmitter::printOperation(CKKSRelinearizeNewOp op) {
 LogicalResult LattigoEmitter::printOperation(CKKSRescaleNewOp op) {
   // there is no RescaleNew method in Lattigo, manually create new ciphertext
   std::string resultName = getName(op.getOutput());
-  os << resultName << " := " << getName(op.getInput()) << ".CopyNew()\n";
+  emitAssignment(resultName, getName(op.getInput()) + ".CopyNew()");
   return printEvalInPlaceMethod(
       op.getEvaluator(), {op.getInput(), op.getOutput()}, "Rescale", true);
 }
@@ -1914,6 +1920,9 @@ LogicalResult LattigoEmitter::printOperation(CKKSRotateNewOp op) {
 
   os << ")\n";
   printErrPanic(errName);
+  if (resultName != "_") {
+    declaredVars.insert(resultName);
+  }
   return success();
 }
 
@@ -1928,6 +1937,10 @@ LogicalResult LattigoEmitter::printOperation(CKKSRescaleOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(CKKSRotateOp op) {
+  auto inputName = getName(op.getInput());
+  auto inplaceName = getName(op.getInplace());
+  os << inplaceName << ".Resize(" << inputName << ".Degree()," << inputName
+     << ".Level())\n";
   auto errName = getErrName();
   os << errName << " := " << getName(op.getEvaluator()) << ".Rotate(";
   os << getName(op.getInput()) << ", ";
@@ -2153,15 +2166,22 @@ LogicalResult LattigoEmitter::printNewMethod(::mlir::Value result,
                                              std::string_view op, bool err) {
   std::string errName = getErrName();
   std::string resultName = getName(result);
-  os << resultName;
   if (err) {
-    os << ", " << errName;
-  }
-  os << " := " << op << "(";
-  os << getCommaSeparatedNames(operands);
-  os << ")\n";
-  if (err) {
+    os << resultName << ", " << errName << " := " << op << "("
+       << getCommaSeparatedNames(operands) << ")\n";
+    if (resultName != "_") {
+      declaredVars.insert(resultName);
+    }
     printErrPanic(errName);
+  } else {
+    if (resultName == "_" || declaredVars.count(resultName)) {
+      os << resultName << " = " << op << "(" << getCommaSeparatedNames(operands)
+         << ")\n";
+    } else {
+      os << resultName << " := " << op << "("
+         << getCommaSeparatedNames(operands) << ")\n";
+      declaredVars.insert(resultName);
+    }
   }
   return success();
 }
@@ -2187,15 +2207,39 @@ LogicalResult LattigoEmitter::printEvalNewMethod(::mlir::ValueRange results,
                                                  std::string_view op,
                                                  bool err) {
   std::string errName = getErrName();
-  os << getCommaSeparatedNames(results);
   if (err) {
-    os << ", " << errName;
-  }
-  os << " := " << getName(evaluator) << "." << op << "(";
-  os << getCommaSeparatedNames(operands);
-  os << ")\n";
-  if (err) {
+    os << getCommaSeparatedNames(results) << ", " << errName
+       << " := " << getName(evaluator) << "." << op << "("
+       << getCommaSeparatedNames(operands) << ")\n";
+    for (Value res : results) {
+      std::string name = getName(res);
+      if (name != "_") {
+        declaredVars.insert(name);
+      }
+    }
     printErrPanic(errName);
+  } else {
+    bool allDeclared = true;
+    for (Value res : results) {
+      std::string name = getName(res);
+      if (name != "_" && !declaredVars.count(name)) {
+        allDeclared = false;
+        break;
+      }
+    }
+    if (allDeclared) {
+      os << getCommaSeparatedNames(results) << " = " << getName(evaluator)
+         << "." << op << "(" << getCommaSeparatedNames(operands) << ")\n";
+    } else {
+      os << getCommaSeparatedNames(results) << " := " << getName(evaluator)
+         << "." << op << "(" << getCommaSeparatedNames(operands) << ")\n";
+      for (Value res : results) {
+        std::string name = getName(res);
+        if (name != "_") {
+          declaredVars.insert(name);
+        }
+      }
+    }
   }
   return success();
 }

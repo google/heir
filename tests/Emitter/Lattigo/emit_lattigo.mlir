@@ -66,7 +66,7 @@ module attributes {scheme.bgv} {
   // CHECK: [[gk5:[^, ].*]] := [[kgen]].GenGaloisKeyNew(5, [[sk]])
   // CHECK: [[evalKeySet:[^, ].*]] := rlwe.NewMemEvaluationKeySet([[rk]], [[gk5]])
   // CHECK: [[enc:[^, ].*]] := rlwe.NewEncryptor([[param]], [[pk]])
-  // CHECK: [[encSk:[^, ].*]] := rlwe.NewEncryptor([[param]], [[sk]])
+  // CHECK: _ = rlwe.NewEncryptor([[param]], [[sk]])
   // CHECK: [[dec:[^, ].*]] := rlwe.NewDecryptor([[param]], [[sk]])
   // CHECK: [[eval:[^, ].*]] := bgv.NewEvaluator([[param]], [[evalKeySet]], false)
   // CHECK: [[value1:[^, ].*]] := []int32

@@ -1,3 +1,7 @@
+#include <optional>
+
+#include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
+#include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #ifndef LIB_UTILS_ALLOCTOINPLACEUTILS_H_
 #define LIB_UTILS_ALLOCTOINPLACEUTILS_H_
 
@@ -9,6 +13,7 @@
 #include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
 #include "mlir/include/mlir/Analysis/Liveness.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Dominance.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
 
@@ -20,6 +25,30 @@
 
 namespace mlir {
 namespace heir {
+
+static std::optional<LevelState> getLevel(Value value, DataFlowSolver* solver) {
+  auto* lattice = solver->lookupState<LevelLattice>(value);
+  if (!lattice || !lattice->getValue().isInitialized()) {
+    return std::nullopt;
+  }
+  auto latticeVal = lattice->getValue();
+  if (!latticeVal.isInt()) {
+    return std::nullopt;
+  }
+  return lattice->getValue().getInt();
+}
+
+static bool isStored(Value value) {
+  for (auto& use : value.getUses()) {
+    llvm::StringRef opName = use.getOwner()->getName().getStringRef();
+    if (opName == "memref.store" || opName == "tensor.insert") {
+      if (use.getOperandNumber() == 0) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
 
 // CallerProvidedStorageInfo provides an analysis of SSA values that
 // can be reused for in-place operations that require the caller to pass
@@ -104,11 +133,32 @@ class CallerProvidedStorageInfo {
   // various accelerators. One basic optimization is to use the dead value that
   // is closest to the current operation in the block. But as we do not have the
   // information of the memory layout, we do not implement this optimization.
-  Value getAvailableStorage(Operation* op, Liveness* liveness) const {
+  Value getAvailableStorage(Operation* op, Liveness* liveness,
+                            DominanceInfo* domInfo,
+                            DataFlowSolver* solver) const {
     LLVM_DEBUG(llvm::dbgs()
                << "getAvailableStorage for op " << op->getName() << "\n");
     for (auto& [storage, values] : storageToReferringValues) {
+      if (domInfo && !domInfo->properlyDominates(storage, op)) {
+        continue;
+      }
+      if (isStored(storage)) {
+        continue;
+      }
       // storage and all referring values are dead
+      if (solver) {
+        auto opLevel = getLevel(op->getResult(0), solver);
+        auto storageLevel = getCurrentStorageLevel(storage, solver);
+        if (!opLevel.has_value() || !storageLevel.has_value()) {
+          continue;
+        }
+        // LevelState stores depth (levels consumed, 0 to L).
+        // We cannot reuse storage if it has already consumed more levels than
+        // the op expects. i.e., storage depth > op depth.
+        if (storageLevel->getInt() > opLevel->getInt()) {
+          continue;
+        }
+      }
       if (std::all_of(
               values.begin(), values.end(),
               [&](Value value) { return liveness->isDeadAfter(value, op); }) &&
@@ -138,6 +188,15 @@ class CallerProvidedStorageInfo {
   }
 
  private:
+  std::optional<LevelState> getCurrentStorageLevel(
+      Value storage, DataFlowSolver* solver) const {
+    auto it = storageToReferringValues.find(storage);
+    if (it == storageToReferringValues.end() || it->second.empty()) {
+      return getLevel(storage, solver);
+    }
+    return getLevel(it->second.back(), solver);
+  }
+
   DenseMap<Value, SmallVector<Value>> storageToReferringValues;
 };
 
