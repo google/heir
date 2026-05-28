@@ -528,8 +528,8 @@ BackendPipelineBuilder toLattigoPipelineBuilder() {
     pm.addPass(createCanonicalizerPass());
     pm.addPass(createSymbolDCEPass());
 
-    // Run one-shot-bufferize without deallocation because golang has garbage
-    // collection.
+    // Bufferize without deallocation because golang has garbage collection.
+    prepareForBufferize(pm);
     oneShotBufferize(pm, /*includeDeallocation=*/false);
 
     // Lower Linalg to loops
