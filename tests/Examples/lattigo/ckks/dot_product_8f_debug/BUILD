@@ -17,6 +17,7 @@ heir_lattigo_lib(
         "--mlir-to-ckks=ciphertext-degree=2048 \
           encryption-technique-extended=true \
           plaintext-execution-result-file-name=$(location @heir//tests/Examples/plaintext/dot_product_f_debug:dot_product_8f_debug.log)",
+        "--lwe-add-debug-port=insert-debug-after-every-op=true",
         "--scheme-to-lattigo=insert-debug-handler-calls=true",
     ],
     mlir_src = "@heir//tests/Examples/common:dot_product_8f.mlir",

@@ -10,6 +10,7 @@
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
@@ -62,9 +63,37 @@ LogicalResult OpenFhePkePybindEmitter::printOperation(ModuleOp moduleOp) {
 }
 
 LogicalResult OpenFhePkePybindEmitter::printOperation(func::FuncOp funcOp) {
-  os << llvm::formatv(kPybindFunctionTemplate.data(),
-                      canonicalizeDebugPort(funcOp.getName()))
-     << "\n";
+  llvm::StringRef funcName = canonicalizeDebugPort(funcOp.getName());
+  if (funcName == "__heir_debug") {
+    bool isVector = false;
+    if (funcOp.getNumArguments() >= 3) {
+      mlir::Type thirdArgType = funcOp.getArgumentTypes()[2];
+      if (llvm::isa<mlir::RankedTensorType>(thirdArgType) ||
+          llvm::isa<mlir::VectorType>(thirdArgType)) {
+        isVector = true;
+      }
+    }
+
+    if (isVector) {
+      if (!boundHeirDebugVector_) {
+        os << "m.def(\"__heir_debug\", py::overload_cast<CryptoContextT, "
+              "PrivateKeyT, std::vector<CiphertextT>, const "
+              "std::map<std::string, std::string>&>(&__heir_debug), "
+              "py::call_guard<py::gil_scoped_release>());\n";
+        boundHeirDebugVector_ = true;
+      }
+    } else {
+      if (!boundHeirDebugSingle_) {
+        os << "m.def(\"__heir_debug\", py::overload_cast<CryptoContextT, "
+              "PrivateKeyT, CiphertextT, const std::map<std::string, "
+              "std::string>&>(&__heir_debug), "
+              "py::call_guard<py::gil_scoped_release>());\n";
+        boundHeirDebugSingle_ = true;
+      }
+    }
+  } else {
+    os << llvm::formatv(kPybindFunctionTemplate.data(), funcName) << "\n";
+  }
   return success();
 }
 

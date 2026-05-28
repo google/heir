@@ -12,6 +12,7 @@ heir_lattigo_lib(
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=bfv",
         "--mlir-to-bfv=ciphertext-degree=1024 annotate-noise-bound=true",
+        "--lwe-add-debug-port=insert-debug-after-every-op=true",
         "--scheme-to-lattigo=insert-debug-handler-calls=true",
     ],
     mlir_src = "@heir//tests/Examples/common:dot_product_8.mlir",

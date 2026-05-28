@@ -368,13 +368,17 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::CallOp op) {
       if (attr.getName().getValue() == "callee") {
         continue;
       }
-      os << debugAttrMapName << "[\"" << attr.getName().getValue()
-         << "\"] = \"";
+      os << debugAttrMapName << "[\"" << attr.getName().getValue() << "\"] = ";
       // Use AsmPrinter to print Attribute
       if (mlir::isa<StringAttr>(attr.getValue())) {
-        os << mlir::cast<StringAttr>(attr.getValue()).getValue() << "\";\n";
+        StringRef val = mlir::cast<StringAttr>(attr.getValue()).getValue();
+        if (val.contains('\n')) {
+          os << "R\"HEIR_RAW(" << val << ")HEIR_RAW\";\n";
+        } else {
+          os << "\"" << val << "\";\n";
+        }
       } else {
-        os << attr.getValue() << "\";\n";
+        os << "\"" << attr.getValue() << "\";\n";
       }
     }
     auto ciphertext = op->getOperand(op->getNumOperands() - 1);
@@ -385,7 +389,20 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::CallOp op) {
          << definingOp->getName() << "\";\n";
     }
     // Use AsmPrinter to print Value
-    os << debugAttrMapName << R"(["asm.result_ssa_format"] = ")" << ciphertext
+    std::string ssaFormat;
+    llvm::raw_string_ostream ss(ssaFormat);
+    ss << ciphertext;
+    std::string escaped;
+    for (char c : ssaFormat) {
+      if (c == '\n') {
+        escaped += "\\n";
+      } else if (c == '"') {
+        escaped += "\\\"";
+      } else {
+        escaped += c;
+      }
+    }
+    os << debugAttrMapName << R"(["asm.result_ssa_format"] = ")" << escaped
        << "\";\n";
   }
 
@@ -1714,13 +1731,27 @@ LogicalResult OpenFhePkeEmitter::printOperation(
       variableNames->getNameForValue(op.getResult()) + "_filled";
   std::string inputVarFilledName = filledPrefix;
   std::string inputVarFilledLengthName = filledPrefix + "_n";
+  auto moduleOp = op->getParentOfType<ModuleOp>();
+  int64_t slotCount = 0;
+  if (moduleOp) {
+    auto slotCountAttr =
+        moduleOp->getAttrOfType<IntegerAttr>("scheme.requested_slot_count");
+    if (slotCountAttr) {
+      slotCount = slotCountAttr.getValue().getSExtValue();
+    }
+  }
+
   os << "auto " << inputVarFilledLengthName << " = " << cc
      << "->GetCryptoParameters()->GetElementParams()->GetRingDimension() / "
         "2;\n";
   os << "auto " << inputVarFilledName << " = " << inputVarName << ";\n";
   os << inputVarFilledName << ".clear();\n";
   os << inputVarFilledName << ".reserve(" << inputVarFilledLengthName << ");\n";
-  os << "for (auto i = 0; i < " << inputVarFilledLengthName << "; ++i) {\n";
+  if (slotCount != 0) {
+    os << "for (auto i = 0; i < " << slotCount << "; ++i) {\n";
+  } else {
+    os << "for (auto i = 0; i < " << inputVarFilledLengthName << "; ++i) {\n";
+  }
   os << "  " << inputVarFilledName << ".push_back(" << inputVarName << "[i % "
      << inputVarName << ".size()]);\n";
   os << "}\n";
@@ -1729,7 +1760,8 @@ LogicalResult OpenFhePkeEmitter::printOperation(
   // https://github.com/openfheorg/openfhe-development/issues/1046
   os << "auto " << variableNames->getNameForValue(op.getResult()) << " = ";
   os << variableNames->getNameForValue(resultCC.value())
-     << "->MakeCKKSPackedPlaintext(" << inputVarFilledName << ");\n";
+     << "->MakeCKKSPackedPlaintext(" << inputVarFilledName
+     << ", 1, 0, nullptr, " << slotCount << ");\n";
 
   return success();
 }
@@ -1857,6 +1889,17 @@ LogicalResult OpenFhePkeEmitter::printOperation(GenParamsOp op) {
   }
   if (op.getBatchSize() != 0) {
     os << paramsName << ".SetBatchSize(" << op.getBatchSize() << ");\n";
+  } else {
+    // Fallback to scheme.requested_slot_count from module attributes
+    auto moduleOp = op->getParentOfType<ModuleOp>();
+    if (moduleOp) {
+      auto slotCountAttr =
+          moduleOp->getAttrOfType<IntegerAttr>("scheme.requested_slot_count");
+      if (slotCountAttr) {
+        os << paramsName << ".SetBatchSize("
+           << slotCountAttr.getValue().getSExtValue() << ");\n";
+      }
+    }
   }
   // Modulus chain parameters
   if (op.getFirstModSize() != 0) {

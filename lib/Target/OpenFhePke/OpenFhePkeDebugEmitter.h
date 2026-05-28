@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <map>
+#include <set>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -46,12 +47,12 @@ class OpenFhePkeDebugEmitter {
   LogicalResult printOperation(::mlir::ModuleOp op);
   LogicalResult printOperation(::mlir::func::FuncOp op);
 
-  LogicalResult emitDebugHelperImpl();
+  LogicalResult emitDebugHelperImpl(::mlir::Type ctType, ::mlir::Location loc);
 
   /// Include path for debug imports
   std::string debugImportPath;
 
-  bool isEmitted;
+  std::set<std::string> emittedSignatures;
 };
 
 }  // namespace openfhe

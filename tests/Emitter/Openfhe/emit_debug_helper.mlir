@@ -18,7 +18,7 @@
 // CHECK: }
 // CHECK: PlaintextT [[ptxt:.*]];
 // CHECK: [[cc]]->Decrypt([[sk]], [[ct]], &[[ptxt]]);
-// CHECK: [[ptxt]]->SetLength(std::stod([[m]].at("message.size")));
+// CHECK: [[ptxt]]->SetLength(std::stoul([[m]].at("message.size")));
 // CHECK: std::cout << "  " << [[ptxt]] << std::endl;
 // CHECK: }
 

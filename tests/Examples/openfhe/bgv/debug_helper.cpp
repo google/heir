@@ -107,3 +107,11 @@ void __heir_debug(CryptoContextT cc, PrivateKeyT sk, CiphertextT ct,
   }
 #endif
 }
+
+void __heir_debug(CryptoContextT cc, PrivateKeyT sk,
+                  std::vector<CiphertextT> cts,
+                  const std::map<std::string, std::string>& debugAttrMap) {
+  if (!cts.empty()) {
+    __heir_debug(cc, sk, cts[0], debugAttrMap);
+  }
+}

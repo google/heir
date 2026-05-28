@@ -31,6 +31,9 @@
 // CHECK:   m.def("simple_sum", &simple_sum, py::call_guard<py::gil_scoped_release>());
 // CHECK:   m.def("simple_sum__encrypt", &simple_sum__encrypt, py::call_guard<py::gil_scoped_release>());
 // CHECK:   m.def("simple_sum__decrypt", &simple_sum__decrypt, py::call_guard<py::gil_scoped_release>());
+// CHECK:   m.def("__heir_debug", py::overload_cast<CryptoContextT, PrivateKeyT, CiphertextT, const std::map<std::string, std::string>&>(&__heir_debug), py::call_guard<py::gil_scoped_release>());
+// CHECK:   m.def("__heir_debug", py::overload_cast<CryptoContextT, PrivateKeyT, std::vector<CiphertextT>, const std::map<std::string, std::string>&>(&__heir_debug), py::call_guard<py::gil_scoped_release>());
+// CHECK-NOT: m.def("__heir_debug"
 // CHECK: }
 
 !cc = !openfhe.crypto_context
@@ -64,4 +67,16 @@ func.func @simple_sum__decrypt(%arg0: !openfhe.crypto_context, %arg1: !ct, %arg2
   %0 = openfhe.decrypt %arg0, %arg1, %arg2 : (!openfhe.crypto_context, !ct, !openfhe.private_key) -> !pt
   %1 = openfhe.decode %0 : !pt -> i16
   return %1 : i16
+}
+
+func.func @__heir_debug(%arg0: !openfhe.crypto_context, %arg1: !openfhe.private_key, %arg2: !openfhe.ciphertext) {
+  return
+}
+
+func.func @__heir_debug_vec(%arg0: !openfhe.crypto_context, %arg1: !openfhe.private_key, %arg2: tensor<8x!openfhe.ciphertext>) {
+  return
+}
+
+func.func @__heir_debug_dup(%arg0: !openfhe.crypto_context, %arg1: !openfhe.private_key, %arg2: !openfhe.ciphertext) {
+  return
 }
