@@ -38,6 +38,7 @@
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineExpr.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/AsmState.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
@@ -46,15 +47,16 @@
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/DialectRegistry.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/IntegerSet.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
-#include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
-#include "mlir/include/mlir/Support/IndentedOstream.h"   // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/DialectResourceBlobManager.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/IntegerSet.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"            // from @llvm-project
+#include "mlir/include/mlir/Support/IndentedOstream.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-translate/Translation.h"  // from @llvm-project
 
 namespace mlir {
@@ -1112,10 +1114,13 @@ LogicalResult LattigoEmitter::printOperation(memref::GlobalOp op) {
     return op.emitError("memref.global must have an initial value");
   }
 
-  if (auto denseAttr = dyn_cast<DenseElementsAttr>(initAttr)) {
+  Type eltType = type.getElementType();
+
+  // Emits an inline DenseElementsAttr as a Go slice literal, or a slices.Repeat
+  // call for splats.
+  auto emitDense = [&](DenseElementsAttr denseAttr) -> LogicalResult {
     if (denseAttr.isSplat()) {
       imports.insert(std::string(kSlicesImport));
-      auto eltType = type.getElementType();
       std::string valStr;
       if (eltType.isF32() || eltType.isF64()) {
         FloatAttr splatAttr = denseAttr.getSplatValue<FloatAttr>();
@@ -1134,42 +1139,64 @@ LogicalResult LattigoEmitter::printOperation(memref::GlobalOp op) {
       for (int64_t dim : type.getShape()) {
         size *= dim;
       }
-
       os << "slices.Repeat([]" << eltTypeStr.value() << "{" << valStr << "}, "
          << size << ")\n";
-    } else {
-      // Non-splat, print as list
-      os << "[]" << eltTypeStr.value() << "{";
-      bool first = true;
-      auto eltType = type.getElementType();
-      if (eltType.isF32() || eltType.isF64()) {
-        for (FloatAttr val : denseAttr.getValues<FloatAttr>()) {
-          if (!first) os << ", ";
-          os << val.getValueAsDouble();
-          first = false;
-        }
-      } else if (eltType.isInteger(1)) {
-        for (auto attr : denseAttr.getValues<Attribute>()) {
-          if (!first) os << ", ";
-          os << (cast<IntegerAttr>(attr).getInt() != 0 ? "true" : "false");
-          first = false;
-        }
-      } else if (llvm::isa<IntegerType>(eltType)) {
-        for (auto attr : denseAttr.getValues<Attribute>()) {
-          if (!first) os << ", ";
-          os << cast<IntegerAttr>(attr).getInt();
-          first = false;
-        }
-      } else {
-        return op.emitError("Unsupported element type for dense attribute");
-      }
-      os << "}\n";
+      return success();
     }
-  } else {
-    return op.emitError(
-        "Only DenseElementsAttr is supported for memref.global");
+
+    // Non-splat, print as list
+    os << "[]" << eltTypeStr.value() << "{";
+    bool first = true;
+    if (eltType.isF32() || eltType.isF64()) {
+      for (FloatAttr val : denseAttr.getValues<FloatAttr>()) {
+        if (!first) os << ", ";
+        os << val.getValueAsDouble();
+        first = false;
+      }
+    } else if (eltType.isInteger(1)) {
+      for (auto attr : denseAttr.getValues<Attribute>()) {
+        if (!first) os << ", ";
+        os << (cast<IntegerAttr>(attr).getInt() != 0 ? "true" : "false");
+        first = false;
+      }
+    } else if (llvm::isa<IntegerType>(eltType)) {
+      for (auto attr : denseAttr.getValues<Attribute>()) {
+        if (!first) os << ", ";
+        os << cast<IntegerAttr>(attr).getInt();
+        first = false;
+      }
+    } else {
+      return op.emitError("Unsupported element type for dense attribute");
+    }
+    os << "}\n";
+    return success();
+  };
+
+  if (auto denseAttr = dyn_cast<DenseElementsAttr>(initAttr)) {
+    return emitDense(denseAttr);
   }
-  return success();
+
+  // handle resource-backed data
+  if (auto resAttr = dyn_cast<DenseResourceElementsAttr>(initAttr)) {
+    AsmResourceBlob* blob = resAttr.getRawHandle().getBlob();
+    if (!blob) {
+      return op.emitError(
+          "dense_resource for memref.global has no associated data");
+    }
+
+    ArrayRef<char> raw = blob->getData();
+    auto tensorTy = RankedTensorType::get(type.getShape(), eltType);
+
+    if (!DenseElementsAttr::isValidRawBuffer(tensorTy, raw)) {
+      return op.emitError(
+          "dense_resource blob is not a valid raw buffer for its element type");
+    }
+    return emitDense(DenseElementsAttr::getFromRawBuffer(tensorTy, raw));
+  }
+
+  return op.emitError(
+      "Only DenseElementsAttr and DenseResourceElementsAttr are supported "
+      "for memref.global");
 }
 
 LogicalResult LattigoEmitter::printOperation(memref::GetGlobalOp op) {
