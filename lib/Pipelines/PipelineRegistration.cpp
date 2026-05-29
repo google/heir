@@ -34,6 +34,16 @@ using mlir::func::FuncOp;
 
 namespace mlir::heir {
 
+void prepareForBufferize(OpPassManager& manager) {
+  manager.addNestedPass<FuncOp>(createConvertElementwiseToLinalgPass());
+  // Needed to lower affine.map and affine.apply
+  manager.addNestedPass<FuncOp>(affine::createAffineExpandIndexOpsPass());
+  manager.addNestedPass<FuncOp>(affine::createSimplifyAffineStructuresPass());
+  manager.addPass(createLowerAffinePass());
+  manager.addNestedPass<FuncOp>(memref::createExpandOpsPass());
+  manager.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
+}
+
 void oneShotBufferize(OpPassManager& manager, bool includeDeallocation) {
   // One-shot bufferize, from
   // https://mlir.llvm.org/docs/Bufferization/#ownership-based-buffer-deallocation
@@ -77,16 +87,8 @@ void polynomialToLLVMPipelineBuilder(OpPassManager& manager) {
   manager.addPass(::mlir::heir::mod_arith::createModArithToArith());
   manager.addPass(createCanonicalizerPass());
 
-  // Linalg
-  manager.addNestedPass<FuncOp>(createConvertElementwiseToLinalgPass());
-  // Needed to lower affine.map and affine.apply
-  manager.addNestedPass<FuncOp>(affine::createAffineExpandIndexOpsPass());
-  manager.addNestedPass<FuncOp>(affine::createSimplifyAffineStructuresPass());
-  manager.addPass(createLowerAffinePass());
-  manager.addNestedPass<FuncOp>(memref::createExpandOpsPass());
-  manager.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
-
   // Bufferize
+  prepareForBufferize(manager);
   oneShotBufferize(manager);
 
   // Linalg must be bufferized before it can be lowered
@@ -120,16 +122,8 @@ void polynomialToLLVMPipelineBuilder(OpPassManager& manager) {
 }
 
 void basicMLIRToLLVMPipelineBuilder(OpPassManager& manager) {
-  // Linalg
-  manager.addNestedPass<FuncOp>(createConvertElementwiseToLinalgPass());
-  // Needed to lower affine.map and affine.apply
-  manager.addNestedPass<FuncOp>(affine::createAffineExpandIndexOpsPass());
-  manager.addNestedPass<FuncOp>(affine::createSimplifyAffineStructuresPass());
-  manager.addPass(createLowerAffinePass());
-  manager.addNestedPass<FuncOp>(memref::createExpandOpsPass());
-  manager.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
-
   // Bufferize
+  prepareForBufferize(manager);
   oneShotBufferize(manager);
 
   // Linalg must be bufferized before it can be lowered
