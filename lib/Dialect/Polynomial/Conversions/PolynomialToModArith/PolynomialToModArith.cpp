@@ -19,6 +19,7 @@
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "lib/Dialect/RNS/IR/RNSAttributes.h"
+#include "lib/Dialect/RNS/IR/RNSOps.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Utils/APIntUtils.h"
 #include "lib/Utils/ConversionUtils.h"
@@ -255,6 +256,28 @@ struct ConvertToTensor : public OpConversionPattern<ToTensorOp> {
       ToTensorOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     rewriter.replaceOp(op, adaptor.getOperands()[0].getDefiningOp());
+    return success();
+  }
+};
+
+struct ConvertPolynomialExtractSlice
+    : public OpConversionPattern<ExtractSliceOp> {
+  ConvertPolynomialExtractSlice(mlir::MLIRContext* context)
+      : OpConversionPattern<ExtractSliceOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      ExtractSliceOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    auto resultType = getTypeConverter()->convertType(op.getOutput().getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(op, "result type conversion failed");
+    }
+
+    rewriter.replaceOpWithNewOp<rns::ExtractSliceOp>(
+        op, resultType, adaptor.getInput(), op.getStartAttr(),
+        op.getSizeAttr());
     return success();
   }
 };
@@ -1596,13 +1619,14 @@ void PolynomialToModArith::runOnOperation() {
   target.addIllegalDialect<PolynomialDialect>();
   RewritePatternSet patterns(context);
 
-  patterns.add<ConvertFromTensor, ConvertToTensor,
-               ConvertPolyBinop<AddOp, arith::AddIOp, mod_arith::AddOp>,
-               ConvertPolyBinop<SubOp, arith::SubIOp, mod_arith::SubOp>,
-               ConvertLeadingTerm, ConvertMonomial, ConvertMonicMonomialMul,
-               ConvertConstant, ConvertMulScalar, ConvertNTT, ConvertINTT,
-               ConvertApplyCoefficientwise, ConvertMulEvalForm>(typeConverter,
-                                                                context);
+  patterns
+      .add<ConvertFromTensor, ConvertToTensor, ConvertPolynomialExtractSlice,
+           ConvertPolyBinop<AddOp, arith::AddIOp, mod_arith::AddOp>,
+           ConvertPolyBinop<SubOp, arith::SubIOp, mod_arith::SubOp>,
+           ConvertLeadingTerm, ConvertMonomial, ConvertMonicMonomialMul,
+           ConvertConstant, ConvertMulScalar, ConvertNTT, ConvertINTT,
+           ConvertApplyCoefficientwise, ConvertMulEvalForm>(typeConverter,
+                                                            context);
   patterns.add<ConvertMulCoeffForm>(typeConverter, patterns.getContext(),
                                     getDivmodOp);
   addStructuralConversionPatterns(typeConverter, patterns, target);
