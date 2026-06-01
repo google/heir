@@ -404,12 +404,20 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeIf(
   Value condVal = buildIslExpr(cond, ivToValue_, builder_, createdOpCallback_);
   isl_ast_expr_free(cond);
 
+  // The else branch is a no-op that passes the incoming iter args through
+  // unchanged. We must snapshot them now, before visiting the then branch:
+  // visiting a nested for loop overwrites currentIterArgs_ to point at that
+  // inner loop's block arguments (see visitAstNodeFor), which live in the then
+  // region and would not dominate a yield in the else region.
+  SmallVector<Value> incomingIterArgs(currentIterArgs_.begin(),
+                                      currentIterArgs_.end());
+
   // Build scf if operation with the result types of the iter args
   // Convert condVal to an i1
   auto condValI1 =
       arith::IndexCastOp::create(builder_, builder_.getI1Type(), condVal);
   auto ifOp = scf::IfOp::create(builder_, currentLoc_,
-                                TypeRange(currentIterArgs_), condValI1,
+                                TypeRange(incomingIterArgs), condValI1,
                                 /*addThenBlock=*/true, /*addElseBlock=*/true);
   createdOpCallback_(ifOp);
   createdOpCallback_(condValI1);
@@ -435,7 +443,7 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeIf(
         scf::YieldOp::create(builder_, currentLoc_, visitBody.value());
     createdOpCallback_(yieldOp);
     builder_.setInsertionPointToEnd(&ifOp.getElseRegion().front());
-    yieldOp = scf::YieldOp::create(builder_, currentLoc_, currentIterArgs_);
+    yieldOp = scf::YieldOp::create(builder_, currentLoc_, incomingIterArgs);
     createdOpCallback_(yieldOp);
   }
 
