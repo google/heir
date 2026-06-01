@@ -4,7 +4,6 @@
 // IWYU pragma: begin_keep
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/CKKS/Transforms/CKKSToLWE.h"
-#include "lib/Dialect/CKKS/Transforms/DecomposeKeySwitch.h"
 #include "lib/Dialect/CKKS/Transforms/DecomposeRelinearize.h"
 #include "mlir/include/mlir/Pass/Pass.h"          // from @llvm-project
 #include "mlir/include/mlir/Pass/PassRegistry.h"  // from @llvm-project

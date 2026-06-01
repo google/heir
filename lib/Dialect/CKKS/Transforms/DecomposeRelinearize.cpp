@@ -48,8 +48,8 @@ LogicalResult DecomposeRelinearizePattern::matchAndRewrite(
   lwe::LWECiphertextType outCTType = lwe::LWECiphertextType::get(
       op.getContext(), ctType.getPlaintextSpace(), ctAttr, ctType.getKey(),
       ctType.getModulusChain());
-  KeySwitchInnerOp ksPoly =
-      KeySwitchInnerOp::create(b, input2, op.getKeySwitchingKey());
+  lwe::KeySwitchInnerOp ksPoly =
+      lwe::KeySwitchInnerOp::create(b, input2, op.getKeySwitchingKey());
   Value ksCT = lwe::FromCoeffsOp::create(
       b, outCTType, {ksPoly.getConstTerm(), ksPoly.getLinearTerm()});
   Value linearCT = lwe::FromCoeffsOp::create(b, outCTType, {input0, input1});

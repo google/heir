@@ -4,14 +4,18 @@
 
 !Z1032955396097_i64_ = !mod_arith.int<1032955396097 : i64>
 !Z1095233372161_i64_ = !mod_arith.int<1095233372161 : i64>
+!Z36028797019488257_i64_ = !mod_arith.int<36028797019488257 : i64>
+!Z36028797020209153_i64_ = !mod_arith.int<36028797020209153 : i64>
 !Z65537_i64_ = !mod_arith.int<65537 : i64>
 
 !rns_L0_ = !rns.rns<!Z1095233372161_i64_>
 !rns_L1_ = !rns.rns<!Z1095233372161_i64_, !Z1032955396097_i64_>
+!rns_L1_ksk_ = !rns.rns<!Z1095233372161_i64_, !Z1032955396097_i64_, !Z36028797019488257_i64_, !Z36028797020209153_i64_>
 
 #ring_Z65537_i64_1_x1024_ = #polynomial.ring<coefficientType = !Z65537_i64_, polynomialModulus = <1 + x**1024>>
 #ring_rns_L0_1_x1024_ = #polynomial.ring<coefficientType = !rns_L0_, polynomialModulus = <1 + x**1024>>
 #ring_rns_L1_1_x1024_ = #polynomial.ring<coefficientType = !rns_L1_, polynomialModulus = <1 + x**1024>>
+#ksk_ring_rns_L1_1_x1024_ = #polynomial.ring<coefficientType = !rns_L1_ksk_, polynomialModulus = <1 + x**1024>>
 
 #inverse_canonical_encoding = #lwe.inverse_canonical_encoding<scaling_factor = 0>
 #key = #lwe.key<>
@@ -26,10 +30,12 @@
 #ciphertext_space_L0_ = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024_, encryption_type = lsb>
 #ciphertext_space_L1_ = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x1024_, encryption_type = lsb>
 #ciphertext_space_L1_D3_ = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x1024_, encryption_type = lsb, size = 3>
+#ksk_ciphertext_space_L1_ = #lwe.ciphertext_space<ring = #ksk_ring_rns_L1_1_x1024_, encryption_type = lsb>
 
 !ct = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
 !ct1 = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L1_D3_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
 !ct2 = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
+!ct_ksk = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ksk_ciphertext_space_L1_, key = #key>
 
 !ct_tensor = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
 !ct_scalar = !lwe.lwe_ciphertext<plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
@@ -47,7 +53,7 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
   }
 
   // CHECK: @test_multiply
-  func.func @test_multiply(%arg0 : !ct, %arg1: !ct, %ksk: tensor<10x!ct>) -> !ct {
+  func.func @test_multiply(%arg0 : !ct, %arg1: !ct, %ksk: tensor<1x!ct_ksk>) -> !ct {
     %add = ckks.add %arg0, %arg1 : (!ct, !ct) -> !ct
     %sub = ckks.sub %arg0, %arg1 : (!ct, !ct) -> !ct
     %neg = ckks.negate %arg0 : !ct
@@ -55,7 +61,7 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
     // CHECK: ring = <coefficientType = !rns.rns<!mod_arith.int<1095233372161 : i64>, !mod_arith.int<1032955396097 : i64>>, polynomialModulus = <1 + x**1024>>
     // CHECK: size = 3
     %0 = ckks.mul %arg0, %arg1  : (!ct, !ct) -> !ct1
-    %1 = ckks.relinearize %0, %ksk {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1> } : (!ct1, tensor<10x!ct>) -> !ct
+    %1 = ckks.relinearize %0, %ksk {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1> } : (!ct1, tensor<1x!ct_ksk>) -> !ct
     %2 = ckks.rescale %1  {to_ring = #ring_rns_L0_1_x1024_} : !ct -> !ct2
     // CHECK: ring = <coefficientType = !rns.rns<!mod_arith.int<1095233372161 : i64>>, polynomialModulus = <1 + x**1024>>
     return %arg0 : !ct
@@ -77,13 +83,13 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
   }
 
   // CHECK: @test_multiply_elementwise
-  func.func @test_multiply_elementwise(%arg0 : tensor<5x!ct>, %arg1: tensor<5x!ct>, %ksk: tensor<10x!ct>) -> tensor<5x!ct> {
+  func.func @test_multiply_elementwise(%arg0 : tensor<5x!ct>, %arg1: tensor<5x!ct>, %ksk: tensor<1x!ct_ksk>) -> tensor<5x!ct> {
     %add = ckks.add %arg0, %arg1 : (tensor<5x!ct>, tensor<5x!ct>) -> tensor<5x!ct>
     %sub = ckks.sub %arg0, %arg1 : (tensor<5x!ct>, tensor<5x!ct>) -> tensor<5x!ct>
     %neg = ckks.negate %arg0 : tensor<5x!ct>
 
     %0 = ckks.mul %arg0, %arg1  : (tensor<5x!ct>, tensor<5x!ct>) -> tensor<5x!ct1>
-    %1 = ckks.relinearize %0, %ksk {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1> } : (tensor<5x!ct1>, tensor<10x!ct>) -> tensor<5x!ct>
+    %1 = ckks.relinearize %0, %ksk {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1> } : (tensor<5x!ct1>, tensor<1x!ct_ksk>) -> tensor<5x!ct>
     %2 = ckks.rescale %1  {to_ring = #ring_rns_L0_1_x1024_} : tensor<5x!ct> -> tensor<5x!ct2>
     return %arg0 : tensor<5x!ct>
   }
