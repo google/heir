@@ -46,6 +46,24 @@ bazel_dep(name = "yosys", version = "0.57.bcr.2")
 
 # yosys deps needing newer versions for bazel compatibility
 bazel_dep(name = "bison", version = "3.8.2.bcr.5")
+
+# bison vendors gnulib, whose generated replacement headers (lib/stdio.h,
+# lib/fcntl.h, ...) must be found before the platform libc headers because
+# they #include_next the real header and layer on the gnulib-only macros
+# (e.g. _GL_ARG_NONNULL/_GL_ATTRIBUTE_DEALLOC used by lib/stdio-safer.h and
+# gnulib's O_BINARY fallback used by lib/binary-io.h). The BCR build exposes
+# lib/ via `includes` (-isystem), which loses to HEIR's hermetic glibc
+# headers (injected as an earlier -isystem) under clang, leaving those macros
+# undefined and breaking the build. The patch additionally passes lib/ via
+# -I (which always outranks -isystem) on the clang path. Drop once the BCR
+# bison module survives an explicit-`-isystem` libc toolchain.
+single_version_override(
+    module_name = "bison",
+    patch_strip = 1,
+    patches = ["//patches:bison.patch"],
+    version = "3.8.2.bcr.5",
+)
+
 bazel_dep(name = "m4", version = "1.4.21.bcr.1")
 bazel_dep(name = "libffi", version = "3.4.7.bcr.4")
 
