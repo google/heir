@@ -18,6 +18,7 @@
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Verifier.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
 
 namespace mlir {
@@ -454,6 +455,59 @@ TEST(CodegenTest, VariadicOpTest) {
 
   auto result = generator.generateForLoop(rel, {}, bodyBuilder);
   ASSERT_TRUE(succeeded(result));
+
+  moduleOp.erase();
+}
+
+// Regression test for a dominance error when an scf.for is nested inside the
+// then-branch of an scf.if. The else-branch of such an scf.if must yield the
+// iter args that flow *into* the if, not whatever the (mutable)
+// currentIterArgs_ happens to point at
+TEST(CodegenTest, IfWithNestedForElseYieldDominance) {
+  MLIRContext context;
+  context
+      .loadDialect<scf::SCFDialect, arith::ArithDialect, func::FuncDialect>();
+
+  auto relation = getIntegerRelationFromIslStr(
+      "{ [i0, i1, i2] -> [ct, slot] : (30i0 - 32i1 - i2 + ct) mod 1024 = 0 and "
+      "0 <= i0 <= 63 and 0 <= i1 <= 16 and 0 <= i2 <= 2 and 0 <= ct <= 1023 "
+      "and 0 <= slot <= 4095 and 2048*floor((-30 - 30i0 + slot)/2048) >= -3967 "
+      "+ slot and 2048*floor((-30 - 30i0 + slot)/2048) >= -2079 - 30i0 + i2 + "
+      "slot and 2048*floor((-30 - 30i0 + slot)/2048) <= -2048 - 30i0 + slot "
+      "and 2048*floor((-30 - 30i0 + slot)/2048) <= -2048 - 30i0 + i2 + slot "
+      "and 2048*floor((-30 - 30i0 + slot)/2048) <= -2048 + slot }");
+  ASSERT_TRUE(succeeded(relation));
+
+  OpBuilder builder(&context);
+  auto moduleOp = ModuleOp::create(builder.getUnknownLoc());
+  builder.setInsertionPointToEnd(moduleOp.getBody());
+
+  auto funcType = builder.getFunctionType({}, {});
+  auto funcOp = func::FuncOp::create(builder, builder.getUnknownLoc(),
+                                     "test_func", funcType);
+  auto* block = funcOp.addEntryBlock();
+  builder.setInsertionPointToStart(block);
+
+  ImplicitLocOpBuilder locBuilder(builder.getUnknownLoc(), builder);
+
+  // A single iter arg threaded through the loop nest unchanged. This forces the
+  // generated scf.if ops to carry a result, and therefore an else-branch yield.
+  auto init = arith::ConstantIntOp::create(locBuilder, 0, 32);
+
+  MLIRLoopNestGenerator generator(locBuilder);
+  auto bodyBuilder = [](OpBuilder& b, Location loc, ValueRange ivs,
+                        ValueRange iterArgs) {
+    return scf::ValueVector(iterArgs.begin(), iterArgs.end());
+  };
+
+  SmallVector<int> domainIndicesToSchedule = {0, 1};
+  auto result = generator.generateForLoop(relation.value(), {init.getResult()},
+                                          bodyBuilder, domainIndicesToSchedule);
+  ASSERT_TRUE(succeeded(result));
+
+  func::ReturnOp::create(locBuilder, ValueRange{});
+
+  ASSERT_TRUE(succeeded(verify(moduleOp)));
 
   moduleOp.erase();
 }
