@@ -669,9 +669,13 @@ struct ConvertOrionChebyshevOp
     LLVM_DEBUG(llvm::dbgs()
                << "Using default scale: " << defaultScale.getInt() << "\n");
 
+    auto domainAttr =
+        rewriter.getDenseF64ArrayAttr({op.getDomainStart().getValueAsDouble(),
+                                       op.getDomainEnd().getValueAsDouble()});
     auto chebyshevOp = lattigo::CKKSChebyshevOp::create(
         rewriter, op.getLoc(), adaptor.getInput().getType(), polyEvaluator,
-        adaptor.getInput(), adaptor.getCoefficients(), defaultScale);
+        adaptor.getInput(), adaptor.getCoefficients(), defaultScale,
+        domainAttr);
     rewriter.replaceOp(op, chebyshevOp.getResult());
 
     return success();

@@ -426,7 +426,8 @@ def Lattigo_CKKSChebyshevOp : Lattigo_CKKSOp<"chebyshev", [AllTypesMatch<["ciphe
     Lattigo_CKKSPolynomialEvaluator:$evaluator,
     Lattigo_RLWECiphertext:$ciphertext,
     ArrayAttr:$coefficients,
-    Builtin_IntegerAttr:$targetScale
+    Builtin_IntegerAttr:$targetScale,
+    OptionalAttr<ConfinedAttr<DenseF64ArrayAttr, [DenseArrayCount<2>]>>:$domain
   );
   let results = (outs Lattigo_RLWECiphertext:$output);
 }
