@@ -8762,6 +8762,7 @@ evaluator, calls the evaluation routine with a given target scale.&lt;/p>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>coefficients&lt;/code>&lt;/td>&lt;td>::mlir::ArrayAttr&lt;/td>&lt;td>array attribute&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>targetScale&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>domain&lt;/code>&lt;/td>&lt;td>::mlir::DenseF64ArrayAttr&lt;/td>&lt;td>f64 dense array attribute with exactly 2 elements&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-22">Operands:&lt;/h4>
 &lt;table>
