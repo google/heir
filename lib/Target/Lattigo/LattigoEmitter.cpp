@@ -2113,10 +2113,19 @@ LogicalResult LattigoEmitter::printOperation(CKKSChebyshevOp op) {
   os.unindent();
   os << "}\n";
   std::string bignumPoly = getName(op.getOutput()) + "_bignumPoly";
+  std::string intervalArg = "nil";  // indicates "default" to lattigo
+  if (DenseF64ArrayAttr domainAttr = op.getDomainAttr()) {
+    ArrayRef<double> domain = domainAttr.asArrayRef();
+    std::string intervalName = getName(op.getOutput()) + "_interval";
+    std::ostringstream startStream, endStream;
+    startStream << std::scientific << domain[0];
+    endStream << std::scientific << domain[1];
+    os << intervalName << " := [2]float64{" << startStream.str() << ", "
+       << endStream.str() << "}\n";
+    intervalArg = intervalName;
+  }
   os << bignumPoly << " := bignum.NewPolynomial(bignum.Chebyshev, "
-     << polyCoeffs
-     << ", "
-        "nil)\n";
+     << polyCoeffs << ", " << intervalArg << ")\n";
   std::string resultName = getName(op.getOutput());
   os << resultName << ", " << errName << " := ";
   os << getName(op.getEvaluator()) << ".Evaluate(";
