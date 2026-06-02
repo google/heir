@@ -19,6 +19,16 @@ register_toolchains("@llvm//toolchain:all")
 llvm_source = use_extension("@llvm//extensions:llvm_source.bzl", "llvm_source")
 use_repo(llvm_source, "openmp")
 
+# The Python frontend's OpenFHE backend JIT-compiles emitted C++ into a .so at
+# runtime (frontend/heir/backends/util/cpp_compiler.py). The prebuilt
+# @openfhe//:libopenfhe is compiled by this hermetic toolchain against libc++,
+# so its exported symbols use libc++'s std::__1::... mangling. The runtime JIT
+# must therefore also build against libc++ (not the host's libstdc++) or the
+# OpenFHE symbols will not resolve (undefined-symbol ImportError at load time).
+# Expose the toolchain's libc++ / libc++abi header search dirs so frontend tests
+# can hand them to the JIT compiler via -isystem (see frontend/testing.bzl).
+use_repo(llvm_source, "libcxx", "libcxxabi")
+
 # Make @openmp visible to OpenFHE's openfhe_config module extension so the
 # patched OpenFHE BUILD (//patches:openfhe.patch) can reference @openmp//:libomp.
 openfhe_config_ext = use_extension("@openfhe//:openfhe_config.bzl", "openfhe_config")

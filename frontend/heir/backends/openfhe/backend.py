@@ -257,9 +257,24 @@ class OpenFHEBackend(BackendInterface):
         options=pybind_options,
     )
 
-    cpp_compiler_backend = cpp_compiler.CppCompilerBackend()
+    # Use the compiler pinned by the config when set (e.g. the hermetic
+    # toolchain's clang), so the JIT-compiled .so matches the C++ standard
+    # library / ABI of the prebuilt libopenfhe.so. Otherwise fall back to
+    # $CXX/$CC or whatever clang++/g++ is on PATH.
+    cpp_compiler_backend = cpp_compiler.CppCompilerBackend(
+        path_to_compiler=self.openfhe_config.cxx_compiler
+    )
     so_filepath = Path(workspace_dir) / f"{func_name}.so"
     linker_search_paths = [self.openfhe_config.lib_dir]
+
+    # Append any stdlib-matching flags / search paths / libs from the config
+    # (e.g. -stdlib=libc++, the toolchain's libc++ headers, libc++ runtime).
+    compiler_flags = (
+        cpp_compiler.DEFAULT_COMPILER_FLAGS
+        + self.openfhe_config.extra_compiler_flags
+    )
+    extra_linker_search_paths = self.openfhe_config.extra_linker_search_paths
+    extra_link_libs = self.openfhe_config.extra_link_libs
 
     def debug_printer(args):
       print(
@@ -271,9 +286,10 @@ class OpenFHEBackend(BackendInterface):
     cpp_compiler_backend.compile_to_shared_object(
         cpp_source_filepath=cpp_filepath,
         shared_object_output_filepath=so_filepath,
+        compiler_flags=compiler_flags,
         include_paths=self.openfhe_config.include_dirs,
-        linker_search_paths=linker_search_paths,
-        link_libs=self.openfhe_config.link_libs,
+        linker_search_paths=linker_search_paths + extra_linker_search_paths,
+        link_libs=self.openfhe_config.link_libs + extra_link_libs,
         arg_printer=debug_printer if debug else None,
     )
 
@@ -282,11 +298,16 @@ class OpenFHEBackend(BackendInterface):
     cpp_compiler_backend.compile_to_shared_object(
         cpp_source_filepath=pybind_filepath,
         shared_object_output_filepath=pybind_so_filepath,
+        compiler_flags=compiler_flags,
         include_paths=self.openfhe_config.include_dirs
         + pybind11_includes()
         + [workspace_dir],
-        linker_search_paths=linker_search_paths + pybind11_libs(),
-        link_libs=self.openfhe_config.link_libs + python_link_libs(),
+        linker_search_paths=linker_search_paths
+        + extra_linker_search_paths
+        + pybind11_libs(),
+        link_libs=self.openfhe_config.link_libs
+        + extra_link_libs
+        + python_link_libs(),
         linker_args=["-rpath", ":".join(linker_search_paths)],
         abs_link_lib_paths=[so_filepath],
         arg_printer=debug_printer if debug else None,
