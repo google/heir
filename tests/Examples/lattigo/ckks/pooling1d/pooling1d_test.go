@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"google3/third_party/heir/tests/Examples/lattigo/ckks/pooling1d/pooling1d_utils"
+	"tests/Examples/lattigo/ckks/pooling1d/pooling1d_utils"
 )
 
 func TestPooling(t *testing.T) {
