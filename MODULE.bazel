@@ -8,6 +8,23 @@ bazel_dep(name = "llvm", version = "0.7.8")
 
 register_toolchains("@llvm//toolchain:all")
 
+# The bootstrapped LLVM toolchain ships no OpenMP runtime or omp.h in its
+# minimal clang distribution, so OpenFHE's `#include <omp.h>` + `-fopenmp -lomp`
+# (enabled by @openfhe//:enable_openmp, default True) cannot be satisfied from
+# the toolchain alone. The `llvm` module's llvm_source extension does, however,
+# expose a hermetic libomp built from the pinned LLVM sources (@openmp//:libomp,
+# which also generates omp.h). Re-import that extension here so we can route
+# OpenFHE at @openmp//:libomp (see //patches:openfhe.patch) instead of a
+# nonexistent system libomp.
+llvm_source = use_extension("@llvm//extensions:llvm_source.bzl", "llvm_source")
+use_repo(llvm_source, "openmp")
+
+# Make @openmp visible to OpenFHE's openfhe_config module extension so the
+# patched OpenFHE BUILD (//patches:openfhe.patch) can reference @openmp//:libomp.
+openfhe_config_ext = use_extension("@openfhe//:openfhe_config.bzl", "openfhe_config")
+
+inject_repo(openfhe_config_ext, "openmp")
+
 # Apple compilation support.
 # Note this requires full xcode, not just commandline tools
 #
@@ -41,6 +58,18 @@ bazel_dep(name = "re2", version = "2025-08-12")
 bazel_dep(name = "isl", version = "0.27")
 bazel_dep(name = "pocketfft", version = "0.0.2")
 bazel_dep(name = "openfhe", version = "1.4.2.bcr.1")
+
+# Build OpenFHE's OpenMP against the hermetic @openmp//:libomp (see the patch
+# header for the full rationale): the bootstrapped clang ships no omp.h/libomp.
+# inject_repo makes @openmp visible inside the openfhe module so its (patched)
+# BUILD can depend on @openmp//:libomp.
+single_version_override(
+    module_name = "openfhe",
+    patch_strip = 1,
+    patches = ["//patches:openfhe.patch"],
+    version = "1.4.2.bcr.1",
+)
+
 bazel_dep(name = "abc", version = "0.64-yosyshq.bcr.1")
 bazel_dep(name = "yosys", version = "0.57.bcr.2")
 

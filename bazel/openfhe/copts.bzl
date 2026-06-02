@@ -1,9 +1,12 @@
 """Build settings for OpenFHE and OpenMP."""
 
-_OPENMP_CLANG_LINKOPTS = [
-    "-fopenmp",
-    "-lomp",
-]
+# Under HEIR's hermetic, bootstrapped LLVM toolchain there is no system libomp
+# to satisfy `-lomp`, and `-fopenmp` at link time would make the clang driver
+# search for one. The OpenMP runtime is instead linked transitively via the
+# @openfhe//:core / :pke deps, which now carry the hermetic @openmp//:libomp
+# archive (see //patches:openfhe.patch). So the clang link line needs no extra
+# OpenMP flags. (gcc, used only on non-hermetic hosts, still names -lgomp.)
+_OPENMP_CLANG_LINKOPTS = []
 
 _OPENMP_GCC_LINKOPTS = [
     "-fopenmp",

@@ -1,0 +1,83 @@
+Link OpenFHE against the hermetic LLVM libomp instead of a system libomp.
+
+OpenFHE enables OpenMP by default (@openfhe//:enable_openmp=True), which adds
+`-fopenmp` to the compile line and `-fopenmp -lomp` to the link line, and makes
+core/lib/**/*.cpp do `#include <omp.h>` (via utils/parallel.h). This assumes a
+system-provided omp.h and libomp on the compiler/linker search paths.
+
+HEIR's hermetic, bootstrapped LLVM toolchain (cerisier toolchains_llvm_bootstrapped)
+ships neither: its minimal clang-22 distribution has no omp.h in the clang
+resource dir and no libomp runtime anywhere, so the build fails with
+
+  src/core/include/utils/parallel.h:40:14: fatal error: 'omp.h' file not found
+
+and, even with the header, the link would fail on `-lomp` (no system libomp).
+
+The same `llvm` module does expose a hermetic libomp built from the pinned LLVM
+sources as @openmp//:libomp (a cc_library that also generates omp.h and exports
+its include dir). The root module (HEIR) makes that repo visible to OpenFHE's
+openfhe_config module extension via inject_repo() and this patch surfaces it to
+OpenFHE's BUILD files as @openfhe_config//:libomp (a repo OpenFHE already sees).
+A BUILD file in the openfhe module cannot name @openmp directly because that repo
+is not in the openfhe module's repo mapping; routing it through the
+openfhe_config repo (whose repo mapping does receive the injected @openmp) is the
+visibility bridge. This patch:
+
+  * makes the generated @openfhe_config repo export an alias `libomp` ->
+    @openmp//:libomp (openfhe_config.bzl).
+  * adds @openfhe_config//:libomp to the `core` cc_library deps. core is the
+    transitive base of binfhe/pke, so this puts omp.h on the -I path for every
+    OpenFHE compile and links the libomp archive into every OpenFHE consumer.
+  * drops `-lomp`/`-fopenmp` from the clang OpenMP linkopts: the runtime now comes
+    from the libomp archive dep, and there is no system libomp to name. `-fopenmp`
+    is retained as a *compile* flag (it drives the #pragma omp codegen) but removed
+    from the link line so the clang driver does not auto-add a search for a
+    nonexistent system libomp.
+
+Drop this patch once OpenFHE can consume a toolchain-provided OpenMP runtime
+directly (e.g. an upstream @openfhe//:enable_openmp path that takes a libomp
+label), or once the bootstrapped toolchain ships omp.h + libomp on its default
+search paths.
+
+diff --git a/BUILD b/BUILD
+--- a/BUILD
++++ b/BUILD
+@@ -59,10 +59,9 @@ config_setting(
+     },
+ )
+
+-_OPENMP_CLANG_LINKOPTS = [
+-    "-fopenmp",
+-    "-lomp",
+-]
++# libomp is provided as the @openfhe_config//:libomp archive dep (see core); the
++# hermetic toolchain has no system libomp to link via -fopenmp/-lomp.
++_OPENMP_CLANG_LINKOPTS = []
+
+ _OPENMP_GCC_LINKOPTS = [
+     "-fopenmp",
+@@ -138,6 +137,7 @@ cc_library(
+     deps = [
+         ":generate_config_core_h",
+         ":prng",
++        "@openfhe_config//:libomp",
+         "@cereal",
+     ],
+ )
+diff --git a/openfhe_config.bzl b/openfhe_config.bzl
+--- a/openfhe_config.bzl
++++ b/openfhe_config.bzl
+@@ -11,7 +11,12 @@ def _config_repo_impl(rctx):
+     has_int128 = rctx.attr.has_int128
+     mathbackend = rctx.attr.mathbackend
+
+-    rctx.file("BUILD.bazel", 'exports_files(["config.bzl", "generate_header.sh"])')
++    # Re-export the hermetic LLVM libomp (injected into this extension as @openmp
++    # by the root module) under a name OpenFHE's own BUILD files can see. The
++    # bootstrapped clang toolchain ships no system omp.h/libomp.
++    rctx.file("BUILD.bazel", '''exports_files(["config.bzl", "generate_header.sh"])
++alias(name = "libomp", actual = "@openmp//:libomp", visibility = ["//visibility:public"])
++''')
+
+     # Store config values in .bzl for BUILD files to use
+     rctx.file("config.bzl", """
