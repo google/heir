@@ -16,20 +16,34 @@ namespace polynomial {
 #define GEN_PASS_DECL_ATTACHNTTROOTS
 #include "lib/Dialect/Polynomial/Transforms/Passes.h.inc"
 
+struct RootCache {
+  // Limb-level caching
+  DenseMap<RingAttr, Attribute> nttRoots;
+  DenseMap<RingAttr, Attribute> inttRoots;
+};
+
 struct AttachNTTRootsPattern : public OpRewritePattern<NTTOp> {
   using OpRewritePattern<NTTOp>::OpRewritePattern;
+  AttachNTTRootsPattern(MLIRContext *context, RootCache &cache)
+      : OpRewritePattern<NTTOp>(context), cache(cache) {}
 
- public:
   LogicalResult matchAndRewrite(NTTOp op,
-                                PatternRewriter& rewriter) const override;
+                                PatternRewriter &rewriter) const override;
+
+ private:
+  RootCache &cache;
 };
 
 struct AttachINTTRootsPattern : public OpRewritePattern<INTTOp> {
   using OpRewritePattern<INTTOp>::OpRewritePattern;
+  AttachINTTRootsPattern(MLIRContext *context, RootCache &cache)
+      : OpRewritePattern<INTTOp>(context), cache(cache) {}
 
- public:
   LogicalResult matchAndRewrite(INTTOp op,
-                                PatternRewriter& rewriter) const override;
+                                PatternRewriter &rewriter) const override;
+
+ private:
+  RootCache &cache;
 };
 
 }  // namespace polynomial
