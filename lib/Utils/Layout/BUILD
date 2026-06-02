@@ -106,7 +106,6 @@ cc_test(
     name = "UtilsTest",
     srcs = ["UtilsTest.cpp"],
     deps = [
-        ":Convolution",
         ":Evaluate",
         ":IslConversion",
         ":Utils",
