@@ -1,0 +1,30 @@
+Add missing <stdlib.h> include for malloc/free in fmt's format.h.
+
+fmt 11.1.3's include/fmt/format.h uses the unqualified C functions
+`malloc` and `free` in detail::allocator (around line 747/752) but only
+includes C++ headers such as <new> and <cstring>. On most standard
+libraries those transitively pull in the C stdlib declarations, but
+format.h defines _LIBCPP_REMOVE_TRANSITIVE_INCLUDES at the top of the
+file, which makes libc++ strip exactly those transitive includes. Under
+HEIR's hermetic clang + libc++ toolchain this leaves `malloc`/`free`
+undeclared, breaking the build of fmt (and its consumers, e.g. SCIP/
+SoPlex) with:
+
+  error: use of undeclared identifier 'malloc'
+  error: use of undeclared identifier 'free'
+
+Upstream fmt fixed this on master by explicitly including <stdlib.h>
+(// malloc, free); this patch backports that one-line include into the
+existing #ifndef FMT_MODULE block. Drop once HEIR moves to an fmt
+release that contains the upstream fix.
+
+--- a/include/fmt/format.h
++++ b/include/fmt/format.h
+@@ -41,6 +41,7 @@
+ #include "base.h"
+
+ #ifndef FMT_MODULE
++#  include <stdlib.h>  // malloc, free
+ #  include <cmath>    // std::signbit
+ #  include <cstddef>  // std::byte
+ #  include <cstdint>  // uint32_t
