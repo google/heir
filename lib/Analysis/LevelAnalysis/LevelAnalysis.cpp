@@ -36,8 +36,9 @@ namespace heir {
 //===----------------------------------------------------------------------===//
 // LevelAnalysis (Forward)
 //===----------------------------------------------------------------------===//
-static void debugLog(StringRef opName, ArrayRef<const LevelLattice*> operands,
-                     const LevelState& result) {
+[[maybe_unused]] static void debugLog(StringRef opName,
+                                      ArrayRef<const LevelLattice*> operands,
+                                      const LevelState& result) {
   LLVM_DEBUG({
     llvm::dbgs() << "transferForward: " << opName << "(";
     for (auto* operand : operands) {
@@ -160,9 +161,9 @@ void LevelAnalysis::visitExternalCall(
 //===----------------------------------------------------------------------===//
 // LevelAnalysis (Backward)
 //===----------------------------------------------------------------------===//
-static void debugLogBackwards(StringRef opName,
-                              ArrayRef<const LevelLattice*> results,
-                              const LevelState& operand, unsigned operandNum) {
+[[maybe_unused]] static void debugLogBackwards(
+    StringRef opName, ArrayRef<const LevelLattice*> results,
+    const LevelState& operand, unsigned operandNum) {
   LLVM_DEBUG({
     llvm::dbgs() << "transferBackward: " << opName << " results(";
     for (auto* result : results) {
