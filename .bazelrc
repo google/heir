@@ -27,6 +27,15 @@ build --output_filter="^//(benchmark|frontend|lib|tests|tools)/"
 # linux-specific options
 build:linux --linkopt="-fuse-ld=lld"
 
+# Rust links against the GNU target (x86_64-unknown-linux-gnu), whose default
+# rustc link args unconditionally inject `-lgcc_s` for stack unwinding. The
+# hermetic bootstrapped LLVM toolchain ships compiler-rt + libunwind instead and
+# has no libgcc_s, so the linker fails with `unable to find library -lgcc_s`.
+# This is the toolchain-documented escape hatch: it provides a stub libgcc_s to
+# satisfy the linker flag while still linking libunwind statically. Linux-only,
+# since macOS does not inject -lgcc_s.
+build:linux --@llvm//config:experimental_stub_libgcc_s=True
+
 # macos specific options
 # openmp is not supported in apple clang
 build:macos --@openfhe//:enable_openmp=False
