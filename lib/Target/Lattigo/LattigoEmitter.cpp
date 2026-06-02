@@ -106,11 +106,11 @@ LogicalResult LattigoEmitter::translate(Operation& op) {
           // Arith ops
           .Case<arith::ConstantOp, arith::ExtSIOp, arith::ExtUIOp,
                 arith::FloorDivSIOp, arith::IndexCastOp, arith::ExtFOp,
-                arith::RemSIOp, arith::AddIOp, arith::AddFOp, arith::AndIOp,
-                arith::SubIOp, arith::SubFOp, arith::MaxSIOp, arith::MinSIOp,
-                arith::MulIOp, arith::MulFOp, arith::DivSIOp, arith::DivFOp,
-                arith::NegFOp, arith::OrIOp, arith::XOrIOp, arith::CmpIOp,
-                arith::CmpFOp, arith::SelectOp>(
+                arith::TruncFOp, arith::RemSIOp, arith::AddIOp, arith::AddFOp,
+                arith::AndIOp, arith::SubIOp, arith::SubFOp, arith::MaxSIOp,
+                arith::MinSIOp, arith::MulIOp, arith::MulFOp, arith::DivSIOp,
+                arith::DivFOp, arith::NegFOp, arith::OrIOp, arith::XOrIOp,
+                arith::CmpIOp, arith::CmpFOp, arith::SelectOp>(
               [&](auto op) { return printOperation(op); })
           // SCF ops
           .Case<scf::IfOp, scf::ForOp, scf::YieldOp>(
@@ -706,6 +706,10 @@ LogicalResult LattigoEmitter::printOperation(arith::ExtUIOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(arith::ExtFOp op) {
+  return typecast(op.getOperand(), op.getResult());
+}
+
+LogicalResult LattigoEmitter::printOperation(arith::TruncFOp op) {
   return typecast(op.getOperand(), op.getResult());
 }
 

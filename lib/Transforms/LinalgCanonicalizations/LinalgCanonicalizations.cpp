@@ -5,18 +5,21 @@
 #include <utility>
 
 #include "lib/Utils/TensorUtils.h"
+#include "llvm/include/llvm/ADT/DenseSet.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallBitVector.h"     // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVectorExtras.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/LinalgInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/ReshapeOpsUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StructuredOpsUtils.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/AffineExpr.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
@@ -814,6 +817,190 @@ struct RewriteAvgPoolAsConv2D
   }
 };
 
+static SmallVector<int64_t> getBroadcastDimensions(AffineMap map,
+                                                   int64_t numDims) {
+  llvm::SmallDenseSet<unsigned> usedDims;
+  for (auto expr : map.getResults()) {
+    if (auto dimExpr = dyn_cast<AffineDimExpr>(expr)) {
+      usedDims.insert(dimExpr.getPosition());
+    }
+  }
+  SmallVector<int64_t> addedDims;
+  for (int i = 0; i < numDims; ++i) {
+    if (usedDims.find(i) == usedDims.end()) {
+      addedDims.push_back(i);
+    }
+  }
+  return addedDims;
+}
+
+/// A rewrite pattern that materializes broadcasts for broadcasting operands in
+/// linalg.generic ops with parallel iterators.
+///
+/// This pattern matches linalg.generic ops where all iterator types are
+/// parallel, and at least one operand has a broadcasting indexing map (i.e.,
+/// the map drops dimensions, mapping a larger iteration space to a smaller
+/// operand space). It creates a linalg.broadcast op for each such operand to
+/// materialize the broadcast, making the operand match the output shape.
+/// This allows subsequent patterns (like LinalgGenericToElementwise) to convert
+/// the op to elementwise operations.
+struct MaterializeBroadcasts : public OpRewritePattern<linalg::GenericOp> {
+ public:
+  MaterializeBroadcasts(MLIRContext* context)
+      : OpRewritePattern<linalg::GenericOp>(context) {}
+
+  LogicalResult matchAndRewrite(linalg::GenericOp genericOp,
+                                PatternRewriter& rewriter) const override {
+    // Only handle ops with multiple inputs to avoid infinite loops when
+    // materializing broadcasts. Single-input broadcast ops don't need to be
+    // converted to elementwise ops.
+    if (genericOp.getNumDpsInputs() <= 1) return failure();
+
+    for (auto iteratorType : genericOp.getIteratorTypesArray()) {
+      if (iteratorType != utils::IteratorType::parallel) {
+        return failure();
+      }
+    }
+
+    auto indexingMaps = genericOp.getIndexingMapsArray();
+    bool madeChanges = false;
+    SmallVector<Value> newInputs;
+    SmallVector<AffineMap> newMaps;
+
+    int64_t numDims = genericOp.getNumLoops();
+
+    for (int64_t i = 0; i < genericOp.getNumDpsInputs(); ++i) {
+      OpOperand* operand = genericOp.getDpsInputOperand(i);
+      AffineMap map = indexingMaps[i];
+      Value value = operand->get();
+
+      if (map.isIdentity()) {
+        newInputs.push_back(value);
+        newMaps.push_back(map);
+        continue;
+      }
+
+      if (map.getNumResults() < numDims) {
+        madeChanges = true;
+        auto materializedValue = materializeBroadcastForOperand(
+            rewriter, genericOp, value, map, numDims);
+        if (failed(materializedValue)) {
+          return failure();
+        }
+        newInputs.push_back(*materializedValue);
+        newMaps.push_back(rewriter.getMultiDimIdentityMap(numDims));
+      } else {
+        newInputs.push_back(value);
+        newMaps.push_back(map);
+      }
+    }
+
+    if (!madeChanges) return failure();
+
+    for (int64_t i = 0; i < genericOp.getNumDpsInits(); ++i) {
+      newMaps.push_back(indexingMaps[genericOp.getNumDpsInputs() + i]);
+    }
+
+    auto newGenericOp = linalg::GenericOp::create(
+        rewriter, genericOp.getLoc(), genericOp.getResultTypes(), newInputs,
+        genericOp.getDpsInits(), newMaps, genericOp.getIteratorTypesArray());
+
+    rewriter.inlineRegionBefore(genericOp.getRegion(), newGenericOp.getRegion(),
+                                newGenericOp.getRegion().begin());
+    rewriter.replaceOp(genericOp, newGenericOp.getResults());
+
+    return success();
+  }
+
+ private:
+  LogicalResult tryCollapseUnitDims(PatternRewriter& rewriter, Location loc,
+                                    Value& value, AffineMap& map,
+                                    int64_t targetRank) const {
+    auto inputType = cast<RankedTensorType>(value.getType());
+    if (inputType.getRank() <= targetRank) return success();
+
+    SmallVector<int64_t> dimsToDrop;
+    for (unsigned j = 0; j < map.getNumResults(); ++j) {
+      auto expr = map.getResult(j);
+      if (auto constExpr = dyn_cast<AffineConstantExpr>(expr)) {
+        if (inputType.getShape()[j] == 1) {
+          dimsToDrop.push_back(j);
+        }
+      }
+    }
+
+    int64_t newRank = inputType.getRank() - dimsToDrop.size();
+    if (dimsToDrop.empty() || newRank > targetRank) {
+      return failure();
+    }
+
+    auto reassociation =
+        getReassociationForReshapeAtDim(inputType.getRank(), dimsToDrop);
+
+    SmallVector<int64_t> targetShape;
+    for (int64_t k = 0; k < inputType.getRank(); ++k) {
+      if (!llvm::is_contained(dimsToDrop, k)) {
+        targetShape.push_back(inputType.getShape()[k]);
+      }
+    }
+
+    auto collapsedType =
+        RankedTensorType::get(targetShape, inputType.getElementType());
+
+    auto collapseOp = rewriter.create<tensor::CollapseShapeOp>(
+        loc, collapsedType, value, reassociation);
+
+    value = collapseOp.getResult();
+    map = map.dropResults(dimsToDrop);
+    return success();
+  }
+
+  FailureOr<Value> materializeBroadcastForOperand(PatternRewriter& rewriter,
+                                                  linalg::GenericOp genericOp,
+                                                  Value value, AffineMap map,
+                                                  int64_t numDims) const {
+    SmallVector<int64_t> addedDims = getBroadcastDimensions(map, numDims);
+    int64_t targetRank = numDims - addedDims.size();
+
+    if (failed(tryCollapseUnitDims(rewriter, genericOp.getLoc(), value, map,
+                                   targetRank))) {
+      return failure();
+    }
+
+    auto refOutput = genericOp.getDpsInitOperand(0)->get();
+    auto refOutputType = cast<RankedTensorType>(refOutput.getType());
+
+    auto emptyOp = tensor::EmptyOp::create(rewriter, genericOp.getLoc(),
+                                           refOutputType.getShape(),
+                                           refOutputType.getElementType());
+
+    auto broadcastOp = linalg::BroadcastOp::create(
+        rewriter, genericOp.getLoc(), value, emptyOp.getResult(), addedDims);
+
+    return broadcastOp.getResults()[0];
+  }
+};
+
+struct DropCfAssertInLinalg : public OpRewritePattern<linalg::GenericOp> {
+ public:
+  DropCfAssertInLinalg(MLIRContext* context)
+      : OpRewritePattern<linalg::GenericOp>(context) {}
+
+  LogicalResult matchAndRewrite(linalg::GenericOp genericOp,
+                                PatternRewriter& rewriter) const override {
+    bool madeChanges = false;
+    auto* body = genericOp.getBody();
+    for (auto& op : llvm::make_early_inc_range(body->getOperations())) {
+      if (auto assertOp = dyn_cast<cf::AssertOp>(op)) {
+        rewriter.eraseOp(assertOp);
+        madeChanges = true;
+      }
+    }
+    if (madeChanges) return success();
+    return failure();
+  }
+};
+
 struct LinalgCanonicalizations
     : public impl::LinalgCanonicalizationsBase<LinalgCanonicalizations> {
   void runOnOperation() override {
@@ -821,14 +1008,13 @@ struct LinalgCanonicalizations
     auto* module = getOperation();
 
     RewritePatternSet patterns(context);
-    patterns.add<FoldConstantLinalgTranspose, FoldConstantFill,
-                 FoldConstantBroadcast, FoldBroadcastExtractSlice,
-                 LinalgMapToElementwise, LinalgGenericToElementwise,
-                 BroadcastToExpandShape, RewriteTransposedVecmat,
-                 RewriteTransposedMatvec, RewriteAvgPoolAsConv1D,
-                 RewriteAvgPoolAsConv2D>(context);
+    patterns.add<
+        BroadcastToExpandShape, DropCfAssertInLinalg, FoldBroadcastExtractSlice,
+        FoldConstantBroadcast, FoldConstantFill, FoldConstantLinalgTranspose,
+        LinalgGenericToElementwise, LinalgMapToElementwise,
+        MaterializeBroadcasts, RewriteAvgPoolAsConv1D, RewriteAvgPoolAsConv2D,
+        RewriteTransposedMatvec, RewriteTransposedVecmat>(context);
 
-    // Run pattern matching and conversion
     // TODO (#1221): Investigate whether folding (default: on) can be skipped
     // here.
     if (failed(applyPatternsGreedily(module, std::move(patterns)))) {
