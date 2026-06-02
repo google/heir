@@ -31,24 +31,49 @@ namespace polynomial {
 #define GEN_PASS_DEF_ATTACHNTTROOTS
 #include "lib/Dialect/Polynomial/Transforms/Passes.h.inc"
 
+// Helper to compute or fetch the limb-level root
 std::optional<mod_arith::ModArithAttr> getModArithRoot(
-    MLIRContext* context, mod_arith::ModArithType maTy, int degree,
-    int useInvRoot) {
-  std::optional<APInt> root =
-      findPrimitive2nthRoot(maTy.getModulus().getValue(), degree);
-  if (root) {
-    if (useInvRoot) {
-      APInt cmod = maTy.getModulus().getValue();
-      root = multiplicativeInverse(root->zext(cmod.getBitWidth()), cmod);
-    }
-    return mod_arith::ModArithAttr::get(
-        context, maTy, IntegerAttr::get(maTy.getModulus().getType(), *root));
+    MLIRContext* context, RingAttr ringTy, mod_arith::ModArithType maTy,
+    int degree, bool useInvRoot, RootCache& cache) {
+  auto& limbCache = useInvRoot ? cache.inttRoots : cache.nttRoots;
+
+  // Check cache
+  if (limbCache.count(ringTy)) {
+    return cast<mod_arith::ModArithAttr>(limbCache[ringTy]);
   }
-  return std::nullopt;
+
+  // Compute the forward root if needed
+  // If !useInvRoot, this root doesn't exist, so we need to compute it
+  // If useInvRoot, the inverse root isn't in the cache, so we need the
+  // forward root to be in the cache for the last block
+  if (!cache.nttRoots.count(ringTy)) {
+    std::optional<APInt> nttRoot =
+        findPrimitive2nthRoot(maTy.getModulus().getValue(), degree);
+    if (!nttRoot) return std::nullopt;
+    cache.nttRoots[ringTy] = mod_arith::ModArithAttr::get(
+        context, maTy, IntegerAttr::get(maTy.getModulus().getType(), *nttRoot));
+  }
+
+  // derive iNTT root from cached NTT root. If we're here, the forward root is
+  // already in the cache.
+  if (useInvRoot) {
+    APInt nttRoot = cast<mod_arith::ModArithAttr>(cache.nttRoots[ringTy])
+                        .getValue()
+                        .getValue();
+    APInt cmod = maTy.getModulus().getValue();
+    APInt inttRoot =
+        multiplicativeInverse(nttRoot.zextOrTrunc(cmod.getBitWidth()), cmod);
+    auto maRoot = mod_arith::ModArithAttr::get(
+        context, maTy, IntegerAttr::get(maTy.getModulus().getType(), inttRoot));
+    limbCache[ringTy] = maRoot;
+  }
+
+  return cast<mod_arith::ModArithAttr>(limbCache[ringTy]);
 }
 
 LogicalResult attachNTTRootsGeneric(Operation* op, PatternRewriter& rewriter,
-                                    Value input, bool forwardNTT) {
+                                    Value input, bool forwardNTT,
+                                    RootCache& cache) {
   bool useInvRoot = !forwardNTT;
   std::string msg;
 
@@ -80,31 +105,39 @@ LogicalResult attachNTTRootsGeneric(Operation* op, PatternRewriter& rewriter,
 
   if (auto modArithType = dyn_cast<mod_arith::ModArithType>(coeffType)) {
     std::optional<mod_arith::ModArithAttr> root =
-        getModArithRoot(context, modArithType, degree, useInvRoot);
+        getModArithRoot(context, ring, modArithType, degree, useInvRoot, cache);
     if (!root) {
       return rewriter.notifyMatchFailure(
           op, "Unable to compute primitive root for ModArith type");
     }
     rootAttr = PrimitiveRootAttr::get(context, *root, cycIndex);
   } else if (auto rnsType = dyn_cast<rns::RNSType>(coeffType)) {
-    SmallVector<Attribute> rootValues;
-    rootValues.reserve(rnsType.getBasisTypes().size());
-    for (Type basisType : rnsType.getBasisTypes()) {
-      auto limbType = dyn_cast<mod_arith::ModArithType>(basisType);
-      if (!limbType) {
-        llvm::raw_string_ostream(msg)
-            << "Expected ModArith component in RNS type; got " << basisType;
-        return rewriter.notifyMatchFailure(op, msg);
+    rns::RNSAttr rootValue;
+    auto& typeCache = useInvRoot ? cache.inttRoots : cache.nttRoots;
+    if (typeCache.count(ring)) {
+      rootValue = cast<rns::RNSAttr>(typeCache[ring]);
+    } else {
+      SmallVector<Attribute> rootValues;
+      rootValues.reserve(rnsType.getBasisTypes().size());
+      for (Type basisType : rnsType.getBasisTypes()) {
+        auto limbType = dyn_cast<mod_arith::ModArithType>(basisType);
+        if (!limbType) {
+          llvm::raw_string_ostream(msg)
+              << "Expected ModArith component in RNS type; got " << basisType;
+          return rewriter.notifyMatchFailure(op, msg);
+        }
+        RingAttr limbRng = RingAttr::get(limbType, polyMod);
+        std::optional<mod_arith::ModArithAttr> root = getModArithRoot(
+            context, limbRng, limbType, degree, useInvRoot, cache);
+        if (!root) {
+          return rewriter.notifyMatchFailure(
+              op, "Unable to compute primitive root for RNS type");
+        }
+        rootValues.push_back(*root);
       }
-      std::optional<mod_arith::ModArithAttr> root =
-          getModArithRoot(context, limbType, degree, useInvRoot);
-      if (!root) {
-        return rewriter.notifyMatchFailure(
-            op, "Unable to compute primitive root for RNS type");
-      }
-      rootValues.push_back(*root);
+      rootValue = rns::RNSAttr::get(context, rootValues, rnsType);
+      typeCache[ring] = rootValue;
     }
-    rns::RNSAttr rootValue = rns::RNSAttr::get(context, rootValues, rnsType);
     rootAttr = PrimitiveRootAttr::get(context, rootValue, cycIndex);
   } else {
     llvm::raw_string_ostream(msg)
@@ -121,7 +154,7 @@ LogicalResult AttachNTTRootsPattern::matchAndRewrite(
   if (op.getRoot()) {
     return success();
   }
-  return attachNTTRootsGeneric(op, rewriter, op.getInput(), true);
+  return attachNTTRootsGeneric(op, rewriter, op.getInput(), true, cache);
 }
 
 LogicalResult AttachINTTRootsPattern::matchAndRewrite(
@@ -129,17 +162,19 @@ LogicalResult AttachINTTRootsPattern::matchAndRewrite(
   if (op.getRoot()) {
     return success();
   }
-  return attachNTTRootsGeneric(op, rewriter, op.getInput(), false);
+  return attachNTTRootsGeneric(op, rewriter, op.getInput(), false, cache);
 }
 
 struct AttachNTTRoots : impl::AttachNTTRootsBase<AttachNTTRoots> {
   using AttachNTTRootsBase::AttachNTTRootsBase;
 
+  RootCache cache;
+
   void runOnOperation() override {
     MLIRContext* context = &getContext();
     RewritePatternSet patterns(context);
 
-    patterns.add<AttachNTTRootsPattern, AttachINTTRootsPattern>(context);
+    patterns.add<AttachNTTRootsPattern, AttachINTTRootsPattern>(context, cache);
 
     (void)walkAndApplyPatterns(getOperation(), std::move(patterns));
   }
