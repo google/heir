@@ -1,4 +1,5 @@
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("@heir//frontend:cc_toolchain_runtime.bzl", "cc_toolchain_runtime_info")
 load("@heir//frontend:testing.bzl", "frontend_test")
 load("@rules_python//python:py_library.bzl", "py_library")
 
@@ -39,6 +40,13 @@ py_library(
         "@heir_pip_deps//pybind11",
         "@heir_pip_deps//pybind11_global",
     ],
+)
+
+# Exports the resolved cc toolchain (compiler path + built-in include dirs as
+# JSON, whole toolchain in runfiles) to the runtime JIT. Consumed by
+# frontend_test on linux via OPENFHE_CXX_TOOLCHAIN_INFO.
+cc_toolchain_runtime_info(
+    name = "cc_toolchain_runtime_info",
 )
 
 frontend_test(

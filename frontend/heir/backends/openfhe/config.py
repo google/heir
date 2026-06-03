@@ -1,52 +1,34 @@
 """Configuration of OpenFHE backend."""
 
 import dataclasses
-import glob
 import importlib.resources
+import json
 import os
 from heir.backends.util.common import get_repo_root, is_pip_installed
 
 dataclass = dataclasses.dataclass
 
 
-def _discover_hermetic_toolchain_clang(libcxx_include_dir: str) -> str | None:
-  """Find the hermetic LLVM toolchain's clang++ next to its libc++ headers.
+def _runfiles_path(toolchain_path: str, path_base: str) -> str:
+  """Map a cc-toolchain-reported path to its location in the runfiles tree.
 
-  When libopenfhe.so was built by the hermetic LLVM toolchain (libc++), the
-  JIT step must use that *same* toolchain's clang to compile against the
-  matching libc++ headers -- the host clang/g++ is generally too old to parse
-  the toolchain's libc++ (e.g. "libc++ only supports Clang 20 and later").
-
-  We are handed the libc++ `-isystem` directory (a bazel `copy_to_directory`
-  output under <output_base>/.../bin/external/llvm++llvm_source+libcxx/...,
-  reached through the test's runfiles). Resolve it and walk up to the bazel
-  `output_base`, then glob for the sibling toolchain repo's clang++:
-      <output_base>/external/llvm++_repo_rules+llvm-toolchain-*/bin/clang++
-
-  Returns the clang++ path if found, else None (caller falls back to host).
+  The cc_toolchain_runtime_info rule reports two flavors of path:
+    - `built_in_include_directories` are execroot-relative:
+        external/<canonical_repo>/...  (external repo)
+        <pkg>/...                      (main repo)
+    - `compiler_executable` is a File.short_path:
+        ../<canonical_repo>/...        (external repo)
+        <pkg>/...                      (main repo)
+  In the test runfiles tree both external forms live at
+  `<RUNFILES_DIR>/<canonical_repo>/...` and main-repo paths at
+  `<RUNFILES_DIR>/_main/<pkg>/...`. Absolute paths are returned unchanged.
   """
-  real = os.path.realpath(libcxx_include_dir)
-  # .../<output_base>/execroot/<ws>/bazel-out/<cfg>/bin/external/<repo>/<dir>
-  marker = os.sep + "execroot" + os.sep
-  idx = real.find(marker)
-  if idx == -1:
-    return None
-  output_base = real[:idx]
-  matches = sorted(
-      glob.glob(
-          os.path.join(
-              output_base,
-              "external",
-              "llvm++_repo_rules+llvm-toolchain-*",
-              "bin",
-              "clang++",
-          )
-      )
-  )
-  # Pick the lexicographically *last* match: if a toolchain version bump has
-  # left a stale `llvm-toolchain-<old>` repo dir behind in the output_base, the
-  # higher version sorts last, so we prefer the newer clang over the stale one.
-  return matches[-1] if matches else None
+  if os.path.isabs(toolchain_path):
+    return toolchain_path
+  for prefix in ("external" + os.sep, ".." + os.sep):
+    if toolchain_path.startswith(prefix):
+      return os.path.join(path_base, toolchain_path[len(prefix) :])
+  return os.path.join(path_base, "_main", toolchain_path)
 
 
 @dataclass(frozen=True)
@@ -165,6 +147,15 @@ def from_os_env(debug=False) -> OpenFHEConfig:
       the JIT step should use. Needed when libopenfhe.so was built with a
       specific toolchain whose C++ standard library must be matched (e.g. a
       hermetic clang + libc++).
+  - OPENFHE_CXX_TOOLCHAIN_INFO: optional (runfiles-relative) path to the JSON
+      file emitted by the //frontend:cc_toolchain_runtime_info rule. It records
+      the resolved cc toolchain's `compiler_executable` and
+      `built_in_include_directories` (execroot-relative paths), and -- because
+      the rule puts the whole toolchain into the test's declared runfiles --
+      lets the sandboxed JIT discover and exec the hermetic clang without
+      globbing the output_base. The compiler resolved here is a fallback when
+      OPENFHE_CXX_COMPILER is not set; its include dirs are appended to
+      OPENFHE_CXX_INCLUDE_DIRS.
   - OPENFHE_CXX_FLAGS: colon-separated raw extra compiler flags (e.g.
       "-stdlib=libc++:-nostdinc++"). NOT runfiles-resolved.
   - OPENFHE_CXX_INCLUDE_DIRS: colon-separated extra (runfiles-resolved) include
@@ -202,6 +193,10 @@ def from_os_env(debug=False) -> OpenFHEConfig:
       ":"
   )
   extra_link_libs = os.environ.get("OPENFHE_CXX_LINK_LIBS", "").split(":")
+  # The cc_toolchain_runtime_info JSON (runfiles-relative path). It records the
+  # resolved hermetic toolchain's compiler + built-in include dirs and, via the
+  # rule's runfiles, makes the whole toolchain reachable under the sandbox.
+  toolchain_info_path = os.environ.get("OPENFHE_CXX_TOOLCHAIN_INFO", "") or None
 
   # remove empty strings from lists
   include_dirs = [dir for dir in include_dirs if dir]
@@ -230,6 +225,29 @@ def from_os_env(debug=False) -> OpenFHEConfig:
         os.path.join(path_base, d) for d in extra_linker_search_paths
     ]
 
+    # Read the resolved cc toolchain from the cc_toolchain_runtime_info JSON.
+    # Its paths are execroot-relative (external/<repo>/... or <pkg>/...) and
+    # must be mapped into the runfiles tree. The compiler is a fallback for an
+    # unset OPENFHE_CXX_COMPILER; the built-in include dirs (clang resource
+    # dir, hermetic glibc / kernel / compiler-rt headers) are added as extra
+    # `-isystem` dirs so the JIT replicates the toolchain's own header set.
+    if toolchain_info_path:
+      with open(os.path.join(path_base, toolchain_info_path)) as f:
+        toolchain_info = json.load(f)
+      if not cxx_compiler:
+        cxx_compiler = _runfiles_path(
+            toolchain_info["compiler_executable"], path_base
+        )
+        if debug:
+          print(
+              "HEIRpy Debug (OpenFHE Backend): using cc toolchain compiler"
+              f" {cxx_compiler}"
+          )
+      cxx_include_dirs += [
+          _runfiles_path(d, path_base)
+          for d in toolchain_info["built_in_include_directories"]
+      ]
+
   for include_dir in include_dirs:
     if not os.path.exists(include_dir):
       print(
@@ -249,33 +267,23 @@ def from_os_env(debug=False) -> OpenFHEConfig:
           " found by the JIT compiler)"
       )
 
-  # If we were handed hermetic libc++ headers but no explicit compiler, find
-  # the toolchain's own clang next to them (the host compiler is generally too
-  # old to parse the toolchain's libc++ headers).
+  # If we were handed hermetic libc++ `-isystem` dirs (and thus the
+  # accompanying `-stdlib=libc++ --sysroot=/dev/null -nostdlibinc` flags) but
+  # resolved no usable compiler, this is not a recoverable configuration:
+  # falling back to the host compiler would feed it those hermetic flags and
+  # fail with an opaque "'std' is not a class" / undefined-symbol error far
+  # from the real cause, so fail early and precisely here instead. The compiler
+  # should normally come from the OPENFHE_CXX_TOOLCHAIN_INFO JSON (a declared
+  # runfiles input) or from OPENFHE_CXX_COMPILER.
   if cxx_include_dirs and not cxx_compiler:
-    cxx_compiler = _discover_hermetic_toolchain_clang(cxx_include_dirs[0])
-    if cxx_compiler:
-      if debug:
-        print(
-            "HEIRpy Debug (OpenFHE Backend): discovered hermetic toolchain"
-            f" clang at {cxx_compiler}"
-        )
-    else:
-      # We were configured with hermetic libc++ `-isystem` dirs (and thus the
-      # accompanying `-stdlib=libc++ --sysroot=/dev/null -nostdlibinc` flags)
-      # but could not locate the matching toolchain clang. This is not a
-      # recoverable configuration: falling back to the host compiler would
-      # feed it those hermetic flags and fail with an opaque "'std' is not a
-      # class" / undefined-symbol error far from the real cause, so fail
-      # early and precisely here instead.
-      raise RuntimeError(
-          "OpenFHE backend was configured with hermetic libc++ include dirs"
-          " but could not discover the matching toolchain clang (searched"
-          f" the output_base derived from {cxx_include_dirs[0]!r}). The host"
-          " compiler cannot parse these libc++ headers, so there is no"
-          " usable fallback; set OPENFHE_CXX_COMPILER explicitly to fix"
-          " this."
-      )
+    raise RuntimeError(
+        "OpenFHE backend was configured with hermetic libc++ include dirs but"
+        " resolved no matching toolchain compiler. The host compiler cannot"
+        " parse these libc++ headers, so there is no usable fallback; provide"
+        " the toolchain via OPENFHE_CXX_TOOLCHAIN_INFO (the"
+        " //frontend:cc_toolchain_runtime_info JSON) or set"
+        " OPENFHE_CXX_COMPILER explicitly to fix this."
+    )
 
   # Extra libc++ (or other stdlib) include dirs are emitted as `-isystem`
   # before any default search paths so they take precedence over a host stdlib.
