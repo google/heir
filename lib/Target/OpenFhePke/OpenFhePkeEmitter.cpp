@@ -385,7 +385,20 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::CallOp op) {
          << definingOp->getName() << "\";\n";
     }
     // Use AsmPrinter to print Value
-    os << debugAttrMapName << R"(["asm.result_ssa_format"] = ")" << ciphertext
+    std::string ssaFormat;
+    llvm::raw_string_ostream ss(ssaFormat);
+    ss << ciphertext;
+    std::string escaped;
+    for (char c : ssaFormat) {
+      if (c == '\n') {
+        escaped += "\\n";
+      } else if (c == '"') {
+        escaped += "\\\"";
+      } else {
+        escaped += c;
+      }
+    }
+    os << debugAttrMapName << R"(["asm.result_ssa_format"] = ")" << escaped
        << "\";\n";
   }
 

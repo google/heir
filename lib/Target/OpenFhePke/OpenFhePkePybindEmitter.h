@@ -40,6 +40,9 @@ class OpenFhePkePybindEmitter {
   /// Output stream to emit to.
   raw_indented_ostream os;
 
+  bool boundHeirDebugSingle_ = false;
+  bool boundHeirDebugVector_ = false;
+
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);
   LogicalResult printOperation(::mlir::func::FuncOp op);

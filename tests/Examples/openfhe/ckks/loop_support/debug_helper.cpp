@@ -41,3 +41,13 @@ void __heir_debug(CryptoContextT cc, PrivateKeyT sk, CiphertextT ct,
   std::cout << "]\n";
   std::cout << "  Scale: " << log2(ct->GetScalingFactor()) << std::endl;
 }
+
+void __heir_debug(CryptoContextT cc, PrivateKeyT sk,
+                  std::vector<CiphertextT> cts,
+                  const std::map<std::string, std::string>& debugAttrMap) {
+  std::cout << "Vector of Ciphertexts (size " << cts.size() << ")" << std::endl;
+  for (size_t i = 0; i < cts.size(); ++i) {
+    std::cout << "Element " << i << ":" << std::endl;
+    __heir_debug(cc, sk, cts[i], debugAttrMap);
+  }
+}
