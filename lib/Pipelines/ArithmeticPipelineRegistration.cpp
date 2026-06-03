@@ -49,6 +49,7 @@
 #include "lib/Transforms/LayoutOptimization/LayoutOptimization.h"
 #include "lib/Transforms/LayoutPropagation/LayoutPropagation.h"
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
+#include "lib/Transforms/LinalgFuseLinearOps/LinalgFuseLinearOps.h"
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
 #include "lib/Transforms/PopulateScale/PopulateScale.h"
@@ -541,6 +542,7 @@ void linalgPreprocessingBuilder(OpPassManager& manager) {
   manager.addPass(createInlineActivations());
   manager.addPass(createActivationCanonicalizations());
   manager.addPass(createLinalgCanonicalizations());
+  manager.addPass(createLinalgFuseLinearOpsPass());
   manager.addPass(createDropUnitDims());
   manager.addPass(createFoldConstantTensors());
   manager.addPass(createCanonicalizerPass());
