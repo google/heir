@@ -1610,7 +1610,6 @@ void PolynomialToModArith::runOnOperation() {
 
   ConversionConfig config;
   config.allowPatternRollback = false;
-  config.buildMaterializations = buildMaterializations;
   if (failed(applyPartialConversion(module, target, std::move(patterns),
                                     config))) {
     signalPassFailure();
