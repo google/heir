@@ -41,6 +41,22 @@ def frontend_test(name, srcs, deps = [], data = [], tags = []):
     libcxx_isystem_dir = "@libcxx//:libcxx_headers_include_search_directory"
     libcxxabi_isystem_dir = "@libcxxabi//:libcxxabi_headers_include_search_directory"
 
+    # libc++/libc++abi alone are not enough: a raw clang has none of the rest of
+    # the toolchain's include/sysroot config that the bazel cc_toolchain wrapper
+    # injects, so parsing the libc++ headers fails with "'std' is not a class,
+    # namespace, or enumeration". Replicate the toolchain's full hermetic header
+    # set by also handing the JIT (a) the hermetic glibc headers, (b) the Linux
+    # UAPI kernel headers, and (c) the clang builtins resource dir. These are the
+    # same `-isystem` roots `bazel aquery 'mnemonic("CppCompile", @openfhe//:core)'`
+    # shows the toolchain using. We reference version-agnostic apex aliases so a
+    # toolchain bump does not require editing version-pathed repo names:
+    #   @glibc//:glibc_headers_directory          -> .../glibc_headers_*/include
+    #   @kernel_headers//:kernel_headers_directory -> .../linux_kernel_headers_*/include
+    #   @llvm//:builtin_resource_dir               -> .../lib/clang/<N>  (headers in /include)
+    glibc_isystem_dir = "@glibc//:glibc_headers_directory"
+    kernel_isystem_dir = "@kernel_headers//:kernel_headers_directory"
+    clang_resource_dir = "@llvm//:builtin_resource_dir"
+
     py_test(
         name = name,
         srcs = srcs,
@@ -55,26 +71,56 @@ def frontend_test(name, srcs, deps = [], data = [], tags = []):
         data = data + [
             libcxx_isystem_dir,
             libcxxabi_isystem_dir,
+            glibc_isystem_dir,
+            kernel_isystem_dir,
+            clang_resource_dir,
         ],
         shard_count = 3,
-        tags = tags,
+        # The runtime JIT must invoke the *hermetic* clang (only it can parse
+        # this toolchain's libc++ headers and its builtin paths match the
+        # -isystem resource dir above; the host clang/g++ silently mis-resolves
+        # and fails with "'std' is not a class"). config.py locates that clang by
+        # globbing the bazel output_base's `external/llvm++...-toolchain-*/bin`.
+        # That toolchain repo is not declared as a runfiles input, so under the
+        # default test sandbox it is invisible and the JIT falls back to the host
+        # clang. Run these tests unsandboxed so the JIT can reach (and exec) the
+        # hermetic clang on the real output_base. (Bringing the clang binary into
+        # runfiles is not an option: the toolchain repo's clang filegroups are
+        # private to that repo and not re-exported by @llvm.)
+        tags = tags + ["no-sandbox"],
         env = {
             # this dir is relative to $RUNFILES_DIR, which is set by bazel at runtime
             "OPENFHE_LIB_DIR": "openfhe+",
             "OPENFHE_INCLUDE_TYPE": "source-relative",
             "OPENFHE_LINK_LIBS": ":".join(libs),
             "OPENFHE_INCLUDE_DIR": ":".join(include_dirs),
-            # Match libopenfhe.so's libc++ ABI in the runtime JIT step.
-            "OPENFHE_CXX_FLAGS": ":".join(["-stdlib=libc++", "-nostdinc++"]),
+            # Match libopenfhe.so's libc++ ABI in the runtime JIT step, and (like
+            # the toolchain's own compiles) ignore the host sysroot / default
+            # stdlib include paths so ONLY the hermetic -isystem roots below are
+            # used. `-nostdlibinc` is the toolchain's own flag (it drops the C++
+            # and C standard-library include dirs but keeps the clang builtins);
+            # `--sysroot=/dev/null` removes the host sysroot.
+            "OPENFHE_CXX_FLAGS": ":".join([
+                "-stdlib=libc++",
+                "-nostdinc++",
+                "--sysroot=/dev/null",
+                "-nostdlibinc",
+            ]),
             # Use $(rlocationpath ...), NOT $(rootpath ...): for a cross-repo
             # target $(rootpath) yields a `../<repo>/...` path that, joined onto
             # RUNFILES_DIR in config.py, escapes the runfiles tree
             # (runfiles/../llvm++...) so the -isystem dir doesn't exist and even
             # <initializer_list> is "not found". $(rlocationpath) gives the
             # runfiles-relative `<repo>/...` path that resolves correctly.
+            # The clang builtins live in the resource dir's `include`
+            # subdirectory; `@llvm//:builtin_resource_dir` points at the resource
+            # dir itself (.../lib/clang/<N>), so append /include.
             "OPENFHE_CXX_INCLUDE_DIRS": ":".join([
                 "$(rlocationpath %s)" % libcxx_isystem_dir,
                 "$(rlocationpath %s)" % libcxxabi_isystem_dir,
+                "$(rlocationpath %s)" % glibc_isystem_dir,
+                "$(rlocationpath %s)" % kernel_isystem_dir,
+                "$(rlocationpath %s)/include" % clang_resource_dir,
             ]),
             "HEIR_REPO_ROOT_MARKER": ".",
             "HEIR_OPT_PATH": "tools/heir-opt",

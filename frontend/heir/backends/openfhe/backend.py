@@ -267,12 +267,16 @@ class OpenFHEBackend(BackendInterface):
     so_filepath = Path(workspace_dir) / f"{func_name}.so"
     linker_search_paths = [self.openfhe_config.lib_dir]
 
-    # Append any stdlib-matching flags / search paths / libs from the config
-    # (e.g. -stdlib=libc++, the toolchain's libc++ headers, libc++ runtime).
-    compiler_flags = (
-        cpp_compiler.DEFAULT_COMPILER_FLAGS
-        + self.openfhe_config.extra_compiler_flags
-    )
+    # The stdlib-matching flags from the config (e.g. -stdlib=libc++,
+    # -nostdinc++, --sysroot=/dev/null, -nostdlibinc, and the toolchain's
+    # libc++ -isystem dirs) must apply to the *compile* step only: they let
+    # clang parse the hermetic libc++ headers without host include leakage.
+    # They must NOT reach the *link* step -- there the host C runtime
+    # (crt*.o, libc, libm, libgcc_s) supplies the startup objects/runtime and
+    # libopenfhe.so supplies the libc++ symbols at load. So pass them via
+    # `compile_only_flags`, which triggers a split compile-then-link build.
+    compiler_flags = cpp_compiler.DEFAULT_COMPILER_FLAGS
+    compile_only_flags = self.openfhe_config.extra_compiler_flags
     extra_linker_search_paths = self.openfhe_config.extra_linker_search_paths
     extra_link_libs = self.openfhe_config.extra_link_libs
 
@@ -290,6 +294,7 @@ class OpenFHEBackend(BackendInterface):
         include_paths=self.openfhe_config.include_dirs,
         linker_search_paths=linker_search_paths + extra_linker_search_paths,
         link_libs=self.openfhe_config.link_libs + extra_link_libs,
+        compile_only_flags=compile_only_flags,
         arg_printer=debug_printer if debug else None,
     )
 
@@ -308,6 +313,7 @@ class OpenFHEBackend(BackendInterface):
         link_libs=self.openfhe_config.link_libs
         + extra_link_libs
         + python_link_libs(),
+        compile_only_flags=compile_only_flags,
         linker_args=["-rpath", ":".join(linker_search_paths)],
         abs_link_lib_paths=[so_filepath],
         arg_printer=debug_printer if debug else None,

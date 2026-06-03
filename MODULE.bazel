@@ -29,6 +29,29 @@ use_repo(llvm_source, "openmp")
 # can hand them to the JIT compiler via -isystem (see frontend/testing.bzl).
 use_repo(llvm_source, "libcxx", "libcxxabi")
 
+# A raw clang has none of the include/sysroot config the bazel cc_toolchain
+# wrapper normally injects, so on top of libc++/libc++abi the runtime JIT also
+# needs the rest of the toolchain's hermetic header roots (hermetic glibc,
+# Linux UAPI kernel headers, and the clang builtins resource dir) -- otherwise
+# parsing the libc++ headers fails with "'std' is not a class, namespace, or
+# enumeration". Redeclare the same `glibc` / `kernel_headers` module
+# extensions the @llvm module uses and re-export their *version-agnostic* apex
+# repos (the `@llvm//:builtin_resource_dir` clang-builtins alias is already
+# exported by @llvm). The frontend tests feed these to the JIT via -isystem
+# (see frontend/testing.bzl); we deliberately reference the apex
+# `:glibc_headers_directory` / `:kernel_headers_directory` aliases rather than
+# the version-pathed underlying repos so this does not break on a toolchain
+# bump. These extensions are Linux-only (the apex targets are
+# target_compatible_with @platforms//os:linux); the macOS toolchain uses its
+# own sysroot and is unaffected by the frontend's Linux-only JIT path.
+glibc = use_extension("@llvm//runtimes/glibc/extension:glibc.bzl", "glibc")
+glibc.index(file = "@llvm//runtimes/glibc/extension:glibc_headers_index.json")
+use_repo(glibc, "glibc")
+
+kernel_headers = use_extension("@llvm//kernel/extension:kernel_headers.bzl", "kernel_headers")
+kernel_headers.index(file = "@llvm//kernel/extension:kernel_headers_index.json")
+use_repo(kernel_headers, "kernel_headers")
+
 # Make @openmp visible to OpenFHE's openfhe_config module extension so the
 # patched OpenFHE BUILD (//patches:openfhe.patch) can reference @openmp//:libomp.
 openfhe_config_ext = use_extension("@openfhe//:openfhe_config.bzl", "openfhe_config")
