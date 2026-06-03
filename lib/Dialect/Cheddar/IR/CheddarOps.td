@@ -96,7 +96,7 @@ def Cheddar_EncodeOp : Cheddar_Op<"encode", [PlaintextEncodeOpInterface]> {
   }];
   let arguments = (ins
     Cheddar_Encoder:$encoder,
-    RankedTensorOf<[AnyFloat, AnyComplex]>:$message,
+    TensorOrMemRef<[AnyFloat, AnyComplex]>:$message,
     Builtin_IntegerAttr:$level,
     F64Attr:$scale
   );
@@ -119,16 +119,20 @@ def Cheddar_EncodeConstantOp : Cheddar_Op<"encode_constant"> {
   let results = (outs Cheddar_Constant:$constant);
 }
 
-def Cheddar_DecodeOp : Cheddar_Op<"decode"> {
+def Cheddar_DecodeOp : Cheddar_Op<"decode", [AllTypesMatch<["value", "decoded"]>]> {
   let summary = "Decode a CHEDDAR plaintext back to a message vector";
   let description = [{
-    Calls encoder.Decode(message, pt). Returns a vector of complex numbers.
+    Calls encoder.Decode(message, pt). `value` is the destination buffer
+    (destination-passing init); the `decoded` result aliases it. This DPS shape
+    lets one-shot-bufferize lower the message path to a memref (see
+    Transforms/BufferizableOpInterfaceImpl), mirroring Lattigo's decode.
   }];
   let arguments = (ins
     Cheddar_Encoder:$encoder,
-    Cheddar_Plaintext:$plaintext
+    Cheddar_Plaintext:$plaintext,
+    TensorOrMemRef<[AnyFloat, AnyComplex]>:$value
   );
-  let results = (outs RankedTensorOf<[AnyFloat, AnyComplex]>:$message);
+  let results = (outs TensorOrMemRef<[AnyFloat, AnyComplex]>:$decoded);
 }
 
 def Cheddar_EncryptOp : Cheddar_Op<"encrypt"> {

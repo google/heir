@@ -75,9 +75,10 @@ func.func @test_encode_constant(
 // CHECK: @test_decode
 func.func @test_decode(
     %enc: !cheddar.encoder,
-    %pt: !cheddar.plaintext) -> tensor<4xf64> {
+    %pt: !cheddar.plaintext,
+    %dst: tensor<4xf64>) -> tensor<4xf64> {
   // CHECK: cheddar.decode
-  %msg = cheddar.decode %enc, %pt : (!cheddar.encoder, !cheddar.plaintext) -> tensor<4xf64>
+  %msg = cheddar.decode %enc, %pt, %dst : (!cheddar.encoder, !cheddar.plaintext, tensor<4xf64>) -> tensor<4xf64>
   return %msg : tensor<4xf64>
 }
 
