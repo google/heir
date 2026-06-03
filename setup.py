@@ -248,6 +248,16 @@ class BuildBazelExtension(build_ext.build_ext):
       # and statically bundling OpenMP is non-trivial and left as future work.
       bazel_argv.append("--@openfhe//:enable_openmp=False")
 
+      # ABI contract for pip wheels: the bundled libopenfhe.so must keep the
+      # *system* C++ ABI (libstdc++), because pip users JIT-compile emitted
+      # C++ with their own host compiler (see from_pip_installation in
+      # frontend/heir/backends/openfhe/config.py). The hermetic LLVM toolchain
+      # registered in MODULE.bazel builds against its own static libc++, which
+      # a host compiler cannot match. --extra_toolchains takes precedence over
+      # registered toolchains, so this pins the wheel build to the
+      # autoconfigured host cc toolchain (manylinux gcc).
+      bazel_argv.append("--extra_toolchains=@local_config_cc_toolchains//:all")
+
     if IS_WINDOWS:
       # Link with python*.lib.
       for library_dir in self.library_dirs:

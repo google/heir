@@ -319,6 +319,16 @@ def from_os_env(debug=False) -> OpenFHEConfig:
 def from_pip_installation() -> OpenFHEConfig:
   """
   Configure HEIR binaries from the expected pip installation structure.
+
+  ABI contract: the libopenfhe.so bundled in the pip wheel is built with the
+  *system* C++ ABI (libstdc++; setup.py pins the wheel build to the host cc
+  toolchain via --extra_toolchains), NOT the hermetic LLVM toolchain's static
+  libc++ used for bazel tests. The runtime JIT therefore deliberately uses the
+  user's host compiler ($CXX/$CC or clang++/g++ on PATH) with no hermetic
+  flags here: the host compiler's default libstdc++ matches the bundled
+  library. The cxx_compiler / extra_compiler_flags fields are only populated
+  on the bazel-test path (from_os_env), where the prebuilt libopenfhe is
+  hermetic-libc++ and the JIT must match it.
   """
   if not is_pip_installed():
     raise RuntimeError("HEIR is not installed via pip.")

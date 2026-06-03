@@ -8,6 +8,16 @@ bazel_dep(name = "llvm", version = "0.7.8")
 
 register_toolchains("@llvm//toolchain:all")
 
+# Make the autoconfigured *host* cc toolchain addressable so specific builds
+# can opt out of the hermetic toolchain via
+#   --extra_toolchains=@local_config_cc_toolchains//:all
+# (extra_toolchains take precedence over registered toolchains). This is used
+# by the pip wheel build (setup.py): pip users JIT-compile emitted C++ with
+# their own host compiler, so the wheel's bundled libopenfhe.so must keep the
+# system C++ ABI rather than the hermetic toolchain's static libc++.
+cc_configure = use_extension("@rules_cc//cc:extensions.bzl", "cc_configure_extension")
+use_repo(cc_configure, "local_config_cc_toolchains")
+
 # The bootstrapped LLVM toolchain ships no OpenMP runtime or omp.h in its
 # minimal clang distribution, so OpenFHE's `#include <omp.h>` + `-fopenmp -lomp`
 # (enabled by @openfhe//:enable_openmp, default True) cannot be satisfied from
