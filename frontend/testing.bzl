@@ -66,9 +66,15 @@ def frontend_test(name, srcs, deps = [], data = [], tags = []):
             "OPENFHE_INCLUDE_DIR": ":".join(include_dirs),
             # Match libopenfhe.so's libc++ ABI in the runtime JIT step.
             "OPENFHE_CXX_FLAGS": ":".join(["-stdlib=libc++", "-nostdinc++"]),
+            # Use $(rlocationpath ...), NOT $(rootpath ...): for a cross-repo
+            # target $(rootpath) yields a `../<repo>/...` path that, joined onto
+            # RUNFILES_DIR in config.py, escapes the runfiles tree
+            # (runfiles/../llvm++...) so the -isystem dir doesn't exist and even
+            # <initializer_list> is "not found". $(rlocationpath) gives the
+            # runfiles-relative `<repo>/...` path that resolves correctly.
             "OPENFHE_CXX_INCLUDE_DIRS": ":".join([
-                "$(rootpath %s)" % libcxx_isystem_dir,
-                "$(rootpath %s)" % libcxxabi_isystem_dir,
+                "$(rlocationpath %s)" % libcxx_isystem_dir,
+                "$(rlocationpath %s)" % libcxxabi_isystem_dir,
             ]),
             "HEIR_REPO_ROOT_MARKER": ".",
             "HEIR_OPT_PATH": "tools/heir-opt",

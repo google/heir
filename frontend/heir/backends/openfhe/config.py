@@ -233,6 +233,19 @@ def from_os_env(debug=False) -> OpenFHEConfig:
           f'Warning: OpenFHE include directory "{include_dir}" does not exist'
       )
 
+  # The libc++ / libc++abi `-isystem` dirs are `copy_to_directory` tree
+  # artifacts handed in via $(rootpath ...) + RUNFILES_DIR. If one is missing or
+  # empty (e.g. the tree did not land in the test runfiles) the JIT compile
+  # fails with a confusing "'initializer_list' file not found", so check up
+  # front and surface the real problem.
+  for cxx_include_dir in cxx_include_dirs:
+    if not os.path.isdir(cxx_include_dir):
+      print(
+          "Warning: C++ stdlib include directory"
+          f' "{cxx_include_dir}" does not exist (libc++ headers will not be'
+          " found by the JIT compiler)"
+      )
+
   # If we were handed hermetic libc++ headers but no explicit compiler, find
   # the toolchain's own clang next to them (the host compiler is generally too
   # old to parse the toolchain's libc++ headers).
