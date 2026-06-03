@@ -15,6 +15,7 @@
 #include "mlir/include/mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/LinalgInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/Transforms/Transforms.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/ReshapeOpsUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
@@ -1014,6 +1015,8 @@ struct LinalgCanonicalizations
         LinalgGenericToElementwise, LinalgMapToElementwise,
         MaterializeBroadcasts, RewriteAvgPoolAsConv1D, RewriteAvgPoolAsConv2D,
         RewriteTransposedMatvec, RewriteTransposedVecmat>(context);
+
+    mlir::linalg::populateDecomposeProjectedPermutationPatterns(patterns);
 
     // TODO (#1221): Investigate whether folding (default: on) can be skipped
     // here.
