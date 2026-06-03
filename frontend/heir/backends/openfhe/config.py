@@ -263,16 +263,17 @@ def from_os_env(debug=False) -> OpenFHEConfig:
     else:
       # We were configured with hermetic libc++ `-isystem` dirs (and thus the
       # accompanying `-stdlib=libc++ --sysroot=/dev/null -nostdlibinc` flags)
-      # but could not locate the matching toolchain clang. Falling back to the
-      # host compiler would feed it those hermetic flags and fail with an
-      # opaque "'std' is not a class" / undefined-symbol error far from the
-      # real cause, so surface the actual problem here.
-      print(
-          "Warning: OpenFHE backend was configured with hermetic libc++"
-          " include dirs but could not discover the matching toolchain clang"
-          f" (searched the output_base derived from {cxx_include_dirs[0]!r})."
-          " The JIT will fall back to the host compiler, which cannot parse"
-          " these libc++ headers; set OPENFHE_CXX_COMPILER explicitly to fix"
+      # but could not locate the matching toolchain clang. This is not a
+      # recoverable configuration: falling back to the host compiler would
+      # feed it those hermetic flags and fail with an opaque "'std' is not a
+      # class" / undefined-symbol error far from the real cause, so fail
+      # early and precisely here instead.
+      raise RuntimeError(
+          "OpenFHE backend was configured with hermetic libc++ include dirs"
+          " but could not discover the matching toolchain clang (searched"
+          f" the output_base derived from {cxx_include_dirs[0]!r}). The host"
+          " compiler cannot parse these libc++ headers, so there is no"
+          " usable fallback; set OPENFHE_CXX_COMPILER explicitly to fix"
           " this."
       )
 
