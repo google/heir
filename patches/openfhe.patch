@@ -25,9 +25,13 @@ visibility bridge. This patch:
 
   * makes the generated @openfhe_config repo export an alias `libomp` ->
     @openmp//:libomp (openfhe_config.bzl).
-  * adds @openfhe_config//:libomp to the `core` cc_library deps. core is the
-    transitive base of binfhe/pke, so this puts omp.h on the -I path for every
-    OpenFHE compile and links the libomp archive into every OpenFHE consumer.
+  * adds @openfhe_config//:libomp to the `core` cc_library deps, gated on
+    //:config_enable_openmp (the same condition that drives OPENMP_COPTS). core
+    is the transitive base of binfhe/pke, so when OpenMP is enabled this puts
+    omp.h on the -I path for every OpenFHE compile and links the libomp archive
+    into every consumer. When OpenMP is disabled (e.g. macOS, where .bazelrc
+    sets enable_openmp=False), core does not `#include <omp.h>` and the dep is
+    dropped, so the build does not pull the Linux-oriented @openmp//:libomp.
   * drops `-lomp`/`-fopenmp` from the clang OpenMP linkopts: the runtime now comes
     from the libomp archive dep, and there is no system libomp to name. `-fopenmp`
     is retained as a *compile* flag (it drives the #pragma omp codegen) but removed
@@ -56,13 +60,20 @@ diff --git a/BUILD b/BUILD
 
  _OPENMP_GCC_LINKOPTS = [
      "-fopenmp",
-@@ -138,6 +137,7 @@ cc_library(
+@@ -138,6 +137,13 @@ cc_library(
      deps = [
          ":generate_config_core_h",
          ":prng",
-+        "@openfhe_config//:libomp",
          "@cereal",
-     ],
+-    ],
++    ] + select({
++        # libomp (and the omp.h it exports via -I) is only needed when OpenMP
++        # is enabled; gating on config_enable_openmp keeps openmp-disabled
++        # builds (e.g. macOS, which sets enable_openmp=False) from depending on
++        # the Linux-oriented hermetic @openmp//:libomp at all.
++        "//:config_enable_openmp": ["@openfhe_config//:libomp"],
++        "//conditions:default": [],
++    }),
  )
 diff --git a/openfhe_config.bzl b/openfhe_config.bzl
 --- a/openfhe_config.bzl
