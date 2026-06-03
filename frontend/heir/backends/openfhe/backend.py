@@ -314,7 +314,14 @@ class OpenFHEBackend(BackendInterface):
         + extra_link_libs
         + python_link_libs(),
         compile_only_flags=compile_only_flags,
-        linker_args=["-rpath", ":".join(linker_search_paths)],
+        # rpath must cover every dir that supplies a DT_NEEDED of this module,
+        # i.e. both the openfhe lib_dir and any extra_linker_search_paths used
+        # to resolve extra_link_libs (e.g. a toolchain libc++/libc++abi dir);
+        # otherwise those libs link via -L but cannot be found at dlopen time.
+        linker_args=[
+            "-rpath",
+            ":".join(linker_search_paths + extra_linker_search_paths),
+        ],
         abs_link_lib_paths=[so_filepath],
         arg_printer=debug_printer if debug else None,
     )
