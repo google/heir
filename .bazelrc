@@ -36,6 +36,19 @@ build:linux --linkopt="-fuse-ld=lld"
 # since macOS does not inject -lgcc_s.
 build:linux --@llvm//config:experimental_stub_libgcc_s=True
 
+# Build HEIR's Go (the lattigo backend + its tests) in pure mode (CGO_ENABLED=0).
+# These targets are pure Go, but rules_go's default `auto` cgo mode pulls in the
+# cgo implementations of net/os-user via the test harness, which forces *external*
+# linking: rules_go hands the Go-compiled objects to the C toolchain's linker.
+# The hermetic bootstrapped clang defaults to -pie, and Go's non-PIC type symbols
+# (`type:.eq.*`) cannot be linked into a PIE, so ld.lld fails with
+# `relocation R_X86_64_64 ... recompile with -fPIC`. (On a host clang/gcc this was
+# masked because those Go links were cached / internally linked.) Forcing pure
+# keeps linking entirely inside the Go linker -- no C toolchain, no PIE -- which is
+# both correct (the code is pure Go) and more hermetic. Linux-only: the PIE default
+# is specific to the linux bootstrapped toolchain.
+build:linux --@rules_go//go/config:pure
+
 # macos specific options
 # openmp is not supported in apple clang
 build:macos --@openfhe//:enable_openmp=False
