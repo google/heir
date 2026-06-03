@@ -152,8 +152,15 @@ class CppCompilerBackend:
 
     # Link step: keep `-shared` and the (host) link inputs, but omit the
     # compile-only flags so the host C runtime and libopenfhe satisfy the
-    # runtime symbols.
-    link_flags = [f for f in compiler_flags if f != "-c"]
+    # runtime symbols. Defensively drop anything the caller designated
+    # compile-only even if it also appears in compiler_flags -- a compile-only
+    # flag such as `--sysroot=/dev/null` reaching the link would strip the C
+    # startup objects and fail with "cannot find crt1.o".
+    link_flags = [
+        f for f in compiler_flags if f != "-c" and f not in compile_only_flags
+    ]
+    # A shared object must be linked with `-shared`; ensure it is present even
+    # if a caller's compiler_flags omitted it.
     if "-shared" not in link_flags:
       link_flags = ["-shared"] + link_flags
     link_args = (

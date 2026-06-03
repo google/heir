@@ -43,7 +43,10 @@ def _discover_hermetic_toolchain_clang(libcxx_include_dir: str) -> str | None:
           )
       )
   )
-  return matches[0] if matches else None
+  # Pick the lexicographically *last* match: if a toolchain version bump has
+  # left a stale `llvm-toolchain-<old>` repo dir behind in the output_base, the
+  # higher version sorts last, so we prefer the newer clang over the stale one.
+  return matches[-1] if matches else None
 
 
 @dataclass(frozen=True)
@@ -251,10 +254,26 @@ def from_os_env(debug=False) -> OpenFHEConfig:
   # old to parse the toolchain's libc++ headers).
   if cxx_include_dirs and not cxx_compiler:
     cxx_compiler = _discover_hermetic_toolchain_clang(cxx_include_dirs[0])
-    if debug and cxx_compiler:
+    if cxx_compiler:
+      if debug:
+        print(
+            "HEIRpy Debug (OpenFHE Backend): discovered hermetic toolchain"
+            f" clang at {cxx_compiler}"
+        )
+    else:
+      # We were configured with hermetic libc++ `-isystem` dirs (and thus the
+      # accompanying `-stdlib=libc++ --sysroot=/dev/null -nostdlibinc` flags)
+      # but could not locate the matching toolchain clang. Falling back to the
+      # host compiler would feed it those hermetic flags and fail with an
+      # opaque "'std' is not a class" / undefined-symbol error far from the
+      # real cause, so surface the actual problem here.
       print(
-          "HEIRpy Debug (OpenFHE Backend): discovered hermetic toolchain"
-          f" clang at {cxx_compiler}"
+          "Warning: OpenFHE backend was configured with hermetic libc++"
+          " include dirs but could not discover the matching toolchain clang"
+          f" (searched the output_base derived from {cxx_include_dirs[0]!r})."
+          " The JIT will fall back to the host compiler, which cannot parse"
+          " these libc++ headers; set OPENFHE_CXX_COMPILER explicitly to fix"
+          " this."
       )
 
   # Extra libc++ (or other stdlib) include dirs are emitted as `-isystem`
