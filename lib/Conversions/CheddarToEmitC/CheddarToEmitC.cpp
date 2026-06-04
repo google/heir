@@ -1,6 +1,5 @@
 #include "lib/Conversions/CheddarToEmitC/CheddarToEmitC.h"
 
-#include <cmath>
 #include <cstdio>
 #include <string>
 
@@ -667,16 +666,6 @@ struct ConvertPrepareRotKey
   }
 };
 
-// The enclosing function's Context arg (threaded by LWEToCheddar), used to read
-// CHEDDAR's exact canonical per-level scale. Null if absent (e.g. emitter unit
-// tests with no context arg).
-Value findCtx(Operation* op, const TypeConverter& tc) {
-  Type ctxType = tc.convertType(cheddar::ContextType::get(op->getContext()));
-  auto r = getContextualArgFromFunc(op, ctxType);
-  if (failed(r)) return Value{};
-  return r.value();
-}
-
 struct ConvertEncode : public OpConversionPattern<cheddar::EncodeOp> {
   using OpConversionPattern::OpConversionPattern;
   LogicalResult matchAndRewrite(
@@ -697,41 +686,13 @@ struct ConvertEncode : public OpConversionPattern<cheddar::EncodeOp> {
     std::string begin =
         isa<emitc::PointerType>(msg.getType()) ? "{}" : "&{}[0]";
 
-    // CHEDDAR keeps an EXACT canonical scale per level (rescale divides by the
-    // exact prime product, so the scale drifts from a clean 2^k) and rejects
-    // any mismatch beyond 1e-12. So we must hand the encoder CHEDDAR's own
-    // `ctx->param_.GetScale(level)` rather than a literal 2^k. For a doubled
-    // (post-mult, pre-rescale) plaintext the scale is GetScale(level) raised to
-    // logScale/logDefaultScale.
-    Value ctx = findCtx(op, *this->typeConverter);
-    int64_t logDefaultScale = 0;
-    if (auto m = op->getParentOfType<ModuleOp>())
-      if (auto a = m->getAttrOfType<IntegerAttr>("cheddar.logDefaultScale"))
-        logDefaultScale = a.getInt();
-
-    std::string scaleExpr;
-    SmallVector<Value> scaleOperands;
-    // Opt-in exact (drifted) scale: a pre-rescale plaintext (e.g. a relu bias)
-    // whose ciphertext scale has diverged from canonical GetScale^k by exact
-    // rescale-prime factors. Emitted verbatim. Hand-supplied for the MNIST
-    // biases (HACK #7); precise scale management would compute it.
-    if (auto exact = op->getAttrOfType<FloatAttr>("cheddar.exact_scale")) {
-      scaleExpr = floatLit(exact);
-    } else if (ctx && logDefaultScale > 0) {
-      int64_t logScale = static_cast<int64_t>(
-          std::llround(std::log2(op.getScaleAttr().getValueAsDouble())));
-      int64_t mult =
-          (logScale >= logDefaultScale && logScale % logDefaultScale == 0)
-              ? logScale / logDefaultScale
-              : 1;
-      for (int64_t i = 0; i < mult; ++i) {
-        if (i) scaleExpr += " * ";
-        scaleExpr += "{}->param_.GetScale(" + lvl + ")";
-        scaleOperands.push_back(ctx);
-      }
-    } else {
-      scaleExpr = floatLit(op.getScaleAttr());
-    }
+    // The emitter is intentionally dumb about scale: it emits the IR's `scale`
+    // attribute verbatim. CHEDDAR keeps an EXACT canonical per-level scale
+    // (rescale divides by the exact prime product, so it drifts from a clean
+    // 2^k) and rejects mismatches beyond 1e-12, so the cheddar-level IR must
+    // already carry that exact value -- baked in by precise scale management
+    // upstream (or, for now, a scale-baking pre-pass on the test IR).
+    std::string scaleExpr = floatLit(op.getScaleAttr());
 
     // Let emitc allocate the message vector (unique name, scoped); fill it
     // from the float range, then call Encode. All brace-free statements -- no
@@ -743,13 +704,9 @@ struct ConvertEncode : public OpConversionPattern<cheddar::EncodeOp> {
                        "{} = std::vector<Complex>(" + begin + ", " + begin +
                            " + " + std::to_string(n) + ");",
                        ValueRange{vec, msg, msg});
-    // Sequential `{}`: encoder, out, one ctx per GetScale factor, then vec.
-    SmallVector<Value> operands{adaptor.getEncoder(), out};
-    operands.append(scaleOperands.begin(), scaleOperands.end());
-    operands.push_back(vec);
     VerbatimOp::create(rewriter, op.getLoc(),
                        "{}.Encode({}, " + lvl + ", " + scaleExpr + ", {});",
-                       operands);
+                       ValueRange{adaptor.getEncoder(), out, vec});
 
     rewriter.replaceOp(op, loadAfter(rewriter, op.getLoc(), t, out));
     return success();
