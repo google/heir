@@ -169,11 +169,17 @@ class SecretGenericOpConversion
                                                 op.getResults(), resultTypes)))
       return failure();
 
-    // only preserve dialect attrs
-    // we do not want op attrs like overflowFlags from arith.add
+    // Preserve dialect attributes and inherent attributes of the target op Y.
+    // We still do not want unrelated op attributes like overflowFlags from
+    // arith.add unless they are also inherent attributes of Y.
     SmallVector<NamedAttribute> attrsToPreserve;
     for (auto& namedAttr : innerOp.getDialectAttrs()) {
       attrsToPreserve.push_back(namedAttr);
+    }
+    for (auto attrName : Y::getAttributeNames()) {
+      if (auto attr = innerOp.getAttr(attrName)) {
+        attrsToPreserve.push_back(rewriter.getNamedAttr(attrName, attr));
+      }
     }
 
     // Must preserve mgmt attrs from the enclosing generic so that later ops

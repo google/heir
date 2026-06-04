@@ -5,13 +5,11 @@
 
 #include "lib/Dialect/BGV/Conversions/BGVToLWE/BGVToLWE.h"
 #include "lib/Dialect/CKKS/Transforms/CKKSToLWE.h"
-#include "lib/Dialect/Debug/Transforms/Passes.h"
 #include "lib/Dialect/Debug/Transforms/ValidateNames.h"
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h"
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
 #include "lib/Dialect/LWE/Transforms/AddDebugPort.h"
 #include "lib/Dialect/LWE/Transforms/ImplementTrivialEncryptionAsAddition.h"
-#include "lib/Dialect/Lattigo/Transforms/AllocToInPlace.h"
 #include "lib/Dialect/Lattigo/Transforms/ConfigureCryptoContext.h"
 #include "lib/Dialect/Openfhe/Transforms/AllocToInPlace.h"
 #include "lib/Dialect/Openfhe/Transforms/ConfigureCryptoContext.h"
