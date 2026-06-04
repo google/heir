@@ -442,38 +442,60 @@ def Cheddar_LinearTransformOp : Cheddar_Op<"linear_transform", [
   let summary = "Apply a linear transform on a ciphertext";
   let description = [{
     Applies a matrix-vector product using CHEDDAR's LinearTransform extension
-    with BSGS optimization and hoisting.
+    with baby-step/giant-step (BSGS) optimization and hoisting.
 
     The `diagonals` input is a 2D tensor where each row is a non-zero diagonal.
     The `diagonal_indices` attribute specifies which diagonal each row represents.
     The `level` attribute specifies the modulus level for the operation.
+
+    The `bs` (baby-step count) and `gs` (giant-step count) attributes are the
+    BSGS grid dimensions handed directly to CHEDDAR's LinearTransform. They are
+    the single source of truth for the rotation strategy: the emitter passes
+    them through verbatim and `getRotationIndices` derives its key set from `bs`,
+    so key generation and evaluation cannot diverge. They must satisfy
+    `bs * gs > max(diagonal_indices)` so the decomposition covers every diagonal.
+    Choosing them is a strategy decision made when the IR is produced (a dense
+    transform wants a square-ish grid; a sparse/wrap-around one wants `gs = 1`,
+    the pure-diagonal method); the consumers here never recompute them.
   }];
   let arguments = (ins
     Cheddar_Context:$ctx,
     Cheddar_Ciphertext:$input,
     Cheddar_EvkMap:$evkMap,
-    2DTensorOf<[AnyFloat]>:$diagonals,
+    // 2D (each row a diagonal); TensorOrMemRef so it survives bufferization.
+    TensorOrMemRef<[AnyFloat]>:$diagonals,
     DenseI32ArrayAttr:$diagonal_indices,
     Builtin_IntegerAttr:$level,
-    Builtin_IntegerAttr:$logBabyStepGiantStepRatio
+    Builtin_IntegerAttr:$bs,
+    Builtin_IntegerAttr:$gs
   );
   let results = (outs Cheddar_Ciphertext:$output);
+  let hasVerifier = 1;
 }
 
 def Cheddar_EvalPolyOp : Cheddar_Op<"eval_poly"> {
   let summary = "Evaluate a polynomial on a ciphertext";
   let description = [{
     Evaluates a polynomial (e.g., Chebyshev approximation) on an encrypted
-    input using CHEDDAR's EvalPoly extension.
+    input using CHEDDAR's EvalPoly extension. The coefficients are a Chebyshev
+    series on the canonical domain [-1, 1].
+
+    `level` is the level the input ciphertext enters at; `outputLevel` is the
+    level the result lands at after the polynomial's multiplicative depth. Both
+    are part of the op's contract: CHEDDAR's EvalPoly rescales the output to the
+    canonical scale of `outputLevel`, so the consumer reads them rather than
+    re-deriving the polynomial depth.
   }];
   let arguments = (ins
     Cheddar_Context:$ctx,
     Cheddar_Ciphertext:$input,
     Cheddar_EvkMap:$evkMap,
     ArrayAttr:$coefficients,
-    Builtin_IntegerAttr:$level
+    Builtin_IntegerAttr:$level,
+    Builtin_IntegerAttr:$outputLevel
   );
   let results = (outs Cheddar_Ciphertext:$output);
+  let hasVerifier = 1;
 }
 
 #endif  // LIB_DIALECT_CHEDDAR_IR_CHEDDAROPS_TD_

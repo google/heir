@@ -25,17 +25,35 @@ namespace heir {
 namespace cheddar {
 
 namespace {
-// Allow the inliner to clone cheddar ops. Without an inliner interface the
-// MLIR inliner treats every cheddar op as illegal-to-inline, which blocks
-// inlining any client function that contains them (e.g. folding the
+// Cheddar setup/keygen ops interact with stateful handles and (secret) key
+// material rather than being pure value computations: create_context and
+// create_user_interface mint distinct objects, prepare_rot_key generates a
+// rotation key as a side effect, and encrypt/decrypt touch the user interface.
+// Duplicating any of these into multiple call sites would create divergent
+// contexts or redundantly (and observably) regenerate keys, so they must not be
+// *cloned*. The pure ciphertext-algebra ops have value semantics and are always
+// safe to clone.
+bool isStatefulHandleOp(Operation* op) {
+  return isa<CreateContextOp, CreateUserInterfaceOp, PrepareRotKeyOp, EncryptOp,
+             DecryptOp>(op);
+}
+
+// Lets the inliner fold client functions that contain cheddar ops (e.g. the
 // per-`func` preprocessing/compute decomposition back into a combined entry
-// point). Cheddar ops carry no nested regions or control flow, so cloning is
-// always safe.
+// point). Without an interface the inliner treats every cheddar op as
+// illegal-to-inline and blocks all such inlining.
 struct CheddarInlinerInterface : public DialectInlinerInterface {
   using DialectInlinerInterface::DialectInlinerInterface;
-  bool isLegalToInline(Operation*, Region*, bool, IRMapping&) const final {
-    return true;
+
+  // An op may be inlined as long as we are not duplicating a stateful op:
+  // moving (wouldBeCloned == false) preserves single execution and order and is
+  // always fine; cloning is only safe for the pure ciphertext-algebra ops.
+  bool isLegalToInline(Operation* op, Region*, bool wouldBeCloned,
+                       IRMapping&) const final {
+    return !wouldBeCloned || !isStatefulHandleOp(op);
   }
+  // Cheddar ops carry no nested regions or control flow, so a callee body is
+  // structurally inlinable; per-op cloning safety is enforced above.
   bool isLegalToInline(Region*, Region*, bool, IRMapping&) const final {
     return true;
   }
