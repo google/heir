@@ -206,6 +206,48 @@ struct ConvertRNSExtractResidue
   }
 };
 
+struct ConvertRNSExtractSlice
+    : public OpConversionPattern<rns::ExtractSliceOp> {
+  ConvertRNSExtractSlice(mlir::MLIRContext* context)
+      : OpConversionPattern<rns::ExtractSliceOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      rns::ExtractSliceOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    auto inputType = dyn_cast<RankedTensorType>(adaptor.getInput().getType());
+    if (!inputType) {
+      return rewriter.notifyMatchFailure(
+          op, "expected RNS value lowered to a ranked tensor");
+    }
+    auto resultType = dyn_cast<RankedTensorType>(
+        getTypeConverter()->convertType(op.getOutput().getType()));
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(op, "result type conversion failed");
+    }
+
+    SmallVector<OpFoldResult> offsets(inputType.getRank(),
+                                      rewriter.getIndexAttr(0));
+    SmallVector<OpFoldResult> sizes;
+    for (int64_t dim : inputType.getShape()) {
+      if (ShapedType::isDynamic(dim)) {
+        return rewriter.notifyMatchFailure(op, "expected static input shape");
+      }
+      sizes.push_back(rewriter.getIndexAttr(dim));
+    }
+    SmallVector<OpFoldResult> strides(inputType.getRank(),
+                                      rewriter.getIndexAttr(1));
+
+    offsets.back() = rewriter.getIndexAttr(op.getStart().getSExtValue());
+    sizes.back() = rewriter.getIndexAttr(op.getSize().getSExtValue());
+
+    rewriter.replaceOpWithNewOp<tensor::ExtractSliceOp>(
+        op, resultType, adaptor.getInput(), offsets, sizes, strides);
+    return success();
+  }
+};
+
 struct ConvertRNSPack : public OpConversionPattern<rns::PackOp> {
   ConvertRNSPack(mlir::MLIRContext* context)
       : OpConversionPattern<rns::PackOp>(context) {}
@@ -562,18 +604,19 @@ void ModArithToArith::runOnOperation() {
 
   ConversionTarget target(*context);
   target.addIllegalDialect<ModArithDialect>();
-  target.addIllegalOp<rns::ExtractResidueOp, rns::PackOp>();
+  target
+      .addIllegalOp<rns::ExtractResidueOp, rns::ExtractSliceOp, rns::PackOp>();
   target.addLegalDialect<arith::ArithDialect>();
 
   RewritePatternSet patterns(context);
   rewrites::populateWithGenerated(patterns);
-  patterns
-      .add<ConvertEncapsulate, ConvertExtract, ConvertReduce, ConvertAdd,
-           ConvertSub, ConvertMul, ConvertMac, ConvertModSwitch,
-           ConvertBarrettReduce, ConvertConstant, ConvertRNSExtractResidue,
-           ConvertRNSPack, ConvertAny<>, ConvertAny<affine::AffineForOp>,
-           ConvertAny<affine::AffineYieldOp>, ConvertAny<linalg::GenericOp> >(
-          typeConverter, context);
+  patterns.add<
+      ConvertEncapsulate, ConvertExtract, ConvertReduce, ConvertAdd, ConvertSub,
+      ConvertMul, ConvertMac, ConvertModSwitch, ConvertBarrettReduce,
+      ConvertConstant, ConvertRNSExtractResidue, ConvertRNSExtractSlice,
+      ConvertRNSPack, ConvertAny<>, ConvertAny<affine::AffineForOp>,
+      ConvertAny<affine::AffineYieldOp>, ConvertAny<linalg::GenericOp> >(
+      typeConverter, context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
   addTensorOfTensorConversionPatterns(typeConverter, patterns, target);
