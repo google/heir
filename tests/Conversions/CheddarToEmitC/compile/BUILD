@@ -40,10 +40,44 @@ genrule(
     cmd = """cat > $@ <<'PRELUDE_EOF'
 // AUTO-GENERATED: do not edit. See tests/Conversions/CheddarToEmitC/compile/BUILD.
 #include <array>
+#include <complex>
 #include <cstdint>
+#include <initializer_list>
+#include <vector>
 #include "tests/Conversions/CheddarToEmitC/compile/cheddar_stub.h"
 using namespace cheddar;
 using word = uint64_t;
+// HEIR-side emitter shim (see the orion_mlp_lt BUILD for the rationale): the
+// cheddar.linear_transform lowering calls this, so the compile guard must see it.
+template <int W, typename wordT>
+void RunLinearTransform(Ciphertext<wordT>& out, Context<wordT>* ctx,
+                        const Ciphertext<wordT>& in,
+                        const EvkMap<wordT>& evk_map, double diag[][W],
+                        std::initializer_list<int> idx, int level, int bs,
+                        int gs) {
+  StripedMatrix m(W, W);
+  int d = 0;
+  for (int k : idx) {
+    m[k] = std::vector<Complex>(diag[d], diag[d] + W);
+    ++d;
+  }
+  ConstContextPtr<wordT> cp(ConstContextPtr<wordT>(), ctx);
+  LinearTransform<wordT> lt(cp, m, level, ctx->param_.GetScale(level), bs, gs);
+  lt.Evaluate(cp, out, in, evk_map);
+}
+// Same shape for cheddar.eval_poly -> CHEDDAR's EvalPoly class (Chebyshev basis).
+template <typename wordT>
+void RunEvalPoly(Ciphertext<wordT>& out, Context<wordT>* ctx,
+                 const Ciphertext<wordT>& in, const EvkMap<wordT>& evk_map,
+                 std::initializer_list<double> coeffs, int level,
+                 int output_level) {
+  ConstContextPtr<wordT> cp(ConstContextPtr<wordT>(), ctx);
+  std::vector<double> c(coeffs);
+  EvalPoly<wordT> poly(c, level, ctx->param_.GetScale(level),
+                       ctx->param_.GetScale(output_level), /*chebyshev=*/true);
+  poly.Compile(cp);
+  poly.Evaluate(cp, out, in, evk_map.GetMultiplicationKey());
+}
 PRELUDE_EOF
 cat $(location :kernels_raw.cc) >> $@
 """,

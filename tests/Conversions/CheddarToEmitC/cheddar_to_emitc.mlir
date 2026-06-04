@@ -224,7 +224,10 @@ func.func @mad(%ctx: !cheddar.context, %acc: !cheddar.ciphertext,
 // CHECK: func.func @boot
 func.func @boot(%ctx: !cheddar.context, %ct: !cheddar.ciphertext,
                 %evk: !cheddar.evk_map) -> !cheddar.ciphertext {
-  // CHECK: emitc.member_call_opaque %arg0 "Boot"
+  // Boot is a BootContext method; the dialect carries a single Context type, so
+  // the emitter recovers the derived type with a static_cast (the harness passes
+  // a BootContext as the Context). See ConvertBoot in CheddarToEmitC.cpp.
+  // CHECK: emitc.verbatim "static_cast<BootContext<word>*>({})->Boot({}, {}, {});"
   %r = cheddar.boot %ctx, %ct, %evk
       : (!cheddar.context, !cheddar.ciphertext, !cheddar.evk_map) -> !cheddar.ciphertext
   return %r : !cheddar.ciphertext
@@ -239,11 +242,15 @@ func.func @boot(%ctx: !cheddar.context, %ct: !cheddar.ciphertext,
 func.func @linear_transform(%ctx: !cheddar.context, %ct: !cheddar.ciphertext,
                             %evk: !cheddar.evk_map, %d: tensor<2x4xf64>)
     -> !cheddar.ciphertext {
-  // CHECK: emitc.member_call_opaque %arg0 "LinearTransform"
-  // CHECK-SAME: 0, 1
-  // CHECK-SAME: 5, 0
+  // There is no Context::LinearTransform method (it's a class), so the emitter
+  // lowers to one structured call to the HEIR-side RunLinearTransform shim,
+  // carrying {indices}, level, bs, gs as a trailing literal and the slot width +
+  // `word` as template args.
+  // CHECK: emitc.call_opaque "RunLinearTransform"
+  // CHECK-SAME: 0, 1}, 5, 2, 1
+  // CHECK-SAME: word
   %r = cheddar.linear_transform %ctx, %ct, %evk, %d
-      {diagonal_indices = array<i32: 0, 1>, level = 5 : i64, logBabyStepGiantStepRatio = 0 : i64}
+      {diagonal_indices = array<i32: 0, 1>, level = 5 : i64, bs = 2 : i64, gs = 1 : i64}
       : (!cheddar.context, !cheddar.ciphertext, !cheddar.evk_map, tensor<2x4xf64>)
       -> !cheddar.ciphertext
   return %r : !cheddar.ciphertext
@@ -252,11 +259,14 @@ func.func @linear_transform(%ctx: !cheddar.context, %ct: !cheddar.ciphertext,
 // CHECK: func.func @eval_poly
 func.func @eval_poly(%ctx: !cheddar.context, %ct: !cheddar.ciphertext,
                      %evk: !cheddar.evk_map) -> !cheddar.ciphertext {
-  // CHECK: emitc.member_call_opaque %arg0 "EvalPoly"
-  // CHECK-SAME: 1, 2, 3
-  // CHECK-SAME: 4
+  // No Context::EvalPoly method (it's a class), so the emitter lowers to one
+  // structured call to the HEIR-side RunEvalPoly shim, carrying {coefficients},
+  // level and outputLevel as a trailing literal and `word` as a template arg.
+  // CHECK: emitc.call_opaque "RunEvalPoly"
+  // CHECK-SAME: 2, 3}, 4, 3
+  // CHECK-SAME: word
   %r = cheddar.eval_poly %ctx, %ct, %evk
-      {coefficients = [1.0 : f64, 2.0 : f64, 3.0 : f64], level = 4 : i64}
+      {coefficients = [1.0 : f64, 2.0 : f64, 3.0 : f64], level = 4 : i64, outputLevel = 3 : i64}
       : (!cheddar.context, !cheddar.ciphertext, !cheddar.evk_map) -> !cheddar.ciphertext
   return %r : !cheddar.ciphertext
 }

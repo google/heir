@@ -97,6 +97,47 @@ struct DecodeOpInterface
   }
 };
 
+// cheddar.linear_transform reads the cleartext diagonals tensor (operand #3)
+// and produces an opaque ciphertext (no tensor result). Bufferization just
+// swaps the diagonals operand for its buffer.
+struct LinearTransformOpInterface
+    : public bufferization::BufferizableOpInterface::ExternalModel<
+          LinearTransformOpInterface, LinearTransformOp> {
+  bool bufferizesToMemoryRead(Operation* op, OpOperand& opOperand,
+                              const bufferization::AnalysisState& state) const {
+    return opOperand.getOperandNumber() == 3;  // $diagonals
+  };
+
+  bool bufferizesToMemoryWrite(
+      Operation* op, OpOperand& opOperand,
+      const bufferization::AnalysisState& state) const {
+    return false;
+  };
+
+  bufferization::AliasingValueList getAliasingValues(
+      Operation* op, OpOperand& opOperand,
+      const bufferization::AnalysisState& state) const {
+    return {};
+  };
+
+  bool mustBufferizeInPlace(Operation* op, OpOperand& opOperand,
+                            const bufferization::AnalysisState& state) const {
+    return false;
+  };
+
+  LogicalResult bufferize(Operation* op, RewriterBase& rewriter,
+                          const bufferization::BufferizationOptions& options,
+                          bufferization::BufferizationState& state) const {
+    auto ltOp = cast<LinearTransformOp>(op);
+    FailureOr<Value> maybeBuffer =
+        getBuffer(rewriter, ltOp.getDiagonals(), options, state);
+    if (failed(maybeBuffer)) return failure();
+
+    rewriter.modifyOpInPlace(op, [&]() { op->setOperand(3, *maybeBuffer); });
+    return success();
+  }
+};
+
 }  // namespace
 
 void mlir::heir::cheddar::registerBufferizableOpInterfaceExternalModels(
@@ -104,5 +145,6 @@ void mlir::heir::cheddar::registerBufferizableOpInterfaceExternalModels(
   registry.addExtension(+[](MLIRContext* ctx, CheddarDialect* dialect) {
     EncodeOp::attachInterface<EncodeOpInterface>(*ctx);
     DecodeOp::attachInterface<DecodeOpInterface>(*ctx);
+    LinearTransformOp::attachInterface<LinearTransformOpInterface>(*ctx);
   });
 }

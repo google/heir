@@ -128,12 +128,14 @@ func.func @boot(%ctx: !cheddar.context, %ct: !cheddar.ciphertext,
   return %0 : !cheddar.ciphertext
 }
 
+// The diagonals are a memref (the bufferized form the real pipeline produces);
+// the emitter renders it as a 2D `double[][W]` array passed to RunLinearTransform.
 func.func @linear_transform(%ctx: !cheddar.context, %ct: !cheddar.ciphertext,
-                            %evk: !cheddar.evk_map, %d: tensor<2x4xf64>)
+                            %evk: !cheddar.evk_map, %d: memref<2x4xf64>)
     -> !cheddar.ciphertext {
   %0 = cheddar.linear_transform %ctx, %ct, %evk, %d
-      {diagonal_indices = array<i32: 0, 1>, level = 5 : i64, logBabyStepGiantStepRatio = 0 : i64}
-      : (!cheddar.context, !cheddar.ciphertext, !cheddar.evk_map, tensor<2x4xf64>)
+      {diagonal_indices = array<i32: 0, 1>, level = 5 : i64, bs = 2 : i64, gs = 1 : i64}
+      : (!cheddar.context, !cheddar.ciphertext, !cheddar.evk_map, memref<2x4xf64>)
       -> !cheddar.ciphertext
   return %0 : !cheddar.ciphertext
 }
@@ -141,7 +143,7 @@ func.func @linear_transform(%ctx: !cheddar.context, %ct: !cheddar.ciphertext,
 func.func @eval_poly(%ctx: !cheddar.context, %ct: !cheddar.ciphertext,
                      %evk: !cheddar.evk_map) -> !cheddar.ciphertext {
   %0 = cheddar.eval_poly %ctx, %ct, %evk
-      {coefficients = [1.0 : f64, 2.0 : f64, 3.0 : f64], level = 4 : i64}
+      {coefficients = [1.0 : f64, 2.0 : f64, 3.0 : f64], level = 4 : i64, outputLevel = 3 : i64}
       : (!cheddar.context, !cheddar.ciphertext, !cheddar.evk_map) -> !cheddar.ciphertext
   return %0 : !cheddar.ciphertext
 }

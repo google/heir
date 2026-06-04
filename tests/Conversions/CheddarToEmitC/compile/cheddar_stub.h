@@ -23,10 +23,22 @@
 #ifndef TESTS_CONVERSIONS_CHEDDARTOEMITC_COMPILE_CHEDDAR_STUB_H_
 #define TESTS_CONVERSIONS_CHEDDARTOEMITC_COMPILE_CHEDDAR_STUB_H_
 
+#include <complex>
 #include <initializer_list>
+#include <map>
+#include <memory>
 #include <vector>
 
 namespace cheddar {
+
+using Complex = std::complex<double>;
+
+// Minimal parameter stub: the LinearTransform emitter reads the per-level
+// canonical scale via `ctx->param_.GetScale(level)`.
+template <typename word>
+struct Parameter {
+  double GetScale(int level) const;
+};
 
 // Move-only payload types with full move support (default + move-ctor +
 // move-assign; copy deleted).
@@ -131,13 +143,54 @@ class Context {
   // reference. This is the crux of the mad_unsafe finding.
   void MadUnsafe(Ct& res, const Ct& a, const Const& b) const;
 
+  // The LinearTransform / EvalPoly emitters read the canonical scale from here.
+  Parameter<word> param_;
+};
+
+// CHEDDAR's LinearTransform extension is a class constructed from a
+// StripedMatrix (diagonal index -> diagonal) and Evaluate()'d; the emitter
+// builds one inline. ConstContextPtr is a non-owning shared_ptr aliased onto
+// the raw Context*.
+template <typename word>
+using ConstContextPtr = std::shared_ptr<const Context<word>>;
+
+class StripedMatrix : public std::map<int, std::vector<Complex>> {
+ public:
+  StripedMatrix(int height = 0, int width = 0) {}
+};
+
+template <typename word>
+class LinearTransform {
+ public:
+  LinearTransform(ConstContextPtr<word> context, const StripedMatrix& matrix,
+                  int pt_level, double pt_scale, int bs, int gs = 1,
+                  int pre_rotation = 0, int additional_pt_rot = 0);
+  void Evaluate(ConstContextPtr<word> context, Ciphertext<word>& res,
+                const Ciphertext<word>& input, const EvkMap<word>& evk_map,
+                bool min_ks = false) const;
+};
+
+// CHEDDAR's EvalPoly extension: also a class -- construct from coefficients,
+// Compile(), then Evaluate() with the multiplication key.
+template <typename word>
+class EvalPoly {
+ public:
+  EvalPoly(const std::vector<double>& coefficients, int input_level,
+           double input_scale, double target_scale, bool chebyshev = false);
+  void Compile(ConstContextPtr<word> context);
+  void Evaluate(ConstContextPtr<word> context, Ciphertext<word>& res,
+                const Ciphertext<word>& input,
+                const EvaluationKey<word>& mult_key) const;
+};
+
+// Boot lives on the derived BootContext (extension/BootContext.h), not Context.
+// The emitter calls `static_cast<BootContext<word>*>(ctx)->Boot(...)`, so the
+// stub mirrors that hierarchy.
+template <typename word>
+class BootContext : public Context<word> {
+ public:
+  using Ct = Ciphertext<word>;
   void Boot(Ct& res, const Ct& a, const EvkMap<word>& evk_map) const;
-  void LinearTransform(Ct& res, const Ct& a, const EvkMap<word>& evk_map,
-                       const std::vector<double>& diagonals,
-                       std::initializer_list<int> diagonal_indices, int level,
-                       int log_bsgs_ratio) const;
-  void EvalPoly(Ct& res, const Ct& a, const EvkMap<word>& evk_map,
-                std::initializer_list<double> coefficients, int level) const;
 };
 
 }  // namespace cheddar

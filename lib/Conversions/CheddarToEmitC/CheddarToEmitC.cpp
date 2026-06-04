@@ -537,7 +537,8 @@ std::string floatArrayLit(ArrayAttr a) {
   std::string s = "{";
   for (size_t i = 0; i < a.size(); ++i) {
     if (i > 0) s += ", ";
-    s += floatLit(cast<FloatAttr>(a[i]));  // full %.17g precision, not truncated
+    s +=
+        floatLit(cast<FloatAttr>(a[i]));  // full %.17g precision, not truncated
   }
   return s + "}";
 }
@@ -888,9 +889,13 @@ struct ConvertMadUnsafe : public OpConversionPattern<cheddar::MadUnsafeOp> {
   }
 };
 
-// `ctx->Boot(res, input, evk_map);`. The CHEDDAR runtime resolves whether
-// `ctx` is a regular `Context` or a `BootContext`; the dialect carries only
-// a single Context type today.
+// `static_cast<BootContext<word>*>(ctx)->Boot(res, input, evk_map);`.
+// The dialect models a CHEDDAR Context and a BootContext as one
+// `!cheddar.context` type (see CheddarTypes.td) -- a module that bootstraps
+// must be run with a BootContext, which the harness creates and passes in as
+// the Context. `Boot` is a (non-virtual) BootContext method, so we recover the
+// derived type with a static_cast here; the cast is safe by construction
+// because the op only exists in modules that require a BootContext at runtime.
 struct ConvertBoot : public OpConversionPattern<cheddar::BootOp> {
   using OpConversionPattern::OpConversionPattern;
   LogicalResult matchAndRewrite(
@@ -898,13 +903,25 @@ struct ConvertBoot : public OpConversionPattern<cheddar::BootOp> {
       ConversionPatternRewriter& rewriter) const override {
     Type t = this->typeConverter->convertType(op.getResult().getType());
     Value out = declareLocal(rewriter, op.getLoc(), t);
-    emitOutParamCall(rewriter, op.getLoc(), adaptor.getCtx(), "Boot", out,
-                     ValueRange{adaptor.getInput(), adaptor.getEvkMap()});
+    VerbatimOp::create(rewriter, op.getLoc(),
+                       "static_cast<BootContext<word>*>({})->Boot({}, {}, {});",
+                       ValueRange{adaptor.getCtx(), out, adaptor.getInput(),
+                                  adaptor.getEvkMap()});
     rewriter.replaceOp(op, loadAfter(rewriter, op.getLoc(), t, out));
     return success();
   }
 };
 
+// cheddar.linear_transform -> CHEDDAR's LinearTransform extension. Unlike every
+// other op there is no Context *method* to call: LinearTransform is a *class*
+// (constructed from a StripedMatrix of diagonals, then Evaluate()'d). The
+// HEIR-side emitter prelude provides a thin `RunLinearTransform<W, word>` shim
+// that packs the cleartext diagonals operand into a StripedMatrix, constructs
+// the LinearTransform at the op's level + canonical plaintext scale
+// (ctx->param_.GetScale(level)), and evaluates it -- so we emit one uniform
+// structured call_opaque (no verbatim, no Context/CHEDDAR change):
+//   RunLinearTransform<W, word>(out, ctx, in, evk_map, diagonals,
+//                               {indices}, level, bs, gs);
 struct ConvertLinearTransform
     : public OpConversionPattern<cheddar::LinearTransformOp> {
   using OpConversionPattern::OpConversionPattern;
@@ -913,19 +930,54 @@ struct ConvertLinearTransform
       ConversionPatternRewriter& rewriter) const override {
     Type t = this->typeConverter->convertType(op.getResult().getType());
     Value out = declareLocal(rewriter, op.getLoc(), t);
-    std::string extra = i32ArrayLit(op.getDiagonalIndicesAttr()) + ", " +
-                        intLit(op.getLevelAttr()) + ", " +
-                        intLit(op.getLogBabyStepGiantStepRatioAttr());
-    emitOutParamCall(rewriter, op.getLoc(), adaptor.getCtx(), "LinearTransform",
-                     out,
-                     ValueRange{adaptor.getInput(), adaptor.getEvkMap(),
-                                adaptor.getDiagonals()},
-                     extra);
+
+    auto diagTy = cast<ShapedType>(op.getDiagonals().getType());
+    int64_t width = diagTy.getShape()[1];
+
+    // Diagonal indices (verbatim from the IR; fc layers may include wrap-around
+    // diagonals like 4095 == rotation by -1).
+    std::string idxList;
+    auto idxAttr = op.getDiagonalIndicesAttr();
+    for (size_t i = 0; i < idxAttr.size(); ++i) {
+      if (i > 0) idxList += ", ";
+      idxList += std::to_string(idxAttr[i]);
+    }
+
+    // bs/gs are the BSGS grid dimensions; they are part of the op's contract
+    // (set when the IR is produced) and handed to CHEDDAR verbatim. The emitter
+    // never recomputes the rotation strategy.
+    int64_t bs = op.getBsAttr().getInt();
+    int64_t gs = op.getGsAttr().getInt();
+
+    // operands: out (DPS), ctx, in, evk_map, diagonals; trailing literals
+    // {indices}, level, bs, gs are one opaque constant arg after them.
+    SmallVector<Value> operands{out, adaptor.getCtx(), adaptor.getInput(),
+                                adaptor.getEvkMap(), adaptor.getDiagonals()};
+    std::string trailing = "{" + idxList + "}, " + intLit(op.getLevelAttr()) +
+                           ", " + std::to_string(bs) + ", " +
+                           std::to_string(gs);
+    SmallVector<Attribute> args;
+    for (size_t i = 0; i < operands.size(); ++i)
+      args.push_back(rewriter.getIndexAttr(i));
+    args.push_back(emitc::OpaqueAttr::get(rewriter.getContext(), trailing));
+    SmallVector<Attribute> templateArgs{
+        emitc::OpaqueAttr::get(rewriter.getContext(), std::to_string(width)),
+        emitc::OpaqueAttr::get(rewriter.getContext(), "word")};
+    CallOpaqueOp::create(rewriter, op.getLoc(), /*resultTypes=*/TypeRange{},
+                         rewriter.getStringAttr("RunLinearTransform"), operands,
+                         rewriter.getArrayAttr(args),
+                         rewriter.getArrayAttr(templateArgs));
     rewriter.replaceOp(op, loadAfter(rewriter, op.getLoc(), t, out));
     return success();
   }
 };
 
+// cheddar.eval_poly -> CHEDDAR's EvalPoly extension. Like LinearTransform there
+// is no Context method: EvalPoly is a *class* (constructed from the
+// coefficients, Compile()'d, then Evaluate()'d with the multiplication key).
+// The emitter lowers to one structured call to the HEIR-side RunEvalPoly
+// prelude shim:
+//   RunEvalPoly<word>(out, ctx, in, evk_map, {coefficients}, level)
 struct ConvertEvalPoly : public OpConversionPattern<cheddar::EvalPolyOp> {
   using OpConversionPattern::OpConversionPattern;
   LogicalResult matchAndRewrite(
@@ -933,11 +985,22 @@ struct ConvertEvalPoly : public OpConversionPattern<cheddar::EvalPolyOp> {
       ConversionPatternRewriter& rewriter) const override {
     Type t = this->typeConverter->convertType(op.getResult().getType());
     Value out = declareLocal(rewriter, op.getLoc(), t);
-    std::string extra = floatArrayLit(op.getCoefficientsAttr()) + ", " +
-                        intLit(op.getLevelAttr());
-    emitOutParamCall(rewriter, op.getLoc(), adaptor.getCtx(), "EvalPoly", out,
-                     ValueRange{adaptor.getInput(), adaptor.getEvkMap()},
-                     extra);
+
+    SmallVector<Value> operands{out, adaptor.getCtx(), adaptor.getInput(),
+                                adaptor.getEvkMap()};
+    std::string trailing = floatArrayLit(op.getCoefficientsAttr()) + ", " +
+                           intLit(op.getLevelAttr()) + ", " +
+                           intLit(op.getOutputLevelAttr());
+    SmallVector<Attribute> args;
+    for (size_t i = 0; i < operands.size(); ++i)
+      args.push_back(rewriter.getIndexAttr(i));
+    args.push_back(emitc::OpaqueAttr::get(rewriter.getContext(), trailing));
+    SmallVector<Attribute> templateArgs{
+        emitc::OpaqueAttr::get(rewriter.getContext(), "word")};
+    CallOpaqueOp::create(rewriter, op.getLoc(), /*resultTypes=*/TypeRange{},
+                         rewriter.getStringAttr("RunEvalPoly"), operands,
+                         rewriter.getArrayAttr(args),
+                         rewriter.getArrayAttr(templateArgs));
     rewriter.replaceOp(op, loadAfter(rewriter, op.getLoc(), t, out));
     return success();
   }
