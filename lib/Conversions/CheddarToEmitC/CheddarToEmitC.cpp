@@ -520,12 +520,12 @@ std::string floatLit(FloatAttr a) {
   return std::string(buf);
 }
 
-// `{}` is the operand placeholder in `emitc.verbatim` format strings. A
-// literal `{` must be written `{{`; a literal `}` is emitted as-is (emitc does
-// NOT collapse `}}` to `}`), so the closing brace of an initializer list stays
-// single -- doubling it would emit a stray `}`.
+// Build a C++ initializer-list literal (e.g. `{0, 1}`) for the trailing opaque
+// constant argument of a member_call_opaque. emitc emits that OpaqueAttr
+// verbatim, so the braces are written in their final single form (NOT the
+// `{{`-escaping that emitc.verbatim format strings would require).
 std::string i32ArrayLit(DenseI32ArrayAttr a) {
-  std::string s = "{{";
+  std::string s = "{";
   for (size_t i = 0; i < a.size(); ++i) {
     if (i > 0) s += ", ";
     s += std::to_string(a[i]);
@@ -534,11 +534,10 @@ std::string i32ArrayLit(DenseI32ArrayAttr a) {
 }
 
 std::string floatArrayLit(ArrayAttr a) {
-  std::string s = "{{";
+  std::string s = "{";
   for (size_t i = 0; i < a.size(); ++i) {
     if (i > 0) s += ", ";
-    s +=
-        llvm::formatv("{0:f1}", cast<FloatAttr>(a[i]).getValueAsDouble()).str();
+    s += floatLit(cast<FloatAttr>(a[i]));  // full %.17g precision, not truncated
   }
   return s + "}";
 }
