@@ -27,6 +27,14 @@ sys.meta_path.insert(0, NumbaBuiltinOverrideFinder())
 
 ## Normal __init__.py stuff below
 
-from .pipeline import compile
+from . import _extras
 
 __all__ = ["compile"]
+
+
+def compile(*args, **kwargs):
+  """Compile a function (or MLIR string) to FHE; see heir.pipeline.compile."""
+  _extras.require("numba", extra="python")
+  from .pipeline import compile as _compile  # pylint: disable=g-import-not-at-top
+
+  return _compile(*args, **kwargs)

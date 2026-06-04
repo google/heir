@@ -1,7 +1,14 @@
 """Defines Python type annotations for MLIR types."""
 
+import sys
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar, TypeVarTuple, get_args, get_origin, Optional
+from typing import Generic, TypeVar, get_args, get_origin, Optional
+
+if sys.version_info >= (3, 11):
+  from typing import TypeVarTuple, Unpack
+else:
+  # TypeVarTuple/Unpack landed in typing in 3.11; use the backport on 3.10.
+  from typing_extensions import TypeVarTuple, Unpack
 from numba.core.types import Type as NumbaType
 from numba.core.types import boolean, int8, int16, int32, int64, float32, float64
 from numba.extending import type_callable
@@ -128,7 +135,9 @@ class Secret(Generic[T], MLIRType):
     raise NotImplementedError("No mlir type exists for a generic Secret")
 
 
-class Tensor(Generic[*Ts], MLIRType):
+# Generic[Unpack[Ts]] is the cross-version spelling of the 3.11+ `Generic[*Ts]`
+# syntax; it works on 3.10 too (via typing_extensions).
+class Tensor(Generic[Unpack[Ts]], MLIRType):
 
   @staticmethod
   def numba_type() -> NumbaType:

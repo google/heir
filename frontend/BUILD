@@ -1,6 +1,7 @@
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@heir//frontend:testing.bzl", "frontend_test")
 load("@rules_python//python:py_library.bzl", "py_library")
+load("@rules_python//python:py_test.bzl", "py_test")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -38,6 +39,16 @@ py_library(
         "@heir_pip_deps//numpy",
         "@heir_pip_deps//pybind11",
         "@heir_pip_deps//pybind11_global",
+    ],
+)
+
+py_test(
+    name = "import_isolation_test",
+    srcs = ["import_isolation_test.py"],
+    imports = ["."],
+    deps = [
+        ":frontend",
+        "@abseil-py//absl/testing:absltest",
     ],
 )
 

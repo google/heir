@@ -12,14 +12,19 @@ authors = [
 ]
 description = "The HEIR compiler"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 classifiers = [
   "Topic :: Security :: Cryptography",
   "Intended Audience :: Developers",
   "Topic :: Software Development :: Compilers",
 ]
 license = "MIT AND Apache-2.0"
-dependencies = [
+# The base package only ships the heir-opt/heir-translate binaries and has no deps
+dependencies = []
+
+[project.optional-dependencies]
+# python frontend
+python = [
   "numba~=0.62.0",
   # Numpy versioning is a bit tricky:
   # Numba 0.62 supports >=1.22,<=2.3,
@@ -27,14 +32,16 @@ dependencies = [
   # and finally we actually need <2 because otherwise we get "OverflowError: Python integer -1 out of bounds for uint32"
   # in some of our tests as Numpy 2 introduces stricter type checking
   "numpy>=1.23.5,<2",
-  "pybind11>=2.13.6",
-  "pybind11_global>=2.13.6",
   "colorama>=0.4.6",
-  "absl-py>=2.1.0",
+  "typing_extensions>=4.6; python_version < '3.11'",
 ]
+# openfhe backend
+openfhe = ["pybind11>=2.13.6", "pybind11_global>=2.13.6", "colorama>=0.4.6"]
 
-[project.optional-dependencies]
+# dev dependencies
 dev = [
+  # for the frontend tests
+  "absl-py>=2.1.0",
   # for tests/poly/runner/generate_test_cases.py
   "tomli>=2.0.1",
   "sympy>=1.12",
@@ -53,6 +60,11 @@ dev = [
   "setuptools>=80.9.0",
   "cibuildwheel>=3.0.0",
 ]
+
+# For `uv sync` (which includes `dev` by default) or / `pip install --group dev`.
+# Not visible to pip-compile, so requirements.txt is generated with explicit --extra flags.
+[dependency-groups]
+dev = ["heir_py[dev,python,openfhe]"]
 
 [project.urls]
 Homepage = "https://heir.dev"
@@ -78,6 +90,7 @@ skip = "*-musllinux_* pp-*"
 # creates an isolated directory for this purpose, and cd's to it before running
 # this command.
 test-command = "cp {package}/frontend/example.py . && python example.py"
+test-extras = ["python", "openfhe"]
 
 [tool.cibuildwheel.linux]
 archs = "auto64"

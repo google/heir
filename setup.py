@@ -23,8 +23,8 @@ IS_LINUX = platform.system() == "Linux"
 
 # hardcoded SABI-related options. Requires that each Python interpreter
 # (hermetic or not) participating is of the same major-minor version.
-py_limited_api = sys.version_info >= (3, 11)
-options = {"bdist_wheel": {"py_limited_api": "cp311"}} if py_limited_api else {}
+py_limited_api = sys.version_info >= (3, 10)
+options = {"bdist_wheel": {"py_limited_api": "cp310"}} if py_limited_api else {}
 
 
 def is_cibuildwheel() -> bool:
