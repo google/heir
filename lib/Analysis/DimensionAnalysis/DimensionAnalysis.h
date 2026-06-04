@@ -118,10 +118,10 @@ class DimensionAnalysis
 /// dimension of the pt Value.
 class DimensionAnalysisBackward
     : public dataflow::SparseBackwardDataFlowAnalysis<DimensionLattice>,
-      public SecretnessAnalysisDependent<DimensionAnalysis> {
+      public SecretnessAnalysisDependent<DimensionAnalysisBackward> {
  public:
   using SparseBackwardDataFlowAnalysis::SparseBackwardDataFlowAnalysis;
-  friend class SecretnessAnalysisDependent<DimensionAnalysis>;
+  friend class SecretnessAnalysisDependent<DimensionAnalysisBackward>;
 
   void setToExitState(DimensionLattice* lattice) override;
 
