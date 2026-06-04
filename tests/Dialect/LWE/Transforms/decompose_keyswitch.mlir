@@ -1,4 +1,4 @@
-// RUN: heir-opt --ckks-decompose-keyswitch %s | FileCheck %s
+// RUN: heir-opt --lwe-decompose-keyswitch %s | FileCheck %s
 
 !Zq0 = !mod_arith.int<1095233372161 : i64>
 !Zq1 = !mod_arith.int<1032955396097 : i64>
@@ -46,7 +46,7 @@ module attributes {
     // CHECK-DAG: [[const_ext:%.+]] = lwe.convert_basis [[constTerm]] {targetBasis = !rns_L0} : !ringelt1 -> !ringelt
     // CHECK-DAG: [[linear_ext:%.+]] = lwe.convert_basis [[linearTerm]] {targetBasis = !rns_L0} : !ringelt1 -> !ringelt
     // CHECK-DAG: return [[const_ext]], [[linear_ext]] : !ringelt, !ringelt
-    %constTerm, %linearTerm = ckks.key_switch_inner %x, %arg0 : (!ringelt_L1, tensor<1x!ct_L2>) -> (!ringelt_L1, !ringelt_L1)
+    %constTerm, %linearTerm = lwe.key_switch_inner %x, %arg0 : (!ringelt_L1, tensor<1x!ct_L2>) -> (!ringelt_L1, !ringelt_L1)
     return %constTerm, %linearTerm: !ringelt_L1, !ringelt_L1
   }
 }

@@ -1,16 +1,14 @@
-#include "lib/Dialect/CKKS/Transforms/DecomposeKeySwitch.h"
+#include "lib/Dialect/LWE/Transforms/DecomposeKeySwitch.h"
 
 #include <cstdint>
 #include <utility>
 
-#include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
-#include "lib/Dialect/CKKS/IR/CKKSDialect.h"
-#include "lib/Dialect/CKKS/IR/CKKSOps.h"
+#include "lib/Dialect/LWE/IR/LWEAttributes.h"
+#include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
-#include "lib/Parameters/CKKS/Params.h"
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
@@ -26,25 +24,60 @@
 
 namespace mlir {
 namespace heir {
-namespace ckks {
+namespace lwe {
 
 #define GEN_PASS_DEF_DECOMPOSEKEYSWITCH
-#include "lib/Dialect/CKKS/Transforms/Passes.h.inc"
+#include "lib/Dialect/LWE/Transforms/Passes.h.inc"
 
 LogicalResult DecomposeKeySwitchPattern::matchAndRewrite(
     KeySwitchInnerOp op, PatternRewriter& rewriter) const {
   ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-  SchemeParamAttr schemeParamAttr =
-      op->getParentOfType<ModuleOp>()->getAttrOfType<SchemeParamAttr>(
-          CKKSDialect::kSchemeParamAttrName);
-  if (!schemeParamAttr) {
-    return op->emitOpError()
-           << "Cannot find scheme param attribute on parent module";
+  auto ringEltType = cast<lwe::LWERingEltType>(op.getValue().getType());
+  auto inputRNSType =
+      dyn_cast<rns::RNSType>(ringEltType.getRing().getCoefficientType());
+  if (!inputRNSType) {
+    return op->emitOpError() << "input type must be an RNS ring element";
   }
-  auto schemeParam = getSchemeParamFromAttr(schemeParamAttr);
 
-  int64_t partSize = schemeParam.getPi().size();
+  RankedTensorType keyTensorType = op.getKeySwitchingKey().getType();
+  auto keyCtType =
+      dyn_cast<lwe::LWECiphertextType>(keyTensorType.getElementType());
+  if (!keyCtType) {
+    return op->emitOpError()
+           << "key-switching key must be a tensor of ciphertexts";
+  }
+  auto keyRNSType = dyn_cast<rns::RNSType>(
+      keyCtType.getCiphertextSpace().getRing().getCoefficientType());
+  if (!keyRNSType) {
+    return op->emitOpError()
+           << "key-switching key must have an RNS coefficient type";
+  }
+
+  ArrayRef<Type> inputBasis = inputRNSType.getBasisTypes();
+  ArrayRef<Type> keyBasis = keyRNSType.getBasisTypes();
+  if (keyBasis.size() <= inputBasis.size()) {
+    return op->emitOpError()
+           << "key-switching key basis must contain the input basis plus "
+              "key-switch primes";
+  }
+  if (!std::equal(inputBasis.begin(), inputBasis.end(), keyBasis.begin())) {
+    return op->emitOpError()
+           << "key-switching key basis must start with the input basis";
+  }
+
+  SmallVector<int64_t> keySwitchPrimes;
+  for (Type ty : keyBasis.drop_front(inputBasis.size())) {
+    auto modArithType = dyn_cast<mod_arith::ModArithType>(ty);
+    if (!modArithType) {
+      return op->emitOpError()
+             << "key-switching prime basis element must be a mod_arith type";
+    }
+    keySwitchPrimes.push_back(
+        modArithType.getModulus().getValue().getSExtValue());
+  }
+
+  int64_t partSize = keySwitchPrimes.size();
   if (!partSize) {
     return rewriter.notifyMatchFailure(
         op, "Cannot lower key_switch_inner with empty modulus chain");
@@ -53,14 +86,6 @@ LogicalResult DecomposeKeySwitchPattern::matchAndRewrite(
   // #############################
   // ## Step 1: Decompose Input ##
   // #############################
-
-  auto ringEltType = cast<lwe::LWERingEltType>(op.getValue().getType());
-  auto inputRNSType =
-      dyn_cast<rns::RNSType>(ringEltType.getRing().getCoefficientType());
-  if (!inputRNSType) {
-    return rewriter.notifyMatchFailure(
-        op, "Input type must be an RNS ring element");
-  }
 
   int rnsLength = inputRNSType.getBasisTypes().size();
   int64_t numFullPartitions = rnsLength / partSize;
@@ -91,6 +116,12 @@ LogicalResult DecomposeKeySwitchPattern::matchAndRewrite(
         b, op.getValue(), b.getIndexAttr(extraPartStart),
         b.getIndexAttr(extraPartSize)));
   }
+  int64_t kskLen = op.getKeySwitchingKey().getType().getShape()[0];
+  if (kskLen != static_cast<int64_t>(partitions.size())) {
+    return op->emitOpError()
+           << "KeySwitchingKey must have shape " << partitions.size()
+           << "xRNS, but it has shape " << kskLen << "xRNS";
+  }
 
   // ###########################################
   // ## Step 2: Extend the basis of each part ##
@@ -107,7 +138,7 @@ LogicalResult DecomposeKeySwitchPattern::matchAndRewrite(
   for (auto ty : inputRNSType.getBasisTypes()) {
     extModuli.push_back(ty);
   }
-  for (auto prime : schemeParam.getPi()) {
+  for (auto prime : keySwitchPrimes) {
     extModuli.push_back(mod_arith::ModArithType::get(
         op.getContext(), b.getI64IntegerAttr(prime)));
   }
@@ -164,6 +195,6 @@ struct DecomposeKeySwitch : impl::DecomposeKeySwitchBase<DecomposeKeySwitch> {
   }
 };
 
-}  // namespace ckks
+}  // namespace lwe
 }  // namespace heir
 }  // namespace mlir

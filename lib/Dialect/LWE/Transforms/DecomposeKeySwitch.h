@@ -1,21 +1,21 @@
-#ifndef LIB_DIALECT_CKKS_TRANSFORMS_DECOMPOSE_KEYSWITCH_H_
-#define LIB_DIALECT_CKKS_TRANSFORMS_DECOMPOSE_KEYSWITCH_H_
+#ifndef LIB_DIALECT_LWE_TRANSFORMS_DECOMPOSE_KEYSWITCH_H_
+#define LIB_DIALECT_LWE_TRANSFORMS_DECOMPOSE_KEYSWITCH_H_
 
-#include "lib/Dialect/CKKS/IR/CKKSOps.h"
+#include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "mlir/include/mlir/IR/PatternMatch.h"        // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 
 // IWYU pragma: begin_keep
-#include "lib/Dialect/CKKS/IR/CKKSDialect.h"
+#include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "mlir/include/mlir/Pass/Pass.h"  // from @llvm-project
 // IWYU pragma: end_keep
 
 namespace mlir {
 namespace heir {
-namespace ckks {
+namespace lwe {
 
 #define GEN_PASS_DECL_DECOMPOSEKEYSWITCH
-#include "lib/Dialect/CKKS/Transforms/Passes.h.inc"
+#include "lib/Dialect/LWE/Transforms/Passes.h.inc"
 
 struct DecomposeKeySwitchPattern : public OpRewritePattern<KeySwitchInnerOp> {
   using OpRewritePattern<KeySwitchInnerOp>::OpRewritePattern;
@@ -25,8 +25,8 @@ struct DecomposeKeySwitchPattern : public OpRewritePattern<KeySwitchInnerOp> {
                                 PatternRewriter& rewriter) const override;
 };
 
-}  // namespace ckks
+}  // namespace lwe
 }  // namespace heir
 }  // namespace mlir
 
-#endif  // LIB_DIALECT_CKKS_TRANSFORMS_DECOMPOSE_KEYSWITCH_H_
+#endif  // LIB_DIALECT_LWE_TRANSFORMS_DECOMPOSE_KEYSWITCH_H_

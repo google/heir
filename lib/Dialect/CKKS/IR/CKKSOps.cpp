@@ -39,7 +39,80 @@ LogicalResult MulPlainOp::verify() { return lwe::verifyMulPlainOp(this); }
 
 LogicalResult RotateOp::verify() { return lwe::verifyRotateOp(this); }
 
-LogicalResult RelinearizeOp::verify() { return lwe::verifyRelinearizeOp(this); }
+LogicalResult RelinearizeOp::verify() {
+  // verify that the key-switch keys have the expected basis
+  // eventually, this should be moved into verifyRelinearizeOp, but
+  // BGV::RelinearizeOp doesn't take keyswitching keys right now.
+  SchemeParamAttr schemeParamAttr =
+      getOperation()
+          ->getParentOfType<ModuleOp>()
+          ->getAttrOfType<SchemeParamAttr>(CKKSDialect::kSchemeParamAttrName);
+  auto ksk = getKeySwitchingKey();
+  if (schemeParamAttr && ksk) {
+    RankedTensorType keyTensorType = ksk.getType();
+    auto keyCtType =
+        dyn_cast<lwe::LWECiphertextType>(keyTensorType.getElementType());
+    if (!keyCtType) {
+      return emitOpError() << "KSKs must be a tensor of Ciphertexts";
+    }
+    polynomial::RingAttr keyRingType = keyCtType.getCiphertextSpace().getRing();
+    auto keyRNSType = dyn_cast<rns::RNSType>(keyRingType.getCoefficientType());
+    if (!keyRNSType) {
+      return emitOpError()
+             << "Keyswitch key must be a ring element of RNS types";
+    }
+
+    auto inputType =
+        cast<lwe::LWECiphertextType>(getElementTypeOrSelf(getInput()));
+    auto inputRingType = inputType.getCiphertextSpace().getRing();
+    auto inputRNSType =
+        dyn_cast<rns::RNSType>(inputRingType.getCoefficientType());
+    if (!inputRNSType) {
+      return emitOpError() << "Input must be a ring element of RNS types";
+    }
+
+    int kskRank = keyTensorType.getRank();
+    if (kskRank != 1) {
+      return emitOpError()
+             << "KeySwitchingKey must be a rank-1 tensor, but it has rank  "
+             << kskRank;
+    }
+
+    SmallVector<Type> extModuli;
+    Builder b(getContext());
+    for (auto ty : inputRNSType.getBasisTypes()) {
+      extModuli.push_back(ty);
+    }
+    auto schemeParam = getSchemeParamFromAttr(schemeParamAttr);
+    for (auto prime : schemeParam.getPi()) {
+      extModuli.push_back(mod_arith::ModArithType::get(
+          getContext(), b.getI64IntegerAttr(prime)));
+    }
+    rns::RNSType expectedKeyRNSType =
+        rns::RNSType::get(getContext(), extModuli);
+
+    if (keyRNSType != expectedKeyRNSType) {
+      return emitOpError() << "Key's RNS type " << keyRNSType
+                           << " must be the same as the input's RNS type "
+                           << inputRNSType << ", plus the key-switch moduli "
+                           << schemeParam.getPi();
+    }
+
+    int64_t partSize = schemeParam.getPi().size();
+    int rnsLength = inputRNSType.getBasisTypes().size();
+    int64_t numFullPartitions = rnsLength / partSize;
+    int64_t extraPartStart = partSize * numFullPartitions;
+    int64_t extraPartSize = rnsLength - extraPartStart;
+    int64_t numParts = numFullPartitions + extraPartSize;
+    int kskLen = keyTensorType.getShape()[0];
+    if (kskLen != numParts) {
+      return emitOpError() << "KeySwitchingKey must have shape " << numParts
+                           << "xRNS, but it has shape " << kskLen << "xRNS";
+    }
+  }
+
+  return lwe::verifyRelinearizeOp(this);
+}
 
 LogicalResult RescaleOp::verify() {
   return lwe::verifyModulusSwitchOrRescaleOp(this);
@@ -117,89 +190,6 @@ LogicalResult LevelReduceOp::inferReturnTypes(
     MLIRContext* ctx, std::optional<Location>, LevelReduceOp::Adaptor adaptor,
     SmallVectorImpl<Type>& inferredReturnTypes) {
   return lwe::inferLevelReduceOpReturnTypes(ctx, adaptor, inferredReturnTypes);
-}
-
-LogicalResult KeySwitchInnerOp::inferReturnTypes(
-    MLIRContext* ctx, std::optional<Location>, ValueRange operands,
-    DictionaryAttr attrs, mlir::PropertyRef properties,
-    mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
-  KeySwitchInnerOpAdaptor op(operands, attrs, properties, regions);
-  auto ringEltType = cast<lwe::LWERingEltType>(op.getValue().getType());
-  lwe::LWERingEltType outRingType =
-      lwe::LWERingEltType::get(ctx, ringEltType.getRing());
-  results.push_back(outRingType);
-  results.push_back(outRingType);
-  return success();
-}
-
-LogicalResult KeySwitchInnerOp::verify() {
-  RankedTensorType keyTensorType = getKeySwitchingKey().getType();
-  auto ctType =
-      dyn_cast<lwe::LWECiphertextType>(keyTensorType.getElementType());
-  if (!ctType) {
-    return emitOpError() << "KSKs must be a tensor of Ciphertexts";
-  }
-  polynomial::RingAttr ringType = ctType.getCiphertextSpace().getRing();
-  auto keyRNSType = dyn_cast<rns::RNSType>(ringType.getCoefficientType());
-  if (!keyRNSType) {
-    return emitOpError() << "Keyswitch key must be a ring element of RNS types";
-  }
-
-  auto ringEltType = cast<lwe::LWERingEltType>(getValue().getType());
-  auto inputRNSType =
-      dyn_cast<rns::RNSType>(ringEltType.getRing().getCoefficientType());
-  if (!inputRNSType) {
-    return emitOpError() << "Value must be a ring element of RNS types";
-  }
-
-  int kskRank = keyTensorType.getRank();
-  if (kskRank != 1) {
-    return emitOpError()
-           << "KeySwitchingKey must be a rank-1 tensor, but it has rank  "
-           << kskRank;
-  }
-
-  SchemeParamAttr schemeParamAttr =
-      getOperation()
-          ->getParentOfType<ModuleOp>()
-          ->getAttrOfType<SchemeParamAttr>(CKKSDialect::kSchemeParamAttrName);
-  if (!schemeParamAttr) {
-    return emitOpError()
-           << "Cannot find scheme param attribute on parent module";
-  }
-  auto schemeParam = getSchemeParamFromAttr(schemeParamAttr);
-
-  SmallVector<Type> extModuli;
-  Builder b(getContext());
-  for (auto ty : inputRNSType.getBasisTypes()) {
-    extModuli.push_back(ty);
-  }
-  for (auto prime : schemeParam.getPi()) {
-    extModuli.push_back(
-        mod_arith::ModArithType::get(getContext(), b.getI64IntegerAttr(prime)));
-  }
-  rns::RNSType expectedKeyRNSType = rns::RNSType::get(getContext(), extModuli);
-
-  if (keyRNSType != expectedKeyRNSType) {
-    return emitOpError() << "Key's RNS type " << keyRNSType
-                         << " must be the same as the input's RNS type "
-                         << inputRNSType << ", plus the key-switch moduli "
-                         << schemeParam.getPi();
-  }
-
-  int64_t partSize = schemeParam.getPi().size();
-  int rnsLength = inputRNSType.getBasisTypes().size();
-  int64_t numFullPartitions = rnsLength / partSize;
-  int64_t extraPartStart = partSize * numFullPartitions;
-  int64_t extraPartSize = rnsLength - extraPartStart;
-  int64_t numParts = numFullPartitions + extraPartSize;
-  int kskLen = keyTensorType.getShape()[0];
-  if (kskLen != numParts) {
-    return emitOpError() << "KeySwitchingKey must have shape " << numParts
-                         << "xRNS, but it has shape " << kskLen << "xRNS";
-  }
-
-  return success();
 }
 
 void MulPlainOp::getCanonicalizationPatterns(RewritePatternSet& results,
