@@ -223,7 +223,9 @@ void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
 
   if (options.debug) {
     // Insert debug handler calls
-    pm.addPass(secret::createSecretAddDebugPort());
+    secret::SecretAddDebugPortOptions debugOptions;
+    debugOptions.insertDebugAfterEveryOp = true;
+    pm.addPass(secret::createSecretAddDebugPort(debugOptions));
   }
 
   pm.addPass(secret::createSecretDistributeGeneric());
