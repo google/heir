@@ -9,10 +9,11 @@ for production use.</p><div class=highlight><pre tabindex=0 style=background-col
 </span></span></code></pre></div><p>Then you can run the examples below, replacing <code>bazel run //tools:heir-opt --</code>
 with <code>./heir-opt</code>. HEIR also publishes <code>heir-translate</code> and <code>heir-lsp</code> in the
 same way.</p><h3 id=via-pip>Via pip</h3><p>We publish a python package <a href=https://pypi.org/project/heir-py/>heir_py</a> that
-includes the <code>heir-opt</code> and <code>heir-translate</code> binaries.</p><pre tabindex=0><code>python -m venv venv
+includes the <code>heir-opt</code> and <code>heir-translate</code> binaries and, optionally, front-
+and backends.</p><pre tabindex=0><code>python -m venv venv
 source venv/bin/activate
 
-pip install heir_py
+pip install &#34;heir_py[python,openfhe]&#34;
 
 heir-opt --help
 heir-translate --help
