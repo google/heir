@@ -374,3 +374,19 @@ module attributes {scheme.bgv} {
     return %0 : tensor<4xi32>
   }
 }
+
+// -----
+
+module attributes {scheme.bgv} {
+  // CHECK: func test_drop_level_inplace_declared
+  // CHECK-SAME: ([[evaluator:.*]] *bgv.Evaluator, [[ct:.*]] *rlwe.Ciphertext, [[alloc:.*]] []*rlwe.Ciphertext)
+  func.func @test_drop_level_inplace_declared(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext, %alloc: memref<1x!lattigo.rlwe.ciphertext>) -> (!lattigo.rlwe.ciphertext) {
+    %c0 = arith.constant 0 : index
+    // CHECK: [[val:[^, ]*]] := [[alloc]][{{.*}}]
+    %val = memref.load %alloc[%c0] : memref<1x!lattigo.rlwe.ciphertext>
+    // CHECK: [[val]] = [[ct]].CopyNew()
+    // CHECK: [[evaluator]].DropLevel([[val]], 2)
+    %ct1 = lattigo.rlwe.drop_level %evaluator, %ct, %val {levelToDrop = 2}: (!lattigo.bgv.evaluator, !lattigo.rlwe.ciphertext, !lattigo.rlwe.ciphertext) -> !lattigo.rlwe.ciphertext
+    return %ct1 : !lattigo.rlwe.ciphertext
+  }
+}

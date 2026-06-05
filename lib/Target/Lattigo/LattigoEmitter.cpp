@@ -1383,16 +1383,17 @@ LogicalResult LattigoEmitter::printOperation(RLWEDropLevelNewOp op) {
   // there is no DropLevelNew method in Lattigo BGV Evaluator, manually create
   // new ciphertext
   std::string resultName = getName(op.getOutput());
-  os << resultName << " := " << getName(op.getInput()) << ".CopyNew()\n";
+  emitAssignment(resultName, getName(op.getInput()) + ".CopyNew()");
   os << getName(op.getEvaluator()) << ".DropLevel(" << resultName << ", "
      << op.getLevelToDrop() << ")\n";
   return success();
 }
 
 LogicalResult LattigoEmitter::printOperation(RLWEDropLevelOp op) {
+  // Check if we need to declare a new variable for the output.
   if (getName(op.getOutput()) != getName(op.getInput())) {
     std::string resultName = getName(op.getOutput());
-    os << resultName << " := " << getName(op.getInput()) << ".CopyNew()\n";
+    emitAssignment(resultName, getName(op.getInput()) + ".CopyNew()");
   }
   os << getName(op.getEvaluator()) << ".DropLevel(" << getName(op.getOutput())
      << ", " << op.getLevelToDrop() << ")\n";
@@ -1411,7 +1412,7 @@ LogicalResult LattigoEmitter::printOperation(RLWENegateNewOp op) {
   // there is no NegateNew method in Lattigo, manually create new
   // ciphertext
   std::string resultName = getName(op.getOutput());
-  os << resultName << " := " << getName(op.getInput()) << ".CopyNew()\n";
+  emitAssignment(resultName, getName(op.getInput()) + ".CopyNew()");
   auto indexName = getName(op.getOutput()) + "_index";
   auto res = llvm::formatv(negateTemplate, indexName, getName(op.getOutput()),
                            getName(op.getEvaluator()));
@@ -1590,7 +1591,7 @@ LogicalResult LattigoEmitter::printOperation(BGVRelinearizeNewOp op) {
 LogicalResult LattigoEmitter::printOperation(BGVRescaleNewOp op) {
   // there is no RescaleNew method in Lattigo, manually create new ciphertext
   std::string resultName = getName(op.getOutput());
-  os << resultName << " := " << getName(op.getInput()) << ".CopyNew()\n";
+  emitAssignment(resultName, getName(op.getInput()) + ".CopyNew()");
   return printEvalInPlaceMethod(
       op.getEvaluator(), {op.getInput(), op.getOutput()}, "Rescale", true);
 }
@@ -1887,7 +1888,7 @@ LogicalResult LattigoEmitter::printOperation(CKKSRelinearizeNewOp op) {
 LogicalResult LattigoEmitter::printOperation(CKKSRescaleNewOp op) {
   // there is no RescaleNew method in Lattigo, manually create new ciphertext
   std::string resultName = getName(op.getOutput());
-  os << resultName << " := " << getName(op.getInput()) << ".CopyNew()\n";
+  emitAssignment(resultName, getName(op.getInput()) + ".CopyNew()");
   return printEvalInPlaceMethod(
       op.getEvaluator(), {op.getInput(), op.getOutput()}, "Rescale", true);
 }
@@ -1928,6 +1929,10 @@ LogicalResult LattigoEmitter::printOperation(CKKSRescaleOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(CKKSRotateOp op) {
+  auto inputName = getName(op.getInput());
+  auto inplaceName = getName(op.getInplace());
+  os << inplaceName << ".Resize(" << inputName << ".Degree()," << inputName
+     << ".Level())\n";
   auto errName = getErrName();
   os << errName << " := " << getName(op.getEvaluator()) << ".Rotate(";
   os << getName(op.getInput()) << ", ";
