@@ -92,6 +92,16 @@ LogicalResult OpenFhePkePybindEmitter::printOperation(func::FuncOp funcOp) {
       }
     }
   } else {
+    // This branch is needed to support split preprocessing, which has multiple
+    // return values.
+    if (funcOp.getNumResults() > 1) {
+      std::string structName = llvm::formatv("{0}Struct", funcName).str();
+      os << llvm::formatv(kPybindStructClassTemplate.data(), structName);
+      for (size_t i = 0; i < funcOp.getNumResults(); ++i) {
+        os << llvm::formatv(kPybindStructFieldTemplate.data(), i, structName);
+      }
+      os << "    ;\n";
+    }
     os << llvm::formatv(kPybindFunctionTemplate.data(), funcName) << "\n";
   }
   return success();
