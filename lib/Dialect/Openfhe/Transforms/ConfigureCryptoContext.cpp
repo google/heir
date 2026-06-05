@@ -235,8 +235,21 @@ struct ConfigureCryptoContext
   LogicalResult getConfig(func::FuncOp op) {
     auto module = op->getParentOfType<ModuleOp>();
 
-    // remove bgv.schemeParam attribute if present
-    // fill encryptionTechniqueExtended and plaintextModulus
+    config.ringDim = ringDim;
+    config.batchSize = batchSize;
+    config.firstModSize = firstModSize;
+    config.scalingModSize = scalingModSize;
+    config.digitSize = digitSize;
+    config.numLargeDigits = numLargeDigits;
+    config.maxRelinSkDeg = maxRelinSkDeg;
+    config.insecure = insecure;
+    config.keySwitchingTechniqueBV = keySwitchingTechniqueBV;
+    config.scalingTechniqueFixedManual = scalingTechniqueFixedManual;
+    config.levelBudgetDecode = levelBudgetDecode;
+    config.levelBudgetEncode = levelBudgetEncode;
+    config.mulDepth = mulDepth;
+
+    // get parameters from attributes if present
     config.encryptionTechniqueExtended = false;
     config.plaintextModulus = 0;
     if (auto schemeParamAttr = module->getAttrOfType<bgv::SchemeParamAttr>(
@@ -255,10 +268,6 @@ struct ConfigureCryptoContext
       module->removeAttr(bgv::BGVDialect::kSchemeParamAttrName);
     }
 
-    // remove ckks.schemeParam attribute if present
-    // For CKKS, plainMod must be 0 to avoid codegen for SetPlaintextModulus.
-    // OpenFHE will throw an exception if you try to set the plaintext modulus
-    // in CKKS.
     if (auto schemeParamAttr = module->getAttrOfType<ckks::SchemeParamAttr>(
             ckks::CKKSDialect::kSchemeParamAttrName)) {
       if (schemeParamAttr.getEncryptionTechnique() ==
@@ -267,53 +276,71 @@ struct ConfigureCryptoContext
             "Extended encryption technique is not supported in OpenFHE CKKS");
         return failure();
       }
+
+      // Extract parameters if they are not already set by pass options
+      ckks::SchemeParam schemeParam =
+          ckks::getSchemeParamFromAttr(schemeParamAttr);
+
+      if (config.firstModSize == 0 && !schemeParam.getLogqi().empty()) {
+        config.firstModSize = std::round(schemeParam.getLogqi()[0]);
+      }
+      if (config.scalingModSize == 0) {
+        config.scalingModSize = schemeParam.getLogDefaultScale();
+      }
+      if (config.mulDepth == 0) {
+        config.mulDepth = schemeParam.getLevel();
+      }
+
       module->removeAttr(ckks::CKKSDialect::kSchemeParamAttrName);
     }
 
-    LLVM_DEBUG(llvm::dbgs() << "Recomputing mul depth\n");
-    DataFlowSolver solver;
-    dataflow::loadBaselineAnalyses(solver);
-    solver.load<SecretnessAnalysis>();
-    solver.load<MulDepthAnalysis>();
+    // Determine mulDepth (use analysis if not already set)
+    bool needMulDepthAnalysis = (config.mulDepth == 0);
+    if (needMulDepthAnalysis) {
+      LLVM_DEBUG(llvm::dbgs() << "Recomputing mul depth\n");
+      DataFlowSolver solver;
+      dataflow::loadBaselineAnalyses(solver);
+      solver.load<SecretnessAnalysis>();
+      solver.load<MulDepthAnalysis>();
 
-    if (failed(solver.initializeAndRun(module))) {
-      op->emitOpError() << "Failed to run mul depth analysis.\n";
-      return failure();
+      if (failed(solver.initializeAndRun(module))) {
+        op->emitOpError() << "Failed to run mul depth analysis.\n";
+        return failure();
+      }
+
+      walkValues(op, [&](Value value) {
+        auto mulDepthState =
+            solver.lookupState<MulDepthLattice>(value)->getValue();
+        if (!mulDepthState.isInitialized()) {
+          LLVM_DEBUG(llvm::dbgs()
+                     << "mul depth uninitialized at " << value << "\n");
+          return;
+        }
+        auto mulDepth = mulDepthState.getMulDepth();
+        if (mulDepth > config.mulDepth) {
+          LLVM_DEBUG(llvm::dbgs()
+                     << "Found larger mul depth=" << mulDepth << "\n");
+          config.mulDepth = mulDepth;
+        }
+      });
     }
-
-    config.mulDepth = 0;
-    walkValues(op, [&](Value value) {
-      auto mulDepthState =
-          solver.lookupState<MulDepthLattice>(value)->getValue();
-      if (!mulDepthState.isInitialized()) {
-        LLVM_DEBUG(llvm::dbgs()
-                   << "mul depth uninitialized at " << value << "\n");
-        return;
-      }
-      auto mulDepth = mulDepthState.getMulDepth();
-      if (mulDepth > config.mulDepth) {
-        LLVM_DEBUG(llvm::dbgs()
-                   << "Found larger mul depth=" << mulDepth << "\n");
-        config.mulDepth = mulDepth;
-      }
-    });
 
     config.hasBootstrapOp = hasBootstrapOp(op);
+    // Only add bootstrapDepth if the user has not manually set mul depth.
+    // In particular, we add bootstrap depth because our mul depth analysis
+    // does not consider bootstrap depth yet.
+    //
     // TODO(#1207): determine mulDepth earlier in mgmt level. This solely
-    // depends on the level budgets and secretKeyDist here we use the value for
-    // UNIFORM_TERNARY
-    std::vector<uint32_t> levelBudgets = {
-        static_cast<uint32_t>(levelBudgetEncode),
-        static_cast<uint32_t>(levelBudgetDecode)};
-    int bootstrapDepth = lbcrypto::FHECKKSRNS::GetBootstrapDepth(
-        levelBudgets, lbcrypto::UNIFORM_TERNARY);
-    if (config.hasBootstrapOp) {
+    // depends on the level budgets and secretKeyDist here we use the value
+    // for UNIFORM_TERNARY. This should be something configured for each
+    // backend and added natively to the mul depth analysis.
+    if (needMulDepthAnalysis && config.hasBootstrapOp) {
+      std::vector<uint32_t> levelBudgets = {
+          static_cast<uint32_t>(levelBudgetEncode),
+          static_cast<uint32_t>(levelBudgetDecode)};
+      int bootstrapDepth = lbcrypto::FHECKKSRNS::GetBootstrapDepth(
+          levelBudgets, lbcrypto::UNIFORM_TERNARY);
       config.mulDepth += bootstrapDepth;
-    }
-
-    // pass option could override mulDepth
-    if (mulDepth != 0) {
-      config.mulDepth = mulDepth;
     }
 
     // relin and rotation
@@ -348,20 +375,6 @@ struct ConfigureCryptoContext
       // remove the attribute after reading
       op->removeAttr(mgmt::MgmtDialect::kArgOpenfheParamsAttrName);
     }
-
-    // fill config with pass options
-    config.ringDim = ringDim;
-    config.batchSize = batchSize;
-    config.firstModSize = firstModSize;
-    config.scalingModSize = scalingModSize;
-    config.digitSize = digitSize;
-    config.numLargeDigits = numLargeDigits;
-    config.maxRelinSkDeg = maxRelinSkDeg;
-    config.insecure = insecure;
-    config.keySwitchingTechniqueBV = keySwitchingTechniqueBV;
-    config.scalingTechniqueFixedManual = scalingTechniqueFixedManual;
-    config.levelBudgetDecode = levelBudgetDecode;
-    config.levelBudgetEncode = levelBudgetEncode;
 
     // for BFV, keep only one of MulDepth/EvalAddCount/KeySwitchCount
     // If MulDepth != 0, clean EvalAddCount/KeySwitchCount

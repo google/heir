@@ -481,11 +481,17 @@ BackendPipelineBuilder toOpenFhePipelineBuilder() {
     pm.addPass(createCanonicalizerPass());
     pm.addPass(createCSEPass());
 
-    // TODO (#1145): OpenFHE context configuration should NOT do its own
-    // analysis but instead use information put into the IR by previous passes
     auto configureCryptoContextOptions =
         openfhe::ConfigureCryptoContextOptions{};
+    configureCryptoContextOptions.batchSize = options.batchSize;
     configureCryptoContextOptions.entryFunction = options.entryFunction;
+    configureCryptoContextOptions.firstModSize = options.firstModSize;
+    configureCryptoContextOptions.insecure = options.insecure;
+    configureCryptoContextOptions.mulDepth = options.mulDepth;
+    configureCryptoContextOptions.ringDim = options.ringDim;
+    configureCryptoContextOptions.scalingModSize = options.scalingModSize;
+    configureCryptoContextOptions.scalingTechniqueFixedManual =
+        options.scalingTechniqueFixedManual;
     pm.addPass(
         openfhe::createConfigureCryptoContext(configureCryptoContextOptions));
 

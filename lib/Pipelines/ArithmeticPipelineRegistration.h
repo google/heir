@@ -138,6 +138,30 @@ struct BackendOptions : public PassPipelineOptions<BackendOptions> {
       llvm::cl::desc("Insert function calls to an externally-defined debug "
                      "function (cf. --lwe-add-debug-port)"),
       llvm::cl::init(false)};
+  PassOptions::Option<int> firstModSize{
+      *this, "first-mod-size",
+      llvm::cl::desc("Manually specify the first mod size"), llvm::cl::init(0)};
+  PassOptions::Option<int> scalingModSize{
+      *this, "scaling-mod-size",
+      llvm::cl::desc("Manually specify the scaling mod size"),
+      llvm::cl::init(0)};
+  PassOptions::Option<int> mulDepth{
+      *this, "mul-depth", llvm::cl::desc("Manually specify the mul depth"),
+      llvm::cl::init(0)};
+  PassOptions::Option<bool> scalingTechniqueFixedManual{
+      *this, "scaling-technique-fixed-manual",
+      llvm::cl::desc(
+          "Whether to use fixed manual scaling technique (defaults to false)"),
+      llvm::cl::init(false)};
+  PassOptions::Option<int> ringDim{
+      *this, "ring-dim", llvm::cl::desc("Manually specify the ring dimension"),
+      llvm::cl::init(0)};
+  PassOptions::Option<int> batchSize{
+      *this, "batch-size", llvm::cl::desc("Manually specify the batch size"),
+      llvm::cl::init(0)};
+  PassOptions::Option<bool> insecure{
+      *this, "insecure", llvm::cl::desc("Whether to use insecure parameter"),
+      llvm::cl::init(false)};
 };
 
 using RLWEPipelineBuilder =
