@@ -1029,14 +1029,12 @@ struct CheddarToEmitCPass
     // *now*, keyed by func op (whose identity persists through the in-place
     // signature conversion). Consumed by Pass 1 below.
     llvm::DenseMap<Operation*, llvm::SmallDenseSet<unsigned>> writtenArrayArgs;
-    getOperation()->walk([&](func::FuncOp fn) {
-      if (fn.isExternal()) return;
-      Block& entry = fn.getBody().front();
-      fn.walk([&](mlir::memref::StoreOp store) {
-        if (auto ba = dyn_cast<BlockArgument>(store.getMemRef()))
-          if (ba.getOwner() == &entry)
-            writtenArrayArgs[fn.getOperation()].insert(ba.getArgNumber());
-      });
+    getOperation()->walk([&](mlir::memref::StoreOp store) {
+      auto fn = store->getParentOfType<func::FuncOp>();
+      if (!fn) return;
+      if (auto ba = dyn_cast<BlockArgument>(store.getMemRef()))
+        if (ba.getOwner() == &fn.getBody().front())
+          writtenArrayArgs[fn.getOperation()].insert(ba.getArgNumber());
     });
 
     TypeConverterImpl tc(ctx);
@@ -1404,6 +1402,10 @@ struct CheddarToEmitCPass
     // annotations carried on the client function boundaries). They are
     // HEIR-internal and reference the unregistered `tensor_ext` dialect, which
     // mlir-translate (mlir-to-cpp) cannot parse.
+    // (AttributeUtils::clearAttrs removes one exact-named attribute from an
+    // op's own attribute dict; here we drop a whole `tensor_ext.*` family from
+    // func *argument/result* attribute dicts, so a prefix sweep is the right
+    // tool.)
     getOperation()->walk([](func::FuncOp fn) {
       auto stripTensorExt =
           [](DictionaryAttr d) -> std::optional<SmallVector<NamedAttribute>> {

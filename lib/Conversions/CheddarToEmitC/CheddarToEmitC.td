@@ -18,6 +18,8 @@ def CheddarToEmitC : Pass<"cheddar-to-emitc"> {
     `!cheddar.*` iter_arg lowers to a move-assigned `emitc.variable`, and
     loop-index values feed `memref` subscripts without a stranded
     `index -> emitc.size_t` cast).
+
+    (* example filepath=tests/Conversions/CheddarToEmitC/doctest.mlir *)
   }];
 
   let dependentDialects = [
