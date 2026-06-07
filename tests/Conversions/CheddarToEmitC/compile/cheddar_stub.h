@@ -184,8 +184,8 @@ class EvalPoly {
 };
 
 // Boot lives on the derived BootContext (extension/BootContext.h), not Context.
-// The emitter calls `static_cast<BootContext<word>*>(ctx)->Boot(...)`, so the
-// stub mirrors that hierarchy.
+// cheddar.boot takes a !cheddar.boot_context, lowered to BootContext<word>*, so
+// the emitter calls `ctx->Boot(...)` directly; the stub mirrors that hierarchy.
 template <typename word>
 class BootContext : public Context<word> {
  public:

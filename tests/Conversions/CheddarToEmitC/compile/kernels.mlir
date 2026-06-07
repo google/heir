@@ -121,10 +121,10 @@ func.func @identity(%ct: !cheddar.ciphertext) -> !cheddar.ciphertext {
 
 // Bootstrapping-family ops taking an EvkMap argument (const EvkMap& at the C++
 // boundary).
-func.func @boot(%ctx: !cheddar.context, %ct: !cheddar.ciphertext,
+func.func @boot(%ctx: !cheddar.boot_context, %ct: !cheddar.ciphertext,
                 %evk: !cheddar.evk_map) -> !cheddar.ciphertext {
   %0 = cheddar.boot %ctx, %ct, %evk
-      : (!cheddar.context, !cheddar.ciphertext, !cheddar.evk_map) -> !cheddar.ciphertext
+      : (!cheddar.boot_context, !cheddar.ciphertext, !cheddar.evk_map) -> !cheddar.ciphertext
   return %0 : !cheddar.ciphertext
 }
 

@@ -222,14 +222,14 @@ func.func @mad(%ctx: !cheddar.context, %acc: !cheddar.ciphertext,
 }
 
 // CHECK: func.func @boot
-func.func @boot(%ctx: !cheddar.context, %ct: !cheddar.ciphertext,
+func.func @boot(%ctx: !cheddar.boot_context, %ct: !cheddar.ciphertext,
                 %evk: !cheddar.evk_map) -> !cheddar.ciphertext {
-  // Boot is a BootContext method; the dialect carries a single Context type, so
-  // the emitter recovers the derived type with a static_cast (the harness passes
-  // a BootContext as the Context). See ConvertBoot in CheddarToEmitC.cpp.
-  // CHECK: emitc.verbatim "static_cast<BootContext<word>*>({})->Boot({}, {}, {});"
+  // Boot is a BootContext method, and cheddar.boot requires a
+  // !cheddar.boot_context (lowered to BootContext<word>*), so the call needs no
+  // downcast. See ConvertBoot in CheddarToEmitC.cpp.
+  // CHECK: emitc.verbatim "{}->Boot({}, {}, {});"
   %r = cheddar.boot %ctx, %ct, %evk
-      : (!cheddar.context, !cheddar.ciphertext, !cheddar.evk_map) -> !cheddar.ciphertext
+      : (!cheddar.boot_context, !cheddar.ciphertext, !cheddar.evk_map) -> !cheddar.ciphertext
   return %r : !cheddar.ciphertext
 }
 

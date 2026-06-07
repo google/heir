@@ -117,6 +117,9 @@ class TypeConverterImpl : public TypeConverter {
     addConversion([ctx](cheddar::ContextType) -> Type {
       return PointerType::get(ctx, OpaqueType::get(ctx, "Context<word>"));
     });
+    addConversion([ctx](cheddar::BootContextType) -> Type {
+      return PointerType::get(ctx, OpaqueType::get(ctx, "BootContext<word>"));
+    });
     addConversion([ctx](cheddar::UserInterfaceType) -> Type {
       return PointerType::get(ctx, OpaqueType::get(ctx, "UserInterface<word>"));
     });
@@ -889,13 +892,11 @@ struct ConvertMadUnsafe : public OpConversionPattern<cheddar::MadUnsafeOp> {
   }
 };
 
-// `static_cast<BootContext<word>*>(ctx)->Boot(res, input, evk_map);`.
-// The dialect models a CHEDDAR Context and a BootContext as one
-// `!cheddar.context` type (see CheddarTypes.td) -- a module that bootstraps
-// must be run with a BootContext, which the harness creates and passes in as
-// the Context. `Boot` is a (non-virtual) BootContext method, so we recover the
-// derived type with a static_cast here; the cast is safe by construction
-// because the op only exists in modules that require a BootContext at runtime.
+// `ctx->Boot(res, input, evk_map);` where `ctx` is a `BootContext<word>*`.
+// `cheddar.boot` requires a `!cheddar.boot_context` operand (see
+// CheddarTypes.td / CheddarOps.td), which the type converter lowers to
+// `BootContext<word>*`, so `Boot` (a BootContext method) is called directly --
+// no downcast from a base Context.
 struct ConvertBoot : public OpConversionPattern<cheddar::BootOp> {
   using OpConversionPattern::OpConversionPattern;
   LogicalResult matchAndRewrite(
@@ -903,8 +904,7 @@ struct ConvertBoot : public OpConversionPattern<cheddar::BootOp> {
       ConversionPatternRewriter& rewriter) const override {
     Type t = this->typeConverter->convertType(op.getResult().getType());
     Value out = declareLocal(rewriter, op.getLoc(), t);
-    VerbatimOp::create(rewriter, op.getLoc(),
-                       "static_cast<BootContext<word>*>({})->Boot({}, {}, {});",
+    VerbatimOp::create(rewriter, op.getLoc(), "{}->Boot({}, {}, {});",
                        ValueRange{adaptor.getCtx(), out, adaptor.getInput(),
                                   adaptor.getEvkMap()});
     rewriter.replaceOp(op, loadAfter(rewriter, op.getLoc(), t, out));
