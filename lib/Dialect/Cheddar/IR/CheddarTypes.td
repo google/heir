@@ -4,13 +4,19 @@
 include "CheddarDialect.td"
 
 include "lib/Dialect/HEIRInterfaces.td"
+include "mlir/IR/BuiltinTypeInterfaces.td"
 include "mlir/IR/DialectBase.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/OpAsmInterface.td"
 
 // A base class for all types in this dialect
+//
+// All Cheddar types implement MemRefElementTypeInterface so they can appear as
+// element types in `tensor<Nx!cheddar.*>` / `memref<Nx!cheddar.*>`, which is
+// what the bufferization pipeline produces when lowering looped CKKS kernels.
 class Cheddar_Type<string name, string typeMnemonic, list<Trait> traits = []>
-    : TypeDef<Cheddar_Dialect, name, traits # [OpAsmTypeInterface]> {
+    : TypeDef<Cheddar_Dialect, name,
+              traits # [OpAsmTypeInterface, MemRefElementTypeInterface]> {
   let mnemonic = typeMnemonic;
   let genMnemonicAlias = 1;
 
