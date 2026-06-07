@@ -1203,24 +1203,22 @@ struct CheddarToEmitCPass
       for (unsigned i = 0; i < numResults; ++i) {
         StringRef name;
         if (!isMoveOnlyOpaque(funcType.getResult(i), name)) continue;
-        int argIdx = -1;
-        bool ok = !returns.empty();
-        for (auto ret : returns) {
+        if (returns.empty()) continue;
+
+        auto firstBa = dyn_cast<BlockArgument>(returns.front().getOperand(i));
+        if (!firstBa || firstBa.getOwner() != &entry) continue;
+        unsigned expectedArgIdx = firstBa.getArgNumber();
+
+        // In-place only when *every* return hands back the same entry-block
+        // argument, so the signature is never left inconsistent.
+        bool allMatch = llvm::all_of(returns, [&](auto ret) {
           auto ba = dyn_cast<BlockArgument>(ret.getOperand(i));
-          if (!ba || ba.getOwner() != &entry) {
-            ok = false;
-            break;
-          }
-          if (argIdx < 0)
-            argIdx = ba.getArgNumber();
-          else if (argIdx != static_cast<int>(ba.getArgNumber())) {
-            ok = false;
-            break;
-          }
-        }
-        if (ok && argIdx >= 0) {
+          return ba && ba.getOwner() == &entry &&
+                 ba.getArgNumber() == expectedArgIdx;
+        });
+        if (allMatch) {
           resultIsInout[i] = true;
-          argIsInout[argIdx] = true;
+          argIsInout[expectedArgIdx] = true;
         }
       }
 
