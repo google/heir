@@ -27,12 +27,27 @@ class Cheddar_Type<string name, string typeMnemonic, list<Trait> traits = []>
 
 def Cheddar_Context : Cheddar_Type<"Context", "context"> {
   let description = [{
-    This type represents a CHEDDAR Context (or BootContext), which is the
-    main server-side computation engine. Created via Context::Create(param)
-    or BootContext::Create(param, boot_param).
+    This type represents a CHEDDAR Context, the main server-side computation
+    engine. Created via Context::Create(param).
   }];
   let asmName = "ctx";
 }
+
+def Cheddar_BootContext : Cheddar_Type<"BootContext", "boot_context"> {
+  let description = [{
+    This type represents a CHEDDAR BootContext: a Context extended with
+    bootstrapping support, created via BootContext::Create(param, boot_param).
+    A BootContext is-a Context in CHEDDAR, so it is accepted anywhere a Context
+    is via the `Cheddar_AnyContext` constraint; only `cheddar.boot` requires it
+    specifically (so the emitter can call `BootContext::Boot` with no downcast).
+  }];
+  let asmName = "boot_ctx";
+}
+
+// Most server-side ops run on either a plain Context or a BootContext (the
+// latter derives from the former in CHEDDAR). `cheddar.boot` is the exception:
+// it requires a Cheddar_BootContext.
+def Cheddar_AnyContext : AnyTypeOf<[Cheddar_Context, Cheddar_BootContext]>;
 
 def Cheddar_Parameter : Cheddar_Type<"Parameter", "parameter"> {
   let description = [{

@@ -35,7 +35,7 @@ def Cheddar_CreateUserInterfaceOp : Cheddar_Op<"create_user_interface"> {
     Creates a UserInterface<word> from a context. The UserInterface handles
     key generation, encryption, and decryption. Note: for test purposes only.
   }];
-  let arguments = (ins Cheddar_Context:$ctx);
+  let arguments = (ins Cheddar_AnyContext:$ctx);
   let results = (outs Cheddar_UserInterface:$ui);
 }
 
@@ -44,7 +44,7 @@ def Cheddar_GetEncoderOp : Cheddar_Op<"get_encoder"> {
   let description = [{
     Returns a reference to the context's encoder (context->encoder_).
   }];
-  let arguments = (ins Cheddar_Context:$ctx);
+  let arguments = (ins Cheddar_AnyContext:$ctx);
   let results = (outs Cheddar_Encoder:$encoder);
 }
 
@@ -166,7 +166,7 @@ def Cheddar_DecryptOp : Cheddar_Op<"decrypt"> {
 class Cheddar_BinaryCtCtOp<string mnemonic, list<Trait> traits = []>
     : Cheddar_Op<mnemonic, traits> {
   let arguments = (ins
-    Cheddar_Context:$ctx,
+    Cheddar_AnyContext:$ctx,
     Cheddar_Ciphertext:$lhs,
     Cheddar_Ciphertext:$rhs
   );
@@ -198,7 +198,7 @@ def Cheddar_MultOp : Cheddar_BinaryCtCtOp<"mult", [IncreasesMulDepthOpInterface]
 def Cheddar_AddPlainOp : Cheddar_Op<"add_plain"> {
   let summary = "Add a plaintext to a ciphertext";
   let arguments = (ins
-    Cheddar_Context:$ctx,
+    Cheddar_AnyContext:$ctx,
     Cheddar_Ciphertext:$ciphertext,
     Cheddar_Plaintext:$plaintext
   );
@@ -208,7 +208,7 @@ def Cheddar_AddPlainOp : Cheddar_Op<"add_plain"> {
 def Cheddar_SubPlainOp : Cheddar_Op<"sub_plain"> {
   let summary = "Subtract a plaintext from a ciphertext";
   let arguments = (ins
-    Cheddar_Context:$ctx,
+    Cheddar_AnyContext:$ctx,
     Cheddar_Ciphertext:$ciphertext,
     Cheddar_Plaintext:$plaintext
   );
@@ -218,7 +218,7 @@ def Cheddar_SubPlainOp : Cheddar_Op<"sub_plain"> {
 def Cheddar_MultPlainOp : Cheddar_Op<"mult_plain"> {
   let summary = "Multiply a ciphertext by a plaintext (no rescale)";
   let arguments = (ins
-    Cheddar_Context:$ctx,
+    Cheddar_AnyContext:$ctx,
     Cheddar_Ciphertext:$ciphertext,
     Cheddar_Plaintext:$plaintext
   );
@@ -228,7 +228,7 @@ def Cheddar_MultPlainOp : Cheddar_Op<"mult_plain"> {
 def Cheddar_AddConstOp : Cheddar_Op<"add_const"> {
   let summary = "Add a constant to a ciphertext";
   let arguments = (ins
-    Cheddar_Context:$ctx,
+    Cheddar_AnyContext:$ctx,
     Cheddar_Ciphertext:$ciphertext,
     Cheddar_Constant:$constant
   );
@@ -238,7 +238,7 @@ def Cheddar_AddConstOp : Cheddar_Op<"add_const"> {
 def Cheddar_MultConstOp : Cheddar_Op<"mult_const"> {
   let summary = "Multiply a ciphertext by a constant (no rescale)";
   let arguments = (ins
-    Cheddar_Context:$ctx,
+    Cheddar_AnyContext:$ctx,
     Cheddar_Ciphertext:$ciphertext,
     Cheddar_Constant:$constant
   );
@@ -251,7 +251,7 @@ def Cheddar_NegOp : Cheddar_Op<"neg"> {
     Calls context->Neg(res, a).
   }];
   let arguments = (ins
-    Cheddar_Context:$ctx,
+    Cheddar_AnyContext:$ctx,
     Cheddar_Ciphertext:$input
   );
   let results = (outs Cheddar_Ciphertext:$output);
@@ -263,7 +263,7 @@ def Cheddar_RescaleOp : Cheddar_Op<"rescale"> {
     Calls context->Rescale(res, a). Reduces the ciphertext level by 1.
   }];
   let arguments = (ins
-    Cheddar_Context:$ctx,
+    Cheddar_AnyContext:$ctx,
     Cheddar_Ciphertext:$input
   );
   let results = (outs Cheddar_Ciphertext:$output);
@@ -275,7 +275,7 @@ def Cheddar_LevelDownOp : Cheddar_Op<"level_down"> {
     Calls context->LevelDown(res, a, target_level).
   }];
   let arguments = (ins
-    Cheddar_Context:$ctx,
+    Cheddar_AnyContext:$ctx,
     Cheddar_Ciphertext:$input,
     Builtin_IntegerAttr:$targetLevel
   );
@@ -292,7 +292,7 @@ def Cheddar_RelinearizeOp : Cheddar_Op<"relinearize"> {
     Calls context->Relinearize(res, a, mult_key).
   }];
   let arguments = (ins
-    Cheddar_Context:$ctx,
+    Cheddar_AnyContext:$ctx,
     Cheddar_Ciphertext:$input,
     Cheddar_EvalKey:$multKey
   );
@@ -306,7 +306,7 @@ def Cheddar_RelinearizeRescaleOp : Cheddar_Op<"relinearize_rescale"> {
     separate Relinearize + Rescale.
   }];
   let arguments = (ins
-    Cheddar_Context:$ctx,
+    Cheddar_AnyContext:$ctx,
     Cheddar_Ciphertext:$input,
     Cheddar_EvalKey:$multKey
   );
@@ -325,7 +325,7 @@ def Cheddar_HMultOp : Cheddar_Op<"hmult", [IncreasesMulDepthOpInterface]> {
     rescaling is included (default: true).
   }];
   let arguments = (ins
-    Cheddar_Context:$ctx,
+    Cheddar_AnyContext:$ctx,
     Cheddar_Ciphertext:$lhs,
     Cheddar_Ciphertext:$rhs,
     Cheddar_EvalKey:$multKey,
@@ -344,7 +344,7 @@ def Cheddar_HRotOp : Cheddar_Op<"hrot", [
     Single fused GPU kernel. Supports both static and dynamic distances.
   }];
   let arguments = (ins
-    Cheddar_Context:$ctx,
+    Cheddar_AnyContext:$ctx,
     Cheddar_Ciphertext:$input,
     Optional<AnySignlessIntegerOrIndex>:$dynamic_distance,
     OptionalAttr<Builtin_IntegerAttr>:$static_distance
@@ -363,7 +363,7 @@ def Cheddar_HRotAddOp : Cheddar_Op<"hrot_add", [
     is looked up from the enclosing function's UserInterface using `distance`.
   }];
   let arguments = (ins
-    Cheddar_Context:$ctx,
+    Cheddar_AnyContext:$ctx,
     Cheddar_Ciphertext:$input,
     Cheddar_Ciphertext:$addend,
     Builtin_IntegerAttr:$distance
@@ -378,7 +378,7 @@ def Cheddar_HConjOp : Cheddar_Op<"hconj"> {
     up from the enclosing function's UserInterface.
   }];
   let arguments = (ins
-    Cheddar_Context:$ctx,
+    Cheddar_AnyContext:$ctx,
     Cheddar_Ciphertext:$input
   );
   let results = (outs Cheddar_Ciphertext:$output);
@@ -392,7 +392,7 @@ def Cheddar_HConjAddOp : Cheddar_Op<"hconj_add"> {
     looked up from the enclosing function's UserInterface.
   }];
   let arguments = (ins
-    Cheddar_Context:$ctx,
+    Cheddar_AnyContext:$ctx,
     Cheddar_Ciphertext:$input,
     Cheddar_Ciphertext:$addend
   );
@@ -410,7 +410,7 @@ def Cheddar_MadUnsafeOp : Cheddar_Op<"mad_unsafe"> {
     (`MadUnsafe`).
   }];
   let arguments = (ins
-    Cheddar_Context:$ctx,
+    Cheddar_AnyContext:$ctx,
     Cheddar_Ciphertext:$accumulator,
     Cheddar_Ciphertext:$input,
     Cheddar_Constant:$constant
@@ -427,9 +427,13 @@ def Cheddar_BootOp : Cheddar_Op<"boot", [ResetsMulDepthOpInterface]> {
   let description = [{
     Calls boot_ctx->Boot(res, input, evk_map).
     Refreshes the ciphertext noise budget.
+
+    Requires a `!cheddar.boot_context` (not a plain `!cheddar.context`): `Boot`
+    is a BootContext method, so this op statically guarantees the context it
+    runs on is a BootContext and the emitter needs no downcast.
   }];
   let arguments = (ins
-    Cheddar_Context:$ctx,
+    Cheddar_BootContext:$ctx,
     Cheddar_Ciphertext:$input,
     Cheddar_EvkMap:$evkMap
   );
@@ -459,7 +463,7 @@ def Cheddar_LinearTransformOp : Cheddar_Op<"linear_transform", [
     the pure-diagonal method); the consumers here never recompute them.
   }];
   let arguments = (ins
-    Cheddar_Context:$ctx,
+    Cheddar_AnyContext:$ctx,
     Cheddar_Ciphertext:$input,
     Cheddar_EvkMap:$evkMap,
     // 2D (each row a diagonal); TensorOrMemRef so it survives bufferization.
@@ -487,10 +491,10 @@ def Cheddar_EvalPolyOp : Cheddar_Op<"eval_poly"> {
     re-deriving the polynomial depth.
   }];
   let arguments = (ins
-    Cheddar_Context:$ctx,
+    Cheddar_AnyContext:$ctx,
     Cheddar_Ciphertext:$input,
     Cheddar_EvkMap:$evkMap,
-    ArrayAttr:$coefficients,
+    F64ArrayAttr:$coefficients,
     Builtin_IntegerAttr:$level,
     Builtin_IntegerAttr:$outputLevel
   );

@@ -326,11 +326,11 @@ func.func @test_mad_unsafe(
 
 // CHECK: @test_boot
 func.func @test_boot(
-    %ctx: !cheddar.context,
+    %ctx: !cheddar.boot_context,
     %ct: !cheddar.ciphertext,
     %evk: !cheddar.evk_map) -> !cheddar.ciphertext {
   // CHECK: cheddar.boot
-  %result = cheddar.boot %ctx, %ct, %evk : (!cheddar.context, !cheddar.ciphertext, !cheddar.evk_map) -> !cheddar.ciphertext
+  %result = cheddar.boot %ctx, %ct, %evk : (!cheddar.boot_context, !cheddar.ciphertext, !cheddar.evk_map) -> !cheddar.ciphertext
   return %result : !cheddar.ciphertext
 }
 
