@@ -103,6 +103,39 @@ bool isMoveOnlyArray(Type t, StringRef& eltNameOut, int64_t& sizeOut) {
   return true;
 }
 
+// Mark which results are produced in place. A move-only payload result whose
+// return operand is an entry-block argument means the function hands back
+// storage it was given (e.g. `mad_unsafe` mutates its accumulator argument and
+// returns it, or a passthrough returns an argument unchanged). Such an argument
+// is the destination -- it must be a mutable `T&` (not `const T&`) so the
+// in-place mutation binds, and it needs no separate out-param. Only treated as
+// in-place when *every* return agrees, so a signature is never left
+// inconsistent. Fills `resultIsInout` (per result) and `argIsInout` (per arg).
+void detectInoutResults(FunctionType funcType,
+                        SmallVectorImpl<func::ReturnOp>& returns, Block& entry,
+                        SmallVectorImpl<bool>& resultIsInout,
+                        SmallVectorImpl<bool>& argIsInout) {
+  for (unsigned i = 0, e = funcType.getNumResults(); i < e; ++i) {
+    StringRef name;
+    if (!isMoveOnlyOpaque(funcType.getResult(i), name)) continue;
+    if (returns.empty()) continue;
+
+    auto firstBa = dyn_cast<BlockArgument>(returns.front().getOperand(i));
+    if (!firstBa || firstBa.getOwner() != &entry) continue;
+    unsigned expectedArgIdx = firstBa.getArgNumber();
+
+    bool allMatch = llvm::all_of(returns, [&](func::ReturnOp ret) {
+      auto ba = dyn_cast<BlockArgument>(ret.getOperand(i));
+      return ba && ba.getOwner() == &entry &&
+             ba.getArgNumber() == expectedArgIdx;
+    });
+    if (allMatch) {
+      resultIsInout[i] = true;
+      argIsInout[expectedArgIdx] = true;
+    }
+  }
+}
+
 // Cheddar types map to the textual C++ type that the CHEDDAR library uses.
 // Move-only types (Ciphertext/Plaintext/Constant) are *also* mapped to
 // `opaque<X>`; local variables wrap them in `lvalue<X>` only at the point of
@@ -1188,39 +1221,10 @@ struct CheddarToEmitCPass
       SmallVector<func::ReturnOp> returns;
       op.walk([&](func::ReturnOp r) { returns.push_back(r); });
 
-      // A move-only payload result whose return operand is an entry block
-      // argument means the function hands back storage it was given: e.g.
-      // `mad_unsafe` mutates its accumulator argument in place and returns it,
-      // or a passthrough returns an argument unchanged. Such an argument is
-      // the destination -- it must be a mutable `T&` (not `const T&`) so the
-      // in-place mutation binds, and it needs no separate out-param. Detect
-      // these first so Pass 1 tightens them correctly. Only treated as
-      // in-place when *every* return agrees, so a signature is never left
-      // inconsistent.
-      unsigned numResults = funcType.getNumResults();
-      SmallVector<bool> resultIsInout(numResults, false);
+      // Detect in-place (destination) results first so Pass 1 tightens them.
+      SmallVector<bool> resultIsInout(funcType.getNumResults(), false);
       SmallVector<bool> argIsInout(funcType.getNumInputs(), false);
-      for (unsigned i = 0; i < numResults; ++i) {
-        StringRef name;
-        if (!isMoveOnlyOpaque(funcType.getResult(i), name)) continue;
-        if (returns.empty()) continue;
-
-        auto firstBa = dyn_cast<BlockArgument>(returns.front().getOperand(i));
-        if (!firstBa || firstBa.getOwner() != &entry) continue;
-        unsigned expectedArgIdx = firstBa.getArgNumber();
-
-        // In-place only when *every* return hands back the same entry-block
-        // argument, so the signature is never left inconsistent.
-        bool allMatch = llvm::all_of(returns, [&](auto ret) {
-          auto ba = dyn_cast<BlockArgument>(ret.getOperand(i));
-          return ba && ba.getOwner() == &entry &&
-                 ba.getArgNumber() == expectedArgIdx;
-        });
-        if (allMatch) {
-          resultIsInout[i] = true;
-          argIsInout[expectedArgIdx] = true;
-        }
-      }
+      detectInoutResults(funcType, returns, entry, resultIsInout, argIsInout);
 
       // Pass 1: tighten input types at the C++ boundary. Move-only payload
       // scalars become `const T&`, except in-place/returned args which stay
