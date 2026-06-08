@@ -294,6 +294,69 @@ TEST_P(KernelImplementationTest, Test2DConvWithLayout) {
   EXPECT_EQ(extractedResult, expected);
 }
 
+TEST_P(KernelImplementationTest, TestIssue3003) {
+  MLIRContext context;
+  RankedTensorType dataType =
+      RankedTensorType::get({1, 1, 5, 5}, mlir::IndexType::get(&context));
+  RankedTensorType filterType =
+      RankedTensorType::get({1, 1, 3, 3}, mlir::IndexType::get(&context));
+  RankedTensorType outputType =
+      RankedTensorType::get({1, 1, 3, 3}, mlir::IndexType::get(&context));
+
+  int numSlots = 1024;
+
+  // Set input values to i*i + 1
+  tensor4d data(
+      1, std::vector<std::vector<std::vector<int>>>(
+             1, std::vector<std::vector<int>>(5, std::vector<int>(5, 0))));
+  for (int i = 0; i < 25; ++i) {
+    data[0][0][i / 5][i % 5] = i * i + 1;
+  }
+
+  tensor4d filter(
+      1, std::vector<std::vector<std::vector<int>>>(
+             1, std::vector<std::vector<int>>(3, std::vector<int>(3, 1))));
+
+  auto dataLayout = getRowMajorLayoutRelation(dataType, numSlots);
+  std::vector<std::vector<int>> packedData =
+      evaluateLayout<int>(dataLayout, getDataValueFn4D(data));
+
+  auto matrixLayout = get2dConvChwFchwFilterDiagonalizedRelation(
+                          filterType, dataType, /*strides=*/{1, 1},
+                          /*padding=*/0, numSlots, /*interchangeRows=*/false)
+                          .value();
+  std::vector<std::vector<int>> packedMatrix =
+      evaluateLayout<int>(matrixLayout, getDataValueFn4D(filter));
+
+  RankedTensorType expandedMatrixType =
+      get2dConvChwFchwFilterExpandedType(filterType, dataType, /*padding=*/0);
+
+  // Expected output: 1x1x3x3
+  tensor4d expected = {
+      {{{489, 606, 741}, {1254, 1461, 1686}, {2469, 2766, 3081}}}};
+
+  LiteralValue matrixInput = packedMatrix;
+  LiteralValue vectorInput = packedData[0];
+
+  auto dag = implementHaleviShoup(
+      vectorInput, matrixInput, expandedMatrixType.getShape(),
+      DagType::intTensor(32, {numSlots}),
+      /*zeroDiagonals=*/{}, /*unroll=*/std::get<0>(GetParam()));
+
+  LiteralValue actual = evalKernel(dag)[0];
+  std::vector<int> actualVector = std::get<std::vector<int>>(actual.get());
+
+  auto resultRelation = get2dConvResultRelation(outputType,
+                                                /*strides=*/{1, 1},
+                                                /*padding=*/0, numSlots,
+                                                /*interchangeRows=*/false);
+
+  tensor4d actualUnpacked =
+      unpackLayoutTo4DTensor<int>(resultRelation, {actualVector}, {1, 1, 3, 3});
+
+  EXPECT_EQ(actualUnpacked, expected);
+}
+
 TEST_P(KernelImplementationTest, Test1DConvWithLayout) {
   MLIRContext context;
   RankedTensorType dataType =
