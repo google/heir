@@ -1,21 +1,23 @@
 #include "lib/Target/OpenFhePke/OpenFhePkePybindEmitter.h"
 
+#include <cstddef>
 #include <string>
 
 #include "lib/Target/OpenFhePke/OpenFhePkeTemplates.h"
 #include "lib/Utils/TargetUtils.h"
-#include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
-#include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project
-#include "llvm/include/llvm/Support/FormatVariadic.h"   // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/FormatVariadic.h"    // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -92,6 +94,16 @@ LogicalResult OpenFhePkePybindEmitter::printOperation(func::FuncOp funcOp) {
       }
     }
   } else {
+    // This branch is needed to support split preprocessing, which has multiple
+    // return values.
+    if (funcOp.getNumResults() > 1) {
+      std::string structName = llvm::formatv("{0}Struct", funcName).str();
+      os << llvm::formatv(kPybindStructClassTemplate.data(), structName);
+      for (size_t i = 0; i < funcOp.getNumResults(); ++i) {
+        os << llvm::formatv(kPybindStructFieldTemplate.data(), i, structName);
+      }
+      os << "    ;\n";
+    }
     os << llvm::formatv(kPybindFunctionTemplate.data(), funcName) << "\n";
   }
   return success();

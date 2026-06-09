@@ -34,6 +34,11 @@
 // CHECK:   m.def("__heir_debug", py::overload_cast<CryptoContextT, PrivateKeyT, CiphertextT, const std::map<std::string, std::string>&>(&__heir_debug), py::call_guard<py::gil_scoped_release>());
 // CHECK:   m.def("__heir_debug", py::overload_cast<CryptoContextT, PrivateKeyT, std::vector<CiphertextT>, const std::map<std::string, std::string>&>(&__heir_debug), py::call_guard<py::gil_scoped_release>());
 // CHECK-NOT: m.def("__heir_debug"
+// CHECK:   py::class_<simple_sum_multiStruct>(m, "simple_sum_multiStruct", py::module_local()).def(py::init<>())
+// CHECK-NEXT:           .def_readwrite("arg0", &simple_sum_multiStruct::arg0)
+// CHECK-NEXT:       .def_readwrite("arg1", &simple_sum_multiStruct::arg1)
+// CHECK-NEXT:       ;
+// CHECK:   m.def("simple_sum_multi", &simple_sum_multi, py::call_guard<py::gil_scoped_release>());
 // CHECK: }
 
 !cc = !openfhe.crypto_context
@@ -79,4 +84,9 @@ func.func @__heir_debug_vec(%arg0: !openfhe.crypto_context, %arg1: !openfhe.priv
 
 func.func @__heir_debug_dup(%arg0: !openfhe.crypto_context, %arg1: !openfhe.private_key, %arg2: !openfhe.ciphertext) {
   return
+}
+
+func.func @simple_sum_multi(%arg0: !openfhe.crypto_context, %arg1: !ct) -> (!ct, !ct) {
+  %1 = openfhe.rot %arg0, %arg1 { static_shift = 16 } : (!openfhe.crypto_context, !ct) -> !ct
+  return %arg1, %1 : !ct, !ct
 }
