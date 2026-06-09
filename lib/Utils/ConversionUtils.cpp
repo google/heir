@@ -8,6 +8,7 @@
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/Transforms/FuncConversions.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/Transforms/Patterns.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
@@ -283,6 +284,10 @@ void addStructuralConversionPatterns(TypeConverter& typeConverter,
       .add<ConvertAny<affine::AffineForOp>, ConvertAny<affine::AffineYieldOp>>(
           typeConverter, patterns.getContext());
 
+  target.addIllegalOp<UnrealizedConversionCastOp>();
+  patterns.add<DropOp<UnrealizedConversionCastOp>>(typeConverter,
+                                                   patterns.getContext());
+
   target.markUnknownOpDynamicallyLegal([&](Operation* op) {
     // These rules are needed to handle interface ops that are not directly
     // registered as legal/illegal with the target.
@@ -307,6 +312,22 @@ void addTensorConversionPatterns(TypeConverter& typeConverter,
                                tensor::InsertSliceOp, tensor::ExtractOp,
                                tensor::ExtractSliceOp, tensor::FromElementsOp,
                                tensor::SplatOp>(
+      [&](Operation* op) { return typeConverter.isLegal(op); });
+}
+
+void addMemRefConversionPatterns(TypeConverter& typeConverter,
+                                 RewritePatternSet& patterns,
+                                 ConversionTarget& target) {
+  patterns.add<ConvertAny<memref::AllocOp>, ConvertAny<memref::StoreOp>,
+               ConvertAny<memref::LoadOp>, ConvertAny<memref::CopyOp>,
+               ConvertAny<memref::SubViewOp>, ConvertAny<memref::DeallocOp>,
+               ConvertAny<memref::GetGlobalOp>, ConvertAny<memref::GlobalOp>>(
+      typeConverter, patterns.getContext());
+
+  target.addDynamicallyLegalOp<memref::AllocOp, memref::StoreOp, memref::LoadOp,
+                               memref::CopyOp, memref::SubViewOp,
+                               memref::DeallocOp, memref::GetGlobalOp,
+                               memref::GlobalOp>(
       [&](Operation* op) { return typeConverter.isLegal(op); });
 }
 

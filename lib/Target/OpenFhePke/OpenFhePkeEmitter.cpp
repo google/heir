@@ -35,6 +35,7 @@
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
@@ -253,6 +254,9 @@ LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
                 scf::YieldOp>([&](auto op) { return printOperation(op); })
           // ControlFlow ops
           .Case<cf::AssertOp>([&](auto op) { return printOperation(op); })
+          // MemRef ops
+          .Case<memref::AllocOp, memref::LoadOp, memref::StoreOp>(
+              [&](auto op) { return printOperation(op); })
           // Tensor ops
           .Case<tensor::ConcatOp, tensor::EmptyOp, tensor::InsertOp,
                 tensor::InsertSliceOp, tensor::ExtractOp,
@@ -326,7 +330,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(ModuleOp moduleOp) {
 
 LogicalResult OpenFhePkeEmitter::printOperation(func::FuncOp funcOp) {
   auto res = funcDeclarationHelper(
-      funcOp, os, variableNames,
+      funcOp, os, variableNames, constQualifierAnalysis,
       [&](Type type, Location loc) { return emitType(type, loc); },
       [&](Location loc, const std::string& message) {
         return emitError(loc, message);
@@ -1714,6 +1718,54 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::FromElementsOp op) {
   os << "{" << commaSeparatedValues(op.getElements(), [&](Value value) {
     return variableNames->getNameForValue(value);
   }) << "};\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(memref::AllocOp op) {
+  auto type = cast<MemRefType>(op.getType());
+  if (!type.hasStaticShape()) {
+    return emitError(op.getLoc(), "Only static shapes are supported");
+  }
+  if (failed(emitType(type, op.getLoc()))) {
+    return failure();
+  }
+  int64_t size = type.getNumElements();
+  os << " " << variableNames->getNameForValue(op.getResult()) << "(" << size
+     << ");\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(memref::LoadOp op) {
+  if (isa<CiphertextType>(op.getResult().getType())) {
+    emitAutoAssignPrefix(op.getResult());
+  } else {
+    if (failed(emitTypedAssignPrefix(op.getResult(), op.getLoc(), true)))
+      return failure();
+  }
+  os << variableNames->getNameForValue(op.getMemref());
+  os << "[";
+  if (op.getIndices().empty()) {
+    os << "0";
+  } else {
+    os << flattenIndexExpression(
+        op.getMemref().getType(), op.getIndices(),
+        [&](Value value) { return getConstantOrValue(value); });
+  }
+  os << "];\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(memref::StoreOp op) {
+  os << variableNames->getNameForValue(op.getMemref());
+  os << "[";
+  if (op.getIndices().empty()) {
+    os << "0";
+  } else {
+    os << flattenIndexExpression(
+        op.getMemref().getType(), op.getIndices(),
+        [&](Value value) { return getConstantOrValue(value); });
+  }
+  os << "] = " << getConstantOrValue(op.getValueToStore()) << ";\n";
   return success();
 }
 

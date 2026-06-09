@@ -420,6 +420,7 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
     RewritePatternSet patterns(context);
     addStructuralConversionPatterns(typeConverter, patterns, target);
     addTensorConversionPatterns(typeConverter, patterns, target);
+    addMemRefConversionPatterns(typeConverter, patterns, target);
 
     target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
       bool hasCryptoContextArg = op.getFunctionType().getNumInputs() > 0 &&

@@ -5,10 +5,11 @@ include "OpenfheDialect.td"
 
 include "lib/Dialect/HEIRInterfaces.td"
 include "mlir/IR/AttrTypeBase.td"
+include "mlir/IR/BuiltinTypeInterfaces.td"
 include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/DialectBase.td"
-include "mlir/IR/OpBase.td"
 include "mlir/IR/OpAsmInterface.td"
+include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 
 class Openfhe_Type<string name, string typeMnemonic, list<Trait> traits = []>
@@ -29,12 +30,12 @@ class Openfhe_Type<string name, string typeMnemonic, list<Trait> traits = []>
   }];
 }
 
-def Openfhe_Ciphertext : Openfhe_Type<"Ciphertext", "ciphertext", [SecretTypeInterface]> {
+def Openfhe_Ciphertext : Openfhe_Type<"Ciphertext", "ciphertext", [MemRefElementTypeInterface, SecretTypeInterface]> {
   let summary = "An opaque OpenFHE ciphertext type";
   let asmName = "ct";
 }
 
-def Openfhe_Plaintext : Openfhe_Type<"Plaintext", "plaintext", [PlaintextTypeInterface]> {
+def Openfhe_Plaintext : Openfhe_Type<"Plaintext", "plaintext", [MemRefElementTypeInterface, PlaintextTypeInterface]> {
   let summary = "An opaque OpenFHE plaintext type";
   let asmName = "pt";
 }

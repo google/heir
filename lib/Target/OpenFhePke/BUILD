@@ -36,6 +36,7 @@ cc_library(
         "@llvm-project//mlir:ControlFlowDialect",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:MemRefDialect",
         "@llvm-project//mlir:SCFDialect",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
@@ -51,12 +52,14 @@ cc_library(
         "OpenFheUtils.h",
     ],
     deps = [
+        "@heir//lib/Analysis/Cpp:ConstQualifierAnalysis",
         "@heir//lib/Analysis/SelectVariableNames",
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
         "@heir//lib/Utils:TargetUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:MemRefDialect",
         "@llvm-project//mlir:Support",
     ],
 )
@@ -81,6 +84,7 @@ cc_library(
         "@llvm-project//mlir:ControlFlowDialect",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:MemRefDialect",
         "@llvm-project//mlir:SCFDialect",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
@@ -96,6 +100,7 @@ cc_library(
     ],
     deps = [
         ":OpenFheUtils",
+        "@heir//lib/Analysis/Cpp:ConstQualifierAnalysis",
         "@heir//lib/Analysis/SelectVariableNames",
         "@heir//lib/Dialect:ModuleAttributes",
         "@llvm-project//llvm:Support",

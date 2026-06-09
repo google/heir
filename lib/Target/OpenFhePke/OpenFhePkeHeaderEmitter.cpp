@@ -2,6 +2,7 @@
 
 #include <string>
 
+#include "lib/Analysis/Cpp/ConstQualifierAnalysis.h"
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Target/OpenFhePke/OpenFheUtils.h"
@@ -25,8 +26,9 @@ LogicalResult translateToOpenFhePkeHeader(Operation* op, llvm::raw_ostream& os,
                                           OpenfheImportType importType,
                                           const std::string& debugImportPath) {
   SelectVariableNames variableNames(op);
-  OpenFhePkeHeaderEmitter emitter(os, &variableNames, importType,
-                                  debugImportPath);
+  ConstQualifierAnalysis constAnalysis(op);
+  OpenFhePkeHeaderEmitter emitter(os, &variableNames, &constAnalysis,
+                                  importType, debugImportPath);
   return emitter.translate(*op);
 }
 
@@ -74,7 +76,7 @@ LogicalResult OpenFhePkeHeaderEmitter::printOperation(ModuleOp moduleOp) {
 
 LogicalResult OpenFhePkeHeaderEmitter::printOperation(func::FuncOp funcOp) {
   auto res = funcDeclarationHelper(
-      funcOp, os, variableNames,
+      funcOp, os, variableNames, constQualifierAnalysis,
       [&](Type type, Location loc) { return emitType(type, loc); },
       [&](Location loc, const std::string& message) {
         return emitError(loc, message);
@@ -98,10 +100,12 @@ LogicalResult OpenFhePkeHeaderEmitter::emitType(Type type, Location loc) {
 
 OpenFhePkeHeaderEmitter::OpenFhePkeHeaderEmitter(
     raw_ostream& os, SelectVariableNames* variableNames,
+    ConstQualifierAnalysis* constQualifierAnalysis,
     OpenfheImportType importType, const std::string& debugImportPath)
     : importType_(importType),
       os(os),
       variableNames(variableNames),
+      constQualifierAnalysis(constQualifierAnalysis),
       debugImportPath(debugImportPath) {}
 
 }  // namespace openfhe

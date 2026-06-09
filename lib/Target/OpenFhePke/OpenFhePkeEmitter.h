@@ -23,6 +23,7 @@
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
@@ -141,6 +142,9 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(::mlir::tensor::SplatOp op);
   LogicalResult printOperation(::mlir::tensor::FromElementsOp op);
   LogicalResult printOperation(::mlir::cf::AssertOp op);
+  LogicalResult printOperation(::mlir::memref::AllocOp op);
+  LogicalResult printOperation(::mlir::memref::LoadOp op);
+  LogicalResult printOperation(::mlir::memref::StoreOp op);
   LogicalResult printOperation(::mlir::func::FuncOp op);
   LogicalResult printOperation(::mlir::func::CallOp op);
   LogicalResult printOperation(::mlir::func::ReturnOp op);

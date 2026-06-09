@@ -30,6 +30,7 @@ namespace openfhe {
 class OpenFhePkeHeaderEmitter {
  public:
   OpenFhePkeHeaderEmitter(raw_ostream& os, SelectVariableNames* variableNames,
+                          ConstQualifierAnalysis* constQualifierAnalysis,
                           OpenfheImportType importType,
                           const std::string& debugImportPath);
 
@@ -44,6 +45,8 @@ class OpenFhePkeHeaderEmitter {
   /// Pre-populated analysis selecting unique variable names for all the SSA
   /// values.
   SelectVariableNames* variableNames;
+
+  ConstQualifierAnalysis* constQualifierAnalysis;
 
   /// Include path for debug imports
   std::string debugImportPath;
