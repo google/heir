@@ -22,6 +22,10 @@ func __heir_debug(evaluator *ckks.Evaluator, param ckks.Parameters, encoder *ckk
 		}
 		fmt.Printf("Ciphertext slice of size %d (debugging first element)\n", len(v))
 		ct = v[0]
+		if ct == nil {
+			fmt.Println("First ciphertext element is nil")
+			return
+		}
 	default:
 		panic(fmt.Sprintf("unexpected type %T", ctObj))
 	}

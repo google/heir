@@ -13,7 +13,6 @@ heir_lattigo_lib(
         "--annotate-module=backend=lattigo scheme=bfv",
         "--mlir-to-bfv=noise-model=bfv-noise-bmcm23 \
           annotate-noise-bound=true",
-        "--lwe-add-debug-port=insert-debug-after-every-op=true",
         "--scheme-to-lattigo=insert-debug-handler-calls=true",
     ],
     mlir_src = "@heir//tests/Examples/common:mult_dep_16.mlir",

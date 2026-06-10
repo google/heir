@@ -23,6 +23,10 @@ func __heir_debug(evaluator *ckks.Evaluator, param ckks.Parameters, encoder *ckk
 		}
 		fmt.Printf("Ciphertext slice of size %d (debugging first element)\n", len(v))
 		ct = v[0]
+		if ct == nil {
+			fmt.Println("First ciphertext element is nil")
+			return
+		}
 	default:
 		panic(fmt.Sprintf("unexpected type %T", ctObj))
 	}
@@ -60,14 +64,23 @@ func __heir_debug(evaluator *ckks.Evaluator, param ckks.Parameters, encoder *ckk
 	// calculate the precision
 	if secretExecutionResult, ok := debugAttrMap["secret.execution_result"]; ok {
 		// secretExecutionResult has the form "[1.0, 2.0, 3.0]", parse it into a slice of float64
-		plaintextResultStr := strings.Trim(secretExecutionResult, "[]")
-		plaintextResultStrs := strings.Split(plaintextResultStr, ",")
+		if !strings.HasPrefix(secretExecutionResult, "[") || !strings.HasSuffix(secretExecutionResult, "]") {
+			panic(fmt.Sprintf("invalid secret.execution_result format: %s", secretExecutionResult))
+		}
+		plaintextResultStr := secretExecutionResult[1 : len(secretExecutionResult)-1]
+		var plaintextResultStrs []string
+		if len(strings.TrimSpace(plaintextResultStr)) > 0 {
+			plaintextResultStrs = strings.Split(plaintextResultStr, ",")
+		}
 		plaintextResult := make([]float64, len(plaintextResultStrs))
 		for i, s := range plaintextResultStrs {
 			plaintextResult[i], err = strconv.ParseFloat(strings.TrimSpace(s), 64)
 			if err != nil {
 				panic(err)
 			}
+		}
+		if len(plaintextResult) != messageSize {
+			panic(fmt.Sprintf("dimension mismatch: message.size=%d, secret.execution_result length=%d", messageSize, len(plaintextResult)))
 		}
 
 		maxError := math.Inf(-1)

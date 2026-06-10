@@ -2,7 +2,6 @@
 
 #include <cassert>
 #include <string>
-#include <utility>
 
 #include "lib/Dialect/Debug/IR/DebugOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
@@ -63,9 +62,39 @@ FailureOr<Type> getPrivateKeyType(func::FuncOp op) {
   return lwePrivateKeyType;
 }
 
+void populateDebugFuncCache(ModuleOp module,
+                            llvm::DenseMap<Type, func::FuncOp>& typeToDebugFunc,
+                            llvm::DenseSet<StringRef>& debugFuncNames) {
+  for (auto funcOp : module.getOps<func::FuncOp>()) {
+    if (!funcOp.isExternal()) continue;
+    if (!funcOp.getName().starts_with("__heir_debug_")) continue;
+    if (funcOp.getArgumentTypes().size() != 2) continue;
+    if (!funcOp.getResultTypes().empty()) continue;
+
+    typeToDebugFunc[funcOp.getFunctionType()] = funcOp;
+    debugFuncNames.insert(funcOp.getName());
+  }
+}
+
+static bool isAlreadyDebugged(Value value,
+                              const llvm::DenseSet<StringRef>& debugFuncNames) {
+  for (auto& use : value.getUses()) {
+    Operation* user = use.getOwner();
+    if (isa<debug::ValidateOp>(user)) {
+      return true;
+    }
+    if (auto callOp = dyn_cast<func::CallOp>(user)) {
+      if (debugFuncNames.contains(callOp.getCallee())) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 func::FuncOp getOrCreateExternalDebugFunc(
-    ModuleOp module, Type lwePrivateKeyType, Type valueType,
-    llvm::DenseMap<Type, func::FuncOp>& typeToDebugFunc) {
+    ModuleOp module, SymbolTable& symbolTable, Type lwePrivateKeyType,
+    Type valueType, llvm::DenseMap<Type, func::FuncOp>& typeToDebugFunc) {
   auto* context = module.getContext();
   auto debugFuncType =
       FunctionType::get(context, {lwePrivateKeyType, valueType}, {});
@@ -75,28 +104,29 @@ func::FuncOp getOrCreateExternalDebugFunc(
     return it->second;
   }
 
-  int counter = typeToDebugFunc.size();
-  std::string funcName = "__heir_debug_" + std::to_string(counter);
+  unsigned uniquingCounter = typeToDebugFunc.size();
+  SmallString<128> funcName = SymbolTable::generateSymbolName<128>(
+      "__heir_debug",
+      [&](StringRef name) { return symbolTable.lookup(name) != nullptr; },
+      uniquingCounter);
 
-  // Assert that this name is not already in use.
-  assert(!module.lookupSymbol<func::FuncOp>(funcName) &&
-         "Symbol already exists");
-
-  ImplicitLocOpBuilder b =
-      ImplicitLocOpBuilder::atBlockBegin(module.getLoc(), module.getBody());
-  auto funcOp = func::FuncOp::create(b, funcName, debugFuncType);
+  auto funcOp = func::FuncOp::create(module.getLoc(), funcName, debugFuncType);
   // required for external func call
   funcOp.setPrivate();
+
+  symbolTable.insert(funcOp, module.getBody()->begin());
 
   typeToDebugFunc[debugFuncType] = funcOp;
   return funcOp;
 }
 
-void insertValidationOps(func::FuncOp op) {
+void insertValidationOps(func::FuncOp op,
+                         const llvm::DenseSet<StringRef>& debugFuncNames) {
   int count = 0;
   auto insertValidate = [&](Value value, OpBuilder& b) {
     Type valueType = value.getType();
     if (isa<LWECiphertextType>(getElementTypeOrSelf(valueType))) {
+      if (isAlreadyDebugged(value, debugFuncNames)) return;
       debug::ValidateOp::create(b, value.getLoc(), value,
                                 "heir_debug_" + std::to_string(count++),
                                 nullptr);
@@ -121,8 +151,8 @@ void insertValidationOps(func::FuncOp op) {
 }
 
 LogicalResult lowerValidationOps(
-    func::FuncOp op, Value privateKey, int messageSize,
-    llvm::DenseMap<Type, func::FuncOp>& typeToDebugFunc) {
+    func::FuncOp op, SymbolTable& symbolTable, Value privateKey,
+    int messageSize, llvm::DenseMap<Type, func::FuncOp>& typeToDebugFunc) {
   auto module = op->getParentOfType<ModuleOp>();
   Type lwePrivateKeyType = privateKey.getType();
 
@@ -141,10 +171,10 @@ LogicalResult lowerValidationOps(
       attrs.push_back(b.getNamedAttr(
           "message.size", b.getStringAttr(std::to_string(messageSize))));
 
-      auto debugFunc = getOrCreateExternalDebugFunc(module, lwePrivateKeyType,
-                                                    valueType, typeToDebugFunc);
-      auto callOp =
-          b.create<func::CallOp>(debugFunc, ArrayRef<Value>{privateKey, value});
+      auto debugFunc = getOrCreateExternalDebugFunc(
+          module, symbolTable, lwePrivateKeyType, valueType, typeToDebugFunc);
+      auto callOp = func::CallOp::create(b, b.getLoc(), debugFunc,
+                                         ArrayRef<Value>{privateKey, value});
       callOp->setDialectAttrs(attrs);
 
       validateOp.erase();
@@ -166,6 +196,10 @@ struct AddDebugPort : impl::AddDebugPortBase<AddDebugPort> {
     ModuleOp module = cast<ModuleOp>(getOperation());
     SymbolTable symbolTable(module);
 
+    llvm::DenseMap<Type, func::FuncOp> typeToDebugFunc;
+    llvm::DenseSet<StringRef> debugFuncNames;
+    populateDebugFuncCache(module, typeToDebugFunc, debugFuncNames);
+
     SmallVector<func::FuncOp, 16> worklist;
     llvm::DenseMap<func::FuncOp, Type> funcToKeyType;
     if (failed(identifyInitialTargets(module, symbolTable, funcToKeyType,
@@ -183,7 +217,7 @@ struct AddDebugPort : impl::AddDebugPortBase<AddDebugPort> {
 
     if (insertDebugAfterEveryOp) {
       for (auto& [func, _] : funcToKeyType) {
-        insertValidationOps(func);
+        insertValidationOps(func, debugFuncNames);
       }
     }
 
@@ -198,8 +232,8 @@ struct AddDebugPort : impl::AddDebugPortBase<AddDebugPort> {
       return;
     }
 
-    llvm::DenseMap<Type, func::FuncOp> typeToDebugFunc;
-    if (failed(lowerAllValidationOps(module, funcToKeyType, typeToDebugFunc))) {
+    if (failed(lowerAllValidationOps(module, symbolTable, funcToKeyType,
+                                     typeToDebugFunc))) {
       signalPassFailure();
       return;
     }
@@ -229,18 +263,21 @@ struct AddDebugPort : impl::AddDebugPortBase<AddDebugPort> {
     }
 
     if (entryFunc) {
-      auto type = getPrivateKeyType(entryFunc);
-      if (succeeded(type)) {
+      bool shouldProcess =
+          containsAnyOperations<debug::ValidateOp>(entryFunc) ||
+          insertDebugAfterEveryOp;
+
+      if (shouldProcess) {
+        auto type = getPrivateKeyType(entryFunc);
+        if (failed(type)) {
+          entryFunc.emitError(
+              "Cannot infer LWE private key type for entry function");
+          return failure();
+        }
         funcToKeyType[entryFunc] = *type;
         worklist.push_back(entryFunc);
-        return success();
       }
-
-      if (containsAnyOperations<debug::ValidateOp>(entryFunc)) {
-        entryFunc.emitError(
-            "Cannot infer LWE private key type for entry function");
-        return failure();
-      }
+      return success();
     }
 
     for (auto funcOp : module.getOps<func::FuncOp>()) {
@@ -404,7 +441,8 @@ struct AddDebugPort : impl::AddDebugPortBase<AddDebugPort> {
   /// \param typePairToInt Map to track generated debug function names.
   /// \return success() if successful, failure() otherwise.
   LogicalResult lowerAllValidationOps(
-      ModuleOp module, const llvm::DenseMap<func::FuncOp, Type>& funcToKeyType,
+      ModuleOp module, SymbolTable& symbolTable,
+      const llvm::DenseMap<func::FuncOp, Type>& funcToKeyType,
       llvm::DenseMap<Type, func::FuncOp>& typeToDebugFunc) {
     for (auto funcOp : module.getOps<func::FuncOp>()) {
       if (funcOp.isExternal()) continue;
@@ -428,8 +466,8 @@ struct AddDebugPort : impl::AddDebugPortBase<AddDebugPort> {
       }
 
       if (privateKey) {
-        if (failed(lowerValidationOps(funcOp, privateKey, messageSize,
-                                      typeToDebugFunc))) {
+        if (failed(lowerValidationOps(funcOp, symbolTable, privateKey,
+                                      messageSize, typeToDebugFunc))) {
           funcOp.emitError("failed to lower validation ops");
           return failure();
         }

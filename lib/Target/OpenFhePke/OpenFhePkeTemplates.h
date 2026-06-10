@@ -140,6 +140,24 @@ constexpr std::string_view KdebugHeaderImports = R"cpp(
 )cpp";
 // clang-format on
 
+// clang-format off
+constexpr std::string_view kDebugBlockArgCheckTemplate = R"cpp(
+auto {0} = {1}.at("asm.is_block_arg");
+if ({0} == "1") {{
+  std::cout << "Input" << std::endl;
+}} else {{
+  std::cout << {1}.at("asm.op_name") << std::endl;
+}}
+)cpp";
+
+constexpr std::string_view kDebugDecryptTemplate = R"cpp(
+PlaintextT {0};
+{1}->Decrypt({2}, {3}, &{0});
+{0}->SetLength(std::stoul({4}.at("message.size")));
+std::cout << "  " << {0} << std::endl;
+)cpp";
+// clang-format on
+
 }  // namespace openfhe
 }  // namespace heir
 }  // namespace mlir

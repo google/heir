@@ -19,7 +19,6 @@ heir_lattigo_lib(
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=bgv",
         "--mlir-to-bgv=ciphertext-degree=1024",
-        "--lwe-add-debug-port=insert-debug-after-every-op=true",
         "--scheme-to-lattigo=insert-debug-handler-calls=true",
     ],
     mlir_src = "cross_level.mlir",

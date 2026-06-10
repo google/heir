@@ -5,7 +5,9 @@
 #include <string>
 #include <vector>
 
+// IWYU pragma: begin_keep
 #include "src/pke/include/openfhe.h"  // from @openfhe
+// IWYU pragma: end_keep
 
 using CiphertextT = lbcrypto::Ciphertext<lbcrypto::DCRTPoly>;
 using CryptoContextT = lbcrypto::CryptoContext<lbcrypto::DCRTPoly>;

@@ -12,6 +12,8 @@
 #include <string>
 #include <vector>
 
+#include "absl/time/clock.h"                           // from @com_google_absl
+#include "absl/time/time.h"                            // from @com_google_absl
 #include "src/core/include/lattice/hal/lat-backend.h"  // from @openfhe
 #include "src/core/include/utils/inttypes.h"           // from @openfhe
 #include "src/pke/include/encoding/plaintext-fwd.h"    // from @openfhe
@@ -66,7 +68,12 @@ void __heir_debug(CryptoContextT cc, PrivateKeyT sk, CiphertextT ct,
 
 #ifdef DECRYPT
   PlaintextT ptxt;
+  absl::Time start = absl::Now();
   cc->Decrypt(sk, ct, &ptxt);
+  absl::Time end = absl::Now();
+  absl::Duration elapsed = end - start;
+  std::cout << "  Decryption took " << absl::ToDoubleSeconds(elapsed)
+            << " seconds." << std::endl;
   ptxt->SetLength(std::stod(debugAttrMap.at("message.size")));
   std::vector<double> result;
   result.reserve(ptxt->GetLength());

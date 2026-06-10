@@ -536,6 +536,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(affine::AffineYieldOp op) {
 LogicalResult OpenFhePkeEmitter::printOperation(cf::AssertOp op) {
   os << "assert(" << variableNames->getNameForValue(op.getArg()) << " && \""
      << op.getMsg() << "\");\n";
+  os << "(void)" << variableNames->getNameForValue(op.getArg()) << ";\n";
   return success();
 }
 

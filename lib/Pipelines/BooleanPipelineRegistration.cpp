@@ -9,11 +9,10 @@
 #include "lib/Dialect/CGGI/Conversions/CGGIToSCIFRBool/CGGIToSCIFRBool.h"
 #include "lib/Dialect/CGGI/Conversions/CGGIToTfheRust/CGGIToTfheRust.h"
 #include "lib/Dialect/CGGI/Conversions/CGGIToTfheRustBool/CGGIToTfheRustBool.h"
-#include "lib/Dialect/Debug/Transforms/Passes.h"
 #include "lib/Dialect/Debug/Transforms/ValidateNames.h"
 #include "lib/Dialect/Secret/Conversions/SecretToCGGI/SecretToCGGI.h"
+#include "lib/Dialect/Secret/Transforms/AddDebugPort.h"
 #include "lib/Dialect/Secret/Transforms/DistributeGeneric.h"
-#include "lib/Pipelines/PipelineRegistration.h"
 #include "lib/Transforms/BooleanVectorizer/BooleanVectorizer.h"
 #include "lib/Transforms/FoldConstantTensors/FoldConstantTensors.h"
 #include "lib/Transforms/ForwardInsertToExtract/ForwardInsertToExtract.h"
@@ -23,7 +22,6 @@
 #include "lib/Transforms/MemrefToArith/MemrefToArith.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/TensorLinalgToAffineLoops/TensorLinalgToAffineLoops.h"
-#include "lib/Transforms/UnusedMemRef/UnusedMemRef.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/TensorToLinalg/TensorToLinalgPass.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Transforms/Passes.h"  // from @llvm-project
@@ -64,6 +62,8 @@ void mlirToCGGIPipeline(OpPassManager& pm,
                         const std::string& yosysFilesPath,
                         const std::string& abcPath) {
   pm.addPass(debug::createDebugValidateNames());
+  pm.addPass(secret::createSecretAddDebugPort(secret::SecretAddDebugPortOptions{
+      .insertDebugAfterEveryOp = options.debug}));
   pm.addPass(createConvertTensorToLinalgPass());
   pm.addPass(createLinalgGeneralizeNamedOpsPass());
 
@@ -154,6 +154,8 @@ CGGIPipelineBuilder mlirToCGGIPipelineBuilder() {
 void mlirToCGGIPipeline(OpPassManager& pm,
                         const MLIRToCGGIPipelineOptions& options) {
   pm.addPass(debug::createDebugValidateNames());
+  pm.addPass(secret::createSecretAddDebugPort(secret::SecretAddDebugPortOptions{
+      .insertDebugAfterEveryOp = options.debug}));
   // Bufferize
   ::mlir::heir::oneShotBufferize(pm);
 

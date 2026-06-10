@@ -21,6 +21,10 @@ func __heir_debug(evaluator *bgv.Evaluator, param bgv.Parameters, encoder *bgv.E
 		}
 		fmt.Printf("Ciphertext slice of size %d (debugging first element)\n", len(v))
 		ct = v[0]
+		if ct == nil {
+			fmt.Println("First ciphertext element is nil")
+			return
+		}
 	default:
 		panic(fmt.Sprintf("unexpected type %T", ctObj))
 	}

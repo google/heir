@@ -219,12 +219,9 @@ void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
   mlirToRLWEPipelineOptions.ciphertextDegree = options.plaintextSize;
   mlirToSecretArithmeticPipelineBuilder(pm, mlirToRLWEPipelineOptions);
 
-  if (options.debug) {
-    // Insert debug handler calls
-    secret::SecretAddDebugPortOptions debugOptions;
-    debugOptions.insertDebugAfterEveryOp = true;
-    pm.addPass(secret::createSecretAddDebugPort(debugOptions));
-  }
+  // Insert debug handler calls and/or lower debug.validate
+  pm.addPass(secret::createSecretAddDebugPort(secret::SecretAddDebugPortOptions{
+      .insertDebugAfterEveryOp = options.debug}));
 
   pm.addPass(secret::createSecretDistributeGeneric());
   pm.addPass(createCanonicalizerPass());
@@ -411,9 +408,15 @@ void mlirToRLWEPipeline(OpPassManager& pm,
       exit(EXIT_FAILURE);
   }
 
+  // Lower debug.validate ops to function calls with private key
+  pm.addPass(lwe::createAddDebugPort(
+      lwe::AddDebugPortOptions{.messageSize = (int)options.ciphertextDegree,
+                               .insertDebugAfterEveryOp = options.debug}));
+
   pm.addPass(createForwardInsertToExtract());
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
+  pm.addPass(createSymbolDCEPass());
 
   // TODO(#2554): skip this pass if the backend supports trivial encryption
   pm.addPass(lwe::createImplementTrivialEncryptionAsAddition());
@@ -459,11 +462,11 @@ BackendPipelineBuilder toOpenFhePipelineBuilder() {
     pm.addPass(ckks::createCKKSToLWE());
 
     // insert debug handler calls
-    if (options.debug) {
-      lwe::AddDebugPortOptions addDebugPortOptions;
-      addDebugPortOptions.entryFunction = options.entryFunction;
-      pm.addPass(lwe::createAddDebugPort(addDebugPortOptions));
-    }
+    lwe::AddDebugPortOptions addDebugPortOptions{
+        .entryFunction = options.entryFunction,
+        .insertDebugAfterEveryOp = options.debug,
+    };
+    pm.addPass(lwe::createAddDebugPort(addDebugPortOptions));
 
     // Convert LWE (and scheme-specific CKKS/BGV ops) to OpenFHE
     pm.addPass(lwe::createLWEToOpenfhe());
@@ -501,11 +504,11 @@ BackendPipelineBuilder toLattigoPipelineBuilder() {
     pm.addPass(ckks::createCKKSToLWE());
 
     // insert debug handler calls
-    if (options.debug) {
-      lwe::AddDebugPortOptions addDebugPortOptions;
-      addDebugPortOptions.entryFunction = options.entryFunction;
-      pm.addPass(lwe::createAddDebugPort(addDebugPortOptions));
-    }
+    lwe::AddDebugPortOptions addDebugPortOptions{
+        .entryFunction = options.entryFunction,
+        .insertDebugAfterEveryOp = options.debug,
+    };
+    pm.addPass(lwe::createAddDebugPort(addDebugPortOptions));
 
     // Convert LWE (and scheme-specific BGV ops) to Lattigo
     pm.addPass(lwe::createLWEToLattigo());
