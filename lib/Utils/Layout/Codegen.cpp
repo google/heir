@@ -303,15 +303,11 @@ Value buildIslExpr(isl_ast_expr* expr, std::map<std::string, Value> ivToValue,
       }
 
       if (type == isl_ast_expr_op_zdiv_r) {
-        // Remainder op with comparison to zero
+        // Remainder op
         SmallVector<Value> args = getArgs(expr);
         auto op = arith::RemSIOp::create(b, args[0], args[1]);
-        auto eqOp =
-            arith::CmpIOp::create(b, arith::CmpIPredicate::eq, op,
-                                  arith::ConstantIntOp::create(b, 0, 32));
         createdOpCallback(op);
-        createdOpCallback(eqOp);
-        return eqOp->getResult(0);
+        return op->getResult(0);
       }
       isl_ast_expr_op_type opType = isl_ast_expr_get_op_type(expr);
       char* cStr = isl_ast_expr_to_C_str(expr);
