@@ -36,6 +36,8 @@ LogicalResult ModulusSwitchOp::verify() {
 
 LogicalResult LevelReduceOp::verify() { return lwe::verifyLevelReduceOp(this); }
 
+int LevelReduceOp::getLevelsToDrop() { return getLevelToDrop(); }
+
 ::llvm::SmallVector<::mlir::OpFoldResult>
 RotateColumnsOp::getRotationIndices() {
   if (getStaticShift()) return {getStaticShiftAttr()};

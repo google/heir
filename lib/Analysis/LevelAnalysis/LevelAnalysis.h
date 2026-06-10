@@ -228,10 +228,10 @@ LevelState deriveResultLevel(Operation* op,
 /// ct-pt pair and determine the level of the pt Value.
 class LevelAnalysisBackward
     : public dataflow::SparseBackwardDataFlowAnalysis<LevelLattice>,
-      public SecretnessAnalysisDependent<LevelAnalysis> {
+      public SecretnessAnalysisDependent<LevelAnalysisBackward> {
  public:
   using SparseBackwardDataFlowAnalysis::SparseBackwardDataFlowAnalysis;
-  friend class SecretnessAnalysisDependent<LevelAnalysis>;
+  friend class SecretnessAnalysisDependent<LevelAnalysisBackward>;
 
   void setToExitState(LevelLattice* lattice) override {
     propagateIfChanged(lattice, lattice->join(LevelState()));

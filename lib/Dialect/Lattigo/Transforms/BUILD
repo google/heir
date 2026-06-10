@@ -25,7 +25,6 @@ cc_library(
         ":pass_inc_gen",
         "@heir//lib/Dialect/Lattigo/IR:Dialect",
         "@heir//lib/Utils:AllocToInPlaceUtils",
-        "@heir//lib/Utils/Tablegen:InPlaceOpInterface",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
@@ -72,6 +71,5 @@ cc_library(
         "@heir//lib/Dialect/Lattigo/IR:Dialect",
         "@llvm-project//mlir:BufferizationInterfaces",
         "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:Support",
     ],
 )

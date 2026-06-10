@@ -74,7 +74,6 @@ cc_library(
     srcs = ["ConversionUtils.cpp"],
     hdrs = ["ConversionUtils.h"],
     deps = [
-        ":Utils",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/TfheRust/IR:Dialect",
         "@llvm-project//llvm:Support",
@@ -233,6 +232,7 @@ cc_library(
     hdrs = ["AllocToInPlaceUtils.h"],
     deps = [
         "@heir//lib/Utils/Tablegen:InPlaceOpInterface",
+        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",

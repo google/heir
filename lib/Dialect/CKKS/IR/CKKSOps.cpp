@@ -120,6 +120,8 @@ LogicalResult RescaleOp::verify() {
 
 LogicalResult LevelReduceOp::verify() { return lwe::verifyLevelReduceOp(this); }
 
+int LevelReduceOp::getLevelsToDrop() { return getLevelToDrop(); }
+
 ::llvm::SmallVector<::mlir::OpFoldResult> RotateOp::getRotationIndices() {
   if (getStaticShift()) return {getStaticShiftAttr()};
   return {getDynamicShift()};

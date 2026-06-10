@@ -172,7 +172,7 @@ def CKKS_RelinearizeOp : CKKS_Op<"relinearize", [
   }];
 }
 
-def CKKS_RescaleOp : CKKS_Op<"rescale", [ElementwiseMappable]> {
+def CKKS_RescaleOp : CKKS_Op<"rescale", [ElementwiseMappable, ReducesLevelOpInterface]> {
   let summary = "Rescales the ciphertext, which is the CKKS version of modulus switching in BGV/BFV.";
 
   let arguments = (ins
@@ -188,7 +188,12 @@ def CKKS_RescaleOp : CKKS_Op<"rescale", [ElementwiseMappable]> {
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
-def CKKS_LevelReduceOp : CKKS_Op<"level_reduce", [ElementwiseMappable, SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
+def CKKS_LevelReduceOp : CKKS_Op<"level_reduce", [
+  ElementwiseMappable,
+  SameOperandsAndResultPlaintextTypes,
+  InferTypeOpAdaptor,
+  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop"]>
+]> {
   let summary = "Lower the modulus level of the ciphertext via dropping RNS limbs.";
 
   let arguments = (ins
@@ -204,7 +209,11 @@ def CKKS_LevelReduceOp : CKKS_Op<"level_reduce", [ElementwiseMappable, SameOpera
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
-def CKKS_BootstrapOp : CKKS_Op<"bootstrap", [ElementwiseMappable, ResetsMulDepthOpInterface]> {
+def CKKS_BootstrapOp : CKKS_Op<"bootstrap", [
+  ElementwiseMappable,
+  ResetsMulDepthOpInterface,
+  ResetsLevelOpInterface
+]> {
   let summary = "Bootstrap the ciphertext to reduce noise and refresh its parameters.";
 
   let description = [{

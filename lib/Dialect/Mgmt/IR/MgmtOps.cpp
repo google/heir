@@ -50,6 +50,8 @@ void cleanupInitOp(Operation* top) {
   });
 }
 
+int LevelReduceOp::getLevelsToDrop() { return getLevelToDrop(); }
+
 }  // namespace mgmt
 }  // namespace heir
 }  // namespace mlir

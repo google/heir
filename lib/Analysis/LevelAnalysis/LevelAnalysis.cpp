@@ -51,37 +51,24 @@ namespace heir {
   });
 };
 
-LevelState transferForward(mgmt::ModReduceOp op,
+LevelState transferForward(ReducesLevelOpInterface op,
                            ArrayRef<const LevelLattice*> operands) {
-  LevelState result = std::visit(
-      Overloaded{
-          [](MaxLevel) -> LevelState { return LevelState(Invalid{}); },
-          [](Uninit) -> LevelState { return LevelState(Invalid{}); },
-          [](Invalid) -> LevelState { return LevelState(Invalid{}); },
-          [](int val) -> LevelState { return LevelState(val + 1); },
-      },
-      operands[0]->getValue().get());
-  LLVM_DEBUG(debugLog("mod_reduce", operands, result));
-  return result;
-}
-
-LevelState transferForward(mgmt::LevelReduceOp op,
-                           ArrayRef<const LevelLattice*> operands) {
+  unsigned operandIdx = op.getOperandToReduce().getOperandNumber();
   LevelState result = std::visit(
       Overloaded{
           [](MaxLevel) -> LevelState { return LevelState(Invalid{}); },
           [](Uninit) -> LevelState { return LevelState(Invalid{}); },
           [](Invalid) -> LevelState { return LevelState(Invalid{}); },
           [&](int val) -> LevelState {
-            return LevelState(val + (int)op.getLevelToDrop());
+            return LevelState(val + op.getLevelsToDrop());
           },
       },
-      operands[0]->getValue().get());
-  LLVM_DEBUG(debugLog("level_reduce", operands, result));
+      operands[operandIdx]->getValue().get());
+  LLVM_DEBUG(debugLog("ReduceLevelOpInterface", operands, result));
   return result;
 }
 
-LevelState transferForward(mgmt::LevelReduceMinOp op,
+LevelState transferForward(ReducesAllLevelsOpInterface op,
                            ArrayRef<const LevelLattice*> operands) {
   LevelState result = std::visit(
       Overloaded{
@@ -93,12 +80,13 @@ LevelState transferForward(mgmt::LevelReduceMinOp op,
           [](int val) -> LevelState { return LevelState(MaxLevel{}); },
       },
       operands[0]->getValue().get());
-  LLVM_DEBUG(debugLog("level_reduce_min", operands, result));
+  LLVM_DEBUG(debugLog("ReduceAllLevelsOpInterface", operands, result));
   return result;
 }
 
-LevelState transferForward(mgmt::BootstrapOp op,
+LevelState transferForward(ResetsLevelOpInterface op,
                            ArrayRef<const LevelLattice*> operands) {
+  unsigned operandIdx = op.getOperandToReset().getOperandNumber();
   LevelState result = std::visit(
       Overloaded{
           [](MaxLevel) -> LevelState { return LevelState(0); },
@@ -106,23 +94,26 @@ LevelState transferForward(mgmt::BootstrapOp op,
           [](Invalid) -> LevelState { return LevelState(Invalid{}); },
           [](int val) -> LevelState { return LevelState(0); },
       },
-      operands[0]->getValue().get());
-  LLVM_DEBUG(debugLog("bootstrap", operands, result));
+      operands[operandIdx]->getValue().get());
+  LLVM_DEBUG(debugLog("ResetsLevelOpInterface", operands, result));
   return result;
 }
 
 LevelState deriveResultLevel(Operation* op,
                              ArrayRef<const LevelLattice*> operands) {
-  return llvm::TypeSwitch<Operation&, LevelState>(*op)
-      .Case<mgmt::ModReduceOp, mgmt::LevelReduceOp, mgmt::BootstrapOp,
-            mgmt::LevelReduceMinOp>(
+  return llvm::TypeSwitch<Operation*, LevelState>(op)
+      .Case<ResetsLevelOpInterface>(
           [&](auto op) -> LevelState { return transferForward(op, operands); })
-      .Default([&](auto& op) -> LevelState {
+      .Case<ReducesAllLevelsOpInterface>(
+          [&](auto op) -> LevelState { return transferForward(op, operands); })
+      .Case<ReducesLevelOpInterface>(
+          [&](auto op) -> LevelState { return transferForward(op, operands); })
+      .Default([&](auto* op) -> LevelState {
         LevelState result;
         for (auto* operandState : operands) {
           result = LevelState::join(result, operandState->getValue());
         }
-        LLVM_DEBUG(debugLog(op.getName().getStringRef(), operands, result));
+        LLVM_DEBUG(debugLog(op->getName().getStringRef(), operands, result));
         return result;
       });
 }
