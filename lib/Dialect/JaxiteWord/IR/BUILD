@@ -37,6 +37,7 @@ td_library(
         "JaxiteWordTypes.td",
     ],
     deps = [
+        "@heir//lib/Dialect:td_files",
         "@llvm-project//mlir:BuiltinDialectTdFiles",
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",

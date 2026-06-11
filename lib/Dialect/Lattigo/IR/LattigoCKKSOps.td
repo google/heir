@@ -48,7 +48,7 @@ def Lattigo_CKKSNewEncoderOp : Lattigo_CKKSOp<"new_encoder", [Pure]> {
   let results = (outs Lattigo_CKKSEncoder:$encoder);
 }
 
-def Lattigo_CKKSEncodeOp : Lattigo_CKKSOp<"encode", [InPlaceOpInterface, Pure]> {
+def Lattigo_CKKSEncodeOp : Lattigo_CKKSOp<"encode", [InPlaceOpInterface, Pure, PlaintextEncodeOpInterface]> {
   let summary = "Encode a plaintext value in the Lattigo CKKS dialect";
   let description = [{
     This operation encodes a plaintext value using the specified encoder in the Lattigo CKKS dialect.

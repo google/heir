@@ -78,7 +78,7 @@ class LWE_CiphertextPlaintextOp<string mnemonic, list<Trait> traits = []> :
   let results = (outs LWECiphertextLike:$output);
 }
 
-def LWE_EncodeOp : LWE_Op<"encode"> {
+def LWE_EncodeOp : LWE_Op<"encode", [PlaintextEncodeOpInterface]> {
   let summary = "Encodes a cleartext into a plaintext";
   let description = [{
     The `encode` op encodes a cleartext into a plaintext. It takes the
@@ -190,6 +190,7 @@ def LWE_RLWEEncodeOp : LWE_Op<"rlwe_encode", [
       // result type is tensor<3x!pt>.
       "mappedDimensionsForOperand",
     ]>,
+    PlaintextEncodeOpInterface,
 ]> {
   let summary = "Encode an integer to yield an RLWE plaintext";
   let description = [{

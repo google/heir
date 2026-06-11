@@ -555,4 +555,11 @@ def RotationOpInterface : OpInterface<"RotationOpInterface"> {
     >,
   ];
 }
+def PlaintextEncodeOpInterface : OpInterface<"PlaintextEncodeOpInterface"> {
+  let cppNamespace = "::mlir::heir";
+  let description = [{
+    An interface that marks encode-like operations for preprocessing dataflow analysis.
+  }];
+}
+
 #endif  // LIB_DIALECT_HEIR_IR_HEIRINTERFACES_TD_

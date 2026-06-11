@@ -6,6 +6,7 @@ include "JaxiteWordTypes.td"
 
 include "lib/Dialect/LWE/IR/LWETypes.td"
 include "lib/Dialect/LWE/IR/LWETraits.td"
+include "lib/Dialect/HEIRInterfaces.td"
 
 include "mlir/IR/BuiltinTypes.td"
 include "mlir/IR/BuiltinAttributes.td"
@@ -143,7 +144,7 @@ def ProgramInitializationOp : JaxiteWord_Op<"program_initialization"> {
   );
 }
 
-def EncodeOp : JaxiteWord_Op<"encode", [Pure]> {
+def EncodeOp : JaxiteWord_Op<"encode", [Pure, PlaintextEncodeOpInterface]> {
   let summary = "Encode a real tensor into a plaintext";
   let arguments = (ins
     JaxiteWord_CryptoContext:$cryptoContext,

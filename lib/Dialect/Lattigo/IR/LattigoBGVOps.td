@@ -46,7 +46,7 @@ def Lattigo_BGVNewEncoderOp : Lattigo_BGVOp<"new_encoder", [Pure]> {
   let results = (outs Lattigo_BGVEncoder:$encoder);
 }
 
-def Lattigo_BGVEncodeOp : Lattigo_BGVOp<"encode", [InPlaceOpInterface]> {
+def Lattigo_BGVEncodeOp : Lattigo_BGVOp<"encode", [InPlaceOpInterface, PlaintextEncodeOpInterface]> {
   let summary = "Encode a plaintext value in the Lattigo BGV dialect";
   let description = [{
     This operation encodes a plaintext value using the specified encoder in the Lattigo BGV dialect.

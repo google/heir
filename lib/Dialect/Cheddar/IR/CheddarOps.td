@@ -87,7 +87,7 @@ def Cheddar_PrepareRotKeyOp : Cheddar_Op<"prepare_rot_key"> {
 // Encode / Encrypt / Decrypt operations
 //===----------------------------------------------------------------------===//
 
-def Cheddar_EncodeOp : Cheddar_Op<"encode"> {
+def Cheddar_EncodeOp : Cheddar_Op<"encode", [PlaintextEncodeOpInterface]> {
   let summary = "Encode a message vector into a CHEDDAR plaintext";
   let description = [{
     Calls encoder.Encode(pt, level, scale, message). The message is a vector
