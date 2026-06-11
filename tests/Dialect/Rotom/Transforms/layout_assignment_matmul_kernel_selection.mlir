@@ -1,7 +1,7 @@
 // RUN: heir-opt %s --rotom-assign-layout --mlir-print-local-scope | FileCheck %s
 
-#layout_lhs_row_major = #rotom.layout<dims = [#rotom.dim<dim = 0, size = 4>, #rotom.dim<dim = 1, size = 8>], n = 32>
-#layout_rhs_row_major = #rotom.layout<dims = [#rotom.dim<dim = 0, size = 8>, #rotom.dim<dim = 1, size = 4>], n = 32>
+#layout_lhs_row_major = #rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[1:8:1]>], n = 32>
+#layout_rhs_row_major = #rotom.layout<dims = [#rotom.dim<[0:8:1]>, #rotom.dim<[1:4:1]>], n = 32>
 #seed_lhs_row_major = #rotom.seed<layouts = [#layout_lhs_row_major]>
 #seed_rhs_row_major = #rotom.seed<layouts = [#layout_rhs_row_major]>
 
@@ -19,7 +19,7 @@ module {
 
 // -----
 
-#layout_one = #rotom.layout<dims = [#rotom.dim<dim = 0, size = 1>, #rotom.dim<dim = 1, size = 1>], n = 1>
+#layout_one = #rotom.layout<dims = [#rotom.dim<[0:1:1]>, #rotom.dim<[1:1:1]>], n = 1>
 #seed_one = #rotom.seed<layouts = [#layout_one]>
 
 module {

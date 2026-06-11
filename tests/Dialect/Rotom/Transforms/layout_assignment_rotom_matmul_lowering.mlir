@@ -1,7 +1,7 @@
 // RUN: heir-opt %s --rotom-assign-layout --rotom-materialize-tensor-ext-layout --convert-to-ciphertext-semantics="ciphertext-size=8" --mlir-print-local-scope | FileCheck %s
 
-#layout_lhs = #rotom.layout<dims = [#rotom.dim<dim = 0, size = 2>, #rotom.dim<dim = 1, size = 4>], n = 8>
-#layout_rhs = #rotom.layout<dims = [#rotom.dim<dim = 0, size = 4>, #rotom.dim<dim = 1, size = 2>], n = 8>
+#layout_lhs = #rotom.layout<dims = [#rotom.dim<[0:2:1]>, #rotom.dim<[1:4:1]>], n = 8>
+#layout_rhs = #rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[1:2:1]>], n = 8>
 #seed_lhs = #rotom.seed<layouts = [#layout_lhs]>
 #seed_rhs = #rotom.seed<layouts = [#layout_rhs]>
 
@@ -21,7 +21,7 @@ module {
 
 // -----
 
-#layout_2x2 = #rotom.layout<dims = [#rotom.dim<dim = 0, size = 2>, #rotom.dim<dim = 1, size = 2>], n = 4>
+#layout_2x2 = #rotom.layout<dims = [#rotom.dim<[0:2:1]>, #rotom.dim<[1:2:1]>], n = 4>
 #seed_2x2 = #rotom.seed<layouts = [#layout_2x2]>
 
 module {
@@ -42,8 +42,8 @@ module {
 
 // -----
 
-#layout_lhs_strided = #rotom.layout<dims = [#rotom.dim<dim = 0, size = 2, stride = 2>, #rotom.dim<dim = 1, size = 4>], n = 8>
-#layout_rhs_strided = #rotom.layout<dims = [#rotom.dim<dim = 0, size = 4>, #rotom.dim<dim = 1, size = 2, stride = 2>], n = 8>
+#layout_lhs_strided = #rotom.layout<dims = [#rotom.dim<[0:2:2]>, #rotom.dim<[1:4:1]>], n = 8>
+#layout_rhs_strided = #rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[1:2:2]>], n = 8>
 #seed_lhs_strided = #rotom.seed<layouts = [#layout_lhs_strided]>
 #seed_rhs_strided = #rotom.seed<layouts = [#layout_rhs_strided]>
 

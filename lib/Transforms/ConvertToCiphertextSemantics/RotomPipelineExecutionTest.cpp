@@ -93,8 +93,8 @@ TEST(RotomPipelineExecutionTest, RectangularMatmulMatchesReference) {
   MLIRContext context;
   initContext(context);
   OwningOpRef<ModuleOp> module = openfhe::parse(&context, R"mlir(
-#layout_lhs = #rotom.layout<dims = [#rotom.dim<dim = 0, size = 2>, #rotom.dim<dim = 1, size = 4>], n = 8>
-#layout_rhs = #rotom.layout<dims = [#rotom.dim<dim = 0, size = 4>, #rotom.dim<dim = 1, size = 2>], n = 8>
+#layout_lhs = #rotom.layout<dims = [#rotom.dim<[0:2:1]>, #rotom.dim<[1:4:1]>], n = 8>
+#layout_rhs = #rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[1:2:1]>], n = 8>
 #seed_lhs = #rotom.seed<layouts = [#layout_lhs]>
 #seed_rhs = #rotom.seed<layouts = [#layout_rhs]>
 
@@ -172,8 +172,8 @@ TEST(RotomPipelineExecutionTest, ElementwiseAddAndMulMatchReference) {
   MLIRContext context;
   initContext(context);
   OwningOpRef<ModuleOp> module = openfhe::parse(&context, R"mlir(
-#layout_a = #rotom.layout<dims = [#rotom.dim<dim = 0, size = 4>, #rotom.dim<dim = 1, size = 4>], n = 16>
-#layout_b = #rotom.layout<dims = [#rotom.dim<dim = 1, size = 4>, #rotom.dim<dim = 0, size = 4>], n = 16>
+#layout_a = #rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[1:4:1]>], n = 16>
+#layout_b = #rotom.layout<dims = [#rotom.dim<[1:4:1]>, #rotom.dim<[0:4:1]>], n = 16>
 #seed_a = #rotom.seed<layouts = [#layout_a]>
 #seed_b = #rotom.seed<layouts = [#layout_b]>
 
