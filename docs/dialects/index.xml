@@ -2456,7 +2456,7 @@ key generation, encryption, and decryption. Note: for test purposes only.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Calls encoder.Encode(pt, level, scale, message). The message is a vector
 of complex numbers (or reals). &lt;code>scale&lt;/code> is the C++ &lt;code>double&lt;/code> value used by
 CHEDDAR&amp;rsquo;s Encoder.&lt;/p>
-&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>PlaintextEncodeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="attributes">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -6312,7 +6312,7 @@ using the jaxiteword parameters and encoding scheme.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `jaxiteword.encode` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>PlaintextEncodeOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-5">Operands:&lt;/h4>
 &lt;table>
@@ -7782,7 +7782,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/code>&lt;/pre>&lt;p>This operation encodes a plaintext value using the specified encoder in the Lattigo BGV dialect.&lt;/p>
 &lt;p>The input value tensor should have elements of integer type.&lt;/p>
 &lt;p>The &lt;code>scale&lt;/code> attribute indicates the scaling factor for encoding.&lt;/p>
-&lt;p>Interfaces: &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>PlaintextEncodeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="attributes">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -8794,7 +8794,7 @@ evaluator, calls the evaluation routine with a given target scale.&lt;/p>
 &lt;p>The input value tensor should have elements of float type or complex type.&lt;/p>
 &lt;p>The &lt;code>scale&lt;/code> attribute indicates the scaling factor for encoding.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InPlaceOpInterface&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>PlaintextEncodeOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-6">Attributes:&lt;/h4>
 &lt;table>
@@ -10897,7 +10897,7 @@ bits of the cleartext should be encoded into the plaintext.&lt;/p>
 &lt;p>Examples:&lt;/p>
 &lt;pre tabindex="0">&lt;code>%Y = lwe.encode %value {plaintext_bits = 3}: i1 to !lwe.lwe_plaintext&amp;lt;plaintext_space = #space&amp;gt;
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>PlaintextEncodeOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-1">Attributes:&lt;/h4>
 &lt;table>
@@ -11390,7 +11390,7 @@ applied.&lt;/p>
 &lt;p>Examples:&lt;/p>
 &lt;pre tabindex="0">&lt;code>%Y = lwe.rlwe_encode %value {encoding = #enc, ring = #ring}: i16 to !lwe.rlwe_plaintext&amp;lt;encoding = #enc, ring = #ring&amp;gt;
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>ElementwiseByOperandOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>ElementwiseByOperandOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>PlaintextEncodeOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-5">Attributes:&lt;/h4>
 &lt;table>
@@ -13816,7 +13816,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `openfhe.make_ckks_packed_plaintext` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>PlaintextEncodeOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-22">Operands:&lt;/h4>
 &lt;table>
@@ -13856,7 +13856,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `openfhe.make_packed_plaintext` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>PlaintextEncodeOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-23">Operands:&lt;/h4>
 &lt;table>
