@@ -5,13 +5,11 @@
 
 #include "lib/Dialect/BGV/Conversions/BGVToLWE/BGVToLWE.h"
 #include "lib/Dialect/CKKS/Transforms/CKKSToLWE.h"
-#include "lib/Dialect/Debug/Transforms/Passes.h"
 #include "lib/Dialect/Debug/Transforms/ValidateNames.h"
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h"
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
 #include "lib/Dialect/LWE/Transforms/AddDebugPort.h"
 #include "lib/Dialect/LWE/Transforms/ImplementTrivialEncryptionAsAddition.h"
-#include "lib/Dialect/Lattigo/Transforms/AllocToInPlace.h"
 #include "lib/Dialect/Lattigo/Transforms/ConfigureCryptoContext.h"
 #include "lib/Dialect/Openfhe/Transforms/AllocToInPlace.h"
 #include "lib/Dialect/Openfhe/Transforms/ConfigureCryptoContext.h"
@@ -49,6 +47,7 @@
 #include "lib/Transforms/LayoutOptimization/LayoutOptimization.h"
 #include "lib/Transforms/LayoutPropagation/LayoutPropagation.h"
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
+#include "lib/Transforms/LinalgFuseLinearOps/LinalgFuseLinearOps.h"
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
 #include "lib/Transforms/PopulateScale/PopulateScale.h"
@@ -63,9 +62,10 @@
 #include "lib/Transforms/ValidateNoise/ValidateNoise.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Transforms/Passes.h"  // from @llvm-project
-#include "mlir/include/mlir/Pass/PassManager.h"   // from @llvm-project
-#include "mlir/include/mlir/Pass/PassOptions.h"   // from @llvm-project
-#include "mlir/include/mlir/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"       // from @llvm-project
+#include "mlir/include/mlir/Pass/PassOptions.h"       // from @llvm-project
+#include "mlir/include/mlir/Transforms/Passes.h"      // from @llvm-project
 
 namespace mlir::heir {
 
@@ -219,10 +219,9 @@ void mlirToPlaintextPipelineBuilder(OpPassManager& pm,
   mlirToRLWEPipelineOptions.ciphertextDegree = options.plaintextSize;
   mlirToSecretArithmeticPipelineBuilder(pm, mlirToRLWEPipelineOptions);
 
-  if (options.debug) {
-    // Insert debug handler calls
-    pm.addPass(secret::createSecretAddDebugPort());
-  }
+  // Insert debug handler calls and/or lower debug.validate
+  pm.addPass(secret::createSecretAddDebugPort(secret::SecretAddDebugPortOptions{
+      .insertDebugAfterEveryOp = options.debug}));
 
   pm.addPass(secret::createSecretDistributeGeneric());
   pm.addPass(createCanonicalizerPass());
@@ -409,9 +408,15 @@ void mlirToRLWEPipeline(OpPassManager& pm,
       exit(EXIT_FAILURE);
   }
 
+  // Lower debug.validate ops to function calls with private key
+  pm.addPass(lwe::createAddDebugPort(
+      lwe::AddDebugPortOptions{.messageSize = (int)options.ciphertextDegree,
+                               .insertDebugAfterEveryOp = options.debug}));
+
   pm.addPass(createForwardInsertToExtract());
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
+  pm.addPass(createSymbolDCEPass());
 
   // TODO(#2554): skip this pass if the backend supports trivial encryption
   pm.addPass(lwe::createImplementTrivialEncryptionAsAddition());
@@ -457,11 +462,11 @@ BackendPipelineBuilder toOpenFhePipelineBuilder() {
     pm.addPass(ckks::createCKKSToLWE());
 
     // insert debug handler calls
-    if (options.debug) {
-      lwe::AddDebugPortOptions addDebugPortOptions;
-      addDebugPortOptions.entryFunction = options.entryFunction;
-      pm.addPass(lwe::createAddDebugPort(addDebugPortOptions));
-    }
+    lwe::AddDebugPortOptions addDebugPortOptions{
+        .entryFunction = options.entryFunction,
+        .insertDebugAfterEveryOp = options.debug,
+    };
+    pm.addPass(lwe::createAddDebugPort(addDebugPortOptions));
 
     // Convert LWE (and scheme-specific CKKS/BGV ops) to OpenFHE
     pm.addPass(lwe::createLWEToOpenfhe());
@@ -499,11 +504,11 @@ BackendPipelineBuilder toLattigoPipelineBuilder() {
     pm.addPass(ckks::createCKKSToLWE());
 
     // insert debug handler calls
-    if (options.debug) {
-      lwe::AddDebugPortOptions addDebugPortOptions;
-      addDebugPortOptions.entryFunction = options.entryFunction;
-      pm.addPass(lwe::createAddDebugPort(addDebugPortOptions));
-    }
+    lwe::AddDebugPortOptions addDebugPortOptions{
+        .entryFunction = options.entryFunction,
+        .insertDebugAfterEveryOp = options.debug,
+    };
+    pm.addPass(lwe::createAddDebugPort(addDebugPortOptions));
 
     // Convert LWE (and scheme-specific BGV ops) to Lattigo
     pm.addPass(lwe::createLWEToLattigo());
@@ -526,6 +531,13 @@ BackendPipelineBuilder toLattigoPipelineBuilder() {
     pm.addPass(createCSEPass());
     pm.addPass(createCanonicalizerPass());
     pm.addPass(createSymbolDCEPass());
+
+    // Bufferize without deallocation because golang has garbage collection.
+    prepareForBufferize(pm);
+    oneShotBufferize(pm, /*includeDeallocation=*/false);
+
+    // Lower Linalg to loops
+    pm.addNestedPass<func::FuncOp>(createConvertLinalgToLoopsPass());
   };
 }
 
@@ -533,6 +545,7 @@ void linalgPreprocessingBuilder(OpPassManager& manager) {
   manager.addPass(createInlineActivations());
   manager.addPass(createActivationCanonicalizations());
   manager.addPass(createLinalgCanonicalizations());
+  manager.addPass(createLinalgFuseLinearOpsPass());
   manager.addPass(createDropUnitDims());
   manager.addPass(createFoldConstantTensors());
   manager.addPass(createCanonicalizerPass());
@@ -557,6 +570,17 @@ void torchLinalgToCkksBuilder(OpPassManager& manager,
   suboptions.splitPreprocessing = options.splitPreprocessing;
   suboptions.experimentalDisableLoopUnroll =
       options.experimentalDisableLoopUnroll;
+  suboptions.usePublicKey = options.usePublicKey;
+  suboptions.encryptionTechniqueExtended = options.encryptionTechniqueExtended;
+  suboptions.modulusSwitchAfterMul = options.modulusSwitchAfterMul;
+  suboptions.modulusSwitchBeforeFirstMul = options.modulusSwitchBeforeFirstMul;
+  suboptions.plaintextModulus = options.plaintextModulus;
+  suboptions.noiseModel = options.noiseModel;
+  suboptions.annotateNoiseBound = options.annotateNoiseBound;
+  suboptions.bfvModBits = options.bfvModBits;
+  suboptions.levelBudget = options.levelBudget;
+  suboptions.plaintextExecutionResultFileName =
+      options.plaintextExecutionResultFileName;
 
   mlirToRLWEPipelineBuilder(mlir::heir::RLWEScheme::ckksScheme)(manager,
                                                                 suboptions);

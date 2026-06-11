@@ -7,10 +7,12 @@
 #include "lib/Target/OpenFhePke/OpenFheUtils.h"
 #include "lib/Utils/TargetUtils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"   // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
@@ -74,34 +76,48 @@ LogicalResult OpenFhePkeDebugEmitter::printOperation(ModuleOp moduleOp) {
   return success();
 }
 
-LogicalResult OpenFhePkeDebugEmitter::emitDebugHelperImpl() {
-  os << "auto " << kIsBlockArgVar << " = " << kDebugAttrMapParam
-     << ".at(\"asm.is_block_arg\");\n";
+LogicalResult OpenFhePkeDebugEmitter::emitDebugHelperImpl(Type ctType,
+                                                          Location loc) {
+  os << llvm::formatv(kDebugBlockArgCheckTemplate.data(), kIsBlockArgVar,
+                      kDebugAttrMapParam);
 
-  os << llvm::formatv("if ({0} == \"1\") {{\n", kIsBlockArgVar);
-  os.indent();
-  os << "std::cout << \"Input\" << std::endl;\n";
-  os.unindent();
-  os << "}";
-  os << llvm::formatv(" else {{\n");
-  os.indent();
-  os << "std::cout" << " " << "<< ";
-  os << kDebugAttrMapParam << ".at" << "(\"asm.op_name\") << std::endl;\n";
-  os.unindent();
-  os << "}\n";
-  os << "\n";
+  auto emitDecrypt = [&](llvm::StringRef ciphertextAccess) {
+    os << llvm::formatv(kDebugDecryptTemplate.data(), kPlaintxtVar, kCctxtVar,
+                        kPrivKeyTVar, ciphertextAccess, kDebugAttrMapParam);
+  };
 
-  os << "PlaintextT " << kPlaintxtVar << ";\n";
-  os << kCctxtVar << "->Decrypt(" << kPrivKeyTVar << ", " << kCiphertxtVar
-     << ", &" << kPlaintxtVar << ");\n";
-  os << kPlaintxtVar << "->SetLength(std::stod(" << kDebugAttrMapParam
-     << ".at(\"message.size\")));\n";
-  os << "std::cout << \"  \" << " << kPlaintxtVar << " << std::endl;\n";
+  if (llvm::isa<RankedTensorType>(ctType)) {
+    os << "for (size_t i = 0; i < " << kCiphertxtVar << ".size(); ++i) {\n";
+    os.indent();
+    os << "if (" << kCiphertxtVar
+       << ".size() > 1) std::cout << \"Tensor index \" << i << \":\" << "
+          "std::endl;\n";
+    emitDecrypt(llvm::formatv("{0}[i]", kCiphertxtVar).str());
+    os.unindent();
+    os << "}\n";
+  } else {
+    emitDecrypt(kCiphertxtVar);
+  }
+
   return success();
 }
 
 LogicalResult OpenFhePkeDebugEmitter::printOperation(func::FuncOp funcOp) {
-  if ((!isDebugPort(funcOp.getName())) || isEmitted) {
+  if (!isDebugPort(funcOp.getName())) {
+    return success();
+  }
+
+  auto argTypes = funcOp.getArgumentTypes();
+  if (argTypes.size() != 3) {
+    return emitError(funcOp.getLoc(), "Unexpected debug port signature");
+  }
+  auto ctTy = convertType(argTypes[2], funcOp.getLoc());
+  if (failed(ctTy)) {
+    return emitError(funcOp.getLoc(), "Failed to convert type");
+  }
+
+  std::string sig = ctTy.value();
+  if (!emittedSignatures.insert(sig).second) {
     return success();
   }
 
@@ -116,23 +132,19 @@ LogicalResult OpenFhePkeDebugEmitter::printOperation(func::FuncOp funcOp) {
 
   os << " {\n";
   os.indent();
-  res = emitDebugHelperImpl();
+  res = emitDebugHelperImpl(argTypes[2], funcOp.getLoc());
   if (failed(res)) {
     return res;
   }
   os.unindent();
   os << "}\n";
-  isEmitted = true;
   return success();
 }
 
 OpenFhePkeDebugEmitter::OpenFhePkeDebugEmitter(
     raw_ostream& os, OpenfheImportType importType,
     const std::string& debugImportPath)
-    : importType_(importType),
-      os(os),
-      debugImportPath(debugImportPath),
-      isEmitted(false) {}
+    : importType_(importType), os(os), debugImportPath(debugImportPath) {}
 
 }  // namespace openfhe
 }  // namespace heir

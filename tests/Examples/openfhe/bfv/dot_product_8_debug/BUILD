@@ -8,6 +8,7 @@ openfhe_end_to_end_test(
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=bfv",
         "--mlir-to-bfv=ciphertext-degree=8192 annotate-noise-bound=true",
+        "--lwe-add-debug-port=insert-debug-after-every-op=true",
         "--scheme-to-openfhe=insert-debug-handler-calls=true",
     ],
     heir_translate_flags = [
@@ -20,13 +21,17 @@ openfhe_end_to_end_test(
 
 openfhe_end_to_end_test(
     name = "dot_product_8_default_debug_test",
-    generate_debug_helper = True,
     generated_lib_header = "dot_product_8_default_debug_lib.h",
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=bfv",
         "--mlir-to-bfv=ciphertext-degree=8192 annotate-noise-bound=true",
+        "--lwe-add-debug-port=insert-debug-after-every-op=true",
         "--scheme-to-openfhe=insert-debug-handler-calls=true",
+    ],
+    heir_translate_flags = [
+        "--openfhe-debug-helper-include-path=tests/Examples/openfhe/bfv/debug_helper.h",
     ],
     mlir_src = "@heir//tests/Examples/common:dot_product_8.mlir",
     test_src = "dot_product_8_default_debug_test.cpp",
+    deps = ["@heir//tests/Examples/openfhe/bfv:debug_helper"],
 )

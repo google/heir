@@ -67,7 +67,7 @@ void __heir_debug(CryptoContextT cc, PrivateKeyT sk, CiphertextT ct,
 #ifdef DECRYPT
   PlaintextT ptxt;
   cc->Decrypt(sk, ct, &ptxt);
-  ptxt->SetLength(std::stod(debugAttrMap.at("message.size")));
+  ptxt->SetLength(std::stoul(debugAttrMap.at("message.size")));
   std::cout << "  " << ptxt << std::endl;
 #endif
 
@@ -106,4 +106,12 @@ void __heir_debug(CryptoContextT cc, PrivateKeyT sk, CiphertextT ct,
               << "  gap: " << noiseBound - noise << std::endl;
   }
 #endif
+}
+
+void __heir_debug(CryptoContextT cc, PrivateKeyT sk,
+                  std::vector<CiphertextT> cts,
+                  const std::map<std::string, std::string>& debugAttrMap) {
+  if (!cts.empty()) {
+    __heir_debug(cc, sk, cts[0], debugAttrMap);
+  }
 }

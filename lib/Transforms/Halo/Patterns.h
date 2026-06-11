@@ -60,8 +60,6 @@ struct BootstrapIterArgsPattern : public OpRewritePattern<T> {
 
     for (auto [i, init] : llvm::enumerate(forOp.getInits())) {
       bool secret = isSecret(init, solver);
-      llvm::errs() << "BootstrapIterArgsPattern: init " << i
-                   << " secret=" << secret << "\n";
       if (secret) {
         secretInitIndices.push_back(i);
       }
@@ -86,8 +84,6 @@ struct BootstrapIterArgsPattern : public OpRewritePattern<T> {
     rewriter.setInsertionPointToStart(forOp.getBody());
     for (auto i : secretInitIndices) {
       Value iterArg = forOp.getRegionIterArgs()[i];
-      llvm::errs() << "BootstrapIterArgsPattern: inserting bootstrap for arg "
-                   << i << "\n";
       auto bootstrapOp =
           mgmt::BootstrapOp::create(rewriter, forOp.getLoc(), iterArg);
       rewriter.replaceAllUsesExcept(iterArg, bootstrapOp.getResult(),

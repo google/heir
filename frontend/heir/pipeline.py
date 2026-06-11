@@ -16,7 +16,6 @@ from numba.core.types import Type as NumbaType
 from numba.core.types.misc import NoneType
 
 from heir.backends.cleartext import CleartextBackend
-from heir.backends.openfhe import OpenFHEBackend, config as openfhe_config
 from heir.backends.util.common import is_pip_installed
 from heir.heir_cli import heir_cli, heir_cli_config
 from heir.heir_cli.heir_cli import CLIError
@@ -323,6 +322,12 @@ def compile(
       config = heir_cli_config.from_os_env()
 
   if not backend:
+    # Imported lazily so that other backends work without the [openfhe] extra.
+    from heir import _extras  # pylint: disable=g-import-not-at-top
+
+    _extras.require("pybind11", extra="openfhe")
+    from heir.backends.openfhe import OpenFHEBackend, config as openfhe_config  # pylint: disable=g-import-not-at-top
+
     if is_pip_installed():
       backend = OpenFHEBackend(openfhe_config.from_pip_installation())
     else:

@@ -197,7 +197,7 @@ def BGV_RelinearizeOp : BGV_Op<"relinearize", [ElementwiseMappable,
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
-def BGV_ModulusSwitchOp : BGV_Op<"modulus_switch", [ElementwiseMappable]> {
+def BGV_ModulusSwitchOp : BGV_Op<"modulus_switch", [ElementwiseMappable, ReducesLevelOpInterface]> {
   let summary = "Lower the modulus level of the ciphertext via modulus switching.";
 
   let arguments = (ins
@@ -213,7 +213,11 @@ def BGV_ModulusSwitchOp : BGV_Op<"modulus_switch", [ElementwiseMappable]> {
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
-def BGV_LevelReduceOp : BGV_Op<"level_reduce", [ElementwiseMappable, SameOperandsAndResultPlaintextTypes]> {
+def BGV_LevelReduceOp : BGV_Op<"level_reduce", [
+  ElementwiseMappable,
+  SameOperandsAndResultPlaintextTypes,
+  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop"]>
+]> {
   let summary = "Lower the modulus level of the ciphertext via dropping RNS limbs.";
 
   let arguments = (ins

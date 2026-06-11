@@ -1,3 +1,7 @@
+#include <optional>
+
+#include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
+#include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #ifndef LIB_UTILS_ALLOCTOINPLACEUTILS_H_
 #define LIB_UTILS_ALLOCTOINPLACEUTILS_H_
 
@@ -6,11 +10,14 @@
 #include <utility>
 
 #include "lib/Utils/Tablegen/InPlaceOpInterface.h"
-#include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
-#include "mlir/include/mlir/Analysis/Liveness.h"        // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
+#include "mlir/include/mlir/Analysis/Liveness.h"         // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Dominance.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 
 // This library contains helpers for passes in HEIR that involve converting
 // space-allocating operations to in-place variants. Cf., for example,
@@ -20,6 +27,30 @@
 
 namespace mlir {
 namespace heir {
+
+static std::optional<LevelState> getLevel(Value value, DataFlowSolver* solver) {
+  auto* lattice = solver->lookupState<LevelLattice>(value);
+  if (!lattice || !lattice->getValue().isInitialized()) {
+    return std::nullopt;
+  }
+  auto latticeVal = lattice->getValue();
+  if (!latticeVal.isInt()) {
+    return std::nullopt;
+  }
+  return lattice->getValue().getInt();
+}
+
+static bool isStored(Value value) {
+  for (auto& use : value.getUses()) {
+    if (isa<memref::StoreOp>(use.getOwner()) ||
+        isa<tensor::InsertOp>(use.getOwner())) {
+      if (use.getOperandNumber() == 0) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
 
 // CallerProvidedStorageInfo provides an analysis of SSA values that
 // can be reused for in-place operations that require the caller to pass
@@ -104,11 +135,35 @@ class CallerProvidedStorageInfo {
   // various accelerators. One basic optimization is to use the dead value that
   // is closest to the current operation in the block. But as we do not have the
   // information of the memory layout, we do not implement this optimization.
-  Value getAvailableStorage(Operation* op, Liveness* liveness) const {
+  Value getAvailableStorage(Operation* op, Liveness* liveness,
+                            DominanceInfo* domInfo,
+                            DataFlowSolver* solver) const {
     LLVM_DEBUG(llvm::dbgs()
                << "getAvailableStorage for op " << op->getName() << "\n");
     for (auto& [storage, values] : storageToReferringValues) {
+      LLVM_DEBUG(llvm::dbgs() << "Checking storage: " << storage << "\n");
+      if (domInfo && !domInfo->properlyDominates(storage, op)) {
+        LLVM_DEBUG(llvm::dbgs() << "Storage does not properly dominate op\n");
+        continue;
+      }
+      if (isStored(storage)) {
+        LLVM_DEBUG(llvm::dbgs() << "Storage is stored\n");
+        continue;
+      }
       // storage and all referring values are dead
+      if (solver) {
+        auto opLevel = getLevel(op->getResult(0), solver);
+        auto storageLevel = getCurrentStorageLevel(storage, solver);
+        if (!opLevel.has_value() || !storageLevel.has_value()) {
+          continue;
+        }
+        // LevelState stores depth (levels consumed, 0 to L).
+        // We cannot reuse storage if it has already consumed more levels than
+        // the op expects. i.e., storage depth > op depth.
+        if (storageLevel->getInt() > opLevel->getInt()) {
+          continue;
+        }
+      }
       if (std::all_of(
               values.begin(), values.end(),
               [&](Value value) { return liveness->isDeadAfter(value, op); }) &&
@@ -138,6 +193,15 @@ class CallerProvidedStorageInfo {
   }
 
  private:
+  std::optional<LevelState> getCurrentStorageLevel(
+      Value storage, DataFlowSolver* solver) const {
+    auto it = storageToReferringValues.find(storage);
+    if (it == storageToReferringValues.end() || it->second.empty()) {
+      return getLevel(storage, solver);
+    }
+    return getLevel(it->second.back(), solver);
+  }
+
   DenseMap<Value, SmallVector<Value>> storageToReferringValues;
 };
 
@@ -158,27 +222,27 @@ initializeAllocToInPlaceBlockStorage(Operation* op) {
           storageInfo.addStorage(arg);
         }
       }
-      block.walk<WalkOrder::PreOrder>([&](Operation* op) {
+      for (Operation& op : block.getOperations()) {
         // inplace op will not allocate new memory, it produces referring
         // values
-        if (auto inplaceOpInterface = mlir::dyn_cast<InPlaceOpInterface>(op)) {
+        if (auto inplaceOpInterface = mlir::dyn_cast<InPlaceOpInterface>(&op)) {
           auto inplaceOperand =
-              op->getOperand(inplaceOpInterface.getInPlaceOperandIndex());
+              op.getOperand(inplaceOpInterface.getInPlaceOperandIndex());
           auto storage = storageInfo.getStorageFromValue(inplaceOperand);
           if (storage) {
-            for (auto result : op->getResults()) {
+            for (auto result : op.getResults()) {
               storageInfo.addReferringValue(storage, result);
             }
           }
         } else {
           // alloc op results are storages
-          for (auto result : op->getResults()) {
+          for (auto result : op.getResults()) {
             if (mlir::isa<T>(result.getType())) {
               storageInfo.addStorage(result);
             }
           }
         }
-      });
+      }
     }
   });
 

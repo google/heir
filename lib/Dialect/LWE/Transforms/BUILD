@@ -13,6 +13,7 @@ cc_library(
     ],
     deps = [
         ":AddDebugPort",
+        ":DecomposeKeySwitch",
         ":ImplementTrivialEncryptionAsAddition",
         ":pass_inc_gen",
         "@heir//lib/Dialect/LWE/IR:Dialect",
@@ -27,15 +28,33 @@ cc_library(
     ],
     deps = [
         ":pass_inc_gen",
+        "@heir//lib/Dialect/Debug/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
-        "@heir//lib/Dialect/TensorExt/IR:Dialect",
-        "@heir//lib/Utils:TransformUtils",
+        "@heir//lib/Utils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:FuncDialect",
-        "@llvm-project//mlir:FunctionInterfaces",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
+    ],
+)
+
+cc_library(
+    name = "DecomposeKeySwitch",
+    srcs = ["DecomposeKeySwitch.cpp"],
+    hdrs = ["DecomposeKeySwitch.h"],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@heir//lib/Dialect/ModArith/IR:Dialect",
+        "@heir//lib/Dialect/RNS/IR:Dialect",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
+        "@llvm-project//mlir:TransformUtils",
     ],
 )
 

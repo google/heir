@@ -23,15 +23,19 @@ cc_library(
     hdrs = ["AllocToInPlace.h"],
     deps = [
         ":pass_inc_gen",
+        "@heir//lib/Analysis/LevelAnalysis",
+        "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect/Lattigo/IR:Dialect",
         "@heir//lib/Utils:AllocToInPlaceUtils",
-        "@heir//lib/Utils/Tablegen:InPlaceOpInterface",
+        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:MemRefDialect",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TransformUtils",
+        "@llvm-project//mlir:ValueBoundsOpInterface",
     ],
 )
 
@@ -62,4 +66,15 @@ add_heir_transforms(
     header_filename = "Passes.h.inc",
     pass_name = "Lattigo",
     td_file = "Passes.td",
+)
+
+cc_library(
+    name = "BufferizableOpInterfaceImpl",
+    srcs = ["BufferizableOpInterfaceImpl.cpp"],
+    hdrs = ["BufferizableOpInterfaceImpl.h"],
+    deps = [
+        "@heir//lib/Dialect/Lattigo/IR:Dialect",
+        "@llvm-project//mlir:BufferizationInterfaces",
+        "@llvm-project//mlir:IR",
+    ],
 )

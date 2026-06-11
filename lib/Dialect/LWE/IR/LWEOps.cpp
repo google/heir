@@ -226,6 +226,36 @@ LogicalResult ExtractSliceOp::verify() {
   return verifyExtractSliceOp(this, rnsType, start, size);
 }
 
+LogicalResult KeySwitchInnerOp::verify() {
+  RankedTensorType keyTensorType = getKeySwitchingKey().getType();
+  auto ctType =
+      dyn_cast<lwe::LWECiphertextType>(keyTensorType.getElementType());
+  if (!ctType) {
+    return emitOpError() << "KSKs must be a tensor of Ciphertexts";
+  }
+  polynomial::RingAttr ringType = ctType.getCiphertextSpace().getRing();
+  auto keyRNSType = dyn_cast<rns::RNSType>(ringType.getCoefficientType());
+  if (!keyRNSType) {
+    return emitOpError() << "Keyswitch key must be a ring element of RNS types";
+  }
+
+  auto ringEltType = cast<lwe::LWERingEltType>(getValue().getType());
+  auto inputRNSType =
+      dyn_cast<rns::RNSType>(ringEltType.getRing().getCoefficientType());
+  if (!inputRNSType) {
+    return emitOpError() << "Value must be a ring element of RNS types";
+  }
+
+  int kskRank = keyTensorType.getRank();
+  if (kskRank != 1) {
+    return emitOpError()
+           << "KeySwitchingKey must be a rank-1 tensor, but it has rank  "
+           << kskRank;
+  }
+
+  return success();
+}
+
 //===----------------------------------------------------------------------===//
 // Op type inference.
 //===----------------------------------------------------------------------===//
@@ -313,6 +343,17 @@ LogicalResult ConvertBasisOp::inferReturnTypes(
   lwe::LWERingEltType resultType =
       lwe::LWERingEltType::get(ctx, outputRingAttr);
   results.push_back(resultType);
+  return success();
+}
+
+LogicalResult KeySwitchInnerOp::inferReturnTypes(
+    MLIRContext* ctx, std::optional<Location>, ValueRange operands,
+    DictionaryAttr attrs, mlir::PropertyRef properties,
+    mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
+  KeySwitchInnerOpAdaptor op(operands, attrs, properties, regions);
+  auto ringEltType = cast<lwe::LWERingEltType>(op.getValue().getType());
+  results.push_back(ringEltType);
+  results.push_back(ringEltType);
   return success();
 }
 

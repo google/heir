@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "lib/Dialect/Debug/IR/DebugOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
@@ -26,7 +27,6 @@
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinOps.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"        // from @llvm-project
@@ -527,24 +527,24 @@ void addSecretToSchemeDefaultConversionTargetsAndPatterns(
   target.markUnknownOpDynamicallyLegal(
       [&](Operation* op) { return !hasSecretOperandsOrResults(op); });
 
-  patterns.add<SecretGenericOpIdentityConversion<arith::ExtUIOp>,
-               SecretGenericOpIdentityConversion<arith::ExtSIOp>,
-               SecretGenericOpIdentityConversion<arith::FPToSIOp>,
-               SecretGenericOpIdentityConversion<arith::FPToUIOp>,
-               SecretGenericOpIdentityConversion<arith::SIToFPOp>,
-               SecretGenericOpIdentityConversion<arith::UIToFPOp>,
-               SecretGenericOpConversion<tensor::EmptyOp, tensor::EmptyOp>,
-               SecretGenericFuncCallConversion, ConvertExtractSlice,
-               ConvertInsertSlice, ConvertAnyContextAware<affine::AffineForOp>,
-               ConvertAnyContextAware<affine::AffineIfOp>,
-               ConvertAnyContextAware<affine::AffineYieldOp>,
-               ConvertAnyContextAware<scf::ForOp>,
-               ConvertAnyContextAware<scf::IfOp>,
-               ConvertAnyContextAware<scf::YieldOp>,
-               ConvertAnyContextAware<tensor::ExtractOp>,
-               ConvertAnyContextAware<tensor::InsertOp>,
-               ConvertAnyContextAware<func::CallOp>>(typeConverter,
-                                                     patterns.getContext());
+  patterns.add<
+      ConvertAnyContextAware<affine::AffineForOp>,
+      ConvertAnyContextAware<affine::AffineIfOp>,
+      ConvertAnyContextAware<affine::AffineYieldOp>,
+      ConvertAnyContextAware<func::CallOp>, ConvertAnyContextAware<scf::ForOp>,
+      ConvertAnyContextAware<scf::IfOp>, ConvertAnyContextAware<scf::YieldOp>,
+      ConvertAnyContextAware<tensor::ExtractOp>,
+      ConvertAnyContextAware<tensor::InsertOp>,
+      SecretGenericOpConversion<debug::ValidateOp>, ConvertExtractSlice,
+      ConvertInsertSlice, SecretGenericFuncCallConversion,
+      SecretGenericOpConversion<tensor::EmptyOp, tensor::EmptyOp>,
+      SecretGenericOpIdentityConversion<arith::ExtSIOp>,
+      SecretGenericOpIdentityConversion<arith::ExtUIOp>,
+      SecretGenericOpIdentityConversion<arith::FPToSIOp>,
+      SecretGenericOpIdentityConversion<arith::FPToUIOp>,
+      SecretGenericOpIdentityConversion<arith::SIToFPOp>,
+      SecretGenericOpIdentityConversion<arith::UIToFPOp>>(
+      typeConverter, patterns.getContext());
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
 }

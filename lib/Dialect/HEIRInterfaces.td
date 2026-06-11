@@ -44,6 +44,60 @@ def ResetsMulDepthOpInterface : OpInterface<"ResetsMulDepthOpInterface"> {
   }];
 }
 
+def ResetsLevelOpInterface : OpInterface<"ResetsLevelOpInterface"> {
+  let cppNamespace = "::mlir::heir";
+  let description = [{
+    An interface that signals when an operation resets level
+    among its results, such as a `mgmt.bootstrap`.
+  }];
+
+  let methods = [
+    InterfaceMethod<
+      /*desc=*/"Return the OpOperand whose level is reset.",
+      /*retTy=*/"::mlir::OpOperand&",
+      /*methodName=*/"getOperandToReset",
+      /*args=*/(ins ),
+      /*body=*/[{}],
+      /*defaultBody=*/[{ return $_op->getOpOperand(0); }]
+    >
+  ];
+}
+
+def ReducesLevelOpInterface : OpInterface<"ReducesLevelOpInterface"> {
+  let cppNamespace = "::mlir::heir";
+  let description = [{
+    An interface that signals when an operation reduces level
+    among its results, such as a `mgmt.mod_reduce` or `ckks.rescale`.
+  }];
+
+  let methods = [
+    InterfaceMethod<
+      /*desc=*/"Return the number of levels to reduce by.",
+      /*retTy=*/"int",
+      /*methodName=*/"getLevelsToDrop",
+      /*args=*/(ins ),
+      /*body=*/[{}],
+      /*defaultBody=*/[{ return 1; }]
+    >,
+    InterfaceMethod<
+      /*desc=*/"Return the OpOperand whose level is reduced.",
+      /*retTy=*/"::mlir::OpOperand&",
+      /*methodName=*/"getOperandToReduce",
+      /*args=*/(ins ),
+      /*body=*/[{}],
+      /*defaultBody=*/[{ return $_op->getOpOperand(0); }]
+    >
+  ];
+}
+
+def ReducesAllLevelsOpInterface : OpInterface<"ReducesAllLevelsOpInterface"> {
+  let cppNamespace = "::mlir::heir";
+  let description = [{
+    An interface that signals when an operation reduces all level
+    among its results, such as a `mgmt.level_reduce_min`.
+  }];
+}
+
 def LUTOpInterface : OpInterface<"LUTOpInterface"> {
   let cppNamespace = "::mlir::heir";
   let description = [{

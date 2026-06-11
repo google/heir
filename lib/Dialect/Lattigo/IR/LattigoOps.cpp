@@ -1,5 +1,7 @@
 #include "lib/Dialect/Lattigo/IR/LattigoOps.h"
 
+#include <cstdint>
+
 #include "lib/Dialect/Lattigo/IR/LattigoTypes.h"
 #include "lib/Utils/RotationUtils.h"
 #include "lib/Utils/Utils.h"
@@ -7,6 +9,7 @@
 #include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
 
 namespace mlir {
@@ -45,6 +48,34 @@ LogicalResult RLWENewEncryptorOp::verify() {
         "encryption key and encryptor must have the same public/secret type");
   }
   return success();
+}
+
+int RLWEDropLevelNewOp::getLevelsToDrop() { return getLevelToDrop(); }
+
+int RLWEDropLevelOp::getLevelsToDrop() { return getLevelToDrop(); }
+
+::mlir::OpOperand& BGVRescaleNewOp::getOperandToReduce() {
+  return getOperation()->getOpOperand(1);
+}
+
+::mlir::OpOperand& BGVRescaleOp::getOperandToReduce() {
+  return getOperation()->getOpOperand(1);
+}
+
+::mlir::OpOperand& CKKSRescaleNewOp::getOperandToReduce() {
+  return getOperation()->getOpOperand(1);
+}
+
+::mlir::OpOperand& CKKSRescaleOp::getOperandToReduce() {
+  return getOperation()->getOpOperand(1);
+}
+
+::mlir::OpOperand& RLWEDropLevelNewOp::getOperandToReduce() {
+  return getOperation()->getOpOperand(1);
+}
+
+::mlir::OpOperand& RLWEDropLevelOp::getOperandToReduce() {
+  return getOperation()->getOpOperand(1);
 }
 
 LogicalResult BGVRotateColumnsNewOp::verify() {

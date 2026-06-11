@@ -1,3 +1,4 @@
+#include <cassert>
 #include <cstdint>
 #include <functional>
 #include <string>
@@ -99,6 +100,57 @@ static FailureOr<Value> implementAssignLayoutNew(
       createdOpCallback(constantOp);
       return constantOp.getResult();
     }
+  }
+
+  // If the input is a dense/splat constant, evaluate the relation on its
+  // elements at compile-time. This avoids generating a loop nest and evaluating
+  // the packing at runtime.
+  DenseElementsAttr constantAttr;
+  if (matchPattern(input, m_Constant(&constantAttr)) && dataSemanticType) {
+    int64_t numTargetElements = ciphertextSemanticType.getNumElements();
+
+    Type elemType = ciphertextSemanticType.getElementType();
+    Attribute zeroAttr = builder.getZeroAttr(elemType);
+    SmallVector<Attribute> packedValues(numTargetElements, zeroAttr);
+
+    auto ciphertextShape = ciphertextSemanticType.getShape();
+    assert(ciphertextShape.size() == 2 && "expected 2D target tensor for CKKS");
+
+    PointPairCollector collector(dataSemanticType.getRank(), /*rangeDims=*/2);
+    enumeratePoints(rel, collector);
+
+    for (const auto& pointPair : collector.points) {
+      const auto& domainPoint = pointPair.first;
+      const auto& rangePoint = pointPair.second;
+      int64_t ct = rangePoint[0];
+      int64_t slot = rangePoint[1];
+
+      Attribute valAttr;
+      if (constantAttr.isSplat()) {
+        valAttr = constantAttr.getSplatValue<Attribute>();
+      } else {
+        SmallVector<uint64_t> coord;
+        coord.reserve(domainPoint.size());
+        for (int64_t val : domainPoint) {
+          coord.push_back(static_cast<uint64_t>(val));
+        }
+        valAttr =
+            constantAttr
+                .getValues<Attribute>()[mlir::ElementsAttr::getFlattenedIndex(
+                    constantAttr.getType(), coord)];
+      }
+      int64_t flatIdx = ct * ciphertextShape[1] + slot;
+      if (flatIdx >= 0 && flatIdx < numTargetElements) {
+        packedValues[flatIdx] = valAttr;
+      }
+    }
+
+    auto packedConstantAttr = DenseElementsAttr::get(
+        ciphertextSemanticType, ArrayRef<Attribute>(packedValues));
+    auto constantOp = arith::ConstantOp::create(builder, builder.getLoc(),
+                                                packedConstantAttr);
+    createdOpCallback(constantOp);
+    return constantOp.getResult();
   }
 
   auto zeroOp =

@@ -36,14 +36,15 @@ System requirements:
    `heir-translate`.
 1. Create a virtualenv: `python3.11 -m venv venv`. It should also work with
    Python 3.12 and 3.13.
-1. Install the frontend: `pip install -e .` (if this fails, add `-v`). In this
-   case, the installed package will autodetect paths to relevant resources from
-   the bazel build.
+1. Install the frontend: `pip install -e ".[python,openfhe]"` (if this fails,
+   add `-v`). In this case, the installed package will autodetect paths to
+   relevant resources from the bazel build.
 
 ### Local pip installation
 
-1. Install: `pip install .`. This will run the bazel build, copy relevant files,
-   and install the package just like a wheel installed from PyPI.
+1. Install: `pip install ".[python,openfhe]"`. This will run the bazel build,
+   copy relevant files, and install the package just like a wheel installed from
+   PyPI.
 
 ## Environment Variables
 

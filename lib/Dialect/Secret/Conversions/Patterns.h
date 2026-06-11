@@ -1,6 +1,7 @@
 #ifndef LIB_DIALECT_SECRET_CONVERSIONS_PATTERNS_H_
 #define LIB_DIALECT_SECRET_CONVERSIONS_PATTERNS_H_
 
+#include "lib/Dialect/Debug/IR/DebugOps.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"

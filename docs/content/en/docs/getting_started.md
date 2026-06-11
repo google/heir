@@ -24,13 +24,14 @@ same way.
 ### Via pip
 
 We publish a python package [heir_py](https://pypi.org/project/heir-py/) that
-includes the `heir-opt` and `heir-translate` binaries.
+includes the `heir-opt` and `heir-translate` binaries and, optionally, front-
+and backends.
 
 ```
 python -m venv venv
 source venv/bin/activate
 
-pip install heir_py
+pip install "heir_py[python,openfhe]"
 
 heir-opt --help
 heir-translate --help

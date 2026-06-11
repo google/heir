@@ -7,7 +7,12 @@
 
 namespace mlir::heir {
 
-void oneShotBufferize(OpPassManager& manager);
+// Prepares IR for `oneShotBufferize` by wrapping elementwise tensor ops in
+// `linalg.generic` and expanding any residual affine/memref ops that
+// bufferization can't handle.
+void prepareForBufferize(OpPassManager& manager);
+
+void oneShotBufferize(OpPassManager& manager, bool includeDeallocation = true);
 
 void mathToPolynomialApproximationBuilder(OpPassManager& pm);
 

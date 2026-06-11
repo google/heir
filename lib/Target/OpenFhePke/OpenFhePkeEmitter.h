@@ -20,7 +20,8 @@
 #include "lib/Target/OpenFhePke/OpenFheUtils.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -104,6 +105,7 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(::mlir::arith::AddFOp op);
   LogicalResult printOperation(::mlir::arith::AndIOp op);
   LogicalResult printOperation(::mlir::arith::CmpIOp op);
+  LogicalResult printOperation(::mlir::arith::CmpFOp op);
   LogicalResult printOperation(::mlir::arith::ConstantOp op);
   LogicalResult printOperation(::mlir::arith::DivSIOp op);
   LogicalResult printOperation(::mlir::arith::ExtFOp op);
@@ -118,6 +120,8 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(::mlir::arith::RemSIOp op);
   LogicalResult printOperation(::mlir::arith::SelectOp op);
   LogicalResult printOperation(::mlir::arith::SubIOp op);
+  LogicalResult printOperation(::mlir::arith::SubFOp op);
+  LogicalResult printOperation(::mlir::arith::DivFOp op);
   LogicalResult printOperation(::mlir::scf::IfOp op);
   LogicalResult printOperation(::mlir::scf::ForOp op);
   LogicalResult printOperation(::mlir::scf::ForallOp op);
@@ -134,6 +138,7 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(::mlir::tensor::ParallelInsertSliceOp op);
   LogicalResult printOperation(::mlir::tensor::SplatOp op);
   LogicalResult printOperation(::mlir::tensor::FromElementsOp op);
+  LogicalResult printOperation(::mlir::cf::AssertOp op);
   LogicalResult printOperation(::mlir::func::FuncOp op);
   LogicalResult printOperation(::mlir::func::CallOp op);
   LogicalResult printOperation(::mlir::func::ReturnOp op);

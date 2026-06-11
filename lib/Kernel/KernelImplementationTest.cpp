@@ -23,10 +23,19 @@ namespace kernel {
 namespace {
 
 using tensor4d = std::vector<std::vector<std::vector<std::vector<int>>>>;
+using tensor3d = std::vector<std::vector<std::vector<int>>>;
 
-std::function<int(const std::vector<int64_t>&)> getDataValueFn(tensor4d data) {
+std::function<int(const std::vector<int64_t>&)> getDataValueFn4D(
+    tensor4d data) {
   return [data](const std::vector<int64_t>& domainPoint) -> int {
     return data[domainPoint[0]][domainPoint[1]][domainPoint[2]][domainPoint[3]];
+  };
+}
+
+std::function<int(const std::vector<int64_t>&)> getDataValueFn3D(
+    tensor3d data) {
+  return [data](const std::vector<int64_t>& domainPoint) -> int {
+    return data[domainPoint[0]][domainPoint[1]][domainPoint[2]];
   };
 }
 
@@ -285,6 +294,69 @@ TEST_P(KernelImplementationTest, Test2DConvWithLayout) {
   EXPECT_EQ(extractedResult, expected);
 }
 
+TEST_P(KernelImplementationTest, TestIssue3003) {
+  MLIRContext context;
+  RankedTensorType dataType =
+      RankedTensorType::get({1, 1, 5, 5}, mlir::IndexType::get(&context));
+  RankedTensorType filterType =
+      RankedTensorType::get({1, 1, 3, 3}, mlir::IndexType::get(&context));
+  RankedTensorType outputType =
+      RankedTensorType::get({1, 1, 3, 3}, mlir::IndexType::get(&context));
+
+  int numSlots = 1024;
+
+  // Set input values to i*i + 1
+  tensor4d data(
+      1, std::vector<std::vector<std::vector<int>>>(
+             1, std::vector<std::vector<int>>(5, std::vector<int>(5, 0))));
+  for (int i = 0; i < 25; ++i) {
+    data[0][0][i / 5][i % 5] = i * i + 1;
+  }
+
+  tensor4d filter(
+      1, std::vector<std::vector<std::vector<int>>>(
+             1, std::vector<std::vector<int>>(3, std::vector<int>(3, 1))));
+
+  auto dataLayout = getRowMajorLayoutRelation(dataType, numSlots);
+  std::vector<std::vector<int>> packedData =
+      evaluateLayout<int>(dataLayout, getDataValueFn4D(data));
+
+  auto matrixLayout = get2dConvChwFchwFilterDiagonalizedRelation(
+                          filterType, dataType, /*strides=*/{1, 1},
+                          /*padding=*/0, numSlots, /*interchangeRows=*/false)
+                          .value();
+  std::vector<std::vector<int>> packedMatrix =
+      evaluateLayout<int>(matrixLayout, getDataValueFn4D(filter));
+
+  RankedTensorType expandedMatrixType =
+      get2dConvChwFchwFilterExpandedType(filterType, dataType, /*padding=*/0);
+
+  // Expected output: 1x1x3x3
+  tensor4d expected = {
+      {{{489, 606, 741}, {1254, 1461, 1686}, {2469, 2766, 3081}}}};
+
+  LiteralValue matrixInput = packedMatrix;
+  LiteralValue vectorInput = packedData[0];
+
+  auto dag = implementHaleviShoup(
+      vectorInput, matrixInput, expandedMatrixType.getShape(),
+      DagType::intTensor(32, {numSlots}),
+      /*zeroDiagonals=*/{}, /*unroll=*/std::get<0>(GetParam()));
+
+  LiteralValue actual = evalKernel(dag)[0];
+  std::vector<int> actualVector = std::get<std::vector<int>>(actual.get());
+
+  auto resultRelation = get2dConvResultRelation(outputType,
+                                                /*strides=*/{1, 1},
+                                                /*padding=*/0, numSlots,
+                                                /*interchangeRows=*/false);
+
+  tensor4d actualUnpacked =
+      unpackLayoutTo4DTensor<int>(resultRelation, {actualVector}, {1, 1, 3, 3});
+
+  EXPECT_EQ(actualUnpacked, expected);
+}
+
 TEST_P(KernelImplementationTest, Test1DConvWithLayout) {
   MLIRContext context;
   RankedTensorType dataType =
@@ -477,7 +549,7 @@ TEST_P(KernelImplementationTest, TestConv2dNchwFchwStride2) {
 
   auto dataLayout = getRowMajorLayoutRelation(dataType, numSlots);
   std::vector<std::vector<int>> packedData =
-      evaluateLayout(dataLayout, getDataValueFn(data));
+      evaluateLayout(dataLayout, getDataValueFn4D(data));
 
   SmallVector<int64_t> strides = {2, 2};
   auto filterLayout = get2dConvChwFchwFilterDiagonalizedRelation(
@@ -523,6 +595,66 @@ TEST_P(KernelImplementationTest, TestConv2dNchwFchwStride2) {
   EXPECT_EQ(actualUnpacked, expected);
 }
 
+TEST_P(KernelImplementationTest, TestConv1dCwFcwStride2) {
+  MLIRContext context;
+  RankedTensorType dataType =
+      RankedTensorType::get({1, 2, 5}, mlir::IndexType::get(&context));
+  RankedTensorType filterType =
+      RankedTensorType::get({2, 2, 3}, mlir::IndexType::get(&context));
+
+  int numSlots = 16;
+  // 1x2x5 input data
+  // [[0,1,2,3,4],[5,6,7,8,9]]
+  tensor3d data = {{{0, 1, 2, 3, 4}, {5, 6, 7, 8, 9}}};
+  // 2x2x3 filter data
+  // [[3 4 1], [1 5 2]]
+  // [[1 2 3], [2 2 2]]
+  tensor3d filter = {{{3, 4, 1}, {1, 5, 2}}, {{1, 2, 3}, {2, 2, 2}}};
+
+  auto dataLayout = getRowMajorLayoutRelation(dataType, numSlots);
+  std::vector<std::vector<int>> packedData =
+      evaluateLayout(dataLayout, getDataValueFn3D(data));
+
+  int64_t stride = 2;
+  auto filterLayout = get1dConvCwFcwFilterDiagonalizedRelation(
+      filterType, dataType, stride, 0, numSlots,
+      /*interchangeRows=*/std::get<1>(GetParam()));
+  ASSERT_TRUE(succeeded(filterLayout));
+  std::function<int(const std::vector<int64_t>&)> getFilterValueFn =
+      [&](const std::vector<int64_t>& domainPoint) -> int {
+    return filter[domainPoint[0]][domainPoint[1]][domainPoint[2]];
+  };
+  std::vector<std::vector<int>> packedFilter =
+      evaluateLayout(filterLayout.value(), getFilterValueFn);
+  auto expandedFilterShape =
+      get1dConvCwFcwFilterExpandedType(filterType, dataType, stride, 0);
+
+  // 1x2x2 output
+  tensor3d expected = {{{55, 87}, {44, 68}}};
+
+  LiteralValue matrixInput = packedFilter;
+  LiteralValue vectorInput = packedData[0];
+
+  auto dag = implementHaleviShoup(
+      vectorInput, matrixInput, expandedFilterShape.getShape(),
+      DagType::intTensor(32, {numSlots}),
+      /*zeroDiagonals=*/{}, /*unroll=*/std::get<0>(GetParam()));
+  LiteralValue actual = evalKernel(dag)[0];
+  auto actual3d = std::get<std::vector<int>>(actual.get());
+
+  RankedTensorType outputType =
+      RankedTensorType::get({1, 2, 2}, mlir::IndexType::get(&context));
+  auto resultLayout =
+      get1dConvResultRelation(outputType, stride, 0, numSlots,
+                              /*interchangeRows=*/std::get<1>(GetParam()));
+
+  auto actualUnpacked =
+      unpackLayoutTo3DTensor<int>(resultLayout, {actual3d}, {1, 2, 2});
+
+  // Result is 4 2x2 tensors with a row-major layout.
+  EXPECT_EQ(actualUnpacked, expected);
+}
+
 TEST_P(KernelImplementationTest,
        TestConv2dNchwFchwStride2InterchangedLargeSlots) {
   MLIRContext context;
@@ -542,7 +674,7 @@ TEST_P(KernelImplementationTest,
 
   auto dataLayout = getRowMajorLayoutRelation(dataType, numSlots);
   std::vector<std::vector<int>> packedData =
-      evaluateLayout(dataLayout, getDataValueFn(data));
+      evaluateLayout(dataLayout, getDataValueFn4D(data));
 
   SmallVector<int64_t> strides = {2, 2};
   auto filterLayout = get2dConvChwFchwFilterDiagonalizedRelation(
@@ -629,7 +761,7 @@ TEST_P(KernelImplementationTest, TestConv2dNchwFchwOrionFigure4) {
 
   auto dataLayout = getRowMajorLayoutRelation(dataType, numSlots);
   std::vector<std::vector<int>> packedData =
-      evaluateLayout(dataLayout, getDataValueFn(data));
+      evaluateLayout(dataLayout, getDataValueFn4D(data));
 
   SmallVector<int64_t> strides = {1, 1};
   int64_t padding = 1;
@@ -743,7 +875,7 @@ TEST_P(KernelImplementationTest, TestConv2dNchwFchwStride2MultiInput) {
 
   auto dataLayout = getRowMajorLayoutRelation(dataType, numSlots);
   std::vector<std::vector<int>> packedData =
-      evaluateLayout(dataLayout, getDataValueFn(data));
+      evaluateLayout(dataLayout, getDataValueFn4D(data));
 
   SmallVector<int64_t> strides = {2, 2};
   auto filterLayout = get2dConvChwFchwFilterDiagonalizedRelation(

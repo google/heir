@@ -5,7 +5,7 @@ class Lattigo_RLWEOp<string mnemonic, list<Trait> traits = []> :
         Lattigo_Op<"rlwe." # mnemonic, traits> {
 }
 
-def Lattigo_RLWENewKeyGeneratorOp : Lattigo_RLWEOp<"new_key_generator"> {
+def Lattigo_RLWENewKeyGeneratorOp : Lattigo_RLWEOp<"new_key_generator", [Pure]> {
   let summary = "Generates a new RLWE key generator";
   let description = [{
     This operation generates a new RLWE key generator
@@ -16,7 +16,7 @@ def Lattigo_RLWENewKeyGeneratorOp : Lattigo_RLWEOp<"new_key_generator"> {
   let results = (outs Lattigo_RLWEKeyGenerator:$keyGenerator);
 }
 
-def Lattigo_RLWEGenKeyPairOp : Lattigo_RLWEOp<"gen_key_pair"> {
+def Lattigo_RLWEGenKeyPairOp : Lattigo_RLWEOp<"gen_key_pair", [Pure]> {
   let summary = "Generates a new RLWE key pair";
   let description = [{
     This operation generates a new RLWE key pair
@@ -30,7 +30,7 @@ def Lattigo_RLWEGenKeyPairOp : Lattigo_RLWEOp<"gen_key_pair"> {
   );
 }
 
-def Lattigo_RLWEGenRelinearizationKeyOp : Lattigo_RLWEOp<"gen_relinearization_key"> {
+def Lattigo_RLWEGenRelinearizationKeyOp : Lattigo_RLWEOp<"gen_relinearization_key", [Pure]> {
   let summary = "Generates a new RLWE relinearization key";
   let description = [{
     This operation generates a new RLWE relinearization key
@@ -42,7 +42,7 @@ def Lattigo_RLWEGenRelinearizationKeyOp : Lattigo_RLWEOp<"gen_relinearization_ke
   let results = (outs Lattigo_RLWERelinearizationKey:$relinearizationKey);
 }
 
-def Lattigo_RLWEGenGaloisKeyOp : Lattigo_RLWEOp<"gen_galois_key"> {
+def Lattigo_RLWEGenGaloisKeyOp : Lattigo_RLWEOp<"gen_galois_key", [Pure]> {
   let summary = "Generates a new RLWE Galois key";
   let description = [{
     This operation generates a new RLWE Galois key
@@ -57,7 +57,7 @@ def Lattigo_RLWEGenGaloisKeyOp : Lattigo_RLWEOp<"gen_galois_key"> {
   let results = (outs Lattigo_RLWEGaloisKey:$galoisKey);
 }
 
-def Lattigo_RLWENewEvaluationKeySetOp : Lattigo_RLWEOp<"new_evaluation_key_set"> {
+def Lattigo_RLWENewEvaluationKeySetOp : Lattigo_RLWEOp<"new_evaluation_key_set", [Pure]> {
   let summary = "Generates a new RLWE evaluation key set";
   let description = [{
     This operation generates a new RLWE evaluation key set
@@ -73,7 +73,7 @@ def Lattigo_RLWENewEvaluationKeySetOp : Lattigo_RLWEOp<"new_evaluation_key_set">
   let hasVerifier = 1;
 }
 
-def Lattigo_RLWENewEncryptorOp : Lattigo_RLWEOp<"new_encryptor"> {
+def Lattigo_RLWENewEncryptorOp : Lattigo_RLWEOp<"new_encryptor", [Pure]> {
   let summary = "Creates a new RLWE encryptor";
   let description = [{
     This operation creates a new RLWE encryptor
@@ -86,7 +86,7 @@ def Lattigo_RLWENewEncryptorOp : Lattigo_RLWEOp<"new_encryptor"> {
   let hasVerifier = 1;
 }
 
-def Lattigo_RLWENewDecryptorOp : Lattigo_RLWEOp<"new_decryptor"> {
+def Lattigo_RLWENewDecryptorOp : Lattigo_RLWEOp<"new_decryptor", [Pure]> {
   let summary = "Creates a new RLWE decryptor";
   let description = [{
     This operation creates a new RLWE decryptor
@@ -98,7 +98,7 @@ def Lattigo_RLWENewDecryptorOp : Lattigo_RLWEOp<"new_decryptor"> {
   let results = (outs Lattigo_RLWEDecryptor:$decryptor);
 }
 
-def Lattigo_RLWEEncryptOp : Lattigo_RLWEOp<"encrypt"> {
+def Lattigo_RLWEEncryptOp : Lattigo_RLWEOp<"encrypt", [Pure]> {
   let summary = "Encrypts a plaintext using RLWE";
   let description = [{
     This operation encrypts a plaintext using RLWE
@@ -110,7 +110,7 @@ def Lattigo_RLWEEncryptOp : Lattigo_RLWEOp<"encrypt"> {
   let results = (outs Lattigo_RLWECiphertext:$ciphertext);
 }
 
-def Lattigo_RLWEDecryptOp : Lattigo_RLWEOp<"decrypt"> {
+def Lattigo_RLWEDecryptOp : Lattigo_RLWEOp<"decrypt", [Pure]> {
   let summary = "Decrypts a ciphertext using RLWE";
   let description = [{
     This operation decrypts a ciphertext using RLWE
@@ -122,7 +122,8 @@ def Lattigo_RLWEDecryptOp : Lattigo_RLWEOp<"decrypt"> {
   let results = (outs Lattigo_RLWEPlaintext:$plaintext);
 }
 
-def Lattigo_RLWEDropLevelNewOp : Lattigo_RLWEOp<"drop_level_new"> {
+def Lattigo_RLWEDropLevelNewOp : Lattigo_RLWEOp<"drop_level_new",
+  [Pure, DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop", "getOperandToReduce"]>]> {
   let summary = "Drop level of a ciphertext";
   let arguments = (ins
     Lattigo_RLWEEvaluator:$evaluator,
@@ -132,7 +133,8 @@ def Lattigo_RLWEDropLevelNewOp : Lattigo_RLWEOp<"drop_level_new"> {
   let results = (outs Lattigo_RLWECiphertext:$output);
 }
 
-def Lattigo_RLWEDropLevelOp : Lattigo_RLWEOp<"drop_level", [InPlaceOpInterface]> {
+def Lattigo_RLWEDropLevelOp : Lattigo_RLWEOp<"drop_level",
+  [InPlaceOpInterface, DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop", "getOperandToReduce"]>]> {
   let summary = "Drop level of a ciphertext";
   let description = [{
     This operation drops the level of a ciphertext
@@ -151,7 +153,7 @@ def Lattigo_RLWEDropLevelOp : Lattigo_RLWEOp<"drop_level", [InPlaceOpInterface]>
   let extraClassDeclaration = "int getInPlaceOperandIndex() { return 2; }";
 }
 
-def Lattigo_RLWENegateNewOp : Lattigo_RLWEOp<"negate_new"> {
+def Lattigo_RLWENegateNewOp : Lattigo_RLWEOp<"negate_new", [Pure]> {
   let summary = "Negate a ciphertext";
   let arguments = (ins
     Lattigo_RLWEEvaluator:$evaluator,

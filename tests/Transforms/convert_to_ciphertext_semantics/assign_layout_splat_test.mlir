@@ -22,15 +22,13 @@ module {
 
 // Splat tensor with non-dense layout.
 // Input tensor<16xi16> with splat 1, layout only covers first 16 slots.
-// This should be OUTLINED because it uses a loop nest.
-// CHECK: func.func private @_assign_layout
-// CHECK: scf.for
+// This is now folded into a constant.
 // CHECK: @test_splat_tensor_not_dense
 #layout_not_dense = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and 0 <= i0 <= 15 and slot = i0 }">
 module {
   func.func @test_splat_tensor_not_dense() -> (!secret.secret<tensor<16xi16>> {tensor_ext.layout = #layout_not_dense}) {
     %cst = arith.constant dense<1> : tensor<16xi16>
-    // CHECK: func.call @_assign_layout
+    // CHECK: arith.constant dense<
     %0 = secret.generic() {
       %1 = tensor_ext.assign_layout %cst {layout = #layout_not_dense, tensor_ext.layout = #layout_not_dense} : tensor<16xi16>
       secret.yield %1 : tensor<16xi16>
@@ -112,15 +110,13 @@ module {
 
 // -----
 
-// Dense but not constant
-// CHECK: func.func private @_assign_layout
-// CHECK: scf.for
+// Dense and packed at compile time
 // CHECK: @test_dense_but_not_constant
 #layout_not_dense = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and 0 <= i0 <= 15 and 0 <= slot <= 31 and slot % 16 = i0 }">
 module {
   func.func @test_dense_but_not_constant() -> (!secret.secret<tensor<16xi16>> {tensor_ext.layout = #layout_not_dense}) {
+    // CHECK: arith.constant dense<{{.*}}> : tensor<1x32xi16>
     %cst = arith.constant dense<[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]> : tensor<16xi16>
-    // CHECK: func.call @_assign_layout
     %0 = secret.generic() {
       %1 = tensor_ext.assign_layout %cst {layout = #layout_not_dense, tensor_ext.layout = #layout_not_dense} : tensor<16xi16>
       secret.yield %1 : tensor<16xi16>

@@ -58,7 +58,10 @@ def Openfhe_PlaintextOrCiphertext : AnyTypeOf<[Openfhe_Ciphertext, Openfhe_Plain
 
 // Ciphertext-plaintext binary op
 class Openfhe_BinaryPlainOp<string mnemonic, list<Trait> traits = []>
-  :  Openfhe_Op<mnemonic, traits # [Pure]>{
+  :  Openfhe_Op<mnemonic, traits # [
+    Pure,
+    DeclareOpInterfaceMethods<PlaintextOperandInterface>
+]>{
  let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
     Openfhe_PlaintextOrCiphertext:$lhs,
@@ -94,6 +97,10 @@ class Openfhe_BinaryPlainOp<string mnemonic, list<Trait> traits = []>
 
     ::mlir::Value getPlaintext() {
       return getOperands()[getPlaintextOperandIndex()];
+    }
+
+    ::llvm::SmallVector<unsigned> maybePlaintextOperands() {
+      return {static_cast<unsigned>(getPlaintextOperandIndex())};
     }
   }];
 }
@@ -356,10 +363,16 @@ def SquareOp : Openfhe_UnaryOp<"square"> { let summary = "Square of a ciphertext
 def SquareInPlaceOp : Openfhe_UnaryInPlaceOp<"square_inplace"> { let summary = "In-place square of a ciphertext."; }
 def RelinOp : Openfhe_UnaryOp<"relin"> { let summary = "Relinearization of a ciphertext."; }
 def RelinInPlaceOp : Openfhe_UnaryInPlaceOp<"relin_inplace"> { let summary = "In-place relinearization of a ciphertext."; }
-def ModReduceOp : Openfhe_UnaryOp<"mod_reduce"> { let summary = "mod_reduce of a ciphertext. (used only for BGV/CKKS)"; }
-def ModReduceInPlaceOp : Openfhe_UnaryInPlaceOp<"mod_reduce_inplace"> { let summary = "In-place mod_reduce of a ciphertext. (used only for BGV/CKKS)"; }
+def ModReduceOp : Openfhe_UnaryOp<"mod_reduce", [
+  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getOperandToReduce"]>
+]> { let summary = "mod_reduce of a ciphertext. (used only for BGV/CKKS)"; }
+def ModReduceInPlaceOp : Openfhe_UnaryInPlaceOp<"mod_reduce_inplace", [
+  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getOperandToReduce"]>
+]> { let summary = "In-place mod_reduce of a ciphertext. (used only for BGV/CKKS)"; }
 
-def LevelReduceOp : Openfhe_UnaryOp<"level_reduce"> {
+def LevelReduceOp : Openfhe_UnaryOp<"level_reduce", [
+  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop", "getOperandToReduce"]>
+]> {
   let summary = "Reduce the level of a ciphertext.";
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
@@ -368,8 +381,10 @@ def LevelReduceOp : Openfhe_UnaryOp<"level_reduce"> {
   );
 }
 
-def LevelReduceInPlaceOp : Openfhe_UnaryInPlaceOp<"level_reduce_inplace",
-    [InPlaceOpInterface]> {
+def LevelReduceInPlaceOp : Openfhe_UnaryInPlaceOp<"level_reduce_inplace", [
+    InPlaceOpInterface,
+    DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop", "getOperandToReduce"]>
+]> {
   let summary = "In-place level reduction of a ciphertext.";
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
@@ -451,7 +466,11 @@ def KeySwitchDownOp : Openfhe_Op<"key_switch_down", [Pure,
 }
 
 // No in-place bootstrap variant
-def BootstrapOp : Openfhe_UnaryOp<"bootstrap", [Pure, ResetsMulDepthOpInterface]> {
+def BootstrapOp : Openfhe_UnaryOp<"bootstrap", [
+  Pure,
+  ResetsMulDepthOpInterface,
+  DeclareOpInterfaceMethods<ResetsLevelOpInterface, ["getOperandToReset"]>
+]> {
   let summary = "OpenFHE bootstrap operation of a ciphertext. (For CKKS)";
 }
 

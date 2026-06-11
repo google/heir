@@ -2,23 +2,14 @@
 
 
 // Test that a vector of size 16xi16 is replicated to 1x32xi16.
-// CHECK: func.func private @_assign_layout_{{[0-9]+}}
-// CHECK-SAME: %[[ARG0:.*]]: tensor<16xi16>) -> tensor<1x32xi16>
-// CHECK-DAG: %[[c16:.*]] = arith.constant 16 : i32
-// CHECK-DAG: %[[c32:.*]] = arith.constant 32 : i32
-// CHECK-DAG: %[[c0:.*]] = arith.constant 0 : i32
-// CHECK-DAG: %[[c1:.*]] = arith.constant 1 : i32
-// CHECK-DAG: %[[cst:.*]] = arith.constant dense<0> : tensor<1x32xi16>
-// CHECK: scf.for %[[arg1:.*]] = %[[c0]] to %[[c32]] step %[[c1]]
-// CHECK: tensor.insert
 
 // CHECK: func.func @repeat_vector_nonconst
 #layout = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 16 = 0 and 0 <= i0 <= 15 and 0 <= slot <= 31 }">
 module {
   func.func @repeat_vector_nonconst() {
     %cst = arith.constant dense<[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]> : tensor<16xi16>
-    // CHECK: %[[cst:.*]] = arith.constant dense<[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]> : tensor<16xi16>
-    // CHECK: func.call @_assign_layout_{{[0-9]+}}(%[[cst]])
+    // CHECK: %[[cst:.*]] = arith.constant dense<{{\[\[}}0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15{{\]\]}}> : tensor<1x32xi16>
+    // CHECK: return
     %0 = secret.generic() {
       %1 = tensor_ext.assign_layout %cst {layout = #layout, tensor_ext.layout = #layout} : tensor<16xi16>
       secret.yield %1 : tensor<16xi16>
@@ -131,8 +122,7 @@ module {
 
 // -----
 
-// CHECK: func.func private @_assign_layout_{{[0-9]+}}
-// CHECK-SAME:    (%arg0: tensor<16xi16>) -> tensor<1x32xi16>
+// CHECK: func.func private @_assign_layout_{{[0-9]+}}(%arg0: tensor<16xi16>) -> tensor<1x32xi16>
 // CHECK-DAG: %[[C0:.*]] = arith.constant 0 : index
 // CHECK-DAG: %[[C1:.*]] = arith.constant 1 : index
 // CHECK-DAG: %[[C2:.*]] = arith.constant 2 : index
@@ -168,10 +158,28 @@ module {
     %cst = arith.constant dense<1> : tensor<16xi16>
     // CHECK: %[[cst:.*]] = arith.constant dense<1> : tensor<16xi16>
     // CHECK: func.call @_assign_layout_{{[0-9]+}}(%[[cst]])
+    // CHECK: return
     %0 = secret.generic() {
       %1 = tensor_ext.assign_layout %cst {layout = #layout2, tensor_ext.layout = #layout2} : tensor<16xi16>
       secret.yield %1 : tensor<16xi16>
     } -> (!secret.secret<tensor<16xi16>> {tensor_ext.layout = #layout2})
+    return
+  }
+}
+
+// -----
+
+// CHECK: func.func @fold_4d_constant
+#layout3 = #tensor_ext.layout<"{ [f, c, fh, fw] -> [ct, slot] : ct = 0 and 0 <= f < 2 and 0 <= c < 1 and 0 <= fh < 2 and 0 <= fw < 2 and slot = 8 * f + c + 2 * fh + fw }">
+module {
+  func.func @fold_4d_constant() {
+    %cst = arith.constant dense<1> : tensor<2x1x2x2xi32>
+    // CHECK: %[[cst:.*]] = arith.constant dense<{{\[\[}}1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0{{\]\]}}> : tensor<1x32xi32>
+    // CHECK: return
+    %0 = secret.generic() {
+      %1 = tensor_ext.assign_layout %cst {layout = #layout3, tensor_ext.layout = #layout3} : tensor<2x1x2x2xi32>
+      secret.yield %1 : tensor<2x1x2x2xi32>
+    } -> (!secret.secret<tensor<2x1x2x2xi32>> {tensor_ext.layout = #layout3})
     return
   }
 }

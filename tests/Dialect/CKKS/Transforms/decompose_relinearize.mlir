@@ -52,7 +52,7 @@ module attributes {
     // CHECK-DAG: [[C0:%.+]] = lwe.extract_coeff [[X]] {index = 0 : index}
     // CHECK-DAG: [[C1:%.+]] = lwe.extract_coeff [[X]] {index = 1 : index}
     // CHECK-DAG: [[C2:%.+]] = lwe.extract_coeff [[X]] {index = 2 : index}
-    // CHECK-DAG: [[ksConstTerm:%.+]], [[ksLinearTerm:%.+]] = ckks.key_switch_inner [[C2]], [[ksk]]
+    // CHECK-DAG: [[ksConstTerm:%.+]], [[ksLinearTerm:%.+]] = lwe.key_switch_inner [[C2]], [[ksk]]
     // CHECK-DAG: [[ksct:%.+]] = lwe.from_coeffs [[ksConstTerm]], [[ksLinearTerm]]
     // CHECK-DAG: [[subct:%.+]] = lwe.from_coeffs [[C0]], [[C1]]
     // CHECK-DAG: [[result:%.+]] = ckks.add [[ksct]], [[subct]]

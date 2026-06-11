@@ -587,11 +587,51 @@ void extendPartialPermutation(MutableArrayRef<int64_t> partialPermutation) {
   extendPermutationGreedily(partialPermutation);
 }
 
-class ConvertLinalgReduce
-    : public ContextAwareOpConversionPattern<linalg::ReduceOp> {
+template <typename OpTy>
+class ConversionBase : public ContextAwareOpConversionPattern<OpTy> {
  public:
-  using ContextAwareOpConversionPattern<
-      linalg::ReduceOp>::ContextAwareOpConversionPattern;
+  using ContextAwareOpConversionPattern<OpTy>::ContextAwareOpConversionPattern;
+
+  LayoutAttr getLayoutAttr(Value value) const {
+    auto layoutLookup = this->getTypeConverter()->getContextualAttr(value);
+    if (failed(layoutLookup)) {
+      return nullptr;
+    }
+    return dyn_cast<LayoutAttr>(layoutLookup.value());
+  }
+
+  Value materializeKernel(ContextAwareConversionPatternRewriter& rewriter,
+                          Location loc,
+                          std::shared_ptr<ArithmeticDagNode<SSAValue>> kernel,
+                          Type convertedType, LayoutAttr layoutAttr) const {
+    IRMaterializingVisitor visitor(convertedType, [&](Operation* createdOp) {
+      setMaterializedAttr(createdOp);
+    });
+
+    ImplicitLocOpBuilder b(loc, rewriter);
+    Value finalOutput = visitor.process(kernel, b)[0];
+
+    auto* finalOutputOp = finalOutput.getDefiningOp();
+    finalOutputOp->setAttr(kLayoutAttrName, layoutAttr);
+    setMaterializedAttr(finalOutputOp);
+    return finalOutput;
+  }
+
+  void addBiasAndReplace(ContextAwareConversionPatternRewriter& rewriter,
+                         Operation* op, Value finalOutput, Value acc,
+                         LayoutAttr layoutAttr) const {
+    ImplicitLocOpBuilder b(op->getLoc(), rewriter);
+    Operation* addBias =
+        makeAppropriatelyTypedAddOp(b, op->getLoc(), finalOutput, acc);
+    addBias->setAttr(kLayoutAttrName, layoutAttr);
+    setMaterializedAttr(addBias);
+    rewriter.replaceOp(op, addBias->getResults());
+  }
+};
+
+class ConvertLinalgReduce : public ConversionBase<linalg::ReduceOp> {
+ public:
+  using ConversionBase<linalg::ReduceOp>::ConversionBase;
 
   void rotateAndReduceKernel(linalg::ReduceOp op, OpAdaptor adaptor,
                              ContextAwareConversionPatternRewriter& rewriter,
@@ -604,45 +644,24 @@ class ConvertLinalgReduce
     unsigned steps = originalShape[op.getDimensions()[0]];
     unsigned period = 1;
 
-    std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel;
     SSAValue vectorLeaf(adaptor.getInputs()[0]);
-
     kernel::DagType dagType = kernel::mlirTypeToDagType(input.getType());
 
-    // This requires 1 operation and 1 dimension to reduce
-    implementedKernel =
+    auto implementedKernel =
         implementRotateAndReduce(vectorLeaf, {}, period, steps, dagType, {},
                                  innerOp->getName().getStringRef().str());
     rewriter.setInsertionPointAfter(op);
 
-    auto convertedType = getTypeConverter()->convertType(
-        input.getType(), cast<LayoutAttr>(op->getAttr(kLayoutAttrName)));
-
-    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    IRMaterializingVisitor visitor(
-        convertedType, [&](Operation* createdOp) { setMaterializedAttr(op); });
-    Value finalOutput = visitor.process(implementedKernel, b)[0];
-
     auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
-    auto* finalOutputOp = finalOutput.getDefiningOp();
-    finalOutputOp->setAttr(kLayoutAttrName, layoutAttr);
-    setMaterializedAttr(finalOutputOp);
+    auto convertedType =
+        getTypeConverter()->convertType(input.getType(), layoutAttr);
+
+    Value finalOutput = materializeKernel(
+        rewriter, op.getLoc(), implementedKernel, convertedType, layoutAttr);
 
     // Add the initial  value.
     Value result = adaptor.getInits()[0];
-    Operation* addBias =
-        makeAppropriatelyTypedAddOp(b, op->getLoc(), finalOutput, result);
-    addBias->setAttr(kLayoutAttrName, layoutAttr);
-    setMaterializedAttr(addBias);
-    rewriter.replaceOp(op, addBias);
-  }
-
-  LayoutAttr getLayoutAttr(Value value) const {
-    auto layoutLookup = getTypeConverter()->getContextualAttr(value);
-    if (failed(layoutLookup)) {
-      return nullptr;
-    }
-    return dyn_cast<LayoutAttr>(layoutLookup.value());
+    addBiasAndReplace(rewriter, op, finalOutput, result, layoutAttr);
   }
 
   LogicalResult matchAndRewrite(
@@ -689,19 +708,9 @@ class ConvertLinalgReduce
   }
 };
 
-struct ConvertLinalgDot
-    : public ContextAwareOpConversionPattern<linalg::DotOp> {
+struct ConvertLinalgDot : public ConversionBase<linalg::DotOp> {
  public:
-  using ContextAwareOpConversionPattern<
-      linalg::DotOp>::ContextAwareOpConversionPattern;
-
-  LayoutAttr getLayoutAttr(Value value) const {
-    auto layoutLookup = getTypeConverter()->getContextualAttr(value);
-    if (failed(layoutLookup)) {
-      return nullptr;
-    }
-    return dyn_cast<LayoutAttr>(layoutLookup.value());
-  }
+  using ConversionBase<linalg::DotOp>::ConversionBase;
 
   LogicalResult matchAndRewrite(
       linalg::DotOp op, OpAdaptor adaptor,
@@ -732,10 +741,8 @@ struct ConvertLinalgDot
         cast<RankedTensorType>(op.getInputs()[0].getType()).getShape();
     unsigned steps = originalShape[0];
 
-    std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel;
     kernel::DagType dagType = kernel::mlirTypeToDagType(lhs.getType());
-
-    implementedKernel =
+    auto implementedKernel =
         implementDot(SSAValue(lhs), SSAValue(rhs), steps, dagType);
 
     rewriter.setInsertionPointAfter(op);
@@ -745,45 +752,25 @@ struct ConvertLinalgDot
     auto convertedType =
         getTypeConverter()->convertType(lhs.getType(), layoutAttr);
 
-    IRMaterializingVisitor visitor(convertedType, [&](Operation* createdOp) {
-      setMaterializedAttr(createdOp);
-    });
-    Value finalOutput = visitor.process(implementedKernel, b)[0];
+    Value finalOutput = materializeKernel(
+        rewriter, op.getLoc(), implementedKernel, convertedType, layoutAttr);
 
-    auto* finalOutputOp = finalOutput.getDefiningOp();
-    finalOutputOp->setAttr(kLayoutAttrName, layoutAttr);
-    setMaterializedAttr(finalOutputOp);
-
-    Operation* addBias =
-        makeAppropriatelyTypedAddOp(b, op->getLoc(), finalOutput, acc);
-    addBias->setAttr(kLayoutAttrName, layoutAttr);
-    setMaterializedAttr(addBias);
-    rewriter.replaceOp(op, addBias);
+    addBiasAndReplace(rewriter, op, finalOutput, acc, layoutAttr);
 
     return success();
   }
 };
 
-struct ConvertLinalgMatvecLayout
-    : public ContextAwareOpConversionPattern<linalg::MatvecOp> {
+struct ConvertLinalgMatvecLayout : public ConversionBase<linalg::MatvecOp> {
  public:
-  using ContextAwareOpConversionPattern<
-      linalg::MatvecOp>::ContextAwareOpConversionPattern;
+  using ConversionBase<linalg::MatvecOp>::ConversionBase;
 
   ConvertLinalgMatvecLayout(
       const ContextAwareTypeConverter& contextAwareTypeConverter,
       MLIRContext* context, bool unrollKernels = true)
-      : ContextAwareOpConversionPattern(contextAwareTypeConverter, context,
-                                        /*benefit=*/10),
+      : ConversionBase<linalg::MatvecOp>(contextAwareTypeConverter, context,
+                                         /*benefit=*/10),
         unrollKernels(unrollKernels) {}
-
-  LayoutAttr getLayoutAttr(Value value) const {
-    auto layoutLookup = getTypeConverter()->getContextualAttr(value);
-    if (failed(layoutLookup)) {
-      return nullptr;
-    }
-    return dyn_cast<LayoutAttr>(layoutLookup.value());
-  }
 
   bool supportsHaleviShoup(linalg::MatvecOp op, OpAdaptor adaptor) const {
     auto kernelAttr = op->getAttrOfType<secret::KernelAttr>(
@@ -816,24 +803,14 @@ struct ConvertLinalgMatvecLayout
                              /*unroll=*/unrollKernels);
 
     rewriter.setInsertionPointAfter(op);
-    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    IRMaterializingVisitor visitor(input.getType(), [&](Operation* createdOp) {
-      setMaterializedAttr(createdOp);
-    });
-    Value finalOutput = visitor.process(implementedKernel, b)[0];
 
     auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
-    auto* finalOutputOp = finalOutput.getDefiningOp();
-    finalOutputOp->setAttr(kLayoutAttrName, layoutAttr);
-    setMaterializedAttr(finalOutputOp);
+    Value finalOutput = materializeKernel(
+        rewriter, op.getLoc(), implementedKernel, input.getType(), layoutAttr);
 
     // Add the initial accumulator value.
     Value result = adaptor.getOutputs()[0];
-    Operation* addBias =
-        makeAppropriatelyTypedAddOp(b, op->getLoc(), finalOutput, result);
-    addBias->setAttr(kLayoutAttrName, layoutAttr);
-    setMaterializedAttr(addBias);
-    rewriter.replaceOp(op, addBias);
+    addBiasAndReplace(rewriter, op, finalOutput, result, layoutAttr);
   }
 
   LogicalResult matchAndRewrite(
@@ -862,26 +839,16 @@ struct ConvertLinalgMatvecLayout
   bool unrollKernels;
 };
 
-struct ConvertLinalgConv1D
-    : public ContextAwareOpConversionPattern<linalg::Conv1DOp> {
+struct ConvertLinalgConv1D : public ConversionBase<linalg::Conv1DOp> {
  public:
-  using ContextAwareOpConversionPattern<
-      linalg::Conv1DOp>::ContextAwareOpConversionPattern;
+  using ConversionBase<linalg::Conv1DOp>::ConversionBase;
 
   ConvertLinalgConv1D(
       const ContextAwareTypeConverter& contextAwareTypeConverter,
       MLIRContext* context, bool unrollKernels = true)
-      : ContextAwareOpConversionPattern(contextAwareTypeConverter, context,
-                                        /*benefit=*/10),
+      : ConversionBase<linalg::Conv1DOp>(contextAwareTypeConverter, context,
+                                         /*benefit=*/10),
         unrollKernels(unrollKernels) {}
-
-  LayoutAttr getLayoutAttr(Value value) const {
-    auto layoutLookup = getTypeConverter()->getContextualAttr(value);
-    if (failed(layoutLookup)) {
-      return nullptr;
-    }
-    return dyn_cast<LayoutAttr>(layoutLookup.value());
-  }
 
   bool supportsExpandedHaleviShoup(linalg::Conv1DOp op,
                                    OpAdaptor adaptor) const {
@@ -948,24 +915,13 @@ struct ConvertLinalgConv1D
                              /*unroll=*/unrollKernels);
 
     rewriter.setInsertionPointAfter(op);
-    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    IRMaterializingVisitor visitor(data.getType(), [&](Operation* createdOp) {
-      setMaterializedAttr(createdOp);
-    });
-    Value finalOutput = visitor.process(implementedKernel, b)[0];
-
     auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
-    auto finalOutputOp = finalOutput.getDefiningOp();
-    finalOutputOp->setAttr(kLayoutAttrName, layoutAttr);
-    setMaterializedAttr(finalOutputOp);
 
-    // Add the initial accumulator value.
+    Value finalOutput = materializeKernel(
+        rewriter, op.getLoc(), implementedKernel, data.getType(), layoutAttr);
+
     Value result = adaptor.getOutputs()[0];
-    Operation* addBias =
-        makeAppropriatelyTypedAddOp(b, op->getLoc(), finalOutput, result);
-    addBias->setAttr(kLayoutAttrName, layoutAttr);
-    setMaterializedAttr(addBias);
-    rewriter.replaceOp(op, addBias);
+    addBiasAndReplace(rewriter, op, finalOutput, result, layoutAttr);
   }
 
   LogicalResult matchAndRewrite(
@@ -992,26 +948,16 @@ struct ConvertLinalgConv1D
   bool unrollKernels;
 };
 
-struct ConvertLinalgConv2D
-    : public ContextAwareOpConversionPattern<linalg::Conv2DOp> {
+struct ConvertLinalgConv2D : public ConversionBase<linalg::Conv2DOp> {
  public:
-  using ContextAwareOpConversionPattern<
-      linalg::Conv2DOp>::ContextAwareOpConversionPattern;
+  using ConversionBase<linalg::Conv2DOp>::ConversionBase;
 
   ConvertLinalgConv2D(
       const ContextAwareTypeConverter& contextAwareTypeConverter,
       MLIRContext* context, bool unrollKernels = true)
-      : ContextAwareOpConversionPattern(contextAwareTypeConverter, context,
-                                        /*benefit=*/10),
+      : ConversionBase<linalg::Conv2DOp>(contextAwareTypeConverter, context,
+                                         /*benefit=*/10),
         unrollKernels(unrollKernels) {}
-
-  LayoutAttr getLayoutAttr(Value value) const {
-    auto layoutLookup = getTypeConverter()->getContextualAttr(value);
-    if (failed(layoutLookup)) {
-      return nullptr;
-    }
-    return dyn_cast<LayoutAttr>(layoutLookup.value());
-  }
 
   bool supportsExpandedHaleviShoup(linalg::Conv2DOp op,
                                    OpAdaptor adaptor) const {
@@ -1077,24 +1023,14 @@ struct ConvertLinalgConv2D
                              /*unroll=*/unrollKernels);
 
     rewriter.setInsertionPointAfter(op);
-    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    IRMaterializingVisitor visitor(data.getType(), [&](Operation* createdOp) {
-      setMaterializedAttr(createdOp);
-    });
-    Value finalOutput = visitor.process(implementedKernel, b)[0];
 
     auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
-    auto finalOutputOp = finalOutput.getDefiningOp();
-    finalOutputOp->setAttr(kLayoutAttrName, layoutAttr);
-    setMaterializedAttr(finalOutputOp);
+    Value finalOutput = materializeKernel(
+        rewriter, op.getLoc(), implementedKernel, data.getType(), layoutAttr);
 
     // Add the initial accumulator value.
     Value result = adaptor.getOutputs()[0];
-    Operation* addBias =
-        makeAppropriatelyTypedAddOp(b, op->getLoc(), finalOutput, result);
-    addBias->setAttr(kLayoutAttrName, layoutAttr);
-    setMaterializedAttr(addBias);
-    rewriter.replaceOp(op, addBias);
+    addBiasAndReplace(rewriter, op, finalOutput, result, layoutAttr);
   }
 
   LogicalResult matchAndRewrite(
@@ -1121,26 +1057,134 @@ struct ConvertLinalgConv2D
   bool unrollKernels;
 };
 
-struct ConvertLinalgConv2DNchwFchw
-    : public ContextAwareOpConversionPattern<linalg::Conv2DNchwFchwOp> {
+struct ConvertLinalgConv1DNcwFcw
+    : public ConversionBase<linalg::Conv1DNcwFcwOp> {
  public:
-  using ContextAwareOpConversionPattern<
-      linalg::Conv2DNchwFchwOp>::ContextAwareOpConversionPattern;
+  using ConversionBase<linalg::Conv1DNcwFcwOp>::ConversionBase;
+
+  ConvertLinalgConv1DNcwFcw(
+      const ContextAwareTypeConverter& contextAwareTypeConverter,
+      MLIRContext* context, bool unrollKernels = true)
+      : ConversionBase(contextAwareTypeConverter, context,
+                       /*benefit=*/10),
+        unrollKernels(unrollKernels) {}
+
+  bool supportsExpandedHaleviShoup(linalg::Conv1DNcwFcwOp op,
+                                   OpAdaptor adaptor) const {
+    Value filter = adaptor.getInputs().back();
+    auto materializedFilterType = cast<RankedTensorType>(filter.getType());
+
+    // If one of these dimensions is not a power of two, then we can't do
+    // the Halevi-Shoup or Squat Packing Matrix Multiplication conversion.
+    auto dimensions = materializedFilterType.getShape();
+    int64_t numRows = dimensions[0];
+    int64_t numCols = dimensions[1];
+    bool isPowerOfTwoDims = isPowerOfTwo(numRows) && isPowerOfTwo(numCols);
+
+    auto kernelAttr = op->getAttrOfType<secret::KernelAttr>(
+        secret::SecretDialect::kKernelAttrName);
+    bool isConv1dAsMatvec =
+        kernelAttr && kernelAttr.getName() == KernelName::MatvecDiagonal;
+
+    LLVM_DEBUG(llvm::dbgs()
+               << "supports expanded conv1d as matvec with halevi-shoup: "
+               << "isPowerOfTwoDims=" << isPowerOfTwoDims
+               << " isConv1dAsMatvec=" << isConv1dAsMatvec << "\n");
+
+    return isPowerOfTwoDims && isConv1dAsMatvec;
+  }
+
+  void haleviShoupKernel(
+      linalg::Conv1DNcwFcwOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const {
+    LLVM_DEBUG(
+        llvm::dbgs()
+        << "Converting linalg.conv_1d_ncw_fcw op with halevi shoup kernel: "
+        << op << "\n");
+
+    TypedValue<RankedTensorType> data =
+        cast<TypedValue<RankedTensorType>>(adaptor.getInputs()[0]);
+    SSAValue vectorLeaf(data);
+    TypedValue<RankedTensorType> matrix =
+        cast<TypedValue<RankedTensorType>>(adaptor.getInputs()[1]);
+    SSAValue matrixLeaf(matrix);
+
+    // The original matrix shape is the shape of the expanded filter before
+    // diagonalization.
+    RankedTensorType expandedMatrixType = get1dConvCwFcwFilterExpandedType(
+        cast<RankedTensorType>(op.getInputs()[1].getType()),
+        cast<RankedTensorType>(op.getInputs()[0].getType()),
+        llvm::to_vector(op.getStrides().getValues<int64_t>()).front(),
+        /*padding=*/0);
+    // Collect any zero diagonals of the filter matrix.
+    LayoutAttr filterLayout = getLayoutAttr(adaptor.getInputs()[1]);
+    auto filterRelation = filterLayout.getIntegerRelation();
+
+    PointCollector collector;
+    std::map<int, bool> zeroDiagonals;
+    // TODO(#2897): Enable this one row interchange is supported.
+    //   getCtComplementPoints(filterRelation, collector, matrix.getType());
+    //   for (const auto& point : collector.points) {
+    //     zeroDiagonals[point[0]] = true;
+    //   }
+
+    auto dagType = kernel::mlirTypeToDagType(data.getType(),
+                                             data.getType().getShape().back());
+    std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
+        implementHaleviShoup(vectorLeaf, matrixLeaf,
+                             expandedMatrixType.getShape(), dagType,
+                             zeroDiagonals,
+                             /*unroll=*/unrollKernels);
+
+    rewriter.setInsertionPointAfter(op);
+
+    auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
+
+    Value finalOutput = materializeKernel(
+        rewriter, op.getLoc(), implementedKernel, data.getType(), layoutAttr);
+
+    // Add the initial accumulator value.
+    Value result = adaptor.getOutputs()[0];
+    addBiasAndReplace(rewriter, op, finalOutput, result, layoutAttr);
+  }
+
+  LogicalResult matchAndRewrite(
+      linalg::Conv1DNcwFcwOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    Value data = adaptor.getInputs().front();
+    Value filter = adaptor.getInputs().back();
+    LayoutAttr dataLayout = getLayoutAttr(data);
+    LayoutAttr filterLayout = getLayoutAttr(filter);
+
+    if (!dataLayout || !filterLayout) {
+      return rewriter.notifyMatchFailure(
+          op, "missing new layout attribute for data and filter");
+    }
+
+    if (supportsExpandedHaleviShoup(op, adaptor)) {
+      haleviShoupKernel(op, adaptor, rewriter);
+      return success();
+    }
+
+    return op.emitError() << "unsupported layout for 1d conv";
+  }
+
+ private:
+  bool unrollKernels;
+};
+
+struct ConvertLinalgConv2DNchwFchw
+    : public ConversionBase<linalg::Conv2DNchwFchwOp> {
+ public:
+  using ConversionBase<linalg::Conv2DNchwFchwOp>::ConversionBase;
 
   ConvertLinalgConv2DNchwFchw(
       const ContextAwareTypeConverter& contextAwareTypeConverter,
       MLIRContext* context, bool unrollKernels = true)
-      : ContextAwareOpConversionPattern(contextAwareTypeConverter, context,
-                                        /*benefit=*/10),
+      : ConversionBase<linalg::Conv2DNchwFchwOp>(contextAwareTypeConverter,
+                                                 context,
+                                                 /*benefit=*/10),
         unrollKernels(unrollKernels) {}
-
-  LayoutAttr getLayoutAttr(Value value) const {
-    auto layoutLookup = getTypeConverter()->getContextualAttr(value);
-    if (failed(layoutLookup)) {
-      return nullptr;
-    }
-    return dyn_cast<LayoutAttr>(layoutLookup.value());
-  }
 
   bool supportsExpandedHaleviShoup(linalg::Conv2DNchwFchwOp op,
                                    OpAdaptor adaptor) const {
@@ -1209,24 +1253,14 @@ struct ConvertLinalgConv2DNchwFchw
                              /*unroll=*/unrollKernels);
 
     rewriter.setInsertionPointAfter(op);
-    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    IRMaterializingVisitor visitor(data.getType(), [&](Operation* createdOp) {
-      setMaterializedAttr(createdOp);
-    });
-    Value finalOutput = visitor.process(implementedKernel, b)[0];
 
     auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
-    auto finalOutputOp = finalOutput.getDefiningOp();
-    finalOutputOp->setAttr(kLayoutAttrName, layoutAttr);
-    setMaterializedAttr(finalOutputOp);
+    Value finalOutput = materializeKernel(
+        rewriter, op.getLoc(), implementedKernel, data.getType(), layoutAttr);
 
     // Add the initial accumulator value.
     Value result = adaptor.getOutputs()[0];
-    Operation* addBias =
-        makeAppropriatelyTypedAddOp(b, op->getLoc(), finalOutput, result);
-    addBias->setAttr(kLayoutAttrName, layoutAttr);
-    setMaterializedAttr(addBias);
-    rewriter.replaceOp(op, addBias);
+    addBiasAndReplace(rewriter, op, finalOutput, result, layoutAttr);
   }
 
   LogicalResult matchAndRewrite(
@@ -2489,8 +2523,9 @@ struct ConvertToCiphertextSemantics
              ConvertTensorInsertLayout, ConvertTensorInsertSlice>(typeConverter,
                                                                   context);
     patterns.add<ConvertLinalgMatvecLayout, ConvertLinalgConv1D,
-                 ConvertLinalgConv2D, ConvertLinalgConv2DNchwFchw>(
-        typeConverter, context, unrollKernels);
+                 ConvertLinalgConv2D, ConvertLinalgConv2DNchwFchw,
+                 ConvertLinalgConv1DNcwFcw>(typeConverter, context,
+                                            unrollKernels);
     patterns.add<ConvertAssignLayout>(typeConverter, context, ciphertextSize);
 
     ConversionConfig config;

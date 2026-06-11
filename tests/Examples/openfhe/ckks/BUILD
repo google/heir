@@ -10,6 +10,7 @@ cc_library(
     srcs = ["debug_helper.cpp"],
     hdrs = ["debug_helper.h"],
     deps = [
+        "@com_google_absl//absl/time",
         "@openfhe//:core",
         "@openfhe//:pke",
     ],

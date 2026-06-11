@@ -451,6 +451,45 @@ TEST(UtilsTest, TestGetCollapsedRelationUnitDims) {
   EXPECT_EQ(actual, expected);
 }
 
+TEST(UtilsTest, TestExpandDimensionsFromRankZero) {
+  // tensor.expand_shape from tensor<f32> to tensor<1x1xf32> uses
+  // an empty reassociation array.
+  MLIRContext context;
+  auto rel = getIntegerRelationFromIslStr(
+                 "{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= 1023 }")
+                 .value();
+  RankedTensorType resultType =
+      RankedTensorType::get({1, 1}, IndexType::get(&context));
+  SmallVector<ReassociationIndices> reassociation = {};
+  IntegerRelation expanded = expandDimensions(rel, resultType, reassociation);
+
+  EXPECT_EQ(expanded.getNumDomainVars(), 2u);
+  EXPECT_TRUE(expanded.containsPointNoLocal({0, 0, 0, 0}));
+}
+
+TEST(UtilsTest, TestCollapseDimensionsMultipleUnitDimsInGroup) {
+  MLIRContext context;
+  auto rel =
+      getIntegerRelationFromIslStr(
+          "{ [i0, i1, i2] -> [ct, slot] : i0 = 0 and i2 = 0 and ct = 0 and "
+          "(-i1 + slot) mod 4 = 0 and 0 <= i1 <= 2 and 0 <= slot <= 1023 }")
+          .value();
+  RankedTensorType sourceType =
+      RankedTensorType::get({1, 3, 1}, IndexType::get(&context));
+  SmallVector<ReassociationIndices> reassociation = {{0, 1, 2}};
+  IntegerRelation collapsed =
+      collapseDimensions(rel, sourceType, reassociation);
+
+  EXPECT_EQ(collapsed.getNumDomainVars(), 1);
+  EXPECT_EQ(collapsed.getNumRangeVars(), 2);
+  auto expected =
+      getIntegerRelationFromIslStr(
+          "{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 4 = 0 and "
+          "0 <= i0 <= 2 and 0 <= slot <= 1023 }")
+          .value();
+  EXPECT_TRUE(collapsed.isEqual(expected));
+}
+
 TEST(UtilsTest, TestGetSliceInsertionRelation) {
   MLIRContext context;
   // Insert a 3x4 slice into a 2x1x3x4 matrix at (1, 0, 0, 0).

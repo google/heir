@@ -190,6 +190,34 @@ FastRotationExtOp::getRotationIndices() {
   return {getIndex()};
 }
 
+::mlir::OpOperand& ModReduceOp::getOperandToReduce() {
+  return getOperation()->getOpOperand(1);
+}
+
+::mlir::OpOperand& ModReduceInPlaceOp::getOperandToReduce() {
+  return getOperation()->getOpOperand(1);
+}
+
+int LevelReduceOp::getLevelsToDrop() {
+  return static_cast<int>(getLevelToDrop());
+}
+
+::mlir::OpOperand& LevelReduceOp::getOperandToReduce() {
+  return getOperation()->getOpOperand(1);
+}
+
+int LevelReduceInPlaceOp::getLevelsToDrop() {
+  return static_cast<int>(getLevelToDrop());
+}
+
+::mlir::OpOperand& LevelReduceInPlaceOp::getOperandToReduce() {
+  return getOperation()->getOpOperand(1);
+}
+
+::mlir::OpOperand& BootstrapOp::getOperandToReset() {
+  return getOperation()->getOpOperand(1);
+}
+
 }  // namespace openfhe
 }  // namespace heir
 }  // namespace mlir

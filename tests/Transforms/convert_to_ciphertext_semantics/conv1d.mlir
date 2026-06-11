@@ -8,13 +8,12 @@ module {
   // CHECK: func.func @conv1d
   func.func @conv1d(%arg0: !secret.secret<tensor<5xf32>> {tensor_ext.layout = #layout1}) -> (!secret.secret<tensor<3xf32>> {tensor_ext.layout = #layout}) {
     // CHECK-DAG: %[[cst:.*]] = arith.constant dense<0{{.*}}> : tensor<1x32xf32>
-    // CHECK-DAG: %[[cst_0:.*]] = arith.constant dense<2{{.*}}> : tensor<3xf32>
+    // CHECK-DAG: %[[cst_0:.*]] = arith.constant dense<{{.*}}> : tensor<4x32xf32>
     %cst = arith.constant dense<0.000000e+00> : tensor<3xf32>
     %cst_0 = arith.constant dense<2.000000e+00> : tensor<3xf32>
     %0 = secret.generic(%arg0: !secret.secret<tensor<5xf32>> {tensor_ext.layout = #layout1}) {
     ^body(%input0: tensor<5xf32>):
     // CHECK: secret.generic
-    // CHECK: func.call @_assign_layout_{{[0-9]+}}(%[[cst_0]])
     // CHECK-COUNT-7: tensor_ext.rotate
       %1 = tensor_ext.assign_layout %cst_0 {layout = #layout2, tensor_ext.layout = #layout2} : tensor<3xf32>
       %2 = tensor_ext.assign_layout %cst {layout = #layout1, tensor_ext.layout = #layout1} : tensor<3xf32>

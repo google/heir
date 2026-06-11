@@ -32,6 +32,7 @@
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/Transforms/Passes.h"
 #include "lib/Dialect/Lattigo/IR/LattigoDialect.h"
+#include "lib/Dialect/Lattigo/Transforms/BufferizableOpInterfaceImpl.h"
 #include "lib/Dialect/Lattigo/Transforms/Passes.h"
 #include "lib/Dialect/MathExt/IR/MathExtDialect.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
@@ -103,6 +104,7 @@
 #include "lib/Transforms/LayoutPropagation/InterfaceImpl.h"
 #include "lib/Transforms/LayoutPropagation/LayoutPropagation.h"
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
+#include "lib/Transforms/LinalgFuseLinearOps/LinalgFuseLinearOps.h"
 #include "lib/Transforms/LowerPolynomialEval/LowerPolynomialEval.h"
 #include "lib/Transforms/LowerUnpack/LowerUnpack.h"
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
@@ -355,6 +357,7 @@ int main(int argc, char** argv) {
   registerLayoutPropagationPasses();
   registerLayoutOptimizationPasses();
   registerLinalgCanonicalizationsPasses();
+  registerLinalgFuseLinearOpsPasses();
   registerReductionCanonicalizationsPasses();
   registerFoldConstantTensorsPasses();
   registerLowerPolynomialEvalPasses();
@@ -432,7 +435,9 @@ int main(int argc, char** argv) {
   // This comement registers internal passes
 
   // Interfaces in HEIR
+  lattigo::registerBufferizableOpInterfaceExternalModels(registry);
   secret::registerBufferizableOpInterfaceExternalModels(registry);
+  lattigo::registerBufferizableOpInterfaceExternalModels(registry);
   registerIncreasesMulDepthOpInterface(registry);
   registerLayoutConversionHoistableInterface(registry);
   registerOperandAndResultAttrInterface(registry);

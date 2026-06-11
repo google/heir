@@ -191,7 +191,7 @@ LogicalResult LowerViaPatersonStockmeyerChebyshev::matchAndRewrite(
   // rescale the input x in [lower, upper] to be on this unit interval.
   // The mapping is x -> 2(x-L)/(U-L) - 1 = (2/U-L) * x - (U+L)/(U-L)
   APFloat rescale = APFloat(2 / (upper - lower));
-  APFloat shift = APFloat((upper + lower) / (upper - lower));
+  APFloat shift = APFloat(-(upper + lower) / (upper - lower));
 
   auto floatTy = dyn_cast<FloatType>(getElementTypeOrSelf(op));
   if (!floatTy) return failure();

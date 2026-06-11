@@ -32,7 +32,8 @@
 #include "llvm/include/llvm/Support/LogicalResult.h"   // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -243,12 +244,15 @@ LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
           .Case<arith::ConstantOp, arith::ExtSIOp, arith::ExtUIOp,
                 arith::FloorDivSIOp, arith::IndexCastOp, arith::ExtFOp,
                 arith::RemSIOp, arith::AddIOp, arith::AddFOp, arith::AndIOp,
-                arith::SubIOp, arith::MulFOp, arith::MulIOp, arith::DivSIOp,
-                arith::CmpIOp, arith::SelectOp, arith::MaxSIOp, arith::MinSIOp>(
+                arith::SubIOp, arith::SubFOp, arith::MulFOp, arith::MulIOp,
+                arith::DivSIOp, arith::DivFOp, arith::CmpIOp, arith::CmpFOp,
+                arith::SelectOp, arith::MaxSIOp, arith::MinSIOp>(
               [&](auto op) { return printOperation(op); })
           // SCF ops
           .Case<scf::IfOp, scf::ForOp, scf::ForallOp, scf::InParallelOp,
                 scf::YieldOp>([&](auto op) { return printOperation(op); })
+          // ControlFlow ops
+          .Case<cf::AssertOp>([&](auto op) { return printOperation(op); })
           // Tensor ops
           .Case<tensor::ConcatOp, tensor::EmptyOp, tensor::InsertOp,
                 tensor::InsertSliceOp, tensor::ExtractOp,
@@ -385,7 +389,20 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::CallOp op) {
          << definingOp->getName() << "\";\n";
     }
     // Use AsmPrinter to print Value
-    os << debugAttrMapName << R"(["asm.result_ssa_format"] = ")" << ciphertext
+    std::string ssaFormat;
+    llvm::raw_string_ostream ss(ssaFormat);
+    ss << ciphertext;
+    std::string escaped;
+    for (char c : ssaFormat) {
+      if (c == '\n') {
+        escaped += "\\n";
+      } else if (c == '"') {
+        escaped += "\\\"";
+      } else {
+        escaped += c;
+      }
+    }
+    os << debugAttrMapName << R"(["asm.result_ssa_format"] = ")" << escaped
        << "\";\n";
   }
 
@@ -513,6 +530,13 @@ LogicalResult OpenFhePkeEmitter::printOperation(affine::AffineYieldOp op) {
     os << variableNames->getNameForValue(operand);
     os << ";\n";
   }
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(cf::AssertOp op) {
+  os << "assert(" << variableNames->getNameForValue(op.getArg()) << " && \""
+     << op.getMsg() << "\");\n";
+  os << "(void)" << variableNames->getNameForValue(op.getArg()) << ";\n";
   return success();
 }
 
@@ -1245,6 +1269,14 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::SubIOp op) {
   return printBinaryOp(op, op.getLhs(), op.getRhs(), "-");
 }
 
+LogicalResult OpenFhePkeEmitter::printOperation(arith::SubFOp op) {
+  return printBinaryOp(op, op.getLhs(), op.getRhs(), "-");
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(arith::DivFOp op) {
+  return printBinaryOp(op, op.getLhs(), op.getRhs(), "/");
+}
+
 LogicalResult OpenFhePkeEmitter::printOperation(arith::DivSIOp op) {
   return printBinaryOp(op, op.getLhs(), op.getRhs(), "/");
 }
@@ -1283,6 +1315,31 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::CmpIOp op) {
       return printBinaryOp(op, op.getLhs(), op.getRhs(), ">=");
   }
   llvm_unreachable("unknown cmpi predicate kind");
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(arith::CmpFOp op) {
+  switch (op.getPredicate()) {
+    case arith::CmpFPredicate::OEQ:
+    case arith::CmpFPredicate::UEQ:
+      return printBinaryOp(op, op.getLhs(), op.getRhs(), "==");
+    case arith::CmpFPredicate::ONE:
+    case arith::CmpFPredicate::UNE:
+      return printBinaryOp(op, op.getLhs(), op.getRhs(), "!=");
+    case arith::CmpFPredicate::OLT:
+    case arith::CmpFPredicate::ULT:
+      return printBinaryOp(op, op.getLhs(), op.getRhs(), "<");
+    case arith::CmpFPredicate::OLE:
+    case arith::CmpFPredicate::ULE:
+      return printBinaryOp(op, op.getLhs(), op.getRhs(), "<=");
+    case arith::CmpFPredicate::OGT:
+    case arith::CmpFPredicate::UGT:
+      return printBinaryOp(op, op.getLhs(), op.getRhs(), ">");
+    case arith::CmpFPredicate::OGE:
+    case arith::CmpFPredicate::UGE:
+      return printBinaryOp(op, op.getLhs(), op.getRhs(), ">=");
+    default:
+      return op.emitError("Unsupported cmpf predicate");
+  }
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(arith::MaxSIOp op) {

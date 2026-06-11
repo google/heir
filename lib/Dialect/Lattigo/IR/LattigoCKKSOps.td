@@ -6,12 +6,16 @@ include "LattigoTypes.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "lib/Dialect/HEIRInterfaces.td"
 include "mlir/IR/OpBase.td"
+include "mlir/Interfaces/SideEffectInterfaces.td"
 
 class Lattigo_CKKSOp<string mnemonic, list<Trait> traits = []> :
         Lattigo_Op<"ckks." # mnemonic, traits> {
 }
 
-def Lattigo_CKKSNewPlaintextOp : Lattigo_CKKSOp<"new_plaintext"> {
+// This operation cannot be marked as Pure because it represents a buffer allocation.
+// If marked as Pure, CSE will deduplicate them, causing multiple in-place operations
+// (like encode) to share the same buffer and overwrite each other.
+def Lattigo_CKKSNewPlaintextOp : Lattigo_CKKSOp<"new_plaintext", []> {
   let summary = "Create a new plaintext in the Lattigo CKKS dialect";
   let description = [{
     This operation creates a new plaintext value in the Lattigo CKKS dialect.
@@ -22,7 +26,7 @@ def Lattigo_CKKSNewPlaintextOp : Lattigo_CKKSOp<"new_plaintext"> {
   let results = (outs Lattigo_RLWEPlaintext:$plaintext);
 }
 
-def Lattigo_CKKSNewParametersFromLiteralOp : Lattigo_CKKSOp<"new_parameters_from_literal"> {
+def Lattigo_CKKSNewParametersFromLiteralOp : Lattigo_CKKSOp<"new_parameters_from_literal", [Pure]> {
   let summary = "Create new CKKS parameters from a literal in the Lattigo CKKS dialect";
   let description = [{
     This operation creates new CKKS parameters from a given literal value in the Lattigo CKKS dialect.
@@ -33,7 +37,7 @@ def Lattigo_CKKSNewParametersFromLiteralOp : Lattigo_CKKSOp<"new_parameters_from
   let results = (outs Lattigo_CKKSParameter:$params);
 }
 
-def Lattigo_CKKSNewEncoderOp : Lattigo_CKKSOp<"new_encoder"> {
+def Lattigo_CKKSNewEncoderOp : Lattigo_CKKSOp<"new_encoder", [Pure]> {
   let summary = "Create a new encoder in the Lattigo CKKS dialect";
   let description = [{
     This operation creates a new encoder for encoding plaintext values in the Lattigo CKKS dialect.
@@ -44,7 +48,7 @@ def Lattigo_CKKSNewEncoderOp : Lattigo_CKKSOp<"new_encoder"> {
   let results = (outs Lattigo_CKKSEncoder:$encoder);
 }
 
-def Lattigo_CKKSEncodeOp : Lattigo_CKKSOp<"encode", [InPlaceOpInterface]> {
+def Lattigo_CKKSEncodeOp : Lattigo_CKKSOp<"encode", [InPlaceOpInterface, Pure]> {
   let summary = "Encode a plaintext value in the Lattigo CKKS dialect";
   let description = [{
     This operation encodes a plaintext value using the specified encoder in the Lattigo CKKS dialect.
@@ -55,7 +59,7 @@ def Lattigo_CKKSEncodeOp : Lattigo_CKKSOp<"encode", [InPlaceOpInterface]> {
   }];
   let arguments = (ins
     Lattigo_CKKSEncoder:$encoder,
-    RankedTensorOf<[AnyFloat, AnyComplex]>:$value,
+    TensorOrMemRef<[AnyFloat, AnyComplex]>:$value,
     Lattigo_RLWEPlaintext:$plaintext,
     DefaultValuedAttr<I64Attr, "1">:$scale
   );
@@ -64,7 +68,7 @@ def Lattigo_CKKSEncodeOp : Lattigo_CKKSOp<"encode", [InPlaceOpInterface]> {
   let extraClassDeclaration = "int getInPlaceOperandIndex() { return 2; }";
 }
 
-def Lattigo_CKKSDecodeOp : Lattigo_CKKSOp<"decode", [AllTypesMatch<["value", "decoded"]>]> {
+def Lattigo_CKKSDecodeOp : Lattigo_CKKSOp<"decode", [AllTypesMatch<["value", "decoded"]>, Pure]> {
   let summary = "Decode a plaintext value in the Lattigo CKKS dialect";
   let description = [{
     This operation decodes a plaintext value using the specified encoder in the Lattigo CKKS dialect.
@@ -74,14 +78,14 @@ def Lattigo_CKKSDecodeOp : Lattigo_CKKSOp<"decode", [AllTypesMatch<["value", "de
   let arguments = (ins
     Lattigo_CKKSEncoder:$encoder,
     Lattigo_RLWEPlaintext:$plaintext,
-    RankedTensorOf<[AnyFloat, AnyComplex]>:$value
+    TensorOrMemRef<[AnyFloat, AnyComplex]>:$value
   );
   // although bgv.Decode is also an inplace operation as bgv.Encode, as there are post-processing
   // steps in emitter, we mark it as a normal operation.
-  let results = (outs RankedTensorOf<[AnyFloat, AnyComplex]>:$decoded);
+  let results = (outs TensorOrMemRef<[AnyFloat, AnyComplex]>:$decoded);
 }
 
-def Lattigo_CKKSNewEvaluatorOp : Lattigo_CKKSOp<"new_evaluator"> {
+def Lattigo_CKKSNewEvaluatorOp : Lattigo_CKKSOp<"new_evaluator", [Pure]> {
   let summary = "Create a new evaluator in the Lattigo CKKS dialect";
   let description = [{
     This operation creates a new evaluator for performing operations on ciphertexts in the Lattigo CKKS dialect.
@@ -99,7 +103,7 @@ def Lattigo_CKKSNewEvaluatorOp : Lattigo_CKKSOp<"new_evaluator"> {
   let results = (outs Lattigo_CKKSEvaluator:$evaluator);
 }
 
-def Lattigo_CKKSNewBootstrappingParametersFromLiteralOp : Lattigo_CKKSOp<"new_bootstrapping_parameters_from_literal"> {
+def Lattigo_CKKSNewBootstrappingParametersFromLiteralOp : Lattigo_CKKSOp<"new_bootstrapping_parameters_from_literal", [Pure]> {
   let summary = "Create new CKKS bootstrapping parameters from a literal in the Lattigo CKKS dialect";
   let description = [{
     This operation creates new CKKS bootstrapping parameters from a given literal value in the Lattigo CKKS dialect.
@@ -111,7 +115,7 @@ def Lattigo_CKKSNewBootstrappingParametersFromLiteralOp : Lattigo_CKKSOp<"new_bo
   let results = (outs Lattigo_CKKSBootstrappingParameter:$output);
 }
 
-def Lattigo_CKKSGenEvaluationKeysBootstrappingOp : Lattigo_CKKSOp<"gen_evaluation_keys_bootstrapping"> {
+def Lattigo_CKKSGenEvaluationKeysBootstrappingOp : Lattigo_CKKSOp<"gen_evaluation_keys_bootstrapping", [Pure]> {
   let summary = "Create new evaluation keys for CKKS bootstrapping";
   let arguments = (ins
     Lattigo_CKKSBootstrappingParameter:$params,
@@ -120,7 +124,7 @@ def Lattigo_CKKSGenEvaluationKeysBootstrappingOp : Lattigo_CKKSOp<"gen_evaluatio
   let results = (outs Lattigo_CKKSBootstrappingEvaluationKeys:$output);
 }
 
-def Lattigo_CKKSNewBootstrappingEvaluatorOp : Lattigo_CKKSOp<"new_bootstrapping_evaluator"> {
+def Lattigo_CKKSNewBootstrappingEvaluatorOp : Lattigo_CKKSOp<"new_bootstrapping_evaluator", [Pure]> {
   let summary = "Create a new bootstrapping evaluator in the Lattigo CKKS dialect";
   let description = [{
     Creates a new bootstrapping evaluator for performing operations on
@@ -140,7 +144,7 @@ def Lattigo_CKKSNewBootstrappingEvaluatorOp : Lattigo_CKKSOp<"new_bootstrapping_
 // ciphertext arithmetic op
 
 class Lattigo_CKKSBinaryOp<string mnemonic, list<Trait> traits = []> :
-        Lattigo_CKKSOp<mnemonic, traits> {
+        Lattigo_CKKSOp<mnemonic, traits # [Pure]> {
   let arguments = (ins
     Lattigo_CKKSEvaluator:$evaluator,
     Lattigo_RLWECiphertext:$lhs,
@@ -216,7 +220,7 @@ def Lattigo_CKKSMulOp : Lattigo_CKKSBinaryInPlaceOp<"mul", [IncreasesMulDepthOpI
 }
 
 class Lattigo_CKKSUnaryOp<string mnemonic, list<Trait> traits = []> :
-        Lattigo_CKKSOp<mnemonic, traits> {
+        Lattigo_CKKSOp<mnemonic, traits # [Pure]> {
   let arguments = (ins
     Lattigo_CKKSEvaluator:$evaluator,
     Lattigo_RLWECiphertext:$input
@@ -231,7 +235,9 @@ def Lattigo_CKKSRelinearizeNewOp : Lattigo_CKKSUnaryOp<"relinearize_new"> {
   }];
 }
 
-def Lattigo_CKKSRescaleNewOp : Lattigo_CKKSUnaryOp<"rescale_new"> {
+def Lattigo_CKKSRescaleNewOp : Lattigo_CKKSUnaryOp<"rescale_new", [
+  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getOperandToReduce"]>
+]> {
   let summary = "Rescale a ciphertext in the Lattigo CKKS dialect";
   let description = [{
     This operation rescales a ciphertext value in the Lattigo CKKS dialect.
@@ -239,7 +245,8 @@ def Lattigo_CKKSRescaleNewOp : Lattigo_CKKSUnaryOp<"rescale_new"> {
 }
 
 def Lattigo_CKKSRotateNewOp : Lattigo_CKKSOp<"rotate_new", [
-  DeclareOpInterfaceMethods<RotationOpInterface>
+  DeclareOpInterfaceMethods<RotationOpInterface>,
+  Pure
 ]> {
   let summary = "Rotate slots of a ciphertext in the Lattigo CKKS dialect";
   let description = [{
@@ -284,7 +291,9 @@ def Lattigo_CKKSRelinearizeOp : Lattigo_CKKSUnaryInPlaceOp<"relinearize"> {
   }];
 }
 
-def Lattigo_CKKSRescaleOp : Lattigo_CKKSUnaryInPlaceOp<"rescale"> {
+def Lattigo_CKKSRescaleOp : Lattigo_CKKSUnaryInPlaceOp<"rescale", [
+  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getOperandToReduce"]>
+]> {
   let summary = "Rescale a ciphertext in the Lattigo CKKS dialect";
   let description = [{
     This operation rescales a ciphertext value in the Lattigo CKKS dialect.
@@ -322,7 +331,7 @@ def Lattigo_CKKSRotateOp : Lattigo_CKKSUnaryInPlaceOp<"rotate", [
   let hasVerifier = 1;
 }
 
-def Lattigo_CKKSBootstrapOp : Lattigo_CKKSUnaryOp<"bootstrap", [ResetsMulDepthOpInterface]> {
+def Lattigo_CKKSBootstrapOp : Lattigo_CKKSUnaryOp<"bootstrap"> {
   let summary = "Bootstrap a ciphertext in the Lattigo CKKS dialect";
   let description = [{
     Bootstraps a ciphertext value in the Lattigo CKKS dialect.
@@ -376,7 +385,7 @@ def Lattigo_CKKSLinearTransformOp : Lattigo_CKKSOp<"linear_transform", [
     Lattigo_RLWECiphertext:$input,
 
     // Parameters corresponding to the lattigo lintrans.Parameters struct
-    2DTensorOf<[AnyFloat]>:$diagonals,
+    ConfinedType<TensorOrMemRef<[AnyFloat]>, [HasAnyRankOfPred<[2]>]>:$diagonals,
     DenseI32ArrayAttr:$diagonal_indices,
     Builtin_IntegerAttr:$levelQ,
     Builtin_IntegerAttr:$logBabyStepGiantStepRatio
@@ -422,7 +431,8 @@ def Lattigo_CKKSChebyshevOp : Lattigo_CKKSOp<"chebyshev", [AllTypesMatch<["ciphe
     Lattigo_CKKSPolynomialEvaluator:$evaluator,
     Lattigo_RLWECiphertext:$ciphertext,
     ArrayAttr:$coefficients,
-    Builtin_IntegerAttr:$targetScale
+    Builtin_IntegerAttr:$targetScale,
+    OptionalAttr<ConfinedAttr<DenseF64ArrayAttr, [DenseArrayCount<2>]>>:$domain
   );
   let results = (outs Lattigo_RLWECiphertext:$output);
 }

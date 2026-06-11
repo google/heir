@@ -12,6 +12,12 @@ def AddDebugPort : Pass<"lwe-add-debug-port"> {
   function. The debug ports are declarations and user should provide functions with
   the same name in their code.
 
+  If the option `insert-debug-after-every-op` is set to true, it will insert a `debug.validate`
+  op after every homomorphic operation.
+
+  Regardless of the `insert-debug-after-every-op` option, this pass will lower all
+  `debug.validate` ops it encounters to function calls.
+
   For example, if the function is called "foo", the secret key is added to its
   arguments, and the debug port is called after each homomorphic operation:
   ```mlir
@@ -29,13 +35,18 @@ def AddDebugPort : Pass<"lwe-add-debug-port"> {
   }
   ```
   }];
-  let dependentDialects = ["mlir::heir::lwe::LWEDialect"];
+  let dependentDialects = [
+    "mlir::heir::lwe::LWEDialect",
+    "mlir::heir::debug::DebugDialect"
+  ];
   let options = [
     Option<"entryFunction", "entry-function", "std::string",
            /*default=*/"", "Default entry function "
            "name of entry function.">,
     Option<"messageSize", "message-size", "int",
            /*default=*/"1", "The size of the message in the ciphertext.">,
+    Option<"insertDebugAfterEveryOp", "insert-debug-after-every-op", "bool",
+           /*default=*/"false", "Whether to add debug ports after every op">
   ];
 }
 
@@ -56,6 +67,18 @@ def ImplementTrivialEncryptionAsAddition : Pass<"implement-trivial-encryption-as
   ];
 
   let options = [];
+}
+
+def DecomposeKeySwitch : Pass<"lwe-decompose-keyswitch"> {
+  let summary = "Decomposes lwe.key_switch_inner into primitive LWE ops";
+  let description = [{
+  (* example filepath=tests/Dialect/LWE/Transforms/decompose_keyswitch.mlir *)
+  }];
+  let dependentDialects = [
+    "mlir::arith::ArithDialect",
+    "mlir::heir::lwe::LWEDialect",
+    "mlir::tensor::TensorDialect",
+  ];
 }
 
 #endif  // LIB_DIALECT_LWE_TRANSFORMS_PASSES_TD_

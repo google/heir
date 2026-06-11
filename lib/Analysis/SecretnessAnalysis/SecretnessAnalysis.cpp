@@ -26,7 +26,7 @@
 #include "mlir/include/mlir/Interfaces/CallInterfaces.h"   // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 
-#define DEBUG_TYPE = "secretness-analysis"
+#define DEBUG_TYPE "secretness-analysis"
 
 namespace mlir {
 namespace heir {

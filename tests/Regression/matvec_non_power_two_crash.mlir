@@ -3,8 +3,7 @@
 // XFAIL: *
 
 module {
-  func.func @matvec(%arg0 : tensor<33xf32> {secret.secret}) -> tensor<32xf32> {
-    %matrix = arith.constant dense<1.0> : tensor<32x33xf32>
+  func.func @matvec(%arg0 : tensor<33xf32> {secret.secret}, %matrix: tensor<32x33xf32>) -> tensor<32xf32> {
     %out = arith.constant dense<0.0> : tensor<32xf32>
     %0 = linalg.matvec ins(%matrix, %arg0 : tensor<32x33xf32>, tensor<33xf32>) outs(%out : tensor<32xf32>) -> tensor<32xf32>
     return %0 : tensor<32xf32>

@@ -66,7 +66,7 @@ module attributes {scheme.bgv} {
   // CHECK: [[gk5:[^, ].*]] := [[kgen]].GenGaloisKeyNew(5, [[sk]])
   // CHECK: [[evalKeySet:[^, ].*]] := rlwe.NewMemEvaluationKeySet([[rk]], [[gk5]])
   // CHECK: [[enc:[^, ].*]] := rlwe.NewEncryptor([[param]], [[pk]])
-  // CHECK: [[encSk:[^, ].*]] := rlwe.NewEncryptor([[param]], [[sk]])
+  // CHECK: _ = rlwe.NewEncryptor([[param]], [[sk]])
   // CHECK: [[dec:[^, ].*]] := rlwe.NewDecryptor([[param]], [[sk]])
   // CHECK: [[eval:[^, ].*]] := bgv.NewEvaluator([[param]], [[evalKeySet]], false)
   // CHECK: [[value1:[^, ].*]] := []int32
@@ -231,55 +231,6 @@ module attributes {scheme.bgv} {
 // -----
 
 module attributes {scheme.bgv} {
-  // CHECK: func tensor_insert
-  func.func @tensor_insert(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) -> f32 {
-    // CHECK:  [[v0:[^ ]*]] := int64(5)
-    // CHECK:  [[v1:[^, ]*]] := float32(7.5)
-    // CHECK:  [[v2:[^ ]*]] := make([]float32, 8)
-    // CHECK:  [[v3:[^ ]*]] := append(make([]float32, 0, len([[v2]])), [[v2]]...)
-    // CHECK:  [[v3]]{{\[}}[[v0]]] = [[v1]]
-    // CHECK:  return [[v1]]
-    %c5 = arith.constant 5 : index
-    %v = arith.constant 7.5 : f32
-    %tensor = arith.constant dense<0.0> : tensor<8xf32>
-    %tensor2 = tensor.insert %v into %tensor[%c5] : tensor<8xf32>
-    return %v : f32
-  }
-}
-
-// -----
-
-module attributes {scheme.bgv} {
-  // CHECK: func extract_slice
-  func.func @extract_slice(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) {
-  // CHECK:  [[v0:[^ ]*]] := slices.Repeat([]int32{5}, 20)
-  // CHECK:  [[v1:[^ ]*]] := make([]int32, 3)
-  // CHECK:  for [[dest:[^ ]*]] := 0; [[dest]] < 3; [[dest]] += 1 {
-  // CHECK:    [[v1]]{{\[}}[[dest]]] = [[v0]]{{\[}}1 + [[dest]] * 2]
-  // CHECK:  }
-    %c5 = arith.constant dense<5> : tensor<20xi32>
-    %v = tensor.extract_slice %c5[1] [3] [2] : tensor<20xi32> to tensor<3xi32>
-    return
-  }
-}
-
-// -----
-
-module attributes {scheme.bgv} {
-  // CHECK: func splat
-  func.func @splat(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) -> tensor<20xi32> {
-    // CHECK:  [[c5:[^ ]*]] := int32(5)
-    // CHECK:  [[v0:[^ ]*]] := []int32{[[c5]]}
-    // CHECK:  [[v1:[^ ]*]] := slices.Repeat([[v0]], 20)
-    %c5 = arith.constant 5 : i32
-    %v = tensor.splat %c5 : tensor<20xi32>
-    return %v : tensor<20xi32>
-  }
-}
-
-// -----
-
-module attributes {scheme.bgv} {
   // CHECK: func extsi_scalar
   func.func @extsi_scalar(%evaluator: !lattigo.bgv.evaluator) {
   // CHECK:  [[v0:[^ ]*]] := int16(5)
@@ -399,29 +350,6 @@ module attributes {scheme.bgv} {
   }
 }
 
-// -----
-
-module attributes {scheme.bgv} {
-  // CHECK: func concat
-  func.func @concat() -> tensor<32xi32> {
-    // CHECK: [[v0:[^ ]*]] := []int32{1, 1, 1, 1, 1, 1, 1, 1}
-    // CHECK: [[v1:[^ ]*]] := slices.Concat([[v0]], [[v0]], [[v0]], [[v0]])
-    %c0 = arith.constant dense<1> : tensor<8xi32>
-    %0 = tensor.concat dim(0) %c0, %c0, %c0, %c0 : (tensor<8xi32>, tensor<8xi32>, tensor<8xi32>, tensor<8xi32>) -> tensor<32xi32>
-    return %0 : tensor<32xi32>
-  }
-}
-
-// -----
-
-module attributes {scheme.bgv} {
-  // CHECK: func empty
-  func.func @empty() -> tensor<8xi32> {
-    // CHECK: [[v0:[^ ]*]] := make([]int32, 8)
-    %0 = tensor.empty() : tensor<8xi32>
-    return %0 : tensor<8xi32>
-  }
-}
 
 // -----
 

@@ -74,7 +74,6 @@ cc_library(
     srcs = ["ConversionUtils.cpp"],
     hdrs = ["ConversionUtils.h"],
     deps = [
-        ":Utils",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/TfheRust/IR:Dialect",
         "@llvm-project//llvm:Support",
@@ -232,10 +231,27 @@ cc_library(
     srcs = ["AllocToInPlaceUtils.cpp"],
     hdrs = ["AllocToInPlaceUtils.h"],
     deps = [
+        "@heir//lib/Analysis/LevelAnalysis",
         "@heir//lib/Utils/Tablegen:InPlaceOpInterface",
+        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:MemRefDialect",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
+    ],
+)
+
+cc_test(
+    name = "UtilsTest",
+    srcs = ["UtilsTest.cpp"],
+    deps = [
+        ":Utils",
+        "@googletest//:gtest_main",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
     ],

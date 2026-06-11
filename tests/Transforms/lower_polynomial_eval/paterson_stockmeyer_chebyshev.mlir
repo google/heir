@@ -53,3 +53,22 @@ func.func @test_eval_for_paterson() -> f64 {
     %0 = polynomial.eval #poly, %x {domain_lower = -1.0 : f64, domain_upper = 1.0 : f64} : f64
     return %0 : f64
 }
+
+// CHECK: @test_eval_shift
+func.func @test_eval_shift() -> f64 {
+// CHECK-DAG: [[CST_INPUT:%.+]] = arith.constant 1.4
+// CHECK-DAG: [[SHIFT:%.+]] = arith.constant -1.0
+// CHECK: [[VAL:%.+]] = arith.addf [[CST_INPUT]], [[SHIFT]]
+// CHECK-DAG: [[CST_0:%.+]] = arith.constant 0.32
+// CHECK-DAG: [[CST_1:%.+]] = arith.constant 1.0
+// CHECK: [[V0:%.+]] = arith.mulf [[CST_0]], [[CST_1]]
+// CHECK: [[CST_2:%.+]] = arith.constant 5.0{{0*}}e-01
+// CHECK: [[V1:%.+]] = arith.mulf [[CST_2]], [[VAL]]
+// CHECK: [[V2:%.+]] = arith.addf [[V0]], [[V1]]
+// CHECK-DAG: [[CST_4:%.+]] = arith.constant 2.0
+// CHECK: [[V3:%.+]] = arith.mulf [[VAL]], [[VAL]]
+// CHECK: [[V4:%.+]] = arith.mulf [[CST_4]], [[V3]]
+  %x = arith.constant 1.4 : f64
+  %0 = polynomial.eval #poly, %x {domain_lower = 0.0 : f64, domain_upper = 2.0 : f64} : f64
+  return %0 : f64
+}

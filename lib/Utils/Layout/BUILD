@@ -32,6 +32,7 @@ cc_test(
         ":Convolution",
         ":IslConversion",
         "@googletest//:gtest_main",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",  # build_cleaner: keep
         "@heir//lib/Dialect/TensorExt/IR:TensorExtAttributes",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithDialect",
@@ -66,7 +67,6 @@ cc_library(
     deps = [
         ":IslConversion",
         ":Utils",
-        "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Utils:MathUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
@@ -84,9 +84,6 @@ cc_library(
         ":Utils",
         "@isl",
         "@llvm-project//mlir:Analysis",
-        "@llvm-project//mlir:ArithUtils",
-        "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:Support",
     ],
 )
 
@@ -109,7 +106,6 @@ cc_test(
     name = "UtilsTest",
     srcs = ["UtilsTest.cpp"],
     deps = [
-        ":Convolution",
         ":Evaluate",
         ":IslConversion",
         ":Utils",
@@ -129,11 +125,8 @@ cc_test(
     deps = [
         ":Convolution",
         ":Evaluate",
-        ":IslConversion",
         ":Utils",
         "@googletest//:gtest_main",
-        "@heir//lib/Utils:TensorUtils",
-        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",

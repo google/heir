@@ -132,7 +132,7 @@ void LayoutOptimization::runOnOperation() {
               // run automatically instead of doing it manually here
               LLVM_DEBUG(llvm::dbgs() << "Visiting op: " << op->getName()
                                       << " with hoistable interface\n");
-              KernelName kernelName = KernelName::Trivial;
+              [[maybe_unused]] KernelName kernelName = KernelName::Trivial;
               if (op->hasAttr(kKernelAttrName)) {
                 kernelName =
                     op->getAttrOfType<KernelAttr>(kKernelAttrName).getName();

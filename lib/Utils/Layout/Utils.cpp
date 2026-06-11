@@ -576,7 +576,9 @@ presburger::IntegerRelation collapseDimensions(
     if (associationGroup.size() == 1) {
       continue;
     }
-    for (int64_t reassocDim : associationGroup) {
+    // Iterate starting from the largest index so that earlier deletion do not
+    // impact later indices
+    for (int64_t reassocDim : llvm::reverse(associationGroup)) {
       if (sourceType.getShape()[reassocDim] == 1) {
         // Drop this unit dimension
         clonedRelation->setAndEliminate(reassocDim, 0);
@@ -596,6 +598,17 @@ presburger::IntegerRelation expandDimensions(
   // dimension we're adding is in the correct index of the integer relations
   // domain variable list.
   std::unique_ptr<IntegerRelation> clonedRelation = relation.clone();
+
+  // Handle the case where reassociation is empty
+  if (reassociation.empty()) {
+    for (int64_t i = 0; i < resultType.getRank(); ++i) {
+      auto newDimIndex = clonedRelation->insertVar(VarKind::Domain, i);
+      clonedRelation->addBound(BoundType::LB, newDimIndex, 0);
+      clonedRelation->addBound(BoundType::UB, newDimIndex, 0);
+    }
+    return *clonedRelation;
+  }
+
   int oldDim = 0;
   DenseMap<AffineExpr, AffineExpr> oldDimsToNewDims;
   for (const ReassociationIndices& associationGroup : reassociation) {
@@ -618,6 +631,10 @@ presburger::IntegerRelation expandDimensions(
       }
     }
   }
+  assert(static_cast<int64_t>(clonedRelation->getNumDomainVars()) ==
+             resultType.getRank() &&
+         "expandDimensions: result relation domain rank must match the result "
+         "tensor rank");
   return *clonedRelation;
 }
 
@@ -812,13 +829,19 @@ FailureOr<presburger::IntegerRelation> getSliceInsertionRelation(
   // Add bounds for the source dimensions.
   auto domainOffset = result.getVarKindOffset(VarKind::Domain);
   for (int i = 0; i < sliceType.getRank(); ++i) {
-    addBounds(result, domainOffset + i, 0, sliceType.getDimSize(i) - 1);
+    auto dimSize = sliceType.getDimSize(i);
+    if (!ShapedType::isDynamic(dimSize)) {
+      addBounds(result, domainOffset + i, 0, dimSize - 1);
+    }
   }
 
   // Add bounds for the result dimensions.
   auto rangeOffset = result.getVarKindOffset(VarKind::Range);
   for (int i = 0; i < resultType.getRank(); ++i) {
-    addBounds(result, rangeOffset + i, 0, resultType.getDimSize(i) - 1);
+    auto dimSize = resultType.getDimSize(i);
+    if (!ShapedType::isDynamic(dimSize)) {
+      addBounds(result, rangeOffset + i, 0, dimSize - 1);
+    }
   }
 
   // Source tensor's dimensions (d0, d1, ...) are mapped sequentially to the

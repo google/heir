@@ -8,12 +8,15 @@ namespace heir {
 namespace openfhe {
 
 constexpr std::string_view kSourceRelativeOpenfheImport = R"cpp(
+#include <cassert>
 #include "src/pke/include/openfhe.h"  // from @openfhe
 )cpp";
 constexpr std::string_view kInstallationRelativeOpenfheImport = R"cpp(
+#include <cassert>
 #include "openfhe/pke/openfhe.h"  // from @openfhe
 )cpp";
 constexpr std::string_view kEmbeddedOpenfheImport = R"cpp(
+#include <cassert>
 #include "openfhe.h"
 )cpp";
 
@@ -95,6 +98,7 @@ void bind_common(py::module &m)
         .def_readwrite("secretKey", &KeyPair<DCRTPoly>::secretKey);
     py::class_<CiphertextImpl<DCRTPoly>, std::shared_ptr<CiphertextImpl<DCRTPoly>>>(m, "Ciphertext", py::module_local())
         .def(py::init<>());
+    py::class_<PlaintextImpl, std::shared_ptr<PlaintextImpl>>(m, "Plaintext", py::module_local());
     py::class_<CryptoContextImpl<DCRTPoly>, std::shared_ptr<CryptoContextImpl<DCRTPoly>>>(m, "CryptoContext", py::module_local())
         .def(py::init<>())
         .def("KeyGen", &CryptoContextImpl<DCRTPoly>::KeyGen);
@@ -117,10 +121,40 @@ PYBIND11_MODULE({0}, m) {{
 constexpr std::string_view kPybindFunctionTemplate =
     "m.def(\"{0}\", &{0}, py::call_guard<py::gil_scoped_release>());";
 
+// Emit a pybind11 class binding for a struct, used for functions with multiple
+// return values. {0} is the struct name.
+constexpr std::string_view kPybindStructClassTemplate =
+    R"cpp(py::class_<{0}>(m, "{0}", py::module_local()).def(py::init<>())
+    )cpp";
+
+// Emit a pybind11 field binding for a struct member.
+// {0} is the field index (e.g., 0, 1).
+// {1} is the struct name.
+constexpr std::string_view kPybindStructFieldTemplate =
+    "    .def_readwrite(\"arg{0}\", &{1}::arg{0})\n";
+
 // clang-format off
 constexpr std::string_view KdebugHeaderImports = R"cpp(
 #include <map>
 #include <string>
+)cpp";
+// clang-format on
+
+// clang-format off
+constexpr std::string_view kDebugBlockArgCheckTemplate = R"cpp(
+auto {0} = {1}.at("asm.is_block_arg");
+if ({0} == "1") {{
+  std::cout << "Input" << std::endl;
+}} else {{
+  std::cout << {1}.at("asm.op_name") << std::endl;
+}}
+)cpp";
+
+constexpr std::string_view kDebugDecryptTemplate = R"cpp(
+PlaintextT {0};
+{1}->Decrypt({2}, {3}, &{0});
+{0}->SetLength(std::stoul({4}.at("message.size")));
+std::cout << "  " << {0} << std::endl;
 )cpp";
 // clang-format on
 

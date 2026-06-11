@@ -8,13 +8,13 @@
 module attributes {backend.lattigo, scheme.ckks} {
   // CHECK: func.func @pooling
   func.func @pooling(%arg0: !secret.secret<tensor<1x4x28x28xf32>> {tensor_ext.layout = #layout1}) -> (!secret.secret<tensor<1x4x14x14xf32>> {tensor_ext.layout = #layout}) {
-    // CHECK: arith.constant dense<0{{.*}}> : tensor<1x4096xf32>
+    // CHECK-DAG: arith.constant dense<0{{.*}}> : tensor<1x4096xf32>
+    // CHECK-DAG: arith.constant dense<"0x
     %cst = arith.constant dense<0.000000e+00> : tensor<1x4x14x14xf32>
     %cst_0 = arith.constant dense<[[[[2.500000e-01, 2.500000e-01], [2.500000e-01, 2.500000e-01]], [[0.000000e+00, 0.000000e+00], [0.000000e+00, 0.000000e+00]], [[0.000000e+00, 0.000000e+00], [0.000000e+00, 0.000000e+00]], [[0.000000e+00, 0.000000e+00], [0.000000e+00, 0.000000e+00]]], [[[0.000000e+00, 0.000000e+00], [0.000000e+00, 0.000000e+00]], [[2.500000e-01, 2.500000e-01], [2.500000e-01, 2.500000e-01]], [[0.000000e+00, 0.000000e+00], [0.000000e+00, 0.000000e+00]], [[0.000000e+00, 0.000000e+00], [0.000000e+00, 0.000000e+00]]], [[[0.000000e+00, 0.000000e+00], [0.000000e+00, 0.000000e+00]], [[0.000000e+00, 0.000000e+00], [0.000000e+00, 0.000000e+00]], [[2.500000e-01, 2.500000e-01], [2.500000e-01, 2.500000e-01]], [[0.000000e+00, 0.000000e+00], [0.000000e+00, 0.000000e+00]]], [[[0.000000e+00, 0.000000e+00], [0.000000e+00, 0.000000e+00]], [[0.000000e+00, 0.000000e+00], [0.000000e+00, 0.000000e+00]], [[0.000000e+00, 0.000000e+00], [0.000000e+00, 0.000000e+00]], [[2.500000e-01, 2.500000e-01], [2.500000e-01, 2.500000e-01]]]]> : tensor<4x4x2x2xf32>
     // CHECK: secret.generic
     %0 = secret.generic(%arg0: !secret.secret<tensor<1x4x28x28xf32>> {tensor_ext.layout = #layout1}) {
     ^body(%input0: tensor<1x4x28x28xf32>):
-      // CHECK: func.call @_assign_layout_
       %1 = tensor_ext.assign_layout %cst_0 {domainSchedule = array<i64: 0, 1>, layout = #layout2, tensor_ext.layout = #layout2} : tensor<4x4x2x2xf32>
       %2 = tensor_ext.assign_layout %cst {layout = #layout3, tensor_ext.layout = #layout3} : tensor<1x4x14x14xf32>
       // CHECK-COUNT-1024: tensor_ext.rotate
