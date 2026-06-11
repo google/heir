@@ -23,7 +23,12 @@ class HEIRConfig:
 def development_heir_config() -> HEIRConfig:
   repo_root = get_repo_root()
   if not repo_root:
-    raise RuntimeError("Could not build development config. Did you run bazel?")
+    return HEIRConfig(
+        heir_opt_path="",
+        heir_translate_path="",
+        techmap_dir_path="",
+        abc_path="",
+    )
 
   techmap_dir_path = (
       repo_root
@@ -48,6 +53,15 @@ def development_heir_config() -> HEIRConfig:
       / "abc_bin"
   )
   if not abc_path.exists():
+    abc_path = (
+        repo_root
+        / "bazel-bin"
+        / "tools"
+        / "heir-opt.runfiles"
+        / "abc+"
+        / "abc_bin"
+    )
+  if not abc_path.exists():
     abc_path = ""
 
   return HEIRConfig(
@@ -56,6 +70,40 @@ def development_heir_config() -> HEIRConfig:
       techmap_dir_path=techmap_dir_path,
       abc_path=abc_path,
   )
+
+
+def _resolve_binary(
+    env_var_name: str,
+    dev_path: Path | str,
+    binary_name: str,
+    required: bool = True,
+) -> Path | str:
+  # 1. Env Var
+  val = os.environ.get(env_var_name)
+  if val:
+    return val
+
+  # 2. Bazel-built dev path (if exists)
+  dev_path_obj = Path(dev_path) if dev_path else None
+  if dev_path_obj and dev_path_obj.exists():
+    return dev_path_obj
+
+  # 3. shutil.which PATH (if exists)
+  which_path = shutil.which(binary_name)
+  if which_path:
+    return which_path
+
+  # 4. dev path fallback (if it is defined and we want to fall back to it without error)
+  if not required and dev_path:
+    return dev_path
+
+  # 5. RuntimeError
+  if required:
+    raise RuntimeError(
+        f"Could not find binary '{binary_name}'. Please set {env_var_name} or"
+        " ensure it is on your PATH or built via Bazel."
+    )
+  return ""
 
 
 def from_os_env() -> HEIRConfig:
@@ -68,32 +116,44 @@ def from_os_env() -> HEIRConfig:
 
   1. Environment variables HEIR_OPT_PATH, HEIR_TRANSLATE_PATH, HEIR_ABC_BINARY,
      or HEIR_YOSYS_SCRIPTS_DIR
-  2. The path to the heir-opt or heir-translate binary on the PATH
-  3. The default development configuration (relative to the project root, in
-     bazel-bin)
+  2. The default development configuration (relative to the project root, in
+     bazel-bin) (if they exist)
+  3. The path to the heir-opt or heir-translate binary on the PATH
+  4. The dev path fallback (if not found elsewhere)
 
   Returns:
     The HEIRConfig
   """
-  which_heir_opt = shutil.which("heir-opt")
-  which_heir_translate = shutil.which("heir-translate")
-  which_abc = shutil.which("abc")
-  resolved_heir_opt_path = os.environ.get(
-      "HEIR_OPT_PATH",
-      which_heir_opt or development_heir_config().heir_opt_path,
+  dev_config = development_heir_config()
+
+  resolved_heir_opt_path = _resolve_binary(
+      env_var_name="HEIR_OPT_PATH",
+      dev_path=dev_config.heir_opt_path,
+      binary_name="heir-opt",
+      required=True,
   )
-  resolved_heir_translate_path = os.environ.get(
-      "HEIR_TRANSLATE_PATH",
-      which_heir_translate or development_heir_config().heir_translate_path,
+  resolved_heir_translate_path = _resolve_binary(
+      env_var_name="HEIR_TRANSLATE_PATH",
+      dev_path=dev_config.heir_translate_path,
+      binary_name="heir-translate",
+      required=True,
   )
-  resolved_abc_path = os.environ.get(
-      "HEIR_ABC_BINARY",
-      which_abc or development_heir_config().abc_path,
+  resolved_abc_path = _resolve_binary(
+      env_var_name="HEIR_ABC_BINARY",
+      dev_path=dev_config.abc_path,
+      binary_name="abc",
+      required=False,
   )
-  resolved_techmap_dir_path = os.environ.get(
-      "HEIR_YOSYS_SCRIPTS_DIR",
-      development_heir_config().techmap_dir_path,
-  )
+
+  resolved_techmap_dir_path = os.environ.get("HEIR_YOSYS_SCRIPTS_DIR")
+  if not resolved_techmap_dir_path:
+    if (
+        dev_config.techmap_dir_path
+        and Path(dev_config.techmap_dir_path).exists()
+    ):
+      resolved_techmap_dir_path = dev_config.techmap_dir_path
+    else:
+      resolved_techmap_dir_path = dev_config.techmap_dir_path
 
   return HEIRConfig(
       heir_opt_path=resolved_heir_opt_path,

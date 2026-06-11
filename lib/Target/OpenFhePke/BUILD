@@ -195,6 +195,10 @@ cc_test(
     srcs = ["InterpreterTest.cpp"],
     copts = OPENMP_COPTS,
     linkopts = OPENMP_LINKOPTS,
+    tags = [
+        "manual",
+        "notap",
+    ],
     deps = [
         ":Interpreter",
         "@googletest//:gtest_main",

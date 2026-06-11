@@ -16,7 +16,15 @@ DEFAULT_COMPILER_FLAGS: list[str] = ["-O3", "-fPIC", "-shared", "-std=c++17"]
 
 
 def to_cpp_compiler_args(prefix, strs):
-  return [f"{prefix}{s}" for s in strs] if strs else []
+  if not strs:
+    return []
+  res = []
+  for s in strs:
+    if prefix == "-l" and Path(s).is_absolute():
+      res.append(s)
+    else:
+      res.append(f"{prefix}{s}")
+  return res
 
 
 class CppCompilerBackend:

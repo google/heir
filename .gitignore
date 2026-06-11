@@ -58,3 +58,5 @@ MODULE.bazel.lock
 
 scripts/torch_ci/failure_logs
 scripts/torch_ci/models/*.mlir
+openfhe-install/
+openfhe-development/

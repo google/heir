@@ -42,6 +42,7 @@ jobs:
           ls -al /etc/alternatives/clang
           bazel cquery --output=starlark --starlark:expr="str(providers(target))" @bazel_tools//tools/cpp:current_cc_toolchain | sed 's/,/\n/g' | grep -C 5 clang
 
+      # Bazel tests
       - name: "Run `bazel build`"
         run: |
           bazel build -c opt //...
@@ -49,3 +50,23 @@ jobs:
       - name: "Run `bazel test`"
         run: |
           bazel test -c opt //...
+
+      # Frontend tests
+      - name: Build OpenFHE
+        run: |
+          ./.github/build_openfhe.sh
+
+      - name: Install Python 3.12
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Install python package in editable mode
+        run: |
+          python -m pip install --upgrade pip
+          # This should reuse the pre-built binaries from `bazel build` above.
+          pip install -e ".[dev,python,openfhe]"
+
+      - name: Run Python frontend tests
+        run: |
+          pytest frontend/

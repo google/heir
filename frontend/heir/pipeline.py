@@ -328,10 +328,9 @@ def compile(
     _extras.require("pybind11", extra="openfhe")
     from heir.backends.openfhe import OpenFHEBackend, config as openfhe_config  # pylint: disable=g-import-not-at-top
 
-    if is_pip_installed():
-      backend = OpenFHEBackend(openfhe_config.from_pip_installation())
-    else:
-      backend = OpenFHEBackend(openfhe_config.from_os_env())
+    backend = OpenFHEBackend(
+        openfhe_config.resolve_config(debug=debug or False)
+    )
 
   if debug and heir_opt_options is not None:
     DebugMessage(f"Overriding scheme with options {heir_opt_options}")

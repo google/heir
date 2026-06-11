@@ -1,14 +1,8 @@
 """Defines Python type annotations for MLIR types."""
 
 from abc import ABC, abstractmethod
-import sys
 from typing import Generic, Optional, TypeVar, get_args, get_origin
-
-if sys.version_info >= (3, 11):
-  from typing import TypeVarTuple, Unpack
-else:
-  # TypeVarTuple/Unpack landed in typing in 3.11; use the backport on 3.10.
-  from typing_extensions import TypeVarTuple, Unpack
+from typing import TypeVarTuple, Unpack
 from numba.core.types import Type as NumbaType
 from numba.core.types import boolean, int8, int16, int32, int64, float32, float64
 from numba.extending import type_callable

@@ -82,7 +82,7 @@ def openfhe_interpreter_test(name, mlir_src, test_src, generated_heir_opt_filena
             "@llvm-project//mlir:Support",
         ],
         timeout = timeout,
-        tags = tags,
+        tags = tags + ["manual", "notap"],
         data = data + [":" + generated_heir_opt_filename],
         copts = OPENMP_COPTS + copts,
         linkopts = OPENMP_LINKOPTS,

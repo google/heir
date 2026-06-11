@@ -1,9 +1,15 @@
 from .backend import OpenFHEBackend
-from .config import DEFAULT_INSTALLED_OPENFHE_CONFIG, OpenFHEConfig, from_os_env
+from .config import (
+    get_default_installed_config,
+    OpenFHEConfig,
+    from_os_env,
+    resolve_config,
+)
 
 __all__ = [
     "OpenFHEBackend",
     "OpenFHEConfig",
-    "DEFAULT_INSTALLED_OPENFHE_CONFIG",
+    "get_default_installed_config",
     "from_os_env",
+    "resolve_config",
 ]

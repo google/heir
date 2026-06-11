@@ -260,6 +260,7 @@ class OpenFHEBackend(BackendInterface):
     cpp_compiler_backend = cpp_compiler.CppCompilerBackend()
     so_filepath = Path(workspace_dir) / f"{func_name}.so"
     linker_search_paths = [self.openfhe_config.lib_dir]
+    active_include_dirs = self.openfhe_config.include_dirs
 
     def debug_printer(args):
       print(
@@ -271,7 +272,7 @@ class OpenFHEBackend(BackendInterface):
     cpp_compiler_backend.compile_to_shared_object(
         cpp_source_filepath=cpp_filepath,
         shared_object_output_filepath=so_filepath,
-        include_paths=self.openfhe_config.include_dirs,
+        include_paths=active_include_dirs,
         linker_search_paths=linker_search_paths,
         link_libs=self.openfhe_config.link_libs,
         arg_printer=debug_printer if debug else None,
@@ -282,7 +283,7 @@ class OpenFHEBackend(BackendInterface):
     cpp_compiler_backend.compile_to_shared_object(
         cpp_source_filepath=pybind_filepath,
         shared_object_output_filepath=pybind_so_filepath,
-        include_paths=self.openfhe_config.include_dirs
+        include_paths=active_include_dirs
         + pybind11_includes()
         + [workspace_dir],
         linker_search_paths=linker_search_paths + pybind11_libs(),

@@ -89,6 +89,7 @@ jobs:
       github.event.label.name == 'ci:wheels'
     runs-on: ${{ matrix.runner }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - name: linux-x86_64
@@ -111,7 +112,7 @@ jobs:
       - run: pip install --upgrade pip uv
 
       - name: Build wheels on ${{ matrix.name }} using cibuildwheel
-        uses: pypa/cibuildwheel@5f22145df44122af0f5a201f93cf0207171beca7 # v3.0.0
+        uses: pypa/cibuildwheel@294735312765b09d24a2fbec22660ce817587d55 # v4.1.0
         env:
           SETUPTOOLS_SCM_PRETEND_VERSION: ${{ needs.setup-version.outputs.version }}
           CIBW_ENVIRONMENT_PASS: SETUPTOOLS_SCM_PRETEND_VERSION

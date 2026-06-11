@@ -58,24 +58,26 @@ auto-detected resources.
   - Defaults to `bazel-bin/tools/heir-{opt,translate}`.
   - Cf. `heir/backends/openfhe/config.py` for more details.
 
-- OpenFHE installation locations (default to where `cmake` installs them in the
-  OpenFHE development repo).
+- OpenFHE configuration overrides. Note: If any OpenFHE environment variable is
+  set, BOTH `OPENFHE_LIB_DIR` and `OPENFHE_INCLUDE_DIR` must be provided
+  (enforcing atomic overrides), or an error will be raised.
 
   - `OPENFHE_LIB_DIR`: a string containing the directory containing the OpenFHE
-    .so files. Usually `/usr/local/lib`
+    .so files. Usually `/usr/local/lib` or `openfhe/lib`.
   - `OPENFHE_INCLUDE_DIR`: a colon-separated string of directories containing
-    OpenFHE headers. Note this usually requires four different paths due to how
-    OpenFHE organizes its imports, one for each of the three main subdirectories
-    of the project.
+    OpenFHE headers. For a standard installation, this usually requires four
+    paths:
     - `/usr/local/include/openfhe`
     - `/usr/local/include/openfhe/binfhe`
     - `/usr/local/include/openfhe/core`
     - `/usr/local/include/openfhe/pke`
-  - `OPENFHE_LINK_LIBS`: a colon-separated string of libraries to link against
-    (without `lib` or `.so`). E.g., `"OPENFHEbinfhe:OPENFHEcore:OPENFHEpke"`.
+  - `OPENFHE_LINK_LIBS`: a colon-separated string of libraries to link against.
+    Accepts short names (e.g. `"openfhe"`) OR exact library filenames prefixed
+    by a colon (e.g. `":libOPENFHEcore.so.1"`). Defaults to split libraries:
+    `":libOPENFHEcore.so.1::libOPENFHEpke.so.1::libOPENFHEbinfhe.so.1"`.
   - `OPENFHE_INCLUDE_TYPE`: a string indicating the include path type to use
     (see options on `heir-translate --emit-openfhe`). Should be
-    `install-relative` for a system-wide OpenFHE installation.
+    `install-relative` for a system-wide or PyPI wheel OpenFHE installation.
 
 ## Formatting
 
