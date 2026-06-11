@@ -14,6 +14,7 @@ cc_library(
         "@com_google_ortools//ortools/math_opt/cpp:math_opt",
         "@com_google_ortools//ortools/math_opt/solvers:gscip_solver",
         "@heir//lib/Analysis/SecretnessAnalysis",
+        "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
