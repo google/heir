@@ -6,6 +6,7 @@ include "LattigoTypes.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "lib/Dialect/HEIRInterfaces.td"
 include "mlir/IR/OpBase.td"
+include "mlir/Interfaces/SideEffectInterfaces.td"
 
 class Lattigo_CKKSOp<string mnemonic, list<Trait> traits = []> :
         Lattigo_Op<"ckks." # mnemonic, traits> {

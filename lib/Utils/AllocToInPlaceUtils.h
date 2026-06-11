@@ -141,10 +141,13 @@ class CallerProvidedStorageInfo {
     LLVM_DEBUG(llvm::dbgs()
                << "getAvailableStorage for op " << op->getName() << "\n");
     for (auto& [storage, values] : storageToReferringValues) {
+      LLVM_DEBUG(llvm::dbgs() << "Checking storage: " << storage << "\n");
       if (domInfo && !domInfo->properlyDominates(storage, op)) {
+        LLVM_DEBUG(llvm::dbgs() << "Storage does not properly dominate op\n");
         continue;
       }
       if (isStored(storage)) {
+        LLVM_DEBUG(llvm::dbgs() << "Storage is stored\n");
         continue;
       }
       // storage and all referring values are dead
@@ -219,27 +222,27 @@ initializeAllocToInPlaceBlockStorage(Operation* op) {
           storageInfo.addStorage(arg);
         }
       }
-      block.walk<WalkOrder::PreOrder>([&](Operation* op) {
+      for (Operation& op : block.getOperations()) {
         // inplace op will not allocate new memory, it produces referring
         // values
-        if (auto inplaceOpInterface = mlir::dyn_cast<InPlaceOpInterface>(op)) {
+        if (auto inplaceOpInterface = mlir::dyn_cast<InPlaceOpInterface>(&op)) {
           auto inplaceOperand =
-              op->getOperand(inplaceOpInterface.getInPlaceOperandIndex());
+              op.getOperand(inplaceOpInterface.getInPlaceOperandIndex());
           auto storage = storageInfo.getStorageFromValue(inplaceOperand);
           if (storage) {
-            for (auto result : op->getResults()) {
+            for (auto result : op.getResults()) {
               storageInfo.addReferringValue(storage, result);
             }
           }
         } else {
           // alloc op results are storages
-          for (auto result : op->getResults()) {
+          for (auto result : op.getResults()) {
             if (mlir::isa<T>(result.getType())) {
               storageInfo.addStorage(result);
             }
           }
         }
-      });
+      }
     }
   });
 

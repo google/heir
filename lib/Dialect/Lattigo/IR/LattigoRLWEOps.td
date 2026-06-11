@@ -98,7 +98,7 @@ def Lattigo_RLWENewDecryptorOp : Lattigo_RLWEOp<"new_decryptor", [Pure]> {
   let results = (outs Lattigo_RLWEDecryptor:$decryptor);
 }
 
-def Lattigo_RLWEEncryptOp : Lattigo_RLWEOp<"encrypt"> {
+def Lattigo_RLWEEncryptOp : Lattigo_RLWEOp<"encrypt", [Pure]> {
   let summary = "Encrypts a plaintext using RLWE";
   let description = [{
     This operation encrypts a plaintext using RLWE

@@ -4,6 +4,7 @@
 include "LattigoDialect.td"
 include "LattigoTypes.td"
 include "mlir/IR/OpBase.td"
+include "mlir/Interfaces/SideEffectInterfaces.td"
 include "lib/Utils/Tablegen/InPlaceOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
