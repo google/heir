@@ -23,8 +23,11 @@ cc_library(
     hdrs = ["AllocToInPlace.h"],
     deps = [
         ":pass_inc_gen",
+        "@heir//lib/Analysis/LevelAnalysis",
+        "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect/Lattigo/IR:Dialect",
         "@heir//lib/Utils:AllocToInPlaceUtils",
+        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",

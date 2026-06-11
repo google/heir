@@ -31,7 +31,6 @@ cc_library(
         ":pass_inc_gen",
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
         "@heir//lib/Utils:AllocToInPlaceUtils",
-        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
