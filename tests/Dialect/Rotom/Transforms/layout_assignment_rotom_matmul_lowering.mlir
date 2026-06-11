@@ -21,6 +21,27 @@ module {
 
 // -----
 
+#layout_2x2 = #rotom.layout<dims = [#rotom.dim<dim = 0, size = 2>, #rotom.dim<dim = 1, size = 2>], n = 4>
+#seed_2x2 = #rotom.seed<layouts = [#layout_2x2]>
+
+module {
+  // CHECK: func.func @rotom_matmul_accumulates_init
+  // CHECK-SAME: tensor<1x8xf32>
+  // CHECK-NOT: linalg.matmul
+  // CHECK: %[[LHS_REMAP:.*]] = tensor_ext.remap
+  // CHECK: %[[ALIGNED_LHS:.*]] = arith.mulf %[[LHS_REMAP]]
+  // CHECK: %[[RHS_REMAP:.*]] = tensor_ext.remap
+  // CHECK: %[[ALIGNED_RHS:.*]] = arith.mulf %[[RHS_REMAP]]
+  // CHECK: %[[PRODUCT:.*]] = arith.mulf %[[ALIGNED_LHS]], %[[ALIGNED_RHS]]
+  // CHECK: arith.addf %arg2, %[[PRODUCT]]
+  func.func @rotom_matmul_accumulates_init(%lhs: tensor<2x2xf32> {rotom.seed = #seed_2x2}, %rhs: tensor<2x2xf32> {rotom.seed = #seed_2x2}, %init: tensor<2x2xf32>) -> tensor<2x2xf32> {
+    %0 = linalg.matmul ins(%lhs, %rhs : tensor<2x2xf32>, tensor<2x2xf32>) outs(%init : tensor<2x2xf32>) -> tensor<2x2xf32>
+    return %0 : tensor<2x2xf32>
+  }
+}
+
+// -----
+
 #layout_lhs_strided = #rotom.layout<dims = [#rotom.dim<dim = 0, size = 2, stride = 2>, #rotom.dim<dim = 1, size = 4>], n = 8>
 #layout_rhs_strided = #rotom.layout<dims = [#rotom.dim<dim = 0, size = 4>, #rotom.dim<dim = 1, size = 2, stride = 2>], n = 8>
 #seed_lhs_strided = #rotom.seed<layouts = [#layout_lhs_strided]>

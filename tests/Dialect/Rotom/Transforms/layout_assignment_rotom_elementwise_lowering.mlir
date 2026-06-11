@@ -26,6 +26,27 @@ module {
     %0 = arith.mulf %arg0, %arg1 : tensor<4x4xf32>
     return %0 : tensor<4x4xf32>
   }
+
+  // CHECK: func.func @rotom_addi
+  // CHECK-SAME: tensor<1x16xi16>
+  // CHECK-NOT: arith.addi %arg0, %arg1
+  // CHECK: tensor_ext.remap
+  // CHECK: arith.addi
+  func.func @rotom_addi(%arg0: tensor<4x4xi16> {rotom.seed = #seed_a}, %arg1: tensor<4x4xi16> {rotom.seed = #seed_b}) -> tensor<4x4xi16> {
+    %0 = arith.addi %arg0, %arg1 : tensor<4x4xi16>
+    return %0 : tensor<4x4xi16>
+  }
+
+  // CHECK: func.func @rotom_muli
+  // CHECK-SAME: tensor<1x16xi16>
+  // CHECK-NOT: arith.muli %arg0, %arg1
+  // CHECK: tensor_ext.remap
+  // CHECK: arith.muli
+  // CHECK: arith.addi
+  func.func @rotom_muli(%arg0: tensor<4x4xi16> {rotom.seed = #seed_a}, %arg1: tensor<4x4xi16> {rotom.seed = #seed_b}) -> tensor<4x4xi16> {
+    %0 = arith.muli %arg0, %arg1 : tensor<4x4xi16>
+    return %0 : tensor<4x4xi16>
+  }
 }
 
 #layout_replicated_dim = #rotom.layout<dims = [#rotom.dim<dim = 0, size = 4>, #rotom.dim<dim = -1, size = 2, stride = 4>], n = 8>

@@ -141,8 +141,17 @@ FailureOr<Value> RotomTensorOpLowering::alignDomainPointToOutput(
   auto remap =
       tensor_ext::RemapOp::create(b, maskedSource->getResult(0), *remapAttr);
   setMaterializedAttr(remap);
-  setAttributeAssociatedWith(remap.getResult(), kLayoutAttrName, outputLayout);
-  return remap.getResult();
+
+  FailureOr<Value> targetMask =
+      createMaskForPoints(ciphertextSemanticType, *outputPoints, b);
+  if (failed(targetMask)) return failure();
+
+  Operation* maskedRemap = makeAppropriatelyTypedMulOp(
+      b, b.getLoc(), remap.getResult(), *targetMask);
+  setMaterializedAttr(maskedRemap);
+  setAttributeAssociatedWith(maskedRemap->getResult(0), kLayoutAttrName,
+                             outputLayout);
+  return maskedRemap->getResult(0);
 }
 
 LogicalResult RotomTensorOpLowering::lowerMatmul(
@@ -192,6 +201,8 @@ LogicalResult RotomTensorOpLowering::lowerMatmul(
 
   rewriter.setInsertionPointAfter(op);
   ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+  // Preserve linalg.matmul destination-style semantics: the output tensor is
+  // the initial accumulator, and each scalar product is added into it.
   Value acc = output;
   for (int64_t i = 0; i < m; ++i) {
     for (int64_t j = 0; j < p; ++j) {
