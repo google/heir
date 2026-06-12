@@ -605,6 +605,11 @@ implementBicyclicMatmul(const T& packedA, const T& packedB, int64_t m,
 
     APInt result = roty - APInt(64, period) * APInt(64, giantStepSize) *
                               APInt(64, giantStepIndex);
+    // Ensure rotation index is a positive modulo representative [0, np-1].
+    result = result.srem(nAPInt * pAPInt);
+    if (result.isNegative()) {
+      result += nAPInt * pAPInt;
+    }
     return result.getSExtValue();
   };
 

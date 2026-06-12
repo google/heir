@@ -9,6 +9,7 @@
 
 #include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/Utils.h"
+#include "llvm/include/llvm/Support/Casting.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"      // from @llvm-project
@@ -17,6 +18,7 @@
 #include "mlir/include/mlir/IR/Diagnostics.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/OperationSupport.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"            // from @llvm-project
@@ -360,7 +362,24 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeFor(
       builder_, currentLoc_, lbInt, ubVal, stepInt, currentIterArgs_,
       [&](OpBuilder& nestedBuilder, Location nestedLoc, Value iv,
           ValueRange args) {
-        ivToValue_.insert(std::make_pair(nameStr, iv));
+        Value ivCast = iv;
+        if (llvm::isa<mlir::IndexType>(iv.getType())) {
+          ivCast = arith::IndexCastOp::create(nestedBuilder, nestedLoc,
+                                              nestedBuilder.getI32Type(), iv);
+        }
+        if (reverse_) {
+          Value constOne =
+              arith::ConstantIntOp::create(nestedBuilder, nestedLoc, 1, 32);
+          Value ivMinusLb =
+              arith::SubIOp::create(nestedBuilder, nestedLoc, ivCast, lbInt);
+          Value ubMinusOne =
+              arith::SubIOp::create(nestedBuilder, nestedLoc, ubVal, constOne);
+          Value actualIv = arith::SubIOp::create(nestedBuilder, nestedLoc,
+                                                 ubMinusOne, ivMinusLb);
+          ivToValue_.insert(std::make_pair(nameStr, actualIv));
+        } else {
+          ivToValue_.insert(std::make_pair(nameStr, ivCast));
+        }
         // It is safe to store ValueRange args because it points to block
         // arguments of a loop operation that we also own.
         currentIterArgs_ = args;
@@ -368,14 +387,10 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeFor(
       });
   createdOpCallback_(loop);
 
-  // Set the builder to point to the body of the newly created loop. We don't
-  // do this in the callback because the builder is reset when the callback
-  // returns.
-  builder_.setInsertionPointToStart(loop.getBody());
+  builder_.setInsertionPointToEnd(loop.getBody());
   loops_.push_back(loop);
 
   isl_ast_node* tmp = isl_ast_node_for_get_body(node);
-  builder_.setInsertionPointToStart(loop.getBody());
   auto visitBody = visitAstNode(tmp, bodyBuilder);
   if (failed(visitBody)) {
     return failure();
@@ -492,8 +507,10 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNode(
 
 FailureOr<scf::ForOp> MLIRLoopNestGenerator::generateForLoop(
     const presburger::IntegerRelation& rel, ValueRange initArgs,
-    BodyBuilderFn bodyBuilder, ArrayRef<int> domainIndicesToSchedule) {
+    BodyBuilderFn bodyBuilder, ArrayRef<int> domainIndicesToSchedule,
+    bool reverse) {
   OpBuilder::InsertionGuard guard(builder_);
+  reverse_ = reverse;
   isl_ast_node* tree = constructAst(rel, ctx_, domainIndicesToSchedule);
   if (!tree) {
     return failure();

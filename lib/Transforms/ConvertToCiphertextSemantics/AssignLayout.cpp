@@ -275,7 +275,9 @@ static FailureOr<Value> implementUnpackOpNew(
         auto inserted = tensor::InsertOp::create(builder, loc, extracted,
                                                  iterArgs[0], insertIndices);
         return scf::ValueVector({inserted});
-      });
+      },
+      /*domainIndicesToSchedule=*/{},
+      /*reverse=*/true);
   if (failed(loop)) {
     return op.emitError() << "Failed to generate loop nest for relation "
                           << printRelation(rel);
