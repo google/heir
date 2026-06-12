@@ -1194,7 +1194,7 @@ cannot be multiplied by 16.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>inputs&lt;/code>&lt;/td>
-&lt;td>variadic of any type&lt;/td>
+&lt;td>variadic of any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1209,7 +1209,7 @@ cannot be multiplied by 16.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -4563,11 +4563,11 @@ Requers an vector of integers as the lookup table, where each integer represents
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>trueValue&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>falseValue&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -4582,7 +4582,7 @@ Requers an vector of integers as the lookup table, where each integer represents
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>result&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5380,11 +5380,11 @@ Requers an vector of integers as the lookup table, where each integer represents
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>trueValue&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>falseValue&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5399,7 +5399,7 @@ Requers an vector of integers as the lookup table, where each integer represents
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>result&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5866,7 +5866,7 @@ with the decrypted ciphertext.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table></description></item><item><title>Docs: Jaxite</title><link>https://heir.dev/docs/dialects/jaxite/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/jaxite/</guid><description>
@@ -6258,7 +6258,7 @@ using the jaxiteword parameters and encoding scheme.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>shaped of any type values or floating-point&lt;/td>
+&lt;td>shaped of any non-token type values or floating-point&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -6329,7 +6329,7 @@ using the jaxiteword parameters and encoding scheme.&lt;/p>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>shaped of any type values or floating-point&lt;/td>
+&lt;td>shaped of any non-token type values or floating-point&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -10217,7 +10217,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>keys&lt;/code>&lt;/td>
-&lt;td>variadic of any type&lt;/td>
+&lt;td>variadic of any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -11960,7 +11960,7 @@ or &lt;code>ckks.mul_plain&lt;/code> depending on the scheme.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -11975,7 +11975,7 @@ or &lt;code>ckks.mul_plain&lt;/code> depending on the scheme.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -12006,7 +12006,7 @@ Further backend may include bgv.bootstrap.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -12021,7 +12021,7 @@ Further backend may include bgv.bootstrap.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -12061,7 +12061,7 @@ and only in later analyses we know whether they are equivalent or not.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -12076,7 +12076,7 @@ and only in later analyses we know whether they are equivalent or not.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -12109,7 +12109,7 @@ or &lt;code>ckks.level_reduce&lt;/code> depending on the scheme.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -12124,7 +12124,7 @@ or &lt;code>ckks.level_reduce&lt;/code> depending on the scheme.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -12150,7 +12150,7 @@ across loop iterations.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -12165,7 +12165,7 @@ across loop iterations.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -12192,7 +12192,7 @@ or ckks.rescale depending on the scheme.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -12207,7 +12207,7 @@ or ckks.rescale depending on the scheme.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -12240,7 +12240,7 @@ or ckks.relinearize depending on the scheme.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -12255,7 +12255,7 @@ or ckks.relinearize depending on the scheme.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table></description></item><item><title>Docs: ModArith</title><link>https://heir.dev/docs/dialects/modarith/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/modarith/</guid><description>
@@ -13160,7 +13160,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -13196,7 +13196,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -15320,7 +15320,7 @@ if the input is compatible with the polynomial coefficient type.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>value&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -15335,7 +15335,7 @@ if the input is compatible with the polynomial coefficient type.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -15419,7 +15419,7 @@ implying that trailing terms are padded with zero.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>ranked tensor of any type values&lt;/td>
+&lt;td>ranked tensor of any non-token type values&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -15536,7 +15536,7 @@ coefficient type of the polynomial&amp;rsquo;s ring attribute.&lt;/p>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>coefficient&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -15660,7 +15660,7 @@ the &lt;code>coefficient&lt;/code> input type.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>coefficient&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>degree&lt;/code>&lt;/td>
@@ -15770,7 +15770,7 @@ coefficientType.&lt;/p>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>scalar&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -15946,7 +15946,7 @@ attribute&amp;rsquo;s polynomialModulus, including zeroes.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ranked tensor of any type values&lt;/td>
+&lt;td>ranked tensor of any non-token type values&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -15968,7 +15968,7 @@ attribute&amp;rsquo;s polynomialModulus, including zeroes.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>operand&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -16212,7 +16212,7 @@ or tensor of values.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -16873,7 +16873,7 @@ seeding layouts explored by Rotom.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>variadic of any type&lt;/td>
+&lt;td>variadic of any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -16888,7 +16888,7 @@ seeding layouts explored by Rotom.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>variadic of any type&lt;/td>
+&lt;td>variadic of any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -17364,7 +17364,7 @@ framework.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>cleartext&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -17429,7 +17429,7 @@ block.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>inputs&lt;/code>&lt;/td>
-&lt;td>variadic of any type&lt;/td>
+&lt;td>variadic of any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -17444,7 +17444,7 @@ block.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>results&lt;/code>&lt;/td>
-&lt;td>variadic of any type&lt;/td>
+&lt;td>variadic of any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -17486,7 +17486,7 @@ useful for target materialization in the dialect conversion framework.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>cleartext&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -17520,7 +17520,7 @@ return value of the logical subunit.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>inputs&lt;/code>&lt;/td>
-&lt;td>variadic of any type&lt;/td>
+&lt;td>variadic of any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -17544,7 +17544,7 @@ generic op.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>values&lt;/code>&lt;/td>
-&lt;td>variadic of any type&lt;/td>
+&lt;td>variadic of any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table></description></item><item><title>Docs: TensorExt</title><link>https://heir.dev/docs/dialects/tensorext/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/tensorext/</guid><description>
@@ -17669,7 +17669,7 @@ a slower generated loop nest.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>value&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -17684,7 +17684,7 @@ a slower generated loop nest.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -17721,7 +17721,7 @@ layout assignment. See &lt;code>tensor_ext.assign_layout&lt;/code> for more deta
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>value&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -17736,7 +17736,7 @@ layout assignment. See &lt;code>tensor_ext.assign_layout&lt;/code> for more deta
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -17777,7 +17777,7 @@ of ciphertext-plaintext mask, rotate, and sum operations by the
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>ranked tensor of any type values&lt;/td>
+&lt;td>ranked tensor of any non-token type values&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -17792,7 +17792,7 @@ of ciphertext-plaintext mask, rotate, and sum operations by the
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ranked tensor of any type values&lt;/td>
+&lt;td>ranked tensor of any non-token type values&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -17829,7 +17829,7 @@ the given amount.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>tensor&lt;/code>&lt;/td>
-&lt;td>ranked tensor of any type values&lt;/td>
+&lt;td>ranked tensor of any non-token type values&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>shift&lt;/code>&lt;/td>
@@ -17848,7 +17848,7 @@ the given amount.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ranked tensor of any type values&lt;/td>
+&lt;td>ranked tensor of any non-token type values&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -17904,11 +17904,11 @@ ciphertext rotations.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>tensor&lt;/code>&lt;/td>
-&lt;td>ranked tensor of any type values&lt;/td>
+&lt;td>ranked tensor of any non-token type values&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>plaintexts&lt;/code>&lt;/td>
-&lt;td>ranked tensor of any type values&lt;/td>
+&lt;td>ranked tensor of any non-token type values&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -17923,7 +17923,7 @@ ciphertext rotations.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ranked tensor of any type values&lt;/td>
+&lt;td>ranked tensor of any non-token type values&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -17952,7 +17952,7 @@ tensor.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>value&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -17967,7 +17967,7 @@ tensor.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table></description></item><item><title>Docs: TfheRust</title><link>https://heir.dev/docs/dialects/tfherust/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/tfherust/</guid><description>
