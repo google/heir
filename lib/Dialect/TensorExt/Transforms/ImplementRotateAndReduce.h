@@ -13,7 +13,8 @@ namespace tensor_ext {
 #define GEN_PASS_DECL_IMPLEMENTROTATEANDREDUCE
 #include "lib/Dialect/TensorExt/Transforms/Passes.h.inc"
 
-LogicalResult convertRotateAndReduceOp(RotateAndReduceOp op);
+LogicalResult convertRotateAndReduceOp(RotateAndReduceOp op,
+                                       bool unroll = true);
 
 }  // namespace tensor_ext
 }  // namespace heir

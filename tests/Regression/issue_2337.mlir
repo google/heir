@@ -4,11 +4,10 @@
 module {
   // CHECK: @trivial_insert
   // CHECK: %[[cst:.*]] = arith.constant dense<0> : tensor<1x32xi32>
-  // CHECK: %[[v0:.*]] = tensor.empty() : tensor<2x32xi32>
   // CHECK: secret.generic
   // CHECK-NEXT: ^body(%[[input0:.*]]: tensor<2x32xi32>)
   // CHECK: %[[extracted:.*]] = tensor.extract_slice %[[input0]][1, 0]
-  // CHECK: %[[inserted:.*]] = tensor.insert_slice %[[extracted]] into %[[v0]]
+  // CHECK: %[[inserted:.*]] = tensor.insert_slice %[[extracted]] into %[[input0]]
   // CHECK: %[[inserted0:.*]] = tensor.insert_slice %[[cst]] into %[[inserted]]
   // CHECK: secret.yield %[[inserted0]] : tensor<2x32xi32>
   func.func @trivial_insert(%arg0: !secret.secret<tensor<2x32xi32>>) -> !secret.secret<tensor<2x32xi32>> {

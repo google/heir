@@ -283,10 +283,8 @@ LogicalResult convertRemapOp(RemapOp op,
     result.push_back(vec[0]);
   }
 
-  // Finally, recombine with an empty tensor + tensor.insert_slice
-  Value combinedResult = tensor::EmptyOp::create(
-      b, {numCiphertexts, ciphertextSize}, tensorTy.getElementType());
-  Value current = combinedResult;
+  // Finally, recombine with tensor.insert_slice into input tensor
+  Value current = op.getInput();
   for (int64_t i = 0; i < numCiphertexts; i++) {
     auto one = b.getIndexAttr(1);
     SmallVector<OpFoldResult> offsets = {b.getIndexAttr(i), b.getIndexAttr(0)};

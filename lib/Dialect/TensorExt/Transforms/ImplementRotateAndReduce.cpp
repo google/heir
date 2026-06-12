@@ -10,16 +10,19 @@
 #include "lib/Kernel/IRMaterializingVisitor.h"
 #include "lib/Kernel/KernelImplementation.h"
 #include "lib/Kernel/Utils.h"
-#include "llvm/include/llvm/Support/Debug.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/Diagnostics.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/OpDefinition.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/OperationSupport.h"    // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"               // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/OperationSupport.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 
 #define DEBUG_TYPE "implement-rotate-and-reduce"
 
@@ -35,7 +38,7 @@ using ::mlir::heir::kernel::SSAValue;
 #define GEN_PASS_DEF_IMPLEMENTROTATEANDREDUCE
 #include "lib/Dialect/TensorExt/Transforms/Passes.h.inc"
 
-LogicalResult convertRotateAndReduceOp(RotateAndReduceOp op) {
+LogicalResult convertRotateAndReduceOp(RotateAndReduceOp op, bool unroll) {
   LLVM_DEBUG(llvm::dbgs() << "Converting tensor_ext.rotate_and_reduce op: "
                           << op << "\n");
   TypedValue<RankedTensorType> input = op.getTensor();
@@ -55,7 +58,7 @@ LogicalResult convertRotateAndReduceOp(RotateAndReduceOp op) {
   }
   kernel::DagType dagType = kernel::mlirTypeToDagType(input.getType());
   implementedKernel = implementRotateAndReduce(
-      vectorLeaf, plaintextsLeaf, period, steps, dagType, {}, reduceOp);
+      vectorLeaf, plaintextsLeaf, period, steps, dagType, {}, reduceOp, unroll);
   IRRewriter rewriter(op.getContext());
   rewriter.setInsertionPointAfter(op);
   ImplicitLocOpBuilder b(op.getLoc(), rewriter);
@@ -71,7 +74,7 @@ struct ImplementRotateAndReduce
 
   void runOnOperation() override {
     getOperation()->walk([&](RotateAndReduceOp op) {
-      if (failed(convertRotateAndReduceOp(op))) {
+      if (failed(convertRotateAndReduceOp(op, unroll))) {
         op->emitOpError() << "failed to lower rotate_and_reduce op";
         signalPassFailure();
       }

@@ -8,8 +8,7 @@
 // CHECK: %[[SLICE:.*]] = tensor.extract_slice %[[ARG0]][0, 0] [1, 64] [1, 1] : tensor<1x64xi32> to tensor<1x64xi32>
 // CHECK: %[[C1:.*]] = arith.constant 1 : index
 // CHECK: %[[ROT:.*]] = tensor_ext.rotate %[[SLICE]], %[[C1]] : tensor<1x64xi32>, index
-// CHECK: %[[EMPTY:.*]] = tensor.empty() : tensor<1x64xi32>
-// CHECK: %[[INSERT:.*]] = tensor.insert_slice %[[ROT]] into %[[EMPTY]][0, 0] [1, 64] [1, 1] : tensor<1x64xi32> into tensor<1x64xi32>
+// CHECK: %[[INSERT:.*]] = tensor.insert_slice %[[ROT]] into %[[ARG0]][0, 0] [1, 64] [1, 1] : tensor<1x64xi32> into tensor<1x64xi32>
 // CHECK: return %[[INSERT]] : tensor<1x64xi32>
 func.func @test_no_conflicts(%0: tensor<1x64xi32>) -> tensor<1x64xi32> {
   %1 = tensor_ext.remap %0 {permutation = #map1} : tensor<1x64xi32>
@@ -39,8 +38,7 @@ func.func @test_no_conflicts(%0: tensor<1x64xi32>) -> tensor<1x64xi32> {
 // CHECK: %[[ROT4:.*]] = tensor_ext.rotate %[[ROT3]], %[[C16]] : tensor<1x64xi32>, index
 // CHECK: %[[C32:.*]] = arith.constant 32 : index
 // CHECK: %[[ROT5:.*]] = tensor_ext.rotate %[[ROT4]], %[[C32]] : tensor<1x64xi32>, index
-// CHECK: %[[EMPTY:.*]] = tensor.empty() : tensor<1x64xi32>
-// CHECK: %[[INSERT:.*]] = tensor.insert_slice %[[ROT5]] into %[[EMPTY]][0, 0] [1, 64] [1, 1] : tensor<1x64xi32> into tensor<1x64xi32>
+// CHECK: %[[INSERT:.*]] = tensor.insert_slice %[[ROT5]] into %[[ARG0]][0, 0] [1, 64] [1, 1] : tensor<1x64xi32> into tensor<1x64xi32>
 // CHECK: return %[[INSERT]] : tensor<1x64xi32>
 #map2 = #tensor_ext.layout<"{ [ct1, slot1] -> [ct2, slot2] : ct1 = 0 and ct2 = 0 and ((slot1 + 1) - slot2) mod 64 = 0 and slot1 >= 0 and 63 >= slot1 and slot2 >= 0 and 63 >= slot2 }">
 func.func @test_no_conflicts2(%0: tensor<1x64xi32>) -> tensor<1x64xi32> {
@@ -52,8 +50,7 @@ func.func @test_no_conflicts2(%0: tensor<1x64xi32>) -> tensor<1x64xi32> {
 // CHECK: func.func @identity
 // CHECK-SAME: (%[[ARG0:.*]]: tensor<1x64xi32>) -> tensor<1x64xi32>
 // CHECK: %[[SLICE:.*]] = tensor.extract_slice %[[ARG0]][0, 0] [1, 64] [1, 1] : tensor<1x64xi32> to tensor<1x64xi32>
-// CHECK: %[[EMPTY:.*]] = tensor.empty() : tensor<1x64xi32>
-// CHECK: %[[INSERT:.*]] = tensor.insert_slice %[[SLICE]] into %[[EMPTY]][0, 0] [1, 64] [1, 1] : tensor<1x64xi32> into tensor<1x64xi32>
+// CHECK: %[[INSERT:.*]] = tensor.insert_slice %[[SLICE]] into %[[ARG0]][0, 0] [1, 64] [1, 1] : tensor<1x64xi32> into tensor<1x64xi32>
 // CHECK: return %[[INSERT]] : tensor<1x64xi32>
 #map3 = #tensor_ext.layout<"{ [ct1, slot1] -> [ct2, slot2] : ct1 = 0 and ct2 = 0 and slot1 = slot2 and slot1 >= 0 and 63 >= slot1 and slot2 >= 0 and 63 >= slot2 }">
 func.func @identity(%0: tensor<1x64xi32>) -> tensor<1x64xi32> {
@@ -63,12 +60,11 @@ func.func @identity(%0: tensor<1x64xi32>) -> tensor<1x64xi32> {
 
 // CHECK: func.func @multi_ciphertext_swap_cts
 // CHECK-SAME: (%[[ARG0:.*]]: tensor<4x64xi32>) -> tensor<4x64xi32>
-// CHECK-DAG: %[[SLICE0:.*]] = tensor.extract_slice %arg0[0, 0] [1, 64] [1, 1]
-// CHECK-DAG: %[[SLICE1:.*]] = tensor.extract_slice %arg0[1, 0] [1, 64] [1, 1]
-// CHECK-DAG: %[[SLICE2:.*]] = tensor.extract_slice %arg0[2, 0] [1, 64] [1, 1]
-// CHECK-DAG: %[[SLICE3:.*]] = tensor.extract_slice %arg0[3, 0] [1, 64] [1, 1]
-// CHECK: %[[EMPTY:.*]] = tensor.empty()
-// CHECK-NEXT: %[[INSERT0:.*]] = tensor.insert_slice %[[SLICE3]] into %[[EMPTY]][0, 0]
+// CHECK-DAG: %[[SLICE0:.*]] = tensor.extract_slice %[[ARG0]][0, 0] [1, 64] [1, 1]
+// CHECK-DAG: %[[SLICE1:.*]] = tensor.extract_slice %[[ARG0]][1, 0] [1, 64] [1, 1]
+// CHECK-DAG: %[[SLICE2:.*]] = tensor.extract_slice %[[ARG0]][2, 0] [1, 64] [1, 1]
+// CHECK-DAG: %[[SLICE3:.*]] = tensor.extract_slice %[[ARG0]][3, 0] [1, 64] [1, 1]
+// CHECK: %[[INSERT0:.*]] = tensor.insert_slice %[[SLICE3]] into %[[ARG0]][0, 0]
 // CHECK-NEXT: %[[INSERT1:.*]] = tensor.insert_slice %[[SLICE0]] into %[[INSERT0]][1, 0]
 // CHECK-NEXT: %[[INSERT2:.*]] = tensor.insert_slice %[[SLICE1]] into %[[INSERT1]][2, 0]
 // CHECK-NEXT: %[[INSERT3:.*]] = tensor.insert_slice %[[SLICE2]] into %[[INSERT2]][3, 0]

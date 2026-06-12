@@ -105,6 +105,5 @@ func.func @figure3(%0: tensor<1x16xi32>) -> tensor<1x16xi32> {
 // CHECK: %[[ROT11:.*]] = tensor_ext.rotate %[[MUL21]], %[[C8_28]] : tensor<1x16xi32>, index
 // CHECK: %[[ADD10:.*]] = arith.addi %[[MUL20]], %[[ROT11]] : tensor<1x16xi32>
 // CHECK: %[[ADD11:.*]] = arith.addi %[[ADD7]], %[[ADD10]] : tensor<1x16xi32>
-// CHECK: %[[EMPTY:.*]] = tensor.empty() : tensor<1x16xi32>
-// CHECK: %[[INSERT:.*]] = tensor.insert_slice %[[ADD11]] into %[[EMPTY]][0, 0] [1, 16] [1, 1] : tensor<1x16xi32> into tensor<1x16xi32>
+// CHECK: %[[INSERT:.*]] = tensor.insert_slice %[[ADD11]] into %[[ARG0]][0, 0] [1, 16] [1, 1] : tensor<1x16xi32> into tensor<1x16xi32>
 // CHECK: return %[[INSERT]] : tensor<1x16xi32>

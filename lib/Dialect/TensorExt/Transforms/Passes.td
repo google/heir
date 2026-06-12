@@ -170,7 +170,17 @@ def ImplementRotateAndReduce : Pass<"implement-rotate-and-reduce"> {
   (* example filepath=tests/Dialect/TensorExt/Transforms/implement_rotate_and_reduce.mlir *)
   }];
 
-  let dependentDialects = ["mlir::heir::tensor_ext::TensorExtDialect"];
+  let options = [
+    Option<"unroll", "unroll", "bool", /*default=*/"true",
+           "Unroll the loop instead of generating a rolled loop">
+  ];
+
+  let dependentDialects = [
+    "mlir::heir::tensor_ext::TensorExtDialect",
+    "mlir::scf::SCFDialect",
+    "mlir::arith::ArithDialect",
+    "mlir::tensor::TensorDialect"
+  ];
 }
 
 #endif  // LIB_DIALECT_TENSOREXT_TRANSFORMS_PASSES_TD_
