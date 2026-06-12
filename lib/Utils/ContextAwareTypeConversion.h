@@ -609,10 +609,6 @@ struct DenseMapInfo<::mlir::heir::TypeAndAttribute> {
     return {DenseMapInfo<::mlir::Type>::getEmptyKey(),
             DenseMapInfo<::mlir::Attribute>::getEmptyKey()};
   }
-  static ::mlir::heir::TypeAndAttribute getTombstoneKey() {
-    return {DenseMapInfo<::mlir::Type>::getTombstoneKey(),
-            DenseMapInfo<::mlir::Attribute>::getTombstoneKey()};
-  }
   static unsigned getHashValue(const ::mlir::heir::TypeAndAttribute& val) {
     return llvm::hash_combine(val.type, val.attr);
   }
