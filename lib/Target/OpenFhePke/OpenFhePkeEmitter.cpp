@@ -244,10 +244,10 @@ LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
           .Case<arith::ConstantOp, arith::ExtSIOp, arith::ExtUIOp,
                 arith::FloorDivSIOp, arith::IndexCastOp, arith::ExtFOp,
                 arith::RemSIOp, arith::AddIOp, arith::AddFOp, arith::AndIOp,
-                arith::SubIOp, arith::SubFOp, arith::MulFOp, arith::MulIOp,
-                arith::DivSIOp, arith::DivFOp, arith::CmpIOp, arith::CmpFOp,
-                arith::SelectOp, arith::MaxSIOp, arith::MinSIOp>(
-              [&](auto op) { return printOperation(op); })
+                arith::OrIOp, arith::XOrIOp, arith::SubIOp, arith::SubFOp,
+                arith::MulFOp, arith::MulIOp, arith::DivSIOp, arith::DivFOp,
+                arith::CmpIOp, arith::CmpFOp, arith::SelectOp, arith::MaxSIOp,
+                arith::MinSIOp>([&](auto op) { return printOperation(op); })
           // SCF ops
           .Case<scf::IfOp, scf::ForOp, scf::ForallOp, scf::InParallelOp,
                 scf::YieldOp>([&](auto op) { return printOperation(op); })
@@ -650,18 +650,29 @@ LogicalResult OpenFhePkeEmitter::printOperation(scf::ForOp op) {
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(scf::ForallOp op) {
-  // Use OMP for parallelization
-  // #pragma omp parallel for
-  os << "#pragma omp parallel for\n";
-
   for (auto result : op.getResults()) {
     OpOperand* opOperand = op.getTiedOpOperand(result);
     BlockArgument blockArg = op.getTiedBlockArgument(opOperand);
 
-    // Map the block argument and the result to the opOperand name.
-    variableNames->mapValueNameToValue(blockArg, opOperand->get());
-    variableNames->mapValueNameToValue(result, opOperand->get());
+    Value init = opOperand->get();
+    if (init.hasOneUse()) {
+      // The loop is the sole user of the init buffer, so the result can
+      // share its storage.
+      variableNames->mapValueNameToValue(blockArg, init);
+      variableNames->mapValueNameToValue(result, init);
+    } else {
+      // The init buffer is shared with other ops (e.g., another forall loop
+      // seeded from the same init tensor), so writing into it would clobber
+      // a value that is still live. Materialize the result as a copy.
+      os << "auto " << variableNames->getNameForValue(result) << " = "
+         << variableNames->getNameForValue(init) << ";\n";
+      variableNames->mapValueNameToValue(blockArg, result);
+    }
   }
+
+  // Use OMP for parallelization
+  // #pragma omp parallel for
+  os << "#pragma omp parallel for\n";
 
   // Later, support for multi-dimensional forall loops. It's pretty unlikely
   // there would be a multi-dimensional use case (for iterating over multiple
@@ -1255,6 +1266,14 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::AddFOp op) {
 
 LogicalResult OpenFhePkeEmitter::printOperation(arith::AndIOp op) {
   return printBinaryOp(op, op.getLhs(), op.getRhs(), "&&");
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(arith::OrIOp op) {
+  return printBinaryOp(op, op.getLhs(), op.getRhs(), "||");
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(arith::XOrIOp op) {
+  return printBinaryOp(op, op.getLhs(), op.getRhs(), "^");
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(arith::MulFOp op) {
