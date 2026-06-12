@@ -2,6 +2,7 @@
 #define LIB_DIALECT_MODARITH_IR_MODARITHOPS_TD_
 
 include "lib/Dialect/ModArith/IR/ModArithDialect.td"
+include "lib/Dialect/ModArith/IR/ModArithEnums.td"
 include "lib/Dialect/ModArith/IR/ModArithTypes.td"
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/CommonTypeConstraints.td"
@@ -65,6 +66,33 @@ def ModArith_ExtractOp : ModArith_Op<"extract", [Pure]> {
   let results = (outs SignlessIntegerLike:$output);
   let hasVerifier = 1;
   let assemblyFormat = "operands attr-dict `:` type($input) `->` type($output)";
+}
+
+def ModArith_LiftOp : ModArith_Op<"lift", [Pure]> {
+  let summary = "lift a modular value to an integer representative";
+
+  let description = [{
+    `mod_arith.lift` converts a modular value to a canonical integer representative.
+    The `standard` lift produces a representative in `[0, q)`, and the
+    `centered` lift produces a representative in `[-q/2, q/2)`.
+
+    It is required that the bitwidth of the output (tensor of) integer type is
+    the same as that of the storage type of the input modular type.
+
+    Examples:
+    ```
+    %m0 = mod_arith.lift centered %c0 : i32 -> mod_arith.int<65537 : i32>
+    %m0 = mod_arith.lift standard %c0 : i32 -> mod_arith.int<65537 : i32>
+    ```
+  }];
+
+  let arguments = (ins
+    ModArithLike:$input,
+    ModArith_LiftTypeEnum:$lift_type
+  );
+  let results = (outs SignlessIntegerLike:$output);
+  let hasVerifier = 1;
+  let assemblyFormat = "$lift_type $input attr-dict `:` type($input) `->` type($output)";
 }
 
 def ModArith_ModSwitchOp : ModArith_Op<"mod_switch", [Pure]> {

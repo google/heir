@@ -10,6 +10,8 @@
 #include "mlir/include/mlir/Interfaces/InferTypeOpInterface.h"  // from @llvm-project
 // IWYU pragma: end_keep
 
+#include "lib/Dialect/ModArith/IR/ModArithEnums.h.inc"
+
 #define GET_OP_CLASSES
 #include "lib/Dialect/ModArith/IR/ModArithOps.h.inc"
 

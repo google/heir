@@ -12,6 +12,7 @@
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Utils/APIntUtils.h"
 #include "lib/Utils/ConversionUtils.h"
+#include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/Support/Casting.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/MathExtras.h"     // from @llvm-project
@@ -72,9 +73,7 @@ Type convertModArithOrRNSLikeType(ShapedType type) {
 // A helper function to generate the attribute or type
 // needed to represent the result of mod_arith op as an integer
 // before applying a remainder operation
-template <typename Op>
-TypedAttr modulusAttr(Op op, bool mul = false) {
-  auto type = op.getResult().getType();
+TypedAttr modulusAttr(mlir::MLIRContext* ctx, Type type, bool mul = false) {
   auto elementType = getElementTypeOrSelf(type);
 
   auto getModWidth = [&](ModArithType t) {
@@ -85,7 +84,7 @@ TypedAttr modulusAttr(Op op, bool mul = false) {
   if (auto modArithType = dyn_cast<ModArithType>(elementType)) {
     APInt modulus = modArithType.getModulus().getValue();
     auto width = getModWidth(modArithType);
-    auto intType = IntegerType::get(op.getContext(), width);
+    auto intType = IntegerType::get(ctx, width);
     auto truncmod = modulus.zextOrTrunc(width);
 
     if (auto st = mlir::dyn_cast<ShapedType>(type)) {
@@ -100,7 +99,7 @@ TypedAttr modulusAttr(Op op, bool mul = false) {
     // The RNSTypeInterface ensures that all basis storage types are the same.
     auto firstMod = cast<ModArithType>(basisTypes[0]);
     auto width = getModWidth(firstMod);
-    auto intType = IntegerType::get(op.getContext(), width);
+    auto intType = IntegerType::get(ctx, width);
 
     SmallVector<APInt> moduli;
     for (auto b : basisTypes) {
@@ -131,9 +130,13 @@ TypedAttr modulusAttr(Op op, bool mul = false) {
 }
 
 // used for extui/trunci
-template <typename Op>
-inline Type modulusType(Op op, bool mul = false) {
-  return modulusAttr(op, mul).getType();
+inline Type modulusType(mlir::MLIRContext* ctx, Type type, bool mul = false) {
+  return modulusAttr(ctx, type, mul).getType();
+}
+
+TypedAttr intAttr(Type type, int64_t value) {
+  auto elementType = cast<IntegerType>(getElementTypeOrSelf(type));
+  return getScalarOrDenseAttr(type, APInt(elementType.getWidth(), value));
 }
 
 }  // namespace
@@ -176,6 +179,48 @@ struct ConvertExtract : public OpConversionPattern<ExtractOp> {
       ExtractOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     rewriter.replaceOp(op, adaptor.getOperands()[0]);
+    return success();
+  }
+};
+
+struct ConvertLift : public OpConversionPattern<LiftOp> {
+  ConvertLift(mlir::MLIRContext* context)
+      : OpConversionPattern<LiftOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      LiftOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    Type intTy = adaptor.getOperands()[0].getType();
+    // This could be the same as the lowering for ReduceOp,
+    // but I'm using one mod instead of two
+    Value q = arith::ConstantOp::create(
+        b, modulusAttr(op.getContext(), op.getInput().getType()));
+    // prduces a result in (-q, q)
+    Value rems = arith::RemSIOp::create(b, adaptor.getOperands()[0], q);
+    Value zero = arith::ConstantOp::create(b, intAttr(intTy, 0));
+    Value is_neg =
+        arith::CmpIOp::create(b, arith::CmpIPredicate::slt, rems, zero);
+    Value rems_plus_q = arith::AddIOp::create(b, rems, q);
+    Value r_pos = arith::SelectOp::create(b, is_neg, rems_plus_q, rems);
+    Value result = r_pos;
+
+    if (op.getLiftType() == LiftType::CENTERED) {
+      auto one = arith::ConstantOp::create(b, intAttr(intTy, 1));
+      auto two = arith::ConstantOp::create(b, intAttr(intTy, 2));
+      auto q_plus_one = arith::AddIOp::create(b, q, one);
+      auto bound = arith::DivSIOp::create(b, q_plus_one, two);
+
+      auto is_ge =
+          arith::CmpIOp::create(b, arith::CmpIPredicate::sge, r_pos, bound);
+      auto r_pos_minus_q = arith::SubIOp::create(b, r_pos, q);
+      result = arith::SelectOp::create(b, is_ge, r_pos_minus_q, r_pos);
+    }
+
+    rewriter.replaceOp(op, result);
     return success();
   }
 };
@@ -298,7 +343,8 @@ struct ConvertReduce : public OpConversionPattern<ReduceOp> {
       ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto cmod = arith::ConstantOp::create(b, modulusAttr(op));
+    auto cmod = arith::ConstantOp::create(
+        b, modulusAttr(op.getContext(), op.getResult().getType()));
     // ModArithType ensures cmod can be correctly interpreted as a signed number
     auto rems = arith::RemSIOp::create(b, adaptor.getOperands()[0], cmod);
     auto add = arith::AddIOp::create(b, rems, cmod);
@@ -322,7 +368,8 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
       ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto cmod = arith::ConstantOp::create(b, modulusAttr(op));
+    auto cmod = arith::ConstantOp::create(
+        b, modulusAttr(op.getContext(), op.getResult().getType()));
     auto add = arith::AddIOp::create(b, adaptor.getLhs(), adaptor.getRhs());
     auto remu = arith::RemUIOp::create(b, add, cmod);
 
@@ -342,7 +389,8 @@ struct ConvertSub : public OpConversionPattern<SubOp> {
       ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto cmod = arith::ConstantOp::create(b, modulusAttr(op));
+    auto cmod = arith::ConstantOp::create(
+        b, modulusAttr(op.getContext(), op.getResult().getType()));
     auto sub = arith::SubIOp::create(b, adaptor.getLhs(), adaptor.getRhs());
     auto add = arith::AddIOp::create(b, sub, cmod);
     auto remu = arith::RemUIOp::create(b, add, cmod);
@@ -363,14 +411,18 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
       ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto cmod = arith::ConstantOp::create(b, modulusAttr(op, true));
-    auto lhs =
-        arith::ExtUIOp::create(b, modulusType(op, true), adaptor.getLhs());
-    auto rhs =
-        arith::ExtUIOp::create(b, modulusType(op, true), adaptor.getRhs());
+    auto cmod = arith::ConstantOp::create(
+        b, modulusAttr(op.getContext(), op.getResult().getType(), true));
+    auto lhs = arith::ExtUIOp::create(
+        b, modulusType(op.getContext(), op.getResult().getType(), true),
+        adaptor.getLhs());
+    auto rhs = arith::ExtUIOp::create(
+        b, modulusType(op.getContext(), op.getResult().getType(), true),
+        adaptor.getRhs());
     auto mul = arith::MulIOp::create(b, lhs, rhs);
     auto remu = arith::RemUIOp::create(b, mul, cmod);
-    auto trunc = arith::TruncIOp::create(b, modulusType(op), remu);
+    auto trunc = arith::TruncIOp::create(
+        b, modulusType(op.getContext(), op.getResult().getType()), remu);
 
     rewriter.replaceOp(op, trunc);
     return success();
@@ -388,17 +440,22 @@ struct ConvertMac : public OpConversionPattern<MacOp> {
       ConversionPatternRewriter& rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto cmod = arith::ConstantOp::create(b, modulusAttr(op, true));
-    auto x = arith::ExtUIOp::create(b, modulusType(op, true),
-                                    adaptor.getOperands()[0]);
-    auto y = arith::ExtUIOp::create(b, modulusType(op, true),
-                                    adaptor.getOperands()[1]);
-    auto acc = arith::ExtUIOp::create(b, modulusType(op, true),
-                                      adaptor.getOperands()[2]);
+    auto cmod = arith::ConstantOp::create(
+        b, modulusAttr(op.getContext(), op.getResult().getType(), true));
+    auto x = arith::ExtUIOp::create(
+        b, modulusType(op.getContext(), op.getResult().getType(), true),
+        adaptor.getOperands()[0]);
+    auto y = arith::ExtUIOp::create(
+        b, modulusType(op.getContext(), op.getResult().getType(), true),
+        adaptor.getOperands()[1]);
+    auto acc = arith::ExtUIOp::create(
+        b, modulusType(op.getContext(), op.getResult().getType(), true),
+        adaptor.getOperands()[2]);
     auto mul = arith::MulIOp::create(b, x, y);
     auto add = arith::AddIOp::create(b, mul, acc);
     auto remu = arith::RemUIOp::create(b, add, cmod);
-    auto trunc = arith::TruncIOp::create(b, modulusType(op), remu);
+    auto trunc = arith::TruncIOp::create(
+        b, modulusType(op.getContext(), op.getResult().getType()), remu);
 
     rewriter.replaceOp(op, trunc);
     return success();
@@ -610,13 +667,13 @@ void ModArithToArith::runOnOperation() {
 
   RewritePatternSet patterns(context);
   rewrites::populateWithGenerated(patterns);
-  patterns.add<
-      ConvertEncapsulate, ConvertExtract, ConvertReduce, ConvertAdd, ConvertSub,
-      ConvertMul, ConvertMac, ConvertModSwitch, ConvertBarrettReduce,
-      ConvertConstant, ConvertRNSExtractResidue, ConvertRNSExtractSlice,
-      ConvertRNSPack, ConvertAny<>, ConvertAny<affine::AffineForOp>,
-      ConvertAny<affine::AffineYieldOp>, ConvertAny<linalg::GenericOp> >(
-      typeConverter, context);
+  patterns
+      .add<ConvertEncapsulate, ConvertExtract, ConvertLift, ConvertReduce,
+           ConvertAdd, ConvertSub, ConvertMul, ConvertMac, ConvertModSwitch,
+           ConvertBarrettReduce, ConvertConstant, ConvertRNSExtractResidue,
+           ConvertRNSExtractSlice, ConvertRNSPack, ConvertAny<>,
+           ConvertAny<affine::AffineForOp>, ConvertAny<affine::AffineYieldOp>,
+           ConvertAny<linalg::GenericOp> >(typeConverter, context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
   addTensorOfTensorConversionPatterns(typeConverter, patterns, target);
