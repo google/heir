@@ -6,10 +6,15 @@
 #seed_rhs = #rotom.seed<layouts = [#layout_rhs]>
 
 module {
+  // The Rotom matmul lowers via the rotate-multiply-accumulate kernel: each
+  // contraction term is a pair of ciphertext rotations, multiplied and masked
+  // into the running accumulator. No per-scalar remaps remain.
   // CHECK: func.func @rectangular_rotom_matmul
   // CHECK-SAME: tensor<1x8xf32>
   // CHECK-NOT: linalg.matmul
-  // CHECK: tensor_ext.remap
+  // CHECK-NOT: tensor_ext.remap
+  // CHECK: tensor_ext.rotate
+  // CHECK: tensor_ext.rotate
   // CHECK: arith.mulf
   // CHECK: arith.addf
   func.func @rectangular_rotom_matmul(%lhs: tensor<2x4xf32> {rotom.seed = #seed_lhs}, %rhs: tensor<4x2xf32> {rotom.seed = #seed_rhs}) -> tensor<2x2xf32> {
@@ -25,15 +30,17 @@ module {
 #seed_2x2 = #rotom.seed<layouts = [#layout_2x2]>
 
 module {
+  // The rotate-multiply-accumulate kernel seeds the accumulator with the init
+  // (destination) operand %arg2 and adds each masked rotated product into it.
   // CHECK: func.func @rotom_matmul_accumulates_init
   // CHECK-SAME: tensor<1x8xf32>
   // CHECK-NOT: linalg.matmul
-  // CHECK: %[[LHS_REMAP:.*]] = tensor_ext.remap
-  // CHECK: %[[ALIGNED_LHS:.*]] = arith.mulf %[[LHS_REMAP]]
-  // CHECK: %[[RHS_REMAP:.*]] = tensor_ext.remap
-  // CHECK: %[[ALIGNED_RHS:.*]] = arith.mulf %[[RHS_REMAP]]
-  // CHECK: %[[PRODUCT:.*]] = arith.mulf %[[ALIGNED_LHS]], %[[ALIGNED_RHS]]
-  // CHECK: arith.addf %arg2, %[[PRODUCT]]
+  // CHECK-NOT: tensor_ext.remap
+  // CHECK: %[[LHS_ROT:.*]] = tensor_ext.rotate %arg0
+  // CHECK: %[[RHS_ROT:.*]] = tensor_ext.rotate %arg1
+  // CHECK: %[[PRODUCT:.*]] = arith.mulf %[[LHS_ROT]], %[[RHS_ROT]]
+  // CHECK: %[[MASKED:.*]] = arith.mulf %[[PRODUCT]]
+  // CHECK: arith.addf %arg2, %[[MASKED]]
   func.func @rotom_matmul_accumulates_init(%lhs: tensor<2x2xf32> {rotom.seed = #seed_2x2}, %rhs: tensor<2x2xf32> {rotom.seed = #seed_2x2}, %init: tensor<2x2xf32>) -> tensor<2x2xf32> {
     %0 = linalg.matmul ins(%lhs, %rhs : tensor<2x2xf32>, tensor<2x2xf32>) outs(%init : tensor<2x2xf32>) -> tensor<2x2xf32>
     return %0 : tensor<2x2xf32>

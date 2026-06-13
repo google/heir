@@ -152,6 +152,7 @@ class Interpreter {
   void visit(tensor::InsertSliceOp op);
   void visit(tensor::SplatOp op);
   void visit(tensor_ext::RemapOp op);
+  void visit(tensor_ext::RotateOp op);
 
   // SCF and Affine ops
   void visit(scf::IfOp op);

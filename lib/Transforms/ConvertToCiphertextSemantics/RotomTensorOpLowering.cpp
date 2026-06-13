@@ -1,6 +1,8 @@
 #include "lib/Transforms/ConvertToCiphertextSemantics/RotomTensorOpLowering.h"
 
 #include <cstdint>
+#include <optional>
+#include <utility>
 #include <vector>
 
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
@@ -9,6 +11,8 @@
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/Layout/Utils.h"
 #include "lib/Utils/Utils.h"
+#include "llvm/include/llvm/ADT/DenseSet.h"   // from @llvm-project
+#include "llvm/include/llvm/ADT/MapVector.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
@@ -154,6 +158,100 @@ FailureOr<Value> RotomTensorOpLowering::alignDomainPointToOutput(
   return maskedRemap->getResult(0);
 }
 
+Value RotomTensorOpLowering::createRotate(Value tensor, int64_t shift,
+                                          ImplicitLocOpBuilder& b) const {
+  auto shiftConst = arith::ConstantOp::create(b, b.getIndexAttr(shift));
+  setMaterializedAttr(shiftConst);
+  auto rotate = tensor_ext::RotateOp::create(b, tensor, shiftConst);
+  setMaterializedAttr(rotate);
+  return rotate.getResult();
+}
+
+LogicalResult RotomTensorOpLowering::lowerMatmulByRotation(
+    linalg::MatmulOp op, Value lhs, Value rhs, Value output,
+    RankedTensorType ciphertextSemanticType, LayoutAttr lhsLayout,
+    LayoutAttr rhsLayout, LayoutAttr outputLayout, int64_t m, int64_t n,
+    int64_t p, ContextAwareConversionPatternRewriter& rewriter) const {
+  int64_t numCiphertexts = ciphertextSemanticType.getDimSize(0);
+  int64_t numSlots = ciphertextSemanticType.getDimSize(1);
+  // The rotation kernel works within a single ciphertext: tensor_ext.rotate
+  // shifts each ciphertext's slots independently, so cross-ciphertext movement
+  // would need a shift network. Defer those to the brute-force path.
+  if (numCiphertexts != 1) return failure();
+
+  // Resolves the single slot a domain point packs into, or nullopt if the
+  // packing is replicated/multi-ciphertext (which this kernel cannot express).
+  auto uniqueSlot = [&](LayoutAttr layout,
+                        ArrayRef<int64_t> domain) -> std::optional<int64_t> {
+    FailureOr<std::vector<std::vector<int64_t>>> points =
+        getRangePointsForDomain(layout, domain);
+    if (failed(points) || points->size() != 1) return std::nullopt;
+    const std::vector<int64_t>& point = (*points)[0];
+    if (point.size() != 2 || point[0] != 0) return std::nullopt;
+    return point[1];
+  };
+
+  // Group every (i, j, k) contribution by the (lhsShift, rhsShift) pair that
+  // realizes it. A left-rotation by s maps output slot dst to input slot
+  // (dst + s) mod numSlots, so placing input slot `src` at `dst` needs
+  // s = (src - dst) mod numSlots. Each group records the output slots it
+  // writes, which become its mask.
+  llvm::MapVector<std::pair<int64_t, int64_t>, std::vector<std::vector<int64_t>>>
+      groups;
+  for (int64_t i = 0; i < m; ++i) {
+    for (int64_t j = 0; j < p; ++j) {
+      std::optional<int64_t> dst = uniqueSlot(outputLayout, {i, j});
+      if (!dst) return failure();
+      llvm::DenseSet<std::pair<int64_t, int64_t>> shiftsForOutput;
+      for (int64_t k = 0; k < n; ++k) {
+        std::optional<int64_t> srcLhs = uniqueSlot(lhsLayout, {i, k});
+        std::optional<int64_t> srcRhs = uniqueSlot(rhsLayout, {k, j});
+        if (!srcLhs || !srcRhs) return failure();
+        int64_t lhsShift = ((*srcLhs - *dst) % numSlots + numSlots) % numSlots;
+        int64_t rhsShift = ((*srcRhs - *dst) % numSlots + numSlots) % numSlots;
+        std::pair<int64_t, int64_t> key = {lhsShift, rhsShift};
+        // Two contraction terms for one output slot needing identical shifts
+        // would collapse into a single product; bail to the safe path. (This
+        // cannot occur for an injective diagonal packing.)
+        if (!shiftsForOutput.insert(key).second) return failure();
+        groups[key].push_back({0, *dst});
+      }
+    }
+  }
+  if (groups.empty()) return failure();
+
+  rewriter.setInsertionPointAfter(op);
+  ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+  // Destination-style semantics: the output tensor is the initial accumulator.
+  Value acc = output;
+  for (const auto& [shifts, targetPoints] : groups) {
+    Value rotatedLhs = createRotate(lhs, shifts.first, b);
+    Value rotatedRhs = createRotate(rhs, shifts.second, b);
+    Operation* product =
+        makeAppropriatelyTypedMulOp(b, op.getLoc(), rotatedLhs, rotatedRhs);
+    setMaterializedAttr(product);
+
+    FailureOr<Value> mask =
+        createMaskForPoints(ciphertextSemanticType, targetPoints, b);
+    if (failed(mask)) return failure();
+    Operation* masked =
+        makeAppropriatelyTypedMulOp(b, op.getLoc(), product->getResult(0),
+                                    *mask);
+    masked->setAttr(kLayoutAttrName, outputLayout);
+    setMaterializedAttr(masked);
+
+    Operation* sum = makeAppropriatelyTypedAddOp(b, op.getLoc(), acc,
+                                                 masked->getResult(0));
+    sum->setAttr(kLayoutAttrName, outputLayout);
+    setMaterializedAttr(sum);
+    acc = sum->getResult(0);
+  }
+
+  setAttributeAssociatedWith(acc, kLayoutAttrName, outputLayout);
+  rewriter.replaceOp(op, acc);
+  return success();
+}
+
 LogicalResult RotomTensorOpLowering::lowerMatmul(
     linalg::MatmulOp op, linalg::MatmulOp::Adaptor adaptor,
     ContextAwareConversionPatternRewriter& rewriter) const {
@@ -197,6 +295,17 @@ LogicalResult RotomTensorOpLowering::lowerMatmul(
   if (!lhsLayout || !rhsLayout || !outputLayout) {
     return rewriter.notifyMatchFailure(
         op, "missing tensor_ext.layout attributes for Rotom matmul");
+  }
+
+  // Prefer the rotate-multiply-accumulate kernel when the layouts admit it; it
+  // collapses each contraction into a small set of ciphertext rotations, which
+  // is the payoff of rolled (diagonal) layouts. Falls back to the brute-force
+  // per-scalar lowering below when not applicable.
+  if (succeeded(lowerMatmulByRotation(op, lhs, rhs, output,
+                                      ciphertextSemanticType, lhsLayout,
+                                      rhsLayout, outputLayout, m, n, p,
+                                      rewriter))) {
+    return success();
   }
 
   rewriter.setInsertionPointAfter(op);

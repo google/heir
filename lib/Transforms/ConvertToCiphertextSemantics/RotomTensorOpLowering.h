@@ -53,6 +53,21 @@ class RotomTensorOpLowering {
       ArrayRef<int64_t> outputDomain, tensor_ext::LayoutAttr outputLayout,
       ImplicitLocOpBuilder& b) const;
 
+  // Attempts the rotate-multiply-accumulate matmul kernel: groups every scalar
+  // contribution by the ciphertext rotation that realizes it and emits one
+  // masked rotate-product per group. Returns success (having replaced `op`)
+  // when applicable, or failure (emitting nothing) so the caller can fall back
+  // to the brute-force per-scalar lowering. Currently limited to single-
+  // ciphertext layouts with injective slot packings.
+  LogicalResult lowerMatmulByRotation(
+      linalg::MatmulOp op, Value lhs, Value rhs, Value output,
+      RankedTensorType ciphertextSemanticType, tensor_ext::LayoutAttr lhsLayout,
+      tensor_ext::LayoutAttr rhsLayout, tensor_ext::LayoutAttr outputLayout,
+      int64_t m, int64_t n, int64_t p,
+      ContextAwareConversionPatternRewriter& rewriter) const;
+
+  Value createRotate(Value tensor, int64_t shift, ImplicitLocOpBuilder& b) const;
+
   const ContextAwareTypeConverter* typeConverter;
 };
 
