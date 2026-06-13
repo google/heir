@@ -143,6 +143,65 @@ bool supportsRotomAlignmentLowering(LayoutAttr lhsLayout, LayoutAttr rhsLayout,
          layoutNumCiphertexts(lhsLayout) == layoutNumCiphertexts(resultLayout);
 }
 
+LayoutAttr withRolls(LayoutAttr layout,
+                     ArrayRef<std::pair<int64_t, int64_t>> rolls) {
+  MLIRContext* ctx = layout.getContext();
+  SmallVector<int64_t> flat;
+  flat.reserve(rolls.size() * 2);
+  for (auto [from, to] : rolls) {
+    flat.push_back(from);
+    flat.push_back(to);
+  }
+  return LayoutAttr::get(ctx, layout.getDims(), layout.getN(),
+                         DenseI64ArrayAttr::get(ctx, flat));
+}
+
+SmallVector<LayoutAttr> enumerateSingleRolls(LayoutAttr layout) {
+  SmallVector<LayoutAttr> variants;
+  ArrayAttr dims = layout.getDims();
+  int64_t numDims = static_cast<int64_t>(dims.size());
+
+  // Rolls already on the layout are preserved; the new roll is appended after
+  // them so existing roll metadata keeps its left-to-right application order.
+  SmallVector<std::pair<int64_t, int64_t>> baseRolls;
+  if (DenseI64ArrayAttr existing = layout.getRolls()) {
+    ArrayRef<int64_t> flat = existing.asArrayRef();
+    for (size_t i = 0; i + 1 < flat.size(); i += 2) {
+      baseRolls.push_back({flat[i], flat[i + 1]});
+    }
+  }
+
+  // Rolls are only applied to the slot line of the materialized layout, so a
+  // roll whose `from` dim is ciphertext-side modifies an address term that is
+  // never emitted -- it lowers identically to the base and carries misleading
+  // metadata. Restrict both roll indices to the slot side so every variant is a
+  // genuinely distinct packing. (Cross-ciphertext rolls are a future
+  // extension.)
+  int64_t ctPrefixLen = static_cast<int64_t>(inferCtPrefixLen(layout));
+  auto isSlotTraversal = [&](int64_t index, DimAttr dim) {
+    return index >= ctPrefixLen && dim && !dim.isGap() && !dim.isReplicate();
+  };
+
+  for (int64_t from = ctPrefixLen; from < numDims; ++from) {
+    auto fromDim = dyn_cast<DimAttr>(dims[from]);
+    if (!isSlotTraversal(from, fromDim)) continue;
+    for (int64_t to = ctPrefixLen; to < numDims; ++to) {
+      if (from == to) continue;
+      auto toDim = dyn_cast<DimAttr>(dims[to]);
+      if (!isSlotTraversal(to, toDim)) continue;
+      if (fromDim.getSize() != toDim.getSize()) continue;
+
+      SmallVector<std::pair<int64_t, int64_t>> rolls(baseRolls);
+      rolls.push_back({from, to});
+      LayoutAttr candidate = withRolls(layout, rolls);
+      if (isMaterializableRotomLayout(candidate)) {
+        variants.push_back(candidate);
+      }
+    }
+  }
+  return variants;
+}
+
 }  // namespace rotom
 }  // namespace heir
 }  // namespace mlir

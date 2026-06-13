@@ -26,9 +26,11 @@ cc_test(
     srcs = ["LayoutAlignmentTest.cpp"],
     deps = [
         ":LayoutAlignment",
+        ":RotomTensorExtLayoutLowering",
         "@googletest//:gtest_main",
         "@heir//lib/Dialect/Rotom/IR:Dialect",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
     ],
 )
 
