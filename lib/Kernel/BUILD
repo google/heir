@@ -134,6 +134,7 @@ cc_test(
         ":AbstractValue",
         ":ArithmeticDag",
         ":EvalVisitor",
+        ":IRMaterializingVisitor",
         ":Kernel",
         ":KernelImplementation",
         ":RotationCountVisitor",
@@ -142,8 +143,11 @@ cc_test(
         "@heir//lib/Utils/Layout:Convolution",
         "@heir//lib/Utils/Layout:Evaluate",
         "@heir//lib/Utils/Layout:Utils",
+        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:SCFDialect",
         "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
     ],
 )
 

@@ -34,6 +34,7 @@
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
@@ -119,8 +120,9 @@ LogicalResult LattigoEmitter::translate(Operation& op) {
           .Case<memref::AllocOp, memref::LoadOp, memref::StoreOp,
                 memref::CopyOp, memref::GlobalOp, memref::GetGlobalOp,
                 memref::ExpandShapeOp, memref::CollapseShapeOp, memref::CastOp,
-                memref::SubViewOp, memref::ExtractStridedMetadataOp,
-                memref::DimOp>([&](auto op) { return printOperation(op); })
+                memref::ReinterpretCastOp, memref::SubViewOp,
+                memref::ExtractStridedMetadataOp, memref::DimOp>(
+              [&](auto op) { return printOperation(op); })
 
           // Lattigo ops
           .Case<
@@ -1192,6 +1194,17 @@ LogicalResult LattigoEmitter::printOperation(memref::CollapseShapeOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(memref::CastOp op) {
+  std::string name = getName(op.getResult());
+  emitAssignment(name, getName(op.getSource()));
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(memref::ReinterpretCastOp op) {
+  if (!op.getType().getLayout().isIdentity()) {
+    return op.emitOpError(
+        "requires result type to have identity layout (contiguous and 0 "
+        "offset)");
+  }
   std::string name = getName(op.getResult());
   emitAssignment(name, getName(op.getSource()));
   return success();

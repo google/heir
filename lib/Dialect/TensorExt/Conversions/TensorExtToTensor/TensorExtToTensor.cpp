@@ -155,11 +155,8 @@ struct ConvertRotateOp : public OpRewritePattern<RotateOp> {
     leftSliceOffsets[leftSliceOffsets.size() - 1] = dimMinusShift;
     rightSliceOffsets[rightSliceOffsets.size() - 1] = b.getIndexAttr(0);
 
-    auto empty =
-        tensor::EmptyOp::create(rewriter, op.getLoc(), tensorType.getShape(),
-                                tensorType.getElementType());
     auto insertedLeftSlice = tensor::InsertSliceOp::create(
-        b, left.getResult(), empty, leftSliceOffsets, leftSliceSizes,
+        b, left.getResult(), op.getTensor(), leftSliceOffsets, leftSliceSizes,
         allOneStrides);
     auto insertedRightSlice = tensor::InsertSliceOp::create(
         b, right.getResult(), insertedLeftSlice.getResult(), rightSliceOffsets,

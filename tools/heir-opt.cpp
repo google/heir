@@ -436,7 +436,6 @@ int main(int argc, char** argv) {
   // This comement registers internal passes
 
   // Interfaces in HEIR
-  lattigo::registerBufferizableOpInterfaceExternalModels(registry);
   secret::registerBufferizableOpInterfaceExternalModels(registry);
   lattigo::registerBufferizableOpInterfaceExternalModels(registry);
   registerIncreasesMulDepthOpInterface(registry);

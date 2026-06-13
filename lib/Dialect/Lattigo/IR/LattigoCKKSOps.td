@@ -15,7 +15,7 @@ class Lattigo_CKKSOp<string mnemonic, list<Trait> traits = []> :
 // This operation cannot be marked as Pure because it represents a buffer allocation.
 // If marked as Pure, CSE will deduplicate them, causing multiple in-place operations
 // (like encode) to share the same buffer and overwrite each other.
-def Lattigo_CKKSNewPlaintextOp : Lattigo_CKKSOp<"new_plaintext", []> {
+def Lattigo_CKKSNewPlaintextOp : Lattigo_CKKSOp<"new_plaintext"> {
   let summary = "Create a new plaintext in the Lattigo CKKS dialect";
   let description = [{
     This operation creates a new plaintext value in the Lattigo CKKS dialect.
@@ -48,7 +48,7 @@ def Lattigo_CKKSNewEncoderOp : Lattigo_CKKSOp<"new_encoder", [Pure]> {
   let results = (outs Lattigo_CKKSEncoder:$encoder);
 }
 
-def Lattigo_CKKSEncodeOp : Lattigo_CKKSOp<"encode", [InPlaceOpInterface, Pure, PlaintextEncodeOpInterface]> {
+def Lattigo_CKKSEncodeOp : Lattigo_CKKSOp<"encode", [InPlaceOpInterface, PlaintextEncodeOpInterface]> {
   let summary = "Encode a plaintext value in the Lattigo CKKS dialect";
   let description = [{
     This operation encodes a plaintext value using the specified encoder in the Lattigo CKKS dialect.
@@ -68,7 +68,7 @@ def Lattigo_CKKSEncodeOp : Lattigo_CKKSOp<"encode", [InPlaceOpInterface, Pure, P
   let extraClassDeclaration = "int getInPlaceOperandIndex() { return 2; }";
 }
 
-def Lattigo_CKKSDecodeOp : Lattigo_CKKSOp<"decode", [AllTypesMatch<["value", "decoded"]>, Pure]> {
+def Lattigo_CKKSDecodeOp : Lattigo_CKKSOp<"decode", [AllTypesMatch<["value", "decoded"]>]> {
   let summary = "Decode a plaintext value in the Lattigo CKKS dialect";
   let description = [{
     This operation decodes a plaintext value using the specified encoder in the Lattigo CKKS dialect.

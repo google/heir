@@ -149,6 +149,7 @@ class LattigoEmitter {
   LogicalResult printOperation(::mlir::memref::ExpandShapeOp op);
   LogicalResult printOperation(::mlir::memref::CollapseShapeOp op);
   LogicalResult printOperation(::mlir::memref::CastOp op);
+  LogicalResult printOperation(::mlir::memref::ReinterpretCastOp op);
   LogicalResult printOperation(::mlir::memref::SubViewOp op);
   LogicalResult printOperation(::mlir::memref::ExtractStridedMetadataOp op);
   LogicalResult printOperation(::mlir::memref::DimOp op);

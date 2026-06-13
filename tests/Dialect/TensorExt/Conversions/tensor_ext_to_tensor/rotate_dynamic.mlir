@@ -13,18 +13,15 @@ func.func @test_rotate_dynamic(%0: tensor<16xi32>, %shift: index) -> tensor<16xi
   // CHECK: tensor.extract_slice
   // CHECK-SAME: [%[[v2]]] [%[[v3]]] [1]
 
-  // CHECK: tensor.empty
-
-  // CHECK: tensor.insert_slice
-  // CHECK-SAME: [%[[v3]]] [%[[v2]]] [1]
-  // CHECK: tensor.insert_slice
-  // CHECK-SAME: [0] [%[[v3]]] [1]
+  // CHECK: %[[INSERTED:.*]] = tensor.insert_slice %{{.*}} into %[[arg0]][%[[v3]]] [%[[v2]]] [1]
+  // CHECK: tensor.insert_slice %{{.*}} into %[[INSERTED]][0] [%[[v3]]] [1]
   %1 = tensor_ext.rotate %0, %shift : tensor<16xi32>, index
   return %1 : tensor<16xi32>
 }
 
 
 // CHECK: @test_rotate_dynamic_multidim
+// CHECK-SAME: (%[[arg0:.*]]: tensor<3x4x16xi32>, %{{.*}}: index) -> tensor<3x4x16xi32>
 func.func @test_rotate_dynamic_multidim(%0: tensor<3x4x16xi32>, %shift: index) -> tensor<3x4x16xi32> {
   // CHECK: %[[c16:.*]] = arith.constant 16
   // CHECK: %[[v0:.*]] = arith.remsi %[[shift]], %[[c16]]
@@ -37,12 +34,8 @@ func.func @test_rotate_dynamic_multidim(%0: tensor<3x4x16xi32>, %shift: index) -
   // CHECK: tensor.extract_slice
   // CHECK-SAME: [0, 0, %[[v2]]] [3, 4, %[[v3]]] [1, 1, 1]
 
-  // CHECK: tensor.empty
-
-  // CHECK: tensor.insert_slice
-  // CHECK-SAME: [0, 0, %[[v3]]] [3, 4, %[[v2]]] [1, 1, 1]
-  // CHECK: tensor.insert_slice
-  // CHECK-SAME: [0, 0, 0] [3, 4, %[[v3]]] [1, 1, 1]
+  // CHECK: %[[INSERTED:.*]] = tensor.insert_slice %{{.*}} into %[[arg0]][0, 0, %[[v3]]] [3, 4, %[[v2]]] [1, 1, 1]
+  // CHECK: tensor.insert_slice %{{.*}} into %[[INSERTED]][0, 0, 0] [3, 4, %[[v3]]] [1, 1, 1]
   %1 = tensor_ext.rotate %0, %shift : tensor<3x4x16xi32>, index
   return %1 : tensor<3x4x16xi32>
 }

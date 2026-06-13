@@ -13,7 +13,7 @@ class Lattigo_BGVOp<string mnemonic, list<Trait> traits = []> :
 // This operation cannot be marked as Pure because it represents a buffer allocation.
 // If marked as Pure, CSE will deduplicate them, causing multiple in-place operations
 // (like encode) to share the same buffer and overwrite each other.
-def Lattigo_BGVNewPlaintextOp : Lattigo_BGVOp<"new_plaintext", []> {
+def Lattigo_BGVNewPlaintextOp : Lattigo_BGVOp<"new_plaintext"> {
   let summary = "Create a new plaintext in the Lattigo BGV dialect";
   let description = [{
     This operation creates a new plaintext value in the Lattigo BGV dialect.
