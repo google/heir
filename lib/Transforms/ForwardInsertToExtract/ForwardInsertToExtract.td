@@ -12,6 +12,11 @@ def ForwardInsertToExtract : Pass<"forward-insert-to-extract"> {
 
         Does not support complex control flow within a block, nor ops with
         arbitrary subregions.
+
+        For example, extracting from a tensor after an insert can be rewritten
+        to use the inserted value directly.
+
+        (* example filepath=tests/Transforms/forward_insert_to_extract/doctest.mlir *)
     }];
 }
 
