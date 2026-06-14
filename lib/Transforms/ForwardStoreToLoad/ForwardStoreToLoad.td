@@ -12,6 +12,8 @@ def ForwardStoreToLoad : Pass<"forward-store-to-load"> {
 
     Does not support complex control flow within a block, nor ops
     with arbitrary subregions.
+
+    (* example filepath=tests/Transforms/forward_store_to_load/doctest.mlir *)
   }];
   let dependentDialects = [
     "mlir::affine::AffineDialect",
