@@ -11,6 +11,8 @@ def DropUnitDims : Pass<"drop-unit-dims"> {
 
   For example, a `linalg.matmul` whose RHS has type `tensor<32x1xi32>` is
   converted to a `linalg.matvec` op on the underlying `tensor<32xi32>`.
+
+  (* example filepath=tests/Transforms/drop_unit_dims/doctest.mlir *)
   }];
   let dependentDialects = [
     "mlir::linalg::LinalgDialect",
