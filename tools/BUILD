@@ -254,6 +254,7 @@ cc_binary(
         "@heir//lib/Target/JaxiteWord:JaxiteWordEmitter",
         "@heir//lib/Target/Lattigo:LattigoEmitter",
         "@heir//lib/Target/Metadata:MetadataEmitter",
+        "@heir//lib/Target/OpenFheEmitC:OpenFheEmitCRegistration",
         "@heir//lib/Target/OpenFhePke:OpenFheRegistration",
         "@heir//lib/Target/SCIFRBool:SCIFRBoolEmitter",
         "@heir//lib/Target/SimFHE:SimFHEEmitter",

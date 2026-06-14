@@ -12,6 +12,7 @@ cc_library(
         "Passes.h",
     ],
     deps = [
+        ":AddOpenFhePybind",
         ":AllocToInPlace",
         ":ConfigureCryptoContext",
         ":ConvertToExtendedBasis",
@@ -20,6 +21,19 @@ cc_library(
         ":HoistKeySwitchDown",
         ":pass_inc_gen",
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
+    ],
+)
+
+cc_library(
+    name = "AddOpenFhePybind",
+    srcs = ["AddOpenFhePybind.cpp"],
+    hdrs = ["AddOpenFhePybind.h"],
+    deps = [
+        ":pass_inc_gen",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
     ],
 )
 

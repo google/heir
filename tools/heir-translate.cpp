@@ -3,7 +3,13 @@
 #include "lib/Target/JaxiteWord/JaxiteWordEmitter.h"
 #include "lib/Target/Lattigo/LattigoEmitter.h"
 #include "lib/Target/Metadata/MetadataEmitter.h"
+#include "lib/Target/OpenFheEmitC/OpenFheEmitCTranslateRegistration.h"
 #include "lib/Target/OpenFhePke/OpenFheTranslateRegistration.h"
+
+namespace mlir {
+void registerToCppTranslation();
+}  // namespace mlir
+
 // This comment includes internal emitters
 #include "lib/Target/SCIFRBool/SCIFRBoolEmitter.h"
 #include "lib/Target/SimFHE/SimFHEEmitter.h"
@@ -33,6 +39,8 @@ int main(int argc, char** argv) {
   mlir::heir::functioninfo::registerToFunctionInfoTranslation();
 
   // OpenFHE
+  mlir::registerToCppTranslation();
+  mlir::heir::openfhe::registerToOpenFheEmitCTranslation();
   mlir::heir::openfhe::registerTranslateOptions();
   mlir::heir::openfhe::registerToOpenFhePkeTranslation();
   mlir::heir::openfhe::registerToOpenFhePkeHeaderTranslation();

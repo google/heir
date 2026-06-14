@@ -10,10 +10,12 @@ openfhe_end_to_end_test(
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=ckks",
         "--mlir-to-ckks=ciphertext-degree=1024",
-        "--scheme-to-openfhe",
+        "--scheme-to-openfhe=ring-dim=2048 insecure=true",
     ],
     heir_translate_flags = [],
     mlir_src = "@heir//tests/Examples/common:dot_product_8f.mlir",
-    tags = ["notap"],
+    tags = [
+        "notap",
+    ],
     test_src = "dot_product_8f_test.cpp",
 )
