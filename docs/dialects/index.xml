@@ -12542,6 +12542,56 @@ the same as that of the storage type of the input modular type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="mod_arithlift-heirmod_arithliftop">&lt;code>mod_arith.lift&lt;/code> (heir::mod_arith::LiftOp)&lt;/h3>
+&lt;p>&lt;em>Lift a modular value to an integer representative&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `mod_arith.lift` $lift_type $input attr-dict `:` type($input) `-&amp;gt;` type($output)
+&lt;/code>&lt;/pre>&lt;p>&lt;code>mod_arith.lift&lt;/code> converts a modular value to a canonical integer representative.
+The &lt;code>standard&lt;/code> lift produces a representative in &lt;code>[0, q)&lt;/code>, and the
+&lt;code>centered&lt;/code> lift produces a representative in &lt;code>[-q/2, q/2)&lt;/code>.&lt;/p>
+&lt;p>It is required that the bitwidth of the output (tensor of) integer type is
+the same as that of the storage type of the input modular type.&lt;/p>
+&lt;p>Examples:&lt;/p>
+&lt;pre tabindex="0">&lt;code>%m0 = mod_arith.lift centered %c0 : i32 -&amp;gt; mod_arith.int&amp;lt;65537 : i32&amp;gt;
+%m0 = mod_arith.lift standard %c0 : i32 -&amp;gt; mod_arith.int&amp;lt;65537 : i32&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-2">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>lift_type&lt;/code>&lt;/td>&lt;td>::mlir::heir::mod_arith::LiftTypeAttr&lt;/td>&lt;td>ModArith lift type&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-4">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>mod_arith-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-5">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>signless-integer&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="mod_arithmac-heirmod_arithmacop">&lt;code>mod_arith.mac&lt;/code> (heir::mod_arith::MacOp)&lt;/h3>
 &lt;p>&lt;em>Modular multiplication-and-accumulation operation&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
@@ -12552,7 +12602,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-4">Operands:&lt;/h4>
+&lt;h4 id="operands-5">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -12575,7 +12625,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-5">Results:&lt;/h4>
+&lt;h4 id="results-6">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -12610,7 +12660,7 @@ mod_arith.mod_switch %c0 : rns.rns&amp;lt;mod_arith.int&amp;lt;5 : i32&amp;gt;, 
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-5">Operands:&lt;/h4>
+&lt;h4 id="operands-6">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -12625,7 +12675,7 @@ mod_arith.mod_switch %c0 : rns.rns&amp;lt;mod_arith.int&amp;lt;5 : i32&amp;gt;, 
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-6">Results:&lt;/h4>
+&lt;h4 id="results-7">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -12650,7 +12700,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-6">Operands:&lt;/h4>
+&lt;h4 id="operands-7">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -12669,7 +12719,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-7">Results:&lt;/h4>
+&lt;h4 id="results-8">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -12699,7 +12749,7 @@ such that $x \equiv y \mod q$.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-7">Operands:&lt;/h4>
+&lt;h4 id="operands-8">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -12714,7 +12764,7 @@ such that $x \equiv y \mod q$.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-8">Results:&lt;/h4>
+&lt;h4 id="results-9">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -12739,7 +12789,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-8">Operands:&lt;/h4>
+&lt;h4 id="operands-9">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -12758,7 +12808,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-9">Results:&lt;/h4>
+&lt;h4 id="results-10">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -12779,7 +12829,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `mod_arith.subifge` operands attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-9">Operands:&lt;/h4>
+&lt;h4 id="operands-10">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -12798,7 +12848,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-10">Results:&lt;/h4>
+&lt;h4 id="results-11">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -12814,6 +12864,31 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/tbody>
 &lt;/table>
 &lt;h2 id="modarith-additional-definitions">ModArith additional definitions&lt;/h2>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h3 id="lifttype">LiftType&lt;/h3>
+&lt;p>&lt;em>ModArith lift type&lt;/em>&lt;/p>
+&lt;h4 id="cases">Cases:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Symbol&lt;/th>
+&lt;th style="text-align:center">Value&lt;/th>
+&lt;th>String&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">STANDARD&lt;/td>
+&lt;td style="text-align:center">&lt;code>0&lt;/code>&lt;/td>
+&lt;td>standard&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">CENTERED&lt;/td>
+&lt;td style="text-align:center">&lt;code>1&lt;/code>&lt;/td>
+&lt;td>centered&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h1 id="typeinterface-definitions">TypeInterface definitions&lt;/h1>
 &lt;h2 id="modqtypeinterface-modqtypeinterface">ModQTypeInterface (&lt;code>ModQTypeInterface&lt;/code>)&lt;/h2>
