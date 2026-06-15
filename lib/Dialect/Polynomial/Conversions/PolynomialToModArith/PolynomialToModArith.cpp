@@ -298,6 +298,11 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
           op, "failed to construct common conversion info");
 
     auto typeInfo = res.value();
+    // TODO(#97): support compile-time NTT
+    if (typeInfo.polynomialType.getForm() == Form::EVAL) {
+      return rewriter.notifyMatchFailure(
+          op, "unsupported eval-form polynomial constant");
+    }
 
     auto attr = dyn_cast<TypedIntPolynomialAttr>(op.getValue());
     if (!attr)
@@ -392,6 +397,47 @@ struct ConvertMonomial : public OpConversionPattern<MonomialOp> {
     }
     auto storageTensorType =
         RankedTensorType::get(storageShape, typeInfo.coefficientStorageType);
+
+    // TODO(#97): support compile-time NTT
+    // We don't have proper support for EVAL-form constants, but we can
+    // at least support degree-zero polynomial constants in EVAL form. The
+    // NTT of a degree-zero polynomial is a vector where each coefficient is the
+    // constant term.
+    if (typeInfo.polynomialType.getForm() == Form::EVAL) {
+      IntegerAttr degreeAttr;
+      if (!matchPattern(adaptor.getDegree(), m_Constant(&degreeAttr)) ||
+          degreeAttr.getInt() != 0) {
+        return rewriter.notifyMatchFailure(
+            op, "unsupported eval-form non-constant monomial");
+      }
+
+      Value result;
+      if (auto modQTy = dyn_cast<ModQTypeInterface>(typeInfo.coefficientType)) {
+        Type extractedType = modQTy.getLoweringType();
+        Value extracted = mod_arith::ExtractOp::create(
+            b, extractedType, adaptor.getCoefficient());
+        Value replicatedStorage;
+        if (isa<ShapedType>(extractedType)) {
+          auto init = tensor::EmptyOp::create(b, storageTensorType.getShape(),
+                                              typeInfo.coefficientStorageType);
+          // Broadcast an RNS constant coefficient along the degree axis
+          replicatedStorage = linalg::BroadcastOp::create(b, extracted, init,
+                                                          ArrayRef<int64_t>{0})
+                                  .getResult()[0];
+        } else {
+          replicatedStorage =
+              tensor::SplatOp::create(b, extracted, storageTensorType);
+        }
+        result = mod_arith::EncapsulateOp::create(b, typeInfo.tensorType,
+                                                  replicatedStorage)
+                     .getResult();
+      } else {
+        result = tensor::SplatOp::create(b, adaptor.getCoefficient(),
+                                         typeInfo.tensorType);
+      }
+      rewriter.replaceOp(op, result);
+      return success();
+    }
 
     auto tensor = arith::ConstantOp::create(
         b, DenseElementsAttr::get(
@@ -536,6 +582,10 @@ struct ConvertMonicMonomialMul
       return rewriter.notifyMatchFailure(
           op, "failed to construct common conversion info");
     auto typeInfo = res.value();
+    if (typeInfo.polynomialType.getForm() == Form::EVAL) {
+      return rewriter.notifyMatchFailure(
+          op, "MonicMonomialMul requires COEFF form input");
+    }
 
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     // In general, a rotation would correspond to multiplication by x^n,
@@ -622,6 +672,10 @@ struct ConvertLeadingTerm : public OpConversionPattern<LeadingTermOp> {
       return rewriter.notifyMatchFailure(
           op, "failed to construct common conversion info");
     auto typeInfo = res.value();
+    if (typeInfo.polynomialType.getForm() == Form::EVAL) {
+      return rewriter.notifyMatchFailure(
+          op, "LeadingTerm requires COEFF form input");
+    }
 
     auto c0 = arith::ConstantOp::create(
         b, b.getIntegerAttr(typeInfo.coefficientStorageType, 0));
@@ -677,6 +731,10 @@ struct ConvertApplyCoefficientwise
       return rewriter.notifyMatchFailure(
           op, "failed to construct common conversion info");
     auto typeInfo = res.value();
+    if (typeInfo.polynomialType.getForm() == Form::EVAL) {
+      return rewriter.notifyMatchFailure(
+          op, "ApplyCoefficientwise requires COEFF form input");
+    }
 
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     Value inputTensor = adaptor.getInput();
