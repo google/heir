@@ -11,14 +11,14 @@ func TestBicyclicMatmulRobust(t *testing.T) {
 	q := make([]float32, 16*17)
 	for i := 0; i < 16; i++ {
 		for j := 0; j < 17; j++ {
-			q[i*17+j] = float32(i + j)
+			q[i*17+j] = float32(i+j) / 100.0
 		}
 	}
 
 	k := make([]float32, 17*19)
 	for j := 0; j < 17; j++ {
 		for l := 0; l < 19; l++ {
-			k[j*19+l] = float32(j - l)
+			k[j*19+l] = float32(j-l) / 100.0
 		}
 	}
 
