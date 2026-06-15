@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <string>
@@ -409,7 +410,7 @@ TEST(EvaluateTest, EvaluateLayoutFor1DConvCwFcwNoPaddingDiagonalized) {
   EXPECT_THAT(result, Eq(expected));
 }
 
-TEST(EvaluateTest, Conv2dResultRelation) {
+TEST(EvaluateTest, Conv2dResultRelationNoInterchange) {
   MLIRContext context;
   RankedTensorType outputType =
       RankedTensorType::get({1, 4, 2, 2}, IndexType::get(&context));
@@ -435,11 +436,42 @@ TEST(EvaluateTest, Conv2dResultRelation) {
   };
   auto result = evaluateLayout(rel, getValueFn);
   std::vector<std::vector<int>> expected = {
+      {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}};
+  EXPECT_THAT(result, Eq(expected));
+}
+
+TEST(EvaluateTest, Conv2dResultRelationWithInterchange) {
+  MLIRContext context;
+  RankedTensorType outputType =
+      RankedTensorType::get({1, 4, 2, 2}, IndexType::get(&context));
+  SmallVector<int64_t> strides = {2, 2};
+  int64_t padding = 0;
+
+  // Fits in one ciphertext
+  int64_t ciphertextSize = 16;
+  IntegerRelation rel1 =
+      get2dConvResultRelation(outputType, strides, padding, ciphertextSize);
+  IntegerRelation rel2 = get2dConvRowInterchangeLayoutRelation(
+      outputType, strides, ciphertextSize);
+  rel1.compose(rel2);
+
+  std::vector<std::vector<std::vector<std::vector<int>>>> output = {
+      {{{1, 2}, {3, 4}},
+       {{5, 6}, {7, 8}},
+       {{9, 10}, {11, 12}},
+       {{13, 14}, {15, 16}}}};
+  std::function<int(const std::vector<int64_t>&)> getValueFn =
+      [&](const std::vector<int64_t>& domainPoint) -> int {
+    return output[domainPoint[0]][domainPoint[1]][domainPoint[2]]
+                 [domainPoint[3]];
+  };
+  auto result = evaluateLayout(rel1, getValueFn);
+  std::vector<std::vector<int>> expected = {
       {1, 5, 2, 6, 9, 13, 10, 14, 3, 7, 4, 8, 11, 15, 12, 16}};
   EXPECT_THAT(result, Eq(expected));
 }
 
-TEST(EvaluateTest, Conv2dResultRelationTwoCiphertexts) {
+TEST(EvaluateTest, Conv2dResultRelationTwoCiphertextsNoInterchange) {
   MLIRContext context;
   RankedTensorType outputType =
       RankedTensorType::get({1, 4, 2, 2}, IndexType::get(&context));
@@ -461,9 +493,92 @@ TEST(EvaluateTest, Conv2dResultRelationTwoCiphertexts) {
                  [domainPoint[3]];
   };
   auto result = evaluateLayout(rel, getValueFn);
+  std::vector<std::vector<int>> expected = {{1, 2, 3, 4, 5, 6, 7, 8},
+                                            {9, 10, 11, 12, 13, 14, 15, 16}};
+  EXPECT_THAT(result, Eq(expected));
+}
+
+TEST(EvaluateTest, Conv2dResultRelationTwoCiphertextsWithInterchange) {
+  MLIRContext context;
+  RankedTensorType outputType =
+      RankedTensorType::get({1, 4, 2, 2}, IndexType::get(&context));
+  SmallVector<int64_t> strides = {2, 2};
+  int64_t padding = 0;
+
+  int64_t ciphertextSize = 8;
+  IntegerRelation rel1 =
+      get2dConvResultRelation(outputType, strides, padding, ciphertextSize);
+  IntegerRelation rel2 = get2dConvRowInterchangeLayoutRelation(
+      outputType, strides, ciphertextSize);
+  rel1.compose(rel2);
+
+  std::vector<std::vector<std::vector<std::vector<int>>>> output = {
+      {{{1, 2}, {3, 4}},
+       {{5, 6}, {7, 8}},
+       {{9, 10}, {11, 12}},
+       {{13, 14}, {15, 16}}}};
+  std::function<int(const std::vector<int64_t>&)> getValueFn =
+      [&](const std::vector<int64_t>& domainPoint) -> int {
+    return output[domainPoint[0]][domainPoint[1]][domainPoint[2]]
+                 [domainPoint[3]];
+  };
+  auto result = evaluateLayout(rel1, getValueFn);
   std::vector<std::vector<int>> expected = {{1, 5, 2, 6, 9, 13, 10, 14},
                                             {3, 7, 4, 8, 11, 15, 12, 16}};
   EXPECT_THAT(result, Eq(expected));
+}
+
+TEST(EvaluateTest, TallConvFilterDiagonalizedRelationsEquivalence) {
+  MLIRContext context;
+  RankedTensorType filterType =
+      RankedTensorType::get({8, 1, 2, 2}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({1, 1, 4, 4}, IndexType::get(&context));
+  SmallVector<int64_t> strides = {2, 2};
+  int64_t padding = 0;
+  int64_t ciphertextSize = 32;
+
+  auto singleRel = get2dConvChwFchwFilterDiagonalizedRelation(
+      filterType, dataType, strides, padding, ciphertextSize,
+      /*interchangeRows=*/true);
+  ASSERT_TRUE(succeeded(singleRel));
+
+  auto pluralRels = get2dConvChwFchwFilterDiagonalizedRelations(
+      filterType, dataType, strides, padding, ciphertextSize,
+      /*interchangeRows=*/true);
+  ASSERT_TRUE(succeeded(pluralRels));
+  auto rels = pluralRels.value();
+  ASSERT_THAT(rels.size(), Eq(3));  // expanded, interchange, diagonal
+
+  // Compose the list of relations
+  IntegerRelation composed = rels[0];
+  for (size_t i = 1; i < rels.size(); ++i) {
+    composed.compose(rels[i]);
+  }
+
+  // Filter is 8x1x2x2
+  std::vector<std::vector<std::vector<std::vector<int>>>> filter(
+      8, std::vector<std::vector<std::vector<int>>>(
+             1, std::vector<std::vector<int>>(2, std::vector<int>(2, 0))));
+  int val = 1;
+  for (int f = 0; f < 8; ++f) {
+    for (int kh = 0; kh < 2; ++kh) {
+      for (int kw = 0; kw < 2; ++kw) {
+        filter[f][0][kh][kw] = val++;
+      }
+    }
+  }
+
+  std::function<int(const std::vector<int64_t>&)> getValueFn =
+      [&](const std::vector<int64_t>& domainPoint) -> int {
+    return filter[domainPoint[0]][domainPoint[1]][domainPoint[2]]
+                 [domainPoint[3]];
+  };
+
+  auto resultSingle = evaluateLayout(singleRel.value(), getValueFn);
+  auto resultComposed = evaluateLayout(composed, getValueFn);
+
+  EXPECT_THAT(resultComposed, Eq(resultSingle));
 }
 
 }  // namespace

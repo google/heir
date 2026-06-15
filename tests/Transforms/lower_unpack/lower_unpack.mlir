@@ -17,7 +17,6 @@ func.func @unpack_scalar(%arg0: tensor<1x1024xi16> {tensor_ext.original_type = #
 // CHECK: @unpack_rotated_tensor
 // CHECK: arith.constant dense<0> : tensor<32xi16>
 // CHECK: scf.for
-// CHECK: scf.if
 // CHECK: tensor.extract
 // CHECK: tensor.insert
 // CHECK: scf.yield

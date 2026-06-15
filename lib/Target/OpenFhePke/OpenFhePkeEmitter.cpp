@@ -633,10 +633,19 @@ LogicalResult OpenFhePkeEmitter::printOperation(scf::ForOp op) {
     os << ";\n";
   }
 
-  os << llvm::formatv("for (auto {0} = {1}; {0} < {2}; ++{0}) {{\n",
-                      variableNames->getNameForValue(op.getInductionVar()),
-                      getConstantOrValue(op.getLowerBound()),
-                      getConstantOrValue(op.getUpperBound()));
+  Value step = op.getStep();
+  std::string stepStr = getConstantOrValue(step);
+  if (stepStr == "1") {
+    os << llvm::formatv("for (auto {0} = {1}; {0} < {2}; ++{0}) {{\n",
+                        variableNames->getNameForValue(op.getInductionVar()),
+                        getConstantOrValue(op.getLowerBound()),
+                        getConstantOrValue(op.getUpperBound()));
+  } else {
+    os << llvm::formatv("for (auto {0} = {1}; {0} < {2}; {0} += {3}) {{\n",
+                        variableNames->getNameForValue(op.getInductionVar()),
+                        getConstantOrValue(op.getLowerBound()),
+                        getConstantOrValue(op.getUpperBound()), stepStr);
+  }
   os.indent();
   for (Operation& op : *op.getBody()) {
     if (failed(translate(op))) {

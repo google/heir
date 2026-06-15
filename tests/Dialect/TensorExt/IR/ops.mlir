@@ -42,3 +42,8 @@ func.func @test_assign_layout_with_schedule(%0: tensor<16x16xi32>) -> tensor<16x
   %1 = tensor_ext.assign_layout %0 {layout = #layout1, domainSchedule = array<i64: 1, 0>} : tensor<16x16xi32>
   return %1 : tensor<16x16xi32>
 }
+
+func.func @test_assign_layout_array(%0: tensor<16x16xi32>) -> tensor<16x16xi32> {
+  %1 = tensor_ext.assign_layout %0 {layout = [#layout1, #layout2]} : tensor<16x16xi32>
+  return %1 : tensor<16x16xi32>
+}

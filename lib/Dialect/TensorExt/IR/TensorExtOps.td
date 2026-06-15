@@ -93,6 +93,11 @@ def TensorExt_RemapOp : TensorExt_Op<"remap", [Pure, AllTypesMatch<["input", "ou
   let hasVerifier = 1;
 }
 
+// Because ISL can be slow to generate loops corresponding to complicated layouts,
+// we sometimes choose to represent a complicated layout as a composition of simpler
+// layouts, each of which is fast to codegen.
+def CompositeLayoutAttr :  TypedArrayAttrBase<TensorExt_LayoutAttr, "array of layouts">;
+
 // Forces ops to use a general Attribute and dyn_cast to the specific kind of
 // layout they support.
 def LayoutLike : AnyAttrOf<[
@@ -100,6 +105,7 @@ def LayoutLike : AnyAttrOf<[
   // (ct, slot) defined by f(a, b) = (c, d).
   AnyI64ElementsAttr,
   TensorExt_LayoutAttr,
+  CompositeLayoutAttr,
 ]>;
 
 def TensorExt_ConvertLayoutOp : TensorExt_Op<"convert_layout", [Pure, AllTypesMatch<["value", "output"]>]> {
@@ -122,7 +128,9 @@ def TensorExt_ConvertLayoutOp : TensorExt_Op<"convert_layout", [Pure, AllTypesMa
       AnyType:$value,
       LayoutLike:$from_layout,
       LayoutLike:$to_layout,
-      DefaultValuedAttr<DenseI64ArrayAttr, "{}">:$domainSchedule
+      // TODO(#2973): Remove domainSchedule.
+      DefaultValuedAttr<DenseI64ArrayAttr, "{}">:$domainSchedule,
+      DefaultValuedAttr<BoolAttr, "false">:$atomic
   );
   let results = (outs AnyType:$output);
   let hasVerifier = 1;
@@ -152,6 +160,7 @@ def TensorExt_AssignLayoutOp : TensorExt_Op<"assign_layout", [Pure, AllTypesMatc
   let arguments = (ins
       AnyType:$value,
       LayoutLike:$layout,
+      // TODO(#2973): Remove domainSchedule.
       DefaultValuedAttr<DenseI64ArrayAttr, "{}">:$domainSchedule
   );
   let results = (outs AnyType:$output);

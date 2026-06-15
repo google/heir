@@ -348,8 +348,7 @@ TEST_P(KernelImplementationTest, TestIssue3003) {
 
   auto resultRelation = get2dConvResultRelation(outputType,
                                                 /*strides=*/{1, 1},
-                                                /*padding=*/0, numSlots,
-                                                /*interchangeRows=*/false);
+                                                /*padding=*/0, numSlots);
 
   tensor4d actualUnpacked =
       unpackLayoutTo4DTensor<int>(resultRelation, {actualVector}, {1, 1, 3, 3});
@@ -584,9 +583,12 @@ TEST_P(KernelImplementationTest, TestConv2dNchwFchwStride2) {
 
   RankedTensorType outputType =
       RankedTensorType::get({1, 4, 2, 2}, mlir::IndexType::get(&context));
-  auto resultLayout =
-      get2dConvResultRelation(outputType, strides, 0, numSlots,
-                              /*interchangeRows=*/std::get<1>(GetParam()));
+  auto resultLayout = get2dConvResultRelation(outputType, strides, 0, numSlots);
+  if (std::get<1>(GetParam())) {
+    auto interchange =
+        get2dConvRowInterchangeLayoutRelation(outputType, strides, numSlots);
+    resultLayout.compose(interchange);
+  }
 
   auto actualUnpacked =
       unpackLayoutTo4DTensor<int>(resultLayout, {actual4d}, {1, 4, 2, 2});
@@ -708,8 +710,10 @@ TEST_P(KernelImplementationTest,
 
   RankedTensorType outputType =
       RankedTensorType::get({1, 4, 2, 2}, mlir::IndexType::get(&context));
-  auto resultLayout = get2dConvResultRelation(outputType, strides, 0, numSlots,
-                                              /*interchangeRows=*/true);
+  auto resultLayout = get2dConvResultRelation(outputType, strides, 0, numSlots);
+  auto interchange =
+      get2dConvRowInterchangeLayoutRelation(outputType, strides, numSlots);
+  resultLayout.compose(interchange);
 
   auto actualUnpacked =
       unpackLayoutTo4DTensor<int>(resultLayout, {actual4d}, {1, 4, 2, 2});
@@ -817,8 +821,7 @@ TEST_P(KernelImplementationTest, TestConv2dNchwFchwOrionFigure4) {
   RankedTensorType outputType =
       RankedTensorType::get({1, 2, 3, 3}, mlir::IndexType::get(&context));
   auto resultLayout =
-      get2dConvResultRelation(outputType, strides, padding, numSlots,
-                              /*interchangeRows=*/false);
+      get2dConvResultRelation(outputType, strides, padding, numSlots);
 
   auto actualUnpacked =
       unpackLayoutTo4DTensor<int>(resultLayout, {actualVector}, {1, 2, 3, 3});
@@ -925,9 +928,12 @@ TEST_P(KernelImplementationTest, TestConv2dNchwFchwStride2MultiInput) {
 
   RankedTensorType outputType =
       RankedTensorType::get({1, 4, 3, 3}, mlir::IndexType::get(&context));
-  auto resultLayout =
-      get2dConvResultRelation(outputType, strides, 0, numSlots,
-                              /*interchangeRows=*/std::get<1>(GetParam()));
+  auto resultLayout = get2dConvResultRelation(outputType, strides, 0, numSlots);
+  if (std::get<1>(GetParam())) {
+    auto interchange =
+        get2dConvRowInterchangeLayoutRelation(outputType, strides, numSlots);
+    resultLayout.compose(interchange);
+  }
 
   auto actualUnpacked =
       unpackLayoutTo4DTensor<int>(resultLayout, {actualVector}, {1, 4, 3, 3});

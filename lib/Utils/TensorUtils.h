@@ -11,6 +11,10 @@
 namespace mlir {
 namespace heir {
 
+// Returns the flattened index of the given tensor type and indices.
+int64_t getFlattenedIndex(RankedTensorType tensorType,
+                          SmallVector<int64_t> indices);
+
 // Returns the flattened index of the given tensor type and indices. Returns
 // failure of the indices are not static values.
 FailureOr<int64_t> getFlattenedIndex(RankedTensorType tensorType,

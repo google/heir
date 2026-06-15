@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <cstdint>
 #include <string>
 
@@ -9,6 +10,7 @@
 #include "lib/Utils/Layout/Convolution.h"
 #include "lib/Utils/Layout/IslConversion.h"
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/Analysis/AffineStructures.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"       // from @llvm-project
@@ -16,6 +18,7 @@
 #include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/IntegerSet.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Verifier.h"              // from @llvm-project
@@ -510,6 +513,53 @@ TEST(CodegenTest, IfWithNestedForElseYieldDominance) {
   ASSERT_TRUE(succeeded(verify(moduleOp)));
 
   moduleOp.erase();
+}
+
+TEST(CodegenTest, Conv2dNchwFchwWithInterchangeTest) {
+  MLIRContext context;
+  context.loadDialect<tensor_ext::TensorExtDialect>();
+  RankedTensorType filterType =
+      RankedTensorType::get({4, 4, 2, 2}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({1, 4, 28, 28}, IndexType::get(&context));
+  SmallVector<int64_t> strides = {2, 2};
+  int64_t padding = 0;
+  int64_t ciphertextSize = 4096;
+
+  auto maybeRels = get2dConvChwFchwFilterDiagonalizedRelations(
+      filterType, dataType, strides, padding, ciphertextSize, true);
+  ASSERT_TRUE(succeeded(maybeRels));
+  auto rels = maybeRels.value();
+
+  // Scheduling f, c, h, w as outer loops to improve performance.
+  for (const auto& rel : rels) {
+    auto result = generateLoopNestAsCStr(rel, {});
+    ASSERT_TRUE(succeeded(result));
+  }
+  //
+}
+
+TEST(CodegenTest, Conv2dChwFchwTransformationTest) {
+  MLIRContext context;
+  RankedTensorType filterType =
+      RankedTensorType::get({4, 4, 2, 2}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({1, 4, 28, 28}, IndexType::get(&context));
+  SmallVector<int64_t> strides = {2, 2};
+  int64_t padding = 0;
+  int64_t ciphertextSize = 4096;
+
+  auto maybeRels = get2dConvChwFchwFilterTransformation(
+      filterType, dataType, strides, padding, ciphertextSize, true);
+  ASSERT_TRUE(succeeded(maybeRels));
+  auto rels = maybeRels.value();
+
+  EXPECT_EQ(rels.size(), 5);
+
+  for (size_t i = 0; i < rels.size(); ++i) {
+    auto result = generateLoopNestAsCStr(rels[i]);
+    EXPECT_TRUE(succeeded(result)) << "Failed at relation " << i;
+  }
 }
 
 }  // namespace

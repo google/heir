@@ -13,23 +13,26 @@
 namespace mlir {
 namespace heir {
 
+int64_t getFlattenedIndex(RankedTensorType tensorType,
+                          SmallVector<int64_t> indices) {
+  auto rank = tensorType.getRank();
+  int flatIndex = 0;
+  int stride = 1;
+  for (int i = rank - 1; i >= 0; --i) {
+    flatIndex += indices[i] * stride;
+    stride *= tensorType.getDimSize(i);
+  }
+  return flatIndex;
+}
+
 FailureOr<int64_t> getFlattenedIndex(RankedTensorType tensorType,
                                      SmallVector<OpFoldResult> indices) {
   // Collect the constant indices into the tensor.
   auto maybeConstIndices = getConstantIntValues(indices);
   if (!maybeConstIndices.has_value()) return failure();
-  auto constIndices =
-      llvm::map_to_vector(maybeConstIndices.value(),
-                          [](int64_t i) { return static_cast<uint64_t>(i); });
+  auto constIndices = maybeConstIndices.value();
 
-  auto rank = tensorType.getRank();
-  int flatIndex = 0;
-  int stride = 1;
-  for (int i = rank - 1; i >= 0; --i) {
-    flatIndex += constIndices[i] * stride;
-    stride *= tensorType.getDimSize(i);
-  }
-  return flatIndex;
+  return getFlattenedIndex(tensorType, constIndices);
 }
 
 SmallVector<int64_t> getIndicesFromRowMajorShape(int64_t flattenedIndex,

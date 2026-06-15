@@ -754,6 +754,45 @@ TEST(ConvolutionTest, TestMultiChannelMultiRowDiagonalized) {
   EXPECT_TRUE(containsPoint({0, 1, 0, 0}, {784, 0}));
 }
 
+TEST(ConvolutionTest, TestMultiChannelMultiRowDiagonalizedInterchanged) {
+  MLIRContext context;
+
+  RankedTensorType filterType =
+      RankedTensorType::get({4, 4, 2, 2}, IndexType::get(&context));
+  RankedTensorType dataType =
+      RankedTensorType::get({1, 4, 28, 28}, IndexType::get(&context));
+  SmallVector<int64_t> strides = {2, 2};
+  int64_t padding = 0;
+  int64_t ciphertextSize = 4096;
+
+  auto maybeRel = get2dConvChwFchwFilterDiagonalizedRelation(
+      filterType, dataType, strides, padding, ciphertextSize, true);
+  ASSERT_TRUE(succeeded(maybeRel));
+  IntegerRelation rel = maybeRel.value();
+
+  PointPairCollector collector(
+      4, 2);  // 4 domain dims (f, c, fh, fw), 2 range dims (ct, slot)
+  enumeratePoints(rel, collector);
+
+  std::set<int64_t> nonzeroCiphertexts;
+  for (const auto& p : collector.points) {
+    int64_t f = p.first[0];
+    int64_t c = p.first[1];
+    // For pooling, filter is only non-zero when f == c
+    if (f == c) {
+      nonzeroCiphertexts.insert(p.second[0]);  // p.second[0] is ct
+    }
+  }
+
+  EXPECT_EQ(nonzeroCiphertexts.size(), 16);
+
+  std::set<int64_t> totalCiphertexts;
+  for (const auto& p : collector.points) {
+    totalCiphertexts.insert(p.second[0]);
+  }
+  EXPECT_EQ(totalCiphertexts.size(), 36);
+}
+
 TEST(ConvolutionTest, TestConv1dCwFcwDiagonalizedRowInterchange) {
   // Without the interchange, we first iterate over the kernel positions and hit
   // all diagonals With the interchange, we first iterate over the filters, and

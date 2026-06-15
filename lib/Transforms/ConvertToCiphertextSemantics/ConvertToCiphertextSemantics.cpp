@@ -171,6 +171,17 @@ static constexpr int kUnset = -1;
 // at this stage of the compilation pipeline, and how would this pass update
 // to convert to tensor<AxBx2xN/2xi16> where the last two dimensions now
 // correspond to the slot algebra direct product?
+static LayoutAttr composeLayouts(ArrayAttr arrayAttr, MLIRContext* ctx) {
+  auto layoutAttrs = arrayAttr.getAsRange<LayoutAttr>();
+  auto it = layoutAttrs.begin();
+  presburger::IntegerRelation composedRel = (*it).getIntegerRelation();
+  ++it;
+  for (; it != layoutAttrs.end(); ++it) {
+    composedRel.compose((*it).getIntegerRelation());
+  }
+  return LayoutAttr::getFromIntegerRelation(ctx, composedRel);
+}
+
 struct LayoutMaterializationTypeConverter
     : public UniquelyNamedAttributeAwareTypeConverter {
  public:
@@ -182,6 +193,12 @@ struct LayoutMaterializationTypeConverter
     // query it at call time. I have no idea why C++ does this. Debugging it
     // felt like having a stroke.
     addConversion([&](Type type, Attribute attr) { return std::nullopt; });
+    addConversion([this](Type type, ArrayAttr attr) -> std::optional<Type> {
+      auto composedAttr = composeLayouts(attr, type.getContext());
+      auto converted = this->convertType(type, composedAttr);
+      if (!converted) return std::nullopt;
+      return converted;
+    });
     addConversion([this](secret::SecretType type,
                          LayoutAttr attr) -> std::optional<Type> {
       auto innerType = type.getValueType();
@@ -263,7 +280,7 @@ struct ConvertFunc : public ContextAwareFuncConversion {
       setMaterializedAttr(op);
       for (int i = 0; i < op.getNumArguments(); ++i) {
         auto layoutAttr = op.getArgAttr(i, kLayoutAttrName);
-        if (!layoutAttr || !isa<LayoutAttr>(layoutAttr)) {
+        if (!layoutAttr || !isa<LayoutAttr, ArrayAttr>(layoutAttr)) {
           continue;
         }
 
@@ -275,7 +292,7 @@ struct ConvertFunc : public ContextAwareFuncConversion {
 
       for (int i = 0; i < op.getNumResults(); ++i) {
         auto layoutAttr = op.getResultAttr(i, kLayoutAttrName);
-        if (!layoutAttr || !isa<LayoutAttr>(layoutAttr)) {
+        if (!layoutAttr || !isa<LayoutAttr, ArrayAttr>(layoutAttr)) {
           continue;
         }
 
@@ -338,12 +355,40 @@ class ConvertAssignLayout
       ContextAwareConversionPatternRewriter& rewriter) const final {
     Value input = adaptor.getValue();
     Attribute layout = op.getLayout();
-    if (!isa<LayoutAttr>(layout) && !isa<DenseIntElementsAttr>(layout)) {
+    if (auto arrayAttr = dyn_cast<ArrayAttr>(layout)) {
+      if (arrayAttr.empty() || !isa<LayoutAttr>(arrayAttr.getValue().front())) {
+        return failure();
+      }
+    } else if (!isa<LayoutAttr>(layout) && !isa<DenseIntElementsAttr>(layout)) {
       return failure();
     }
 
     Type inputType = input.getType();
-    Type resultType = getTypeConverter()->convertType(op.getType(), layout);
+    Attribute finalLayout = layout;
+    if (auto arrayAttr = dyn_cast<ArrayAttr>(layout)) {
+      finalLayout = arrayAttr.getValue().back();
+    }
+    // The finalLayout can be used for type materialization since only the range
+    // determines the materialized shape.
+    Type resultType =
+        getTypeConverter()->convertType(op.getType(), finalLayout);
+
+    // The tensor_ext.layout attribute is still required to persist on any newly
+    // created ops. This is distinct from finalLayout; the resultLayout is the
+    // composition of all layouts applied in the layout assignment.
+    auto resultLayout = findAttributeAssociatedWith(
+        op.getResult(), tensor_ext::TensorExtDialect::kLayoutAttrName);
+    if (failed(resultLayout)) return failure();
+    Attribute resLayout = resultLayout.value();
+    if (auto arrayAttr = dyn_cast<ArrayAttr>(resLayout)) {
+      if (arrayAttr.empty() || !isa<LayoutAttr>(arrayAttr.getValue().front())) {
+        return failure();
+      }
+    } else if (!isa<LayoutAttr>(resLayout) &&
+               !isa<DenseIntElementsAttr>(resLayout)) {
+      return failure();
+    }
+
     FunctionKey key(layout, inputType, resultType);
 
     // Check cache for existing complex layout assignment function.
@@ -354,7 +399,7 @@ class ConvertAssignLayout
       func::CallOp call = rewriter.replaceOpWithNewOp<func::CallOp>(
           op, func, ValueRange{adaptor.getValue()});
       setMaterializedAttr(call);
-      call->setAttr(kLayoutAttrName, op.getLayout());
+      call->setAttr(kLayoutAttrName, resultLayout.value());
       return success();
     }
 
@@ -397,7 +442,8 @@ class ConvertAssignLayout
       // Keep implementation and merge blocks back.
       rewriter.mergeBlocks(nextBlock, scratchBlock);
       rewriter.mergeBlocks(scratchBlock, currentBlock);
-      setAttributeAssociatedWith(res.value(), kLayoutAttrName, layout);
+      setAttributeAssociatedWith(res.value(), kLayoutAttrName,
+                                 resultLayout.value());
       rewriter.replaceOp(op, res.value());
       return success();
     }
@@ -414,9 +460,9 @@ class ConvertAssignLayout
     rewriter.setInsertionPointAfter(op);
     func::CallOp call = rewriter.replaceOpWithNewOp<func::CallOp>(
         op, func, ValueRange{adaptor.getValue()});
-
     setMaterializedAttr(call);
-    call->setAttr(kLayoutAttrName, op.getLayout());
+    setAttributeAssociatedWith(call.getResult(0), kLayoutAttrName,
+                               resultLayout.value());
     return success();
   };
 
@@ -601,7 +647,7 @@ class ConversionBase : public ContextAwareOpConversionPattern<OpTy> {
   Value materializeKernel(ContextAwareConversionPatternRewriter& rewriter,
                           Location loc,
                           std::shared_ptr<ArithmeticDagNode<SSAValue>> kernel,
-                          Type convertedType, LayoutAttr layoutAttr) const {
+                          Type convertedType, Attribute layoutAttr) const {
     IRMaterializingVisitor visitor(convertedType, [&](Operation* createdOp) {
       setMaterializedAttr(createdOp);
     });
@@ -617,7 +663,7 @@ class ConversionBase : public ContextAwareOpConversionPattern<OpTy> {
 
   void addBiasAndReplace(ContextAwareConversionPatternRewriter& rewriter,
                          Operation* op, Value finalOutput, Value acc,
-                         LayoutAttr layoutAttr) const {
+                         Attribute layoutAttr) const {
     ImplicitLocOpBuilder b(op->getLoc(), rewriter);
     Operation* addBias =
         makeAppropriatelyTypedAddOp(b, op->getLoc(), finalOutput, acc);
@@ -1252,7 +1298,7 @@ struct ConvertLinalgConv2DNchwFchw
 
     rewriter.setInsertionPointAfter(op);
 
-    auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
+    auto layoutAttr = op->getAttr(kLayoutAttrName);
     Value finalOutput = materializeKernel(
         rewriter, op.getLoc(), implementedKernel, data.getType(), layoutAttr);
 

@@ -16,6 +16,12 @@ namespace tensor_ext {
 
 LogicalResult FoldConvertLayoutIntoAssignLayoutPattern::matchAndRewrite(
     AssignLayoutOp op, PatternRewriter& rewriter) const {
+  if (isa<ArrayAttr>(op.getLayout())) {
+    // Don't fold complex lists of layouts to minimize the risk of introducing
+    // performance regressions.
+    return failure();
+  }
+
   if (op.getResult().getUsers().empty()) {
     rewriter.eraseOp(op);
     return success();
