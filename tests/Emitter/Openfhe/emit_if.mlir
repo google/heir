@@ -16,7 +16,7 @@ module attributes {scheme.ckks} {
     %cst = arith.constant dense<0.000000e+00> : tensor<1x10xf32>
     // CHECK: std::vector<float> [[v6:.*]](10, 0);
     // CHECK: std::vector<float> [[v7:.*]] = [[v6]];
-    // CHECK: for (auto [[v8:.*]] = 0; [[v8]] < 1024; ++[[v8]])
+    // CHECK: for (auto [[v8:.*]] = 0; [[v8]] < 1024; [[v8]] += 1)
     %1 = scf.for %arg1 = %c0 to %c1024 step %c1 iter_args(%arg2 = %cst) -> (tensor<1x10xf32>) {
       %2 = arith.addi %arg1, %c6 : index
       %3 = arith.remsi %2, %c16 : index

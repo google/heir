@@ -633,10 +633,11 @@ LogicalResult OpenFhePkeEmitter::printOperation(scf::ForOp op) {
     os << ";\n";
   }
 
-  os << llvm::formatv("for (auto {0} = {1}; {0} < {2}; ++{0}) {{\n",
+  os << llvm::formatv("for (auto {0} = {1}; {0} < {2}; {0} += {3}) {{\n",
                       variableNames->getNameForValue(op.getInductionVar()),
                       getConstantOrValue(op.getLowerBound()),
-                      getConstantOrValue(op.getUpperBound()));
+                      getConstantOrValue(op.getUpperBound()),
+                      getConstantOrValue(op.getStep()));
   os.indent();
   for (Operation& op : *op.getBody()) {
     if (failed(translate(op))) {
