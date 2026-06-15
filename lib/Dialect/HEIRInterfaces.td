@@ -562,4 +562,59 @@ def PlaintextEncodeOpInterface : OpInterface<"PlaintextEncodeOpInterface"> {
   }];
 }
 
+def LimbwiseAttrInterface : AttrInterface<"LimbwiseAttrInterface"> {
+  let description = [{
+    Interface for an attribute that has a concept of limbs. Mainly used
+    to break cyclic build dependencies between ModArith and RNS.
+
+    Used in conjunction with LimbwiseMappableOpInterface to define limb-wise folding
+    by defining just the folder on a single (scalar) residue.
+  }];
+  let cppNamespace = "::mlir::heir";
+  let methods = [
+    InterfaceMethod<
+      "Get an attribute for one limb.",
+      "::mlir::Attribute",
+      "extractLimb",
+      (ins "unsigned":$limbIndex)
+    >,
+    InterfaceMethod<
+      "Get the type of a specific limb.",
+      "::mlir::Type",
+      "getLimbType",
+      (ins "unsigned":$limbIndex)
+    >,
+    StaticInterfaceMethod<
+      "Construct an attribute from a set of limbs.",
+      "::mlir::Attribute",
+      "assembleFromLimbs",
+      (ins "::mlir::Type":$resultAttrType, "::llvm::ArrayRef<::mlir::Attribute>":$limbs)
+    >,
+    InterfaceMethod<
+      "Get the number of limbs.",
+      "unsigned",
+      "getNumLimbs"
+    >,
+    InterfaceMethod<
+      "Materialize a constant operation for this attribute.",
+      "::mlir::Operation *",
+      "materializeConstant",
+      (ins "::mlir::OpBuilder &":$builder, "::mlir::Location":$loc, "::mlir::Type":$type)
+    >,
+  ];
+}
+
+def LimbwiseMappableOpInterface : OpInterface<"LimbwiseMappableOpInterface"> {
+  let cppNamespace = "::mlir::heir";
+  let description = [{
+    Interface for operations that can be folded limbwise.
+  }];
+  let methods = [
+    InterfaceMethod<
+        "Apply folding where each operand is a single residue, a base-case for foldLimbwise.",
+        "::mlir::Attribute", "foldScalarResidue",
+        (ins "::llvm::ArrayRef<::mlir::Attribute>":$operands, "::mlir::Type":$residueType)>
+  ];
+}
+
 #endif  // LIB_DIALECT_HEIR_IR_HEIRINTERFACES_TD_

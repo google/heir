@@ -10,6 +10,8 @@
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/DialectRegistry.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"           // from @llvm-project
@@ -21,6 +23,7 @@
 namespace mlir {
 namespace heir {
 
+#include "lib/Dialect/HEIRAttrInterfaces.cpp.inc"
 #include "lib/Dialect/HEIROpInterfaces.cpp.inc"
 #include "lib/Dialect/HEIRTypeInterfaces.cpp.inc"
 
@@ -142,6 +145,58 @@ LogicalResult verifyElementwiseByOperandImpl(
   }
 
   return success();
+}
+
+Attribute foldLimbwise(Operation* op, ArrayRef<Attribute> operands,
+                       Type resultType) {
+  for (Attribute attr : operands) {
+    if (!attr) return {};
+  }
+
+  auto limbwiseOp = dyn_cast_if_present<LimbwiseMappableOpInterface>(op);
+  if (!limbwiseOp) return {};
+
+  std::optional<unsigned> expectedNumLimbs = std::nullopt;
+  LimbwiseAttrInterface limbwiseAttr;
+  for (Attribute attr : operands) {
+    if (auto currentLimbwiseAttr =
+            dyn_cast_if_present<LimbwiseAttrInterface>(attr)) {
+      if (!expectedNumLimbs) {
+        expectedNumLimbs = currentLimbwiseAttr.getNumLimbs();
+        limbwiseAttr = currentLimbwiseAttr;
+      } else if (currentLimbwiseAttr.getNumLimbs() != *expectedNumLimbs) {
+        return {};
+      }
+    }
+  }
+
+  // If no operands are limbwise, treat as a scalar.
+  if (!expectedNumLimbs) {
+    return limbwiseOp.foldScalarResidue(operands, resultType);
+  }
+
+  unsigned numLimbs = *expectedNumLimbs;
+  SmallVector<Attribute> resultLimbs;
+  resultLimbs.reserve(numLimbs);
+
+  for (unsigned i = 0; i < numLimbs; ++i) {
+    SmallVector<Attribute> limbOperands;
+    limbOperands.reserve(operands.size());
+    for (Attribute attr : operands) {
+      if (auto castOperand = dyn_cast_if_present<LimbwiseAttrInterface>(attr)) {
+        limbOperands.push_back(castOperand.extractLimb(i));
+      } else {
+        // Broadcast non-limbwise operands to all limbs.
+        limbOperands.push_back(attr);
+      }
+    }
+    Attribute limbRes =
+        limbwiseOp.foldScalarResidue(limbOperands, limbwiseAttr.getLimbType(i));
+    if (!limbRes) return {};
+    resultLimbs.push_back(limbRes);
+  }
+
+  return limbwiseAttr.assembleFromLimbs(resultType, resultLimbs);
 }
 
 }  // namespace heir

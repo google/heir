@@ -1,6 +1,9 @@
 #ifndef LIB_DIALECT_HEIRINTERFACES_H_
 #define LIB_DIALECT_HEIRINTERFACES_H_
 
+#include "mlir/include/mlir/IR/Attributes.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"   // from @llvm-project
+
 // IWYU pragma: begin_keep
 #include "lib/Dialect/Secret/IR/SecretAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
@@ -24,10 +27,20 @@ void registerPlaintextOperandInterface(DialectRegistry& registry);
 LogicalResult verifyElementwiseByOperandImpl(
     ElementwiseByOperandOpInterface op);
 
+// Folds a LimbwiseMappable operation for attributes that support
+// LimbwiseAttrInterface. `op` must be an instance of
+// LimbwiseMappableOpInterface, and the Attribute operands must be instances of
+// LimbwiseAttrInterface.
+//
+// If the folding fails or the above preconditions fail, return {}
+Attribute foldLimbwise(Operation* op, ArrayRef<Attribute> operands,
+                       Type resultType);
+
 }  // namespace heir
 }  // namespace mlir
 
 // IWYU pragma: begin_keep
+#include "lib/Dialect/HEIRAttrInterfaces.h.inc"
 #include "lib/Dialect/HEIROpInterfaces.h.inc"
 #include "lib/Dialect/HEIRTypeInterfaces.h.inc"
 #include "mlir/include/mlir/IR/DialectRegistry.h"  // from @llvm-project
