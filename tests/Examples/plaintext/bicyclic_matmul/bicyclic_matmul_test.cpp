@@ -18,7 +18,7 @@ void _mlir_ciface_bicyclic_matmul__encrypt__arg1(
     StridedMemRefType<float, 2>* res, StridedMemRefType<float, 2>* arg);
 
 void _mlir_ciface_bicyclic_matmul__decrypt__result0(
-    StridedMemRefType<float>* res, StridedMemRefType<float, 2>* arg);
+    StridedMemRefType<float, 2>* res, StridedMemRefType<float, 2>* arg);
 }
 
 TEST(BicyclicMatmulPlaintextRobustTest, Test1) {
@@ -68,7 +68,7 @@ TEST(BicyclicMatmulPlaintextRobustTest, Test1) {
   StridedMemRefType<float, 2> packedRes;
   _mlir_ciface_bicyclic_matmul(&packedRes, &encArg0, &encArg1);
 
-  StridedMemRefType<float> outRef;
+  StridedMemRefType<float, 2> outRef;
   _mlir_ciface_bicyclic_matmul__decrypt__result0(&outRef, &packedRes);
 
   float errorThreshold = 1e-3;
