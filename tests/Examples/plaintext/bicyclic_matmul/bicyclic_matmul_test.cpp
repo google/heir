@@ -7,6 +7,17 @@
 #include "gtest/gtest.h"  // from @googletest
 #include "tests/llvm_runner/memref_types.h"
 
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer)
+#include <sanitizer/msan_interface.h>
+#define HEIR_MSAN_UNPOISON(p, s) __msan_unpoison((p), (s))
+#else
+#define HEIR_MSAN_UNPOISON(p, s)
+#endif
+#else
+#define HEIR_MSAN_UNPOISON(p, s)
+#endif
+
 extern "C" {
 void _mlir_ciface_bicyclic_matmul(StridedMemRefType<float, 2>* res,
                                   StridedMemRefType<float, 2>* arg0,
@@ -18,7 +29,7 @@ void _mlir_ciface_bicyclic_matmul__encrypt__arg1(
     StridedMemRefType<float, 2>* res, StridedMemRefType<float, 2>* arg);
 
 void _mlir_ciface_bicyclic_matmul__decrypt__result0(
-    StridedMemRefType<float>* res, StridedMemRefType<float, 2>* arg);
+    StridedMemRefType<float, 2>* res, StridedMemRefType<float, 2>* arg);
 }
 
 TEST(BicyclicMatmulPlaintextRobustTest, Test1) {
@@ -61,15 +72,20 @@ TEST(BicyclicMatmulPlaintextRobustTest, Test1) {
 
   StridedMemRefType<float, 2> encArg0;
   _mlir_ciface_bicyclic_matmul__encrypt__arg0(&encArg0, &inputs0);
+  HEIR_MSAN_UNPOISON(&encArg0, sizeof(StridedMemRefType<float, 2>));
 
   StridedMemRefType<float, 2> encArg1;
   _mlir_ciface_bicyclic_matmul__encrypt__arg1(&encArg1, &inputs1);
+  HEIR_MSAN_UNPOISON(&encArg1, sizeof(StridedMemRefType<float, 2>));
 
   StridedMemRefType<float, 2> packedRes;
   _mlir_ciface_bicyclic_matmul(&packedRes, &encArg0, &encArg1);
+  HEIR_MSAN_UNPOISON(&packedRes, sizeof(StridedMemRefType<float, 2>));
 
-  StridedMemRefType<float> outRef;
+  StridedMemRefType<float, 2> outRef;
   _mlir_ciface_bicyclic_matmul__decrypt__result0(&outRef, &packedRes);
+  HEIR_MSAN_UNPOISON(&outRef, sizeof(StridedMemRefType<float, 2>));
+  HEIR_MSAN_UNPOISON(outRef.basePtr, 16 * 19 * sizeof(float));
 
   float errorThreshold = 1e-3;
   for (int i = 0; i < 16 * 19; ++i) {
