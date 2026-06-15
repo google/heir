@@ -22,6 +22,7 @@
 #include "lib/Dialect/ModArith/IR/ModArithTypes.cpp.inc"
 
 #define GET_OP_CLASSES
+#include "lib/Dialect/ModArith/IR/ModArithEnums.cpp.inc"
 #include "lib/Dialect/ModArith/IR/ModArithOps.cpp.inc"
 
 namespace mlir {

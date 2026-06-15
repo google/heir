@@ -57,6 +57,11 @@ func.func @test_arith_syntax() {
   %extract = mod_arith.extract %m4 : !Zp -> i10
   %extract_vec = mod_arith.extract %m_vec : !Zp_vec -> tensor<4xi10>
 
+  // CHECK: mod_arith.lift standard
+  %standard_lift = mod_arith.lift standard %m4 : !Zp -> i10
+  // CHECK: mod_arith.lift centered
+  %centered_lift = mod_arith.lift centered %m4 : !Zp -> i10
+
   // CHECK: mod_arith.add
   // CHECK: mod_arith.add
   %add = mod_arith.add %m5, %m6 : !Zp
@@ -130,4 +135,25 @@ func.func @test_rns_single_limb_shape(%arg0: tensor<5x1xi10>, %arg1: !rns1_vec) 
   %enc = mod_arith.encapsulate %arg0 : tensor<5x1xi10> -> !rns1_vec
   %ext = mod_arith.extract %arg1 : !rns1_vec -> tensor<5x1xi10>
   return
+}
+
+// CHECK: @standard
+func.func @standard(%arg0: !Zp) -> i10 {
+  // CHECK: mod_arith.lift standard
+  %0 = mod_arith.lift standard %arg0 : !Zp -> i10
+  return %0 : i10
+}
+
+// CHECK: @centered
+func.func @centered(%arg0: !Zp) -> i10 {
+  // CHECK: mod_arith.lift centered
+  %0 = mod_arith.lift centered %arg0 : !Zp -> i10
+  return %0 : i10
+}
+
+// CHECK: @centered_tensor
+func.func @centered_tensor(%arg0: !Zp_vec) -> tensor<4xi10> {
+  // CHECK: mod_arith.lift centered
+  %0 = mod_arith.lift centered %arg0 : !Zp_vec -> tensor<4xi10>
+  return %0 : tensor<4xi10>
 }

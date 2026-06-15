@@ -39,6 +39,59 @@ func.func @test_lower_extract_vec(%lhs : !Zpv) -> tensor<4xi32> {
   return %res : tensor<4xi32>
 }
 
+// CHECK: @standard
+func.func @standard(%arg0: !Zp) -> i32 {
+  // CHECK: arith.constant 65537 : i32
+  // CHECK: arith.remsi
+  // CHECK: arith.constant 0 : i32
+  // CHECK: arith.cmpi
+  // CHECK: arith.addi
+  // CHECK: arith.select
+  // CHECK: return
+  %0 = mod_arith.lift standard %arg0 : !Zp -> i32
+  return %0 : i32
+}
+
+// CHECK: @centered
+func.func @centered(%arg0: !Zp) -> i32 {
+  // CHECK: arith.constant 65537 : i32
+  // CHECK: arith.remsi
+  // CHECK: arith.constant 0 : i32
+  // CHECK: arith.cmpi
+  // CHECK: arith.addi
+  // CHECK: arith.select
+  // CHECK: arith.constant 1 : i32
+  // CHECK: arith.constant 2 : i32
+  // CHECK: arith.addi
+  // CHECK: arith.divsi
+  // CHECK: arith.cmpi
+  // CHECK: arith.subi
+  // CHECK: arith.select
+  // CHECK: return
+  %0 = mod_arith.lift centered %arg0 : !Zp -> i32
+  return %0 : i32
+}
+
+// CHECK: @centered_tensor
+func.func @centered_tensor(%arg0: !Zpv) -> tensor<4xi32> {
+  // CHECK: arith.constant dense<65537> : tensor<4xi32>
+  // CHECK: arith.remsi
+  // CHECK: arith.constant dense<0> : tensor<4xi32>
+  // CHECK: arith.cmpi
+  // CHECK: arith.addi
+  // CHECK: arith.select
+  // CHECK: arith.constant dense<1> : tensor<4xi32>
+  // CHECK: arith.constant dense<2> : tensor<4xi32>
+  // CHECK: arith.addi
+  // CHECK: arith.divsi
+  // CHECK: arith.cmpi
+  // CHECK: arith.subi
+  // CHECK: arith.select
+  // CHECK: return
+  %0 = mod_arith.lift centered %arg0 : !Zpv -> tensor<4xi32>
+  return %0 : tensor<4xi32>
+}
+
 // CHECK: @test_lower_reduce
 // CHECK-SAME: (%[[LHS:.*]]: [[T:.*]]) -> [[T]] {
 func.func @test_lower_reduce(%lhs : !Zp) -> !Zp {

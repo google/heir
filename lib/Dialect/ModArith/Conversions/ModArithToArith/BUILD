@@ -16,6 +16,7 @@ cc_library(
         ":pass_inc_gen",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
         "@heir//lib/Dialect/RNS/IR:Dialect",
+        "@heir//lib/Utils",
         "@heir//lib/Utils:APIntUtils",
         "@heir//lib/Utils:ConversionUtils",
         "@llvm-project//llvm:Support",

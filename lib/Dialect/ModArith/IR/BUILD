@@ -28,6 +28,7 @@ cc_library(
         ":attributes_inc_gen",
         ":canonicalization_inc_gen",
         ":dialect_inc_gen",
+        ":enums_inc_gen",
         ":ops_inc_gen",
         ":type_interfaces_inc_gen",
         ":types_inc_gen",
@@ -57,6 +58,7 @@ td_library(
         "ModArithAttributes.td",
         "ModArithCanonicalization.td",
         "ModArithDialect.td",
+        "ModArithEnums.td",
         "ModArithOps.td",
         "ModArithTypes.td",
     ],
@@ -102,6 +104,17 @@ add_heir_dialect_library(
     dialect_doc_name = "mod_arith",
     kind = "attribute",
     td_file = "ModArithAttributes.td",
+    deps = [
+        ":td_files",
+    ],
+)
+
+add_heir_dialect_library(
+    name = "enums_inc_gen",
+    dialect = "ModArith",
+    dialect_doc_name = "mod_arith",
+    kind = "enum",
+    td_file = "ModArithEnums.td",
     deps = [
         ":td_files",
     ],
