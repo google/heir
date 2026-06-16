@@ -605,10 +605,6 @@ namespace llvm {
 // Enable hashing in dense map
 template <>
 struct DenseMapInfo<::mlir::heir::TypeAndAttribute> {
-  static ::mlir::heir::TypeAndAttribute getEmptyKey() {
-    return {DenseMapInfo<::mlir::Type>::getEmptyKey(),
-            DenseMapInfo<::mlir::Attribute>::getEmptyKey()};
-  }
   static unsigned getHashValue(const ::mlir::heir::TypeAndAttribute& val) {
     return llvm::hash_combine(val.type, val.attr);
   }

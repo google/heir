@@ -49,10 +49,6 @@ namespace llvm {
 // DenseMapInfo specialization to enable use as DenseMap key
 template <typename T, unsigned N>
 struct DenseMapInfo<::mlir::heir::FrozenVector<T, N>> {
-  static ::mlir::heir::FrozenVector<T, N> getEmptyKey() {
-    return ::mlir::heir::FrozenVector<T, N>();
-  }
-
   static unsigned getHashValue(const ::mlir::heir::FrozenVector<T, N>& val) {
     return hash_combine_range(val.begin(), val.end());
   }
