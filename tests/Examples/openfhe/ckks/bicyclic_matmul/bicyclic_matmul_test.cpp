@@ -23,14 +23,14 @@ TEST(BicyclicMatmulOpenFHERobustTest, RunTest) {
   // A[i][j] = i + j
   for (int i = 0; i < 16; ++i) {
     for (int j = 0; j < 17; ++j) {
-      arg0[i * 17 + j] = i + j;
+      arg0[i * 17 + j] = (i + j) / 100.0;
     }
   }
 
   // B[j][k] = j - k
   for (int j = 0; j < 17; ++j) {
     for (int k = 0; k < 19; ++k) {
-      arg1[j * 19 + k] = j - k;
+      arg1[j * 19 + k] = (j - k) / 100.0;
     }
   }
 

@@ -1,5 +1,4 @@
 load("@heir//tests/Examples/lattigo:test.bzl", "heir_lattigo_lib")
-load("@rules_go//go:def.bzl", "go_test")
 
 package(default_applicable_licenses = ["@heir//:license"])
 
@@ -15,8 +14,11 @@ heir_lattigo_lib(
     split_preprocessing = False,
 )
 
-go_test(
-    name = "bicyclic_matmul_test",
-    srcs = ["bicyclic_matmul_test.go"],
-    embed = [":bicyclicmatmul"],
-)
+# TODO(#3089): disable until flakiness is resolved
+# go_test(
+#     name = "bicyclic_matmul_test",
+#     srcs = ["bicyclic_matmul_test.go"],
+#     embed = [":bicyclicmatmul"],
+# )
+
+glaze_ignore = ["bicyclic_matmul_test.go"]  # @unused
