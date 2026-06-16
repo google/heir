@@ -18,8 +18,10 @@
 // CHECK-DAG: %[[c0:.*]] = arith.constant 0 : i32
 // CHECK-DAG: %[[v0:.*]] = arith.constant dense<0> : tensor<1x1024xi16>
 // CHECK: %[[v1:.*]] = scf.for %[[arg1:.*]] = %[[c0]] to %[[c1024]] step %[[c1]] iter_args(%[[arg2:.*]] = %[[v0]]) -> (tensor<1x1024xi16>) : i32 {
-// CHECK:  %[[v3:.*]] = arith.remsi %[[arg1]], %[[c32]] : i32
-// CHECK:  %[[v3_idx:.*]] = arith.index_cast %[[v3]]
+// CHECK:  %[[v3:.*]] = arith.floordivsi %[[arg1]], %[[c32]] : i32
+// CHECK:  %[[v4:.*]] = arith.muli %[[v3]], %[[c32]]
+// CHECK:  %[[v5:.*]] = arith.subi %[[arg1]], %[[v4]] : i32
+// CHECK:  %[[v3_idx:.*]] = arith.index_cast %[[v5]]
 // CHECK:  %[[extracted:.*]] = tensor.extract %[[arg0]][%[[v3_idx]]] : tensor<32xi16>
 // CHECK:  %[[arg1_idx:.*]] = arith.index_cast %[[arg1]]
 // CHECK:  %[[inserted:.*]] = tensor.insert %[[extracted]] into %[[arg2]][%[[c0_idx]], %[[arg1_idx]]] : tensor<1x1024xi16>

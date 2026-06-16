@@ -78,8 +78,7 @@ module {
 
   // CHECK: %[[LOOP3:.*]] = scf.for %{{.*}} = %[[c0]] to %[[c2]] step %[[c1]] iter_args(%[[ITER3:.*]] = %[[ALLOC3]]) -> (tensor<2x32xi32>){{.*}}
   // CHECK:   scf.for %{{.*}} = %[[c0]] to %[[c4]] step %[[c1]] iter_args(%[[ITER3_2:.*]] = %[[ITER3]]) -> (tensor<2x32xi32>){{.*}}
-  // CHECK:     arith.divsi
-  // CHECK:     arith.remsi
+  // CHECK:     arith.floordivsi
   // CHECK:     tensor.extract %[[LOOP2]][{{.*}}, {{.*}}, {{.*}}]
   // CHECK:     tensor.insert %{{.*}} into %[[ITER3_2]][{{.*}}, {{.*}}]
 

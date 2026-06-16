@@ -74,6 +74,8 @@ class MLIRLoopNestGenerator {
                                               BodyBuilderFn bodyBuilder);
   FailureOr<scf::ValueVector> visitAstNodeIf(isl_ast_node* node,
                                              BodyBuilderFn bodyBuilder);
+  FailureOr<scf::ValueVector> visitAstNodeBlock(isl_ast_node* node,
+                                                BodyBuilderFn bodyBuilder);
   FailureOr<scf::ValueVector> visitAstNodeUser(isl_ast_node* node,
                                                BodyBuilderFn bodyBuilder);
 

@@ -47,11 +47,15 @@ namespace heir {
 namespace {
 
 static std::map<isl_ast_expr_op_type, std::string> islBinaryOpToMlir = {
-    {isl_ast_op_add, "arith.addi"},          {isl_ast_op_sub, "arith.subi"},
-    {isl_ast_op_mul, "arith.muli"},          {isl_ast_op_div, "arith.divsi"},
-    {isl_ast_op_pdiv_r, "arith.remsi"},      {isl_ast_op_pdiv_q, "arith.divsi"},
-    {isl_ast_op_max, "arith.maxsi"},         {isl_ast_op_min, "arith.minsi"},
-    {isl_ast_op_and, "arith.andi"},          {isl_ast_op_or, "arith.ori"},
+    {isl_ast_op_add, "arith.addi"},
+    {isl_ast_op_sub, "arith.subi"},
+    {isl_ast_op_mul, "arith.muli"},
+    {isl_ast_op_div, "arith.divsi"},
+    {isl_ast_op_pdiv_q, "arith.floordivsi"},
+    {isl_ast_op_max, "arith.maxsi"},
+    {isl_ast_op_min, "arith.minsi"},
+    {isl_ast_op_and, "arith.andi"},
+    {isl_ast_op_or, "arith.ori"},
     {isl_ast_op_fdiv_q, "arith.floordivsi"},
 };
 
@@ -311,6 +315,21 @@ Value buildIslExpr(isl_ast_expr* expr, std::map<std::string, Value> ivToValue,
         createdOpCallback(op);
         return op->getResult(0);
       }
+      if (type == isl_ast_op_pdiv_r) {
+        // pdiv_r(a, b) = a - b * floordiv(a, b)
+        SmallVector<Value> args = getArgs(expr);
+        Value a = args[0];
+        Value bVal = args[1];
+
+        auto div = arith::FloorDivSIOp::create(b, a, bVal);
+        auto mul = arith::MulIOp::create(b, bVal, div);
+        auto sub = arith::SubIOp::create(b, a, mul);
+
+        createdOpCallback(div);
+        createdOpCallback(mul);
+        createdOpCallback(sub);
+        return sub->getResult(0);
+      }
       isl_ast_expr_op_type opType = isl_ast_expr_get_op_type(expr);
       char* cStr = isl_ast_expr_to_C_str(expr);
       emitError(b.getLoc())
@@ -328,6 +347,7 @@ Value buildIslExpr(isl_ast_expr* expr, std::map<std::string, Value> ivToValue,
 
 FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeFor(
     isl_ast_node* node, BodyBuilderFn bodyBuilder) {
+  OpBuilder::InsertionGuard guard(builder_);
   // Collect the string names of the iterators
   isl_ast_expr* iter = isl_ast_node_for_get_iterator(node);
   isl_id* identifier = isl_ast_expr_get_id(iter);
@@ -335,21 +355,33 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeFor(
   isl_id_free(identifier);
   isl_ast_expr_free(iter);
 
+  Value oldIv = nullptr;
+  auto it = ivToValue_.find(nameStr);
+  if (it != ivToValue_.end()) {
+    oldIv = it->second;
+  }
+
   isl_ast_expr* init = isl_ast_node_for_get_init(node);
   Value lbInt = buildIslExpr(init, ivToValue_, builder_, createdOpCallback_);
   isl_ast_expr_free(init);
 
-  // The upper bound is always a less than equal operation in the AST codegen.
+  // The upper bound is a less than equal or less than operation in the AST
+  // codegen.
   isl_ast_expr* cond = isl_ast_node_for_get_cond(node);
-  assert((isl_ast_expr_get_type(cond) == isl_ast_expr_op &&
-          isl_ast_expr_get_op_type(cond) == isl_ast_op_le) &&
-         "expected upper bound to be a less than equal operation");
+  assert(isl_ast_expr_get_type(cond) == isl_ast_expr_op &&
+         "expected condition to be an operation");
+  isl_ast_expr_op_type condOpType = isl_ast_expr_get_op_type(cond);
+  assert((condOpType == isl_ast_op_le || condOpType == isl_ast_op_lt) &&
+         "expected upper bound to be a less than or less than equal operation");
   isl_ast_expr* condUpper = isl_ast_expr_get_op_arg(cond, 1);
-  Value ubVal = arith::AddIOp::create(
-      builder_, currentLoc_,
-      buildIslExpr(condUpper, ivToValue_, builder_, createdOpCallback_),
-      arith::ConstantIntOp::create(builder_, currentLoc_, 1, 32));
-  createdOpCallback_(ubVal.getDefiningOp());
+  Value ubVal =
+      buildIslExpr(condUpper, ivToValue_, builder_, createdOpCallback_);
+  if (condOpType == isl_ast_op_le) {
+    ubVal = arith::AddIOp::create(
+        builder_, currentLoc_, ubVal,
+        arith::ConstantIntOp::create(builder_, currentLoc_, 1, 32));
+    createdOpCallback_(ubVal.getDefiningOp());
+  }
   isl_ast_expr_free(condUpper);
   isl_ast_expr_free(cond);
 
@@ -368,14 +400,41 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeFor(
                                               nestedBuilder.getI32Type(), iv);
         }
         if (reverse_) {
+          // To reverse a loop running `iv` from `lbInt` to `ubVal` with
+          // `stepInt`: The forward loop runs with iv = lbInt + k * stepInt. The
+          // backwards loop runs with
+          //   actualIv = lbInt + (max_k - k) * stepInt
+          // where max_k = (ubVal - 1 - lbInt) // stepInt
+          //
+          // Solving for actualIv:
+          //   actualIv = (lbInt + max_k * stepInt) - k * stepInt
+          //            = actualUb - (iv - lbInt)
+          // where actualUb = lbInt + max_k * stepInt.
           Value constOne =
               arith::ConstantIntOp::create(nestedBuilder, nestedLoc, 1, 32);
-          Value ivMinusLb =
-              arith::SubIOp::create(nestedBuilder, nestedLoc, ivCast, lbInt);
           Value ubMinusOne =
               arith::SubIOp::create(nestedBuilder, nestedLoc, ubVal, constOne);
+          Value tmp = arith::SubIOp::create(nestedBuilder, nestedLoc,
+                                            ubMinusOne, lbInt);
+          Value maxK = arith::FloorDivSIOp::create(nestedBuilder, nestedLoc,
+                                                   tmp, stepInt);
+          Value maxKTimesStep =
+              arith::MulIOp::create(nestedBuilder, nestedLoc, maxK, stepInt);
+          Value actualUb = arith::AddIOp::create(nestedBuilder, nestedLoc,
+                                                 lbInt, maxKTimesStep);
+          Value ivMinusLb =
+              arith::SubIOp::create(nestedBuilder, nestedLoc, ivCast, lbInt);
           Value actualIv = arith::SubIOp::create(nestedBuilder, nestedLoc,
-                                                 ubMinusOne, ivMinusLb);
+                                                 actualUb, ivMinusLb);
+
+          createdOpCallback_(ubMinusOne.getDefiningOp());
+          createdOpCallback_(tmp.getDefiningOp());
+          createdOpCallback_(maxK.getDefiningOp());
+          createdOpCallback_(maxKTimesStep.getDefiningOp());
+          createdOpCallback_(actualUb.getDefiningOp());
+          createdOpCallback_(ivMinusLb.getDefiningOp());
+          createdOpCallback_(actualIv.getDefiningOp());
+
           ivToValue_.insert(std::make_pair(nameStr, actualIv));
         } else {
           ivToValue_.insert(std::make_pair(nameStr, ivCast));
@@ -393,6 +452,11 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeFor(
   isl_ast_node* tmp = isl_ast_node_for_get_body(node);
   auto visitBody = visitAstNode(tmp, bodyBuilder);
   if (failed(visitBody)) {
+    if (oldIv) {
+      ivToValue_[nameStr] = oldIv;
+    } else {
+      ivToValue_.erase(nameStr);
+    }
     return failure();
   }
   isl_ast_node_free(tmp);
@@ -405,12 +469,19 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeFor(
     createdOpCallback_(yieldOp);
   }
 
+  if (oldIv) {
+    ivToValue_[nameStr] = oldIv;
+  } else {
+    ivToValue_.erase(nameStr);
+  }
+
   // Return the results of the body.
   return scf::ValueVector(loop.getResults());
 }
 
 FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeIf(
     isl_ast_node* node, BodyBuilderFn bodyBuilder) {
+  OpBuilder::InsertionGuard guard(builder_);
   isl_ast_expr* cond = isl_ast_node_if_get_cond(node);
   Value condVal = buildIslExpr(cond, ivToValue_, builder_, createdOpCallback_);
   isl_ast_expr_free(cond);
@@ -433,28 +504,45 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeIf(
   createdOpCallback_(ifOp);
   createdOpCallback_(condValI1);
 
-  // TODO:(#2120): Handle ISL else conditions.
-  isl_ast_node* elseNode = isl_ast_node_if_get_else_node(node);
-  assert(elseNode == nullptr && "expected no else conditions");
-  isl_ast_node_free(elseNode);
-
-  isl_ast_node* tmp = isl_ast_node_if_get_then_node(node);
+  isl_ast_node* thenNode = isl_ast_node_if_get_then_node(node);
   builder_.setInsertionPointToStart(&ifOp.getThenRegion().front());
-  auto visitBody = visitAstNode(tmp, bodyBuilder);
-  if (failed(visitBody)) {
+  auto visitThenBody = visitAstNode(thenNode, bodyBuilder);
+  isl_ast_node_free(thenNode);
+  if (failed(visitThenBody)) {
     return failure();
   }
-  isl_ast_node_free(tmp);
+
+  isl_ast_node* elseNode = isl_ast_node_if_get_else_node(node);
+  bool hasElse = (elseNode != nullptr);
+  FailureOr<scf::ValueVector> visitElseBody;
+  if (hasElse) {
+    currentIterArgs_ = incomingIterArgs;
+    builder_.setInsertionPointToStart(&ifOp.getElseRegion().front());
+    visitElseBody = visitAstNode(elseNode, bodyBuilder);
+    isl_ast_node_free(elseNode);
+    if (failed(visitElseBody)) {
+      return failure();
+    }
+  } else {
+    isl_ast_node_free(elseNode);
+  }
 
   // For all if statements but the innermost, yield the results of the nested
   // ifs
-  if (!visitBody.value().empty()) {
+  if (!visitThenBody.value().empty()) {
     builder_.setInsertionPointToEnd(&ifOp.getThenRegion().front());
     auto yieldOp =
-        scf::YieldOp::create(builder_, currentLoc_, visitBody.value());
+        scf::YieldOp::create(builder_, currentLoc_, visitThenBody.value());
     createdOpCallback_(yieldOp);
     builder_.setInsertionPointToEnd(&ifOp.getElseRegion().front());
-    yieldOp = scf::YieldOp::create(builder_, currentLoc_, incomingIterArgs);
+    if (hasElse) {
+      assert(visitElseBody.value().size() == visitThenBody.value().size() &&
+             "then and else branches must yield the same number of values");
+      yieldOp =
+          scf::YieldOp::create(builder_, currentLoc_, visitElseBody.value());
+    } else {
+      yieldOp = scf::YieldOp::create(builder_, currentLoc_, incomingIterArgs);
+    }
     createdOpCallback_(yieldOp);
   }
 
@@ -464,7 +552,6 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeIf(
 
 FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeUser(
     isl_ast_node* node, BodyBuilderFn bodyBuilder) {
-  // Generate the indexing expressions inside the inner block.
   isl_ast_expr* expr = isl_ast_node_user_get_expr(node);
 
   SmallVector<Value> exprs;
@@ -488,6 +575,26 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeUser(
   return results;
 }
 
+FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNodeBlock(
+    isl_ast_node* node, BodyBuilderFn bodyBuilder) {
+  isl_ast_node_list* list = isl_ast_node_block_get_children(node);
+  int n = isl_ast_node_list_n_ast_node(list);
+  scf::ValueVector results = currentIterArgs_;
+  for (int i = 0; i < n; ++i) {
+    isl_ast_node* child = isl_ast_node_list_get_ast_node(list, i);
+    currentIterArgs_ = results;
+    auto childResults = visitAstNode(child, bodyBuilder);
+    isl_ast_node_free(child);
+    if (failed(childResults)) {
+      isl_ast_node_list_free(list);
+      return failure();
+    }
+    results = childResults.value();
+  }
+  isl_ast_node_list_free(list);
+  return results;
+}
+
 FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNode(
     isl_ast_node* node, BodyBuilderFn bodyBuilder) {
   switch (isl_ast_node_get_type(node)) {
@@ -495,6 +602,8 @@ FailureOr<scf::ValueVector> MLIRLoopNestGenerator::visitAstNode(
       return visitAstNodeFor(node, bodyBuilder);
     case isl_ast_node_if:
       return visitAstNodeIf(node, bodyBuilder);
+    case isl_ast_node_block:
+      return visitAstNodeBlock(node, bodyBuilder);
     case isl_ast_node_user:
       return visitAstNodeUser(node, bodyBuilder);
     default:
