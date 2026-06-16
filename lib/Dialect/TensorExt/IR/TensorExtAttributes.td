@@ -17,7 +17,7 @@ class TensorExt_Attr<string name, string attrMnemonic, list<Trait> traits = []>
 }
 
 def TensorExt_LayoutAttr : TensorExt_Attr<"Layout", "layout"> {
-  let summary = "The description of the layout of a data-semantic tensor.";
+  let summary = "a relation describing the layout of a data-semantic tensor.";
   let description = [{
     This attribute describes how a data-semantic tensor is laid out among a
     tensor of ciphertexts. The layout is described by an integer relation $(d,

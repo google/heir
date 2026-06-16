@@ -48,3 +48,13 @@ func.func @both_with_schedule(%arg0 : tensor<16x16xi16>) -> tensor<16x16xi16> {
   %1 = tensor_ext.convert_layout %0 {from_layout = #row_major_matrix, to_layout = #col_major_matrix, domainSchedule = array<i64: 0, 1>} : tensor<16x16xi16>
   return %1 : tensor<16x16xi16>
 }
+
+// CHECK: @test_no_fold_assign_layout_array
+// CHECK: tensor_ext.assign_layout
+// CHECK-SAME: layout = [#{{.*}}, #{{.*}}]
+// CHECK: tensor_ext.convert_layout
+func.func @test_no_fold_assign_layout_array(%arg0 : tensor<16x16xi16>) -> tensor<16x16xi16> {
+  %0 = tensor_ext.assign_layout %arg0 {layout = [#row_major_matrix, #col_major_matrix]} : tensor<16x16xi16>
+  %1 = tensor_ext.convert_layout %0 {from_layout = [#row_major_matrix, #col_major_matrix], to_layout = #col_major_matrix2} : tensor<16x16xi16>
+  return %1 : tensor<16x16xi16>
+}

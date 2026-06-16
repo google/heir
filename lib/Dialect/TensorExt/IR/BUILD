@@ -74,7 +74,6 @@ cc_library(
         ":dialect_inc_gen",
         ":ops_inc_gen",
         "@heir//lib/Dialect:HEIRInterfaces",
-        "@heir//lib/Utils:AffineMapUtils",
         "@heir//lib/Utils:RotationUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineAnalysis",

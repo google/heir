@@ -1,11 +1,13 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 
 #include <cstdint>
+#include <string>
 
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Utils/RotationUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineMap.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
@@ -163,7 +165,70 @@ LogicalResult verifyLayoutMatchesType(const Attribute& layoutAttr, Type type,
     return success();
   }
 
+  if (auto arrayAttr = dyn_cast<ArrayAttr>(layoutAttr)) {
+    if (arrayAttr.empty()) {
+      return op->emitOpError() << "layout array cannot be empty";
+    }
+    return verifyLayoutMatchesType(arrayAttr[0], type, op);
+  }
+
   return op->emitOpError("Unsupported layout attribute");
+}
+
+LogicalResult verifyCompositeLayout(ArrayAttr compositeLayout, Operation* op) {
+  if (compositeLayout.empty()) {
+    return op->emitOpError() << "layout array cannot be empty";
+  }
+
+  // Verify that the domain of each layout matches the range of the previous.
+  auto firstLayout = dyn_cast<LayoutAttr>(compositeLayout[0]);
+  if (!firstLayout) {
+    return op->emitOpError() << "first layout in array must be a LayoutAttr";
+  }
+
+  for (unsigned i = 1; i < compositeLayout.size(); ++i) {
+    auto prevLayout = dyn_cast<LayoutAttr>(compositeLayout[i - 1]);
+    auto currLayout = dyn_cast<LayoutAttr>(compositeLayout[i]);
+    if (!prevLayout || !currLayout) {
+      return op->emitOpError() << "all layouts in the array must be LayoutAttr";
+    }
+
+    // Verify that the upper and lower bounds of all range vars are
+    // non-negative.
+    for (unsigned i = 0; i < prevLayout.getIntegerRelation().getNumRangeVars();
+         ++i) {
+      auto lb = prevLayout.getIntegerRelation().getConstantBound64(
+          presburger::BoundType::LB,
+          prevLayout.getIntegerRelation().getVarKindOffset(
+              presburger::VarKind::Range) +
+              i);
+      if (!lb.has_value() || *lb < 0) {
+        return op->emitOpError()
+               << "Negative lower bound in range variable " << i << ": "
+               << (lb.has_value() ? std::to_string(*lb) : "null");
+      }
+      auto ub = prevLayout.getIntegerRelation().getConstantBound64(
+          presburger::BoundType::UB,
+          prevLayout.getIntegerRelation().getVarKindOffset(
+              presburger::VarKind::Range) +
+              i);
+      if (!ub.has_value() || *ub < 0) {
+        return op->emitOpError()
+               << "Negative upper bound in range variable " << i << ": "
+               << (ub.has_value() ? std::to_string(*ub) : "null");
+      }
+    }
+
+    if (currLayout.getIntegerRelation().getNumDomainVars() !=
+        prevLayout.getIntegerRelation().getNumRangeVars()) {
+      return op->emitOpError()
+             << "layout " << i << " domain size ("
+             << currLayout.getIntegerRelation().getNumDomainVars()
+             << ") must match layout " << (i - 1) << " range size ("
+             << prevLayout.getIntegerRelation().getNumRangeVars() << ")";
+    }
+  }
+  return success();
 }
 
 OpFoldResult ConvertLayoutOp::fold(FoldAdaptor adaptor) {
@@ -194,18 +259,59 @@ LogicalResult ConvertLayoutOp::verify() {
     return outputVerification;
   }
 
+  if (auto compositeLayout = dyn_cast<ArrayAttr>(getFromLayout())) {
+    if (failed(verifyCompositeLayout(compositeLayout, *this))) {
+      return failure();
+    }
+  }
+
+  if (auto compositeLayout = dyn_cast<ArrayAttr>(getToLayout())) {
+    // Verify first layout domain matches input type.
+    if (failed(verifyLayoutMatchesType(compositeLayout[0], getValue().getType(),
+                                       *this))) {
+      return failure();
+    }
+    if (failed(verifyCompositeLayout(compositeLayout, *this))) {
+      return failure();
+    }
+  }
+
   return success();
 }
 
 LogicalResult AssignLayoutOp::verify() {
-  LogicalResult layoutVerification =
-      verifyLayoutMatchesType(getLayout(), getValue().getType(), *this);
-  if (failed(layoutVerification)) {
-    return layoutVerification;
+  Attribute layoutAttr = getLayout();
+  Type inputType = getValue().getType();
+
+  if (auto arrayAttr = dyn_cast<ArrayAttr>(layoutAttr)) {
+    if (!getDomainSchedule().empty()) {
+      return emitOpError() << "domainSchedule is not supported for composite "
+                              "layouts";
+    }
+
+    if (arrayAttr.empty()) {
+      return emitOpError() << "layout array cannot be empty";
+    }
+
+    // Verify first layout domain matches input type.
+    if (failed(verifyLayoutMatchesType(arrayAttr[0], inputType, *this))) {
+      return failure();
+    }
+
+    if (failed(verifyCompositeLayout(arrayAttr, *this))) {
+      return failure();
+    }
+
+  } else {
+    if (failed(verifyLayoutMatchesType(layoutAttr, inputType, *this))) {
+      return failure();
+    }
   }
 
   if (!getDomainSchedule().empty()) {
-    auto layout = dyn_cast<LayoutAttr>(getLayout());
+    // Domain schedules are unexpected for composite layouts and permutations.
+    LayoutAttr layout = dyn_cast<LayoutAttr>(getLayout());
+
     if (!layout) {
       return emitOpError()
              << "requires LayoutAttr when domainSchedule is provided";
@@ -260,8 +366,8 @@ LogicalResult RotateAndReduceOp::verify() {
 
   auto x = getTensor().getType();
   // TODO(#924): Currently RotateAndReduceOp only supports rotating a 1-D
-  // vector, or a vector with only one non-unit dimension that is treated as the
-  // major dimension.
+  // vector, or a vector with only one non-unit dimension that is treated as
+  // the major dimension.
   if (x.getRank() != 1) {
     if (llvm::count_if(x.getShape(), [](auto dim) { return dim != 1; }) != 1) {
       return emitOpError() << "requires a 1-D input tensor or tensor with "
