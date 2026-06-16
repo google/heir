@@ -21,7 +21,7 @@ module {
   // CHECK: @dot_product__decrypt__result0
   func.func @dot_product__decrypt__result0(%arg0: !secret.secret<tensor<1024xi16>>) -> i16 attributes {client.dec_func = {func_name = "dot_product", index = 0 : i64}} {
     %c0 = arith.constant 0 : index
-    // CHECK: mod_arith.extract
+    // CHECK: mod_arith.lift standard
     // CHECK: arith.trunci
     %0 = secret.reveal %arg0 : !secret.secret<tensor<1024xi16>> -> tensor<1024xi16>
     %extracted = tensor.extract %0[%c0] : tensor<1024xi16>

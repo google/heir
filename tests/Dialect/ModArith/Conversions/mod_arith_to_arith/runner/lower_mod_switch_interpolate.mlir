@@ -6,6 +6,6 @@ func.func public @test_lower_mod_switch_interpolate() -> i26 {
 
   %ex = mod_arith.encapsulate %x : tensor<3xi11> -> !RNS
   %m1 = mod_arith.mod_switch %ex : !RNS to !Zp
-  %1 = mod_arith.extract %m1 : !Zp -> i26
+  %1 = mod_arith.lift standard %m1 : !Zp -> i26
   return %1 : i26
 }

@@ -169,20 +169,6 @@ struct ConvertEncapsulate : public OpConversionPattern<EncapsulateOp> {
   }
 };
 
-struct ConvertExtract : public OpConversionPattern<ExtractOp> {
-  ConvertExtract(mlir::MLIRContext* context)
-      : OpConversionPattern<ExtractOp>(context) {}
-
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      ExtractOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter& rewriter) const override {
-    rewriter.replaceOp(op, adaptor.getOperands()[0]);
-    return success();
-  }
-};
-
 struct ConvertLift : public OpConversionPattern<LiftOp> {
   ConvertLift(mlir::MLIRContext* context)
       : OpConversionPattern<LiftOp>(context) {}
@@ -667,13 +653,13 @@ void ModArithToArith::runOnOperation() {
 
   RewritePatternSet patterns(context);
   rewrites::populateWithGenerated(patterns);
-  patterns
-      .add<ConvertEncapsulate, ConvertExtract, ConvertLift, ConvertReduce,
-           ConvertAdd, ConvertSub, ConvertMul, ConvertMac, ConvertModSwitch,
-           ConvertBarrettReduce, ConvertConstant, ConvertRNSExtractResidue,
-           ConvertRNSExtractSlice, ConvertRNSPack, ConvertAny<>,
-           ConvertAny<affine::AffineForOp>, ConvertAny<affine::AffineYieldOp>,
-           ConvertAny<linalg::GenericOp> >(typeConverter, context);
+  patterns.add<
+      ConvertEncapsulate, ConvertLift, ConvertReduce, ConvertAdd, ConvertSub,
+      ConvertMul, ConvertMac, ConvertModSwitch, ConvertBarrettReduce,
+      ConvertConstant, ConvertRNSExtractResidue, ConvertRNSExtractSlice,
+      ConvertRNSPack, ConvertAny<>, ConvertAny<affine::AffineForOp>,
+      ConvertAny<affine::AffineYieldOp>, ConvertAny<linalg::GenericOp> >(
+      typeConverter, context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
   addTensorOfTensorConversionPatterns(typeConverter, patterns, target);

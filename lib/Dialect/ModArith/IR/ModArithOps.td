@@ -40,34 +40,6 @@ def ModArith_EncapsulateOp : ModArith_Op<"encapsulate", [Pure]> {
   let assemblyFormat = "operands attr-dict `:` type($input) `->` type($output)";
 }
 
-def ModArith_ExtractOp : ModArith_Op<"extract", [Pure]> {
-  let summary = "extract the integer stored inside mod_arith type";
-
-  let description = [{
-    `mod_arith.extract` extracts the integer inside the modular type.
-
-    It is required that the bitwidth of the output (tensor of) integer type is
-    the same as that of the storage type of the input modular type.
-
-    For RNS structure traversal, prefer `rns.extract_slice`.
-
-    Examples:
-    ```
-    %m0 = mod_arith.encapsulate %c0 : i32 -> mod_arith.int<65537 : i32>
-    %m1 = mod_arith.encapsulate %c1 : i64 -> mod_arith.int<65537 : i64>
-    %c3 = mod_arith.extract %m0 : mod_arith.int<65537 : i32> -> i32
-    %c4 = mod_arith.extract %m1 : mod_arith.int<65537 : i64> -> i64
-    ```
-  }];
-
-  let arguments = (ins
-    ModQLike:$input
-  );
-  let results = (outs SignlessIntegerLike:$output);
-  let hasVerifier = 1;
-  let assemblyFormat = "operands attr-dict `:` type($input) `->` type($output)";
-}
-
 def ModArith_LiftOp : ModArith_Op<"lift", [Pure]> {
   let summary = "lift a modular value to an integer representative";
 

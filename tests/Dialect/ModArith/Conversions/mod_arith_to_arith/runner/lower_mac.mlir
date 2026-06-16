@@ -14,6 +14,6 @@ func.func public @test_lower_mac() -> tensor<4xi26> {
   %my = mod_arith.reduce %ey : !Zpv
   %mz = mod_arith.reduce %ez : !Zpv
   %m1 = mod_arith.mac %mx, %my, %mz : !Zpv
-  %1 = mod_arith.extract %m1 : !Zpv -> tensor<4xi26>
+  %1 = mod_arith.lift standard %m1 : !Zpv -> tensor<4xi26>
   return %1 : tensor<4xi26>
 }

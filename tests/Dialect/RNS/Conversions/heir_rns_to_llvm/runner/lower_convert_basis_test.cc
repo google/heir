@@ -69,19 +69,18 @@ TEST(LowerConvertBasisTest, TestConvertBasis) {
     for (int64_t x = 0; x < inputModulus; x++) {
       int64_t y = x;
       // we choose to lift to the centered representative
-      // if (y > inputModulus / 2) {
-      //   y -= inputModulus;
-      // }
+      if (y > inputModulus / 2) {
+        y -= inputModulus;
+      }
       std::vector<int64_t> expectedResult;
       for (auto& q : c.dst_basis) {
-        expectedResult.push_back(y % q);
+        expectedResult.push_back(((y % q) + q) % q);
       }
-
       // compute result via MLIR
       std::vector<int64_t> residues;
       residues.reserve(c.src_basis.size());
       for (int64_t q : c.src_basis) {
-        residues.push_back(y % q);
+        residues.push_back(x % q);
       }
       StridedMemRefType<int64_t, 1> memref = StridedMemRefType<int64_t, 1>(
           residues.data(), residues.data(), 0, residues.size(), 1);

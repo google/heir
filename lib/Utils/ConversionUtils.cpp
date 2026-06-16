@@ -8,6 +8,7 @@
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/Transforms/FuncConversions.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/Transforms/Patterns.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
@@ -190,33 +191,82 @@ struct ConvertFromElements
   LogicalResult matchAndRewrite(
       tensor::FromElementsOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
+    auto resultType = dyn_cast<RankedTensorType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
+    if (!resultType) {
+      return failure();
+    }
+    if (adaptor.getElements().empty()) {
+      rewriter.replaceOpWithNewOp<tensor::EmptyOp>(op, resultType.getShape(),
+                                                   resultType.getElementType());
+      return success();
+    }
     // Expand each of the (converted) operands:
     SmallVector<Value> newOperands;
+
     for (auto o : adaptor.getElements()) {
       // extend tensor<...xT> to tensor<1x...xT>
-      if (auto tensorType = mlir::dyn_cast<RankedTensorType>(o.getType())) {
-        auto shape = tensorType.getShape();
-        SmallVector<int64_t> newShape(1, 1);
-        newShape.append(shape.begin(), shape.end());
-
-        // Create a dense constant for targetShape
-        auto shapeOp = mlir::arith::ConstantOp::create(
-            rewriter, op.getLoc(),
-            RankedTensorType::get(newShape.size(), rewriter.getIndexType()),
-            rewriter.getIndexTensorAttr(newShape));
-
-        auto reshapeOp = tensor::ReshapeOp::create(
-            rewriter, op.getLoc(),
-            RankedTensorType::get(newShape, tensorType.getElementType()), o,
-            shapeOp);
-        newOperands.push_back(reshapeOp);
-      } else {
-        newOperands.push_back(o);
+      auto tensorType = mlir::dyn_cast<RankedTensorType>(o.getType());
+      if (!tensorType) {
+        // If the input tensor elements don't lower to a tensor,
+        // this pattern doesn't apply.
+        return failure();
       }
+
+      auto shape = tensorType.getShape();
+      SmallVector<int64_t> newShape(1, 1);
+      newShape.append(shape.begin(), shape.end());
+
+      // Create a dense constant for targetShape
+      auto shapeOp = mlir::arith::ConstantOp::create(
+          rewriter, op.getLoc(),
+          RankedTensorType::get(newShape.size(), rewriter.getIndexType()),
+          rewriter.getIndexTensorAttr(newShape));
+
+      auto reshapeOp = tensor::ReshapeOp::create(
+          rewriter, op.getLoc(),
+          RankedTensorType::get(newShape, tensorType.getElementType()), o,
+          shapeOp);
+      newOperands.push_back(reshapeOp);
     }
     // Create the final tensor.concat operation
     rewriter.replaceOpWithNewOp<tensor::ConcatOp>(op, 0, newOperands);
 
+    return success();
+  }
+};
+
+struct ConvertSplat : public OpConversionPattern<tensor::SplatOp> {
+  ConvertSplat(mlir::MLIRContext* context)
+      : OpConversionPattern<tensor::SplatOp>(context, /*benefit=*/2) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      tensor::SplatOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    auto resultType = dyn_cast<RankedTensorType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
+    auto inputType = dyn_cast<RankedTensorType>(adaptor.getInput().getType());
+    if (!resultType || !inputType) {
+      return failure();
+    }
+
+    if (resultType.getRank() < inputType.getRank()) {
+      return failure();
+    }
+
+    auto init =
+        tensor::EmptyOp::create(rewriter, op.getLoc(), resultType.getShape(),
+                                resultType.getElementType());
+    SmallVector<int64_t> dimensions;
+    int64_t numOrigDims = resultType.getRank() - inputType.getRank();
+    for (int64_t i = 0; i < numOrigDims; i++) {
+      dimensions.push_back(i);
+    }
+    auto broadcast = linalg::BroadcastOp::create(
+        rewriter, op.getLoc(), adaptor.getInput(), init, dimensions);
+    rewriter.replaceOp(op, broadcast.getResult()[0]);
     return success();
   }
 };
@@ -251,8 +301,9 @@ void addTensorOfTensorConversionPatterns(TypeConverter& typeConverter,
   target.addDynamicallyLegalDialect<affine::AffineDialect>(
       [&](Operation* op) { return typeConverter.isLegal(op); });
 
-  patterns.add<ConvertExtract, ConvertInsert, ConvertFromElements>(
-      typeConverter, patterns.getContext());
+  patterns
+      .add<ConvertExtract, ConvertInsert, ConvertFromElements, ConvertSplat>(
+          typeConverter, patterns.getContext());
 }
 
 void addStructuralConversionPatterns(TypeConverter& typeConverter,

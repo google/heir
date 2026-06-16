@@ -8,7 +8,7 @@
 func.func @test_lower_mul_scalar(%arg0: !poly_ty) -> !poly_ty {
   // CHECK: %[[C2:.*]] = mod_arith.constant 2
   %c2 = mod_arith.constant 2 : !coeff_ty
-  // CHECK: %[[C2EXT:.*]] = mod_arith.extract %[[C2]]
+  // CHECK: %[[C2EXT:.*]] = mod_arith.lift standard %[[C2]]
   // CHECK: %[[SPLAT:.*]] = tensor.splat %[[C2EXT]]
   // CHECK: %[[SPLAT_ENC:.*]] = mod_arith.encapsulate %[[SPLAT]]
   // CHECK: mod_arith.mul %[[ARG]], %[[SPLAT_ENC]] : [[T]]

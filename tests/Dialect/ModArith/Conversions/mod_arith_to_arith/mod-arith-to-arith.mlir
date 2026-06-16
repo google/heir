@@ -21,53 +21,37 @@ func.func @test_lower_encapsulate_vec(%lhs : tensor<4xi32>) -> !Zpv {
   return %res : !Zpv
 }
 
-// CHECK: @test_lower_extract
-// CHECK-SAME: (%[[LHS:.*]]: [[T:.*]]) -> [[T]] {
-func.func @test_lower_extract(%lhs : !Zp) -> i32 {
-  // CHECK-NOT: mod_arith.extract
-  // CHECK: return %[[LHS]] : [[T]]
-  %res = mod_arith.extract %lhs: !Zp -> i32
-  return %res : i32
-}
-
-// CHECK: @test_lower_extract_vec
-// CHECK-SAME: (%[[LHS:.*]]: [[T:.*]]) -> [[T]] {
-func.func @test_lower_extract_vec(%lhs : !Zpv) -> tensor<4xi32> {
-  // CHECK-NOT: mod_arith.extract
-  // CHECK: return %[[LHS]] : [[T]]
-  %res = mod_arith.extract %lhs: !Zpv -> tensor<4xi32>
-  return %res : tensor<4xi32>
-}
-
 // CHECK: @standard
+// CHECK-SAME: (%[[arg0:.*]]: [[T:.*]]) -> [[T]] {
 func.func @standard(%arg0: !Zp) -> i32 {
-  // CHECK: arith.constant 65537 : i32
-  // CHECK: arith.remsi
-  // CHECK: arith.constant 0 : i32
-  // CHECK: arith.cmpi
-  // CHECK: arith.addi
-  // CHECK: arith.select
-  // CHECK: return
+  // CHECK: %[[q:.*]] = arith.constant 65537 : i32
+  // CHECK: %[[rems:.*]] = arith.remsi %[[arg0]], %[[q]] : i32
+  // CHECK: %[[c0:.*]] = arith.constant 0 : i32
+  // CHECK: %[[isneg:.*]] = arith.cmpi slt, %[[rems]], %[[c0]] : i32
+  // CHECK: %[[remsPos:.*]] = arith.addi %[[rems]], %[[q]] : i32
+  // CHECK: %[[stdResult:.*]] = arith.select %[[isneg]], %[[remsPos]], %[[rems]] : i32
+  // CHECK: return %[[stdResult]] : i32
   %0 = mod_arith.lift standard %arg0 : !Zp -> i32
   return %0 : i32
 }
 
 // CHECK: @centered
+// CHECK-SAME: (%[[arg0:.*]]: [[T:.*]]) -> [[T]] {
 func.func @centered(%arg0: !Zp) -> i32 {
-  // CHECK: arith.constant 65537 : i32
-  // CHECK: arith.remsi
-  // CHECK: arith.constant 0 : i32
-  // CHECK: arith.cmpi
-  // CHECK: arith.addi
-  // CHECK: arith.select
-  // CHECK: arith.constant 1 : i32
-  // CHECK: arith.constant 2 : i32
-  // CHECK: arith.addi
-  // CHECK: arith.divsi
-  // CHECK: arith.cmpi
-  // CHECK: arith.subi
-  // CHECK: arith.select
-  // CHECK: return
+  // CHECK: %[[q:.*]] = arith.constant 65537 : i32
+  // CHECK: %[[rems:.*]] = arith.remsi %[[arg0]], %[[q]] : i32
+  // CHECK: %[[c0:.*]] = arith.constant 0 : i32
+  // CHECK: %[[isneg:.*]] = arith.cmpi slt, %[[rems]], %[[c0]] : i32
+  // CHECK: %[[remsPos:.*]] = arith.addi %[[rems]], %[[q]] : i32
+  // CHECK: %[[stdResult:.*]] = arith.select %[[isneg]], %[[remsPos]], %[[rems]] : i32
+  // CHECK: %[[c1:.*]] = arith.constant 1 : i32
+  // CHECK: %[[c2:.*]] = arith.constant 2 : i32
+  // CHECK: %[[qp1:.*]] = arith.addi %[[q]], %[[c1]] : i32
+  // CHECK: %[[bound:.*]] = arith.divsi %[[qp1]], %[[c2]] : i32
+  // CHECK: %[[tooBig:.*]] = arith.cmpi sge, %[[stdResult]], %[[bound]] : i32
+  // CHECK: %[[lb:.*]] = arith.subi %[[stdResult]], %[[q]] : i32
+  // CHECK: %[[cResult:.*]] = arith.select %[[tooBig]], %[[lb]], %[[stdResult]] : i32
+  // CHECK: return %[[cResult]] : i32
   %0 = mod_arith.lift centered %arg0 : !Zp -> i32
   return %0 : i32
 }

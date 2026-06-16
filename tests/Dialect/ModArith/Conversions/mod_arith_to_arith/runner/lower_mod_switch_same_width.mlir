@@ -6,6 +6,6 @@ func.func public @lower_mod_switch_same_width() -> i26 {
   %ex = mod_arith.encapsulate %x : i26 -> !Zp
   %mx = mod_arith.reduce %ex : !Zp
   %m1 = mod_arith.mod_switch %mx : !Zp to !Zp_same_width
-  %1 = mod_arith.extract %m1 : !Zp_same_width -> i26
+  %1 = mod_arith.lift standard %m1 : !Zp_same_width -> i26
   return %1 : i26
 }
