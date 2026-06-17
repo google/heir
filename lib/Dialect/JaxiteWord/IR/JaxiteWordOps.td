@@ -80,6 +80,9 @@ def GenParamsOp : JaxiteWord_Op<"gen_params"> {
     - numEvalMult: Number of evaluation multiplications
   }];
   let arguments = (ins
+    JaxiteWord_PublicKey:$publicKey,
+    JaxiteWord_PrivateKey:$secretKey,
+    JaxiteWord_EvalKey:$evaluationKey,
     // Scheme parameters
     I64Attr:$degree,
     I64Attr:$numSlots,
@@ -134,7 +137,6 @@ def ProgramInitializationOp : JaxiteWord_Op<"program_initialization"> {
   }];
   let arguments = (ins
     JaxiteWord_CryptoContext:$cryptoContext,
-    JaxiteWord_PrivateKey:$secretKey,
     I64Attr:$totalHemulLevels,
     DenseI64ArrayAttr:$totalRotationIndices,
     I32Attr:$dnum,

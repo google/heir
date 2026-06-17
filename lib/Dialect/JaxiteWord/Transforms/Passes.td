@@ -16,10 +16,12 @@ def ConfigureCryptoContext : Pass<"jaxiteword-configure-crypto-context"> {
     For example, for an MLIR function `@my_func`, the generated helpers have
     the following signatures:
     ```mlir
-    func.func @my_func__generate_crypto_context() -> !jaxiteword.crypto_context
+    func.func @my_func__generate_crypto_context(
+        !jaxiteword.public_key, !jaxiteword.private_key,
+        !jaxiteword.eval_key) -> !jaxiteword.crypto_context
 
     func.func @my_func__configure_crypto_context(
-        !jaxiteword.crypto_context, !jaxiteword.private_key)
+        !jaxiteword.crypto_context)
     ```
   }];
   let dependentDialects = ["mlir::heir::jaxiteword::JaxiteWordDialect"];

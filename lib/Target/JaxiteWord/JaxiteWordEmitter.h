@@ -43,24 +43,9 @@ class JaxiteWordEmitter {
   // values.
   SelectVariableNames* variableNames;
 
-  // ciphertext arg.
-  std::string CiphertextArg_;
-
-  // A list of modulus to be used for the add operation.
-  std::string ModulusListArg_;
-
-  // Crypto context variable name (set by GenParamsOp, used by accessor calls)
-  std::string cryptoContextVarName_;
-
-  // Legacy member variables kept for backward compatibility with old pipeline
-  // (GenMulKeyOp / GenRotKeyOp path). Not used by the new
-  // ProgramInitializationOp path.
-  std::string heMulVarName_;
-  std::string heRotVarName_;
-  std::string rotKeysDictVarName_;
-
   LogicalResult printOperation(ModuleOp moduleOp);
   LogicalResult printOperation(func::FuncOp funcOp);
+  LogicalResult printOperation(func::CallOp op);
   LogicalResult printOperation(func::ReturnOp returnOp);
   LogicalResult printOperation(AddOp op);
   LogicalResult printOperation(SubOp op);
@@ -125,14 +110,12 @@ class JaxiteWordEmitter {
   FailureOr<std::string> convertType(Type type);
 
   void emitAssignPrefix(Value result);
-
-  LogicalResult printBinaryOpHelper(
-      Value result, Value lhs, Value rhs,
-      llvm::function_ref<void(StringRef, StringRef, StringRef)> callback);
-
-  LogicalResult printInPlaceBinaryOpHelper(
-      Value lhs, Value rhs,
-      llvm::function_ref<void(StringRef, StringRef)> callback);
+  void emitAssignCiphertext(StringRef targetName, StringRef sourceName);
+  void emitNormalizeCiphertext(StringRef resultName, StringRef ctxName,
+                               StringRef sourceName, StringRef levelExpr = "");
+  void emitModularAdd(StringRef resultName, StringRef ctxName,
+                      StringRef lhsName, StringRef rhsName);
+  void emitModularReduce(StringRef targetName);
 
   LogicalResult printMulOpHelper(
       Value result, Value lhs, Value rhs, Value ctx, Operation* op,
