@@ -11,6 +11,6 @@ func.func @test_lower_add() -> tensor<4xi26> {
   %mx = mod_arith.reduce %ex : !Zpv
   %my = mod_arith.reduce %ey : !Zpv
   %m1 = mod_arith.add %mx, %my : !Zpv
-  %1 = mod_arith.extract %m1 : !Zpv -> tensor<4xi26>
+  %1 = mod_arith.lift standard %m1 : !Zpv -> tensor<4xi26>
   return %1 : tensor<4xi26>
 }

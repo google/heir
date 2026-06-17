@@ -10,6 +10,9 @@
 #include "lib/Dialect/RNS/IR/RNSOps.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Utils/APIntUtils.h"
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
@@ -52,7 +55,8 @@ FailureOr<SmallVector<Value>> computeMixedRadixCoeffs(
   auto c0Reduced = ExtractResidueOp::create(b, input, b.getIndexAttr(0));
   Type intType =
       cast<mod_arith::ModArithType>(c0Reduced.getType()).getLoweringType();
-  Value c0Lifted = mod_arith::ExtractOp::create(b, intType, c0Reduced);
+  Value c0Lifted = mod_arith::LiftOp::create(b, intType, c0Reduced,
+                                             mod_arith::LiftType::CENTERED);
   mrcs.push_back(c0Lifted);
 
   // Subsequent coefficients depend on prior coefficients
@@ -74,13 +78,35 @@ FailureOr<SmallVector<Value>> computeMixedRadixCoeffs(
     // mod, and accumulate into temp.
     Value temp = mod_arith::EncapsulateOp::create(b, limbTy, mrcs[i - 1]);
     temp = mod_arith::ReduceOp::create(b, limbTy, temp);
-    for (int j = i - 2; j >= 0; j--) {
-      // reduce c_j mod q_i
-      Value reducedCj = mod_arith::EncapsulateOp::create(b, limbTy, mrcs[j]);
-      reducedCj = mod_arith::ReduceOp::create(b, limbTy, reducedCj);
+    if (i > 1) {
       Value qjConst =
           mod_arith::ConstantOp::create(b, limbTy, limbTy.getModulus());
-      temp = mod_arith::MacOp::create(b, temp, qjConst, reducedCj);
+      RankedTensorType tensorTy =
+          RankedTensorType::get({static_cast<int64_t>(mrcs.size())}, intType);
+      Value mrcsTensor = tensor::FromElementsOp::create(b, tensorTy, mrcs);
+      Value zero = arith::ConstantIndexOp::create(b, 0);
+      Value loopBound = arith::ConstantIndexOp::create(b, i - 1);
+      Value upper = arith::ConstantIndexOp::create(b, i - 2);
+      Value one = arith::ConstantIndexOp::create(b, 1);
+      auto loop = scf::ForOp::create(
+          b, zero, loopBound, one, ValueRange{temp},
+          [&](OpBuilder& nestedBuilder, Location nestedLoc, Value index,
+              ValueRange iterArgs) {
+            ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
+            Value j = arith::SubIOp::create(b, upper, index);
+
+            // reduce c_j mod q_i
+            Value cj = tensor::ExtractOp::create(b, mrcsTensor, ValueRange{j});
+            Value reducedCj = mod_arith::EncapsulateOp::create(b, limbTy, cj);
+            // cj is a centered representative, meaning it could be negative
+            // ModArith doesn't handle negatives well right now, so immediately
+            // put it back in its standard representative mod q
+            reducedCj = mod_arith::ReduceOp::create(b, reducedCj);
+            Value mac = mod_arith::MacOp::create(b, iterArgs.front(), qjConst,
+                                                 reducedCj);
+            scf::YieldOp::create(b, mac);
+          });
+      temp = loop.getResult(0);
     }
     Value ci = mod_arith::SubOp::create(b, xi, temp);
     mod_arith::ModArithAttr maAttr = qInvProds[i - 1];
@@ -93,7 +119,8 @@ FailureOr<SmallVector<Value>> computeMixedRadixCoeffs(
     Value qInvConst =
         mod_arith::ConstantOp::create(b, limbTy, maAttr.getValue());
     ci = mod_arith::MulOp::create(b, ci, qInvConst);
-    Value liftedCi = mod_arith::ExtractOp::create(b, intType, ci);
+    Value liftedCi = mod_arith::LiftOp::create(b, intType, ci,
+                                               mod_arith::LiftType::CENTERED);
     mrcs.push_back(liftedCi);
   }
   return mrcs;

@@ -20,7 +20,7 @@ func.func @input_generation() -> !poly_ty attributes { llvm.emit_c_interface } {
 func.func @ntt(%arg0 : !poly_ty) -> tensor<65536xi32> attributes { llvm.emit_c_interface } {
   %0 = polynomial.ntt %arg0 {root=#root} : !poly_ty
   %1 = polynomial.to_tensor %0 : !ntt_poly_ty -> tensor<65536x!coeff_ty>
-  %2 = mod_arith.extract %1 : tensor<65536x!coeff_ty> -> tensor<65536xi32>
+  %2 = mod_arith.lift standard %1 : tensor<65536x!coeff_ty> -> tensor<65536xi32>
   return %2 : tensor<65536xi32>
 }
 

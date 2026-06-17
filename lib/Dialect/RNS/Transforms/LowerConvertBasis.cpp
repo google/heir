@@ -4,8 +4,10 @@
 #include <utility>
 
 #include "lib/Dialect/ModArith/IR/ModArithAttributes.h"
+#include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
+#include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "lib/Dialect/RNS/IR/RNSOps.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "llvm/include/llvm/ADT/APInt.h"      // from @llvm-project
@@ -15,15 +17,18 @@
 // IWYU pragma: begin_keep
 #include "llvm/include/llvm/ADT/SmallString.h"  // from @llvm-project
 // IWYU pragma: end_keep
-#include "mlir/include/mlir/IR/Builders.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"               // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"               // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
 
 namespace mlir {
@@ -76,15 +81,44 @@ struct LowerConvertBasisOp : public OpRewritePattern<ConvertBasisOp> {
     // We need a map from modulus to index (on the input basis) for
     // short-circuiting
     llvm::DenseMap<APInt, size_t> inputBasisIndexByModulus;
+    SmallVector<mod_arith::ModArithType> maInputBasisTys;
     for (auto [i, basisTy] : llvm::enumerate(inputBasisTy.getBasisTypes())) {
       auto inputLimbTy = dyn_cast<mod_arith::ModArithType>(basisTy);
       if (!inputLimbTy) {
         return op.emitError() << "expected input basis limb to be ModArithType";
       }
+      APInt modulusValue = inputLimbTy.getModulus().getValue();
+      if (!modulusValue[0]) {
+        SmallString<16> modulusStr;
+        modulusValue.toStringUnsigned(modulusStr);
+        return op.emitError()
+               << "basis conversion requires odd moduli, "
+               << "but input basis contains even modulus " << modulusStr;
+      }
       inputBasisIndexByModulus[inputLimbTy.getModulus().getValue()] = i;
+      maInputBasisTys.push_back(inputLimbTy);
     }
 
     ArrayRef<Type> targetBasisTypes = targetBasisTy.getBasisTypes();
+    SmallVector<mod_arith::ModArithType> maTargetBasisTys;
+    maTargetBasisTys.reserve(targetBasisTypes.size());
+    for (Type basisTy : targetBasisTypes) {
+      auto targetLimbTy = dyn_cast<mod_arith::ModArithType>(basisTy);
+      if (!targetLimbTy) {
+        return op.emitError()
+               << "expected target basis limb to be ModArithType";
+      }
+      APInt modulusValue = targetLimbTy.getModulus().getValue();
+      if (!modulusValue[0]) {
+        SmallString<16> modulusStr;
+        modulusValue.toStringUnsigned(modulusStr);
+        return op.emitError()
+               << "basis conversion requires odd moduli, "
+               << "but target basis contains even modulus " << modulusStr;
+      }
+      maTargetBasisTys.push_back(targetLimbTy);
+    }
+
     FailureOr<SmallVector<Value>> maybeMrcs =
         rns::computeMixedRadixCoeffs(b, x, *qInvProdsFailable);
     if (failed(maybeMrcs)) {
@@ -96,46 +130,18 @@ struct LowerConvertBasisOp : public OpRewritePattern<ConvertBasisOp> {
     }
 
     SmallVector<Value>& mrcs = *maybeMrcs;
-    SmallVector<mod_arith::ModArithType> maInputBasisTys;
-    for (auto [i, basisTy] : llvm::enumerate(inputBasisTy.getBasisTypes())) {
-      auto qi = dyn_cast<mod_arith::ModArithType>(basisTy);
-      if (!qi) {
-        return op.emitError()
-               << "expected source basis limb to be ModArithType";
-      }
-      APInt modulusValue = qi.getModulus().getValue();
-      if (!modulusValue[0]) {
-        SmallString<16> modulusStr;
-        modulusValue.toStringUnsigned(modulusStr);
-        return op.emitError()
-               << "basis conversion requires odd moduli, "
-               << "but input basis contains even modulus " << modulusStr;
-      }
-      maInputBasisTys.push_back(qi);
-    }
+    RankedTensorType tensorTy =
+        RankedTensorType::get({static_cast<int64_t>(mrcs.size())},
+                              maTargetBasisTys[0].getLoweringType());
+    Value mrcsTensor = tensor::FromElementsOp::create(b, tensorTy, mrcs);
     IntegerType storageTy =
-        cast<IntegerType>(cast<mod_arith::ModArithType>(targetBasisTypes[0])
-                              .getModulus()
-                              .getType());
+        cast<IntegerType>(maTargetBasisTys[0].getModulus().getType());
 
     SmallVector<Value> outputLimbs;
     outputLimbs.reserve(targetBasisTypes.size());
     for (int i = 0; i < targetBasisTypes.size(); i++) {
-      mod_arith::ModArithType targetLimbTy =
-          dyn_cast<mod_arith::ModArithType>(targetBasisTypes[i]);
-      if (!targetLimbTy) {
-        return op.emitError()
-               << "expected target basis limb to be ModArithType";
-      }
+      mod_arith::ModArithType targetLimbTy = maTargetBasisTys[i];
       APInt targetModulusValue = targetLimbTy.getModulus().getValue();
-      if (!targetModulusValue[0]) {
-        SmallString<16> modulusStr;
-        targetModulusValue.toStringUnsigned(modulusStr);
-        return op.emitError()
-               << "basis conversion requires odd moduli, "
-               << "but target basis contains even modulus " << modulusStr;
-      }
-
       // This short-circuit optimization may not be optimal on all backends;
       // this block can be commented out while preserving correctness.
       llvm::DenseMap<APInt, size_t>::const_iterator inputIndexIt =
@@ -152,17 +158,49 @@ struct LowerConvertBasisOp : public OpRewritePattern<ConvertBasisOp> {
       Value temp =
           mod_arith::EncapsulateOp::create(b, targetLimbTy, mrcs.back());
       temp = mod_arith::ReduceOp::create(b, targetLimbTy, temp);
-      for (int j = static_cast<int>(mrcs.size()) - 2; j >= 0; j--) {
-        // get q_j, extend it to q_i's width, and reduce it mod q_i.
-        mod_arith::ModArithType sourceLimbTy = maInputBasisTys[j];
-        IntegerAttr qjAttr = IntegerAttr::get(
-            storageTy, sourceLimbTy.getModulus().getValue().zextOrTrunc(
-                           storageTy.getWidth()));
-        Value qjConst = mod_arith::ConstantOp::create(b, targetLimbTy, qjAttr);
-        Value reducedCj =
-            mod_arith::EncapsulateOp::create(b, targetLimbTy, mrcs[j]);
-        reducedCj = mod_arith::ReduceOp::create(b, targetLimbTy, reducedCj);
-        temp = mod_arith::MacOp::create(b, temp, qjConst, reducedCj);
+      if (mrcs.size() > 1) {
+        SmallVector<Value> qjConsts;
+        qjConsts.reserve(mrcs.size() - 1);
+        for (size_t j = 0; j < mrcs.size() - 1; ++j) {
+          mod_arith::ModArithType sourceLimbTy = maInputBasisTys[j];
+          IntegerAttr qjAttr = IntegerAttr::get(
+              storageTy, sourceLimbTy.getModulus().getValue().zextOrTrunc(
+                             storageTy.getWidth()));
+          Value qjConst =
+              mod_arith::ConstantOp::create(b, targetLimbTy, qjAttr);
+          qjConsts.push_back(qjConst);
+        }
+        RankedTensorType tensorTy = RankedTensorType::get(
+            {static_cast<int64_t>(qjConsts.size())}, targetLimbTy);
+        Value qjConstsTensor =
+            tensor::FromElementsOp::create(b, tensorTy, qjConsts);
+        Value zero = arith::ConstantIndexOp::create(b, 0);
+        Value loopBound = arith::ConstantIndexOp::create(
+            b, static_cast<int>(mrcs.size()) - 1);
+        Value upper = arith::ConstantIndexOp::create(
+            b, static_cast<int>(mrcs.size()) - 2);
+        Value one = arith::ConstantIndexOp::create(b, 1);
+        auto loop = scf::ForOp::create(
+            b, zero, loopBound, one, ValueRange{temp},
+            [&](OpBuilder& nestedBuilder, Location nestedLoc, Value index,
+                ValueRange iterArgs) {
+              ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
+              Value j = arith::SubIOp::create(b, upper, index);
+              Value qjConst =
+                  tensor::ExtractOp::create(b, qjConstsTensor, ValueRange{j});
+              Value cj =
+                  tensor::ExtractOp::create(b, mrcsTensor, ValueRange{j});
+              Value reducedCj =
+                  mod_arith::EncapsulateOp::create(b, targetLimbTy, cj);
+              // cj is a centered representative, meaning it could be negative
+              // ModArith doesn't handle negatives well right now, so
+              // immediately put it back in its standard representative mod q
+              reducedCj = mod_arith::ReduceOp::create(b, reducedCj);
+              Value mac = mod_arith::MacOp::create(b, iterArgs.front(), qjConst,
+                                                   reducedCj);
+              scf::YieldOp::create(b, mac);
+            });
+        temp = loop.getResult(0);
       }
       outputLimbs.push_back(temp);
     }

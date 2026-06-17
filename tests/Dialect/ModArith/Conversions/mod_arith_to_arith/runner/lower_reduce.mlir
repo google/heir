@@ -10,7 +10,7 @@ func.func public @test_lower_reduce_1() -> tensor<6xi26> {
   %x = arith.constant dense<[29498763, 42, 67108862, 7681, -1, 7680]> : tensor<6xi26>
   %e1 = mod_arith.encapsulate %x : tensor<6xi26> -> !Zp1v
   %m1 = mod_arith.reduce %e1 : !Zp1v
-  %1 = mod_arith.extract %m1 : !Zp1v -> tensor<6xi26>
+  %1 = mod_arith.lift standard %m1 : !Zp1v -> tensor<6xi26>
   return %1 : tensor<6xi26>
 }
 
@@ -20,6 +20,6 @@ func.func public @test_lower_reduce_2() -> tensor<6xi26> {
   // 33554431 = 2 ** 25 - 1
   %e4 = mod_arith.encapsulate %y : tensor<6xi26> -> !Zp2v
   %m4 = mod_arith.reduce %e4 : !Zp2v
-  %4 = mod_arith.extract %m4 : !Zp2v -> tensor<6xi26>
+  %4 = mod_arith.lift standard %m4 : !Zp2v -> tensor<6xi26>
   return %4 : tensor<6xi26>
 }

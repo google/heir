@@ -948,8 +948,8 @@ struct MaterializeBroadcasts : public OpRewritePattern<linalg::GenericOp> {
     auto collapsedType =
         RankedTensorType::get(targetShape, inputType.getElementType());
 
-    auto collapseOp = rewriter.create<tensor::CollapseShapeOp>(
-        loc, collapsedType, value, reassociation);
+    auto collapseOp = tensor::CollapseShapeOp::create(
+        rewriter, loc, collapsedType, value, reassociation);
 
     value = collapseOp.getResult();
     map = map.dropResults(dimsToDrop);

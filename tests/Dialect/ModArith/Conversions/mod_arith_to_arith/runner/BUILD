@@ -14,6 +14,17 @@ llvm_runner_test(
 )
 
 llvm_runner_test(
+    name = "lower_lift",
+    heir_opt_flags = [
+        "--mod-arith-to-arith",
+        "--emit-c-interface",
+        "--heir-polynomial-to-llvm",
+    ],
+    main_c_src = "lower_lift_test.cc",
+    mlir_src = "lower_lift.mlir",
+)
+
+llvm_runner_test(
     name = "lower_barrett_reduce",
     heir_opt_flags = [
         "--mod-arith-to-arith",

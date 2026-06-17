@@ -8,12 +8,12 @@
 func.func @test_lower_to_tensor() -> tensor<1024xi32> {
   // CHECK: [[COEFFS:%.+]] = arith.constant
   // CHECK: [[ENC:%.+]] = mod_arith.encapsulate [[COEFFS]]
-  // CHECK: [[EXT:%.+]] = mod_arith.extract [[ENC]]
+  // CHECK: [[EXT:%.+]] = mod_arith.lift standard [[ENC]]
   %coeffsRaw = arith.constant dense<2> : tensor<1024xi32>
   %coeffs = mod_arith.encapsulate %coeffsRaw : tensor<1024xi32> -> tensor<1024x!coeff_ty>
   %poly = polynomial.from_tensor %coeffs : tensor<1024x!coeff_ty> -> !polynomial.polynomial<ring=#ring>
   %tensorMod = polynomial.to_tensor %poly : !polynomial.polynomial<ring=#ring> -> tensor<1024x!coeff_ty>
-  %tensor = mod_arith.extract %tensorMod : tensor<1024x!coeff_ty> -> tensor<1024xi32>
+  %tensor = mod_arith.lift standard %tensorMod : tensor<1024x!coeff_ty> -> tensor<1024xi32>
   // CHECK: return [[EXT]]
   return %tensor : tensor<1024xi32>
 }
@@ -27,12 +27,12 @@ func.func @test_lower_to_tensor_small_coeffs() -> tensor<1024xi32> {
   // CHECK: [[ZERO:%.+]] = mod_arith.constant 0
   // CHECK: [[PAD:%.+]] = tensor.pad [[ENC]] low[0] high[1021]
   // CHECK:   tensor.yield [[ZERO]]
-  // CHECK: [[EXT:%.+]] = mod_arith.extract [[PAD]]
+  // CHECK: [[EXT:%.+]] = mod_arith.lift standard [[PAD]]
   // CHECK: return [[EXT]]
   %coeffsRaw = arith.constant dense<[2, 2, 5]> : tensor<3xi32>
   %coeffs = mod_arith.encapsulate %coeffsRaw : tensor<3xi32> -> tensor<3x!coeff_ty>
   %poly = polynomial.from_tensor %coeffs : tensor<3x!coeff_ty> -> !polynomial.polynomial<ring=#ring>
   %tensorMod = polynomial.to_tensor %poly : !polynomial.polynomial<ring=#ring> -> tensor<1024x!coeff_ty>
-  %tensor = mod_arith.extract %tensorMod : tensor<1024x!coeff_ty> -> tensor<1024xi32>
+  %tensor = mod_arith.lift standard %tensorMod : tensor<1024x!coeff_ty> -> tensor<1024xi32>
   return %tensor : tensor<1024xi32>
 }

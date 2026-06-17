@@ -53,14 +53,12 @@ func.func @test_arith_syntax() {
   %m_vec2 = mod_arith.reduce %e_vec2 : !Zp_vec
   %m_vec3 = mod_arith.reduce %e_vec3 : !Zp_vec
 
-  // CHECK: mod_arith.extract
-  %extract = mod_arith.extract %m4 : !Zp -> i10
-  %extract_vec = mod_arith.extract %m_vec : !Zp_vec -> tensor<4xi10>
-
   // CHECK: mod_arith.lift standard
   %standard_lift = mod_arith.lift standard %m4 : !Zp -> i10
+  %extract_vec_std = mod_arith.lift standard %m_vec : !Zp_vec -> tensor<4xi10>
   // CHECK: mod_arith.lift centered
   %centered_lift = mod_arith.lift centered %m4 : !Zp -> i10
+  %extract_vec_center = mod_arith.lift centered %m_vec : !Zp_vec -> tensor<4xi10>
 
   // CHECK: mod_arith.add
   // CHECK: mod_arith.add
@@ -112,28 +110,6 @@ func.func @test_rns_syntax(%arg0: !rns, %arg1: !rns) {
   %interpolate = mod_arith.mod_switch %add : !rns to !Zp_large
   %decompose = mod_arith.mod_switch %interpolate : !Zp_large to !rns
 
-  return
-}
-
-// CHECK: @test_rns_vec_syntax
-func.func @test_rns_vec_syntax(%arg0: !rns_vec, %arg1: !rns_vec) {
-  // CHECK: mod_arith.add
-  %add = mod_arith.add %arg0, %arg1 : !rns_vec
-
-  // CHECK: mod_arith.extract
-  // CHECK: mod_arith.encapsulate
-  %extract = mod_arith.extract %add : !rns_vec -> !int_vec
-  %encapsulate = mod_arith.encapsulate %extract : !int_vec -> !rns_vec
-
-  return
-}
-
-// CHECK: @test_rns_single_limb_shape
-func.func @test_rns_single_limb_shape(%arg0: tensor<5x1xi10>, %arg1: !rns1_vec) {
-  // CHECK: mod_arith.encapsulate
-  // CHECK: mod_arith.extract
-  %enc = mod_arith.encapsulate %arg0 : tensor<5x1xi10> -> !rns1_vec
-  %ext = mod_arith.extract %arg1 : !rns1_vec -> tensor<5x1xi10>
   return
 }
 

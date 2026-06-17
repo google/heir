@@ -7,9 +7,9 @@
 
 !Zp = !mod_arith.int<255 : i32>
 
-func.func @test_bad_extract(%lhs : !Zp) -> i8 {
+func.func @test_bad_lift(%lhs : !Zp) -> i8 {
   // expected-error@+1 {{the result integer type should be of the same width as the mod arith type width, but got 8 while mod arith type width 32}}
-  %m = mod_arith.extract %lhs : !Zp -> i8
+  %m = mod_arith.lift standard %lhs : !Zp -> i8
   return %m : i8
 }
 
@@ -50,10 +50,4 @@ func.func @test_bad_encapsulate(%arg0: tensor<3x3xi10>) -> tensor<4x!rns> {
   // expected-error@+1 {{The shape of input/output type is not correct.}}
   %e = mod_arith.encapsulate %arg0 : tensor<3x3xi10> -> tensor<4x!rns>
   return %e : tensor<4x!rns>
-}
-
-func.func @test_bad_extract(%arg0: tensor<4x!rns>) -> tensor<4x5xi10> {
-  // expected-error@+1 {{The shape of input/output type is not correct.}}
-  %e = mod_arith.extract %arg0 : tensor<4x!rns> -> tensor<4x5xi10>
-  return %e : tensor<4x5xi10>
 }

@@ -116,10 +116,6 @@ LogicalResult EncapsulateOp::verify() {
   return verifyTypeLowering(*this, getOutput().getType(), getInput().getType());
 }
 
-LogicalResult ExtractOp::verify() {
-  return verifyTypeLowering(*this, getInput().getType(), getOutput().getType());
-}
-
 LogicalResult LiftOp::verify() {
   return verifyTypeLowering(*this, getInput().getType(), getOutput().getType());
 }

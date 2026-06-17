@@ -338,16 +338,13 @@ struct ConvertReveal : public OpConversionPattern<secret::RevealOp> {
       beforeTrunc = shapedType.cloneWith(shapedType.getShape(), modulusType);
     }
 
-    auto extractOp =
-        mod_arith::ExtractOp::create(b, beforeTrunc, adaptor.getInput());
-    Value result = extractOp.getResult();
+    Value result = mod_arith::LiftOp::create(b, beforeTrunc, adaptor.getInput(),
+                                             mod_arith::LiftType::STANDARD);
 
     Type truncatedType = op.getResult().getType();
     if (getElementTypeOrSelf(truncatedType).getIntOrFloatBitWidth() <
-        getElementTypeOrSelf(extractOp.getResult().getType())
-            .getIntOrFloatBitWidth()) {
-      auto truncOp = arith::TruncIOp::create(b, truncatedType, result);
-      result = truncOp.getResult();
+        getElementTypeOrSelf(result.getType()).getIntOrFloatBitWidth()) {
+      result = arith::TruncIOp::create(b, truncatedType, result);
     }
 
     rewriter.replaceOp(op, result);

@@ -18,8 +18,7 @@ func.func @lower_leading_term() -> !coeff_ty {
   // CHECK: %[[C1023:.+]] = arith.constant 1023 : index
   // CHECK: %[[WHILE_RES:.*]] = scf.while (%[[ARG0:.*]] = %[[C1023]]) : (index) -> index {
   // CHECK:    %[[EXTRACTED:.*]] = tensor.extract %[[X]][%[[ARG0]]] : [[Tmod]]
-  // CHECK:    %[[REDUCED:.*]] = mod_arith.reduce %[[EXTRACTED]]
-  // CHECK:    %[[REDUCED_EXTRACTED:.*]] = mod_arith.extract %[[REDUCED]]
+  // CHECK:    %[[REDUCED_EXTRACTED:.*]] = mod_arith.lift standard %[[EXTRACTED]]
   // CHECK:    %[[CMP:.*]] = arith.cmpi eq, %[[REDUCED_EXTRACTED]], %[[C0]]
   // CHECK:    scf.condition(%[[CMP]]) %[[ARG0]] : index
   // CHECK: } do {

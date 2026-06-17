@@ -11,8 +11,11 @@ def LowerConvertBasis : Pass<"rns-lower-convert-basis"> {
     (* example filepath=tests/Dialect/RNS/Transforms/lower_convert_basis.mlir *)
   }];
   let dependentDialects = [
+    "mlir::arith::ArithDialect",
     "mlir::heir::mod_arith::ModArithDialect",
     "mlir::heir::rns::RNSDialect",
+    "mlir::scf::SCFDialect",
+    "mlir::tensor::TensorDialect",
   ];
 }
 

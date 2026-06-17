@@ -411,30 +411,8 @@ struct ConvertMonomial : public OpConversionPattern<MonomialOp> {
             op, "unsupported eval-form non-constant monomial");
       }
 
-      Value result;
-      if (auto modQTy = dyn_cast<ModQTypeInterface>(typeInfo.coefficientType)) {
-        Type extractedType = modQTy.getLoweringType();
-        Value extracted = mod_arith::ExtractOp::create(
-            b, extractedType, adaptor.getCoefficient());
-        Value replicatedStorage;
-        if (isa<ShapedType>(extractedType)) {
-          auto init = tensor::EmptyOp::create(b, storageTensorType.getShape(),
-                                              typeInfo.coefficientStorageType);
-          // Broadcast an RNS constant coefficient along the degree axis
-          replicatedStorage = linalg::BroadcastOp::create(b, extracted, init,
-                                                          ArrayRef<int64_t>{0})
-                                  .getResult()[0];
-        } else {
-          replicatedStorage =
-              tensor::SplatOp::create(b, extracted, storageTensorType);
-        }
-        result = mod_arith::EncapsulateOp::create(b, typeInfo.tensorType,
-                                                  replicatedStorage)
-                     .getResult();
-      } else {
-        result = tensor::SplatOp::create(b, adaptor.getCoefficient(),
-                                         typeInfo.tensorType);
-      }
+      Value result = tensor::SplatOp::create(b, adaptor.getCoefficient(),
+                                             typeInfo.tensorType);
       rewriter.replaceOp(op, result);
       return success();
     }
@@ -483,6 +461,15 @@ struct ConvertMulScalar : public OpConversionPattern<MulScalarOp> {
 
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
+    if (isa<RNSType>(typeInfo.coefficientType)) {
+      Value replicatedScalar =
+          tensor::SplatOp::create(b, adaptor.getScalar(), typeInfo.tensorType);
+      auto mulOp = mod_arith::MulOp::create(b, adaptor.getPolynomial(),
+                                            replicatedScalar);
+      rewriter.replaceOp(op, mulOp);
+      return success();
+    }
+
     // We need to repeat the `scalar` operand to match the tensor shape of the
     // `polynomial` operand, and then it can be lowered to a simple
     // mod_arith.mul.
@@ -500,8 +487,9 @@ struct ConvertMulScalar : public OpConversionPattern<MulScalarOp> {
           op, "expected coefficient type to implement ModQTypeInterface");
     }
 
-    auto extracted =
-        mod_arith::ExtractOp::create(b, extractedType, adaptor.getScalar());
+    // either representative suffices since we are re-encapsulating
+    auto extracted = mod_arith::LiftOp::create(
+        b, extractedType, adaptor.getScalar(), mod_arith::LiftType::STANDARD);
 
     Value replicatedScalar;
     if (isa<ShapedType>(extractedType)) {
@@ -693,9 +681,10 @@ struct ConvertLeadingTerm : public OpConversionPattern<LeadingTermOp> {
           Value index = args[0];
           ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
           auto coeff = tensor::ExtractOp::create(b, coeffs, ValueRange{index});
-          auto normalizedCoeff = mod_arith::ReduceOp::create(b, coeff);
-          auto extractedCoeff = mod_arith::ExtractOp::create(
-              b, typeInfo.coefficientStorageType, normalizedCoeff);
+          // either representative suffices since both lift 0 to 0
+          auto extractedCoeff =
+              mod_arith::LiftOp::create(b, typeInfo.coefficientStorageType,
+                                        coeff, mod_arith::LiftType::STANDARD);
           auto cmpOp = arith::CmpIOp::create(b, arith::CmpIPredicate::eq,
                                              extractedCoeff, c0);
           scf::ConditionOp::create(b, cmpOp.getResult(), index);

@@ -35,9 +35,12 @@ cc_library(
         "@heir//lib/Dialect/ModArith/IR:TypeInterfaces",
         "@heir//lib/Utils:APIntUtils",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
+        "@llvm-project//mlir:SCFDialect",
         "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
     ],
 )
 

@@ -56,8 +56,7 @@
 // CHECK:      %[[c2046:.*]] = arith.constant 2046 : index
 // CHECK:      %[[v1:.*]] = scf.while (%[[arg2:.*]] = %[[c2046]]) : (index) -> index {
 // CHECK:        %[[extracted_4:.*]] = tensor.extract %[[DIVIDEND]][%[[arg2]]] : [[NAIVE_POLYMUL_TENSOR_TY]]
-// CHECK:        %[[extracted_4_reduced:.*]] = mod_arith.reduce %[[extracted_4]]
-// CHECK:        %[[extracted_4_conv:.*]] = mod_arith.extract %[[extracted_4_reduced]]
+// CHECK:        %[[extracted_4_conv:.*]] = mod_arith.lift standard %[[extracted_4]]
 // CHECK:        %[[cmp1:.*]] = arith.cmpi eq, %[[extracted_4_conv]], %[[c0_i32]] : i32
 // CHECK:        scf.condition(%[[cmp1]]) %[[arg2]] : index
 // CHECK:      } do {
@@ -68,7 +67,7 @@
 // CHECK:      %[[extracted:.*]] = tensor.extract %[[DIVIDEND]][%[[v1]]] : [[NAIVE_POLYMUL_TENSOR_TY]]
 // CHECK:      %[[v2:.*]] = arith.subi %[[v1]], %[[c1024]] : index
 // CHECK:      %[[extracted_mul:.*]] = mod_arith.mul %[[extracted]], %[[c1_modarith]] : [[COEFF_TY]]
-// CHECK:      %[[extracted_mul_extracted:.*]] = mod_arith.extract %[[extracted_mul]]
+// CHECK:      %[[extracted_mul_extracted:.*]] = mod_arith.lift standard %[[extracted_mul]]
 // CHECK:      %[[splat:.*]] = tensor.splat %[[extracted_mul_extracted]] : tensor<2047xi32>
 // CHECK:      %[[splat_enc:.*]] = mod_arith.encapsulate %[[splat]]
 // CHECK:      %[[mul:.*]] = mod_arith.mul %[[DIVISOR_MODARITH]], %[[splat_enc]]
