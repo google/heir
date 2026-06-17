@@ -32,6 +32,7 @@ cc_library(
         ":ops_inc_gen",
         ":type_interfaces_inc_gen",
         ":types_inc_gen",
+        "@heir//lib/Dialect:HEIRInterfaces",
         "@heir//lib/Dialect/RNS/IR:TypeInterfaces",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
@@ -66,6 +67,7 @@ td_library(
     includes = ["../../../.."],
     deps = [
         ":type_interfaces_td",
+        "@heir//lib/Dialect:td_files",
         "@heir//lib/Dialect/RNS/IR:type_interfaces_td",
         "@heir//lib/Utils/DRR",
         "@llvm-project//mlir:ArithOpsTdFiles",

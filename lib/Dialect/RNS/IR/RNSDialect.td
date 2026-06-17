@@ -24,6 +24,7 @@ def RNS_Dialect : Dialect {
 
   let useDefaultTypePrinterParser = 1;
   let useDefaultAttributePrinterParser = 1;
+  let hasConstantMaterializer = 1;
 }
 
 #endif  // LIB_DIALECT_RNS_IR_RNSDIALECT_TD_

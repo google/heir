@@ -24,9 +24,10 @@
 
 // NOLINTBEGIN(misc-include-cleaner): Required to define
 // ModArithDialect, ModArithTypes, ModArithOps,
+#include "lib/Dialect/HEIRInterfaces.h"
+#include "lib/Dialect/ModArith/IR/ModArithAttributes.h"
 #include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 // NOLINTEND(misc-include-cleaner)
 
 #define DEBUG_TYPE "mod-arith"
@@ -381,101 +382,142 @@ OpFoldResult ConstantOp::fold(FoldAdaptor adaptor) {
     llvm::dbgs() << "  Folded  : " << foldedVal << "\n";
     llvm::dbgs() << "========================================\n";
   });
-
-  // Create the result
   return IntegerAttr::get(storageType, foldedVal);
 }
 
-/// Helper function to handle common folding logic for binary arithmetic
-/// operations.
-/// - `opName` is used for debug output.
-/// - `foldBinFn` defines how the actual binary operation (+, -, *) should be
-/// performed.
-template <typename FoldAdaptor, typename FoldBinFn>
-static OpFoldResult foldBinModOp(Operation* op, FoldAdaptor adaptor,
-                                 FoldBinFn&& foldBinFn,
-                                 llvm::StringRef opName) {
-  // TODO(#1759): support dense attributes
+namespace {
+enum class ModOp { Add, Sub, Mul, Mac };
 
-  // Check if lhs and rhs are IntegerAttrs
-  auto lhs = dyn_cast_if_present<IntegerAttr>(adaptor.getLhs());
-  auto rhs = dyn_cast_if_present<IntegerAttr>(adaptor.getRhs());
+std::optional<APInt> getRawAPInt(Attribute attr) {
+  if (!attr) return std::nullopt;
+  if (auto intAttr = dyn_cast<IntegerAttr>(attr)) {
+    return intAttr.getValue();
+  }
+  if (auto modAttr = dyn_cast<ModArithAttr>(attr)) {
+    return modAttr.getValue().getValue();
+  }
+  return std::nullopt;
+}
+
+Attribute foldScalarModOp(ArrayRef<Attribute> operands,
+                          ModArithType residueType, ModOp op,
+                          StringRef opName) {
+  auto lhs = getRawAPInt(operands[0]);
+  auto rhs = getRawAPInt(operands[1]);
   if (!lhs || !rhs) return {};
 
-  auto modType = dyn_cast<ModArithType>(op->getResultTypes().front());
-  if (!modType) return {};
+  std::optional<APInt> acc = std::nullopt;
+  if (op == ModOp::Mac) {
+    if (operands.size() < 3) return {};
+    acc = getRawAPInt(operands[2]);
+    if (!acc) return {};
+  }
 
-  // Retrieve the modulus value and its bit width
-  APInt modulus = modType.getModulus().getValue();
+  APInt modulus = residueType.getModulus().getValue();
   unsigned modBitWidth = modulus.getBitWidth();
 
-  // Extract the actual integer values
-  APInt lhsVal = lhs.getValue();
-  APInt rhsVal = rhs.getValue();
+  // Strict accumulation safety (1 extra bit or more)
+  unsigned workWidth = 2 * modBitWidth + 1;
 
-  // Adjust lhsVal and rhsVal bit widths to match modulus if necessary
-  lhsVal = lhsVal.zextOrTrunc(modBitWidth);
-  rhsVal = rhsVal.zextOrTrunc(modBitWidth);
+  APInt lw = lhs->zextOrTrunc(modBitWidth).zext(workWidth);
+  APInt rw = rhs->zextOrTrunc(modBitWidth).zext(workWidth);
+  APInt mw = modulus.zext(workWidth);
 
-  // Perform the operation using the provided foldBinFn
-  APInt foldedVal = foldBinFn(lhsVal, rhsVal, modulus);
+  APInt res;
+  switch (op) {
+    case ModOp::Add:
+      res = lw + rw;
+      break;
+    case ModOp::Sub:
+      res = lw + mw - rw.urem(mw);
+      break;
+    case ModOp::Mul:
+      res = lw * rw;
+      break;
+    case ModOp::Mac: {
+      APInt aw = acc->zextOrTrunc(modBitWidth).zext(workWidth);
+      res = aw + (lw * rw);
+      break;
+    }
+  }
+
+  APInt foldedVal = res.urem(mw).trunc(modBitWidth);
 
   LLVM_DEBUG({
     llvm::dbgs() << "\n";
     llvm::dbgs() << "========================================\n";
-    llvm::dbgs() << "  Folding Operation: " << opName << "\n";
+    llvm::dbgs() << "  Folding Operation: " << opName << " (Limbwise)\n";
     llvm::dbgs() << "----------------------------------------\n";
-    llvm::dbgs() << "  LHS     : " << lhsVal << "\n";
-    llvm::dbgs() << "  RHS     : " << rhsVal << "\n";
+    llvm::dbgs() << "  LHS     : " << *lhs << "\n";
+    llvm::dbgs() << "  RHS     : " << *rhs << "\n";
+    if (acc) {
+      llvm::dbgs() << "  ACC     : " << *acc << "\n";
+    }
     llvm::dbgs() << "  Modulus : " << modulus << "\n";
     llvm::dbgs() << "  Folded  : " << foldedVal << "\n";
     llvm::dbgs() << "========================================\n";
   });
 
-  // Create the result
-  auto elementType = modType.getModulus().getType();
-  return IntegerAttr::get(elementType, foldedVal);
+  auto intAttr =
+      IntegerAttr::get(residueType.getModulus().getType(), foldedVal);
+  return ModArithAttr::get(residueType.getContext(), residueType, intAttr);
 }
 
-// add(c0, c1) -> (c0 + c1) mod q
+}  // namespace
+
+Attribute AddOp::foldScalarResidue(ArrayRef<Attribute> operands,
+                                   Type residueType) {
+  auto modType = dyn_cast<ModArithType>(residueType);
+  if (!modType) return {};
+  return foldScalarModOp(operands, modType, ModOp::Add, "Add");
+}
 OpFoldResult AddOp::fold(FoldAdaptor adaptor) {
-  return foldBinModOp(
-      getOperation(), adaptor,
-      [](APInt lhs, APInt rhs, APInt modulus) {
-        APInt sum = lhs + rhs;
-        return sum.urem(modulus);
-      },
-      "Add");
+  return heir::foldLimbwise(getOperation(), adaptor.getOperands(),
+                            getResult().getType());
 }
 
-// sub(c0, c1) -> (c0 - c1) mod q
+Attribute SubOp::foldScalarResidue(ArrayRef<Attribute> operands,
+                                   Type residueType) {
+  auto modType = dyn_cast<ModArithType>(residueType);
+  if (!modType) return {};
+  return foldScalarModOp(operands, modType, ModOp::Sub, "Sub");
+}
 OpFoldResult SubOp::fold(FoldAdaptor adaptor) {
-  return foldBinModOp(
-      getOperation(), adaptor,
-      [](APInt lhs, APInt rhs, APInt modulus) {
-        APInt diff = lhs - rhs;
-        if (diff.isNegative()) {
-          diff += modulus;
-        }
-        return diff.urem(modulus);
-      },
-      "Sub");
+  return heir::foldLimbwise(getOperation(), adaptor.getOperands(),
+                            getResult().getType());
 }
 
-// mul(c0, c1) -> (c0 * c1) mod q
+Attribute MulOp::foldScalarResidue(ArrayRef<Attribute> operands,
+                                   Type residueType) {
+  auto modType = dyn_cast<ModArithType>(residueType);
+  if (!modType) return {};
+  return foldScalarModOp(operands, modType, ModOp::Mul, "Mul");
+}
 OpFoldResult MulOp::fold(FoldAdaptor adaptor) {
-  return foldBinModOp(
-      getOperation(), adaptor,
-      [](APInt lhs, APInt rhs, APInt modulus) {
-        APInt product = lhs * rhs;
-        return product.urem(modulus);
-      },
-      "Mul");
+  return heir::foldLimbwise(getOperation(), adaptor.getOperands(),
+                            getResult().getType());
+}
+
+Attribute MacOp::foldScalarResidue(ArrayRef<Attribute> operands,
+                                   Type residueType) {
+  auto modType = dyn_cast<ModArithType>(residueType);
+  if (!modType) return {};
+  return foldScalarModOp(operands, modType, ModOp::Mac, "Mac");
+}
+OpFoldResult MacOp::fold(FoldAdaptor adaptor) {
+  return heir::foldLimbwise(getOperation(), adaptor.getOperands(),
+                            getResult().getType());
 }
 
 Operation* ModArithDialect::materializeConstant(OpBuilder& builder,
                                                 Attribute value, Type type,
                                                 Location loc) {
+  if (auto limbwiseAttr = dyn_cast_if_present<LimbwiseAttrInterface>(value)) {
+    return limbwiseAttr.materializeConstant(builder, loc, type);
+  }
+  if (auto modArithAttr = dyn_cast<ModArithAttr>(value)) {
+    value = modArithAttr.getValue();
+  }
   // TODO(#1759): support dense attributes
   auto intAttr = dyn_cast_if_present<IntegerAttr>(value);
   if (!intAttr) return nullptr;

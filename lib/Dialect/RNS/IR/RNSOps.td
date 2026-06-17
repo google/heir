@@ -1,6 +1,7 @@
 #ifndef LIB_DIALECT_RNS_IR_RNSOPS_TD_
 #define LIB_DIALECT_RNS_IR_RNSOPS_TD_
 
+include "lib/Dialect/RNS/IR/RNSAttributes.td"
 include "lib/Dialect/RNS/IR/RNSDialect.td"
 include "lib/Dialect/RNS/IR/RNSTypes.td"
 include "mlir/IR/BuiltinAttributes.td"
@@ -43,6 +44,23 @@ def RNS_ExtractResidueOp : RNS_Op<"extract_residue", [Pure, ElementwiseMappable,
   let results = (outs RNSBasisTypeInterfaceLike:$output);
   let assemblyFormat = "$input attr-dict `:` type($input) `->` type($output)";
   let hasVerifier = 1;
+}
+
+def RNS_ConstantOp : RNS_Op<"constant",
+    [Pure, ConstantLike]> {
+  let summary = "Define an RNS constant value via an attribute.";
+  let description = [{
+    Example:
+
+    ```mlir
+    %0 = rns.constant <[123, 456]> : !rns.rns<...>
+    ```
+  }];
+  let arguments = (ins RNS_RNSAttr:$value);
+  let results = (outs RNSLike:$output);
+  let assemblyFormat = "$value attr-dict `:` type($output)";
+  let hasVerifier = 1;
+  let hasFolder = 1;
 }
 
 def RNS_PackOp : RNS_Op<"pack", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {

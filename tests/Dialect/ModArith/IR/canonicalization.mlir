@@ -40,6 +40,18 @@ func.func @test_mul_fold() -> !Zp {
   return %mul2 : !Zp
 }
 
+// CHECK: @test_mac_fold
+// CHECK: () -> [[T:.*]] {
+func.func @test_mac_fold() -> !Zp {
+  // 12 * 34 + 56 = 464. 464 mod 42 = 2.
+  // CHECK: %[[RESULT:.+]] = mod_arith.constant 2 : [[T]]
+  %e1 = mod_arith.constant 12 : !Zp
+  %e2 = mod_arith.constant 34 : !Zp
+  %e3 = mod_arith.constant 56 : !Zp
+  %mac = mod_arith.mac %e1, %e2, %e3 : !Zp
+  return %mac : !Zp
+}
+
 // CHECK: @test_add_zero_rhs
 // CHECK: (%[[arg0:.*]]: [[T:.*]]) -> [[T]]
 func.func @test_add_zero_rhs(%x: !Zp) -> !Zp {

@@ -4,6 +4,7 @@
 include "lib/Dialect/ModArith/IR/ModArithDialect.td"
 include "lib/Dialect/ModArith/IR/ModArithEnums.td"
 include "lib/Dialect/ModArith/IR/ModArithTypes.td"
+include "lib/Dialect/HEIRInterfaces.td"
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/OpBase.td"
@@ -167,7 +168,7 @@ def ModArith_ReduceOp : ModArith_Op<"reduce", [Pure, ElementwiseMappable, SameOp
 }
 
 class ModArith_BinaryOp<string mnemonic, list<Trait> traits = []> :
-    ModArith_Op<mnemonic, traits # [SameOperandsAndResultType, Pure, ElementwiseMappable]>,
+    ModArith_Op<mnemonic, traits # [SameOperandsAndResultType, Pure, ElementwiseMappable, DeclareOpInterfaceMethods<LimbwiseMappableOpInterface, ["foldScalarResidue"]>]>,
     Arguments<(ins ModQLike:$lhs, ModQLike:$rhs)>,
     Results<(outs ModQLike:$output)> {
   let assemblyFormat ="operands attr-dict `:` type($output)";
@@ -209,7 +210,7 @@ def ModArith_MulOp : ModArith_BinaryOp<"mul", [Commutative]> {
   let hasFolder = 1;
 }
 
-def ModArith_MacOp : ModArith_Op<"mac", [SameOperandsAndResultType, Pure, ElementwiseMappable]> {
+def ModArith_MacOp : ModArith_Op<"mac", [SameOperandsAndResultType, Pure, ElementwiseMappable, DeclareOpInterfaceMethods<LimbwiseMappableOpInterface, ["foldScalarResidue"]>]> {
   let summary = "modular multiplication-and-accumulation operation";
 
   let description = [{
@@ -218,9 +219,10 @@ def ModArith_MacOp : ModArith_Op<"mac", [SameOperandsAndResultType, Pure, Elemen
     Unless otherwise specified, the operation assumes all inputs are canonical
     representatives and guarantees the output being canonical representative.
   }];
-  let arguments = (ins ModArithLike:$lhs, ModArithLike:$rhs, ModArithLike:$acc);
-  let results = (outs ModArithLike:$output);
+  let arguments = (ins ModQLike:$lhs, ModQLike:$rhs, ModQLike:$acc);
+  let results = (outs ModQLike:$output);
   let assemblyFormat = "operands attr-dict `:` type($output)";
+  let hasFolder = 1;
 }
 
 // TODO(#1084): migrate barrett/subifge to mod arith type

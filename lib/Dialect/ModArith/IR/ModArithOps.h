@@ -2,6 +2,7 @@
 #define LIB_DIALECT_MODARITH_IR_MODARITHOPS_H_
 
 // IWYU pragma: begin_keep
+#include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypeInterfaces.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"

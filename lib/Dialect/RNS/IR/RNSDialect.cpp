@@ -20,7 +20,6 @@
 #include "lib/Dialect/RNS/IR/RNSTypes.cpp.inc"
 #define GET_OP_CLASSES
 #include "lib/Dialect/RNS/IR/RNSOps.cpp.inc"
-#include "lib/Dialect/RNS/IR/RNSTypeInterfaces.cpp.inc"
 
 namespace mlir {
 namespace heir {
@@ -40,6 +39,16 @@ void RNSDialect::initialize() {
 #define GET_OP_LIST
 #include "lib/Dialect/RNS/IR/RNSOps.cpp.inc"
       >();
+}
+
+Operation* RNSDialect::materializeConstant(OpBuilder& builder, Attribute value,
+                                           Type type, Location loc) {
+  auto rnsAttr = dyn_cast_if_present<RNSAttr>(value);
+  if (!rnsAttr) return nullptr;
+  auto rnsType = dyn_cast_if_present<RNSType>(type);
+  if (!rnsType) return nullptr;
+  auto op = rns::ConstantOp::create(builder, loc, rnsType, rnsAttr);
+  return op.getOperation();
 }
 
 }  // namespace rns

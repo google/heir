@@ -1,6 +1,7 @@
 #ifndef LIB_DIALECT_RNS_IR_RNSATTRIBUTES_TD_
 #define LIB_DIALECT_RNS_IR_RNSATTRIBUTES_TD_
 
+include "lib/Dialect/HEIRInterfaces.td"
 include "lib/Dialect/RNS/IR/RNSDialect.td"
 include "lib/Dialect/RNS/IR/RNSTypes.td"
 
@@ -14,7 +15,7 @@ class RNS_Attr<string name, string attrMnemonic, list<Trait> traits = []>
   let mnemonic = attrMnemonic;
 }
 
-def RNS_RNSAttr : RNS_Attr<"RNS", "value"> {
+def RNS_RNSAttr : RNS_Attr<"RNS", "value", [DeclareAttrInterfaceMethods<LimbwiseAttrInterface>]> {
   let summary = "a typed RNS value";
   let description = [{
     A typed RNS value with one integer per basis limb.
@@ -36,6 +37,12 @@ def RNS_RNSAttr : RNS_Attr<"RNS", "value"> {
   );
   let genVerifyDecl = 1;
   let hasCustomAssemblyFormat = 1;
+  let extraClassDeclaration = [{
+    static RNSAttr get(::mlir::heir::rns::RNSType type, ::llvm::ArrayRef<::mlir::Attribute> values) {
+      return get(type.getContext(), values, type);
+    }
+
+  }];
 }
 
 #endif  // LIB_DIALECT_RNS_IR_RNSATTRIBUTES_TD_

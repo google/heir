@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include "lib/Dialect/ModArith/IR/ModArithAttributes.h"
+#include "lib/Dialect/RNS/IR/RNSAttributes.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "llvm/include/llvm/ADT/APInt.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"     // from @llvm-project

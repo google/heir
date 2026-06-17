@@ -275,6 +275,21 @@ LogicalResult ConvertBasisOp::inferReturnTypes(
   return success();
 }
 
+// ConstantOp
+OpFoldResult ConstantOp::fold(FoldAdaptor adaptor) { return getValue(); }
+
+LogicalResult ConstantOp::verify() {
+  auto rnsAttr = dyn_cast<RNSAttr>(getValue());
+  if (!rnsAttr) {
+    return emitOpError() << "expected RNSAttr, but got " << getValue();
+  }
+  if (rnsAttr.getType() != getOutput().getType()) {
+    return emitOpError() << "expected attribute type " << rnsAttr.getType()
+                         << ", but got " << getOutput().getType();
+  }
+  return success();
+}
+
 }  // namespace rns
 }  // namespace heir
 }  // namespace mlir

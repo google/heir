@@ -1,8 +1,12 @@
 #include "lib/Dialect/RNS/IR/RNSAttributes.h"
 
-#include "mlir/include/mlir/IR/Attributes.h"   // from @llvm-project
-#include "mlir/include/mlir/IR/Diagnostics.h"  // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"    // from @llvm-project
+#include "lib/Dialect/RNS/IR/RNSOps.h"
+#include "lib/Dialect/RNS/IR/RNSTypes.h"
+#include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/OpImplementation.h"       // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -53,6 +57,33 @@ Attribute RNSAttr::parse(AsmParser& parser, Type type) {
   return RNSAttr::getChecked(
       [&]() { return parser.emitError(parser.getNameLoc()); },
       parser.getContext(), ArrayRef<Attribute>(attrValues), rnsType);
+}
+
+// LimbwiseAttrInterface
+::mlir::Attribute RNSAttr::assembleFromLimbs(
+    ::mlir::Type resultAttrType, ::llvm::ArrayRef< ::mlir::Attribute> limbs) {
+  auto rnsType = dyn_cast_if_present<RNSType>(resultAttrType);
+  if (!rnsType) return {};
+  return get(rnsType, limbs);
+}
+
+::mlir::Attribute RNSAttr::extractLimb(unsigned index) const {
+  return getValues()[index];
+}
+
+::mlir::Type RNSAttr::getLimbType(unsigned index) const {
+  return cast<RNSType>(getType()).getBasisTypes()[index];
+}
+
+unsigned RNSAttr::getNumLimbs() const { return getValues().size(); }
+
+::mlir::Operation* RNSAttr::materializeConstant(::mlir::OpBuilder& builder,
+                                                ::mlir::Location loc,
+                                                ::mlir::Type type) const {
+  auto rnsType = dyn_cast_if_present<RNSType>(type);
+  if (!rnsType) return nullptr;
+  auto op = rns::ConstantOp::create(builder, loc, rnsType, *this);
+  return op.getOperation();
 }
 
 }  // namespace rns

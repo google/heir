@@ -5,19 +5,22 @@
 
 #include "lib/Dialect/ModArith/IR/ModArithTypeInterfaces.h"
 #include "lib/Dialect/RNS/IR/RNSTypeInterfaces.h"
-#include "llvm/include/llvm/ADT/APInt.h"                // from @llvm-project
-#include "llvm/include/llvm/ADT/ArrayRef.h"             // from @llvm-project
-#include "llvm/include/llvm/ADT/STLFunctionalExtras.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/Diagnostics.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
+#include "llvm/include/llvm/ADT/APInt.h"                 // from @llvm-project
+#include "llvm/include/llvm/ADT/ArrayRef.h"              // from @llvm-project
+#include "llvm/include/llvm/ADT/STLFunctionalExtras.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/OpImplementation.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 
 namespace mlir {
 namespace heir {
-
 namespace rns {
+
+#include "lib/Dialect/RNS/IR/RNSTypeInterfaces.cpp.inc"
 
 LogicalResult RNSType::verify(
     llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
