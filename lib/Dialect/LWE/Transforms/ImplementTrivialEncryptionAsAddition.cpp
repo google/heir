@@ -126,8 +126,8 @@ func::FuncOp getOrCreateEncryptionOfZerosFunc(func::FuncOp parentFunc,
   builder.setInsertionPointToEnd(entryBlock);
 
   int numSlots;
-  auto numSlotsAttr = dyn_cast_or_null<IntegerAttr>(
-      module->getAttr(kRequestedSlotCountAttrName));
+  auto numSlotsAttr =
+      dyn_cast_or_null<IntegerAttr>(module->getAttr(kActualSlotCountAttrName));
   if (numSlotsAttr) {
     numSlots = numSlotsAttr.getInt();
   } else {
