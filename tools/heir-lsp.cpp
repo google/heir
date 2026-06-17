@@ -14,6 +14,7 @@
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
+#include "lib/Dialect/Preprocessing/IR/PreprocessingDialect.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "lib/Dialect/Random/IR/RandomDialect.h"
 #include "lib/Dialect/Rotom/IR/RotomDialect.h"
@@ -56,6 +57,7 @@ int main(int argc, char** argv) {
   registry.insert<mgmt::MgmtDialect>();
   registry.insert<random::RandomDialect>();
   registry.insert<openfhe::OpenfheDialect>();
+  registry.insert<preprocessing::PreprocessingDialect>();
   registry.insert<rns::RNSDialect>();
   registry.insert<rotom::RotomDialect>();
   registry.insert<secret::SecretDialect>();

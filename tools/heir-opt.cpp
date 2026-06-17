@@ -46,6 +46,8 @@
 #include "lib/Dialect/Polynomial/Conversions/PolynomialToModArith/PolynomialToModArith.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Dialect/Polynomial/Transforms/Passes.h"
+#include "lib/Dialect/Preprocessing/IR/PreprocessingDialect.h"
+#include "lib/Dialect/Preprocessing/Transforms/Passes.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "lib/Dialect/RNS/Transforms/Passes.h"
 #include "lib/Dialect/Random/IR/RandomDialect.h"
@@ -208,6 +210,7 @@ int main(int argc, char** argv) {
   registry.insert<random::RandomDialect>();
   registry.insert<orion::OrionDialect>();
   registry.insert<openfhe::OpenfheDialect>();
+  registry.insert<preprocessing::PreprocessingDialect>();
   registry.insert<rns::RNSDialect>();
   registry.insert<rotom::RotomDialect>();
   registry.insert<secret::SecretDialect>();
@@ -310,6 +313,7 @@ int main(int argc, char** argv) {
   mgmt::registerMgmtPasses();
   openfhe::registerOpenfhePasses();
   polynomial::registerPolynomialPasses();
+  preprocessing::registerPreprocessingPasses();
   rns::registerRNSPasses();
   rotom::registerRotomMaterializePasses();
   rotom::registerRotomSeedPasses();
