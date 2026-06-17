@@ -116,6 +116,24 @@ std::vector<APInt> factorize(APInt n) {
   if (n.ult(2)) return factors;
 
   unsigned width = n.getBitWidth();
+
+  // Fast path for 64-bit integers or smaller
+  if (n.getActiveBits() <= 64) {
+    uint64_t val = n.getZExtValue();
+    for (uint64_t d = 2; d * d <= val; ++d) {
+      if (val % d == 0) {
+        factors.push_back(APInt(width, d));
+        while (val % d == 0) {
+          val /= d;
+        }
+      }
+    }
+    if (val > 1) {
+      factors.push_back(APInt(width, val));
+    }
+    return factors;
+  }
+
   APInt d(width, 2);
   while (true) {
     APInt wide_d = d.zext(width * 2);

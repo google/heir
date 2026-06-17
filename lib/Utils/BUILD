@@ -188,6 +188,17 @@ cc_test(
 )
 
 cc_test(
+    name = "APIntUtilsBenchmark",
+    srcs = ["APIntUtilsBenchmark.cpp"],
+    deps = [
+        ":APIntUtils",
+        "@google_benchmark//:benchmark_main",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_test(
     name = "MathUtilsTest",
     srcs = ["MathUtilsTest.cpp"],
     deps = [
