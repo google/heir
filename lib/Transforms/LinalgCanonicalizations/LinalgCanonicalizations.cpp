@@ -1002,6 +1002,173 @@ struct DropCfAssertInLinalg : public OpRewritePattern<linalg::GenericOp> {
   }
 };
 
+// Rewrites a linalg.conv_1d_ncw_fcw operation with dilation > 1 into an
+// equivalent dilation=1 convolution This materializes the filter to insert
+// `dilation-1` zeros between the filter entries See
+// https://github.com/vdumoulin/conv_arithmetic/blob/af6f818b0bb396c26da79899554682a8a499101d/gif/dilation.gif
+// for a visualization of dilation
+struct UndilateConv1DNcwFcw
+    : public OpRewritePattern<mlir::linalg::Conv1DNcwFcwOp> {
+ public:
+  UndilateConv1DNcwFcw(MLIRContext* context)
+      : OpRewritePattern<mlir::linalg::Conv1DNcwFcwOp>(context) {}
+
+  using OpRewritePattern::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(mlir::linalg::Conv1DNcwFcwOp convOp,
+                                PatternRewriter& rewriter) const override {
+    auto dilations = convOp.getDilations();
+    if (!dilations)
+      return rewriter.notifyMatchFailure(convOp, "no dilations attribute");
+    int64_t d = *dilations.getValues<int64_t>().begin();
+
+    if (d == 1) return rewriter.notifyMatchFailure(convOp, "already undilated");
+
+    Value input = convOp.getInputs()[0];
+    Value filter = convOp.getInputs()[1];
+    auto filterTy = cast<RankedTensorType>(filter.getType());
+    if (!filterTy.hasStaticShape())
+      return rewriter.notifyMatchFailure(convOp, "dynamic filter shape");
+
+    // filter is (F, C, KW); dilation acts on KW. New KW' = d*(KW-1) + 1.
+    ArrayRef<int64_t> shape = filterTy.getShape();
+    int64_t f = shape[0], c = shape[1], kw = shape[2];
+    int64_t newKw = d * (kw - 1) + 1;
+    Type eltTy = filterTy.getElementType();
+    auto newFilterTy = filterTy.clone({f, c, newKw});
+
+    TypedAttr constAttr;
+    if (!matchPattern(filter, m_Constant(&constAttr)))
+      return rewriter.notifyMatchFailure(convOp, "filter must be a constant");
+
+    auto denseAttr = dyn_cast<DenseElementsAttr>(constAttr);
+
+    // handle denseResource
+    if (auto denseResourceAttr =
+            dyn_cast<DenseResourceElementsAttr>(constAttr)) {
+      const auto data = denseResourceAttr.getData();
+      // Limit size to avoid huge constants in IR.
+      if (data.size() > 1024 * 1024)
+        return rewriter.notifyMatchFailure(convOp,
+                                           "filter too large to undilate");
+      denseAttr = DenseElementsAttr::getFromRawBuffer(
+          denseResourceAttr.getType(), data);
+    }
+    if (!denseAttr)
+      return rewriter.notifyMatchFailure(
+          convOp, "filter constant must be a dense elements attribute");
+
+    SmallVector<Attribute> values(f * c * newKw, rewriter.getZeroAttr(eltTy));
+    auto inputValues = denseAttr.getValues<Attribute>();
+    for (int64_t fi = 0; fi < f; ++fi) {
+      for (int64_t ci = 0; ci < c; ++ci) {
+        for (int64_t ki = 0; ki < kw; ++ki) {
+          int64_t src = fi * (c * kw) + ci * kw + ki;
+          int64_t dst = fi * (c * newKw) + ci * newKw + ki * d;
+          values[dst] = inputValues[src];
+        }
+      }
+    }
+    Value newFilter = arith::ConstantOp::create(
+        rewriter, convOp.getLoc(), DenseElementsAttr::get(newFilterTy, values));
+
+    rewriter.replaceOpWithNewOp<linalg::Conv1DNcwFcwOp>(
+        convOp, convOp.getResultTypes(), ValueRange{input, newFilter},
+        ValueRange{convOp.getDpsInits()[0]}, convOp.getStrides(),
+        rewriter.getI64TensorAttr({1}));
+    return success();
+  }
+};
+
+// Rewrites a linalg.conv_2d_nchw_fchw operation with dilation > 1 into an
+// equivalent dilation=1 convolution This materializes the filter to insert
+// `dilation-1` zeros between the filter entries See
+// https://github.com/vdumoulin/conv_arithmetic/blob/af6f818b0bb396c26da79899554682a8a499101d/gif/dilation.gif
+// for a visualization of dilation
+struct UndilateConv2DNchwFchw
+    : public OpRewritePattern<mlir::linalg::Conv2DNchwFchwOp> {
+ public:
+  UndilateConv2DNchwFchw(MLIRContext* context)
+      : OpRewritePattern<mlir::linalg::Conv2DNchwFchwOp>(context) {}
+
+  using OpRewritePattern::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(mlir::linalg::Conv2DNchwFchwOp convOp,
+                                PatternRewriter& rewriter) const override {
+    auto dilations = convOp.getDilations();
+    if (!dilations)
+      return rewriter.notifyMatchFailure(convOp, "no dilations attribute");
+    SmallVector<int64_t> dilationValues =
+        llvm::to_vector(dilations.getValues<int64_t>());
+
+    int64_t dh = dilationValues[0];
+    int64_t dw =
+        (dilationValues.size() > 1) ? dilationValues[1] : dilationValues[0];
+
+    if (dh == 1 && dw == 1)
+      return rewriter.notifyMatchFailure(convOp, "already undilated");
+
+    Value input = convOp.getInputs()[0];
+    Value filter = convOp.getInputs()[1];
+    auto filterTy = cast<RankedTensorType>(filter.getType());
+    if (!filterTy.hasStaticShape())
+      return rewriter.notifyMatchFailure(convOp, "dynamic filter shape");
+
+    // filter is (F, C, KH, KW); dilation acts on (KH, KW).
+    // New KH' = dh*(KH-1) + 1 and KW' = dw*(KW-1) + 1.
+    ArrayRef<int64_t> shape = filterTy.getShape();
+    int64_t f = shape[0], c = shape[1], kh = shape[2], kw = shape[3];
+    int64_t newKh = dh * (kh - 1) + 1;
+    int64_t newKw = dw * (kw - 1) + 1;
+    Type eltTy = filterTy.getElementType();
+    auto newFilterTy = filterTy.clone({f, c, newKh, newKw});
+
+    TypedAttr constAttr;
+    if (!matchPattern(filter, m_Constant(&constAttr)))
+      return rewriter.notifyMatchFailure(convOp, "filter must be a constant");
+
+    auto denseAttr = dyn_cast<DenseElementsAttr>(constAttr);
+
+    // handle denseResource
+    if (auto denseResourceAttr =
+            dyn_cast<DenseResourceElementsAttr>(constAttr)) {
+      const auto data = denseResourceAttr.getData();
+      // Limit size to avoid huge constants in IR.
+      if (data.size() > 1024 * 1024)
+        return rewriter.notifyMatchFailure(convOp,
+                                           "filter too large to undilate");
+      denseAttr = DenseElementsAttr::getFromRawBuffer(
+          denseResourceAttr.getType(), data);
+    }
+    if (!denseAttr)
+      return rewriter.notifyMatchFailure(
+          convOp, "filter constant must be a dense elements attribute");
+
+    SmallVector<Attribute> values(f * c * newKh * newKw,
+                                  rewriter.getZeroAttr(eltTy));
+    auto inputValues = denseAttr.getValues<Attribute>();
+    for (int64_t fi = 0; fi < f; ++fi) {
+      for (int64_t ci = 0; ci < c; ++ci) {
+        for (int64_t khi = 0; khi < kh; ++khi) {
+          for (int64_t kwi = 0; kwi < kw; ++kwi) {
+            int64_t src = ((fi * c + ci) * kh + khi) * kw + kwi;
+            int64_t dst = ((fi * c + ci) * newKh + khi * dh) * newKw + kwi * dw;
+            values[dst] = inputValues[src];
+          }
+        }
+      }
+    }
+    Value newFilter = arith::ConstantOp::create(
+        rewriter, convOp.getLoc(), DenseElementsAttr::get(newFilterTy, values));
+
+    rewriter.replaceOpWithNewOp<linalg::Conv2DNchwFchwOp>(
+        convOp, convOp.getResultTypes(), ValueRange{input, newFilter},
+        ValueRange{convOp.getDpsInits()[0]}, convOp.getStrides(),
+        rewriter.getI64TensorAttr({1, 1}));
+    return success();
+  }
+};
+
 struct LinalgCanonicalizations
     : public impl::LinalgCanonicalizationsBase<LinalgCanonicalizations> {
   void runOnOperation() override {
@@ -1014,7 +1181,8 @@ struct LinalgCanonicalizations
         FoldConstantBroadcast, FoldConstantFill, FoldConstantLinalgTranspose,
         LinalgGenericToElementwise, LinalgMapToElementwise,
         MaterializeBroadcasts, RewriteAvgPoolAsConv1D, RewriteAvgPoolAsConv2D,
-        RewriteTransposedMatvec, RewriteTransposedVecmat>(context);
+        RewriteTransposedMatvec, RewriteTransposedVecmat, UndilateConv1DNcwFcw,
+        UndilateConv2DNchwFchw>(context);
 
     mlir::linalg::populateDecomposeProjectedPermutationPatterns(patterns);
 
