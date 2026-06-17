@@ -90,15 +90,24 @@ struct ConfigureCryptoContext
   LogicalResult generateGenFunc(func::FuncOp op, const std::string& genFuncName,
                                 ImplicitLocOpBuilder& builder) {
     Type ccType = CryptoContextType::get(builder.getContext());
+    Type pkType = PublicKeyType::get(builder.getContext());
+    Type skType = PrivateKeyType::get(builder.getContext());
+    Type ekType = EvalKeyType::get(builder.getContext());
+
+    SmallVector<Type> funcArgTypes = {pkType, skType, ekType};
     SmallVector<Type> funcResultTypes = {ccType};
 
     FunctionType genFuncType =
-        FunctionType::get(builder.getContext(), {}, funcResultTypes);
+        FunctionType::get(builder.getContext(), funcArgTypes, funcResultTypes);
     auto genFuncOp = func::FuncOp::create(builder, genFuncName, genFuncType);
     builder.setInsertionPointToEnd(genFuncOp.addEntryBlock());
 
+    Value publicKey = genFuncOp.getArgument(0);
+    Value secretKey = genFuncOp.getArgument(1);
+    Value evaluationKey = genFuncOp.getArgument(2);
+
     Value cryptoContext = GenParamsOp::create(
-        builder, ccType,
+        builder, ccType, publicKey, secretKey, evaluationKey,
         /*degree=*/static_cast<uint64_t>(config.degree),
         /*numSlots=*/static_cast<uint64_t>(config.numSlots),
         /*scalingFactor=*/llvm::APFloat(config.scalingFactor),
@@ -119,9 +128,8 @@ struct ConfigureCryptoContext
                                    const std::string& configFuncName,
                                    ImplicitLocOpBuilder& builder) {
     Type ccType = CryptoContextType::get(builder.getContext());
-    Type skType = PrivateKeyType::get(builder.getContext());
 
-    SmallVector<Type> funcArgTypes = {ccType, skType};
+    SmallVector<Type> funcArgTypes = {ccType};
     SmallVector<Type> funcResultTypes;
 
     FunctionType configFuncType =
@@ -131,10 +139,9 @@ struct ConfigureCryptoContext
     builder.setInsertionPointToEnd(configFuncOp.addEntryBlock());
 
     Value cryptoContext = configFuncOp.getArgument(0);
-    Value secretKey = configFuncOp.getArgument(1);
 
     ProgramInitializationOp::create(
-        builder, cryptoContext, secretKey,
+        builder, cryptoContext,
         /*totalHemulLevels=*/static_cast<int64_t>(config.mulDepth),
         /*totalRotationIndices=*/config.rotIndices,
         /*dnum=*/config.dnum,
