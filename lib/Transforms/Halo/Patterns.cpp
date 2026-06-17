@@ -443,12 +443,12 @@ OpOperand* getOpOperandForwardingToOpResult(RegionBranchOpInterface op,
                                             Value predecessor,
                                             OpResult result) {
   for (auto user : predecessor.getUsers()) {
-    if (auto op = dyn_cast<RegionBranchTerminatorOpInterface>(user)) {
+    if (auto terminatorOp = dyn_cast<RegionBranchTerminatorOpInterface>(user)) {
       OperandRange succOperands =
-          op.getSuccessorOperands(RegionSuccessor::parent());
+          terminatorOp.getSuccessorOperands(RegionSuccessor(op.getOperation()));
       unsigned operandIndex =
           succOperands.getBeginOperandIndex() + result.getResultNumber();
-      return &op->getOpOperand(operandIndex);
+      return &terminatorOp->getOpOperand(operandIndex);
     }
   }
   return nullptr;

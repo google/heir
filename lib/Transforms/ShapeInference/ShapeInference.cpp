@@ -59,7 +59,7 @@ void handleInterface(RegionBranchOpInterface regionBranchOp) {
   for (auto& successor : successors) {
     // We are interested in successor _regions_ here,
     // so ignore if the op has a control-flow edge loop to itself
-    if (successor.isParent()) continue;
+    if (successor.isOperation()) continue;
 
     LLVM_DEBUG(llvm::dbgs() << "ShapeInference:\t\t\tfound region successor: "
                             << successor.getSuccessor()->getLoc() << "\n");
@@ -114,7 +114,7 @@ void handleInterface(RegionBranchTerminatorOpInterface terminator) {
     auto successorOperands = terminator.getSuccessorOperands(successor);
 
     // Special case: the "return/yield" back to the parent op
-    if (successor.isParent()) {
+    if (successor.isOperation()) {
       LLVM_DEBUG(llvm::dbgs()
                  << "ShapeInference:\t\t\tfound parent successor\n");
       /// The RegionBranchTerminatorOpInterface requires that

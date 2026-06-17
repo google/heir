@@ -124,8 +124,8 @@ void GenericOp::print(OpAsmPrinter& p) {
 }
 
 ValueRange GenericOp::getSuccessorInputs(RegionSuccessor successor) {
-  return successor.isParent() ? ValueRange(getResults())
-                              : ValueRange(getBodyRegion().getArguments());
+  return successor.isOperation() ? ValueRange(getResults())
+                                 : ValueRange(getBodyRegion().getArguments());
 }
 
 static ParseResult parseCommonStructuredOpParts(
@@ -794,7 +794,7 @@ void GenericOp::getSuccessorRegions(RegionBranchPoint point,
   if (point == RegionBranchPoint::parent()) {
     regions.push_back(RegionSuccessor(&getRegion()));
   } else {
-    regions.push_back(RegionSuccessor::parent());
+    regions.push_back(RegionSuccessor(getOperation()));
   }
 }
 

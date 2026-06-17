@@ -913,7 +913,7 @@ struct HoistMgmtAttrToRegionBranchOpInterface
 
       LDBG() << "Processing successors.";
       for (auto& successor : successors) {
-        if (successor.isParent()) {
+        if (successor.isOperation()) {
           auto successorOperands =
               branchTerminator.getSuccessorOperands(successor);
           // For most ops (like scf.if, scf.for), the successor operands
