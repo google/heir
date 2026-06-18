@@ -1118,6 +1118,11 @@ LogicalResult LattigoEmitter::printOperation(memref::GlobalOp op) {
     return op.emitError("memref.global must have an initial value");
   }
 
+  if (auto resourceAttr = dyn_cast<DenseResourceElementsAttr>(initAttr)) {
+    initAttr = DenseElementsAttr::getFromRawBuffer(resourceAttr.getType(),
+                                                   resourceAttr.getData());
+  }
+
   if (auto denseAttr = dyn_cast<DenseElementsAttr>(initAttr)) {
     if (denseAttr.isSplat()) {
       imports.insert(std::string(kSlicesImport));

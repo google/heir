@@ -4,6 +4,9 @@ module attributes {backend.lattigo, scheme.ckks} {
 
 memref.global "private" constant @__constant_1024xf32 : memref<1024xf32> = dense<1.000000e+00>
 
+// CHECK: var __constant_4xi32 = []int32{1, 2, 3, 4}
+memref.global "private" constant @__constant_4xi32 : memref<4xi32> = dense_resource<weights>
+
 // CHECK: func test_memref(_ []float32) ([]float32, int64) {
 func.func @test_memref(%arg0: memref<1024xf32>) -> (memref<1024xf32>, index) {
   %c0 = arith.constant 0 : index
@@ -48,6 +51,12 @@ func.func @test_shape(%arg0: memref<1024xf32>) -> memref<1024xf32> {
   return %collapse : memref<1024xf32>
 }
 
-
-
 }
+
+{-#
+  dialect_resources: {
+    builtin: {
+      weights: "0x4000000001000000020000000300000004000000"
+    }
+  }
+#-}
