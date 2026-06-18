@@ -1,5 +1,6 @@
 """Polynomial data structure."""
 
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
@@ -134,5 +135,68 @@ cc_test(
         "@fuzztest//fuzztest",
         "@googletest//:gtest_main",
         "@heir//lib/Kernel:AbstractValue",
+    ],
+)
+
+cc_library(
+    name = "NTT",
+    srcs = ["NTT.cpp"],
+    hdrs = ["NTT.h"],
+    deps = [
+        "@com_google_absl//absl/numeric:int128",
+        "@heir//lib/Utils:APIntUtils",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+cc_test(
+    name = "NTTTest",
+    srcs = ["NTTTest.cpp"],
+    deps = [
+        ":NTT",
+        "@googletest//:gtest_main",
+        "@heir//lib/Utils:MathUtils",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+cc_test(
+    name = "OpenFHEEquivalenceTest",
+    srcs = ["OpenFHEEquivalenceTest.cpp"],
+    deps = [
+        ":NTT",
+        ":Polynomial",
+        "@googletest//:gtest_main",
+        "@heir//lib/Utils:MathUtils",
+        "@llvm-project//llvm:Support",
+        "@openfhe//:core",
+        "@openfhe//:pke",
+    ],
+)
+
+cc_test(
+    name = "OpenFHEEquivalenceFuzzTest",
+    srcs = ["OpenFHEEquivalenceFuzzTest.cpp"],
+    deps = [
+        ":NTT",
+        "@fuzztest//fuzztest",
+        "@googletest//:gtest_main",
+        "@heir//lib/Utils:MathUtils",
+        "@llvm-project//llvm:Support",
+        "@openfhe//:core",
+        "@openfhe//:pke",
+    ],
+)
+
+cc_binary(
+    name = "ntt_benchmark",
+    srcs = ["ntt_benchmark.cpp"],
+    deps = [
+        ":NTT",
+        "@google_benchmark//:benchmark_main",
+        "@heir//lib/Utils:MathUtils",
+        "@llvm-project//llvm:Support",
+        "@openfhe//:core",
+        "@openfhe//:pke",
     ],
 )
