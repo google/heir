@@ -1,6 +1,7 @@
 #include "lib/Analysis/ScaleAnalysis/ScaleAnalysis.h"
 
 #include <cassert>
+#include <cmath>
 #include <cstdint>
 #include <functional>
 
@@ -85,21 +86,23 @@ int64_t CKKSScaleModel::evalMulScaleBackward(const ckks::LocalParam& param,
 int64_t CKKSScaleModel::evalModReduceScale(const ckks::LocalParam& inputParam,
                                            int64_t scale) {
   const auto* schemeParam = inputParam.getSchemeParam();
-  // TODO(#1640): rescale using logqi instead of logDefaultScale
-  // auto logqi = schemeParam->getLogqi();
-  // auto level = inputParam.getCurrentLevel();
-  auto logDefaultScale = schemeParam->getLogDefaultScale();
-  return scale - logDefaultScale;
+  auto level = inputParam.getCurrentLevel();
+  const auto& logqi = schemeParam->getLogqi();
+  if (level >= 0 && level < static_cast<int>(logqi.size())) {
+    return scale - static_cast<int64_t>(std::llround(logqi[level]));
+  }
+  return scale - schemeParam->getLogDefaultScale();
 }
 
 int64_t CKKSScaleModel::evalModReduceScaleBackward(
     const ckks::LocalParam& inputParam, int64_t resultScale) {
   const auto* schemeParam = inputParam.getSchemeParam();
-  // TODO(#1640): rescale using logqi instead of logDefaultScale
-  // auto logqi = schemeParam->getLogqi();
-  // auto level = inputParam.getCurrentLevel();
-  auto logDefaultScale = schemeParam->getLogDefaultScale();
-  return resultScale + logDefaultScale;
+  auto level = inputParam.getCurrentLevel();
+  const auto& logqi = schemeParam->getLogqi();
+  if (level >= 0 && level < static_cast<int>(logqi.size())) {
+    return resultScale + static_cast<int64_t>(std::llround(logqi[level]));
+  }
+  return resultScale + schemeParam->getLogDefaultScale();
 }
 
 //===----------------------------------------------------------------------===//
