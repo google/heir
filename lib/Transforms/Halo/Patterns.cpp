@@ -201,26 +201,11 @@ FailureOr<SmallVector<Value>> isLoopStructuredForHaloUnroll(
 // Inject an scf::ForOp overload of this function, which exists upstream for
 // affine already.
 FailureOr<int64_t> getConstantTripCount(scf::ForOp forOp) {
-  if (auto step = forOp.getConstantStep();
-      !step.has_value() || !step->isOne()) {
-    if (step.has_value()) {
-      return failure();
-    }
+  std::optional<APInt> maybeTripCount = forOp.getStaticTripCount();
+  if (!maybeTripCount.has_value()) {
     return failure();
   }
-  APInt lowerBound;
-  if (!matchPattern(forOp.getLowerBound(), m_ConstantInt(&lowerBound))) {
-    return failure();
-  }
-
-  APInt upperBound;
-  if (!matchPattern(forOp.getUpperBound(), m_ConstantInt(&upperBound))) {
-    return failure();
-  }
-
-  int64_t result = (upperBound - lowerBound).getLimitedValue();
-  LLVM_DEBUG(llvm::dbgs() << "Found constant trip count " << result << "\n");
-  return result;
+  return maybeTripCount->getSExtValue();
 }
 
 template <typename ForOp>
