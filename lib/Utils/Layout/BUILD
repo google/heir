@@ -35,8 +35,10 @@ cc_test(
         "@googletest//:gtest_main",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",  # build_cleaner: keep
         "@heir//lib/Dialect/TensorExt/IR:TensorExtAttributes",
+        "@llvm-project//mlir:AffineAnalysis",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:AsmParser",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:SCFDialect",
@@ -77,6 +79,20 @@ cc_library(
 )
 
 cc_library(
+    name = "ConvolutionTestUtil",
+    testonly = 1,
+    srcs = ["ConvolutionTestUtil.cpp"],
+    hdrs = ["ConvolutionTestUtil.h"],
+    deps = [
+        ":Convolution",
+        ":Utils",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
     name = "Evaluate",
     srcs = ["Evaluate.cpp"],
     hdrs = ["Evaluate.h"],
@@ -93,6 +109,7 @@ cc_test(
     srcs = ["EvaluateTest.cpp"],
     deps = [
         ":Convolution",
+        ":ConvolutionTestUtil",
         ":Evaluate",
         ":IslConversion",
         ":Utils",
@@ -114,9 +131,11 @@ cc_test(
         "@heir//lib/Utils:TensorUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:ArithUtils",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
     ],
 )
 
@@ -125,6 +144,7 @@ cc_test(
     srcs = ["ConvolutionTest.cpp"],
     deps = [
         ":Convolution",
+        ":ConvolutionTestUtil",
         ":Evaluate",
         ":Utils",
         "@googletest//:gtest_main",

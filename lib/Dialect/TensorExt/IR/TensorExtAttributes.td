@@ -63,6 +63,8 @@ def TensorExt_LayoutAttr : TensorExt_Attr<"Layout", "layout"> {
 
     static LayoutAttr getFromIntegerRelation(
       ::mlir::MLIRContext* context, const presburger::IntegerRelation &relation);
+
+    static LayoutAttr composeLayouts(::mlir::ArrayAttr arrayAttr, ::mlir::MLIRContext* context);
   }];
 }
 

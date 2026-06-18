@@ -2,6 +2,7 @@
 #define LIB_UTILS_LAYOUT_CONVOLUTION_H_
 
 #include <cstdint>
+#include <vector>
 
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
@@ -87,19 +88,16 @@ FailureOr<presburger::IntegerRelation> get1dConvCwFcwFilterDiagonalizedRelation(
     RankedTensorType filterType, RankedTensorType dataType, int64_t stride,
     int64_t padding, int64_t ciphertextSize, bool interchangeRows = true);
 
-// Returns an IntegerRelation that represents a diagonalized 2-D Toeplitz matrix
-// that is used to compute a 2-D multichannel convolution filter such that the
-// convolution is equivalent a matrix product with the flattened multichannel
-// input vector. Each row corresponds to one filter multiplication. The filter
-// type is assumed to be 4-D with dimensions (f, c, h, w) and the data type is
-// assumed to be 3-D with dimensions (c, h, w).
-FailureOr<presburger::IntegerRelation>
-get2dConvChwFchwFilterDiagonalizedRelation(RankedTensorType filterType,
-                                           RankedTensorType dataType,
-                                           ArrayRef<int64_t> strides,
-                                           int64_t padding,
-                                           int64_t ciphertextSize,
-                                           bool interchangeRows = true);
+// Returns a sequence of IntegerRelations that represents the layout mapping as
+// a series of simple steps (Toeplitz expansion, row interchange, flattening,
+// diagonalization). This is preferred for compilation performance to avoid ISL
+// hangs when generating loops.
+FailureOr<std::vector<presburger::IntegerRelation>>
+get2dConvChwFchwFilterAsSequence(RankedTensorType filterType,
+                                 RankedTensorType dataType,
+                                 ArrayRef<int64_t> strides, int64_t padding,
+                                 int64_t ciphertextSize,
+                                 bool interchangeRows = true);
 
 // Returns an IntegerRelation for a row-interchange map that optimizes the
 // diagonal structure of a convolution's Toeplitz matrix.
@@ -139,9 +137,14 @@ presburger::IntegerRelation get1dConvResultRelation(
 // Returns an IntegerRelation that corresponds to the output layout of a 2-D
 // multi-channel convolution. This includes the row interchange from pixel
 // shuffling. The result is a relation mapping to (ct, slot) of the output.
-presburger::IntegerRelation get2dConvResultRelation(
-    RankedTensorType outputType, ArrayRef<int64_t> strides, int64_t padding,
-    int64_t ciphertextSize, bool interchangeRows = true);
+presburger::IntegerRelation get2dConvResultRelation(RankedTensorType outputType,
+                                                    ArrayRef<int64_t> strides,
+                                                    int64_t padding,
+                                                    int64_t ciphertextSize);
+
+presburger::IntegerRelation get2dConvRowInterchangeLayoutRelation(
+    RankedTensorType outputType, ArrayRef<int64_t> strides,
+    int64_t ciphertextSize);
 
 }  // namespace heir
 }  // namespace mlir

@@ -182,6 +182,12 @@ struct LayoutMaterializationTypeConverter
     // query it at call time. I have no idea why C++ does this. Debugging it
     // felt like having a stroke.
     addConversion([&](Type type, Attribute attr) { return std::nullopt; });
+    addConversion([this](Type type, ArrayAttr attr) -> std::optional<Type> {
+      auto composedAttr = LayoutAttr::composeLayouts(attr, type.getContext());
+      auto converted = this->convertType(type, composedAttr);
+      if (!converted) return std::nullopt;
+      return converted;
+    });
     addConversion([this](secret::SecretType type,
                          LayoutAttr attr) -> std::optional<Type> {
       auto innerType = type.getValueType();
@@ -263,7 +269,7 @@ struct ConvertFunc : public ContextAwareFuncConversion {
       setMaterializedAttr(op);
       for (int i = 0; i < op.getNumArguments(); ++i) {
         auto layoutAttr = op.getArgAttr(i, kLayoutAttrName);
-        if (!layoutAttr || !isa<LayoutAttr>(layoutAttr)) {
+        if (!layoutAttr || !isa<LayoutAttr, ArrayAttr>(layoutAttr)) {
           continue;
         }
 
@@ -275,7 +281,7 @@ struct ConvertFunc : public ContextAwareFuncConversion {
 
       for (int i = 0; i < op.getNumResults(); ++i) {
         auto layoutAttr = op.getResultAttr(i, kLayoutAttrName);
-        if (!layoutAttr || !isa<LayoutAttr>(layoutAttr)) {
+        if (!layoutAttr || !isa<LayoutAttr, ArrayAttr>(layoutAttr)) {
           continue;
         }
 
@@ -362,6 +368,15 @@ class ConvertAssignLayout
     auto resultLayout = findAttributeAssociatedWith(
         op.getResult(), tensor_ext::TensorExtDialect::kLayoutAttrName);
     if (failed(resultLayout)) return failure();
+    Attribute resLayout = resultLayout.value();
+    if (auto arrayAttr = dyn_cast<ArrayAttr>(resLayout)) {
+      if (arrayAttr.empty() || !isa<LayoutAttr>(arrayAttr.getValue().front())) {
+        return failure();
+      }
+    } else if (!isa<LayoutAttr>(resLayout) &&
+               !isa<DenseIntElementsAttr>(resLayout)) {
+      return failure();
+    }
 
     FunctionKey key(layout, inputType, resultType);
 
@@ -373,7 +388,7 @@ class ConvertAssignLayout
       func::CallOp call = rewriter.replaceOpWithNewOp<func::CallOp>(
           op, func, ValueRange{adaptor.getValue()});
       setMaterializedAttr(call);
-      call->setAttr(kLayoutAttrName, finalLayout);
+      call->setAttr(kLayoutAttrName, resultLayout.value());
       return success();
     }
 
@@ -621,7 +636,7 @@ class ConversionBase : public ContextAwareOpConversionPattern<OpTy> {
   Value materializeKernel(ContextAwareConversionPatternRewriter& rewriter,
                           Location loc,
                           std::shared_ptr<ArithmeticDagNode<SSAValue>> kernel,
-                          Type convertedType, LayoutAttr layoutAttr) const {
+                          Type convertedType, Attribute layoutAttr) const {
     IRMaterializingVisitor visitor(convertedType, [&](Operation* createdOp) {
       setMaterializedAttr(createdOp);
     });
@@ -637,7 +652,7 @@ class ConversionBase : public ContextAwareOpConversionPattern<OpTy> {
 
   void addBiasAndReplace(ContextAwareConversionPatternRewriter& rewriter,
                          Operation* op, Value finalOutput, Value acc,
-                         LayoutAttr layoutAttr) const {
+                         Attribute layoutAttr) const {
     ImplicitLocOpBuilder b(op->getLoc(), rewriter);
     Operation* addBias =
         makeAppropriatelyTypedAddOp(b, op->getLoc(), finalOutput, acc);
@@ -1140,11 +1155,10 @@ struct ConvertLinalgConv1DNcwFcw
 
     PointCollector collector;
     std::map<int, bool> zeroDiagonals;
-    // TODO(#2897): Enable this one row interchange is supported.
-    //   getCtComplementPoints(filterRelation, collector, matrix.getType());
-    //   for (const auto& point : collector.points) {
-    //     zeroDiagonals[point[0]] = true;
-    //   }
+    getCtComplementPoints(filterRelation, collector, matrix.getType());
+    for (const auto& point : collector.points) {
+      zeroDiagonals[point[0]] = true;
+    }
 
     auto dagType = kernel::mlirTypeToDagType(data.getType(),
                                              data.getType().getShape().back());
@@ -1256,11 +1270,10 @@ struct ConvertLinalgConv2DNchwFchw
 
     PointCollector collector;
     std::map<int, bool> zeroDiagonals;
-    // TODO(#2897): Enable this one row interchange is supported.
-    //   getCtComplementPoints(filterRelation, collector, matrix.getType());
-    //   for (const auto& point : collector.points) {
-    //     zeroDiagonals[point[0]] = true;
-    //   }
+    getCtComplementPoints(filterRelation, collector, matrix.getType());
+    for (const auto& point : collector.points) {
+      zeroDiagonals[point[0]] = true;
+    }
 
     auto dagType = kernel::mlirTypeToDagType(data.getType(),
                                              data.getType().getShape().back());
@@ -1272,7 +1285,7 @@ struct ConvertLinalgConv2DNchwFchw
 
     rewriter.setInsertionPointAfter(op);
 
-    auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
+    auto layoutAttr = op->getAttr(kLayoutAttrName);
     Value finalOutput = materializeKernel(
         rewriter, op.getLoc(), implementedKernel, data.getType(), layoutAttr);
 

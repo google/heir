@@ -50,20 +50,21 @@ static std::string printRelation(const IntegerRelation& rel) {
   return str;
 }
 
-static FailureOr<Value> implementUnpackOpNew(
-    tensor_ext::UnpackOp op, ImplicitLocOpBuilder& builder,
+static FailureOr<Value> implementUnpackOpStep(
+    Value input, LayoutAttr layout, Type targetType,
+    ImplicitLocOpBuilder& builder,
     const std::function<void(Operation*)>& createdOpCallback) {
-  LayoutAttr layout = cast<LayoutAttr>(op.getLayout());
   IntegerRelation rel = layout.getIntegerRelation();
+  LLVM_DEBUG(llvm::dbgs() << "implementUnpackOpStep with layout: " << layout
+                          << " targetType: " << targetType << "\n");
 
-  RankedTensorType unpackedTensorType =
-      dyn_cast<RankedTensorType>(op.getResult().getType());
+  RankedTensorType unpackedTensorType = dyn_cast<RankedTensorType>(targetType);
 
   if (!unpackedTensorType) {
     // it's a scalar, so we can extract from any slot in the mapping
     std::vector<int64_t> point = anyRangePoint(rel);
     if (point.empty()) {
-      return op.emitError()
+      return builder.emitError()
              << "Failed to find any point in the range of relation "
              << printRelation(rel);
     }
@@ -72,24 +73,28 @@ static FailureOr<Value> implementUnpackOpNew(
     for (int64_t idx : point) {
       indices.push_back(arith::ConstantIndexOp::create(builder, idx));
     }
-    auto extractOp = tensor::ExtractOp::create(builder, op.getValue(), indices);
+    auto extractOp = tensor::ExtractOp::create(builder, input, indices);
     createdOpCallback(extractOp);
     return extractOp.getResult();
   }
 
+  SmallVector<int> domainSchedule;
+  for (unsigned i = 0; i < rel.getNumDomainVars(); ++i) {
+    domainSchedule.push_back(i);
+  }
+
   MLIRLoopNestGenerator generator(builder);
-  auto loopNestCstr = generateLoopNestAsCStr(rel);
+  auto loopNestCstr = generateLoopNestAsCStr(rel, domainSchedule);
   if (failed(loopNestCstr)) {
-    return op.emitError() << "Failed to generate loop nest for relation "
-                          << printRelation(rel);
+    return builder.emitError() << "Failed to generate loop nest for relation "
+                               << printRelation(rel);
   }
   LLVM_DEBUG(llvm::dbgs() << "Generating loop nest assignment for relation "
                           << loopNestCstr.value() << "\n");
 
   TypedValue<RankedTensorType> ciphertextTensor =
-      cast<TypedValue<RankedTensorType>>(op.getValue());
-  RankedTensorType dataSemanticType =
-      cast<RankedTensorType>(op.getResult().getType());
+      cast<TypedValue<RankedTensorType>>(input);
+  RankedTensorType dataSemanticType = unpackedTensorType;
 
   auto dataTensor = cast<TypedValue<RankedTensorType>>(
       mlir::arith::ConstantOp::create(builder,
@@ -117,11 +122,11 @@ static FailureOr<Value> implementUnpackOpNew(
                                                  iterArgs[0], insertIndices);
         return scf::ValueVector({inserted});
       },
-      /*domainIndicesToSchedule=*/{},
+      domainSchedule,
       /*reverse=*/true);
   if (failed(loop)) {
-    return op.emitError() << "Failed to generate loop nest for relation "
-                          << printRelation(rel);
+    return builder.emitError() << "Failed to generate loop nest for relation "
+                               << printRelation(rel);
   }
   createdOpCallback(loop.value());
   return loop.value().getResults()[0];
@@ -191,33 +196,32 @@ static FailureOr<Value> implementAssignLayoutPermutation(
   return result;
 }
 
+static FailureOr<Type> getIntermediateTargetType(
+    Type elementType, LayoutAttr layout, ImplicitLocOpBuilder& builder) {
+  presburger::IntegerRelation rel = layout.getIntegerRelation();
+  unsigned numRangeVars = rel.getNumRangeVars();
+  SmallVector<int64_t> targetShape;
+  for (unsigned j = 0; j < numRangeVars; ++j) {
+    auto ub = rel.getConstantBound64(
+        presburger::BoundType::UB,
+        rel.getVarKindOffset(presburger::VarKind::Range) + j);
+    if (!ub.has_value()) {
+      return builder.emitError() << "Unbounded range variable in relation";
+    }
+    targetShape.push_back(ub.value() + 1);
+  }
+  return RankedTensorType::get(targetShape, elementType);
+}
+
 static FailureOr<Value> implementAssignLayoutStep(
-    Value input, LayoutAttr layout, int64_t ciphertextSize,
+    Value input, LayoutAttr layout, Type targetTypeTy,
     ImplicitLocOpBuilder& builder,
     const std::function<void(Operation*)>& createdOpCallback, bool isLast,
     ArrayRef<int64_t> domainSchedule = {}) {
   presburger::IntegerRelation rel = layout.getIntegerRelation();
-
+  RankedTensorType targetType = cast<RankedTensorType>(targetTypeTy);
   auto elementType = getElementTypeOrSelf(input.getType());
-  RankedTensorType targetType;
   unsigned numRangeVars = rel.getNumRangeVars();
-  if (isLast) {
-    Type materializedTy =
-        materializeLayout(elementType, layout, ciphertextSize);
-    targetType = cast<RankedTensorType>(materializedTy);
-  } else {
-    SmallVector<int64_t> targetShape;
-    for (unsigned i = 0; i < numRangeVars; ++i) {
-      auto ub = rel.getConstantBound64(
-          presburger::BoundType::UB,
-          rel.getVarKindOffset(presburger::VarKind::Range) + i);
-      if (!ub.has_value()) {
-        return builder.emitError() << "Unbounded range variable in relation";
-      }
-      targetShape.push_back(ub.value() + 1);
-    }
-    targetType = RankedTensorType::get(targetShape, elementType);
-  }
 
   auto dataSemanticType = dyn_cast<RankedTensorType>(input.getType());
   if (dataSemanticType) {
@@ -229,6 +233,10 @@ static FailureOr<Value> implementAssignLayoutStep(
                    dataSemanticType.getDimSize(i) - 1);
     }
   }
+
+  LLVM_DEBUG(llvm::dbgs() << "implementAssignLayoutStep on input: "
+                          << input.getType() << " with layout: " << layout
+                          << " targetType: " << targetType << "\n");
 
   // If the input is a constant zero, then the output will be a constant zero
   // since we zero-fill slots.
@@ -387,8 +395,18 @@ FailureOr<Value> implementAssignLayout(
                << "All layouts in the array must be LayoutAttr";
       }
       bool isLast = (i == arrayAttr.size() - 1);
+      Type targetType;
+      auto elementType = getElementTypeOrSelf(currentInput.getType());
+      if (isLast) {
+        targetType = materializeLayout(elementType, layoutAttr, ciphertextSize);
+      } else {
+        auto intermediateType =
+            getIntermediateTargetType(elementType, layoutAttr, builder);
+        if (failed(intermediateType)) return failure();
+        targetType = intermediateType.value();
+      }
       auto result =
-          implementAssignLayoutStep(currentInput, layoutAttr, ciphertextSize,
+          implementAssignLayoutStep(currentInput, layoutAttr, targetType,
                                     builder, createdOpCallback, isLast);
       if (failed(result)) {
         return failure();
@@ -399,7 +417,10 @@ FailureOr<Value> implementAssignLayout(
   }
 
   if (LayoutAttr layoutAttr = dyn_cast<LayoutAttr>(layout)) {
-    return implementAssignLayoutStep(input, layoutAttr, ciphertextSize, builder,
+    auto elementType = getElementTypeOrSelf(input.getType());
+    Type targetType =
+        materializeLayout(elementType, layoutAttr, ciphertextSize);
+    return implementAssignLayoutStep(input, layoutAttr, targetType, builder,
                                      createdOpCallback, /*isLast=*/true,
                                      domainSchedule);
   } else if (DenseIntElementsAttr elementAttr =
@@ -414,11 +435,51 @@ FailureOr<Value> implementUnpackOp(
     tensor_ext::UnpackOp op, ImplicitLocOpBuilder& builder,
     const std::function<void(Operation*)>& createdOpCallback) {
   OpBuilder::InsertionGuard guard(builder);
-  if (isa<LayoutAttr>(op.getLayout())) {
-    return implementUnpackOpNew(op, builder, createdOpCallback);
+  if (auto layoutAttr = dyn_cast<LayoutAttr>(op.getLayout())) {
+    return implementUnpackOpStep(op.getValue(), layoutAttr,
+                                 op.getResult().getType(), builder,
+                                 createdOpCallback);
   }
 
-  return failure();
+  if (auto arrayAttr = dyn_cast<ArrayAttr>(op.getLayout())) {
+    Value currentInput = op.getValue();
+    Type finalTargetType = op.getResult().getType();
+
+    for (int i = arrayAttr.size() - 1; i >= 0; --i) {
+      auto layoutAttr = cast<LayoutAttr>(arrayAttr[i]);
+      Type stepTargetType;
+      if (i == 0) {
+        stepTargetType = finalTargetType;
+      } else {
+        presburger::IntegerRelation rel = layoutAttr.getIntegerRelation();
+        unsigned numDomainVars = rel.getNumDomainVars();
+        SmallVector<int64_t> domainShape;
+        for (unsigned d = 0; d < numDomainVars; ++d) {
+          auto ub = rel.getConstantBound64(
+              presburger::BoundType::UB,
+              rel.getVarKindOffset(presburger::VarKind::Domain) + d);
+          if (!ub.has_value()) {
+            return builder.emitError()
+                   << "Unbounded domain variable in relation";
+          }
+          domainShape.push_back(ub.value() + 1);
+        }
+        Type elementType = getElementTypeOrSelf(finalTargetType);
+        stepTargetType = RankedTensorType::get(domainShape, elementType);
+      }
+
+      auto res = implementUnpackOpStep(currentInput, layoutAttr, stepTargetType,
+                                       builder, createdOpCallback);
+      if (failed(res)) {
+        return failure();
+      }
+      currentInput = res.value();
+    }
+    return currentInput;
+  }
+
+  return builder.emitError()
+         << "Unsupported layout attribute type: " << op.getLayout();
 }
 
 }  // namespace heir

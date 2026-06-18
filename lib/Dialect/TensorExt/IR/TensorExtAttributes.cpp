@@ -62,6 +62,18 @@ LayoutAttr LayoutAttr::getFromIntegerRelation(::mlir::MLIRContext* context,
   return LayoutAttr::get(context, layoutStr);
 }
 
+LayoutAttr LayoutAttr::composeLayouts(::mlir::ArrayAttr arrayAttr,
+                                      ::mlir::MLIRContext* context) {
+  auto layoutAttrs = arrayAttr.getAsRange<LayoutAttr>();
+  auto it = layoutAttrs.begin();
+  IntegerRelation composedRel = (*it).getIntegerRelation();
+  ++it;
+  for (; it != layoutAttrs.end(); ++it) {
+    composedRel.compose((*it).getIntegerRelation());
+  }
+  return LayoutAttr::getFromIntegerRelation(context, composedRel);
+}
+
 }  // namespace tensor_ext
 }  // namespace heir
 }  // namespace mlir
