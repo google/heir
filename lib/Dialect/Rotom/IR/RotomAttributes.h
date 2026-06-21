@@ -17,6 +17,12 @@ namespace mlir::heir::rotom {
 
 enum class LayoutPieceKind { Traversal, Replication, Gap };
 
+// Per-piece role for a dimension that straddles the ciphertext/slot boundary
+// (its low `straddleSlotExtent` values occupy slots, its high values index
+// ciphertexts). The high piece sits in the ciphertext segment and the low piece
+// in the slot segment; both reference the same traversal dim (one domain var).
+enum class StraddleRole { None, High, Low };
+
 struct LayoutData {
   int64_t n;
   int64_t ctPrefixLen;
@@ -26,6 +32,11 @@ struct LayoutData {
   llvm::SmallVector<DimAttr> gapDims;
   llvm::SmallVector<LayoutPieceKind> pieces;
   llvm::SmallVector<int64_t> pieceIndex;
+  // Parallel to `pieces`: the straddle role of each piece (None for all pieces
+  // unless a dimension spans the ct/slot boundary).
+  llvm::SmallVector<StraddleRole> pieceStraddle;
+  // The slot extent of the straddling dim (the low part); 0 if none straddles.
+  int64_t straddleSlotExtent = 0;
 };
 
 /// Preprocess a Rotom layout.

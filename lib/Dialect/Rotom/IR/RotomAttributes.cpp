@@ -22,7 +22,9 @@ namespace rotom {
 
 namespace {
 
-static size_t inferCtPrefixLen(ArrayRef<DimAttr> dims, int64_t n) {
+static size_t inferCtPrefixLen(ArrayRef<DimAttr> dims, int64_t n,
+                               int64_t& straddleSlotExtent) {
+  straddleSlotExtent = 0;
   int64_t nRem = n;
   size_t i = dims.size();
   while (i > 0) {
@@ -35,9 +37,16 @@ static size_t inferCtPrefixLen(ArrayRef<DimAttr> dims, int64_t n) {
       --i;
       continue;
     }
+    // A traversal dim larger than the remaining slot budget but a multiple of it
+    // straddles the ct/slot boundary: its low nRem values fill the slots, its
+    // high sz/nRem values index ciphertexts. The dim stays in the ct prefix as
+    // the boundary dim (index i-1); a low (slot) piece is added in preprocessing.
+    if (sz > nRem && nRem > 1 && sz % nRem == 0 && d.getDim() >= 0) {
+      straddleSlotExtent = nRem;
+    }
     break;
   }
-  while (i > 0 && dims[i - 1].getSize() == 1) --i;
+  while (i > 0 && straddleSlotExtent == 0 && dims[i - 1].getSize() == 1) --i;
   return i;
 }
 
@@ -87,9 +96,32 @@ static FailureOr<LayoutData> preprocessLayoutData(ArrayAttr dims, int64_t n,
     }
     return failure();
   }
+  data.pieceStraddle.assign(data.pieces.size(), StraddleRole::None);
 
-  data.ctPrefixLen =
-      static_cast<int64_t>(inferCtPrefixLen(data.originalDims, data.n));
+  int64_t straddleSlotExtent = 0;
+  data.ctPrefixLen = static_cast<int64_t>(
+      inferCtPrefixLen(data.originalDims, data.n, straddleSlotExtent));
+
+  if (straddleSlotExtent > 1) {
+    // The boundary dim (the last ct piece) spans ct and slot. Mark it as the
+    // high (ct) piece and insert a low (slot) piece just after it referencing
+    // the same traversal dim (one domain variable). The straddle exactly fills
+    // the remaining slots, so there is no implicit front gap.
+    const int64_t high = data.ctPrefixLen - 1;
+    if (high < 0 ||
+        data.pieces[high] != LayoutPieceKind::Traversal) {
+      return failure();
+    }
+    data.straddleSlotExtent = straddleSlotExtent;
+    data.pieceStraddle[high] = StraddleRole::High;
+    data.pieces.insert(data.pieces.begin() + data.ctPrefixLen,
+                       LayoutPieceKind::Traversal);
+    data.pieceIndex.insert(data.pieceIndex.begin() + data.ctPrefixLen,
+                           data.pieceIndex[high]);
+    data.pieceStraddle.insert(data.pieceStraddle.begin() + data.ctPrefixLen,
+                              StraddleRole::Low);
+    return data;
+  }
 
   const int64_t implicitFrontGapSize =
       computeImplicitFrontGap(data.originalDims, data.n);
@@ -101,6 +133,8 @@ static FailureOr<LayoutData> preprocessLayoutData(ArrayAttr dims, int64_t n,
     data.pieces.insert(data.pieces.begin() + data.ctPrefixLen,
                        LayoutPieceKind::Gap);
     data.pieceIndex.insert(data.pieceIndex.begin() + data.ctPrefixLen, gapIdx);
+    data.pieceStraddle.insert(data.pieceStraddle.begin() + data.ctPrefixLen,
+                              StraddleRole::None);
   }
 
   return data;
@@ -205,8 +239,16 @@ static LogicalResult verifyLayoutRolls(
     if (!di || !dj) {
       return emitError() << "roll indices must refer to #rotom.dim entries";
     }
-    if (di.getSize() != dj.getSize()) {
-      return emitError() << "rolled dims must have the same extent (size)";
+    // roll(i, j) rewrites the index of dims[i] as (i_i - i_j) mod size(i), so
+    // the modulus is the rolled dim's extent. Equal extents give the usual
+    // diagonal; a `by` dim whose extent is a multiple of the rolled dim's extent
+    // gives a squat (non-square) diagonal where (i_j mod size(i)) cycles
+    // uniformly -- e.g. roll(row, col) with size(col) a multiple of size(row)
+    // yields ct = (row - col) mod M for an M x K matrix.
+    if (di.getSize() != dj.getSize() && dj.getSize() % di.getSize() != 0) {
+      return emitError() << "rolled dim extent (" << di.getSize()
+                         << ") must divide the extent it is rolled by ("
+                         << dj.getSize() << ")";
     }
     if (di.isGap() || dj.isGap() || di.isReplicate() || dj.isReplicate()) {
       return emitError() << "rolls may only reference non-sentinel traversal "

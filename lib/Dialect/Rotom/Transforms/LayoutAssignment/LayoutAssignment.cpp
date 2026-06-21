@@ -195,8 +195,81 @@ int64_t operationCost(Operation* op, LayoutAttr layout) {
   return 0;
 }
 
-int64_t matmulOperationCost(LayoutAttr layout) {
-  return 16 * layoutNumCiphertexts(layout);
+// Cost penalty for a matmul candidate that has no selectable kernel and thus
+// cannot be lowered; large enough to dominate any real rotation cost so a
+// kernel-bearing candidate is always preferred.
+constexpr int64_t kUnloweredMatmulPenalty = 1LL << 50;
+
+int64_t ceilSqrt(int64_t value) {
+  if (value <= 1) return 1;
+  int64_t root = 1;
+  while (root * root < value) ++root;
+  return root;
+}
+
+int64_t ceilLog2(int64_t value) {
+  if (value <= 1) return 0;
+  int64_t bits = 0;
+  int64_t pow = 1;
+  while (pow < value) {
+    pow *= 2;
+    ++bits;
+  }
+  return bits;
+}
+
+// Rotation-aware matmul cost so the search can prefer a diagonal (rolled,
+// ciphertext-axis) packing over a row-major one. Mirrors the reference Rotom
+// cost model (ir/kernel_cost.py matmul_ops / bsgs_matmul_ops): a ciphertext-axis
+// diagonal matvec lowers with a baby-step/giant-step schedule -- ~2*sqrt(K)
+// ciphertext-vector rotations plus per-diagonal matrix rotations that fold to
+// free for a plaintext matrix -- whereas the row-major rotate-multiply-
+// accumulate kernel emits O(m*K*p) rotations.
+int64_t matmulRotationCost(LayoutAttr lhsLayout, RankedTensorType lhsType,
+                           RankedTensorType rhsType) {
+  constexpr int64_t kRotWeight = 4;
+  int64_t m = nextPowerOfTwo(lhsType.getDimSize(0));
+  int64_t k = nextPowerOfTwo(lhsType.getDimSize(1));
+  int64_t p = nextPowerOfTwo(rhsType.getDimSize(1));
+  DenseI64ArrayAttr rolls = lhsLayout.getRolls();
+  // A rolled lhs is the diagonal kernel regardless of ciphertext count: it can be
+  // sparse (one diagonal/ct), dense (P diagonals/ct), or single-ciphertext
+  // (numCt == 1 when the whole matrix fits one ciphertext).
+  bool diagonal = rolls && !rolls.empty();
+  if (diagonal && p == 1 && m <= k && k % m == 0) {
+    // Diagonal Halevi-Shoup matvec: baby-step/giant-step over the M (output-row)
+    // diagonals plus a log-depth residual rotate-and-sum over the K/M column
+    // blocks (empty when M == K). ~2*sqrt(M) ciphertext-vector rotations + the
+    // residual; the M matrix-diagonal rotations fold to free for a plaintext
+    // matrix. Counted in rotations (the dominant ciphertext cost) so it is
+    // comparable to the row-major rotate-multiply-accumulate path below.
+    int64_t rotations = 2 * ceilSqrt(m) + m + ceilLog2(k / m);
+    return kRotWeight * rotations;
+  }
+  return kRotWeight * 2 * m * k * p;
+}
+
+// Builds the ciphertext-axis diagonal layout for an M x K matrix: with n == K
+// the derived ct/slot split puts the column dim in slots and the row dim on the
+// ciphertext axis, and roll(0,1) makes ct = (row - col) mod M -- one ciphertext
+// per diagonal. M == K is the square diagonal; M < K (M | K) is the squat
+// diagonal. This is exactly the packing the diagonal matvec kernels verify.
+LayoutAttr makeCtDiagonalMatrixLayout(MLIRContext* ctx, int64_t m, int64_t k,
+                                      int64_t n) {
+  SmallVector<Attribute> dims = {DimAttr::get(ctx, /*dim=*/0, m, /*stride=*/1),
+                                 DimAttr::get(ctx, /*dim=*/1, k, /*stride=*/1)};
+  LayoutAttr base = LayoutAttr::get(ctx, ArrayAttr::get(ctx, dims), n);
+  SmallVector<std::pair<int64_t, int64_t>> rolls = {{0, 1}};
+  return withRolls(base, rolls);
+}
+
+// Identity-packed vector/output layout (slot = index, single ciphertext) -- the
+// rhs the diagonal matvec kernel rotates, or the M-length output. The trailing
+// singleton keeps the layout's domain rank 2 to match the K x 1 / M x 1 tensor.
+LayoutAttr makeIdentityVectorLayout(MLIRContext* ctx, int64_t k, int64_t n) {
+  SmallVector<Attribute> dims = {DimAttr::get(ctx, /*dim=*/0, k, /*stride=*/1),
+                                 DimAttr::get(ctx, /*dim=*/1, 1, /*stride=*/1)};
+  return LayoutAttr::get(ctx, ArrayAttr::get(ctx, dims), n);
 }
 
 int64_t genericOperationCost(linalg::GenericOp op, LayoutAttr layout) {
@@ -350,6 +423,27 @@ std::optional<KernelName> selectMatmulKernel(RankedTensorType lhsType,
   }
 
   if (supportsRotomAlignmentLowering(lhsLayout, rhsLayout, resultLayout)) {
+    return KernelName::RotomMatmul;
+  }
+
+  // Ciphertext-axis diagonal matvec (p == 1): the matrix is packed as diagonals
+  // (rolled) -- one ciphertext per diagonal (sparse, numCiphertexts == m), or
+  // P = N/K diagonals per ciphertext (dense, numCiphertexts == ceil(m/P)) --
+  // against a single-ciphertext vector and result. m == n is the square baby-
+  // step/giant-step kernel, m < n (n % m == 0) the squat kernel. The precise
+  // diagonal structure (including the ciphertext count) is verified in
+  // RotomTensorOpLowering, so this gate stays loose and the kernel declines
+  // (falling back) if it does not match.
+  DenseI64ArrayAttr lhsRolls = lhsLayout.getRolls();
+  // The diagonal layout pads M and K to powers of two (the slot/ciphertext
+  // extents the kernel actually walks), so the square/squat divisibility
+  // contract must be checked on the padded extents -- not the raw type dims,
+  // which need not be powers of two (e.g. an MNIST 128x784 or 10x128 matmul).
+  int64_t mp = nextPowerOfTwo(m);
+  int64_t np = nextPowerOfTwo(n);
+  if (p == 1 && lhsRolls && !lhsRolls.empty() && mp <= np && np % mp == 0 &&
+      layoutNumCiphertexts(rhsLayout) == 1 &&
+      layoutNumCiphertexts(resultLayout) == 1) {
     return KernelName::RotomMatmul;
   }
 
@@ -1011,7 +1105,87 @@ LogicalResult LayoutAssignment::visitMatmul(linalg::MatmulOp op) {
   Value init = op.getOutputs()[0];
   SmallVector<Candidate> lhsCandidates = candidatesForValue(lhs);
   SmallVector<Candidate> rhsCandidates = candidatesForValue(rhs);
+
+  // Generate a ciphertext-axis diagonal (rolled) candidate for a square matvec,
+  // so the search discovers the Halevi-Shoup baby-step/giant-step kernel without
+  // a hand-specified rolled layout. This is the analog of the reference Rotom
+  // apply_sum_roll (assignment/gen/align_rolls.py): it moves the contraction
+  // onto the ciphertext axis (one ciphertext per diagonal) so the reduction
+  // becomes a cheap ciphertext sum, then the rotation-aware cost above lets it
+  // beat the row-major candidate. The diagonal layouts are added to the operand
+  // candidate sets so the selected matmul can back-propagate them.
+  std::optional<Candidate> diagonalCandidate;
+  {
+    int64_t kDim = lhsType.getDimSize(1);
+    int64_t pDim = rhsType.getDimSize(1);
+    int64_t mp = nextPowerOfTwo(lhsType.getDimSize(0));
+    int64_t kp = nextPowerOfTwo(kDim);
+    // Square (mp == kp) or squat (mp < kp, kp % mp == 0) matvec.
+    if (pDim == 1 && kDim > 1 && rhsType.getDimSize(0) == kDim &&
+        mp <= kp && kp % mp == 0 && !lhsCandidates.empty()) {
+      int64_t n = lhsCandidates.front().layout.getN();
+      MLIRContext* ctx = op.getContext();
+      LayoutAttr diagLhs;
+      LayoutAttr idRhs;
+      if (n == kp || (n > kp && n % kp == 0)) {
+        // Plain diagonal at the ciphertext size n: for n == K this is the
+        // single-period packing (one diagonal per ciphertext); for n > K the
+        // materializer's dim-straddle packs P = n/K diagonals per ciphertext
+        // (dense). The vector and output occupy slots [0, K) and [0, M).
+        diagLhs = makeCtDiagonalMatrixLayout(ctx, mp, kp, n);
+        idRhs = makeIdentityVectorLayout(ctx, kp, n);
+      }
+      if (diagLhs && idRhs && isMaterializableRotomLayout(diagLhs) &&
+          isMaterializableRotomLayout(idRhs) &&
+          isLayoutCompatibleWithValue(diagLhs, lhs) &&
+          isLayoutCompatibleWithValue(idRhs, rhs)) {
+        // The diagonal result is masked back to the D output rows, so the output
+        // is the non-replicated identity layout (not what combineMatmulOutputLayout
+        // would derive from the replicated lhs).
+        LayoutAttr outLayout = makeIdentityVectorLayout(ctx, mp, n);
+        // Register the diagonal operand layouts so the selected matmul can
+        // back-propagate them (markSelected -> findCandidate), without polluting
+        // the row-major cross-product below. Only add a bare (operand-less)
+        // candidate when the operand does NOT already carry that layout: an
+        // intermediate operand (e.g. a prior op's result feeding this matvec's
+        // vector) already has a candidate at this layout that records its own
+        // operands, and a zero-cost bare duplicate would sort ahead of it and
+        // sever back-propagation through that operand (findCandidate matches by
+        // layout and returns the best-sorted match).
+        auto hasLayout = [](ArrayRef<Candidate> cands, LayoutAttr layout) {
+          return llvm::any_of(cands, [&](const Candidate& candidate) {
+            return candidate.layout == layout;
+          });
+        };
+        if (!hasLayout(lhsCandidates, diagLhs)) {
+          SmallVector<Candidate> augLhs(lhsCandidates.begin(),
+                                        lhsCandidates.end());
+          augLhs.push_back({diagLhs, 0, KernelKind::Tensor});
+          setCandidates(lhs, augLhs);
+        }
+        if (!hasLayout(rhsCandidates, idRhs)) {
+          SmallVector<Candidate> augRhs(rhsCandidates.begin(),
+                                        rhsCandidates.end());
+          augRhs.push_back({idRhs, 0, KernelKind::Tensor});
+          setCandidates(rhs, augRhs);
+        }
+
+        std::optional<KernelName> kernel = selectMatmulKernel(
+            lhsType, rhsType, resultType, diagLhs, idRhs, outLayout);
+        int64_t cost = matmulRotationCost(diagLhs, lhsType, rhsType);
+        if (!kernel) cost += kUnloweredMatmulPenalty;
+        diagonalCandidate = Candidate{outLayout,
+                                      cost,
+                                      KernelKind::Matmul,
+                                      {lhs, rhs, init},
+                                      {diagLhs, idRhs, outLayout},
+                                      kernel};
+      }
+    }
+  }
+
   SmallVector<Candidate> chosen;
+  if (diagonalCandidate) chosen.push_back(*diagonalCandidate);
   for (const Candidate& lhsCandidate : lhsCandidates) {
     for (const Candidate& rhsCandidate : rhsCandidates) {
       std::optional<LayoutAttr> outputLayout =
@@ -1019,7 +1193,7 @@ LogicalResult LayoutAssignment::visitMatmul(linalg::MatmulOp op) {
       if (!outputLayout) continue;
 
       int64_t cost = lhsCandidate.cost + rhsCandidate.cost +
-                     matmulOperationCost(*outputLayout);
+                     matmulRotationCost(lhsCandidate.layout, lhsType, rhsType);
       if (!dimensionsAligned(lhsCandidate.layout, /*lhsDim=*/1,
                              rhsCandidate.layout, /*rhsDim=*/0)) {
         cost += layoutConversionCost(rhsCandidate.layout, lhsCandidate.layout);
@@ -1027,6 +1201,11 @@ LogicalResult LayoutAssignment::visitMatmul(linalg::MatmulOp op) {
       std::optional<KernelName> kernel =
           selectMatmulKernel(lhsType, rhsType, resultType, lhsCandidate.layout,
                              rhsCandidate.layout, *outputLayout);
+      // A matmul candidate with no kernel cannot be lowered (e.g. a row-major
+      // multi-ciphertext matvec), so its true cost is infinite -- penalize it so
+      // a kernel-bearing candidate always wins even when its rotation cost is
+      // nominally higher (the small-matvec crossover).
+      if (!kernel) cost += kUnloweredMatmulPenalty;
       chosen.push_back(
           {*outputLayout,
            cost,

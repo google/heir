@@ -4,6 +4,7 @@
 
 #include "lib/Dialect/Rotom/IR/RotomAttributes.h"
 #include "lib/Dialect/Rotom/Utils/RotomTensorExtLayoutLowering.h"
+#include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Utils/AttributeUtils.h"
@@ -82,6 +83,34 @@ struct MaterializeTensorExtLayout
         func.setResultAttr(i, tensor_ext::TensorExtDialect::kLayoutAttrName,
                            *tensorExtLayout);
         func.removeResultAttr(i, kRotomLayoutAttrName);
+      }
+    });
+
+    // A secret.secret function argument used as a secret.generic operand has its
+    // layout recorded on the operand annotation (setAttributeAssociatedWith
+    // routes a block-arg attribute to the enclosing op's operand), not on the
+    // function argument. The downstream type converter reads the FUNCTION
+    // argument attribute, so propagate the now-materialized operand layout onto
+    // the argument; otherwise the argument type is left unconverted and the
+    // secret.generic operand/block-argument types mismatch.
+    StringRef tensorExtLayoutName =
+        tensor_ext::TensorExtDialect::kLayoutAttrName;
+    module.walk([&](secret::GenericOp gen) {
+      for (OpOperand& operand : gen->getOpOperands()) {
+        auto funcArg = dyn_cast<BlockArgument>(operand.get());
+        if (!funcArg) continue;
+        auto func = dyn_cast<FunctionOpInterface>(
+            funcArg.getOwner()->getParentOp());
+        if (!func) continue;
+        unsigned argNo = funcArg.getArgNumber();
+        if (func.getArgAttr(argNo, tensorExtLayoutName)) continue;
+        BlockArgument blockArg =
+            gen.getRegion().getArgument(operand.getOperandNumber());
+        FailureOr<Attribute> operandLayout =
+            findAttributeAssociatedWith(blockArg, tensorExtLayoutName);
+        if (succeeded(operandLayout)) {
+          func.setArgAttr(argNo, tensorExtLayoutName, *operandLayout);
+        }
       }
     });
 

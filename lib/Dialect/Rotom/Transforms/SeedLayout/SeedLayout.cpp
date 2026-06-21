@@ -175,6 +175,34 @@ struct SeedLayout : public impl::SeedLayoutBase<SeedLayout> {
         } while (std::next_permutation(perm.begin(), perm.end()));
       }
 
+      // If the padded tensor is smaller than the ciphertext, no tuple reaches
+      // product == n (findValidTuples found nothing): pack every dimension fully
+      // into slots and replicate the packed block to fill the remaining
+      // capacity. Without this a small operand -- e.g. an MNIST 10x512 weight or
+      // a 512-length activation at ciphertext size 32768 -- gets no seed, so the
+      // layout search has no candidate and the matmul kernel is never assigned.
+      if (layouts.empty()) {
+        int64_t fullProd = 1;
+        for (int64_t d : dims) fullProd *= d;
+        if (fullProd > 0 && fullProd < n && n % fullProd == 0) {
+          int64_t replicationFactor = n / fullProd;
+          SmallVector<int64_t> perm(rank);
+          std::iota(perm.begin(), perm.end(), 0);
+          do {
+            // The replication dim is outermost (block replication): the packed
+            // block occupies slots [0, fullProd) and repeats every fullProd.
+            SmallVector<Attribute> allDims;
+            allDims.push_back(
+                DimAttr::get(ctx, /*dim=*/-1, replicationFactor, fullProd));
+            for (int64_t d : perm) {
+              allDims.push_back(DimAttr::get(ctx, d, dims[d], 1));
+            }
+            layouts.push_back(
+                LayoutAttr::get(ctx, ArrayAttr::get(ctx, allDims), n));
+          } while (std::next_permutation(perm.begin(), perm.end()));
+        }
+      }
+
       LLVM_DEBUG(llvm::dbgs()
                  << "\t- Found " << layouts.size() << " layouts for value\n");
 

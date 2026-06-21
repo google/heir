@@ -39,5 +39,5 @@ func.func private @n0_ok(tensor<16xi32> {foo.bar = #n0_ok})
 #d1 = #rotom.dim<[1:2:1]>
 
 // Mismatched extents for a roll pair.
-#bad_roll = #rotom.layout<n = 8, rolls = [(0, 1)], dims = [#d0, #d1]> // expected-error {{rolled dims must have the same extent (size)}}
+#bad_roll = #rotom.layout<n = 8, rolls = [(0, 1)], dims = [#d0, #d1]> // expected-error {{rolled dim extent (4) must divide the extent it is rolled by (2)}}
 func.func private @bad_roll(tensor<16xi32> {foo.bar = #bad_roll})

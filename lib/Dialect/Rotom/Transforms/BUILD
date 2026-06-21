@@ -59,6 +59,7 @@ cc_library(
         ":materialize_tensor_ext_layout_pass_inc_gen",
         "@heir//lib/Dialect/Rotom/IR:Dialect",
         "@heir//lib/Dialect/Rotom/Utils:RotomTensorExtLayoutLowering",
+        "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Utils",
         "@heir//lib/Utils:AttributeUtils",

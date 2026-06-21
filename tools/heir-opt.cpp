@@ -186,6 +186,23 @@
 using namespace mlir;
 using namespace heir;
 
+// Options for the Rotom layout-assignment front-end pipeline. A single
+// ciphertext slot count drives both the layout seed search and the ciphertext
+// materialization, so the two stages agree on the packing width.
+struct MlirToRotomCiphertextPipelineOptions
+    : public PassPipelineOptions<MlirToRotomCiphertextPipelineOptions> {
+  PassOptions::Option<int> ciphertextSize{
+      *this, "ciphertext-size",
+      llvm::cl::desc("Power-of-two ciphertext slot count; drives both the "
+                     "Rotom layout seed search and ciphertext materialization."),
+      llvm::cl::init(16384)};
+  PassOptions::Option<bool> unrollKernels{
+      *this, "unroll-kernels",
+      llvm::cl::desc("Unroll generated kernel loops during ciphertext "
+                     "materialization."),
+      llvm::cl::init(true)};
+};
+
 int main(int argc, char** argv) {
   mlir::DialectRegistry registry;
 
@@ -498,6 +515,27 @@ int main(int argc, char** argv) {
       "Convert a func using standard MLIR dialects to FHE using "
       "CKKS.",
       mlirToRLWEPipelineBuilder(mlir::heir::RLWEScheme::ckksScheme));
+
+  PassPipelineRegistration<MlirToRotomCiphertextPipelineOptions>(
+      "mlir-to-rotom-ciphertext",
+      "Assign Rotom layouts (auto-seeded diagonal/BSGS search) and lower to "
+      "ciphertext-semantic tensors. Chains rotom-seed-layout -> "
+      "rotom-assign-layout -> rotom-materialize-tensor-ext-layout -> "
+      "convert-to-ciphertext-semantics. Input is high-level tensor IR (in "
+      "secret.generic regions); the search discovers the diagonal/BSGS matvec "
+      "kernels with no hand-written layouts.",
+      [](OpPassManager& pm,
+         const MlirToRotomCiphertextPipelineOptions& options) {
+        rotom::SeedLayoutOptions seedOptions;
+        seedOptions.n = options.ciphertextSize;
+        pm.addPass(rotom::createSeedLayout(seedOptions));
+        pm.addPass(rotom::createLayoutAssignment());
+        pm.addPass(rotom::createMaterializeTensorExtLayout());
+        ConvertToCiphertextSemanticsOptions convertOptions;
+        convertOptions.ciphertextSize = options.ciphertextSize;
+        convertOptions.unrollKernels = options.unrollKernels;
+        pm.addPass(createConvertToCiphertextSemantics(convertOptions));
+      });
 
   PassPipelineRegistration<mlir::heir::BackendOptions>(
       "scheme-to-openfhe",
