@@ -100,6 +100,7 @@ cc_test(
         "@heir//lib/Dialect/Rotom/Transforms:MaterializeTensorExtLayout",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Dialect/TensorExt/Transforms:ImplementShiftNetwork",
         "@heir//lib/Target/OpenFhePke:Interpreter",
         "@heir//lib/Utils/Layout:Utils",
         "@llvm-project//mlir:FuncDialect",

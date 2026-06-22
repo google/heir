@@ -32,33 +32,6 @@ class RotomTensorOpLowering {
  private:
   tensor_ext::LayoutAttr getLayoutAttr(Value value) const;
 
-  FailureOr<std::vector<std::vector<int64_t>>> getRangePointsForDomain(
-      tensor_ext::LayoutAttr layout, ArrayRef<int64_t> domain) const;
-
-  // Same as above but reuses an already-built IntegerRelation. Building the
-  // relation (LayoutAttr::getIntegerRelation serializes the layout to an ISL
-  // string and re-parses it) is the dominant cost, so a caller that queries
-  // many domain points of one layout builds the relation once and reuses it
-  // here, turning an O(m*n) ISL rebuild into O(1).
-  FailureOr<std::vector<std::vector<int64_t>>> getRangePointsForDomain(
-      const presburger::IntegerRelation& relation,
-      ArrayRef<int64_t> domain) const;
-
-  FailureOr<Value> createMaskForPoints(
-      RankedTensorType ciphertextSemanticType,
-      const std::vector<std::vector<int64_t>>& points,
-      ImplicitLocOpBuilder& b) const;
-
-  FailureOr<DenseIntElementsAttr> createRemapAttr(
-      MLIRContext* ctx, const std::vector<std::vector<int64_t>>& sourcePoints,
-      const std::vector<std::vector<int64_t>>& targetPoints) const;
-
-  FailureOr<Value> alignDomainPointToOutput(
-      Value source, RankedTensorType ciphertextSemanticType,
-      tensor_ext::LayoutAttr sourceLayout, ArrayRef<int64_t> sourceDomain,
-      ArrayRef<int64_t> outputDomain, tensor_ext::LayoutAttr outputLayout,
-      ImplicitLocOpBuilder& b) const;
-
   const ContextAwareTypeConverter* typeConverter;
 };
 

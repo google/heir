@@ -64,6 +64,7 @@
 #include "lib/Dialect/Secret/Transforms/Passes.h"
 #include "lib/Dialect/TensorExt/Conversions/TensorExtToTensor/TensorExtToTensor.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
+#include "lib/Dialect/TensorExt/Transforms/ImplementShiftNetwork.h"
 #include "lib/Dialect/TensorExt/Transforms/Passes.h"
 #include "lib/Dialect/TfheRust/IR/TfheRustDialect.h"
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
@@ -520,8 +521,9 @@ int main(int argc, char** argv) {
       "mlir-to-rotom-ciphertext",
       "Assign Rotom layouts and lower to ciphertext-semantic tensors. Chains "
       "rotom-seed-layout -> rotom-assign-layout -> "
-      "rotom-materialize-tensor-ext-layout -> convert-to-ciphertext-semantics. "
-      "Input is high-level tensor IR (in secret.generic regions).",
+      "rotom-materialize-tensor-ext-layout -> convert-to-ciphertext-semantics -> "
+      "implement-shift-network. Input is high-level tensor IR (in secret.generic "
+      "regions).",
       [](OpPassManager& pm,
          const MlirToRotomCiphertextPipelineOptions& options) {
         rotom::SeedLayoutOptions seedOptions;
@@ -533,6 +535,9 @@ int main(int argc, char** argv) {
         convertOptions.ciphertextSize = options.ciphertextSize;
         convertOptions.unrollKernels = options.unrollKernels;
         pm.addPass(createConvertToCiphertextSemantics(convertOptions));
+        // Lower the tensor_ext.convert_layout ops emitted for elementwise
+        // operand alignment into rotations + masks.
+        pm.addPass(tensor_ext::createImplementShiftNetwork());
       });
 
   PassPipelineRegistration<mlir::heir::BackendOptions>(

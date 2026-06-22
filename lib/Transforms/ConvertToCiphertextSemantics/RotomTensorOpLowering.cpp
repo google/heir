@@ -53,120 +53,6 @@ LayoutAttr RotomTensorOpLowering::getLayoutAttr(Value value) const {
   return dyn_cast<LayoutAttr>(layoutLookup.value());
 }
 
-FailureOr<std::vector<std::vector<int64_t>>>
-RotomTensorOpLowering::getRangePointsForDomain(
-    const IntegerRelation& relation, ArrayRef<int64_t> domain) const {
-  if (relation.getNumDomainVars() != static_cast<int64_t>(domain.size())) {
-    return failure();
-  }
-
-  IntegerRelation fixedRelation = fixDomainVars(relation, domain);
-  PointCollector collector;
-  getRangePoints(fixedRelation, collector);
-  if (collector.points.empty()) return failure();
-  return collector.points;
-}
-
-FailureOr<std::vector<std::vector<int64_t>>>
-RotomTensorOpLowering::getRangePointsForDomain(LayoutAttr layout,
-                                               ArrayRef<int64_t> domain) const {
-  return getRangePointsForDomain(layout.getIntegerRelation(), domain);
-}
-
-FailureOr<Value> RotomTensorOpLowering::createMaskForPoints(
-    RankedTensorType ciphertextSemanticType,
-    const std::vector<std::vector<int64_t>>& points,
-    ImplicitLocOpBuilder& b) const {
-  if (ciphertextSemanticType.getRank() != 2 ||
-      !ciphertextSemanticType.hasStaticShape()) {
-    return failure();
-  }
-
-  Type elementType = ciphertextSemanticType.getElementType();
-  SmallVector<Attribute> attrs(ciphertextSemanticType.getNumElements(),
-                               b.getZeroAttr(elementType));
-  Attribute oneAttr = b.getOneAttr(elementType);
-  int64_t slots = ciphertextSemanticType.getDimSize(1);
-  for (const std::vector<int64_t>& point : points) {
-    if (point.size() != 2) return failure();
-    int64_t ct = point[0];
-    int64_t slot = point[1];
-    if (ct < 0 || slot < 0 || ct >= ciphertextSemanticType.getDimSize(0) ||
-        slot >= slots) {
-      return failure();
-    }
-    attrs[ct * slots + slot] = oneAttr;
-  }
-
-  auto mask = arith::ConstantOp::create(
-      b, ciphertextSemanticType,
-      DenseElementsAttr::get(ciphertextSemanticType, attrs));
-  setMaterializedAttr(mask);
-  return mask.getResult();
-}
-
-FailureOr<DenseIntElementsAttr> RotomTensorOpLowering::createRemapAttr(
-    MLIRContext* ctx, const std::vector<std::vector<int64_t>>& sourcePoints,
-    const std::vector<std::vector<int64_t>>& targetPoints) const {
-  SmallVector<int64_t> values;
-  for (const std::vector<int64_t>& sourcePoint : sourcePoints) {
-    if (sourcePoint.size() != 2) return failure();
-    for (const std::vector<int64_t>& targetPoint : targetPoints) {
-      if (targetPoint.size() != 2) return failure();
-      values.push_back(sourcePoint[0]);
-      values.push_back(sourcePoint[1]);
-      values.push_back(targetPoint[0]);
-      values.push_back(targetPoint[1]);
-    }
-  }
-  if (values.empty()) return failure();
-
-  auto type = RankedTensorType::get(
-      {static_cast<int64_t>(values.size() / 4), 4}, IntegerType::get(ctx, 64));
-  return DenseIntElementsAttr::get(type, values);
-}
-
-FailureOr<Value> RotomTensorOpLowering::alignDomainPointToOutput(
-    Value source, RankedTensorType ciphertextSemanticType,
-    LayoutAttr sourceLayout, ArrayRef<int64_t> sourceDomain,
-    ArrayRef<int64_t> outputDomain, LayoutAttr outputLayout,
-    ImplicitLocOpBuilder& b) const {
-  FailureOr<std::vector<std::vector<int64_t>>> sourcePoints =
-      getRangePointsForDomain(sourceLayout, sourceDomain);
-  if (failed(sourcePoints)) return failure();
-
-  FailureOr<std::vector<std::vector<int64_t>>> outputPoints =
-      getRangePointsForDomain(outputLayout, outputDomain);
-  if (failed(outputPoints)) return failure();
-
-  FailureOr<Value> sourceMask =
-      createMaskForPoints(ciphertextSemanticType, *sourcePoints, b);
-  if (failed(sourceMask)) return failure();
-
-  Operation* maskedSource =
-      makeAppropriatelyTypedMulOp(b, b.getLoc(), source, *sourceMask);
-  setMaterializedAttr(maskedSource);
-
-  FailureOr<DenseIntElementsAttr> remapAttr =
-      createRemapAttr(b.getContext(), *sourcePoints, *outputPoints);
-  if (failed(remapAttr)) return failure();
-
-  auto remap =
-      tensor_ext::RemapOp::create(b, maskedSource->getResult(0), *remapAttr);
-  setMaterializedAttr(remap);
-
-  FailureOr<Value> targetMask =
-      createMaskForPoints(ciphertextSemanticType, *outputPoints, b);
-  if (failed(targetMask)) return failure();
-
-  Operation* maskedRemap = makeAppropriatelyTypedMulOp(
-      b, b.getLoc(), remap.getResult(), *targetMask);
-  setMaterializedAttr(maskedRemap);
-  setAttributeAssociatedWith(maskedRemap->getResult(0), kLayoutAttrName,
-                             outputLayout);
-  return maskedRemap->getResult(0);
-}
-
 LogicalResult RotomTensorOpLowering::lowerElementwiseBinary(
     Operation* op, Value originalResult, ValueRange adaptorOperands,
     ContextAwareConversionPatternRewriter& rewriter) const {
@@ -222,58 +108,31 @@ LogicalResult RotomTensorOpLowering::lowerElementwiseBinary(
                                        "unsupported Rotom elementwise op kind");
   }
 
-  rewriter.setInsertionPointAfter(op);
   ImplicitLocOpBuilder b(op->getLoc(), rewriter);
-  auto zero = arith::ConstantOp::create(b, ciphertextSemanticType,
-                                        b.getZeroAttr(ciphertextSemanticType));
-  zero->setAttr(kLayoutAttrName, outputLayout);
-  setMaterializedAttr(zero);
-  setAttributeAssociatedWith(zero.getResult(), kLayoutAttrName, outputLayout);
+  rewriter.setInsertionPointAfter(op);
 
-  Value acc = zero.getResult();
-  LogicalResult loweringResult = success();
-  iterateIndices(
-      resultType.getShape(), [&](const std::vector<int64_t>& domain) {
-        if (failed(loweringResult)) return;
+  // Convert-then-compute: bring each operand to the shared output layout with a
+  // tensor_ext.convert_layout (a no-op when it already is), then perform the
+  // elementwise op once at that layout. The implement-shift-network pass lowers
+  // the conversions into rotations + masks.
+  auto convertToOutput = [&](Value operand, LayoutAttr operandLayout) -> Value {
+    if (operandLayout == outputLayout) return operand;
+    Value converted = tensor_ext::ConvertLayoutOp::create(
+        b, operand, operandLayout, outputLayout);
+    setAttributeAssociatedWith(converted, kLayoutAttrName, outputLayout);
+    return converted;
+  };
+  Value lhs = convertToOutput(adaptorOperands[0], lhsLayout);
+  Value rhs = convertToOutput(adaptorOperands[1], rhsLayout);
 
-        FailureOr<Value> alignedLhs = alignDomainPointToOutput(
-            adaptorOperands[0], ciphertextSemanticType, lhsLayout, domain,
-            domain, outputLayout, b);
-        if (failed(alignedLhs)) {
-          op->emitError()
-              << "failed to align lhs contribution for Rotom elementwise op";
-          loweringResult = failure();
-          return;
-        }
-
-        FailureOr<Value> alignedRhs = alignDomainPointToOutput(
-            adaptorOperands[1], ciphertextSemanticType, rhsLayout, domain,
-            domain, outputLayout, b);
-        if (failed(alignedRhs)) {
-          op->emitError()
-              << "failed to align rhs contribution for Rotom elementwise op";
-          loweringResult = failure();
-          return;
-        }
-
-        Operation* pointValue =
-            isAdd ? makeAppropriatelyTypedAddOp(b, op->getLoc(), *alignedLhs,
-                                                *alignedRhs)
-                  : makeAppropriatelyTypedMulOp(b, op->getLoc(), *alignedLhs,
-                                                *alignedRhs);
-        pointValue->setAttr(kLayoutAttrName, outputLayout);
-        setMaterializedAttr(pointValue);
-
-        Operation* sum = makeAppropriatelyTypedAddOp(b, op->getLoc(), acc,
-                                                     pointValue->getResult(0));
-        sum->setAttr(kLayoutAttrName, outputLayout);
-        setMaterializedAttr(sum);
-        acc = sum->getResult(0);
-      });
-  if (failed(loweringResult)) return failure();
-
-  setAttributeAssociatedWith(acc, kLayoutAttrName, outputLayout);
-  rewriter.replaceOp(op, acc);
+  Operation* result =
+      isAdd ? makeAppropriatelyTypedAddOp(b, op->getLoc(), lhs, rhs)
+            : makeAppropriatelyTypedMulOp(b, op->getLoc(), lhs, rhs);
+  result->setAttr(kLayoutAttrName, outputLayout);
+  setMaterializedAttr(result);
+  setAttributeAssociatedWith(result->getResult(0), kLayoutAttrName,
+                             outputLayout);
+  rewriter.replaceOp(op, result->getResult(0));
   return success();
 }
 

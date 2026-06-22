@@ -10,6 +10,7 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Dialect/TensorExt/Transforms/ImplementShiftNetwork.h"
 #include "lib/Target/OpenFhePke/Interpreter.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/ConvertToCiphertextSemantics.h"
 #include "lib/Utils/Layout/Utils.h"
@@ -44,8 +45,9 @@ LogicalResult runRotomPipeline(ModuleOp module, MLIRContext* context,
   ConvertToCiphertextSemanticsOptions options;
   options.ciphertextSize = ciphertextSize;
   pm.addPass(createConvertToCiphertextSemantics(options));
-  // Keep tensor_ext.remap executable directly in this harness. The shift
-  // network pass can be added after it understands Rotom-materialized layouts.
+  // Lower the tensor_ext.convert_layout ops the Rotom elementwise lowering emits
+  // into rotations + masks so the interpreter can evaluate them.
+  pm.addPass(tensor_ext::createImplementShiftNetwork());
   return pm.run(module);
 }
 
