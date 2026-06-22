@@ -1,0 +1,271 @@
+#include "lib/Dialect/Rotom/Transforms/LayoutAssignment/DimMaps.h"
+
+#include <cstdint>
+#include <numeric>
+#include <optional>
+
+#include "lib/Dialect/Rotom/IR/RotomAttributes.h"
+#include "lib/Dialect/Rotom/Transforms/LayoutAssignment/Candidate.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
+#include "mlir/include/mlir/Dialect/Utils/ReshapeOpsUtils.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"    // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"            // from @llvm-project
+
+namespace mlir::heir::rotom {
+
+namespace {
+
+bool hasOnlyUnitStrides(ArrayRef<int64_t> strides) {
+  return llvm::all_of(strides, [](int64_t stride) { return stride == 1; });
+}
+
+bool isDynamic(int64_t value) { return value == ShapedType::kDynamic; }
+
+}  // namespace
+
+std::optional<LayoutAttr> remapLayoutDims(LayoutAttr layout,
+                                          ArrayRef<int64_t> oldToNewDim) {
+  SmallVector<Attribute> dims;
+  MLIRContext* ctx = layout.getContext();
+  for (Attribute attr : layout.getDims()) {
+    auto dim = cast<DimAttr>(attr);
+    if (dim.isGap() || dim.isReplicate()) {
+      dims.push_back(dim);
+      continue;
+    }
+
+    int64_t oldDim = dim.getDim();
+    if (oldDim < 0 || oldDim >= static_cast<int64_t>(oldToNewDim.size())) {
+      return std::nullopt;
+    }
+
+    int64_t newDim = oldToNewDim[oldDim];
+    if (newDim == -1) continue;
+    if (newDim < -1) return std::nullopt;
+    dims.push_back(DimAttr::get(ctx, newDim, dim.getSize(), dim.getStride()));
+  }
+
+  return LayoutAttr::get(ctx, ArrayAttr::get(ctx, dims), layout.getN());
+}
+
+SmallVector<Candidate> remapCandidates(Value operand,
+                                       ArrayRef<Candidate> candidates,
+                                       ArrayRef<int64_t> oldToNewDim,
+                                       KernelKind kind, int64_t extraCost) {
+  SmallVector<Candidate> remapped;
+  for (const Candidate& candidate : candidates) {
+    std::optional<LayoutAttr> layout =
+        remapLayoutDims(candidate.layout, oldToNewDim);
+    if (!layout) continue;
+    remapped.push_back({*layout,
+                        candidate.cost + extraCost,
+                        kind,
+                        {operand},
+                        {candidate.layout}});
+  }
+  return uniqueCandidates(remapped);
+}
+
+SmallVector<Candidate> chooseCommonCandidates(
+    ArrayRef<Value> operands, ArrayRef<SmallVector<Candidate>> candidateSets,
+    KernelKind kind, function_ref<int64_t(LayoutAttr)> localCostFn) {
+  if (operands.size() != candidateSets.size()) return {};
+
+  SmallVector<Candidate> targets;
+  for (const SmallVector<Candidate>& candidates : candidateSets) {
+    for (const Candidate& candidate : candidates) {
+      targets.push_back({candidate.layout, 0, kind});
+    }
+  }
+  targets = uniqueCandidates(targets);
+  if (targets.empty()) return {};
+
+  SmallVector<Candidate> chosen;
+  for (const Candidate& target : targets) {
+    int64_t totalCost = localCostFn(target.layout);
+    bool valid = true;
+    SmallVector<LayoutAttr> operandLayouts;
+    for (const SmallVector<Candidate>& candidates : candidateSets) {
+      if (candidates.empty()) continue;
+      const Candidate* bestCandidate = nullptr;
+      std::optional<Candidate> bestScoredCandidate;
+      int64_t bestCost = 0;
+      for (const Candidate& candidate : candidates) {
+        int64_t conversionCost =
+            layoutConversionCost(candidate.layout, target.layout);
+        int64_t cost = candidate.cost + conversionCost;
+        Candidate scoredCandidate = candidate;
+        scoredCandidate.cost = cost;
+        scoredCandidate.kind = kind;
+        if (!bestScoredCandidate ||
+            isBetterCandidate(scoredCandidate, *bestScoredCandidate)) {
+          bestScoredCandidate = scoredCandidate;
+          bestCandidate = &candidate;
+          bestCost = cost;
+        }
+      }
+      if (!bestCandidate) {
+        valid = false;
+        break;
+      }
+      totalCost += bestCost;
+      operandLayouts.push_back(bestCandidate->layout);
+    }
+    if (valid) {
+      chosen.push_back({target.layout, totalCost, kind,
+                        SmallVector<Value>(operands), operandLayouts});
+    }
+  }
+  return uniqueCandidates(chosen);
+}
+
+std::optional<SmallVector<int64_t>> getReductionDimMap(
+    int64_t inputRank, ArrayRef<int64_t> reductionDims) {
+  SmallVector<bool> isReduced(inputRank, false);
+  for (int64_t dim : reductionDims) {
+    if (dim < 0 || dim >= inputRank) return std::nullopt;
+    isReduced[dim] = true;
+  }
+
+  SmallVector<int64_t> oldToNew(inputRank, -1);
+  int64_t newDim = 0;
+  for (int64_t dim = 0; dim < inputRank; ++dim) {
+    if (isReduced[dim]) continue;
+    oldToNew[dim] = newDim++;
+  }
+  return oldToNew;
+}
+
+std::optional<SmallVector<int64_t>> getCollapseShapeDimMap(
+    RankedTensorType sourceType,
+    ArrayRef<ReassociationIndices> reassociationIndices) {
+  SmallVector<int64_t> oldToNew(sourceType.getRank(), -2);
+
+  for (auto [resultDim, group] : llvm::enumerate(reassociationIndices)) {
+    int64_t mappedDim = -1;
+    for (int64_t sourceDim : group) {
+      if (sourceDim < 0 || sourceDim >= sourceType.getRank()) {
+        return std::nullopt;
+      }
+
+      int64_t dimSize = sourceType.getDimSize(sourceDim);
+      if (dimSize == 1) {
+        oldToNew[sourceDim] = -1;
+        if (mappedDim == -1) mappedDim = sourceDim;
+        continue;
+      }
+      if (isDynamic(dimSize)) return std::nullopt;
+      if (mappedDim != -1 && sourceType.getDimSize(mappedDim) != 1) {
+        return std::nullopt;
+      }
+      mappedDim = sourceDim;
+    }
+
+    if (mappedDim == -1) return std::nullopt;
+    oldToNew[mappedDim] = static_cast<int64_t>(resultDim);
+  }
+
+  return oldToNew;
+}
+
+std::optional<SmallVector<int64_t>> getExpandShapeDimMap(
+    RankedTensorType resultType,
+    ArrayRef<ReassociationIndices> reassociationIndices) {
+  SmallVector<int64_t> oldToNew;
+  oldToNew.reserve(reassociationIndices.size());
+
+  for (ArrayRef<int64_t> group : reassociationIndices) {
+    int64_t mappedDim = -1;
+    for (int64_t resultDim : group) {
+      if (resultDim < 0 || resultDim >= resultType.getRank()) {
+        return std::nullopt;
+      }
+
+      int64_t dimSize = resultType.getDimSize(resultDim);
+      if (dimSize == 1) {
+        if (mappedDim == -1) mappedDim = resultDim;
+        continue;
+      }
+      if (isDynamic(dimSize)) return std::nullopt;
+      if (mappedDim != -1 && resultType.getDimSize(mappedDim) != 1) {
+        return std::nullopt;
+      }
+      mappedDim = resultDim;
+    }
+    if (mappedDim == -1) return std::nullopt;
+    oldToNew.push_back(mappedDim);
+  }
+
+  return oldToNew;
+}
+
+std::optional<SmallVector<int64_t>> getExtractSliceDimMap(
+    RankedTensorType resultType, ArrayRef<int64_t> staticSizes,
+    ArrayRef<int64_t> staticStrides) {
+  if (!hasOnlyUnitStrides(staticStrides)) return std::nullopt;
+
+  int64_t sourceRank = static_cast<int64_t>(staticSizes.size());
+  int64_t resultRank = resultType.getRank();
+  if (sourceRank == resultRank) {
+    SmallVector<int64_t> identity(sourceRank);
+    std::iota(identity.begin(), identity.end(), 0);
+    return identity;
+  }
+
+  SmallVector<int64_t> oldToNew(sourceRank, -2);
+  int64_t resultDim = 0;
+  for (int64_t sourceDim = 0; sourceDim < sourceRank; ++sourceDim) {
+    int64_t size = staticSizes[sourceDim];
+    if (isDynamic(size)) return std::nullopt;
+
+    if (resultDim < resultRank && size == resultType.getDimSize(resultDim)) {
+      oldToNew[sourceDim] = resultDim++;
+      continue;
+    }
+    if (size == 1) {
+      oldToNew[sourceDim] = -1;
+      continue;
+    }
+    return std::nullopt;
+  }
+
+  if (resultDim != resultRank) return std::nullopt;
+  return oldToNew;
+}
+
+std::optional<SmallVector<int64_t>> getInsertSliceDimMap(
+    RankedTensorType sourceType, RankedTensorType resultType,
+    ArrayRef<int64_t> staticSizes, ArrayRef<int64_t> staticStrides) {
+  if (!hasOnlyUnitStrides(staticStrides)) return std::nullopt;
+
+  int64_t sourceRank = sourceType.getRank();
+  int64_t resultRank = resultType.getRank();
+  if (sourceRank == resultRank) {
+    SmallVector<int64_t> identity(sourceRank);
+    std::iota(identity.begin(), identity.end(), 0);
+    return identity;
+  }
+
+  SmallVector<int64_t> sourceToResult(sourceRank, -2);
+  int64_t sourceDim = 0;
+  for (int64_t resultDim = 0; resultDim < resultRank; ++resultDim) {
+    int64_t size = staticSizes[resultDim];
+    if (isDynamic(size)) return std::nullopt;
+
+    if (sourceDim < sourceRank && size == sourceType.getDimSize(sourceDim)) {
+      sourceToResult[sourceDim++] = resultDim;
+      continue;
+    }
+    if (size == 1) continue;
+    return std::nullopt;
+  }
+
+  if (sourceDim != sourceRank) return std::nullopt;
+  return sourceToResult;
+}
+
+}  // namespace mlir::heir::rotom

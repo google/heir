@@ -18,8 +18,16 @@ add_heir_transforms(
 
 cc_library(
     name = "LayoutAssignment",
-    srcs = ["LayoutAssignment/LayoutAssignment.cpp"],
-    hdrs = ["LayoutAssignment/LayoutAssignment.h"],
+    srcs = [
+        "LayoutAssignment/Candidate.cpp",
+        "LayoutAssignment/DimMaps.cpp",
+        "LayoutAssignment/LayoutAssignment.cpp",
+    ],
+    hdrs = [
+        "LayoutAssignment/Candidate.h",
+        "LayoutAssignment/DimMaps.h",
+        "LayoutAssignment/LayoutAssignment.h",
+    ],
     deps = [
         ":layout_assignment_pass_inc_gen",
         "@heir//lib/Dialect/Rotom/IR:Dialect",
