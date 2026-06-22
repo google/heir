@@ -6,14 +6,15 @@
 #include <string>
 
 #include "lib/Dialect/Rotom/IR/RotomAttributes.h"
+#include "lib/Dialect/Rotom/Transforms/LayoutAssignment/CostModel.h"
 #include "lib/Dialect/Rotom/Utils/LayoutAlignment.h"
 #include "lib/Kernel/KernelName.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
-#include "llvm/include/llvm/ADT/StringRef.h"             // from @llvm-project
-#include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
-#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"              // from @llvm-project
+#include "llvm/include/llvm/ADT/StringRef.h"              // from @llvm-project
+#include "llvm/include/llvm/Support/ErrorHandling.h"      // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"     // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/DebugStringHelper.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"               // from @llvm-project
 
@@ -87,24 +88,18 @@ std::optional<KernelName> selectRotomElementwiseKernel(Operation* op) {
   return std::nullopt;
 }
 
-int64_t layoutConversionCost(LayoutAttr from, LayoutAttr to) {
-  if (from == to) return 0;
-  return 4 + std::abs(layoutNumCiphertexts(from) - layoutNumCiphertexts(to));
-}
-
-// Proxy cost of converting one operand's layout onto another, measured by the
-// slot bits that must move. Zero when the layouts are already aligned (no
-// moves). A later stage replaces this with the Vos-Vos-Erkin shift-network cost
-// once the moves are lowered through tensor_ext.convert_layout.
+// Fallback conversion cost for layouts the shift network cannot lower: charge
+// one rotation per slot-bit move that must happen. The real path
+// (shiftNetworkConversionCost) supersedes this whenever it succeeds.
 int64_t conversionCost(ArrayRef<ConversionMove> moves) {
-  if (moves.empty()) return 0;
-  return 4 + static_cast<int64_t>(moves.size());
+  return static_cast<int64_t>(moves.size()) * getCostModel().rotation;
 }
 
 int64_t operationCost(Operation* op, LayoutAttr layout) {
   int64_t numCt = layoutNumCiphertexts(layout);
-  if (isAddLike(op)) return numCt;
-  if (isMulLike(op)) return 10 * numCt;
+  const RotomCostModel& model = getCostModel();
+  if (isAddLike(op)) return model.add * numCt;
+  if (isMulLike(op)) return model.ciphertextMultiply * numCt;
   return 0;
 }
 

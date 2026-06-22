@@ -20,11 +20,13 @@ cc_library(
     name = "LayoutAssignment",
     srcs = [
         "LayoutAssignment/Candidate.cpp",
+        "LayoutAssignment/CostModel.cpp",
         "LayoutAssignment/DimMaps.cpp",
         "LayoutAssignment/LayoutAssignment.cpp",
     ],
     hdrs = [
         "LayoutAssignment/Candidate.h",
+        "LayoutAssignment/CostModel.h",
         "LayoutAssignment/DimMaps.h",
         "LayoutAssignment/LayoutAssignment.h",
     ],

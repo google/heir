@@ -169,13 +169,13 @@ module {
 
 module {
   // CHECK: func.func @downstream_selects_intermediate
-  // CHECK-SAME: tensor<4x4xf32> {rotom.layout = #rotom.layout<n = 8, dims = {{\[\[0:2:2\], \[0:2:1\], \[1:4:1\]\]}}>}
+  // CHECK-SAME: tensor<4x4xf32> {rotom.layout = #rotom.layout<n = 8, dims = {{\[\[0:4:1\], \[1:2:2\], \[1:2:1\]\]}}>}
   func.func @downstream_selects_intermediate(%arg0: tensor<4x4xf32> {rotom.seed = #seed_chain_ab}, %arg1: tensor<4x4xf32> {rotom.seed = #seed_chain_b}) -> tensor<4x4xf32> {
     // CHECK: tensor.extract_slice
-    // CHECK-SAME: rotom.layout = #rotom.layout<n = 8, dims = {{\[\[0:2:2\], \[0:2:1\], \[1:4:1\]\]}}>
+    // CHECK-SAME: rotom.layout = #rotom.layout<n = 8, dims = {{\[\[0:4:1\], \[1:2:2\], \[1:2:1\]\]}}>
     %0 = tensor.extract_slice %arg0[0, 0] [4, 4] [1, 1] : tensor<4x4xf32> to tensor<4x4xf32>
     // CHECK: arith.addf
-    // CHECK-SAME: rotom.layout = #rotom.layout<n = 8, dims = {{\[\[0:2:2\], \[0:2:1\], \[1:4:1\]\]}}>
+    // CHECK-SAME: rotom.layout = #rotom.layout<n = 8, dims = {{\[\[0:4:1\], \[1:2:2\], \[1:2:1\]\]}}>
     %1 = arith.addf %0, %arg1 : tensor<4x4xf32>
     return %1 : tensor<4x4xf32>
   }

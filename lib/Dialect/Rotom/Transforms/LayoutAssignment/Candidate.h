@@ -73,10 +73,9 @@ bool isAdd(Operation* op);
 bool isMulLike(Operation* op);
 std::optional<KernelName> selectRotomElementwiseKernel(Operation* op);
 
-// Cost model. `layoutConversionCost` is a cheap proxy for realigning one layout
-// onto another; `conversionCost` scores a set of slot-bit moves;
-// `operationCost` and `genericOperationCost` score the compute itself.
-int64_t layoutConversionCost(LayoutAttr from, LayoutAttr to);
+// Cost model (op weights live in CostModel.h / cost_model.json). `conversionCost`
+// is the shift-network fallback used only when a layout cannot be lowered;
+// `operationCost`/`genericOperationCost` score the compute itself.
 int64_t conversionCost(ArrayRef<ConversionMove> moves);
 int64_t operationCost(Operation* op, LayoutAttr layout);
 int64_t genericOperationCost(linalg::GenericOp op, LayoutAttr layout);

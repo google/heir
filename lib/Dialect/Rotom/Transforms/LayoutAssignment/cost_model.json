@@ -1,0 +1,6 @@
+{
+  "_comment": "TEMPORARY relative HE op-cost weights in 'key-switch' units, used by the Rotom layout-assignment cost model. A ciphertext rotation and a ciphertext x ciphertext multiply each cost ~1 key-switch (the dominant FHE cost); additions are comparatively negligible. These are placeholders -- replace with values measured for the target scheme and parameters. Override at runtime by setting the ROTOM_COST_MODEL env var to this file's path.",
+  "rotation": 100,
+  "ciphertextMultiply": 100,
+  "add": 1
+}

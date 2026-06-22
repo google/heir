@@ -10,6 +10,7 @@
 
 #include "lib/Dialect/Rotom/IR/RotomAttributes.h"
 #include "lib/Dialect/Rotom/Transforms/LayoutAssignment/Candidate.h"
+#include "lib/Dialect/Rotom/Transforms/LayoutAssignment/CostModel.h"
 #include "lib/Dialect/Rotom/Transforms/LayoutAssignment/DimMaps.h"
 #include "lib/Dialect/Rotom/Utils/LayoutAlignment.h"
 #include "lib/Dialect/Rotom/Utils/RotomTensorExtLayoutLowering.h"
@@ -243,7 +244,10 @@ SmallVector<Candidate> LayoutAssignment::chooseCommonOperandCandidates(
   }
   return chooseCommonCandidates(
       operands, candidateSets, kind,
-      [&](LayoutAttr layout) { return operationCost(op, layout); });
+      [&](LayoutAttr layout) { return operationCost(op, layout); },
+      [this](LayoutAttr from, LayoutAttr to) {
+        return cachedConversionCost(from, to);
+      });
 }
 
 int64_t LayoutAssignment::cachedConversionCost(LayoutAttr from, LayoutAttr to) {
@@ -257,11 +261,13 @@ int64_t LayoutAssignment::cachedConversionCost(LayoutAttr from, LayoutAttr to) {
   auto it = conversionCostCache.find(key);
   if (it != conversionCostCache.end()) return it->second;
 
-  // Real Vos-Vos-Erkin rotation count, falling back to the move-count proxy
-  // when a layout cannot be lowered to tensor_ext. Cached per layout pair since
-  // the search queries the same pairs across many candidate pairings.
+  // Real Vos-Vos-Erkin rotation count weighted by the per-rotation cost,
+  // falling back to the move-count proxy when a layout cannot be lowered to
+  // tensor_ext. Cached per layout pair since the search queries the same pairs
+  // across many candidate pairings.
+  std::optional<int64_t> rotations = shiftNetworkConversionCost(from, to);
   int64_t cost =
-      shiftNetworkConversionCost(from, to).value_or(conversionCost(moves));
+      rotations ? *rotations * getCostModel().rotation : conversionCost(moves);
   conversionCostCache[key] = cost;
   return cost;
 }
@@ -480,7 +486,10 @@ LogicalResult LayoutAssignment::visitGeneric(linalg::GenericOp op) {
   }
   SmallVector<Candidate> chosen = chooseCommonCandidates(
       operands, candidateSets, KernelKind::Generic,
-      [&](LayoutAttr layout) { return genericOperationCost(op, layout); });
+      [&](LayoutAttr layout) { return genericOperationCost(op, layout); },
+      [this](LayoutAttr from, LayoutAttr to) {
+        return cachedConversionCost(from, to);
+      });
   assignResultsFromCandidates(op, chosen);
   return success();
 }
@@ -580,9 +589,13 @@ LogicalResult LayoutAssignment::visitInsertSlice(tensor::InsertSliceOp op) {
         SmallVector<Value> operands = {op.getDest(), op.getSource()};
         SmallVector<SmallVector<Candidate>> sets = {destCandidates,
                                                     expandedSource};
-        assignResultsFromCandidates(
-            op, chooseCommonCandidates(operands, sets, KernelKind::InsertSlice,
-                                       [](LayoutAttr) { return 0; }));
+        assignResultsFromCandidates(op,
+                                    chooseCommonCandidates(
+                                        operands, sets, KernelKind::InsertSlice,
+                                        [](LayoutAttr) { return 0; },
+                                        [this](LayoutAttr from, LayoutAttr to) {
+                                          return cachedConversionCost(from, to);
+                                        }));
         return success();
       }
     }

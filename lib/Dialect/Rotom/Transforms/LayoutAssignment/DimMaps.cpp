@@ -81,7 +81,8 @@ SmallVector<Candidate> remapCandidates(Value operand,
 
 SmallVector<Candidate> chooseCommonCandidates(
     ArrayRef<Value> operands, ArrayRef<SmallVector<Candidate>> candidateSets,
-    KernelKind kind, function_ref<int64_t(LayoutAttr)> localCostFn) {
+    KernelKind kind, function_ref<int64_t(LayoutAttr)> localCostFn,
+    function_ref<int64_t(LayoutAttr, LayoutAttr)> conversionCostFn) {
   if (operands.size() != candidateSets.size()) return {};
 
   SmallVector<Candidate> targets;
@@ -108,8 +109,7 @@ SmallVector<Candidate> chooseCommonCandidates(
       std::optional<Candidate> bestScoredCandidate;
       int64_t bestConversion = 0;
       for (const Candidate& candidate : candidates) {
-        int64_t conversion =
-            layoutConversionCost(candidate.layout, target.layout);
+        int64_t conversion = conversionCostFn(candidate.layout, target.layout);
         Candidate scoredCandidate = candidate;
         scoredCandidate.accumulatedCost =
             candidate.accumulatedCost + conversion;

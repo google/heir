@@ -45,10 +45,12 @@ SmallVector<Candidate> remapCandidates(Value operand,
                                        KernelKind kind, int64_t extraCost = 0);
 
 // Picks a common result layout across multiple operands, charging each operand
-// the cost of converting onto it plus `localCostFn(layout)` for the compute.
+// `conversionCostFn(operandLayout, resultLayout)` to realign onto it plus
+// `localCostFn(layout)` for the compute.
 SmallVector<Candidate> chooseCommonCandidates(
     ArrayRef<Value> operands, ArrayRef<SmallVector<Candidate>> candidateSets,
-    KernelKind kind, function_ref<int64_t(LayoutAttr)> localCostFn);
+    KernelKind kind, function_ref<int64_t(LayoutAttr)> localCostFn,
+    function_ref<int64_t(LayoutAttr, LayoutAttr)> conversionCostFn);
 
 }  // namespace mlir::heir::rotom
 
