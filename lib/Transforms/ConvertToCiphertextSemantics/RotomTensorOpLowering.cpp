@@ -256,21 +256,33 @@ LogicalResult RotomTensorOpLowering::lowerMatmulByRotation(
 
   rewriter.setInsertionPointAfter(op);
   ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+  // Pre-build every group's mask (constants independent of the rotations) before
+  // emitting any rotate/mul. createMaskForPoints is the only fallible step here,
+  // so doing it first means a failure cannot orphan a partially built
+  // accumulation chain (the caller would otherwise fall back, leaving dead ops).
+  SmallVector<Value> masks;
+  masks.reserve(groups.size());
+  for (const auto& [shifts, targetPoints] : groups) {
+    FailureOr<Value> mask =
+        createMaskForPoints(ciphertextSemanticType, targetPoints, b);
+    if (failed(mask)) return failure();
+    masks.push_back(*mask);
+  }
+
   // Destination-style semantics: the output tensor is the initial accumulator.
   Value acc = output;
+  size_t groupIdx = 0;
   for (const auto& [shifts, targetPoints] : groups) {
+    (void)targetPoints;
+    Value mask = masks[groupIdx++];
     Value rotatedLhs = createRotate(lhs, shifts.first, b);
     Value rotatedRhs = createRotate(rhs, shifts.second, b);
     Operation* product =
         makeAppropriatelyTypedMulOp(b, op.getLoc(), rotatedLhs, rotatedRhs);
     setMaterializedAttr(product);
 
-    FailureOr<Value> mask =
-        createMaskForPoints(ciphertextSemanticType, targetPoints, b);
-    if (failed(mask)) return failure();
-    Operation* masked =
-        makeAppropriatelyTypedMulOp(b, op.getLoc(), product->getResult(0),
-                                    *mask);
+    Operation* masked = makeAppropriatelyTypedMulOp(
+        b, op.getLoc(), product->getResult(0), mask);
     masked->setAttr(kLayoutAttrName, outputLayout);
     setMaterializedAttr(masked);
 
@@ -373,6 +385,22 @@ LogicalResult RotomTensorOpLowering::lowerMatvecCtDiagonalBsgs(
   rewriter.setInsertionPointAfter(op);
   ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
+  // Build the gap mask up front: it is a constant independent of the BSGS
+  // accumulation. createMaskForPoints is the only step here that can fail, and
+  // for the validated [0, D) output points it will not -- but creating it before
+  // any rotate/mul is emitted guarantees a failure cannot orphan a partially
+  // built rotation chain (the caller would otherwise fall back, leaving dead
+  // ops). gapMask is null in the square single-period case (D == numSlots).
+  Value gapMask;
+  if (D < numSlots) {
+    std::vector<std::vector<int64_t>> outputPoints;
+    outputPoints.reserve(D);
+    for (int64_t i = 0; i < D; ++i) outputPoints.push_back({0, i});
+    FailureOr<Value> mask = createMaskForPoints(outType, outputPoints, b);
+    if (failed(mask)) return failure();
+    gapMask = *mask;
+  }
+
   auto leftRotateAmount = [&](int64_t byNegative) -> int64_t {
     // A tensor_ext.rotate by s sends slot t to input slot (t + s) mod numSlots;
     // a logical left-rotation by `byNegative` (i.e. rot(v, -byNegative)) is
@@ -461,14 +489,9 @@ LogicalResult RotomTensorOpLowering::lowerMatvecCtDiagonalBsgs(
   // result period-D, so zero everything past the valid output rows. The square
   // single-period case (D == numSlots) has no gap and skips this.
   Value result = resid;
-  if (D < numSlots) {
-    std::vector<std::vector<int64_t>> outputPoints;
-    outputPoints.reserve(D);
-    for (int64_t i = 0; i < D; ++i) outputPoints.push_back({0, i});
-    FailureOr<Value> mask = createMaskForPoints(outType, outputPoints, b);
-    if (failed(mask)) return failure();
+  if (gapMask) {
     Operation* masked =
-        makeAppropriatelyTypedMulOp(b, op.getLoc(), result, *mask);
+        makeAppropriatelyTypedMulOp(b, op.getLoc(), result, gapMask);
     masked->setAttr(kLayoutAttrName, outputLayout);
     setMaterializedAttr(masked);
     result = masked->getResult(0);
@@ -560,6 +583,19 @@ LogicalResult RotomTensorOpLowering::lowerMatvecDenseDiagonal(
   Type elementType = rhsType.getElementType();
   RankedTensorType kType = RankedTensorType::get({1, Kp}, elementType);
 
+  // Build the gap mask up front (a constant independent of the accumulation), so
+  // a createMaskForPoints failure -- unreachable for the validated [0, Dp) output
+  // points -- cannot orphan a partially built rotation chain. Null when Dp == Kp.
+  Value gapMask;
+  if (Dp < Kp) {
+    std::vector<std::vector<int64_t>> outputPoints;
+    outputPoints.reserve(Dp);
+    for (int64_t i = 0; i < Dp; ++i) outputPoints.push_back({0, i});
+    FailureOr<Value> mask = createMaskForPoints(kType, outputPoints, b);
+    if (failed(mask)) return failure();
+    gapMask = *mask;
+  }
+
   auto leftRotate = [&](int64_t byNegative) -> int64_t {
     return ((-byNegative) % Kp + Kp) % Kp;
   };
@@ -632,14 +668,9 @@ LogicalResult RotomTensorOpLowering::lowerMatvecDenseDiagonal(
 
   // Mask the gap [Dp, Kp) of the Kp-wide result.
   Value result = resid;
-  if (Dp < Kp) {
-    std::vector<std::vector<int64_t>> outputPoints;
-    outputPoints.reserve(Dp);
-    for (int64_t i = 0; i < Dp; ++i) outputPoints.push_back({0, i});
-    FailureOr<Value> mask = createMaskForPoints(kType, outputPoints, b);
-    if (failed(mask)) return failure();
+  if (gapMask) {
     Operation* masked =
-        makeAppropriatelyTypedMulOp(b, op.getLoc(), result, *mask);
+        makeAppropriatelyTypedMulOp(b, op.getLoc(), result, gapMask);
     setMaterializedAttr(masked);
     result = masked->getResult(0);
   }
