@@ -83,6 +83,7 @@ cc_library(
         "@llvm-project//mlir:FuncTransforms",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:LinalgDialect",
+        "@llvm-project//mlir:MemRefDialect",
         "@llvm-project//mlir:SCFTransforms",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",

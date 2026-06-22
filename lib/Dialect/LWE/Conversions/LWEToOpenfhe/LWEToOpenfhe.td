@@ -15,6 +15,7 @@ def LWEToOpenfhe : Pass<"lwe-to-openfhe"> {
   let dependentDialects = [
     "mlir::heir::lwe::LWEDialect",
     "mlir::heir::openfhe::OpenfheDialect",
+    "mlir::heir::preprocessing::PreprocessingDialect",
     "mlir::tensor::TensorDialect",
   ];
 }

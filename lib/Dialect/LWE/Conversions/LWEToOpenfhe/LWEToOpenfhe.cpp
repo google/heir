@@ -13,6 +13,10 @@
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
+#include "lib/Dialect/Preprocessing/Conversions/Util.h"
+#include "lib/Dialect/Preprocessing/IR/PreprocessingDialect.h"
+#include "lib/Dialect/Preprocessing/IR/PreprocessingOps.h"
+#include "lib/Dialect/Preprocessing/IR/PreprocessingTypes.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
@@ -38,7 +42,7 @@ namespace mlir::heir::lwe {
 #define GEN_PASS_DEF_LWETOOPENFHE
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h.inc"
 
-Type convertLWEType(Type type) {
+Type convertLWEType(Type type, TypeConverter* typeConverter) {
   return llvm::TypeSwitch<Type, Type>(type)
       .Case<lwe::LWEPublicKeyType>(
           [&](auto ty) { return openfhe::PublicKeyType::get(ty.getContext()); })
@@ -51,13 +55,16 @@ Type convertLWEType(Type type) {
         return openfhe::CiphertextType::get(ty.getContext());
       })
       .Case<ShapedType>([&](auto ty) {
-        return ty.clone(convertLWEType(ty.getElementType()));
+        return ty.clone(typeConverter->convertType(ty.getElementType()));
+      })
+      .Case<preprocessing::PreprocessingStorageType>([&](auto ty) {
+        return preprocessing::convertStorageElementTypes(ty, typeConverter);
       })
       .Default([&](Type ty) { return ty; });
 }
 
 ToOpenfheTypeConverter::ToOpenfheTypeConverter(MLIRContext* ctx) {
-  addConversion([&](Type type) { return convertLWEType(type); });
+  addConversion([this](Type type) { return convertLWEType(type, this); });
 }
 
 FailureOr<Value> getContextualCryptoContext(Operation* op) {
@@ -361,7 +368,7 @@ struct ConvertBootstrapOp : public OpConversionPattern<ckks::BootstrapOp> {
           op, "variadic bootstrapping is not supported in OpenFHE");
     }
 
-    Type resultType = convertLWEType(op.getResult().getType());
+    Type resultType = getTypeConverter()->convertType(op.getResult().getType());
     Value cryptoContext = result.value();
     rewriter.replaceOpWithNewOp<openfhe::BootstrapOp>(
         op, resultType, cryptoContext, adaptor.getInput());
@@ -416,10 +423,13 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
     target.addIllegalDialect<bgv::BGVDialect>();
     target.addIllegalDialect<ckks::CKKSDialect>();
     target.addIllegalDialect<lwe::LWEDialect>();
+    target.addDynamicallyLegalDialect<preprocessing::PreprocessingDialect>(
+        [&](Operation* op) { return typeConverter.isLegal(op); });
 
     RewritePatternSet patterns(context);
     addStructuralConversionPatterns(typeConverter, patterns, target);
     addTensorConversionPatterns(typeConverter, patterns, target);
+    addMemRefConversionPatterns(typeConverter, patterns, target);
 
     target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
       bool hasCryptoContextArg = op.getFunctionType().getNumInputs() > 0 &&
@@ -507,6 +517,9 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
         lwe::ConvertLevelReduceOp<ckks::LevelReduceOp>,
         // Bootstrap (CKKS only)
         ConvertBootstrapOp>(typeConverter, context);
+
+    preprocessing::populatePreprocessingConversions(patterns, typeConverter,
+                                                    context);
 
     ConversionConfig config;
     // We need allowPatternRollback here because failure to legalize an op

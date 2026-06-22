@@ -7,25 +7,21 @@ package(
 )
 
 cc_library(
-    name = "PreprocessingToMemref",
-    srcs = ["PreprocessingToMemref.cpp"],
-    hdrs = ["PreprocessingToMemref.h"],
+    name = "PreprocessingToLattigo",
+    srcs = ["PreprocessingToLattigo.cpp"],
+    hdrs = ["PreprocessingToLattigo.h"],
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Analysis/PreprocessingStorageLayoutAnalysis",
+        "@heir//lib/Dialect/Lattigo/IR:Dialect",
         "@heir//lib/Dialect/Preprocessing/Conversions:Util",
         "@heir//lib/Dialect/Preprocessing/IR:Dialect",
         "@heir//lib/Utils:ConversionUtils",
-        "@llvm-project//llvm:Support",
-        "@llvm-project//mlir:AffineAnalysis",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:ArithDialect",
-        "@llvm-project//mlir:ArithUtils",
-        "@llvm-project//mlir:DialectUtils",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:FuncTransforms",
         "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:LoopLikeInterface",
         "@llvm-project//mlir:MemRefDialect",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
@@ -36,14 +32,14 @@ cc_library(
 gentbl_cc_library(
     name = "pass_inc_gen",
     tbl_outs = {
-        "PreprocessingToMemref.h.inc": [
+        "PreprocessingToLattigo.h.inc": [
             "-gen-pass-decls",
-            "-name=PreprocessingToMemref",
+            "-name=PreprocessingToLattigo",
         ],
-        "PreprocessingToMemref.md": ["-gen-pass-doc"],
+        "PreprocessingToLattigo.md": ["-gen-pass-doc"],
     },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "PreprocessingToMemref.td",
+    td_file = "PreprocessingToLattigo.td",
     deps = [
         "@llvm-project//mlir:OpBaseTdFiles",
         "@llvm-project//mlir:PassBaseTdFiles",

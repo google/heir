@@ -13,6 +13,7 @@ def LWEToLattigo : Pass<"lwe-to-lattigo"> {
   let dependentDialects = [
     "mlir::heir::bgv::BGVDialect",
     "mlir::heir::lattigo::LattigoDialect",
+    "mlir::heir::preprocessing::PreprocessingDialect",
     "mlir::tensor::TensorDialect",
     "mlir::heir::lwe::LWEDialect",
   ];

@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "lib/Analysis/PreprocessingStorageLayoutAnalysis/PreprocessingStorageLayoutAnalysis.h"
+#include "lib/Dialect/Preprocessing/Conversions/Util.h"
 #include "lib/Dialect/Preprocessing/IR/PreprocessingDialect.h"
 #include "lib/Dialect/Preprocessing/IR/PreprocessingOps.h"
 #include "lib/Dialect/Preprocessing/IR/PreprocessingTypes.h"
@@ -58,161 +59,6 @@ FailureOr<int> getElementTypeIndex(
     return failure();
   }
   return std::distance(elementTypes.begin(), it);
-}
-
-// Returns a list of enclosing loop ops (affine.for, LoopLikeOpInterface) in
-// outermost-to-innermost order.
-SmallVector<Operation*, 4> getEnclosingLoopsOuterToInner(Operation* op) {
-  SmallVector<Operation*, 4> enclosingLoops;
-  Operation* parent = op->getParentOp();
-  while (parent) {
-    if (isa<affine::AffineForOp, LoopLikeOpInterface>(parent)) {
-      enclosingLoops.push_back(parent);
-    }
-    parent = parent->getParentOp();
-  }
-  std::reverse(enclosingLoops.begin(), enclosingLoops.end());
-  return enclosingLoops;
-}
-
-struct LoopBounds {
-  Value lb;
-  Value ub;
-  Value step;
-};
-
-FailureOr<LoopBounds> getSingleLoopBounds(mlir::LoopLikeOpInterface loopOp,
-                                          OpBuilder builder, Location loc) {
-  std::optional<SmallVector<OpFoldResult>> loBnds = loopOp.getLoopLowerBounds();
-  std::optional<SmallVector<OpFoldResult>> upBnds = loopOp.getLoopUpperBounds();
-  std::optional<SmallVector<OpFoldResult>> steps = loopOp.getLoopSteps();
-  if (!loBnds || !upBnds || !steps) return failure();
-  if (loBnds->size() != 1 || upBnds->size() != 1 || steps->size() != 1)
-    return failure();
-  LoopBounds bounds;
-  bounds.lb = getValueOrCreateConstantIndexOp(builder, loc, loBnds->front());
-  bounds.ub = getValueOrCreateConstantIndexOp(builder, loc, upBnds->front());
-  bounds.step = getValueOrCreateConstantIndexOp(builder, loc, steps->front());
-  return bounds;
-}
-
-// PreprocessingToMemref converts a (globally unique) preprocessing.storage SSA
-// value to one or more flat memrefs (one for each type).
-//
-// getLinearIndex takes as input the data about a particular preprocessing.store
-// or preprocessing.load op, and outputs an SSA value corresponding to the index
-// within the flat memref of that value.
-//
-// The PreprocessingStorageLayoutAnalysis calculates offsets for each site_id,
-// which corresponds to a target encode op in the original IR. Given this base
-// offset, the variadic indices are matched with induction variables of an
-// enclosing loop nest, and flattened into an SSA value corresponding to a 1D
-// absolute index. If there is no containing loop, nest the relative offset is
-// 0. Otherwise it is a flattened (start, stop, step)-appropriate shift from
-// the base offset for the given site_id.
-FailureOr<Value> getLinearIndex(
-    OpBuilder& builder, Location loc, Operation* op, Type elementType,
-    uint32_t siteId, ValueRange indices,
-    const PreprocessingStorageLayoutAnalysis& analysis) {
-  SmallVector<Operation*, 4> enclosingLoops = getEnclosingLoopsOuterToInner(op);
-  if (enclosingLoops.size() != indices.size()) {
-    return op->emitOpError() << "Number of indices (" << indices.size()
-                             << ") does not match number of enclosing loops ("
-                             << enclosingLoops.size() << ")";
-  }
-
-  std::optional<SiteLayout> layout = analysis.getLayout(elementType, siteId);
-  if (!layout.has_value()) {
-    return op->emitOpError() << "Missing layout for site ID " << siteId;
-  }
-  int64_t baseOffset = layout->offset;
-
-  Value linearIndex = arith::ConstantIndexOp::create(builder, loc, baseOffset);
-  if (enclosingLoops.empty()) {
-    // The op is not in a loop, so the base offset is the index of the memref
-    return linearIndex;
-  }
-
-  int64_t currentStride = 1;
-  SmallVector<Value, 4> lbs(indices.size());
-  SmallVector<Value, 4> steps(indices.size());
-  SmallVector<int64_t, 4> strides(indices.size());
-  SmallVector<int64_t, 4> tripCounts(indices.size());
-
-  // First calculate each loop's bounds, steps, strides, and trip counts.
-  for (int i = indices.size() - 1; i >= 0; --i) {
-    Operation* loop = enclosingLoops[i];
-    Value lb;
-    Value step;
-    int64_t tripCount = 0;
-
-    if (auto loopLikeOp = dyn_cast<LoopLikeOpInterface>(loop)) {
-      FailureOr<LoopBounds> bounds =
-          getSingleLoopBounds(loopLikeOp, builder, loc);
-      if (failed(bounds))
-        return loop->emitOpError("Expected single loop bounds and step");
-
-      int64_t tcI64;
-      if (auto affineFor = dyn_cast<affine::AffineForOp>(loop)) {
-        std::optional<int64_t> tc = getConstantTripCount(affineFor);
-        tcI64 = *tc;
-      } else {
-        std::optional<APInt> tc = loopLikeOp.getStaticTripCount();
-        if (!tc.has_value()) {
-          return loop->emitOpError() << "Expected constant trip count";
-        }
-        tcI64 = tc->getZExtValue();
-      }
-
-      lb = bounds->lb;
-      step = bounds->step;
-      tripCount = tcI64;
-    } else {
-      return loop->emitOpError() << "Unsupported loop op";
-    }
-
-    lbs[i] = lb;
-    steps[i] = step;
-    tripCounts[i] = tripCount;
-    strides[i] = currentStride;
-
-    if (__builtin_mul_overflow(currentStride, tripCount, &currentStride)) {
-      return loop->emitOpError() << "Stride overflow";
-    }
-  }
-
-  // Convert the statically inferred bounds and steps and strides into an SSA
-  // value calculating the linear index.
-  for (int i = indices.size() - 1; i >= 0; --i) {
-    Value iv = indices[i];
-    Value lb = lbs[i];
-    Value step = steps[i];
-    int64_t stride = strides[i];
-
-    Value norm = iv;
-    // If the lower bound is constant and zero, we can skip the sub op
-    std::optional<int64_t> lbConst = getConstantIntValue(lb);
-    if (!lbConst.has_value() || *lbConst != 0) {
-      norm = arith::SubIOp::create(builder, loc, norm, lb);
-    }
-
-    // If the stride is constant and one, we can skip the floor div op
-    std::optional<int64_t> stepConst = getConstantIntValue(step);
-    if (!stepConst.has_value() || *stepConst != 1) {
-      norm = arith::FloorDivSIOp::create(builder, loc, norm, step);
-    }
-
-    // If the stride is one, we can skip the mul op
-    Value dimOffset = norm;
-    if (stride > 1) {
-      Value strideVal = arith::ConstantIndexOp::create(builder, loc, stride);
-      dimOffset = arith::MulIOp::create(builder, loc, norm, strideVal);
-    }
-
-    linearIndex = arith::AddIOp::create(builder, loc, linearIndex, dimOffset);
-  }
-
-  return linearIndex;
 }
 
 // PreprocessingTypeConverter sets up a 1-to-N type conversion for
@@ -286,9 +132,16 @@ struct StoreOpPattern : public OpConversionPattern<StoreOp> {
       flatIndices.push_back(r.front());
     }
 
-    FailureOr<Value> index =
-        getLinearIndex(rewriter, op.getLoc(), op, op.getElementType(),
-                       op.getSiteId(), flatIndices, analysis);
+    std::optional<SiteLayout> layout =
+        analysis.getLayout(op.getElementType(), op.getSiteId());
+    if (!layout.has_value()) {
+      return op->emitOpError()
+             << "Missing layout for site ID " << op.getSiteId();
+    }
+    int64_t baseOffset = layout->offset;
+
+    FailureOr<Value> index = preprocessing::getLinearIndex(
+        rewriter, op.getLoc(), op, baseOffset, flatIndices);
     if (failed(index)) return failure();
 
     ValueRange storageValues = adaptor.getStorage();
@@ -329,9 +182,16 @@ struct LoadOpPattern : public OpConversionPattern<LoadOp> {
       flatIndices.push_back(r.front());
     }
 
-    FailureOr<Value> index =
-        getLinearIndex(rewriter, op.getLoc(), op, op.getElementType(),
-                       op.getSiteId(), flatIndices, analysis);
+    std::optional<SiteLayout> layout =
+        analysis.getLayout(op.getElementType(), op.getSiteId());
+    if (!layout.has_value()) {
+      return op->emitOpError()
+             << "Missing layout for site ID " << op.getSiteId();
+    }
+    int64_t baseOffset = layout->offset;
+
+    FailureOr<Value> index = preprocessing::getLinearIndex(
+        rewriter, op.getLoc(), op, baseOffset, flatIndices);
     if (failed(index)) return failure();
 
     ValueRange storageValues = adaptor.getStorage();

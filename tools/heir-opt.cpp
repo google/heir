@@ -46,7 +46,9 @@
 #include "lib/Dialect/Polynomial/Conversions/PolynomialToModArith/PolynomialToModArith.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Dialect/Polynomial/Transforms/Passes.h"
+#include "lib/Dialect/Preprocessing/Conversions/PreprocessingToLattigo/PreprocessingToLattigo.h"
 #include "lib/Dialect/Preprocessing/Conversions/PreprocessingToMemref/PreprocessingToMemref.h"
+#include "lib/Dialect/Preprocessing/Conversions/PreprocessingToOpenfhe/PreprocessingToOpenfhe.h"
 #include "lib/Dialect/Preprocessing/IR/PreprocessingDialect.h"
 #include "lib/Dialect/Preprocessing/Transforms/Passes.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
@@ -424,6 +426,8 @@ int main(int argc, char** argv) {
   registerCGGIToTfheRustBoolPasses();
   registerCGGIToTfheRustPasses();
   preprocessing::registerPreprocessingToMemrefPasses();
+  preprocessing::registerPreprocessingToOpenfhePasses();
+  preprocessing::registerPreprocessingToLattigoPasses();
   registerSecretToBGVPasses();
   registerSecretToCGGIPasses();
   registerSecretToCKKSPasses();

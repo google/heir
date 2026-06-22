@@ -20,6 +20,8 @@ cc_library(
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Lattigo/IR:Dialect",
         "@heir//lib/Dialect/Orion/IR:Dialect",
+        "@heir//lib/Dialect/Preprocessing/Conversions:Util",
+        "@heir//lib/Dialect/Preprocessing/IR:Dialect",
         "@heir//lib/Utils",
         "@heir//lib/Utils:ConversionUtils",
         "@llvm-project//llvm:Support",

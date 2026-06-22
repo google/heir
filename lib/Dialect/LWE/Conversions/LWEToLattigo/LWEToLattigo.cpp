@@ -19,6 +19,10 @@
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Orion/IR/OrionDialect.h"
 #include "lib/Dialect/Orion/IR/OrionOps.h"
+#include "lib/Dialect/Preprocessing/Conversions/Util.h"
+#include "lib/Dialect/Preprocessing/IR/PreprocessingDialect.h"
+#include "lib/Dialect/Preprocessing/IR/PreprocessingOps.h"
+#include "lib/Dialect/Preprocessing/IR/PreprocessingTypes.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
@@ -63,6 +67,13 @@ class ToLattigoTypeConverter : public TypeConverter {
     addConversion([this](RankedTensorType type) -> Type {
       return RankedTensorType::get(type.getShape(),
                                    this->convertType(type.getElementType()));
+    });
+    addConversion([this](MemRefType type) -> Type {
+      return MemRefType::get(type.getShape(),
+                             this->convertType(type.getElementType()));
+    });
+    addConversion([this](preprocessing::PreprocessingStorageType type) -> Type {
+      return preprocessing::convertStorageElementTypes(type, this);
     });
   }
 };
@@ -829,6 +840,8 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
     target.addLegalDialect<lattigo::LattigoDialect>();
     target.addIllegalDialect<bgv::BGVDialect, ckks::CKKSDialect,
                              orion::OrionDialect>();
+    target.addDynamicallyLegalDialect<preprocessing::PreprocessingDialect>(
+        [&](Operation* op) { return typeConverter.isLegal(op); });
     target
         .addIllegalOp<lwe::RLWEEncryptOp, lwe::RLWEDecryptOp, lwe::RLWEEncodeOp,
                       lwe::RLWEDecodeOp, lwe::RAddOp, lwe::RSubOp, lwe::RMulOp,
@@ -837,6 +850,9 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
     RewritePatternSet patterns(context);
     addStructuralConversionPatterns(typeConverter, patterns, target);
     addTensorConversionPatterns(typeConverter, patterns, target);
+    addMemRefConversionPatterns(typeConverter, patterns, target);
+    preprocessing::populatePreprocessingConversions(patterns, typeConverter,
+                                                    context);
 
     target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
       bool hasCryptoContextArg =
