@@ -40,8 +40,6 @@ size_t inferCtPrefixLen(ArrayRef<DimAttr> dims, int64_t n) {
   return i;
 }
 
-namespace {
-
 static int64_t computeImplicitFrontGap(ArrayRef<DimAttr> dims, int64_t n) {
   int64_t nRem = n;
   for (auto it = dims.rbegin(); it != dims.rend(); ++it) {
@@ -264,8 +262,6 @@ static ParseResult parseLayoutRolls(AsmParser& parser,
     return parser.parseRSquare();
   }
 }
-
-}  // namespace
 
 static LogicalResult verifyLayoutRolls(
     ArrayAttr dims, DenseI64ArrayAttr rolls,
