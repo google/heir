@@ -24,8 +24,6 @@ bool hasOnlyUnitStrides(ArrayRef<int64_t> strides) {
   return llvm::all_of(strides, [](int64_t stride) { return stride == 1; });
 }
 
-bool isDynamic(int64_t value) { return value == ShapedType::kDynamic; }
-
 }  // namespace
 
 std::optional<LayoutAttr> remapLayoutDims(LayoutAttr layout,
@@ -184,7 +182,6 @@ std::optional<SmallVector<int64_t>> getCollapseShapeDimMap(
         if (mappedDim == -1) mappedDim = sourceDim;
         continue;
       }
-      if (isDynamic(dimSize)) return std::nullopt;
       if (mappedDim != -1 && sourceType.getDimSize(mappedDim) != 1) {
         return std::nullopt;
       }
@@ -216,7 +213,6 @@ std::optional<SmallVector<int64_t>> getExpandShapeDimMap(
         if (mappedDim == -1) mappedDim = resultDim;
         continue;
       }
-      if (isDynamic(dimSize)) return std::nullopt;
       if (mappedDim != -1 && resultType.getDimSize(mappedDim) != 1) {
         return std::nullopt;
       }
@@ -246,8 +242,6 @@ std::optional<SmallVector<int64_t>> getExtractSliceDimMap(
   int64_t resultDim = 0;
   for (int64_t sourceDim = 0; sourceDim < sourceRank; ++sourceDim) {
     int64_t size = staticSizes[sourceDim];
-    if (isDynamic(size)) return std::nullopt;
-
     if (resultDim < resultRank && size == resultType.getDimSize(resultDim)) {
       oldToNew[sourceDim] = resultDim++;
       continue;
@@ -280,8 +274,6 @@ std::optional<SmallVector<int64_t>> getInsertSliceDimMap(
   int64_t sourceDim = 0;
   for (int64_t resultDim = 0; resultDim < resultRank; ++resultDim) {
     int64_t size = staticSizes[resultDim];
-    if (isDynamic(size)) return std::nullopt;
-
     if (sourceDim < sourceRank && size == sourceType.getDimSize(sourceDim)) {
       sourceToResult[sourceDim++] = resultDim;
       continue;
