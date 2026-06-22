@@ -22,17 +22,26 @@ common --@rules_python//python/config_settings:bootstrap_impl=script
 # default in bazel 9
 startup --host_jvm_args=-DBAZEL_TRACK_SOURCE_DIRECTORIES=1
 
-# buildbuddy
-# for remote execution of the build. Add `common --config=remote` to
-# .bazelrc.user
-common:remote --bes_backend=grpcs://heir.buildbuddy.io
-common:remote --bes_results_url=https://heir.buildbuddy.io/invocation/
-common:remote --remote_cache=grpcs://heir.buildbuddy.io
-common:remote --remote_cache_compression
-common:remote --remote_timeout=10m
+# BuildBuddy
+build --bes_results_url=https://heir.buildbuddy.io/invocation/
+build --bes_backend=grpcs://heir.buildbuddy.io
+common --noremote_upload_local_results # Uploads logs & artifacts without writing to cache
+common --remote_cache=grpcs://heir.buildbuddy.io
+common --remote_cache_compression
+common --remote_header=x-buildbuddy-api-key=IqGGzfrvMgDJh927qtrw
+common --remote_timeout=10m
+
+# This enables remote build execution and writing to the remote cache, which
+# dramatically speeds up builds. Add a .bazelrc.user file with:
+#
+#     common --remote_header=x-buildbuddy-api-key=<YOUR_API_KEY>
+#     common --config=remote
+#
+# Note this requires a buildbuddy.io account and API key. The default
+# API key used above is read-only.
 common:remote --extra_execution_platforms=@llvm//:rbe_platform
 common:remote --jobs=500
-common:remote --remote_executor=grpcs://heir.buildbuddy.io
+common:remote --remote_executor=grpcs://remote.buildbuddy.io
 
 # CI executions are always remote, and have extra build metadata
 common:ci --build_metadata=ROLE=CI

@@ -55,14 +55,6 @@ encrypt-run-decrypt flow for ease of testing.
 
 ## Building from source
 
-HEIR requires a recent C compiler (see
-[clang_matrix](https://github.com/google/heir/actions/workflows/clang_matrix.yml)
-for version-specific support, recent GCCs also tend to work), and some backends
-like OpenFHE require `libomp-dev`.
-
-HEIR depends on LLVM (from source) so a clean build may take 15-30 minutes
-depending on your machine.
-
 This project uses `bazel` for its build system. Install
 [bazelisk](https://github.com/bazelbuild/bazelisk) to manage the bazel version
 automatically. Then, with `bazel` on your path (pointing to `bazelisk`), run the
@@ -77,6 +69,18 @@ Or run an end-to-end test like
 ```bash
 bazel test //tests/Examples/openfhe/ckks/halevi_shoup_matvec:all
 ```
+
+HEIR depends on LLVM (from source) so a clean build may take 30 minutes
+depending on your machine. For faster builds, use
+[BuildBuddy](https://www.buildbuddy.io/). Sign up for an account, create an API
+key, and add the following to `.bazelrc.user` in the root of the HEIR workspace:
+
+```
+common --remote_header=x-buildbuddy-api-key=<YOUR_API_KEY>
+common --config=remote
+```
+
+This should reduce a clean build time to about 5 minutes.
 
 See the [bazel tips](https://heir.dev/docs/development/bazel/) page for more
 example commands and tips on using bazel.

@@ -15,7 +15,7 @@ jobs:
     runs-on:
       labels: ubuntu-24.04-64core
     env:
-      BUILDBUDDY_API_KEY: ${{ github.event_name != 'pull_request' && secrets.BUILDBUDDY_API_KEY || vars.BUILDBUDDY_READ_ONLY_API_KEY }}
+      BUILDBUDDY_API_KEY: ${{ github.event_name != 'pull_request' && secrets.BUILDBUDDY_API_KEY || '7eYz4UY70YSrT55wmjWV' }}
     steps:
       - name: Check out repository code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
@@ -38,11 +38,17 @@ jobs:
       # Bazel tests
       - name: "Run `bazel build`"
         run: |
-          bazel build -c opt //...
+          bazel build -c opt \
+            --config=ci \
+            --remote_header=x-buildbuddy-api-key="$BUILDBUDDY_API_KEY" \
+            //...
 
       - name: "Run `bazel test`"
         run: |
-          bazel test -c opt //...
+          bazel test -c opt \
+            --config=ci \
+            --remote_header=x-buildbuddy-api-key="$BUILDBUDDY_API_KEY" \
+            //...
 
       # Frontend tests
       - name: Build OpenFHE
