@@ -114,6 +114,22 @@ class RotomTensorOpLowering {
       tensor_ext::LayoutAttr outputLayout, int64_t m, int64_t n, int64_t p,
       ContextAwareConversionPatternRewriter& rewriter) const;
 
+  // Emits the baby-step/giant-step diagonal sum shared by both diagonal matvec
+  // kernels: baby-steps `vector` (the contraction vector), runs the BSGS
+  // schedule over `numDiag` diagonals (each yielded by `extractDiag`), collapses
+  // the `residualLimit`/`numDiag` column blocks with a residual rotate-and-sum,
+  // and applies `gapMask` (null to skip). Rotations wrap mod `rotModulus`. When
+  // `layoutTag` is non-null it is set as the tensor_ext.layout on each emitted
+  // mul/add -- valid only when the working width equals the output width (the
+  // single-period kernel); the dense kernel works K-wide and passes null.
+  // Returns the result tensor (rotModulus-wide), or null when there are no
+  // diagonals.
+  Value emitDiagonalBsgs(ImplicitLocOpBuilder& b, Location loc, Value vector,
+                         llvm::function_ref<Value(int64_t)> extractDiag,
+                         int64_t numDiag, int64_t rotModulus,
+                         int64_t residualLimit, Value gapMask,
+                         Attribute layoutTag) const;
+
   const ContextAwareTypeConverter* typeConverter;
 };
 

@@ -298,6 +298,91 @@ LogicalResult RotomTensorOpLowering::lowerMatmulByRotation(
   return success();
 }
 
+Value RotomTensorOpLowering::emitDiagonalBsgs(
+    ImplicitLocOpBuilder& b, Location loc, Value vector,
+    llvm::function_ref<Value(int64_t)> extractDiag, int64_t numDiag,
+    int64_t rotModulus, int64_t residualLimit, Value gapMask,
+    Attribute layoutTag) const {
+  // A tensor_ext.rotate by s sends slot t to input slot (t + s) mod modulus; a
+  // logical left-rotation by `byNegative` is realized by (-byNegative) mod.
+  auto leftRotate = [&](int64_t byNegative) -> int64_t {
+    return ((-byNegative) % rotModulus + rotModulus) % rotModulus;
+  };
+  // createRotate already marks its ops materialized; only the mul/add ops need
+  // tagging, and the layout tag only when the working width is the output width.
+  auto tag = [&](Operation* o) {
+    if (layoutTag) o->setAttr(kLayoutAttrName, layoutTag);
+    setMaterializedAttr(o);
+  };
+
+  // Baby/giant split (mirrors lib/Kernel/KernelImplementation.h): baby-step the
+  // vector once and reuse those rotations across every giant step.
+  const int64_t baby =
+      static_cast<int64_t>(std::ceil(std::sqrt((double)numDiag)));
+  const int64_t giant = (numDiag + baby - 1) / baby;
+  SmallVector<Value> babyVec(baby);
+  for (int64_t bs = 0; bs < baby; ++bs) {
+    babyVec[bs] = (bs == 0) ? vector : createRotate(vector, leftRotate(bs), b);
+  }
+
+  // BSGS diagonal sum: S = sum_d rotate(diag_d, -d) * rotate(vector, -d). The
+  // matrix rotations fold away for a plaintext matrix; only the ~2*sqrt(numDiag)
+  // vector baby/giant rotations are ciphertext rotations.
+  Value sum;
+  for (int64_t g = 0; g < giant; ++g) {
+    Value inner;
+    for (int64_t bs = 0; bs < baby; ++bs) {
+      const int64_t d = g * baby + bs;
+      if (d >= numDiag) break;
+      Value diag = extractDiag(d);
+      Value rotatedDiag =
+          (bs == 0) ? diag : createRotate(diag, leftRotate(bs), b);
+      Operation* product =
+          makeAppropriatelyTypedMulOp(b, loc, rotatedDiag, babyVec[bs]);
+      tag(product);
+      if (!inner) {
+        inner = product->getResult(0);
+      } else {
+        Operation* add =
+            makeAppropriatelyTypedAddOp(b, loc, inner, product->getResult(0));
+        tag(add);
+        inner = add->getResult(0);
+      }
+    }
+    if (!inner) continue;
+    Value giantRotated =
+        (g == 0) ? inner : createRotate(inner, leftRotate(g * baby), b);
+    if (!sum) {
+      sum = giantRotated;
+    } else {
+      Operation* add = makeAppropriatelyTypedAddOp(b, loc, sum, giantRotated);
+      tag(add);
+      sum = add->getResult(0);
+    }
+  }
+
+  // Squat residual rotate-and-sum over the residualLimit/numDiag column blocks
+  // (slot stride numDiag), collapsing them into the numDiag-length result and
+  // replicating it period-numDiag. Empty in the square case.
+  Value resid = sum;
+  for (int64_t shift = numDiag; shift < residualLimit; shift *= 2) {
+    Value rotated = createRotate(resid, shift, b);
+    Operation* add = makeAppropriatelyTypedAddOp(b, loc, resid, rotated);
+    tag(add);
+    resid = add->getResult(0);
+  }
+
+  // Mask the gap past the valid output rows (the residual replicated the
+  // numDiag-length result), when the layout has one.
+  Value result = resid;
+  if (gapMask) {
+    Operation* masked = makeAppropriatelyTypedMulOp(b, loc, result, gapMask);
+    tag(masked);
+    result = masked->getResult(0);
+  }
+  return result;
+}
+
 LogicalResult RotomTensorOpLowering::lowerMatvecCtDiagonalBsgs(
     linalg::MatmulOp op, TypedValue<RankedTensorType> lhs,
     TypedValue<RankedTensorType> rhs, TypedValue<RankedTensorType> output,
@@ -401,26 +486,6 @@ LogicalResult RotomTensorOpLowering::lowerMatvecCtDiagonalBsgs(
     gapMask = *mask;
   }
 
-  auto leftRotateAmount = [&](int64_t byNegative) -> int64_t {
-    // A tensor_ext.rotate by s sends slot t to input slot (t + s) mod numSlots;
-    // a logical left-rotation by `byNegative` (i.e. rot(v, -byNegative)) is
-    // realized by shift = (-byNegative) mod numSlots.
-    return ((-byNegative) % numSlots + numSlots) % numSlots;
-  };
-
-  // Baby/giant split (mirrors lib/Kernel/KernelImplementation.h) over the D
-  // diagonals: baby-step the vector once and reuse those rotations across every
-  // giant step.
-  const int64_t baby = static_cast<int64_t>(std::ceil(std::sqrt((double)D)));
-  const int64_t giant = (D + baby - 1) / baby;
-
-  // Baby steps of the vector: babyX[b] = rotate(x, -b), shared across giants.
-  SmallVector<Value> babyX(baby);
-  for (int64_t bs = 0; bs < baby; ++bs) {
-    babyX[bs] = (bs == 0) ? Value(rhs)
-                          : createRotate(rhs, leftRotateAmount(bs), b);
-  }
-
   auto extractDiagonal = [&](int64_t d) -> Value {
     SmallVector<OpFoldResult> offsets{b.getIndexAttr(d), b.getIndexAttr(0)};
     SmallVector<OpFoldResult> sizes{b.getIndexAttr(1), b.getIndexAttr(numSlots)};
@@ -431,71 +496,13 @@ LogicalResult RotomTensorOpLowering::lowerMatvecCtDiagonalBsgs(
     return slice.getResult();
   };
 
-  // BSGS diagonal sum: S = sum_d rotate(diag_d, -d) * rotate(x, -d) over the D
-  // diagonals. The matrix rotations fold away for a plaintext matrix; only the
-  // ~2*sqrt(D) vector baby/giant rotations are ciphertext rotations.
-  Value sum;
-  for (int64_t g = 0; g < giant; ++g) {
-    Value inner;
-    for (int64_t bs = 0; bs < baby; ++bs) {
-      const int64_t d = g * baby + bs;
-      if (d >= D) break;
-      Value diag = extractDiagonal(d);
-      Value rotatedDiag =
-          (bs == 0) ? diag : createRotate(diag, leftRotateAmount(bs), b);
-      Operation* product = makeAppropriatelyTypedMulOp(b, op.getLoc(),
-                                                       rotatedDiag, babyX[bs]);
-      product->setAttr(kLayoutAttrName, outputLayout);
-      setMaterializedAttr(product);
-      if (!inner) {
-        inner = product->getResult(0);
-      } else {
-        Operation* add = makeAppropriatelyTypedAddOp(b, op.getLoc(), inner,
-                                                     product->getResult(0));
-        add->setAttr(kLayoutAttrName, outputLayout);
-        setMaterializedAttr(add);
-        inner = add->getResult(0);
-      }
-    }
-    if (!inner) continue;
-    Value giantRotated =
-        (g == 0) ? inner : createRotate(inner, leftRotateAmount(g * baby), b);
-    if (!sum) {
-      sum = giantRotated;
-    } else {
-      Operation* add =
-          makeAppropriatelyTypedAddOp(b, op.getLoc(), sum, giantRotated);
-      add->setAttr(kLayoutAttrName, outputLayout);
-      setMaterializedAttr(add);
-      sum = add->getResult(0);
-    }
-  }
-
-  // Squat residual: rotate-and-sum over the Kp/D column blocks (slot stride D).
-  // This collapses the blocks into the D-length result and replicates it
-  // period-D, so the diagonal rotations above already landed correctly. For the
-  // square case (D == Kp) the loop is empty.
-  Value resid = sum;
-  for (int64_t shift = D; shift < Kp; shift *= 2) {
-    Value rotated = createRotate(resid, shift, b);
-    Operation* add =
-        makeAppropriatelyTypedAddOp(b, op.getLoc(), resid, rotated);
-    add->setAttr(kLayoutAttrName, outputLayout);
-    setMaterializedAttr(add);
-    resid = add->getResult(0);
-  }
-
-  // Mask the gap [D, numSlots): the squat residual replicates the D-length
-  // result period-D, so zero everything past the valid output rows. The square
-  // single-period case (D == numSlots) has no gap and skips this.
-  Value result = resid;
-  if (gapMask) {
-    Operation* masked =
-        makeAppropriatelyTypedMulOp(b, op.getLoc(), result, gapMask);
-    masked->setAttr(kLayoutAttrName, outputLayout);
-    setMaterializedAttr(masked);
-    result = masked->getResult(0);
-  }
+  // BSGS diagonal sum over the D diagonals + squat residual (Kp/D blocks) + gap
+  // mask. The single-period kernel works at the full ciphertext width (numSlots
+  // == the output width), so rotations wrap mod numSlots and the intermediates
+  // carry the output layout.
+  Value result = emitDiagonalBsgs(b, op.getLoc(), rhs, extractDiagonal, D,
+                                  /*rotModulus=*/numSlots, /*residualLimit=*/Kp,
+                                  gapMask, /*layoutTag=*/outputLayout);
 
   // Add the destination-style bias.
   Operation* withBias =
@@ -596,9 +603,6 @@ LogicalResult RotomTensorOpLowering::lowerMatvecDenseDiagonal(
     gapMask = *mask;
   }
 
-  auto leftRotate = [&](int64_t byNegative) -> int64_t {
-    return ((-byNegative) % Kp + Kp) % Kp;
-  };
   auto extractBlock = [&](Value src, int64_t ct, int64_t slotOffset) -> Value {
     SmallVector<OpFoldResult> offsets{b.getIndexAttr(ct),
                                       b.getIndexAttr(slotOffset)};
@@ -612,68 +616,18 @@ LogicalResult RotomTensorOpLowering::lowerMatvecDenseDiagonal(
 
   // Extract the K-slot vector (slots [0, K) of the single ciphertext).
   Value xK = extractBlock(rhs, 0, 0);
+  // Diagonal d is the K-block at ciphertext d/P, slot block (d % P)*K.
+  auto extractDiag = [&](int64_t d) -> Value {
+    return extractBlock(lhs, d / P, (d % P) * Kp);
+  };
 
-  const int64_t baby = static_cast<int64_t>(std::ceil(std::sqrt((double)Dp)));
-  const int64_t giant = (Dp + baby - 1) / baby;
-  SmallVector<Value> babyX(baby);
-  for (int64_t bs = 0; bs < baby; ++bs) {
-    babyX[bs] =
-        (bs == 0) ? xK : createRotate(xK, leftRotate(bs), b);
-  }
-
-  // BSGS over the Dp diagonals, K-wide; each diagonal is a K-block at its dense
-  // (ciphertext, slot-block) location.
-  Value sum;
-  for (int64_t g = 0; g < giant; ++g) {
-    Value inner;
-    for (int64_t bs = 0; bs < baby; ++bs) {
-      const int64_t d = g * baby + bs;
-      if (d >= Dp) break;
-      Value diag = extractBlock(lhs, d / P, (d % P) * Kp);
-      Value rotatedDiag =
-          (bs == 0) ? diag : createRotate(diag, leftRotate(bs), b);
-      Operation* product =
-          makeAppropriatelyTypedMulOp(b, op.getLoc(), rotatedDiag, babyX[bs]);
-      setMaterializedAttr(product);
-      if (!inner) {
-        inner = product->getResult(0);
-      } else {
-        Operation* add = makeAppropriatelyTypedAddOp(b, op.getLoc(), inner,
-                                                     product->getResult(0));
-        setMaterializedAttr(add);
-        inner = add->getResult(0);
-      }
-    }
-    if (!inner) continue;
-    Value giantRotated =
-        (g == 0) ? inner : createRotate(inner, leftRotate(g * baby), b);
-    if (!sum) {
-      sum = giantRotated;
-    } else {
-      Operation* add =
-          makeAppropriatelyTypedAddOp(b, op.getLoc(), sum, giantRotated);
-      setMaterializedAttr(add);
-      sum = add->getResult(0);
-    }
-  }
-
-  // Squat residual rotate-and-sum over the Kp/Dp column blocks (stride Dp).
-  Value resid = sum;
-  for (int64_t shift = Dp; shift < Kp; shift *= 2) {
-    Value rotated = createRotate(resid, shift, b);
-    Operation* add = makeAppropriatelyTypedAddOp(b, op.getLoc(), resid, rotated);
-    setMaterializedAttr(add);
-    resid = add->getResult(0);
-  }
-
-  // Mask the gap [Dp, Kp) of the Kp-wide result.
-  Value result = resid;
-  if (gapMask) {
-    Operation* masked =
-        makeAppropriatelyTypedMulOp(b, op.getLoc(), result, gapMask);
-    setMaterializedAttr(masked);
-    result = masked->getResult(0);
-  }
+  // BSGS diagonal sum over the Dp diagonals + squat residual + gap mask, all
+  // K-wide (rotations wrap mod Kp). The intermediates are K-wide rather than the
+  // N-wide output, so they carry no output layout; the K-wide result is placed
+  // into the output below.
+  Value result = emitDiagonalBsgs(b, op.getLoc(), xK, extractDiag, Dp,
+                                  /*rotModulus=*/Kp, /*residualLimit=*/Kp,
+                                  gapMask, /*layoutTag=*/nullptr);
 
   // Place the Kp-wide result into the N-slot output (slots [0, Kp)) and add the
   // destination-style bias.
