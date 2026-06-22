@@ -14,6 +14,7 @@
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Kernel/KernelName.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/Layout/IslConversion.h"
@@ -519,9 +520,11 @@ struct LayoutAssignment : public impl::LayoutAssignmentBase<LayoutAssignment> {
 
   DenseMap<Value, SmallVector<Candidate>> candidates;
   DenseMap<Value, LayoutAttr> selectedLayouts;
+  DenseMap<std::pair<Attribute, Attribute>, int64_t> conversionCostCache;
 
   void getDependentDialects(DialectRegistry& registry) const override {
     registry.insert<secret::SecretDialect>();
+    registry.insert<tensor_ext::TensorExtDialect>();
   }
 
   void runOnOperation() override;
@@ -543,6 +546,7 @@ struct LayoutAssignment : public impl::LayoutAssignmentBase<LayoutAssignment> {
       ArrayRef<Value> operands, KernelKind kind,
       function_ref<int64_t(LayoutAttr)> computeCostFn,
       std::optional<KernelName> rotomKernel = std::nullopt);
+  int64_t cachedConversionCost(LayoutAttr from, LayoutAttr to);
   LogicalResult visitFunc(func::FuncOp op);
   LogicalResult visitGeneric(secret::GenericOp op);
   LogicalResult visitYield(secret::YieldOp op);
@@ -705,6 +709,26 @@ SmallVector<Candidate> LayoutAssignment::chooseCommonOperandCandidates(
       [&](LayoutAttr layout) { return operationCost(op, layout); });
 }
 
+int64_t LayoutAssignment::cachedConversionCost(LayoutAttr from, LayoutAttr to) {
+  if (from == to) return 0;
+  // Cheap fast path: aligned layouts (ciphertext-order differences are free)
+  // need no rotations, so skip the expensive shift-network estimate.
+  SmallVector<ConversionMove> moves = conversionMoves(from, to);
+  if (moves.empty()) return 0;
+
+  std::pair<Attribute, Attribute> key(from, to);
+  auto it = conversionCostCache.find(key);
+  if (it != conversionCostCache.end()) return it->second;
+
+  // Real Vos-Vos-Erkin rotation count, falling back to the move-count proxy when
+  // a layout cannot be lowered to tensor_ext. Cached per layout pair since the
+  // search queries the same pairs across many candidate pairings.
+  int64_t cost =
+      shiftNetworkConversionCost(from, to).value_or(conversionCost(moves));
+  conversionCostCache[key] = cost;
+  return cost;
+}
+
 SmallVector<Candidate> LayoutAssignment::chooseElementwiseKernels(
     ArrayRef<Value> operands, KernelKind kind,
     function_ref<int64_t(LayoutAttr)> computeCostFn,
@@ -732,10 +756,9 @@ SmallVector<Candidate> LayoutAssignment::chooseElementwiseKernels(
   for (const Candidate& lhs : lhsCandidates) {
     for (const Candidate& rhs : rhsCandidates) {
       auto addKernel = [&](LayoutAttr computeLayout, LayoutAttr convertFrom) {
-        int64_t cost =
-            lhs.cost + rhs.cost +
-            conversionCost(conversionMoves(convertFrom, computeLayout)) +
-            computeCostFn(computeLayout);
+        int64_t cost = lhs.cost + rhs.cost +
+                       cachedConversionCost(convertFrom, computeLayout) +
+                       computeCostFn(computeLayout);
         std::optional<KernelName> kernel;
         if (rotomKernel && supportsRotomAlignmentLowering(
                                lhs.layout, rhs.layout, computeLayout)) {

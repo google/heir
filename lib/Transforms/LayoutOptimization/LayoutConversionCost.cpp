@@ -35,6 +35,7 @@ using kernel::ConstantTensorNode;
 using kernel::LeafNode;
 using kernel::LeftRotateNode;
 using kernel::MultiplyNode;
+using kernel::SplatNode;
 using kernel::SubtractNode;
 using kernel::SymbolicValue;
 using presburger::BoundType;
@@ -59,6 +60,10 @@ class RotationCountVisitor : public CachingVisitor<SymbolicValue, int64_t> {
   int64_t operator()(const LeafNode<SymbolicValue>& node) override {
     return 0.0;
   }
+
+  // A splat is a broadcast constant (no operands), so it contributes no
+  // rotations -- the same as the other leaf nodes.
+  int64_t operator()(const SplatNode& node) override { return 0.0; }
 
   int64_t operator()(const AddNode<SymbolicValue>& node) override {
     return this->process(node.left) + this->process(node.right);
