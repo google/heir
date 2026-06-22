@@ -185,6 +185,7 @@ cc_binary(
         "@heir//lib/Transforms/TensorToScalars",
         "@heir//lib/Transforms/UnusedMemRef",
         "@heir//lib/Transforms/ValidateNoise",
+        "@hermetic_llvm//openmp:libomp",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:AffineToStandard",

@@ -1,0 +1,77 @@
+bison (3.8.2.bcr.5) vendors gnulib, whose generated replacement headers
+(lib/stdio.h, lib/fcntl.h, lib/spawn.h, ... built from the *.in.h
+templates) must be found before the platform's libc headers: each uses
+#include_next to pull in the real system header and layers the gnulib-only
+machinery on top -- e.g. the _GL_ARG_NONNULL / _GL_ATTRIBUTE_DEALLOC macros
+that lib/stdio-safer.h relies on, gnulib's O_BINARY fallback that
+lib/binary-io.h needs, and the posix_spawn_file_actions_addchdir
+declaration (absent from glibc 2.28) that lib/spawn-pipe.c calls.
+
+The BCR build exposes lib/ via `includes = ["lib"]`, which Bazel lowers to
+`-isystem .../bison+/lib`. With a normal toolchain the C library headers
+are implicit and searched last, so the gnulib wrappers win. HEIR's
+hermetic LLVM toolchain instead injects its glibc headers as an explicit,
+earlier `-isystem` directory. clang searches all `-isystem` dirs in
+command-line order, so glibc's <stdio.h>/<fcntl.h>/<spawn.h> shadow
+gnulib's wrappers; the gnulib macros/declarations then never appear,
+producing errors such as:
+
+  lib/stdio-safer.h:24: error: expected function body after function
+      declarator  (fopen_safer; _GL_ARG_NONNULL/_GL_ATTRIBUTE_DEALLOC
+                   left unexpanded)
+  lib/binary-io.h:52: error: use of undeclared identifier 'O_BINARY'
+  lib/spawn-pipe.c:522: error: call to undeclared function
+      'posix_spawn_file_actions_addchdir'
+
+Adding a duplicate `-I` for lib/ does not help: clang dedups directories
+and keeps the earlier `-isystem` placement. The fix is therefore to stop
+emitting `-isystem` for lib/ at all and supply it via `-I` instead -- `-I`
+(quote/angle) directories are always searched before any `-isystem`
+directory, so the gnulib wrappers are found first and #include_next reaches
+the hermetic glibc headers as intended.
+
+Concretely: drop `includes = ["lib"]` from the `headers` library, add the
+lib/ source and gendir paths to the clang branch of BISON_COPTS (applied to
+every bison compile), and give lib/y -- the one compiled target that used
+`headers` includes but not BISON_COPTS -- the same copts. The gcc/msvc
+branches are untouched, since their implicit-system ordering already works.
+Drop once the BCR bison module exports lib/ in a way that survives an
+explicit-`-isystem` libc toolchain.
+
+--- a/BUILD.bazel
++++ b/BUILD.bazel
+@@ -668,6 +668,12 @@
+         "-w",
+         "-std=c11",
+         "-Wno-unused-but-set-variable",
++        # gnulib replacement headers must outrank the toolchain libc headers.
++        # A -isystem dir (from includes=) loses to the hermetic glibc -isystem;
++        # pass lib/ via -I (always searched before -isystem) instead. See
++        # patches/bison.patch.
++        "-Iexternal/bison+/lib",
++        "-I$(GENDIR)/external/bison+/lib",
+     ],
+     "@rules_cc//cc/compiler:gcc": [
+         "-w",
+@@ -765,7 +771,10 @@
+         "src/scan-skel.c",
+         ":configmake_h_src",
+     ],
+-    includes = ["lib"],
++    # includes=["lib"] removed: it emitted -isystem for lib/, which the
++    # hermetic clang toolchain ranks below its own glibc -isystem, shadowing
++    # gnulib's replacement headers. lib/ is now supplied via -I in
++    # BISON_COPTS, which wins. See patches/bison.patch.
+     textual_hdrs = [
+         "lib/timevar.def",
+         "lib/printf-frexp.c",
+@@ -949,6 +958,9 @@
+         "lib/main.c",
+         "lib/yyerror.c",
+     ],
++    # BISON_COPTS now carries the -I lib/ flags that headers used to provide
++    # via includes=.
++    copts = BISON_COPTS,
+     implementation_deps = [":headers"],
+     local_defines = LOCAL_DEFINES,
+ )
