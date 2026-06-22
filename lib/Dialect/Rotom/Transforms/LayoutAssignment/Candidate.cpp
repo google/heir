@@ -11,11 +11,11 @@
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/StringRef.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/DebugStringHelper.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"               // from @llvm-project
 
 namespace mlir::heir::rotom {
 
@@ -67,19 +67,8 @@ llvm::StringLiteral kernelKindName(KernelKind kind) {
   llvm_unreachable("unknown kernel kind");
 }
 
-std::string layoutKey(LayoutAttr layout) {
-  std::string storage;
-  llvm::raw_string_ostream os(storage);
-  os << layout;
-  return storage;
-}
-
 std::string kernelKey(std::optional<KernelName> kernel) {
-  if (!kernel) return "none";
-  std::string storage;
-  llvm::raw_string_ostream os(storage);
-  os << *kernel;
-  return storage;
+  return kernel ? debugString(*kernel) : "none";
 }
 
 bool isAddLike(Operation* op) {
@@ -131,12 +120,12 @@ int64_t genericOperationCost(linalg::GenericOp op, LayoutAttr layout) {
 std::string candidateTieKey(const Candidate& candidate) {
   std::string key = kernelKindName(candidate.kind).str();
   key += ":";
-  key += layoutKey(candidate.layout);
+  key += debugString(candidate.layout);
   key += ":kernel=";
   key += kernelKey(candidate.kernel);
   for (LayoutAttr operandLayout : candidate.operandLayouts) {
     key += ":";
-    key += layoutKey(operandLayout);
+    key += debugString(operandLayout);
   }
   return key;
 }

@@ -83,7 +83,6 @@ int64_t genericOperationCost(linalg::GenericOp op, LayoutAttr layout);
 
 // Ranking and deduplication. A candidate is "better" when it is cheaper, then
 // when it carries a named kernel, then by a deterministic structural tie key.
-std::string layoutKey(LayoutAttr layout);
 std::string kernelKey(std::optional<KernelName> kernel);
 std::string candidateTieKey(const Candidate& candidate);
 bool isBetterCandidate(const Candidate& lhs, const Candidate& rhs);
