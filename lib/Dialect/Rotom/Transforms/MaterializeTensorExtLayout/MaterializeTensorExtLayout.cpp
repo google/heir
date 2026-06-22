@@ -97,32 +97,38 @@ struct MaterializeTensorExtLayout
         tensor_ext::TensorExtDialect::kLayoutAttrName;
     module.walk([&](secret::GenericOp gen) {
       for (OpOperand& operand : gen->getOpOperands()) {
+        // Only a function argument needs this propagation: the type converter
+        // rewrites a function signature from its arg attrs, but the materialized
+        // layout landed on the secret.generic operand annotation instead.
         auto funcArg = dyn_cast<BlockArgument>(operand.get());
-        if (!funcArg) continue;
-        auto func = dyn_cast<FunctionOpInterface>(
-            funcArg.getOwner()->getParentOp());
-        if (!func) continue;
-        unsigned argNo = funcArg.getArgNumber();
+        if (!funcArg ||
+            !isa<FunctionOpInterface>(funcArg.getOwner()->getParentOp())) {
+          continue;
+        }
         BlockArgument blockArg =
             gen.getRegion().getArgument(operand.getOperandNumber());
         FailureOr<Attribute> operandLayout =
             findAttributeAssociatedWith(blockArg, tensorExtLayoutName);
         if (failed(operandLayout)) continue;
-        // The type converter rewrites the function argument exactly once from this
-        // attribute. If a second secret.generic operand backed by the same
-        // argument needs a different layout, the argument cannot satisfy both;
-        // fail loudly instead of silently keeping the first (which would leave the
-        // other operand's block-argument type mismatched).
-        if (Attribute existing = func.getArgAttr(argNo, tensorExtLayoutName)) {
-          if (existing != *operandLayout) {
-            gen.emitError() << "function argument " << argNo
+        // Route through the shared association layer rather than hand-rolling the
+        // block-arg -> func-arg attribute storage: findAttributeAssociatedWith
+        // reads the func arg attr and setAttributeAssociatedWith writes it. The
+        // type converter consumes that arg attr exactly once, so if a second
+        // operand on the same argument needs a different layout the one converted
+        // argument type cannot satisfy both -- fail loudly instead of silently
+        // keeping the first.
+        FailureOr<Attribute> existing =
+            findAttributeAssociatedWith(funcArg, tensorExtLayoutName);
+        if (succeeded(existing)) {
+          if (*existing != *operandLayout) {
+            gen.emitError() << "function argument " << funcArg.getArgNumber()
                             << " feeds secret.generic operands with conflicting "
                                "materialized layouts";
             result = failure();
           }
           continue;
         }
-        func.setArgAttr(argNo, tensorExtLayoutName, *operandLayout);
+        setAttributeAssociatedWith(funcArg, tensorExtLayoutName, *operandLayout);
       }
     });
 
