@@ -2384,7 +2384,9 @@ struct ConvertRotomElementwiseBinary
 
   KernelName expectedKernel() const {
     if constexpr (std::is_same_v<OpTy, arith::AddFOp> ||
-                  std::is_same_v<OpTy, arith::AddIOp>) {
+                  std::is_same_v<OpTy, arith::AddIOp> ||
+                  std::is_same_v<OpTy, arith::SubFOp> ||
+                  std::is_same_v<OpTy, arith::SubIOp>) {
       return KernelName::RotomAdd;
     }
     return KernelName::RotomMul;
@@ -2509,6 +2511,8 @@ struct ConvertToCiphertextSemantics
              ConvertFunc, ConvertLinalgMatmul, ConvertLinalgReduce,
              ConvertLinalgDot, ConvertRotomElementwiseBinary<arith::AddFOp>,
              ConvertRotomElementwiseBinary<arith::AddIOp>,
+             ConvertRotomElementwiseBinary<arith::SubFOp>,
+             ConvertRotomElementwiseBinary<arith::SubIOp>,
              ConvertRotomElementwiseBinary<arith::MulFOp>,
              ConvertRotomElementwiseBinary<arith::MulIOp>, ConvertSecretGeneric,
              ConvertTensorCollapseShape, ConvertTensorExpandShape,

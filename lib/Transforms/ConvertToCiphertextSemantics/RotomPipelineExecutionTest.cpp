@@ -93,7 +93,7 @@ void expectFloatVectorsNear(const std::vector<float>& actual,
   }
 }
 
-TEST(RotomPipelineExecutionTest, ElementwiseAddAndMulMatchReference) {
+TEST(RotomPipelineExecutionTest, ElementwiseAddSubMulMatchReference) {
   MLIRContext context;
   initContext(context);
   OwningOpRef<ModuleOp> module = openfhe::parse(&context, R"mlir(
@@ -103,10 +103,11 @@ TEST(RotomPipelineExecutionTest, ElementwiseAddAndMulMatchReference) {
 #seed_b = #rotom.seed<layouts = [#layout_b]>
 
 module {
-  func.func @main(%a: tensor<4x4xf32> {rotom.seed = #seed_a}, %b: tensor<4x4xf32> {rotom.seed = #seed_b}) -> (tensor<4x4xf32>, tensor<4x4xf32>) {
+  func.func @main(%a: tensor<4x4xf32> {rotom.seed = #seed_a}, %b: tensor<4x4xf32> {rotom.seed = #seed_b}) -> (tensor<4x4xf32>, tensor<4x4xf32>, tensor<4x4xf32>) {
     %0 = arith.addf %a, %b : tensor<4x4xf32>
     %1 = arith.mulf %a, %b : tensor<4x4xf32>
-    return %0, %1 : tensor<4x4xf32>, tensor<4x4xf32>
+    %2 = arith.subf %a, %b : tensor<4x4xf32>
+    return %0, %1, %2 : tensor<4x4xf32>, tensor<4x4xf32>, tensor<4x4xf32>
   }
 }
 )mlir");
@@ -120,10 +121,12 @@ module {
   tensor_ext::LayoutAttr rhsLayout = getArgLayout(main, 1);
   tensor_ext::LayoutAttr addLayout = getResultLayout(main, 0);
   tensor_ext::LayoutAttr mulLayout = getResultLayout(main, 1);
+  tensor_ext::LayoutAttr subLayout = getResultLayout(main, 2);
   ASSERT_TRUE(lhsLayout);
   ASSERT_TRUE(rhsLayout);
   ASSERT_TRUE(addLayout);
   ASSERT_TRUE(mulLayout);
+  ASSERT_TRUE(subLayout);
 
   std::vector<std::vector<float>> lhs = {
       {1, 2, 3, 4},
@@ -139,10 +142,12 @@ module {
   };
   std::vector<std::vector<float>> expectedAdd(4, std::vector<float>(4));
   std::vector<std::vector<float>> expectedMul(4, std::vector<float>(4));
+  std::vector<std::vector<float>> expectedSub(4, std::vector<float>(4));
   for (int64_t i = 0; i < 4; ++i) {
     for (int64_t j = 0; j < 4; ++j) {
       expectedAdd[i][j] = lhs[i][j] + rhs[i][j];
       expectedMul[i][j] = lhs[i][j] * rhs[i][j];
+      expectedSub[i][j] = lhs[i][j] - rhs[i][j];
     }
   }
 
@@ -156,12 +161,14 @@ module {
           rhs)),
   };
   std::vector<TypedCppValue> results = interpreter.interpret("main", inputs);
-  ASSERT_EQ(results.size(), 2);
+  ASSERT_EQ(results.size(), 3);
 
   auto actualAdd =
       std::get<std::shared_ptr<std::vector<float>>>(results[0].value);
   auto actualMul =
       std::get<std::shared_ptr<std::vector<float>>>(results[1].value);
+  auto actualSub =
+      std::get<std::shared_ptr<std::vector<float>>>(results[2].value);
   expectFloatVectorsNear(
       *actualAdd,
       packMatrix(addLayout,
@@ -172,6 +179,11 @@ module {
       packMatrix(mulLayout,
                  cast<RankedTensorType>(main.getFunctionType().getResult(1)),
                  expectedMul));
+  expectFloatVectorsNear(
+      *actualSub,
+      packMatrix(subLayout,
+                 cast<RankedTensorType>(main.getFunctionType().getResult(2)),
+                 expectedSub));
 }
 
 // Both operands share a rolled (diagonal) layout. Proves a rolled seed flows

@@ -47,6 +47,25 @@ module {
     %0 = arith.muli %arg0, %arg1 : tensor<4x4xi16>
     return %0 : tensor<4x4xi16>
   }
+
+  // Subtraction is additive: it shares the RotomAdd kernel and lowers like add.
+  // CHECK: func.func @rotom_sub
+  // CHECK-SAME: tensor<1x16xf32>
+  // CHECK-NOT: tensor_ext.remap
+  // CHECK: arith.subf %arg0, %arg1
+  func.func @rotom_sub(%arg0: tensor<4x4xf32> {rotom.seed = #seed_a}, %arg1: tensor<4x4xf32> {rotom.seed = #seed_b}) -> tensor<4x4xf32> {
+    %0 = arith.subf %arg0, %arg1 : tensor<4x4xf32>
+    return %0 : tensor<4x4xf32>
+  }
+
+  // CHECK: func.func @rotom_subi
+  // CHECK-SAME: tensor<1x16xi16>
+  // CHECK-NOT: tensor_ext.remap
+  // CHECK: arith.subi %arg0, %arg1
+  func.func @rotom_subi(%arg0: tensor<4x4xi16> {rotom.seed = #seed_a}, %arg1: tensor<4x4xi16> {rotom.seed = #seed_b}) -> tensor<4x4xi16> {
+    %0 = arith.subi %arg0, %arg1 : tensor<4x4xi16>
+    return %0 : tensor<4x4xi16>
+  }
 }
 
 #layout_replicated_dim = #rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[-1:2:4]>], n = 8>

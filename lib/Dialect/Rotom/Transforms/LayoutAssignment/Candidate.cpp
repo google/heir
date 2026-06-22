@@ -73,7 +73,9 @@ bool isAdd(Operation* op) { return isa<arith::AddFOp, arith::AddIOp>(op); }
 bool isMulLike(Operation* op) { return isa<arith::MulFOp, arith::MulIOp>(op); }
 
 std::optional<KernelName> selectRotomElementwiseKernel(Operation* op) {
-  if (isAdd(op)) return KernelName::RotomAdd;
+  // Subtraction is additive (depth-0, both operands at the shared layout), so it
+  // shares the RotomAdd kernel; only the emitted arith op differs.
+  if (isAddLike(op)) return KernelName::RotomAdd;
   if (isMulLike(op)) return KernelName::RotomMul;
   return std::nullopt;
 }

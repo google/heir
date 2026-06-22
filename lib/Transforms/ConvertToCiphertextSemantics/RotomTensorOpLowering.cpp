@@ -102,8 +102,9 @@ LogicalResult RotomTensorOpLowering::lowerElementwiseBinary(
   }
 
   bool isAdd = isa<arith::AddFOp, arith::AddIOp>(op);
+  bool isSub = isa<arith::SubFOp, arith::SubIOp>(op);
   bool isMul = isa<arith::MulFOp, arith::MulIOp>(op);
-  if (!isAdd && !isMul) {
+  if (!isAdd && !isSub && !isMul) {
     return rewriter.notifyMatchFailure(op,
                                        "unsupported Rotom elementwise op kind");
   }
@@ -126,8 +127,9 @@ LogicalResult RotomTensorOpLowering::lowerElementwiseBinary(
   Value rhs = convertToOutput(adaptorOperands[1], rhsLayout);
 
   Operation* result =
-      isAdd ? makeAppropriatelyTypedAddOp(b, op->getLoc(), lhs, rhs)
-            : makeAppropriatelyTypedMulOp(b, op->getLoc(), lhs, rhs);
+      isAdd   ? makeAppropriatelyTypedAddOp(b, op->getLoc(), lhs, rhs)
+      : isSub ? makeAppropriatelyTypedSubOp(b, op->getLoc(), lhs, rhs)
+              : makeAppropriatelyTypedMulOp(b, op->getLoc(), lhs, rhs);
   result->setAttr(kLayoutAttrName, outputLayout);
   setMaterializedAttr(result);
   setAttributeAssociatedWith(result->getResult(0), kLayoutAttrName,
