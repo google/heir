@@ -175,6 +175,15 @@ int64_t layoutConversionCost(LayoutAttr from, LayoutAttr to) {
   return 4 + std::abs(layoutNumCiphertexts(from) - layoutNumCiphertexts(to));
 }
 
+// Proxy cost of converting one operand's layout onto another, measured by the
+// slot bits that must move. Zero when the layouts are already aligned (no
+// moves). A later stage replaces this with the Vos-Vos-Erkin shift-network cost
+// once the moves are lowered through tensor_ext.convert_layout.
+int64_t conversionCost(ArrayRef<ConversionMove> moves) {
+  if (moves.empty()) return 0;
+  return 4 + static_cast<int64_t>(moves.size());
+}
+
 bool isAddLike(Operation* op) {
   return isa<arith::AddFOp, arith::AddIOp, arith::SubFOp, arith::SubIOp>(op);
 }
@@ -528,9 +537,9 @@ struct LayoutAssignment : public impl::LayoutAssignmentBase<LayoutAssignment> {
   SmallVector<Candidate> chooseCommonOperandCandidates(Operation* op);
   SmallVector<Candidate> chooseCommonOperandCandidates(Operation* op,
                                                        KernelKind kind);
-  SmallVector<Candidate> chooseAlignedElementwiseCandidates(
+  SmallVector<Candidate> chooseElementwiseKernels(
       ArrayRef<Value> operands, KernelKind kind,
-      function_ref<int64_t(LayoutAttr)> localCostFn,
+      function_ref<int64_t(LayoutAttr)> computeCostFn,
       std::optional<KernelName> rotomKernel = std::nullopt);
   void assignResultsFromCandidates(Operation* op, ArrayRef<Candidate> chosen);
   LogicalResult visitOperation(Operation* op);
@@ -691,9 +700,9 @@ SmallVector<Candidate> LayoutAssignment::chooseCommonOperandCandidates(
       [&](LayoutAttr layout) { return operationCost(op, layout); });
 }
 
-SmallVector<Candidate> LayoutAssignment::chooseAlignedElementwiseCandidates(
+SmallVector<Candidate> LayoutAssignment::chooseElementwiseKernels(
     ArrayRef<Value> operands, KernelKind kind,
-    function_ref<int64_t(LayoutAttr)> localCostFn,
+    function_ref<int64_t(LayoutAttr)> computeCostFn,
     std::optional<KernelName> rotomKernel) {
   if (operands.size() != 2) return {};
 
@@ -705,62 +714,38 @@ SmallVector<Candidate> LayoutAssignment::chooseAlignedElementwiseCandidates(
     return {};
   }
 
-  SmallVector<std::pair<int64_t, int64_t>> identityDims;
-  identityDims.reserve(lhsType.getRank());
-  for (int64_t dim = 0; dim < lhsType.getRank(); ++dim) {
-    identityDims.push_back({dim, dim});
-  }
-
   SmallVector<Candidate> lhsCandidates = candidatesForValue(operands[0]);
   SmallVector<Candidate> rhsCandidates = candidatesForValue(operands[1]);
   SmallVector<Value> operandValues(operands.begin(), operands.end());
-  SmallVector<Candidate> chosen;
-  for (const Candidate& lhsCandidate : lhsCandidates) {
-    for (const Candidate& rhsCandidate : rhsCandidates) {
-      bool aligned = layoutsAlignedByDimMap(lhsCandidate.layout,
-                                            rhsCandidate.layout, identityDims);
 
-      int64_t sharedCost = lhsCandidate.cost + rhsCandidate.cost +
-                           localCostFn(lhsCandidate.layout);
-      if (!aligned) {
-        sharedCost +=
-            layoutConversionCost(rhsCandidate.layout, lhsCandidate.layout);
+  // Each (lhs, rhs) layout pairing yields up to two candidate kernels: compute
+  // at the lhs layout (converting rhs onto it) or at the rhs layout (converting
+  // lhs). A kernel first performs the conversion -- the slot bits
+  // `conversionMoves` reports must move, free when none do -- then runs the
+  // elementwise op at the shared compute layout.
+  SmallVector<Candidate> kernels;
+  for (const Candidate& lhs : lhsCandidates) {
+    for (const Candidate& rhs : rhsCandidates) {
+      auto addKernel = [&](LayoutAttr computeLayout, LayoutAttr convertFrom) {
+        int64_t cost =
+            lhs.cost + rhs.cost +
+            conversionCost(conversionMoves(convertFrom, computeLayout)) +
+            computeCostFn(computeLayout);
+        std::optional<KernelName> kernel;
+        if (rotomKernel && supportsRotomAlignmentLowering(
+                               lhs.layout, rhs.layout, computeLayout)) {
+          kernel = rotomKernel;
+        }
+        kernels.push_back({computeLayout, cost, kind, operandValues,
+                           {lhs.layout, rhs.layout}, kernel});
+      };
+      addKernel(lhs.layout, rhs.layout);  // compute at lhs, convert rhs onto it
+      if (rhs.layout != lhs.layout) {
+        addKernel(rhs.layout, lhs.layout);  // compute at rhs, convert lhs onto it
       }
-      std::optional<KernelName> lhsKernel;
-      if (rotomKernel &&
-          supportsRotomAlignmentLowering(
-              lhsCandidate.layout, rhsCandidate.layout, lhsCandidate.layout)) {
-        lhsKernel = rotomKernel;
-      }
-      chosen.push_back({lhsCandidate.layout,
-                        sharedCost,
-                        kind,
-                        operandValues,
-                        {lhsCandidate.layout, rhsCandidate.layout},
-                        lhsKernel});
-
-      if (rhsCandidate.layout == lhsCandidate.layout) continue;
-      int64_t reverseCost = lhsCandidate.cost + rhsCandidate.cost +
-                            localCostFn(rhsCandidate.layout);
-      if (!aligned) {
-        reverseCost +=
-            layoutConversionCost(lhsCandidate.layout, rhsCandidate.layout);
-      }
-      std::optional<KernelName> rhsKernel;
-      if (rotomKernel &&
-          supportsRotomAlignmentLowering(
-              lhsCandidate.layout, rhsCandidate.layout, rhsCandidate.layout)) {
-        rhsKernel = rotomKernel;
-      }
-      chosen.push_back({rhsCandidate.layout,
-                        reverseCost,
-                        kind,
-                        operandValues,
-                        {lhsCandidate.layout, rhsCandidate.layout},
-                        rhsKernel});
     }
   }
-  return uniqueCandidates(chosen);
+  return uniqueCandidates(kernels);
 }
 
 void LayoutAssignment::assignResultsFromCandidates(Operation* op,
@@ -842,12 +827,12 @@ LogicalResult LayoutAssignment::visitElementwise(Operation* op) {
   if (op->getNumOperands() == 2) {
     std::optional<KernelName> rotomKernel = selectRotomElementwiseKernel(op);
     SmallVector<Value> operands = {op->getOperand(0), op->getOperand(1)};
-    SmallVector<Candidate> aligned = chooseAlignedElementwiseCandidates(
+    SmallVector<Candidate> kernels = chooseElementwiseKernels(
         operands, KernelKind::Elementwise,
         [&](LayoutAttr layout) { return operationCost(op, layout); },
         rotomKernel);
-    if (!aligned.empty()) {
-      assignResultsFromCandidates(op, aligned);
+    if (!kernels.empty()) {
+      assignResultsFromCandidates(op, kernels);
       return success();
     }
   }
@@ -862,11 +847,11 @@ LogicalResult LayoutAssignment::visitGeneric(linalg::GenericOp op) {
   if (!isElementwiseGeneric(op)) return visitPassThrough(op);
   if (hasAddLikeBody(op) && op.getInputs().size() == 2) {
     SmallVector<Value> operands = {op.getInputs()[0], op.getInputs()[1]};
-    SmallVector<Candidate> aligned = chooseAlignedElementwiseCandidates(
+    SmallVector<Candidate> kernels = chooseElementwiseKernels(
         operands, KernelKind::Generic,
         [&](LayoutAttr layout) { return genericOperationCost(op, layout); });
-    if (!aligned.empty()) {
-      assignResultsFromCandidates(op, aligned);
+    if (!kernels.empty()) {
+      assignResultsFromCandidates(op, kernels);
       return success();
     }
   }

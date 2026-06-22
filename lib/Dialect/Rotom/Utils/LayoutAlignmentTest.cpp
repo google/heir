@@ -92,13 +92,6 @@ TEST_F(LayoutAlignmentTest, MaterializesMixedRadixRepeatedDimLayout) {
   EXPECT_TRUE(rotom::isMaterializableRotomLayout(split));
 }
 
-TEST_F(LayoutAlignmentTest, DimAlignmentTracksCiphertextSide) {
-  LayoutAttr lhs = layout({dim(0, 2), dim(1, 4)}, 4);
-  LayoutAttr rhs = layout({dim(1, 2), dim(0, 4)}, 4);
-  EXPECT_FALSE(rotom::layoutsAlignedByDimMap(lhs, rhs, {{0, 0}}));
-  EXPECT_TRUE(rotom::layoutsAlignedByDimMap(lhs, rhs, {{0, 1}}));
-}
-
 // Reads a layout's rolls back as a list of (from, to) pairs.
 static SmallVector<std::pair<int64_t, int64_t>> rollPairs(LayoutAttr layout) {
   SmallVector<std::pair<int64_t, int64_t>> pairs;

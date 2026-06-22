@@ -8,7 +8,6 @@
 #include "lib/Dialect/Rotom/IR/RotomAttributes.h"
 #include "lib/Dialect/Rotom/Utils/RotomTensorExtLayoutLowering.h"
 #include "llvm/include/llvm/ADT/DenseMap.h"           // from @llvm-project
-#include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/MathExtras.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"         // from @llvm-project
@@ -19,42 +18,6 @@
 namespace mlir {
 namespace heir {
 namespace rotom {
-namespace {
-
-struct DimComponent {
-  int64_t size;
-  int64_t stride;
-  bool ciphertextSide;
-};
-
-SmallVector<DimComponent> getDimComponents(LayoutAttr layout,
-                                           int64_t logicalDim) {
-  SmallVector<DimComponent> components;
-  size_t ctPrefixLen = inferCtPrefixLen(layout);
-  for (auto [index, attr] : llvm::enumerate(layout.getDims())) {
-    auto dim = cast<DimAttr>(attr);
-    if (dim.isGap() || dim.isReplicate()) continue;
-    if (dim.getDim() != logicalDim) continue;
-    components.push_back({dim.getSize(), dim.getStride(),
-                          static_cast<size_t>(index) < ctPrefixLen});
-  }
-  return components;
-}
-
-bool componentsEqual(ArrayRef<DimComponent> lhs, ArrayRef<DimComponent> rhs) {
-  if (lhs.size() != rhs.size()) return false;
-  for (auto [lhsComponent, rhsComponent] : llvm::zip(lhs, rhs)) {
-    if (lhsComponent.size != rhsComponent.size) return false;
-    if (lhsComponent.stride != rhsComponent.stride) return false;
-    if (lhsComponent.ciphertextSide != rhsComponent.ciphertextSide) {
-      return false;
-    }
-  }
-  return true;
-}
-
-}  // namespace
-
 // Collects a layout's dims as DimAttrs for the shared ct/slot-split helper.
 static SmallVector<DimAttr> collectDims(LayoutAttr layout) {
   SmallVector<DimAttr> dims;
@@ -79,23 +42,6 @@ int64_t layoutNumCiphertexts(LayoutAttr layout) {
     numCt *= std::max<int64_t>(dims[i].getSize(), 1);
   }
   return std::max<int64_t>(numCt, 1);
-}
-
-bool dimensionsAligned(LayoutAttr lhsLayout, int64_t lhsDim,
-                       LayoutAttr rhsLayout, int64_t rhsDim) {
-  return componentsEqual(getDimComponents(lhsLayout, lhsDim),
-                         getDimComponents(rhsLayout, rhsDim));
-}
-
-bool layoutsAlignedByDimMap(LayoutAttr lhsLayout, LayoutAttr rhsLayout,
-                            ArrayRef<std::pair<int64_t, int64_t>> dimMap) {
-  if (lhsLayout.getN() != rhsLayout.getN()) return false;
-  for (auto [lhsDim, rhsDim] : dimMap) {
-    if (!dimensionsAligned(lhsLayout, lhsDim, rhsLayout, rhsDim)) {
-      return false;
-    }
-  }
-  return true;
 }
 
 namespace {

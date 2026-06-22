@@ -16,12 +16,6 @@ size_t inferCtPrefixLen(LayoutAttr layout);
 
 int64_t layoutNumCiphertexts(LayoutAttr layout);
 
-bool dimensionsAligned(LayoutAttr lhsLayout, int64_t lhsDim,
-                       LayoutAttr rhsLayout, int64_t rhsDim);
-
-bool layoutsAlignedByDimMap(LayoutAttr lhsLayout, LayoutAttr rhsLayout,
-                            ArrayRef<std::pair<int64_t, int64_t>> dimMap);
-
 // A single bit of a tensor axis that occupies a different slot position in the
 // two layouts and must be rotated to align them for an elementwise op.
 struct ConversionMove {
