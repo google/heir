@@ -20,9 +20,8 @@ namespace mlir {
 namespace heir {
 namespace rotom {
 
-size_t inferCtPrefixLen(ArrayRef<DimAttr> dims, int64_t n,
-                        int64_t& straddleSlotExtent) {
-  straddleSlotExtent = 0;
+CtPrefix inferCtPrefixLen(ArrayRef<DimAttr> dims, int64_t n) {
+  int64_t straddleSlotExtent = 0;
   int64_t nRem = n;
   size_t i = dims.size();
   while (i > 0) {
@@ -45,7 +44,7 @@ size_t inferCtPrefixLen(ArrayRef<DimAttr> dims, int64_t n,
     break;
   }
   while (i > 0 && straddleSlotExtent == 0 && dims[i - 1].getSize() == 1) --i;
-  return i;
+  return {i, straddleSlotExtent};
 }
 
 namespace {
@@ -98,11 +97,10 @@ static FailureOr<LayoutData> preprocessLayoutData(ArrayAttr dims, int64_t n,
   }
   data.pieceStraddle.assign(data.pieces.size(), StraddleRole::None);
 
-  int64_t straddleSlotExtent = 0;
-  data.ctPrefixLen = static_cast<int64_t>(
-      inferCtPrefixLen(data.originalDims, data.n, straddleSlotExtent));
+  CtPrefix ctPrefix = inferCtPrefixLen(data.originalDims, data.n);
+  data.ctPrefixLen = static_cast<int64_t>(ctPrefix.length);
 
-  if (straddleSlotExtent > 1) {
+  if (ctPrefix.straddleSlotExtent > 1) {
     // The boundary dim (the last ct piece) spans ct and slot. Mark it as the
     // high (ct) piece and insert a low (slot) piece just after it referencing
     // the same traversal dim (one domain variable). The straddle exactly fills
@@ -112,7 +110,7 @@ static FailureOr<LayoutData> preprocessLayoutData(ArrayAttr dims, int64_t n,
         data.pieces[high] != LayoutPieceKind::Traversal) {
       return failure();
     }
-    data.straddleSlotExtent = straddleSlotExtent;
+    data.straddleSlotExtent = ctPrefix.straddleSlotExtent;
     data.pieceStraddle[high] = StraddleRole::High;
     data.pieces.insert(data.pieces.begin() + data.ctPrefixLen,
                        LayoutPieceKind::Traversal);
