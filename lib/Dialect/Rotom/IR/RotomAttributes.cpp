@@ -297,9 +297,7 @@ static LogicalResult verifyLayoutRolls(
     // by dims[j]'s index modulo their shared extent, which is well-defined only
     // when the extents match.
     if (di.getSize() != dj.getSize()) {
-      return emitError() << "rolled dim extent (" << di.getSize()
-                         << ") must equal the extent it is rolled by ("
-                         << dj.getSize() << ")";
+      return emitError() << "rolled dims must have the same extent (size)";
     }
     if (di.isGap() || dj.isGap() || di.isReplicate() || dj.isReplicate()) {
       return emitError() << "rolls may only reference non-sentinel traversal "
