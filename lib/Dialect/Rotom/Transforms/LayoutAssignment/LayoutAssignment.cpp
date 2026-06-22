@@ -528,9 +528,12 @@ LogicalResult LayoutAssignment::visitReduction(linalg::ReduceOp op) {
     SmallVector<Candidate> reduced =
         remapCandidates(input, inputCandidates, *oldToNew, KernelKind::Reduce);
     for (Candidate& candidate : reduced) {
-      // The reduce's own local cost (folded into the assignment by
-      // setCandidates).
-      candidate.localCost += layoutNumCiphertexts(candidate.layout);
+      // A reduction sums its input ciphertexts, so its local cost is set by the
+      // aligned INPUT layout (operandLayouts[0]) -- one add per input
+      // ciphertext -- not the smaller reduced output layout.
+      if (candidate.operandLayouts.empty()) continue;
+      int64_t inputNumCt = layoutNumCiphertexts(candidate.operandLayouts[0]);
+      candidate.localCost += inputNumCt * getCostModel().add;
     }
     setCandidates(result, reduced);
   }

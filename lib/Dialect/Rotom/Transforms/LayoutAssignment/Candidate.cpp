@@ -95,19 +95,23 @@ int64_t conversionCost(ArrayRef<ConversionMove> moves) {
   return static_cast<int64_t>(moves.size()) * getCostModel().rotation;
 }
 
-int64_t operationCost(Operation* op, LayoutAttr layout) {
-  int64_t numCt = layoutNumCiphertexts(layout);
+// Cost of running `op` once its operands are aligned to `alignedLayout` (the
+// compute layout): one HE op per ciphertext, so weight x numCt(alignedLayout).
+int64_t operationCost(Operation* op, LayoutAttr alignedLayout) {
+  int64_t numCt = layoutNumCiphertexts(alignedLayout);
   const RotomCostModel& model = getCostModel();
   if (isAddLike(op)) return model.add * numCt;
   if (isMulLike(op)) return model.ciphertextMultiply * numCt;
   return 0;
 }
 
-int64_t genericOperationCost(linalg::GenericOp op, LayoutAttr layout) {
+// A linalg.generic's cost is its body's per-ciphertext op costs summed at the
+// aligned (compute) layout its inputs are converted to.
+int64_t genericOperationCost(linalg::GenericOp op, LayoutAttr alignedLayout) {
   int64_t cost = 0;
   for (Operation& innerOp : op.getBody()->getOperations()) {
     if (isa<linalg::YieldOp, arith::ConstantOp>(innerOp)) continue;
-    cost += operationCost(&innerOp, layout);
+    cost += operationCost(&innerOp, alignedLayout);
   }
   return cost;
 }

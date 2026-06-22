@@ -73,12 +73,14 @@ bool isAdd(Operation* op);
 bool isMulLike(Operation* op);
 std::optional<KernelName> selectRotomElementwiseKernel(Operation* op);
 
-// Cost model (op weights live in CostModel.h / cost_model.json). `conversionCost`
-// is the shift-network fallback used only when a layout cannot be lowered;
-// `operationCost`/`genericOperationCost` score the compute itself.
+// Cost model (op weights live in CostModel.h / cost_model.json).
+// `conversionCost` is the shift-network fallback used only when a layout cannot
+// be lowered; `operationCost`/`genericOperationCost` score the compute from the
+// aligned (compute) layout the operands are converted to -- one HE op per
+// ciphertext.
 int64_t conversionCost(ArrayRef<ConversionMove> moves);
-int64_t operationCost(Operation* op, LayoutAttr layout);
-int64_t genericOperationCost(linalg::GenericOp op, LayoutAttr layout);
+int64_t operationCost(Operation* op, LayoutAttr alignedLayout);
+int64_t genericOperationCost(linalg::GenericOp op, LayoutAttr alignedLayout);
 
 // Ranking and deduplication. A candidate is "better" when it is cheaper, then
 // when it carries a named kernel, then by a deterministic structural tie key.
