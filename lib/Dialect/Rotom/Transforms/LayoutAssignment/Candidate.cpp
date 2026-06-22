@@ -19,13 +19,13 @@
 
 namespace mlir::heir::rotom {
 
-int64_t coneCost(const LayoutCone& cone) {
+int64_t accumulatedCostOf(const Assignment& assignment) {
   int64_t total = 0;
-  for (const auto& entry : cone) total += entry.second.second;
+  for (const auto& entry : assignment) total += entry.second.second;
   return total;
 }
 
-bool mergeCones(LayoutCone& into, const LayoutCone& from) {
+bool mergeAssignments(Assignment& into, const Assignment& from) {
   for (const auto& entry : from) {
     auto it = into.find(entry.first);
     if (it == into.end()) {
@@ -91,8 +91,8 @@ bool isAdd(Operation* op) { return isa<arith::AddFOp, arith::AddIOp>(op); }
 bool isMulLike(Operation* op) { return isa<arith::MulFOp, arith::MulIOp>(op); }
 
 std::optional<KernelName> selectRotomElementwiseKernel(Operation* op) {
-  // Subtraction is additive (depth-0, both operands at the shared layout), so it
-  // shares the RotomAdd kernel; only the emitted arith op differs.
+  // Subtraction is additive (depth-0, both operands at the shared layout), so
+  // it shares the RotomAdd kernel; only the emitted arith op differs.
   if (isAddLike(op)) return KernelName::RotomAdd;
   if (isMulLike(op)) return KernelName::RotomMul;
   return std::nullopt;
@@ -142,7 +142,8 @@ std::string candidateTieKey(const Candidate& candidate) {
 }
 
 bool isBetterCandidate(const Candidate& lhs, const Candidate& rhs) {
-  if (lhs.cost != rhs.cost) return lhs.cost < rhs.cost;
+  if (lhs.accumulatedCost != rhs.accumulatedCost)
+    return lhs.accumulatedCost < rhs.accumulatedCost;
   if (lhs.kernel.has_value() != rhs.kernel.has_value()) {
     return lhs.kernel.has_value();
   }

@@ -7,14 +7,14 @@
 
 #include "lib/Dialect/Rotom/IR/RotomAttributes.h"
 #include "lib/Dialect/Rotom/Transforms/LayoutAssignment/Candidate.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/ReshapeOpsUtils.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Attributes.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"    // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
 
 namespace mlir::heir::rotom {
 
@@ -62,16 +62,18 @@ SmallVector<Candidate> remapCandidates(Value operand,
     std::optional<LayoutAttr> layout =
         remapLayoutDims(candidate.layout, oldToNewDim);
     if (!layout) continue;
-    // The remap relabels dims of the operand's data (no rotation), so the result
-    // inherits the operand's cone and the only new local cost is `extraCost`.
+    // The remap relabels dims of the operand's data (no rotation), so the
+    // result inherits the operand's assignment and the only new local cost is
+    // `extraCost`.
     Candidate result;
     result.layout = *layout;
     result.kind = kind;
     result.operands = {operand};
     result.operandLayouts = {candidate.layout};
     result.localCost = extraCost;
-    result.cone = candidate.cone;
-    result.cost = coneCost(result.cone) + result.localCost;
+    result.assignment = candidate.assignment;
+    result.accumulatedCost =
+        accumulatedCostOf(result.assignment) + result.localCost;
     remapped.push_back(std::move(result));
   }
   return uniqueCandidates(remapped);
@@ -98,7 +100,7 @@ SmallVector<Candidate> chooseCommonCandidates(
   for (const Candidate& target : targets) {
     int64_t localCost = localCostFn(target.layout);
     bool valid = true;
-    LayoutCone cone;
+    Assignment assignment;
     SmallVector<LayoutAttr> operandLayouts;
     for (const SmallVector<Candidate>& candidates : candidateSets) {
       if (candidates.empty()) continue;
@@ -109,7 +111,8 @@ SmallVector<Candidate> chooseCommonCandidates(
         int64_t conversion =
             layoutConversionCost(candidate.layout, target.layout);
         Candidate scoredCandidate = candidate;
-        scoredCandidate.cost = candidate.cost + conversion;
+        scoredCandidate.accumulatedCost =
+            candidate.accumulatedCost + conversion;
         scoredCandidate.kind = kind;
         if (!bestScoredCandidate ||
             isBetterCandidate(scoredCandidate, *bestScoredCandidate)) {
@@ -122,9 +125,9 @@ SmallVector<Candidate> chooseCommonCandidates(
         valid = false;
         break;
       }
-      // Merge the chosen operand's cone; a disagreement on a shared value means
-      // this combination is inconsistent, so drop the target.
-      if (!mergeCones(cone, bestCandidate->cone)) {
+      // Merge the chosen operand's assignment; a disagreement on a shared value
+      // means this combination is inconsistent, so drop the target.
+      if (!mergeAssignments(assignment, bestCandidate->assignment)) {
         valid = false;
         break;
       }
@@ -138,8 +141,9 @@ SmallVector<Candidate> chooseCommonCandidates(
     candidate.operands = SmallVector<Value>(operands);
     candidate.operandLayouts = operandLayouts;
     candidate.localCost = localCost;
-    candidate.cone = std::move(cone);
-    candidate.cost = coneCost(candidate.cone) + candidate.localCost;
+    candidate.assignment = std::move(assignment);
+    candidate.accumulatedCost =
+        accumulatedCostOf(candidate.assignment) + candidate.localCost;
     chosen.push_back(std::move(candidate));
   }
   return uniqueCandidates(chosen);

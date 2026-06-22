@@ -160,9 +160,9 @@ struct LayoutAssignment : public impl::LayoutAssignmentBase<LayoutAssignment> {
   LogicalResult visitInsertSlice(tensor::InsertSliceOp op);
 
   // --- Layout search: each value's candidates already carry the dedup'd
-  // accumulated cost and the full assignment (cone) of everything feeding it, so
-  // selection is just picking the cheapest consistent cone at each function's
-  // returned values -- no backward propagation. ---
+  // accumulated cost and the full assignment of everything feeding it, so
+  // selection is just picking the cheapest consistent assignment at each
+  // function's returned values -- no backward propagation. ---
   void selectLayouts(ModuleOp module);
   LogicalResult visitReturn(func::ReturnOp op);
   void applyKernels(ModuleOp module);
@@ -197,12 +197,12 @@ void LayoutAssignment::setCandidates(Value value,
   SmallVector<Candidate> compatibleCandidates;
   for (const Candidate& candidate : newCandidates) {
     if (!isLayoutCompatibleWithValue(candidate.layout, value)) continue;
-    // Fold this value's own kernel into its cone, so the cone is the complete
-    // assignment of the value and everything feeding it, and `cost` is the
-    // dedup'd sum over that cone.
+    // Fold this value's own kernel into its assignment, so the assignment is
+    // the complete assignment of the value and everything feeding it, and
+    // `cost` is the dedup'd sum over that assignment.
     Candidate finalized = candidate;
-    finalized.cone[value] = {finalized.layout, finalized.localCost};
-    finalized.cost = coneCost(finalized.cone);
+    finalized.assignment[value] = {finalized.layout, finalized.localCost};
+    finalized.accumulatedCost = accumulatedCostOf(finalized.assignment);
     compatibleCandidates.push_back(std::move(finalized));
   }
   if (compatibleCandidates.empty()) {
@@ -257,9 +257,9 @@ int64_t LayoutAssignment::cachedConversionCost(LayoutAttr from, LayoutAttr to) {
   auto it = conversionCostCache.find(key);
   if (it != conversionCostCache.end()) return it->second;
 
-  // Real Vos-Vos-Erkin rotation count, falling back to the move-count proxy when
-  // a layout cannot be lowered to tensor_ext. Cached per layout pair since the
-  // search queries the same pairs across many candidate pairings.
+  // Real Vos-Vos-Erkin rotation count, falling back to the move-count proxy
+  // when a layout cannot be lowered to tensor_ext. Cached per layout pair since
+  // the search queries the same pairs across many candidate pairings.
   int64_t cost =
       shiftNetworkConversionCost(from, to).value_or(conversionCost(moves));
   conversionCostCache[key] = cost;
@@ -285,16 +285,18 @@ SmallVector<Candidate> LayoutAssignment::chooseElementwiseKernels(
   SmallVector<Value> operandValues(operands.begin(), operands.end());
 
   // Each (lhs, rhs) candidate pairing yields up to two kernels: compute at the
-  // lhs layout (converting rhs onto it) or at the rhs layout. The kernel's local
-  // cost is the compute plus the slot-rotation cost of aligning both operands
-  // onto the shared compute layout (one of which is free). The operands' cones
-  // are merged, so a pairing whose sub-assignments disagree on a shared value is
-  // dropped, and the merged cone never double-counts shared subexpressions.
+  // lhs layout (converting rhs onto it) or at the rhs layout. The kernel's
+  // local cost is the compute plus the slot-rotation cost of aligning both
+  // operands onto the shared compute layout (one of which is free). The
+  // operands' assignments are merged, so a pairing whose sub-assignments
+  // disagree on a shared value is dropped, and the merge never double-counts
+  // shared work.
   SmallVector<Candidate> kernels;
   for (const Candidate& lhs : lhsCandidates) {
     for (const Candidate& rhs : rhsCandidates) {
-      LayoutCone merged;
-      if (!mergeCones(merged, lhs.cone) || !mergeCones(merged, rhs.cone)) {
+      Assignment merged;
+      if (!mergeAssignments(merged, lhs.assignment) ||
+          !mergeAssignments(merged, rhs.assignment)) {
         continue;
       }
       auto addKernel = [&](LayoutAttr computeLayout) {
@@ -313,8 +315,9 @@ SmallVector<Candidate> LayoutAssignment::chooseElementwiseKernels(
         candidate.operandLayouts = {lhs.layout, rhs.layout};
         candidate.kernel = kernel;
         candidate.localCost = localCost;
-        candidate.cone = merged;
-        candidate.cost = coneCost(candidate.cone) + candidate.localCost;
+        candidate.assignment = merged;
+        candidate.accumulatedCost =
+            accumulatedCostOf(candidate.assignment) + candidate.localCost;
         kernels.push_back(std::move(candidate));
       };
       addKernel(lhs.layout);  // compute at lhs, convert rhs onto it
@@ -344,9 +347,10 @@ LogicalResult LayoutAssignment::visitReturn(func::ReturnOp op) {
   auto func = op->getParentOfType<func::FuncOp>();
 
   // The returned values share one function-wide assignment. Fold each return
-  // operand's cheapest candidate whose cone is consistent with the choices made
-  // so far into a single cone; that cone is the function's layout assignment.
-  LayoutCone cone;
+  // operand's cheapest candidate whose assignment is consistent with the
+  // choices made so far into a single assignment; that assignment is the
+  // function's layout assignment.
+  Assignment assignment;
   SmallVector<std::pair<unsigned, LayoutAttr>> resultLayouts;
   for (OpOperand& operand : op->getOpOperands()) {
     Value value = operand.get();
@@ -354,16 +358,16 @@ LogicalResult LayoutAssignment::visitReturn(func::ReturnOp op) {
     auto it = candidates.find(value);
     if (it == candidates.end() || it->second.empty()) continue;
     for (const Candidate& candidate : it->second) {  // cheapest first
-      LayoutCone trial = cone;
-      if (mergeCones(trial, candidate.cone)) {
-        cone = std::move(trial);
+      Assignment trial = assignment;
+      if (mergeAssignments(trial, candidate.assignment)) {
+        assignment = std::move(trial);
         resultLayouts.push_back({operand.getOperandNumber(), candidate.layout});
         break;
       }
     }
   }
 
-  for (const auto& entry : cone) {
+  for (const auto& entry : assignment) {
     selectedLayouts[entry.first] = entry.second.first;
   }
   for (const auto& [index, layout] : resultLayouts) {
@@ -382,14 +386,15 @@ LogicalResult LayoutAssignment::visitGeneric(secret::GenericOp op) {
     SmallVector<Candidate> blockArgCandidates;
     for (const Candidate& candidate : operandCandidates) {
       // The block argument is the operand routed into the region: same data,
-      // same cone, no extra cost.
+      // same assignment, no extra cost.
       Candidate blockArgCandidate;
       blockArgCandidate.layout = candidate.layout;
       blockArgCandidate.kind = KernelKind::BlockArgument;
       blockArgCandidate.operands = {operand.get()};
       blockArgCandidate.operandLayouts = {candidate.layout};
-      blockArgCandidate.cone = candidate.cone;
-      blockArgCandidate.cost = coneCost(blockArgCandidate.cone);
+      blockArgCandidate.assignment = candidate.assignment;
+      blockArgCandidate.accumulatedCost =
+          accumulatedCostOf(blockArgCandidate.assignment);
       blockArgCandidates.push_back(std::move(blockArgCandidate));
     }
     setCandidates(blockArg, blockArgCandidates);
@@ -404,14 +409,15 @@ LogicalResult LayoutAssignment::visitYield(secret::YieldOp op) {
     if (yielded.empty()) continue;
     SmallVector<Candidate> resultCandidates;
     for (const Candidate& candidate : yielded) {
-      // The generic's result is the yielded value: same data, same cone.
+      // The generic's result is the yielded value: same data, same assignment.
       Candidate resultCandidate;
       resultCandidate.layout = candidate.layout;
       resultCandidate.kind = KernelKind::Yield;
       resultCandidate.operands = {operand.get()};
       resultCandidate.operandLayouts = {candidate.layout};
-      resultCandidate.cone = candidate.cone;
-      resultCandidate.cost = coneCost(resultCandidate.cone);
+      resultCandidate.assignment = candidate.assignment;
+      resultCandidate.accumulatedCost =
+          accumulatedCostOf(resultCandidate.assignment);
       resultCandidates.push_back(std::move(resultCandidate));
     }
     setCandidates(generic.getResult(operand.getOperandNumber()),
@@ -513,7 +519,8 @@ LogicalResult LayoutAssignment::visitReduction(linalg::ReduceOp op) {
     SmallVector<Candidate> reduced =
         remapCandidates(input, inputCandidates, *oldToNew, KernelKind::Reduce);
     for (Candidate& candidate : reduced) {
-      // The reduce's own local cost (folded into the cone by setCandidates).
+      // The reduce's own local cost (folded into the assignment by
+      // setCandidates).
       candidate.localCost += layoutNumCiphertexts(candidate.layout);
     }
     setCandidates(result, reduced);
@@ -641,15 +648,15 @@ LogicalResult LayoutAssignment::generateCandidates(ModuleOp module) {
 
 void LayoutAssignment::selectLayouts(ModuleOp module) {
   // Each function's returned values' candidates already carry the full cost and
-  // assignment of their cones, so selection is just committing the cheapest
-  // consistent cone per function.
+  // assignment of their inputs, so selection is just committing the cheapest
+  // consistent assignment per function.
   module.walk([&](func::ReturnOp op) { (void)visitReturn(op); });
 }
 
 void LayoutAssignment::applyKernels(ModuleOp module) {
-  // The cone carries layouts, not kernels. Re-derive each elementwise op's Rotom
-  // kernel attribute from the final operand/result layouts (the only ops that
-  // carry one); a forced kernel is left untouched.
+  // The assignment carries layouts, not kernels. Re-derive each elementwise
+  // op's Rotom kernel attribute from the final operand/result layouts (the only
+  // ops that carry one); a forced kernel is left untouched.
   module.walk([&](Operation* op) {
     if (op->getNumOperands() != 2 || op->getNumResults() != 1) return;
     if (!isAddLike(op) && !isMulLike(op)) return;
