@@ -304,8 +304,7 @@ static LogicalResult verifyLayoutRolls(
     }
     // The two dims of a roll must have equal extents: roll(i, j) shifts dims[i]
     // by dims[j]'s index modulo their shared extent, which is well-defined only
-    // when the extents match. Their strides may differ; only the extents must
-    // agree.
+    // when the extents match.
     if (di.getSize() != dj.getSize()) {
       return emitError() << "rolled dim extent (" << di.getSize()
                          << ") must equal the extent it is rolled by ("
