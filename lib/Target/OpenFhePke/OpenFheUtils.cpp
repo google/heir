@@ -2,6 +2,7 @@
 
 #include <string>
 
+#include "lib/Analysis/Cpp/ConstQualifierAnalysis.h"
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeTemplates.h"
@@ -11,6 +12,7 @@
 #include "llvm/include/llvm/Support/FormatVariadic.h"    // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
@@ -93,7 +95,7 @@ FailureOr<std::string> convertType(Type type, Location loc, bool constant) {
             return failure();
         }
       })
-      .Case<RankedTensorType>([&](auto ty) {
+      .Case<RankedTensorType, MemRefType>([&](auto ty) {
         // std::allocator does not support const types
         auto eltTyResult = convertType(ty.getElementType(), loc, false);
         if (failed(eltTyResult)) {
@@ -122,11 +124,11 @@ FailureOr<Value> getContextualCryptoContext(Operation* op) {
   return cryptoContext;
 }
 
-LogicalResult funcDeclarationHelper(::mlir::func::FuncOp funcOp,
-                                    ::mlir::raw_indented_ostream& os,
-                                    SelectVariableNames* variableNames,
-                                    TypeEmitterFn emitType,
-                                    ErrorEmitterFn emitError) {
+LogicalResult funcDeclarationHelper(
+    ::mlir::func::FuncOp funcOp, ::mlir::raw_indented_ostream& os,
+    SelectVariableNames* variableNames,
+    ConstQualifierAnalysis* constQualifierAnalysis, TypeEmitterFn emitType,
+    ErrorEmitterFn emitError) {
   if (funcOp.getNumResults() == 1) {
     Type result = funcOp.getResultTypes()[0];
     if (failed(emitType(result, funcOp->getLoc()))) {
@@ -172,7 +174,11 @@ LogicalResult funcDeclarationHelper(::mlir::func::FuncOp funcOp,
   if (funcOp.isDeclaration()) {
     // function declaration
     os << commaSeparatedTypes(funcOp.getArgumentTypes(), [&](Type type) {
-      return convertType(type, funcOp->getLoc()).value();
+      std::string tyStr = convertType(type, funcOp->getLoc()).value();
+      if (isa<MemRefType>(type)) {
+        tyStr += '&';
+      }
+      return tyStr;
     });
     // debug attribute map for debug call
     if (isDebugPort(funcOp.getName())) {
@@ -180,8 +186,16 @@ LogicalResult funcDeclarationHelper(::mlir::func::FuncOp funcOp,
     }
   } else {
     os << commaSeparatedValues(funcOp.getArguments(), [&](Value value) {
-      return convertType(value.getType(), funcOp->getLoc()).value() + " " +
-             variableNames->getNameForValue(value);
+      std::string tyStr =
+          convertType(value.getType(), funcOp->getLoc()).value();
+      if (isa<MemRefType>(value.getType())) {
+        if (constQualifierAnalysis &&
+            constQualifierAnalysis->canBeMarkedConst(value)) {
+          tyStr = "const " + tyStr;
+        }
+        tyStr += '&';
+      }
+      return tyStr + " " + variableNames->getNameForValue(value);
     });
   }
   os << ")";

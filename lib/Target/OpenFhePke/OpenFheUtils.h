@@ -14,6 +14,7 @@
 
 namespace mlir {
 namespace heir {
+class ConstQualifierAnalysis;
 namespace openfhe {
 
 inline constexpr llvm::StringLiteral kDebugAttrMapParam = "debugAttrMap";
@@ -72,11 +73,11 @@ using TypeEmitterFn =
 // declaration and its definition. I.e., stop at the closing parent
 // after the argument list, and let the caller decide whether to emit
 // a following semicolon or function body.
-LogicalResult funcDeclarationHelper(::mlir::func::FuncOp funcOp,
-                                    ::mlir::raw_indented_ostream& os,
-                                    SelectVariableNames* variableNames,
-                                    TypeEmitterFn emitType,
-                                    ErrorEmitterFn emitError);
+LogicalResult funcDeclarationHelper(
+    ::mlir::func::FuncOp funcOp, ::mlir::raw_indented_ostream& os,
+    SelectVariableNames* variableNames,
+    ConstQualifierAnalysis* constQualifierAnalysis, TypeEmitterFn emitType,
+    ErrorEmitterFn emitError);
 
 // Emit the default debug helper function signature
 LogicalResult emitDebugHelperSignature(::mlir::func::FuncOp funcOp,

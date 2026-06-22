@@ -25,8 +25,13 @@ bool isMutated(Value value) {
 ConstQualifierAnalysis::ConstQualifierAnalysis(Operation* op) {
   op->walk([&](Operation* op) {
     for (Value result : op->getResults()) {
-      if (!isMutated(result)) {
-        constValues.insert(result);
+      if (!isMutated(result)) constValues.insert(result);
+    }
+    for (Region& region : op->getRegions()) {
+      for (Block& block : region.getBlocks()) {
+        for (BlockArgument arg : block.getArguments()) {
+          if (!isMutated(arg)) constValues.insert(arg);
+        }
       }
     }
   });
