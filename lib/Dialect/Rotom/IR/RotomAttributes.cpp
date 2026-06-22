@@ -302,18 +302,13 @@ static LogicalResult verifyLayoutRolls(
     if (!di || !dj) {
       return emitError() << "roll indices must refer to #rotom.dim entries";
     }
-    // roll(i, j) rewrites the index of dims[i] as (i_i - i_j) mod size(i), so
-    // the modulus is the rolled dim's extent. Equal extents give the usual
-    // diagonal; a `by` dim whose extent is a multiple of the rolled dim's extent
-    // gives a squat (non-square) diagonal where (i_j mod size(i)) cycles
-    // uniformly -- e.g. roll(row, col) with size(col) a multiple of size(row)
-    // yields ct = (row - col) mod M for an M x K matrix.
-    if (di.getSize() == 0) {
-      return emitError() << "rolled dim must have a non-zero extent";
-    }
-    if (di.getSize() != dj.getSize() && dj.getSize() % di.getSize() != 0) {
+    // The two dims of a roll must have equal extents: roll(i, j) shifts dims[i]
+    // by dims[j]'s index modulo their shared extent, which is well-defined only
+    // when the extents match. Their strides may differ; only the extents must
+    // agree.
+    if (di.getSize() != dj.getSize()) {
       return emitError() << "rolled dim extent (" << di.getSize()
-                         << ") must divide the extent it is rolled by ("
+                         << ") must equal the extent it is rolled by ("
                          << dj.getSize() << ")";
     }
     if (di.isGap() || dj.isGap() || di.isReplicate() || dj.isReplicate()) {
