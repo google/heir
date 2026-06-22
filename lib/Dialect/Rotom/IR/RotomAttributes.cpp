@@ -95,29 +95,32 @@ static FailureOr<LayoutData> preprocessLayoutData(ArrayAttr dims, int64_t n,
     }
     return failure();
   }
-  data.pieceStraddle.assign(data.pieces.size(), StraddleRole::None);
+  // Every piece reads its whole index by default (digit == i): divBy 1, modBy 0.
+  data.pieceDivBy.assign(data.pieces.size(), 1);
+  data.pieceModBy.assign(data.pieces.size(), 0);
 
   CtPrefix ctPrefix = inferCtPrefixLen(data.originalDims, data.n);
   data.ctPrefixLen = static_cast<int64_t>(ctPrefix.length);
 
   if (ctPrefix.straddleSlotExtent > 1) {
-    // The boundary dim (the last ct piece) spans ct and slot. Mark it as the
-    // high (ct) piece and insert a low (slot) piece just after it referencing
-    // the same traversal dim (one domain variable). The straddle exactly fills
-    // the remaining slots, so there is no implicit front gap.
+    // The boundary dim (the last ct piece) spans ct and slot. The ct (high)
+    // piece reads i / L (L = the slot-side extent); insert a slot (low) piece
+    // just after it referencing the same traversal dim, reading i mod L (one
+    // domain variable). The straddle exactly fills the remaining slots, so there
+    // is no implicit front gap.
     const int64_t high = data.ctPrefixLen - 1;
     if (high < 0 ||
         data.pieces[high] != LayoutPieceKind::Traversal) {
       return failure();
     }
-    data.straddleSlotExtent = ctPrefix.straddleSlotExtent;
-    data.pieceStraddle[high] = StraddleRole::High;
+    const int64_t L = ctPrefix.straddleSlotExtent;
+    data.pieceDivBy[high] = L;
     data.pieces.insert(data.pieces.begin() + data.ctPrefixLen,
                        LayoutPieceKind::Traversal);
     data.pieceIndex.insert(data.pieceIndex.begin() + data.ctPrefixLen,
                            data.pieceIndex[high]);
-    data.pieceStraddle.insert(data.pieceStraddle.begin() + data.ctPrefixLen,
-                              StraddleRole::Low);
+    data.pieceDivBy.insert(data.pieceDivBy.begin() + data.ctPrefixLen, 1);
+    data.pieceModBy.insert(data.pieceModBy.begin() + data.ctPrefixLen, L);
     return data;
   }
 
@@ -131,8 +134,8 @@ static FailureOr<LayoutData> preprocessLayoutData(ArrayAttr dims, int64_t n,
     data.pieces.insert(data.pieces.begin() + data.ctPrefixLen,
                        LayoutPieceKind::Gap);
     data.pieceIndex.insert(data.pieceIndex.begin() + data.ctPrefixLen, gapIdx);
-    data.pieceStraddle.insert(data.pieceStraddle.begin() + data.ctPrefixLen,
-                              StraddleRole::None);
+    data.pieceDivBy.insert(data.pieceDivBy.begin() + data.ctPrefixLen, 1);
+    data.pieceModBy.insert(data.pieceModBy.begin() + data.ctPrefixLen, 0);
   }
 
   return data;
