@@ -182,6 +182,36 @@ TEST_F(LayoutAlignmentTest, EnumerateSingleRollsChangesMaterializedLayout) {
   }
 }
 
+TEST_F(LayoutAlignmentTest, ConversionMovesIdenticalIsEmpty) {
+  LayoutAttr a = layout({dim(0, 4)}, 4);
+  EXPECT_TRUE(rotom::conversionMoves(a, a).empty());
+}
+
+TEST_F(LayoutAlignmentTest, ConversionMovesSplitEquivalentIsEmpty) {
+  // [0:4:1] packs axis 0 identically to the mixed-radix split [0:2:2][0:2:1],
+  // so aligning the two needs no rotations.
+  LayoutAttr whole = layout({dim(0, 4)}, 4);
+  LayoutAttr split =
+      layout({dim(0, 2, /*stride=*/2), dim(0, 2, /*stride=*/1)}, 4);
+  EXPECT_TRUE(rotom::conversionMoves(whole, split).empty());
+  EXPECT_TRUE(rotom::conversionMoves(split, whole).empty());
+}
+
+TEST_F(LayoutAlignmentTest, ConversionMovesSwappedSlotsReportsMoves) {
+  // Row-major vs column-major 2x2: the two slot bits swap positions.
+  LayoutAttr rowMajor = layout({dim(0, 2), dim(1, 2)}, 4);
+  LayoutAttr colMajor = layout({dim(1, 2), dim(0, 2)}, 4);
+  EXPECT_EQ(rotom::conversionMoves(rowMajor, colMajor).size(), 2u);
+}
+
+TEST_F(LayoutAlignmentTest, ConversionMovesIgnoresCiphertextOrder) {
+  // Same slot dim (axis 2); the two ciphertext-side axes are merely ordered
+  // differently, which is a free ciphertext relabel -- no slot moves.
+  LayoutAttr a = layout({dim(0, 2), dim(1, 2), dim(2, 2)}, 2);
+  LayoutAttr b = layout({dim(1, 2), dim(0, 2), dim(2, 2)}, 2);
+  EXPECT_TRUE(rotom::conversionMoves(a, b).empty());
+}
+
 }  // namespace
 }  // namespace heir
 }  // namespace mlir

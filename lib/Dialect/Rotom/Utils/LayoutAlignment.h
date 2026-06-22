@@ -22,6 +22,32 @@ bool dimensionsAligned(LayoutAttr lhsLayout, int64_t lhsDim,
 bool layoutsAlignedByDimMap(LayoutAttr lhsLayout, LayoutAttr rhsLayout,
                             ArrayRef<std::pair<int64_t, int64_t>> dimMap);
 
+// A single bit of a tensor axis that occupies a different slot position in the
+// two layouts and must be rotated to align them for an elementwise op.
+struct ConversionMove {
+  int64_t dim;       // tensor axis whose bit moves
+  int64_t bit;       // which bit of that axis (log2 of the within-axis stride)
+  int64_t fromSlot;  // its slot-bit position in `rhs`
+  int64_t toSlot;    // its slot-bit position in `lhs`
+};
+
+// The slot bits that must move to align `rhs` onto `lhs` for an elementwise
+// (identity-correspondence) op. Empty => already aligned: only the slot region
+// is compared, so ciphertext-order differences are free and ignored. Layouts
+// that pack an axis at different granularity -- e.g. [0:4:1] vs
+// [0:2:2][0:2:1] -- decompose to the same bits and compare equal.
+//
+// These moves are the entries of a tensor_ext::Mapping (source -> target
+// CtSlot); a later stage feeds them to the Vos-Vos-Erkin shift network for
+// cost and emission.
+//
+// v1 analyzes layouts whose slot region is power-of-two *traversal* pieces over
+// the same bit set. Anything outside that -- a slot gap/replication, a differing
+// ct/slot partition (different numCt), or mismatched `n` -- returns a single
+// sentinel move (`dim == -1`) meaning "conversion needed, not yet described",
+// which still reads as "not aligned" via the empty/non-empty check.
+SmallVector<ConversionMove> conversionMoves(LayoutAttr lhs, LayoutAttr rhs);
+
 bool hasOnlyUnitStridedTraversalDims(LayoutAttr layout);
 
 bool isMaterializableRotomLayout(LayoutAttr layout);
