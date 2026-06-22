@@ -34,10 +34,6 @@ size_t inferCtPrefixLen(ArrayRef<DimAttr> dims, int64_t n) {
       --i;
       continue;
     }
-    // The dim does not fit cleanly into the remaining slot budget, so it (and
-    // everything before it) falls on the ciphertext axis. A dim that should
-    // span the ct/slot boundary must be expressed as an explicit mixed-radix
-    // split (a ct piece and a slot piece sharing the tensor axis).
     break;
   }
   while (i > 0 && dims[i - 1].getSize() == 1) --i;
@@ -83,11 +79,6 @@ static FailureOr<LayoutData> preprocessLayoutData(ArrayAttr dims, int64_t n,
   data.n = n;
   if (data.n <= 0) return failure();
 
-  // Classify pieces, deduping traversal dims by tensor index so multiple pieces
-  // of one tensor dim share a single domain variable (a mixed-radix split). For
-  // a traversal piece the attribute stride is the within-dim digit divisor:
-  // digit = (i / stride) mod extent. A whole dim packed as one piece has stride
-  // 1 (digit == i).
   llvm::DenseMap<int64_t, int64_t> traversalIndexForDim;
   data.originalDims.reserve(dims.size());
   for (Attribute a : dims) {
