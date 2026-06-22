@@ -26,16 +26,15 @@ struct LayoutData {
   llvm::SmallVector<DimAttr> gapDims;
   llvm::SmallVector<LayoutPieceKind> pieces;
   llvm::SmallVector<int64_t> pieceIndex;
-  // Parallel to `pieces`: each traversal piece reads one mixed-radix digit of its
-  // tensor index i -- digit = (i / pieceStride) mod pieceExtent -- so pieceStride
-  // is the within-axis divisor and pieceExtent the digit's extent. The most-
-  // significant piece of an axis (pieceStride * pieceExtent == the axis's full
-  // extent) needs no modulus, since i / pieceStride is already < pieceExtent;
-  // the emitter drops it there. A whole dim packed as one piece uses stride 1
-  // and extent = the full dim (digit == i). Non-traversal pieces use stride 1
-  // and their own extent.
-  llvm::SmallVector<int64_t> pieceStride;
-  llvm::SmallVector<int64_t> pieceExtent;
+  // pieceDivBy and pieceModBy are a piece's Rotom stride and extent (from
+  // [dim:extent:stride]), named for how the emitter consumes them: the mixed-
+  // radix digit of tensor index i is (i / pieceDivBy) mod pieceModBy. pieceModBy
+  // is 0 on the most-significant digit of an axis -- there i / pieceDivBy is
+  // already below the extent, so the modulus is redundant and dropped. A whole
+  // dim packed as one piece uses (1, 0) => digit == i; non-traversal pieces use
+  // (1, 0).
+  llvm::SmallVector<int64_t> pieceDivBy;
+  llvm::SmallVector<int64_t> pieceModBy;
 };
 
 /// Preprocess a Rotom layout.

@@ -67,7 +67,7 @@ static int64_t computeImplicitFrontGap(ArrayRef<DimAttr> dims, int64_t n) {
 //   - `pieces`: each entry classified Traversal, Replication, or Gap, with
 //     `pieceIndex` into the matching per-kind dim list;
 //   - per traversal piece, the mixed-radix digit read from its tensor index i,
-//     digit = (i / pieceStride) mod pieceExtent, so the pieces of one axis share
+//     digit = (i / pieceDivBy) mod pieceModBy, so the pieces of one axis share
 //     a single domain variable;
 //   - the ciphertext/slot split `ctPrefixLen` (with an implicit front gap when
 //     the packed content leaves slots unfilled).
@@ -98,8 +98,7 @@ static FailureOr<LayoutData> preprocessLayoutData(ArrayAttr dims, int64_t n,
       data.pieceIndex.push_back(static_cast<int64_t>(data.gapDims.size()));
       data.gapDims.push_back(d);
       data.pieces.push_back(LayoutPieceKind::Gap);
-      data.pieceStride.push_back(1);
-      data.pieceExtent.push_back(d.getSize());
+      data.pieceDivBy.push_back(1);
       continue;
     }
     if (d.isReplicate()) {
@@ -107,8 +106,7 @@ static FailureOr<LayoutData> preprocessLayoutData(ArrayAttr dims, int64_t n,
           static_cast<int64_t>(data.replicationDims.size()));
       data.replicationDims.push_back(d);
       data.pieces.push_back(LayoutPieceKind::Replication);
-      data.pieceStride.push_back(1);
-      data.pieceExtent.push_back(d.getSize());
+      data.pieceDivBy.push_back(1);
       continue;
     }
     if (d.getDim() >= 0) {
@@ -117,12 +115,12 @@ static FailureOr<LayoutData> preprocessLayoutData(ArrayAttr dims, int64_t n,
       if (inserted) data.traversalDims.push_back(d);
       data.pieceIndex.push_back(it->second);
       data.pieces.push_back(LayoutPieceKind::Traversal);
-      data.pieceStride.push_back(d.getStride());
-      data.pieceExtent.push_back(d.getSize());
+      data.pieceDivBy.push_back(d.getStride());
       continue;
     }
     return failure();
   }
+  data.pieceModBy.assign(data.pieces.size(), 0);
 
   // Count pieces per tensor dim and the dim's full extent.
   llvm::DenseMap<int64_t, int64_t> pieceCount;
@@ -135,14 +133,22 @@ static FailureOr<LayoutData> preprocessLayoutData(ArrayAttr dims, int64_t n,
     it->second *= data.originalDims[p].getSize();
   }
 
-  // A whole dim packed as one piece keeps the legacy behavior: its stride is not
-  // an address weight, so ignore it and let the single digit be the index
-  // itself. Split pieces keep the stride and extent captured above; the emitter
-  // applies the per-digit modulus (and drops it on the most-significant piece).
   for (size_t p = 0; p < data.pieces.size(); ++p) {
-    if (data.pieces[p] == LayoutPieceKind::Traversal &&
-        pieceCount[data.originalDims[p].getDim()] == 1) {
-      data.pieceStride[p] = 1;
+    if (data.pieces[p] != LayoutPieceKind::Traversal) continue;
+    if (pieceCount[data.originalDims[p].getDim()] == 1) {
+      // A whole dim packed as one piece keeps the legacy behavior: the stride is
+      // not an address weight here, so ignore it -- digit == i.
+      data.pieceDivBy[p] = 1;
+      data.pieceModBy[p] = 0;
+    } else {
+      // An explicit mixed-radix split piece: digit = (i / stride) mod extent.
+      // The modulus is suppressed (0) for the most-significant piece, whose
+      // digit i / stride is already below its extent, to keep the emitted
+      // address compact.
+      const int64_t extent = data.originalDims[p].getSize();
+      const int64_t full = dimFullExtent[data.originalDims[p].getDim()];
+      data.pieceModBy[p] =
+          (data.pieceDivBy[p] * extent < full) ? extent : 0;
     }
   }
 
@@ -155,7 +161,7 @@ static FailureOr<LayoutData> preprocessLayoutData(ArrayAttr dims, int64_t n,
     for (size_t p = 0; p < data.pieces.size(); ++p) {
       if (data.pieces[p] == LayoutPieceKind::Traversal &&
           data.originalDims[p].getDim() == dim) {
-        parts.push_back({data.pieceStride[p], data.originalDims[p].getSize()});
+        parts.push_back({data.pieceDivBy[p], data.originalDims[p].getSize()});
       }
     }
     llvm::sort(parts);  // ascending stride
@@ -169,8 +175,8 @@ static FailureOr<LayoutData> preprocessLayoutData(ArrayAttr dims, int64_t n,
 
   // Represent each traversal dim's domain variable by its full extent: the
   // deduped entry may be just the first of several mixed-radix pieces, but the
-  // emitter derives the domain bound from this entry (each piece carries its own
-  // stride and extent).
+  // emitter derives the domain bound and each piece's effective extent
+  // (full / divBy) from this entry. (Stride 1: it is not the address weight.)
   for (size_t ti = 0; ti < data.traversalDims.size(); ++ti) {
     const int64_t dim = data.traversalDims[ti].getDim();
     data.traversalDims[ti] =
@@ -190,9 +196,8 @@ static FailureOr<LayoutData> preprocessLayoutData(ArrayAttr dims, int64_t n,
     data.pieces.insert(data.pieces.begin() + data.ctPrefixLen,
                        LayoutPieceKind::Gap);
     data.pieceIndex.insert(data.pieceIndex.begin() + data.ctPrefixLen, gapIdx);
-    data.pieceStride.insert(data.pieceStride.begin() + data.ctPrefixLen, 1);
-    data.pieceExtent.insert(data.pieceExtent.begin() + data.ctPrefixLen,
-                            implicitFrontGapSize);
+    data.pieceDivBy.insert(data.pieceDivBy.begin() + data.ctPrefixLen, 1);
+    data.pieceModBy.insert(data.pieceModBy.begin() + data.ctPrefixLen, 0);
   }
 
   return data;
