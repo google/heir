@@ -12,13 +12,14 @@ authors = [
 ]
 description = "The HEIR compiler"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 classifiers = [
   "Topic :: Security :: Cryptography",
   "Intended Audience :: Developers",
   "Topic :: Software Development :: Compilers",
 ]
 license = "MIT AND Apache-2.0"
+license-files = ["LICENSE"]
 # The base package only ships the heir-opt/heir-translate binaries and has no deps
 dependencies = []
 
@@ -33,10 +34,13 @@ python = [
   # in some of our tests as Numpy 2 introduces stricter type checking
   "numpy>=1.23.5,<2",
   "colorama>=0.4.6",
-  "typing_extensions>=4.6; python_version < '3.11'",
 ]
 # openfhe backend
-openfhe = ["pybind11>=2.13.6", "pybind11_global>=2.13.6", "colorama>=0.4.6"]
+openfhe = [
+  "pybind11>=2.13.6",
+  "pybind11_global>=2.13.6",
+  "colorama>=0.4.6",
+]
 
 # dev dependencies
 dev = [
@@ -58,7 +62,8 @@ dev = [
   # For ML integration tests
   "torch>=2.8.0",
   "setuptools>=80.9.0",
-  "cibuildwheel>=3.0.0",
+  "cibuildwheel>=4.0.0",
+  "pytest",
 ]
 
 # For `uv sync` (which includes `dev` by default) or / `pip install --group dev`.
@@ -89,21 +94,21 @@ skip = "*-musllinux_* pp-*"
 # when running `import heir` instead of the local source files. cibuildwheel
 # creates an isolated directory for this purpose, and cd's to it before running
 # this command.
-test-command = "cp {package}/frontend/example.py . && python example.py"
-test-extras = ["python", "openfhe"]
+test-command = "cp {package}/frontend/cibuildwheel.py . && python cibuildwheel.py"
+test-extras = ["python"]
 
 [tool.cibuildwheel.linux]
 archs = "auto64"
-manylinux-x86_64-image = "manylinux_2_28"
-manylinux-aarch64-image = "manylinux_2_28"
+manylinux-x86_64-image = "manylinux_2_34"
+manylinux-aarch64-image = "manylinux_2_34"
 before-all = "bash .github/install_cibuildwheel_deps.sh"
 # Use the rootless Bazel installation inside the container.
 environment = { PATH = "$PATH:$HOME/bin" }
-# Force the repaired wheel to use the manylinux_2_28 platform tag.
+# Force the repaired wheel to use the manylinux_2_34 platform tag.
 # By default, auditwheel may analyze the wheel's actual symbol requirements
-# and choose or add a lower compatible manylinux_x_y tag such as 2_27
+# and choose or add a lower compatible manylinux_x_y tag such as 2_28
 # which PyPi might reject (they only accept a few specific tags).
-repair-wheel-command = "auditwheel repair --plat manylinux_2_28_$(uname -m) --only-plat -w {dest_dir} {wheel}"
+repair-wheel-command = "auditwheel repair --plat manylinux_2_34_$(uname -m) --only-plat -w {dest_dir} {wheel}"
 
 [tool.cibuildwheel.windows]
 archs = "auto64"

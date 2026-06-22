@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
-
-# Install clang and lld (container only has gcc by default)
-# Pin to clang 20 — some HEIR deps don't yet support clang 21+
-# (cf. https://github.com/google/heir/issues/2675).
-CLANG_VERSION=20
-yum install -y "clang-${CLANG_VERSION}*" "lld-${CLANG_VERSION}*"
+set -e
 
 # Install bazel
 if ! bazel version; then
@@ -16,7 +11,24 @@ if ! bazel version; then
   bazel_version=$(cat /project/.bazelversion)
   curl -L -o $HOME/bin/bazel --create-dirs "https://github.com/bazelbuild/bazel/releases/download/${bazel_version}/bazel-${bazel_version}-linux-${arch}"
   chmod +x $HOME/bin/bazel
-else
-  # Bazel is installed for the correct architecture
-  exit 0
 fi
+
+manylinux-install-clang -v v20.1.8.0
+
+# Install OpenMP development headers using the CRB repository
+dnf install -y --enablerepo=crb libomp-devel
+
+# Symlink OpenMP headers from system Clang to static Clang's include directory
+for system_clang_dir in /usr/lib/clang/* /usr/lib64/clang/*; do
+  [ -d "$system_clang_dir/include" ] || continue
+  for f in "$system_clang_dir/include"/omp*.h; do
+    [ -f "$f" ] || continue
+    for static_clang_include in /opt/clang/lib/clang/*/include; do
+      [ -d "$static_clang_include" ] || continue
+      target="$static_clang_include/$(basename "$f")"
+      if [ ! -e "$target" ]; then
+        ln -sf "$f" "$target"
+      fi
+    done
+  done
+done

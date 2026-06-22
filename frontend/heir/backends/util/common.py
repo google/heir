@@ -1,14 +1,15 @@
-from pathlib import Path
-from typing import Optional
 import importlib.resources
 import importlib.util
 import os
 import pathlib
+from pathlib import Path
+import sys
 import sysconfig
-
-from heir.interfaces import CompilationResult, EncValue
+from typing import Optional
 
 from colorama import Fore, Style
+
+from heir.interfaces import CompilationResult, EncValue
 
 
 def find_above(dirname: str) -> Path | None:
@@ -66,15 +67,54 @@ def get_module_origin(module_name: str) -> Optional[str]:
   return spec.origin
 
 
-def is_pip_installed() -> bool:
+def is_pip_installed(debug: bool = False) -> bool:
   """Return true if heir is installed via pip."""
+  debug_active = debug or os.environ.get("OPENFHE_DEBUG") == "1"
   try:
-    module_path = get_module_origin("heir") or ""
-    # purelib gives the environment-specific location of site-packages
-    # (for venv) or dist-packages (for system-wide installation) of
-    # non-builtin modules.
-    return module_path.startswith(sysconfig.get_paths()["purelib"])
-  except ModuleNotFoundError:
+    origin = get_module_origin("heir")
+    if debug_active:
+      print(
+          "HEIRpy Debug (common): get_module_origin('heir') returned:"
+          f" {origin}",
+          file=sys.stderr,
+      )
+    if not origin:
+      if debug_active:
+        print(
+            "HEIRpy Debug (common): is_pip_installed result: False (no origin)",
+            file=sys.stderr,
+        )
+      return False
+    module_path = Path(origin)
+    purelib = Path(sysconfig.get_paths()["purelib"])
+    platlib = Path(sysconfig.get_paths()["platlib"])
+
+    res = module_path.is_relative_to(purelib) or module_path.is_relative_to(
+        platlib
+    )
+
+    if debug_active:
+      print(
+          f"HEIRpy Debug (common): Module path: {module_path}", file=sys.stderr
+      )
+      print(f"HEIRpy Debug (common): purelib: {purelib}", file=sys.stderr)
+      print(f"HEIRpy Debug (common): platlib: {platlib}", file=sys.stderr)
+      print(
+          f"HEIRpy Debug (common): is_pip_installed result: {res}",
+          file=sys.stderr,
+      )
+
+    return res
+  except (ModuleNotFoundError, ValueError) as e:
+    if debug_active:
+      print(
+          f"HEIRpy Debug (common): is_pip_installed caught exception: {e}",
+          file=sys.stderr,
+      )
+      print(
+          "HEIRpy Debug (common): is_pip_installed result: False",
+          file=sys.stderr,
+      )
     return False
 
 

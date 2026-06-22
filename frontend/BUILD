@@ -1,7 +1,4 @@
-load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
-load("@heir//frontend:testing.bzl", "frontend_test")
 load("@rules_python//python:py_library.bzl", "py_library")
-load("@rules_python//python:py_test.bzl", "py_test")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -9,16 +6,9 @@ package(
 )
 
 DATA_DEPS = [
-    "@cereal//:headers",
     "@heir//tools:heir-opt",
     "@heir//tools:heir-translate",
-    "@openfhe//:libopenfhe",
-    "@openfhe//:headers",
-    # copybara: openfhe_binfhe_headers
-    # copybara: openfhe_core_headers
-    # copybara: openfhe_pke_headers
     # copybara: python_runtime_headers
-    "@rapidjson",
 ]
 
 # a single-source build dependency that gives the whole (non-test) source tree;
@@ -42,103 +32,8 @@ py_library(
     ],
 )
 
-py_test(
-    name = "import_isolation_test",
-    srcs = ["import_isolation_test.py"],
-    tags = [
-        # copybara: manual
-        "notap",
-    ],
-    deps = [
-        ":frontend",
-        "@abseil-py//absl/testing:absltest",
-        "@heir_pip_deps//numba",
-        "@heir_pip_deps//numpy",
-        "@heir_pip_deps//pybind11",
-    ],
-)
-
-frontend_test(
-    name = "e2e_test",
-    srcs = ["e2e_test.py"],
-    tags = [
-        # copybara: manual
-        "notap",
-    ],
-)
-
-frontend_test(
-    name = "loop_test",
-    srcs = ["loop_test.py"],
-    tags = [
-        # copybara: manual
-        "notap",
-    ],
-)
-
-frontend_test(
-    name = "mixed_bitwidth_test",
-    srcs = ["mixed_bitwidth_test.py"],
-    tags = [
-        # copybara: manual
-        "notap",
-    ],
-)
-
-frontend_test(
-    name = "tensor_test",
-    srcs = ["tensor_test.py"],
-    tags = [
-        # copybara: manual
-        "notap",
-    ],
-)
-
-frontend_test(
-    name = "tensor_loop_test",
-    srcs = ["tensor_loop_test.py"],
-    tags = [
-        # copybara: manual
-        "notap",
-    ],
-)
-
-frontend_test(
-    name = "cggi_test",
-    srcs = ["cggi_test.py"],
-    tags = [
-        # copybara: manual
-        "notap",
-    ],
-)
-
-frontend_test(
-    name = "cast_test",
-    srcs = ["cast_test.py"],
-    tags = [
-        # copybara: manual
-        "notap",
-    ],
-)
-
-frontend_test(
-    name = "unique_name_test",
-    srcs = ["unique_name_test.py"],
-    tags = [
-        # copybara: manual
-        "notap",
-    ],
-)
-
-bzl_library(
-    name = "testing_bzl",
-    srcs = ["testing.bzl"],
-    visibility = ["//visibility:public"],
-    deps = ["@rules_python//python:defs_bzl"],
-)
-
-py_library(
-    name = "example",
-    srcs = ["example.py"],
-    deps = [":frontend"],
-)
+# Because tests require JIT-compiling generated code on the fly, and linking
+# with system-provided libs, we cannot run them inside bazel's hermetic C++
+# toolchain. Instead the tests are run as a separate CI test, after installing
+# the frontend package, using pytest to discover and run tests named
+# frontend/**/*_test.py

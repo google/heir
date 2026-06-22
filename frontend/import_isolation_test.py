@@ -1,9 +1,8 @@
 """Test that `import heir` does not import optional dependencies."""
 
-import importlib
-import importlib.util
+import os
+import subprocess
 import sys
-
 from absl.testing import absltest
 
 OPTIONAL_DEPS = ("numba", "numpy", "pybind11")
@@ -12,26 +11,64 @@ OPTIONAL_DEPS = ("numba", "numpy", "pybind11")
 class ImportIsolationTest(absltest.TestCase):
 
   def test_import_heir_does_not_load_optional_deps(self):
-    # The deps must be installed (else this test is vacuous)
-    # and not yet imported (else we couldn't attribute them to `import heir`).
-    for dep in OPTIONAL_DEPS:
-      self.assertIsNotNone(
-          importlib.util.find_spec(dep),
-          f"{dep} must be installed for this test to be meaningful",
-      )
-    preloaded = [m for m in (*OPTIONAL_DEPS, "heir") if m in sys.modules]
-    self.assertEqual(preloaded, [], f"{preloaded} imported before the test ran")
+    # We execute the test in a clean subprocess to ensure it runs in process isolation
+    # and is not polluted by other tests loaded by the test runner (like pytest).
 
-    # This is normally `import heir` but this test is relative to the repository
-    # root.
-    importlib.import_module("frontend.heir")
+    # Pass current sys.path via PYTHONPATH to the child process so it can find the modules.
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.pathsep.join(sys.path)
 
-    leaked = [dep for dep in OPTIONAL_DEPS if dep in sys.modules]
+    # The code to execute in the subprocess
+    code = f"""
+import importlib
+import importlib.util
+import sys
+
+OPTIONAL_DEPS = {OPTIONAL_DEPS}
+
+# Verify optional deps are installed
+for dep in OPTIONAL_DEPS:
+  if importlib.util.find_spec(dep) is None:
+    print(f"Error: {{dep}} must be installed for this test to be meaningful", file=sys.stderr)
+    sys.exit(2)
+
+# Verify they are not preloaded in this clean process
+preloaded = [m for m in (*OPTIONAL_DEPS, "heir") if m in sys.modules]
+if preloaded:
+  print(f"Error: {{preloaded}} preloaded before import", file=sys.stderr)
+  sys.exit(3)
+
+# Import heir
+importlib.import_module("frontend.heir")
+
+# Verify they were not loaded as side effects
+leaked = [dep for dep in OPTIONAL_DEPS if dep in sys.modules]
+if leaked:
+  print(f"Error: `import heir` imported {{leaked}}", file=sys.stderr)
+  sys.exit(4)
+
+print("SUCCESS")
+sys.exit(0)
+"""
+
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    if result.returncode != 0:
+      print("Subprocess stdout:")
+      print(result.stdout)
+      print("Subprocess stderr:")
+      print(result.stderr)
+
     self.assertEqual(
-        leaked,
-        [],
-        f"Error: `import heir` imported {leaked}; but the base package should"
-        " not import any of the optional dependencies",
+        result.returncode,
+        0,
+        f"Import isolation check failed with exit code {result.returncode}. See"
+        " stdout/stderr for details.",
     )
 
 

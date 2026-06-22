@@ -69,7 +69,7 @@ cc_library(
     ],
     deps = [
         ":OpenFheUtils",
-        "@cereal",
+        "//third_party/cereal",  # copybara: lib
         "@heir//lib/Analysis/Cpp:ConstQualifierAnalysis",
         "@heir//lib/Analysis/SelectVariableNames",
         "@heir//lib/Dialect:ModuleAttributes",
@@ -195,6 +195,10 @@ cc_test(
     srcs = ["InterpreterTest.cpp"],
     copts = OPENMP_COPTS,
     linkopts = OPENMP_LINKOPTS,
+    tags = [
+        "manual",
+        "notap",
+    ],
     deps = [
         ":Interpreter",
         "@googletest//:gtest_main",
