@@ -59,6 +59,30 @@ static int64_t computeImplicitFrontGap(ArrayRef<DimAttr> dims, int64_t n) {
   return nRem;
 }
 
+// Lowers a Rotom layout's positional `dims` (over a ciphertext of `n` slots)
+// into the `LayoutData` descriptor the address emitter consumes, and doubles as
+// the validity check behind `LayoutAttr::verify` (it returns failure on a
+// malformed or inconsistent layout). The steps, in order:
+//
+//   1. Classify each attribute dim into a positional `pieces` sequence
+//      (Traversal / Replication / Gap), recording `pieceIndex` into the
+//      per-kind dim lists. Traversal pieces are deduped by tensor axis so the
+//      several pieces of a mixed-radix split share one domain variable, and
+//      each traversal piece's stride is captured as its digit divisor
+//      (`pieceDivBy`).
+//   2. Derive each traversal piece's mixed-radix digit descriptor: a whole dim
+//      packed as one piece reads digit == i (divBy 1, no modulus), while a
+//      split axis reads digit = (i / divBy) mod extent, with the modulus
+//      suppressed on the most-significant piece. (See LayoutData in the header.)
+//   3. Validate every multi-piece axis as a well-formed mixed-radix
+//      decomposition: sorted by stride the divisors must be the cumulative
+//      products of the lower extents (1, e0, e0*e1, ...) and the extents must
+//      multiply to the axis's full extent.
+//   4. Normalize each deduped traversal dim's domain variable to the axis's
+//      full extent, so the emitter sees one variable spanning all its pieces.
+//   5. Compute the ciphertext/slot split (`ctPrefixLen`) and, when the packed
+//      content does not fill every slot, append an implicit front gap so the
+//      remaining slots are accounted for.
 static FailureOr<LayoutData> preprocessLayoutData(ArrayAttr dims, int64_t n,
                                                   MLIRContext* ctx) {
   LayoutData data;
