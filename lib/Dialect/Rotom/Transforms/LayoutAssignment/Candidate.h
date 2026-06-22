@@ -4,10 +4,12 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <utility>
 
 #include "lib/Dialect/Rotom/IR/RotomAttributes.h"
 #include "lib/Dialect/Rotom/Utils/LayoutAlignment.h"
 #include "lib/Kernel/KernelName.h"
+#include "llvm/include/llvm/ADT/DenseMap.h"              // from @llvm-project
 #include "llvm/include/llvm/ADT/StringRef.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
@@ -35,8 +37,18 @@ enum class KernelKind {
 
 llvm::StringLiteral kernelKindName(KernelKind kind);
 
-// A candidate layout assignment for a single value, together with the layouts
-// its operands must take and the (optional) named kernel that implements it.
+// The chosen layout assignment of a candidate's whole cone: every value that
+// feeds the candidate's value, mapped to (its chosen layout, that kernel's own
+// local cost). A shared subexpression appears once, so summing the local costs
+// never double-counts on a DAG. The cone of the winning root candidate IS the
+// output layout assignment.
+using LayoutCone = llvm::DenseMap<Value, std::pair<LayoutAttr, int64_t>>;
+
+// A candidate layout assignment for a single value: the value's layout, the
+// dedup'd accumulated cost of its cone, and the cone itself. `localCost` is
+// transient -- the value's own kernel cost, folded into `cone`/`cost` once the
+// result value is known (see setCandidates). `localCost` and `cone` are last so
+// the positional aggregate-inits of the earlier fields keep working.
 struct Candidate {
   LayoutAttr layout;
   int64_t cost = 0;
@@ -44,7 +56,16 @@ struct Candidate {
   SmallVector<Value> operands;
   SmallVector<LayoutAttr> operandLayouts;
   std::optional<KernelName> kernel;
+  int64_t localCost = 0;
+  LayoutCone cone;
 };
+
+// Sum of every kernel's local cost in the cone (each value counted once).
+int64_t coneCost(const LayoutCone& cone);
+// Merges `from` into `into`. Returns false if they disagree on any value's
+// layout (an inconsistent combination of sub-assignments on a DAG), leaving
+// `into` partially merged -- the caller discards it.
+bool mergeCones(LayoutCone& into, const LayoutCone& from);
 
 // arith op classification.
 bool isAddLike(Operation* op);

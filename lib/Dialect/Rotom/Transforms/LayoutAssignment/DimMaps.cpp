@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <numeric>
 #include <optional>
+#include <utility>
 
 #include "lib/Dialect/Rotom/IR/RotomAttributes.h"
 #include "lib/Dialect/Rotom/Transforms/LayoutAssignment/Candidate.h"
@@ -61,11 +62,17 @@ SmallVector<Candidate> remapCandidates(Value operand,
     std::optional<LayoutAttr> layout =
         remapLayoutDims(candidate.layout, oldToNewDim);
     if (!layout) continue;
-    remapped.push_back({*layout,
-                        candidate.cost + extraCost,
-                        kind,
-                        {operand},
-                        {candidate.layout}});
+    // The remap relabels dims of the operand's data (no rotation), so the result
+    // inherits the operand's cone and the only new local cost is `extraCost`.
+    Candidate result;
+    result.layout = *layout;
+    result.kind = kind;
+    result.operands = {operand};
+    result.operandLayouts = {candidate.layout};
+    result.localCost = extraCost;
+    result.cone = candidate.cone;
+    result.cost = coneCost(result.cone) + result.localCost;
+    remapped.push_back(std::move(result));
   }
   return uniqueCandidates(remapped);
 }
@@ -78,7 +85,10 @@ SmallVector<Candidate> chooseCommonCandidates(
   SmallVector<Candidate> targets;
   for (const SmallVector<Candidate>& candidates : candidateSets) {
     for (const Candidate& candidate : candidates) {
-      targets.push_back({candidate.layout, 0, kind});
+      Candidate target;
+      target.layout = candidate.layout;
+      target.kind = kind;
+      targets.push_back(std::move(target));
     }
   }
   targets = uniqueCandidates(targets);
@@ -86,39 +96,51 @@ SmallVector<Candidate> chooseCommonCandidates(
 
   SmallVector<Candidate> chosen;
   for (const Candidate& target : targets) {
-    int64_t totalCost = localCostFn(target.layout);
+    int64_t localCost = localCostFn(target.layout);
     bool valid = true;
+    LayoutCone cone;
     SmallVector<LayoutAttr> operandLayouts;
     for (const SmallVector<Candidate>& candidates : candidateSets) {
       if (candidates.empty()) continue;
       const Candidate* bestCandidate = nullptr;
       std::optional<Candidate> bestScoredCandidate;
-      int64_t bestCost = 0;
+      int64_t bestConversion = 0;
       for (const Candidate& candidate : candidates) {
-        int64_t conversionCost =
+        int64_t conversion =
             layoutConversionCost(candidate.layout, target.layout);
-        int64_t cost = candidate.cost + conversionCost;
         Candidate scoredCandidate = candidate;
-        scoredCandidate.cost = cost;
+        scoredCandidate.cost = candidate.cost + conversion;
         scoredCandidate.kind = kind;
         if (!bestScoredCandidate ||
             isBetterCandidate(scoredCandidate, *bestScoredCandidate)) {
           bestScoredCandidate = scoredCandidate;
           bestCandidate = &candidate;
-          bestCost = cost;
+          bestConversion = conversion;
         }
       }
       if (!bestCandidate) {
         valid = false;
         break;
       }
-      totalCost += bestCost;
+      // Merge the chosen operand's cone; a disagreement on a shared value means
+      // this combination is inconsistent, so drop the target.
+      if (!mergeCones(cone, bestCandidate->cone)) {
+        valid = false;
+        break;
+      }
+      localCost += bestConversion;
       operandLayouts.push_back(bestCandidate->layout);
     }
-    if (valid) {
-      chosen.push_back({target.layout, totalCost, kind,
-                        SmallVector<Value>(operands), operandLayouts});
-    }
+    if (!valid) continue;
+    Candidate candidate;
+    candidate.layout = target.layout;
+    candidate.kind = kind;
+    candidate.operands = SmallVector<Value>(operands);
+    candidate.operandLayouts = operandLayouts;
+    candidate.localCost = localCost;
+    candidate.cone = std::move(cone);
+    candidate.cost = coneCost(candidate.cone) + candidate.localCost;
+    chosen.push_back(std::move(candidate));
   }
   return uniqueCandidates(chosen);
 }

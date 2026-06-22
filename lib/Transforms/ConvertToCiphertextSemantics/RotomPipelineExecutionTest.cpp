@@ -186,6 +186,90 @@ module {
                  expectedSub));
 }
 
+// A diamond: one shared value (%s = a + b) feeds two consumers. Exercises the
+// DAG path of layout assignment -- the shared value is assigned a single layout
+// (its cone is counted once in the accumulated cost) and both consumers convert
+// onto their compute layout -- and proves the result is numerically correct.
+TEST(RotomPipelineExecutionTest, SharedValueDiamondMatchesReference) {
+  MLIRContext context;
+  initContext(context);
+  OwningOpRef<ModuleOp> module = openfhe::parse(&context, R"mlir(
+#layout_a = #rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[1:4:1]>], n = 16>
+#layout_b = #rotom.layout<dims = [#rotom.dim<[1:4:1]>, #rotom.dim<[0:4:1]>], n = 16>
+#seed_a = #rotom.seed<layouts = [#layout_a]>
+#seed_b = #rotom.seed<layouts = [#layout_b]>
+
+module {
+  func.func @main(%a: tensor<4x4xf32> {rotom.seed = #seed_a}, %b: tensor<4x4xf32> {rotom.seed = #seed_b},
+                  %p: tensor<4x4xf32> {rotom.seed = #seed_a}, %q: tensor<4x4xf32> {rotom.seed = #seed_b})
+      -> (tensor<4x4xf32>, tensor<4x4xf32>) {
+    %s = arith.addf %a, %b : tensor<4x4xf32>
+    %l = arith.addf %s, %p : tensor<4x4xf32>
+    %r = arith.mulf %s, %q : tensor<4x4xf32>
+    return %l, %r : tensor<4x4xf32>, tensor<4x4xf32>
+  }
+}
+)mlir");
+  ASSERT_TRUE(module);
+  ASSERT_TRUE(succeeded(runRotomPipeline(module.get(), &context,
+                                         /*ciphertextSize=*/16)));
+
+  func::FuncOp main = module->lookupSymbol<func::FuncOp>("main");
+  ASSERT_TRUE(main);
+  tensor_ext::LayoutAttr aLayout = getArgLayout(main, 0);
+  tensor_ext::LayoutAttr bLayout = getArgLayout(main, 1);
+  tensor_ext::LayoutAttr pLayout = getArgLayout(main, 2);
+  tensor_ext::LayoutAttr qLayout = getArgLayout(main, 3);
+  tensor_ext::LayoutAttr lLayout = getResultLayout(main, 0);
+  tensor_ext::LayoutAttr rLayout = getResultLayout(main, 1);
+  ASSERT_TRUE(aLayout && bLayout && pLayout && qLayout && lLayout && rLayout);
+
+  std::vector<std::vector<float>> a = {
+      {1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}};
+  std::vector<std::vector<float>> b = {
+      {16, 15, 14, 13}, {12, 11, 10, 9}, {8, 7, 6, 5}, {4, 3, 2, 1}};
+  std::vector<std::vector<float>> p = {
+      {1, 1, 1, 1}, {2, 2, 2, 2}, {3, 3, 3, 3}, {4, 4, 4, 4}};
+  std::vector<std::vector<float>> q = {
+      {2, 0, 2, 0}, {0, 2, 0, 2}, {2, 0, 2, 0}, {0, 2, 0, 2}};
+  std::vector<std::vector<float>> expectedL(4, std::vector<float>(4));
+  std::vector<std::vector<float>> expectedR(4, std::vector<float>(4));
+  for (int64_t i = 0; i < 4; ++i) {
+    for (int64_t j = 0; j < 4; ++j) {
+      float s = a[i][j] + b[i][j];
+      expectedL[i][j] = s + p[i][j];
+      expectedR[i][j] = s * q[i][j];
+    }
+  }
+
+  Interpreter interpreter(module.get());
+  std::vector<TypedCppValue> inputs = {
+      TypedCppValue(packMatrix(
+          aLayout, cast<RankedTensorType>(main.getArgument(0).getType()), a)),
+      TypedCppValue(packMatrix(
+          bLayout, cast<RankedTensorType>(main.getArgument(1).getType()), b)),
+      TypedCppValue(packMatrix(
+          pLayout, cast<RankedTensorType>(main.getArgument(2).getType()), p)),
+      TypedCppValue(packMatrix(
+          qLayout, cast<RankedTensorType>(main.getArgument(3).getType()), q)),
+  };
+  std::vector<TypedCppValue> results = interpreter.interpret("main", inputs);
+  ASSERT_EQ(results.size(), 2);
+
+  auto actualL = std::get<std::shared_ptr<std::vector<float>>>(results[0].value);
+  auto actualR = std::get<std::shared_ptr<std::vector<float>>>(results[1].value);
+  expectFloatVectorsNear(
+      *actualL,
+      packMatrix(lLayout,
+                 cast<RankedTensorType>(main.getFunctionType().getResult(0)),
+                 expectedL));
+  expectFloatVectorsNear(
+      *actualR,
+      packMatrix(rLayout,
+                 cast<RankedTensorType>(main.getFunctionType().getResult(1)),
+                 expectedR));
+}
+
 // Both operands share a rolled (diagonal) layout. Proves a rolled seed flows
 // through layout assignment, materialization, and the relation-driven lowering,
 // and that packMatrix packs inputs by the rolled relation -- the premise that

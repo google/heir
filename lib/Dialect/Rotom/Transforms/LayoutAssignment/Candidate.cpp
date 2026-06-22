@@ -19,6 +19,24 @@
 
 namespace mlir::heir::rotom {
 
+int64_t coneCost(const LayoutCone& cone) {
+  int64_t total = 0;
+  for (const auto& entry : cone) total += entry.second.second;
+  return total;
+}
+
+bool mergeCones(LayoutCone& into, const LayoutCone& from) {
+  for (const auto& entry : from) {
+    auto it = into.find(entry.first);
+    if (it == into.end()) {
+      into.insert(entry);
+    } else if (it->second.first != entry.second.first) {
+      return false;
+    }
+  }
+  return true;
+}
+
 llvm::StringLiteral kernelKindName(KernelKind kind) {
   switch (kind) {
     case KernelKind::Tensor:
