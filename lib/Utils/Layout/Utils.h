@@ -234,6 +234,15 @@ FailureOr<presburger::IntegerRelation> getSliceExtractionRelation(
 bool isRelationEqual(const presburger::IntegerRelation& relation1,
                      const presburger::IntegerRelation& relation2);
 
+// Returns true iff the two relations have compatible spaces and are exactly
+// equal. isEqual asserts compatible spaces, so callers comparing layouts whose
+// var structure may differ (e.g. a replication local var) must guard with the
+// space check first; this bundles both. Unlike isRelationEqual it runs no
+// obvious/inequality ISL fast paths -- it is the lightweight check for one-off
+// layout pattern matches.
+bool relationsCompatibleAndEqual(const presburger::IntegerRelation& relation1,
+                                 const presburger::IntegerRelation& relation2);
+
 // Returns true if the given relation is surjective onto the given tensor type.
 // This tests that the range set of the relation covers all points of the given
 // tensor type. This is used to test if a layout is dense, so that the layout

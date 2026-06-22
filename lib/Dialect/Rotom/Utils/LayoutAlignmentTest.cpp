@@ -67,6 +67,16 @@ TEST_F(LayoutAlignmentTest, RejectsMismatchedCiphertextCounts) {
       oneCiphertext, oneCiphertext, fourCiphertexts));
 }
 
+TEST_F(LayoutAlignmentTest, CountsStraddlingDimByCiphertextPart) {
+  // A 4x8 dense-diagonal-style layout at n=16: the column dim (extent 8) fills
+  // slots, and the row dim (extent 4) straddles the ct/slot boundary -- its low
+  // 2 values fill the remaining slots (8 * 2 == 16) and its high 2 index
+  // ciphertexts. The layout therefore occupies 2 ciphertexts, not 4 (its full
+  // row extent), matching the straddle-aware split in attribute preprocessing.
+  LayoutAttr straddling = layout({dim(0, 4), dim(1, 8)}, 16);
+  EXPECT_EQ(rotom::layoutNumCiphertexts(straddling), 2);
+}
+
 TEST_F(LayoutAlignmentTest, RejectsNonMaterializableRepeatedDimLayout) {
   LayoutAttr repeated =
       layout({dim(0, 2), dim(1, 2), dim(0, 2), dim(1, 2)}, /*n=*/16);

@@ -538,43 +538,44 @@ presburger::IntegerRelation getPerRowLayoutRelation(RankedTensorType matrixType,
   return result;
 }
 
+bool relationsCompatibleAndEqual(const presburger::IntegerRelation& relation1,
+                                 const presburger::IntegerRelation& relation2) {
+  // isEqual asserts the spaces are compatible; relations with a different var
+  // structure (e.g. a replication dim adds a local var) are trivially unequal.
+  // This is the exact-equality check (no obvious/inequality fast paths) the
+  // layout pattern matchers want; isRelationEqual adds an ISL sampling pass that
+  // is wasted work on these single comparisons.
+  if (!relation1.getSpace().isCompatible(relation2.getSpace())) return false;
+  return relation1.isEqual(relation2);
+}
+
 bool isRelationSquatDiagonal(RankedTensorType matrixType,
                              int64_t ciphertextSize,
                              const presburger::IntegerRelation& relation) {
   IntegerRelation diagonalRelation =
       getDiagonalLayoutRelation(matrixType, ciphertextSize);
-  // isEqual asserts the spaces are compatible; a layout with a different var
-  // structure (e.g. a replication dim adds a local var) is trivially not equal.
-  if (!relation.getSpace().isCompatible(diagonalRelation.getSpace()))
-    return false;
-  return relation.isEqual(diagonalRelation);
+  return relationsCompatibleAndEqual(relation, diagonalRelation);
 }
 
 bool isRelationRowMajor(RankedTensorType vectorType, int64_t numSlots,
                         const presburger::IntegerRelation& relation) {
   IntegerRelation rowMajorRelation =
       getRowMajorLayoutRelation(vectorType, numSlots);
-  if (!relation.getSpace().isCompatible(rowMajorRelation.getSpace()))
-    return false;
-  return relation.isEqual(rowMajorRelation);
+  return relationsCompatibleAndEqual(relation, rowMajorRelation);
 }
 
 bool isRelationPerRow(RankedTensorType matrixType, int64_t ciphertextSize,
                       presburger::IntegerRelation relation) {
   IntegerRelation perRowRelation =
       getPerRowLayoutRelation(matrixType, ciphertextSize);
-  if (!relation.getSpace().isCompatible(perRowRelation.getSpace()))
-    return false;
-  return relation.isEqual(perRowRelation);
+  return relationsCompatibleAndEqual(relation, perRowRelation);
 }
 
 bool isRelationBicyclic(RankedTensorType matrixType, int64_t numSlots,
                         const presburger::IntegerRelation& relation) {
   IntegerRelation bicyclicRelation =
       getBicyclicLayoutRelation(matrixType, numSlots);
-  if (!relation.getSpace().isCompatible(bicyclicRelation.getSpace()))
-    return false;
-  return relation.isEqual(bicyclicRelation);
+  return relationsCompatibleAndEqual(relation, bicyclicRelation);
 }
 
 presburger::IntegerRelation collapseDimensions(

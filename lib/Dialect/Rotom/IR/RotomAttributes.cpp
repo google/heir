@@ -20,10 +20,8 @@ namespace mlir {
 namespace heir {
 namespace rotom {
 
-namespace {
-
-static size_t inferCtPrefixLen(ArrayRef<DimAttr> dims, int64_t n,
-                               int64_t& straddleSlotExtent) {
+size_t inferCtPrefixLen(ArrayRef<DimAttr> dims, int64_t n,
+                        int64_t& straddleSlotExtent) {
   straddleSlotExtent = 0;
   int64_t nRem = n;
   size_t i = dims.size();
@@ -49,6 +47,8 @@ static size_t inferCtPrefixLen(ArrayRef<DimAttr> dims, int64_t n,
   while (i > 0 && straddleSlotExtent == 0 && dims[i - 1].getSize() == 1) --i;
   return i;
 }
+
+namespace {
 
 static int64_t computeImplicitFrontGap(ArrayRef<DimAttr> dims, int64_t n) {
   int64_t nRem = n;

@@ -52,36 +52,38 @@ bool componentsEqual(ArrayRef<DimComponent> lhs, ArrayRef<DimComponent> rhs) {
 
 }  // namespace
 
+// Collects a layout's dims as DimAttrs for the shared ct/slot-split helper.
+static SmallVector<DimAttr> collectDims(LayoutAttr layout) {
+  SmallVector<DimAttr> dims;
+  dims.reserve(layout.getDims().size());
+  for (Attribute attr : layout.getDims()) dims.push_back(cast<DimAttr>(attr));
+  return dims;
+}
+
 size_t inferCtPrefixLen(LayoutAttr layout) {
-  ArrayAttr dims = layout.getDims();
-  int64_t nRem = layout.getN();
-  size_t prefix = dims.size();
-  while (prefix > 0) {
-    if (nRem <= 1) break;
-    auto dim = cast<DimAttr>(dims[prefix - 1]);
-    int64_t size = dim.getSize();
-    if (size <= 0) break;
-    if (size <= nRem && nRem % size == 0) {
-      nRem /= size;
-      --prefix;
-      continue;
-    }
-    break;
-  }
-  while (prefix > 0 && cast<DimAttr>(dims[prefix - 1]).getSize() == 1) {
-    --prefix;
-  }
-  return prefix;
+  SmallVector<DimAttr> dims = collectDims(layout);
+  int64_t straddleSlotExtent = 0;
+  // Delegate to the single straddle-aware implementation in RotomAttributes so
+  // the ct/slot split here matches attribute preprocessing exactly.
+  return inferCtPrefixLen(dims, layout.getN(), straddleSlotExtent);
 }
 
 int64_t layoutNumCiphertexts(LayoutAttr layout) {
+  SmallVector<DimAttr> dims = collectDims(layout);
+  int64_t straddleSlotExtent = 0;
+  size_t ctPrefixLen =
+      inferCtPrefixLen(dims, layout.getN(), straddleSlotExtent);
   int64_t numCt = 1;
-  size_t ctPrefixLen = inferCtPrefixLen(layout);
-  ArrayAttr dims = layout.getDims();
   for (size_t i = 0; i < ctPrefixLen; ++i) {
-    auto dim = cast<DimAttr>(dims[i]);
-    if (dim.isGap()) continue;
-    numCt *= dim.getSize();
+    if (dims[i].isGap()) continue;
+    int64_t extent = dims[i].getSize();
+    // A boundary dim that straddles the ct/slot split contributes only its high
+    // (ciphertext) part; its low `straddleSlotExtent` values fill slots, so
+    // multiplying by the full extent would overcount the ciphertexts.
+    if (straddleSlotExtent > 1 && i + 1 == ctPrefixLen) {
+      extent /= straddleSlotExtent;
+    }
+    numCt *= std::max<int64_t>(extent, 1);
   }
   return std::max<int64_t>(numCt, 1);
 }

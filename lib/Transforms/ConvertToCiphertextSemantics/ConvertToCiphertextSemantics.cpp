@@ -2226,11 +2226,8 @@ class ConvertTensorCollapseShape
     auto collapsedRelation = collapseDimensions(srcRelation, op.getSrcType(),
                                                 op.getReassociationIndices());
     auto collapseResultRelation = resultLayout.getIntegerRelation();
-    // isEqual asserts the spaces are compatible; layouts with a different var
-    // structure (e.g. a replication dim) are trivially not equal.
-    if (!collapsedRelation.getSpace().isCompatible(
-            collapseResultRelation.getSpace()) ||
-        !collapsedRelation.isEqual(collapseResultRelation)) {
+    if (!relationsCompatibleAndEqual(collapsedRelation,
+                                     collapseResultRelation)) {
       return rewriter.notifyMatchFailure(
           op, "result layout is not equal to input layout");
     }
@@ -2304,11 +2301,7 @@ class ConvertTensorExpandShape
     auto expandedRelation = expandDimensions(srcRelation, op.getResultType(),
                                              op.getReassociationIndices());
     auto expandResultRelation = resultLayout.getIntegerRelation();
-    // isEqual asserts the spaces are compatible; layouts with a different var
-    // structure (e.g. a replication dim) are trivially not equal.
-    if (!expandedRelation.getSpace().isCompatible(
-            expandResultRelation.getSpace()) ||
-        !expandedRelation.isEqual(expandResultRelation)) {
+    if (!relationsCompatibleAndEqual(expandedRelation, expandResultRelation)) {
       return rewriter.notifyMatchFailure(
           op, "result layout is not equal to input layout");
     }
