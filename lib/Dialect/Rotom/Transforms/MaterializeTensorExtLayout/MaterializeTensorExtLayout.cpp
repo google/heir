@@ -103,14 +103,26 @@ struct MaterializeTensorExtLayout
             funcArg.getOwner()->getParentOp());
         if (!func) continue;
         unsigned argNo = funcArg.getArgNumber();
-        if (func.getArgAttr(argNo, tensorExtLayoutName)) continue;
         BlockArgument blockArg =
             gen.getRegion().getArgument(operand.getOperandNumber());
         FailureOr<Attribute> operandLayout =
             findAttributeAssociatedWith(blockArg, tensorExtLayoutName);
-        if (succeeded(operandLayout)) {
-          func.setArgAttr(argNo, tensorExtLayoutName, *operandLayout);
+        if (failed(operandLayout)) continue;
+        // The type converter rewrites the function argument exactly once from this
+        // attribute. If a second secret.generic operand backed by the same
+        // argument needs a different layout, the argument cannot satisfy both;
+        // fail loudly instead of silently keeping the first (which would leave the
+        // other operand's block-argument type mismatched).
+        if (Attribute existing = func.getArgAttr(argNo, tensorExtLayoutName)) {
+          if (existing != *operandLayout) {
+            gen.emitError() << "function argument " << argNo
+                            << " feeds secret.generic operands with conflicting "
+                               "materialized layouts";
+            result = failure();
+          }
+          continue;
         }
+        func.setArgAttr(argNo, tensorExtLayoutName, *operandLayout);
       }
     });
 

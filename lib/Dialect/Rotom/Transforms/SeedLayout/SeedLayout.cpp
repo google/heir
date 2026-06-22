@@ -102,9 +102,14 @@ void normalizeRowVectorMatmuls(ModuleOp module) {
       return t.getOperation()->getResult(0);
     };
 
-    // M^T (N x K): reuse the pre-transpose input when M = transpose(W).
+    // M^T (N x K): reuse the pre-transpose input when M = transpose(W), but only
+    // for a genuine [1, 0] transpose. An identity ([0, 1]) permutation leaves the
+    // operand in K x N orientation; reusing it would build matmul(K x N, K x 1),
+    // an invalid contraction. Fall back to an explicit transpose in that case.
     Value matrix;
-    if (auto producer = m.getDefiningOp<linalg::TransposeOp>()) {
+    auto producer = m.getDefiningOp<linalg::TransposeOp>();
+    if (producer && producer.getPermutation().size() == 2 &&
+        producer.getPermutation()[0] == 1 && producer.getPermutation()[1] == 0) {
       matrix = producer.getInput();
     } else {
       matrix = transpose(m, nDim, kDim);

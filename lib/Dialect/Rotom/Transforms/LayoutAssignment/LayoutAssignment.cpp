@@ -23,6 +23,7 @@
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
+#include "llvm/include/llvm/Support/MathExtras.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
@@ -207,17 +208,6 @@ int64_t ceilSqrt(int64_t value) {
   return root;
 }
 
-int64_t ceilLog2(int64_t value) {
-  if (value <= 1) return 0;
-  int64_t bits = 0;
-  int64_t pow = 1;
-  while (pow < value) {
-    pow *= 2;
-    ++bits;
-  }
-  return bits;
-}
-
 // Rotation-aware matmul cost so the search can prefer a diagonal (rolled,
 // ciphertext-axis) packing over a row-major one. Mirrors the reference Rotom
 // cost model (ir/kernel_cost.py matmul_ops / bsgs_matmul_ops): a ciphertext-axis
@@ -243,7 +233,7 @@ int64_t matmulRotationCost(LayoutAttr lhsLayout, RankedTensorType lhsType,
     // residual; the M matrix-diagonal rotations fold to free for a plaintext
     // matrix. Counted in rotations (the dominant ciphertext cost) so it is
     // comparable to the row-major rotate-multiply-accumulate path below.
-    int64_t rotations = 2 * ceilSqrt(m) + m + ceilLog2(k / m);
+    int64_t rotations = 2 * ceilSqrt(m) + m + llvm::Log2_64_Ceil(k / m);
     return kRotWeight * rotations;
   }
   return kRotWeight * 2 * m * k * p;
@@ -1096,7 +1086,13 @@ LogicalResult LayoutAssignment::visitMatmul(linalg::MatmulOp op) {
   auto rhsType = dyn_cast<RankedTensorType>(op.getInputs()[1].getType());
   auto resultType = dyn_cast<RankedTensorType>(op.getResult(0).getType());
   if (!lhsType || !rhsType || !resultType || lhsType.getRank() != 2 ||
-      rhsType.getRank() != 2 || resultType.getRank() != 2) {
+      rhsType.getRank() != 2 || resultType.getRank() != 2 ||
+      !lhsType.hasStaticShape() || !rhsType.hasStaticShape() ||
+      !resultType.hasStaticShape()) {
+    // The cost model and diagonal-candidate builder below divide by padded
+    // extents (nextPowerOfTwo of each dim); a dynamic dim (ShapedType::kDynamic)
+    // would corrupt those or divide by zero. The lowering guards static shapes
+    // too, so a dynamic matmul cannot be lowered anyway.
     return visitPassThrough(op);
   }
 

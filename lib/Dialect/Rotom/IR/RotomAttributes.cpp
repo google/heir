@@ -245,6 +245,9 @@ static LogicalResult verifyLayoutRolls(
     // gives a squat (non-square) diagonal where (i_j mod size(i)) cycles
     // uniformly -- e.g. roll(row, col) with size(col) a multiple of size(row)
     // yields ct = (row - col) mod M for an M x K matrix.
+    if (di.getSize() == 0) {
+      return emitError() << "rolled dim must have a non-zero extent";
+    }
     if (di.getSize() != dj.getSize() && dj.getSize() % di.getSize() != 0) {
       return emitError() << "rolled dim extent (" << di.getSize()
                          << ") must divide the extent it is rolled by ("

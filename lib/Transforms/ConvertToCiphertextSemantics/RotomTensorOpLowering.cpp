@@ -208,16 +208,21 @@ LogicalResult RotomTensorOpLowering::lowerMatmulByRotation(
   // would need a shift network. Defer those to the brute-force path.
   if (numCiphertexts != 1) return failure();
 
+  // Index each layout's relation once (a single ISL enumeration) rather than
+  // rebuilding/copying the IntegerRelation for every (i, j, k) domain point --
+  // the same O(m*n) ISL cost the diagonal kernels avoid via indexRangeByDomain.
+  RangeByDomain lhsRange = indexRangeByDomain(lhsLayout.getIntegerRelation());
+  RangeByDomain rhsRange = indexRangeByDomain(rhsLayout.getIntegerRelation());
+  RangeByDomain outRange = indexRangeByDomain(outputLayout.getIntegerRelation());
   // Resolves the single slot a domain point packs into, or nullopt if the
   // packing is replicated/multi-ciphertext (which this kernel cannot express).
-  auto uniqueSlot = [&](LayoutAttr layout,
-                        ArrayRef<int64_t> domain) -> std::optional<int64_t> {
-    FailureOr<std::vector<std::vector<int64_t>>> points =
-        getRangePointsForDomain(layout, domain);
-    if (failed(points) || points->size() != 1) return std::nullopt;
-    const std::vector<int64_t>& point = (*points)[0];
-    if (point.size() != 2 || point[0] != 0) return std::nullopt;
-    return point[1];
+  auto uniqueSlot = [](const RangeByDomain& range,
+                       std::vector<int64_t> domain) -> std::optional<int64_t> {
+    auto it = range.find(domain);
+    if (it == range.end() || it->second.size() != 1) return std::nullopt;
+    const std::pair<int64_t, int64_t>& point = it->second[0];  // (ct, slot)
+    if (point.first != 0) return std::nullopt;
+    return point.second;
   };
 
   // Group every (i, j, k) contribution by the (lhsShift, rhsShift) pair that
@@ -229,12 +234,12 @@ LogicalResult RotomTensorOpLowering::lowerMatmulByRotation(
       groups;
   for (int64_t i = 0; i < m; ++i) {
     for (int64_t j = 0; j < p; ++j) {
-      std::optional<int64_t> dst = uniqueSlot(outputLayout, {i, j});
+      std::optional<int64_t> dst = uniqueSlot(outRange, {i, j});
       if (!dst) return failure();
       llvm::DenseSet<std::pair<int64_t, int64_t>> shiftsForOutput;
       for (int64_t k = 0; k < n; ++k) {
-        std::optional<int64_t> srcLhs = uniqueSlot(lhsLayout, {i, k});
-        std::optional<int64_t> srcRhs = uniqueSlot(rhsLayout, {k, j});
+        std::optional<int64_t> srcLhs = uniqueSlot(lhsRange, {i, k});
+        std::optional<int64_t> srcRhs = uniqueSlot(rhsRange, {k, j});
         if (!srcLhs || !srcRhs) return failure();
         int64_t lhsShift = ((*srcLhs - *dst) % numSlots + numSlots) % numSlots;
         int64_t rhsShift = ((*srcRhs - *dst) % numSlots + numSlots) % numSlots;
@@ -317,7 +322,7 @@ LogicalResult RotomTensorOpLowering::lowerMatvecCtDiagonalBsgs(
   // blocks, collapsed by a residual rotate-and-sum). numSlots is a multiple of
   // Kp: the vector and matrix are replicated period-Kp so cyclic rotations over
   // the full ciphertext wrap mod Kp (numSlots == Kp is the single-period case).
-  if (m > D || n > Kp || Kp % D != 0 || numSlots % Kp != 0) return failure();
+  if (m > D || Kp % D != 0 || numSlots % Kp != 0) return failure();
 
   // Verify the canonical ciphertext-axis diagonal structure this kernel assumes
   // (each domain point may map to several slots when replicated period-K):
