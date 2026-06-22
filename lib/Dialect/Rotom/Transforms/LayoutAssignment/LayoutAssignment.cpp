@@ -524,13 +524,18 @@ struct LayoutAssignment : public impl::LayoutAssignmentBase<LayoutAssignment> {
     registry.insert<secret::SecretDialect>();
   }
 
+  void runOnOperation() override;
+
+  // --- Candidate generation: forward pass that fills `candidates` for every
+  // value. Each tensor op has its own visitor (visit*); these are kept
+  // self-contained -- depending only on the shared seed/candidate/cost helpers
+  // -- so that as the per-op kernel space grows they can move to one file each.
+  LogicalResult generateCandidates(ModuleOp module);
+  LogicalResult visitOperation(Operation* op);
   void seedValue(Value value);
   void setCandidates(Value value, ArrayRef<Candidate> newCandidates);
-  std::optional<Candidate> bestCandidate(Value value);
-  const Candidate* findCandidate(Value value, LayoutAttr layout);
-  void applySelectedKernel(Value value, const Candidate& candidate);
-  void markSelected(Value value, LayoutAttr layout);
   SmallVector<Candidate> candidatesForValue(Value value);
+  void assignResultsFromCandidates(Operation* op, ArrayRef<Candidate> chosen);
   SmallVector<Candidate> chooseCommonOperandCandidates(Operation* op);
   SmallVector<Candidate> chooseCommonOperandCandidates(Operation* op,
                                                        KernelKind kind);
@@ -538,10 +543,7 @@ struct LayoutAssignment : public impl::LayoutAssignmentBase<LayoutAssignment> {
       ArrayRef<Value> operands, KernelKind kind,
       function_ref<int64_t(LayoutAttr)> computeCostFn,
       std::optional<KernelName> rotomKernel = std::nullopt);
-  void assignResultsFromCandidates(Operation* op, ArrayRef<Candidate> chosen);
-  LogicalResult visitOperation(Operation* op);
   LogicalResult visitFunc(func::FuncOp op);
-  LogicalResult visitReturn(func::ReturnOp op);
   LogicalResult visitGeneric(secret::GenericOp op);
   LogicalResult visitYield(secret::YieldOp op);
   LogicalResult visitPassThrough(Operation* op);
@@ -553,9 +555,16 @@ struct LayoutAssignment : public impl::LayoutAssignmentBase<LayoutAssignment> {
   LogicalResult visitExpandShape(tensor::ExpandShapeOp op);
   LogicalResult visitExtractSlice(tensor::ExtractSliceOp op);
   LogicalResult visitInsertSlice(tensor::InsertSliceOp op);
-  void writeSelectedLayouts();
 
-  void runOnOperation() override;
+  // --- Layout search: choose one consistent assignment from the candidates
+  // generated above, starting from each function's returned values. ---
+  void selectLayouts(ModuleOp module);
+  LogicalResult visitReturn(func::ReturnOp op);
+  std::optional<Candidate> bestCandidate(Value value);
+  const Candidate* findCandidate(Value value, LayoutAttr layout);
+  void markSelected(Value value, LayoutAttr layout);
+  void applySelectedKernel(Value value, const Candidate& candidate);
+  void writeSelectedLayouts();
 };
 
 void LayoutAssignment::seedValue(Value value) {
@@ -986,7 +995,6 @@ LogicalResult LayoutAssignment::visitInsertSlice(tensor::InsertSliceOp op) {
 LogicalResult LayoutAssignment::visitOperation(Operation* op) {
   return TypeSwitch<Operation*, LogicalResult>(op)
       .Case<func::FuncOp>([&](auto typedOp) { return visitFunc(typedOp); })
-      .Case<func::ReturnOp>([&](auto typedOp) { return visitReturn(typedOp); })
       .Case<secret::GenericOp>(
           [&](auto typedOp) { return visitGeneric(typedOp); })
       .Case<secret::YieldOp>([&](auto typedOp) { return visitYield(typedOp); })
@@ -1017,19 +1025,30 @@ void LayoutAssignment::writeSelectedLayouts() {
   }
 }
 
-void LayoutAssignment::runOnOperation() {
-  ModuleOp module = getOperation();
-
+LogicalResult LayoutAssignment::generateCandidates(ModuleOp module) {
+  // Forward pre-order walk: every op contributes candidate layouts for its
+  // results. Returns are search roots, not generators, so they are skipped.
   WalkResult result = module.walk<WalkOrder::PreOrder>([&](Operation* op) {
+    if (isa<func::ReturnOp>(op)) return WalkResult::advance();
     if (failed(visitOperation(op))) return WalkResult::interrupt();
     return WalkResult::advance();
   });
+  return failure(result.wasInterrupted());
+}
 
-  if (result.wasInterrupted()) {
+void LayoutAssignment::selectLayouts(ModuleOp module) {
+  // Backward search over the now-complete candidate space: from each returned
+  // value pick the best candidate and propagate the choice to its producers.
+  module.walk([&](func::ReturnOp op) { (void)visitReturn(op); });
+}
+
+void LayoutAssignment::runOnOperation() {
+  ModuleOp module = getOperation();
+  if (failed(generateCandidates(module))) {
     signalPassFailure();
     return;
   }
-
+  selectLayouts(module);
   writeSelectedLayouts();
 }
 
