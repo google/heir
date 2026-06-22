@@ -245,22 +245,3 @@ module {
     return %0 : tensor<4xf32>
   }
 }
-
-// -----
-
-#layout_matmul_lhs = #rotom.layout<dims = [#rotom.dim<[0:2:1]>, #rotom.dim<[1:4:1]>], n = 32>
-#layout_matmul_rhs = #rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[1:8:1]>], n = 32>
-#seed_matmul_lhs = #rotom.seed<layouts = [#layout_matmul_lhs]>
-#seed_matmul_rhs = #rotom.seed<layouts = [#layout_matmul_rhs]>
-
-module {
-  // CHECK: func.func @matmul_non_rolled_aligned
-  // CHECK-SAME: tensor<2x8xf32> {rotom.layout = #rotom.layout<n = 32, dims = {{\[\[0:2:1\], \[1:8:1\]\]}}>}
-  func.func @matmul_non_rolled_aligned(%lhs: tensor<2x4xf32> {rotom.seed = #seed_matmul_lhs}, %rhs: tensor<4x8xf32> {rotom.seed = #seed_matmul_rhs}) -> tensor<2x8xf32> {
-    %empty = tensor.empty() : tensor<2x8xf32>
-    // CHECK: linalg.matmul
-    // CHECK-SAME: rotom.layout = #rotom.layout<n = 32, dims = {{\[\[0:2:1\], \[1:8:1\]\]}}>
-    %0 = linalg.matmul ins(%lhs, %rhs : tensor<2x4xf32>, tensor<4x8xf32>) outs(%empty : tensor<2x8xf32>) -> tensor<2x8xf32>
-    return %0 : tensor<2x8xf32>
-  }
-}

@@ -37,9 +37,6 @@ enum KernelName : int {
   // Elementwise tensor multiply using Rotom's layout-aware lowering.
   RotomMul,
 
-  // Ciphertext-ciphertext matmul using Rotom's layout-aware lowering.
-  RotomMatmul,
-
   // Product and sum of two vectors, using a log2 rotate-and-reduce approach.
   Dot,
 };

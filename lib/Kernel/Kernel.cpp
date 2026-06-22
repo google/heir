@@ -38,8 +38,6 @@ std::string kernelNameAsStr(const KernelName& kernelName) {
       return "RotomAdd";
     case KernelName::RotomMul:
       return "RotomMul";
-    case KernelName::RotomMatmul:
-      return "RotomMatmul";
     case KernelName::Dot:
       return "Dot";
     default:

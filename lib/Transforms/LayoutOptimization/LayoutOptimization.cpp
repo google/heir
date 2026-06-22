@@ -470,7 +470,6 @@ static FailureOr<Cost> computeKernelCostFromDAG(KernelName kernel,
 
     case KernelName::RotomAdd:
     case KernelName::RotomMul:
-    case KernelName::RotomMatmul:
       // These kernels are selected by Rotom layout assignment and currently
       // have no symbolic cost model in layout-optimization.
       return failure();

@@ -2432,12 +2432,6 @@ struct ConvertLinalgMatmul
     return kernelAttr && kernelAttr.getName() == KernelName::MatmulBicyclic;
   }
 
-  bool supportsRotomMatmul(linalg::MatmulOp op, OpAdaptor adaptor) const {
-    auto kernelAttr = op->getAttrOfType<secret::KernelAttr>(
-        secret::SecretDialect::kKernelAttrName);
-    return kernelAttr && kernelAttr.getName() == KernelName::RotomMatmul;
-  }
-
   void bicyclicKernel(linalg::MatmulOp op, OpAdaptor adaptor,
                       ContextAwareConversionPatternRewriter& rewriter) const {
     LLVM_DEBUG(llvm::dbgs()
@@ -2487,10 +2481,6 @@ struct ConvertLinalgMatmul
     if (supportsBicyclic(op, adaptor)) {
       bicyclicKernel(op, adaptor, rewriter);
       return success();
-    }
-    if (supportsRotomMatmul(op, adaptor)) {
-      return RotomTensorOpLowering(getTypeConverter())
-          .lowerMatmul(op, adaptor, rewriter);
     }
     return failure();
   }

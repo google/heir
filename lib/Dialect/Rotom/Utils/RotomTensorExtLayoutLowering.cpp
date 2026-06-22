@@ -141,8 +141,8 @@ static LogicalResult emitSegmentAddress(
   // `from` dim (the other line's coefficient for that dim is zero, so the
   // transformed expression is dropped by emitTerm). Applying on the ct line is
   // what lets a roll place a diagonal on the ciphertext axis (one ciphertext
-  // per diagonal), the multi-ciphertext packing the diagonal/BSGS matvec needs;
-  // restricting to the slot line would silently no-op such ct-side rolls.
+  // per diagonal); restricting to the slot line would silently no-op such
+  // ct-side rolls.
   if (!rolls.empty()) {
     if (!rotomDims || rolls.size() % 2 != 0) return failure();
     for (size_t i = 0; i < rolls.size(); i += 2) {

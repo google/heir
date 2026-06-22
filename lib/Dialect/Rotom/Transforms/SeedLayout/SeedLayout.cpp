@@ -66,10 +66,6 @@ struct SeedLayout : public impl::SeedLayoutBase<SeedLayout> {
     ModuleOp module = getOperation();
     MLIRContext* ctx = module.getContext();
 
-    // Row-vector-times-matrix matmuls are reoriented to the matrix *
-    // column-vector form the diagonal matvec kernel handles by the separate
-    // rotom-normalize-matmuls pass, which must run before this one.
-
     DataFlowSolver solver;
     dataflow::loadBaselineAnalyses(solver);
     solver.load<SecretnessAnalysis>();
@@ -182,9 +178,9 @@ struct SeedLayout : public impl::SeedLayoutBase<SeedLayout> {
       // If the padded tensor is smaller than the ciphertext, no tuple reaches
       // product == n (findValidTuples found nothing): pack every dimension fully
       // into slots and replicate the packed block to fill the remaining
-      // capacity. Without this a small operand -- e.g. an MNIST 10x512 weight or
-      // a 512-length activation at ciphertext size 32768 -- gets no seed, so the
-      // layout search has no candidate and the matmul kernel is never assigned.
+      // capacity. Without this a small operand -- e.g. a 512-length activation
+      // at ciphertext size 32768 -- gets no seed, so the layout search has no
+      // candidate for it.
       if (layouts.empty()) {
         int64_t fullProd = 1;
         for (int64_t d : dims) fullProd *= d;
