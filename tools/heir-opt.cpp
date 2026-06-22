@@ -329,6 +329,7 @@ int main(int argc, char** argv) {
   rns::registerRNSPasses();
   rotom::registerRotomLayoutAssignmentPasses();
   rotom::registerRotomMaterializePasses();
+  rotom::registerRotomNormalizeMatmulsPasses();
   rotom::registerRotomSeedPasses();
   secret::registerSecretPasses();
   tensor_ext::registerTensorExtPasses();
@@ -519,13 +520,16 @@ int main(int argc, char** argv) {
   PassPipelineRegistration<MlirToRotomCiphertextPipelineOptions>(
       "mlir-to-rotom-ciphertext",
       "Assign Rotom layouts (auto-seeded diagonal/BSGS search) and lower to "
-      "ciphertext-semantic tensors. Chains rotom-seed-layout -> "
-      "rotom-assign-layout -> rotom-materialize-tensor-ext-layout -> "
-      "convert-to-ciphertext-semantics. Input is high-level tensor IR (in "
-      "secret.generic regions); the search discovers the diagonal/BSGS matvec "
-      "kernels with no hand-written layouts.",
+      "ciphertext-semantic tensors. Chains rotom-normalize-matmuls -> "
+      "rotom-seed-layout -> rotom-assign-layout -> "
+      "rotom-materialize-tensor-ext-layout -> convert-to-ciphertext-semantics. "
+      "Input is high-level tensor IR (in secret.generic regions); the search "
+      "discovers the diagonal/BSGS matvec kernels with no hand-written layouts.",
       [](OpPassManager& pm,
          const MlirToRotomCiphertextPipelineOptions& options) {
+        // Reorient row-vector-times-matrix layers to the matrix * column-vector
+        // form the diagonal kernel handles before seeding the operands.
+        pm.addPass(rotom::createNormalizeMatmuls());
         rotom::SeedLayoutOptions seedOptions;
         seedOptions.n = options.ciphertextSize;
         pm.addPass(rotom::createSeedLayout(seedOptions));

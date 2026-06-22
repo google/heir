@@ -14,8 +14,6 @@
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
-#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"    // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/Block.h"                    // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
@@ -61,73 +59,6 @@ void findValidTuples(ArrayRef<int64_t> dims, int64_t n, int64_t currentProd,
 #define GEN_PASS_DEF_SEEDLAYOUT
 #include "lib/Dialect/Rotom/Transforms/SeedLayout/SeedLayout.h.inc"
 
-// Rewrites a vector-times-matrix matmul x(1xK) * M(KxN) (N > 1) into
-// (M^T * x^T)^T, i.e. transpose(matmul(M^T, x^T)). The ciphertext-axis diagonal
-// matvec kernel only handles matrix * column-vector (M'xK * Kx1), and a neural
-// net layer y = x . W^T is exactly this transposed orientation: rewriting it to
-// W . x^T lets the existing kernel apply, with the result transposed back. When
-// M is itself a transpose (the common y = x . W^T case) its input is used
-// directly, so no redundant transpose-of-transpose is created. Must run before
-// seeding so the seeds land on the rewritten operands.
-void normalizeRowVectorMatmuls(ModuleOp module) {
-  SmallVector<linalg::MatmulOp> targets;
-  module.walk([&](linalg::MatmulOp op) {
-    if (op.getInputs().size() != 2 || op.getOutputs().size() != 1) return;
-    auto lhsType = dyn_cast<RankedTensorType>(op.getInputs()[0].getType());
-    auto rhsType = dyn_cast<RankedTensorType>(op.getInputs()[1].getType());
-    if (!lhsType || !rhsType || lhsType.getRank() != 2 ||
-        rhsType.getRank() != 2) {
-      return;
-    }
-    if (lhsType.getDimSize(0) == 1 && rhsType.getDimSize(1) > 1) {
-      targets.push_back(op);
-    }
-  });
-
-  for (linalg::MatmulOp op : targets) {
-    OpBuilder builder(op);
-    Location loc = op.getLoc();
-    Value x = op.getInputs()[0];      // 1 x K
-    Value m = op.getInputs()[1];      // K x N
-    Value init = op.getOutputs()[0];  // 1 x N
-    Type elt = cast<RankedTensorType>(x.getType()).getElementType();
-    int64_t kDim = cast<RankedTensorType>(x.getType()).getDimSize(1);
-    int64_t nDim = cast<RankedTensorType>(m.getType()).getDimSize(1);
-
-    auto transpose = [&](Value v, int64_t rows, int64_t cols) -> Value {
-      auto empty = tensor::EmptyOp::create(builder, loc,
-                                           ArrayRef<int64_t>{rows, cols}, elt);
-      auto t = linalg::TransposeOp::create(builder, loc, v, empty,
-                                           ArrayRef<int64_t>{1, 0});
-      return t.getOperation()->getResult(0);
-    };
-
-    // M^T (N x K): reuse the pre-transpose input when M = transpose(W), but only
-    // for a genuine [1, 0] transpose. An identity ([0, 1]) permutation leaves the
-    // operand in K x N orientation; reusing it would build matmul(K x N, K x 1),
-    // an invalid contraction. Fall back to an explicit transpose in that case.
-    Value matrix;
-    auto producer = m.getDefiningOp<linalg::TransposeOp>();
-    if (producer && producer.getPermutation().size() == 2 &&
-        producer.getPermutation()[0] == 1 && producer.getPermutation()[1] == 0) {
-      matrix = producer.getInput();
-    } else {
-      matrix = transpose(m, nDim, kDim);
-    }
-    Value xCol = transpose(x, kDim, 1);      // 1 x K -> K x 1
-    Value initCol = transpose(init, nDim, 1);  // 1 x N -> N x 1
-
-    Type colType = RankedTensorType::get({nDim, 1}, elt);
-    auto matmul =
-        linalg::MatmulOp::create(builder, loc, TypeRange{colType},
-                                 ValueRange{matrix, xCol}, ValueRange{initCol});
-    Value yCol = matmul.getOperation()->getResult(0);  // N x 1
-    Value y = transpose(yCol, 1, nDim);                // N x 1 -> 1 x N
-    op.getOperation()->getResult(0).replaceAllUsesWith(y);
-    op.erase();
-  }
-}
-
 struct SeedLayout : public impl::SeedLayoutBase<SeedLayout> {
   using SeedLayoutBase::SeedLayoutBase;
 
@@ -135,9 +66,9 @@ struct SeedLayout : public impl::SeedLayoutBase<SeedLayout> {
     ModuleOp module = getOperation();
     MLIRContext* ctx = module.getContext();
 
-    // Normalize x . W^T layers to the matrix * column-vector orientation the
-    // diagonal matvec kernel handles, before seeding the (rewritten) operands.
-    normalizeRowVectorMatmuls(module);
+    // Row-vector-times-matrix matmuls are reoriented to the matrix *
+    // column-vector form the diagonal matvec kernel handles by the separate
+    // rotom-normalize-matmuls pass, which must run before this one.
 
     DataFlowSolver solver;
     dataflow::loadBaselineAnalyses(solver);

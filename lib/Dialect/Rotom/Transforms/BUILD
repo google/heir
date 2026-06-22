@@ -98,6 +98,27 @@ cc_library(
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+add_heir_transforms(
+    generated_target_name = "normalize_matmuls_pass_inc_gen",
+    header_filename = "NormalizeMatmuls/NormalizeMatmuls.h.inc",
+    pass_name = "NormalizeMatmuls",
+    registration_name = "RotomNormalizeMatmuls",
+    td_file = "NormalizeMatmuls/NormalizeMatmuls.td",
+)
+
+cc_library(
+    name = "NormalizeMatmuls",
+    srcs = ["NormalizeMatmuls/NormalizeMatmuls.cpp"],
+    hdrs = ["NormalizeMatmuls/NormalizeMatmuls.h"],
+    deps = [
+        ":normalize_matmuls_pass_inc_gen",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
         "@llvm-project//mlir:LinalgDialect",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
@@ -111,9 +132,11 @@ cc_library(
     deps = [
         ":LayoutAssignment",
         ":MaterializeTensorExtLayout",
+        ":NormalizeMatmuls",
         ":SeedLayout",
         ":layout_assignment_pass_inc_gen",
         ":materialize_tensor_ext_layout_pass_inc_gen",
+        ":normalize_matmuls_pass_inc_gen",
         ":seed_layout_pass_inc_gen",
         "@heir//lib/Dialect/Rotom/IR:Dialect",
         "@llvm-project//mlir:Pass",

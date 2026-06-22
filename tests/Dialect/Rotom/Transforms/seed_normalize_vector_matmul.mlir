@@ -1,12 +1,12 @@
 // A neural-net layer y = x . W^T is a vector-times-matrix matmul
 // x(1xK) * Wt(KxN) (here Wt = transpose(W)). The ciphertext-axis diagonal matvec
-// kernel only handles matrix * column-vector, so rotom-seed-layout rewrites the
-// layer to (W . x^T)^T before seeding. After assignment the matmul must carry
+// kernel only handles matrix * column-vector, so rotom-normalize-matmuls rewrites
+// the layer to (W . x^T)^T before seeding. After assignment the matmul must carry
 // the RotomMatmul kernel (i.e. the diagonal was discovered) -- a leftover
 // row-major matmul would mean the orientation was not normalized.
 
-// RUN: heir-opt %s --rotom-seed-layout=n=16 --rotom-assign-layout --mlir-print-local-scope | FileCheck %s
-// RUN: heir-opt %s --rotom-seed-layout=n=16 --rotom-assign-layout --mlir-print-local-scope | FileCheck %s --check-prefix=ROLL
+// RUN: heir-opt %s --rotom-normalize-matmuls --rotom-seed-layout=n=16 --rotom-assign-layout --mlir-print-local-scope | FileCheck %s
+// RUN: heir-opt %s --rotom-normalize-matmuls --rotom-seed-layout=n=16 --rotom-assign-layout --mlir-print-local-scope | FileCheck %s --check-prefix=ROLL
 
 // CHECK-LABEL: func.func @main
 // The matmul is normalized + lowered with the diagonal kernel.
