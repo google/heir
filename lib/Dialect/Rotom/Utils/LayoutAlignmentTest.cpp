@@ -77,13 +77,15 @@ TEST_F(LayoutAlignmentTest, CountsStraddlingDimByCiphertextPart) {
   EXPECT_EQ(rotom::layoutNumCiphertexts(straddling), 2);
 }
 
-TEST_F(LayoutAlignmentTest, RejectsNonMaterializableRepeatedDimLayout) {
-  LayoutAttr repeated =
-      layout({dim(0, 2), dim(1, 2), dim(0, 2), dim(1, 2)}, /*n=*/16);
-  EXPECT_TRUE(rotom::hasOnlyUnitStridedTraversalDims(repeated));
-  EXPECT_FALSE(rotom::isMaterializableRotomLayout(repeated));
-  EXPECT_FALSE(
-      rotom::supportsRotomAlignmentLowering(repeated, repeated, repeated));
+TEST_F(LayoutAlignmentTest, MaterializesMixedRadixRepeatedDimLayout) {
+  // A repeated dim id is a mixed-radix split of one tensor axis: the two pieces
+  // of axis 0 (strides 2 and 1) and of axis 1 share their axis's domain
+  // variable. This is a valid, materializable 2x2-tiled layout. (An invalid
+  // split -- e.g. two stride-1 pieces -- is rejected by LayoutAttr::verify.)
+  LayoutAttr split = layout({dim(0, 2, /*stride=*/2), dim(1, 2, /*stride=*/2),
+                             dim(0, 2, /*stride=*/1), dim(1, 2, /*stride=*/1)},
+                            /*n=*/8);
+  EXPECT_TRUE(rotom::isMaterializableRotomLayout(split));
 }
 
 TEST_F(LayoutAlignmentTest, DimAlignmentTracksCiphertextSide) {

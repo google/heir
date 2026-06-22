@@ -110,19 +110,21 @@ static LogicalResult emitSegmentAddress(
     }
   }
 
-  llvm::DenseMap<int64_t, int64_t> traversalCoeff;
-  // Each segment contains at most one piece per traversal dim, so a single digit
-  // descriptor per dim suffices (the whole index, or the high/low part of a
-  // straddling dim in its respective segment).
-  llvm::DenseMap<int64_t, int64_t> traversalDivBy;
-  llvm::DenseMap<int64_t, int64_t> traversalModBy;
+  // A tensor dim can contribute several pieces to one segment (a mixed-radix
+  // split places more than one digit of the same index on the same axis), so
+  // collect a list of (coeff, digit descriptor) per dim rather than one entry.
+  struct TraversalPiece {
+    int64_t coeff;
+    int64_t divBy;
+    int64_t modBy;
+  };
+  llvm::DenseMap<int64_t, llvm::SmallVector<TraversalPiece>> traversalPieces;
   for (size_t p = segStart; p < segEnd; ++p) {
     if (pieces[p] != LayoutPieceKind::Traversal) continue;
     const int64_t ti = pieceIndex[p];
     if (traversalDims[ti].getSize() == 1) continue;
-    traversalCoeff[ti] = suffixCoeff[p];
-    traversalDivBy[ti] = pieceDivBy[p];
-    traversalModBy[ti] = pieceModBy[p];
+    traversalPieces[ti].push_back(
+        {suffixCoeff[p], pieceDivBy[p], pieceModBy[p]});
   }
 
   llvm::SmallVector<std::string> traversalExprs;
@@ -170,16 +172,15 @@ static LogicalResult emitSegmentAddress(
   for (int64_t oldIdx = 0; oldIdx < static_cast<int64_t>(traversalDims.size());
        ++oldIdx) {
     if (traversalDims[oldIdx].getSize() == 1) continue;
-    auto it = traversalCoeff.find(oldIdx);
-    if (it != traversalCoeff.end()) {
-      std::string expr = traversalExprs[oldIdx];
+    auto it = traversalPieces.find(oldIdx);
+    if (it == traversalPieces.end()) continue;
+    for (const TraversalPiece& tp : it->second) {
       // Mixed-radix digit: (i / divBy) mod modBy (modBy 0 => no modulus). A
       // whole-dim piece (divBy 1, modBy 0) leaves the index untouched.
-      const int64_t divBy = traversalDivBy.lookup(oldIdx);
-      const int64_t modBy = traversalModBy.lookup(oldIdx);
-      if (divBy > 1) expr = floorDivExpr(expr, divBy);
-      if (modBy > 0) expr = modExpr(expr, modBy);
-      if (failed(emitTerm(it->second, expr))) return failure();
+      std::string expr = traversalExprs[oldIdx];
+      if (tp.divBy > 1) expr = floorDivExpr(expr, tp.divBy);
+      if (tp.modBy > 0) expr = modExpr(expr, tp.modBy);
+      if (failed(emitTerm(tp.coeff, expr))) return failure();
     }
   }
   for (int64_t g = 0; g < static_cast<int64_t>(gapDims.size()); ++g) {

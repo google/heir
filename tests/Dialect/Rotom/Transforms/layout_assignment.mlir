@@ -212,18 +212,20 @@ module {
 
 // -----
 
-#layout_repeated_dim = #rotom.layout<dims = [#rotom.dim<[0:2:1]>, #rotom.dim<[1:2:1]>, #rotom.dim<[0:2:1]>, #rotom.dim<[1:2:1]>], n = 16>
+// Each tensor axis (0 and 1) is split mixed-radix into a stride-2 (high) and
+// stride-1 (low) piece, so the two pieces of an axis share its domain variable.
+#layout_repeated_dim = #rotom.layout<dims = [#rotom.dim<[0:2:2]>, #rotom.dim<[1:2:2]>, #rotom.dim<[0:2:1]>, #rotom.dim<[1:2:1]>], n = 16>
 #seed_repeated_dim = #rotom.seed<layouts = [#layout_repeated_dim]>
 
 module {
   // CHECK: func.func @add_repeated_logical_dim
-  // CHECK-SAME: tensor<2x2x2x2xf32> {rotom.layout = #rotom.layout<n = 16, dims = {{\[\[0:2:1\], \[1:2:1\], \[0:2:1\], \[1:2:1\]\]}}>}
-  func.func @add_repeated_logical_dim(%arg0: tensor<2x2x2x2xf32> {rotom.seed = #seed_repeated_dim}, %arg1: tensor<2x2x2x2xf32> {rotom.seed = #seed_repeated_dim}) -> tensor<2x2x2x2xf32> {
+  // CHECK-SAME: tensor<4x4xf32> {rotom.layout = #rotom.layout<n = 16, dims = {{\[\[0:2:2\], \[1:2:2\], \[0:2:1\], \[1:2:1\]\]}}>}
+  func.func @add_repeated_logical_dim(%arg0: tensor<4x4xf32> {rotom.seed = #seed_repeated_dim}, %arg1: tensor<4x4xf32> {rotom.seed = #seed_repeated_dim}) -> tensor<4x4xf32> {
     // CHECK: arith.addf
-    // CHECK-SAME: rotom.layout = #rotom.layout<n = 16, dims = {{\[\[0:2:1\], \[1:2:1\], \[0:2:1\], \[1:2:1\]\]}}>
+    // CHECK-SAME: rotom.layout = #rotom.layout<n = 16, dims = {{\[\[0:2:2\], \[1:2:2\], \[0:2:1\], \[1:2:1\]\]}}>
     // CHECK-NOT: secret.kernel
-    %0 = arith.addf %arg0, %arg1 : tensor<2x2x2x2xf32>
-    return %0 : tensor<2x2x2x2xf32>
+    %0 = arith.addf %arg0, %arg1 : tensor<4x4xf32>
+    return %0 : tensor<4x4xf32>
   }
 }
 
