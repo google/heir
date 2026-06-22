@@ -1,6 +1,7 @@
 #include "lib/Dialect/Rotom/Transforms/LayoutAssignment/LayoutAssignment.h"
 
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <cstdlib>
 #include <numeric>
@@ -254,20 +255,19 @@ int64_t LayoutAssignment::cachedConversionCost(LayoutAttr from, LayoutAttr to) {
   if (from == to) return 0;
   // Cheap fast path: aligned layouts (ciphertext-order differences are free)
   // need no rotations, so skip the expensive shift-network estimate.
-  SmallVector<ConversionMove> moves = conversionMoves(from, to);
-  if (moves.empty()) return 0;
+  if (conversionMoves(from, to).empty()) return 0;
 
   std::pair<Attribute, Attribute> key(from, to);
   auto it = conversionCostCache.find(key);
   if (it != conversionCostCache.end()) return it->second;
 
-  // Real Vos-Vos-Erkin rotation count weighted by the per-rotation cost,
-  // falling back to the move-count proxy when a layout cannot be lowered to
-  // tensor_ext. Cached per layout pair since the search queries the same pairs
-  // across many candidate pairings.
+  // Real Vos-Vos-Erkin rotation count weighted by the per-rotation cost. Every
+  // candidate layout is materializable (the search only generates such
+  // layouts), so the shift network always yields a cost. Cached per layout pair
+  // since the search queries the same pairs across many candidate pairings.
   std::optional<int64_t> rotations = shiftNetworkConversionCost(from, to);
-  int64_t cost =
-      rotations ? *rotations * getCostModel().rotation : conversionCost(moves);
+  assert(rotations && "shift network must yield a cost for assignable layouts");
+  int64_t cost = *rotations * getCostModel().rotation;
   conversionCostCache[key] = cost;
   return cost;
 }

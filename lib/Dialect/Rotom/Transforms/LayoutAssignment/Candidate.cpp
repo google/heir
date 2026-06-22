@@ -88,13 +88,6 @@ std::optional<KernelName> selectRotomElementwiseKernel(Operation* op) {
   return std::nullopt;
 }
 
-// Fallback conversion cost for layouts the shift network cannot lower: charge
-// one rotation per slot-bit move that must happen. The real path
-// (shiftNetworkConversionCost) supersedes this whenever it succeeds.
-int64_t conversionCost(ArrayRef<ConversionMove> moves) {
-  return static_cast<int64_t>(moves.size()) * getCostModel().rotation;
-}
-
 // Cost of running `op` once its operands are aligned to `alignedLayout` (the
 // compute layout): one HE op per ciphertext, so weight x numCt(alignedLayout).
 int64_t operationCost(Operation* op, LayoutAttr alignedLayout) {

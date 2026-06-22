@@ -74,11 +74,8 @@ bool isMulLike(Operation* op);
 std::optional<KernelName> selectRotomElementwiseKernel(Operation* op);
 
 // Cost model (op weights live in CostModel.h / cost_model.json).
-// `conversionCost` is the shift-network fallback used only when a layout cannot
-// be lowered; `operationCost`/`genericOperationCost` score the compute from the
-// aligned (compute) layout the operands are converted to -- one HE op per
-// ciphertext.
-int64_t conversionCost(ArrayRef<ConversionMove> moves);
+// `operationCost`/`genericOperationCost` score the compute from the aligned
+// (compute) layout the operands are converted to -- one HE op per ciphertext.
 int64_t operationCost(Operation* op, LayoutAttr alignedLayout);
 int64_t genericOperationCost(linalg::GenericOp op, LayoutAttr alignedLayout);
 
