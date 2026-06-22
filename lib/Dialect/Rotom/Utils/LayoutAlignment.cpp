@@ -26,10 +26,11 @@ static SmallVector<DimAttr> collectDims(LayoutAttr layout) {
   return dims;
 }
 
-size_t inferCtPrefixLen(LayoutAttr layout) {
+// File-local convenience adapter over a LayoutAttr; delegates to the single
+// implementation in RotomAttributes so the ct/slot split here matches attribute
+// preprocessing exactly.
+static size_t inferCtPrefixLen(LayoutAttr layout) {
   SmallVector<DimAttr> dims = collectDims(layout);
-  // Delegate to the single implementation in RotomAttributes so the ct/slot
-  // split here matches attribute preprocessing exactly.
   return inferCtPrefixLen(dims, layout.getN());
 }
 

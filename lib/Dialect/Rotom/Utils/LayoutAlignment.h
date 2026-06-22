@@ -12,8 +12,6 @@ namespace mlir {
 namespace heir {
 namespace rotom {
 
-size_t inferCtPrefixLen(LayoutAttr layout);
-
 int64_t layoutNumCiphertexts(LayoutAttr layout);
 
 // A single bit of a tensor axis that occupies a different slot position in the
