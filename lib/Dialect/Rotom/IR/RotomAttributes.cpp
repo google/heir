@@ -21,8 +21,7 @@ namespace mlir {
 namespace heir {
 namespace rotom {
 
-CtPrefix inferCtPrefixLen(ArrayRef<DimAttr> dims, int64_t n) {
-  int64_t straddleSlotExtent = 0;
+size_t inferCtPrefixLen(ArrayRef<DimAttr> dims, int64_t n) {
   int64_t nRem = n;
   size_t i = dims.size();
   while (i > 0) {
@@ -35,17 +34,14 @@ CtPrefix inferCtPrefixLen(ArrayRef<DimAttr> dims, int64_t n) {
       --i;
       continue;
     }
-    // A traversal dim larger than the remaining slot budget but a multiple of it
-    // straddles the ct/slot boundary: its low nRem values fill the slots, its
-    // high sz/nRem values index ciphertexts. The dim stays in the ct prefix as
-    // the boundary dim (index i-1); a low (slot) piece is added in preprocessing.
-    if (sz > nRem && nRem > 1 && sz % nRem == 0 && d.getDim() >= 0) {
-      straddleSlotExtent = nRem;
-    }
+    // The dim does not fit cleanly into the remaining slot budget, so it (and
+    // everything before it) falls on the ciphertext axis. A dim that should
+    // span the ct/slot boundary must be expressed as an explicit mixed-radix
+    // split (a ct piece and a slot piece sharing the tensor axis).
     break;
   }
-  while (i > 0 && straddleSlotExtent == 0 && dims[i - 1].getSize() == 1) --i;
-  return {i, straddleSlotExtent};
+  while (i > 0 && dims[i - 1].getSize() == 1) --i;
+  return i;
 }
 
 namespace {
@@ -169,30 +165,8 @@ static FailureOr<LayoutData> preprocessLayoutData(ArrayAttr dims, int64_t n,
         DimAttr::get(ctx, dim, dimFullExtent[dim], /*stride=*/1);
   }
 
-  CtPrefix ctPrefix = inferCtPrefixLen(data.originalDims, data.n);
-  data.ctPrefixLen = static_cast<int64_t>(ctPrefix.length);
-
-  if (ctPrefix.straddleSlotExtent > 1) {
-    // The boundary dim (the last ct piece) spans ct and slot. The ct (high)
-    // piece reads i / L (L = the slot-side extent); insert a slot (low) piece
-    // just after it referencing the same traversal dim, reading i mod L (one
-    // domain variable). The straddle exactly fills the remaining slots, so there
-    // is no implicit front gap.
-    const int64_t high = data.ctPrefixLen - 1;
-    if (high < 0 ||
-        data.pieces[high] != LayoutPieceKind::Traversal) {
-      return failure();
-    }
-    const int64_t L = ctPrefix.straddleSlotExtent;
-    data.pieceDivBy[high] = L;
-    data.pieces.insert(data.pieces.begin() + data.ctPrefixLen,
-                       LayoutPieceKind::Traversal);
-    data.pieceIndex.insert(data.pieceIndex.begin() + data.ctPrefixLen,
-                           data.pieceIndex[high]);
-    data.pieceDivBy.insert(data.pieceDivBy.begin() + data.ctPrefixLen, 1);
-    data.pieceModBy.insert(data.pieceModBy.begin() + data.ctPrefixLen, L);
-    return data;
-  }
+  data.ctPrefixLen =
+      static_cast<int64_t>(inferCtPrefixLen(data.originalDims, data.n));
 
   const int64_t implicitFrontGapSize =
       computeImplicitFrontGap(data.originalDims, data.n);

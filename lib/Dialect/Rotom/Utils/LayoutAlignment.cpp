@@ -62,25 +62,18 @@ static SmallVector<DimAttr> collectDims(LayoutAttr layout) {
 
 size_t inferCtPrefixLen(LayoutAttr layout) {
   SmallVector<DimAttr> dims = collectDims(layout);
-  // Delegate to the single straddle-aware implementation in RotomAttributes so
-  // the ct/slot split here matches attribute preprocessing exactly.
-  return inferCtPrefixLen(dims, layout.getN()).length;
+  // Delegate to the single implementation in RotomAttributes so the ct/slot
+  // split here matches attribute preprocessing exactly.
+  return inferCtPrefixLen(dims, layout.getN());
 }
 
 int64_t layoutNumCiphertexts(LayoutAttr layout) {
   SmallVector<DimAttr> dims = collectDims(layout);
-  CtPrefix ctPrefix = inferCtPrefixLen(dims, layout.getN());
+  size_t ctPrefixLen = inferCtPrefixLen(dims, layout.getN());
   int64_t numCt = 1;
-  for (size_t i = 0; i < ctPrefix.length; ++i) {
+  for (size_t i = 0; i < ctPrefixLen; ++i) {
     if (dims[i].isGap()) continue;
-    int64_t extent = dims[i].getSize();
-    // A boundary dim that straddles the ct/slot split contributes only its high
-    // (ciphertext) part; its low `straddleSlotExtent` values fill slots, so
-    // multiplying by the full extent would overcount the ciphertexts.
-    if (ctPrefix.straddleSlotExtent > 1 && i + 1 == ctPrefix.length) {
-      extent /= ctPrefix.straddleSlotExtent;
-    }
-    numCt *= std::max<int64_t>(extent, 1);
+    numCt *= std::max<int64_t>(dims[i].getSize(), 1);
   }
   return std::max<int64_t>(numCt, 1);
 }

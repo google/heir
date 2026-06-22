@@ -40,21 +40,11 @@ struct LayoutData {
 /// Preprocess a Rotom layout.
 FailureOr<LayoutData> preprocessLayoutAttr(LayoutAttr attr);
 
-/// Result of `inferCtPrefixLen`: how many leading dims fall on the ciphertext
-/// axis (`length`), and the slot-side extent of a boundary dim that straddles
-/// the ct/slot split (`straddleSlotExtent`, 0 when none straddles).
-struct CtPrefix {
-  size_t length;
-  int64_t straddleSlotExtent;
-};
-
 /// Computes how many leading entries of `dims` (read left-to-right) fall on the
-/// ciphertext axis for a ciphertext of `n` slots. When the boundary dim spans
-/// the ct/slot split, the returned `straddleSlotExtent` is the slot-side extent
-/// it contributes -- its high `size / straddleSlotExtent` part indexes
-/// ciphertexts -- and is 0 otherwise. Shared so attribute preprocessing and the
+/// ciphertext axis for a ciphertext of `n` slots: the prefix that does not fit
+/// into the remaining slot budget. Shared so attribute preprocessing and the
 /// layout cost utilities derive the ct/slot split identically.
-CtPrefix inferCtPrefixLen(llvm::ArrayRef<DimAttr> dims, int64_t n);
+size_t inferCtPrefixLen(llvm::ArrayRef<DimAttr> dims, int64_t n);
 
 }  // namespace mlir::heir::rotom
 

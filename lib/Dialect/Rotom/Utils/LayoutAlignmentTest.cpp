@@ -67,14 +67,18 @@ TEST_F(LayoutAlignmentTest, RejectsMismatchedCiphertextCounts) {
       oneCiphertext, oneCiphertext, fourCiphertexts));
 }
 
-TEST_F(LayoutAlignmentTest, CountsStraddlingDimByCiphertextPart) {
-  // A 4x8 dense-diagonal-style layout at n=16: the column dim (extent 8) fills
-  // slots, and the row dim (extent 4) straddles the ct/slot boundary -- its low
-  // 2 values fill the remaining slots (8 * 2 == 16) and its high 2 index
-  // ciphertexts. The layout therefore occupies 2 ciphertexts, not 4 (its full
-  // row extent), matching the straddle-aware split in attribute preprocessing.
-  LayoutAttr straddling = layout({dim(0, 4), dim(1, 8)}, 16);
-  EXPECT_EQ(rotom::layoutNumCiphertexts(straddling), 2);
+TEST_F(LayoutAlignmentTest, CountsSplitAxisByCiphertextPart) {
+  // A 4x8 layout at n=16 whose row axis (extent 4) is split explicitly into a
+  // high (ciphertext) piece [stride 2] and a low (slot) piece [stride 1] -- the
+  // way to express an axis spanning the ct/slot boundary now that there is no
+  // straddle auto-split. The column axis (extent 8) and the row's low piece
+  // (extent 2) fill the 16 slots (8 * 2 == 16); the row's high piece (extent 2)
+  // indexes ciphertexts. The layout therefore occupies 2 ciphertexts, not 4
+  // (the full row extent).
+  LayoutAttr split = layout({dim(0, 2, /*stride=*/2), dim(1, 8, /*stride=*/1),
+                             dim(0, 2, /*stride=*/1)},
+                            /*n=*/16);
+  EXPECT_EQ(rotom::layoutNumCiphertexts(split), 2);
 }
 
 TEST_F(LayoutAlignmentTest, MaterializesMixedRadixRepeatedDimLayout) {
