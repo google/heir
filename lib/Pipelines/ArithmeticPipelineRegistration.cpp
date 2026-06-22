@@ -479,6 +479,14 @@ BackendPipelineBuilder toOpenFhePipelineBuilder() {
     auto configureCryptoContextOptions =
         openfhe::ConfigureCryptoContextOptions{};
     configureCryptoContextOptions.entryFunction = options.entryFunction;
+    configureCryptoContextOptions.mulDepth = options.mulDepth;
+    configureCryptoContextOptions.ringDim = options.ringDim;
+    configureCryptoContextOptions.batchSize = options.batchSize;
+    configureCryptoContextOptions.firstModSize = options.firstModSize;
+    configureCryptoContextOptions.scalingModSize = options.scalingModSize;
+    configureCryptoContextOptions.insecure = options.insecure;
+    configureCryptoContextOptions.scalingTechniqueFixedManual =
+        options.scalingTechniqueFixedManual;
     pm.addPass(
         openfhe::createConfigureCryptoContext(configureCryptoContextOptions));
 
