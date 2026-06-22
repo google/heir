@@ -67,7 +67,6 @@ enum class KernelKind {
   PassThrough,
   Elementwise,
   Generic,
-  Matmul,
   Transpose,
   Reduce,
   CollapseShape,
@@ -90,8 +89,6 @@ llvm::StringLiteral kernelKindName(KernelKind kind) {
       return "elementwise";
     case KernelKind::Generic:
       return "generic";
-    case KernelKind::Matmul:
-      return "matmul";
     case KernelKind::Transpose:
       return "transpose";
     case KernelKind::Reduce:
@@ -631,8 +628,7 @@ void LayoutAssignment::applySelectedKernel(Value value,
   if (existingKernel && existingKernel.getForce()) return;
 
   if (!candidate.kernel) {
-    if (candidate.kind == KernelKind::Matmul ||
-        candidate.kind == KernelKind::Elementwise ||
+    if (candidate.kind == KernelKind::Elementwise ||
         candidate.kind == KernelKind::Generic) {
       op->removeAttr(secret::SecretDialect::kKernelAttrName);
     }
