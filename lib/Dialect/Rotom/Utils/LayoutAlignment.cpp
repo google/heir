@@ -3,13 +3,17 @@
 #include <algorithm>
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <utility>
 
 #include "lib/Dialect/Rotom/IR/RotomAttributes.h"
 #include "lib/Dialect/Rotom/Utils/RotomTensorExtLayoutLowering.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
+#include "lib/Transforms/LayoutOptimization/LayoutConversionCost.h"
 #include "llvm/include/llvm/ADT/DenseMap.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/MathExtras.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/OperationSupport.h"    // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
@@ -110,6 +114,27 @@ SmallVector<ConversionMove> conversionMoves(LayoutAttr lhs, LayoutAttr rhs) {
     }
   }
   return moves;
+}
+
+std::optional<int64_t> shiftNetworkConversionCost(LayoutAttr from,
+                                                  LayoutAttr to) {
+  if (from == to) return 0;
+
+  // Bridge each rotom layout to a tensor_ext layout (the same lowering the
+  // materializer uses), then reuse the shift-network cost model.
+  MLIRContext* ctx = from.getContext();
+  FailureOr<std::string> fromIsl =
+      RotomTensorExtLayoutLowering::lowerToTensorExtIsl(from);
+  FailureOr<std::string> toIsl =
+      RotomTensorExtLayoutLowering::lowerToTensorExtIsl(to);
+  if (failed(fromIsl) || failed(toIsl)) return std::nullopt;
+
+  auto fromLayout = tensor_ext::LayoutAttr::get(ctx, *fromIsl);
+  auto toLayout = tensor_ext::LayoutAttr::get(ctx, *toIsl);
+  return computeCostOfLayoutConversion(/*ciphertextSize=*/from.getN(),
+                                       fromLayout, toLayout,
+                                       /*vveRandomSeed=*/0,
+                                       /*vveRandomTries=*/16);
 }
 
 bool hasOnlyUnitStridedTraversalDims(LayoutAttr layout) {

@@ -1,5 +1,6 @@
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <utility>
 
 #include <string>
@@ -9,6 +10,7 @@
 #include "lib/Dialect/Rotom/IR/RotomDialect.h"
 #include "lib/Dialect/Rotom/Utils/LayoutAlignment.h"
 #include "lib/Dialect/Rotom/Utils/RotomTensorExtLayoutLowering.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"          // from @llvm-project
@@ -24,7 +26,10 @@ using rotom::RotomDialect;
 
 class LayoutAlignmentTest : public ::testing::Test {
  protected:
-  LayoutAlignmentTest() { context.loadDialect<RotomDialect>(); }
+  LayoutAlignmentTest() {
+    context.loadDialect<RotomDialect>();
+    context.loadDialect<tensor_ext::TensorExtDialect>();
+  }
 
   DimAttr dim(int64_t dim, int64_t size, int64_t stride = 1) {
     return DimAttr::get(&context, dim, size, stride);
@@ -203,6 +208,24 @@ TEST_F(LayoutAlignmentTest, ConversionMovesIgnoresCiphertextOrder) {
   LayoutAttr a = layout({dim(0, 2), dim(1, 2), dim(2, 2)}, 2);
   LayoutAttr b = layout({dim(1, 2), dim(0, 2), dim(2, 2)}, 2);
   EXPECT_TRUE(rotom::conversionMoves(a, b).empty());
+}
+
+TEST_F(LayoutAlignmentTest, ShiftNetworkConversionCostIsZeroForEqual) {
+  LayoutAttr a = layout({dim(0, 2), dim(1, 2)}, 4);
+  std::optional<int64_t> cost = rotom::shiftNetworkConversionCost(a, a);
+  ASSERT_TRUE(cost.has_value());
+  EXPECT_EQ(*cost, 0);
+}
+
+TEST_F(LayoutAlignmentTest, ShiftNetworkConversionCostHasValueForSwap) {
+  // Row-major vs column-major 2x2 is a genuine slot permutation, so the shift
+  // network reports a (non-negative) rotation cost via the tensor_ext bridge.
+  LayoutAttr rowMajor = layout({dim(0, 2), dim(1, 2)}, 4);
+  LayoutAttr colMajor = layout({dim(1, 2), dim(0, 2)}, 4);
+  std::optional<int64_t> cost =
+      rotom::shiftNetworkConversionCost(rowMajor, colMajor);
+  ASSERT_TRUE(cost.has_value());
+  EXPECT_GE(*cost, 0);
 }
 
 }  // namespace

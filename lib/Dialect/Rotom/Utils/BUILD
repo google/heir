@@ -15,6 +15,8 @@ cc_library(
     deps = [
         ":RotomTensorExtLayoutLowering",
         "@heir//lib/Dialect/Rotom/IR:Dialect",
+        "@heir//lib/Dialect/TensorExt/IR:TensorExtAttributes",
+        "@heir//lib/Transforms/LayoutOptimization:LayoutConversionCost",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
@@ -29,6 +31,7 @@ cc_test(
         ":RotomTensorExtLayoutLowering",
         "@googletest//:gtest_main",
         "@heir//lib/Dialect/Rotom/IR:Dialect",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
     ],
