@@ -3,7 +3,6 @@ common --cxxopt='-std=c++20'
 common --copt=-fdiagnostics-color=always
 common --test_output=errors
 common --test_summary=terse
-
 common --enable_platform_specific_config
 
 # compilation_mode options below are `dbg` (debug symbols) `fastbuild`
@@ -14,18 +13,41 @@ common --enable_bzlmod
 # prevents changes to PATH from causing a full rebuild
 common --incompatible_strict_action_env
 
-# compile with clang on all platforms
-build --action_env=CC=clang
-build --action_env=CXX=clang++
-build --host_action_env=CC=clang
-build --host_action_env=CXX=clang++
+# extra flags for hermetic LLVM toolchain
+common --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
+common --repo_env=BAZEL_DO_NOT_DETECT_SWIFT_TOOLCHAIN=1
+common --repo_env=BAZEL_NO_APPLE_CPP_TOOLCHAIN=1
+common --@rules_python//python/config_settings:bootstrap_impl=script
+# Needed to silence hermetic LLVM build warnings, until this is enabled by
+# default in bazel 9
+startup --host_jvm_args=-DBAZEL_TRACK_SOURCE_DIRECTORIES=1
+
+# buildbuddy
+# for remote execution of the build. Add `common --config=remote` to
+# .bazelrc.user
+common:remote --bes_backend=grpcs://heir.buildbuddy.io
+common:remote --bes_results_url=https://heir.buildbuddy.io/invocation/
+common:remote --remote_cache=grpcs://heir.buildbuddy.io
+common:remote --remote_cache_compression
+common:remote --remote_timeout=10m
+common:remote --extra_execution_platforms=@llvm//:rbe_platform
+common:remote --jobs=500
+common:remote --remote_executor=grpcs://heir.buildbuddy.io
+
+# CI executions are always remote, and have extra build metadata
+common:ci --build_metadata=ROLE=CI
+common:ci --build_metadata=VISIBILITY=PUBLIC
 
 # Only show warnings for targets defined in HEIR code.
 # Warnings for external repos and generated code is (mostly) hidden; see #2616
 build --output_filter="^//(benchmark|frontend|lib|tests|tools)/"
 
-# linux-specific options
+# use lld for faster linking
 build:linux --linkopt="-fuse-ld=lld"
+
+# This is needed for golang targets with the hermetic build, when a golang
+# target links with a C++ lib.
+build:linux --linkopt="-Wl,-no-pie"
 
 # macos specific options
 # openmp is not supported in apple clang
@@ -38,13 +60,6 @@ build:macos_arm64 --macos_minimum_os=11.0
 # openmp is not supported in apple clang
 build:macos_arm64 --@openfhe//:enable_openmp=False
 
-# run with --config=gcc to force use of gcc
-# (and the default linker, usually ld) instead
-build:gcc --action_env=CC=gcc
-build:gcc --action_env=CXX=g++
-build:gcc --host_action_env=CC=gcc
-build:gcc --host_action_env=CXX=g++
-
 # run with --config=asan to enable
 build:asan --strip=never
 build:asan --copt -fsanitize=address
@@ -55,3 +70,10 @@ build:asan --copt -fno-omit-frame-pointer
 build:asan --linkopt -fsanitize=address
 
 try-import %workspace%/fuzztest.bazelrc
+
+# Load any settings specific to the current user.
+# .bazelrc.user should appear in .gitignore so that settings are not shared with team members
+# This needs to be last statement in this
+# config, as the user configuration should be able to overwrite flags from this file.
+# See https://docs.bazel.build/versions/master/best-practices.html#bazelrc
+try-import %workspace%/.bazelrc.user

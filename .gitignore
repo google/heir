@@ -7,6 +7,9 @@ bazel-heir
 bazel-out
 bazel-testlogs
 
+# user-specific bazelrc
+.bazelrc.user
+
 # default cmake output directory
 build/
 
