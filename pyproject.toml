@@ -34,6 +34,8 @@ python = [
   # in some of our tests as Numpy 2 introduces stricter type checking
   "numpy>=1.23.5,<2",
   "colorama>=0.4.6",
+  # TypeVarTuple/Unpack are only in stdlib typing on 3.11+; 3.10 needs the backport.
+  "typing_extensions>=4.6.0 ; python_version < '3.11'",
 ]
 # openfhe backend
 openfhe = [
