@@ -19,13 +19,9 @@
 
 namespace mlir::heir::rotom {
 
-namespace {
-
-bool hasOnlyUnitStrides(ArrayRef<int64_t> strides) {
+static bool hasOnlyUnitStrides(ArrayRef<int64_t> strides) {
   return llvm::all_of(strides, [](int64_t stride) { return stride == 1; });
 }
-
-}  // namespace
 
 LayoutAttr remapLayoutDims(LayoutAttr layout, ArrayRef<int64_t> oldToNewDim) {
   SmallVector<Attribute> dims;
