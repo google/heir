@@ -5,10 +5,9 @@
 
 namespace mlir::heir::rotom {
 
-// Relative HE op-cost weights, in "key-switch" units, that put rotations
-// (conversions) and compute (adds/muls) on a common scale so they can be summed
-// in a candidate's accumulated cost. These mirror cost_model.json and are
-// temporary placeholders pending values measured for the target scheme.
+// Relative HE op-cost weights in "key-switch" units, putting rotations
+// (conversions) and compute (adds/muls) on one scale so they sum in a
+// candidate's accumulated cost. Temporary placeholders pending measured values.
 struct RotomCostModel {
   int64_t rotation = 100;            // one ciphertext rotation (key-switch)
   int64_t ciphertextMultiply = 100;  // one ct x ct multiply (+ relinearization)
