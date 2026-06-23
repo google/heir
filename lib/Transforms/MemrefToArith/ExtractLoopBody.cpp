@@ -74,9 +74,9 @@ static bool checkUsedForLoad(Operation* op, bool exclusive) {
 std::optional<uint64_t> getLoopSize(SmallVector<AffineForOp> forOps) {
   uint64_t size = 1;
   for (auto forOp : forOps) {
-    auto tripCount = affine::getConstantTripCount(forOp);
+    auto tripCount = forOp.getStaticTripCount();
     if (!tripCount.has_value()) return std::nullopt;
-    size *= tripCount.value();
+    size *= tripCount.value().getSExtValue();
   }
   return size;
 }

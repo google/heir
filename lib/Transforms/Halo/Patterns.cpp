@@ -198,16 +198,6 @@ FailureOr<SmallVector<Value>> isLoopStructuredForHaloUnroll(
   return secretIterArgs;
 }
 
-// Inject an scf::ForOp overload of this function, which exists upstream for
-// affine already.
-FailureOr<int64_t> getConstantTripCount(scf::ForOp forOp) {
-  std::optional<APInt> maybeTripCount = forOp.getStaticTripCount();
-  if (!maybeTripCount.has_value()) {
-    return failure();
-  }
-  return maybeTripCount->getSExtValue();
-}
-
 template <typename ForOp>
 LogicalResult doPartialUnroll(ForOp forOp, PatternRewriter& rewriter,
                               int forceMaxLevel, DataFlowSolver* solver) {
@@ -221,12 +211,12 @@ LogicalResult doPartialUnroll(ForOp forOp, PatternRewriter& rewriter,
   LDBG(2) << "Loop is structured for Halo-style unroll";
   SmallVector<Value> secretIterArgs = secretIterArgsResult.value();
 
-  std::optional<uint64_t> maybeTripCount = getConstantTripCount(forOp);
+  std::optional<APInt> maybeTripCount = forOp.getStaticTripCount();
   if (!maybeTripCount.has_value()) {
     LDBG(2) << "Could not infer trip count";
     return failure();
   }
-  int64_t tripCount = maybeTripCount.value();
+  int64_t tripCount = maybeTripCount->getSExtValue();
   LDBG(2) << "Inferred trip count=" << tripCount;
 
   // Now we need to compute how many loop iterations we can unroll.
