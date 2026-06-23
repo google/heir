@@ -334,9 +334,9 @@ module attributes {scheme.ckks} {
   // different part of the emitter, while the loop itself is good.
 
   // CHECK:  int64_t [[v0]]_0 = 0;
-  // CHECK:  for (int64_t [[v1]]_0 = 8; [[v1]]_0 < 24; [[v1]]_0 += 2) {
+  // CHECK:  for (int64_t [[v1]]_0 = 8; [[v1]]_0 < 8 + 8 * 2; [[v1]]_0 += 2) {
   // CHECK:    int64_t [[v0]]_1 = 0;
-  // CHECK:    for (int64_t [[v1]]_1 = 8; [[v1]]_1 < 24; [[v1]]_1 += 2) {
+  // CHECK:    for (int64_t [[v1]]_1 = 8; [[v1]]_1 < 8 + 8 * 2; [[v1]]_1 += 2) {
   // CHECK:      [[v2]]{{\[}}[[v1]]_1 + 32 * ([[v1]]_0)] = [[v0]]{{\[}}[[v0]]_1 + 8 * ([[v0]]_0)];
   // CHECK:      [[v0]]_1 += 1;
   // CHECK:    }

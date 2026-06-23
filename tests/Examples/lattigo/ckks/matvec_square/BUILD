@@ -16,9 +16,6 @@ heir_lattigo_lib(
 
 go_test(
     name = "matvec512x512_test",
-    size = "enormous",
-    timeout = "eternal",
     srcs = ["matvec_512x512_test.go"],
     embed = [":matvec512x512"],
-    exec_properties = {"mem": "28g"},
 )

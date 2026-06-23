@@ -1,7 +1,7 @@
 // RUN: heir-translate %s --emit-openfhe-pke --split-input-file | FileCheck %s
 
 // CHECK: std::vector<int32_t> emit_extract_slice_to_2d(std::vector<int32_t> v0) {
-// CHECK:   std::vector<int32_t> v1(1024);
+// CHECK:   std::vector<int32_t> v1(1 * 1024);
 // CHECK:   for (int64_t v1_i0 = 0; v1_i0 < 1; ++v1_i0) {
 // CHECK:     for (int64_t v1_i1 = 0; v1_i1 < 1024; ++v1_i1) {
 // CHECK:       v1[v1_i1 + 1024 * (v1_i0)] = v0[0 + v1_i1 * 1 + 1024 * (0 + v1_i0 * 1)];
@@ -36,7 +36,7 @@ module attributes {scheme.bgv} {
 // -----
 
 // CHECK: emit_extract_slice_with_nontrivial_params
-// CHECK: std::vector<int32_t> v1(512);
+// CHECK: std::vector<int32_t> v1(2 * 256);
 // CHECK: for (int64_t v1_i0 = 0; v1_i0 < 2; ++v1_i0) {
 // CHECK:   for (int64_t v1_i1 = 0; v1_i1 < 256; ++v1_i1) {
 // CHECK:     v1[v1_i1 + 256 * (v1_i0)] = v0[3 + v1_i1 * 3 + 1024 * (2 + v1_i0 * 2)];
