@@ -11,8 +11,8 @@ _OPENMP_GCC_LINKOPTS = [
 ]
 
 OPENMP_LINKOPTS = select({
-    "@openfhe//:clang_openmp": _OPENMP_CLANG_LINKOPTS,
-    "@openfhe//:gcc_openmp": _OPENMP_GCC_LINKOPTS,
+    "//third_party/openfhe:clang_openmp": _OPENMP_CLANG_LINKOPTS,
+    "//third_party/openfhe:gcc_openmp": _OPENMP_GCC_LINKOPTS,
     "//conditions:default": [],
 })
 

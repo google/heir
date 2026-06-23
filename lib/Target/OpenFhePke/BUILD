@@ -141,6 +141,7 @@ cc_library(
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
         "@heir//lib/Dialect/RNS/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@hermetic_llvm//openmp:libomp",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:Analysis",
