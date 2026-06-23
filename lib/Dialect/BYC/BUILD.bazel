@@ -1,0 +1,17 @@
+# BYC TrueBootstrapper Dialect for HEIR
+# Implements: ct + Enc(0) = ct
+# IACR ePrint 2026/110174, 2026/110206
+
+load("@heir//lib/Dialect:dialect.bzl", "add_heir_dialect_library")
+
+add_heir_dialect_library(
+    name = "BYC",
+    dialect_name = "BYC",
+    include_header = "byc_harmonizer.h",
+    srcs = ["byc_harmonizer.h"],
+    hdrs = ["byc_harmonizer.h"],
+    deps = [
+        "@heir//lib/Dialect:HEIRInterfaces",
+    ],
+    visibility = ["//visibility:public"],
+)
