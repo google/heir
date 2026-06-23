@@ -16,7 +16,7 @@ jobs:
     permissions:
       contents: write
     env:
-      BUILDBUDDY_API_KEY: ${{ github.event_name != 'pull_request' && secrets.BUILDBUDDY_API_KEY || vars.BUILDBUDDY_READ_ONLY_API_KEY }}
+      BUILDBUDDY_API_KEY: ${{ github.event_name != 'pull_request' && secrets.BUILDBUDDY_API_KEY || '7eYz4UY70YSrT55wmjWV' }}
     steps:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
@@ -45,14 +45,20 @@ jobs:
       - name: "Build markdown files from tblgen sources"
         run: |
           bazel query "filter('_filegroup', siblings(kind('gentbl_rule', @heir//...)))" | \
-            xargs bazel build --//:enable_openmp=0 -c opt "$@"
+            xargs bazel build -c opt \
+              --config=ci \
+              --remote_header=x-buildbuddy-api-key="$BUILDBUDDY_API_KEY" \
+              "$@"
 
       - name: "Copy markdown files to docs/"
         run: |
           python -m pip install --upgrade pip
           python -m pip install pyyaml==6.0.2 fire==0.7.0
           # heir-opt is needed to generate the doctest examples
-          bazel build --//:enable_openmp=0 -c opt //tools:heir-opt
+          bazel build -c opt \
+              --config=ci \
+              --remote_header=x-buildbuddy-api-key="$BUILDBUDDY_API_KEY" \
+              //tools:heir-opt
           python -m scripts.docs.copy_tblgen_files
 
       # Please update the local install instructions at docs/README.md if
