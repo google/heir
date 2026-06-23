@@ -52,12 +52,8 @@
 
 namespace mlir::heir::rotom {
 
-namespace {
-
 constexpr llvm::StringLiteral kRotomSeedAttrName = "rotom.seed";
 constexpr llvm::StringLiteral kRotomLayoutAttrName = "rotom.layout";
-
-}  // namespace
 
 #define DEBUG_TYPE "rotom-assign-layout"
 

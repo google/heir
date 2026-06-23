@@ -31,19 +31,15 @@
 namespace mlir {
 namespace heir {
 
-namespace {
-
 using presburger::IntegerRelation;
 using tensor_ext::LayoutAttr;
 
-auto& kLayoutAttrName = tensor_ext::TensorExtDialect::kLayoutAttrName;
-auto& kMaterializedAttrName = "tensor_ext.layout_materialized";
+static auto& kLayoutAttrName = tensor_ext::TensorExtDialect::kLayoutAttrName;
+static auto& kMaterializedAttrName = "tensor_ext.layout_materialized";
 
-void setMaterializedAttr(Operation* op) {
+static void setMaterializedAttr(Operation* op) {
   op->setAttr(kMaterializedAttrName, UnitAttr::get(op->getContext()));
 }
-
-}  // namespace
 
 LayoutAttr RotomTensorOpLowering::getLayoutAttr(Value value) const {
   auto layoutLookup = typeConverter->getContextualAttr(value);

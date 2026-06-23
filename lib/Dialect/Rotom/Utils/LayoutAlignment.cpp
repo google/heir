@@ -49,8 +49,6 @@ int64_t layoutNumCiphertexts(LayoutAttr layout) {
   return std::max<int64_t>(numCt, 1);
 }
 
-namespace {
-
 // Decomposes a layout's slot region into power-of-two "atoms" -- one per bit of
 // each traversal axis -- in most-significant-first order, each tagged
 // (dim, bit) where bit is the log2 of the bit's within-axis stride. Returns
@@ -58,7 +56,7 @@ namespace {
 // gap/replication piece, or a non-power-of-two extent or stride. Because the
 // tag is (dim, bit), a piece and its finer split decompose identically -- e.g.
 // [0:4:1] and [0:2:2][0:2:1] both yield (0,1)(0,0).
-std::optional<SmallVector<std::pair<int64_t, int64_t>>> atomizeSlotRegion(
+static std::optional<SmallVector<std::pair<int64_t, int64_t>>> atomizeSlotRegion(
     LayoutAttr layout) {
   SmallVector<std::pair<int64_t, int64_t>> atoms;
   size_t ctPrefixLen = inferCtPrefixLen(layout);
@@ -78,8 +76,6 @@ std::optional<SmallVector<std::pair<int64_t, int64_t>>> atomizeSlotRegion(
   }
   return atoms;
 }
-
-}  // namespace
 
 SmallVector<ConversionMove> conversionMoves(LayoutAttr lhs, LayoutAttr rhs) {
   ConversionMove sentinel{/*dim=*/-1, /*bit=*/-1, /*fromSlot=*/-1, /*toSlot=*/-1};
