@@ -39,13 +39,15 @@ jobs:
       # Bazel tests
       - name: "Run `bazel build`"
         run: |
-          bazel build -c opt "$BAZEL_CONFIG_FLAG" \
+          read -r -a BAZEL_CONFIGS <<< "$BAZEL_CONFIG_FLAG"
+          bazel build -c opt "${BAZEL_CONFIGS[@]}" \
             --remote_header=x-buildbuddy-api-key="$BUILDBUDDY_API_KEY" \
             //...
 
       - name: "Run `bazel test`"
         run: |
-          bazel test -c opt "$BAZEL_CONFIG_FLAG" \
+          read -r -a BAZEL_CONFIGS <<< "$BAZEL_CONFIG_FLAG"
+          bazel test -c opt "${BAZEL_CONFIGS[@]}" \
             --remote_header=x-buildbuddy-api-key="$BUILDBUDDY_API_KEY" \
             //...
 

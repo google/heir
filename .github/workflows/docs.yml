@@ -45,17 +45,19 @@ jobs:
       # disk.
       - name: "Build markdown files from tblgen sources"
         run: |
+          read -r -a BAZEL_CONFIGS <<< "$BAZEL_CONFIG_FLAG"
           bazel query "filter('_filegroup', siblings(kind('gentbl_rule', @heir//...)))" | \
-            xargs bazel build -c opt "$BAZEL_CONFIG_FLAG" \
+            xargs bazel build -c opt "${BAZEL_CONFIGS[@]}" \
               --remote_header=x-buildbuddy-api-key="$BUILDBUDDY_API_KEY" \
               "$@"
 
       - name: "Copy markdown files to docs/"
         run: |
+          read -r -a BAZEL_CONFIGS <<< "$BAZEL_CONFIG_FLAG"
           python -m pip install --upgrade pip
           python -m pip install pyyaml==6.0.2 fire==0.7.0
           # heir-opt is needed to generate the doctest examples
-          bazel build -c opt "$BAZEL_CONFIG_FLAG" \
+          bazel build -c opt "${BAZEL_CONFIGS[@]}" \
               --remote_header=x-buildbuddy-api-key="$BUILDBUDDY_API_KEY" \
               //tools:heir-opt
           python -m scripts.docs.copy_tblgen_files
