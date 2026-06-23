@@ -7,21 +7,21 @@
 #include "lib/Dialect/Rotom/IR/RotomAttributes.h"
 #include "lib/Dialect/Rotom/Transforms/LayoutAssignment/Candidate.h"
 #include "mlir/include/mlir/Dialect/Utils/ReshapeOpsUtils.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"                // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                       // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"                   // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"         // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"     // from @llvm-project
 
 namespace mlir::heir::rotom {
 
 // Rewrites a layout's traversal dims from the producer's index space into a
 // consumer's index space using `oldToNewDim` (old dim -> new dim, or -1 to drop
-// the dim). Returns nullopt if a dim cannot be mapped.
-std::optional<LayoutAttr> remapLayoutDims(LayoutAttr layout,
-                                          ArrayRef<int64_t> oldToNewDim);
+// the dim). The dim map is total over the input's dims, so this never fails.
+LayoutAttr remapLayoutDims(LayoutAttr layout, ArrayRef<int64_t> oldToNewDim);
 
 // Per-op dim maps: each describes how a shape-changing op relabels the
-// producer's tensor dims onto the result's dims (or -1 to drop). Returns nullopt
-// when the op's shape is unsupported (dynamic, non-unit strides, ambiguous).
+// producer's tensor dims onto the result's dims (or -1 to drop). Returns
+// nullopt when the op's shape is unsupported (non-unit strides, ambiguous
+// reassociation).
 std::optional<SmallVector<int64_t>> getReductionDimMap(
     int64_t inputRank, ArrayRef<int64_t> reductionDims);
 std::optional<SmallVector<int64_t>> getCollapseShapeDimMap(

@@ -1,5 +1,6 @@
 #include "lib/Dialect/Rotom/Transforms/LayoutAssignment/DimMaps.h"
 
+#include <cassert>
 #include <cstdint>
 #include <numeric>
 #include <optional>
@@ -26,8 +27,7 @@ bool hasOnlyUnitStrides(ArrayRef<int64_t> strides) {
 
 }  // namespace
 
-std::optional<LayoutAttr> remapLayoutDims(LayoutAttr layout,
-                                          ArrayRef<int64_t> oldToNewDim) {
+LayoutAttr remapLayoutDims(LayoutAttr layout, ArrayRef<int64_t> oldToNewDim) {
   SmallVector<Attribute> dims;
   MLIRContext* ctx = layout.getContext();
   for (Attribute attr : layout.getDims()) {
@@ -37,14 +37,14 @@ std::optional<LayoutAttr> remapLayoutDims(LayoutAttr layout,
       continue;
     }
 
+    // The layout is compatible with the op's input, so its traversal dims are
+    // in range and the dim map resolves each one to a result dim (or -1 to
+    // drop) -- never the unmapped sentinel.
     int64_t oldDim = dim.getDim();
-    if (oldDim < 0 || oldDim >= static_cast<int64_t>(oldToNewDim.size())) {
-      return std::nullopt;
-    }
-
+    assert(oldDim >= 0 && oldDim < static_cast<int64_t>(oldToNewDim.size()) &&
+           "layout dim out of range for the op's input rank");
     int64_t newDim = oldToNewDim[oldDim];
-    if (newDim == -1) continue;
-    if (newDim < -1) return std::nullopt;
+    if (newDim == -1) continue;  // dim dropped by the op
     dims.push_back(DimAttr::get(ctx, newDim, dim.getSize(), dim.getStride()));
   }
 
@@ -57,14 +57,11 @@ SmallVector<Candidate> remapCandidates(Value operand,
                                        KernelKind kind, int64_t extraCost) {
   SmallVector<Candidate> remapped;
   for (const Candidate& candidate : candidates) {
-    std::optional<LayoutAttr> layout =
-        remapLayoutDims(candidate.layout, oldToNewDim);
-    if (!layout) continue;
     // The remap relabels dims of the operand's data (no rotation), so the
     // result inherits the operand's assignment and the only new local cost is
     // `extraCost`.
     Candidate result;
-    result.layout = *layout;
+    result.layout = remapLayoutDims(candidate.layout, oldToNewDim);
     result.kind = kind;
     result.operands = {operand};
     result.operandLayouts = {candidate.layout};
