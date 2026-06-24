@@ -88,12 +88,15 @@ module {
 #seed_rolled_tiled = #rotom.seed<layouts = [#layout_rolled_tiled]>
 
 module {
+  // A tiled (non-unit-stride) layout: it flows through assignment and
+  // materialization (the 4x4 packs into 2 ciphertexts), but is not Rotom-lowered
+  // -- the add stays a plain ciphertext add with no conversion.
   // CHECK: func.func @rolled_tiled_add_not_rotom_lowered
-  // CHECK-SAME: tensor<2x2x2x2xf32>
+  // CHECK-SAME: tensor<2x16xf32>
   // CHECK-NOT: tensor_ext.remap
   // CHECK: arith.addf
-  func.func @rolled_tiled_add_not_rotom_lowered(%arg0: tensor<2x2x2x2xf32> {rotom.seed = #seed_rolled_tiled}, %arg1: tensor<2x2x2x2xf32> {rotom.seed = #seed_rolled_tiled}) -> tensor<2x2x2x2xf32> {
-    %0 = arith.addf %arg0, %arg1 : tensor<2x2x2x2xf32>
-    return %0 : tensor<2x2x2x2xf32>
+  func.func @rolled_tiled_add_not_rotom_lowered(%arg0: tensor<4x4xf32> {rotom.seed = #seed_rolled_tiled}, %arg1: tensor<4x4xf32> {rotom.seed = #seed_rolled_tiled}) -> tensor<4x4xf32> {
+    %0 = arith.addf %arg0, %arg1 : tensor<4x4xf32>
+    return %0 : tensor<4x4xf32>
   }
 }
