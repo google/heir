@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "lib/Dialect/Rotom/IR/RotomAttributes.h"
+#include "lib/Dialect/Rotom/Transforms/LayoutAssignment/AssignmentContext.h"
 #include "lib/Dialect/Rotom/Transforms/LayoutAssignment/Candidate.h"
 #include "lib/Dialect/Rotom/Transforms/LayoutAssignment/CostModel.h"
 #include "lib/Dialect/Rotom/Transforms/LayoutAssignment/DimMaps.h"
@@ -60,20 +61,18 @@ constexpr llvm::StringLiteral kRotomLayoutAttrName = "rotom.layout";
 #define GEN_PASS_DEF_LAYOUTASSIGNMENT
 #include "lib/Dialect/Rotom/Transforms/LayoutAssignment/LayoutAssignment.h.inc"
 
-namespace {
-
-Type getPlainValueType(Type type) {
+static Type getPlainValueType(Type type) {
   if (auto secretType = dyn_cast<secret::SecretType>(type)) {
     return secretType.getValueType();
   }
   return type;
 }
 
-bool isTensorLike(Value value) {
+static bool isTensorLike(Value value) {
   return isa<RankedTensorType>(getPlainValueType(value.getType()));
 }
 
-bool isLayoutCompatibleWithValue(LayoutAttr layout, Value value) {
+static bool isLayoutCompatibleWithValue(LayoutAttr layout, Value value) {
   auto type = dyn_cast<RankedTensorType>(getPlainValueType(value.getType()));
   if (!type) return false;
 
@@ -92,7 +91,7 @@ bool isLayoutCompatibleWithValue(LayoutAttr layout, Value value) {
   return true;
 }
 
-bool isElementwiseGeneric(linalg::GenericOp op) {
+static bool isElementwiseGeneric(linalg::GenericOp op) {
   for (AffineMap map : op.getIndexingMapsArray()) {
     if (!map.isIdentity()) return false;
   }
@@ -102,7 +101,7 @@ bool isElementwiseGeneric(linalg::GenericOp op) {
   return true;
 }
 
-bool hasAddLikeBody(linalg::GenericOp op) {
+static bool hasAddLikeBody(linalg::GenericOp op) {
   bool foundAddLikeOp = false;
   for (Operation& innerOp : op.getBody()->getOperations()) {
     if (isa<linalg::YieldOp, arith::ConstantOp>(innerOp)) continue;
@@ -112,7 +111,9 @@ bool hasAddLikeBody(linalg::GenericOp op) {
   return foundAddLikeOp;
 }
 
-struct LayoutAssignment : public impl::LayoutAssignmentBase<LayoutAssignment> {
+namespace {
+struct LayoutAssignment : public impl::LayoutAssignmentBase<LayoutAssignment>,
+                          public AssignmentContext {
   using LayoutAssignmentBase::LayoutAssignmentBase;
 
   DenseMap<Value, SmallVector<Candidate>> candidates;
@@ -126,36 +127,26 @@ struct LayoutAssignment : public impl::LayoutAssignmentBase<LayoutAssignment> {
 
   void runOnOperation() override;
 
-  // --- Candidate generation: forward pass that fills `candidates` for every
-  // value. Each tensor op has its own visitor (visit*); these are kept
-  // self-contained -- depending only on the shared seed/candidate/cost helpers
-  // -- so that as the per-op kernel space grows they can move to one file each.
+  // --- Candidate generation: a forward pass that fills `candidates` for every
+  // value. visitOperation dispatches to one free generate* function per tensor
+  // op (see below); each takes only an AssignmentContext, so as the per-op
+  // kernel space grows the generators can move to one file each. The methods
+  // here implement that AssignmentContext -- the shared seed/candidate/cost API
+  // the generators call back into. ---
   LogicalResult generateCandidates(ModuleOp module);
   LogicalResult visitOperation(Operation* op);
-  void seedValue(Value value);
-  void setCandidates(Value value, ArrayRef<Candidate> newCandidates);
-  SmallVector<Candidate> candidatesForValue(Value value);
-  void assignResultsFromCandidates(Operation* op, ArrayRef<Candidate> chosen);
-  SmallVector<Candidate> chooseCommonOperandCandidates(Operation* op);
-  SmallVector<Candidate> chooseCommonOperandCandidates(Operation* op,
-                                                       KernelKind kind);
+  void seedValue(Value value) override;
+  void setCandidates(Value value, ArrayRef<Candidate> newCandidates) override;
+  SmallVector<Candidate> candidatesForValue(Value value) override;
+  void assignResultsFromCandidates(Operation* op,
+                                   ArrayRef<Candidate> chosen) override;
+  SmallVector<Candidate> chooseCommonOperandCandidates(
+      Operation* op, KernelKind kind) override;
   SmallVector<Candidate> chooseElementwiseKernels(
       ArrayRef<Value> operands, KernelKind kind,
       function_ref<int64_t(LayoutAttr)> computeCostFn,
-      std::optional<KernelName> rotomKernel = std::nullopt);
-  int64_t cachedConversionCost(LayoutAttr from, LayoutAttr to);
-  LogicalResult visitFunc(func::FuncOp op);
-  LogicalResult visitGeneric(secret::GenericOp op);
-  LogicalResult visitYield(secret::YieldOp op);
-  LogicalResult visitPassThrough(Operation* op);
-  LogicalResult visitElementwise(Operation* op);
-  LogicalResult visitGeneric(linalg::GenericOp op);
-  LogicalResult visitTranspose(linalg::TransposeOp op);
-  LogicalResult visitReduction(linalg::ReduceOp op);
-  LogicalResult visitCollapseShape(tensor::CollapseShapeOp op);
-  LogicalResult visitExpandShape(tensor::ExpandShapeOp op);
-  LogicalResult visitExtractSlice(tensor::ExtractSliceOp op);
-  LogicalResult visitInsertSlice(tensor::InsertSliceOp op);
+      std::optional<KernelName> rotomKernel) override;
+  int64_t cachedConversionCost(LayoutAttr from, LayoutAttr to) override;
 
   // --- Layout search: each value's candidates already carry the dedup'd
   // accumulated cost and the full assignment of everything feeding it, so
@@ -166,6 +157,7 @@ struct LayoutAssignment : public impl::LayoutAssignmentBase<LayoutAssignment> {
   void applyKernels(ModuleOp module);
   void writeSelectedLayouts();
 };
+}  // namespace
 
 void LayoutAssignment::seedValue(Value value) {
   if (candidates.contains(value)) return;
@@ -221,11 +213,6 @@ SmallVector<Candidate> LayoutAssignment::candidatesForValue(Value value) {
   auto it = candidates.find(value);
   if (it == candidates.end()) return {};
   return it->second;
-}
-
-SmallVector<Candidate> LayoutAssignment::chooseCommonOperandCandidates(
-    Operation* op) {
-  return chooseCommonOperandCandidates(op, KernelKind::PassThrough);
 }
 
 SmallVector<Candidate> LayoutAssignment::chooseCommonOperandCandidates(
@@ -340,8 +327,8 @@ void LayoutAssignment::assignResultsFromCandidates(Operation* op,
   }
 }
 
-LogicalResult LayoutAssignment::visitFunc(func::FuncOp op) {
-  for (Value arg : op.getArguments()) seedValue(arg);
+static LogicalResult generateFunc(AssignmentContext& ctx, func::FuncOp op) {
+  for (Value arg : op.getArguments()) ctx.seedValue(arg);
   return success();
 }
 
@@ -378,10 +365,11 @@ LogicalResult LayoutAssignment::visitReturn(func::ReturnOp op) {
   return success();
 }
 
-LogicalResult LayoutAssignment::visitGeneric(secret::GenericOp op) {
+static LogicalResult generateSecretGeneric(AssignmentContext& ctx,
+                                           secret::GenericOp op) {
   for (OpOperand& operand : op->getOpOperands()) {
     SmallVector<Candidate> operandCandidates =
-        candidatesForValue(operand.get());
+        ctx.candidatesForValue(operand.get());
     if (operandCandidates.empty()) continue;
     BlockArgument blockArg =
         op.getRegion().getArgument(operand.getOperandNumber());
@@ -399,15 +387,15 @@ LogicalResult LayoutAssignment::visitGeneric(secret::GenericOp op) {
           accumulatedCostOf(blockArgCandidate.assignment);
       blockArgCandidates.push_back(std::move(blockArgCandidate));
     }
-    setCandidates(blockArg, blockArgCandidates);
+    ctx.setCandidates(blockArg, blockArgCandidates);
   }
   return success();
 }
 
-LogicalResult LayoutAssignment::visitYield(secret::YieldOp op) {
+static LogicalResult generateYield(AssignmentContext& ctx, secret::YieldOp op) {
   auto generic = op->getParentOfType<secret::GenericOp>();
   for (OpOperand& operand : op->getOpOperands()) {
-    SmallVector<Candidate> yielded = candidatesForValue(operand.get());
+    SmallVector<Candidate> yielded = ctx.candidatesForValue(operand.get());
     if (yielded.empty()) continue;
     SmallVector<Candidate> resultCandidates;
     for (const Candidate& candidate : yielded) {
@@ -422,51 +410,55 @@ LogicalResult LayoutAssignment::visitYield(secret::YieldOp op) {
           accumulatedCostOf(resultCandidate.assignment);
       resultCandidates.push_back(std::move(resultCandidate));
     }
-    setCandidates(generic.getResult(operand.getOperandNumber()),
-                  resultCandidates);
+    ctx.setCandidates(generic.getResult(operand.getOperandNumber()),
+                      resultCandidates);
   }
   return success();
 }
 
-LogicalResult LayoutAssignment::visitPassThrough(Operation* op) {
-  SmallVector<Candidate> chosen = chooseCommonOperandCandidates(op);
+static LogicalResult generatePassThrough(AssignmentContext& ctx,
+                                         Operation* op) {
+  SmallVector<Candidate> chosen =
+      ctx.chooseCommonOperandCandidates(op, KernelKind::PassThrough);
   if (chosen.empty()) {
-    for (Value result : op->getResults()) seedValue(result);
+    for (Value result : op->getResults()) ctx.seedValue(result);
     return success();
   }
-  assignResultsFromCandidates(op, chosen);
+  ctx.assignResultsFromCandidates(op, chosen);
   return success();
 }
 
-LogicalResult LayoutAssignment::visitElementwise(Operation* op) {
+static LogicalResult generateElementwise(AssignmentContext& ctx,
+                                         Operation* op) {
   if (op->getNumOperands() == 2) {
     std::optional<KernelName> rotomKernel = selectRotomElementwiseKernel(op);
     SmallVector<Value> operands = {op->getOperand(0), op->getOperand(1)};
-    SmallVector<Candidate> kernels = chooseElementwiseKernels(
+    SmallVector<Candidate> kernels = ctx.chooseElementwiseKernels(
         operands, KernelKind::Elementwise,
         [&](LayoutAttr layout) { return operationCost(op, layout); },
         rotomKernel);
     if (!kernels.empty()) {
-      assignResultsFromCandidates(op, kernels);
+      ctx.assignResultsFromCandidates(op, kernels);
       return success();
     }
   }
 
   SmallVector<Candidate> chosen =
-      chooseCommonOperandCandidates(op, KernelKind::Elementwise);
-  assignResultsFromCandidates(op, chosen);
+      ctx.chooseCommonOperandCandidates(op, KernelKind::Elementwise);
+  ctx.assignResultsFromCandidates(op, chosen);
   return success();
 }
 
-LogicalResult LayoutAssignment::visitGeneric(linalg::GenericOp op) {
-  if (!isElementwiseGeneric(op)) return visitPassThrough(op);
+static LogicalResult generateLinalgGeneric(AssignmentContext& ctx,
+                                           linalg::GenericOp op) {
+  if (!isElementwiseGeneric(op)) return generatePassThrough(ctx, op);
   if (hasAddLikeBody(op) && op.getInputs().size() == 2) {
     SmallVector<Value> operands = {op.getInputs()[0], op.getInputs()[1]};
-    SmallVector<Candidate> kernels = chooseElementwiseKernels(
+    SmallVector<Candidate> kernels = ctx.chooseElementwiseKernels(
         operands, KernelKind::Generic,
         [&](LayoutAttr layout) { return genericOperationCost(op, layout); });
     if (!kernels.empty()) {
-      assignResultsFromCandidates(op, kernels);
+      ctx.assignResultsFromCandidates(op, kernels);
       return success();
     }
   }
@@ -475,7 +467,7 @@ LogicalResult LayoutAssignment::visitGeneric(linalg::GenericOp op) {
   SmallVector<SmallVector<Candidate>> candidateSets;
   for (Value operand : op->getOperands()) {
     if (!isTensorLike(operand)) continue;
-    SmallVector<Candidate> operandCandidates = candidatesForValue(operand);
+    SmallVector<Candidate> operandCandidates = ctx.candidatesForValue(operand);
     if (operandCandidates.empty()) continue;
     operands.push_back(operand);
     candidateSets.push_back(operandCandidates);
@@ -483,35 +475,38 @@ LogicalResult LayoutAssignment::visitGeneric(linalg::GenericOp op) {
   SmallVector<Candidate> chosen = chooseCommonCandidates(
       operands, candidateSets, KernelKind::Generic,
       [&](LayoutAttr layout) { return genericOperationCost(op, layout); },
-      [this](LayoutAttr from, LayoutAttr to) {
-        return cachedConversionCost(from, to);
+      [&ctx](LayoutAttr from, LayoutAttr to) {
+        return ctx.cachedConversionCost(from, to);
       });
-  assignResultsFromCandidates(op, chosen);
+  ctx.assignResultsFromCandidates(op, chosen);
   return success();
 }
 
-LogicalResult LayoutAssignment::visitTranspose(linalg::TransposeOp op) {
+static LogicalResult generateTranspose(AssignmentContext& ctx,
+                                       linalg::TransposeOp op) {
   auto inputType = dyn_cast<RankedTensorType>(op.getInput().getType());
-  if (!inputType) return visitPassThrough(op);
+  if (!inputType) return generatePassThrough(ctx, op);
 
   SmallVector<int64_t> oldToNew(inputType.getRank(), -2);
   for (auto [outputDim, inputDim] : llvm::enumerate(op.getPermutation())) {
     if (inputDim < 0 || inputDim >= inputType.getRank()) {
-      return visitPassThrough(op);
+      return generatePassThrough(ctx, op);
     }
     oldToNew[inputDim] = static_cast<int64_t>(outputDim);
   }
 
-  SmallVector<Candidate> inputCandidates = candidatesForValue(op.getInput());
+  SmallVector<Candidate> inputCandidates =
+      ctx.candidatesForValue(op.getInput());
   SmallVector<Candidate> transposed = remapCandidates(
       op.getInput(), inputCandidates, oldToNew, KernelKind::Transpose);
-  assignResultsFromCandidates(op, transposed);
+  ctx.assignResultsFromCandidates(op, transposed);
   return success();
 }
 
-LogicalResult LayoutAssignment::visitReduction(linalg::ReduceOp op) {
+static LogicalResult generateReduction(AssignmentContext& ctx,
+                                       linalg::ReduceOp op) {
   for (auto [input, result] : llvm::zip(op.getInputs(), op.getResults())) {
-    SmallVector<Candidate> inputCandidates = candidatesForValue(input);
+    SmallVector<Candidate> inputCandidates = ctx.candidatesForValue(input);
     if (inputCandidates.empty()) continue;
 
     auto inputType = dyn_cast<RankedTensorType>(input.getType());
@@ -531,52 +526,56 @@ LogicalResult LayoutAssignment::visitReduction(linalg::ReduceOp op) {
       int64_t inputNumCt = layoutNumCiphertexts(candidate.operandLayouts[0]);
       candidate.localCost += inputNumCt * getCostModel().add;
     }
-    setCandidates(result, reduced);
+    ctx.setCandidates(result, reduced);
   }
   return success();
 }
 
-LogicalResult LayoutAssignment::visitCollapseShape(tensor::CollapseShapeOp op) {
+static LogicalResult generateCollapseShape(AssignmentContext& ctx,
+                                           tensor::CollapseShapeOp op) {
   std::optional<SmallVector<int64_t>> oldToNew =
       getCollapseShapeDimMap(op.getSrcType(), op.getReassociationIndices());
-  if (!oldToNew) return visitPassThrough(op);
+  if (!oldToNew) return generatePassThrough(ctx, op);
 
   SmallVector<Candidate> collapsed =
-      remapCandidates(op.getSrc(), candidatesForValue(op.getSrc()), *oldToNew,
-                      KernelKind::CollapseShape);
-  assignResultsFromCandidates(op, collapsed);
+      remapCandidates(op.getSrc(), ctx.candidatesForValue(op.getSrc()),
+                      *oldToNew, KernelKind::CollapseShape);
+  ctx.assignResultsFromCandidates(op, collapsed);
   return success();
 }
 
-LogicalResult LayoutAssignment::visitExpandShape(tensor::ExpandShapeOp op) {
+static LogicalResult generateExpandShape(AssignmentContext& ctx,
+                                         tensor::ExpandShapeOp op) {
   std::optional<SmallVector<int64_t>> oldToNew =
       getExpandShapeDimMap(op.getResultType(), op.getReassociationIndices());
-  if (!oldToNew) return visitPassThrough(op);
+  if (!oldToNew) return generatePassThrough(ctx, op);
 
   SmallVector<Candidate> expanded =
-      remapCandidates(op.getSrc(), candidatesForValue(op.getSrc()), *oldToNew,
-                      KernelKind::ExpandShape);
-  assignResultsFromCandidates(op, expanded);
+      remapCandidates(op.getSrc(), ctx.candidatesForValue(op.getSrc()),
+                      *oldToNew, KernelKind::ExpandShape);
+  ctx.assignResultsFromCandidates(op, expanded);
   return success();
 }
 
-LogicalResult LayoutAssignment::visitExtractSlice(tensor::ExtractSliceOp op) {
+static LogicalResult generateExtractSlice(AssignmentContext& ctx,
+                                          tensor::ExtractSliceOp op) {
   std::optional<SmallVector<int64_t>> oldToNew = getExtractSliceDimMap(
       op.getResultType(), op.getStaticSizes(), op.getStaticStrides());
-  if (!oldToNew) return visitPassThrough(op);
+  if (!oldToNew) return generatePassThrough(ctx, op);
 
   SmallVector<Candidate> sliced =
-      remapCandidates(op.getSource(), candidatesForValue(op.getSource()),
+      remapCandidates(op.getSource(), ctx.candidatesForValue(op.getSource()),
                       *oldToNew, KernelKind::ExtractSlice);
-  assignResultsFromCandidates(op, sliced);
+  ctx.assignResultsFromCandidates(op, sliced);
   return success();
 }
 
-LogicalResult LayoutAssignment::visitInsertSlice(tensor::InsertSliceOp op) {
-  SmallVector<Candidate> destCandidates = candidatesForValue(op.getDest());
+static LogicalResult generateInsertSlice(AssignmentContext& ctx,
+                                         tensor::InsertSliceOp op) {
+  SmallVector<Candidate> destCandidates = ctx.candidatesForValue(op.getDest());
   if (!destCandidates.empty()) {
     SmallVector<Candidate> sourceCandidates =
-        candidatesForValue(op.getSource());
+        ctx.candidatesForValue(op.getSource());
     std::optional<SmallVector<int64_t>> sourceToDest =
         getInsertSliceDimMap(op.getSourceType(), op.getResultType(),
                              op.getStaticSizes(), op.getStaticStrides());
@@ -588,57 +587,61 @@ LogicalResult LayoutAssignment::visitInsertSlice(tensor::InsertSliceOp op) {
         SmallVector<Value> operands = {op.getDest(), op.getSource()};
         SmallVector<SmallVector<Candidate>> sets = {destCandidates,
                                                     expandedSource};
-        assignResultsFromCandidates(op,
-                                    chooseCommonCandidates(
-                                        operands, sets, KernelKind::InsertSlice,
-                                        [](LayoutAttr) { return 0; },
-                                        [this](LayoutAttr from, LayoutAttr to) {
-                                          return cachedConversionCost(from, to);
-                                        }));
+        ctx.assignResultsFromCandidates(
+            op, chooseCommonCandidates(
+                    operands, sets, KernelKind::InsertSlice,
+                    [](LayoutAttr) { return 0; },
+                    [&ctx](LayoutAttr from, LayoutAttr to) {
+                      return ctx.cachedConversionCost(from, to);
+                    }));
         return success();
       }
     }
-    assignResultsFromCandidates(op, destCandidates);
+    ctx.assignResultsFromCandidates(op, destCandidates);
     return success();
   }
 
   std::optional<SmallVector<int64_t>> sourceToDest =
       getInsertSliceDimMap(op.getSourceType(), op.getResultType(),
                            op.getStaticSizes(), op.getStaticStrides());
-  if (!sourceToDest) return visitPassThrough(op);
+  if (!sourceToDest) return generatePassThrough(ctx, op);
 
   SmallVector<Candidate> expandedSource =
-      remapCandidates(op.getSource(), candidatesForValue(op.getSource()),
+      remapCandidates(op.getSource(), ctx.candidatesForValue(op.getSource()),
                       *sourceToDest, KernelKind::InsertSlice, /*extraCost=*/1);
-  assignResultsFromCandidates(op, expandedSource);
+  ctx.assignResultsFromCandidates(op, expandedSource);
   return success();
 }
 
 LogicalResult LayoutAssignment::visitOperation(Operation* op) {
+  AssignmentContext& ctx = *this;
   return TypeSwitch<Operation*, LogicalResult>(op)
-      .Case<func::FuncOp>([&](auto typedOp) { return visitFunc(typedOp); })
+      .Case<func::FuncOp>(
+          [&](auto typedOp) { return generateFunc(ctx, typedOp); })
       .Case<secret::GenericOp>(
-          [&](auto typedOp) { return visitGeneric(typedOp); })
-      .Case<secret::YieldOp>([&](auto typedOp) { return visitYield(typedOp); })
+          [&](auto typedOp) { return generateSecretGeneric(ctx, typedOp); })
+      .Case<secret::YieldOp>(
+          [&](auto typedOp) { return generateYield(ctx, typedOp); })
       .Case<arith::AddFOp, arith::AddIOp, arith::SubFOp, arith::SubIOp,
             arith::MulFOp, arith::MulIOp>(
-          [&](auto typedOp) { return visitElementwise(typedOp); })
+          [&](auto typedOp) { return generateElementwise(ctx, typedOp); })
       .Case<linalg::GenericOp>(
-          [&](auto typedOp) { return visitGeneric(typedOp); })
+          [&](auto typedOp) { return generateLinalgGeneric(ctx, typedOp); })
       .Case<linalg::TransposeOp>(
-          [&](auto typedOp) { return visitTranspose(typedOp); })
+          [&](auto typedOp) { return generateTranspose(ctx, typedOp); })
       .Case<linalg::ReduceOp>(
-          [&](auto typedOp) { return visitReduction(typedOp); })
+          [&](auto typedOp) { return generateReduction(ctx, typedOp); })
       .Case<tensor::CollapseShapeOp>(
-          [&](auto typedOp) { return visitCollapseShape(typedOp); })
+          [&](auto typedOp) { return generateCollapseShape(ctx, typedOp); })
       .Case<tensor::ExpandShapeOp>(
-          [&](auto typedOp) { return visitExpandShape(typedOp); })
+          [&](auto typedOp) { return generateExpandShape(ctx, typedOp); })
       .Case<tensor::ExtractSliceOp>(
-          [&](auto typedOp) { return visitExtractSlice(typedOp); })
+          [&](auto typedOp) { return generateExtractSlice(ctx, typedOp); })
       .Case<tensor::InsertSliceOp>(
-          [&](auto typedOp) { return visitInsertSlice(typedOp); })
-      .Default(
-          [&](Operation* genericOp) { return visitPassThrough(genericOp); });
+          [&](auto typedOp) { return generateInsertSlice(ctx, typedOp); })
+      .Default([&](Operation* genericOp) {
+        return generatePassThrough(ctx, genericOp);
+      });
 }
 
 void LayoutAssignment::writeSelectedLayouts() {
@@ -701,7 +704,5 @@ void LayoutAssignment::runOnOperation() {
   applyKernels(module);
   writeSelectedLayouts();
 }
-
-}  // namespace
 
 }  // namespace mlir::heir::rotom

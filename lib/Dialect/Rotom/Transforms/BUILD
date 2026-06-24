@@ -25,6 +25,7 @@ cc_library(
         "LayoutAssignment/LayoutAssignment.cpp",
     ],
     hdrs = [
+        "LayoutAssignment/AssignmentContext.h",
         "LayoutAssignment/Candidate.h",
         "LayoutAssignment/CostModel.h",
         "LayoutAssignment/DimMaps.h",
