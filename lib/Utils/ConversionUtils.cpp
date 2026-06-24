@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <type_traits>
 
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
@@ -12,6 +13,7 @@
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/Transforms/Patterns.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Dialect.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/IRMapping.h"              // from @llvm-project
@@ -32,6 +34,27 @@ namespace heir {
 using ::mlir::func::CallOp;
 using ::mlir::func::FuncOp;
 using ::mlir::func::ReturnOp;
+
+static bool isDynamicOrUnshapedType(Type t) {
+  if (!t) return false;
+  auto shaped = mlir::dyn_cast<ShapedType>(t);
+  return shaped && !shaped.hasStaticShape();
+}
+
+static bool hasAnyDynamicOrUnrankedShape(Operation* op,
+                                         const TypeConverter* typeConverter) {
+  for (Type t : op->getOperandTypes()) {
+    if (isDynamicOrUnshapedType(t) ||
+        isDynamicOrUnshapedType(typeConverter->convertType(t)))
+      return true;
+  }
+  for (Type t : op->getResultTypes()) {
+    if (isDynamicOrUnshapedType(t) ||
+        isDynamicOrUnshapedType(typeConverter->convertType(t)))
+      return true;
+  }
+  return false;
+}
 
 FailureOr<Operation*> convertAnyOperand(const TypeConverter* typeConverter,
                                         Operation* op, ArrayRef<Value> operands,
@@ -80,6 +103,8 @@ struct ConvertExtract : public OpConversionPattern<tensor::ExtractOp> {
   LogicalResult matchAndRewrite(
       tensor::ExtractOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
+    if (hasAnyDynamicOrUnrankedShape(op, getTypeConverter())) return failure();
+
     auto convertedType =
         getTypeConverter()->convertType(op.getResult().getType());
     auto resultType = mlir::dyn_cast<RankedTensorType>(convertedType);
@@ -136,6 +161,8 @@ struct ConvertInsert : public OpConversionPattern<tensor::InsertOp> {
   LogicalResult matchAndRewrite(
       tensor::InsertOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
+    if (hasAnyDynamicOrUnrankedShape(op, getTypeConverter())) return failure();
+
     auto convertedType =
         getTypeConverter()->convertType(op.getScalar().getType());
     auto resultType = mlir::dyn_cast<RankedTensorType>(convertedType);
@@ -192,6 +219,8 @@ struct ConvertFromElements
   LogicalResult matchAndRewrite(
       tensor::FromElementsOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
+    if (hasAnyDynamicOrUnrankedShape(op, getTypeConverter())) return failure();
+
     auto resultType = dyn_cast<RankedTensorType>(
         getTypeConverter()->convertType(op.getResult().getType()));
     if (!resultType) {
@@ -230,9 +259,105 @@ struct ConvertFromElements
           shapeOp);
       newOperands.push_back(reshapeOp);
     }
-    // Create the final tensor.concat operation
-    rewriter.replaceOpWithNewOp<tensor::ConcatOp>(op, 0, newOperands);
+    // Create the final tensor.concat operation, then restore the original
+    // tensor shape with the converted element shape appended.
+    auto concatOp =
+        tensor::ConcatOp::create(rewriter, op.getLoc(), 0, newOperands);
+    Value result = concatOp.getResult();
+    // This block fires if, e.g., we are calling `from_elements` on four inputs
+    // and producing a 2x2xT tensor instead of a 4xT tensor.
+    if (result.getType() != resultType) {
+      auto shapeOp = mlir::arith::ConstantOp::create(
+          rewriter, op.getLoc(),
+          RankedTensorType::get(resultType.getRank(), rewriter.getIndexType()),
+          rewriter.getIndexTensorAttr(resultType.getShape()));
+      result = tensor::ReshapeOp::create(rewriter, op.getLoc(), resultType,
+                                         result, shapeOp);
+    }
+    rewriter.replaceOp(op, result);
 
+    return success();
+  }
+};
+
+template <typename Op>
+struct ConvertOffsetSizeStrideOp : public OpConversionPattern<Op> {
+  ConvertOffsetSizeStrideOp(TypeConverter& typeConverter,
+                            mlir::MLIRContext* context)
+      : OpConversionPattern<Op>(typeConverter, context, /*benefit=*/2) {}
+
+  // Convert a tensor.extract_slice on tensor<...xSourceType> when SourceType
+  // type-converts to tensor<...>. The slice metadata is extended with the full
+  // converted element shape so the result keeps the original slice dimensions
+  // and appends the converted element dimensions.
+  LogicalResult matchAndRewrite(
+      Op op, OpConversionPattern<Op>::OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    if (hasAnyDynamicOrUnrankedShape(op, this->getTypeConverter()))
+      return failure();
+
+    auto originalResultType =
+        dyn_cast<RankedTensorType>(op.getResult().getType());
+    if (!originalResultType) return failure();
+    auto convertedType =
+        this->getTypeConverter()->convertType(originalResultType);
+    auto resultType = dyn_cast<RankedTensorType>(convertedType);
+    if (!resultType) return failure();
+
+    int64_t extraRank = resultType.getRank() - originalResultType.getRank();
+    if (extraRank <= 0) return failure();
+
+    SmallVector<OpFoldResult> offsets = op.getMixedOffsets();
+    SmallVector<OpFoldResult> sizes = op.getMixedSizes();
+    SmallVector<OpFoldResult> strides = op.getMixedStrides();
+
+    ArrayRef<int64_t> extraShape = resultType.getShape().take_back(extraRank);
+    for (int64_t dim : extraShape) {
+      if (ShapedType::isDynamic(dim)) return failure();
+      offsets.push_back(rewriter.getIndexAttr(0));
+      sizes.push_back(rewriter.getIndexAttr(dim));
+      strides.push_back(rewriter.getIndexAttr(1));
+    }
+
+    Value source = adaptor.getSource();
+    if constexpr (std::is_same_v<Op, tensor::ExtractSliceOp>) {
+      rewriter.replaceOpWithNewOp<tensor::ExtractSliceOp>(
+          op, resultType, source, offsets, sizes, strides);
+    } else if constexpr (std::is_same_v<Op, tensor::InsertSliceOp>) {
+      rewriter.replaceOpWithNewOp<tensor::InsertSliceOp>(
+          op, source, adaptor.getDest(), offsets, sizes, strides);
+    } else {
+      return failure();
+    }
+    return success();
+  }
+};
+
+struct ConvertReshape : public OpConversionPattern<tensor::ReshapeOp> {
+  ConvertReshape(mlir::MLIRContext* context)
+      : OpConversionPattern<tensor::ReshapeOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      tensor::ReshapeOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    if (hasAnyDynamicOrUnrankedShape(op, getTypeConverter())) return failure();
+
+    auto convertedType = dyn_cast<RankedTensorType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
+    if (!convertedType) return failure();
+    if (convertedType == op.getResult().getType()) return failure();
+    for (int64_t dim : convertedType.getShape()) {
+      if (ShapedType::isDynamic(dim)) return failure();
+    }
+
+    auto shapeOp = arith::ConstantOp::create(
+        rewriter, op.getLoc(),
+        RankedTensorType::get(convertedType.getRank(), rewriter.getIndexType()),
+        rewriter.getIndexTensorAttr(convertedType.getShape()));
+    rewriter.replaceOpWithNewOp<tensor::ReshapeOp>(
+        op, convertedType, adaptor.getSource(), shapeOp);
     return success();
   }
 };
@@ -246,6 +371,8 @@ struct ConvertSplat : public OpConversionPattern<tensor::SplatOp> {
   LogicalResult matchAndRewrite(
       tensor::SplatOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
+    if (hasAnyDynamicOrUnrankedShape(op, getTypeConverter())) return failure();
+
     auto resultType = dyn_cast<RankedTensorType>(
         getTypeConverter()->convertType(op.getResult().getType()));
     auto inputType = dyn_cast<RankedTensorType>(adaptor.getInput().getType());
@@ -279,11 +406,15 @@ void addTensorOfTensorConversionPatterns(TypeConverter& typeConverter,
       [&](Operation* op) { return typeConverter.isLegal(op); });
 
   typeConverter.addConversion([&](TensorType type) -> std::optional<Type> {
+    if (isDynamicOrUnshapedType(type)) return std::nullopt;
+
     if (!typeConverter.isLegal(type.getElementType())) {
       if (auto convertedType =
               typeConverter.convertType(type.getElementType())) {
         if (auto castConvertedType =
                 mlir::dyn_cast<RankedTensorType>(convertedType)) {
+          if (isDynamicOrUnshapedType(castConvertedType)) return std::nullopt;
+
           //  Create the combined shape
           auto polyShape = castConvertedType.getShape();
           auto tensorShape = type.getShape();
@@ -302,9 +433,11 @@ void addTensorOfTensorConversionPatterns(TypeConverter& typeConverter,
   target.addDynamicallyLegalDialect<affine::AffineDialect>(
       [&](Operation* op) { return typeConverter.isLegal(op); });
 
-  patterns
-      .add<ConvertExtract, ConvertInsert, ConvertFromElements, ConvertSplat>(
-          typeConverter, patterns.getContext());
+  patterns.add<ConvertAny<tensor::EmptyOp>, ConvertExtract, ConvertInsert,
+               ConvertSplat, ConvertFromElements, ConvertReshape,
+               ConvertOffsetSizeStrideOp<tensor::ExtractSliceOp>,
+               ConvertOffsetSizeStrideOp<tensor::InsertSliceOp>>(
+      typeConverter, patterns.getContext());
 }
 
 void addStructuralConversionPatterns(TypeConverter& typeConverter,

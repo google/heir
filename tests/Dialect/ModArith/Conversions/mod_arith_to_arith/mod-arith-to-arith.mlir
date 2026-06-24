@@ -314,6 +314,48 @@ func.func @test_lower_tensor_rns_extract_slice(%arg : tensor<4x!RNS>) -> tensor<
   return %res : tensor<4x!RNS_slice>
 }
 
+// CHECK: @test_lower_rns_reshape
+// CHECK-SAME: (%[[ARG:.*]]: tensor<3x3xi11>) -> tensor<1x3x3xi11>
+func.func @test_lower_rns_reshape(%arg : tensor<3x!RNS>) -> tensor<1x3x!RNS> {
+  // CHECK: %[[SHAPE:.*]] = arith.constant dense<[1, 3, 3]>
+  %shape = arith.constant dense<[1, 3]> : tensor<2xindex>
+  // CHECK: %[[RESHAPE:.*]] = tensor.reshape %[[ARG]](%[[SHAPE]]) : (tensor<3x3xi11>, tensor<3xindex>) -> tensor<1x3x3xi11>
+  %res = tensor.reshape %arg(%shape) : (tensor<3x!RNS>, tensor<2xindex>) -> tensor<1x3x!RNS>
+  // CHECK: return %[[RESHAPE]]
+  return %res : tensor<1x3x!RNS>
+}
+
+// CHECK: @test_lower_rns_insert_slice
+// CHECK-SAME: (%[[SRC:.*]]: tensor<4096x2xi11>, %[[DEST:.*]]: tensor<2x1x4096x2xi11>
+func.func @test_lower_rns_insert_slice(%src : tensor<4096x!RNS_slice>, %dest : tensor<2x1x4096x!RNS_slice>, %i : index, %j : index) -> tensor<2x1x4096x!RNS_slice> {
+  // CHECK: tensor.insert_slice %[[SRC]] into %[[DEST]]
+  // CHECK-SAME: [{{.*}}, {{.*}}, 0, 0] [1, 1, 4096, 2] [1, 1, 1, 1]
+  %res = tensor.insert_slice %src into %dest[%i, %j, 0] [1, 1, 4096] [1, 1, 1] : tensor<4096x!RNS_slice> into tensor<2x1x4096x!RNS_slice>
+  return %res : tensor<2x1x4096x!RNS_slice>
+}
+
+// CHECK: @test_lower_extract_slice_tensor
+// CHECK-SAME: (%[[ARG:.*]]: tensor<2x2x3xi11>) -> tensor<2x3xi11>
+func.func @test_lower_extract_slice_tensor(%arg0: tensor<2x2x!RNS>) -> tensor<2x!RNS> {
+  // CHECK: %[[SLICE:.*]] = tensor.extract_slice %[[ARG]][1, 0, 0] [1, 2, 3] [1, 1, 1] : tensor<2x2x3xi11> to tensor<2x3xi11>
+  %slice = tensor.extract_slice %arg0[1, 0] [1, 2] [1, 1] : tensor<2x2x!RNS> to tensor<2x!RNS>
+  // CHECK: return %[[SLICE]] : tensor<2x3xi11>
+  return %slice : tensor<2x!RNS>
+}
+
+// CHECK: @test_lower_from_elements_2d
+// CHECK-SAME: (%[[A:.*]]: tensor<3xi11>, %[[B:.*]]: tensor<3xi11>) -> tensor<2x1x3xi11>
+func.func @test_lower_from_elements_2d(%a: !RNS, %b: !RNS) -> tensor<2x1x!RNS> {
+  // CHECK: %[[CONCAT:.*]] = tensor.concat
+  // CHECK-SAME: -> tensor<2x3xi11>
+  // CHECK: %[[SHAPE:.*]] = arith.constant dense<[2, 1, 3]>
+  // CHECK: %[[RESHAPE:.*]] = tensor.reshape %[[CONCAT]](%[[SHAPE]])
+  // CHECK-SAME: -> tensor<2x1x3xi11>
+  %result = tensor.from_elements %a, %b : tensor<2x1x!RNS>
+  // CHECK: return %[[RESHAPE]] : tensor<2x1x3xi11>
+  return %result : tensor<2x1x!RNS>
+}
+
 // CHECK: @test_lower_mod_switch_decompose
 // CHECK-SAME: (%[[ARG:.*]]: [[INT_TYPE:.*]]) -> [[TENSOR_TYPE:.*]] {
 func.func @test_lower_mod_switch_decompose(%arg : !Zp) -> !RNS {
