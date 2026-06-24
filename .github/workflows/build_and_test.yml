@@ -15,8 +15,8 @@ jobs:
     runs-on:
       labels: ubuntu-24.04-64core
     env:
-      BUILDBUDDY_API_KEY: ${{ github.event_name != 'pull_request' && secrets.BUILDBUDDY_API_KEY || '7eYz4UY70YSrT55wmjWV' }}
-      BAZEL_CONFIG_FLAG: ${{ github.ref_name == 'main' && '--config=ci --config=remote' || '--config=ci' }}
+      BUILDBUDDY_API_KEY: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && secrets.BUILDBUDDY_API_KEY || '7eYz4UY70YSrT55wmjWV' }}
+      BAZEL_CONFIG_FLAG: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '--config=ci --config=remote' || '--config=ci' }}
     steps:
       - name: Check out repository code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
