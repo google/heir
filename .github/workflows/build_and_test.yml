@@ -26,15 +26,12 @@ jobs:
         run: |
           ./.github/install_clang_version.sh 19
 
-      - name: Cache bazel build artifacts
+      - name: Cache OpenFHE
         uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7  # v5.0.2
         with:
           path: |
-            ~/.cache/bazel
-          key: ${{ runner.os }}-clang19-${{ hashFiles('.bazelversion', '.bazelrc', 'MODULE.bazel') }}-${{ hashFiles('bazel/extensions.bzl') }}
-          restore-keys: |
-            ${{ runner.os }}-clang19-${{ hashFiles('.bazelversion', '.bazelrc', 'MODULE.bazel') }}-${{ hashFiles('bazel/extensions.bzl') }}
-            ${{ runner.os }}-clang19-${{ hashFiles('.bazelversion', '.bazelrc', 'MODULE.bazel') }}-
+            openfhe-install
+          key: ${{ runner.os }}-openfhe-clang19-${{ hashFiles('.github/build_openfhe.sh') }}
 
       # Bazel tests
       - name: "Run `bazel build`"
