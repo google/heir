@@ -9,11 +9,9 @@
 #include "llvm/include/llvm/ADT/DenseMap.h"   // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Analysis/LoopAnalysis.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"    // from @llvm-project
-#include "mlir/include/mlir/IR/SymbolTable.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"   // from @llvm-project
 #include "mlir/include/mlir/Interfaces/LoopLikeInterface.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"        // from @llvm-project
 #include "mlir/include/mlir/Support/WalkResult.h"  // from @llvm-project
@@ -23,37 +21,20 @@ namespace heir {
 
 namespace {
 
-FailureOr<uint64_t> getConstantTripCount(Operation* op) {
-  if (auto loopLikeOp = dyn_cast<LoopLikeOpInterface>(op)) {
-    std::optional<APInt> tripCount = loopLikeOp.getStaticTripCount();
-    if (tripCount.has_value()) return tripCount.value().getZExtValue();
-  }
-
-  // Fall back if LoopLikeOpInterface fails, and at the moment affine.for
-  // doesn't implement LoopLikeOpInterface.
-  if (auto affineFor = dyn_cast<affine::AffineForOp>(op)) {
-    std::optional<uint64_t> maybeTripCount =
-        affine::getConstantTripCount(affineFor);
-    if (maybeTripCount.has_value()) return *maybeTripCount;
-  }
-
-  return failure();
-}
-
 FailureOr<int64_t> calculateSize(Operation* op) {
   int64_t size = 1;
   Operation* parent = op->getParentOp();
   while (parent) {
-    if (isa<affine::AffineForOp, LoopLikeOpInterface>(parent)) {
-      FailureOr<uint64_t> tripCount = getConstantTripCount(parent);
+    if (auto loopLikeOp = dyn_cast<LoopLikeOpInterface>(*parent)) {
+      std::optional<APInt> tripCount = loopLikeOp.getStaticTripCount();
       // If we can't detect a static trip count, something went terribly wrong
       // elsewhere.
-      if (failed(tripCount)) {
+      if (!tripCount.has_value()) {
         return parent->emitError()
                << "Could not resolve constant trip count for loop";
       }
       // Exit early if the product of loop iterations overflows int64.
-      if (__builtin_mul_overflow(size, *tripCount, &size)) {
+      if (__builtin_mul_overflow(size, tripCount->getSExtValue(), &size)) {
         return parent->emitError()
                << "64-bit integer overflow during size calculation";
       }
