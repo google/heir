@@ -31,6 +31,12 @@ enum KernelName : int {
   // Ciphertext-ciphertext matmul using the bicyclic packing method.
   MatmulBicyclic,
 
+  // Elementwise tensor add using Rotom's layout-aware lowering.
+  RotomAdd,
+
+  // Elementwise tensor multiply using Rotom's layout-aware lowering.
+  RotomMul,
+
   // Product and sum of two vectors, using a log2 rotate-and-reduce approach.
   Dot,
 };

@@ -8,6 +8,8 @@
 #include "lib/Dialect/Rotom/Utils/RotomTensorExtLayoutLowering.h"
 #include "lib/Utils/Layout/Evaluate.h"
 #include "lib/Utils/Layout/IslConversion.h"
+#include "lib/Utils/Layout/Utils.h"
+#include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
@@ -110,12 +112,14 @@ TEST(RotomTensorExtLayoutLoweringTest, TiledRowMajor4x4Evaluate) {
       {9, 10, 11, 12},
       {13, 14, 15, 16},
   };
-  ASSERT_EQ(relation->getNumDomainVars(), 4);
+  // dim ids 0 and 1 are each split mixed-radix into two pieces, so the relation
+  // has one domain variable per tensor axis: i0 = row, i1 = col. The packing is
+  // unchanged (2x2-tiled row-major) -- only the domain representation differs
+  // from the old per-piece variables.
+  ASSERT_EQ(relation->getNumDomainVars(), 2);
   std::vector<std::vector<int>> packed = evaluateLayout<int>(
       relation.value(), [&](const std::vector<int64_t>& domainPoint) -> int {
-        const int64_t row = domainPoint[0] * 2 + domainPoint[2];
-        const int64_t col = domainPoint[1] * 2 + domainPoint[3];
-        return matrix[row][col];
+        return matrix[domainPoint[0]][domainPoint[1]];
       });
 
   std::vector<std::vector<int>> expected = {

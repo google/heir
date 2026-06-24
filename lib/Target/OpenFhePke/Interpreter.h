@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "llvm/include/llvm/ADT/DenseMap.h"       // from @llvm-project
 #include "mlir/include/mlir/Analysis/Liveness.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
@@ -150,6 +151,8 @@ class Interpreter {
   void visit(tensor::ParallelInsertSliceOp op);
   void visit(tensor::InsertSliceOp op);
   void visit(tensor::SplatOp op);
+  void visit(tensor_ext::RemapOp op);
+  void visit(tensor_ext::RotateOp op);
 
   // SCF and Affine ops
   void visit(scf::IfOp op);

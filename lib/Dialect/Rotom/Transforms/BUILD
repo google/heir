@@ -9,6 +9,60 @@ package(
 )
 
 add_heir_transforms(
+    generated_target_name = "layout_assignment_pass_inc_gen",
+    header_filename = "LayoutAssignment/LayoutAssignment.h.inc",
+    pass_name = "LayoutAssignment",
+    registration_name = "RotomLayoutAssignment",
+    td_file = "LayoutAssignment/LayoutAssignment.td",
+)
+
+cc_library(
+    name = "LayoutAssignment",
+    srcs = [
+        "LayoutAssignment/Candidate.cpp",
+        "LayoutAssignment/CostModel.cpp",
+        "LayoutAssignment/DimMaps.cpp",
+        "LayoutAssignment/LayoutAssignment.cpp",
+        "LayoutAssignment/ValueUtils.cpp",
+        "LayoutAssignment/gen/Elementwise.cpp",
+        "LayoutAssignment/gen/ReduceTranspose.cpp",
+        "LayoutAssignment/gen/Reshape.cpp",
+        "LayoutAssignment/gen/Structural.cpp",
+    ],
+    hdrs = [
+        "LayoutAssignment/AssignmentContext.h",
+        "LayoutAssignment/Candidate.h",
+        "LayoutAssignment/CostModel.h",
+        "LayoutAssignment/DimMaps.h",
+        "LayoutAssignment/Generators.h",
+        "LayoutAssignment/LayoutAssignment.h",
+        "LayoutAssignment/ValueUtils.h",
+    ],
+    deps = [
+        ":layout_assignment_pass_inc_gen",
+        "@heir//lib/Dialect/Rotom/IR:Dialect",
+        "@heir//lib/Dialect/Rotom/Utils:LayoutAlignment",
+        "@heir//lib/Dialect/Rotom/Utils:RotomTensorExtLayoutLowering",
+        "@heir//lib/Dialect/Secret/IR:SecretPatterns",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Kernel",
+        "@heir//lib/Utils:AttributeUtils",
+        "@heir//lib/Utils/Layout:IslConversion",
+        "@heir//lib/Utils/Layout:Utils",
+        "@heir//lib/Utils:MathUtils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:DialectUtils",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LinalgDialect",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
+    ],
+)
+
+add_heir_transforms(
     generated_target_name = "materialize_tensor_ext_layout_pass_inc_gen",
     header_filename = "MaterializeTensorExtLayout/MaterializeTensorExtLayout.h.inc",
     pass_name = "MaterializeTensorExtLayout",
@@ -24,10 +78,12 @@ cc_library(
         ":materialize_tensor_ext_layout_pass_inc_gen",
         "@heir//lib/Dialect/Rotom/IR:Dialect",
         "@heir//lib/Dialect/Rotom/Utils:RotomTensorExtLayoutLowering",
+        "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Utils",
         "@heir//lib/Utils:AttributeUtils",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
@@ -63,7 +119,6 @@ cc_library(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
-        "@llvm-project//mlir:TensorDialect",
     ],
 )
 
@@ -71,8 +126,10 @@ cc_library(
     name = "Transforms",
     hdrs = ["Passes.h"],
     deps = [
+        ":LayoutAssignment",
         ":MaterializeTensorExtLayout",
         ":SeedLayout",
+        ":layout_assignment_pass_inc_gen",
         ":materialize_tensor_ext_layout_pass_inc_gen",
         ":seed_layout_pass_inc_gen",
         "@heir//lib/Dialect/Rotom/IR:Dialect",

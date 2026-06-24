@@ -4,11 +4,13 @@
 
 #include "lib/Dialect/Rotom/IR/RotomAttributes.h"
 #include "lib/Dialect/Rotom/Utils/RotomTensorExtLayoutLowering.h"
+#include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/StringRef.h"          // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"         // from @llvm-project
@@ -32,6 +34,17 @@ struct MaterializeTensorExtLayout
     ModuleOp module = getOperation();
     LogicalResult result = success();
 
+    auto lowerLayout = [&](Location loc,
+                           LayoutAttr layout) -> FailureOr<Attribute> {
+      FailureOr<std::string> isl =
+          RotomTensorExtLayoutLowering::lowerToTensorExtIsl(layout);
+      if (failed(isl)) {
+        emitError(loc, "unsupported rotom.layout for materialization");
+        return failure();
+      }
+      return tensor_ext::LayoutAttr::get(module.getContext(), *isl);
+    };
+
     walkValues(module, [&](Value value) {
       FailureOr<Attribute> rotomAttr =
           findAttributeAssociatedWith(value, kRotomLayoutAttrName);
@@ -40,21 +53,83 @@ struct MaterializeTensorExtLayout
       auto layout = dyn_cast<LayoutAttr>(*rotomAttr);
       if (!layout) return;
 
-      FailureOr<std::string> isl =
-          RotomTensorExtLayoutLowering::lowerToTensorExtIsl(layout);
-      if (failed(isl)) {
-        emitError(value.getLoc(),
-                  "unsupported rotom.layout for materialization");
+      FailureOr<Attribute> tensorExtLayout =
+          lowerLayout(value.getLoc(), layout);
+      if (failed(tensorExtLayout)) {
         result = failure();
         return;
       }
 
-      auto tensorExtLayout =
-          tensor_ext::LayoutAttr::get(module.getContext(), *isl);
       setAttributeAssociatedWith(value,
                                  tensor_ext::TensorExtDialect::kLayoutAttrName,
-                                 tensorExtLayout);
+                                 *tensorExtLayout);
       removeAttributeAssociatedWith(value, kRotomLayoutAttrName);
+    });
+
+    module.walk([&](func::FuncOp func) {
+      for (int64_t i = 0; i < func.getNumResults(); ++i) {
+        auto layout =
+            dyn_cast_or_null<LayoutAttr>(
+                func.getResultAttr(i, kRotomLayoutAttrName));
+        if (!layout) continue;
+
+        FailureOr<Attribute> tensorExtLayout =
+            lowerLayout(func.getLoc(), layout);
+        if (failed(tensorExtLayout)) {
+          result = failure();
+          return;
+        }
+
+        func.setResultAttr(i, tensor_ext::TensorExtDialect::kLayoutAttrName,
+                           *tensorExtLayout);
+        func.removeResultAttr(i, kRotomLayoutAttrName);
+      }
+    });
+
+    // A secret.secret function argument used as a secret.generic operand has its
+    // layout recorded on the operand annotation (setAttributeAssociatedWith
+    // routes a block-arg attribute to the enclosing op's operand), not on the
+    // function argument. The downstream type converter reads the FUNCTION
+    // argument attribute, so propagate the now-materialized operand layout onto
+    // the argument; otherwise the argument type is left unconverted and the
+    // secret.generic operand/block-argument types mismatch.
+    StringRef tensorExtLayoutName =
+        tensor_ext::TensorExtDialect::kLayoutAttrName;
+    module.walk([&](secret::GenericOp gen) {
+      for (OpOperand& operand : gen->getOpOperands()) {
+        // Only a function argument needs this propagation: the type converter
+        // rewrites a function signature from its arg attrs, but the materialized
+        // layout landed on the secret.generic operand annotation instead.
+        auto funcArg = dyn_cast<BlockArgument>(operand.get());
+        if (!funcArg ||
+            !isa<FunctionOpInterface>(funcArg.getOwner()->getParentOp())) {
+          continue;
+        }
+        BlockArgument blockArg =
+            gen.getRegion().getArgument(operand.getOperandNumber());
+        FailureOr<Attribute> operandLayout =
+            findAttributeAssociatedWith(blockArg, tensorExtLayoutName);
+        if (failed(operandLayout)) continue;
+        // Route through the shared association layer rather than hand-rolling the
+        // block-arg -> func-arg attribute storage: findAttributeAssociatedWith
+        // reads the func arg attr and setAttributeAssociatedWith writes it. The
+        // type converter consumes that arg attr exactly once, so if a second
+        // operand on the same argument needs a different layout the one converted
+        // argument type cannot satisfy both -- fail loudly instead of silently
+        // keeping the first.
+        FailureOr<Attribute> existing =
+            findAttributeAssociatedWith(funcArg, tensorExtLayoutName);
+        if (succeeded(existing)) {
+          if (*existing != *operandLayout) {
+            gen.emitError() << "function argument " << funcArg.getArgNumber()
+                            << " feeds secret.generic operands with conflicting "
+                               "materialized layouts";
+            result = failure();
+          }
+          continue;
+        }
+        setAttributeAssociatedWith(funcArg, tensorExtLayoutName, *operandLayout);
+      }
     });
 
     if (failed(result)) signalPassFailure();

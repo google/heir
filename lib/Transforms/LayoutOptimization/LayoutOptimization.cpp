@@ -468,6 +468,12 @@ static FailureOr<Cost> computeKernelCostFromDAG(KernelName kernel,
       return costModel.process(implementedKernel);
     }
 
+    case KernelName::RotomAdd:
+    case KernelName::RotomMul:
+      // These kernels are selected by Rotom layout assignment and currently
+      // have no symbolic cost model in layout-optimization.
+      return failure();
+
     case KernelName::Dot: {
       auto lhsType = dyn_cast<RankedTensorType>(op->getOperand(0).getType());
       if (!lhsType) return failure();

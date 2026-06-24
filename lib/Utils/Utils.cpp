@@ -237,6 +237,18 @@ Operation* makeAppropriatelyTypedMulOp(OpBuilder& builder, Location loc,
       OperationState(loc, addOpName, {lhs, rhs}, {lhs.getType()}, attrs));
 }
 
+Operation* makeAppropriatelyTypedSubOp(OpBuilder& builder, Location loc,
+                                       Value lhs, Value rhs,
+                                       ArrayRef<NamedAttribute> attrs) {
+  assert(lhs.getType() == rhs.getType() &&
+         "lhs and rhs must have the same type");
+  StringRef subOpName = isa<IntegerType>(getElementTypeOrSelf(lhs.getType()))
+                            ? "arith.subi"
+                            : "arith.subf";
+  return builder.create(
+      OperationState(loc, subOpName, {lhs, rhs}, {lhs.getType()}, attrs));
+}
+
 /// Returns true if and only if all types in the given values are the same.
 bool allTypesMatch(ArrayRef<Value> values) {
   Type firstType = values.front().getType();

@@ -1,5 +1,6 @@
 load("@heir//lib/Transforms:transforms.bzl", "add_heir_transforms")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -8,8 +9,14 @@ package(
 
 cc_library(
     name = "ConvertToCiphertextSemantics",
-    srcs = ["ConvertToCiphertextSemantics.cpp"],
-    hdrs = ["ConvertToCiphertextSemantics.h"],
+    srcs = [
+        "ConvertToCiphertextSemantics.cpp",
+        "RotomTensorOpLowering.cpp",
+    ],
+    hdrs = [
+        "ConvertToCiphertextSemantics.h",
+        "RotomTensorOpLowering.h",
+    ],
     deps = [
         ":AssignLayout",
         ":TypeConversion",
@@ -80,6 +87,28 @@ cc_library(
         "@llvm-project//mlir:SCFDialect",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
+    ],
+)
+
+cc_test(
+    name = "RotomPipelineExecutionTest",
+    srcs = ["RotomPipelineExecutionTest.cpp"],
+    deps = [
+        ":ConvertToCiphertextSemantics",
+        "@googletest//:gtest_main",
+        "@heir//lib/Dialect/Rotom/IR:Dialect",
+        "@heir//lib/Dialect/Rotom/Transforms:LayoutAssignment",
+        "@heir//lib/Dialect/Rotom/Transforms:MaterializeTensorExtLayout",
+        "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Dialect/TensorExt/Transforms:ImplementShiftNetwork",
+        "@heir//lib/Target/OpenFhePke:Interpreter",
+        "@heir//lib/Utils/Layout:Utils",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LinalgDialect",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
     ],
 )
 

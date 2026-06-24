@@ -20,6 +20,7 @@
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"       // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"      // from @llvm-project
@@ -233,6 +234,8 @@ void Interpreter::initializeDispatchTable() {
   REGISTER_OP(tensor::InsertSliceOp);
   REGISTER_OP(tensor::ParallelInsertSliceOp);
   REGISTER_OP(tensor::SplatOp);
+  REGISTER_OP(tensor_ext::RemapOp);
+  REGISTER_OP(tensor_ext::RotateOp);
 
 #undef REGISTER_OP
 
@@ -1518,6 +1521,104 @@ void Interpreter::visit(scf::ForallOp op) {
     BlockArgument blockArg = op.getTiedBlockArgument(opOperand);
     storeTypedValue(opResult, loadTypedValue(blockArg));
   }
+}
+
+template <typename T>
+void applyDenseRemap(tensor_ext::RemapOp op,
+                     llvm::DenseMap<Value, std::shared_ptr<std::vector<T>>>&
+                         storage) {
+  auto permutation = dyn_cast<DenseIntElementsAttr>(op.getPermutation());
+  if (!permutation) {
+    op.emitOpError() << "interpreter only supports dense tensor_ext.remap";
+    return;
+  }
+
+  auto tensorType = cast<RankedTensorType>(op.getInput().getType());
+  int64_t numCiphertexts = tensorType.getDimSize(0);
+  int64_t numSlots = tensorType.getDimSize(1);
+  auto input = storage.at(op.getInput());
+  auto result = std::make_shared<std::vector<T>>(*input);
+
+  SmallVector<int64_t> values;
+  values.reserve(permutation.getNumElements());
+  for (APInt value : permutation.getValues<APInt>()) {
+    values.push_back(value.getSExtValue());
+  }
+
+  for (size_t i = 0; i < values.size(); i += 4) {
+    int64_t sourceCt = values[i];
+    int64_t sourceSlot = values[i + 1];
+    int64_t targetCt = values[i + 2];
+    int64_t targetSlot = values[i + 3];
+    if (sourceCt < 0 || sourceCt >= numCiphertexts || targetCt < 0 ||
+        targetCt >= numCiphertexts || sourceSlot < 0 ||
+        sourceSlot >= numSlots || targetSlot < 0 || targetSlot >= numSlots) {
+      op.emitOpError() << "remap index out of bounds";
+      return;
+    }
+    (*result)[targetCt * numSlots + targetSlot] =
+        (*input)[sourceCt * numSlots + sourceSlot];
+  }
+
+  storage[op.getResult()] = result;
+}
+
+void Interpreter::visit(tensor_ext::RemapOp op) {
+  auto elementType = op.getInput().getType().getElementType();
+  if (elementType.isInteger() || elementType.isIndex()) {
+    applyDenseRemap(op, intVectors);
+    return;
+  }
+  if (elementType.isF32()) {
+    applyDenseRemap(op, floatVectors);
+    return;
+  }
+  if (elementType.isF64()) {
+    applyDenseRemap(op, doubleVectors);
+    return;
+  }
+  op.emitOpError() << "unsupported remap element type " << elementType;
+}
+
+template <typename T>
+void applyRotate(tensor_ext::RotateOp op, int64_t shift,
+                 llvm::DenseMap<Value, std::shared_ptr<std::vector<T>>>&
+                     storage) {
+  auto tensorType = cast<RankedTensorType>(op.getTensor().getType());
+  int64_t numCiphertexts = tensorType.getDimSize(0);
+  int64_t numSlots = tensorType.getDimSize(1);
+  auto input = storage.at(op.getTensor());
+  auto result = std::make_shared<std::vector<T>>(input->size());
+
+  // tensor_ext.rotate is a left-rotation of each ciphertext's slots: the
+  // output slot t holds the input slot (t + shift) mod numSlots. Negative
+  // shifts are right-rotations.
+  int64_t normalized = ((shift % numSlots) + numSlots) % numSlots;
+  for (int64_t ct = 0; ct < numCiphertexts; ++ct) {
+    for (int64_t t = 0; t < numSlots; ++t) {
+      int64_t source = (t + normalized) % numSlots;
+      (*result)[ct * numSlots + t] = (*input)[ct * numSlots + source];
+    }
+  }
+  storage[op.getResult()] = result;
+}
+
+void Interpreter::visit(tensor_ext::RotateOp op) {
+  int64_t shift = intValues.at(op.getShift());
+  auto elementType = op.getTensor().getType().getElementType();
+  if (elementType.isInteger() || elementType.isIndex()) {
+    applyRotate(op, shift, intVectors);
+    return;
+  }
+  if (elementType.isF32()) {
+    applyRotate(op, shift, floatVectors);
+    return;
+  }
+  if (elementType.isF64()) {
+    applyRotate(op, shift, doubleVectors);
+    return;
+  }
+  op.emitOpError() << "unsupported rotate element type " << elementType;
 }
 
 void Interpreter::visit(scf::IfOp op) {

@@ -9,6 +9,35 @@ package(
 )
 
 cc_library(
+    name = "LayoutAlignment",
+    srcs = ["LayoutAlignment.cpp"],
+    hdrs = ["LayoutAlignment.h"],
+    deps = [
+        ":RotomTensorExtLayoutLowering",
+        "@heir//lib/Dialect/Rotom/IR:Dialect",
+        "@heir//lib/Dialect/TensorExt/IR:TensorExtAttributes",
+        "@heir//lib/Transforms/LayoutOptimization:LayoutConversionCost",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_test(
+    name = "LayoutAlignmentTest",
+    srcs = ["LayoutAlignmentTest.cpp"],
+    deps = [
+        ":LayoutAlignment",
+        ":RotomTensorExtLayoutLowering",
+        "@googletest//:gtest_main",
+        "@heir//lib/Dialect/Rotom/IR:Dialect",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
     name = "RotomTensorExtLayoutLowering",
     srcs = ["RotomTensorExtLayoutLowering.cpp"],
     hdrs = ["RotomTensorExtLayoutLowering.h"],
@@ -29,6 +58,8 @@ cc_test(
         "@heir//lib/Dialect/Rotom/IR:Dialect",
         "@heir//lib/Utils/Layout:Evaluate",
         "@heir//lib/Utils/Layout:IslConversion",
+        "@heir//lib/Utils/Layout:Utils",
+        "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
     ],

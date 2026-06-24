@@ -1,11 +1,9 @@
 # macOS
 .DS_Store
 
-# bazel output symlinks
-bazel-bin
-bazel-heir
-bazel-out
-bazel-testlogs
+# bazel output symlinks (bazel-bin, bazel-out, bazel-testlogs, and the
+# per-workspace/worktree bazel-<dir> convenience symlink)
+/bazel-*
 
 # user-specific bazelrc
 .bazelrc.user

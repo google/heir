@@ -26,10 +26,25 @@ struct LayoutData {
   llvm::SmallVector<DimAttr> gapDims;
   llvm::SmallVector<LayoutPieceKind> pieces;
   llvm::SmallVector<int64_t> pieceIndex;
+  // pieceModBy and pieceDivBy are a piece's Rotom extent and stride (from
+  // [dim:extent:stride]), named for how the emitter consumes them: the mixed-
+  // radix digit of tensor index i is (i / pieceDivBy) mod pieceModBy. pieceModBy
+  // is 0 on the most-significant digit of an axis -- there i / pieceDivBy is
+  // already below the extent, so the modulus is redundant and dropped. A whole
+  // dim packed as one piece uses pieceModBy 0 and pieceDivBy 1 => digit == i;
+  // the same holds for non-traversal pieces.
+  llvm::SmallVector<int64_t> pieceModBy;
+  llvm::SmallVector<int64_t> pieceDivBy;
 };
 
 /// Preprocess a Rotom layout.
 FailureOr<LayoutData> preprocessLayoutAttr(LayoutAttr attr);
+
+/// Computes how many leading entries of `dims` (read left-to-right) fall on the
+/// ciphertext axis for a ciphertext of `n` slots: the prefix that does not fit
+/// into the remaining slot budget. Shared so attribute preprocessing and the
+/// layout cost utilities derive the ct/slot split identically.
+size_t inferCtPrefixLen(llvm::ArrayRef<DimAttr> dims, int64_t n);
 
 }  // namespace mlir::heir::rotom
 

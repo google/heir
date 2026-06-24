@@ -40,32 +40,45 @@ static std::string modExpr(llvm::StringRef expr, int64_t mod) {
   return out;
 }
 
+static std::string floorDivExpr(llvm::StringRef expr, int64_t d) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  os << "floor((" << expr << ") / " << d << ")";
+  return out;
+}
+
 static LogicalResult emitSegmentAddress(
     llvm::raw_ostream& os, bool& firstTerm, ArrayRef<LayoutPieceKind> pieces,
-    ArrayRef<int64_t> pieceIndex, const SmallVector<DimAttr>& traversalDims,
+    ArrayRef<int64_t> pieceIndex, ArrayRef<int64_t> pieceDivBy,
+    ArrayRef<int64_t> pieceModBy, const SmallVector<DimAttr>& traversalDims,
     const SmallVector<DimAttr>& gapDims,
     const SmallVector<DimAttr>& replicationDims,
     int64_t numActiveTraversalComponents, size_t segStart, size_t segEnd,
-    bool foldGapVarsToZero, ArrayRef<int64_t> rolls, ArrayAttr rotomDims,
-    bool isSlotLine) {
+    bool foldGapVarsToZero, ArrayRef<int64_t> rolls, ArrayAttr rotomDims) {
+  // Effective extent of a piece = the range of its mixed-radix digit: modBy when
+  // the piece reads i mod L (the slot/low part), else sz/divBy (the whole dim
+  // when divBy 1, or the ct/high part sz/L of a straddling dim).
+  auto pieceSize = [&](size_t p) -> int64_t {
+    switch (pieces[p]) {
+      case LayoutPieceKind::Traversal: {
+        int64_t sz = traversalDims[pieceIndex[p]].getSize();
+        if (pieceModBy[p] > 0) return pieceModBy[p];
+        return sz / pieceDivBy[p];
+      }
+      case LayoutPieceKind::Gap:
+        return gapDims[pieceIndex[p]].getSize();
+      case LayoutPieceKind::Replication:
+        return replicationDims[pieceIndex[p]].getSize();
+    }
+    return 1;
+  };
+
   llvm::SmallVector<int64_t> suffixCoeff(pieces.size(), 0);
   int64_t suffix = 1;
   for (size_t p = segEnd; p > segStart;) {
     --p;
     suffixCoeff[p] = suffix;
-    DimAttr d;
-    switch (pieces[p]) {
-      case LayoutPieceKind::Traversal:
-        d = traversalDims[pieceIndex[p]];
-        break;
-      case LayoutPieceKind::Gap:
-        d = gapDims[pieceIndex[p]];
-        break;
-      case LayoutPieceKind::Replication:
-        d = replicationDims[pieceIndex[p]];
-        break;
-    }
-    suffix *= d.getSize();
+    suffix *= pieceSize(p);
   }
 
   auto emitTerm = [&](int64_t coeff, llvm::StringRef expr) -> LogicalResult {
@@ -97,12 +110,21 @@ static LogicalResult emitSegmentAddress(
     }
   }
 
-  llvm::DenseMap<int64_t, int64_t> traversalCoeff;
+  // A tensor dim can contribute several pieces to one segment (a mixed-radix
+  // split places more than one digit of the same index on the same axis), so
+  // collect a list of (coeff, digit descriptor) per dim rather than one entry.
+  struct TraversalPiece {
+    int64_t coeff;
+    int64_t divBy;
+    int64_t modBy;
+  };
+  llvm::DenseMap<int64_t, llvm::SmallVector<TraversalPiece>> traversalPieces;
   for (size_t p = segStart; p < segEnd; ++p) {
     if (pieces[p] != LayoutPieceKind::Traversal) continue;
     const int64_t ti = pieceIndex[p];
     if (traversalDims[ti].getSize() == 1) continue;
-    traversalCoeff[ti] = suffixCoeff[p];
+    traversalPieces[ti].push_back(
+        {suffixCoeff[p], pieceDivBy[p], pieceModBy[p]});
   }
 
   llvm::SmallVector<std::string> traversalExprs;
@@ -113,7 +135,15 @@ static LogicalResult emitSegmentAddress(
 
   // Apply roll(a,b) transforms left-to-right:
   // t_a <- (t_a - t_b) mod extent(a).
-  if (isSlotLine && !rolls.empty()) {
+  //
+  // Rolls are applied on both the ciphertext-address line and the slot line.
+  // A roll only affects the address whose segment actually contains the rolled
+  // `from` dim (the other line's coefficient for that dim is zero, so the
+  // transformed expression is dropped by emitTerm). Applying on the ct line is
+  // what lets a roll place a diagonal on the ciphertext axis (one ciphertext
+  // per diagonal); restricting to the slot line would silently no-op such
+  // ct-side rolls.
+  if (!rolls.empty()) {
     if (!rotomDims || rolls.size() % 2 != 0) return failure();
     for (size_t i = 0; i < rolls.size(); i += 2) {
       const int64_t fromIdx = rolls[i];
@@ -142,10 +172,15 @@ static LogicalResult emitSegmentAddress(
   for (int64_t oldIdx = 0; oldIdx < static_cast<int64_t>(traversalDims.size());
        ++oldIdx) {
     if (traversalDims[oldIdx].getSize() == 1) continue;
-    auto it = traversalCoeff.find(oldIdx);
-    if (it != traversalCoeff.end()) {
-      if (failed(emitTerm(it->second, traversalExprs[oldIdx])))
-        return failure();
+    auto it = traversalPieces.find(oldIdx);
+    if (it == traversalPieces.end()) continue;
+    for (const TraversalPiece& tp : it->second) {
+      // Mixed-radix digit: (i / divBy) mod modBy (modBy 0 => no modulus). A
+      // whole-dim piece (divBy 1, modBy 0) leaves the index untouched.
+      std::string expr = traversalExprs[oldIdx];
+      if (tp.divBy > 1) expr = floorDivExpr(expr, tp.divBy);
+      if (tp.modBy > 0) expr = modExpr(expr, tp.modBy);
+      if (failed(emitTerm(tp.coeff, expr))) return failure();
     }
   }
   for (int64_t g = 0; g < static_cast<int64_t>(gapDims.size()); ++g) {
@@ -167,7 +202,8 @@ static LogicalResult emitSegmentAddress(
 
 static FailureOr<std::string> emitSplitCtSlotIsl(
     int64_t n, size_t prefix, ArrayRef<LayoutPieceKind> pieces,
-    ArrayRef<int64_t> pieceIndex, const SmallVector<DimAttr>& traversalDims,
+    ArrayRef<int64_t> pieceIndex, ArrayRef<int64_t> pieceDivBy,
+    ArrayRef<int64_t> pieceModBy, const SmallVector<DimAttr>& traversalDims,
     const SmallVector<DimAttr>& replicationDims,
     const SmallVector<DimAttr>& gapDims, int64_t numTraversalComponents,
     int64_t numReplication, int64_t numGap, ArrayRef<int64_t> rolls,
@@ -177,7 +213,10 @@ static FailureOr<std::string> emitSplitCtSlotIsl(
   int64_t numCt = 1;
   for (size_t p = 0; p < prefix; ++p) {
     if (pieces[p] == LayoutPieceKind::Traversal) {
-      numCt *= traversalDims[pieceIndex[p]].getSize();
+      int64_t sz = traversalDims[pieceIndex[p]].getSize();
+      // Effective extent of the piece (the high/ct part sz/L for a straddle).
+      sz = (pieceModBy[p] > 0) ? pieceModBy[p] : sz / pieceDivBy[p];
+      numCt *= sz;
     } else if (pieces[p] == LayoutPieceKind::Replication) {
       numCt *= replicationDims[pieceIndex[p]].getSize();
     }
@@ -231,22 +270,21 @@ static FailureOr<std::string> emitSplitCtSlotIsl(
   emitAnd();
   bool firstTerm = true;
   os << "ct = ";
-  if (failed(emitSegmentAddress(os, firstTerm, pieces, pieceIndex,
-                                traversalDims, gapDims, replicationDims,
-                                numTraversalComponents, 0, prefix,
-                                foldGapVarsToZero, rolls, rotomDims,
-                                /*isSlotLine=*/false)))
+  if (failed(emitSegmentAddress(os, firstTerm, pieces, pieceIndex, pieceDivBy,
+                                pieceModBy, traversalDims, gapDims,
+                                replicationDims, numTraversalComponents, 0,
+                                prefix, foldGapVarsToZero, rolls, rotomDims)))
     return failure();
   if (firstTerm) os << "0";
 
   emitAnd();
   firstTerm = true;
   os << "slot = ";
-  if (failed(emitSegmentAddress(os, firstTerm, pieces, pieceIndex,
-                                traversalDims, gapDims, replicationDims,
-                                numTraversalComponents, prefix, pieces.size(),
-                                foldGapVarsToZero, rolls, rotomDims,
-                                /*isSlotLine=*/true)))
+  if (failed(emitSegmentAddress(os, firstTerm, pieces, pieceIndex, pieceDivBy,
+                                pieceModBy, traversalDims, gapDims,
+                                replicationDims, numTraversalComponents, prefix,
+                                pieces.size(), foldGapVarsToZero, rolls,
+                                rotomDims)))
     return failure();
   if (firstTerm) os << "0";
 
@@ -285,8 +323,8 @@ static FailureOr<std::string> lowerToIslImpl(LayoutAttr layout) {
   ArrayRef<int64_t> rolls =
       rollsAttr ? rollsAttr.asArrayRef() : ArrayRef<int64_t>{};
   return emitSplitCtSlotIsl(
-      data.n, data.ctPrefixLen, data.pieces, data.pieceIndex,
-      data.traversalDims, data.replicationDims, data.gapDims,
+      data.n, data.ctPrefixLen, data.pieces, data.pieceIndex, data.pieceDivBy,
+      data.pieceModBy, data.traversalDims, data.replicationDims, data.gapDims,
       numTraversalComponents, numReplication, numGap, rolls, layout.getDims());
 }
 
