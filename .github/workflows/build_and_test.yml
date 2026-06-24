@@ -69,4 +69,4 @@ jobs:
 
       - name: Run Python frontend tests
         run: |
-          pytest frontend/
+          pytest -n auto frontend/

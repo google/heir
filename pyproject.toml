@@ -66,6 +66,7 @@ dev = [
   "setuptools>=80.9.0",
   "cibuildwheel>=4.0.0 ; python_version >= '3.11'",
   "pytest",
+  "pytest-xdist",
 ]
 
 # For `uv sync` (which includes `dev` by default) or / `pip install --group dev`.
