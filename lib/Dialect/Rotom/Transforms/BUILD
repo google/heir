@@ -23,6 +23,7 @@ cc_library(
         "LayoutAssignment/CostModel.cpp",
         "LayoutAssignment/DimMaps.cpp",
         "LayoutAssignment/LayoutAssignment.cpp",
+        "LayoutAssignment/ValueUtils.cpp",
     ],
     hdrs = [
         "LayoutAssignment/AssignmentContext.h",
@@ -30,6 +31,7 @@ cc_library(
         "LayoutAssignment/CostModel.h",
         "LayoutAssignment/DimMaps.h",
         "LayoutAssignment/LayoutAssignment.h",
+        "LayoutAssignment/ValueUtils.h",
     ],
     deps = [
         ":layout_assignment_pass_inc_gen",

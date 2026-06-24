@@ -14,6 +14,7 @@
 #include "lib/Dialect/Rotom/Transforms/LayoutAssignment/Candidate.h"
 #include "lib/Dialect/Rotom/Transforms/LayoutAssignment/CostModel.h"
 #include "lib/Dialect/Rotom/Transforms/LayoutAssignment/DimMaps.h"
+#include "lib/Dialect/Rotom/Transforms/LayoutAssignment/ValueUtils.h"
 #include "lib/Dialect/Rotom/Utils/LayoutAlignment.h"
 #include "lib/Dialect/Rotom/Utils/RotomTensorExtLayoutLowering.h"
 #include "lib/Dialect/Secret/IR/SecretAttributes.h"
@@ -60,36 +61,6 @@ constexpr llvm::StringLiteral kRotomLayoutAttrName = "rotom.layout";
 
 #define GEN_PASS_DEF_LAYOUTASSIGNMENT
 #include "lib/Dialect/Rotom/Transforms/LayoutAssignment/LayoutAssignment.h.inc"
-
-static Type getPlainValueType(Type type) {
-  if (auto secretType = dyn_cast<secret::SecretType>(type)) {
-    return secretType.getValueType();
-  }
-  return type;
-}
-
-static bool isTensorLike(Value value) {
-  return isa<RankedTensorType>(getPlainValueType(value.getType()));
-}
-
-static bool isLayoutCompatibleWithValue(LayoutAttr layout, Value value) {
-  auto type = dyn_cast<RankedTensorType>(getPlainValueType(value.getType()));
-  if (!type) return false;
-
-  int64_t rank = type.getRank();
-  for (Attribute attr : layout.getDims()) {
-    auto dim = cast<DimAttr>(attr);
-    if (dim.isGap() || dim.isReplicate()) continue;
-    int64_t dimIndex = dim.getDim();
-    if (dimIndex >= rank) return false;
-    int64_t typeDimSize = type.getDimSize(dimIndex);
-    if (typeDimSize == ShapedType::kDynamic) continue;
-    if (typeDimSize <= 0) continue;
-    int64_t paddedDimSize = nextPowerOfTwo(typeDimSize);
-    if (dim.getSize() * dim.getStride() > paddedDimSize) return false;
-  }
-  return true;
-}
 
 static bool isElementwiseGeneric(linalg::GenericOp op) {
   for (AffineMap map : op.getIndexingMapsArray()) {
