@@ -364,17 +364,26 @@ void UnrollAndForwardPass::runOnOperation() {
     mlir::affine::getPerfectlyNestedLoops(nestedLoops, root);
     nestedLoops[0].getBody(0)->walk<WalkOrder::PostOrder>(
         [&](AffineForOp forOp) {
-          auto unrollFactor =
-              mlir::affine::getConstantTripCount(forOp).value_or(
-                  std::numeric_limits<int>::max());
+          auto tripCount = forOp.getStaticTripCount();
+          int64_t unrollFactor;
+          if (tripCount.has_value()) {
+            unrollFactor = tripCount->getSExtValue();
+          } else {
+            unrollFactor = std::numeric_limits<int>::max();
+          }
           if (failed(loopUnrollUpToFactor(forOp, unrollFactor))) {
             return WalkResult::skip();
           }
           return WalkResult::advance();
         });
 
-    auto unrollFactor = mlir::affine::getConstantTripCount(root).value_or(
-        std::numeric_limits<int>::max());
+    auto rootTripCount = root.getStaticTripCount();
+    int64_t unrollFactor;
+    if (rootTripCount.has_value()) {
+      unrollFactor = rootTripCount->getSExtValue();
+    } else {
+      unrollFactor = std::numeric_limits<int>::max();
+    }
     if (failed(loopUnrollUpToFactor(root, unrollFactor))) {
       return signalPassFailure();
     }
