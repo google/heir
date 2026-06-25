@@ -25,9 +25,9 @@ def SplitPreprocessing : Pass<"split-preprocessing", "mlir::ModuleOp"> {
 
     (* example filepath=tests/Transforms/split_preprocessing/split_preprocessing.mlir *)
   }];
-  let options = [
-    Option<"maxReturnValues", "max-return-values", "int", /*default=*/"8", "Use "
-    "this to restrict the maximum return values of the preprocessing function.">,
+  let dependentDialects = [
+    "mlir::heir::preprocessing::PreprocessingDialect",
+    "mlir::func::FuncDialect"
   ];
 }
 

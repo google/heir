@@ -3,19 +3,19 @@
 // CHECK-DAG: ![[pt:.*]] = !lwe.lwe_plaintext
 // CHECK-DAG: ![[ct_L1:.*]] = !lwe.lwe_ciphertext
 
-// CHECK: func.func @hoist_one_assign__preprocessing() -> tensor<1x![[pt]]>
+// CHECK: func.func @hoist_one_assign__preprocessing() -> !preprocessing.storage<!pt>
 // CHECK-SAME: client.pack_func = {func_name = "hoist_one_assign"}
 
-// CHECK: func.func @hoist_one_assign__preprocessed(%[[ct:.*]]: ![[ct_L1]], %[[arg0:.*]]: tensor<1x![[pt]]>) -> ![[ct_L1]]
+// CHECK: func.func @hoist_one_assign__preprocessed(%[[ct:.*]]: ![[ct_L1]], %[[arg0:.*]]: !preprocessing.storage<!pt>) -> ![[ct_L1]]
 // CHECK-SAME: client.preprocessed_func = {func_name = "hoist_one_assign"}
-// CHECK: %[[extracted:.*]] = tensor.extract %[[arg0]]
-// CHECK: %[[CT_0:.*]] = ckks.add_plain %ct, %[[extracted]]
+// CHECK: %[[LOAD:.*]] = preprocessing.load %[[arg0]][] site 0
+// CHECK: %[[CT_0:.*]] = ckks.add_plain %ct, %[[LOAD]]
 // CHECK: return %[[CT_0]] : ![[ct_L1]]
 
 // CHECK: func.func @hoist_one_assign
 // CHECK-SAME: (%[[CT:.*]]: ![[ct_L1]]
-// CHECK-NEXT:   %[[PT:.*]] = call @hoist_one_assign__preprocessing
-// CHECK-NEXT:   %[[CALL:.*]] = call @hoist_one_assign__preprocessed(%[[CT]], %[[PT]])
+// CHECK-NEXT:   %[[STORAGE:.*]] = call @hoist_one_assign__preprocessing()
+// CHECK-NEXT:   %[[CALL:.*]] = call @hoist_one_assign__preprocessed(%[[CT]], %[[STORAGE]])
 // CHECK-NEXT:   return %[[CALL]]
 // CHECK-NEXT: }
 

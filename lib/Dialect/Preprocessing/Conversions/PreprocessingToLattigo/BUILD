@@ -16,6 +16,7 @@ cc_library(
         "@heir//lib/Dialect/Lattigo/IR:Dialect",
         "@heir//lib/Dialect/Preprocessing/Conversions:Util",
         "@heir//lib/Dialect/Preprocessing/IR:Dialect",
+        "@heir//lib/Utils",
         "@heir//lib/Utils:ConversionUtils",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:ArithDialect",

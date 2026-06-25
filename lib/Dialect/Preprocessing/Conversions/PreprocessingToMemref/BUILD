@@ -15,6 +15,7 @@ cc_library(
         "@heir//lib/Analysis/PreprocessingStorageLayoutAnalysis",
         "@heir//lib/Dialect/Preprocessing/Conversions:Util",
         "@heir//lib/Dialect/Preprocessing/IR:Dialect",
+        "@heir//lib/Utils",
         "@heir//lib/Utils:ConversionUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineAnalysis",

@@ -6,15 +6,15 @@
 // CHECK-DAG: ![[pt:.*]] = !lwe.lwe_plaintext
 // CHECK-DAG: ![[ct_L2:.*]] = !lwe.lwe_ciphertext
 
-// CHECK: func.func @region__preprocessing() -> tensor<1x![[pt]]>
-// CHECK: %[[cst:.*]] arith.constant dense_resource
+// CHECK: func.func @region__preprocessing() -> !preprocessing.storage<!pt>
+// CHECK: %[[cst:.*]] = arith.constant dense_resource
 // CHECK: affine.for
 // CHECK: call @_assign_layout
 // CHECK: return
 
 // CHECK: func.func @region__preprocessed(
 // CHECK-SAME: %[[arg0:.*]]: tensor<1x![[ct_L2]]>,
-// CHECK-SAME: %[[pt0:.*]]: tensor<1x![[pt]]>)
+// CHECK-SAME: %[[STORAGE:.*]]: !preprocessing.storage<!pt>)
 
 !Z35184371138561_i64 = !mod_arith.int<35184371138561 : i64>
 !Z35184372121601_i64 = !mod_arith.int<35184372121601 : i64>

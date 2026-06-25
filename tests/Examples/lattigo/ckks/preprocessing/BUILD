@@ -8,7 +8,7 @@ heir_lattigo_lib(
     go_library_name = "matvec",
     heir_opt_flags = [
         "--annotate-module=scheme=ckks backend=lattigo",
-        "--torch-linalg-to-ckks=split-preprocessing=2",
+        "--torch-linalg-to-ckks",
         "--scheme-to-lattigo",
     ],
     mlir_src = "matvec.mlir",

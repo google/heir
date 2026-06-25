@@ -200,11 +200,15 @@ LogicalResult LattigoEmitter::printOperation(func::FuncOp funcOp) {
   // name and arg
   std::string funcName = funcOp.getName().str();
   if (funcOp->hasAttr(kClientPackFuncAttrName)) {
-    if (!funcName.empty() && funcFilter && funcFilter(funcOp) &&
-        std::islower(funcName[0])) {
-      // Upper case this only if we are emitting it in a filtered file so it
-      // needs exporting.
-      funcName[0] = std::toupper(funcName[0]);
+    if (!funcName.empty() && funcFilter && funcFilter(funcOp)) {
+      while (funcName[0] == '_') {
+        funcName.erase(0, 1);
+      }
+      if (std::islower(funcName[0])) {
+        // Upper case this only if we are emitting it in a filtered file so it
+        // needs exporting.
+        funcName[0] = std::toupper(funcName[0]);
+      }
     }
   }
   os << "func " << funcName << "(";
@@ -286,11 +290,16 @@ LogicalResult LattigoEmitter::printOperation(func::CallOp op) {
   auto moduleOp = op->getParentOfType<ModuleOp>();
   auto calleeOp = moduleOp.lookupSymbol<func::FuncOp>(callee);
   std::string calleeName = canonicalizeDebugPort(callee).str();
-  if (calleeOp && funcFilter && !funcFilter(calleeOp)) {
-    if (calleeOp->hasAttr(kClientPackFuncAttrName)) {
-      if (!calleeName.empty() && std::islower(calleeName[0])) {
+  if (calleeOp && calleeOp->hasAttr(kClientPackFuncAttrName)) {
+    if (funcFilter && !calleeName.empty()) {
+      while (calleeName[0] == '_') {
+        calleeName.erase(0, 1);
+      }
+      if (std::islower(calleeName[0])) {
         calleeName[0] = std::toupper(calleeName[0]);
       }
+    }
+    if (funcFilter && !funcFilter(calleeOp)) {
       calleeName = packageName + "_utils." + calleeName;
       extraImportsUsed = true;
     }

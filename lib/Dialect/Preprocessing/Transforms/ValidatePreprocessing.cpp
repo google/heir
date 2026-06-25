@@ -6,12 +6,13 @@
 
 #include "lib/Dialect/Preprocessing/IR/PreprocessingOps.h"
 #include "lib/Dialect/Preprocessing/IR/PreprocessingTypes.h"
-#include "llvm/include/llvm/ADT/ArrayRef.h"     // from @llvm-project
-#include "llvm/include/llvm/ADT/DenseMap.h"     // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Diagnostics.h"   // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"      // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"     // from @llvm-project
+#include "llvm/include/llvm/ADT/ArrayRef.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseMap.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"          // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Diagnostics.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -25,29 +26,35 @@ struct ValidatePreprocessing
   using ValidatePreprocessingBase::ValidatePreprocessingBase;
 
   void runOnOperation() override {
-    SmallVector<EmptyOp, 2> emptyOps;
+    Operation* module = getOperation();
+
+    bool hasMultipleEmpties = false;
+    module->walk([&](func::FuncOp funcOp) {
+      SmallVector<EmptyOp> emptyOps(funcOp.getOps<EmptyOp>());
+      if (emptyOps.size() > 1) {
+        for (size_t i = 1; i < emptyOps.size(); ++i) {
+          auto diag =
+              emptyOps[i]->emitOpError()
+              << "more than one preprocessing.empty allocation in function";
+          diag.attachNote(emptyOps[0]->getLoc()) << "previous allocation here";
+        }
+        hasMultipleEmpties = true;
+      }
+    });
+    if (hasMultipleEmpties) {
+      signalPassFailure();
+    }
+
     DenseMap<uint32_t, SmallVector<StoreOp, 2>> storesBySite;
     DenseMap<uint32_t, SmallVector<LoadOp, 2>> loadsBySite;
 
-    getOperation()->walk([&](Operation* op) {
-      if (auto emptyOp = dyn_cast<EmptyOp>(op)) {
-        emptyOps.push_back(emptyOp);
-      } else if (auto storeOp = dyn_cast<StoreOp>(op)) {
+    module->walk([&](Operation* op) {
+      if (auto storeOp = dyn_cast<StoreOp>(op)) {
         storesBySite[storeOp.getSiteId()].push_back(storeOp);
       } else if (auto loadOp = dyn_cast<LoadOp>(op)) {
         loadsBySite[loadOp.getSiteId()].push_back(loadOp);
       }
     });
-
-    if (emptyOps.size() > 1) {
-      for (size_t i = 1; i < emptyOps.size(); ++i) {
-        auto diag = emptyOps[i]->emitOpError()
-                    << "more than one preprocessing.empty allocation in module";
-        diag.attachNote(emptyOps[0]->getLoc()) << "previous allocation here";
-      }
-      signalPassFailure();
-      // Do NOT return, continue to site pairing checks
-    }
 
     std::set<uint32_t> siteIds;
     for (const auto& [siteId, stores] : storesBySite) {

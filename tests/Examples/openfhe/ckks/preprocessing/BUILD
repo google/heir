@@ -10,7 +10,7 @@ openfhe_lib(
     generated_lib_header = "mnist_openfhe_lib.inc.h",
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=ckks",
-        "--torch-linalg-to-ckks=ciphertext-degree=1024 split-preprocessing=8",
+        "--torch-linalg-to-ckks=ciphertext-degree=1024",
         "--scheme-to-openfhe",
     ],
     mlir_src = "@heir//tests/Examples/common/mnist:mnist.mlir",

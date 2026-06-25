@@ -9,7 +9,7 @@ heir_lattigo_lib(
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=ckks",
         "--linalg-canonicalizations",
-        "--torch-linalg-to-ckks=ciphertext-degree=2048 split-preprocessing=1",
+        "--torch-linalg-to-ckks=ciphertext-degree=2048",
         "--scheme-to-lattigo",
     ],
     mlir_src = "@heir//tests/Examples/common:batchnorm1d.mlir",

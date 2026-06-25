@@ -4,10 +4,10 @@
 // is duplicated.
 
 // CHECK: func.func @constant__preprocessing
-// CHECK-NEXT: arith.constant 0 : index
+// CHECK: arith.constant 0 : index
 
 // CHECK: func.func @constant__preprocessed
-// CHECK-NEXT: arith.constant 0 : index
+// CHECK: arith.constant 0 : index
 
 !Z35184372121601_i64 = !mod_arith.int<35184372121601 : i64>
 !Z36028797018652673_i64 = !mod_arith.int<36028797018652673 : i64>

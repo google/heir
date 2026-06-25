@@ -34,11 +34,11 @@ func TestMatvecSplit(t *testing.T) {
 	ct0 := matvec__encrypt__arg0(evaluator, params, ecd, enc, arg0)
 
 	// Call preprocessing separately
-	v2, v3 := matvec_utils.Matvec__preprocessing(params, ecd, arg0)
+	storage := matvec_utils.Matvec__preprocessing(params, ecd, arg0)
 
 	startTime := time.Now()
 	// Call preprocessed function separately
-	resultCt := matvec__preprocessed(evaluator, params, ecd, ct0, v2, v3)
+	resultCt := matvec__preprocessed(evaluator, params, ecd, ct0, arg0, storage)
 	duration := time.Since(startTime)
 	fmt.Printf("matvec__preprocessed call took: %v\n", duration)
 

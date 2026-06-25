@@ -27,7 +27,7 @@ openfhe_interpreter_test(
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=ckks",
         # Split preprocessing is not supported with the openfhe interpreter backend
-        "--torch-linalg-to-ckks=ciphertext-degree=8192 split-preprocessing=0",
+        "--torch-linalg-to-ckks=ciphertext-degree=8192 enable-split-preprocessing=false",
         "--scheme-to-openfhe",
         "--inline",
     ],

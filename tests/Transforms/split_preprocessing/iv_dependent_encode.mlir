@@ -1,8 +1,10 @@
-// RUN: heir-opt %s --split-preprocessing='max-return-values=16' | FileCheck %s
-// TODO(#2960): remove XFAIL and update test appropriately
-// XFAIL: *
-
-// CHECK: func.func @zip_matvec__preprocessing
+// RUN: heir-opt %s --split-preprocessing | FileCheck %s
+// CHECK:     func.func @zip_matvec__preprocessing() -> !preprocessing.storage<!pt>
+// CHECK:       %[[STORAGE:.*]] = preprocessing.empty
+// CHECK:       scf.for
+// CHECK:         %[[PT:.*]] = lwe.rlwe_encode
+// CHECK:         preprocessing.store %[[PT]], %[[STORAGE]][%{{.*}}] site 0<!pt> : !pt, <!pt>
+// CHECK:       return %[[STORAGE]]
 
 !Z35184371138561_i64 = !mod_arith.int<35184371138561 : i64>
 !Z35184372121601_i64 = !mod_arith.int<35184372121601 : i64>

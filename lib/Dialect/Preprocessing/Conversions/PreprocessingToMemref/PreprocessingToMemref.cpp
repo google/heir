@@ -13,6 +13,7 @@
 #include "lib/Dialect/Preprocessing/IR/PreprocessingOps.h"
 #include "lib/Dialect/Preprocessing/IR/PreprocessingTypes.h"
 #include "lib/Utils/ConversionUtils.h"
+#include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Analysis/LoopAnalysis.h"  // from @llvm-project
@@ -213,6 +214,10 @@ struct PreprocessingToMemref
     : impl::PreprocessingToMemrefBase<PreprocessingToMemref> {
   void runOnOperation() override {
     ModuleOp module = getOperation();
+
+    if (!containsDialects<PreprocessingDialect>(module)) {
+      return;
+    }
 
     PreprocessingStorageLayoutAnalysis analysis(module);
     if (!analysis.isValid()) {

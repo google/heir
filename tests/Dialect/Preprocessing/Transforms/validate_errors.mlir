@@ -3,7 +3,7 @@
 func.func @multiple_allocations() {
   // expected-note@+1 {{previous allocation here}}
   %storage1 = preprocessing.empty : !preprocessing.storage<i32>
-  // expected-error@+1 {{more than one preprocessing.empty allocation in module}}
+  // expected-error@+1 {{more than one preprocessing.empty allocation in function}}
   %storage2 = preprocessing.empty : !preprocessing.storage<i32>
   return
 }
@@ -119,5 +119,18 @@ func.func @mismatched_storage_type(%arg0: i32, %arg1: index, %storage1: !preproc
   preprocessing.store %arg0, %storage1[%arg1] site 0 <i32> : i32, !preprocessing.storage<i32>
   // expected-note@+1 {{corresponding load here}}
   %res = preprocessing.load %storage2[%arg1] site 0 <i32> : !preprocessing.storage<i32, f32>, i32
+  return
+}
+
+// -----
+
+// Multiple allocations are allowed if they are in different functions.
+func.func @multiple_allocations_ok_1() {
+  %storage = preprocessing.empty : !preprocessing.storage<i32>
+  return
+}
+
+func.func @multiple_allocations_ok_2() {
+  %storage = preprocessing.empty : !preprocessing.storage<i32>
   return
 }

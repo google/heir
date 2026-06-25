@@ -103,11 +103,11 @@ struct MlirToRLWEPipelineOptions : public LoopOptions {
       llvm::cl::desc("File name to import execution result from (c.f. --secret-"
                      "import-execution-result)"),
       llvm::cl::init("")};
-  PassOptions::Option<int> splitPreprocessing{
-      *this, "split-preprocessing",
-      llvm::cl::desc("Split preprocessing into separate function with N return "
-                     "values (default to no split)"),
-      llvm::cl::init(16)};
+  PassOptions::Option<bool> enableSplitPreprocessing{
+      *this, "enable-split-preprocessing",
+      llvm::cl::desc(
+          "Split server-side plaintext preprocessing into a separate function"),
+      llvm::cl::init(true)};
 };
 
 struct PlaintextBackendOptions

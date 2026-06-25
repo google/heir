@@ -6,18 +6,19 @@
 // CHECK-DAG: ![[pt:.*]] = !lwe.lwe_plaintext
 // CHECK-DAG: ![[ct_L1:.*]] = !lwe.lwe_ciphertext
 
-// CHECK: func.func @multiple__preprocessing(%[[arg0:.*]]: tensor<2x1024xf32>) -> (tensor<1x![[pt]]>, tensor<1x![[pt]]>)
+// CHECK: func.func @multiple__preprocessing(%[[arg0:.*]]: tensor<2x1024xf32>) -> !preprocessing.storage<!pt>
 // CHECK-SAME: client.pack_func = {func_name = "multiple"}
+// CHECK: %[[STORAGE:.*]] = preprocessing.empty
 // CHECK-COUNT-2: lwe.rlwe_encode
 
-// CHECK: func.func @multiple__preprocessed(%[[ct:.*]]: ![[ct_L1]], %[[arg0:.*]]: tensor<1x![[pt]]>, %[[arg1:.*]]: tensor<1x![[pt]]>) -> ![[ct_L1]]
+// CHECK: func.func @multiple__preprocessed(%[[ct:.*]]: ![[ct_L1]], %[[arg0:.*]]: tensor<2x1024xf32>, %[[STORAGE:.*]]: !preprocessing.storage<!pt>) -> ![[ct_L1]]
 // CHECK-SAME: client.preprocessed_func = {func_name = "multiple"}
 
 // CHECK: func.func @multiple
 // CHECK-SAME: (%[[CT:.*]]: ![[ct_L1]],
 // CHECK-SAME: %[[ARG0:.*]]: tensor<2x1024xf32>)
-// CHECK-NEXT:   %[[PT:.*]]:2 = call @multiple__preprocessing(%[[ARG0]])
-// CHECK-NEXT:   %[[CALL:.*]] = call @multiple__preprocessed(%[[CT]], %[[PT]]#0, %[[PT]]#1) : (![[ct_L1]], tensor<1x![[pt]]>, tensor<1x![[pt]]>) -> ![[ct_L1]]
+// CHECK-NEXT:   %[[STORAGE:.*]] = call @multiple__preprocessing(%[[ARG0]])
+// CHECK-NEXT:   %[[CALL:.*]] = call @multiple__preprocessed(%[[CT]], %[[ARG0]], %[[STORAGE]])
 // CHECK-NEXT:   return %[[CALL]]
 // CHECK-NEXT: }
 

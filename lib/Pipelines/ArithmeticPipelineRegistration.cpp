@@ -16,6 +16,9 @@
 #include "lib/Dialect/Openfhe/Transforms/ConfigureCryptoContext.h"
 #include "lib/Dialect/Openfhe/Transforms/CountAddAndKeySwitch.h"
 #include "lib/Dialect/Openfhe/Transforms/FastRotationPrecompute.h"
+#include "lib/Dialect/Preprocessing/Conversions/PreprocessingToLattigo/PreprocessingToLattigo.h"
+#include "lib/Dialect/Preprocessing/Conversions/PreprocessingToOpenfhe/PreprocessingToOpenfhe.h"
+#include "lib/Dialect/Preprocessing/Transforms/ValidatePreprocessing.h"
 #include "lib/Dialect/Secret/Conversions/SecretToBGV/SecretToBGV.h"
 #include "lib/Dialect/Secret/Conversions/SecretToCKKS/SecretToCKKS.h"
 #include "lib/Dialect/Secret/Conversions/SecretToModArith/SecretToModArith.h"
@@ -142,6 +145,8 @@ void cleanupAfterLowerAssignLayout(OpPassManager& pm) {
   pm.addPass(createCSEPass());
   pm.addPass(createRemoveDeadValuesPass());
   pm.addPass(createSymbolDCEPass());
+  pm.addPass(createCanonicalizerPass());
+  pm.addPass(createCSEPass());
 }
 
 // Implement layout conversions as shift networks
@@ -423,9 +428,10 @@ void mlirToRLWEPipeline(OpPassManager& pm,
   pm.addPass(lwe::createImplementTrivialEncryptionAsAddition());
 
   // Add a __preprocessed helper for offline pre-packing of plaintexts
-  auto splitPreprocessingOptions = SplitPreprocessingOptions{};
-  splitPreprocessingOptions.maxReturnValues = options.splitPreprocessing;
-  pm.addPass(createSplitPreprocessing(splitPreprocessingOptions));
+  if (options.enableSplitPreprocessing) {
+    pm.addPass(createSplitPreprocessing());
+    pm.addPass(preprocessing::createValidatePreprocessing());
+  }
 
   ElementwiseToAffineOptions elementwiseOptions;
   elementwiseOptions.convertDialects = {"ckks", "bgv", "lwe"};
@@ -471,6 +477,7 @@ BackendPipelineBuilder toOpenFhePipelineBuilder() {
 
     // Convert LWE (and scheme-specific CKKS/BGV ops) to OpenFHE
     pm.addPass(lwe::createLWEToOpenfhe());
+    pm.addPass(preprocessing::createPreprocessingToOpenfhe());
     pm.addPass(createCanonicalizerPass());
     pm.addPass(createCSEPass());
 
@@ -513,6 +520,7 @@ BackendPipelineBuilder toLattigoPipelineBuilder() {
 
     // Convert LWE (and scheme-specific BGV ops) to Lattigo
     pm.addPass(lwe::createLWEToLattigo());
+    pm.addPass(preprocessing::createPreprocessingToLattigo());
 
     // Convert Alloc Ops to InPlace Ops
     pm.addPass(lattigo::createAllocToInPlace());
@@ -567,7 +575,7 @@ void torchLinalgToCkksBuilder(OpPassManager& manager,
   suboptions.ckksBootstrapWaterline = options.ckksBootstrapWaterline;
   suboptions.scalingModBits = options.scalingModBits;
   suboptions.firstModBits = options.firstModBits;
-  suboptions.splitPreprocessing = options.splitPreprocessing;
+  suboptions.enableSplitPreprocessing = options.enableSplitPreprocessing;
   suboptions.experimentalDisableLoopUnroll =
       options.experimentalDisableLoopUnroll;
   suboptions.usePublicKey = options.usePublicKey;

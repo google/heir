@@ -8,6 +8,7 @@
 #include "lib/Dialect/Preprocessing/Conversions/Util.h"
 #include "lib/Dialect/Preprocessing/IR/PreprocessingDialect.h"
 #include "lib/Utils/ConversionUtils.h"
+#include "lib/Utils/Utils.h"
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
@@ -30,6 +31,10 @@ struct PreprocessingToLattigo
     : impl::PreprocessingToLattigoBase<PreprocessingToLattigo> {
   void runOnOperation() override {
     ModuleOp module = getOperation();
+
+    if (!containsDialects<PreprocessingDialect>(module)) {
+      return;
+    }
 
     PreprocessingStorageLayoutAnalysis analysis(module);
     if (!analysis.isValid()) {

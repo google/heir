@@ -8,7 +8,7 @@ heir_lattigo_lib(
     go_library_name = "pooling1d",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=ckks",
-        "--torch-linalg-to-ckks=ciphertext-degree=4096 scaling-mod-bits=55 first-mod-bits=60 split-preprocessing=1",
+        "--torch-linalg-to-ckks=ciphertext-degree=4096 scaling-mod-bits=55 first-mod-bits=60",
         "--scheme-to-lattigo",
     ],
     mlir_src = "pooling1d.mlir",

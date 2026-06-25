@@ -1,14 +1,20 @@
-// RUN: heir-opt --annotate-module="backend=lattigo" --mlir-to-bgv=split-preprocessing=0 %s | FileCheck %s
+// RUN: heir-opt --annotate-module="backend=lattigo" --mlir-to-bgv=enable-split-preprocessing %s | FileCheck %s
 
-// CHECK: @hamming
+// CHECK: @hamming__preprocessing
+// CHECK: lwe.rlwe_encode
+
+// CHECK: @hamming__preprocessed
 // CHECK: bgv.sub
 // CHECK: bgv.mul
 // CHECK: bgv.relinearize
 // CHECK-COUNT-10: bgv.rotate_cols
 // CHECK: bgv.modulus_switch
-// CHECK: lwe.rlwe_encode
 // CHECK: bgv.mul_plain
 // CHECK: bgv.modulus_switch
+
+// CHECK: @hamming
+// CHECK: call @hamming__preprocessing
+// CHECK: call @hamming__preprocessed
 // CHECK: return
 
 func.func @hamming(%arg0: !secret.secret<tensor<1024xi16>>, %arg1: !secret.secret<tensor<1024xi16>>) -> !secret.secret<i16> {

@@ -14,7 +14,7 @@ class Preprocessing_Op<string mnemonic, list<Trait> traits = []> :
   let cppNamespace = "::mlir::heir::preprocessing";
 }
 
-def Preprocessing_EmptyOp : Preprocessing_Op<"empty"> {
+def Preprocessing_EmptyOp : Preprocessing_Op<"empty", [MemoryEffectsOpInterface]> {
   let summary = "Allocate an empty preprocessing storage";
   let description = [{
     This op creates a new `preprocessing.storage` value with an undetermined size.
@@ -23,7 +23,7 @@ def Preprocessing_EmptyOp : Preprocessing_Op<"empty"> {
   let assemblyFormat = "attr-dict `:` type($storage)";
 }
 
-def Preprocessing_StoreOp : Preprocessing_Op<"store"> {
+def Preprocessing_StoreOp : Preprocessing_Op<"store", [MemoryEffectsOpInterface]> {
   let summary = "Store a value to preprocessing storage at given indices and site_id";
   let description = [{
     This op stores a value into a `preprocessing.storage`, while tracking:
@@ -49,7 +49,7 @@ def Preprocessing_StoreOp : Preprocessing_Op<"store"> {
   let assemblyFormat = "$value `,` $storage `[` $indices `]` `site` $site_id `<` $element_type `>` attr-dict `:` type($value) `,` type($storage)";
 }
 
-def Preprocessing_LoadOp : Preprocessing_Op<"load"> {
+def Preprocessing_LoadOp : Preprocessing_Op<"load", [MemoryEffectsOpInterface]> {
   let summary = "Load a value from preprocessing storage at given indices and site_id";
   let description = [{
     This op loads a value from a `preprocessing.storage`, while tracking:

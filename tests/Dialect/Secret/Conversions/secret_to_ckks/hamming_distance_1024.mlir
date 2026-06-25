@@ -1,14 +1,20 @@
-// RUN: heir-opt --annotate-module="backend=lattigo" --mlir-to-ckks=split-preprocessing=0 %s | FileCheck %s
+// RUN: heir-opt --annotate-module="backend=lattigo" --mlir-to-ckks=enable-split-preprocessing %s | FileCheck %s
 
-// CHECK: @hamming
+// CHECK: @hamming__preprocessing
+// CHECK: lwe.rlwe_encode
+
+// CHECK: @hamming__preprocessed
 // CHECK: ckks.sub
 // CHECK: ckks.mul
 // CHECK: ckks.relinearize
 // CHECK-COUNT-10: ckks.rotate
 // CHECK: ckks.rescale
-// CHECK: lwe.rlwe_encode
 // CHECK: ckks.mul_plain
 // CHECK: ckks.rescale
+
+// CHECK: @hamming
+// CHECK: call @hamming__preprocessing
+// CHECK: call @hamming__preprocessed
 // CHECK: return
 
 func.func @hamming(%arg0: !secret.secret<tensor<1024xi16>>, %arg1: !secret.secret<tensor<1024xi16>>) -> !secret.secret<i16> {

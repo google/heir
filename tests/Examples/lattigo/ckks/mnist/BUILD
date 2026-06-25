@@ -8,8 +8,8 @@ heir_lattigo_lib(
     go_library_name = "mnist",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=ckks",
-        # TODO(#2960): remove split-preprocessing=0 once split-preprocessing handles loops
-        "--torch-linalg-to-ckks=ciphertext-degree=1024 modulus-switch-after-mul=true experimental-disable-loop-unroll=true level-budget=40 first-mod-bits=55 split-preprocessing=0",
+        # TODO(#2960): remove enable-split-preprocessing=false once split-preprocessing handles loops
+        "--torch-linalg-to-ckks=ciphertext-degree=1024 modulus-switch-after-mul=true experimental-disable-loop-unroll=true level-budget=40 first-mod-bits=55 enable-split-preprocessing=false",
         "--scheme-to-lattigo",
     ],
     mlir_src = "@heir//tests/Examples/common/mnist:mnist.mlir",

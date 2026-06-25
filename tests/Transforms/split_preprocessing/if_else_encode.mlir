@@ -1,8 +1,13 @@
-// RUN: heir-opt %s --split-preprocessing='max-return-values=16' | FileCheck %s
-// TODO(#2960): remove XFAIL and update test appropriately
-// XFAIL: *
-
-// CHECK: func.func @if_else_encode__preprocessing
+// RUN: heir-opt %s --split-preprocessing | FileCheck %s
+// CHECK:     func.func @if_else_encode__preprocessing(
+// CHECK:       %[[STORAGE:.*]] = preprocessing.empty
+// CHECK:       scf.if
+// CHECK:         %[[PT1:.*]] = lwe.rlwe_encode
+// CHECK:         preprocessing.store %[[PT1]], %[[STORAGE]][] site 0
+// CHECK:       else
+// CHECK:         %[[PT2:.*]] = lwe.rlwe_encode
+// CHECK:         preprocessing.store %[[PT2]], %[[STORAGE]][] site 1
+// CHECK:       return %[[STORAGE]]
 
 !Z35184371138561_i64 = !mod_arith.int<35184371138561 : i64>
 !Z35184372121601_i64 = !mod_arith.int<35184372121601 : i64>

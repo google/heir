@@ -1,18 +1,17 @@
 #include "lib/Transforms/SplitPreprocessing/SplitPreprocessing.h"
 
+#include <algorithm>
 #include <cassert>
-#include <memory>
+#include <cstdint>
 
-#include "lib/Dialect/LWE/IR/LWEOps.h"
+#include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/ModuleAttributes.h"
+#include "lib/Dialect/Preprocessing/IR/PreprocessingOps.h"
+#include "lib/Dialect/Preprocessing/IR/PreprocessingTypes.h"
+#include "lib/Utils/AttributeUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
-#include "llvm/include/llvm/ADT/STLFunctionalExtras.h"   // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
-#include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
-#include "mlir/include/mlir/Analysis/SliceAnalysis.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -21,18 +20,24 @@
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/IRMapping.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Region.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
-#include "mlir/include/mlir/Pass/Pass.h"                 // from @llvm-project
-#include "mlir/include/mlir/Pass/PassManager.h"          // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Interfaces/LoopLikeInterface.h"  // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"       // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
+#include "mlir/include/mlir/Transforms/Passes.h"      // from @llvm-project
 
 #define DEBUG_TYPE "split-preprocessing"
 
@@ -46,106 +51,73 @@ using func::FuncOp;
 
 namespace {
 
-int ceilDiv(int a, int b) { return (a + b - 1) / b; }
+// Walk the IR to collect the set of operations that need to be cloned, upstream
+// of a set of Encode ops, including recursing into regions and parents.
+static SetVector<Operation*> computeDependenciesToClone(
+    ArrayRef<Operation*> encodeOps, FuncOp containingFunc) {
+  assert(containingFunc && "Boundary containingFunc must not be null");
+  SetVector<Operation*> opsToClone;
+  SmallVector<Operation*> worklist;
 
-// The following slice analysis code is copied verbatim from
-// https://github.com/llvm/circt/blob/main/lib/Dialect/SV/Transforms/SVExtractTestCode.cpp
-// except where noted.
+  // Dedupe when adding to the worklist.
+  auto pushAsNeeded = [&](Operation* op) {
+    if (op && op != containingFunc.getOperation() && opsToClone.insert(op)) {
+      worklist.push_back(op);
+    }
+  };
 
-// Reimplemented from SliceAnalysis to use a worklist rather than
-// recursion and non-insert ordered set.  Implement this as a DFS and not a BFS
-// so that the order is stable across changes to intermediary operations.  (It
-// is then necessary to use the _operands_ as a worklist and not the
-// _operations_.)
-static void getBackwardSliceSimple(
-    Operation* rootOp, SetVector<Operation*>& backwardSlice,
-    llvm::function_ref<bool(Operation*)> filter) {
-  SmallVector<Value> worklist(rootOp->getOperands());
+  // Seed worklist
+  for (Operation* op : encodeOps) {
+    pushAsNeeded(op);
+  }
 
   while (!worklist.empty()) {
-    Value operand = worklist.pop_back_val();
-    Operation* definingOp = operand.getDefiningOp();
+    Operation* current = worklist.pop_back_val();
 
-    if (!definingOp ||
-        definingOp->hasTrait<mlir::OpTrait::IsIsolatedFromAbove>())
-      continue;
+    // Preserve enclosing control flow (up to FuncOp)
+    pushAsNeeded(current->getParentOp());
 
-    // Evaluate whether we should keep this def.
-    // This is useful in particular to implement scoping; i.e. return the
-    // transitive backwardSlice in the current scope.
-    if (filter && !filter(definingOp)) continue;
-
-    if (definingOp) {
-      if (!backwardSlice.contains(definingOp))
-        for (auto newOperand : llvm::reverse(definingOp->getOperands()))
-          worklist.push_back(newOperand);
-    } else if (auto blockArg = dyn_cast<BlockArgument>(operand)) {
-      Block* block = blockArg.getOwner();
-      Operation* parentOp = block->getParentOp();
-      // Determine whether we want to recurse backward into the other
-      // blocks of parentOp, which are not technically backward unless they
-      // flow into us. For now, just bail.
-      assert(parentOp->getNumRegions() == 1 &&
-             parentOp->getRegion(0).getBlocks().size() == 1);
-      if (!backwardSlice.contains(parentOp))
-        for (auto newOperand : llvm::reverse(parentOp->getOperands()))
-          worklist.push_back(newOperand);
-    } else {
-      llvm_unreachable("No definingOp and not a block argument.");
+    // If the current operation contains regions, push their terminators
+    // to propagate to the containing region.
+    for (Region& region : current->getRegions()) {
+      for (Block& block : region) {
+        if (Operation* terminator = block.getTerminator()) {
+          pushAsNeeded(terminator);
+        }
+      }
     }
 
-    backwardSlice.insert(definingOp);
-  }
-}
-
-// Compute the ops defining the blocks a set of ops are in.
-static void blockSlice(SetVector<Operation*>& ops,
-                       SetVector<Operation*>& blocks) {
-  for (auto op : ops) {
-    while (!isa<func::FuncOp>(op->getParentOp())) {
-      op = op->getParentOp();
-      blocks.insert(op);
+    // Trace backward through operands
+    for (Value operand : current->getOperands()) {
+      if (Operation* definingOp = operand.getDefiningOp()) {
+        pushAsNeeded(definingOp);
+      } else if (auto blockArg = dyn_cast<BlockArgument>(operand)) {
+        pushAsNeeded(blockArg.getOwner()->getParentOp());
+      }
     }
-    // Differing from SV implementation: Add ops within regions to the worklist
-    // to ensure that the dataflow to operands used within regions is captured.
-    op->walk([&](Operation* op) { blocks.insert(op); });
   }
-}
 
-static void computeSlice(SetVector<Operation*>& roots,
-                         SetVector<Operation*>& results,
-                         llvm::function_ref<bool(Operation*)> filter) {
-  for (auto* op : roots) getBackwardSliceSimple(op, results, filter);
-}
-
-// Return a backward slice started from `roots` until dataflow reaches to an
-// operations for which `filter` returns false.
-static SetVector<Operation*> getBackwardSlice(
-    SetVector<Operation*>& roots, llvm::function_ref<bool(Operation*)> filter) {
-  SetVector<Operation*> results;
-  computeSlice(roots, results, filter);
-
-  // Get Blocks
-  SetVector<Operation*> blocks;
-  blockSlice(roots, blocks);
-  blockSlice(results, blocks);
-
-  // Make sure dataflow to block args (if conds, etc) and ops within regions are
-  // included
-  computeSlice(blocks, results, filter);
-  // Differing from SV implementation: don't insert the operations within the
-  // regions (since their parent op is already in the set).
-  results.insert(roots.begin(), roots.end());
-  return results;
+  return opsToClone;
 }
 
 struct PreprocessingAnalysis {
-  // Groups of encode ops that will be returned together.
-  SmallVector<SetVector<Operation*>> encodeOps;
-  // Use a vector to preserve insertion order for stable function signatures.
+  SmallVector<Operation*> encodeOps;
   SetVector<Value> inputs;
   SetVector<Operation*> opsToClone;
 };
+
+// Encode ops can be elementwise-mappable, so if we're encoding a tensor we need
+// to extract and store each element separately. This is unsupported for now
+// because the storage memref analysis assumes each encode op corresponds to a
+// single plaintext, but a tensor<1x!pt> is OK.
+static bool isAllowedPlaintextType(Type type) {
+  if (isa<PlaintextTypeInterface>(type)) return true;
+  if (auto shapedTy = dyn_cast<ShapedType>(type)) {
+    auto shape = shapedTy.getShape();
+    return shape.size() == 1 && shape[0] == 1;
+  }
+  return false;
+}
 
 struct SplitPreprocessingPass
     : impl::SplitPreprocessingBase<SplitPreprocessingPass> {
@@ -153,39 +125,47 @@ struct SplitPreprocessingPass
 
   void runOnOperation() override {
     Operation* root = getOperation();
+
+    // Annotate each encode op with a stable site id
+    int32_t encodeId = 0;
+    root->walk([&](PlaintextEncodeOpInterface op) {
+      op->setAttr(
+          "split_preprocessing_site_id",
+          IntegerAttr::get(IntegerType::get(op->getContext(), 32), encodeId++));
+    });
+
     root->walk<WalkOrder::PreOrder>([&](func::FuncOp op) {
       if (op.isDeclaration() || isClientHelper(op)) {
         return;
       }
       convertFunc(op);
     });
+
+    clearAttrs(root, "split_preprocessing_site_id");
   }
 
   void convertFunc(FuncOp funcOp) {
-    if (maxReturnValues == 0) return;
-
-    PreprocessingAnalysis analysis =
-        analyzePreprocessing(funcOp, maxReturnValues);
+    PreprocessingAnalysis analysis = analyzePreprocessing(funcOp);
     if (analysis.encodeOps.empty()) {
-      LLVM_DEBUG({
-        llvm::dbgs() << "Failed to split preprocessing for " << funcOp.getName()
-                     << "\n";
-      });
       return;
     }
 
     FailureOr<FuncOp> maybePreprocessingFuncOp =
         createPreprocessingFunction(funcOp, analysis);
     if (failed(maybePreprocessingFuncOp)) {
-      LLVM_DEBUG({
-        llvm::dbgs() << "Failed to create preprocessing function for "
-                     << funcOp.getName() << "\n";
-      });
+      signalPassFailure();
       return;
     }
     FuncOp preprocessingFuncOp = maybePreprocessingFuncOp.value();
-    FuncOp preprocessedFuncOp =
+
+    FailureOr<FuncOp> maybePreprocessedFuncOp =
         createPreprocessedFunction(funcOp, preprocessingFuncOp, analysis);
+    if (failed(maybePreprocessedFuncOp)) {
+      preprocessingFuncOp.erase();
+      signalPassFailure();
+      return;
+    }
+    FuncOp preprocessedFuncOp = maybePreprocessedFuncOp.value();
 
     ModuleOp moduleOp = funcOp->getParentOfType<ModuleOp>();
     moduleOp.insert(funcOp.getOperation(), preprocessingFuncOp);
@@ -193,12 +173,18 @@ struct SplitPreprocessingPass
 
     updateOriginalFunc(funcOp, preprocessingFuncOp, preprocessedFuncOp,
                        analysis);
+
+    // Remove dead values to clean up the created/updated functions
+    OpPassManager pipeline("func.func");
+    pipeline.addPass(createRemoveDeadValuesPass());
+    (void)runPipeline(pipeline, preprocessingFuncOp);
+    (void)runPipeline(pipeline, preprocessedFuncOp);
+    (void)runPipeline(pipeline, funcOp);
   }
 
   void updateOriginalFunc(FuncOp funcOp, FuncOp preprocessingFuncOp,
                           FuncOp preprocessedFuncOp,
                           const PreprocessingAnalysis& analysis) {
-    // Add calls to the preprocessing and preprocessed functions.
     OpBuilder builder(funcOp.getContext());
     builder.setInsertionPointToStart(&funcOp.getBody().front());
 
@@ -206,14 +192,9 @@ struct SplitPreprocessingPass
         func::CallOp::create(builder, funcOp.getLoc(), preprocessingFuncOp,
                              llvm::to_vector(analysis.inputs));
 
-    SmallVector<Value> preprocessedArgs;
-    for (auto arg : funcOp.getArguments()) {
-      if (isa<lwe::LWECiphertextType>(getElementTypeOrSelf(arg.getType()))) {
-        preprocessedArgs.push_back(arg);
-      }
-    }
-    preprocessedArgs.append(preprocessingCall.getResults().begin(),
-                            preprocessingCall.getResults().end());
+    SmallVector<Value> preprocessedArgs(funcOp.getArguments().begin(),
+                                        funcOp.getArguments().end());
+    preprocessedArgs.push_back(preprocessingCall.getResult(0));
     auto preprocessedCall = func::CallOp::create(
         builder, funcOp.getLoc(), preprocessedFuncOp, preprocessedArgs);
 
@@ -221,8 +202,6 @@ struct SplitPreprocessingPass
     Operation* originalTerminator = originalEntry->getTerminator();
     originalTerminator->setOperands(preprocessedCall.getResults());
 
-    // At this point all operations should have been moved and we can remove all
-    // ops but the calls.
     DenseSet<Operation*> opsToKeep = {preprocessingCall, preprocessedCall,
                                       originalTerminator};
     for (Operation& op : llvm::make_early_inc_range(
@@ -231,32 +210,84 @@ struct SplitPreprocessingPass
     }
   }
 
+  // Recursively clone an op and all ops in nested regions that are in the
+  // opsToClone filter.
+  static Operation* recursiveCloneOpWithFilter(
+      Operation* srcOp, IRMapping& mapper,
+      const SetVector<Operation*>& opsToClone, OpBuilder& builder) {
+    // 1. Clone the operation shell without its nested regions
+    Operation* targetOp = builder.cloneWithoutRegions(*srcOp, mapper);
+
+    // 2. Recursively populate all blocks and regions
+    for (auto [srcRegion, targetRegion] :
+         llvm::zip(srcOp->getRegions(), targetOp->getRegions())) {
+      for (Block& srcBlock : srcRegion) {
+        // Append a new block to the target region
+        Block* targetBlock = builder.createBlock(&targetRegion);
+        // Map block arguments
+        for (BlockArgument arg : srcBlock.getArguments()) {
+          targetBlock->addArgument(arg.getType(), arg.getLoc());
+          mapper.map(arg, targetBlock->getArguments().back());
+        }
+
+        // Selectively clone all operations in this block that belong to our
+        // live slice
+        for (Operation& childOp : srcBlock) {
+          if (opsToClone.contains(&childOp)) {
+            OpBuilder::InsertionGuard guard(builder);
+            builder.setInsertionPointToEnd(targetBlock);
+            recursiveCloneOpWithFilter(&childOp, mapper, opsToClone, builder);
+          }
+        }
+      }
+    }
+    return targetOp;
+  }
+
+  // Get the set of induction variable indices in a loop nest surrounding an
+  // encode op.
+  SmallVector<Value> getContextualLoopIndices(Operation* encodeOp,
+                                              Operation* maxParent) {
+    SmallVector<Value> indices;
+    Operation* parent = encodeOp->getParentOp();
+    while (parent && parent != maxParent) {
+      if (auto loopLikeOp = dyn_cast<LoopLikeOpInterface>(parent)) {
+        auto inductionVar = loopLikeOp.getSingleInductionVar();
+        if (inductionVar.has_value()) indices.push_back(*inductionVar);
+      }
+      parent = parent->getParentOp();
+    }
+    std::reverse(indices.begin(), indices.end());
+    return indices;
+  }
+
   FailureOr<FuncOp> createPreprocessingFunction(
       FuncOp op, const PreprocessingAnalysis& analysis) {
     MLIRContext* context = op.getContext();
     OpBuilder builder(context);
 
     SmallVector<Type> newInputs;
+    newInputs.reserve(analysis.inputs.size());
     for (const auto& input : analysis.inputs) {
       newInputs.push_back(input.getType());
     }
 
-    SmallVector<Type> newResults;
-    for (const auto& batchOfEncodeOps : analysis.encodeOps) {
-      if (batchOfEncodeOps.empty()) {
-        llvm::outs() << "batch of encode ops is empty\n";
-      }
-      Type type = batchOfEncodeOps[0]->getResult(0).getType();
-      int batchSize = batchOfEncodeOps.size();
-      newResults.push_back(RankedTensorType::get({batchSize}, type));
+    // Create a preprocessing.storage type with the set plaintext types
+    DenseSet<Type> encodeTypesDeduped;
+    for (Operation* input : analysis.encodeOps) {
+      encodeTypesDeduped.insert(
+          getElementTypeOrSelf(input->getResult(0).getType()));
     }
+    SmallVector<Type> encodeTypes(encodeTypesDeduped.begin(),
+                                  encodeTypesDeduped.end());
+    auto storageTy =
+        preprocessing::PreprocessingStorageType::get(context, encodeTypes);
 
-    auto funcType = FunctionType::get(context, newInputs, newResults);
+    // Create the new func and annotate it appropriately
+    auto funcType = FunctionType::get(context, newInputs, {storageTy});
     auto funcName = op.getName().str() + "__preprocessing";
     auto funcOp = FuncOp::create(op.getLoc(), funcName, funcType);
     funcOp.setVisibility(op.getVisibility());
-    // Add a special attribute to the new function so that
-    // later passes can reference the original function.
     funcOp->setAttr(
         kClientPackFuncAttrName,
         builder.getDictionaryAttr({
@@ -264,55 +295,134 @@ struct SplitPreprocessingPass
                                  builder.getStringAttr(op.getName())),
         }));
 
+    // Set up the operation cloning infra: map the analysis-identified inputs to
+    // the new func's block arguments
     IRMapping map;
     Block* entryBlock = funcOp.addEntryBlock();
     for (auto [idx, input] : llvm::enumerate(analysis.inputs)) {
       map.map(input, entryBlock->getArgument(idx));
     }
 
-    // Insert the preprocessing ops into the new function.
     builder.setInsertionPointToEnd(entryBlock);
-    for (auto& op : op.getOps()) {
-      if (!analysis.opsToClone.contains(&op)) {
-        continue;
+    auto emptyOp =
+        preprocessing::EmptyOp::create(builder, funcOp.getLoc(), storageTy);
+    Value storage = emptyOp.getStorage();
+
+    // When cloning a loop to the preprocessing function, the loop may have a
+    // ciphertext iter_arg, whose initializer and other upstream ops we don't
+    // want to clone. However, the op still needs a valid SSA value for its
+    // initializer. In this case, we materialize an op of the right type
+    // via UnrealizedConversionCast (which can create an op of any type from
+    // nothing), and later allow remove-dead-values to clean up the iter_arg,
+    // since it will be naturally unused.
+    for (Operation* opToClone : analysis.opsToClone) {
+      for (Value operand : opToClone->getOperands()) {
+        if (!map.contains(operand) &&
+            !analysis.opsToClone.contains(operand.getDefiningOp())) {
+          if (isa<BlockArgument>(operand) &&
+              analysis.opsToClone.contains(
+                  cast<BlockArgument>(operand).getOwner()->getParentOp())) {
+            continue;
+          }
+          Value dummy =
+              UnrealizedConversionCastOp::create(
+                  builder, funcOp.getLoc(), operand.getType(), ValueRange{})
+                  .getResult(0);
+          map.map(operand, dummy);
+        }
       }
-      builder.clone(op, map);
-    }
-    SmallVector<Value> results;
-    for (const auto& batchOfEncodeOps : analysis.encodeOps) {
-      SmallVector<Value> batchResults;
-      for (const auto& encodeOp : batchOfEncodeOps) {
-        batchResults.push_back(map.lookup(encodeOp->getResult(0)));
-      }
-      results.push_back(tensor::FromElementsOp::create(builder, funcOp.getLoc(),
-                                                       batchResults));
     }
 
-    func::ReturnOp::create(builder, funcOp.getLoc(), results);
+    // Clone the ops into the preprocessing func. Note that we could instead
+    // clone the entire func and prune ops we don't want to clone, but this is
+    // more efficient.
+    for (auto [srcRegion, targetRegion] :
+         llvm::zip(op->getRegions(), funcOp->getRegions())) {
+      for (Block& srcBlock : srcRegion) {
+        Block* targetBlock;
+        if (&srcBlock == &srcRegion.front()) {
+          targetBlock = &targetRegion.front();
+        } else {
+          targetBlock = builder.createBlock(&targetRegion);
+          for (BlockArgument arg : srcBlock.getArguments()) {
+            targetBlock->addArgument(arg.getType(), arg.getLoc());
+            map.map(arg, targetBlock->getArguments().back());
+          }
+        }
+
+        for (Operation& childOp : srcBlock) {
+          if (analysis.opsToClone.contains(&childOp)) {
+            OpBuilder::InsertionGuard guard(builder);
+            builder.setInsertionPointToEnd(targetBlock);
+            recursiveCloneOpWithFilter(&childOp, map, analysis.opsToClone,
+                                       builder);
+          }
+        }
+      }
+    }
+
+    // Insert StoreOps after all cloned EncodeOps
+    SmallVector<Operation*> clonedEncodes;
+    funcOp.walk([&](PlaintextEncodeOpInterface clonedOp) {
+      clonedEncodes.push_back(clonedOp);
+    });
+
+    for (Operation* clonedEncode : clonedEncodes) {
+      auto siteIdAttr = clonedEncode->getAttrOfType<IntegerAttr>(
+          "split_preprocessing_site_id");
+      assert(
+          siteIdAttr &&
+          "Expected split_preprocessing_site_id attribute on cloned encode op");
+      int32_t siteId = siteIdAttr.getInt();
+
+      SmallVector<Value> indices =
+          getContextualLoopIndices(clonedEncode, funcOp.getOperation());
+      builder.setInsertionPointAfter(clonedEncode);
+      Value valToStore = clonedEncode->getResult(0);
+      Type elemStorageTy = valToStore.getType();
+
+      if (!isAllowedPlaintextType(elemStorageTy)) {
+        Location loc = clonedEncode->getLoc();
+        funcOp.erase();
+        return mlir::emitError(loc)
+               << "'lwe.rlwe_encode' op with result type " << elemStorageTy
+               << " unsupported in split-preprocessing.";
+      }
+
+      // After isAllowedPlaintextType, only a tensor<1x!pt> is allowed here, so
+      // extract it and store it.
+      if (auto tensorTy = dyn_cast<RankedTensorType>(elemStorageTy)) {
+        elemStorageTy = tensorTy.getElementType();
+        Value zero =
+            arith::ConstantIndexOp::create(builder, clonedEncode->getLoc(), 0);
+        valToStore = tensor::ExtractOp::create(builder, clonedEncode->getLoc(),
+                                               valToStore, ValueRange{zero});
+      }
+
+      preprocessing::StoreOp::create(
+          builder, clonedEncode->getLoc(), valToStore, storage, indices,
+          builder.getI32IntegerAttr(siteId), TypeAttr::get(elemStorageTy));
+    }
+
+    builder.setInsertionPointToEnd(&funcOp.getRegion().back());
+    func::ReturnOp::create(builder, funcOp.getLoc(), ValueRange{storage});
     return funcOp;
   }
 
-  FuncOp createPreprocessedFunction(FuncOp op, FuncOp preprocessingFuncOp,
-                                    const PreprocessingAnalysis& analysis) {
+  FailureOr<FuncOp> createPreprocessedFunction(
+      FuncOp op, FuncOp preprocessingFuncOp,
+      const PreprocessingAnalysis& analysis) {
     MLIRContext* context = op.getContext();
     OpBuilder builder(context);
 
-    SmallVector<Type> inputTypes;
-    for (auto argType : op.getArgumentTypes()) {
-      if (isa<lwe::LWECiphertextType>(getElementTypeOrSelf(argType))) {
-        inputTypes.push_back(argType);
-      }
-    }
-    for (auto preprocessingResult :
-         preprocessingFuncOp.getFunctionType().getResults()) {
-      inputTypes.push_back(preprocessingResult);
-    }
+    // Add the new preprocessing.storage type as a function argument
+    SmallVector<Type> inputTypes(op.getArgumentTypes().begin(),
+                                 op.getArgumentTypes().end());
+    inputTypes.push_back(preprocessingFuncOp.getResultTypes()[0]);
     auto funcType = FunctionType::get(context, inputTypes, op.getResultTypes());
     auto funcName = op.getName().str() + "__preprocessed";
     auto funcOp = FuncOp::create(op.getLoc(), funcName, funcType);
     funcOp.setVisibility(op.getVisibility());
-    // Add a special attribute to the new function so that
-    // later passes can reference the original function.
     funcOp->setAttr(
         kClientPreprocessedFuncAttrName,
         builder.getDictionaryAttr({
@@ -320,154 +430,116 @@ struct SplitPreprocessingPass
                                  builder.getStringAttr(op.getName())),
         }));
 
-    // Build the main function body in the preprocessed function.
     IRMapping map;
     Block* entryBlock = funcOp.addEntryBlock();
-    int index = 0;
-    for (auto arg : op.getArguments()) {
-      if (isa<lwe::LWECiphertextType>(getElementTypeOrSelf(arg.getType()))) {
-        map.map(arg, entryBlock->getArgument(index++));
-      }
+    for (auto [idx, arg] : llvm::enumerate(op.getArguments())) {
+      map.map(arg, entryBlock->getArgument(idx));
     }
-    // Map each of the encode ops to a tensor extract of a block argument.
+    Value storageArg = entryBlock->getArguments().back();
+
     builder.setInsertionPointToEnd(entryBlock);
-    for (const auto& batchOfEncodeOps : analysis.encodeOps) {
-      auto plaintextTensorArg = entryBlock->getArgument(index++);
-      for (auto [i, encodeOp] : llvm::enumerate(batchOfEncodeOps)) {
-        LLVM_DEBUG({
-          llvm::dbgs() << "mapping encode op: " << *encodeOp
-                       << " to index: " << i << "of block argument at index "
-                       << plaintextTensorArg.getArgNumber() << "\n";
-        });
-        auto idx = arith::ConstantIndexOp::create(builder, funcOp.getLoc(), i);
-        map.map(encodeOp->getResult(0),
-                tensor::ExtractOp::create(builder, funcOp.getLoc(),
-                                          encodeOp->getResult(0).getType(),
-                                          plaintextTensorArg, {idx}));
+    for (auto& toClone : op.getOps()) {
+      Operation* clonedOp = builder.clone(toClone, map);
+      for (auto [idx, res] : llvm::enumerate(toClone.getResults())) {
+        map.map(res, clonedOp->getResult(idx));
       }
     }
 
-    for (auto& toClone : op.getOps()) {
-      if (analysis.opsToClone.contains(&toClone) &&
-          !toClone.hasTrait<mlir::OpTrait::ConstantLike>()) {
-        // Perhaps this is brittle? The for loop intends to copy all ops that
-        // are not exclusively used for pre-processing. Otherwise we would need
-        // to iterate over all uses of the ops.
-        continue;
+    SmallVector<Operation*> clonedEncodes;
+    funcOp.walk([&](PlaintextEncodeOpInterface clonedOp) {
+      clonedEncodes.push_back(clonedOp);
+    });
+
+    for (Operation* clonedEncode : clonedEncodes) {
+      auto siteIdAttr = clonedEncode->getAttrOfType<IntegerAttr>(
+          "split_preprocessing_site_id");
+      assert(
+          siteIdAttr &&
+          "Expected split_preprocessing_site_id attribute on cloned encode op");
+      int32_t siteId = siteIdAttr.getInt();
+
+      SmallVector<Value> indices =
+          getContextualLoopIndices(clonedEncode, funcOp.getOperation());
+      builder.setInsertionPointAfter(clonedEncode);
+      Type resultTy = clonedEncode->getResult(0).getType();
+
+      if (!isAllowedPlaintextType(resultTy)) {
+        Location loc = clonedEncode->getLoc();
+        funcOp.erase();
+        return mlir::emitError(loc)
+               << "'lwe.rlwe_encode' op with result type " << resultTy
+               << " unsupported in split-preprocessing.";
       }
-      builder.clone(toClone, map);
+
+      Type loadTy = getElementTypeOrSelf(resultTy);
+      auto loadOp = preprocessing::LoadOp::create(
+          builder, clonedEncode->getLoc(), loadTy, storageArg, indices,
+          builder.getI32IntegerAttr(siteId), TypeAttr::get(loadTy));
+      Value loadedVal = loadOp.getResult();
+
+      // After isAllowedPlaintextType, only a tensor<1x!pt> is supported, so
+      // reconstruct it from the loaded value.
+      if (isa<RankedTensorType>(resultTy)) {
+        loadedVal = tensor::FromElementsOp::create(
+            builder, clonedEncode->getLoc(), resultTy, ValueRange{loadedVal});
+      }
+
+      clonedEncode->getResult(0).replaceAllUsesWith(loadedVal);
+      clonedEncode->erase();
     }
+
     return funcOp;
   }
 
-  PreprocessingAnalysis analyzePreprocessing(FuncOp funcOp,
-                                             int maxReturnValues) {
+  PreprocessingAnalysis analyzePreprocessing(FuncOp funcOp) {
     PreprocessingAnalysis analysis;
 
-    SetVector<Operation*> encodeOps;
-    for (auto encodeOp : funcOp.getBody().getOps<lwe::RLWEEncodeOp>()) {
-      encodeOps.insert(encodeOp);
-    }
-    if (encodeOps.empty()) {
-      return analysis;
-    }
-
-    // Group into batches to ensure that the number of new return values doesn't
-    // exceed the limit.
-    int maxBucketSize = 0;
-    DenseMap<Type, SmallVector<Operation*>> encodeOpsByType;
-    for (const auto& encodeOp : encodeOps) {
-      Type type = encodeOp->getResult(0).getType();
-      if (!encodeOpsByType.contains(type)) {
-        encodeOpsByType[type] = {};
+    funcOp.walk<WalkOrder::PreOrder>([&](Operation* op) {
+      if (isa<PlaintextEncodeOpInterface>(op)) {
+        analysis.encodeOps.push_back(op);
       }
-      encodeOpsByType[type].push_back(encodeOp);
-      if (encodeOpsByType[type].size() > maxBucketSize) {
-        maxBucketSize = encodeOpsByType[type].size();
-      }
-    }
-    // If there are more types than the max return values, then we have to bail
-    // since we can't group values with different types into a tensor.
-    if (encodeOpsByType.size() > maxReturnValues) {
-      LLVM_DEBUG({
-        llvm::dbgs() << "Too many types of encode ops in " << funcOp.getName()
-                     << "\n";
-      });
-      return analysis;
-    }
-
-    int numRemainingBuckets = maxReturnValues - encodeOpsByType.size();
-    DenseMap<Type, int> numBucketsByType;
-    for (const auto& [type, encodeOps] : encodeOpsByType) {
-      numBucketsByType[type] = 1;
-    }
-    while (numRemainingBuckets > 0 && maxBucketSize != 1) {
-      // Add a bucket to the first largest bucket.
-      int largestBucketSize = 0;
-      Type maxBucketType;
-      for (const auto& [type, numOps] : encodeOpsByType) {
-        int buckets = numBucketsByType[type];
-        auto bucketSize = ceilDiv(numOps.size(), buckets);
-        if (bucketSize > largestBucketSize) {
-          maxBucketType = type;
-          largestBucketSize = bucketSize;
-        }
-      }
-      numBucketsByType[maxBucketType]++;
-      numRemainingBuckets -= 1;
-      maxBucketSize = ceilDiv(encodeOpsByType[maxBucketType].size(),
-                              numBucketsByType[maxBucketType]);
-    }
-
-    for (const auto& [type, encodeOps] : encodeOpsByType) {
-      int bucketSize = ceilDiv(encodeOps.size(), numBucketsByType[type]);
-      // The bucket size is the ceiling division, so it's the size of the
-      // largest bucket in the group. So eagerly group as many bucketSize
-      // buckets as possible to minimize the number of buckets.
-      int numBuckets = ceilDiv(encodeOps.size(), bucketSize);
-      LLVM_DEBUG({
-        llvm::dbgs() << "adding " << numBuckets << " buckets for type " << type
-                     << " with " << encodeOps.size() << " encode ops\n";
-      });
-      for (int i = 0; i < numBuckets; i++) {
-        int start = i * bucketSize;
-        int end = start + bucketSize;
-        SetVector<Operation*> batchOps;
-        for (int j = start; j < end && j < encodeOps.size(); j++) {
-          batchOps.insert(encodeOps[j]);
-        }
-        analysis.encodeOps.push_back(batchOps);
-      }
-    }
-
-    analysis.opsToClone = getBackwardSlice(encodeOps, [&](Operation* op) {
-      return op->getParentRegion() == &funcOp.getRegion();
     });
+    if (analysis.encodeOps.empty()) {
+      return analysis;
+    }
 
-    // Gather any required block arguments for inputs.
+    analysis.opsToClone =
+        computeDependenciesToClone(analysis.encodeOps, funcOp);
+
+    // Gather any required block arguments for inputs. These are all expected to
+    // be args of the func.func, but we filter out Ciphertext types.
     for (auto* op : analysis.opsToClone) {
       for (auto arg : op->getOperands()) {
-        auto argOp = arg.getDefiningOp();  // may be null
-        if (!analysis.opsToClone.count(argOp)) analysis.inputs.insert(arg);
+        auto argOp = arg.getDefiningOp();
+        if (analysis.opsToClone.count(argOp) ||
+            isa<lwe::LWECiphertextType>(getElementTypeOrSelf(arg.getType()))) {
+          continue;
+        }
+
+        if (auto blockArg = dyn_cast<BlockArgument>(arg)) {
+          Operation* parentOp = blockArg.getOwner()->getParentOp();
+          if (analysis.opsToClone.contains(parentOp)) {
+            continue;
+          }
+
+          if (parentOp != funcOp.getOperation()) {
+            parentOp->emitWarning()
+                << "split-preprocessing identified a block argument input "
+                << " that should be cloned into the preprocessing function, "
+                   "but it was not a block argument of the parent func "
+                << funcOp.getName() << ". The input was " << blockArg;
+          }
+        }
+
+        analysis.inputs.insert(arg);
       }
     }
-
-    LLVM_DEBUG({
-      llvm::dbgs() << "Adding inputs for preprocessing:\n";
-      for (auto input : analysis.inputs) {
-        llvm::dbgs() << "\t - " << input << "\n";
-      }
-    });
 
     return analysis;
   }
 };
 
 }  // namespace
-
-std::unique_ptr<Pass> createSplitPreprocessingPass() {
-  return std::make_unique<SplitPreprocessingPass>();
-}
 
 }  // namespace heir
 }  // namespace mlir

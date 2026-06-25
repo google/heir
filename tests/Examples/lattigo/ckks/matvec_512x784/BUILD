@@ -8,8 +8,7 @@ heir_lattigo_lib(
     go_library_name = "matvec512x784",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=ckks",
-        # TODO(#2960): remove split-preprocessing=0 once split-preprocessing handles loops
-        "--mlir-to-ckks=ciphertext-degree=1024 modulus-switch-after-mul=true experimental-disable-loop-unroll=true level-budget=40 first-mod-bits=55 split-preprocessing=0",
+        "--mlir-to-ckks=ciphertext-degree=1024 modulus-switch-after-mul=true experimental-disable-loop-unroll=true level-budget=40 first-mod-bits=55",
         "--scheme-to-lattigo",
     ],
     mlir_src = "@heir//tests/Examples/common:matvec_512x784.mlir",
