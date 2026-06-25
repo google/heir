@@ -1,0 +1,55 @@
+name: First Interaction Welcome
+
+on:
+  issues:
+    types: [opened]
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  welcome:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Welcome new contributor
+        uses: actions/first-interaction@1c4688942c71f71d4f5502a26ea67c331730fa4d # v3.1.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          issue-message: |
+            Welcome to HEIR!
+
+            Thank you for opening your first issue! We appreciate you joining our community.
+
+            Please note that our [contributing policy](https://github.com/google/heir/blob/main/CONTRIBUTING.md))
+            requires unrecognized users to meet a maintainer in a non-textual format before
+            opening their first PR.
+
+            If you have already met a maintainer, or you're sure the maintainers know who you are,
+            you can safely ignore this message. Otherwise, you can join one of our open meetings
+            on our [community calendar](https://heir.dev/community), schedule a
+            dedicated call with a maintainer, or reach out in the `#heir`
+            channel on [Discord](https://discord.fhe.org/).
+
+            We look forward to connecting with you!
+          pr-message: |
+            Welcome to HEIR!
+
+            Thank you for opening your first pull request! We appreciate you joining our community.
+
+            Please note that our [contributing policy](https://github.com/google/heir/blob/main/CONTRIBUTING.md))
+            requires unrecognized users to meet a maintainer in a non-textual format before
+            their first PR will be reviewed.
+
+            If you have already met a maintainer, or you're sure the maintainers know who you are,
+            you can safely ignore this message. Otherwise, a maintainer will likely close this PR shortly.
+
+            Don't take it personally! Instead, we welcome you to attend one of our open meetings
+            on our [community calendar](https://heir.dev/community), schedule a
+            dedicated call with a maintainer, or reach out in the `#heir`
+            channel on [Discord](https://discord.fhe.org/).
+
+            We look forward to connecting with you!
