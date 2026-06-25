@@ -1,9 +1,23 @@
 load("@heir//lib/Transforms:transforms.bzl", "add_heir_transforms")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
     default_visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "ConvPoolFusion",
+    srcs = ["ConvPoolFusion.cpp"],
+    hdrs = ["ConvPoolFusion.h"],
+    deps = [
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LinalgDialect",
+        "@llvm-project//mlir:Support",
+    ],
 )
 
 cc_library(
@@ -13,6 +27,7 @@ cc_library(
         "LinalgCanonicalizations.h",
     ],
     deps = [
+        ":ConvPoolFusion",
         ":pass_inc_gen",
         "@heir//lib/Utils:TensorUtils",
         "@llvm-project//llvm:Support",
@@ -34,4 +49,15 @@ cc_library(
 add_heir_transforms(
     generated_target_name = "pass_inc_gen",
     pass_name = "LinalgCanonicalizations",
+)
+
+cc_test(
+    name = "ConvPoolFusionTest",
+    srcs = ["ConvPoolFusionTest.cpp"],
+    deps = [
+        ":ConvPoolFusion",
+        "@fuzztest//fuzztest",
+        "@googletest//:gtest_main",
+        "@llvm-project//llvm:Support",
+    ],
 )

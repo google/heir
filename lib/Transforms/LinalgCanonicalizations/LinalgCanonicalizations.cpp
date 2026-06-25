@@ -2,15 +2,16 @@
 
 #include <cassert>
 #include <cstdint>
+#include <optional>
 #include <utility>
 
+#include "lib/Transforms/LinalgCanonicalizations/ConvPoolFusion.h"
 #include "lib/Utils/TensorUtils.h"
-#include "llvm/include/llvm/ADT/DenseSet.h"           // from @llvm-project
-#include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallBitVector.h"     // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallVectorExtras.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseSet.h"            // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallBitVector.h"      // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVectorExtras.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
@@ -23,18 +24,23 @@
 #include "mlir/include/mlir/IR/AffineExpr.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/IRMapping.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/Matchers.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/OpDefinition.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"              // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"              // from @llvm-project
-#include "mlir/include/mlir/IR/ValueRange.h"         // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/IRMapping.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Matchers.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
+
+// IYWU pragma: begin_keep
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
+// IYWU pragma: end_keep
 
 #define DEBUG_TYPE "linalg-canonicalizations"
 
@@ -818,6 +824,154 @@ struct RewriteAvgPoolAsConv2D
   }
 };
 
+/// A rewrite pattern that fuses a 2D convolution operation followed by a 2D
+/// sum pooling operation (and optional average-pooling division/multiplication)
+/// into a single, equivalent 2D convolution operation.
+///
+/// Mathematical Foundation:
+/// Let Conv(X, W) be a convolution with stride s_c and filter W.
+/// Let Pool(Y) be a sum pooling with window P and stride s_p.
+/// The cascade Pool(Conv(X, W)) is equivalent to a single convolution Conv(X,
+/// W_eff) with effective stride s_eff = s_c * s_p, and effective filter W_eff.
+/// W_eff is computed by convolving the original weights W with the pooling
+/// window (acting as a uniform filter of ones).
+///
+/// If a trailing division or multiplication by a constant (average pooling) is
+/// present, it is folded directly into the effective weights W_eff by scaling
+/// them.
+///
+/// Constraints:
+/// - Only supports batch size 1.
+/// - Only supports static shapes.
+/// - Pooling padding must be 0 (no padding on the pooling layer). Boundary
+/// zeroing
+///   cannot be easily folded into a standard convolution.
+struct FuseConv2DPooling : public OpRewritePattern<linalg::PoolingNchwSumOp> {
+ public:
+  FuseConv2DPooling(MLIRContext* context)
+      : OpRewritePattern<linalg::PoolingNchwSumOp>(context, /*benefit=*/2) {}
+
+  LogicalResult matchAndRewrite(linalg::PoolingNchwSumOp poolOp,
+                                PatternRewriter& rewriter) const override {
+    Value poolInput = poolOp.getInputs()[0];
+
+    auto convOp = poolInput.getDefiningOp<linalg::Conv2DNchwFchwOp>();
+    if (!convOp) return failure();
+
+    Value convFilter = convOp.getInputs()[1];
+    TypedAttr constAttr;
+    if (!matchPattern(convFilter, m_Constant(&constAttr)))
+      return rewriter.notifyMatchFailure(poolOp,
+                                         "conv filter must be a constant");
+
+    DenseElementsAttr denseAttr = dyn_cast<DenseElementsAttr>(constAttr);
+    if (auto denseResourceAttr =
+            dyn_cast<DenseResourceElementsAttr>(constAttr)) {
+      const auto data = denseResourceAttr.getData();
+      denseAttr = DenseElementsAttr::getFromRawBuffer(
+          denseResourceAttr.getType(), data);
+    }
+    if (!denseAttr)
+      return rewriter.notifyMatchFailure(poolOp,
+                                         "conv filter must be dense elements");
+
+    // Verify static shapes and batch size 1
+    auto inputType = cast<RankedTensorType>(convOp.getInputs()[0].getType());
+    auto filterType = cast<RankedTensorType>(convFilter.getType());
+    auto poolOutputType = cast<RankedTensorType>(poolOp.getResultTypes()[0]);
+
+    if (!inputType.hasStaticShape() || !filterType.hasStaticShape() ||
+        !poolOutputType.hasStaticShape())
+      return rewriter.notifyMatchFailure(poolOp,
+                                         "dynamic shapes not supported");
+
+    if (inputType.getDimSize(0) != 1)
+      return rewriter.notifyMatchFailure(poolOp,
+                                         "only batch size 1 is supported");
+
+    Type elementType = filterType.getElementType();
+
+    Conv2DSizeParams conv;
+    conv.F = filterType.getDimSize(0);
+    conv.C = filterType.getDimSize(1);
+    conv.kH = filterType.getDimSize(2);
+    conv.kW = filterType.getDimSize(3);
+
+    auto poolFilterType =
+        cast<RankedTensorType>(poolOp.getInputs()[1].getType());
+    if (!poolFilterType.hasStaticShape())
+      return rewriter.notifyMatchFailure(poolOp, "dynamic pool filter shape");
+    Pool2DSizeParams pool;
+    pool.pH = poolFilterType.getDimSize(0);
+    pool.pW = poolFilterType.getDimSize(1);
+
+    auto getValues = [](DenseIntElementsAttr attr, int64_t& h, int64_t& w) {
+      if (attr) {
+        auto values = attr.getValues<int64_t>();
+        h = values[0];
+        w = values[1];
+      } else {
+        h = 1;
+        w = 1;
+      }
+    };
+
+    getValues(convOp.getStrides(), conv.strideH, conv.strideW);
+    getValues(convOp.getDilations(), conv.dilationH, conv.dilationW);
+    getValues(poolOp.getStrides(), pool.strideH, pool.strideW);
+    getValues(poolOp.getDilations(), pool.dilationH, pool.dilationW);
+
+    // Check for trailing division/multiplication (average pooling)
+    std::optional<APFloat> scaleVal;
+    Operation* divOrMulOp = nullptr;
+    bool foldDivision = false;
+
+    if (isa<FloatType>(elementType)) {
+      auto floatType = cast<FloatType>(elementType);
+      if (poolOp->hasOneUse()) {
+        Operation* user = *poolOp->getUsers().begin();
+        auto scaleInfoOr = matchScalingFactor(user, poolOp.getResult(0),
+                                              floatType.getFloatSemantics());
+        if (succeeded(scaleInfoOr)) {
+          scaleVal = scaleInfoOr->scale;
+          divOrMulOp = scaleInfoOr->op;
+          foldDivision = true;
+        }
+      }
+    }
+
+    // Fuse filters
+    DenseElementsAttr fusedAttr =
+        fuseConv2DPoolingFilters(denseAttr, conv, pool, scaleVal);
+    if (!fusedAttr) {
+      return rewriter.notifyMatchFailure(poolOp, "failed to fuse filters");
+    }
+
+    Value newFilter =
+        arith::ConstantOp::create(rewriter, poolOp.getLoc(), fusedAttr);
+
+    // Rewrite IR
+    auto effStridesAttr = rewriter.getI64TensorAttr(
+        {conv.strideH * pool.strideH, conv.strideW * pool.strideW});
+    auto effDilationsAttr = rewriter.getI64TensorAttr({1, 1});
+
+    Value fusedConv = linalg::Conv2DNchwFchwOp::create(
+                          rewriter, poolOp.getLoc(), poolOutputType,
+                          ValueRange{convOp.getInputs()[0], newFilter},
+                          ValueRange{poolOp.getOutputs()[0]}, effStridesAttr,
+                          effDilationsAttr)
+                          .getResult(0);
+
+    if (foldDivision) {
+      rewriter.replaceOp(divOrMulOp, fusedConv);
+    } else {
+      rewriter.replaceOp(poolOp, fusedConv);
+    }
+
+    return success();
+  }
+};
+
 static SmallVector<int64_t> getBroadcastDimensions(AffineMap map,
                                                    int64_t numDims) {
   llvm::SmallDenseSet<unsigned> usedDims;
@@ -1179,7 +1333,7 @@ struct LinalgCanonicalizations
     patterns.add<
         BroadcastToExpandShape, DropCfAssertInLinalg, FoldBroadcastExtractSlice,
         FoldConstantBroadcast, FoldConstantFill, FoldConstantLinalgTranspose,
-        LinalgGenericToElementwise, LinalgMapToElementwise,
+        FuseConv2DPooling, LinalgGenericToElementwise, LinalgMapToElementwise,
         MaterializeBroadcasts, RewriteAvgPoolAsConv1D, RewriteAvgPoolAsConv2D,
         RewriteTransposedMatvec, RewriteTransposedVecmat, UndilateConv1DNcwFcw,
         UndilateConv2DNchwFchw>(context);
