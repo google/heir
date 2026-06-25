@@ -11,6 +11,8 @@
 !int_vec = tensor<5x6x3xi10>
 !rns1_vec = tensor<5x!rns1>
 !Zp_large = !mod_arith.int<2223821 : i32>
+!Zp_i64 = !mod_arith.int<14604445665681409 : i64>
+!Zp_i64_vec = tensor<2x!Zp_i64>
 
 // CHECK: @test_arith_syntax
 func.func @test_arith_syntax() {
@@ -97,6 +99,15 @@ func.func @test_arith_syntax() {
   %mod_switch_same_width = mod_arith.mod_switch %e6 : !Zp to !mod_arith.int<31 : i10>
   %mod_switch_larger = mod_arith.mod_switch %e6 : !Zp to !mod_arith.int<18446744069414584321 : i65>
 
+  return
+}
+
+// CHECK: @test_large_decimal_constant_syntax
+func.func @test_large_decimal_constant_syntax() {
+  // CHECK: mod_arith.constant 12535824225335233 : !mod_arith.int<14604445665681409 : i64>
+  %scalar = mod_arith.constant 12535824225335233 : !Zp_i64
+  // CHECK: mod_arith.constant dense<[12535824225335233, 0]> : tensor<2x!mod_arith.int<14604445665681409 : i64>>
+  %dense = mod_arith.constant dense<[12535824225335233, 0]> : !Zp_i64_vec
   return
 }
 

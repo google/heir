@@ -223,7 +223,23 @@ LogicalResult BarrettReduceOp::verify() {
 }
 
 ParseResult ConstantOp::parse(OpAsmParser& parser, OperationState& result) {
-  unsigned minBitwidth = 4;  // bitwidth assigned by parser to integer `1`
+  auto normalizeInteger = [&](APInt& parsedInt,
+                              unsigned storageWidth) -> ParseResult {
+    if (parsedInt.isNegative()) {
+      if (parsedInt.getSignificantBits() > storageWidth)
+        return parser.emitError(parser.getNameLoc(),
+                                "constant value does not fit in storage type"),
+               failure();
+      parsedInt = parsedInt.sextOrTrunc(storageWidth);
+      return success();
+    }
+    if (parsedInt.getActiveBits() > storageWidth)
+      return parser.emitError(parser.getNameLoc(),
+                              "constant value does not fit in storage type"),
+             failure();
+    parsedInt = parsedInt.zextOrTrunc(storageWidth);
+    return success();
+  };
   Type parsedType;
   if (parser.parseOptionalKeyword("dense").succeeded()) {
     // Dense case
@@ -251,18 +267,19 @@ ParseResult ConstantOp::parse(OpAsmParser& parser, OperationState& result) {
       return parser.emitError(parser.getNameLoc(),
                               "expected at least one integer in dense list.");
 
-    unsigned maxWidth = 0;
+    auto modType = dyn_cast<ModArithType>(getElementTypeOrSelf(parsedType));
+    if (!modType)
+      return parser.emitError(parser.getNameLoc(),
+                              "expected mod_arith-like result type"),
+             failure();
+    auto storageType = modType.getModulus().getType();
+    unsigned storageWidth = storageType.getIntOrFloatBitWidth();
     for (auto& parsedInt : parsedInts) {
-      // zero becomes `i64` when parsed, so truncate back down to minBitwidth
-      parsedInt = parsedInt.isZero() ? parsedInt.trunc(minBitwidth) : parsedInt;
-      maxWidth = std::max(maxWidth, parsedInt.getBitWidth());
-    }
-    for (auto& parsedInt : parsedInts) {
-      parsedInt = parsedInt.zextOrTrunc(maxWidth);
+      if (failed(normalizeInteger(parsedInt, storageWidth))) return failure();
     }
     auto attr = DenseIntElementsAttr::get(
         RankedTensorType::get({static_cast<int64_t>(parsedInts.size())},
-                              IntegerType::get(parser.getContext(), maxWidth)),
+                              storageType),
         parsedInts);
     result.addAttribute("value", attr);
   } else {
@@ -272,12 +289,16 @@ ParseResult ConstantOp::parse(OpAsmParser& parser, OperationState& result) {
       return parser.emitError(parser.getNameLoc(),
                               "failed to parse scalar constant"),
              failure();
-    // zero becomes `i64` when parsed, so truncate back down to minBitwidth
-    if (parsedInt.isZero()) parsedInt = parsedInt.trunc(minBitwidth);
-    result.addAttribute(
-        "value", IntegerAttr::get(IntegerType::get(parser.getContext(),
-                                                   parsedInt.getBitWidth()),
-                                  parsedInt));
+    // Convert the scalar to the modulus's width
+    auto modType = dyn_cast<ModArithType>(getElementTypeOrSelf(parsedType));
+    if (!modType)
+      return parser.emitError(parser.getNameLoc(),
+                              "expected mod_arith-like result type"),
+             failure();
+    auto storageType = modType.getModulus().getType();
+    unsigned storageWidth = storageType.getIntOrFloatBitWidth();
+    if (failed(normalizeInteger(parsedInt, storageWidth))) return failure();
+    result.addAttribute("value", IntegerAttr::get(storageType, parsedInt));
   }
   result.addTypes(parsedType);
   return success();
@@ -301,7 +322,7 @@ LogicalResult ConstantOp::verify() {
   if (intAttr) {
     if (intAttr.getValue().getBitWidth() > modBW)
       return emitOpError(
-          "value's bitwidth must not be larger than underlying type.");
+          "value's bitwidth must not be larger than underlying type");
     return success();
   }
 
