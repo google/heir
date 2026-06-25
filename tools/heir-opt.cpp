@@ -160,9 +160,8 @@
 #include "mlir/include/mlir/Dialect/Func/Extensions/AllExtensions.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/LLVMIR/LLVMDialect.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/LLVMIR/Transforms/InlinerInterfaceImpl.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Linalg/Passes.h"     // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/Passes.h"       // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Math/IR/Math.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
@@ -175,10 +174,12 @@
 #include "mlir/include/mlir/Dialect/Tensor/IR/TensorInferTypeOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/ValueBoundsOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/IRMapping.h"                // from @llvm-project
 #include "mlir/include/mlir/Pass/PassManager.h"            // from @llvm-project
 #include "mlir/include/mlir/Pass/PassRegistry.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-opt/MlirOptMain.h"  // from @llvm-project
+#include "mlir/include/mlir/Transforms/InliningUtils.h"    // from @llvm-project
 #include "mlir/include/mlir/Transforms/Passes.h"           // from @llvm-project
 
 #ifndef HEIR_NO_YOSYS
@@ -191,6 +192,45 @@
 
 using namespace mlir;
 using namespace heir;
+
+namespace {
+// LLVMDummyInlinerInterface is a dummy implementation of the inliner interface
+// for the LLVM dialect.
+//
+// Why it is needed:
+// LLVMDialect declares that it promises DialectInlinerInterface. If we register
+// LLVMDialect in the context and run the Inliner pass, MLIR will check if the
+// interface is implemented. If it is promised but not registered, it crashes.
+//
+// Why we don't use the official implementation:
+// The official implementation is in LLVMIRTransforms. However, that library
+// also contains the NVVM inliner interface registration in the same upstream
+// source file, which transitively pulls in NVVMDialect. This adds significant
+// overhead to the build time (~2 minutes).
+//
+// Why a dummy (deny-all) interface is safe:
+// HEIR does not perform MLIR-level inlining on LLVM dialect operations. All
+// such optimizations are delegated downstream to the native LLVM compiler.
+// Therefore, we can safely deny all inlining requests for LLVM ops in heir-opt.
+struct LLVMDummyInlinerInterface : public DialectInlinerInterface {
+  using DialectInlinerInterface::DialectInlinerInterface;
+
+  bool isLegalToInline(Operation* call, Operation* callable,
+                       bool wouldBeCloned) const final {
+    return false;
+  }
+
+  bool isLegalToInline(Region* dest, Region* src, bool wouldBeCloned,
+                       IRMapping& valueMapping) const final {
+    return false;
+  }
+
+  bool isLegalToInline(Operation* op, Region* dest, bool wouldBeCloned,
+                       IRMapping& valueMapping) const final {
+    return false;
+  }
+};
+}  // namespace
 
 int main(int argc, char** argv) {
   mlir::DialectRegistry registry;
@@ -296,7 +336,9 @@ int main(int argc, char** argv) {
   mlir::linalg::registerBufferizableOpInterfaceExternalModels(registry);
   scf::registerBufferizableOpInterfaceExternalModels(registry);
   tensor::registerBufferizableOpInterfaceExternalModels(registry);
-  mlir::LLVM::registerInlinerInterface(registry);
+  registry.addExtension(+[](MLIRContext* ctx, LLVM::LLVMDialect* dialect) {
+    dialect->addInterfaces<LLVMDummyInlinerInterface>();
+  });
   mlir::arith::registerConvertArithToLLVMInterface(registry);
 
   // ValueBoundsOpInterface
