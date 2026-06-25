@@ -16069,6 +16069,7 @@ and defers the exact description of that layout until it is easier to determine.
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `preprocessing.empty` attr-dict `:` type($storage)
 &lt;/code>&lt;/pre>&lt;p>This op creates a new &lt;code>preprocessing.storage&lt;/code> value with an undetermined size.&lt;/p>
+&lt;p>Interfaces: &lt;code>MemoryEffectsOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="results">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -16098,6 +16099,7 @@ a loop nest.&lt;/li>
 &lt;/ol>
 &lt;p>In &lt;code>preprocessing-to-memref&lt;/code>, this op lowers to extracting a plaintext from
 a memref.&lt;/p>
+&lt;p>Interfaces: &lt;code>MemoryEffectsOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="attributes">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -16152,6 +16154,7 @@ a loop nest.&lt;/li>
 &lt;/ol>
 &lt;p>In &lt;code>preprocessing-to-memref&lt;/code>, this op lowers to storing a plaintext in a
 memref.&lt;/p>
+&lt;p>Interfaces: &lt;code>MemoryEffectsOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="attributes-1">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
