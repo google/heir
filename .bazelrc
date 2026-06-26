@@ -31,6 +31,10 @@ common --remote_cache_compression
 common --remote_header=x-buildbuddy-api-key=IqGGzfrvMgDJh927qtrw
 common --remote_timeout=10m
 
+# Force downloading of TableGen-generated files (.inc) for local debugging and
+# IDE autocompletion support.
+build --remote_download_regex=".*\.inc$"
+
 # This enables remote build execution and writing to the remote cache, which
 # dramatically speeds up builds. Add a .bazelrc.user file with:
 #
