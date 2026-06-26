@@ -13858,7 +13858,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>value&lt;/code>&lt;/td>
-&lt;td>ranked tensor of floating-point or integer values&lt;/td>
+&lt;td>Tensor or MemRef of floating-point or integer values&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -13898,7 +13898,7 @@ HEStd_NotSet for security level.&lt;/p>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>value&lt;/code>&lt;/td>
-&lt;td>ranked tensor of integer values&lt;/td>
+&lt;td>Tensor or MemRef of integer values&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
