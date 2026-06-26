@@ -389,6 +389,9 @@ LogicalResult EvalOp::verify() {
               [&](TypedFloatPolynomialAttr floatAttr) {
                 return floatAttr.getValue().getPolynomial().getTerms().empty();
               })
+          .Case<RNSPolynomialAttr>([&](RNSPolynomialAttr rnsAttr) {
+            return rnsAttr.getCoefficients().empty();
+          })
           .Default([&](Attribute) { return false; });
   if (empty) {
     return emitError() << "Empty polynomials are not supported for eval op";
@@ -456,6 +459,10 @@ ParseResult ConstantOp::parse(OpAsmParser& parser, OperationState& result) {
       result.addTypes(floatAttr.getType());
       return success();
     }
+    if (auto rnsAttr = dyn_cast<RNSPolynomialAttr>(attr)) {
+      result.addTypes(rnsAttr.getType());
+      return success();
+    }
     return parser.emitError(loc, "expected a typed polynomial attribute");
   }
 
@@ -471,6 +478,8 @@ void ConstantOp::print(OpAsmPrinter& p) {
   } else if (auto floatPoly = dyn_cast<TypedFloatPolynomialAttr>(getValue())) {
     p << "float";
     floatPoly.getValue().print(p);
+  } else if (auto rnsPoly = dyn_cast<RNSPolynomialAttr>(getValue())) {
+    p.printAttribute(rnsPoly);
   } else {
     assert(false && "unexpected attribute type");
   }

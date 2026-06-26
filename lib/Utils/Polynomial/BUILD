@@ -11,9 +11,20 @@ package(
 
 cc_library(
     name = "Polynomial",
-    srcs = ["Polynomial.cpp"],
-    hdrs = ["Polynomial.h"],
+    srcs = [
+        "Polynomial.cpp",
+        "RNSPolynomial.cpp",
+    ],
+    hdrs = [
+        "Polynomial.h",
+        "RNSPolynomial.h",
+    ],
     deps = [
+        ":NTT",
+        "@heir//lib/Dialect/ModArith/IR:Dialect",
+        "@heir//lib/Dialect/Polynomial/IR:Enums",
+        "@heir//lib/Dialect/RNS/IR:Dialect",
+        "@heir//lib/Utils:MathUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
@@ -26,6 +37,11 @@ cc_test(
     deps = [
         ":Polynomial",
         "@googletest//:gtest_main",
+        "@heir//lib/Dialect/ModArith/IR:Dialect",
+        "@heir//lib/Dialect/RNS/IR:Dialect",
+        "@heir//lib/Dialect/RNS/IR:TypeInterfaces",
+        "@heir//lib/Utils:MathUtils",
+        "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
     ],
 )

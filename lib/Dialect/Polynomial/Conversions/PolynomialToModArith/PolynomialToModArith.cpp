@@ -291,6 +291,12 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
   LogicalResult matchAndRewrite(
       ConstantOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
+    if (isa<RNSPolynomialAttr>(op.getValue())) {
+      op->emitWarning(
+          "Native lowering for RNSPolynomialAttr is not implemented yet");
+      // TODO(#97): Implement native RNS constant lowering.
+      return failure();
+    }
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     auto res = getCommonConversionInfo(op, typeConverter);
     if (failed(res))

@@ -10,8 +10,12 @@ package(
 cc_library(
     name = "Dialect",
     srcs = glob(["*.cpp"]),
-    hdrs = glob(["*.h"]),
+    hdrs = glob(
+        ["*.h"],
+        exclude = ["PolynomialEnums.h"],
+    ),
     deps = [
+        ":Enums",
         ":attributes_inc_gen",
         ":canonicalization_inc_gen",
         ":dialect_inc_gen",
@@ -23,8 +27,10 @@ cc_library(
         "@heir//lib/Utils/Polynomial",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:BytecodeOpInterface",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
+        "@llvm-project//mlir:SideEffectInterfaces",
         "@llvm-project//mlir:Support",
     ],
 )
@@ -80,6 +86,17 @@ add_heir_dialect_library(
     td_file = "PolynomialEnums.td",
     deps = [
         ":td_files",
+    ],
+)
+
+cc_library(
+    name = "Enums",
+    hdrs = ["PolynomialEnums.h"],
+    deps = [
+        ":enums_inc_gen",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
     ],
 )
 
