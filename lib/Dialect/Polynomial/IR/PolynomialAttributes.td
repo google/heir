@@ -260,6 +260,25 @@ def Polynomial_PrimitiveRootAttr: Polynomial_Attr<"PrimitiveRoot", "primitive_ro
   );
   let assemblyFormat = "`<` struct(params) `>`";
 }
-
+def Polynomial_RNSPolynomialAttr : Polynomial_Attr<"RNSPolynomial", "rns_polynomial", [TypedAttrInterface]> {
+  let summary = "A polynomial represented in RNS form";
+  let description = [{
+    A polynomial attribute represented as an array of RNS limbs.
+  }];
+  let genVerifyDecl = 1;
+  let parameters = (ins
+    "::mlir::DenseIntElementsAttr":$coefficients,
+    "::mlir::Type":$type,
+    DefaultValuedParameter<
+      "::mlir::heir::polynomial::Form",
+      "::mlir::heir::polynomial::Form::COEFF"
+    >:$form
+  );
+  let assemblyFormat = "`<` $coefficients (`,` $form^)? `>` `:` $type";
+  let extraClassDeclaration = [{
+    using ValueType = ::mlir::DenseIntElementsAttr;
+    ::mlir::heir::polynomial::RNSPolynomial getPolynomial() const;
+  }];
+}
 
 #endif  // LIB_DIALECT_POLYNOMIAL_IR_POLYNOMIALATTRIBUTES_TD_

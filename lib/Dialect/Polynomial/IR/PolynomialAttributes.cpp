@@ -1,8 +1,12 @@
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 
+#include <cassert>
+#include <cstdint>
 #include <functional>
 #include <string>
 
+#include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
+#include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"       // from @llvm-project
 #include "llvm/include/llvm/ADT/StringExtras.h"      // from @llvm-project
@@ -36,6 +40,8 @@ void FloatPolynomialAttr::print(AsmPrinter& p) const {
 template <typename MonomialType>
 using ParseCoefficientFn = std::function<OptionalParseResult(MonomialType&)>;
 
+constexpr unsigned attrAPIntBitWidth = 64;
+
 /// Try to parse a monomial. If successful, populate the fields of the outparam
 /// `monomial` with the results, and the `variable` outparam with the parsed
 /// variable name. Sets shouldParseMore to true if the monomial is followed by
@@ -58,7 +64,7 @@ ParseResult parseMonomial(
     if (!parsedCoeffResult.has_value()) {
       return failure();
     }
-    monomial.setExponent(APInt(apintBitWidth, 0));
+    monomial.setExponent(APInt(attrAPIntBitWidth, 0));
     isConstantTerm = true;
     shouldParseMore = true;
     return success();
@@ -72,7 +78,7 @@ ParseResult parseMonomial(
       return failure();
     }
 
-    monomial.setExponent(APInt(apintBitWidth, 0));
+    monomial.setExponent(APInt(attrAPIntBitWidth, 0));
     isConstantTerm = true;
     return success();
   }
@@ -87,7 +93,7 @@ ParseResult parseMonomial(
     }
 
     // If there's a **, then the integer exponent is required.
-    APInt parsedExponent(apintBitWidth, 0);
+    APInt parsedExponent(attrAPIntBitWidth, 0);
     if (failed(parser.parseInteger(parsedExponent))) {
       parser.emitError(parser.getCurrentLocation(),
                        "found invalid integer exponent");
@@ -96,7 +102,7 @@ ParseResult parseMonomial(
 
     monomial.setExponent(parsedExponent);
   } else {
-    monomial.setExponent(APInt(apintBitWidth, 1));
+    monomial.setExponent(APInt(attrAPIntBitWidth, 1));
   }
 
   if (succeeded(parser.parseOptionalPlus())) {
@@ -160,7 +166,7 @@ Attribute IntPolynomialAttr::parse(AsmParser& parser, Type type) {
   if (failed(parsePolynomialAttr<IntMonomial>(
           parser, monomials, variables,
           [&](IntMonomial& monomial) -> OptionalParseResult {
-            APInt parsedCoeff(apintBitWidth, 1);
+            APInt parsedCoeff(attrAPIntBitWidth, 1);
             OptionalParseResult result =
                 parser.parseOptionalInteger(parsedCoeff);
             monomial.setCoefficient(parsedCoeff);
@@ -249,6 +255,75 @@ void RingAttr::getAliasSuffix(raw_ostream& os) const {
     os << polynomialModulus.getPolynomial().toIdentifier();
   }
   return AliasResult::FinalAlias;
+}
+
+LogicalResult RNSPolynomialAttr::verify(
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
+    DenseIntElementsAttr coefficients, Type type, Form form) {
+  auto polyType = llvm::dyn_cast<PolynomialType>(type);
+  if (!polyType) {
+    return emitError() << "expected PolynomialType, but got " << type;
+  }
+
+  auto ring = polyType.getRing();
+  auto polyModAttr = ring.getPolynomialModulus();
+  if (!polyModAttr) {
+    return emitError()
+           << "expected polynomialModulus in the ring, but none was found";
+  }
+
+  auto polyMod = polyModAttr.getPolynomial();
+  auto terms = polyMod.getTerms();
+
+  bool isValid = false;
+  if (terms.size() == 2) {
+    auto term0 = terms[0];
+    auto term1 = terms[1];
+    if (term0.getExponent().ugt(term1.getExponent())) {
+      std::swap(term0, term1);
+    }
+    if (term0.getExponent().isZero() && term0.getCoefficient().isOne() &&
+        !term1.getExponent().isZero() && term1.getCoefficient().isOne()) {
+      isValid = true;
+    }
+  }
+
+  if (!isValid) {
+    return emitError() << "RNS polynomial attributes require a "
+                          "polynomialModulus of the form x^N + 1, but got "
+                       << polyModAttr;
+  }
+
+  return success();
+}
+
+RNSPolynomial RNSPolynomialAttr::getPolynomial() const {
+  auto polyType = dyn_cast<PolynomialType>(getType());
+  assert(polyType && "expected PolynomialType");
+  auto rnsType =
+      dyn_cast<rns::RNSType>(polyType.getRing().getCoefficientType());
+  assert(rnsType && "expected RNSType");
+  auto basisTypes = rnsType.getBasisTypes();
+
+  SmallVector<uint64_t> moduli;
+  moduli.reserve(basisTypes.size());
+  for (Type b : basisTypes) {
+    auto modType = cast<mod_arith::ModArithType>(b);
+    moduli.push_back(modType.getModulus().getValue().getZExtValue());
+  }
+
+  [[maybe_unused]] auto shape = getCoefficients().getType().getShape();
+  assert(shape[0] == static_cast<int64_t>(moduli.size()) &&
+         "number of limbs must match RNS basis size");
+
+  auto valuesRange = getCoefficients().getValues<APInt>();
+  SmallVector<uint64_t> flatValues;
+  flatValues.reserve(valuesRange.size());
+  for (const APInt& v : valuesRange) {
+    flatValues.push_back(v.getZExtValue());
+  }
+
+  return RNSPolynomial(std::move(flatValues), std::move(moduli), getForm());
 }
 
 }  // namespace polynomial

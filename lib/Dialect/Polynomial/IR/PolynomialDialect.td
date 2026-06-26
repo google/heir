@@ -43,6 +43,7 @@ def Polynomial_Dialect : Dialect {
 
   let useDefaultTypePrinterParser = 1;
   let useDefaultAttributePrinterParser = 1;
+  let hasConstantMaterializer = 1;
 }
 
 #endif  // LIB_DIALECT_POLYNOMIAL_IR_POLYNOMIALDIALECT_TD_

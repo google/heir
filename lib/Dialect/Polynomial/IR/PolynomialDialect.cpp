@@ -7,14 +7,18 @@
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "llvm/include/llvm/ADT/APInt.h"               // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"         // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinOps.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/Dialect.h"              // from @llvm-project
-#include "mlir/include/mlir/IR/OpImplementation.h"     // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/Dialect.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Location.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/OpImplementation.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"      // from @llvm-project
 #include "mlir/include/mlir/Interfaces/InferTypeOpInterface.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 
@@ -44,4 +48,14 @@ void PolynomialDialect::initialize() {
 #define GET_OP_LIST
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.cpp.inc"
       >();
+}
+
+Operation* PolynomialDialect::materializeConstant(OpBuilder& builder,
+                                                  Attribute value, Type type,
+                                                  Location loc) {
+  if (llvm::isa<TypedIntPolynomialAttr, TypedFloatPolynomialAttr,
+                TypedChebyshevPolynomialAttr, RNSPolynomialAttr>(value)) {
+    return ConstantOp::create(builder, loc, type, value);
+  }
+  return nullptr;
 }

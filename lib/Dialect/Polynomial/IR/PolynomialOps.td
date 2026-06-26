@@ -291,11 +291,11 @@ def Polynomial_ModSwitchOp : Polynomial_Op<"mod_switch", [Pure, SameOperandsAndR
   let hasVerifier = 1;
 }
 
-
 def Polynomial_AnyTypedPolynomialAttr : AnyAttrOf<[
   Polynomial_TypedFloatPolynomialAttr,
   Polynomial_TypedIntPolynomialAttr,
-  Polynomial_TypedChebyshevPolynomialAttr
+  Polynomial_TypedChebyshevPolynomialAttr,
+  Polynomial_RNSPolynomialAttr
 ]>;
 
 def Polynomial_ConstantOp : Op<Polynomial_Dialect, "constant", [Pure]> {
