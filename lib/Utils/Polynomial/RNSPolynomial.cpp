@@ -189,6 +189,26 @@ RNSPolynomial RNSPolynomial::toCoefficient(rns::RNSAttr rootAttr) const {
   return RNSPolynomial(std::move(resultData), moduli, Form::COEFF);
 }
 
+RNSPolynomial RNSPolynomial::slice(size_t start, size_t size) const {
+  assert(start + size <= getNumLimbs() && "slice out of bounds");
+
+  llvm::SmallVector<uint64_t> slicedData;
+  slicedData.reserve(size * numCoeffs);
+
+  auto dataRef = getData();
+  auto slicedDataRef = dataRef.slice(start * numCoeffs, size * numCoeffs);
+  slicedData.append(slicedDataRef.begin(), slicedDataRef.end());
+
+  llvm::SmallVector<uint64_t> slicedModuli;
+  slicedModuli.reserve(size);
+  auto moduliRef = getModuli();
+  auto slicedModuliRef = moduliRef.slice(start, size);
+  slicedModuli.append(slicedModuliRef.begin(), slicedModuliRef.end());
+
+  return RNSPolynomial(std::move(slicedData), std::move(slicedModuli),
+                       representation);
+}
+
 }  // namespace polynomial
 }  // namespace heir
 }  // namespace mlir
