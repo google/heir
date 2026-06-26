@@ -32,9 +32,7 @@ module {
 }
 
 // CHECK: @simple_mul__generate_crypto_context
-// CHECK-SAME: !jaxiteword.public_key
-// CHECK-SAME: !jaxiteword.private_key
-// CHECK-SAME: !jaxiteword.eval_key
+// CHECK-SAME: () -> !jaxiteword.crypto_context
 // CHECK: jaxiteword.gen_params
 // CHECK-SAME: batch = 1 : i32
 // CHECK-SAME: c = 4 : i32
