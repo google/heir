@@ -172,6 +172,7 @@ class InsertIntoFromElements final : public OpRewritePattern<tensor::InsertOp> {
       }
     }
 
+    rewriter.setInsertionPointAfter(opsToErase.back());
     rewriter.replaceAllUsesWith(
         opsToErase.back()->getResult(0),
         tensor::FromElementsOp::create(rewriter, insertOp.getLoc(), destType,
