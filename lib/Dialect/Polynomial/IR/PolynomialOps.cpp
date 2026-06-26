@@ -14,6 +14,7 @@
 #include "lib/Dialect/RNS/IR/RNSOps.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
+#include "lib/Utils/Polynomial/RNSPolynomial.h"
 #include "llvm/include/llvm/ADT/APInt.h"                 // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
@@ -475,16 +476,18 @@ void ConstantOp::print(OpAsmPrinter& p) {
   if (auto intPoly = dyn_cast<TypedIntPolynomialAttr>(getValue())) {
     p << "int";
     intPoly.getValue().print(p);
+    p << " : ";
+    p.printType(getOutput().getType());
   } else if (auto floatPoly = dyn_cast<TypedFloatPolynomialAttr>(getValue())) {
     p << "float";
     floatPoly.getValue().print(p);
+    p << " : ";
+    p.printType(getOutput().getType());
   } else if (auto rnsPoly = dyn_cast<RNSPolynomialAttr>(getValue())) {
     p.printAttribute(rnsPoly);
   } else {
     assert(false && "unexpected attribute type");
   }
-  p << " : ";
-  p.printType(getOutput().getType());
 }
 
 static LogicalResult inferNTTReturnType(MLIRContext* ctx, Type inputType,
@@ -616,6 +619,128 @@ LogicalResult ApplyCoefficientwiseOp::verify() {
   }
 
   return success();
+}
+
+OpFoldResult ConstantOp::fold(FoldAdaptor adaptor) { return getValue(); }
+
+static RNSPolynomialAttr getRNSPolynomialAttr(MLIRContext* context,
+                                              const RNSPolynomial& poly,
+                                              Type resultType, Type elementType,
+                                              ArrayRef<int64_t> shape) {
+  auto tensorType = RankedTensorType::get(shape, elementType);
+  unsigned bitWidth = elementType.getIntOrFloatBitWidth();
+  SmallVector<APInt> resultAPInts;
+  resultAPInts.reserve(poly.getData().size());
+  for (uint64_t v : poly.getData()) {
+    resultAPInts.push_back(APInt(bitWidth, v));
+  }
+  auto resultCoeffs = DenseIntElementsAttr::get(tensorType, resultAPInts);
+  return RNSPolynomialAttr::get(context, resultCoeffs, resultType,
+                                poly.getRepresentation());
+}
+
+template <typename OpTy, typename AdaptorTy, typename BinaryMapFn>
+static OpFoldResult foldBinaryRNSPoly(OpTy op, AdaptorTy adaptor,
+                                      BinaryMapFn&& mapFn) {
+  auto lhsAttr = dyn_cast_or_null<RNSPolynomialAttr>(adaptor.getLhs());
+  auto rhsAttr = dyn_cast_or_null<RNSPolynomialAttr>(adaptor.getRhs());
+  if (!lhsAttr || !rhsAttr) return nullptr;
+
+  RNSPolynomial lhsPoly = lhsAttr.getPolynomial();
+  RNSPolynomial rhsPoly = rhsAttr.getPolynomial();
+
+  if (lhsPoly.getRepresentation() != rhsPoly.getRepresentation()) {
+    return nullptr;
+  }
+
+  RNSPolynomial resultPoly = mapFn(lhsPoly, rhsPoly);
+
+  auto resultType = op.getResult().getType();
+  auto elementType = lhsAttr.getCoefficients().getElementType();
+  auto shape = lhsAttr.getCoefficients().getType().getShape();
+
+  return getRNSPolynomialAttr(op.getContext(), resultPoly, resultType,
+                              elementType, shape);
+}
+
+OpFoldResult AddOp::fold(FoldAdaptor adaptor) {
+  return foldBinaryRNSPoly(
+      *this, adaptor,
+      [](const RNSPolynomial& a, const RNSPolynomial& b) { return a.add(b); });
+}
+
+OpFoldResult SubOp::fold(FoldAdaptor adaptor) {
+  return foldBinaryRNSPoly(
+      *this, adaptor,
+      [](const RNSPolynomial& a, const RNSPolynomial& b) { return a.sub(b); });
+}
+
+OpFoldResult MulOp::fold(FoldAdaptor adaptor) {
+  return foldBinaryRNSPoly(
+      *this, adaptor,
+      [](const RNSPolynomial& a, const RNSPolynomial& b) { return a.mul(b); });
+}
+
+OpFoldResult NTTOp::fold(FoldAdaptor adaptor) {
+  auto inputAttr = dyn_cast_or_null<RNSPolynomialAttr>(adaptor.getInput());
+  if (!inputAttr) return nullptr;
+
+  auto rootAttr = adaptor.getRoot();
+  if (!rootAttr) return nullptr;
+
+  auto rnsRootAttr = dyn_cast<rns::RNSAttr>(rootAttr->getValue());
+  if (!rnsRootAttr) return nullptr;
+
+  RNSPolynomial poly = inputAttr.getPolynomial();
+  RNSPolynomial resultPoly = poly.toNtt(rnsRootAttr);
+
+  auto resultType = getResult().getType();
+  auto elementType = inputAttr.getCoefficients().getElementType();
+  auto shape = inputAttr.getCoefficients().getType().getShape();
+
+  return getRNSPolynomialAttr(getContext(), resultPoly, resultType, elementType,
+                              shape);
+}
+
+OpFoldResult INTTOp::fold(FoldAdaptor adaptor) {
+  auto inputAttr = dyn_cast_or_null<RNSPolynomialAttr>(adaptor.getInput());
+  if (!inputAttr) return nullptr;
+
+  auto rootAttr = adaptor.getRoot();
+  if (!rootAttr) return nullptr;
+
+  auto rnsRootAttr = dyn_cast<rns::RNSAttr>(rootAttr->getValue());
+  if (!rnsRootAttr) return nullptr;
+
+  RNSPolynomial poly = inputAttr.getPolynomial();
+  RNSPolynomial resultPoly = poly.toCoefficient(rnsRootAttr);
+
+  auto resultType = getResult().getType();
+  auto elementType = inputAttr.getCoefficients().getElementType();
+  auto shape = inputAttr.getCoefficients().getType().getShape();
+
+  return getRNSPolynomialAttr(getContext(), resultPoly, resultType, elementType,
+                              shape);
+}
+
+OpFoldResult ExtractSliceOp::fold(FoldAdaptor adaptor) {
+  auto inputAttr = dyn_cast_or_null<RNSPolynomialAttr>(adaptor.getInput());
+  if (!inputAttr) return nullptr;
+
+  RNSPolynomial poly = inputAttr.getPolynomial();
+
+  int64_t start = getStart().getZExtValue();
+  int64_t size = getSize().getZExtValue();
+
+  RNSPolynomial resultPoly = poly.slice(start, size);
+
+  auto resultType = getResult().getType();
+  auto elementType = inputAttr.getCoefficients().getElementType();
+
+  SmallVector<int64_t, 2> resultShape = {size, (int64_t)poly.getNumCoeffs()};
+
+  return getRNSPolynomialAttr(getContext(), resultPoly, resultType, elementType,
+                              resultShape);
 }
 
 }  // namespace polynomial
