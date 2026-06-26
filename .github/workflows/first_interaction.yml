@@ -18,8 +18,8 @@ jobs:
       - name: Welcome new contributor
         uses: actions/first-interaction@1c4688942c71f71d4f5502a26ea67c331730fa4d # v3.1.0
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          issue-message: |
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_message: |
             Welcome to HEIR!
 
             Thank you for opening your first issue! We appreciate you joining our community.
@@ -35,7 +35,7 @@ jobs:
             channel on [Discord](https://discord.fhe.org/).
 
             We look forward to connecting with you!
-          pr-message: |
+          pr_message: |
             Welcome to HEIR!
 
             Thank you for opening your first pull request! We appreciate you joining our community.
