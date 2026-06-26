@@ -113,7 +113,6 @@ Build a single wheel (recommended for local testing):
 
 ```bash
 cibuildwheel --only cp312-macosx_arm64      # macOS Apple Silicon
-cibuildwheel --only cp312-macosx_x86_64     # macOS Intel
 cibuildwheel --only cp312-manylinux_x86_64  # Linux x86_64
 cibuildwheel --only cp312-manylinux_aarch64 # Linux arm64
 ```
