@@ -1,5 +1,5 @@
-#ifndef LIB_DIALECT_LWE_TRANSFORMS_DECOMPOSE_KEYSWITCH_H_
-#define LIB_DIALECT_LWE_TRANSFORMS_DECOMPOSE_KEYSWITCH_H_
+#ifndef LIB_DIALECT_LWE_TRANSFORMS_DECOMPOSE_LWE_OPS_H_
+#define LIB_DIALECT_LWE_TRANSFORMS_DECOMPOSE_LWE_OPS_H_
 
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "mlir/include/mlir/IR/PatternMatch.h"        // from @llvm-project
@@ -14,7 +14,7 @@ namespace mlir {
 namespace heir {
 namespace lwe {
 
-#define GEN_PASS_DECL_DECOMPOSEKEYSWITCH
+#define GEN_PASS_DECL_DECOMPOSELWEOPS
 #include "lib/Dialect/LWE/Transforms/Passes.h.inc"
 
 struct DecomposeKeySwitchPattern : public OpRewritePattern<KeySwitchInnerOp> {
@@ -25,8 +25,16 @@ struct DecomposeKeySwitchPattern : public OpRewritePattern<KeySwitchInnerOp> {
                                 PatternRewriter& rewriter) const override;
 };
 
+struct DecomposeModDownPattern : public OpRewritePattern<ModDownOp> {
+  using OpRewritePattern<ModDownOp>::OpRewritePattern;
+
+ public:
+  LogicalResult matchAndRewrite(ModDownOp op,
+                                PatternRewriter& rewriter) const override;
+};
+
 }  // namespace lwe
 }  // namespace heir
 }  // namespace mlir
 
-#endif  // LIB_DIALECT_LWE_TRANSFORMS_DECOMPOSE_KEYSWITCH_H_
+#endif  // LIB_DIALECT_LWE_TRANSFORMS_DECOMPOSE_LWE_OPS_H_

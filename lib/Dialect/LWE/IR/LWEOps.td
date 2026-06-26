@@ -176,7 +176,7 @@ def LWE_RNegateOp : LWE_Op<"rnegate", [SameOperandsAndResultType, ElementwiseMap
 def LWE_MulScalarOp : LWE_Op<"mul_scalar", [ElementwiseMappable,
     AllTypesMatch<["ciphertext", "output"]>]> {
   let summary = "Multiply an LWE ciphertext by a scalar";
-  let arguments = (ins LWECiphertextLike:$ciphertext, AnyInteger:$scalar);
+  let arguments = (ins LWECiphertextLike:$ciphertext, AnyType:$scalar);
   let results = (outs LWECiphertextLike:$output);
   let hasFolder = 1;
 }
@@ -337,6 +337,23 @@ def LWE_ConvertBasisOp : LWE_Op<"convert_basis", [Pure, DeclareOpInterfaceMethod
     LWERingElt:$output
   );
   let assemblyFormat = "$value attr-dict `:` type($value) `->` type($output)";
+}
+
+def LWE_ModDownOp : LWE_Op<"mod_down", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
+  let summary = "Scale a plaintext by the ratio of the input and output (target) moduli.";
+  let description = [{
+    Given an encryption of `x` with ciphertext modulus `Q` and target modulus `Q'`, produces
+    an encryption of round(Q' / Q * x).
+
+    The target RNS basis must be a prefix of the input's RNS basis.
+  }];
+  let arguments = (ins
+      LWECiphertext:$input,
+      TypeAttr:$targetBasis
+  );
+  let results = (outs LWECiphertext:$output);
+  let assemblyFormat = "$input attr-dict `:` type($input) `->` type($output)";
+  let hasVerifier = 1;
 }
 
 def LWE_KeySwitchInnerOp : LWE_Op<"key_switch_inner", [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {

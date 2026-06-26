@@ -1,7 +1,6 @@
-// RUN: heir-opt --lwe-decompose-keyswitch %s | FileCheck %s
+// RUN: heir-opt --lwe-decompose %s | FileCheck %s
 
 !Zq0 = !mod_arith.int<1095233372161 : i64>
-!Zq1 = !mod_arith.int<1032955396097 : i64>
 !Zp0 = !mod_arith.int<261405424692085787 : i64>
 
 // Input's type
@@ -35,6 +34,7 @@ module attributes {
   // CHECK-SAME: [[x:%.+]]: !ringelt,
   // CHECK-SAME: [[ksk:%.+]]: tensor<1x!ct_L1>) -> (!ringelt, !ringelt) {
   func.func @test_keyswitch(%x: !ringelt_L1, %arg0: tensor<1x!ct_L2>) -> (!ringelt_L1, !ringelt_L1) {
+    // CHECK-DAG: [[rnsConst:%.+]] = rns.constant
     // CHECK-DAG: [[C0:%.+]] = arith.constant 0 : index
     // CHECK-DAG: [[part0:%.+]] = lwe.extract_slice [[x]] {size = 1 : index, start = 0 : index} : !ringelt -> !ringelt
     // !ringelt1 has the same LWERingElt type as the keyswitch key
@@ -42,10 +42,20 @@ module attributes {
     // CHECK-DAG: [[ksk0:%.+]] = tensor.extract [[ksk]][[[C0]]] : tensor<1x!ct_L1>
     // CHECK-DAG: [[dp:%.+]] = lwe.mul_ring_elt [[extPart0]], [[ksk0]] : (!ringelt1, !ct_L1) -> !ct_L1
     // CHECK-DAG: [[constTerm:%.+]] = lwe.extract_coeff [[dp]] {index = 0 : index} : !ct_L1
+    // CHECK-DAG: [[constTermQ:%.+]] = lwe.extract_slice [[constTerm]] {size = 1 : index, start = 0 : index} : !ringelt1 -> !ringelt
+    // CHECK-DAG: [[constTermP:%.+]] = lwe.extract_slice [[constTerm]] {size = 1 : index, start = 1 : index} : !ringelt1 -> [[kskelt:!.+]]
+    // CHECK-DAG: [[const_ext:%.+]] = lwe.convert_basis [[constTermP]] {targetBasis = [[kskBasis:!.+]]} : [[kskelt]] -> !ringelt
     // CHECK-DAG: [[linearTerm:%.+]] = lwe.extract_coeff [[dp]] {index = 1 : index} : !ct_L1
-    // CHECK-DAG: [[const_ext:%.+]] = lwe.convert_basis [[constTerm]] {targetBasis = !rns_L0} : !ringelt1 -> !ringelt
-    // CHECK-DAG: [[linear_ext:%.+]] = lwe.convert_basis [[linearTerm]] {targetBasis = !rns_L0} : !ringelt1 -> !ringelt
-    // CHECK-DAG: return [[const_ext]], [[linear_ext]] : !ringelt, !ringelt
+    // CHECK-DAG: [[linearTermQ:%.+]] = lwe.extract_slice [[linearTerm]] {size = 1 : index, start = 0 : index} : !ringelt1 -> !ringelt
+    // CHECK-DAG: [[linearTermP:%.+]] = lwe.extract_slice [[linearTerm]] {size = 1 : index, start = 1 : index} : !ringelt1 -> [[kskelt]]
+    // CHECK-DAG: [[linear_ext:%.+]] = lwe.convert_basis [[linearTermP]] {targetBasis = [[kskBasis]]} : [[kskelt]] -> !ringelt
+    // CHECK-DAG: [[ctQ:%.+]] = lwe.from_coeffs [[constTermQ]], [[linearTermQ]]
+    // CHECK-DAG: [[ctP:%.+]] = lwe.from_coeffs [[const_ext]], [[linear_ext]]
+    // CHECK-DAG: [[diff:%.+]] = lwe.rsub [[ctQ]], [[ctP]]
+    // CHECK-DAG: [[scaledDiff:%.+]] = lwe.mul_scalar [[diff]], [[rnsConst]]
+    // CHECK-DAG: [[newConst:%.+]] = lwe.extract_coeff [[scaledDiff]] {index = 0 : index}
+    // CHECK-DAG: [[newLinear:%.+]] = lwe.extract_coeff [[scaledDiff]] {index = 1 : index}
+    // CHECK-DAG: return [[newConst]], [[newLinear]] : !ringelt, !ringelt
     %constTerm, %linearTerm = lwe.key_switch_inner %x, %arg0 : (!ringelt_L1, tensor<1x!ct_L2>) -> (!ringelt_L1, !ringelt_L1)
     return %constTerm, %linearTerm: !ringelt_L1, !ringelt_L1
   }

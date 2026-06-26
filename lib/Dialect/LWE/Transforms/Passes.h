@@ -4,7 +4,7 @@
 // IWYU pragma: begin_keep
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/Transforms/AddDebugPort.h"
-#include "lib/Dialect/LWE/Transforms/DecomposeKeySwitch.h"
+#include "lib/Dialect/LWE/Transforms/DecomposeLWEOps.h"
 #include "lib/Dialect/LWE/Transforms/ImplementTrivialEncryptionAsAddition.h"
 // IWYU pragma: end_keep
 
