@@ -674,9 +674,17 @@ LogicalResult JaxiteWordEmitter::printOperation(GenMulKeyOp op) {
   auto ctx = variableNames->getNameForValue(op.getCryptoContext());
   auto sk = variableNames->getNameForValue(op.getSecretKey());
 
-  os << ek << " = key_gen.gen_evaluation_key(" << sk << ", " << "q=" << ctx
+  os << ek << "_raw = key_gen.gen_evaluation_key(" << sk << ", " << "q=" << ctx
      << ".q_towers, " << "P=" << ctx << ".p_towers, " << "dnum=" << ctx
      << ".parameters.get('dnum', 3)" << ")\n";
+  os << ek << " = [\n";
+  os.indent();
+  os << "jnp.array(" << ek
+     << "_raw[\"a\"], dtype=jnp.uint32).transpose(0, 2, 1),\n";
+  os << "jnp.array(" << ek
+     << "_raw[\"b\"], dtype=jnp.uint32).transpose(0, 2, 1),\n";
+  os.unindent();
+  os << "]\n";
 
   return success();
 }
@@ -701,9 +709,6 @@ LogicalResult JaxiteWordEmitter::printOperation(GenRotKeyOp op) {
 
 LogicalResult JaxiteWordEmitter::printOperation(GenParamsOp op) {
   auto ctx = variableNames->getNameForValue(op.getCryptoContext());
-  auto publicKey = variableNames->getNameForValue(op.getPublicKey());
-  auto secretKey = variableNames->getNameForValue(op.getSecretKey());
-  auto evaluationKey = variableNames->getNameForValue(op.getEvaluationKey());
 
   os << "params = {\n";
   os.indent();
@@ -733,10 +738,7 @@ LogicalResult JaxiteWordEmitter::printOperation(GenParamsOp op) {
   os << "\"max_bits_in_word\": 61,\n";
   os << "\"max_bits_value\": " << ((1ULL << 63) - (1ULL << 9) - 1) << ",\n";
   os << "\"noise_scale_degree\": 1,\n";
-  os << "\"CKKS_M_FACTOR\": 1,\n";
-  os << "\"public_key\": " << publicKey << ",\n";
-  os << "\"secret_key\": " << secretKey << ",\n";
-  os << "\"evaluation_key\": " << evaluationKey << "\n";
+  os << "\"CKKS_M_FACTOR\": 1\n";
   os.unindent();
   os << "}\n";
 
@@ -746,6 +748,16 @@ LogicalResult JaxiteWordEmitter::printOperation(GenParamsOp op) {
 
 LogicalResult JaxiteWordEmitter::printOperation(ProgramInitializationOp op) {
   auto ctx = variableNames->getNameForValue(op.getCryptoContext());
+  auto pk = variableNames->getNameForValue(op.getPublicKey());
+  auto sk = variableNames->getNameForValue(op.getSecretKey());
+  auto ek = variableNames->getNameForValue(op.getEvaluationKey());
+
+  os << ctx << ".public_key = " << pk << "\n";
+  os << ctx << ".secret_key = " << sk << "\n";
+  os << ctx << ".evaluation_key = " << ek << "\n";
+  os << ctx << ".parameters[\"public_key\"] = " << pk << "\n";
+  os << ctx << ".parameters[\"secret_key\"] = " << sk << "\n";
+  os << ctx << ".parameters[\"evaluation_key\"] = " << ek << "\n";
 
   os << ctx << ".program_initialization(";
   os << "total_hemul_levels=" << op.getTotalHemulLevels() << ", ";

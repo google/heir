@@ -80,9 +80,6 @@ def GenParamsOp : JaxiteWord_Op<"gen_params"> {
     - numEvalMult: Number of evaluation multiplications
   }];
   let arguments = (ins
-    JaxiteWord_PublicKey:$publicKey,
-    JaxiteWord_PrivateKey:$secretKey,
-    JaxiteWord_EvalKey:$evaluationKey,
     // Scheme parameters
     I64Attr:$degree,
     I64Attr:$numSlots,
@@ -132,11 +129,17 @@ def ProgramInitializationOp : JaxiteWord_Op<"program_initialization"> {
   let summary = "Initialize CROSS program context with HEMul/HERot accessors";
   let description = [{
     Calls ctx.program_initialization() which pre-builds level-indexed
-    HEMul and HERot accessors and loads all keys onto the context.
+    HEMul and HERot accessors and loads all keys onto the context. The key
+    operands are attached to the CROSS context before calling
+    program_initialization, matching CROSS's params-dictionary API while keeping
+    gen_params key-independent.
     Replaces separate GenMulKeyOp + GenRotKeyOp for the new CROSS API.
   }];
   let arguments = (ins
     JaxiteWord_CryptoContext:$cryptoContext,
+    JaxiteWord_PublicKey:$publicKey,
+    JaxiteWord_PrivateKey:$secretKey,
+    JaxiteWord_EvalKey:$evaluationKey,
     I64Attr:$totalHemulLevels,
     DenseI64ArrayAttr:$totalRotationIndices,
     I32Attr:$dnum,
