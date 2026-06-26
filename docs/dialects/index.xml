@@ -14981,6 +14981,42 @@ to specify the root of unity used in lowering the transform.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="rnspolynomialattr">RNSPolynomialAttr&lt;/h3>
+&lt;p>&lt;em>A polynomial represented in RNS form&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#polynomial.rns_polynomial&amp;lt;
+::mlir::DenseIntElementsAttr, # coefficients
+::mlir::Type, # type
+::mlir::heir::polynomial::Form # form
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>A polynomial attribute represented as an array of RNS limbs.&lt;/p>
+&lt;h4 id="parameters-4">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">coefficients&lt;/td>
+&lt;td style="text-align:center">&lt;code>::mlir::DenseIntElementsAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">type&lt;/td>
+&lt;td style="text-align:center">&lt;code>::mlir::Type&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">form&lt;/td>
+&lt;td style="text-align:center">&lt;code>::mlir::heir::polynomial::Form&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="ringattr">RingAttr&lt;/h3>
 &lt;p>&lt;em>An attribute specifying a polynomial ring&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
@@ -15011,7 +15047,7 @@ coefficients are taken modulo &lt;code>2**32 - 5&lt;/code>, with a polynomial mo
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>In this case, the value of a polynomial is always &amp;ldquo;converted&amp;rdquo; to a
 canonical form by applying repeated reductions by setting &lt;code>x**1024 = 1&lt;/code>
 and simplifying.&lt;/p>
-&lt;h4 id="parameters-4">Parameters:&lt;/h4>
+&lt;h4 id="parameters-5">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -15044,7 +15080,7 @@ and simplifying.&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#f57900">poly_ty =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>polynomial&lt;span style="color:#000;font-weight:bold">.&lt;/span>polynomial&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">ring=&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">coefficientType=&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#poly&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> float&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1.4&lt;/span> &lt;span style="color:#000;font-weight:bold">x**&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">7&lt;/span> &lt;span style="color:#a40000">+&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">4.5&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>poly_ty
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#poly_verbose&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#polynomial.typed_chebyshev_polynomial&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1.4&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">4.5&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">6.0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">7.0&lt;/span>&lt;span style="color:#000;font-weight:bold">]&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>poly_ty
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters-5">Parameters:&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters-6">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -15077,7 +15113,7 @@ and simplifying.&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#f57900">poly_ty =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>polynomial&lt;span style="color:#000;font-weight:bold">.&lt;/span>polynomial&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">ring=&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">coefficientType=&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#poly&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> float&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1.4&lt;/span> &lt;span style="color:#000;font-weight:bold">x**&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">7&lt;/span> &lt;span style="color:#a40000">+&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">4.5&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>poly_ty
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#poly_verbose&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#polynomial.typed_float_polynomial&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1.4&lt;/span> &lt;span style="color:#000;font-weight:bold">x**&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">7&lt;/span> &lt;span style="color:#a40000">+&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">4.5&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>poly_ty
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters-6">Parameters:&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters-7">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -15110,7 +15146,7 @@ and simplifying.&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#f57900">poly_ty =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>polynomial&lt;span style="color:#000;font-weight:bold">.&lt;/span>polynomial&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">ring=&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">coefficientType=&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#poly&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> int&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1 x&lt;/span>&lt;span style="color:#000;font-weight:bold">**&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">7&lt;/span> &lt;span style="color:#a40000">+&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">4&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>poly_ty
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#poly_verbose&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#polynomial.typed_int_polynomial&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1 x&lt;/span>&lt;span style="color:#000;font-weight:bold">**&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">7&lt;/span> &lt;span style="color:#a40000">+&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">4&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>poly_ty
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters-7">Parameters:&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters-8">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -15142,7 +15178,7 @@ and simplifying.&lt;/p>
 ::mlir::heir::polynomial::Form # form
 &amp;gt;
 &lt;/code>&lt;/pre>&lt;p>A type for polynomials in a polynomial quotient ring.&lt;/p>
-&lt;h4 id="parameters-8">Parameters:&lt;/h4>
+&lt;h4 id="parameters-9">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -15291,7 +15327,7 @@ coefficient type of the polynomial as a consequence of the operations.&lt;/p>
 &lt;h4 id="attributes">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>value&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>a typed float_polynomial or a typed int_polynomial or a typed chebyshev_polynomial&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>value&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>a typed float_polynomial or a typed int_polynomial or a typed chebyshev_polynomial or A polynomial represented in RNS form&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="results-2">Results:&lt;/h4>
 &lt;table>
@@ -15332,7 +15368,7 @@ if the input is compatible with the polynomial coefficient type.&lt;/p>
 &lt;h4 id="attributes-1">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>polynomial&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>a typed float_polynomial or a typed int_polynomial or a typed chebyshev_polynomial&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>polynomial&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>a typed float_polynomial or a typed int_polynomial or a typed chebyshev_polynomial or A polynomial represented in RNS form&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-2">Operands:&lt;/h4>
 &lt;table>
