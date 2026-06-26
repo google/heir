@@ -4,6 +4,7 @@
 
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
+#include "mlir/include/mlir/Conversion/ConvertToEmitC/ToEmitCInterface.h"  // from @llvm-project
 
 // IWYU pragma: begin_keep
 #include "llvm/include/llvm/ADT/TypeSwitch.h"    // from @llvm-project
@@ -29,6 +30,7 @@ void OpenfheDialect::initialize() {
 #define GET_OP_LIST
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.cpp.inc"
       >();
+  declarePromisedInterface<ConvertToEmitCPatternInterface, OpenfheDialect>();
 }
 
 }  // namespace openfhe

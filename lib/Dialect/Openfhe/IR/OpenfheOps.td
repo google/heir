@@ -254,7 +254,7 @@ def GenBootstrapKeyOp : Openfhe_Op<"gen_bootstrapkey"> {
 def MakePackedPlaintextOp : Openfhe_Op<"make_packed_plaintext", [Pure, PlaintextEncodeOpInterface]> {
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
-    RankedTensorOf<[AnyInteger]>:$value
+    TensorOrMemRef<[AnyInteger]>:$value
   );
   let results = (outs Openfhe_Plaintext:$plaintext);
 }
@@ -262,7 +262,7 @@ def MakePackedPlaintextOp : Openfhe_Op<"make_packed_plaintext", [Pure, Plaintext
 def MakeCKKSPackedPlaintextOp : Openfhe_Op<"make_ckks_packed_plaintext", [Pure, PlaintextEncodeOpInterface]> {
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
-    RankedTensorOf<[AnyFloat, AnyInteger]>:$value
+    TensorOrMemRef<[AnyFloat, AnyInteger]>:$value
   );
   let results = (outs Openfhe_Plaintext:$plaintext);
 }

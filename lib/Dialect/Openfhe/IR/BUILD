@@ -26,6 +26,7 @@ cc_library(
         "@heir//lib/Utils",
         "@heir//lib/Utils/Tablegen:InPlaceOpInterface",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ConvertToEmitCInterface",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
         "@llvm-project//mlir:SCFDialect",

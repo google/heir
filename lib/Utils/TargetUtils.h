@@ -38,6 +38,13 @@ std::string commaSeparated(ArrayRef<T> values) {
       [&](const std::string& a, T b) { return a + ", " + std::to_string(b); });
 }
 
+// Returns a C++ initializer list string representation of the given values,
+// e.g., "{1, 2, 3}".
+template <typename T>
+std::string initializerList(ArrayRef<T> values) {
+  return "{" + commaSeparated(values) + "}";
+}
+
 // Return a comma-separated string containing the types in a given TypeRange,
 // or failure if the mapper fails to convert any of the types.
 FailureOr<std::string> commaSeparatedTypes(

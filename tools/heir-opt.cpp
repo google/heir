@@ -40,6 +40,7 @@
 #include "lib/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.h"
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/ModArith/Transforms/Passes.h"
+#include "lib/Dialect/Openfhe/Conversions/OpenFHEToEmitC/OpenfheToEmitCDialectInterface.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Openfhe/Transforms/Passes.h"
 #include "lib/Dialect/Orion/IR/OrionDialect.h"
@@ -132,17 +133,22 @@
 #include "lib/Transforms/UnusedMemRef/UnusedMemRef.h"
 #include "lib/Transforms/ValidateNoise/ValidateNoise.h"
 #include "mlir/include/mlir/Conversion/AffineToStandard/AffineToStandard.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/ArithToEmitC/ArithToEmitC.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ArithToLLVM/ArithToLLVM.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ComplexToLLVM/ComplexToLLVM.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/ConvertToEmitC/ConvertToEmitCPass.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ConvertToLLVM/ToLLVMPass.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/FuncToEmitC/FuncToEmitC.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/FuncToLLVM/ConvertFuncToLLVM.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/IndexToLLVM/IndexToLLVM.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/MathToLLVM/MathToLLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/MemRefToEmitC/MemRefToEmitC.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/SCFToEmitC/SCFToEmitC.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/UBToLLVM/UBToLLVM.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/VectorToLLVM/ConvertVectorToLLVM.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
@@ -275,6 +281,8 @@ int main(int argc, char** argv) {
   registry.insert<polynomial::PolynomialDialect>();
   registry.insert<scf::SCFDialect>();
   registry.insert<tensor::TensorDialect>();
+  registry.insert<openfhe::OpenfheDialect>();
+  openfhe::registerOpenfheToEmitCInterface(registry);
 
   // Uncomment if you want everything bound to CLI flags.
   // registerAllDialects(registry);
@@ -295,6 +303,12 @@ int main(int argc, char** argv) {
   registerConvertMemRefToLLVMInterface(registry);
   ub::registerConvertUBToLLVMInterface(registry);
   vector::registerConvertVectorToLLVMInterface(registry);
+
+  // Converting to EmitC
+  mlir::registerConvertArithToEmitCInterface(registry);
+  mlir::registerConvertFuncToEmitCInterface(registry);
+  mlir::registerConvertMemRefToEmitCInterface(registry);
+  mlir::registerConvertSCFToEmitCInterface(registry);
 
   // Misc
   registerTransformsPasses();      // canonicalize, cse, etc.
@@ -325,6 +339,8 @@ int main(int argc, char** argv) {
   });
   registerPass(
       []() -> std::unique_ptr<Pass> { return createConvertToLLVMPass(); });
+  registerPass(
+      []() -> std::unique_ptr<Pass> { return createConvertToEmitC(); });
 
   // Bufferization and external models
   bufferization::registerBufferizationPasses();

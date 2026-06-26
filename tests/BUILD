@@ -1,4 +1,3 @@
-# Tests for HEIR
 load("//bazel:lit.bzl", "glob_lit_tests")
 
 package(

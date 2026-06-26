@@ -11,9 +11,10 @@ include "mlir/IR/DialectBase.td"
 include "mlir/IR/OpAsmInterface.td"
 include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
+include "mlir/IR/BuiltinTypeInterfaces.td"
 
 class Openfhe_Type<string name, string typeMnemonic, list<Trait> traits = []>
-    : TypeDef<Openfhe_Dialect, name, traits # [OpAsmTypeInterface]> {
+    : TypeDef<Openfhe_Dialect, name, traits # [OpAsmTypeInterface, MemRefElementTypeInterface]> {
   let mnemonic = typeMnemonic;
 
   string asmName = ?;
