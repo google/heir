@@ -493,8 +493,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(affine::AffineForOp op) {
           llvm::formatv("Failed to emit typed assign prefix for {}", result));
     }
     os << variableNames->getNameForValue(operand);
-    if (!isa<ShapedType>(result.getType())) {
-      // Note that for vector types we don't need to clone.
+    if (isa<CiphertextType>(result.getType())) {
       os << "->Clone()";
     }
     os << ";\n";
@@ -545,25 +544,9 @@ LogicalResult OpenFhePkeEmitter::printOperation(cf::AssertOp op) {
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(scf::IfOp op) {
-  // ResultType result;
-  // if (value) {
-  //   result = blah;
-  // } else {
-  //   result = blah;
-  // }
   for (auto i = 0; i < op.getNumResults(); ++i) {
     Value result = op.getResults()[i];
-    Value thenYieldedValue = op.thenYield().getResults()[i];
-    Value elseYieldedValue = op.elseYield().getResults()[i];
-
-    // Map the yielded value names to the result names if the yielded value is a
-    // tensor.
-    if (isa<ShapedType>(result.getType())) {
-      variableNames->mapValueNameToValue(thenYieldedValue, result);
-      variableNames->mapValueNameToValue(elseYieldedValue, result);
-      mutableValues.insert(thenYieldedValue);
-      mutableValues.insert(elseYieldedValue);
-    } else {
+    if (!isa<ShapedType>(result.getType())) {
       if (failed(emitType(result.getType(), op.getLoc(),
                           /*constant=*/false))) {
         return emitError(op.getLoc(),
@@ -585,15 +568,28 @@ LogicalResult OpenFhePkeEmitter::printOperation(scf::IfOp op) {
   os.unindent();
   os << "}";
 
-  os << llvm::formatv(" else {{\n");
-  os.indent();
-  for (Operation& op : *op.elseBlock()) {
-    if (failed(translate(op))) {
-      return op.emitOpError() << "Failed to translate for if else block";
+  if (op.elseBlock()) {
+    os << llvm::formatv(" else {{\n");
+    os.indent();
+    for (Operation& op : *op.elseBlock()) {
+      if (failed(translate(op))) {
+        return op.emitOpError() << "Failed to translate for if else block";
+      }
+    }
+    os.unindent();
+    os << "}";
+  }
+
+  // Map ShapedType results at the end, after they have been translated and got
+  // their final names
+  for (auto i = 0; i < op.getNumResults(); ++i) {
+    Value result = op.getResults()[i];
+    if (isa<ShapedType>(result.getType())) {
+      Value thenYieldedValue = op.thenYield().getResults()[i];
+      variableNames->mapValueNameToValue(result, thenYieldedValue);
+      mutableValues.insert(result);
     }
   }
-  os.unindent();
-  os << "}";
 
   os << "\n";
   return success();
@@ -630,8 +626,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(scf::ForOp op) {
           llvm::formatv("Failed to emit typed assign prefix for {}", result));
     }
     os << variableNames->getNameForValue(operand);
-    if (!isa<ShapedType>(result.getType())) {
-      // Note that for vector types we don't need to clone.
+    if (isa<CiphertextType>(result.getType())) {
       os << "->Clone()";
     }
     os << ";\n";
@@ -716,7 +711,10 @@ LogicalResult OpenFhePkeEmitter::printOperation(scf::YieldOp op) {
       Value operand = op.getOperands()[i];
       Value result = ifOp.getResults()[i];
       if (!isa<ShapedType>(result.getType())) {
-        emitAutoAssignPrefix(result);
+        if (failed(emitTypedAssignPrefix(result, op.getLoc(),
+                                         /*constant=*/false))) {
+          return failure();
+        }
         os << variableNames->getNameForValue(operand) << ";\n";
       }
     }
@@ -1503,30 +1501,52 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::ExtractSliceOp op) {
   if (failed(emitType(resultType, op->getLoc()))) {
     return failure();
   }
-  os << " " << resultName << "(" << resultType.getNumElements() << ");\n";
 
-  SmallVector<OpFoldResult> offsets = op.getMixedOffsets();
-  ArrayRef<int64_t> sizes = op.getStaticSizes();
-  ArrayRef<int64_t> strides = op.getStaticStrides();
-
-  auto getOffsetAsString = [&](OpFoldResult offset) -> std::string {
-    if (auto intAttr = offset.dyn_cast<Attribute>()) {
+  auto ofValueToString = [&](OpFoldResult ofr) -> std::string {
+    if (auto intAttr = ofr.dyn_cast<Attribute>()) {
       return std::to_string(
           cast<IntegerAttr>(intAttr).getValue().getSExtValue());
     }
-    return variableNames->getNameForValue(cast<Value>(offset));
+    return variableNames->getNameForValue(cast<Value>(ofr));
   };
 
+  SmallVector<OpFoldResult> sizes = op.getMixedSizes();
+  std::string numElementsStr;
+  if (sizes.empty()) {
+    numElementsStr = "1";
+  } else {
+    llvm::raw_string_ostream ss(numElementsStr);
+    ss << ofValueToString(sizes[0]);
+    for (size_t i = 1; i < sizes.size(); ++i) {
+      ss << " * " << ofValueToString(sizes[i]);
+    }
+  }
+
+  os << " " << resultName << "(" << numElementsStr << ");\n";
+
+  SmallVector<OpFoldResult> offsets = op.getMixedOffsets();
+  SmallVector<OpFoldResult> strides = op.getMixedStrides();
+
+  bool isStridesAllOne = true;
+  for (auto stride : strides) {
+    if (auto intAttr = stride.dyn_cast<Attribute>()) {
+      if (cast<IntegerAttr>(intAttr).getValue().getSExtValue() != 1) {
+        isStridesAllOne = false;
+        break;
+      }
+    } else {
+      isStridesAllOne = false;
+      break;
+    }
+  }
+
   // If everything is 1D and has stride 1, we can use std::copy
-  //
-  // std::copy(source.begin() + offset, source.begin() + offset + size,
-  // result.begin());
   if (resultType.getRank() == 1 && op.getSourceType().getRank() == 1 &&
-      llvm::all_of(strides, [](int64_t stride) { return stride == 1; })) {
-    std::string offsetStr = getOffsetAsString(offsets[0]);
-    auto size = sizes[0];
+      isStridesAllOne) {
+    std::string offsetStr = ofValueToString(offsets[0]);
+    std::string sizeStr = ofValueToString(sizes[0]);
     os << "std::copy(" << sourceName << ".begin()" << " + " << offsetStr << ", "
-       << sourceName << ".begin()" << " + " << offsetStr << " + " << size
+       << sourceName << ".begin()" << " + " << offsetStr << " + " << sizeStr
        << ", " << resultName << ".begin());\n";
     return success();
   }
@@ -1536,14 +1556,15 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::ExtractSliceOp op) {
            std::to_string(i);
   };
 
-  LoopOpenerFn opener = [&](raw_indented_ostream& os,
-                            const std::string& inductionVar, int64_t size) {
+  DynamicLoopOpenerFn opener = [&](raw_indented_ostream& os,
+                                   const std::string& inductionVar,
+                                   OpFoldResult size) {
     os << "for (int64_t " << inductionVar << " = 0; " << inductionVar << " < "
-       << size << "; ++" << inductionVar << ") {\n";
+       << ofValueToString(size) << "; ++" << inductionVar << ") {\n";
   };
 
   emitFlattenedExtractSlice(resultType, sourceType, resultName, sourceName,
-                            offsets, sizes, strides, getOffsetAsString, nameFn,
+                            offsets, sizes, strides, ofValueToString, nameFn,
                             opener, os);
   return success();
 }
@@ -1564,33 +1585,44 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::InsertSliceOp op) {
   }
   os << " " << resultName << "(" << destName << ");\n";
 
-  // We could relax this by using previously declared SSA values for dynamic
-  // offsets, sizes, and strides. But we have no use for it yet and I'm facing
-  // a deadline, baby!
-  if (op.getStaticOffsets().empty() || op.getStaticSizes().empty() ||
-      op.getStaticStrides().empty()) {
-    return op.emitError() << "expected static offsets, sizes, and strides";
-  }
+  auto ofValueToString = [&](OpFoldResult ofr) -> std::string {
+    if (auto intAttr = ofr.dyn_cast<Attribute>()) {
+      return std::to_string(
+          cast<IntegerAttr>(intAttr).getValue().getSExtValue());
+    }
+    return variableNames->getNameForValue(cast<Value>(ofr));
+  };
+
+  SmallVector<OpFoldResult> offsets = op.getMixedOffsets();
+  SmallVector<OpFoldResult> sizes = op.getMixedSizes();
+  SmallVector<OpFoldResult> strides = op.getMixedStrides();
 
   std::string sourceName = variableNames->getNameForValue(op.getSource());
 
+  bool isStridesAllOne = true;
+  for (auto stride : strides) {
+    if (auto intAttr = stride.dyn_cast<Attribute>()) {
+      if (cast<IntegerAttr>(intAttr).getValue().getSExtValue() != 1) {
+        isStridesAllOne = false;
+        break;
+      }
+    } else {
+      isStridesAllOne = false;
+      break;
+    }
+  }
+
   // If we have a 1D source and target tensor, and the strides are 1,
   // we can use std::copy
-  //
-  // std::copy(source.begin(), source.end(), result.begin() + offset);
   if (resultType.getRank() == 1 && op.getSourceType().getRank() == 1 &&
-      llvm::all_of(op.getStaticStrides(),
-                   [](int64_t stride) { return stride == 1; })) {
+      isStridesAllOne) {
+    std::string offsetStr = ofValueToString(offsets[0]);
     os << "std::copy(";
     os << sourceName << ".begin(), ";
     os << sourceName << ".end(), ";
-    os << resultName << ".begin() + " << op.getStaticOffsets()[0] << ");\n";
+    os << resultName << ".begin() + " << offsetStr << ");\n";
     return success();
   }
-
-  SmallVector<int64_t> offsets = SmallVector<int64_t>(op.getStaticOffsets());
-  SmallVector<int64_t> sizes = SmallVector<int64_t>(op.getStaticSizes());
-  SmallVector<int64_t> strides = SmallVector<int64_t>(op.getStaticStrides());
 
   // Loop nest to copy the right values
   SmallVector<std::string> sourceIndexNames;
@@ -1600,13 +1632,17 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::InsertSliceOp op) {
     std::string destIndexName = destName + "_" + std::to_string(nestLevel);
     sourceIndexNames.push_back(sourceIndexName);
     destIndexNames.push_back(destIndexName);
+
+    std::string offsetStr = ofValueToString(offsets[nestLevel]);
+    std::string sizeStr = ofValueToString(sizes[nestLevel]);
+    std::string strideStr = ofValueToString(strides[nestLevel]);
+
     // Initialize the source index to zero, since it is simple, note this must
     // happen outside the loop
     os << "int64_t " << sourceIndexName << " = 0;\n";
-    os << "for (int64_t " << destIndexName << " = " << offsets[nestLevel]
-       << "; " << destIndexName << " < "
-       << offsets[nestLevel] + sizes[nestLevel] * strides[nestLevel] << "; "
-       << destIndexName << " += " << strides[nestLevel] << ") {\n";
+    os << "for (int64_t " << destIndexName << " = " << offsetStr << "; "
+       << destIndexName << " < " << offsetStr << " + " << sizeStr << " * "
+       << strideStr << "; " << destIndexName << " += " << strideStr << ") {\n";
     os.indent();
   }
 
@@ -1614,9 +1650,14 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::InsertSliceOp op) {
   os << resultName << "["
      << flattenIndexExpression(op.getDest().getType().getShape(),
                                destIndexNames)
-     << "] = " << sourceName << "["
-     << flattenIndexExpression(op.getSource().getType().getShape(),
-                               sourceIndexNames)
+     << "] = " << sourceName << "[" <<
+      [&]() {
+        SmallVector<std::string> sourceShapeStrings;
+        for (auto size : sizes) {
+          sourceShapeStrings.push_back(ofValueToString(size));
+        }
+        return flattenIndexExpression(sourceShapeStrings, sourceIndexNames);
+      }()
      << "];\n";
 
   // Now unindent and close the loop nest

@@ -8,12 +8,10 @@ heir_lattigo_lib(
     go_library_name = "mnist",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=ckks",
-        # TODO(#2960): remove enable-split-preprocessing=false once split-preprocessing handles loops
-        "--torch-linalg-to-ckks=ciphertext-degree=1024 modulus-switch-after-mul=true experimental-disable-loop-unroll=true level-budget=40 first-mod-bits=55 enable-split-preprocessing=false",
+        "--torch-linalg-to-ckks=ciphertext-degree=1024 modulus-switch-after-mul=true experimental-disable-loop-unroll=true level-budget=40 first-mod-bits=55",
         "--scheme-to-lattigo",
     ],
     mlir_src = "@heir//tests/Examples/common/mnist:mnist.mlir",
-    split_preprocessing = False,
 )
 
 go_test(
@@ -26,4 +24,5 @@ go_test(
         "@heir//tests/Examples/common/mnist/data:traced_model.pt",
     ],
     embed = [":mnist"],
+    deps = [":mnist_utils"],
 )
