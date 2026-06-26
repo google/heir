@@ -422,6 +422,26 @@ struct ConvertRNegate : public OpConversionPattern<RNegateOp> {
   }
 };
 
+struct ConvertMulScalar : public OpConversionPattern<MulScalarOp> {
+  ConvertMulScalar(mlir::MLIRContext* context)
+      : OpConversionPattern<MulScalarOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      MulScalarOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    Type resultType = getTypeConverter()->convertType(op.getOutput().getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(op,
+                                         "Result type could not be converted");
+    }
+    rewriter.replaceOpWithNewOp<polynomial::MulScalarOp>(
+        op, resultType, adaptor.getCiphertext(), adaptor.getScalar());
+    return success();
+  }
+};
+
 struct ConvertRMul : public OpConversionPattern<RMulOp> {
   ConvertRMul(mlir::MLIRContext* context)
       : OpConversionPattern<RMulOp>(context) {}
@@ -647,15 +667,15 @@ struct LWEToPolynomial : public impl::LWEToPolynomialBase<LWEToPolynomial> {
 
     RewritePatternSet patterns(context);
 
-    patterns
-        .add<ConvertRLWEDecrypt, ConvertRLWEEncrypt, ConvertRAdd, ConvertRSub,
-             ConvertRNegate, ConvertRMul, ConvertRAddPlain, ConvertRSubPlain,
-             ConvertRMulPlain, ConvertRMulRingElt, ConvertExtractCoeff,
-             ConvertFromCoeffs, ConvertExtractSlice, ConvertConvertBasis>(
-            typeConverter, context);
+    patterns.add<ConvertRLWEDecrypt, ConvertRLWEEncrypt, ConvertRAdd,
+                 ConvertRSub, ConvertRNegate, ConvertMulScalar, ConvertRMul,
+                 ConvertRAddPlain, ConvertRSubPlain, ConvertRMulPlain,
+                 ConvertRMulRingElt, ConvertExtractCoeff, ConvertFromCoeffs,
+                 ConvertExtractSlice, ConvertConvertBasis>(typeConverter,
+                                                           context);
     target.addIllegalOp<RLWEDecryptOp, RLWEEncryptOp, RAddOp, RSubOp, RNegateOp,
-                        RMulOp, RMulRingEltOp, RAddPlainOp, RSubPlainOp,
-                        RMulPlainOp, ExtractCoeffOp, FromCoeffsOp,
+                        MulScalarOp, RMulOp, RMulRingEltOp, RAddPlainOp,
+                        RSubPlainOp, RMulPlainOp, ExtractCoeffOp, FromCoeffsOp,
                         ExtractSliceOp, ConvertBasisOp>();
 
     addStructuralConversionPatterns(typeConverter, patterns, target);

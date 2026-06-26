@@ -69,10 +69,10 @@ def ImplementTrivialEncryptionAsAddition : Pass<"implement-trivial-encryption-as
   let options = [];
 }
 
-def DecomposeKeySwitch : Pass<"lwe-decompose-keyswitch"> {
-  let summary = "Decomposes lwe.key_switch_inner into primitive LWE ops";
+def DecomposeLWEOps : Pass<"lwe-decompose"> {
+  let summary = "Decomposes complex LWE ops into primitive LWE ops";
   let description = [{
-  (* example filepath=tests/Dialect/LWE/Transforms/decompose_keyswitch.mlir *)
+  (* example filepath=tests/Dialect/LWE/Transforms/DecomposeLWEOps/keyswitch.mlir *)
   }];
   let dependentDialects = [
     "mlir::arith::ArithDialect",
