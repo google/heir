@@ -5,10 +5,13 @@
 #include <type_traits>
 #include <utility>
 
-#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
-#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"      // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StructuredOpsUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineExpr.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/AffineMap.h"     // from @llvm-project
@@ -58,10 +61,15 @@ LogicalResult findLinearOpAndOperand(OpTy op, Operation*& linearOp,
 }
 
 template <typename OpTy>
-LogicalResult fuseScaleOrDivIntoLinearOp(PatternRewriter& rewriter, OpTy op) {
+LogicalResult fuseScaleOrDivIntoLinearOp(PatternRewriter& rewriter, OpTy op,
+                                         DataFlowSolver& solver) {
   Operation* linearOp = nullptr;
-  Value scale_val;
-  if (failed(findLinearOpAndOperand(op, linearOp, scale_val))) return failure();
+  Value scaleVal;
+  if (failed(findLinearOpAndOperand(op, linearOp, scaleVal))) return failure();
+
+  if (isSecret(scaleVal, &solver)) {
+    return failure();
+  }
 
   Value weights;
   int64_t weightOperandIdx = -1;
@@ -97,7 +105,7 @@ LogicalResult fuseScaleOrDivIntoLinearOp(PatternRewriter& rewriter, OpTy op) {
   if (!weights) return failure();
 
   auto weightsType = cast<RankedTensorType>(weights.getType());
-  auto scaleValType = cast<RankedTensorType>(scale_val.getType());
+  auto scaleValType = cast<RankedTensorType>(scaleVal.getType());
 
   if (scaleValType.getRank() != 1) return failure();
 
@@ -125,7 +133,7 @@ LogicalResult fuseScaleOrDivIntoLinearOp(PatternRewriter& rewriter, OpTy op) {
                                          weightsType.getElementType());
 
   auto broadcastOp = linalg::BroadcastOp::create(
-      rewriter, linearOp->getLoc(), scale_val, emptyOp.getResult(), addedDims);
+      rewriter, linearOp->getLoc(), scaleVal, emptyOp.getResult(), addedDims);
 
   auto scaledWeights =
       OpTy::create(rewriter, op.getLoc(), weights, broadcastOp.getResults()[0]);
@@ -139,10 +147,15 @@ LogicalResult fuseScaleOrDivIntoLinearOp(PatternRewriter& rewriter, OpTy op) {
 }
 
 template <typename OpTy>
-LogicalResult fuseAddOrSubIntoLinearOp(PatternRewriter& rewriter, OpTy op) {
+LogicalResult fuseAddOrSubIntoLinearOp(PatternRewriter& rewriter, OpTy op,
+                                       DataFlowSolver& solver) {
   Operation* linearOp = nullptr;
   Value addend;
   if (failed(findLinearOpAndOperand(op, linearOp, addend))) return failure();
+
+  if (isSecret(addend, &solver)) {
+    return failure();
+  }
 
   auto destStyleOp = dyn_cast<DestinationStyleOpInterface>(linearOp);
   if (!destStyleOp) return failure();
@@ -204,35 +217,51 @@ LogicalResult fuseAddOrSubIntoLinearOp(PatternRewriter& rewriter, OpTy op) {
 }
 
 struct FuseScaleIntoLinearOp : public OpRewritePattern<arith::MulFOp> {
-  using OpRewritePattern<arith::MulFOp>::OpRewritePattern;
+  FuseScaleIntoLinearOp(MLIRContext* context, DataFlowSolver& solver)
+      : OpRewritePattern<arith::MulFOp>(context), solver(solver) {}
   LogicalResult matchAndRewrite(arith::MulFOp op,
                                 PatternRewriter& rewriter) const override {
-    return fuseScaleOrDivIntoLinearOp(rewriter, op);
+    return fuseScaleOrDivIntoLinearOp(rewriter, op, solver);
   }
+
+ private:
+  DataFlowSolver& solver;
 };
 
 struct FuseDivIntoLinearOp : public OpRewritePattern<arith::DivFOp> {
-  using OpRewritePattern<arith::DivFOp>::OpRewritePattern;
+  FuseDivIntoLinearOp(MLIRContext* context, DataFlowSolver& solver)
+      : OpRewritePattern<arith::DivFOp>(context), solver(solver) {}
   LogicalResult matchAndRewrite(arith::DivFOp op,
                                 PatternRewriter& rewriter) const override {
-    return fuseScaleOrDivIntoLinearOp(rewriter, op);
+    return fuseScaleOrDivIntoLinearOp(rewriter, op, solver);
   }
+
+ private:
+  DataFlowSolver& solver;
 };
 
 struct FuseAddIntoLinearOp : public OpRewritePattern<arith::AddFOp> {
-  using OpRewritePattern<arith::AddFOp>::OpRewritePattern;
+  FuseAddIntoLinearOp(MLIRContext* context, DataFlowSolver& solver)
+      : OpRewritePattern<arith::AddFOp>(context), solver(solver) {}
   LogicalResult matchAndRewrite(arith::AddFOp op,
                                 PatternRewriter& rewriter) const override {
-    return fuseAddOrSubIntoLinearOp(rewriter, op);
+    return fuseAddOrSubIntoLinearOp(rewriter, op, solver);
   }
+
+ private:
+  DataFlowSolver& solver;
 };
 
 struct FuseSubIntoLinearOp : public OpRewritePattern<arith::SubFOp> {
-  using OpRewritePattern<arith::SubFOp>::OpRewritePattern;
+  FuseSubIntoLinearOp(MLIRContext* context, DataFlowSolver& solver)
+      : OpRewritePattern<arith::SubFOp>(context), solver(solver) {}
   LogicalResult matchAndRewrite(arith::SubFOp op,
                                 PatternRewriter& rewriter) const override {
-    return fuseAddOrSubIntoLinearOp(rewriter, op);
+    return fuseAddOrSubIntoLinearOp(rewriter, op, solver);
   }
+
+ private:
+  DataFlowSolver& solver;
 };
 
 }  // namespace
@@ -243,9 +272,17 @@ struct LinalgFuseLinearOps
     MLIRContext* context = &getContext();
     auto module = getOperation();
 
+    DataFlowSolver solver;
+    dataflow::loadBaselineAnalyses(solver);
+    solver.load<SecretnessAnalysis>();
+    if (failed(solver.initializeAndRun(module))) {
+      module->emitOpError() << "Failed to run SecretnessAnalysis.\n";
+      return signalPassFailure();
+    }
+
     RewritePatternSet patterns(context);
     patterns.add<FuseScaleIntoLinearOp, FuseDivIntoLinearOp,
-                 FuseAddIntoLinearOp, FuseSubIntoLinearOp>(context);
+                 FuseAddIntoLinearOp, FuseSubIntoLinearOp>(context, solver);
 
     if (failed(applyPatternsGreedily(module, std::move(patterns)))) {
       return signalPassFailure();

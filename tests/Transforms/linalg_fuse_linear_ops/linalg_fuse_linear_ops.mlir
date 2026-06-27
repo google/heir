@@ -99,3 +99,45 @@ func.func @fuse_matmul_with_bias(%arg0: tensor<2x3xf32>, %arg1: tensor<3x4xf32>,
   %4 = arith.addf %2, %broadcasted_0 : tensor<2x4xf32>
   return %4 : tensor<2x4xf32>
 }
+
+// -----
+
+// CHECK: func.func @no_fuse_secret_scale
+// CHECK: %[[VAL_0:.*]] = tensor.empty() : tensor<2xf32>
+// CHECK: %[[VAL_1:.*]] = linalg.matvec ins(%arg0, %arg1 : tensor<2x3xf32>, tensor<3xf32>) outs(%[[VAL_0]] : tensor<2xf32>)
+// CHECK: %[[VAL_2:.*]] = arith.mulf %[[VAL_1]], %arg2 : tensor<2xf32>
+// CHECK: return %[[VAL_2]]
+func.func @no_fuse_secret_scale(%arg0: tensor<2x3xf32>, %arg1: tensor<3xf32>, %arg2: tensor<2xf32> {secret.secret}) -> tensor<2xf32> {
+  %0 = tensor.empty() : tensor<2xf32>
+  %1 = linalg.matvec ins(%arg0, %arg1 : tensor<2x3xf32>, tensor<3xf32>) outs(%0 : tensor<2xf32>) -> tensor<2xf32>
+  %2 = arith.mulf %1, %arg2 : tensor<2xf32>
+  return %2 : tensor<2xf32>
+}
+
+// -----
+
+// CHECK: func.func @no_fuse_secret_square
+// CHECK: %[[VAL_0:.*]] = tensor.empty() : tensor<2xf32>
+// CHECK: %[[VAL_1:.*]] = linalg.matvec ins(%arg0, %arg1 : tensor<2x3xf32>, tensor<3xf32>) outs(%[[VAL_0]] : tensor<2xf32>)
+// CHECK: %[[VAL_2:.*]] = arith.mulf %[[VAL_1]], %[[VAL_1]] : tensor<2xf32>
+// CHECK: return %[[VAL_2]]
+func.func @no_fuse_secret_square(%arg0: tensor<2x3xf32>, %arg1: tensor<3xf32> {secret.secret}) -> tensor<2xf32> {
+  %0 = tensor.empty() : tensor<2xf32>
+  %1 = linalg.matvec ins(%arg0, %arg1 : tensor<2x3xf32>, tensor<3xf32>) outs(%0 : tensor<2xf32>) -> tensor<2xf32>
+  %2 = arith.mulf %1, %1 : tensor<2xf32>
+  return %2 : tensor<2xf32>
+}
+
+// -----
+
+// CHECK: func.func @no_fuse_secret_bias
+// CHECK: %[[VAL_0:.*]] = tensor.empty() : tensor<2xf32>
+// CHECK: %[[VAL_1:.*]] = linalg.matvec ins(%arg0, %arg1 : tensor<2x3xf32>, tensor<3xf32>) outs(%[[VAL_0]] : tensor<2xf32>)
+// CHECK: %[[VAL_2:.*]] = arith.addf %[[VAL_1]], %arg2 : tensor<2xf32>
+// CHECK: return %[[VAL_2]]
+func.func @no_fuse_secret_bias(%arg0: tensor<2x3xf32>, %arg1: tensor<3xf32>, %arg2: tensor<2xf32> {secret.secret}) -> tensor<2xf32> {
+  %0 = tensor.empty() : tensor<2xf32>
+  %1 = linalg.matvec ins(%arg0, %arg1 : tensor<2x3xf32>, tensor<3xf32>) outs(%0 : tensor<2xf32>) -> tensor<2xf32>
+  %2 = arith.addf %1, %arg2 : tensor<2xf32>
+  return %2 : tensor<2xf32>
+}
