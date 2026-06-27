@@ -12,9 +12,14 @@
 #include "lib/Target/TfheRustHL/TfheRustHLEmitter.h"
 #include "lib/Target/Verilog/VerilogEmitter.h"
 #include "llvm/include/llvm/Support/LogicalResult.h"  // from @llvm-project
+#include "mlir/include/mlir/InitAllTranslations.h"    // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-translate/MlirTranslateMain.h"  // from @llvm-project
 
 int main(int argc, char** argv) {
+  // MLIR-to-C++ via the EmitC dialect: used as the final stage of the CHEDDAR
+  // backend (`scheme-to-cheddar | --cheddar-to-emitc | heir-translate
+  // --mlir-to-cpp`), and available standalone for any EmitC IR.
+  mlir::registerToCppTranslation();
   // Verilog output
   mlir::heir::registerToVerilogTranslation();
   mlir::heir::registerMetadataEmitter();
