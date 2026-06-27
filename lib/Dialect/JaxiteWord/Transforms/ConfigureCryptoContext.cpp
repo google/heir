@@ -90,10 +90,12 @@ struct ConfigureCryptoContext
   LogicalResult generateGenFunc(func::FuncOp op, const std::string& genFuncName,
                                 ImplicitLocOpBuilder& builder) {
     Type ccType = CryptoContextType::get(builder.getContext());
+
+    SmallVector<Type> funcArgTypes;
     SmallVector<Type> funcResultTypes = {ccType};
 
     FunctionType genFuncType =
-        FunctionType::get(builder.getContext(), {}, funcResultTypes);
+        FunctionType::get(builder.getContext(), funcArgTypes, funcResultTypes);
     auto genFuncOp = func::FuncOp::create(builder, genFuncName, genFuncType);
     builder.setInsertionPointToEnd(genFuncOp.addEntryBlock());
 
@@ -119,9 +121,11 @@ struct ConfigureCryptoContext
                                    const std::string& configFuncName,
                                    ImplicitLocOpBuilder& builder) {
     Type ccType = CryptoContextType::get(builder.getContext());
+    Type pkType = PublicKeyType::get(builder.getContext());
     Type skType = PrivateKeyType::get(builder.getContext());
+    Type ekType = EvalKeyType::get(builder.getContext());
 
-    SmallVector<Type> funcArgTypes = {ccType, skType};
+    SmallVector<Type> funcArgTypes = {ccType, pkType, skType, ekType};
     SmallVector<Type> funcResultTypes;
 
     FunctionType configFuncType =
@@ -131,10 +135,12 @@ struct ConfigureCryptoContext
     builder.setInsertionPointToEnd(configFuncOp.addEntryBlock());
 
     Value cryptoContext = configFuncOp.getArgument(0);
-    Value secretKey = configFuncOp.getArgument(1);
+    Value publicKey = configFuncOp.getArgument(1);
+    Value secretKey = configFuncOp.getArgument(2);
+    Value evaluationKey = configFuncOp.getArgument(3);
 
     ProgramInitializationOp::create(
-        builder, cryptoContext, secretKey,
+        builder, cryptoContext, publicKey, secretKey, evaluationKey,
         /*totalHemulLevels=*/static_cast<int64_t>(config.mulDepth),
         /*totalRotationIndices=*/config.rotIndices,
         /*dnum=*/config.dnum,
