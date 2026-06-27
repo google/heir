@@ -89,6 +89,11 @@ class NoiseState {
   // as if we are doing e1 + e2 using log(e1) and log(e2)
   NoiseState operator+(const NoiseState& rhs) const;
 
+  NoiseState& operator+=(const NoiseState& rhs) {
+    assert(isKnown());
+    return *this = *this + rhs;
+  }
+
   // for int/double
   template <typename T>
   NoiseState operator+(const T& rhs) const {
@@ -96,15 +101,32 @@ class NoiseState {
     return *this + NoiseState::of(rhs);
   }
 
+  template <typename T>
+  NoiseState& operator+=(const T& rhs) {
+    assert(isKnown());
+    return *this += NoiseState::of(rhs);
+  }
+
   // Although NoiseState stores log(e), we expose the operation
   // as if we are doing e1 * e2 using log(e1) and log(e2)
   NoiseState operator*(const NoiseState& rhs) const;
+
+  NoiseState& operator*=(const NoiseState& rhs) {
+    assert(isKnown());
+    return *this = *this * rhs;
+  }
 
   // for int/double
   template <typename T>
   NoiseState operator*(const T& rhs) const {
     assert(isKnown());
     return *this * NoiseState::of(rhs);
+  }
+
+  template <typename T>
+  NoiseState& operator*=(const T& rhs) {
+    assert(isKnown());
+    return *this *= NoiseState::of(rhs);
   }
 
   static NoiseState join(const NoiseState& lhs, const NoiseState& rhs) {
