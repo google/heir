@@ -13,8 +13,8 @@
 #include "llvm/include/llvm/ADT/DenseMap.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/MathExtras.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/OperationSupport.h"    // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
@@ -28,14 +28,6 @@ static SmallVector<DimAttr> collectDims(LayoutAttr layout) {
   dims.reserve(layout.getDims().size());
   for (Attribute attr : layout.getDims()) dims.push_back(cast<DimAttr>(attr));
   return dims;
-}
-
-// File-local convenience adapter over a LayoutAttr; delegates to the single
-// implementation in RotomAttributes so the ct/slot split here matches attribute
-// preprocessing exactly.
-static size_t inferCtPrefixLen(LayoutAttr layout) {
-  SmallVector<DimAttr> dims = collectDims(layout);
-  return inferCtPrefixLen(dims, layout.getN());
 }
 
 int64_t layoutNumCiphertexts(LayoutAttr layout) {
@@ -56,10 +48,10 @@ int64_t layoutNumCiphertexts(LayoutAttr layout) {
 // gap/replication piece, or a non-power-of-two extent or stride. Because the
 // tag is (dim, bit), a piece and its finer split decompose identically -- e.g.
 // [0:4:1] and [0:2:2][0:2:1] both yield (0,1)(0,0).
-static std::optional<SmallVector<std::pair<int64_t, int64_t>>> atomizeSlotRegion(
-    LayoutAttr layout) {
+static std::optional<SmallVector<std::pair<int64_t, int64_t>>>
+atomizeSlotRegion(LayoutAttr layout) {
   SmallVector<std::pair<int64_t, int64_t>> atoms;
-  size_t ctPrefixLen = inferCtPrefixLen(layout);
+  size_t ctPrefixLen = inferCtPrefixLen(collectDims(layout), layout.getN());
   ArrayAttr dims = layout.getDims();
   for (size_t i = ctPrefixLen; i < dims.size(); ++i) {
     auto dim = cast<DimAttr>(dims[i]);
@@ -78,7 +70,8 @@ static std::optional<SmallVector<std::pair<int64_t, int64_t>>> atomizeSlotRegion
 }
 
 SmallVector<ConversionMove> conversionMoves(LayoutAttr lhs, LayoutAttr rhs) {
-  ConversionMove sentinel{/*dim=*/-1, /*bit=*/-1, /*fromSlot=*/-1, /*toSlot=*/-1};
+  ConversionMove sentinel{/*dim=*/-1, /*bit=*/-1, /*fromSlot=*/-1,
+                          /*toSlot=*/-1};
   if (lhs.getN() != rhs.getN()) return {sentinel};
 
   std::optional<SmallVector<std::pair<int64_t, int64_t>>> lhsAtoms =
