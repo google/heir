@@ -1,11 +1,16 @@
 // RUN: heir-opt -canonicalize %s | FileCheck %s
 
 #ideal = #polynomial.int_polynomial<1 + x**2>
+#ideal4 = #polynomial.int_polynomial<1 + x**4>
 !rns_basis_0 = !mod_arith.int<17 : i32>
 !rns_basis_1 = !mod_arith.int<13 : i32>
 !rns_ty = !rns.rns<!rns_basis_0, !rns_basis_1>
 !rns_poly_ty = !polynomial.polynomial<ring=<coefficientType=!rns_ty, polynomialModulus=#ideal>>
 !rns_poly_ev_ty = !polynomial.polynomial<ring=<coefficientType=!rns_ty, polynomialModulus=#ideal>, form=eval>
+
+!mod_int_poly_ty = !polynomial.polynomial<ring=<coefficientType=!rns_basis_0, polynomialModulus=#ideal4>>
+!mod_int_poly_ev_ty = !polynomial.polynomial<ring=<coefficientType=!rns_basis_0, polynomialModulus=#ideal4>, form=eval>
+!int_poly_ev_ty = !polynomial.polynomial<ring=<coefficientType=i32, polynomialModulus=#ideal>, form=eval>
 
 !rns_sliced_basis = !rns.rns<!rns_basis_1>
 !rns_sliced_poly_ty = !polynomial.polynomial<ring=<coefficientType=!rns_sliced_basis, polynomialModulus=#ideal>>
@@ -57,6 +62,50 @@ func.func @test_fold_mul_ntt() -> !rns_poly_ev_ty {
   %1 = polynomial.constant #polynomial.rns_polynomial<dense<[[1, 2], [3, 4]]> : tensor<2x2xi32>, eval> : !rns_poly_ev_ty
   %2 = polynomial.mul %0, %1 : !rns_poly_ev_ty
   return %2 : !rns_poly_ev_ty
+}
+
+// CHECK: @test_fold_int_add_eval
+func.func @test_fold_int_add_eval() -> !int_poly_ev_ty {
+  // CHECK-NOT: polynomial.add
+  // CHECK: %[[CST:.*]] = polynomial.constant int<4 + 2x + 4x**2> : [[TY_INT_ADD:![a-zA-Z0-9_]+]]
+  // CHECK: return %[[CST]] : [[TY_INT_ADD]]
+  %0 = polynomial.constant int<1 + 2x> : !int_poly_ev_ty
+  %1 = polynomial.constant int<3 + 4x**2> : !int_poly_ev_ty
+  %2 = polynomial.add %0, %1 : !int_poly_ev_ty
+  return %2 : !int_poly_ev_ty
+}
+
+// CHECK: @test_fold_int_sub_eval
+func.func @test_fold_int_sub_eval() -> !int_poly_ev_ty {
+  // CHECK-NOT: polynomial.sub
+  // CHECK: %[[CST:.*]] = polynomial.constant int<3 + 4x> : [[TY_INT_SUB:![a-zA-Z0-9_]+]]
+  // CHECK: return %[[CST]] : [[TY_INT_SUB]]
+  %0 = polynomial.constant int<5 + 7x> : !int_poly_ev_ty
+  %1 = polynomial.constant int<2 + 3x> : !int_poly_ev_ty
+  %2 = polynomial.sub %0, %1 : !int_poly_ev_ty
+  return %2 : !int_poly_ev_ty
+}
+
+// CHECK: @test_fold_int_mul_eval
+func.func @test_fold_int_mul_eval() -> !mod_int_poly_ev_ty {
+  // CHECK-NOT: polynomial.mul
+  // CHECK: %[[CST:.*]] = polynomial.constant int<14 + 16x> : [[TY_INT_MUL:![a-zA-Z0-9_]+]]
+  // CHECK: return %[[CST]] : [[TY_INT_MUL]]
+  %0 = polynomial.constant int<2 + 3x + 5x**2> : !mod_int_poly_ev_ty
+  %1 = polynomial.constant int<7 + 11x + 13x**3> : !mod_int_poly_ev_ty
+  %2 = polynomial.mul %0, %1 : !mod_int_poly_ev_ty
+  return %2 : !mod_int_poly_ev_ty
+}
+
+// CHECK: @test_fold_int_mul_coeff_mod_arith
+func.func @test_fold_int_mul_coeff_mod_arith() -> !mod_int_poly_ty {
+  // CHECK-NOT: polynomial.mul
+  // CHECK: %[[CST:.*]] = polynomial.constant int<3 + 9x + 4x**2 + 6x**3> : [[TY_INT_MUL_COEFF:![a-zA-Z0-9_]+]]
+  // CHECK: return %[[CST]] : [[TY_INT_MUL_COEFF]]
+  %0 = polynomial.constant int<1 + 2x**3> : !mod_int_poly_ty
+  %1 = polynomial.constant int<3 + 4x**2> : !mod_int_poly_ty
+  %2 = polynomial.mul %0, %1 : !mod_int_poly_ty
+  return %2 : !mod_int_poly_ty
 }
 
 // CHECK: @test_fold_ntt

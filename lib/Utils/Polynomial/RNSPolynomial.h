@@ -71,9 +71,11 @@ class RNSPolynomial {
   RNSPolynomial mul(const RNSPolynomial& other) const;
 
   /// Convert the polynomial to NTT representation.
+  RNSPolynomial toNtt(llvm::ArrayRef<uint64_t> rootOfUnity) const;
   RNSPolynomial toNtt(rns::RNSAttr rootAttr = nullptr) const;
 
   /// Convert the polynomial to Coefficient representation.
+  RNSPolynomial toCoefficient(llvm::ArrayRef<uint64_t> rootOfUnity) const;
   RNSPolynomial toCoefficient(rns::RNSAttr rootAttr = nullptr) const;
 
   /// Slice the polynomial's RNS basis.

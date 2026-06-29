@@ -513,7 +513,8 @@ void PolyMulToNTT::runOnOperation() {
       Value v = polyResults[0];
       if (soln.needsConversion(v)) {
         // Sanity check: we never require explicit conversions for constants;
-        // they should be precomputed
+        // conversions for constants are computed at compile-time via
+        // constant-folding
         op->emitOpError(
             "Walk 2: CP-SAT soln requires conversion for constant; this should "
             "be prohibited");
@@ -521,16 +522,53 @@ void PolyMulToNTT::runOnOperation() {
         return;
       }
 
-      const bool needCoeff = soln.needsForm(v, Form::COEFF);
-      // If we need coeff form, use the existing op
-      if (needCoeff) {
-        coeffFormCache[v] = v;
+      Type coeffTy = typeToForm(v.getType(), Form::COEFF);
+      Type evalTy = typeToForm(v.getType(), Form::EVAL);
+      if (!coeffTy || !evalTy) {
+        signalPassFailure();
+        return;
       }
-      if (soln.needsForm(v, Form::EVAL)) {
-        // Change the output type of the current op (if we don't need it in
-        // coeff form), otherwise clone the existing op
-        Operation* evalOp = needCoeff ? b.clone(*op) : op;
-        evalOp->getResult(0).setType(typeToForm(v.getType(), Form::EVAL));
+
+      auto repairConstantValueAttr = [&](ConstantOp constantOp, Type newTy) {
+        Attribute value = constantOp.getValue();
+        if (auto intAttr = dyn_cast<TypedIntPolynomialAttr>(value)) {
+          constantOp->setAttr(
+              "value", TypedIntPolynomialAttr::get(newTy, intAttr.getValue()));
+        } else if (auto floatAttr = dyn_cast<TypedFloatPolynomialAttr>(value)) {
+          constantOp->setAttr("value", TypedFloatPolynomialAttr::get(
+                                           newTy, floatAttr.getValue()));
+        } else if (auto rnsAttr = dyn_cast<RNSPolynomialAttr>(value)) {
+          auto newPolyTy = dyn_cast<PolynomialType>(newTy);
+          assert(newPolyTy && "Expected polynomial type for constant op");
+          constantOp->setAttr(
+              "value", RNSPolynomialAttr::get(constantOp.getContext(),
+                                              rnsAttr.getCoefficients(), newTy,
+                                              newPolyTy.getForm()));
+        }
+      };
+
+      if (soln.needsForm(v, Form::COEFF)) {
+        op->getResult(0).setType(coeffTy);
+        if (auto constantOp = dyn_cast<ConstantOp>(op)) {
+          repairConstantValueAttr(constantOp, coeffTy);
+        }
+        coeffFormCache[v] = v;
+      } else {
+        op->getResult(0).setType(evalTy);
+        if (auto constantOp = dyn_cast<ConstantOp>(op)) {
+          repairConstantValueAttr(constantOp, evalTy);
+        }
+        evalFormCache[v] = v;
+      }
+
+      // If we get here, we already materialized COEFF form, so we just need
+      // EVAL form
+      if (soln.needsForm(v, Form::COEFF) && soln.needsForm(v, Form::EVAL)) {
+        Operation* evalOp = b.clone(*op);
+        evalOp->getResult(0).setType(evalTy);
+        if (auto constantOp = dyn_cast<ConstantOp>(evalOp)) {
+          repairConstantValueAttr(constantOp, evalTy);
+        }
         evalFormCache[v] = evalOp->getResult(0);
       }
     } else {
