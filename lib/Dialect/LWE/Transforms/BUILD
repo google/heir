@@ -13,7 +13,7 @@ cc_library(
     ],
     deps = [
         ":AddDebugPort",
-        ":DecomposeKeySwitch",
+        ":DecomposeLWEOps",
         ":ImplementTrivialEncryptionAsAddition",
         ":pass_inc_gen",
         "@heir//lib/Dialect/LWE/IR:Dialect",
@@ -41,14 +41,15 @@ cc_library(
 )
 
 cc_library(
-    name = "DecomposeKeySwitch",
-    srcs = ["DecomposeKeySwitch.cpp"],
-    hdrs = ["DecomposeKeySwitch.h"],
+    name = "DecomposeLWEOps",
+    srcs = ["DecomposeLWEOps.cpp"],
+    hdrs = ["DecomposeLWEOps.h"],
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
         "@heir//lib/Dialect/RNS/IR:Dialect",
+        "@heir//lib/Utils:APIntUtils",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",

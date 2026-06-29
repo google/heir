@@ -111,6 +111,27 @@ LogicalResult RLWEEncryptOp::verify() {
   return success();
 }
 
+LogicalResult ModDownOp::verify() {
+  // check that the target basis is a prefix of the input basis
+  auto ctType = dyn_cast<lwe::LWECiphertextType>(getInput().getType());
+  if (!ctType) return emitOpError("Expected input to be an LWECiphertextType");
+  auto eltTy = dyn_cast<rns::RNSType>(
+      ctType.getCiphertextSpace().getRing().getCoefficientType());
+  if (!eltTy) return emitOpError("Expected element type to be RNSType");
+  rns::RNSType targetBasisTy = dyn_cast<rns::RNSType>(getTargetBasis());
+  if (!targetBasisTy) return emitOpError("Expected targetBasis to be RNSType");
+
+  ArrayRef<Type> inputBasisTypes = eltTy.getBasisTypes();
+  ArrayRef<Type> targetBasisTypes = targetBasisTy.getBasisTypes();
+  bool isPrefix =
+      (targetBasisTypes.size() < inputBasisTypes.size()) &&
+      (inputBasisTypes.take_front(targetBasisTypes.size()) == targetBasisTypes);
+  if (!isPrefix) {
+    return emitOpError("Target basis is not a prefix of the input basis");
+  }
+  return success();
+}
+
 // Verify Encoding and Type match
 LogicalResult verifyEncodingAndTypeMatch(mlir::Type type,
                                          mlir::Attribute encoding) {
@@ -342,6 +363,30 @@ LogicalResult ConvertBasisOp::inferReturnTypes(
       ctx, elementType, ringAttr.getPolynomialModulus());
   lwe::LWERingEltType resultType =
       lwe::LWERingEltType::get(ctx, outputRingAttr);
+  results.push_back(resultType);
+  return success();
+}
+
+LogicalResult ModDownOp::inferReturnTypes(
+    MLIRContext* ctx, std::optional<Location>, ValueRange operands,
+    DictionaryAttr attrs, mlir::PropertyRef properties,
+    mlir::RegionRange regions, SmallVectorImpl<Type>& results) {
+  ModDownOpAdaptor op(operands, attrs, properties, regions);
+  auto inputCtType = dyn_cast<lwe::LWECiphertextType>(op.getInput().getType());
+  if (!inputCtType) return failure();
+  lwe::CiphertextSpaceAttr inputCtSpaceAttr = inputCtType.getCiphertextSpace();
+  polynomial::RingAttr inputRingAttr = inputCtSpaceAttr.getRing();
+
+  rns::RNSType outputElementType = dyn_cast<rns::RNSType>(op.getTargetBasis());
+  if (!outputElementType) return failure();
+  auto outputRingAttr = polynomial::RingAttr::get(
+      ctx, outputElementType, inputRingAttr.getPolynomialModulus());
+  auto outputCtSpaceAttr = lwe::CiphertextSpaceAttr::get(
+      ctx, outputRingAttr, inputCtSpaceAttr.getEncryptionType(),
+      inputCtSpaceAttr.getSize());
+  auto resultType = lwe::LWECiphertextType::get(
+      ctx, inputCtType.getPlaintextSpace(), outputCtSpaceAttr,
+      inputCtType.getKey(), inputCtType.getModulusChain());
   results.push_back(resultType);
   return success();
 }
