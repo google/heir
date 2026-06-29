@@ -183,6 +183,7 @@ def Polynomial_MonomialOp: Polynomial_Op<"monomial"> {
   }];
   let arguments = (ins AnyType:$coefficient, Index:$degree);
   let results = (outs Polynomial_PolynomialType:$output);
+  let hasFolder = 1;
   let hasVerifier = 1;
 }
 
