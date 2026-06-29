@@ -24,15 +24,9 @@ jobs:
 
             Thank you for opening your first issue! We appreciate you joining our community.
 
-            Please note that our [contributing policy](https://github.com/google/heir/blob/main/CONTRIBUTING.md))
-            requires unrecognized users to meet a maintainer in a non-textual format before
-            opening their first PR.
+            Please note that our [contributing policy](https://github.com/google/heir/blob/main/CONTRIBUTING.md)) requires unrecognized users to meet a maintainer in a non-textual format before opening their first PR.
 
-            If you have already met a maintainer, or you're sure the maintainers know who you are,
-            you can safely ignore this message. Otherwise, you can join one of our open meetings
-            on our [community calendar](https://heir.dev/community), schedule a
-            dedicated call with a maintainer, or reach out in the `#heir`
-            channel on [Discord](https://discord.fhe.org/).
+            If you have already met a maintainer, or you're sure the maintainers know who you are, you can safely ignore this message. Otherwise, you can join one of our open meetings on our [community calendar](https://heir.dev/community), schedule a dedicated call with a maintainer, or reach out in the `#heir` channel on [Discord](https://discord.fhe.org/).
 
             We look forward to connecting with you!
           pr_message: |
@@ -40,16 +34,10 @@ jobs:
 
             Thank you for opening your first pull request! We appreciate you joining our community.
 
-            Please note that our [contributing policy](https://github.com/google/heir/blob/main/CONTRIBUTING.md))
-            requires unrecognized users to meet a maintainer in a non-textual format before
-            their first PR will be reviewed.
+            Please note that our [contributing policy](https://github.com/google/heir/blob/main/CONTRIBUTING.md)) requires unrecognized users to meet a maintainer in a non-textual format before their first PR will be reviewed.
 
-            If you have already met a maintainer, or you're sure the maintainers know who you are,
-            you can safely ignore this message. Otherwise, a maintainer will likely close this PR shortly.
+            If you have already met a maintainer, or you're sure the maintainers know who you are, you can safely ignore this message. Otherwise, a maintainer will likely close this PR shortly.
 
-            Don't take it personally! Instead, we welcome you to attend one of our open meetings
-            on our [community calendar](https://heir.dev/community), schedule a
-            dedicated call with a maintainer, or reach out in the `#heir`
-            channel on [Discord](https://discord.fhe.org/).
+            Don't take it personally! Instead, we welcome you to attend one of our open meetings on our [community calendar](https://heir.dev/community), schedule a dedicated call with a maintainer, or reach out in the `#heir` channel on [Discord](https://discord.fhe.org/).
 
             We look forward to connecting with you!
