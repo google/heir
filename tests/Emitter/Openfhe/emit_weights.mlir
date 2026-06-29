@@ -8,7 +8,7 @@ module attributes {scheme.ckks} {
   // CHECK-NEXT: Weights weights = GetWeightModule("[[FILE:.*]]");
   // CHECK-NEXT: std::vector<int8_t> [[v1:.*]] =
   // CHECK-SAME:    weights.int8_ts["[[v1]]"];
-  // CHECK-NEXT: std::vector<int8_t> [[v2:.*]](64);
+  // CHECK-NEXT: std::vector<int8_t> [[v2:.*]](1 * 64);
   // CHECK-COUNT-2: for
   // CHECK-NEXT: [[v2]][[[v2]]_i1 + 64 * ([[v2]]_i0)] = [[v1]][0 + [[v2]]_i1 * 1 + 64 * ([[v0]] + [[v2]]_i0 * 1)];
   // CHECK: return [[v2]];

@@ -7,11 +7,10 @@ heir_lattigo_lib(
     go_library_name = "bicyclicmatmul",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=ckks",
-        "--mlir-to-ckks=ciphertext-degree=2048 enable-split-preprocessing=false",
+        "--mlir-to-ckks=ciphertext-degree=2048",
         "--scheme-to-lattigo",
     ],
     mlir_src = "@heir//tests/Examples/common:bicyclic_matmul.mlir",
-    split_preprocessing = False,
 )
 
 # TODO(#3089): disable until flakiness is resolved

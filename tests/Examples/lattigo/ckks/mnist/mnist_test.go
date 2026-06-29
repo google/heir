@@ -9,6 +9,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"tests/Examples/lattigo/ckks/mnist/mnist_utils"
 )
 
 const dataBase = "../../../common/mnist/data/"
@@ -131,6 +133,11 @@ func TestMNIST(t *testing.T) {
 	evaluator, params, encoder, encryptor, decryptor := mnist__configure()
 	t.Logf("mnist__configure took %v", time.Since(startConfig))
 
+	// Preprocess weights
+	startPreprocess := time.Now()
+	preprocessedWeights := mnist_utils.Mnist__preprocessing(params, encoder, weights[3], weights[2], weights[1], weights[0])
+	t.Logf("mnist_utils.Mnist__preprocessing took %v", time.Since(startPreprocess))
+
 	// Test with 1 sample since the computation is slow with the
 	// large security parameters (LogN=15)
 	total := 1
@@ -160,10 +167,10 @@ func TestMNIST(t *testing.T) {
 		t.Logf("mnist__encrypt__zero__e1f5e185d963a9bf took %v", time.Since(startZero2))
 
 		startTime := time.Now()
-		// Calling the generated mnist function
-		resCt := mnist(evaluator, params, encoder, weights[0], weights[1], weights[2], weights[3], ctInput, ctZero1, ctZero2)
+		// Calling the generated preprocessed mnist function
+		resCt := mnist__preprocessed(evaluator, params, encoder, weights[0], weights[1], weights[2], weights[3], ctInput, ctZero1, ctZero2, preprocessedWeights)
 		duration := time.Since(startTime)
-		t.Logf("Sample %d (mnist) took %v", i, duration)
+		t.Logf("Sample %d (mnist__preprocessed) took %v", i, duration)
 
 		startDecrypt := time.Now()
 		// Use generated decryption helper
