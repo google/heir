@@ -76,6 +76,9 @@ class RNSPolynomial {
   /// Convert the polynomial to Coefficient representation.
   RNSPolynomial toCoefficient(rns::RNSAttr rootAttr = nullptr) const;
 
+  /// Slice the polynomial's RNS basis.
+  RNSPolynomial slice(size_t start, size_t size) const;
+
   bool operator==(const RNSPolynomial& other) const {
     return data == other.data && moduli == other.moduli &&
            numCoeffs == other.numCoeffs &&

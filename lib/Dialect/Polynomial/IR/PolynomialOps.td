@@ -30,6 +30,7 @@ class Polynomial_BinaryOp<string mnemonic, list<Trait> traits = []> :
 }
 
 def Polynomial_AddOp : Polynomial_BinaryOp<"add", [Commutative, SameOperandsAndResultForm]> {
+  let hasFolder = 1;
   let summary = "Addition operation between polynomials.";
   let description = [{
     Performs polynomial addition on the operands. The operands may be single
@@ -55,6 +56,7 @@ def Polynomial_AddOp : Polynomial_BinaryOp<"add", [Commutative, SameOperandsAndR
 }
 
 def Polynomial_SubOp : Polynomial_BinaryOp<"sub", [SameOperandsAndResultForm]> {
+  let hasFolder = 1;
   let summary = "Subtraction operation between polynomials.";
   let description = [{
     Performs polynomial subtraction on the operands. The operands may be single
@@ -80,6 +82,7 @@ def Polynomial_SubOp : Polynomial_BinaryOp<"sub", [SameOperandsAndResultForm]> {
 }
 
 def Polynomial_MulOp : Polynomial_BinaryOp<"mul", [Commutative, SameOperandsAndResultForm]> {
+  let hasFolder = 1;
   let summary = "Multiplication operation between polynomials.";
   let description = [{
     Performs polynomial multiplication on the operands. The operands may be single
@@ -298,7 +301,7 @@ def Polynomial_AnyTypedPolynomialAttr : AnyAttrOf<[
   Polynomial_RNSPolynomialAttr
 ]>;
 
-def Polynomial_ConstantOp : Op<Polynomial_Dialect, "constant", [Pure]> {
+def Polynomial_ConstantOp : Op<Polynomial_Dialect, "constant", [ConstantLike, Pure]> {
   let summary = "Define a constant polynomial via an attribute.";
   let description = [{
     Example:
@@ -314,9 +317,11 @@ def Polynomial_ConstantOp : Op<Polynomial_Dialect, "constant", [Pure]> {
   let arguments = (ins Polynomial_AnyTypedPolynomialAttr:$value);
   let results = (outs Polynomial_PolynomialType:$output);
   let hasCustomAssemblyFormat = 1;
+  let hasFolder = 1;
 }
 
 def Polynomial_NTTOp : Polynomial_Op<"ntt", [Pure, ElementwiseMappable, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
+  let hasFolder = 1;
   let summary = "Computes point-value tensor representation of a polynomial.";
   let description = [{
     `polynomial.ntt` computes the forward integer Number Theoretic Transform
@@ -344,6 +349,7 @@ def Polynomial_NTTOp : Polynomial_Op<"ntt", [Pure, ElementwiseMappable, DeclareO
 }
 
 def Polynomial_INTTOp : Polynomial_Op<"intt", [Pure, ElementwiseMappable, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
+  let hasFolder = 1;
   let summary = "Computes the reverse integer Number Theoretic Transform (NTT).";
   let description = [{
     `polynomial.intt` computes the reverse integer Number Theoretic Transform
@@ -401,6 +407,7 @@ def Polynomial_EvalOp : Polynomial_Op<"eval", [AllTypesMatch<["value", "output"]
 }
 
 def Polynomial_ExtractSliceOp : Polynomial_Op<"extract_slice", [Pure, SameOperandsAndResultForm, DeclareOpInterfaceMethods<InferTypeOpInterface, ["inferReturnTypes"]>]> {
+  let hasFolder = 1;
   let summary = "Extract a subset of the polynomial's RNS basis";
   let description = [{
     Given a polynomial with RNS coefficients with $k$ basis types (limbs), extract the slice of
