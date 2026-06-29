@@ -128,12 +128,12 @@ module {
     return %m : !poly_ty_4
   }
 
-  // Covers: constant/monomial polynomial producers combined with flexible + eval-only consumers.
+  // Covers: constant/dynamic monomial polynomial producers combined with flexible + eval-only consumers.
   // CHECK: func.func @test_ntt_insertion10([[k10:%.+]]: index, [[c10:%.+]]: [[ZQ0]]) -> [[ntt_poly_ty_3]] {
-  // CHECK-NOT: polynomial.ntt
-  // CHECK: [[mono10:%.+]] = polynomial.monomial [[c10]], [[k10]] : ([[ZQ0]], index) -> [[ntt_poly_ty_3]]
   // CHECK: [[one10:%.+]] = polynomial.constant int<1 + x> : [[ntt_poly_ty_3]]
-  // CHECK: [[sum10:%.+]] = polynomial.add [[mono10]], [[one10]] : [[ntt_poly_ty_3]]
+  // CHECK: [[mono10:%.+]] = polynomial.monomial [[c10]], [[k10]] : ([[ZQ0]], index) -> [[poly_ty_3]]
+  // CHECK: [[mono10_eval:%.+]] = polynomial.ntt [[mono10]] : [[poly_ty_3]]
+  // CHECK: [[sum10:%.+]] = polynomial.add [[mono10_eval]], [[one10]] : [[ntt_poly_ty_3]]
   // CHECK: [[prod10:%.+]] = polynomial.mul [[sum10]], [[one10]] : [[ntt_poly_ty_3]]
   // CHECK: return [[prod10]] : [[ntt_poly_ty_3]]
   func.func @test_ntt_insertion10(%k: index, %c: !Zq0) -> !poly_ty_3 {
@@ -144,14 +144,26 @@ module {
     return %prod : !poly_ty_3
   }
 
-  // Covers: multiple return statements (including unreachable block) and mixed non-poly outputs.
+  // Covers: static monomial folding before the solver, so it is treated as a ConstantOp.
+  // CHECK: func.func @test_ntt_insertion10_static_monomial([[x10s:%.+]]: [[ntt_poly_ty_3]]) -> [[ntt_poly_ty_3]] {
+  // CHECK-NOT: polynomial.monomial
+  // CHECK-NOT: polynomial.ntt
+  // CHECK: [[mono10s:%.+]] = polynomial.constant int<4x> : [[ntt_poly_ty_3]]
+  // CHECK: [[prod10s:%.+]] = polynomial.mul [[x10s]], [[mono10s]] : [[ntt_poly_ty_3]]
+  // CHECK: return [[prod10s]] : [[ntt_poly_ty_3]]
+  func.func @test_ntt_insertion10_static_monomial(%x: !poly_ty_3) -> !poly_ty_3 {
+    %k = arith.constant 1 : index
+    %c = mod_arith.constant 4 : !Zq0
+    %mono = polynomial.monomial %c, %k : (!Zq0, index) -> !poly_ty_3
+    %prod = polynomial.mul %mono, %x : !poly_ty_3
+    return %prod : !poly_ty_3
+  }
+
+  // Covers: mixed non-poly outputs; unreachable blocks are dropped before solving.
   // CHECK: func.func @test_ntt_insertion11([[x11:%.+]]: [[ntt_poly_ty_1]]) -> ([[ntt_poly_ty_1]], i64) {
   // CHECK: [[m0_11:%.+]] = polynomial.mul [[x11]], [[x11]] : [[ntt_poly_ty_1]]
   // CHECK: return [[m0_11]], %{{.+}} : [[ntt_poly_ty_1]], i64
-  // CHECK: ^bb1:
-  // CHECK: [[p11:%.+]] = polynomial.constant int<1 + x**2> : [[ntt_poly_ty_1]]
-  // CHECK: [[m1_11:%.+]] = polynomial.mul [[p11]], [[p11]] : [[ntt_poly_ty_1]]
-  // CHECK: return [[m1_11]], %{{.+}} : [[ntt_poly_ty_1]], i64
+  // CHECK-NOT: ^bb1:
   func.func @test_ntt_insertion11(%x: !poly_ty_1) -> (!poly_ty_1, i64) {
     %c0 = arith.constant 0 : i64
     %m0 = polynomial.mul %x, %x : !poly_ty_1
@@ -288,8 +300,7 @@ module {
   // CHECK: func.func @test_ntt_insertion20_constant_needed_in_both_forms() -> ([[ntt_poly_ty_3]], tensor<8x[[ZQ0]]>) {
   // CHECK-NOT: polynomial.ntt
   // CHECK: [[c20:%.+]] = polynomial.constant int<1 + x> : [[poly_ty_3]]{{$}}
-  // CHECK: [[c20e:%.+]] = polynomial.constant int<1 + x> : [[ntt_poly_ty_3]]{{$}}
-  // CHECK: [[m20:%.+]] = polynomial.mul [[c20e]], [[c20e]] : [[ntt_poly_ty_3]]
+  // CHECK: [[m20:%.+]] = polynomial.constant int<1 + 2x + x**2> : [[ntt_poly_ty_3]]{{$}}
   // CHECK: [[t20:%.+]] = polynomial.to_tensor [[c20]] : [[poly_ty_3]] -> tensor<8x[[ZQ0]]>
   // CHECK: return [[m20]], [[t20]] : [[ntt_poly_ty_3]], tensor<8x[[ZQ0]]>
   func.func @test_ntt_insertion20_constant_needed_in_both_forms() -> (!poly_ty_3, tensor<8x!Zq0>) {

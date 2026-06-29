@@ -7,6 +7,7 @@
 #include "llvm/include/llvm/ADT/DenseMap.h"              // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
@@ -19,6 +20,7 @@
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/WalkResult.h"        // from @llvm-project
+#include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 
 // IWYU pragma: begin_keep
 #include "mlir/include/mlir/Pass/Pass.h"  // from @llvm-project
@@ -63,8 +65,9 @@ enum class OpFormClass {
 OpFormClass opFormClass(Operation* op) {
   if (isa<func::ReturnOp>(op)) {
     return OpFormClass::RETURN;
-  } else if (isa<ToTensorOp, LeadingTermOp, EvalOp, MonicMonomialMulOp,
-                 FromTensorOp, ApplyCoefficientwiseOp>(op)) {
+  } else if (isa<ToTensorOp, LeadingTermOp, EvalOp, MonomialOp,
+                 MonicMonomialMulOp, FromTensorOp, ApplyCoefficientwiseOp>(
+                 op)) {
     return OpFormClass::COEFF;
   } else if (isa<MulOp>(op)) {
     return OpFormClass::EVAL;
@@ -72,7 +75,7 @@ OpFormClass opFormClass(Operation* op) {
                  tensor::ExtractSliceOp, tensor::ExtractOp,
                  tensor::FromElementsOp>(op)) {
     return OpFormClass::EITHER;
-  } else if (isa<MonomialOp, ConstantOp>(op)) {
+  } else if (isa<ConstantOp>(op)) {
     return OpFormClass::CONST;
   }
   return OpFormClass::UNKNOWN;
@@ -119,6 +122,13 @@ void PolyMulToNTT::runOnOperation() {
   }
 
   IRRewriter rewriter(context);
+  (void)runRegionDCE(rewriter, getOperation()->getRegions());
+  RewritePatternSet canonicalizationPatterns(context);
+  if (failed(
+          applyPatternsGreedily(func, std::move(canonicalizationPatterns)))) {
+    signalPassFailure();
+    return;
+  }
   (void)runRegionDCE(rewriter, getOperation()->getRegions());
 
   // Our goal is to insert as few NTTs + iNTTs as possible while satisyfing all
@@ -513,7 +523,8 @@ void PolyMulToNTT::runOnOperation() {
       Value v = polyResults[0];
       if (soln.needsConversion(v)) {
         // Sanity check: we never require explicit conversions for constants;
-        // they should be precomputed
+        // conversions for constants are computed at compile-time via
+        // constant-folding
         op->emitOpError(
             "Walk 2: CP-SAT soln requires conversion for constant; this should "
             "be prohibited");
@@ -521,16 +532,56 @@ void PolyMulToNTT::runOnOperation() {
         return;
       }
 
-      const bool needCoeff = soln.needsForm(v, Form::COEFF);
-      // If we need coeff form, use the existing op
-      if (needCoeff) {
-        coeffFormCache[v] = v;
+      Type coeffTy = typeToForm(v.getType(), Form::COEFF);
+      Type evalTy = typeToForm(v.getType(), Form::EVAL);
+      if (!coeffTy || !evalTy) {
+        signalPassFailure();
+        return;
       }
-      if (soln.needsForm(v, Form::EVAL)) {
-        // Change the output type of the current op (if we don't need it in
-        // coeff form), otherwise clone the existing op
-        Operation* evalOp = needCoeff ? b.clone(*op) : op;
-        evalOp->getResult(0).setType(typeToForm(v.getType(), Form::EVAL));
+
+      auto repairConstantValueAttr = [&](ConstantOp constantOp, Type newTy) {
+        Attribute value = constantOp.getValue();
+        llvm::TypeSwitch<Attribute>(value)
+            .Case<TypedIntPolynomialAttr>([&](auto intAttr) {
+              constantOp->setAttr("value", TypedIntPolynomialAttr::get(
+                                               newTy, intAttr.getValue()));
+            })
+            .Case<TypedFloatPolynomialAttr>([&](auto floatAttr) {
+              constantOp->setAttr("value", TypedFloatPolynomialAttr::get(
+                                               newTy, floatAttr.getValue()));
+            })
+            .Case<RNSPolynomialAttr>([&](auto rnsAttr) {
+              auto newPolyTy = cast<PolynomialType>(newTy);
+              constantOp->setAttr(
+                  "value", RNSPolynomialAttr::get(constantOp.getContext(),
+                                                  rnsAttr.getCoefficients(),
+                                                  newTy, newPolyTy.getForm()));
+            })
+            .Default([](Attribute) {});
+      };
+
+      if (soln.needsForm(v, Form::COEFF)) {
+        op->getResult(0).setType(coeffTy);
+        if (auto constantOp = dyn_cast<ConstantOp>(op)) {
+          repairConstantValueAttr(constantOp, coeffTy);
+        }
+        coeffFormCache[v] = v;
+      } else {
+        op->getResult(0).setType(evalTy);
+        if (auto constantOp = dyn_cast<ConstantOp>(op)) {
+          repairConstantValueAttr(constantOp, evalTy);
+        }
+        evalFormCache[v] = v;
+      }
+
+      // If we get here, we already materialized COEFF form, so we just need
+      // EVAL form
+      if (soln.needsForm(v, Form::COEFF) && soln.needsForm(v, Form::EVAL)) {
+        Operation* evalOp = b.clone(*op);
+        evalOp->getResult(0).setType(evalTy);
+        if (auto constantOp = dyn_cast<ConstantOp>(evalOp)) {
+          repairConstantValueAttr(constantOp, evalTy);
+        }
         evalFormCache[v] = evalOp->getResult(0);
       }
     } else {

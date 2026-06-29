@@ -1,6 +1,8 @@
 #ifndef LIB_UTILS_POLYNOMIAL_RNSPOLYNOMIAL_H_
 #define LIB_UTILS_POLYNOMIAL_RNSPOLYNOMIAL_H_
 
+#include <optional>
+
 #include "lib/Dialect/Polynomial/IR/PolynomialEnums.h"
 #include "lib/Dialect/RNS/IR/RNSAttributes.h"
 #include "llvm/include/llvm/ADT/APInt.h"        // from @llvm-project
@@ -65,15 +67,21 @@ class RNSPolynomial {
   /// Performs modular subtraction limb-wise.
   RNSPolynomial sub(const RNSPolynomial& other) const;
 
+  /// Performs modular scalar multiplication limb-wise.
+  std::optional<RNSPolynomial> scalarMul(
+      llvm::ArrayRef<uint64_t> scalarValues) const;
+
   /// Performs modular multiplication limb-wise. In NTT form, this corresponds
   /// to an elementwise product. In coefficient form, it first converts to NTT
   /// form, multiplies elementwise, and converts back to coefficient form.
   RNSPolynomial mul(const RNSPolynomial& other) const;
 
   /// Convert the polynomial to NTT representation.
+  RNSPolynomial toNtt(llvm::ArrayRef<uint64_t> rootOfUnity) const;
   RNSPolynomial toNtt(rns::RNSAttr rootAttr = nullptr) const;
 
   /// Convert the polynomial to Coefficient representation.
+  RNSPolynomial toCoefficient(llvm::ArrayRef<uint64_t> rootOfUnity) const;
   RNSPolynomial toCoefficient(rns::RNSAttr rootAttr = nullptr) const;
 
   /// Slice the polynomial's RNS basis.

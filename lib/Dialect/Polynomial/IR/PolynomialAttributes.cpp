@@ -211,6 +211,16 @@ Attribute FloatPolynomialAttr::parse(AsmParser& parser, Type type) {
   return FloatPolynomialAttr::get(parser.getContext(), result.value());
 }
 
+IntPolynomial TypedIntPolynomialAttr::getPolynomial() const {
+  return getValue().getPolynomial();
+}
+
+Form TypedIntPolynomialAttr::getRepresentation() const {
+  auto polyType = dyn_cast<PolynomialType>(getType());
+  assert(polyType && "expected PolynomialType");
+  return polyType.getForm();
+}
+
 void RingAttr::getAliasSuffix(raw_ostream& os) const {
   SmallString<32> nameBuffer;
   llvm::raw_svector_ostream nameStream(nameBuffer);

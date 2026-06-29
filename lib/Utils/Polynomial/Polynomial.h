@@ -367,6 +367,11 @@ class IntPolynomial final
   /// coeffs[i] is converted to a monomial with exponent i.
   static IntPolynomial fromCoefficients(ArrayRef<int64_t> coeffs);
 
+  /// Returns coefficients in increasing exponent order, inserting zeroes for
+  /// missing terms. Coefficients are sign-extended or truncated to
+  /// `apintBitWidth`.
+  SmallVector<APInt> getDenseCoefficientVector() const;
+
   IntPolynomial sub(const IntPolynomial& other) const override {
     return add(other.scale(APInt(apintBitWidth, -1)));
   }
