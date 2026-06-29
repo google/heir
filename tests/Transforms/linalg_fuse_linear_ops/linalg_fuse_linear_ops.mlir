@@ -26,9 +26,7 @@ func.func @fuse_matmul(%arg0: tensor<2x3xf32>, %arg1: tensor<3x4xf32>, %arg2: te
 // CHECK: %[[EMPTY_W:.*]] = tensor.empty() : tensor<2x3xf32>
 // CHECK: %[[BROADCAST_W:.*]] = linalg.broadcast ins(%arg2 : tensor<2xf32>) outs(%[[EMPTY_W]] : tensor<2x3xf32>) dimensions = [1]
 // CHECK: %[[SCALED_W:.*]] = arith.mulf %arg0, %[[BROADCAST_W]] : tensor<2x3xf32>
-// CHECK: %[[EMPTY_OUT:.*]] = tensor.empty() : tensor<2xf32>
-// CHECK: %[[BROADCAST_OUT:.*]] = linalg.broadcast ins(%arg3 : tensor<2xf32>) outs(%[[EMPTY_OUT]] : tensor<2xf32>) dimensions = []
-// CHECK: %[[RESULT:.*]] = linalg.matvec ins(%[[SCALED_W]], %arg1 : tensor<2x3xf32>, tensor<3xf32>) outs(%[[BROADCAST_OUT]] : tensor<2xf32>)
+// CHECK: %[[RESULT:.*]] = linalg.matvec ins(%[[SCALED_W]], %arg1 : tensor<2x3xf32>, tensor<3xf32>) outs(%arg3 : tensor<2xf32>)
 // CHECK: return %[[RESULT]]
 func.func @fuse_matvec(%arg0: tensor<2x3xf32>, %arg1: tensor<3xf32>, %arg2: tensor<2xf32>, %arg3: tensor<2xf32>) -> tensor<2xf32> {
   %0 = tensor.empty() : tensor<2xf32>
@@ -44,9 +42,7 @@ func.func @fuse_matvec(%arg0: tensor<2x3xf32>, %arg1: tensor<3xf32>, %arg2: tens
 // CHECK: %[[EMPTY_W:.*]] = tensor.empty() : tensor<3x4xf32>
 // CHECK: %[[BROADCAST_W:.*]] = linalg.broadcast ins(%arg2 : tensor<4xf32>) outs(%[[EMPTY_W]] : tensor<3x4xf32>) dimensions = [0]
 // CHECK: %[[SCALED_W:.*]] = arith.mulf %arg1, %[[BROADCAST_W]] : tensor<3x4xf32>
-// CHECK: %[[EMPTY_OUT:.*]] = tensor.empty() : tensor<4xf32>
-// CHECK: %[[BROADCAST_OUT:.*]] = linalg.broadcast ins(%arg3 : tensor<4xf32>) outs(%[[EMPTY_OUT]] : tensor<4xf32>) dimensions = []
-// CHECK: %[[RESULT:.*]] = linalg.vecmat ins(%arg0, %[[SCALED_W]] : tensor<3xf32>, tensor<3x4xf32>) outs(%[[BROADCAST_OUT]] : tensor<4xf32>)
+// CHECK: %[[RESULT:.*]] = linalg.vecmat ins(%arg0, %[[SCALED_W]] : tensor<3xf32>, tensor<3x4xf32>) outs(%arg3 : tensor<4xf32>)
 // CHECK: return %[[RESULT]]
 func.func @fuse_vecmat(%arg0: tensor<3xf32>, %arg1: tensor<3x4xf32>, %arg2: tensor<4xf32>, %arg3: tensor<4xf32>) -> tensor<4xf32> {
   %0 = tensor.empty() : tensor<4xf32>
@@ -140,4 +136,59 @@ func.func @no_fuse_secret_bias(%arg0: tensor<2x3xf32>, %arg1: tensor<3xf32>, %ar
   %1 = linalg.matvec ins(%arg0, %arg1 : tensor<2x3xf32>, tensor<3xf32>) outs(%0 : tensor<2xf32>) -> tensor<2xf32>
   %2 = arith.addf %1, %arg2 : tensor<2xf32>
   return %2 : tensor<2xf32>
+}
+
+// -----
+
+#map = affine_map<(d0, d1, d2) -> (d0, d2)>
+#map1 = affine_map<(d0, d1, d2) -> (d2, d1)>
+#map2 = affine_map<(d0, d1, d2) -> (d0, d1)>
+// CHECK: func.func @fuse_generic
+// CHECK-SAME: %[[arg0:[a-zA-Z0-9_]+]]: tensor<2x3xf32>
+// CHECK-SAME: %[[arg1:[a-zA-Z0-9_]+]]: tensor<3x4xf32>
+// CHECK-SAME: %[[arg2:[a-zA-Z0-9_]+]]: tensor<2x4xf32>
+// CHECK-SAME: %[[bias:[a-zA-Z0-9_]+]]: tensor<2x4xf32>
+// CHECK: %[[NEW_OUTS:.*]] = arith.addf %[[arg2]], %[[bias]] : tensor<2x4xf32>
+// CHECK: %[[RESULT:.*]] = linalg.generic
+// CHECK-SAME: outs(%[[NEW_OUTS]] : tensor<2x4xf32>)
+// CHECK: return %[[RESULT]]
+func.func @fuse_generic(%arg0: tensor<2x3xf32>, %arg1: tensor<3x4xf32>, %arg2: tensor<2x4xf32>, %bias: tensor<2x4xf32>) -> tensor<2x4xf32> {
+  %0 = linalg.generic {indexing_maps = [#map, #map1, #map2], iterator_types = ["parallel", "parallel", "reduction"]} ins(%arg0, %arg1 : tensor<2x3xf32>, tensor<3x4xf32>) outs(%arg2 : tensor<2x4xf32>) {
+  ^bb0(%in: f32, %in_0: f32, %out: f32):
+    %1 = arith.mulf %in, %in_0 : f32
+    %2 = arith.addf %out, %1 : f32
+    linalg.yield %2 : f32
+  } -> tensor<2x4xf32>
+  %1 = arith.addf %0, %bias : tensor<2x4xf32>
+  return %1 : tensor<2x4xf32>
+}
+
+// -----
+
+// CHECK: func.func @fuse_matmul_splat_constant
+// CHECK: %[[CONST_W:.*]] = arith.constant dense<6.000000e+00> : tensor<3x4xf32>
+// CHECK: %[[EMPTY:.*]] = tensor.empty() : tensor<2x4xf32>
+// CHECK: %[[RESULT:.*]] = linalg.matmul ins(%arg0, %[[CONST_W]] : tensor<2x3xf32>, tensor<3x4xf32>) outs(%[[EMPTY]] : tensor<2x4xf32>)
+// CHECK: return %[[RESULT]]
+func.func @fuse_matmul_splat_constant(%arg0: tensor<2x3xf32>) -> tensor<2x4xf32> {
+  %weights = arith.constant dense<2.000000e+00> : tensor<3x4xf32>
+  %scale = arith.constant dense<3.000000e+00> : tensor<2x4xf32>
+  %0 = tensor.empty() : tensor<2x4xf32>
+  %1 = linalg.matmul ins(%arg0, %weights : tensor<2x3xf32>, tensor<3x4xf32>) outs(%0 : tensor<2x4xf32>) -> tensor<2x4xf32>
+  %2 = arith.mulf %1, %scale : tensor<2x4xf32>
+  return %2 : tensor<2x4xf32>
+}
+
+// -----
+
+// CHECK: func.func @fuse_matmul_sub_empty_constant
+// CHECK: %[[CONST_NEG:.*]] = arith.constant dense<-3.000000e+00> : tensor<2x4xf32>
+// CHECK: %[[RESULT:.*]] = linalg.matmul ins(%arg0, %arg1 : tensor<2x3xf32>, tensor<3x4xf32>) outs(%[[CONST_NEG]] : tensor<2x4xf32>)
+// CHECK: return %[[RESULT]]
+func.func @fuse_matmul_sub_empty_constant(%arg0: tensor<2x3xf32>, %arg1: tensor<3x4xf32>) -> tensor<2x4xf32> {
+  %0 = tensor.empty() : tensor<2x4xf32>
+  %1 = linalg.matmul ins(%arg0, %arg1 : tensor<2x3xf32>, tensor<3x4xf32>) outs(%0 : tensor<2x4xf32>) -> tensor<2x4xf32>
+  %scale = arith.constant dense<3.000000e+00> : tensor<2x4xf32>
+  %2 = arith.subf %1, %scale : tensor<2x4xf32>
+  return %2 : tensor<2x4xf32>
 }
