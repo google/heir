@@ -25,6 +25,7 @@ startup --host_jvm_args=-DBAZEL_TRACK_SOURCE_DIRECTORIES=1
 # BuildBuddy
 build --bes_results_url=https://heir.buildbuddy.io/invocation/
 build --bes_backend=grpcs://heir.buildbuddy.io
+build --workspace_status_command=./scripts/workspace_status.sh
 common --noremote_upload_local_results # Uploads logs & artifacts without writing to cache
 common --remote_cache=grpcs://heir.buildbuddy.io
 common --remote_cache_compression
