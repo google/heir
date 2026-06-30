@@ -80,6 +80,19 @@ struct DagType {
     t.type_variant = FloatTensorType{bitWidth, std::move(shape)};
     return t;
   }
+
+  std::vector<int64_t> getShape() const {
+    return std::visit(
+        [&](auto&& arg) -> std::vector<int64_t> {
+          using T = std::decay_t<decltype(arg)>;
+          if constexpr (std::is_same_v<T, IntTensorType> ||
+                        std::is_same_v<T, FloatTensorType>) {
+            return arg.shape;
+          }
+          return {};
+        },
+        type_variant);
+  }
 };
 
 // A leaf node for the DAG
