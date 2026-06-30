@@ -325,12 +325,12 @@ EvalResults EvalVisitor::operator()(const SplatNode& node) {
 EvalResults EvalVisitor::operator()(const EmptyNode& node) {
   LDBG() << "Visiting EmptyNode";
   if (node.shape.size() == 1) {
-    return {LiteralValue(std::vector<std::vector<int>>(node.shape[0]))};
+    return {LiteralValue(std::vector<int>(node.shape[0], 0))};
   } else if (node.shape.size() >= 2) {
     return {LiteralValue(std::vector<std::vector<int>>(
         node.shape[0], std::vector<int>(node.shape[1], 0)))};
   }
-  return {LiteralValue(std::vector<int>())};
+  return {LiteralValue(0)};
 }
 
 EvalResults EvalVisitor::operator()(const VariableNode<LiteralValue>& node) {
