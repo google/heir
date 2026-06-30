@@ -428,13 +428,8 @@ FailureOr<Operation*> ConvertInsertSlice::matchAndRewriteInner(
   // Now convert the op to a tensor.insert op that inserts one ciphertext.
   SmallVector<Value> indices;
   for (size_t i = 0; i < offsets.size() - 1; ++i) {
-    if (auto idx = getConstantIntValue(offsets[i]); idx.has_value()) {
-      indices.push_back(
-          arith::ConstantIndexOp::create(rewriter, op.getLoc(), idx.value()));
-    } else {
-      return rewriter.notifyMatchFailure(
-          op, "expected insert_slice to have constant offsets");
-    }
+    indices.push_back(
+        getValueOrCreateConstantIndexOp(rewriter, op.getLoc(), offsets[i]));
   }
 
   auto resultTensorOfCtsTy = cast<RankedTensorType>(outputTypes[0]);
