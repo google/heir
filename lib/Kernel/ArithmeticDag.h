@@ -113,6 +113,11 @@ struct SplatNode {
   DagType type;
 };
 
+struct EmptyNode {
+  std::vector<int64_t> shape;
+  DagType type;
+};
+
 template <typename T>
 struct AddNode {
   std::shared_ptr<ArithmeticDagNode<T>> left;
@@ -226,7 +231,8 @@ struct ArithmeticDagNode {
                SubtractNode<T>, MultiplyNode<T>, FloorDivNode<T>, PowerNode<T>,
                LeftRotateNode<T>, LeftRotateBulkNode<T>, ExtractNode<T>,
                InsertNode<T>, ComparisonNode<T>, IfElseNode<T>, VariableNode<T>,
-               ForLoopNode<T>, YieldNode<T>, ResultAtNode<T>, SplatNode>
+               ForLoopNode<T>, YieldNode<T>, ResultAtNode<T>, SplatNode,
+               EmptyNode>
       node_variant;
 
   explicit ArithmeticDagNode(const T& value)
@@ -269,6 +275,13 @@ struct ArithmeticDagNode {
     auto node = NodePtr(new ArithmeticDagNode<T>());
     node->node_variant.template emplace<SplatNode>(
         SplatNode{constant, std::move(type)});
+    return node;
+  }
+
+  static NodePtr empty(std::vector<int64_t> shape, DagType type) {
+    auto node = NodePtr(new ArithmeticDagNode<T>());
+    node->node_variant.template emplace<EmptyNode>(
+        EmptyNode{std::move(shape), std::move(type)});
     return node;
   }
 
@@ -632,6 +645,11 @@ class CachingVisitor {
     return ResultType();
   }
 
+  virtual ResultType operator()(const EmptyNode& node, ExtraArgs... args) {
+    assert(false && "Visit logic for EmptyNode is not implemented.");
+    return ResultType();
+  }
+
  protected:
   void clearCache() { cache.clear(); }
 
@@ -693,6 +711,8 @@ class CachingVisitor {
             for (const auto& element : n.elements) {
               clearSubtreeCache(element);
             }
+          } else if constexpr (std::is_same_v<NodeType, EmptyNode>) {
+            // No subtrees
           }
         },
         node->node_variant);
