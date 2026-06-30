@@ -186,11 +186,11 @@ EvalResults EvalVisitor::operator()(const ExtractNode<LiteralValue>& node) {
 
   return std::visit(
       [&](auto&& t) -> EvalResults {
-        if constexpr (std::is_same_v<std::decay_t<decltype(t)>,
-                                     std::vector<std::vector<int>>>) {
+        using T = std::decay_t<decltype(t)>;
+        if constexpr (std::is_same_v<T, std::vector<std::vector<int>>>) {
           return {LiteralValue(t[index])};
-        } else if constexpr (std::is_same_v<std::decay_t<decltype(t)>,
-                                            std::vector<int>>) {
+        } else if constexpr (std::is_same_v<T, std::vector<int>>) {
+          if (index == 0) return {LiteralValue(t)};
           return {LiteralValue(t[index])};
         }
         assert(false && "Unsupported type for extraction");
@@ -211,10 +211,14 @@ EvalResults EvalVisitor::operator()(const InsertNode<LiteralValue>& node) {
         using T = std::decay_t<decltype(t)>;
         if constexpr (std::is_same_v<T, std::vector<std::vector<int>>>) {
           auto result = t;
+          assert(index >= 0 && index < static_cast<int>(result.size()) &&
+                 "Insert index out of bounds for 2D vector");
           result[index] = std::get<std::vector<int>>(scalar.get());
           return {LiteralValue(result)};
         } else if constexpr (std::is_same_v<T, std::vector<int>>) {
           auto result = t;
+          assert(index >= 0 && index < static_cast<int>(result.size()) &&
+                 "Insert index out of bounds for 1D vector");
           result[index] = std::get<int>(scalar.get());
           return {LiteralValue(result)};
         }
@@ -316,6 +320,17 @@ EvalResults EvalVisitor::operator()(const SplatNode& node) {
 
   // Scalar type
   return {LiteralValue(splatValue)};
+}
+
+EvalResults EvalVisitor::operator()(const EmptyNode& node) {
+  LDBG() << "Visiting EmptyNode";
+  if (node.shape.size() == 1) {
+    return {LiteralValue(std::vector<std::vector<int>>(node.shape[0]))};
+  } else if (node.shape.size() >= 2) {
+    return {LiteralValue(std::vector<std::vector<int>>(
+        node.shape[0], std::vector<int>(node.shape[1], 0)))};
+  }
+  return {LiteralValue(std::vector<int>())};
 }
 
 EvalResults EvalVisitor::operator()(const VariableNode<LiteralValue>& node) {

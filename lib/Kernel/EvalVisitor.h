@@ -26,6 +26,7 @@ class EvalVisitor : public CachingVisitor<LiteralValue, EvalResults> {
   EvalResults operator()(const ConstantTensorNode& node) override;
   EvalResults operator()(const ConstantScalarNode& node) override;
   EvalResults operator()(const SplatNode& node) override;
+  EvalResults operator()(const EmptyNode& node) override;
   EvalResults operator()(const LeafNode<LiteralValue>& node) override;
   EvalResults operator()(const AddNode<LiteralValue>& node) override;
   EvalResults operator()(const SubtractNode<LiteralValue>& node) override;
