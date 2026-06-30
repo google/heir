@@ -416,3 +416,32 @@ module attributes {scheme.ckks} {
     return %result : !ct
   }
 }
+
+// -----
+
+!cc = !openfhe.crypto_context
+!ct = !openfhe.ciphertext
+
+// CHECK: std::vector<CiphertextT> test_if_loop_shaped(
+// CHECK-SAME:    CryptoContextT [[CC:[^,]*]],
+// CHECK-SAME:    std::vector<CiphertextT> [[VEC:[^,]*]],
+// CHECK-SAME:    CiphertextT [[CT:[^,]*]],
+// CHECK-SAME:    bool [[COND:[^,]*]]) {
+// CHECK:      if ([[COND]]) {
+// CHECK:        [[VEC]][0] = [[CT]];
+// CHECK:      } else {
+// CHECK:      }
+// CHECK:      return [[VEC]];
+// CHECK:  }
+module attributes {scheme.ckks} {
+  func.func @test_if_loop_shaped(%cc: !cc, %vec: tensor<1x!ct>, %ct: !ct, %cond: i1) -> tensor<1x!ct> {
+    %c0 = arith.constant 0 : index
+    %res = scf.if %cond -> (tensor<1x!ct>) {
+      %inserted = tensor.insert %ct into %vec[%c0] : tensor<1x!ct>
+      scf.yield %inserted : tensor<1x!ct>
+    } else {
+      scf.yield %vec : tensor<1x!ct>
+    }
+    return %res : tensor<1x!ct>
+  }
+}

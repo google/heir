@@ -585,7 +585,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(scf::IfOp op) {
   for (auto i = 0; i < op.getNumResults(); ++i) {
     Value result = op.getResults()[i];
     if (isa<ShapedType>(result.getType())) {
-      Value thenYieldedValue = op.thenYield().getResults()[i];
+      Value thenYieldedValue = op.thenYield().getOperands()[i];
       variableNames->mapValueNameToValue(result, thenYieldedValue);
       mutableValues.insert(result);
     }
