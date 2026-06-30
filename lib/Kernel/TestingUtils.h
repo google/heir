@@ -31,6 +31,7 @@ class PrintVisitor : public CachingVisitor<LiteralValue, std::string> {
   std::string operator()(const IfElseNode<LiteralValue>& node) override;
   std::string operator()(const ConstantScalarNode& node) override;
   std::string operator()(const SplatNode& node) override;
+  std::string operator()(const EmptyNode& node) override;
   std::string operator()(const VariableNode<LiteralValue>& node) override;
   std::string operator()(const ForLoopNode<LiteralValue>& node) override;
   std::string operator()(const YieldNode<LiteralValue>& node) override;
@@ -51,6 +52,7 @@ class MultiplicativeDepthVisitorImpl
 
   double operator()(const ConstantScalarNode& node) override { return -1.0; }
   double operator()(const SplatNode& node) override { return -1.0; }
+  double operator()(const EmptyNode& node) override { return -1.0; }
 
   double operator()(const LeafNode<LiteralValue>& node) override { return 0.0; }
 

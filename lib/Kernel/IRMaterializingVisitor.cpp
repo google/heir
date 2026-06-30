@@ -89,6 +89,25 @@ std::vector<Value> IRMaterializingVisitor::operator()(
 }
 
 std::vector<Value> IRMaterializingVisitor::operator()(
+    const EmptyNode& node, ImplicitLocOpBuilder& builder) {
+  Type targetType = dagTypeToMLIRType(node.type, builder);
+  RankedTensorType tensorTy = dyn_cast<RankedTensorType>(targetType);
+  assert(tensorTy && "EmptyNode targetType must be a RankedTensorType");
+
+  SmallVector<int64_t> fullShape(node.shape.begin(), node.shape.end());
+  for (int i = 1; i < tensorTy.getRank(); ++i) {
+    fullShape.push_back(tensorTy.getDimSize(i));
+  }
+  if (tensorTy.getRank() == 1) {
+    fullShape.push_back(tensorTy.getDimSize(0));
+  }
+  auto resType = RankedTensorType::get(fullShape, tensorTy.getElementType());
+  auto emptyOp = tensor::EmptyOp::create(builder, resType, ValueRange{});
+  createdOpCallback(emptyOp);
+  return {emptyOp};
+}
+
+std::vector<Value> IRMaterializingVisitor::operator()(
     const ConstantTensorNode& node, ImplicitLocOpBuilder& builder) {
   Type targetType = dagTypeToMLIRType(node.type, builder);
   RankedTensorType tensorTy = cast<RankedTensorType>(targetType);
