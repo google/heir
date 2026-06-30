@@ -217,5 +217,13 @@ crate.spec(
     package = "tfhe",
     version = "1.5.0",
 )
+crate.spec(
+    package = "poulpy-ckks",
+    version = "0.7.0",
+)
+crate.spec(
+    package = "poulpy-cpu-ref",
+    version = "0.7.0",
+)
 crate.from_specs()
 use_repo(crate, "crates")

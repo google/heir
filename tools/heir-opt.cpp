@@ -47,6 +47,7 @@
 #include "lib/Dialect/Polynomial/Conversions/PolynomialToModArith/PolynomialToModArith.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Dialect/Polynomial/Transforms/Passes.h"
+#include "lib/Dialect/Poulpy/IR/PoulpyDialect.h"
 #include "lib/Dialect/Preprocessing/Conversions/PreprocessingToLattigo/PreprocessingToLattigo.h"
 #include "lib/Dialect/Preprocessing/Conversions/PreprocessingToMemref/PreprocessingToMemref.h"
 #include "lib/Dialect/Preprocessing/Conversions/PreprocessingToOpenfhe/PreprocessingToOpenfhe.h"
@@ -259,6 +260,7 @@ int main(int argc, char** argv) {
   registry.insert<random::RandomDialect>();
   registry.insert<orion::OrionDialect>();
   registry.insert<openfhe::OpenfheDialect>();
+  registry.insert<poulpy::PoulpyDialect>();
   registry.insert<preprocessing::PreprocessingDialect>();
   registry.insert<rns::RNSDialect>();
   registry.insert<rotom::RotomDialect>();
