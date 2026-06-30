@@ -1573,10 +1573,12 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::InsertSliceOp op) {
   // std::vector<ty> result(dest);
   std::string destName = variableNames->getNameForValue(op.getDest());
   std::string resultName = variableNames->getNameForValue(op.getResult());
-  if (failed(emitType(resultType, op->getLoc()))) {
-    return failure();
+  if (destName != resultName) {
+    if (failed(emitType(resultType, op->getLoc()))) {
+      return failure();
+    }
+    os << " " << resultName << "(" << destName << ");\n";
   }
-  os << " " << resultName << "(" << destName << ");\n";
 
   auto ofValueToString = [&](OpFoldResult ofr) -> std::string {
     if (auto intAttr = ofr.dyn_cast<Attribute>()) {

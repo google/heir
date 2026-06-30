@@ -89,6 +89,18 @@ std::vector<Value> IRMaterializingVisitor::operator()(
 }
 
 std::vector<Value> IRMaterializingVisitor::operator()(
+    const EmptyNode& node, ImplicitLocOpBuilder& builder) {
+  Type targetType = dagTypeToMLIRType(node.type, builder);
+  RankedTensorType tensorTy = dyn_cast<RankedTensorType>(targetType);
+  assert(tensorTy && "EmptyNode targetType must be a RankedTensorType");
+
+  auto resType = RankedTensorType::get(node.shape, tensorTy.getElementType());
+  auto emptyOp = tensor::EmptyOp::create(builder, resType, ValueRange{});
+  createdOpCallback(emptyOp);
+  return {emptyOp};
+}
+
+std::vector<Value> IRMaterializingVisitor::operator()(
     const ConstantTensorNode& node, ImplicitLocOpBuilder& builder) {
   Type targetType = dagTypeToMLIRType(node.type, builder);
   RankedTensorType tensorTy = cast<RankedTensorType>(targetType);
@@ -213,6 +225,29 @@ std::vector<Value> IRMaterializingVisitor::operator()(
   if (!index.getType().isIndex()) {
     index = arith::IndexCastOp::create(builder, builder.getIndexType(), index);
   }
+
+  // This is like inserting a shape {N} tensor into an index of a {k, N} tensor.
+  if (auto destTy = dyn_cast<RankedTensorType>(dest.getType())) {
+    if (isa<RankedTensorType>(scalar.getType())) {
+      SmallVector<OpFoldResult> offsets(destTy.getRank(),
+                                        builder.getIndexAttr(0));
+      offsets[0] = index;
+
+      SmallVector<OpFoldResult> sizes;
+      sizes.push_back(builder.getIndexAttr(1));
+      for (int i = 1; i < destTy.getRank(); ++i) {
+        sizes.push_back(builder.getIndexAttr(destTy.getDimSize(i)));
+      }
+
+      SmallVector<OpFoldResult> strides(destTy.getRank(),
+                                        builder.getIndexAttr(1));
+      auto op = tensor::InsertSliceOp::create(builder, scalar, dest, offsets,
+                                              sizes, strides);
+      createdOpCallback(op);
+      return {op.getResult()};
+    }
+  }
+
   auto op = tensor::InsertOp::create(builder, scalar, dest, ValueRange{index});
   createdOpCallback(op);
   return {op.getResult()};

@@ -5,6 +5,7 @@ package(default_applicable_licenses = ["@heir//:license"])
 
 heir_lattigo_lib(
     name = "in_place",
+    extra_srcs = ["in_place_debug.go"],
     go_library_name = "main",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=ckks",

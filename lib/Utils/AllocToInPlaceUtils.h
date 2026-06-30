@@ -10,10 +10,12 @@
 #include <utility>
 
 #include "lib/Utils/Tablegen/InPlaceOpInterface.h"
+#include "llvm/include/llvm/ADT/MapVector.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "mlir/include/mlir/Analysis/Liveness.h"         // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Dominance.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
@@ -40,13 +42,51 @@ static std::optional<LevelState> getLevel(Value value, DataFlowSolver* solver) {
   return lattice->getValue().getInt();
 }
 
+static bool isDeadAfterLocal(Value value, Operation* op) {
+  Block* block = op->getBlock();
+  for (auto& use : value.getUses()) {
+    Operation* user = use.getOwner();
+    if (user->getBlock() != block) {
+      return false;
+    }
+    if (op->isBeforeInBlock(user)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 static bool isStored(Value value) {
   for (auto& use : value.getUses()) {
-    if (isa<memref::StoreOp>(use.getOwner()) ||
-        isa<tensor::InsertOp>(use.getOwner())) {
+    Operation* owner = use.getOwner();
+    if (isa<memref::StoreOp>(owner)) {
       if (use.getOperandNumber() == 0) {
         return true;
       }
+    } else if (auto insertOp = dyn_cast<tensor::InsertOp>(owner)) {
+      if (use.getOperandNumber() == 0) {  // the value being inserted
+        Value result = insertOp.getResult();
+        bool onlyDebug = true;
+        for (auto& resultUse : result.getUses()) {
+          Operation* resultOwner = resultUse.getOwner();
+          if (auto callOp = dyn_cast<func::CallOp>(resultOwner)) {
+            if (callOp.getCallee().starts_with("__heir_debug")) {
+              continue;
+            }
+          }
+          onlyDebug = false;
+          break;
+        }
+        if (!onlyDebug) {
+          return true;
+        }
+      }
+    } else if (isa<tensor::InsertSliceOp>(owner)) {
+      if (use.getOperandNumber() == 0) {
+        return true;
+      }
+    } else if (isa<scf::YieldOp>(owner) || isa<func::ReturnOp>(owner)) {
+      return true;
     }
   }
   return false;
@@ -135,7 +175,7 @@ class CallerProvidedStorageInfo {
   // various accelerators. One basic optimization is to use the dead value that
   // is closest to the current operation in the block. But as we do not have the
   // information of the memory layout, we do not implement this optimization.
-  Value getAvailableStorage(Operation* op, Liveness* liveness,
+  Value getAvailableStorage(Operation* op, [[maybe_unused]] Liveness* liveness,
                             DominanceInfo* domInfo,
                             DataFlowSolver* solver) const {
     LLVM_DEBUG(llvm::dbgs()
@@ -146,8 +186,9 @@ class CallerProvidedStorageInfo {
         LLVM_DEBUG(llvm::dbgs() << "Storage does not properly dominate op\n");
         continue;
       }
-      if (isStored(storage)) {
-        LLVM_DEBUG(llvm::dbgs() << "Storage is stored\n");
+      if (isStored(storage) ||
+          std::any_of(values.begin(), values.end(), isStored)) {
+        LLVM_DEBUG(llvm::dbgs() << "Storage or referring value is stored\n");
         continue;
       }
       // storage and all referring values are dead
@@ -157,6 +198,7 @@ class CallerProvidedStorageInfo {
         if (!opLevel.has_value() || !storageLevel.has_value()) {
           continue;
         }
+
         // LevelState stores depth (levels consumed, 0 to L).
         // We cannot reuse storage if it has already consumed more levels than
         // the op expects. i.e., storage depth > op depth.
@@ -166,8 +208,8 @@ class CallerProvidedStorageInfo {
       }
       if (std::all_of(
               values.begin(), values.end(),
-              [&](Value value) { return liveness->isDeadAfter(value, op); }) &&
-          liveness->isDeadAfter(storage, op)) {
+              [&](Value value) { return isDeadAfterLocal(value, op); }) &&
+          isDeadAfterLocal(storage, op)) {
         LLVM_DEBUG(llvm::dbgs()
                    << "storage and all referring values are dead after "
                    << op->getName() << ": " << storage << "\n");
@@ -202,7 +244,7 @@ class CallerProvidedStorageInfo {
     return getLevel(it->second.back(), solver);
   }
 
-  DenseMap<Value, SmallVector<Value>> storageToReferringValues;
+  llvm::MapVector<Value, SmallVector<Value>> storageToReferringValues;
 };
 
 /// Initialize each func block's storage for the type T of interest.
@@ -216,12 +258,9 @@ initializeAllocToInPlaceBlockStorage(Operation* op) {
     }
     for (auto& block : funcOp.getBody().getBlocks()) {
       auto& storageInfo = blockToStorageInfo[&block];
-      // arguments are storages
-      for (auto arg : block.getArguments()) {
-        if (mlir::isa<T>(arg.getType())) {
-          storageInfo.addStorage(arg);
-        }
-      }
+      // Note: We do not add entry block arguments as candidate storages because
+      // they may be inserted into tensors/slices and aliased when lowered to
+      // pointer slices.
       for (Operation& op : block.getOperations()) {
         // inplace op will not allocate new memory, it produces referring
         // values
@@ -235,6 +274,11 @@ initializeAllocToInPlaceBlockStorage(Operation* op) {
             }
           }
         } else {
+          if (mlir::isa<tensor::ExtractOp, tensor::ExtractSliceOp,
+                        memref::LoadOp, memref::SubViewOp, scf::ForOp,
+                        scf::IfOp, scf::WhileOp>(&op)) {
+            continue;
+          }
           // alloc op results are storages
           for (auto result : op.getResults()) {
             if (mlir::isa<T>(result.getType())) {

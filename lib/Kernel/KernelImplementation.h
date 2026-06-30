@@ -289,37 +289,51 @@ implementBabyStepGiantStepRolled(
   int64_t giantStepSize = numBabySteps;
   int64_t numGiantSteps = (steps + numBabySteps - 1) / numBabySteps;
 
-  // Initialize outer sum to zero
-  auto zero = NodeTy::splat(0, baseType);
+  // Create an empty tensor of shape {numBabySteps, numSlots} and emit a loop to
+  // compute baby-step rotations.
+  std::vector<int64_t> packedShape = {numBabySteps};
+  if (!baseType.getShape().empty()) {
+    packedShape.push_back(baseType.getShape().back());
+  }
+  auto emptyTensor = NodeTy::empty(packedShape, baseType);
+  auto precomputeLoop = NodeTy::loop(
+      {emptyTensor}, {baseType}, /*lower=*/0, /*upper=*/numBabySteps,
+      /*step=*/1, [&](NodePtr i, const std::vector<NodePtr>& iterArgs) {
+        auto currentTensor = iterArgs[0];
+        auto rotAmount =
+            NodeTy::mul(i, NodeTy::constantScalar(period, DagType::index()));
+        auto rotated = NodeTy::leftRotate(giantSteppedDag, rotAmount);
+        auto updatedTensor = NodeTy::insert(rotated, currentTensor, i);
+        return NodeTy::yield({updatedTensor});
+      });
+  NodePtr packedBabySteps = NodeTy::resultAt(precomputeLoop, 0);
+
+  // Initialize outer sum to zero and pass packedBabySteps as loop invariant
+  std::vector<NodePtr> outerInits = {NodeTy::splat(0, baseType),
+                                     packedBabySteps};
+  std::vector<DagType> outerTypes = {baseType, baseType};
 
   // Outer loop over giant steps (j = 0 to numGiantSteps)
   auto outerLoop = NodeTy::loop(
-      {zero}, {baseType}, /*lower=*/0, /*upper=*/numGiantSteps, /*step=*/1,
+      outerInits, outerTypes, /*lower=*/0, /*upper=*/numGiantSteps, /*step=*/1,
       [&](NodePtr j, const std::vector<NodePtr>& outerIterArgs) {
         auto outerSum = outerIterArgs[0];
-
         // Inner loop over baby steps (i = 0 to numBabySteps)
-        // Initialize inner sum to zero
-        auto innerZero = NodeTy::splat(0, baseType);
-
         auto innerLoop = NodeTy::loop(
-            {innerZero}, {baseType}, /*lower=*/0, /*upper=*/numBabySteps,
-            /*step=*/1,
+            {NodeTy::splat(0, baseType)}, {baseType}, /*lower=*/0,
+            /*upper=*/numBabySteps, /*step=*/1,
             [&](NodePtr i, const std::vector<NodePtr>& innerIterArgs) {
               auto innerSum = innerIterArgs[0];
-
-              // Compute extraction index: i + j * giantStepSize
               auto gsSize =
                   NodeTy::constantScalar(giantStepSize, DagType::index());
               auto jOffset = NodeTy::mul(j, gsSize);
               auto extractIdx = NodeTy::add(i, jOffset);
 
-              // if (j * giantStepSize + i < steps)
               auto stepsNode = NodeTy::constantScalar(steps, DagType::index());
               auto isBound = NodeTy::comparison(extractIdx, stepsNode,
                                                 ComparisonPredicate::LT);
 
-              auto newInnerSum = NodeTy::ifElse(
+              auto term = NodeTy::ifElse(
                   isBound,
                   [&]() {
                     auto plaintext = extractFunc(babySteppedDag, extractIdx);
@@ -329,24 +343,17 @@ implementBabyStepGiantStepRolled(
                     auto rotatedPlaintext =
                         NodeTy::leftRotate(plaintext, innerRotAmount);
 
-                    // Compute baby-step rotation on-the-fly using loop variable
-                    // i babyStepVal = rotate(giantSteppedOperand, i * period)
-                    auto babyStepVal = NodeTy::leftRotate(
-                        giantSteppedDag,
-                        NodeTy::mul(i, NodeTy::constantScalar(
-                                           period, DagType::index())));
-
+                    auto babyStepVal = NodeTy::extract(outerIterArgs[1], i);
                     auto multiplied =
                         NodeTy::mul(rotatedPlaintext, babyStepVal);
                     return NodeTy::yield({NodeTy::add(innerSum, multiplied)});
                   },
                   [&]() { return NodeTy::yield({innerSum}); });
 
-              return NodeTy::yield({NodeTy::resultAt(newInnerSum, 0)});
+              return NodeTy::yield({NodeTy::resultAt(term, 0)});
             });
 
-        // Extract result from inner loop
-        auto innerResult = NodeTy::resultAt(innerLoop, 0);
+        auto innerSum = NodeTy::resultAt(innerLoop, 0);
 
         // Rotate by j * giantStepSize * period
         auto gsSize = NodeTy::constantScalar(giantStepSize, DagType::index());
@@ -354,12 +361,12 @@ implementBabyStepGiantStepRolled(
         auto outerRotAmount = NodeTy::mul(j, gsSize);
         outerRotAmount = NodeTy::mul(outerRotAmount, periodNode);
 
-        auto rotatedSum = NodeTy::leftRotate(innerResult, outerRotAmount);
+        auto rotatedSum = NodeTy::leftRotate(innerSum, outerRotAmount);
 
         // Accumulate into outer sum
         auto newOuterSum = NodeTy::add(outerSum, rotatedSum);
 
-        return NodeTy::yield({newOuterSum});
+        return NodeTy::yield({newOuterSum, outerIterArgs[1]});
       });
 
   return NodeTy::resultAt(outerLoop, 0);
