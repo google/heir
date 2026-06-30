@@ -254,6 +254,10 @@ void getSecretOperands(Operation* op,
                        SmallVectorImpl<OpOperand*>& secretOperands,
                        DataFlowSolver* solver);
 
+void getPlaintextOperands(Operation* op,
+                          SmallVectorImpl<OpOperand*>& plaintextOperands,
+                          DataFlowSolver* solver);
+
 }  // namespace heir
 }  // namespace mlir
 
