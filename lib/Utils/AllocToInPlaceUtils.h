@@ -14,6 +14,7 @@
 #include "mlir/include/mlir/Analysis/Liveness.h"         // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Dominance.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
@@ -42,11 +43,14 @@ static std::optional<LevelState> getLevel(Value value, DataFlowSolver* solver) {
 
 static bool isStored(Value value) {
   for (auto& use : value.getUses()) {
-    if (isa<memref::StoreOp>(use.getOwner()) ||
-        isa<tensor::InsertOp>(use.getOwner())) {
+    Operation* owner = use.getOwner();
+    if (isa<memref::StoreOp>(owner) || isa<tensor::InsertOp>(owner) ||
+        isa<tensor::InsertSliceOp>(owner)) {
       if (use.getOperandNumber() == 0) {
         return true;
       }
+    } else if (isa<scf::YieldOp>(owner) || isa<func::ReturnOp>(owner)) {
+      return true;
     }
   }
   return false;
@@ -146,8 +150,9 @@ class CallerProvidedStorageInfo {
         LLVM_DEBUG(llvm::dbgs() << "Storage does not properly dominate op\n");
         continue;
       }
-      if (isStored(storage)) {
-        LLVM_DEBUG(llvm::dbgs() << "Storage is stored\n");
+      if (isStored(storage) ||
+          std::any_of(values.begin(), values.end(), isStored)) {
+        LLVM_DEBUG(llvm::dbgs() << "Storage or referring value is stored\n");
         continue;
       }
       // storage and all referring values are dead
@@ -216,12 +221,9 @@ initializeAllocToInPlaceBlockStorage(Operation* op) {
     }
     for (auto& block : funcOp.getBody().getBlocks()) {
       auto& storageInfo = blockToStorageInfo[&block];
-      // arguments are storages
-      for (auto arg : block.getArguments()) {
-        if (mlir::isa<T>(arg.getType())) {
-          storageInfo.addStorage(arg);
-        }
-      }
+      // Note: We do not add entry block arguments as candidate storages because
+      // they may be inserted into tensors/slices and aliased when lowered to
+      // pointer slices.
       for (Operation& op : block.getOperations()) {
         // inplace op will not allocate new memory, it produces referring
         // values
@@ -235,6 +237,11 @@ initializeAllocToInPlaceBlockStorage(Operation* op) {
             }
           }
         } else {
+          if (mlir::isa<tensor::ExtractOp, tensor::ExtractSliceOp,
+                        memref::LoadOp, memref::SubViewOp, scf::ForOp,
+                        scf::IfOp, scf::WhileOp>(&op)) {
+            continue;
+          }
           // alloc op results are storages
           for (auto result : op.getResults()) {
             if (mlir::isa<T>(result.getType())) {
