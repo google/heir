@@ -154,6 +154,8 @@ struct FlattenedStringVisitor {
     return ss.str();
   }
 
+  std::string operator()(const EmptyNode& node) const { return "empty()"; }
+
   std::string operator()(const VariableNode<std::string>& node) const {
     if (varNames.find(&node) == varNames.end()) {
       varNames[&node] = "i" + std::to_string(varCounter++);
@@ -288,6 +290,11 @@ class EvalVisitor : public CachingVisitor<double, std::vector<double>> {
   std::vector<double> operator()(const SplatNode& node) override {
     callCount += 1;
     return {node.value};
+  }
+
+  std::vector<double> operator()(const EmptyNode& node) override {
+    callCount += 1;
+    return {0.0};
   }
 
   std::vector<double> operator()(const VariableNode<double>& node) override {

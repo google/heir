@@ -47,6 +47,10 @@ std::string PrintVisitor::operator()(const SplatNode& node) {
   return "splat(" + std::to_string(node.value) + ")";
 }
 
+std::string PrintVisitor::operator()(const EmptyNode& node) {
+  return "empty()";
+}
+
 std::string PrintVisitor::operator()(const AddNode<LiteralValue>& node) {
   std::string left = this->process(node.left);
   std::string right = this->process(node.right);

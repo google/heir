@@ -58,6 +58,8 @@ class IRMaterializingVisitor
                                 ImplicitLocOpBuilder& builder) override;
   std::vector<Value> operator()(const SplatNode& node,
                                 ImplicitLocOpBuilder& builder) override;
+  std::vector<Value> operator()(const EmptyNode& node,
+                                ImplicitLocOpBuilder& builder) override;
   std::vector<Value> operator()(const ConstantTensorNode& node,
                                 ImplicitLocOpBuilder& builder) override;
   std::vector<Value> operator()(const LeafNode<SSAValue>& node,

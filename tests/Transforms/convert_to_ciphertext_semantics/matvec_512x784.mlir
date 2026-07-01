@@ -10,7 +10,7 @@
 // CHECK-NEXT:   arith.muli
 // CHECK-NEXT:   arith.muli
 // CHECK-NEXT:   tensor_ext.rotate
-// CHECK-NEXT:   tensor_ext.rotate
+// CHECK-NEXT:   tensor.extract_slice
 // CHECK-NEXT:   arith.mulf
 // CHECK-NEXT:   arith.addf
 // CHECK-NEXT:   scf.yield
