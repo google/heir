@@ -513,7 +513,8 @@ void PolyMulToNTT::runOnOperation() {
       Value v = polyResults[0];
       if (soln.needsConversion(v)) {
         // Sanity check: we never require explicit conversions for constants;
-        // they should be precomputed
+        // conversions for constants are computed at compile-time via
+        // constant-folding
         op->emitOpError(
             "Walk 2: CP-SAT soln requires conversion for constant; this should "
             "be prohibited");
@@ -521,17 +522,18 @@ void PolyMulToNTT::runOnOperation() {
         return;
       }
 
-      const bool needCoeff = soln.needsForm(v, Form::COEFF);
-      // If we need coeff form, use the existing op
-      if (needCoeff) {
+      Type newTy = typeToForm(v.getType(), Form::COEFF);
+      if (!newTy) {
+        signalPassFailure();
+        return;
+      }
+      op->getResult(0).setType(newTy);
+
+      if (soln.needsForm(v, Form::COEFF)) {
         coeffFormCache[v] = v;
       }
       if (soln.needsForm(v, Form::EVAL)) {
-        // Change the output type of the current op (if we don't need it in
-        // coeff form), otherwise clone the existing op
-        Operation* evalOp = needCoeff ? b.clone(*op) : op;
-        evalOp->getResult(0).setType(typeToForm(v.getType(), Form::EVAL));
-        evalFormCache[v] = evalOp->getResult(0);
+        evalFormCache[v] = addConversion(v, Form::EVAL);
       }
     } else {
       op->emitOpError(
