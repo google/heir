@@ -133,63 +133,67 @@ static FailureOr<Value> implementUnpackOpStep(
 }
 
 static FailureOr<Value> implementAssignLayoutPermutation(
-    Value input, DenseIntElementsAttr permutation, int64_t ciphertextSize,
+    Value input, DenseIntElementsAttr permutation, Type targetTypeTy,
     ImplicitLocOpBuilder& builder,
     const std::function<void(Operation*)>& createdOpCallback) {
-  auto elementType = getElementTypeOrSelf(input.getType());
   auto tensorType = dyn_cast<RankedTensorType>(input.getType());
-  // TODO(#2666): This logic assumes ctxt = 0, this can be extended to handle a
-  // more general case. permutation is <N x 4 x i64>: each row is [src_ct,
-  // src_slot, dst_ct, dst_slot]. src_ct and dst_ct are always 0 (single
-  // ciphertext), so treat as 1D: extract from input[0][src_slot] and insert
-  // into result[0][dst_slot].
-  auto ciphertextType = RankedTensorType::get({1, ciphertextSize}, elementType);
-  auto zeroCtxt = arith::ConstantOp::create(
-      builder, ciphertextType, builder.getZeroAttr(ciphertextType));
+  if (!tensorType)
+    return builder.emitError() << "Permutation layout requires tensor input";
+
+  if (tensorType.getRank() > 2)
+    return builder.emitError() << "Arbitrary permutation layout only "
+                                  "supports up to 2D tensors for now";
+
+  RankedTensorType targetType = cast<RankedTensorType>(targetTypeTy);
+  auto zeroCtxt = arith::ConstantOp::create(builder, targetType,
+                                            builder.getZeroAttr(targetType));
   createdOpCallback(zeroCtxt);
   Value result = zeroCtxt.getResult();
-  auto ctIdxOp = arith::ConstantIndexOp::create(builder, 0);
-  createdOpCallback(ctIdxOp);
-  Value ctIdx = ctIdxOp.getResult();
+
+  int64_t ctBound = (tensorType.getRank() == 2) ? tensorType.getDimSize(0) : 1;
+  int64_t srcSlotBound = tensorType.getDimSize(tensorType.getRank() - 1);
+  int64_t dstSlotBound = targetType.getDimSize(targetType.getRank() - 1);
 
   for (auto it = permutation.value_begin<APInt>();
        it != permutation.value_end<APInt>();) {
-    // skip src_ct (always 0)
-    ++it;
+    int64_t srcCt = (*it++).getSExtValue();
     int64_t srcSlot = (*it++).getSExtValue();
-    // skip dst_ct (always 0)
-    ++it;
+    int64_t dstCt = (*it++).getSExtValue();
     int64_t dstSlot = (*it++).getSExtValue();
 
-    if (tensorType.getRank() > 2)
-      return builder.emitError() << "Arbitrary permutation layout only "
-                                    "supports up to 2D tensors for now";
-
-    // TODO(#2666): Update this to check the dimensions of src ctxt and dst ctxt
-    // when we support more general layouts. we want to check srcSlot against
-    // the last dimension of the tensor
-    if (srcSlot >= tensorType.getDimSize(tensorType.getRank() - 1) ||
-        dstSlot >= ciphertextSize) {
+    if (srcCt >= ctBound || srcSlot >= srcSlotBound || dstCt >= ctBound ||
+        dstSlot >= dstSlotBound) {
       return builder.emitError()
-             << "Permutation index out of bounds: src_slot=" << srcSlot
-             << ", dst_slot=" << dstSlot;
+             << "Permutation index out of bounds: " << "src_ct=" << srcCt
+             << ", src_slot=" << srcSlot << " (input bounds: ct < " << ctBound
+             << ", slot < " << srcSlotBound << "); " << "dst_ct=" << dstCt
+             << ", dst_slot=" << dstSlot << " (target bounds: ct < " << ctBound
+             << ", slot < " << dstSlotBound << ")";
     }
-    // TODO(#2666): This logic assumes src_ct and dst_ct are always 0
-    // we can have input tensors of type <1xNxType> or just <NxType>
-    // We need to handle both cases when extracting the elements
-    SmallVector<Value> extractIndices;
-    if (tensorType.getRank() == 2) extractIndices.push_back(ctIdx);
 
-    auto srcSlotIdx = arith::ConstantIndexOp::create(builder, srcSlot);
-    createdOpCallback(srcSlotIdx);
-    extractIndices.push_back(srcSlotIdx);
+    SmallVector<Value> extractIndices;
+
+    if (tensorType.getRank() == 2) {
+      auto srcCtIdxOp = arith::ConstantIndexOp::create(builder, srcCt);
+      createdOpCallback(srcCtIdxOp);
+      Value srcCtIdx = srcCtIdxOp.getResult();
+      extractIndices.push_back(srcCtIdx);
+    }
+    auto srcSlotIdxOp = arith::ConstantIndexOp::create(builder, srcSlot);
+    createdOpCallback(srcSlotIdxOp);
+    extractIndices.push_back(srcSlotIdxOp.getResult());
     auto extracted = tensor::ExtractOp::create(builder, input, extractIndices);
     createdOpCallback(extracted);
-    auto dstSlotIdx = arith::ConstantIndexOp::create(builder, dstSlot);
-    createdOpCallback(dstSlotIdx);
+
+    auto dstCtIdxOp = arith::ConstantIndexOp::create(builder, dstCt);
+    createdOpCallback(dstCtIdxOp);
+    auto dstSlotIdxOp = arith::ConstantIndexOp::create(builder, dstSlot);
+    createdOpCallback(dstSlotIdxOp);
     auto insertOp = tensor::InsertOp::create(
-        builder, extracted.getResult(), result, ValueRange{ctIdx, dstSlotIdx});
+        builder, extracted.getResult(), result,
+        ValueRange{dstCtIdxOp.getResult(), dstSlotIdxOp.getResult()});
     createdOpCallback(insertOp);
+
     result = insertOp.getResult();
   }
 
@@ -425,7 +429,9 @@ FailureOr<Value> implementAssignLayout(
                                      domainSchedule);
   } else if (DenseIntElementsAttr elementAttr =
                  dyn_cast<DenseIntElementsAttr>(layout)) {
-    return implementAssignLayoutPermutation(input, elementAttr, ciphertextSize,
+    Type targetType = materializePermutationLayout(input.getType(), elementAttr,
+                                                   ciphertextSize);
+    return implementAssignLayoutPermutation(input, elementAttr, targetType,
                                             builder, createdOpCallback);
   }
   return builder.emitError() << "Unsupported layout attribute type: " << layout;
