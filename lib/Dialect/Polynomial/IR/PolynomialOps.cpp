@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <utility>
 #include <vector>
 
 #include "lib/Dialect/ModArith/IR/ModArithAttributes.h"
@@ -383,7 +384,7 @@ LogicalResult EvalOp::verify() {
             return intAttr.getPolynomial().getTerms().empty();
           })
           .Case<TypedIntPolynomialAttr>([&](TypedIntPolynomialAttr intAttr) {
-            return intAttr.getValue().getPolynomial().getTerms().empty();
+            return intAttr.getPolynomial().getTerms().empty();
           })
           .Case<FloatPolynomialAttr>([&](FloatPolynomialAttr floatAttr) {
             return floatAttr.getPolynomial().getTerms().empty();
@@ -687,11 +688,10 @@ static TypedIntPolynomialAttr getTypedIntPolynomialAttr(
 struct SingleLimbIntPolynomial {
   std::vector<uint64_t> data;
   uint64_t modulus;
-  Form form;
 };
 
 static std::optional<SingleLimbIntPolynomial> getSingleLimbIntPolynomial(
-    TypedIntPolynomialAttr attr) {
+    TypedIntPolynomialAttr attr, const IntPolynomial& poly) {
   auto polyType = dyn_cast<PolynomialType>(attr.getType());
   if (!polyType) return std::nullopt;
 
@@ -707,7 +707,6 @@ static std::optional<SingleLimbIntPolynomial> getSingleLimbIntPolynomial(
 
   unsigned degree = polyMod.getPolynomial().getDegree();
   std::vector<uint64_t> data(degree, 0);
-  const IntPolynomial& poly = attr.getValue().getPolynomial();
   for (const auto& term : poly.getTerms()) {
     uint64_t exponent = term.getExponent().getZExtValue();
     if (exponent >= degree) return std::nullopt;
@@ -719,15 +718,7 @@ static std::optional<SingleLimbIntPolynomial> getSingleLimbIntPolynomial(
   }
 
   return SingleLimbIntPolynomial{/*data=*/std::move(data),
-                                 /*modulus=*/modulus.getZExtValue(),
-                                 /*form=*/polyType.getForm()};
-}
-
-static RNSPolynomial getSingleLimbRNSPolynomial(
-    const SingleLimbIntPolynomial& poly) {
-  SmallVector<uint64_t> data(poly.data.begin(), poly.data.end());
-  SmallVector<uint64_t> moduli{poly.modulus};
-  return RNSPolynomial(std::move(data), std::move(moduli), poly.form);
+                                 /*modulus=*/modulus.getZExtValue()};
 }
 
 template <typename OpTy, typename AdaptorTy, typename RNSBinaryMapFn,
@@ -760,28 +751,14 @@ static OpFoldResult foldBinaryPoly(OpTy op, AdaptorTy adaptor,
   if (!lhsIntAttr || !rhsIntAttr) return nullptr;
 
   auto resultType = op.getResult().getType();
-  auto lhsPoly = getSingleLimbIntPolynomial(lhsIntAttr);
-  auto rhsPoly = getSingleLimbIntPolynomial(rhsIntAttr);
-  if (lhsPoly && rhsPoly) {
-    if (lhsPoly->modulus != rhsPoly->modulus ||
-        lhsPoly->data.size() != rhsPoly->data.size() ||
-        lhsPoly->form != rhsPoly->form) {
-      return nullptr;
-    }
-    RNSPolynomial resultPoly = rnsMapFn(getSingleLimbRNSPolynomial(*lhsPoly),
-                                        getSingleLimbRNSPolynomial(*rhsPoly));
-    return getTypedIntPolynomialAttr(op.getContext(), resultPoly.getData(),
-                                     resultType);
-  }
-
-  auto lhsType = dyn_cast<PolynomialType>(lhsIntAttr.getType());
-  auto rhsType = dyn_cast<PolynomialType>(rhsIntAttr.getType());
-  if (!lhsType || !rhsType || lhsType.getForm() != Form::COEFF ||
-      rhsType.getForm() != Form::COEFF) {
+  IntPolynomial lhsPoly = lhsIntAttr.getPolynomial();
+  IntPolynomial rhsPoly = rhsIntAttr.getPolynomial();
+  if (lhsIntAttr.getRepresentation() != rhsIntAttr.getRepresentation()) {
     return nullptr;
   }
-  IntPolynomial resultPoly = intMapFn(lhsIntAttr.getValue().getPolynomial(),
-                                      rhsIntAttr.getValue().getPolynomial());
+  if (lhsIntAttr.getRepresentation() != Form::COEFF) return nullptr;
+
+  IntPolynomial resultPoly = intMapFn(lhsPoly, rhsPoly);
   return TypedIntPolynomialAttr::get(resultType, resultPoly);
 }
 
@@ -836,9 +813,11 @@ OpFoldResult NTTOp::fold(FoldAdaptor adaptor) {
       dyn_cast<mod_arith::ModArithAttr>(rootAttr->getValue());
   if (!modArithRootAttr) return nullptr;
 
-  auto poly = getSingleLimbIntPolynomial(inputIntAttr);
-  if (!poly || poly->form != Form::COEFF) return nullptr;
+  if (inputIntAttr.getRepresentation() != Form::COEFF) return nullptr;
 
+  IntPolynomial intPoly = inputIntAttr.getPolynomial();
+  auto poly = getSingleLimbIntPolynomial(inputIntAttr, intPoly);
+  if (!poly) return nullptr;
   nttInPlace(poly->data, poly->modulus,
              modArithRootAttr.getValue().getValue().getZExtValue());
   return getTypedIntPolynomialAttr(getContext(), poly->data,
@@ -873,9 +852,11 @@ OpFoldResult INTTOp::fold(FoldAdaptor adaptor) {
       dyn_cast<mod_arith::ModArithAttr>(rootAttr->getValue());
   if (!modArithRootAttr) return nullptr;
 
-  auto poly = getSingleLimbIntPolynomial(inputIntAttr);
-  if (!poly || poly->form != Form::EVAL) return nullptr;
+  if (inputIntAttr.getRepresentation() != Form::EVAL) return nullptr;
 
+  IntPolynomial intPoly = inputIntAttr.getPolynomial();
+  auto poly = getSingleLimbIntPolynomial(inputIntAttr, intPoly);
+  if (!poly) return nullptr;
   inttInPlace(poly->data, poly->modulus,
               modArithRootAttr.getValue().getValue().getZExtValue());
   return getTypedIntPolynomialAttr(getContext(), poly->data,

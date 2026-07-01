@@ -86,6 +86,8 @@ def Polynomial_TypedIntPolynomialAttr : Polynomial_Attr<
   ];
   let extraClassDeclaration = [{
     using ValueType = ::mlir::heir::polynomial::IntPolynomialAttr;
+    ::mlir::heir::polynomial::IntPolynomial getPolynomial() const;
+    ::mlir::heir::polynomial::Form getRepresentation() const;
   }];
 }
 
