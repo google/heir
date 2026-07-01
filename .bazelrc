@@ -7,7 +7,7 @@ common --enable_platform_specific_config
 
 # compilation_mode options below are `dbg` (debug symbols) `fastbuild`
 # (build as quickly as possible), and `opt` (turn on all optimizations)
-common -c dbg
+common -c fastbuild
 common --enable_bzlmod
 
 # prevents changes to PATH from causing a full rebuild
