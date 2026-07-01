@@ -15,6 +15,7 @@
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Utils.h"
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/Transforms/FuncConversions.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -53,6 +54,60 @@ class JaxiteWordTypeConverter : public TypeConverter {
 
 namespace {
 
+bool containsCryptoArgument(func::FuncOp funcOp) {
+  return llvm::any_of(funcOp.getArgumentTypes(), [&](Type argType) {
+    return DialectEqual<lwe::LWEDialect, ckks::CKKSDialect, bgv::BGVDialect>()(
+        &getElementTypeOrSelf(argType).getDialect());
+  });
+}
+
+bool funcNeedsCryptoContextAndKeys(func::FuncOp funcOp) {
+  return containsDialects<lwe::LWEDialect, ckks::CKKSDialect, bgv::BGVDialect>(
+             funcOp) ||
+         containsCryptoArgument(funcOp);
+}
+
+void insertCryptoContextAndKeys(func::FuncOp funcOp) {
+  if (!funcNeedsCryptoContextAndKeys(funcOp)) return;
+  if (funcOp.getFunctionType().getNumInputs() >= 2 &&
+      mlir::isa<jaxiteword::CryptoContextType>(
+          funcOp.getFunctionType().getInput(0)) &&
+      mlir::isa<jaxiteword::EvalKeyType>(
+          funcOp.getFunctionType().getInput(1))) {
+    return;
+  }
+  auto cryptoContextType =
+      jaxiteword::CryptoContextType::get(funcOp.getContext());
+  auto evalKeyType = jaxiteword::EvalKeyType::get(funcOp.getContext());
+  (void)funcOp.insertArgument(0, evalKeyType, nullptr, funcOp.getLoc());
+  (void)funcOp.insertArgument(0, cryptoContextType, nullptr, funcOp.getLoc());
+}
+
+void updateCryptoFuncCalls(Operation* op) {
+  op->walk([&](func::CallOp callOp) {
+    auto callee = getCalledFunction(callOp);
+    if (failed(callee) || !funcNeedsCryptoContextAndKeys(callee.value())) {
+      return;
+    }
+    if (callOp.getNumOperands() == callee.value().getNumArguments()) {
+      return;
+    }
+    auto caller = callOp->getParentOfType<func::FuncOp>();
+    if (!caller || caller.getNumArguments() < 2 ||
+        !mlir::isa<jaxiteword::CryptoContextType>(
+            caller.getArgument(0).getType()) ||
+        !mlir::isa<jaxiteword::EvalKeyType>(caller.getArgument(1).getType())) {
+      return;
+    }
+    SmallVector<Value> newOperands;
+    newOperands.push_back(caller.getArgument(0));
+    newOperands.push_back(caller.getArgument(1));
+    newOperands.append(callOp.getOperands().begin(),
+                       callOp.getOperands().end());
+    callOp->setOperands(newOperands);
+  });
+}
+
 FailureOr<Value> getContextualCryptoContextForJaxiteWord(Operation* op) {
   auto funcOp = op->getParentOfType<func::FuncOp>();
   if (!funcOp) return failure();
@@ -75,6 +130,25 @@ FailureOr<Value> getContextualEvalKeyForJaxiteWord(Operation* op) {
   return funcOp.getArgument(1);
 }
 
+static FailureOr<IntegerAttr> getStaticRotationIndex(ckks::RotateOp op,
+                                                     Value dynamicShift) {
+  auto i64Type = IntegerType::get(op.getContext(), 64);
+  if (IntegerAttr staticShift = op.getStaticShiftAttr()) {
+    return IntegerAttr::get(i64Type, staticShift.getValue().getSExtValue());
+  }
+  if (!dynamicShift) {
+    return failure();
+  }
+  auto constOp = dynamicShift.getDefiningOp<arith::ConstantOp>();
+  if (!constOp) {
+    return failure();
+  }
+  if (auto intAttr = dyn_cast<IntegerAttr>(constOp.getValue())) {
+    return IntegerAttr::get(i64Type, intAttr.getValue().getSExtValue());
+  }
+  return failure();
+}
+
 struct AddCryptoContextAndKeys : public OpConversionPattern<func::FuncOp> {
   AddCryptoContextAndKeys(mlir::MLIRContext* context)
       : OpConversionPattern<func::FuncOp>(context, /* benefit= */ 2) {}
@@ -84,10 +158,7 @@ struct AddCryptoContextAndKeys : public OpConversionPattern<func::FuncOp> {
   LogicalResult matchAndRewrite(
       func::FuncOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
-    auto containsCryptoOps =
-        ::mlir::heir::containsDialects<lwe::LWEDialect, ckks::CKKSDialect,
-                                       bgv::BGVDialect>(op);
-    if (!containsCryptoOps) return failure();
+    if (!funcNeedsCryptoContextAndKeys(op)) return failure();
 
     auto cryptoContextType = jaxiteword::CryptoContextType::get(getContext());
     auto evalKeyType = jaxiteword::EvalKeyType::get(getContext());
@@ -104,6 +175,43 @@ struct AddCryptoContextAndKeys : public OpConversionPattern<func::FuncOp> {
     }
     rewriter.finalizeOpModification(op);
 
+    return success();
+  }
+};
+
+struct ConvertFuncCallOp : public OpConversionPattern<func::CallOp> {
+  ConvertFuncCallOp(mlir::MLIRContext* context)
+      : OpConversionPattern<func::CallOp>(context) {}
+
+  using OpConversionPattern<func::CallOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      func::CallOp op, typename func::CallOp::Adaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    auto callee = getCalledFunction(op);
+    if (failed(callee) || !funcNeedsCryptoContextAndKeys(callee.value())) {
+      return failure();
+    }
+    if (op.getNumOperands() >= callee.value().getNumArguments()) {
+      return failure();
+    }
+
+    FailureOr<Value> ctx = getContextualCryptoContextForJaxiteWord(op);
+    if (failed(ctx)) return failure();
+    FailureOr<Value> evalKey = getContextualEvalKeyForJaxiteWord(op);
+    if (failed(evalKey)) return failure();
+
+    SmallVector<Value> newOperands;
+    newOperands.push_back(ctx.value());
+    newOperands.push_back(evalKey.value());
+    newOperands.append(adaptor.getOperands().begin(),
+                       adaptor.getOperands().end());
+
+    SmallVector<NamedAttribute> dialectAttrs(op->getDialectAttrs());
+    rewriter
+        .replaceOpWithNewOp<func::CallOp>(op, op.getCallee(),
+                                          op.getResultTypes(), newOperands)
+        ->setDialectAttrs(dialectAttrs);
     return success();
   }
 };
@@ -173,20 +281,16 @@ struct ConvertRotateOp : public OpConversionPattern<ckks::RotateOp> {
     FailureOr<Value> evalKey = getContextualEvalKeyForJaxiteWord(op);
     if (failed(evalKey)) return failure();
 
-    Value dynamicShift = adaptor.getDynamicShift();
-    IntegerAttr staticShift = op.getStaticShiftAttr();
-    if (!staticShift && !dynamicShift) {
+    FailureOr<IntegerAttr> indexAttr =
+        getStaticRotationIndex(op, adaptor.getDynamicShift());
+    if (failed(indexAttr)) {
       return rewriter.notifyMatchFailure(
-          op, "rotate op must have either static or dynamic shift");
-    }
-    if (dynamicShift) {
-      return rewriter.notifyMatchFailure(
-          op, "jaxiteword rotation requires static shift");
+          op, "jaxiteword rotation requires statically known shift");
     }
 
     rewriter.replaceOpWithNewOp<jaxiteword::RotOp>(
         op, this->getTypeConverter()->convertType(op.getOutput().getType()),
-        ctx.value(), adaptor.getInput(), evalKey.value(), staticShift);
+        ctx.value(), adaptor.getInput(), evalKey.value(), indexAttr.value());
     return success();
   }
 };
@@ -298,6 +402,9 @@ struct LWEToJaxiteWord : public impl::LWEToJaxiteWordBase<LWEToJaxiteWord> {
     MLIRContext* context = &getContext();
     Operation* op = getOperation();
 
+    op->walk([&](func::FuncOp funcOp) { insertCryptoContextAndKeys(funcOp); });
+    updateCryptoFuncCalls(op);
+
     RewritePatternSet patterns(context);
     ConversionTarget target(*context);
 
@@ -309,17 +416,25 @@ struct LWEToJaxiteWord : public impl::LWEToJaxiteWordBase<LWEToJaxiteWord> {
 
     JaxiteWordTypeConverter typeConverter(context);
 
-    target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
-      auto containsCryptoOps =
-          ::mlir::heir::containsDialects<lwe::LWEDialect, ckks::CKKSDialect,
-                                         bgv::BGVDialect>(op);
-      if (!containsCryptoOps) return true;
-      bool hasArgs = op.getFunctionType().getNumInputs() >= 2;
-      return typeConverter.isSignatureLegal(op.getFunctionType()) && hasArgs &&
+    target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp funcOp) {
+      if (!funcNeedsCryptoContextAndKeys(funcOp)) return true;
+      bool hasArgs = funcOp.getFunctionType().getNumInputs() >= 2;
+      return typeConverter.isSignatureLegal(funcOp.getFunctionType()) &&
+             hasArgs &&
              mlir::isa<jaxiteword::CryptoContextType>(
-                 op.getFunctionType().getInput(0)) &&
+                 funcOp.getFunctionType().getInput(0)) &&
              mlir::isa<jaxiteword::EvalKeyType>(
-                 op.getFunctionType().getInput(1));
+                 funcOp.getFunctionType().getInput(1));
+    });
+
+    target.addDynamicallyLegalOp<func::CallOp>([&](func::CallOp callOp) {
+      if (auto callee = getCalledFunction(callOp); succeeded(callee)) {
+        if (funcNeedsCryptoContextAndKeys(callee.value())) {
+          return callOp.getNumOperands() ==
+                 callOp.getCalleeType().getNumInputs();
+        }
+      }
+      return true;
     });
 
     populateFunctionOpInterfaceTypeConversionPattern<func::FuncOp>(
@@ -327,6 +442,7 @@ struct LWEToJaxiteWord : public impl::LWEToJaxiteWordBase<LWEToJaxiteWord> {
     addTensorConversionPatterns(typeConverter, patterns, target);
 
     patterns.add<AddCryptoContextAndKeys>(typeConverter, context);
+    patterns.add<ConvertFuncCallOp>(context);
     patterns.add<ConvertBinOp<lwe::AddOp, jaxiteword::AddOp>>(typeConverter,
                                                               context);
     patterns.add<ConvertBinOp<lwe::RAddOp, jaxiteword::AddOp>>(typeConverter,
