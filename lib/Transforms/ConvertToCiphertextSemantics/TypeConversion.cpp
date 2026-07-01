@@ -7,9 +7,10 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"         // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"          // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"      // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -41,12 +42,21 @@ Type materializeScalarLayout(Type type, LayoutAttr attr, int ciphertextSize) {
   return RankedTensorType::get({1, ciphertextSize}, type);
 }
 
-Type materializePermutationLayout(Type elementType,
-                                  DenseIntElementsAttr permutation,
+Type materializePermutationLayout(Type type, DenseIntElementsAttr permutation,
                                   int ciphertextSize) {
-  // TODO(#2666): Extend to a more general case where src_ct and dst_ct != 0
-  // src_ct and dst_ct are always 0; output is always a single ciphertext.
-  return RankedTensorType::get({1, ciphertextSize}, elementType);
+  auto tensorType = dyn_cast<RankedTensorType>(type);
+
+  assert(tensorType &&
+         "Permutation layout attributes on non-tensor args are not supported");
+  assert(tensorType.getShape().size() <= 2 &&
+         "Permutation layouts only supports tensor args of max dim-2");
+
+  auto inShape = tensorType.getShape();
+  if (inShape.size() == 2)
+    return RankedTensorType::get({inShape[0], ciphertextSize},
+                                 getElementTypeOrSelf(type));
+
+  return RankedTensorType::get({1, ciphertextSize}, getElementTypeOrSelf(type));
 }
 
 }  // namespace heir

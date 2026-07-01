@@ -5,7 +5,7 @@ module {
   func.func @permutate_vector_error() {
     %cst = arith.constant dense<1> : tensor<16xi16>
     %0 = secret.generic() {
-      // expected-error@+2 {{Permutation index out of bounds: src_slot=18, dst_slot=2}}
+      // expected-error@+2 {{Permutation index out of bounds: src_ct=0, src_slot=18 (input bounds: ct < 1, slot < 16); dst_ct=0, dst_slot=2 (target bounds: ct < 1, slot < 32)}}
       // expected-error@+1 {{'tensor_ext.assign_layout' op failed to verify that all of {value, output} have same type}}
       %1 = tensor_ext.assign_layout %cst {layout = #layout3, tensor_ext.layout = #layout3} : tensor<16xi16>
       secret.yield %1 : tensor<16xi16>

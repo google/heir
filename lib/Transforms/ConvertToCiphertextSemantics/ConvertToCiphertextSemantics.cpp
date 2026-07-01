@@ -216,14 +216,16 @@ struct LayoutMaterializationTypeConverter
         });
     addConversion([this](secret::SecretType type,
                          DenseIntElementsAttr attr) -> std::optional<Type> {
-      return secret::SecretType::get(materializePermutationLayout(
-          getElementTypeOrSelf(type.getValueType()), attr,
-          getCiphertextSize()));
+      auto innerType = type.getValueType();
+
+      FailureOr<Type> convertedInnerType =
+          materializePermutationLayout(innerType, attr, getCiphertextSize());
+      if (failed(convertedInnerType)) return std::nullopt;
+      return secret::SecretType::get(convertedInnerType.value());
     });
     addConversion([this](RankedTensorType type,
                          DenseIntElementsAttr attr) -> std::optional<Type> {
-      return materializePermutationLayout(getElementTypeOrSelf(type), attr,
-                                          getCiphertextSize());
+      return materializePermutationLayout(type, attr, getCiphertextSize());
     });
   }
 
