@@ -134,7 +134,7 @@ static FailureOr<Value> implementUnpackOpStep(
 
 static FailureOr<Value> implementAssignLayoutPermutation(
     Value input, DenseIntElementsAttr permutation, Type targetTypeTy,
-    int64_t ciphertextSize, ImplicitLocOpBuilder& builder,
+    ImplicitLocOpBuilder& builder,
     const std::function<void(Operation*)>& createdOpCallback) {
   auto tensorType = dyn_cast<RankedTensorType>(input.getType());
   if (!tensorType)
@@ -152,7 +152,7 @@ static FailureOr<Value> implementAssignLayoutPermutation(
 
   int64_t ctBound = (tensorType.getRank() == 2) ? tensorType.getDimSize(0) : 1;
   int64_t srcSlotBound = tensorType.getDimSize(tensorType.getRank() - 1);
-  int64_t dstSlotBound = ciphertextSize;
+  int64_t dstSlotBound = targetType.getDimSize(targetType.getRank() - 1);
 
   for (auto it = permutation.value_begin<APInt>();
        it != permutation.value_end<APInt>();) {
@@ -432,8 +432,7 @@ FailureOr<Value> implementAssignLayout(
     Type targetType = materializePermutationLayout(input.getType(), elementAttr,
                                                    ciphertextSize);
     return implementAssignLayoutPermutation(input, elementAttr, targetType,
-                                            ciphertextSize, builder,
-                                            createdOpCallback);
+                                            builder, createdOpCallback);
   }
   return builder.emitError() << "Unsupported layout attribute type: " << layout;
 }
