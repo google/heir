@@ -34,6 +34,12 @@ LogicalResult generateLinalgGeneric(AssignmentContext& ctx,
 LogicalResult generateTranspose(AssignmentContext& ctx, linalg::TransposeOp op);
 LogicalResult generateReduction(AssignmentContext& ctx, linalg::ReduceOp op);
 
+// Contraction (gen/Contraction.cpp): align the (i, j, k) iteration space,
+// multiply elementwise, sum k. Prices the deterministic roll-free plans from
+// ContractionAlignment; the lowering re-derives the same plan from the
+// assigned layouts, so no kernel name is attached.
+LogicalResult generateMatmul(AssignmentContext& ctx, linalg::MatmulOp op);
+
 // Reshape / slice (gen/Reshape.cpp): dim collapse/expand and slice
 // insert/extract.
 LogicalResult generateCollapseShape(AssignmentContext& ctx,

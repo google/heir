@@ -324,6 +324,8 @@ LogicalResult LayoutAssignment::visitOperation(Operation* op) {
           [&](auto typedOp) { return generateElementwise(ctx, typedOp); })
       .Case<linalg::GenericOp>(
           [&](auto typedOp) { return generateLinalgGeneric(ctx, typedOp); })
+      .Case<linalg::MatmulOp>(
+          [&](auto typedOp) { return generateMatmul(ctx, typedOp); })
       .Case<linalg::TransposeOp>(
           [&](auto typedOp) { return generateTranspose(ctx, typedOp); })
       .Case<linalg::ReduceOp>(

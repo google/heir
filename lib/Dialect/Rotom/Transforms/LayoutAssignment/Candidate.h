@@ -29,6 +29,7 @@ enum class KernelKind {
   Generic,
   Transpose,
   Reduce,
+  Matmul,
   CollapseShape,
   ExpandShape,
   ExtractSlice,

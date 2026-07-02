@@ -56,6 +56,8 @@ llvm::StringLiteral kernelKindName(KernelKind kind) {
       return "transpose";
     case KernelKind::Reduce:
       return "reduce";
+    case KernelKind::Matmul:
+      return "matmul";
     case KernelKind::CollapseShape:
       return "collapse_shape";
     case KernelKind::ExpandShape:

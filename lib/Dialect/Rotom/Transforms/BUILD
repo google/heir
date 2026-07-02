@@ -24,6 +24,7 @@ cc_library(
         "LayoutAssignment/DimMaps.cpp",
         "LayoutAssignment/LayoutAssignment.cpp",
         "LayoutAssignment/ValueUtils.cpp",
+        "LayoutAssignment/gen/Contraction.cpp",
         "LayoutAssignment/gen/Elementwise.cpp",
         "LayoutAssignment/gen/ReduceTranspose.cpp",
         "LayoutAssignment/gen/Reshape.cpp",
@@ -41,6 +42,7 @@ cc_library(
     deps = [
         ":layout_assignment_pass_inc_gen",
         "@heir//lib/Dialect/Rotom/IR:Dialect",
+        "@heir//lib/Dialect/Rotom/Utils:ContractionAlignment",
         "@heir//lib/Dialect/Rotom/Utils:LayoutAlignment",
         "@heir//lib/Dialect/Rotom/Utils:RotomTensorExtLayoutLowering",
         "@heir//lib/Dialect/Secret/IR:SecretPatterns",
