@@ -153,6 +153,7 @@
 #include "mlir/include/mlir/Dialect/ControlFlow/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/EmitC/IR/EmitC.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/Extensions/AllExtensions.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/Extensions/InlinerExtension.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/LLVMIR/LLVMDialect.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/LLVMIR/Transforms/InlinerInterfaceImpl.h"  // from @llvm-project
@@ -194,8 +195,9 @@ struct MlirToRotomCiphertextPipelineOptions
     : public PassPipelineOptions<MlirToRotomCiphertextPipelineOptions> {
   PassOptions::Option<int> ciphertextSize{
       *this, "ciphertext-size",
-      llvm::cl::desc("Power-of-two ciphertext slot count; drives both the "
-                     "Rotom layout seed search and ciphertext materialization."),
+      llvm::cl::desc(
+          "Power-of-two ciphertext slot count; drives both the "
+          "Rotom layout seed search and ciphertext materialization."),
       llvm::cl::init(16384)};
   PassOptions::Option<bool> unrollKernels{
       *this, "unroll-kernels",
@@ -308,6 +310,7 @@ int main(int argc, char** argv) {
   scf::registerBufferizableOpInterfaceExternalModels(registry);
   tensor::registerBufferizableOpInterfaceExternalModels(registry);
   mlir::LLVM::registerInlinerInterface(registry);
+  mlir::func::registerInlinerExtension(registry);
   mlir::arith::registerConvertArithToLLVMInterface(registry);
 
   // ValueBoundsOpInterface
@@ -330,6 +333,7 @@ int main(int argc, char** argv) {
   rns::registerRNSPasses();
   rotom::registerRotomLayoutAssignmentPasses();
   rotom::registerRotomMaterializePasses();
+  rotom::registerRotomOutlineKernelsPasses();
   rotom::registerRotomSeedPasses();
   secret::registerSecretPasses();
   tensor_ext::registerTensorExtPasses();
@@ -520,21 +524,25 @@ int main(int argc, char** argv) {
   PassPipelineRegistration<MlirToRotomCiphertextPipelineOptions>(
       "mlir-to-rotom-ciphertext",
       "Assign Rotom layouts and lower to ciphertext-semantic tensors. Chains "
-      "rotom-seed-layout -> rotom-assign-layout -> "
-      "rotom-materialize-tensor-ext-layout -> convert-to-ciphertext-semantics -> "
-      "implement-shift-network. Input is high-level tensor IR (in secret.generic "
-      "regions).",
+      "rotom-seed-layout -> rotom-assign-layout -> rotom-outline-kernels -> "
+      "rotom-materialize-tensor-ext-layout -> convert-to-ciphertext-semantics "
+      "-> inline -> implement-shift-network. Input is high-level tensor IR "
+      "(in secret.generic regions).",
       [](OpPassManager& pm,
          const MlirToRotomCiphertextPipelineOptions& options) {
         rotom::SeedLayoutOptions seedOptions;
         seedOptions.n = options.ciphertextSize;
         pm.addPass(rotom::createSeedLayout(seedOptions));
         pm.addPass(rotom::createLayoutAssignment());
+        pm.addPass(rotom::createOutlineKernels());
         pm.addPass(rotom::createMaterializeTensorExtLayout());
         ConvertToCiphertextSemanticsOptions convertOptions;
         convertOptions.ciphertextSize = options.ciphertextSize;
         convertOptions.unrollKernels = options.unrollKernels;
         pm.addPass(createConvertToCiphertextSemantics(convertOptions));
+        // Inline the outlined kernel functions so cross-kernel optimization
+        // and backends without call support see one flat function.
+        pm.addPass(createInlinerPass());
         // Lower the tensor_ext.convert_layout ops emitted for elementwise
         // operand alignment into rotations + masks.
         pm.addPass(tensor_ext::createImplementShiftNetwork());

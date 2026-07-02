@@ -6,6 +6,7 @@
 #include "lib/Dialect/Rotom/IR/RotomDialect.h"
 #include "lib/Dialect/Rotom/Transforms/LayoutAssignment/LayoutAssignment.h"
 #include "lib/Dialect/Rotom/Transforms/MaterializeTensorExtLayout/MaterializeTensorExtLayout.h"
+#include "lib/Dialect/Rotom/Transforms/OutlineKernels/OutlineKernels.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
@@ -14,6 +15,7 @@
 #include "lib/Target/OpenFhePke/Interpreter.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/ConvertToCiphertextSemantics.h"
 #include "lib/Utils/Layout/Utils.h"
+#include "mlir/include/mlir/Dialect/Func/Extensions/InlinerExtension.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -23,6 +25,7 @@
 #include "mlir/include/mlir/Pass/PassManager.h"          // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
+#include "mlir/include/mlir/Transforms/Passes.h"         // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -34,19 +37,27 @@ using openfhe::TypedCppValue;
 void initContext(MLIRContext& context) {
   openfhe::initContext(context);
   context.loadDialect<rotom::RotomDialect, secret::SecretDialect>();
+  // The pipeline inlines outlined Rotom kernel functions before
+  // interpretation (the interpreter has no call support).
+  DialectRegistry registry;
+  func::registerInlinerExtension(registry);
+  context.appendDialectRegistry(registry);
 }
 
 LogicalResult runRotomPipeline(ModuleOp module, MLIRContext* context,
                                int ciphertextSize) {
   PassManager pm(context);
   pm.addPass(rotom::createLayoutAssignment());
+  pm.addPass(rotom::createOutlineKernels());
   pm.addPass(rotom::createMaterializeTensorExtLayout());
 
   ConvertToCiphertextSemanticsOptions options;
   options.ciphertextSize = ciphertextSize;
   pm.addPass(createConvertToCiphertextSemantics(options));
-  // Lower the tensor_ext.convert_layout ops the Rotom elementwise lowering
-  // emits into rotations + masks so the interpreter can evaluate them.
+  // Inline the outlined kernel functions (the interpreter has no call
+  // support), then lower the tensor_ext.convert_layout ops the Rotom
+  // lowerings emit into rotations + masks.
+  pm.addPass(createInlinerPass());
   pm.addPass(tensor_ext::createImplementShiftNetwork());
   return pm.run(module);
 }
