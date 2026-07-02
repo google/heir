@@ -8,10 +8,11 @@ def OutlineKernels
   let summary = "Outline layout-assigned Rotom kernels into functions";
   let description = [{
     Runs after layout assignment. Each tensor operator whose Rotom lowering
-    is a pure function of its layout signature (currently `linalg.matmul`
-    carrying the `rotom.matmul` layout combination) is moved into a private
-    function named after the op and deduplicated by signature: two ops with
-    the same operand/result layouts share one callee. Call sites carry the
+    is a pure function of its layout signature -- `linalg.matmul` carrying
+    the `rotom.matmul` layout combination, and the elementwise arith ops
+    carrying a Rotom `secret.kernel` -- is moved into a private function
+    named after the op and deduplicated by signature: two ops with the same
+    operand/result layouts share one callee. Call sites carry the
     result layout, so the materializer and the ciphertext lowering process
     the callee bodies like any other function.
 

@@ -108,6 +108,8 @@ cc_library(
         ":outline_kernels_pass_inc_gen",
         "@heir//lib/Dialect/Rotom/IR:Dialect",
         "@heir//lib/Dialect/Rotom/Utils:ContractionAlignment",
+        "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@heir//lib/Utils:AttributeUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",

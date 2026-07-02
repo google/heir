@@ -1,9 +1,13 @@
 #include "lib/Dialect/Rotom/Transforms/OutlineKernels/OutlineKernels.h"
 
 #include <cstdint>
+#include <optional>
 #include <string>
 
 #include "lib/Dialect/Rotom/Utils/ContractionAlignment.h"
+#include "lib/Dialect/Secret/IR/SecretDialect.h"
+#include "lib/Dialect/Secret/IR/SecretOps.h"
+#include "lib/Utils/AttributeUtils.h"
 #include "llvm/include/llvm/ADT/DenseMap.h"              // from @llvm-project
 #include "llvm/include/llvm/ADT/StringRef.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/Twine.h"                 // from @llvm-project
@@ -15,6 +19,7 @@
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/IRMapping.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
@@ -50,44 +55,97 @@ std::optional<MatmulInitChain> matchInitChain(linalg::MatmulOp op) {
   return MatmulInitChain{fillValue, empty, fill};
 }
 
+bool isRotomElementwise(Operation* op) {
+  if (!isa<arith::AddFOp, arith::AddIOp, arith::SubFOp, arith::SubIOp,
+           arith::MulFOp, arith::MulIOp>(op)) {
+    return false;
+  }
+  // The kernel attribute is what marks this op as Rotom-lowered.
+  return op->hasAttr(secret::SecretDialect::kKernelAttrName) &&
+         op->getNumOperands() == 2 && op->getNumResults() == 1 &&
+         isa<RankedTensorType>(op->getResult(0).getType());
+}
+
 struct OutlineKernels : impl::OutlineKernelsBase<OutlineKernels> {
   using OutlineKernelsBase::OutlineKernelsBase;
 
-  func::FuncOp buildMatmulKernel(ModuleOp module, linalg::MatmulOp op,
-                                 ArrayAttr layouts,
-                                 const MatmulInitChain& init) {
+  // Builds (or reuses) the kernel function for `op` and replaces it with a
+  // call. `kernelOperands` become the function arguments (tagged with
+  // `operandLayouts`); `prologue` ops (e.g. a matmul's zero-init chain) are
+  // cloned into the body ahead of `op`. Kernels are deduplicated by
+  // (op name, layouts, operand/result types).
+  void outlineOp(ModuleOp module, Operation* op, ValueRange kernelOperands,
+                 ArrayRef<Attribute> operandLayouts, Attribute resultLayout,
+                 ArrayRef<Operation*> prologue) {
+    MLIRContext* ctx = module.getContext();
+    SmallVector<Attribute> keyParts = {
+        StringAttr::get(ctx, op->getName().getStringRef()),
+        ArrayAttr::get(ctx, operandLayouts), resultLayout};
+    for (Value operand : kernelOperands) {
+      keyParts.push_back(TypeAttr::get(operand.getType()));
+    }
+    keyParts.push_back(TypeAttr::get(op->getResultTypes()[0]));
+    Attribute key = ArrayAttr::get(ctx, keyParts);
+
+    func::FuncOp& callee = outlinedKernels[key];
+    if (!callee) {
+      callee = buildKernel(module, op, kernelOperands, operandLayouts,
+                           resultLayout, prologue);
+    }
+
+    OpBuilder builder(op);
+    auto call =
+        func::CallOp::create(builder, op->getLoc(), callee, kernelOperands);
+    // The call result carries the kernel's result layout, so downstream
+    // passes see the same per-value contract as before outlining.
+    call->setAttr(kRotomLayoutAttrName, resultLayout);
+    op->getResult(0).replaceAllUsesWith(call.getResult(0));
+    op->erase();
+    for (Operation* dead : llvm::reverse(prologue)) {
+      if (dead->use_empty()) dead->erase();
+    }
+  }
+
+  func::FuncOp buildKernel(ModuleOp module, Operation* op,
+                           ValueRange kernelOperands,
+                           ArrayRef<Attribute> operandLayouts,
+                           Attribute resultLayout,
+                           ArrayRef<Operation*> prologue) {
     MLIRContext* ctx = module.getContext();
     OpBuilder builder(ctx);
     builder.setInsertionPointToEnd(module.getBody());
 
+    // rotom_kernel_<mnemonic>_<n>, e.g. rotom_kernel_matmul_0.
+    StringRef mnemonic = op->getName().getStringRef();
+    mnemonic = mnemonic.drop_front(mnemonic.find('.') + 1);
     std::string name;
     do {
-      name = ("rotom_kernel_matmul_" + Twine(kernelCounter++)).str();
+      name = ("rotom_kernel_" + mnemonic + "_" + Twine(kernelCounter++)).str();
     } while (module.lookupSymbol(name));
 
-    auto funcType = builder.getFunctionType(
-        {op.getInputs()[0].getType(), op.getInputs()[1].getType()},
-        {op->getResultTypes()[0]});
-    auto callee = func::FuncOp::create(builder, op.getLoc(), name, funcType);
+    SmallVector<Type> argTypes(kernelOperands.getTypes());
+    auto funcType =
+        builder.getFunctionType(argTypes, {op->getResultTypes()[0]});
+    auto callee = func::FuncOp::create(builder, op->getLoc(), name, funcType);
     callee.setPrivate();
     callee->setAttr(kKernelFuncAttrName, UnitAttr::get(ctx));
-    callee.setArgAttr(0, kRotomLayoutAttrName, layouts[0]);
-    callee.setArgAttr(1, kRotomLayoutAttrName, layouts[1]);
-    callee.setResultAttr(0, kRotomLayoutAttrName, layouts[2]);
+    for (auto [index, layout] : llvm::enumerate(operandLayouts)) {
+      callee.setArgAttr(index, kRotomLayoutAttrName, layout);
+    }
+    callee.setResultAttr(0, kRotomLayoutAttrName, resultLayout);
 
     Block* body = callee.addEntryBlock();
     builder.setInsertionPointToStart(body);
     IRMapping mapping;
-    mapping.map(op.getInputs()[0], body->getArgument(0));
-    mapping.map(op.getInputs()[1], body->getArgument(1));
-    builder.clone(*init.fillValue, mapping);
-    builder.clone(*init.empty, mapping);
-    builder.clone(*init.fill, mapping);
-    // The clone keeps the op's rotom.layout / rotom.matmul attributes, so the
-    // materializer and the ciphertext lowering treat the body like any other
+    for (auto [index, operand] : llvm::enumerate(kernelOperands)) {
+      mapping.map(operand, body->getArgument(index));
+    }
+    for (Operation* pre : prologue) builder.clone(*pre, mapping);
+    // The clone keeps the op's rotom/kernel attributes, so the materializer
+    // and the ciphertext lowering treat the body like any other
     // layout-assigned function.
     Operation* cloned = builder.clone(*op, mapping);
-    func::ReturnOp::create(builder, op.getLoc(), cloned->getResult(0));
+    func::ReturnOp::create(builder, op->getLoc(), cloned->getResult(0));
     return callee;
   }
 
@@ -95,46 +153,47 @@ struct OutlineKernels : impl::OutlineKernelsBase<OutlineKernels> {
     auto layouts = op->getAttrOfType<ArrayAttr>(kRotomMatmulAttrName);
     std::optional<MatmulInitChain> init = matchInitChain(op);
     if (!init) return;  // leave inline; the lowering handles it in place
+    Operation* prologue[] = {init->fillValue, init->empty, init->fill};
+    outlineOp(module, op, ValueRange{op.getInputs()[0], op.getInputs()[1]},
+              {layouts[0], layouts[1]}, layouts[2], prologue);
+  }
 
-    // Two matmuls with the same layout combination and operand/result types
-    // share one kernel function.
-    MLIRContext* ctx = module.getContext();
-    Attribute key = ArrayAttr::get(
-        ctx, {StringAttr::get(ctx, op->getName().getStringRef()), layouts,
-              TypeAttr::get(op.getInputs()[0].getType()),
-              TypeAttr::get(op.getInputs()[1].getType()),
-              TypeAttr::get(op->getResultTypes()[0])});
-    func::FuncOp& callee = outlinedKernels[key];
-    if (!callee) callee = buildMatmulKernel(module, op, layouts, *init);
-
-    OpBuilder builder(op);
-    auto call =
-        func::CallOp::create(builder, op.getLoc(), callee,
-                             ValueRange{op.getInputs()[0], op.getInputs()[1]});
-    // The call result carries the kernel's result layout, so downstream
-    // passes see the same per-value contract as before outlining.
-    call->setAttr(kRotomLayoutAttrName, layouts[2]);
-    op->getResult(0).replaceAllUsesWith(call.getResult(0));
-    op->erase();
-    linalg::FillOp fill = init->fill;
-    tensor::EmptyOp empty = init->empty;
-    arith::ConstantOp fillValue = init->fillValue;
-    if (fill->use_empty()) fill->erase();
-    if (empty->use_empty()) empty->erase();
-    if (fillValue->use_empty()) fillValue->erase();
+  void outlineElementwise(ModuleOp module, Operation* op) {
+    FailureOr<Attribute> lhsLayout =
+        findAttributeAssociatedWith(op->getOperand(0), kRotomLayoutAttrName);
+    FailureOr<Attribute> rhsLayout =
+        findAttributeAssociatedWith(op->getOperand(1), kRotomLayoutAttrName);
+    Attribute resultLayout = op->getAttr(kRotomLayoutAttrName);
+    if (failed(lhsLayout) || failed(rhsLayout) || !resultLayout) return;
+    outlineOp(module, op, op->getOperands(), {*lhsLayout, *rhsLayout},
+              resultLayout, /*prologue=*/{});
   }
 
   void runOnOperation() override {
     ModuleOp module = getOperation();
-    SmallVector<linalg::MatmulOp> targets;
-    module.walk([&](linalg::MatmulOp op) {
+    SmallVector<Operation*> targets;
+    module.walk([&](Operation* op) {
       auto parent = op->getParentOfType<func::FuncOp>();
       if (parent && parent->hasAttr(kKernelFuncAttrName)) return;
-      if (!op->getAttrOfType<ArrayAttr>(kRotomMatmulAttrName)) return;
-      if (op->getNumResults() != 1) return;
-      targets.push_back(op);
+      // TODO: outline from inside secret.generic regions once the call /
+      // region interaction is validated on the secret path.
+      if (op->getParentOfType<secret::GenericOp>()) return;
+      if (auto matmul = dyn_cast<linalg::MatmulOp>(op)) {
+        if (matmul->getAttrOfType<ArrayAttr>(kRotomMatmulAttrName) &&
+            matmul->getNumResults() == 1) {
+          targets.push_back(op);
+        }
+        return;
+      }
+      if (isRotomElementwise(op)) targets.push_back(op);
     });
-    for (linalg::MatmulOp op : targets) outlineMatmul(module, op);
+    for (Operation* op : targets) {
+      if (auto matmul = dyn_cast<linalg::MatmulOp>(op)) {
+        outlineMatmul(module, matmul);
+      } else {
+        outlineElementwise(module, op);
+      }
+    }
   }
 
   llvm::DenseMap<Attribute, func::FuncOp> outlinedKernels;

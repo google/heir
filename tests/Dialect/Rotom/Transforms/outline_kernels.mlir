@@ -24,11 +24,30 @@ module {
     return %0, %1 : tensor<4x1xf32>, tensor<4x1xf32>
   }
 
-  // Exactly one kernel function, marked and carrying the layout signature.
+  // Elementwise Rotom kernels outline and deduplicate the same way: the two
+  // addf ops (one over an intermediate with the same layout) share a kernel,
+  // and the mulf gets its own.
+  // CHECK: func.func @elementwise_chain
+  // CHECK: %[[S:.*]] = call @rotom_kernel_addf_1(%arg0, %arg1)
+  // CHECK: %[[T:.*]] = call @rotom_kernel_addf_1(%[[S]], %arg2)
+  // CHECK: call @rotom_kernel_mulf_2(%[[T]], %arg0)
+  // CHECK-NOT: arith.addf
+  func.func @elementwise_chain(%a: tensor<4x4xf32> {rotom.seed = #seed_mat}, %b: tensor<4x4xf32> {rotom.seed = #seed_mat}, %c: tensor<4x4xf32> {rotom.seed = #seed_mat}) -> tensor<4x4xf32> {
+    %0 = arith.addf %a, %b : tensor<4x4xf32>
+    %1 = arith.addf %0, %c : tensor<4x4xf32>
+    %2 = arith.mulf %1, %a : tensor<4x4xf32>
+    return %2 : tensor<4x4xf32>
+  }
+
+  // Exactly one kernel function per signature, marked and carrying it.
   // CHECK: func.func private @rotom_kernel_matmul_0
   // CHECK-SAME: rotom.layout
   // CHECK-SAME: rotom.kernel_func
   // CHECK: linalg.matmul
   // CHECK-SAME: rotom.matmul
-  // CHECK-NOT: func.func private @rotom_kernel_matmul_1
+  // CHECK: func.func private @rotom_kernel_addf_1
+  // CHECK: arith.addf
+  // CHECK-SAME: secret.kernel
+  // CHECK: func.func private @rotom_kernel_mulf_2
+  // CHECK-NOT: func.func private @rotom_kernel_addf
 }
