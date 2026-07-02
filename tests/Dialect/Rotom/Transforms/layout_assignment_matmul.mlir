@@ -17,15 +17,15 @@
 module {
   // CHECK: func.func @matmul_assign
   // CHECK-NOT: secret.kernel
-  // CHECK-SAME: -> (tensor<4x4xf32> {rotom.layout = #rotom.layout<n = 64, dims = {{\[\[1:4:1\], \[0:4:1\], \[-1:4:1\]\]}}>})
+  // CHECK-SAME: -> (tensor<4x4xf32> {rotom.layout = #rotom.layout<n = 64, dims = {{\[\[0:4:1\], \[-1:4:1\], \[1:4:1\]\]}}>})
   func.func @matmul_assign(%a: tensor<4x4xf32> {rotom.seed = #seed_row}, %b: tensor<4x4xf32> {rotom.seed = #seed_row}) -> tensor<4x4xf32> {
     %cst = arith.constant 0.000000e+00 : f32
     %empty = tensor.empty() : tensor<4x4xf32>
     %fill = linalg.fill ins(%cst : f32) outs(%empty : tensor<4x4xf32>) -> tensor<4x4xf32>
-    // The winning plan hosts the lhs and places j outermost; summing k
-    // leaves its slots as replication.
+    // The winning plan hosts the lhs and appends j innermost in the slots;
+    // summing k leaves its slots as replication between i and j.
     // CHECK: linalg.matmul
-    // CHECK-SAME: rotom.layout = #rotom.layout<n = 64, dims = {{\[\[1:4:1\], \[0:4:1\], \[-1:4:1\]\]}}>
+    // CHECK-SAME: rotom.layout = #rotom.layout<n = 64, dims = {{\[\[0:4:1\], \[-1:4:1\], \[1:4:1\]\]}}>
     // CHECK-SAME: rotom.matmul
     %0 = linalg.matmul ins(%a, %b : tensor<4x4xf32>, tensor<4x4xf32>) outs(%fill : tensor<4x4xf32>) -> tensor<4x4xf32>
     return %0 : tensor<4x4xf32>

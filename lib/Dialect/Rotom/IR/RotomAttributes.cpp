@@ -107,6 +107,27 @@ static FailureOr<LayoutData> preprocessLayoutData(ArrayAttr dims, int64_t n,
     }
     return failure();
   }
+
+  // Canonicalize the deduped traversal dims to ascending dim id. The dedup
+  // above collects them in first-appearance order, but consumers read the
+  // list positionally as tensor dims -- most importantly the ISL lowering's
+  // domain variables -- so a layout whose pieces lead with a later dim (e.g.
+  // column-major [1:.][0:.]) must not leak that order into LayoutData.
+  SmallVector<DimAttr> sortedTraversalDims = data.traversalDims;
+  llvm::sort(sortedTraversalDims,
+             [](DimAttr a, DimAttr b) { return a.getDim() < b.getDim(); });
+  llvm::DenseMap<int64_t, int64_t> sortedIndexForDim;
+  for (size_t ti = 0; ti < sortedTraversalDims.size(); ++ti) {
+    sortedIndexForDim[sortedTraversalDims[ti].getDim()] =
+        static_cast<int64_t>(ti);
+  }
+  data.traversalDims = std::move(sortedTraversalDims);
+  for (size_t p = 0; p < data.pieces.size(); ++p) {
+    if (data.pieces[p] == LayoutPieceKind::Traversal) {
+      data.pieceIndex[p] = sortedIndexForDim[data.originalDims[p].getDim()];
+    }
+  }
+
   data.pieceModBy.assign(data.pieces.size(), 0);
 
   // Count pieces per tensor dim and the dim's full extent.
@@ -123,8 +144,8 @@ static FailureOr<LayoutData> preprocessLayoutData(ArrayAttr dims, int64_t n,
   for (size_t p = 0; p < data.pieces.size(); ++p) {
     if (data.pieces[p] != LayoutPieceKind::Traversal) continue;
     if (pieceCount[data.originalDims[p].getDim()] == 1) {
-      // A whole dim packed as one piece keeps the legacy behavior: the stride is
-      // not an address weight here, so ignore it -- digit == i.
+      // A whole dim packed as one piece keeps the legacy behavior: the stride
+      // is not an address weight here, so ignore it -- digit == i.
       data.pieceDivBy[p] = 1;
       data.pieceModBy[p] = 0;
     } else {
@@ -134,8 +155,7 @@ static FailureOr<LayoutData> preprocessLayoutData(ArrayAttr dims, int64_t n,
       // address compact.
       const int64_t extent = data.originalDims[p].getSize();
       const int64_t full = dimFullExtent[data.originalDims[p].getDim()];
-      data.pieceModBy[p] =
-          (data.pieceDivBy[p] * extent < full) ? extent : 0;
+      data.pieceModBy[p] = (data.pieceDivBy[p] * extent < full) ? extent : 0;
     }
   }
 

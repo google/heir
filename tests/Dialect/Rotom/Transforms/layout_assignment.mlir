@@ -124,11 +124,11 @@ module {
 
 module {
   // CHECK: func.func @generic_assign
-  // CHECK-SAME: tensor<2x4xf32> {rotom.layout = #rotom.layout<n = 8, dims = {{\[\[1:4:1\], \[0:2:1\]\]}}>}
+  // CHECK-SAME: tensor<2x4xf32> {rotom.layout = #rotom.layout<n = 8, dims = {{\[\[0:2:1\], \[1:4:1\]\]}}>}
   func.func @generic_assign(%arg0: tensor<2x4xf32> {rotom.seed = #seed_generic_a}, %arg1: tensor<2x4xf32> {rotom.seed = #seed_generic_b}) -> tensor<2x4xf32> {
     %empty = tensor.empty() : tensor<2x4xf32>
     // CHECK: linalg.generic
-    // CHECK-SAME: rotom.layout = #rotom.layout<n = 8, dims = {{\[\[1:4:1\], \[0:2:1\]\]}}>
+    // CHECK-SAME: rotom.layout = #rotom.layout<n = 8, dims = {{\[\[0:2:1\], \[1:4:1\]\]}}>
     %0 = linalg.generic {
       indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>],
       iterator_types = ["parallel", "parallel"]}

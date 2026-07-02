@@ -79,8 +79,8 @@ TEST(RotomTensorExtLayoutLoweringTest, ColumnMajor4x4Evaluate) {
   };
   std::vector<std::vector<int>> packed = evaluateLayout<int>(
       relation.value(), [&](const std::vector<int64_t>& domainPoint) -> int {
-        // Traversal dims are {dim1, dim0}, so relation vars are [col, row].
-        return matrix[domainPoint[1]][domainPoint[0]];
+        // Domain vars are tensor dims in order: [row, col].
+        return matrix[domainPoint[0]][domainPoint[1]];
       });
 
   std::vector<std::vector<int>> expected = {
@@ -186,8 +186,8 @@ TEST(RotomTensorExtLayoutLoweringTest, SplitColumnMajor4x4Evaluate) {
   };
   std::vector<std::vector<int>> packed = evaluateLayout<int>(
       relation.value(), [&](const std::vector<int64_t>& domainPoint) -> int {
-        // Traversal dims are {dim1, dim0}, so relation vars are [col, row].
-        return matrix[domainPoint[1]][domainPoint[0]];
+        // Domain vars are tensor dims in order: [row, col].
+        return matrix[domainPoint[0]][domainPoint[1]];
       });
 
   // Column-major packing, split into 4 ciphertexts of 4 slots: one column per
@@ -220,7 +220,10 @@ TEST(RotomTensorExtLayoutLoweringTest, PreprocessAddsImplicitGap) {
   EXPECT_EQ(data->pieces[1], LayoutPieceKind::Traversal);
 }
 
-TEST(RotomTensorExtLayoutLoweringTest, PreprocessPreservesTraversalDimsOrder) {
+TEST(RotomTensorExtLayoutLoweringTest, PreprocessSortsTraversalDimsByDimId) {
+  // The deduped traversal dims are canonicalized to ascending dim id
+  // regardless of piece order, so the ISL lowering's domain variables always
+  // line up positionally with tensor dims.
   MLIRContext context;
   context.loadDialect<RotomDialect>();
   DimAttr d0 = DimAttr::get(&context, /*dim=*/0, /*size=*/4, /*stride=*/1);
@@ -231,8 +234,8 @@ TEST(RotomTensorExtLayoutLoweringTest, PreprocessPreservesTraversalDimsOrder) {
   FailureOr<LayoutData> data = preprocessLayoutAttr(layout);
   ASSERT_TRUE(succeeded(data));
   ASSERT_EQ(data->traversalDims.size(), 2);
-  EXPECT_EQ(data->traversalDims[0].getDim(), 1);
-  EXPECT_EQ(data->traversalDims[1].getDim(), 0);
+  EXPECT_EQ(data->traversalDims[0].getDim(), 0);
+  EXPECT_EQ(data->traversalDims[1].getDim(), 1);
 }
 
 TEST(RotomTensorExtLayoutLoweringTest, RolledRowMajor2x2Evaluate) {
