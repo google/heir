@@ -313,9 +313,16 @@ static LogicalResult verifyLayoutRolls(
     if (di.getSize() != dj.getSize()) {
       return emitError() << "rolled dims must have the same extent (size)";
     }
-    if (di.isGap() || dj.isGap() || di.isReplicate() || dj.isReplicate()) {
-      return emitError() << "rolls may only reference non-sentinel traversal "
-                            "dims (dim >= 0)";
+    // The rolled (from) dim must be a traversal dim -- it is the index
+    // expression being rewritten. The roll-by (second) dim may also be a
+    // replication dim: rolling by a replica index materializes every cyclic
+    // rotation of the rolled dim across the replicas, so alignment becomes
+    // replica selection.
+    if (di.isGap() || di.isReplicate()) {
+      return emitError() << "the rolled dim must be a traversal dim (dim >= 0)";
+    }
+    if (dj.isGap()) {
+      return emitError() << "a roll may not be indexed by a gap dim";
     }
   }
   return success();

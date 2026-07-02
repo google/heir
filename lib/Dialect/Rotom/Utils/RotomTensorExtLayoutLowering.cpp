@@ -55,9 +55,9 @@ static LogicalResult emitSegmentAddress(
     const SmallVector<DimAttr>& replicationDims,
     int64_t numActiveTraversalComponents, size_t segStart, size_t segEnd,
     bool foldGapVarsToZero, ArrayRef<int64_t> rolls, ArrayAttr rotomDims) {
-  // Effective extent of a piece = the range of its mixed-radix digit: modBy when
-  // the piece reads i mod L (the slot/low part), else sz/divBy (the whole dim
-  // when divBy 1, or the ct/high part sz/L of a straddling dim).
+  // Effective extent of a piece = the range of its mixed-radix digit: modBy
+  // when the piece reads i mod L (the slot/low part), else sz/divBy (the whole
+  // dim when divBy 1, or the ct/high part sz/L of a straddling dim).
   auto pieceSize = [&](size_t p) -> int64_t {
     switch (pieces[p]) {
       case LayoutPieceKind::Traversal: {
@@ -158,13 +158,26 @@ static LogicalResult emitSegmentAddress(
       if (!fromDim || !toDim) return failure();
       FailureOr<int64_t> maybeFromTrav =
           traversalIndexForRotomDim(traversalDims, fromDim);
-      FailureOr<int64_t> maybeToTrav =
-          traversalIndexForRotomDim(traversalDims, toDim);
-      if (failed(maybeFromTrav) || failed(maybeToTrav)) return failure();
+      if (failed(maybeFromTrav)) return failure();
       const int64_t fromTrav = *maybeFromTrav;
-      const int64_t toTrav = *maybeToTrav;
+      std::string toExpr;
+      if (toDim.isReplicate()) {
+        // Rolling by a replication dim: the shift is the replica index, whose
+        // existential variable is named after the piece's replication slot.
+        int64_t replicationIndex = 0;
+        for (int64_t k = 0; k < toIdx; ++k) {
+          if (cast<DimAttr>(rotomDims[k]).isReplicate()) ++replicationIndex;
+        }
+        toExpr = "d" + std::to_string(numActiveTraversalComponents +
+                                      replicationIndex);
+      } else {
+        FailureOr<int64_t> maybeToTrav =
+            traversalIndexForRotomDim(traversalDims, toDim);
+        if (failed(maybeToTrav)) return failure();
+        toExpr = traversalExprs[*maybeToTrav];
+      }
       std::string diffExpr =
-          "(" + traversalExprs[fromTrav] + " - " + traversalExprs[toTrav] + ")";
+          "(" + traversalExprs[fromTrav] + " - " + toExpr + ")";
       traversalExprs[fromTrav] = modExpr(diffExpr, fromDim.getSize());
     }
   }
@@ -280,11 +293,10 @@ static FailureOr<std::string> emitSplitCtSlotIsl(
   emitAnd();
   firstTerm = true;
   os << "slot = ";
-  if (failed(emitSegmentAddress(os, firstTerm, pieces, pieceIndex, pieceDivBy,
-                                pieceModBy, traversalDims, gapDims,
-                                replicationDims, numTraversalComponents, prefix,
-                                pieces.size(), foldGapVarsToZero, rolls,
-                                rotomDims)))
+  if (failed(emitSegmentAddress(
+          os, firstTerm, pieces, pieceIndex, pieceDivBy, pieceModBy,
+          traversalDims, gapDims, replicationDims, numTraversalComponents,
+          prefix, pieces.size(), foldGapVarsToZero, rolls, rotomDims)))
     return failure();
   if (firstTerm) os << "0";
 

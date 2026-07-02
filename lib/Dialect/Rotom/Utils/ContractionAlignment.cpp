@@ -12,6 +12,7 @@
 #include "mlir/include/mlir/IR/Attributes.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/Location.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
@@ -28,7 +29,11 @@ static LayoutAttr makeCheckedLayout(MLIRContext* ctx, ArrayRef<DimAttr> dims,
   SmallVector<Attribute> attrs(dims.begin(), dims.end());
   auto dimsAttr = ArrayAttr::get(ctx, attrs);
   auto rolls = DenseI64ArrayAttr::get(ctx, ArrayRef<int64_t>{});
-  auto swallow = []() { return InFlightDiagnostic(); };
+  // A real (but silenced) diagnostic emitter: streaming into an inactive
+  // InFlightDiagnostic asserts, and an invalid enumerated variant is skipped,
+  // not reported.
+  ScopedDiagnosticHandler silence(ctx, [](Diagnostic&) { return success(); });
+  auto swallow = mlir::detail::getDefaultDiagnosticEmitFn(UnknownLoc::get(ctx));
   if (failed(LayoutAttr::verify(swallow, dimsAttr, n, rolls))) return {};
   return LayoutAttr::get(ctx, dimsAttr, n, rolls);
 }
