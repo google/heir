@@ -1,5 +1,6 @@
 #include "lib/Dialect/Rotom/Utils/ContractionAlignment.h"
 
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <utility>
@@ -32,11 +33,40 @@ static LayoutAttr makeCheckedLayout(MLIRContext* ctx, ArrayRef<DimAttr> dims,
   return LayoutAttr::get(ctx, dimsAttr, n, rolls);
 }
 
+static SmallVector<DimAttr> collectDims(LayoutAttr layout) {
+  SmallVector<DimAttr> dims;
+  dims.reserve(layout.getDims().size());
+  for (Attribute attr : layout.getDims()) dims.push_back(cast<DimAttr>(attr));
+  return dims;
+}
+
+// Relabels traversal dims through `oldToNew` (gap/replication pieces pass
+// through). Every traversal dim present must map to a non-negative new dim.
+static SmallVector<DimAttr> relabelTraversalDims(MLIRContext* ctx,
+                                                 ArrayRef<DimAttr> dims,
+                                                 ArrayRef<int64_t> oldToNew) {
+  SmallVector<DimAttr> result;
+  result.reserve(dims.size());
+  for (DimAttr piece : dims) {
+    if (piece.isGap() || piece.isReplicate()) {
+      result.push_back(piece);
+      continue;
+    }
+    int64_t oldDim = piece.getDim();
+    assert(oldDim >= 0 && oldDim < static_cast<int64_t>(oldToNew.size()) &&
+           "traversal dim out of range for the relabeling");
+    int64_t newDim = oldToNew[oldDim];
+    assert(newDim >= 0 && "relabeling must not drop traversal dims");
+    result.push_back(
+        DimAttr::get(ctx, newDim, piece.getSize(), piece.getStride()));
+  }
+  return result;
+}
+
 // Product of the traversal-piece extents of one iteration dim (1 if absent).
-static int64_t iterationDimExtent(LayoutAttr layout, int64_t dim) {
+static int64_t iterationDimExtent(ArrayRef<DimAttr> dims, int64_t dim) {
   int64_t extent = 1;
-  for (Attribute attr : layout.getDims()) {
-    auto piece = cast<DimAttr>(attr);
+  for (DimAttr piece : dims) {
     if (piece.getDim() == dim) extent *= piece.getSize();
   }
   return extent;
@@ -94,16 +124,29 @@ SmallVector<MatmulPlan> enumerateMatmulPlans(LayoutAttr lhs, LayoutAttr rhs) {
   if (!lhs || !rhs || lhs.getN() != rhs.getN()) return {};
   MLIRContext* ctx = lhs.getContext();
   const int64_t n = lhs.getN();
-  const int64_t iExtent = iterationDimExtent(lhs, kMatmulDimI);
-  const int64_t jExtent = iterationDimExtent(rhs, kMatmulDimJ);
+
+  // Relabel the operands' own dims into the iteration space: A is (i, k),
+  // B is (k, j).
+  const SmallVector<int64_t> lhsToIter = {kMatmulDimI, kMatmulDimK};
+  const SmallVector<int64_t> rhsToIter = {kMatmulDimK, kMatmulDimJ};
+  SmallVector<DimAttr> lhsIter =
+      relabelTraversalDims(ctx, collectDims(lhs), lhsToIter);
+  SmallVector<DimAttr> rhsIter =
+      relabelTraversalDims(ctx, collectDims(rhs), rhsToIter);
+  const int64_t iExtent = iterationDimExtent(lhsIter, kMatmulDimI);
+  const int64_t jExtent = iterationDimExtent(rhsIter, kMatmulDimJ);
+
+  // ... and back out to each tensor's own dims.
+  const SmallVector<int64_t> iterToLhs = {0, -1, 1};
+  const SmallVector<int64_t> iterToRhs = {-1, 1, 0};
+  const SmallVector<int64_t> iterToResult = {0, 1, -1};
 
   // Candidate compute placements: host one operand unchanged and insert the
   // missing free dim innermost (slot region) and outermost (ct region).
   SmallVector<SmallVector<DimAttr>> computeVariants;
-  auto addHostVariants = [&](LayoutAttr host, int64_t freeDim,
+  auto addHostVariants = [&](ArrayRef<DimAttr> host, int64_t freeDim,
                              int64_t freeExtent) {
-    SmallVector<DimAttr> base;
-    for (Attribute attr : host.getDims()) base.push_back(cast<DimAttr>(attr));
+    SmallVector<DimAttr> base(host.begin(), host.end());
     if (freeExtent == 1) {
       computeVariants.push_back(base);
       return;
@@ -116,8 +159,8 @@ SmallVector<MatmulPlan> enumerateMatmulPlans(LayoutAttr lhs, LayoutAttr rhs) {
     ctVariant.append(base.begin(), base.end());
     computeVariants.push_back(std::move(ctVariant));
   };
-  addHostVariants(lhs, kMatmulDimJ, jExtent);
-  addHostVariants(rhs, kMatmulDimI, iExtent);
+  addHostVariants(lhsIter, kMatmulDimJ, jExtent);
+  addHostVariants(rhsIter, kMatmulDimI, iExtent);
 
   llvm::DenseSet<Attribute> seenComputeLayouts;
   SmallVector<MatmulPlan> plans;
@@ -156,9 +199,12 @@ SmallVector<MatmulPlan> enumerateMatmulPlans(LayoutAttr lhs, LayoutAttr rhs) {
 
     MatmulPlan plan;
     plan.computeLayout = computeLayout;
-    plan.expandedLhs = makeCheckedLayout(ctx, expandedLhsDims, n);
-    plan.expandedRhs = makeCheckedLayout(ctx, expandedRhsDims, n);
-    plan.resultLayout = makeCheckedLayout(ctx, resultDims, n);
+    plan.expandedLhs = makeCheckedLayout(
+        ctx, relabelTraversalDims(ctx, expandedLhsDims, iterToLhs), n);
+    plan.expandedRhs = makeCheckedLayout(
+        ctx, relabelTraversalDims(ctx, expandedRhsDims, iterToRhs), n);
+    plan.resultLayout = makeCheckedLayout(
+        ctx, relabelTraversalDims(ctx, resultDims, iterToResult), n);
     if (!plan.expandedLhs || !plan.expandedRhs || !plan.resultLayout) continue;
 
     replicationFillCounts(computeDims, expandedLhsDims, ctPrefixLen,
@@ -177,6 +223,55 @@ SmallVector<MatmulPlan> enumerateMatmulPlans(LayoutAttr lhs, LayoutAttr rhs) {
     plans.push_back(std::move(plan));
   }
   return plans;
+}
+
+LayoutAttr stripOuterCtReplication(LayoutAttr layout,
+                                   int64_t& replicationFactor) {
+  replicationFactor = 1;
+  SmallVector<DimAttr> dims = collectDims(layout);
+  const size_t ctPrefixLen = inferCtPrefixLen(dims, layout.getN());
+  size_t firstKept = 0;
+  while (firstKept < ctPrefixLen && dims[firstKept].isReplicate()) {
+    replicationFactor *= dims[firstKept].getSize();
+    ++firstKept;
+  }
+  if (firstKept == 0) return layout;
+  SmallVector<Attribute> kept(dims.begin() + firstKept, dims.end());
+  MLIRContext* ctx = layout.getContext();
+  return LayoutAttr::get(ctx, ArrayAttr::get(ctx, kept), layout.getN());
+}
+
+// One operand's expansion is realizable as a same-shape layout conversion
+// plus outermost ciphertext copies.
+static bool isLowerableOperandExpansion(LayoutAttr expanded,
+                                        LayoutAttr source) {
+  int64_t replicationFactor = 1;
+  LayoutAttr inner = stripOuterCtReplication(expanded, replicationFactor);
+  // No further ciphertext-region replication may remain: interleaved
+  // replicated ciphertexts cannot be emitted as a concat of copies.
+  SmallVector<DimAttr> innerDims = collectDims(inner);
+  const size_t ctPrefixLen = inferCtPrefixLen(innerDims, inner.getN());
+  for (size_t p = 0; p < ctPrefixLen; ++p) {
+    if (innerDims[p].isReplicate()) return false;
+  }
+  return layoutNumCiphertexts(inner) == layoutNumCiphertexts(source);
+}
+
+bool isLowerableMatmulPlan(const MatmulPlan& plan, LayoutAttr lhsSource,
+                           LayoutAttr rhsSource) {
+  if (!plan.computeLayout || !plan.expandedLhs || !plan.expandedRhs) {
+    return false;
+  }
+  // k's ciphertext-side sum is a strided row-slice reduction only when k has
+  // a single, outermost ciphertext piece.
+  SmallVector<DimAttr> computeDims = collectDims(plan.computeLayout);
+  const size_t ctPrefixLen =
+      inferCtPrefixLen(computeDims, plan.computeLayout.getN());
+  for (size_t p = 0; p < ctPrefixLen; ++p) {
+    if (computeDims[p].getDim() == kMatmulDimK && p != 0) return false;
+  }
+  return isLowerableOperandExpansion(plan.expandedLhs, lhsSource) &&
+         isLowerableOperandExpansion(plan.expandedRhs, rhsSource);
 }
 
 }  // namespace rotom

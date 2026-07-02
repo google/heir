@@ -16,6 +16,7 @@
 #include "lib/Dialect/Rotom/Transforms/LayoutAssignment/DimMaps.h"
 #include "lib/Dialect/Rotom/Transforms/LayoutAssignment/Generators.h"
 #include "lib/Dialect/Rotom/Transforms/LayoutAssignment/ValueUtils.h"
+#include "lib/Dialect/Rotom/Utils/ContractionAlignment.h"
 #include "lib/Dialect/Rotom/Utils/LayoutAlignment.h"
 #include "lib/Dialect/Rotom/Utils/RotomTensorExtLayoutLowering.h"
 #include "lib/Dialect/Secret/IR/SecretAttributes.h"
@@ -372,6 +373,21 @@ void LayoutAssignment::applyKernels(ModuleOp module) {
   // op's Rotom kernel attribute from the final operand/result layouts (the only
   // ops that carry one); a forced kernel is left untouched.
   module.walk([&](Operation* op) {
+    if (auto matmul = dyn_cast<linalg::MatmulOp>(op)) {
+      // A matmul gets no kernel: its lowering is a pure function of the
+      // (lhs, rhs, result) layout combination. Record those layouts on the
+      // op, since the materializer erases the per-value rotom attributes
+      // before the ciphertext lowering re-derives the plan.
+      LayoutAttr lhs = selectedLayouts.lookup(matmul.getInputs()[0]);
+      LayoutAttr rhs = selectedLayouts.lookup(matmul.getInputs()[1]);
+      LayoutAttr result = selectedLayouts.lookup(matmul->getResult(0));
+      if (lhs && rhs && result) {
+        matmul->setAttr(
+            kRotomMatmulAttrName,
+            ArrayAttr::get(matmul.getContext(), {lhs, rhs, result}));
+      }
+      return;
+    }
     if (op->getNumOperands() != 2 || op->getNumResults() != 1) return;
     if (!isAddLike(op) && !isMulLike(op)) return;
     auto existing = op->getAttrOfType<secret::KernelAttr>(

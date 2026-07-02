@@ -13,6 +13,9 @@
 #include <vector>
 
 #include "lib/Dialect/ModuleAttributes.h"
+#include "lib/Dialect/Rotom/IR/RotomAttributes.h"
+#include "lib/Dialect/Rotom/Utils/ContractionAlignment.h"
+#include "lib/Dialect/Rotom/Utils/RotomTensorExtLayoutLowering.h"
 #include "lib/Dialect/Secret/IR/SecretAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
@@ -64,6 +67,7 @@
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Matchers.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/OperationSupport.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
@@ -2485,6 +2489,195 @@ struct ConvertLinalgMatmul
   }
 };
 
+// Roll-free Rotom matmul: align both operands into a shared placement of the
+// (i, j, k) iteration space, multiply elementwise once, then sum k. There is
+// no kernel attribute -- the plan is a deterministic function of the
+// (lhs, rhs, result) rotom layout combination the layout assignment recorded
+// under rotom.matmul (the materializer erases per-value rotom layouts).
+class ConvertRotomMatmul : public ConversionBase<linalg::MatmulOp> {
+ public:
+  using ConversionBase<linalg::MatmulOp>::ConversionBase;
+
+  LogicalResult matchAndRewrite(
+      linalg::MatmulOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    auto planInputs = op->getAttrOfType<ArrayAttr>(rotom::kRotomMatmulAttrName);
+    if (!planInputs || planInputs.size() != 3) return failure();
+    auto lhsRotom = dyn_cast<rotom::LayoutAttr>(planInputs[0]);
+    auto rhsRotom = dyn_cast<rotom::LayoutAttr>(planInputs[1]);
+    auto resultRotom = dyn_cast<rotom::LayoutAttr>(planInputs[2]);
+    if (!lhsRotom || !rhsRotom || !resultRotom) return failure();
+
+    // The k-sum starts from zero, so the init accumulator must be a zero
+    // fill. TODO: support a general init by adding it at the result layout.
+    auto fill = op.getOutputs()[0].getDefiningOp<linalg::FillOp>();
+    if (!fill || !(matchPattern(fill.getInputs()[0], m_AnyZeroFloat()) ||
+                   matchPattern(fill.getInputs()[0], m_Zero()))) {
+      return rewriter.notifyMatchFailure(
+          op, "rotom matmul lowering requires a zero-filled init accumulator");
+    }
+
+    // Re-derive the deterministic plan for the recorded layout combination.
+    const rotom::MatmulPlan* chosen = nullptr;
+    SmallVector<rotom::MatmulPlan> plans =
+        rotom::enumerateMatmulPlans(lhsRotom, rhsRotom);
+    for (const rotom::MatmulPlan& plan : plans) {
+      if (plan.resultLayout == resultRotom &&
+          rotom::isLowerableMatmulPlan(plan, lhsRotom, rhsRotom)) {
+        chosen = &plan;
+        break;
+      }
+    }
+    if (!chosen) {
+      return rewriter.notifyMatchFailure(
+          op, "no lowerable rotom matmul plan matches the recorded layouts");
+    }
+
+    auto outputLayout = op->getAttrOfType<LayoutAttr>(kLayoutAttrName);
+    if (!outputLayout) {
+      return rewriter.notifyMatchFailure(
+          op, "missing tensor_ext.layout on rotom matmul");
+    }
+
+    rewriter.setInsertionPointAfter(op);
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    Value lhs =
+        expandOperand(b, adaptor.getInputs()[0], lhsRotom, chosen->expandedLhs);
+    Value rhs =
+        expandOperand(b, adaptor.getInputs()[1], rhsRotom, chosen->expandedRhs);
+    if (!lhs || !rhs) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to lower an expanded rotom matmul operand layout");
+    }
+    if (lhs.getType() != rhs.getType()) {
+      return rewriter.notifyMatchFailure(
+          op, "expanded rotom matmul operands disagree on ciphertext shape");
+    }
+
+    // Multiply once at the shared compute placement.
+    Operation* product = makeAppropriatelyTypedMulOp(b, op.getLoc(), lhs, rhs);
+    setMaterializedAttr(product);
+    Value acc = product->getResult(0);
+
+    // Walk the compute placement once to find k's slot pieces (each summed by
+    // a log-tree rotate-and-reduce at its slot suffix coefficient) and k's
+    // ciphertext extent (summed by contiguous row-block adds).
+    SmallVector<rotom::DimAttr> computeDims;
+    for (Attribute attr : chosen->computeLayout.getDims()) {
+      computeDims.push_back(cast<rotom::DimAttr>(attr));
+    }
+    const size_t ctPrefixLen =
+        rotom::inferCtPrefixLen(computeDims, chosen->computeLayout.getN());
+    SmallVector<std::pair<int64_t, int64_t>> slotReductions;  // (period, steps)
+    int64_t suffix = 1;
+    for (size_t p = computeDims.size(); p > ctPrefixLen;) {
+      --p;
+      if (computeDims[p].getDim() == rotom::kMatmulDimK) {
+        slotReductions.push_back({suffix, computeDims[p].getSize()});
+      }
+      suffix *= computeDims[p].getSize();
+    }
+    int64_t kCtExtent = 1;
+    for (size_t p = 0; p < ctPrefixLen; ++p) {
+      if (computeDims[p].getDim() == rotom::kMatmulDimK) {
+        kCtExtent *= computeDims[p].getSize();
+      }
+    }
+
+    Type elementType = getElementTypeOrSelf(op.getResult(0).getType());
+    std::string addOpName =
+        isa<FloatType>(elementType) ? "arith.addf" : "arith.addi";
+    kernel::DagType dagType = kernel::mlirTypeToDagType(acc.getType());
+    for (auto [period, steps] : slotReductions) {
+      SSAValue accLeaf(acc);
+      auto dag = implementRotateAndReduce(accLeaf, {}, period, steps, dagType,
+                                          {}, addOpName);
+      acc = materializeKernel(rewriter, op.getLoc(), dag, acc.getType(),
+                              outputLayout);
+    }
+
+    if (kCtExtent > 1) {
+      auto accType = cast<RankedTensorType>(acc.getType());
+      int64_t blockRows = accType.getDimSize(0) / kCtExtent;
+      SmallVector<OpFoldResult> sizes = {b.getIndexAttr(blockRows),
+                                         b.getIndexAttr(accType.getDimSize(1))};
+      SmallVector<OpFoldResult> strides = {b.getIndexAttr(1),
+                                           b.getIndexAttr(1)};
+      Value sum;
+      for (int64_t e = 0; e < kCtExtent; ++e) {
+        SmallVector<OpFoldResult> offsets = {b.getIndexAttr(e * blockRows),
+                                             b.getIndexAttr(0)};
+        Value block =
+            tensor::ExtractSliceOp::create(b, acc, offsets, sizes, strides);
+        setMaterializedAttr(block.getDefiningOp());
+        if (!sum) {
+          sum = block;
+          continue;
+        }
+        Operation* add =
+            makeAppropriatelyTypedAddOp(b, op.getLoc(), sum, block);
+        setMaterializedAttr(add);
+        sum = add->getResult(0);
+      }
+      acc = sum;
+    }
+
+    Type convertedResultType = getTypeConverter()->convertType(
+        op.getResult(0).getType(), outputLayout);
+    if (acc.getType() != convertedResultType) {
+      return rewriter.notifyMatchFailure(
+          op, "rotom matmul lowering produced a mismatched ciphertext shape");
+    }
+    Operation* resultOp = acc.getDefiningOp();
+    resultOp->setAttr(kLayoutAttrName, outputLayout);
+    setMaterializedAttr(resultOp);
+    rewriter.replaceOp(op, acc);
+    return success();
+  }
+
+ private:
+  tensor_ext::LayoutAttr teLayoutOf(rotom::LayoutAttr layout) const {
+    FailureOr<std::string> isl =
+        rotom::RotomTensorExtLayoutLowering::lowerToTensorExtIsl(layout);
+    if (failed(isl)) return nullptr;
+    return tensor_ext::LayoutAttr::get(layout.getContext(), *isl);
+  }
+
+  // Brings one converted operand to its expanded placement: a same-shape
+  // layout conversion onto the inner placement (the shift network fills
+  // slot-region replication), then outermost ciphertext copies via concat.
+  Value expandOperand(ImplicitLocOpBuilder& b, Value value,
+                      rotom::LayoutAttr source,
+                      rotom::LayoutAttr expanded) const {
+    int64_t ctCopies = 1;
+    rotom::LayoutAttr inner =
+        rotom::stripOuterCtReplication(expanded, ctCopies);
+    Value v = value;
+    if (inner != source) {
+      tensor_ext::LayoutAttr fromLayout = getLayoutAttr(v);
+      tensor_ext::LayoutAttr toLayout = teLayoutOf(inner);
+      if (!fromLayout || !toLayout) return nullptr;
+      if (fromLayout != toLayout) {
+        v = tensor_ext::ConvertLayoutOp::create(b, v, fromLayout, toLayout);
+        setAttributeAssociatedWith(v, kLayoutAttrName, toLayout);
+      }
+    }
+    if (ctCopies > 1) {
+      tensor_ext::LayoutAttr expandedLayout = teLayoutOf(expanded);
+      if (!expandedLayout) return nullptr;
+      SmallVector<Value> copies(ctCopies, v);
+      auto concat = tensor::ConcatOp::create(b, /*dim=*/0, copies);
+      setMaterializedAttr(concat);
+      concat->setAttr(kLayoutAttrName, expandedLayout);
+      setAttributeAssociatedWith(concat.getResult(), kLayoutAttrName,
+                                 expandedLayout);
+      v = concat.getResult();
+    }
+    return v;
+  }
+};
+
 struct ConvertToCiphertextSemantics
     : impl::ConvertToCiphertextSemanticsBase<ConvertToCiphertextSemantics> {
   using ConvertToCiphertextSemanticsBase::ConvertToCiphertextSemanticsBase;
@@ -2503,19 +2696,19 @@ struct ConvertToCiphertextSemantics
       return isa<ModuleOp>(op) || hasMaterializedAttr(op);
     });
 
-    patterns
-        .add<ConvertAnyAddingMaterializedAttr, ConvertConvertLayout,
-             ConvertFunc, ConvertLinalgMatmul, ConvertLinalgReduce,
-             ConvertLinalgDot, ConvertRotomElementwiseBinary<arith::AddFOp>,
-             ConvertRotomElementwiseBinary<arith::AddIOp>,
-             ConvertRotomElementwiseBinary<arith::SubFOp>,
-             ConvertRotomElementwiseBinary<arith::SubIOp>,
-             ConvertRotomElementwiseBinary<arith::MulFOp>,
-             ConvertRotomElementwiseBinary<arith::MulIOp>, ConvertSecretGeneric,
-             ConvertTensorCollapseShape, ConvertTensorExpandShape,
-             ConvertTensorExtractLayout, ConvertTensorExtractSlice,
-             ConvertTensorInsertLayout, ConvertTensorInsertSlice>(typeConverter,
-                                                                  context);
+    patterns.add<
+        ConvertAnyAddingMaterializedAttr, ConvertConvertLayout, ConvertFunc,
+        ConvertLinalgMatmul, ConvertLinalgReduce, ConvertLinalgDot,
+        ConvertRotomMatmul, ConvertRotomElementwiseBinary<arith::AddFOp>,
+        ConvertRotomElementwiseBinary<arith::AddIOp>,
+        ConvertRotomElementwiseBinary<arith::SubFOp>,
+        ConvertRotomElementwiseBinary<arith::SubIOp>,
+        ConvertRotomElementwiseBinary<arith::MulFOp>,
+        ConvertRotomElementwiseBinary<arith::MulIOp>, ConvertSecretGeneric,
+        ConvertTensorCollapseShape, ConvertTensorExpandShape,
+        ConvertTensorExtractLayout, ConvertTensorExtractSlice,
+        ConvertTensorInsertLayout, ConvertTensorInsertSlice>(typeConverter,
+                                                             context);
     patterns.add<ConvertLinalgMatvecLayout, ConvertLinalgConv1D,
                  ConvertLinalgConv2D, ConvertLinalgConv2DNchwFchw,
                  ConvertLinalgConv1DNcwFcw>(typeConverter, context,
