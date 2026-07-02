@@ -177,8 +177,11 @@ SmallVector<MatmulPlan> enumerateMatmulPlans(LayoutAttr lhs, LayoutAttr rhs) {
     SmallVector<DimAttr> expandedRhsDims =
         replaceDimWithReplication(ctx, computeDims, kMatmulDimI);
 
-    // Sum away k: slot pieces become replication (the reduced value is left
-    // in every k-slot), ciphertext pieces collapse into adds and are dropped.
+    // Sum away k: a slot piece becomes a gap -- the cyclic log-tree
+    // rotate-and-reduce leaves the true sum only at the k=0 offset (other
+    // offsets hold window sums whose carries cross into the digit above k),
+    // so the result makes no claim about those slots. Ciphertext pieces
+    // collapse into adds and are dropped.
     SmallVector<DimAttr> resultDims;
     int64_t kSlotExtent = 1;
     int64_t kCtExtent = 1;
@@ -194,7 +197,7 @@ SmallVector<MatmulPlan> enumerateMatmulPlans(LayoutAttr lhs, LayoutAttr rhs) {
       }
       kSlotExtent *= piece.getSize();
       resultDims.push_back(
-          DimAttr::get(ctx, /*dim=*/-1, piece.getSize(), /*stride=*/1));
+          DimAttr::get(ctx, /*dim=*/-2, piece.getSize(), /*stride=*/1));
     }
 
     MatmulPlan plan;

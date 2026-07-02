@@ -3,8 +3,8 @@
 // Roll-free matvec, lowered end to end: the vector is remapped onto its
 // expanded placement (replicated across the matrix rows' slot positions),
 // multiplied once against the matrix, and k is summed by a log-tree
-// rotate-and-reduce (rotate 2, add, rotate 1, add), leaving the result
-// replicated in the k slots. No kernel attribute is involved.
+// rotate-and-reduce (rotate 2, add, rotate 1, add); the true sums sit at the
+// k=0 slot offsets (the result layout leaves the other offsets as a gap). No kernel attribute is involved.
 
 #seed_mat = #rotom.seed<layouts = [#rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[1:4:1]>], n = 16>]>
 #seed_col = #rotom.seed<layouts = [#rotom.layout<dims = [#rotom.dim<[0:4:1]>], n = 16>]>

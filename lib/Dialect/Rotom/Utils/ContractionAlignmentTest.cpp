@@ -30,6 +30,8 @@ class ContractionAlignmentTest : public ::testing::Test {
 
   DimAttr repl(int64_t size) { return dim(/*dim=*/-1, size); }
 
+  DimAttr gap(int64_t size) { return dim(/*dim=*/-2, size); }
+
   LayoutAttr layout(ArrayRef<Attribute> dims, int64_t n) {
     return LayoutAttr::get(&context, ArrayAttr::get(&context, dims), n);
   }
@@ -66,14 +68,15 @@ TEST_F(ContractionAlignmentTest, LhsHostedSlotPlan) {
   ASSERT_NE(plan, nullptr);
   EXPECT_EQ(plan->expandedLhs, layout({dim(0, 4), dim(1, 4), repl(4)}, 16));
   EXPECT_EQ(plan->expandedRhs, layout({repl(4), dim(0, 4), dim(1, 4)}, 16));
-  EXPECT_EQ(plan->resultLayout, layout({dim(0, 4), repl(4), dim(1, 4)}, 16));
+  EXPECT_EQ(plan->resultLayout, layout({dim(0, 4), gap(4), dim(1, 4)}, 16));
   // lhs fills j in slots: log2(4) rotate-and-adds on each of 4 ciphertexts.
   EXPECT_EQ(plan->lhsFillRotations, 8);
   EXPECT_EQ(plan->lhsFillAdds, 8);
   // rhs replicates across ciphertexts: free.
   EXPECT_EQ(plan->rhsFillRotations, 0);
   EXPECT_EQ(plan->rhsFillAdds, 0);
-  // k lives in slots: log2(4) rotate-and-reduce on each of 4 ciphertexts.
+  // k lives in slots: log2(4) rotate-and-reduce on each of 4 ciphertexts
+  // (only the k=0 offset holds the true sum, hence the gap in the result).
   EXPECT_EQ(plan->reduceRotations, 8);
   EXPECT_EQ(plan->reduceAdds, 8);
 }
@@ -89,7 +92,7 @@ TEST_F(ContractionAlignmentTest, LhsHostedCtPlan) {
   ASSERT_NE(plan, nullptr);
   EXPECT_EQ(plan->expandedLhs, layout({repl(4), dim(0, 4), dim(1, 4)}, 16));
   EXPECT_EQ(plan->expandedRhs, layout({dim(1, 4), repl(4), dim(0, 4)}, 16));
-  EXPECT_EQ(plan->resultLayout, layout({dim(1, 4), dim(0, 4), repl(4)}, 16));
+  EXPECT_EQ(plan->resultLayout, layout({dim(1, 4), dim(0, 4), gap(4)}, 16));
   // lhs replicates across ciphertexts (free); rhs fills i in slots.
   EXPECT_EQ(plan->lhsFillRotations, 0);
   EXPECT_EQ(plan->lhsFillAdds, 0);
@@ -132,7 +135,7 @@ TEST_F(ContractionAlignmentTest, UnitFreeDimSkipsInsertion) {
   // No j to replicate: the lhs is already at the compute placement.
   EXPECT_EQ(plan->expandedLhs, lhs);
   EXPECT_EQ(plan->expandedRhs, layout({repl(4), dim(0, 4)}, 16));
-  EXPECT_EQ(plan->resultLayout, layout({dim(0, 4), repl(4)}, 16));
+  EXPECT_EQ(plan->resultLayout, layout({dim(0, 4), gap(4)}, 16));
   EXPECT_EQ(plan->lhsFillRotations, 0);
   // One ciphertext: replicating i over 4 slot positions is log2(4) = 2.
   EXPECT_EQ(plan->rhsFillRotations, 2);

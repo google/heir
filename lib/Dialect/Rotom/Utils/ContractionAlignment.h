@@ -41,9 +41,10 @@ inline constexpr llvm::StringLiteral kRotomMatmulAttrName = "rotom.matmul";
 //   - computeLayout: the product's full (i, j, k) traversal placement
 //     (iteration-space dims);
 //   - resultLayout: computeLayout after summing k -- a k piece in the slot
-//     region becomes replication (rotate-and-reduce leaves the sum in every
-//     k-slot); a k piece in the ciphertext prefix is dropped (ciphertext
-//     adds collapse it) -- in C's own dims.
+//     region becomes a gap (the cyclic rotate-and-reduce leaves the true sum
+//     only at the k=0 offset; the other offsets hold unspecified window
+//     sums); a k piece in the ciphertext prefix is dropped (ciphertext adds
+//     collapse it) -- in C's own dims.
 //
 // The counts are informational raw operation counts (the generator prices
 // operand alignment with the shift-network cost instead): fill counts price

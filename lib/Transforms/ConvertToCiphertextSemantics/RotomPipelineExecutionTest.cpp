@@ -16,7 +16,7 @@
 #include "lib/Utils/Layout/Utils.h"
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/OwningOpRef.h"            // from @llvm-project
@@ -45,8 +45,8 @@ LogicalResult runRotomPipeline(ModuleOp module, MLIRContext* context,
   ConvertToCiphertextSemanticsOptions options;
   options.ciphertextSize = ciphertextSize;
   pm.addPass(createConvertToCiphertextSemantics(options));
-  // Lower the tensor_ext.convert_layout ops the Rotom elementwise lowering emits
-  // into rotations + masks so the interpreter can evaluate them.
+  // Lower the tensor_ext.convert_layout ops the Rotom elementwise lowering
+  // emits into rotations + masks so the interpreter can evaluate them.
   pm.addPass(tensor_ext::createImplementShiftNetwork());
   return pm.run(module);
 }
@@ -75,14 +75,38 @@ std::vector<float> packMatrix(tensor_ext::LayoutAttr layout,
                                /*rangeDims=*/2);
   enumeratePoints(layout.getIntegerRelation(), collector);
   for (const auto& [domain, range] : collector.points) {
+    // A vector layout has a single domain var; read it as (row, 0).
     int64_t sourceRow = domain[0];
-    int64_t sourceCol = domain[1];
+    int64_t sourceCol = domain.size() > 1 ? domain[1] : 0;
     int64_t targetCiphertext = range[0];
     int64_t targetSlot = range[1];
     packed[targetCiphertext * numSlots + targetSlot] =
         matrix[sourceRow][sourceCol];
   }
   return packed;
+}
+
+// Compares only the positions the layout claims. A result layout with gap
+// pieces (e.g. the matmul result, whose summed-k offsets hold unspecified
+// window sums) makes no statement about the other slots.
+void expectClaimedSlotsMatch(const std::vector<float>& actual,
+                             tensor_ext::LayoutAttr layout,
+                             RankedTensorType packedType,
+                             const std::vector<std::vector<float>>& expected) {
+  int64_t numSlots = packedType.getDimSize(1);
+  PointPairCollector collector(layout.getIntegerRelation().getNumDomainVars(),
+                               /*rangeDims=*/2);
+  enumeratePoints(layout.getIntegerRelation(), collector);
+  ASSERT_FALSE(collector.points.empty());
+  for (const auto& [domain, range] : collector.points) {
+    int64_t sourceRow = domain[0];
+    int64_t sourceCol = domain.size() > 1 ? domain[1] : 0;
+    int64_t index = range[0] * numSlots + range[1];
+    ASSERT_LT(index, static_cast<int64_t>(actual.size()));
+    EXPECT_NEAR(actual[index], expected[sourceRow][sourceCol], 1e-4)
+        << "at (" << sourceRow << ", " << sourceCol << ") -> packed index "
+        << index;
+  }
 }
 
 void expectFloatVectorsNear(const std::vector<float>& actual,
@@ -256,8 +280,10 @@ module {
   std::vector<TypedCppValue> results = interpreter.interpret("main", inputs);
   ASSERT_EQ(results.size(), 2);
 
-  auto actualL = std::get<std::shared_ptr<std::vector<float>>>(results[0].value);
-  auto actualR = std::get<std::shared_ptr<std::vector<float>>>(results[1].value);
+  auto actualL =
+      std::get<std::shared_ptr<std::vector<float>>>(results[0].value);
+  auto actualR =
+      std::get<std::shared_ptr<std::vector<float>>>(results[1].value);
   expectFloatVectorsNear(
       *actualL,
       packMatrix(lLayout,
@@ -411,6 +437,144 @@ module {
       packMatrix(addLayout,
                  cast<RankedTensorType>(main.getFunctionType().getResult(0)),
                  expectedAdd));
+}
+
+// Roll-free matvec through the full pipeline: align (replicate the vector
+// across the matrix rows' slot positions), multiply once, rotate-and-reduce
+// k. The result layout claims only the k=0 offsets, which must hold the true
+// row sums.
+TEST(RotomPipelineExecutionTest, MatvecMatchesReference) {
+  MLIRContext context;
+  initContext(context);
+  OwningOpRef<ModuleOp> module = openfhe::parse(&context, R"mlir(
+#seed_mat = #rotom.seed<layouts = [#rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[1:4:1]>], n = 16>]>
+#seed_col = #rotom.seed<layouts = [#rotom.layout<dims = [#rotom.dim<[0:4:1]>], n = 16>]>
+
+module {
+  func.func @main(%a: tensor<4x4xf32> {rotom.seed = #seed_mat}, %b: tensor<4x1xf32> {rotom.seed = #seed_col}) -> tensor<4x1xf32> {
+    %cst = arith.constant 0.000000e+00 : f32
+    %empty = tensor.empty() : tensor<4x1xf32>
+    %fill = linalg.fill ins(%cst : f32) outs(%empty : tensor<4x1xf32>) -> tensor<4x1xf32>
+    %0 = linalg.matmul ins(%a, %b : tensor<4x4xf32>, tensor<4x1xf32>) outs(%fill : tensor<4x1xf32>) -> tensor<4x1xf32>
+    return %0 : tensor<4x1xf32>
+  }
+}
+)mlir");
+  ASSERT_TRUE(module);
+  ASSERT_TRUE(succeeded(runRotomPipeline(module.get(), &context,
+                                         /*ciphertextSize=*/16)));
+
+  func::FuncOp main = module->lookupSymbol<func::FuncOp>("main");
+  ASSERT_TRUE(main);
+  tensor_ext::LayoutAttr matLayout = getArgLayout(main, 0);
+  tensor_ext::LayoutAttr vecLayout = getArgLayout(main, 1);
+  tensor_ext::LayoutAttr resultLayout = getResultLayout(main, 0);
+  ASSERT_TRUE(matLayout);
+  ASSERT_TRUE(vecLayout);
+  ASSERT_TRUE(resultLayout);
+
+  std::vector<std::vector<float>> mat = {
+      {1, 2, 3, 4},
+      {5, 6, 7, 8},
+      {9, 10, 11, 12},
+      {13, 14, 15, 16},
+  };
+  std::vector<std::vector<float>> vec = {{2}, {1}, {3}, {5}};
+  std::vector<std::vector<float>> expected(4, std::vector<float>(1, 0.0f));
+  for (int64_t i = 0; i < 4; ++i) {
+    for (int64_t k = 0; k < 4; ++k) {
+      expected[i][0] += mat[i][k] * vec[k][0];
+    }
+  }
+
+  Interpreter interpreter(module.get());
+  std::vector<TypedCppValue> inputs = {
+      TypedCppValue(packMatrix(
+          matLayout, cast<RankedTensorType>(main.getArgument(0).getType()),
+          mat)),
+      TypedCppValue(packMatrix(
+          vecLayout, cast<RankedTensorType>(main.getArgument(1).getType()),
+          vec)),
+  };
+  std::vector<TypedCppValue> results = interpreter.interpret("main", inputs);
+  ASSERT_EQ(results.size(), 1);
+
+  auto actual = std::get<std::shared_ptr<std::vector<float>>>(results[0].value);
+  expectClaimedSlotsMatch(
+      *actual, resultLayout,
+      cast<RankedTensorType>(main.getFunctionType().getResult(0)), expected);
+}
+
+// Roll-free 4x4 matmul at n=64 (the whole iteration space in one
+// ciphertext's slots): both operands convert onto their expanded placements,
+// one multiply, rotate-and-reduce k. Claimed result slots must equal the
+// plaintext matmul.
+TEST(RotomPipelineExecutionTest, MatmulMatchesReference) {
+  MLIRContext context;
+  initContext(context);
+  OwningOpRef<ModuleOp> module = openfhe::parse(&context, R"mlir(
+#seed_row = #rotom.seed<layouts = [#rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[1:4:1]>], n = 64>]>
+
+module {
+  func.func @main(%a: tensor<4x4xf32> {rotom.seed = #seed_row}, %b: tensor<4x4xf32> {rotom.seed = #seed_row}) -> tensor<4x4xf32> {
+    %cst = arith.constant 0.000000e+00 : f32
+    %empty = tensor.empty() : tensor<4x4xf32>
+    %fill = linalg.fill ins(%cst : f32) outs(%empty : tensor<4x4xf32>) -> tensor<4x4xf32>
+    %0 = linalg.matmul ins(%a, %b : tensor<4x4xf32>, tensor<4x4xf32>) outs(%fill : tensor<4x4xf32>) -> tensor<4x4xf32>
+    return %0 : tensor<4x4xf32>
+  }
+}
+)mlir");
+  ASSERT_TRUE(module);
+  ASSERT_TRUE(succeeded(runRotomPipeline(module.get(), &context,
+                                         /*ciphertextSize=*/64)));
+
+  func::FuncOp main = module->lookupSymbol<func::FuncOp>("main");
+  ASSERT_TRUE(main);
+  tensor_ext::LayoutAttr lhsLayout = getArgLayout(main, 0);
+  tensor_ext::LayoutAttr rhsLayout = getArgLayout(main, 1);
+  tensor_ext::LayoutAttr resultLayout = getResultLayout(main, 0);
+  ASSERT_TRUE(lhsLayout);
+  ASSERT_TRUE(rhsLayout);
+  ASSERT_TRUE(resultLayout);
+
+  std::vector<std::vector<float>> lhs = {
+      {1, 2, 3, 4},
+      {5, 6, 7, 8},
+      {9, 10, 11, 12},
+      {13, 14, 15, 16},
+  };
+  std::vector<std::vector<float>> rhs = {
+      {2, 0, 1, 3},
+      {1, 4, 0, 2},
+      {0, 1, 2, 1},
+      {3, 2, 1, 0},
+  };
+  std::vector<std::vector<float>> expected(4, std::vector<float>(4, 0.0f));
+  for (int64_t i = 0; i < 4; ++i) {
+    for (int64_t j = 0; j < 4; ++j) {
+      for (int64_t k = 0; k < 4; ++k) {
+        expected[i][j] += lhs[i][k] * rhs[k][j];
+      }
+    }
+  }
+
+  Interpreter interpreter(module.get());
+  std::vector<TypedCppValue> inputs = {
+      TypedCppValue(packMatrix(
+          lhsLayout, cast<RankedTensorType>(main.getArgument(0).getType()),
+          lhs)),
+      TypedCppValue(packMatrix(
+          rhsLayout, cast<RankedTensorType>(main.getArgument(1).getType()),
+          rhs)),
+  };
+  std::vector<TypedCppValue> results = interpreter.interpret("main", inputs);
+  ASSERT_EQ(results.size(), 1);
+
+  auto actual = std::get<std::shared_ptr<std::vector<float>>>(results[0].value);
+  expectClaimedSlotsMatch(
+      *actual, resultLayout,
+      cast<RankedTensorType>(main.getFunctionType().getResult(0)), expected);
 }
 
 }  // namespace
