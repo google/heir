@@ -145,11 +145,15 @@ FailureOr<presburger::IntegerRelation> pushSliceLayoutThroughInsertSlice(
   // Now the slice takes up a full subtensor of the output tensor. For the
   // result layout, let this subtensor be preserved.
   auto resultLayout = sliceLayout.clone();
-  // Add domain variables in the positions of the unit dimensions.
-  for (int i = 0; i < resultShape.size(); ++i) {
-    if (llvm::is_contained(unitDims, i)) {
-      auto domainVar = resultLayout->insertVar(VarKind::Domain, i, 1);
-      addBounds(*resultLayout, domainVar, 0, resultShape[i] - 1);
+  // Add domain variables in the positions of the unit dimensions only if the
+  // slice layout has fewer dimensions than the insert slice sizes (indicating
+  // the layout doesn't describe all dimensions of the slice).
+  if (sliceLayout.getNumDomainVars() < insertSliceSizes.size()) {
+    for (int i = 0; i < resultShape.size(); ++i) {
+      if (llvm::is_contained(unitDims, i)) {
+        auto domainVar = resultLayout->insertVar(VarKind::Domain, i, 1);
+        addBounds(*resultLayout, domainVar, 0, resultShape[i] - 1);
+      }
     }
   }
   // Add a range var to indicate the index of the slice.
