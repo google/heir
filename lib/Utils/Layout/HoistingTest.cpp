@@ -258,6 +258,54 @@ TEST(HoistingTest, PushThroughInsertSlice1x8Into2x8) {
   EXPECT_EQ(actual.value().getNumRangeVars(), 2);
 }
 
+TEST(HoistingTest, PushThroughInsertSliceCtUpperBound) {
+  // Test that the ct (ciphertext) variable has the correct upper bound when
+  // inserting a slice. This test verifies the fix for missing upper bound on
+  // the ct variable.
+  MLIRContext context;
+
+  // Insert a 1x4 slice into a 3x4 tensor. The first dimension is a unit
+  // dimension, so we expect ct to range from 0 to 2 (product of unit dims = 3).
+  auto maybeSliceLayout = getIntegerRelationFromIslStr(
+      "{ [i0, i1] -> [ct, slot] : ct = 0 and slot = i1 and i0 = 0 and "
+      "0 <= i1 <= 3 }");
+  ASSERT_TRUE(succeeded(maybeSliceLayout));
+
+  auto actual = pushSliceLayoutThroughInsertSlice({1, 4}, {3, 4},
+                                                  maybeSliceLayout.value());
+  ASSERT_TRUE(succeeded(actual));
+
+  // Check that the ct variable has upper bound of 2 (3 slices - 1).
+  auto ctBound = actual.value().getConstantBound64(
+      presburger::BoundType::UB,
+      actual.value().getVarKindOffset(presburger::VarKind::Range));
+  ASSERT_TRUE(ctBound.has_value());
+  EXPECT_EQ(ctBound.value(), 2);  // inclusive upper bound
+}
+
+TEST(HoistingTest, PushThroughInsertSliceMultipleUnitDimsCtBound) {
+  // Test ct upper bound with multiple unit dimensions.
+  // Insert a 1x1x8 slice into a 2x3x8 tensor. The first two dimensions are
+  // unit dimensions, so ct should range from 0 to 5 (product = 2*3 = 6).
+  MLIRContext context;
+
+  auto maybeSliceLayout = getIntegerRelationFromIslStr(
+      "{ [i0, i1, i2] -> [ct, slot] : ct = 0 and slot = i2 and i0 = 0 and "
+      "i1 = 0 and 0 <= i2 <= 7 }");
+  ASSERT_TRUE(succeeded(maybeSliceLayout));
+
+  auto actual = pushSliceLayoutThroughInsertSlice({1, 1, 8}, {2, 3, 8},
+                                                  maybeSliceLayout.value());
+  ASSERT_TRUE(succeeded(actual));
+
+  // Check that the ct variable has upper bound of 5 (2*3 - 1).
+  auto ctBound = actual.value().getConstantBound64(
+      presburger::BoundType::UB,
+      actual.value().getVarKindOffset(presburger::VarKind::Range));
+  ASSERT_TRUE(ctBound.has_value());
+  EXPECT_EQ(ctBound.value(), 5);  // inclusive upper bound
+}
+
 }  // namespace
 }  // namespace heir
 }  // namespace mlir
