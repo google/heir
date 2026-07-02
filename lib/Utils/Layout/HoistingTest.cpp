@@ -237,6 +237,27 @@ TEST(HoistingTest, PushThroughInsertSlice) {
   EXPECT_EQ(ctBound.value(), 1);  // inclusive
 }
 
+TEST(HoistingTest, PushThroughInsertSlice1x8Into2x8) {
+  // Insert a 1x8 slice into a 2x8 tensor. This test reproduces a bug where
+  // an extra domain variable was added.
+  MLIRContext context;
+
+  // Simple layout: 1x8 tensor where each element maps to a slot in ciphertext 0
+  auto maybeSliceLayout = getIntegerRelationFromIslStr(
+      "{ [i0, i1] -> [ct, slot] : ct = 0 and slot = i1 and i0 = 0 and "
+      "0 <= i1 <= 7 }");
+  ASSERT_TRUE(succeeded(maybeSliceLayout));
+
+  auto actual = pushSliceLayoutThroughInsertSlice({1, 8}, {2, 8},
+                                                  maybeSliceLayout.value());
+  ASSERT_TRUE(succeeded(actual));
+
+  // The result should have 2 domain dimensions (matching the 2x8 destination)
+  // not 3 dimensions.
+  EXPECT_EQ(actual.value().getNumDomainVars(), 2);
+  EXPECT_EQ(actual.value().getNumRangeVars(), 2);
+}
+
 }  // namespace
 }  // namespace heir
 }  // namespace mlir
