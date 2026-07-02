@@ -9,6 +9,32 @@ package(
 )
 
 cc_library(
+    name = "ContractionAlignment",
+    srcs = ["ContractionAlignment.cpp"],
+    hdrs = ["ContractionAlignment.h"],
+    deps = [
+        ":LayoutAlignment",
+        "@heir//lib/Dialect/Rotom/IR:Dialect",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_test(
+    name = "ContractionAlignmentTest",
+    srcs = ["ContractionAlignmentTest.cpp"],
+    deps = [
+        ":ContractionAlignment",
+        "@googletest//:gtest_main",
+        "@heir//lib/Dialect/Rotom/IR:Dialect",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
     name = "LayoutAlignment",
     srcs = ["LayoutAlignment.cpp"],
     hdrs = ["LayoutAlignment.h"],
