@@ -228,55 +228,6 @@ SmallVector<MatmulPlan> enumerateMatmulPlans(LayoutAttr lhs, LayoutAttr rhs) {
   return plans;
 }
 
-LayoutAttr stripOuterCtReplication(LayoutAttr layout,
-                                   int64_t& replicationFactor) {
-  replicationFactor = 1;
-  SmallVector<DimAttr> dims = collectDims(layout);
-  const size_t ctPrefixLen = inferCtPrefixLen(dims, layout.getN());
-  size_t firstKept = 0;
-  while (firstKept < ctPrefixLen && dims[firstKept].isReplicate()) {
-    replicationFactor *= dims[firstKept].getSize();
-    ++firstKept;
-  }
-  if (firstKept == 0) return layout;
-  SmallVector<Attribute> kept(dims.begin() + firstKept, dims.end());
-  MLIRContext* ctx = layout.getContext();
-  return LayoutAttr::get(ctx, ArrayAttr::get(ctx, kept), layout.getN());
-}
-
-// One operand's expansion is realizable as a same-shape layout conversion
-// plus outermost ciphertext copies.
-static bool isLowerableOperandExpansion(LayoutAttr expanded,
-                                        LayoutAttr source) {
-  int64_t replicationFactor = 1;
-  LayoutAttr inner = stripOuterCtReplication(expanded, replicationFactor);
-  // No further ciphertext-region replication may remain: interleaved
-  // replicated ciphertexts cannot be emitted as a concat of copies.
-  SmallVector<DimAttr> innerDims = collectDims(inner);
-  const size_t ctPrefixLen = inferCtPrefixLen(innerDims, inner.getN());
-  for (size_t p = 0; p < ctPrefixLen; ++p) {
-    if (innerDims[p].isReplicate()) return false;
-  }
-  return layoutNumCiphertexts(inner) == layoutNumCiphertexts(source);
-}
-
-bool isLowerableMatmulPlan(const MatmulPlan& plan, LayoutAttr lhsSource,
-                           LayoutAttr rhsSource) {
-  if (!plan.computeLayout || !plan.expandedLhs || !plan.expandedRhs) {
-    return false;
-  }
-  // k's ciphertext-side sum is a strided row-slice reduction only when k has
-  // a single, outermost ciphertext piece.
-  SmallVector<DimAttr> computeDims = collectDims(plan.computeLayout);
-  const size_t ctPrefixLen =
-      inferCtPrefixLen(computeDims, plan.computeLayout.getN());
-  for (size_t p = 0; p < ctPrefixLen; ++p) {
-    if (computeDims[p].getDim() == kMatmulDimK && p != 0) return false;
-  }
-  return isLowerableOperandExpansion(plan.expandedLhs, lhsSource) &&
-         isLowerableOperandExpansion(plan.expandedRhs, rhsSource);
-}
-
 }  // namespace rotom
 }  // namespace heir
 }  // namespace mlir

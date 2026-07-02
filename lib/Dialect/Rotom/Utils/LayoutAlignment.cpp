@@ -2,14 +2,18 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <map>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <utility>
+#include <vector>
 
 #include "lib/Dialect/Rotom/IR/RotomAttributes.h"
 #include "lib/Dialect/Rotom/Utils/RotomTensorExtLayoutLowering.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Transforms/LayoutOptimization/LayoutConversionCost.h"
+#include "lib/Utils/Layout/Utils.h"
 #include "llvm/include/llvm/ADT/DenseMap.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/MathExtras.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
@@ -124,6 +128,60 @@ std::optional<int64_t> shiftNetworkConversionCost(LayoutAttr from,
                                        fromLayout, toLayout,
                                        /*vveRandomSeed=*/0,
                                        /*vveRandomTries=*/16);
+}
+
+FailureOr<SmallVector<LayoutExpansionStep>> planLayoutExpansion(LayoutAttr from,
+                                                                LayoutAttr to) {
+  if (!from || !to || from.getN() != to.getN()) return failure();
+  const int64_t n = from.getN();
+  MLIRContext* ctx = from.getContext();
+  FailureOr<std::string> fromIsl =
+      RotomTensorExtLayoutLowering::lowerToTensorExtIsl(from);
+  FailureOr<std::string> toIsl =
+      RotomTensorExtLayoutLowering::lowerToTensorExtIsl(to);
+  if (failed(fromIsl) || failed(toIsl)) return failure();
+  presburger::IntegerRelation fromRelation =
+      tensor_ext::LayoutAttr::get(ctx, *fromIsl).getIntegerRelation();
+  presburger::IntegerRelation toRelation =
+      tensor_ext::LayoutAttr::get(ctx, *toIsl).getIntegerRelation();
+  if (fromRelation.getNumDomainVars() != toRelation.getNumDomainVars()) {
+    return failure();
+  }
+
+  // One source placement per tensor point (any replica of a replicated
+  // source works; take the first).
+  PointPairCollector fromPoints(fromRelation.getNumDomainVars(),
+                                /*rangeDims=*/2);
+  enumeratePoints(fromRelation, fromPoints);
+  std::map<std::vector<int64_t>, std::pair<int64_t, int64_t>> sourceFor;
+  for (const auto& [domain, range] : fromPoints.points) {
+    sourceFor.try_emplace(domain, std::make_pair(range[0], range[1]));
+  }
+
+  // Group every target placement by (targetCt, sourceCt, left-rotation): a
+  // left rotation by r maps source slot s onto target slot t = s - r (mod n).
+  PointPairCollector toPoints(toRelation.getNumDomainVars(), /*rangeDims=*/2);
+  enumeratePoints(toRelation, toPoints);
+  std::map<std::tuple<int64_t, int64_t, int64_t>, SmallVector<int64_t>> groups;
+  for (const auto& [domain, range] : toPoints.points) {
+    auto it = sourceFor.find(domain);
+    if (it == sourceFor.end()) return failure();
+    const auto [sourceCt, sourceSlot] = it->second;
+    const int64_t targetCt = range[0];
+    const int64_t targetSlot = range[1];
+    const int64_t shift = ((sourceSlot - targetSlot) % n + n) % n;
+    groups[{targetCt, sourceCt, shift}].push_back(targetSlot);
+  }
+
+  SmallVector<LayoutExpansionStep> steps;
+  steps.reserve(groups.size());
+  for (auto& [key, targetSlots] : groups) {
+    auto [targetCt, sourceCt, shift] = key;
+    llvm::sort(targetSlots);
+    steps.push_back(
+        LayoutExpansionStep{targetCt, sourceCt, shift, std::move(targetSlots)});
+  }
+  return steps;
 }
 
 bool hasOnlyUnitStridedTraversalDims(LayoutAttr layout) {

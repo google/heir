@@ -9,6 +9,7 @@
 #include "lib/Dialect/Rotom/Transforms/LayoutAssignment/Generators.h"
 #include "lib/Dialect/Rotom/Utils/ContractionAlignment.h"
 #include "lib/Dialect/Rotom/Utils/LayoutAlignment.h"
+#include "llvm/include/llvm/ADT/DenseSet.h"              // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
@@ -16,20 +17,38 @@
 
 namespace mlir::heir::rotom {
 
-// Cost of bringing one operand to its expanded placement: one same-shape
-// layout conversion onto the inner placement (the shift network also fills
-// slot-region replication), plus free outermost ciphertext copies. An
-// operand already at the inner placement (e.g. a replicated seed) is free.
-// nullopt when the inner placement cannot be materialized, which makes the
-// plan unusable for this operand.
+// Cost of bringing one operand to its expanded placement. Same ciphertext
+// count: one convert_layout, priced by the shift network (which also fills
+// slot-region replication). Different ciphertext count: the explicit
+// rotate/mask/accumulate steps of planLayoutExpansion, priced exactly as the
+// lowering emits them -- expensive expansions lose in the search on cost,
+// not on capability. nullopt only when a layout cannot be materialized at
+// all.
 static std::optional<int64_t> operandAlignmentCost(AssignmentContext& ctx,
                                                    LayoutAttr from,
                                                    LayoutAttr expanded) {
-  int64_t ctCopies = 1;
-  LayoutAttr inner = stripOuterCtReplication(expanded, ctCopies);
-  if (from == inner) return 0;
-  if (!isMaterializableRotomLayout(inner)) return std::nullopt;
-  return ctx.cachedConversionCost(from, inner);
+  if (from == expanded) return 0;
+  const RotomCostModel& costModel = getCostModel();
+  if (layoutNumCiphertexts(from) == layoutNumCiphertexts(expanded)) {
+    if (!isMaterializableRotomLayout(expanded)) return std::nullopt;
+    return ctx.cachedConversionCost(from, expanded);
+  }
+  FailureOr<SmallVector<LayoutExpansionStep>> steps =
+      planLayoutExpansion(from, expanded);
+  if (failed(steps)) return std::nullopt;
+  const int64_t n = from.getN();
+  int64_t cost = 0;
+  llvm::DenseSet<int64_t> targetsSeen;
+  for (const LayoutExpansionStep& step : *steps) {
+    if (step.shift != 0) cost += costModel.rotation;
+    // A partial-row step needs a plaintext mask multiply (cheap; priced as
+    // an add pending a dedicated plaintext-multiply weight).
+    if (static_cast<int64_t>(step.targetSlots.size()) != n) {
+      cost += costModel.add;
+    }
+    if (!targetsSeen.insert(step.targetCt).second) cost += costModel.add;
+  }
+  return cost;
 }
 
 LogicalResult generateMatmul(AssignmentContext& ctx, linalg::MatmulOp op) {
@@ -55,12 +74,6 @@ LogicalResult generateMatmul(AssignmentContext& ctx, linalg::MatmulOp op) {
       }
       for (const MatmulPlan& plan :
            enumerateMatmulPlans(lhsCandidate.layout, rhsCandidate.layout)) {
-        // Only price plans the lowering can realize, so the selected
-        // assignment is always executable.
-        if (!isLowerableMatmulPlan(plan, lhsCandidate.layout,
-                                   rhsCandidate.layout)) {
-          continue;
-        }
         std::optional<int64_t> lhsAlign =
             operandAlignmentCost(ctx, lhsCandidate.layout, plan.expandedLhs);
         std::optional<int64_t> rhsAlign =

@@ -7,9 +7,9 @@
 // which the ciphertext lowering re-derives the plan.
 //
 // At n=64 the whole 4x4x4 iteration space fits one ciphertext's slots, so
-// every plan is realizable as a same-shape conversion. (At n=16 the operands
-// would have to spread across ciphertexts, which the v1 lowering cannot emit,
-// so no candidate would survive.)
+// every plan is a same-shape conversion. (At n=16 the operands spread across
+// ciphertexts instead; that expansion is priced and emitted as explicit
+// rotate/mask/accumulate steps -- see the pipeline execution test.)
 
 #layout_row = #rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[1:4:1]>], n = 64>
 #seed_row = #rotom.seed<layouts = [#layout_row]>

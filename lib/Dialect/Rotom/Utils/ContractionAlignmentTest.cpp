@@ -180,58 +180,12 @@ TEST_F(ContractionAlignmentTest, MixedRadixHostCarriesThroughAndDropsCtK) {
   EXPECT_EQ(plan->reduceRotations, 0);
   // 8 ciphertexts collapse to 2: six ciphertext adds.
   EXPECT_EQ(plan->reduceAdds, 6);
-  // The k ciphertext piece is not outermost in the prefix ([0:2:2] is), so
-  // the v1 row-slice reduction cannot realize this plan.
-  EXPECT_FALSE(rotom::isLowerableMatmulPlan(*plan, lhs, rhs));
 }
 
 TEST_F(ContractionAlignmentTest, MismatchedNReturnsNoPlans) {
   LayoutAttr lhs = layout({dim(0, 4), dim(1, 4)}, 16);
   LayoutAttr rhs = layout({dim(0, 4), dim(1, 4)}, 32);
   EXPECT_TRUE(rotom::enumerateMatmulPlans(lhs, rhs).empty());
-}
-
-TEST_F(ContractionAlignmentTest, StripOuterCtReplication) {
-  // [-1:4] indexes 4 replicated ciphertexts; stripping it leaves the
-  // single-ciphertext inner layout.
-  LayoutAttr expanded = layout({repl(4), dim(0, 4), dim(1, 4)}, 16);
-  int64_t factor = 0;
-  LayoutAttr inner = rotom::stripOuterCtReplication(expanded, factor);
-  EXPECT_EQ(factor, 4);
-  EXPECT_EQ(inner, layout({dim(0, 4), dim(1, 4)}, 16));
-
-  // No ciphertext-region replication: unchanged.
-  LayoutAttr slotOnly = layout({dim(0, 4), dim(1, 4), repl(4)}, 64);
-  factor = 0;
-  EXPECT_EQ(rotom::stripOuterCtReplication(slotOnly, factor), slotOnly);
-  EXPECT_EQ(factor, 1);
-}
-
-// At n=16 the 4x4 iteration space (64 elements) cannot stay within the
-// operands' single ciphertexts: a plan is v1-lowerable only when each
-// expanded placement is outermost ciphertext copies over a layout with the
-// operand's own ciphertext count.
-TEST_F(ContractionAlignmentTest, LowerabilityRequiresMatchingCtCounts) {
-  LayoutAttr lhs = layout({dim(0, 4), dim(1, 4)}, 16);
-  LayoutAttr rhs = layout({dim(0, 4), dim(1, 4)}, 16);
-
-  // lhs-hosted/ct plan: expandedLhs is pure ciphertext copies (fine), but
-  // expandedRhs spreads j across 4 ciphertexts from a 1-ciphertext source.
-  SmallVector<MatmulPlan> plans16 = rotom::enumerateMatmulPlans(lhs, rhs);
-  const MatmulPlan* p16 =
-      findPlan(plans16, layout({dim(1, 4), dim(0, 4), dim(2, 4)}, 16));
-  ASSERT_NE(p16, nullptr);
-  EXPECT_FALSE(rotom::isLowerableMatmulPlan(*p16, lhs, rhs));
-
-  // At n=64 the whole iteration space fits one ciphertext's slots, so every
-  // plan is a same-shape conversion: lowerable.
-  LayoutAttr lhs64 = layout({dim(0, 4), dim(1, 4)}, 64);
-  LayoutAttr rhs64 = layout({dim(0, 4), dim(1, 4)}, 64);
-  SmallVector<MatmulPlan> plans64 = rotom::enumerateMatmulPlans(lhs64, rhs64);
-  ASSERT_FALSE(plans64.empty());
-  for (const MatmulPlan& plan : plans64) {
-    EXPECT_TRUE(rotom::isLowerableMatmulPlan(plan, lhs64, rhs64));
-  }
 }
 
 }  // namespace

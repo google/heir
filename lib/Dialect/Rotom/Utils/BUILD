@@ -43,6 +43,7 @@ cc_library(
         "@heir//lib/Dialect/Rotom/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:TensorExtAttributes",
         "@heir//lib/Transforms/LayoutOptimization:LayoutConversionCost",
+        "@heir//lib/Utils/Layout:Utils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",

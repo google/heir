@@ -78,27 +78,6 @@ struct MatmulPlan {
 llvm::SmallVector<MatmulPlan> enumerateMatmulPlans(LayoutAttr lhs,
                                                    LayoutAttr rhs);
 
-// Strips the outermost run of ciphertext-region replication pieces (the
-// part of an expanded placement realized by free ciphertext copies) and
-// multiplies their extents into `replicationFactor`. Returns `layout`
-// unchanged (factor 1) when the ciphertext prefix does not start with
-// replication.
-LayoutAttr stripOuterCtReplication(LayoutAttr layout,
-                                   int64_t& replicationFactor);
-
-// Whether the v1 ciphertext lowering can realize this plan for operands
-// currently packed as `lhsSource`/`rhsSource`:
-//   - per operand, the expanded placement must be reachable as one
-//     same-shape layout conversion plus outermost ciphertext copies: any
-//     ciphertext-region replication is a single outermost run, and the
-//     stripped inner layout has the operand's own ciphertext count;
-//   - k has at most one ciphertext piece and it is outermost, so the
-//     ciphertext-side sum is a strided row-slice reduction.
-// The layout assignment filters candidate plans with this predicate so it
-// never assigns a layout combination the lowering cannot realize.
-bool isLowerableMatmulPlan(const MatmulPlan& plan, LayoutAttr lhsSource,
-                           LayoutAttr rhsSource);
-
 }  // namespace rotom
 }  // namespace heir
 }  // namespace mlir

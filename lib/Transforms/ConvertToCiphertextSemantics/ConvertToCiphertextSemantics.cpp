@@ -15,6 +15,7 @@
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Rotom/IR/RotomAttributes.h"
 #include "lib/Dialect/Rotom/Utils/ContractionAlignment.h"
+#include "lib/Dialect/Rotom/Utils/LayoutAlignment.h"
 #include "lib/Dialect/Rotom/Utils/RotomTensorExtLayoutLowering.h"
 #include "lib/Dialect/Secret/IR/SecretAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
@@ -2522,15 +2523,14 @@ class ConvertRotomMatmul : public ConversionBase<linalg::MatmulOp> {
     SmallVector<rotom::MatmulPlan> plans =
         rotom::enumerateMatmulPlans(lhsRotom, rhsRotom);
     for (const rotom::MatmulPlan& plan : plans) {
-      if (plan.resultLayout == resultRotom &&
-          rotom::isLowerableMatmulPlan(plan, lhsRotom, rhsRotom)) {
+      if (plan.resultLayout == resultRotom) {
         chosen = &plan;
         break;
       }
     }
     if (!chosen) {
       return rewriter.notifyMatchFailure(
-          op, "no lowerable rotom matmul plan matches the recorded layouts");
+          op, "no rotom matmul plan matches the recorded layouts");
     }
 
     auto outputLayout = op->getAttrOfType<LayoutAttr>(kLayoutAttrName);
@@ -2598,29 +2598,64 @@ class ConvertRotomMatmul : public ConversionBase<linalg::MatmulOp> {
     }
 
     if (kCtExtent > 1) {
+      // Decompose each compute ciphertext index into its prefix digits and
+      // strip the k digits: ciphertexts sharing the remaining digits sum into
+      // one result ciphertext, wherever k sits in the prefix.
       auto accType = cast<RankedTensorType>(acc.getType());
-      int64_t blockRows = accType.getDimSize(0) / kCtExtent;
-      SmallVector<OpFoldResult> sizes = {b.getIndexAttr(blockRows),
-                                         b.getIndexAttr(accType.getDimSize(1))};
+      const int64_t numCt = accType.getDimSize(0);
+      const int64_t numSlots = accType.getDimSize(1);
+      SmallVector<int64_t> radices;
+      SmallVector<bool> isK;
+      for (size_t p = 0; p < ctPrefixLen; ++p) {
+        if (computeDims[p].isGap()) continue;
+        radices.push_back(computeDims[p].getSize());
+        isK.push_back(computeDims[p].getDim() == rotom::kMatmulDimK);
+      }
+      SmallVector<SmallVector<int64_t>> sourceRows(numCt / kCtExtent);
+      for (int64_t c = 0; c < numCt; ++c) {
+        int64_t rem = c;
+        int64_t resultIndex = 0;
+        for (size_t d = 0; d < radices.size(); ++d) {
+          int64_t weight = 1;
+          for (size_t e = d + 1; e < radices.size(); ++e) weight *= radices[e];
+          int64_t digit = (rem / weight) % radices[d];
+          rem %= weight;
+          if (!isK[d]) resultIndex = resultIndex * radices[d] + digit;
+        }
+        sourceRows[resultIndex].push_back(c);
+      }
+
+      SmallVector<OpFoldResult> sizes = {b.getIndexAttr(1),
+                                         b.getIndexAttr(numSlots)};
       SmallVector<OpFoldResult> strides = {b.getIndexAttr(1),
                                            b.getIndexAttr(1)};
-      Value sum;
-      for (int64_t e = 0; e < kCtExtent; ++e) {
-        SmallVector<OpFoldResult> offsets = {b.getIndexAttr(e * blockRows),
-                                             b.getIndexAttr(0)};
-        Value block =
-            tensor::ExtractSliceOp::create(b, acc, offsets, sizes, strides);
-        setMaterializedAttr(block.getDefiningOp());
-        if (!sum) {
-          sum = block;
-          continue;
+      SmallVector<Value> resultRows;
+      for (const SmallVector<int64_t>& rows : sourceRows) {
+        Value sum;
+        for (int64_t row : rows) {
+          SmallVector<OpFoldResult> offsets = {b.getIndexAttr(row),
+                                               b.getIndexAttr(0)};
+          Value block =
+              tensor::ExtractSliceOp::create(b, acc, offsets, sizes, strides);
+          setMaterializedAttr(block.getDefiningOp());
+          if (!sum) {
+            sum = block;
+            continue;
+          }
+          Operation* add =
+              makeAppropriatelyTypedAddOp(b, op.getLoc(), sum, block);
+          setMaterializedAttr(add);
+          sum = add->getResult(0);
         }
-        Operation* add =
-            makeAppropriatelyTypedAddOp(b, op.getLoc(), sum, block);
-        setMaterializedAttr(add);
-        sum = add->getResult(0);
+        resultRows.push_back(sum);
       }
-      acc = sum;
+      if (resultRows.size() == 1) {
+        acc = resultRows[0];
+      } else {
+        auto concat = tensor::ConcatOp::create(b, /*dim=*/0, resultRows);
+        setMaterializedAttr(concat);
+        acc = concat.getResult();
+      }
     }
 
     Type convertedResultType = getTypeConverter()->convertType(
@@ -2644,37 +2679,109 @@ class ConvertRotomMatmul : public ConversionBase<linalg::MatmulOp> {
     return tensor_ext::LayoutAttr::get(layout.getContext(), *isl);
   }
 
-  // Brings one converted operand to its expanded placement: a same-shape
-  // layout conversion onto the inner placement (the shift network fills
-  // slot-region replication), then outermost ciphertext copies via concat.
+  // Brings one converted operand to its expanded placement. Same ciphertext
+  // count: one convert_layout (the shift network fills slot-region
+  // replication). Different ciphertext count -- which convert_layout cannot
+  // express -- the explicit rotate/mask/accumulate steps of
+  // planLayoutExpansion, exactly as the layout assignment priced them.
   Value expandOperand(ImplicitLocOpBuilder& b, Value value,
                       rotom::LayoutAttr source,
                       rotom::LayoutAttr expanded) const {
-    int64_t ctCopies = 1;
-    rotom::LayoutAttr inner =
-        rotom::stripOuterCtReplication(expanded, ctCopies);
-    Value v = value;
-    if (inner != source) {
-      tensor_ext::LayoutAttr fromLayout = getLayoutAttr(v);
-      tensor_ext::LayoutAttr toLayout = teLayoutOf(inner);
-      if (!fromLayout || !toLayout) return nullptr;
-      if (fromLayout != toLayout) {
-        v = tensor_ext::ConvertLayoutOp::create(b, v, fromLayout, toLayout);
-        setAttributeAssociatedWith(v, kLayoutAttrName, toLayout);
+    if (source == expanded) return value;
+    tensor_ext::LayoutAttr expandedLayout = teLayoutOf(expanded);
+    if (!expandedLayout) return nullptr;
+
+    if (rotom::layoutNumCiphertexts(source) ==
+        rotom::layoutNumCiphertexts(expanded)) {
+      tensor_ext::LayoutAttr fromLayout = getLayoutAttr(value);
+      if (!fromLayout) return nullptr;
+      if (fromLayout == expandedLayout) return value;
+      Value v = tensor_ext::ConvertLayoutOp::create(b, value, fromLayout,
+                                                    expandedLayout);
+      setAttributeAssociatedWith(v, kLayoutAttrName, expandedLayout);
+      return v;
+    }
+
+    FailureOr<SmallVector<rotom::LayoutExpansionStep>> steps =
+        rotom::planLayoutExpansion(source, expanded);
+    if (failed(steps)) return nullptr;
+    auto sourceType = cast<RankedTensorType>(value.getType());
+    const int64_t numSlots = sourceType.getDimSize(1);
+    const int64_t numTargetCt = rotom::layoutNumCiphertexts(expanded);
+    auto rowType =
+        RankedTensorType::get({1, numSlots}, sourceType.getElementType());
+
+    SmallVector<Value> rows(numTargetCt, Value());
+    SmallVector<OpFoldResult> sizes = {b.getIndexAttr(1),
+                                       b.getIndexAttr(numSlots)};
+    SmallVector<OpFoldResult> strides = {b.getIndexAttr(1), b.getIndexAttr(1)};
+    for (const rotom::LayoutExpansionStep& step : *steps) {
+      if (step.targetCt < 0 || step.targetCt >= numTargetCt) return nullptr;
+      SmallVector<OpFoldResult> offsets = {b.getIndexAttr(step.sourceCt),
+                                           b.getIndexAttr(0)};
+      Value row = tensor::ExtractSliceOp::create(b, rowType, value, offsets,
+                                                 sizes, strides);
+      setMaterializedAttr(row.getDefiningOp());
+      if (step.shift != 0) {
+        Value shift = arith::ConstantIndexOp::create(b, step.shift);
+        setMaterializedAttr(shift.getDefiningOp());
+        row = tensor_ext::RotateOp::create(b, row, shift);
+        setMaterializedAttr(row.getDefiningOp());
+      }
+      if (static_cast<int64_t>(step.targetSlots.size()) != numSlots) {
+        Value mask = buildSlotMask(b, rowType, step.targetSlots);
+        Operation* masked =
+            makeAppropriatelyTypedMulOp(b, b.getLoc(), row, mask);
+        setMaterializedAttr(masked);
+        row = masked->getResult(0);
+      }
+      Value& target = rows[step.targetCt];
+      if (!target) {
+        target = row;
+      } else {
+        Operation* add =
+            makeAppropriatelyTypedAddOp(b, b.getLoc(), target, row);
+        setMaterializedAttr(add);
+        target = add->getResult(0);
       }
     }
-    if (ctCopies > 1) {
-      tensor_ext::LayoutAttr expandedLayout = teLayoutOf(expanded);
-      if (!expandedLayout) return nullptr;
-      SmallVector<Value> copies(ctCopies, v);
-      auto concat = tensor::ConcatOp::create(b, /*dim=*/0, copies);
-      setMaterializedAttr(concat);
-      concat->setAttr(kLayoutAttrName, expandedLayout);
-      setAttributeAssociatedWith(concat.getResult(), kLayoutAttrName,
-                                 expandedLayout);
-      v = concat.getResult();
+    for (Value row : rows) {
+      if (!row) return nullptr;
     }
-    return v;
+
+    Value result;
+    if (numTargetCt == 1) {
+      result = rows[0];
+    } else {
+      auto concat = tensor::ConcatOp::create(b, /*dim=*/0, rows);
+      setMaterializedAttr(concat);
+      result = concat.getResult();
+    }
+    Operation* def = result.getDefiningOp();
+    def->setAttr(kLayoutAttrName, expandedLayout);
+    setMaterializedAttr(def);
+    setAttributeAssociatedWith(result, kLayoutAttrName, expandedLayout);
+    return result;
+  }
+
+  // A plaintext 1/0 mask selecting `slots` of a single-ciphertext row.
+  Value buildSlotMask(ImplicitLocOpBuilder& b, RankedTensorType rowType,
+                      ArrayRef<int64_t> slots) const {
+    Type elementType = rowType.getElementType();
+    Attribute zero, one;
+    if (isa<FloatType>(elementType)) {
+      zero = FloatAttr::get(elementType, 0.0);
+      one = FloatAttr::get(elementType, 1.0);
+    } else {
+      zero = IntegerAttr::get(elementType, 0);
+      one = IntegerAttr::get(elementType, 1);
+    }
+    SmallVector<Attribute> values(rowType.getNumElements(), zero);
+    for (int64_t slot : slots) values[slot] = one;
+    auto dense = DenseElementsAttr::get(rowType, values);
+    auto mask = arith::ConstantOp::create(b, rowType, dense);
+    setMaterializedAttr(mask);
+    return mask;
   }
 };
 

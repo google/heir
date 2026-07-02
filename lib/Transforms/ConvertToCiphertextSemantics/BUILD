@@ -24,6 +24,7 @@ cc_library(
         "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Dialect/Rotom/IR:Dialect",
         "@heir//lib/Dialect/Rotom/Utils:ContractionAlignment",
+        "@heir//lib/Dialect/Rotom/Utils:LayoutAlignment",
         "@heir//lib/Dialect/Rotom/Utils:RotomTensorExtLayoutLowering",
         "@heir//lib/Dialect/Secret/IR:SecretAttributes",
         "@heir//lib/Dialect/Secret/IR:SecretPatterns",

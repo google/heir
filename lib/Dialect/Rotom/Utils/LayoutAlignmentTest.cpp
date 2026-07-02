@@ -1,9 +1,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
-#include <utility>
-
 #include <string>
+#include <utility>
 
 #include "gtest/gtest.h"  // from @googletest
 #include "lib/Dialect/Rotom/IR/RotomAttributes.h"
@@ -11,10 +10,10 @@
 #include "lib/Dialect/Rotom/Utils/LayoutAlignment.h"
 #include "lib/Dialect/Rotom/Utils/RotomTensorExtLayoutLowering.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
-#include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"    // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"          // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"   // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -143,6 +142,41 @@ TEST_F(LayoutAlignmentTest, ShiftNetworkConversionCostHasValueForSwap) {
       rotom::shiftNetworkConversionCost(rowMajor, colMajor);
   ASSERT_TRUE(cost.has_value());
   EXPECT_GE(*cost, 0);
+}
+
+TEST_F(LayoutAlignmentTest, ExpansionPureCtReplicationIsFreeCopies) {
+  // 4x4 row-major (1 ct at n=16) expanded to 4 replicated ciphertexts:
+  // every step is a full-row, zero-shift copy -- no rotations, no masks.
+  LayoutAttr source = layout({dim(0, 4), dim(1, 4)}, 16);
+  LayoutAttr expanded = layout({dim(/*dim=*/-1, 4), dim(0, 4), dim(1, 4)}, 16);
+  auto steps = rotom::planLayoutExpansion(source, expanded);
+  ASSERT_TRUE(succeeded(steps));
+  ASSERT_EQ(steps->size(), 4u);
+  for (const rotom::LayoutExpansionStep& step : *steps) {
+    EXPECT_EQ(step.sourceCt, 0);
+    EXPECT_EQ(step.shift, 0);
+    EXPECT_EQ(step.targetSlots.size(), 16u);
+  }
+}
+
+TEST_F(LayoutAlignmentTest, ExpansionScatterNeedsRotationsAndMasks) {
+  // Expanding 4x4 row-major so that ciphertext i holds row i replicated
+  // ([0:4] to ct, [1:4] to slots, replication innermost): each target
+  // ciphertext draws 4 slot-groups from the single source ciphertext, so
+  // steps carry nonzero shifts and partial-row masks.
+  LayoutAttr source = layout({dim(0, 4), dim(1, 4)}, 16);
+  LayoutAttr expanded = layout({dim(0, 4), dim(1, 4), dim(/*dim=*/-1, 4)}, 16);
+  auto steps = rotom::planLayoutExpansion(source, expanded);
+  ASSERT_TRUE(succeeded(steps));
+  EXPECT_GT(steps->size(), 4u);
+  bool sawShift = false;
+  bool sawMask = false;
+  for (const rotom::LayoutExpansionStep& step : *steps) {
+    if (step.shift != 0) sawShift = true;
+    if (step.targetSlots.size() != 16u) sawMask = true;
+  }
+  EXPECT_TRUE(sawShift);
+  EXPECT_TRUE(sawMask);
 }
 
 }  // namespace

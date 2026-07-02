@@ -30,14 +30,14 @@ struct ConversionMove {
 //
 // This is the cheap "already aligned?" check (empty => no conversion). The
 // actual rotation cost of a non-empty conversion comes from
-// `shiftNetworkConversionCost`, which lowers both layouts to tensor_ext and runs
-// the Vos-Vos-Erkin shift network.
+// `shiftNetworkConversionCost`, which lowers both layouts to tensor_ext and
+// runs the Vos-Vos-Erkin shift network.
 //
 // v1 analyzes layouts whose slot region is power-of-two *traversal* pieces over
-// the same bit set. Anything outside that -- a slot gap/replication, a differing
-// ct/slot partition (different numCt), or mismatched `n` -- returns a single
-// sentinel move (`dim == -1`) meaning "conversion needed, not yet described",
-// which still reads as "not aligned" via the empty/non-empty check.
+// the same bit set. Anything outside that -- a slot gap/replication, a
+// differing ct/slot partition (different numCt), or mismatched `n` -- returns a
+// single sentinel move (`dim == -1`) meaning "conversion needed, not yet
+// described", which still reads as "not aligned" via the empty/non-empty check.
 SmallVector<ConversionMove> conversionMoves(LayoutAttr lhs, LayoutAttr rhs);
 
 // The Vos-Vos-Erkin shift-network rotation cost of converting a value packed as
@@ -54,6 +54,30 @@ std::optional<int64_t> shiftNetworkConversionCost(LayoutAttr from,
 bool hasOnlyUnitStridedTraversalDims(LayoutAttr layout);
 
 bool isMaterializableRotomLayout(LayoutAttr layout);
+
+// One step of an explicit layout expansion: take ciphertext `sourceCt` of the
+// source, rotate its slots left by `shift`, keep only `targetSlots`, and
+// accumulate into ciphertext `targetCt` of the target. A step whose
+// `targetSlots` cover all n slots needs no mask (a plain copy when the shift
+// is also zero).
+struct LayoutExpansionStep {
+  int64_t targetCt;
+  int64_t sourceCt;
+  int64_t shift;
+  llvm::SmallVector<int64_t> targetSlots;
+};
+
+// Decomposes the conversion of a value packed as `from` into `to` (rotom
+// layouts of the same tensor at the same n, possibly with DIFFERENT
+// ciphertext counts) into explicit rotate/mask/accumulate steps, grouped by
+// (targetCt, sourceCt, shift) and deterministically ordered. This is the
+// general path for conversions tensor_ext.convert_layout cannot express
+// (its operand and result types must match); the layout assignment prices
+// exactly these steps, so search prunes expensive expansions by cost rather
+// than by capability. Fails when either layout does not lower to an ISL
+// relation or the domains disagree.
+FailureOr<SmallVector<LayoutExpansionStep>> planLayoutExpansion(LayoutAttr from,
+                                                                LayoutAttr to);
 
 // Whether the current Rotom elementwise lowering can align two operand layouts
 // onto a result layout (same `n`, unit-strided traversal dims, materializable,
