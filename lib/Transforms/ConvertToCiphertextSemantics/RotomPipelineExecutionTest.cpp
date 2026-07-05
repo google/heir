@@ -979,6 +979,99 @@ module {
       cast<RankedTensorType>(main.getFunctionType().getResult(0)), expected);
 }
 
+// The slot-diagonal (Halevi-Shoup) matmul. The matmul's lhs is an
+// INTERMEDIATE (a + a) held at the one-ciphertext diagonal packing
+// roll(0,1) [1:4];[0:4] -- slot (k', i) holds A[i, (k'+i)%4], diagonal k'
+// at offset i -- so it cannot repack at encode time; its only cheap
+// expansion is onto the slot-diagonal plan's lhs placement
+// roll(1,2) [R:4];[1:4][0:4], the same diagonal content replicated across
+// the four j ciphertexts (four zero-shift full-row copies, free). The rhs
+// is seeded at the plan's expanded placement. The kernel multiplies once
+// and sums k by the slot rotate-and-reduce over the rolled piece; the
+// result keeps the [j:ct];[G][i] shape, four ciphertexts with the true
+// sums at the k'=0 offsets.
+TEST(RotomPipelineExecutionTest, MatmulSlotDiagonalHaleviShoupStyle) {
+  MLIRContext context;
+  initContext(context);
+  OwningOpRef<ModuleOp> module = openfhe::parse(&context, R"mlir(
+#layout_diag = #rotom.layout<dims = [#rotom.dim<[1:4:1]>, #rotom.dim<[0:4:1]>], n = 16, rolls = [(0, 1)]>
+#layout_b = #rotom.layout<dims = [#rotom.dim<[1:4:1]>, #rotom.dim<[0:4:1]>, #rotom.dim<[R:4:1]>], n = 16, rolls = [(1, 2)]>
+#seed_a = #rotom.seed<layouts = [#layout_diag]>
+#seed_b = #rotom.seed<layouts = [#layout_b]>
+
+module {
+  func.func @main(%a: tensor<4x4xf32> {rotom.seed = #seed_a}, %b: tensor<4x4xf32> {rotom.seed = #seed_b}) -> tensor<4x4xf32> {
+    %cst = arith.constant 0.000000e+00 : f32
+    %s = arith.addf %a, %a : tensor<4x4xf32>
+    %empty = tensor.empty() : tensor<4x4xf32>
+    %fill = linalg.fill ins(%cst : f32) outs(%empty : tensor<4x4xf32>) -> tensor<4x4xf32>
+    %0 = linalg.matmul ins(%s, %b : tensor<4x4xf32>, tensor<4x4xf32>) outs(%fill : tensor<4x4xf32>) -> tensor<4x4xf32>
+    return %0 : tensor<4x4xf32>
+  }
+}
+)mlir");
+  ASSERT_TRUE(module);
+  ASSERT_TRUE(succeeded(runRotomPipeline(module.get(), &context,
+                                         /*ciphertextSize=*/16)));
+
+  func::FuncOp main = module->lookupSymbol<func::FuncOp>("main");
+  ASSERT_TRUE(main);
+  tensor_ext::LayoutAttr lhsLayout = getArgLayout(main, 0);
+  tensor_ext::LayoutAttr rhsLayout = getArgLayout(main, 1);
+  tensor_ext::LayoutAttr resultLayout = getResultLayout(main, 0);
+  ASSERT_TRUE(lhsLayout);
+  ASSERT_TRUE(rhsLayout);
+  ASSERT_TRUE(resultLayout);
+
+  // The diagonalized source stays compact at one ciphertext, and the chosen
+  // plan is the slot-diagonal family: its result spans the four j
+  // ciphertexts (the summed k' is a slot gap), not the ct-k family's single
+  // compacted ciphertext.
+  EXPECT_EQ(cast<RankedTensorType>(main.getArgument(0).getType()).getDimSize(0),
+            1);
+  EXPECT_EQ(
+      cast<RankedTensorType>(main.getFunctionType().getResult(0)).getDimSize(0),
+      4);
+
+  std::vector<std::vector<float>> lhs = {
+      {1, 2, 3, 4},
+      {5, 6, 7, 8},
+      {9, 10, 11, 12},
+      {13, 14, 15, 16},
+  };
+  std::vector<std::vector<float>> rhs = {
+      {2, 0, 1, 3},
+      {1, 4, 0, 2},
+      {0, 1, 2, 1},
+      {3, 2, 1, 0},
+  };
+  std::vector<std::vector<float>> expected(4, std::vector<float>(4, 0.0f));
+  for (int64_t i = 0; i < 4; ++i) {
+    for (int64_t j = 0; j < 4; ++j) {
+      for (int64_t k = 0; k < 4; ++k) {
+        expected[i][j] += 2 * lhs[i][k] * rhs[k][j];
+      }
+    }
+  }
+
+  Interpreter interpreter(module.get());
+  std::vector<TypedCppValue> inputs = {
+      TypedCppValue(packMatrix(
+          lhsLayout, cast<RankedTensorType>(main.getArgument(0).getType()),
+          lhs)),
+      TypedCppValue(packMatrix(
+          rhsLayout, cast<RankedTensorType>(main.getArgument(1).getType()),
+          rhs)),
+  };
+  std::vector<TypedCppValue> results = interpreter.interpret("main", inputs);
+  ASSERT_EQ(results.size(), 1);
+
+  auto actual = std::get<std::shared_ptr<std::vector<float>>>(results[0].value);
+  expectClaimedSlotsMatch(
+      *actual, resultLayout,
+      cast<RankedTensorType>(main.getFunctionType().getResult(0)), expected);
+}
+
 }  // namespace
 }  // namespace heir
 }  // namespace mlir

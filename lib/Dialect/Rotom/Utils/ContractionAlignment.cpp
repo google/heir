@@ -177,24 +177,37 @@ SmallVector<MatmulPlan> enumerateMatmulPlans(LayoutAttr lhs, LayoutAttr rhs) {
   addHostVariants(lhsIter, kMatmulDimJ, jExtent);
   addHostVariants(rhsIter, kMatmulDimI, iExtent);
 
-  // Each footprint yields the roll-free placement plus its rolled
-  // ct-diagonal variants: a k piece in the ciphertext prefix rolled by a
-  // same-extent unit-stride traversal piece in the slot region. The rolled
-  // ciphertext axis then indexes k-diagonals -- each operand's expansion
+  // Each footprint yields the roll-free placement plus its rolled diagonal
+  // variants: a unit-stride k piece rolled by a same-extent unit-stride
+  // traversal piece elsewhere in the footprint. Each operand's expansion
   // inherits the roll positionally (for the operand that does not own the
   // partner dim, the partner is the replication piece that subsumed it, and
-  // the roll materializes every rotation across its blocks), the multiply
-  // stays one op per ciphertext, and the k-sum stays plain ciphertext adds.
+  // the roll materializes every rotation across its blocks); the multiply
+  // stays one op per ciphertext and the k reduction keeps its footprint
+  // shape. Two families fall out of the position pair:
+  //   - ct-diagonal (k in the ciphertext prefix, partner in the slots): the
+  //     ciphertext axis indexes k-diagonals and the k-sum is plain
+  //     ciphertext adds;
+  //   - slot-diagonal (k in the slots; a slot partner is the classic
+  //     Halevi-Shoup diagonal packing, a ciphertext partner the
+  //     replicate-then-roll form whose expansion from a compact source is
+  //     pure rotations): the rolled slot axis indexes diagonals and the
+  //     k-sum stays the slot rotate-and-reduce -- per remaining slot
+  //     coordinate the rolled index is a bijection of k, so the tree still
+  //     sums k and the result gaps the piece as usual.
+  // Both pieces inside the ciphertext prefix is skipped: that only permutes
+  // which ciphertext holds what, which conversion already treats as free.
   SmallVector<std::pair<SmallVector<DimAttr>, SmallVector<int64_t>>>
       computeVariants;
   for (SmallVector<DimAttr>& footprint : computeFootprints) {
     const size_t ctPrefixLen = inferCtPrefixLen(footprint, n);
     computeVariants.push_back({footprint, {}});
-    for (size_t kPos = 0; kPos < ctPrefixLen; ++kPos) {
+    for (size_t kPos = 0; kPos < footprint.size(); ++kPos) {
       DimAttr kPiece = footprint[kPos];
       if (kPiece.getDim() != kMatmulDimK || kPiece.getStride() != 1) continue;
-      for (size_t partnerPos = ctPrefixLen; partnerPos < footprint.size();
-           ++partnerPos) {
+      for (size_t partnerPos = 0; partnerPos < footprint.size(); ++partnerPos) {
+        if (partnerPos == kPos) continue;
+        if (kPos < ctPrefixLen && partnerPos < ctPrefixLen) continue;
         DimAttr partner = footprint[partnerPos];
         if (partner.isGap() || partner.isReplicate() ||
             partner.getDim() == kMatmulDimK || partner.getStride() != 1 ||
@@ -249,10 +262,11 @@ SmallVector<MatmulPlan> enumerateMatmulPlans(LayoutAttr lhs, LayoutAttr rhs) {
     // The roll is positional, so both expansions inherit it piece for piece
     // (subsumption keeps positions; for the operand that does not own the
     // partner dim the roll lands on the replication piece that replaced it).
-    // The result drops the rolls: every roll rewrites a ciphertext-prefix k
-    // piece, and the ciphertext k-sum drops that piece -- for each slot the
-    // rolled ciphertext axis is a bijection of k, so the sum over ciphertexts
-    // is the k-sum and the surviving pieces are unrolled.
+    // The result drops the rolls: every roll rewrites a k piece, and summing
+    // k consumes that piece (a ciphertext k piece is dropped, a slot k piece
+    // becomes a gap) -- per remaining coordinate the rolled index is a
+    // bijection of k, so the sum over it is the k-sum and the surviving
+    // pieces are unrolled.
     MatmulPlan plan;
     plan.computeLayout = computeLayout;
     plan.expandedLhs = makeCheckedLayout(

@@ -74,11 +74,16 @@ struct MatmulPlan {
 //     subsumption, so an operand already at an expanded placement enumerates
 //     the compute placement it came from);
 //   - rhs-hosted: symmetric, placing i.
-// Each footprint then yields the roll-free plan plus its rolled ct-diagonal
-// variants: a unit-stride k piece in the ciphertext prefix rolled by each
-// same-extent unit-stride i/j piece in the slot region. A rolled plan keeps
-// the footprint (and so the multiply and ciphertext-add counts) unchanged;
-// only the operand placements diagonalize, and the result is unrolled.
+// Each footprint then yields the roll-free plan plus its rolled diagonal
+// variants: a unit-stride k piece anywhere in the footprint rolled by each
+// same-extent unit-stride i/j piece elsewhere (skipping pairs entirely
+// inside the ciphertext prefix). A ciphertext-prefix k rolled by a slot
+// piece is the ct-diagonal family (k summed by plain ciphertext adds); a
+// slot k rolled by a slot piece is the Halevi-Shoup diagonal packing and by
+// a ciphertext piece the replicate-then-roll form (k summed by the usual
+// slot rotate-and-reduce). A rolled plan keeps the footprint (and so the
+// multiply and reduction counts) unchanged; only the operand placements
+// diagonalize, and the result is unrolled.
 // Variants whose layout fails LayoutAttr verification (e.g. a
 // non-power-of-two extent landing in the slot region) are silently skipped,
 // so possibly zero plans may be returned.

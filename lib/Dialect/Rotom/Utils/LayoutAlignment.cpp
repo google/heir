@@ -92,6 +92,15 @@ SmallVector<ConversionMove> conversionMoves(LayoutAttr lhs, LayoutAttr rhs) {
   ConversionMove sentinel{/*dim=*/-1, /*bit=*/-1, /*fromSlot=*/-1,
                           /*toSlot=*/-1};
   if (lhs.getN() != rhs.getN()) return {sentinel};
+  // The atomization below reads dims only, so it cannot see that a rolled
+  // (diagonalized) placement permutes its contents -- treating it as its
+  // unrolled footprint would misprice e.g. row-major <-> diagonal as free.
+  // Rolled layouts defer to the relation-based pricing.
+  auto hasRolls = [](LayoutAttr layout) {
+    DenseI64ArrayAttr rolls = layout.getRolls();
+    return rolls && !rolls.empty();
+  };
+  if (hasRolls(lhs) || hasRolls(rhs)) return {sentinel};
 
   std::optional<SmallVector<std::pair<int64_t, int64_t>>> lhsAtoms =
       atomizeSlotRegion(lhs);
