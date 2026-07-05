@@ -86,6 +86,8 @@
 #include "lib/Transforms/AnnotateSecretness/AnnotateSecretness.h"
 #include "lib/Transforms/ApplyFolders/ApplyFolders.h"
 #include "lib/Transforms/BooleanVectorizer/BooleanVectorizer.h"
+#include "lib/Transforms/BroadcastCanonicalizations/BroadcastCanonicalizations.h"
+#include "lib/Transforms/BroadcastSwap/BroadcastSwap.h"
 #include "lib/Transforms/CompareToSignRewrite/CompareToSignRewrite.h"
 #include "lib/Transforms/ConvertIfToSelect/ConvertIfToSelect.h"
 #include "lib/Transforms/ConvertSecretExtractToStaticExtract/ConvertSecretExtractToStaticExtract.h"
@@ -425,6 +427,8 @@ int main(int argc, char** argv) {
   registerLinalgCanonicalizationsPasses();
   registerLinalgFuseLinearOpsPasses();
   registerReductionCanonicalizationsPasses();
+  registerBroadcastCanonicalizationsPasses();
+  registerBroadcastSwapPasses();
   registerFoldConstantTensorsPasses();
   registerLowerPolynomialEvalPasses();
   registerLowerUnpackPasses();
