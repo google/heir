@@ -404,14 +404,21 @@ void LayoutAssignment::applyKernels(ModuleOp module) {
       // A matmul gets no kernel: its lowering is a pure function of the
       // (lhs, rhs, result) layout combination. Record those layouts on the
       // op, since the materializer erases the per-value rotom attributes
-      // before the ciphertext lowering re-derives the plan.
+      // before the ciphertext lowering re-derives the plan. Several plans
+      // can share a result layout (a rolled plan and its roll-free sibling),
+      // so also record the priced winner's computeLayout -- the plan's
+      // unique identity -- as a fourth element.
       LayoutAttr lhs = selectedLayouts.lookup(matmul.getInputs()[0]);
       LayoutAttr rhs = selectedLayouts.lookup(matmul.getInputs()[1]);
       LayoutAttr result = selectedLayouts.lookup(matmul->getResult(0));
       if (lhs && rhs && result) {
-        matmul->setAttr(
-            kRotomMatmulAttrName,
-            ArrayAttr::get(matmul.getContext(), {lhs, rhs, result}));
+        SmallVector<Attribute> recorded = {lhs, rhs, result};
+        if (std::optional<MatmulPlan> plan =
+                selectMatmulPlan(*this, lhs, rhs, result)) {
+          recorded.push_back(plan->computeLayout);
+        }
+        matmul->setAttr(kRotomMatmulAttrName,
+                        ArrayAttr::get(matmul.getContext(), recorded));
       }
       return;
     }

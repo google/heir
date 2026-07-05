@@ -1,7 +1,10 @@
 #ifndef LIB_DIALECT_ROTOM_TRANSFORMS_LAYOUTASSIGNMENT_GENERATORS_H_
 #define LIB_DIALECT_ROTOM_TRANSFORMS_LAYOUTASSIGNMENT_GENERATORS_H_
 
+#include <optional>
+
 #include "lib/Dialect/Rotom/Transforms/LayoutAssignment/AssignmentContext.h"
+#include "lib/Dialect/Rotom/Utils/ContractionAlignment.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
@@ -35,10 +38,18 @@ LogicalResult generateTranspose(AssignmentContext& ctx, linalg::TransposeOp op);
 LogicalResult generateReduction(AssignmentContext& ctx, linalg::ReduceOp op);
 
 // Contraction (gen/Contraction.cpp): align the (i, j, k) iteration space,
-// multiply elementwise, sum k. Prices the deterministic roll-free plans from
-// ContractionAlignment; the lowering re-derives the same plan from the
-// assigned layouts, so no kernel name is attached.
+// multiply elementwise, sum k. Prices the deterministic plans (roll-free and
+// rolled ct-diagonal) from ContractionAlignment; the lowering re-derives the
+// same plan from the assigned layouts, so no kernel name is attached.
 LogicalResult generateMatmul(AssignmentContext& ctx, linalg::MatmulOp op);
+// The plan generateMatmul priced for one (lhs, rhs, result) layout
+// combination: the cheapest enumerated plan with that result layout, by the
+// same cost formula. Several plans can share a result layout (a rolled plan
+// and its roll-free sibling), so applyKernels records the winner's
+// computeLayout on the op for the ciphertext lowering to match exactly.
+std::optional<MatmulPlan> selectMatmulPlan(AssignmentContext& ctx,
+                                           LayoutAttr lhs, LayoutAttr rhs,
+                                           LayoutAttr result);
 
 // Reshape / slice (gen/Reshape.cpp): dim collapse/expand and slice
 // insert/extract.

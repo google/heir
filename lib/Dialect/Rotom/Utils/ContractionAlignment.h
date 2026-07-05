@@ -11,7 +11,7 @@ namespace mlir {
 namespace heir {
 namespace rotom {
 
-// The roll-free matmul lowering plan: for C[i,j] = sum_k A[i,k] * B[k,j],
+// The Rotom matmul lowering plan: for C[i,j] = sum_k A[i,k] * B[k,j],
 // align both operands into a shared placement of the (i, j, k) iteration
 // space, multiply elementwise once, then sum the k pieces. A plan is a pure
 // function of the two operand layouts -- there is no kernel; the layout
@@ -65,16 +65,23 @@ struct MatmulPlan {
 };
 
 // Deterministically enumerates the aligned placements for one (lhs, rhs)
-// layout pairing, both in their own tensor dims at the same n. Four
-// candidates, deduplicated by computeLayout, each hosting one operand's
-// placement unchanged and inserting the missing free dim as a whole
-// unit-stride piece:
+// layout pairing, both in their own tensor dims at the same n, deduplicated
+// by computeLayout. Compute footprints host one operand's placement
+// unchanged and place the missing free dim as a whole unit-stride piece:
 //   - lhs-hosted: lhs's (i, k) pieces, with j appended innermost (slot
-//     placement) or prepended outermost (ciphertext placement);
-//   - rhs-hosted: symmetric, inserting i.
+//     placement), prepended outermost (ciphertext placement), or replacing a
+//     same-extent replication piece of the host (the reverse of expansion
+//     subsumption, so an operand already at an expanded placement enumerates
+//     the compute placement it came from);
+//   - rhs-hosted: symmetric, placing i.
+// Each footprint then yields the roll-free plan plus its rolled ct-diagonal
+// variants: a unit-stride k piece in the ciphertext prefix rolled by each
+// same-extent unit-stride i/j piece in the slot region. A rolled plan keeps
+// the footprint (and so the multiply and ciphertext-add counts) unchanged;
+// only the operand placements diagonalize, and the result is unrolled.
 // Variants whose layout fails LayoutAttr verification (e.g. a
 // non-power-of-two extent landing in the slot region) are silently skipped,
-// so fewer than four (possibly zero) plans may be returned.
+// so possibly zero plans may be returned.
 llvm::SmallVector<MatmulPlan> enumerateMatmulPlans(LayoutAttr lhs,
                                                    LayoutAttr rhs);
 

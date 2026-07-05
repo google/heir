@@ -2490,11 +2490,14 @@ struct ConvertLinalgMatmul
   }
 };
 
-// Roll-free Rotom matmul: align both operands into a shared placement of the
-// (i, j, k) iteration space, multiply elementwise once, then sum k. There is
-// no kernel attribute -- the plan is a deterministic function of the
-// (lhs, rhs, result) rotom layout combination the layout assignment recorded
-// under rotom.matmul (the materializer erases per-value rotom layouts).
+// Rotom matmul: align both operands into a shared placement of the (i, j, k)
+// iteration space, multiply elementwise once, then sum k. There is no kernel
+// attribute -- the plan is re-derived from the rotom layout combination the
+// layout assignment recorded under rotom.matmul (the materializer erases
+// per-value rotom layouts): [lhs, rhs, result] plus, when the assignment
+// priced a plan, its computeLayout -- the plan's unique identity, needed
+// because a rolled ct-diagonal plan and its roll-free sibling share a result
+// layout while expanding the operands differently.
 class ConvertRotomMatmul : public ConversionBase<linalg::MatmulOp> {
  public:
   using ConversionBase<linalg::MatmulOp>::ConversionBase;
@@ -2503,11 +2506,18 @@ class ConvertRotomMatmul : public ConversionBase<linalg::MatmulOp> {
       linalg::MatmulOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter& rewriter) const final {
     auto planInputs = op->getAttrOfType<ArrayAttr>(rotom::kRotomMatmulAttrName);
-    if (!planInputs || planInputs.size() != 3) return failure();
+    if (!planInputs || planInputs.size() < 3 || planInputs.size() > 4) {
+      return failure();
+    }
     auto lhsRotom = dyn_cast<rotom::LayoutAttr>(planInputs[0]);
     auto rhsRotom = dyn_cast<rotom::LayoutAttr>(planInputs[1]);
     auto resultRotom = dyn_cast<rotom::LayoutAttr>(planInputs[2]);
     if (!lhsRotom || !rhsRotom || !resultRotom) return failure();
+    rotom::LayoutAttr computeRotom;
+    if (planInputs.size() == 4) {
+      computeRotom = dyn_cast<rotom::LayoutAttr>(planInputs[3]);
+      if (!computeRotom) return failure();
+    }
 
     // The k-sum starts from zero, so the init accumulator must be a zero
     // fill. TODO: support a general init by adding it at the result layout.
@@ -2518,12 +2528,15 @@ class ConvertRotomMatmul : public ConversionBase<linalg::MatmulOp> {
           op, "rotom matmul lowering requires a zero-filled init accumulator");
     }
 
-    // Re-derive the deterministic plan for the recorded layout combination.
+    // Re-derive the deterministic plan for the recorded layout combination:
+    // by the recorded computeLayout when present (exact plan identity),
+    // otherwise the first plan with the recorded result layout.
     const rotom::MatmulPlan* chosen = nullptr;
     SmallVector<rotom::MatmulPlan> plans =
         rotom::enumerateMatmulPlans(lhsRotom, rhsRotom);
     for (const rotom::MatmulPlan& plan : plans) {
-      if (plan.resultLayout == resultRotom) {
+      if (computeRotom ? plan.computeLayout == computeRotom
+                       : plan.resultLayout == resultRotom) {
         chosen = &plan;
         break;
       }

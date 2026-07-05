@@ -36,6 +36,12 @@ class ContractionAlignmentTest : public ::testing::Test {
     return LayoutAttr::get(&context, ArrayAttr::get(&context, dims), n);
   }
 
+  LayoutAttr rolledLayout(ArrayRef<Attribute> dims, int64_t n,
+                          ArrayRef<int64_t> rolls) {
+    return LayoutAttr::get(&context, ArrayAttr::get(&context, dims), n,
+                           DenseI64ArrayAttr::get(&context, rolls));
+  }
+
   const MatmulPlan* findPlan(ArrayRef<MatmulPlan> plans,
                              LayoutAttr computeLayout) {
     for (const MatmulPlan& plan : plans) {
@@ -48,13 +54,15 @@ class ContractionAlignmentTest : public ::testing::Test {
 };
 
 // 4x4 matmul at n=16, both operands row-major. The four host x region
-// variants dedup to three plans: rhs-hosted/ct coincides with
-// lhs-hosted/slot.
-TEST_F(ContractionAlignmentTest, RowMajorPairEnumeratesThreeDedupedPlans) {
+// variants dedup to three roll-free footprints (rhs-hosted/ct coincides with
+// lhs-hosted/slot); the one footprint with k in the ciphertext prefix
+// ([2:4][1:4][0:4]) adds a rolled ct-diagonal variant per same-extent slot
+// traversal partner (j and i), for five plans total.
+TEST_F(ContractionAlignmentTest, RowMajorPairEnumeratesFiveDedupedPlans) {
   LayoutAttr lhs = layout({dim(0, 4), dim(1, 4)}, 16);
   LayoutAttr rhs = layout({dim(0, 4), dim(1, 4)}, 16);
   SmallVector<MatmulPlan> plans = rotom::enumerateMatmulPlans(lhs, rhs);
-  EXPECT_EQ(plans.size(), 3u);
+  EXPECT_EQ(plans.size(), 5u);
 }
 
 TEST_F(ContractionAlignmentTest, LhsHostedSlotPlan) {
@@ -146,12 +154,14 @@ TEST_F(ContractionAlignmentTest, UnitFreeDimSkipsInsertion) {
 // The ct/slot split is inferred greedily from the right, so a
 // non-power-of-two free extent never lands in the slot region -- every
 // placement pushes it (and the pieces outside the surviving slot suffix)
-// into the ciphertext prefix, where replication is free.
+// into the ciphertext prefix, where replication is free. Three roll-free
+// footprints plus one rolled ct-diagonal variant (the footprint with k in
+// the ciphertext prefix rolled by its same-extent slot i piece).
 TEST_F(ContractionAlignmentTest, NonPowerOfTwoFreeExtentStaysInCtRegion) {
   LayoutAttr lhs = layout({dim(0, 4), dim(1, 4)}, 16);
   LayoutAttr rhs = layout({dim(0, 4), dim(1, 3)}, 16);
   SmallVector<MatmulPlan> plans = rotom::enumerateMatmulPlans(lhs, rhs);
-  EXPECT_EQ(plans.size(), 3u);
+  EXPECT_EQ(plans.size(), 4u);
   for (const MatmulPlan& plan : plans) {
     EXPECT_EQ(plan.lhsFillRotations, 0);
     EXPECT_EQ(plan.lhsFillAdds, 0);
@@ -180,6 +190,73 @@ TEST_F(ContractionAlignmentTest, MixedRadixHostCarriesThroughAndDropsCtK) {
   EXPECT_EQ(plan->reduceRotations, 0);
   // 8 ciphertexts collapse to 2: six ciphertext adds.
   EXPECT_EQ(plan->reduceAdds, 6);
+}
+
+// The rolled ct-diagonal sibling of RhsHostedSlotPlanSumsAcrossCiphertexts:
+// same footprint [2:4][1:4][0:4], with the ciphertext k piece rolled by the
+// slot i piece (positions 0 and 2). Ciphertext c of the product holds
+// A[x, (c+x)%4] * B[(c+x)%4, y] at slot (y, x), so the plain ciphertext adds
+// still sum k and the result is one unrolled column-major ciphertext. Both
+// expansions inherit the positional roll: the lhs owns i (roll by a
+// traversal dim); the rhs sees the replication that subsumed i (roll by
+// replication -- every rotation of k materialized across its blocks).
+TEST_F(ContractionAlignmentTest, RolledCtDiagonalPlanKeepsFootprintCounts) {
+  LayoutAttr lhs = layout({dim(0, 4), dim(1, 4)}, 16);
+  LayoutAttr rhs = layout({dim(0, 4), dim(1, 4)}, 16);
+  SmallVector<MatmulPlan> plans = rotom::enumerateMatmulPlans(lhs, rhs);
+
+  const MatmulPlan* plan = findPlan(
+      plans,
+      rolledLayout({dim(2, 4), dim(1, 4), dim(0, 4)}, 16, /*rolls=*/{0, 2}));
+  ASSERT_NE(plan, nullptr);
+  EXPECT_EQ(plan->expandedLhs,
+            rolledLayout({dim(1, 4), repl(4), dim(0, 4)}, 16, {0, 2}));
+  EXPECT_EQ(plan->expandedRhs,
+            rolledLayout({dim(0, 4), dim(1, 4), repl(4)}, 16, {0, 2}));
+  EXPECT_EQ(plan->resultLayout, layout({dim(1, 4), dim(0, 4)}, 16));
+  EXPECT_EQ(plan->reduceRotations, 0);
+  EXPECT_EQ(plan->reduceAdds, 3);
+}
+
+// Operands seeded directly at a rolled expanded placement (the ct-diagonal
+// pair a = roll(0,2) [1:4];[0:4][R:4], b = roll(0,2) [0:4];[R:4][1:4]):
+// replacing the lhs host's replication piece with j recovers the compute
+// footprint [2:4];[0:4][1:4], and its (0,2)-rolled variant expands each
+// operand back to exactly its input layout -- a zero-conversion plan whose
+// kernel is 4 ciphertext multiplies and 3 adds with no rotations, leaving
+// one row-major result ciphertext.
+TEST_F(ContractionAlignmentTest, ExpandedRolledPairYieldsZeroConversionPlan) {
+  LayoutAttr lhs =
+      rolledLayout({dim(1, 4), dim(0, 4), repl(4)}, 16, /*rolls=*/{0, 2});
+  LayoutAttr rhs =
+      rolledLayout({dim(0, 4), repl(4), dim(1, 4)}, 16, /*rolls=*/{0, 2});
+  SmallVector<MatmulPlan> plans = rotom::enumerateMatmulPlans(lhs, rhs);
+
+  const MatmulPlan* plan = findPlan(
+      plans,
+      rolledLayout({dim(2, 4), dim(0, 4), dim(1, 4)}, 16, /*rolls=*/{0, 2}));
+  ASSERT_NE(plan, nullptr);
+  EXPECT_EQ(plan->expandedLhs, lhs);
+  EXPECT_EQ(plan->expandedRhs, rhs);
+  EXPECT_EQ(plan->resultLayout, layout({dim(0, 4), dim(1, 4)}, 16));
+  EXPECT_EQ(plan->reduceRotations, 0);
+  EXPECT_EQ(plan->reduceAdds, 3);
+}
+
+// The reverse-subsumption host variant also serves roll-free layouts: an
+// operand already at an expanded placement (replication piece included)
+// enumerates the compute placement it came from, so realigning it is free.
+TEST_F(ContractionAlignmentTest, ExpandedRollFreeHostReusesReplicationPiece) {
+  LayoutAttr lhs = layout({dim(1, 4), dim(0, 4), repl(4)}, 16);
+  LayoutAttr rhs = layout({dim(0, 4), repl(4), dim(1, 4)}, 16);
+  SmallVector<MatmulPlan> plans = rotom::enumerateMatmulPlans(lhs, rhs);
+
+  const MatmulPlan* plan =
+      findPlan(plans, layout({dim(2, 4), dim(0, 4), dim(1, 4)}, 16));
+  ASSERT_NE(plan, nullptr);
+  EXPECT_EQ(plan->expandedLhs, lhs);
+  EXPECT_EQ(plan->expandedRhs, rhs);
+  EXPECT_EQ(plan->resultLayout, layout({dim(0, 4), dim(1, 4)}, 16));
 }
 
 TEST_F(ContractionAlignmentTest, MismatchedNReturnsNoPlans) {

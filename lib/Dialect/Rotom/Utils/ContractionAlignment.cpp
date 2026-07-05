@@ -25,10 +25,11 @@ namespace rotom {
 // variants that violate an invariant (e.g. a non-power-of-two slot extent)
 // are skipped, not diagnosed.
 static LayoutAttr makeCheckedLayout(MLIRContext* ctx, ArrayRef<DimAttr> dims,
-                                    int64_t n) {
+                                    int64_t n,
+                                    ArrayRef<int64_t> rollPairs = {}) {
   SmallVector<Attribute> attrs(dims.begin(), dims.end());
   auto dimsAttr = ArrayAttr::get(ctx, attrs);
-  auto rolls = DenseI64ArrayAttr::get(ctx, ArrayRef<int64_t>{});
+  auto rolls = DenseI64ArrayAttr::get(ctx, rollPairs);
   // A real (but silenced) diagnostic emitter: streaming into an inactive
   // InFlightDiagnostic asserts, and an invalid enumerated variant is skipped,
   // not reported.
@@ -147,30 +148,70 @@ SmallVector<MatmulPlan> enumerateMatmulPlans(LayoutAttr lhs, LayoutAttr rhs) {
   const SmallVector<int64_t> iterToResult = {0, 1, -1};
 
   // Candidate compute placements: host one operand unchanged and insert the
-  // missing free dim innermost (slot region) and outermost (ct region).
-  SmallVector<SmallVector<DimAttr>> computeVariants;
+  // missing free dim innermost (slot region), outermost (ct region), or in
+  // place of an existing same-extent replication piece (the reverse of the
+  // subsumption that derives the expanded operands -- so an operand already
+  // at an expanded placement enumerates the compute placement it came from).
+  SmallVector<SmallVector<DimAttr>> computeFootprints;
   auto addHostVariants = [&](ArrayRef<DimAttr> host, int64_t freeDim,
                              int64_t freeExtent) {
     SmallVector<DimAttr> base(host.begin(), host.end());
     if (freeExtent == 1) {
-      computeVariants.push_back(base);
+      computeFootprints.push_back(base);
       return;
     }
     DimAttr freePiece = DimAttr::get(ctx, freeDim, freeExtent, /*stride=*/1);
     SmallVector<DimAttr> slotVariant = base;
     slotVariant.push_back(freePiece);
-    computeVariants.push_back(std::move(slotVariant));
+    computeFootprints.push_back(std::move(slotVariant));
     SmallVector<DimAttr> ctVariant = {freePiece};
     ctVariant.append(base.begin(), base.end());
-    computeVariants.push_back(std::move(ctVariant));
+    computeFootprints.push_back(std::move(ctVariant));
+    for (size_t p = 0; p < base.size(); ++p) {
+      if (!base[p].isReplicate() || base[p].getSize() != freeExtent) continue;
+      SmallVector<DimAttr> replaceVariant = base;
+      replaceVariant[p] = freePiece;
+      computeFootprints.push_back(std::move(replaceVariant));
+    }
   };
   addHostVariants(lhsIter, kMatmulDimJ, jExtent);
   addHostVariants(rhsIter, kMatmulDimI, iExtent);
 
+  // Each footprint yields the roll-free placement plus its rolled
+  // ct-diagonal variants: a k piece in the ciphertext prefix rolled by a
+  // same-extent unit-stride traversal piece in the slot region. The rolled
+  // ciphertext axis then indexes k-diagonals -- each operand's expansion
+  // inherits the roll positionally (for the operand that does not own the
+  // partner dim, the partner is the replication piece that subsumed it, and
+  // the roll materializes every rotation across its blocks), the multiply
+  // stays one op per ciphertext, and the k-sum stays plain ciphertext adds.
+  SmallVector<std::pair<SmallVector<DimAttr>, SmallVector<int64_t>>>
+      computeVariants;
+  for (SmallVector<DimAttr>& footprint : computeFootprints) {
+    const size_t ctPrefixLen = inferCtPrefixLen(footprint, n);
+    computeVariants.push_back({footprint, {}});
+    for (size_t kPos = 0; kPos < ctPrefixLen; ++kPos) {
+      DimAttr kPiece = footprint[kPos];
+      if (kPiece.getDim() != kMatmulDimK || kPiece.getStride() != 1) continue;
+      for (size_t partnerPos = ctPrefixLen; partnerPos < footprint.size();
+           ++partnerPos) {
+        DimAttr partner = footprint[partnerPos];
+        if (partner.isGap() || partner.isReplicate() ||
+            partner.getDim() == kMatmulDimK || partner.getStride() != 1 ||
+            partner.getSize() != kPiece.getSize()) {
+          continue;
+        }
+        computeVariants.push_back(
+            {footprint,
+             {static_cast<int64_t>(kPos), static_cast<int64_t>(partnerPos)}});
+      }
+    }
+  }
+
   llvm::DenseSet<Attribute> seenComputeLayouts;
   SmallVector<MatmulPlan> plans;
-  for (const SmallVector<DimAttr>& computeDims : computeVariants) {
-    LayoutAttr computeLayout = makeCheckedLayout(ctx, computeDims, n);
+  for (const auto& [computeDims, rolls] : computeVariants) {
+    LayoutAttr computeLayout = makeCheckedLayout(ctx, computeDims, n, rolls);
     if (!computeLayout) continue;
     if (!seenComputeLayouts.insert(computeLayout).second) continue;
 
@@ -205,12 +246,19 @@ SmallVector<MatmulPlan> enumerateMatmulPlans(LayoutAttr lhs, LayoutAttr rhs) {
           DimAttr::get(ctx, /*dim=*/-2, piece.getSize(), /*stride=*/1));
     }
 
+    // The roll is positional, so both expansions inherit it piece for piece
+    // (subsumption keeps positions; for the operand that does not own the
+    // partner dim the roll lands on the replication piece that replaced it).
+    // The result drops the rolls: every roll rewrites a ciphertext-prefix k
+    // piece, and the ciphertext k-sum drops that piece -- for each slot the
+    // rolled ciphertext axis is a bijection of k, so the sum over ciphertexts
+    // is the k-sum and the surviving pieces are unrolled.
     MatmulPlan plan;
     plan.computeLayout = computeLayout;
     plan.expandedLhs = makeCheckedLayout(
-        ctx, relabelTraversalDims(ctx, expandedLhsDims, iterToLhs), n);
+        ctx, relabelTraversalDims(ctx, expandedLhsDims, iterToLhs), n, rolls);
     plan.expandedRhs = makeCheckedLayout(
-        ctx, relabelTraversalDims(ctx, expandedRhsDims, iterToRhs), n);
+        ctx, relabelTraversalDims(ctx, expandedRhsDims, iterToRhs), n, rolls);
     plan.resultLayout = makeCheckedLayout(
         ctx, relabelTraversalDims(ctx, resultDims, iterToResult), n);
     if (!plan.expandedLhs || !plan.expandedRhs || !plan.resultLayout) continue;

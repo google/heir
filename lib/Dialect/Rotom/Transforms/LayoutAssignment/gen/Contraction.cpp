@@ -28,6 +28,43 @@ static std::optional<int64_t> operandAlignmentCost(AssignmentContext& ctx,
   return ctx.cachedConversionCost(from, expanded);
 }
 
+// The full price of one plan for one operand-layout pairing: align both
+// operands to their expanded placements, one multiply per compute
+// ciphertext, then the k reduction. The single formula generateMatmul
+// prices candidates with and selectMatmulPlan re-derives the winner with.
+static std::optional<int64_t> matmulPlanCost(AssignmentContext& ctx,
+                                             LayoutAttr lhs, LayoutAttr rhs,
+                                             const MatmulPlan& plan) {
+  std::optional<int64_t> lhsAlign =
+      operandAlignmentCost(ctx, lhs, plan.expandedLhs);
+  std::optional<int64_t> rhsAlign =
+      operandAlignmentCost(ctx, rhs, plan.expandedRhs);
+  if (!lhsAlign || !rhsAlign) return std::nullopt;
+  const RotomCostModel& costModel = getCostModel();
+  return *lhsAlign + *rhsAlign +
+         layoutNumCiphertexts(plan.computeLayout) *
+             costModel.ciphertextMultiply +
+         plan.reduceRotations * costModel.rotation +
+         plan.reduceAdds * costModel.add;
+}
+
+std::optional<MatmulPlan> selectMatmulPlan(AssignmentContext& ctx,
+                                           LayoutAttr lhs, LayoutAttr rhs,
+                                           LayoutAttr result) {
+  std::optional<MatmulPlan> best;
+  std::optional<int64_t> bestCost;
+  for (const MatmulPlan& plan : enumerateMatmulPlans(lhs, rhs)) {
+    if (plan.resultLayout != result) continue;
+    std::optional<int64_t> cost = matmulPlanCost(ctx, lhs, rhs, plan);
+    if (!cost) continue;
+    if (!bestCost || *cost < *bestCost) {
+      best = plan;
+      bestCost = cost;
+    }
+  }
+  return best;
+}
+
 LogicalResult generateMatmul(AssignmentContext& ctx, linalg::MatmulOp op) {
   // Only the default (i,k) x (k,j) indexing; transposed/broadcast variants
   // pass through until they get their own dim maps.
@@ -40,7 +77,6 @@ LogicalResult generateMatmul(AssignmentContext& ctx, linalg::MatmulOp op) {
 
   // The init accumulator contributes no layout choice (like
   // generateReduction's inits): the lowering requires a zero fill.
-  const RotomCostModel& costModel = getCostModel();
   SmallVector<Candidate> candidates;
   for (const Candidate& lhsCandidate : lhsCandidates) {
     for (const Candidate& rhsCandidate : rhsCandidates) {
@@ -51,22 +87,16 @@ LogicalResult generateMatmul(AssignmentContext& ctx, linalg::MatmulOp op) {
       }
       for (const MatmulPlan& plan :
            enumerateMatmulPlans(lhsCandidate.layout, rhsCandidate.layout)) {
-        std::optional<int64_t> lhsAlign =
-            operandAlignmentCost(ctx, lhsCandidate.layout, plan.expandedLhs);
-        std::optional<int64_t> rhsAlign =
-            operandAlignmentCost(ctx, rhsCandidate.layout, plan.expandedRhs);
-        if (!lhsAlign || !rhsAlign) continue;
+        std::optional<int64_t> cost =
+            matmulPlanCost(ctx, lhsCandidate.layout, rhsCandidate.layout, plan);
+        if (!cost) continue;
 
         Candidate candidate;
         candidate.layout = plan.resultLayout;
         candidate.kind = KernelKind::Matmul;
         candidate.operands = {lhs, rhs};
         candidate.operandLayouts = {lhsCandidate.layout, rhsCandidate.layout};
-        candidate.localCost = *lhsAlign + *rhsAlign +
-                              layoutNumCiphertexts(plan.computeLayout) *
-                                  costModel.ciphertextMultiply +
-                              plan.reduceRotations * costModel.rotation +
-                              plan.reduceAdds * costModel.add;
+        candidate.localCost = *cost;
         candidate.assignment = merged;
         candidate.accumulatedCost =
             accumulatedCostOf(candidate.assignment) + candidate.localCost;
