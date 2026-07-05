@@ -135,6 +135,7 @@ void LayoutAssignment::seedValue(Value value) {
 void LayoutAssignment::setCandidates(Value value,
                                      ArrayRef<Candidate> newCandidates) {
   if (!isTensorLike(value) || newCandidates.empty()) return;
+  const RotomCostModel& costModel = getCostModel();
   SmallVector<Candidate> compatibleCandidates;
   for (const Candidate& candidate : newCandidates) {
     if (!isLayoutCompatibleWithValue(candidate.layout, value)) continue;
@@ -142,7 +143,18 @@ void LayoutAssignment::setCandidates(Value value,
     // the complete assignment of the value and everything feeding it, and
     // `cost` is the dedup'd sum over that assignment.
     Candidate finalized = candidate;
-    finalized.assignment[value] = {finalized.layout, finalized.localCost};
+    // Charge the ciphertext-count carrying cost of holding this value at
+    // this layout (a compactness pressure; see RotomCostModel). Block
+    // arguments and yields alias a value already charged, so they are
+    // exempt.
+    int64_t carryingCost = 0;
+    if (finalized.kind != KernelKind::BlockArgument &&
+        finalized.kind != KernelKind::Yield) {
+      carryingCost =
+          costModel.ciphertextCount * layoutNumCiphertexts(finalized.layout);
+    }
+    finalized.assignment[value] = {finalized.layout,
+                                   finalized.localCost + carryingCost};
     finalized.accumulatedCost = accumulatedCostOf(finalized.assignment);
     compatibleCandidates.push_back(std::move(finalized));
   }

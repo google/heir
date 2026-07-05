@@ -157,11 +157,25 @@ LogicalResult generateMatmul(AssignmentContext& ctx, linalg::MatmulOp op) {
             candidate.localCost = lhsOption.alignCost + rhsOption.alignCost +
                                   matmulKernelCost(plan);
             candidate.assignment = merged;
+            // A repacked source's assignment entry replaces the one
+            // setCandidates finalized for the seed, so it re-charges the
+            // ciphertext-count carrying cost at the expanded placement --
+            // repacking a source fat is not free, keeping compact packings
+            // plus rotation-only expansions competitive.
+            const RotomCostModel& costModel = getCostModel();
             if (lhsOption.repack) {
-              candidate.assignment[lhs] = {lhsOption.layout, kSourceRepackCost};
+              candidate.assignment[lhs] = {
+                  lhsOption.layout,
+                  kSourceRepackCost +
+                      costModel.ciphertextCount *
+                          layoutNumCiphertexts(lhsOption.layout)};
             }
             if (rhsOption.repack) {
-              candidate.assignment[rhs] = {rhsOption.layout, kSourceRepackCost};
+              candidate.assignment[rhs] = {
+                  rhsOption.layout,
+                  kSourceRepackCost +
+                      costModel.ciphertextCount *
+                          layoutNumCiphertexts(rhsOption.layout)};
             }
             candidate.accumulatedCost =
                 accumulatedCostOf(candidate.assignment) + candidate.localCost;

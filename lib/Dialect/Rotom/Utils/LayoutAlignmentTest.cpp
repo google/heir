@@ -179,6 +179,40 @@ TEST_F(LayoutAlignmentTest, ExpansionScatterNeedsRotationsAndMasks) {
   EXPECT_TRUE(sawMask);
 }
 
+// The replicate-then-roll expansion: a compact column-major operand
+// ([k][i] slots, one ciphertext) expands onto the rolled placement
+// roll(0,1) [k:ct];[R][i] -- ciphertext c holds the whole matrix with its
+// k axis cyclically shifted by c. Because the roll-by partner (the
+// replication that subsumed the free dim) sits OUTERMOST in the slots and
+// matches the source's outermost piece, each target ciphertext is one whole
+// -ciphertext rotation of the source: ciphertext replication is free and
+// the roll costs one rotation per nonzero shift, with no masks and no
+// accumulates -- far cheaper than the mask/rotate scatter of other
+// expanded placements.
+TEST_F(LayoutAlignmentTest, ReplicateThenRollExpansionIsPureRotations) {
+  // Source: lhs (i, k) packed column-major, [1:4][0:4] (slot = 4k + i).
+  LayoutAttr colMajor = layout({dim(1, 4), dim(0, 4)}, 16);
+  // Target: [1:4];[-1:4][0:4] with rolls [(0, 1)] -- k on ct rolled by the
+  // slot-outermost replication.
+  LayoutAttr rolled = LayoutAttr::get(
+      &context,
+      ArrayAttr::get(&context, {dim(1, 4), dim(/*dim=*/-1, 4), dim(0, 4)}),
+      /*n=*/16, DenseI64ArrayAttr::get(&context, {0, 1}));
+  ASSERT_EQ(rotom::layoutNumCiphertexts(colMajor), 1);
+  ASSERT_EQ(rotom::layoutNumCiphertexts(rolled), 4);
+
+  auto steps = rotom::planLayoutExpansion(colMajor, rolled);
+  ASSERT_TRUE(succeeded(steps));
+  // One full-row step per target ciphertext: shift 4c, no masks (all 16
+  // slots), no accumulates (one step per target).
+  ASSERT_EQ(steps->size(), 4u);
+  for (const rotom::LayoutExpansionStep& step : *steps) {
+    EXPECT_EQ(step.sourceCt, 0);
+    EXPECT_EQ(step.shift, 4 * step.targetCt);
+    EXPECT_EQ(step.targetSlots.size(), 16u);
+  }
+}
+
 TEST_F(LayoutAlignmentTest, CompactionOfGappedMatmulResultPlansMaskedGathers) {
   // Compaction (the ciphertext-count-DECREASING direction): a matmul result
   // layout [0:4:1];[1:4:1][G:4:1] -- 4 ciphertexts, row i claimed at the k=0

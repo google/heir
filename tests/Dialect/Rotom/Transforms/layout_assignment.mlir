@@ -162,20 +162,24 @@ module {
 
 // -----
 
+// The two seed orderings have the same ciphertext count (so the
+// ciphertext-count carrying cost is a wash) and differ only in slot order;
+// the downstream add's free alignment with %arg1 is what selects %arg0's
+// second seed.
 #layout_chain_a = #rotom.layout<dims = [#rotom.dim<[0:2:2]>, #rotom.dim<[0:2:1]>, #rotom.dim<[1:4:1]>], n = 8>
-#layout_chain_b = #rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[1:2:2]>, #rotom.dim<[1:2:1]>], n = 8>
+#layout_chain_b = #rotom.layout<dims = [#rotom.dim<[1:2:2]>, #rotom.dim<[1:2:1]>, #rotom.dim<[0:4:1]>], n = 8>
 #seed_chain_ab = #rotom.seed<layouts = [#layout_chain_a, #layout_chain_b]>
 #seed_chain_b = #rotom.seed<layouts = [#layout_chain_b]>
 
 module {
   // CHECK: func.func @downstream_selects_intermediate
-  // CHECK-SAME: tensor<4x4xf32> {rotom.layout = #rotom.layout<n = 8, dims = {{\[\[0:4:1\], \[1:2:2\], \[1:2:1\]\]}}>}
+  // CHECK-SAME: tensor<4x4xf32> {rotom.layout = #rotom.layout<n = 8, dims = {{\[\[1:2:2\], \[1:2:1\], \[0:4:1\]\]}}>}
   func.func @downstream_selects_intermediate(%arg0: tensor<4x4xf32> {rotom.seed = #seed_chain_ab}, %arg1: tensor<4x4xf32> {rotom.seed = #seed_chain_b}) -> tensor<4x4xf32> {
     // CHECK: tensor.extract_slice
-    // CHECK-SAME: rotom.layout = #rotom.layout<n = 8, dims = {{\[\[0:4:1\], \[1:2:2\], \[1:2:1\]\]}}>
+    // CHECK-SAME: rotom.layout = #rotom.layout<n = 8, dims = {{\[\[1:2:2\], \[1:2:1\], \[0:4:1\]\]}}>
     %0 = tensor.extract_slice %arg0[0, 0] [4, 4] [1, 1] : tensor<4x4xf32> to tensor<4x4xf32>
     // CHECK: arith.addf
-    // CHECK-SAME: rotom.layout = #rotom.layout<n = 8, dims = {{\[\[0:4:1\], \[1:2:2\], \[1:2:1\]\]}}>
+    // CHECK-SAME: rotom.layout = #rotom.layout<n = 8, dims = {{\[\[1:2:2\], \[1:2:1\], \[0:4:1\]\]}}>
     %1 = arith.addf %0, %arg1 : tensor<4x4xf32>
     return %1 : tensor<4x4xf32>
   }
