@@ -314,15 +314,13 @@ static LogicalResult verifyLayoutRolls(
       return emitError() << "rolled dims must have the same extent (size)";
     }
     // The rolled (from) dim must be a traversal dim -- it is the index
-    // expression being rewritten. The roll-by (second) dim may also be a
-    // replication dim: rolling by a replica index materializes every cyclic
-    // rotation of the rolled dim across the replicas, so alignment becomes
-    // replica selection.
+    // expression being rewritten. The roll-by (second) dim may be any kind:
+    // rolling by a replication or gap dim shifts by that dim's block index,
+    // so each block holds a distinct cyclic rotation of the rolled dim -- the
+    // layout materializes every rotation and alignment becomes block
+    // selection. (A rolled-by gap thus claims its blocks, unlike a plain gap.)
     if (di.isGap() || di.isReplicate()) {
       return emitError() << "the rolled dim must be a traversal dim (dim >= 0)";
-    }
-    if (dj.isGap()) {
-      return emitError() << "a roll may not be indexed by a gap dim";
     }
   }
   return success();

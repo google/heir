@@ -47,6 +47,35 @@ static std::string floorDivExpr(llvm::StringRef expr, int64_t d) {
   return out;
 }
 
+/// Index of the gap piece at position `idx` of the layout's dims list within
+/// the per-kind gap dim list (gaps are collected in order of appearance).
+static int64_t gapIndexForPosition(ArrayAttr rotomDims, int64_t idx) {
+  int64_t gapIndex = 0;
+  for (int64_t k = 0; k < idx; ++k) {
+    if (cast<DimAttr>(rotomDims[k]).isGap()) ++gapIndex;
+  }
+  return gapIndex;
+}
+
+/// Gap dims referenced in the roll-by position, as indices into the gap dim
+/// list. A rolled-by gap claims its blocks (each holds a distinct rotation of
+/// the rolled dim), so it gets an existential variable instead of folding to
+/// zero.
+static llvm::DenseSet<int64_t> rolledGapIndexSet(ArrayRef<int64_t> rolls,
+                                                 ArrayAttr rotomDims) {
+  llvm::DenseSet<int64_t> rolled;
+  if (!rotomDims) return rolled;
+  for (size_t i = 0; i + 1 < rolls.size(); i += 2) {
+    const int64_t toIdx = rolls[i + 1];
+    if (toIdx < 0 || toIdx >= static_cast<int64_t>(rotomDims.size())) continue;
+    auto toDim = dyn_cast<DimAttr>(rotomDims[toIdx]);
+    if (toDim && toDim.isGap()) {
+      rolled.insert(gapIndexForPosition(rotomDims, toIdx));
+    }
+  }
+  return rolled;
+}
+
 static LogicalResult emitSegmentAddress(
     llvm::raw_ostream& os, bool& firstTerm, ArrayRef<LayoutPieceKind> pieces,
     ArrayRef<int64_t> pieceIndex, ArrayRef<int64_t> pieceDivBy,
@@ -54,7 +83,8 @@ static LogicalResult emitSegmentAddress(
     const SmallVector<DimAttr>& gapDims,
     const SmallVector<DimAttr>& replicationDims,
     int64_t numActiveTraversalComponents, size_t segStart, size_t segEnd,
-    bool foldGapVarsToZero, ArrayRef<int64_t> rolls, ArrayAttr rotomDims) {
+    const llvm::DenseSet<int64_t>& rolledGapIndices, ArrayRef<int64_t> rolls,
+    ArrayAttr rotomDims) {
   // Effective extent of a piece = the range of its mixed-radix digit: modBy
   // when the piece reads i mod L (the slot/low part), else sz/divBy (the whole
   // dim when divBy 1, or the ct/high part sz/L of a straddling dim).
@@ -103,7 +133,10 @@ static LogicalResult emitSegmentAddress(
   for (size_t p = segStart; p < segEnd; ++p) {
     const int64_t coeff = suffixCoeff[p];
     if (pieces[p] == LayoutPieceKind::Gap) {
-      if (foldGapVarsToZero) continue;
+      // Only a rolled-by gap contributes an address term (its blocks hold the
+      // rotations of the rolled dim); other gaps fold to zero, leaving their
+      // blocks unclaimed.
+      if (!rolledGapIndices.contains(pieceIndex[p])) continue;
       gapCoeff[pieceIndex[p]] = coeff;
     } else if (pieces[p] == LayoutPieceKind::Replication) {
       replicationCoeff[pieceIndex[p]] = coeff;
@@ -161,7 +194,11 @@ static LogicalResult emitSegmentAddress(
       if (failed(maybeFromTrav)) return failure();
       const int64_t fromTrav = *maybeFromTrav;
       std::string toExpr;
-      if (toDim.isReplicate()) {
+      if (toDim.isGap()) {
+        // Rolling by a gap dim: the shift is the gap's existential block
+        // index, so block g holds the rolled dim cyclically shifted by g.
+        toExpr = "g" + std::to_string(gapIndexForPosition(rotomDims, toIdx));
+      } else if (toDim.isReplicate()) {
         // Rolling by a replication dim: the shift is the replica index, whose
         // existential variable is named after the piece's replication slot.
         int64_t replicationIndex = 0;
@@ -223,6 +260,9 @@ static FailureOr<std::string> emitSplitCtSlotIsl(
     ArrayAttr rotomDims) {
   if (prefix > pieces.size()) return failure();
 
+  const llvm::DenseSet<int64_t> rolledGapIndices =
+      rolledGapIndexSet(rolls, rotomDims);
+
   int64_t numCt = 1;
   for (size_t p = 0; p < prefix; ++p) {
     if (pieces[p] == LayoutPieceKind::Traversal) {
@@ -232,6 +272,10 @@ static FailureOr<std::string> emitSplitCtSlotIsl(
       numCt *= sz;
     } else if (pieces[p] == LayoutPieceKind::Replication) {
       numCt *= replicationDims[pieceIndex[p]].getSize();
+    } else if (pieces[p] == LayoutPieceKind::Gap &&
+               rolledGapIndices.contains(pieceIndex[p])) {
+      // A rolled-by gap claims its blocks (one rotation per block index).
+      numCt *= gapDims[pieceIndex[p]].getSize();
     }
   }
   if (numCt < 1) numCt = 1;
@@ -263,8 +307,8 @@ static FailureOr<std::string> emitSplitCtSlotIsl(
   emitAnd();
   os << "0 <= slot <= " << (n - 1);
 
-  const bool foldGapVarsToZero = numGap > 0;
-  const int64_t numLocalVars = numReplication;
+  const int64_t numLocalVars =
+      numReplication + static_cast<int64_t>(rolledGapIndices.size());
 
   if (numLocalVars > 0) {
     os << " and exists ";
@@ -274,6 +318,11 @@ static FailureOr<std::string> emitSplitCtSlotIsl(
         if (!firstVar) os << ", ";
         firstVar = false;
         os << "d" << (numTraversalComponents + pieceIndex[p]);
+      } else if (pieces[p] == LayoutPieceKind::Gap &&
+                 rolledGapIndices.contains(pieceIndex[p])) {
+        if (!firstVar) os << ", ";
+        firstVar = false;
+        os << "g" << pieceIndex[p];
       }
     }
     os << " : ";
@@ -286,7 +335,7 @@ static FailureOr<std::string> emitSplitCtSlotIsl(
   if (failed(emitSegmentAddress(os, firstTerm, pieces, pieceIndex, pieceDivBy,
                                 pieceModBy, traversalDims, gapDims,
                                 replicationDims, numTraversalComponents, 0,
-                                prefix, foldGapVarsToZero, rolls, rotomDims)))
+                                prefix, rolledGapIndices, rolls, rotomDims)))
     return failure();
   if (firstTerm) os << "0";
 
@@ -296,7 +345,7 @@ static FailureOr<std::string> emitSplitCtSlotIsl(
   if (failed(emitSegmentAddress(
           os, firstTerm, pieces, pieceIndex, pieceDivBy, pieceModBy,
           traversalDims, gapDims, replicationDims, numTraversalComponents,
-          prefix, pieces.size(), foldGapVarsToZero, rolls, rotomDims)))
+          prefix, pieces.size(), rolledGapIndices, rolls, rotomDims)))
     return failure();
   if (firstTerm) os << "0";
 
@@ -306,6 +355,11 @@ static FailureOr<std::string> emitSplitCtSlotIsl(
       emitAnd();
       os << "0 <= d" << (numTraversalComponents + k)
          << " <= " << (d.getSize() - 1);
+    }
+    for (int64_t g = 0; g < numGap; ++g) {
+      if (!rolledGapIndices.contains(g)) continue;
+      emitAnd();
+      os << "0 <= g" << g << " <= " << (gapDims[g].getSize() - 1);
     }
   }
 

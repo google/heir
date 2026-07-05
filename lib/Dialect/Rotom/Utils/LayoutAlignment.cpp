@@ -15,6 +15,7 @@
 #include "lib/Transforms/LayoutOptimization/LayoutConversionCost.h"
 #include "lib/Utils/Layout/Utils.h"
 #include "llvm/include/llvm/ADT/DenseMap.h"           // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseSet.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/MathExtras.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"         // from @llvm-project
@@ -37,9 +38,22 @@ static SmallVector<DimAttr> collectDims(LayoutAttr layout) {
 int64_t layoutNumCiphertexts(LayoutAttr layout) {
   SmallVector<DimAttr> dims = collectDims(layout);
   size_t ctPrefixLen = inferCtPrefixLen(dims, layout.getN());
+  // A gap that is a roll-by target claims its blocks (one rotation of the
+  // rolled dim per block index), so it counts toward distinct ciphertexts;
+  // plain gaps are unclaimed space.
+  llvm::DenseSet<int64_t> rolledByPositions;
+  if (DenseI64ArrayAttr rolls = layout.getRolls()) {
+    ArrayRef<int64_t> r = rolls.asArrayRef();
+    for (size_t i = 0; i + 1 < r.size(); i += 2) {
+      rolledByPositions.insert(r[i + 1]);
+    }
+  }
   int64_t numCt = 1;
   for (size_t i = 0; i < ctPrefixLen; ++i) {
-    if (dims[i].isGap()) continue;
+    if (dims[i].isGap() &&
+        !rolledByPositions.contains(static_cast<int64_t>(i))) {
+      continue;
+    }
     numCt *= std::max<int64_t>(dims[i].getSize(), 1);
   }
   return std::max<int64_t>(numCt, 1);
