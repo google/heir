@@ -1072,6 +1072,89 @@ module {
       cast<RankedTensorType>(main.getFunctionType().getResult(0)), expected);
 }
 
+// The general-search rolled-candidate hook (single-roll seed variants): %b
+// arrives packed ONLY at the diagonal roll(1,0) [0:4];[1:4], while %a is
+// seeded plain row-major. Aligning the add at either seed would cost a real
+// rolled<->unrolled conversion; instead the search picks %a's own diagonal
+// single-roll variant -- the same packing, available at encode time for
+// free -- so both operands and the result share the rolled layout and the
+// lowered function is ONE add with no rotations, masks, or convert_layouts.
+TEST(RotomPipelineExecutionTest, ElementwiseSourceAdoptsDiagonalVariant) {
+  MLIRContext context;
+  initContext(context);
+  OwningOpRef<ModuleOp> module = openfhe::parse(&context, R"mlir(
+#layout_row = #rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[1:4:1]>], n = 16>
+#layout_diag = #rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[1:4:1]>], n = 16, rolls = [(1, 0)]>
+#seed_a = #rotom.seed<layouts = [#layout_row]>
+#seed_b = #rotom.seed<layouts = [#layout_diag]>
+
+module {
+  func.func @main(%a: tensor<4x4xf32> {rotom.seed = #seed_a}, %b: tensor<4x4xf32> {rotom.seed = #seed_b}) -> tensor<4x4xf32> {
+    %0 = arith.addf %a, %b : tensor<4x4xf32>
+    return %0 : tensor<4x4xf32>
+  }
+}
+)mlir");
+  ASSERT_TRUE(module);
+  ASSERT_TRUE(succeeded(runRotomPipeline(module.get(), &context,
+                                         /*ciphertextSize=*/16)));
+
+  func::FuncOp main = module->lookupSymbol<func::FuncOp>("main");
+  ASSERT_TRUE(main);
+  tensor_ext::LayoutAttr lhsLayout = getArgLayout(main, 0);
+  tensor_ext::LayoutAttr rhsLayout = getArgLayout(main, 1);
+  tensor_ext::LayoutAttr resultLayout = getResultLayout(main, 0);
+  ASSERT_TRUE(lhsLayout);
+  ASSERT_TRUE(rhsLayout);
+  ASSERT_TRUE(resultLayout);
+
+  // Both operands sit at the same (diagonal) packing: no conversion ops.
+  EXPECT_EQ(lhsLayout, rhsLayout);
+  int64_t nonAddOps = 0;
+  main.walk([&](Operation* op) {
+    if (isa<tensor_ext::ConvertLayoutOp, tensor_ext::RotateOp>(op)) {
+      ++nonAddOps;
+    }
+  });
+  EXPECT_EQ(nonAddOps, 0);
+
+  std::vector<std::vector<float>> lhs = {
+      {1, 2, 3, 4},
+      {5, 6, 7, 8},
+      {9, 10, 11, 12},
+      {13, 14, 15, 16},
+  };
+  std::vector<std::vector<float>> rhs = {
+      {2, 0, 1, 3},
+      {1, 4, 0, 2},
+      {0, 1, 2, 1},
+      {3, 2, 1, 0},
+  };
+  std::vector<std::vector<float>> expected(4, std::vector<float>(4, 0.0f));
+  for (int64_t i = 0; i < 4; ++i) {
+    for (int64_t j = 0; j < 4; ++j) {
+      expected[i][j] = lhs[i][j] + rhs[i][j];
+    }
+  }
+
+  Interpreter interpreter(module.get());
+  std::vector<TypedCppValue> inputs = {
+      TypedCppValue(packMatrix(
+          lhsLayout, cast<RankedTensorType>(main.getArgument(0).getType()),
+          lhs)),
+      TypedCppValue(packMatrix(
+          rhsLayout, cast<RankedTensorType>(main.getArgument(1).getType()),
+          rhs)),
+  };
+  std::vector<TypedCppValue> results = interpreter.interpret("main", inputs);
+  ASSERT_EQ(results.size(), 1);
+
+  auto actual = std::get<std::shared_ptr<std::vector<float>>>(results[0].value);
+  expectClaimedSlotsMatch(
+      *actual, resultLayout,
+      cast<RankedTensorType>(main.getFunctionType().getResult(0)), expected);
+}
+
 }  // namespace
 }  // namespace heir
 }  // namespace mlir

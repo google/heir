@@ -187,6 +187,11 @@ module {
 
 // -----
 
+// Row-major vs column-major seeds: the search picks each source's DIAGONAL
+// single-roll variant (packed at encode time for free), leaving a smaller
+// residual conversion between the two diagonal packings than the direct
+// row-major <-> column-major slot swap. The elementwise ops still get their
+// Rotom kernels at the shared rolled output layout.
 #layout_add_align_a = #rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[1:4:1]>], n = 16>
 #layout_add_align_b = #rotom.layout<dims = [#rotom.dim<[1:4:1]>, #rotom.dim<[0:4:1]>], n = 16>
 #seed_add_align_a = #rotom.seed<layouts = [#layout_add_align_a]>
@@ -194,20 +199,21 @@ module {
 
 module {
   // CHECK: func.func @add_non_rolled_aligned
-  // CHECK-SAME: tensor<4x4xf32> {rotom.layout = #rotom.layout<n = 16, dims = {{\[\[0:4:1\], \[1:4:1\]\]}}>}
+  // CHECK-SAME: tensor<4x4xf32> {rotom.layout = #rotom.layout<n = 16, rolls = [(1, 0)], dims = {{\[\[0:4:1\], \[1:4:1\]\]}}>
+  // CHECK-SAME: tensor<4x4xf32> {rotom.layout = #rotom.layout<n = 16, rolls = [(1, 0)], dims = {{\[\[1:4:1\], \[0:4:1\]\]}}>
   func.func @add_non_rolled_aligned(%arg0: tensor<4x4xf32> {rotom.seed = #seed_add_align_a}, %arg1: tensor<4x4xf32> {rotom.seed = #seed_add_align_b}) -> tensor<4x4xf32> {
     // CHECK: arith.addf
-    // CHECK-SAME: rotom.layout = #rotom.layout<n = 16, dims = {{\[\[0:4:1\], \[1:4:1\]\]}}>
+    // CHECK-SAME: rotom.layout = #rotom.layout<n = 16, rolls = [(1, 0)], dims = {{\[\[0:4:1\], \[1:4:1\]\]}}>
     // CHECK-SAME: secret.kernel = #secret.kernel<name = "RotomAdd"
     %0 = arith.addf %arg0, %arg1 : tensor<4x4xf32>
     return %0 : tensor<4x4xf32>
   }
 
   // CHECK: func.func @mul_non_rolled_aligned
-  // CHECK-SAME: tensor<4x4xf32> {rotom.layout = #rotom.layout<n = 16, dims = {{\[\[0:4:1\], \[1:4:1\]\]}}>}
+  // CHECK-SAME: tensor<4x4xf32> {rotom.layout = #rotom.layout<n = 16, rolls = [(1, 0)], dims = {{\[\[0:4:1\], \[1:4:1\]\]}}>
   func.func @mul_non_rolled_aligned(%arg0: tensor<4x4xf32> {rotom.seed = #seed_add_align_a}, %arg1: tensor<4x4xf32> {rotom.seed = #seed_add_align_b}) -> tensor<4x4xf32> {
     // CHECK: arith.mulf
-    // CHECK-SAME: rotom.layout = #rotom.layout<n = 16, dims = {{\[\[0:4:1\], \[1:4:1\]\]}}>
+    // CHECK-SAME: rotom.layout = #rotom.layout<n = 16, rolls = [(1, 0)], dims = {{\[\[0:4:1\], \[1:4:1\]\]}}>
     // CHECK-SAME: secret.kernel = #secret.kernel<name = "RotomMul"
     %0 = arith.mulf %arg0, %arg1 : tensor<4x4xf32>
     return %0 : tensor<4x4xf32>

@@ -121,13 +121,25 @@ void LayoutAssignment::seedValue(Value value) {
   if (!seed) return;
 
   SmallVector<Candidate> seeded;
-  for (Attribute attr : seed.getLayouts()) {
-    auto layout = dyn_cast<LayoutAttr>(attr);
-    if (!layout) continue;
+  auto addSourceCandidate = [&](LayoutAttr layout) {
     Candidate seed;
     seed.layout = layout;
     seed.kind = KernelKind::Tensor;
     seeded.push_back(std::move(seed));
+  };
+  for (Attribute attr : seed.getLayouts()) {
+    auto layout = dyn_cast<LayoutAttr>(attr);
+    if (!layout) continue;
+    addSourceCandidate(layout);
+    // A seeded value is packed at encode time, so its diagonal packings are
+    // available at the same (zero) packing cost: offer every single-roll
+    // variant of the seed as an additional source candidate. A rolled
+    // placement materializes every rotation of the rolled piece across its
+    // partner's blocks, letting consumers align by block selection instead
+    // of slot permutation; whether that wins is decided by cost as usual.
+    for (LayoutAttr variant : enumerateSingleRollVariants(layout)) {
+      addSourceCandidate(variant);
+    }
   }
   if (!seeded.empty()) setCandidates(value, seeded);
 }

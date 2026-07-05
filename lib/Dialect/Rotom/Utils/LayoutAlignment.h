@@ -90,6 +90,19 @@ FailureOr<SmallVector<LayoutExpansionStep>> planLayoutExpansion(
     const presburger::IntegerRelation& fromRelation,
     const presburger::IntegerRelation& toRelation, int64_t n);
 
+// Every verifier-legal single-roll variant of an unrolled layout: each
+// unit-stride traversal piece rolled by each same-extent unit-stride
+// traversal or replication piece elsewhere (pairs entirely inside the
+// ciphertext prefix are skipped -- rolling there only permutes ciphertext
+// contents; gap partners are skipped -- a rolled-by gap claims its blocks
+// and changes the ciphertext count). Layouts that already carry rolls yield
+// nothing. Used to widen a source's candidate set with its diagonal
+// packings: a rolled placement materializes every rotation of the rolled
+// piece across its partner's blocks, so alignment against a consumer that
+// wants those pieces swapped or shifted becomes block selection instead of
+// slot permutation.
+SmallVector<LayoutAttr> enumerateSingleRollVariants(LayoutAttr layout);
+
 // Whether the current Rotom elementwise lowering can align two operand layouts
 // onto a result layout (same `n`, unit-strided traversal dims,
 // materializable). Differing ciphertext counts are allowed: same-count

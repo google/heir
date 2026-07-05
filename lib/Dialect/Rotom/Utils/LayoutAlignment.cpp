@@ -20,6 +20,7 @@
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/Location.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/OperationSupport.h"    // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
@@ -210,6 +211,49 @@ FailureOr<SmallVector<LayoutExpansionStep>> planLayoutExpansion(
         LayoutExpansionStep{targetCt, sourceCt, shift, std::move(targetSlots)});
   }
   return steps;
+}
+
+SmallVector<LayoutAttr> enumerateSingleRollVariants(LayoutAttr layout) {
+  if (!layout) return {};
+  if (DenseI64ArrayAttr rolls = layout.getRolls()) {
+    if (!rolls.empty()) return {};
+  }
+  MLIRContext* ctx = layout.getContext();
+  SmallVector<DimAttr> dims;
+  for (Attribute attr : layout.getDims()) dims.push_back(cast<DimAttr>(attr));
+  const size_t ctPrefixLen = inferCtPrefixLen(dims, layout.getN());
+
+  // Invalid variants are skipped, not diagnosed (same silencing pattern as
+  // the matmul plan enumeration).
+  ScopedDiagnosticHandler silence(ctx, [](Diagnostic&) { return success(); });
+  auto swallow = mlir::detail::getDefaultDiagnosticEmitFn(UnknownLoc::get(ctx));
+
+  SmallVector<LayoutAttr> variants;
+  for (size_t fromPos = 0; fromPos < dims.size(); ++fromPos) {
+    DimAttr from = dims[fromPos];
+    if (from.isGap() || from.isReplicate() || from.getStride() != 1) continue;
+    for (size_t byPos = 0; byPos < dims.size(); ++byPos) {
+      if (byPos == fromPos) continue;
+      if (fromPos < ctPrefixLen && byPos < ctPrefixLen) continue;
+      DimAttr by = dims[byPos];
+      if (by.isGap() || by.getStride() != 1 || by.getSize() != from.getSize()) {
+        continue;
+      }
+      auto rolls = DenseI64ArrayAttr::get(
+          ctx, {static_cast<int64_t>(fromPos), static_cast<int64_t>(byPos)});
+      if (failed(LayoutAttr::verify(swallow, layout.getDims(), layout.getN(),
+                                    rolls))) {
+        continue;
+      }
+      LayoutAttr variant =
+          LayoutAttr::get(ctx, layout.getDims(), layout.getN(), rolls);
+      // Candidates become assigned layouts, which must materialize; a
+      // verifier-legal roll the ISL emitter cannot lower yet is not offered.
+      if (!isMaterializableRotomLayout(variant)) continue;
+      variants.push_back(variant);
+    }
+  }
+  return variants;
 }
 
 bool hasOnlyUnitStridedTraversalDims(LayoutAttr layout) {

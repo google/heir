@@ -96,6 +96,49 @@ TEST_F(LayoutAlignmentTest, MaterializesMixedRadixRepeatedDimLayout) {
   EXPECT_TRUE(rotom::isMaterializableRotomLayout(split));
 }
 
+TEST_F(LayoutAlignmentTest, SingleRollVariantsOfRowMajor) {
+  // Two same-extent unit-stride slot pieces: each can roll by the other.
+  LayoutAttr rowMajor = layout({dim(0, 4), dim(1, 4)}, 16);
+  SmallVector<LayoutAttr> variants =
+      rotom::enumerateSingleRollVariants(rowMajor);
+  ASSERT_EQ(variants.size(), 2u);
+  auto rolled = [&](int64_t from, int64_t by) {
+    return LayoutAttr::get(&context, rowMajor.getDims(), 16,
+                           DenseI64ArrayAttr::get(&context, {from, by}));
+  };
+  EXPECT_EQ(variants[0], rolled(0, 1));
+  EXPECT_EQ(variants[1], rolled(1, 0));
+}
+
+TEST_F(LayoutAlignmentTest, SingleRollVariantsIncludeReplicationPartners) {
+  // The replication piece is a valid roll-by partner (never a roll-from),
+  // and mismatched extents are skipped.
+  LayoutAttr replicated =
+      layout({dim(0, 4), dim(/*dim=*/-1, 4), dim(1, 2)}, 32);
+  SmallVector<LayoutAttr> variants =
+      rotom::enumerateSingleRollVariants(replicated);
+  ASSERT_EQ(variants.size(), 1u);
+  EXPECT_EQ(variants[0],
+            LayoutAttr::get(&context, replicated.getDims(), 32,
+                            DenseI64ArrayAttr::get(&context, {0, 1})));
+}
+
+TEST_F(LayoutAlignmentTest, SingleRollVariantsSkipRolledAndCtOnlyPairs) {
+  // Already-rolled layouts yield nothing (single-roll only), and a pair
+  // entirely inside the ciphertext prefix is not a variant.
+  LayoutAttr rolled = LayoutAttr::get(
+      &context, ArrayAttr::get(&context, {dim(0, 4), dim(1, 4)}), 16,
+      DenseI64ArrayAttr::get(&context, {0, 1}));
+  EXPECT_TRUE(rotom::enumerateSingleRollVariants(rolled).empty());
+
+  // 4x4x4 at n=16: [0:4][1:4] sit in the ciphertext prefix, [2:4][3:4] in
+  // the slots; the two ct pieces pair only with the slot pieces (extents
+  // match everywhere, so 2 ct x 2 slot x 2 directions + 2 slot-slot = 10).
+  LayoutAttr fourD = layout({dim(0, 4), dim(1, 4), dim(2, 4), dim(3, 4)}, 16);
+  SmallVector<LayoutAttr> variants = rotom::enumerateSingleRollVariants(fourD);
+  EXPECT_EQ(variants.size(), 10u);
+}
+
 TEST_F(LayoutAlignmentTest, ConversionMovesIdenticalIsEmpty) {
   LayoutAttr a = layout({dim(0, 4)}, 4);
   EXPECT_TRUE(rotom::conversionMoves(a, a).empty());
