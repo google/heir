@@ -195,13 +195,40 @@ int64_t LayoutAssignment::cachedConversionCost(LayoutAttr from, LayoutAttr to) {
   auto it = conversionCostCache.find(key);
   if (it != conversionCostCache.end()) return it->second;
 
-  // Real Vos-Vos-Erkin rotation count weighted by the per-rotation cost. Every
-  // candidate layout is materializable (the search only generates such
-  // layouts), so the shift network always yields a cost. Cached per layout pair
-  // since the search queries the same pairs across many candidate pairings.
-  std::optional<int64_t> rotations = shiftNetworkConversionCost(from, to);
-  assert(rotations && "shift network must yield a cost for assignable layouts");
-  int64_t cost = *rotations * getCostModel().rotation;
+  const RotomCostModel& costModel = getCostModel();
+  int64_t cost;
+  if (layoutNumCiphertexts(from) == layoutNumCiphertexts(to)) {
+    // Real Vos-Vos-Erkin rotation count weighted by the per-rotation cost.
+    // Every candidate layout is materializable (the search only generates such
+    // layouts), so the shift network always yields a cost.
+    std::optional<int64_t> rotations = shiftNetworkConversionCost(from, to);
+    assert(rotations &&
+           "shift network must yield a cost for assignable layouts");
+    cost = *rotations * costModel.rotation;
+  } else {
+    // Ciphertext-count-changing conversion (expansion or compaction), which
+    // tensor_ext.convert_layout cannot express: price the explicit
+    // rotate/mask/accumulate steps exactly as the lowering emits them, so
+    // expensive conversions lose in the search on cost, not on capability.
+    FailureOr<SmallVector<LayoutExpansionStep>> steps =
+        planLayoutExpansion(from, to);
+    assert(succeeded(steps) &&
+           "layout expansion must plan for assignable layouts");
+    const int64_t n = from.getN();
+    cost = 0;
+    DenseSet<int64_t> targetsSeen;
+    for (const LayoutExpansionStep& step : *steps) {
+      if (step.shift != 0) cost += costModel.rotation;
+      // A partial-row step needs a plaintext mask multiply (cheap; priced as
+      // an add pending a dedicated plaintext-multiply weight).
+      if (static_cast<int64_t>(step.targetSlots.size()) != n) {
+        cost += costModel.add;
+      }
+      if (!targetsSeen.insert(step.targetCt).second) cost += costModel.add;
+    }
+  }
+  // Cached per layout pair since the search queries the same pairs across many
+  // candidate pairings.
   conversionCostCache[key] = cost;
   return cost;
 }

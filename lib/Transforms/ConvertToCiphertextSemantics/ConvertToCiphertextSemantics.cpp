@@ -2679,109 +2679,18 @@ class ConvertRotomMatmul : public ConversionBase<linalg::MatmulOp> {
     return tensor_ext::LayoutAttr::get(layout.getContext(), *isl);
   }
 
-  // Brings one converted operand to its expanded placement. Same ciphertext
-  // count: one convert_layout (the shift network fills slot-region
-  // replication). Different ciphertext count -- which convert_layout cannot
-  // express -- the explicit rotate/mask/accumulate steps of
-  // planLayoutExpansion, exactly as the layout assignment priced them.
+  // Brings one converted operand to its expanded placement via the shared
+  // conversion emission (convert_layout when the ciphertext count is
+  // unchanged, explicit rotate/mask/accumulate steps when it changes).
   Value expandOperand(ImplicitLocOpBuilder& b, Value value,
                       rotom::LayoutAttr source,
                       rotom::LayoutAttr expanded) const {
     if (source == expanded) return value;
     tensor_ext::LayoutAttr expandedLayout = teLayoutOf(expanded);
-    if (!expandedLayout) return nullptr;
-
-    if (rotom::layoutNumCiphertexts(source) ==
-        rotom::layoutNumCiphertexts(expanded)) {
-      tensor_ext::LayoutAttr fromLayout = getLayoutAttr(value);
-      if (!fromLayout) return nullptr;
-      if (fromLayout == expandedLayout) return value;
-      Value v = tensor_ext::ConvertLayoutOp::create(b, value, fromLayout,
-                                                    expandedLayout);
-      setAttributeAssociatedWith(v, kLayoutAttrName, expandedLayout);
-      return v;
-    }
-
-    FailureOr<SmallVector<rotom::LayoutExpansionStep>> steps =
-        rotom::planLayoutExpansion(source, expanded);
-    if (failed(steps)) return nullptr;
-    auto sourceType = cast<RankedTensorType>(value.getType());
-    const int64_t numSlots = sourceType.getDimSize(1);
-    const int64_t numTargetCt = rotom::layoutNumCiphertexts(expanded);
-    auto rowType =
-        RankedTensorType::get({1, numSlots}, sourceType.getElementType());
-
-    SmallVector<Value> rows(numTargetCt, Value());
-    SmallVector<OpFoldResult> sizes = {b.getIndexAttr(1),
-                                       b.getIndexAttr(numSlots)};
-    SmallVector<OpFoldResult> strides = {b.getIndexAttr(1), b.getIndexAttr(1)};
-    for (const rotom::LayoutExpansionStep& step : *steps) {
-      if (step.targetCt < 0 || step.targetCt >= numTargetCt) return nullptr;
-      SmallVector<OpFoldResult> offsets = {b.getIndexAttr(step.sourceCt),
-                                           b.getIndexAttr(0)};
-      Value row = tensor::ExtractSliceOp::create(b, rowType, value, offsets,
-                                                 sizes, strides);
-      setMaterializedAttr(row.getDefiningOp());
-      if (step.shift != 0) {
-        Value shift = arith::ConstantIndexOp::create(b, step.shift);
-        setMaterializedAttr(shift.getDefiningOp());
-        row = tensor_ext::RotateOp::create(b, row, shift);
-        setMaterializedAttr(row.getDefiningOp());
-      }
-      if (static_cast<int64_t>(step.targetSlots.size()) != numSlots) {
-        Value mask = buildSlotMask(b, rowType, step.targetSlots);
-        Operation* masked =
-            makeAppropriatelyTypedMulOp(b, b.getLoc(), row, mask);
-        setMaterializedAttr(masked);
-        row = masked->getResult(0);
-      }
-      Value& target = rows[step.targetCt];
-      if (!target) {
-        target = row;
-      } else {
-        Operation* add =
-            makeAppropriatelyTypedAddOp(b, b.getLoc(), target, row);
-        setMaterializedAttr(add);
-        target = add->getResult(0);
-      }
-    }
-    for (Value row : rows) {
-      if (!row) return nullptr;
-    }
-
-    Value result;
-    if (numTargetCt == 1) {
-      result = rows[0];
-    } else {
-      auto concat = tensor::ConcatOp::create(b, /*dim=*/0, rows);
-      setMaterializedAttr(concat);
-      result = concat.getResult();
-    }
-    Operation* def = result.getDefiningOp();
-    def->setAttr(kLayoutAttrName, expandedLayout);
-    setMaterializedAttr(def);
-    setAttributeAssociatedWith(result, kLayoutAttrName, expandedLayout);
-    return result;
-  }
-
-  // A plaintext 1/0 mask selecting `slots` of a single-ciphertext row.
-  Value buildSlotMask(ImplicitLocOpBuilder& b, RankedTensorType rowType,
-                      ArrayRef<int64_t> slots) const {
-    Type elementType = rowType.getElementType();
-    Attribute zero, one;
-    if (isa<FloatType>(elementType)) {
-      zero = FloatAttr::get(elementType, 0.0);
-      one = FloatAttr::get(elementType, 1.0);
-    } else {
-      zero = IntegerAttr::get(elementType, 0);
-      one = IntegerAttr::get(elementType, 1);
-    }
-    SmallVector<Attribute> values(rowType.getNumElements(), zero);
-    for (int64_t slot : slots) values[slot] = one;
-    auto dense = DenseElementsAttr::get(rowType, values);
-    auto mask = arith::ConstantOp::create(b, rowType, dense);
-    setMaterializedAttr(mask);
-    return mask;
+    tensor_ext::LayoutAttr fromLayout = getLayoutAttr(value);
+    if (!expandedLayout || !fromLayout) return nullptr;
+    return RotomTensorOpLowering(getTypeConverter())
+        .convertToLayout(b, value, fromLayout, expandedLayout);
   }
 };
 

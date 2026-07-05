@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 
+#include "lib/Dialect/Rotom/Utils/LayoutAlignment.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
@@ -21,10 +22,10 @@
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
-#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/TypeUtilities.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 
 #define DEBUG_TYPE "convert-to-ciphertext-semantics"
 
@@ -47,6 +48,106 @@ LayoutAttr RotomTensorOpLowering::getLayoutAttr(Value value) const {
     return nullptr;
   }
   return dyn_cast<LayoutAttr>(layoutLookup.value());
+}
+
+// A plaintext 1/0 mask selecting `slots` of a single-ciphertext row.
+static Value buildSlotMask(ImplicitLocOpBuilder& b, RankedTensorType rowType,
+                           ArrayRef<int64_t> slots) {
+  Type elementType = rowType.getElementType();
+  Attribute zero, one;
+  if (isa<FloatType>(elementType)) {
+    zero = FloatAttr::get(elementType, 0.0);
+    one = FloatAttr::get(elementType, 1.0);
+  } else {
+    zero = IntegerAttr::get(elementType, 0);
+    one = IntegerAttr::get(elementType, 1);
+  }
+  SmallVector<Attribute> values(rowType.getNumElements(), zero);
+  for (int64_t slot : slots) values[slot] = one;
+  auto dense = DenseElementsAttr::get(rowType, values);
+  auto mask = arith::ConstantOp::create(b, rowType, dense);
+  setMaterializedAttr(mask);
+  return mask;
+}
+
+Value RotomTensorOpLowering::convertToLayout(ImplicitLocOpBuilder& b,
+                                             Value value, LayoutAttr fromLayout,
+                                             LayoutAttr toLayout) const {
+  if (fromLayout == toLayout) return value;
+  auto sourceType = dyn_cast<RankedTensorType>(value.getType());
+  if (!sourceType || sourceType.getRank() != 2) return nullptr;
+  const int64_t numSlots = sourceType.getDimSize(1);
+
+  IntegerRelation toRelation = toLayout.getIntegerRelation();
+  auto ctUpperBound = toRelation.getConstantBound64(
+      presburger::BoundType::UB,
+      toRelation.getVarKindOffset(presburger::VarKind::Range));
+  if (!ctUpperBound) return nullptr;
+  const int64_t numTargetCt = *ctUpperBound + 1;
+
+  if (numTargetCt == sourceType.getDimSize(0)) {
+    Value v =
+        tensor_ext::ConvertLayoutOp::create(b, value, fromLayout, toLayout);
+    setAttributeAssociatedWith(v, kLayoutAttrName, toLayout);
+    return v;
+  }
+
+  FailureOr<SmallVector<rotom::LayoutExpansionStep>> steps =
+      rotom::planLayoutExpansion(fromLayout.getIntegerRelation(), toRelation,
+                                 numSlots);
+  if (failed(steps)) return nullptr;
+  auto rowType =
+      RankedTensorType::get({1, numSlots}, sourceType.getElementType());
+
+  SmallVector<Value> rows(numTargetCt, Value());
+  SmallVector<OpFoldResult> sizes = {b.getIndexAttr(1),
+                                     b.getIndexAttr(numSlots)};
+  SmallVector<OpFoldResult> strides = {b.getIndexAttr(1), b.getIndexAttr(1)};
+  for (const rotom::LayoutExpansionStep& step : *steps) {
+    if (step.targetCt < 0 || step.targetCt >= numTargetCt) return nullptr;
+    SmallVector<OpFoldResult> offsets = {b.getIndexAttr(step.sourceCt),
+                                         b.getIndexAttr(0)};
+    Value row = tensor::ExtractSliceOp::create(b, rowType, value, offsets,
+                                               sizes, strides);
+    setMaterializedAttr(row.getDefiningOp());
+    if (step.shift != 0) {
+      Value shift = arith::ConstantIndexOp::create(b, step.shift);
+      setMaterializedAttr(shift.getDefiningOp());
+      row = tensor_ext::RotateOp::create(b, row, shift);
+      setMaterializedAttr(row.getDefiningOp());
+    }
+    if (static_cast<int64_t>(step.targetSlots.size()) != numSlots) {
+      Value mask = buildSlotMask(b, rowType, step.targetSlots);
+      Operation* masked = makeAppropriatelyTypedMulOp(b, b.getLoc(), row, mask);
+      setMaterializedAttr(masked);
+      row = masked->getResult(0);
+    }
+    Value& target = rows[step.targetCt];
+    if (!target) {
+      target = row;
+    } else {
+      Operation* add = makeAppropriatelyTypedAddOp(b, b.getLoc(), target, row);
+      setMaterializedAttr(add);
+      target = add->getResult(0);
+    }
+  }
+  for (Value row : rows) {
+    if (!row) return nullptr;
+  }
+
+  Value result;
+  if (numTargetCt == 1) {
+    result = rows[0];
+  } else {
+    auto concat = tensor::ConcatOp::create(b, /*dim=*/0, rows);
+    setMaterializedAttr(concat);
+    result = concat.getResult();
+  }
+  Operation* def = result.getDefiningOp();
+  def->setAttr(kLayoutAttrName, toLayout);
+  setMaterializedAttr(def);
+  setAttributeAssociatedWith(result, kLayoutAttrName, toLayout);
+  return result;
 }
 
 LogicalResult RotomTensorOpLowering::lowerElementwiseBinary(
@@ -88,13 +189,20 @@ LogicalResult RotomTensorOpLowering::lowerElementwiseBinary(
     return rewriter.notifyMatchFailure(
         op, "failed to convert Rotom elementwise result type");
   }
+  // Operand ciphertext counts may differ from the output's (the conversion
+  // below expands or compacts them); only the slot count and element type
+  // must agree.
   auto ciphertextSemanticType = dyn_cast<RankedTensorType>(convertedResultType);
-  if (!ciphertextSemanticType || lhsType != ciphertextSemanticType ||
-      rhsType != ciphertextSemanticType) {
+  if (!ciphertextSemanticType || ciphertextSemanticType.getRank() != 2 ||
+      lhsType.getRank() != 2 || rhsType.getRank() != 2 ||
+      lhsType.getDimSize(1) != ciphertextSemanticType.getDimSize(1) ||
+      rhsType.getDimSize(1) != ciphertextSemanticType.getDimSize(1) ||
+      lhsType.getElementType() != ciphertextSemanticType.getElementType() ||
+      rhsType.getElementType() != ciphertextSemanticType.getElementType()) {
     return rewriter.notifyMatchFailure(
         op,
-        "Rotom elementwise lowering currently requires matching ciphertext "
-        "semantic tensor shapes");
+        "Rotom elementwise lowering requires ciphertext semantic tensors "
+        "with matching slot counts and element types");
   }
 
   bool isAdd = isa<arith::AddFOp, arith::AddIOp>(op);
@@ -108,19 +216,17 @@ LogicalResult RotomTensorOpLowering::lowerElementwiseBinary(
   ImplicitLocOpBuilder b(op->getLoc(), rewriter);
   rewriter.setInsertionPointAfter(op);
 
-  // Convert-then-compute: bring each operand to the shared output layout with a
-  // tensor_ext.convert_layout (a no-op when it already is), then perform the
-  // elementwise op once at that layout. The implement-shift-network pass lowers
-  // the conversions into rotations + masks.
-  auto convertToOutput = [&](Value operand, LayoutAttr operandLayout) -> Value {
-    if (operandLayout == outputLayout) return operand;
-    Value converted = tensor_ext::ConvertLayoutOp::create(
-        b, operand, operandLayout, outputLayout);
-    setAttributeAssociatedWith(converted, kLayoutAttrName, outputLayout);
-    return converted;
-  };
-  Value lhs = convertToOutput(adaptorOperands[0], lhsLayout);
-  Value rhs = convertToOutput(adaptorOperands[1], rhsLayout);
+  // Convert-then-compute: bring each operand to the shared output layout (a
+  // no-op when it already is), then perform the elementwise op once at that
+  // layout. A same-ciphertext-count conversion becomes a convert_layout the
+  // implement-shift-network pass lowers into rotations + masks; a
+  // count-changing one is emitted as explicit rotate/mask/accumulate steps.
+  Value lhs = convertToLayout(b, adaptorOperands[0], lhsLayout, outputLayout);
+  Value rhs = convertToLayout(b, adaptorOperands[1], rhsLayout, outputLayout);
+  if (!lhs || !rhs) {
+    return rewriter.notifyMatchFailure(
+        op, "failed to convert a Rotom elementwise operand layout");
+  }
 
   Operation* result =
       isAdd   ? makeAppropriatelyTypedAddOp(b, op->getLoc(), lhs, rhs)

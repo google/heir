@@ -179,6 +179,32 @@ TEST_F(LayoutAlignmentTest, ExpansionScatterNeedsRotationsAndMasks) {
   EXPECT_TRUE(sawMask);
 }
 
+TEST_F(LayoutAlignmentTest, CompactionOfGappedMatmulResultPlansMaskedGathers) {
+  // Compaction (the ciphertext-count-DECREASING direction): a matmul result
+  // layout [0:4:1];[1:4:1][G:4:1] -- 4 ciphertexts, row i claimed at the k=0
+  // offsets slot 4j, everything else gap garbage -- compacts into one
+  // column-major ciphertext (slot = 4j + i). Each source ciphertext i
+  // contributes one group: shift (-i) mod 16, target slots {4j + i}, masked
+  // (the mask also kills the gap garbage).
+  LayoutAttr source = layout({dim(0, 4), dim(1, 4), dim(/*dim=*/-2, 4)}, 16);
+  LayoutAttr compact = layout({dim(1, 4), dim(0, 4)}, 16);
+  ASSERT_EQ(rotom::layoutNumCiphertexts(source), 4);
+  ASSERT_EQ(rotom::layoutNumCiphertexts(compact), 1);
+
+  auto steps = rotom::planLayoutExpansion(source, compact);
+  ASSERT_TRUE(succeeded(steps));
+  ASSERT_EQ(steps->size(), 4u);
+  for (const rotom::LayoutExpansionStep& step : *steps) {
+    EXPECT_EQ(step.targetCt, 0);
+    const int64_t i = step.sourceCt;
+    EXPECT_EQ(step.shift, (16 - i) % 16);
+    ASSERT_EQ(step.targetSlots.size(), 4u);
+    for (int64_t j = 0; j < 4; ++j) {
+      EXPECT_EQ(step.targetSlots[j], 4 * j + i);
+    }
+  }
+}
+
 }  // namespace
 }  // namespace heir
 }  // namespace mlir

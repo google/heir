@@ -8,6 +8,10 @@
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
 
 namespace mlir {
+namespace presburger {
+class IntegerRelation;
+}  // namespace presburger
+
 namespace heir {
 namespace rotom {
 
@@ -69,19 +73,28 @@ struct LayoutExpansionStep {
 
 // Decomposes the conversion of a value packed as `from` into `to` (rotom
 // layouts of the same tensor at the same n, possibly with DIFFERENT
-// ciphertext counts) into explicit rotate/mask/accumulate steps, grouped by
-// (targetCt, sourceCt, shift) and deterministically ordered. This is the
-// general path for conversions tensor_ext.convert_layout cannot express
-// (its operand and result types must match); the layout assignment prices
-// exactly these steps, so search prunes expensive expansions by cost rather
-// than by capability. Fails when either layout does not lower to an ISL
-// relation or the domains disagree.
+// ciphertext counts -- both expansion and compaction) into explicit
+// rotate/mask/accumulate steps, grouped by (targetCt, sourceCt, shift) and
+// deterministically ordered. This is the general path for conversions
+// tensor_ext.convert_layout cannot express (its operand and result types must
+// match); the layout assignment prices exactly these steps, so search prunes
+// expensive expansions by cost rather than by capability. Fails when either
+// layout does not lower to an ISL relation or the domains disagree.
 FailureOr<SmallVector<LayoutExpansionStep>> planLayoutExpansion(LayoutAttr from,
                                                                 LayoutAttr to);
 
+// As above, on already-materialized tensor_ext layout relations (post
+// materialization the rotom layouts are erased; the relations carry the same
+// placement information). `n` is the ciphertext slot count.
+FailureOr<SmallVector<LayoutExpansionStep>> planLayoutExpansion(
+    const presburger::IntegerRelation& fromRelation,
+    const presburger::IntegerRelation& toRelation, int64_t n);
+
 // Whether the current Rotom elementwise lowering can align two operand layouts
-// onto a result layout (same `n`, unit-strided traversal dims, materializable,
-// same ciphertext count).
+// onto a result layout (same `n`, unit-strided traversal dims,
+// materializable). Differing ciphertext counts are allowed: same-count
+// conversions lower to tensor_ext.convert_layout, count-changing ones to the
+// explicit steps of planLayoutExpansion.
 //
 // TODO: this is elementwise-specific. As other tensor operators gain compute
 // kernels they will have different alignment goals (e.g. a matmul aligns on the

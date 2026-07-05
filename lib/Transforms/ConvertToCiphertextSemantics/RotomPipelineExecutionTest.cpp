@@ -450,6 +450,80 @@ module {
                  expectedAdd));
 }
 
+// The operands are seeded at DIFFERENT ciphertext counts: one row-per-
+// ciphertext (4 cts via an explicit slot gap), one row-major (1 ct). Whatever
+// compute layout the search picks, one operand crosses a ciphertext-count
+// boundary -- the conversion tensor_ext.convert_layout cannot express -- so
+// this exercises the explicit rotate/mask/accumulate conversion (expansion or
+// compaction) inside an elementwise kernel.
+TEST(RotomPipelineExecutionTest,
+     ElementwiseAcrossCiphertextCountsMatchesReference) {
+  MLIRContext context;
+  initContext(context);
+  OwningOpRef<ModuleOp> module = openfhe::parse(&context, R"mlir(
+#layout_ct_rows = #rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[-2:4:1]>, #rotom.dim<[1:4:1]>], n = 16>
+#layout_row = #rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[1:4:1]>], n = 16>
+#seed_ct_rows = #rotom.seed<layouts = [#layout_ct_rows]>
+#seed_row = #rotom.seed<layouts = [#layout_row]>
+
+module {
+  func.func @main(%a: tensor<4x4xf32> {rotom.seed = #seed_ct_rows}, %b: tensor<4x4xf32> {rotom.seed = #seed_row}) -> tensor<4x4xf32> {
+    %0 = arith.addf %a, %b : tensor<4x4xf32>
+    return %0 : tensor<4x4xf32>
+  }
+}
+)mlir");
+  ASSERT_TRUE(module);
+  ASSERT_TRUE(succeeded(runRotomPipeline(module.get(), &context,
+                                         /*ciphertextSize=*/16)));
+
+  func::FuncOp main = module->lookupSymbol<func::FuncOp>("main");
+  ASSERT_TRUE(main);
+  tensor_ext::LayoutAttr lhsLayout = getArgLayout(main, 0);
+  tensor_ext::LayoutAttr rhsLayout = getArgLayout(main, 1);
+  tensor_ext::LayoutAttr addLayout = getResultLayout(main, 0);
+  ASSERT_TRUE(lhsLayout);
+  ASSERT_TRUE(rhsLayout);
+  ASSERT_TRUE(addLayout);
+
+  std::vector<std::vector<float>> lhs = {
+      {1, 2, 3, 4},
+      {5, 6, 7, 8},
+      {9, 10, 11, 12},
+      {13, 14, 15, 16},
+  };
+  std::vector<std::vector<float>> rhs = {
+      {16, 15, 14, 13},
+      {12, 11, 10, 9},
+      {8, 7, 6, 5},
+      {4, 3, 2, 1},
+  };
+  std::vector<std::vector<float>> expectedAdd(4, std::vector<float>(4));
+  for (int64_t i = 0; i < 4; ++i) {
+    for (int64_t j = 0; j < 4; ++j) {
+      expectedAdd[i][j] = lhs[i][j] + rhs[i][j];
+    }
+  }
+
+  Interpreter interpreter(module.get());
+  std::vector<TypedCppValue> inputs = {
+      TypedCppValue(packMatrix(
+          lhsLayout, cast<RankedTensorType>(main.getArgument(0).getType()),
+          lhs)),
+      TypedCppValue(packMatrix(
+          rhsLayout, cast<RankedTensorType>(main.getArgument(1).getType()),
+          rhs)),
+  };
+  std::vector<TypedCppValue> results = interpreter.interpret("main", inputs);
+  ASSERT_EQ(results.size(), 1);
+
+  auto actualAdd =
+      std::get<std::shared_ptr<std::vector<float>>>(results[0].value);
+  expectClaimedSlotsMatch(
+      *actualAdd, addLayout,
+      cast<RankedTensorType>(main.getFunctionType().getResult(0)), expectedAdd);
+}
+
 // Roll-free matvec through the full pipeline: align (replicate the vector
 // across the matrix rows' slot positions), multiply once, rotate-and-reduce
 // k. The result layout claims only the k=0 offsets, which must hold the true

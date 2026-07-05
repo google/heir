@@ -14,9 +14,10 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Transforms/LayoutOptimization/LayoutConversionCost.h"
 #include "lib/Utils/Layout/Utils.h"
-#include "llvm/include/llvm/ADT/DenseMap.h"           // from @llvm-project
-#include "llvm/include/llvm/ADT/DenseSet.h"           // from @llvm-project
-#include "llvm/include/llvm/Support/MathExtras.h"     // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseMap.h"        // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseSet.h"        // from @llvm-project
+#include "llvm/include/llvm/Support/MathExtras.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
@@ -147,17 +148,21 @@ std::optional<int64_t> shiftNetworkConversionCost(LayoutAttr from,
 FailureOr<SmallVector<LayoutExpansionStep>> planLayoutExpansion(LayoutAttr from,
                                                                 LayoutAttr to) {
   if (!from || !to || from.getN() != to.getN()) return failure();
-  const int64_t n = from.getN();
   MLIRContext* ctx = from.getContext();
   FailureOr<std::string> fromIsl =
       RotomTensorExtLayoutLowering::lowerToTensorExtIsl(from);
   FailureOr<std::string> toIsl =
       RotomTensorExtLayoutLowering::lowerToTensorExtIsl(to);
   if (failed(fromIsl) || failed(toIsl)) return failure();
-  presburger::IntegerRelation fromRelation =
-      tensor_ext::LayoutAttr::get(ctx, *fromIsl).getIntegerRelation();
-  presburger::IntegerRelation toRelation =
-      tensor_ext::LayoutAttr::get(ctx, *toIsl).getIntegerRelation();
+  return planLayoutExpansion(
+      tensor_ext::LayoutAttr::get(ctx, *fromIsl).getIntegerRelation(),
+      tensor_ext::LayoutAttr::get(ctx, *toIsl).getIntegerRelation(),
+      from.getN());
+}
+
+FailureOr<SmallVector<LayoutExpansionStep>> planLayoutExpansion(
+    const presburger::IntegerRelation& fromRelation,
+    const presburger::IntegerRelation& toRelation, int64_t n) {
   if (fromRelation.getNumDomainVars() != toRelation.getNumDomainVars()) {
     return failure();
   }
@@ -224,18 +229,12 @@ bool supportsRotomAlignmentLowering(LayoutAttr lhsLayout, LayoutAttr rhsLayout,
       !hasOnlyUnitStridedTraversalDims(resultLayout)) {
     return false;
   }
-  if (!isMaterializableRotomLayout(lhsLayout) ||
-      !isMaterializableRotomLayout(rhsLayout) ||
-      !isMaterializableRotomLayout(resultLayout)) {
-    return false;
-  }
-
-  // The current Rotom lowering aligns logical scalar contributions by masking
-  // and remapping between ciphertext-semantic tensors. tensor_ext.remap remaps
-  // within one ciphertext tensor shape, so all participating layouts must
-  // materialize to the same number of ciphertexts.
-  return layoutNumCiphertexts(lhsLayout) == layoutNumCiphertexts(rhsLayout) &&
-         layoutNumCiphertexts(lhsLayout) == layoutNumCiphertexts(resultLayout);
+  // Differing ciphertext counts are allowed: a same-count alignment lowers to
+  // tensor_ext.convert_layout, a count-changing one to the explicit
+  // rotate/mask/accumulate steps of planLayoutExpansion.
+  return isMaterializableRotomLayout(lhsLayout) &&
+         isMaterializableRotomLayout(rhsLayout) &&
+         isMaterializableRotomLayout(resultLayout);
 }
 
 }  // namespace rotom
