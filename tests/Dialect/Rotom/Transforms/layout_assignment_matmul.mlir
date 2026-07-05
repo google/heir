@@ -21,18 +21,19 @@
 module {
   // CHECK: func.func @matmul_assign
   // CHECK-NOT: secret.kernel
-  // CHECK-SAME: %arg0: tensor<4x4xf32> {rotom.layout = #rotom.layout<n = 64, dims = {{\[\[1:4:1\], \[-1:4:1\], \[0:4:1\]\]}}>
-  // CHECK-SAME: %arg1: tensor<4x4xf32> {rotom.layout = #rotom.layout<n = 64, dims = {{\[\[0:4:1\], \[1:4:1\], \[-1:4:1\]\]}}>
-  // CHECK-SAME: -> (tensor<4x4xf32> {rotom.layout = #rotom.layout<n = 64, dims = {{\[\[-2:4:1\], \[1:4:1\], \[0:4:1\]\]}}>})
+  // CHECK-SAME: %arg0: tensor<4x4xf32> {rotom.layout = #rotom.layout<n = 64, dims = {{\[\[0:4:1\], \[1:4:1\], \[R:4:1\]\]}}>
+  // CHECK-SAME: %arg1: tensor<4x4xf32> {rotom.layout = #rotom.layout<n = 64, dims = {{\[\[R:4:1\], \[0:4:1\], \[1:4:1\]\]}}>
+  // CHECK-SAME: -> (tensor<4x4xf32> {rotom.layout = #rotom.layout<n = 64, dims = {{\[\[0:4:1\], \[G:4:1\], \[1:4:1\]\]}}>})
   func.func @matmul_assign(%a: tensor<4x4xf32> {rotom.seed = #seed_row}, %b: tensor<4x4xf32> {rotom.seed = #seed_row}) -> tensor<4x4xf32> {
     %cst = arith.constant 0.000000e+00 : f32
     %empty = tensor.empty() : tensor<4x4xf32>
     %fill = linalg.fill ins(%cst : f32) outs(%empty : tensor<4x4xf32>) -> tensor<4x4xf32>
-    // The winning compute placement is [k][j][i] in one ciphertext's slots
-    // (operands repacked to it for free); summing k leaves an outermost slot
-    // gap (the true sums sit at the k=0 offsets).
+    // The winning compute placement is [i][k][j] in one ciphertext's slots
+    // (operands repacked to it for free, several placements tie on cost);
+    // summing k leaves a slot gap between i and j (the true sums sit at the
+    // k=0 offsets).
     // CHECK: linalg.matmul
-    // CHECK-SAME: rotom.layout = #rotom.layout<n = 64, dims = {{\[\[-2:4:1\], \[1:4:1\], \[0:4:1\]\]}}>
+    // CHECK-SAME: rotom.layout = #rotom.layout<n = 64, dims = {{\[\[0:4:1\], \[G:4:1\], \[1:4:1\]\]}}>
     // CHECK-SAME: rotom.matmul
     %0 = linalg.matmul ins(%a, %b : tensor<4x4xf32>, tensor<4x4xf32>) outs(%fill : tensor<4x4xf32>) -> tensor<4x4xf32>
     return %0 : tensor<4x4xf32>
@@ -54,14 +55,14 @@ module {
   // CHECK: func.func @matvec_assign
   // CHECK-NOT: secret.kernel
   // CHECK-SAME: %arg0: tensor<4x4xf32> {rotom.layout = #rotom.layout<n = 16, dims = {{\[\[0:4:1\], \[1:4:1\]\]}}>
-  // CHECK-SAME: %arg1: tensor<4x1xf32> {rotom.layout = #rotom.layout<n = 16, dims = {{\[\[-1:4:1\], \[0:4:1\]\]}}>
-  // CHECK-SAME: -> (tensor<4x1xf32> {rotom.layout = #rotom.layout<n = 16, dims = {{\[\[0:4:1\], \[-2:4:1\]\]}}>})
+  // CHECK-SAME: %arg1: tensor<4x1xf32> {rotom.layout = #rotom.layout<n = 16, dims = {{\[\[R:4:1\], \[0:4:1\]\]}}>
+  // CHECK-SAME: -> (tensor<4x1xf32> {rotom.layout = #rotom.layout<n = 16, dims = {{\[\[0:4:1\], \[G:4:1\]\]}}>})
   func.func @matvec_assign(%a: tensor<4x4xf32> {rotom.seed = #seed_mat}, %b: tensor<4x1xf32> {rotom.seed = #seed_col}) -> tensor<4x1xf32> {
     %cst = arith.constant 0.000000e+00 : f32
     %empty = tensor.empty() : tensor<4x1xf32>
     %fill = linalg.fill ins(%cst : f32) outs(%empty : tensor<4x1xf32>) -> tensor<4x1xf32>
     // CHECK: linalg.matmul
-    // CHECK-SAME: rotom.layout = #rotom.layout<n = 16, dims = {{\[\[0:4:1\], \[-2:4:1\]\]}}>
+    // CHECK-SAME: rotom.layout = #rotom.layout<n = 16, dims = {{\[\[0:4:1\], \[G:4:1\]\]}}>
     // CHECK-SAME: rotom.matmul
     %0 = linalg.matmul ins(%a, %b : tensor<4x4xf32>, tensor<4x1xf32>) outs(%fill : tensor<4x1xf32>) -> tensor<4x1xf32>
     return %0 : tensor<4x1xf32>

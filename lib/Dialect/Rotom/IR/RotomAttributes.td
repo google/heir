@@ -23,7 +23,9 @@ def Rotom_DimAttr : Rotom_Attr<"Dim", "dim"> {
     * `-1`: replication (logical fill along this layout piece)
     * `-2`: gap (padding / unused slots; constrained to zero in materialization)
 
-    Non-negative `dim` values index into the logical tensor shape.
+    Non-negative `dim` values index into the logical tensor shape. In the
+    assembly form the sentinels are spelled `R` (replication) and `G` (gap),
+    e.g. `[R:4:1]`; the numeric ids are also accepted on input.
   }];
 
   let parameters = (ins

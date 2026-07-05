@@ -235,15 +235,15 @@ module {
 
 // -----
 
-#layout_replicated_dim = #rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[-1:2:4]>], n = 8>
+#layout_replicated_dim = #rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[R:2:4]>], n = 8>
 #seed_replicated_dim = #rotom.seed<layouts = [#layout_replicated_dim]>
 
 module {
   // CHECK: func.func @add_replicated_dim
-  // CHECK-SAME: tensor<4xf32> {rotom.layout = #rotom.layout<n = 8, dims = {{\[\[0:4:1\], \[-1:2:4\]\]}}>}
+  // CHECK-SAME: tensor<4xf32> {rotom.layout = #rotom.layout<n = 8, dims = {{\[\[0:4:1\], \[R:2:4\]\]}}>}
   func.func @add_replicated_dim(%arg0: tensor<4xf32> {rotom.seed = #seed_replicated_dim}, %arg1: tensor<4xf32> {rotom.seed = #seed_replicated_dim}) -> tensor<4xf32> {
     // CHECK: arith.addf
-    // CHECK-SAME: rotom.layout = #rotom.layout<n = 8, dims = {{\[\[0:4:1\], \[-1:2:4\]\]}}>
+    // CHECK-SAME: rotom.layout = #rotom.layout<n = 8, dims = {{\[\[0:4:1\], \[R:2:4\]\]}}>
     // CHECK-SAME: secret.kernel = #secret.kernel<name = "RotomAdd"
     %0 = arith.addf %arg0, %arg1 : tensor<4xf32>
     return %0 : tensor<4xf32>

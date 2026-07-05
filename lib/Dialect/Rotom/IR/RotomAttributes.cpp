@@ -210,11 +210,21 @@ static FailureOr<LayoutData> preprocessLayoutData(ArrayAttr dims, int64_t n,
   return data;
 }
 
+// The dim position is spelled `R` for replication and `G` for gap (the
+// readable forms, also how the printer emits them); the numeric ids -1 and
+// -2 are still accepted.
 static ParseResult parseDimTripleAfterLSquare(AsmParser& parser, int64_t& dim,
                                               int64_t& size, int64_t& stride) {
-  return failure(parser.parseInteger(dim) || parser.parseColon() ||
-                 parser.parseInteger(size) || parser.parseColon() ||
-                 parser.parseInteger(stride) || parser.parseRSquare());
+  if (succeeded(parser.parseOptionalKeyword("R"))) {
+    dim = -1;
+  } else if (succeeded(parser.parseOptionalKeyword("G"))) {
+    dim = -2;
+  } else if (parser.parseInteger(dim)) {
+    return failure();
+  }
+  return failure(parser.parseColon() || parser.parseInteger(size) ||
+                 parser.parseColon() || parser.parseInteger(stride) ||
+                 parser.parseRSquare());
 }
 
 static ParseResult parseDimTriple(AsmParser& parser, int64_t& dim,
@@ -224,8 +234,15 @@ static ParseResult parseDimTriple(AsmParser& parser, int64_t& dim,
 }
 
 static void printDimTriple(AsmPrinter& printer, DimAttr dim) {
-  printer << "[" << dim.getDim() << ":" << dim.getSize() << ":"
-          << dim.getStride() << "]";
+  printer << "[";
+  if (dim.isReplicate()) {
+    printer << "R";
+  } else if (dim.isGap()) {
+    printer << "G";
+  } else {
+    printer << dim.getDim();
+  }
+  printer << ":" << dim.getSize() << ":" << dim.getStride() << "]";
 }
 
 static ParseResult parseLayoutDims(AsmParser& parser,

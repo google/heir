@@ -461,7 +461,7 @@ TEST(RotomPipelineExecutionTest,
   MLIRContext context;
   initContext(context);
   OwningOpRef<ModuleOp> module = openfhe::parse(&context, R"mlir(
-#layout_ct_rows = #rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[-2:4:1]>, #rotom.dim<[1:4:1]>], n = 16>
+#layout_ct_rows = #rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[G:4:1]>, #rotom.dim<[1:4:1]>], n = 16>
 #layout_row = #rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[1:4:1]>], n = 16>
 #seed_ct_rows = #rotom.seed<layouts = [#layout_ct_rows]>
 #seed_row = #rotom.seed<layouts = [#layout_row]>
@@ -826,8 +826,8 @@ TEST(RotomPipelineExecutionTest, MatmulRolledCtDiagonalMatchesReference) {
   MLIRContext context;
   initContext(context);
   OwningOpRef<ModuleOp> module = openfhe::parse(&context, R"mlir(
-#layout_a = #rotom.layout<dims = [#rotom.dim<[1:4:1]>, #rotom.dim<[0:4:1]>, #rotom.dim<[-1:4:1]>], n = 16, rolls = [(0, 2)]>
-#layout_b = #rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[-1:4:1]>, #rotom.dim<[1:4:1]>], n = 16, rolls = [(0, 2)]>
+#layout_a = #rotom.layout<dims = [#rotom.dim<[1:4:1]>, #rotom.dim<[0:4:1]>, #rotom.dim<[R:4:1]>], n = 16, rolls = [(0, 2)]>
+#layout_b = #rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[R:4:1]>, #rotom.dim<[1:4:1]>], n = 16, rolls = [(0, 2)]>
 #seed_a = #rotom.seed<layouts = [#layout_a]>
 #seed_b = #rotom.seed<layouts = [#layout_b]>
 
@@ -906,7 +906,7 @@ TEST(RotomPipelineExecutionTest, MatmulCompactSourceReplicatesThenRolls) {
   initContext(context);
   OwningOpRef<ModuleOp> module = openfhe::parse(&context, R"mlir(
 #layout_col = #rotom.layout<dims = [#rotom.dim<[1:4:1]>, #rotom.dim<[0:4:1]>], n = 16>
-#layout_b = #rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[1:4:1]>, #rotom.dim<[-1:4:1]>], n = 16, rolls = [(0, 1)]>
+#layout_b = #rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[1:4:1]>, #rotom.dim<[R:4:1]>], n = 16, rolls = [(0, 1)]>
 #seed_a = #rotom.seed<layouts = [#layout_col]>
 #seed_b = #rotom.seed<layouts = [#layout_b]>
 

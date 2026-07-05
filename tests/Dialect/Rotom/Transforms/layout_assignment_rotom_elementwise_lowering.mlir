@@ -69,7 +69,7 @@ module {
   }
 }
 
-#layout_replicated_dim = #rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[-1:2:4]>], n = 8>
+#layout_replicated_dim = #rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[R:2:4]>], n = 8>
 #seed_replicated_dim = #rotom.seed<layouts = [#layout_replicated_dim]>
 
 module {

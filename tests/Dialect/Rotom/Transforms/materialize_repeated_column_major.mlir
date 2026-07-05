@@ -5,7 +5,7 @@
 // via existential ``d2``; slots pack column-major ``i0 + 4 * i1``.
 #d0 = #rotom.dim<[0:4:1]>
 #d1 = #rotom.dim<[1:4:1]>
-#d2 = #rotom.dim<[-1:4:1]>
+#d2 = #rotom.dim<[R:4:1]>
 #layout = #rotom.layout<n = 16, dims = [#d2, #d1, #d0]>
 
 // CHECK:   func.func @f(%arg0: tensor<4x4xf32> {tensor_ext.layout =
