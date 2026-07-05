@@ -663,10 +663,9 @@ module {
 }
 
 // The same 4x4 matmul at n=16: the whole 64-point iteration space needs 4
-// ciphertexts from single-ciphertext operands, so the operand expansion
-// changes the ciphertext count -- the explicit rotate/mask/accumulate path
-// that convert_layout cannot express. Priced by the search, emitted by the
-// lowering, and numerically exact.
+// ciphertexts, and both operands are seeded sources, so the search repacks
+// them at a ciphertext-k compute placement directly (4 ciphertexts each,
+// no ciphertext-space conversions) and the k-sum is plain ciphertext adds.
 TEST(RotomPipelineExecutionTest, MatmulAtSmallCiphertextMatchesReference) {
   MLIRContext context;
   initContext(context);
@@ -679,6 +678,86 @@ module {
     %empty = tensor.empty() : tensor<4x4xf32>
     %fill = linalg.fill ins(%cst : f32) outs(%empty : tensor<4x4xf32>) -> tensor<4x4xf32>
     %0 = linalg.matmul ins(%a, %b : tensor<4x4xf32>, tensor<4x4xf32>) outs(%fill : tensor<4x4xf32>) -> tensor<4x4xf32>
+    return %0 : tensor<4x4xf32>
+  }
+}
+)mlir");
+  ASSERT_TRUE(module);
+  ASSERT_TRUE(succeeded(runRotomPipeline(module.get(), &context,
+                                         /*ciphertextSize=*/16)));
+
+  func::FuncOp main = module->lookupSymbol<func::FuncOp>("main");
+  ASSERT_TRUE(main);
+  tensor_ext::LayoutAttr lhsLayout = getArgLayout(main, 0);
+  tensor_ext::LayoutAttr rhsLayout = getArgLayout(main, 1);
+  tensor_ext::LayoutAttr resultLayout = getResultLayout(main, 0);
+  ASSERT_TRUE(lhsLayout);
+  ASSERT_TRUE(rhsLayout);
+  ASSERT_TRUE(resultLayout);
+
+  // The sources were repacked away from their single-ciphertext row-major
+  // seeds onto the 4-ciphertext compute placement.
+  EXPECT_EQ(cast<RankedTensorType>(main.getArgument(0).getType()).getDimSize(0),
+            4);
+  EXPECT_EQ(cast<RankedTensorType>(main.getArgument(1).getType()).getDimSize(0),
+            4);
+
+  std::vector<std::vector<float>> lhs = {
+      {1, 2, 3, 4},
+      {5, 6, 7, 8},
+      {9, 10, 11, 12},
+      {13, 14, 15, 16},
+  };
+  std::vector<std::vector<float>> rhs = {
+      {2, 0, 1, 3},
+      {1, 4, 0, 2},
+      {0, 1, 2, 1},
+      {3, 2, 1, 0},
+  };
+  std::vector<std::vector<float>> expected(4, std::vector<float>(4, 0.0f));
+  for (int64_t i = 0; i < 4; ++i) {
+    for (int64_t j = 0; j < 4; ++j) {
+      for (int64_t k = 0; k < 4; ++k) {
+        expected[i][j] += lhs[i][k] * rhs[k][j];
+      }
+    }
+  }
+
+  Interpreter interpreter(module.get());
+  std::vector<TypedCppValue> inputs = {
+      TypedCppValue(packMatrix(
+          lhsLayout, cast<RankedTensorType>(main.getArgument(0).getType()),
+          lhs)),
+      TypedCppValue(packMatrix(
+          rhsLayout, cast<RankedTensorType>(main.getArgument(1).getType()),
+          rhs)),
+  };
+  std::vector<TypedCppValue> results = interpreter.interpret("main", inputs);
+  ASSERT_EQ(results.size(), 1);
+
+  auto actual = std::get<std::shared_ptr<std::vector<float>>>(results[0].value);
+  expectClaimedSlotsMatch(
+      *actual, resultLayout,
+      cast<RankedTensorType>(main.getFunctionType().getResult(0)), expected);
+}
+
+// A matmul whose lhs is an intermediate (a + a), not a source: intermediates
+// cannot repack at encode time, so the lowering must still convert the lhs
+// onto its expanded compute placement in ciphertext space -- the priced
+// conversion path -- while the rhs source repacks for free.
+TEST(RotomPipelineExecutionTest, MatmulOfIntermediateConvertsOperand) {
+  MLIRContext context;
+  initContext(context);
+  OwningOpRef<ModuleOp> module = openfhe::parse(&context, R"mlir(
+#seed_row = #rotom.seed<layouts = [#rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[1:4:1]>], n = 16>]>
+
+module {
+  func.func @main(%a: tensor<4x4xf32> {rotom.seed = #seed_row}, %b: tensor<4x4xf32> {rotom.seed = #seed_row}) -> tensor<4x4xf32> {
+    %cst = arith.constant 0.000000e+00 : f32
+    %s = arith.addf %a, %a : tensor<4x4xf32>
+    %empty = tensor.empty() : tensor<4x4xf32>
+    %fill = linalg.fill ins(%cst : f32) outs(%empty : tensor<4x4xf32>) -> tensor<4x4xf32>
+    %0 = linalg.matmul ins(%s, %b : tensor<4x4xf32>, tensor<4x4xf32>) outs(%fill : tensor<4x4xf32>) -> tensor<4x4xf32>
     return %0 : tensor<4x4xf32>
   }
 }
@@ -712,7 +791,7 @@ module {
   for (int64_t i = 0; i < 4; ++i) {
     for (int64_t j = 0; j < 4; ++j) {
       for (int64_t k = 0; k < 4; ++k) {
-        expected[i][j] += lhs[i][k] * rhs[k][j];
+        expected[i][j] += 2 * lhs[i][k] * rhs[k][j];
       }
     }
   }
