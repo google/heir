@@ -1297,6 +1297,87 @@ module {
 }
 
 // The general-search rolled-candidate hook (single-roll seed variants): %b
+// Baby-step/giant-step: a 16x16 matvec whose vector operand is an
+// intermediate (x + x) at a compact single-ciphertext seed. The search
+// picks the BSGS plan -- the matrix source repacks at the giant/baby
+// diagonal packing (rolls [(0, 2), (2, 0, -4)]) for free, the vector
+// aligns to the BABY form with 3 rotations (instead of the 15 a full
+// rolled expansion needs), and the kernel's ct-k sum first adds the baby
+// blocks plainly and then rotates the 4 giant partial sums into place
+// with 3 more rotations: 6 rotations total, the 2*(sqrt(D)-1) count.
+TEST(RotomPipelineExecutionTest, MatvecBsgsUsesBabyAndGiantRotations) {
+  MLIRContext context;
+  initContext(context);
+  OwningOpRef<ModuleOp> module = openfhe::parse(&context, R"mlir(
+#seed_mat = #rotom.seed<layouts = [#rotom.layout<dims = [#rotom.dim<[1:16:1]>, #rotom.dim<[0:16:1]>], n = 16>]>
+#seed_vec = #rotom.seed<layouts = [#rotom.layout<dims = [#rotom.dim<[0:16:1]>], n = 16>]>
+
+module {
+  func.func @main(%a: tensor<16x16xf32> {rotom.seed = #seed_mat}, %x: tensor<16x1xf32> {rotom.seed = #seed_vec}) -> tensor<16x1xf32> {
+    %xx = arith.addf %x, %x : tensor<16x1xf32>
+    %cst = arith.constant 0.000000e+00 : f32
+    %empty = tensor.empty() : tensor<16x1xf32>
+    %fill = linalg.fill ins(%cst : f32) outs(%empty : tensor<16x1xf32>) -> tensor<16x1xf32>
+    %0 = linalg.matmul ins(%a, %xx : tensor<16x16xf32>, tensor<16x1xf32>) outs(%fill : tensor<16x1xf32>) -> tensor<16x1xf32>
+    return %0 : tensor<16x1xf32>
+  }
+}
+)mlir");
+  ASSERT_TRUE(module);
+  ASSERT_TRUE(succeeded(runRotomPipeline(module.get(), &context,
+                                         /*ciphertextSize=*/16)));
+
+  func::FuncOp main = module->lookupSymbol<func::FuncOp>("main");
+  ASSERT_TRUE(main);
+  tensor_ext::LayoutAttr matLayout = getArgLayout(main, 0);
+  tensor_ext::LayoutAttr vecLayout = getArgLayout(main, 1);
+  tensor_ext::LayoutAttr resultLayout = getResultLayout(main, 0);
+  ASSERT_TRUE(matLayout);
+  ASSERT_TRUE(vecLayout);
+  ASSERT_TRUE(resultLayout);
+
+  // The vector stays compact (one ciphertext) and the whole computation
+  // spends exactly 6 rotations: 3 baby (vector alignment) + 3 giant
+  // (reduce), instead of the 15 a full rolled expansion needs.
+  EXPECT_EQ(cast<RankedTensorType>(main.getArgument(1).getType()).getDimSize(0),
+            1);
+  int64_t rotations = 0;
+  main.walk([&](Operation* op) {
+    if (isa<tensor_ext::RotateOp>(op)) ++rotations;
+  });
+  EXPECT_EQ(rotations, 6);
+
+  std::vector<std::vector<float>> mat(16, std::vector<float>(16));
+  std::vector<std::vector<float>> vec(16, std::vector<float>(1));
+  for (int64_t i = 0; i < 16; ++i) {
+    for (int64_t k = 0; k < 16; ++k) mat[i][k] = 1 + ((5 * i + 3 * k) % 11);
+    vec[i][0] = 1 + (7 * i) % 13;
+  }
+  std::vector<std::vector<float>> expected(16, std::vector<float>(1, 0.0f));
+  for (int64_t i = 0; i < 16; ++i) {
+    for (int64_t k = 0; k < 16; ++k) {
+      expected[i][0] += mat[i][k] * 2 * vec[k][0];
+    }
+  }
+
+  Interpreter interpreter(module.get());
+  std::vector<TypedCppValue> inputs = {
+      TypedCppValue(packMatrix(
+          matLayout, cast<RankedTensorType>(main.getArgument(0).getType()),
+          mat)),
+      TypedCppValue(packMatrix(
+          vecLayout, cast<RankedTensorType>(main.getArgument(1).getType()),
+          vec)),
+  };
+  std::vector<TypedCppValue> results = interpreter.interpret("main", inputs);
+  ASSERT_EQ(results.size(), 1);
+
+  auto actual = std::get<std::shared_ptr<std::vector<float>>>(results[0].value);
+  expectClaimedSlotsMatch(
+      *actual, resultLayout,
+      cast<RankedTensorType>(main.getFunctionType().getResult(0)), expected);
+}
+
 // arrives packed ONLY at the diagonal roll(1,0) [0:4];[1:4], while %a is
 // seeded plain row-major. Aligning the add at either seed would cost a real
 // rolled<->unrolled conversion; instead the search picks %a's own diagonal

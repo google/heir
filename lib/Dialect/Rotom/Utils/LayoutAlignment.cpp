@@ -245,8 +245,14 @@ FailureOr<SameCountConversionChoice> chooseSameCountConversion(
   SameCountConversionChoice choice;
   if (succeeded(steps)) {
     llvm::DenseSet<int64_t> targetsSeen;
+    // Steps sharing (source ciphertext, shift) share one rotated row (the
+    // emission reuses the extract/rotate across all targets it feeds).
+    llvm::DenseSet<std::pair<int64_t, int64_t>> rotationsSeen;
     for (const LayoutExpansionStep& step : *steps) {
-      if (step.shift != 0) ++choice.rotations;
+      if (step.shift != 0 &&
+          rotationsSeen.insert({step.sourceCt, step.shift}).second) {
+        ++choice.rotations;
+      }
       if (static_cast<int64_t>(step.targetSlots.size()) != n) {
         ++choice.stepMasks;
       }

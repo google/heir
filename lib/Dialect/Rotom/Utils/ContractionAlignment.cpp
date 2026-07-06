@@ -25,21 +25,24 @@ namespace rotom {
 // variants that violate an invariant (e.g. a non-power-of-two slot extent)
 // are skipped, not diagnosed.
 static LayoutAttr makeCheckedLayout(MLIRContext* ctx, ArrayRef<DimAttr> dims,
-                                    int64_t n,
-                                    ArrayRef<int64_t> rollPairs = {}) {
+                                    int64_t n, ArrayRef<int64_t> rollPairs = {},
+                                    ArrayRef<int64_t> rollScales = {}) {
   SmallVector<Attribute> attrs(dims.begin(), dims.end());
   auto dimsAttr = ArrayAttr::get(ctx, attrs);
   auto rolls = DenseI64ArrayAttr::get(ctx, rollPairs);
+  DenseI64ArrayAttr scales;
+  if (llvm::any_of(rollScales, [](int64_t s) { return s != 1; })) {
+    scales = DenseI64ArrayAttr::get(ctx, rollScales);
+  }
   // A real (but silenced) diagnostic emitter: streaming into an inactive
   // InFlightDiagnostic asserts, and an invalid enumerated variant is skipped,
   // not reported.
   ScopedDiagnosticHandler silence(ctx, [](Diagnostic&) { return success(); });
   auto swallow = mlir::detail::getDefaultDiagnosticEmitFn(UnknownLoc::get(ctx));
-  if (failed(LayoutAttr::verify(swallow, dimsAttr, n, rolls,
-                                DenseI64ArrayAttr()))) {
+  if (failed(LayoutAttr::verify(swallow, dimsAttr, n, rolls, scales))) {
     return {};
   }
-  return LayoutAttr::get(ctx, dimsAttr, n, rolls);
+  return LayoutAttr::get(ctx, dimsAttr, n, rolls, scales);
 }
 
 static SmallVector<DimAttr> collectDims(LayoutAttr layout) {
@@ -408,6 +411,125 @@ SmallVector<MatmulPlan> enumerateMatmulPlans(LayoutAttr lhs, LayoutAttr rhs) {
     plan.reduceAdds = numCtResult * reduceSteps + (numCtCompute - numCtResult);
 
     plans.push_back(std::move(plan));
+  }
+
+  // Baby-step/giant-step variants: a ciphertext k piece of composite extent
+  // D = G * B splits into giant/baby digits [k:G:B][k:B:1], the whole k is
+  // rolled by the outermost slot piece (an i/j of the same extent), and the
+  // partner is rolled BACK by the giant digit with scale -B. The operand
+  // owning the partner inherits the placement positionally (the BSGS
+  // diagonal packing, free for a repackable source); the other operand
+  // collapses to the BABY form -- replication over the giant digit, and its
+  // k placed whole at the partner's slot position rolled by the baby
+  // replication -- so materializing it from a compact layout costs B-1
+  // rotations instead of D-1. The kernel's ct-k sum rotates each giant
+  // block by B*g slots before adding (G-1 rotations per result ciphertext),
+  // which un-rolls the partner: the result is fully unrolled. Total kernel
+  // and alignment rotations scale as G + B instead of D.
+  for (Footprint& footprint : computeFootprints) {
+    if (!footprint.seedRolls.empty()) continue;
+    ArrayRef<DimAttr> dims = footprint.dims;
+    const size_t ctPrefixLen = inferCtPrefixLen(footprint.dims, n);
+    if (ctPrefixLen == dims.size()) continue;
+    // The partner must be the outermost slot piece: the giant un-roll is a
+    // whole-row rotation, which cyclically shifts exactly that digit.
+    const size_t partnerPos = ctPrefixLen;
+    DimAttr partner = dims[partnerPos];
+    if (partner.isGap() || partner.isReplicate() ||
+        partner.getDim() == kMatmulDimK || partner.getStride() != 1) {
+      continue;
+    }
+    const int64_t d = partner.getSize();
+    if (iterationDimExtent(dims, partner.getDim()) != d) continue;
+    // The whole-k roll rewrites every k digit, so k must be exactly the one
+    // ciphertext piece being split.
+    if (iterationDimExtent(dims, kMatmulDimK) != d) continue;
+    for (size_t kPos = 0; kPos < ctPrefixLen; ++kPos) {
+      DimAttr kPiece = dims[kPos];
+      if (kPiece.getDim() != kMatmulDimK || kPiece.getStride() != 1 ||
+          kPiece.getSize() != d) {
+        continue;
+      }
+      for (int64_t baby = 2; baby < d; baby *= 2) {
+        if (d % baby != 0) break;
+        const int64_t giant = d / baby;
+        if (giant < 2) break;
+
+        SmallVector<DimAttr> computeDims(dims.begin(), dims.end());
+        computeDims[kPos] = DimAttr::get(ctx, kMatmulDimK, giant, baby);
+        computeDims.insert(computeDims.begin() + kPos + 1,
+                           DimAttr::get(ctx, kMatmulDimK, baby, /*stride=*/1));
+        const int64_t kHiPos = static_cast<int64_t>(kPos);
+        const int64_t kLoPos = kHiPos + 1;
+        const int64_t partnerAt = static_cast<int64_t>(partnerPos) + 1;
+        SmallVector<int64_t> rolls = {kHiPos, partnerAt, partnerAt, kHiPos};
+        SmallVector<int64_t> scales = {1, -baby};
+
+        LayoutAttr computeLayout =
+            makeCheckedLayout(ctx, computeDims, n, rolls, scales);
+        if (!computeLayout) continue;
+        if (!seenComputeLayouts.insert(computeLayout).second) continue;
+
+        // The operand owning the partner dim keeps the placement piece for
+        // piece (its free dim subsumed as usual); the other operand takes
+        // the baby form.
+        const bool lhsOwnsPartner = partner.getDim() == kMatmulDimI;
+        const int64_t hostFreeDim = lhsOwnsPartner ? kMatmulDimJ : kMatmulDimI;
+        SmallVector<DimAttr> hostDims =
+            replaceDimWithReplication(ctx, computeDims, hostFreeDim);
+        SmallVector<DimAttr> babyDims(computeDims.begin(), computeDims.end());
+        babyDims[kHiPos] = DimAttr::get(ctx, /*dim=*/-1, giant, /*stride=*/1);
+        babyDims[kLoPos] = DimAttr::get(ctx, /*dim=*/-1, baby, /*stride=*/1);
+        babyDims[partnerAt] = DimAttr::get(ctx, kMatmulDimK, d, /*stride=*/1);
+        SmallVector<int64_t> babyRolls = {partnerAt, kLoPos};
+
+        SmallVector<DimAttr> resultDims;
+        for (size_t p = 0; p < computeDims.size(); ++p) {
+          if (computeDims[p].getDim() == kMatmulDimK) continue;
+          resultDims.push_back(computeDims[p]);
+        }
+
+        MatmulPlan plan;
+        plan.computeLayout = computeLayout;
+        LayoutAttr hostExpanded = makeCheckedLayout(
+            ctx,
+            relabelTraversalDims(ctx, hostDims,
+                                 lhsOwnsPartner ? iterToLhs : iterToRhs),
+            n, rolls, scales);
+        LayoutAttr babyExpanded = makeCheckedLayout(
+            ctx,
+            relabelTraversalDims(ctx, babyDims,
+                                 lhsOwnsPartner ? iterToRhs : iterToLhs),
+            n, babyRolls);
+        plan.expandedLhs = lhsOwnsPartner ? hostExpanded : babyExpanded;
+        plan.expandedRhs = lhsOwnsPartner ? babyExpanded : hostExpanded;
+        plan.resultLayout = makeCheckedLayout(
+            ctx, relabelTraversalDims(ctx, resultDims, iterToResult), n);
+        if (!plan.expandedLhs || !plan.expandedRhs || !plan.resultLayout) {
+          continue;
+        }
+        if (!isMaterializableRotomLayout(plan.resultLayout)) continue;
+
+        // Only the host's replication fill is meaningful here; the baby
+        // operand's alignment is a rotation-counted conversion the generator
+        // prices via the shift-network/step machinery.
+        const size_t newCtPrefixLen = inferCtPrefixLen(computeDims, n);
+        const int64_t numCtCompute = layoutNumCiphertexts(computeLayout);
+        int64_t hostFillRotations = 0;
+        int64_t hostFillAdds = 0;
+        replicationFillCounts(computeDims, hostDims, newCtPrefixLen,
+                              numCtCompute, hostFreeDim, hostFillRotations,
+                              hostFillAdds);
+        (lhsOwnsPartner ? plan.lhsFillRotations : plan.rhsFillRotations) =
+            hostFillRotations;
+        (lhsOwnsPartner ? plan.lhsFillAdds : plan.rhsFillAdds) = hostFillAdds;
+
+        const int64_t numCtResult = numCtCompute / d;
+        plan.reduceRotations = numCtResult * (giant - 1);
+        plan.reduceAdds = numCtCompute - numCtResult;
+        plans.push_back(std::move(plan));
+      }
+    }
   }
   return plans;
 }

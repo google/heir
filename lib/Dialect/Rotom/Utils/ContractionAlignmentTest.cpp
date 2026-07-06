@@ -42,6 +42,14 @@ class ContractionAlignmentTest : public ::testing::Test {
                            DenseI64ArrayAttr::get(&context, rolls));
   }
 
+  LayoutAttr scaledRolledLayout(ArrayRef<Attribute> dims, int64_t n,
+                                ArrayRef<int64_t> rolls,
+                                ArrayRef<int64_t> scales) {
+    return LayoutAttr::get(&context, ArrayAttr::get(&context, dims), n,
+                           DenseI64ArrayAttr::get(&context, rolls),
+                           DenseI64ArrayAttr::get(&context, scales));
+  }
+
   const MatmulPlan* findPlan(ArrayRef<MatmulPlan> plans,
                              LayoutAttr computeLayout) {
     for (const MatmulPlan& plan : plans) {
@@ -59,12 +67,14 @@ class ContractionAlignmentTest : public ::testing::Test {
 // [2:4][1:4][0:4] rolls its ciphertext k by j or i (ct-diagonal), and
 // [0:4][2:4][1:4] / [1:4][0:4][2:4] roll their slot k by the ciphertext
 // piece or the other slot piece (slot-diagonal) -- and two free-swap
-// variants rolling i by j or j by i (diagonal results), for fifteen plans.
-TEST_F(ContractionAlignmentTest, RowMajorPairEnumeratesFifteenDedupedPlans) {
+// variants rolling i by j or j by i (diagonal results), plus one
+// baby-step/giant-step split of the ciphertext-k footprint (4 = 2 x 2), for
+// sixteen plans.
+TEST_F(ContractionAlignmentTest, RowMajorPairEnumeratesSixteenDedupedPlans) {
   LayoutAttr lhs = layout({dim(0, 4), dim(1, 4)}, 16);
   LayoutAttr rhs = layout({dim(0, 4), dim(1, 4)}, 16);
   SmallVector<MatmulPlan> plans = rotom::enumerateMatmulPlans(lhs, rhs);
-  EXPECT_EQ(plans.size(), 15u);
+  EXPECT_EQ(plans.size(), 16u);
 }
 
 TEST_F(ContractionAlignmentTest, LhsHostedSlotPlan) {
@@ -166,7 +176,7 @@ TEST_F(ContractionAlignmentTest, NonPowerOfTwoFreeExtentStaysInCtRegion) {
   LayoutAttr lhs = layout({dim(0, 4), dim(1, 4)}, 16);
   LayoutAttr rhs = layout({dim(0, 4), dim(1, 3)}, 16);
   SmallVector<MatmulPlan> plans = rotom::enumerateMatmulPlans(lhs, rhs);
-  EXPECT_EQ(plans.size(), 10u);
+  EXPECT_EQ(plans.size(), 11u);
   for (const MatmulPlan& plan : plans) {
     EXPECT_EQ(plan.lhsFillRotations, 0);
     EXPECT_EQ(plan.lhsFillAdds, 0);
@@ -391,6 +401,32 @@ TEST_F(ContractionAlignmentTest, RectangularMatmulRollsUnequalExtents) {
   EXPECT_EQ(plan->expandedRhs,
             rolledLayout({repl(4), dim(0, 8), dim(1, 4)}, 32, {1, 0}));
   EXPECT_EQ(plan->resultLayout, layout({dim(0, 4), gap(8), dim(1, 4)}, 32));
+}
+
+// Baby-step/giant-step: a 16x16 matvec-shaped pair whose ct-diagonal
+// footprint puts k:16 on the ciphertext axis and i:16 in the slots. The
+// D = 4 x 4 split rolls the whole k by i and rolls i BACK by the giant
+// digit with scale -4: the host inherits the BSGS diagonal packing, the
+// vector operand collapses to the baby form (3 rotations to fill instead
+// of 15), and the kernel pays 3 giant rotations in the reduce.
+TEST_F(ContractionAlignmentTest, BsgsSplitYieldsBabyExpansionAndGiantReduce) {
+  LayoutAttr lhs = layout({dim(1, 16), dim(0, 16)}, 16);
+  LayoutAttr rhs = layout({dim(0, 16)}, 16);
+  SmallVector<MatmulPlan> plans = rotom::enumerateMatmulPlans(lhs, rhs);
+
+  LayoutAttr compute =
+      scaledRolledLayout({dim(2, 4, /*stride=*/4), dim(2, 4), dim(0, 16)}, 16,
+                         /*rolls=*/{0, 2, 2, 0}, /*scales=*/{1, -4});
+  const MatmulPlan* plan = findPlan(plans, compute);
+  ASSERT_NE(plan, nullptr);
+  EXPECT_EQ(plan->expandedLhs,
+            scaledRolledLayout({dim(1, 4, /*stride=*/4), dim(1, 4), dim(0, 16)},
+                               16, {0, 2, 2, 0}, {1, -4}));
+  EXPECT_EQ(plan->expandedRhs,
+            rolledLayout({repl(4), repl(4), dim(0, 16)}, 16, {2, 1}));
+  EXPECT_EQ(plan->resultLayout, layout({dim(0, 16)}, 16));
+  EXPECT_EQ(plan->reduceRotations, 3);
+  EXPECT_EQ(plan->reduceAdds, 15);
 }
 
 TEST_F(ContractionAlignmentTest, MismatchedNReturnsNoPlans) {

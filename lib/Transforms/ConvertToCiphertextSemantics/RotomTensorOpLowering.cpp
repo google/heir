@@ -114,30 +114,43 @@ Value RotomTensorOpLowering::convertToLayout(ImplicitLocOpBuilder& b,
   SmallVector<OpFoldResult> sizes = {b.getIndexAttr(1),
                                      b.getIndexAttr(numSlots)};
   SmallVector<OpFoldResult> strides = {b.getIndexAttr(1), b.getIndexAttr(1)};
+  // Steps sharing (source ciphertext, shift) share one rotated row; reusing
+  // it across every target it feeds keeps the emitted rotation count equal
+  // to the priced one (a baby-step expansion rotates B-1 times, not once
+  // per replicated block).
+  DenseMap<std::pair<int64_t, int64_t>, Value> rotatedRows;
   for (const rotom::LayoutExpansionStep& step : steps) {
     if (step.targetCt < 0 || step.targetCt >= numTargetCt) return nullptr;
-    SmallVector<OpFoldResult> offsets = {b.getIndexAttr(step.sourceCt),
-                                         b.getIndexAttr(0)};
-    Value row = tensor::ExtractSliceOp::create(b, rowType, value, offsets,
-                                               sizes, strides);
-    setMaterializedAttr(row.getDefiningOp());
-    if (step.shift != 0) {
-      Value shift = arith::ConstantIndexOp::create(b, step.shift);
-      setMaterializedAttr(shift.getDefiningOp());
-      row = tensor_ext::RotateOp::create(b, row, shift);
+    Value& row = rotatedRows[{step.sourceCt, step.shift}];
+    if (!row) {
+      SmallVector<OpFoldResult> offsets = {b.getIndexAttr(step.sourceCt),
+                                           b.getIndexAttr(0)};
+      row = tensor::ExtractSliceOp::create(b, rowType, value, offsets, sizes,
+                                           strides);
       setMaterializedAttr(row.getDefiningOp());
+      if (step.shift != 0) {
+        Value shift = arith::ConstantIndexOp::create(b, step.shift);
+        setMaterializedAttr(shift.getDefiningOp());
+        row = tensor_ext::RotateOp::create(b, row, shift);
+        setMaterializedAttr(row.getDefiningOp());
+      }
     }
+    // The mask is per step (target slots differ), so it must not touch the
+    // shared cached row.
+    Value stepRow = row;
     if (static_cast<int64_t>(step.targetSlots.size()) != numSlots) {
       Value mask = buildSlotMask(b, rowType, step.targetSlots);
-      Operation* masked = makeAppropriatelyTypedMulOp(b, b.getLoc(), row, mask);
+      Operation* masked =
+          makeAppropriatelyTypedMulOp(b, b.getLoc(), stepRow, mask);
       setMaterializedAttr(masked);
-      row = masked->getResult(0);
+      stepRow = masked->getResult(0);
     }
     Value& target = rows[step.targetCt];
     if (!target) {
-      target = row;
+      target = stepRow;
     } else {
-      Operation* add = makeAppropriatelyTypedAddOp(b, b.getLoc(), target, row);
+      Operation* add =
+          makeAppropriatelyTypedAddOp(b, b.getLoc(), target, stepRow);
       setMaterializedAttr(add);
       target = add->getResult(0);
     }

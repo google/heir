@@ -2617,25 +2617,65 @@ class ConvertRotomMatmul : public ConversionBase<linalg::MatmulOp> {
       auto accType = cast<RankedTensorType>(acc.getType());
       const int64_t numCt = accType.getDimSize(0);
       const int64_t numSlots = accType.getDimSize(1);
+
+      // A giant-step (BSGS) compute layout rolls a slot piece BY a
+      // ciphertext k digit with a scale: block g holds the partial sum for
+      // slot indices shifted by scale * g, so the ct-k sum must rotate each
+      // block by (-scale) * g (times the rolled piece's slot suffix weight)
+      // before adding -- that un-rolls the slot piece and the result is
+      // plain.
+      DenseMap<size_t, int64_t> rotateUnitForPos;  // ct piece pos -> slots/g
+      {
+        DenseI64ArrayAttr rollsAttr = chosen->computeLayout.getRolls();
+        DenseI64ArrayAttr scalesAttr = chosen->computeLayout.getRollScales();
+        ArrayRef<int64_t> rolls =
+            rollsAttr ? rollsAttr.asArrayRef() : ArrayRef<int64_t>{};
+        ArrayRef<int64_t> scales =
+            scalesAttr ? scalesAttr.asArrayRef() : ArrayRef<int64_t>{};
+        for (size_t i = 0; i + 1 < rolls.size(); i += 2) {
+          const auto fromPos = static_cast<size_t>(rolls[i]);
+          const auto byPos = static_cast<size_t>(rolls[i + 1]);
+          const int64_t scale = i / 2 < scales.size() ? scales[i / 2] : 1;
+          if (fromPos < ctPrefixLen || byPos >= ctPrefixLen) continue;
+          if (computeDims[byPos].getDim() != rotom::kMatmulDimK) continue;
+          int64_t weight = 1;
+          for (size_t p = fromPos + 1; p < computeDims.size(); ++p) {
+            weight *= computeDims[p].getSize();
+          }
+          rotateUnitForPos[byPos] = -scale * weight;
+        }
+      }
+
       SmallVector<int64_t> radices;
       SmallVector<bool> isK;
+      SmallVector<int64_t> rotateUnits;
       for (size_t p = 0; p < ctPrefixLen; ++p) {
         if (computeDims[p].isGap()) continue;
         radices.push_back(computeDims[p].getSize());
         isK.push_back(computeDims[p].getDim() == rotom::kMatmulDimK);
+        auto it = rotateUnitForPos.find(p);
+        rotateUnits.push_back(it == rotateUnitForPos.end() ? 0 : it->second);
       }
-      SmallVector<SmallVector<int64_t>> sourceRows(numCt / kCtExtent);
+      // Group each result ciphertext's source rows by their giant-step
+      // rotation: rows sharing a shift sum plainly FIRST, and only the
+      // per-shift partial sums are rotated -- G-1 rotations per result
+      // ciphertext, not one per source block.
+      SmallVector<std::map<int64_t, SmallVector<int64_t>>> rowsByShift(
+          numCt / kCtExtent);
       for (int64_t c = 0; c < numCt; ++c) {
         int64_t rem = c;
         int64_t resultIndex = 0;
+        int64_t shift = 0;
         for (size_t d = 0; d < radices.size(); ++d) {
           int64_t weight = 1;
           for (size_t e = d + 1; e < radices.size(); ++e) weight *= radices[e];
           int64_t digit = (rem / weight) % radices[d];
           rem %= weight;
           if (!isK[d]) resultIndex = resultIndex * radices[d] + digit;
+          shift += digit * rotateUnits[d];
         }
-        sourceRows[resultIndex].push_back(c);
+        rowsByShift[resultIndex][((shift % numSlots) + numSlots) % numSlots]
+            .push_back(c);
       }
 
       SmallVector<OpFoldResult> sizes = {b.getIndexAttr(1),
@@ -2643,20 +2683,38 @@ class ConvertRotomMatmul : public ConversionBase<linalg::MatmulOp> {
       SmallVector<OpFoldResult> strides = {b.getIndexAttr(1),
                                            b.getIndexAttr(1)};
       SmallVector<Value> resultRows;
-      for (const SmallVector<int64_t>& rows : sourceRows) {
+      for (const std::map<int64_t, SmallVector<int64_t>>& groups :
+           rowsByShift) {
         Value sum;
-        for (int64_t row : rows) {
-          SmallVector<OpFoldResult> offsets = {b.getIndexAttr(row),
-                                               b.getIndexAttr(0)};
-          Value block =
-              tensor::ExtractSliceOp::create(b, acc, offsets, sizes, strides);
-          setMaterializedAttr(block.getDefiningOp());
+        for (const auto& [shift, rows] : groups) {
+          Value groupSum;
+          for (int64_t row : rows) {
+            SmallVector<OpFoldResult> offsets = {b.getIndexAttr(row),
+                                                 b.getIndexAttr(0)};
+            Value block =
+                tensor::ExtractSliceOp::create(b, acc, offsets, sizes, strides);
+            setMaterializedAttr(block.getDefiningOp());
+            if (!groupSum) {
+              groupSum = block;
+              continue;
+            }
+            Operation* add =
+                makeAppropriatelyTypedAddOp(b, op.getLoc(), groupSum, block);
+            setMaterializedAttr(add);
+            groupSum = add->getResult(0);
+          }
+          if (shift != 0) {
+            Value shiftValue = arith::ConstantIndexOp::create(b, shift);
+            setMaterializedAttr(shiftValue.getDefiningOp());
+            groupSum = tensor_ext::RotateOp::create(b, groupSum, shiftValue);
+            setMaterializedAttr(groupSum.getDefiningOp());
+          }
           if (!sum) {
-            sum = block;
+            sum = groupSum;
             continue;
           }
           Operation* add =
-              makeAppropriatelyTypedAddOp(b, op.getLoc(), sum, block);
+              makeAppropriatelyTypedAddOp(b, op.getLoc(), sum, groupSum);
           setMaterializedAttr(add);
           sum = add->getResult(0);
         }

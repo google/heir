@@ -255,8 +255,17 @@ int64_t LayoutAssignment::cachedConversionCost(LayoutAttr from, LayoutAttr to) {
     const int64_t n = from.getN();
     cost = 0;
     DenseSet<int64_t> targetsSeen;
+    // Steps sharing (source ciphertext, shift) share one rotated row: the
+    // lowering emits the extract/rotate once and reuses it for every target
+    // it feeds (replicating a row across ciphertexts is free), so a
+    // baby-step expansion prices its B-1 distinct rotations, not one per
+    // replicated block.
+    DenseSet<std::pair<int64_t, int64_t>> rotationsSeen;
     for (const LayoutExpansionStep& step : *steps) {
-      if (step.shift != 0) cost += costModel.rotation;
+      if (step.shift != 0 &&
+          rotationsSeen.insert({step.sourceCt, step.shift}).second) {
+        cost += costModel.rotation;
+      }
       // A partial-row step needs a plaintext mask multiply (cheap; priced as
       // an add pending a dedicated plaintext-multiply weight).
       if (static_cast<int64_t>(step.targetSlots.size()) != n) {
