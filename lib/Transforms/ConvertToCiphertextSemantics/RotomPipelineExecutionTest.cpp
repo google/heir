@@ -741,6 +741,99 @@ module {
       cast<RankedTensorType>(main.getFunctionType().getResult(0)), expected);
 }
 
+// A chain (A x B) x C: the intermediate cannot repack, so the second matmul
+// prices hosting it. The search picks a rolled ct-diagonal plan for the
+// second matmul that hosts the first's result at its assigned layout (zero
+// conversion for the chained value beyond the replicate-then-roll fill) and
+// repacks C at the matching rolled expansion -- rolled hosting keeps a
+// matmul chain cheap end to end.
+TEST(RotomPipelineExecutionTest, MatmulChainHostsIntermediateMatchesReference) {
+  MLIRContext context;
+  initContext(context);
+  OwningOpRef<ModuleOp> module = openfhe::parse(&context, R"mlir(
+#seed_row = #rotom.seed<layouts = [#rotom.layout<dims = [#rotom.dim<[0:4:1]>, #rotom.dim<[1:4:1]>], n = 16>]>
+
+module {
+  func.func @main(%a: tensor<4x4xf32> {rotom.seed = #seed_row}, %b: tensor<4x4xf32> {rotom.seed = #seed_row}, %c: tensor<4x4xf32> {rotom.seed = #seed_row}) -> tensor<4x4xf32> {
+    %cst = arith.constant 0.000000e+00 : f32
+    %empty = tensor.empty() : tensor<4x4xf32>
+    %fill = linalg.fill ins(%cst : f32) outs(%empty : tensor<4x4xf32>) -> tensor<4x4xf32>
+    %0 = linalg.matmul ins(%a, %b : tensor<4x4xf32>, tensor<4x4xf32>) outs(%fill : tensor<4x4xf32>) -> tensor<4x4xf32>
+    %empty2 = tensor.empty() : tensor<4x4xf32>
+    %fill2 = linalg.fill ins(%cst : f32) outs(%empty2 : tensor<4x4xf32>) -> tensor<4x4xf32>
+    %1 = linalg.matmul ins(%0, %c : tensor<4x4xf32>, tensor<4x4xf32>) outs(%fill2 : tensor<4x4xf32>) -> tensor<4x4xf32>
+    return %1 : tensor<4x4xf32>
+  }
+}
+)mlir");
+  ASSERT_TRUE(module);
+  ASSERT_TRUE(succeeded(runRotomPipeline(module.get(), &context,
+                                         /*ciphertextSize=*/16)));
+
+  func::FuncOp main = module->lookupSymbol<func::FuncOp>("main");
+  ASSERT_TRUE(main);
+  tensor_ext::LayoutAttr aLayout = getArgLayout(main, 0);
+  tensor_ext::LayoutAttr bLayout = getArgLayout(main, 1);
+  tensor_ext::LayoutAttr cLayout = getArgLayout(main, 2);
+  tensor_ext::LayoutAttr resultLayout = getResultLayout(main, 0);
+  ASSERT_TRUE(aLayout);
+  ASSERT_TRUE(bLayout);
+  ASSERT_TRUE(cLayout);
+  ASSERT_TRUE(resultLayout);
+
+  std::vector<std::vector<float>> a = {
+      {1, 2, 3, 4},
+      {5, 6, 7, 8},
+      {9, 10, 11, 12},
+      {13, 14, 15, 16},
+  };
+  std::vector<std::vector<float>> b = {
+      {2, 0, 1, 3},
+      {1, 4, 0, 2},
+      {0, 1, 2, 1},
+      {3, 2, 1, 0},
+  };
+  std::vector<std::vector<float>> c = {
+      {1, 0, 2, 0},
+      {0, 3, 0, 1},
+      {2, 0, 1, 0},
+      {0, 1, 0, 2},
+  };
+  std::vector<std::vector<float>> ab(4, std::vector<float>(4, 0.0f));
+  std::vector<std::vector<float>> expected(4, std::vector<float>(4, 0.0f));
+  for (int64_t i = 0; i < 4; ++i) {
+    for (int64_t j = 0; j < 4; ++j) {
+      for (int64_t k = 0; k < 4; ++k) {
+        ab[i][j] += a[i][k] * b[k][j];
+      }
+    }
+  }
+  for (int64_t i = 0; i < 4; ++i) {
+    for (int64_t j = 0; j < 4; ++j) {
+      for (int64_t k = 0; k < 4; ++k) {
+        expected[i][j] += ab[i][k] * c[k][j];
+      }
+    }
+  }
+
+  Interpreter interpreter(module.get());
+  std::vector<TypedCppValue> inputs = {
+      TypedCppValue(packMatrix(
+          aLayout, cast<RankedTensorType>(main.getArgument(0).getType()), a)),
+      TypedCppValue(packMatrix(
+          bLayout, cast<RankedTensorType>(main.getArgument(1).getType()), b)),
+      TypedCppValue(packMatrix(
+          cLayout, cast<RankedTensorType>(main.getArgument(2).getType()), c)),
+  };
+  std::vector<TypedCppValue> results = interpreter.interpret("main", inputs);
+  ASSERT_EQ(results.size(), 1);
+
+  auto actual = std::get<std::shared_ptr<std::vector<float>>>(results[0].value);
+  expectClaimedSlotsMatch(
+      *actual, resultLayout,
+      cast<RankedTensorType>(main.getFunctionType().getResult(0)), expected);
+}
+
 // A matmul whose lhs is an intermediate (a + a), not a source: intermediates
 // cannot repack at encode time, so the lowering must still convert the lhs
 // onto its expanded compute placement in ciphertext space -- the priced

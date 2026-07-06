@@ -152,71 +152,151 @@ SmallVector<MatmulPlan> enumerateMatmulPlans(LayoutAttr lhs, LayoutAttr rhs) {
   // place of an existing same-extent replication piece (the reverse of the
   // subsumption that derives the expanded operands -- so an operand already
   // at an expanded placement enumerates the compute placement it came from).
-  SmallVector<SmallVector<DimAttr>> computeFootprints;
-  auto addHostVariants = [&](ArrayRef<DimAttr> host, int64_t freeDim,
+  // A footprint carries the host's own rolls (positions adjusted for the
+  // inserted free piece), so a rolled operand hosts placements that keep its
+  // diagonal form at zero conversion.
+  struct Footprint {
+    SmallVector<DimAttr> dims;
+    SmallVector<int64_t> seedRolls;
+  };
+  SmallVector<Footprint> computeFootprints;
+  auto addHostVariants = [&](ArrayRef<DimAttr> host,
+                             ArrayRef<int64_t> hostRolls, int64_t freeDim,
                              int64_t freeExtent) {
     SmallVector<DimAttr> base(host.begin(), host.end());
+    SmallVector<int64_t> baseRolls(hostRolls.begin(), hostRolls.end());
     if (freeExtent == 1) {
-      computeFootprints.push_back(base);
+      computeFootprints.push_back({base, baseRolls});
       return;
     }
     DimAttr freePiece = DimAttr::get(ctx, freeDim, freeExtent, /*stride=*/1);
     SmallVector<DimAttr> slotVariant = base;
     slotVariant.push_back(freePiece);
-    computeFootprints.push_back(std::move(slotVariant));
+    computeFootprints.push_back({std::move(slotVariant), baseRolls});
     SmallVector<DimAttr> ctVariant = {freePiece};
     ctVariant.append(base.begin(), base.end());
-    computeFootprints.push_back(std::move(ctVariant));
+    SmallVector<int64_t> shiftedRolls;
+    shiftedRolls.reserve(baseRolls.size());
+    for (int64_t position : baseRolls) shiftedRolls.push_back(position + 1);
+    computeFootprints.push_back(
+        {std::move(ctVariant), std::move(shiftedRolls)});
     for (size_t p = 0; p < base.size(); ++p) {
       if (!base[p].isReplicate() || base[p].getSize() != freeExtent) continue;
       SmallVector<DimAttr> replaceVariant = base;
       replaceVariant[p] = freePiece;
-      computeFootprints.push_back(std::move(replaceVariant));
+      computeFootprints.push_back({std::move(replaceVariant), baseRolls});
     }
   };
-  addHostVariants(lhsIter, kMatmulDimJ, jExtent);
-  addHostVariants(rhsIter, kMatmulDimI, iExtent);
+  auto layoutRolls = [](LayoutAttr layout) -> SmallVector<int64_t> {
+    DenseI64ArrayAttr rolls = layout.getRolls();
+    if (!rolls) return {};
+    return SmallVector<int64_t>(rolls.asArrayRef().begin(),
+                                rolls.asArrayRef().end());
+  };
+  addHostVariants(lhsIter, layoutRolls(lhs), kMatmulDimJ, jExtent);
+  addHostVariants(rhsIter, layoutRolls(rhs), kMatmulDimI, iExtent);
 
-  // Each footprint yields the roll-free placement plus its rolled diagonal
-  // variants: a unit-stride k piece rolled by a same-extent unit-stride
-  // traversal piece elsewhere in the footprint. Each operand's expansion
-  // inherits the roll positionally (for the operand that does not own the
-  // partner dim, the partner is the replication piece that subsumed it, and
-  // the roll materializes every rotation across its blocks); the multiply
-  // stays one op per ciphertext and the k reduction keeps its footprint
-  // shape. Two families fall out of the position pair:
-  //   - ct-diagonal (k in the ciphertext prefix, partner in the slots): the
-  //     ciphertext axis indexes k-diagonals and the k-sum is plain
-  //     ciphertext adds;
-  //   - slot-diagonal (k in the slots; a slot partner is the classic
-  //     Halevi-Shoup diagonal packing, a ciphertext partner the
-  //     replicate-then-roll form whose expansion from a compact source is
-  //     pure rotations): the rolled slot axis indexes diagonals and the
-  //     k-sum stays the slot rotate-and-reduce -- per remaining slot
-  //     coordinate the rolled index is a bijection of k, so the tree still
-  //     sums k and the result gaps the piece as usual.
-  // Both pieces inside the ciphertext prefix is skipped: that only permutes
-  // which ciphertext holds what, which conversion already treats as free.
+  // Each footprint yields the roll-free placement, the host's own rolls
+  // (seeded above), and single-roll decorations on top of either base: a
+  // unit-stride traversal piece rolled by a same-extent unit-stride piece
+  // elsewhere in the footprint. The from piece picks the family:
+  //   - k rolled by an i/j traversal piece: the diagonal operand packings.
+  //     A ciphertext-prefix k rolled by a slot piece is the ct-diagonal
+  //     family (k summed by plain ciphertext adds); a slot k rolled by a
+  //     slot piece is the Halevi-Shoup diagonal packing and by a ciphertext
+  //     piece the replicate-then-roll form (k summed by the usual slot
+  //     rotate-and-reduce -- per remaining coordinate the rolled index is a
+  //     bijection of k, so the tree still sums k).
+  //   - i/j rolled by the other free/host traversal dim or by a replication
+  //     piece (the free-swap diagonal): the k-sum fixes (i, j) per remaining
+  //     address either way, so the roll passes through the kernel and the
+  //     RESULT inherits it -- a matmul can produce a diagonal result
+  //     directly, which is exactly the operand form a downstream
+  //     Halevi-Shoup matmul wants at zero conversion.
+  // Never decorated: a non-k piece rolled by k (summing k at a fixed rolled
+  // address would mix values of the rolled dim instead of summing k for one
+  // (i, j)), and pairs entirely inside the ciphertext prefix (that only
+  // permutes which ciphertext holds what, which conversion already treats
+  // as free). Each operand's expansion inherits the rolls positionally,
+  // except a roll whose from piece the expansion subsumes into replication
+  // (the operand does not own that dim, so the roll is a no-op for it); the
+  // multiply stays one op per ciphertext and the k reduction keeps its
+  // footprint shape.
   SmallVector<std::pair<SmallVector<DimAttr>, SmallVector<int64_t>>>
       computeVariants;
-  for (SmallVector<DimAttr>& footprint : computeFootprints) {
-    const size_t ctPrefixLen = inferCtPrefixLen(footprint, n);
-    computeVariants.push_back({footprint, {}});
-    for (size_t kPos = 0; kPos < footprint.size(); ++kPos) {
-      DimAttr kPiece = footprint[kPos];
-      if (kPiece.getDim() != kMatmulDimK || kPiece.getStride() != 1) continue;
-      for (size_t partnerPos = 0; partnerPos < footprint.size(); ++partnerPos) {
-        if (partnerPos == kPos) continue;
-        if (kPos < ctPrefixLen && partnerPos < ctPrefixLen) continue;
-        DimAttr partner = footprint[partnerPos];
-        if (partner.isGap() || partner.isReplicate() ||
-            partner.getDim() == kMatmulDimK || partner.getStride() != 1 ||
-            partner.getSize() != kPiece.getSize()) {
+  for (Footprint& footprint : computeFootprints) {
+    ArrayRef<DimAttr> dims = footprint.dims;
+    const size_t ctPrefixLen = inferCtPrefixLen(footprint.dims, n);
+
+    // The host's rolls, minus reduction-incompatible pairs (non-k rolled by
+    // k). Positions relabel one to one, so a compatible-rolled host is the
+    // zero-conversion operand of the variants it seeds.
+    SmallVector<int64_t> seed;
+    for (size_t i = 0; i + 1 < footprint.seedRolls.size(); i += 2) {
+      DimAttr from = dims[footprint.seedRolls[i]];
+      DimAttr by = dims[footprint.seedRolls[i + 1]];
+      if (from.getDim() != kMatmulDimK && by.getDim() == kMatmulDimK) continue;
+      seed.push_back(footprint.seedRolls[i]);
+      seed.push_back(footprint.seedRolls[i + 1]);
+    }
+
+    SmallVector<std::pair<int64_t, int64_t>> decorations;
+    for (size_t fromPos = 0; fromPos < dims.size(); ++fromPos) {
+      DimAttr fromPiece = dims[fromPos];
+      if (fromPiece.isGap() || fromPiece.isReplicate() ||
+          fromPiece.getStride() != 1) {
+        continue;
+      }
+      for (size_t byPos = 0; byPos < dims.size(); ++byPos) {
+        if (byPos == fromPos) continue;
+        if (fromPos < ctPrefixLen && byPos < ctPrefixLen) continue;
+        DimAttr byPiece = dims[byPos];
+        if (byPiece.isGap() || byPiece.getStride() != 1 ||
+            byPiece.getSize() != fromPiece.getSize() ||
+            byPiece.getDim() == kMatmulDimK) {
           continue;
         }
-        computeVariants.push_back(
-            {footprint,
-             {static_cast<int64_t>(kPos), static_cast<int64_t>(partnerPos)}});
+        if (fromPiece.getDim() == kMatmulDimK) {
+          // The diagonal operand families roll k by a traversal partner; a
+          // replication partner is the free-swap form below, meaningless
+          // for k (its rotations are what the reduction consumes).
+          if (byPiece.isReplicate()) continue;
+        } else {
+          // Free-swap family: i/j by the other traversal dim or by
+          // replication; rolling a dim by another piece of itself adds
+          // nothing a conversion doesn't.
+          if (!byPiece.isReplicate() &&
+              byPiece.getDim() == fromPiece.getDim()) {
+            continue;
+          }
+        }
+        decorations.push_back(
+            {static_cast<int64_t>(fromPos), static_cast<int64_t>(byPos)});
+      }
+    }
+
+    SmallVector<SmallVector<int64_t>> bases;
+    bases.push_back({});
+    if (!seed.empty()) bases.push_back(seed);
+    for (const SmallVector<int64_t>& base : bases) {
+      computeVariants.push_back({footprint.dims, base});
+      for (auto [fromPos, byPos] : decorations) {
+        // No two rolls may rewrite the same piece, and no roll may involve
+        // a piece another roll rewrites (composition would be
+        // order-dependent); such stacks are left to future variants.
+        bool conflicts = false;
+        for (size_t i = 0; i + 1 < base.size(); i += 2) {
+          if (base[i] == fromPos || base[i] == byPos ||
+              base[i + 1] == fromPos) {
+            conflicts = true;
+            break;
+          }
+        }
+        if (conflicts) continue;
+        SmallVector<int64_t> combined = base;
+        combined.push_back(fromPos);
+        combined.push_back(byPos);
+        computeVariants.push_back({footprint.dims, std::move(combined)});
       }
     }
   }
@@ -242,11 +322,13 @@ SmallVector<MatmulPlan> enumerateMatmulPlans(LayoutAttr lhs, LayoutAttr rhs) {
     // so the result makes no claim about those slots. Ciphertext pieces
     // collapse into adds and are dropped.
     SmallVector<DimAttr> resultDims;
+    SmallVector<int64_t> resultPosition(computeDims.size(), -1);
     int64_t kSlotExtent = 1;
     int64_t kCtExtent = 1;
     for (size_t p = 0; p < computeDims.size(); ++p) {
       DimAttr piece = computeDims[p];
       if (piece.getDim() != kMatmulDimK) {
+        resultPosition[p] = static_cast<int64_t>(resultDims.size());
         resultDims.push_back(piece);
         continue;
       }
@@ -255,27 +337,57 @@ SmallVector<MatmulPlan> enumerateMatmulPlans(LayoutAttr lhs, LayoutAttr rhs) {
         continue;
       }
       kSlotExtent *= piece.getSize();
+      resultPosition[p] = static_cast<int64_t>(resultDims.size());
       resultDims.push_back(
           DimAttr::get(ctx, /*dim=*/-2, piece.getSize(), /*stride=*/1));
     }
 
-    // The roll is positional, so both expansions inherit it piece for piece
-    // (subsumption keeps positions; for the operand that does not own the
-    // partner dim the roll lands on the replication piece that replaced it).
-    // The result drops the rolls: every roll rewrites a k piece, and summing
-    // k consumes that piece (a ciphertext k piece is dropped, a slot k piece
-    // becomes a gap) -- per remaining coordinate the rolled index is a
-    // bijection of k, so the sum over it is the k-sum and the surviving
-    // pieces are unrolled.
+    // The rolls are positional, so both expansions inherit them piece for
+    // piece (subsumption keeps positions; for the operand that does not own
+    // a partner dim the roll lands on the replication piece that replaced
+    // it, materializing every rotation across its blocks) -- except a roll
+    // whose FROM piece the expansion subsumes: the operand does not own
+    // that dim, so its placement is plain replication there and the roll is
+    // dropped. The result drops the k rolls (summing k consumes the rolled
+    // piece; per remaining coordinate the rolled index is a bijection of k,
+    // so the sum over it is still the k-sum) and keeps the i/j rolls at
+    // their surviving positions -- a diagonal result.
+    auto rollsWithoutFromDim = [&](int64_t subsumedDim) {
+      SmallVector<int64_t> kept;
+      for (size_t i = 0; i + 1 < rolls.size(); i += 2) {
+        if (computeDims[rolls[i]].getDim() == subsumedDim) continue;
+        kept.push_back(rolls[i]);
+        kept.push_back(rolls[i + 1]);
+      }
+      return kept;
+    };
+    SmallVector<int64_t> resultRolls;
+    for (size_t i = 0; i + 1 < rolls.size(); i += 2) {
+      if (computeDims[rolls[i]].getDim() == kMatmulDimK) continue;
+      const int64_t from = resultPosition[rolls[i]];
+      const int64_t by = resultPosition[rolls[i + 1]];
+      assert(from >= 0 && by >= 0 &&
+             "non-k roll pieces must survive the k-summation");
+      resultRolls.push_back(from);
+      resultRolls.push_back(by);
+    }
+
     MatmulPlan plan;
     plan.computeLayout = computeLayout;
     plan.expandedLhs = makeCheckedLayout(
-        ctx, relabelTraversalDims(ctx, expandedLhsDims, iterToLhs), n, rolls);
+        ctx, relabelTraversalDims(ctx, expandedLhsDims, iterToLhs), n,
+        rollsWithoutFromDim(kMatmulDimJ));
     plan.expandedRhs = makeCheckedLayout(
-        ctx, relabelTraversalDims(ctx, expandedRhsDims, iterToRhs), n, rolls);
+        ctx, relabelTraversalDims(ctx, expandedRhsDims, iterToRhs), n,
+        rollsWithoutFromDim(kMatmulDimI));
     plan.resultLayout = makeCheckedLayout(
-        ctx, relabelTraversalDims(ctx, resultDims, iterToResult), n);
+        ctx, relabelTraversalDims(ctx, resultDims, iterToResult), n,
+        resultRolls);
     if (!plan.expandedLhs || !plan.expandedRhs || !plan.resultLayout) continue;
+    // The result becomes a value's assigned layout, so it must actually
+    // materialize (the expansions are only priced, and unmaterializable
+    // ones are already rejected there).
+    if (!isMaterializableRotomLayout(plan.resultLayout)) continue;
 
     replicationFillCounts(computeDims, expandedLhsDims, ctPrefixLen,
                           numCtCompute, kMatmulDimJ, plan.lhsFillRotations,

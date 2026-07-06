@@ -44,7 +44,8 @@ inline constexpr llvm::StringLiteral kRotomMatmulAttrName = "rotom.matmul";
 //     region becomes a gap (the cyclic rotate-and-reduce leaves the true sum
 //     only at the k=0 offset; the other offsets hold unspecified window
 //     sums); a k piece in the ciphertext prefix is dropped (ciphertext adds
-//     collapse it) -- in C's own dims.
+//     collapse it); k rolls are consumed with their piece while i/j rolls
+//     survive (a diagonal result) -- in C's own dims.
 //
 // The counts are informational raw operation counts (the generator prices
 // operand alignment with the shift-network cost instead): fill counts price
@@ -74,16 +75,24 @@ struct MatmulPlan {
 //     subsumption, so an operand already at an expanded placement enumerates
 //     the compute placement it came from);
 //   - rhs-hosted: symmetric, placing i.
-// Each footprint then yields the roll-free plan plus its rolled diagonal
-// variants: a unit-stride k piece anywhere in the footprint rolled by each
-// same-extent unit-stride i/j piece elsewhere (skipping pairs entirely
-// inside the ciphertext prefix). A ciphertext-prefix k rolled by a slot
-// piece is the ct-diagonal family (k summed by plain ciphertext adds); a
-// slot k rolled by a slot piece is the Halevi-Shoup diagonal packing and by
-// a ciphertext piece the replicate-then-roll form (k summed by the usual
-// slot rotate-and-reduce). A rolled plan keeps the footprint (and so the
-// multiply and reduction counts) unchanged; only the operand placements
-// diagonalize, and the result is unrolled.
+// Each footprint carries the host's own rolls (a rolled operand hosts its
+// diagonal form at zero conversion) and yields the roll-free plan, the
+// host-rolled plan, and single-roll decorations on either base (skipping
+// pairs entirely inside the ciphertext prefix and any composition that
+// would be order-dependent):
+//   - a unit-stride k piece rolled by a same-extent unit-stride i/j piece:
+//     a ciphertext-prefix k rolled by a slot piece is the ct-diagonal
+//     family (k summed by plain ciphertext adds); a slot k rolled by a slot
+//     piece is the Halevi-Shoup diagonal packing and by a ciphertext piece
+//     the replicate-then-roll form (k summed by the usual slot
+//     rotate-and-reduce);
+//   - an i/j piece rolled by the other free/host traversal dim or by a
+//     replication piece (the free-swap diagonal): the roll commutes with
+//     the k-sum, so the result inherits it -- the plan produces a diagonal
+//     result a downstream Halevi-Shoup matmul consumes at zero conversion.
+// A non-k piece is never rolled by k (that would not commute with the
+// k-sum). A rolled plan keeps the footprint (and so the multiply and
+// reduction counts) unchanged; only the placements diagonalize.
 // Variants whose layout fails LayoutAttr verification (e.g. a
 // non-power-of-two extent landing in the slot region) are silently skipped,
 // so possibly zero plans may be returned.

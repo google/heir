@@ -55,15 +55,16 @@ class ContractionAlignmentTest : public ::testing::Test {
 
 // 4x4 matmul at n=16, both operands row-major. The four host x region
 // variants dedup to three roll-free footprints (rhs-hosted/ct coincides with
-// lhs-hosted/slot); each footprint adds two rolled diagonal variants --
+// lhs-hosted/slot); each footprint adds two rolled k-diagonal variants --
 // [2:4][1:4][0:4] rolls its ciphertext k by j or i (ct-diagonal), and
 // [0:4][2:4][1:4] / [1:4][0:4][2:4] roll their slot k by the ciphertext
-// piece or the other slot piece (slot-diagonal) -- for nine plans total.
-TEST_F(ContractionAlignmentTest, RowMajorPairEnumeratesNineDedupedPlans) {
+// piece or the other slot piece (slot-diagonal) -- and two free-swap
+// variants rolling i by j or j by i (diagonal results), for fifteen plans.
+TEST_F(ContractionAlignmentTest, RowMajorPairEnumeratesFifteenDedupedPlans) {
   LayoutAttr lhs = layout({dim(0, 4), dim(1, 4)}, 16);
   LayoutAttr rhs = layout({dim(0, 4), dim(1, 4)}, 16);
   SmallVector<MatmulPlan> plans = rotom::enumerateMatmulPlans(lhs, rhs);
-  EXPECT_EQ(plans.size(), 9u);
+  EXPECT_EQ(plans.size(), 15u);
 }
 
 TEST_F(ContractionAlignmentTest, LhsHostedSlotPlan) {
@@ -308,6 +309,67 @@ TEST_F(ContractionAlignmentTest, ExpandedRollFreeHostReusesReplicationPiece) {
   EXPECT_EQ(plan->expandedLhs, lhs);
   EXPECT_EQ(plan->expandedRhs, rhs);
   EXPECT_EQ(plan->resultLayout, layout({dim(0, 4), dim(1, 4)}, 16));
+}
+
+// Free-swap decoration: rolling j by i commutes with the k-sum, so the
+// RESULT inherits the roll -- a diagonal result. The expansion that owns j
+// (the rhs) keeps the roll with i subsumed into its replication partner; the
+// lhs expansion subsumes the rolled j itself, so for it the roll is a no-op
+// on plain replication and is dropped.
+TEST_F(ContractionAlignmentTest, FreeSwapRollSurvivesIntoResult) {
+  LayoutAttr lhs = layout({dim(0, 4), dim(1, 4)}, 16);
+  LayoutAttr rhs = layout({dim(0, 4), dim(1, 4)}, 16);
+  SmallVector<MatmulPlan> plans = rotom::enumerateMatmulPlans(lhs, rhs);
+
+  // lhs-hosted slot footprint [i:4][k:4][j:4] with j (pos 2) rolled by i
+  // (pos 0).
+  const MatmulPlan* plan = findPlan(
+      plans, rolledLayout({dim(0, 4), dim(2, 4), dim(1, 4)}, 16, {2, 0}));
+  ASSERT_NE(plan, nullptr);
+  EXPECT_EQ(plan->expandedLhs, layout({dim(0, 4), dim(1, 4), repl(4)}, 16));
+  EXPECT_EQ(plan->expandedRhs,
+            rolledLayout({repl(4), dim(0, 4), dim(1, 4)}, 16, {2, 0}));
+  EXPECT_EQ(plan->resultLayout,
+            rolledLayout({dim(0, 4), gap(4), dim(1, 4)}, 16, {2, 0}));
+  // The roll changes placements only: multiply and reduce counts match the
+  // roll-free footprint.
+  EXPECT_EQ(plan->reduceRotations, 8);
+  EXPECT_EQ(plan->reduceAdds, 8);
+}
+
+// A host roll that would not commute with the k-sum (a free/host dim rolled
+// by k) is never seeded into a footprint: no plan hosts such an operand at
+// its rolled placement.
+TEST_F(ContractionAlignmentTest, IncompatibleHostRollIsNotSeeded) {
+  // lhs (i, k) with i rolled by k: summing k at a fixed rolled-i address
+  // would mix i values.
+  LayoutAttr lhs = rolledLayout({dim(0, 4), dim(1, 4)}, 16, {0, 1});
+  LayoutAttr rhs = layout({dim(0, 4), dim(1, 4)}, 16);
+  for (const MatmulPlan& plan : rotom::enumerateMatmulPlans(lhs, rhs)) {
+    EXPECT_NE(plan.expandedLhs, lhs);
+  }
+}
+
+// A diagonal result (free-swap roll on the first matmul) is a rolled host
+// for the next matmul in a chain: its k roll seeds footprints, and the
+// second matmul reaches its compute placement by a plain replication fill
+// of the already-diagonal operand.
+TEST_F(ContractionAlignmentTest, RolledResultHostsDownstreamMatmul) {
+  // The FreeSwapRollSurvivesIntoResult result, read as the lhs (i, k) of the
+  // next matmul: ct piece i, slot pieces gap and k, with k rolled by i.
+  LayoutAttr chained = rolledLayout({dim(0, 4), gap(4), dim(1, 4)}, 16, {2, 0});
+  LayoutAttr rhs = layout({dim(0, 4), dim(1, 4)}, 16);
+  SmallVector<MatmulPlan> plans = rotom::enumerateMatmulPlans(chained, rhs);
+
+  bool hostsRolledPlacement = false;
+  for (const MatmulPlan& plan : plans) {
+    DenseI64ArrayAttr rolls = plan.computeLayout.getRolls();
+    if (rolls && !rolls.empty() && plan.expandedLhs.getRolls() &&
+        !plan.expandedLhs.getRolls().empty()) {
+      hostsRolledPlacement = true;
+    }
+  }
+  EXPECT_TRUE(hostsRolledPlacement);
 }
 
 TEST_F(ContractionAlignmentTest, MismatchedNReturnsNoPlans) {
