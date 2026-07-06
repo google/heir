@@ -202,6 +202,43 @@ SmallVector<MatmulPlan> enumerateMatmulPlans(LayoutAttr lhs, LayoutAttr rhs) {
   addHostVariants(lhsIter, layoutRolls(lhs), kMatmulDimJ, jExtent);
   addHostVariants(rhsIter, layoutRolls(rhs), kMatmulDimI, iExtent);
 
+  // Densified footprints: when the slot suffix leaves slack (an implicit
+  // front gap of s = n / slot extent), a unit-stride ciphertext piece can
+  // straddle the boundary instead -- split into a ct digit [d:E/s:s] and a
+  // slot digit [d:s:1] that fills the gap, dividing the ciphertext count by
+  // s. Splitting k this way packs s diagonals per ciphertext once the roll
+  // decorations below roll it (a roll FROM either digit rewrites the whole
+  // k index; each digit then takes its digit of the rolled index): the
+  // dense Halevi-Shoup packing, s x more compact than the gapped
+  // ct-diagonal form. Everything downstream (decorations, expansions,
+  // result, counts, lowering) treats the split footprint like any other.
+  const size_t baseFootprintCount = computeFootprints.size();
+  for (size_t f = 0; f < baseFootprintCount; ++f) {
+    if (!computeFootprints[f].seedRolls.empty()) continue;
+    SmallVector<DimAttr> base = computeFootprints[f].dims;
+    const size_t ctPrefixLen = inferCtPrefixLen(base, n);
+    int64_t slotExtent = 1;
+    for (size_t p = ctPrefixLen; p < base.size(); ++p) {
+      slotExtent *= base[p].getSize();
+    }
+    if (slotExtent <= 0 || n % slotExtent != 0) continue;
+    const int64_t slack = n / slotExtent;
+    if (slack <= 1) continue;
+    for (size_t p = 0; p < ctPrefixLen; ++p) {
+      DimAttr piece = base[p];
+      if (piece.isGap() || piece.isReplicate() || piece.getStride() != 1 ||
+          piece.getSize() % slack != 0 || piece.getSize() / slack <= 1) {
+        continue;
+      }
+      SmallVector<DimAttr> split(base.begin(), base.end());
+      split[p] =
+          DimAttr::get(ctx, piece.getDim(), piece.getSize() / slack, slack);
+      split.insert(split.begin() + ctPrefixLen,
+                   DimAttr::get(ctx, piece.getDim(), slack, /*stride=*/1));
+      computeFootprints.push_back({std::move(split), {}});
+    }
+  }
+
   // Each footprint yields the roll-free placement, the host's own rolls
   // (seeded above), and single-roll decorations on top of either base: a
   // unit-stride traversal piece rolled by a same-extent unit-stride piece

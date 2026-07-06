@@ -26,6 +26,7 @@ cc_test(
     srcs = ["ContractionAlignmentTest.cpp"],
     deps = [
         ":ContractionAlignment",
+        ":LayoutAlignment",
         "@googletest//:gtest_main",
         "@heir//lib/Dialect/Rotom/IR:Dialect",
         "@llvm-project//llvm:Support",

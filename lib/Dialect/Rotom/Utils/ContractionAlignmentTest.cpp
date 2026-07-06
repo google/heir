@@ -4,6 +4,7 @@
 #include "lib/Dialect/Rotom/IR/RotomAttributes.h"
 #include "lib/Dialect/Rotom/IR/RotomDialect.h"
 #include "lib/Dialect/Rotom/Utils/ContractionAlignment.h"
+#include "lib/Dialect/Rotom/Utils/LayoutAlignment.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"        // from @llvm-project
@@ -427,6 +428,35 @@ TEST_F(ContractionAlignmentTest, BsgsSplitYieldsBabyExpansionAndGiantReduce) {
   EXPECT_EQ(plan->resultLayout, layout({dim(0, 16)}, 16));
   EXPECT_EQ(plan->reduceRotations, 3);
   EXPECT_EQ(plan->reduceAdds, 15);
+}
+
+// Dense diagonal packing: at n = 64 the ct-diagonal footprint of a 16x16
+// matvec leaves 3/4 of every ciphertext empty (16 ciphertexts, slot slack
+// 4). The densified variant straddles k across the boundary --
+// [k:4:4](ct) [k:4:1](slot) [i:16] -- and rolling either k digit by i
+// rewrites the whole k index: four diagonals pack per ciphertext, 4 dense
+// ciphertexts instead of 16 gapped ones.
+TEST_F(ContractionAlignmentTest, DensifiedDiagonalPacksSlackIntoSlots) {
+  LayoutAttr lhs = layout({dim(1, 16), dim(0, 16)}, 64);
+  LayoutAttr rhs = layout({dim(0, 16)}, 64);
+  SmallVector<MatmulPlan> plans = rotom::enumerateMatmulPlans(lhs, rhs);
+
+  LayoutAttr compute = rolledLayout(
+      {dim(2, 4, /*stride=*/4), dim(2, 4), dim(0, 16)}, 64, /*rolls=*/{1, 2});
+  const MatmulPlan* plan = findPlan(plans, compute);
+  ASSERT_NE(plan, nullptr);
+  EXPECT_EQ(plan->expandedLhs,
+            rolledLayout({dim(1, 4, /*stride=*/4), dim(1, 4), dim(0, 16)}, 64,
+                         {1, 2}));
+  EXPECT_EQ(
+      plan->expandedRhs,
+      rolledLayout({dim(0, 4, /*stride=*/4), dim(0, 4), repl(16)}, 64, {1, 2}));
+  EXPECT_EQ(plan->resultLayout, layout({gap(4), dim(0, 16)}, 64));
+  // 4 dense ciphertexts; the slot k digit reduces with a 2-step tree on the
+  // single result ciphertext, the ct digit with 3 plain adds.
+  EXPECT_EQ(rotom::layoutNumCiphertexts(plan->computeLayout), 4);
+  EXPECT_EQ(plan->reduceRotations, 2);
+  EXPECT_EQ(plan->reduceAdds, 5);
 }
 
 TEST_F(ContractionAlignmentTest, MismatchedNReturnsNoPlans) {

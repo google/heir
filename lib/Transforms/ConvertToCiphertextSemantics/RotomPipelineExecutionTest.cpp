@@ -1297,6 +1297,83 @@ module {
 }
 
 // The general-search rolled-candidate hook (single-roll seed variants): %b
+// Dense diagonal packing: the same 16x16 matvec at n = 64. A gapped
+// ct-diagonal placement would carry 16 ciphertexts, each 3/4 empty; the
+// densified footprint straddles k across the ciphertext/slot boundary and
+// packs 4 diagonals per ciphertext, so the matrix repacks at 4 DENSE
+// ciphertexts and the result collapses to one.
+TEST(RotomPipelineExecutionTest, MatvecDenseDiagonalStaysCompact) {
+  MLIRContext context;
+  initContext(context);
+  OwningOpRef<ModuleOp> module = openfhe::parse(&context, R"mlir(
+#seed_mat = #rotom.seed<layouts = [#rotom.layout<dims = [#rotom.dim<[1:16:1]>, #rotom.dim<[0:16:1]>], n = 64>]>
+#seed_vec = #rotom.seed<layouts = [#rotom.layout<dims = [#rotom.dim<[0:16:1]>], n = 64>]>
+
+module {
+  func.func @main(%a: tensor<16x16xf32> {rotom.seed = #seed_mat}, %x: tensor<16x1xf32> {rotom.seed = #seed_vec}) -> tensor<16x1xf32> {
+    %xx = arith.addf %x, %x : tensor<16x1xf32>
+    %cst = arith.constant 0.000000e+00 : f32
+    %empty = tensor.empty() : tensor<16x1xf32>
+    %fill = linalg.fill ins(%cst : f32) outs(%empty : tensor<16x1xf32>) -> tensor<16x1xf32>
+    %0 = linalg.matmul ins(%a, %xx : tensor<16x16xf32>, tensor<16x1xf32>) outs(%fill : tensor<16x1xf32>) -> tensor<16x1xf32>
+    return %0 : tensor<16x1xf32>
+  }
+}
+)mlir");
+  ASSERT_TRUE(module);
+  ASSERT_TRUE(succeeded(runRotomPipeline(module.get(), &context,
+                                         /*ciphertextSize=*/64)));
+
+  func::FuncOp main = module->lookupSymbol<func::FuncOp>("main");
+  ASSERT_TRUE(main);
+  tensor_ext::LayoutAttr matLayout = getArgLayout(main, 0);
+  tensor_ext::LayoutAttr vecLayout = getArgLayout(main, 1);
+  tensor_ext::LayoutAttr resultLayout = getResultLayout(main, 0);
+  ASSERT_TRUE(matLayout);
+  ASSERT_TRUE(vecLayout);
+  ASSERT_TRUE(resultLayout);
+
+  // The matrix packs densely: 4 ciphertexts, not 16 gapped ones. The vector
+  // and the result stay single ciphertexts.
+  EXPECT_EQ(cast<RankedTensorType>(main.getArgument(0).getType()).getDimSize(0),
+            4);
+  EXPECT_EQ(cast<RankedTensorType>(main.getArgument(1).getType()).getDimSize(0),
+            1);
+  EXPECT_EQ(
+      cast<RankedTensorType>(main.getFunctionType().getResult(0)).getDimSize(0),
+      1);
+
+  std::vector<std::vector<float>> mat(16, std::vector<float>(16));
+  std::vector<std::vector<float>> vec(16, std::vector<float>(1));
+  for (int64_t i = 0; i < 16; ++i) {
+    for (int64_t k = 0; k < 16; ++k) mat[i][k] = 1 + ((3 * i + 7 * k) % 9);
+    vec[i][0] = 1 + (5 * i) % 11;
+  }
+  std::vector<std::vector<float>> expected(16, std::vector<float>(1, 0.0f));
+  for (int64_t i = 0; i < 16; ++i) {
+    for (int64_t k = 0; k < 16; ++k) {
+      expected[i][0] += mat[i][k] * 2 * vec[k][0];
+    }
+  }
+
+  Interpreter interpreter(module.get());
+  std::vector<TypedCppValue> inputs = {
+      TypedCppValue(packMatrix(
+          matLayout, cast<RankedTensorType>(main.getArgument(0).getType()),
+          mat)),
+      TypedCppValue(packMatrix(
+          vecLayout, cast<RankedTensorType>(main.getArgument(1).getType()),
+          vec)),
+  };
+  std::vector<TypedCppValue> results = interpreter.interpret("main", inputs);
+  ASSERT_EQ(results.size(), 1);
+
+  auto actual = std::get<std::shared_ptr<std::vector<float>>>(results[0].value);
+  expectClaimedSlotsMatch(
+      *actual, resultLayout,
+      cast<RankedTensorType>(main.getFunctionType().getResult(0)), expected);
+}
+
 // Baby-step/giant-step: a 16x16 matvec whose vector operand is an
 // intermediate (x + x) at a compact single-ciphertext seed. The search
 // picks the BSGS plan -- the matrix source repacks at the giant/baby
