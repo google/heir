@@ -7,21 +7,29 @@
 // Replication and gap dims print as R and G; the numeric ids -1 and -2 are
 // accepted on input and round-trip to the letter forms.
 #repl_gap = #rotom.layout<n = 16, dims = [[R:2:1], [-2:2:1], [0:4:1]]>
+// A roll tuple takes an optional third element, the scale: (from, by, s)
+// shifts by s times the partner index. Unit scales round-trip to the pair
+// form; the split-dim k pieces share one logical index that the roll
+// rewrites whole.
+#scaled = #rotom.layout<n = 16, rolls = [(0, 2), (2, 0, -4)], dims = [[1:4:4], [1:4:1], [0:16:1]]>
 
 // CHECK: #dim = #rotom.dim<[2:8:4]>
 // CHECK: #layout = #rotom.layout<n = 8, dims = {{\[\[0:4:1\]\]}}>
 // CHECK: #layout1 = #rotom.layout<n = 16, dims = {{\[\[R:2:1\], \[G:2:1\], \[0:4:1\]\]}}>
 // CHECK: #layout2 = #rotom.layout<n = 16, rolls = [(0, 1)], dims = {{\[\[0:4:1\], \[1:4:1\]\]}}>
+// CHECK: #layout3 = #rotom.layout<n = 16, rolls = [(0, 2), (2, 0, -4)], dims = {{\[\[1:4:4\], \[1:4:1\], \[0:16:1\]\]}}>
 // CHECK: module attributes
 // CHECK-SAME: rotom.dim_attr = #dim
 // CHECK-SAME: rotom.plain_layout = #layout
 // CHECK-SAME: rotom.repl_gap_layout = #layout1
 // CHECK-SAME: rotom.rolled_layout = #layout2
+// CHECK-SAME: rotom.scaled_layout = #layout3
 module attributes {
   rotom.dim_attr = #rotom.dim<[2:8:4]>,
   rotom.plain_layout = #plain,
   rotom.repl_gap_layout = #repl_gap,
-  rotom.rolled_layout = #rolled
+  rotom.rolled_layout = #rolled,
+  rotom.scaled_layout = #scaled
 } {
   func.func @f(%arg0: tensor<4x4xf32>) {
     return

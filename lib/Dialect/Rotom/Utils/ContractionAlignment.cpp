@@ -35,7 +35,10 @@ static LayoutAttr makeCheckedLayout(MLIRContext* ctx, ArrayRef<DimAttr> dims,
   // not reported.
   ScopedDiagnosticHandler silence(ctx, [](Diagnostic&) { return success(); });
   auto swallow = mlir::detail::getDefaultDiagnosticEmitFn(UnknownLoc::get(ctx));
-  if (failed(LayoutAttr::verify(swallow, dimsAttr, n, rolls))) return {};
+  if (failed(LayoutAttr::verify(swallow, dimsAttr, n, rolls,
+                                DenseI64ArrayAttr()))) {
+    return {};
+  }
   return LayoutAttr::get(ctx, dimsAttr, n, rolls);
 }
 

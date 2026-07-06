@@ -409,6 +409,121 @@ TEST(RotomTensorExtLayoutLoweringTest, UnequalExtentRollReducesModFromSize) {
   EXPECT_EQ(packed, expected);
 }
 
+// A scaled roll shifts by scale * partner index: replica d holds the vector
+// rotated left by 4d -- the giant-step strides of a BSGS packing.
+TEST(RotomTensorExtLayoutLoweringTest, ScaledRollMaterializesStridedRotations) {
+  MLIRContext context;
+  context.loadDialect<RotomDialect>();
+  DimAttr repl = DimAttr::get(&context, /*dim=*/-1, /*size=*/4, /*stride=*/1);
+  DimAttr d0 = DimAttr::get(&context, /*dim=*/0, /*size=*/16, /*stride=*/1);
+  LayoutAttr layout =
+      LayoutAttr::get(&context, ArrayAttr::get(&context, {repl, d0}), /*n=*/64,
+                      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{1, 0}),
+                      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{4}));
+
+  FailureOr<std::string> isl =
+      RotomTensorExtLayoutLowering::lowerToTensorExtIsl(layout);
+  ASSERT_TRUE(succeeded(isl));
+  auto relation = getIntegerRelationFromIslStr(*isl);
+  ASSERT_TRUE(succeeded(relation));
+
+  std::vector<int> vec(16);
+  for (int i = 0; i < 16; ++i) vec[i] = i + 1;
+  std::vector<std::vector<int>> packed = evaluateLayout<int>(
+      relation.value(), [&](const std::vector<int64_t>& domainPoint) -> int {
+        return vec[domainPoint[0]];
+      });
+  ASSERT_EQ(packed.size(), 1u);
+  ASSERT_EQ(packed[0].size(), 64u);
+  for (int d = 0; d < 4; ++d) {
+    for (int a = 0; a < 16; ++a) {
+      EXPECT_EQ(packed[0][16 * d + a], vec[(a + 4 * d) % 16])
+          << "replica " << d << " slot " << a;
+    }
+  }
+}
+
+// A roll FROM one piece of a mixed-radix split dim rewrites the whole dim's
+// index, and each piece takes its digit of the rolled index: ciphertext
+// (g, b) at slot a holds the iteration point k = (a + 4g + b) mod 16 -- the
+// diagonal index split across two ciphertext digits.
+TEST(RotomTensorExtLayoutLoweringTest, WholeDimRollOnSplitDim) {
+  MLIRContext context;
+  context.loadDialect<RotomDialect>();
+  DimAttr kHi = DimAttr::get(&context, /*dim=*/1, /*size=*/4, /*stride=*/4);
+  DimAttr kLo = DimAttr::get(&context, /*dim=*/1, /*size=*/4, /*stride=*/1);
+  DimAttr i = DimAttr::get(&context, /*dim=*/0, /*size=*/16, /*stride=*/1);
+  // rolls (0, 2): from the k_hi piece -> the whole k index is rewritten to
+  // (k - i) mod 16; k_hi emits its floor digit, k_lo its mod digit.
+  LayoutAttr layout = LayoutAttr::get(
+      &context, ArrayAttr::get(&context, {kHi, kLo, i}), /*n=*/16,
+      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{0, 2}));
+
+  FailureOr<std::string> isl =
+      RotomTensorExtLayoutLowering::lowerToTensorExtIsl(layout);
+  ASSERT_TRUE(succeeded(isl));
+  auto relation = getIntegerRelationFromIslStr(*isl);
+  ASSERT_TRUE(succeeded(relation));
+
+  std::vector<std::vector<int>> packed = evaluateLayout<int>(
+      relation.value(), [&](const std::vector<int64_t>& domainPoint) -> int {
+        // f(i, k) = 16*i + k, distinct per iteration point.
+        return 16 * static_cast<int>(domainPoint[0]) +
+               static_cast<int>(domainPoint[1]);
+      });
+  ASSERT_EQ(packed.size(), 16u);
+  for (int g = 0; g < 4; ++g) {
+    for (int b = 0; b < 4; ++b) {
+      for (int a = 0; a < 16; ++a) {
+        const int k = (a + 4 * g + b) % 16;
+        EXPECT_EQ(packed[4 * g + b][a], 16 * a + k)
+            << "ct (" << g << ", " << b << ") slot " << a;
+      }
+    }
+  }
+}
+
+// The full BSGS diagonal packing of a 16x16 matrix: k rolled by i (whole
+// dim), then i rolled by the k_hi DIGIT of the rolled k with scale -4.
+// Ciphertext (g, b) at slot a holds the iteration point
+// (i, k) = ((a - 4g) mod 16, (a + b) mod 16): the value the giant-step
+// kernel multiplies against the baby-rotated vector block b, so that
+// rotating partial sum g by 4g slots and adding yields the matvec.
+TEST(RotomTensorExtLayoutLoweringTest, BsgsDiagonalPackingMaterializes) {
+  MLIRContext context;
+  context.loadDialect<RotomDialect>();
+  DimAttr kHi = DimAttr::get(&context, /*dim=*/1, /*size=*/4, /*stride=*/4);
+  DimAttr kLo = DimAttr::get(&context, /*dim=*/1, /*size=*/4, /*stride=*/1);
+  DimAttr i = DimAttr::get(&context, /*dim=*/0, /*size=*/16, /*stride=*/1);
+  LayoutAttr layout = LayoutAttr::get(
+      &context, ArrayAttr::get(&context, {kHi, kLo, i}), /*n=*/16,
+      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{0, 2, 2, 0}),
+      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{1, -4}));
+
+  FailureOr<std::string> isl =
+      RotomTensorExtLayoutLowering::lowerToTensorExtIsl(layout);
+  ASSERT_TRUE(succeeded(isl));
+  auto relation = getIntegerRelationFromIslStr(*isl);
+  ASSERT_TRUE(succeeded(relation));
+
+  std::vector<std::vector<int>> packed = evaluateLayout<int>(
+      relation.value(), [&](const std::vector<int64_t>& domainPoint) -> int {
+        return 16 * static_cast<int>(domainPoint[0]) +
+               static_cast<int>(domainPoint[1]);
+      });
+  ASSERT_EQ(packed.size(), 16u);
+  for (int g = 0; g < 4; ++g) {
+    for (int b = 0; b < 4; ++b) {
+      for (int a = 0; a < 16; ++a) {
+        const int iVal = ((a - 4 * g) % 16 + 16) % 16;
+        const int kVal = (a + b) % 16;
+        EXPECT_EQ(packed[4 * g + b][a], 16 * iVal + kVal)
+            << "ct (" << g << ", " << b << ") slot " << a;
+      }
+    }
+  }
+}
+
 TEST(RotomTensorExtLayoutLoweringTest, RollVerifierDimKindRules) {
   MLIRContext context;
   context.loadDialect<RotomDialect>();
@@ -424,20 +539,24 @@ TEST(RotomTensorExtLayoutLoweringTest, RollVerifierDimKindRules) {
   ArrayAttr dims = ArrayAttr::get(&context, {repl, d0});
   EXPECT_TRUE(succeeded(LayoutAttr::verify(
       swallow, dims, /*n=*/16,
-      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{1, 0}))));
+      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{1, 0}),
+      DenseI64ArrayAttr())));
   // Rolling FROM a replication dim stays rejected (no index to rewrite).
   EXPECT_TRUE(failed(LayoutAttr::verify(
       swallow, dims, /*n=*/16,
-      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{0, 1}))));
+      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{0, 1}),
+      DenseI64ArrayAttr())));
   // Rolling BY a gap dim of equal extent is allowed; rolling FROM a gap dim
   // stays rejected.
   ArrayAttr gapDims = ArrayAttr::get(&context, {gap, d0});
   EXPECT_TRUE(succeeded(LayoutAttr::verify(
       swallow, gapDims, /*n=*/16,
-      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{1, 0}))));
+      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{1, 0}),
+      DenseI64ArrayAttr())));
   EXPECT_TRUE(failed(LayoutAttr::verify(
       swallow, gapDims, /*n=*/16,
-      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{0, 1}))));
+      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{0, 1}),
+      DenseI64ArrayAttr())));
 }
 
 // roll(1, 0) with piece 0 a gap dim: the gap's block index is the shift, so

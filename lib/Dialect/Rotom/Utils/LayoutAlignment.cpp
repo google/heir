@@ -298,7 +298,7 @@ SmallVector<LayoutAttr> enumerateSingleRollVariants(LayoutAttr layout) {
       auto rolls = DenseI64ArrayAttr::get(
           ctx, {static_cast<int64_t>(fromPos), static_cast<int64_t>(byPos)});
       if (failed(LayoutAttr::verify(swallow, layout.getDims(), layout.getN(),
-                                    rolls))) {
+                                    rolls, DenseI64ArrayAttr()))) {
         continue;
       }
       LayoutAttr variant =

@@ -18,18 +18,39 @@
 namespace mlir::heir::rotom {
 namespace {
 
-/// Maps a `#rotom.dim` from the layout's `dims` list to its iterator index `i*`
-/// after preprocessing (match logical axis, size, and stride).
+/// Maps a `#rotom.dim` from the layout's `dims` list to its iterator index
+/// `i*` after preprocessing. Preprocessing dedupes traversal dims per logical
+/// axis (a mixed-radix split contributes one variable), so the piece's dim id
+/// identifies the variable.
 static FailureOr<int64_t> traversalIndexForRotomDim(
     const SmallVector<DimAttr>& traversalDims, DimAttr want) {
   for (int64_t i = 0; i < static_cast<int64_t>(traversalDims.size()); ++i) {
-    if (traversalDims[i].getDim() == want.getDim() &&
-        traversalDims[i].getSize() == want.getSize() &&
-        traversalDims[i].getStride() == want.getStride()) {
-      return i;
-    }
+    if (traversalDims[i].getDim() == want.getDim()) return i;
   }
   return failure();
+}
+
+/// Product of the extents of `dim`'s pieces in the layout's dims list (the
+/// logical axis extent; a single whole-dim piece gives its own size).
+static int64_t fullExtentOfDim(ArrayAttr rotomDims, int64_t dim) {
+  int64_t extent = 1;
+  for (Attribute a : rotomDims) {
+    auto d = cast<DimAttr>(a);
+    if (!d.isGap() && !d.isReplicate() && d.getDim() == dim) {
+      extent *= d.getSize();
+    }
+  }
+  return extent;
+}
+
+/// Whether `dim` is packed as more than one mixed-radix piece.
+static bool isSplitDim(ArrayAttr rotomDims, int64_t dim) {
+  int64_t count = 0;
+  for (Attribute a : rotomDims) {
+    auto d = cast<DimAttr>(a);
+    if (!d.isGap() && !d.isReplicate() && d.getDim() == dim) ++count;
+  }
+  return count > 1;
 }
 
 static std::string modExpr(llvm::StringRef expr, int64_t mod) {
@@ -84,7 +105,7 @@ static LogicalResult emitSegmentAddress(
     const SmallVector<DimAttr>& replicationDims,
     int64_t numActiveTraversalComponents, size_t segStart, size_t segEnd,
     const llvm::DenseSet<int64_t>& rolledGapIndices, ArrayRef<int64_t> rolls,
-    ArrayAttr rotomDims) {
+    ArrayRef<int64_t> rollScales, ArrayAttr rotomDims) {
   // Effective extent of a piece = the range of its mixed-radix digit: modBy
   // when the piece reads i mod L (the slot/low part), else sz/divBy (the whole
   // dim when divBy 1, or the ct/high part sz/L of a straddling dim).
@@ -167,7 +188,7 @@ static LogicalResult emitSegmentAddress(
   }
 
   // Apply roll(a,b) transforms left-to-right:
-  // t_a <- (t_a - t_b) mod extent(a).
+  // t_a <- (t_a - scale * t_b) mod fullExtent(dim(a)).
   //
   // Rolls are applied on both the ciphertext-address line and the slot line.
   // A roll only affects the address whose segment actually contains the rolled
@@ -176,11 +197,18 @@ static LogicalResult emitSegmentAddress(
   // what lets a roll place a diagonal on the ciphertext axis (one ciphertext
   // per diagonal); restricting to the slot line would silently no-op such
   // ct-side rolls.
+  //
+  // A from piece of a mixed-radix split dim rewrites the WHOLE dim's index
+  // (each piece then takes its digit of the rolled index); a by piece of a
+  // split dim shifts by that piece's digit of the dim's current (possibly
+  // already-rolled) expression. With a scale this expresses
+  // baby-step/giant-step diagonal packings.
   if (!rolls.empty()) {
     if (!rotomDims || rolls.size() % 2 != 0) return failure();
     for (size_t i = 0; i < rolls.size(); i += 2) {
       const int64_t fromIdx = rolls[i];
       const int64_t toIdx = rolls[i + 1];
+      const int64_t scale = i / 2 < rollScales.size() ? rollScales[i / 2] : 1;
       if (fromIdx < 0 || toIdx < 0 ||
           fromIdx >= static_cast<int64_t>(rotomDims.size()) ||
           toIdx >= static_cast<int64_t>(rotomDims.size())) {
@@ -212,10 +240,25 @@ static LogicalResult emitSegmentAddress(
             traversalIndexForRotomDim(traversalDims, toDim);
         if (failed(maybeToTrav)) return failure();
         toExpr = traversalExprs[*maybeToTrav];
+        if (isSplitDim(rotomDims, toDim.getDim())) {
+          // The by piece's digit: (i / stride) mod extent, with the modulus
+          // redundant on the most-significant digit.
+          const int64_t fullTo = fullExtentOfDim(rotomDims, toDim.getDim());
+          if (toDim.getStride() > 1) {
+            toExpr = floorDivExpr(toExpr, toDim.getStride());
+          }
+          if (toDim.getStride() * toDim.getSize() < fullTo) {
+            toExpr = modExpr(toExpr, toDim.getSize());
+          }
+        }
+      }
+      if (scale != 1) {
+        toExpr = std::to_string(scale) + " * (" + toExpr + ")";
       }
       std::string diffExpr =
           "(" + traversalExprs[fromTrav] + " - " + toExpr + ")";
-      traversalExprs[fromTrav] = modExpr(diffExpr, fromDim.getSize());
+      traversalExprs[fromTrav] =
+          modExpr(diffExpr, fullExtentOfDim(rotomDims, fromDim.getDim()));
     }
   }
 
@@ -257,7 +300,7 @@ static FailureOr<std::string> emitSplitCtSlotIsl(
     const SmallVector<DimAttr>& replicationDims,
     const SmallVector<DimAttr>& gapDims, int64_t numTraversalComponents,
     int64_t numReplication, int64_t numGap, ArrayRef<int64_t> rolls,
-    ArrayAttr rotomDims) {
+    ArrayRef<int64_t> rollScales, ArrayAttr rotomDims) {
   if (prefix > pieces.size()) return failure();
 
   const llvm::DenseSet<int64_t> rolledGapIndices =
@@ -332,20 +375,21 @@ static FailureOr<std::string> emitSplitCtSlotIsl(
   emitAnd();
   bool firstTerm = true;
   os << "ct = ";
-  if (failed(emitSegmentAddress(os, firstTerm, pieces, pieceIndex, pieceDivBy,
-                                pieceModBy, traversalDims, gapDims,
-                                replicationDims, numTraversalComponents, 0,
-                                prefix, rolledGapIndices, rolls, rotomDims)))
+  if (failed(emitSegmentAddress(
+          os, firstTerm, pieces, pieceIndex, pieceDivBy, pieceModBy,
+          traversalDims, gapDims, replicationDims, numTraversalComponents, 0,
+          prefix, rolledGapIndices, rolls, rollScales, rotomDims)))
     return failure();
   if (firstTerm) os << "0";
 
   emitAnd();
   firstTerm = true;
   os << "slot = ";
-  if (failed(emitSegmentAddress(
-          os, firstTerm, pieces, pieceIndex, pieceDivBy, pieceModBy,
-          traversalDims, gapDims, replicationDims, numTraversalComponents,
-          prefix, pieces.size(), rolledGapIndices, rolls, rotomDims)))
+  if (failed(emitSegmentAddress(os, firstTerm, pieces, pieceIndex, pieceDivBy,
+                                pieceModBy, traversalDims, gapDims,
+                                replicationDims, numTraversalComponents, prefix,
+                                pieces.size(), rolledGapIndices, rolls,
+                                rollScales, rotomDims)))
     return failure();
   if (firstTerm) os << "0";
 
@@ -388,10 +432,14 @@ static FailureOr<std::string> lowerToIslImpl(LayoutAttr layout) {
   DenseI64ArrayAttr rollsAttr = layout.getRolls();
   ArrayRef<int64_t> rolls =
       rollsAttr ? rollsAttr.asArrayRef() : ArrayRef<int64_t>{};
+  DenseI64ArrayAttr scalesAttr = layout.getRollScales();
+  ArrayRef<int64_t> rollScales =
+      scalesAttr ? scalesAttr.asArrayRef() : ArrayRef<int64_t>{};
   return emitSplitCtSlotIsl(
       data.n, data.ctPrefixLen, data.pieces, data.pieceIndex, data.pieceDivBy,
       data.pieceModBy, data.traversalDims, data.replicationDims, data.gapDims,
-      numTraversalComponents, numReplication, numGap, rolls, layout.getDims());
+      numTraversalComponents, numReplication, numGap, rolls, rollScales,
+      layout.getDims());
 }
 
 }  // namespace

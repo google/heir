@@ -274,7 +274,8 @@ static ParseResult parseLayoutDims(AsmParser& parser,
 }
 
 static ParseResult parseLayoutRolls(AsmParser& parser,
-                                    SmallVector<int64_t>& rolls) {
+                                    SmallVector<int64_t>& rolls,
+                                    SmallVector<int64_t>& scales) {
   if (parser.parseLSquare()) return failure();
   if (succeeded(parser.parseOptionalRSquare())) return success();
 
@@ -282,15 +283,23 @@ static ParseResult parseLayoutRolls(AsmParser& parser,
     if (succeeded(parser.parseOptionalLParen())) {
       int64_t from;
       int64_t to;
+      int64_t scale = 1;
       if (parser.parseInteger(from) || parser.parseComma() ||
-          parser.parseInteger(to) || parser.parseRParen())
+          parser.parseInteger(to))
         return failure();
+      if (succeeded(parser.parseOptionalComma()) &&
+          parser.parseInteger(scale)) {
+        return failure();
+      }
+      if (parser.parseRParen()) return failure();
       rolls.push_back(from);
       rolls.push_back(to);
+      scales.push_back(scale);
     } else {
       int64_t value;
       if (parser.parseInteger(value)) return failure();
       rolls.push_back(value);
+      if (rolls.size() % 2 == 0) scales.push_back(1);
     }
 
     if (succeeded(parser.parseOptionalComma())) continue;
@@ -298,12 +307,32 @@ static ParseResult parseLayoutRolls(AsmParser& parser,
   }
 }
 
+// The canonical scale storage: null when every scale is 1, so scale-free
+// layouts unique to the same attribute whether or not scales were spelled.
+static DenseI64ArrayAttr canonicalRollScales(MLIRContext* ctx,
+                                             ArrayRef<int64_t> scales) {
+  if (llvm::all_of(scales, [](int64_t s) { return s == 1; })) return {};
+  return DenseI64ArrayAttr::get(ctx, scales);
+}
+
 static LogicalResult verifyLayoutRolls(
-    ArrayAttr dims, DenseI64ArrayAttr rolls,
+    ArrayAttr dims, DenseI64ArrayAttr rolls, DenseI64ArrayAttr rollScales,
     function_ref<InFlightDiagnostic()> emitError) {
-  if (!rolls) return success();
+  const bool noRolls = !rolls || rolls.empty();
+  if (rollScales && !rollScales.empty()) {
+    ArrayRef<int64_t> scales = rollScales.asArrayRef();
+    if (noRolls || scales.size() * 2 != rolls.asArrayRef().size()) {
+      return emitError() << "rollScales must hold one scale per roll pair";
+    }
+    if (llvm::any_of(scales, [](int64_t s) { return s == 0; })) {
+      return emitError() << "roll scales must be non-zero";
+    }
+    if (llvm::all_of(scales, [](int64_t s) { return s == 1; })) {
+      return emitError() << "rollScales must be omitted when every scale is 1";
+    }
+  }
+  if (noRolls) return success();
   ArrayRef<int64_t> r = rolls.asArrayRef();
-  if (r.empty()) return success();
   if (r.size() % 2 != 0) {
     return emitError() << "rolls must contain an even number of integers "
                           "(pairs of dim indices)";
@@ -381,10 +410,16 @@ void LayoutAttr::print(AsmPrinter& printer) const {
   DenseI64ArrayAttr rolls = getRolls();
   if (rolls && !rolls.asArrayRef().empty()) {
     ArrayRef<int64_t> values = rolls.asArrayRef();
+    DenseI64ArrayAttr scalesAttr = getRollScales();
+    ArrayRef<int64_t> scales =
+        scalesAttr ? scalesAttr.asArrayRef() : ArrayRef<int64_t>{};
     printer << ", rolls = [";
     for (size_t i = 0; i < values.size(); i += 2) {
       if (i != 0) printer << ", ";
-      printer << "(" << values[i] << ", " << values[i + 1] << ")";
+      printer << "(" << values[i] << ", " << values[i + 1];
+      const int64_t scale = i / 2 < scales.size() ? scales[i / 2] : 1;
+      if (scale != 1) printer << ", " << scale;
+      printer << ")";
     }
     printer << "]";
   }
@@ -399,6 +434,7 @@ void LayoutAttr::print(AsmPrinter& printer) const {
 Attribute LayoutAttr::parse(AsmParser& parser, Type type) {
   int64_t n;
   SmallVector<int64_t> rolls;
+  SmallVector<int64_t> scales;
   SmallVector<Attribute> dims;
 
   if (parser.parseLess()) return {};
@@ -409,7 +445,8 @@ Attribute LayoutAttr::parse(AsmParser& parser, Type type) {
     }
 
     if (succeeded(parser.parseOptionalKeyword("rolls"))) {
-      if (parser.parseEqual() || failed(parseLayoutRolls(parser, rolls)) ||
+      if (parser.parseEqual() ||
+          failed(parseLayoutRolls(parser, rolls, scales)) ||
           parser.parseComma()) {
         return {};
       }
@@ -428,7 +465,7 @@ Attribute LayoutAttr::parse(AsmParser& parser, Type type) {
 
     if (succeeded(parser.parseOptionalComma())) {
       if (parser.parseKeyword("rolls") || parser.parseEqual() ||
-          failed(parseLayoutRolls(parser, rolls))) {
+          failed(parseLayoutRolls(parser, rolls, scales))) {
         return {};
       }
     }
@@ -443,7 +480,8 @@ Attribute LayoutAttr::parse(AsmParser& parser, Type type) {
   MLIRContext* context = parser.getContext();
   return LayoutAttr::getChecked(
       [&]() { return parser.emitError(parser.getNameLoc()); }, context,
-      ArrayAttr::get(context, dims), n, DenseI64ArrayAttr::get(context, rolls));
+      ArrayAttr::get(context, dims), n, DenseI64ArrayAttr::get(context, rolls),
+      canonicalRollScales(context, scales));
 }
 
 FailureOr<LayoutData> preprocessLayoutAttr(LayoutAttr layout) {
@@ -453,7 +491,8 @@ FailureOr<LayoutData> preprocessLayoutAttr(LayoutAttr layout) {
 
 LogicalResult LayoutAttr::verify(function_ref<InFlightDiagnostic()> emitError,
                                  ArrayAttr dims, int64_t n,
-                                 DenseI64ArrayAttr rolls) {
+                                 DenseI64ArrayAttr rolls,
+                                 DenseI64ArrayAttr rollScales) {
   if (n <= 0) {
     return emitError() << "`n` must be > 0, got " << n;
   }
@@ -462,7 +501,9 @@ LogicalResult LayoutAttr::verify(function_ref<InFlightDiagnostic()> emitError,
     return emitError() << "`dims` must be an array of `#rotom.dim<...>`";
   }
 
-  if (failed(verifyLayoutRolls(dims, rolls, emitError))) return failure();
+  if (failed(verifyLayoutRolls(dims, rolls, rollScales, emitError))) {
+    return failure();
+  }
 
   MLIRContext* ctx = dims.getContext();
   std::vector<DimAttr> ctDims;
@@ -552,7 +593,8 @@ LogicalResult SeedAttr::verify(function_ref<InFlightDiagnostic()> emitError,
       return emitError() << "seed layouts must be `rotom.layout` attributes";
     }
     if (failed(LayoutAttr::verify(emitError, layoutAttr.getDims(),
-                                  layoutAttr.getN(), layoutAttr.getRolls())))
+                                  layoutAttr.getN(), layoutAttr.getRolls(),
+                                  layoutAttr.getRollScales())))
       return failure();
   }
   return success();
@@ -560,7 +602,13 @@ LogicalResult SeedAttr::verify(function_ref<InFlightDiagnostic()> emitError,
 
 LayoutAttr LayoutAttr::get(MLIRContext* context, ArrayAttr dims, int64_t n) {
   return get(context, dims, n,
-             DenseI64ArrayAttr::get(context, ArrayRef<int64_t>{}));
+             DenseI64ArrayAttr::get(context, ArrayRef<int64_t>{}),
+             DenseI64ArrayAttr());
+}
+
+LayoutAttr LayoutAttr::get(MLIRContext* context, ArrayAttr dims, int64_t n,
+                           DenseI64ArrayAttr rolls) {
+  return get(context, dims, n, rolls, DenseI64ArrayAttr());
 }
 
 }  // namespace rotom

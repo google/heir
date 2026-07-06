@@ -59,15 +59,27 @@ def Rotom_LayoutAttr : Rotom_Attr<"Layout", "layout"> {
 
     Optional **rolls** encode a `roll(i,j)` metadata object: each pair `(i, j)`
     indexes into the `dims` array (the flattened `ct_dims + slot_dims` list) and
-    rewrites `dims[i]`'s index to `(idx_i - idx_j) mod size(dims[i])`. The two
-    extents need not match: the shift reduces modulo the rolled dim's extent, so
-    a smaller partner covers a prefix of the rotations and a larger one wraps.
+    rewrites `dims[i]`'s index to `(idx_i - s * idx_j) mod extent(dims[i])`,
+    where the scale `s` defaults to 1 and may be spelled as a third tuple
+    element `(i, j, s)`. The two extents need not match: the shift reduces
+    modulo the rolled dim's extent, so a smaller partner covers a prefix of the
+    rotations and a larger one wraps.
+
+    When a traversal dim is packed as several mixed-radix pieces, a roll FROM
+    any of its pieces rewrites the whole dim's index (each piece then takes its
+    digit of the rolled index), and a roll BY one of its pieces shifts by that
+    piece's digit -- together with a scale this expresses baby-step/giant-step
+    diagonal packings.
+
+    Optional **rollScales** stores one scale per roll pair; it must be omitted
+    when every scale is 1 (the canonical form the parser and builders produce).
   }];
 
   let parameters = (ins
     "::mlir::ArrayAttr":$dims,
     "int64_t":$n,
-    OptionalParameter<"::mlir::DenseI64ArrayAttr">:$rolls
+    OptionalParameter<"::mlir::DenseI64ArrayAttr">:$rolls,
+    OptionalParameter<"::mlir::DenseI64ArrayAttr">:$rollScales
   );
 
   let genVerifyDecl = 1;
@@ -77,6 +89,10 @@ def Rotom_LayoutAttr : Rotom_Attr<"Layout", "layout"> {
     /// Layout with no `roll(i,j)` metadata (empty rolls storage).
     static ::mlir::heir::rotom::LayoutAttr get(::mlir::MLIRContext *context,
                                                ::mlir::ArrayAttr dims, int64_t n);
+    /// Layout with unit-scale rolls (empty scale storage).
+    static ::mlir::heir::rotom::LayoutAttr get(::mlir::MLIRContext *context,
+                                               ::mlir::ArrayAttr dims, int64_t n,
+                                               ::mlir::DenseI64ArrayAttr rolls);
   }];
 }
 
