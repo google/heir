@@ -282,12 +282,17 @@ SmallVector<LayoutAttr> enumerateSingleRollVariants(LayoutAttr layout) {
   SmallVector<LayoutAttr> variants;
   for (size_t fromPos = 0; fromPos < dims.size(); ++fromPos) {
     DimAttr from = dims[fromPos];
-    if (from.isGap() || from.isReplicate() || from.getStride() != 1) continue;
+    if (from.isGap() || from.isReplicate() || from.getStride() != 1 ||
+        from.getSize() <= 1) {
+      continue;
+    }
     for (size_t byPos = 0; byPos < dims.size(); ++byPos) {
       if (byPos == fromPos) continue;
       if (fromPos < ctPrefixLen && byPos < ctPrefixLen) continue;
       DimAttr by = dims[byPos];
-      if (by.isGap() || by.getStride() != 1 || by.getSize() != from.getSize()) {
+      // Extents may differ (the roll reduces mod the from extent); a size-1
+      // piece on either side is an attr-distinct identity, skipped.
+      if (by.isGap() || by.getStride() != 1 || by.getSize() <= 1) {
         continue;
       }
       auto rolls = DenseI64ArrayAttr::get(

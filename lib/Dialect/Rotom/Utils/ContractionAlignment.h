@@ -80,7 +80,8 @@ struct MatmulPlan {
 // host-rolled plan, and single-roll decorations on either base (skipping
 // pairs entirely inside the ciphertext prefix and any composition that
 // would be order-dependent):
-//   - a unit-stride k piece rolled by a same-extent unit-stride i/j piece:
+//   - a unit-stride k piece rolled by a unit-stride i/j piece (extents may
+//     differ -- the roll reduces mod the k extent, the non-square case):
 //     a ciphertext-prefix k rolled by a slot piece is the ct-diagonal
 //     family (k summed by plain ciphertext adds); a slot k rolled by a slot
 //     piece is the Halevi-Shoup diagonal packing and by a ciphertext piece

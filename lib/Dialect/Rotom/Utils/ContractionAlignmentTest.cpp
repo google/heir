@@ -159,14 +159,14 @@ TEST_F(ContractionAlignmentTest, UnitFreeDimSkipsInsertion) {
 // non-power-of-two free extent never lands in the slot region -- every
 // placement pushes it (and the pieces outside the surviving slot suffix)
 // into the ciphertext prefix, where replication is free. Three roll-free
-// footprints plus two rolled variants: the ciphertext k rolled by its
-// same-extent slot i piece, and a slot k rolled by the slot i piece (the
-// non-power-of-two j piece is never an eligible partner).
+// footprints plus rolled variants: k rolled by the i piece or the
+// ciphertext j piece (extents need not match -- the roll reduces mod k's
+// extent), and the free-swap i/j pairs whose layouts stay verifier-legal.
 TEST_F(ContractionAlignmentTest, NonPowerOfTwoFreeExtentStaysInCtRegion) {
   LayoutAttr lhs = layout({dim(0, 4), dim(1, 4)}, 16);
   LayoutAttr rhs = layout({dim(0, 4), dim(1, 3)}, 16);
   SmallVector<MatmulPlan> plans = rotom::enumerateMatmulPlans(lhs, rhs);
-  EXPECT_EQ(plans.size(), 5u);
+  EXPECT_EQ(plans.size(), 10u);
   for (const MatmulPlan& plan : plans) {
     EXPECT_EQ(plan.lhsFillRotations, 0);
     EXPECT_EQ(plan.lhsFillAdds, 0);
@@ -370,6 +370,27 @@ TEST_F(ContractionAlignmentTest, RolledResultHostsDownstreamMatmul) {
     }
   }
   EXPECT_TRUE(hostsRolledPlacement);
+}
+
+// Non-square k: a 4x8 by 8x4 matmul rolls its k:8 slot piece by the i:4
+// ciphertext piece (the shift reduces mod 8, wrapping over the smaller
+// partner) -- the replicate-then-roll diagonal family now covers
+// rectangular shapes.
+TEST_F(ContractionAlignmentTest, RectangularMatmulRollsUnequalExtents) {
+  LayoutAttr lhs = layout({dim(0, 4), dim(1, 8)}, 32);
+  LayoutAttr rhs = layout({dim(0, 8), dim(1, 4)}, 32);
+  SmallVector<MatmulPlan> plans = rotom::enumerateMatmulPlans(lhs, rhs);
+
+  // lhs-hosted slot footprint [i:4][k:8][j:4] with k (pos 1) rolled by the
+  // ciphertext i (pos 0).
+  const MatmulPlan* plan = findPlan(
+      plans, rolledLayout({dim(0, 4), dim(2, 8), dim(1, 4)}, 32, {1, 0}));
+  ASSERT_NE(plan, nullptr);
+  EXPECT_EQ(plan->expandedLhs,
+            rolledLayout({dim(0, 4), dim(1, 8), repl(4)}, 32, {1, 0}));
+  EXPECT_EQ(plan->expandedRhs,
+            rolledLayout({repl(4), dim(0, 8), dim(1, 4)}, 32, {1, 0}));
+  EXPECT_EQ(plan->resultLayout, layout({dim(0, 4), gap(8), dim(1, 4)}, 32));
 }
 
 TEST_F(ContractionAlignmentTest, MismatchedNReturnsNoPlans) {

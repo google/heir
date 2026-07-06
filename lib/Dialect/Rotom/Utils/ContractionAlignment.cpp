@@ -244,16 +244,18 @@ SmallVector<MatmulPlan> enumerateMatmulPlans(LayoutAttr lhs, LayoutAttr rhs) {
     for (size_t fromPos = 0; fromPos < dims.size(); ++fromPos) {
       DimAttr fromPiece = dims[fromPos];
       if (fromPiece.isGap() || fromPiece.isReplicate() ||
-          fromPiece.getStride() != 1) {
+          fromPiece.getStride() != 1 || fromPiece.getSize() <= 1) {
         continue;
       }
       for (size_t byPos = 0; byPos < dims.size(); ++byPos) {
         if (byPos == fromPos) continue;
         if (fromPos < ctPrefixLen && byPos < ctPrefixLen) continue;
         DimAttr byPiece = dims[byPos];
+        // Extents may differ (roll reduces mod the from extent, so any
+        // partner is well-defined -- the non-square matmul diagonals); a
+        // size-1 piece on either side is an attr-distinct identity, skipped.
         if (byPiece.isGap() || byPiece.getStride() != 1 ||
-            byPiece.getSize() != fromPiece.getSize() ||
-            byPiece.getDim() == kMatmulDimK) {
+            byPiece.getSize() <= 1 || byPiece.getDim() == kMatmulDimK) {
           continue;
         }
         if (fromPiece.getDim() == kMatmulDimK) {

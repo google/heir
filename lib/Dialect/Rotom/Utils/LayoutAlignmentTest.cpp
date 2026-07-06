@@ -112,15 +112,22 @@ TEST_F(LayoutAlignmentTest, SingleRollVariantsOfRowMajor) {
 
 TEST_F(LayoutAlignmentTest, SingleRollVariantsIncludeReplicationPartners) {
   // The replication piece is a valid roll-by partner (never a roll-from),
-  // and mismatched extents are skipped.
+  // and mismatched extents roll too (the shift reduces mod the from
+  // extent): both traversal pieces roll by the replication piece and by
+  // each other.
   LayoutAttr replicated =
       layout({dim(0, 4), dim(/*dim=*/-1, 4), dim(1, 2)}, 32);
   SmallVector<LayoutAttr> variants =
       rotom::enumerateSingleRollVariants(replicated);
-  ASSERT_EQ(variants.size(), 1u);
-  EXPECT_EQ(variants[0],
-            LayoutAttr::get(&context, replicated.getDims(), 32,
-                            DenseI64ArrayAttr::get(&context, {0, 1})));
+  ASSERT_EQ(variants.size(), 4u);
+  auto rolled = [&](int64_t from, int64_t by) {
+    return LayoutAttr::get(&context, replicated.getDims(), 32,
+                           DenseI64ArrayAttr::get(&context, {from, by}));
+  };
+  EXPECT_EQ(variants[0], rolled(0, 1));
+  EXPECT_EQ(variants[1], rolled(0, 2));
+  EXPECT_EQ(variants[2], rolled(2, 0));
+  EXPECT_EQ(variants[3], rolled(2, 1));
 }
 
 TEST_F(LayoutAlignmentTest, SingleRollVariantsSkipRolledAndCtOnlyPairs) {

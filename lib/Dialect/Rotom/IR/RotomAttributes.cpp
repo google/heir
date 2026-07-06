@@ -324,12 +324,9 @@ static LogicalResult verifyLayoutRolls(
     if (!di || !dj) {
       return emitError() << "roll indices must refer to #rotom.dim entries";
     }
-    // The two dims of a roll must have equal extents: roll(i, j) shifts dims[i]
-    // by dims[j]'s index modulo their shared extent, which is well-defined only
-    // when the extents match.
-    if (di.getSize() != dj.getSize()) {
-      return emitError() << "rolled dims must have the same extent (size)";
-    }
+    // The extents need not match: roll(i, j) rewrites dims[i]'s index to
+    // (i_i - i_j) mod size(dims[i]), well-defined for any partner extent (a
+    // smaller partner covers a prefix of the rotations, a larger one wraps).
     // The rolled (from) dim must be a traversal dim -- it is the index
     // expression being rewritten. The roll-by (second) dim may be any kind:
     // rolling by a replication or gap dim shifts by that dim's block index,

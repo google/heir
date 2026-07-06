@@ -114,8 +114,9 @@ FailureOr<SameCountConversionChoice> chooseSameCountConversion(
     tensor_ext::LayoutAttr from, tensor_ext::LayoutAttr to, int64_t n);
 
 // Every verifier-legal single-roll variant of an unrolled layout: each
-// unit-stride traversal piece rolled by each same-extent unit-stride
-// traversal or replication piece elsewhere (pairs entirely inside the
+// unit-stride traversal piece rolled by each unit-stride
+// traversal or replication piece elsewhere, extents equal or not (pairs
+// entirely inside the
 // ciphertext prefix are skipped -- rolling there only permutes ciphertext
 // contents; gap partners are skipped -- a rolled-by gap claims its blocks
 // and changes the ciphertext count). Layouts that already carry rolls yield
