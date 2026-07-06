@@ -4,14 +4,26 @@
 #include "gtest/gtest.h"  // from @googletest
 #include "tests/llvm_runner/memref_types.h"
 
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer)
+#include <sanitizer/msan_interface.h>
+#define HEIR_MSAN_UNPOISON(p, s) __msan_unpoison((p), (s))
+#else
+#define HEIR_MSAN_UNPOISON(p, s)
+#endif
+#else
+#define HEIR_MSAN_UNPOISON(p, s)
+#endif
+
 extern "C" {
 void _mlir_ciface_test_mul_ntt_roundtrip_modarith(
     StridedMemRefType<int32_t, 1>* result);
 }
 
 TEST(LowerMulNttRoundtripTest, ModArith) {
-  StridedMemRefType<int32_t, 1> result;
+  StridedMemRefType<int32_t, 1> result{};
   _mlir_ciface_test_mul_ntt_roundtrip_modarith(&result);
+  HEIR_MSAN_UNPOISON(result.data, result.sizes[0] * sizeof(int32_t));
   ASSERT_EQ(result.sizes[0], 8);
   EXPECT_EQ(result.data[0], 1);
   EXPECT_EQ(result.data[1], 2);
