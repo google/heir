@@ -222,13 +222,27 @@ int64_t LayoutAssignment::cachedConversionCost(LayoutAttr from, LayoutAttr to) {
   const RotomCostModel& costModel = getCostModel();
   int64_t cost;
   if (layoutNumCiphertexts(from) == layoutNumCiphertexts(to)) {
-    // Real Vos-Vos-Erkin rotation count weighted by the per-rotation cost.
-    // Every candidate layout is materializable (the search only generates such
-    // layouts), so the shift network always yields a cost.
-    std::optional<int64_t> rotations = shiftNetworkConversionCost(from, to);
-    assert(rotations &&
-           "shift network must yield a cost for assignable layouts");
-    cost = *rotations * costModel.rotation;
+    // Same ciphertext count: the cheaper of the Vos-Vos-Erkin shift network
+    // and the explicit expansion steps (the VVE analysis overprices
+    // structured fills like rolled-by-replication placements). The
+    // materializer re-derives the same choice from the same relations, so
+    // the priced route is the emitted route. Every candidate layout is
+    // materializable (the search only generates such layouts), so the
+    // choice always yields a cost.
+    FailureOr<std::string> fromIsl =
+        RotomTensorExtLayoutLowering::lowerToTensorExtIsl(from);
+    FailureOr<std::string> toIsl =
+        RotomTensorExtLayoutLowering::lowerToTensorExtIsl(to);
+    assert(succeeded(fromIsl) && succeeded(toIsl) &&
+           "assignable layouts must lower to tensor_ext");
+    MLIRContext* ctx = from.getContext();
+    FailureOr<SameCountConversionChoice> choice = chooseSameCountConversion(
+        tensor_ext::LayoutAttr::get(ctx, *fromIsl),
+        tensor_ext::LayoutAttr::get(ctx, *toIsl), from.getN());
+    assert(succeeded(choice) &&
+           "conversion choice must yield a cost for assignable layouts");
+    cost = choice->rotations * costModel.rotation +
+           (choice->stepMasks + choice->stepAccumulates) * costModel.add;
   } else {
     // Ciphertext-count-changing conversion (expansion or compaction), which
     // tensor_ext.convert_layout cannot express: price the explicit

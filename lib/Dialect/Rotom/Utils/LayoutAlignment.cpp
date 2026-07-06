@@ -177,29 +177,48 @@ FailureOr<SmallVector<LayoutExpansionStep>> planLayoutExpansion(
     return failure();
   }
 
-  // One source placement per tensor point (any replica of a replicated
-  // source works; take the first).
+  // All source placements per tensor point: any replica of a replicated
+  // source works, and choosing replicas well merges steps.
   PointPairCollector fromPoints(fromRelation.getNumDomainVars(),
                                 /*rangeDims=*/2);
   enumeratePoints(fromRelation, fromPoints);
-  std::map<std::vector<int64_t>, std::pair<int64_t, int64_t>> sourceFor;
+  std::map<std::vector<int64_t>, SmallVector<std::pair<int64_t, int64_t>>>
+      sourcesFor;
   for (const auto& [domain, range] : fromPoints.points) {
-    sourceFor.try_emplace(domain, std::make_pair(range[0], range[1]));
+    sourcesFor[domain].push_back({range[0], range[1]});
   }
 
   // Group every target placement by (targetCt, sourceCt, left-rotation): a
   // left rotation by r maps source slot s onto target slot t = s - r (mod n).
+  // Replica choice is greedy and deterministic: reuse a group this target
+  // ciphertext already has, else prefer a zero shift, else the smallest
+  // (sourceCt, shift) -- so a replicated source costs one step per uniform
+  // rotation instead of one per first-replica accident.
   PointPairCollector toPoints(toRelation.getNumDomainVars(), /*rangeDims=*/2);
   enumeratePoints(toRelation, toPoints);
   std::map<std::tuple<int64_t, int64_t, int64_t>, SmallVector<int64_t>> groups;
   for (const auto& [domain, range] : toPoints.points) {
-    auto it = sourceFor.find(domain);
-    if (it == sourceFor.end()) return failure();
-    const auto [sourceCt, sourceSlot] = it->second;
+    auto it = sourcesFor.find(domain);
+    if (it == sourcesFor.end()) return failure();
     const int64_t targetCt = range[0];
     const int64_t targetSlot = range[1];
-    const int64_t shift = ((sourceSlot - targetSlot) % n + n) % n;
-    groups[{targetCt, sourceCt, shift}].push_back(targetSlot);
+    std::optional<std::tuple<int64_t, int64_t, int64_t>> best;
+    bool bestExisting = false;
+    for (const auto& [sourceCt, sourceSlot] : it->second) {
+      const int64_t shift = ((sourceSlot - targetSlot) % n + n) % n;
+      std::tuple<int64_t, int64_t, int64_t> key{targetCt, sourceCt, shift};
+      const bool existing = groups.count(key) > 0;
+      // Rank: an existing group beats a new one; then a zero shift; then
+      // the smallest key for determinism.
+      auto rank = [](bool existing, const auto& key) {
+        return std::tuple(!existing, std::get<2>(key) != 0, key);
+      };
+      if (!best || rank(existing, key) < rank(bestExisting, *best)) {
+        best = key;
+        bestExisting = existing;
+      }
+    }
+    groups[*best].push_back(targetSlot);
   }
 
   SmallVector<LayoutExpansionStep> steps;
@@ -211,6 +230,38 @@ FailureOr<SmallVector<LayoutExpansionStep>> planLayoutExpansion(
         LayoutExpansionStep{targetCt, sourceCt, shift, std::move(targetSlots)});
   }
   return steps;
+}
+
+FailureOr<SameCountConversionChoice> chooseSameCountConversion(
+    tensor_ext::LayoutAttr from, tensor_ext::LayoutAttr to, int64_t n) {
+  FailureOr<SmallVector<LayoutExpansionStep>> steps = planLayoutExpansion(
+      from.getIntegerRelation(), to.getIntegerRelation(), n);
+  std::optional<int64_t> vveRotations =
+      computeCostOfLayoutConversion(/*ciphertextSize=*/n, from, to,
+                                    /*vveRandomSeed=*/0,
+                                    /*vveRandomTries=*/16);
+  if (failed(steps) && !vveRotations) return failure();
+
+  SameCountConversionChoice choice;
+  if (succeeded(steps)) {
+    llvm::DenseSet<int64_t> targetsSeen;
+    for (const LayoutExpansionStep& step : *steps) {
+      if (step.shift != 0) ++choice.rotations;
+      if (static_cast<int64_t>(step.targetSlots.size()) != n) {
+        ++choice.stepMasks;
+      }
+      if (!targetsSeen.insert(step.targetCt).second) ++choice.stepAccumulates;
+    }
+    choice.useSteps = !vveRotations || choice.rotations < *vveRotations;
+  }
+  if (!choice.useSteps || failed(steps)) {
+    choice = SameCountConversionChoice{};
+    choice.useSteps = false;
+    choice.rotations = *vveRotations;
+    return choice;
+  }
+  choice.steps = std::move(*steps);
+  return choice;
 }
 
 SmallVector<LayoutAttr> enumerateSingleRollVariants(LayoutAttr layout) {

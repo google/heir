@@ -5,6 +5,7 @@
 #include <optional>
 
 #include "lib/Dialect/Rotom/IR/RotomAttributes.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
 
 namespace mlir {
@@ -89,6 +90,28 @@ FailureOr<SmallVector<LayoutExpansionStep>> planLayoutExpansion(LayoutAttr from,
 FailureOr<SmallVector<LayoutExpansionStep>> planLayoutExpansion(
     const presburger::IntegerRelation& fromRelation,
     const presburger::IntegerRelation& toRelation, int64_t n);
+
+// The chosen route for a ciphertext-count-PRESERVING conversion: either a
+// tensor_ext.convert_layout lowered by the Vos-Vos-Erkin shift network, or
+// the explicit rotate/mask/accumulate steps of planLayoutExpansion --
+// whichever needs fewer rotations (ties keep the shift network). The VVE
+// analysis sees only slot permutations, so it badly overprices structured
+// fills like a rolled-by-replication placement (one whole-ciphertext
+// rotation per block) that the step plan expresses directly. Layout
+// assignment prices this choice and the materializer re-derives it from the
+// same relations, so the priced route is the emitted route.
+struct SameCountConversionChoice {
+  bool useSteps;
+  // Valid when useSteps: the plan, and its mask (plaintext-multiply + add)
+  // and extra-accumulate counts.
+  SmallVector<LayoutExpansionStep> steps;
+  int64_t stepMasks = 0;
+  int64_t stepAccumulates = 0;
+  // Rotation count of the chosen route.
+  int64_t rotations = 0;
+};
+FailureOr<SameCountConversionChoice> chooseSameCountConversion(
+    tensor_ext::LayoutAttr from, tensor_ext::LayoutAttr to, int64_t n);
 
 // Every verifier-legal single-roll variant of an unrolled layout: each
 // unit-stride traversal piece rolled by each same-extent unit-stride

@@ -256,6 +256,30 @@ TEST_F(LayoutAlignmentTest, ReplicateThenRollExpansionIsPureRotations) {
   }
 }
 
+// Filling a rolled-by-replication placement from a replicated source is one
+// whole-ciphertext rotation per nonzero block shift (each block of the
+// target holds the source rotated by its block index, and the source's
+// replication lets every block draw from the replica that makes the shift
+// uniform). The VVE shift network cannot see this structure and quotes
+// n - 1 rotations, so the choice takes the explicit steps.
+TEST_F(LayoutAlignmentTest, SameCountConversionPrefersStepsForRolledFill) {
+  constexpr int64_t kD = 8;
+  constexpr int64_t kN = kD * kD;
+  LayoutAttr source = layout({dim(/*dim=*/-1, kD), dim(0, kD)}, kN);
+  LayoutAttr target = LayoutAttr::get(
+      &context, ArrayAttr::get(&context, {dim(0, kD), dim(-1, kD)}), kN,
+      DenseI64ArrayAttr::get(&context, {0, 1}));
+  auto te = [&](LayoutAttr l) {
+    auto isl = rotom::RotomTensorExtLayoutLowering::lowerToTensorExtIsl(l);
+    return tensor_ext::LayoutAttr::get(&context, *isl);
+  };
+  FailureOr<rotom::SameCountConversionChoice> choice =
+      rotom::chooseSameCountConversion(te(source), te(target), kN);
+  ASSERT_TRUE(succeeded(choice));
+  EXPECT_TRUE(choice->useSteps);
+  EXPECT_EQ(choice->rotations, kD - 1);
+}
+
 TEST_F(LayoutAlignmentTest, CompactionOfGappedMatmulResultPlansMaskedGathers) {
   // Compaction (the ciphertext-count-DECREASING direction): a matmul result
   // layout [0:4:1];[1:4:1][G:4:1] -- 4 ciphertexts, row i claimed at the k=0

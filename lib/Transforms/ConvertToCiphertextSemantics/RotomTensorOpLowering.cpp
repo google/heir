@@ -85,17 +85,28 @@ Value RotomTensorOpLowering::convertToLayout(ImplicitLocOpBuilder& b,
   if (!ctUpperBound) return nullptr;
   const int64_t numTargetCt = *ctUpperBound + 1;
 
+  SmallVector<rotom::LayoutExpansionStep> steps;
   if (numTargetCt == sourceType.getDimSize(0)) {
-    Value v =
-        tensor_ext::ConvertLayoutOp::create(b, value, fromLayout, toLayout);
-    setAttributeAssociatedWith(v, kLayoutAttrName, toLayout);
-    return v;
+    // Same ciphertext count: the same cheapest-route choice the layout
+    // assignment priced -- a convert_layout for the shift network, or the
+    // explicit steps below when they need fewer rotations.
+    FailureOr<rotom::SameCountConversionChoice> choice =
+        rotom::chooseSameCountConversion(fromLayout, toLayout, numSlots);
+    if (failed(choice)) return nullptr;
+    if (!choice->useSteps) {
+      Value v =
+          tensor_ext::ConvertLayoutOp::create(b, value, fromLayout, toLayout);
+      setAttributeAssociatedWith(v, kLayoutAttrName, toLayout);
+      return v;
+    }
+    steps = std::move(choice->steps);
+  } else {
+    FailureOr<SmallVector<rotom::LayoutExpansionStep>> planned =
+        rotom::planLayoutExpansion(fromLayout.getIntegerRelation(), toRelation,
+                                   numSlots);
+    if (failed(planned)) return nullptr;
+    steps = std::move(*planned);
   }
-
-  FailureOr<SmallVector<rotom::LayoutExpansionStep>> steps =
-      rotom::planLayoutExpansion(fromLayout.getIntegerRelation(), toRelation,
-                                 numSlots);
-  if (failed(steps)) return nullptr;
   auto rowType =
       RankedTensorType::get({1, numSlots}, sourceType.getElementType());
 
@@ -103,7 +114,7 @@ Value RotomTensorOpLowering::convertToLayout(ImplicitLocOpBuilder& b,
   SmallVector<OpFoldResult> sizes = {b.getIndexAttr(1),
                                      b.getIndexAttr(numSlots)};
   SmallVector<OpFoldResult> strides = {b.getIndexAttr(1), b.getIndexAttr(1)};
-  for (const rotom::LayoutExpansionStep& step : *steps) {
+  for (const rotom::LayoutExpansionStep& step : steps) {
     if (step.targetCt < 0 || step.targetCt >= numTargetCt) return nullptr;
     SmallVector<OpFoldResult> offsets = {b.getIndexAttr(step.sourceCt),
                                          b.getIndexAttr(0)};
