@@ -221,30 +221,48 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
   // Some ops require a linear key basis. Yield is a special case
   // where we require returned values from funcs to be linearized.
   // TODO(#1398): determine whether we need linear key basis for modreduce.
+  // TODO(#3149): Investigate which backends actually support higher-degree
+  // ciphertext inputs to ciphertext-plaintext operations. For now, require
+  // degree-1 ciphertext inputs for all ct-pt operations.
   opToRunOn->walk([&](Operation* op) {
-    llvm::TypeSwitch<Operation&>(*op)
-        .Case<tensor_ext::RotateOp, secret::YieldOp, mgmt::ModReduceOp>(
-            [&](auto op) {
-              for (OpOperand& operand : op->getOpOperands()) {
-                // skip non secret argument
-                if (!isSecret(operand.get(), solver)) {
-                  continue;
-                }
-                if (!keyBasisVars.contains(operand.get())) {
-                  // This could happen if you return a block argument without
-                  // doing anything to it. No variables are created, but it does
-                  // not necessarily need to be constrained.
-                  if (isa<secret::YieldOp>(op)) return;
+    if (isa<secret::GenericOp>(op)) {
+      return;
+    }
 
-                  assert(false && "Operand not found in keyBasisVars");
-                }
-                auto operandDegreeVar = keyBasisVars.at(operand.get());
-                std::stringstream ss;
-                ss << "RequireLinearized_" << uniqueName(op) << "_"
-                   << operand.getOperandNumber();
-                model.AddLinearConstraint(operandDegreeVar == 1, ss.str());
-              }
-            });
+    bool requireLinear = false;
+    if (isa<tensor_ext::RotateOp, secret::YieldOp, mgmt::ModReduceOp>(op)) {
+      requireLinear = true;
+    } else {
+      SmallVector<OpOperand*, 4> secretOperands;
+      getSecretOperands(op, secretOperands, solver);
+      SmallVector<OpOperand*, 4> plaintextOperands;
+      getPlaintextOperands(op, plaintextOperands, solver);
+      if (!secretOperands.empty() && !plaintextOperands.empty()) {
+        requireLinear = true;
+      }
+    }
+
+    if (requireLinear) {
+      for (OpOperand& operand : op->getOpOperands()) {
+        // skip non secret argument
+        if (!isSecret(operand.get(), solver)) {
+          continue;
+        }
+        if (!keyBasisVars.contains(operand.get())) {
+          // This could happen if you return a block argument without
+          // doing anything to it. No variables are created, but it does
+          // not necessarily need to be constrained.
+          if (isa<secret::YieldOp>(op)) return;
+
+          assert(false && "Operand not found in keyBasisVars");
+        }
+        auto operandDegreeVar = keyBasisVars.at(operand.get());
+        std::stringstream ss;
+        ss << "RequireLinearized_" << uniqueName(op) << "_"
+           << operand.getOperandNumber();
+        model.AddLinearConstraint(operandDegreeVar == 1, ss.str());
+      }
+    }
   });
 
   // When mixed-degree ops are enabled, the default result degree of an op is

@@ -267,5 +267,21 @@ void getSecretOperands(Operation* op,
   }
 }
 
+void getPlaintextOperands(Operation* op,
+                          SmallVectorImpl<OpOperand*>& plaintextOperands,
+                          DataFlowSolver* solver) {
+  auto opInterface = dyn_cast<PlaintextOperandInterface>(op);
+  if (opInterface) {
+    SmallVector<unsigned> maybePlaintextOperands =
+        opInterface.maybePlaintextOperands();
+    for (unsigned operandIndex : maybePlaintextOperands) {
+      if (operandIndex < op->getNumOperands() &&
+          !isSecret(op->getOperand(operandIndex), solver)) {
+        plaintextOperands.push_back(&op->getOpOperand(operandIndex));
+      }
+    }
+  }
+}
+
 }  // namespace heir
 }  // namespace mlir
