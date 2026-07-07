@@ -764,24 +764,29 @@ void getCtComplementPoints(const presburger::IntegerRelation& relation,
   assert(relation.getNumRangeVars() == 2 && "Expected 2 range vars.");
   assert(outputType.getRank() == 2 && "Expected 2D output type.");
 
-  // Get the range set for the ct var.
-  auto* bmap = convertRelationToBasicMap(relation, collector.ctx);
-  isl_set* set = isl_set_from_basic_set(isl_basic_map_range(bmap));
-  isl_set* ctset = isl_set_project_out(set, isl_dim_set, 1, 1);
+  int64_t numCts = outputType.getDimSize(0);
 
-  // Get bounding box for the ct var.
-  isl_space* space = isl_set_get_space(ctset);
-  isl_set* bounding_box = isl_set_universe(space);
-  bounding_box = isl_set_lower_bound_si(bounding_box, isl_dim_set, /*pos=*/0,
-                                        /*value=*/0);
-  bounding_box = isl_set_upper_bound_si(bounding_box, isl_dim_set, /*pos=*/0,
-                                        /*value=*/outputType.getDimSize(0) - 1);
+  // Enumerate the full, un-projected (ct, slot) relation, collect the distinct
+  // ct coordinates, then take the complement against [0, numCts) in plain C++.
+  PointPairCollector present(relation.getNumDomainVars(),
+                             relation.getNumRangeVars());
+  enumeratePoints(relation, present);
 
-  isl_set* complement = isl_set_complement(ctset);
-  isl_set* bounded_complement = isl_set_intersect(complement, bounding_box);
+  std::vector<bool> seen(numCts, false);
+  for (const auto& point : present.points) {
+    int64_t ct = point.second[0];  // range var 0 == ct
+    if (ct >= 0 && ct < numCts) {
+      seen[ct] = true;
+    }
+  }
 
-  isl_set_foreach_point(bounded_complement, &pointCallback, &collector);
-  isl_set_free(bounded_complement);
+  // The complement is every ct index in [0, numCts) that never appeared,
+  // emitted in ascending order.
+  for (int64_t ct = 0; ct < numCts; ++ct) {
+    if (!seen[ct]) {
+      collector.points.push_back({ct});
+    }
+  }
 }
 
 presburger::IntegerRelation getCollapsedRelation(

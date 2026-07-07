@@ -588,7 +588,7 @@ TEST(UtilsTest, TestGetCtComplementPoints) {
       RankedTensorType::get({8, 1024}, IndexType::get(&context));
   auto rel = getIntegerRelationFromIslStr(
       "{ [x] -> [y, slot] : x >= 0 and 7 >= y and y >= 0 and x = y and x mod 2 "
-      "= 0 and 7 >= x }");
+      "= 0 and 7 >= x and slot >= 0 and slot <= 1023 }");
   ASSERT_TRUE(succeeded(rel));
   std::vector<std::vector<int64_t>> expected = {{1}, {3}, {5}, {7}};
   PointCollector collector;
