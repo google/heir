@@ -3,6 +3,7 @@
 load("@heir//bazel/openfhe:copts.bzl", "OPENMP_COPTS", "OPENMP_LINKOPTS")
 load("@heir//tools:heir-openfhe.bzl", "openfhe_lib")
 load("@heir//tools:heir-opt.bzl", "heir_opt")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
 def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, heir_opt_flags = [], heir_translate_flags = [], data = [], size = "small", tags = [], deps = [], generate_debug_helper = False, **kwargs):
@@ -35,7 +36,6 @@ def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, heir
             "@googletest//:gtest_main",
         ],
         tags = tags,
-        data = data,
         size = size,
         copts = OPENMP_COPTS,
         linkopts = OPENMP_LINKOPTS,

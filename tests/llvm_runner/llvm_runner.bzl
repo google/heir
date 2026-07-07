@@ -155,7 +155,6 @@ def llvm_runner_test(
             deps = test_deps,
             defines = defines,
             copts = ["-fPIC"],
-            testonly = True,
         )
 
         binary_rule_name = "%s_binary_rule" % name
@@ -165,5 +164,4 @@ def llvm_runner_test(
             binary = ":" + cc_binary_name,
             generated_filename = log_file_name,
             visibility = log_file_visibility,
-            testonly = True,
         )
