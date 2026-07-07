@@ -14,9 +14,9 @@ def tfhe_rs_end_to_end_test(name, mlir_src, test_src, heir_opt_flags = [], heir_
       heir_translate_flags: Flags to pass to heir-translate
       data: Data dependencies to be passed to rust_test/heir_opt
       tags: Tags to pass to rust_test
-      deps: Deps to pass to rust_test and cc_library
+      deps: Deps to pass to rust_test and rust_library
       size: Size override to pass to rust_test
-      **kwargs: Keyword arguments to pass to cc_library and rust_test.
+      **kwargs: Keyword arguments to pass to rust_library and rust_test.
     """
     rs_lib_target_name = "%s_rs_lib" % name
     tfhe_rs_lib(name, mlir_src, rs_lib_target_name, heir_opt_flags, heir_translate_flags, data, tags, deps, **kwargs)
