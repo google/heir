@@ -55,11 +55,54 @@ def Rotom_LayoutAttr : Rotom_Attr<"Layout", "layout"> {
     with an explicit gap piece (e.g. `[G:4:1]`).
     See [Section 4.2 of the Rotom paper](https://eprint.iacr.org/2025/1319.pdf).
 
-    Optional **rolls** encode a `roll(i,j)` metadata object: each pair `(i, j)`
-    indexes into the `dims` array (the flattened `ct_dims + slot_dims` list) and
-    rewrites `dims[i]`'s index to `(idx_i - idx_j) mod size(dims[i])`. The two
-    extents need not match: the shift reduces modulo the rolled dim's extent, so
-    a smaller partner covers a prefix of the rotations and a larger one wraps.
+    Optional **rolls** encode `roll(from, by)` metadata objects, applied left
+    to right. Each argument is either a *piece* -- a position in the `dims`
+    list, spelled as a bare integer -- or a whole tensor *axis*, spelled
+    `axis N` (legal only when axis `N` is packed as more than one piece; the
+    piece spelling is canonical for an unsplit axis, where the two coincide).
+
+    ```mlir
+    // Halevi-Shoup diagonal of a 4x4 matrix: slot j of ciphertext i holds
+    // A[i, (j - i) mod 4]. Argument 1 (the axis-1 piece) is rolled by
+    // argument 0 (the axis-0 piece).
+    #diag = #rotom.layout<n = 4, rolls = [(1, 0)], dims = [[0:4:1] | [1:4:1]]>
+
+    // Axis 1 is split across two pieces, so a whole-axis roll spells its
+    // argument `axis 1` rather than a piece position.
+    #split = #rotom.layout<n = 16, rolls = [(axis 1, 2)],
+                           dims = [[1:4:4], [1:4:1] | [0:16:1]]>
+    ```
+
+    A piece FROM rewrites that piece's own mixed-radix digit in place,
+    `digit(from) <- (digit(from) - shift(by)) mod extent(from)`, leaving
+    the axis's other digits untouched. An `axis` FROM rewrites the whole axis
+    index modulo its full extent, and each piece then takes its digit of the
+    rolled index -- the shift borrows across digits, which no combination of
+    piece rolls can express:
+
+    ```mlir
+    // Axis 0 has extent 4, split into digits [0:2:2] (high) and [0:2:1]
+    // (low), and is rolled by a replication argument of extent 2. Writing
+    // the index as (high, low), replica d holds:
+    //
+    //   axis roll, `(axis 0, 0)`:   index (i - d) mod 4, so replica 1 maps
+    //                               (0,0) <- (0,1) <- (1,0) <- (1,1): the
+    //                               subtraction borrows out of the low
+    //                               digit into the high one.
+    //   piece roll, `(1, 0)`:       only the high digit moves, so replica 1
+    //                               maps (0,0) <- (1,0) and (0,1) <- (1,1);
+    //                               the low digit never carries.
+    //
+    // Rolling BOTH pieces by the same argument is still not the axis roll:
+    // each digit wraps inside itself, so (0,0) <- (1,1), not (1,1) <- (0,0).
+    ```
+
+    The shift is the by argument's index: a
+    traversal piece's digit (its whole index when the axis is unsplit), a
+    whole axis's index via `axis`, a replication piece's replica index, or a
+    gap piece's block index. The two extents need not match: the shift
+    reduces modulo the rolled extent, so a smaller partner covers a prefix of
+    the rotations and a larger one wraps.
   }];
 
   let parameters = (ins
