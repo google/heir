@@ -227,25 +227,44 @@ static ParseResult parseLayoutDims(AsmParser& parser,
   }
 }
 
+// One endpoint of a roll pair: a bare non-negative integer is a dims-list
+// position (one piece); `axis N` names the whole tensor axis N.
+static ParseResult parseRollEndpoint(AsmParser& parser, int64_t& encoded) {
+  const bool isAxis = succeeded(parser.parseOptionalKeyword("axis"));
+  int64_t value;
+  if (parser.parseInteger(value)) return failure();
+  if (value < 0) {
+    return parser.emitError(parser.getNameLoc())
+           << (isAxis ? "an axis roll endpoint must name a non-negative "
+                        "tensor axis"
+                      : "a piece roll endpoint must be a non-negative dims "
+                        "position (spell a whole-axis endpoint as `axis N`)");
+  }
+  encoded = encodeRollEndpoint({isAxis, value});
+  return success();
+}
+
 static ParseResult parseLayoutRolls(AsmParser& parser,
                                     SmallVector<int64_t>& rolls) {
   if (parser.parseLSquare()) return failure();
   if (succeeded(parser.parseOptionalRSquare())) return success();
 
+  // Each entry is one complete roll pair, either a `(from, to)` tuple or two
+  // bare endpoints `from, to`.
   while (true) {
+    int64_t from;
+    int64_t to;
     if (succeeded(parser.parseOptionalLParen())) {
-      int64_t from;
-      int64_t to;
-      if (parser.parseInteger(from) || parser.parseComma() ||
-          parser.parseInteger(to) || parser.parseRParen())
+      if (failed(parseRollEndpoint(parser, from)) || parser.parseComma() ||
+          failed(parseRollEndpoint(parser, to)) || parser.parseRParen())
         return failure();
-      rolls.push_back(from);
-      rolls.push_back(to);
     } else {
-      int64_t value;
-      if (parser.parseInteger(value)) return failure();
-      rolls.push_back(value);
+      if (failed(parseRollEndpoint(parser, from)) || parser.parseComma() ||
+          failed(parseRollEndpoint(parser, to)))
+        return failure();
     }
+    rolls.push_back(from);
+    rolls.push_back(to);
 
     if (succeeded(parser.parseOptionalComma())) continue;
     return parser.parseRSquare();
@@ -255,48 +274,109 @@ static ParseResult parseLayoutRolls(AsmParser& parser,
 static LogicalResult verifyLayoutRolls(
     ArrayAttr dims, DenseI64ArrayAttr rolls,
     function_ref<InFlightDiagnostic()> emitError) {
-  if (!rolls) return success();
+  const bool noRolls = !rolls || rolls.empty();
+  if (noRolls) return success();
   ArrayRef<int64_t> r = rolls.asArrayRef();
-  if (r.empty()) return success();
   if (r.size() % 2 != 0) {
-    return emitError() << "rolls must contain an even number of integers "
-                          "(pairs of dim indices)";
+    return emitError() << "rolls must contain an even number of endpoints "
+                          "(pairs)";
   }
 
+  // Traversal pieces of a tensor axis: their count decides whether an `axis`
+  // endpoint is legal (split axes only -- the piece spelling is canonical
+  // when the axis is one piece), and their extent product is the modulus a
+  // whole-axis rewrite reduces by.
+  auto piecesOfAxis = [&](int64_t axis) {
+    std::pair<int64_t, int64_t> countAndExtent{0, 1};
+    for (Attribute a : dims) {
+      auto d = dyn_cast<DimAttr>(a);
+      if (d && !d.isGap() && !d.isReplicate() && d.getDim() == axis) {
+        ++countAndExtent.first;
+        countAndExtent.second *= d.getSize();
+      }
+    }
+    return countAndExtent;
+  };
+
   for (size_t i = 0; i < r.size(); i += 2) {
-    const int64_t ti = r[i];
-    const int64_t tj = r[i + 1];
-    if (ti == tj) {
-      return emitError() << "each roll must use two distinct dim indices";
+    const RollEndpoint from = decodeRollEndpoint(r[i]);
+    const RollEndpoint by = decodeRollEndpoint(r[i + 1]);
+
+    // Resolve each endpoint: the piece it names (null for axis endpoints)
+    // and the tensor axis it reads or rewrites (sentinel for gap/replication
+    // pieces).
+    DimAttr fromPiece;
+    DimAttr byPiece;
+    int64_t fromAxis = 0;
+    int64_t byAxis = 0;
+    auto checkEndpoint = [&](const RollEndpoint& e, DimAttr& piece,
+                             int64_t& axis) -> LogicalResult {
+      if (e.isAxis) {
+        auto [count, extent] = piecesOfAxis(e.index);
+        (void)extent;
+        if (count == 0) {
+          return emitError() << "an axis roll endpoint must name a tensor "
+                                "axis present in dims";
+        }
+        if (count == 1) {
+          return emitError() << "an axis roll endpoint requires a split "
+                                "axis; spell an unsplit axis's endpoint as "
+                                "its piece position";
+        }
+        axis = e.index;
+        return success();
+      }
+      if (e.index >= static_cast<int64_t>(dims.size())) {
+        return emitError() << "roll piece endpoint out of bounds for dims "
+                              "list";
+      }
+      piece = dyn_cast<DimAttr>(dims[e.index]);
+      if (!piece) {
+        return emitError() << "roll endpoints must refer to #rotom.dim "
+                              "entries";
+      }
+      axis = piece.getDim();
+      return success();
+    };
+    if (failed(checkEndpoint(from, fromPiece, fromAxis)) ||
+        failed(checkEndpoint(by, byPiece, byAxis))) {
+      return failure();
     }
-    if (ti < 0 || tj < 0 || ti >= static_cast<int64_t>(dims.size()) ||
-        tj >= static_cast<int64_t>(dims.size())) {
-      return emitError() << "roll dim index out of bounds for dims list";
-    }
-    auto di = dyn_cast<DimAttr>(dims[ti]);
-    auto dj = dyn_cast<DimAttr>(dims[tj]);
-    if (!di || !dj) {
-      return emitError() << "roll indices must refer to #rotom.dim entries";
-    }
-    // The extents need not match: roll(i, j) rewrites dims[i]'s index to
-    // (i_i - i_j) mod size(dims[i]), well-defined for any partner extent (a
+
+    // The extents need not match: a roll rewrites the from index to
+    // (idx - shift) mod extent(from), well-defined for any partner extent (a
     // smaller partner covers a prefix of the rotations, a larger one wraps).
-    // The rolled (from) dim must be a traversal dim -- it is the index
-    // expression being rewritten. The roll-by (second) dim may be any kind:
-    // rolling by a replication or gap dim shifts by that dim's block index,
-    // so each block holds a distinct cyclic rotation of the rolled dim -- the
-    // layout materializes every rotation and alignment becomes block
-    // selection. (A rolled-by gap thus claims its blocks, unlike a plain gap.)
-    if (di.isGap() || di.isReplicate()) {
-      return emitError() << "the rolled dim must be a traversal dim (dim >= 0)";
+    // FROM is the index expression being rewritten, so it must be a
+    // traversal piece or a whole (traversal) axis. The by endpoint may be
+    // any kind: rolling by a replication or gap piece shifts by that piece's
+    // block index, so each block holds a distinct cyclic rotation of the
+    // rolled index -- the layout materializes every rotation and alignment
+    // becomes block selection. (A rolled-by gap thus claims its blocks,
+    // unlike a plain gap.)
+    if (!from.isAxis && (fromPiece.isGap() || fromPiece.isReplicate())) {
+      return emitError() << "the rolled dim must be a traversal dim (dim >= "
+                            "0)";
+    }
+    // A roll may not shift an index by itself. Piece endpoints must be
+    // distinct positions (two pieces of one axis are distinct digits); an
+    // axis endpoint overlaps every endpoint on the same axis, because a
+    // whole-axis rewrite touches all of its digits.
+    if (!from.isAxis && !by.isAxis && from.index == by.index) {
+      return emitError() << "each roll must use two distinct endpoints";
+    }
+    if ((from.isAxis || by.isAxis) && fromAxis == byAxis) {
+      return emitError() << "a roll may not shift an axis by one of its own "
+                            "pieces";
     }
     // A rolled-by GAP claims one ciphertext block per gap index, each holding
-    // a distinct rotation of the rolled dim. If the gap is larger than the
-    // rolled dim's extent the rotations repeat (period = the from extent),
-    // claiming blocks the conversion/kernel accounting was never audited for.
+    // a distinct rotation of the rolled index. If the gap is larger than the
+    // rolled extent the rotations repeat (period = the from extent), claiming
+    // blocks the conversion/kernel accounting was never audited for.
     // (Replication partners of larger extent are intended -- replicate-then-
     // roll -- so only gaps are bounded.)
-    if (dj.isGap() && dj.getSize() > di.getSize()) {
+    const int64_t fromExtent =
+        from.isAxis ? piecesOfAxis(fromAxis).second : fromPiece.getSize();
+    if (byPiece && byPiece.isGap() && byPiece.getSize() > fromExtent) {
       return emitError() << "a rolled-by gap dim must not exceed the rolled "
                             "dim's extent";
     }
@@ -345,10 +425,19 @@ void LayoutAttr::print(AsmPrinter& printer) const {
   DenseI64ArrayAttr rolls = getRolls();
   if (rolls && !rolls.asArrayRef().empty()) {
     ArrayRef<int64_t> values = rolls.asArrayRef();
+    auto printEndpoint = [&](int64_t encoded) {
+      const RollEndpoint e = decodeRollEndpoint(encoded);
+      if (e.isAxis) printer << "axis ";
+      printer << e.index;
+    };
     printer << ", rolls = [";
     for (size_t i = 0; i < values.size(); i += 2) {
       if (i != 0) printer << ", ";
-      printer << "(" << values[i] << ", " << values[i + 1] << ")";
+      printer << "(";
+      printEndpoint(values[i]);
+      printer << ", ";
+      printEndpoint(values[i + 1]);
+      printer << ")";
     }
     printer << "]";
   }
@@ -436,6 +525,18 @@ Attribute LayoutAttr::parse(AsmParser& parser, Type type) {
       ArrayAttr::get(context, dims), n, DenseI64ArrayAttr::get(context, rolls));
 }
 
+SmallVector<RollSpec> getRollSpecs(LayoutAttr layout) {
+  SmallVector<RollSpec> specs;
+  DenseI64ArrayAttr rolls = layout.getRolls();
+  if (!rolls) return specs;
+  ArrayRef<int64_t> r = rolls.asArrayRef();
+
+  for (size_t i = 0; i + 1 < r.size(); i += 2) {
+    specs.push_back({decodeRollEndpoint(r[i]), decodeRollEndpoint(r[i + 1])});
+  }
+  return specs;
+}
+
 FailureOr<LayoutData> preprocessLayoutAttr(LayoutAttr layout) {
   return preprocessLayoutData(layout.getDims(), layout.getN(),
                               layout.getContext());
@@ -452,7 +553,9 @@ LogicalResult LayoutAttr::verify(function_ref<InFlightDiagnostic()> emitError,
     return emitError() << "`dims` must be an array of `#rotom.dim<...>`";
   }
 
-  if (failed(verifyLayoutRolls(dims, rolls, emitError))) return failure();
+  if (failed(verifyLayoutRolls(dims, rolls, emitError))) {
+    return failure();
+  }
 
   SmallVector<DimAttr> dimVec;
   dimVec.reserve(dims.size());
@@ -508,7 +611,8 @@ void canonicalizeLayoutDims(MLIRContext* ctx, SmallVector<DimAttr>& dims,
   if (fill <= 1) return;
   dims.insert(dims.begin() + ctLen,
               DimAttr::get(ctx, /*dim=*/-2, fill, /*stride=*/1));
-  // Roll endpoints at or past the insertion shift right.
+  // Piece endpoints at or past the insertion shift right; axis endpoints
+  // (encoded negative) name axes and do not move.
   for (int64_t& encoded : rolls) {
     if (encoded >= static_cast<int64_t>(ctLen)) ++encoded;
   }
