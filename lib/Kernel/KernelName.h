@@ -31,6 +31,9 @@ enum KernelName : int {
   // Ciphertext-ciphertext matmul using the bicyclic packing method.
   MatmulBicyclic,
 
+  // Ciphertext-ciphertext batch matmul using the tricyclic packing method.
+  BatchMatmulTricyclic,
+
   // Product and sum of two vectors, using a log2 rotate-and-reduce approach.
   Dot,
 };

@@ -114,6 +114,11 @@ bool isRelationPerRow(RankedTensorType matrixType, int64_t ciphertextSize,
 bool isRelationBicyclic(RankedTensorType matrixType, int64_t numSlots,
                         const presburger::IntegerRelation& relation);
 
+// Returns true if the relation corresponds to the tricyclic layout for the
+// tensor type and ciphertext semantic shape.
+bool isRelationTricyclic(RankedTensorType tensorType, int64_t numSlots,
+                         const presburger::IntegerRelation& relation);
+
 // Returns a new IntegerRelation that is the same as the given relation, but
 // with the given dimensions collapsed. This expects that the reassociation
 // indices result in a rank-reduction of the source type (i.e. the collapsed

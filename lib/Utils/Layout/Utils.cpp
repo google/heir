@@ -567,6 +567,13 @@ bool isRelationBicyclic(RankedTensorType matrixType, int64_t numSlots,
   return relation.isEqual(bicyclicRelation);
 }
 
+bool isRelationTricyclic(RankedTensorType tensorType, int64_t numSlots,
+                         const presburger::IntegerRelation& relation) {
+  IntegerRelation tricyclicRelation =
+      getTricyclicLayoutRelation(tensorType, numSlots);
+  return relation.isEqual(tricyclicRelation);
+}
+
 presburger::IntegerRelation collapseDimensions(
     const presburger::IntegerRelation& relation, RankedTensorType sourceType,
     ArrayRef<ReassociationIndices> reassociation) {

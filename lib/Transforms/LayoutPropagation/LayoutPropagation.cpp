@@ -61,6 +61,7 @@
 namespace mlir {
 namespace heir {
 
+using linalg::BatchMatmulOp;
 using linalg::Conv1DNcwFcwOp;
 using linalg::Conv1DOp;
 using linalg::Conv2DNchwFchwOp;
@@ -152,6 +153,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   LogicalResult visitOperation(VecmatOp op);
   LogicalResult visitOperation(MatvecOp op);
   LogicalResult visitOperation(MatmulOp op);
+  LogicalResult visitOperation(BatchMatmulOp op);
   LogicalResult visitOperation(DotOp op);
   LogicalResult visitOperation(YieldOp op);
   LogicalResult visitOperation(affine::AffineForOp op);
@@ -320,8 +322,8 @@ LogicalResult LayoutPropagation::visitOperation(Operation* op) {
       // secret ops
       .Case<GenericOp, YieldOp>([&](auto op) { return visitOperation(op); })
       // linalg ops
-      .Case<DotOp, MatvecOp, VecmatOp, ReduceOp, MatmulOp, Conv1DOp,
-            Conv1DNcwFcwOp, Conv2DOp, Conv2DNchwFchwOp>(
+      .Case<DotOp, MatvecOp, VecmatOp, ReduceOp, MatmulOp, BatchMatmulOp,
+            Conv1DOp, Conv1DNcwFcwOp, Conv2DOp, Conv2DNchwFchwOp>(
           [&](auto op) { return visitOperation(op); })
       // affine ops
       .Case<affine::AffineForOp>([&](auto op) { return visitOperation(op); })
@@ -976,6 +978,71 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
       secret::KernelAttr::get(ctx, KernelName::MatvecDiagonal, /*force=*/false);
   op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
 
+  return success();
+}
+
+LogicalResult LayoutPropagation::visitOperation(BatchMatmulOp op) {
+  MLIRContext* ctx = &getContext();
+  mlir::IRRewriter builder(ctx);
+
+  Value lhs = op.getOperand(0);
+  Value rhs = op.getOperand(1);
+  auto lhsType = cast<RankedTensorType>(lhs.getType());
+  auto rhsType = cast<RankedTensorType>(rhs.getType());
+  auto result = op->getResult(0);
+
+  bool inputSecret = isSecret(lhs, solver);
+  bool filterSecret = isSecret(rhs, solver);
+
+  LLVM_DEBUG(llvm::dbgs() << "lhs=" << lhs << ";\nrhs=" << rhs << "\n");
+
+  // TODO(#3173): support layout propagation for pt-ct / ct-pt batch matrix
+  // multiplication.
+  if (!inputSecret) {
+    return builder.notifyMatchFailure(
+        op, "pt-ct batch matrix multiplication is not supported");
+  }
+  if (!filterSecret) {
+    return builder.notifyMatchFailure(
+        op, "ct-pt batch matrix multiplication is not supported");
+  }
+
+  // keep flexibility for future pt-ct/ct-pt support
+  if (inputSecret && filterSecret) {
+    LayoutAttr lhsLayout = getComposedLayoutAttr(lhs);
+    if (!isRelationTricyclic(lhsType, ciphertextSize,
+                             lhsLayout.getIntegerRelation())) {
+      auto [toReplace, newInputMatrixLayoutAttr] =
+          convertToLayout(ctx, builder, op, lhs, lhsLayout,
+                          getTricyclicLayoutRelation(lhsType, ciphertextSize));
+      debugAssignLayout(toReplace, newInputMatrixLayoutAttr);
+      assignedLayouts.insert({toReplace, newInputMatrixLayoutAttr});
+    }
+
+    LayoutAttr rhsLayout = getComposedLayoutAttr(rhs);
+    if (!isRelationTricyclic(rhsType, ciphertextSize,
+                             rhsLayout.getIntegerRelation())) {
+      auto [toReplace, newFilterMatrixLayoutAttr] =
+          convertToLayout(ctx, builder, op, rhs, rhsLayout,
+                          getTricyclicLayoutRelation(rhsType, ciphertextSize));
+      debugAssignLayout(toReplace, newFilterMatrixLayoutAttr);
+      assignedLayouts.insert({toReplace, newFilterMatrixLayoutAttr});
+    }
+
+    RankedTensorType outputType = cast<RankedTensorType>(result.getType());
+    IntegerRelation outputLayoutResult =
+        getTricyclicLayoutRelation(outputType, ciphertextSize);
+    LayoutAttr outputLayoutAttr =
+        LayoutAttr::getFromIntegerRelation(ctx, outputLayoutResult);
+
+    assignedLayouts.insert({result, outputLayoutAttr});
+    setResultLayoutAttr(op);
+    debugAssignLayout(result, outputLayoutAttr);
+
+    auto kernelAttr = secret::KernelAttr::get(
+        ctx, KernelName::BatchMatmulTricyclic, /*force=*/false);
+    op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
+  }
   return success();
 }
 
