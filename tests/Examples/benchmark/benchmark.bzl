@@ -27,6 +27,7 @@ def _binary_impl(ctx):
     args.add(ctx.file.src)
 
     ctx.actions.run(
+        mnemonic = "HeirBenchmarkTest",
         inputs = ctx.attr.src.files,
         outputs = [generated_file],
         arguments = [args],
