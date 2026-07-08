@@ -9,6 +9,7 @@
 #include "llvm/include/llvm/ADT/DenseMap.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/DenseSet.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
+#include "llvm/include/llvm/ADT/Sequence.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/MathExtras.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"          // from @llvm-project
@@ -43,13 +44,9 @@ size_t inferCtPrefixLen(ArrayRef<DimAttr> dims, int64_t n) {
 
 // Preprocesses a layout (`dims`, slot count `n`) into the `LayoutData`
 // descriptor used to emit ciphertext addresses; also the validity check
-// behind `LayoutAttr::verify`.
-//
-// `pieces` describes the traversal dimensions, replication dimensions, and
-// gap dimensions. When lowering to ISL, a traversal piece maps to
-// `(i / divBy) mod modBy`, where i is the index of the piece's tensor axis;
-// replication and gap pieces map to their own ISL existential variables
-// instead.
+// behind `LayoutAttr::verify`. `pieces` holds the traversal, replication,
+// and gap dimensions in packing order; see `LayoutData` in the header for
+// exact field semantics.
 static FailureOr<LayoutData> preprocessLayoutData(ArrayAttr dims, int64_t n,
                                                   MLIRContext* ctx) {
   LayoutData data;
@@ -108,14 +105,14 @@ static FailureOr<LayoutData> preprocessLayoutData(ArrayAttr dims, int64_t n,
       piece.divBy = 1;
       piece.modBy = 0;
     } else {
-      // Split piece: digit = (i / stride) mod extent.
+      // Split piece: it reads (i / stride) mod extent of the axis index.
       const int64_t extent = piece.dim.getSize();
       const int64_t full = dimFullExtent[piece.dim.getDim()];
       piece.modBy = (piece.divBy * extent < full) ? extent : 0;
     }
   }
 
-  // Each multi-piece tensor dim must be a valid mixed-radix decomposition:
+  // Each multi-piece tensor dim must be a valid split:
   // sorted by stride, the divisors are the cumulative products of the lower
   // extents (1, e0, e0*e1, ...), and the extents multiply to the full extent.
   for (auto& [dim, count] : pieceCount) {
@@ -147,7 +144,7 @@ static FailureOr<LayoutData> preprocessLayoutData(ArrayAttr dims, int64_t n,
   return data;
 }
 
-// The dim position is spelled `R` for replication and `G` for gap (the
+// The dim position is written `R` for replication and `G` for gap (the
 // readable forms, also how the printer emits them); the numeric ids -1 and
 // -2 are still accepted.
 static ParseResult parseDimTripleAfterLSquare(AsmParser& parser, int64_t& dim,
@@ -227,25 +224,40 @@ static ParseResult parseLayoutDims(AsmParser& parser,
   }
 }
 
+// One argument of a roll pair: a bare non-negative integer is a dims-list
+// position (one piece); `axis N` names the whole tensor axis N.
+static ParseResult parseRollArg(AsmParser& parser, int64_t& encoded) {
+  const bool isAxis = succeeded(parser.parseOptionalKeyword("axis"));
+  int64_t value;
+  if (parser.parseInteger(value)) return failure();
+  if (value < 0) {
+    return parser.emitError(parser.getNameLoc())
+           << (isAxis ? "an axis roll argument must name a non-negative "
+                        "tensor axis"
+                      : "a piece roll argument must be a non-negative dims "
+                        "position (write a whole-axis argument as `axis N`)");
+  }
+  encoded = encodeRollArg({isAxis, value});
+  return success();
+}
+
 static ParseResult parseLayoutRolls(AsmParser& parser,
                                     SmallVector<int64_t>& rolls) {
   if (parser.parseLSquare()) return failure();
   if (succeeded(parser.parseOptionalRSquare())) return success();
 
+  // Each entry is one `(from, by)` pair, parenthesized -- the form the
+  // printer emits, so written and round-tripped layouts read alike.
   while (true) {
-    if (succeeded(parser.parseOptionalLParen())) {
-      int64_t from;
-      int64_t to;
-      if (parser.parseInteger(from) || parser.parseComma() ||
-          parser.parseInteger(to) || parser.parseRParen())
-        return failure();
-      rolls.push_back(from);
-      rolls.push_back(to);
-    } else {
-      int64_t value;
-      if (parser.parseInteger(value)) return failure();
-      rolls.push_back(value);
+    int64_t from;
+    int64_t by;
+    if (parser.parseLParen() || failed(parseRollArg(parser, from)) ||
+        parser.parseComma() || failed(parseRollArg(parser, by)) ||
+        parser.parseRParen()) {
+      return failure();
     }
+    rolls.push_back(from);
+    rolls.push_back(by);
 
     if (succeeded(parser.parseOptionalComma())) continue;
     return parser.parseRSquare();
@@ -255,48 +267,94 @@ static ParseResult parseLayoutRolls(AsmParser& parser,
 static LogicalResult verifyLayoutRolls(
     ArrayAttr dims, DenseI64ArrayAttr rolls,
     function_ref<InFlightDiagnostic()> emitError) {
-  if (!rolls) return success();
+  const bool noRolls = !rolls || rolls.empty();
+  if (noRolls) return success();
   ArrayRef<int64_t> r = rolls.asArrayRef();
-  if (r.empty()) return success();
   if (r.size() % 2 != 0) {
-    return emitError() << "rolls must contain an even number of integers "
-                          "(pairs of dim indices)";
+    return emitError() << "rolls must contain an even number of arguments "
+                          "(pairs)";
   }
 
   for (size_t i = 0; i < r.size(); i += 2) {
-    const int64_t ti = r[i];
-    const int64_t tj = r[i + 1];
-    if (ti == tj) {
-      return emitError() << "each roll must use two distinct dim indices";
+    const RollArg from = decodeRollArg(r[i]);
+    const RollArg by = decodeRollArg(r[i + 1]);
+
+    // Resolve each argument: the piece it names (null for axis arguments)
+    // and the tensor axis it reads or rewrites (sentinel for gap/replication
+    // pieces).
+    DimAttr fromPiece;
+    DimAttr byPiece;
+    int64_t fromAxis = 0;
+    int64_t byAxis = 0;
+    auto checkArg = [&](const RollArg& e, DimAttr& piece,
+                        int64_t& axisId) -> LogicalResult {
+      if (e.isAxis) {
+        // The piece count decides how the axis may be named: an `axis`
+        // argument is legal only for a split axis.
+        const AxisPieces pieces = axisPieces(dims, e.index);
+        if (pieces.count == 0) {
+          return emitError() << "an axis roll argument must name a tensor "
+                                "axis present in dims";
+        }
+        if (!pieces.isSplit()) {
+          return emitError() << "an axis roll argument requires a split "
+                                "axis; write an unsplit axis's argument as "
+                                "its piece position";
+        }
+        axisId = e.index;
+        return success();
+      }
+      if (e.index >= static_cast<int64_t>(dims.size())) {
+        return emitError() << "roll piece argument out of bounds for dims "
+                              "list";
+      }
+      piece = dyn_cast<DimAttr>(dims[e.index]);
+      if (!piece) {
+        return emitError() << "roll arguments must refer to #rotom.dim "
+                              "entries";
+      }
+      axisId = piece.getDim();
+      return success();
+    };
+    if (failed(checkArg(from, fromPiece, fromAxis)) ||
+        failed(checkArg(by, byPiece, byAxis))) {
+      return failure();
     }
-    if (ti < 0 || tj < 0 || ti >= static_cast<int64_t>(dims.size()) ||
-        tj >= static_cast<int64_t>(dims.size())) {
-      return emitError() << "roll dim index out of bounds for dims list";
-    }
-    auto di = dyn_cast<DimAttr>(dims[ti]);
-    auto dj = dyn_cast<DimAttr>(dims[tj]);
-    if (!di || !dj) {
-      return emitError() << "roll indices must refer to #rotom.dim entries";
-    }
-    // The extents need not match: roll(i, j) rewrites dims[i]'s index to
-    // (i_i - i_j) mod size(dims[i]), well-defined for any partner extent (a
+
+    // The extents need not match: a roll rewrites the from index to
+    // (idx - shift) mod extent(from), well-defined for any partner extent (a
     // smaller partner covers a prefix of the rotations, a larger one wraps).
-    // The rolled (from) dim must be a traversal dim -- it is the index
-    // expression being rewritten. The roll-by (second) dim may be any kind:
-    // rolling by a replication or gap dim shifts by that dim's block index,
-    // so each block holds a distinct cyclic rotation of the rolled dim -- the
-    // layout materializes every rotation and alignment becomes block
-    // selection. (A rolled-by gap thus claims its blocks, unlike a plain gap.)
-    if (di.isGap() || di.isReplicate()) {
-      return emitError() << "the rolled dim must be a traversal dim (dim >= 0)";
+    // FROM is the index expression being rewritten, so it must be a
+    // traversal piece or a whole (traversal) axis. The by argument may be
+    // any kind: rolling by a replication or gap piece shifts by that piece's
+    // block index, so each block holds a distinct cyclic rotation of the
+    // rolled index -- the layout materializes every rotation and alignment
+    // becomes block selection. (A rolled-by gap thus claims its blocks,
+    // unlike a plain gap.)
+    if (!from.isAxis && (fromPiece.isGap() || fromPiece.isReplicate())) {
+      return emitError() << "the rolled dim must be a traversal dim (dim >= "
+                            "0)";
+    }
+    // A roll may not shift an index by an argument on its own axis: an axis
+    // FROM rewrites every piece of the axis, including the one the by
+    // argument reads,
+    // and a piece FROM taking a by on the same axis is a self-shear no
+    // packing needs. Gap and replication by arguments name no axis, so they
+    // never collide.
+    if (fromAxis == byAxis) {
+      return emitError()
+             << "a roll may not shift an index by an argument on the same "
+                "axis";
     }
     // A rolled-by GAP claims one ciphertext block per gap index, each holding
-    // a distinct rotation of the rolled dim. If the gap is larger than the
-    // rolled dim's extent the rotations repeat (period = the from extent),
-    // claiming blocks the conversion/kernel accounting was never audited for.
+    // a distinct rotation of the rolled index. If the gap is larger than the
+    // rolled extent the rotations repeat (period = the from extent), claiming
+    // blocks the conversion/kernel accounting was never audited for.
     // (Replication partners of larger extent are intended -- replicate-then-
     // roll -- so only gaps are bounded.)
-    if (dj.isGap() && dj.getSize() > di.getSize()) {
+    const int64_t fromExtent =
+        from.isAxis ? axisPieces(dims, fromAxis).extent : fromPiece.getSize();
+    if (byPiece && byPiece.isGap() && byPiece.getSize() > fromExtent) {
       return emitError() << "a rolled-by gap dim must not exceed the rolled "
                             "dim's extent";
     }
@@ -345,10 +403,19 @@ void LayoutAttr::print(AsmPrinter& printer) const {
   DenseI64ArrayAttr rolls = getRolls();
   if (rolls && !rolls.asArrayRef().empty()) {
     ArrayRef<int64_t> values = rolls.asArrayRef();
+    auto printArg = [&](int64_t encoded) {
+      const RollArg e = decodeRollArg(encoded);
+      if (e.isAxis) printer << "axis ";
+      printer << e.index;
+    };
     printer << ", rolls = [";
     for (size_t i = 0; i < values.size(); i += 2) {
       if (i != 0) printer << ", ";
-      printer << "(" << values[i] << ", " << values[i + 1] << ")";
+      printer << "(";
+      printArg(values[i]);
+      printer << ", ";
+      printArg(values[i + 1]);
+      printer << ")";
     }
     printer << "]";
   }
@@ -436,6 +503,39 @@ Attribute LayoutAttr::parse(AsmParser& parser, Type type) {
       ArrayAttr::get(context, dims), n, DenseI64ArrayAttr::get(context, rolls));
 }
 
+namespace {
+template <typename RangeT>
+AxisPieces accumulateAxisPieces(RangeT&& dims, int64_t axis) {
+  AxisPieces pieces;
+  for (DimAttr d : dims) {
+    if (d.isGap() || d.isReplicate() || d.getDim() != axis) continue;
+    ++pieces.count;
+    pieces.extent *= d.getSize();
+  }
+  return pieces;
+}
+}  // namespace
+
+AxisPieces axisPieces(ArrayRef<DimAttr> dims, int64_t axis) {
+  return accumulateAxisPieces(dims, axis);
+}
+
+AxisPieces axisPieces(ArrayAttr dims, int64_t axis) {
+  return accumulateAxisPieces(dims.getAsRange<DimAttr>(), axis);
+}
+
+SmallVector<RollSpec> getRollSpecs(LayoutAttr layout) {
+  SmallVector<RollSpec> specs;
+  DenseI64ArrayAttr rolls = layout.getRolls();
+  if (!rolls) return specs;
+  ArrayRef<int64_t> r = rolls.asArrayRef();
+
+  for (size_t i = 0; i + 1 < r.size(); i += 2) {
+    specs.push_back({decodeRollArg(r[i]), decodeRollArg(r[i + 1])});
+  }
+  return specs;
+}
+
 FailureOr<LayoutData> preprocessLayoutAttr(LayoutAttr layout) {
   return preprocessLayoutData(layout.getDims(), layout.getN(),
                               layout.getContext());
@@ -452,7 +552,9 @@ LogicalResult LayoutAttr::verify(function_ref<InFlightDiagnostic()> emitError,
     return emitError() << "`dims` must be an array of `#rotom.dim<...>`";
   }
 
-  if (failed(verifyLayoutRolls(dims, rolls, emitError))) return failure();
+  if (failed(verifyLayoutRolls(dims, rolls, emitError))) {
+    return failure();
+  }
 
   SmallVector<DimAttr> dimVec;
   dimVec.reserve(dims.size());
@@ -478,7 +580,7 @@ LogicalResult LayoutAttr::verify(function_ref<InFlightDiagnostic()> emitError,
     return emitError() << "slot dims must fill the ciphertext exactly (slot "
                           "extent "
                        << slotExtent << " vs n = " << n
-                       << "); spell unused capacity as an explicit gap piece";
+                       << "); state unused capacity as an explicit gap piece";
   }
 
   return success();
@@ -500,6 +602,83 @@ LogicalResult SeedAttr::verify(function_ref<InFlightDiagnostic()> emitError,
 
 void canonicalizeLayoutDims(MLIRContext* ctx, SmallVector<DimAttr>& dims,
                             int64_t n, SmallVector<int64_t>& rolls) {
+  // A unit axis -- one whose whole extent is one -- places no data: its index
+  // has a single value, so it contributes nothing to any address, and a
+  // factor of one changes no other piece's offset. Its position was therefore
+  // free, which is what let one packing have several forms and made every
+  // consumer walk past unit pieces. Pin it to the tail in axis order, where
+  // addUnitAxisPieces already puts the pieces it creates and where
+  // inferCtPrefixLen's trailing trim already assumes they live. The piece
+  // stays: the relation the layout lowers to needs one domain variable per
+  // tensor axis. This rewrites the form, never the packing.
+  {
+    llvm::DenseMap<int64_t, int64_t> extentOfAxis;
+    for (DimAttr d : dims) {
+      if (d.isGap() || d.isReplicate()) continue;
+      auto it = extentOfAxis.find(d.getDim());
+      extentOfAxis[d.getDim()] =
+          it == extentOfAxis.end() ? d.getSize() : it->second * d.getSize();
+    }
+    auto isUnitAxisPiece = [&](DimAttr d) {
+      if (d.isGap() || d.isReplicate()) return false;
+      auto it = extentOfAxis.find(d.getDim());
+      return it != extentOfAxis.end() && it->second == 1;
+    };
+    // Extent-one replication and gaps are NOT dropped: alignment pairs two
+    // layouts by piece count (pieceMovements requires the counts to match),
+    // so a piece like [R:1:1] is a positional placeholder even though it
+    // places no data. Dropping it loses the matmul kernel entirely.
+    auto isInert = [](DimAttr d) {
+      (void)d;
+      return false;
+    };
+    SmallVector<DimAttr> rest, units;
+    SmallVector<int64_t> restOld, unitOld;
+    bool dropped = false;
+    for (auto [p, d] : llvm::enumerate(dims)) {
+      if (isInert(d)) {
+        dropped = true;
+      } else if (isUnitAxisPiece(d)) {
+        units.push_back(d);
+        unitOld.push_back(static_cast<int64_t>(p));
+      } else {
+        rest.push_back(d);
+        restOld.push_back(static_cast<int64_t>(p));
+      }
+    }
+    const bool moved =
+        !units.empty() && unitOld.front() != static_cast<int64_t>(rest.size());
+    if (dropped || moved) {
+      SmallVector<int64_t> order(unitOld.size());
+      for (size_t i = 0; i < order.size(); ++i) {
+        order[i] = static_cast<int64_t>(i);
+      }
+      llvm::stable_sort(order, [&](int64_t x, int64_t y) {
+        return units[x].getDim() < units[y].getDim();
+      });
+      SmallVector<int64_t> newPos(dims.size(), -1);
+      SmallVector<DimAttr> out;
+      for (auto [i, oldIdx] : llvm::enumerate(restOld)) {
+        newPos[oldIdx] = static_cast<int64_t>(out.size());
+        out.push_back(rest[i]);
+      }
+      for (int64_t i : order) {
+        newPos[unitOld[i]] = static_cast<int64_t>(out.size());
+        out.push_back(units[i]);
+      }
+      SmallVector<int64_t> keptRolls;
+      for (size_t i = 0; i + 1 < rolls.size(); i += 2) {
+        const int64_t from = rolls[i], by = rolls[i + 1];
+        const bool fromGone = from >= 0 && newPos[from] < 0;
+        const bool byGone = by >= 0 && newPos[by] < 0;
+        if (fromGone || byGone) continue;
+        keptRolls.push_back(from >= 0 ? newPos[from] : from);
+        keptRolls.push_back(by >= 0 ? newPos[by] : by);
+      }
+      dims = std::move(out);
+      rolls = std::move(keptRolls);
+    }
+  }
   const size_t ctLen = inferCtPrefixLen(dims, n);
   int64_t slotExtent = 1;
   for (size_t p = ctLen; p < dims.size(); ++p) slotExtent *= dims[p].getSize();
@@ -508,7 +687,7 @@ void canonicalizeLayoutDims(MLIRContext* ctx, SmallVector<DimAttr>& dims,
   if (fill <= 1) return;
   dims.insert(dims.begin() + ctLen,
               DimAttr::get(ctx, /*dim=*/-2, fill, /*stride=*/1));
-  // Roll endpoints at or past the insertion shift right.
+  // Piece arguments at or past the insertion shift right.
   for (int64_t& encoded : rolls) {
     if (encoded >= static_cast<int64_t>(ctLen)) ++encoded;
   }
