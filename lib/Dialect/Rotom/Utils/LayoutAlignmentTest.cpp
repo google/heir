@@ -498,6 +498,19 @@ TEST_F(LayoutAlignmentTest, AlignedDimsKeepsReplicationBeyondUnitDim) {
   EXPECT_FALSE(rotom::alignPair(map, lhsLayout, rhsLayout).empty());
 }
 
+// Batch dims pair from the right at any rank, so a [b0, b1, i, k] lhs and a
+// [b1, k, j] rhs agree on b1 and leave b0 facing replication.
+TEST_F(LayoutAlignmentTest, MatmulMapPairsBatchDimsFromTheRight) {
+  auto map = rotom::OperatorAlignmentMap::matmul(/*lhsRank=*/4, /*rhsRank=*/3);
+  EXPECT_EQ(map.lhsToRhs[3], 1);  // k pairs with k
+  EXPECT_EQ(map.rhsToLhs[1], 3);
+  EXPECT_EQ(map.lhsToRhs[1], 0);  // innermost batch dims pair
+  EXPECT_EQ(map.rhsToLhs[0], 1);
+  EXPECT_EQ(map.lhsToRhs[0], rotom::OperatorAlignmentMap::kRepeatedDim);
+  EXPECT_EQ(map.lhsToRhs[2], rotom::OperatorAlignmentMap::kRepeatedDim);
+  EXPECT_EQ(map.rhsToLhs[2], rotom::OperatorAlignmentMap::kRepeatedDim);
+}
+
 }  // namespace
 }  // namespace heir
 }  // namespace mlir
