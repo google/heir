@@ -15,6 +15,57 @@
 
 namespace mlir::heir::rotom {
 
+// The dim id of a `K` piece; see DimAttr::isContraction.
+inline constexpr int64_t kDimContraction = -3;
+
+// One argument of a roll: either one piece of the layout (a position in its
+// dims list) or a whole tensor axis (written `axis N`; legal only when the
+// axis is packed as more than one piece).
+struct RollArg {
+  bool isAxis;
+  int64_t index;  // Dims-list position, or the tensor axis id when isAxis.
+  bool operator==(const RollArg& other) const {
+    return isAxis == other.isAxis && index == other.index;
+  }
+};
+
+// Argument encoding in the flat rolls storage: a piece argument is its
+// non-negative dims-list position, an axis argument is -(axis + 1).
+inline int64_t encodeRollArg(RollArg e) {
+  return e.isAxis ? -(e.index + 1) : e.index;
+}
+inline RollArg decodeRollArg(int64_t encoded) {
+  return encoded < 0 ? RollArg{true, -encoded - 1} : RollArg{false, encoded};
+}
+
+// One roll of a layout: FROM's index is rewritten to
+// (idx_from - shift(by)) mod extent(from), where a piece FROM rewrites only
+// the part of the axis index that piece reads, and an axis FROM rewrites the
+// whole axis index.
+struct RollSpec {
+  RollArg from;
+  RollArg by;
+};
+
+// The layout's rolls with both arguments decoded.
+llvm::SmallVector<RollSpec> getRollSpecs(LayoutAttr layout);
+
+// The traversal pieces one tensor axis occupies in a dims list: how many
+// there are, and the product of their extents -- the axis's full logical
+// extent, since a split factors it across pieces. Gap and
+// replication pieces name no tensor axis and are skipped.
+struct AxisPieces {
+  int64_t count = 0;
+  int64_t extent = 1;
+  // Whether a roll must name this axis with an `axis` argument: with a single
+  // piece, rolling the axis and rolling that piece are the same rewrite, and
+  // the piece form is canonical.
+  bool isSplit() const { return count > 1; }
+};
+
+AxisPieces axisPieces(llvm::ArrayRef<DimAttr> dims, int64_t axis);
+AxisPieces axisPieces(ArrayAttr dims, int64_t axis);
+
 enum class LayoutPieceKind { Traversal, Replication, Gap };
 
 struct LayoutPiece {
@@ -23,15 +74,15 @@ struct LayoutPiece {
   // axisIndex, divBy, and modBy lower a traversal piece into its term of the
   // ISL relation. The emitter builds an address `[i0, i1, ...] -> [ct, slot]`
   // with one variable per axis (LayoutData::axes); each piece contributes a
-  // term reading one mixed-radix digit of its axis's variable.
+  // term reading one part of its axis's variable.
   //
   // axisIndex picks the variable: an index into LayoutData::axes, emitted as
   // `i{axisIndex}`.
   int64_t axisIndex = -1;
-  // divBy and modBy pick which digit of that variable the piece reads, as
-  // (i / divBy) mod modBy. divBy is the digit's place value: the piece's
-  // stride when the axis is split across pieces, else 1. modBy is the digit's
-  // extent or 0 to drop the modulus on the most-significant digit.
+  // divBy and modBy pick which part of that variable the piece reads, as
+  // (i / divBy) mod modBy. divBy is that part's offset: the piece's
+  // stride when the axis is split across pieces, else 1. modBy is the piece's
+  // extent, or 0 to drop the modulus on the highest part.
   int64_t divBy = 1;
   int64_t modBy = 0;
 };
