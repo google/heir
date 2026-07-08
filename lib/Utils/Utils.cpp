@@ -166,7 +166,7 @@ void iterateIndices(ArrayRef<int64_t> shape, const IndexTupleConsumer& process,
           // No carry needed
           break;
         }
-        // Reset this digit and move to the next
+        // Reset this index and move to the next
         indices[dim] = 0;
       }
       dim--;
@@ -235,6 +235,18 @@ Operation* makeAppropriatelyTypedMulOp(OpBuilder& builder, Location loc,
                             : "arith.mulf";
   return builder.create(
       OperationState(loc, addOpName, {lhs, rhs}, {lhs.getType()}, attrs));
+}
+
+Operation* makeAppropriatelyTypedSubOp(OpBuilder& builder, Location loc,
+                                       Value lhs, Value rhs,
+                                       ArrayRef<NamedAttribute> attrs) {
+  assert(lhs.getType() == rhs.getType() &&
+         "lhs and rhs must have the same type");
+  StringRef subOpName = isa<IntegerType>(getElementTypeOrSelf(lhs.getType()))
+                            ? "arith.subi"
+                            : "arith.subf";
+  return builder.create(
+      OperationState(loc, subOpName, {lhs, rhs}, {lhs.getType()}, attrs));
 }
 
 /// Returns true if and only if all types in the given values are the same.
