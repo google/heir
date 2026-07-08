@@ -55,11 +55,54 @@ def Rotom_LayoutAttr : Rotom_Attr<"Layout", "layout"> {
     with an explicit gap piece (e.g. `[G:4:1]`).
     See [Section 4.2 of the Rotom paper](https://eprint.iacr.org/2025/1319.pdf).
 
-    Optional **rolls** encode a `roll(i,j)` metadata object: each pair `(i, j)`
-    indexes into the `dims` array (the flattened `ct_dims + slot_dims` list) and
-    rewrites `dims[i]`'s index to `(idx_i - idx_j) mod size(dims[i])`. The two
-    extents need not match: the shift reduces modulo the rolled dim's extent, so
-    a smaller partner covers a prefix of the rotations and a larger one wraps.
+    Optional **rolls** encode `roll(from, by)` metadata objects, applied left
+    to right. Each argument is either a *piece* -- a position in the `dims`
+    list, spelled as a bare integer -- or a whole tensor *axis*, spelled
+    `axis N` (legal only when axis `N` is packed as more than one piece; the
+    piece spelling is canonical for an unsplit axis, where the two coincide).
+
+    ```mlir
+    // Halevi-Shoup diagonal of a 4x4 matrix: slot j of ciphertext i holds
+    // A[i, (j + i) mod 4]. Argument 1 (the axis-1 piece) is rolled by
+    // argument 0 (the axis-0 piece).
+    #diag = #rotom.layout<n = 4, rolls = [(1, 0)], dims = [[0:4:1] | [1:4:1]]>
+
+    // Axis 1 is split across two pieces, so a whole-axis roll spells its
+    // argument `axis 1` rather than a piece position.
+    #split = #rotom.layout<n = 16, rolls = [(axis 1, 2)],
+                           dims = [[1:4:4], [1:4:1] | [0:16:1]]>
+    ```
+
+    A piece FROM rewrites that piece's own mixed-radix digit in place,
+    `digit(from) <- (digit(from) - shift(by)) mod extent(from)`, leaving the
+    axis's other digits untouched. An `axis` FROM instead rewrites the whole
+    axis index modulo its full extent and redistributes it over the pieces, so
+    the subtraction borrows across digits.
+
+    For example, axis 0 of extent 4 packed as two radix-2 digits and
+    replicated twice, so replica `d` supplies the shift `d`:
+
+    ```mlir
+    // `[0:2:2]` carries axis 0's high digit and `[0:2:1]` its low digit, so a
+    // replica's four slots hold elements 0, 1, 2, 3 in order. The two layouts
+    // differ only in whether the roll names the axis or the low digit.
+    #by_axis = #rotom.layout<n = 8, rolls = [(axis 0, 0)],
+                             dims = [[R:2:1], [0:2:2], [0:2:1]]>
+    #by_piece = #rotom.layout<n = 8, rolls = [(2, 0)],
+                              dims = [[R:2:1], [0:2:2], [0:2:1]]>
+    ```
+
+    Replica 0 shifts by 0, so both layouts hold `0, 1, 2, 3`. Replica 1 shifts
+    by 1, and there they differ: `#by_axis` holds `1, 2, 3, 0`, the whole axis
+    rotated by one, while `#by_piece` holds `1, 0, 3, 2`, each pair of slots
+    rotated inside itself.
+
+    The shift is the by argument's index: a
+    traversal piece's digit (its whole index when the axis is unsplit), a
+    whole axis's index via `axis`, a replication piece's replica index, or a
+    gap piece's block index. The two extents need not match: the shift
+    reduces modulo the rolled extent, so a smaller partner covers a prefix of
+    the rotations and a larger one wraps.
   }];
 
   let parameters = (ins

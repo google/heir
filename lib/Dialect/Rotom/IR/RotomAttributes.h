@@ -15,6 +15,53 @@
 
 namespace mlir::heir::rotom {
 
+// One argument of a roll: either one piece of the layout (a position in its
+// dims list) or a whole tensor axis (spelled `axis N`; legal only when the
+// axis is packed as more than one piece).
+struct RollArg {
+  bool isAxis;
+  int64_t index;  // Dims-list position, or the tensor axis id when isAxis.
+  bool operator==(const RollArg& other) const {
+    return isAxis == other.isAxis && index == other.index;
+  }
+};
+
+// Argument encoding in the flat rolls storage: a piece argument is its
+// non-negative dims-list position, an axis argument is -(axis + 1).
+inline int64_t encodeRollArg(RollArg e) {
+  return e.isAxis ? -(e.index + 1) : e.index;
+}
+inline RollArg decodeRollArg(int64_t encoded) {
+  return encoded < 0 ? RollArg{true, -encoded - 1} : RollArg{false, encoded};
+}
+
+// One roll of a layout: FROM's index is rewritten to
+// (idx_from - shift(by)) mod extent(from), where a piece FROM rewrites only
+// its own mixed-radix digit and an axis FROM rewrites the whole axis index.
+struct RollSpec {
+  RollArg from;
+  RollArg by;
+};
+
+// The layout's rolls with both arguments decoded.
+llvm::SmallVector<RollSpec> getRollSpecs(LayoutAttr layout);
+
+// The traversal pieces one tensor axis occupies in a dims list: how many
+// there are, and the product of their extents -- the axis's full logical
+// extent, since a mixed-radix split factors it across pieces. Gap and
+// replication pieces name no tensor axis and are skipped.
+struct AxisPieces {
+  int64_t count = 0;
+  int64_t extent = 1;
+  // Whether a roll must spell this axis as an `axis` argument: with a single
+  // piece, rolling the axis and rolling that piece are the same rewrite, and
+  // the piece spelling is canonical.
+  bool isSplit() const { return count > 1; }
+};
+
+AxisPieces axisPieces(llvm::ArrayRef<DimAttr> dims, int64_t axis);
+AxisPieces axisPieces(ArrayAttr dims, int64_t axis);
+
 enum class LayoutPieceKind { Traversal, Replication, Gap };
 
 struct LayoutPiece {
