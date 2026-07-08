@@ -9,21 +9,30 @@ func.func private @ok(tensor<16xi32> {foo.bar = #layout_ok})
 
 // -----
 
-// This forces a non-pow2 slot dim size after splitting: size=3 divides 12 but not pow2.
-#bad = #rotom.layout<n = 12, dims = [[0:3:1]]> // expected-error {{slot dim size must be a power of two, got 3}}
+// A non-pow2 slot dim size is rejected.
+#bad = #rotom.layout<n = 12, dims = [[G:4:1], [0:3:1]]> // expected-error {{slot dim size must be a power of two, got 3}}
 func.func private @bad(tensor<16xi32> {foo.bar = #bad})
 
 // -----
 
-// Splitting case: size > n causes a ct/slot split, and slot-side size becomes n (must be pow2).
-#split_ok = #rotom.layout<n = 8, dims = [[0:16:1]]>
+// An oversized dim indexes ciphertexts (one element per ciphertext); the
+// unused slots are an explicit gap, so the slot side is all gap here.
+#split_ok = #rotom.layout<n = 8, dims = [[0:16:1] | [G:8:1]]>
 func.func private @split_ok(tensor<16xi32> {foo.bar = #split_ok})
 
 // -----
 
-// size > n but not divisible => verifier error (mirrors Python assert size % n == 0).
-#split_bad = #rotom.layout<n = 8, dims = [[0:10:1]]> // expected-error {{dim size 10 must be divisible by remaining slot capacity 8}}
-func.func private @split_bad(tensor<16xi32> {foo.bar = #split_bad})
+// The slot side must fill the ciphertext exactly; a written layout may not
+// leave capacity implicit.
+#underfilled = #rotom.layout<n = 8, dims = [[0:4:1]]> // expected-error {{slot dims must fill the ciphertext exactly (slot extent 4 vs n = 8); spell unused capacity as an explicit gap piece}}
+func.func private @underfilled(tensor<16xi32> {foo.bar = #underfilled})
+
+// -----
+
+// The written `|` must sit exactly at the derived boundary: both pieces here
+// fit the 8 slots, so neither may be claimed as a ciphertext dim.
+#bad_split = #rotom.layout<n = 8, dims = [[0:2:1] | [1:4:1]]> // expected-error {{the written `|` ciphertext/slot split (1 ciphertext dims) does not match the derived split (0): the slot side is the longest dims suffix whose extents fit n = 8}}
+func.func private @bad_split(tensor<16xi32> {foo.bar = #bad_split})
 
 // -----
 

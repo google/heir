@@ -2,9 +2,11 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <map>
 #include <utility>
 #include <vector>
 
+#include "llvm/include/llvm/ADT/DenseMap.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/DenseSet.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
@@ -20,9 +22,7 @@ namespace mlir {
 namespace heir {
 namespace rotom {
 
-namespace {
-
-static size_t inferCtPrefixLen(ArrayRef<DimAttr> dims, int64_t n) {
+size_t inferCtPrefixLen(ArrayRef<DimAttr> dims, int64_t n) {
   int64_t nRem = n;
   size_t i = dims.size();
   while (i > 0) {
@@ -41,76 +41,130 @@ static size_t inferCtPrefixLen(ArrayRef<DimAttr> dims, int64_t n) {
   return i;
 }
 
-static int64_t computeImplicitFrontGap(ArrayRef<DimAttr> dims, int64_t n) {
-  int64_t nRem = n;
-  for (auto it = dims.rbegin(); it != dims.rend(); ++it) {
-    DimAttr d = *it;
-    if (d.isGap()) return 1;
-    if (nRem <= 1) break;
-    const int64_t sz = d.getSize();
-    if (sz <= 0) return 1;
-    if (sz <= nRem && nRem % sz == 0) nRem /= sz;
-  }
-  return nRem;
-}
-
+// Preprocesses a layout (`dims`, slot count `n`) into the `LayoutData`
+// descriptor used to emit ciphertext addresses; also the validity check
+// behind `LayoutAttr::verify`.
+//
+// `pieces` describes the traversal dimensions, replication dimensions, and
+// gap dimensions. When lowering to ISL, a traversal piece maps to
+// `(i / divBy) mod modBy`, where i is the index of the piece's tensor axis;
+// replication and gap pieces map to their own ISL existential variables
+// instead.
 static FailureOr<LayoutData> preprocessLayoutData(ArrayAttr dims, int64_t n,
                                                   MLIRContext* ctx) {
   LayoutData data;
   data.n = n;
   if (data.n <= 0) return failure();
 
-  data.originalDims.reserve(dims.size());
+  std::map<int64_t, DimAttr> axisForDim;
+  SmallVector<DimAttr> writtenDims;
+  writtenDims.reserve(dims.size());
+  data.pieces.reserve(dims.size());
   for (Attribute a : dims) {
     auto d = dyn_cast<DimAttr>(a);
     if (!d) return failure();
-    data.originalDims.push_back(d);
+    writtenDims.push_back(d);
     if (d.isGap()) {
-      data.pieceIndex.push_back(static_cast<int64_t>(data.gapDims.size()));
-      data.gapDims.push_back(d);
-      data.pieces.push_back(LayoutPieceKind::Gap);
+      data.pieces.push_back({d, LayoutPieceKind::Gap});
       continue;
     }
     if (d.isReplicate()) {
-      data.pieceIndex.push_back(
-          static_cast<int64_t>(data.replicationDims.size()));
-      data.replicationDims.push_back(d);
-      data.pieces.push_back(LayoutPieceKind::Replication);
+      data.pieces.push_back({d, LayoutPieceKind::Replication});
       continue;
     }
-    if (d.getDim() >= 0) {
-      data.pieceIndex.push_back(
-          static_cast<int64_t>(data.traversalDims.size()));
-      data.traversalDims.push_back(d);
-      data.pieces.push_back(LayoutPieceKind::Traversal);
-      continue;
+    if (d.getDim() < 0) return failure();
+    axisForDim.try_emplace(d.getDim(), d);
+    // axisIndex is set below: a dim's rank isn't known until all dims are seen.
+    data.pieces.push_back({d, LayoutPieceKind::Traversal, /*axisIndex=*/-1,
+                           /*divBy=*/d.getStride()});
+  }
+
+  // Number the axes by ascending dim id (the order std::map gives).
+  llvm::DenseMap<int64_t, int64_t> axisIndexForDim;
+  for (auto& [dim, dimAttr] : axisForDim) {
+    axisIndexForDim[dim] = static_cast<int64_t>(data.axes.size());
+    data.axes.push_back(dimAttr);
+  }
+  for (LayoutPiece& piece : data.pieces) {
+    if (piece.kind == LayoutPieceKind::Traversal) {
+      piece.axisIndex = axisIndexForDim[piece.dim.getDim()];
     }
-    return failure();
+  }
+
+  // Count pieces per tensor dim and the dim's full extent.
+  llvm::DenseMap<int64_t, int64_t> pieceCount;
+  llvm::DenseMap<int64_t, int64_t> dimFullExtent;
+  for (const LayoutPiece& piece : data.pieces) {
+    if (piece.kind != LayoutPieceKind::Traversal) continue;
+    ++pieceCount[piece.dim.getDim()];
+    auto [it, inserted] = dimFullExtent.try_emplace(piece.dim.getDim(), 1);
+    it->second *= piece.dim.getSize();
+  }
+
+  for (LayoutPiece& piece : data.pieces) {
+    if (piece.kind != LayoutPieceKind::Traversal) continue;
+    if (pieceCount[piece.dim.getDim()] == 1) {
+      // Lone piece: (i / 1) mod 0 = i.
+      piece.divBy = 1;
+      piece.modBy = 0;
+    } else {
+      // Split piece: digit = (i / stride) mod extent.
+      const int64_t extent = piece.dim.getSize();
+      const int64_t full = dimFullExtent[piece.dim.getDim()];
+      piece.modBy = (piece.divBy * extent < full) ? extent : 0;
+    }
+  }
+
+  // Each multi-piece tensor dim must be a valid mixed-radix decomposition:
+  // sorted by stride, the divisors are the cumulative products of the lower
+  // extents (1, e0, e0*e1, ...), and the extents multiply to the full extent.
+  for (auto& [dim, count] : pieceCount) {
+    if (count == 1) continue;
+    SmallVector<std::pair<int64_t, int64_t>> parts;  // (stride, extent)
+    for (const LayoutPiece& piece : data.pieces) {
+      if (piece.kind == LayoutPieceKind::Traversal &&
+          piece.dim.getDim() == dim) {
+        parts.push_back({piece.divBy, piece.dim.getSize()});
+      }
+    }
+    llvm::sort(parts);  // ascending stride
+    int64_t expected = 1;
+    for (auto [stride, extent] : parts) {
+      if (extent <= 0 || stride != expected) return failure();
+      expected *= extent;
+    }
+    if (expected != dimFullExtent[dim]) return failure();
+  }
+
+  for (size_t ti = 0; ti < data.axes.size(); ++ti) {
+    const int64_t dim = data.axes[ti].getDim();
+    data.axes[ti] = DimAttr::get(ctx, dim, dimFullExtent[dim], /*stride=*/1);
   }
 
   data.ctPrefixLen =
-      static_cast<int64_t>(inferCtPrefixLen(data.originalDims, data.n));
-
-  const int64_t implicitFrontGapSize =
-      computeImplicitFrontGap(data.originalDims, data.n);
-  if (implicitFrontGapSize > 1) {
-    const int64_t gapIdx = static_cast<int64_t>(data.gapDims.size());
-    data.gapDims.push_back(DimAttr::get(ctx, /*dim=*/-2,
-                                        /*size=*/implicitFrontGapSize,
-                                        /*stride=*/1));
-    data.pieces.insert(data.pieces.begin() + data.ctPrefixLen,
-                       LayoutPieceKind::Gap);
-    data.pieceIndex.insert(data.pieceIndex.begin() + data.ctPrefixLen, gapIdx);
-  }
+      static_cast<int64_t>(inferCtPrefixLen(writtenDims, data.n));
 
   return data;
 }
 
+// The dim position is spelled `R` for replication and `G` for gap (the
+// readable forms, also how the printer emits them); the numeric ids -1 and
+// -2 are still accepted.
 static ParseResult parseDimTripleAfterLSquare(AsmParser& parser, int64_t& dim,
                                               int64_t& size, int64_t& stride) {
-  return failure(parser.parseInteger(dim) || parser.parseColon() ||
-                 parser.parseInteger(size) || parser.parseColon() ||
-                 parser.parseInteger(stride) || parser.parseRSquare());
+  if (succeeded(parser.parseOptionalKeyword("R"))) {
+    dim = -1;
+  } else if (succeeded(parser.parseOptionalKeyword("G"))) {
+    dim = -2;
+  } else if (parser.parseInteger(dim)) {
+    return failure();
+  }
+  if (parser.parseColon() || parser.parseInteger(size)) return failure();
+  stride = 1;
+  if (succeeded(parser.parseOptionalColon()) && parser.parseInteger(stride)) {
+    return failure();
+  }
+  return parser.parseRSquare();
 }
 
 static ParseResult parseDimTriple(AsmParser& parser, int64_t& dim,
@@ -120,12 +174,24 @@ static ParseResult parseDimTriple(AsmParser& parser, int64_t& dim,
 }
 
 static void printDimTriple(AsmPrinter& printer, DimAttr dim) {
-  printer << "[" << dim.getDim() << ":" << dim.getSize() << ":"
-          << dim.getStride() << "]";
+  printer << "[";
+  if (dim.isReplicate()) {
+    printer << "R";
+  } else if (dim.isGap()) {
+    printer << "G";
+  } else {
+    printer << dim.getDim();
+  }
+  printer << ":" << dim.getSize() << ":" << dim.getStride() << "]";
 }
 
+// Parses `[piece, ... | piece, ...]`: the `|` separates the ciphertext dims
+// from the slot dims (absent when there are no ciphertext dims). The written
+// boundary is returned in `writtenCtLen` for validation against the derived
+// split.
 static ParseResult parseLayoutDims(AsmParser& parser,
-                                   SmallVector<Attribute>& dims) {
+                                   SmallVector<Attribute>& dims,
+                                   std::optional<int64_t>& writtenCtLen) {
   if (parser.parseLSquare()) return failure();
   if (succeeded(parser.parseOptionalRSquare())) return success();
 
@@ -148,6 +214,15 @@ static ParseResult parseLayoutDims(AsmParser& parser,
     }
 
     if (succeeded(parser.parseOptionalComma())) continue;
+    if (succeeded(parser.parseOptionalVerticalBar())) {
+      if (writtenCtLen.has_value()) {
+        return parser.emitError(parser.getNameLoc())
+               << "at most one `|` may separate ciphertext dims from slot "
+                  "dims";
+      }
+      writtenCtLen = static_cast<int64_t>(dims.size());
+      continue;
+    }
     return parser.parseRSquare();
   }
 }
@@ -177,8 +252,6 @@ static ParseResult parseLayoutRolls(AsmParser& parser,
   }
 }
 
-}  // namespace
-
 static LogicalResult verifyLayoutRolls(
     ArrayAttr dims, DenseI64ArrayAttr rolls,
     function_ref<InFlightDiagnostic()> emitError) {
@@ -205,6 +278,9 @@ static LogicalResult verifyLayoutRolls(
     if (!di || !dj) {
       return emitError() << "roll indices must refer to #rotom.dim entries";
     }
+    // The two dims of a roll must have equal extents: roll(i, j) shifts dims[i]
+    // by dims[j]'s index modulo their shared extent, which is well-defined only
+    // when the extents match.
     if (di.getSize() != dj.getSize()) {
       return emitError() << "rolled dims must have the same extent (size)";
     }
@@ -265,10 +341,16 @@ void LayoutAttr::print(AsmPrinter& printer) const {
     printer << "]";
   }
 
+  SmallVector<DimAttr> dimVec;
+  dimVec.reserve(getDims().size());
+  for (Attribute attr : getDims()) dimVec.push_back(cast<DimAttr>(attr));
+  const size_t ctLen = inferCtPrefixLen(dimVec, getN());
+
   printer << ", dims = [";
-  llvm::interleaveComma(getDims(), printer, [&](Attribute attr) {
-    printDimTriple(printer, cast<DimAttr>(attr));
-  });
+  for (size_t i = 0; i < dimVec.size(); ++i) {
+    if (i > 0) printer << (i == ctLen ? " | " : ", ");
+    printDimTriple(printer, dimVec[i]);
+  }
   printer << "]>";
 }
 
@@ -276,6 +358,7 @@ Attribute LayoutAttr::parse(AsmParser& parser, Type type) {
   int64_t n;
   SmallVector<int64_t> rolls;
   SmallVector<Attribute> dims;
+  std::optional<int64_t> writtenCtLen;
 
   if (parser.parseLess()) return {};
 
@@ -292,11 +375,13 @@ Attribute LayoutAttr::parse(AsmParser& parser, Type type) {
     }
 
     if (parser.parseKeyword("dims") || parser.parseEqual() ||
-        failed(parseLayoutDims(parser, dims)) || parser.parseGreater()) {
+        failed(parseLayoutDims(parser, dims, writtenCtLen)) ||
+        parser.parseGreater()) {
       return {};
     }
   } else if (succeeded(parser.parseOptionalKeyword("dims"))) {
-    if (parser.parseEqual() || failed(parseLayoutDims(parser, dims)) ||
+    if (parser.parseEqual() ||
+        failed(parseLayoutDims(parser, dims, writtenCtLen)) ||
         parser.parseComma() || parser.parseKeyword("n") ||
         parser.parseEqual() || parser.parseInteger(n)) {
       return {};
@@ -313,6 +398,23 @@ Attribute LayoutAttr::parse(AsmParser& parser, Type type) {
   } else {
     parser.emitError(parser.getNameLoc())
         << "expected `n` or `dims` in rotom layout";
+    return {};
+  }
+
+  // Verify the written `|` boundary.
+  SmallVector<DimAttr> dimVec;
+  dimVec.reserve(dims.size());
+  for (Attribute attr : dims) dimVec.push_back(cast<DimAttr>(attr));
+  const int64_t derivedCtLen =
+      static_cast<int64_t>(inferCtPrefixLen(dimVec, n));
+  if (n > 0 && writtenCtLen.value_or(0) != derivedCtLen) {
+    parser.emitError(parser.getNameLoc())
+        << "the written `|` ciphertext/slot split (" << writtenCtLen.value_or(0)
+        << " ciphertext dims) does not match the derived split ("
+        << derivedCtLen
+        << "): the slot side is the longest dims suffix whose extents fit "
+           "n = "
+        << n;
     return {};
   }
 
@@ -340,73 +442,13 @@ LogicalResult LayoutAttr::verify(function_ref<InFlightDiagnostic()> emitError,
 
   if (failed(verifyLayoutRolls(dims, rolls, emitError))) return failure();
 
-  MLIRContext* ctx = dims.getContext();
-  std::vector<DimAttr> ctDims;
-  std::vector<DimAttr> slotDims;
-
-  int64_t nRem = n;
-  for (auto it = preprocessed->originalDims.rbegin();
-       it != preprocessed->originalDims.rend(); ++it) {
-    DimAttr d = *it;
-    const int64_t size = d.getSize();
-
-    if (nRem <= 1) {
-      ctDims.insert(ctDims.begin(), d);
-      continue;
-    }
-
-    // Size > nRem: split into ct and slot dims
-    if (size > nRem) {
-      if (size % nRem != 0) {
-        return emitError() << "dim size " << size
-                           << " must be divisible by remaining slot capacity "
-                           << nRem;
-      }
-
-      slotDims.insert(slotDims.begin(),
-                      DimAttr::get(ctx, d.getDim(), nRem, /*stride=*/1));
-      ctDims.insert(ctDims.begin(), DimAttr::get(ctx, d.getDim(), size / nRem,
-                                                 /*stride=*/nRem));
-      nRem /= size;
-      continue;
-    }
-
-    // Size == nRem: add to slot dims
-    if (size == nRem) {
-      slotDims.insert(slotDims.begin(), d);
-      nRem /= size;
-      continue;
-    }
-
-    // Size divides nRem: add to slot dims
-    if (nRem % size == 0) {
-      slotDims.insert(slotDims.begin(), d);
-      nRem /= size;
-      continue;
-    }
-
-    // Size does not divide nRem (e.g. odd input channels): keep in ctDims
-    // so slotDims can remain pow2 and nRem is unchanged.
-    ctDims.insert(ctDims.begin(), d);
-  }
-
-  // If there is remaining slot capacity, insert a gap dim at the front.
-  if (nRem > 1) {
-    slotDims.insert(slotDims.begin(),
-                    DimAttr::get(ctx, /*dim=*/-2, /*size=*/nRem,
-                                 /*stride=*/1));
-  }
-
-  // Remove gap dims from ctDims.
-  std::vector<DimAttr> ctDimsFiltered;
-  ctDimsFiltered.reserve(ctDims.size());
-  for (DimAttr d : ctDims) {
-    if (!d.isGap()) ctDimsFiltered.push_back(d);
-  }
-  ctDims.swap(ctDimsFiltered);
-
-  // Enforce the Rotom invariant: slot-dim sizes/strides must be powers of 2.
-  for (DimAttr d : slotDims) {
+  SmallVector<DimAttr> dimVec;
+  dimVec.reserve(dims.size());
+  for (Attribute attr : dims) dimVec.push_back(cast<DimAttr>(attr));
+  const size_t ctLen = inferCtPrefixLen(dimVec, n);
+  int64_t slotExtent = 1;
+  for (size_t p = ctLen; p < dimVec.size(); ++p) {
+    DimAttr d = dimVec[p];
     if (!llvm::isPowerOf2_64(static_cast<uint64_t>(d.getSize()))) {
       return emitError() << "slot dim size must be a power of two, got "
                          << d.getSize();
@@ -415,6 +457,16 @@ LogicalResult LayoutAttr::verify(function_ref<InFlightDiagnostic()> emitError,
       return emitError() << "slot dim stride must be a power of two, got "
                          << d.getStride();
     }
+    slotExtent *= d.getSize();
+  }
+
+  // The slot side must fill the ciphertext exactly. Unused slots must be
+  // represented as an explicit gap piece.
+  if (slotExtent != n) {
+    return emitError() << "slot dims must fill the ciphertext exactly (slot "
+                          "extent "
+                       << slotExtent << " vs n = " << n
+                       << "); spell unused capacity as an explicit gap piece";
   }
 
   return success();
@@ -434,9 +486,38 @@ LogicalResult SeedAttr::verify(function_ref<InFlightDiagnostic()> emitError,
   return success();
 }
 
+void canonicalizeLayoutDims(MLIRContext* ctx, SmallVector<DimAttr>& dims,
+                            int64_t n, SmallVector<int64_t>& rolls) {
+  const size_t ctLen = inferCtPrefixLen(dims, n);
+  int64_t slotExtent = 1;
+  for (size_t p = ctLen; p < dims.size(); ++p) slotExtent *= dims[p].getSize();
+  if (slotExtent <= 0 || n % slotExtent != 0) return;
+  const int64_t fill = n / slotExtent;
+  if (fill <= 1) return;
+  dims.insert(dims.begin() + ctLen,
+              DimAttr::get(ctx, /*dim=*/-2, fill, /*stride=*/1));
+  // Roll endpoints at or past the insertion shift right.
+  for (int64_t& encoded : rolls) {
+    if (encoded >= static_cast<int64_t>(ctLen)) ++encoded;
+  }
+}
+
+LayoutAttr LayoutAttr::getCanonical(MLIRContext* context,
+                                    ArrayRef<DimAttr> dims, int64_t n,
+                                    ArrayRef<int64_t> rolls) {
+  SmallVector<DimAttr> dimVec(dims.begin(), dims.end());
+  SmallVector<int64_t> rollVec(rolls.begin(), rolls.end());
+  canonicalizeLayoutDims(context, dimVec, n, rollVec);
+  SmallVector<Attribute> attrs(dimVec.begin(), dimVec.end());
+  return get(context, ArrayAttr::get(context, attrs), n,
+             DenseI64ArrayAttr::get(context, rollVec));
+}
+
 LayoutAttr LayoutAttr::get(MLIRContext* context, ArrayAttr dims, int64_t n) {
-  return get(context, dims, n,
-             DenseI64ArrayAttr::get(context, ArrayRef<int64_t>{}));
+  SmallVector<DimAttr> dimVec;
+  dimVec.reserve(dims.size());
+  for (Attribute attr : dims) dimVec.push_back(cast<DimAttr>(attr));
+  return getCanonical(context, dimVec, n);
 }
 
 }  // namespace rotom

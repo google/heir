@@ -23,7 +23,9 @@ def Rotom_DimAttr : Rotom_Attr<"Dim", "dim"> {
     * `-1`: replication (logical fill along this layout piece)
     * `-2`: gap (padding / unused slots; constrained to zero in materialization)
 
-    Non-negative `dim` values index into the logical tensor shape.
+    Non-negative `dim` values index into the logical tensor shape. In the
+    assembly form the sentinels are spelled `R` (replication) and `G` (gap),
+    e.g. `[R:4:1]`; the numeric ids are also accepted on input.
   }];
 
   let parameters = (ins
@@ -47,13 +49,11 @@ def Rotom_LayoutAttr : Rotom_Attr<"Layout", "layout"> {
     A Rotom layout is an ordered list of `rotom.dim` dimensions plus the slot
     count `n` (ciphertext slot capacity).
 
-    The verifier determines which dims map across ciphertexts vs within slots
-    and checks the slot-side invariant that sizes and strides are powers of
-    two (after splitting).
-
-    For tensor_ext materialization, the **first** entry in `dims` is the
-    ciphertext side of Rotom's `;` split (one piece); remaining entries are
-    in-slot. See [Section 4.2 of the Rotom paper](https://eprint.iacr.org/2025/1319.pdf).
+    Rotom's split between ciphertext dims and slot dims is denoted by a
+    `|` inside the dims list (e.g., `dims = [[0:2:4] | [0:4:1]]`).
+    Slot dims must fill `n` exactly; unused capacity is denoted
+    with an explicit gap piece (e.g. `[G:4:1]`).
+    See [Section 4.2 of the Rotom paper](https://eprint.iacr.org/2025/1319.pdf).
 
     Optional **rolls** encode a `roll(i,j)` metadata object: each pair `(i, j)`
     indexes into the `dims` array (the flattened `ct_dims + slot_dims` list) and
@@ -71,7 +71,11 @@ def Rotom_LayoutAttr : Rotom_Attr<"Layout", "layout"> {
   let hasCustomAssemblyFormat = 1;
 
   let extraClassDeclaration = [{
-    /// Layout with no `roll(i,j)` metadata (empty rolls storage).
+    /// Layout built from raw traversal dimensions.
+    static ::mlir::heir::rotom::LayoutAttr getCanonical(
+        ::mlir::MLIRContext *context, ::llvm::ArrayRef<DimAttr> dims,
+        int64_t n, ::llvm::ArrayRef<int64_t> rolls = {});
+    /// Canonicalizing builder with no `roll(from, by)` metadata.
     static ::mlir::heir::rotom::LayoutAttr get(::mlir::MLIRContext *context,
                                                ::mlir::ArrayAttr dims, int64_t n);
   }];

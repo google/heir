@@ -8,6 +8,8 @@
 #include "lib/Dialect/Rotom/Utils/RotomTensorExtLayoutLowering.h"
 #include "lib/Utils/Layout/Evaluate.h"
 #include "lib/Utils/Layout/IslConversion.h"
+#include "lib/Utils/Layout/Utils.h"
+#include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
@@ -77,8 +79,8 @@ TEST(RotomTensorExtLayoutLoweringTest, ColumnMajor4x4Evaluate) {
   };
   std::vector<std::vector<int>> packed = evaluateLayout<int>(
       relation.value(), [&](const std::vector<int64_t>& domainPoint) -> int {
-        // Traversal dims are {dim1, dim0}, so relation vars are [col, row].
-        return matrix[domainPoint[1]][domainPoint[0]];
+        // Domain vars are tensor dims in order: [row, col].
+        return matrix[domainPoint[0]][domainPoint[1]];
       });
 
   std::vector<std::vector<int>> expected = {
@@ -110,12 +112,14 @@ TEST(RotomTensorExtLayoutLoweringTest, TiledRowMajor4x4Evaluate) {
       {9, 10, 11, 12},
       {13, 14, 15, 16},
   };
-  ASSERT_EQ(relation->getNumDomainVars(), 4);
+  // dim ids 0 and 1 are each split mixed-radix into two pieces, so the relation
+  // has one domain variable per tensor axis: i0 = row, i1 = col -- the pieces
+  // of an axis share its variable rather than each binding their own. The
+  // packing itself is plain 2x2-tiled row-major.
+  ASSERT_EQ(relation->getNumDomainVars(), 2);
   std::vector<std::vector<int>> packed = evaluateLayout<int>(
       relation.value(), [&](const std::vector<int64_t>& domainPoint) -> int {
-        const int64_t row = domainPoint[0] * 2 + domainPoint[2];
-        const int64_t col = domainPoint[1] * 2 + domainPoint[3];
-        return matrix[row][col];
+        return matrix[domainPoint[0]][domainPoint[1]];
       });
 
   std::vector<std::vector<int>> expected = {
@@ -182,8 +186,8 @@ TEST(RotomTensorExtLayoutLoweringTest, SplitColumnMajor4x4Evaluate) {
   };
   std::vector<std::vector<int>> packed = evaluateLayout<int>(
       relation.value(), [&](const std::vector<int64_t>& domainPoint) -> int {
-        // Traversal dims are {dim1, dim0}, so relation vars are [col, row].
-        return matrix[domainPoint[1]][domainPoint[0]];
+        // Domain vars are tensor dims in order: [row, col].
+        return matrix[domainPoint[0]][domainPoint[1]];
       });
 
   // Column-major packing, split into 4 ciphertexts of 4 slots: one column per
@@ -197,26 +201,34 @@ TEST(RotomTensorExtLayoutLoweringTest, SplitColumnMajor4x4Evaluate) {
   EXPECT_EQ(packed, expected);
 }
 
-TEST(RotomTensorExtLayoutLoweringTest, PreprocessAddsImplicitGap) {
+// The canonicalizing builder makes unused slot capacity explicit: a 4-vector
+// at n = 8 gains a front gap piece, so the stored dims show every slot.
+TEST(RotomTensorExtLayoutLoweringTest, BuilderInsertsExplicitGapFill) {
   MLIRContext context;
   context.loadDialect<RotomDialect>();
   DimAttr d0 = DimAttr::get(&context, /*dim=*/0, /*size=*/4, /*stride=*/1);
   ArrayAttr dims = ArrayAttr::get(&context, {d0});
   LayoutAttr layout = LayoutAttr::get(&context, dims, /*n=*/8);
 
+  ASSERT_EQ(layout.getDims().size(), 2u);
+  EXPECT_TRUE(cast<DimAttr>(layout.getDims()[0]).isGap());
+  EXPECT_EQ(cast<DimAttr>(layout.getDims()[0]).getSize(), 2);
+
   FailureOr<LayoutData> data = preprocessLayoutAttr(layout);
   ASSERT_TRUE(succeeded(data));
   EXPECT_EQ(data->n, 8);
   EXPECT_EQ(data->ctPrefixLen, 0);
-  ASSERT_EQ(data->gapDims.size(), 1);
-  EXPECT_EQ(data->gapDims[0].getDim(), -2);
-  EXPECT_EQ(data->gapDims[0].getSize(), 2);
   ASSERT_EQ(data->pieces.size(), 2);
-  EXPECT_EQ(data->pieces[0], LayoutPieceKind::Gap);
-  EXPECT_EQ(data->pieces[1], LayoutPieceKind::Traversal);
+  EXPECT_EQ(data->pieces[0].kind, LayoutPieceKind::Gap);
+  EXPECT_EQ(data->pieces[0].dim.getDim(), -2);
+  EXPECT_EQ(data->pieces[0].dim.getSize(), 2);
+  EXPECT_EQ(data->pieces[1].kind, LayoutPieceKind::Traversal);
 }
 
-TEST(RotomTensorExtLayoutLoweringTest, PreprocessPreservesTraversalDimsOrder) {
+TEST(RotomTensorExtLayoutLoweringTest, PreprocessSortsAxesByDimId) {
+  // The deduped axes are canonicalized to ascending dim id regardless of
+  // piece order, so the ISL lowering's domain variables always line up
+  // positionally with tensor dims.
   MLIRContext context;
   context.loadDialect<RotomDialect>();
   DimAttr d0 = DimAttr::get(&context, /*dim=*/0, /*size=*/4, /*stride=*/1);
@@ -226,9 +238,9 @@ TEST(RotomTensorExtLayoutLoweringTest, PreprocessPreservesTraversalDimsOrder) {
 
   FailureOr<LayoutData> data = preprocessLayoutAttr(layout);
   ASSERT_TRUE(succeeded(data));
-  ASSERT_EQ(data->traversalDims.size(), 2);
-  EXPECT_EQ(data->traversalDims[0].getDim(), 1);
-  EXPECT_EQ(data->traversalDims[1].getDim(), 0);
+  ASSERT_EQ(data->axes.size(), 2);
+  EXPECT_EQ(data->axes[0].getDim(), 0);
+  EXPECT_EQ(data->axes[1].getDim(), 1);
 }
 
 TEST(RotomTensorExtLayoutLoweringTest, RolledRowMajor2x2Evaluate) {
