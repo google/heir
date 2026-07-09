@@ -155,10 +155,31 @@ FailureOr<presburger::IntegerRelation> pushSliceLayoutThroughInsertSlice(
         addBounds(*resultLayout, domainVar, 0, resultShape[i] - 1);
       }
     }
+  } else {
+    // When the slice layout already has all domain dimensions, we need to
+    // relax the bounds on domain variables corresponding to unit dimensions
+    // to match the result shape. We do this by removing equality and inequality
+    // constraints that involve these dimensions.
+    for (auto dim : unitDims) {
+      // Find and remove equalities involving this dimension
+      for (int i = resultLayout->getNumEqualities() - 1; i >= 0; --i) {
+        if (resultLayout->atEq64(i, dim) != 0) {
+          resultLayout->removeEquality(i);
+        }
+      }
+      // Find and remove inequalities involving this dimension
+      for (int i = resultLayout->getNumInequalities() - 1; i >= 0; --i) {
+        if (resultLayout->atIneq64(i, dim) != 0) {
+          resultLayout->removeInequality(i);
+        }
+      }
+      // Add new bounds
+      addBounds(*resultLayout, dim, 0, resultShape[dim] - 1);
+    }
   }
+
   // Add a range var to indicate the index of the slice.
   auto newRangeVar = resultLayout->insertVar(VarKind::Range, 0, 1);
-  addBounds(*resultLayout, newRangeVar, 0);
 
   // Create a relation mapping the new unit dimensions to a new range variable r
   // that represents the index into each (ct, slot) per slice.
@@ -170,6 +191,8 @@ FailureOr<presburger::IntegerRelation> pushSliceLayoutThroughInsertSlice(
   }
   newRangeCoeffs[newRangeVar] = -1;
   resultLayout->addEquality(newRangeCoeffs);
+
+  addBounds(*resultLayout, newRangeVar, 0, product - 1);
 
   // Now compose the relation with a new relation mapping (r, ct, slot) -> (r *
   // num_ct + ct, slot).
