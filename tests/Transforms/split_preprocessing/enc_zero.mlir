@@ -14,12 +14,12 @@
 #ciphertext_space_L1 = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x1024, encryption_type = mix>
 !ct_L1 = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_f64_1_x1024, encoding = #inverse_canonical_encoding>, ciphertext_space = #ciphertext_space_L1, key = #key, modulus_chain = #modulus_chain_L1_C1>
 
-// CHECK-NOT: matvec__encrypt__zero__279e92d4f32b6885__preprocessing
-// CHECK-NOT: matvec__encrypt__zero__279e92d4f32b6885__preprocessed
+// CHECK-NOT: matvec__encrypt__zero__0__preprocessing
+// CHECK-NOT: matvec__encrypt__zero__0__preprocessed
 
-// CHECK: func.func @matvec__encrypt__zero__279e92d4f32b6885
+// CHECK: func.func @matvec__encrypt__zero__0
 // CHECK-SAME: attributes {client.enc_zero_func}
-func.func @matvec__encrypt__zero__279e92d4f32b6885(%pk: !pkey_L1) -> !ct_L1 attributes {client.enc_zero_func} {
+func.func @matvec__encrypt__zero__0(%pk: !pkey_L1) -> !ct_L1 attributes {client.enc_zero_func} {
   %cst = arith.constant dense<0.000000e+00> : tensor<1024xf64>
   %pt = lwe.rlwe_encode %cst {encoding = #inverse_canonical_encoding, ring = #ring_f64_1_x1024} : tensor<1024xf64> -> !pt
   %ct = lwe.rlwe_encrypt %pt, %pk : (!pt, !pkey_L1) -> !ct_L1

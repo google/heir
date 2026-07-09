@@ -159,12 +159,12 @@ func TestMNIST(t *testing.T) {
 		t.Logf("Mnist__encrypt__arg4 took %v", time.Since(startEncrypt))
 
 		startZero1 := time.Now()
-		ctZero1 := Mnist__encrypt__zero__7d0520c33b244207(evaluator, params, encoder, encryptor)
-		t.Logf("Mnist__encrypt__zero__7d0520c33b244207 took %v", time.Since(startZero1))
+		ctZero1 := Mnist__encrypt__zero__0(evaluator, params, encoder, encryptor)
+		t.Logf("mnist__encrypt__zero__0 took %v", time.Since(startZero1))
 
 		startZero2 := time.Now()
-		ctZero2 := Mnist__encrypt__zero__e1f5e185d963a9bf(evaluator, params, encoder, encryptor)
-		t.Logf("Mnist__encrypt__zero__e1f5e185d963a9bf took %v", time.Since(startZero2))
+		ctZero2 := Mnist__encrypt__zero__1(evaluator, params, encoder, encryptor)
+		t.Logf("mnist__encrypt__zero__1 took %v", time.Since(startZero2))
 
 		startTime := time.Now()
 		// Calling the generated preprocessed mnist function

@@ -13,6 +13,7 @@
 
 module {
   // CHECK: func.func @test_trivial_encrypt_zero
+  // CHECK: func @test_trivial_encrypt_zero__encrypt__zero__0(
   // CHECK: %[[CST:.*]] = arith.constant dense<0.000000e+00> : tensor<1024xf64>
   // CHECK: lwe.rlwe_encode %[[CST]]
   func.func @test_trivial_encrypt_zero(%pk: !pk_L0, %pt: !pt_L0) -> !ct_L0 {
