@@ -16841,7 +16841,9 @@ See the Rotom paper: &lt;a href="https://eprint.iacr.org/2025/1319">https://epri
 &lt;li>&lt;code>-1&lt;/code>: replication (logical fill along this layout piece)&lt;/li>
 &lt;li>&lt;code>-2&lt;/code>: gap (padding / unused slots; constrained to zero in materialization)&lt;/li>
 &lt;/ul>
-&lt;p>Non-negative &lt;code>dim&lt;/code> values index into the logical tensor shape.&lt;/p>
+&lt;p>Non-negative &lt;code>dim&lt;/code> values index into the logical tensor shape. In the
+assembly form the sentinels are spelled &lt;code>R&lt;/code> (replication) and &lt;code>G&lt;/code> (gap),
+e.g. &lt;code>[R:4:1]&lt;/code>; the numeric ids are also accepted on input.&lt;/p>
 &lt;h4 id="parameters">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -16873,12 +16875,11 @@ See the Rotom paper: &lt;a href="https://eprint.iacr.org/2025/1319">https://epri
 &lt;p>&lt;em>A Rotom layout made from an ordered list of dims.&lt;/em>&lt;/p>
 &lt;p>A Rotom layout is an ordered list of &lt;code>rotom.dim&lt;/code> dimensions plus the slot
 count &lt;code>n&lt;/code> (ciphertext slot capacity).&lt;/p>
-&lt;p>The verifier determines which dims map across ciphertexts vs within slots
-and checks the slot-side invariant that sizes and strides are powers of
-two (after splitting).&lt;/p>
-&lt;p>For tensor_ext materialization, the &lt;strong>first&lt;/strong> entry in &lt;code>dims&lt;/code> is the
-ciphertext side of Rotom&amp;rsquo;s &lt;code>;&lt;/code> split (one piece); remaining entries are
-in-slot. See &lt;a href="https://eprint.iacr.org/2025/1319.pdf">Section 4.2 of the Rotom paper&lt;/a>.&lt;/p>
+&lt;p>Rotom&amp;rsquo;s split between ciphertext dims and slot dims is denoted by a
+&lt;code>|&lt;/code> inside the dims list (e.g., &lt;code>dims = [[0:2:4] | [0:4:1]]&lt;/code>).
+Slot dims must fill &lt;code>n&lt;/code> exactly; unused capacity is denoted
+with an explicit gap piece (e.g. &lt;code>[G:4:1]&lt;/code>).
+See &lt;a href="https://eprint.iacr.org/2025/1319.pdf">Section 4.2 of the Rotom paper&lt;/a>.&lt;/p>
 &lt;p>Optional &lt;strong>rolls&lt;/strong> encode a &lt;code>roll(i,j)&lt;/code> metadata object: each pair &lt;code>(i, j)&lt;/code>
 indexes into the &lt;code>dims&lt;/code> array (the flattened &lt;code>ct_dims + slot_dims&lt;/code> list) and
 uses modular addition to modify the indices of &lt;code>dims[i]&lt;/code> by the indices of
