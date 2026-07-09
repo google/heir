@@ -33,9 +33,9 @@ accepted. This includes:
 
 - Meeting a maintainer in person.
 - Attending office hours or a working group meeting (cf. our
-  [community calendar](/community/)).
+  [community calendar](https://heir.dev/community/)).
 - Scheduling a video call with a maintainer (reach out via
-  [Discord](/community/) or email).
+  [Discord](https://heir.dev/community/) or email).
 
 New PRs, issues, and issue comments from unrecognized contributors that appear
 to be AI-generated will be forwarded to this policy. The maintainers may make
