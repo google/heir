@@ -275,6 +275,11 @@ int64_t RotationCountVisitor::operator()(const SplatNode& node) {
   return 0;
 }
 
+int64_t RotationCountVisitor::operator()(const EmptyNode& node) {
+  nodeSecretStatus[currentNode] = false;
+  return 0;
+}
+
 }  // namespace kernel
 }  // namespace heir
 }  // namespace mlir

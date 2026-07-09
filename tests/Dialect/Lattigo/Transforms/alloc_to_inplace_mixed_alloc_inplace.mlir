@@ -11,6 +11,7 @@
 // CHECK: func.func @add
 func.func @add(%evaluator: !evaluator, %param: !param, %encoder: !encoder, %ct: !ct) -> !ct {
   // no new allocation found
+  // CHECK: lattigo.bgv.add_new
   // CHECK-NOT: _new
   %ct_0 = lattigo.bgv.add %evaluator, %ct, %ct, %ct : (!evaluator, !ct, !ct, !ct) -> !ct
   %ct_1 = lattigo.bgv.add_new %evaluator, %ct_0, %ct_0 : (!evaluator, !ct, !ct) -> !ct

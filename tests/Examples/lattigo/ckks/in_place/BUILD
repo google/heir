@@ -4,8 +4,9 @@ load("@rules_go//go:def.bzl", "go_test")
 package(default_applicable_licenses = ["@heir//:license"])
 
 heir_lattigo_lib(
-    name = "in_place",
-    go_library_name = "main",
+    name = "in_place_lib",
+    extra_srcs = ["in_place_debug.go"],
+    go_library_name = "in_place_lib",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=ckks",
         "--mlir-to-ckks=ciphertext-degree=1024",
@@ -17,5 +18,10 @@ heir_lattigo_lib(
 go_test(
     name = "in_place_test",
     srcs = ["in_place_test.go"],
-    embed = [":main"],
+    embed = [":in_place_lib"],
 )
+
+# @unused
+glaze_ignore = [
+    "in_place_debug.go",
+]

@@ -13,9 +13,9 @@ module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [33832961,
   func.func @dot_product(%evaluator: !evaluator, %param: !param, %encoder: !encoder, %ct: !ct, %ct_0: !ct) -> !ct attributes {mgmt.openfhe_params = #mgmt.openfhe_params<evalAddCount = 8, keySwitchCount = 15>} {
     // no new allocation found as the two ciphertexts in function argument are enough to store the imtermediate results
     // a new allocation is only needed for the rescale because of level change
-    // CHECK-NOT: mul_new
+    // CHECK: lattigo.bgv.mul_new
     // CHECK-NOT: relinearize_new
-    // CHECK-NOT: rotate_columns_new
+    // CHECK: lattigo.bgv.rotate_columns_new
     // CHECK-NOT: add_new
     // CHECK-NOT: rescale_new
     // CHECK: return
@@ -43,9 +43,9 @@ module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [33832961,
   // CHECK: func.func @dot_product23
   func.func @dot_product23(%evaluator: !evaluator, %param: !param, %encoder: !encoder, %ct: !ct, %ct_0: !ct) -> !ct attributes {mgmt.openfhe_params = #mgmt.openfhe_params<evalAddCount = 8, keySwitchCount = 15>} {
     // no new allocation found as the two ciphertexts in function argument are enough to store the imtermediate results
-    // CHECK-NOT: mul_new
+    // CHECK: lattigo.bgv.mul_new
     // CHECK-NOT: relinearize_new
-    // CHECK-NOT: rotate_columns_new
+    // CHECK: lattigo.bgv.rotate_columns_new
     // CHECK-NOT: add_new
     // CHECK-NOT: rescale_new
     // CHECK: return

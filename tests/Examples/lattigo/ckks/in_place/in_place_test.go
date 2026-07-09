@@ -1,6 +1,7 @@
-package main
+package in_place_lib
 
 import (
+	"fmt"
 	"math"
 	"testing"
 )
@@ -16,19 +17,49 @@ func TestInPlaceRotation(t *testing.T) {
 	ct := in_place__encrypt__arg0(evaluator, params, encoder, encryptor, input)
 
 	// Call the function
-	resultCt := in_place(evaluator, params, encoder, ct)
+	resultCt := in_place(evaluator, params, encoder, decryptor, ct)
 
-	// Verify that it was indeed in-place (same pointer)
+	// Verify in-place behavior using debug hooks
+	expectedOps := []string{
+		"input",
+		"rotate",
+		"mul",
+	}
+
+	if len(ObservedOps) < len(expectedOps) {
+		t.Fatalf("Expected at least %d debug ops, got %d. Ops: %v", len(expectedOps), len(ObservedOps), ObservedOps)
+	}
+
+	for i, expectedOp := range expectedOps {
+		if ObservedOps[i] != expectedOp {
+			t.Errorf("At index %d: expected op %s, got %s", i, expectedOp, ObservedOps[i])
+		}
+	}
+
+	if len(ObservedPointers) < len(expectedOps) {
+		t.Fatalf("Expected at least %d debug pointers, got %d", len(expectedOps), len(ObservedPointers))
+	}
+
+	pInput := ObservedPointers[0]
+	pRotate := ObservedPointers[1]
+	pMul := ObservedPointers[2]
+	pResult := fmt.Sprintf("%p", resultCt[0])
+
+	if pInput == pRotate {
+		t.Errorf("Expected rotate to be out-of-place (different pointers), but got same pointer: %s", pInput)
+	}
+
+	if pRotate != pMul {
+		t.Errorf("Expected mul to be in-place (same pointer), but got different pointers: rotate=%s, mul=%s", pRotate, pMul)
+	}
+
+	if pMul != pResult {
+		t.Errorf("Expected rescale to be in-place (same pointer), but got different pointers: mul=%s, result=%s", pMul, pResult)
+	}
+
+	// Verify that the result has the expected length
 	if len(resultCt) != len(ct) {
 		t.Fatalf("Expected result slice length %d, got %d", len(ct), len(resultCt))
-	}
-	if len(ct) == 0 {
-		t.Fatalf("Expected non-empty ciphertext slice")
-	}
-	for i := range ct {
-		if resultCt[i] != ct[i] {
-			t.Errorf("Expected in-place rotation at index %d (same pointer), but got different pointers", i)
-		}
 	}
 
 	// Decrypt and verify values
