@@ -6,7 +6,7 @@ import (
 )
 
 func TestBicyclicMatmulRobust(t *testing.T) {
-	evaluator, params, ecd, enc, dec := bicyclic_matmul__configure()
+	evaluator, params, ecd, enc, dec := Bicyclic_matmul__configure()
 
 	q := make([]float32, 16*17)
 	for i := 0; i < 16; i++ {
@@ -32,11 +32,11 @@ func TestBicyclicMatmulRobust(t *testing.T) {
 		}
 	}
 
-	qCt := bicyclic_matmul__encrypt__arg0(evaluator, params, ecd, enc, q)
-	kCt := bicyclic_matmul__encrypt__arg1(evaluator, params, ecd, enc, k)
+	qCt := Bicyclic_matmul__encrypt__arg0(evaluator, params, ecd, enc, q)
+	kCt := Bicyclic_matmul__encrypt__arg1(evaluator, params, ecd, enc, k)
 
-	resultCt := bicyclic_matmul(evaluator, params, ecd, qCt, kCt)
-	result := bicyclic_matmul__decrypt__result0(evaluator, params, ecd, dec, resultCt)
+	resultCt := Bicyclic_matmul(evaluator, params, ecd, qCt, kCt)
+	result := Bicyclic_matmul__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 
 	errorThreshold := float64(1e-2)
 	for i := 0; i < 16*19; i++ {

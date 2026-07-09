@@ -9,7 +9,7 @@ import (
 )
 
 func TestMLP(t *testing.T) {
-	evaluator, params, encoder, encryptor, decryptor := mlp__configure()
+	evaluator, params, encoder, encryptor, decryptor := Mlp__configure()
 	slots := params.MaxSlots()
 
 	inputClear := make([]float64, slots)
@@ -45,7 +45,7 @@ func TestMLP(t *testing.T) {
 	}
 
 	startTime := time.Now()
-	resultCt := mlp(evaluator, params, encoder, ct, arg0, arg1, arg2, arg3, arg4, arg5)
+	resultCt := Mlp(evaluator, params, encoder, ct, arg0, arg1, arg2, arg3, arg4, arg5)
 	duration := time.Since(startTime)
 	fmt.Printf("MLP call took: %v\n", duration)
 

@@ -49,7 +49,7 @@ func TestChebyshev(t *testing.T) {
 		panic(err25)
 	}
 
-	resultCt := chebyshev(evaluator, param, encoder, ctInput)
+	resultCt := Chebyshev(evaluator, param, encoder, ctInput)
 	resultPt := decryptor.DecryptNew(resultCt)
 	resultFloat64 := make([]float64, numSlots)
 	encoder.Decode(resultPt, resultFloat64)

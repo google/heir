@@ -4,7 +4,7 @@
 !evaluator = !lattigo.bgv.evaluator
 
 module attributes {scheme.bgv} {
-  // CHECK: test_affine_for
+  // CHECK: Test_affine_for
   // CHECK-SAME: [[ct_init:[^ ]*]] *rlwe.Ciphertext
   // CHECK: [[iter_arg:[^ ]*]] := [[ct_init]]
   // CHECK: for [[induction_var:[^ ]*]] := 1; [[induction_var]] < 10; [[induction_var]] += 2 {
@@ -21,7 +21,7 @@ module attributes {scheme.bgv} {
     return %1 : !ct
   }
 
-  // CHECK: test_scf_for
+  // CHECK: Test_scf_for
   // CHECK-SAME: [[ct_init:[^ ]*]] *rlwe.Ciphertext
   // CHECK: [[c1:[^ ]*]] := int64(1)
   // CHECK: [[c10:[^ ]*]] := int64(10)
@@ -44,7 +44,7 @@ module attributes {scheme.bgv} {
     return %1 : !ct
   }
 
-  // CHECK: test_affine_if
+  // CHECK: Test_affine_if
   // CHECK-SAME: [[ct_init:[^ ]*]] *rlwe.Ciphertext
   // CHECK: [[iter_arg:[^ ]*]] := [[ct_init]]
   // CHECK: for [[induction_var:[^ ]*]] := 0; [[induction_var]] < 10; [[induction_var]] += 1 {
@@ -73,7 +73,7 @@ module attributes {scheme.bgv} {
     }
     return %1 : !ct
   }
-  // CHECK: test_affine_for_unused_result
+  // CHECK: Test_affine_for_unused_result
   // CHECK-SAME: [[ct_init:[^ ]*]] *rlwe.Ciphertext
   // CHECK: [[iter_arg:[^ ]*]] := [[ct_init]]
   // CHECK: for [[induction_var:[^ ]*]] := 1; [[induction_var]] < 10; [[induction_var]] += 2 {
@@ -90,7 +90,7 @@ module attributes {scheme.bgv} {
     return
   }
 
-  // CHECK: test_scf_for_unused_result
+  // CHECK: Test_scf_for_unused_result
   // CHECK-SAME: [[ct_init:[^ ]*]] *rlwe.Ciphertext
   // CHECK: [[c1:[^ ]*]] := int64(1)
   // CHECK: [[c10:[^ ]*]] := int64(10)

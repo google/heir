@@ -62,6 +62,25 @@ namespace mlir {
 namespace heir {
 namespace lattigo {
 
+namespace {
+// Returns the Go export name for a given MLIR symbol name.
+// This function strips leading underscores and capitalizes the first letter.
+//
+// Note this is required because golang does not export symbols that are not
+// capitalized. This implies that a user that wants to use a HEIR-generated
+// symbol from a different golang module would have to write wrapper code that
+// re-exports the symbols.
+std::string toExportName(llvm::StringRef name) {
+  llvm::StringRef stripped = name.ltrim('_');
+  if (stripped.empty()) {
+    return "";
+  }
+  std::string exportName = stripped.str();
+  exportName[0] = std::toupper(exportName[0]);
+  return exportName;
+}
+}  // namespace
+
 LogicalResult translateToLattigo(Operation* op, llvm::raw_ostream& os,
                                  const std::string& packageName,
                                  const std::vector<std::string>& extraImports,
@@ -198,19 +217,7 @@ LogicalResult LattigoEmitter::printOperation(func::FuncOp funcOp) {
   }
 
   // name and arg
-  std::string funcName = funcOp.getName().str();
-  if (funcOp->hasAttr(kClientPackFuncAttrName)) {
-    if (!funcName.empty() && funcFilter && funcFilter(funcOp)) {
-      while (funcName[0] == '_') {
-        funcName.erase(0, 1);
-      }
-      if (std::islower(funcName[0])) {
-        // Upper case this only if we are emitting it in a filtered file so it
-        // needs exporting.
-        funcName[0] = std::toupper(funcName[0]);
-      }
-    }
-  }
+  std::string funcName = toExportName(funcOp.getName());
   os << "func " << funcName << "(";
   os << getCommaSeparatedNamesWithTypes(funcOp.getArguments());
   os << ") ";
@@ -290,15 +297,10 @@ LogicalResult LattigoEmitter::printOperation(func::CallOp op) {
   auto moduleOp = op->getParentOfType<ModuleOp>();
   auto calleeOp = moduleOp.lookupSymbol<func::FuncOp>(callee);
   std::string calleeName = canonicalizeDebugPort(callee).str();
+  if (!isDebugPort(callee)) {
+    calleeName = toExportName(calleeName);
+  }
   if (calleeOp && calleeOp->hasAttr(kClientPackFuncAttrName)) {
-    if (funcFilter && !calleeName.empty()) {
-      while (calleeName[0] == '_') {
-        calleeName.erase(0, 1);
-      }
-      if (std::islower(calleeName[0])) {
-        calleeName[0] = std::toupper(calleeName[0]);
-      }
-    }
     if (funcFilter && !funcFilter(calleeOp)) {
       calleeName = packageName + "_utils." + calleeName;
       extraImportsUsed = true;

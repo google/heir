@@ -6,7 +6,7 @@ import (
 )
 
 func TestBugMinrepro(t *testing.T) {
-	evaluator, params, ecd, enc, dec := bug_minrepro__configure()
+	evaluator, params, ecd, enc, dec := Bug_minrepro__configure()
 
 	const W = 5
 	arg0 := make([]float32, W*W)
@@ -28,9 +28,9 @@ func TestBugMinrepro(t *testing.T) {
 		}
 	}
 
-	ct0 := bug_minrepro__encrypt__arg0(evaluator, params, ecd, enc, arg0)
-	resultCt := bug_minrepro(evaluator, params, ecd, ct0)
-	result := bug_minrepro__decrypt__result0(evaluator, params, ecd, dec, resultCt)
+	ct0 := Bug_minrepro__encrypt__arg0(evaluator, params, ecd, enc, arg0)
+	resultCt := Bug_minrepro(evaluator, params, ecd, ct0)
+	result := Bug_minrepro__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 
 	errorThreshold := float64(0.5)
 	for i := 0; i < 9; i++ {

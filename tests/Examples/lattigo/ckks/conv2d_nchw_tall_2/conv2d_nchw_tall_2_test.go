@@ -6,7 +6,7 @@ import (
 )
 
 func TestConv2D(t *testing.T) {
-	evaluator, params, ecd, enc, dec := conv2d_nchw__configure()
+	evaluator, params, ecd, enc, dec := Conv2d_nchw__configure()
 
 	cols := 64 // input elements
 	arg0 := make([]float32, cols)
@@ -22,9 +22,9 @@ func TestConv2D(t *testing.T) {
 		}
 	}
 
-	ct0 := conv2d_nchw__encrypt__arg0(evaluator, params, ecd, enc, arg0)
-	resultCt := conv2d_nchw(evaluator, params, ecd, ct0)
-	result := conv2d_nchw__decrypt__result0(evaluator, params, ecd, dec, resultCt)
+	ct0 := Conv2d_nchw__encrypt__arg0(evaluator, params, ecd, enc, arg0)
+	resultCt := Conv2d_nchw(evaluator, params, ecd, ct0)
+	result := Conv2d_nchw__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 	errorThreshold := float64(0.5)
 	for i := 0; i < 128; i++ {
 		if math.Abs(float64(result[i]-expected[i])) > errorThreshold {
