@@ -6,7 +6,7 @@ import (
 )
 
 func TestBinops(t *testing.T) {
-	evaluator, params, ecd, enc, dec := dot_product__configure()
+	evaluator, params, ecd, enc, dec := Dot_product__configure()
 
 	// Vector of plaintext values
 	arg0 := []float32{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8}
@@ -14,12 +14,12 @@ func TestBinops(t *testing.T) {
 
 	expected := float32(2.50)
 
-	ct0 := dot_product__encrypt__arg0(evaluator, params, ecd, enc, arg0)
-	ct1 := dot_product__encrypt__arg1(evaluator, params, ecd, enc, arg1)
+	ct0 := Dot_product__encrypt__arg0(evaluator, params, ecd, enc, arg0)
+	ct1 := Dot_product__encrypt__arg1(evaluator, params, ecd, enc, arg1)
 
-	resultCt := dot_product(evaluator, params, ecd, ct0, ct1)
+	resultCt := Dot_product(evaluator, params, ecd, ct0, ct1)
 
-	result := dot_product__decrypt__result0(evaluator, params, ecd, dec, resultCt)
+	result := Dot_product__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 
 	errorThreshold := float64(0.0001)
 	if math.Abs(float64(result-expected)) > errorThreshold {

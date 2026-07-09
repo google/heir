@@ -9,7 +9,7 @@ import (
 )
 
 func TestPooling(t *testing.T) {
-	evaluator, params, ecd, enc, dec := pooling__configure()
+	evaluator, params, ecd, enc, dec := Pooling__configure()
 
 	// Input: 1x4x28x28 = 3136 elements
 	arg0 := make([]float32, 3136)
@@ -58,17 +58,17 @@ func TestPooling(t *testing.T) {
 		}
 	}
 
-	ct0 := pooling__encrypt__arg0(evaluator, params, ecd, enc, arg0)
+	ct0 := Pooling__encrypt__arg0(evaluator, params, ecd, enc, arg0)
 
 	startPre := time.Now()
 	filterPlains := pooling_utils.Pooling__preprocessing(params, ecd)
 	t.Logf("Preprocessing took %s", time.Since(startPre))
 
 	start := time.Now()
-	resultCt := pooling__preprocessed(evaluator, params, ecd, ct0, filterPlains)
+	resultCt := Pooling__preprocessed(evaluator, params, ecd, ct0, filterPlains)
 	t.Logf("Pooling (preprocessed) took %s", time.Since(start))
 
-	result := pooling__decrypt__result0(evaluator, params, ecd, dec, resultCt)
+	result := Pooling__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 
 	errorThreshold := float64(0.01)
 	for i := range expected {

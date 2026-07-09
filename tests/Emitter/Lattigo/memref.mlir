@@ -7,7 +7,7 @@ memref.global "private" constant @__constant_1024xf32 : memref<1024xf32> = dense
 // CHECK: var __constant_4xi32 = []int32{1, 2, 3, 4}
 memref.global "private" constant @__constant_4xi32 : memref<4xi32> = dense_resource<weights>
 
-// CHECK: func test_memref(_ []float32) ([]float32, int64) {
+// CHECK: func Test_memref(_ []float32) ([]float32, int64) {
 func.func @test_memref(%arg0: memref<1024xf32>) -> (memref<1024xf32>, index) {
   %c0 = arith.constant 0 : index
 
@@ -40,7 +40,7 @@ func.func @test_memref(%arg0: memref<1024xf32>) -> (memref<1024xf32>, index) {
   return %alloc, %dim : memref<1024xf32>, index
 }
 
-// CHECK: func test_shape(v{{.*}} []float32) ([]float32) {
+// CHECK: func Test_shape(v{{.*}} []float32) ([]float32) {
 func.func @test_shape(%arg0: memref<1024xf32>) -> memref<1024xf32> {
   // CHECK: v{{.*}} := v{{.*}}
   %expand = memref.expand_shape %arg0 [[0, 1]] output_shape [1, 1024] : memref<1024xf32> into memref<1x1024xf32>

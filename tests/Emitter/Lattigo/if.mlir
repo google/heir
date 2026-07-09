@@ -4,7 +4,7 @@
 !evaluator = !lattigo.bgv.evaluator
 
 module attributes {scheme.bgv} {
-  // CHECK: test_scf_if
+  // CHECK: Test_scf_if
   // CHECK-SAME: [[ct_init:[^ ]*]] *rlwe.Ciphertext
   // CHECK: [[cond:[^ ]*]] := bool(true)
   // CHECK: var [[if_result:[^ ]*]] *rlwe.Ciphertext

@@ -9,7 +9,7 @@ import (
 )
 
 func TestConv1DDilated(t *testing.T) {
-	evaluator, params, ecd, enc, dec := conv1d_dilated__configure()
+	evaluator, params, ecd, enc, dec := Conv1d_dilated__configure()
 
 	// Input: 1x1x28
 	const W = 28
@@ -38,17 +38,17 @@ func TestConv1DDilated(t *testing.T) {
 		}
 	}
 
-	ct0 := conv1d_dilated__encrypt__arg0(evaluator, params, ecd, enc, arg0)
+	ct0 := Conv1d_dilated__encrypt__arg0(evaluator, params, ecd, enc, arg0)
 
 	startPre := time.Now()
 	filterPlains := conv1d_dilated_utils.Conv1d_dilated__preprocessing(params, ecd)
 	t.Logf("Preprocessing took %s", time.Since(startPre))
 
 	start := time.Now()
-	resultCt := conv1d_dilated__preprocessed(evaluator, params, ecd, ct0, filterPlains)
+	resultCt := Conv1d_dilated__preprocessed(evaluator, params, ecd, ct0, filterPlains)
 	t.Logf("Conv1d_dilated (preprocessed) took %s", time.Since(start))
 
-	result := conv1d_dilated__decrypt__result0(evaluator, params, ecd, dec, resultCt)
+	result := Conv1d_dilated__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 
 	errorThreshold := float64(0.5)
 	for i := range expected {

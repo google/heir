@@ -37,7 +37,7 @@ func decryptResult(_ *ckks.Evaluator, _ ckks.Parameters, encoder *ckks.Encoder, 
 }
 
 func TestBootstrap(t *testing.T) {
-	btEvaluator, evaluator, params, ecd, enc, dec := bootstrap__configure()
+	btEvaluator, evaluator, params, ecd, enc, dec := Bootstrap__configure()
 
 	fmt.Printf("Residual parameters: logN=%d, logSlots=%d, H=%d, sigma=%f, logQ=%f, logQP=%f, levels=%d, scale=2^%d\n",
 		btEvaluator.Parameters.ResidualParameters.LogN(),
@@ -66,7 +66,7 @@ func TestBootstrap(t *testing.T) {
 	ct0 := encryptArg(evaluator, params, ecd, enc, arg0)
 
 	startTime := time.Now()
-	resultCt := bootstrap(btEvaluator, evaluator, params, ecd, ct0)
+	resultCt := Bootstrap(btEvaluator, evaluator, params, ecd, ct0)
 	duration := time.Since(startTime)
 	fmt.Printf("bootstrap call took: %v\n", duration)
 

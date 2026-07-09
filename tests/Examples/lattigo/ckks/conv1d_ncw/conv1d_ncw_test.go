@@ -6,7 +6,7 @@ import (
 )
 
 func TestConv1D(t *testing.T) {
-	evaluator, params, ecd, enc, dec := conv1d_ncw__configure()
+	evaluator, params, ecd, enc, dec := Conv1d_ncw__configure()
 
 	cols := 4 // input elements
 	arg0 := make([]float32, cols)
@@ -22,9 +22,9 @@ func TestConv1D(t *testing.T) {
 		}
 	}
 
-	ct0 := conv1d_ncw__encrypt__arg0(evaluator, params, ecd, enc, arg0)
-	resultCt := conv1d_ncw(evaluator, params, ecd, ct0)
-	result := conv1d_ncw__decrypt__result0(evaluator, params, ecd, dec, resultCt)
+	ct0 := Conv1d_ncw__encrypt__arg0(evaluator, params, ecd, enc, arg0)
+	resultCt := Conv1d_ncw(evaluator, params, ecd, ct0)
+	result := Conv1d_ncw__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 	errorThreshold := float64(0.5)
 	for i := 0; i < 16; i++ {
 		if math.Abs(float64(result[i]-expected[i])) > errorThreshold {

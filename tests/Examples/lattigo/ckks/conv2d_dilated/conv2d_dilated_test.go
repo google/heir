@@ -9,7 +9,7 @@ import (
 )
 
 func TestConv2DDilated(t *testing.T) {
-	evaluator, params, ecd, enc, dec := conv2d_dilated__configure()
+	evaluator, params, ecd, enc, dec := Conv2d_dilated__configure()
 
 	const H = 10
 	const W = 10
@@ -44,17 +44,17 @@ func TestConv2DDilated(t *testing.T) {
 		}
 	}
 
-	ct0 := conv2d_dilated__encrypt__arg0(evaluator, params, ecd, enc, arg0)
+	ct0 := Conv2d_dilated__encrypt__arg0(evaluator, params, ecd, enc, arg0)
 
 	startPre := time.Now()
 	filterPlains := conv2d_dilated_utils.Conv2d_dilated__preprocessing(params, ecd)
 	t.Logf("Preprocessing took %s", time.Since(startPre))
 
 	start := time.Now()
-	resultCt := conv2d_dilated__preprocessed(evaluator, params, ecd, ct0, filterPlains)
+	resultCt := Conv2d_dilated__preprocessed(evaluator, params, ecd, ct0, filterPlains)
 	t.Logf("Conv2d_dilated (preprocessed) took %s", time.Since(start))
 
-	result := conv2d_dilated__decrypt__result0(evaluator, params, ecd, dec, resultCt)
+	result := Conv2d_dilated__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 
 	errorThreshold := float64(0.5)
 	for i := range expected {

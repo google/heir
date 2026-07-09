@@ -5,7 +5,7 @@ import (
 )
 
 func TestBinops(t *testing.T) {
-	evaluator, params, ecd, enc, dec := simple_sum__configure()
+	evaluator, params, ecd, enc, dec := Simple_sum__configure()
 
 	// Vector of plaintext values
 	arg0 := []int16{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
@@ -14,11 +14,11 @@ func TestBinops(t *testing.T) {
 
 	expected := int16(16 * 33)
 
-	ct0 := simple_sum__encrypt__arg0(evaluator, params, ecd, enc, arg0)
+	ct0 := Simple_sum__encrypt__arg0(evaluator, params, ecd, enc, arg0)
 
-	resultCt := simple_sum(evaluator, params, ecd, ct0)
+	resultCt := Simple_sum(evaluator, params, ecd, ct0)
 
-	result := simple_sum__decrypt__result0(evaluator, params, ecd, dec, resultCt)
+	result := Simple_sum__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 
 	if result != expected {
 		t.Errorf("Decryption error %d != %d", result, expected)

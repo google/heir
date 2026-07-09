@@ -5,7 +5,7 @@ import (
 )
 
 func TestBinops(t *testing.T) {
-	evaluator, params, ecd, enc, dec := add__configure()
+	evaluator, params, ecd, enc, dec := Add__configure()
 
 	// Vector of plaintext values
 	// 0, 1, 2, 3
@@ -15,12 +15,12 @@ func TestBinops(t *testing.T) {
 
 	expected := []int16{6, 15, 28, 1}
 
-	ct0 := add__encrypt__arg0(evaluator, params, ecd, enc, arg0)
-	ct1 := add__encrypt__arg1(evaluator, params, ecd, enc, arg1)
+	ct0 := Add__encrypt__arg0(evaluator, params, ecd, enc, arg0)
+	ct1 := Add__encrypt__arg1(evaluator, params, ecd, enc, arg1)
 
-	resultCt := add(evaluator, params, ecd, ct0, ct1)
+	resultCt := Add(evaluator, params, ecd, ct0, ct1)
 
-	result := add__decrypt__result0(evaluator, params, ecd, dec, resultCt)
+	result := Add__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 
 	for i := range 4 {
 		if result[i] != expected[i] {

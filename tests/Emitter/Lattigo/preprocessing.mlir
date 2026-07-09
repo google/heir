@@ -21,7 +21,7 @@ module attributes {scheme.bgv} {
   // CHECK-POST: import (
   // CHECK-POST:     "main_utils"
   // CHECK-POST: )
-  // CHECK-POST: func main
+  // CHECK-POST: func Main
   // CHECK-POST: [[res:.*]] := main_utils.Preprocess
   // CHECK-POST-NOT: func preprocess
 

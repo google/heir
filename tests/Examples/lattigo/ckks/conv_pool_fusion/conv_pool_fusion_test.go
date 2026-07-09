@@ -9,7 +9,7 @@ import (
 )
 
 func TestConvPoolFusion(t *testing.T) {
-	evaluator, params, ecd, enc, dec := conv_pool__configure()
+	evaluator, params, ecd, enc, dec := Conv_pool__configure()
 
 	// Input: 1x1x8x8 = 64 elements, all 1.0
 	arg0 := make([]float32, 64)
@@ -39,18 +39,18 @@ func TestConvPoolFusion(t *testing.T) {
 		}
 	}
 
-	ct0 := conv_pool__encrypt__arg0(evaluator, params, ecd, enc, arg0)
-	zeroCt := conv_pool__encrypt__zero__51f818405fbf5786(evaluator, params, ecd, enc)
+	ct0 := Conv_pool__encrypt__arg0(evaluator, params, ecd, enc, arg0)
+	zeroCt := Conv_pool__encrypt__zero__51f818405fbf5786(evaluator, params, ecd, enc)
 
 	startPre := time.Now()
 	filterPlains := conv_pool_fusion_utils.Conv_pool__preprocessing(params, ecd)
 	t.Logf("Preprocessing took %s", time.Since(startPre))
 
 	start := time.Now()
-	resultCt := conv_pool__preprocessed(evaluator, params, ecd, ct0, zeroCt, filterPlains)
+	resultCt := Conv_pool__preprocessed(evaluator, params, ecd, ct0, zeroCt, filterPlains)
 	t.Logf("ConvPool (preprocessed) took %s", time.Since(start))
 
-	result := conv_pool__decrypt__result0(evaluator, params, ecd, dec, resultCt)
+	result := Conv_pool__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 
 	errorThreshold := float64(0.05) // CKKS noise threshold
 	for i := range expected {

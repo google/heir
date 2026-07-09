@@ -8,7 +8,7 @@ import (
 )
 
 func TestLinearTransform(t *testing.T) {
-	evaluator, params, encoder, encryptor, decryptor := linear_transform__configure()
+	evaluator, params, encoder, encryptor, decryptor := Linear_transform__configure()
 	numSlots := params.MaxSlots()
 
 	inputClear := make([]float64, numSlots)
@@ -48,7 +48,7 @@ func TestLinearTransform(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resultCt := linear_transform(evaluator, params, encoder, ct, matrix)
+	resultCt := Linear_transform(evaluator, params, encoder, ct, matrix)
 	resultPt := decryptor.DecryptNew(resultCt)
 	resultFloat64 := make([]float64, numSlots)
 	if err := encoder.Decode(resultPt, resultFloat64); err != nil {

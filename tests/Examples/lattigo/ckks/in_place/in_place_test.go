@@ -7,17 +7,17 @@ import (
 )
 
 func TestInPlaceRotation(t *testing.T) {
-	evaluator, params, encoder, encryptor, decryptor := in_place__configure()
+	evaluator, params, encoder, encryptor, decryptor := In_place__configure()
 
 	input := []float64{1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0}
 	// Rotation left by 1: [2, 3, 4, 5, 6, 7, 8, 1]
 	// Multiplication by 2: [4, 6, 8, 10, 12, 14, 16, 2]
 	expected := []float64{4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 2.0}
 
-	ct := in_place__encrypt__arg0(evaluator, params, encoder, encryptor, input)
+	ct := In_place__encrypt__arg0(evaluator, params, encoder, encryptor, input)
 
 	// Call the function
-	resultCt := in_place(evaluator, params, encoder, decryptor, ct)
+	resultCt := In_place(evaluator, params, encoder, decryptor, ct)
 
 	// Verify in-place behavior using debug hooks
 	expectedOps := []string{
@@ -63,7 +63,7 @@ func TestInPlaceRotation(t *testing.T) {
 	}
 
 	// Decrypt and verify values
-	output := in_place__decrypt__result0(evaluator, params, encoder, decryptor, resultCt)
+	output := In_place__decrypt__result0(evaluator, params, encoder, decryptor, resultCt)
 
 	errorThreshold := 0.001
 	for i, val := range expected {

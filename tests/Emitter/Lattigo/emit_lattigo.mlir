@@ -34,7 +34,7 @@
 >
 
 module attributes {scheme.bgv} {
-  // CHECK: func compute
+  // CHECK: func Compute
   // CHECK-SAME: ([[evaluator:.*]] *bgv.Evaluator, [[ct:.*]] *rlwe.Ciphertext, [[ct1:.*]] *rlwe.Ciphertext) (*rlwe.Ciphertext)
   // CHECK: [[ct2:[^, ].*]], [[err:.*]] := [[evaluator]].AddNew([[ct]], [[ct1]])
   // CHECK: [[ct3:[^, ].*]], [[err:.*]] := [[evaluator]].MulNew([[ct2]], [[ct1]])
@@ -52,7 +52,7 @@ module attributes {scheme.bgv} {
     return %rotate : !ct
   }
 
-  // CHECK: func test_basic_emitter
+  // CHECK: func Test_basic_emitter
   // CHECK: [[param:[^, ].*]], [[err:.*]] := bgv.NewParametersFromLiteral
   // CHECK: bgv.ParametersLiteral
   // CHECK: LogN
@@ -79,7 +79,7 @@ module attributes {scheme.bgv} {
   // CHECK: [[encoder]].Encode([[value2Packed]], [[pt2]])
   // CHECK: [[ct1:[^, ].*]], [[err:.*]] := [[enc]].EncryptNew([[pt1]])
   // CHECK: [[ct2:[^, ].*]], [[err:.*]] := [[enc]].EncryptNew([[pt2]])
-  // CHECK: [[res:[^, ].*]] := compute([[eval]], [[ct1]], [[ct2]])
+  // CHECK: [[res:[^, ].*]] := Compute([[eval]], [[ct1]], [[ct2]])
   // CHECK: [[pt5:[^, ].*]] := [[dec]].DecryptNew([[res]])
   // CHECK: [[value3:[^, ].*]] := make([]int32, 4)
   // CHECK: [[value3Int64:[^, ].*]] := make([]int64, len([[value3]]))
@@ -128,7 +128,7 @@ module attributes {scheme.bgv} {
 // -----
 
 
-// CHECK: test_constant
+// CHECK: Test_constant
 // CHECK: [[v1:.*]] := int32(1)
 // CHECK: [[v2:.*]] := []int32{1, 2}
 // CHECK: [[v3:.*]] := []int32{2, 2, 2, 2}
@@ -147,7 +147,7 @@ module attributes {scheme.bgv} {
 !gk = !lattigo.rlwe.galois_key<galoisElement = 5>
 !ekset = !lattigo.rlwe.evaluation_key_set
 
-// CHECK: test_new_evaluation_key_set_no_relin_key
+// CHECK: Test_new_evaluation_key_set_no_relin_key
 // CHECK: rlwe.NewMemEvaluationKeySet(nil, [[gk:[^, ].*]])
 module attributes {scheme.bgv} {
   func.func @test_new_evaluation_key_set_no_relin_key(%gk : !gk) -> (!ekset) {
@@ -161,7 +161,7 @@ module attributes {scheme.bgv} {
 !params = !lattigo.bgv.parameter
 !evaluator = !lattigo.bgv.evaluator
 
-// CHECK: test_new_evaluator_no_key_set
+// CHECK: Test_new_evaluator_no_key_set
 // CHECK: bgv.NewEvaluator([[params:[^, ].*]], nil, false)
 module attributes {scheme.bgv} {
   func.func @test_new_evaluator_no_key_set(%params : !params) -> (!evaluator) {
@@ -172,7 +172,7 @@ module attributes {scheme.bgv} {
 
 // -----
 
-// CHECK: func dot_product
+// CHECK: func Dot_product
 // CHECK: ["bound"] = "50"
 // CHECK: ["complex"] = "{test = 1.200000e+00 : f64}"
 // CHECK: ["random"] = "3 : i64"
@@ -191,7 +191,7 @@ module attributes {scheme.bgv} {
 // -----
 
 module attributes {scheme.bgv} {
-  // CHECK: func test_drop_level
+  // CHECK: func Test_drop_level
   // CHECK-SAME: ([[evaluator:.*]] *bgv.Evaluator, [[ct:.*]] *rlwe.Ciphertext)
   func.func @test_drop_level(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) -> (!lattigo.rlwe.ciphertext) {
     // CHECK: [[ct1:[^, ]*]] := ct.CopyNew()
@@ -204,7 +204,7 @@ module attributes {scheme.bgv} {
 // -----
 
 module attributes {scheme.bgv} {
-  // CHECK: func test_negate_new
+  // CHECK: func Test_negate_new
   // CHECK-SAME: ([[evaluator:.*]] *bgv.Evaluator, [[ct:.*]] *rlwe.Ciphertext) (*rlwe.Ciphertext)
   func.func @test_negate_new(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) -> (!lattigo.rlwe.ciphertext) {
     // CHECK: [[ct1:[^, ]*]] := [[ct]].CopyNew()
@@ -219,7 +219,7 @@ module attributes {scheme.bgv} {
 // -----
 
 module attributes {scheme.bgv} {
-  // CHECK: func float_constant
+  // CHECK: func Float_constant
   func.func @float_constant(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) -> f32 {
     // CHECK: [[v:[^, ]*]] := float32(7.5)
     // CHECK: return v
@@ -231,7 +231,7 @@ module attributes {scheme.bgv} {
 // -----
 
 module attributes {scheme.bgv} {
-  // CHECK: func extsi_scalar
+  // CHECK: func Extsi_scalar
   func.func @extsi_scalar(%evaluator: !lattigo.bgv.evaluator) {
   // CHECK:  [[v0:[^ ]*]] := int16(5)
   // CHECK:  [[v1:[^ ]*]] := int32([[v0]])
@@ -244,7 +244,7 @@ module attributes {scheme.bgv} {
 // -----
 
 module attributes {scheme.bgv} {
-  // CHECK: func extsi_tensor
+  // CHECK: func Extsi_tensor
   func.func @extsi_tensor(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) {
   // CHECK:  [[v0:[^ ]*]] := slices.Repeat([]int16{5}, 20)
   // CHECK:  [[v1:[^ ]*]] := make([]int32, 20)
@@ -260,7 +260,7 @@ module attributes {scheme.bgv} {
 // -----
 
 module attributes {scheme.bgv} {
-  // CHECK: func select
+  // CHECK: func Select
   func.func @select(%evaluator: !lattigo.bgv.evaluator) -> i32 {
     // CHECK:  [[true_val:[^ ]*]] := int32(5)
     // CHECK:  [[false_val:[^ ]*]] := int32(6)
@@ -282,7 +282,7 @@ module attributes {scheme.bgv} {
 // -----
 
 module attributes {scheme.bgv} {
-  // CHECK: func extui_scalar
+  // CHECK: func Extui_scalar
   func.func @extui_scalar(%evaluator: !lattigo.bgv.evaluator) -> i32 {
     // CHECK:  [[v0:[^ ]*]] := bool(true)
     // CHECK:  var [[v1:[^ ]*]] int32
@@ -300,7 +300,7 @@ module attributes {scheme.bgv} {
 // -----
 
 module attributes {scheme.bgv} {
-  // CHECK: func extui_tensor
+  // CHECK: func Extui_tensor
   func.func @extui_tensor(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) {
     // CHECK:  [[v0:[^ ]*]] := slices.Repeat([]bool{true}, 20)
     // CHECK:  [[v1:[^ ]*]] := make([]int32, 20)
@@ -320,7 +320,7 @@ module attributes {scheme.bgv} {
 // -----
 
 module attributes {scheme.bgv} {
-  // CHECK: func index_cast
+  // CHECK: func Index_cast
   func.func @index_cast(%evaluator: !lattigo.bgv.evaluator) {
     // CHECK:  [[v0:[^ ]*]] := int64(5)
     // CHECK:  [[v1:[^ ]*]] := int32([[v0]])
@@ -333,7 +333,7 @@ module attributes {scheme.bgv} {
 // -----
 
 module attributes {scheme.bgv} {
-  // CHECK: func binops
+  // CHECK: func Binops
   func.func @binops() -> i1 {
     // CHECK: [[c0:[^ ]*]] := int64(0)
     // CHECK: [[c1:[^ ]*]] := int64(1)
@@ -354,7 +354,7 @@ module attributes {scheme.bgv} {
 // -----
 
 module attributes {scheme.bgv} {
-  // CHECK: func floor_div
+  // CHECK: func Floor_div
   func.func @floor_div(%arg0: i32, %arg1: i32) -> i32 {
     // CHECK: math.Floor(float64({{.*}}) / float64({{.*}}))
     %0 = arith.floordivsi %arg0, %arg1 : i32
@@ -365,7 +365,7 @@ module attributes {scheme.bgv} {
 // -----
 
 module attributes {scheme.bgv} {
-  // CHECK: func floor_div_tensor
+  // CHECK: func Floor_div_tensor
   func.func @floor_div_tensor(%arg0: tensor<4xi32>, %arg1: tensor<4xi32>) -> tensor<4xi32> {
     // CHECK: for {{.*}} := range {{.*}} {
     // CHECK:   math.Floor(float64({{.*}}) / float64({{.*}}))

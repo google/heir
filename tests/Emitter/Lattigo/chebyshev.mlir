@@ -6,7 +6,7 @@
 !ct = !lattigo.rlwe.ciphertext
 
 module attributes {scheme.ckks} {
-  // CHECK: func chebyshev_custom_domain
+  // CHECK: func Chebyshev_custom_domain
   // CHECK: [[out:ct[0-9]+]]_polyCoeffs := []*big.Float{
   // CHECK: [[out]]_interval := [2]float64{-2.000000e+00, 2.000000e+00}
   // CHECK: [[out]]_bignumPoly := bignum.NewPolynomial(bignum.Chebyshev, [[out]]_polyCoeffs, [[out]]_interval)
@@ -18,7 +18,7 @@ module attributes {scheme.ckks} {
   }
 
   // An unset domain passes nil, without emitting an interval.
-  // CHECK: func chebyshev_unset_domain
+  // CHECK: func Chebyshev_unset_domain
   // CHECK-NOT: _interval :=
   // CHECK: [[out:ct[0-9]+]]_bignumPoly := bignum.NewPolynomial(bignum.Chebyshev, [[out]]_polyCoeffs, nil)
   func.func @chebyshev_unset_domain(%params: !params, %evaluator: !evaluator, %ct: !ct) -> !ct {

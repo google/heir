@@ -5,7 +5,7 @@ import (
 )
 
 func TestBinops(t *testing.T) {
-	evaluator, params, ecd, enc, dec := roberts_cross__configure()
+	evaluator, params, ecd, enc, dec := Roberts_cross__configure()
 
 	input := make([]int16, 256)
 	expected := make([]int16, 256)
@@ -38,11 +38,11 @@ func TestBinops(t *testing.T) {
 		}
 	}
 
-	ct0 := roberts_cross__encrypt__arg0(evaluator, params, ecd, enc, input)
+	ct0 := Roberts_cross__encrypt__arg0(evaluator, params, ecd, enc, input)
 
-	resultCt := roberts_cross(evaluator, params, ecd, ct0)
+	resultCt := Roberts_cross(evaluator, params, ecd, ct0)
 
-	result := roberts_cross__decrypt__result0(evaluator, params, ecd, dec, resultCt)
+	result := Roberts_cross__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 
 	for i := 0; i < 256; i++ {
 		if result[i] != expected[i] {

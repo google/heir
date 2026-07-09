@@ -5,7 +5,7 @@ import (
 )
 
 func TestBinops(t *testing.T) {
-	evaluator, params, ecd, enc, dec := box_blur__configure()
+	evaluator, params, ecd, enc, dec := Box_blur__configure()
 
 	input := make([]int16, 256)
 	expected := make([]int16, 256)
@@ -30,11 +30,11 @@ func TestBinops(t *testing.T) {
 		}
 	}
 
-	ct0 := box_blur__encrypt__arg0(evaluator, params, ecd, enc, input)
+	ct0 := Box_blur__encrypt__arg0(evaluator, params, ecd, enc, input)
 
-	resultCt := box_blur(evaluator, params, ecd, ct0)
+	resultCt := Box_blur(evaluator, params, ecd, ct0)
 
-	result := box_blur__decrypt__result0(evaluator, params, ecd, dec, resultCt)
+	result := Box_blur__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 
 	for i := 0; i < 256; i++ {
 		if result[i] != expected[i] {
