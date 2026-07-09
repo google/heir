@@ -52,7 +52,7 @@ module attributes {scheme.requested_slot_count = 32 : i64} {
     return
   }
 
-  // CHECK: func @doctest__encrypt__zero__{{[a-z0-9]+}}
+  // CHECK: func @doctest__encrypt__zero__0(
   // CHECK: arith.constant dense<0>
   // CHECK-SAME: tensor<32xi64>
   // CHECK: lwe.rlwe_encode

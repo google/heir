@@ -221,7 +221,7 @@ module attributes {backend.lattigo, ckks.schemeParam = #ckks.scheme_param<logN =
     %inserted_13 = tensor.insert %ct_12 into %1[%c0] : tensor<1x!ct>
     return %inserted_13 : tensor<1x!ct>
   }
-  func.func @matvec__encrypt__zero__f3de7246418d51b3(%evaluator: !evaluator, %param: !param, %encoder: !encoder, %encryptor: !encryptor_pk) -> !ct attributes {client.enc_zero_func} {
+  func.func @matvec__encrypt__zero__0(%evaluator: !evaluator, %param: !param, %encoder: !encoder, %encryptor: !encryptor_pk) -> !ct attributes {client.enc_zero_func} {
     %cst = arith.constant dense<0.000000e+00> : tensor<8192xf64>
     %pt = lattigo.ckks.new_plaintext %param : (!param) -> !pt
     %pt_0 = lattigo.ckks.encode %encoder, %cst, %pt {scale = 45 : i64} : (!encoder, tensor<8192xf64>, !pt) -> !pt

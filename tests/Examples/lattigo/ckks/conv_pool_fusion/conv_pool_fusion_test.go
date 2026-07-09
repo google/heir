@@ -40,7 +40,7 @@ func TestConvPoolFusion(t *testing.T) {
 	}
 
 	ct0 := Conv_pool__encrypt__arg0(evaluator, params, ecd, enc, arg0)
-	zeroCt := Conv_pool__encrypt__zero__51f818405fbf5786(evaluator, params, ecd, enc)
+	zeroCt := Conv_pool__encrypt__zero__0(evaluator, params, ecd, enc)
 
 	startPre := time.Now()
 	filterPlains := conv_pool_fusion_utils.Conv_pool__preprocessing(params, ecd)

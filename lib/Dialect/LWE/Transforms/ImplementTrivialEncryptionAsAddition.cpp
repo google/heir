@@ -12,6 +12,7 @@
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/ModuleAttributes.h"
+#include "llvm/include/llvm/ADT/DenseMap.h"              // from @llvm-project
 #include "llvm/include/llvm/ADT/StringRef.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/Format.h"            // from @llvm-project
@@ -52,6 +53,10 @@ namespace lwe {
 
 using func::FuncOp;
 
+using EncryptKey = std::pair<Type, Attribute>;
+using IndexMap = DenseMap<EncryptKey, int>;
+using FuncToIndexMap = DenseMap<func::FuncOp, IndexMap>;
+
 bool detectPublicKeyFromClientHelpers(ModuleOp module) {
   auto result = module.walk([&](func::FuncOp func) {
     if (isClientHelper(func.getOperation())) {
@@ -66,13 +71,6 @@ bool detectPublicKeyFromClientHelpers(ModuleOp module) {
   return result.wasInterrupted();
 }
 
-uint64_t hashTypeStringFormat(Type type, Attribute attr) {
-  SmallString<16> str;
-  llvm::raw_svector_ostream os(str);
-  os << type << attr;
-  return llvm::hash_value(str.str());
-}
-
 // Creates a function that returns a single ciphertext encrypting zero. A new
 // function is created for each ciphertext type returned by originalOp and each
 // mgmt attribute attached to the originalOp, and otherwise duplicate functions
@@ -80,24 +78,21 @@ uint64_t hashTypeStringFormat(Type type, Attribute attr) {
 // client.enc_zero_func.
 func::FuncOp getOrCreateEncryptionOfZerosFunc(func::FuncOp parentFunc,
                                               TrivialEncryptOp originalOp,
-                                              ModuleOp module) {
+                                              ModuleOp module, int index) {
   LWEPlaintextType plaintextType = cast<LWEPlaintextType>(
       getElementTypeOrSelf(originalOp.getInput().getType()));
   LWECiphertextType ciphertextType = cast<LWECiphertextType>(
       getElementTypeOrSelf(originalOp.getResult().getType()));
-  // The mgmt attribute is required because these encryptions of zero may be at
-  // different levels or dimensions (the scales do not matter though).
-  Attribute mgmtAttr = originalOp->getAttr(mgmt::MgmtDialect::kArgMgmtAttrName);
 
   SmallString<16> buffer;
   llvm::raw_svector_ostream os(buffer);
-  os << parentFunc.getSymName() << "__encrypt__zero__"
-     << llvm::format_hex_no_prefix(
-            hashTypeStringFormat(ciphertextType, mgmtAttr), 16);
+  os << parentFunc.getSymName() << "__encrypt__zero__" << index;
   SmallString<16> buffer2;
   std::string encFuncName = std::string(sanitizeIdentifier(buffer, buffer2));
 
   if (auto existingFunc = module.lookupSymbol<func::FuncOp>(encFuncName)) {
+    assert(existingFunc->hasAttr(kClientEncZeroFuncAttrName) &&
+           "existing function does not have client.enc_zero_func attribute");
     return existingFunc;
   }
 
@@ -203,16 +198,30 @@ Value getOrCreateNewFuncArg(func::FuncOp func, LWECiphertextType type,
 
 struct TrivialEncryptionRewritePattern
     : public OpRewritePattern<TrivialEncryptOp> {
-  using OpRewritePattern<TrivialEncryptOp>::OpRewritePattern;
+  TrivialEncryptionRewritePattern(MLIRContext* context,
+                                  const FuncToIndexMap& funcToIndexMap)
+      : OpRewritePattern<TrivialEncryptOp>(context),
+        funcToIndexMap(funcToIndexMap) {}
 
   LogicalResult matchAndRewrite(TrivialEncryptOp op,
                                 PatternRewriter& rewriter) const override {
     auto func = op->getParentOfType<FuncOp>();
+    assert(func && "TrivialEncryptOp must be nested within a FuncOp");
     auto module = func->getParentOfType<ModuleOp>();
-    getOrCreateEncryptionOfZerosFunc(func, op, module);
+
     Type resultType = op.getResult().getType();
     LWECiphertextType ctTy =
         cast<LWECiphertextType>(getElementTypeOrSelf(resultType));
+    Attribute mgmtAttr = op->getAttr(mgmt::MgmtDialect::kArgMgmtAttrName);
+    EncryptKey key = {ctTy, mgmtAttr};
+
+    auto funcIt = funcToIndexMap.find(func);
+    assert(funcIt != funcToIndexMap.end() && "parent func not found in map");
+    auto indexIt = funcIt->second.find(key);
+    assert(indexIt != funcIt->second.end() && "encrypt key not found in map");
+    int index = indexIt->second;
+
+    getOrCreateEncryptionOfZerosFunc(func, op, module, index);
     Value newFuncArg = getOrCreateNewFuncArg(func, ctTy, rewriter);
 
     // The newFuncArg is a single ciphertext, so we may need to splat it
@@ -227,6 +236,9 @@ struct TrivialEncryptionRewritePattern
     rewriter.replaceOp(op, newAddOp);
     return success();
   }
+
+ private:
+  const FuncToIndexMap& funcToIndexMap;
 };
 
 struct ImplementTrivialEncryptionAsAddition
@@ -237,9 +249,24 @@ struct ImplementTrivialEncryptionAsAddition
 
   void runOnOperation() override {
     MLIRContext* context = &getContext();
+    ModuleOp module = cast<ModuleOp>(getOperation());
+
+    FuncToIndexMap funcToIndexMap;
+    module.walk([&](TrivialEncryptOp op) {
+      auto func = op->getParentOfType<FuncOp>();
+      assert(func && "TrivialEncryptOp must be nested within a FuncOp");
+      LWECiphertextType ctTy = cast<LWECiphertextType>(
+          getElementTypeOrSelf(op.getResult().getType()));
+      Attribute mgmtAttr = op->getAttr(mgmt::MgmtDialect::kArgMgmtAttrName);
+      EncryptKey key = {ctTy, mgmtAttr};
+
+      auto& indexMap = funcToIndexMap[func];
+      indexMap.insert({key, (int)indexMap.size()});
+    });
+
     RewritePatternSet patterns(context);
-    patterns.add<TrivialEncryptionRewritePattern>(context);
-    walkAndApplyPatterns(getOperation(), std::move(patterns));
+    patterns.add<TrivialEncryptionRewritePattern>(context, funcToIndexMap);
+    walkAndApplyPatterns(module, std::move(patterns));
   }
 };
 
