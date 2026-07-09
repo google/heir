@@ -29,6 +29,8 @@ cc_test(
         "@heir//lib/Dialect/Rotom/IR:Dialect",
         "@heir//lib/Utils/Layout:Evaluate",
         "@heir//lib/Utils/Layout:IslConversion",
+        "@heir//lib/Utils/Layout:Utils",
+        "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
     ],

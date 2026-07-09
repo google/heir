@@ -20,12 +20,12 @@ namespace {
 
 /// Maps a `#rotom.dim` from the layout's `dims` list to its iterator index `i*`
 /// after preprocessing (match logical axis, size, and stride).
-static FailureOr<int64_t> traversalIndexForRotomDim(
-    const SmallVector<DimAttr>& traversalDims, DimAttr want) {
-  for (int64_t i = 0; i < static_cast<int64_t>(traversalDims.size()); ++i) {
-    if (traversalDims[i].getDim() == want.getDim() &&
-        traversalDims[i].getSize() == want.getSize() &&
-        traversalDims[i].getStride() == want.getStride()) {
+static FailureOr<int64_t> varIndexForRotomDim(const SmallVector<DimAttr>& axes,
+                                              DimAttr want) {
+  for (int64_t i = 0; i < static_cast<int64_t>(axes.size()); ++i) {
+    if (axes[i].getDim() == want.getDim() &&
+        axes[i].getSize() == want.getSize() &&
+        axes[i].getStride() == want.getStride()) {
       return i;
     }
   }
@@ -40,32 +40,36 @@ static std::string modExpr(llvm::StringRef expr, int64_t mod) {
   return out;
 }
 
-static LogicalResult emitSegmentAddress(
-    llvm::raw_ostream& os, bool& firstTerm, ArrayRef<LayoutPieceKind> pieces,
-    ArrayRef<int64_t> pieceIndex, const SmallVector<DimAttr>& traversalDims,
-    const SmallVector<DimAttr>& gapDims,
-    const SmallVector<DimAttr>& replicationDims,
-    int64_t numActiveTraversalComponents, size_t segStart, size_t segEnd,
-    bool foldGapVarsToZero, ArrayRef<int64_t> rolls, ArrayAttr rotomDims,
-    bool isSlotLine) {
+static std::string floorDivExpr(llvm::StringRef expr, int64_t d) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  os << "floor((" << expr << ") / " << d << ")";
+  return out;
+}
+
+/// Ordinal of pieces[p] among the pieces of its kind.
+/// Used to name the existential variables for replication and gap pieces.
+static int64_t kindOrdinal(ArrayRef<LayoutPiece> pieces, size_t p) {
+  int64_t ordinal = 0;
+  for (size_t q = 0; q < p; ++q) {
+    if (pieces[q].kind == pieces[p].kind) ++ordinal;
+  }
+  return ordinal;
+}
+
+static LogicalResult emitSegmentAddress(llvm::raw_ostream& os, bool& firstTerm,
+                                        ArrayRef<LayoutPiece> pieces,
+                                        const SmallVector<DimAttr>& axes,
+                                        int64_t numAxes, size_t segStart,
+                                        size_t segEnd, bool foldGapVarsToZero,
+                                        ArrayRef<int64_t> rolls,
+                                        ArrayAttr rotomDims) {
   llvm::SmallVector<int64_t> suffixCoeff(pieces.size(), 0);
   int64_t suffix = 1;
   for (size_t p = segEnd; p > segStart;) {
     --p;
     suffixCoeff[p] = suffix;
-    DimAttr d;
-    switch (pieces[p]) {
-      case LayoutPieceKind::Traversal:
-        d = traversalDims[pieceIndex[p]];
-        break;
-      case LayoutPieceKind::Gap:
-        d = gapDims[pieceIndex[p]];
-        break;
-      case LayoutPieceKind::Replication:
-        d = replicationDims[pieceIndex[p]];
-        break;
-    }
-    suffix *= d.getSize();
+    suffix *= pieces[p].dim.getSize();
   }
 
   auto emitTerm = [&](int64_t coeff, llvm::StringRef expr) -> LogicalResult {
@@ -89,31 +93,48 @@ static LogicalResult emitSegmentAddress(
   llvm::DenseMap<int64_t, int64_t> replicationCoeff;
   for (size_t p = segStart; p < segEnd; ++p) {
     const int64_t coeff = suffixCoeff[p];
-    if (pieces[p] == LayoutPieceKind::Gap) {
+    if (pieces[p].kind == LayoutPieceKind::Gap) {
       if (foldGapVarsToZero) continue;
-      gapCoeff[pieceIndex[p]] = coeff;
-    } else if (pieces[p] == LayoutPieceKind::Replication) {
-      replicationCoeff[pieceIndex[p]] = coeff;
+      gapCoeff[kindOrdinal(pieces, p)] = coeff;
+    } else if (pieces[p].kind == LayoutPieceKind::Replication) {
+      replicationCoeff[kindOrdinal(pieces, p)] = coeff;
     }
   }
 
-  llvm::DenseMap<int64_t, int64_t> traversalCoeff;
+  // A tensor dim can contribute several pieces to one segment (a mixed-radix
+  // split places more than one digit of the same index on the same axis), so
+  // collect a list of (coeff, digit descriptor) per dim rather than one entry.
+  struct AxisDigit {
+    int64_t coeff;
+    int64_t divBy;
+    int64_t modBy;
+  };
+  llvm::DenseMap<int64_t, llvm::SmallVector<AxisDigit>> digitsByAxis;
   for (size_t p = segStart; p < segEnd; ++p) {
-    if (pieces[p] != LayoutPieceKind::Traversal) continue;
-    const int64_t ti = pieceIndex[p];
-    if (traversalDims[ti].getSize() == 1) continue;
-    traversalCoeff[ti] = suffixCoeff[p];
+    if (pieces[p].kind != LayoutPieceKind::Traversal) continue;
+    const int64_t ti = pieces[p].axisIndex;
+    if (axes[ti].getSize() == 1) continue;
+    digitsByAxis[ti].push_back(
+        {suffixCoeff[p], pieces[p].divBy, pieces[p].modBy});
   }
 
-  llvm::SmallVector<std::string> traversalExprs;
-  traversalExprs.reserve(traversalDims.size());
-  for (int64_t i = 0; i < static_cast<int64_t>(traversalDims.size()); ++i) {
-    traversalExprs.push_back("i" + std::to_string(i));
+  llvm::SmallVector<std::string> axisExprs;
+  axisExprs.reserve(axes.size());
+  for (int64_t i = 0; i < static_cast<int64_t>(axes.size()); ++i) {
+    axisExprs.push_back("i" + std::to_string(i));
   }
 
   // Apply roll(a,b) transforms left-to-right:
   // t_a <- (t_a - t_b) mod extent(a).
-  if (isSlotLine && !rolls.empty()) {
+  //
+  // The rewrite lands wherever the FROM dimension sits -- the ciphertext
+  // address, the slot address, or both when it straddles the boundary. BY is
+  // another traversal dimension on either axis, so a roll diagonalizes a
+  // ciphertext dimension against a slot one (one ciphertext per diagonal) or
+  // two slot dimensions (a Halevi-Shoup slot diagonal); a roll within the
+  // ciphertext axis is a free ciphertext relabeling that enumeration never
+  // generates.
+  if (!rolls.empty()) {
     if (!rotomDims || rolls.size() % 2 != 0) return failure();
     for (size_t i = 0; i < rolls.size(); i += 2) {
       const int64_t fromIdx = rolls[i];
@@ -126,39 +147,41 @@ static LogicalResult emitSegmentAddress(
       auto fromDim = dyn_cast<DimAttr>(rotomDims[fromIdx]);
       auto toDim = dyn_cast<DimAttr>(rotomDims[toIdx]);
       if (!fromDim || !toDim) return failure();
-      FailureOr<int64_t> maybeFromTrav =
-          traversalIndexForRotomDim(traversalDims, fromDim);
-      FailureOr<int64_t> maybeToTrav =
-          traversalIndexForRotomDim(traversalDims, toDim);
-      if (failed(maybeFromTrav) || failed(maybeToTrav)) return failure();
-      const int64_t fromTrav = *maybeFromTrav;
-      const int64_t toTrav = *maybeToTrav;
+      FailureOr<int64_t> maybeFromVar = varIndexForRotomDim(axes, fromDim);
+      FailureOr<int64_t> maybeToVar = varIndexForRotomDim(axes, toDim);
+      if (failed(maybeFromVar) || failed(maybeToVar)) return failure();
+      const int64_t fromVar = *maybeFromVar;
+      const int64_t toVar = *maybeToVar;
       std::string diffExpr =
-          "(" + traversalExprs[fromTrav] + " - " + traversalExprs[toTrav] + ")";
-      traversalExprs[fromTrav] = modExpr(diffExpr, fromDim.getSize());
+          "(" + axisExprs[fromVar] + " - " + axisExprs[toVar] + ")";
+      axisExprs[fromVar] = modExpr(diffExpr, fromDim.getSize());
     }
   }
 
-  for (int64_t oldIdx = 0; oldIdx < static_cast<int64_t>(traversalDims.size());
+  for (int64_t oldIdx = 0; oldIdx < static_cast<int64_t>(axes.size());
        ++oldIdx) {
-    if (traversalDims[oldIdx].getSize() == 1) continue;
-    auto it = traversalCoeff.find(oldIdx);
-    if (it != traversalCoeff.end()) {
-      if (failed(emitTerm(it->second, traversalExprs[oldIdx])))
-        return failure();
+    if (axes[oldIdx].getSize() == 1) continue;
+    auto it = digitsByAxis.find(oldIdx);
+    if (it == digitsByAxis.end()) continue;
+    for (const AxisDigit& tp : it->second) {
+      // Mixed-radix digit: (i / divBy) mod modBy (modBy 0 => no modulus). A
+      // whole-dim piece (divBy 1, modBy 0) leaves the index untouched.
+      std::string expr = axisExprs[oldIdx];
+      if (tp.divBy > 1) expr = floorDivExpr(expr, tp.divBy);
+      if (tp.modBy > 0) expr = modExpr(expr, tp.modBy);
+      if (failed(emitTerm(tp.coeff, expr))) return failure();
     }
   }
-  for (int64_t g = 0; g < static_cast<int64_t>(gapDims.size()); ++g) {
+  for (int64_t g = 0; g < static_cast<int64_t>(pieces.size()); ++g) {
     auto it = gapCoeff.find(g);
     if (it != gapCoeff.end() &&
         failed(emitTerm(it->second, "g" + std::to_string(g))))
       return failure();
   }
-  for (int64_t e = 0; e < static_cast<int64_t>(replicationDims.size()); ++e) {
+  for (int64_t e = 0; e < static_cast<int64_t>(pieces.size()); ++e) {
     auto it = replicationCoeff.find(e);
     if (it != replicationCoeff.end()) {
-      const auto varName =
-          "d" + std::to_string(numActiveTraversalComponents + e);
+      const auto varName = "d" + std::to_string(numAxes + e);
       if (failed(emitTerm(it->second, varName))) return failure();
     }
   }
@@ -166,20 +189,24 @@ static LogicalResult emitSegmentAddress(
 }
 
 static FailureOr<std::string> emitSplitCtSlotIsl(
-    int64_t n, size_t prefix, ArrayRef<LayoutPieceKind> pieces,
-    ArrayRef<int64_t> pieceIndex, const SmallVector<DimAttr>& traversalDims,
-    const SmallVector<DimAttr>& replicationDims,
-    const SmallVector<DimAttr>& gapDims, int64_t numTraversalComponents,
-    int64_t numReplication, int64_t numGap, ArrayRef<int64_t> rolls,
+    int64_t n, size_t prefix, ArrayRef<LayoutPiece> pieces,
+    const SmallVector<DimAttr>& axes, ArrayRef<int64_t> rolls,
     ArrayAttr rotomDims) {
   if (prefix > pieces.size()) return failure();
 
+  const int64_t numAxes = static_cast<int64_t>(axes.size());
+  int64_t numReplication = 0;
+  int64_t numGap = 0;
+  for (const LayoutPiece& piece : pieces) {
+    if (piece.kind == LayoutPieceKind::Replication) ++numReplication;
+    if (piece.kind == LayoutPieceKind::Gap) ++numGap;
+  }
+
   int64_t numCt = 1;
   for (size_t p = 0; p < prefix; ++p) {
-    if (pieces[p] == LayoutPieceKind::Traversal) {
-      numCt *= traversalDims[pieceIndex[p]].getSize();
-    } else if (pieces[p] == LayoutPieceKind::Replication) {
-      numCt *= replicationDims[pieceIndex[p]].getSize();
+    if (pieces[p].kind == LayoutPieceKind::Traversal ||
+        pieces[p].kind == LayoutPieceKind::Replication) {
+      numCt *= pieces[p].dim.getSize();
     }
   }
   if (numCt < 1) numCt = 1;
@@ -188,7 +215,7 @@ static FailureOr<std::string> emitSplitCtSlotIsl(
   llvm::raw_string_ostream os(s);
 
   os << "{ [";
-  for (int64_t i = 0; i < numTraversalComponents; ++i) {
+  for (int64_t i = 0; i < numAxes; ++i) {
     if (i) os << ", ";
     os << "i" << i;
   }
@@ -200,8 +227,8 @@ static FailureOr<std::string> emitSplitCtSlotIsl(
     first = false;
   };
 
-  for (int64_t i = 0; i < numTraversalComponents; ++i) {
-    const DimAttr d = traversalDims[i];
+  for (int64_t i = 0; i < numAxes; ++i) {
+    const DimAttr d = axes[i];
     emitAnd();
     os << "0 <= i" << i << " <= " << (d.getSize() - 1);
   }
@@ -218,10 +245,10 @@ static FailureOr<std::string> emitSplitCtSlotIsl(
     os << " and exists ";
     bool firstVar = true;
     for (size_t p = 0; p < pieces.size(); ++p) {
-      if (pieces[p] == LayoutPieceKind::Replication) {
+      if (pieces[p].kind == LayoutPieceKind::Replication) {
         if (!firstVar) os << ", ";
         firstVar = false;
-        os << "d" << (numTraversalComponents + pieceIndex[p]);
+        os << "d" << (numAxes + kindOrdinal(pieces, p));
       }
     }
     os << " : ";
@@ -231,31 +258,26 @@ static FailureOr<std::string> emitSplitCtSlotIsl(
   emitAnd();
   bool firstTerm = true;
   os << "ct = ";
-  if (failed(emitSegmentAddress(os, firstTerm, pieces, pieceIndex,
-                                traversalDims, gapDims, replicationDims,
-                                numTraversalComponents, 0, prefix,
-                                foldGapVarsToZero, rolls, rotomDims,
-                                /*isSlotLine=*/false)))
+  if (failed(emitSegmentAddress(os, firstTerm, pieces, axes, numAxes, 0, prefix,
+                                foldGapVarsToZero, rolls, rotomDims)))
     return failure();
   if (firstTerm) os << "0";
 
   emitAnd();
   firstTerm = true;
   os << "slot = ";
-  if (failed(emitSegmentAddress(os, firstTerm, pieces, pieceIndex,
-                                traversalDims, gapDims, replicationDims,
-                                numTraversalComponents, prefix, pieces.size(),
-                                foldGapVarsToZero, rolls, rotomDims,
-                                /*isSlotLine=*/true)))
+  if (failed(emitSegmentAddress(os, firstTerm, pieces, axes, numAxes, prefix,
+                                pieces.size(), foldGapVarsToZero, rolls,
+                                rotomDims)))
     return failure();
   if (firstTerm) os << "0";
 
   if (numLocalVars > 0) {
-    for (int64_t k = 0; k < numReplication; ++k) {
-      const DimAttr d = replicationDims[k];
+    for (size_t p = 0; p < pieces.size(); ++p) {
+      if (pieces[p].kind != LayoutPieceKind::Replication) continue;
       emitAnd();
-      os << "0 <= d" << (numTraversalComponents + k)
-         << " <= " << (d.getSize() - 1);
+      os << "0 <= d" << (numAxes + kindOrdinal(pieces, p))
+         << " <= " << (pieces[p].dim.getSize() - 1);
     }
   }
 
@@ -270,24 +292,17 @@ static FailureOr<std::string> lowerToIslImpl(LayoutAttr layout) {
   const LayoutData& data = *maybeData;
 
   llvm::DenseMap<int64_t, llvm::DenseSet<int64_t>> seenDimStride;
-  for (DimAttr d : data.traversalDims) {
+  for (DimAttr d : data.axes) {
     auto& seenStridesForDim = seenDimStride[d.getDim()];
     if (seenStridesForDim.contains(d.getStride())) return failure();
     seenStridesForDim.insert(d.getStride());
   }
 
-  const int64_t numTraversalComponents =
-      static_cast<int64_t>(data.traversalDims.size());
-  const int64_t numReplication =
-      static_cast<int64_t>(data.replicationDims.size());
-  const int64_t numGap = static_cast<int64_t>(data.gapDims.size());
   DenseI64ArrayAttr rollsAttr = layout.getRolls();
   ArrayRef<int64_t> rolls =
       rollsAttr ? rollsAttr.asArrayRef() : ArrayRef<int64_t>{};
-  return emitSplitCtSlotIsl(
-      data.n, data.ctPrefixLen, data.pieces, data.pieceIndex,
-      data.traversalDims, data.replicationDims, data.gapDims,
-      numTraversalComponents, numReplication, numGap, rolls, layout.getDims());
+  return emitSplitCtSlotIsl(data.n, data.ctPrefixLen, data.pieces, data.axes,
+                            rolls, layout.getDims());
 }
 
 }  // namespace
