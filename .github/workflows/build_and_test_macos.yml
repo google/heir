@@ -23,25 +23,10 @@ jobs:
         with:
           path: |
             ~/.cache/bazel
-          key: ${{ runner.os }}-clang19-${{ hashFiles('.bazelversion', '.bazelrc', 'MODULE.bazel') }}-${{ hashFiles('bazel/extensions.bzl') }}
+          key: ${{ runner.os }}-${{ hashFiles('.bazelversion', '.bazelrc', 'MODULE.bazel') }}-${{ hashFiles('bazel/extensions.bzl') }}
           restore-keys: |
-            ${{ runner.os }}-clang19-${{ hashFiles('.bazelversion', '.bazelrc', 'MODULE.bazel') }}-${{ hashFiles('bazel/extensions.bzl') }}
-            ${{ runner.os }}-clang19-${{ hashFiles('.bazelversion', '.bazelrc', 'MODULE.bazel') }}-
-
-      - name: Install rust
-        run: brew install rust
-
-      - name: Install OpenMP
-        run: brew install libomp
-
-      - name: Set OpenMP environment variables
-        run: |
-          echo "LDFLAGS=-L$(brew --prefix libomp)/lib" >> "$GITHUB_ENV"
-          echo "CPPFLAGS=-I$(brew --prefix libomp)/include" >> "$GITHUB_ENV"
-
-      - name: Bazel debug info
-        run: |
-          bazel cquery --output=starlark --starlark:expr="str(providers(target))" @bazel_tools//tools/cpp:current_cc_toolchain | sed 's/,/\n/g'
+            ${{ runner.os }}-${{ hashFiles('.bazelversion', '.bazelrc', 'MODULE.bazel') }}-${{ hashFiles('bazel/extensions.bzl') }}
+            ${{ runner.os }}-${{ hashFiles('.bazelversion', '.bazelrc', 'MODULE.bazel') }}-
 
       - name: "Run `bazel build`"
         run: |

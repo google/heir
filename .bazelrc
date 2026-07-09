@@ -80,15 +80,13 @@ build:cheddar --@rules_cuda//cuda:copts=-DSPDLOG_FMT_EXTERNAL
 build:cheddar --@rules_cuda//cuda:archs=sm_60,sm_61,sm_70,sm_75,sm_80,sm_86,sm_89,sm_90
 
 # macos specific options
-# openmp is not supported in apple clang
-build:macos --@openfhe//:enable_openmp=False
+
 build:macos --no@fuzztest//fuzztest:use_riegeli
 
 # MacOS arm64 config
 build:macos_arm64 --cpu=darwin_arm64
 build:macos_arm64 --macos_minimum_os=11.0
-# openmp is not supported in apple clang
-build:macos_arm64 --@openfhe//:enable_openmp=False
+
 
 # run with --config=asan to enable
 build:asan --strip=never
