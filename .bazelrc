@@ -64,15 +64,13 @@ build:linux --linkopt="-fuse-ld=lld"
 build:linux --linkopt="-Wl,-no-pie"
 
 # macos specific options
-# openmp is not supported in apple clang
-build:macos --@openfhe//:enable_openmp=False
+
 build:macos --no@fuzztest//fuzztest:use_riegeli
 
 # MacOS arm64 config
 build:macos_arm64 --cpu=darwin_arm64
 build:macos_arm64 --macos_minimum_os=11.0
-# openmp is not supported in apple clang
-build:macos_arm64 --@openfhe//:enable_openmp=False
+
 
 # run with --config=asan to enable
 build:asan --strip=never
