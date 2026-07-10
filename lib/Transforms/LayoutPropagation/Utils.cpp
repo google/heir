@@ -1,8 +1,10 @@
 #include "lib/Transforms/LayoutPropagation/Utils.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "llvm/include/llvm/ADT/ArrayRef.h"     // from @llvm-project
@@ -10,13 +12,52 @@
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"        // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
 
 namespace mlir {
 namespace heir {
 
 using ::llvm::ArrayRef;
 using ::llvm::SmallVector;
+
+Attribute makeKernelInfoAttr(MLIRContext* ctx, const KernelInfo& info) {
+  SmallVector<NamedAttribute> attrs;
+  attrs.reserve(3);
+  attrs.push_back(
+      NamedAttribute(StringAttr::get(ctx, kKernelShapeKey),
+                     DenseI64ArrayAttr::get(ctx, info.resultShape)));
+  if (!info.inputShape.empty()) {
+    attrs.push_back(
+        NamedAttribute(StringAttr::get(ctx, kKernelInputShapeKey),
+                       DenseI64ArrayAttr::get(ctx, info.inputShape)));
+  }
+  attrs.push_back(NamedAttribute(
+      StringAttr::get(ctx, kGapFactorKey),
+      IntegerAttr::get(IntegerType::get(ctx, 64), info.gapFactor)));
+  return DictionaryAttr::get(ctx, attrs);
+}
+
+std::optional<KernelInfo> getKernelInfo(Attribute attr) {
+  auto dictAttr = dyn_cast_or_null<DictionaryAttr>(attr);
+  if (!dictAttr) return std::nullopt;
+  KernelInfo info;
+  if (auto inputShapeAttr =
+          dictAttr.getAs<DenseI64ArrayAttr>(kKernelInputShapeKey)) {
+    info.inputShape.assign(inputShapeAttr.asArrayRef().begin(),
+                           inputShapeAttr.asArrayRef().end());
+  }
+  if (auto shapeAttr = dictAttr.getAs<DenseI64ArrayAttr>(kKernelShapeKey)) {
+    info.resultShape.assign(shapeAttr.asArrayRef().begin(),
+                            shapeAttr.asArrayRef().end());
+  }
+  if (auto gapFactorAttr = dictAttr.getAs<IntegerAttr>(kGapFactorKey)) {
+    info.gapFactor = gapFactorAttr.getValue().getSExtValue();
+  }
+  return info;
+}
 
 int64_t maxOfMaxes(ArrayRef<int64_t> d1, ArrayRef<int64_t> d2) {
   int64_t max = d1.front();

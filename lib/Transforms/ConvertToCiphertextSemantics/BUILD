@@ -25,6 +25,7 @@ cc_library(
         "@heir//lib/Kernel:KernelImplementation",
         "@heir//lib/Kernel:Utils",
         "@heir//lib/Transforms/DropUnitDims",
+        "@heir//lib/Transforms/LayoutPropagation:Utils",
         "@heir//lib/Utils",
         "@heir//lib/Utils:AttributeUtils",
         "@heir//lib/Utils:ContextAwareConversionUtils",

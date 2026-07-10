@@ -2,14 +2,34 @@
 #define LIB_TRANSFORMS_LAYOUTPROPAGATION_UTILS_H_
 
 #include <cstdint>
+#include <optional>
 
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
-#include "llvm/include/llvm/ADT/ArrayRef.h"     // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"     // from @llvm-project
+#include "llvm/include/llvm/ADT/ArrayRef.h"          // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
 
 namespace mlir {
 namespace heir {
+
+constexpr StringLiteral kKernelInfoAttrName = "heir.kernel_info";
+constexpr StringLiteral kKernelInputShapeKey = "input_shape";
+constexpr StringLiteral kKernelShapeKey = "result_shape";
+constexpr StringLiteral kGapFactorKey = "gap_factor";
+
+struct KernelInfo {
+  SmallVector<int64_t> inputShape;
+  // Tracks the shape of the resolved kernel's tensor shape. This will account
+  // for any additional expansion or striding due to the FHE kernel.
+  SmallVector<int64_t> resultShape;
+  // Tracks the gap factor used for multiplexing convolutions.
+  int64_t gapFactor = 1;
+};
+
+Attribute makeKernelInfoAttr(MLIRContext* ctx, const KernelInfo& info);
+
+std::optional<KernelInfo> getKernelInfo(Attribute attr);
 
 using tensor_ext::LayoutAttr;
 

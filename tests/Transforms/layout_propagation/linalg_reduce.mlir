@@ -1,7 +1,7 @@
 // RUN: heir-opt --layout-propagation --fold-convert-layout-into-assign-layout %s | FileCheck %s
 
 // CHECK: @main
-// CHECK-SAME: %[[arg0:.*]]: !secret.secret<tensor<8xf32>> {tensor_ext.layout = [[rm_layout:.*]]}) ->
+// CHECK-SAME: %[[arg0:.*]]: !secret.secret<tensor<8xf32>> {{{.*}}tensor_ext.layout = [[rm_layout:.*]]}) ->
 module {
   func.func @main(%arg0: !secret.secret<tensor<8xf32>>, %arg1: !secret.secret<tensor<8xf32>>) -> !secret.secret<tensor<f32>> {
     // CHECK-DAG: %[[cst:.*]] = arith.constant

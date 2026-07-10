@@ -2,7 +2,7 @@
 
 // CHECK: #kernel = #secret.kernel<name = "MatvecDiagonal", force = false>
 // CHECK: @conv1d
-// CHECK-SAME: %[[arg0:.*]]: !secret.secret<tensor<5xf32>> {tensor_ext.layout = [[rm_layout:.*]]}) ->
+// CHECK-SAME: %[[arg0:.*]]: !secret.secret<tensor<5xf32>> {heir.kernel_info = {gap_factor = 1 : i64, result_shape = array<i64: 5>}, tensor_ext.layout = [[rm_layout:.*]]}) ->
 func.func @conv1d(%arg0: !secret.secret<tensor<5xf32>>) -> !secret.secret<tensor<3xf32>> {
   %cst = arith.constant dense<0.000000e+00> : tensor<3xf32>
   // CHECK: %[[out:.*]] = arith.constant dense<0.00
@@ -16,6 +16,7 @@ func.func @conv1d(%arg0: !secret.secret<tensor<5xf32>>) -> !secret.secret<tensor
   %0 = secret.generic(%arg0 : !secret.secret<tensor<5xf32>>) {
   ^body(%input0: tensor<5xf32>):
     // CHECK: linalg.conv_1d
+    // CHECK-SAME: heir.kernel_info = {gap_factor = 1 : i64, result_shape = array<i64: 3>}
     // CHECK-SAME: secret.kernel = #kernel
     %1 = linalg.conv_1d ins(%input0, %cst_0 : tensor<5xf32>, tensor<3xf32>) outs(%cst : tensor<3xf32>) -> tensor<3xf32>
     secret.yield %1 : tensor<3xf32>

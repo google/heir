@@ -78,6 +78,14 @@ static FailureOr<Value> implementUnpackOpStep(
     return extractOp.getResult();
   }
 
+  // Restrict the layout relation's domain bounds to the valid elements
+  // [0, dimSize - 1] of targetType.
+  for (unsigned i = 0; i < unpackedTensorType.getRank(); ++i) {
+    if (unpackedTensorType.isDynamicDim(i)) continue;
+    rel.addBound(presburger::BoundType::UB, i,
+                 unpackedTensorType.getDimSize(i) - 1);
+  }
+
   SmallVector<int> domainSchedule;
   for (unsigned i = 0; i < rel.getNumDomainVars(); ++i) {
     domainSchedule.push_back(i);

@@ -1,5 +1,6 @@
 #include "lib/Transforms/LayoutPropagation/LayoutPropagation.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <memory>
@@ -25,6 +26,7 @@
 #include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/Layout/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"               // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVectorExtras.h"       // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
@@ -132,6 +134,20 @@ std::pair<Value, LayoutAttr> convertToLayout(
   return std::make_pair(toReplace, layoutAttr);
 }
 
+// Return a copy of the kernel info associated with the value and update the
+// result shape to the new result shape. If the value does not have a kernel
+// info, return an empty Attribute.
+Attribute cloneKernelInfoWithResultShape(Value value,
+                                         ArrayRef<int64_t> resultShape) {
+  auto kernelInfo = findAttributeAssociatedWith(value, kKernelInfoAttrName);
+  if (succeeded(kernelInfo)) {
+    auto info = getKernelInfo(kernelInfo.value()).value();
+    info.resultShape = llvm::to_vector(resultShape);
+    return makeKernelInfoAttr(value.getContext(), info);
+  }
+  return Attribute{};
+}
+
 }  // namespace
 
 struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
@@ -205,7 +221,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
 
   // Add an op attribute denoting the layouts of the op results. Assumes the
   // assignedLayouts map contains the layout for the result SSA values already.
-  void setResultLayoutAttr(Operation* op);
+  void setResultLayoutAttr(Operation* op, Attribute kernelInfoAttr = {});
 
   void runOnOperation() override;
 
@@ -355,6 +371,17 @@ LogicalResult LayoutPropagation::visitOperation(func::FuncOp op) {
     assignedLayouts.insert({arg, layout.value()});
     setAttributeAssociatedWith(
         arg, tensor_ext::TensorExtDialect::kLayoutAttrName, layout.value());
+
+    // Set a default kernel info for each secret argument.
+    if (auto tensorType = dyn_cast<RankedTensorType>(
+            cast<SecretType>(arg.getType()).getValueType())) {
+      setAttributeAssociatedWith(
+          arg, kKernelInfoAttrName,
+          makeKernelInfoAttr(
+              arg.getContext(),
+              KernelInfo{.resultShape = llvm::to_vector(tensorType.getShape()),
+                         .gapFactor = 1}));
+    }
   }
 
   // Func result attrs are handled by the ReturnOp
@@ -393,6 +420,13 @@ LogicalResult LayoutPropagation::visitOperation(GenericOp op) {
     setAttributeAssociatedWith(
         blockArg, tensor_ext::TensorExtDialect::kLayoutAttrName, layout);
     debugAssignLayout(blockArg, layout);
+    // Pass through kernel info
+    auto kernelInfo =
+        findAttributeAssociatedWith(operand.get(), kKernelInfoAttrName);
+    if (succeeded(kernelInfo)) {
+      setAttributeAssociatedWith(blockArg, kKernelInfoAttrName,
+                                 kernelInfo.value());
+    }
   }
   // The layout of the result of the generic op is handled when the YieldOp is
   // visited.
@@ -450,9 +484,11 @@ LogicalResult LayoutPropagation::visitOperation(CollapseShapeOp op) {
   MLIRContext* ctx = &getContext();
   LayoutAttr resultLayoutAttr =
       LayoutAttr::getFromIntegerRelation(ctx, relation);
+  Attribute kernelInfoAttr =
+      cloneKernelInfoWithResultShape(tensor, op.getResultType().getShape());
 
   assignedLayouts.insert({op.getResult(), resultLayoutAttr});
-  setResultLayoutAttr(op);
+  setResultLayoutAttr(op, kernelInfoAttr);
   debugAssignLayout(op.getResult(), resultLayoutAttr);
   return success();
 }
@@ -475,9 +511,11 @@ LogicalResult LayoutPropagation::visitOperation(ExpandShapeOp op) {
   MLIRContext* ctx = &getContext();
   LayoutAttr resultLayoutAttr =
       LayoutAttr::getFromIntegerRelation(ctx, expandedRelation);
+  Attribute kernelInfoAttr =
+      cloneKernelInfoWithResultShape(tensor, op.getResultType().getShape());
 
   assignedLayouts.insert({op.getResult(), resultLayoutAttr});
-  setResultLayoutAttr(op);
+  setResultLayoutAttr(op, kernelInfoAttr);
   debugAssignLayout(op.getResult(), resultLayoutAttr);
   return success();
 }
@@ -543,9 +581,11 @@ LogicalResult LayoutPropagation::visitOperation(VecmatOp op) {
       getRowMajorLayoutRelation(outputType, ciphertextSize);
   LayoutAttr outputLayoutAttr =
       LayoutAttr::getFromIntegerRelation(ctx, outputLayoutResult);
+  Attribute kernelInfoAttr =
+      cloneKernelInfoWithResultShape(vec, outputType.getShape());
 
   assignedLayouts.insert({result, outputLayoutAttr});
-  setResultLayoutAttr(op);
+  setResultLayoutAttr(op, kernelInfoAttr);
   debugAssignLayout(result, outputLayoutAttr);
 
   auto kernelAttr =
@@ -606,9 +646,11 @@ LogicalResult LayoutPropagation::visitOperation(MatvecOp op) {
     return failure();
   }
   LayoutAttr resultLayout = outputLayoutResult.value();
+  Attribute kernelInfoAttr =
+      cloneKernelInfoWithResultShape(matrix, outputType.getShape());
 
   assignedLayouts.insert({result, resultLayout});
-  setResultLayoutAttr(op);
+  setResultLayoutAttr(op, kernelInfoAttr);
   debugAssignLayout(result, resultLayout);
 
   // Add secret.kernel attribute for MatvecDiagonal
@@ -627,8 +669,11 @@ LogicalResult LayoutPropagation::visitOperation(DotOp op) {
   if (failed(layout)) {
     return failure();
   }
+  Attribute kernelInfoAttr = cloneKernelInfoWithResultShape(
+      op.getInputs().front(),
+      cast<RankedTensorType>(result.getType()).getShape());
   assignedLayouts.insert({result, layout.value()});
-  setResultLayoutAttr(op);
+  setResultLayoutAttr(op, kernelInfoAttr);
   debugAssignLayout(result, layout.value());
 
   // Add secret.kernel attribute for Dot
@@ -703,9 +748,11 @@ LogicalResult LayoutPropagation::visitOperation(Conv1DOp op) {
     return failure();
   }
   LayoutAttr resultLayout = outputLayoutResult.value();
+  Attribute kernelInfoAttr =
+      cloneKernelInfoWithResultShape(data, outputType.getShape());
 
   assignedLayouts.insert({result, resultLayout});
-  setResultLayoutAttr(op);
+  setResultLayoutAttr(op, kernelInfoAttr);
   auto kernelAttr =
       secret::KernelAttr::get(ctx, KernelName::MatvecDiagonal, /*force=*/false);
   op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
@@ -776,9 +823,11 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DOp op) {
     return failure();
   }
   LayoutAttr resultLayout = outputLayoutResult.value();
+  Attribute kernelInfoAttr =
+      cloneKernelInfoWithResultShape(data, outputType.getShape());
 
   assignedLayouts.insert({result, resultLayout});
-  setResultLayoutAttr(op);
+  setResultLayoutAttr(op, kernelInfoAttr);
   auto kernelAttr =
       secret::KernelAttr::get(ctx, KernelName::MatvecDiagonal, /*force=*/false);
   op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
@@ -863,9 +912,11 @@ LogicalResult LayoutPropagation::visitOperation(Conv1DNcwFcwOp op) {
                               /*interchangeRows=*/interchangeRows);
   LayoutAttr resultLayoutAttr =
       LayoutAttr::getFromIntegerRelation(ctx, resultRelation);
+  Attribute kernelInfoAttr =
+      cloneKernelInfoWithResultShape(data, outputType.getShape());
 
   assignedLayouts.insert({result, resultLayoutAttr});
-  setResultLayoutAttr(op);
+  setResultLayoutAttr(op, kernelInfoAttr);
   auto kernelAttr =
       secret::KernelAttr::get(ctx, KernelName::MatvecDiagonal, /*force=*/false);
   op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
@@ -874,6 +925,8 @@ LogicalResult LayoutPropagation::visitOperation(Conv1DNcwFcwOp op) {
 }
 
 LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
+  MLIRContext* ctx = &getContext();
+
   LLVM_DEBUG(llvm::dbgs() << "Specializing visitor on Conv2DNchwFchwOp\n");
   Value data = op.getInputs().front();
   Value filter = op.getInputs().back();
@@ -882,16 +935,46 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
   RankedTensorType outputType =
       cast<RankedTensorType>(op.getResult(0).getType());
 
-  bool interchangeRows = false;
-
   SmallVector<int64_t> strides(op.getStrides().getValues<int64_t>().begin(),
                                op.getStrides().getValues<int64_t>().end());
   if (!llvm::all_equal(strides)) {
     return op->emitOpError() << "Expected equal strides for Conv2DNchwFchwOp";
   }
 
-  MLIRContext* ctx = &getContext();
-  mlir::IRRewriter builder(ctx);
+  // Interchange rows only if the stride is greater than 1. Otherwise, we can
+  // densely pack the rows and outputs without channel gapping.
+  bool interchangeRows = strides[0] > 1;
+
+  auto dataParentInfo = findAttributeAssociatedWith(data, kKernelInfoAttrName);
+  if (failed(dataParentInfo)) {
+    return op->emitOpError() << "Failed to find kernel info for data input";
+  }
+  auto dataKernelInfo = getKernelInfo(dataParentInfo.value());
+  if (!dataKernelInfo) {
+    return op->emitOpError() << "Failed to get kernel info for data input";
+  }
+  auto gapFactor = strides[0] * dataKernelInfo->gapFactor;
+  RankedTensorType fheInputType = RankedTensorType::get(
+      dataKernelInfo->resultShape, outputType.getElementType());
+  RankedTensorType fheOutputType = outputType;
+
+  if (interchangeRows) {
+    // If interchangeRows is on, then the output shape may include reshaping the
+    // striding and gapping.
+    int64_t hFhe = std::max(dataKernelInfo->resultShape[2],
+                            outputType.getDimSize(2) * gapFactor);
+    int64_t wFhe = std::max(dataKernelInfo->resultShape[3],
+                            outputType.getDimSize(3) * gapFactor);
+    int64_t cFhe = outputType.getDimSize(1) / (gapFactor * gapFactor);
+    fheOutputType =
+        RankedTensorType::get({outputType.getDimSize(0), cFhe, hFhe, wFhe},
+                              outputType.getElementType());
+  }
+  KernelInfo kernelInfo = {
+      .inputShape = llvm::to_vector(fheInputType.getShape()),
+      .resultShape = llvm::to_vector(fheOutputType.getShape()),
+      .gapFactor = gapFactor};
+  Attribute kernelInfoAttr = makeKernelInfoAttr(ctx, kernelInfo);
 
   // Ensure data is in gapped row-major layout with current inputGap.
   // We expect 4-D tensor (N, C, H, W) but only support N=1.
@@ -909,8 +992,9 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
 
   LayoutAttr dataLayout = getComposedLayoutAttr(data);
   IntegerRelation targetDataRelation =
-      getRowMajorLayoutRelation(dataType, ciphertextSize);
+      getRowMajorLayoutRelation(fheInputType, ciphertextSize);
 
+  mlir::IRRewriter builder(ctx);
   if (!dataLayout.getIntegerRelation().isEqual(targetDataRelation)) {
     LLVM_DEBUG(llvm::dbgs() << "conv_2d data input is not row major, "
                                "inserting layout conversion.\n");
@@ -927,7 +1011,7 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
     originalFilter = assignOp.getValue();
   }
   auto maybeRels = get2dConvChwFchwFilterAsSequence(
-      filterType, dataType, strides, /*padding=*/0, ciphertextSize,
+      filterType, fheInputType, strides, /*padding=*/0, ciphertextSize,
       interchangeRows);
   if (failed(maybeRels)) {
     return failure();
@@ -972,11 +1056,16 @@ LogicalResult LayoutPropagation::visitOperation(Conv2DNchwFchwOp op) {
   }
 
   assignedLayouts.insert({result, resultLayoutAttr});
+  auto resultKernelInfo =
+      cloneKernelInfoWithResultShape(data, outputType.getShape());
 
-  setResultLayoutAttr(op);
+  setResultLayoutAttr(op, resultKernelInfo);
   auto kernelAttr =
       secret::KernelAttr::get(ctx, KernelName::MatvecDiagonal, /*force=*/false);
   op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
+
+  setAttributeAssociatedWith(op.getResult(0), kKernelInfoAttrName,
+                             kernelInfoAttr);
 
   return success();
 }
@@ -1087,9 +1176,11 @@ LogicalResult LayoutPropagation::visitOperation(MatmulOp op) {
         getBicyclicLayoutRelation(outputType, ciphertextSize);
     LayoutAttr outputLayoutAttr =
         LayoutAttr::getFromIntegerRelation(ctx, outputLayoutResult);
+    auto kernelInfoAttr =
+        cloneKernelInfoWithResultShape(lhs, outputType.getShape());
 
     assignedLayouts.insert({result, outputLayoutAttr});
-    setResultLayoutAttr(op);
+    setResultLayoutAttr(op, kernelInfoAttr);
     debugAssignLayout(result, outputLayoutAttr);
 
     auto kernelAttr = secret::KernelAttr::get(ctx, KernelName::MatmulBicyclic,
@@ -1136,9 +1227,11 @@ LogicalResult LayoutPropagation::visitOperation(MatmulOp op) {
       getPerRowLayoutRelation(outputType, ciphertextSize);
   LayoutAttr outputLayoutAttr =
       LayoutAttr::getFromIntegerRelation(ctx, outputLayoutResult);
+  auto kernelInfoAttr =
+      cloneKernelInfoWithResultShape(lhs, outputType.getShape());
 
   assignedLayouts.insert({result, outputLayoutAttr});
-  setResultLayoutAttr(op);
+  setResultLayoutAttr(op, kernelInfoAttr);
   debugAssignLayout(result, outputLayoutAttr);
 
   // Add secret.kernel attribute for MatmulDiagonal
@@ -1221,9 +1314,10 @@ LogicalResult LayoutPropagation::visitOperation(tensor::ExtractOp op) {
   LLVM_DEBUG(llvm::dbgs() << "Assigning scalar layout " << scalarLayout
                           << " to value " << op.getResult() << "\n");
   Value result = op.getResult();
+  auto kernelInfoAttr = cloneKernelInfoWithResultShape(op.getTensor(), {});
   assignedLayouts.insert({result, scalarLayout});
   debugAssignLayout(result, scalarLayout);
-  setResultLayoutAttr(op);
+  setResultLayoutAttr(op, kernelInfoAttr);
   return success();
 }
 
@@ -1233,10 +1327,12 @@ LogicalResult LayoutPropagation::visitOperation(tensor::InsertOp op) {
   // which will assign a default scalar layout if it is secret and has no
   // layout.
   LayoutAttr tensorLayout = getComposedLayoutAttr(op.getDest());
+  auto kernelInfoAttr = cloneKernelInfoWithResultShape(
+      op.getScalar(), op.getDest().getType().getShape());
   Value result = op.getResult();
   assignedLayouts.insert({result, tensorLayout});
   debugAssignLayout(result, tensorLayout);
-  setResultLayoutAttr(op);
+  setResultLayoutAttr(op, kernelInfoAttr);
   return success();
 }
 
@@ -1246,10 +1342,13 @@ LogicalResult LayoutPropagation::visitOperation(tensor::InsertSliceOp op) {
     return op->emitError() << "Destination tensor has no assigned layout";
   }
   LayoutAttr destLayout = getComposedLayoutAttr(op.getDest());
+  auto kernelInfoAttr = cloneKernelInfoWithResultShape(
+      op.getSource(), op.getDest().getType().getShape());
+
   Value result = op.getResult();
   assignedLayouts.insert({result, destLayout});
   debugAssignLayout(result, destLayout);
-  setResultLayoutAttr(op);
+  setResultLayoutAttr(op, kernelInfoAttr);
   return success();
 }
 
@@ -1292,11 +1391,13 @@ LogicalResult LayoutPropagation::visitOperation(tensor::ExtractSliceOp op) {
   auto zeroIndexedSliceLayout =
       shiftVar(sliceExtractionLayout, ctVarOffset, -ctLowerBound.value());
 
+  Attribute kernelInfoAttr = cloneKernelInfoWithResultShape(
+      op.getSource(), op.getResultType().getShape());
   LayoutAttr outputLayout = LayoutAttr::getFromIntegerRelation(
       op.getContext(), zeroIndexedSliceLayout);
   assignedLayouts.insert({op.getResult(), outputLayout});
   debugAssignLayout(op.getResult(), outputLayout);
-  setResultLayoutAttr(op);
+  setResultLayoutAttr(op, kernelInfoAttr);
   return success();
 }
 
@@ -1571,7 +1672,10 @@ void LayoutPropagation::rectifyIncompatibleOperandLayouts(Operation* op) {
             // an attribute describing the layout of their results.
             OpBuilder builder(&getContext());
             assignedLayouts.insert({convertOp.getResult(), targetLayout});
-            setResultLayoutAttr(convertOp);
+            setResultLayoutAttr(convertOp,
+                                findAttributeAssociatedWith(opOperand.get(),
+                                                            kKernelInfoAttrName)
+                                    .value_or(Attribute()));
             op->setOperand(opOperand.getOperandNumber(), convertOp.getResult());
           }
         }
@@ -1765,7 +1869,25 @@ FailureOr<LayoutAttr> LayoutPropagation::defaultLayoutForType(Type type) {
   return LayoutAttr::getFromIntegerRelation(tensorType.getContext(), relation);
 }
 
-void LayoutPropagation::setResultLayoutAttr(Operation* op) {
+void LayoutPropagation::setResultLayoutAttr(Operation* op,
+                                            Attribute kernelInfo) {
+  // If no kernelInfo attribute is present, check if any of the operands have
+  // one.
+  if (!kernelInfo && op->getNumOperands() > 0) {
+    for (Value operand : op->getOperands()) {
+      auto info = findAttributeAssociatedWith(operand, kKernelInfoAttrName);
+      if (succeeded(info)) {
+        kernelInfo = info.value();
+        break;
+      }
+    }
+  }
+  if (kernelInfo) {
+    for (Value result : op->getResults()) {
+      setAttributeAssociatedWith(result, kKernelInfoAttrName, kernelInfo);
+    }
+  }
+
   OpBuilder builder(&getContext());
   SmallVector<Attribute> resultLayouts = llvm::map_to_vector(
       op->getResults(),

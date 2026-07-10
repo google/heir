@@ -2,7 +2,7 @@
 
 // CHECK: #kernel = #secret.kernel<name = "VecmatDiagonal", force = false>
 // CHECK: @vecmat
-// CHECK-SAME: %[[arg0:.*]]: !secret.secret<tensor<16xf32>> {tensor_ext.layout = [[rm_layout:.*]]}) ->
+// CHECK-SAME: %[[arg0:.*]]: !secret.secret<tensor<16xf32>> {{{.*}}tensor_ext.layout = [[rm_layout:.*]]}) ->
 func.func @vecmat(%arg0: !secret.secret<tensor<16xf32>>) -> !secret.secret<tensor<16xf32>> {
   %cst = arith.constant dense<0.000000e+00> : tensor<16xf32>
   // CHECK: %[[bias:.*]] = arith.constant dense<0.00

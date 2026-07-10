@@ -28,6 +28,7 @@
 #include "lib/Transforms/ConvertToCiphertextSemantics/AssignLayout.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/TypeConversion.h"
 #include "lib/Transforms/DropUnitDims/DropUnitDims.h"
+#include "lib/Transforms/LayoutPropagation/Utils.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/ContextAwareConversionUtils.h"
 #include "lib/Utils/ContextAwareDialectConversion.h"
@@ -658,7 +659,8 @@ class ConversionBase : public ContextAwareOpConversionPattern<OpTy> {
     ImplicitLocOpBuilder b(op->getLoc(), rewriter);
     Operation* addBias =
         makeAppropriatelyTypedAddOp(b, op->getLoc(), finalOutput, acc);
-    addBias->setAttr(kLayoutAttrName, layoutAttr);
+    setAttributeAssociatedWith(addBias->getResults()[0], kLayoutAttrName,
+                               layoutAttr);
     setMaterializedAttr(addBias);
     rewriter.replaceOp(op, addBias->getResults());
   }
@@ -1260,12 +1262,22 @@ struct ConvertLinalgConv2DNchwFchw
         cast<TypedValue<RankedTensorType>>(adaptor.getInputs()[1]);
     SSAValue matrixLeaf(matrix);
 
+    RankedTensorType dataType =
+        cast<RankedTensorType>(op.getInputs()[0].getType());
+    auto infoAttr = op->getAttr(kKernelInfoAttrName);
+    if (auto info = getKernelInfo(infoAttr)) {
+      // Use the kernel info attribute's input shape for the kernel. This
+      // accounts for any padding on the data-semantic tensor to allow for
+      // channel packing.
+      dataType =
+          RankedTensorType::get(info->inputShape, dataType.getElementType());
+    }
+
     // The original matrix shape is the shape of the expanded filter before
     // diagonalization.
     RankedTensorType expandedMatrixType = get2dConvChwFchwFilterExpandedType(
-        cast<RankedTensorType>(op.getInputs()[1].getType()),
-        cast<RankedTensorType>(op.getInputs()[0].getType()), /*padding=*/0,
-        llvm::to_vector(op.getStrides().getValues<int64_t>()));
+        cast<RankedTensorType>(op.getInputs()[1].getType()), dataType,
+        /*padding=*/0, llvm::to_vector(op.getStrides().getValues<int64_t>()));
     // Collect any zero diagonals of the filter matrix.
     LayoutAttr filterLayout = getLayoutAttr(adaptor.getInputs()[1]);
     auto filterRelation = filterLayout.getIntegerRelation();
@@ -1288,6 +1300,9 @@ struct ConvertLinalgConv2DNchwFchw
     rewriter.setInsertionPointAfter(op);
 
     auto layoutAttr = op->getAttr(kLayoutAttrName);
+    if (auto arrayAttr = dyn_cast<ArrayAttr>(layoutAttr)) {
+      layoutAttr = LayoutAttr::composeLayouts(arrayAttr, op.getContext());
+    }
     Value finalOutput = materializeKernel(
         rewriter, op.getLoc(), implementedKernel, data.getType(), layoutAttr);
 

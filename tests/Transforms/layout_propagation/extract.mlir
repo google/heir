@@ -7,14 +7,14 @@
 // CHECK-DAG: [[tensor_layout:.*]] = #tensor_ext.layout<"{ [i0] ->
 
 // CHECK: @dot_product
-// CHECK-SAME: [[arg0:%[^:]*]]: !secret.secret<tensor<8xi16>> {tensor_ext.layout = [[tensor_layout]]}
-// CHECK-SAME: [[arg1:%[^:]*]]: !secret.secret<tensor<8xi16>> {tensor_ext.layout = [[tensor_layout]]}
+// CHECK-SAME: %[[arg0:[^:]+]]: !secret.secret<tensor<8xi16>> {heir.kernel_info = {gap_factor = 1 : i64, result_shape = array<i64: 8>}, tensor_ext.layout = [[tensor_layout]]},
+// CHECK-SAME: %[[arg1:[^:]+]]: !secret.secret<tensor<8xi16>> {heir.kernel_info = {gap_factor = 1 : i64, result_shape = array<i64: 8>}, tensor_ext.layout = [[tensor_layout]]}
 func.func @dot_product(
       %arg0: !secret.secret<tensor<8xi16>>,
       %arg1: !secret.secret<tensor<8xi16>>) -> !secret.secret<i16> {
   %c0_i16 = arith.constant 0 : i16
-  // CHECK: tensor.extract %[[input0:.*]][%[[arg2:.*]] {tensor_ext.layout = [[scalar_layout_extract]]}
-  // CHECK: tensor.extract %[[input1:.*]][%[[arg2]] {tensor_ext.layout = [[scalar_layout_extract]]}
+  // CHECK: tensor.extract %[[input0:.*]][%[[arg2:.*]] {heir.kernel_info = {gap_factor = 1 : i64, result_shape = array<i64>}, tensor_ext.layout = [[scalar_layout_extract]]}
+  // CHECK: tensor.extract %[[input1:.*]][%[[arg2]] {heir.kernel_info = {gap_factor = 1 : i64, result_shape = array<i64>}, tensor_ext.layout = [[scalar_layout_extract]]}
   %0 = secret.generic(%arg0: !secret.secret<tensor<8xi16>>, %arg1: !secret.secret<tensor<8xi16>>) {
   ^body(%input0: tensor<8xi16>, %input1: tensor<8xi16>):
     %1 = affine.for %arg2 = 0 to 8 iter_args(%arg3 = %c0_i16) -> (i16) {

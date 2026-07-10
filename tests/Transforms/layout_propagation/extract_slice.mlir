@@ -5,7 +5,7 @@
 module {
   // CHECK: func.func @main
   // CHECK: tensor.extract_slice
-  // CHECK-SAME: {tensor_ext.layout = #[[layout]]}
+  // CHECK-SAME: {heir.kernel_info = {gap_factor = 1 : i64, result_shape = array<i64: 4, 4>}, tensor_ext.layout = #[[layout]]}
   // CHECK: return
   func.func @main(%arg0: !secret.secret<tensor<1x2x4x4xf32>>) -> !secret.secret<tensor<4x4xf32>> {
     %2 = secret.generic(%arg0: !secret.secret<tensor<1x2x4x4xf32>>) {
@@ -24,7 +24,7 @@ module {
 module {
   // CHECK: func.func @offset
   // CHECK: tensor.extract_slice
-  // CHECK-SAME: {tensor_ext.layout = #[[layout]]}
+  // CHECK-SAME: {heir.kernel_info = {gap_factor = 1 : i64, result_shape = array<i64: 4, 4>}, tensor_ext.layout = #[[layout]]}
   // CHECK: return
   func.func @offset(%arg0: !secret.secret<tensor<2x1x4x4xf32>>) -> !secret.secret<tensor<4x4xf32>> {
     %2 = secret.generic(%arg0: !secret.secret<tensor<2x1x4x4xf32>>) {

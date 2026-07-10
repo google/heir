@@ -5,7 +5,7 @@
 // CHECK-DAG: #kernel = #secret.kernel<name = "MatvecDiagonal", force = false>
 
 // CHECK: @conv2d_nchw
-// CHECK-SAME: %[[arg0:.*]]: !secret.secret<tensor<1x1x10x10xf32>> {tensor_ext.layout = #[[layout1]]}
+// CHECK-SAME: %[[arg0:.*]]: !secret.secret<tensor<1x1x10x10xf32>> {heir.kernel_info = {gap_factor = 1 : i64, result_shape = array<i64: 1, 1, 10, 10>}, tensor_ext.layout = #[[layout1]]}
 func.func @conv2d_nchw(%arg0: !secret.secret<tensor<1x1x10x10xf32>>) -> !secret.secret<tensor<1x4x5x5xf32>> {
   %cst = arith.constant dense<0.000000e+00> : tensor<1x4x5x5xf32>
   %filter = arith.constant dense<2.500000e-01> : tensor<4x1x2x2xf32>
@@ -14,6 +14,7 @@ func.func @conv2d_nchw(%arg0: !secret.secret<tensor<1x1x10x10xf32>>) -> !secret.
   %0 = secret.generic(%arg0 : !secret.secret<tensor<1x1x10x10xf32>>) {
   ^body(%input0: tensor<1x1x10x10xf32>):
     // CHECK: linalg.conv_2d_nchw_fchw
+    // CHECK-SAME: heir.kernel_info = {gap_factor = 2 : i64, input_shape = array<i64: 1, 1, 10, 10>, result_shape = array<i64: 1, 1, 10, 10>}
     // CHECK-SAME: secret.kernel = #kernel
     // CHECK-SAME: strides = dense<2> : tensor<2xi64>
     // CHECK-SAME: tensor_ext.layout
@@ -25,4 +26,35 @@ func.func @conv2d_nchw(%arg0: !secret.secret<tensor<1x1x10x10xf32>>) -> !secret.
     // CHECK: secret.yield
   } -> !secret.secret<tensor<1x4x5x5xf32>>
   return %0 : !secret.secret<tensor<1x4x5x5xf32>>
+}
+
+// -----
+
+// CHECK: @conv2d_stride_chain
+// CHECK-SAME: %[[arg0:.*]]: !secret.secret<tensor<1x1x10x10xf32>> {heir.kernel_info = {gap_factor = 1 : i64, result_shape = array<i64: 1, 1, 10, 10>}
+func.func @conv2d_stride_chain(%arg0: !secret.secret<tensor<1x1x10x10xf32>>) -> !secret.secret<tensor<1x1x3x3xf32>> {
+  %cst1 = arith.constant dense<0.0> : tensor<1x4x5x5xf32>
+  %filter1 = arith.constant dense<1.0> : tensor<4x1x2x2xf32>
+  %cst2 = arith.constant dense<0.0> : tensor<1x1x3x3xf32>
+  %filter2 = arith.constant dense<1.0> : tensor<1x4x3x3xf32>
+
+  %0 = secret.generic(%arg0 : !secret.secret<tensor<1x1x10x10xf32>>) {
+  ^body(%input0: tensor<1x1x10x10xf32>):
+    // CHECK: linalg.conv_2d_nchw_fchw
+    // CHECK-SAME: heir.kernel_info = {gap_factor = 2 : i64, input_shape = array<i64: 1, 1, 10, 10>, result_shape = array<i64: 1, 1, 10, 10>}
+    %1 = linalg.conv_2d_nchw_fchw
+      { dilations = dense<1> : tensor<2xi64>, strides = dense<2> : tensor<2xi64> }
+      ins(%input0, %filter1 : tensor<1x1x10x10xf32>, tensor<4x1x2x2xf32>)
+      outs(%cst1 : tensor<1x4x5x5xf32>) -> tensor<1x4x5x5xf32>
+
+    // CHECK: linalg.conv_2d_nchw_fchw
+    // CHECK-SAME: heir.kernel_info = {gap_factor = 2 : i64, input_shape = array<i64: 1, 1, 10, 10>, result_shape = array<i64: 1, 1, 3, 3>}
+    %2 = linalg.conv_2d_nchw_fchw
+      { dilations = dense<1> : tensor<2xi64>, strides = dense<1> : tensor<2xi64> }
+      ins(%1, %filter2 : tensor<1x4x5x5xf32>, tensor<1x4x3x3xf32>)
+      outs(%cst2 : tensor<1x1x3x3xf32>) -> tensor<1x1x3x3xf32>
+
+    secret.yield %2 : tensor<1x1x3x3xf32>
+  } -> !secret.secret<tensor<1x1x3x3xf32>>
+  return %0 : !secret.secret<tensor<1x1x3x3xf32>>
 }
