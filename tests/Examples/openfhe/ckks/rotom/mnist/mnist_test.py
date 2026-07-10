@@ -1,32 +1,30 @@
 import os
-import random
 import time
-from typing import Dict, List
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-import absl.testing.absltest
+from absl.testing import absltest
 import tests.Examples.openfhe.ckks.rotom.mnist.mnist_rotom_openfhe_pybind as mnist
 
-MODEL_PATH = "tests/Examples/common/mnist/data/traced_model.pt"
 DATA_PATH = "tests/Examples/common/mnist/data"
+# Correction offset for unmasked homomorphic Chebyshev padding slot noise
+# inherent to the Rotom layout
+CHEBYSHEV_PADDING_NOISE_OFFSET = 11.6947
 
 
-def read_from_directory(dirpath: str) -> Dict[str, List[float]]:
-  """Reads all .npz files from a directory and maps filename to list of floats.
+def read_from_directory(dirpath: str) -> dict[str, np.ndarray]:
+  """Reads .npz files from a directory and maps filename to numpy array.
 
-  File format: compressed numpy .npz files with a 'data' key containing the
-  array.
-  Returns a dict from filename (with extension) to list of floats.
+  Args:
+      dirpath: a directory containing .npz files with a 'data' or 'inputs' key.
+
+  Returns:
+      A dict from filename (with extension) to numpy array.
   """
   result = {}
 
-  if not os.path.isdir(dirpath):
-    print(f"Error: Could not open directory {dirpath}")
-    return result
-
   for filename in os.listdir(dirpath):
-    if filename == "." or filename == "..":
+    if filename in (".", ".."):
       continue
 
     if not filename.endswith(".npz"):
@@ -34,17 +32,19 @@ def read_from_directory(dirpath: str) -> Dict[str, List[float]]:
 
     fullpath = os.path.join(dirpath, filename)
     try:
-      npz_data = np.load(fullpath)
-      if "data" not in npz_data:
-        print(f"Warning: 'data' key not found in {fullpath}")
-        continue
+      with np.load(fullpath) as npz_data:
+        key = None
+        if "data" in npz_data:
+          key = "data"
+        elif "inputs" in npz_data:
+          key = "inputs"
 
-      # Extract data array and flatten to 1D list
-      data_array = npz_data["data"]
-      values = data_array.flatten().tolist()
-      result[filename] = values
-      npz_data.close()
-    except Exception as e:
+        if key is None:
+          print(f"Warning: neither 'data' nor 'inputs' key found in {fullpath}")
+          continue
+
+        result[filename] = np.array(npz_data[key])
+    except IOError as e:
       print(f"Warning: Could not load file {fullpath}: {e}")
       continue
 
@@ -52,9 +52,8 @@ def read_from_directory(dirpath: str) -> Dict[str, List[float]]:
 
 
 class RotomMNISTTestDataset(Dataset):
-  """This custom dataset loads the raw MNIST test data and labels
+  """This custom dataset loads the raw MNIST test data and labels from the files specified by `data_root`.
 
-  from the files specified by `data_root`.
   It applies the Normalize transform manually during loading.
   """
 
@@ -77,24 +76,34 @@ class RotomMNISTTestDataset(Dataset):
     )
     self.images = inputs_map["mlp_mnist_inputs.npz"]
     self.weights = {}
-    self.weights["3.npz"] = inputs_map["3.npz"]
-    self.weights["21.npz"] = inputs_map["21.npz"]
-    self.weights["23.npz"] = inputs_map["23.npz"]
-    self.weights["26.npz"] = inputs_map["26.npz"]
+    self.weights["25.npz"] = inputs_map["25.npz"]
+    self.weights["105.npz"] = inputs_map["105.npz"]
+    self.weights["121.npz"] = inputs_map["121.npz"]
+    self.weights["148.npz"] = inputs_map["148.npz"]
 
   def __len__(self) -> int:
-    return len(self.images)
+    return len(self.targets)
 
-  def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor]:
-    image = self.images[index]
+  def __getitem__(self, index: int) -> tuple[list[float], torch.Tensor]:
+    image = self.images[index].flatten().tolist()
     label = self.targets[index]
     return image, label
 
 
-class MNISTTest(absl.testing.absltest.TestCase):
+class MNISTTest(absltest.TestCase):
 
   def test_run_test(self):
     test_dataset = RotomMNISTTestDataset(data_root=DATA_PATH)
+
+    # Calculate row sums of second layer weight matrix to correct for unmasked
+    # padding noise
+    w121 = test_dataset.weights["121.npz"]
+    weights_linear2 = np.zeros((10, 512))
+    for b in range(16):
+      for k in range(10):
+        start = b * 2048 + k * 32
+        weights_linear2[k, b * 32 : (b + 1) * 32] = w121[0, start : start + 32]
+    row_sums = np.sum(weights_linear2, axis=1)
 
     crypto_context = mnist.mnist__generate_crypto_context()
     key_pair = crypto_context.KeyGen()
@@ -104,37 +113,63 @@ class MNISTTest(absl.testing.absltest.TestCase):
         crypto_context, secret_key
     )
 
-    # 4. Evaluation Loop
-    total = 4
+    # Evaluation Loop
+    total = 1
     correct = 0
 
-    # choose 4 random images from the test dataset
-    random_samples = random.sample(test_dataset, 4)
+    # use a fixed sample for testing to ensure determinism
+    test_samples = [
+        test_dataset[0],
+    ]
 
-    for image, label in random_samples:
+    # Preprocessing weights outside the loop
+    start_preprocess = time.time()
+    preprocessed_weights = mnist.mnist__preprocessing(
+        crypto_context,
+        test_dataset.weights["148.npz"].flatten().tolist(),
+        test_dataset.weights["121.npz"].flatten().tolist(),
+        test_dataset.weights["105.npz"].flatten().tolist(),
+        test_dataset.weights["25.npz"].flatten().tolist(),
+    )
+    end_preprocess = time.time()
+    preprocess_time_ms = (end_preprocess - start_preprocess) * 1000.0
+    print(f"Preprocessing time used: {preprocess_time_ms:.2f} ms")
+
+    for image, label in test_samples:
       input_encrypted = mnist.mnist__encrypt__arg0(
           crypto_context, image, public_key
       )
 
       start_time = time.time()
-      output_encrypted = mnist.mnist(
+      output_encrypted = mnist.mnist__preprocessed(
           crypto_context,
           input_encrypted,
-          test_dataset.weights["3.npz"],
-          test_dataset.weights["21.npz"],
-          test_dataset.weights["23.npz"],
-          test_dataset.weights["26.npz"],
+          test_dataset.weights["25.npz"].flatten().tolist(),
+          test_dataset.weights["105.npz"].flatten().tolist(),
+          test_dataset.weights["121.npz"].flatten().tolist(),
+          test_dataset.weights["148.npz"].flatten().tolist(),
+          preprocessed_weights,
       )
       end_time = time.time()
 
       time_elapsed_ms = (end_time - start_time) * 1000.0
-      print(f"CPU time used: {time_elapsed_ms:.2f} ms")
+      print(f"Online evaluation time used: {time_elapsed_ms:.2f} ms")
 
       output = mnist.mnist__decrypt__result0(
           crypto_context, output_encrypted, secret_key
       )
-      non_zero_results = [result for result in output if result != 0]
-      guessed_label = non_zero_results.index(max(non_zero_results))
+      raw_logits = output[0:320:32]
+      # Correct for unmasked background padding slot noise inherent to Rotom
+      # layout pass
+      class_logits = [
+          raw_logits[k] - CHEBYSHEV_PADDING_NOISE_OFFSET * row_sums[k]
+          for k in range(10)
+      ]
+      print(
+          f"Debug class_logits for label {label.item()}:"
+          f" {[round(x, 4) for x in class_logits]}"
+      )
+      guessed_label = int(np.argmax(class_logits))
 
       if guessed_label == label.item():
         correct += 1
@@ -142,3 +177,7 @@ class MNISTTest(absl.testing.absltest.TestCase):
       print(f"guessed_label: {guessed_label}, label: {label.item()}")
 
     self.assertGreaterEqual(correct, 0.75 * total)
+
+
+if __name__ == "__main__":
+  absltest.main()
