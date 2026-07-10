@@ -829,14 +829,23 @@ struct ConvertLinalgMatvecLayout : public ConversionBase<linalg::MatvecOp> {
         cast<TypedValue<RankedTensorType>>(adaptor.getInputs()[0]);
     SSAValue matrixLeaf(matrix);
 
+    LayoutAttr matrixLayout = getLayoutAttr(matrix);
+    auto matrixRelation = matrixLayout.getIntegerRelation();
+
+    PointCollector collector;
+    std::map<int, bool> zeroDiagonals;
+    getCtComplementPoints(matrixRelation, collector, matrix.getType());
+    for (const auto& point : collector.points) {
+      zeroDiagonals[point[0]] = true;
+    }
+
     auto dagType = kernel::mlirTypeToDagType(input.getType());
     std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
         implementHaleviShoup(vectorLeaf, matrixLeaf,
                              cast<RankedTensorType>(op.getInputs()[0].getType())
                                  .getShape()
                                  .vec(),
-                             dagType,
-                             /*zeroDiagonals=*/{},
+                             dagType, zeroDiagonals,
                              /*unroll=*/unrollKernels);
 
     rewriter.setInsertionPointAfter(op);

@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <vector>
 
 #include "gtest/gtest.h"  // from @googletest
@@ -57,6 +58,63 @@ TEST_P(KernelImplementationTest, TestHaleviShoupMatvec) {
   auto dag = implementHaleviShoup(
       vectorInput, matrixInput, {4, 4}, DagType::intTensor(32, {4}),
       /*zeroDiagonals=*/{}, /*unroll=*/std::get<0>(GetParam()));
+  LiteralValue actual = evalKernel(dag)[0];
+  EXPECT_EQ(std::get<std::vector<int>>(actual.get()), expected);
+}
+
+TEST(KernelImplementationTest, TestHaleviShoupMatvecZeroDiagonals) {
+  std::vector<int> vector = {0, 1, 2, 3};
+  // Pre-packed diagonally
+  // Row 1 is zeroed out (diagonal 1)
+  std::vector<std::vector<int>> matrix = {
+      {0, 5, 10, 15}, {0, 0, 0, 0}, {2, 7, 8, 13}, {3, 4, 9, 14}};
+  std::vector<int> expected = {13, 26, 29, 86};
+  LiteralValue matrixInput = matrix;
+  LiteralValue vectorInput = vector;
+
+  std::map<int, bool> zeroDiagonals = {{1, true}};
+
+  auto dag = implementHaleviShoup(vectorInput, matrixInput, {4, 4},
+                                  DagType::intTensor(32, {4}), zeroDiagonals,
+                                  /*unroll=*/false);
+  LiteralValue actual = evalKernel(dag)[0];
+  EXPECT_EQ(std::get<std::vector<int>>(actual.get()), expected);
+}
+
+TEST_P(KernelImplementationTest, TestHaleviShoupMatvecMultipleZeroDiagonals) {
+  std::vector<int> vector = {0, 1, 2, 3};
+  // Pre-packed diagonally
+  // Rows 1 and 3 are zeroed out (diagonals 1 and 3)
+  std::vector<std::vector<int>> matrix = {
+      {0, 5, 10, 15}, {0, 0, 0, 0}, {2, 7, 8, 13}, {0, 0, 0, 0}};
+  std::vector<int> expected = {4, 26, 20, 58};
+  LiteralValue matrixInput = matrix;
+  LiteralValue vectorInput = vector;
+
+  std::map<int, bool> zeroDiagonals = {{1, true}, {3, true}};
+
+  auto dag = implementHaleviShoup(vectorInput, matrixInput, {4, 4},
+                                  DagType::intTensor(32, {4}), zeroDiagonals,
+                                  /*unroll=*/std::get<0>(GetParam()));
+  LiteralValue actual = evalKernel(dag)[0];
+  EXPECT_EQ(std::get<std::vector<int>>(actual.get()), expected);
+}
+
+TEST_P(KernelImplementationTest, TestHaleviShoupMatvecSingleNonZeroDiagonal) {
+  std::vector<int> vector = {0, 1, 2, 3};
+  // Pre-packed diagonally
+  // Only diagonal 2 is nonzero
+  std::vector<std::vector<int>> matrix = {
+      {0, 0, 0, 0}, {0, 0, 0, 0}, {2, 7, 8, 13}, {0, 0, 0, 0}};
+  std::vector<int> expected = {4, 21, 0, 13};
+  LiteralValue matrixInput = matrix;
+  LiteralValue vectorInput = vector;
+
+  std::map<int, bool> zeroDiagonals = {{0, true}, {1, true}, {3, true}};
+
+  auto dag = implementHaleviShoup(vectorInput, matrixInput, {4, 4},
+                                  DagType::intTensor(32, {4}), zeroDiagonals,
+                                  /*unroll=*/std::get<0>(GetParam()));
   LiteralValue actual = evalKernel(dag)[0];
   EXPECT_EQ(std::get<std::vector<int>>(actual.get()), expected);
 }

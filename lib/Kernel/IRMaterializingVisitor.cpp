@@ -185,6 +185,13 @@ std::vector<Value> IRMaterializingVisitor::operator()(
 
   RankedTensorType tensorType = cast<RankedTensorType>(operand.getType());
 
+  if (tensorType.getRank() == 1) {
+    auto extractOp =
+        tensor::ExtractOp::create(builder, operand, ValueRange{index});
+    createdOpCallback(extractOp);
+    return {extractOp.getResult()};
+  }
+
   // Extracting 1 row of a matrix, so offset is 0 except for the row dim
   SmallVector<OpFoldResult> offsets(tensorType.getRank(),
                                     builder.getIndexAttr(0));

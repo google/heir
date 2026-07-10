@@ -277,6 +277,7 @@ implementBabyStepGiantStepRolled(
     const T& giantSteppedOperand, const T& babySteppedOperand, int64_t period,
     int64_t steps, const DagType baseType,
     DagExtractorDynamic<T> extractFunc = defaultDagExtractor<T>,
+    const std::map<int, bool>& zeroDiagonals = {},
     const DagDerivedRotationIndexFn<T>& dagRotationFn =
         defaultDagDerivedRotationIndexFn<T>) {
   using NodeTy = ArithmeticDagNode<T>;
@@ -313,6 +314,18 @@ implementBabyStepGiantStepRolled(
                                      packedBabySteps};
   std::vector<DagType> outerTypes = {baseType, baseType};
 
+  NodePtr isNotZeroDiagTensor = nullptr;
+  if (!zeroDiagonals.empty()) {
+    std::vector<double> isNotZeroDiagVec(steps, 1.0);
+    for (const auto& [idx, isZero] : zeroDiagonals) {
+      if (isZero && idx >= 0 && idx < steps) {
+        isNotZeroDiagVec[idx] = 0.0;
+      }
+    }
+    isNotZeroDiagTensor = NodeTy::constantTensor(
+        isNotZeroDiagVec, DagType::floatTensor(64, {steps}));
+  }
+
   // Outer loop over giant steps (j = 0 to numGiantSteps)
   auto outerLoop = NodeTy::loop(
       outerInits, outerTypes, /*lower=*/0, /*upper=*/numGiantSteps, /*step=*/1,
@@ -333,22 +346,42 @@ implementBabyStepGiantStepRolled(
               auto isBound = NodeTy::comparison(extractIdx, stepsNode,
                                                 ComparisonPredicate::LT);
 
-              auto term = NodeTy::ifElse(
-                  isBound,
-                  [&]() {
-                    auto plaintext = extractFunc(babySteppedDag, extractIdx);
-                    auto innerRotAmount =
-                        dagRotationFn(giantStepSize, j, i, period);
+              auto buildMultiplyAndAdd = [&]() {
+                auto plaintext = extractFunc(babySteppedDag, extractIdx);
+                auto innerRotAmount =
+                    dagRotationFn(giantStepSize, j, i, period);
 
-                    auto rotatedPlaintext =
-                        NodeTy::leftRotate(plaintext, innerRotAmount);
+                auto rotatedPlaintext =
+                    NodeTy::leftRotate(plaintext, innerRotAmount);
 
-                    auto babyStepVal = NodeTy::extract(outerIterArgs[1], i);
-                    auto multiplied =
-                        NodeTy::mul(rotatedPlaintext, babyStepVal);
-                    return NodeTy::yield({NodeTy::add(innerSum, multiplied)});
-                  },
-                  [&]() { return NodeTy::yield({innerSum}); });
+                auto babyStepVal = NodeTy::extract(outerIterArgs[1], i);
+                auto multiplied = NodeTy::mul(rotatedPlaintext, babyStepVal);
+                return NodeTy::yield({NodeTy::add(innerSum, multiplied)});
+              };
+
+              auto buildInnerSumYield = [&]() {
+                return NodeTy::yield({innerSum});
+              };
+
+              NodePtr term;
+              if (isNotZeroDiagTensor != nullptr) {
+                auto isNotZeroDiag =
+                    NodeTy::extract(isNotZeroDiagTensor, extractIdx);
+                auto zero = NodeTy::constantScalar(0.0, DagType::floatTy(64));
+                auto isNotZero = NodeTy::comparison(isNotZeroDiag, zero,
+                                                    ComparisonPredicate::NE);
+                term = NodeTy::ifElse(
+                    isBound,
+                    [&]() {
+                      auto innerIf = NodeTy::ifElse(
+                          isNotZero, buildMultiplyAndAdd, buildInnerSumYield);
+                      return NodeTy::yield({NodeTy::resultAt(innerIf, 0)});
+                    },
+                    buildInnerSumYield);
+              } else {
+                term = NodeTy::ifElse(isBound, buildMultiplyAndAdd,
+                                      buildInnerSumYield);
+              }
 
               return NodeTy::yield({NodeTy::resultAt(term, 0)});
             });
@@ -451,7 +484,7 @@ implementRotateAndReduce(const T& vector, std::optional<T> plaintexts,
 
   return implementBabyStepGiantStepRolled<T>(
       vector, plaintexts.value(), period, steps, dagType, dynamicExtractFunc,
-      defaultDagDerivedRotationIndexFn<T>);
+      zeroDiagonals, defaultDagDerivedRotationIndexFn<T>);
 }
 
 // Returns an arithmetic DAG that implements a dot product kernel.

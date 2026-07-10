@@ -190,7 +190,6 @@ EvalResults EvalVisitor::operator()(const ExtractNode<LiteralValue>& node) {
         if constexpr (std::is_same_v<T, std::vector<std::vector<int>>>) {
           return {LiteralValue(t[index])};
         } else if constexpr (std::is_same_v<T, std::vector<int>>) {
-          if (index == 0) return {LiteralValue(t)};
           return {LiteralValue(t[index])};
         }
         assert(false && "Unsupported type for extraction");

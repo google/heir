@@ -16,6 +16,7 @@ openfhe_end_to_end_test(
         "--openfhe-debug-helper-include-path=tests/Examples/openfhe/ckks/loop_support/debug_helper.h",
     ],
     mlir_src = "@heir//tests/Examples/common:loop.mlir",
+    tags = ["nofastbuild"],
     test_src = "loop_test.cpp",
     deps = [
         ":debug_helper",

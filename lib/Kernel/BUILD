@@ -134,7 +134,6 @@ cc_test(
         ":AbstractValue",
         ":ArithmeticDag",
         ":EvalVisitor",
-        ":IRMaterializingVisitor",
         ":Kernel",
         ":KernelImplementation",
         ":RotationCountVisitor",
@@ -144,11 +143,8 @@ cc_test(
         "@heir//lib/Utils/Layout:ConvolutionTestUtil",
         "@heir//lib/Utils/Layout:Evaluate",
         "@heir//lib/Utils/Layout:Utils",
-        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:SCFDialect",
         "@llvm-project//mlir:Support",
-        "@llvm-project//mlir:TensorDialect",
     ],
 )
 
@@ -175,5 +171,18 @@ cc_test(
         ":TestingUtils",
         "@fuzztest//fuzztest",
         "@fuzztest//fuzztest:fuzztest_gtest_main",
+    ],
+)
+
+cc_test(
+    name = "MatvecZeroDiagonalsFuzzTest",
+    srcs = ["MatvecZeroDiagonalsFuzzTest.cpp"],
+    deps = [
+        ":AbstractValue",
+        ":ArithmeticDag",
+        ":EvalVisitor",
+        ":KernelImplementation",
+        "@fuzztest//fuzztest",
+        "@googletest//:gtest_main",
     ],
 )
