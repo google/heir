@@ -1,10 +1,7 @@
 #include "lib/Kernel/Kernel.h"
 
 #include <ostream>
-#include <set>
 #include <string>
-#include <unordered_map>
-#include <vector>
 
 #include "lib/Kernel/KernelName.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
