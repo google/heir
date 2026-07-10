@@ -44,8 +44,11 @@ build --remote_download_regex=".*\.inc$"
 #
 # Note this requires a buildbuddy.io account and API key. The default
 # API key used above is read-only.
+common:remote --experimental_profile_include_primary_output
+common:remote --experimental_profile_include_target_label
 common:remote --extra_execution_platforms=@llvm//:rbe_platform
 common:remote --jobs=500
+common:remote --noslim_profile
 common:remote --remote_executor=grpcs://remote.buildbuddy.io
 
 # CI executions are always remote, and have extra build metadata
