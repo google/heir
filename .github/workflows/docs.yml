@@ -49,6 +49,7 @@ jobs:
           bazel query "filter('_filegroup', siblings(kind('gentbl_rule', @heir//...)))" | \
             xargs bazel build -c opt "${BAZEL_CONFIGS[@]}" \
               --remote_header=x-buildbuddy-api-key="$BUILDBUDDY_API_KEY" \
+              --build_metadata=ROLE=CI_16CORE \
               "$@"
 
       - name: "Copy markdown files to docs/"
