@@ -4,7 +4,11 @@ on:
   push:
     branches:
       - main
-  pull_request:
+  # pull_request_target is needed to run CI with access to buildbuddy RBE.
+  # Maintainers are required to approve CI runs from all external forks, and
+  # it's easy to rotate the API key since it's only used for CI. So this is
+  # relatively safe.
+  pull_request_target:
     branches:
       - main
 concurrency:
@@ -13,7 +17,7 @@ concurrency:
 jobs:
   build-and-test:
     runs-on:
-      labels: ubuntu-24.04-64core
+      labels: ubuntu-latest
     env:
       BUILDBUDDY_API_KEY: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && secrets.BUILDBUDDY_API_KEY || '7eYz4UY70YSrT55wmjWV' }}
       BAZEL_CONFIG_FLAG: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '--config=ci --config=remote' || '--config=ci' }}
@@ -39,7 +43,7 @@ jobs:
           read -r -a BAZEL_CONFIGS <<< "$BAZEL_CONFIG_FLAG"
           bazel build -c opt "${BAZEL_CONFIGS[@]}" \
             --remote_header=x-buildbuddy-api-key="$BUILDBUDDY_API_KEY" \
-            --build_metadata=ROLE=CI_64CORE \
+            --build_metadata=ROLE=CI_BUILD_AND_TEST_BUILD \
             //...
 
       - name: "Run `bazel test`"
@@ -47,6 +51,7 @@ jobs:
           read -r -a BAZEL_CONFIGS <<< "$BAZEL_CONFIG_FLAG"
           bazel test -c opt "${BAZEL_CONFIGS[@]}" \
             --remote_header=x-buildbuddy-api-key="$BUILDBUDDY_API_KEY" \
+            --build_metadata=ROLE=CI_BUILD_AND_TEST_TEST \
             //...
 
       # Frontend tests
