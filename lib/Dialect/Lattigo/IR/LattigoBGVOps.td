@@ -5,6 +5,7 @@ include "LattigoDialect.td"
 include "LattigoTypes.td"
 include "lib/Dialect/HEIRInterfaces.td"
 include "mlir/IR/OpBase.td"
+include "mlir/Interfaces/SideEffectInterfaces.td"
 
 class Lattigo_BGVOp<string mnemonic, list<Trait> traits = []> :
         Lattigo_Op<"bgv." # mnemonic, traits> {
@@ -13,7 +14,9 @@ class Lattigo_BGVOp<string mnemonic, list<Trait> traits = []> :
 // This operation cannot be marked as Pure because it represents a buffer allocation.
 // If marked as Pure, CSE will deduplicate them, causing multiple in-place operations
 // (like encode) to share the same buffer and overwrite each other.
-def Lattigo_BGVNewPlaintextOp : Lattigo_BGVOp<"new_plaintext"> {
+def Lattigo_BGVNewPlaintextOp : Lattigo_BGVOp<"new_plaintext", [
+  MemoryEffects<[MemAllocAt<0, FullEffect>]>
+]> {
   let summary = "Create a new plaintext in the Lattigo BGV dialect";
   let description = [{
     This operation creates a new plaintext value in the Lattigo BGV dialect.
@@ -21,7 +24,8 @@ def Lattigo_BGVNewPlaintextOp : Lattigo_BGVOp<"new_plaintext"> {
   let arguments = (ins
     Lattigo_BGVParameter:$params
   );
-  let results = (outs Lattigo_RLWEPlaintext:$plaintext);
+  let results = (outs Res<Lattigo_RLWEPlaintext, "",
+                          [MemAllocAt<0, FullEffect>]>:$plaintext);
 }
 
 def Lattigo_BGVNewParametersFromLiteralOp : Lattigo_BGVOp<"new_parameters_from_literal", [Pure]> {
@@ -46,7 +50,11 @@ def Lattigo_BGVNewEncoderOp : Lattigo_BGVOp<"new_encoder", [Pure]> {
   let results = (outs Lattigo_BGVEncoder:$encoder);
 }
 
-def Lattigo_BGVEncodeOp : Lattigo_BGVOp<"encode", [InPlaceOpInterface, PlaintextEncodeOpInterface]> {
+def Lattigo_BGVEncodeOp : Lattigo_BGVOp<"encode", [
+  InPlaceOpInterface,
+  PlaintextEncodeOpInterface,
+  DefaultMemWriteTrait,
+]> {
   let summary = "Encode a plaintext value in the Lattigo BGV dialect";
   let description = [{
     This operation encodes a plaintext value using the specified encoder in the Lattigo BGV dialect.
@@ -58,15 +66,14 @@ def Lattigo_BGVEncodeOp : Lattigo_BGVOp<"encode", [InPlaceOpInterface, Plaintext
   let arguments = (ins
     Lattigo_BGVEncoder:$encoder,
     TensorOrMemRef<[AnyInteger]>:$value,
-    Lattigo_RLWEPlaintext:$plaintext,
+    Arg<Lattigo_RLWEPlaintext, "", [FullMemWrite]>:$plaintext,
     DefaultValuedAttr<I64Attr, "1">:$scale
   );
   let results = (outs Lattigo_RLWEPlaintext:$encoded);
-
   let extraClassDeclaration = "int getInPlaceOperandIndex() { return 2; }";
 }
 
-def Lattigo_BGVDecodeOp : Lattigo_BGVOp<"decode", [AllTypesMatch<["value", "decoded"]>]> {
+def Lattigo_BGVDecodeOp : Lattigo_BGVOp<"decode", [AllTypesMatch<["value", "decoded"]>, DefaultMemReadTrait]> {
   let summary = "Decode a plaintext value in the Lattigo BGV dialect";
   let description = [{
     This operation decodes a plaintext value using the specified encoder in the Lattigo BGV dialect.
@@ -75,7 +82,7 @@ def Lattigo_BGVDecodeOp : Lattigo_BGVOp<"decode", [AllTypesMatch<["value", "deco
   }];
   let arguments = (ins
     Lattigo_BGVEncoder:$encoder,
-    Lattigo_RLWEPlaintext:$plaintext,
+    Arg<Lattigo_RLWEPlaintext, "", [FullMemRead]>:$plaintext,
     TensorOrMemRef<[AnyInteger]>:$value
     // Rely on Lattigo internal tracking of scale for decoding.
     // DefaultValuedAttr<I64Attr, "1">:$scale
@@ -110,11 +117,11 @@ def Lattigo_BGVNewEvaluatorOp : Lattigo_BGVOp<"new_evaluator", [Pure]> {
 // ciphertext arithmetic op
 
 class Lattigo_BGVBinaryOp<string mnemonic, list<Trait> traits = []> :
-        Lattigo_BGVOp<mnemonic, traits # [Pure]> {
+        Lattigo_BGVOp<mnemonic, traits # [Pure, DefaultMemReadTrait]> {
   let arguments = (ins
     Lattigo_BGVEvaluator:$evaluator,
     Lattigo_RLWECiphertext:$lhs,
-    Lattigo_RLWECiphertextOrPlaintext:$rhs
+    Arg<Lattigo_RLWECiphertextOrPlaintext, "", [FullMemRead]>:$rhs
   );
   let results = (outs Lattigo_RLWECiphertext:$output);
 }
@@ -141,17 +148,19 @@ def Lattigo_BGVMulNewOp : Lattigo_BGVBinaryOp<"mul_new", [IncreasesMulDepthOpInt
 }
 
 class Lattigo_BGVBinaryInPlaceOp<string mnemonic, list<Trait> traits = []> :
-        Lattigo_BGVOp<mnemonic, traits # [InPlaceOpInterface]> {
+        Lattigo_BGVOp<mnemonic, traits # [
+          InPlaceOpInterface,
+          DefaultMemWriteTrait,
+        ]> {
   let arguments = (ins
     Lattigo_BGVEvaluator:$evaluator,
     Lattigo_RLWECiphertext:$lhs,
-    Lattigo_RLWECiphertextOrPlaintext:$rhs,
+    Arg<Lattigo_RLWECiphertextOrPlaintext, "lattigo ciphertext or plaintext", [FullMemRead]>:$rhs,
     // Lattigo API is like bgv.Add(lhs, rhs, out) but for MLIR we need to
     // satisfy the SSA form, so we still have a separate output.
-    Lattigo_RLWECiphertext:$inplace
+    Arg<Lattigo_RLWECiphertextOrPlaintext, "lattigo ciphertext or plaintext", [FullMemWrite]>:$inplace
   );
   let results = (outs Lattigo_RLWECiphertext:$output);
-
   let extraClassDeclaration = "int getInPlaceOperandIndex() { return 3; }";
 }
 
@@ -241,12 +250,15 @@ def Lattigo_BGVRotateRowsNewOp : Lattigo_BGVUnaryOp<"rotate_rows_new"> {
 }
 
 class Lattigo_BGVUnaryInPlaceOp<string mnemonic, list<Trait> traits = []> :
-        Lattigo_BGVOp<mnemonic, traits # [InPlaceOpInterface]> {
+        Lattigo_BGVOp<mnemonic, traits # [
+          InPlaceOpInterface,
+          DefaultMemWriteTrait,
+        ]> {
   let arguments = (ins
     Lattigo_BGVEvaluator:$evaluator,
     Lattigo_RLWECiphertext:$input,
     // see BinaryInPlaceOp above
-    Lattigo_RLWECiphertext:$inplace
+    Arg<Lattigo_RLWECiphertext, "", [FullMemWrite]>:$inplace
   );
   let results = (outs Lattigo_RLWECiphertext:$output);
 
@@ -276,7 +288,7 @@ def Lattigo_BGVRescaleOp : Lattigo_BGVUnaryInPlaceOp<"rescale", [
 }
 
 def Lattigo_BGVRotateColumnsOp : Lattigo_BGVUnaryInPlaceOp<"rotate_columns", [
-  DeclareOpInterfaceMethods<RotationOpInterface>
+  DeclareOpInterfaceMethods<RotationOpInterface>, DefaultMemWriteTrait,
 ]> {
   let summary = "Rotate columns of a ciphertext in the Lattigo BGV dialect";
   let description = [{
@@ -291,8 +303,8 @@ def Lattigo_BGVRotateColumnsOp : Lattigo_BGVUnaryInPlaceOp<"rotate_columns", [
   }];
   let arguments = (ins
     Lattigo_BGVEvaluator:$evaluator,
-    Lattigo_RLWECiphertext:$input,
-    Lattigo_RLWECiphertext:$inplace,
+    Arg<Lattigo_RLWECiphertext, "", [FullMemRead]>:$input,
+    Arg<Lattigo_RLWECiphertext, "", [FullMemWrite]>:$inplace,
     Optional<AnySignlessIntegerOrIndex>:$dynamic_shift,
     OptionalAttr<Builtin_IntegerAttr>:$static_shift
   );
