@@ -9,14 +9,22 @@ include "lib/Dialect/MathExt/IR/MathExtOps.td"
 
 def IsOne : Constraint<CPred<"IsOne($0)">>;
 
+def GetDefiningOp : NativeCodeCall<"$0.getDefiningOp()">;
+
+// These are attributes that are not inherent to the definition of the op, e.g.
+// domain_upper and domain_lower for activation functions.
+def CopyDiscardableAttrs : NativeCodeCallVoid<
+  "for (auto attr : $0->getDiscardableAttrs()) $1->setAttr(attr.getName(), attr.getValue())">;
+
 // select(a >= c, a, c) = max(a, c)
 def SelectGreaterThanEqualFloat : Pat<
-  (SelectOp
+  (SelectOp:$src
     (Arith_CmpFOp $pred, $a, $c, $flags), $a, $c),
-  (Arith_MaximumFOp $a, $c, $flags),
+  (Arith_MaximumFOp:$dest $a, $c, $flags),
   [(Constraint<
             CPred<"$0.getValue() == arith::CmpFPredicate::UGT || "
-                  "$0.getValue() == arith::CmpFPredicate::UGE">> $pred)]>;
+                  "$0.getValue() == arith::CmpFPredicate::UGE">> $pred)],
+  [(CopyDiscardableAttrs (GetDefiningOp $src), (GetDefiningOp $dest))]>;
 
 // select(a >= c, a, c) = max(a, c)
 def SelectGreaterThanEqualUnsigned : Pat<
