@@ -14,6 +14,31 @@ class raw_ostream;
 
 namespace mlir {
 namespace heir {
+
+// A latency model of the form cost(level) = slope * level + intercept,
+// fitted from a per-level latency table.
+struct LinearCost {
+  double slope = 0.0;
+  double intercept = 0.0;
+};
+
+// Costs used by the ILP objective. Bootstrap and rescale management decisions
+// are charged constant costs. When hasLevelCosts is set, each tracked op is
+// additionally charged a level-dependent latency at its input level,
+// distinguishing ciphertext-ciphertext (CtCt) from ciphertext-plaintext (CtPt)
+// operands.
+struct OpCostModel {
+  double bootstrapCost = 0.0;
+  double rescaleCost = 0.0;
+  bool hasLevelCosts = false;
+  LinearCost addCtCt;
+  LinearCost addCtPt;
+  LinearCost mulCtCt;
+  LinearCost mulCtPt;
+  LinearCost rotate;
+  LinearCost negate;
+};
+
 class ILPBootstrapPlacementAnalysis {
  public:
   enum class ScaleMode { kCKKS, kLevelOnly };
@@ -39,16 +64,16 @@ class ILPBootstrapPlacementAnalysis {
   ILPBootstrapPlacementAnalysis(Operation* op, DataFlowSolver* solver,
                                 int bootstrapWaterline, int scaleWaterline,
                                 int scaleFactorBits,
-                                int bootstrapLevelLowerBound, int bootstrapCost,
-                                int rescaleCost, ScaleMode scaleMode)
+                                int bootstrapLevelLowerBound,
+                                const OpCostModel& costModel,
+                                ScaleMode scaleMode)
       : opToRunOn(op),
         solver(solver),
         bootstrapWaterline(bootstrapWaterline),
         scaleWaterline(scaleWaterline),
         scaleFactorBits(scaleFactorBits),
         bootstrapLevelLowerBound(bootstrapLevelLowerBound),
-        bootstrapCost(bootstrapCost),
-        rescaleCost(rescaleCost),
+        costModel(costModel),
         scaleMode(scaleMode) {}
   ~ILPBootstrapPlacementAnalysis() = default;
 
@@ -86,8 +111,7 @@ class ILPBootstrapPlacementAnalysis {
   int scaleWaterline;
   int scaleFactorBits;
   int bootstrapLevelLowerBound;
-  int bootstrapCost;
-  int rescaleCost;
+  OpCostModel costModel;
   ScaleMode scaleMode;
   llvm::DenseMap<Operation*, bool> solution;
   llvm::DenseMap<Value, int> solutionLevelBeforeBootstrap;

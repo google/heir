@@ -7,6 +7,7 @@ filegroup(
     srcs = [
         "orbit_bad_cost_model.json",
         "orbit_cost_model.json",
+        "orbit_incomplete_cost_model.json",
     ],
 )
 

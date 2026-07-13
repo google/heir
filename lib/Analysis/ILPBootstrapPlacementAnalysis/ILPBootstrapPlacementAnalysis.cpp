@@ -1,6 +1,7 @@
 #include "lib/Analysis/ILPBootstrapPlacementAnalysis/ILPBootstrapPlacementAnalysis.h"
 
 #include <cmath>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -9,6 +10,7 @@
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "llvm/include/llvm/ADT/DenseMap.h"                // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"               // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"             // from @llvm-project
@@ -53,11 +55,11 @@
 //     plaintext constants contribute Sw
 //   * node transitions relate each op's input state to each result state by
 //     either direct rescale/modswitch management or a bootstrap transition
-//   * yielded result scales are constrained to explicit nonzero mgmt.mgmt
-//   scales
-//     on corresponding secret.generic results
-// - Objective: minimize bootstrap and rescale costs, with a small tie-breaker
-//   favoring higher remaining levels.
+//   * a yielded value is pinned to the level annotated on its secret.generic
+//     result by an mgmt.mgmt attr, and to the annotated scale when nonzero
+// - Objective: minimize total bootstrap and rescale cost. With a per-level cost
+//   model, also charge each tracked op its latency at its input level. A tiny
+//   per-level term breaks ties toward higher levels for output values.
 
 namespace math_opt = ::operations_research::math_opt;
 
@@ -72,8 +74,27 @@ static bool isMultiplication(Operation* op) {
   return isa<arith::MulFOp>(op) || isa<arith::MulIOp>(op);
 }
 
+static bool isAdditionLike(Operation* op) {
+  return isa<arith::AddFOp, arith::AddIOp, arith::SubFOp, arith::SubIOp>(op);
+}
+
 static bool isConstantLike(Value value) {
   return value.getDefiningOp<arith::ConstantOp>() != nullptr;
+}
+
+// The level-dependent latency term for one op, or nullopt if the op class has
+// no level-dependent cost.
+static std::optional<LinearCost> levelCostForOp(Operation* op,
+                                                DataFlowSolver* solver,
+                                                const OpCostModel& costModel) {
+  bool ctCt = llvm::count_if(op->getOperands(), [&](auto opd) {
+                return isSecret(opd, solver);
+              }) >= 2;
+  if (isMultiplication(op)) return ctCt ? costModel.mulCtCt : costModel.mulCtPt;
+  if (isAdditionLike(op)) return ctCt ? costModel.addCtCt : costModel.addCtPt;
+  if (isa<arith::NegFOp>(op)) return costModel.negate;
+  if (isa<tensor_ext::RotateOp>(op)) return costModel.rotate;
+  return std::nullopt;
 }
 
 static int roundedValue(const math_opt::VariableMap<double>& varMap,
@@ -331,10 +352,10 @@ static void addOperandEdgeConstraints(ILPModelState& state) {
   }
 }
 
-// Add output-boundary scale constraints for values yielded from secret.generic.
-// A yield is constrained only when the corresponding generic result has an
-// explicit nonzero mgmt.mgmt scale; otherwise the ILP may choose any supported
-// result scale and the later annotation pass records that chosen state.
+// Add output-boundary constraints for values yielded from secret.generic.
+// When the corresponding generic result carries an explicit mgmt.mgmt attr,
+// the yielded value's level is pinned to the annotated level, and (in CKKS
+// mode) a nonzero annotated scale pins the yielded value's scale.
 static LogicalResult addYieldConstraints(ILPModelState& state) {
   auto genericOp = cast<secret::GenericOp>(state.body->getParentOp());
   for (Operation& op : state.body->getOperations()) {
@@ -342,12 +363,26 @@ static LogicalResult addYieldConstraints(ILPModelState& state) {
     if (!yieldOp) continue;
     for (auto [index, operand] : llvm::enumerate(yieldOp->getOperands())) {
       if (!isSecret(operand, state.solver)) continue;
-      if (!state.valueScaleVars.contains(operand)) continue;
-      if (state.levelOnly) continue;
+      if (!state.valueLevelVars.contains(operand)) continue;
 
       mgmt::MgmtAttr mgmtAttr =
           mgmt::findMgmtAttrAssociatedWith(genericOp.getResult(index));
-      if (!mgmtAttr || mgmtAttr.getScale() == 0) continue;
+      if (!mgmtAttr) continue;
+
+      int resultLevel = mgmtAttr.getLevel();
+      if (resultLevel < 0 || resultLevel > state.bootstrapWaterline) {
+        genericOp->emitError()
+            << "cannot constrain yielded value " << index
+            << " from secret.generic result mgmt.mgmt level " << resultLevel
+            << "; expected level in [0, " << state.bootstrapWaterline << "]";
+        return failure();
+      }
+      state.model.AddLinearConstraint(
+          state.valueLevelVars.at(operand) == resultLevel,
+          "yieldResultLevel" + std::to_string(index));
+
+      if (state.levelOnly || mgmtAttr.getScale() == 0) continue;
+      if (!state.valueScaleVars.contains(operand)) continue;
 
       int resultScale = mgmtAttr.getScale();
       if (resultScale < state.sw || resultScale > state.scaleMax) {
@@ -419,24 +454,33 @@ static void addNodeTransitionConstraints(ILPModelState& state,
   }
 }
 
-static void addObjective(ILPModelState& state, int bootstrapCost,
-                         int rescaleCost) {
+static void addObjective(ILPModelState& state, const OpCostModel& costModel) {
   math_opt::LinearExpression objective;
   for (auto& [op, bootstrapVar] : state.bootstrapVars) {
-    objective += bootstrapCost * bootstrapVar;
+    objective += costModel.bootstrapCost * bootstrapVar;
   }
   for (auto& [op, rescaleVar] : state.nodeRescaleVars) {
-    objective += rescaleCost * rescaleVar;
+    objective += costModel.rescaleCost * rescaleVar;
   }
   for (auto& [operand, rescaleVar] : state.edgeRescaleVars) {
-    objective += rescaleCost * rescaleVar;
+    objective += costModel.rescaleCost * rescaleVar;
   }
-  // Tie-breaker: level constraints are one-sided, so among equal-cost
-  // solutions the solver could pick gratuitously low levels (free modswitches).
-  // The small negative weight prefers the highest feasible level for each
-  // value without outweighing a unit of bootstrap/rescale cost. TODO: remove
-  // in the next iteration, when the objective minimizes performance cost and
-  // per-level operation costs make level choices matter directly.
+  // Level-dependent op latency: each tracked op is charged
+  // slope * inputLevel + intercept for its cost class, so the solver prefers
+  // to run expensive ops (muls, rotations) at low levels.
+  if (costModel.hasLevelCosts) {
+    for (Operation* op : state.trackedOps) {
+      auto cost = levelCostForOp(op, state.solver, costModel);
+      if (!cost.has_value()) continue;
+      objective += cost->slope * state.inputLevelVars.at(op) + cost->intercept;
+    }
+  }
+  // Tie-breaker on value (result) levels: level constraints are one-sided, so
+  // among equal-cost solutions the solver could pick gratuitously low levels
+  // (free modswitches decoded as spurious level_reduce ops). The small
+  // negative weight prefers the highest feasible level for each value. Op
+  // *input* levels are separate variables and get real downward pressure from
+  // the level-dependent latency terms above, so the two do not conflict.
   for (auto& [value, levelVar] : state.valueLevelVars) {
     objective += -0.001 * levelVar;
   }
@@ -497,7 +541,7 @@ LogicalResult ILPBootstrapPlacementAnalysis::solve() {
   addOperandEdgeConstraints(state);
   if (failed(addYieldConstraints(state))) return failure();
   addNodeTransitionConstraints(state, bootstrapLevelLowerBound);
-  addObjective(state, bootstrapCost, rescaleCost);
+  addObjective(state, costModel);
 
   LLVM_DEBUG({
     std::stringstream ss;
@@ -505,8 +549,18 @@ LogicalResult ILPBootstrapPlacementAnalysis::solve() {
     llvm::dbgs() << "--- ILP model ---\n" << ss.str() << "--- end model ---\n";
   });
 
+  // Solve to a 1% relative optimality gap, matching Orbit's solver
+  // configuration (Gurobi MIPGap / CBC gapRel = 0.01). Proving full optimality
+  // often dominates solve time on large instances while improving the
+  // objective by less than measurement noise in the profiled cost models. On
+  // small instances the solver typically closes the gap entirely, so this
+  // rarely changes the chosen placement.
+  constexpr double kRelativeMipGap = 0.01;
+  math_opt::SolveArguments solveArgs;
+  solveArgs.parameters.relative_gap_tolerance = kRelativeMipGap;
+
   const absl::StatusOr<math_opt::SolveResult> status =
-      math_opt::Solve(state.model, math_opt::SolverType::kGscip);
+      math_opt::Solve(state.model, math_opt::SolverType::kGscip, solveArgs);
   if (!status.ok()) {
     std::stringstream ss;
     ss << "Error solving the problem: " << status.status() << "\n";
@@ -520,8 +574,8 @@ LogicalResult ILPBootstrapPlacementAnalysis::solve() {
     case math_opt::TerminationReason::kFeasible:
       break;
     default:
-      llvm::errs() << "The problem does not have a feasible solution. "
-                      "Termination status code: "
+      llvm::errs() << "No feasible solution found (the problem may be "
+                      "infeasible). Termination status code: "
                    << static_cast<int>(result.termination.reason) << "\n";
       return failure();
   }
