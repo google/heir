@@ -16882,8 +16882,9 @@ with an explicit gap piece (e.g. &lt;code>[G:4:1]&lt;/code>).
 See &lt;a href="https://eprint.iacr.org/2025/1319.pdf">Section 4.2 of the Rotom paper&lt;/a>.&lt;/p>
 &lt;p>Optional &lt;strong>rolls&lt;/strong> encode a &lt;code>roll(i,j)&lt;/code> metadata object: each pair &lt;code>(i, j)&lt;/code>
 indexes into the &lt;code>dims&lt;/code> array (the flattened &lt;code>ct_dims + slot_dims&lt;/code> list) and
-uses modular addition to modify the indices of &lt;code>dims[i]&lt;/code> by the indices of
-&lt;code>dims[j]&lt;/code>.&lt;/p>
+rewrites &lt;code>dims[i]&lt;/code>&amp;rsquo;s index to &lt;code>(idx_i - idx_j) mod size(dims[i])&lt;/code>. The two
+extents need not match: the shift reduces modulo the rolled dim&amp;rsquo;s extent, so
+a smaller partner covers a prefix of the rotations and a larger one wraps.&lt;/p>
 &lt;h4 id="parameters-1">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>

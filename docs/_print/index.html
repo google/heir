@@ -3783,8 +3783,9 @@ Slot dims must fill <code>n</code> exactly; unused capacity is denoted
 with an explicit gap piece (e.g. <code>[G:4:1]</code>).
 See <a href=https://eprint.iacr.org/2025/1319.pdf>Section 4.2 of the Rotom paper</a>.</p><p>Optional <strong>rolls</strong> encode a <code>roll(i,j)</code> metadata object: each pair <code>(i, j)</code>
 indexes into the <code>dims</code> array (the flattened <code>ct_dims + slot_dims</code> list) and
-uses modular addition to modify the indices of <code>dims[i]</code> by the indices of
-<code>dims[j]</code>.</p><h4 id=parameters-1>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>dims</td><td style=text-align:center><code>::mlir::ArrayAttr</code></td><td></td></tr><tr><td style=text-align:center>n</td><td style=text-align:center><code>int64_t</code></td><td></td></tr><tr><td style=text-align:center>rolls</td><td style=text-align:center><code>::mlir::DenseI64ArrayAttr</code></td><td></td></tr></tbody></table><h3 id=seedattr>SeedAttr</h3><p><em>A list of Rotom layouts for seeding.</em></p><p>Syntax:</p><pre tabindex=0><code>#rotom.seed&lt;
+rewrites <code>dims[i]</code>&rsquo;s index to <code>(idx_i - idx_j) mod size(dims[i])</code>. The two
+extents need not match: the shift reduces modulo the rolled dim&rsquo;s extent, so
+a smaller partner covers a prefix of the rotations and a larger one wraps.</p><h4 id=parameters-1>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>dims</td><td style=text-align:center><code>::mlir::ArrayAttr</code></td><td></td></tr><tr><td style=text-align:center>n</td><td style=text-align:center><code>int64_t</code></td><td></td></tr><tr><td style=text-align:center>rolls</td><td style=text-align:center><code>::mlir::DenseI64ArrayAttr</code></td><td></td></tr></tbody></table><h3 id=seedattr>SeedAttr</h3><p><em>A list of Rotom layouts for seeding.</em></p><p>Syntax:</p><pre tabindex=0><code>#rotom.seed&lt;
   ::mlir::ArrayAttr   # layouts
 &gt;
 </code></pre><p>Contains a list of <code>rotom.layout</code> attributes representing the initial
