@@ -57,8 +57,9 @@ def Rotom_LayoutAttr : Rotom_Attr<"Layout", "layout"> {
 
     Optional **rolls** encode a `roll(i,j)` metadata object: each pair `(i, j)`
     indexes into the `dims` array (the flattened `ct_dims + slot_dims` list) and
-    uses modular addition to modify the indices of  `dims[i]` by the indices of
-    `dims[j]`.
+    rewrites `dims[i]`'s index to `(idx_i - idx_j) mod size(dims[i])`. The two
+    extents need not match: the shift reduces modulo the rolled dim's extent, so
+    a smaller partner covers a prefix of the rotations and a larger one wraps.
   }];
 
   let parameters = (ins

@@ -278,15 +278,27 @@ static LogicalResult verifyLayoutRolls(
     if (!di || !dj) {
       return emitError() << "roll indices must refer to #rotom.dim entries";
     }
-    // The two dims of a roll must have equal extents: roll(i, j) shifts dims[i]
-    // by dims[j]'s index modulo their shared extent, which is well-defined only
-    // when the extents match.
-    if (di.getSize() != dj.getSize()) {
-      return emitError() << "rolled dims must have the same extent (size)";
+    // The extents need not match: roll(i, j) rewrites dims[i]'s index to
+    // (i_i - i_j) mod size(dims[i]), well-defined for any partner extent (a
+    // smaller partner covers a prefix of the rotations, a larger one wraps).
+    // The rolled (from) dim must be a traversal dim -- it is the index
+    // expression being rewritten. The roll-by (second) dim may be any kind:
+    // rolling by a replication or gap dim shifts by that dim's block index,
+    // so each block holds a distinct cyclic rotation of the rolled dim -- the
+    // layout materializes every rotation and alignment becomes block
+    // selection. (A rolled-by gap thus claims its blocks, unlike a plain gap.)
+    if (di.isGap() || di.isReplicate()) {
+      return emitError() << "the rolled dim must be a traversal dim (dim >= 0)";
     }
-    if (di.isGap() || dj.isGap() || di.isReplicate() || dj.isReplicate()) {
-      return emitError() << "rolls may only reference non-sentinel traversal "
-                            "dims (dim >= 0)";
+    // A rolled-by GAP claims one ciphertext block per gap index, each holding
+    // a distinct rotation of the rolled dim. If the gap is larger than the
+    // rolled dim's extent the rotations repeat (period = the from extent),
+    // claiming blocks the conversion/kernel accounting was never audited for.
+    // (Replication partners of larger extent are intended -- replicate-then-
+    // roll -- so only gaps are bounded.)
+    if (dj.isGap() && dj.getSize() > di.getSize()) {
+      return emitError() << "a rolled-by gap dim must not exceed the rolled "
+                            "dim's extent";
     }
   }
   return success();

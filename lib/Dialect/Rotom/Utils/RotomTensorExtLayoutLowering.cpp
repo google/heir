@@ -47,8 +47,17 @@ static std::string floorDivExpr(llvm::StringRef expr, int64_t d) {
   return out;
 }
 
-/// Ordinal of pieces[p] among the pieces of its kind.
-/// Used to name the existential variables for replication and gap pieces.
+/// Index of the gap piece at position `idx` of the layout's dims list within
+/// the per-kind gap dim list (gaps are collected in order of appearance).
+static int64_t gapIndexForPosition(ArrayAttr rotomDims, int64_t idx) {
+  return llvm::count_if(
+      rotomDims.getValue().take_front(idx),
+      [](Attribute attr) { return cast<DimAttr>(attr).isGap(); });
+}
+
+/// Ordinal of pieces[p] among the pieces of its kind. Used to name the
+/// existential variables for replication and gap pieces, and matches the
+/// dims-list ordinals the roll machinery computes.
 static int64_t kindOrdinal(ArrayRef<LayoutPiece> pieces, size_t p) {
   int64_t ordinal = 0;
   for (size_t q = 0; q < p; ++q) {
@@ -57,13 +66,32 @@ static int64_t kindOrdinal(ArrayRef<LayoutPiece> pieces, size_t p) {
   return ordinal;
 }
 
-static LogicalResult emitSegmentAddress(llvm::raw_ostream& os, bool& firstTerm,
-                                        ArrayRef<LayoutPiece> pieces,
-                                        const SmallVector<DimAttr>& axes,
-                                        int64_t numAxes, size_t segStart,
-                                        size_t segEnd, bool foldGapVarsToZero,
-                                        ArrayRef<int64_t> rolls,
-                                        ArrayAttr rotomDims) {
+/// Gap dims referenced in the roll-by position, as indices into the gap dim
+/// list. A rolled-by gap claims its blocks (each holds a distinct rotation of
+/// the rolled dim), so it gets an existential variable instead of folding to
+/// zero.
+static llvm::DenseSet<int64_t> rolledGapIndexSet(ArrayRef<int64_t> rolls,
+                                                 ArrayAttr rotomDims) {
+  llvm::DenseSet<int64_t> rolled;
+  if (!rotomDims) return rolled;
+  for (size_t i = 0; i + 1 < rolls.size(); i += 2) {
+    const int64_t toIdx = rolls[i + 1];
+    if (toIdx < 0 || toIdx >= static_cast<int64_t>(rotomDims.size())) continue;
+    if (cast<DimAttr>(rotomDims[toIdx]).isGap()) {
+      rolled.insert(gapIndexForPosition(rotomDims, toIdx));
+    }
+  }
+  return rolled;
+}
+
+static LogicalResult emitSegmentAddress(
+    llvm::raw_ostream& os, bool& firstTerm, ArrayRef<LayoutPiece> pieces,
+    const SmallVector<DimAttr>& axes, int64_t numAxes, size_t segStart,
+    size_t segEnd, const llvm::DenseSet<int64_t>& rolledGapIndices,
+    ArrayRef<int64_t> rolls, ArrayAttr rotomDims) {
+  // Effective extent of a piece = the range of its mixed-radix digit, which
+  // is the piece's own extent: a lone piece reads the whole axis index, and
+  // for a valid mixed-radix split each digit ranges over its piece's extent.
   llvm::SmallVector<int64_t> suffixCoeff(pieces.size(), 0);
   int64_t suffix = 1;
   for (size_t p = segEnd; p > segStart;) {
@@ -94,8 +122,12 @@ static LogicalResult emitSegmentAddress(llvm::raw_ostream& os, bool& firstTerm,
   for (size_t p = segStart; p < segEnd; ++p) {
     const int64_t coeff = suffixCoeff[p];
     if (pieces[p].kind == LayoutPieceKind::Gap) {
-      if (foldGapVarsToZero) continue;
-      gapCoeff[kindOrdinal(pieces, p)] = coeff;
+      // Only a rolled-by gap contributes an address term (its blocks hold the
+      // rotations of the rolled dim); other gaps fold to zero, leaving their
+      // blocks unclaimed.
+      const int64_t ordinal = kindOrdinal(pieces, p);
+      if (!rolledGapIndices.contains(ordinal)) continue;
+      gapCoeff[ordinal] = coeff;
     } else if (pieces[p].kind == LayoutPieceKind::Replication) {
       replicationCoeff[kindOrdinal(pieces, p)] = coeff;
     }
@@ -129,11 +161,11 @@ static LogicalResult emitSegmentAddress(llvm::raw_ostream& os, bool& firstTerm,
   //
   // The rewrite lands wherever the FROM dimension sits -- the ciphertext
   // address, the slot address, or both when it straddles the boundary. BY is
-  // another traversal dimension on either axis, so a roll diagonalizes a
-  // ciphertext dimension against a slot one (one ciphertext per diagonal) or
-  // two slot dimensions (a Halevi-Shoup slot diagonal); a roll within the
-  // ciphertext axis is a free ciphertext relabeling that enumeration never
-  // generates.
+  // another traversal dimension on either axis, or a slot replication/gap
+  // block index, so a roll diagonalizes a ciphertext dimension against a slot
+  // one (one ciphertext per diagonal) or two slot dimensions (a Halevi-Shoup
+  // slot diagonal); a roll within the ciphertext axis is a free ciphertext
+  // relabeling that enumeration never generates.
   if (!rolls.empty()) {
     if (!rotomDims || rolls.size() % 2 != 0) return failure();
     for (size_t i = 0; i < rolls.size(); i += 2) {
@@ -144,16 +176,30 @@ static LogicalResult emitSegmentAddress(llvm::raw_ostream& os, bool& firstTerm,
           toIdx >= static_cast<int64_t>(rotomDims.size())) {
         return failure();
       }
-      auto fromDim = dyn_cast<DimAttr>(rotomDims[fromIdx]);
-      auto toDim = dyn_cast<DimAttr>(rotomDims[toIdx]);
-      if (!fromDim || !toDim) return failure();
+      auto fromDim = cast<DimAttr>(rotomDims[fromIdx]);
+      auto toDim = cast<DimAttr>(rotomDims[toIdx]);
       FailureOr<int64_t> maybeFromVar = varIndexForRotomDim(axes, fromDim);
-      FailureOr<int64_t> maybeToVar = varIndexForRotomDim(axes, toDim);
-      if (failed(maybeFromVar) || failed(maybeToVar)) return failure();
+      if (failed(maybeFromVar)) return failure();
       const int64_t fromVar = *maybeFromVar;
-      const int64_t toVar = *maybeToVar;
-      std::string diffExpr =
-          "(" + axisExprs[fromVar] + " - " + axisExprs[toVar] + ")";
+      std::string toExpr;
+      if (toDim.isGap()) {
+        // Rolling by a gap dim: the shift is the gap's existential block
+        // index, so block g holds the rolled dim cyclically shifted by g.
+        toExpr = "g" + std::to_string(gapIndexForPosition(rotomDims, toIdx));
+      } else if (toDim.isReplicate()) {
+        // Rolling by a replication dim: the shift is the replica index, whose
+        // existential variable is named after the piece's replication slot.
+        int64_t replicationIndex = 0;
+        for (int64_t k = 0; k < toIdx; ++k) {
+          if (cast<DimAttr>(rotomDims[k]).isReplicate()) ++replicationIndex;
+        }
+        toExpr = "d" + std::to_string(numAxes + replicationIndex);
+      } else {
+        FailureOr<int64_t> maybeToVar = varIndexForRotomDim(axes, toDim);
+        if (failed(maybeToVar)) return failure();
+        toExpr = axisExprs[*maybeToVar];
+      }
+      std::string diffExpr = "(" + axisExprs[fromVar] + " - " + toExpr + ")";
       axisExprs[fromVar] = modExpr(diffExpr, fromDim.getSize());
     }
   }
@@ -196,17 +242,23 @@ static FailureOr<std::string> emitSplitCtSlotIsl(
 
   const int64_t numAxes = static_cast<int64_t>(axes.size());
   int64_t numReplication = 0;
-  int64_t numGap = 0;
   for (const LayoutPiece& piece : pieces) {
     if (piece.kind == LayoutPieceKind::Replication) ++numReplication;
-    if (piece.kind == LayoutPieceKind::Gap) ++numGap;
   }
+
+  const llvm::DenseSet<int64_t> rolledGapIndices =
+      rolledGapIndexSet(rolls, rotomDims);
 
   int64_t numCt = 1;
   for (size_t p = 0; p < prefix; ++p) {
-    if (pieces[p].kind == LayoutPieceKind::Traversal ||
-        pieces[p].kind == LayoutPieceKind::Replication) {
-      numCt *= pieces[p].dim.getSize();
+    const LayoutPiece& piece = pieces[p];
+    if (piece.kind == LayoutPieceKind::Traversal ||
+        piece.kind == LayoutPieceKind::Replication) {
+      numCt *= piece.dim.getSize();
+    } else if (piece.kind == LayoutPieceKind::Gap &&
+               rolledGapIndices.contains(kindOrdinal(pieces, p))) {
+      // A rolled-by gap claims its blocks (one rotation per block index).
+      numCt *= piece.dim.getSize();
     }
   }
   if (numCt < 1) numCt = 1;
@@ -238,8 +290,8 @@ static FailureOr<std::string> emitSplitCtSlotIsl(
   emitAnd();
   os << "0 <= slot <= " << (n - 1);
 
-  const bool foldGapVarsToZero = numGap > 0;
-  const int64_t numLocalVars = numReplication;
+  const int64_t numLocalVars =
+      numReplication + static_cast<int64_t>(rolledGapIndices.size());
 
   if (numLocalVars > 0) {
     os << " and exists ";
@@ -249,6 +301,11 @@ static FailureOr<std::string> emitSplitCtSlotIsl(
         if (!firstVar) os << ", ";
         firstVar = false;
         os << "d" << (numAxes + kindOrdinal(pieces, p));
+      } else if (pieces[p].kind == LayoutPieceKind::Gap &&
+                 rolledGapIndices.contains(kindOrdinal(pieces, p))) {
+        if (!firstVar) os << ", ";
+        firstVar = false;
+        os << "g" << kindOrdinal(pieces, p);
       }
     }
     os << " : ";
@@ -259,7 +316,7 @@ static FailureOr<std::string> emitSplitCtSlotIsl(
   bool firstTerm = true;
   os << "ct = ";
   if (failed(emitSegmentAddress(os, firstTerm, pieces, axes, numAxes, 0, prefix,
-                                foldGapVarsToZero, rolls, rotomDims)))
+                                rolledGapIndices, rolls, rotomDims)))
     return failure();
   if (firstTerm) os << "0";
 
@@ -267,7 +324,7 @@ static FailureOr<std::string> emitSplitCtSlotIsl(
   firstTerm = true;
   os << "slot = ";
   if (failed(emitSegmentAddress(os, firstTerm, pieces, axes, numAxes, prefix,
-                                pieces.size(), foldGapVarsToZero, rolls,
+                                pieces.size(), rolledGapIndices, rolls,
                                 rotomDims)))
     return failure();
   if (firstTerm) os << "0";
@@ -278,6 +335,13 @@ static FailureOr<std::string> emitSplitCtSlotIsl(
       emitAnd();
       os << "0 <= d" << (numAxes + kindOrdinal(pieces, p))
          << " <= " << (pieces[p].dim.getSize() - 1);
+    }
+    for (size_t p = 0; p < pieces.size(); ++p) {
+      if (pieces[p].kind != LayoutPieceKind::Gap) continue;
+      const int64_t g = kindOrdinal(pieces, p);
+      if (!rolledGapIndices.contains(g)) continue;
+      emitAnd();
+      os << "0 <= g" << g << " <= " << (pieces[p].dim.getSize() - 1);
     }
   }
 
