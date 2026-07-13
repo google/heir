@@ -117,6 +117,7 @@
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
 #include "lib/Transforms/PolynomialApproximation/PolynomialApproximation.h"
+#include "lib/Transforms/PolynomialCoeffFolding/PolynomialCoeffFolding.h"
 #include "lib/Transforms/PopulateScale/PopulateScale.h"
 #include "lib/Transforms/PropagateAnnotation/PropagateAnnotation.h"
 #include "lib/Transforms/ReductionCanonicalizations/ReductionCanonicalizations.h"
@@ -427,6 +428,7 @@ int main(int argc, char** argv) {
   registerReductionCanonicalizationsPasses();
   registerFoldConstantTensorsPasses();
   registerLowerPolynomialEvalPasses();
+  registerPolynomialCoeffFoldingPasses();
   registerLowerUnpackPasses();
   registerTensorToScalarsPasses();
   registerTensorLinalgToAffineLoops();

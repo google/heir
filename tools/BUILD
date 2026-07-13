@@ -173,6 +173,7 @@ cc_binary(
         "@heir//lib/Transforms/OperationBalancer",
         "@heir//lib/Transforms/OptimizeRelinearization",
         "@heir//lib/Transforms/PolynomialApproximation",
+        "@heir//lib/Transforms/PolynomialCoeffFolding",
         "@heir//lib/Transforms/PopulateScale",
         "@heir//lib/Transforms/PropagateAnnotation",
         "@heir//lib/Transforms/ReductionCanonicalizations",
