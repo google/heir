@@ -94,8 +94,8 @@ void bind_common(py::module &m)
     py::class_<PrivateKeyImpl<DCRTPoly>, std::shared_ptr<PrivateKeyImpl<DCRTPoly>>>(m, "PrivateKey", py::module_local())
         .def(py::init<>());
     py::class_<KeyPair<DCRTPoly>>(m, "KeyPair", py::module_local())
-        .def_readwrite("publicKey", &KeyPair<DCRTPoly>::publicKey)
-        .def_readwrite("secretKey", &KeyPair<DCRTPoly>::secretKey);
+        .def_property_readonly("publicKey", [](const KeyPair<DCRTPoly> &kp) { return kp.publicKey; })
+        .def_property_readonly("secretKey", [](const KeyPair<DCRTPoly> &kp) { return kp.secretKey; });
     py::class_<CiphertextImpl<DCRTPoly>, std::shared_ptr<CiphertextImpl<DCRTPoly>>>(m, "Ciphertext", py::module_local())
         .def(py::init<>());
     py::class_<PlaintextImpl, std::shared_ptr<PlaintextImpl>>(m, "Plaintext", py::module_local());
