@@ -337,24 +337,25 @@ static FailureOr<Value> implementAssignLayoutStep(
   }
 
   // The result can be simplified if the layout is dense in the ciphertext type,
-  // and if the input is a scalar or a constant splat.
-  if (isDenseLayout(rel, targetType)) {
+  // and the input is a scalar or a constant splat.
+  SplatElementsAttr splatAttr;
+  bool inputIsScalar = !dataSemanticType;
+  bool inputIsSplatConstant = matchPattern(input, m_Constant(&splatAttr));
+  if ((inputIsScalar || inputIsSplatConstant) &&
+      isDenseLayout(rel, targetType)) {
     // Regardless of being constant or not, a scalar can be splat into the
     // ciphertext tensor.
-    if (!dataSemanticType) {
+    if (inputIsScalar) {
       auto splatOp = tensor::SplatOp::create(builder, targetType, input);
       createdOpCallback(splatOp);
       return splatOp.getResult();
     }
-    SplatElementsAttr splatAttr;
-    if (matchPattern(input, m_Constant(&splatAttr))) {
-      auto constantOp = arith::ConstantOp::create(
-          builder, targetType,
-          SplatElementsAttr::get(targetType,
-                                 splatAttr.getSplatValue<TypedAttr>()));
-      createdOpCallback(constantOp);
-      return constantOp.getResult();
-    }
+    auto constantOp = arith::ConstantOp::create(
+        builder, targetType,
+        SplatElementsAttr::get(targetType,
+                               splatAttr.getSplatValue<TypedAttr>()));
+    createdOpCallback(constantOp);
+    return constantOp.getResult();
   }
 
   // If the input is a dense/splat constant, evaluate the relation on its
