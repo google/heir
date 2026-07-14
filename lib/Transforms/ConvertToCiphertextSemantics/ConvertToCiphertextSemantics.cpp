@@ -2504,6 +2504,80 @@ struct ConvertLinalgMatmul
   }
 };
 
+struct ConvertLinalgBatchMatmul
+    : public ContextAwareOpConversionPattern<linalg::BatchMatmulOp> {
+ public:
+  using ContextAwareOpConversionPattern<
+      linalg::BatchMatmulOp>::ContextAwareOpConversionPattern;
+
+  LayoutAttr getLayoutAttr(Value value) const {
+    auto layoutLookup = getTypeConverter()->getContextualAttr(value);
+    if (failed(layoutLookup)) {
+      return nullptr;
+    }
+    return dyn_cast<LayoutAttr>(layoutLookup.value());
+  }
+
+  bool supportsTricyclic(linalg::BatchMatmulOp op, OpAdaptor adaptor) const {
+    auto kernelAttr = op->getAttrOfType<secret::KernelAttr>(
+        secret::SecretDialect::kKernelAttrName);
+    return kernelAttr &&
+           kernelAttr.getName() == KernelName::BatchMatmulTricyclic;
+  }
+
+  void tricyclicKernel(linalg::BatchMatmulOp op, OpAdaptor adaptor,
+                       ContextAwareConversionPatternRewriter& rewriter) const {
+    LLVM_DEBUG(llvm::dbgs()
+               << "Converting linalg.batch_matmul op with tricyclic kernel: "
+               << op << "\n");
+
+    TypedValue<RankedTensorType> lhs =
+        cast<TypedValue<RankedTensorType>>(adaptor.getInputs()[0]);
+    SSAValue lhsLeaf(lhs);
+    TypedValue<RankedTensorType> rhs =
+        cast<TypedValue<RankedTensorType>>(adaptor.getInputs()[1]);
+    SSAValue rhsLeaf(rhs);
+
+    auto lhsType = cast<RankedTensorType>(op.getInputs()[0].getType());
+    auto rhsType = cast<RankedTensorType>(op.getInputs()[1].getType());
+
+    auto dagType = kernel::mlirTypeToDagType(lhsType);
+    std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
+        kernel::implementTricyclicBatchMatmul(
+            lhsLeaf, rhsLeaf, lhsType.getShape()[0], lhsType.getShape()[1],
+            lhsType.getShape()[2], rhsType.getShape()[2], dagType);
+
+    rewriter.setInsertionPointAfter(op);
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    IRMaterializingVisitor visitor(
+        lhs.getType(), [&](Operation* createdOp) { setMaterializedAttr(op); });
+    Value finalOutput = visitor.process(implementedKernel, b)[0];
+
+    auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
+    auto* finalOutputOp = finalOutput.getDefiningOp();
+    finalOutputOp->setAttr(kLayoutAttrName, layoutAttr);
+    setMaterializedAttr(finalOutputOp);
+
+    // Add the initial accumulator value.
+    Value result = adaptor.getOutputs()[0];
+    Operation* addBias =
+        makeAppropriatelyTypedAddOp(b, op->getLoc(), finalOutput, result);
+    addBias->setAttr(kLayoutAttrName, layoutAttr);
+    setMaterializedAttr(addBias);
+    rewriter.replaceOp(op, addBias);
+  }
+
+  LogicalResult matchAndRewrite(
+      linalg::BatchMatmulOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    if (supportsTricyclic(op, adaptor)) {
+      tricyclicKernel(op, adaptor, rewriter);
+      return success();
+    }
+    return failure();
+  }
+};
+
 struct ConvertToCiphertextSemantics
     : impl::ConvertToCiphertextSemanticsBase<ConvertToCiphertextSemantics> {
   using ConvertToCiphertextSemanticsBase::ConvertToCiphertextSemanticsBase;
@@ -2523,8 +2597,8 @@ struct ConvertToCiphertextSemantics
     });
 
     patterns.add<ConvertAnyAddingMaterializedAttr, ConvertConvertLayout,
-                 ConvertFunc, ConvertLinalgMatmul, ConvertLinalgReduce,
-                 ConvertLinalgDot, ConvertSecretGeneric,
+                 ConvertFunc, ConvertLinalgMatmul, ConvertLinalgBatchMatmul,
+                 ConvertLinalgReduce, ConvertLinalgDot, ConvertSecretGeneric,
                  ConvertTensorCollapseShape, ConvertTensorExpandShape,
                  ConvertTensorExtractLayout, ConvertTensorExtractSlice,
                  ConvertTensorInsertLayout, ConvertTensorInsertSlice>(

@@ -225,6 +225,62 @@ static FailureOr<Type> getIntermediateTargetType(
   return RankedTensorType::get(targetShape, elementType);
 }
 
+static FailureOr<Value> implementCrtAssignLayoutStep(
+    Value input, RankedTensorType inputType, RankedTensorType targetType,
+    ImplicitLocOpBuilder& builder,
+    const std::function<void(Operation*)>& createdOpCallback) {
+  auto zeroOp = arith::ConstantOp::create(builder, targetType,
+                                          builder.getZeroAttr(targetType));
+  createdOpCallback(zeroOp);
+  Value targetTensor = zeroOp.getResult();
+
+  int64_t numSlots = targetType.getShape().back();
+  int64_t numCts = (targetType.getRank() == 2) ? targetType.getDimSize(0) : 1;
+  int64_t totalSlots = numCts * numSlots;
+
+  Value c0 = arith::ConstantIndexOp::create(builder, 0);
+  Value c1 = arith::ConstantIndexOp::create(builder, 1);
+  Value cTotalSlots = arith::ConstantIndexOp::create(builder, totalSlots);
+  Value cNumSlots = arith::ConstantIndexOp::create(builder, numSlots);
+
+  SmallVector<Value> dimSizes =
+      llvm::map_to_vector(inputType.getShape(), [&](int64_t dim) -> Value {
+        return arith::ConstantIndexOp::create(builder, dim);
+      });
+
+  auto loop = scf::ForOp::create(
+      builder, c0, cTotalSlots, c1, ValueRange{targetTensor},
+      [&](OpBuilder& b, Location loc, Value k, ValueRange iterArgs) {
+        ImplicitLocOpBuilder ib(loc, b);
+
+        SmallVector<Value> extractIndices =
+            llvm::map_to_vector(dimSizes, [&](Value dimSize) -> Value {
+              return arith::RemSIOp::create(ib, k, dimSize);
+            });
+
+        Value extracted = tensor::ExtractOp::create(ib, input, extractIndices);
+
+        SmallVector<Value> insertIndices;
+        if (targetType.getRank() == 2) {
+          if (numCts == 1) {
+            insertIndices.push_back(c0);
+            insertIndices.push_back(k);
+          } else {
+            insertIndices.push_back(arith::DivSIOp::create(ib, k, cNumSlots));
+            insertIndices.push_back(arith::RemSIOp::create(ib, k, cNumSlots));
+          }
+        } else {
+          insertIndices.push_back(k);
+        }
+
+        Value inserted =
+            tensor::InsertOp::create(ib, extracted, iterArgs[0], insertIndices);
+        scf::YieldOp::create(ib, ValueRange{inserted});
+      });
+  createdOpCallback(loop);
+  return loop.getResult(0);
+}
+
 static FailureOr<Value> implementAssignLayoutStep(
     Value input, LayoutAttr layout, Type targetTypeTy,
     ImplicitLocOpBuilder& builder,
@@ -267,6 +323,17 @@ static FailureOr<Value> implementAssignLayoutStep(
         targetType.getElementType());
     createdOpCallback(emptyCiphertextOp);
     return emptyCiphertextOp.getResult();
+  }
+
+  // If the input has a bicyclic or tricyclic CRT layout, we directly compute
+  // logical coordinates via modular remainder operations (arith.remsi) to
+  // avoid ISL codegen overhead.
+  int64_t numSlots = targetType.getShape().back();
+  if (dataSemanticType &&
+      (isRelationBicyclic(dataSemanticType, numSlots, rel) ||
+       isRelationTricyclic(dataSemanticType, numSlots, rel))) {
+    return implementCrtAssignLayoutStep(input, dataSemanticType, targetType,
+                                        builder, createdOpCallback);
   }
 
   // The result can be simplified if the layout is dense in the ciphertext type,
