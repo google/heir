@@ -84,7 +84,7 @@ class MLIRLoopNestGenerator {
   ImplicitLocOpBuilder& builder_;
   isl_ctx* ctx_;
 
-  ValueRange currentIterArgs_;
+  SmallVector<Value> currentIterArgs_;
   Location currentLoc_;
   std::map<std::string, Value> ivToValue_;
   SmallVector<scf::ForOp> loops_;
