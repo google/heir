@@ -1,11 +1,14 @@
 #include "lib/Transforms/ApplyFolders/ApplyFolders.h"
 
+#include <cstdint>
 #include <utility>
 
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/Transforms/Transforms.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"   // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"       // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 
 // required for generated patterns
@@ -30,8 +33,20 @@ struct ApplyFolders : impl::ApplyFoldersBase<ApplyFolders> {
   void runOnOperation() override {
     MLIRContext* context = &getContext();
     RewritePatternSet patterns(context);
+    // Folding tensor.extract_slice of a constant materializes a new constant by
+    // reading the source element-by-element. Skip it for large tensors. See
+    // TODO(#1221).
+    constexpr int64_t kMaxConstantFoldElements = 1 << 16;
     tensor::ControlConstantExtractSliceFusionFn controlFn =
-        [](tensor::ExtractSliceOp op) { return true; };
+        [](tensor::ExtractSliceOp op) {
+          DenseElementsAttr cst;
+          if (matchPattern(op.getSource(), m_Constant(&cst))) {
+            if (auto shaped = dyn_cast<ShapedType>(cst.getType()))
+              if (shaped.getNumElements() > kMaxConstantFoldElements)
+                return false;
+          }
+          return true;
+        };
     tensor::populateFoldConstantExtractSlicePatterns(patterns, controlFn);
     tensor::populateFoldTensorSubsetOpPatterns(patterns);
     tensor::populateDecomposeTensorConcatPatterns(patterns);

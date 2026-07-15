@@ -709,9 +709,6 @@ void getRangePoints(const presburger::IntegerRelation& relation,
 isl_stat pointPairCallback(__isl_take isl_point* pnt, void* user) {
   PointPairCollector* collector = static_cast<PointPairCollector*>(user);
 
-  isl_space* space = isl_point_get_space(pnt);
-  isl_space_free(space);
-
   std::vector<int64_t> domainPoint(collector->domainDims);
   std::vector<int64_t> rangePoint(collector->rangeDims);
 
@@ -785,18 +782,20 @@ void getCtComplementPoints(const presburger::IntegerRelation& relation,
 
   int64_t numCts = outputType.getDimSize(0);
 
-  // Enumerate the full, un-projected (ct, slot) relation, collect the distinct
-  // ct coordinates, then take the complement against [0, numCts) in plain C++.
-  PointPairCollector present(relation.getNumDomainVars(),
-                             relation.getNumRangeVars());
-  enumeratePoints(relation, present);
+  // We only need the distinct ct indices (range var 0) in the relation's image.
+  // Projecting out the slot dimension first lets us enumerate at most numCts
+  // points instead of the full (ct, slot) grid.
+  PointCollector ctPoints;
+  isl_basic_map* bmap = convertRelationToBasicMap(relation, ctPoints.ctx);
+  isl_set* ctSet = isl_set_from_basic_set(isl_basic_map_range(bmap));
+  ctSet = isl_set_project_out(ctSet, isl_dim_set, /*first=*/1, /*n=*/1);
+  isl_set_foreach_point(ctSet, &pointCallback, &ctPoints);
+  isl_set_free(ctSet);
 
   std::vector<bool> seen(numCts, false);
-  for (const auto& point : present.points) {
-    int64_t ct = point.second[0];  // range var 0 == ct
-    if (ct >= 0 && ct < numCts) {
-      seen[ct] = true;
-    }
+  for (const std::vector<int64_t>& point : ctPoints.points) {
+    int64_t ct = point[0];
+    if (ct >= 0 && ct < numCts) seen[ct] = true;
   }
 
   // The complement is every ct index in [0, numCts) that never appeared,
