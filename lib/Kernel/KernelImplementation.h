@@ -779,6 +779,10 @@ implementTricyclicBatchMatmul(const T& packedA, const T& packedB, int64_t h,
 
     APInt result = roty - APInt(64, period) * APInt(64, giantStepSize) *
                               APInt(64, giantStepIndex);
+    result = result.srem(modulus);
+    if (result.isNegative()) {
+      result += modulus;
+    }
     return result.getSExtValue();
   };
 

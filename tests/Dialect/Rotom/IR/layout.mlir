@@ -47,6 +47,17 @@ func.func private @n0_ok(tensor<16xi32> {foo.bar = #n0_ok})
 #d0 = #rotom.dim<[0:4:1]>
 #d1 = #rotom.dim<[1:2:1]>
 
-// Mismatched extents for a roll pair.
-#bad_roll = #rotom.layout<n = 8, rolls = [(0, 1)], dims = [#d0, #d1]> // expected-error {{rolled dims must have the same extent (size)}}
-func.func private @bad_roll(tensor<16xi32> {foo.bar = #bad_roll})
+// Mismatched extents for a roll pair are legal: the shift reduces modulo the
+// rolled dim's extent (a smaller partner covers a prefix of the rotations).
+#uneven_roll = #rotom.layout<n = 8, rolls = [(0, 1)], dims = [#d0, #d1]>
+func.func private @uneven_roll(tensor<16xi32> {foo.bar = #uneven_roll})
+
+// -----
+
+#t = #rotom.dim<[0:4:1]>
+#g = #rotom.dim<[-2:8:1]>
+
+// A rolled-by gap larger than the rolled dim's extent is rejected: its extra
+// blocks would repeat rotations the accounting was not audited for.
+#big_gap_roll = #rotom.layout<n = 8, rolls = [(0, 1)], dims = [#t | #g]> // expected-error {{a rolled-by gap dim must not exceed the rolled dim's extent}}
+func.func private @big_gap_roll(tensor<32xi32> {foo.bar = #big_gap_roll})

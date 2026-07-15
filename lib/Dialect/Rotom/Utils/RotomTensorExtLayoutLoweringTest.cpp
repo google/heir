@@ -11,6 +11,7 @@
 #include "lib/Utils/Layout/Utils.h"
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/Diagnostics.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 
@@ -334,6 +335,143 @@ TEST(RotomTensorExtLayoutLoweringTest, RolledInternalRowMajor4x4Evaluate) {
   };
   EXPECT_EQ(packed, expected);
   EXPECT_EQ(unpackLayoutToMatrix(relation.value(), packed, {4, 4}), matrix);
+}
+
+// roll(1, 0) with piece 0 a replication dim: dim 0's index is shifted by the
+// replica index, so replica d holds the vector rotated left by d -- the
+// layout materializes every cyclic rotation, making downstream alignment a
+// replica selection.
+TEST(RotomTensorExtLayoutLoweringTest, RollByReplicationMaterializesRotations) {
+  MLIRContext context;
+  context.loadDialect<RotomDialect>();
+  DimAttr repl = DimAttr::get(&context, /*dim=*/-1, /*size=*/4, /*stride=*/1);
+  DimAttr d0 = DimAttr::get(&context, /*dim=*/0, /*size=*/4, /*stride=*/1);
+  ArrayAttr dims = ArrayAttr::get(&context, {repl, d0});
+  LayoutAttr layout = LayoutAttr::get(
+      &context, dims, /*n=*/16,
+      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{1, 0}));
+
+  FailureOr<std::string> isl =
+      RotomTensorExtLayoutLowering::lowerToTensorExtIsl(layout);
+  ASSERT_TRUE(succeeded(isl));
+  auto relation = getIntegerRelationFromIslStr(*isl);
+  ASSERT_TRUE(succeeded(relation));
+
+  std::vector<int> vec = {1, 2, 3, 4};
+  std::vector<std::vector<int>> packed = evaluateLayout<int>(
+      relation.value(), [&](const std::vector<int64_t>& domainPoint) -> int {
+        return vec[domainPoint[0]];
+      });
+  std::vector<std::vector<int>> expected = {
+      {1, 2, 3, 4, 2, 3, 4, 1, 3, 4, 1, 2, 4, 1, 2, 3}};
+  EXPECT_EQ(packed, expected);
+}
+
+// Unequal roll extents: the shift reduces modulo the rolled dim's extent.
+// A smaller partner materializes a prefix of the rotations; a larger one
+// wraps around.
+TEST(RotomTensorExtLayoutLoweringTest, UnequalExtentRollReducesModFromSize) {
+  MLIRContext context;
+  context.loadDialect<RotomDialect>();
+
+  // roll(1, 0) [R:2][0:8]: replica d of two holds the 8-vector rotated
+  // left by d.
+  DimAttr repl2 = DimAttr::get(&context, /*dim=*/-1, /*size=*/2, /*stride=*/1);
+  DimAttr d0Of8 = DimAttr::get(&context, /*dim=*/0, /*size=*/8, /*stride=*/1);
+  LayoutAttr prefix = LayoutAttr::get(
+      &context, ArrayAttr::get(&context, {repl2, d0Of8}), /*n=*/16,
+      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{1, 0}));
+  FailureOr<std::string> isl =
+      RotomTensorExtLayoutLowering::lowerToTensorExtIsl(prefix);
+  ASSERT_TRUE(succeeded(isl));
+  auto relation = getIntegerRelationFromIslStr(*isl);
+  ASSERT_TRUE(succeeded(relation));
+  std::vector<int> vec = {1, 2, 3, 4, 5, 6, 7, 8};
+  std::vector<std::vector<int>> packed = evaluateLayout<int>(
+      relation.value(), [&](const std::vector<int64_t>& domainPoint) -> int {
+        return vec[domainPoint[0]];
+      });
+  std::vector<std::vector<int>> expected = {
+      {1, 2, 3, 4, 5, 6, 7, 8, 2, 3, 4, 5, 6, 7, 8, 1}};
+  EXPECT_EQ(packed, expected);
+
+  // roll(1, 0) [R:4][0:2]: shifts 2 and 3 wrap to 0 and 1.
+  DimAttr repl4 = DimAttr::get(&context, /*dim=*/-1, /*size=*/4, /*stride=*/1);
+  DimAttr d0Of2 = DimAttr::get(&context, /*dim=*/0, /*size=*/2, /*stride=*/1);
+  LayoutAttr wrap = LayoutAttr::get(
+      &context, ArrayAttr::get(&context, {repl4, d0Of2}), /*n=*/8,
+      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{1, 0}));
+  isl = RotomTensorExtLayoutLowering::lowerToTensorExtIsl(wrap);
+  ASSERT_TRUE(succeeded(isl));
+  relation = getIntegerRelationFromIslStr(*isl);
+  ASSERT_TRUE(succeeded(relation));
+  std::vector<int> pair = {1, 2};
+  packed = evaluateLayout<int>(
+      relation.value(), [&](const std::vector<int64_t>& domainPoint) -> int {
+        return pair[domainPoint[0]];
+      });
+  expected = {{1, 2, 2, 1, 1, 2, 2, 1}};
+  EXPECT_EQ(packed, expected);
+}
+
+TEST(RotomTensorExtLayoutLoweringTest, RollVerifierDimKindRules) {
+  MLIRContext context;
+  context.loadDialect<RotomDialect>();
+  DimAttr repl = DimAttr::get(&context, /*dim=*/-1, /*size=*/4, /*stride=*/1);
+  DimAttr gap = DimAttr::get(&context, /*dim=*/-2, /*size=*/4, /*stride=*/1);
+  DimAttr d0 = DimAttr::get(&context, /*dim=*/0, /*size=*/4, /*stride=*/1);
+  ScopedDiagnosticHandler silence(&context,
+                                  [](Diagnostic&) { return success(); });
+  auto swallow =
+      mlir::detail::getDefaultDiagnosticEmitFn(UnknownLoc::get(&context));
+
+  // Rolling a traversal dim BY a replication dim of equal extent is allowed.
+  ArrayAttr dims = ArrayAttr::get(&context, {repl, d0});
+  EXPECT_TRUE(succeeded(LayoutAttr::verify(
+      swallow, dims, /*n=*/16,
+      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{1, 0}))));
+  // Rolling FROM a replication dim stays rejected (no index to rewrite).
+  EXPECT_TRUE(failed(LayoutAttr::verify(
+      swallow, dims, /*n=*/16,
+      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{0, 1}))));
+  // Rolling BY a gap dim of equal extent is allowed; rolling FROM a gap dim
+  // stays rejected.
+  ArrayAttr gapDims = ArrayAttr::get(&context, {gap, d0});
+  EXPECT_TRUE(succeeded(LayoutAttr::verify(
+      swallow, gapDims, /*n=*/16,
+      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{1, 0}))));
+  EXPECT_TRUE(failed(LayoutAttr::verify(
+      swallow, gapDims, /*n=*/16,
+      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{0, 1}))));
+}
+
+// roll(1, 0) with piece 0 a gap dim: the gap's block index is the shift, so
+// block g holds the vector rotated left by g -- a rolled-by gap claims its
+// blocks with the rotations (a plain gap would leave them unclaimed).
+TEST(RotomTensorExtLayoutLoweringTest, RollByGapMaterializesRotations) {
+  MLIRContext context;
+  context.loadDialect<RotomDialect>();
+  DimAttr gap = DimAttr::get(&context, /*dim=*/-2, /*size=*/4, /*stride=*/1);
+  DimAttr d0 = DimAttr::get(&context, /*dim=*/0, /*size=*/4, /*stride=*/1);
+  ArrayAttr dims = ArrayAttr::get(&context, {gap, d0});
+  LayoutAttr layout = LayoutAttr::get(
+      &context, dims, /*n=*/16,
+      DenseI64ArrayAttr::get(&context, ArrayRef<int64_t>{1, 0}));
+
+  FailureOr<std::string> isl =
+      RotomTensorExtLayoutLowering::lowerToTensorExtIsl(layout);
+  ASSERT_TRUE(succeeded(isl));
+  auto relation = getIntegerRelationFromIslStr(*isl);
+  ASSERT_TRUE(succeeded(relation));
+
+  std::vector<int> vec = {1, 2, 3, 4};
+  std::vector<std::vector<int>> packed = evaluateLayout<int>(
+      relation.value(), [&](const std::vector<int64_t>& domainPoint) -> int {
+        return vec[domainPoint[0]];
+      });
+  std::vector<std::vector<int>> expected = {
+      {1, 2, 3, 4, 2, 3, 4, 1, 3, 4, 1, 2, 4, 1, 2, 3}};
+  EXPECT_EQ(packed, expected);
 }
 
 }  // namespace

@@ -562,6 +562,11 @@ bool isRelationPerRow(RankedTensorType matrixType, int64_t ciphertextSize,
 
 bool isRelationBicyclic(RankedTensorType matrixType, int64_t numSlots,
                         const presburger::IntegerRelation& relation) {
+  // Reject non-co-prime dimensions.
+  if (matrixType.getRank() != 2) return false;
+  unsigned int rows = matrixType.getDimSize(0);
+  unsigned int cols = matrixType.getDimSize(1);
+  if (std::gcd(rows, cols) != 1) return false;
   IntegerRelation bicyclicRelation =
       getBicyclicLayoutRelation(matrixType, numSlots);
   return relation.isEqual(bicyclicRelation);
@@ -569,6 +574,13 @@ bool isRelationBicyclic(RankedTensorType matrixType, int64_t numSlots,
 
 bool isRelationTricyclic(RankedTensorType tensorType, int64_t numSlots,
                          const presburger::IntegerRelation& relation) {
+  // Reject non-co-prime dimensions.
+  if (tensorType.getRank() != 3) return false;
+  int64_t h = tensorType.getDimSize(0);
+  int64_t m = tensorType.getDimSize(1);
+  int64_t n = tensorType.getDimSize(2);
+  if (std::gcd(h, m) != 1 || std::gcd(m, n) != 1 || std::gcd(h, n) != 1)
+    return false;
   IntegerRelation tricyclicRelation =
       getTricyclicLayoutRelation(tensorType, numSlots);
   return relation.isEqual(tricyclicRelation);

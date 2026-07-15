@@ -589,6 +589,27 @@ TEST(KernelImplementationTest, TricyclicBatchMatmul) {
   EXPECT_EQ(expVec, resultVec);
 }
 
+TEST(KernelImplementationTest, TricyclicBatchMatmulRotationCount) {
+  MLIRContext context;
+
+  int h = 3;
+  int m = 123;
+  int n = 124;
+  int p = 125;
+  int numSlots = h * m * n * p;
+
+  SymbolicValue packedAValue({h, m, n}, true);
+  SymbolicValue packedBValue({h, n, p}, true);
+  auto dag =
+      implementTricyclicBatchMatmul(packedAValue, packedBValue, h, m, n, p,
+                                    DagType::intTensor(32, {numSlots}));
+
+  RotationCountVisitor rotationCounter;
+  int64_t rotationCount = rotationCounter.process(dag);
+
+  EXPECT_EQ(rotationCount, 146);
+}
+
 TEST_P(KernelImplementationTest, TestConv2dNchwFchwStride2) {
   MLIRContext context;
   RankedTensorType dataType =
