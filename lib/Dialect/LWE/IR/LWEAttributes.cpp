@@ -1,5 +1,6 @@
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 
+#include <cmath>
 #include <cstdint>
 
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
@@ -66,8 +67,16 @@ int64_t inferModulusSwitchOrRescaleOpScalingFactor(Attribute xEncoding,
       .Case<InverseCanonicalEncodingAttr>([&](auto attr) {
         // skip if xScale is 0
         if (xScale == 0) return xScale;
-        // round to nearest log2 instead of ceil
-        auto logQ = dividedModulus.nearestLogBase2();
+        // round to nearest log2 using floating point when width fits in double,
+        // This matches the behavior in CKKSScaleModel evalModReduceScale and
+        // SchemeParams.
+        int64_t logQ;
+        if (dividedModulus.getActiveBits() <= 64) {
+          logQ = static_cast<int64_t>(
+              std::llround(std::log2(dividedModulus.roundToDouble())));
+        } else {
+          logQ = dividedModulus.nearestLogBase2();
+        }
         LLVM_DEBUG(llvm::dbgs() << "inferring new scale; logQ=" << logQ
                                 << ", xScale=" << xScale << "\n");
         return xScale - logQ;
