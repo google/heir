@@ -11,6 +11,7 @@
 #include "lib/Utils/Layout/Codegen.h"
 #include "lib/Utils/Layout/Utils.h"
 #include "lib/Utils/TensorUtils.h"
+#include "llvm/include/llvm/ADT/BitVector.h"        // from @llvm-project
 #include "llvm/include/llvm/ADT/DynamicAPInt.h"     // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"      // from @llvm-project
@@ -415,6 +416,19 @@ static FailureOr<Value> implementAssignLayoutStep(
 
   SmallVector<int> domainIndices = llvm::to_vector(llvm::map_range(
       domainSchedule, [](int64_t idx) { return static_cast<int>(idx); }));
+
+  int numDomainVars = rel.getNumDomainVars();
+  llvm::BitVector present(numDomainVars);
+  for (int var : domainIndices) {
+    if (var >= 0 && var < numDomainVars) {
+      present.set(var);
+    }
+  }
+  for (int i = 0; i < numDomainVars; ++i) {
+    if (!present.test(i)) {
+      domainIndices.push_back(i);
+    }
+  }
   auto loopNestCstr = generateLoopNestAsCStr(rel, domainIndices);
   if (failed(loopNestCstr)) {
     return builder.emitError() << "Failed to generate loop nest for relation "

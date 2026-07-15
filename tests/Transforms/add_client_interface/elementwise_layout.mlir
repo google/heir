@@ -17,18 +17,18 @@
 // CHECK-DAG: %[[c1:.*]] = arith.constant 1 : i32
 // CHECK-DAG: %[[c0:.*]] = arith.constant 0 : i32
 // CHECK-DAG: %[[v0:.*]] = arith.constant dense<0> : tensor<1x1024xi16>
-// CHECK: %[[v1:.*]] = scf.for %[[arg1:.*]] = %[[c0]] to %[[c1024]] step %[[c1]] iter_args(%[[arg2:.*]] = %[[v0]]) -> (tensor<1x1024xi16>) : i32 {
-// CHECK:  %[[v3:.*]] = arith.floordivsi %[[arg1]], %[[c32]] : i32
-// CHECK:  %[[v4:.*]] = arith.muli %[[v3]], %[[c32]]
-// CHECK:  %[[v5:.*]] = arith.subi %[[arg1]], %[[v4]] : i32
-// CHECK:  %[[v3_idx:.*]] = arith.index_cast %[[v5]]
-// CHECK:  %[[extracted:.*]] = tensor.extract %[[arg0]][%[[v3_idx]]] : tensor<32xi16>
-// CHECK:  %[[arg1_idx:.*]] = arith.index_cast %[[arg1]]
-// CHECK:  %[[inserted:.*]] = tensor.insert %[[extracted]] into %[[arg2]][%[[c0_idx]], %[[arg1_idx]]] : tensor<1x1024xi16>
-// CHECK:  scf.yield %[[inserted]] : tensor<1x1024xi16>
-// CHECK:  }
-// CHECK: %[[v2:.*]] = secret.conceal %[[v1]]
-// CHECK: return %[[v2]] : !secret.secret<tensor<1x1024xi16>>
+// CHECK: %[[v1:.*]] = scf.for %[[arg1:.*]] = %[[c0]] to %[[c32]] step %[[c1]] iter_args(%[[arg2:.*]] = %[[v0]]) -> (tensor<1x1024xi16>) : i32 {
+// CHECK:   %[[v2:.*]] = scf.for %[[arg3:.*]] = %[[arg1]] to %[[c1024]] step %[[c32]] iter_args(%[[arg4:.*]] = %[[arg2]]) -> (tensor<1x1024xi16>) : i32 {
+// CHECK:     %[[arg1_idx:.*]] = arith.index_cast %[[arg1]] : i32 to index
+// CHECK:     %[[extracted:.*]] = tensor.extract %[[arg0]][%[[arg1_idx]]] : tensor<32xi16>
+// CHECK:     %[[arg3_idx:.*]] = arith.index_cast %[[arg3]] : i32 to index
+// CHECK:     %[[inserted:.*]] = tensor.insert %[[extracted]] into %[[arg4]][%[[c0_idx]], %[[arg3_idx]]] : tensor<1x1024xi16>
+// CHECK:     scf.yield %[[inserted]] : tensor<1x1024xi16>
+// CHECK:   }
+// CHECK:   scf.yield %[[v2]] : tensor<1x1024xi16>
+// CHECK: }
+// CHECK: %[[v3:.*]] = secret.conceal %[[v1]]
+// CHECK: return %[[v3]] : !secret.secret<tensor<1x1024xi16>>
 
 func.func @add(
     %arg0: !ct_ty {tensor_ext.original_type = #original_type}

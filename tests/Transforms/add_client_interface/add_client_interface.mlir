@@ -17,14 +17,16 @@
 // CHECK-SAME: %[[arg0:.*]]: tensor<32x64xi16>
 // CHECK-DAG: %[[c1:.*]] = arith.constant 1 : i32
 // CHECK-DAG: %[[c32:.*]] = arith.constant 32 : i32
+// CHECK-DAG: %[[c64:.*]] = arith.constant 64 : i32
 // CHECK-DAG: %[[c1024:.*]] = arith.constant 1024 : i32
 // CHECK-DAG: %[[c0:.*]] = arith.constant 0 : i32
 // CHECK-DAG: %[[v0:.*]] = arith.constant dense<0> : tensor<32x1024xi16>
 // CHECK: %[[v1:.*]] = scf.for %[[arg1:.*]] = %[[c0]] to %[[c32]] step %[[c1]]
-// CHECK:   %[[v3:.*]] = scf.for %[[arg3:.*]] = %[[c0]] to %[[c1024]] step %[[c1]]
+// CHECK:   %[[v2:.*]] = scf.for %[[arg3:.*]] = %[[c0]] to %[[c64]] step %[[c1]]
+// CHECK:     %[[v3:.*]] = scf.for %[[arg5:.*]] = %[[arg1]] to %[[c1024]] step %[[c32]]
 // CHECK-COUNT-2:          arith.floordivsi
-// CHECK: %[[v2:.*]] = secret.conceal %[[v1]]
-// CHECK: return %[[v2]] : !secret.secret<tensor<32x1024xi16>>
+// CHECK: %[[v4:.*]] = secret.conceal %[[v1]]
+// CHECK: return %[[v4]] : !secret.secret<tensor<32x1024xi16>>
 
 func.func @add(
     %arg0: !ct_ty {tensor_ext.original_type = #original_type}

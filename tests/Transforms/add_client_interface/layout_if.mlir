@@ -8,8 +8,12 @@
 // CHECK-DAG: %[[c1024:.*]] = arith.constant 1024 : i32
 // CHECK-DAG: %[[c0:.*]] = arith.constant 0 : i32
 // CHECK-DAG: %[[c1:.*]] = arith.constant 1 : i32
-// CHECK: scf.for %[[arg1:.*]] = %[[c0]] to %[[c1024]] step %[[c1]]
-// CHECK: scf.if
+// CHECK-DAG: %[[c16:.*]] = arith.constant 16 : i32
+// CHECK-DAG: %[[c10:.*]] = arith.constant 10 : i32
+// CHECK: scf.for %[[arg1:.*]] = %[[c0]] to %[[c10]] step %[[c1]]
+// CHECK:   scf.for %[[arg3:.*]] = %[[c0]] to %[[c16]] step %[[c1]]
+// CHECK:     scf.for %[[arg5:.*]] = %[[arg1]] to %[[c1024]] step %[[c16]]
+// CHECK-NOT: scf.if
 // CHECK: return
 func.func @add(
     %arg0: !ct_ty {tensor_ext.original_type = #original_type}

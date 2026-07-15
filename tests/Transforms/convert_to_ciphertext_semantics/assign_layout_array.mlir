@@ -61,7 +61,6 @@ module {
   // CHECK-DAG: %[[c0:.*]] = arith.constant 0 : i32
   // CHECK-DAG: %[[c1:.*]] = arith.constant 1 : i32
   // CHECK-DAG: %[[c2:.*]] = arith.constant 2 : i32
-  // CHECK-DAG: %[[c4:.*]] = arith.constant 4 : i32
   // CHECK-DAG: %[[ALLOC3:.*]] = arith.constant dense<0> : tensor<2x32xi32>
   // CHECK-DAG: %[[ALLOC1:.*]] = arith.constant dense<0> : tensor<2x2x2xi32>
 
@@ -77,10 +76,10 @@ module {
   // CHECK:       tensor.insert %{{.*}} into %[[ITER2_3]][{{.*}}, {{.*}}, {{.*}}]
 
   // CHECK: %[[LOOP3:.*]] = scf.for %{{.*}} = %[[c0]] to %[[c2]] step %[[c1]] iter_args(%[[ITER3:.*]] = %[[ALLOC3]]) -> (tensor<2x32xi32>){{.*}}
-  // CHECK:   scf.for %{{.*}} = %[[c0]] to %[[c4]] step %[[c1]] iter_args(%[[ITER3_2:.*]] = %[[ITER3]]) -> (tensor<2x32xi32>){{.*}}
-  // CHECK:     arith.floordivsi
-  // CHECK:     tensor.extract %[[LOOP2]][{{.*}}, {{.*}}, {{.*}}]
-  // CHECK:     tensor.insert %{{.*}} into %[[ITER3_2]][{{.*}}, {{.*}}]
+  // CHECK:   scf.for %{{.*}} = %[[c0]] to %[[c2]] step %[[c1]] iter_args(%[[ITER3_2:.*]] = %[[ITER3]]) -> (tensor<2x32xi32>){{.*}}
+  // CHECK:     scf.for %{{.*}} = %[[c0]] to %[[c2]] step %[[c1]] iter_args(%[[ITER3_3:.*]] = %[[ITER3_2]]) -> (tensor<2x32xi32>){{.*}}
+  // CHECK:       tensor.extract %[[LOOP2]][{{.*}}, {{.*}}, {{.*}}]
+  // CHECK:       tensor.insert %{{.*}} into %[[ITER3_3]][{{.*}}, {{.*}}]
 
   // CHECK: func.func @assign_layout_array_3step
   func.func @assign_layout_array_3step() -> (!secret.secret<tensor<2x2xi32>> {tensor_ext.layout = #composed}) {
