@@ -10,27 +10,30 @@
 #ring_Z65537_i64_1_x1024_ = #polynomial.ring<coefficientType = !Z65537_i64_, polynomialModulus = <1 + x**1024>>
 #ring_rns_L1_1_x1024_ = #polynomial.ring<coefficientType = !rns_L1_, polynomialModulus = <1 + x**1024>>
 #ciphertext_space_L1_ = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x1024_, encryption_type = lsb>
+#ciphertext_space_L1_D3_ = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x1024_, encryption_type = lsb, size = 3>
 !ct_L1_ = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_Z65537_i64_1_x1024_, encoding = #full_crt_packing_encoding>, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
+!ct_L1_D3_ = !lwe.lwe_ciphertext<plaintext_space = <ring = #ring_Z65537_i64_1_x1024_, encoding = #full_crt_packing_encoding>, ciphertext_space = #ciphertext_space_L1_D3_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
 !pt_ = !lwe.lwe_plaintext<plaintext_space = <ring = #ring_Z65537_i64_1_x1024_, encoding = #full_crt_packing_encoding>>
 !pkey_L1_ = !lwe.lwe_public_key<key = #key, ring = #ring_rns_L1_1_x1024_>
 
 module {
   // CHECK: @test_ops
   // CHECK-SAME: (%{{[^:]*}}: !jaxiteword.crypto_context<>, %{{[^:]*}}: !jaxiteword.eval_key<>
-  func.func @test_ops(%ct: !ct_L1_, %ct2: !ct_L1_, %pt: !pt_) -> (!ct_L1_, !ct_L1_, !ct_L1_, !ct_L1_, !ct_L1_, !ct_L1_) {
+  func.func @test_ops(%ct: !ct_L1_, %ct2: !ct_L1_, %pt: !pt_) -> (!ct_L1_, !ct_L1_, !ct_L1_) {
     // CHECK: jaxiteword.add
     %add = lwe.radd %ct, %ct2 : (!ct_L1_, !ct_L1_) -> !ct_L1_
     // CHECK: jaxiteword.sub
     %sub = lwe.rsub %ct, %ct2 : (!ct_L1_, !ct_L1_) -> !ct_L1_
-    // CHECK: jaxiteword.negate
-    %neg = lwe.rnegate %ct : !ct_L1_
-    // CHECK: jaxiteword.add_plain
-    %add_plain = lwe.radd_plain %ct, %pt : (!ct_L1_, !pt_) -> !ct_L1_
-    // CHECK: jaxiteword.sub_plain
-    %sub_plain = lwe.rsub_plain %ct, %pt : (!ct_L1_, !pt_) -> !ct_L1_
     // CHECK: jaxiteword.mul_plain
     %mul_plain = lwe.rmul_plain %ct, %pt : (!ct_L1_, !pt_) -> !ct_L1_
-    return %add, %sub, %neg, %add_plain, %sub_plain, %mul_plain : !ct_L1_, !ct_L1_, !ct_L1_, !ct_L1_, !ct_L1_, !ct_L1_
+    return %add, %sub, %mul_plain : !ct_L1_, !ct_L1_, !ct_L1_
+  }
+
+  // CHECK: @test_ckks_mul
+  func.func @test_ckks_mul(%ct: !ct_L1_, %ct2: !ct_L1_) -> !ct_L1_D3_ {
+    // CHECK: jaxiteword.mul_no_relin
+    %mul = ckks.mul %ct, %ct2 : (!ct_L1_, !ct_L1_) -> !ct_L1_D3_
+    return %mul : !ct_L1_D3_
   }
 
   // CHECK: @test_encode_encrypt

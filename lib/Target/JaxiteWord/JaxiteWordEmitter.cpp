@@ -118,11 +118,10 @@ LogicalResult JaxiteWordEmitter::translate(Operation& op) {
           .Case<ModuleOp>([&](auto op) { return printOperation(op); })
           .Case<func::FuncOp, func::CallOp, func::ReturnOp>(
               [&](auto op) { return printOperation(op); })
-          .Case<AddOp, SubOp, NegateOp, SquareOp, MulOp, MulNoRelinOp,
-                ModReduceOp, RotOp, RelinOp, AddPlainOp, SubPlainOp, MulPlainOp,
-                AddInPlaceOp, SubInPlaceOp, EncodeOp, DecodeOp, EncryptOp,
-                DecryptOp, GenParamsOp, GenKeyPairOp, GenMulKeyOp, GenRotKeyOp,
-                ProgramInitializationOp>(
+          .Case<AddOp, SubOp, SquareOp, MulOp, MulNoRelinOp, ModReduceOp, RotOp,
+                RelinOp, MulPlainOp, AddInPlaceOp, SubInPlaceOp, EncodeOp,
+                DecodeOp, EncryptOp, DecryptOp, GenParamsOp, GenKeyPairOp,
+                GenMulKeyOp, GenRotKeyOp, ProgramInitializationOp>(
               [&](auto op) { return printOperation(op); })
           .Case<tensor::ExtractOp, tensor::FromElementsOp, tensor::EmptyOp,
                 tensor::InsertOp, tensor::ExtractSliceOp,
@@ -150,7 +149,6 @@ LogicalResult JaxiteWordEmitter::translate(Operation& op) {
 
 LogicalResult JaxiteWordEmitter::printOperation(ModuleOp moduleOp) {
   os << kModulePrelude << "\n";
-  os << kEnsurePolyHelper << "\n";
   for (Operation& op : moduleOp) {
     if (failed(translate(op))) {
       return failure();
@@ -255,42 +253,13 @@ LogicalResult JaxiteWordEmitter::printOperation(func::ReturnOp op) {
 }
 
 LogicalResult JaxiteWordEmitter::printOperation(AddOp op) {
-  auto ctx = variableNames->getNameForValue(op.getCryptoContext());
-  auto lhs = variableNames->getNameForValue(op.getLhs());
-  auto rhs = variableNames->getNameForValue(op.getRhs());
-  auto result = variableNames->getNameForValue(op.getResult());
-
-  emitModularAdd(result, ctx, lhs, rhs);
-  return success();
+  return printBinaryOpHelper(op.getResult(), op.getLhs(), op.getRhs(),
+                             op.getCryptoContext(), op, "he_add", "add");
 }
 
 LogicalResult JaxiteWordEmitter::printOperation(SubOp op) {
-  auto ctx = variableNames->getNameForValue(op.getCryptoContext());
-  auto lhs = variableNames->getNameForValue(op.getLhs());
-  auto rhs = variableNames->getNameForValue(op.getRhs());
-  auto result = variableNames->getNameForValue(op.getResult());
-  std::string rhsWork = (result + "_rhs");
-
-  emitNormalizeCiphertext(result, ctx, lhs);
-  emitNormalizeCiphertext(rhsWork, ctx, rhs);
-  os << "_moduli = jnp.array(" << result << ".moduli, dtype=jnp.uint32)\n";
-  os << result << ".polynomial = jnp.where(" << result << ".polynomial < "
-     << rhsWork << ".polynomial, " << result << ".polynomial + _moduli - "
-     << rhsWork << ".polynomial, " << result << ".polynomial - " << rhsWork
-     << ".polynomial)\n";
-  return success();
-}
-
-LogicalResult JaxiteWordEmitter::printOperation(NegateOp op) {
-  auto ctx = variableNames->getNameForValue(op.getCryptoContext());
-  auto ct = variableNames->getNameForValue(op.getCiphertext());
-  auto result = variableNames->getNameForValue(op.getResult());
-
-  emitNormalizeCiphertext(result, ctx, ct);
-  os << "_moduli = jnp.array(" << result << ".moduli, dtype=jnp.uint32)\n";
-  os << result << ".polynomial = jnp.where(" << result << ".polynomial == 0, "
-     << result << ".polynomial, _moduli - " << result << ".polynomial)\n";
-  return success();
+  return printBinaryOpHelper(op.getResult(), op.getLhs(), op.getRhs(),
+                             op.getCryptoContext(), op, "he_sub", "sub");
 }
 
 LogicalResult JaxiteWordEmitter::printOperation(SquareOp op) {
@@ -299,12 +268,8 @@ LogicalResult JaxiteWordEmitter::printOperation(SquareOp op) {
   auto result = variableNames->getNameForValue(op.getResult());
   auto level =
       getCrossLevelExpr(op.getCiphertext(), ctx, op, /*extraOffset=*/1);
-  std::string inputLevel = ("(" + level + ") + 1");
-  std::string ctWork = (result + "_arg");
-
-  emitNormalizeCiphertext(ctWork, ctx, ct, inputLevel);
-  os << result << " = " << ctx << ".he_mul[" << level << "].mul(" << ctWork
-     << ", " << ctWork << ")\n";
+  os << result << " = " << ctx << ".he_mul[" << level << "].mul(" << ct << ", "
+     << ct << ")\n";
   return success();
 }
 
@@ -312,72 +277,20 @@ void JaxiteWordEmitter::emitAssignPrefix(Value result) {
   os << variableNames->getNameForValue(result) << " = ";
 }
 
-void JaxiteWordEmitter::emitAssignCiphertext(StringRef targetName,
-                                             StringRef sourceName) {
-  os << "_assign_poly(" << targetName << ", " << sourceName << ")\n";
-}
+LogicalResult JaxiteWordEmitter::printBinaryOpHelper(Value result, Value lhs,
+                                                     Value rhs, Value ctx,
+                                                     Operation* op,
+                                                     StringRef accessor,
+                                                     StringRef method) {
+  auto resultName = variableNames->getNameForValue(result);
+  auto lhsName = variableNames->getNameForValue(lhs);
+  auto rhsName = variableNames->getNameForValue(rhs);
+  auto ctxName = variableNames->getNameForValue(ctx);
+  auto level = getCrossLevelExpr(lhs, ctxName, op, /*extraOffset=*/0);
 
-void JaxiteWordEmitter::emitNormalizeCiphertext(StringRef resultName,
-                                                StringRef ctxName,
-                                                StringRef sourceName,
-                                                StringRef levelExpr) {
-  os << resultName << " = _ensure_poly(" << ctxName << ", " << sourceName;
-  if (!levelExpr.empty()) os << ", " << levelExpr;
-  os << ")\n";
-}
-
-void JaxiteWordEmitter::emitModularAdd(StringRef resultName, StringRef ctxName,
-                                       StringRef lhsName, StringRef rhsName) {
-  std::string lhsData = (resultName + "_lhs").str();
-  std::string rhsData = (resultName + "_rhs").str();
-  std::string numModuli = (resultName + "_num_moduli").str();
-  std::string moduliSrc = (resultName + "_moduli_src").str();
-  std::string moduli = (resultName + "_moduli").str();
-  std::string sum = (resultName + "_sum").str();
-
-  os << lhsData << " = " << lhsName << ".polynomial if hasattr(" << lhsName
-     << ", \"polynomial\") else " << lhsName << "\n";
-  os << rhsData << " = " << rhsName << ".polynomial if hasattr(" << rhsName
-     << ", \"polynomial\") else " << rhsName << "\n";
-  os << lhsData << " = " << lhsData << ".reshape(" << lhsData << ".shape[0], "
-     << lhsData << ".shape[1], " << ctxName << "._param_cache.r, " << ctxName
-     << "._param_cache.c, " << lhsData << ".shape[-1])\n";
-  os << rhsData << " = " << rhsData << ".reshape(" << rhsData << ".shape[0], "
-     << rhsData << ".shape[1], " << ctxName << "._param_cache.r, " << ctxName
-     << "._param_cache.c, " << rhsData << ".shape[-1])\n";
-  os << "if " << lhsData << ".shape != " << rhsData << ".shape:\n";
-  os.indent();
-  os << "raise ValueError(\"ciphertext add shape mismatch\")\n";
-  os.unindent();
-  os << numModuli << " = " << lhsData << ".shape[-1]\n";
-  os << "if hasattr(" << lhsName << ", \"moduli\") and hasattr(" << rhsName
-     << ", \"moduli\"):\n";
-  os.indent();
-  os << "if list(" << lhsName << ".moduli)[:" << numModuli << "] != list("
-     << rhsName << ".moduli)[:" << numModuli << "]:\n";
-  os.indent();
-  os << "raise ValueError(\"ciphertext add modulus mismatch\")\n";
-  os.unindent();
-  os.unindent();
-  os << moduliSrc << " = getattr(" << lhsName << ", \"moduli\", getattr("
-     << rhsName << ", \"moduli\", " << ctxName << ".q_towers))\n";
-  os << "if isinstance(" << moduliSrc << ", (int, np.integer)):\n";
-  os.indent();
-  os << moduliSrc << " = [" << moduliSrc << "]\n";
-  os.unindent();
-  os << moduli << " = jnp.array(list(" << moduliSrc << ")[:" << numModuli
-     << "], dtype=jnp.uint64)\n";
-  os << sum << " = " << lhsData << ".astype(jnp.uint64) + " << rhsData
-     << ".astype(jnp.uint64)\n";
-  os << resultName << " = jnp.where(" << sum << " >= " << moduli << ", " << sum
-     << " - " << moduli << ", " << sum << ").astype(jnp.uint32)\n";
-}
-
-void JaxiteWordEmitter::emitModularReduce(StringRef targetName) {
-  os << "_moduli = jnp.array(" << targetName << ".moduli, dtype=jnp.uint32)\n";
-  os << targetName << ".polynomial = jnp.where(" << targetName
-     << ".polynomial >= _moduli, " << targetName << ".polynomial - _moduli, "
-     << targetName << ".polynomial)\n";
+  os << resultName << " = " << ctxName << "." << accessor << "[" << level
+     << "]." << method << "(" << lhsName << ", " << rhsName << ")\n";
+  return success();
 }
 
 LogicalResult JaxiteWordEmitter::printMulOpHelper(
@@ -407,46 +320,30 @@ LogicalResult JaxiteWordEmitter::printOperation(EncryptOp op) {
   auto pk = variableNames->getNameForValue(op.getPublicKey());
   auto pt = variableNames->getNameForValue(op.getPlaintext());
   auto result = variableNames->getNameForValue(op.getResult());
-  std::string raw = result + "_raw";
-
   os << ctx << ".public_key = " << pk << "\n";
-  os << raw << " = " << ctx << ".encrypt(" << pt << ")\n";
-  emitNormalizeCiphertext(result, ctx, raw);
+  os << result << " = " << ctx << ".encrypt(" << pt << ")\n";
   return success();
 }
 
 LogicalResult JaxiteWordEmitter::printOperation(MulOp op) {
-  return printMulOpHelper(
-      op.getResult(), op.getLhs(), op.getRhs(), op.getCryptoContext(),
-      op.getOperation(),
-      [&](StringRef lhs, StringRef rhs, StringRef ctx, StringRef result,
-          StringRef level) {
-        std::string inputLevel = ("(" + level + ") + 1").str();
-        std::string lhsWork = (result + "_lhs").str();
-        std::string rhsWork = (result + "_rhs").str();
-        emitNormalizeCiphertext(lhsWork, ctx, lhs, inputLevel);
-        emitNormalizeCiphertext(rhsWork, ctx, rhs, inputLevel);
-        os << result << " = " << ctx << ".he_mul[" << level << "].mul("
-           << lhsWork << ", " << rhsWork << ")\n";
-      });
+  return printMulOpHelper(op.getResult(), op.getLhs(), op.getRhs(),
+                          op.getCryptoContext(), op.getOperation(),
+                          [&](StringRef lhs, StringRef rhs, StringRef ctx,
+                              StringRef result, StringRef level) {
+                            os << result << " = " << ctx << ".he_mul[" << level
+                               << "].mul(" << lhs << ", " << rhs << ")\n";
+                          });
 }
 
 LogicalResult JaxiteWordEmitter::printOperation(MulNoRelinOp op) {
-  return printMulOpHelper(
-      op.getResult(), op.getLhs(), op.getRhs(), op.getCryptoContext(),
-      op.getOperation(),
-      [&](StringRef lhs, StringRef rhs, StringRef ctx, StringRef result,
-          StringRef level) {
-        std::string inputLevel = ("(" + level + ") + 1").str();
-        std::string lhsWork = (result + "_lhs").str();
-        std::string rhsWork = (result + "_rhs").str();
-        std::string raw = (result + "_raw").str();
-        emitNormalizeCiphertext(lhsWork, ctx, lhs, inputLevel);
-        emitNormalizeCiphertext(rhsWork, ctx, rhs, inputLevel);
-        os << raw << " = " << ctx << ".he_mul[" << level << "].hemul_no_relin("
-           << lhsWork << ", " << rhsWork << ")\n";
-        emitNormalizeCiphertext(result, ctx, raw, level);
-      });
+  return printMulOpHelper(op.getResult(), op.getLhs(), op.getRhs(),
+                          op.getCryptoContext(), op.getOperation(),
+                          [&](StringRef lhs, StringRef rhs, StringRef ctx,
+                              StringRef result, StringRef level) {
+                            os << result << " = " << ctx << ".he_mul[" << level
+                               << "].hemul_no_relin(" << lhs << ", " << rhs
+                               << ")\n";
+                          });
 }
 
 LogicalResult JaxiteWordEmitter::printOperation(RelinOp op) {
@@ -455,12 +352,8 @@ LogicalResult JaxiteWordEmitter::printOperation(RelinOp op) {
   auto result = variableNames->getNameForValue(op.getOutput());
   auto level =
       getCrossLevelExpr(op.getCiphertext(), ctx, op, /*extraOffset=*/1);
-  std::string ctData = result + "_ct_data";
-
-  os << ctData << " = " << ct << ".polynomial if hasattr(" << ct
-     << ", \"polynomial\") else " << ct << "\n";
-  os << result << " = " << ctx << ".he_mul[" << level << "].relinearize("
-     << ctData << ")\n";
+  os << result << " = " << ctx << ".he_mul[" << level << "].relinearize(" << ct
+     << ")\n";
   return success();
 }
 
@@ -471,15 +364,12 @@ LogicalResult JaxiteWordEmitter::printOperation(ModReduceOp op) {
   auto srcLevel =
       getCrossLevelExpr(op.getCiphertext(), ctx, op, /*extraOffset=*/0);
   auto dstLevel = getCrossLevelExpr(op.getResult(), ctx, op, /*extraOffset=*/0);
-  std::string ctWork = result + "_arg";
-
-  emitNormalizeCiphertext(ctWork, ctx, ct, srcLevel);
   if (srcLevel == dstLevel) {
-    emitNormalizeCiphertext(result, ctx, ctWork, dstLevel);
+    os << result << " = " << ct << "\n";
     return success();
   }
   os << result << " = " << ctx << ".he_rescale[" << srcLevel << ", " << dstLevel
-     << "](" << ctWork << ")\n";
+     << "].rescale(" << ct << ")\n";
   return success();
 }
 
@@ -490,11 +380,8 @@ LogicalResult JaxiteWordEmitter::printOperation(RotOp op) {
   auto rotIndex = op.getIndex();
   auto level =
       getCrossLevelExpr(op.getCiphertext(), ctx, op, /*extraOffset=*/0);
-  std::string ctWork = result + "_arg";
-
-  emitNormalizeCiphertext(ctWork, ctx, ct, level);
   os << result << " = " << ctx << ".he_rot[" << level << ", " << rotIndex
-     << "].rotate(" << ctWork << ")\n";
+     << "].rotate(" << ct << ")\n";
   return success();
 }
 
@@ -503,24 +390,9 @@ LogicalResult JaxiteWordEmitter::printOperation(DecryptOp op) {
   auto sk = variableNames->getNameForValue(op.getSecretKey());
   auto ct = variableNames->getNameForValue(op.getCiphertext());
   auto result = variableNames->getNameForValue(op.getResult());
-  std::string ctWork = result + "_ct";
-
   os << ctx << ".secret_key = " << sk << "\n";
-  emitNormalizeCiphertext(ctWork, ctx, ct);
-  os << "_num_moduli = " << ctWork << ".polynomial.shape[-1]\n";
-  os << "_q_sub = list(getattr(" << ctWork << ", \"moduli\", " << ctx
-     << ".q_towers))[:_num_moduli]\n";
-  os << "_ct_for_dec = Polynomial({\"batch\": " << ctWork
-     << ".polynomial.shape[0], \"num_elements\": " << ctWork
-     << ".polynomial.shape[1], \"degree\": " << ctx
-     << ".degree, \"precision\": 32, \"num_moduli\": _num_moduli, "
-        "\"degree_layout\": ("
-     << ctx << ".degree,)}, {\"moduli\": _q_sub})\n";
-  os << "_ct_for_dec.set_batch_polynomial(" << ctWork << ".polynomial.reshape("
-     << ctWork << ".polynomial.shape[0], " << ctWork << ".polynomial.shape[1], "
-     << ctx << ".degree, _num_moduli))\n";
   emitAssignPrefix(op.getResult());
-  os << ctx << ".decrypt(_ct_for_dec)\n";
+  os << ctx << ".decrypt(" << ct << ")\n";
   return success();
 }
 
@@ -550,77 +422,14 @@ LogicalResult JaxiteWordEmitter::printOperation(MulPlainOp op) {
   auto result = variableNames->getNameForValue(op.getResult());
   auto level =
       getCrossLevelExpr(op.getCiphertext(), ctx, op, /*extraOffset=*/0);
-  std::string ctWork = result + "_arg";
   std::string ptNtt = result + "_pt_ntt";
   std::string opName = result + "_ptct";
 
-  emitNormalizeCiphertext(ctWork, ctx, ct, level);
-  os << ptNtt << " = " << pt << ".polynomial[0, 0, :, :" << ctWork
-     << ".polynomial.shape[-1]].reshape(" << ctWork << ".r, " << ctWork
-     << ".c, " << ctWork << ".polynomial.shape[-1]).astype(jnp.uint32)\n";
+  os << ptNtt << " = " << pt << ".polynomial[0, 0, ..., :" << ct
+     << ".num_moduli].astype(jnp.uint32)\n";
   os << opName << " = " << ctx << ".ptct_mul[" << level << "]\n";
   os << opName << ".set_plaintext(" << ptNtt << ")\n";
-  os << result << " = " << opName << ".mul(" << ctWork << ", use_bat=False)\n";
-  return success();
-}
-
-LogicalResult JaxiteWordEmitter::printOperation(AddPlainOp op) {
-  auto ctx = variableNames->getNameForValue(op.getCryptoContext());
-  bool lhsPlain =
-      isa<lwe::LWEPlaintextType>(getElementTypeOrSelf(op.getLhs().getType()));
-  auto ct =
-      variableNames->getNameForValue(lhsPlain ? op.getRhs() : op.getLhs());
-  auto pt =
-      variableNames->getNameForValue(lhsPlain ? op.getLhs() : op.getRhs());
-  auto result = variableNames->getNameForValue(op.getResult());
-  std::string numModuli = result + "_m";
-  std::string ptData = result + "_pt_data";
-
-  emitNormalizeCiphertext(result, ctx, ct);
-  os << numModuli << " = " << result << ".polynomial.shape[-1]\n";
-  os << ptData << " = " << pt << ".polynomial[0:1, 0:1, :, :" << numModuli
-     << "].reshape(1, 1, " << result << ".r, " << result << ".c, " << numModuli
-     << ")\n";
-  os << "_moduli = jnp.array(" << result << ".moduli, dtype=jnp.uint32)\n";
-  os << "_c0 = " << result << ".polynomial[:, 0:1, ...] + " << ptData << "\n";
-  os << "_c0 = jnp.where(_c0 >= _moduli, _c0 - _moduli, _c0)\n";
-  os << result << ".polynomial = " << result
-     << ".polynomial.at[:, 0:1, ...].set(_c0)\n";
-  return success();
-}
-
-LogicalResult JaxiteWordEmitter::printOperation(SubPlainOp op) {
-  auto ctx = variableNames->getNameForValue(op.getCryptoContext());
-  bool lhsPlain =
-      isa<lwe::LWEPlaintextType>(getElementTypeOrSelf(op.getLhs().getType()));
-  auto lhs = variableNames->getNameForValue(op.getLhs());
-  auto rhs = variableNames->getNameForValue(op.getRhs());
-  auto ct = lhsPlain ? rhs : lhs;
-  auto pt = lhsPlain ? lhs : rhs;
-  auto result = variableNames->getNameForValue(op.getResult());
-  std::string numModuli = result + "_m";
-  std::string ptData = result + "_pt_data";
-
-  emitNormalizeCiphertext(result, ctx, ct);
-  os << numModuli << " = " << result << ".polynomial.shape[-1]\n";
-  os << ptData << " = " << pt << ".polynomial[0:1, 0:1, :, :" << numModuli
-     << "].reshape(1, 1, " << result << ".r, " << result << ".c, " << numModuli
-     << ")\n";
-  os << "_moduli = jnp.array(" << result << ".moduli, dtype=jnp.uint32)\n";
-  os << "_c0 = " << result << ".polynomial[:, 0:1, ...]\n";
-  if (lhsPlain) {
-    os << "_c0 = jnp.where(" << ptData << " < _c0, " << ptData
-       << " + _moduli - _c0, " << ptData << " - _c0)\n";
-    os << "_c1 = " << result << ".polynomial[:, 1:2, ...]\n";
-    os << "_c1 = jnp.where(_c1 == 0, _c1, _moduli - _c1)\n";
-    os << result << ".polynomial = " << result
-       << ".polynomial.at[:, 1:2, ...].set(_c1)\n";
-  } else {
-    os << "_c0 = jnp.where(_c0 < " << ptData << ", _c0 + _moduli - " << ptData
-       << ", _c0 - " << ptData << ")\n";
-  }
-  os << result << ".polynomial = " << result
-     << ".polynomial.at[:, 0:1, ...].set(_c0)\n";
+  os << result << " = " << opName << ".mul(" << ct << ", use_bat=False)\n";
   return success();
 }
 
@@ -628,14 +437,9 @@ LogicalResult JaxiteWordEmitter::printOperation(AddInPlaceOp op) {
   auto ctx = variableNames->getNameForValue(op.getCryptoContext());
   auto lhs = variableNames->getNameForValue(op.getLhs());
   auto rhs = variableNames->getNameForValue(op.getRhs());
-  std::string tmp = lhs + "_inplace";
-  std::string rhsWork = lhs + "_rhs";
-
-  emitNormalizeCiphertext(tmp, ctx, lhs);
-  emitNormalizeCiphertext(rhsWork, ctx, rhs);
-  os << tmp << ".add(" << rhsWork << ")\n";
-  emitModularReduce(tmp);
-  emitAssignCiphertext(lhs, tmp);
+  auto level = getCrossLevelExpr(op.getLhs(), ctx, op, /*extraOffset=*/0);
+  os << lhs << " = " << ctx << ".he_add[" << level << "].add(" << lhs << ", "
+     << rhs << ")\n";
   return success();
 }
 
@@ -643,17 +447,9 @@ LogicalResult JaxiteWordEmitter::printOperation(SubInPlaceOp op) {
   auto ctx = variableNames->getNameForValue(op.getCryptoContext());
   auto lhs = variableNames->getNameForValue(op.getLhs());
   auto rhs = variableNames->getNameForValue(op.getRhs());
-  std::string tmp = lhs + "_inplace";
-  std::string rhsWork = lhs + "_rhs";
-
-  emitNormalizeCiphertext(tmp, ctx, lhs);
-  emitNormalizeCiphertext(rhsWork, ctx, rhs);
-  os << "_moduli = jnp.array(" << tmp << ".moduli, dtype=jnp.uint32)\n";
-  os << tmp << ".polynomial = jnp.where(" << tmp << ".polynomial < " << rhsWork
-     << ".polynomial, " << tmp << ".polynomial + _moduli - " << rhsWork
-     << ".polynomial, " << tmp << ".polynomial - " << rhsWork
-     << ".polynomial)\n";
-  emitAssignCiphertext(lhs, tmp);
+  auto level = getCrossLevelExpr(op.getLhs(), ctx, op, /*extraOffset=*/0);
+  os << lhs << " = " << ctx << ".he_sub[" << level << "].sub(" << lhs << ", "
+     << rhs << ")\n";
   return success();
 }
 
@@ -722,8 +518,8 @@ LogicalResult JaxiteWordEmitter::printOperation(GenParamsOp op) {
   os << "\"r\": " << op.getR() << ",\n";
   os << "\"c\": " << op.getC() << ",\n";
   os << "\"dnum\": " << op.getDnum() << ",\n";
-  os << "\"numEvalMult\": " << op.getNumEvalMult() << ",\n";
   os << "\"scaling_factor\": " << op.getScalingFactor() << ",\n";
+  os << "\"output_scale\": " << op.getScalingFactor() << ",\n";
 
   os << "\"q_towers\": [";
   llvm::interleaveComma(qTowers, os);
@@ -760,8 +556,6 @@ LogicalResult JaxiteWordEmitter::printOperation(ProgramInitializationOp op) {
   os << ctx << ".parameters[\"evaluation_key\"] = " << ek << "\n";
 
   os << ctx << ".program_initialization(";
-  os << "total_hemul_levels=" << op.getTotalHemulLevels() << ", ";
-
   os << "total_rotation_indices=[";
   auto rotIndices = op.getTotalRotationIndices();
   llvm::interleaveComma(rotIndices, os);
@@ -1323,14 +1117,14 @@ FailureOr<std::string> JaxiteWordEmitter::convertType(Type type) {
 
   return llvm::TypeSwitch<Type, FailureOr<std::string>>(type)
       .Case<lwe::LWECiphertextType>(
-          [&](auto) { return std::string("Ciphertext"); })
+          [&](auto) { return std::string("Polynomial"); })
       .Case<PublicKeyType>([&](auto) { return std::string("np.ndarray"); })
       .Case<PrivateKeyType>([&](auto) { return std::string("np.ndarray"); })
       .Case<EvalKeyType>([&](auto) { return std::string("dict"); })
       .Case<CryptoContextType>(
           [&](auto) { return std::string("ckks.CKKSContext"); })
       .Case<lwe::LWEPlaintextType>(
-          [&](auto) { return std::string("Ciphertext"); })
+          [&](auto) { return std::string("Polynomial"); })
       .Default([&](Type) { return failure(); });
 }
 

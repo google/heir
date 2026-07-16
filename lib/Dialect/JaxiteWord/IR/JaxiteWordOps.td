@@ -77,7 +77,6 @@ def GenParamsOp : JaxiteWord_Op<"gen_params"> {
     - batch: Batch size for TPU
     - r, c: Tiling dimensions (r * c = degree)
     - dnum: Key switching decomposition parameter
-    - numEvalMult: Number of evaluation multiplications
   }];
   let arguments = (ins
     // Scheme parameters
@@ -91,7 +90,6 @@ def GenParamsOp : JaxiteWord_Op<"gen_params"> {
     I32Attr:$r,
     I32Attr:$c,
     I32Attr:$dnum,
-    I32Attr:$numEvalMult,
     I32Attr:$compositeDegree
   );
   let results = (outs JaxiteWord_CryptoContext:$cryptoContext);
@@ -140,7 +138,6 @@ def ProgramInitializationOp : JaxiteWord_Op<"program_initialization"> {
     JaxiteWord_PublicKey:$publicKey,
     JaxiteWord_PrivateKey:$secretKey,
     JaxiteWord_EvalKey:$evaluationKey,
-    I64Attr:$totalHemulLevels,
     DenseI64ArrayAttr:$totalRotationIndices,
     I32Attr:$dnum,
     I32Attr:$r,
@@ -241,10 +238,6 @@ def SubOp : JaxiteWord_BinaryOp<"sub", [SameOperandsAndResultRings]> {
   let summary = "Homomorphic subtraction of two ciphertexts";
 }
 
-def NegateOp : JaxiteWord_UnaryOp<"negate"> {
-  let summary = "Negate a ciphertext";
-}
-
 def SquareOp : JaxiteWord_UnaryOp<"square"> {
   let summary = "Square a ciphertext";
 }
@@ -255,26 +248,6 @@ def AddInPlaceOp : JaxiteWord_BinaryInPlaceOp<"add_inplace"> {
 
 def SubInPlaceOp : JaxiteWord_BinaryInPlaceOp<"sub_inplace"> {
   let summary = "In-place homomorphic subtraction";
-}
-
-def AddPlainOp : JaxiteWord_Op<"add_plain", [Pure, AllCiphertextTypesMatch]> {
-  let summary = "Add plaintext to ciphertext";
-  let arguments = (ins
-    JaxiteWord_CryptoContext:$cryptoContext,
-    LWEPlaintextOrCiphertext:$lhs,
-    LWEPlaintextOrCiphertext:$rhs
-  );
-  let results = (outs LWECiphertext:$output);
-}
-
-def SubPlainOp : JaxiteWord_Op<"sub_plain", [Pure, AllCiphertextTypesMatch]> {
-  let summary = "Subtract plaintext from ciphertext";
-  let arguments = (ins
-    JaxiteWord_CryptoContext:$cryptoContext,
-    LWEPlaintextOrCiphertext:$lhs,
-    LWEPlaintextOrCiphertext:$rhs
-  );
-  let results = (outs LWECiphertext:$output);
 }
 
 def MulPlainOp : JaxiteWord_Op<"mul_plain", [Pure]> {

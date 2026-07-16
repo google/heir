@@ -5,8 +5,6 @@
 #include <set>
 #include <string>
 
-#include "lib/Analysis/MulDepthAnalysis/MulDepthAnalysis.h"
-#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/JaxiteWord/IR/JaxiteWordDialect.h"
@@ -15,32 +13,25 @@
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Utils/TransformUtils.h"
 #include "lib/Utils/Utils.h"
-#include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"         // from @llvm-project
-#include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
-#include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinOps.h"               // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"     // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"                    // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"       // from @llvm-project
-#include "mlir/include/mlir/Support/WalkResult.h"          // from @llvm-project
-
-#define DEBUG_TYPE "jaxiteword-configure-crypto-context"
+#include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
+#include "mlir/include/mlir/Support/WalkResult.h"       // from @llvm-project
 
 namespace mlir {
 namespace heir {
 namespace jaxiteword {
 
 struct Config {
-  int mulDepth;
-  bool hasRelinOp;
   SmallVector<int64_t> rotIndices;
   int64_t degree;
   int64_t numSlots;
@@ -62,18 +53,6 @@ struct ConfigureCryptoContext
 
  private:
   Config config;
-
-  bool checkHasRelinOp(func::FuncOp op) {
-    bool result = false;
-    walkFuncAndCallees(op, [&](Operation* op) {
-      if (isa<jaxiteword::MulOp, jaxiteword::RelinOp>(op)) {
-        result = true;
-        return WalkResult::interrupt();
-      }
-      return WalkResult::advance();
-    });
-    return result;
-  }
 
   SmallVector<int64_t> findAllRotIndices(func::FuncOp op) {
     std::set<int64_t> distinctRotIndices;
@@ -110,7 +89,6 @@ struct ConfigureCryptoContext
         /*r=*/static_cast<uint32_t>(config.r),
         /*c=*/static_cast<uint32_t>(config.c),
         /*dnum=*/static_cast<uint32_t>(config.dnum),
-        /*numEvalMult=*/static_cast<uint32_t>(config.mulDepth),
         /*compositeDegree=*/static_cast<uint32_t>(compositeDegree));
 
     func::ReturnOp::create(builder, cryptoContext);
@@ -139,14 +117,13 @@ struct ConfigureCryptoContext
     Value secretKey = configFuncOp.getArgument(2);
     Value evaluationKey = configFuncOp.getArgument(3);
 
-    ProgramInitializationOp::create(
-        builder, cryptoContext, publicKey, secretKey, evaluationKey,
-        /*totalHemulLevels=*/static_cast<int64_t>(config.mulDepth),
-        /*totalRotationIndices=*/config.rotIndices,
-        /*dnum=*/config.dnum,
-        /*r=*/config.r,
-        /*c=*/config.c,
-        /*batch=*/config.batch);
+    ProgramInitializationOp::create(builder, cryptoContext, publicKey,
+                                    secretKey, evaluationKey,
+                                    /*totalRotationIndices=*/config.rotIndices,
+                                    /*dnum=*/config.dnum,
+                                    /*r=*/config.r,
+                                    /*c=*/config.c,
+                                    /*batch=*/config.batch);
 
     func::ReturnOp::create(builder, ValueRange{});
     return success();
@@ -203,51 +180,6 @@ struct ConfigureCryptoContext
       module->removeAttr(ckks::CKKSDialect::kSchemeParamAttrName);
     }
 
-    LLVM_DEBUG(llvm::dbgs() << "Recomputing mul depth\n");
-    DataFlowSolver solver;
-    dataflow::loadBaselineAnalyses(solver);
-    solver.load<SecretnessAnalysis>();
-    solver.load<MulDepthAnalysis>();
-
-    if (failed(solver.initializeAndRun(module))) {
-      op->emitOpError() << "Failed to run mul depth analysis.\n";
-      return failure();
-    }
-
-    config.mulDepth = 0;
-    walkValues(op, [&](Value value) {
-      auto mulDepthState =
-          solver.lookupState<MulDepthLattice>(value)->getValue();
-      if (!mulDepthState.isInitialized()) {
-        LLVM_DEBUG(llvm::dbgs()
-                   << "mul depth uninitialized at " << value << "\n");
-        return;
-      }
-      auto depth = mulDepthState.getMulDepth();
-      if (depth > config.mulDepth) {
-        LLVM_DEBUG(llvm::dbgs() << "Found larger mul depth=" << depth << "\n");
-        config.mulDepth = depth;
-      }
-    });
-
-    if (mulDepth != 0) {
-      config.mulDepth = mulDepth;
-    }
-
-    if (config.mulDepth == 0) {
-      int mulCount = 0;
-      walkFuncAndCallees(op, [&](Operation* innerOp) {
-        if (isa<jaxiteword::MulOp>(innerOp)) mulCount++;
-        return WalkResult::advance();
-      });
-      if (mulCount > 0) {
-        config.mulDepth = mulCount;
-      } else if (!config.qTowers.empty()) {
-        config.mulDepth = 1;
-      }
-    }
-
-    config.hasRelinOp = checkHasRelinOp(op);
     config.rotIndices = findAllRotIndices(op);
 
     config.dnum = dnum;

@@ -49,7 +49,6 @@ class JaxiteWordEmitter {
   LogicalResult printOperation(func::ReturnOp returnOp);
   LogicalResult printOperation(AddOp op);
   LogicalResult printOperation(SubOp op);
-  LogicalResult printOperation(NegateOp op);
   LogicalResult printOperation(SquareOp op);
   LogicalResult printOperation(MulOp op);
   LogicalResult printOperation(MulNoRelinOp op);
@@ -57,8 +56,6 @@ class JaxiteWordEmitter {
   LogicalResult printOperation(RotOp op);
   LogicalResult printOperation(RelinOp op);
 
-  LogicalResult printOperation(AddPlainOp op);
-  LogicalResult printOperation(SubPlainOp op);
   LogicalResult printOperation(MulPlainOp op);
   LogicalResult printOperation(AddInPlaceOp op);
   LogicalResult printOperation(SubInPlaceOp op);
@@ -110,12 +107,10 @@ class JaxiteWordEmitter {
   FailureOr<std::string> convertType(Type type);
 
   void emitAssignPrefix(Value result);
-  void emitAssignCiphertext(StringRef targetName, StringRef sourceName);
-  void emitNormalizeCiphertext(StringRef resultName, StringRef ctxName,
-                               StringRef sourceName, StringRef levelExpr = "");
-  void emitModularAdd(StringRef resultName, StringRef ctxName,
-                      StringRef lhsName, StringRef rhsName);
-  void emitModularReduce(StringRef targetName);
+
+  LogicalResult printBinaryOpHelper(Value result, Value lhs, Value rhs,
+                                    Value ctx, Operation* op,
+                                    StringRef accessor, StringRef method);
 
   LogicalResult printMulOpHelper(
       Value result, Value lhs, Value rhs, Value ctx, Operation* op,

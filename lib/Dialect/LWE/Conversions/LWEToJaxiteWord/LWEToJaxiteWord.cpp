@@ -242,29 +242,11 @@ struct ConvertMulOp : public OpConversionPattern<ckks::MulOp> {
     FailureOr<Value> ctx = getContextualCryptoContextForJaxiteWord(op);
     if (failed(ctx)) return failure();
 
-    FailureOr<Value> evalKey = getContextualEvalKeyForJaxiteWord(op);
-    if (failed(evalKey)) return failure();
-
-    rewriter.replaceOpWithNewOp<jaxiteword::MulOp>(
-        op, this->getTypeConverter()->convertType(op.getOutput().getType()),
-        ctx.value(), adaptor.getLhs(), adaptor.getRhs(), evalKey.value());
-    return success();
-  }
-};
-
-template <typename SourceOp>
-struct ConvertNegateOp : public OpConversionPattern<SourceOp> {
-  using OpConversionPattern<SourceOp>::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      SourceOp op, typename SourceOp::Adaptor adaptor,
-      ConversionPatternRewriter& rewriter) const override {
-    FailureOr<Value> ctx = getContextualCryptoContextForJaxiteWord(op);
-    if (failed(ctx)) return failure();
-
-    rewriter.replaceOpWithNewOp<jaxiteword::NegateOp>(
-        op, this->getTypeConverter()->convertType(op.getOutput().getType()),
-        ctx.value(), adaptor.getInput());
+    auto newOp = jaxiteword::MulNoRelinOp::create(
+        rewriter, op.getLoc(),
+        this->getTypeConverter()->convertType(op.getOutput().getType()),
+        ctx.value(), adaptor.getLhs(), adaptor.getRhs());
+    rewriter.replaceOp(op, newOp);
     return success();
   }
 };
@@ -456,8 +438,6 @@ struct LWEToJaxiteWord : public impl::LWEToJaxiteWordBase<LWEToJaxiteWord> {
     patterns.add<ConvertMulOp>(typeConverter, context);
     patterns.add<ConvertBinOp<lwe::RMulOp, jaxiteword::MulNoRelinOp>>(
         typeConverter, context);
-    patterns.add<ConvertNegateOp<lwe::RNegateOp>>(typeConverter, context);
-    patterns.add<ConvertNegateOp<ckks::NegateOp>>(typeConverter, context);
     patterns.add<ConvertRotateOp>(typeConverter, context);
     patterns.add<ConvertRelinOp>(typeConverter, context);
     patterns.add<ConvertModSwitchOp<bgv::ModulusSwitchOp>>(typeConverter,
@@ -469,15 +449,7 @@ struct LWEToJaxiteWord : public impl::LWEToJaxiteWordBase<LWEToJaxiteWord> {
     patterns.add<ConvertEncryptOp>(typeConverter, context);
     patterns.add<ConvertDecryptOp>(typeConverter, context);
     patterns.add<ConvertDecodeOp>(typeConverter, context);
-    patterns.add<ConvertBinOp<lwe::RAddPlainOp, jaxiteword::AddPlainOp>>(
-        typeConverter, context);
-    patterns.add<ConvertBinOp<lwe::RSubPlainOp, jaxiteword::SubPlainOp>>(
-        typeConverter, context);
     patterns.add<ConvertBinOp<lwe::RMulPlainOp, jaxiteword::MulPlainOp>>(
-        typeConverter, context);
-    patterns.add<ConvertBinOp<ckks::AddPlainOp, jaxiteword::AddPlainOp>>(
-        typeConverter, context);
-    patterns.add<ConvertBinOp<ckks::SubPlainOp, jaxiteword::SubPlainOp>>(
         typeConverter, context);
     patterns.add<ConvertBinOp<ckks::MulPlainOp, jaxiteword::MulPlainOp>>(
         typeConverter, context);
