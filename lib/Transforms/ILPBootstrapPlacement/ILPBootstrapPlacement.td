@@ -57,7 +57,7 @@ def ILPBootstrapPlacement : Pass <"ilp-bootstrap-placement"> {
            "orbit-cost-model",
            "std::string",
            /*default=*/"""",
-           "Path to a JSON cost model. When provided, bootstrap-cost and rescale-cost are loaded from latencyTable.bootstrap and latencyTable.rescale. See lib/Transforms/ILPBootstrapPlacement/README.md for the schema.">,
+           "Path to a JSON cost model. See lib/Transforms/ILPBootstrapPlacement/README.md for the schema.">,
     Option<"bootstrapCost",
            "bootstrap-cost",
            "int",

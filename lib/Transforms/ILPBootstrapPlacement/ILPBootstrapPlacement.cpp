@@ -1,6 +1,5 @@
 #include "lib/Transforms/ILPBootstrapPlacement/ILPBootstrapPlacement.h"
 
-#include <cmath>
 #include <optional>
 #include <string>
 #include <utility>
@@ -11,6 +10,8 @@
 #include "lib/Dialect/Mgmt/Transforms/AnnotateMgmt.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Transforms/SecretInsertMgmt/Pipeline.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"               // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "llvm/include/llvm/Support/JSON.h"                // from @llvm-project
 #include "llvm/include/llvm/Support/MemoryBuffer.h"        // from @llvm-project
@@ -33,32 +34,73 @@ namespace heir {
 #define GEN_PASS_DEF_ILPBOOTSTRAPPLACEMENT
 #include "lib/Transforms/ILPBootstrapPlacement/ILPBootstrapPlacement.h.inc"
 
-struct OrbitCostModel {
-  int bootstrapCost;
-  int rescaleCost;
-};
-
-static std::optional<int> averagePositiveLatency(const llvm::json::Object& root,
-                                                 llvm::StringRef opName) {
-  const llvm::json::Object* latencyTable = root.getObject("latencyTable");
-  if (!latencyTable) return std::nullopt;
-
-  const llvm::json::Array* latencies = latencyTable->getArray(opName);
+// Read one op's per-level latency array (index i holds the latency at level
+// i + 1).
+static std::optional<SmallVector<double>> readLatencies(
+    const llvm::json::Object& latencyTable, llvm::StringRef opName) {
+  const llvm::json::Array* latencies = latencyTable.getArray(opName);
   if (!latencies) return std::nullopt;
 
-  double sum = 0;
-  int count = 0;
+  SmallVector<double> values;
   for (const llvm::json::Value& latencyValue : *latencies) {
     std::optional<double> latency = latencyValue.getAsNumber();
-    if (!latency || *latency <= 0) continue;
-    sum += *latency;
+    if (!latency) continue;
+    values.push_back(*latency);
+  }
+  if (values.empty()) return std::nullopt;
+  return values;
+}
+
+static std::optional<double> averagePositiveLatency(
+    const llvm::json::Object& latencyTable, llvm::StringRef opName) {
+  auto values = readLatencies(latencyTable, opName);
+  if (!values) return std::nullopt;
+  double sum = 0;
+  int count = 0;
+  for (double value : *values) {
+    if (value <= 0) continue;
+    sum += value;
     ++count;
   }
   if (count == 0) return std::nullopt;
-  return static_cast<int>(std::llround(sum / count));
+  return sum / count;
 }
 
-static FailureOr<OrbitCostModel> loadOrbitCostModel(llvm::StringRef path) {
+static std::optional<double> maxPositiveLatency(
+    const llvm::json::Object& latencyTable, llvm::StringRef opName) {
+  auto values = readLatencies(latencyTable, opName);
+  if (!values) return std::nullopt;
+  double maxValue = *llvm::max_element(*values);
+  if (maxValue <= 0) return std::nullopt;
+  return maxValue;
+}
+
+// Least-squares fit of cost(level) = slope * level + intercept over a
+// per-level latency array, where array index i holds the latency at level
+// i + 1.
+static std::optional<LinearCost> fitLinearCost(
+    const llvm::json::Object& latencyTable, llvm::StringRef opName) {
+  auto values = readLatencies(latencyTable, opName);
+  if (!values || values->empty()) return std::nullopt;
+
+  int n = values->size();
+  if (n == 1) return LinearCost{0.0, (*values)[0]};
+
+  double sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+  for (int i = 0; i < n; ++i) {
+    double x = i + 1;
+    double y = (*values)[i];
+    sumX += x;
+    sumY += y;
+    sumXY += x * y;
+    sumXX += x * x;
+  }
+  double slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+  double intercept = (sumY - slope * sumX) / n;
+  return LinearCost{slope, intercept};
+}
+
+static FailureOr<OpCostModel> loadOrbitCostModel(llvm::StringRef path) {
   auto bufferOrError = llvm::MemoryBuffer::getFile(path);
   if (!bufferOrError) return failure();
 
@@ -71,14 +113,40 @@ static FailureOr<OrbitCostModel> loadOrbitCostModel(llvm::StringRef path) {
 
   const llvm::json::Object* root = parsed->getAsObject();
   if (!root) return failure();
+  const llvm::json::Object* latencyTable = root->getObject("latencyTable");
+  if (!latencyTable) return failure();
 
-  std::optional<int> parsedBootstrapCost =
-      averagePositiveLatency(*root, "bootstrap");
-  std::optional<int> parsedRescaleCost =
-      averagePositiveLatency(*root, "rescale");
-  if (!parsedBootstrapCost || !parsedRescaleCost) return failure();
+  // Bootstrap and rescale enter the objective as constant per-decision costs:
+  // bootstrap is the average of positive samples (levels below the bootstrap
+  // range are typically recorded as zero) and rescale is the per-level
+  // maximum.
+  std::optional<double> bootstrapCost =
+      averagePositiveLatency(*latencyTable, "bootstrap");
+  std::optional<double> rescaleCost =
+      maxPositiveLatency(*latencyTable, "rescale");
+  if (!bootstrapCost || !rescaleCost) return failure();
 
-  return OrbitCostModel{*parsedBootstrapCost, *parsedRescaleCost};
+  OpCostModel costModel;
+  costModel.bootstrapCost = *bootstrapCost;
+  costModel.rescaleCost = *rescaleCost;
+
+  struct LevelCostKey {
+    llvm::StringRef name;
+    LinearCost* target;
+  };
+  LevelCostKey levelCostKeys[] = {
+      {"addCtCt", &costModel.addCtCt}, {"addCtPt", &costModel.addCtPt},
+      {"mulCtCt", &costModel.mulCtCt}, {"mulCtPt", &costModel.mulCtPt},
+      {"rotate", &costModel.rotate},   {"negate", &costModel.negate},
+  };
+  for (auto& [key, target] : levelCostKeys) {
+    std::optional<LinearCost> fitted = fitLinearCost(*latencyTable, key);
+    if (!fitted) return failure();
+    *target = *fitted;
+  }
+  costModel.hasLevelCosts = true;
+
+  return costModel;
 }
 
 struct ILPBootstrapPlacement
@@ -143,10 +211,11 @@ struct ILPBootstrapPlacement
           nodeManagement,
       SmallVector<ILPBootstrapPlacementAnalysis::EdgeManagement, 32>*
           edgeManagement) {
-    int effectiveBootstrapCost = bootstrapCost;
-    int effectiveRescaleCost = rescaleCost;
+    OpCostModel effectiveCostModel;
+    effectiveCostModel.bootstrapCost = bootstrapCost;
+    effectiveCostModel.rescaleCost = rescaleCost;
     if (!orbitCostModel.empty()) {
-      FailureOr<OrbitCostModel> loadedCostModel =
+      FailureOr<OpCostModel> loadedCostModel =
           loadOrbitCostModel(orbitCostModel);
       if (failed(loadedCostModel)) {
         llvm::errs() << "failed to load Orbit cost model from `"
@@ -155,15 +224,13 @@ struct ILPBootstrapPlacement
                                << orbitCostModel << "`";
         return failure();
       }
-      effectiveBootstrapCost = loadedCostModel->bootstrapCost;
-      effectiveRescaleCost = loadedCostModel->rescaleCost;
+      effectiveCostModel = *loadedCostModel;
     }
 
     ILPBootstrapPlacementAnalysis analysis(
         genericOp, solver, bootstrapWaterline, scaleConfig.scaleWaterline,
         scaleConfig.scaleFactorBits, bootstrapLevelLowerBound,
-        effectiveBootstrapCost, effectiveRescaleCost,
-        scaleConfig.analysisScaleMode());
+        effectiveCostModel, scaleConfig.analysisScaleMode());
     if (failed(analysis.solve())) {
       genericOp->emitError(
           "Failed to solve the bootstrap placement optimization problem");
