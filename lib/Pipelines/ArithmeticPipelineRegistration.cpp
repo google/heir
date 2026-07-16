@@ -1,6 +1,7 @@
 #include "lib/Pipelines/ArithmeticPipelineRegistration.h"
 
 #include <cstdlib>
+#include <memory>
 #include <string>
 
 #include "lib/Dialect/BGV/Conversions/BGVToLWE/BGVToLWE.h"
@@ -65,13 +66,94 @@
 #include "lib/Transforms/TensorLinalgToAffineLoops/TensorLinalgToAffineLoops.h"
 #include "lib/Transforms/ValidateNoise/ValidateNoise.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/BufferizationToMemRef/BufferizationToMemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/ConvertToEmitC/ConvertToEmitCPass.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Transforms/Passes.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Linalg/Passes.h"  // from @llvm-project
-#include "mlir/include/mlir/Pass/PassManager.h"       // from @llvm-project
-#include "mlir/include/mlir/Pass/PassOptions.h"       // from @llvm-project
-#include "mlir/include/mlir/Transforms/Passes.h"      // from @llvm-project
+#include "mlir/include/mlir/Dialect/Bufferization/IR/Bufferization.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/EmitC/IR/EmitC.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/Passes.h"     // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Pass/Pass.h"          // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"   // from @llvm-project
+#include "mlir/include/mlir/Pass/PassOptions.h"   // from @llvm-project
+#include "mlir/include/mlir/Transforms/Passes.h"  // from @llvm-project
 
 namespace mlir::heir {
+
+namespace {
+
+struct CleanupUnusedEmitCOps
+    : public PassWrapper<CleanupUnusedEmitCOps, OperationPass<ModuleOp>> {
+  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(CleanupUnusedEmitCOps)
+
+  StringRef getArgument() const override { return "cleanup-unused-emitc"; }
+  StringRef getDescription() const override {
+    return "Cleanup unused EmitC constants and casts";
+  }
+
+  void runOnOperation() override {
+    auto module = getOperation();
+    bool changed = true;
+    while (changed) {
+      changed = false;
+      SmallVector<Operation*> toErase;
+      module.walk([&](Operation* op) {
+        if (llvm::isa<emitc::ConstantOp, emitc::CastOp>(op)) {
+          if (op->use_empty()) {
+            toErase.push_back(op);
+          }
+        }
+      });
+      if (!toErase.empty()) {
+        for (auto* op : toErase) {
+          op->erase();
+        }
+        changed = true;
+      }
+    }
+  }
+};
+
+struct DeallocateDecodeBuffers
+    : public PassWrapper<DeallocateDecodeBuffers, OperationPass<ModuleOp>> {
+  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(DeallocateDecodeBuffers)
+
+  StringRef getArgument() const override { return "deallocate-decode-buffers"; }
+  StringRef getDescription() const override {
+    return "Deallocate buffers allocated for decode ops";
+  }
+
+  void runOnOperation() override {
+    auto module = getOperation();
+    module.walk([](bufferization::ToBufferOp op) {
+      auto source = op.getTensor();
+      if (auto decodeOp = source.getDefiningOp()) {
+        if (llvm::isa<openfhe::DecodeCKKSOp, openfhe::DecodeOp>(decodeOp)) {
+          Value buffer = op.getResult();
+          Block* definingBlock = op->getBlock();
+          Operation* lastUse = nullptr;
+          for (auto& use : buffer.getUses()) {
+            auto* user = use.getOwner();
+            Operation* ancestor = definingBlock->findAncestorOpInBlock(*user);
+            if (!ancestor) continue;
+            if (!lastUse || lastUse->isBeforeInBlock(ancestor)) {
+              lastUse = ancestor;
+            }
+          }
+          if (lastUse) {
+            OpBuilder builder(lastUse);
+            builder.setInsertionPointAfter(lastUse);
+            builder.create<memref::DeallocOp>(lastUse->getLoc(), buffer);
+          }
+        }
+      }
+    });
+  }
+};
+
+}  // namespace
 
 void hecoSIMDVectorizerPipelineBuilder(OpPassManager& manager,
                                        bool disableLoopUnroll) {
@@ -507,6 +589,21 @@ BackendPipelineBuilder toOpenFhePipelineBuilder() {
     pm.addPass(createCSEPass());
     pm.addPass(createCanonicalizerPass());
     pm.addPass(createSymbolDCEPass());
+
+    prepareForBufferize(pm);
+    oneShotBufferize(pm, /*includeDeallocation=*/true,
+                     /*allowUnknownOps=*/true);
+    pm.addPass(createInlinerPass());
+    pm.addPass(createCanonicalizerPass());
+    pm.addNestedPass<func::FuncOp>(createConvertLinalgToLoopsPass());
+    pm.addNestedPass<func::FuncOp>(mlir::createForallToForLoopPass());
+    pm.addNestedPass<func::FuncOp>(memref::createExpandStridedMetadataPass());
+    pm.addPass(std::make_unique<DeallocateDecodeBuffers>());
+    // pm.addPass(mlir::createConvertBufferizationToMemRefPass());
+    pm.addPass(createConvertToEmitC());
+    pm.addPass(createCanonicalizerPass());
+    pm.addPass(createCSEPass());
+    pm.addPass(std::make_unique<CleanupUnusedEmitCOps>());
   };
 }
 

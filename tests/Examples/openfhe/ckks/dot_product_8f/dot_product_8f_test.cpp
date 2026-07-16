@@ -22,15 +22,19 @@ TEST(DotProduct8FTest, RunTest) {
   float expected = 2.4 + 0.1;
 
   auto arg0Encrypted =
-      dot_product__encrypt__arg0(cryptoContext, arg0, publicKey);
+      dot_product__encrypt__arg0(cryptoContext, arg0.data(), publicKey);
   auto arg1Encrypted =
-      dot_product__encrypt__arg0(cryptoContext, arg1, publicKey);
+      dot_product__encrypt__arg1(cryptoContext, arg1.data(), publicKey);
   auto outputEncrypted =
       dot_product(cryptoContext, arg0Encrypted, arg1Encrypted);
   auto actual =
       dot_product__decrypt__result0(cryptoContext, outputEncrypted, secretKey);
 
   EXPECT_NEAR(expected, actual, 1e-3);
+
+  heir_free<CiphertextT>(arg0Encrypted);
+  heir_free<CiphertextT>(arg1Encrypted);
+  heir_free<CiphertextT>(outputEncrypted);
 }
 
 }  // namespace openfhe

@@ -9,7 +9,7 @@ module {
     %c0 = arith.constant 0 : index
     %alloc_0 = memref.alloc() : memref<8192xi64>
     // CHECK: %[[VEC:.*]] = call_opaque "std::vector<int64_t>"
-    // CHECK: member_call_opaque %[[ARG_CC]] "MakePackedPlaintext"(%[[VEC]]) : !emitc.opaque<"CryptoContextT">, (!emitc.opaque<"std::vector<int64_t>">) -> !emitc.opaque<"Plaintext">
+    // CHECK: member_call_opaque %{{.*}} "MakePackedPlaintext"(%[[VEC]]) : !emitc.opaque<"lbcrypto::CryptoContextImpl<lbcrypto::DCRTPoly>&">, (!emitc.opaque<"std::vector<int64_t>">) -> !emitc.opaque<"Plaintext">
     %pt = openfhe.make_packed_plaintext %cc, %alloc_0 : (!cc, memref<8192xi64>) -> !pt
     %alloc = memref.alloc() : memref<1x!pt>
     memref.store %pt, %alloc[%c0] : memref<1x!pt>

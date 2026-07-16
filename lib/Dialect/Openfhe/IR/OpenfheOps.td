@@ -31,7 +31,7 @@ class Openfhe_UnaryOp<string mnemonic, list<Trait> traits = []>
 
 // TODO(#2532): consider removing the op result
 class Openfhe_UnaryInPlaceOp<string mnemonic, list<Trait> traits = []>
-  : Openfhe_Op<mnemonic, traits # [InPlaceOpInterface]>{
+  : Openfhe_Op<mnemonic, traits # [InPlaceOpInterface, Pure]>{
  let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
     Openfhe_Ciphertext:$ciphertext
@@ -106,7 +106,7 @@ class Openfhe_BinaryPlainOp<string mnemonic, list<Trait> traits = []>
 }
 
 class Openfhe_BinaryInPlaceOp<string mnemonic, list<Trait> traits = []>
-  : Openfhe_Op<mnemonic, traits # [InPlaceOpInterface, AllTypesMatch<["lhs", "rhs"]>]> {
+  : Openfhe_Op<mnemonic, traits # [InPlaceOpInterface, Pure, AllTypesMatch<["lhs", "rhs"]>]> {
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
     Openfhe_Ciphertext:$lhs,
@@ -122,7 +122,7 @@ class Openfhe_BinaryInPlaceOp<string mnemonic, list<Trait> traits = []>
 
 // Ciphertext-plaintext in-place binary op
 class Openfhe_BinaryPlainInPlaceOp<string mnemonic, list<Trait> traits = []>
-  : Openfhe_Op<mnemonic, traits # [InPlaceOpInterface]> {
+  : Openfhe_Op<mnemonic, traits # [InPlaceOpInterface, Pure]> {
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
     Openfhe_PlaintextOrCiphertext:$lhs,
@@ -169,7 +169,7 @@ class Openfhe_BinaryPlainInPlaceOp<string mnemonic, list<Trait> traits = []>
   }];
 }
 
-def GenParamsOp : Openfhe_Op<"gen_params"> {
+def GenParamsOp : Openfhe_Op<"gen_params", [Pure]> {
   let description = [{
     Generates the parameters for the OpenFHE scheme.
 
@@ -213,7 +213,7 @@ def GenParamsOp : Openfhe_Op<"gen_params"> {
   let results = (outs Openfhe_CCParams:$params);
 }
 
-def GenContextOp : Openfhe_Op<"gen_context"> {
+def GenContextOp : Openfhe_Op<"gen_context", [Pure]> {
   let arguments = (ins
     Openfhe_CCParams:$params,
     BoolAttr:$supportFHE
@@ -221,14 +221,14 @@ def GenContextOp : Openfhe_Op<"gen_context"> {
   let results = (outs Openfhe_CryptoContext:$context);
 }
 
-def GenMulKeyOp : Openfhe_Op<"gen_mulkey"> {
+def GenMulKeyOp : Openfhe_Op<"gen_mulkey", [MemoryEffects<[MemWrite]>]> {
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
     Openfhe_PrivateKey:$privateKey
   );
 }
 
-def GenRotKeyOp : Openfhe_Op<"gen_rotkey"> {
+def GenRotKeyOp : Openfhe_Op<"gen_rotkey", [MemoryEffects<[MemWrite]>]> {
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
     Openfhe_PrivateKey:$privateKey,
@@ -236,7 +236,7 @@ def GenRotKeyOp : Openfhe_Op<"gen_rotkey"> {
   );
 }
 
-def SetupBootstrapOp : Openfhe_Op<"setup_bootstrap"> {
+def SetupBootstrapOp : Openfhe_Op<"setup_bootstrap", [MemoryEffects<[MemWrite]>]> {
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
     Builtin_IntegerAttr:$levelBudgetEncode,
@@ -244,7 +244,7 @@ def SetupBootstrapOp : Openfhe_Op<"setup_bootstrap"> {
   );
 }
 
-def GenBootstrapKeyOp : Openfhe_Op<"gen_bootstrapkey"> {
+def GenBootstrapKeyOp : Openfhe_Op<"gen_bootstrapkey", [MemoryEffects<[MemWrite]>]> {
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
     Openfhe_PrivateKey:$privateKey
@@ -440,7 +440,7 @@ def KeySwitchOp : Openfhe_Op<"key_switch", [
 }
 
 def KeySwitchInPlaceOp : Openfhe_Op<"key_switch_inplace",
-    [InPlaceOpInterface]> {
+    [InPlaceOpInterface, Pure]> {
   let summary = "In-place key switch of a ciphertext.";
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,

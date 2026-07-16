@@ -4,6 +4,7 @@
 #include <string>
 
 #include "llvm/include/llvm/ADT/DenseMap.h"              // from @llvm-project
+#include "mlir/include/mlir/Dialect/EmitC/IR/EmitC.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/OpImplementation.h"       // from @llvm-project
@@ -63,17 +64,17 @@ SelectVariableNames::SelectVariableNames(Operation* op) {
     }
   };
 
-  op->walk([&](func::FuncOp funcOp) {
-    // clear the prefix count
-    // different function has different name space
+  auto walkFunc = [&](auto funcOp) {
     prefixCount.clear();
-
     assignForOp(funcOp);
-    funcOp->walk<WalkOrder::PreOrder>([&](Operation* op) {
+    funcOp->template walk<WalkOrder::PreOrder>([&](Operation* op) {
       assignForOp(op);
       return WalkResult::advance();
     });
-  });
+  };
+
+  op->walk([&](func::FuncOp funcOp) { walkFunc(funcOp); });
+  op->walk([&](emitc::FuncOp funcOp) { walkFunc(funcOp); });
 }
 
 }  // namespace heir

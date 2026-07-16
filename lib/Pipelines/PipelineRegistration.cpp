@@ -14,6 +14,7 @@
 #include "lib/Transforms/PolynomialApproximation/PolynomialApproximation.h"
 #include "mlir/include/mlir/Conversion/AffineToStandard/AffineToStandard.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/BufferizationToMemRef/BufferizationToMemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/ConvertToEmitC/ConvertToEmitCPass.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ConvertToLLVM/ToLLVMPass.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Transforms/Passes.h"  // from @llvm-project
@@ -44,12 +45,14 @@ void prepareForBufferize(OpPassManager& manager) {
   manager.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
 }
 
-void oneShotBufferize(OpPassManager& manager, bool includeDeallocation) {
+void oneShotBufferize(OpPassManager& manager, bool includeDeallocation,
+                      bool allowUnknownOps) {
   // One-shot bufferize, from
   // https://mlir.llvm.org/docs/Bufferization/#ownership-based-buffer-deallocation
   bufferization::OneShotBufferizePassOptions bufferizationOptions;
   bufferizationOptions.bufferizeFunctionBoundaries = true;
   bufferizationOptions.allowReturnAllocsFromLoops = true;
+  bufferizationOptions.allowUnknownOps = allowUnknownOps;
   manager.addPass(
       bufferization::createOneShotBufferizePass(bufferizationOptions));
   manager.addPass(memref::createExpandReallocPass());
@@ -62,7 +65,9 @@ void oneShotBufferize(OpPassManager& manager, bool includeDeallocation) {
     manager.addPass(bufferization::createLowerDeallocationsPass());
   }
   manager.addPass(createCSEPass());
-  manager.addPass(mlir::createConvertBufferizationToMemRefPass());
+  if (!allowUnknownOps) {
+    manager.addPass(mlir::createConvertBufferizationToMemRefPass());
+  }
   manager.addPass(createCanonicalizerPass());
 }
 
@@ -161,6 +166,12 @@ void convertToDataObliviousPipelineBuilder(OpPassManager& manager) {
 
   // If Transformation
   manager.addPass(createConvertIfToSelect());
+}
+
+void openfheEmitCTestPipelineBuilder(OpPassManager& manager) {
+  prepareForBufferize(manager);
+  oneShotBufferize(manager);
+  manager.addPass(createConvertToEmitC());
 }
 
 }  // namespace mlir::heir

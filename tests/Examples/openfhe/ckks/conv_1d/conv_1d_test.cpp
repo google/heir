@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <vector>
 
 #include "gtest/gtest.h"  // from @googletest
@@ -26,18 +27,22 @@ TEST(Conv1DTest, RunTest) {
   std::vector<float> expected = {0.2f, 0.3f, 0.4f, 0.5f, 0.6f};
 
   auto ctEncrypted =
-      conv_1d__encrypt__arg0(cryptoContext, m, keyPair.publicKey);
+      conv_1d__encrypt__arg0(cryptoContext, m.data(), keyPair.publicKey);
 
-  auto result = conv_1d(cryptoContext, ctEncrypted, filter);
+  auto result = conv_1d(cryptoContext, ctEncrypted, filter.data());
 
   auto actual =
       conv_1d__decrypt__result0(cryptoContext, result, keyPair.secretKey);
 
-  ASSERT_EQ(actual.size(), expected.size());
+  ASSERT_NE(actual, nullptr);
 
   for (size_t i = 0; i < expected.size(); ++i) {
     EXPECT_NEAR(expected[i], actual[i], 1e-3);
   }
+
+  heir_free(ctEncrypted);
+  heir_free(result);
+  std::free(actual);
 }
 
 }  // namespace openfhe
