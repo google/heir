@@ -5246,7 +5246,7 @@ effective waterline scale and rescaling factor are equal.</p><h4 id=options-18>O
 -scale-waterline             : Orbit waterline/base scale bits (Sw). Non-CKKS level-only mode uses this for both Sw and Sf.
 -scale-factor-bits           : Orbit rescale factor bits (Sf), i.e. scale bits dropped by one rescale/modreduce.
 -bootstrap-level-lower-bound : Minimum input level at which bootstrap is allowed in the Orbit-inspired scale constraints.
--orbit-cost-model            : Path to a JSON cost model. When provided, bootstrap-cost and rescale-cost are loaded from latencyTable.bootstrap and latencyTable.rescale. See lib/Transforms/ILPBootstrapPlacement/README.md for the schema.
+-orbit-cost-model            : Path to a JSON cost model. See lib/Transforms/ILPBootstrapPlacement/README.md for the schema.
 -bootstrap-cost              : Cost of one bootstrap in the ILP objective. Default is the positive-latency average from Orbit&#39;s profiled 64k Lattigo base cost model.
 -rescale-cost                : Cost of one ILP-chosen rescale in the objective. This is loaded from Orbit&#39;s rescale latency when orbit-cost-model is provided. Default is the positive-latency average from Orbit&#39;s profiled 64k Lattigo base cost model.
 </code></pre><h3 id=-implement-rotate-and-reduce><code>-implement-rotate-and-reduce</code></h3><p><em>Implement tensor_ext.rotate_and_reduce ops with baby-steps / giant-steps</em></p><p>This pass converts <code>tensor_ext.rotate_and_reduce</code> ops

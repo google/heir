@@ -13,7 +13,7 @@ This pass rewrites activation patterns, such as ReLU implemented as a select and
 Example Command: heir-opt --activation-canonicalizations --canonicalize tests/Transforms/activation_canonicalizations/doctest.mlir
 Input:
 func.func @relu(%arg0: f32) -> f32 { %cst_0 = arith.constant 0.000000e+00 : f32 %0 = arith.cmpf ugt, %arg0, %cst_0 : f32 %1 = arith.select %0, %arg0, %cst_0 : f32 return %1 : f32 } Output:
-module { func."><meta itemprop=dateModified content="2025-10-17T09:48:09-07:00"><meta itemprop=wordCount content="25592"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="Passes"><meta name=twitter:description content="-activation-canonicalizations Rewrites specific activation patterns to simpler ops
+module { func."><meta itemprop=dateModified content="2025-10-17T09:48:09-07:00"><meta itemprop=wordCount content="25581"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="Passes"><meta name=twitter:description content="-activation-canonicalizations Rewrites specific activation patterns to simpler ops
 This pass rewrites activation patterns, such as ReLU implemented as a select and compare, to simpler operations like min/max.
 Example Command: heir-opt --activation-canonicalizations --canonicalize tests/Transforms/activation_canonicalizations/doctest.mlir
 Input:
@@ -1247,7 +1247,7 @@ effective waterline scale and rescaling factor are equal.</p><h4 id=options-18>O
 -scale-waterline             : Orbit waterline/base scale bits (Sw). Non-CKKS level-only mode uses this for both Sw and Sf.
 -scale-factor-bits           : Orbit rescale factor bits (Sf), i.e. scale bits dropped by one rescale/modreduce.
 -bootstrap-level-lower-bound : Minimum input level at which bootstrap is allowed in the Orbit-inspired scale constraints.
--orbit-cost-model            : Path to a JSON cost model. When provided, bootstrap-cost and rescale-cost are loaded from latencyTable.bootstrap and latencyTable.rescale. See lib/Transforms/ILPBootstrapPlacement/README.md for the schema.
+-orbit-cost-model            : Path to a JSON cost model. See lib/Transforms/ILPBootstrapPlacement/README.md for the schema.
 -bootstrap-cost              : Cost of one bootstrap in the ILP objective. Default is the positive-latency average from Orbit&#39;s profiled 64k Lattigo base cost model.
 -rescale-cost                : Cost of one ILP-chosen rescale in the objective. This is loaded from Orbit&#39;s rescale latency when orbit-cost-model is provided. Default is the positive-latency average from Orbit&#39;s profiled 64k Lattigo base cost model.
 </code></pre><h3 id=-implement-rotate-and-reduce><code>-implement-rotate-and-reduce</code></h3><p><em>Implement tensor_ext.rotate_and_reduce ops with baby-steps / giant-steps</em></p><p>This pass converts <code>tensor_ext.rotate_and_reduce</code> ops
