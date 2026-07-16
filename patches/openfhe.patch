@@ -1,14 +1,67 @@
 --- a/BUILD
 +++ b/BUILD
-@@ -59,21 +59,7 @@
-     },
+@@ -10,30 +10,15 @@
+     ],
  )
-
--_OPENMP_CLANG_LINKOPTS = [
--    "-fopenmp",
--    "-lomp",
--]
+ 
+-bool_flag(
+-    name = "enable_openmp",
+-    build_setting_default = True,
+-)
 -
+-config_setting(
+-    name = "config_enable_openmp",
+-    flag_values = {":enable_openmp": "True"},
+-)
+ 
+-config_setting(
+-    name = "config_disable_openmp",
+-    flag_values = {":enable_openmp": "False"},
+-)
+ 
+ OPENFHE_VERSION = "1.4.2"
+ 
+ OPENFHE_DEFINES = [
+     "MATHBACKEND=" + str(MATHBACKEND),
+     "OPENFHE_VERSION=" + OPENFHE_VERSION,
+-] + select({
+-    "//:config_enable_openmp": ["PARALLEL"],
+-    "//conditions:default": [],
+-})
++    "PARALLEL",
++]
+ 
+ OPENFHE_COPTS = [
+     "-Wno-non-virtual-dtor",
+@@ -43,46 +28,15 @@
+     "-std=c++17",
+ ]
+ 
+-config_setting(
+-    name = "clang_openmp",
+-    flag_values = {
+-        "@rules_cc//cc/compiler:compiler": "clang",
+-        "//:enable_openmp": "True",
+-    },
+-)
+-
+-config_setting(
+-    name = "gcc_openmp",
+-    flag_values = {
+-        "@rules_cc//cc/compiler:compiler": "gcc",
+-        "//:enable_openmp": "True",
+-    },
+-)
++OPENMP_LINKOPTS = []
+ 
+-_OPENMP_CLANG_LINKOPTS = [
++OPENMP_COPTS = [
+     "-fopenmp",
+-    "-lomp",
++    "-Xpreprocessor",
++    "-Wno-unused-command-line-argument",
+ ]
+ 
 -_OPENMP_GCC_LINKOPTS = [
 -    "-fopenmp",
 -    "-lgomp",
@@ -19,46 +72,43 @@
 -    "//:gcc_openmp": _OPENMP_GCC_LINKOPTS,
 -    "//conditions:default": [],
 -})
-+OPENMP_LINKOPTS = []
-
- OPENMP_COPTS = select({
-     "//:config_enable_openmp": [
-@@ -84,6 +70,11 @@
-     "//conditions:default": [],
- })
-
-+OPENMP_DEPS = select({
-+    "//:config_enable_openmp": ["@hermetic_llvm//openmp:libomp"],
-+    "//conditions:default": [],
-+})
-+
+-
+-OPENMP_COPTS = select({
+-    "//:config_enable_openmp": [
+-        "-fopenmp",
+-        "-Xpreprocessor",
+-        "-Wno-unused-command-line-argument",
+-    ],
+-    "//conditions:default": [],
+-})
++OPENMP_DEPS = ["@hermetic_llvm//openmp:libomp"]
+ 
  genrule(
      name = "generate_config_core_h",
-     outs = ["src/core/include/config_core.h"],
-@@ -137,7 +128,7 @@
+@@ -139,7 +93,7 @@
          ":generate_config_core_h",
          ":prng",
          "@cereal",
 -    ],
 +    ] + OPENMP_DEPS,
  )
-
+ 
  cc_library(
-@@ -156,7 +147,7 @@
+@@ -159,7 +113,7 @@
      deps = [
          ":core",
          ":generate_config_core_h",
 -    ],
 +    ] + OPENMP_DEPS,
  )
-
+ 
  cc_library(
-@@ -182,7 +173,7 @@
+@@ -186,7 +140,7 @@
          ":core",
          ":generate_config_core_h",
          "@cereal",
 -    ],
 +    ] + OPENMP_DEPS,
  )
-
+ 
  # Generates a shared library that can be shipped with the python frontend.
