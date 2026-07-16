@@ -47,6 +47,7 @@
 #include "mlir/include/mlir/IR/AffineMap.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
@@ -179,6 +180,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   LogicalResult visitOperation(tensor::InsertOp op);
   LogicalResult visitOperation(tensor::InsertSliceOp op);
   LogicalResult visitOperation(tensor::ExtractSliceOp op);
+  LogicalResult visitOperation(tensor::PadOp op);
 
   // Determine if the operation arguments have compatible layouts for the
   // given op. If the check fails, the CompatibilityResult::compatible field
@@ -345,8 +347,8 @@ LogicalResult LayoutPropagation::visitOperation(Operation* op) {
       .Case<affine::AffineForOp>([&](auto op) { return visitOperation(op); })
       // tensor ops
       .Case<tensor::ExtractOp, tensor::InsertOp, tensor::InsertSliceOp,
-            tensor::ExtractSliceOp, CollapseShapeOp, ExpandShapeOp>(
-          [&](auto op) { return visitOperation(op); })
+            tensor::ExtractSliceOp, tensor::PadOp, CollapseShapeOp,
+            ExpandShapeOp>([&](auto op) { return visitOperation(op); })
       // AddI, AddF, mgmt.* all pass the layout through unchanged.
       .Default([&](Operation* op) {
         passLayoutThroughOp(op);
@@ -1395,6 +1397,54 @@ LogicalResult LayoutPropagation::visitOperation(tensor::ExtractSliceOp op) {
       op.getSource(), op.getResultType().getShape());
   LayoutAttr outputLayout = LayoutAttr::getFromIntegerRelation(
       op.getContext(), zeroIndexedSliceLayout);
+  assignedLayouts.insert({op.getResult(), outputLayout});
+  debugAssignLayout(op.getResult(), outputLayout);
+  setResultLayoutAttr(op, kernelInfoAttr);
+  return success();
+}
+
+LogicalResult LayoutPropagation::visitOperation(tensor::PadOp op) {
+  // Check if operand 0 has layout
+  if (!assignedLayouts.contains(op.getSource())) {
+    return op->emitError() << "Source tensor has no assigned layout";
+  }
+
+  // Extract static low and high paddings. If dynamic bounds are present, emit
+  // error.
+  for (int64_t val : op.getStaticLow()) {
+    if (ShapedType::isDynamic(val)) {
+      return op->emitError()
+             << "Only static low padding is supported for layout propagation";
+    }
+  }
+  for (int64_t val : op.getStaticHigh()) {
+    if (ShapedType::isDynamic(val)) {
+      return op->emitError()
+             << "Only static high padding is supported for layout propagation";
+    }
+  }
+
+  SmallVector<int64_t> lowPadding = llvm::to_vector(op.getStaticLow());
+
+  // Get source layout
+  IntegerRelation sourceLayout =
+      getComposedLayoutAttr(op.getSource()).getIntegerRelation();
+
+  // Construct padding relation: Padded -> Unpadded
+  RankedTensorType paddedType = op.getResultType();
+  RankedTensorType unpaddedType = op.getSourceType();
+  IntegerRelation paddingRel =
+      getPaddingRelation(paddedType, unpaddedType, lowPadding);
+
+  // Compose: Padded -> Unpadded then Unpadded -> (ct, slot)
+  // yields Padded -> (ct, slot)
+  paddingRel.compose(sourceLayout);
+
+  Attribute kernelInfoAttr =
+      cloneKernelInfoWithResultShape(op.getSource(), paddedType.getShape());
+
+  LayoutAttr outputLayout =
+      LayoutAttr::getFromIntegerRelation(op.getContext(), paddingRel);
   assignedLayouts.insert({op.getResult(), outputLayout});
   debugAssignLayout(op.getResult(), outputLayout);
   setResultLayoutAttr(op, kernelInfoAttr);

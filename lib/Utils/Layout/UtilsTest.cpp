@@ -762,6 +762,34 @@ TEST(UtilsTest, TestRelationSizeLarge) {
   EXPECT_EQ(relationSize(rel), 2500000000LL);
 }
 
+TEST(UtilsTest, TestGetPaddingRelation) {
+  MLIRContext context;
+  RankedTensorType unpaddedType =
+      RankedTensorType::get({5}, Float32Type::get(&context));
+  RankedTensorType paddedType =
+      RankedTensorType::get({8}, Float32Type::get(&context));
+
+  auto rel = getPaddingRelation(paddedType, unpaddedType, {2});
+
+  // Domain: 0 <= p <= 7
+  // Range: 0 <= s <= 4
+  // Constraint: p - s = 2 => s = p - 2
+
+  // Test some points
+  // Padded index 2 should map to unpadded index 0
+  EXPECT_TRUE(rel.containsPointNoLocal({2, 0}).has_value());
+  // Padded index 6 should map to unpadded index 4
+  EXPECT_TRUE(rel.containsPointNoLocal({6, 4}).has_value());
+
+  // Out of bounds in padded
+  EXPECT_FALSE(rel.containsPointNoLocal({8, 6}).has_value());
+  // Out of bounds in unpadded (even if relation holds)
+  // p = 7 => s = 5, which is out of bounds for unpadded (0 <= s <= 4)
+  EXPECT_FALSE(rel.containsPointNoLocal({7, 5}).has_value());
+  // p = 1 => s = -1, out of bounds
+  EXPECT_FALSE(rel.containsPointNoLocal({1, -1}).has_value());
+}
+
 }  // namespace
 }  // namespace heir
 }  // namespace mlir
