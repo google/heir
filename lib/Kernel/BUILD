@@ -186,3 +186,54 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_test(
+    name = "BicyclicDiagonalMatmulFuzzTest",
+    srcs = ["BicyclicDiagonalMatmulFuzzTest.cpp"],
+    deps = [
+        ":AbstractValue",
+        ":ArithmeticDag",
+        ":EvalVisitor",
+        ":KernelImplementation",
+        "@fuzztest//fuzztest",
+        "@googletest//:gtest_main",
+        "@heir//lib/Utils/Layout:Evaluate",
+        "@heir//lib/Utils/Layout:Utils",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_test(
+    name = "BicyclicMatmulFuzzTest",
+    srcs = ["BicyclicMatmulFuzzTest.cpp"],
+    deps = [
+        ":AbstractValue",
+        ":ArithmeticDag",
+        ":EvalVisitor",
+        ":KernelImplementation",
+        "@fuzztest//fuzztest",
+        "@googletest//:gtest_main",
+        "@heir//lib/Utils/Layout:Evaluate",
+        "@heir//lib/Utils/Layout:Utils",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_test(
+    name = "TricyclicBatchMatmulFuzzTest",
+    srcs = ["TricyclicBatchMatmulFuzzTest.cpp"],
+    deps = [
+        ":AbstractValue",
+        ":ArithmeticDag",
+        ":EvalVisitor",
+        ":KernelImplementation",
+        "@fuzztest//fuzztest",
+        "@googletest//:gtest_main",
+        "@heir//lib/Utils/Layout:Evaluate",
+        "@heir//lib/Utils/Layout:Utils",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)

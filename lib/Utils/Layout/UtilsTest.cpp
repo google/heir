@@ -258,6 +258,107 @@ TEST(UtilsTest, BicyclicLayout3x5Repeated) {
   EXPECT_EQ(packedMatrix, expected);
 }
 
+TEST(UtilsTest, BicyclicCtPtDiagonal3x5x7) {
+  MLIRContext context;
+  int64_t numSlots = 105;
+  int64_t stride = 3;
+  int64_t contractionDim = 0;
+  RankedTensorType weightType =
+      RankedTensorType::get({5, 7}, IndexType::get(&context));
+  IntegerRelation relation =
+      getBicyclicDiagonalRelation(weightType, contractionDim, stride, numSlots);
+
+  // Initialize a 5x7 weight matrix
+  std::vector<std::vector<int>> weight(5, std::vector<int>(7));
+  for (int i = 0; i < 5; ++i) {
+    for (int j = 0; j < 7; ++j) {
+      weight[i][j] = i * 10 + j;
+    }
+  }
+
+  std::vector<std::vector<int>> packed =
+      evaluateLayoutOnMatrix(relation, weight);
+
+  // Expect n = 5 rows (diagonals) and numSlots = 105 cols
+  EXPECT_EQ(packed.size(), 5);
+  for (int c = 0; c < 5; ++c) {
+    EXPECT_EQ(packed[c].size(), numSlots);
+    for (int k = 0; k < numSlots; ++k) {
+      // D_c[k] = W[(k + c * stride) mod n, k mod freeSize]
+      // here n = 5, stride = 3, freeSize = 7
+      int expectedRow = (k + c * 3) % 5;
+      int expectedCol = k % 7;
+      EXPECT_EQ(packed[c][k], weight[expectedRow][expectedCol]);
+    }
+  }
+}
+
+TEST(UtilsTest, BicyclicPtCtDiagonal3x5x7) {
+  MLIRContext context;
+  int64_t numSlots = 105;
+  int64_t stride = 7;
+  int64_t contractionDim = 1;
+  RankedTensorType weightType =
+      RankedTensorType::get({3, 5}, IndexType::get(&context));
+  IntegerRelation relation =
+      getBicyclicDiagonalRelation(weightType, contractionDim, stride, numSlots);
+
+  // Initialize a 3x5 weight matrix
+  std::vector<std::vector<int>> weight(3, std::vector<int>(5));
+  for (int i = 0; i < 3; ++i) {
+    for (int j = 0; j < 5; ++j) {
+      weight[i][j] = i * 10 + j;
+    }
+  }
+
+  std::vector<std::vector<int>> packed =
+      evaluateLayoutOnMatrix(relation, weight);
+
+  // Expect n = 5 rows (diagonals) and numSlots = 105 cols
+  EXPECT_EQ(packed.size(), 5);
+  for (int c = 0; c < 5; ++c) {
+    EXPECT_EQ(packed[c].size(), numSlots);
+    for (int k = 0; k < numSlots; ++k) {
+      // D_c[k] = W[k mod freeSize, (k + c * stride) mod n]
+      // here n = 5 (dim 1), stride = 7, freeSize = 3 (dim 0)
+      int expectedRow = k % 3;
+      int expectedCol = (k + c * 7) % 5;
+      EXPECT_EQ(packed[c][k], weight[expectedRow][expectedCol]);
+    }
+  }
+}
+
+TEST(UtilsTest, BicyclicDiagonalNonIntegralWrap) {
+  MLIRContext context;
+  int64_t numSlots = 32;
+  int64_t stride = 7;
+  int64_t contractionDim = 1;
+  RankedTensorType weightType =
+      RankedTensorType::get({3, 5}, IndexType::get(&context));
+  IntegerRelation relation =
+      getBicyclicDiagonalRelation(weightType, contractionDim, stride, numSlots);
+
+  std::vector<std::vector<int>> weight(3, std::vector<int>(5));
+  for (int i = 0; i < 3; ++i) {
+    for (int j = 0; j < 5; ++j) {
+      weight[i][j] = i * 10 + j;
+    }
+  }
+
+  std::vector<std::vector<int>> packed =
+      evaluateLayoutOnMatrix(relation, weight);
+
+  EXPECT_EQ(packed.size(), 5);
+  for (int c = 0; c < 5; ++c) {
+    EXPECT_EQ(packed[c].size(), numSlots);
+    for (int k = 0; k < numSlots; ++k) {
+      int expectedRow = k % 3;
+      int expectedCol = (k + c * 7) % 5;
+      EXPECT_EQ(packed[c][k], weight[expectedRow][expectedCol]);
+    }
+  }
+}
+
 TEST(UtilsTest, TricyclicLayout2x5x7Structure) {
   MLIRContext context;
   // shape h=2, m=5, n=7

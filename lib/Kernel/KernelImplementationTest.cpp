@@ -491,6 +491,92 @@ TEST(KernelImplementationTest, BicyclicMatmul) {
   EXPECT_EQ(unpackedResult, expected);
 }
 
+TEST(KernelImplementationTest, BicyclicCtPtDiagonalMatmul) {
+  MLIRContext context;
+  std::vector<std::vector<int>> matrixA = {
+      {1, 2, 3, 5}, {7, 11, 13, 17}, {19, 23, 29, 31}};
+  std::vector<std::vector<int>> matrixB = {{2, 3, 5, 7, 11},
+                                           {13, 17, 19, 23, 29},
+                                           {31, 37, 41, 43, 47},
+                                           {53, 59, 61, 67, 71}};
+  int m = 3;
+  int n = 4;
+  int p = 5;
+  int numSlots = 64;
+
+  auto layoutA = getBicyclicLayoutRelation(
+      RankedTensorType::get({m, n}, mlir::IndexType::get(&context)), numSlots);
+  auto packedA = evaluateLayoutOnMatrix(layoutA, matrixA);
+
+  auto layoutB = getBicyclicDiagonalRelation(
+      RankedTensorType::get({n, p}, mlir::IndexType::get(&context)),
+      /*contractionDim=*/0, /*stride=*/m, numSlots);
+  auto packedB = evaluateLayoutOnMatrix(layoutB, matrixB);
+
+  LiteralValue packedAValue = packedA[0];
+  LiteralValue packedBValue = packedB;
+
+  auto dag = implementRotateAndReduce(
+      packedAValue, std::optional<LiteralValue>(packedBValue), m, n,
+      DagType::intTensor(32, {numSlots}), /*zeroDiagonals=*/{}, "arith.addi");
+
+  LiteralValue result = evalKernel(dag)[0];
+  auto resultVec = std::get<std::vector<int>>(result.get());
+
+  auto resultLayout = getBicyclicLayoutRelation(
+      RankedTensorType::get({m, p}, mlir::IndexType::get(&context)), m * p);
+  auto unpackedResult =
+      unpackLayoutToMatrix<int>(resultLayout, {resultVec}, {m, p});
+
+  std::vector<std::vector<int>> expected = {{386, 443, 471, 517, 565},
+                                            {1461, 1692, 1814, 2000, 2214},
+                                            {2879, 3350, 3612, 3986, 4440}};
+  EXPECT_EQ(unpackedResult, expected);
+}
+
+TEST(KernelImplementationTest, BicyclicPtCtDiagonalMatmul) {
+  MLIRContext context;
+  std::vector<std::vector<int>> matrixA = {
+      {1, 2, 3, 5}, {7, 11, 13, 17}, {19, 23, 29, 31}};
+  std::vector<std::vector<int>> matrixB = {{2, 3, 5, 7, 11},
+                                           {13, 17, 19, 23, 29},
+                                           {31, 37, 41, 43, 47},
+                                           {53, 59, 61, 67, 71}};
+  int m = 3;
+  int n = 4;
+  int p = 5;
+  int numSlots = 64;
+
+  auto layoutA = getBicyclicDiagonalRelation(
+      RankedTensorType::get({m, n}, mlir::IndexType::get(&context)),
+      /*contractionDim=*/1, /*stride=*/p, numSlots);
+  auto packedA = evaluateLayoutOnMatrix(layoutA, matrixA);
+
+  auto layoutB = getBicyclicLayoutRelation(
+      RankedTensorType::get({n, p}, mlir::IndexType::get(&context)), numSlots);
+  auto packedB = evaluateLayoutOnMatrix(layoutB, matrixB);
+
+  LiteralValue packedAValue = packedA;
+  LiteralValue packedBValue = packedB[0];
+
+  auto dag = implementRotateAndReduce(
+      packedBValue, std::optional<LiteralValue>(packedAValue), p, n,
+      DagType::intTensor(32, {numSlots}), /*zeroDiagonals=*/{}, "arith.addi");
+
+  LiteralValue result = evalKernel(dag)[0];
+  auto resultVec = std::get<std::vector<int>>(result.get());
+
+  auto resultLayout = getBicyclicLayoutRelation(
+      RankedTensorType::get({m, p}, mlir::IndexType::get(&context)), m * p);
+  auto unpackedResult =
+      unpackLayoutToMatrix<int>(resultLayout, {resultVec}, {m, p});
+
+  std::vector<std::vector<int>> expected = {{386, 443, 471, 517, 565},
+                                            {1461, 1692, 1814, 2000, 2214},
+                                            {2879, 3350, 3612, 3986, 4440}};
+  EXPECT_EQ(unpackedResult, expected);
+}
+
 TEST(KernelImplementationTest, BicyclicMatmulRotationCount) {
   MLIRContext context;
 
@@ -510,6 +596,30 @@ TEST(KernelImplementationTest, BicyclicMatmulRotationCount) {
 
   // 124 + 2*math.sqrt(124) = 146
   EXPECT_EQ(rotationCount, 146);
+}
+
+TEST(KernelImplementationTest, BicyclicDiagonalMatmulRotationCount) {
+  MLIRContext context;
+
+  int m = 123;
+  int n = 124;
+  int p = 125;
+  int numSlots = 2 * m * n * p;
+
+  SymbolicValue secretVal({m, n}, true);
+  SymbolicValue plainVal({n, p}, false);
+
+  int period = m;
+  int steps = n;
+  auto dag = implementRotateAndReduce(
+      secretVal, std::optional<SymbolicValue>(plainVal), period, steps,
+      DagType::intTensor(32, {numSlots}));
+
+  RotationCountVisitor rotationCounter;
+  int64_t rotationCount = rotationCounter.process(dag);
+
+  // 2*math.sqrt(124) = 22
+  EXPECT_EQ(rotationCount, 22);
 }
 
 TEST(KernelImplementationTest, TricyclicBatchMatmul) {
