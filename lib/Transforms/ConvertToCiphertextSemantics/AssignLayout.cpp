@@ -1,6 +1,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <functional>
 #include <string>
 #include <vector>
@@ -368,35 +369,70 @@ static FailureOr<Value> implementAssignLayoutStep(
       isLast) {
     LLVM_DEBUG(llvm::dbgs() << "Detected constant input, evaluating layout\n");
     int64_t numTargetElements = targetType.getNumElements();
-    Attribute zeroAttr = builder.getZeroAttr(elementType);
-    SmallVector<Attribute> packedValues(numTargetElements, zeroAttr);
 
     PointPairCollector collector(dataSemanticType.getRank(),
                                  /*rangeDims=*/targetType.getRank());
     enumeratePoints(rel, collector);
 
-    for (const auto& pointPair : collector.points) {
-      const auto& domainPoint = pointPair.first;
-      const auto& rangePoint = pointPair.second;
+    // Row-major strides let us flatten a multi-dimensional point with plain
+    // integer math, avoiding per-element getFlattenedIndex() interface lookups
+    auto rowMajorStrides = [](ArrayRef<int64_t> shape) {
+      SmallVector<int64_t> strides(shape.size(), 1);
+      for (int i = static_cast<int>(shape.size()) - 2; i >= 0; --i)
+        strides[i] = strides[i + 1] * shape[i + 1];
+      return strides;
+    };
+    SmallVector<int64_t> srcStrides =
+        rowMajorStrides(dataSemanticType.getShape());
+    SmallVector<int64_t> dstStrides = rowMajorStrides(targetType.getShape());
+    auto flatten = [](ArrayRef<int64_t> point, ArrayRef<int64_t> strides) {
+      int64_t flat = 0;
+      for (size_t i = 0; i < point.size(); ++i) flat += point[i] * strides[i];
+      return flat;
+    };
+    bool srcIsSplat = constantAttr.isSplat();
 
-      Attribute valAttr;
-      if (constantAttr.isSplat()) {
-        valAttr = constantAttr.getSplatValue<Attribute>();
-      } else {
-        SmallVector<uint64_t> coord;
-        coord.reserve(domainPoint.size());
-        for (int64_t val : domainPoint) {
-          coord.push_back(static_cast<uint64_t>(val));
-        }
-        valAttr =
-            constantAttr
-                .getValues<Attribute>()[mlir::ElementsAttr::getFlattenedIndex(
-                    constantAttr.getType(), coord)];
+    // Fast path: for byte-aligned int/float element types, pack directly into a
+    // raw byte buffer rather than building an N-element SmallVector<Attribute>
+    // and re-encoding it via DenseElementsAttr::get().
+    if (elementType.isIntOrFloat() &&
+        elementType.getIntOrFloatBitWidth() % 8 == 0) {
+      unsigned byteWidth = elementType.getIntOrFloatBitWidth() / 8;
+      ArrayRef<char> srcRaw = constantAttr.getRawData();
+      std::vector<char> rawBuffer(
+          static_cast<size_t>(numTargetElements) * byteWidth, 0);
+
+      for (const auto& [domainPoint, rangePoint] : collector.points) {
+        int64_t dstFlat = flatten(rangePoint, dstStrides);
+        if (dstFlat < 0 || dstFlat >= numTargetElements) continue;
+        int64_t srcFlat = srcIsSplat ? 0 : flatten(domainPoint, srcStrides);
+        std::memcpy(rawBuffer.data() + static_cast<size_t>(dstFlat) * byteWidth,
+                    srcRaw.data() + static_cast<size_t>(srcFlat) * byteWidth,
+                    byteWidth);
       }
-      auto flatIdx = getFlattenedIndex(targetType, llvm::to_vector(rangePoint));
-      if (flatIdx >= 0 && flatIdx < numTargetElements) {
-        packedValues[flatIdx] = valAttr;
-      }
+
+      auto packedConstantAttr = DenseElementsAttr::getFromRawBuffer(
+          targetType, ArrayRef<char>(rawBuffer.data(), rawBuffer.size()));
+      auto constantOp = arith::ConstantOp::create(builder, builder.getLoc(),
+                                                  packedConstantAttr);
+      createdOpCallback(constantOp);
+      return constantOp.getResult();
+    }
+
+    // Fallback for sub-byte element types (e.g. i1): build the packed constant
+    // from boxed Attributes.
+    Attribute zeroAttr = builder.getZeroAttr(elementType);
+    SmallVector<Attribute> packedValues(numTargetElements, zeroAttr);
+    Attribute splatValue =
+        srcIsSplat ? constantAttr.getSplatValue<Attribute>() : Attribute();
+    auto srcValues = constantAttr.getValues<Attribute>();
+    for (const auto& [domainPoint, rangePoint] : collector.points) {
+      int64_t dstFlat = flatten(rangePoint, dstStrides);
+      if (dstFlat < 0 || dstFlat >= numTargetElements) continue;
+      packedValues[dstFlat] = srcIsSplat
+                                  ? splatValue
+                                  : srcValues[static_cast<size_t>(
+                                        flatten(domainPoint, srcStrides))];
     }
 
     auto packedConstantAttr =
