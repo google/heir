@@ -1707,11 +1707,19 @@ LogicalResult OpenFhePkeEmitter::printOperation(
 
 LogicalResult OpenFhePkeEmitter::printOperation(tensor::InsertOp op) {
   // For a tensor.insert MLIR statement, we assign the destination vector and
-  // then map the result value to the destination value.
+  // then map the result value to the destination value if they are equal.
   // %result = tensor.insert %scalar into %dest[%idx]
   // dest[idx] = scalar;
-  os << variableNames->getNameForValue(op.getDest());
-  os << "[";
+  std::string destName = variableNames->getNameForValue(op.getDest());
+  std::string resultName = variableNames->getNameForValue(op.getResult());
+  if (destName != resultName) {
+    if (failed(emitType(op.getResult().getType(), op->getLoc()))) {
+      return failure();
+    }
+    os << " " << resultName << "(" << destName << ");\n";
+  }
+
+  os << resultName << "[";
   if (op.getIndices().empty()) {
     os << "0";
   } else {
@@ -1724,7 +1732,10 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::InsertOp op) {
   os << "]";
   os << " = " << variableNames->getNameForValue(op.getScalar()) << ";\n";
 
-  variableNames->mapValueNameToValue(op.getResult(), op.getDest());
+  if (destName == resultName) {
+    variableNames->mapValueNameToValue(op.getResult(), op.getDest());
+  }
+
   return success();
 }
 
