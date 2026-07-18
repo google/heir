@@ -20,7 +20,7 @@
 
 // CHECK-ILP-COUNT-2: mgmt.bootstrap
 // CHECK-ILP-NOT: mgmt.bootstrap
-// CHECK-GREEDY-COUNT-3: mgmt.bootstrap
+// CHECK-GREEDY-COUNT-2: mgmt.bootstrap
 // CHECK-COST-MODEL-COUNT-2: mgmt.bootstrap
 // CHECK-COST-MODEL-NOT: mgmt.bootstrap
 
