@@ -59,7 +59,9 @@ def PolynomialApproximation : Pass<"polynomial-approximation"> {
     - `minnumf`
 
     These ops are replaced with `polynomial.eval` ops with a static polynomial
-    attribute.
+    attribute, with the exception of `exp` operations with domain in `[-2^k, 1.0]`
+    (default `k=7`), which are replaced using a Taylor approximation
+    `e^x = (1 + x/2^k)^(2^k)` evaluated via repeated squaring.
 
     (* example filepath=tests/Transforms/polynomial_approximation/doctest.mlir *)
   }];

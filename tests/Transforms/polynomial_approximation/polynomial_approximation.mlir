@@ -2,12 +2,33 @@
 
 // CHECK: @test_exp
 func.func @test_exp(%x: f32) -> f32 {
-  // Don't assert the quality of the approximation, just that it was applied
-  // and has the right degree. Leave quality-of-approximation for unit testing.
-  // CHECK: polynomial.eval
-  // CHECK-SAME: [{{.*}}, {{.*}}, {{.*}}, {{.*}}]
+  // CHECK: %[[SCALE:.*]] = arith.constant 7.812500e-03 : f32
+  // CHECK: %[[ONE:.*]] = arith.constant 1.000000e+00 : f32
+  // CHECK: %[[SCALED:.*]] = arith.mulf %{{.*}}, %[[SCALE]] : f32
+  // CHECK: %[[V0:.*]] = arith.addf %[[SCALED]], %[[ONE]] : f32
+  // CHECK: %[[V1:.*]] = arith.mulf %[[V0]], %[[V0]] : f32
+  // CHECK: %[[V2:.*]] = arith.mulf %[[V1]], %[[V1]] : f32
+  // CHECK: %[[V3:.*]] = arith.mulf %[[V2]], %[[V2]] : f32
+  // CHECK: %[[V4:.*]] = arith.mulf %[[V3]], %[[V3]] : f32
+  // CHECK: %[[V5:.*]] = arith.mulf %[[V4]], %[[V4]] : f32
+  // CHECK: %[[V6:.*]] = arith.mulf %[[V5]], %[[V5]] : f32
+  // CHECK: %[[V7:.*]] = arith.mulf %[[V6]], %[[V6]] : f32
+  // CHECK: return %[[V7]] : f32
   %0 = math.exp %x {degree = 3 : i32, domain_lower = -1.0 : f64, domain_upper = 1.0 : f64} : f32
   return %0 : f32
+}
+
+// -----
+
+// CHECK: @test_exp_tensor
+func.func @test_exp_tensor(%x: tensor<4xf32>) -> tensor<4xf32> {
+  // CHECK: %[[SCALE:.*]] = arith.constant dense<7.812500e-03> : tensor<4xf32>
+  // CHECK: %[[ONE:.*]] = arith.constant dense<1.000000e+00> : tensor<4xf32>
+  // CHECK: %[[SCALED:.*]] = arith.mulf %{{.*}}, %[[SCALE]] : tensor<4xf32>
+  // CHECK: %[[V0:.*]] = arith.addf %[[SCALED]], %[[ONE]] : tensor<4xf32>
+  // CHECK: %[[V1:.*]] = arith.mulf %[[V0]], %[[V0]] : tensor<4xf32>
+  %0 = math.exp %x : tensor<4xf32>
+  return %0 : tensor<4xf32>
 }
 
 // -----
