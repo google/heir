@@ -1,3 +1,5 @@
+#include "lib/Transforms/ConvertToCiphertextSemantics/AssignLayout.h"
+
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -10,14 +12,15 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/TypeConversion.h"
 #include "lib/Utils/Layout/Codegen.h"
+#include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/Layout/Utils.h"
-#include "lib/Utils/TensorUtils.h"
-#include "llvm/include/llvm/ADT/BitVector.h"        // from @llvm-project
-#include "llvm/include/llvm/ADT/DynamicAPInt.h"     // from @llvm-project
-#include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallVector.h"      // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"        // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/BitVector.h"          // from @llvm-project
+#include "llvm/include/llvm/ADT/DynamicAPInt.h"       // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVectorExtras.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"          // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"    // from @llvm-project
 #include "mlir/include/mlir/Analysis/FlatLinearValueConstraints.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
@@ -287,7 +290,8 @@ static FailureOr<Value> implementAssignLayoutStep(
     Value input, LayoutAttr layout, Type targetTypeTy,
     ImplicitLocOpBuilder& builder,
     const std::function<void(Operation*)>& createdOpCallback, bool isLast,
-    ArrayRef<int64_t> domainSchedule = {}) {
+    ArrayRef<int64_t> domainSchedule = {},
+    CodegenStrategy strategy = CodegenStrategy::AUTO) {
   presburger::IntegerRelation rel = layout.getIntegerRelation();
   RankedTensorType targetType = cast<RankedTensorType>(targetTypeTy);
   auto elementType = getElementTypeOrSelf(input.getType());
@@ -360,13 +364,25 @@ static FailureOr<Value> implementAssignLayoutStep(
     return constantOp.getResult();
   }
 
-  // If the input is a dense/splat constant, evaluate the relation on its
-  // elements at compile-time. This avoids generating a loop nest and evaluating
-  // the packing at runtime. We gate this on isLast because we want to avoid
-  // evaluating enumeratePoints on intermediate layouts.
   DenseElementsAttr constantAttr;
+  bool shouldFold = false;
   if (matchPattern(input, m_Constant(&constantAttr)) && dataSemanticType &&
       isLast) {
+    if (strategy == CodegenStrategy::FOLD_WHEN_POSSIBLE) {
+      shouldFold = true;
+    } else if (strategy == CodegenStrategy::AUTO) {
+      int64_t relSize = relationSize(rel);
+      if (relSize <= 16384) {
+        shouldFold = true;
+      } else {
+        LLVM_DEBUG(llvm::dbgs()
+                   << "Relation size " << relSize
+                   << " exceeds threshold 16384, skipping constant folding\n");
+      }
+    }
+  }
+
+  if (shouldFold) {
     LLVM_DEBUG(llvm::dbgs() << "Detected constant input, evaluating layout\n");
     int64_t numTargetElements = targetType.getNumElements();
 
@@ -513,7 +529,7 @@ FailureOr<Value> implementAssignLayout(
     Value input, Attribute layout, int64_t ciphertextSize,
     ImplicitLocOpBuilder& builder,
     const std::function<void(Operation*)>& createdOpCallback,
-    ArrayRef<int64_t> domainSchedule) {
+    ArrayRef<int64_t> domainSchedule, CodegenStrategy strategy) {
   OpBuilder::InsertionGuard guard(builder);
 
   if (auto arrayAttr = dyn_cast<ArrayAttr>(layout)) {
@@ -537,7 +553,8 @@ FailureOr<Value> implementAssignLayout(
       }
       auto result =
           implementAssignLayoutStep(currentInput, layoutAttr, targetType,
-                                    builder, createdOpCallback, isLast);
+                                    builder, createdOpCallback, isLast,
+                                    /*domainSchedule=*/{}, strategy);
       if (failed(result)) {
         return failure();
       }
@@ -552,7 +569,7 @@ FailureOr<Value> implementAssignLayout(
         materializeLayout(elementType, layoutAttr, ciphertextSize);
     return implementAssignLayoutStep(input, layoutAttr, targetType, builder,
                                      createdOpCallback, /*isLast=*/true,
-                                     domainSchedule);
+                                     domainSchedule, strategy);
   } else if (DenseIntElementsAttr elementAttr =
                  dyn_cast<DenseIntElementsAttr>(layout)) {
     Type targetType = materializePermutationLayout(input.getType(), elementAttr,

@@ -337,10 +337,12 @@ class ConvertAssignLayout
     : public ContextAwareOpConversionPattern<tensor_ext::AssignLayoutOp> {
  public:
   ConvertAssignLayout(const ContextAwareTypeConverter& typeConverter,
-                      mlir::MLIRContext* context, int64_t ciphertextSize)
+                      mlir::MLIRContext* context, int64_t ciphertextSize,
+                      CodegenStrategy strategy)
       : ContextAwareOpConversionPattern<tensor_ext::AssignLayoutOp>(
             typeConverter, context),
-        ciphertextSize(ciphertextSize) {}
+        ciphertextSize(ciphertextSize),
+        strategy(strategy) {}
 
   LogicalResult matchAndRewrite(
       tensor_ext::AssignLayoutOp op, OpAdaptor adaptor,
@@ -413,7 +415,8 @@ class ConvertAssignLayout
     };
 
     auto res = implementAssignLayout(input, layout, ciphertextSize, b,
-                                     createdOpCallback, op.getDomainSchedule());
+                                     createdOpCallback, op.getDomainSchedule(),
+                                     strategy);
     if (failed(res)) {
       // Clean up split blocks if implementation failed
       rewriter.mergeBlocks(nextBlock, scratchBlock);
@@ -460,6 +463,7 @@ class ConvertAssignLayout
 
  private:
   int64_t ciphertextSize;
+  CodegenStrategy strategy;
 
   func::FuncOp outlineAssignLayoutFunction(
       tensor_ext::AssignLayoutOp op, Value originalInput, Value originalResult,
@@ -2622,7 +2626,8 @@ struct ConvertToCiphertextSemantics
                  ConvertLinalgConv2D, ConvertLinalgConv2DNchwFchw,
                  ConvertLinalgConv1DNcwFcw>(typeConverter, context,
                                             unrollKernels);
-    patterns.add<ConvertAssignLayout>(typeConverter, context, ciphertextSize);
+    patterns.add<ConvertAssignLayout>(typeConverter, context, ciphertextSize,
+                                      codegenStrategy);
 
     ConversionConfig config;
     config.buildMaterializations = false;

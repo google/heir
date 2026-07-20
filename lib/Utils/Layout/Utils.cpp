@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <climits>
 #include <cmath>
 #include <cstdint>
 #include <memory>
@@ -782,21 +783,23 @@ void getCtComplementPoints(const presburger::IntegerRelation& relation,
 
   int64_t numCts = outputType.getDimSize(0);
 
-  // We only need the distinct ct indices (range var 0) in the relation's image.
-  // Projecting out the slot dimension first lets us enumerate at most numCts
-  // points instead of the full (ct, slot) grid.
-  PointCollector ctPoints;
-  isl_basic_map* bmap = convertRelationToBasicMap(relation, ctPoints.ctx);
-  isl_set* ctSet = isl_set_from_basic_set(isl_basic_map_range(bmap));
-  ctSet = isl_set_project_out(ctSet, isl_dim_set, /*first=*/1, /*n=*/1);
-  isl_set_foreach_point(ctSet, &pointCallback, &ctPoints);
-  isl_set_free(ctSet);
+  isl_ctx* ctx = isl_ctx_alloc();
+  isl_basic_map* bmap = convertRelationToBasicMap(relation, ctx);
 
   std::vector<bool> seen(numCts, false);
-  for (const std::vector<int64_t>& point : ctPoints.points) {
-    int64_t ct = point[0];
-    if (ct >= 0 && ct < numCts) seen[ct] = true;
+  for (int64_t ct = 0; ct < numCts; ++ct) {
+    isl_val* v = isl_val_int_from_si(ctx, ct);
+    // Copy bmap because fix_val consumes it.
+    isl_basic_map* fixedBmap =
+        isl_basic_map_fix_val(isl_basic_map_copy(bmap), isl_dim_out, 0, v);
+    isl_bool isEmpty = isl_basic_map_is_empty(fixedBmap);
+    isl_basic_map_free(fixedBmap);
+    if (isEmpty == isl_bool_false) {
+      seen[ct] = true;
+    }
   }
+  isl_basic_map_free(bmap);
+  isl_ctx_free(ctx);
 
   // The complement is every ct index in [0, numCts) that never appeared,
   // emitted in ascending order.
@@ -1014,6 +1017,36 @@ bool isDenseLayout(const presburger::IntegerRelation& relation,
   isl_ctx_free(ctx);
 
   return result;
+}
+
+int64_t relationSize(const IntegerRelation& rel) {
+  isl_ctx* ctx = isl_ctx_alloc();
+  isl_basic_map* bmap = convertRelationToBasicMap(rel, ctx);
+  isl_set* set = isl_set_from_basic_set(isl_basic_map_wrap(bmap));
+
+  if (isl_set_is_bounded(set) != isl_bool_true) {
+    isl_set_free(set);
+    isl_ctx_free(ctx);
+    return -1;
+  }
+
+  isl_val* card = isl_set_count_val(set);
+
+  if (!card || isl_val_is_nan(card)) {
+    if (card) isl_val_free(card);
+    isl_set_free(set);
+    isl_ctx_free(ctx);
+    return -1;
+  }
+
+  int64_t count = -1;
+  if (isl_val_is_int(card) && isl_val_cmp_si(card, LONG_MAX) <= 0) {
+    count = isl_val_get_num_si(card);
+  }
+  isl_val_free(card);
+  isl_set_free(set);
+  isl_ctx_free(ctx);
+  return count;
 }
 
 }  // namespace heir

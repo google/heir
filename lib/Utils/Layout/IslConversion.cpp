@@ -26,6 +26,12 @@ using presburger::PresburgerSpace;
 namespace {
 // Borrowed from
 // https://github.com/EnzymeAD/Enzyme-JAX/blob/ec61fe8bee1abb50ca3883cdded669e978624ad9/src/enzyme_ad/jax/Passes/SimplifyAffineExprs.cpp#L47
+__isl_give isl_mat* setElement(__isl_take isl_mat* mat, isl_ctx* ctx, int row,
+                               int col, int64_t val) {
+  isl_val* v = isl_val_int_from_si(ctx, val);
+  return isl_mat_set_element_val(mat, row, col, v);
+}
+
 __isl_give isl_mat* createConstraintRows(__isl_keep isl_ctx* ctx,
                                          const IntegerRelation& rel,
                                          bool isEq) {
@@ -45,18 +51,17 @@ __isl_give isl_mat* createConstraintRows(__isl_keep isl_ctx* ctx,
 
     // Dims stay at the same positions.
     for (unsigned j = 0; j < numDimVars; j++)
-      mat = isl_mat_set_element_si(mat, i, j, (int64_t)row[j]);
+      mat = setElement(mat, ctx, i, j, (int64_t)row[j]);
     // Output local ids before symbols.
     for (unsigned j = 0; j < numLocalVars; j++)
-      mat = isl_mat_set_element_si(
-          mat, i, j + numDimVars, (int64_t)row[j + numDimVars + numSymbolVars]);
+      mat = setElement(mat, ctx, i, j + numDimVars,
+                       (int64_t)row[j + numDimVars + numSymbolVars]);
     // Output symbols in the end.
     for (unsigned j = 0; j < numSymbolVars; j++)
-      mat = isl_mat_set_element_si(mat, i, j + numDimVars + numLocalVars,
-                                   (int64_t)row[j + numDimVars]);
+      mat = setElement(mat, ctx, i, j + numDimVars + numLocalVars,
+                       (int64_t)row[j + numDimVars]);
     // Finally outputs the constant.
-    mat =
-        isl_mat_set_element_si(mat, i, numCols - 1, (int64_t)row[numCols - 1]);
+    mat = setElement(mat, ctx, i, numCols - 1, (int64_t)row[numCols - 1]);
   }
   return mat;
 }

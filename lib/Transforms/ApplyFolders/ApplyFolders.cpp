@@ -8,11 +8,9 @@
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/Matchers.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"       // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
-
-// required for generated patterns
-#include "mlir/include/mlir/IR/Matchers.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -33,9 +31,6 @@ struct ApplyFolders : impl::ApplyFoldersBase<ApplyFolders> {
   void runOnOperation() override {
     MLIRContext* context = &getContext();
     RewritePatternSet patterns(context);
-    // Folding tensor.extract_slice of a constant materializes a new constant by
-    // reading the source element-by-element. Skip it for large tensors. See
-    // TODO(#1221).
     constexpr int64_t kMaxConstantFoldElements = 1 << 16;
     tensor::ControlConstantExtractSliceFusionFn controlFn =
         [](tensor::ExtractSliceOp op) {

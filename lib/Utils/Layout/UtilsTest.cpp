@@ -708,6 +708,42 @@ TEST(UtilsTest, TestIsDenseLayout_Matvec) {
   EXPECT_TRUE(isDenseLayout(matvecRelation, expectedType));
 }
 
+TEST(UtilsTest, TestRelationSize) {
+  auto rel = getIntegerRelationFromIslStr(
+                 "{ [i0, i1] -> [ct, slot] : 0 <= i0 <= 1 and 0 <= i1 <= 2 and "
+                 "ct = i0 and slot = i1 }")
+                 .value();
+  // Domain is 2x3 = 6 points.
+  EXPECT_EQ(relationSize(rel), 6);
+}
+
+TEST(UtilsTest, TestRelationSizeUnbounded) {
+  auto rel = getIntegerRelationFromIslStr(
+                 "{ [i0, i1] -> [ct, slot] : 0 <= i0 <= 1 and 0 <= i1 and "
+                 "ct = i0 and slot = i1 }")
+                 .value();
+  // Size is unbounded
+  EXPECT_EQ(relationSize(rel), -1);
+}
+
+TEST(UtilsTest, TestRelationSizeExceedsInt64) {
+  auto rel = getIntegerRelationFromIslStr(
+                 "{ [i0] -> [slot] : 0 <= i0 <= 9223372036854775807 and "
+                 "slot = i0 }")
+                 .value();
+  EXPECT_EQ(relationSize(rel), -1);
+}
+
+TEST(UtilsTest, TestRelationSizeLarge) {
+  auto rel =
+      getIntegerRelationFromIslStr(
+          "{ [i0, i1] -> [slot] : 0 <= i0 and 49999 >= i0 and 0 <= i1 and "
+          "49999 >= i1 and slot = 0 }")
+          .value();
+  // 50000 * 50000 = 2,500,000,000 (exceeds INT_MAX)
+  EXPECT_EQ(relationSize(rel), 2500000000LL);
+}
+
 }  // namespace
 }  // namespace heir
 }  // namespace mlir

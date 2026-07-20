@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics | FileCheck %s
+// RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics="codegen-strategy=fold-when-possible" | FileCheck %s
 
 #kernel = #secret.kernel<name = "MatvecDiagonal", force = false>
 #layout2 = #tensor_ext.layout<"{ [i0, i1] -> [ct, slot] : ct = 0 and (-32i0 - i1 + slot) mod 1024 = 0 and 0 <= i0 <= 31 and 0 <= i1 <= 31 and 0 <= slot <= 1023 }">

@@ -135,7 +135,6 @@ cc_test(
         "@llvm-project//mlir:ArithUtils",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
-        "@llvm-project//mlir:TensorDialect",
     ],
 )
 

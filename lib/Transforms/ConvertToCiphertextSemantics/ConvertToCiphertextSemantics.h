@@ -1,6 +1,7 @@
 #ifndef LIB_TRANSFORMS_CONVERTTOCIPHERTEXTSEMANTICS_CONVERTTOCIPHERTEXTSEMANTICS_H_
 #define LIB_TRANSFORMS_CONVERTTOCIPHERTEXTSEMANTICS_CONVERTTOCIPHERTEXTSEMANTICS_H_
 
+#include "lib/Transforms/ConvertToCiphertextSemantics/AssignLayout.h"
 #include "mlir/include/mlir/Pass/Pass.h"  // from @llvm-project
 
 namespace mlir {

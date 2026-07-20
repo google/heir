@@ -70,8 +70,8 @@ cc_library(
     deps = [
         ":TypeConversion",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
-        "@heir//lib/Utils:TensorUtils",
         "@heir//lib/Utils/Layout:Codegen",
+        "@heir//lib/Utils/Layout:IslConversion",
         "@heir//lib/Utils/Layout:Utils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",

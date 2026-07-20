@@ -246,6 +246,10 @@ bool isRelationEqual(const presburger::IntegerRelation& relation1,
 bool isDenseLayout(const presburger::IntegerRelation& relation,
                    RankedTensorType type);
 
+// Returns the number of integer points in the relation. Returns -1 if the
+// relation is unbounded of the number of points exceeds the size of an int64_t.
+int64_t relationSize(const presburger::IntegerRelation& relation);
+
 }  // namespace heir
 }  // namespace mlir
 

@@ -5,6 +5,7 @@
 #include <functional>
 #include <string>
 
+#include "lib/Transforms/ConvertToCiphertextSemantics/AssignLayout.h"
 #include "llvm/include/llvm/Support/CommandLine.h"  // from @llvm-project
 #include "mlir/include/mlir/Pass/PassManager.h"     // from @llvm-project
 #include "mlir/include/mlir/Pass/PassOptions.h"     // from @llvm-project
@@ -108,6 +109,17 @@ struct MlirToRLWEPipelineOptions : public LoopOptions {
       llvm::cl::desc(
           "Split server-side plaintext preprocessing into a separate function"),
       llvm::cl::init(true)};
+  PassOptions::Option<CodegenStrategy> codegenStrategy{
+      *this, "codegen-strategy",
+      llvm::cl::desc("Codegen strategy for assign_layout."),
+      llvm::cl::values(
+          clEnumValN(CodegenStrategy::AUTO, "auto",
+                     "Automatically choose folding based on size"),
+          clEnumValN(CodegenStrategy::NEVER_FOLD, "never-fold",
+                     "Never fold constants"),
+          clEnumValN(CodegenStrategy::FOLD_WHEN_POSSIBLE, "fold-when-possible",
+                     "Fold constants when possible")),
+      llvm::cl::init(CodegenStrategy::AUTO)};
 };
 
 struct PlaintextBackendOptions

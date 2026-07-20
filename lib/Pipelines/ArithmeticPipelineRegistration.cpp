@@ -194,6 +194,7 @@ void mlirToSecretArithmeticPipelineBuilder(
   convertToCiphertextSemanticsOptions.ciphertextSize = options.ciphertextDegree;
   convertToCiphertextSemanticsOptions.unrollKernels =
       !options.experimentalDisableLoopUnroll;
+  convertToCiphertextSemanticsOptions.codegenStrategy = options.codegenStrategy;
   pm.addPass(
       createConvertToCiphertextSemantics(convertToCiphertextSemanticsOptions));
 
@@ -595,6 +596,7 @@ void torchLinalgToCkksBuilder(OpPassManager& manager,
   suboptions.levelBudget = options.levelBudget;
   suboptions.plaintextExecutionResultFileName =
       options.plaintextExecutionResultFileName;
+  suboptions.codegenStrategy = options.codegenStrategy;
 
   mlirToRLWEPipelineBuilder(mlir::heir::RLWEScheme::ckksScheme)(manager,
                                                                 suboptions);

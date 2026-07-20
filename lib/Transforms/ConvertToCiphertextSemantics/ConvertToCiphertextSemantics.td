@@ -69,6 +69,18 @@ def ConvertToCiphertextSemantics : Pass<"convert-to-ciphertext-semantics"> {
       /*default=*/"true",
       "Unroll kernel implementations."
     >,
+    Option<
+      "codegenStrategy",
+      "codegen-strategy",
+      "mlir::heir::CodegenStrategy",
+      /*default=*/"mlir::heir::CodegenStrategy::AUTO",
+      "Codegen strategy for assign_layout.",
+      [{::llvm::cl::values(
+        clEnumValN(mlir::heir::CodegenStrategy::AUTO, "auto", "Automatically choose folding based on size"),
+        clEnumValN(mlir::heir::CodegenStrategy::NEVER_FOLD, "never-fold", "Never fold constants"),
+        clEnumValN(mlir::heir::CodegenStrategy::FOLD_WHEN_POSSIBLE, "fold-when-possible", "Fold constants when possible")
+      )}]
+    >,
   ];
 }
 

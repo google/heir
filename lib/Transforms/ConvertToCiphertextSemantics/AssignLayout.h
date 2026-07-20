@@ -17,6 +17,12 @@
 namespace mlir {
 namespace heir {
 
+enum class CodegenStrategy {
+  AUTO = 0,
+  NEVER_FOLD = 1,
+  FOLD_WHEN_POSSIBLE = 2,
+};
+
 // Lower tensor_ext.assign_layout. Returns the final value produced by the
 // encoding implementation. Applies createdOpCallback to each created
 // operation.
@@ -24,7 +30,8 @@ FailureOr<Value> implementAssignLayout(
     Value input, Attribute layout, int64_t ciphertextSize,
     ImplicitLocOpBuilder& builder,
     const std::function<void(Operation*)>& createdOpCallback,
-    ArrayRef<int64_t> domainSchedule = {});
+    ArrayRef<int64_t> domainSchedule = {},
+    CodegenStrategy strategy = CodegenStrategy::AUTO);
 
 // Lower tensor_ext.unpack. Returns the final value produced by the unpacking
 // implementation. Applies createdOpCallback to each created operation.
