@@ -34,6 +34,11 @@ enum KernelName : int {
   // Ciphertext-ciphertext batch matmul using the tricyclic packing method.
   BatchMatmulTricyclic,
 
+  // Ciphertext-plaintext matmul by mapping the plaintext into n generalized
+  // diagonals. This covers both secret-lhs-plaintext-rhs and
+  // plaintext-lhs-secret-rhs cases.
+  MatmulBicyclicDiagonal,
+
   // Product and sum of two vectors, using a log2 rotate-and-reduce approach.
   Dot,
 };

@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstdint>
 #include <memory>
+#include <numeric>
 #include <optional>
 #include <string>
 #include <utility>
@@ -1096,8 +1097,23 @@ LogicalResult LayoutPropagation::visitOperation(BatchMatmulOp op) {
         op, "ct-pt batch matrix multiplication is not supported");
   }
 
-  // keep flexibility for future pt-ct/ct-pt support
-  if (inputSecret && filterSecret) {
+  int64_t hLhs = lhsType.getDimSize(0);
+  int64_t mDim = lhsType.getDimSize(1);
+  int64_t nDim = lhsType.getDimSize(2);
+  int64_t hRhs = rhsType.getDimSize(0);
+  int64_t pDim = rhsType.getDimSize(2);
+
+  bool batchEqual = (hLhs == hRhs);
+  bool lhsCoprime = std::gcd(hLhs, mDim) == 1 && std::gcd(hLhs, nDim) == 1 &&
+                    std::gcd(mDim, nDim) == 1;
+  bool rhsCoprime = std::gcd(hRhs, nDim) == 1 && std::gcd(hRhs, pDim) == 1 &&
+                    std::gcd(nDim, pDim) == 1;
+  bool outputCoprime = std::gcd(hLhs, mDim) == 1 && std::gcd(hLhs, pDim) == 1 &&
+                       std::gcd(mDim, pDim) == 1;
+
+  // Tricyclic ct-ct batch matmul.
+  if (inputSecret && filterSecret && batchEqual && lhsCoprime && rhsCoprime &&
+      outputCoprime) {
     LayoutAttr lhsLayout = getComposedLayoutAttr(lhs);
     if (!isRelationTricyclic(lhsType, ciphertextSize,
                              lhsLayout.getIntegerRelation())) {
@@ -1131,8 +1147,11 @@ LogicalResult LayoutPropagation::visitOperation(BatchMatmulOp op) {
     auto kernelAttr = secret::KernelAttr::get(
         ctx, KernelName::BatchMatmulTricyclic, /*force=*/false);
     op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
+    return success();
   }
-  return success();
+
+  return builder.notifyMatchFailure(
+      op, "batch matmul shape requirements for tricyclic layout are not met");
 }
 
 LogicalResult LayoutPropagation::visitOperation(MatmulOp op) {
@@ -1147,10 +1166,18 @@ LogicalResult LayoutPropagation::visitOperation(MatmulOp op) {
 
   bool inputSecret = isSecret(lhs, solver);
   bool filterSecret = isSecret(rhs, solver);
+  int64_t mDim = lhsType.getDimSize(0);
+  int64_t nDim = lhsType.getDimSize(1);
+  int64_t pDim = rhsType.getDimSize(1);
+  bool lhsCoprime = std::gcd(mDim, nDim) == 1;
+  bool rhsCoprime = std::gcd(nDim, pDim) == 1;
+  bool outputCoprime = std::gcd(mDim, pDim) == 1;
 
   LLVM_DEBUG(llvm::dbgs() << "lhs=" << lhs << ";\nrhs=" << rhs << "\n");
 
-  if (inputSecret && filterSecret) {
+  // Bicyclic ct-ct matmul.
+  if (inputSecret && filterSecret && lhsCoprime && rhsCoprime &&
+      outputCoprime) {
     LayoutAttr lhsLayout = getComposedLayoutAttr(lhs);
     if (!isRelationBicyclic(lhsType, ciphertextSize,
                             lhsLayout.getIntegerRelation())) {
@@ -1185,6 +1212,59 @@ LogicalResult LayoutPropagation::visitOperation(MatmulOp op) {
 
     auto kernelAttr = secret::KernelAttr::get(ctx, KernelName::MatmulBicyclic,
                                               /*force=*/false);
+    op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
+    return success();
+  }
+
+  // Bicyclic ct-pt matmul with generalized-diagonal-layout plaintext.
+  if (outputCoprime && ((inputSecret && !filterSecret && lhsCoprime) ||
+                        (!inputSecret && filterSecret && rhsCoprime))) {
+    Value secretOperand = inputSecret ? lhs : rhs;
+    RankedTensorType secretType = inputSecret ? lhsType : rhsType;
+    Value weight = inputSecret ? rhs : lhs;
+    RankedTensorType weightType = inputSecret ? rhsType : lhsType;
+
+    LayoutAttr secretLayout = getComposedLayoutAttr(secretOperand);
+    if (!isRelationBicyclic(secretType, ciphertextSize,
+                            secretLayout.getIntegerRelation())) {
+      auto [toReplace, newSecretLayoutAttr] = convertToLayout(
+          ctx, builder, op, secretOperand, secretLayout,
+          getBicyclicLayoutRelation(secretType, ciphertextSize));
+      debugAssignLayout(toReplace, newSecretLayoutAttr);
+      assignedLayouts.insert({toReplace, newSecretLayoutAttr});
+    }
+
+    // Assign a generalized-diagonal layout to the plaintext matrix.
+    IntegerRelation diagRelation =
+        inputSecret
+            ? getBicyclicDiagonalRelation(weightType, /*contractionDim=*/0,
+                                          /*stride=*/mDim, ciphertextSize)
+            : getBicyclicDiagonalRelation(weightType, /*contractionDim=*/1,
+                                          /*stride=*/pDim, ciphertextSize);
+    LayoutAttr weightLayout = getComposedLayoutAttr(weight);
+    LayoutAttr diagLayoutAttr =
+        LayoutAttr::getFromIntegerRelation(ctx, diagRelation);
+    if (weightLayout != diagLayoutAttr) {
+      auto [toReplace, newWeightLayoutAttr] =
+          convertToLayout(ctx, builder, op, weight, weightLayout, diagRelation);
+      debugAssignLayout(toReplace, newWeightLayoutAttr);
+      assignedLayouts.insert({toReplace, newWeightLayoutAttr});
+    }
+
+    RankedTensorType outputType = cast<RankedTensorType>(result.getType());
+    IntegerRelation outputLayoutResult =
+        getBicyclicLayoutRelation(outputType, ciphertextSize);
+    LayoutAttr outputLayoutAttr =
+        LayoutAttr::getFromIntegerRelation(ctx, outputLayoutResult);
+    auto kernelInfoAttr =
+        cloneKernelInfoWithResultShape(secretOperand, outputType.getShape());
+
+    assignedLayouts.insert({result, outputLayoutAttr});
+    setResultLayoutAttr(op, kernelInfoAttr);
+    debugAssignLayout(result, outputLayoutAttr);
+
+    auto kernelAttr = secret::KernelAttr::get(
+        ctx, KernelName::MatmulBicyclicDiagonal, /*force=*/false);
     op->setAttr(secret::SecretDialect::kKernelAttrName, kernelAttr);
     return success();
   }
@@ -1411,8 +1491,8 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
             affine::AffineYieldOp>(
           [&](auto op) { return CompatibilityResult{true, std::nullopt}; })
       // Ops with special rules
-      .Case<DotOp, ReduceOp, MatvecOp, VecmatOp, Conv1DOp, Conv1DNcwFcwOp,
-            Conv2DOp, Conv2DNchwFchwOp, tensor::InsertSliceOp>(
+      .Case<DotOp, ReduceOp, MatvecOp, VecmatOp, MatmulOp, Conv1DOp,
+            Conv1DNcwFcwOp, Conv2DOp, Conv2DNchwFchwOp, tensor::InsertSliceOp>(
           [&](auto op) { return hasCompatibleArgumentLayouts(op); })
       // By default, assume operands must all have the same layout.
       .Default([&](Operation* op) {
@@ -1525,6 +1605,21 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
   if (!assignedLayouts.contains(vec)) {
     return {false, op->emitError("vector operand has no assigned layout")};
   }
+  return {true, std::nullopt};
+}
+
+CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
+    MatmulOp op) {
+  Value lhs = op.getOperand(0);
+  Value rhs = op.getOperand(1);
+
+  if (!assignedLayouts.contains(lhs)) {
+    return {false, op->emitError("LHS operand has no assigned layout")};
+  }
+  if (!assignedLayouts.contains(rhs)) {
+    return {false, op->emitError("RHS operand has no assigned layout")};
+  }
+
   return {true, std::nullopt};
 }
 

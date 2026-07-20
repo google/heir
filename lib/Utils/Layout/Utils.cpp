@@ -417,6 +417,81 @@ presburger::IntegerRelation getBicyclicLayoutRelation(
   return result;
 }
 
+presburger::IntegerRelation getBicyclicDiagonalRelation(
+    RankedTensorType weightType, int64_t contractionDim, int64_t stride,
+    int64_t numSlots) {
+  int64_t freeDim = 1 - contractionDim;
+  int64_t n = weightType.getDimSize(contractionDim);
+  int64_t p = weightType.getDimSize(freeDim);
+
+  IntegerRelation result(PresburgerSpace::getRelationSpace(
+      weightType.getRank(), /*numRange=*/2, /*numSymbol=*/0,
+      /*numLocals=*/0));
+
+  // Setup var indices
+  int domainOffset = result.getVarKindOffset(VarKind::Domain);
+  int rangeOffset = result.getVarKindOffset(VarKind::Range);
+  int yIdx = domainOffset;
+  int xIdx = domainOffset + 1;
+  int diagVarIndex = rangeOffset;
+  int slotVarIndex = rangeOffset + 1;
+
+  addBounds(result, diagVarIndex, 0, n - 1);
+  addBounds(result, slotVarIndex, 0, numSlots - 1);
+
+  if (contractionDim == 0) {
+    addBounds(result, yIdx, 0, n - 1);
+    addBounds(result, xIdx, 0, p - 1);
+
+    // y (contraction) = (slot + diag * stride) mod n
+    SmallVector<int64_t> contractionCoeffs(result.getNumCols(), 0);
+    contractionCoeffs[slotVarIndex] = 1;
+    contractionCoeffs[diagVarIndex] = stride;
+    auto contractionMod = addModConstraint(result, contractionCoeffs, n);
+
+    SmallVector<int64_t> contractionEquality(result.getNumCols(), 0);
+    contractionEquality[yIdx] = 1;
+    contractionEquality[contractionMod] = -1;
+    result.addEquality(contractionEquality);
+
+    // x (free) = slot mod p
+    SmallVector<int64_t> freeCoeffs(result.getNumCols(), 0);
+    freeCoeffs[slotVarIndex] = 1;
+    auto freeMod = addModConstraint(result, freeCoeffs, p);
+
+    SmallVector<int64_t> freeEquality(result.getNumCols(), 0);
+    freeEquality[xIdx] = 1;
+    freeEquality[freeMod] = -1;
+    result.addEquality(freeEquality);
+  } else {
+    addBounds(result, yIdx, 0, p - 1);
+    addBounds(result, xIdx, 0, n - 1);
+
+    // x (contraction) = (slot + diag * stride) mod n
+    SmallVector<int64_t> contractionCoeffs(result.getNumCols(), 0);
+    contractionCoeffs[slotVarIndex] = 1;
+    contractionCoeffs[diagVarIndex] = stride;
+    auto contractionMod = addModConstraint(result, contractionCoeffs, n);
+
+    SmallVector<int64_t> contractionEquality(result.getNumCols(), 0);
+    contractionEquality[xIdx] = 1;
+    contractionEquality[contractionMod] = -1;
+    result.addEquality(contractionEquality);
+
+    // y (free) = slot mod freeSize
+    SmallVector<int64_t> freeCoeffs(result.getNumCols(), 0);
+    freeCoeffs[slotVarIndex] = 1;
+    auto freeMod = addModConstraint(result, freeCoeffs, p);
+
+    SmallVector<int64_t> freeEquality(result.getNumCols(), 0);
+    freeEquality[yIdx] = 1;
+    freeEquality[freeMod] = -1;
+    result.addEquality(freeEquality);
+  }
+
+  return result;
+}
+
 // Returns an IntegerRelation representing the tricyclic encoding mapping for
 // a 3-D tensor of shape (h, m, n) into ciphertext slots. The relation maps
 // domain vars [h_idx, m_idx, n_idx] to range vars [ct, slot] via
