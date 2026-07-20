@@ -5028,8 +5028,9 @@ as SIMD/rotation ops are not well-defined on tensor-semantic tensors.</p><h4 id=
 </span></span><span style=display:flex><span>    <span style=color:#204a87;font-weight:700>return</span> <span style=color:#000>%0</span> <span style=color:#000;font-weight:700>:</span> <span style=color:#000;font-weight:700>!</span>secret<span style=color:#000;font-weight:700>.</span>secret<span style=color:#000;font-weight:700>&lt;</span><span style=color:#204a87;font-weight:700>tensor</span><span style=color:#000;font-weight:700>&lt;</span><span style=color:#0000cf;font-weight:700>1x4x</span><span style=color:#204a87;font-weight:700>f32</span><span style=color:#000;font-weight:700>&gt;&gt;</span>
 </span></span><span style=display:flex><span>  <span style=color:#000;font-weight:700>}</span>
 </span></span><span style=display:flex><span><span style=color:#000;font-weight:700>}</span>
-</span></span></code></pre></div><h4 id=options-12>Options</h4><pre tabindex=0><code>-ciphertext-size : Power of two length of the ciphertexts the data is packed in.
--unroll-kernels  : Unroll kernel implementations.
+</span></span></code></pre></div><h4 id=options-12>Options</h4><pre tabindex=0><code>-ciphertext-size  : Power of two length of the ciphertexts the data is packed in.
+-unroll-kernels   : Unroll kernel implementations.
+-codegen-strategy : Codegen strategy for assign_layout.
 </code></pre><h3 id=-debug-validate-names><code>-debug-validate-names</code></h3><p><em>Validates that debug.validate names are unique</em></p><p>This pass walks the IR and ensures that each <code>debug.validate</code> operation
 has a unique <code>name</code> attribute. If any duplicates are found, the pass fails.</p><h3 id=-drop-unit-dims><code>-drop-unit-dims</code></h3><p><em>Drops unit dimensions from linalg ops.</em></p><p>This pass converts <code>linalg</code> whose operands have unit dimensions
 in their types to specialized ops that drop these unit dimensions.</p><p>For example, a <code>linalg.matmul</code> whose RHS has type <code>tensor&lt;32x1xi32></code> is
