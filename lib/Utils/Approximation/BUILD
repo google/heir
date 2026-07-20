@@ -55,3 +55,20 @@ cc_test(
         "@llvm-project//mlir:Support",
     ],
 )
+
+cc_library(
+    name = "Taylor",
+    hdrs = ["Taylor.h"],
+)
+
+cc_test(
+    name = "TaylorTest",
+    srcs = ["TaylorTest.cpp"],
+    deps = [
+        ":CaratheodoryFejer",
+        ":Taylor",
+        "@googletest//:gtest_main",
+        "@heir//lib/Utils/Polynomial",
+        "@llvm-project//llvm:Support",
+    ],
+)

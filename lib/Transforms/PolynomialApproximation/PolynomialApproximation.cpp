@@ -16,13 +16,15 @@
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Math/IR/Math.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/Matchers.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Matchers.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 
 // IWYU pragma: begin_keep
@@ -389,6 +391,75 @@ struct ConvertBinaryConstOp : public OpRewritePattern<OpTy> {
   double upper;
 };
 
+struct ExpOpTaylorApproximation : public OpRewritePattern<math::ExpOp> {
+  ExpOpTaylorApproximation(MLIRContext* context, int64_t k = 7)
+      : OpRewritePattern<math::ExpOp>(context, /*benefit=*/2), k(k) {}
+
+  LogicalResult matchAndRewrite(math::ExpOp op,
+                                PatternRewriter& rewriter) const override {
+    Location loc = op.getLoc();
+    Value operand = op.getOperand();
+    Type type = operand.getType();
+
+    double validLower = -static_cast<double>(1ULL << k);
+    double validUpper = 1.0;
+
+    if (op->hasAttr("domain_lower")) {
+      FloatAttr lowerAttr = dyn_cast<FloatAttr>(op->getAttr("domain_lower"));
+      if (!lowerAttr)
+        return op.emitOpError(
+            "domain_lower must be a floating-point attribute");
+      if (lowerAttr.getValueAsDouble() < validLower) {
+        return rewriter.notifyMatchFailure(
+            op, "domain_lower is less than valid interval bound -2^k");
+      }
+    }
+    if (op->hasAttr("domain_upper")) {
+      FloatAttr upperAttr = dyn_cast<FloatAttr>(op->getAttr("domain_upper"));
+      if (!upperAttr)
+        return op.emitOpError(
+            "domain_upper must be a floating-point attribute");
+      if (upperAttr.getValueAsDouble() > validUpper) {
+        return rewriter.notifyMatchFailure(
+            op, "domain_upper exceeds valid interval bound 1.0");
+      }
+    }
+
+    Type elemType =
+        isa<ShapedType>(type) ? cast<ShapedType>(type).getElementType() : type;
+
+    double inv2k = 1.0 / static_cast<double>(1ULL << k);
+    TypedAttr scaleAttr;
+    TypedAttr oneAttr;
+
+    if (ShapedType shapedType = dyn_cast<ShapedType>(type)) {
+      scaleAttr = DenseElementsAttr::get(
+          shapedType, rewriter.getFloatAttr(elemType, inv2k));
+      oneAttr = DenseElementsAttr::get(shapedType,
+                                       rewriter.getFloatAttr(elemType, 1.0));
+    } else {
+      scaleAttr = rewriter.getFloatAttr(elemType, inv2k);
+      oneAttr = rewriter.getFloatAttr(elemType, 1.0);
+    }
+
+    Value scaleConst = arith::ConstantOp::create(rewriter, loc, scaleAttr);
+    Value oneConst = arith::ConstantOp::create(rewriter, loc, oneAttr);
+
+    Value scaledX = arith::MulFOp::create(rewriter, loc, operand, scaleConst);
+    Value current = arith::AddFOp::create(rewriter, loc, scaledX, oneConst);
+
+    for (int64_t i = 0; i < k; ++i) {
+      current = arith::MulFOp::create(rewriter, loc, current, current);
+    }
+
+    rewriter.replaceOp(op, current);
+    return success();
+  }
+
+ private:
+  int64_t k;
+};
+
 struct PolynomialApproximation
     : impl::PolynomialApproximationBase<PolynomialApproximation> {
   using PolynomialApproximationBase::PolynomialApproximationBase;
@@ -396,6 +467,9 @@ struct PolynomialApproximation
   void runOnOperation() override {
     MLIRContext* context = &getContext();
     RewritePatternSet patterns(context);
+
+    // High priority patterns
+    patterns.add<ExpOpTaylorApproximation>(context, /*k=*/7);
 
     // Math unary ops
     patterns.add<ConvertUnaryOp<math::AbsFOp>>(context, absf);
