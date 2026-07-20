@@ -838,6 +838,9 @@ struct ConvertLinalgMatvecLayout : public ConversionBase<linalg::MatvecOp> {
     for (const auto& point : collector.points) {
       zeroDiagonals[point[0]] = true;
     }
+    LLVM_DEBUG(llvm::dbgs()
+               << "Got " << zeroDiagonals.size()
+               << " zero diagonals for filter: " << matrix << "\n");
 
     auto dagType = kernel::mlirTypeToDagType(input.getType());
     std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
@@ -952,6 +955,9 @@ struct ConvertLinalgConv1D : public ConversionBase<linalg::Conv1DOp> {
     for (const auto& point : collector.points) {
       zeroDiagonals[point[0]] = true;
     }
+    LLVM_DEBUG(llvm::dbgs()
+               << "Got " << zeroDiagonals.size()
+               << " zero diagonals for filter: " << filter << "\n");
 
     auto dagType = kernel::mlirTypeToDagType(data.getType());
     std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
@@ -1060,6 +1066,9 @@ struct ConvertLinalgConv2D : public ConversionBase<linalg::Conv2DOp> {
     for (const auto& point : collector.points) {
       zeroDiagonals[point[0]] = true;
     }
+    LLVM_DEBUG(llvm::dbgs()
+               << "Got " << zeroDiagonals.size()
+               << " zero diagonals for filter: " << matrix << "\n");
 
     auto dagType = kernel::mlirTypeToDagType(data.getType());
     std::shared_ptr<ArithmeticDagNode<SSAValue>> implementedKernel =
@@ -1172,6 +1181,9 @@ struct ConvertLinalgConv1DNcwFcw
     for (const auto& point : collector.points) {
       zeroDiagonals[point[0]] = true;
     }
+    LLVM_DEBUG(llvm::dbgs()
+               << "Got " << zeroDiagonals.size()
+               << " zero diagonals for filter: " << matrix << "\n");
 
     auto dagType = kernel::mlirTypeToDagType(data.getType(),
                                              data.getType().getShape().back());
@@ -1297,6 +1309,9 @@ struct ConvertLinalgConv2DNchwFchw
     for (const auto& point : collector.points) {
       zeroDiagonals[point[0]] = true;
     }
+    LLVM_DEBUG(llvm::dbgs()
+               << "Got " << zeroDiagonals.size()
+               << " zero diagonals for filter: " << matrix << "\n");
 
     auto dagType = kernel::mlirTypeToDagType(data.getType(),
                                              data.getType().getShape().back());
