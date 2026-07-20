@@ -122,7 +122,7 @@ There are many ways to contribute to HEIR:
 
 ## Citations
 
-The HEIR project can be cited in in academic work through following entry:
+The HEIR project can be cited in academic work through the following entry:
 
 ```text
 @misc{ali2025heir,
