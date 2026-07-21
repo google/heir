@@ -86,6 +86,7 @@ cc_library(
     deps = [
         ":Convolution",
         ":Utils",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
@@ -147,6 +148,7 @@ cc_test(
         ":Evaluate",
         ":Utils",
         "@googletest//:gtest_main",
+        "@heir//lib/Dialect/TensorExt/IR:TensorExtAttributes",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",

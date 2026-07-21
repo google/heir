@@ -170,6 +170,19 @@ inline constexpr char kLayout39Relation[] =
     "(-13i1 - i2 + ct + slot) mod 1024 = 0 and 0 <= i0 <= 47 and 0 <= i1 "
     "<= 47 and 0 <= i2 <= 12 and 0 <= ct <= 63 and 0 <= slot <= 4095 }";
 
+// --- Lenet layouts ---
+
+// Filter layout for Pooling 1 (2D Conv, 6 out, 6 in, W 2, H 2, stride 2, row
+// interchange)
+inline constexpr char kLayoutPooling1Relation[] =
+    "{ [i0, i1, i2, i3] -> [ct, slot] : exists (e0, e1, e2, e3, e4, e5: 2048e4 "
+    "= -i0 - 784i1 - 28i2 - i3 + ct + 2e0 - 56e1 - 2e2 + 28e3 and 8192e5 = "
+    "-784i1 - 28i2 - i3 + ct + slot - 56e1 - 2e2 and 0 <= i0 <= 3 and 0 <= i1 "
+    "<= 5 and 0 <= i2 <= 1 and 0 <= i3 <= 1 and 0 <= ct <= 2047 and 0 <= slot "
+    "<= 8191 and i0 <= 2e0 <= 27 + i0 and 0 <= e1 <= 13 and 0 <= e2 <= 13 and "
+    "-1 - i0 + 2e0 <= 2e2 <= -i0 + 2e0 and 0 <= e3 <= 27 and -1 + i0 + 4e1 <= "
+    "2e3 <= i0 + 4e1) }";
+
 }  // namespace heir
 }  // namespace mlir
 

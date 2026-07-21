@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <vector>
 
 #include "lib/Utils/Layout/IslConversion.h"
@@ -12,14 +13,15 @@
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 
 // ISL
-#include "include/isl/ctx.h"         // from @isl
-#include "include/isl/map.h"         // from @isl
-#include "include/isl/map_type.h"    // from @isl
-#include "include/isl/point.h"       // from @isl
-#include "include/isl/set.h"         // from @isl
-#include "include/isl/space_type.h"  // from @isl
-#include "include/isl/val.h"         // from @isl
-#include "include/isl/val_type.h"    // from @isl
+#include "include/isl/ctx.h"                 // from @isl
+#include "include/isl/map.h"                 // from @isl
+#include "include/isl/map_type.h"            // from @isl
+#include "include/isl/point.h"               // from @isl
+#include "include/isl/set.h"                 // from @isl
+#include "include/isl/space_type.h"          // from @isl
+#include "include/isl/val.h"                 // from @isl
+#include "include/isl/val_type.h"            // from @isl
+#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -30,18 +32,25 @@ using presburger::VarKind;
 template <typename T>
 std::vector<std::vector<T>> evaluateLayout(
     const presburger::IntegerRelation& relation,
-    std::function<T(const std::vector<int64_t>&)> getValueFn) {
-  auto numCt = relation.getConstantBound64(
-      BoundType::UB, relation.getVarKindOffset(VarKind::Range));
-  assert(numCt.has_value() &&
-         "expected a constant bound for the number of ciphertexts");
-  auto numSlots = relation.getConstantBound64(
-      BoundType::UB, relation.getVarKindOffset(VarKind::Range) + 1);
-  assert(numSlots.has_value() &&
-         "expected a constant bound for the number of slots");
-
-  std::vector<std::vector<T>> result(numCt.value() + 1,
-                                     std::vector<T>(numSlots.value() + 1, 0));
+    std::function<T(const std::vector<int64_t>&)> getValueFn,
+    std::optional<SmallVector<int64_t>> outputShape = std::nullopt) {
+  int64_t numCt, numSlot;
+  if (outputShape.has_value()) {
+    numCt = outputShape.value()[0];
+    numSlot = outputShape.value()[1];
+  } else {
+    auto ctBound = relation.getConstantBound64(
+        BoundType::UB, relation.getVarKindOffset(VarKind::Range));
+    assert(ctBound.has_value() &&
+           "expected a constant bound for the number of ciphertexts");
+    auto slotBond = relation.getConstantBound64(
+        BoundType::UB, relation.getVarKindOffset(VarKind::Range) + 1);
+    assert(slotBond.has_value() &&
+           "expected a constant bound for the number of slots");
+    numCt = ctBound.value() + 1;
+    numSlot = slotBond.value() + 1;
+  }
+  std::vector<std::vector<T>> result(numCt, std::vector<T>(numSlot, 0));
 
   // Get all points in the relation.
   PointPairCollector collector(relation.getNumDomainVars(), /*rangeDims=*/2);
@@ -66,12 +75,13 @@ std::vector<std::vector<T>> evaluateLayout(
 // optimized.
 template <typename T>
 std::vector<std::vector<T>> evaluateLayoutOnVector(
-    const presburger::IntegerRelation& relation, const std::vector<T>& input) {
+    const presburger::IntegerRelation& relation, const std::vector<T>& input,
+    std::optional<SmallVector<int64_t>> outputShape = std::nullopt) {
   std::function<T(const std::vector<int64_t>&)> getValueFn =
       [&](const std::vector<int64_t>& domainPoint) {
         return input[domainPoint[0]];
       };
-  return evaluateLayout(relation, getValueFn);
+  return evaluateLayout(relation, getValueFn, outputShape);
 }
 
 // This applies the layout relation on a given input 2-D vector. See above.

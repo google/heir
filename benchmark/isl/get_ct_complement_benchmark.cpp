@@ -91,6 +91,11 @@ static void BM_GetCtComplementPoints_Layout39(benchmark::State& state) {
 }
 BENCHMARK(BM_GetCtComplementPoints_Layout39)->Unit(benchmark::kSecond);
 
+static void BM_GetCtComplementPoints_LayoutPooling1(benchmark::State& state) {
+  BM_GetCtComplementPoints_helper(state, kLayoutPooling1Relation, 8192);
+}
+BENCHMARK(BM_GetCtComplementPoints_LayoutPooling1)->Unit(benchmark::kSecond);
+
 }  // namespace heir
 }  // namespace mlir
 
