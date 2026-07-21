@@ -141,8 +141,9 @@ void insertMgmtInitForPlaintexts(Operation* top, bool includeFloats) {
                UseInitOpForPlaintextOperand<arith::SubIOp>,
                UseInitOpForPlaintextOperand<arith::MulIOp>,
                UseInitOpForPlaintextOperand<tensor::ExtractSliceOp>,
-               UseInitOpForPlaintextOperand<tensor::InsertSliceOp>>(ctx, top,
-                                                                    &solver);
+               UseInitOpForPlaintextOperand<tensor::InsertSliceOp>,
+               UseInitOpForPlaintextOperand<tensor::InsertOp>>(ctx, top,
+                                                               &solver);
 
   if (includeFloats) {
     patterns.add<UseInitOpForPlaintextOperand<arith::AddFOp>,
@@ -205,7 +206,9 @@ void handleCrossLevelOps(Operation* top, int* idCounter, bool includeFloats) {
   MLIRContext* ctx = top->getContext();
   RewritePatternSet patterns(ctx);
   patterns.add<MatchCrossLevel<arith::AddIOp>, MatchCrossLevel<arith::SubIOp>,
-               MatchCrossLevel<arith::MulIOp>>(ctx, idCounter, top, &solver);
+               MatchCrossLevel<arith::MulIOp>,
+               MatchCrossLevel<tensor::InsertSliceOp>,
+               MatchCrossLevel<tensor::InsertOp>>(ctx, idCounter, top, &solver);
   if (includeFloats)
     patterns.add<MatchCrossLevel<arith::AddFOp>, MatchCrossLevel<arith::SubFOp>,
                  MatchCrossLevel<arith::MulFOp>>(ctx, idCounter, top, &solver);
@@ -223,7 +226,9 @@ void handleCrossMulDepthOps(Operation* top, int* idCounter,
   RewritePatternSet patterns(ctx);
   patterns
       .add<MatchCrossMulDepth<arith::AddIOp>, MatchCrossMulDepth<arith::SubIOp>,
-           MatchCrossMulDepth<arith::MulIOp>>(ctx, idCounter, top, &solver);
+           MatchCrossMulDepth<arith::MulIOp>,
+           MatchCrossMulDepth<tensor::InsertSliceOp>,
+           MatchCrossMulDepth<tensor::InsertOp>>(ctx, idCounter, top, &solver);
   if (includeFloats)
     patterns.add<MatchCrossMulDepth<arith::AddFOp>,
                  MatchCrossMulDepth<arith::SubFOp>,

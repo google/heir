@@ -436,6 +436,12 @@ template struct BootstrapWaterLine<mgmt::ModReduceOp>;
 template struct ModReduceBefore<secret::YieldOp>;
 template struct UseInitOpForPlaintextOperand<tensor::ExtractSliceOp>;
 template struct UseInitOpForPlaintextOperand<tensor::InsertSliceOp>;
+template struct UseInitOpForPlaintextOperand<tensor::InsertOp>;
+
+template struct MatchCrossLevel<tensor::InsertSliceOp>;
+template struct MatchCrossLevel<tensor::InsertOp>;
+template struct MatchCrossMulDepth<tensor::InsertSliceOp>;
+template struct MatchCrossMulDepth<tensor::InsertOp>;
 
 // for BGV (integer ops)
 template struct MatchCrossLevel<arith::AddIOp>;

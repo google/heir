@@ -7,18 +7,19 @@
 #include "llvm/include/llvm/ADT/STLExtras.h"     // from @llvm-project
 #include "llvm/include/llvm/ADT/StringExtras.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/Attributes.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/DialectRegistry.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/DialectRegistry.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -72,6 +73,12 @@ void registerPlaintextOperandInterface(DialectRegistry& registry) {
     AddFOp::attachInterface<AnyOperandMayBePlaintextImpl<AddFOp>>(*ctx);
     SubIOp::attachInterface<AnyOperandMayBePlaintextImpl<SubIOp>>(*ctx);
     SubFOp::attachInterface<AnyOperandMayBePlaintextImpl<SubFOp>>(*ctx);
+  });
+  registry.addExtension(+[](MLIRContext* ctx, tensor::TensorDialect* dialect) {
+    tensor::InsertSliceOp::attachInterface<
+        AnyOperandMayBePlaintextImpl<tensor::InsertSliceOp>>(*ctx);
+    tensor::InsertOp::attachInterface<
+        AnyOperandMayBePlaintextImpl<tensor::InsertOp>>(*ctx);
   });
 }
 
