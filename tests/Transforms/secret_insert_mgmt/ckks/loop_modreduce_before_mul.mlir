@@ -1,6 +1,6 @@
 // RUN: heir-opt --secret-insert-mgmt-ckks="slot-number=8 level-budget=4 after-mul=false" %s | FileCheck %s
 
-module attributes {backend.lattigo, scheme.ckks} {
+module attributes {backend.lattigo, scheme.ckks, backend.config_override = {bootstrapLevelsConsumed = 0 : i32}} {
   // CHECK: func.func @loop_mul
   // CHECK-SAME: #mgmt.mgmt<level = 4>
   // CHECK: affine.for %{{.*}} = 1 to 9 step 4

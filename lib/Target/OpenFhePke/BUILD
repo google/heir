@@ -1,6 +1,7 @@
 # OpenFhePke Emitter
 
 load("@heir//bazel/openfhe:copts.bzl", "OPENMP_COPTS", "OPENMP_LINKOPTS")
+load("@heir//lib/Target/CompilationTarget:defs.bzl", "heir_backend_config")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
@@ -214,4 +215,9 @@ cc_test(
         "@openfhe//:core",
         "@openfhe//:pke",
     ],
+)
+
+heir_backend_config(
+    name = "openfhe_backend_config",
+    srcs = ["TargetConfig.td"],
 )

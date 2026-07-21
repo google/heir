@@ -1,6 +1,7 @@
 #include "lib/Transforms/AnnotateModule/AnnotateModule.h"
 
 #include "lib/Dialect/ModuleAttributes.h"
+#include "lib/Target/CompilationTarget/CompilationTarget.h"
 #include "mlir/include/mlir/IR/BuiltinOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"   // from @llvm-project
 
@@ -26,10 +27,18 @@ struct AnnotateModule : impl::AnnotateModuleBase<AnnotateModule> {
       moduleSetCGGI(module);
     }
 
-    if (backend == "openfhe") {
-      moduleSetOpenfhe(module);
-    } else if (backend == "lattigo") {
-      moduleSetLattigo(module);
+    if (!backend.empty()) {
+      if (!CompilationTargetRegistry::get(backend)) {
+        module.emitError() << "Unknown backend: " << backend;
+        signalPassFailure();
+        return;
+      }
+
+      if (backend == "openfhe") {
+        moduleSetOpenfhe(module);
+      } else if (backend == "lattigo") {
+        moduleSetLattigo(module);
+      }
     }
   }
 };

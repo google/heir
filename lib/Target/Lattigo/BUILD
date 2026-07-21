@@ -1,5 +1,6 @@
 # Lattigo Emitter
 
+load("@heir//lib/Target/CompilationTarget:defs.bzl", "heir_backend_config")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 package(
@@ -35,4 +36,9 @@ cc_library(
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TranslateLib",
     ],
+)
+
+heir_backend_config(
+    name = "lattigo_backend_config",
+    srcs = ["TargetConfig.td"],
 )

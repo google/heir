@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstdint>
 #include <functional>
 #include <optional>
 
@@ -11,6 +12,7 @@
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
+#include "lib/Target/CompilationTarget/CompilationTarget.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
@@ -19,6 +21,7 @@
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
@@ -27,8 +30,6 @@
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 
 #define DEBUG_TYPE "level-analysis"
-
-#include "lib/Dialect/Secret/IR/SecretOps.h"
 
 namespace mlir {
 namespace heir {
@@ -87,12 +88,22 @@ LevelState transferForward(ReducesAllLevelsOpInterface op,
 LevelState transferForward(ResetsLevelOpInterface op,
                            ArrayRef<const LevelLattice*> operands) {
   unsigned operandIdx = op.getOperandToReset().getOperandNumber();
+  auto module = op->getParentOfType<ModuleOp>();
+  FailureOr<CompilationTarget> target = getTargetConfig(module);
+  int64_t levelsConsumed = 0;
+  if (succeeded(target)) {
+    levelsConsumed = target->bootstrapLevelsConsumed;
+  } else {
+    op->emitOpError()
+        << "Could not determine bootstrapLevelsConsumed, defaulting to zero.";
+  }
+
   LevelState result = std::visit(
       Overloaded{
-          [](MaxLevel) -> LevelState { return LevelState(0); },
+          [=](MaxLevel) -> LevelState { return LevelState(levelsConsumed); },
           [](Uninit) -> LevelState { return LevelState(Invalid{}); },
           [](Invalid) -> LevelState { return LevelState(Invalid{}); },
-          [](int val) -> LevelState { return LevelState(0); },
+          [=](int val) -> LevelState { return LevelState(levelsConsumed); },
       },
       operands[operandIdx]->getValue().get());
   LLVM_DEBUG(debugLog("ResetsLevelOpInterface", operands, result));
