@@ -317,6 +317,36 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
     SmallVector<Attribute> coeffs;
     Type eltStorageType = typeInfo.coefficientStorageType;
 
+    // RNS coefficients require one stored integer per residue. Materialize a
+    // degree-by-limb tensor and reduce each integer polynomial coefficient
+    // separately in every residue modulus.
+    if (auto rnsTy = dyn_cast<RNSType>(typeInfo.coefficientType)) {
+      const IntPolynomial& poly = attr.getValue().getPolynomial();
+      int64_t degree = typeInfo.tensorType.getShape()[0];
+      int64_t numLimbs = rnsTy.getBasisTypes().size();
+      auto storageTensorType =
+          RankedTensorType::get({degree, numLimbs}, eltStorageType);
+      SmallVector<APInt> residues(
+          degree * numLimbs, APInt(eltStorageType.getIntOrFloatBitWidth(), 0));
+      for (const auto& term : poly.getTerms()) {
+        int64_t coefficientIndex = term.getExponent().getSExtValue();
+        for (auto [limbIndex, basisType] :
+             llvm::enumerate(rnsTy.getBasisTypes())) {
+          APInt modulus = cast<ModArithType>(basisType).getModulus().getValue();
+          APInt residue = term.getCoefficient()
+                              .sextOrTrunc(modulus.getBitWidth())
+                              .srem(modulus);
+          if (residue.isNegative()) residue += modulus;
+          residues[coefficientIndex * numLimbs + limbIndex] = residue;
+        }
+      }
+      auto constOp = arith::ConstantOp::create(
+          b, DenseElementsAttr::get(storageTensorType, residues));
+      rewriter.replaceOpWithNewOp<mod_arith::EncapsulateOp>(
+          op, typeInfo.tensorType, constOp.getResult());
+      return success();
+    }
+
     // Create all the attributes as arith types since mod_arith.constant
     // doesn't support tensor attribute inputs. Instead we
     // mod_arith.encapsulate them.
@@ -688,12 +718,30 @@ struct ConvertLeadingTerm : public OpConversionPattern<LeadingTermOp> {
           ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
           auto coeff = tensor::ExtractOp::create(b, coeffs, ValueRange{index});
           // either representative suffices since both lift 0 to 0
-          auto extractedCoeff =
-              mod_arith::LiftOp::create(b, typeInfo.coefficientStorageType,
-                                        coeff, mod_arith::LiftType::STANDARD);
-          auto cmpOp = arith::CmpIOp::create(b, arith::CmpIPredicate::eq,
-                                             extractedCoeff, c0);
-          scf::ConditionOp::create(b, cmpOp.getResult(), index);
+          Value isZero;
+          if (auto rnsTy = dyn_cast<RNSType>(typeInfo.coefficientType)) {
+            for (int64_t limb = 0;
+                 limb < static_cast<int64_t>(rnsTy.getBasisTypes().size());
+                 ++limb) {
+              auto residue =
+                  rns::ExtractResidueOp::create(b, coeff, b.getIndexAttr(limb));
+              auto liftedResidue = mod_arith::LiftOp::create(
+                  b, typeInfo.coefficientStorageType, residue,
+                  mod_arith::LiftType::STANDARD);
+              Value residueIsZero = arith::CmpIOp::create(
+                  b, arith::CmpIPredicate::eq, liftedResidue, c0);
+              isZero = isZero ? arith::AndIOp::create(b, isZero, residueIsZero)
+                              : residueIsZero;
+            }
+          } else {
+            // Either representative suffices since both lift 0 to 0.
+            auto extractedCoeff =
+                mod_arith::LiftOp::create(b, typeInfo.coefficientStorageType,
+                                          coeff, mod_arith::LiftType::STANDARD);
+            isZero = arith::CmpIOp::create(b, arith::CmpIPredicate::eq,
+                                           extractedCoeff, c0);
+          }
+          scf::ConditionOp::create(b, isZero, index);
         },
         /*afterBuilder=*/
         [&](OpBuilder& nestedBuilder, Location nestedLoc, ValueRange args) {
@@ -852,10 +900,9 @@ struct ConvertMulCoeffForm : public OpConversionPattern<MulOp> {
           op, "CoeffForm lowering skipped due to non-coeff-form poly type");
     }
 
-    auto coeffType = getSingleResidueModArithType(typeInfo.coefficientType);
-    if (!coeffType) {
+    if (!isa<ModArithType, RNSType>(typeInfo.coefficientType)) {
       return rewriter.notifyMatchFailure(
-          op, "expected coefficient type to be mod_arith type");
+          op, "expected coefficient type to be mod_arith or RNS type");
     }
 
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
@@ -878,9 +925,13 @@ struct ConvertMulCoeffForm : public OpConversionPattern<MulOp> {
         AffineMap::get(2, 0, {d0 + d1})  // i+j
     };
 
-    auto intStorageType = (*coeffType).getModulus().getType();
+    auto intStorageType = typeInfo.coefficientStorageType;
+    SmallVector<int64_t> storageShape(polymulTensorType.getShape());
+    if (auto rnsTy = dyn_cast<RNSType>(typeInfo.coefficientType)) {
+      storageShape.push_back(rnsTy.getBasisTypes().size());
+    }
     auto storageTensorType =
-        RankedTensorType::get(polymulTensorType.getShape(), intStorageType);
+        RankedTensorType::get(storageShape, intStorageType);
     auto tensor = arith::ConstantOp::create(
         b, DenseElementsAttr::get(storageTensorType,
                                   b.getIntegerAttr(intStorageType, 0)));
@@ -1060,9 +1111,19 @@ func::FuncOp PolynomialToModArith::buildPolynomialModFunc(FunctionType funcType,
 
   auto coeffTy = ring.getCoefficientType();
   std::string coeffTyId;
-  // TODO(#1199): support RNS lowering
   if (auto intTy = dyn_cast<IntegerType>(coeffTy)) {
     coeffTyId = llvm::formatv("i{0}", intTy.getWidth());
+  } else if (auto rnsTy = dyn_cast<RNSType>(coeffTy)) {
+    coeffTyId = "rns";
+    for (Type basisType : rnsTy.getBasisTypes()) {
+      auto modTy = cast<ModArithType>(basisType);
+      SmallString<10> modulusStr;
+      modTy.getModulus().getValue().toStringUnsigned(modulusStr);
+      coeffTyId +=
+          llvm::formatv("_{0}_i{1}", modulusStr,
+                        modTy.getModulus().getType().getIntOrFloatBitWidth())
+              .str();
+    }
   } else if (auto modTy = getSingleResidueModArithType(coeffTy)) {
     IntegerType intTy = cast<IntegerType>((*modTy).getModulus().getType());
     SmallString<10> modulusStr;
@@ -1129,18 +1190,38 @@ func::FuncOp PolynomialToModArith::buildPolynomialModFunc(FunctionType funcType,
   // If the leading coefficient of the divisor has no inverse, we can't do
   // division. The lowering must fail:
   auto divisor = ring.getPolynomialModulus().getPolynomial();
-  // TODO(#1199): support RNS lowering
-  APInt rawCoeffMod =
-      cast<ModArithType>(ring.getCoefficientType()).getModulus().getValue();
-  auto [leadingCoef, coeffMod] = extendWidthsToLargest(
-      divisor.getTerms().back().getCoefficient(), rawCoeffMod);
-  auto leadingCoefInverse = multiplicativeInverse(leadingCoef, coeffMod);
-  // returning zero means no inverse was found
-  if (leadingCoefInverse.isZero()) {
-    signalPassFailure();
+  APInt rawLeadingCoef = divisor.getTerms().back().getCoefficient();
+  Value divisorLcInverse;
+  if (auto rnsTy = dyn_cast<RNSType>(coeffTy)) {
+    auto storageElementType =
+        cast<IntegerType>(getElementTypeOrSelf(rnsTy.getLoweringType()));
+    SmallVector<APInt> inverses;
+    inverses.reserve(rnsTy.getBasisTypes().size());
+    for (Type basisType : rnsTy.getBasisTypes()) {
+      auto modTy = cast<ModArithType>(basisType);
+      auto [leadingCoef, coeffMod] =
+          extendWidthsToLargest(rawLeadingCoef, modTy.getModulus().getValue());
+      APInt inverse = multiplicativeInverse(leadingCoef, coeffMod);
+      // Returning zero means no inverse was found.
+      if (inverse.isZero()) signalPassFailure();
+      inverses.push_back(
+          inverse.zextOrTrunc(storageElementType.getIntOrFloatBitWidth()));
+    }
+    auto storageType = RankedTensorType::get(
+        {static_cast<int64_t>(inverses.size())}, storageElementType);
+    auto storageCst = arith::ConstantOp::create(
+        builder, DenseElementsAttr::get(storageType, inverses));
+    divisorLcInverse =
+        mod_arith::EncapsulateOp::create(builder, rnsTy, storageCst);
+  } else {
+    auto modTy = cast<ModArithType>(coeffTy);
+    auto [leadingCoef, coeffMod] =
+        extendWidthsToLargest(rawLeadingCoef, modTy.getModulus().getValue());
+    APInt inverse = multiplicativeInverse(leadingCoef, coeffMod);
+    if (inverse.isZero()) signalPassFailure();
+    divisorLcInverse =
+        getConstantCoefficient(coeffTy, inverse.getSExtValue(), builder);
   }
-  auto divisorLcInverse = getConstantCoefficient(
-      coeffTy, leadingCoefInverse.getSExtValue(), builder);
   auto divisorDeg =
       arith::ConstantOp::create(builder, builder.getIndexType(),
                                 builder.getIndexAttr(divisor.getDegree()));
