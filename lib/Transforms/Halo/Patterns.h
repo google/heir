@@ -159,6 +159,25 @@ struct RegionBranchOpLevelInvariancePattern
   DataFlowSolver* solver;
 };
 
+// Insert adjust_scale ops to align scale across branches of a region branch op.
+struct RegionBranchOpMulDepthInvariancePattern
+    : public OpInterfaceRewritePattern<RegionBranchOpInterface> {
+  RegionBranchOpMulDepthInvariancePattern(MLIRContext* context,
+                                          DataFlowSolver* solver,
+                                          int* idCounter)
+      : OpInterfaceRewritePattern<RegionBranchOpInterface>(context),
+        solver(solver),
+        idCounter(idCounter) {}
+
+  LogicalResult matchAndRewrite(RegionBranchOpInterface op,
+                                PatternRewriter& rewriter) const override;
+
+ private:
+  DataFlowSolver* solver;
+  // increment ID to avoid CSE
+  int* idCounter;
+};
+
 // Remove any bootstrap ops that are marked for deletion in
 // PartialUnrollForLevelConsumption.
 struct DeleteAnnotatedOps : public RewritePattern {

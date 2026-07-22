@@ -113,11 +113,13 @@ LogicalResult runInsertMgmtPipeline(Operation* top,
     insertBootstrapWaterLine(top, options.bootstrapWaterline.value());
   }
 
+  int idCounter = 0;  // for making adjust_scale op different to avoid cse
+
   // An if statement must have each branch producing the same level as a result,
   // so the branch with the higher level must insert a level_reduce op.
   adjustLevelsForRegionBranchOps(top);
+  adjustMulDepthsForRegionBranchOps(top, &idCounter);
 
-  int idCounter = 0;  // for making adjust_scale op different to avoid cse
   LDBG(2) << "Handling cross level ops";
   handleCrossLevelOps(top, &idCounter, options.includeFloats);
 
@@ -331,6 +333,18 @@ void adjustLevelsForRegionBranchOps(Operation* top) {
 
   RewritePatternSet patterns(ctx);
   patterns.add<RegionBranchOpLevelInvariancePattern>(ctx, &solver);
+  walkAndApplyPatterns(top, std::move(patterns));
+}
+
+void adjustMulDepthsForRegionBranchOps(Operation* top, int* idCounter) {
+  LDBG(2) << "Adjusting mul depths for region branching ops";
+  MLIRContext* ctx = top->getContext();
+  DataFlowSolver solver;
+  makeAndRunSecretnessAndMulDepthSolver(top, solver);
+
+  RewritePatternSet patterns(ctx);
+  patterns.add<RegionBranchOpMulDepthInvariancePattern>(ctx, &solver,
+                                                        idCounter);
   walkAndApplyPatterns(top, std::move(patterns));
 }
 
