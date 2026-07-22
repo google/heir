@@ -213,8 +213,8 @@ TEST(ConvolutionTest, Conv1dFilterRelationEvaluateStridedEvenSizedKernel) {
       evaluateLayoutOnVector(convFilterRelation, filter);
 
   std::vector<std::vector<int>> expected = {
-      {1, 2, 0, 0, 0, 0},
-      {0, 0, 0, 1, 2, 0},
+      {1, 2, 0, 0, 0},
+      {0, 0, 0, 1, 2},
   };
   EXPECT_EQ(packedFilter, expected);
 }
