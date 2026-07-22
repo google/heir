@@ -10,7 +10,7 @@ openfhe_lib(
     generated_lib_header = "mnist_rotom_openfhe_lib.inc.h",
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=ckks",
-        "--torch-linalg-to-ckks=ciphertext-degree=32768 scaling-mod-bits=45 first-mod-bits=52",
+        "--torch-linalg-to-ckks=ciphertext-degree=32768 scaling-mod-bits=45 first-mod-bits=52 ckks-bootstrap-waterline=20 level-budget=20",
         "--scheme-to-openfhe",
     ],
     mlir_src = "@heir//tests/Examples/openfhe/ckks/rotom/mnist:mnist.mlir",
