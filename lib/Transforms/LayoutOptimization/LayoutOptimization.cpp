@@ -109,6 +109,14 @@ void LayoutOptimization::runOnOperation() {
   auto* ctx = &getContext();
   IRRewriter builder(ctx);
 
+  RewritePatternSet preprocessingPatterns(ctx);
+  preprocessingPatterns.add<FoldMatvecInputConversionIntoPlaintext>(ctx);
+  if (failed(applyPatternsGreedily(getOperation(),
+                                   std::move(preprocessingPatterns)))) {
+    signalPassFailure();
+    return;
+  }
+
   DataFlowSolver solver;
   dataflow::loadBaselineAnalyses(solver);
   solver.load<LayoutIsFreeAnalysis>();

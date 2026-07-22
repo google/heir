@@ -58,42 +58,13 @@ presburger::IntegerRelation hoistConversionThroughMatvec(
 
   // At this stage, fromClone models the re-packing relation on the vector
   // (slots) -> (slots). Put the ct dim back in with bounds from the matrix
-  // layout, and equality between the domain ct var and the range ct var.
-  fromClone.insertVar(VarKind::Domain, 0, 1);
-  fromClone.insertVar(VarKind::Range, 0, 1);
+  // layout, and equality between the domain ct var and the range ct var (so
+  // slots can only be rotated within a single ciphertext).
   std::optional<int64_t> ctUb = matrixLayout.getConstantBound64(
       BoundType::UB, matrixLayout.getVarKindOffset(VarKind::Range));
   std::optional<int64_t> ctLb = matrixLayout.getConstantBound64(
       BoundType::LB, matrixLayout.getVarKindOffset(VarKind::Range));
-
-  if (ctUb.has_value()) {
-    fromClone.addBound(BoundType::UB,
-                       fromClone.getVarKindOffset(VarKind::Domain),
-                       ctUb.value());
-    fromClone.addBound(BoundType::UB,
-                       fromClone.getVarKindOffset(VarKind::Range),
-                       ctUb.value());
-  }
-  if (ctLb.has_value()) {
-    fromClone.addBound(BoundType::LB,
-                       fromClone.getVarKindOffset(VarKind::Domain),
-                       ctLb.value());
-    fromClone.addBound(BoundType::LB,
-                       fromClone.getVarKindOffset(VarKind::Range),
-                       ctLb.value());
-  }
-
-  // Still need to ensure the input and output ciphertext
-  // are the same (i.e., slots can only be rotated within one ct).
-  // Order of variables in the constraint are:
-  //
-  //    0,    1,  2,    3,        4
-  //   ct, slot, ct, slot, constant
-  //
-  SmallVector<int64_t> ciphertextEq(fromClone.getNumCols(), 0);
-  ciphertextEq[0] = 1;
-  ciphertextEq[2] = -1;
-  fromClone.addEquality(ciphertextEq);
+  prependPassthroughDim(fromClone, ctLb, ctUb);
 
   // At this point the re-packing relation should look something like
   //

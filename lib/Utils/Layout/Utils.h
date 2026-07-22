@@ -30,6 +30,15 @@ void addConstraint(presburger::IntegerRelation& result,
 void addBounds(presburger::IntegerRelation& result, int64_t pos, int64_t lower,
                std::optional<int64_t> upper = std::nullopt);
 
+// Lifts a relation R : [a...] -> [b...] to [p, a...] -> [p, b...] by prepending
+// a "passthrough" dimension as the new leading variable of both the domain and
+// range, constrained so the new domain variable equals the new range variable
+// (i.e. p is carried through unchanged). When `lb`/`ub` are provided, the
+// passthrough dimension is additionally bounded to [lb, ub].
+void prependPassthroughDim(presburger::IntegerRelation& relation,
+                           std::optional<int64_t> lb = std::nullopt,
+                           std::optional<int64_t> ub = std::nullopt);
+
 // Adds a new local variable q to the relation that represents expr % modulus.
 // Returns the index of the new local variable in the relation.
 unsigned int addModConstraint(presburger::IntegerRelation& result,
@@ -103,6 +112,20 @@ bool isRelationSquatDiagonal(RankedTensorType matrixType,
 // vector type and slot size.
 bool isRelationRowMajor(RankedTensorType vectorType, int64_t numSlots,
                         const presburger::IntegerRelation& relation);
+
+// Returns true if the relation packs a vector into ciphertext zero with each
+// vector element occupying exactly one distinct slot.
+bool isOneToOneSingleCiphertextPacking(
+    const presburger::IntegerRelation& relation);
+
+// Folds a single-ciphertext vector permutation (as accepted by
+// isOneToOneSingleCiphertextPacking) into a matrix layout, returning the matrix
+// layout that lets a diagonal matvec consume the un-permuted vector directly.
+// `vectorPermutation` maps [col] -> [ct, slot]; `matrixLayout` maps
+// [row, col] -> [ct, slot].
+presburger::IntegerRelation foldVectorPermutationIntoMatrixLayout(
+    const presburger::IntegerRelation& vectorPermutation,
+    const presburger::IntegerRelation& matrixLayout);
 
 // Returns true if the given relation is a per-row layout
 // for the given matrix type and ciphertext semantic shape.

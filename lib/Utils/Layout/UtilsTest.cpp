@@ -678,6 +678,53 @@ TEST(UtilsTest, TestGetCtComplementPoolingLayer) {
   EXPECT_EQ(collector.points.size(), 1994);
 }
 
+TEST(UtilsTest, TestIsOneToOneSingleCiphertextPacking) {
+  auto permutation = getIntegerRelationFromIslStr(
+                         "{ [i] -> [ct, slot] : ct = 0 and (slot - 3i) mod 8 "
+                         "= 0 and 0 <= i <= 7 and 0 <= slot <= 7 }")
+                         .value();
+  EXPECT_TRUE(isOneToOneSingleCiphertextPacking(permutation));
+
+  auto replicated = getIntegerRelationFromIslStr(
+                        "{ [i] -> [ct, slot] : ct = 0 and (slot - i) mod 8 = "
+                        "0 and 0 <= i <= 7 and 0 <= slot <= 15 }")
+                        .value();
+  EXPECT_FALSE(isOneToOneSingleCiphertextPacking(replicated));
+
+  auto multipleCiphertexts = getIntegerRelationFromIslStr(
+                                 "{ [i] -> [ct, slot] : i = 4ct + slot and 0 "
+                                 "<= i <= 7 and 0 <= ct <= 1 and 0 <= slot <= "
+                                 "3 }")
+                                 .value();
+  EXPECT_FALSE(isOneToOneSingleCiphertextPacking(multipleCiphertexts));
+}
+
+TEST(UtilsTest, TestFoldVectorPermutationIntoMatrixLayout) {
+  // The vector's slot = 3i permutation is folded into the matrix's column
+  // indexing (col -> 3col), so a diagonal matvec can consume the un-permuted
+  // ciphertext directly.
+  auto vectorPermutation = getIntegerRelationFromIslStr(
+                               "{ [i] -> [ct, slot] : ct = 0 and (slot - 3i) "
+                               "mod 8 = 0 and 0 <= i <= 7 and 0 <= slot <= 7 }")
+                               .value();
+  auto matrixLayout =
+      getIntegerRelationFromIslStr(
+          "{ [row, col] -> [ct, slot] : (row - col + ct) mod 4 = 0 and (-col + "
+          "ct + slot) mod 8 = 0 and 0 <= row <= 3 and 0 <= col <= 7 and 0 <= "
+          "ct <= 3 and 0 <= slot <= 7 }")
+          .value();
+  auto expected =
+      getIntegerRelationFromIslStr(
+          "{ [i0, i1] -> [ct, slot] : (i0 + i1 + ct) mod 4 = 0 and (-3i1 + ct "
+          "+ slot) mod 8 = 0 and 0 <= i0 <= 3 and 0 <= i1 <= 7 and 0 <= ct <= "
+          "3 and 0 <= slot <= 7 }")
+          .value();
+
+  auto folded =
+      foldVectorPermutationIntoMatrixLayout(vectorPermutation, matrixLayout);
+  EXPECT_TRUE(folded.isEqual(expected));
+}
+
 TEST(UtilsTest, TestIsDenseLayout_Dense) {
   MLIRContext context;
   RankedTensorType type =
