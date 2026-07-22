@@ -763,42 +763,85 @@ void getRangePoints(const presburger::IntegerRelation& relation,
   isl_set_free(set);
 }
 
-isl_stat pointPairCallback(__isl_take isl_point* pnt, void* user) {
-  PointPairCollector* collector = static_cast<PointPairCollector*>(user);
+namespace {
+// State threaded through the per-domain-point image enumeration below.
+struct DomainImageData {
+  isl_ctx* ctx;
+  isl_basic_map* bmap;  // not owned
+  PointPairCollector* collector;
+  // The domain point currently being imaged; valid only for the duration of the
+  // inner isl_set_foreach_point call.
+  const std::vector<int64_t>* domainPoint;
+};
 
-  std::vector<int64_t> domainPoint(collector->domainDims);
-  std::vector<int64_t> rangePoint(collector->rangeDims);
-
-  // Extract domain coordinates
-  for (int i = 0; i < collector->domainDims; i++) {
+// Extract the first `n` set coordinates of `pnt` into `out`.
+void extractCoords(__isl_keep isl_point* pnt, int n,
+                   std::vector<int64_t>& out) {
+  for (int i = 0; i < n; i++) {
     isl_val* coord = isl_point_get_coordinate_val(pnt, isl_dim_set, i);
     if (isl_val_is_int(coord)) {
-      domainPoint[i] = isl_val_get_num_si(coord);
+      out[i] = isl_val_get_num_si(coord);
     }
     isl_val_free(coord);
   }
+}
 
-  // Extract range coordinates
-  for (int i = 0; i < collector->rangeDims; i++) {
-    isl_val* coord = isl_point_get_coordinate_val(pnt, isl_dim_set,
-                                                  collector->domainDims + i);
-    if (isl_val_is_int(coord)) {
-      rangePoint[i] = isl_val_get_num_si(coord);
-    }
-    isl_val_free(coord);
-  }
-
-  collector->points.emplace_back(domainPoint, rangePoint);
+// Called for each point in the image (range) of a fixed domain point.
+isl_stat imageRangeCallback(__isl_take isl_point* pnt, void* user) {
+  auto* data = static_cast<DomainImageData*>(user);
+  std::vector<int64_t> rangePoint(data->collector->rangeDims);
+  extractCoords(pnt, data->collector->rangeDims, rangePoint);
+  data->collector->points.emplace_back(*data->domainPoint, rangePoint);
   isl_point_free(pnt);
   return isl_stat_ok;
 }
 
+// Called for each point in the domain of the relation.
+isl_stat domainPointCallback(__isl_take isl_point* pnt, void* user) {
+  auto* data = static_cast<DomainImageData*>(user);
+  int domainDims = data->collector->domainDims;
+  std::vector<int64_t> domainPoint(domainDims);
+  extractCoords(pnt, domainDims, domainPoint);
+
+  // Fix the map's domain to this concrete point, then enumerate the (small,
+  // now fully concrete) image. Fixing the domain to actual integers collapses
+  // the relation's modular/floor-division existentials into a non-parametric
+  // feasibility problem that isl resolves cheaply -- unlike scanning the full
+  // wrapped relation, which keeps those existentials parametric and forces an
+  // expensive parametric-ILP solve at essentially every candidate point.
+  isl_basic_map* fixed = isl_basic_map_copy(data->bmap);
+  for (int i = 0; i < domainDims; i++) {
+    isl_val* v = isl_val_int_from_si(data->ctx, domainPoint[i]);
+    fixed = isl_basic_map_fix_val(fixed, isl_dim_in, i, v);
+  }
+  isl_set* image = isl_set_from_basic_set(isl_basic_map_range(fixed));
+
+  data->domainPoint = &domainPoint;
+  isl_set_foreach_point(image, &imageRangeCallback, data);
+  data->domainPoint = nullptr;
+
+  isl_set_free(image);
+  isl_point_free(pnt);
+  return isl_stat_ok;
+}
+}  // namespace
+
 void enumeratePoints(const presburger::IntegerRelation& relation,
                      PointPairCollector& collector) {
-  auto* bmap = convertRelationToBasicMap(relation, collector.ctx);
-  isl_set* set = isl_set_from_basic_set(isl_basic_map_wrap(bmap));
-  isl_set_foreach_point(set, &pointPairCallback, &collector);
-  isl_set_free(set);
+  isl_basic_map* bmap = convertRelationToBasicMap(relation, collector.ctx);
+
+  // Enumerate the domain (a simple box with no existentials, so scanning it is
+  // cheap) and compute each domain point's image individually. See
+  // domainPointCallback for why per-point image computation avoids the
+  // pathologically slow parametric scan over the whole relation.
+  isl_set* domain =
+      isl_set_from_basic_set(isl_basic_map_domain(isl_basic_map_copy(bmap)));
+
+  DomainImageData data{collector.ctx, bmap, &collector, nullptr};
+  isl_set_foreach_point(domain, &domainPointCallback, &data);
+
+  isl_set_free(domain);
+  isl_basic_map_free(bmap);
 }
 
 std::vector<int64_t> anyRangePoint(
