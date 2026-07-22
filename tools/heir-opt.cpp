@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 
+#include "lib/Conversions/CheddarToEmitC/CheddarToEmitC.h"
 #include "lib/Dialect/Arith/Conversions/ArithToCGGI/ArithToCGGI.h"
 #include "lib/Dialect/Arith/Conversions/ArithToCGGIQuart/ArithToCGGIQuart.h"
 #include "lib/Dialect/Arith/Conversions/ArithToModArith/ArithToModArith.h"
@@ -17,6 +18,7 @@
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/CKKS/Transforms/Passes.h"
 #include "lib/Dialect/Cheddar/IR/CheddarDialect.h"
+#include "lib/Dialect/Cheddar/Transforms/BufferizableOpInterfaceImpl.h"
 #include "lib/Dialect/Comb/IR/CombDialect.h"
 #include "lib/Dialect/Debug/IR/DebugDialect.h"
 #include "lib/Dialect/Debug/Transforms/Passes.h"
@@ -313,9 +315,10 @@ int main(int argc, char** argv) {
   mlir::registerConvertSCFToEmitCInterface(registry);
 
   // Misc
-  registerTransformsPasses();      // canonicalize, cse, etc.
-  affine::registerAffinePasses();  // loop unrolling
-  registerLinalgPasses();          // linalg to loops
+  registerTransformsPasses();            // canonicalize, cse, etc.
+  affine::registerAffinePasses();        // loop unrolling
+  registerLinalgPasses();                // linalg to loops
+  mlir::memref::registerMemRefPasses();  // expand-strided-metadata, etc.
 
   // These are only needed by two tests that build a pass pipeline
   // from the CLI. Those tests can probably eventually be removed.
@@ -344,6 +347,15 @@ int main(int argc, char** argv) {
   registerPass(
       []() -> std::unique_ptr<Pass> { return createConvertToEmitC(); });
 
+  // SCF/Arith/MemRef -> EmitC for bufferized loop kernels are lowered inside
+  // the `cheddar-to-emitc` conversion itself (see CheddarToEmitC.cpp), so no
+  // separate per-dialect EmitC passes are registered here.
+  //
+  // Attaches MemRefElementTypeInterface to emitc::OpaqueType so the
+  // cheddar-to-emitc type converter can form memref<Nx!emitc.opaque<...>>
+  // as the converted form of memref<Nx!cheddar.*>.
+  mlir::heir::registerCheddarToEmitCExternalModels(registry);
+
   // Bufferization and external models
   bufferization::registerBufferizationPasses();
   mlir::arith::registerBufferizableOpInterfaceExternalModels(registry);
@@ -370,6 +382,7 @@ int main(int argc, char** argv) {
   registerEmitCInterfacePass();
   cggi::registerCGGIPasses();
   debug::registerDebugPasses();
+  registerCheddarToEmitCPasses();
   ckks::registerCKKSPasses();
   lattigo::registerLattigoPasses();
   lwe::registerLWEPasses();
@@ -508,6 +521,7 @@ int main(int argc, char** argv) {
   // Interfaces in HEIR
   secret::registerBufferizableOpInterfaceExternalModels(registry);
   lattigo::registerBufferizableOpInterfaceExternalModels(registry);
+  cheddar::registerBufferizableOpInterfaceExternalModels(registry);
   registerIncreasesMulDepthOpInterface(registry);
   registerLayoutConversionHoistableInterface(registry);
   registerOperandAndResultAttrInterface(registry);

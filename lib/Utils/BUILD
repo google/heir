@@ -49,6 +49,7 @@ cc_library(
     hdrs = ["APIntUtils.h"],
     deps = [
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
     ],
 )
@@ -167,6 +168,16 @@ cc_library(
     name = "LogArithmetic",
     srcs = ["LogArithmetic.cpp"],
     hdrs = ["LogArithmetic.h"],
+)
+
+cc_test(
+    name = "RotationUtilsTest",
+    srcs = ["RotationUtilsTest.cpp"],
+    deps = [
+        ":RotationUtils",
+        "@googletest//:gtest_main",
+        "@llvm-project//llvm:Support",
+    ],
 )
 
 cc_test(

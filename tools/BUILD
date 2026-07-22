@@ -44,6 +44,7 @@ cc_binary(
         "@heir//lib/Analysis/NoiseAnalysis",  # buildcleaner: keep
         "@heir//lib/Analysis/NoiseAnalysis/BFV:NoiseAnalysis",  # buildcleaner: keep
         "@heir//lib/Analysis/NoiseAnalysis/BGV:NoiseAnalysis",  # buildcleaner: keep
+        "@heir//lib/Conversions/CheddarToEmitC",
         "@heir//lib/Dialect:HEIRInterfaces",
         "@heir//lib/Dialect/Arith/Conversions/ArithToCGGI",
         "@heir//lib/Dialect/Arith/Conversions/ArithToCGGIQuart",
@@ -59,6 +60,7 @@ cc_binary(
         "@heir//lib/Dialect/CKKS/IR:Dialect",
         "@heir//lib/Dialect/CKKS/Transforms",
         "@heir//lib/Dialect/Cheddar/IR:Dialect",
+        "@heir//lib/Dialect/Cheddar/Transforms:BufferizableOpInterfaceImpl",
         "@heir//lib/Dialect/Comb/IR:Dialect",
         "@heir//lib/Dialect/Debug/IR:Dialect",
         "@heir//lib/Dialect/Debug/Transforms",
@@ -263,6 +265,8 @@ cc_binary(
         "@heir//lib/Target/TfheRustHL:TfheRustHLEmitter",
         "@heir//lib/Target/Verilog:VerilogEmitter",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AllTranslations",
+        "@llvm-project//mlir:TargetCpp",
         "@llvm-project//mlir:TranslateLib",
     ],
 )
