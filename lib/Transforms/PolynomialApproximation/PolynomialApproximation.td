@@ -61,6 +61,10 @@ def PolynomialApproximation : Pass<"polynomial-approximation"> {
     These ops are replaced with `polynomial.eval` ops with a static polynomial
     attribute.
 
+    Some distinguished ops have hard-coded approximations in certain intervals,
+    such as `exp` on `[-2^k, 1.0]`, which are proven to have better approximation
+    for the same (or less) homomorphic level usage.
+
     (* example filepath=tests/Transforms/polynomial_approximation/doctest.mlir *)
   }];
   let dependentDialects = [
