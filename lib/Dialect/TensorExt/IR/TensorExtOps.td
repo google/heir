@@ -302,5 +302,30 @@ def TensorExt_RotateAndReduceOp : TensorExt_Op<"rotate_and_reduce", [
   // TODO(#2134): Add canonicalization patterns
 }
 
+def TensorExt_BroadcastedReduceOp : TensorExt_Op<"broadcasted_reduce", [
+  Pure,
+  AllTypesMatch<["tensor", "output"]>
+]> {
+  let summary = "Broadcasted reduction of a tensor along a dimension.";
+  let description = [{
+    This op reduces a tensor along a specified dimension and broadcasts the
+    result back to the original shape.
+
+    The reduction operation is specified by the `reduceOp` attribute.
+    The chosen op must be one of `arith.addi`, `arith.addf`, `arith.muli`,
+    or `arith.mulf`.
+
+    This op is layout-preserving.
+  }];
+
+  let arguments = (ins
+    AnyRankedTensor:$tensor,
+    I64Attr:$dimension,
+    OptionalAttr<Builtin_StringAttr>:$reduceOp
+  );
+  let results = (outs AnyRankedTensor:$output);
+  let assemblyFormat = "operands attr-dict `:` type($tensor)";
+  let hasVerifier = 1;
+}
 
 #endif  // LIB_DIALECT_TENSOREXT_IR_TENSOREXTOPS_TD_

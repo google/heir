@@ -15,9 +15,9 @@ def SoftmaxToCgfSoftmax : Pass<"softmax-to-cgf-softmax"> {
   let dependentDialects = [
     "mlir::arith::ArithDialect",
     "mlir::math::MathDialect",
-    "mlir::linalg::LinalgDialect",
     "mlir::tensor::TensorDialect",
-    "mlir::heir::math_ext::MathExtDialect"
+    "mlir::heir::math_ext::MathExtDialect",
+    "mlir::heir::tensor_ext::TensorExtDialect"
   ];
 }
 

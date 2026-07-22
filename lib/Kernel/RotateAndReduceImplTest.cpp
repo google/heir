@@ -241,6 +241,78 @@ TEST(RotateAndReduceImplTest, RegressionTest) {
   EXPECT_EQ(expected, actual);
 }
 
+std::vector<int> runBroadcastedReduceImpl(
+    const std::vector<int>& vec, std::optional<std::vector<int>> cleanupMask,
+    int64_t period, int64_t steps, bool unroll = true) {
+  using NodeTy = ArithmeticDagNode<LiteralValue>;
+  using NodePtr = std::shared_ptr<NodeTy>;
+
+  LiteralValue vectorInput(vec);
+  auto vectorDag = NodeTy::leaf(vectorInput);
+
+  std::optional<NodePtr> cleanupMaskDag = std::nullopt;
+  if (cleanupMask.has_value()) {
+    cleanupMaskDag = NodeTy::leaf(LiteralValue(cleanupMask.value()));
+  }
+
+  auto result = implementBroadcastedReduce<LiteralValue>(
+      vectorDag, cleanupMaskDag, period, steps, vec.size(),
+      DagType::intTensor(32, {static_cast<int64_t>(vec.size())}), "arith.addi",
+      unroll);
+
+  return std::get<std::vector<int>>(evalKernel(result)[0].get());
+}
+
+TEST(RotateAndReduceImplTest, BroadcastedReduce_Natural_PowerOfTwo) {
+  std::vector<int> vector = {0, 1, 2, 3, 4, 5, 6, 7};
+  std::vector<int> expected(8, 28);
+
+  for (bool unroll : {true, false}) {
+    std::vector<int> actual =
+        runBroadcastedReduceImpl(vector, std::nullopt, 1, 8, unroll);
+    EXPECT_EQ(expected, actual) << "Failed for unroll=" << unroll;
+  }
+}
+
+TEST(RotateAndReduceImplTest, BroadcastedReduce_Natural_Stride) {
+  std::vector<int> vector = {0, 1, 2, 3, 4, 5, 6, 7};
+  std::vector<int> expected = {12, 16, 12, 16, 12, 16, 12, 16};
+
+  for (bool unroll : {true, false}) {
+    std::vector<int> actual =
+        runBroadcastedReduceImpl(vector, std::nullopt, 2, 4, unroll);
+    EXPECT_EQ(expected, actual) << "Failed for unroll=" << unroll;
+  }
+}
+
+TEST(RotateAndReduceImplTest, BroadcastedReduce_Masked_Contiguous) {
+  std::vector<int> vector = {0,  1,  2,  3,  4,  5,  6,  7,
+                             10, 11, 12, 13, 14, 15, 16, 17};
+  std::vector<int> mask = {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1};
+  std::vector<int> expected = {28,  28,  28,  28,  28,  28,  28,  28,
+                               108, 108, 108, 108, 108, 108, 108, 108};
+
+  for (bool unroll : {true, false}) {
+    std::vector<int> actual =
+        runBroadcastedReduceImpl(vector, mask, 1, 8, unroll);
+    EXPECT_EQ(expected, actual) << "Failed for unroll=" << unroll;
+  }
+}
+
+TEST(RotateAndReduceImplTest, BroadcastedReduce_Masked_Stride) {
+  std::vector<int> vector = {0,  1,  2,  3,  4,  5,  6,  7,
+                             10, 11, 12, 13, 14, 15, 16, 17};
+  std::vector<int> mask = {0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1};
+  std::vector<int> expected = {12, 16, 12, 16, 12, 16, 12, 16,
+                               52, 56, 52, 56, 52, 56, 52, 56};
+
+  for (bool unroll : {true, false}) {
+    std::vector<int> actual =
+        runBroadcastedReduceImpl(vector, mask, 2, 4, unroll);
+    EXPECT_EQ(expected, actual) << "Failed for unroll=" << unroll;
+  }
+}
+
 }  // namespace
 }  // namespace kernel
 }  // namespace heir
