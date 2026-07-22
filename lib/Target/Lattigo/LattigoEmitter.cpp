@@ -339,7 +339,7 @@ LogicalResult LattigoEmitter::printOperation(affine::AffineForOp op) {
       continue;
     }
 
-    os << getName(iterArg) << " := " << getName(init) << "\n";
+    emitAssignment(getName(iterArg), getName(init));
   }
 
   os << llvm::formatv("for {0} := {1}; {0} < {2}; {0} += {3} {{\n",
@@ -760,6 +760,17 @@ void LattigoEmitter::emitAssignment(std::string_view name,
   }
 }
 
+void LattigoEmitter::emitAssignmentWithErr(std::string_view name,
+                                           std::string_view valueExpr) {
+  std::string errName = getErrName();
+  // since errName is unique, we always use :=
+  os << name << ", " << errName << " := " << valueExpr << "\n";
+  if (name != "_") {
+    declaredVars.insert(std::string(name));
+  }
+  printErrPanic(errName);
+}
+
 LogicalResult LattigoEmitter::printBinaryOp(Operation* op, ::mlir::Value lhs,
                                             ::mlir::Value rhs,
                                             std::string_view opName) {
@@ -1005,7 +1016,7 @@ LogicalResult LattigoEmitter::printOperation(scf::ForOp op) {
     }
 
     // Initialize each iter_arg to its corresponding init
-    os << getName(iterArg) << " := " << getName(init) << "\n";
+    emitAssignment(getName(iterArg), getName(init));
   }
 
   auto getConstantOrValue = [&](Value value) -> std::string {
@@ -1996,12 +2007,9 @@ LogicalResult LattigoEmitter::printOperation(CKKSRotateOp op) {
 LogicalResult LattigoEmitter::printOperation(CKKSBootstrapOp op) {
   imports.insert(std::string(kBootstrappingImport));
 
-  auto errName = getErrName();
   std::string resultName = getName(op.getResult());
-  os << resultName << ", " << errName << " := " << getName(op.getEvaluator())
-     << ".Bootstrap(";
-  os << getName(op.getInput()) << ")\n";
-  printErrPanic(errName);
+  emitAssignmentWithErr(resultName, getName(op.getEvaluator()) + ".Bootstrap(" +
+                                        getName(op.getInput()) + ")");
   return success();
 }
 
@@ -2196,12 +2204,9 @@ LogicalResult LattigoEmitter::printNewMethod(::mlir::Value result,
   std::string errName = getErrName();
   std::string resultName = getName(result);
   if (err) {
-    os << resultName << ", " << errName << " := " << op << "("
-       << getCommaSeparatedNames(operands) << ")\n";
-    if (resultName != "_") {
-      declaredVars.insert(resultName);
-    }
-    printErrPanic(errName);
+    emitAssignmentWithErr(
+        resultName,
+        std::string(op) + "(" + getCommaSeparatedNames(operands) + ")");
   } else {
     if (resultName == "_" || declaredVars.count(resultName)) {
       os << resultName << " = " << op << "(" << getCommaSeparatedNames(operands)
@@ -2375,6 +2380,7 @@ std::string LattigoEmitter::declareVariable(Value value, Location loc) {
   std::string valueName = getName(value);
   if (!value.use_empty()) {
     os << "var " << getName(value) << " ";
+    declaredVars.insert(valueName);
     if (failed(emitType(value.getType()))) {
       emitError(loc, llvm::formatv("Failed to emit type for {}", value));
     }

@@ -86,6 +86,7 @@ class LattigoEmitter {
   std::set<std::string> declaredVars;
 
   void emitAssignment(std::string_view name, std::string_view valueExpr);
+  void emitAssignmentWithErr(std::string_view name, std::string_view valueExpr);
 
   // general binary op helper
   LogicalResult printBinaryOp(Operation* op, ::mlir::Value lhs,
