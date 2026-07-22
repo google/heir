@@ -1509,7 +1509,7 @@ LogicalResult LattigoEmitter::printOperation(BGVEncodeOp op) {
   auto valueName = getName(op.getValue());
   auto maxSlotsName = getName(newPlaintextOp.getParams()) + ".MaxSlots()";
   auto numSlotsAttr = dyn_cast_or_null<IntegerAttr>(
-      op->getParentOfType<ModuleOp>()->getAttr(kRequestedSlotCountAttrName));
+      op->getParentOfType<ModuleOp>()->getAttr(kActualSlotCountAttrName));
   if (numSlotsAttr) {
     maxSlotsName = std::to_string(numSlotsAttr.getInt());
   }
@@ -1797,7 +1797,7 @@ LogicalResult LattigoEmitter::printOperation(CKKSEncodeOp op) {
   auto valueName = getName(op.getValue());
   auto maxSlotsName = getName(newPlaintextOp.getParams()) + ".MaxSlots()";
   auto numSlotsAttr = dyn_cast_or_null<IntegerAttr>(
-      op->getParentOfType<ModuleOp>()->getAttr(kRequestedSlotCountAttrName));
+      op->getParentOfType<ModuleOp>()->getAttr(kActualSlotCountAttrName));
   if (numSlotsAttr) {
     maxSlotsName = std::to_string(numSlotsAttr.getInt());
     imports.insert(std::string(kRingImport));
@@ -1897,18 +1897,30 @@ LogicalResult LattigoEmitter::printOperation(CKKSMulNewOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(CKKSAddOp op) {
+  auto lhsName = getName(op.getLhs());
+  auto inplaceName = getName(op.getInplace());
+  os << inplaceName << ".Resize(" << lhsName << ".Degree(), " << lhsName
+     << ".Level())\n";
   return printEvalInPlaceMethod(op.getEvaluator(),
                                 {op.getLhs(), op.getRhs(), op.getInplace()},
                                 "Add", true);
 }
 
 LogicalResult LattigoEmitter::printOperation(CKKSSubOp op) {
+  auto lhsName = getName(op.getLhs());
+  auto inplaceName = getName(op.getInplace());
+  os << inplaceName << ".Resize(" << lhsName << ".Degree(), " << lhsName
+     << ".Level())\n";
   return printEvalInPlaceMethod(op.getEvaluator(),
                                 {op.getLhs(), op.getRhs(), op.getInplace()},
                                 "Sub", true);
 }
 
 LogicalResult LattigoEmitter::printOperation(CKKSMulOp op) {
+  auto lhsName = getName(op.getLhs());
+  auto inplaceName = getName(op.getInplace());
+  os << inplaceName << ".Resize(" << lhsName << ".Degree(), " << lhsName
+     << ".Level())\n";
   return printEvalInPlaceMethod(op.getEvaluator(),
                                 {op.getLhs(), op.getRhs(), op.getInplace()},
                                 "Mul", true);
@@ -1956,11 +1968,21 @@ LogicalResult LattigoEmitter::printOperation(CKKSRotateNewOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(CKKSRelinearizeOp op) {
+  auto inputName = getName(op.getInput());
+  auto inplaceName = getName(op.getInplace());
+  os << inplaceName << ".Resize(" << inputName << ".Degree(), " << inputName
+     << ".Level())\n";
   return printEvalInPlaceMethod(
       op.getEvaluator(), {op.getInput(), op.getInplace()}, "Relinearize", true);
 }
 
 LogicalResult LattigoEmitter::printOperation(CKKSRescaleOp op) {
+  auto inputName = getName(op.getInput());
+  auto inplaceName = getName(op.getInplace());
+  if (inputName != inplaceName) {
+    os << inplaceName << ".Resize(" << inputName << ".Degree(), " << inputName
+       << ".Level() - 1)\n";
+  }
   return printEvalInPlaceMethod(
       op.getEvaluator(), {op.getInput(), op.getInplace()}, "Rescale", true);
 }
@@ -2106,7 +2128,7 @@ LogicalResult LattigoEmitter::printOperation(
   auto paramName = getName(op.getParams());
   auto errName = getErrName();
   auto numSlotsAttr = dyn_cast_or_null<IntegerAttr>(
-      op->getParentOfType<ModuleOp>()->getAttr(kRequestedSlotCountAttrName));
+      op->getParentOfType<ModuleOp>()->getAttr(kActualSlotCountAttrName));
   std::string resultName = getName(op.getResult());
   os << resultName << ", " << errName
      << " := bootstrapping.NewParametersFromLiteral(";

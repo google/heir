@@ -230,6 +230,11 @@ presburger::IntegerRelation shiftVar(
     const presburger::IntegerRelation& relation, unsigned int pos,
     int64_t offset);
 
+// Get layout relation that corresponds to a tensor::pad op.
+presburger::IntegerRelation getPaddingRelation(RankedTensorType paddedType,
+                                               RankedTensorType unpaddedType,
+                                               ArrayRef<int64_t> lowPadding);
+
 // Get layout relation that corresponds to a tensor::extract_slice op.
 FailureOr<presburger::IntegerRelation> getSliceExtractionRelation(
     RankedTensorType sourceType, RankedTensorType resultType,

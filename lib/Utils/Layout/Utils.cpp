@@ -915,6 +915,44 @@ presburger::IntegerRelation shiftVar(
   return *shiftedRelation;
 }
 
+presburger::IntegerRelation getPaddingRelation(RankedTensorType paddedType,
+                                               RankedTensorType unpaddedType,
+                                               ArrayRef<int64_t> lowPadding) {
+  auto rank = paddedType.getRank();
+  assert(rank == unpaddedType.getRank() &&
+         "padded and unpadded types must have the same rank");
+  assert(lowPadding.size() == rank &&
+         "lowPadding must have the same size as the rank");
+
+  IntegerRelation result(PresburgerSpace::getRelationSpace(
+      /*numDomain=*/rank, /*numRange=*/rank, /*numSymbol=*/0, /*numLocals=*/0));
+
+  auto domainOffset = result.getVarKindOffset(VarKind::Domain);
+  auto rangeOffset = result.getVarKindOffset(VarKind::Range);
+
+  // Domain bounds: 0 <= P_i < padded_shape[i]
+  for (int i = 0; i < rank; ++i) {
+    addBounds(result, domainOffset + i, 0, paddedType.getDimSize(i) - 1);
+  }
+
+  // Range bounds: 0 <= S_i < unpadded_shape[i]
+  for (int i = 0; i < rank; ++i) {
+    addBounds(result, rangeOffset + i, 0, unpaddedType.getDimSize(i) - 1);
+  }
+
+  // Constraint: P_i - S_i = L_i
+  auto constOffset = result.getNumCols() - 1;
+  for (int i = 0; i < rank; ++i) {
+    addConstraint(result,
+                  {{domainOffset + i, 1},
+                   {rangeOffset + i, -1},
+                   {constOffset, -lowPadding[i]}},
+                  /*equality=*/true);
+  }
+
+  return result;
+}
+
 FailureOr<presburger::IntegerRelation> getSliceExtractionRelation(
     RankedTensorType sourceType, RankedTensorType resultType,
     SmallVector<int64_t> offsets, SmallVector<int64_t> sizes,

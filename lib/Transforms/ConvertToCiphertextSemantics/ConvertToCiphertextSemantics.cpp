@@ -1,5 +1,6 @@
 #include "lib/Transforms/ConvertToCiphertextSemantics/ConvertToCiphertextSemantics.h"
 
+#include <cassert>
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -137,6 +138,7 @@ IntegerRelation restrictRelationToSlice(const IntegerRelation& relation,
 Operation* remapAndExtractResult(ImplicitLocOpBuilder& builder, Value input,
                                  LayoutAttr resultLayout,
                                  RankedTensorType resultType) {
+  assert(resultType.getRank() == 2 && "Expected 2D ciphertext semantic type");
   auto remapOp = tensor_ext::RemapOp::create(builder, input, resultLayout);
 
   SmallVector<OpFoldResult> strides(2, builder.getIndexAttr(1));
@@ -1624,6 +1626,139 @@ class ConvertTensorExtractLayout
   }
 };
 
+class ConvertTensorPad : public ContextAwareOpConversionPattern<tensor::PadOp> {
+ public:
+  using ContextAwareOpConversionPattern<
+      tensor::PadOp>::ContextAwareOpConversionPattern;
+
+  LogicalResult secretSourceSecretResult(
+      tensor::PadOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const {
+    auto sourceTy = dyn_cast<RankedTensorType>(
+        maybeExtractSecretType(op.getSource().getType()));
+    auto resultTy = dyn_cast<RankedTensorType>(
+        maybeExtractSecretType(op.getResult().getType()));
+    if (!sourceTy || !resultTy || !sourceTy.hasStaticShape() ||
+        !resultTy.hasStaticShape()) {
+      return op.emitError("Only static shapes are supported for secret pad");
+    }
+    for (int64_t val : op.getStaticLow()) {
+      if (ShapedType::isDynamic(val)) {
+        return op.emitError(
+            "Only static low padding is supported for secret pad");
+      }
+    }
+    for (int64_t val : op.getStaticHigh()) {
+      if (ShapedType::isDynamic(val)) {
+        return op.emitError(
+            "Only static high padding is supported for secret pad");
+      }
+    }
+
+    FailureOr<Attribute> sourceLayoutResult =
+        getTypeConverter()->getContextualAttr(adaptor.getSource());
+    FailureOr<Attribute> resultLayoutResult =
+        getTypeConverter()->getContextualAttr(op.getResult());
+
+    LayoutAttr sourceLayout = cast<LayoutAttr>(sourceLayoutResult.value());
+    LayoutAttr resultLayout = cast<LayoutAttr>(resultLayoutResult.value());
+
+    // Check if padded value is constant 0.
+    Block& body = op.getRegion().front();
+    auto yieldOp = cast<tensor::YieldOp>(body.getTerminator());
+    Value yieldedValue = yieldOp.getValue();
+
+    auto constOp = yieldedValue.getDefiningOp<arith::ConstantOp>();
+    if (!constOp) {
+      return op.emitError("Only constant padding is supported");
+    }
+    auto constAttr = constOp.getValue();
+    if (auto floatAttr = dyn_cast<FloatAttr>(constAttr)) {
+      if (floatAttr.getValueAsDouble() != 0.0) {
+        return op.emitError("Only zero padding is supported");
+      }
+    } else if (auto intAttr = dyn_cast<IntegerAttr>(constAttr)) {
+      if (intAttr.getInt() != 0) {
+        return op.emitError("Only zero padding is supported");
+      }
+    } else {
+      return op.emitError("Only zero padding is supported");
+    }
+
+    // Check if sourceCTType == targetCTType
+    auto sourceCTType = cast<RankedTensorType>(adaptor.getSource().getType());
+    auto targetCTType =
+        getTypeConverter()->convertType(op.getResultType(), resultLayout);
+    if (!targetCTType) {
+      return op.emitError("failed to convert target type");
+    }
+    if (sourceCTType != targetCTType) {
+      return op.emitError("Unsupported pad that changes number of ciphertexts");
+    }
+
+    SmallVector<int64_t> lowPadding = llvm::to_vector(op.getStaticLow());
+
+    IntegerRelation paddingRel =
+        getPaddingRelation(op.getResultType(), op.getSourceType(), lowPadding);
+
+    IntegerRelation sourceRel = sourceLayout.getIntegerRelation();
+    IntegerRelation resultRel = resultLayout.getIntegerRelation();
+
+    paddingRel.inverse();
+    sourceRel.inverse();
+    sourceRel.compose(paddingRel);
+    sourceRel.compose(resultRel);
+
+    LayoutAttr remapLayoutAttr =
+        LayoutAttr::getFromIntegerRelation(op.getContext(), sourceRel);
+
+    auto resultCiphertextSemanticType = cast<RankedTensorType>(targetCTType);
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    auto remapAndExtract = remapAndExtractResult(
+        b, adaptor.getSource(), remapLayoutAttr, resultCiphertextSemanticType);
+
+    setMaterializedAttr(remapAndExtract);
+    setAttributeAssociatedWith(remapAndExtract->getResult(0), kLayoutAttrName,
+                               resultLayout);
+    rewriter.replaceOp(op, remapAndExtract->getResult(0));
+    return success();
+  }
+
+  LogicalResult matchAndRewrite(
+      tensor::PadOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    if (hasMaterializedAttr(op)) return failure();
+
+    FailureOr<Attribute> sourceLayoutResult =
+        getTypeConverter()->getContextualAttr(adaptor.getSource());
+    FailureOr<Attribute> resultLayoutResult =
+        getTypeConverter()->getContextualAttr(op.getResult());
+
+    bool isSecretSource = succeeded(sourceLayoutResult);
+    bool isSecretResult = succeeded(resultLayoutResult);
+
+    if (isSecretSource && isSecretResult) {
+      return secretSourceSecretResult(op, adaptor, rewriter);
+    }
+
+    if (isSecretSource && !isSecretResult) {
+      return op.emitError()
+             << "result tensor should have been assigned a layout "
+                "by layout-propagation";
+    }
+
+    if (!isSecretSource && isSecretResult) {
+      return op.emitError()
+             << "source tensor should have been assigned a layout "
+                "by layout-propagation";
+    }
+
+    // Cleartext pad can be elided.
+    setMaterializedAttr(op);
+    return success();
+  }
+};
+
 class ConvertTensorInsertSlice
     : public ContextAwareOpConversionPattern<tensor::InsertSliceOp> {
  public:
@@ -2620,8 +2755,8 @@ struct ConvertToCiphertextSemantics
                  ConvertLinalgReduce, ConvertLinalgDot, ConvertSecretGeneric,
                  ConvertTensorCollapseShape, ConvertTensorExpandShape,
                  ConvertTensorExtractLayout, ConvertTensorExtractSlice,
-                 ConvertTensorInsertLayout, ConvertTensorInsertSlice>(
-        typeConverter, context);
+                 ConvertTensorPad, ConvertTensorInsertLayout,
+                 ConvertTensorInsertSlice>(typeConverter, context);
     patterns.add<ConvertLinalgMatvecLayout, ConvertLinalgConv1D,
                  ConvertLinalgConv2D, ConvertLinalgConv2DNchwFchw,
                  ConvertLinalgConv1DNcwFcw>(typeConverter, context,
