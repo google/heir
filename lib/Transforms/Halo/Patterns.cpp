@@ -6,6 +6,7 @@
 #include <string>
 
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
+#include "lib/Analysis/MulDepthAnalysis/MulDepthAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"               // from @llvm-project
@@ -472,6 +473,52 @@ LogicalResult RegionBranchOpLevelInvariancePattern::matchAndRewrite(
               rewriter, op.getLoc(), yieldingOperands[j]->get(), diff);
           rewriter.modifyOpInPlace(yieldingOperands[j]->getOwner(), [&]() {
             yieldingOperands[j]->set(reduceOp.getResult());
+          });
+          changed = true;
+        }
+      }
+    }
+  }
+
+  return changed ? success() : failure();
+}
+
+LogicalResult RegionBranchOpMulDepthInvariancePattern::matchAndRewrite(
+    RegionBranchOpInterface op, PatternRewriter& rewriter) const {
+  bool changed = false;
+
+  for (int i = 0; i < op->getNumResults(); ++i) {
+    Value result = op->getResult(i);
+    if (!isSecret(result, solver)) continue;
+
+    mlir::RegionBranchInverseSuccessorMapping inverseMapping;
+    op.getSuccessorInputOperandMapping(inverseMapping);
+    llvm::SmallVector<mlir::OpOperand*> yieldingOperands;
+    yieldingOperands = inverseMapping.lookup(result);
+
+    if (yieldingOperands.size() < 2) continue;
+
+    SmallVector<int64_t> mulDepths;
+    for (OpOperand* operand : yieldingOperands) {
+      auto* mulDepthLattice =
+          solver->lookupState<MulDepthLattice>(operand->get());
+      if (!mulDepthLattice || !mulDepthLattice->getValue().isInt()) {
+        continue;
+      }
+      mulDepths.push_back(mulDepthLattice->getValue().getMulDepth());
+    }
+
+    // Reconcile mul depths if we have all of them.
+    if (mulDepths.size() == yieldingOperands.size()) {
+      int64_t maxMulDepth = *llvm::max_element(mulDepths);
+      for (int j = 0; j < yieldingOperands.size(); ++j) {
+        if (mulDepths[j] < maxMulDepth) {
+          rewriter.setInsertionPoint(yieldingOperands[j]->getOwner());
+          auto adjustScaleOp = mgmt::AdjustScaleOp::create(
+              rewriter, op.getLoc(), yieldingOperands[j]->get(),
+              rewriter.getI64IntegerAttr((*idCounter)++));
+          rewriter.modifyOpInPlace(yieldingOperands[j]->getOwner(), [&]() {
+            yieldingOperands[j]->set(adjustScaleOp.getResult());
           });
           changed = true;
         }

@@ -30,6 +30,7 @@ cc_library(
     ],
     deps = [
         "@heir//lib/Analysis/LevelAnalysis",
+        "@heir//lib/Analysis/MulDepthAnalysis",
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@llvm-project//llvm:Support",
