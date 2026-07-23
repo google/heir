@@ -33,3 +33,10 @@ func.func @test_softmax_2d(%arg0: tensor<2x4xf32>) -> tensor<2x4xf32> {
   %0 = math_ext.softmax %arg0 : tensor<2x4xf32>
   return %0 : tensor<2x4xf32>
 }
+
+// CHECK: test_softmax_3d
+func.func @test_softmax_3d(%arg0: tensor<2x4x4xf32>) -> tensor<2x4x4xf32> {
+  // CHECK: math_ext.softmax
+  %0 = math_ext.softmax %arg0 : tensor<2x4x4xf32>
+  return %0 : tensor<2x4x4xf32>
+}
