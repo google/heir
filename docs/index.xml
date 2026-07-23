@@ -8286,38 +8286,36 @@ arguments in the function body.&lt;/li>
 &lt;/ul>
 &lt;h4 id="statistics-1">Statistics&lt;/h4>
 &lt;pre tabindex="0">&lt;code>total circuit size : The total circuit size for all optimized circuits, after optimization is done.
-&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2026-04-23</title><link>https://heir.dev/blog/2026/04/23/heir-meeting-2026-04-23/</link><pubDate>Thu, 23 Apr 2026 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2026/04/23/heir-meeting-2026-04-23/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1KZZRqw5206xGRMhluajmmdkGyyVUWU4OYFgHFR7Qabc/edit?usp=sharing">notes&lt;/a>
-and &lt;a href="https://youtu.be/734P3CbLYP4">video recording&lt;/a> from the HEIR meeting on
-2026-04-23.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2026-03-26</title><link>https://heir.dev/blog/2026/03/26/heir-meeting-2026-03-26/</link><pubDate>Thu, 26 Mar 2026 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2026/03/26/heir-meeting-2026-03-26/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/19nIJWHZR8Cj7TGX0jyl92hBUxpqeRs1H9xczQycyETs/edit?usp=sharing">notes&lt;/a>
-and &lt;a href="https://youtu.be/ZxPxAKdWDiY">video recording&lt;/a> from the HEIR meeting on
-2026-03-26.&lt;/p>
+&lt;/code>&lt;/pre></description></item><item><title>Blog: FHE.org 2026 conference poster</title><link>https://heir.dev/blog/2026/03/10/fhe.org-2026-conference-poster/</link><pubDate>Tue, 10 Mar 2026 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2026/03/10/fhe.org-2026-conference-poster/</guid><description>
+&lt;p>Asra Ali presented a poster at the FHE.org 2026 conference in Taipei.&lt;/p>
+&lt;p>A web-friendly adaptation of the poster is available at
+&lt;a href="https://heir.dev/docs/design/ml_with_heir/">ML with HEIR&lt;/a>, while the original poster is
+available below. Tap the image to view the full-resolution PDF.&lt;/p>
+&lt;a href="https://heir.dev/slides/fheorg_poster_2026_03.pdf" style="display: block; overflow: hidden;">
+&lt;img src="https://heir.dev/images/fheorg_poster_2026_03.png" alt="FHE.org 2026 Poster"
+style="width: calc(100% + 5%); margin: -4.5% -4.5%;"> &lt;!-- trim off white border -->
+&lt;/a>
+&lt;p>&lt;a href="https://heir.dev/slides/fheorg_poster_2026_03.pdf">Download Poster (PDF)&lt;/a>&lt;/p>
 &lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2025-08-07</title><link>https://heir.dev/blog/2025/08/13/heir-meeting-2025-08-07/</link><pubDate>Wed, 13 Aug 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/08/13/heir-meeting-2025-08-07/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/1v3P8LhabG75UCM3xhNcp9yTes3P7DpOqsVDFKVCSdwg/edit?usp=sharing">notes&lt;/a>
 and &lt;a href="https://youtu.be/t7T9dWtjM8Q">video recording&lt;/a> from the HEIR meeting on
 2025-08-07.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: FHE.org 2025 conference talk and slides</title><link>https://heir.dev/blog/2025/04/11/fhe.org-2025-conference-talk-and-slides/</link><pubDate>Fri, 11 Apr 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/04/11/fhe.org-2025-conference-talk-and-slides/</guid><description>
-&lt;p>Jeremy Kun gave a talk at the FHE.org 2025 conference in Sofia last month. The
-&lt;a href="https://www.youtube.com/watch?v=6JPwpTOcydM&amp;amp;list=PLnbmMskCVh1cCnWbmgxI0BM0UD2JHH9fz&amp;amp;index=5">video&lt;/a>
-has been posted on YouTube, and the slides can be found
-&lt;a href="https://docs.google.com/presentation/d/1nKj0i0tyBSGUAI-tYMUDeji-EgqCj4PBrgw_NgMb3fM/edit?usp=sharing">here&lt;/a>.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-10-04</title><link>https://heir.dev/blog/2024/10/04/heir-meeting-2024-10-04/</link><pubDate>Fri, 04 Oct 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/10/04/heir-meeting-2024-10-04/</guid><description>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2025-04-17</title><link>https://heir.dev/blog/2025/04/17/heir-meeting-2025-04-17/</link><pubDate>Thu, 17 Apr 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/04/17/heir-meeting-2025-04-17/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1tlC-g3JKOB9wxfQMEJnKQk0C0eBdtBCzZX8ck7J37fI/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1OFfrwWesFpxVHw2DFuNAxSB8seLG_tr1/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-10-04.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-08-08</title><link>https://heir.dev/blog/2024/08/08/heir-meeting-2024-08-08/</link><pubDate>Thu, 08 Aug 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/08/08/heir-meeting-2024-08-08/</guid><description>
+&lt;a href="https://docs.google.com/document/d/1be2IqEcj14CF-MA17SjZaS_soRDf-xTrMP-yAKh1BWE/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/HHU6rCMxZRc">video recording&lt;/a> from the HEIR meeting on
+2025-04-17.&lt;/p>
+&lt;p>Hongren Zheng gave an overview of the &lt;code>mgmt&lt;/code> dialect which handles ciphertext
+management in the compiler. This talk
+&lt;a href="https://youtu.be/HHU6rCMxZRc?si=U_ePY5emqs6e4NoV&amp;amp;t=1631">starts at 27:11&lt;/a>.
+&lt;a href="https://heir.dev/slides/mgmt-2025-04-17.pdf">The slides can be found here&lt;/a>.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-09-05</title><link>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</link><pubDate>Thu, 05 Sep 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1FLSiaPlX38GNHqqqi_Mz3gMuVSlS4sUcwBWqpt6Fkew/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1tohVmC2pn_XDn3gjCFeo3K4Wfyf7VWu3oK1vimEsFD4/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1sHoRvNlS14RB-r3Rk0y2RyWOERVGNc-t/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-08-08.&lt;/p>
+&lt;a href="https://drive.google.com/file/d/1XGheLF7kvJfwAMJJQ-XbDpa4Ld15kj4t/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-09-05.&lt;/p>
 &lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2023-12-12</title><link>https://heir.dev/blog/2023/12/12/heir-meeting-2023-12-12/</link><pubDate>Tue, 12 Dec 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/12/12/heir-meeting-2023-12-12/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/1ekGrOBLoB_F3qjC43r6NzJbWpgT9RILTJyVu5Ax3PCQ/edit?usp=sharing">notes&lt;/a>
@@ -8327,6 +8325,12 @@ from the HEIR meeting on 2023-12-12.&lt;/p>
 &lt;p>This is the last meeting for 2023. Please respond to
 &lt;a href="https://app.rallly.co/invite/fHNdzrbisHVA">this poll&lt;/a> for 2024 scheduling
 preferences.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2023-09-12</title><link>https://heir.dev/blog/2023/09/13/heir-meeting-2023-09-12/</link><pubDate>Wed, 13 Sep 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/09/13/heir-meeting-2023-09-12/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1gOH1V6ORQwJDDo6I4jrDgCqqNFTsfcQbfpdUR6tv_60/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1zFtpBcCCq5d6UD8Nm8r3rfg3sgy-guz7/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2023-09-12.&lt;/p>
 &lt;!-- mdformat global-off --></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h1 id="bgv-dialect">&amp;lsquo;bgv&amp;rsquo; Dialect&lt;/h1>
@@ -26999,6 +27003,430 @@ generic op.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>values&lt;/code>&lt;/td>
 &lt;td>variadic of any non-token type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table></description></item><item><title>Docs: TensorExt</title><link>https://heir.dev/docs/dialects/tensorext/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/tensorext/</guid><description>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h1 id="tensor_ext-dialect">&amp;rsquo;tensor_ext&amp;rsquo; Dialect&lt;/h1>
+&lt;p>The &lt;code>tensor_ext&lt;/code> dialect contains operations on plaintext tensors that
+correspond to the computation model of certain FHE schemes, but are
+unlikely to be upstreamed to MLIR due to their specificity to FHE.&lt;/p>
+&lt;h2 id="tensorext-attributes">TensorExt attributes&lt;/h2>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h3 id="layoutattr">LayoutAttr&lt;/h3>
+&lt;p>&lt;em>A relation describing the layout of a data-semantic tensor.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#tensor_ext.layout&amp;lt;
+mlir::StringAttr # layout
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>This attribute describes how a data-semantic tensor is laid out among a
+tensor of ciphertexts. The layout is described by an integer relation $(d,
+s)$, where $d$ is a multiset of data-semantic tensor indices and $s$ is a
+multiset of slot indices (or coefficient indices). The slot indices are
+defined by two indices: the ciphertext index and the slot index in that
+order. The elements of the relation are defined by a set of quasi-affine
+constraints.&lt;/p>
+&lt;p>I.e., a point $((2, 3), (7, 0))$ in the relation says that the data entry
+at index $(2, 3)$ is placed in slot 0 of ciphertext 7. This could be
+defined as part of the relation by a constraint like &lt;code>row + col + 2 - ct + slot = 0&lt;/code>.&lt;/p>
+&lt;p>The attribute stores a string representation of the integer relation,
+which follows the ISL syntax for &lt;code>isl_basic_map&lt;/code>. For example:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#vec_layout&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#tensor_ext.layout&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;{ [i0] -&amp;gt; [ct, slot] : (i0 - slot) mod 1024 = 7 and i0 &amp;gt;= 0 and 0 &amp;gt;= i0 and slot &amp;gt;= 0 and 1023 &amp;gt;= slot and ct = 0 }&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#mat_layout&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#tensor_ext.layout&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;{ [row, col] -&amp;gt; [ct, slot] : (slot - row) mod 512 = 0 and (ct + slot - col) mod 512 = 0 and row &amp;gt;= 0 and col &amp;gt;= 0 and ct &amp;gt;= 0 and slot &amp;gt;= 0 and 1023 &amp;gt;= slot and 511 &amp;gt;= ct and 511 &amp;gt;= row and 511 &amp;gt;= col }&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// Example with local (existential) variables.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#000">#layout&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#tensor_ext.layout&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;{[d0] -&amp;gt; [ct, slot] : exists d3, d4 : -ct + d3 = 0 and d0 - d4 * 1024 = 0 and -d0 + 31 &amp;gt;= 0 and d0 &amp;gt;= 0 and ct &amp;gt;= 0 and slot &amp;gt;= 0 and -slot + 1023 &amp;gt;= 0 and -d0 + d3 * 1024 + 1023 &amp;gt;= 0 and d0 - d3 * 1024 &amp;gt;= 0 and -d0 + d4 * 1024 + 1023 &amp;gt;= 0 and d0 - d4 * 1024 &amp;gt;= 0 }&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">layout&lt;/td>
+&lt;td style="text-align:center">&lt;code>mlir::StringAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="originaltypeattr">OriginalTypeAttr&lt;/h3>
+&lt;p>&lt;em>The original type of a secret tensor whose layout has been converted to ciphertext semantics.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#tensor_ext.original_type&amp;lt;
+::mlir::Type, # originalType
+::mlir::Attribute # layout
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>This attribute is used to retain the original type of a secret tensor after
+its conversion to ciphertext semantics, i.e. after applying any padding or
+alignment to fill ciphertext data types. For example, if a
+&lt;code>!secret.secret&amp;lt;tensor&amp;lt;32xi8&amp;gt;&amp;gt;&lt;/code> is laid out in a ciphertext with
+1024 slots, the new type would be &lt;code>!secret.secret&amp;lt;tensor&amp;lt;1024xi8&amp;gt;&amp;gt;&lt;/code>
+with attribute &lt;code>tensor_ext.original_type&amp;lt;!secret.secret&amp;lt;tensor&amp;lt;32xi8&amp;gt;&amp;gt;&lt;/code>.&lt;/p>
+&lt;h4 id="parameters-1">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">originalType&lt;/td>
+&lt;td style="text-align:center">&lt;code>::mlir::Type&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">layout&lt;/td>
+&lt;td style="text-align:center">&lt;code>::mlir::Attribute&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="tensorext-ops">TensorExt ops&lt;/h2>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h3 id="tensor_extassign_layout-heirtensor_extassignlayoutop">&lt;code>tensor_ext.assign_layout&lt;/code> (heir::tensor_ext::AssignLayoutOp)&lt;/h3>
+&lt;p>&lt;em>Assign a layout to a plaintext tensor or scalar.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.assign_layout` operands attr-dict `:` type($output)
+&lt;/code>&lt;/pre>&lt;p>This op allows the ingestion of a plaintext value into the layout system.
+For example, ops like &lt;code>linalg.reduce&lt;/code>, require a tensor input to represent
+initial values. These will generally be created by an &lt;code>arith.constant&lt;/code> or
+&lt;code>tensor.empty&lt;/code> op, which does not have secret results. Lowerings will
+convert this to a packed plaintext, so that the subsequent ops can be
+lowered as ciphertext-plaintext ops.&lt;/p>
+&lt;p>This op is inserted by layout selection passes.&lt;/p>
+&lt;p>The optional &lt;code>domainSchedule&lt;/code> attribute specifies which domain dimensions
+should be part of the loop nest schedule when lowering. The range dimensions
+are always included. Adding extra domain indices to the loop schedule will
+help ISL generate a loop nest more efficiently, but comes at the tradeoff of
+a slower generated loop nest.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>layout&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>64-bit integer elements attribute or a relation describing the layout of a data-semantic tensor. or array of layouts&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>domainSchedule&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>value&lt;/code>&lt;/td>
+&lt;td>any non-token type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>any non-token type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="tensor_extconvert_layout-heirtensor_extconvertlayoutop">&lt;code>tensor_ext.convert_layout&lt;/code> (heir::tensor_ext::ConvertLayoutOp)&lt;/h3>
+&lt;p>&lt;em>Convert from one layout to another.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.convert_layout` operands attr-dict `:` type($output)
+&lt;/code>&lt;/pre>&lt;p>This op represents the conversion of a value from one packed layout to
+another. This is implemented via a &amp;ldquo;shift network&amp;rdquo; of ciphertext rotations,
+plaintext masks (ciphertext-plaintext multiplications), and additions.&lt;/p>
+&lt;p>This op is inserted by layout selection passes.&lt;/p>
+&lt;p>The optional &lt;code>domainSchedule&lt;/code> attribute specifies which extra domain
+dimensions should be part of the loop nest schedule when lowering. Generated
+loops nests are only used when the layout conversion is used for a plaintext
+layout assignment. See &lt;code>tensor_ext.assign_layout&lt;/code> for more details.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-1">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>from_layout&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>64-bit integer elements attribute or a relation describing the layout of a data-semantic tensor. or array of layouts&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>to_layout&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>64-bit integer elements attribute or a relation describing the layout of a data-semantic tensor. or array of layouts&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>domainSchedule&lt;/code>&lt;/td>&lt;td>::mlir::DenseI64ArrayAttr&lt;/td>&lt;td>i64 dense array attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>atomic&lt;/code>&lt;/td>&lt;td>::mlir::BoolAttr&lt;/td>&lt;td>bool attribute&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-1">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>value&lt;/code>&lt;/td>
+&lt;td>any non-token type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-1">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>any non-token type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="tensor_extremap-heirtensor_extremapop">&lt;code>tensor_ext.remap&lt;/code> (heir::tensor_ext::RemapOp)&lt;/h3>
+&lt;p>&lt;em>Reorganize the entries of a tensor by a static mapping.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.remap` operands attr-dict `:` type($input)
+&lt;/code>&lt;/pre>&lt;p>This op represents a remapping of entries of a tensor.&lt;/p>
+&lt;p>This op is primarily inserted as a lowered form of &lt;code>convert_layout&lt;/code> op, to
+represent a ciphertext slot-repacking operation. However, it can more
+generally express any partial mapping from source tensor indices to target
+indices within a tensor. Unmapped entries from the input tensor are
+unmodified.&lt;/p>
+&lt;p>This operation differs from a &lt;code>tensor.gather/scatter&lt;/code> operation in that it
+can replicate values from the source tensor or omit values in the
+destination tensor. It differs from a &amp;ldquo;lane shuffle&amp;rdquo; in that the mapping
+need not be a permutation. It differs from a &amp;ldquo;swizzle&amp;rdquo; in that it cannot
+change the dimension of the result tensor.&lt;/p>
+&lt;p>In the slot form of a ciphertext, this op is lowered to a &amp;ldquo;shift network&amp;rdquo;
+of ciphertext-plaintext mask, rotate, and sum operations by the
+&lt;code>implement-shift-network&lt;/code> pass.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-2">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>permutation&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>64-bit integer elements attribute or a relation describing the layout of a data-semantic tensor.&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-2">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>ranked tensor of any non-token type values&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-2">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>ranked tensor of any non-token type values&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="tensor_extrotate-heirtensor_extrotateop">&lt;code>tensor_ext.rotate&lt;/code> (heir::tensor_ext::RotateOp)&lt;/h3>
+&lt;p>&lt;em>Rotate a tensor some number of indices left.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.rotate` operands attr-dict `:` qualified(type($tensor)) `,` type($shift)
+&lt;/code>&lt;/pre>&lt;p>This op represents a left-rotation of a tensor by given number of indices.
+Negative shift values are interpreted as right-rotations.&lt;/p>
+&lt;p>This corresponds to the &lt;code>rotate&lt;/code> operation in arithmetic FHE schemes like
+BGV. This op currently only supports 1D rotations of the last axis of a
+tensor. A &lt;code>tensor&amp;lt;4x64xi32&amp;gt;&lt;/code> is interpreted as 4 ciphertexts each with 64
+slots, and a rotation on a value of this type rotates each ciphertext by
+the given amount.&lt;/p>
+&lt;p>// In the future, the op will be adjusted to support rotations of general
+// multi-dimensional tensors with a vector of rotation indices for each
+// dimension. The lowering will implement the correct operations to rotate
+// the tensor along the indices given its packing.&lt;/p>
+&lt;p>Examples:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000;font-weight:bold">...&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%c7&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">7&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ext&lt;span style="color:#000;font-weight:bold">.&lt;/span>rotate &lt;span style="color:#000">%0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%c7&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>RotationOpInterface&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-3">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>tensor&lt;/code>&lt;/td>
+&lt;td>ranked tensor of any non-token type values&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>shift&lt;/code>&lt;/td>
+&lt;td>signless-integer-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-3">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>ranked tensor of any non-token type values&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="tensor_extrotate_and_reduce-heirtensor_extrotateandreduceop">&lt;code>tensor_ext.rotate_and_reduce&lt;/code> (heir::tensor_ext::RotateAndReduceOp)&lt;/h3>
+&lt;p>&lt;em>Performs a reduction of a periodically rotated tensor.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.rotate_and_reduce` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>This op reduces products of a plaintext with a periodically rotated
+tensor.&lt;/p>
+&lt;p>In almost full generality, the reduction performed is&lt;/p>
+&lt;p>$$ \sum_{i \in [0, n]} p(P, iT) \cdot rotate(v, iT) $$&lt;/p>
+&lt;p>where $f$ is a function, $p(P, iT)$ is a function of a plaintext $P$ and
+$rotate(v, iT)$ is a rotation of the ciphertext $v$ with period $T$. The
+operation takes as input the ciphertext vector $v$, the period $T$, the
+number of reductions $n$, and a tensor of plaintext values&lt;/p>
+&lt;p>&lt;code>[p(P, 0), p(P, T), ..., p(P, (n-1)T)]&lt;/code>&lt;/p>
+&lt;p>This can be used to implement a matrix vector product that uses a
+Halevi-Shoup diagonalization of the plaintext matrix. In this case, the
+reduction is&lt;/p>
+&lt;p>$$ \sum_{i \in [0, n]} P(i) \cdot rotate(v, i) $$&lt;/p>
+&lt;p>where $P(i)$ is the $i$th diagonal of the plaintext matrix and the period
+$T$ is $1$.&lt;/p>
+&lt;p>An accumulation of the ciphertext slots is also handled via this operation
+by omitting the plaintext $p(P, Ti)$ argument and using a period of 1 with
+&lt;code>n = |v|&lt;/code> so that the reduction is simply a sum of all rotations of the
+ciphertext.&lt;/p>
+&lt;p>If &lt;code>reduceOp&lt;/code> is set to an MLIR operation name (e.g., &lt;code>arith.mulf&lt;/code>), then
+the reduction operation is modified to use that operation instead of a sum.
+The chosen op must be one of &lt;code>arith.muli&lt;/code>, &lt;code>arith.mulf&lt;/code>, &lt;code>arith.addi&lt;/code>,
+or &lt;code>arith.addf&lt;/code>.&lt;/p>
+&lt;p>Efficient lowerings of this operation can use the Baby-Step / Giant-Step
+approach from &lt;a href="https://eprint.iacr.org/2018/244.pdf">Faster Homomorphic Linear Transformations in
+HElib&lt;/a> to reduce the number of
+ciphertext rotations.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>PlaintextOperandInterface&lt;/code>, &lt;code>RotationOpInterface&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-3">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>period&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>index attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>steps&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>index attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>reduceOp&lt;/code>&lt;/td>&lt;td>::mlir::StringAttr&lt;/td>&lt;td>An Attribute containing a string&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-4">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>tensor&lt;/code>&lt;/td>
+&lt;td>ranked tensor of any non-token type values&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>plaintexts&lt;/code>&lt;/td>
+&lt;td>ranked tensor of any non-token type values&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-4">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>ranked tensor of any non-token type values&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="tensor_extunpack-heirtensor_extunpackop">&lt;code>tensor_ext.unpack&lt;/code> (heir::tensor_ext::UnpackOp)&lt;/h3>
+&lt;p>&lt;em>Unpack data from a ciphertext-semantic tensor.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.unpack` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>This op extracts the underlying cleartext data from a ciphertext-semantic
+tensor.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-4">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>layout&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>64-bit integer elements attribute or a relation describing the layout of a data-semantic tensor. or array of layouts&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-5">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>value&lt;/code>&lt;/td>
+&lt;td>any non-token type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-5">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>any non-token type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table></description></item></channel></rss>
