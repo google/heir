@@ -23,6 +23,8 @@
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/Passes.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"      // from @llvm-project
+#include "mlir/include/mlir/Pass/Pass.h"          // from @llvm-project
 #include "mlir/include/mlir/Pass/PassManager.h"   // from @llvm-project
 #include "mlir/include/mlir/Pass/PassOptions.h"   // from @llvm-project
 #include "mlir/include/mlir/Pass/PassRegistry.h"  // from @llvm-project
@@ -44,14 +46,57 @@ void prepareForBufferize(OpPassManager& manager) {
   manager.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
 }
 
+namespace {
+// Runs one-shot bufferization, but skips the (O(n^2)) in-place read-after-write
+// analysis for every function whose name contains "__preprocessing".
+//
+// The stock pass only accepts an exact-match list of symbol names
+// (`noAnalysisFuncFilter`), which the pipeline builder cannot know up front
+// because the entry function name varies per model. So we compute the matching
+// names from the actual module here and then run the stock pass verbatim (same
+// options, so behavior is identical apart from which functions skip analysis).
+struct PreprocessingAwareOneShotBufferizePass
+    : public PassWrapper<PreprocessingAwareOneShotBufferizePass,
+                         OperationPass<ModuleOp>> {
+  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(
+      PreprocessingAwareOneShotBufferizePass)
+
+  StringRef getArgument() const final {
+    return "heir-preprocessing-aware-one-shot-bufferize";
+  }
+
+  void getDependentDialects(DialectRegistry& registry) const override {
+    // Reuse exactly the stock pass's dependent dialects.
+    bufferization::createOneShotBufferizePass()->getDependentDialects(registry);
+  }
+
+  void runOnOperation() override {
+    SmallVector<std::string> noAnalysisFuncFilter;
+    getOperation().walk([&](FuncOp funcOp) {
+      if (funcOp.getSymName().contains("__preprocessing")) {
+        noAnalysisFuncFilter.push_back(funcOp.getSymName().str());
+      }
+    });
+
+    bufferization::OneShotBufferizePassOptions bufferizationOptions;
+    bufferizationOptions.bufferizeFunctionBoundaries = true;
+    bufferizationOptions.allowReturnAllocsFromLoops = true;
+    bufferizationOptions.noAnalysisFuncFilter = noAnalysisFuncFilter;
+
+    OpPassManager pipeline(ModuleOp::getOperationName());
+    pipeline.addPass(
+        bufferization::createOneShotBufferizePass(bufferizationOptions));
+    if (failed(runPipeline(pipeline, getOperation()))) {
+      signalPassFailure();
+    }
+  }
+};
+}  // namespace
+
 void oneShotBufferize(OpPassManager& manager, bool includeDeallocation) {
   // One-shot bufferize, from
   // https://mlir.llvm.org/docs/Bufferization/#ownership-based-buffer-deallocation
-  bufferization::OneShotBufferizePassOptions bufferizationOptions;
-  bufferizationOptions.bufferizeFunctionBoundaries = true;
-  bufferizationOptions.allowReturnAllocsFromLoops = true;
-  manager.addPass(
-      bufferization::createOneShotBufferizePass(bufferizationOptions));
+  manager.addPass(std::make_unique<PreprocessingAwareOneShotBufferizePass>());
   manager.addPass(memref::createExpandReallocPass());
   if (includeDeallocation) {
     manager.addPass(
