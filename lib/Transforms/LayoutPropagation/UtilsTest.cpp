@@ -83,24 +83,13 @@ TEST(UtilsTest, TestReduceLayout) {
   EXPECT_EQ(reducedRelation.getNumDomainVars(), 1);
   EXPECT_EQ(reducedRelation.getNumRangeVars(), 2);
 
-  // The reduced layout should only have points from the original layout when
-  // the reduced dimension is zero.
-  for (int axes1 = 0; axes1 < 6; ++axes1) {
-    for (int ct = 0; ct < 3; ++ct) {
-      for (int slot = 0; slot < 8; ++slot) {
-        bool atReducedDim =
-            relation.containsPointNoLocal({0, axes1, ct, slot}).has_value();
-        if (atReducedDim) {
-          EXPECT_TRUE(reducedRelation.containsPointNoLocal({axes1, ct, slot})
-                          .has_value());
-        } else {
-          // There also shouldn't be any other points.
-          EXPECT_FALSE(reducedRelation.containsPointNoLocal({axes1, ct, slot})
-                           .has_value());
-        }
-      }
-    }
-  }
+  presburger::IntegerRelation expectedRelation = layout.getIntegerRelation();
+  expectedRelation.projectOut(0, 1);
+  expectedRelation =
+      LayoutAttr::getFromIntegerRelation(&context, expectedRelation)
+          .getIntegerRelation();
+
+  EXPECT_TRUE(isRelationEqual(reducedRelation, expectedRelation));
 }
 
 TEST(UtilsTest, TestReduceLayoutMultiDim) {
@@ -122,29 +111,13 @@ TEST(UtilsTest, TestReduceLayoutMultiDim) {
   EXPECT_EQ(reducedRelation.getNumDomainVars(), 2);
   EXPECT_EQ(reducedRelation.getNumRangeVars(), 2);
 
-  // The reduced layout should only have points from the original layout when
-  // the reduced dimension is zero.
-  for (int axes0 = 0; axes0 < 3; ++axes0) {
-    for (int axes1 = 0; axes1 < 2; ++axes1) {
-      for (int ct = 0; ct < 3; ++ct) {
-        for (int slot = 0; slot < 8; ++slot) {
-          bool atReducedDim =
-              relation.containsPointNoLocal({axes0, axes1, 0, ct, slot})
-                  .has_value();
-          if (atReducedDim) {
-            EXPECT_TRUE(
-                reducedRelation.containsPointNoLocal({axes0, axes1, ct, slot})
-                    .has_value());
-          } else {
-            // There also shouldn't be any other points.
-            EXPECT_FALSE(
-                reducedRelation.containsPointNoLocal({axes0, axes1, ct, slot})
-                    .has_value());
-          }
-        }
-      }
-    }
-  }
+  presburger::IntegerRelation expectedRelation = layout.getIntegerRelation();
+  expectedRelation.projectOut(2, 1);
+  expectedRelation =
+      LayoutAttr::getFromIntegerRelation(&context, expectedRelation)
+          .getIntegerRelation();
+
+  EXPECT_TRUE(isRelationEqual(reducedRelation, expectedRelation));
 }
 
 TEST(UtilsTest, TestReduceLayoutManyReductions) {
@@ -166,24 +139,14 @@ TEST(UtilsTest, TestReduceLayoutManyReductions) {
   EXPECT_EQ(reducedRelation.getNumDomainVars(), 1);
   EXPECT_EQ(reducedRelation.getNumRangeVars(), 2);
 
-  // The reduced layout should only have points from the original layout when
-  // the reduced dimensions are zero.
-  for (int axes0 = 0; axes0 < 3; ++axes0) {
-    for (int ct = 0; ct < 3; ++ct) {
-      for (int slot = 0; slot < 8; ++slot) {
-        bool atReducedDim =
-            relation.containsPointNoLocal({axes0, 0, 0, ct, slot}).has_value();
-        if (atReducedDim) {
-          EXPECT_TRUE(reducedRelation.containsPointNoLocal({axes0, ct, slot})
-                          .has_value());
-        } else {
-          // There also shouldn't be any other points.
-          EXPECT_FALSE(reducedRelation.containsPointNoLocal({axes0, ct, slot})
-                           .has_value());
-        }
-      }
-    }
-  }
+  presburger::IntegerRelation expectedRelation = layout.getIntegerRelation();
+  expectedRelation.projectOut(2, 1);
+  expectedRelation.projectOut(1, 1);
+  expectedRelation =
+      LayoutAttr::getFromIntegerRelation(&context, expectedRelation)
+          .getIntegerRelation();
+
+  EXPECT_TRUE(isRelationEqual(reducedRelation, expectedRelation));
 }
 
 }  // namespace

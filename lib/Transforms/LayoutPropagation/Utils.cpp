@@ -107,11 +107,11 @@ LayoutAttr convertLayoutForReduce(LayoutAttr inputLayout,
 
   auto offset = clonedRelation->getVarKindOffset(presburger::VarKind::Domain);
   for (int dim : llvm::reverse(dimsToReduce)) {
-    // Set the dim to reduce equal to 0.
+    // Project out the reduced dimension.
     auto dimIndex = offset + dim;
     assert(clonedRelation->getVarKindAt(dimIndex) ==
            presburger::VarKind::Domain);
-    clonedRelation->setAndEliminate(dimIndex, 0);
+    clonedRelation->projectOut(dimIndex, 1);
   }
 
   MLIRContext* context = inputLayout.getContext();

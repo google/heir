@@ -1,7 +1,11 @@
 // RUN: heir-opt --layout-propagation --fold-convert-layout-into-assign-layout %s | FileCheck %s
 
+// CHECK: #[[reduced_layout:.*]] = #tensor_ext.layout<"{ [] -> [ct, slot] : ct = 0 and 0 <= slot <= 1023 }">
+// CHECK: #[[input_layout:.*]] = #tensor_ext.layout<"{ [i0] -> [ct, slot] : ct = 0 and (-i0 + slot) mod 8 = 0 and 0 <= i0 <= 7 and 0 <= slot <= 1023 }">
 // CHECK: @main
-// CHECK-SAME: %[[arg0:.*]]: !secret.secret<tensor<8xf32>> {{{.*}}tensor_ext.layout = [[rm_layout:.*]]}) ->
+// CHECK-SAME: %{{.*}}: !secret.secret<tensor<8xf32>> {{{.*}}tensor_ext.layout = #[[input_layout]]},
+// CHECK-SAME: %{{.*}}: !secret.secret<tensor<8xf32>> {{{.*}}tensor_ext.layout = #[[input_layout]]}
+// CHECK-SAME: -> (!secret.secret<tensor<f32>> {tensor_ext.layout = #[[reduced_layout]]})
 module {
   func.func @main(%arg0: !secret.secret<tensor<8xf32>>, %arg1: !secret.secret<tensor<8xf32>>) -> !secret.secret<tensor<f32>> {
     // CHECK-DAG: %[[cst:.*]] = arith.constant
