@@ -5,13 +5,13 @@
 module {
   // CHECK: func @bootstrap_waterline
   // CHECK-SAME: level = 4
-  // CHECK-COUNT-4: arith.mulf
+  // CHECK-COUNT-5: arith.mulf
   // CHECK-NOT: arith.mulf
   // CHECK: mgmt.bootstrap
   // CHECK-COUNT-4: arith.mulf
   // CHECK-NOT: arith.mulf
   // CHECK: mgmt.bootstrap
-  // CHECK-COUNT-3: arith.mulf
+  // CHECK-COUNT-2: arith.mulf
   // CHECK-NOT: arith.mulf
   // CHECK: secret.yield
   func.func @bootstrap_waterline(%arg0: !secret.secret<tensor<1x1024xf16>> {tensor_ext.original_type = #original_type}) -> (!secret.secret<tensor<1x1024xf16>> {tensor_ext.original_type = #original_type}) {

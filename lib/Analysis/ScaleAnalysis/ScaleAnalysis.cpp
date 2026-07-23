@@ -71,6 +71,11 @@ int64_t BGVScaleModel::evalModReduceScaleBackward(
   return resultScale * (qi[level] % t) % t;
 }
 
+std::optional<int64_t> BGVScaleModel::getDefaultScale(
+    const bgv::SchemeParam& param) {
+  return std::nullopt;
+}
+
 int64_t CKKSScaleModel::evalMulScale(const ckks::LocalParam& param, int64_t lhs,
                                      int64_t rhs) {
   // TODO(#1640): support high-precision scale management
@@ -105,6 +110,11 @@ int64_t CKKSScaleModel::evalModReduceScaleBackward(
   return resultScale + schemeParam->getLogDefaultScale();
 }
 
+std::optional<int64_t> CKKSScaleModel::getDefaultScale(
+    const ckks::SchemeParam& param) {
+  return param.getLogDefaultScale();
+}
+
 //===----------------------------------------------------------------------===//
 // ScaleAnalysis (Forward)
 //===----------------------------------------------------------------------===//
@@ -129,9 +139,21 @@ LogicalResult ScaleAnalysis<ScaleModelT>::visitOperation(
     propagateIfChanged(lattice, changed);
   };
 
+  auto getSecretOrInittedOperands =
+      [&](Operation* op, SmallVectorImpl<OpOperand*>& secretOperands) {
+        for (auto& opOperand : op->getOpOperands()) {
+          bool isSecret = this->isSecretInternal(op, opOperand.get());
+          bool isMgmtDefined =
+              isa_and_nonnull<mgmt::InitOp>(opOperand.get().getDefiningOp());
+          if (isSecret || isMgmtDefined) {
+            secretOperands.push_back(&opOperand);
+          }
+        }
+      };
+
   auto getOperandScales = [&](Operation* op, SmallVectorImpl<int64_t>& scales) {
     SmallVector<OpOperand*> secretOperands;
-    this->getSecretOperands(op, secretOperands);
+    getSecretOrInittedOperands(op, secretOperands);
 
     for (auto* operand : secretOperands) {
       auto operandState = getLatticeElement(operand->get())->getValue();
@@ -193,6 +215,21 @@ LogicalResult ScaleAnalysis<ScaleModelT>::visitOperation(
         // if there is scale annotation, use it
         if (mgmtAttr && mgmtAttr.getScale() != 0) {
           propagate(initOp.getResult(), ScaleState(mgmtAttr.getScale()));
+        } else {
+          // Conditionally initialize plaintext to default scale in forward pass
+          // ONLY when it is used in a multiplication.
+          // This breaks the deadlock for ciphertext-plaintext multiplication
+          // when the ciphertext operand is blocked by adjust_scale upstream.
+          bool usedInMul = false;
+          for (auto& use : initOp.getResult().getUses()) {
+            if (isa<arith::MulFOp, arith::MulIOp>(use.getOwner())) {
+              usedInMul = true;
+              break;
+            }
+          }
+          if (usedInMul) {
+            propagate(initOp.getResult(), ScaleState(inputScale));
+          }
         }
       })
       .template Case<mgmt::BootstrapOp>([&](auto bootstrapOp) {
