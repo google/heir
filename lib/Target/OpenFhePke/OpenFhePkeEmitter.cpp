@@ -244,11 +244,12 @@ LogicalResult OpenFhePkeEmitter::translate(Operation& op) {
           // Arith ops
           .Case<arith::ConstantOp, arith::ExtSIOp, arith::ExtUIOp,
                 arith::FloorDivSIOp, arith::IndexCastOp, arith::ExtFOp,
-                arith::RemSIOp, arith::AddIOp, arith::AddFOp, arith::AndIOp,
-                arith::OrIOp, arith::XOrIOp, arith::SubIOp, arith::SubFOp,
-                arith::MulFOp, arith::MulIOp, arith::DivSIOp, arith::DivFOp,
-                arith::CmpIOp, arith::CmpFOp, arith::SelectOp, arith::MaxSIOp,
-                arith::MinSIOp>([&](auto op) { return printOperation(op); })
+                arith::TruncFOp, arith::RemSIOp, arith::AddIOp, arith::AddFOp,
+                arith::AndIOp, arith::OrIOp, arith::XOrIOp, arith::SubIOp,
+                arith::SubFOp, arith::MulFOp, arith::MulIOp, arith::DivSIOp,
+                arith::DivFOp, arith::CmpIOp, arith::CmpFOp, arith::SelectOp,
+                arith::MaxSIOp, arith::MinSIOp>(
+              [&](auto op) { return printOperation(op); })
           // SCF ops
           .Case<scf::IfOp, scf::ForOp, scf::ForallOp, scf::InParallelOp,
                 scf::YieldOp>([&](auto op) { return printOperation(op); })
@@ -1188,6 +1189,40 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::FloorDivSIOp op) {
   os << "(" << lhs << " / " << rhs << ") - " << "((" << lhs << " % " << rhs
      << " != 0) && " << "((" << lhs << " < 0) != (" << rhs << " < 0)));\n";
 
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(arith::TruncFOp op) {
+  Type outputType = op.getOut().getType();
+  if (auto tensorType = dyn_cast<RankedTensorType>(outputType)) {
+    auto numElements = tensorType.getNumElements();
+    if (failed(emitType(outputType, op->getLoc()))) {
+      return failure();
+    }
+    os << " " << variableNames->getNameForValue(op.getResult()) << "("
+       << numElements << ");\n";
+
+    os << "for (int i = 0; i < " << numElements << "; ++i) {\n";
+    os.indent();
+    os << variableNames->getNameForValue(op.getResult())
+       << "[i] = static_cast<";
+    if (failed(emitType(tensorType.getElementType(), op->getLoc()))) {
+      return failure();
+    }
+    os << ">(" << variableNames->getNameForValue(op.getIn()) << "[i]);\n";
+    os.unindent();
+    os << "}\n";
+    return success();
+  }
+
+  if (failed(emitTypedAssignPrefix(op.getResult(), op->getLoc()))) {
+    return failure();
+  }
+  os << "static_cast<";
+  if (failed(emitType(outputType, op->getLoc()))) {
+    return op.emitOpError() << "Unsupported truncf op";
+  }
+  os << ">(" << variableNames->getNameForValue(op.getIn()) << ");\n";
   return success();
 }
 
