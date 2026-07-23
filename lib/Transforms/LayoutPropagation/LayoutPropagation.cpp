@@ -162,6 +162,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   LogicalResult visitOperation(ExpandShapeOp op);
   LogicalResult visitOperation(GenericOp op);
   LogicalResult visitOperation(ReduceOp op);
+  LogicalResult visitOperation(linalg::BroadcastOp op);
   LogicalResult visitOperation(Conv1DOp op);
   LogicalResult visitOperation(Conv1DNcwFcwOp op);
   LogicalResult visitOperation(Conv2DOp op);
@@ -193,6 +194,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   CompatibilityResult hasCompatibleArgumentLayouts(Conv2DOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(Conv2DNchwFchwOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(ReduceOp op);
+  CompatibilityResult hasCompatibleArgumentLayouts(linalg::BroadcastOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(VecmatOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(MatvecOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(MatmulOp op);
@@ -204,8 +206,12 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   // Op-specific overrides
   void rectifyIncompatibleOperandLayouts(DotOp op);
   void rectifyIncompatibleOperandLayouts(ReduceOp op);
+  void rectifyIncompatibleOperandLayouts(linalg::BroadcastOp op);
   void rectifyIncompatibleOperandLayouts(tensor::InsertOp op);
   void rectifyIncompatibleOperandLayouts(tensor::InsertSliceOp op);
+
+  FailureOr<LayoutAttr> inferBroadcastOutputLayout(LayoutAttr insLayout,
+                                                   linalg::BroadcastOp op);
 
   // Return the default layout for a given type
   FailureOr<LayoutAttr> defaultLayoutForType(Type type);
@@ -338,9 +344,9 @@ LogicalResult LayoutPropagation::visitOperation(Operation* op) {
       // secret ops
       .Case<GenericOp, YieldOp>([&](auto op) { return visitOperation(op); })
       // linalg ops
-      .Case<DotOp, MatvecOp, VecmatOp, ReduceOp, MatmulOp, BatchMatmulOp,
-            Conv1DOp, Conv1DNcwFcwOp, Conv2DOp, Conv2DNchwFchwOp>(
-          [&](auto op) { return visitOperation(op); })
+      .Case<DotOp, MatvecOp, VecmatOp, ReduceOp, linalg::BroadcastOp, MatmulOp,
+            BatchMatmulOp, Conv1DOp, Conv1DNcwFcwOp, Conv2DOp,
+            Conv2DNchwFchwOp>([&](auto op) { return visitOperation(op); })
       // affine ops
       .Case<affine::AffineForOp>([&](auto op) { return visitOperation(op); })
       // tensor ops
@@ -1411,8 +1417,8 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
             affine::AffineYieldOp>(
           [&](auto op) { return CompatibilityResult{true, std::nullopt}; })
       // Ops with special rules
-      .Case<DotOp, ReduceOp, MatvecOp, VecmatOp, Conv1DOp, Conv1DNcwFcwOp,
-            Conv2DOp, Conv2DNchwFchwOp, tensor::InsertSliceOp>(
+      .Case<DotOp, ReduceOp, linalg::BroadcastOp, MatvecOp, VecmatOp, Conv1DOp,
+            Conv1DNcwFcwOp, Conv2DOp, Conv2DNchwFchwOp, tensor::InsertSliceOp>(
           [&](auto op) { return hasCompatibleArgumentLayouts(op); })
       // By default, assume operands must all have the same layout.
       .Default([&](Operation* op) {
@@ -1640,7 +1646,8 @@ void LayoutPropagation::rectifyIncompatibleOperandLayouts(Operation* op) {
 
   TypeSwitch<Operation*>(op)
       // Ops with special rules
-      .Case<DotOp, ReduceOp, tensor::InsertOp, tensor::InsertSliceOp>(
+      .Case<DotOp, ReduceOp, linalg::BroadcastOp, tensor::InsertOp,
+            tensor::InsertSliceOp>(
           [&](auto op) { return rectifyIncompatibleOperandLayouts(op); })
       .Default([&](Operation* op) {
         // Default target layout is chosen arbitrarily as the first operand's
@@ -1932,7 +1939,109 @@ void LayoutPropagation::runOnOperation() {
   cleanupPatterns.add<tensor_ext::FoldConvertLayoutIntoAssignLayoutPattern>(
       &getContext());
   (void)applyPatternsGreedily(getOperation(), std::move(cleanupPatterns));
-};
+}
+
+FailureOr<LayoutAttr> LayoutPropagation::inferBroadcastOutputLayout(
+    LayoutAttr insLayout, linalg::BroadcastOp op) {
+  RankedTensorType destType =
+      cast<RankedTensorType>(op->getResult(0).getType());
+
+  auto dimensions = op.getDimensions();
+  SmallVector<unsigned int> addedDims(dimensions.begin(), dimensions.end());
+
+  // 1. Compute the slot span of the input layout
+  auto maybeSpan = getSlotSpan(insLayout.getIntegerRelation());
+  if (!maybeSpan.has_value()) {
+    return failure();
+  }
+  int64_t span = maybeSpan.value();
+
+  // 2. Sort the added dimensions descending for stride calculation
+  SmallVector<unsigned int> sortedDims = addedDims;
+  llvm::sort(sortedDims, std::greater<unsigned int>());
+
+  // 3. Compute strides
+  DenseMap<unsigned int, int64_t> strides;
+  int64_t currentStride = span;
+  for (unsigned int d : sortedDims) {
+    strides[d] = currentStride;
+    currentStride *= destType.getDimSize(d);
+  }
+
+  // 4. Apply broadcasting in ascending order of indices
+  llvm::sort(addedDims);  // Sort ascending
+  IntegerRelation currentRel = insLayout.getIntegerRelation();
+  for (unsigned int d : addedDims) {
+    currentRel = broadcastDimension(currentRel, destType, d, strides[d]);
+  }
+
+  return LayoutAttr::getFromIntegerRelation(&getContext(), currentRel);
+}
+
+LogicalResult LayoutPropagation::visitOperation(linalg::BroadcastOp op) {
+  auto linalgOp = cast<linalg::LinalgOp>(op.getOperation());
+  LayoutAttr insLayout = getComposedLayoutAttr(linalgOp.getDpsInputs()[0]);
+  auto maybeResultLayout = inferBroadcastOutputLayout(insLayout, op);
+  if (failed(maybeResultLayout)) {
+    return op.emitError("failed to infer broadcast output layout");
+  }
+  LayoutAttr resultLayout = maybeResultLayout.value();
+  assignedLayouts.insert({op->getResult(0), resultLayout});
+  debugAssignLayout(op->getResult(0), resultLayout);
+  setResultLayoutAttr(op);
+  return success();
+}
+
+CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
+    linalg::BroadcastOp op) {
+  auto linalgOp = cast<linalg::LinalgOp>(op.getOperation());
+  if (!assignedLayouts.contains(linalgOp.getDpsInputs()[0])) {
+    return {false, op->emitError("input tensor has no assigned layout")};
+  }
+  if (!assignedLayouts.contains(linalgOp.getDpsInits()[0])) {
+    return {false, op->emitError("init tensor has no assigned layout")};
+  }
+
+  LayoutAttr insLayout = getComposedLayoutAttr(linalgOp.getDpsInputs()[0]);
+  LayoutAttr outsLayout = getComposedLayoutAttr(linalgOp.getDpsInits()[0]);
+
+  auto maybeExpectedOutsLayout = inferBroadcastOutputLayout(insLayout, op);
+  if (failed(maybeExpectedOutsLayout)) {
+    return {false, op.emitError("failed to infer broadcast output layout")};
+  }
+
+  if (maybeExpectedOutsLayout.value() != outsLayout) {
+    return {false, std::nullopt};
+  }
+
+  return {true, std::nullopt};
+}
+
+void LayoutPropagation::rectifyIncompatibleOperandLayouts(
+    linalg::BroadcastOp op) {
+  auto linalgOp = cast<linalg::LinalgOp>(op.getOperation());
+  LayoutAttr insLayout = getComposedLayoutAttr(linalgOp.getDpsInputs()[0]);
+  LayoutAttr outsLayout = getComposedLayoutAttr(linalgOp.getDpsInits()[0]);
+
+  auto maybeExpectedOutsLayout = inferBroadcastOutputLayout(insLayout, op);
+  assert(succeeded(maybeExpectedOutsLayout) && "expected to infer layout");
+  LayoutAttr expectedOutsLayout = maybeExpectedOutsLayout.value();
+
+  if (expectedOutsLayout != outsLayout) {
+    mlir::IRRewriter builder(&getContext());
+    builder.setInsertionPoint(op);
+    // Convert the init operand to the expected layout.
+    Value init = linalgOp.getDpsInits()[0];
+    ConvertLayoutOp convertOp = ConvertLayoutOp::create(
+        builder, op->getLoc(), init, outsLayout, expectedOutsLayout);
+    Value toReplace = convertOp.getResult();
+    builder.replaceUsesWithIf(init, toReplace, [&](OpOperand& operand) {
+      return operand.getOwner() == op;
+    });
+    assignedLayouts.insert({toReplace, expectedOutsLayout});
+    setResultLayoutAttr(convertOp);
+  }
+}
 
 }  // namespace heir
 }  // namespace mlir
