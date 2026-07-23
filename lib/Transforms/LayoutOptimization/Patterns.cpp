@@ -2,10 +2,14 @@
 
 #include <optional>
 
+#include "lib/Dialect/Secret/IR/SecretAttributes.h"
+#include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Kernel/KernelName.h"
 #include "lib/Utils/AttributeUtils.h"
+#include "lib/Utils/Layout/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"          // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
@@ -82,6 +86,66 @@ LogicalResult FoldLayoutConversions::matchAndRewrite(
   }
 
   return result;
+}
+
+LogicalResult FoldMatvecInputConversionIntoPlaintext::matchAndRewrite(
+    linalg::MatvecOp op, PatternRewriter& rewriter) const {
+  auto conversion = op.getInputs()[1].getDefiningOp<ConvertLayoutOp>();
+  auto matrixAssignment = op.getInputs()[0].getDefiningOp<AssignLayoutOp>();
+  // Don't fold into atomic or complex (ArrayAttr) assignments to prevent
+  // performance regressions.
+  if (!conversion || !matrixAssignment ||
+      isa<ArrayAttr>(matrixAssignment.getLayout())) {
+    return failure();
+  }
+
+  auto fromLayout =
+      dyn_cast<tensor_ext::LayoutAttr>(conversion.getFromLayout());
+  auto toLayout = dyn_cast<tensor_ext::LayoutAttr>(conversion.getToLayout());
+  auto matrixLayout =
+      dyn_cast<tensor_ext::LayoutAttr>(matrixAssignment.getLayout());
+  auto vectorType = dyn_cast<RankedTensorType>(conversion.getType());
+  auto matrixType = dyn_cast<RankedTensorType>(matrixAssignment.getType());
+  if (!fromLayout || !toLayout || !matrixLayout || !vectorType || !matrixType) {
+    return failure();
+  }
+
+  auto kernel = op->getAttrOfType<secret::KernelAttr>(
+      secret::SecretDialect::kKernelAttrName);
+  if (!kernel || kernel.getName() != KernelName::MatvecDiagonal)
+    return failure();
+
+  const auto& toRelation = toLayout.getIntegerRelation();
+  auto ciphertextSize = toRelation.getConstantBoundOnDimSize64(
+      toRelation.getVarKindOffset(presburger::VarKind::Range) + 1);
+  if (!ciphertextSize ||
+      !isRelationRowMajor(vectorType, *ciphertextSize, toRelation) ||
+      !isRelationSquatDiagonal(matrixType, *ciphertextSize,
+                               matrixLayout.getIntegerRelation()) ||
+      !isOneToOneSingleCiphertextPacking(fromLayout.getIntegerRelation())) {
+    return failure();
+  }
+
+  auto newMatrixLayout = tensor_ext::LayoutAttr::getFromIntegerRelation(
+      op.getContext(),
+      foldVectorPermutationIntoMatrixLayout(fromLayout.getIntegerRelation(),
+                                            matrixLayout.getIntegerRelation()));
+
+  // Emit the repacked (plaintext) weights where the original assignment lived,
+  // rather than inside the secret.generic that contains the matvec.
+  rewriter.setInsertionPoint(matrixAssignment);
+  auto newMatrix = AssignLayoutOp::create(
+      rewriter, op.getLoc(), matrixAssignment.getValue(), newMatrixLayout,
+      matrixAssignment.getDomainScheduleAttr());
+  newMatrix->setAttr(kLayoutAttrName, newMatrixLayout);
+
+  rewriter.modifyOpInPlace(op, [&] {
+    op->setOperand(0, newMatrix);
+    op->setOperand(1, conversion.getValue());
+  });
+  if (conversion->use_empty()) rewriter.eraseOp(conversion);
+  if (matrixAssignment->use_empty()) rewriter.eraseOp(matrixAssignment);
+  return success();
 }
 
 LogicalResult HoistArgLayouts::matchAndRewrite(

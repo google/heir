@@ -5,6 +5,7 @@
 #include <climits>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <numeric>
 #include <optional>
@@ -13,7 +14,8 @@
 
 #include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/MathUtils.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
+#include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Utils/Utils.h"  // from @llvm-project
@@ -554,6 +556,62 @@ bool isRelationRowMajor(RankedTensorType vectorType, int64_t numSlots,
   return relation.isEqual(rowMajorRelation);
 }
 
+bool isOneToOneSingleCiphertextPacking(
+    const presburger::IntegerRelation& relation) {
+  if (relation.getNumDomainVars() != 1 || relation.getNumRangeVars() != 2)
+    return false;
+
+  isl_ctx* ctx = isl_ctx_alloc();
+  isl_basic_map* map = convertRelationToBasicMap(relation, ctx);
+  if (!map) {
+    isl_ctx_free(ctx);
+    return false;
+  }
+
+  isl_val* ct =
+      isl_basic_map_plain_get_val_if_fixed(map, isl_dim_out, /*pos=*/0);
+  bool singleCiphertext = ct && isl_val_is_zero(ct) == isl_bool_true;
+  isl_val_free(ct);
+
+  isl_basic_map* slots = isl_basic_map_project_out(
+      isl_basic_map_copy(map), isl_dim_out, /*first=*/0, /*n=*/1);
+  isl_map* slotMap = isl_map_from_basic_map(slots);
+  isl_bool oneToOne = isl_map_is_bijective(slotMap);
+  isl_map_free(slotMap);
+  isl_basic_map_free(map);
+  isl_ctx_free(ctx);
+  return singleCiphertext && oneToOne == isl_bool_true;
+}
+
+IntegerRelation foldVectorPermutationIntoMatrixLayout(
+    const IntegerRelation& vectorPermutation,
+    const IntegerRelation& matrixLayout) {
+  // vectorPermutation maps a vector index [col] -> [ct, slot] as a
+  // single-ciphertext permutation (ct is fixed to zero). Drop the constant ct
+  // output, leaving the pure index-to-slot permutation [col] -> [slot].
+  IntegerRelation result(vectorPermutation);
+  result.projectOut(result.getVarKindOffset(VarKind::Range), 1);
+
+  // Lift the permutation to a matrix domain by prepending a passthrough row
+  // dimension to both sides (row_in == row_out), giving
+  // [row, col] -> [row, slot].
+  result.insertVar(VarKind::Domain, 0, 1);
+  result.insertVar(VarKind::Range, 0, 1);
+  SmallVector<int64_t> rowEq(result.getNumCols(), 0);
+  rowEq[result.getVarKindOffset(VarKind::Domain)] = 1;
+  rowEq[result.getVarKindOffset(VarKind::Range)] = -1;
+  result.addEquality(rowEq);
+
+  // Compose with the matrix layout (result;matrixLayout): the permutation's
+  // [row, slot] output feeds the matrix layout's [row, col] input, so the
+  // vector permutation is absorbed into the matrix's column indexing, yielding
+  // the folded matrix layout [row, col] -> [ct, slot].
+  result.compose(matrixLayout);
+  result.removeRedundantConstraints();
+  result.simplify();
+  return result;
+}
+
 bool isRelationPerRow(RankedTensorType matrixType, int64_t ciphertextSize,
                       presburger::IntegerRelation relation) {
   IntegerRelation perRowRelation =
@@ -707,42 +765,191 @@ void getRangePoints(const presburger::IntegerRelation& relation,
   isl_set_free(set);
 }
 
-isl_stat pointPairCallback(__isl_take isl_point* pnt, void* user) {
-  PointPairCollector* collector = static_cast<PointPairCollector*>(user);
-
-  std::vector<int64_t> domainPoint(collector->domainDims);
-  std::vector<int64_t> rangePoint(collector->rangeDims);
-
-  // Extract domain coordinates
-  for (int i = 0; i < collector->domainDims; i++) {
+namespace {
+// Extract the first `n` set coordinates of `pnt` into `out`.
+void extractCoords(__isl_keep isl_point* pnt, int n,
+                   std::vector<int64_t>& out) {
+  for (int i = 0; i < n; i++) {
     isl_val* coord = isl_point_get_coordinate_val(pnt, isl_dim_set, i);
     if (isl_val_is_int(coord)) {
-      domainPoint[i] = isl_val_get_num_si(coord);
+      out[i] = isl_val_get_num_si(coord);
     }
     isl_val_free(coord);
   }
-
-  // Extract range coordinates
-  for (int i = 0; i < collector->rangeDims; i++) {
-    isl_val* coord = isl_point_get_coordinate_val(pnt, isl_dim_set,
-                                                  collector->domainDims + i);
-    if (isl_val_is_int(coord)) {
-      rangePoint[i] = isl_val_get_num_si(coord);
-    }
-    isl_val_free(coord);
-  }
-
-  collector->points.emplace_back(domainPoint, rangePoint);
-  isl_point_free(pnt);
-  return isl_stat_ok;
 }
+
+// Computes each domain variable's box bounds [lb, ub].
+//
+// It first tries a quick scan for single-variable equality/inequality rows of
+// `rel` (e.g. `c = 0`, `f >= 0`, `7 - f >= 0`), which the layout construction
+// adds for the data-tensor index space. This avoids
+// IntegerRelation::getConstantBound64, which derives bounds via Fourier-Motzkin
+// elimination over every other variable and blows up on the relation's
+// mod/floordiv existentials. For any bound the quick scan cannot determine, it
+// falls back to getConstantBound64 for that single bound.
+void getDomainBox(const presburger::IntegerRelation& rel,
+                  SmallVector<int64_t>& lb, SmallVector<int64_t>& ub) {
+  auto floorDivI = [](int64_t a, int64_t b) -> int64_t {
+    int64_t q = a / b, r = a % b;
+    if (r != 0 && ((r < 0) != (b < 0))) --q;
+    return q;
+  };
+  unsigned numDomain = rel.getNumDomainVars();
+  unsigned numVars = rel.getNumVars();
+  unsigned constCol = rel.getNumCols() - 1;
+  unsigned numIneqs = rel.getNumInequalities();
+  lb.assign(numDomain, std::numeric_limits<int64_t>::min());
+  ub.assign(numDomain, std::numeric_limits<int64_t>::max());
+
+  // Single pass over every constraint (inequalities then equalities, per
+  // atConstraint64's indexing). A constraint bounds a domain variable only if
+  // it has exactly one nonzero variable coefficient and that variable is a
+  // domain variable. Inequalities (coeff*v + c >= 0) give one bound by sign;
+  // equalities (coeff*v + c = 0) pin both bounds.
+  for (unsigned r = 0, e = rel.getNumConstraints(); r < e; ++r) {
+    int soleVar = -1;
+    bool multiple = false;
+    for (unsigned j = 0; j < numVars; ++j) {
+      if (rel.atConstraint64(r, j) == 0) continue;
+      if (soleVar != -1) {
+        multiple = true;
+        break;
+      }
+      soleVar = static_cast<int>(j);
+    }
+    if (multiple || soleVar < 0 || static_cast<unsigned>(soleVar) >= numDomain)
+      continue;
+
+    unsigned v = soleVar;
+    int64_t coeff = rel.atConstraint64(r, v);
+    int64_t c = rel.atConstraint64(r, constCol);
+    if (r < numIneqs) {
+      if (coeff > 0) {
+        lb[v] = std::max(lb[v], -floorDivI(c, coeff));  // v >= ceil(-c/coeff)
+      } else {
+        ub[v] = std::min(ub[v], floorDivI(c, -coeff));  // v <= floor(c/-coeff)
+      }
+    } else {
+      // A single-variable equality coeff*v + c = 0 has an integer solution
+      // only if coeff divides c; otherwise the relation is infeasible.
+      assert((-c) % coeff == 0 && "non-integer single-variable equality bound");
+      int64_t val = -c / coeff;
+      lb[v] = std::max(lb[v], val);
+      ub[v] = std::min(ub[v], val);
+    }
+  }
+
+  // Fall back to the general (but expensive) constant-bound computation for any
+  // domain variable the quick single-variable scan left undetermined. This uses
+  // Fourier-Motzkin elimination over the other variables, so we only reach it
+  // when the cheap method is insufficient.
+  for (unsigned i = 0; i < numDomain; ++i) {
+    if (lb[i] == std::numeric_limits<int64_t>::min()) {
+      std::optional<int64_t> b = rel.getConstantBound64(BoundType::LB, i);
+      if (!b)
+        llvm::report_fatal_error(
+            "getDomainBox: domain variable has no constant lower bound");
+      lb[i] = *b;
+    }
+    if (ub[i] == std::numeric_limits<int64_t>::max()) {
+      std::optional<int64_t> b = rel.getConstantBound64(BoundType::UB, i);
+      if (!b)
+        llvm::report_fatal_error(
+            "getDomainBox: domain variable has no constant upper bound");
+      ub[i] = *b;
+    }
+  }
+}
+
+// Enumerates the domain box [lb, ub] explicitly and, for each concrete domain
+// point, invokes `onImagePoint(domainPoint, imagePoint)` for every point of
+// that domain point's image. `imagePoint` is borrowed (freed by this function).
+// Between domain points `shouldStop` is polled (when non-null); returning true
+// halts enumeration early.
+//
+// Fixing the domain to concrete integers collapses the relation's mod/floordiv
+// existentials into a non-parametric feasibility problem that isl resolves
+// cheaply. We deliberately do NOT ask isl to enumerate the domain set
+// (isl_set_foreach_point over isl_basic_map_domain): projecting the range out
+// leaves those existentials in the domain set, making that scan itself an
+// expensive parametric-ILP solve -- the very cost we are avoiding.
+void forEachDomainImagePoint(
+    __isl_keep isl_basic_map* bmap, isl_ctx* ctx, ArrayRef<int64_t> lb,
+    ArrayRef<int64_t> ub,
+    llvm::function_ref<void(ArrayRef<int64_t>, __isl_keep isl_point*)>
+        onImagePoint,
+    llvm::function_ref<bool()> shouldStop = nullptr) {
+  unsigned numDomain = lb.size();
+
+  // isl_set_foreach_point takes a C callback; bridge to onImagePoint through
+  // this context and free the (owned) point afterwards.
+  struct ImageCtx {
+    llvm::function_ref<void(ArrayRef<int64_t>, isl_point*)> cb;
+    ArrayRef<int64_t> domainPoint;
+  };
+  auto trampoline = [](__isl_take isl_point* pnt, void* user) -> isl_stat {
+    auto* ic = static_cast<ImageCtx*>(user);
+    ic->cb(ic->domainPoint, pnt);
+    isl_point_free(pnt);
+    return isl_stat_ok;
+  };
+
+  auto imageOf = [&](ArrayRef<int64_t> point) {
+    isl_basic_map* fixed = isl_basic_map_copy(bmap);
+    for (unsigned i = 0; i < numDomain; ++i) {
+      fixed = isl_basic_map_fix_val(fixed, isl_dim_in, i,
+                                    isl_val_int_from_si(ctx, point[i]));
+    }
+    isl_set* image = isl_set_from_basic_set(isl_basic_map_range(fixed));
+    ImageCtx ic{onImagePoint, point};
+    isl_set_foreach_point(image, trampoline, &ic);
+    isl_set_free(image);
+  };
+
+  if (numDomain == 0) {
+    imageOf({});
+    return;
+  }
+  // An empty box (some lb > ub) contains no points.
+  for (unsigned i = 0; i < numDomain; ++i)
+    if (lb[i] > ub[i]) return;
+
+  SmallVector<int64_t> point(lb.begin(), lb.end());
+  while (true) {
+    imageOf(point);
+    if (shouldStop && shouldStop()) break;
+    // Advance the mixed-radix odometer over the domain box.
+    int d = static_cast<int>(numDomain) - 1;
+    for (; d >= 0; --d) {
+      if (++point[d] <= ub[d]) break;
+      point[d] = lb[d];
+    }
+    if (d < 0) break;
+  }
+}
+}  // namespace
 
 void enumeratePoints(const presburger::IntegerRelation& relation,
                      PointPairCollector& collector) {
-  auto* bmap = convertRelationToBasicMap(relation, collector.ctx);
-  isl_set* set = isl_set_from_basic_set(isl_basic_map_wrap(bmap));
-  isl_set_foreach_point(set, &pointPairCallback, &collector);
-  isl_set_free(set);
+  assert(relation.getNumDomainVars() ==
+             static_cast<unsigned>(collector.domainDims) &&
+         "collector domainDims must match the relation's domain rank");
+  isl_basic_map* bmap = convertRelationToBasicMap(relation, collector.ctx);
+
+  SmallVector<int64_t> lb, ub;
+  getDomainBox(relation, lb, ub);
+
+  forEachDomainImagePoint(
+      bmap, collector.ctx, lb, ub,
+      [&](ArrayRef<int64_t> domainPoint, __isl_keep isl_point* imagePoint) {
+        std::vector<int64_t> rangePoint(collector.rangeDims);
+        extractCoords(imagePoint, collector.rangeDims, rangePoint);
+        collector.points.emplace_back(
+            std::vector<int64_t>(domainPoint.begin(), domainPoint.end()),
+            std::move(rangePoint));
+      });
+
+  isl_basic_map_free(bmap);
 }
 
 std::vector<int64_t> anyRangePoint(
@@ -783,21 +990,34 @@ void getCtComplementPoints(const presburger::IntegerRelation& relation,
 
   int64_t numCts = outputType.getDimSize(0);
 
+  SmallVector<int64_t> lb, ub;
+  getDomainBox(relation, lb, ub);
+
   isl_ctx* ctx = isl_ctx_alloc();
   isl_basic_map* bmap = convertRelationToBasicMap(relation, ctx);
 
+  // Mark which ct indices (range var 0) actually appear in the range. See
+  // forEachDomainImagePoint for why we enumerate the domain rather than probe
+  // each ct with isl_basic_map_is_empty. Once every ct is accounted for we can
+  // stop early instead of scanning the rest of a large domain.
   std::vector<bool> seen(numCts, false);
-  for (int64_t ct = 0; ct < numCts; ++ct) {
-    isl_val* v = isl_val_int_from_si(ctx, ct);
-    // Copy bmap because fix_val consumes it.
-    isl_basic_map* fixedBmap =
-        isl_basic_map_fix_val(isl_basic_map_copy(bmap), isl_dim_out, 0, v);
-    isl_bool isEmpty = isl_basic_map_is_empty(fixedBmap);
-    isl_basic_map_free(fixedBmap);
-    if (isEmpty == isl_bool_false) {
-      seen[ct] = true;
-    }
-  }
+  int64_t seenCount = 0;
+  forEachDomainImagePoint(
+      bmap, ctx, lb, ub,
+      [&](ArrayRef<int64_t> /*domainPoint*/, __isl_keep isl_point* imagePoint) {
+        isl_val* coord =
+            isl_point_get_coordinate_val(imagePoint, isl_dim_set, 0);
+        if (isl_val_is_int(coord)) {
+          int64_t ct = isl_val_get_num_si(coord);
+          if (ct >= 0 && ct < numCts && !seen[ct]) {
+            seen[ct] = true;
+            ++seenCount;
+          }
+        }
+        isl_val_free(coord);
+      },
+      /*shouldStop=*/[&]() { return seenCount == numCts; });
+
   isl_basic_map_free(bmap);
   isl_ctx_free(ctx);
 

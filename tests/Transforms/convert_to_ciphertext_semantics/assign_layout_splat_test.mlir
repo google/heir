@@ -90,7 +90,8 @@ module {
 module {
   func.func @test_dense_resource_dense() -> (!secret.secret<tensor<4xf32>> {tensor_ext.layout = #layout_dense_res}) {
     %cst = arith.constant dense_resource<resource1> : tensor<4xf32>
-    // CHECK: func.call
+    // CHECK: arith.constant dense_resource<resource1_packed> : tensor<1x32xf32>
+    // CHECK-NOT: func.call
     // CHECK: return
     %0 = secret.generic() {
       %1 = tensor_ext.assign_layout %cst {layout = #layout_dense_res, tensor_ext.layout = #layout_dense_res} : tensor<4xf32>
@@ -107,6 +108,7 @@ module {
     }
   }
 #-}
+// CHECK: resource1_packed: "0x40000000CDCC8C3FCDCC0C403333534000000000CDCC8C3FCDCC0C403333534000000000CDCC8C3FCDCC0C403333534000000000CDCC8C3FCDCC0C403333534000000000CDCC8C3FCDCC0C403333534000000000CDCC8C3FCDCC0C403333534000000000CDCC8C3FCDCC0C403333534000000000CDCC8C3FCDCC0C403333534000000000"
 
 // -----
 
