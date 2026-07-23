@@ -161,6 +161,38 @@ inline presburger::IntegerRelation fixRangeVars(
   return fixVars(relation, fixedValues, presburger::VarKind::Range);
 }
 
+// Returns the span of the slot index in the relation (max_slot - min_slot + 1).
+// Returns std::nullopt if the slot index is not bounded. This is used to help
+// compute a useful ctStride in the broadcastDimension function below.
+std::optional<int64_t> getSlotSpan(const presburger::IntegerRelation& relation);
+
+// Returns a new IntegerRelation that represents the layout after broadcasting a
+// dimension. This inserts a new domain variable at broadcastDim, and shifts the
+// slot and ct range variables by slotStride * y and ctStride * y respectively,
+// where y is the new domain variable. In particular, this attempts to convert
+// repetition in the input relation into an explicit row-major or column-major
+// layouts corresponding to the repetition produced by the broadcast. This
+// function aims to make the corresponding layout conversion of the broadcast
+// free by making the effective permutation of the (ct, slot) indices the
+// identity permutation. Or at worst, it should be a relatively simple shift
+// network that repeats with log-many shift and adds.
+presburger::IntegerRelation broadcastDimension(
+    const presburger::IntegerRelation& relation, RankedTensorType destType,
+    unsigned int broadcastDim, int64_t slotStride, int64_t ctStride = 0);
+
+// Returns the translation relation (Range -> Range) for a broadcast operation.
+// This relation maps (ct_in, slot_in) -> (ct_out, slot_out) based on the input
+// layout, output layout, and the broadcasted dimensions. This corresponds to a
+// tensor_ext.repack operation.
+//
+// We require a special helper because a broadcast changes the rank of the
+// data-semantic tensors, and tensor_ext.convert_layout requires the same tensor
+// shape before and after the layout conversion.
+FailureOr<presburger::IntegerRelation> getBroadcastTranslationRelation(
+    const presburger::IntegerRelation& insLayout,
+    const presburger::IntegerRelation& outsLayout,
+    ArrayRef<int64_t> outputShape, ArrayRef<int64_t> broadcastedDims);
+
 struct PointCollector {
   std::vector<std::vector<int64_t>> points;
   isl_ctx* ctx;

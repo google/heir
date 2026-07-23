@@ -127,6 +127,7 @@
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/SelectRewrite/SelectRewrite.h"
 #include "lib/Transforms/ShapeInference/ShapeInference.h"
+#include "lib/Transforms/SoftmaxToCgfSoftmax/SoftmaxToCgfSoftmax.h"
 #include "lib/Transforms/SplitPreprocessing/SplitPreprocessing.h"
 #include "lib/Transforms/StraightLineVectorizer/StraightLineVectorizer.h"
 #include "lib/Transforms/TensorLinalgToAffineLoops/TensorLinalgToAffineLoops.h"
@@ -433,6 +434,7 @@ int main(int argc, char** argv) {
   registerTensorToScalarsPasses();
   registerTensorLinalgToAffineLoops();
   registerShapeInferencePasses();
+  registerSoftmaxToCgfSoftmaxPasses();
   registerInlineActivationsPass();
   registerSplitPreprocessingPass();
   // Register yosys optimizer pipeline if configured.

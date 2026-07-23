@@ -749,6 +749,55 @@ class ConvertLinalgReduce : public ConversionBase<linalg::ReduceOp> {
   }
 };
 
+struct ConvertLinalgBroadcast : public ConversionBase<linalg::BroadcastOp> {
+ public:
+  using ConversionBase<linalg::BroadcastOp>::ConversionBase;
+
+  LogicalResult matchAndRewrite(
+      linalg::BroadcastOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter& rewriter) const final {
+    Value input = adaptor.getOperands()[0];
+    Value output = adaptor.getOperands()[1];
+
+    LayoutAttr insLayout = getLayoutAttr(input);
+    LayoutAttr outsLayout = getLayoutAttr(output);
+    if (!insLayout || !outsLayout) {
+      return rewriter.notifyMatchFailure(
+          op, "missing new layout attribute for inputs/outputs");
+    }
+
+    auto outputShape =
+        cast<RankedTensorType>(op->getResult(0).getType()).getShape();
+
+    auto dimensions = op.getDimensions();
+    auto maybeComposedLayout = getBroadcastTranslationRelation(
+        insLayout.getIntegerRelation(), outsLayout.getIntegerRelation(),
+        outputShape, dimensions);
+    if (failed(maybeComposedLayout)) {
+      return rewriter.notifyMatchFailure(op,
+                                         "failed to compute composed layout");
+    }
+    IntegerRelation composedLayout = maybeComposedLayout.value();
+
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    LayoutAttr newLayoutAttr =
+        LayoutAttr::getFromIntegerRelation(getContext(), composedLayout);
+
+    auto resultCiphertextSemanticType =
+        cast<RankedTensorType>(getTypeConverter()->convertType(
+            op->getResult(0).getType(), outsLayout));
+
+    auto remapAndExtract = remapAndExtractResult(b, input, newLayoutAttr,
+                                                 resultCiphertextSemanticType);
+
+    setMaterializedAttr(remapAndExtract);
+    setAttributeAssociatedWith(remapAndExtract->getResults()[0],
+                               kLayoutAttrName, outsLayout);
+    rewriter.replaceOp(op, remapAndExtract->getResults()[0]);
+    return success();
+  }
+};
+
 struct ConvertLinalgDot : public ConversionBase<linalg::DotOp> {
  public:
   using ConversionBase<linalg::DotOp>::ConversionBase;
@@ -2616,8 +2665,9 @@ struct ConvertToCiphertextSemantics
     });
 
     patterns.add<ConvertAnyAddingMaterializedAttr, ConvertConvertLayout,
-                 ConvertFunc, ConvertLinalgMatmul, ConvertLinalgBatchMatmul,
-                 ConvertLinalgReduce, ConvertLinalgDot, ConvertSecretGeneric,
+                 ConvertFunc, ConvertLinalgBroadcast, ConvertLinalgMatmul,
+                 ConvertLinalgBatchMatmul, ConvertLinalgReduce,
+                 ConvertLinalgDot, ConvertSecretGeneric,
                  ConvertTensorCollapseShape, ConvertTensorExpandShape,
                  ConvertTensorExtractLayout, ConvertTensorExtractSlice,
                  ConvertTensorInsertLayout, ConvertTensorInsertSlice>(

@@ -762,6 +762,212 @@ TEST(UtilsTest, TestRelationSizeLarge) {
   EXPECT_EQ(relationSize(rel), 2500000000LL);
 }
 
+TEST(UtilsTest, TestBroadcastDimension0DTo1D) {
+  MLIRContext context;
+  auto rel =
+      getIntegerRelationFromIslStr("{ [] -> [ct, slot] : ct = 0 and slot = 0 }")
+          .value();
+  RankedTensorType destType =
+      RankedTensorType::get({8}, IndexType::get(&context));
+
+  IntegerRelation broadcasted =
+      broadcastDimension(rel, destType, /*broadcastDim=*/0, /*slotStride=*/1);
+
+  auto expected =
+      getIntegerRelationFromIslStr(
+          "{ [i0] -> [ct, slot] : ct = 0 and slot = i0 and 0 <= i0 <= 7 }")
+          .value();
+
+  EXPECT_TRUE(broadcasted.isEqual(expected));
+}
+
+TEST(UtilsTest, TestBroadcastDimension1DTo2DRows) {
+  MLIRContext context;
+  auto rel =
+      getIntegerRelationFromIslStr(
+          "{ [i0] -> [ct, slot] : ct = 0 and slot = i0 and 0 <= i0 <= 7 }")
+          .value();
+  RankedTensorType destType =
+      RankedTensorType::get({4, 8}, IndexType::get(&context));
+
+  IntegerRelation broadcasted =
+      broadcastDimension(rel, destType, /*broadcastDim=*/0, /*slotStride=*/8);
+
+  auto expected = getIntegerRelationFromIslStr(
+                      "{ [i0, i1] -> [ct, slot] : ct = 0 and slot = i1 + 8*i0 "
+                      "and 0 <= i0 <= 3 and 0 <= i1 <= 7 }")
+                      .value();
+
+  EXPECT_TRUE(broadcasted.isEqual(expected));
+}
+
+TEST(UtilsTest, TestBroadcastDimension1DTo2DCols) {
+  MLIRContext context;
+  auto rel =
+      getIntegerRelationFromIslStr(
+          "{ [i0] -> [ct, slot] : ct = 0 and slot = i0 and 0 <= i0 <= 3 }")
+          .value();
+  RankedTensorType destType =
+      RankedTensorType::get({4, 8}, IndexType::get(&context));
+
+  IntegerRelation broadcasted =
+      broadcastDimension(rel, destType, /*broadcastDim=*/1, /*slotStride=*/4);
+
+  auto expected = getIntegerRelationFromIslStr(
+                      "{ [i0, i1] -> [ct, slot] : ct = 0 and slot = i0 + 4*i1 "
+                      "and 0 <= i0 <= 3 and 0 <= i1 <= 7 }")
+                      .value();
+
+  EXPECT_TRUE(broadcasted.isEqual(expected));
+}
+
+TEST(UtilsTest, TestBroadcastExploratory1_OptionA) {
+  MLIRContext context;
+  // 0D tensor x at slot 0.
+  auto rel =
+      getIntegerRelationFromIslStr("{ [] -> [ct, slot] : ct = 0 and slot = 0 }")
+          .value();
+  RankedTensorType destType =
+      RankedTensorType::get({4}, IndexType::get(&context));
+
+  // Option A: [x, 0, x, 0, x, 0, x, 0] -> stride 2
+  IntegerRelation broadcasted =
+      broadcastDimension(rel, destType, /*broadcastDim=*/0, /*slotStride=*/2);
+
+  auto expected =
+      getIntegerRelationFromIslStr(
+          "{ [i0] -> [ct, slot] : ct = 0 and slot = 2*i0 and 0 <= i0 <= 3 }")
+          .value();
+
+  EXPECT_TRUE(broadcasted.isEqual(expected));
+}
+
+TEST(UtilsTest, TestBroadcastExploratory1_OptionB) {
+  MLIRContext context;
+  // 0D tensor x at slot 0.
+  auto rel =
+      getIntegerRelationFromIslStr("{ [] -> [ct, slot] : ct = 0 and slot = 0 }")
+          .value();
+  RankedTensorType destType =
+      RankedTensorType::get({4}, IndexType::get(&context));
+
+  // Option B: [x, x, x, x, 0, 0, 0, 0] -> stride 1
+  IntegerRelation broadcasted =
+      broadcastDimension(rel, destType, /*broadcastDim=*/0, /*slotStride=*/1);
+
+  auto expected =
+      getIntegerRelationFromIslStr(
+          "{ [i0] -> [ct, slot] : ct = 0 and slot = i0 and 0 <= i0 <= 3 }")
+          .value();
+
+  EXPECT_TRUE(broadcasted.isEqual(expected));
+}
+
+TEST(UtilsTest, TestBroadcastExploratory2_RowMajor) {
+  MLIRContext context;
+  // 1D tensor (a,b,c,d) in slots 0..3 of 16.
+  auto rel = getIntegerRelationFromIslStr(
+                 "{ [i0] -> [ct, slot] : ct = 0 and slot = i0 and 0 <= i0 <= 3 "
+                 "and 0 <= slot <= 15 }")
+                 .value();
+  RankedTensorType destType =
+      RankedTensorType::get({2, 4}, IndexType::get(&context));
+
+  // Stride 4: Row-major compact: [a,b,c,d, a,b,c,d, 0...]
+  IntegerRelation broadcasted =
+      broadcastDimension(rel, destType, /*broadcastDim=*/0, /*slotStride=*/4);
+
+  auto expected = getIntegerRelationFromIslStr(
+                      "{ [i0, i1] -> [ct, slot] : ct = 0 and slot = i1 + 4*i0 "
+                      "and 0 <= i0 <= 1 and 0 <= i1 <= 3 }")
+                      .value();
+
+  EXPECT_TRUE(broadcasted.isEqual(expected));
+}
+
+TEST(UtilsTest, TestBroadcastExploratory2_Padded) {
+  MLIRContext context;
+  // 1D tensor (a,b,c,d) in slots 0..3 of 16.
+  auto rel = getIntegerRelationFromIslStr(
+                 "{ [i0] -> [ct, slot] : ct = 0 and slot = i0 and 0 <= i0 <= 3 "
+                 "and 0 <= slot <= 15 }")
+                 .value();
+  RankedTensorType destType =
+      RankedTensorType::get({2, 4}, IndexType::get(&context));
+
+  // Stride 8: Padded: [a,b,c,d, 0,0,0,0, a,b,c,d, 0...]
+  IntegerRelation broadcasted =
+      broadcastDimension(rel, destType, /*broadcastDim=*/0, /*slotStride=*/8);
+
+  auto expected = getIntegerRelationFromIslStr(
+                      "{ [i0, i1] -> [ct, slot] : ct = 0 and slot = i1 + 8*i0 "
+                      "and 0 <= i0 <= 1 and 0 <= i1 <= 3 }")
+                      .value();
+
+  EXPECT_TRUE(broadcasted.isEqual(expected));
+}
+
+TEST(UtilsTest, TestGetSlotSpan) {
+  auto rel1 =
+      getIntegerRelationFromIslStr(
+          "{ [i0] -> [ct, slot] : ct = 0 and slot = i0 and 0 <= i0 <= 3 }")
+          .value();
+  EXPECT_EQ(getSlotSpan(rel1), 4);
+
+  auto rel2 =
+      getIntegerRelationFromIslStr(
+          "{ [i0] -> [ct, slot] : ct = 0 and slot = 2*i0 and 0 <= i0 <= 3 }")
+          .value();
+  // slot ranges from 0 to 6. Span is 6 - 0 + 1 = 7.
+  EXPECT_EQ(getSlotSpan(rel2), 7);
+
+  auto rel3 = getIntegerRelationFromIslStr(
+                  "{ [i0] -> [ct, slot] : ct = 0 and slot = i0 }")
+                  .value();
+  // Unbounded slot.
+  EXPECT_FALSE(getSlotSpan(rel3).has_value());
+}
+
+TEST(UtilsTest, TestGetBroadcastTranslationRelation) {
+  auto insLayout =
+      getIntegerRelationFromIslStr(
+          "{ [i0] -> [ct, slot] : ct = 0 and slot = i0 and 0 <= i0 <= 3 }")
+          .value();
+  auto outsLayout = getIntegerRelationFromIslStr(
+                        "{ [i0, i1] -> [ct, slot] : ct = 0 and slot = i1 + "
+                        "4*i0 and 0 <= i0 <= 1 and 0 <= i1 <= 3 }")
+                        .value();
+
+  // Broadcast along dim 0. Output shape is [2, 4].
+  auto maybeTranslation = getBroadcastTranslationRelation(
+      insLayout, outsLayout, /*outputShape=*/{2, 4}, /*broadcastedDims=*/{0});
+  ASSERT_TRUE(succeeded(maybeTranslation));
+  auto translation = maybeTranslation.value();
+
+  // Space should be [ct_in, slot_in] -> [ct_out, slot_out]
+  // In API terms, it is a relation with 2 domain vars and 2 range vars.
+  EXPECT_EQ(translation.getNumDomainVars(), 2);
+  EXPECT_EQ(translation.getNumRangeVars(), 2);
+
+  // For i0 = 0 (first broadcast copy):
+  // (0, slot) -> (0, slot) for 0 <= slot <= 3
+  for (int64_t slot = 0; slot < 4; ++slot) {
+    EXPECT_TRUE(
+        translation.containsPointNoLocal({0, slot, 0, slot}).has_value());
+  }
+
+  // For i0 = 1 (second broadcast copy):
+  // (0, slot) -> (0, slot + 4) for 0 <= slot <= 3
+  for (int64_t slot = 0; slot < 4; ++slot) {
+    EXPECT_TRUE(
+        translation.containsPointNoLocal({0, slot, 0, slot + 4}).has_value());
+  }
+
+  // Check some invalid mappings
+  EXPECT_FALSE(translation.containsPointNoLocal({0, 0, 0, 1}).has_value());
+  EXPECT_FALSE(translation.containsPointNoLocal({0, 0, 0, 5}).has_value());
+}
+
 }  // namespace
 }  // namespace heir
 }  // namespace mlir

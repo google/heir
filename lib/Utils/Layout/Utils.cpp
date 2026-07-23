@@ -1049,5 +1049,128 @@ int64_t relationSize(const IntegerRelation& rel) {
   return count;
 }
 
+std::optional<int64_t> getSlotSpan(const IntegerRelation& relation) {
+  unsigned int rangeOffset = relation.getVarKindOffset(VarKind::Range);
+  unsigned int slotPos = rangeOffset + 1;
+  std::optional<int64_t> slotMin =
+      relation.getConstantBound64(BoundType::LB, slotPos);
+  std::optional<int64_t> slotMax =
+      relation.getConstantBound64(BoundType::UB, slotPos);
+  if (!slotMin.has_value() || !slotMax.has_value()) {
+    return std::nullopt;
+  }
+  return slotMax.value() - slotMin.value() + 1;
+}
+
+IntegerRelation broadcastDimension(const IntegerRelation& relation,
+                                   RankedTensorType destType,
+                                   unsigned int broadcastDim,
+                                   int64_t slotStride, int64_t ctStride) {
+  IntegerRelation result = relation;
+
+  // 1. Insert new domain variable y at broadcastDim
+  result.insertVar(VarKind::Domain, broadcastDim);
+  // Add bounds for y: 0 <= y < destType.getDimSize(broadcastDim)
+  int64_t ySize = destType.getDimSize(broadcastDim);
+  addBounds(result, broadcastDim, 0, ySize - 1);
+
+  unsigned int yPos = broadcastDim;
+
+  // 2. Shift slot by slotStride * y
+  if (slotStride != 0) {
+    unsigned int rangeOffset = result.getVarKindOffset(VarKind::Range);
+    unsigned int slotPos = rangeOffset + 1;
+    // Insert slot_new at range index 2 (absolute rangeOffset + 2)
+    unsigned int slotNewPos = result.insertVar(VarKind::Range, 2);
+
+    // Add constraint: slot_new - slot - slotStride * y = 0
+    SmallVector<int64_t> coeffs(result.getNumCols(), 0);
+    coeffs[slotNewPos] = 1;
+    coeffs[slotPos] = -1;
+    coeffs[yPos] = -slotStride;
+    result.addEquality(coeffs);
+
+    // Project out old slot
+    result.projectOut(slotPos);
+  }
+
+  // 3. Shift ct by ctStride * y
+  if (ctStride != 0) {
+    unsigned int rangeOffset = result.getVarKindOffset(VarKind::Range);
+    unsigned int ctPos = rangeOffset + 0;
+    // Insert ct_new at range index 1 (absolute rangeOffset + 1)
+    unsigned int ctNewPos = result.insertVar(VarKind::Range, 1);
+
+    // Add constraint: ct_new - ct - ctStride * y = 0
+    SmallVector<int64_t> coeffs(result.getNumCols(), 0);
+    coeffs[ctNewPos] = 1;
+    coeffs[ctPos] = -1;
+    coeffs[yPos] = -ctStride;
+    result.addEquality(coeffs);
+
+    // Project out old ct
+    result.projectOut(ctPos);
+  }
+
+  return result;
+}
+
+FailureOr<IntegerRelation> getBroadcastTranslationRelation(
+    const IntegerRelation& insLayout, const IntegerRelation& outsLayout,
+    ArrayRef<int64_t> outputShape, ArrayRef<int64_t> broadcastedDims) {
+  int64_t inputRank = insLayout.getNumDomainVars();
+  int64_t outputRank = outsLayout.getNumDomainVars();
+
+  if (outputShape.size() != outputRank) {
+    return failure();
+  }
+
+  presburger::PresburgerSpace space =
+      presburger::PresburgerSpace::getRelationSpace(outputRank, inputRank, 0,
+                                                    0);
+  IntegerRelation B_inv(space);
+
+  int64_t numVars = B_inv.getNumVars();
+  int64_t domainOffset = B_inv.getVarKindOffset(presburger::VarKind::Domain);
+  int64_t rangeOffset = B_inv.getVarKindOffset(presburger::VarKind::Range);
+
+  for (int64_t i = 0; i < outputRank; ++i) {
+    B_inv.addBound(presburger::BoundType::LB, domainOffset + i, 0);
+    B_inv.addBound(presburger::BoundType::UB, domainOffset + i,
+                   outputShape[i] - 1);
+  }
+
+  llvm::SmallDenseSet<int64_t> broadcastedDimsSet(broadcastedDims.begin(),
+                                                  broadcastedDims.end());
+
+  int64_t inputDim = 0;
+  for (int64_t outputDim = 0; outputDim < outputRank; ++outputDim) {
+    if (broadcastedDimsSet.contains(outputDim)) {
+      continue;
+    }
+    if (inputDim >= inputRank) {
+      return failure();  // More non-broadcasted dims than input rank
+    }
+    SmallVector<int64_t> eq(numVars + 1, 0);
+    eq[domainOffset + outputDim] = 1;
+    eq[rangeOffset + inputDim] = -1;
+    B_inv.addEquality(eq);
+    inputDim++;
+  }
+
+  if (inputDim != inputRank) {
+    return failure();  // Less non-broadcasted dims than input rank
+  }
+
+  B_inv.inverse();
+
+  IntegerRelation composedLayout = insLayout;
+  composedLayout.inverse();
+  composedLayout.compose(B_inv);
+  composedLayout.compose(outsLayout);
+
+  return composedLayout;
+}
+
 }  // namespace heir
 }  // namespace mlir
