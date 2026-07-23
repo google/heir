@@ -388,13 +388,14 @@ static FailureOr<Value> implementAssignLayoutStep(
         (strategy == CodegenStrategy::AUTO && isResourceConstant)) {
       shouldFold = true;
     } else if (strategy == CodegenStrategy::AUTO) {
+      constexpr int64_t kMaxFoldPoints = 1 << 20;
       int64_t relSize = relationSize(rel);
-      if (relSize <= 16384) {
+      if (relSize >= 0 && relSize <= kMaxFoldPoints) {
         shouldFold = true;
       } else {
         LLVM_DEBUG(llvm::dbgs()
-                   << "Relation size " << relSize
-                   << " exceeds threshold 16384, skipping constant folding\n");
+                   << "Relation size " << relSize << " outside fold range [0, "
+                   << kMaxFoldPoints << "], skipping constant folding\n");
       }
     }
   }
