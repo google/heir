@@ -122,6 +122,7 @@ void hecoSIMDVectorizerPipelineBuilder(OpPassManager& manager,
 void cleanupAfterLowerAssignLayout(OpPassManager& pm) {
   // Lower linalg.generics produced by ConvertToCiphertextSemantics
   // (assign_layout lowering) to affine loops.
+  pm.addPass(mlir::createLinalgGeneralizeNamedOpsPass());
   pm.addPass(createTensorLinalgToAffineLoops());
   pm.addNestedPass<func::FuncOp>(affine::createAffineExpandIndexOpsPass());
   pm.addNestedPass<func::FuncOp>(affine::createSimplifyAffineStructuresPass());
@@ -185,7 +186,9 @@ void mlirToSecretArithmeticPipelineBuilder(
   LayoutPropagationOptions layoutPropagationOptions;
   layoutPropagationOptions.ciphertextSize = options.ciphertextDegree;
   pm.addPass(createLayoutPropagation(layoutPropagationOptions));
-  pm.addPass(createLayoutOptimization());
+  LayoutOptimizationOptions layoutOptimizationOptions;
+  layoutOptimizationOptions.ciphertextSize = options.ciphertextDegree;
+  pm.addPass(createLayoutOptimization(layoutOptimizationOptions));
   // Layout conversions may be repeated, so run CSE
   pm.addPass(createCSEPass());
 
