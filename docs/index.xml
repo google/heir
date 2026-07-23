@@ -8286,55 +8286,67 @@ arguments in the function body.&lt;/li>
 &lt;/ul>
 &lt;h4 id="statistics-1">Statistics&lt;/h4>
 &lt;pre tabindex="0">&lt;code>total circuit size : The total circuit size for all optimized circuits, after optimization is done.
-&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2026-05-21</title><link>https://heir.dev/blog/2026/05/21/heir-meeting-2026-05-21/</link><pubDate>Thu, 21 May 2026 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2026/05/21/heir-meeting-2026-05-21/</guid><description>
+&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2026-06-18</title><link>https://heir.dev/blog/2026/06/18/heir-meeting-2026-06-18/</link><pubDate>Thu, 18 Jun 2026 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2026/06/18/heir-meeting-2026-06-18/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1fJEsjluRXy36DPgAoUGCYVMaq6JD2p4nGfuld3op7tU/edit?usp=sharing">notes&lt;/a>
-and &lt;a href="https://youtu.be/VA2TxDtyflA">video recording&lt;/a> from the HEIR meeting on
-2026-05-21.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2025-12-04</title><link>https://heir.dev/blog/2025/12/04/heir-meeting-2025-12-04/</link><pubDate>Thu, 04 Dec 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/12/04/heir-meeting-2025-12-04/</guid><description>
+&lt;a href="https://docs.google.com/document/d/1c1RMZWmttYd86-qvpqpxuV4S8OXR6W7mc16Jqiy0jVs/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/f5srfxle5js">video recording&lt;/a> from the HEIR meeting on
+2026-06-18.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2026-03-26</title><link>https://heir.dev/blog/2026/03/26/heir-meeting-2026-03-26/</link><pubDate>Thu, 26 Mar 2026 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2026/03/26/heir-meeting-2026-03-26/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1Dt63vcqrpXDK2_PexLM4-ce4WP3jc4GZ4Brbic12FGE/edit?usp=sharing">notes&lt;/a>
-and &lt;a href="https://youtu.be/E4bO0TJXQMg">video recording&lt;/a> from the HEIR meeting on
-2025-12-04.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2025-04-17</title><link>https://heir.dev/blog/2025/04/17/heir-meeting-2025-04-17/</link><pubDate>Thu, 17 Apr 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/04/17/heir-meeting-2025-04-17/</guid><description>
+&lt;a href="https://docs.google.com/document/d/19nIJWHZR8Cj7TGX0jyl92hBUxpqeRs1H9xczQycyETs/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/ZxPxAKdWDiY">video recording&lt;/a> from the HEIR meeting on
+2026-03-26.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2026-02-26</title><link>https://heir.dev/blog/2026/02/26/heir-meeting-2026-02-26/</link><pubDate>Thu, 26 Feb 2026 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2026/02/26/heir-meeting-2026-02-26/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1be2IqEcj14CF-MA17SjZaS_soRDf-xTrMP-yAKh1BWE/edit?usp=sharing">notes&lt;/a>
-and &lt;a href="https://youtu.be/HHU6rCMxZRc">video recording&lt;/a> from the HEIR meeting on
-2025-04-17.&lt;/p>
-&lt;p>Hongren Zheng gave an overview of the &lt;code>mgmt&lt;/code> dialect which handles ciphertext
-management in the compiler. This talk
-&lt;a href="https://youtu.be/HHU6rCMxZRc?si=U_ePY5emqs6e4NoV&amp;amp;t=1631">starts at 27:11&lt;/a>.
-&lt;a href="https://heir.dev/slides/mgmt-2025-04-17.pdf">The slides can be found here&lt;/a>.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-09-19</title><link>https://heir.dev/blog/2024/09/19/heir-meeting-2024-09-19/</link><pubDate>Thu, 19 Sep 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/09/19/heir-meeting-2024-09-19/</guid><description>
+&lt;a href="https://docs.google.com/document/d/1kg4xfoHWD1NcWiwxPze-sYEslTehj2QcJwbAA_BJ8pQ/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/RzIUyE5ZLm4">video recording&lt;/a> from the HEIR meeting on
+2026-02-26.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-07-18 (mod_arith dialect)</title><link>https://heir.dev/blog/2024/07/18/heir-meeting-2024-07-18-mod_arith-dialect/</link><pubDate>Thu, 18 Jul 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/07/18/heir-meeting-2024-07-18-mod_arith-dialect/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1aGIiZPWpk7UMg5FD8ZYHmNhKVZ6NdhfmGMvyHrrlolM/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1o2-I03DJtNJQDupSHn8LtOXLmxsd3WO1fjvqLbT-SIc/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1i-HqUi8pb2ywUJ-OT4fWExYCmeRLu2Cn/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-09-19.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-05-30</title><link>https://heir.dev/blog/2024/05/30/heir-meeting-2024-05-30/</link><pubDate>Thu, 30 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/30/heir-meeting-2024-05-30/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1bCMuuKnBVf6HP7R2SiZgo1C1vsG6FzF2/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-07-18. This special discussion was focused on the
+modular arithmetic dialect.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-05-16</title><link>https://heir.dev/blog/2024/05/16/heir-meeting-2024-05-16/</link><pubDate>Thu, 16 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/16/heir-meeting-2024-05-16/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1mvigwMRTeVQvdpm2hwiewfU8jcJT94ArQBNvngvgkTc/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/15MwanXaBap6qNzYj7g1m6zRcqK363O-3iCCcNcGY1Ds/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1CTIyd7HRiNV857VO2EonquWZZlBhysLM/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-05-30.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-04-04</title><link>https://heir.dev/blog/2024/04/04/heir-meeting-2024-04-04/</link><pubDate>Thu, 04 Apr 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/04/04/heir-meeting-2024-04-04/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1gOf_Tb8k9UNx7i0OvjjikkYUG3HrPjoS/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-05-16.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-05-02</title><link>https://heir.dev/blog/2024/05/02/heir-meeting-2024-05-02/</link><pubDate>Thu, 02 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/02/heir-meeting-2024-05-02/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/121_0mzqYIWYMc7rcW2Et5qS-ux4ut3b-kno1dI9sQq8/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1uEDeIN0iTUmmtlacZg0c2j7VbAHO3A9e0_8mnunUv10/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1_Ksjx8s8nD4cLsuZp5_KitYI2mPN72Je/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-04-04.&lt;/p>
-&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2023-09-12</title><link>https://heir.dev/blog/2023/09/13/heir-meeting-2023-09-12/</link><pubDate>Wed, 13 Sep 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/09/13/heir-meeting-2023-09-12/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1u1q74rUKdXFi08tAKFRKjI-bojuorQK8/view?usp=drivesdk">video recording&lt;/a>
+from the HEIR meeting on 2024-05-02.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-04-18</title><link>https://heir.dev/blog/2024/04/18/heir-meeting-2024-04-18/</link><pubDate>Thu, 18 Apr 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/04/18/heir-meeting-2024-04-18/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1gOH1V6ORQwJDDo6I4jrDgCqqNFTsfcQbfpdUR6tv_60/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1BJjfYI2yjR3YEg_ugjDuS-trAkYMlKbU7jpH_M1GF3Q/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1zFtpBcCCq5d6UD8Nm8r3rfg3sgy-guz7/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2023-09-12.&lt;/p>
+&lt;a href="https://drive.google.com/file/d/1WSsUp9CmjDmEVtGMYk2QXIpZCEetf_Ot/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-04-18.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2024-01-11</title><link>https://heir.dev/blog/2024/01/11/heir-meeting-2024-01-11/</link><pubDate>Thu, 11 Jan 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/01/11/heir-meeting-2024-01-11/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/133yuywcbI1AWnbsJezq8QlCpgXfX5HMk7YjXQBSTwoE/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1gLwcshtNda6M6YMWSsyGrNDvlQ8QiL0O/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-01-11.&lt;/p>
 &lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2023-08-15</title><link>https://heir.dev/blog/2023/08/16/heir-meeting-2023-08-15/</link><pubDate>Wed, 16 Aug 2023 16:15:47 +0000</pubDate><guid>https://heir.dev/blog/2023/08/16/heir-meeting-2023-08-15/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/1vZsKJH4wCAZCtyh3o9nNMLRFwlWQiVdvUMvwJnA4cIc/edit?usp=sharing">notes&lt;/a>
 and
 &lt;a href="https://drive.google.com/file/d/1DDNepYCSqgi-JlBLBzHrsL5CjjiwqcA_/view?usp=sharing">video recording&lt;/a>
 from the HEIR meeting on 2023-08-15.&lt;/p>
+&lt;!-- mdformat global-off --></description></item><item><title>Blog: HEIR meeting 2023-08-01</title><link>https://heir.dev/blog/2023/08/02/heir-meeting-2023-08-01/</link><pubDate>Wed, 02 Aug 2023 15:46:42 -0700</pubDate><guid>https://heir.dev/blog/2023/08/02/heir-meeting-2023-08-01/</guid><description>
+&lt;p>The fourth HEIR meeting was 2023-08-01
+(&lt;a href="https://docs.google.com/document/d/1gid-MARMUStb3dB9jsXEV_CnPDpf_9cyPXy9uXtZk08/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1U6HDdKJo3-UHibFPgNrDakU8EpCt5xHZ/view?usp=sharing">video recording&lt;/a>).&lt;/p>
+&lt;p>We&amp;rsquo;re also starting on the Poly and Secret dialects in
+&lt;a href="https://github.com/google/heir/pull/74">#74 (poly)&lt;/a> and
+&lt;a href="https://github.com/google/heir/pull/78">#78 (secret)&lt;/a>, so please join in the
+fun!&lt;/p>
 &lt;!-- mdformat global-off --></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h1 id="bgv-dialect">&amp;lsquo;bgv&amp;rsquo; Dialect&lt;/h1>
@@ -21240,23 +21252,6 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/table>
 &lt;h2 id="modarith-additional-definitions">ModArith additional definitions&lt;/h2>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h1 id="typeinterface-definitions">TypeInterface definitions&lt;/h1>
-&lt;h2 id="modqtypeinterface-modqtypeinterface">ModQTypeInterface (&lt;code>ModQTypeInterface&lt;/code>)&lt;/h2>
-&lt;p>Interface for types that support modular arithmetic semantics.&lt;/p>
-&lt;h3 id="methods">Methods:&lt;/h3>
-&lt;h4 id="getloweringtype">&lt;code>getLoweringType&lt;/code>&lt;/h4>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-c++" data-lang="c++">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">mlir&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">Type&lt;/span> &lt;span style="color:#000">getLoweringType&lt;/span>&lt;span style="color:#000;font-weight:bold">();&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Returns the lowered storage type for this modular type. Plain ModArith types lower to an integer type; RNS types lower to a rank-1 tensor whose extent is the residue count and whose element type is the residue storage type.&lt;/p>
-&lt;p>NOTE: This method &lt;em>must&lt;/em> be implemented by the user.&lt;/p>
-&lt;h4 id="getnumresidues">&lt;code>getNumResidues&lt;/code>&lt;/h4>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-c++" data-lang="c++">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">unsigned&lt;/span> &lt;span style="color:#000">getNumResidues&lt;/span>&lt;span style="color:#000;font-weight:bold">();&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Returns the number of residue limbs represented by this modular type. Types need not implement this function as a default is provided.&lt;/p>
-&lt;p>NOTE: This method &lt;em>must&lt;/em> be implemented by the user.&lt;/p>
-&lt;h4 id="getresiduetype">&lt;code>getResidueType&lt;/code>&lt;/h4>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-c++" data-lang="c++">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">mlir&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">Type&lt;/span> &lt;span style="color:#000">getResidueType&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#204a87;font-weight:bold">unsigned&lt;/span> &lt;span style="color:#000">index&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Returns the residue type at the given index.&lt;/p>
-&lt;p>NOTE: This method &lt;em>must&lt;/em> be implemented by the user.&lt;/p>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h3 id="lifttype">LiftType&lt;/h3>
 &lt;p>&lt;em>ModArith lift type&lt;/em>&lt;/p>
 &lt;h4 id="cases">Cases:&lt;/h4>
@@ -21280,7 +21275,24 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;td>centered&lt;/td>
 &lt;/tr>
 &lt;/tbody>
-&lt;/table></description></item><item><title>Docs: Openfhe</title><link>https://heir.dev/docs/dialects/openfhe/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/openfhe/</guid><description>
+&lt;/table>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h1 id="typeinterface-definitions">TypeInterface definitions&lt;/h1>
+&lt;h2 id="modqtypeinterface-modqtypeinterface">ModQTypeInterface (&lt;code>ModQTypeInterface&lt;/code>)&lt;/h2>
+&lt;p>Interface for types that support modular arithmetic semantics.&lt;/p>
+&lt;h3 id="methods">Methods:&lt;/h3>
+&lt;h4 id="getloweringtype">&lt;code>getLoweringType&lt;/code>&lt;/h4>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-c++" data-lang="c++">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">mlir&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">Type&lt;/span> &lt;span style="color:#000">getLoweringType&lt;/span>&lt;span style="color:#000;font-weight:bold">();&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Returns the lowered storage type for this modular type. Plain ModArith types lower to an integer type; RNS types lower to a rank-1 tensor whose extent is the residue count and whose element type is the residue storage type.&lt;/p>
+&lt;p>NOTE: This method &lt;em>must&lt;/em> be implemented by the user.&lt;/p>
+&lt;h4 id="getnumresidues">&lt;code>getNumResidues&lt;/code>&lt;/h4>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-c++" data-lang="c++">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">unsigned&lt;/span> &lt;span style="color:#000">getNumResidues&lt;/span>&lt;span style="color:#000;font-weight:bold">();&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Returns the number of residue limbs represented by this modular type. Types need not implement this function as a default is provided.&lt;/p>
+&lt;p>NOTE: This method &lt;em>must&lt;/em> be implemented by the user.&lt;/p>
+&lt;h4 id="getresiduetype">&lt;code>getResidueType&lt;/code>&lt;/h4>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-c++" data-lang="c++">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">mlir&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">Type&lt;/span> &lt;span style="color:#000">getResidueType&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#204a87;font-weight:bold">unsigned&lt;/span> &lt;span style="color:#000">index&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Returns the residue type at the given index.&lt;/p>
+&lt;p>NOTE: This method &lt;em>must&lt;/em> be implemented by the user.&lt;/p></description></item><item><title>Docs: Openfhe</title><link>https://heir.dev/docs/dialects/openfhe/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/openfhe/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h1 id="openfhe-dialect">&amp;lsquo;openfhe&amp;rsquo; Dialect&lt;/h1>
 &lt;p>The &lt;code>openfhe&lt;/code> dialect is an exit dialect for generating c++ code against the OpenFHE library API.&lt;/p>
@@ -26098,577 +26110,6 @@ seeding layouts explored by Rotom.&lt;/p>
 &lt;td style="text-align:center">layouts&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::ArrayAttr&lt;/code>&lt;/td>
 &lt;td>&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table></description></item><item><title>Docs: SCIFRBool</title><link>https://heir.dev/docs/dialects/scifrbool/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/scifrbool/</guid><description>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h1 id="scifrbool-dialect">&amp;lsquo;scifrbool&amp;rsquo; Dialect&lt;/h1>
-&lt;p>&lt;em>Cornami SCIFR Boolean dialect for FHE Applications.&lt;/em>&lt;/p>
-&lt;h2 id="scifrbool-types">SCIFRBool types&lt;/h2>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h3 id="scifrboolbootstrapkeytype">SCIFRBoolBootstrapKeyType&lt;/h3>
-&lt;p>&lt;em>The key required to perform Bootstrap operation in SCIFRBool.&lt;/em>&lt;/p>
-&lt;p>Syntax: &lt;code>!scifrbool.bootstrap_key&lt;/code>&lt;/p>
-&lt;h3 id="scifrboolkeyswitchkeytype">SCIFRBoolKeySwitchKeyType&lt;/h3>
-&lt;p>&lt;em>The key required to perform Keyswitch operation in SCIFRBool.&lt;/em>&lt;/p>
-&lt;p>Syntax: &lt;code>!scifrbool.key_switch_key&lt;/code>&lt;/p>
-&lt;h3 id="scifrboolserverparameterstype">SCIFRBoolServerParametersType&lt;/h3>
-&lt;p>&lt;em>The server parameters required to map to cornami hardware in SCIFRBool.&lt;/em>&lt;/p>
-&lt;p>Syntax: &lt;code>!scifrbool.server_parameters&lt;/code>&lt;/p>
-&lt;h2 id="scifrbool-ops">SCIFRBool ops&lt;/h2>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h3 id="scifrbooland-cornamiscifrboolandop">&lt;code>scifrbool.and&lt;/code> (cornami::scifrbool::AndOp)&lt;/h3>
-&lt;p>&lt;em>Logical AND of two ciphertexts.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `scifrbool.and` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="scifrboolnand-cornamiscifrboolnandop">&lt;code>scifrbool.nand&lt;/code> (cornami::scifrbool::NandOp)&lt;/h3>
-&lt;p>&lt;em>Logical NAND of two ciphertexts.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `scifrbool.nand` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-1">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-1">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="scifrboolnor-cornamiscifrboolnorop">&lt;code>scifrbool.nor&lt;/code> (cornami::scifrbool::NorOp)&lt;/h3>
-&lt;p>&lt;em>Logical NOR of two ciphertexts.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `scifrbool.nor` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-2">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-2">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="scifrboolnot-cornamiscifrboolnotop">&lt;code>scifrbool.not&lt;/code> (cornami::scifrbool::NotOp)&lt;/h3>
-&lt;p>&lt;em>Logical NOT of two ciphertexts&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `scifrbool.not` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Involution&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-3">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-3">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="scifrboolor-cornamiscifrboolorop">&lt;code>scifrbool.or&lt;/code> (cornami::scifrbool::OrOp)&lt;/h3>
-&lt;p>&lt;em>Logical OR of two ciphertexts.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `scifrbool.or` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-4">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-4">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="scifrboolsection-cornamiscifrboolsectionop">&lt;code>scifrbool.section&lt;/code> (cornami::scifrbool::SectionOp)&lt;/h3>
-&lt;p>&lt;em>Wraps a single operation&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `scifrbool.section` `(` operands `)` $body attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Section op is intended to handle kernel outlining, move kernels of instructions. Section contains the code scheduled to Fractal Array.&lt;/p>
-&lt;p>Traits: &lt;code>NoTerminator&lt;/code>&lt;/p>
-&lt;h4 id="operands-5">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>variadic of any non-token type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-5">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>variadic of any non-token type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="scifrboolxnor-cornamiscifrboolxnorop">&lt;code>scifrbool.xnor&lt;/code> (cornami::scifrbool::XNorOp)&lt;/h3>
-&lt;p>&lt;em>Logical XNOR of two ciphertexts.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `scifrbool.xnor` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-6">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-6">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="scifrboolxor-cornamiscifrboolxorop">&lt;code>scifrbool.xor&lt;/code> (cornami::scifrbool::XorOp)&lt;/h3>
-&lt;p>&lt;em>Logical XOR of two ciphertexts.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `scifrbool.xor` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-7">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-7">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table></description></item><item><title>Docs: SCIFRCkks</title><link>https://heir.dev/docs/dialects/scifrckks/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/scifrckks/</guid><description>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h1 id="scifrckks-dialect">&amp;lsquo;scifrckks&amp;rsquo; Dialect&lt;/h1>
-&lt;p>&lt;em>Cornami SCIFR CKKS dialect for FHE Applications.&lt;/em>&lt;/p>
-&lt;p>MLIR Dialect for Cornami SCIFR CKKS Dialect
-Cornami SCIFR CKKS dialect
-Concepts
-Section
-Contains Operators and HBM Regions and memory transfers operations
-Section can be reduced to FA (for executable) or default (which is not executable)
-Operator
-Operators are from AppStream FHE or FractlsBase only&lt;/p>
-&lt;h2 id="scifrckks-types">SCIFRCkks types&lt;/h2>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h3 id="scifrckksbootstrapkeytype">SCIFRCkksBootstrapKeyType&lt;/h3>
-&lt;p>&lt;em>The key required to perform Bootstrap operation in SCIFRCkks.&lt;/em>&lt;/p>
-&lt;p>Syntax: &lt;code>!scifrckks.bootstrap_key&lt;/code>&lt;/p>
-&lt;h3 id="scifrckksciphertexttype">SCIFRCkksCiphertextType&lt;/h3>
-&lt;p>&lt;em>A type for SCIFRCkks Ciphertext&lt;/em>&lt;/p>
-&lt;p>Syntax: &lt;code>!scifrckks.ciphertext&lt;/code>&lt;/p>
-&lt;h3 id="scifrckkskeyswitchkeytype">SCIFRCkksKeySwitchKeyType&lt;/h3>
-&lt;p>&lt;em>The key required to perform Keyswitch operation in SCIFRCkks.&lt;/em>&lt;/p>
-&lt;p>Syntax: &lt;code>!scifrckks.key_switch_key&lt;/code>&lt;/p>
-&lt;h3 id="scifrckksserverparameterstype">SCIFRCkksServerParametersType&lt;/h3>
-&lt;p>&lt;em>The server parameters required to map to cornami hardware in SCIFRCkks.&lt;/em>&lt;/p>
-&lt;p>Syntax: &lt;code>!scifrckks.server_parameters&lt;/code>&lt;/p>
-&lt;h2 id="scifrckks-ops">SCIFRCkks ops&lt;/h2>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h3 id="scifrckksadd-scifrckksaddop">&lt;code>scifrckks.Add&lt;/code> (scifrckks::AddOp)&lt;/h3>
-&lt;p>&lt;em>Add two ciphertexts.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `scifrckks.Add` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="scifrckksaddc-scifrckksaddconstop">&lt;code>scifrckks.AddC&lt;/code> (scifrckks::AddConstOp)&lt;/h3>
-&lt;p>&lt;em>Add ciphertext with constant Op.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `scifrckks.AddC` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-1">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-1">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="scifrckksmul-scifrckksmulop">&lt;code>scifrckks.Mul&lt;/code> (scifrckks::MulOp)&lt;/h3>
-&lt;p>&lt;em>Mul two ciphertexts.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `scifrckks.Mul` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-2">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-2">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="scifrckksrelin-scifrckksrelinop">&lt;code>scifrckks.Relin&lt;/code> (scifrckks::RelinOp)&lt;/h3>
-&lt;p>&lt;em>Relinearize a ciphertext.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `scifrckks.Relin` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;h3 id="scifrckkssub-scifrckkssubop">&lt;code>scifrckks.Sub&lt;/code> (scifrckks::SubOp)&lt;/h3>
-&lt;p>&lt;em>Sub two ciphertexts.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `scifrckks.Sub` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-3">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-3">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="scifrckkssubc-scifrckkssubconstop">&lt;code>scifrckks.SubC&lt;/code> (scifrckks::SubConstOp)&lt;/h3>
-&lt;p>&lt;em>Subtract ciphertext from a constant Op.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `scifrckks.SubC` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-4">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-4">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table></description></item></channel></rss>
