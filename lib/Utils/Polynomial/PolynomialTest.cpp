@@ -93,6 +93,23 @@ TEST(PolynomialTest, TestSubZero) {
   EXPECT_TRUE(result.isZero());
 }
 
+TEST(PolynomialTest, GetDenseCoefficientVector) {
+  SmallVector<IntMonomial> monomials;
+  monomials.emplace_back(1, 0);
+  IntMonomial narrowCoefficient;
+  narrowCoefficient.setCoefficient(APInt(8, -3, true));
+  narrowCoefficient.setExponent(APInt(apintBitWidth, 2));
+  monomials.push_back(narrowCoefficient);
+  IntPolynomial polynomial = IntPolynomial::fromMonomials(monomials).value();
+
+  SmallVector<APInt> coefficients = polynomial.getDenseCoefficientVector();
+
+  ASSERT_EQ(coefficients.size(), 3);
+  EXPECT_EQ(coefficients[0], APInt(apintBitWidth, 1));
+  EXPECT_EQ(coefficients[1], APInt(apintBitWidth, 0));
+  EXPECT_EQ(coefficients[2], APInt(apintBitWidth, -3, true));
+}
+
 TEST(PolynomialTest, TestNaiveMul) {
   IntPolynomial polynomial = IntPolynomial::fromCoefficients({1, 2, 3});
   IntPolynomial result = polynomial.naiveMul(polynomial);
@@ -159,6 +176,16 @@ TEST(RNSPolynomialTest, Arithmetic) {
   RNSPolynomial diff = poly1.sub(poly2);
   SmallVector<uint64_t> expectedDiff = {2, 4, 6, 5, 7, 9};
   EXPECT_EQ(diff.getData(), llvm::ArrayRef<uint64_t>(expectedDiff));
+}
+
+TEST(RNSPolynomialTest, ScalarMul) {
+  RNSPolynomial poly({1, 2, 3, 4, 5, 6}, {17, 13});
+
+  std::optional<RNSPolynomial> result = poly.scalarMul({3, 15});
+
+  ASSERT_TRUE(result.has_value());
+  SmallVector<uint64_t> expected = {3, 6, 9, 8, 10, 12};
+  EXPECT_EQ(result->getData(), llvm::ArrayRef<uint64_t>(expected));
 }
 
 TEST(RNSPolynomialTest, TestRepresentation) {

@@ -80,6 +80,17 @@ IntPolynomial IntPolynomial::fromCoefficients(ArrayRef<int64_t> coeffs) {
   return fromCoefficientsImpl<IntPolynomial, IntMonomial, int64_t>(coeffs);
 }
 
+SmallVector<APInt> IntPolynomial::getDenseCoefficientVector() const {
+  if (isZero()) return {};
+
+  SmallVector<APInt> result(getDegree() + 1, APInt(apintBitWidth, 0));
+  for (const IntMonomial& term : getTerms()) {
+    result[term.getExponent().getZExtValue()] =
+        term.getCoefficient().sextOrTrunc(apintBitWidth);
+  }
+  return result;
+}
+
 FloatPolynomial FloatPolynomial::fromCoefficients(ArrayRef<double> coeffs) {
   return fromCoefficientsImpl<FloatPolynomial, FloatMonomial, double>(coeffs);
 }

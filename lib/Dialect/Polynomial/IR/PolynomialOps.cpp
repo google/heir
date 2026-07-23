@@ -4,7 +4,9 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <optional>
+#include <utility>
 
 #include "lib/Dialect/ModArith/IR/ModArithAttributes.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
@@ -381,7 +383,7 @@ LogicalResult EvalOp::verify() {
             return intAttr.getPolynomial().getTerms().empty();
           })
           .Case<TypedIntPolynomialAttr>([&](TypedIntPolynomialAttr intAttr) {
-            return intAttr.getValue().getPolynomial().getTerms().empty();
+            return intAttr.getPolynomial().getTerms().empty();
           })
           .Case<FloatPolynomialAttr>([&](FloatPolynomialAttr floatAttr) {
             return floatAttr.getPolynomial().getTerms().empty();
@@ -623,6 +625,101 @@ LogicalResult ApplyCoefficientwiseOp::verify() {
 
 OpFoldResult ConstantOp::fold(FoldAdaptor adaptor) { return getValue(); }
 
+OpFoldResult MonomialOp::fold(FoldAdaptor adaptor) {
+  auto degreeAttr = dyn_cast_or_null<IntegerAttr>(adaptor.getDegree());
+  if (!degreeAttr) return nullptr;
+
+  APInt degree = degreeAttr.getValue();
+  if (degree.isNegative() || degree.getActiveBits() > apintBitWidth) {
+    return nullptr;
+  }
+
+  auto polyType = getOutput().getType();
+  Type coefficientType = polyType.getRing().getCoefficientType();
+
+  if (auto coefficientAttr =
+          dyn_cast_or_null<rns::RNSAttr>(adaptor.getCoefficient())) {
+    if (polyType.getForm() != Form::COEFF) return nullptr;
+
+    auto rnsType = dyn_cast<rns::RNSType>(coefficientType);
+    if (!rnsType || coefficientAttr.getType() != rnsType) return nullptr;
+
+    auto polyModAttr = polyType.getRing().getPolynomialModulus();
+    if (!polyModAttr) return nullptr;
+
+    uint64_t numCoeffs = polyModAttr.getPolynomial().getDegree();
+    uint64_t degreeValue = degree.getZExtValue();
+    if (degreeValue >= numCoeffs) return nullptr;
+
+    auto basisTypes = rnsType.getBasisTypes();
+    if (basisTypes.empty()) return nullptr;
+
+    unsigned bitWidth = 0;
+    for (Type basisType : basisTypes) {
+      auto modArithType = dyn_cast<mod_arith::ModArithType>(basisType);
+      if (!modArithType) return nullptr;
+
+      bitWidth =
+          std::max(bitWidth,
+                   modArithType.getModulus().getType().getIntOrFloatBitWidth());
+    }
+
+    SmallVector<int64_t> shape = {static_cast<int64_t>(basisTypes.size()),
+                                  static_cast<int64_t>(numCoeffs)};
+    Type elementType = IntegerType::get(getContext(), bitWidth);
+
+    SmallVector<APInt> resultAPInts(shape[0] * shape[1], APInt(bitWidth, 0));
+    for (auto [limbIndex, limbAttr] :
+         llvm::enumerate(coefficientAttr.getValues())) {
+      auto modAttr = dyn_cast<mod_arith::ModArithAttr>(limbAttr);
+      if (!modAttr) return nullptr;
+
+      size_t flatIndex = limbIndex * numCoeffs + degreeValue;
+      resultAPInts[flatIndex] =
+          modAttr.getValue().getValue().zextOrTrunc(bitWidth);
+    }
+
+    auto tensorType = RankedTensorType::get(shape, elementType);
+    auto resultCoeffs = DenseIntElementsAttr::get(tensorType, resultAPInts);
+    return RNSPolynomialAttr::get(getContext(), resultCoeffs, polyType,
+                                  polyType.getForm());
+  }
+
+  APInt coefficient;
+  if (auto coefficientAttr =
+          dyn_cast_or_null<mod_arith::ModArithAttr>(adaptor.getCoefficient())) {
+    if (polyType.getForm() != Form::COEFF) return nullptr;
+
+    auto modArithType = dyn_cast<mod_arith::ModArithType>(coefficientType);
+    if (!modArithType || coefficientAttr.getType() != modArithType) {
+      return nullptr;
+    }
+
+    coefficient = coefficientAttr.getValue().getValue().zextOrTrunc(
+        modArithType.getModulus().getValue().getBitWidth());
+    coefficient = coefficient.urem(modArithType.getModulus().getValue());
+  } else {
+    auto integerCoefficientAttr =
+        dyn_cast_or_null<IntegerAttr>(adaptor.getCoefficient());
+    if (!integerCoefficientAttr) return nullptr;
+
+    coefficient = integerCoefficientAttr.getValue().sextOrTrunc(apintBitWidth);
+  }
+
+  coefficient = coefficient.zextOrTrunc(apintBitWidth);
+  if (coefficient.isZero()) {
+    return TypedIntPolynomialAttr::get(getOutput().getType(),
+                                       IntPolynomial::zero());
+  }
+
+  IntMonomial monomial;
+  monomial.setCoefficient(coefficient);
+  monomial.setExponent(degree.zextOrTrunc(apintBitWidth));
+  auto result = IntPolynomial::fromMonomials(monomial);
+  assert(succeeded(result) && "Construction guarantees unique exponents");
+  return TypedIntPolynomialAttr::get(getOutput().getType(), result.value());
+}
+
 static RNSPolynomialAttr getRNSPolynomialAttr(MLIRContext* context,
                                               const RNSPolynomial& poly,
                                               Type resultType, Type elementType,
@@ -639,88 +736,464 @@ static RNSPolynomialAttr getRNSPolynomialAttr(MLIRContext* context,
                                 poly.getRepresentation());
 }
 
-template <typename OpTy, typename AdaptorTy, typename BinaryMapFn>
-static OpFoldResult foldBinaryRNSPoly(OpTy op, AdaptorTy adaptor,
-                                      BinaryMapFn&& mapFn) {
-  auto lhsAttr = dyn_cast_or_null<RNSPolynomialAttr>(adaptor.getLhs());
-  auto rhsAttr = dyn_cast_or_null<RNSPolynomialAttr>(adaptor.getRhs());
-  if (!lhsAttr || !rhsAttr) return nullptr;
+static std::optional<RNSPolynomial> getSingleLimbRNSPolynomial(
+    TypedIntPolynomialAttr attr, const IntPolynomial& poly) {
+  auto polyType = dyn_cast<PolynomialType>(attr.getType());
+  if (!polyType) return std::nullopt;
 
-  RNSPolynomial lhsPoly = lhsAttr.getPolynomial();
-  RNSPolynomial rhsPoly = rhsAttr.getPolynomial();
+  auto modArithType = dyn_cast<mod_arith::ModArithType>(
+      polyType.getRing().getCoefficientType());
+  if (!modArithType) return std::nullopt;
 
-  if (lhsPoly.getRepresentation() != rhsPoly.getRepresentation()) {
+  IntPolynomialAttr polyMod = polyType.getRing().getPolynomialModulus();
+  if (!polyMod) return std::nullopt;
+
+  APInt modulus = modArithType.getModulus().getValue();
+  if (modulus.getActiveBits() > 64) return std::nullopt;
+
+  unsigned degree = polyMod.getPolynomial().getDegree();
+  SmallVector<uint64_t> data(degree, 0);
+  for (const auto& term : poly.getTerms()) {
+    uint64_t exponent = term.getExponent().getZExtValue();
+    if (exponent >= degree) return std::nullopt;
+
+    APInt coeff = term.getCoefficient().sextOrTrunc(modulus.getBitWidth());
+    coeff = coeff.srem(modulus);
+    if (coeff.isNegative()) coeff += modulus;
+    data[exponent] = coeff.getZExtValue();
+  }
+
+  return RNSPolynomial(std::move(data), {modulus.getZExtValue()},
+                       attr.getRepresentation());
+}
+
+static TypedIntPolynomialAttr getTypedIntPolynomialAttr(
+    MLIRContext* context, ArrayRef<uint64_t> coeffs, Type resultType) {
+  SmallVector<IntMonomial> monomials;
+  monomials.reserve(coeffs.size());
+  for (auto [i, coeff] : llvm::enumerate(coeffs)) {
+    APInt coeffInt(apintBitWidth, coeff);
+    if (coeffInt.isZero()) continue;
+    IntMonomial monomial;
+    monomial.setCoefficient(coeffInt);
+    monomial.setExponent(APInt(apintBitWidth, i));
+    monomials.push_back(monomial);
+  }
+
+  auto result = IntPolynomial::fromMonomials(monomials);
+  assert(succeeded(result) && "Construction guarantees unique exponents");
+  return TypedIntPolynomialAttr::get(resultType, result.value());
+}
+
+static TypedIntPolynomialAttr getTypedIntPolynomialAttrFromAPInts(
+    Type resultType, ArrayRef<APInt> coeffs) {
+  SmallVector<IntMonomial> monomials;
+  monomials.reserve(coeffs.size());
+  for (auto [i, coeff] : llvm::enumerate(coeffs)) {
+    APInt coeffInt = coeff.sextOrTrunc(apintBitWidth);
+    if (coeffInt.isZero()) continue;
+    IntMonomial monomial;
+    monomial.setCoefficient(coeffInt);
+    monomial.setExponent(APInt(apintBitWidth, i));
+    monomials.push_back(monomial);
+  }
+
+  auto result = IntPolynomial::fromMonomials(monomials);
+  assert(succeeded(result) && "Construction guarantees unique exponents");
+  return TypedIntPolynomialAttr::get(resultType, result.value());
+}
+
+static std::optional<SmallVector<APInt>> reduceModuloPolynomial(
+    ArrayRef<APInt> coeffs, const IntPolynomial& polynomialModulus) {
+  ArrayRef<IntMonomial> modulusTerms = polynomialModulus.getTerms();
+  // this function is only correct when the polynomial modulus is of the form
+  // X^N+1
+  if (modulusTerms.size() != 2 ||
+      !modulusTerms.front().getExponent().isZero() ||
+      !modulusTerms.front().getCoefficient().isOne() ||
+      !modulusTerms.back().getCoefficient().isOne()) {
+    return std::nullopt;
+  }
+  uint64_t modulusDegree = polynomialModulus.getDegree();
+
+  SmallVector<APInt> result;
+  result.reserve(std::max<uint64_t>(coeffs.size(), modulusDegree));
+  for (APInt coeff : coeffs) {
+    result.push_back(coeff.sextOrTrunc(apintBitWidth));
+  }
+  if (result.size() < modulusDegree) {
+    result.resize(modulusDegree, APInt(apintBitWidth, 0));
+  }
+
+  for (int64_t currentDegree = result.size() - 1;
+       currentDegree >= static_cast<int64_t>(modulusDegree); --currentDegree) {
+    uint64_t reducedDegree = currentDegree - modulusDegree;
+    result[reducedDegree] = (result[reducedDegree] - result[currentDegree])
+                                .sextOrTrunc(apintBitWidth);
+  }
+
+  result.truncate(modulusDegree);
+  return result;
+}
+
+static APInt normalizeMod(APInt value, uint64_t modulus) {
+  APInt modulusValue(apintBitWidth, modulus);
+  APInt result = value.sextOrTrunc(apintBitWidth).srem(modulusValue);
+  if (result.isNegative()) result += modulusValue;
+  return result;
+}
+
+static std::optional<RNSPolynomial> monomialMulCoeffModulo(
+    const RNSPolynomial& poly, uint64_t exponent,
+    const IntPolynomial& polynomialModulus) {
+  if (poly.getRepresentation() != Form::COEFF) return std::nullopt;
+
+  uint64_t numCoeffs = poly.getNumCoeffs();
+  SmallVector<uint64_t> result;
+  result.reserve(poly.getData().size());
+  for (size_t limbIndex = 0; limbIndex < poly.getNumLimbs(); ++limbIndex) {
+    SmallVector<APInt> shifted(numCoeffs + exponent, APInt(apintBitWidth, 0));
+    for (size_t coeffIndex = 0; coeffIndex < numCoeffs; ++coeffIndex) {
+      shifted[coeffIndex + exponent] =
+          APInt(apintBitWidth, poly.getElement(limbIndex, coeffIndex));
+    }
+
+    auto reduced = reduceModuloPolynomial(shifted, polynomialModulus);
+    if (!reduced || reduced->size() != numCoeffs) return std::nullopt;
+
+    uint64_t modulus = poly.getModuli()[limbIndex];
+    for (APInt coeff : *reduced) {
+      result.push_back(normalizeMod(coeff, modulus).getZExtValue());
+    }
+  }
+
+  return RNSPolynomial(
+      std::move(result),
+      SmallVector<uint64_t>(poly.getModuli().begin(), poly.getModuli().end()),
+      Form::COEFF);
+}
+
+OpFoldResult MulScalarOp::fold(FoldAdaptor adaptor) {
+  auto resultType = getOutput().getType();
+
+  if (auto polynomialAttr =
+          dyn_cast_or_null<RNSPolynomialAttr>(adaptor.getPolynomial())) {
+    auto scalarAttr = dyn_cast_or_null<rns::RNSAttr>(adaptor.getScalar());
+    if (!scalarAttr) return nullptr;
+
+    SmallVector<uint64_t> scalarValues;
+    scalarValues.reserve(scalarAttr.getValues().size());
+    for (Attribute value : scalarAttr.getValues()) {
+      auto limbAttr = dyn_cast<mod_arith::ModArithAttr>(value);
+      if (!limbAttr) return nullptr;
+      scalarValues.push_back(limbAttr.getValue().getValue().getZExtValue());
+    }
+
+    auto resultPoly = polynomialAttr.getPolynomial().scalarMul(scalarValues);
+    if (!resultPoly) return nullptr;
+
+    auto elementType = polynomialAttr.getCoefficients().getElementType();
+    auto shape = polynomialAttr.getCoefficients().getType().getShape();
+    return getRNSPolynomialAttr(getContext(), *resultPoly, resultType,
+                                elementType, shape);
+  }
+
+  if (auto polynomialAttr =
+          dyn_cast_or_null<TypedIntPolynomialAttr>(adaptor.getPolynomial())) {
+    IntPolynomial poly = polynomialAttr.getPolynomial();
+    if (auto scalarAttr =
+            dyn_cast_or_null<mod_arith::ModArithAttr>(adaptor.getScalar())) {
+      auto rnsPoly = getSingleLimbRNSPolynomial(polynomialAttr, poly);
+      if (!rnsPoly) return nullptr;
+
+      auto resultPoly =
+          rnsPoly->scalarMul({scalarAttr.getValue().getValue().getZExtValue()});
+      if (!resultPoly) return nullptr;
+      return getTypedIntPolynomialAttr(getContext(), resultPoly->getData(),
+                                       resultType);
+    }
+
+    auto scalarAttr = dyn_cast_or_null<IntegerAttr>(adaptor.getScalar());
+    if (!scalarAttr) return nullptr;
+
+    APInt scalar = scalarAttr.getValue().sextOrTrunc(apintBitWidth);
+    auto polyType = dyn_cast<PolynomialType>(resultType);
+    if (polyType &&
+        isa<mod_arith::ModArithType>(polyType.getRing().getCoefficientType())) {
+      auto rnsPoly = getSingleLimbRNSPolynomial(polynomialAttr, poly);
+      if (!rnsPoly) return nullptr;
+
+      auto resultPoly = rnsPoly->scalarMul({scalar.getZExtValue()});
+      if (!resultPoly) return nullptr;
+      return getTypedIntPolynomialAttr(getContext(), resultPoly->getData(),
+                                       resultType);
+    }
+
+    return TypedIntPolynomialAttr::get(resultType, poly.scale(scalar));
+  }
+
+  if (auto polynomialAttr =
+          dyn_cast_or_null<TypedFloatPolynomialAttr>(adaptor.getPolynomial())) {
+    auto scalarAttr = dyn_cast_or_null<FloatAttr>(adaptor.getScalar());
+    if (!scalarAttr) return nullptr;
+
+    APFloat scalar(scalarAttr.getValue().convertToDouble());
+    FloatPolynomial poly = polynomialAttr.getValue().getPolynomial();
+    return TypedFloatPolynomialAttr::get(resultType, poly.scale(scalar));
+  }
+
+  return nullptr;
+}
+
+OpFoldResult MonicMonomialMulOp::fold(FoldAdaptor adaptor) {
+  auto degreeAttr = dyn_cast_or_null<IntegerAttr>(adaptor.getMonomialDegree());
+  if (!degreeAttr) return nullptr;
+
+  APInt degree = degreeAttr.getValue();
+  if (degree.isNegative() || degree.getActiveBits() > apintBitWidth) {
+    return nullptr;
+  }
+  if (degree.ugt(
+          APInt(degree.getBitWidth(), std::numeric_limits<int>::max()))) {
     return nullptr;
   }
 
-  RNSPolynomial resultPoly = mapFn(lhsPoly, rhsPoly);
+  auto resultType = getResult().getType();
+  auto polyType = dyn_cast<PolynomialType>(resultType);
+  if (!polyType || polyType.getForm() != Form::COEFF) return nullptr;
+  auto polynomialModulus = polyType.getRing().getPolynomialModulus();
+  if (!polynomialModulus) return nullptr;
 
+  uint64_t exponent = degree.getZExtValue();
+  if (auto inputAttr =
+          dyn_cast_or_null<RNSPolynomialAttr>(adaptor.getInput())) {
+    auto resultPoly = monomialMulCoeffModulo(
+        inputAttr.getPolynomial(), exponent, polynomialModulus.getPolynomial());
+    if (!resultPoly) return nullptr;
+
+    auto elementType = inputAttr.getCoefficients().getElementType();
+    auto shape = inputAttr.getCoefficients().getType().getShape();
+    return getRNSPolynomialAttr(getContext(), *resultPoly, resultType,
+                                elementType, shape);
+  }
+
+  auto inputIntAttr =
+      dyn_cast_or_null<TypedIntPolynomialAttr>(adaptor.getInput());
+  if (!inputIntAttr || inputIntAttr.getRepresentation() != Form::COEFF) {
+    return nullptr;
+  }
+
+  IntPolynomial inputPoly = inputIntAttr.getPolynomial();
+  auto inputRNSPoly = getSingleLimbRNSPolynomial(inputIntAttr, inputPoly);
+  if (inputRNSPoly) {
+    auto resultPoly = monomialMulCoeffModulo(*inputRNSPoly, exponent,
+                                             polynomialModulus.getPolynomial());
+    if (!resultPoly) return nullptr;
+    return getTypedIntPolynomialAttr(getContext(), resultPoly->getData(),
+                                     resultType);
+  }
+
+  IntPolynomial resultPoly = inputPoly.monomialMul(static_cast<int>(exponent));
+  auto reduced = reduceModuloPolynomial(resultPoly.getDenseCoefficientVector(),
+                                        polynomialModulus.getPolynomial());
+  if (!reduced) return nullptr;
+  return getTypedIntPolynomialAttrFromAPInts(resultType, *reduced);
+}
+
+template <typename OpTy, typename AdaptorTy, typename RNSBinaryMapFn,
+          typename IntBinaryMapFn>
+static OpFoldResult foldBinaryPoly(OpTy op, AdaptorTy adaptor,
+                                   RNSBinaryMapFn&& rnsMapFn,
+                                   IntBinaryMapFn&& intMapFn) {
+  auto lhsAttr = dyn_cast_or_null<RNSPolynomialAttr>(adaptor.getLhs());
+  auto rhsAttr = dyn_cast_or_null<RNSPolynomialAttr>(adaptor.getRhs());
+  if (lhsAttr && rhsAttr) {
+    RNSPolynomial lhsPoly = lhsAttr.getPolynomial();
+    RNSPolynomial rhsPoly = rhsAttr.getPolynomial();
+
+    if (lhsPoly.getRepresentation() != rhsPoly.getRepresentation()) {
+      return nullptr;
+    }
+
+    RNSPolynomial resultPoly = rnsMapFn(lhsPoly, rhsPoly);
+
+    auto resultType = op.getResult().getType();
+    auto elementType = lhsAttr.getCoefficients().getElementType();
+    auto shape = lhsAttr.getCoefficients().getType().getShape();
+
+    return getRNSPolynomialAttr(op.getContext(), resultPoly, resultType,
+                                elementType, shape);
+  }
+
+  auto lhsIntAttr = dyn_cast_or_null<TypedIntPolynomialAttr>(adaptor.getLhs());
+  auto rhsIntAttr = dyn_cast_or_null<TypedIntPolynomialAttr>(adaptor.getRhs());
+  if (!lhsIntAttr || !rhsIntAttr) return nullptr;
+
+  IntPolynomial lhsPoly = lhsIntAttr.getPolynomial();
+  IntPolynomial rhsPoly = rhsIntAttr.getPolynomial();
+  if (lhsIntAttr.getRepresentation() != rhsIntAttr.getRepresentation()) {
+    return nullptr;
+  }
+
+  auto lhsRNSPoly = getSingleLimbRNSPolynomial(lhsIntAttr, lhsPoly);
+  auto rhsRNSPoly = getSingleLimbRNSPolynomial(rhsIntAttr, rhsPoly);
+  if (lhsRNSPoly && rhsRNSPoly) {
+    RNSPolynomial resultPoly = rnsMapFn(*lhsRNSPoly, *rhsRNSPoly);
+    auto resultType = op.getResult().getType();
+    return getTypedIntPolynomialAttr(op.getContext(), resultPoly.getData(),
+                                     resultType);
+  }
+
+  IntPolynomial resultPoly =
+      intMapFn(lhsPoly, rhsPoly, lhsIntAttr.getRepresentation());
   auto resultType = op.getResult().getType();
-  auto elementType = lhsAttr.getCoefficients().getElementType();
-  auto shape = lhsAttr.getCoefficients().getType().getShape();
-
-  return getRNSPolynomialAttr(op.getContext(), resultPoly, resultType,
-                              elementType, shape);
+  return TypedIntPolynomialAttr::get(resultType, resultPoly);
 }
 
 OpFoldResult AddOp::fold(FoldAdaptor adaptor) {
-  return foldBinaryRNSPoly(
+  return foldBinaryPoly(
       *this, adaptor,
-      [](const RNSPolynomial& a, const RNSPolynomial& b) { return a.add(b); });
+      [](const RNSPolynomial& a, const RNSPolynomial& b) { return a.add(b); },
+      [](const IntPolynomial& a, const IntPolynomial& b, Form) {
+        return a.add(b);
+      });
 }
 
 OpFoldResult SubOp::fold(FoldAdaptor adaptor) {
-  return foldBinaryRNSPoly(
+  return foldBinaryPoly(
       *this, adaptor,
-      [](const RNSPolynomial& a, const RNSPolynomial& b) { return a.sub(b); });
+      [](const RNSPolynomial& a, const RNSPolynomial& b) { return a.sub(b); },
+      [](const IntPolynomial& a, const IntPolynomial& b, Form) {
+        return a.sub(b);
+      });
 }
 
 OpFoldResult MulOp::fold(FoldAdaptor adaptor) {
-  return foldBinaryRNSPoly(
-      *this, adaptor,
-      [](const RNSPolynomial& a, const RNSPolynomial& b) { return a.mul(b); });
+  auto lhsAttr = dyn_cast_or_null<RNSPolynomialAttr>(adaptor.getLhs());
+  auto rhsAttr = dyn_cast_or_null<RNSPolynomialAttr>(adaptor.getRhs());
+  if (lhsAttr && rhsAttr) {
+    RNSPolynomial lhsPoly = lhsAttr.getPolynomial();
+    RNSPolynomial rhsPoly = rhsAttr.getPolynomial();
+
+    if (lhsPoly.getRepresentation() != rhsPoly.getRepresentation()) {
+      return nullptr;
+    }
+
+    RNSPolynomial resultPoly = lhsPoly.mul(rhsPoly);
+
+    auto resultType = getResult().getType();
+    auto elementType = lhsAttr.getCoefficients().getElementType();
+    auto shape = lhsAttr.getCoefficients().getType().getShape();
+
+    return getRNSPolynomialAttr(getContext(), resultPoly, resultType,
+                                elementType, shape);
+  }
+
+  auto lhsIntAttr = dyn_cast_or_null<TypedIntPolynomialAttr>(adaptor.getLhs());
+  auto rhsIntAttr = dyn_cast_or_null<TypedIntPolynomialAttr>(adaptor.getRhs());
+  if (lhsIntAttr && rhsIntAttr) {
+    IntPolynomial lhsPoly = lhsIntAttr.getPolynomial();
+    IntPolynomial rhsPoly = rhsIntAttr.getPolynomial();
+
+    if (lhsIntAttr.getRepresentation() != rhsIntAttr.getRepresentation()) {
+      return nullptr;
+    }
+
+    auto lhs = getSingleLimbRNSPolynomial(lhsIntAttr, lhsPoly);
+    auto rhs = getSingleLimbRNSPolynomial(rhsIntAttr, rhsPoly);
+    if (lhs && rhs) {
+      RNSPolynomial result = lhs->mul(*rhs);
+      return getTypedIntPolynomialAttr(getContext(), result.getData(),
+                                       getResult().getType());
+    }
+
+    if (lhsIntAttr.getRepresentation() != Form::COEFF) return nullptr;
+
+    IntPolynomial result = lhsPoly.naiveMul(rhsPoly);
+    return TypedIntPolynomialAttr::get(getResult().getType(), result);
+  }
+
+  return nullptr;
 }
 
 OpFoldResult NTTOp::fold(FoldAdaptor adaptor) {
   auto inputAttr = dyn_cast_or_null<RNSPolynomialAttr>(adaptor.getInput());
-  if (!inputAttr) return nullptr;
-
   auto rootAttr = adaptor.getRoot();
   if (!rootAttr) return nullptr;
 
-  auto rnsRootAttr = dyn_cast<rns::RNSAttr>(rootAttr->getValue());
-  if (!rnsRootAttr) return nullptr;
+  if (inputAttr) {
+    auto rnsRootAttr = dyn_cast<rns::RNSAttr>(rootAttr->getValue());
+    if (!rnsRootAttr) return nullptr;
 
-  RNSPolynomial poly = inputAttr.getPolynomial();
-  RNSPolynomial resultPoly = poly.toNtt(rnsRootAttr);
+    RNSPolynomial poly = inputAttr.getPolynomial();
+    RNSPolynomial resultPoly = poly.toNtt(rnsRootAttr);
 
-  auto resultType = getResult().getType();
-  auto elementType = inputAttr.getCoefficients().getElementType();
-  auto shape = inputAttr.getCoefficients().getType().getShape();
+    auto resultType = getResult().getType();
+    auto elementType = inputAttr.getCoefficients().getElementType();
+    auto shape = inputAttr.getCoefficients().getType().getShape();
 
-  return getRNSPolynomialAttr(getContext(), resultPoly, resultType, elementType,
-                              shape);
+    return getRNSPolynomialAttr(getContext(), resultPoly, resultType,
+                                elementType, shape);
+  }
+
+  auto inputIntAttr =
+      dyn_cast_or_null<TypedIntPolynomialAttr>(adaptor.getInput());
+  if (!inputIntAttr) return nullptr;
+
+  auto modArithRootAttr =
+      dyn_cast<mod_arith::ModArithAttr>(rootAttr->getValue());
+  if (!modArithRootAttr) return nullptr;
+
+  if (inputIntAttr.getRepresentation() != Form::COEFF) return nullptr;
+
+  IntPolynomial intPoly = inputIntAttr.getPolynomial();
+  auto poly = getSingleLimbRNSPolynomial(inputIntAttr, intPoly);
+  if (!poly) return nullptr;
+  SmallVector<uint64_t> roots = {
+      modArithRootAttr.getValue().getValue().getZExtValue()};
+  RNSPolynomial resultPoly = poly->toNtt(roots);
+  return getTypedIntPolynomialAttr(getContext(), resultPoly.getData(),
+                                   getResult().getType());
 }
 
 OpFoldResult INTTOp::fold(FoldAdaptor adaptor) {
   auto inputAttr = dyn_cast_or_null<RNSPolynomialAttr>(adaptor.getInput());
-  if (!inputAttr) return nullptr;
-
   auto rootAttr = adaptor.getRoot();
   if (!rootAttr) return nullptr;
 
-  auto rnsRootAttr = dyn_cast<rns::RNSAttr>(rootAttr->getValue());
-  if (!rnsRootAttr) return nullptr;
+  if (inputAttr) {
+    auto rnsRootAttr = dyn_cast<rns::RNSAttr>(rootAttr->getValue());
+    if (!rnsRootAttr) return nullptr;
 
-  RNSPolynomial poly = inputAttr.getPolynomial();
-  RNSPolynomial resultPoly = poly.toCoefficient(rnsRootAttr);
+    RNSPolynomial poly = inputAttr.getPolynomial();
+    RNSPolynomial resultPoly = poly.toCoefficient(rnsRootAttr);
 
-  auto resultType = getResult().getType();
-  auto elementType = inputAttr.getCoefficients().getElementType();
-  auto shape = inputAttr.getCoefficients().getType().getShape();
+    auto resultType = getResult().getType();
+    auto elementType = inputAttr.getCoefficients().getElementType();
+    auto shape = inputAttr.getCoefficients().getType().getShape();
 
-  return getRNSPolynomialAttr(getContext(), resultPoly, resultType, elementType,
-                              shape);
+    return getRNSPolynomialAttr(getContext(), resultPoly, resultType,
+                                elementType, shape);
+  }
+
+  auto inputIntAttr =
+      dyn_cast_or_null<TypedIntPolynomialAttr>(adaptor.getInput());
+  if (!inputIntAttr) return nullptr;
+
+  auto modArithRootAttr =
+      dyn_cast<mod_arith::ModArithAttr>(rootAttr->getValue());
+  if (!modArithRootAttr) return nullptr;
+
+  if (inputIntAttr.getRepresentation() != Form::EVAL) return nullptr;
+
+  IntPolynomial intPoly = inputIntAttr.getPolynomial();
+  auto poly = getSingleLimbRNSPolynomial(inputIntAttr, intPoly);
+  if (!poly) return nullptr;
+  SmallVector<uint64_t> roots = {
+      modArithRootAttr.getValue().getValue().getZExtValue()};
+  RNSPolynomial resultPoly = poly->toCoefficient(roots);
+  return getTypedIntPolynomialAttr(getContext(), resultPoly.getData(),
+                                   getResult().getType());
 }
 
 OpFoldResult ExtractSliceOp::fold(FoldAdaptor adaptor) {

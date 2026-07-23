@@ -78,6 +78,25 @@ RNSPolynomial RNSPolynomial::sub(const RNSPolynomial& other) const {
   return RNSPolynomial(std::move(resultData), moduli, representation);
 }
 
+std::optional<RNSPolynomial> RNSPolynomial::scalarMul(
+    llvm::ArrayRef<uint64_t> scalarValues) const {
+  if (scalarValues.size() != getNumLimbs()) return std::nullopt;
+
+  llvm::SmallVector<uint64_t> resultData;
+  resultData.reserve(data.size());
+  for (size_t limbIndex = 0; limbIndex < getNumLimbs(); ++limbIndex) {
+    uint64_t modulus = moduli[limbIndex];
+    uint64_t scalar = scalarValues[limbIndex] % modulus;
+    for (size_t coeffIndex = 0; coeffIndex < numCoeffs; ++coeffIndex) {
+      unsigned __int128 product =
+          (unsigned __int128)getElement(limbIndex, coeffIndex) * scalar;
+      resultData.push_back(product % modulus);
+    }
+  }
+
+  return RNSPolynomial(std::move(resultData), moduli, representation);
+}
+
 RNSPolynomial RNSPolynomial::mul(const RNSPolynomial& other) const {
   assert(moduli == other.moduli && "Moduli must match for multiplication");
   assert(numCoeffs == other.numCoeffs && "Number of coefficients must match");
@@ -108,25 +127,24 @@ RNSPolynomial RNSPolynomial::mul(const RNSPolynomial& other) const {
   return RNSPolynomial();
 }
 
-RNSPolynomial RNSPolynomial::toNtt(rns::RNSAttr rootAttr) const {
+RNSPolynomial RNSPolynomial::toNtt(
+    llvm::ArrayRef<uint64_t> rootsOfUnity) const {
   assert(representation == Form::COEFF && "Already in NTT representation");
 
   llvm::SmallVector<uint64_t> resultData;
   resultData.reserve(data.size());
 
-  if (rootAttr) {
-    assert(rootAttr.getValues().size() == getNumLimbs() &&
-           "mismatch in number of limbs for root attribute");
+  if (!rootsOfUnity.empty()) {
+    assert(rootsOfUnity.size() == getNumLimbs() &&
+           "mismatch in number of limbs for roots");
   }
 
   for (size_t limbIdx = 0; limbIdx < getNumLimbs(); ++limbIdx) {
     uint64_t modulus = moduli[limbIdx];
     uint64_t rootOfUnity;
 
-    if (rootAttr) {
-      auto rootMA =
-          llvm::cast<mod_arith::ModArithAttr>(rootAttr.getValues()[limbIdx]);
-      rootOfUnity = rootMA.getValue().getValue().getZExtValue();
+    if (!rootsOfUnity.empty()) {
+      rootOfUnity = rootsOfUnity[limbIdx];
     } else {
       llvm::APInt qAp(64, modulus);
       std::optional<llvm::APInt> rootOpt =
@@ -148,26 +166,37 @@ RNSPolynomial RNSPolynomial::toNtt(rns::RNSAttr rootAttr) const {
   return RNSPolynomial(std::move(resultData), moduli, Form::EVAL);
 }
 
-RNSPolynomial RNSPolynomial::toCoefficient(rns::RNSAttr rootAttr) const {
+RNSPolynomial RNSPolynomial::toNtt(rns::RNSAttr rootAttr) const {
+  if (!rootAttr) return toNtt(llvm::ArrayRef<uint64_t>());
+
+  llvm::SmallVector<uint64_t> roots;
+  roots.reserve(rootAttr.getValues().size());
+  for (auto root : rootAttr.getValues()) {
+    auto rootMA = llvm::cast<mod_arith::ModArithAttr>(root);
+    roots.push_back(rootMA.getValue().getValue().getZExtValue());
+  }
+  return toNtt(roots);
+}
+
+RNSPolynomial RNSPolynomial::toCoefficient(
+    llvm::ArrayRef<uint64_t> rootsOfUnity) const {
   assert(representation == Form::EVAL &&
          "Already in Coefficient representation");
 
   llvm::SmallVector<uint64_t> resultData;
   resultData.reserve(data.size());
 
-  if (rootAttr) {
-    assert(rootAttr.getValues().size() == getNumLimbs() &&
-           "mismatch in number of limbs for root attribute");
+  if (!rootsOfUnity.empty()) {
+    assert(rootsOfUnity.size() == getNumLimbs() &&
+           "mismatch in number of limbs for roots");
   }
 
   for (size_t limbIdx = 0; limbIdx < getNumLimbs(); ++limbIdx) {
     uint64_t modulus = moduli[limbIdx];
     uint64_t rootOfUnity;
 
-    if (rootAttr) {
-      auto rootMA =
-          llvm::cast<mod_arith::ModArithAttr>(rootAttr.getValues()[limbIdx]);
-      rootOfUnity = rootMA.getValue().getValue().getZExtValue();
+    if (!rootsOfUnity.empty()) {
+      rootOfUnity = rootsOfUnity[limbIdx];
     } else {
       llvm::APInt qAp(64, modulus);
       std::optional<llvm::APInt> rootOpt =
@@ -187,6 +216,18 @@ RNSPolynomial RNSPolynomial::toCoefficient(rns::RNSAttr rootAttr) const {
   }
 
   return RNSPolynomial(std::move(resultData), moduli, Form::COEFF);
+}
+
+RNSPolynomial RNSPolynomial::toCoefficient(rns::RNSAttr rootAttr) const {
+  if (!rootAttr) return toCoefficient(llvm::ArrayRef<uint64_t>());
+
+  llvm::SmallVector<uint64_t> roots;
+  roots.reserve(rootAttr.getValues().size());
+  for (auto root : rootAttr.getValues()) {
+    auto rootMA = llvm::cast<mod_arith::ModArithAttr>(root);
+    roots.push_back(rootMA.getValue().getValue().getZExtValue());
+  }
+  return toCoefficient(roots);
 }
 
 RNSPolynomial RNSPolynomial::slice(size_t start, size_t size) const {

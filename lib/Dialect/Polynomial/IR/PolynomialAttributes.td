@@ -86,6 +86,8 @@ def Polynomial_TypedIntPolynomialAttr : Polynomial_Attr<
   ];
   let extraClassDeclaration = [{
     using ValueType = ::mlir::heir::polynomial::IntPolynomialAttr;
+    ::mlir::heir::polynomial::IntPolynomial getPolynomial() const;
+    ::mlir::heir::polynomial::Form getRepresentation() const;
   }];
 }
 
@@ -260,6 +262,7 @@ def Polynomial_PrimitiveRootAttr: Polynomial_Attr<"PrimitiveRoot", "primitive_ro
   );
   let assemblyFormat = "`<` struct(params) `>`";
 }
+
 def Polynomial_RNSPolynomialAttr : Polynomial_Attr<"RNSPolynomial", "rns_polynomial", [TypedAttrInterface]> {
   let summary = "A polynomial represented in RNS form";
   let description = [{

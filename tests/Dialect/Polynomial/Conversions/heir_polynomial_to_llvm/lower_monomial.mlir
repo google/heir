@@ -4,11 +4,10 @@
 !coeff_ty = !mod_arith.int<65536:i32>
 #ring = #polynomial.ring<coefficientType=!coeff_ty, polynomialModulus=#cycl_2048>
 
-func.func @test_monomial() -> !polynomial.polynomial<ring=#ring> {
+// CHECK: func.func @test_monomial(%[[five:.*]]:
+func.func @test_monomial(%five: !coeff_ty) -> !polynomial.polynomial<ring=#ring> {
   // CHECK: %[[deg:.*]] = arith.constant 1023
   %deg = arith.constant 1023 : index
-  // CHECK: %[[five:.*]] = mod_arith.constant 5
-  %five = mod_arith.constant 5 : !coeff_ty
   // CHECK: %[[container:.*]] = arith.constant dense<0>
   // CHECK: %[[container_mod:.*]] = mod_arith.encapsulate %[[container]]
   // CHECK: tensor.insert %[[five]] into %[[container_mod]][%[[deg]]]

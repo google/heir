@@ -304,12 +304,6 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
           op, "failed to construct common conversion info");
 
     auto typeInfo = res.value();
-    // TODO(#97): support compile-time NTT
-    if (typeInfo.polynomialType.getForm() == Form::EVAL) {
-      return rewriter.notifyMatchFailure(
-          op, "unsupported eval-form polynomial constant");
-    }
-
     auto attr = dyn_cast<TypedIntPolynomialAttr>(op.getValue());
     if (!attr)
       return rewriter.notifyMatchFailure(op,
@@ -425,6 +419,10 @@ struct ConvertMonomial : public OpConversionPattern<MonomialOp> {
       return rewriter.notifyMatchFailure(
           op, "failed to construct common conversion info");
     auto typeInfo = res.value();
+    if (typeInfo.polynomialType.getForm() != Form::COEFF) {
+      return rewriter.notifyMatchFailure(
+          op, "Monomial lowering requires COEFF form output");
+    }
 
     SmallVector<int64_t> storageShape(typeInfo.tensorType.getShape().begin(),
                                       typeInfo.tensorType.getShape().end());
@@ -433,25 +431,6 @@ struct ConvertMonomial : public OpConversionPattern<MonomialOp> {
     }
     auto storageTensorType =
         RankedTensorType::get(storageShape, typeInfo.coefficientStorageType);
-
-    // TODO(#97): support compile-time NTT
-    // We don't have proper support for EVAL-form constants, but we can
-    // at least support degree-zero polynomial constants in EVAL form. The
-    // NTT of a degree-zero polynomial is a vector where each coefficient is the
-    // constant term.
-    if (typeInfo.polynomialType.getForm() == Form::EVAL) {
-      IntegerAttr degreeAttr;
-      if (!matchPattern(adaptor.getDegree(), m_Constant(&degreeAttr)) ||
-          degreeAttr.getInt() != 0) {
-        return rewriter.notifyMatchFailure(
-            op, "unsupported eval-form non-constant monomial");
-      }
-
-      Value result = tensor::SplatOp::create(b, adaptor.getCoefficient(),
-                                             typeInfo.tensorType);
-      rewriter.replaceOp(op, result);
-      return success();
-    }
 
     auto tensor = arith::ConstantOp::create(
         b, DenseElementsAttr::get(
