@@ -37,12 +37,12 @@ namespace heir {
 // LevelAnalysis (Forward)
 //===----------------------------------------------------------------------===//
 [[maybe_unused]] static void debugLog(StringRef opName,
-                                      ArrayRef<const LevelLattice*> operands,
+                                      ArrayRef<LevelState> operands,
                                       const LevelState& result) {
   LLVM_DEBUG({
     llvm::dbgs() << "transferForward: " << opName << "(";
-    for (auto* operand : operands) {
-      operand->getValue().print(llvm::dbgs());
+    for (const auto& operand : operands) {
+      operand.print(llvm::dbgs());
       llvm::dbgs() << ", ";
     }
     llvm::dbgs() << ") = ";
@@ -52,7 +52,7 @@ namespace heir {
 };
 
 LevelState transferForward(ReducesLevelOpInterface op,
-                           ArrayRef<const LevelLattice*> operands) {
+                           ArrayRef<LevelState> operands) {
   unsigned operandIdx = op.getOperandToReduce().getOperandNumber();
   LevelState result = std::visit(
       Overloaded{
@@ -63,13 +63,13 @@ LevelState transferForward(ReducesLevelOpInterface op,
             return LevelState(val + op.getLevelsToDrop());
           },
       },
-      operands[operandIdx]->getValue().get());
+      operands[operandIdx].get());
   LLVM_DEBUG(debugLog("ReduceLevelOpInterface", operands, result));
   return result;
 }
 
 LevelState transferForward(ReducesAllLevelsOpInterface op,
-                           ArrayRef<const LevelLattice*> operands) {
+                           ArrayRef<LevelState> operands) {
   LevelState result = std::visit(
       Overloaded{
           // MaxLevel -> MaxLevel should result in a no-op, so technically
@@ -79,13 +79,13 @@ LevelState transferForward(ReducesAllLevelsOpInterface op,
           [](Invalid) -> LevelState { return LevelState(Invalid{}); },
           [](int val) -> LevelState { return LevelState(MaxLevel{}); },
       },
-      operands[0]->getValue().get());
+      operands[0].get());
   LLVM_DEBUG(debugLog("ReduceAllLevelsOpInterface", operands, result));
   return result;
 }
 
 LevelState transferForward(ResetsLevelOpInterface op,
-                           ArrayRef<const LevelLattice*> operands) {
+                           ArrayRef<LevelState> operands) {
   unsigned operandIdx = op.getOperandToReset().getOperandNumber();
   LevelState result = std::visit(
       Overloaded{
@@ -94,13 +94,12 @@ LevelState transferForward(ResetsLevelOpInterface op,
           [](Invalid) -> LevelState { return LevelState(Invalid{}); },
           [](int val) -> LevelState { return LevelState(0); },
       },
-      operands[operandIdx]->getValue().get());
+      operands[operandIdx].get());
   LLVM_DEBUG(debugLog("ResetsLevelOpInterface", operands, result));
   return result;
 }
 
-LevelState deriveResultLevel(Operation* op,
-                             ArrayRef<const LevelLattice*> operands) {
+LevelState deriveResultLevel(Operation* op, ArrayRef<LevelState> operands) {
   return llvm::TypeSwitch<Operation*, LevelState>(op)
       .Case<ResetsLevelOpInterface>(
           [&](auto op) -> LevelState { return transferForward(op, operands); })
@@ -110,8 +109,8 @@ LevelState deriveResultLevel(Operation* op,
           [&](auto op) -> LevelState { return transferForward(op, operands); })
       .Default([&](auto* op) -> LevelState {
         LevelState result;
-        for (auto* operandState : operands) {
-          result = LevelState::join(result, operandState->getValue());
+        for (const auto& operand : operands) {
+          result = LevelState::join(result, operand);
         }
         LLVM_DEBUG(debugLog(op->getName().getStringRef(), operands, result));
         return result;
@@ -127,7 +126,11 @@ LogicalResult LevelAnalysis::visitOperation(
     propagateIfChanged(lattice, changed);
   };
 
-  LevelState resultLevel = deriveResultLevel(op, operands);
+  SmallVector<LevelState> operandStates;
+  for (auto* operand : operands) {
+    operandStates.push_back(operand->getValue());
+  }
+  LevelState resultLevel = deriveResultLevel(op, operandStates);
   if (resultLevel.isInt() && resultLevel.getInt() > levelBudget) {
     resultLevel = LevelState(Invalid{});
   }
