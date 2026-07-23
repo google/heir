@@ -70,6 +70,10 @@ int RLWEDropLevelOp::getLevelsToDrop() { return getLevelToDrop(); }
   return getOperation()->getOpOperand(1);
 }
 
+::mlir::OpOperand& CKKSBootstrapOp::getOperandToReset() {
+  return getOperation()->getOpOperand(1);
+}
+
 ::mlir::OpOperand& RLWEDropLevelNewOp::getOperandToReduce() {
   return getOperation()->getOpOperand(1);
 }
