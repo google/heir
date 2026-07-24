@@ -18,18 +18,38 @@
 namespace mlir::heir::rotom {
 namespace {
 
-/// Maps a `#rotom.dim` from the layout's `dims` list to its iterator index `i*`
-/// after preprocessing (match logical axis, size, and stride).
-static FailureOr<int64_t> varIndexForRotomDim(const SmallVector<DimAttr>& axes,
-                                              DimAttr want) {
+/// Maps a tensor axis id to its iterator index `i*` after preprocessing.
+/// Preprocessing dedupes traversal pieces per logical axis (a mixed-radix
+/// split contributes one variable), so the axis id identifies the variable.
+static FailureOr<int64_t> varIndexForAxis(const SmallVector<DimAttr>& axes,
+                                          int64_t axis) {
   for (int64_t i = 0; i < static_cast<int64_t>(axes.size()); ++i) {
-    if (axes[i].getDim() == want.getDim() &&
-        axes[i].getSize() == want.getSize() &&
-        axes[i].getStride() == want.getStride()) {
-      return i;
-    }
+    if (axes[i].getDim() == axis) return i;
   }
   return failure();
+}
+
+/// Product of the extents of `dim`'s pieces in the layout's dims list (the
+/// logical axis extent; a single whole-dim piece gives its own size).
+static int64_t fullExtentOfDim(ArrayAttr rotomDims, int64_t dim) {
+  int64_t extent = 1;
+  for (Attribute a : rotomDims) {
+    auto d = cast<DimAttr>(a);
+    if (!d.isGap() && !d.isReplicate() && d.getDim() == dim) {
+      extent *= d.getSize();
+    }
+  }
+  return extent;
+}
+
+/// Whether `dim` is packed as more than one mixed-radix piece.
+static bool isSplitDim(ArrayAttr rotomDims, int64_t dim) {
+  int64_t count = 0;
+  for (Attribute a : rotomDims) {
+    auto d = cast<DimAttr>(a);
+    if (!d.isGap() && !d.isReplicate() && d.getDim() == dim) ++count;
+  }
+  return count > 1;
 }
 
 static std::string modExpr(llvm::StringRef expr, int64_t mod) {
@@ -88,7 +108,7 @@ static LogicalResult emitSegmentAddress(
     llvm::raw_ostream& os, bool& firstTerm, ArrayRef<LayoutPiece> pieces,
     const SmallVector<DimAttr>& axes, int64_t numAxes, size_t segStart,
     size_t segEnd, const llvm::DenseSet<int64_t>& rolledGapIndices,
-    ArrayRef<int64_t> rolls, ArrayAttr rotomDims) {
+    ArrayRef<int64_t> rolls, ArrayRef<int64_t> rollSteps, ArrayAttr rotomDims) {
   // Effective extent of a piece = the range of its mixed-radix digit, which
   // is the piece's own extent: a lone piece reads the whole axis index, and
   // for a valid mixed-radix split each digit ranges over its piece's extent.
@@ -156,51 +176,113 @@ static LogicalResult emitSegmentAddress(
     axisExprs.push_back("i" + std::to_string(i));
   }
 
-  // Apply roll(a,b) transforms left-to-right:
-  // t_a <- (t_a - t_b) mod extent(a).
+  // Apply rolls left-to-right. A piece FROM rewrites that piece's own
+  // mixed-radix digit in place, (digit - step * shift) mod extent(piece),
+  // leaving its axis's other digits untouched; an `axis` FROM rewrites the
+  // whole axis index mod its full extent, so the shift borrows across digits
+  // (each piece then takes its digit of the rolled index). The shift is the
+  // by endpoint's index: a traversal piece's digit (its whole index when the
+  // axis is unsplit), a whole axis via `axis`, a slot replication's replica
+  // index, or a gap's block index. Layout rolls always have unit step; a
+  // non-unit step arises only from a plan-level PreRotation appended by the
+  // caller (the baby-step/giant-step giant pre-rotation), which multiplies
+  // the shift and runs against the subtraction direction.
   //
-  // The rewrite lands wherever the FROM dimension sits -- the ciphertext
-  // address, the slot address, or both when it straddles the boundary. BY is
-  // another traversal dimension on either axis, or a slot replication/gap
-  // block index, so a roll diagonalizes a ciphertext dimension against a slot
-  // one (one ciphertext per diagonal) or two slot dimensions (a Halevi-Shoup
-  // slot diagonal); a roll within the ciphertext axis is a free ciphertext
+  // The rewrite lands wherever the FROM pieces sit -- the ciphertext
+  // address, the slot address, or both when the axis straddles the boundary.
+  // A roll diagonalizes a ciphertext dimension against a slot one (one
+  // ciphertext per diagonal) or two slot dimensions (a Halevi-Shoup slot
+  // diagonal); a roll within the ciphertext axis is a free ciphertext
   // relabeling that enumeration never generates.
   if (!rolls.empty()) {
     if (!rotomDims || rolls.size() % 2 != 0) return failure();
     for (size_t i = 0; i < rolls.size(); i += 2) {
-      const int64_t fromIdx = rolls[i];
-      const int64_t toIdx = rolls[i + 1];
-      if (fromIdx < 0 || toIdx < 0 ||
-          fromIdx >= static_cast<int64_t>(rotomDims.size()) ||
-          toIdx >= static_cast<int64_t>(rotomDims.size())) {
+      const RollEndpoint from = decodeRollEndpoint(rolls[i]);
+      const RollEndpoint by = decodeRollEndpoint(rolls[i + 1]);
+      const int64_t step = i / 2 < rollSteps.size() ? rollSteps[i / 2] : 1;
+      if (!from.isAxis && from.index >= static_cast<int64_t>(rotomDims.size()))
         return failure();
-      }
-      auto fromDim = cast<DimAttr>(rotomDims[fromIdx]);
-      auto toDim = cast<DimAttr>(rotomDims[toIdx]);
-      FailureOr<int64_t> maybeFromVar = varIndexForRotomDim(axes, fromDim);
+      if (!by.isAxis && by.index >= static_cast<int64_t>(rotomDims.size()))
+        return failure();
+      DimAttr fromPiece =
+          from.isAxis ? DimAttr() : dyn_cast<DimAttr>(rotomDims[from.index]);
+      if (!from.isAxis && !fromPiece) return failure();
+      const int64_t fromAxis = from.isAxis ? from.index : fromPiece.getDim();
+      FailureOr<int64_t> maybeFromVar = varIndexForAxis(axes, fromAxis);
       if (failed(maybeFromVar)) return failure();
       const int64_t fromVar = *maybeFromVar;
+
       std::string toExpr;
-      if (toDim.isGap()) {
-        // Rolling by a gap dim: the shift is the gap's existential block
-        // index, so block g holds the rolled dim cyclically shifted by g.
-        toExpr = "g" + std::to_string(gapIndexForPosition(rotomDims, toIdx));
-      } else if (toDim.isReplicate()) {
-        // Rolling by a replication dim: the shift is the replica index, whose
-        // existential variable is named after the piece's replication slot.
-        int64_t replicationIndex = 0;
-        for (int64_t k = 0; k < toIdx; ++k) {
-          if (cast<DimAttr>(rotomDims[k]).isReplicate()) ++replicationIndex;
-        }
-        toExpr = "d" + std::to_string(numAxes + replicationIndex);
-      } else {
-        FailureOr<int64_t> maybeToVar = varIndexForRotomDim(axes, toDim);
+      if (by.isAxis) {
+        // Rolling by a whole axis: the shift is the axis's (possibly
+        // already-rolled) index expression.
+        FailureOr<int64_t> maybeToVar = varIndexForAxis(axes, by.index);
         if (failed(maybeToVar)) return failure();
         toExpr = axisExprs[*maybeToVar];
+      } else {
+        auto toDim = dyn_cast<DimAttr>(rotomDims[by.index]);
+        if (!toDim) return failure();
+        if (toDim.isGap()) {
+          // Rolling by a gap dim: the shift is the gap's existential block
+          // index, so block g holds the rolled index cyclically shifted by g.
+          toExpr =
+              "g" + std::to_string(gapIndexForPosition(rotomDims, by.index));
+        } else if (toDim.isReplicate()) {
+          // Rolling by a replication dim: the shift is the replica index,
+          // whose existential variable is named after the piece's replication
+          // slot.
+          int64_t replicationIndex = 0;
+          for (int64_t k = 0; k < by.index; ++k) {
+            if (cast<DimAttr>(rotomDims[k]).isReplicate()) ++replicationIndex;
+          }
+          toExpr = "d" + std::to_string(numAxes + replicationIndex);
+        } else {
+          FailureOr<int64_t> maybeToVar = varIndexForAxis(axes, toDim.getDim());
+          if (failed(maybeToVar)) return failure();
+          toExpr = axisExprs[*maybeToVar];
+          if (isSplitDim(rotomDims, toDim.getDim())) {
+            // The by piece's digit: (i / stride) mod extent, with the modulus
+            // redundant on the most-significant digit.
+            const int64_t fullTo = fullExtentOfDim(rotomDims, toDim.getDim());
+            if (toDim.getStride() > 1) {
+              toExpr = floorDivExpr(toExpr, toDim.getStride());
+            }
+            if (toDim.getStride() * toDim.getSize() < fullTo) {
+              toExpr = modExpr(toExpr, toDim.getSize());
+            }
+          }
+        }
       }
-      std::string diffExpr = "(" + axisExprs[fromVar] + " - " + toExpr + ")";
-      axisExprs[fromVar] = modExpr(diffExpr, fromDim.getSize());
+
+      if (step != 1) {
+        toExpr = std::to_string(step) + " * (" + toExpr + ")";
+      }
+
+      if (from.isAxis || !isSplitDim(rotomDims, fromAxis)) {
+        // Whole-axis rewrite (the piece spelling of an unsplit axis is the
+        // same operation: its one piece's digit is the axis index).
+        std::string diffExpr = "(" + axisExprs[fromVar] + " - " + toExpr + ")";
+        axisExprs[fromVar] =
+            modExpr(diffExpr, fullExtentOfDim(rotomDims, fromAxis));
+      } else {
+        // Piece rewrite on a split axis: replace this piece's digit with
+        // (digit - step * shift) mod extent(piece), i.e. add
+        // stride * (newDigit - digit) to the axis index. No borrow crosses
+        // into the other digits.
+        const int64_t stride = fromPiece.getStride();
+        const int64_t extent = fromPiece.getSize();
+        const std::string axisExpr = axisExprs[fromVar];
+        std::string digit = axisExpr;
+        if (stride > 1) digit = floorDivExpr(digit, stride);
+        if (stride * extent < fullExtentOfDim(rotomDims, fromAxis)) {
+          digit = modExpr(digit, extent);
+        }
+        const std::string newDigit =
+            modExpr("(" + digit + " - " + toExpr + ")", extent);
+        axisExprs[fromVar] = "(" + axisExpr + " + " + std::to_string(stride) +
+                             " * (" + newDigit + ") - " +
+                             std::to_string(stride) + " * (" + digit + "))";
+      }
     }
   }
 
@@ -237,7 +319,7 @@ static LogicalResult emitSegmentAddress(
 static FailureOr<std::string> emitSplitCtSlotIsl(
     int64_t n, size_t prefix, ArrayRef<LayoutPiece> pieces,
     const SmallVector<DimAttr>& axes, ArrayRef<int64_t> rolls,
-    ArrayAttr rotomDims) {
+    ArrayRef<int64_t> rollSteps, ArrayAttr rotomDims) {
   if (prefix > pieces.size()) return failure();
 
   const int64_t numAxes = static_cast<int64_t>(axes.size());
@@ -316,7 +398,7 @@ static FailureOr<std::string> emitSplitCtSlotIsl(
   bool firstTerm = true;
   os << "ct = ";
   if (failed(emitSegmentAddress(os, firstTerm, pieces, axes, numAxes, 0, prefix,
-                                rolledGapIndices, rolls, rotomDims)))
+                                rolledGapIndices, rolls, rollSteps, rotomDims)))
     return failure();
   if (firstTerm) os << "0";
 
@@ -325,7 +407,7 @@ static FailureOr<std::string> emitSplitCtSlotIsl(
   os << "slot = ";
   if (failed(emitSegmentAddress(os, firstTerm, pieces, axes, numAxes, prefix,
                                 pieces.size(), rolledGapIndices, rolls,
-                                rotomDims)))
+                                rollSteps, rotomDims)))
     return failure();
   if (firstTerm) os << "0";
 
@@ -350,7 +432,8 @@ static FailureOr<std::string> emitSplitCtSlotIsl(
   return s;
 }
 
-static FailureOr<std::string> lowerToIslImpl(LayoutAttr layout) {
+static FailureOr<std::string> lowerToIslImpl(LayoutAttr layout,
+                                             const PreRotation* preRotation) {
   auto maybeData = preprocessLayoutAttr(layout);
   if (failed(maybeData)) return failure();
   const LayoutData& data = *maybeData;
@@ -363,17 +446,32 @@ static FailureOr<std::string> lowerToIslImpl(LayoutAttr layout) {
   }
 
   DenseI64ArrayAttr rollsAttr = layout.getRolls();
-  ArrayRef<int64_t> rolls =
-      rollsAttr ? rollsAttr.asArrayRef() : ArrayRef<int64_t>{};
+  SmallVector<int64_t> rolls;
+  if (rollsAttr)
+    rolls.assign(rollsAttr.asArrayRef().begin(), rollsAttr.asArrayRef().end());
+  // A plan-level pre-rotation composes as one more rewrite AFTER the
+  // layout's rolls, expressed in the emitter's internal shift arithmetic:
+  // (idx - step * digit) mod extent with step = -multiplier.
+  SmallVector<int64_t> rollSteps(rolls.size() / 2, 1);
+  if (preRotation) {
+    rolls.push_back(preRotation->fromPiece);
+    rolls.push_back(preRotation->byPiece);
+    rollSteps.push_back(-preRotation->multiplier);
+  }
   return emitSplitCtSlotIsl(data.n, data.ctPrefixLen, data.pieces, data.axes,
-                            rolls, layout.getDims());
+                            rolls, rollSteps, layout.getDims());
 }
 
 }  // namespace
 
 FailureOr<std::string> RotomTensorExtLayoutLowering::lowerToTensorExtIsl(
+    LayoutAttr layout, const PreRotation& preRotation) {
+  return lowerToIslImpl(layout, &preRotation);
+}
+
+FailureOr<std::string> RotomTensorExtLayoutLowering::lowerToTensorExtIsl(
     LayoutAttr layout) {
-  return lowerToIslImpl(layout);
+  return lowerToIslImpl(layout, /*preRotation=*/nullptr);
 }
 
 }  // namespace mlir::heir::rotom

@@ -55,11 +55,23 @@ def Rotom_LayoutAttr : Rotom_Attr<"Layout", "layout"> {
     with an explicit gap piece (e.g. `[G:4:1]`).
     See [Section 4.2 of the Rotom paper](https://eprint.iacr.org/2025/1319.pdf).
 
-    Optional **rolls** encode a `roll(i,j)` metadata object: each pair `(i, j)`
-    indexes into the `dims` array (the flattened `ct_dims + slot_dims` list) and
-    rewrites `dims[i]`'s index to `(idx_i - idx_j) mod size(dims[i])`. The two
-    extents need not match: the shift reduces modulo the rolled dim's extent, so
-    a smaller partner covers a prefix of the rotations and a larger one wraps.
+    Optional **rolls** encode `roll(from, by)` metadata objects, applied left
+    to right. Each endpoint is either a *piece* -- a position in the `dims`
+    list, spelled as a bare integer -- or a whole tensor *axis*, spelled
+    `axis N` (legal only when axis `N` is packed as more than one piece; the
+    piece spelling is canonical for an unsplit axis, where the two coincide).
+
+    A piece FROM rewrites that piece's own mixed-radix digit in place,
+    `digit(from) <- (digit(from) - shift(by)) mod extent(from)`, leaving
+    the axis's other digits untouched. An `axis` FROM rewrites the whole axis
+    index modulo its full extent, and each piece then takes its digit of the
+    rolled index -- the shift borrows across digits, which no combination of
+    piece rolls can express. The shift is the by endpoint's index: a
+    traversal piece's digit (its whole index when the axis is unsplit), a
+    whole axis's index via `axis`, a replication piece's replica index, or a
+    gap piece's block index. The two extents need not match: the shift
+    reduces modulo the rolled extent, so a smaller partner covers a prefix of
+    the rotations and a larger one wraps.
   }];
 
   let parameters = (ins

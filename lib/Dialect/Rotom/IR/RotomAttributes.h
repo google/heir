@@ -15,6 +15,38 @@
 
 namespace mlir::heir::rotom {
 
+// One endpoint of a roll: either one piece of the layout (a position in its
+// dims list) or a whole tensor axis (spelled `axis N`; legal only when the
+// axis is packed as more than one piece).
+struct RollEndpoint {
+  bool isAxis;
+  int64_t index;  // Dims-list position, or the tensor axis id when isAxis.
+  bool operator==(const RollEndpoint& other) const {
+    return isAxis == other.isAxis && index == other.index;
+  }
+};
+
+// Endpoint encoding in the flat rolls storage: a piece endpoint is its
+// non-negative dims-list position, an axis endpoint is -(axis + 1).
+inline int64_t encodeRollEndpoint(RollEndpoint e) {
+  return e.isAxis ? -(e.index + 1) : e.index;
+}
+inline RollEndpoint decodeRollEndpoint(int64_t encoded) {
+  return encoded < 0 ? RollEndpoint{true, -encoded - 1}
+                     : RollEndpoint{false, encoded};
+}
+
+// One roll of a layout: FROM's index is rewritten to
+// (idx_from - shift(by)) mod extent(from), where a piece FROM rewrites only
+// its own mixed-radix digit and an axis FROM rewrites the whole axis index.
+struct RollSpec {
+  RollEndpoint from;
+  RollEndpoint by;
+};
+
+// The layout's rolls with both endpoints decoded.
+llvm::SmallVector<RollSpec> getRollSpecs(LayoutAttr layout);
+
 enum class LayoutPieceKind { Traversal, Replication, Gap };
 
 struct LayoutPiece {
