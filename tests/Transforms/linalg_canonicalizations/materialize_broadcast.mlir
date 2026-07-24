@@ -73,3 +73,24 @@ func.func @reduction_no_broadcast(%arg0: tensor<3x16xf32>) -> tensor<3xf32> {
   } -> tensor<3xf32>
   return %0 : tensor<3xf32>
 }
+
+// -----
+
+// CHECK-LABEL: @broadcast_type_mismatch
+func.func @broadcast_type_mismatch(%arg0: tensor<3xi32>, %arg1: tensor<3x16xf32>) -> tensor<3x16xf32> {
+  %cst = tensor.empty() : tensor<3x16xf32>
+  // CHECK: %[[EMPTY:.*]] = tensor.empty() : tensor<3x16xi32>
+  // CHECK: %[[EXPANDED:.*]] = linalg.broadcast ins(%arg0 : tensor<3xi32>) outs(%[[EMPTY]] : tensor<3x16xi32>)
+  // CHECK: linalg.generic
+  %0 = linalg.generic {
+    indexing_maps = [affine_map<(d0, d1) -> (d0)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>],
+    iterator_types = ["parallel", "parallel"]
+  } ins(%arg0, %arg1 : tensor<3xi32>, tensor<3x16xf32>) outs(%cst : tensor<3x16xf32>) {
+  ^bb0(%in: i32, %in_0: f32, %out: f32):
+    %1 = arith.sitofp %in : i32 to f32
+    %2 = arith.addf %1, %in_0 : f32
+    linalg.yield %2 : f32
+  } -> tensor<3x16xf32>
+  return %0 : tensor<3x16xf32>
+}
+
