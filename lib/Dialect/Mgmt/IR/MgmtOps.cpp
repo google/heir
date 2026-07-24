@@ -31,7 +31,7 @@ void LevelReduceOp::getCanonicalizationPatterns(RewritePatternSet& results,
 
 void AdjustScaleOp::getCanonicalizationPatterns(RewritePatternSet& results,
                                                 MLIRContext* context) {
-  results.add<ModReduceAfterAdjustScale>(context);
+  results.add<ModReduceAfterAdjustScale, MergeAdjustScale>(context);
 }
 
 void LevelReduceMinOp::getCanonicalizationPatterns(RewritePatternSet& results,

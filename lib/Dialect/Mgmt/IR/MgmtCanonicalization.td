@@ -52,4 +52,10 @@ def MergeModReduce : Pat<
   [(HasOneUse:$modReduceOp1)]
 >;
 
+def MergeAdjustScale : Pat<
+  (Mgmt_AdjustScaleOp:$adjustScaleOp2 (Mgmt_AdjustScaleOp:$adjustScaleOp1 $input, $id1), $id2),
+  (Mgmt_AdjustScaleOp $input, $id2),
+  [(HasOneUse:$adjustScaleOp1)]
+>;
+
 #endif  // LIB_DIALECT_MGMT_IR_MGMTCANONICALIZATION_TD_
