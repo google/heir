@@ -3,6 +3,8 @@
 // Use the minimum level level of the two operands for the result storage
 
 !evaluator = !lattigo.bgv.evaluator
+!ckks_evaluator = !lattigo.ckks.evaluator
+!bootstrapping_evaluator = !lattigo.ckks.bootstrapping_evaluator
 !ct = !lattigo.rlwe.ciphertext
 
 // CHECK: ![[evaluator:.*]] = !lattigo.bgv.evaluator
@@ -19,4 +21,20 @@ func.func @drop_level(%evaluator : !evaluator, %ct : !ct) -> !ct {
     %1 = lattigo.rlwe.drop_level_new %evaluator, %ct_level_0 { levelToDrop = 4 } : (!evaluator, !ct) -> !ct
     %2 = lattigo.bgv.add_new %evaluator, %0, %1 : (!evaluator, !ct, !ct) -> !ct
     return %2 : !ct
+}
+
+// A bootstrap resets depth to zero. Do not reuse its exhausted input as
+// storage for the refreshed result's users, or the user will be coereced
+// down to level 0, which will then cause failures down the line.
+// CHECK: func.func @bootstrap_resets_level
+func.func @bootstrap_resets_level(%evaluator: !ckks_evaluator, %bootstrapping_evaluator: !bootstrapping_evaluator, %ct: !ct) -> !ct {
+    // CHECK: %[[LOW:.*]] = lattigo.ckks.rescale_new
+    %0 = lattigo.ckks.rescale_new %evaluator, %ct : (!ckks_evaluator, !ct) -> !ct
+    // CHECK: %[[BOOT:.*]] = lattigo.ckks.bootstrap %{{.*}}, %[[LOW]]
+    %1 = lattigo.ckks.bootstrap %bootstrapping_evaluator, %0 : (!bootstrapping_evaluator, !ct) -> !ct
+    // CHECK: %[[MUL:.*]] = lattigo.ckks.mul %{{.*}}, %[[BOOT]], %[[BOOT]], %[[BOOT]]
+    %2 = lattigo.ckks.mul_new %evaluator, %1, %1 : (!ckks_evaluator, !ct, !ct) -> !ct
+    // CHECK: %[[RESCALED:.*]] = lattigo.ckks.rescale %{{.*}}, %[[MUL]], %[[LOW]]
+    %3 = lattigo.ckks.rescale_new %evaluator, %2 : (!ckks_evaluator, !ct) -> !ct
+    return %3 : !ct
 }

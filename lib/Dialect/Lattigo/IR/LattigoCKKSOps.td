@@ -331,7 +331,9 @@ def Lattigo_CKKSRotateOp : Lattigo_CKKSUnaryInPlaceOp<"rotate", [
   let hasVerifier = 1;
 }
 
-def Lattigo_CKKSBootstrapOp : Lattigo_CKKSUnaryOp<"bootstrap"> {
+def Lattigo_CKKSBootstrapOp : Lattigo_CKKSUnaryOp<"bootstrap", [
+  DeclareOpInterfaceMethods<ResetsLevelOpInterface, ["getOperandToReset"]>
+]> {
   let summary = "Bootstrap a ciphertext in the Lattigo CKKS dialect";
   let description = [{
     Bootstraps a ciphertext value in the Lattigo CKKS dialect.
