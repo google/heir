@@ -133,8 +133,11 @@ def Lattigo_RLWEDropLevelNewOp : Lattigo_RLWEOp<"drop_level_new",
   let results = (outs Lattigo_RLWECiphertext:$output);
 }
 
-def Lattigo_RLWEDropLevelOp : Lattigo_RLWEOp<"drop_level",
-  [InPlaceOpInterface, DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop", "getOperandToReduce"]>]> {
+def Lattigo_RLWEDropLevelOp : Lattigo_RLWEOp<"drop_level", [
+  InPlaceOpInterface,
+  DeclareOpInterfaceMethods<ReducesLevelOpInterface, ["getLevelsToDrop", "getOperandToReduce"]>,
+  DefaultMemWriteTrait,
+]> {
   let summary = "Drop level of a ciphertext";
   let description = [{
     This operation drops the level of a ciphertext
@@ -144,12 +147,11 @@ def Lattigo_RLWEDropLevelOp : Lattigo_RLWEOp<"drop_level",
   }];
   let arguments = (ins
     Lattigo_RLWEEvaluator:$evaluator,
-    Lattigo_RLWECiphertext:$input,
-    Lattigo_RLWECiphertext:$inplace,
+    Arg<Lattigo_RLWECiphertext, "", [FullMemRead]>:$input,
+    Arg<Lattigo_RLWECiphertext, "", [FullMemWrite]>:$inplace,
     DefaultValuedAttr<I64Attr, "1">:$levelToDrop
   );
   let results = (outs Lattigo_RLWECiphertext:$output);
-
   let extraClassDeclaration = "int getInPlaceOperandIndex() { return 2; }";
 }
 
@@ -162,7 +164,10 @@ def Lattigo_RLWENegateNewOp : Lattigo_RLWEOp<"negate_new", [Pure]> {
   let results = (outs Lattigo_RLWECiphertext:$output);
 }
 
-def Lattigo_RLWENegateOp : Lattigo_RLWEOp<"negate", [InPlaceOpInterface]> {
+def Lattigo_RLWENegateOp : Lattigo_RLWEOp<"negate", [
+  InPlaceOpInterface,
+  DefaultMemWriteTrait,
+]> {
   let summary = "Negate of a ciphertext";
   let description = [{
     This operation negates a ciphertext
@@ -172,11 +177,10 @@ def Lattigo_RLWENegateOp : Lattigo_RLWEOp<"negate", [InPlaceOpInterface]> {
   }];
   let arguments = (ins
     Lattigo_RLWEEvaluator:$evaluator,
-    Lattigo_RLWECiphertext:$input,
-    Lattigo_RLWECiphertext:$inplace
+    Arg<Lattigo_RLWECiphertext, "", [FullMemRead]>:$input,
+    Arg<Lattigo_RLWECiphertext, "", [FullMemWrite]>:$inplace
   );
   let results = (outs Lattigo_RLWECiphertext:$output);
-
   let extraClassDeclaration = "int getInPlaceOperandIndex() { return 2; }";
 }
 

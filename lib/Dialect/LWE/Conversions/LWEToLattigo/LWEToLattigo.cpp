@@ -494,7 +494,7 @@ struct ConvertRlweOpBootstrap : public OpConversionPattern<BootstrapOp> {
         op, LattigoBootstrapOp::create(
                 rewriter, op.getLoc(),
                 this->typeConverter->convertType(op.getOutput().getType()),
-                evaluator, adaptor.getInput()));
+                evaluator, adaptor.getInput(), adaptor.getInput()));
     return success();
   }
 };

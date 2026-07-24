@@ -15,6 +15,11 @@ class Lattigo_Op<string mnemonic, list<Trait> traits = []> :
   }];
 }
 
+def FullMemRead : MemReadAt<0, FullEffect>;
+def FullMemWrite : MemWriteAt<0, FullEffect>;
+def DefaultMemReadTrait : MemoryEffects<[FullMemRead]>;
+def DefaultMemWriteTrait : MemoryEffects<[FullMemWrite]>;
+
 include "LattigoBGVOps.td"
 include "LattigoCKKSOps.td"
 include "LattigoRLWEOps.td"

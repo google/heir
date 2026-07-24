@@ -15,7 +15,9 @@ class Lattigo_CKKSOp<string mnemonic, list<Trait> traits = []> :
 // This operation cannot be marked as Pure because it represents a buffer allocation.
 // If marked as Pure, CSE will deduplicate them, causing multiple in-place operations
 // (like encode) to share the same buffer and overwrite each other.
-def Lattigo_CKKSNewPlaintextOp : Lattigo_CKKSOp<"new_plaintext"> {
+def Lattigo_CKKSNewPlaintextOp : Lattigo_CKKSOp<"new_plaintext", [
+  MemoryEffects<[MemAllocAt<0, FullEffect>]>
+]> {
   let summary = "Create a new plaintext in the Lattigo CKKS dialect";
   let description = [{
     This operation creates a new plaintext value in the Lattigo CKKS dialect.
@@ -23,7 +25,8 @@ def Lattigo_CKKSNewPlaintextOp : Lattigo_CKKSOp<"new_plaintext"> {
   let arguments = (ins
     Lattigo_CKKSParameter:$params
   );
-  let results = (outs Lattigo_RLWEPlaintext:$plaintext);
+  let results = (outs Res<Lattigo_RLWEPlaintext, "",
+                          [MemAllocAt<0, FullEffect>]>:$plaintext);
 }
 
 def Lattigo_CKKSNewParametersFromLiteralOp : Lattigo_CKKSOp<"new_parameters_from_literal", [Pure]> {
@@ -48,7 +51,11 @@ def Lattigo_CKKSNewEncoderOp : Lattigo_CKKSOp<"new_encoder", [Pure]> {
   let results = (outs Lattigo_CKKSEncoder:$encoder);
 }
 
-def Lattigo_CKKSEncodeOp : Lattigo_CKKSOp<"encode", [InPlaceOpInterface, PlaintextEncodeOpInterface]> {
+def Lattigo_CKKSEncodeOp : Lattigo_CKKSOp<"encode", [
+  InPlaceOpInterface,
+  PlaintextEncodeOpInterface,
+  DefaultMemWriteTrait,
+]> {
   let summary = "Encode a plaintext value in the Lattigo CKKS dialect";
   let description = [{
     This operation encodes a plaintext value using the specified encoder in the Lattigo CKKS dialect.
@@ -60,7 +67,7 @@ def Lattigo_CKKSEncodeOp : Lattigo_CKKSOp<"encode", [InPlaceOpInterface, Plainte
   let arguments = (ins
     Lattigo_CKKSEncoder:$encoder,
     TensorOrMemRef<[AnyFloat, AnyComplex]>:$value,
-    Lattigo_RLWEPlaintext:$plaintext,
+    Arg<Lattigo_RLWEPlaintext, "", [FullMemWrite]>:$plaintext,
     DefaultValuedAttr<I64Attr, "1">:$scale
   );
   let results = (outs Lattigo_RLWEPlaintext:$encoded);
@@ -68,7 +75,7 @@ def Lattigo_CKKSEncodeOp : Lattigo_CKKSOp<"encode", [InPlaceOpInterface, Plainte
   let extraClassDeclaration = "int getInPlaceOperandIndex() { return 2; }";
 }
 
-def Lattigo_CKKSDecodeOp : Lattigo_CKKSOp<"decode", [AllTypesMatch<["value", "decoded"]>]> {
+def Lattigo_CKKSDecodeOp : Lattigo_CKKSOp<"decode", [AllTypesMatch<["value", "decoded"]>, DefaultMemReadTrait]> {
   let summary = "Decode a plaintext value in the Lattigo CKKS dialect";
   let description = [{
     This operation decodes a plaintext value using the specified encoder in the Lattigo CKKS dialect.
@@ -77,7 +84,7 @@ def Lattigo_CKKSDecodeOp : Lattigo_CKKSOp<"decode", [AllTypesMatch<["value", "de
   }];
   let arguments = (ins
     Lattigo_CKKSEncoder:$encoder,
-    Lattigo_RLWEPlaintext:$plaintext,
+    Arg<Lattigo_RLWEPlaintext, "", [FullMemRead]>:$plaintext,
     TensorOrMemRef<[AnyFloat, AnyComplex]>:$value
   );
   // although bgv.Decode is also an inplace operation as bgv.Encode, as there are post-processing
@@ -144,11 +151,11 @@ def Lattigo_CKKSNewBootstrappingEvaluatorOp : Lattigo_CKKSOp<"new_bootstrapping_
 // ciphertext arithmetic op
 
 class Lattigo_CKKSBinaryOp<string mnemonic, list<Trait> traits = []> :
-        Lattigo_CKKSOp<mnemonic, traits # [Pure]> {
+        Lattigo_CKKSOp<mnemonic, traits # [Pure, DefaultMemReadTrait]> {
   let arguments = (ins
     Lattigo_CKKSEvaluator:$evaluator,
     Lattigo_RLWECiphertext:$lhs,
-    Lattigo_RLWECiphertextOrPlaintext:$rhs
+    Arg<Lattigo_RLWECiphertextOrPlaintext, "", [FullMemRead]>:$rhs
   );
   let results = (outs Lattigo_RLWECiphertext:$output);
 }
@@ -175,17 +182,19 @@ def Lattigo_CKKSMulNewOp : Lattigo_CKKSBinaryOp<"mul_new", [IncreasesMulDepthOpI
 }
 
 class Lattigo_CKKSBinaryInPlaceOp<string mnemonic, list<Trait> traits = []> :
-        Lattigo_CKKSOp<mnemonic, traits # [InPlaceOpInterface]> {
+        Lattigo_CKKSOp<mnemonic, traits # [
+          InPlaceOpInterface,
+          DefaultMemWriteTrait,
+        ]> {
   let arguments = (ins
     Lattigo_CKKSEvaluator:$evaluator,
     Lattigo_RLWECiphertext:$lhs,
-    Lattigo_RLWECiphertextOrPlaintext:$rhs,
+    Arg<Lattigo_RLWECiphertextOrPlaintext, "lattigo ciphertext or plaintext", [FullMemRead]>:$rhs,
     // Lattigo API is like bgv.Add(lhs, rhs, out) but for MLIR we need to
     // satisfy the SSA form, so we still have a separate output.
-    Lattigo_RLWECiphertext:$inplace
+    Arg<Lattigo_RLWECiphertextOrPlaintext, "lattigo ciphertext or plaintext", [FullMemWrite]>:$inplace
   );
   let results = (outs Lattigo_RLWECiphertext:$output);
-
   let extraClassDeclaration = "int getInPlaceOperandIndex() { return 3; }";
 }
 
@@ -269,15 +278,17 @@ def Lattigo_CKKSRotateNewOp : Lattigo_CKKSOp<"rotate_new", [
 }
 
 class Lattigo_CKKSUnaryInPlaceOp<string mnemonic, list<Trait> traits = []> :
-        Lattigo_CKKSOp<mnemonic, traits # [InPlaceOpInterface]> {
+        Lattigo_CKKSOp<mnemonic, traits # [
+          InPlaceOpInterface,
+          DefaultMemWriteTrait,
+        ]> {
   let arguments = (ins
     Lattigo_CKKSEvaluator:$evaluator,
     Lattigo_RLWECiphertext:$input,
     // see BinaryInPlaceOp above
-    Lattigo_RLWECiphertext:$inplace
+    Arg<Lattigo_RLWECiphertext, "", [FullMemWrite]>:$inplace
   );
   let results = (outs Lattigo_RLWECiphertext:$output);
-
   let extraClassDeclaration = "int getInPlaceOperandIndex() { return 2; }";
 }
 
@@ -304,7 +315,8 @@ def Lattigo_CKKSRescaleOp : Lattigo_CKKSUnaryInPlaceOp<"rescale", [
 }
 
 def Lattigo_CKKSRotateOp : Lattigo_CKKSUnaryInPlaceOp<"rotate", [
-  DeclareOpInterfaceMethods<RotationOpInterface>
+  DeclareOpInterfaceMethods<RotationOpInterface>,
+  DefaultMemWriteTrait,
 ]> {
   let summary = "Rotate slots of a ciphertext in the Lattigo CKKS dialect";
   let description = [{
@@ -321,9 +333,9 @@ def Lattigo_CKKSRotateOp : Lattigo_CKKSUnaryInPlaceOp<"rotate", [
   }];
   let arguments = (ins
     Lattigo_CKKSEvaluator:$evaluator,
-    Lattigo_RLWECiphertext:$input,
+    Arg<Lattigo_RLWECiphertext, "", [FullMemRead]>:$input,
     // see BinaryInPlaceOp above
-    Lattigo_RLWECiphertext:$inplace,
+    Arg<Lattigo_RLWECiphertext, "", [FullMemWrite]>:$inplace,
     Optional<AnySignlessIntegerOrIndex>:$dynamic_shift,
     OptionalAttr<Builtin_IntegerAttr>:$static_shift
   );
@@ -331,7 +343,10 @@ def Lattigo_CKKSRotateOp : Lattigo_CKKSUnaryInPlaceOp<"rotate", [
   let hasVerifier = 1;
 }
 
-def Lattigo_CKKSBootstrapOp : Lattigo_CKKSUnaryOp<"bootstrap"> {
+def Lattigo_CKKSBootstrapOp : Lattigo_CKKSOp<"bootstrap", [
+  InPlaceOpInterface,
+  DefaultMemWriteTrait,
+]> {
   let summary = "Bootstrap a ciphertext in the Lattigo CKKS dialect";
   let description = [{
     Bootstraps a ciphertext value in the Lattigo CKKS dialect.
@@ -345,9 +360,12 @@ def Lattigo_CKKSBootstrapOp : Lattigo_CKKSUnaryOp<"bootstrap"> {
 
   let arguments = (ins
     Lattigo_CKKSBootstrappingEvaluator:$evaluator,
-    Lattigo_RLWECiphertext:$input
+    Lattigo_RLWECiphertext:$input,
+    Arg<Lattigo_RLWECiphertext, "", [FullMemWrite]>:$inplace
   );
   let results = (outs Lattigo_RLWECiphertext:$output);
+
+  let extraClassDeclaration = "int getInPlaceOperandIndex() { return 2; }";
 }
 
 def Lattigo_CKKSLinearTransformOp : Lattigo_CKKSOp<"linear_transform", [
