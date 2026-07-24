@@ -183,6 +183,7 @@ cc_binary(
         "@heir//lib/Transforms/Secretize",
         "@heir//lib/Transforms/SelectRewrite",
         "@heir//lib/Transforms/ShapeInference",
+        "@heir//lib/Transforms/SoftmaxCanonicalizations",
         "@heir//lib/Transforms/SoftmaxToCgfSoftmax",
         "@heir//lib/Transforms/SplitPreprocessing",
         "@heir//lib/Transforms/StraightLineVectorizer",

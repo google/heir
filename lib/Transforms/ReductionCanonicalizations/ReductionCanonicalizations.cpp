@@ -47,6 +47,14 @@ struct GenericToReduce : public OpRewritePattern<mlir::linalg::GenericOp> {
     LLVM_DEBUG(genericOp.print(llvm::dbgs()));
     LLVM_DEBUG(llvm::dbgs() << "\n");
 
+    // make sure we have equal number of input and output
+    if (genericOp.getInputs().size() != genericOp.getDpsInits().size()) {
+      return rewriter.notifyMatchFailure(
+          genericOp,
+          "genericOp with mismatched input/output counts cannot become a "
+          "linalg.reduce");
+    }
+
     // make sure we need to reduce and collect dimensions
     mlir::SmallVector<int64_t> dimensions = {};
     for (int i = 0; i < genericOp.getIteratorTypesArray().size(); i++) {
