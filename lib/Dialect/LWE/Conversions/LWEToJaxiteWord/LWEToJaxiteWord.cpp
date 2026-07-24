@@ -233,6 +233,39 @@ struct ConvertBinOp : public OpConversionPattern<SourceOp> {
   }
 };
 
+// The JaxiteWord API requires ciphertext-plaintext operand ordering even for
+// commutative source operations.
+template <typename SourceOp, typename TargetOp>
+struct ConvertCommutativePlainOp : public OpConversionPattern<SourceOp> {
+  using OpConversionPattern<SourceOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      SourceOp op, typename SourceOp::Adaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    FailureOr<Value> ctx = getContextualCryptoContextForJaxiteWord(op);
+    if (failed(ctx)) return failure();
+
+    Value ciphertext;
+    Value plaintext;
+    if (isa<lwe::LWECiphertextType>(
+            getElementTypeOrSelf(op.getLhs().getType()))) {
+      ciphertext = adaptor.getLhs();
+      plaintext = adaptor.getRhs();
+    } else if (isa<lwe::LWECiphertextType>(
+                   getElementTypeOrSelf(op.getRhs().getType()))) {
+      ciphertext = adaptor.getRhs();
+      plaintext = adaptor.getLhs();
+    } else {
+      return rewriter.notifyMatchFailure(op, "expected one ciphertext operand");
+    }
+
+    rewriter.replaceOpWithNewOp<TargetOp>(
+        op, this->getTypeConverter()->convertType(op.getOutput().getType()),
+        ctx.value(), ciphertext, plaintext);
+    return success();
+  }
+};
+
 struct ConvertMulOp : public OpConversionPattern<ckks::MulOp> {
   using OpConversionPattern::OpConversionPattern;
 
@@ -433,6 +466,12 @@ struct LWEToJaxiteWord : public impl::LWEToJaxiteWordBase<LWEToJaxiteWord> {
                                                                context);
     patterns.add<ConvertBinOp<ckks::AddOp, jaxiteword::AddOp>>(typeConverter,
                                                                context);
+    patterns.add<
+        ConvertCommutativePlainOp<lwe::RAddPlainOp, jaxiteword::AddPlainOp>,
+        ConvertCommutativePlainOp<ckks::AddPlainOp, jaxiteword::AddPlainOp>,
+        ConvertCommutativePlainOp<lwe::RMulPlainOp, jaxiteword::MulPlainOp>,
+        ConvertCommutativePlainOp<ckks::MulPlainOp, jaxiteword::MulPlainOp>>(
+        typeConverter, context);
     patterns.add<ConvertBinOp<ckks::SubOp, jaxiteword::SubOp>>(typeConverter,
                                                                context);
     patterns.add<ConvertMulOp>(typeConverter, context);
@@ -449,11 +488,6 @@ struct LWEToJaxiteWord : public impl::LWEToJaxiteWordBase<LWEToJaxiteWord> {
     patterns.add<ConvertEncryptOp>(typeConverter, context);
     patterns.add<ConvertDecryptOp>(typeConverter, context);
     patterns.add<ConvertDecodeOp>(typeConverter, context);
-    patterns.add<ConvertBinOp<lwe::RMulPlainOp, jaxiteword::MulPlainOp>>(
-        typeConverter, context);
-    patterns.add<ConvertBinOp<ckks::MulPlainOp, jaxiteword::MulPlainOp>>(
-        typeConverter, context);
-
     if (failed(applyPartialConversion(op, target, std::move(patterns)))) {
       return signalPassFailure();
     }

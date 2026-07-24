@@ -118,10 +118,11 @@ LogicalResult JaxiteWordEmitter::translate(Operation& op) {
           .Case<ModuleOp>([&](auto op) { return printOperation(op); })
           .Case<func::FuncOp, func::CallOp, func::ReturnOp>(
               [&](auto op) { return printOperation(op); })
-          .Case<AddOp, SubOp, SquareOp, MulOp, MulNoRelinOp, ModReduceOp, RotOp,
-                RelinOp, MulPlainOp, AddInPlaceOp, SubInPlaceOp, EncodeOp,
-                DecodeOp, EncryptOp, DecryptOp, GenParamsOp, GenKeyPairOp,
-                GenMulKeyOp, GenRotKeyOp, ProgramInitializationOp>(
+          .Case<AddOp, AddPlainOp, SubOp, SquareOp, MulOp, MulNoRelinOp,
+                ModReduceOp, RotOp, RelinOp, MulPlainOp, AddInPlaceOp,
+                SubInPlaceOp, EncodeOp, DecodeOp, EncryptOp, DecryptOp,
+                GenParamsOp, GenKeyPairOp, GenMulKeyOp, GenRotKeyOp,
+                ProgramInitializationOp>(
               [&](auto op) { return printOperation(op); })
           .Case<tensor::ExtractOp, tensor::FromElementsOp, tensor::EmptyOp,
                 tensor::InsertOp, tensor::ExtractSliceOp,
@@ -133,9 +134,9 @@ LogicalResult JaxiteWordEmitter::translate(Operation& op) {
               [&](auto op) { return printOperation(op); })
           .Case<arith::ConstantOp>([&](auto op) { return printOperation(op); })
           .Case<arith::IndexCastOp, arith::AddIOp, arith::SubIOp, arith::MulIOp,
-                arith::DivSIOp, arith::RemSIOp, arith::CmpIOp, arith::SelectOp,
-                arith::ExtSIOp, arith::ExtUIOp, arith::TruncIOp>(
-              [&](auto op) { return printOperation(op); })
+                arith::DivSIOp, arith::FloorDivSIOp, arith::RemSIOp,
+                arith::CmpIOp, arith::SelectOp, arith::ExtSIOp, arith::ExtUIOp,
+                arith::TruncIOp>([&](auto op) { return printOperation(op); })
           .Default([&](Operation&) {
             return op.emitOpError("unable to find printer for op");
           });
@@ -255,6 +256,18 @@ LogicalResult JaxiteWordEmitter::printOperation(func::ReturnOp op) {
 LogicalResult JaxiteWordEmitter::printOperation(AddOp op) {
   return printBinaryOpHelper(op.getResult(), op.getLhs(), op.getRhs(),
                              op.getCryptoContext(), op, "he_add", "add");
+}
+
+LogicalResult JaxiteWordEmitter::printOperation(AddPlainOp op) {
+  auto ctx = variableNames->getNameForValue(op.getCryptoContext());
+  auto ct = variableNames->getNameForValue(op.getCiphertext());
+  auto pt = variableNames->getNameForValue(op.getPlaintext());
+  auto result = variableNames->getNameForValue(op.getOutput());
+  auto level =
+      getCrossLevelExpr(op.getCiphertext(), ctx, op, /*extraOffset=*/0);
+  os << result << " = " << ctx << ".he_add[" << level << "].add_plain(" << ct
+     << ", " << pt << ")\n";
+  return success();
 }
 
 LogicalResult JaxiteWordEmitter::printOperation(SubOp op) {
@@ -422,14 +435,8 @@ LogicalResult JaxiteWordEmitter::printOperation(MulPlainOp op) {
   auto result = variableNames->getNameForValue(op.getResult());
   auto level =
       getCrossLevelExpr(op.getCiphertext(), ctx, op, /*extraOffset=*/0);
-  std::string ptNtt = result + "_pt_ntt";
-  std::string opName = result + "_ptct";
-
-  os << ptNtt << " = " << pt << ".polynomial[0, 0, ..., :" << ct
-     << ".num_moduli].astype(jnp.uint32)\n";
-  os << opName << " = " << ctx << ".ptct_mul[" << level << "]\n";
-  os << opName << ".set_plaintext(" << ptNtt << ")\n";
-  os << result << " = " << opName << ".mul(" << ct << ", use_bat=False)\n";
+  os << result << " = " << ctx << ".ptct_mul[" << level << "].mul(" << ct
+     << ", " << pt << ")\n";
   return success();
 }
 
@@ -1020,6 +1027,13 @@ LogicalResult JaxiteWordEmitter::printOperation(arith::MulIOp op) {
 }
 
 LogicalResult JaxiteWordEmitter::printOperation(arith::DivSIOp op) {
+  os << variableNames->getNameForValue(op.getResult()) << " = "
+     << variableNames->getNameForValue(op.getLhs()) << " // "
+     << variableNames->getNameForValue(op.getRhs()) << "\n";
+  return success();
+}
+
+LogicalResult JaxiteWordEmitter::printOperation(arith::FloorDivSIOp op) {
   os << variableNames->getNameForValue(op.getResult()) << " = "
      << variableNames->getNameForValue(op.getLhs()) << " // "
      << variableNames->getNameForValue(op.getRhs()) << "\n";

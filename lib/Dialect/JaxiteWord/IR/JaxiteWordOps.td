@@ -188,6 +188,16 @@ def AddOp : JaxiteWord_BinaryOp<"add", [Commutative]> {
   let summary = "Homomorphic addition of two ciphertexts";
 }
 
+def AddPlainOp : JaxiteWord_Op<"add_plain", [Pure]> {
+  let summary = "Add a plaintext to a ciphertext";
+  let arguments = (ins
+    JaxiteWord_CryptoContext:$cryptoContext,
+    LWECiphertext:$ciphertext,
+    LWEPlaintext:$plaintext
+  );
+  let results = (outs LWECiphertext:$output);
+}
+
 def MulOp : JaxiteWord_Op<"mul", [Pure]> {
   let summary = "Homomorphic multiplication of two ciphertexts with relinearization";
   let arguments = (ins

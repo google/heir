@@ -22,6 +22,13 @@ func.func @test_add(%ctx: !jaxiteword.crypto_context<>, %ct1 : !ct_L1, %ct2 : !c
   return %out : !ct_L1
 }
 
+// CHECK: def test_add_plain(
+// CHECK: {{.*}} = {{.*}}.he_add[{{.*}}.max_level].add_plain({{.*}}, {{.*}})
+func.func @test_add_plain(%ctx: !jaxiteword.crypto_context<>, %ct : !ct_L2, %pt : !pt) -> !ct_L2 {
+  %out = jaxiteword.add_plain %ctx, %ct, %pt : (!jaxiteword.crypto_context<>, !ct_L2, !pt) -> !ct_L2
+  return %out : !ct_L2
+}
+
 // CHECK: def test_sub(
 // CHECK: .he_sub[
 // CHECK-SAME: ].sub(
@@ -74,12 +81,18 @@ func.func @test_rotate(%ctx: !jaxiteword.crypto_context<>, %ct: !ct_L1, %ek: !ja
 }
 
 // CHECK: def test_mul_plain(
-// CHECK: .polynomial[0, 0, ..., :{{.*}}.num_moduli].astype(jnp.uint32)
 // CHECK: .ptct_mul[
-// CHECK: .mul({{.*}}, use_bat=False)
+// CHECK-SAME: ].mul({{.*}}, {{.*}})
 func.func @test_mul_plain(%ctx: !jaxiteword.crypto_context<>, %ct: !ct_L1, %pt: !pt) -> !ct_L1 {
   %out = jaxiteword.mul_plain %ctx, %ct, %pt : (!jaxiteword.crypto_context<>, !ct_L1, !pt) -> !ct_L1
   return %out : !ct_L1
+}
+
+// CHECK: def test_floor_div_si(
+// CHECK: {{.*}} = {{.*}} // {{.*}}
+func.func @test_floor_div_si(%lhs: i32, %rhs: i32) -> i32 {
+  %out = arith.floordivsi %lhs, %rhs : i32
+  return %out : i32
 }
 
 // CHECK: def test_gen_params(

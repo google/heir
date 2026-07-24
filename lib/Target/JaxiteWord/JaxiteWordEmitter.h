@@ -48,6 +48,7 @@ class JaxiteWordEmitter {
   LogicalResult printOperation(func::CallOp op);
   LogicalResult printOperation(func::ReturnOp returnOp);
   LogicalResult printOperation(AddOp op);
+  LogicalResult printOperation(AddPlainOp op);
   LogicalResult printOperation(SubOp op);
   LogicalResult printOperation(SquareOp op);
   LogicalResult printOperation(MulOp op);
@@ -91,6 +92,7 @@ class JaxiteWordEmitter {
   LogicalResult printOperation(arith::SubIOp op);
   LogicalResult printOperation(arith::MulIOp op);
   LogicalResult printOperation(arith::DivSIOp op);
+  LogicalResult printOperation(arith::FloorDivSIOp op);
   LogicalResult printOperation(arith::RemSIOp op);
   LogicalResult printOperation(arith::CmpIOp op);
   LogicalResult printOperation(arith::SelectOp op);
