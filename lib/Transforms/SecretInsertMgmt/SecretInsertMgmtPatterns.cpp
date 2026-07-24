@@ -36,8 +36,12 @@ LogicalResult updateResultLevelLattice(Operation* op, DataFlowSolver* solver) {
   }
 
   if (!op->getResults().empty()) {
+    SmallVector<LevelState> operandStates;
+    for (auto* lattice : operandLattices) {
+      operandStates.push_back(lattice->getValue());
+    }
     for (auto result : op->getResults()) {
-      LevelState resultLevel = deriveResultLevel(op, operandLattices);
+      LevelState resultLevel = deriveResultLevel(op, operandStates);
       auto* resultLattice = solver->getOrCreateState<LevelLattice>(result);
       resultLattice->getValue() = resultLevel;
     }
@@ -394,45 +398,8 @@ LogicalResult UseInitOpForPlaintextOperand<Op>::matchAndRewrite(
   return success();
 }
 
-template <typename Op>
-LogicalResult BootstrapWaterLine<Op>::matchAndRewrite(
-    Op op, PatternRewriter& rewriter) const {
-  LevelState levelState =
-      solver->getOrCreateState<LevelLattice>(op->getResult(0))->getValue();
-  if (!levelState.isInt() && !levelState.isExhausted()) {
-    return rewriter.notifyMatchFailure(op,
-                                       "level lattice is uninit or invalid");
-  }
-
-  // This simple greedy bootstrapping placement pattern will insert bootstrap
-  // ops when the level is a multiple of the waterline - this way each
-  // operations resulting level after bootstrapping placement is its
-  // multiplicate depth % waterline, so that all levels are less than the
-  // waterline.
-  if (levelState.isInt() && levelState.getInt() % waterline != 0) {
-    return rewriter.notifyMatchFailure(op,
-                                       "level is not a multiple of waterline");
-  }
-
-  // An "isExhausted" LevelState means we have to bootstrap
-
-  // insert mgmt::BootstrapOp after
-  rewriter.setInsertionPointAfter(op);
-  auto bootstrap = mgmt::BootstrapOp::create(
-      rewriter, op.getLoc(), op->getResultTypes(), op->getResult(0));
-  op->getResult(0).replaceAllUsesExcept(bootstrap, {bootstrap});
-
-  // insert mgmt::BootstrapOp into secretness lattice - otherwise mgmt
-  // attributes like level won't be required
-  auto* secretnessLattice =
-      solver->getOrCreateState<SecretnessLattice>(bootstrap);
-  secretnessLattice->getValue().setSecretness(true);
-
-  return updateResultLevelLattice(bootstrap, solver);
-}
-
 // For all schemes
-template struct BootstrapWaterLine<mgmt::ModReduceOp>;
+
 template struct ModReduceBefore<secret::YieldOp>;
 template struct UseInitOpForPlaintextOperand<tensor::ExtractSliceOp>;
 template struct UseInitOpForPlaintextOperand<tensor::InsertSliceOp>;

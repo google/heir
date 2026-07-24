@@ -218,8 +218,7 @@ class LevelAnalysis
   int levelBudget;
 };
 
-LevelState deriveResultLevel(Operation* op,
-                             ArrayRef<const LevelLattice*> operands);
+LevelState deriveResultLevel(Operation* op, ArrayRef<LevelState> operands);
 
 /// Backward Analyze the level of plaintext operands of ct-pt ops.
 ///
@@ -265,14 +264,12 @@ std::optional<int> getMaxLevel(Operation* root);
 // Get the maximum level of SSA values in the op, from the data flow solver.
 int getMaxLevel(Operation* top, DataFlowSolver* solver);
 
-LevelState transferForward(mgmt::ModReduceOp op,
-                           ArrayRef<const LevelLattice*> operands);
+LevelState transferForward(mgmt::ModReduceOp op, ArrayRef<LevelState> operands);
 LevelState transferForward(mgmt::LevelReduceOp op,
-                           ArrayRef<const LevelLattice*> operands);
+                           ArrayRef<LevelState> operands);
 LevelState transferForward(mgmt::LevelReduceMinOp op,
-                           ArrayRef<const LevelLattice*> operands);
-LevelState transferForward(mgmt::BootstrapOp op,
-                           ArrayRef<const LevelLattice*> operands);
+                           ArrayRef<LevelState> operands);
+LevelState transferForward(mgmt::BootstrapOp op, ArrayRef<LevelState> operands);
 
 }  // namespace heir
 }  // namespace mlir

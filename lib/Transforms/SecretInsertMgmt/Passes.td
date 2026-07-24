@@ -119,4 +119,23 @@ def SecretInsertMgmtCKKS : Pass<"secret-insert-mgmt-ckks", "ModuleOp"> {
   ];
 }
 
+def AnnotateBootstrapWaterline : Pass<"annotate-bootstrap-waterline", "ModuleOp"> {
+  let summary = "Annotate bootstrap waterline analysis results";
+
+  let description = [{
+    Runs BootstrapWaterlineAnalysis and annotates the IR with the results.
+  }];
+
+  let dependentDialects = [
+    "mlir::heir::mgmt::MgmtDialect"
+  ];
+
+  let options = [
+    Option<"bootstrapWaterline", "bootstrap-waterline", "int",
+           /*default=*/"2", "Waterline for insert bootstrap op">,
+    Option<"levelBudget", "level-budget", "int", /*default=*/"40",
+           "An optional maximum level budget for the pipeline to assume">,
+  ];
+}
+
 #endif  // LIB_TRANSFORMS_SECRETINSERTMGMT_PASSES_TD_

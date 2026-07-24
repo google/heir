@@ -2,14 +2,18 @@
 
 #include <utility>
 
+#include "lib/Analysis/LevelAnalysis/BootstrapWaterlineAnalysis.h"
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/MulDepthAnalysis/MulDepthAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Transforms/Halo/Patterns.h"
 #include "lib/Transforms/SecretInsertMgmt/SecretInsertMgmtPatterns.h"
+#include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"               // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallPtrSet.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "llvm/include/llvm/Support/DebugLog.h"            // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
@@ -108,16 +112,18 @@ LogicalResult runInsertMgmtPipeline(Operation* top,
 
   makeRegionBranchOpsLevelInvariant(top);
 
+  int idCounter = 0;  // for making adjust_scale op different to avoid cse
   if (options.bootstrapWaterline.has_value()) {
     LDBG(2) << "Bootstrap waterline";
-    insertBootstrapWaterLine(top, options.bootstrapWaterline.value());
+    insertBootstrapWaterLine(top, options.bootstrapWaterline.value(),
+                             options.levelBudget, options.includeFloats,
+                             &idCounter);
   }
 
   // An if statement must have each branch producing the same level as a result,
   // so the branch with the higher level must insert a level_reduce op.
   adjustLevelsForRegionBranchOps(top);
 
-  int idCounter = 0;  // for making adjust_scale op different to avoid cse
   LDBG(2) << "Handling cross level ops";
   handleCrossLevelOps(top, &idCounter, options.includeFloats);
 
@@ -237,14 +243,76 @@ void handleCrossMulDepthOps(Operation* top, int* idCounter,
   (void)walkAndApplyPatterns(top, std::move(patterns));
 }
 
-void insertBootstrapWaterLine(Operation* top, int bootstrapWaterline) {
+void insertBootstrapWaterLine(Operation* top, int bootstrapWaterline,
+                              int levelBudget, bool includeFloats,
+                              int* idCounter) {
   DataFlowSolver solver;
-  makeAndRunSolver(top, solver);
-  MLIRContext* ctx = top->getContext();
-  RewritePatternSet patterns(ctx);
-  patterns.add<BootstrapWaterLine<mgmt::ModReduceOp>>(ctx, top, &solver,
-                                                      bootstrapWaterline);
-  (void)walkAndApplyPatterns(top, std::move(patterns));
+  dataflow::loadBaselineAnalyses(solver);
+  solver.load<SecretnessAnalysis>();
+  solver.load<BootstrapWaterlineAnalysis>(bootstrapWaterline, levelBudget);
+  if (failed(solver.initializeAndRun(top))) {
+    LDBG() << "Failed to run solver!";
+    return;
+  }
+
+  // Walk the IR to collect all Values that need bootstrapping
+  SmallVector<Value> targets;
+  llvm::SmallPtrSet<Value, 16> visited;
+  walkValues(top, [&](Value value) {
+    if (!visited.insert(value).second) {
+      return;
+    }
+    if (isa<secret::SecretType>(value.getType())) {
+      return;
+    }
+    if (auto* lattice = solver.lookupState<BootstrapWaterlineLattice>(value)) {
+      if (lattice->getValue().getNeedsBootstrap()) {
+        targets.push_back(value);
+      }
+    }
+  });
+
+  // Mutate the IR
+  OpBuilder builder(top->getContext());
+  for (Value needsBootstrap : targets) {
+    Operation* defOp = needsBootstrap.getDefiningOp();
+    if (defOp && isa<ReducesLevelOpInterface>(defOp)) {
+      // To defer bootstraps as long as possible, we mark the op result of a
+      // modreduce op as needing bootstrap when that modreduce would reduce the
+      // level to less than zero. So instead we need to bootstrap the operand of
+      // the modreduce op.
+      auto reduceOp = cast<ReducesLevelOpInterface>(defOp);
+      Value operandToReduce = reduceOp.getOperandToReduce().get();
+      builder.setInsertionPoint(defOp);
+      auto bootstrapOp = mgmt::BootstrapOp::create(
+          builder, defOp->getLoc(), operandToReduce.getType(), operandToReduce);
+
+      Value newOperand = bootstrapOp.getResult();
+      if (includeFloats && isa<mgmt::ModReduceOp>(defOp)) {
+        // In CKKS, bootstrap resets the scale to Delta. If the next operation
+        // is a modreduce, it will drop the scale by Delta, resulting in a scale
+        // of 0. To prevent this, we insert an adjust_scale op here to raise the
+        // scale to Delta^2 before the modreduce, so the modreduce output scale
+        // remains at Delta.
+        auto adjustScaleOp = mgmt::AdjustScaleOp::create(
+            builder, defOp->getLoc(), newOperand,
+            builder.getI64IntegerAttr((*idCounter)++));
+        newOperand = adjustScaleOp.getResult();
+      }
+      reduceOp.getOperandToReduce().set(newOperand);
+    } else {
+      if (defOp) {
+        builder.setInsertionPointAfter(defOp);
+      } else {
+        BlockArgument blockArg = cast<BlockArgument>(needsBootstrap);
+        builder.setInsertionPointToStart(blockArg.getOwner());
+      }
+      auto bootstrapOp =
+          mgmt::BootstrapOp::create(builder, needsBootstrap.getLoc(),
+                                    needsBootstrap.getType(), needsBootstrap);
+      needsBootstrap.replaceAllUsesExcept(bootstrapOp.getResult(), bootstrapOp);
+    }
+  }
 }
 
 void peelPlaintextIterations(Operation* top) {
@@ -338,6 +406,7 @@ void unrollLoopForLevelUtilization(Operation* loopOp, DataFlowSolver* solver,
                                    int levelBudget) {
   MLIRContext* ctx = loopOp->getContext();
   PatternRewriter rewriter(ctx);
+  Operation* parentOp = loopOp->getParentOp();
 
   // A pattern driver is not appropriate here because we need to unroll
   // the loops from inner-most to outer-most. The order in which nested
@@ -353,7 +422,7 @@ void unrollLoopForLevelUtilization(Operation* loopOp, DataFlowSolver* solver,
   LDBG(2) << "Deleting annotated ops";
   RewritePatternSet cleanupPatterns(ctx);
   cleanupPatterns.add<DeleteAnnotatedOps>(ctx);
-  walkAndApplyPatterns(loopOp, std::move(cleanupPatterns));
+  walkAndApplyPatterns(parentOp, std::move(cleanupPatterns));
 }
 
 }  // namespace heir

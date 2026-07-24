@@ -6,6 +6,7 @@
 #include <optional>
 
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Parameters/BGV/Params.h"
 #include "lib/Parameters/CKKS/Params.h"
@@ -90,6 +91,7 @@ struct BGVScaleModel {
                                     int64_t scale);
   static int64_t evalModReduceScaleBackward(const LocalParam& inputParam,
                                             int64_t resultScale);
+  static std::optional<int64_t> getDefaultScale(const SchemeParam& param);
 };
 
 struct CKKSScaleModel {
@@ -104,6 +106,7 @@ struct CKKSScaleModel {
                                     int64_t scale);
   static int64_t evalModReduceScaleBackward(const LocalParam& inputParam,
                                             int64_t resultScale);
+  static std::optional<int64_t> getDefaultScale(const SchemeParam& param);
 };
 
 /// Forward Analyse the scale of each secret Value
@@ -195,6 +198,13 @@ class ScaleAnalysisBackward
         schemeParam(schemeParam) {}
 
   void setToExitState(ScaleLattice* lattice) override {
+    Value val = lattice->getAnchor();
+    auto mgmtAttr = mgmt::findMgmtAttrAssociatedWith(val);
+    if (mgmtAttr && mgmtAttr.getScale() != 0) {
+      propagateIfChanged(lattice,
+                         lattice->join(ScaleState(mgmtAttr.getScale())));
+      return;
+    }
     propagateIfChanged(lattice, lattice->join(ScaleState()));
   }
 
