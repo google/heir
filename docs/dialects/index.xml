@@ -11869,7 +11869,9 @@ The behavior is undefined for NaN inputs.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `math_ext.softmax` $value attr-dict `:` type($result)
 &lt;/code>&lt;/pre>&lt;p>Applies the softmax function to the input vector or batch of vectors.
-For 2D inputs, the softmax is applied row-wise.&lt;/p>
+For 2D inputs, the softmax is applied row-wise. For 3D inputs, the input
+is interpreted as a batch of matrices and the softmax is applied row-wise
+to each matrix in the batch.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -11884,7 +11886,7 @@ For 2D inputs, the softmax is applied row-wise.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>value&lt;/code>&lt;/td>
-&lt;td>1D/2D tensor of floating-point values&lt;/td>
+&lt;td>1D/2D/3D tensor of floating-point values&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -11899,7 +11901,7 @@ For 2D inputs, the softmax is applied row-wise.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>result&lt;/code>&lt;/td>
-&lt;td>1D/2D tensor of floating-point values&lt;/td>
+&lt;td>1D/2D/3D tensor of floating-point values&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table></description></item><item><title>Docs: Mgmt</title><link>https://heir.dev/docs/dialects/mgmt/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/mgmt/</guid><description>
