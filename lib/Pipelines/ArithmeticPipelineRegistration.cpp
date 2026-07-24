@@ -61,6 +61,7 @@
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/SelectRewrite/SelectRewrite.h"
+#include "lib/Transforms/SoftmaxCanonicalizations/SoftmaxCanonicalizations.h"
 #include "lib/Transforms/SplitPreprocessing/SplitPreprocessing.h"
 #include "lib/Transforms/TensorLinalgToAffineLoops/TensorLinalgToAffineLoops.h"
 #include "lib/Transforms/ValidateNoise/ValidateNoise.h"
@@ -569,6 +570,7 @@ void linalgPreprocessingBuilder(OpPassManager& manager) {
   manager.addPass(createCSEPass());
   manager.addPass(createLinalgCanonicalizations());
   manager.addPass(createReductionCanonicalizations());
+  manager.addPass(createSoftmaxCanonicalizations());
 }
 
 void torchLinalgToCkksBuilder(OpPassManager& manager,

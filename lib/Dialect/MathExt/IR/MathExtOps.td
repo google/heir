@@ -33,16 +33,18 @@ def MathExt_SigmoidOp : MathExt_Op<"sigmoid", [Pure, ElementwiseMappable, SameOp
   let assemblyFormat = "$value attr-dict `:` type($result)";
 }
 
-def 1DOr2DFloatTensor : TensorRankOf<[AnyFloat], [1, 2]>;
+def 1DTo3DFloatTensor : TensorRankOf<[AnyFloat], [1, 2, 3]>;
 
 def MathExt_SoftmaxOp : MathExt_Op<"softmax", [Pure, SameOperandsAndResultType]> {
   let summary = "Returns the softmax distribution of its input vector or batch of vectors";
   let description = [{
     Applies the softmax function to the input vector or batch of vectors.
-    For 2D inputs, the softmax is applied row-wise.
+    For 2D inputs, the softmax is applied row-wise. For 3D inputs, the input
+    is interpreted as a batch of matrices and the softmax is applied row-wise
+    to each matrix in the batch.
   }];
-  let arguments = (ins 1DOr2DFloatTensor:$value);
-  let results = (outs 1DOr2DFloatTensor:$result);
+  let arguments = (ins 1DTo3DFloatTensor:$value);
+  let results = (outs 1DTo3DFloatTensor:$result);
   let assemblyFormat = "$value attr-dict `:` type($result)";
 }
 

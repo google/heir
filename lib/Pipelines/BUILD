@@ -162,6 +162,7 @@ cc_library(
         "@heir//lib/Transforms/SecretInsertMgmt",
         "@heir//lib/Transforms/Secretize",
         "@heir//lib/Transforms/SelectRewrite",
+        "@heir//lib/Transforms/SoftmaxCanonicalizations",
         "@heir//lib/Transforms/SplitPreprocessing",
         "@heir//lib/Transforms/TensorLinalgToAffineLoops",
         "@heir//lib/Transforms/ValidateNoise",

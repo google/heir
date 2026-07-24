@@ -127,6 +127,7 @@
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/SelectRewrite/SelectRewrite.h"
 #include "lib/Transforms/ShapeInference/ShapeInference.h"
+#include "lib/Transforms/SoftmaxCanonicalizations/SoftmaxCanonicalizations.h"
 #include "lib/Transforms/SoftmaxToCgfSoftmax/SoftmaxToCgfSoftmax.h"
 #include "lib/Transforms/SplitPreprocessing/SplitPreprocessing.h"
 #include "lib/Transforms/StraightLineVectorizer/StraightLineVectorizer.h"
@@ -428,6 +429,7 @@ int main(int argc, char** argv) {
   registerLinalgCanonicalizationsPasses();
   registerLinalgFuseLinearOpsPasses();
   registerReductionCanonicalizationsPasses();
+  registerSoftmaxCanonicalizationsPass();
   registerFoldConstantTensorsPasses();
   registerLowerPolynomialEvalPasses();
   registerLowerUnpackPasses();
