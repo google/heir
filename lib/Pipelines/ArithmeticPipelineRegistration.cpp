@@ -37,6 +37,8 @@
 #include "lib/Transforms/AddClientInterface/AddClientInterface.h"
 #include "lib/Transforms/ApplyFolders/ApplyFolders.h"
 #include "lib/Transforms/BooleanVectorizer/BooleanVectorizer.h"
+#include "lib/Transforms/BroadcastCanonicalizations/BroadcastCanonicalizations.h"
+#include "lib/Transforms/BroadcastSwap/BroadcastSwap.h"
 #include "lib/Transforms/CompareToSignRewrite/CompareToSignRewrite.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/ConvertToCiphertextSemantics.h"
 #include "lib/Transforms/DropUnitDims/DropUnitDims.h"
@@ -569,6 +571,8 @@ void linalgPreprocessingBuilder(OpPassManager& manager) {
   manager.addPass(createCSEPass());
   manager.addPass(createLinalgCanonicalizations());
   manager.addPass(createReductionCanonicalizations());
+  manager.addPass(createBroadcastCanonicalizations());
+  manager.addPass(createBroadcastSwap());
 }
 
 void torchLinalgToCkksBuilder(OpPassManager& manager,

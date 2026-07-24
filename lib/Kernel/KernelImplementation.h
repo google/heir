@@ -487,6 +487,82 @@ implementRotateAndReduce(const T& vector, std::optional<T> plaintexts,
       zeroDiagonals, defaultDagDerivedRotationIndexFn<T>);
 }
 
+// Returns an arithmetic DAG that implements the linalg.broadcast operation
+// Assumes sparse packing, aka a reduction was just applied.
+//
+// This does an initial mask to make sure that the input value is zero at all
+// slots but those to be broadcasted. It then rotates by 1, 2, 4 ... until the
+// number of slots left to cover is less than the next power of 2 rotation.
+// Finally, it performs one last rotate to cover the remaining slots, and masks
+// and adds that to create a fully broadcasted vector.
+//
+// 'vector' is the input ciphertext that will be rotated O(log2(n)) times.
+// 'dimension' is the index of the dimension to broadcast along.
+// 'steps' is the size of the dimension to broadcast.
+// 'originalShape' is the shape of the tensor before reduction, used to compute
+// how many slots to rotate initially.
+template <typename T>
+std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
+                 std::shared_ptr<ArithmeticDagNode<T>>>
+implementRotateAndBroadcast(const T& vector, int64_t dimension, int64_t steps,
+                            DagType dagType, int64_t ciphertextSize,
+                            ArrayRef<int64_t> originalShape) {
+  using NodeTy = ArithmeticDagNode<T>;
+  auto vectorDag = NodeTy::leaf(vector);
+
+  // Size to broadcast: product of dimensions from `dimension` to the last
+  // dimension of the original shape.
+  int64_t currentSize = 1;
+  for (int64_t i = dimension; i < static_cast<int64_t>(originalShape.size());
+       ++i) {
+    currentSize *= originalShape[i];
+  }
+
+  // Initial mask
+  std::vector<double> maskValues(ciphertextSize, 0);
+
+  for (int64_t i = 0; i < maskValues.size(); i++) {
+    int64_t idx = i % (currentSize * steps);
+    if (idx < currentSize) {
+      maskValues[i] = 1;
+    }
+  }
+
+  vectorDag =
+      NodeTy::mul(vectorDag, NodeTy::constantTensor(maskValues, dagType));
+
+  // log(n) rotations and additions
+  int64_t doneSize = currentSize;
+  int64_t shiftSize = currentSize;
+  while (doneSize + shiftSize <= currentSize * steps) {
+    auto rotated = NodeTy::leftRotate(vectorDag, -shiftSize);
+    vectorDag = NodeTy::add(vectorDag, rotated);
+    doneSize += shiftSize;
+    shiftSize *= 2;
+  }
+
+  // Final mask and rotation to do the last non-power of 2 expansion:
+  if (doneSize < currentSize * steps) {
+    int64_t finalShift = currentSize * steps - doneSize;
+    auto rotated = NodeTy::leftRotate(vectorDag, -finalShift);
+    for (int64_t i = 0; i < maskValues.size(); i++) {
+      int64_t idx = i % (currentSize * steps);
+
+      if (idx >= doneSize) {
+        maskValues[i] = 1;
+      } else {
+        maskValues[i] = 0;
+      }
+    }
+
+    auto masked =
+        NodeTy::mul(rotated, NodeTy::constantTensor(maskValues, dagType));
+    vectorDag = NodeTy::add(vectorDag, masked);
+  }
+
+  return vectorDag;
+}
+
 // Returns an arithmetic DAG that implements a dot product kernel.
 template <typename T>
 std::enable_if_t<std::is_base_of<AbstractValue, T>::value,
