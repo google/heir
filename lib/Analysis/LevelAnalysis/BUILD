@@ -7,14 +7,8 @@ package(
 
 cc_library(
     name = "LevelAnalysis",
-    srcs = [
-        "BootstrapWaterlineAnalysis.cpp",
-        "LevelAnalysis.cpp",
-    ],
-    hdrs = [
-        "BootstrapWaterlineAnalysis.h",
-        "LevelAnalysis.h",
-    ],
+    srcs = ["LevelAnalysis.cpp"],
+    hdrs = ["LevelAnalysis.h"],
     deps = [
         "@heir//lib/Analysis:Utils",
         "@heir//lib/Analysis/SecretnessAnalysis",
@@ -27,7 +21,6 @@ cc_library(
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithDialect",
-        "@llvm-project//mlir:ControlFlowInterfaces",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",

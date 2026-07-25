@@ -186,9 +186,7 @@ void mlirToSecretArithmeticPipelineBuilder(
   LayoutPropagationOptions layoutPropagationOptions;
   layoutPropagationOptions.ciphertextSize = options.ciphertextDegree;
   pm.addPass(createLayoutPropagation(layoutPropagationOptions));
-  LayoutOptimizationOptions layoutOptimizationOptions;
-  layoutOptimizationOptions.ciphertextSize = options.ciphertextDegree;
-  pm.addPass(createLayoutOptimization(layoutOptimizationOptions));
+  pm.addPass(createLayoutOptimization());
   // Layout conversions may be repeated, so run CSE
   pm.addPass(createCSEPass());
 
