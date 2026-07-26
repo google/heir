@@ -4,11 +4,11 @@
 #include "lib/Dialect/Poulpy/IR/PoulpyOps.h"
 #include "lib/Dialect/Poulpy/IR/PoulpyTypes.h"
 #include "lib/Target/Poulpy/PoulpyTemplates.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-translate/Translation.h"  // from @llvm-project
-
 #define DEBUG_TYPE "poulpy-emitter"
 
 namespace mlir {
@@ -58,10 +58,23 @@ LogicalResult translateToPoulpy(Operation* op, llvm::raw_ostream& os) {
   return result;
 }
 
+LogicalResult PoulpyEmitter::translateBlock(Block& block) {
+  for (Operation& op : block.getOperations()) {
+    if (failed(translate(op))) {
+      return failure();
+    }
+  }
+  return success();
+}
+
 LogicalResult PoulpyEmitter::translate(Operation& op) {
   LogicalResult status =
       llvm::TypeSwitch<Operation&, LogicalResult>(op)
+          // Builtin ops
           .Case<ModuleOp>([&](ModuleOp op) { return printOperation(op); })
+          // Func ops
+          .Case<func::FuncOp, func::ReturnOp>(
+              [&](auto op) { return printOperation(op); })
           .Default([&](Operation& op) {
             return op.emitOpError("unable to find printer for op");
           });
@@ -90,9 +103,66 @@ LogicalResult PoulpyEmitter::printOperation(ModuleOp moduleOp) {
   return success();
 }
 
+LogicalResult PoulpyEmitter::printOperation(func::FuncOp funcOp) {
+  os << "pub fn " << funcOp.getName() << "(\n";
+  os.indent();
+  for (Value arg : funcOp.getArguments()) {
+    auto argName = variableNames->getNameForValue(arg);
+    // TODO(mmoro): add type, should we check integertype like tfherust? how to
+    // handle reference?
+    os << argName << ": ";
+    if (failed(emitType(arg.getType()))) {
+      return funcOp.emitOpError()
+             << "Failed to emit poulpy type " << arg.getType();
+    }
+    os << ",\n";
+  }
+  os.unindent();
+  os << ") -> Result<";
+
+  auto numResults = funcOp.getNumResults();
+  if (numResults == 0) {
+    os << "()";
+  } else if (numResults == 1) {
+    Type result = funcOp.getResultTypes()[0];
+    if (failed(emitType(result))) {
+      return funcOp.emitOpError() << "Failed to emit poulpy type " << result;
+    }
+  } else {
+    // TODO(mmoro): implement
+  }
+
+  os << "> {\n";
+  os.indent();
+  for (Block& block : funcOp.getBlocks()) {
+    if (failed(translateBlock(block))) {
+      return funcOp.emitOpError()
+             << "Failed to translate block of func " << funcOp.getName();
+    }
+  }
+
+  os.unindent();
+  os << "}\n\n";
+  return success();
+}
+
+LogicalResult PoulpyEmitter::printOperation(func::ReturnOp op) {
+  // TODO(mmoro): implement ReturnOp printing for non-zero number of return
+  // values
+  if (op.getNumOperands() == 0) {
+    os << "Ok(())\n";
+  }
+  return success();
+}
+
+// TODO(mmoro): add isArg
 FailureOr<std::string> PoulpyEmitter::convertType(Type type) {
-  // TODO(mmoro): implement type conversion
-  return std::string("TODO");
+  // TODO(mmoro): handle references and other types
+  return llvm::TypeSwitch<Type&, FailureOr<std::string>>(type)
+      .Case<ModuleType>([&](ModuleType type) -> FailureOr<std::string> {
+        return std::string("&Module<BE>");
+      })
+      .Default([&](Type&) { return failure(); });
 }
 
 LogicalResult PoulpyEmitter::emitType(Type type) {

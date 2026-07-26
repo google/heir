@@ -5,6 +5,7 @@
 #include <string_view>
 
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
 #include "mlir/include/mlir/Support/IndentedOstream.h"  // from @llvm-project
@@ -36,6 +37,8 @@ class PoulpyEmitter {
 
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);
+  LogicalResult printOperation(func::FuncOp op);
+  LogicalResult printOperation(func::ReturnOp op);
 
   // Emit a Poulpy type
   LogicalResult emitType(Type type);
